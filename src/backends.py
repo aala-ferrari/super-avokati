@@ -92,7 +92,8 @@ class ClaudeCodeBackend(LLMBackend):
         model: str = "opus",
         fast_model: str = "haiku",
         cli_path: str | None = None,
-        timeout_s: int = 180,
+        timeout_s: int = 300,
+        effort: str | None = "high",
     ):
         self.cli = cli_path or shutil.which("claude")
         if not self.cli:
@@ -103,6 +104,9 @@ class ClaudeCodeBackend(LLMBackend):
         self.model = model
         self.fast_model = fast_model
         self.timeout_s = timeout_s
+        # Reasoning budget for the main (non-fast) call. Valid values:
+        # low, medium, high, xhigh, max. None disables the flag.
+        self.effort = effort
 
     def complete(self, system, messages, max_tokens=1500, fast=False,
                  session_id: str | None = None,
@@ -111,6 +115,11 @@ class ClaudeCodeBackend(LLMBackend):
 
         model = self.fast_model if fast else self.model
         cmd = [self.cli, "-p", "--output-format", "json", "--model", model]
+
+        # Extended thinking on the main answer stage — Opus reasons
+        # through hard legal questions before writing the final text.
+        if not fast and self.effort:
+            cmd.extend(["--effort", self.effort])
 
         if session_id:
             # Resume existing session — system prompt + history are baked in;
@@ -260,11 +269,14 @@ class ClaudeCodeBackend(LLMBackend):
 class AnthropicBackend(LLMBackend):
     name = "anthropic"
 
-    def __init__(self, api_key: str, model: str, fast_model: str):
+    def __init__(self, api_key: str, model: str, fast_model: str,
+                 thinking_budget: int = 0):
         from anthropic import Anthropic  # lazy import
         self.client = Anthropic(api_key=api_key)
         self.model = model
         self.fast_model = fast_model
+        # Token budget for extended thinking on the main model. 0 disables.
+        self.thinking_budget = thinking_budget
 
     def complete(self, system, messages, max_tokens=1500, fast=False,
                  session_id: str | None = None,
@@ -280,13 +292,28 @@ class AnthropicBackend(LLMBackend):
                 last["content"] = blocks + [
                     {"type": "text", "text": str(last.get("content", ""))}
                 ]
-        resp = self.client.messages.create(
+        kwargs: dict = dict(
             model=self.fast_model if fast else self.model,
             max_tokens=max_tokens,
             system=system,
             messages=messages,
         )
-        return resp.content[0].text.strip()
+        # Extended thinking on the main (non-fast) call. Max budget must
+        # be less than max_tokens, so we bump max_tokens if needed.
+        if not fast and self.thinking_budget > 0:
+            if max_tokens <= self.thinking_budget:
+                kwargs["max_tokens"] = self.thinking_budget + 2000
+            kwargs["thinking"] = {
+                "type": "enabled",
+                "budget_tokens": self.thinking_budget,
+            }
+        resp = self.client.messages.create(**kwargs)
+        # With thinking enabled the first block is the thinking trace;
+        # grab the first text block for the actual answer.
+        for block in resp.content:
+            if getattr(block, "type", None) == "text":
+                return block.text.strip()
+        return ""
 
     def _attachment_blocks(self, attachments: list[Path]) -> list[dict]:
         import mimetypes
@@ -427,10 +454,12 @@ def build_backend() -> LLMBackend:
     from .config import (
         ANTHROPIC_API_KEY,
         BRAIN_BACKEND,
+        CLAUDE_CODE_EFFORT,
         CLAUDE_CODE_FAST_MODEL,
         CLAUDE_CODE_MODEL,
         CLAUDE_FAST_MODEL,
         CLAUDE_MODEL,
+        CLAUDE_THINKING_BUDGET,
         GEMINI_API_KEY,
         GEMINI_FAST_MODEL,
         GEMINI_MODEL,
@@ -460,9 +489,14 @@ def build_backend() -> LLMBackend:
                 "BRAIN_BACKEND=claude_code but `claude` CLI is not in PATH. "
                 "Install Claude Code and run `claude /login`."
             )
-        log.info("using Claude Code backend (%s / %s)",
-                 CLAUDE_CODE_MODEL, CLAUDE_CODE_FAST_MODEL)
-        return ClaudeCodeBackend(model=CLAUDE_CODE_MODEL, fast_model=CLAUDE_CODE_FAST_MODEL)
+        log.info("using Claude Code backend (%s / %s, effort=%s)",
+                 CLAUDE_CODE_MODEL, CLAUDE_CODE_FAST_MODEL,
+                 CLAUDE_CODE_EFFORT or "off")
+        return ClaudeCodeBackend(
+            model=CLAUDE_CODE_MODEL,
+            fast_model=CLAUDE_CODE_FAST_MODEL,
+            effort=CLAUDE_CODE_EFFORT or None,
+        )
 
     if choice == "gemini":
         if not GEMINI_API_KEY:
@@ -473,8 +507,12 @@ def build_backend() -> LLMBackend:
     if choice == "anthropic":
         if not ANTHROPIC_API_KEY:
             raise RuntimeError("BRAIN_BACKEND=anthropic but ANTHROPIC_API_KEY is missing.")
-        log.info("using Anthropic backend (%s / %s)", CLAUDE_MODEL, CLAUDE_FAST_MODEL)
-        return AnthropicBackend(ANTHROPIC_API_KEY, CLAUDE_MODEL, CLAUDE_FAST_MODEL)
+        log.info("using Anthropic backend (%s / %s, thinking=%d)",
+                 CLAUDE_MODEL, CLAUDE_FAST_MODEL, CLAUDE_THINKING_BUDGET)
+        return AnthropicBackend(
+            ANTHROPIC_API_KEY, CLAUDE_MODEL, CLAUDE_FAST_MODEL,
+            thinking_budget=CLAUDE_THINKING_BUDGET,
+        )
 
     raise RuntimeError(
         f"Unknown BRAIN_BACKEND='{choice}'. "
