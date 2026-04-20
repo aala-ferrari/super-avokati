@@ -92,8 +92,8 @@ class ClaudeCodeBackend(LLMBackend):
         model: str = "opus",
         fast_model: str = "haiku",
         cli_path: str | None = None,
-        timeout_s: int = 300,
-        effort: str | None = "high",
+        timeout_s: int = 600,
+        effort: str | None = "max",
     ):
         self.cli = cli_path or shutil.which("claude")
         if not self.cli:

@@ -28,20 +28,21 @@ CLAUDE_FAST_MODEL = os.getenv("CLAUDE_FAST_MODEL", "claude-haiku-4-5-20251001")
 # Extended thinking budget (tokens) for the main model on hard legal
 # reasoning — pavlefshmëria, parashkrimi, konflikte ndërmjet neneve.
 # Applies only to the final answer stage; triage/strategic stay fast.
-# Set to 0 to disable thinking.
-CLAUDE_THINKING_BUDGET = int(os.getenv("CLAUDE_THINKING_BUDGET", "8000"))
+# Default is generous: a lawyer defending a client needs the model to
+# think deeply before answering. Set to 0 to disable.
+CLAUDE_THINKING_BUDGET = int(os.getenv("CLAUDE_THINKING_BUDGET", "16000"))
 # Claude Code CLI uses aliases ("opus", "sonnet", "haiku") or full names.
 # Aliases auto-resolve to the latest model under your subscription.
-# Default is opus: we're answering people's legal questions — accuracy
-# matters more than latency. Opus + --effort high gives Claude room to
-# reason before writing. Switch to "sonnet" via env for faster replies
-# on simpler cases.
+# Default is opus: this assistant gives legal advice to people who
+# cannot afford a lawyer — accuracy and strategic depth beat latency
+# every time. A 3-minute answer that catches a nullity ground is worth
+# more than a 30-second answer that misses it.
 CLAUDE_CODE_MODEL = os.getenv("CLAUDE_CODE_MODEL", "opus")
 CLAUDE_CODE_FAST_MODEL = os.getenv("CLAUDE_CODE_FAST_MODEL", "haiku")
 # Effort level for the main answer stage: low / medium / high / xhigh /
-# max. High is a good default — budget enough thinking time without
-# making every answer take 2 minutes. Ignored on fast-model calls.
-CLAUDE_CODE_EFFORT = os.getenv("CLAUDE_CODE_EFFORT", "high")
+# max. Default "max" — we want the lawyer's edge, not a quick reply.
+# Ignored on fast-model calls (triage/strategic stay fast).
+CLAUDE_CODE_EFFORT = os.getenv("CLAUDE_CODE_EFFORT", "max")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-pro")
 GEMINI_FAST_MODEL = os.getenv("GEMINI_FAST_MODEL", "gemini-2.5-flash")
 
