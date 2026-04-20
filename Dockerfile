@@ -1,14 +1,17 @@
-# Super Avvocato V1 — free humanitarian legal assistant for Albanian citizens.
+# Super Avvocato V2 — multi-user legal assistant for Albanian citizens.
 #
 # Default backend inside the container is the Anthropic API (ANTHROPIC_API_KEY)
 # or Gemini (GEMINI_API_KEY) — the Claude Code CLI backend is unavailable
 # because it needs an interactive `claude /login` which doesn't work headless.
 #
-# Build:   docker build -t super-avvocato:v1 .
+# Build:   docker build -t super-avvocato:v2 .
 # Run:     docker run --rm -p 5050:5050 \
+#            -v $(pwd)/data:/app/data \
 #            -e ANTHROPIC_API_KEY=sk-ant-... \
 #            -e BRAIN_BACKEND=anthropic \
-#            super-avvocato:v1
+#            super-avvocato:v2
+# Then provision the first admin user:
+#   docker exec -it <container_id> python -m src.admin adduser <name> --admin
 # Open:    http://localhost:5050
 
 FROM python:3.14-slim-bookworm

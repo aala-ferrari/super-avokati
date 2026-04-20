@@ -39,6 +39,8 @@ RAW_DATA_PATH = Path(os.getenv("RAW_DATA_PATH", ROOT / "data" / "raw"))
 PROCESSED_DATA_PATH = Path(os.getenv("PROCESSED_DATA_PATH", ROOT / "data" / "processed"))
 INDEX_PATH = Path(os.getenv("INDEX_PATH", ROOT / "data" / "index"))
 LOG_PATH = Path(os.getenv("LOG_PATH", ROOT / "logs" / "super_avvocato.log"))
+# SQLite database for users + cases + messages.
+APP_DB_PATH = Path(os.getenv("APP_DB_PATH", ROOT / "data" / "app.db"))
 # Court decisions live under RAW_DATA_PATH/jurisprudence/{court_code}/{year}/
 JURISPRUDENCE_PATH = RAW_DATA_PATH / "jurisprudence"
 

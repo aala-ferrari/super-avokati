@@ -16,3 +16,7 @@ tests/
 # ships the already-built bm25 pickles and the parsed jsonl, so the ~74MB of
 # raw PDFs/DOCX are excluded to keep the image small.
 data/raw/
+# User database and session secret are host-local — mount them as a volume
+# at runtime instead of baking them into the image.
+data/app.db
+data/.secret_key

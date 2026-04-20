@@ -91,12 +91,37 @@ python -m src.retrieval --build
 # 4. Try a single question from the CLI (no Telegram needed)
 python -m src.brain "burri më dhunon, çfarë të bëj"
 
-# 5. Launch the local web UI for testing — open http://127.0.0.1:5050
+# 5. Provision the first user (admin) before launching the web UI
+python -m src.admin adduser romeo --admin
+
+# 6. Launch the multi-user web UI — open http://127.0.0.1:5050
 python -m src.web
 
-# 6. Start the Telegram bot (production)
+# 7. Start the Telegram bot (production)
 python -m src.bot
 ```
+
+## Multi-user & cases (V2)
+
+The web UI is a gated, multi-user app. Each citizen has a login (you create
+them from the admin CLI — there is no public signup). Every legal problem
+lives in its own **case** — an isolated chat, so the bot's memory and
+retrieval never bleed from one matter to another.
+
+```bash
+# Add users (first user is automatically admin)
+python -m src.admin adduser alice
+python -m src.admin adduser bob --admin
+
+# List, rename, delete
+python -m src.admin listusers
+python -m src.admin passwd alice     # reset password
+python -m src.admin deluser alice    # deletes user + all their cases
+```
+
+Cases can be renamed, downloaded as Markdown or JSON, or deleted on demand
+from the web UI. Everything is persisted in `data/app.db` (SQLite) so it
+survives restarts and can be backed up by copying a single file.
 
 ## Disclaimer
 
