@@ -153,15 +153,19 @@ def _extract_pdf(path: Path) -> tuple[str, bool]:
     try:
         return _vision_ocr_pdf_pages(path), True
     except Exception as exc:
-        log.warning("vision OCR failed on %s: %s", path.name, exc)
+        # If pdfplumber already pulled *some* text, keep it rather than
+        # erroring — partial content is better than none.
         if joined:
+            log.warning("vision OCR failed on %s (%s); using thin text layer",
+                        path.name, exc)
             return joined, False
-        return (
-            "(Ky skedar duket i skanuar dhe OCR vizual nuk është i "
-            "disponueshëm. Përshkruaje shkurtimisht përmbajtjen në chat "
-            "që Super Avokati ta analizojë.)",
-            False,
-        )
+        # No text layer AND no OCR available → bubble up so the web layer
+        # can mark the document status='error'. Returning a placeholder
+        # string here would be fed to the triage model and derail it.
+        raise RuntimeError(
+            "PDF i skanuar dhe OCR vizual nuk është i disponueshëm — vendos "
+            "ANTHROPIC_API_KEY ose GEMINI_API_KEY te .env."
+        ) from exc
 
 
 def _extract_svg(path: Path) -> str:
@@ -196,16 +200,21 @@ VISION_PROMPT = (
 
 
 def _vision_ocr_image(path: Path, mimetype: str) -> str:
-    """OCR a single image file using whichever vision API is configured."""
+    """OCR a single image file using whichever vision API is configured.
+
+    Raises RuntimeError when no vision API is available — the web layer
+    marks the document as 'error' so it's surfaced in the UI and excluded
+    from the dossier fed into the brain (otherwise the triage model reads
+    the placeholder as user input and refuses to produce JSON).
+    """
     image_bytes = path.read_bytes()
     if ANTHROPIC_API_KEY:
         return _anthropic_vision(image_bytes, mimetype, VISION_PROMPT)
     if GEMINI_API_KEY:
         return _gemini_vision(image_bytes, mimetype, VISION_PROMPT)
-    return (
-        "(Një imazh u ngarkua por asnjë shërbim OCR vizual nuk është i "
-        "konfiguruar. Vendos ANTHROPIC_API_KEY ose GEMINI_API_KEY te .env, "
-        "ose përshkruaje imazhin në chat.)"
+    raise RuntimeError(
+        "OCR vizual nuk është i konfiguruar. Vendos ANTHROPIC_API_KEY "
+        "ose GEMINI_API_KEY te .env për të lexuar imazhe dhe PDF të skanuara."
     )
 
 

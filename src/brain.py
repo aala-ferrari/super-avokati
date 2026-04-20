@@ -297,10 +297,26 @@ class SuperAvvocato:
         history = history or []
         documents = documents or []
 
-        triage = self._triage(user_message, history, documents)
-        log.info("triage: areas=%s queries=%s angles=%s followup=%s",
-                 triage.areas, triage.search_queries,
-                 triage.strategic_angles, triage.needs_followup)
+        # Triage with a safety net: if the fast model refuses to emit JSON
+        # (sometimes happens when a dossier document reads like direct
+        # instructions), fall back to a minimal triage rather than 500-ing
+        # the whole request — the user still gets retrieval + an answer
+        # grounded on their original question.
+        try:
+            triage = self._triage(user_message, history, documents)
+            log.info("triage: areas=%s queries=%s angles=%s followup=%s",
+                     triage.areas, triage.search_queries,
+                     triage.strategic_angles, triage.needs_followup)
+        except Exception as exc:
+            log.warning("triage failed, using fallback: %s", exc)
+            triage = TriageResult(
+                problem_summary=user_message,
+                areas=[],
+                search_queries=[user_message],
+                strategic_angles=[],
+                needs_followup=False,
+                followup_question="",
+            )
 
         if triage.needs_followup and triage.followup_question:
             return LegalAnswer(
