@@ -52,8 +52,15 @@ class LLMBackend(ABC):
         max_tokens: int = 1500,
         fast: bool = False,
         session_id: str | None = None,
+        attachments: list[Path] | None = None,
     ) -> str:
-        """Return the assistant's text for the given system + message history."""
+        """Return the assistant's text for the given system + message history.
+
+        `attachments`, when provided, is a list of file paths (PDF/JPG/PNG/
+        etc.) that the model should read natively — same spirit as a user
+        pasting an image into a chat. Backends that don't support it will
+        ignore the argument and rely on any OCR text already in `messages`.
+        """
 
     def ocr_image(self, path: Path, mimetype: str, prompt: str) -> str:
         """OCR an image file. Backends that don't support vision raise.
@@ -98,7 +105,8 @@ class ClaudeCodeBackend(LLMBackend):
         self.timeout_s = timeout_s
 
     def complete(self, system, messages, max_tokens=1500, fast=False,
-                 session_id: str | None = None) -> str:
+                 session_id: str | None = None,
+                 attachments: list[Path] | None = None) -> str:
         from .config import ROOT
 
         model = self.fast_model if fast else self.model
@@ -113,6 +121,33 @@ class ClaudeCodeBackend(LLMBackend):
             # Fresh call — set our system prompt and flatten full history.
             cmd.extend(["--system-prompt", system])
             prompt = _flatten_messages(messages)
+
+        # If the caller has files to attach (dossier), hand them to Claude
+        # via the Read tool — same UX as pasting an image into a chat.
+        # Allow directories that contain each file so Read can access them.
+        if attachments:
+            cmd.extend(["--allowedTools", "Read",
+                        "--permission-mode", "bypassPermissions"])
+            seen_dirs: set[str] = set()
+            file_list_lines: list[str] = []
+            for p in attachments:
+                ap = Path(p).resolve()
+                d = str(ap.parent)
+                if d not in seen_dirs:
+                    cmd.extend(["--add-dir", d])
+                    seen_dirs.add(d)
+                file_list_lines.append(f"- {ap}")
+            prompt = (
+                "DOKUMENTET E DOSJES (lexoji para se të përgjigjesh):\n"
+                + "\n".join(file_list_lines)
+                + "\n\nPËR SECILIN skedar më sipër: përdor toolin Read për "
+                "ta hapur DIREKT me pathin e plotë. Mos u mbështet te "
+                "përmbledhje; lexoji vetë dhe nxirr faktet e duhura (data, "
+                "palët, shuma, dispozitivi, afate). Pasi t'i kesh lexuar, "
+                "kthehu te pyetja më poshtë dhe shkruaj përgjigjen.\n\n"
+                "━━━ KËRKESA ━━━\n"
+                + prompt
+            )
 
         log.debug("claude cmd: %s (prompt=%d chars)", cmd, len(prompt))
 
@@ -232,7 +267,19 @@ class AnthropicBackend(LLMBackend):
         self.fast_model = fast_model
 
     def complete(self, system, messages, max_tokens=1500, fast=False,
-                 session_id: str | None = None) -> str:
+                 session_id: str | None = None,
+                 attachments: list[Path] | None = None) -> str:
+        # attachments: Anthropic supports images/PDFs natively via content
+        # blocks. We attach each file to the LAST user message so the model
+        # reads them as part of the current question.
+        if attachments and messages:
+            messages = [dict(m) for m in messages]
+            last = messages[-1]
+            if last.get("role") == "user":
+                blocks = self._attachment_blocks(attachments)
+                last["content"] = blocks + [
+                    {"type": "text", "text": str(last.get("content", ""))}
+                ]
         resp = self.client.messages.create(
             model=self.fast_model if fast else self.model,
             max_tokens=max_tokens,
@@ -240,6 +287,25 @@ class AnthropicBackend(LLMBackend):
             messages=messages,
         )
         return resp.content[0].text.strip()
+
+    def _attachment_blocks(self, attachments: list[Path]) -> list[dict]:
+        import mimetypes
+        blocks: list[dict] = []
+        for p in attachments:
+            ap = Path(p)
+            mt, _ = mimetypes.guess_type(str(ap))
+            if not mt:
+                continue
+            data = base64.standard_b64encode(ap.read_bytes()).decode("ascii")
+            if mt == "application/pdf":
+                blocks.append({"type": "document", "source": {
+                    "type": "base64", "media_type": mt, "data": data,
+                }})
+            elif mt.startswith("image/"):
+                blocks.append({"type": "image", "source": {
+                    "type": "base64", "media_type": mt, "data": data,
+                }})
+        return blocks
 
     def ocr_image(self, path: Path, mimetype: str, prompt: str) -> str:
         image_bytes = Path(path).read_bytes()
@@ -275,11 +341,26 @@ class GeminiBackend(LLMBackend):
         self.fast_model = fast_model
 
     def complete(self, system, messages, max_tokens=1500, fast=False,
-                 session_id: str | None = None) -> str:
+                 session_id: str | None = None,
+                 attachments: list[Path] | None = None) -> str:
         contents = []
         for m in messages:
             role = "model" if m["role"] == "assistant" else "user"
             contents.append({"role": role, "parts": [{"text": m["content"]}]})
+
+        # Attach files to the last user turn so Gemini reads them natively.
+        if attachments and contents and contents[-1]["role"] == "user":
+            import mimetypes
+            extra_parts: list = []
+            for p in attachments:
+                ap = Path(p)
+                mt, _ = mimetypes.guess_type(str(ap))
+                if not mt:
+                    continue
+                extra_parts.append(self._types.Part.from_bytes(
+                    data=ap.read_bytes(), mime_type=mt,
+                ))
+            contents[-1]["parts"] = extra_parts + contents[-1]["parts"]
 
         resp = self.client.models.generate_content(
             model=self.fast_model if fast else self.model,

@@ -31,6 +31,7 @@ from __future__ import annotations
 import json
 import textwrap
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Literal
 
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
@@ -556,14 +557,30 @@ class SuperAvvocato:
         context = _format_articles_for_prompt(retrieved)
         precedents_block = _format_precedents_block(precedents)
         strategic_block = _format_strategic_block(strategic)
-        dossier_block = format_documents_for_prompt(documents or [])
+        # When we have docs, we pass the raw files as attachments so Claude
+        # reads them natively (same UX as pasting an image into a chat) —
+        # the prompt block only lists filenames, no pre-extracted text.
+        attachment_paths = [
+            Path(d["storage_path"]) for d in (documents or [])
+            if d.get("storage_path")
+            and Path(d["storage_path"]).exists()
+        ]
+        if attachment_paths:
+            filenames = "\n".join(
+                f"  • {d.get('filename', '?')}" for d in (documents or [])
+            )
+            dossier_block = (
+                "\nDOKUMENTET E DOSJES (lexoji drejtpërdrejt):\n" + filenames + "\n"
+            )
+        else:
+            dossier_block = format_documents_for_prompt(documents or [])
         dossier_guidance = (
-            "Dokumentet e ngarkuara nga dosja janë më poshtë — përdori "
-            "faktet konkrete (data, emra, shuma, afate, numra akti) kur "
-            "argumenton, dhe, kur është e përshtatshme, CITO dokumentin "
-            "me emrin e tij (p.sh. 'sipas vendimit nr. 123 të bashkuar te "
-            "dosja'). Nëse një fakt i dokumentit bie ndesh me ligjin "
-            "material ose procedural, shpjegoje hapur.\n"
+            "Dokumentet janë bashkangjitur SIKUR t'i kishe para syve. "
+            "Lexoji me kujdes dhe nxirr faktet konkrete (data, emra, shuma, "
+            "afate, numra akti) kur argumenton. Kur është e përshtatshme, "
+            "CITO dokumentin me emrin e tij të skedarit. Nëse një fakt i "
+            "dokumentit bie ndesh me ligjin material ose procedural, "
+            "shpjegoje hapur.\n"
             if documents else ""
         )
 
@@ -601,6 +618,7 @@ class SuperAvvocato:
             max_tokens=2500,
             fast=False,
             session_id=session_id,
+            attachments=attachment_paths or None,
         )
 
 

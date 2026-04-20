@@ -452,20 +452,32 @@ def api_ask():
     if history and history[-1]["role"] == "user":
         history = history[:-1]
 
-    # Gather the dossier for this case (analysed documents only — the brain
-    # ignores still-pending or errored ones). Dossier feeds both retrieval
-    # and answer composition inside SuperAvvocato.answer().
-    case_docs = [
-        {
+    # Gather the dossier for this case. Every doc whose file is still on
+    # disk gets attached — the brain passes the raw files to Claude so it
+    # reads them natively (same UX as a user pasting an image into chat).
+    # Pre-extracted text/summary is a hint for triage; placeholder strings
+    # left over from older code are wiped so they don't mislead the model.
+    _STALE_PREFIXES = (
+        "(Një imazh u ngarkua",
+        "(Ky skedar duket i skanuar",
+    )
+    case_docs = []
+    for d in storage.list_documents(case.id):
+        if not d.storage_path or not Path(d.storage_path).exists():
+            continue
+        text = d.extracted_text or ""
+        summary = d.summary
+        if text.startswith(_STALE_PREFIXES):
+            text = ""
+            summary = None
+        case_docs.append({
             "filename": d.filename,
             "doc_type": d.doc_type,
-            "summary": d.summary,
+            "summary": summary,
             "key_facts": d.key_facts,
-            "extracted_text": d.extracted_text,
-        }
-        for d in storage.list_documents(case.id)
-        if d.status == "ready" and (d.extracted_text or d.summary)
-    ]
+            "extracted_text": text or None,
+            "storage_path": d.storage_path,
+        })
 
     if not _BRAIN:
         hits = _INDEX.search(message, top_k=10)
