@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#0a0a0a" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>Super Avokati — asistent ligjor falas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/static/style.css" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%230a0a0a'/%3E%3Cpath d='M32 14v36M14 22h36M8 22l-4 10h8zM56 22l-4 10h8zM26 50h12v4H26z' stroke='%23e41e26' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='32' cy='14' r='3' fill='%23c9a24d'/%3E%3C/svg%3E" />
+</head>
+<body>
+
+<!-- Scales-of-justice SVG used inline as logo + favicon mirror -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="icon-scales" viewBox="0 0 80 80">
+      <g class="scales-pillar">
+        <line x1="40" y1="14" x2="40" y2="66" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+        <rect x="28" y="64" width="24" height="5" rx="1.5" fill="currentColor"/>
+        <circle cx="40" cy="12" r="3.5" fill="#c9a24d"/>
+      </g>
+      <line x1="12" y1="22" x2="68" y2="22" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+      <g class="scales-pan scales-pan-left">
+        <line x1="12" y1="22" x2="12" y2="30" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M 4 32 Q 12 42 20 32 Z" fill="currentColor" opacity="0.92"/>
+      </g>
+      <g class="scales-pan scales-pan-right">
+        <line x1="68" y1="22" x2="68" y2="30" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M 60 32 Q 68 42 76 32 Z" fill="currentColor" opacity="0.92"/>
+      </g>
+    </symbol>
+  </defs>
+</svg>
+
+<header class="topbar">
+  <button id="menu-btn" class="menu-btn" aria-label="Hap menunë" type="button">
+    <span></span><span></span><span></span>
+  </button>
+
+  <div class="brand">
+    <div class="logo">
+      <svg class="logo-svg" viewBox="0 0 80 80" aria-hidden="true"><use href="#icon-scales"/></svg>
+      <div class="logo-glow" aria-hidden="true"></div>
+    </div>
+    <div class="brand-text">
+      <h1>SUPER AVOKATI</h1>
+      <p class="tagline">Asistent ligjor falas për qytetarët shqiptarë 🇦🇱</p>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat-pill"><strong>{{ num_codes }}</strong><span>kode</span></div>
+    <div class="stat-pill"><strong>{{ "{:,}".format(total_articles).replace(",", ".") }}</strong><span>nene</span></div>
+    <div class="brain-status {{ 'on' if has_brain else 'off' }}" title="{{ backend_name or 'pa backend' }}">
+      <span class="dot"></span>
+      {% if has_brain %}
+        {% if backend_name == 'claude_code' %}Claude Code
+        {% elif backend_name == 'gemini' %}Gemini
+        {% elif backend_name == 'anthropic' %}Claude API
+        {% else %}{{ backend_name }}
+        {% endif %}
+      {% else %}
+        Offline
+      {% endif %}
+    </div>
+  </div>
+</header>
+
+<main>
+  <div id="sidebar-scrim" class="sidebar-scrim" aria-hidden="true"></div>
+
+  <aside id="sidebar" class="sidebar" aria-label="Kodet e mbuluara">
+    <div class="sidebar-head">
+      <h3>📚 Kodet e mbuluara</h3>
+      <button id="sidebar-close" class="sidebar-close" aria-label="Mbyll menunë" type="button">&times;</button>
+    </div>
+    <ul class="codes-list">
+      {% for c in codes %}
+      <li><span class="area-tag area-{{ c.area|lower }}">{{ c.area }}</span><span class="code-title">{{ c.title }}</span></li>
+      {% endfor %}
+    </ul>
+    <div class="disclaimer">
+      <strong>💙 Informacion ligjor falas.</strong>
+      Për raste të rënda ose në gjykatë, gjithmonë konsulto një avokat të licencuar.
+    </div>
+  </aside>
+
+  <section class="chat-area">
+    <div id="messages" class="messages" role="log" aria-live="polite">
+      <div class="msg bot welcome">
+        <div class="welcome-crest" aria-hidden="true">
+          <svg viewBox="0 0 80 80"><use href="#icon-scales"/></svg>
+        </div>
+        <p><strong>Mirë se erdhe te Super Avokati.</strong></p>
+        <p>Jam një asistent ligjor falas. Më trego problemin tënd me fjalët e tua —
+           do t'i gjej nenet e duhura nga kodet shqiptare dhe do të të jap një përgjigje të qartë.</p>
+        <p class="examples">
+          <span class="chip">burri më dhunon</span>
+          <span class="chip">nuk më paguajnë prej 3 muajsh</span>
+          <span class="chip">dogana më mori makinën</span>
+          <span class="chip">pronari i mi dha padi</span>
+        </p>
+      </div>
+    </div>
+
+    <form id="ask-form" class="composer">
+      <div class="composer-inner">
+        <textarea id="ask-input" rows="1" placeholder="Shkruaj pyetjen tënde këtu…" autofocus enterkeyhint="send"></textarea>
+        <button type="submit" id="send-btn" class="primary" aria-label="Dërgo">
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+            <path d="M3 12l18-9-9 18-2-8-7-1z" fill="currentColor"/>
+          </svg>
+        </button>
+      </div>
+      <div class="composer-meta">
+        <button type="button" id="reset-btn" class="secondary">🔄 Rivendos bisedën</button>
+        <span class="composer-hint">Enter për të dërguar · Shift+Enter për rresht të ri</span>
+      </div>
+    </form>
+  </section>
+</main>
+
+<template id="user-msg-tpl">
+  <div class="msg user"><p></p></div>
+</template>
+
+<template id="bot-msg-tpl">
+  <div class="msg bot">
+    <div class="bot-body"></div>
+    <details class="retrieved">
+      <summary>📑 Nenet e konsultuara (<span class="count">0</span>)</summary>
+      <ul class="articles"></ul>
+    </details>
+  </div>
+</template>
+
+<template id="typing-tpl">
+  <div class="msg bot typing" aria-label="Po mendoj…">
+    <span></span><span></span><span></span>
+  </div>
+</template>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

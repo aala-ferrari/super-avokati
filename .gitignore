@@ -1,0 +1,11 @@
+.env
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+.pytest_cache/
+logs/
+*.log
+# Data is tracked on purpose: the V1 snapshot ships with articles + decisions
+# already parsed and indexed, so the app runs immediately after clone/build.

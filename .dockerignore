@@ -1,0 +1,18 @@
+.git
+.gitignore
+.dockerignore
+venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.DS_Store
+logs/
+*.log
+.env
+tests/
+# Raw jurisprudence files are only needed to rebuild the index — the image
+# ships the already-built bm25 pickles and the parsed jsonl, so the ~74MB of
+# raw PDFs/DOCX are excluded to keep the image small.
+data/raw/
