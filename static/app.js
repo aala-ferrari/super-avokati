@@ -20,6 +20,14 @@
   const logoutBtn = document.getElementById("logout-btn");
   const composerHint = document.getElementById("composer-hint");
   const welcomeMsg = document.getElementById("welcome-msg");
+  const dossierBtn = document.getElementById("dossier-btn");
+  const dossierPanel = document.getElementById("dossier-panel");
+  const dossierClose = document.getElementById("dossier-close");
+  const dossierCountBadge = document.getElementById("dossier-count-badge");
+  const dossierDrop = document.getElementById("dossier-drop");
+  const dossierInput = document.getElementById("dossier-input");
+  const dossierList = document.getElementById("dossier-list");
+  const composerAttach = document.getElementById("composer-attach");
 
   // State: the currently-selected case id. When null, the composer is
   // disabled and the welcome screen is shown.
@@ -119,6 +127,8 @@
         precedents: m.precedents || [],
       });
     }
+    renderDossier(c.documents || []);
+    dossierPanel.hidden = true;  // reset to collapsed when switching cases
     sendBtn.disabled = false;
     composerHint.textContent = "Enter për të dërguar · Shift+Enter për rresht të ri";
     input.focus();
@@ -200,6 +210,9 @@
     if (resp.ok) {
       activeCaseId = null;
       caseHeader.hidden = true;
+      dossierPanel.hidden = true;
+      dossierList.innerHTML = "";
+      updateDossierBadge(0);
       messages.innerHTML = "";
       sendBtn.disabled = true;
       composerHint.textContent = "Hap një rast për të filluar bisedën";
@@ -208,6 +221,233 @@
       messages.innerHTML = `<div class="msg bot welcome"><p><strong>Rasti u fshi.</strong> Kliko "＋ Rast i ri" për të hapur një bisedë të re.</p></div>`;
     }
   });
+
+  // ─── dossier (case documents) ────────────────────────────────────
+  // Panel opens either from the paperclip in the composer or the 📎 in the
+  // case header. Uploads are blocking + synchronous on the server (extraction
+  // + AI analysis) so we show a pending row immediately, then replace it
+  // with the analysed row when the server responds.
+
+  function toggleDossier(force) {
+    if (!activeCaseId) return;
+    const want = force !== undefined ? force : dossierPanel.hidden;
+    dossierPanel.hidden = !want;
+    if (want) {
+      dossierPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }
+  dossierBtn?.addEventListener("click", () => toggleDossier());
+  composerAttach?.addEventListener("click", () => {
+    if (!activeCaseId) { createCase().then(() => toggleDossier(true)); return; }
+    toggleDossier(true);
+  });
+  dossierClose?.addEventListener("click", () => toggleDossier(false));
+
+  // File input: bubble up through the label click, then pick up the change.
+  dossierInput?.addEventListener("change", () => {
+    if (!dossierInput.files?.length) return;
+    uploadFiles([...dossierInput.files]);
+    dossierInput.value = "";  // allow re-selecting the same file
+  });
+
+  // Drag & drop anywhere on the drop zone.
+  ["dragenter", "dragover"].forEach((ev) => {
+    dossierDrop?.addEventListener(ev, (e) => {
+      e.preventDefault(); e.stopPropagation();
+      dossierDrop.classList.add("dragover");
+    });
+  });
+  ["dragleave", "drop"].forEach((ev) => {
+    dossierDrop?.addEventListener(ev, (e) => {
+      e.preventDefault(); e.stopPropagation();
+      dossierDrop.classList.remove("dragover");
+    });
+  });
+  dossierDrop?.addEventListener("drop", (e) => {
+    if (!activeCaseId) return;
+    const files = [...(e.dataTransfer?.files || [])];
+    if (files.length) uploadFiles(files);
+  });
+
+  async function uploadFiles(files) {
+    if (!activeCaseId) {
+      const c = await createCase();
+      if (!c) return;
+    }
+    toggleDossier(true);
+    for (const f of files) {
+      const pending = appendPendingDoc(f);
+      try {
+        const fd = new FormData();
+        fd.append("file", f);
+        const resp = await fetch(`/api/cases/${activeCaseId}/documents`, {
+          method: "POST", body: fd,
+        });
+        const data = await resp.json();
+        if (!resp.ok) {
+          pending.remove();
+          appendErrorDoc(f.name, data.error || `HTTP ${resp.status}`);
+          continue;
+        }
+        pending.remove();
+        appendDoc(data);
+      } catch (err) {
+        pending.remove();
+        appendErrorDoc(f.name, err.message);
+      }
+    }
+    await refreshDossier();
+  }
+
+  async function refreshDossier() {
+    if (!activeCaseId) return;
+    const resp = await fetch(`/api/cases/${activeCaseId}/documents`);
+    if (!resp.ok) return;
+    const { documents } = await resp.json();
+    renderDossier(documents || []);
+  }
+
+  function renderDossier(documents) {
+    dossierList.innerHTML = "";
+    updateDossierBadge(documents.length);
+    if (!documents.length) return;
+    for (const d of documents) appendDoc(d);
+  }
+
+  function updateDossierBadge(n) {
+    if (!dossierCountBadge) return;
+    if (n > 0) {
+      dossierCountBadge.textContent = String(n);
+      dossierCountBadge.hidden = false;
+    } else {
+      dossierCountBadge.hidden = true;
+    }
+  }
+
+  function docIconFor(ext) {
+    ext = (ext || "").toLowerCase();
+    if (ext === ".pdf") return "📕";
+    if (ext === ".svg") return "🧩";
+    if ([".jpg", ".jpeg", ".png", ".webp", ".tif", ".tiff"].includes(ext)) return "🖼️";
+    return "📄";
+  }
+
+  function humanSize(n) {
+    if (!n || n < 1024) return `${n || 0} B`;
+    if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
+    return `${(n / 1024 / 1024).toFixed(1)} MB`;
+  }
+
+  function appendPendingDoc(file) {
+    const li = document.createElement("li");
+    li.className = "doc-item pending";
+    const ext = "." + (file.name.split(".").pop() || "").toLowerCase();
+    li.innerHTML = `
+      <div class="doc-row">
+        <span class="doc-icon">${docIconFor(ext)}</span>
+        <div class="doc-main">
+          <div class="doc-head">
+            <span class="doc-name"></span>
+          </div>
+          <div class="doc-meta">
+            <span class="doc-size">${humanSize(file.size)}</span>
+            <span class="doc-status"><span class="spinner"></span> Po e analizojmë…</span>
+          </div>
+        </div>
+      </div>`;
+    li.querySelector(".doc-name").textContent = file.name;
+    dossierList.appendChild(li);
+    return li;
+  }
+
+  function appendErrorDoc(filename, error) {
+    const li = document.createElement("li");
+    li.className = "doc-item error";
+    li.innerHTML = `
+      <div class="doc-row">
+        <span class="doc-icon">⚠️</span>
+        <div class="doc-main">
+          <div class="doc-head"><span class="doc-name"></span></div>
+          <div class="doc-meta"><span class="doc-status"></span></div>
+        </div>
+        <div class="doc-actions">
+          <button type="button" class="icon-btn danger doc-dismiss">🗑️</button>
+        </div>
+      </div>`;
+    li.querySelector(".doc-name").textContent = filename;
+    li.querySelector(".doc-status").textContent = "Ngarkimi dështoi: " + error;
+    li.querySelector(".doc-dismiss").addEventListener("click", () => li.remove());
+    dossierList.appendChild(li);
+  }
+
+  function appendDoc(d) {
+    const tpl = document.getElementById("doc-item-tpl");
+    const node = tpl.content.cloneNode(true);
+    const li = node.querySelector(".doc-item");
+    li.dataset.id = d.id;
+    li.classList.toggle("error", d.status === "error");
+    node.querySelector(".doc-icon").textContent = docIconFor(d.ext);
+    node.querySelector(".doc-name").textContent = d.filename;
+    if (d.doc_type) {
+      node.querySelector(".doc-type").textContent = d.doc_type;
+    } else {
+      node.querySelector(".doc-type").remove();
+    }
+    node.querySelector(".doc-size").textContent = humanSize(d.size_bytes);
+    const status = node.querySelector(".doc-status");
+    if (d.status === "error") {
+      status.textContent = "⚠ " + (d.error || "gabim");
+    } else if (d.has_text || d.summary) {
+      status.textContent = "✓ e analizuar";
+      status.classList.add("ok");
+    } else {
+      status.textContent = "pa tekst";
+    }
+    const summaryEl = node.querySelector(".doc-summary");
+    if (d.summary) summaryEl.textContent = d.summary;
+    else summaryEl.remove();
+
+    const viewBtn = node.querySelector(".doc-view");
+    viewBtn.href = `/api/cases/${activeCaseId}/documents/${d.id}/raw`;
+    viewBtn.hidden = false;
+
+    const detailsEl = node.querySelector(".doc-details");
+    const factsEl = node.querySelector(".doc-facts");
+    const hasFacts = (d.key_facts && d.key_facts.length);
+    if (hasFacts) {
+      const ul = document.createElement("ul");
+      for (const f of d.key_facts) {
+        const fi = document.createElement("li");
+        fi.textContent = f;
+        ul.appendChild(fi);
+      }
+      factsEl.appendChild(ul);
+    } else {
+      factsEl.remove();
+    }
+    const expandBtn = node.querySelector(".doc-expand");
+    if (hasFacts) {
+      expandBtn.hidden = false;
+      expandBtn.addEventListener("click", () => {
+        detailsEl.hidden = !detailsEl.hidden;
+        expandBtn.classList.toggle("active", !detailsEl.hidden);
+      });
+    } else {
+      detailsEl.remove();
+    }
+
+    node.querySelector(".doc-delete").addEventListener("click", async () => {
+      if (!confirm(`Fshi "${d.filename}" nga dosja?`)) return;
+      const resp = await fetch(
+        `/api/cases/${activeCaseId}/documents/${d.id}`,
+        { method: "DELETE" },
+      );
+      if (resp.ok) {
+        await refreshDossier();
+      }
+    });
+    dossierList.appendChild(node);
+  }
 
   // ─── submit ──────────────────────────────────────────────────────
   form.addEventListener("submit", async (e) => {

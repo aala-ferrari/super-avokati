@@ -62,6 +62,26 @@ CREATE TABLE IF NOT EXISTS messages (
 );
 
 CREATE INDEX IF NOT EXISTS idx_messages_case ON messages(case_id, id);
+
+CREATE TABLE IF NOT EXISTS documents (
+    id             TEXT PRIMARY KEY,           -- uuid hex, doubles as storage filename stem
+    case_id        TEXT NOT NULL,
+    filename       TEXT NOT NULL,              -- original filename as uploaded
+    ext            TEXT NOT NULL,              -- lowercased extension including the dot
+    mimetype       TEXT NOT NULL,
+    size_bytes     INTEGER NOT NULL,
+    storage_path   TEXT NOT NULL,              -- absolute path on disk
+    status         TEXT NOT NULL,              -- 'pending' | 'ready' | 'error'
+    error          TEXT,                       -- set when status='error'
+    extracted_text TEXT,                       -- full OCR/text-layer output
+    doc_type       TEXT,                       -- AI-classified type (vendim, kontratë, padi, etc.)
+    summary        TEXT,                       -- AI-generated short summary
+    key_facts_json TEXT,                       -- JSON array of bullet strings (dates, parties, sums)
+    created_at     TEXT NOT NULL,
+    FOREIGN KEY (case_id) REFERENCES cases(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_documents_case ON documents(case_id, created_at);
 """
 
 
@@ -352,3 +372,132 @@ def conversation_history(case_id: str, max_turns: int = 20) -> list[dict]:
     msgs = list_messages(case_id)
     pruned = msgs[-(max_turns * 2):]
     return [{"role": m.role, "content": m.content} for m in pruned]
+
+
+# ── documents (the case file / "dosja") ────────────────────────────────────
+
+@dataclass
+class Document:
+    id: str
+    case_id: str
+    filename: str
+    ext: str
+    mimetype: str
+    size_bytes: int
+    storage_path: str
+    status: str                 # pending | ready | error
+    error: str | None
+    extracted_text: str | None
+    doc_type: str | None
+    summary: str | None
+    key_facts: list[str]
+    created_at: str
+
+
+def _document_from_row(r: sqlite3.Row) -> Document:
+    return Document(
+        id=r["id"], case_id=r["case_id"], filename=r["filename"], ext=r["ext"],
+        mimetype=r["mimetype"], size_bytes=int(r["size_bytes"]),
+        storage_path=r["storage_path"], status=r["status"], error=r["error"],
+        extracted_text=r["extracted_text"], doc_type=r["doc_type"],
+        summary=r["summary"],
+        key_facts=json.loads(r["key_facts_json"]) if r["key_facts_json"] else [],
+        created_at=r["created_at"],
+    )
+
+
+def create_document(
+    *,
+    case_id: str,
+    filename: str,
+    ext: str,
+    mimetype: str,
+    size_bytes: int,
+    storage_path: str,
+) -> Document:
+    doc_id = uuid.uuid4().hex
+    now = _utcnow()
+    with db() as conn:
+        conn.execute(
+            "INSERT INTO documents (id, case_id, filename, ext, mimetype, "
+            "size_bytes, storage_path, status, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)",
+            (doc_id, case_id, filename, ext, mimetype, size_bytes, storage_path, now),
+        )
+        conn.execute("UPDATE cases SET updated_at = ? WHERE id = ?", (now, case_id))
+    return Document(
+        id=doc_id, case_id=case_id, filename=filename, ext=ext, mimetype=mimetype,
+        size_bytes=size_bytes, storage_path=storage_path, status="pending",
+        error=None, extracted_text=None, doc_type=None, summary=None,
+        key_facts=[], created_at=now,
+    )
+
+
+def update_document_analysis(
+    doc_id: str,
+    *,
+    extracted_text: str | None,
+    doc_type: str | None,
+    summary: str | None,
+    key_facts: list[str] | None,
+) -> None:
+    with db() as conn:
+        conn.execute(
+            "UPDATE documents SET status='ready', error=NULL, "
+            "extracted_text=?, doc_type=?, summary=?, key_facts_json=? "
+            "WHERE id = ?",
+            (
+                extracted_text,
+                doc_type,
+                summary,
+                json.dumps(key_facts, ensure_ascii=False) if key_facts else None,
+                doc_id,
+            ),
+        )
+
+
+def mark_document_error(doc_id: str, error: str) -> None:
+    with db() as conn:
+        conn.execute(
+            "UPDATE documents SET status='error', error=? WHERE id = ?",
+            (error[:500], doc_id),
+        )
+
+
+def list_documents(case_id: str) -> list[Document]:
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT * FROM documents WHERE case_id = ? ORDER BY created_at ASC",
+            (case_id,),
+        ).fetchall()
+    return [_document_from_row(r) for r in rows]
+
+
+def get_document(doc_id: str, case_id: str) -> Document | None:
+    """Fetch a document but only if it belongs to `case_id` (defence in depth)."""
+    with db() as conn:
+        row = conn.execute(
+            "SELECT * FROM documents WHERE id = ? AND case_id = ?",
+            (doc_id, case_id),
+        ).fetchone()
+    return _document_from_row(row) if row else None
+
+
+def count_documents(case_id: str) -> int:
+    with db() as conn:
+        row = conn.execute(
+            "SELECT COUNT(*) AS n FROM documents WHERE case_id = ?",
+            (case_id,),
+        ).fetchone()
+    return int(row["n"])
+
+
+def delete_document(doc_id: str, case_id: str) -> Document | None:
+    """Delete a document row and return the previous row (so the caller can
+    remove the file on disk). Returns None if the row didn't exist."""
+    doc = get_document(doc_id, case_id)
+    if doc is None:
+        return None
+    with db() as conn:
+        conn.execute("DELETE FROM documents WHERE id = ?", (doc_id,))
+    return doc

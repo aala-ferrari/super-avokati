@@ -13,3 +13,5 @@ logs/
 data/app.db
 data/app.db-journal
 data/.secret_key
+# Per-case lawyer uploads (PDFs, images) — private client material, never commit.
+data/uploads/

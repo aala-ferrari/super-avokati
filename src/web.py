@@ -30,6 +30,7 @@ from flask import (
     session, url_for,
 )
 
+from . import documents as docs_mod
 from . import storage
 from .auth import (
     authenticate, current_user, login_required_api, login_required_page,
@@ -37,7 +38,14 @@ from .auth import (
 )
 from .backends import detect_available_backend
 from .brain import SuperAvvocato
-from .config import APP_DB_PATH, LEGAL_DOCUMENTS, MAX_CONVERSATION_TURNS, ROOT
+from .config import (
+    APP_DB_PATH,
+    LEGAL_DOCUMENTS,
+    MAX_CONVERSATION_TURNS,
+    MAX_DOCUMENTS_PER_CASE,
+    MAX_UPLOAD_SIZE_MB,
+    ROOT,
+)
 from .logging_utils import get_logger
 from .retrieval import ArticleIndex
 
@@ -65,6 +73,10 @@ def _load_secret_key() -> bytes:
 
 app.secret_key = _load_secret_key()
 app.permanent_session_lifetime = timedelta(days=30)
+# Flask only checks Content-Length against MAX_CONTENT_LENGTH when set —
+# without this the server would happily buffer multi-GB uploads. We add a
+# small cushion over the per-file limit to account for multipart overhead.
+app.config["MAX_CONTENT_LENGTH"] = (MAX_UPLOAD_SIZE_MB + 2) * 1024 * 1024
 
 _INDEX: ArticleIndex | None = None
 _BRAIN: SuperAvvocato | None = None
@@ -183,6 +195,7 @@ def api_get_case(case_id: str):
     if not case:
         return jsonify({"error": "not found"}), 404
     messages = storage.list_messages(case_id)
+    documents = storage.list_documents(case_id)
     return jsonify({
         "id": case.id,
         "title": case.title,
@@ -194,6 +207,7 @@ def api_get_case(case_id: str):
              "created_at": m.created_at}
             for m in messages
         ],
+        "documents": [_document_payload(d) for d in documents],
     })
 
 
@@ -286,6 +300,130 @@ def api_export_case(case_id: str):
                      as_attachment=True, download_name=filename)
 
 
+# ── dossier (per-case documents) API ───────────────────────────────────────
+
+@app.get("/api/cases/<case_id>/documents")
+@login_required_api
+def api_list_documents(case_id: str):
+    user = request.user  # type: ignore[attr-defined]
+    if storage.get_case(case_id, user.id) is None:
+        return jsonify({"error": "not found"}), 404
+    return jsonify({"documents": [_document_payload(d)
+                                   for d in storage.list_documents(case_id)]})
+
+
+@app.post("/api/cases/<case_id>/documents")
+@login_required_api
+def api_upload_document(case_id: str):
+    """Upload a PDF/JPG/PNG/SVG to the case's dossier.
+
+    We run extraction + AI analysis synchronously — a typical dossier is a
+    handful of small PDFs, and blocking 5-10s here is simpler than a job
+    queue. If the user uploads a large scanned PDF, vision OCR happens in
+    the same request; the frontend shows a spinner.
+    """
+    _ensure_loaded()
+    user = request.user  # type: ignore[attr-defined]
+    case = storage.get_case(case_id, user.id)
+    if case is None:
+        return jsonify({"error": "not found"}), 404
+
+    if storage.count_documents(case_id) >= MAX_DOCUMENTS_PER_CASE:
+        return jsonify({
+            "error": f"maksimumi {MAX_DOCUMENTS_PER_CASE} dokumente për rast"
+        }), 413
+
+    if "file" not in request.files:
+        return jsonify({"error": "no file"}), 400
+    f = request.files["file"]
+    if not f.filename:
+        return jsonify({"error": "no filename"}), 400
+
+    # Read file into memory for validation; upload limit (25MB default) makes
+    # this safe and saves a useless partial write on invalid uploads.
+    content = f.read()
+    v = docs_mod.validate_upload(f.filename, len(content))
+    if not v.ok:
+        return jsonify({"error": v.error}), 400
+
+    storage_path = docs_mod.storage_path_for(case_id, v.ext)
+    storage_path.write_bytes(content)
+
+    doc = storage.create_document(
+        case_id=case_id,
+        filename=f.filename,
+        ext=v.ext,
+        mimetype=v.mimetype,
+        size_bytes=len(content),
+        storage_path=str(storage_path),
+    )
+
+    try:
+        text, used_ocr = docs_mod.extract_text(storage_path, v.ext, v.mimetype)
+    except Exception as exc:
+        log.exception("extraction failed for %s", f.filename)
+        storage.mark_document_error(doc.id, f"{type(exc).__name__}: {exc}")
+        return jsonify(_document_payload(storage.get_document(doc.id, case_id))), 200
+
+    analysis = {"doc_type": None, "summary": None, "key_facts": []}
+    if text and _BRAIN:
+        try:
+            analysis = docs_mod.summarize_document(text, f.filename, _BRAIN.backend)
+        except Exception as exc:
+            log.warning("analysis failed for %s: %s", f.filename, exc)
+
+    storage.update_document_analysis(
+        doc.id,
+        extracted_text=text or None,
+        doc_type=analysis.get("doc_type"),
+        summary=analysis.get("summary"),
+        key_facts=analysis.get("key_facts") or [],
+    )
+    storage.touch_case(case_id, user.id)
+
+    fresh = storage.get_document(doc.id, case_id)
+    payload = _document_payload(fresh)
+    payload["used_vision_ocr"] = used_ocr
+    return jsonify(payload), 201
+
+
+@app.delete("/api/cases/<case_id>/documents/<doc_id>")
+@login_required_api
+def api_delete_document(case_id: str, doc_id: str):
+    user = request.user  # type: ignore[attr-defined]
+    if storage.get_case(case_id, user.id) is None:
+        return jsonify({"error": "not found"}), 404
+    removed = storage.delete_document(doc_id, case_id)
+    if removed is None:
+        return jsonify({"error": "not found"}), 404
+    # Remove the file on disk (best-effort — missing file is not an error).
+    try:
+        Path(removed.storage_path).unlink(missing_ok=True)
+    except OSError as exc:
+        log.warning("could not unlink %s: %s", removed.storage_path, exc)
+    return jsonify({"ok": True})
+
+
+@app.get("/api/cases/<case_id>/documents/<doc_id>/raw")
+@login_required_api
+def api_view_document(case_id: str, doc_id: str):
+    """Stream the original file back to the owner — for preview/download."""
+    user = request.user  # type: ignore[attr-defined]
+    if storage.get_case(case_id, user.id) is None:
+        return jsonify({"error": "not found"}), 404
+    doc = storage.get_document(doc_id, case_id)
+    if doc is None:
+        return jsonify({"error": "not found"}), 404
+    path = Path(doc.storage_path)
+    if not path.exists():
+        return jsonify({"error": "file missing"}), 410
+    return send_file(
+        path, mimetype=doc.mimetype,
+        as_attachment=False,
+        download_name=doc.filename,
+    )
+
+
 # ── ask API (scoped to a case) ─────────────────────────────────────────────
 
 @app.post("/api/ask")
@@ -311,6 +449,21 @@ def api_ask():
     if history and history[-1]["role"] == "user":
         history = history[:-1]
 
+    # Gather the dossier for this case (analysed documents only — the brain
+    # ignores still-pending or errored ones). Dossier feeds both retrieval
+    # and answer composition inside SuperAvvocato.answer().
+    case_docs = [
+        {
+            "filename": d.filename,
+            "doc_type": d.doc_type,
+            "summary": d.summary,
+            "key_facts": d.key_facts,
+            "extracted_text": d.extracted_text,
+        }
+        for d in storage.list_documents(case.id)
+        if d.status == "ready" and (d.extracted_text or d.summary)
+    ]
+
     if not _BRAIN:
         hits = _INDEX.search(message, top_k=10)
         articles = [_article_payload(a, s) for a, s in hits]
@@ -326,7 +479,8 @@ def api_ask():
 
     try:
         result = _BRAIN.answer(message, history=history,
-                               session_id=case.claude_session_id)
+                               session_id=case.claude_session_id,
+                               documents=case_docs)
     except Exception as exc:
         log.exception("brain failure")
         err_text = f"Gabim teknik: {type(exc).__name__}: {html.escape(str(exc))[:200]}"
@@ -381,6 +535,26 @@ def _article_payload(a, score: float) -> dict:
         "hierarchy": " / ".join(x for x in (a.pjesa, a.kreu, a.seksioni) if x),
         "repealed": a.repealed,
         "score": round(score, 2),
+    }
+
+
+def _document_payload(d) -> dict:
+    """Serialise a Document for the UI. Never exposes the on-disk path."""
+    if d is None:
+        return {}
+    return {
+        "id": d.id,
+        "filename": d.filename,
+        "ext": d.ext,
+        "mimetype": d.mimetype,
+        "size_bytes": d.size_bytes,
+        "status": d.status,
+        "error": d.error,
+        "doc_type": d.doc_type,
+        "summary": d.summary,
+        "key_facts": d.key_facts,
+        "has_text": bool(d.extracted_text),
+        "created_at": d.created_at,
     }
 
 

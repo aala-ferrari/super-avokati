@@ -1,15 +1,20 @@
-# Super Avvocato V2 — multi-user legal assistant for Albanian citizens.
+# Super Avvocato V3 — multi-user legal assistant for Albanian citizens,
+# with per-case dossier upload (PDF/JPG/PNG/SVG) and AI analysis.
 #
 # Default backend inside the container is the Anthropic API (ANTHROPIC_API_KEY)
 # or Gemini (GEMINI_API_KEY) — the Claude Code CLI backend is unavailable
 # because it needs an interactive `claude /login` which doesn't work headless.
+# Note: the dossier's image/scanned-PDF OCR requires ANTHROPIC_API_KEY or
+# GEMINI_API_KEY (native PDF text layers work without either).
 #
-# Build:   docker build -t super-avvocato:v2 .
+# Build:   docker build -t super-avvocato:v3 .
 # Run:     docker run --rm -p 5050:5050 \
 #            -v $(pwd)/data:/app/data \
 #            -e ANTHROPIC_API_KEY=sk-ant-... \
 #            -e BRAIN_BACKEND=anthropic \
-#            super-avvocato:v2
+#            super-avvocato:v3
+# The data volume persists: sqlite DB, session secret, AND the per-case
+# uploaded files under data/uploads/ — mount it or lose them on restart.
 # Then provision the first admin user:
 #   docker exec -it <container_id> python -m src.admin adduser <name> --admin
 # Open:    http://localhost:5050

@@ -124,11 +124,38 @@
         <button type="button" id="rename-case-btn" class="icon-btn" title="Riemëro rastin">✏️</button>
       </div>
       <div class="case-header-actions">
+        <button type="button" id="dossier-btn" class="icon-btn dossier-toggle" title="Dosja e rastit">
+          📎 <span class="dossier-count" id="dossier-count-badge" hidden>0</span>
+        </button>
         <button type="button" id="export-md-btn" class="icon-btn" title="Shkarko si Markdown">📝</button>
         <button type="button" id="export-json-btn" class="icon-btn" title="Shkarko si JSON">⬇️</button>
         <button type="button" id="delete-case-btn" class="icon-btn danger" title="Fshi rastin">🗑️</button>
       </div>
     </div>
+
+    <section class="dossier" id="dossier-panel" hidden aria-label="Dosja e rastit">
+      <div class="dossier-head">
+        <div class="dossier-title">
+          <span class="dossier-icon">📁</span>
+          <div>
+            <strong>Dosja e rastit</strong>
+            <p class="dossier-help">Ngarko PDF, foto ose skanime të dokumenteve të çështjes (vendime, kontrata, padi, njoftime). Super Avokati do t'i lexojë dhe do t'i përdorë si provë për përgjigje më të sakta.</p>
+          </div>
+        </div>
+        <button type="button" id="dossier-close" class="icon-btn" title="Mbyll dosjen" aria-label="Mbyll">&times;</button>
+      </div>
+
+      <label id="dossier-drop" class="dossier-drop" tabindex="0">
+        <input type="file" id="dossier-input" multiple accept=".pdf,.jpg,.jpeg,.png,.svg,.webp,.tif,.tiff" hidden />
+        <div class="dossier-drop-inner">
+          <span class="dossier-drop-plus">＋</span>
+          <strong>Ngarko dokumente</strong>
+          <span class="dossier-drop-hint">Tërhiqi këtu ose kliko për të zgjedhur · PDF, JPG, PNG, SVG · max 25 MB/skedar</span>
+        </div>
+      </label>
+
+      <ul id="dossier-list" class="dossier-list" aria-live="polite"></ul>
+    </section>
 
     <div id="messages" class="messages" role="log" aria-live="polite">
       <div class="msg bot welcome" id="welcome-msg">
@@ -150,6 +177,11 @@
 
     <form id="ask-form" class="composer">
       <div class="composer-inner">
+        <button type="button" id="composer-attach" class="composer-attach" aria-label="Bashkangjit dokumente" title="Bashkangjit dokumente">
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+            <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M21 11l-8 8a5 5 0 0 1-7-7l9-9a3.5 3.5 0 0 1 5 5l-9 9a2 2 0 0 1-3-3l8-8"/>
+          </svg>
+        </button>
         <textarea id="ask-input" rows="1" placeholder="Shkruaj pyetjen tënde këtu…" enterkeyhint="send"></textarea>
         <button type="submit" id="send-btn" class="primary" aria-label="Dërgo" disabled>
           <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
@@ -190,6 +222,37 @@
       <span class="case-title"></span>
       <span class="case-meta"></span>
     </button>
+  </li>
+</template>
+
+<template id="doc-item-tpl">
+  <li class="doc-item" data-id="">
+    <div class="doc-row">
+      <span class="doc-icon"></span>
+      <div class="doc-main">
+        <div class="doc-head">
+          <span class="doc-name"></span>
+          <span class="doc-type"></span>
+        </div>
+        <div class="doc-meta">
+          <span class="doc-size"></span>
+          <span class="doc-status"></span>
+        </div>
+        <p class="doc-summary"></p>
+      </div>
+      <div class="doc-actions">
+        <a class="icon-btn doc-view" target="_blank" rel="noopener" title="Shiko dokumentin" hidden>👁️</a>
+        <button type="button" class="icon-btn doc-expand" title="Detajet" hidden>ⓘ</button>
+        <button type="button" class="icon-btn danger doc-delete" title="Fshi dokumentin">🗑️</button>
+      </div>
+    </div>
+    <div class="doc-details" hidden>
+      <div class="doc-facts"></div>
+      <details class="doc-raw" hidden>
+        <summary>📜 Teksti i zbërthyer</summary>
+        <pre class="doc-raw-text"></pre>
+      </details>
+    </div>
   </li>
 </template>
 

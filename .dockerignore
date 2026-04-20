@@ -20,3 +20,5 @@ data/raw/
 # at runtime instead of baking them into the image.
 data/app.db
 data/.secret_key
+# Per-case uploads are volume-mounted at runtime.
+data/uploads/

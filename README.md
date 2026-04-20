@@ -123,6 +123,36 @@ Cases can be renamed, downloaded as Markdown or JSON, or deleted on demand
 from the web UI. Everything is persisted in `data/app.db` (SQLite) so it
 survives restarts and can be backed up by copying a single file.
 
+## Dosja — a lawyer's case file (V3)
+
+Each case can have a **dossier** (dosja) — a set of PDFs, images or SVG
+files that the lawyer attaches to give Super Avvocato the evidence of the
+concrete case. Typical uploads: a judgment to be appealed, a labor
+contract, an administrative act, a photo of a notice, scans of receipts.
+
+When a file is uploaded the server:
+
+1. **Extracts the text** — pdfplumber for PDFs; AI vision OCR for images
+   and scanned PDFs (uses `ANTHROPIC_API_KEY` or `GEMINI_API_KEY` when
+   available); XML text-node extraction for SVG.
+2. **Classifies + summarizes** the document with the fast model, pulling
+   the key facts that matter for a legal case (parties, dates, amounts,
+   references, deadlines, operative dispositif).
+3. **Injects the analysed dossier** into every subsequent question in
+   that case — triage uses the document summary to frame smarter
+   retrieval queries; the main model cites the document by filename when
+   writing the 5-section answer.
+
+Supported formats: **PDF, JPG, PNG, SVG, WEBP, TIFF**. Defaults (overridable
+via `.env`): max **25 MB/file**, up to **20 documents/case**,
+**6,000 chars/doc** fed into the brain prompt (head + tail with an
+ellipsis marker on longer texts).
+
+Files are stored under `data/uploads/<case_id>/<uuid>.<ext>` and served
+only to the owning user via authenticated routes — the raw filename never
+touches the filesystem. Uploads are excluded from git and the Docker image;
+mount the `data/` volume to persist them across container restarts.
+
 ## Disclaimer
 
 This tool provides legal information based on Albanian statutes. It is not a substitute for a licensed attorney in serious or urgent cases. Always consult a qualified lawyer for representation in court.

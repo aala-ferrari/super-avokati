@@ -37,6 +37,7 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_ex
 
 from .backends import LLMBackend, build_backend
 from .config import LEGAL_DOCUMENTS, TOP_K_ARTICLES, TOP_K_DECISIONS
+from .documents import format_documents_for_prompt
 from .jurisprudence_parser import Decision
 from .logging_utils import get_logger
 from .parser import Article
@@ -279,16 +280,24 @@ class SuperAvvocato:
         user_message: str,
         history: list[dict[str, str]] | None = None,
         session_id: str | None = None,
+        documents: list[dict] | None = None,
     ) -> LegalAnswer:
         """Process one user message and return either a follow-up or a full answer.
 
         `session_id`, when provided, is passed to the compose stage so the
         backend (Claude Code) can use `--resume` for native conversation
         continuity. The returned LegalAnswer carries the updated session_id.
+
+        `documents`, when provided, is the case's dossier — a list of dicts
+        with keys `filename`, `doc_type`, `summary`, `key_facts`,
+        `extracted_text`. The brain folds this into BOTH the triage prompt
+        (so retrieval queries account for the real facts of the case) and
+        the answer prompt (so the final reasoning cites the evidence).
         """
         history = history or []
+        documents = documents or []
 
-        triage = self._triage(user_message, history)
+        triage = self._triage(user_message, history, documents)
         log.info("triage: areas=%s queries=%s angles=%s followup=%s",
                  triage.areas, triage.search_queries,
                  triage.strategic_angles, triage.needs_followup)
@@ -316,7 +325,7 @@ class SuperAvvocato:
 
         answer_text = self._compose_answer(
             user_message, history, triage, retrieved, precedents, strategic,
-            session_id=session_id,
+            session_id=session_id, documents=documents,
         )
         # ClaudeCodeBackend exposes the (possibly new) session_id after each
         # stateful call; other backends leave it as None.
@@ -336,9 +345,27 @@ class SuperAvvocato:
         reraise=True,
     )
     def _triage(
-        self, user_message: str, history: list[dict[str, str]]
+        self,
+        user_message: str,
+        history: list[dict[str, str]],
+        documents: list[dict] | None = None,
     ) -> TriageResult:
-        messages = list(history) + [{"role": "user", "content": user_message}]
+        # When the lawyer has attached a dossier, prepend a compact summary
+        # (filename + type + summary + key_facts — NO raw text) so the
+        # triage model frames queries around the real facts (names, dates,
+        # amounts) without getting derailed by document language that
+        # could read like a direct instruction. The user's actual question
+        # is clearly fenced at the end.
+        dossier_block = format_documents_for_prompt(documents or [], compact=True)
+        if dossier_block:
+            triage_message = (
+                f"{dossier_block}\n"
+                f"━━━ PYETJA E VËRTETË E QYTETARIT/AVOKATIT ━━━\n"
+                f"{user_message}"
+            )
+        else:
+            triage_message = user_message
+        messages = list(history) + [{"role": "user", "content": triage_message}]
         raw = self.backend.complete(
             system=TRIAGE_SYSTEM,
             messages=messages,
@@ -508,21 +535,32 @@ class SuperAvvocato:
         precedents: list[tuple[Decision, float]],
         strategic: StrategicAnalysis | None = None,
         session_id: str | None = None,
+        documents: list[dict] | None = None,
     ) -> str:
         context = _format_articles_for_prompt(retrieved)
         precedents_block = _format_precedents_block(precedents)
         strategic_block = _format_strategic_block(strategic)
+        dossier_block = format_documents_for_prompt(documents or [])
+        dossier_guidance = (
+            "Dokumentet e ngarkuara nga dosja janë më poshtë — përdori "
+            "faktet konkrete (data, emra, shuma, afate, numra akti) kur "
+            "argumenton, dhe, kur është e përshtatshme, CITO dokumentin "
+            "me emrin e tij (p.sh. 'sipas vendimit nr. 123 të bashkuar te "
+            "dosja'). Nëse një fakt i dokumentit bie ndesh me ligjin "
+            "material ose procedural, shpjegoje hapur.\n"
+            if documents else ""
+        )
 
         prompt = textwrap.dedent(f"""\
             Pyetja e qytetarit:
             \"\"\"{user_message}\"\"\"
 
             Përmbledhje e problemit (nga triazhi): {triage.problem_summary}
-
+            {dossier_block}
             Nenet e gjetura nga kodet shqiptare (me rëndësinë zbritëse):
             {context}
             {precedents_block}{strategic_block}
-            Shkruaj përgjigjen në formatin e kërkuar (PESË seksione në shqip),
+            {dossier_guidance}Shkruaj përgjigjen në formatin e kërkuar (PESË seksione në shqip),
             duke cituar vetëm nenet e mësipërme. Nëse analiza ka gjetur
             vendime të Gjykatës Kushtetuese/Gjykatës së Lartë të lidhura me
             rastin, CITO emrin e vendimit (p.sh. "Vendimi nr. 42/2024 i Gjykatës

@@ -41,8 +41,23 @@ INDEX_PATH = Path(os.getenv("INDEX_PATH", ROOT / "data" / "index"))
 LOG_PATH = Path(os.getenv("LOG_PATH", ROOT / "logs" / "super_avvocato.log"))
 # SQLite database for users + cases + messages.
 APP_DB_PATH = Path(os.getenv("APP_DB_PATH", ROOT / "data" / "app.db"))
+# User-uploaded case documents (PDF/JPG/PNG/SVG) live here, one folder per
+# case. Files never leave the server — the lawyer and the brain are the
+# only consumers.
+UPLOAD_PATH = Path(os.getenv("UPLOAD_PATH", ROOT / "data" / "uploads"))
 # Court decisions live under RAW_DATA_PATH/jurisprudence/{court_code}/{year}/
 JURISPRUDENCE_PATH = RAW_DATA_PATH / "jurisprudence"
+
+# ── Dossier (lawyer's case file) ─────────────────────────────────────────
+# Hard limits protect both disk and LLM context.
+MAX_UPLOAD_SIZE_MB = int(os.getenv("MAX_UPLOAD_SIZE_MB", "25"))
+MAX_DOCUMENTS_PER_CASE = int(os.getenv("MAX_DOCUMENTS_PER_CASE", "20"))
+# Characters from each document fed into the brain prompt. The brain merges
+# extracted_text + AI summary; if a document is longer than this we use the
+# summary in full + a head-and-tail slice of the raw text.
+DOC_CONTEXT_CHAR_BUDGET = int(os.getenv("DOC_CONTEXT_CHAR_BUDGET", "6000"))
+ALLOWED_UPLOAD_EXTENSIONS = frozenset({".pdf", ".jpg", ".jpeg", ".png", ".svg",
+                                       ".webp", ".tif", ".tiff"})
 
 TOP_K_ARTICLES = int(os.getenv("TOP_K_ARTICLES", "12"))
 # How many precedent decisions to retrieve alongside articles (added to the
@@ -51,7 +66,7 @@ TOP_K_DECISIONS = int(os.getenv("TOP_K_DECISIONS", "4"))
 MAX_CONVERSATION_TURNS = int(os.getenv("MAX_CONVERSATION_TURNS", "20"))
 
 for path in (RAW_DATA_PATH, PROCESSED_DATA_PATH, INDEX_PATH, LOG_PATH.parent,
-             JURISPRUDENCE_PATH):
+             JURISPRUDENCE_PATH, UPLOAD_PATH):
     path.mkdir(parents=True, exist_ok=True)
 
 
