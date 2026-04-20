@@ -359,7 +359,10 @@ def api_upload_document(case_id: str):
     )
 
     try:
-        text, used_ocr = docs_mod.extract_text(storage_path, v.ext, v.mimetype)
+        text, used_ocr = docs_mod.extract_text(
+            storage_path, v.ext, v.mimetype,
+            backend=_BRAIN.backend if _BRAIN else None,
+        )
     except Exception as exc:
         log.exception("extraction failed for %s", f.filename)
         storage.mark_document_error(doc.id, f"{type(exc).__name__}: {exc}")

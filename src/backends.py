@@ -23,11 +23,13 @@ served the call. Selection order:
 """
 from __future__ import annotations
 
+import base64
 import json
 import os
 import shutil
 import subprocess
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Literal
 
 from .logging_utils import get_logger
@@ -52,6 +54,15 @@ class LLMBackend(ABC):
         session_id: str | None = None,
     ) -> str:
         """Return the assistant's text for the given system + message history."""
+
+    def ocr_image(self, path: Path, mimetype: str, prompt: str) -> str:
+        """OCR an image file. Backends that don't support vision raise.
+
+        Default: unsupported. Override in subclasses that have vision.
+        """
+        raise NotImplementedError(
+            f"backend '{self.name}' does not support vision OCR"
+        )
 
 
 # ── Claude Code (headless CLI, subscription auth) ─────────────────────────
@@ -158,6 +169,56 @@ class ClaudeCodeBackend(LLMBackend):
             )
         return text
 
+    def ocr_image(self, path: Path, mimetype: str, prompt: str) -> str:
+        """OCR via `claude -p` with the Read tool. Uses the subscription —
+        no API key required. The model's Read tool handles PNG/JPG natively."""
+        from .config import ROOT
+
+        abs_path = Path(path).resolve()
+        # Allow Claude to Read files from the image's directory. This covers
+        # both persistent uploads (data/uploads/<case>/) and temp-file pages
+        # we write during PDF rasterization.
+        extra_dir = str(abs_path.parent)
+        full_prompt = (
+            f"{prompt}\n\n"
+            f"File: {abs_path}\n"
+            f"Read this file and return ONLY the extracted text. "
+            f"No commentary, no summary, no markdown fences."
+        )
+        cmd = [
+            self.cli, "-p",
+            "--output-format", "json",
+            "--model", self.fast_model,
+            "--allowedTools", "Read",
+            "--permission-mode", "bypassPermissions",
+            "--add-dir", extra_dir,
+        ]
+        try:
+            proc = subprocess.run(
+                cmd, input=full_prompt, capture_output=True, text=True,
+                timeout=self.timeout_s, cwd=str(ROOT), check=False,
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise RuntimeError(
+                f"claude CLI OCR timed out after {self.timeout_s}s"
+            ) from exc
+        if proc.returncode != 0:
+            raise RuntimeError(
+                f"claude CLI OCR failed (rc={proc.returncode}): "
+                f"{proc.stderr[-400:].strip() or proc.stdout[-400:].strip()}"
+            )
+        try:
+            data = json.loads(proc.stdout.strip() or "{}")
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(
+                f"claude CLI OCR non-JSON output: {proc.stdout[:400]}"
+            ) from exc
+        if data.get("is_error"):
+            raise RuntimeError(
+                f"claude CLI OCR reported error: {str(data.get('result', ''))[:400]}"
+            )
+        return (data.get("result") or "").strip()
+
 
 # ── Anthropic API ─────────────────────────────────────────────────────────
 
@@ -179,6 +240,24 @@ class AnthropicBackend(LLMBackend):
             messages=messages,
         )
         return resp.content[0].text.strip()
+
+    def ocr_image(self, path: Path, mimetype: str, prompt: str) -> str:
+        image_bytes = Path(path).read_bytes()
+        b64 = base64.standard_b64encode(image_bytes).decode("ascii")
+        resp = self.client.messages.create(
+            model=self.fast_model,
+            max_tokens=4000,
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "image", "source": {
+                        "type": "base64", "media_type": mimetype, "data": b64,
+                    }},
+                    {"type": "text", "text": prompt},
+                ],
+            }],
+        )
+        return resp.content[0].text.strip() if resp.content else ""
 
 
 # ── Gemini API ────────────────────────────────────────────────────────────
@@ -218,6 +297,17 @@ class GeminiBackend(LLMBackend):
                 f"{getattr(resp.candidates[0], 'finish_reason', 'unknown') if resp.candidates else 'no-candidate'})"
             )
         return text
+
+    def ocr_image(self, path: Path, mimetype: str, prompt: str) -> str:
+        image_bytes = Path(path).read_bytes()
+        resp = self.client.models.generate_content(
+            model=self.fast_model,
+            contents=[
+                self._types.Part.from_bytes(data=image_bytes, mime_type=mimetype),
+                prompt,
+            ],
+        )
+        return (resp.text or "").strip()
 
 
 # ── prompt flattening helpers (for Claude Code -p mode) ───────────────────

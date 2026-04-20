@@ -6,7 +6,8 @@ Two stages per document:
      • PDF     → pdfplumber text layer; if the layer is sparse (<200 chars
                  across the whole doc) we treat the PDF as scanned and fall
                  back to vision OCR on each page image.
-     • Image   → vision OCR via the available LLM (Anthropic or Gemini).
+     • Image   → vision OCR via the current LLM backend (Claude Code CLI,
+                 Anthropic, or Gemini — each implements `ocr_image()`).
      • SVG     → XML text-node extraction (no OCR needed).
 
   2. AI ANALYSIS (fast model) — classify the document and extract the facts
@@ -14,19 +15,15 @@ Two stages per document:
      decided / signed. This output is what the brain actually reads when
      composing an answer — the raw text is kept for fidelity.
 
-The module is deliberately backend-agnostic for analysis (it reuses the
-brain's LLM backend) but picks whichever vision-capable API is available
-for OCR. If no vision API is configured, image documents still upload but
-their extracted_text is a friendly placeholder — the brain will prompt the
-lawyer to describe the image in chat instead.
+Vision routes through the brain's backend, so a Claude Code subscription
+user gets image OCR out of the box — no extra API key needed.
 """
 from __future__ import annotations
 
-import base64
-import io
 import json
 import mimetypes
 import re
+import tempfile
 import uuid
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
@@ -34,11 +31,7 @@ from pathlib import Path
 
 from .config import (
     ALLOWED_UPLOAD_EXTENSIONS,
-    ANTHROPIC_API_KEY,
-    CLAUDE_FAST_MODEL,
     DOC_CONTEXT_CHAR_BUDGET,
-    GEMINI_API_KEY,
-    GEMINI_FAST_MODEL,
     MAX_UPLOAD_SIZE_MB,
     UPLOAD_PATH,
 )
@@ -111,24 +104,30 @@ def storage_path_for(case_id: str, ext: str) -> Path:
 # ── extraction ─────────────────────────────────────────────────────────────
 
 
-def extract_text(path: Path, ext: str, mimetype: str) -> tuple[str, bool]:
+def extract_text(
+    path: Path, ext: str, mimetype: str, backend=None,
+) -> tuple[str, bool]:
     """Return (text, used_vision_ocr) for a file we just saved to disk.
 
     `used_vision_ocr` is True when we had to fall back to a vision model —
     the web layer surfaces this in the UI so the lawyer knows the extraction
     was AI-OCR, not a deterministic text layer.
+
+    `backend` is the brain's LLMBackend — when provided, image and
+    scanned-PDF OCR go through `backend.ocr_image(...)`. Without a backend,
+    only the deterministic paths (PDF text layer, SVG) work.
     """
     if ext == ".pdf":
-        text, used_ocr = _extract_pdf(path)
+        text, used_ocr = _extract_pdf(path, backend)
         return text, used_ocr
     if ext == ".svg":
         return _extract_svg(path), False
     if ext in {".jpg", ".jpeg", ".png", ".webp", ".tif", ".tiff"}:
-        return _vision_ocr_image(path, mimetype), True
+        return _vision_ocr_image(path, mimetype, backend), True
     return "", False
 
 
-def _extract_pdf(path: Path) -> tuple[str, bool]:
+def _extract_pdf(path: Path, backend) -> tuple[str, bool]:
     """Try pdfplumber's text layer; fall back to vision OCR if it's too sparse."""
     import pdfplumber  # lazy import — pdfplumber is heavy to load
 
@@ -151,7 +150,7 @@ def _extract_pdf(path: Path) -> tuple[str, bool]:
     log.info("PDF %s looks scanned (%d chars) — running vision OCR",
              path.name, len(joined))
     try:
-        return _vision_ocr_pdf_pages(path), True
+        return _vision_ocr_pdf_pages(path, backend), True
     except Exception as exc:
         # If pdfplumber already pulled *some* text, keep it rather than
         # erroring — partial content is better than none.
@@ -163,8 +162,7 @@ def _extract_pdf(path: Path) -> tuple[str, bool]:
         # can mark the document status='error'. Returning a placeholder
         # string here would be fed to the triage model and derail it.
         raise RuntimeError(
-            "PDF i skanuar dhe OCR vizual nuk është i disponueshëm — vendos "
-            "ANTHROPIC_API_KEY ose GEMINI_API_KEY te .env."
+            f"PDF i skanuar dhe OCR nuk funksionoi: {exc}"
         ) from exc
 
 
@@ -199,84 +197,56 @@ VISION_PROMPT = (
 )
 
 
-def _vision_ocr_image(path: Path, mimetype: str) -> str:
-    """OCR a single image file using whichever vision API is configured.
+def _vision_ocr_image(path: Path, mimetype: str, backend) -> str:
+    """OCR a single image file via the brain's LLM backend.
 
-    Raises RuntimeError when no vision API is available — the web layer
-    marks the document as 'error' so it's surfaced in the UI and excluded
-    from the dossier fed into the brain (otherwise the triage model reads
-    the placeholder as user input and refuses to produce JSON).
+    Raises RuntimeError when the backend doesn't support vision. The web
+    layer catches that and marks the document status='error' so it's
+    surfaced in the UI and excluded from the dossier fed into triage.
     """
-    image_bytes = path.read_bytes()
-    if ANTHROPIC_API_KEY:
-        return _anthropic_vision(image_bytes, mimetype, VISION_PROMPT)
-    if GEMINI_API_KEY:
-        return _gemini_vision(image_bytes, mimetype, VISION_PROMPT)
-    raise RuntimeError(
-        "OCR vizual nuk është i konfiguruar. Vendos ANTHROPIC_API_KEY "
-        "ose GEMINI_API_KEY te .env për të lexuar imazhe dhe PDF të skanuara."
-    )
+    if backend is None:
+        raise RuntimeError(
+            "Asnjë backend LLM nuk është i disponueshëm për OCR."
+        )
+    return backend.ocr_image(path, mimetype, VISION_PROMPT)
 
 
-def _vision_ocr_pdf_pages(path: Path) -> str:
-    """Render each page as PNG and OCR it individually."""
+def _vision_ocr_pdf_pages(path: Path, backend) -> str:
+    """Render each page to a temp PNG on disk and OCR it via the backend."""
     import pdfplumber
 
+    if backend is None:
+        raise RuntimeError("no backend available for vision OCR")
+
+    # Write page images to a temp dir inside the PDF's parent so every
+    # backend (including Claude Code CLI with --add-dir) can read them.
+    tmp_dir = Path(tempfile.mkdtemp(prefix="ocr_", dir=str(path.parent)))
     pages_text: list[str] = []
-    with pdfplumber.open(path) as pdf:
-        total = len(pdf.pages)
-        for i, page in enumerate(pdf.pages[:MAX_OCR_PAGES], start=1):
-            img = page.to_image(resolution=150)
-            buf = io.BytesIO()
-            img.save(buf, format="PNG")
-            page_text = ""
-            if ANTHROPIC_API_KEY:
-                page_text = _anthropic_vision(buf.getvalue(), "image/png", VISION_PROMPT)
-            elif GEMINI_API_KEY:
-                page_text = _gemini_vision(buf.getvalue(), "image/png", VISION_PROMPT)
-            else:
-                raise RuntimeError("no vision API configured")
-            pages_text.append(f"── Faqja {i}/{total} ──\n{page_text.strip()}")
-    if total > MAX_OCR_PAGES:
-        pages_text.append(
-            f"\n(Vetëm {MAX_OCR_PAGES} faqet e para u skanuan automatikisht — "
-            f"totali: {total}. Ngarko faqet e mbetura veçmas nëse janë të nevojshme.)"
-        )
+    try:
+        with pdfplumber.open(path) as pdf:
+            total = len(pdf.pages)
+            for i, page in enumerate(pdf.pages[:MAX_OCR_PAGES], start=1):
+                img = page.to_image(resolution=150)
+                page_path = tmp_dir / f"page_{i}.png"
+                img.save(str(page_path), format="PNG")
+                page_text = backend.ocr_image(
+                    page_path, "image/png", VISION_PROMPT,
+                )
+                pages_text.append(f"── Faqja {i}/{total} ──\n{page_text.strip()}")
+        if total > MAX_OCR_PAGES:
+            pages_text.append(
+                f"\n(Vetëm {MAX_OCR_PAGES} faqet e para u skanuan "
+                f"automatikisht — totali: {total}. Ngarko faqet e mbetura "
+                f"veçmas nëse janë të nevojshme.)"
+            )
+    finally:
+        # Best-effort cleanup; missing files are fine.
+        for f in tmp_dir.glob("*"):
+            try: f.unlink()
+            except OSError: pass
+        try: tmp_dir.rmdir()
+        except OSError: pass
     return "\n\n".join(pages_text)
-
-
-def _anthropic_vision(image_bytes: bytes, mimetype: str, prompt: str) -> str:
-    from anthropic import Anthropic  # lazy
-    client = Anthropic(api_key=ANTHROPIC_API_KEY)
-    b64 = base64.standard_b64encode(image_bytes).decode("ascii")
-    resp = client.messages.create(
-        model=CLAUDE_FAST_MODEL,
-        max_tokens=4000,
-        messages=[{
-            "role": "user",
-            "content": [
-                {"type": "image", "source": {
-                    "type": "base64", "media_type": mimetype, "data": b64,
-                }},
-                {"type": "text", "text": prompt},
-            ],
-        }],
-    )
-    return resp.content[0].text.strip() if resp.content else ""
-
-
-def _gemini_vision(image_bytes: bytes, mimetype: str, prompt: str) -> str:
-    from google import genai
-    from google.genai import types
-    client = genai.Client(api_key=GEMINI_API_KEY)
-    resp = client.models.generate_content(
-        model=GEMINI_FAST_MODEL,
-        contents=[
-            types.Part.from_bytes(data=image_bytes, mime_type=mimetype),
-            prompt,
-        ],
-    )
-    return (resp.text or "").strip()
 
 
 # ── AI analysis (classify + summarize + extract facts) ────────────────────
