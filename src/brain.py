@@ -2,15 +2,26 @@
 
 Layered pipeline (each stage non-fatal — one failing never breaks the answer):
 
-    1. TRIAGE (fast)          — classify, expand query, flag missing facts
-    2. RETRIEVAL              — BM25 over 6,600+ articles (+ procedural safety net)
+    1.  TRIAGE (fast)         — classify, expand query, flag missing facts
+    2.  RETRIEVAL             — BM25 over 6,600+ articles (+ procedural safety net)
     2b. PRECEDENTS            — BM25 over 813 Postgres-backed court decisions
-    3. STRATEGIC (fast)       — winning-edge: hidden afate, exceptions, nullity
+    3.  STRATEGIC (fast)      — winning-edge: hidden afate, exceptions, nullity
     3b. TIMELINE (fast)       — anchors + deadlines with Python-computed urgency
-    3c. COMPARISON (fast)     — winners-vs-losers pattern over precedents
+    3c. COMPARISON (fast)     — winners-vs-losers + decisive-differences engine
     3d. MISSING-FACTS (fast)  — the 2-4 questions a lawyer would ask next
-    3e. PRE-MORTEM (fast)     — "imagine we've lost — why?" red-team pass
-    4. ANSWER (main)          — 5-section Albanian answer; weaves in every layer
+    3e. PRE-MORTEM (fast)     — "imagine we've lost — why?" red-team pass (V6.1)
+    3f. ADVERSARIAL (retr.)   — retrieve adverse precedents by outcome (V6.2)
+    3g. DISTINGUISHING (fast) — per-adverse-case rebuttal / mitigation (V6.2)
+    3h. EVIDENCE MAP (fast)   — who proves what, with burden-shift flags (V6.3)
+    3i. NULLITY RADAR (fast)  — procedural levers & forfeiture windows (V6.5)
+    4.  ANSWER (main)         — 5-section Albanian answer; weaves in every layer
+
+Stages 3e/3g/3h/3i feed BACK into the answer prompt so the final reply
+addresses the red-team findings, neutralises adverse precedents, calls
+out missing proofs, and wields procedural levers with exact article
+citations. The COMPARISON stage (3c) is the V6.4 differences-engine:
+per-attribute "your case has / lacks / unclear" verdicts with concrete
+today-actions, not a single sentence summary.
 
 The brain is stateless; callers persist the conversation history they pass in.
 """
