@@ -556,6 +556,53 @@ main {
 }
 .prec-link:hover { text-decoration: underline; }
 
+/* ─── precedent comparison (winners vs losers compass) ───────────
+   A single card that shows, at a glance, whether the citizen's facts
+   lean toward the pattern of cases that won or those that lost. */
+.comparison { margin-top: 10px; font-size: 0.85rem; }
+.comparison summary {
+  cursor: pointer; font-weight: 700; padding: 9px 13px;
+  border: 1px solid var(--gray-200); border-radius: var(--radius-sm);
+  user-select: none; letter-spacing: 0.01em;
+}
+.comparison[open] summary { margin-bottom: 10px; }
+.cmp-favorable   summary { background: linear-gradient(135deg, #edfaf1 0%, #dff5e6 100%); border-color: #a5dfb6; color: #1d6b2e; }
+.cmp-unfavorable summary { background: linear-gradient(135deg, #fdecee 0%, #fbdcde 100%); border-color: #f2b6bc; color: #a51a22; }
+.cmp-mixed       summary { background: linear-gradient(135deg, #fff7e5 0%, #fff1ce 100%); border-color: #e5c378; color: #8a5a07; }
+.cmp-unknown     summary { background: var(--paper); color: var(--gray-700); }
+.cmp-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+.cmp-side {
+  padding: 10px 12px; border-radius: var(--radius-sm);
+  border-left: 4px solid;
+}
+.cmp-winners { background: #f3faf5; border-left-color: #1d6b2e; }
+.cmp-losers  { background: #fdf4f5; border-left-color: #a51a22; }
+.cmp-side-label {
+  font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em;
+  font-weight: 700; color: var(--gray-700); margin-bottom: 4px;
+}
+.cmp-side-text { color: var(--black); line-height: 1.45; }
+.cmp-reason {
+  margin-top: 10px; padding: 8px 12px; background: var(--paper);
+  border: 1px dashed var(--gray-300); border-radius: var(--radius-sm);
+  font-style: italic; color: var(--gray-700); line-height: 1.45;
+}
+.cmp-factors-label {
+  margin: 12px 0 5px; font-size: 0.75rem; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--gray-600); font-weight: 700;
+}
+.cmp-factors {
+  list-style: none; padding: 0; display: flex; flex-direction: column; gap: 5px;
+}
+.cmp-factors li {
+  padding: 6px 11px; background: var(--gold-soft);
+  border-left: 3px solid var(--gold); border-radius: 4px;
+  color: var(--ink); line-height: 1.4;
+}
+
 /* ─── timeline (anchors + deadlines) ─────────────────────────────
    Lives above precedents. Urgency colours are intentionally loud —
    a missed deadline is the most expensive mistake a citizen can make. */

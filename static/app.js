@@ -126,6 +126,7 @@
         articles: m.articles || [],
         precedents: m.precedents || [],
         timeline: m.timeline || null,
+        comparison: m.comparison || null,
       });
     }
     renderDossier(c.documents || []);
@@ -554,6 +555,15 @@
       }
     }
 
+    // Precedent comparison (winners-vs-losers compass) — a single, glanceable
+    // "are you on the winning side?" card. Only appears when both sides had
+    // data to compare. Rendered above timeline so the strategic framing
+    // precedes the deadline pressure.
+    const comparison = data.comparison;
+    if (comparison && !comparisonEmpty(comparison)) {
+      msgEl.insertBefore(renderComparison(comparison), null);
+    }
+
     // Timeline widget — past anchors + future deadlines with colour-coded
     // urgency badges. Rendered before the precedents block so citizens see
     // the "act by X" summary first.
@@ -713,6 +723,49 @@
       if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
       n.parentNode.replaceChild(frag, n);
     }
+  }
+
+  // ─── render precedent-comparison card (winners vs losers) ──────
+  function comparisonEmpty(c) {
+    return !c || (!c.pattern_winners && !c.pattern_losers && !(c.decisive_factors || []).length);
+  }
+
+  function renderComparison(c) {
+    const wrap = document.createElement("details");
+    wrap.className = `comparison cmp-${c.citizen_alignment || "unknown"}`;
+    wrap.open = true;
+
+    const alignLabel = {
+      favorable:   "🧭 Rasti yt përputhet me fituesit",
+      mixed:       "⚖️ Rasti është i përzier — ka rreziqe",
+      unfavorable: "⚠️ Rasti yt përputhet me humbësit — strategji mbrojtëse",
+      unknown:     "🧭 Krahasim precedentesh",
+    };
+
+    const factors = (c.decisive_factors || []).map((f) =>
+      `<li>${escapeHtml(f)}</li>`
+    ).join("");
+
+    wrap.innerHTML = `
+      <summary>${alignLabel[c.citizen_alignment] || alignLabel.unknown}</summary>
+      <div class="cmp-grid">
+        ${c.pattern_winners ? `
+          <div class="cmp-side cmp-winners">
+            <div class="cmp-side-label">✅ Çfarë kishin fituesit</div>
+            <div class="cmp-side-text">${escapeHtml(c.pattern_winners)}</div>
+          </div>` : ""}
+        ${c.pattern_losers ? `
+          <div class="cmp-side cmp-losers">
+            <div class="cmp-side-label">❌ Çfarë kishin humbësit</div>
+            <div class="cmp-side-text">${escapeHtml(c.pattern_losers)}</div>
+          </div>` : ""}
+      </div>
+      ${c.alignment_reason ? `<div class="cmp-reason">${escapeHtml(c.alignment_reason)}</div>` : ""}
+      ${factors ? `
+        <div class="cmp-factors-label">Faktorët vendimtar — kontrollo një nga një</div>
+        <ul class="cmp-factors">${factors}</ul>` : ""}
+    `;
+    return wrap;
   }
 
   // ─── render timeline widget (anchors + deadlines with urgency) ──

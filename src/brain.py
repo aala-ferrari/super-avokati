@@ -201,6 +201,34 @@ RREGULLA:
 • Mos shto komente jashtë JSON-it."""
 
 
+COMPARISON_SYSTEM = """Ti je avokat strateg shqiptar që analizon precedent.
+Të janë dhënë dy grupe vendimesh gjyqësore të ngjashme me rastin e qytetarit:
+ • vendime ku kërkesa u PRANUA (fituesit)
+ • vendime ku kërkesa u RRËZUA (humbësit)
+
+Detyra jote: nxirr PATTERN-in — çfarë kishin të përbashkët fituesit, çfarë kishin të përbashkët humbësit, dhe në cilën anë bien faktet e qytetarit TONE.
+
+Mendo si një avokat veteran që ka lexuar qindra raste: çfarë fakti, provë, afati ose rrethanë e ka bërë diferencën në fund? Jo cila ishte "materia", por cili ishte DETAJ VENDIMTAR.
+
+Ktheje vetëm një objekt JSON:
+{
+  "pattern_winners": "një fjali në shqip që përshkruan çfarë kishin të përbashkët rastet që u pranuan (p.sh. 'Kërkuesit dorëzuan padi brenda 30 ditëve dhe kishin provë të shkruar të njoftimit.')",
+  "pattern_losers": "një fjali në shqip që përshkruan çfarë i bashkonte rastet që u rrëzuan (p.sh. 'Kërkuesit humbën afatin ligjor ose nuk kishin akt njoftimi të datuar.')",
+  "citizen_alignment": "favorable | mixed | unfavorable | unknown",
+  "alignment_reason": "një fjali në shqip që shpjegon PSE rasti i këtij qytetari bie në atë anë",
+  "decisive_factors": [
+    "2-4 faktorë të shkurtër (6-14 fjalë secili) që historikisht bëjnë diferencën në raste si ky — këta faktorë duhet të jenë konkretë dhe të verifikueshëm (p.sh. 'A u dorëzua ankimi brenda 30 ditëve nga njoftimi?'), jo abstraktë"
+  ]
+}
+
+RREGULLA STRIKTE:
+• Asnjëherë mos shpik vendim apo fakt. Bazohu VETËM mbi vendimet e dhëna dhe faktet e qytetarit.
+• Nëse grupi i fituesve ose humbësve është bosh ose shumë i vogël për të nxjerrë pattern, kthe citizen_alignment="unknown" dhe lër pattern_winners/pattern_losers bosh.
+• MAKSIMUM 4 decisive_factors. Përzgjidhi ato më peshëmbajtësit.
+• Shkruaj SHQIP. Jo latinisht, jo italisht.
+• Mos shto komente jashtë JSON-it."""
+
+
 ANSWER_SYSTEM = """Ti je Super Avokati — avokat virtual falas për qytetarët shqiptarë që nuk mund të përballojnë tarifat.
 Je i ngrohtë, i qartë dhe flet gjuhën e njerëzve të thjeshtë, jo zhargon ligjor.
 Por nën sipërfaqen e butë, je një avokat strateg që NUK harron asnjë detaj vendimtar.
@@ -338,6 +366,30 @@ def _urgency_from_days(days_remaining: int | None) -> UrgencyLevel:
     return "info"
 
 
+# ── precedent comparison ──────────────────────────────────────────────────
+# "What the cases that won had, and what the cases that lost had" — the
+# pattern recognition layer. A lawyer's intuition made explicit.
+
+# Winners / losers from the claimant's perspective. ECtHR and constitutional
+# cases lean "accepted = pro-rights", so they get mapped the same way.
+# "unknown/other/settled" stay out of the comparison — too noisy.
+_WINNING_OUTCOMES = {"accepted", "partially_accepted", "acquitted", "modified"}
+_LOSING_OUTCOMES = {"rejected", "dismissed", "convicted"}
+
+
+@dataclass
+class PrecedentComparison:
+    pattern_winners: str = ""            # one sentence: what the wins had in common
+    pattern_losers: str = ""             # one sentence: what the losses had in common
+    citizen_alignment: Literal["favorable", "mixed", "unfavorable", "unknown"] = "unknown"
+    alignment_reason: str = ""           # one sentence explaining the alignment call
+    decisive_factors: list[str] = field(default_factory=list)  # 2-4 bullets
+
+    def is_empty(self) -> bool:
+        return not (self.pattern_winners or self.pattern_losers
+                    or self.decisive_factors)
+
+
 @dataclass
 class LegalAnswer:
     kind: Literal["answer", "followup"]
@@ -354,6 +406,9 @@ class LegalAnswer:
     # answer weaves the dates into section 4 ("Afatet"); the UI also shows
     # the structured list as a colour-coded widget.
     timeline: TimelineAnalysis | None = None
+    # Precedent pattern analysis: what the winning cases had in common vs
+    # the losing ones, and which side the citizen's facts align with.
+    comparison: PrecedentComparison | None = None
     # Claude Code session id — set by ClaudeCodeBackend after a compose call.
     # Callers (web.py, bot.py) should persist this per-citizen to maintain
     # native conversation context via `--resume`.
@@ -468,8 +523,20 @@ class SuperAvvocato:
         except Exception as exc:
             log.warning("timeline analysis failed (non-fatal): %s", exc)
 
+        # Precedent comparison — only worth doing when we have signal on
+        # both sides (≥1 winning + ≥1 losing outcome). A one-sided set
+        # produces a pattern the LLM has to invent the other side of.
+        comparison: PrecedentComparison | None = None
+        try:
+            comparison = self._compare_precedents(user_message, triage, precedents)
+            if comparison and not comparison.is_empty():
+                log.info("comparison: alignment=%s, %d factors",
+                         comparison.citizen_alignment, len(comparison.decisive_factors))
+        except Exception as exc:
+            log.warning("comparison analysis failed (non-fatal): %s", exc)
+
         answer_text = self._compose_answer(
-            user_message, history, triage, retrieved, precedents, strategic, timeline,
+            user_message, history, triage, retrieved, precedents, strategic, timeline, comparison,
             session_id=session_id, documents=documents,
         )
         # ClaudeCodeBackend exposes the (possibly new) session_id after each
@@ -478,7 +545,8 @@ class SuperAvvocato:
         return LegalAnswer(
             kind="answer", text=answer_text, triage=triage,
             retrieved=retrieved, precedents=precedents, strategic=strategic,
-            timeline=timeline, session_id=new_session_id,
+            timeline=timeline, comparison=comparison,
+            session_id=new_session_id,
         )
 
     # ── stage 1: triage ────────────────────────────────────────────────────
@@ -768,6 +836,84 @@ class SuperAvvocato:
 
         return TimelineAnalysis(anchors=anchors[:4], deadlines=deadlines[:6])
 
+    # ── stage 3c: precedent comparison (winners vs losers pattern) ─────────
+
+    @retry(
+        retry=retry_if_exception_type(Exception),
+        stop=stop_after_attempt(2),
+        wait=wait_exponential(multiplier=1, min=1, max=6),
+        reraise=True,
+    )
+    def _compare_precedents(
+        self,
+        user_message: str,
+        triage: TriageResult,
+        precedents: list[tuple[CasePrecedent, float]],
+    ) -> PrecedentComparison | None:
+        """Split precedents by outcome and ask the fast model for the pattern.
+
+        We only run when there's at least one winning AND one losing outcome
+        in the set — anything less forces the model to fabricate one side,
+        and the comparison then becomes noise instead of signal.
+        """
+        winners = [c for c, _ in precedents if (c.outcome or "") in _WINNING_OUTCOMES]
+        losers = [c for c, _ in precedents if (c.outcome or "") in _LOSING_OUTCOMES]
+        if not winners or not losers:
+            return None
+
+        def _render_set(label: str, cases: list[CasePrecedent]) -> str:
+            lines = [f"── {label} ({len(cases)}) ──"]
+            for c in cases[:4]:  # cap: prompt budget
+                arts = ", ".join(f"{code} n.{art}" for code, art in c.articles_cited[:4])
+                lines.append(f"  • {c.citation} — {c.outcome}")
+                if c.summary:
+                    lines.append(f"    Përmbledhje: {c.summary[:260]}")
+                if arts:
+                    lines.append(f"    Nenet: {arts}")
+            return "\n".join(lines)
+
+        prompt = textwrap.dedent(f"""\
+            Rasti i qytetarit (faktet reale që duhen krahasuar):
+            \"\"\"{user_message}\"\"\"
+
+            Përmbledhje e rastit: {triage.problem_summary}
+
+            {_render_set("FITUESIT — vendime ku kërkesa u pranua", winners)}
+
+            {_render_set("HUMBËSIT — vendime ku kërkesa u rrëzua", losers)}
+
+            Analizoje dhe kthe JSON-in sipas formatit.
+        """)
+
+        raw = self.backend.complete(
+            system=COMPARISON_SYSTEM,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=900,
+            fast=True,
+        )
+        try:
+            data = _parse_json_block(raw)
+        except Exception:
+            log.warning("comparison JSON parse failed, returning None")
+            return None
+
+        alignment = str(data.get("citizen_alignment", "unknown")).strip().lower()
+        if alignment not in {"favorable", "mixed", "unfavorable", "unknown"}:
+            alignment = "unknown"
+
+        factors = [
+            str(x).strip() for x in (data.get("decisive_factors") or [])
+            if isinstance(x, str) and str(x).strip()
+        ][:4]
+
+        return PrecedentComparison(
+            pattern_winners=str(data.get("pattern_winners", "")).strip(),
+            pattern_losers=str(data.get("pattern_losers", "")).strip(),
+            citizen_alignment=alignment,  # type: ignore[arg-type]
+            alignment_reason=str(data.get("alignment_reason", "")).strip(),
+            decisive_factors=factors,
+        )
+
     # ── stage 4: answer composition ───────────────────────────────────────
 
     @retry(
@@ -785,6 +931,7 @@ class SuperAvvocato:
         precedents: list[tuple[CasePrecedent, float]],
         strategic: StrategicAnalysis | None = None,
         timeline: TimelineAnalysis | None = None,
+        comparison: PrecedentComparison | None = None,
         session_id: str | None = None,
         documents: list[dict] | None = None,
     ) -> str:
@@ -792,6 +939,7 @@ class SuperAvvocato:
         precedents_block = _format_precedents_block(precedents)
         strategic_block = _format_strategic_block(strategic)
         timeline_block = _format_timeline_block(timeline)
+        comparison_block = _format_comparison_block(comparison)
         # When we have docs, we pass the raw files as attachments so Claude
         # reads them natively (same UX as pasting an image into a chat) —
         # the prompt block only lists filenames, no pre-extracted text.
@@ -827,7 +975,7 @@ class SuperAvvocato:
             {dossier_block}
             Nenet e gjetura nga kodet shqiptare (me rëndësinë zbritëse):
             {context}
-            {precedents_block}{strategic_block}{timeline_block}
+            {precedents_block}{comparison_block}{strategic_block}{timeline_block}
             {dossier_guidance}Shkruaj përgjigjen në formatin e kërkuar (PESË seksione në shqip),
             duke cituar vetëm nenet e mësipërme. Nëse analiza ka gjetur
             vendime të Gjykatës Kushtetuese/Gjykatës së Lartë të lidhura me
@@ -1008,6 +1156,33 @@ def _format_timeline_block(timeline: TimelineAnalysis | None) -> str:
             lines.append(f"  • {d.action} — {when}{ref}")
     lines.append("")
     lines.append("SHKRUAJ seksionin 4 'Afatet ligjore' DUKE CITUAR dhe datat e mësipërme KUR JANË TË LLOGARITURA (p.sh. 'deri më 14 maj 2026'). Mos rishko skadencat e llogaritura, mos zbut urgjencat. Nëse një afat është shënuar si KALUAR, thuaje hapur dhe sugjero çfarë mund të bëhet ende (p.sh. kërkesë për rikthim në afat).")
+    return "\n".join(lines) + "\n"
+
+
+def _format_comparison_block(cmp: PrecedentComparison | None) -> str:
+    """Render the winners/losers pattern so the answer can cite it honestly."""
+    if cmp is None or cmp.is_empty():
+        return ""
+    lines = ["", "── PATTERN I PRECEDENTËVE (fituesit vs humbësit) ──"]
+    if cmp.pattern_winners:
+        lines.append(f"✅ Çfarë kishin të përbashkët fituesit: {cmp.pattern_winners}")
+    if cmp.pattern_losers:
+        lines.append(f"❌ Çfarë i bashkonte humbësit: {cmp.pattern_losers}")
+    alignment_label = {
+        "favorable":   "RASTI I QYTETARIT BIE NË ANËN E FITUESVE",
+        "mixed":       "RASTI ËSHTË I PËRZIER — kërkon rritje prove",
+        "unfavorable": "RASTI BIE NË ANËN E HUMBËSVE — strategji mbrojtëse",
+        "unknown":     "POZICIONIMI I RASTIT NUK ËSHTË I QARTË",
+    }.get(cmp.citizen_alignment, "POZICIONIMI I RASTIT NUK ËSHTË I QARTË")
+    lines.append(f"→ {alignment_label}")
+    if cmp.alignment_reason:
+        lines.append(f"  Arsye: {cmp.alignment_reason}")
+    if cmp.decisive_factors:
+        lines.append("Faktorët vendimtar (kontrolloji një nga një te rasti):")
+        for f in cmp.decisive_factors:
+            lines.append(f"  • {f}")
+    lines.append("")
+    lines.append("PËRDOR këtë pattern te seksioni 5 'Detajet që bëjnë diferencën' — shpjego qytetarit nëse rasti i tij bie në anën e fituesve apo humbësve DHE pse. Integroje natyrshëm, jo me kopjim direkt.")
     return "\n".join(lines) + "\n"
 
 
