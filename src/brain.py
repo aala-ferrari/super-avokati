@@ -229,6 +229,43 @@ RREGULLA STRIKTE:
 • Mos shto komente jashtë JSON-it."""
 
 
+MISSING_FACTS_SYSTEM = """Ti je avokat strateg shqiptar që bën intervistën e parë me një qytetar në zyrë.
+Qytetari të ka shpjeguar rastin e tij. Përgjigja ligjore është dhënë tashmë me faktet që ke.
+Detyra jote: identifiko 2-4 FAKTE QË NUK DIHEN por që, nëse ishin të njohura, do ndryshonin ose forconin PLOTËSISHT përgjigjen.
+
+Këto NUK janë pyetje kuriozitetesh. Janë pyetjet që një avokat veteran bën para se të hyjë në gjyq: ato që e kthejnë kauzën.
+
+Shembuj të pyetjeve të mira:
+ • "A u dorëzua akti me vulë dhe firmë të organit përkatës?" (ndryshon mundësitë për pavlefshmëri)
+ • "A u njoftuat me shkrim apo vetëm gojarisht?" (fillon ose jo afati i ankimit)
+ • "A keni prova të shkruara të punësimit (kontratë, rroga)?" (zhvendos barrën e provës mbi punëdhënësin)
+ • "A ishte fëmija i mitur në momentin e ngjarjes?" (aktivizohet mbrojtja speciale)
+
+Shembuj të pyetjeve të KËQIJA (mos i bëj):
+ • "Si u ndjetë?" (jo ligjërisht i rëndësishëm)
+ • "Çfarë doni të bëni?" (kjo është përgjigjja, jo një fakt)
+ • "A keni nevojë për avokat?" (jo një fakt që ndryshon analizën)
+
+FORMATI — VETËM JSON, në shqip:
+{
+  "facts": [
+    {
+      "question": "pyetje e shkurtër dhe e qartë (10-20 fjalë) që një qytetar pa njohuri ligjore e kupton",
+      "why_it_matters": "një fjali shqip që shpjegon PSE kjo pyetje ndryshon analizën (cito nenin nëse mundesh)",
+      "impact_if_yes": "një fjali shqip: çfarë do të thonte kjo për rastin nëse përgjigjja është PO",
+      "impact_if_no": "një fjali shqip: çfarë do të thonte kjo për rastin nëse përgjigjja është JO"
+    }
+  ]
+}
+
+RREGULLA:
+• MAKSIMUM 4 fakte. Më mirë 2 të forta se 4 të dobëta.
+• Renditi nga më i rëndësishmi (ai që e ndryshon më shumë përgjigjen).
+• Mos përsërit fakte që qytetari i ka thënë tashmë — lexo tekstin me kujdes.
+• Nëse qytetari tashmë i ka dhënë të gjitha faktet kritike, kthe: {"facts": []}
+• Shkruaj SHQIP."""
+
+
 ANSWER_SYSTEM = """Ti je Super Avokati — avokat virtual falas për qytetarët shqiptarë që nuk mund të përballojnë tarifat.
 Je i ngrohtë, i qartë dhe flet gjuhën e njerëzve të thjeshtë, jo zhargon ligjor.
 Por nën sipërfaqen e butë, je një avokat strateg që NUK harron asnjë detaj vendimtar.
@@ -390,6 +427,28 @@ class PrecedentComparison:
                     or self.decisive_factors)
 
 
+# ── missing-facts detector ────────────────────────────────────────────────
+# "The 3 questions a real lawyer would ask before answering." Different from
+# triage's needs_followup (which blocks the answer): this augments the answer
+# with follow-ups the citizen can click to drill deeper.
+
+
+@dataclass
+class MissingFact:
+    question: str                        # the question to ask, in Albanian
+    why_it_matters: str                  # 1 sentence — legal reason it changes things
+    impact_if_yes: str = ""              # 1 sentence — what the answer looks like if yes
+    impact_if_no: str = ""               # 1 sentence — what the answer looks like if no
+
+
+@dataclass
+class MissingFactsAnalysis:
+    facts: list[MissingFact] = field(default_factory=list)
+
+    def is_empty(self) -> bool:
+        return not self.facts
+
+
 @dataclass
 class LegalAnswer:
     kind: Literal["answer", "followup"]
@@ -409,6 +468,10 @@ class LegalAnswer:
     # Precedent pattern analysis: what the winning cases had in common vs
     # the losing ones, and which side the citizen's facts align with.
     comparison: PrecedentComparison | None = None
+    # "The 3 questions a lawyer would ask before answering." Augments —
+    # doesn't block — the answer, giving the citizen pointers to drill
+    # deeper where their original framing was ambiguous.
+    missing_facts: MissingFactsAnalysis | None = None
     # Claude Code session id — set by ClaudeCodeBackend after a compose call.
     # Callers (web.py, bot.py) should persist this per-citizen to maintain
     # native conversation context via `--resume`.
@@ -535,6 +598,17 @@ class SuperAvvocato:
         except Exception as exc:
             log.warning("comparison analysis failed (non-fatal): %s", exc)
 
+        # Missing-facts — "the 3 questions a lawyer would ask next." Runs
+        # independently; not fed into the answer prompt (it's post-hoc
+        # guidance that augments the answer, not a premise for it).
+        missing_facts: MissingFactsAnalysis | None = None
+        try:
+            missing_facts = self._detect_missing_facts(user_message, triage, retrieved, documents)
+            if missing_facts and not missing_facts.is_empty():
+                log.info("missing_facts: %d questions", len(missing_facts.facts))
+        except Exception as exc:
+            log.warning("missing-facts detector failed (non-fatal): %s", exc)
+
         answer_text = self._compose_answer(
             user_message, history, triage, retrieved, precedents, strategic, timeline, comparison,
             session_id=session_id, documents=documents,
@@ -545,7 +619,7 @@ class SuperAvvocato:
         return LegalAnswer(
             kind="answer", text=answer_text, triage=triage,
             retrieved=retrieved, precedents=precedents, strategic=strategic,
-            timeline=timeline, comparison=comparison,
+            timeline=timeline, comparison=comparison, missing_facts=missing_facts,
             session_id=new_session_id,
         )
 
@@ -913,6 +987,75 @@ class SuperAvvocato:
             alignment_reason=str(data.get("alignment_reason", "")).strip(),
             decisive_factors=factors,
         )
+
+    # ── stage 3d: missing-facts detector ──────────────────────────────────
+
+    @retry(
+        retry=retry_if_exception_type(Exception),
+        stop=stop_after_attempt(2),
+        wait=wait_exponential(multiplier=1, min=1, max=6),
+        reraise=True,
+    )
+    def _detect_missing_facts(
+        self,
+        user_message: str,
+        triage: TriageResult,
+        retrieved: list[tuple[Article, float]],
+        documents: list[dict] | None,
+    ) -> MissingFactsAnalysis:
+        """Identify 2-4 unknown facts that would meaningfully change the answer.
+
+        We feed the retrieved articles in so the detector can surface
+        facts that pivot around a specific clause (e.g. "was the notice
+        in writing?" when retrieved articles require written notice for
+        a deadline to start).
+        """
+        if not retrieved:
+            return MissingFactsAnalysis()
+
+        articles_context = _format_articles_for_prompt(retrieved)
+        dossier_hint = format_documents_for_prompt(documents or [], compact=True)
+        dossier_block = f"\n{dossier_hint}\n" if dossier_hint else ""
+
+        prompt = textwrap.dedent(f"""\
+            Pyetja e qytetarit:
+            \"\"\"{user_message}\"\"\"
+
+            Përmbledhja e rastit: {triage.problem_summary}
+            {dossier_block}
+            Nenet e gjetura (përdori për të ditur cilat fakte pivotojnë te cili nen):
+            {articles_context}
+
+            Nxirr faktet që mungojnë sipas formatit JSON.
+        """)
+
+        raw = self.backend.complete(
+            system=MISSING_FACTS_SYSTEM,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=900,
+            fast=True,
+        )
+        try:
+            data = _parse_json_block(raw)
+        except Exception:
+            log.warning("missing-facts JSON parse failed, returning empty")
+            return MissingFactsAnalysis()
+
+        facts: list[MissingFact] = []
+        for item in (data.get("facts") or []):
+            if not isinstance(item, dict):
+                continue
+            q = str(item.get("question", "")).strip()
+            why = str(item.get("why_it_matters", "")).strip()
+            if not q or not why:
+                continue
+            facts.append(MissingFact(
+                question=q,
+                why_it_matters=why,
+                impact_if_yes=str(item.get("impact_if_yes", "")).strip(),
+                impact_if_no=str(item.get("impact_if_no", "")).strip(),
+            ))
+        return MissingFactsAnalysis(facts=facts[:4])
 
     # ── stage 4: answer composition ───────────────────────────────────────
 

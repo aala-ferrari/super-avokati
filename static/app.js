@@ -127,6 +127,7 @@
         precedents: m.precedents || [],
         timeline: m.timeline || null,
         comparison: m.comparison || null,
+        missing_facts: m.missing_facts || null,
       });
     }
     renderDossier(c.documents || []);
@@ -606,6 +607,14 @@
       msgEl.insertBefore(prec, null);
     }
 
+    // Missing-facts — "3 pyetje që do ta ndryshonin përgjigjen." Appears
+    // at the end so it feels like a natural next step: the answer's done,
+    // here's where to drill deeper.
+    const missing = data.missing_facts;
+    if (missing && (missing.facts || []).length) {
+      msgEl.insertBefore(renderMissingFacts(missing), null);
+    }
+
     // kind classes
     if (data.kind === "error") msgEl.classList.add("error");
     if (data.kind === "answer" && articles.length > 0) {
@@ -723,6 +732,48 @@
       if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
       n.parentNode.replaceChild(frag, n);
     }
+  }
+
+  // ─── render missing-facts panel (the 3 questions a lawyer asks) ──
+  function renderMissingFacts(mf) {
+    const wrap = document.createElement("details");
+    wrap.className = "missing-facts";
+    wrap.open = true;
+
+    const items = (mf.facts || []).map((f, i) => {
+      const impact = [];
+      if (f.impact_if_yes) impact.push(`<div class="mf-impact"><strong>Nëse PO:</strong> ${escapeHtml(f.impact_if_yes)}</div>`);
+      if (f.impact_if_no)  impact.push(`<div class="mf-impact"><strong>Nëse JO:</strong> ${escapeHtml(f.impact_if_no)}</div>`);
+      return `
+        <li class="mf-item">
+          <button class="mf-ask" type="button" data-question="${escapeHtml(f.question)}">
+            <span class="mf-num">${i + 1}</span>
+            <span class="mf-q">${escapeHtml(f.question)}</span>
+          </button>
+          <div class="mf-why">${escapeHtml(f.why_it_matters)}</div>
+          ${impact.join("")}
+        </li>
+      `;
+    }).join("");
+
+    wrap.innerHTML = `
+      <summary>❓ Pyetje që do ta sqaronin edhe më shumë rastin (${(mf.facts || []).length})</summary>
+      <ul class="mf-list">${items}</ul>
+    `;
+
+    // Click-to-ask: pre-fill the composer with a leading sentence and the
+    // question, so the citizen only needs to add their answer underneath.
+    wrap.querySelectorAll(".mf-ask").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const q = btn.dataset.question || "";
+        input.value = `Përgjigja për pyetjen "${q}" është: `;
+        input.focus();
+        input.setSelectionRange(input.value.length, input.value.length);
+        autoGrow();
+        input.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    });
+    return wrap;
   }
 
   // ─── render precedent-comparison card (winners vs losers) ──────

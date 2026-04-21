@@ -225,7 +225,7 @@ def api_get_case(case_id: str):
             {"id": m.id, "role": m.role, "content": m.content, "kind": m.kind,
              "articles": m.articles, "precedents": m.precedents,
              "timeline": m.timeline, "comparison": m.comparison,
-             "created_at": m.created_at}
+             "missing_facts": m.missing_facts, "created_at": m.created_at}
             for m in messages
         ],
         "documents": [_document_payload(d) for d in documents],
@@ -310,7 +310,7 @@ def api_export_case(case_id: str):
                 {"role": m.role, "content": m.content, "kind": m.kind,
                  "articles": m.articles, "precedents": m.precedents,
                  "timeline": m.timeline, "comparison": m.comparison,
-             "created_at": m.created_at}
+             "missing_facts": m.missing_facts, "created_at": m.created_at}
                 for m in messages
             ],
         }
@@ -528,9 +528,11 @@ def api_ask():
     precedents = [_precedent_payload(d, s) for d, s in result.precedents]
     timeline_payload = _timeline_payload(result.timeline)
     comparison_payload = _comparison_payload(result.comparison)
+    missing_facts_payload = _missing_facts_payload(result.missing_facts)
     storage.add_message(case.id, "assistant", result.text,
                         kind=result.kind, articles=articles, precedents=precedents,
-                        timeline=timeline_payload, comparison=comparison_payload)
+                        timeline=timeline_payload, comparison=comparison_payload,
+                        missing_facts=missing_facts_payload)
     if result.session_id:
         storage.update_case_claude_session(case.id, user.id, result.session_id)
 
@@ -548,6 +550,7 @@ def api_ask():
         "precedents": precedents,
         "timeline": timeline_payload,
         "comparison": comparison_payload,
+        "missing_facts": missing_facts_payload,
         "case_id": case.id,
     })
 
@@ -615,6 +618,13 @@ def _comparison_payload(comparison) -> dict | None:
     if comparison is None or comparison.is_empty():
         return None
     return asdict(comparison)
+
+
+def _missing_facts_payload(mf) -> dict | None:
+    """Serialise MissingFactsAnalysis for the UI. None when empty."""
+    if mf is None or mf.is_empty():
+        return None
+    return {"facts": [asdict(f) for f in mf.facts]}
 
 
 def _precedent_payload(c, score: float) -> dict:

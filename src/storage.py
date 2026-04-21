@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS messages (
     precedents_json TEXT,                   -- JSON-serialised retrieved precedents (assistant only)
     timeline_json   TEXT,                   -- JSON-serialised timeline (anchors + deadlines)
     comparison_json TEXT,                   -- JSON-serialised precedent comparison (winners vs losers)
+    missing_facts_json TEXT,                -- JSON-serialised missing-facts questions
     created_at      TEXT NOT NULL,
     FOREIGN KEY (case_id) REFERENCES cases(id) ON DELETE CASCADE
 );
@@ -113,6 +114,7 @@ def init_db(db_path: Path = APP_DB_PATH) -> None:
         conn.executescript(SCHEMA)
         _add_column_if_missing(conn, "messages", "timeline_json", "TEXT")
         _add_column_if_missing(conn, "messages", "comparison_json", "TEXT")
+        _add_column_if_missing(conn, "messages", "missing_facts_json", "TEXT")
         conn.commit()
     log.info("app db ready at %s", db_path)
 
@@ -171,6 +173,7 @@ class Message:
     precedents: list
     timeline: dict | None
     comparison: dict | None
+    missing_facts: dict | None
     created_at: str
 
 
@@ -192,6 +195,7 @@ def _message_from_row(r: sqlite3.Row) -> Message:
     keys = r.keys()
     timeline_raw = r["timeline_json"] if "timeline_json" in keys else None
     comparison_raw = r["comparison_json"] if "comparison_json" in keys else None
+    missing_raw = r["missing_facts_json"] if "missing_facts_json" in keys else None
     return Message(
         id=r["id"], case_id=r["case_id"], role=r["role"],
         content=r["content"], kind=r["kind"],
@@ -199,6 +203,7 @@ def _message_from_row(r: sqlite3.Row) -> Message:
         precedents=json.loads(r["precedents_json"]) if r["precedents_json"] else [],
         timeline=json.loads(timeline_raw) if timeline_raw else None,
         comparison=json.loads(comparison_raw) if comparison_raw else None,
+        missing_facts=json.loads(missing_raw) if missing_raw else None,
         created_at=r["created_at"],
     )
 
@@ -369,26 +374,30 @@ def add_message(
     precedents: list | None = None,
     timeline: dict | None = None,
     comparison: dict | None = None,
+    missing_facts: dict | None = None,
 ) -> Message:
     now = _utcnow()
     articles_json = json.dumps(articles, ensure_ascii=False) if articles else None
     precedents_json = json.dumps(precedents, ensure_ascii=False) if precedents else None
     timeline_json = json.dumps(timeline, ensure_ascii=False) if timeline else None
     comparison_json = json.dumps(comparison, ensure_ascii=False) if comparison else None
+    missing_json = json.dumps(missing_facts, ensure_ascii=False) if missing_facts else None
     with db() as conn:
         cur = conn.execute(
             "INSERT INTO messages (case_id, role, content, kind, "
-            "articles_json, precedents_json, timeline_json, comparison_json, created_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "articles_json, precedents_json, timeline_json, comparison_json, "
+            "missing_facts_json, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (case_id, role, content, kind, articles_json, precedents_json,
-             timeline_json, comparison_json, now),
+             timeline_json, comparison_json, missing_json, now),
         )
         mid = cur.lastrowid
         conn.execute("UPDATE cases SET updated_at = ? WHERE id = ?", (now, case_id))
     return Message(
         id=mid, case_id=case_id, role=role, content=content, kind=kind,
         articles=articles or [], precedents=precedents or [],
-        timeline=timeline, comparison=comparison, created_at=now,
+        timeline=timeline, comparison=comparison, missing_facts=missing_facts,
+        created_at=now,
     )
 
 
