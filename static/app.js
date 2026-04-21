@@ -128,6 +128,7 @@
         timeline: m.timeline || null,
         comparison: m.comparison || null,
         missing_facts: m.missing_facts || null,
+        premortem: m.premortem || null,
       });
     }
     renderDossier(c.documents || []);
@@ -565,6 +566,15 @@
       msgEl.insertBefore(renderComparison(comparison), null);
     }
 
+    // Pre-mortem — "5 reasons we could lose." Rendered right below the
+    // comparison card so the citizen sees the honest risk frame before
+    // the deadlines and precedents. Collapsed by default (heavy reading),
+    // but the summary shows the risk count with a red dot when severe.
+    const premortem = data.premortem;
+    if (premortem && (premortem.risks || []).length) {
+      msgEl.insertBefore(renderPremortem(premortem), null);
+    }
+
     // Timeline widget — past anchors + future deadlines with colour-coded
     // urgency badges. Rendered before the precedents block so citizens see
     // the "act by X" summary first.
@@ -732,6 +742,40 @@
       if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
       n.parentNode.replaceChild(frag, n);
     }
+  }
+
+  // ─── render pre-mortem panel (red-team "why we could lose") ─────
+  function renderPremortem(pm) {
+    const wrap = document.createElement("details");
+    const risks = pm.risks || [];
+    const hasHigh = risks.some((r) => r.severity === "high");
+    wrap.className = "premortem" + (hasHigh ? " pm-has-high" : "");
+    // Open by default only when there's at least one high-severity risk —
+    // otherwise the citizen has less to worry about and can drill down.
+    wrap.open = hasHigh;
+
+    const sevIcon = { high: "🔴", medium: "🟡", low: "🟢" };
+    const sevLabel = { high: "I LARTË", medium: "MESATAR", low: "I ULËT" };
+    const items = risks.map((r, i) => `
+      <li class="pm-item pm-sev-${escapeHtml(r.severity || "medium")}">
+        <div class="pm-head">
+          <span class="pm-num">${i + 1}</span>
+          <span class="pm-sev">${sevIcon[r.severity] || "🟡"} ${sevLabel[r.severity] || "MESATAR"}</span>
+        </div>
+        <div class="pm-risk">${escapeHtml(r.risk)}</div>
+        ${r.mitigation ? `<div class="pm-mitig"><strong>Mitigim:</strong> ${escapeHtml(r.mitigation)}</div>` : ""}
+      </li>
+    `).join("");
+
+    const label = hasHigh
+      ? `⚠️ Pse kauza mund të humbet (${risks.length} rreziqe — ka rreziqe të larta)`
+      : `🛡️ Pse kauza mund të humbet (${risks.length} rreziqe)`;
+    wrap.innerHTML = `
+      <summary>${label}</summary>
+      <div class="pm-intro">Avokat i mirë nuk t'i fsheh pikat ku mund të bjerë kauza. I njeh që të të mbrojë.</div>
+      <ul class="pm-list">${items}</ul>
+    `;
+    return wrap;
   }
 
   // ─── render missing-facts panel (the 3 questions a lawyer asks) ──

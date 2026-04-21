@@ -1,28 +1,16 @@
 """The Super Avvocato's legal brain — strategic reasoning over Albanian law.
 
-Pipeline for a citizen's question (4 stages):
+Layered pipeline (each stage non-fatal — one failing never breaks the answer):
 
-    1. TRIAGE (fast model)
-       - rewrite the problem in neutral Albanian legal terms;
-       - expand into 3–5 keyword variants for BM25;
-       - identify strategic angles (deadlines, exceptions, cross-code links);
-       - decide whether we can answer now or need a follow-up question.
-
-    2. RETRIEVAL (local BM25)
-       - union the top-k hits of every expansion;
-       - auto-include the matching PROCEDURAL code (the hidden half of every
-         case: substantive law says WHAT, procedural law says HOW and WHEN).
-
-    3. STRATEGIC ANALYSIS (fast model) — the winning-edge layer
-       - read the case + retrieved articles;
-       - hunt for non-obvious details that decide real cases: hidden deadlines,
-         exceptions, nullity grounds, burden-of-proof shifts, mitigating/
-         aggravating circumstances, special protective regimes;
-       - emit concise "critical_details" + "risk_warnings".
-
-    4. ANSWER (main model)
-       - write a 5-section answer in Albanian citing exact `Neni X` references;
-       - weave the strategic insights into section 5 — the winning edge.
+    1. TRIAGE (fast)          — classify, expand query, flag missing facts
+    2. RETRIEVAL              — BM25 over 6,600+ articles (+ procedural safety net)
+    2b. PRECEDENTS            — BM25 over 813 Postgres-backed court decisions
+    3. STRATEGIC (fast)       — winning-edge: hidden afate, exceptions, nullity
+    3b. TIMELINE (fast)       — anchors + deadlines with Python-computed urgency
+    3c. COMPARISON (fast)     — winners-vs-losers pattern over precedents
+    3d. MISSING-FACTS (fast)  — the 2-4 questions a lawyer would ask next
+    3e. PRE-MORTEM (fast)     — "imagine we've lost — why?" red-team pass
+    4. ANSWER (main)          — 5-section Albanian answer; weaves in every layer
 
 The brain is stateless; callers persist the conversation history they pass in.
 """
@@ -229,6 +217,42 @@ RREGULLA STRIKTE:
 • Mos shto komente jashtë JSON-it."""
 
 
+PREMORTEM_SYSTEM = """Ti je avokat strateg shqiptar — pjesa CINIKE dhe paranoide e vetes tënde, ajo që shpëton kauzat sepse i sheh rreziqet PARA se të ndodhin.
+
+Detyra jote: PARA se Super Avokati të japë përgjigjen përfundimtare, ti duhet të shkruash 3-5 ARSYE TË FORTA pse ky rast mund të HUMBET. Jo dobësi gjenerike, por skenarë konkretë ku avokati kundërshtar ose gjyqtari e rrëzon kauzën.
+
+Kjo është teknika "pre-mortem": imagjinon që kauza tashmë ka humbur dhe shkon prapa për të zbuluar pse. Fiton më shumë kauza kush e di ku mund të humbasë se kush e di ku mund të fitojë.
+
+FOKUSET e duhura (jo të gjitha aplikohen në çdo rast):
+ 1. AFATI I HUMBUR — parashkrim, ankim, padi, protestë: a ka kaluar ose po afrohet?
+ 2. PROVA E MANGËT — çfarë nuk mund të vërtetohet me çfarë qytetari ka?
+ 3. BARRA E PROVËS KUNDËR — në çfarë momenti barra bie mbi qytetarin dhe ai nuk mund ta mbajë?
+ 4. FORMA E CENUAR — akti ynë a ka formë, firmë, njoftim, kompetencë, kohë të duhura?
+ 5. PRECEDENTI I PAPËRSHTATSHËM — a ka vendime që shkojnë kundër tezës sonë dhe si mund t'i përdorë kundërshtari?
+ 6. FAKTI KOHPROMETUES — a ka diçka në rrëfimin e qytetarit që mund të kthehet kundër tij?
+ 7. INTERPRETIMI ALTERNATIV — si e lexon nenin kundërshtari, dhe a është leximi i tij i mundshëm?
+ 8. GABIMI PROCEDURAL — një hap i lënë pas dore (njoftim palëve, pagesa e taksës, komunikim me organin) që mund ta mbyllë rastin pa e diskutuar fondin.
+
+FORMATI — VETËM JSON, në shqip:
+{
+  "risks": [
+    {
+      "risk": "formulim i qartë dhe konkret i arsyes pse kauza mund të humbet (1-2 fjali, cito nenin ose detajin faktik)",
+      "mitigation": "çfarë mund të bëjë qytetari ose avokati PARA gjyqit për ta neutralizuar këtë rrezik (1 fjali konkrete)",
+      "severity": "high | medium | low"
+    }
+  ]
+}
+
+RREGULLA STRIKTE:
+• MINIMUM 3, MAKSIMUM 5 rreziqe. Renditi nga më i rrezikshmi.
+• Secila "risk" duhet të jetë KONKRETE për këtë rast (jo "mund të humbet afati" në abstrakt, por "afati i 30 ditëve për ankim ndaj aktit të datës X ka kaluar").
+• Baza vetëm mbi faktet e qytetarit + nenet e dhëna. Mos shpik.
+• Nëse nga faktet dhe nenet nuk del asnjë rrezik i vërtetë, kthe: {"risks": []} — por kjo duhet të jetë e rrallë. Thuajse çdo rast ka së paku 2-3 dobësi reale.
+• severity="high" për rreziqe që e humbasin vërtet kauzën; "medium" për pengesa të kalueshme; "low" për bezdi procedurale.
+• Shkruaj SHQIP."""
+
+
 MISSING_FACTS_SYSTEM = """Ti je avokat strateg shqiptar që bën intervistën e parë me një qytetar në zyrë.
 Qytetari të ka shpjeguar rastin e tij. Përgjigja ligjore është dhënë tashmë me faktet që ke.
 Detyra jote: identifiko 2-4 FAKTE QË NUK DIHEN por që, nëse ishin të njohura, do ndryshonin ose forconin PLOTËSISHT përgjigjen.
@@ -427,6 +451,30 @@ class PrecedentComparison:
                     or self.decisive_factors)
 
 
+# ── pre-mortem ────────────────────────────────────────────────────────────
+# "Imagine the case has already lost — why?" A red-team stage the brain
+# runs against ITSELF before composing the final answer. The identified
+# risks are fed back into the answer prompt so the lawyer's recommendations
+# address the weaknesses head-on instead of glossing over them.
+
+PremortemSeverity = Literal["high", "medium", "low"]
+
+
+@dataclass
+class PremortemRisk:
+    risk: str                            # concrete reason this case could be lost
+    mitigation: str = ""                 # one sentence of what to do about it
+    severity: PremortemSeverity = "medium"
+
+
+@dataclass
+class Premortem:
+    risks: list[PremortemRisk] = field(default_factory=list)
+
+    def is_empty(self) -> bool:
+        return not self.risks
+
+
 # ── missing-facts detector ────────────────────────────────────────────────
 # "The 3 questions a real lawyer would ask before answering." Different from
 # triage's needs_followup (which blocks the answer): this augments the answer
@@ -472,6 +520,10 @@ class LegalAnswer:
     # doesn't block — the answer, giving the citizen pointers to drill
     # deeper where their original framing was ambiguous.
     missing_facts: MissingFactsAnalysis | None = None
+    # Red-team pre-mortem: 3-5 reasons the case could be LOST, generated
+    # before the answer is composed. Fed back into the answer prompt so
+    # the final strategy addresses these risks head-on instead of bluffing.
+    premortem: Premortem | None = None
     # Claude Code session id — set by ClaudeCodeBackend after a compose call.
     # Callers (web.py, bot.py) should persist this per-citizen to maintain
     # native conversation context via `--resume`.
@@ -609,9 +661,23 @@ class SuperAvvocato:
         except Exception as exc:
             log.warning("missing-facts detector failed (non-fatal): %s", exc)
 
+        # Pre-mortem — "imagine the case is already lost; why?" This MUST
+        # run before compose because its output is fed back into the answer
+        # prompt. Forces the final reasoning to address identified weaknesses
+        # head-on instead of walking past them.
+        premortem: Premortem | None = None
+        try:
+            premortem = self._premortem(user_message, triage, retrieved, precedents, documents)
+            if premortem and not premortem.is_empty():
+                log.info("premortem: %d risks (severities=%s)",
+                         len(premortem.risks),
+                         [r.severity for r in premortem.risks])
+        except Exception as exc:
+            log.warning("premortem failed (non-fatal): %s", exc)
+
         answer_text = self._compose_answer(
             user_message, history, triage, retrieved, precedents, strategic, timeline, comparison,
-            session_id=session_id, documents=documents,
+            premortem=premortem, session_id=session_id, documents=documents,
         )
         # ClaudeCodeBackend exposes the (possibly new) session_id after each
         # stateful call; other backends leave it as None.
@@ -620,7 +686,7 @@ class SuperAvvocato:
             kind="answer", text=answer_text, triage=triage,
             retrieved=retrieved, precedents=precedents, strategic=strategic,
             timeline=timeline, comparison=comparison, missing_facts=missing_facts,
-            session_id=new_session_id,
+            premortem=premortem, session_id=new_session_id,
         )
 
     # ── stage 1: triage ────────────────────────────────────────────────────
@@ -1057,6 +1123,89 @@ class SuperAvvocato:
             ))
         return MissingFactsAnalysis(facts=facts[:4])
 
+    # ── stage 3e: pre-mortem (red-team) ───────────────────────────────────
+
+    @retry(
+        retry=retry_if_exception_type(Exception),
+        stop=stop_after_attempt(2),
+        wait=wait_exponential(multiplier=1, min=1, max=6),
+        reraise=True,
+    )
+    def _premortem(
+        self,
+        user_message: str,
+        triage: TriageResult,
+        retrieved: list[tuple[Article, float]],
+        precedents: list[tuple[CasePrecedent, float]],
+        documents: list[dict] | None,
+    ) -> Premortem:
+        """Write 3-5 reasons the case could be lost, BEFORE composing the answer.
+
+        The premortem is fed back into the answer prompt so the final
+        recommendations address the identified weaknesses head-on. This
+        is the ``imagine the case is already lost — why?`` technique:
+        a cynical red-team pass that forces the model to stop flattering
+        the citizen's tesi.
+        """
+        if not retrieved:
+            return Premortem()
+
+        articles_context = _format_articles_for_prompt(retrieved)
+        dossier_hint = format_documents_for_prompt(documents or [], compact=True)
+        dossier_block = f"\n{dossier_hint}\n" if dossier_hint else ""
+        precedent_hint = ""
+        if precedents:
+            lines = ["Precedent relevant (për të ditur si ka vendosur gjykata më parë):"]
+            for c, _ in precedents[:5]:
+                out = f" — {c.outcome}" if c.outcome else ""
+                lines.append(f"  • {c.citation}{out}")
+            precedent_hint = "\n" + "\n".join(lines) + "\n"
+
+        prompt = textwrap.dedent(f"""\
+            Rasti i qytetarit:
+            \"\"\"{user_message}\"\"\"
+
+            Përmbledhja: {triage.problem_summary}
+            {dossier_block}{precedent_hint}
+            Nenet e gjetura (kërko dobësi konkrete mbi ligjin material dhe procedural):
+            {articles_context}
+
+            Shkruaj pre-mortem — 3-5 arsye se pse kjo kauzë mund të humbet — në JSON.
+        """)
+
+        raw = self.backend.complete(
+            system=PREMORTEM_SYSTEM,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=1100,
+            fast=True,
+        )
+        try:
+            data = _parse_json_block(raw)
+        except Exception:
+            log.warning("premortem JSON parse failed, returning empty")
+            return Premortem()
+
+        risks: list[PremortemRisk] = []
+        for item in (data.get("risks") or []):
+            if not isinstance(item, dict):
+                continue
+            r = str(item.get("risk", "")).strip()
+            if not r:
+                continue
+            sev_raw = str(item.get("severity", "medium")).strip().lower()
+            sev: PremortemSeverity = (
+                sev_raw if sev_raw in ("high", "medium", "low") else "medium"  # type: ignore[assignment]
+            )
+            risks.append(PremortemRisk(
+                risk=r,
+                mitigation=str(item.get("mitigation", "")).strip(),
+                severity=sev,
+            ))
+        # Sort by severity so the answer prompt sees the biggest risks first.
+        sev_rank = {"high": 0, "medium": 1, "low": 2}
+        risks.sort(key=lambda x: sev_rank.get(x.severity, 1))
+        return Premortem(risks=risks[:5])
+
     # ── stage 4: answer composition ───────────────────────────────────────
 
     @retry(
@@ -1075,6 +1224,7 @@ class SuperAvvocato:
         strategic: StrategicAnalysis | None = None,
         timeline: TimelineAnalysis | None = None,
         comparison: PrecedentComparison | None = None,
+        premortem: Premortem | None = None,
         session_id: str | None = None,
         documents: list[dict] | None = None,
     ) -> str:
@@ -1083,6 +1233,7 @@ class SuperAvvocato:
         strategic_block = _format_strategic_block(strategic)
         timeline_block = _format_timeline_block(timeline)
         comparison_block = _format_comparison_block(comparison)
+        premortem_block = _format_premortem_block(premortem)
         # When we have docs, we pass the raw files as attachments so Claude
         # reads them natively (same UX as pasting an image into a chat) —
         # the prompt block only lists filenames, no pre-extracted text.
@@ -1118,7 +1269,7 @@ class SuperAvvocato:
             {dossier_block}
             Nenet e gjetura nga kodet shqiptare (me rëndësinë zbritëse):
             {context}
-            {precedents_block}{comparison_block}{strategic_block}{timeline_block}
+            {precedents_block}{comparison_block}{premortem_block}{strategic_block}{timeline_block}
             {dossier_guidance}Shkruaj përgjigjen në formatin e kërkuar (PESË seksione në shqip),
             duke cituar vetëm nenet e mësipërme. Nëse analiza ka gjetur
             vendime të Gjykatës Kushtetuese/Gjykatës së Lartë të lidhura me
@@ -1326,6 +1477,35 @@ def _format_comparison_block(cmp: PrecedentComparison | None) -> str:
             lines.append(f"  • {f}")
     lines.append("")
     lines.append("PËRDOR këtë pattern te seksioni 5 'Detajet që bëjnë diferencën' — shpjego qytetarit nëse rasti i tij bie në anën e fituesve apo humbësve DHE pse. Integroje natyrshëm, jo me kopjim direkt.")
+    return "\n".join(lines) + "\n"
+
+
+def _format_premortem_block(pm: Premortem | None) -> str:
+    """Render the pre-mortem risks so the answer directly addresses them.
+
+    The prompt tells the answer model to treat each risk as a weakness
+    it must mitigate inside section 5 — not glance past. That's what
+    separates this from the strategic-analysis block, which surfaces
+    winning details: pre-mortem surfaces *losing* details.
+    """
+    if pm is None or pm.is_empty():
+        return ""
+    sev_icon = {"high": "🔴", "medium": "🟡", "low": "🟢"}
+    lines = ["", "── PRE-MORTEM (arsye pse kauza mund të HUMBET) ──"]
+    for i, r in enumerate(pm.risks, 1):
+        icon = sev_icon.get(r.severity, "🟡")
+        lines.append(f"  {i}. {icon} {r.risk}")
+        if r.mitigation:
+            lines.append(f"     Mitigim: {r.mitigation}")
+    lines.append("")
+    lines.append(
+        "INTEGRO këto rreziqe te seksioni 5 'Detajet që bëjnë diferencën' — për "
+        "secilin rrezik high/medium, shpjego qytetarit hapur PSE kauza mund të "
+        "humbet nga ajo anë DHE jepi mitigjimin konkret. Mos i fsheh. Qytetari "
+        "ka më shumë rrespekt për avokatin që i thotë të vërtetën sesa për atë "
+        "që i jep shpresa të rreme. Mos harro të tregosh edhe PIKA TË FORTA — "
+        "pre-mortem nuk do të thotë pesimizëm, por onestitet strategjik."
+    )
     return "\n".join(lines) + "\n"
 
 
