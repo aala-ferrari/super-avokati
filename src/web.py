@@ -229,6 +229,7 @@ def api_get_case(case_id: str):
              "distinguishing": m.distinguishing, "evidence_map": m.evidence_map,
              "nullity_radar": m.nullity_radar,
              "urgency_radar": m.urgency_radar,
+             "action_plan": m.action_plan,
              "created_at": m.created_at}
             for m in messages
         ],
@@ -318,6 +319,7 @@ def api_export_case(case_id: str):
                  "distinguishing": m.distinguishing, "evidence_map": m.evidence_map,
                  "nullity_radar": m.nullity_radar,
                  "urgency_radar": m.urgency_radar,
+                 "action_plan": m.action_plan,
                  "created_at": m.created_at}
                 for m in messages
             ],
@@ -542,6 +544,7 @@ def api_ask():
     evidence_map_payload = _evidence_map_payload(result.evidence_map)
     nullity_radar_payload = _nullity_radar_payload(result.nullity_radar)
     urgency_radar_payload = _urgency_radar_payload(result.urgency_radar)
+    action_plan_payload = _action_plan_payload(result.action_plan)
     storage.add_message(case.id, "assistant", result.text,
                         kind=result.kind, articles=articles, precedents=precedents,
                         timeline=timeline_payload, comparison=comparison_payload,
@@ -550,7 +553,8 @@ def api_ask():
                         distinguishing=distinguishing_payload,
                         evidence_map=evidence_map_payload,
                         nullity_radar=nullity_radar_payload,
-                        urgency_radar=urgency_radar_payload)
+                        urgency_radar=urgency_radar_payload,
+                        action_plan=action_plan_payload)
     if result.session_id:
         storage.update_case_claude_session(case.id, user.id, result.session_id)
 
@@ -574,6 +578,7 @@ def api_ask():
         "evidence_map": evidence_map_payload,
         "nullity_radar": nullity_radar_payload,
         "urgency_radar": urgency_radar_payload,
+        "action_plan": action_plan_payload,
         "case_id": case.id,
     })
 
@@ -688,6 +693,14 @@ def _urgency_radar_payload(ur) -> dict | None:
         "level": ur.level,
         "signals": [asdict(s) for s in ur.signals],
     }
+
+
+def _action_plan_payload(ap) -> dict | None:
+    """Serialise ActionPlan for the UI. None when empty so we don't render
+    an empty 'here's your plan' panel on theoretical questions."""
+    if ap is None or ap.is_empty():
+        return None
+    return {"items": [asdict(it) for it in ap.items]}
 
 
 def _precedent_payload(c, score: float) -> dict:

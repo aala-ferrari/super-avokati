@@ -133,6 +133,7 @@
         evidence_map: m.evidence_map || null,
         nullity_radar: m.nullity_radar || null,
         urgency_radar: m.urgency_radar || null,
+        action_plan: m.action_plan || null,
       });
     }
     renderDossier(c.documents || []);
@@ -545,6 +546,15 @@
     if (urgencyRadar && urgencyRadar.level && urgencyRadar.level !== "none"
         && (urgencyRadar.signals || []).length) {
       msgEl.insertBefore(renderUrgencyRadar(urgencyRadar), body);
+    }
+
+    // Action plan — consolidated, time-bucketed checklist. Sits ABOVE
+    // the body so the citizen sees "here's your plan for this week"
+    // before reading the five-section prose. Null/empty on theoretical
+    // questions so the UI stays clean.
+    const actionPlan = data.action_plan;
+    if (actionPlan && (actionPlan.items || []).length) {
+      msgEl.insertBefore(renderActionPlan(actionPlan), body);
     }
 
     const retrieved = node.querySelector(".retrieved");
@@ -1039,6 +1049,84 @@
     wrap.innerHTML = `
       <div class="ur-header"><strong>${header}</strong></div>
       <ul class="ur-list">${items}</ul>
+    `;
+    return wrap;
+  }
+
+  // ─── render action plan (consolidated, time-bucketed checklist) ─
+  function renderActionPlan(ap) {
+    const wrap = document.createElement("details");
+    const items = ap.items || [];
+    wrap.className = "action-plan";
+    // Open by default when there's at least one "sot" item — those are
+    // the actions the citizen must do today and we don't want them hidden.
+    const hasToday = items.some((it) => it.bucket === "sot");
+    wrap.open = hasToday;
+
+    const bucketLabel = {
+      sot: "🔥 Sot / nesër",
+      "kjo_javë": "📅 Kjo javë",
+      "ky_muaj": "🗓️ Ky muaj",
+      "më_vonë": "🕰️ Më vonë",
+    };
+    const bucketOrder = ["sot", "kjo_javë", "ky_muaj", "më_vonë"];
+    const sourceBadge = {
+      urgency:    { icon: "🚨", label: "emergjencë" },
+      nullity:    { icon: "🛡️", label: "pavlefshmëri" },
+      evidence:   { icon: "📎", label: "provë" },
+      difference: { icon: "🎯", label: "gap vs fitoret" },
+      premortem:  { icon: "⚠️", label: "mitigim rreziku" },
+      other:      { icon: "•",  label: "" },
+    };
+
+    const byBucket = {};
+    for (const it of items) {
+      (byBucket[it.bucket] || (byBucket[it.bucket] = [])).push(it);
+    }
+
+    const sections = bucketOrder
+      .filter((b) => byBucket[b] && byBucket[b].length)
+      .map((b) => {
+        const group = byBucket[b];
+        const lis = group.map((it) => {
+          const badge = sourceBadge[it.source] || sourceBadge.other;
+          const basisTag = it.legal_basis
+            ? `<span class="ap-basis">${escapeHtml(it.legal_basis)}</span>` : "";
+          const reason = it.reason
+            ? `<div class="ap-reason">${escapeHtml(it.reason)}</div>` : "";
+          const srcLabel = badge.label
+            ? `<span class="ap-source">${badge.icon} ${escapeHtml(badge.label)}</span>`
+            : "";
+          return `
+            <li class="ap-item ap-source-${escapeHtml(it.source || "other")}">
+              <div class="ap-row">
+                <span class="ap-prio">${it.priority ?? ""}</span>
+                <div class="ap-text">
+                  <div class="ap-main">${escapeHtml(it.text)} ${basisTag}</div>
+                  ${reason}
+                  ${srcLabel}
+                </div>
+              </div>
+            </li>
+          `;
+        }).join("");
+        return `
+          <div class="ap-bucket ap-bucket-${b}">
+            <div class="ap-bucket-label">${bucketLabel[b] || b}</div>
+            <ul class="ap-list">${lis}</ul>
+          </div>
+        `;
+      })
+      .join("");
+
+    const summary = hasToday
+      ? `✅ Plani i veprimit — ${items.length} hapa (${byBucket.sot?.length || 0} sot)`
+      : `✅ Plani i veprimit — ${items.length} hapa`;
+
+    wrap.innerHTML = `
+      <summary>${summary}</summary>
+      <div class="ap-intro">Ky është plani i konsoliduar — të gjitha veprimet nga analizat paraprake, të grupuara sipas kohës. Filloji nga lart.</div>
+      ${sections}
     `;
     return wrap;
   }

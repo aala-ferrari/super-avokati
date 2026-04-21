@@ -65,6 +65,7 @@ CREATE TABLE IF NOT EXISTS messages (
     evidence_map_json TEXT,                  -- JSON-serialised burden-of-proof map
     nullity_radar_json TEXT,                 -- JSON-serialised nullity + deadline radar
     urgency_radar_json TEXT,                 -- JSON-serialised urgency signals (top-of-page emergency panel)
+    action_plan_json TEXT,                   -- JSON-serialised consolidated action plan (time-bucketed checklist)
     created_at      TEXT NOT NULL,
     FOREIGN KEY (case_id) REFERENCES cases(id) ON DELETE CASCADE
 );
@@ -125,6 +126,7 @@ def init_db(db_path: Path = APP_DB_PATH) -> None:
         _add_column_if_missing(conn, "messages", "evidence_map_json", "TEXT")
         _add_column_if_missing(conn, "messages", "nullity_radar_json", "TEXT")
         _add_column_if_missing(conn, "messages", "urgency_radar_json", "TEXT")
+        _add_column_if_missing(conn, "messages", "action_plan_json", "TEXT")
         conn.commit()
     log.info("app db ready at %s", db_path)
 
@@ -189,6 +191,7 @@ class Message:
     evidence_map: dict | None
     nullity_radar: dict | None
     urgency_radar: dict | None
+    action_plan: dict | None
     created_at: str
 
 
@@ -216,6 +219,7 @@ def _message_from_row(r: sqlite3.Row) -> Message:
     evidence_map_raw = r["evidence_map_json"] if "evidence_map_json" in keys else None
     nullity_radar_raw = r["nullity_radar_json"] if "nullity_radar_json" in keys else None
     urgency_radar_raw = r["urgency_radar_json"] if "urgency_radar_json" in keys else None
+    action_plan_raw = r["action_plan_json"] if "action_plan_json" in keys else None
     return Message(
         id=r["id"], case_id=r["case_id"], role=r["role"],
         content=r["content"], kind=r["kind"],
@@ -229,6 +233,7 @@ def _message_from_row(r: sqlite3.Row) -> Message:
         evidence_map=json.loads(evidence_map_raw) if evidence_map_raw else None,
         nullity_radar=json.loads(nullity_radar_raw) if nullity_radar_raw else None,
         urgency_radar=json.loads(urgency_radar_raw) if urgency_radar_raw else None,
+        action_plan=json.loads(action_plan_raw) if action_plan_raw else None,
         created_at=r["created_at"],
     )
 
@@ -405,6 +410,7 @@ def add_message(
     evidence_map: dict | None = None,
     nullity_radar: dict | None = None,
     urgency_radar: dict | None = None,
+    action_plan: dict | None = None,
 ) -> Message:
     now = _utcnow()
     articles_json = json.dumps(articles, ensure_ascii=False) if articles else None
@@ -425,17 +431,21 @@ def add_message(
     urgency_radar_json = (
         json.dumps(urgency_radar, ensure_ascii=False) if urgency_radar else None
     )
+    action_plan_json = (
+        json.dumps(action_plan, ensure_ascii=False) if action_plan else None
+    )
     with db() as conn:
         cur = conn.execute(
             "INSERT INTO messages (case_id, role, content, kind, "
             "articles_json, precedents_json, timeline_json, comparison_json, "
             "missing_facts_json, premortem_json, distinguishing_json, "
-            "evidence_map_json, nullity_radar_json, urgency_radar_json, created_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "evidence_map_json, nullity_radar_json, urgency_radar_json, "
+            "action_plan_json, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (case_id, role, content, kind, articles_json, precedents_json,
              timeline_json, comparison_json, missing_json, premortem_json,
              distinguishing_json, evidence_map_json, nullity_radar_json,
-             urgency_radar_json, now),
+             urgency_radar_json, action_plan_json, now),
         )
         mid = cur.lastrowid
         conn.execute("UPDATE cases SET updated_at = ? WHERE id = ?", (now, case_id))
@@ -445,7 +455,7 @@ def add_message(
         timeline=timeline, comparison=comparison, missing_facts=missing_facts,
         premortem=premortem, distinguishing=distinguishing,
         evidence_map=evidence_map, nullity_radar=nullity_radar,
-        urgency_radar=urgency_radar, created_at=now,
+        urgency_radar=urgency_radar, action_plan=action_plan, created_at=now,
     )
 
 

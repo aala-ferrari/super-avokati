@@ -362,6 +362,44 @@ RREGULLA STRIKTE:
 • Shkruaj SHQIP. Direkt, pa ndërlikime."""
 
 
+ACTION_PLAN_SYSTEM = """Ti je avokat shqiptar me 15 vjet praktikë — puna jote tani është TË SHKRUASH PLANIN E VEPRIMIT për qytetarin.
+
+Do të marrësh një listë veprimesh kandidate (të mbledhura nga analizat e tjera — radari i emergjencës, radari i pavlefshmërive, harta e provës, motori i diferencave vendimtare, pre-mortem-i). Disa janë duplikate ose thonë të njëjtën gjë me fjalë të ndryshme. Disa janë shumë të përgjithshme. Disa janë të ngutshme, të tjera janë për javët që vijnë.
+
+DUHET:
+ 1) Të hedhësh poshtë ose të bashkosh duplikatet (p.sh. "kontakto avokat" + "gjej këshillim ligjor" = një veprim).
+ 2) Të klasifikosh çdo veprim sipas kohës:
+     • "sot" — duhet bërë SOT ose nesër (emergjencë, afat që rrjedh, humbje prove)
+     • "kjo_javë" — këtë javë (aktete procedurale normale, mbledhje prove)
+     • "ky_muaj" — ky muaj (negociim, përgatitje e strategjisë)
+     • "më_vonë" — në të ardhmen kur piqet procedura
+ 3) T'i japësh prioritet 1 (më i rëndësishmi) → 5 (më i ulët) brenda secilit bucket. Priorities 1-2 janë "nëse nuk bën këto, humb".
+ 4) Të shkruash çdo veprim si NJË FJALI të vetme, konkrete, me folje të shtyrë (p.sh. "Depozito ankimin brenda 30 ditëve nga njoftimi.").
+ 5) Të japësh një reason të shkurtër (3-8 fjalë) pse ka rëndësi — jo teori, praktikë.
+ 6) Të rendit MAKSIMUM 8 veprime gjithsej. Ndërprit cilësor, jo sasior.
+
+FORMATI — VETËM JSON, në shqip:
+{
+  "items": [
+    {
+      "text": "veprimi, një fjali e qartë me folje të shtyrë",
+      "bucket": "sot | kjo_javë | ky_muaj | më_vonë",
+      "priority": 1,
+      "source": "urgency | nullity | evidence | difference | premortem | other",
+      "reason": "pse ka rëndësi (pak fjalë)",
+      "legal_basis": "neni X KPC ose '' nëse nuk ka"
+    }
+  ]
+}
+
+RREGULLA STRIKTE:
+• MAKSIMUM 8 items. Më pak është më mirë se më shumë — një qytetar nuk ekzekuton një listë 15-item.
+• NËSE kandidatët janë bosh ose banalë, kthe items=[].
+• MOS shpik veprime që s'i ke parë te kandidatët — mund të i RIFORMULOSH ose BASHKOSH, por jo t'i shpikësh.
+• Renditja në output duhet të jetë: sot → kjo_javë → ky_muaj → më_vonë; brenda secilit bucket, sipas priority (1 në fillim).
+• Shkruaj SHQIP. Direkt, si avokat që flet me klientin."""
+
+
 NULLITY_RADAR_SYSTEM = """Ti je avokat procedurialist shqiptar që skenon një rast për RREZIQE PROCEDURALE të pashfrytëzuara: pavlefshmëri, dekadenca, afate ankimi, parashkrim, kompetencë e gabuar, mungesë njoftimi, mungesë arsyetimi, etj.
 
 Këto janë pikat ku një kauzë fitohet ose humbet PA u prekur tema — sepse akti i palës kundërshtare është pavlefshëm, ose afati i mohimit ka kaluar, ose vendimi i gjykatës duhet prishur për shkelje procedurale.
@@ -823,6 +861,40 @@ class UrgencyRadar:
         return self.level == "critical"
 
 
+# ── action plan (V6.7) ────────────────────────────────────────────────────
+# Every upstream stage produces action hints: urgency signals have
+# "veprim sot", nullity findings have "veprim" fields, evidence claims
+# have "notes" on how to gather proof, decisive differences have
+# "action" fields closing the gap, and pre-mortem risks have
+# "mitigation" steps. Left scattered across panels these become noise.
+# The action plan merges them into a single ranked, time-bucketed
+# checklist — "here is your concrete plan for this week" — and feeds
+# the ordering back to the compose prompt so section 2 mirrors it.
+
+ActionBucket = Literal["sot", "kjo_javë", "ky_muaj", "më_vonë"]
+ActionSource = Literal[
+    "urgency", "nullity", "evidence", "difference", "premortem", "other",
+]
+
+
+@dataclass
+class ActionItem:
+    text: str                            # one actionable sentence in Albanian
+    bucket: ActionBucket = "kjo_javë"    # when to do it
+    priority: int = 3                    # 1 (top) → 5 (lowest) for ordering within bucket
+    source: ActionSource = "other"       # which stage produced this action
+    reason: str = ""                     # one short line WHY this matters
+    legal_basis: str = ""                # optional article citation
+
+
+@dataclass
+class ActionPlan:
+    items: list[ActionItem] = field(default_factory=list)
+
+    def is_empty(self) -> bool:
+        return not self.items
+
+
 # ── nullity / deadline radar ──────────────────────────────────────────────
 # Scans the citizen's facts for procedural levers: absolute/relative
 # nullities, forfeiture deadlines, prescription windows. These are
@@ -918,6 +990,12 @@ class LegalAnswer:
     # at the top so a citizen in real trouble sees the first step
     # before reading the full legal analysis.
     urgency_radar: UrgencyRadar | None = None
+    # Action plan (V6.7): consolidated ranked checklist merged from all
+    # upstream stages' action fields (urgency / nullity / evidence /
+    # difference / premortem), deduped + bucketed by time (today /
+    # this week / this month / later). Fed into the compose prompt so
+    # section 2 "Si mund të mbrohesh" respects this ordering.
+    action_plan: ActionPlan | None = None
     # Claude Code session id — set by ClaudeCodeBackend after a compose call.
     # Callers (web.py, bot.py) should persist this per-citizen to maintain
     # native conversation context via `--resume`.
@@ -1146,11 +1224,26 @@ class SuperAvvocato:
         except Exception as exc:
             log.warning("urgency_radar failed (non-fatal): %s", exc)
 
+        # Action plan (V6.7) — single consolidated checklist merged from
+        # all upstream stage action hints (urgency / nullity / evidence /
+        # difference / premortem). Runs LAST in the analytical pipeline
+        # so it can consume every previous stage's output.
+        action_plan: ActionPlan | None = None
+        try:
+            action_plan = self._build_action_plan(
+                triage, urgency_radar, nullity_radar,
+                evidence_map, comparison, premortem,
+            )
+            if action_plan and not action_plan.is_empty():
+                log.info("action_plan: %d items", len(action_plan.items))
+        except Exception as exc:
+            log.warning("action_plan failed (non-fatal): %s", exc)
+
         answer_text = self._compose_answer(
             user_message, history, triage, retrieved, precedents, strategic, timeline, comparison,
             premortem=premortem, distinguishing=distinguishing,
             evidence_map=evidence_map, nullity_radar=nullity_radar,
-            urgency_radar=urgency_radar,
+            urgency_radar=urgency_radar, action_plan=action_plan,
             session_id=session_id, documents=documents,
         )
         # ClaudeCodeBackend exposes the (possibly new) session_id after each
@@ -1164,6 +1257,7 @@ class SuperAvvocato:
             distinguishing=distinguishing, evidence_map=evidence_map,
             nullity_radar=nullity_radar,
             urgency_radar=urgency_radar,
+            action_plan=action_plan,
             session_id=new_session_id,
         )
 
@@ -2002,6 +2096,204 @@ class SuperAvvocato:
 
         return UrgencyRadar(level=level, signals=signals)
 
+    # ── stage 3c-ter: consolidated action plan (V6.7) ──────────────────────
+
+    def _build_action_plan(
+        self,
+        triage: TriageResult,
+        urgency_radar: UrgencyRadar | None,
+        nullity_radar: NullityRadar | None,
+        evidence_map: EvidenceMap | None,
+        comparison: PrecedentComparison | None,
+        premortem: Premortem | None,
+    ) -> ActionPlan:
+        """Merge, dedupe, and rank actions from every upstream stage.
+
+        The rollup is deterministic: each stage's action-bearing field is
+        harvested with its source tag. Then a single fast-model pass
+        takes the raw candidate list and returns a ranked, deduped,
+        time-bucketed checklist. If the LLM pass fails we fall back to
+        the raw rollup sorted by a simple heuristic so the citizen still
+        sees a plan. Empty input → empty plan (no noisy LLM call).
+        """
+        candidates: list[dict] = []
+
+        # Urgency signals always win priority — they are by definition
+        # time-sensitive. Each becomes a "sot" candidate.
+        if urgency_radar and not urgency_radar.is_empty():
+            for s in urgency_radar.signals:
+                if not s.action:
+                    continue
+                candidates.append({
+                    "text": s.action,
+                    "bucket": "sot",
+                    "source": "urgency",
+                    "reason": s.label or s.reason[:60],
+                    "severity": s.severity,
+                })
+
+        # Nullity findings with deadline_hint are time-pressing;
+        # without one, they're this-week procedural moves.
+        if nullity_radar and not nullity_radar.is_empty():
+            for f in nullity_radar.applicable():
+                if not f.action:
+                    continue
+                hint = (f.deadline_hint or "").lower()
+                bucket = ("sot" if ("ditë" in hint or "orë" in hint
+                                     or f.kind == "nullity_absolute")
+                          else "kjo_javë")
+                candidates.append({
+                    "text": f.action,
+                    "bucket": bucket,
+                    "source": "nullity",
+                    "reason": f.consequence or f.condition or f.name,
+                    "legal_basis": f.legal_basis or "",
+                })
+
+        # Evidence gathering — mungon/e dobët/kontestuese claims get a
+        # this-week bucket (proof rots; dashcams overwrite, witnesses
+        # forget). "kemi" claims are skipped — no action needed.
+        if evidence_map and not evidence_map.is_empty():
+            for c in evidence_map.claims:
+                if c.status == "kemi" or not c.notes:
+                    continue
+                candidates.append({
+                    "text": c.notes,
+                    "bucket": "kjo_javë",
+                    "source": "evidence",
+                    "reason": f"Provë për '{c.claim[:50]}' ({c.status})",
+                })
+
+        # Decisive-difference gap-closers — same as evidence, this-week
+        # unless the status is "po" (already have it, no action).
+        if comparison and not comparison.is_empty():
+            for d in comparison.decisive_differences:
+                if d.citizen_status == "po" or not d.action:
+                    continue
+                candidates.append({
+                    "text": d.action,
+                    "bucket": "kjo_javë",
+                    "source": "difference",
+                    "reason": f"Fitoret kanë {d.attribute[:40]}",
+                })
+
+        # Pre-mortem mitigations — month-level unless the risk is high
+        # (then this-week, because a high-severity risk with no mitigation
+        # is how cases get lost).
+        if premortem and not premortem.is_empty():
+            for r in premortem.risks:
+                if not r.mitigation:
+                    continue
+                bucket = "kjo_javë" if r.severity == "high" else "ky_muaj"
+                candidates.append({
+                    "text": r.mitigation,
+                    "bucket": bucket,
+                    "source": "premortem",
+                    "reason": r.risk[:70],
+                })
+
+        if not candidates:
+            return ActionPlan()
+
+        # Fast-model dedup + ranking pass. We send the candidates as JSON
+        # so the model can reason over them; it returns the cleaned plan.
+        cand_json = json.dumps(candidates, ensure_ascii=False, indent=2)
+        prompt = textwrap.dedent(f"""\
+            Rasti: {triage.problem_summary}
+
+            Kandidatët e mbledhur (nga analizat paraprake):
+            {cand_json}
+
+            Prodho planin e veprimit sipas udhëzimeve të sistemit.
+        """)
+
+        try:
+            raw = self.backend.complete(
+                system=ACTION_PLAN_SYSTEM,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=1600,
+                fast=True,
+            )
+            data = _parse_json_block(raw)
+        except Exception as exc:
+            log.warning("action_plan LLM pass failed: %s — using raw rollup", exc)
+            return self._fallback_action_plan(candidates)
+
+        valid_buckets = {"sot", "kjo_javë", "ky_muaj", "më_vonë"}
+        valid_sources = {
+            "urgency", "nullity", "evidence", "difference", "premortem", "other",
+        }
+        items: list[ActionItem] = []
+        for it in (data.get("items") or []):
+            if not isinstance(it, dict):
+                continue
+            text = str(it.get("text", "")).strip()
+            if not text:
+                continue
+            bucket_raw = str(it.get("bucket", "kjo_javë")).strip()
+            bucket: ActionBucket = (
+                bucket_raw if bucket_raw in valid_buckets else "kjo_javë"  # type: ignore[assignment]
+            )
+            source_raw = str(it.get("source", "other")).strip().lower()
+            source: ActionSource = (
+                source_raw if source_raw in valid_sources else "other"  # type: ignore[assignment]
+            )
+            try:
+                priority = int(it.get("priority", 3))
+            except (TypeError, ValueError):
+                priority = 3
+            priority = max(1, min(5, priority))
+            items.append(ActionItem(
+                text=text[:240],
+                bucket=bucket,
+                priority=priority,
+                source=source,
+                reason=str(it.get("reason", "")).strip()[:120],
+                legal_basis=str(it.get("legal_basis", "")).strip()[:60],
+            ))
+            if len(items) >= 8:
+                break
+
+        # Enforce canonical ordering: bucket order then priority.
+        bucket_order = {"sot": 0, "kjo_javë": 1, "ky_muaj": 2, "më_vonë": 3}
+        items.sort(key=lambda a: (bucket_order.get(a.bucket, 9), a.priority))
+
+        return ActionPlan(items=items)
+
+    def _fallback_action_plan(self, candidates: list[dict]) -> ActionPlan:
+        """Deterministic fallback when the LLM dedup pass fails.
+
+        Takes the raw rollup, dedupes by lowercased text, and buckets
+        by the pre-assigned bucket. Priority 1 for urgency, 2 for
+        nullity, 3 for evidence/difference, 4 for premortem. This
+        guarantees the citizen sees SOMETHING actionable even on
+        total LLM failure.
+        """
+        seen: set[str] = set()
+        source_priority = {
+            "urgency": 1, "nullity": 2, "evidence": 3,
+            "difference": 3, "premortem": 4, "other": 5,
+        }
+        items: list[ActionItem] = []
+        for c in candidates:
+            text = c.get("text", "").strip()
+            key = text.lower()[:60]
+            if not text or key in seen:
+                continue
+            seen.add(key)
+            source = c.get("source", "other")
+            items.append(ActionItem(
+                text=text[:240],
+                bucket=c.get("bucket", "kjo_javë"),  # type: ignore[arg-type]
+                priority=source_priority.get(source, 5),
+                source=source,  # type: ignore[arg-type]
+                reason=c.get("reason", "")[:120],
+                legal_basis=c.get("legal_basis", "")[:60],
+            ))
+        bucket_order = {"sot": 0, "kjo_javë": 1, "ky_muaj": 2, "më_vonë": 3}
+        items.sort(key=lambda a: (bucket_order.get(a.bucket, 9), a.priority))
+        return ActionPlan(items=items[:8])
+
     # ── stage 3d: missing-facts detector ──────────────────────────────────
 
     @retry(
@@ -2177,6 +2469,7 @@ class SuperAvvocato:
         evidence_map: EvidenceMap | None = None,
         nullity_radar: NullityRadar | None = None,
         urgency_radar: UrgencyRadar | None = None,
+        action_plan: ActionPlan | None = None,
         session_id: str | None = None,
         documents: list[dict] | None = None,
     ) -> str:
@@ -2190,6 +2483,7 @@ class SuperAvvocato:
         evidence_map_block = _format_evidence_map_block(evidence_map)
         nullity_block = _format_nullity_block(nullity_radar)
         urgency_block = _format_urgency_block(urgency_radar)
+        action_plan_block = _format_action_plan_block(action_plan)
         # When we have docs, we pass the raw files as attachments so Claude
         # reads them natively (same UX as pasting an image into a chat) —
         # the prompt block only lists filenames, no pre-extracted text.
@@ -2225,7 +2519,7 @@ class SuperAvvocato:
             {dossier_block}
             Nenet e gjetura nga kodet shqiptare (me rëndësinë zbritëse):
             {context}
-            {precedents_block}{comparison_block}{distinguishing_block}{evidence_map_block}{nullity_block}{premortem_block}{strategic_block}{timeline_block}
+            {precedents_block}{comparison_block}{distinguishing_block}{evidence_map_block}{nullity_block}{premortem_block}{strategic_block}{timeline_block}{action_plan_block}
             {dossier_guidance}Shkruaj përgjigjen në formatin e kërkuar (PESË seksione në shqip),
             duke cituar vetëm nenet e mësipërme. Nëse analiza ka gjetur
             vendime të Gjykatës Kushtetuese/Gjykatës së Lartë të lidhura me
@@ -2555,6 +2849,57 @@ def _format_urgency_block(ur: UrgencyRadar | None) -> str:
             "në seksionin 2 jep veprimet konkrete për secilin."
         )
     return "\n".join(lines) + "\n\n"
+
+
+def _format_action_plan_block(ap: ActionPlan | None) -> str:
+    """Render the consolidated action plan for the compose prompt.
+
+    The answer model is told to use this exact ordering as the spine of
+    section 2 ("Si mund të mbrohesh") — first the "sot" items, then
+    this-week, etc. This avoids the drift where section 2 reinvents a
+    different action list that conflicts with the panel the UI shows.
+    """
+    if ap is None or ap.is_empty():
+        return ""
+    bucket_label = {
+        "sot": "SOT / NESËR",
+        "kjo_javë": "KJO JAVË",
+        "ky_muaj": "KY MUAJ",
+        "më_vonë": "MË VONË",
+    }
+    source_tag = {
+        "urgency": "[emergjencë]",
+        "nullity": "[pavlefshmëri]",
+        "evidence": "[provë]",
+        "difference": "[gap vs fitoret]",
+        "premortem": "[mitigim rreziku]",
+        "other": "",
+    }
+    by_bucket: dict[str, list[ActionItem]] = {}
+    for it in ap.items:
+        by_bucket.setdefault(it.bucket, []).append(it)
+    lines = ["", "── PLANI I VEPRIMIT (i konsoliduar) ──"]
+    for bucket_key in ("sot", "kjo_javë", "ky_muaj", "më_vonë"):
+        group = by_bucket.get(bucket_key)
+        if not group:
+            continue
+        lines.append(f"{bucket_label[bucket_key]}:")
+        for i, it in enumerate(group, 1):
+            tag = source_tag.get(it.source, "")
+            basis = f" ({it.legal_basis})" if it.legal_basis else ""
+            lines.append(f"  {i}. {it.text}{basis}")
+            reason_parts = [p for p in (tag, it.reason) if p]
+            if reason_parts:
+                lines.append(f"     {' — '.join(reason_parts)}")
+    lines.append("")
+    lines.append(
+        "PËRDOR këtë plan si shtyllën e seksionit 2 'Si mund të mbrohesh': "
+        "rendit veprimet me renditjen e mësipërme (sot → kjo javë → ky muaj), "
+        "shpjego shkurt pse secili ka rëndësi, dhe mos shto veprime që nuk janë "
+        "këtu. Nëse është listë bosh, dhëno këshillë të përgjithshme; nëse ka "
+        "veprime 'sot', ato janë HAPAT E PARË në pozicionin 1 të seksionit 2."
+    )
+    return "\n".join(lines) + "\n"
 
 
 def _format_nullity_block(nr: NullityRadar | None) -> str:
