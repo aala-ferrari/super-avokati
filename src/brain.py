@@ -304,6 +304,72 @@ RREGULLA:
 • Shkruaj SHQIP. Formalisht, por jo ngurtë."""
 
 
+NULLITY_RADAR_SYSTEM = """Ti je avokat procedurialist shqiptar që skenon një rast për RREZIQE PROCEDURALE të pashfrytëzuara: pavlefshmëri, dekadenca, afate ankimi, parashkrim, kompetencë e gabuar, mungesë njoftimi, mungesë arsyetimi, etj.
+
+Këto janë pikat ku një kauzë fitohet ose humbet PA u prekur tema — sepse akti i palës kundërshtare është pavlefshëm, ose afati i mohimit ka kaluar, ose vendimi i gjykatës duhet prishur për shkelje procedurale.
+
+Kategoritë që duhet të skenosh (Kodi i Procedurës Civile, Kodi i Procedurës Penale, Kodi i Procedurës Administrative):
+
+ A) PAVLEFSHMËRI ABSOLUTE (gjykata e ngre sipas detyrës zyrtare)
+    • Mungesë kompetence lëndore ose tokësore eksklusive
+    • Mungesë e palës së thirrur në gjykim
+    • Vendim pa arsyetim (nen 310 KPC)
+    • Formim i paligjshëm i trupit gjykues
+    • Akt pa elementet thelbësore të ligjit
+
+ B) PAVLEFSHMËRI RELATIVE (duhet ngritur nga pala brenda afatit)
+    • Mosnjoftim i rregullt / vonesë në njoftim
+    • Mungesë nënshkrimi te akti procedural
+    • Paragjykim gjyqtari (shmangie / përjashtim)
+    • Shkelje e të drejtës për dëgjim
+    • Afat për t'u përgjigjur i shkurtuar në mënyrë të paligjshme
+
+ C) DEKADENCA / PARASHKRIM
+    • Afati 30-ditor i ankimit nga njoftimi
+    • Afate të veçanta në punë (30/3 ditë), familje, konsumator
+    • Parashkrimi i padisë (3/5/10 vite sipas llojit)
+    • Afat dekadencial për kërkesën për shfuqizim të vendimit
+
+ D) RREZIQE PROCEDURALE PËR RASTIN TONË
+    • A është rasti po kaq i ekspozuar ndaj ndonjë prej këtyre?
+
+Për çdo gjetje, prodho një zë:
+ • kind — "nullity_absolute" | "nullity_relative" | "deadline" | "prescription" | "procedural_defect"
+ • name — emërtim i shkurtër (3-8 fjalë)
+ • legal_basis — neni i koduar (p.sh. "Neni 310 KPC", "Neni 160 KPC", "Neni 442 KPP")
+ • condition — ÇFARË duhet të jetë e vërtetë që të aplikohet (1 fjali konkrete)
+ • applies_to — "kundërshtari" | "qytetari" | "të dyja" (kujt i bën mirë)
+ • citizen_applicable — "po" | "ndoshta" | "jo" — a aplikohet ndaj rastit TONË
+ • deadline_hint — nëse ka afat konkret (p.sh. "brenda 30 ditëve nga njoftimi"), ose ""
+ • consequence — çfarë ndodh nëse ngrihet / humbet (1 fjali)
+ • action — veprim konkret që duhet të bëjë qytetari SOT (1 fjali e ekzekutueshme)
+
+FORMATI — VETËM JSON, në shqip:
+{
+  "findings": [
+    {
+      "kind": "nullity_absolute | nullity_relative | deadline | prescription | procedural_defect",
+      "name": "p.sh. 'Mungesë arsyetimi në vendim'",
+      "legal_basis": "Neni 310 KPC",
+      "condition": "Vendimi nuk përmban analizë të provave dhe motivim juridik të veçantë.",
+      "applies_to": "qytetari | kundërshtari | të dyja",
+      "citizen_applicable": "po | ndoshta | jo",
+      "deadline_hint": "brenda 15 ditëve nga njoftimi i vendimit",
+      "consequence": "Vendimi mund të prishet nga Gjykata e Apelit dhe rikthehet për gjykim.",
+      "action": "Kërko kopjen e vendimit të arsyetuar; nëse arsyetimi mungon, ngri ankimin brenda afatit."
+    }
+  ]
+}
+
+RREGULLA STRIKTE:
+• Minimum 2, maksimum 6 findings. Zgjidhi më të rëndësishmet për rastin TONË.
+• Të gjitha citimet e neneve duhet të jenë TË SAKTA — nëse nuk je i sigurt, përdor formulim të përgjithshëm ("rregullat e pavlefshmërisë sipas KPC") në vend që të shpikësh numër neni.
+• applies_to tregon KUJT I BËN MIRË: një parashkrim i kauzës së qytetarit aplikohet ndaj kundërshtarit (mbrojtje për qytetarin nga një padi e vonuar) ose ndaj qytetarit (humbje e së drejtës).
+• Nëse rasti nuk zbulon rreziqe konkrete procedurale, kthe findings=[] — mos i shpik.
+• action duhet të jetë i ekzekutueshëm nga qytetari vetë ose nga një avokat i tij, jo teorik.
+• Shkruaj SHQIP. Gjuha teknike procedurale është e pranueshme; kuptohet nga avokatët dhe gjyqtarët."""
+
+
 PREMORTEM_SYSTEM = """Ti je avokat strateg shqiptar — pjesa CINIKE dhe paranoide e vetes tënde, ajo që shpëton kauzat sepse i sheh rreziqet PARA se të ndodhin.
 
 Detyra jote: PARA se Super Avokati të japë përgjigjen përfundimtare, ti duhet të shkruash 3-5 ARSYE TË FORTA pse ky rast mund të HUMBET. Jo dobësi gjenerike, por skenarë konkretë ku avokati kundërshtar ose gjyqtari e rrëzon kauzën.
@@ -659,6 +725,48 @@ class MissingFactsAnalysis:
         return not self.facts
 
 
+# ── nullity / deadline radar ──────────────────────────────────────────────
+# Scans the citizen's facts for procedural levers: absolute/relative
+# nullities, forfeiture deadlines, prescription windows. These are
+# often the single most valuable finding in a case because they can
+# dispose of the opposing side's act or filing without the merits
+# being reached — or, conversely, warn the citizen that their own
+# window is closing. Routed into the answer prompt so strategy in
+# section 2 incorporates any "po" findings explicitly.
+
+NullityKind = Literal[
+    "nullity_absolute", "nullity_relative", "deadline",
+    "prescription", "procedural_defect",
+]
+NullityApplies = Literal["kundërshtari", "qytetari", "të dyja"]
+NullityApplicable = Literal["po", "ndoshta", "jo"]
+
+
+@dataclass
+class NullityFinding:
+    kind: NullityKind
+    name: str                            # short label
+    legal_basis: str = ""                # code article(s) citation
+    condition: str = ""                  # what must be true for it to apply
+    applies_to: NullityApplies = "qytetari"  # who benefits from raising it
+    citizen_applicable: NullityApplicable = "ndoshta"
+    deadline_hint: str = ""              # e.g. "brenda 30 ditëve nga njoftimi"
+    consequence: str = ""                # what happens if raised / missed
+    action: str = ""                     # concrete today-step
+
+
+@dataclass
+class NullityRadar:
+    findings: list[NullityFinding] = field(default_factory=list)
+
+    def is_empty(self) -> bool:
+        return not self.findings
+
+    def applicable(self) -> list[NullityFinding]:
+        """Only findings that the model flagged as applying to this case."""
+        return [f for f in self.findings if f.citizen_applicable == "po"]
+
+
 @dataclass
 class LegalAnswer:
     kind: Literal["answer", "followup"]
@@ -701,6 +809,11 @@ class LegalAnswer:
     # and current status. Includes burden-shift flags so the citizen
     # sees when the law moves the weight off them.
     evidence_map: EvidenceMap | None = None
+    # Nullity + deadline radar: structured scan for procedural levers
+    # (absolute/relative nullities, forfeiture deadlines, prescription).
+    # "po"-flagged items go into the answer prompt so strategy wires
+    # them into section 2 — these are often the case-winning moves.
+    nullity_radar: NullityRadar | None = None
     # Claude Code session id — set by ClaudeCodeBackend after a compose call.
     # Callers (web.py, bot.py) should persist this per-citizen to maintain
     # native conversation context via `--resume`.
@@ -897,10 +1010,24 @@ class SuperAvvocato:
         except Exception as exc:
             log.warning("evidence_map failed (non-fatal): %s", exc)
 
+        # Nullity + deadline radar — scan the fact pattern for procedural
+        # levers (nullities, forfeitures, prescription). Often the single
+        # highest-value finding in the whole answer: a procedural defect
+        # can dispose of the opponent's act without merits being reached.
+        nullity_radar: NullityRadar | None = None
+        try:
+            nullity_radar = self._scan_nullities(user_message, triage, retrieved, documents)
+            if nullity_radar and not nullity_radar.is_empty():
+                applicable = len(nullity_radar.applicable())
+                log.info("nullity_radar: %d findings (%d flagged applicable)",
+                         len(nullity_radar.findings), applicable)
+        except Exception as exc:
+            log.warning("nullity_radar failed (non-fatal): %s", exc)
+
         answer_text = self._compose_answer(
             user_message, history, triage, retrieved, precedents, strategic, timeline, comparison,
             premortem=premortem, distinguishing=distinguishing,
-            evidence_map=evidence_map,
+            evidence_map=evidence_map, nullity_radar=nullity_radar,
             session_id=session_id, documents=documents,
         )
         # ClaudeCodeBackend exposes the (possibly new) session_id after each
@@ -912,6 +1039,7 @@ class SuperAvvocato:
             timeline=timeline, comparison=comparison, missing_facts=missing_facts,
             premortem=premortem, adverse_precedents=adverse_precedents,
             distinguishing=distinguishing, evidence_map=evidence_map,
+            nullity_radar=nullity_radar,
             session_id=new_session_id,
         )
 
@@ -1516,6 +1644,101 @@ class SuperAvvocato:
             ))
         return EvidenceMap(claims=claims[:6])
 
+    # ── stage 3c-quater: nullity / deadline radar ─────────────────────────
+
+    @retry(
+        retry=retry_if_exception_type(Exception),
+        stop=stop_after_attempt(2),
+        wait=wait_exponential(multiplier=1, min=1, max=6),
+        reraise=True,
+    )
+    def _scan_nullities(
+        self,
+        user_message: str,
+        triage: TriageResult,
+        retrieved: list[tuple[Article, float]],
+        documents: list[dict] | None,
+    ) -> NullityRadar:
+        """Scan for procedural nullities / forfeiture deadlines / prescription.
+
+        The output is often the single highest-leverage part of a legal
+        reply. A valid nullity claim can dispose of the opposing side's
+        act without the merits being reached; a missed forfeiture
+        deadline is the most expensive mistake a citizen can make.
+        We run this even when retrieval returned nothing — procedural
+        levers come from the fact pattern, not just the article index.
+        """
+        articles_context = _format_articles_for_prompt(retrieved) if retrieved else "(asnjë)"
+        dossier_hint = format_documents_for_prompt(documents or [], compact=True)
+        dossier_block = f"\n{dossier_hint}\n" if dossier_hint else ""
+
+        prompt = textwrap.dedent(f"""\
+            Rasti i qytetarit:
+            \"\"\"{user_message}\"\"\"
+
+            Përmbledhja: {triage.problem_summary}
+            {dossier_block}
+            Nenet e gjetura (përdori për të verifikuar citimet e neneve procedurale):
+            {articles_context}
+
+            Skeno për pavlefshmëri, afate dekadenciale, parashkrim dhe
+            defekte procedurale. Kthe JSON sipas formatit.
+        """)
+
+        raw = self.backend.complete(
+            system=NULLITY_RADAR_SYSTEM,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=1500,
+            fast=True,
+        )
+        try:
+            data = _parse_json_block(raw)
+        except Exception:
+            log.warning("nullity_radar JSON parse failed, returning empty")
+            return NullityRadar()
+
+        valid_kinds = {
+            "nullity_absolute", "nullity_relative", "deadline",
+            "prescription", "procedural_defect",
+        }
+        valid_applies = {"kundërshtari", "qytetari", "të dyja"}
+        valid_applicable = {"po", "ndoshta", "jo"}
+
+        findings: list[NullityFinding] = []
+        for item in (data.get("findings") or []):
+            if not isinstance(item, dict):
+                continue
+            name = str(item.get("name", "")).strip()
+            if not name:
+                continue
+            kind_raw = str(item.get("kind", "procedural_defect")).strip().lower()
+            kind: NullityKind = (
+                kind_raw if kind_raw in valid_kinds else "procedural_defect"  # type: ignore[assignment]
+            )
+            applies_raw = str(item.get("applies_to", "qytetari")).strip().lower()
+            applies: NullityApplies = (
+                applies_raw if applies_raw in valid_applies else "qytetari"  # type: ignore[assignment]
+            )
+            applicable_raw = str(item.get("citizen_applicable", "ndoshta")).strip().lower()
+            applicable: NullityApplicable = (
+                applicable_raw if applicable_raw in valid_applicable else "ndoshta"  # type: ignore[assignment]
+            )
+            findings.append(NullityFinding(
+                kind=kind,
+                name=name,
+                legal_basis=str(item.get("legal_basis", "")).strip(),
+                condition=str(item.get("condition", "")).strip(),
+                applies_to=applies,
+                citizen_applicable=applicable,
+                deadline_hint=str(item.get("deadline_hint", "")).strip(),
+                consequence=str(item.get("consequence", "")).strip(),
+                action=str(item.get("action", "")).strip(),
+            ))
+            if len(findings) >= 6:
+                break
+
+        return NullityRadar(findings=findings)
+
     # ── stage 3d: missing-facts detector ──────────────────────────────────
 
     @retry(
@@ -1689,6 +1912,7 @@ class SuperAvvocato:
         premortem: Premortem | None = None,
         distinguishing: DistinguishingAnalysis | None = None,
         evidence_map: EvidenceMap | None = None,
+        nullity_radar: NullityRadar | None = None,
         session_id: str | None = None,
         documents: list[dict] | None = None,
     ) -> str:
@@ -1700,6 +1924,7 @@ class SuperAvvocato:
         premortem_block = _format_premortem_block(premortem)
         distinguishing_block = _format_distinguishing_block(distinguishing)
         evidence_map_block = _format_evidence_map_block(evidence_map)
+        nullity_block = _format_nullity_block(nullity_radar)
         # When we have docs, we pass the raw files as attachments so Claude
         # reads them natively (same UX as pasting an image into a chat) —
         # the prompt block only lists filenames, no pre-extracted text.
@@ -1735,7 +1960,7 @@ class SuperAvvocato:
             {dossier_block}
             Nenet e gjetura nga kodet shqiptare (me rëndësinë zbritëse):
             {context}
-            {precedents_block}{comparison_block}{distinguishing_block}{evidence_map_block}{premortem_block}{strategic_block}{timeline_block}
+            {precedents_block}{comparison_block}{distinguishing_block}{evidence_map_block}{nullity_block}{premortem_block}{strategic_block}{timeline_block}
             {dossier_guidance}Shkruaj përgjigjen në formatin e kërkuar (PESË seksione në shqip),
             duke cituar vetëm nenet e mësipërme. Nëse analiza ka gjetur
             vendime të Gjykatës Kushtetuese/Gjykatës së Lartë të lidhura me
@@ -2007,6 +2232,76 @@ def _format_evidence_map_block(em: EvidenceMap | None) -> str:
         "e punës, diskriminim, konsumator, dhunë në familje) CITO nenin që e zhvendos dhe "
         "shpjego që pala tjetër duhet të provojë të kundërtën. Mos kërko nga qytetari prova "
         "që sipas ligjit NUK janë detyra e tij."
+    )
+    return "\n".join(lines) + "\n"
+
+
+def _format_nullity_block(nr: NullityRadar | None) -> str:
+    """Render the nullity / deadline radar so the answer uses them offensively.
+
+    Only "po"-applicable findings are emphasised in the prompt — they
+    are the procedural levers the citizen can actually pull. "Ndoshta"
+    findings are listed as a watch-list. This mirrors how a good
+    lawyer briefs a client: "here's what we can USE, here's what we
+    should WATCH". The consequence + deadline + action triad ensures
+    each finding arrives actionable, not just descriptive.
+    """
+    if nr is None or nr.is_empty():
+        return ""
+    kind_icon = {
+        "nullity_absolute": "🛑",
+        "nullity_relative": "⚠️",
+        "deadline": "⏰",
+        "prescription": "📅",
+        "procedural_defect": "⚙️",
+    }
+    kind_label = {
+        "nullity_absolute": "PAVLEFSHMËRI ABSOLUTE",
+        "nullity_relative": "PAVLEFSHMËRI RELATIVE",
+        "deadline": "AFAT DEKADENCIAL",
+        "prescription": "PARASHKRIM",
+        "procedural_defect": "DEFEKT PROCEDURAL",
+    }
+    applicable = [f for f in nr.findings if f.citizen_applicable == "po"]
+    watch = [f for f in nr.findings if f.citizen_applicable == "ndoshta"]
+
+    lines = ["", "── RADARI I PAVLEFSHMËRIVE & AFATEVE ──"]
+    if applicable:
+        lines.append("LEVAT QË MUND TË PËRDORIM (po aplikohet):")
+        for i, f in enumerate(applicable, 1):
+            icon = kind_icon.get(f.kind, "•")
+            label = kind_label.get(f.kind, f.kind.upper())
+            basis = f" ({f.legal_basis})" if f.legal_basis else ""
+            beneficiary = {
+                "qytetari": "në favor tonin",
+                "kundërshtari": "në favor të palës tjetër",
+                "të dyja": "dypalësh",
+            }.get(f.applies_to, "")
+            lines.append(f"  {i}. {icon} [{label}] {f.name}{basis}")
+            if beneficiary:
+                lines.append(f"     Përfitues: {beneficiary}")
+            if f.condition:
+                lines.append(f"     Kusht: {f.condition}")
+            if f.deadline_hint:
+                lines.append(f"     ⏰ Afati: {f.deadline_hint}")
+            if f.consequence:
+                lines.append(f"     Pasoja: {f.consequence}")
+            if f.action:
+                lines.append(f"     ▶ Veprim: {f.action}")
+    if watch:
+        lines.append("")
+        lines.append("NËN VËZHGIM (ndoshta aplikohet — kontrollo):")
+        for f in watch:
+            icon = kind_icon.get(f.kind, "•")
+            basis = f" ({f.legal_basis})" if f.legal_basis else ""
+            lines.append(f"  {icon} {f.name}{basis} — {f.condition or '?'}")
+    lines.append("")
+    lines.append(
+        "INTEGRO radarin te seksioni 2 'Si mund të mbrohesh' DHE te seksioni 4 'Afatet': "
+        "për çdo gjetje 'po', shpjego qytetarit HAPUR — me nenin e saktë — SI ta ngrejë "
+        "në gjykatë dhe brenda cilit afat. Këto janë levat që shumicën e rasteve e fitojnë "
+        "pa u prekur tema. Nëse ka afat dekadencial ose parashkrim që rrjedh kundër qytetarit, "
+        "theksoje si të parin në seksionin 4."
     )
     return "\n".join(lines) + "\n"
 

@@ -867,6 +867,87 @@ main {
   font-style: italic; font-size: 0.8rem; line-height: 1.4;
 }
 
+/* ─── nullity + deadline radar (procedural levers) ───────────────
+   The most technically loaded panel. Crimson/burgundy accent to
+   signal legal weight — these findings can dispose of the case
+   without merits being reached. Kind-specific left border colour
+   so a scan differentiates absolute nullity (ruby) from relative
+   (crimson) from deadline (amber) from prescription (deep gold).
+   Opens automatically when any finding is flagged "po aplikohet". */
+.nullity-radar { margin-top: 10px; font-size: 0.85rem; }
+.nullity-radar summary {
+  cursor: pointer; font-weight: 700; padding: 9px 13px;
+  background: linear-gradient(135deg, #f4e9ec 0%, #e9d2d8 100%);
+  border: 1px solid #a85766; color: #5a1724;
+  border-radius: var(--radius-sm); user-select: none;
+}
+.nullity-radar summary:hover { background: #dfbcc4; }
+.nullity-radar[open] summary { margin-bottom: 10px; }
+.nullity-radar.nr-has-absolute summary {
+  background: linear-gradient(135deg, #fadbe0 0%, #f2b5bf 100%);
+  border-color: #7d1326; color: #40000b;
+}
+.nullity-radar.nr-has-absolute summary:hover { background: #ea9aa7; }
+.nr-intro {
+  color: var(--gray-700); font-size: 0.82rem; line-height: 1.45;
+  margin: 0 2px 8px; font-style: italic;
+}
+.nr-list { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+.nr-item {
+  padding: 10px 12px; background: var(--paper);
+  border: 1px solid var(--gray-100);
+  border-left: 4px solid #a85766;
+  border-radius: var(--radius-sm);
+}
+.nr-item.nr-kind-nullity_absolute  { border-left-color: #7d1326; background: #fcf5f6; }
+.nr-item.nr-kind-nullity_relative  { border-left-color: #a85766; }
+.nr-item.nr-kind-deadline          { border-left-color: #e9a65a; background: #fffaf1; }
+.nr-item.nr-kind-prescription      { border-left-color: #8a5a07; background: #fff8e9; }
+.nr-item.nr-kind-procedural_defect { border-left-color: #6a6a6a; }
+.nr-item.nr-app-jo { opacity: 0.7; }
+.nr-head {
+  display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.nr-kind {
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em;
+  padding: 2px 8px; border-radius: 4px;
+  background: #f4e9ec; color: #5a1724;
+}
+.nr-item.nr-kind-deadline .nr-kind     { background: #fff1ce; color: #8a5a07; }
+.nr-item.nr-kind-prescription .nr-kind { background: #faeccf; color: #6b4a06; }
+.nr-applicable {
+  font-size: 0.7rem; font-weight: 700; letter-spacing: 0.05em;
+  padding: 2px 8px; border-radius: 4px;
+  background: var(--gray-100); color: var(--gray-700);
+}
+.nr-item.nr-app-po .nr-applicable       { background: #d8f0de; color: #1d6b2e; }
+.nr-item.nr-app-ndoshta .nr-applicable  { background: #fff1ce; color: #8a5a07; }
+.nr-applies {
+  font-size: 0.72rem; color: var(--gray-600); font-style: italic;
+}
+.nr-name { font-weight: 600; line-height: 1.45; color: var(--black); }
+.nr-basis {
+  font-size: 0.78rem; color: var(--gray-600);
+  font-weight: 500; margin-left: 4px;
+}
+.nr-row {
+  margin-top: 5px; color: var(--gray-700);
+  font-size: 0.82rem; line-height: 1.45;
+}
+.nr-row.nr-deadline { color: #8a5a07; font-weight: 600; }
+.nr-key {
+  font-weight: 700; color: var(--gray-800);
+  margin-right: 3px;
+}
+.nr-action {
+  margin-top: 7px; padding: 6px 9px;
+  background: var(--gold-soft); border-left: 3px solid var(--gold);
+  border-radius: 3px; color: var(--ink);
+  font-size: 0.83rem; line-height: 1.45;
+}
+.nr-action strong { color: var(--ink); margin-right: 2px; }
+
 /* ─── timeline (anchors + deadlines) ─────────────────────────────
    Lives above precedents. Urgency colours are intentionally loud —
    a missed deadline is the most expensive mistake a citizen can make. */

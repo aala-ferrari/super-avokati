@@ -131,6 +131,7 @@
         premortem: m.premortem || null,
         distinguishing: m.distinguishing || null,
         evidence_map: m.evidence_map || null,
+        nullity_radar: m.nullity_radar || null,
       });
     }
     renderDossier(c.documents || []);
@@ -594,6 +595,16 @@
       msgEl.insertBefore(renderEvidenceMap(evidenceMap), null);
     }
 
+    // Nullity + deadline radar — procedural levers: nullities,
+    // forfeitures, prescription. Rendered last among the analytical
+    // panels because it's the most technical; opens by default
+    // whenever any "po"-applicable finding exists (these are case-
+    // winning levers the citizen must not miss).
+    const nullityRadar = data.nullity_radar;
+    if (nullityRadar && (nullityRadar.findings || []).length) {
+      msgEl.insertBefore(renderNullityRadar(nullityRadar), null);
+    }
+
     // Timeline widget — past anchors + future deadlines with colour-coded
     // urgency badges. Rendered before the precedents block so citizens see
     // the "act by X" summary first.
@@ -866,6 +877,100 @@
       <summary>${label}</summary>
       <div class="em-intro">Për çdo pretendim tregojmë ÇFARË duhet provuar dhe KUSH duhet ta provojë. Kur ligji e zhvendos barrën (punë, diskriminim, konsumator, dhunë në familje), pala tjetër është ajo që duhet të provojë të kundërtën.</div>
       <ul class="em-list">${items}</ul>
+    `;
+    return wrap;
+  }
+
+  // ─── render nullity + deadline radar (procedural levers) ────────
+  function renderNullityRadar(nr) {
+    const wrap = document.createElement("details");
+    const findings = nr.findings || [];
+    const applicable = findings.filter((f) => f.citizen_applicable === "po");
+    const absolute = findings.filter((f) => f.kind === "nullity_absolute" && f.citizen_applicable === "po");
+    const hasDeadlineAgainst = findings.some(
+      (f) => (f.kind === "deadline" || f.kind === "prescription")
+        && f.citizen_applicable === "po"
+        && (f.applies_to === "kundërshtari" || f.applies_to === "të dyja") === false
+        && f.applies_to === "qytetari"
+    );
+    wrap.className = "nullity-radar"
+      + (applicable.length ? " nr-has-applicable" : "")
+      + (absolute.length ? " nr-has-absolute" : "")
+      + (hasDeadlineAgainst ? " nr-has-deadline-against" : "");
+    // Open by default whenever there's at least one applicable finding:
+    // these are the case-winning procedural levers, and missing an
+    // applicable deadline is the most expensive mistake a citizen can make.
+    wrap.open = applicable.length > 0;
+
+    const kindIcon = {
+      nullity_absolute: "🛑",
+      nullity_relative: "⚠️",
+      deadline: "⏰",
+      prescription: "📅",
+      procedural_defect: "⚙️",
+    };
+    const kindLabel = {
+      nullity_absolute: "Pavlefshmëri absolute",
+      nullity_relative: "Pavlefshmëri relative",
+      deadline: "Afat dekadencial",
+      prescription: "Parashkrim",
+      procedural_defect: "Defekt procedural",
+    };
+    const applicableBadge = {
+      po: "✅ PO APLIKOHET",
+      ndoshta: "❓ NDOSHTA",
+      jo: "— nuk aplikohet",
+    };
+    const appliesLabel = {
+      qytetari: "në favor tonin",
+      kundërshtari: "në favor të palës tjetër",
+      "të dyja": "dypalësh",
+    };
+
+    const items = findings.map((f) => {
+      const kind = f.kind || "procedural_defect";
+      const icon = kindIcon[kind] || "•";
+      const kLabel = kindLabel[kind] || kind;
+      const app = f.citizen_applicable || "ndoshta";
+      const appLabel = applicableBadge[app] || "—";
+      const appliesFor = appliesLabel[f.applies_to] || "";
+      const basis = f.legal_basis
+        ? `<span class="nr-basis">${escapeHtml(f.legal_basis)}</span>` : "";
+      const cond = f.condition
+        ? `<div class="nr-row"><span class="nr-key">Kusht:</span> ${escapeHtml(f.condition)}</div>` : "";
+      const dln = f.deadline_hint
+        ? `<div class="nr-row nr-deadline"><span class="nr-key">⏰ Afati:</span> ${escapeHtml(f.deadline_hint)}</div>` : "";
+      const cons = f.consequence
+        ? `<div class="nr-row"><span class="nr-key">Pasoja:</span> ${escapeHtml(f.consequence)}</div>` : "";
+      const act = f.action
+        ? `<div class="nr-action"><strong>▶ Veprim:</strong> ${escapeHtml(f.action)}</div>` : "";
+      return `
+        <li class="nr-item nr-kind-${escapeHtml(kind)} nr-app-${escapeHtml(app)}">
+          <div class="nr-head">
+            <span class="nr-kind">${icon} ${escapeHtml(kLabel)}</span>
+            <span class="nr-applicable">${appLabel}</span>
+            ${appliesFor ? `<span class="nr-applies">${escapeHtml(appliesFor)}</span>` : ""}
+          </div>
+          <div class="nr-name">${escapeHtml(f.name)} ${basis}</div>
+          ${cond}
+          ${dln}
+          ${cons}
+          ${act}
+        </li>
+      `;
+    }).join("");
+
+    let label = `🛡️ Radari i pavlefshmërive dhe afateve (${findings.length})`;
+    if (absolute.length) {
+      label = `🛑 ${absolute.length} pavlefshmëri absolute që mund ta ngremë + ${findings.length - absolute.length} të tjera`;
+    } else if (applicable.length) {
+      label = `🛡️ ${applicable.length}/${findings.length} leva procedurale që aplikohen`;
+    }
+
+    wrap.innerHTML = `
+      <summary>${label}</summary>
+      <div class="nr-intro">Këto janë levat procedurale — pavlefshmëri, afate, parashkrim — që shpesh e fitojnë kauzën pa u prekur tema. Për çdo gjetje "PO APLIKOHET" ka një veprim konkret që duhet të bësh dhe, kur ka, afatin brenda të cilit duhet ngritur.</div>
+      <ul class="nr-list">${items}</ul>
     `;
     return wrap;
   }

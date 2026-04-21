@@ -227,6 +227,7 @@ def api_get_case(case_id: str):
              "timeline": m.timeline, "comparison": m.comparison,
              "missing_facts": m.missing_facts, "premortem": m.premortem,
              "distinguishing": m.distinguishing, "evidence_map": m.evidence_map,
+             "nullity_radar": m.nullity_radar,
              "created_at": m.created_at}
             for m in messages
         ],
@@ -314,6 +315,7 @@ def api_export_case(case_id: str):
                  "timeline": m.timeline, "comparison": m.comparison,
                  "missing_facts": m.missing_facts, "premortem": m.premortem,
                  "distinguishing": m.distinguishing, "evidence_map": m.evidence_map,
+                 "nullity_radar": m.nullity_radar,
                  "created_at": m.created_at}
                 for m in messages
             ],
@@ -536,13 +538,15 @@ def api_ask():
     premortem_payload = _premortem_payload(result.premortem)
     distinguishing_payload = _distinguishing_payload(result.distinguishing)
     evidence_map_payload = _evidence_map_payload(result.evidence_map)
+    nullity_radar_payload = _nullity_radar_payload(result.nullity_radar)
     storage.add_message(case.id, "assistant", result.text,
                         kind=result.kind, articles=articles, precedents=precedents,
                         timeline=timeline_payload, comparison=comparison_payload,
                         missing_facts=missing_facts_payload,
                         premortem=premortem_payload,
                         distinguishing=distinguishing_payload,
-                        evidence_map=evidence_map_payload)
+                        evidence_map=evidence_map_payload,
+                        nullity_radar=nullity_radar_payload)
     if result.session_id:
         storage.update_case_claude_session(case.id, user.id, result.session_id)
 
@@ -564,6 +568,7 @@ def api_ask():
         "premortem": premortem_payload,
         "distinguishing": distinguishing_payload,
         "evidence_map": evidence_map_payload,
+        "nullity_radar": nullity_radar_payload,
         "case_id": case.id,
     })
 
@@ -659,6 +664,13 @@ def _evidence_map_payload(em) -> dict | None:
     if em is None or em.is_empty():
         return None
     return {"claims": [asdict(c) for c in em.claims]}
+
+
+def _nullity_radar_payload(nr) -> dict | None:
+    """Serialise NullityRadar for the UI. None when empty."""
+    if nr is None or nr.is_empty():
+        return None
+    return {"findings": [asdict(f) for f in nr.findings]}
 
 
 def _precedent_payload(c, score: float) -> dict:
