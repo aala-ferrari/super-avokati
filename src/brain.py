@@ -2243,13 +2243,24 @@ class SuperAvvocato:
     ) -> ContradictionReport:
         """Scan the dossier for inter-document inconsistencies.
 
-        Only runs when there are at least 2 documents — with a single
-        doc there's nothing to cross-check. Uses each document's
-        key_facts + summary + the first ~2k chars of extracted_text
-        as input. If no text is available (OCR pending, etc.), falls
-        back to summary-only. Output is validated and capped at 5.
+        Only runs when there are at least 2 documents with usable
+        content — with a single doc (or only placeholders) there's
+        nothing to cross-check. Uses each document's key_facts +
+        summary + the first ~2k chars of extracted_text as input.
+        Output is validated and capped at 5; doc_refs returned by
+        the model are grounded against the real filenames we sent
+        so the prompt never displays hallucinated filenames.
         """
-        docs = documents or []
+        # Filter docs that carry actual content. A pending-OCR doc
+        # with empty summary / empty key_facts / empty extracted
+        # text is noise for the detector — it triggers "no signals"
+        # patterns that dilute the real cross-doc scan.
+        docs = [
+            d for d in (documents or [])
+            if (d.get("summary") or "").strip()
+            or (d.get("key_facts") or [])
+            or (d.get("extracted_text") or "").strip()
+        ]
         if len(docs) < 2:
             return ContradictionReport()
 
@@ -2301,6 +2312,13 @@ class SuperAvvocato:
             "narrative", "procedure", "other",
         }
         valid_sev = {"high", "medium", "low"}
+        # Real filenames we sent to the model — the only strings we
+        # accept as doc_refs. Anything else is a hallucination and
+        # would render as a ghost filename in the panel.
+        real_filenames = {
+            d.get("filename", "").strip()
+            for d in docs if d.get("filename")
+        }
         items: list[Contradiction] = []
         for it in (data.get("items") or []):
             if not isinstance(it, dict):
@@ -2311,9 +2329,11 @@ class SuperAvvocato:
             refs_raw = it.get("doc_refs") or []
             if not isinstance(refs_raw, list):
                 continue
-            doc_refs = [str(x).strip() for x in refs_raw if str(x).strip()]
+            doc_refs = _validate_doc_refs(refs_raw, real_filenames)
             if len(doc_refs) < 2:
-                # A real contradiction needs at least two conflicting sources.
+                # A real contradiction needs at least two conflicting
+                # sources that actually exist in the dossier. Anything
+                # less is either noise or invention.
                 continue
             kind_raw = str(it.get("kind", "other")).strip().lower()
             kind: ContradictionKind = (
@@ -2816,6 +2836,25 @@ def _parse_json_block(raw: str) -> dict:
     if start == -1 or end == -1:
         raise ValueError(f"No JSON object in model output: {raw[:200]}")
     return json.loads(s[start : end + 1])
+
+
+def _validate_doc_refs(refs_raw: list, valid_filenames: set[str]) -> list[str]:
+    """Keep only filenames that actually exist in the dossier.
+
+    Dedups while preserving the model's ordering (the first mention
+    tends to be the primary source). Stripping + intersection with
+    the real filename set prevents the panel from rendering a ghost
+    document the model fabricated to "complete" a contradiction.
+    """
+    seen: set[str] = set()
+    out: list[str] = []
+    for r in refs_raw:
+        name = str(r).strip()
+        if not name or name in seen or name not in valid_filenames:
+            continue
+        seen.add(name)
+        out.append(name)
+    return out
 
 
 def _format_articles_for_prompt(pairs: list[tuple[Article, float]]) -> str:
