@@ -414,6 +414,24 @@ main {
   100% { background-position: -200% 0; }
 }
 
+/* Case precedent citation — inline pin-to-row link emitted by [[case:ID]] */
+.case-cite {
+  display: inline-block;
+  padding: 1px 8px;
+  background: linear-gradient(100deg,
+    #e8f1ff 0%, #f5f9ff 50%, #e8f1ff 100%);
+  color: #1b3e7a; font-weight: 600;
+  text-decoration: none;
+  border-radius: 5px; border: 1px solid rgba(27,62,122,0.25);
+  box-shadow: 0 1px 2px rgba(27,62,122,0.08);
+  white-space: nowrap;
+  transition: background .12s, transform .12s;
+}
+.case-cite:hover {
+  background: #d9e6ff;
+  transform: translateY(-1px);
+}
+
 /* typing indicator */
 .msg.typing { display: flex; gap: 5px; padding: 14px 18px; }
 .msg.typing span {
@@ -494,23 +512,44 @@ main {
   color: var(--gray-700); margin-top: 6px; line-height: 1.45;
   font-style: italic;
 }
-.prec-dispositif {
-  color: var(--ink); margin-top: 6px; line-height: 1.45;
-  padding: 6px 9px;
-  background: var(--gold-soft); border-radius: 6px;
-  font-size: 0.8rem;
+.prec-caseid {
+  color: inherit; text-decoration: none;
+  border-bottom: 1px dashed var(--gray-300);
 }
-.prec-dispositif::before { content: "⚖ VENDOSI: "; font-weight: 700; color: var(--red-dark); }
+.prec-caseid:hover { color: var(--red-dark); border-bottom-color: var(--red-dark); }
+.prec-articles {
+  margin-top: 7px; display: flex; flex-wrap: wrap; gap: 5px;
+}
+.prec-article {
+  display: inline-block;
+  padding: 1px 7px; border-radius: 4px;
+  background: var(--gold-soft); color: var(--ink);
+  font-size: 0.72rem; font-weight: 600;
+  font-family: ui-monospace, Menlo, monospace;
+}
+.prec-judges {
+  color: var(--gray-600); margin-top: 5px;
+  font-size: 0.76rem; font-style: italic;
+}
 .prec-outcome {
   display: inline-block; margin-left: 8px;
   padding: 1px 8px; border-radius: 999px;
   font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
   letter-spacing: 0.03em; vertical-align: middle;
 }
-.prec-pranim     { background: #d9f5df; color: #1d6b2e; }
-.prec-rrëzim     { background: #fde5e7; color: #a51a22; }
-.prec-pjesërisht { background: #fff1d6; color: #8a5a07; }
-.prec-pushim     { background: var(--gray-100); color: var(--gray-700); }
+/* V4 outcome enum: convicted | acquitted | dismissed | partially_accepted |
+   accepted | rejected | remanded | modified | settled | other | unknown */
+.prec-accepted,
+.prec-acquitted            { background: #d9f5df; color: #1d6b2e; }
+.prec-rejected,
+.prec-convicted            { background: #fde5e7; color: #a51a22; }
+.prec-partially_accepted,
+.prec-modified             { background: #fff1d6; color: #8a5a07; }
+.prec-remanded             { background: #e4e9ff; color: #2a3a8a; }
+.prec-settled              { background: #e6f4f1; color: #1d6b6b; }
+.prec-dismissed,
+.prec-other,
+.prec-unknown              { background: var(--gray-100); color: var(--gray-700); }
 .prec-link {
   display: inline-block; margin-top: 8px; color: var(--red-dark);
   text-decoration: none; font-weight: 600; font-size: 0.8rem;

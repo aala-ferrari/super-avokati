@@ -39,10 +39,10 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_ex
 from .backends import LLMBackend, build_backend
 from .config import LEGAL_DOCUMENTS, TOP_K_ARTICLES, TOP_K_DECISIONS
 from .documents import format_documents_for_prompt
-from .jurisprudence_parser import Decision
 from .logging_utils import get_logger
 from .parser import Article
-from .retrieval import ArticleIndex, DecisionIndex
+from .retrieval import ArticleIndex
+from .retrieval_kb import CasePrecedent, LegalKBRetriever
 
 log = get_logger(__name__)
 
@@ -201,7 +201,14 @@ RREGULLA:
 - Nëse nenet e dhëna NUK e mbulojnë problemin, thuaje hapur: "Nga nenet që kam në dispozicion nuk gjej mbulim të drejtpërdrejtë për këtë rast. Rekomandoj..." dhe drejto te një avokat ose te ndihma juridike falas.
 - Mos shpik numra nenesh. Nëse nuk je i sigurt, mos citoni.
 - Ji empatik — njerëzit që pyesin shpesh janë në situata të vështira, ndonjëherë kritike.
-- Seksioni 5 nuk duhet të jetë kurrë bosh — gjithmonë thuaji diçka strategjikisht të vlefshme."""
+- Seksioni 5 nuk duhet të jetë kurrë bosh — gjithmonë thuaji diçka strategjikisht të vlefshme.
+
+CITIM I VENDIMEVE (PRECEDENT):
+Kur seksioni "VENDIME RELEVANTE TË GJYKATAVE" të paraqitet më poshtë, ato janë precedent të vërtetë të indeksuar te baza jonë e të dhënave. Çdo vendim ka një shënues në formën `[[case:ID]]` (p.sh. `[[case:347]]`).
+- Kur referon një vendim në përgjigje, VENDOSE menjëherë shënuesin `[[case:ID]]` pas emrit të vendimit, p.sh.: "Gjykata e Lartë, vendim nr. 123/2024 [[case:347]] ka vendosur që...".
+- Shënuesi shndërrohet automatikisht në një link që e çon qytetarin te fashikulli i plotë — kështu që MOS e shkruaj si URL dhe MOS e ndrysho formatin (saktësisht `[[case:NUMER]]`).
+- Cito vetëm ID-të që të janë dhënë më poshtë. Mos shpik ID-të.
+- Përdori precedentët për të përforcuar argumentin te seksioni 1 (ligji), seksioni 4 (afatet, nëse vendimi qartëson një afat) ose seksioni 5 (strategjia)."""
 
 
 # ── data types ─────────────────────────────────────────────────────────────
@@ -239,8 +246,10 @@ class LegalAnswer:
     triage: TriageResult | None = None
     retrieved: list[tuple[Article, float]] = field(default_factory=list)
     # Court decisions (precedents) retrieved for this case — adds persuasive
-    # weight to the answer ("the Constitutional Court has already ruled X").
-    precedents: list[tuple[Decision, float]] = field(default_factory=list)
+    # weight to the answer ("the Gjykata e Lartë has already ruled X").
+    # Backed by the V4 Postgres KB: each CasePrecedent carries outcome,
+    # judges, articles cited, and a DB id so the answer can cite pin-to-row.
+    precedents: list[tuple[CasePrecedent, float]] = field(default_factory=list)
     strategic: StrategicAnalysis | None = None
     # Claude Code session id — set by ClaudeCodeBackend after a compose call.
     # Callers (web.py, bot.py) should persist this per-citizen to maintain
@@ -255,23 +264,27 @@ class SuperAvvocato:
     def __init__(
         self,
         index: ArticleIndex | None = None,
-        decisions_index: DecisionIndex | None = None,
+        kb: LegalKBRetriever | None = None,
         backend: LLMBackend | None = None,
     ):
         self.backend = backend or build_backend()
         self.index = index or ArticleIndex.load()
-        # Decisions index is optional — loads silently to an empty index if
-        # no jurisprudence has been parsed yet. The brain works either way.
-        try:
-            self.decisions_index = decisions_index or DecisionIndex.load()
-        except Exception as exc:  # noqa: BLE001
-            log.warning("decisions index unavailable (%s) — running without precedents", exc)
-            self.decisions_index = DecisionIndex([], None)  # type: ignore[arg-type]
+        # Legal KB (Postgres) is optional — if the DB is unreachable the
+        # brain still works on articles alone. We don't want an outage of
+        # the precedent store to take down the citizen-facing answer flow.
+        if kb is not None:
+            self.kb = kb
+        else:
+            try:
+                self.kb = LegalKBRetriever.load()
+            except Exception as exc:  # noqa: BLE001
+                log.warning("legalkb unavailable (%s) — running without precedents", exc)
+                self.kb = LegalKBRetriever([], None)  # type: ignore[arg-type]
         log.info(
             "SuperAvvocato ready — backend=%s, %d articles, %d precedents",
             self.backend.name,
             len(self.index.articles),
-            len(self.decisions_index.decisions),
+            len(self.kb.cases),
         )
 
     # ── public entrypoint ──────────────────────────────────────────────────
@@ -438,38 +451,40 @@ class SuperAvvocato:
 
     # ── stage 2b: precedents (court decisions) ────────────────────────────
 
-    def _retrieve_precedents(self, triage: TriageResult) -> list[tuple[Decision, float]]:
-        """Pull top-K court decisions whose text overlaps with the case.
+    def _retrieve_precedents(self, triage: TriageResult) -> list[tuple[CasePrecedent, float]]:
+        """Pull top-K court decisions from the V4 Postgres KB.
 
-        Decisions live in a separate BM25 index keyed by the court's reasoning
-        body + subject + legal basis, so the BM25 score naturally prefers
-        precedents on the same legal question. We do NOT restrict by area —
-        a Constitutional Court ruling on labour rights can be precedent for
-        any employment case, regardless of which article the triage picked.
+        The retriever ranks by BM25 over a composite text per case
+        (summary + court + judges + articles cited + body excerpt). We
+        feed it the triage queries AND the strategic angles so that
+        procedural hits (afate, parashkrim, pavlefshmëri) surface even
+        when the user's phrasing is purely factual.
+
+        Area → case-type mapping is opportunistic, not strict: if triage
+        identifies a single clear area we nudge the filter, but we
+        *don't* exclude all other cases — a Constitutional Court ruling
+        on fundamental rights can be precedent for any case.
         """
-        if not self.decisions_index.decisions:
+        if not self.kb.cases:
             return []
 
-        seen: dict[str, float] = {}  # key: court_code/number/year
-        # Use the same query set as articles so the semantic surface matches.
-        all_queries = list(triage.search_queries)
+        queries = list(triage.search_queries)
         for angle in triage.strategic_angles:
-            if angle and angle not in all_queries:
-                all_queries.append(angle)
+            if angle and angle not in queries:
+                queries.append(angle)
 
-        for q in all_queries:
-            for dec, score in self.decisions_index.search(q, top_k=TOP_K_DECISIONS):
-                key = f"{dec.court_code}/{dec.number}/{dec.year}"
-                if score > seen.get(key, 0.0):
-                    seen[key] = score
+        # Map the human-facing "area" labels from triage onto Case.type
+        # values in the KB. When triage settles on a single area, we use
+        # it as a soft hint: first pass tries filtered retrieval, fallback
+        # widens to unfiltered if that returns nothing (legal questions
+        # often cross domains).
+        case_type_hint = _area_to_case_type(triage.areas)
 
-        dec_by_key = {
-            f"{d.court_code}/{d.number}/{d.year}": d
-            for d in self.decisions_index.decisions
-        }
-        pairs = [(dec_by_key[k], s) for k, s in seen.items() if k in dec_by_key]
-        pairs.sort(key=lambda x: x[1], reverse=True)
-        return pairs[: TOP_K_DECISIONS]
+        if case_type_hint:
+            hits = self.kb.search(queries, top_k=TOP_K_DECISIONS, type=case_type_hint)
+            if hits:
+                return hits
+        return self.kb.search(queries, top_k=TOP_K_DECISIONS)
 
     # ── stage 3: strategic analysis ───────────────────────────────────────
 
@@ -549,7 +564,7 @@ class SuperAvvocato:
         history: list[dict[str, str]],
         triage: TriageResult,
         retrieved: list[tuple[Article, float]],
-        precedents: list[tuple[Decision, float]],
+        precedents: list[tuple[CasePrecedent, float]],
         strategic: StrategicAnalysis | None = None,
         session_id: str | None = None,
         documents: list[dict] | None = None,
@@ -656,26 +671,57 @@ def _format_articles_for_prompt(pairs: list[tuple[Article, float]]) -> str:
     return "\n\n".join(blocks)
 
 
-def _format_precedents_block(pairs: list[tuple[Decision, float]]) -> str:
-    """Render the top precedent decisions so the model can cite them.
+def _format_precedents_block(pairs: list[tuple[CasePrecedent, float]]) -> str:
+    """Render the top precedents so the model can cite them precisely.
 
-    Keeps each entry short — we care about WHICH court decided WHAT, not the
-    full reasoning (that's what BM25 already selected for us).
+    Each block gives the model the five things that matter in a cite:
+    court + case number + date + outcome + cited articles. The ``[[case:ID]]``
+    marker is the handle the answer is instructed to use when referring
+    back to a precedent — it round-trips to a DB row so the UI can render
+    a clickable link.
     """
     if not pairs:
         return ""
-    lines = ["", "── VENDIME RELEVANTE TË GJYKATAVE (precedent) ──"]
-    for d, score in pairs:
-        outcome = f" — {d.outcome}" if d.outcome else ""
+    lines = ["", "── VENDIME RELEVANTE TË GJYKATAVE (precedent nga KB) ──"]
+    for c, score in pairs:
+        outcome = f" — {c.outcome}" if c.outcome else ""
+        date_str = c.decision_date.isoformat() if c.decision_date else "?"
         lines.append(
-            f"  • {d.citation} (datë {d.date}){outcome}  [score={score:.2f}]"
+            f"  • [[case:{c.id}]] {c.citation} ({date_str}){outcome}  [score={score:.2f}]"
         )
-        if d.objekti:
-            lines.append(f"    OBJEKTI: {d.objekti[:260]}")
-        if d.dispositif:
-            lines.append(f"    VENDOSI: {d.dispositif[:220]}")
+        if c.summary:
+            lines.append(f"    Përmbledhje: {c.summary[:260]}")
+        if c.articles_cited:
+            arts = ", ".join(f"{code} neni {art}" for code, art in c.articles_cited[:6])
+            lines.append(f"    Nenet e cituara: {arts}")
+        if c.judges:
+            lines.append(f"    Trupi gjykues: {', '.join(c.judges[:3])}")
     lines.append("")
     return "\n".join(lines) + "\n"
+
+
+# Mapping triage areas (human labels) → Case.type values stored in the KB.
+# Multiple areas → no filter (we widen rather than guess wrong).
+_AREA_TO_CASE_TYPE: dict[str, str] = {
+    "Penal":         "penal",
+    "Civil":         "civil",
+    "Familje":       "familje",
+    "Punë":          "pune",
+    "Administrativ": "administrativ",
+    "Doganor":       "doganor",
+    "Rrugor":        "rrugor",
+    "Zgjedhor":      "zgjedhor",
+    "Kushtetues":    "kushtetues",
+    "Detar":         "detar",
+    "Ajror":         "ajror",
+}
+
+
+def _area_to_case_type(areas: list[str]) -> str | None:
+    """Return a Case.type hint when triage identifies a single clear area."""
+    mapped = {_AREA_TO_CASE_TYPE.get(a) for a in areas if a in _AREA_TO_CASE_TYPE}
+    mapped.discard(None)
+    return next(iter(mapped)) if len(mapped) == 1 else None
 
 
 def _format_strategic_block(strategic: StrategicAnalysis | None) -> str:
@@ -718,7 +764,7 @@ if __name__ == "__main__":
         if result.precedents:
             print("\n─── Vendime precedent ───")
             for d, s in result.precedents:
-                print(f"  {s:6.2f}  {d.citation} ({d.outcome or '?'}) — {d.objekti[:60]}")
+                print(f"  {s:6.2f}  {d.citation} ({d.outcome or '?'}) — {d.summary[:60]}")
         if result.strategic and not result.strategic.is_empty():
             print("\n─── Analiza strategjike ───")
             for d in result.strategic.critical_details:

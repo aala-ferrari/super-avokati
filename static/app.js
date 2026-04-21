@@ -526,6 +526,7 @@
 
     body.innerHTML = renderMarkdown(data.text || "");
     highlightNeni(body);
+    linkCaseMarkers(body, data.precedents || []);
 
     const retrieved = node.querySelector(".retrieved");
     const count = node.querySelector(".count");
@@ -559,15 +560,23 @@
       const outcomeTag = (o) => o
         ? `<span class="prec-outcome prec-${o}">${escapeHtml(o)}</span>`
         : "";
+      const articlesBadges = (arts) => (arts || [])
+        .map((a) => `<span class="prec-article">${escapeHtml(a.code)} neni ${escapeHtml(a.article)}</span>`)
+        .join("");
+      const judgesLine = (js) => (js && js.length)
+        ? `<div class="prec-judges">Trupi gjykues: ${escapeHtml(js.join(", "))}</div>`
+        : "";
       const items = precedents.map((d) => `
         <li>
           <span class="art-score">${d.score}</span>
           <div class="prec-cite">
-            ${escapeHtml(d.citation)} <span class="prec-date">${escapeHtml(d.date || "")}</span>
+            <a class="prec-caseid" href="/case-precedent/${d.id}" target="_blank" rel="noopener" title="Hap fashikullin e plotë">${escapeHtml(d.citation)}</a>
+            <span class="prec-date">${escapeHtml(d.date || "")}</span>
             ${outcomeTag(d.outcome)}
           </div>
-          ${d.objekti ? `<div class="prec-objekti">${escapeHtml(d.objekti)}</div>` : ""}
-          ${d.dispositif ? `<div class="prec-dispositif">${escapeHtml(d.dispositif)}</div>` : ""}
+          ${d.summary ? `<div class="prec-objekti">${escapeHtml(d.summary)}</div>` : ""}
+          ${d.articles_cited && d.articles_cited.length ? `<div class="prec-articles">${articlesBadges(d.articles_cited)}</div>` : ""}
+          ${judgesLine(d.judges)}
           ${d.source_url ? `<a class="prec-link" href="${encodeURI(d.source_url)}" target="_blank" rel="noopener">Lexo vendimin →</a>` : ""}
         </li>
       `).join("");
@@ -653,6 +662,43 @@
         span.className = "neni-cite";
         span.textContent = m[0];
         frag.appendChild(span);
+        last = m.index + m[0].length;
+      }
+      if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
+      n.parentNode.replaceChild(frag, n);
+    }
+  }
+
+  // ─── convert [[case:ID]] markers → clickable pin-to-row links ───
+  function linkCaseMarkers(root, precedents) {
+    const byId = new Map((precedents || []).map((p) => [String(p.id), p]));
+    const re = /\[\[case:(\d+)\]\]/g;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+    const toReplace = [];
+    let node;
+    while ((node = walker.nextNode())) {
+      if (node.parentElement && node.parentElement.closest(".case-cite, code")) continue;
+      if (re.test(node.nodeValue)) toReplace.push(node);
+      re.lastIndex = 0;
+    }
+    for (const n of toReplace) {
+      const frag = document.createDocumentFragment();
+      let last = 0;
+      const text = n.nodeValue;
+      let m;
+      const rx = new RegExp(re.source, "g");
+      while ((m = rx.exec(text)) !== null) {
+        if (m.index > last) frag.appendChild(document.createTextNode(text.slice(last, m.index)));
+        const id = m[1];
+        const p = byId.get(id);
+        const a = document.createElement("a");
+        a.className = "case-cite";
+        a.href = `/case-precedent/${id}`;
+        a.target = "_blank";
+        a.rel = "noopener";
+        a.textContent = p ? `⚖ ${p.citation}` : `⚖ vendim #${id}`;
+        if (p && p.outcome) a.title = p.outcome;
+        frag.appendChild(a);
         last = m.index + m[0].length;
       }
       if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));

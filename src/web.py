@@ -26,8 +26,8 @@ from datetime import timedelta
 from pathlib import Path
 
 from flask import (
-    Flask, jsonify, redirect, render_template, request, send_file,
-    session, url_for,
+    Flask, jsonify, redirect, render_template, render_template_string,
+    request, send_file, session, url_for,
 )
 
 from . import documents as docs_mod
@@ -114,6 +114,26 @@ def index() -> str:
         username=user.username,
         is_admin=user.is_admin,
     )
+
+
+@app.route("/case-precedent/<int:case_id>")
+@login_required_page
+def case_precedent_page(case_id: int):
+    """Detail page for one KB precedent — the target of `[[case:ID]]` links.
+
+    Pin-to-row: the id comes straight from the Postgres row we indexed, so
+    a citation in an answer can always round-trip to the full dossier. If
+    the brain is unavailable or the KB doesn't have this id (e.g. the row
+    was pruned since the answer was generated), we show a clean 404 rather
+    than exploding.
+    """
+    _ensure_loaded()
+    if _BRAIN is None or not _BRAIN.kb.cases:
+        return render_template_string(_CASE_PRECEDENT_MISSING, case_id=case_id), 404
+    c = _BRAIN.kb.get(case_id)
+    if c is None:
+        return render_template_string(_CASE_PRECEDENT_MISSING, case_id=case_id), 404
+    return render_template_string(_CASE_PRECEDENT_TEMPLATE, c=c)
 
 
 @app.route("/login", methods=["GET"])
@@ -573,20 +593,142 @@ def _document_payload(d) -> dict:
     }
 
 
-def _precedent_payload(d, score: float) -> dict:
+def _precedent_payload(c, score: float) -> dict:
+    """Render a CasePrecedent (V4 KB row) for the chat UI."""
     return {
-        "citation": d.citation,
-        "court": d.court_short_sq,
-        "number": d.number,
-        "year": d.year,
-        "date": d.date,
-        "outcome": d.outcome,
-        "objekti": d.objekti,
-        "kerkues": d.kerkues,
-        "dispositif": d.dispositif,
-        "source_url": d.source_url,
+        "id": c.id,                       # pin-to-row for /case/<id> links
+        "citation": c.citation,
+        "court": c.court_name,
+        "court_code": c.court_code,
+        "number": c.case_number,
+        "year": c.year,
+        "date": c.decision_date.isoformat() if c.decision_date else None,
+        "type": c.type,
+        "outcome": c.outcome,
+        "summary": c.summary,
+        "judges": c.judges[:3],
+        "articles_cited": [
+            {"code": code, "article": art} for code, art in c.articles_cited[:6]
+        ],
+        "source_url": c.source_url,
         "score": round(score, 2),
     }
+
+
+# ── precedent detail templates ─────────────────────────────────────────────
+# Inline to avoid a third jinja file for what is a self-contained read-only
+# page. The brain is the source of truth; we render whatever CasePrecedent
+# hands back. Styling reuses /static/style.css variables.
+
+_CASE_PRECEDENT_TEMPLATE = """<!DOCTYPE html>
+<html lang="sq">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>{{ c.citation }} — Super Avokati</title>
+<link rel="stylesheet" href="/static/style.css" />
+<style>
+  body { background: #0a0a0a; color: #e8e8e8; font-family: Inter, sans-serif; margin: 0; padding: 24px 18px 80px; }
+  .wrap { max-width: 820px; margin: 0 auto; }
+  .back { display: inline-block; color: #c9a24d; text-decoration: none; margin-bottom: 14px; font-size: 14px; }
+  .back:hover { text-decoration: underline; }
+  h1 { font-family: "Playfair Display", serif; font-size: 28px; margin: 0 0 4px; line-height: 1.2; }
+  .sub { color: #9a9a9a; font-size: 14px; margin-bottom: 20px; }
+  .badges { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
+  .badge { padding: 3px 10px; border-radius: 6px; background: #1a1a1a; border: 1px solid #2a2a2a; font-size: 13px; color: #d5d5d5; }
+  .badge.outcome { background: #1b3e2e; border-color: #2f6a4e; color: #b9e8cd; }
+  .badge.outcome.prec-rejected, .badge.outcome.prec-dismissed, .badge.outcome.prec-acquitted { background: #3a1d1d; border-color: #6a2f2f; color: #f2c1c1; }
+  .badge.court { background: #1d2b3a; border-color: #2f4c6a; color: #bcd4ec; }
+  h2 { font-size: 16px; color: #c9a24d; margin: 28px 0 10px; border-bottom: 1px solid #2a2a2a; padding-bottom: 6px; }
+  .summary { background: #111; border-left: 3px solid #c9a24d; padding: 12px 16px; border-radius: 4px; line-height: 1.55; }
+  ul.articles { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+  ul.articles li { background: #141b28; border: 1px solid #2a3b55; padding: 4px 10px; border-radius: 5px; font-size: 13px; color: #bcd4ec; }
+  .people { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+  .people .box h3 { margin: 0 0 6px; font-size: 13px; color: #9a9a9a; text-transform: uppercase; letter-spacing: 0.5px; }
+  .people .box ul { list-style: none; padding: 0; margin: 0; }
+  .people .box li { padding: 3px 0; font-size: 14px; color: #d5d5d5; }
+  pre.excerpt { white-space: pre-wrap; word-wrap: break-word; background: #0f0f0f; border: 1px solid #1f1f1f; padding: 14px; border-radius: 6px; color: #c8c8c8; font-size: 13px; line-height: 1.55; }
+  a.external { color: #c9a24d; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="/">← Kthehu te biseda</a>
+  <h1>{{ c.court_name }}</h1>
+  <div class="sub">
+    nr. {{ c.case_number }}{% if c.decision_date %} · {{ c.decision_date.isoformat() }}{% endif %}
+  </div>
+
+  <div class="badges">
+    {% if c.court_code %}<span class="badge court">{{ c.court_code }}</span>{% endif %}
+    {% if c.type %}<span class="badge">{{ c.type }}{% if c.subtype %} / {{ c.subtype }}{% endif %}</span>{% endif %}
+    {% if c.outcome %}<span class="badge outcome prec-{{ c.outcome }}">{{ c.outcome }}</span>{% endif %}
+    {% if c.source_url %}<a class="badge external" href="{{ c.source_url }}" target="_blank" rel="noopener">Burimi origjinal →</a>{% endif %}
+  </div>
+
+  {% if c.summary %}
+    <h2>Përmbledhje</h2>
+    <div class="summary">{{ c.summary }}</div>
+  {% endif %}
+
+  {% if c.articles_cited %}
+    <h2>Nenet e cituara ({{ c.articles_cited|length }})</h2>
+    <ul class="articles">
+      {% for code, art in c.articles_cited %}
+        <li>{{ code }} neni {{ art }}</li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+
+  {% if c.judges or c.lawyers or c.prosecutors %}
+    <h2>Palët procedurale</h2>
+    <div class="people">
+      {% if c.judges %}
+        <div class="box"><h3>Trupi gjykues</h3>
+          <ul>{% for j in c.judges %}<li>{{ j }}</li>{% endfor %}</ul>
+        </div>
+      {% endif %}
+      {% if c.prosecutors %}
+        <div class="box"><h3>Prokuroria</h3>
+          <ul>{% for p in c.prosecutors %}<li>{{ p }}</li>{% endfor %}</ul>
+        </div>
+      {% endif %}
+      {% if c.lawyers %}
+        <div class="box"><h3>Mbrojtja</h3>
+          <ul>{% for l in c.lawyers %}<li>{{ l }}</li>{% endfor %}</ul>
+        </div>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  {% if c.excerpt %}
+    <h2>Fragment nga vendimi</h2>
+    <pre class="excerpt">{{ c.excerpt }}</pre>
+  {% endif %}
+</div>
+</body>
+</html>
+"""
+
+_CASE_PRECEDENT_MISSING = """<!DOCTYPE html>
+<html lang="sq">
+<head>
+<meta charset="UTF-8" />
+<title>Vendimi nuk u gjet — Super Avokati</title>
+<link rel="stylesheet" href="/static/style.css" />
+<style>
+  body { background: #0a0a0a; color: #e8e8e8; font-family: Inter, sans-serif; padding: 80px 24px; text-align: center; }
+  h1 { font-family: "Playfair Display", serif; color: #c9a24d; }
+  a { color: #c9a24d; }
+</style>
+</head>
+<body>
+  <h1>Vendimi #{{ case_id }} nuk është në bazën tonë</h1>
+  <p>Mund të jetë hequr nga indeksi ose id-ja nuk është e vlefshme.</p>
+  <p><a href="/">← Kthehu te biseda</a></p>
+</body>
+</html>
+"""
 
 
 # ── entrypoint ─────────────────────────────────────────────────────────────
