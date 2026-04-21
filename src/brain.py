@@ -590,6 +590,30 @@ RREGULLA:
 • Shkruaj SHQIP."""
 
 
+# ── section references (single source of truth) ───────────────────────────
+#
+# ANSWER_SYSTEM below defines five FIXED section headers. Every block
+# formatter that tells the answer model *where* to place its findings must
+# reference sections through these constants — never re-invent the names.
+# This is the fix for a latent bug where older block formatters pointed at
+# "seksioni 2 'Si mund të mbrohesh'", a name that no longer exists in the
+# answer template, silently degrading the compose prompt.
+ANSWER_SECTIONS = {
+    "law": "## 1. 📜 Çfarë thotë ligji",
+    "rights": "## 2. ⚖️ Të drejtat e tua",
+    "actions": "## 3. 🛠️ Çfarë duhet të bësh",
+    "deadlines": "## 4. ⏰ Afatet ligjore",
+    "strategic": "## 5. 🎯 Detajet që bëjnë diferencën",
+}
+SECTION_REF = {
+    "law": "seksioni 1 'Çfarë thotë ligji'",
+    "rights": "seksioni 2 'Të drejtat e tua'",
+    "actions": "seksioni 3 'Çfarë duhet të bësh'",
+    "deadlines": "seksioni 4 'Afatet ligjore'",
+    "strategic": "seksioni 5 'Detajet që bëjnë diferencën'",
+}
+
+
 ANSWER_SYSTEM = """Ti je Super Avokati — avokat virtual falas për qytetarët shqiptarë që nuk mund të përballojnë tarifat.
 Je i ngrohtë, i qartë dhe flet gjuhën e njerëzve të thjeshtë, jo zhargon ligjor.
 Por nën sipërfaqen e butë, je një avokat strateg që NUK harron asnjë detaj vendimtar.
@@ -1082,7 +1106,7 @@ class LegalAnswer:
     # upstream stages' action fields (urgency / nullity / evidence /
     # difference / premortem), deduped + bucketed by time (today /
     # this week / this month / later). Fed into the compose prompt so
-    # section 2 "Si mund të mbrohesh" respects this ordering.
+    # section 3 "Çfarë duhet të bësh" respects this ordering.
     action_plan: ActionPlan | None = None
     # Contradiction report (V6.8): cross-document inconsistencies detected
     # when the dossier has ≥2 documents. Only populated when real
@@ -2926,7 +2950,7 @@ def _format_timeline_block(timeline: TimelineAnalysis | None) -> str:
             ref = f" [{d.article_ref}]" if d.article_ref else ""
             lines.append(f"  • {d.action} — {when}{ref}")
     lines.append("")
-    lines.append("SHKRUAJ seksionin 4 'Afatet ligjore' DUKE CITUAR dhe datat e mësipërme KUR JANË TË LLOGARITURA (p.sh. 'deri më 14 maj 2026'). Mos rishko skadencat e llogaritura, mos zbut urgjencat. Nëse një afat është shënuar si KALUAR, thuaje hapur dhe sugjero çfarë mund të bëhet ende (p.sh. kërkesë për rikthim në afat).")
+    lines.append(f"SHKRUAJ {SECTION_REF['deadlines']} DUKE CITUAR dhe datat e mësipërme KUR JANË TË LLOGARITURA (p.sh. 'deri më 14 maj 2026'). Mos rishko skadencat e llogaritura, mos zbut urgjencat. Nëse një afat është shënuar si KALUAR, thuaje hapur dhe sugjero çfarë mund të bëhet ende (p.sh. kërkesë për rikthim në afat).")
     return "\n".join(lines) + "\n"
 
 
@@ -2973,7 +2997,7 @@ def _format_comparison_block(cmp: PrecedentComparison | None) -> str:
             lines.append(f"  • {f}")
     lines.append("")
     lines.append(
-        "PËRDOR pattern-in dhe diferencat te seksioni 5 'Detajet që bëjnë diferencën' — "
+        f"PËRDOR pattern-in dhe diferencat te {SECTION_REF['strategic']} — "
         "për ÇDO atribut me status 'mungon' ose 'e paqartë' trego qytetarit "
         "CILIN VEPRIM duhet të bëjë SOT për ta mbuluar, përpara seancës. "
         "Kjo është pjesa që shumica e avokatëve e humb: nuk mjafton të thuash çfarë "
@@ -3012,7 +3036,7 @@ def _format_evidence_map_block(em: EvidenceMap | None) -> str:
             lines.append(f"     Shënim: {c.notes}")
     lines.append("")
     lines.append(
-        "PËRDOR mapën te seksioni 2 'Si mund të mbrohesh' dhe te seksioni 5: për çdo "
+        f"PËRDOR mapën te {SECTION_REF['actions']} dhe te {SECTION_REF['strategic']}: për çdo "
         "pretendim me status 'mungon'/'e dobët' thuaji qytetarit HAPUR cilën provë duhet "
         "të mbledhë PARA se të padisë, dhe kur barra është e ZHVENDOSUR (p.sh. në të drejtën "
         "e punës, diskriminim, konsumator, dhunë në familje) CITO nenin që e zhvendos dhe "
@@ -3064,16 +3088,16 @@ def _format_urgency_block(ur: UrgencyRadar | None) -> str:
             "UDHËZIM I DETYRUESHËM: Ky rast është EMERGJENCË. "
             "HAPE përgjigjen me një paragraf të shkurtër VEPRIMI — çfarë duhet "
             "të bëjë qytetari sot/nesër, pa hyrje teorike. Më pas vazhdo me "
-            "strukturën normale (5 seksionet), por në seksionin 2 'Si mund të "
-            "mbrohesh' rendit këto veprime si HAPAT E PARË, me afate konkrete. "
+            f"strukturën normale (5 seksionet), por në {SECTION_REF['actions']} "
+            "rendit këto veprime si HAPAT E PARË, me afate konkrete. "
             "Toni: i ngrohtë, i qetë, por i drejtpërdrejtë — njeriu ka nevojë "
             "për drejtim, jo për ligjërata."
         )
     else:
         lines.append(
             "UDHËZIM: Ky rast ka afate/rreziqe që duhen adresuar këtë javë. "
-            "Në seksionin 4 'Afatet' rendit së pari sinjalet e mësipërme dhe "
-            "në seksionin 2 jep veprimet konkrete për secilin."
+            f"Në {SECTION_REF['deadlines']} rendit së pari sinjalet e mësipërme dhe "
+            f"në {SECTION_REF['actions']} jep veprimet konkrete për secilin."
         )
     return "\n".join(lines) + "\n\n"
 
@@ -3113,12 +3137,11 @@ def _format_contradictions_block(cr: ContradictionReport | None) -> str:
             lines.append(f"     ▶ Implikim: {c.implication}")
     lines.append("")
     lines.append(
-        "PËRDOR këto kontradikta si levë strategjike: integroji te seksioni 2 "
-        "'Si mund të mbrohesh' (për çdo kontradiktë të severity='high' ose "
-        "'medium', shpjego si e përdor qytetari në gjykatë) dhe te seksioni 5 "
-        "'Detajet që bëjnë diferencën' (pse kjo mospërputhje e ndryshon "
-        "ekuilibrin e rastit). Mos i anashkalo — një avokat i mirë i gjen "
-        "dhe i shfrytëzon."
+        f"PËRDOR këto kontradikta si levë strategjike: integroji te {SECTION_REF['actions']} "
+        "(për çdo kontradiktë të severity='high' ose 'medium', shpjego si e "
+        f"përdor qytetari në gjykatë) dhe te {SECTION_REF['strategic']} (pse "
+        "kjo mospërputhje e ndryshon ekuilibrin e rastit). Mos i anashkalo — "
+        "një avokat i mirë i gjen dhe i shfrytëzon."
     )
     return "\n".join(lines) + "\n"
 
@@ -3127,8 +3150,8 @@ def _format_action_plan_block(ap: ActionPlan | None) -> str:
     """Render the consolidated action plan for the compose prompt.
 
     The answer model is told to use this exact ordering as the spine of
-    section 2 ("Si mund të mbrohesh") — first the "sot" items, then
-    this-week, etc. This avoids the drift where section 2 reinvents a
+    section 3 ("Çfarë duhet të bësh") — first the "sot" items, then
+    this-week, etc. This avoids the drift where section 3 reinvents a
     different action list that conflicts with the panel the UI shows.
     """
     if ap is None or ap.is_empty():
@@ -3165,11 +3188,11 @@ def _format_action_plan_block(ap: ActionPlan | None) -> str:
                 lines.append(f"     {' — '.join(reason_parts)}")
     lines.append("")
     lines.append(
-        "PËRDOR këtë plan si shtyllën e seksionit 2 'Si mund të mbrohesh': "
+        f"PËRDOR këtë plan si shtyllën e {SECTION_REF['actions']}: "
         "rendit veprimet me renditjen e mësipërme (sot → kjo javë → ky muaj), "
         "shpjego shkurt pse secili ka rëndësi, dhe mos shto veprime që nuk janë "
         "këtu. Nëse është listë bosh, dhëno këshillë të përgjithshme; nëse ka "
-        "veprime 'sot', ato janë HAPAT E PARË në pozicionin 1 të seksionit 2."
+        f"veprime 'sot', ato janë HAPAT E PARË në pozicionin 1 të {SECTION_REF['actions']}."
     )
     return "\n".join(lines) + "\n"
 
@@ -3235,11 +3258,11 @@ def _format_nullity_block(nr: NullityRadar | None) -> str:
             lines.append(f"  {icon} {f.name}{basis} — {f.condition or '?'}")
     lines.append("")
     lines.append(
-        "INTEGRO radarin te seksioni 2 'Si mund të mbrohesh' DHE te seksioni 4 'Afatet': "
+        f"INTEGRO radarin te {SECTION_REF['actions']} DHE te {SECTION_REF['deadlines']}: "
         "për çdo gjetje 'po', shpjego qytetarit HAPUR — me nenin e saktë — SI ta ngrejë "
         "në gjykatë dhe brenda cilit afat. Këto janë levat që shumicën e rasteve e fitojnë "
         "pa u prekur tema. Nëse ka afat dekadencial ose parashkrim që rrjedh kundër qytetarit, "
-        "theksoje si të parin në seksionin 4."
+        f"theksoje si të parin në {SECTION_REF['deadlines']}."
     )
     return "\n".join(lines) + "\n"
 
@@ -3261,7 +3284,7 @@ def _format_distinguishing_block(d: DistinguishingAnalysis | None) -> str:
         lines.append(f"     {item.reason}")
     lines.append("")
     lines.append(
-        "PËRDOR këto dallime te seksioni 5: nëse në përgjigjen tënde citohet një prej "
+        f"PËRDOR këto dallime te {SECTION_REF['strategic']}: nëse në përgjigjen tënde citohet një prej "
         "precedentëve të sipërm, SHPJEGO SAKT pse ai vendim nuk e kontrollon këtë rast "
         "(distinguish) OSE si mbrohemi nga ai (still_dangerous). Mos i fsheh vendimet "
         "sfavorizuese — një avokat i mirë i adreson, nuk i anashkalon."
@@ -3288,7 +3311,7 @@ def _format_premortem_block(pm: Premortem | None) -> str:
             lines.append(f"     Mitigim: {r.mitigation}")
     lines.append("")
     lines.append(
-        "INTEGRO këto rreziqe te seksioni 5 'Detajet që bëjnë diferencën' — për "
+        f"INTEGRO këto rreziqe te {SECTION_REF['strategic']} — për "
         "secilin rrezik high/medium, shpjego qytetarit hapur PSE kauza mund të "
         "humbet nga ajo anë DHE jepi mitigjimin konkret. Mos i fsheh. Qytetari "
         "ka më shumë rrespekt për avokatin që i thotë të vërtetën sesa për atë "
