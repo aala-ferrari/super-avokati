@@ -603,6 +603,56 @@ main {
   color: var(--ink); line-height: 1.4;
 }
 
+/* V6.4 — decisive differences engine: "your case lacks Z".
+   One card per attribute; left border colour-codes the citizen's
+   status on that attribute. Green when present, red when missing,
+   amber when unclear — so the citizen can scan the list and instantly
+   see where the gaps are. The "Veprim" row is the action block:
+   deliberately separated from the winners/losers prose because the
+   entire point is that the citizen DOES something about each gap. */
+.cmp-diffs {
+  list-style: none; padding: 0; display: flex; flex-direction: column; gap: 8px;
+}
+.cmp-diff {
+  padding: 9px 12px; background: var(--paper);
+  border: 1px solid var(--gray-100);
+  border-left: 4px solid var(--gray-400);
+  border-radius: var(--radius-sm);
+}
+.cmp-diff.cmp-diff-ka          { border-left-color: #1d6b2e; background: #f3faf5; }
+.cmp-diff.cmp-diff-mungon      { border-left-color: #a51a22; background: #fdf4f5; }
+.cmp-diff.cmp-diff-e-paqartë   { border-left-color: #e9a65a; background: #fffaf1; }
+.cmp-diff-head {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-bottom: 5px;
+}
+.cmp-diff-status {
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em;
+  padding: 2px 8px; border-radius: 4px;
+  background: var(--gray-100); color: var(--gray-700);
+}
+.cmp-diff-ka .cmp-diff-status        { background: #d8f0de; color: #1d6b2e; }
+.cmp-diff-mungon .cmp-diff-status    { background: #fbdcde; color: #a51a22; }
+.cmp-diff-e-paqartë .cmp-diff-status { background: #fff1ce; color: #8a5a07; }
+.cmp-diff-attr {
+  font-weight: 600; color: var(--black); line-height: 1.4;
+}
+.cmp-diff-row {
+  font-size: 0.82rem; color: var(--gray-700);
+  line-height: 1.45; margin-top: 3px;
+}
+.cmp-diff-key {
+  font-weight: 700; color: var(--gray-800);
+  margin-right: 3px;
+}
+.cmp-diff-action {
+  margin-top: 7px; padding: 6px 9px;
+  background: var(--gold-soft); border-left: 3px solid var(--gold);
+  border-radius: 3px; color: var(--ink);
+  font-size: 0.83rem; line-height: 1.45;
+}
+.cmp-diff-action strong { color: var(--ink); margin-right: 2px; }
+
 /* ─── missing-facts panel (pyetjet që ndryshojnë përgjigjen) ─────
    Appears at the end of a bot message: a lawyer's "before I answer,
    I need to know X" — but non-blocking and clickable to ask back. */

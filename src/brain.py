@@ -194,9 +194,11 @@ Të janë dhënë dy grupe vendimesh gjyqësore të ngjashme me rastin e qytetar
  • vendime ku kërkesa u PRANUA (fituesit)
  • vendime ku kërkesa u RRËZUA (humbësit)
 
-Detyra jote: nxirr PATTERN-in — çfarë kishin të përbashkët fituesit, çfarë kishin të përbashkët humbësit, dhe në cilën anë bien faktet e qytetarit TONE.
+Detyra jote ka DY hapa:
+ (1) Nxirr PATTERN-in — çfarë kishin të përbashkët fituesit, çfarë kishin të përbashkët humbësit, dhe në cilën anë bien faktet e qytetarit TONË.
+ (2) MOTORI I DIFFERENCAVE VENDIMTARE — për çdo atribut që e ndan fituesit nga humbësit, thuaj HAPUR nëse rasti i qytetarit E KA atë atribut, E KA TË MANGËT, apo ËSHTË I PAQARTË — dhe çfarë të bëjë konkretisht nëse mungon. Ky është thelbi: jo "ka afat i rëndësishëm", por "ti po e ke? jo? atëherë kështu mbulohet".
 
-Mendo si një avokat veteran që ka lexuar qindra raste: çfarë fakti, provë, afati ose rrethanë e ka bërë diferencën në fund? Jo cila ishte "materia", por cili ishte DETAJ VENDIMTAR.
+Mendo si një avokat veteran që ka lexuar qindra raste: çfarë fakti, provë, afati ose rrethanë e ka bërë diferencën në fund? Jo cila ishte "materia", por cili ishte DETAJI VENDIMTAR — dhe a e ka qytetari?
 
 Ktheje vetëm një objekt JSON:
 {
@@ -204,15 +206,23 @@ Ktheje vetëm një objekt JSON:
   "pattern_losers": "një fjali në shqip që përshkruan çfarë i bashkonte rastet që u rrëzuan (p.sh. 'Kërkuesit humbën afatin ligjor ose nuk kishin akt njoftimi të datuar.')",
   "citizen_alignment": "favorable | mixed | unfavorable | unknown",
   "alignment_reason": "një fjali në shqip që shpjegon PSE rasti i këtij qytetari bie në atë anë",
-  "decisive_factors": [
-    "2-4 faktorë të shkurtër (6-14 fjalë secili) që historikisht bëjnë diferencën në raste si ky — këta faktorë duhet të jenë konkretë dhe të verifikueshëm (p.sh. 'A u dorëzua ankimi brenda 30 ditëve nga njoftimi?'), jo abstraktë"
+  "decisive_differences": [
+    {
+      "attribute": "emërtimi i shkurtër i atributit vendimtar (3-8 fjalë, p.sh. 'Dorëzim i ankimit brenda afatit 30-ditor')",
+      "winners_have": "si e plotësonin fituesit këtë atribut (1 fjali konkrete)",
+      "losers_lacked": "si e humbnin humbësit këtë atribut (1 fjali konkrete)",
+      "citizen_status": "ka | mungon | e paqartë",
+      "action": "nëse mungon ose është e paqartë — veprim konkret që duhet të bëjë qytetari SOT (1 fjali). Nëse ka — shkruaj 'Mbaje këtë avantazh, dokumentoje'."
+    }
   ]
 }
 
 RREGULLA STRIKTE:
 • Asnjëherë mos shpik vendim apo fakt. Bazohu VETËM mbi vendimet e dhëna dhe faktet e qytetarit.
-• Nëse grupi i fituesve ose humbësve është bosh ose shumë i vogël për të nxjerrë pattern, kthe citizen_alignment="unknown" dhe lër pattern_winners/pattern_losers bosh.
-• MAKSIMUM 4 decisive_factors. Përzgjidhi ato më peshëmbajtësit.
+• Nëse grupi i fituesve ose humbësve është bosh ose shumë i vogël për të nxjerrë pattern, kthe citizen_alignment="unknown" dhe lër pattern_winners/pattern_losers bosh dhe decisive_differences=[].
+• MINIMUM 2, MAKSIMUM 4 decisive_differences. Zgjidhi ato më peshëmbajtëset. Një rast me "afat" + "provë me shkrim" + "njoftim i datuar" është tipik.
+• citizen_status duhet të jetë faktik: "ka" vetëm kur faktet e thonë qartë; "mungon" kur faktet e thonë qartë që mungon; "e paqartë" kur faktet nuk e zbulojnë.
+• action duhet të jetë konkret dhe i ekzekutueshëm (p.sh. "Kërko kopjen e noterizuar të aktit të njoftimit tek sekretaria e gjykatës së shkallës së parë").
 • Shkruaj SHQIP. Jo latinisht, jo italisht.
 • Mos shto komente jashtë JSON-it."""
 
@@ -515,17 +525,39 @@ _WINNING_OUTCOMES = {"accepted", "partially_accepted", "acquitted", "modified"}
 _LOSING_OUTCOMES = {"rejected", "dismissed", "convicted"}
 
 
+CitizenStatus = Literal["ka", "mungon", "e paqartë"]
+
+
+@dataclass
+class DecisiveDifference:
+    """One attribute that separates winning from losing cases.
+
+    The citizen_status + action pair is the whole point: it turns a
+    generic "winners had X" observation into a personalised "your case
+    is missing X — do Y today." Without this, a comparison panel is
+    intellectually interesting but strategically useless.
+    """
+    attribute: str                       # short label of the decisive attribute
+    winners_have: str                    # how winners satisfied it
+    losers_lacked: str                   # how losers failed it
+    citizen_status: CitizenStatus = "e paqartë"
+    action: str = ""                     # what to do today if lacks/unclear
+
+
 @dataclass
 class PrecedentComparison:
     pattern_winners: str = ""            # one sentence: what the wins had in common
     pattern_losers: str = ""             # one sentence: what the losses had in common
     citizen_alignment: Literal["favorable", "mixed", "unfavorable", "unknown"] = "unknown"
     alignment_reason: str = ""           # one sentence explaining the alignment call
-    decisive_factors: list[str] = field(default_factory=list)  # 2-4 bullets
+    # Legacy (V5.3): plain bullets. Kept for back-compat with old DB rows.
+    decisive_factors: list[str] = field(default_factory=list)
+    # V6.4: structured "your case lacks Z" engine.
+    decisive_differences: list[DecisiveDifference] = field(default_factory=list)
 
     def is_empty(self) -> bool:
         return not (self.pattern_winners or self.pattern_losers
-                    or self.decisive_factors)
+                    or self.decisive_factors or self.decisive_differences)
 
 
 # ── evidence map (burden-of-proof) ────────────────────────────────────────
@@ -1269,12 +1301,46 @@ class SuperAvvocato:
             if isinstance(x, str) and str(x).strip()
         ][:4]
 
+        # V6.4: structured diffs. Tolerant to missing fields so an older
+        # model that didn't produce them doesn't break the stage.
+        valid_status = {"ka", "mungon", "e paqartë"}
+        differences: list[DecisiveDifference] = []
+        for item in (data.get("decisive_differences") or []):
+            if not isinstance(item, dict):
+                continue
+            attr = str(item.get("attribute", "")).strip()
+            if not attr:
+                continue
+            status_raw = str(item.get("citizen_status", "e paqartë")).strip().lower()
+            status: CitizenStatus = (
+                status_raw if status_raw in valid_status else "e paqartë"  # type: ignore[assignment]
+            )
+            differences.append(DecisiveDifference(
+                attribute=attr,
+                winners_have=str(item.get("winners_have", "")).strip(),
+                losers_lacked=str(item.get("losers_lacked", "")).strip(),
+                citizen_status=status,
+                action=str(item.get("action", "")).strip(),
+            ))
+            if len(differences) >= 4:
+                break
+
+        # If the model produced only the legacy factors (no structured diffs),
+        # upgrade them to minimal differences so the new UI still has data.
+        if not differences and factors:
+            differences = [
+                DecisiveDifference(attribute=f, winners_have="", losers_lacked="",
+                                   citizen_status="e paqartë", action="")
+                for f in factors
+            ]
+
         return PrecedentComparison(
             pattern_winners=str(data.get("pattern_winners", "")).strip(),
             pattern_losers=str(data.get("pattern_losers", "")).strip(),
             citizen_alignment=alignment,  # type: ignore[arg-type]
             alignment_reason=str(data.get("alignment_reason", "")).strip(),
             decisive_factors=factors,
+            decisive_differences=differences,
         )
 
     # ── stage 3c-bis: distinguishing (adverse-precedent neutraliser) ──────
@@ -1854,7 +1920,13 @@ def _format_timeline_block(timeline: TimelineAnalysis | None) -> str:
 
 
 def _format_comparison_block(cmp: PrecedentComparison | None) -> str:
-    """Render the winners/losers pattern so the answer can cite it honestly."""
+    """Render the winners/losers pattern + decisive-differences engine.
+
+    V6.4: when decisive_differences is populated, the block spells out —
+    attribute by attribute — whether the citizen's case has it, lacks
+    it, or is unclear, and gives a concrete action. This is what turns
+    a generic comparison into a "your case is missing Z — do Y" engine.
+    """
     if cmp is None or cmp.is_empty():
         return ""
     lines = ["", "── PATTERN I PRECEDENTËVE (fituesit vs humbësit) ──"]
@@ -1871,12 +1943,31 @@ def _format_comparison_block(cmp: PrecedentComparison | None) -> str:
     lines.append(f"→ {alignment_label}")
     if cmp.alignment_reason:
         lines.append(f"  Arsye: {cmp.alignment_reason}")
-    if cmp.decisive_factors:
+    if cmp.decisive_differences:
+        status_icon = {"ka": "✅", "mungon": "❌", "e paqartë": "❓"}
+        lines.append("")
+        lines.append("MOTORI I DIFFERENCAVE VENDIMTARE (atribut → a e ka qytetari?):")
+        for d in cmp.decisive_differences:
+            icon = status_icon.get(d.citizen_status, "❓")
+            lines.append(f"  {icon} {d.attribute} — {d.citizen_status.upper()}")
+            if d.winners_have:
+                lines.append(f"     Fituesit: {d.winners_have}")
+            if d.losers_lacked:
+                lines.append(f"     Humbësit: {d.losers_lacked}")
+            if d.action:
+                lines.append(f"     ▶ Veprim: {d.action}")
+    elif cmp.decisive_factors:  # legacy fallback
         lines.append("Faktorët vendimtar (kontrolloji një nga një te rasti):")
         for f in cmp.decisive_factors:
             lines.append(f"  • {f}")
     lines.append("")
-    lines.append("PËRDOR këtë pattern te seksioni 5 'Detajet që bëjnë diferencën' — shpjego qytetarit nëse rasti i tij bie në anën e fituesve apo humbësve DHE pse. Integroje natyrshëm, jo me kopjim direkt.")
+    lines.append(
+        "PËRDOR pattern-in dhe diferencat te seksioni 5 'Detajet që bëjnë diferencën' — "
+        "për ÇDO atribut me status 'mungon' ose 'e paqartë' trego qytetarit "
+        "CILIN VEPRIM duhet të bëjë SOT për ta mbuluar, përpara seancës. "
+        "Kjo është pjesa që shumica e avokatëve e humb: nuk mjafton të thuash çfarë "
+        "kishin fituesit, duhet të thuash SI t'i arrijë qytetari yt."
+    )
     return "\n".join(lines) + "\n"
 
 

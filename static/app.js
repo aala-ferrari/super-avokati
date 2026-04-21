@@ -963,6 +963,35 @@
       unknown:     "🧭 Krahasim precedentesh",
     };
 
+    // V6.4: decisive_differences is the structured "your case lacks Z"
+    // engine. Prefer it when populated; fall back to the legacy
+    // decisive_factors bullets for historical rows.
+    const statusIcon = { "ka": "✅", "mungon": "❌", "e paqartë": "❓" };
+    const statusLabel = { "ka": "E KA", "mungon": "MUNGON", "e paqartë": "E PAQARTË" };
+    const diffs = (c.decisive_differences || []).filter((d) => d.attribute);
+    const differencesHtml = diffs.length ? diffs.map((d) => {
+      const cls = `cmp-diff-${(d.citizen_status || "e paqartë").replace(/\s+/g, "-")}`;
+      const icon = statusIcon[d.citizen_status] || "❓";
+      const label = statusLabel[d.citizen_status] || "E PAQARTË";
+      const win = d.winners_have
+        ? `<div class="cmp-diff-row"><span class="cmp-diff-key">Fituesit:</span> ${escapeHtml(d.winners_have)}</div>` : "";
+      const lose = d.losers_lacked
+        ? `<div class="cmp-diff-row"><span class="cmp-diff-key">Humbësit:</span> ${escapeHtml(d.losers_lacked)}</div>` : "";
+      const action = d.action
+        ? `<div class="cmp-diff-action"><strong>▶ Veprim:</strong> ${escapeHtml(d.action)}</div>` : "";
+      return `
+        <li class="cmp-diff ${cls}">
+          <div class="cmp-diff-head">
+            <span class="cmp-diff-status">${icon} ${label}</span>
+            <span class="cmp-diff-attr">${escapeHtml(d.attribute)}</span>
+          </div>
+          ${win}
+          ${lose}
+          ${action}
+        </li>
+      `;
+    }).join("") : "";
+
     const factors = (c.decisive_factors || []).map((f) =>
       `<li>${escapeHtml(f)}</li>`
     ).join("");
@@ -982,9 +1011,11 @@
           </div>` : ""}
       </div>
       ${c.alignment_reason ? `<div class="cmp-reason">${escapeHtml(c.alignment_reason)}</div>` : ""}
-      ${factors ? `
+      ${differencesHtml ? `
+        <div class="cmp-factors-label">Diferencat vendimtare — a i ke, të mungojnë, apo janë të paqarta?</div>
+        <ul class="cmp-diffs">${differencesHtml}</ul>` : (factors ? `
         <div class="cmp-factors-label">Faktorët vendimtar — kontrollo një nga një</div>
-        <ul class="cmp-factors">${factors}</ul>` : ""}
+        <ul class="cmp-factors">${factors}</ul>` : "")}
     `;
     return wrap;
   }
