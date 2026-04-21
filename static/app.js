@@ -130,6 +130,7 @@
         missing_facts: m.missing_facts || null,
         premortem: m.premortem || null,
         distinguishing: m.distinguishing || null,
+        evidence_map: m.evidence_map || null,
       });
     }
     renderDossier(c.documents || []);
@@ -584,6 +585,15 @@
       msgEl.insertBefore(renderDistinguishing(distinguishing), null);
     }
 
+    // Evidence map — who bears the burden of proof for each claim, with
+    // burden-shift flags (labor / discrimination / consumer / domestic
+    // violence). Rendered after distinguishing so the citizen has the
+    // legal frame before hitting the "what proof do I need" board.
+    const evidenceMap = data.evidence_map;
+    if (evidenceMap && (evidenceMap.claims || []).length) {
+      msgEl.insertBefore(renderEvidenceMap(evidenceMap), null);
+    }
+
     // Timeline widget — past anchors + future deadlines with colour-coded
     // urgency badges. Rendered before the precedents block so citizens see
     // the "act by X" summary first.
@@ -782,6 +792,80 @@
       <summary>${label}</summary>
       <div class="dist-intro">Çdo vendim më poshtë u gjet nga BM25 si i ngjashëm me rastin — dhe për secilin është bërë distinguishing: pse nuk aplikohet, ose si mbrohemi nëse aplikohet.</div>
       <ul class="dist-list">${lis}</ul>
+    `;
+    return wrap;
+  }
+
+  // ─── render evidence map panel (who proves what, burden-shifts) ──
+  function renderEvidenceMap(em) {
+    const wrap = document.createElement("details");
+    const claims = em.claims || [];
+    const missing = claims.filter((c) => c.status === "mungon" || c.status === "e dobët");
+    const shifts = claims.filter((c) => c.burden_shift);
+    wrap.className = "evidence-map"
+      + (missing.length ? " em-has-missing" : "")
+      + (shifts.length ? " em-has-shift" : "");
+    // Open by default when there's something alarming to see: missing
+    // proofs the citizen needs to gather, OR burden-shift rules where
+    // the law puts the weight on the other side (huge strategic lever).
+    wrap.open = missing.length > 0 || shifts.length > 0;
+
+    const statusIcon = {
+      "kemi": "✅",
+      "mungon": "❌",
+      "e dobët": "⚠️",
+      "kontestuese": "❓",
+    };
+    const statusLabel = {
+      "kemi": "e kemi",
+      "mungon": "mungon",
+      "e dobët": "e dobët",
+      "kontestuese": "kontestuese",
+    };
+    const bearerLabel = {
+      "qytetari": "qytetari (ti)",
+      "kundërshtari": "pala tjetër",
+      "shteti": "shteti / akuzuesi",
+      "ndarë": "barrë e ndarë",
+    };
+
+    const items = claims.map((c, i) => {
+      const icon = statusIcon[c.status] || "❓";
+      const sLabel = statusLabel[c.status] || c.status;
+      const bLabel = bearerLabel[c.who_bears_burden] || c.who_bears_burden;
+      const shiftBadge = c.burden_shift
+        ? `<span class="em-shift" title="Ligji e zhvendos barrën e provës mbi palën tjetër">🔄 BARRA E ZHVENDOSUR</span>`
+        : "";
+      const notes = c.notes
+        ? `<div class="em-notes">${escapeHtml(c.notes)}</div>` : "";
+      return `
+        <li class="em-item em-status-${escapeHtml(c.status || "mungon")}">
+          <div class="em-head">
+            <span class="em-num">${i + 1}</span>
+            <span class="em-status">${icon} ${escapeHtml(sLabel)}</span>
+            ${shiftBadge}
+          </div>
+          <div class="em-claim">${escapeHtml(c.claim)}</div>
+          <div class="em-proof"><strong>Provë e nevojshme:</strong> ${escapeHtml(c.needed_proof)}</div>
+          <div class="em-bearer"><strong>Duhet ta provojë:</strong> ${escapeHtml(bLabel)}</div>
+          ${notes}
+        </li>
+      `;
+    }).join("");
+
+    let label = `📋 Mapa e provës (${claims.length} pretendime)`;
+    if (shifts.length && missing.length) {
+      label = `📋 Mapa e provës — ${missing.length} provë që mungojnë, ${shifts.length} me barrë të zhvendosur`;
+    } else if (shifts.length) {
+      label = `📋 Mapa e provës — ${shifts.length} rregull me barrë të zhvendosur 🔄`;
+    } else if (missing.length) {
+      label = `📋 Mapa e provës — ${missing.length}/${claims.length} provë ende pa mbledhur`;
+    }
+
+    wrap.innerHTML = `
+      <summary>${label}</summary>
+      <div class="em-intro">Për çdo pretendim tregojmë ÇFARË duhet provuar dhe KUSH duhet ta provojë. Kur ligji e zhvendos barrën (punë, diskriminim, konsumator, dhunë në familje), pala tjetër është ajo që duhet të provojë të kundërtën.</div>
+      <ul class="em-list">${items}</ul>
     `;
     return wrap;
   }

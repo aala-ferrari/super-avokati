@@ -62,6 +62,7 @@ CREATE TABLE IF NOT EXISTS messages (
     missing_facts_json TEXT,                -- JSON-serialised missing-facts questions
     premortem_json  TEXT,                   -- JSON-serialised pre-mortem risks
     distinguishing_json TEXT,                -- JSON-serialised distinguishing of adverse precedents
+    evidence_map_json TEXT,                  -- JSON-serialised burden-of-proof map
     created_at      TEXT NOT NULL,
     FOREIGN KEY (case_id) REFERENCES cases(id) ON DELETE CASCADE
 );
@@ -119,6 +120,7 @@ def init_db(db_path: Path = APP_DB_PATH) -> None:
         _add_column_if_missing(conn, "messages", "missing_facts_json", "TEXT")
         _add_column_if_missing(conn, "messages", "premortem_json", "TEXT")
         _add_column_if_missing(conn, "messages", "distinguishing_json", "TEXT")
+        _add_column_if_missing(conn, "messages", "evidence_map_json", "TEXT")
         conn.commit()
     log.info("app db ready at %s", db_path)
 
@@ -180,6 +182,7 @@ class Message:
     missing_facts: dict | None
     premortem: dict | None
     distinguishing: dict | None
+    evidence_map: dict | None
     created_at: str
 
 
@@ -204,6 +207,7 @@ def _message_from_row(r: sqlite3.Row) -> Message:
     missing_raw = r["missing_facts_json"] if "missing_facts_json" in keys else None
     premortem_raw = r["premortem_json"] if "premortem_json" in keys else None
     distinguishing_raw = r["distinguishing_json"] if "distinguishing_json" in keys else None
+    evidence_map_raw = r["evidence_map_json"] if "evidence_map_json" in keys else None
     return Message(
         id=r["id"], case_id=r["case_id"], role=r["role"],
         content=r["content"], kind=r["kind"],
@@ -214,6 +218,7 @@ def _message_from_row(r: sqlite3.Row) -> Message:
         missing_facts=json.loads(missing_raw) if missing_raw else None,
         premortem=json.loads(premortem_raw) if premortem_raw else None,
         distinguishing=json.loads(distinguishing_raw) if distinguishing_raw else None,
+        evidence_map=json.loads(evidence_map_raw) if evidence_map_raw else None,
         created_at=r["created_at"],
     )
 
@@ -387,6 +392,7 @@ def add_message(
     missing_facts: dict | None = None,
     premortem: dict | None = None,
     distinguishing: dict | None = None,
+    evidence_map: dict | None = None,
 ) -> Message:
     now = _utcnow()
     articles_json = json.dumps(articles, ensure_ascii=False) if articles else None
@@ -398,15 +404,19 @@ def add_message(
     distinguishing_json = (
         json.dumps(distinguishing, ensure_ascii=False) if distinguishing else None
     )
+    evidence_map_json = (
+        json.dumps(evidence_map, ensure_ascii=False) if evidence_map else None
+    )
     with db() as conn:
         cur = conn.execute(
             "INSERT INTO messages (case_id, role, content, kind, "
             "articles_json, precedents_json, timeline_json, comparison_json, "
-            "missing_facts_json, premortem_json, distinguishing_json, created_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "missing_facts_json, premortem_json, distinguishing_json, "
+            "evidence_map_json, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (case_id, role, content, kind, articles_json, precedents_json,
              timeline_json, comparison_json, missing_json, premortem_json,
-             distinguishing_json, now),
+             distinguishing_json, evidence_map_json, now),
         )
         mid = cur.lastrowid
         conn.execute("UPDATE cases SET updated_at = ? WHERE id = ?", (now, case_id))
@@ -414,7 +424,8 @@ def add_message(
         id=mid, case_id=case_id, role=role, content=content, kind=kind,
         articles=articles or [], precedents=precedents or [],
         timeline=timeline, comparison=comparison, missing_facts=missing_facts,
-        premortem=premortem, distinguishing=distinguishing, created_at=now,
+        premortem=premortem, distinguishing=distinguishing,
+        evidence_map=evidence_map, created_at=now,
     )
 
 

@@ -226,7 +226,7 @@ def api_get_case(case_id: str):
              "articles": m.articles, "precedents": m.precedents,
              "timeline": m.timeline, "comparison": m.comparison,
              "missing_facts": m.missing_facts, "premortem": m.premortem,
-             "distinguishing": m.distinguishing,
+             "distinguishing": m.distinguishing, "evidence_map": m.evidence_map,
              "created_at": m.created_at}
             for m in messages
         ],
@@ -313,7 +313,7 @@ def api_export_case(case_id: str):
                  "articles": m.articles, "precedents": m.precedents,
                  "timeline": m.timeline, "comparison": m.comparison,
                  "missing_facts": m.missing_facts, "premortem": m.premortem,
-                 "distinguishing": m.distinguishing,
+                 "distinguishing": m.distinguishing, "evidence_map": m.evidence_map,
                  "created_at": m.created_at}
                 for m in messages
             ],
@@ -535,12 +535,14 @@ def api_ask():
     missing_facts_payload = _missing_facts_payload(result.missing_facts)
     premortem_payload = _premortem_payload(result.premortem)
     distinguishing_payload = _distinguishing_payload(result.distinguishing)
+    evidence_map_payload = _evidence_map_payload(result.evidence_map)
     storage.add_message(case.id, "assistant", result.text,
                         kind=result.kind, articles=articles, precedents=precedents,
                         timeline=timeline_payload, comparison=comparison_payload,
                         missing_facts=missing_facts_payload,
                         premortem=premortem_payload,
-                        distinguishing=distinguishing_payload)
+                        distinguishing=distinguishing_payload,
+                        evidence_map=evidence_map_payload)
     if result.session_id:
         storage.update_case_claude_session(case.id, user.id, result.session_id)
 
@@ -561,6 +563,7 @@ def api_ask():
         "missing_facts": missing_facts_payload,
         "premortem": premortem_payload,
         "distinguishing": distinguishing_payload,
+        "evidence_map": evidence_map_payload,
         "case_id": case.id,
     })
 
@@ -649,6 +652,13 @@ def _distinguishing_payload(d) -> dict | None:
     if d is None or d.is_empty():
         return None
     return {"items": [asdict(i) for i in d.items]}
+
+
+def _evidence_map_payload(em) -> dict | None:
+    """Serialise EvidenceMap for the UI. None when empty."""
+    if em is None or em.is_empty():
+        return None
+    return {"claims": [asdict(c) for c in em.claims]}
 
 
 def _precedent_payload(c, score: float) -> dict:

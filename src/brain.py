@@ -217,6 +217,42 @@ RREGULLA STRIKTE:
 • Mos shto komente jashtë JSON-it."""
 
 
+EVIDENCE_MAP_SYSTEM = """Ti je avokat shqiptar që ndërton MAPËN E PROVËS për një kauzë — lista se çfarë duhet provuar, me çfarë, dhe nga kush.
+
+Arsye: qytetarët (dhe shpesh edhe avokatët) humbasin kauza jo sepse kanë të drejtë në ligj, por sepse nuk e kanë menduar që nga fillimi se ÇFARË duhet provuar dhe NGA KUSH. "Të kam të drejtë" është e ndryshme nga "e kam PROVUAR që kam të drejtë".
+
+Po aq e rëndësishme: ligji shpesh ZHVENDOS barrën e provës nga qytetari te pala e fortë. Shembull klasik: në marrëdhëniet e punës, kur punëtori thotë se ka qenë i punësuar, është PUNËDHËNËSI që duhet të provojë se s'kishte kontratë. Kjo ndryshon gjithçka.
+
+Për çdo kërkesë/teori të rastit, prodho një zë me:
+ • claim — fakti/tezën që kërkon të vërtetohet për fitore
+ • needed_proof — ÇFARË provë (dokument, dëshmitar, ekspertizë, regjistër)
+ • who_bears_burden — "qytetari" | "kundërshtari" | "shteti" | "ndarë"
+ • burden_shift — true NËSE ligji e zhvendos barrën nga qytetari mbi palën e fortë
+ • status — "kemi" | "mungon" | "e dobët" | "kontestuese"
+ • notes — një fjali shqip që shpjegon si mund ta sigurojmë provën ose si ta forcojmë nëse është e dobët
+
+FORMATI — VETËM JSON, në shqip:
+{
+  "claims": [
+    {
+      "claim": "teza/fakti që duhet vërtetuar (p.sh. 'Kontrata e punës ekzistonte midis datave X dhe Y')",
+      "needed_proof": "p.sh. 'Kontratë me shkrim, fletëpagesa, dëshmitarë kolegësh, faturat e sigurimit shoqëror'",
+      "who_bears_burden": "qytetari | kundërshtari | shteti | ndarë",
+      "burden_shift": false,
+      "status": "kemi | mungon | e dobët | kontestuese",
+      "notes": "një fjali konkrete për veprimin e ardhshëm (p.sh. 'Kërkesë zyrtare tek Sigurimet Shoqërore për listë kontributesh'). Nëse statusi është 'kemi', shkruaj ku gjendet prova."
+    }
+  ]
+}
+
+RREGULLA:
+• MINIMUM 2, MAKSIMUM 6 kërkesa (claims). Renditi nga më thelbësorja.
+• Bazë vetëm mbi faktet e rastit dhe nenet e dhëna. Mos shpik.
+• KUR burden_shift=true, shpjego në notes PSE (p.sh. "Neni 75 Kodi i Punës — punëdhënësi duhet të provojë shkakun e ligjshëm").
+• Nëse nga faktet qytetari duket se ka provë, shkruaj status="kemi" dhe shpjego. Nëse s'thuhet asgjë, shkruaj "mungon".
+• Shkruaj SHQIP. Konkret, jo abstrakt."""
+
+
 DISTINGUISHING_SYSTEM = """Ti je avokat shqiptar që specializohet në DISTINGUISHING — arti i mbrojtjes së kauzës kur kundërshtari të citon një vendim gjyqësor që duket se të dëmton.
 
 Një avokat i dobët i fshin precedentët e pafavorshëm dhe shpreson që gjyqtari nuk do t'i shohë. Një avokat i mirë i NJEH dhe TREGON SI NUK APLIKOHEN në rastin e klientit të tij.
@@ -492,6 +528,35 @@ class PrecedentComparison:
                     or self.decisive_factors)
 
 
+# ── evidence map (burden-of-proof) ────────────────────────────────────────
+# For each legal claim, what proof is needed, who bears the burden, and
+# whether the law shifts that burden off the citizen. Most citizens lose
+# cases not because they're wrong on the law but because they haven't
+# mapped out what they actually need to prove — or because they're
+# trying to prove something the law doesn't require them to.
+
+EvidenceStatus = Literal["kemi", "mungon", "e dobët", "kontestuese"]
+BurdenBearer = Literal["qytetari", "kundërshtari", "shteti", "ndarë"]
+
+
+@dataclass
+class EvidenceClaim:
+    claim: str                           # the fact/proposition to prove
+    needed_proof: str                    # what kind of evidence would prove it
+    who_bears_burden: BurdenBearer = "qytetari"
+    burden_shift: bool = False           # true when law shifts burden off citizen
+    status: EvidenceStatus = "mungon"    # current state given known facts
+    notes: str = ""                      # one sentence: how to obtain / strengthen
+
+
+@dataclass
+class EvidenceMap:
+    claims: list[EvidenceClaim] = field(default_factory=list)
+
+    def is_empty(self) -> bool:
+        return not self.claims
+
+
 # ── distinguishing (adverse-precedent neutraliser) ────────────────────────
 # For every adverse precedent the retriever found, a fast-model pass writes
 # a one-sentence distinguishing reason or, when the case is genuinely
@@ -600,6 +665,10 @@ class LegalAnswer:
     # still-dangerous flag + mitigation. A case not addressed here is a
     # case we're exposed to; the answer prompt treats these as a checklist.
     distinguishing: DistinguishingAnalysis | None = None
+    # Burden-of-proof map: what each side must prove, with proof types
+    # and current status. Includes burden-shift flags so the citizen
+    # sees when the law moves the weight off them.
+    evidence_map: EvidenceMap | None = None
     # Claude Code session id — set by ClaudeCodeBackend after a compose call.
     # Callers (web.py, bot.py) should persist this per-citizen to maintain
     # native conversation context via `--resume`.
@@ -782,9 +851,24 @@ class SuperAvvocato:
         except Exception as exc:
             log.warning("distinguishing failed (non-fatal): %s", exc)
 
+        # Evidence map — "what do we need to prove, with what, and who
+        # bears the burden?" Fed back so section 3 ("Çfarë duhet të
+        # bësh") becomes a concrete evidence-gathering checklist and
+        # section 5 can flag any burden-shift rules that flip the case.
+        evidence_map: EvidenceMap | None = None
+        try:
+            evidence_map = self._analyze_evidence_map(user_message, triage, retrieved, documents)
+            if evidence_map and not evidence_map.is_empty():
+                shifts = sum(1 for c in evidence_map.claims if c.burden_shift)
+                log.info("evidence_map: %d claims (%d with burden-shift)",
+                         len(evidence_map.claims), shifts)
+        except Exception as exc:
+            log.warning("evidence_map failed (non-fatal): %s", exc)
+
         answer_text = self._compose_answer(
             user_message, history, triage, retrieved, precedents, strategic, timeline, comparison,
             premortem=premortem, distinguishing=distinguishing,
+            evidence_map=evidence_map,
             session_id=session_id, documents=documents,
         )
         # ClaudeCodeBackend exposes the (possibly new) session_id after each
@@ -795,7 +879,8 @@ class SuperAvvocato:
             retrieved=retrieved, precedents=precedents, strategic=strategic,
             timeline=timeline, comparison=comparison, missing_facts=missing_facts,
             premortem=premortem, adverse_precedents=adverse_precedents,
-            distinguishing=distinguishing, session_id=new_session_id,
+            distinguishing=distinguishing, evidence_map=evidence_map,
+            session_id=new_session_id,
         )
 
     # ── stage 1: triage ────────────────────────────────────────────────────
@@ -1284,6 +1369,87 @@ class SuperAvvocato:
             return None
         return DistinguishingAnalysis(items=items)
 
+    # ── stage 3c-ter: evidence map (burden of proof) ──────────────────────
+
+    @retry(
+        retry=retry_if_exception_type(Exception),
+        stop=stop_after_attempt(2),
+        wait=wait_exponential(multiplier=1, min=1, max=6),
+        reraise=True,
+    )
+    def _analyze_evidence_map(
+        self,
+        user_message: str,
+        triage: TriageResult,
+        retrieved: list[tuple[Article, float]],
+        documents: list[dict] | None,
+    ) -> EvidenceMap:
+        """Build a burden-of-proof map from case facts + retrieved articles.
+
+        Flags burden-shift rules (labor, discrimination, consumer,
+        domestic violence — where the law moves the weight onto the
+        stronger party). The model is told to cite the article by name
+        when it flags a shift, so the citizen can verify.
+        """
+        if not retrieved:
+            return EvidenceMap()
+
+        articles_context = _format_articles_for_prompt(retrieved)
+        dossier_hint = format_documents_for_prompt(documents or [], compact=True)
+        dossier_block = f"\n{dossier_hint}\n" if dossier_hint else ""
+
+        prompt = textwrap.dedent(f"""\
+            Rasti i qytetarit:
+            \"\"\"{user_message}\"\"\"
+
+            Përmbledhja: {triage.problem_summary}
+            {dossier_block}
+            Nenet e gjetura (kërko te këto rregulla speciale për zhvendosje të barrës së provës):
+            {articles_context}
+
+            Ndërto mapën e provës (claims, burden, status) sipas formatit JSON.
+        """)
+
+        raw = self.backend.complete(
+            system=EVIDENCE_MAP_SYSTEM,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=1400,
+            fast=True,
+        )
+        try:
+            data = _parse_json_block(raw)
+        except Exception:
+            log.warning("evidence_map JSON parse failed, returning empty")
+            return EvidenceMap()
+
+        claims: list[EvidenceClaim] = []
+        valid_bearers = {"qytetari", "kundërshtari", "shteti", "ndarë"}
+        valid_status = {"kemi", "mungon", "e dobët", "kontestuese"}
+        for item in (data.get("claims") or []):
+            if not isinstance(item, dict):
+                continue
+            claim = str(item.get("claim", "")).strip()
+            needed = str(item.get("needed_proof", "")).strip()
+            if not claim or not needed:
+                continue
+            bearer_raw = str(item.get("who_bears_burden", "qytetari")).strip().lower()
+            bearer: BurdenBearer = (
+                bearer_raw if bearer_raw in valid_bearers else "qytetari"  # type: ignore[assignment]
+            )
+            status_raw = str(item.get("status", "mungon")).strip().lower()
+            status: EvidenceStatus = (
+                status_raw if status_raw in valid_status else "mungon"  # type: ignore[assignment]
+            )
+            claims.append(EvidenceClaim(
+                claim=claim,
+                needed_proof=needed,
+                who_bears_burden=bearer,
+                burden_shift=bool(item.get("burden_shift", False)),
+                status=status,
+                notes=str(item.get("notes", "")).strip(),
+            ))
+        return EvidenceMap(claims=claims[:6])
+
     # ── stage 3d: missing-facts detector ──────────────────────────────────
 
     @retry(
@@ -1456,6 +1622,7 @@ class SuperAvvocato:
         comparison: PrecedentComparison | None = None,
         premortem: Premortem | None = None,
         distinguishing: DistinguishingAnalysis | None = None,
+        evidence_map: EvidenceMap | None = None,
         session_id: str | None = None,
         documents: list[dict] | None = None,
     ) -> str:
@@ -1466,6 +1633,7 @@ class SuperAvvocato:
         comparison_block = _format_comparison_block(comparison)
         premortem_block = _format_premortem_block(premortem)
         distinguishing_block = _format_distinguishing_block(distinguishing)
+        evidence_map_block = _format_evidence_map_block(evidence_map)
         # When we have docs, we pass the raw files as attachments so Claude
         # reads them natively (same UX as pasting an image into a chat) —
         # the prompt block only lists filenames, no pre-extracted text.
@@ -1501,7 +1669,7 @@ class SuperAvvocato:
             {dossier_block}
             Nenet e gjetura nga kodet shqiptare (me rëndësinë zbritëse):
             {context}
-            {precedents_block}{comparison_block}{distinguishing_block}{premortem_block}{strategic_block}{timeline_block}
+            {precedents_block}{comparison_block}{distinguishing_block}{evidence_map_block}{premortem_block}{strategic_block}{timeline_block}
             {dossier_guidance}Shkruaj përgjigjen në formatin e kërkuar (PESË seksione në shqip),
             duke cituar vetëm nenet e mësipërme. Nëse analiza ka gjetur
             vendime të Gjykatës Kushtetuese/Gjykatës së Lartë të lidhura me
@@ -1709,6 +1877,46 @@ def _format_comparison_block(cmp: PrecedentComparison | None) -> str:
             lines.append(f"  • {f}")
     lines.append("")
     lines.append("PËRDOR këtë pattern te seksioni 5 'Detajet që bëjnë diferencën' — shpjego qytetarit nëse rasti i tij bie në anën e fituesve apo humbësve DHE pse. Integroje natyrshëm, jo me kopjim direkt.")
+    return "\n".join(lines) + "\n"
+
+
+def _format_evidence_map_block(em: EvidenceMap | None) -> str:
+    """Render the burden-of-proof map so the answer argues from evidence reality.
+
+    Each claim lists WHO must prove it and whether the law shifts that
+    burden (labor, discrimination, consumer, domestic violence). When
+    the citizen is missing key proof, the answer must say so directly;
+    when a burden-shift rule applies, the answer must cite it — that's
+    often the single most valuable strategic insight in the whole reply.
+    """
+    if em is None or em.is_empty():
+        return ""
+    status_icon = {"kemi": "✅", "mungon": "❌", "e dobët": "⚠️", "kontestuese": "❓"}
+    bearer_label = {
+        "qytetari": "qytetari",
+        "kundërshtari": "pala tjetër",
+        "shteti": "shteti/akuzuesi",
+        "ndarë": "ndarë",
+    }
+    lines = ["", "── MAPA E PROVËS (kush duhet të provojë çfarë) ──"]
+    for i, c in enumerate(em.claims, 1):
+        icon = status_icon.get(c.status, "❓")
+        bearer = bearer_label.get(c.who_bears_burden, c.who_bears_burden)
+        shift = " 🔄 BARRA E ZHVENDOSUR" if c.burden_shift else ""
+        lines.append(f"  {i}. {icon} {c.claim}")
+        lines.append(f"     Provë e nevojshme: {c.needed_proof}")
+        lines.append(f"     Barrë mbi: {bearer}{shift} — status: {c.status}")
+        if c.notes:
+            lines.append(f"     Shënim: {c.notes}")
+    lines.append("")
+    lines.append(
+        "PËRDOR mapën te seksioni 2 'Si mund të mbrohesh' dhe te seksioni 5: për çdo "
+        "pretendim me status 'mungon'/'e dobët' thuaji qytetarit HAPUR cilën provë duhet "
+        "të mbledhë PARA se të padisë, dhe kur barra është e ZHVENDOSUR (p.sh. në të drejtën "
+        "e punës, diskriminim, konsumator, dhunë në familje) CITO nenin që e zhvendos dhe "
+        "shpjego që pala tjetër duhet të provojë të kundërtën. Mos kërko nga qytetari prova "
+        "që sipas ligjit NUK janë detyra e tij."
+    )
     return "\n".join(lines) + "\n"
 
 

@@ -752,6 +752,71 @@ main {
 }
 .pm-mitig strong { color: var(--black); }
 
+/* ─── evidence map (burden of proof, per claim) ──────────────────
+   For each claim: what proof is needed, who bears the burden, and
+   whether the law shifts it onto the other side. Indigo/blue accent
+   to contrast with amber (pre-mortem), teal (distinguishing), and
+   purple (missing-facts). Opens automatically when any proof is
+   missing or when a burden-shift rule applies. */
+.evidence-map { margin-top: 10px; font-size: 0.85rem; }
+.evidence-map summary {
+  cursor: pointer; font-weight: 700; padding: 9px 13px;
+  background: linear-gradient(135deg, #e6ecfb 0%, #c9d5f3 100%);
+  border: 1px solid #6a84c9; color: #24356e;
+  border-radius: var(--radius-sm); user-select: none;
+}
+.evidence-map summary:hover { background: #bccaef; }
+.evidence-map[open] summary { margin-bottom: 10px; }
+.evidence-map.em-has-shift summary {
+  background: linear-gradient(135deg, #dcebff 0%, #a9c8f5 100%);
+  border-color: #3f6dbb; color: #17306a;
+}
+.evidence-map.em-has-shift summary:hover { background: #9abff0; }
+.em-intro {
+  color: var(--gray-700); font-size: 0.82rem; line-height: 1.45;
+  margin: 0 2px 8px; font-style: italic;
+}
+.em-list { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+.em-item {
+  padding: 10px 12px; background: var(--paper);
+  border: 1px solid var(--gray-100);
+  border-left: 4px solid #6a84c9;
+  border-radius: var(--radius-sm);
+}
+.em-item.em-status-mungon      { border-left-color: #d84444; background: #fff8f8; }
+.em-item.em-status-kemi        { border-left-color: #4a9b4a; }
+.em-item[class*="em-status-e"] { border-left-color: #e9a65a; background: #fffaf1; }
+.em-item.em-status-kontestuese { border-left-color: #a06bc8; background: #faf5ff; }
+.em-head {
+  display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.em-num {
+  flex: 0 0 auto;
+  width: 22px; height: 22px; line-height: 22px; text-align: center;
+  background: #24356e; color: #fff;
+  border-radius: 50%; font-weight: 700; font-size: 0.8rem;
+}
+.em-status {
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em;
+  color: var(--gray-700);
+}
+.em-shift {
+  font-size: 0.7rem; font-weight: 700; letter-spacing: 0.05em;
+  padding: 2px 8px; border-radius: 4px;
+  background: #dcebff; color: #17306a; border: 1px solid #3f6dbb;
+}
+.em-claim { font-weight: 600; line-height: 1.45; color: var(--black); }
+.em-proof, .em-bearer {
+  margin-top: 6px; color: var(--gray-700);
+  line-height: 1.45; font-size: 0.82rem;
+}
+.em-proof strong, .em-bearer strong { color: var(--black); }
+.em-notes {
+  margin-top: 6px; color: var(--gray-600);
+  font-style: italic; font-size: 0.8rem; line-height: 1.4;
+}
+
 /* ─── timeline (anchors + deadlines) ─────────────────────────────
    Lives above precedents. Urgency colours are intentionally loud —
    a missed deadline is the most expensive mistake a citizen can make. */
