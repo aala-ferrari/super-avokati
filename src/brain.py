@@ -415,7 +415,7 @@ RREGULLA STRIKTE:
 
 ACTION_PLAN_SYSTEM = """Ti je avokat shqiptar me 15 vjet praktikë — puna jote tani është TË SHKRUASH PLANIN E VEPRIMIT për qytetarin.
 
-Do të marrësh një listë veprimesh kandidate (të mbledhura nga analizat e tjera — radari i emergjencës, radari i pavlefshmërive, harta e provës, motori i diferencave vendimtare, pre-mortem-i). Disa janë duplikate ose thonë të njëjtën gjë me fjalë të ndryshme. Disa janë shumë të përgjithshme. Disa janë të ngutshme, të tjera janë për javët që vijnë.
+Do të marrësh një listë veprimesh kandidate (të mbledhura nga analizat e tjera — radari i emergjencës, radari i pavlefshmërive, harta e provës, motori i diferencave vendimtare, pre-mortem-i, detektori i kontradiktave). Disa janë duplikate ose thonë të njëjtën gjë me fjalë të ndryshme. Disa janë shumë të përgjithshme. Disa janë të ngutshme, të tjera janë për javët që vijnë.
 
 DUHET:
  1) Të hedhësh poshtë ose të bashkosh duplikatet (p.sh. "kontakto avokat" + "gjej këshillim ligjor" = një veprim).
@@ -436,7 +436,7 @@ FORMATI — VETËM JSON, në shqip:
       "text": "veprimi, një fjali e qartë me folje të shtyrë",
       "bucket": "sot | kjo_javë | ky_muaj | më_vonë",
       "priority": 1,
-      "source": "urgency | nullity | evidence | difference | premortem | other",
+      "source": "urgency | nullity | evidence | difference | premortem | contradiction | other",
       "reason": "pse ka rëndësi (pak fjalë)",
       "legal_basis": "neni X KPC ose '' nëse nuk ka"
     }
@@ -948,7 +948,8 @@ class UrgencyRadar:
 
 ActionBucket = Literal["sot", "kjo_javë", "ky_muaj", "më_vonë"]
 ActionSource = Literal[
-    "urgency", "nullity", "evidence", "difference", "premortem", "other",
+    "urgency", "nullity", "evidence", "difference", "premortem",
+    "contradiction", "other",
 ]
 
 
@@ -1355,15 +1356,19 @@ class SuperAvvocato:
         except Exception as exc:
             log.warning("contradiction_detector failed (non-fatal): %s", exc)
 
-        # Action plan (V6.7) — single consolidated checklist merged from
-        # all upstream stage action hints (urgency / nullity / evidence /
-        # difference / premortem). Runs LAST in the analytical pipeline
-        # so it can consume every previous stage's output.
+        # Action plan (V6.7+V6.9) — single consolidated checklist merged
+        # from all upstream stage action hints (urgency / nullity /
+        # evidence / difference / premortem / contradiction). Runs LAST
+        # in the analytical pipeline so it can consume every previous
+        # stage's output — in particular, high-severity contradictions
+        # become "this-week" action items so the citizen actually
+        # raises them instead of letting them sit in a panel.
         action_plan: ActionPlan | None = None
         try:
             action_plan = self._build_action_plan(
                 triage, urgency_radar, nullity_radar,
                 evidence_map, comparison, premortem,
+                contradictions=contradictions,
             )
             if action_plan and not action_plan.is_empty():
                 log.info("action_plan: %d items", len(action_plan.items))
@@ -2375,6 +2380,7 @@ class SuperAvvocato:
         evidence_map: EvidenceMap | None,
         comparison: PrecedentComparison | None,
         premortem: Premortem | None,
+        contradictions: ContradictionReport | None = None,
     ) -> ActionPlan:
         """Merge, dedupe, and rank actions from every upstream stage.
 
@@ -2461,6 +2467,31 @@ class SuperAvvocato:
                     "reason": r.risk[:70],
                 })
 
+        # Cross-document contradictions (V6.9) — a high-severity
+        # contradiction is a strategic lever: the citizen must raise
+        # it in court or at the negotiating table or it sits unused.
+        # High → kjo_javë (it's usable evidence, not a same-day
+        # emergency). Medium → ky_muaj. Low doesn't become an action
+        # at all — too noisy to clutter the plan.
+        if contradictions and not contradictions.is_empty():
+            for c in contradictions.items:
+                if c.severity == "low":
+                    continue
+                bucket = "kjo_javë" if c.severity == "high" else "ky_muaj"
+                # Action text is imperative and cites the filenames so
+                # the model's dedup pass knows *which* contradiction.
+                refs = ", ".join(c.doc_refs[:2]) if c.doc_refs else "dosjen"
+                text = (
+                    f"Ngri kontradiktën '{c.description[:80]}' "
+                    f"(mes {refs}) në gjykatë ose në negociim."
+                )
+                candidates.append({
+                    "text": text,
+                    "bucket": bucket,
+                    "source": "contradiction",
+                    "reason": c.implication[:90] or f"kontradiktë {c.kind}",
+                })
+
         if not candidates:
             return ActionPlan()
 
@@ -2490,7 +2521,8 @@ class SuperAvvocato:
 
         valid_buckets = {"sot", "kjo_javë", "ky_muaj", "më_vonë"}
         valid_sources = {
-            "urgency", "nullity", "evidence", "difference", "premortem", "other",
+            "urgency", "nullity", "evidence", "difference", "premortem",
+            "contradiction", "other",
         }
         items: list[ActionItem] = []
         for it in (data.get("items") or []):
@@ -2540,7 +2572,7 @@ class SuperAvvocato:
         """
         seen: set[str] = set()
         source_priority = {
-            "urgency": 1, "nullity": 2, "evidence": 3,
+            "urgency": 1, "nullity": 2, "contradiction": 2, "evidence": 3,
             "difference": 3, "premortem": 4, "other": 5,
         }
         items: list[ActionItem] = []
@@ -3207,6 +3239,7 @@ def _format_action_plan_block(ap: ActionPlan | None) -> str:
         "evidence": "[provë]",
         "difference": "[gap vs fitoret]",
         "premortem": "[mitigim rreziku]",
+        "contradiction": "[kontradiktë dosjeje]",
         "other": "",
     }
     by_bucket: dict[str, list[ActionItem]] = {}
