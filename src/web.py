@@ -224,7 +224,7 @@ def api_get_case(case_id: str):
         "messages": [
             {"id": m.id, "role": m.role, "content": m.content, "kind": m.kind,
              "articles": m.articles, "precedents": m.precedents,
-             "created_at": m.created_at}
+             "timeline": m.timeline, "created_at": m.created_at}
             for m in messages
         ],
         "documents": [_document_payload(d) for d in documents],
@@ -308,7 +308,7 @@ def api_export_case(case_id: str):
             "messages": [
                 {"role": m.role, "content": m.content, "kind": m.kind,
                  "articles": m.articles, "precedents": m.precedents,
-                 "created_at": m.created_at}
+                 "timeline": m.timeline, "created_at": m.created_at}
                 for m in messages
             ],
         }
@@ -524,8 +524,10 @@ def api_ask():
 
     articles = [_article_payload(a, s) for a, s in result.retrieved]
     precedents = [_precedent_payload(d, s) for d, s in result.precedents]
+    timeline_payload = _timeline_payload(result.timeline)
     storage.add_message(case.id, "assistant", result.text,
-                        kind=result.kind, articles=articles, precedents=precedents)
+                        kind=result.kind, articles=articles, precedents=precedents,
+                        timeline=timeline_payload)
     if result.session_id:
         storage.update_case_claude_session(case.id, user.id, result.session_id)
 
@@ -541,6 +543,7 @@ def api_ask():
         "triage": asdict(result.triage) if result.triage else None,
         "articles": articles,
         "precedents": precedents,
+        "timeline": timeline_payload,
         "case_id": case.id,
     })
 
@@ -590,6 +593,16 @@ def _document_payload(d) -> dict:
         "key_facts": d.key_facts,
         "has_text": bool(d.extracted_text),
         "created_at": d.created_at,
+    }
+
+
+def _timeline_payload(timeline) -> dict | None:
+    """Serialise TimelineAnalysis for the UI. None when empty."""
+    if timeline is None or timeline.is_empty():
+        return None
+    return {
+        "anchors": [asdict(a) for a in timeline.anchors],
+        "deadlines": [asdict(d) for d in timeline.deadlines],
     }
 
 

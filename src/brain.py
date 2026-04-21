@@ -31,6 +31,7 @@ from __future__ import annotations
 import json
 import textwrap
 from dataclasses import dataclass, field
+from datetime import date, datetime
 from pathlib import Path
 from typing import Literal
 
@@ -156,6 +157,50 @@ RREGULLA STRIKTE:
 • E gjithë përgjigjja NË SHQIP."""
 
 
+TIMELINE_SYSTEM = """Ti je një analist afatesh ligjore shqiptar. Detyra jote: nga rasti i qytetarit dhe nenet e gjetura, nxirr një KRONOLOGJI të qartë të ngjarjeve të kaluara dhe një LISTË afatesh që duhen respektuar.
+
+Afatet që humbasin janë arsyeja #1 pse avokatët humbasin kauza të fituara. Një qytetar që e di se ka 27 ditë kohë fiton kauza që e kishin humbur pa ditur.
+
+Ndiq KËTË LOGJIKË:
+1. Identifiko ANKORAT — ngjarje të kaluara që fillojnë të numërojnë afatet:
+   • njoftimi i një akti administrativ → fillon 30 ditë për ankim
+   • largimi nga puna → fillon 180 ditë për padi
+   • shkelja e një të drejte → fillon parashkrimi (3, 5, 10 vjet, sipas rastit)
+   • njoftimi i vendimit gjyqësor → fillon afati i apelit (15 ditë)
+   • vdekja e trashëgimlënësit → fillon 6 muaj për pranim trashëgimie
+2. Për çdo ankor, nga nenet e dhëna identifiko afatet që fillojnë dhe llogarit datën e skadencës.
+3. Nëse një datë është e qartë në rastin (p.sh. qytetari tha "më datë 15 mars 2026"), përdore. Nëse është relative ("para 2 muajsh"), llogarite nga DATA E SOTME = {today}.
+4. Nëse një datë nuk dihet fare, mos e shpik — lë anchor_date=null dhe due_date=null, por shtoje gjithsesi në listë me formulën (days_after + artikulli).
+
+FORMATI — VETËM JSON, në shqip:
+{{
+  "anchors": [
+    {{
+      "event": "përshkrim i shkurtër i ngjarjes që fillon afatin (shqip, 4-10 fjalë)",
+      "date": "YYYY-MM-DD ose null nëse nuk dihet",
+      "source_quote": "citim i shkurtër nga teksti i qytetarit që tregon ku e morëm këtë informacion (ose \"nga dosja\" / \"nga konteksti\")"
+    }}
+  ],
+  "deadlines": [
+    {{
+      "action": "Çfarë duhet bërë (shqip, foljore: p.sh. 'Depoziton ankimin administrativ')",
+      "anchor_event": "cilit ankor i referohet (përdor të njëjtin tekst si te 'anchors.event')",
+      "anchor_date": "YYYY-MM-DD ose null",
+      "days_after": NUMBER ose null,
+      "due_date": "YYYY-MM-DD ose null nëse anchor_date është null",
+      "article_ref": "p.sh. 'Neni 45 i K.P.A.' — CITO vetëm nene që ke parë në kontekst"
+    }}
+  ]
+}}
+
+RREGULLA:
+• MAKSIMUM 4 ankora dhe 6 afate. Rendit nga më urgjentja.
+• CITO vetëm nene që janë në listën e dhënë. Mos shpik.
+• Nëse rasti nuk ka afate të qarta, ktheje listën bosh: {{"anchors": [], "deadlines": []}}
+• Datat në formatin strikt YYYY-MM-DD. Llogarit saktë (1 muaj = 30 ditë kur neni thotë "30 ditë", por 1 muaj = muaj kalendarik kur thotë "muaj").
+• Mos shto komente jashtë JSON-it."""
+
+
 ANSWER_SYSTEM = """Ti je Super Avokati — avokat virtual falas për qytetarët shqiptarë që nuk mund të përballojnë tarifat.
 Je i ngrohtë, i qartë dhe flet gjuhën e njerëzve të thjeshtë, jo zhargon ligjor.
 Por nën sipërfaqen e butë, je një avokat strateg që NUK harron asnjë detaj vendimtar.
@@ -239,6 +284,60 @@ class StrategicAnalysis:
         return not self.critical_details and not self.risk_warnings
 
 
+# ── timeline ──────────────────────────────────────────────────────────────
+# Urgency buckets are computed deterministically from (due_date - today) so
+# the colour a citizen sees never depends on what the LLM felt like saying.
+UrgencyLevel = Literal["expired", "critical", "warning", "info", "unknown"]
+
+
+@dataclass
+class TimelineAnchor:
+    """A past event that starts one or more legal deadlines running."""
+    event: str
+    date: str | None                # ISO YYYY-MM-DD, or None when unknown
+    source_quote: str = ""
+
+
+@dataclass
+class TimelineDeadline:
+    """A future (or missed) cutoff the citizen must act by."""
+    action: str
+    anchor_event: str               # cross-ref to TimelineAnchor.event
+    anchor_date: str | None
+    days_after: int | None          # days from anchor to due_date
+    due_date: str | None            # ISO YYYY-MM-DD
+    article_ref: str = ""
+    urgency: UrgencyLevel = "unknown"
+    days_remaining: int | None = None  # signed: negative = expired
+
+
+@dataclass
+class TimelineAnalysis:
+    anchors: list[TimelineAnchor] = field(default_factory=list)
+    deadlines: list[TimelineDeadline] = field(default_factory=list)
+
+    def is_empty(self) -> bool:
+        return not self.anchors and not self.deadlines
+
+
+def _urgency_from_days(days_remaining: int | None) -> UrgencyLevel:
+    """Bucket a day-delta into the colour we show the citizen.
+
+    Thresholds are conservative on purpose: a week is 'critical' because
+    anyone who needs an advokat typically needs a few days to reach one,
+    draft, and file. A month is 'warning' because paperwork drifts.
+    """
+    if days_remaining is None:
+        return "unknown"
+    if days_remaining < 0:
+        return "expired"
+    if days_remaining <= 7:
+        return "critical"
+    if days_remaining <= 30:
+        return "warning"
+    return "info"
+
+
 @dataclass
 class LegalAnswer:
     kind: Literal["answer", "followup"]
@@ -251,6 +350,10 @@ class LegalAnswer:
     # judges, articles cited, and a DB id so the answer can cite pin-to-row.
     precedents: list[tuple[CasePrecedent, float]] = field(default_factory=list)
     strategic: StrategicAnalysis | None = None
+    # Timeline of past anchors + future deadlines with urgency badges. The
+    # answer weaves the dates into section 4 ("Afatet"); the UI also shows
+    # the structured list as a colour-coded widget.
+    timeline: TimelineAnalysis | None = None
     # Claude Code session id — set by ClaudeCodeBackend after a compose call.
     # Callers (web.py, bot.py) should persist this per-citizen to maintain
     # native conversation context via `--resume`.
@@ -353,8 +456,20 @@ class SuperAvvocato:
         except Exception as exc:
             log.warning("strategic analysis failed (non-fatal): %s", exc)
 
+        # Timeline — anchors (past events that start deadlines running) +
+        # future cutoffs with urgency badges. Runs after retrieval so the
+        # extractor can cite real article numbers. Non-fatal: timeline loss
+        # must not block the primary answer.
+        timeline: TimelineAnalysis | None = None
+        try:
+            timeline = self._analyze_timeline(user_message, triage, retrieved, documents)
+            log.info("timeline: %d anchors, %d deadlines",
+                     len(timeline.anchors), len(timeline.deadlines))
+        except Exception as exc:
+            log.warning("timeline analysis failed (non-fatal): %s", exc)
+
         answer_text = self._compose_answer(
-            user_message, history, triage, retrieved, precedents, strategic,
+            user_message, history, triage, retrieved, precedents, strategic, timeline,
             session_id=session_id, documents=documents,
         )
         # ClaudeCodeBackend exposes the (possibly new) session_id after each
@@ -363,7 +478,7 @@ class SuperAvvocato:
         return LegalAnswer(
             kind="answer", text=answer_text, triage=triage,
             retrieved=retrieved, precedents=precedents, strategic=strategic,
-            session_id=new_session_id,
+            timeline=timeline, session_id=new_session_id,
         )
 
     # ── stage 1: triage ────────────────────────────────────────────────────
@@ -550,6 +665,109 @@ class SuperAvvocato:
         ]
         return StrategicAnalysis(critical_details=details[:5], risk_warnings=warnings[:3])
 
+    # ── stage 3b: timeline & deadlines ────────────────────────────────────
+
+    @retry(
+        retry=retry_if_exception_type(Exception),
+        stop=stop_after_attempt(2),
+        wait=wait_exponential(multiplier=1, min=1, max=6),
+        reraise=True,
+    )
+    def _analyze_timeline(
+        self,
+        user_message: str,
+        triage: TriageResult,
+        retrieved: list[tuple[Article, float]],
+        documents: list[dict] | None,
+    ) -> TimelineAnalysis:
+        """Extract past anchors + future deadlines from the case facts.
+
+        The LLM proposes dates and day-counts; Python then derives urgency
+        from (due_date - today) so the colour the citizen sees is not at
+        the mercy of the model's arithmetic. Dropping a deadline here is
+        better than inventing one — the answer still renders, just without
+        a timeline widget.
+        """
+        if not retrieved:
+            return TimelineAnalysis()
+
+        articles_context = _format_articles_for_prompt(retrieved)
+        dossier_hint = format_documents_for_prompt(documents or [], compact=True)
+        dossier_block = f"\n{dossier_hint}\n" if dossier_hint else ""
+
+        prompt = textwrap.dedent(f"""\
+            Rasti i qytetarit:
+            \"\"\"{user_message}\"\"\"
+
+            Përmbledhje: {triage.problem_summary}
+            {dossier_block}
+            Nenet e gjetura (kërko afate, parashkrime, momente njoftimi, tenues ankimi):
+            {articles_context}
+
+            Nxirr kronologjinë sipas formatit JSON. DATA E SOTME = {date.today().isoformat()}.
+        """)
+
+        raw = self.backend.complete(
+            system=TIMELINE_SYSTEM.format(today=date.today().isoformat()),
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=1200,
+            fast=True,
+        )
+        try:
+            data = _parse_json_block(raw)
+        except Exception:
+            log.warning("timeline JSON parse failed, returning empty")
+            return TimelineAnalysis()
+
+        anchors: list[TimelineAnchor] = []
+        for item in (data.get("anchors") or []):
+            if not isinstance(item, dict):
+                continue
+            event = str(item.get("event", "")).strip()
+            if not event:
+                continue
+            anchors.append(TimelineAnchor(
+                event=event,
+                date=_normalise_iso_date(item.get("date")),
+                source_quote=str(item.get("source_quote", "")).strip(),
+            ))
+
+        deadlines: list[TimelineDeadline] = []
+        today = date.today()
+        for item in (data.get("deadlines") or []):
+            if not isinstance(item, dict):
+                continue
+            action = str(item.get("action", "")).strip()
+            if not action:
+                continue
+            due_date_str = _normalise_iso_date(item.get("due_date"))
+            days_remaining: int | None = None
+            if due_date_str:
+                try:
+                    days_remaining = (datetime.strptime(due_date_str, "%Y-%m-%d").date() - today).days
+                except ValueError:
+                    due_date_str = None
+            deadlines.append(TimelineDeadline(
+                action=action,
+                anchor_event=str(item.get("anchor_event", "")).strip(),
+                anchor_date=_normalise_iso_date(item.get("anchor_date")),
+                days_after=_coerce_int(item.get("days_after")),
+                due_date=due_date_str,
+                article_ref=str(item.get("article_ref", "")).strip(),
+                urgency=_urgency_from_days(days_remaining),
+                days_remaining=days_remaining,
+            ))
+
+        # Sort deadlines: expired first (so the citizen sees what they've
+        # already missed), then by days_remaining ascending. Unknown dates
+        # fall to the bottom — they're informational.
+        def _sort_key(d: TimelineDeadline) -> tuple[int, int]:
+            bucket = {"expired": 0, "critical": 1, "warning": 2, "info": 3, "unknown": 4}
+            return (bucket[d.urgency], d.days_remaining if d.days_remaining is not None else 10_000)
+        deadlines.sort(key=_sort_key)
+
+        return TimelineAnalysis(anchors=anchors[:4], deadlines=deadlines[:6])
+
     # ── stage 4: answer composition ───────────────────────────────────────
 
     @retry(
@@ -566,12 +784,14 @@ class SuperAvvocato:
         retrieved: list[tuple[Article, float]],
         precedents: list[tuple[CasePrecedent, float]],
         strategic: StrategicAnalysis | None = None,
+        timeline: TimelineAnalysis | None = None,
         session_id: str | None = None,
         documents: list[dict] | None = None,
     ) -> str:
         context = _format_articles_for_prompt(retrieved)
         precedents_block = _format_precedents_block(precedents)
         strategic_block = _format_strategic_block(strategic)
+        timeline_block = _format_timeline_block(timeline)
         # When we have docs, we pass the raw files as attachments so Claude
         # reads them natively (same UX as pasting an image into a chat) —
         # the prompt block only lists filenames, no pre-extracted text.
@@ -607,7 +827,7 @@ class SuperAvvocato:
             {dossier_block}
             Nenet e gjetura nga kodet shqiptare (me rëndësinë zbritëse):
             {context}
-            {precedents_block}{strategic_block}
+            {precedents_block}{strategic_block}{timeline_block}
             {dossier_guidance}Shkruaj përgjigjen në formatin e kërkuar (PESË seksione në shqip),
             duke cituar vetëm nenet e mësipërme. Nëse analiza ka gjetur
             vendime të Gjykatës Kushtetuese/Gjykatës së Lartë të lidhura me
@@ -722,6 +942,73 @@ def _area_to_case_type(areas: list[str]) -> str | None:
     mapped = {_AREA_TO_CASE_TYPE.get(a) for a in areas if a in _AREA_TO_CASE_TYPE}
     mapped.discard(None)
     return next(iter(mapped)) if len(mapped) == 1 else None
+
+
+def _normalise_iso_date(v) -> str | None:
+    """Accept YYYY-MM-DD strings, reject everything else (incl. None/''/'null').
+
+    The LLM sometimes emits 'null' as a string or free-form dates like
+    '15 mars 2026'. We only trust strict ISO — anything else is treated as
+    'unknown' so the downstream urgency computation doesn't pretend.
+    """
+    if not v or not isinstance(v, str):
+        return None
+    s = v.strip()
+    if s.lower() in {"", "null", "none", "n/a"}:
+        return None
+    try:
+        datetime.strptime(s, "%Y-%m-%d")
+        return s
+    except ValueError:
+        return None
+
+
+def _coerce_int(v) -> int | None:
+    if v is None:
+        return None
+    try:
+        return int(v)
+    except (TypeError, ValueError):
+        return None
+
+
+def _format_timeline_block(timeline: TimelineAnalysis | None) -> str:
+    """Render the timeline so the answer model can weave dates into section 4.
+
+    We include the urgency badge text so the LLM can faithfully echo it
+    ('URGJENT — 3 ditë') rather than inventing a softer rewording of a
+    critical deadline. Ordering is preserved (expired/critical first).
+    """
+    if not timeline or timeline.is_empty():
+        return ""
+    lines = ["", "── KRONOLOGJIA DHE AFATET (ANKORA + SKADENCA) ──"]
+    if timeline.anchors:
+        lines.append("Ankorat (ngjarje të kaluara që fillojnë afatet):")
+        for a in timeline.anchors:
+            d = a.date or "?"
+            lines.append(f"  • [{d}] {a.event}")
+    if timeline.deadlines:
+        lines.append("Afatet që duhen respektuar:")
+        for d in timeline.deadlines:
+            if d.due_date:
+                if d.days_remaining is not None and d.days_remaining < 0:
+                    tag = f"⛔ KALUAR ({-d.days_remaining} ditë më parë)"
+                elif d.urgency == "critical":
+                    tag = f"🚨 URGJENT ({d.days_remaining} ditë)"
+                elif d.urgency == "warning":
+                    tag = f"⚠️  ({d.days_remaining} ditë)"
+                else:
+                    tag = f"({d.days_remaining} ditë)"
+                when = f"deri më {d.due_date} {tag}"
+            elif d.days_after is not None:
+                when = f"brenda {d.days_after} ditësh nga '{d.anchor_event or '?'}'"
+            else:
+                when = "afat i lidhur me një ngjarje që nuk dihet"
+            ref = f" [{d.article_ref}]" if d.article_ref else ""
+            lines.append(f"  • {d.action} — {when}{ref}")
+    lines.append("")
+    lines.append("SHKRUAJ seksionin 4 'Afatet ligjore' DUKE CITUAR dhe datat e mësipërme KUR JANË TË LLOGARITURA (p.sh. 'deri më 14 maj 2026'). Mos rishko skadencat e llogaritura, mos zbut urgjencat. Nëse një afat është shënuar si KALUAR, thuaje hapur dhe sugjero çfarë mund të bëhet ende (p.sh. kërkesë për rikthim në afat).")
+    return "\n".join(lines) + "\n"
 
 
 def _format_strategic_block(strategic: StrategicAnalysis | None) -> str:

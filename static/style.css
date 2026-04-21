@@ -556,6 +556,77 @@ main {
 }
 .prec-link:hover { text-decoration: underline; }
 
+/* ─── timeline (anchors + deadlines) ─────────────────────────────
+   Lives above precedents. Urgency colours are intentionally loud —
+   a missed deadline is the most expensive mistake a citizen can make. */
+.timeline { margin-top: 10px; font-size: 0.85rem; }
+.timeline summary {
+  cursor: pointer; color: var(--black); font-weight: 700;
+  padding: 9px 13px;
+  background: linear-gradient(135deg, #fff5e1 0%, #ffecc4 100%);
+  border: 1px solid #ebc97d;
+  border-radius: var(--radius-sm); user-select: none;
+  letter-spacing: 0.01em;
+}
+.timeline summary:hover { background: #ffe4b2; }
+.timeline[open] summary { margin-bottom: 10px; }
+.tl-section-label {
+  margin: 10px 0 4px; font-size: 0.75rem; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--gray-600); font-weight: 700;
+}
+.tl-anchors, .tl-deadlines {
+  list-style: none; display: flex; flex-direction: column; gap: 6px; padding: 0;
+}
+.tl-anchor {
+  padding: 6px 10px; background: #fafafa; border-left: 3px solid var(--gray-400);
+  border-radius: var(--radius-sm); font-size: 0.84rem;
+}
+.tl-dot { color: var(--gray-500); margin-right: 5px; }
+.tl-date {
+  font-family: ui-monospace, Menlo, monospace; font-weight: 600;
+  color: var(--gray-700); margin-right: 8px;
+}
+.tl-event { color: var(--black); }
+.tl-src {
+  color: var(--gray-500); font-style: italic; font-size: 0.74rem;
+  margin-top: 3px; margin-left: 20px;
+}
+.tl-deadline {
+  padding: 9px 12px; background: var(--paper);
+  border: 1px solid var(--gray-100); border-left-width: 4px;
+  border-radius: var(--radius-sm); position: relative;
+}
+.tl-urg-badge {
+  display: inline-block; padding: 2px 10px; border-radius: 999px;
+  font-size: 0.7rem; font-weight: 800; letter-spacing: 0.04em;
+  margin-bottom: 5px;
+}
+.tl-action { font-weight: 600; color: var(--black); line-height: 1.35; }
+.tl-timing {
+  color: var(--gray-700); font-size: 0.8rem; margin-top: 3px;
+  font-family: ui-monospace, Menlo, monospace;
+}
+.tl-ref {
+  color: var(--ink); font-size: 0.73rem; font-weight: 600;
+  margin-top: 5px; background: var(--gold-soft);
+  display: inline-block; padding: 1px 8px; border-radius: 4px;
+}
+/* Urgency tint — the left border + badge carry the full weight */
+.tl-urg-expired  { border-left-color: #a51a22; background: #fff5f5; }
+.tl-urg-expired  .tl-urg-badge { background: #a51a22; color: #fff; }
+.tl-urg-critical { border-left-color: #d9521e; background: #fff6ed; }
+.tl-urg-critical .tl-urg-badge { background: #d9521e; color: #fff; animation: tl-pulse 2s ease-in-out infinite; }
+.tl-urg-warning  { border-left-color: #c9a24d; }
+.tl-urg-warning  .tl-urg-badge { background: #c9a24d; color: #3b2a05; }
+.tl-urg-info     { border-left-color: #2a3a8a; }
+.tl-urg-info     .tl-urg-badge { background: #e4e9ff; color: #2a3a8a; }
+.tl-urg-unknown  { border-left-color: var(--gray-300); }
+.tl-urg-unknown  .tl-urg-badge { background: var(--gray-100); color: var(--gray-700); }
+@keyframes tl-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(217,82,30, 0.45); }
+  50%      { box-shadow: 0 0 0 5px rgba(217,82,30, 0); }
+}
+
 /* ═══════════════════════════════════════════════════════════════════
    COMPOSER
    ═══════════════════════════════════════════════════════════════════ */

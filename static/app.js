@@ -125,6 +125,7 @@
         text: m.content,
         articles: m.articles || [],
         precedents: m.precedents || [],
+        timeline: m.timeline || null,
       });
     }
     renderDossier(c.documents || []);
@@ -553,6 +554,14 @@
       }
     }
 
+    // Timeline widget — past anchors + future deadlines with colour-coded
+    // urgency badges. Rendered before the precedents block so citizens see
+    // the "act by X" summary first.
+    const timeline = data.timeline;
+    if (timeline && (timeline.anchors?.length || timeline.deadlines?.length)) {
+      msgEl.insertBefore(renderTimeline(timeline), null);
+    }
+
     // Court precedents — shown in a second collapsible block when any exist.
     if (precedents.length) {
       const prec = document.createElement("details");
@@ -704,6 +713,76 @@
       if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
       n.parentNode.replaceChild(frag, n);
     }
+  }
+
+  // ─── render timeline widget (anchors + deadlines with urgency) ──
+  function renderTimeline(tl) {
+    const wrap = document.createElement("details");
+    wrap.className = "timeline";
+    wrap.open = true;   // deadlines matter — do not hide them by default
+
+    const urgencyLabel = {
+      expired: "KALUAR",
+      critical: "URGJENT",
+      warning: "KUJDES",
+      info: "INFO",
+      unknown: "?",
+    };
+    const urgencyIcon = {
+      expired: "⛔",
+      critical: "🚨",
+      warning: "⚠️",
+      info: "🕐",
+      unknown: "—",
+    };
+
+    const anchors = tl.anchors || [];
+    const deadlines = tl.deadlines || [];
+    const mostUrgent = deadlines.find(d => d.urgency === "critical" || d.urgency === "expired");
+    const headerTone = mostUrgent
+      ? (mostUrgent.urgency === "expired" ? "⛔ AFAT I KALUAR" : "🚨 AFAT URGJENT")
+      : "⏰ Kronologjia & afatet";
+
+    const anchorItems = anchors.map((a) => `
+      <li class="tl-anchor">
+        <span class="tl-dot">●</span>
+        <span class="tl-date">${escapeHtml(a.date || "data e panjohur")}</span>
+        <span class="tl-event">${escapeHtml(a.event)}</span>
+        ${a.source_quote ? `<div class="tl-src">"${escapeHtml(a.source_quote)}"</div>` : ""}
+      </li>
+    `).join("");
+
+    const deadlineItems = deadlines.map((d) => {
+      const u = d.urgency || "unknown";
+      const days = d.days_remaining;
+      let timing;
+      if (d.due_date && days !== null && days !== undefined) {
+        if (days < 0) timing = `${-days} ditë më parë (${d.due_date})`;
+        else if (days === 0) timing = `SOT (${d.due_date})`;
+        else timing = `për ${days} ditë (${d.due_date})`;
+      } else if (d.days_after) {
+        timing = `brenda ${d.days_after} ditësh nga "${escapeHtml(d.anchor_event || "?")}"`;
+      } else {
+        timing = "afat i lidhur me një ngjarje të panjohur";
+      }
+      return `
+        <li class="tl-deadline tl-urg-${u}">
+          <span class="tl-urg-badge">${urgencyIcon[u]} ${urgencyLabel[u]}</span>
+          <div class="tl-action">${escapeHtml(d.action)}</div>
+          <div class="tl-timing">${escapeHtml(timing)}</div>
+          ${d.article_ref ? `<div class="tl-ref">${escapeHtml(d.article_ref)}</div>` : ""}
+        </li>
+      `;
+    }).join("");
+
+    wrap.innerHTML = `
+      <summary>${headerTone} ${deadlines.length ? `(${deadlines.length})` : ""}</summary>
+      ${anchors.length ? `<div class="tl-section-label">Ngjarjet që nisin afatet</div>
+        <ul class="tl-anchors">${anchorItems}</ul>` : ""}
+      ${deadlines.length ? `<div class="tl-section-label">Afatet që duhen respektuar</div>
+        <ul class="tl-deadlines">${deadlineItems}</ul>` : ""}
+    `;
+    return wrap;
   }
 
   // ─── tiny markdown → HTML ───────────────────────────────────────
