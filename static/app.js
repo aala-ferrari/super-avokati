@@ -132,6 +132,7 @@
         distinguishing: m.distinguishing || null,
         evidence_map: m.evidence_map || null,
         nullity_radar: m.nullity_radar || null,
+        urgency_radar: m.urgency_radar || null,
       });
     }
     renderDossier(c.documents || []);
@@ -534,6 +535,17 @@
     body.innerHTML = renderMarkdown(data.text || "");
     highlightNeni(body);
     linkCaseMarkers(body, data.precedents || []);
+
+    // Urgency radar — ALWAYS AT THE TOP when level != none. An emergency
+    // panel below the answer text defeats the purpose: the citizen needs
+    // to see "you're in an emergency; here's what to do now" BEFORE the
+    // five-section analysis. Empty radar contributes nothing (we keep
+    // theoretical questions visually calm).
+    const urgencyRadar = data.urgency_radar;
+    if (urgencyRadar && urgencyRadar.level && urgencyRadar.level !== "none"
+        && (urgencyRadar.signals || []).length) {
+      msgEl.insertBefore(renderUrgencyRadar(urgencyRadar), body);
+    }
 
     const retrieved = node.querySelector(".retrieved");
     const count = node.querySelector(".count");
@@ -971,6 +983,62 @@
       <summary>${label}</summary>
       <div class="nr-intro">Këto janë levat procedurale — pavlefshmëri, afate, parashkrim — që shpesh e fitojnë kauzën pa u prekur tema. Për çdo gjetje "PO APLIKOHET" ka një veprim konkret që duhet të bësh dhe, kur ka, afatin brenda të cilit duhet ngritur.</div>
       <ul class="nr-list">${items}</ul>
+    `;
+    return wrap;
+  }
+
+  // ─── render urgency radar (top-of-message emergency framing) ────
+  function renderUrgencyRadar(ur) {
+    const wrap = document.createElement("div");
+    const level = ur.level || "elevated";
+    const signals = ur.signals || [];
+    wrap.className = `urgency-radar urgency-${level}`;
+    wrap.setAttribute("role", "alert");
+
+    const kindIcon = {
+      arrest: "🚨",
+      eviction: "🏠",
+      dismissal: "💼",
+      violence: "🛡️",
+      custody: "👶",
+      customs: "🛃",
+      deadline: "⏰",
+      enforcement: "⚖️",
+      other: "❗",
+    };
+    const sevBadge = (s) => s === "critical"
+      ? `<span class="ur-sev ur-sev-critical">KRITIK</span>`
+      : `<span class="ur-sev ur-sev-elevated">ALARM</span>`;
+
+    const items = signals.map((s) => {
+      const icon = kindIcon[s.kind] || "❗";
+      const reason = s.reason
+        ? `<div class="ur-row"><span class="ur-key">Pse:</span> ${escapeHtml(s.reason)}</div>` : "";
+      const deadline = s.deadline
+        ? `<div class="ur-row ur-deadline"><span class="ur-key">⏰ Afati:</span> ${escapeHtml(s.deadline)}</div>` : "";
+      const action = s.action
+        ? `<div class="ur-action"><strong>▶ Veprim sot:</strong> ${escapeHtml(s.action)}</div>` : "";
+      return `
+        <li class="ur-item ur-kind-${escapeHtml(s.kind || "other")} ur-severity-${escapeHtml(s.severity || "elevated")}">
+          <div class="ur-head">
+            <span class="ur-icon">${icon}</span>
+            ${sevBadge(s.severity)}
+            <span class="ur-label">${escapeHtml(s.label || "")}</span>
+          </div>
+          ${reason}
+          ${deadline}
+          ${action}
+        </li>
+      `;
+    }).join("");
+
+    const header = level === "critical"
+      ? `🚨 EMERGJENCË — VEPRO TANI`
+      : `⚠️ ALARM I NGRITUR — AFATE KËSHTU JAVË`;
+
+    wrap.innerHTML = `
+      <div class="ur-header"><strong>${header}</strong></div>
+      <ul class="ur-list">${items}</ul>
     `;
     return wrap;
   }

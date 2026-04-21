@@ -228,6 +228,7 @@ def api_get_case(case_id: str):
              "missing_facts": m.missing_facts, "premortem": m.premortem,
              "distinguishing": m.distinguishing, "evidence_map": m.evidence_map,
              "nullity_radar": m.nullity_radar,
+             "urgency_radar": m.urgency_radar,
              "created_at": m.created_at}
             for m in messages
         ],
@@ -316,6 +317,7 @@ def api_export_case(case_id: str):
                  "missing_facts": m.missing_facts, "premortem": m.premortem,
                  "distinguishing": m.distinguishing, "evidence_map": m.evidence_map,
                  "nullity_radar": m.nullity_radar,
+                 "urgency_radar": m.urgency_radar,
                  "created_at": m.created_at}
                 for m in messages
             ],
@@ -539,6 +541,7 @@ def api_ask():
     distinguishing_payload = _distinguishing_payload(result.distinguishing)
     evidence_map_payload = _evidence_map_payload(result.evidence_map)
     nullity_radar_payload = _nullity_radar_payload(result.nullity_radar)
+    urgency_radar_payload = _urgency_radar_payload(result.urgency_radar)
     storage.add_message(case.id, "assistant", result.text,
                         kind=result.kind, articles=articles, precedents=precedents,
                         timeline=timeline_payload, comparison=comparison_payload,
@@ -546,7 +549,8 @@ def api_ask():
                         premortem=premortem_payload,
                         distinguishing=distinguishing_payload,
                         evidence_map=evidence_map_payload,
-                        nullity_radar=nullity_radar_payload)
+                        nullity_radar=nullity_radar_payload,
+                        urgency_radar=urgency_radar_payload)
     if result.session_id:
         storage.update_case_claude_session(case.id, user.id, result.session_id)
 
@@ -569,6 +573,7 @@ def api_ask():
         "distinguishing": distinguishing_payload,
         "evidence_map": evidence_map_payload,
         "nullity_radar": nullity_radar_payload,
+        "urgency_radar": urgency_radar_payload,
         "case_id": case.id,
     })
 
@@ -671,6 +676,18 @@ def _nullity_radar_payload(nr) -> dict | None:
     if nr is None or nr.is_empty():
         return None
     return {"findings": [asdict(f) for f in nr.findings]}
+
+
+def _urgency_radar_payload(ur) -> dict | None:
+    """Serialise UrgencyRadar for the UI. None when empty (keeps theoretical
+    questions visually calm). Level + per-signal cards for the emergency panel.
+    """
+    if ur is None or ur.is_empty():
+        return None
+    return {
+        "level": ur.level,
+        "signals": [asdict(s) for s in ur.signals],
+    }
 
 
 def _precedent_payload(c, score: float) -> dict:

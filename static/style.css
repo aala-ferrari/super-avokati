@@ -867,6 +867,90 @@ main {
   font-style: italic; font-size: 0.8rem; line-height: 1.4;
 }
 
+/* ─── urgency radar (TOP-of-message emergency panel) ─────────────
+   The loudest panel in the whole UI. Lives above the bot-body text
+   so the first thing the citizen sees on a critical case is:
+   "you're in emergency — here's the one action to take now."
+   On level=critical we pulse the border to pull the eye; elevated
+   stays loud but static. Empty radar renders nothing (we keep
+   theoretical / low-stakes answers visually calm). */
+.urgency-radar {
+  margin: 0 0 16px; padding: 14px 16px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, #fff1f1 0%, #ffe0e0 100%);
+  border: 2px solid #d93a3a;
+  box-shadow: 0 2px 12px rgba(217, 58, 58, 0.18);
+}
+.urgency-radar.urgency-critical {
+  background: linear-gradient(135deg, #ffe5e5 0%, #ffc9c9 100%);
+  border: 2.5px solid #b40000;
+  box-shadow: 0 4px 20px rgba(180, 0, 0, 0.35);
+  animation: urgency-pulse 2.2s ease-in-out infinite;
+}
+@keyframes urgency-pulse {
+  0%, 100% { box-shadow: 0 4px 20px rgba(180, 0, 0, 0.35); }
+  50%      { box-shadow: 0 4px 28px rgba(180, 0, 0, 0.55); }
+}
+.ur-header {
+  font-size: 0.95rem; font-weight: 800; letter-spacing: 0.03em;
+  color: #7d0000; text-transform: uppercase;
+  margin-bottom: 10px; line-height: 1.35;
+}
+.urgency-radar.urgency-critical .ur-header { color: #5a0000; font-size: 1.02rem; }
+.ur-list {
+  list-style: none; padding: 0; margin: 0;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.ur-item {
+  padding: 10px 12px; background: #fff;
+  border: 1px solid #f2b5b5;
+  border-left: 5px solid #d93a3a;
+  border-radius: var(--radius-sm);
+}
+.ur-item.ur-severity-critical { border-left-color: #7d0000; border-left-width: 6px; }
+.ur-item.ur-kind-arrest     { border-left-color: #7d0000; }
+.ur-item.ur-kind-violence   { border-left-color: #7d0000; }
+.ur-item.ur-kind-eviction   { border-left-color: #b40000; }
+.ur-item.ur-kind-custody    { border-left-color: #b40000; }
+.ur-item.ur-kind-dismissal  { border-left-color: #c44d00; }
+.ur-item.ur-kind-customs    { border-left-color: #c44d00; }
+.ur-item.ur-kind-deadline   { border-left-color: #c44d00; }
+.ur-item.ur-kind-enforcement{ border-left-color: #b40000; }
+.ur-head {
+  display: flex; align-items: center; gap: 9px; flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.ur-icon { font-size: 1.1rem; }
+.ur-sev {
+  font-size: 0.7rem; font-weight: 800; letter-spacing: 0.06em;
+  padding: 3px 9px; border-radius: 4px;
+}
+.ur-sev-critical { background: #7d0000; color: #fff; }
+.ur-sev-elevated { background: #c44d00; color: #fff; }
+.ur-label {
+  font-weight: 700; color: var(--black); line-height: 1.35;
+  flex: 1; min-width: 0;
+}
+.ur-row {
+  margin-top: 5px; color: var(--gray-800);
+  font-size: 0.85rem; line-height: 1.45;
+}
+.ur-row.ur-deadline { color: #7d0000; font-weight: 700; }
+.ur-key {
+  font-weight: 700; color: var(--gray-900);
+  margin-right: 3px;
+}
+.ur-action {
+  margin-top: 8px; padding: 8px 10px;
+  background: #fff4e6; border-left: 3px solid #c44d00;
+  border-radius: 3px; color: #4a2000;
+  font-size: 0.88rem; line-height: 1.45;
+}
+.ur-action strong { color: #7d0000; margin-right: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  .urgency-radar.urgency-critical { animation: none; }
+}
+
 /* ─── nullity + deadline radar (procedural levers) ───────────────
    The most technically loaded panel. Crimson/burgundy accent to
    signal legal weight — these findings can dispose of the case

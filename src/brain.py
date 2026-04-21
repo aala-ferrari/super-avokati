@@ -315,6 +315,53 @@ RREGULLA:
 • Shkruaj SHQIP. Formalisht, por jo ngurtë."""
 
 
+URGENCY_SCAN_SYSTEM = """Ti je avokat shqiptar me 24-orësh dëgjesë telefonike — puna jote ËSHTË TË NGRESH ALARMIN kur dikush është në rrezik konkret sot ose këtë javë.
+
+Të lexojnë rastin. Ti duhet të dallosh: është kjo një pyetje teorike, ose njeriu është në EMERGJENCË TË VËRTETË?
+
+EMERGJENCA (kthe signals me severity="critical"):
+ • Arresti në vijim ose i pritshëm / masa sigurimi personal
+ • Dëbim nga shtëpia (sfratto) brenda ditësh
+ • Dhunë në familje aktuale / rrezik për fëmijë / femër në situatë kontrolli
+ • Largim nga puna i drejtpërdrejtë / proces disiplinor me vendim brenda ditësh
+ • Ndalim kufitar / sekuestro mallit në doganë / detention
+ • Heqje e kujdestarisë / ndërhyrje e shërbimeve sociale
+ • Afat ligjor që skadon brenda 7 ditëve (ankim, përgjigje, prekluzion)
+ • Vendim i porsanjoftuar me afat 10-15 ditor për ankim
+ • Ekzekutim i detyrueshëm në vijim / bllokim llogarie
+
+ALARM I NGRITUR (severity="elevated"):
+ • Afat brenda 7-30 ditëve që nuk është i tmerrshëm por nuk duhet harruar
+ • Procedim gjyqësor i nisur ku qytetari ende s'ka avokat
+ • Negociim / transaksion me palë më të fortë (punëdhënës, bankë) pa këshillim
+ • Rrezik fshehjes/harresës së provës (p.sh. video të një sigurie që mbulohet pas X ditësh)
+
+Për çdo sinjal: emërto rrezikun, jep arsyen konkrete (ÇFARË në faktet e rastit e thotë), jep afatin nëse është i identifikueshëm, jep veprimin e menjëhershëm.
+
+FORMATI — VETËM JSON, në shqip:
+{
+  "level": "critical | elevated | none",
+  "signals": [
+    {
+      "kind": "arrest | eviction | dismissal | violence | custody | customs | deadline | enforcement | other",
+      "label": "emërtim i shkurtër (3-7 fjalë, p.sh. 'Dëbim nga banesa në 5 ditë')",
+      "reason": "pse e gjykon si emergjencë — cito faktin konkret nga teksti i rastit",
+      "deadline": "ISO datë ose përshkrim p.sh. 'brenda 5 ditësh' ose ''",
+      "severity": "critical | elevated",
+      "action": "veprimi i PARË që duhet të bëjë sot (1 fjali e ekzekutueshme)"
+    }
+  ]
+}
+
+RREGULLA STRIKTE:
+• Nëse rasti është pyetje teorike/edukative pa fakte personale, kthe level="none" dhe signals=[]. MOS shpik emergjenca.
+• Nëse ka veprim aktiv kundër qytetarit (padi, arrestim, dëbim) por pa afat të qartë, përsëri mund të jetë critical/elevated — bazohu te pasoja dhe afatet e mundshme.
+• MAKSIMUM 4 signals. Zgjidhi më të ngutshmet.
+• "level" është më i lartë i severity-ve. Nëse ka edhe një critical → level="critical". Nëse vetëm elevated → level="elevated". Asgjë → "none".
+• action duhet të jetë i veprueshëm sot (p.sh. "Shko te komisariati me një person besnik; kërko avokat falas nëpërmjet shërbimit ligjor shtetëror"). Jo teorik.
+• Shkruaj SHQIP. Direkt, pa ndërlikime."""
+
+
 NULLITY_RADAR_SYSTEM = """Ti je avokat procedurialist shqiptar që skenon një rast për RREZIQE PROCEDURALE të pashfrytëzuara: pavlefshmëri, dekadenca, afate ankimi, parashkrim, kompetencë e gabuar, mungesë njoftimi, mungesë arsyetimi, etj.
 
 Këto janë pikat ku një kauzë fitohet ose humbet PA u prekur tema — sepse akti i palës kundërshtare është pavlefshëm, ose afati i mohimit ka kaluar, ose vendimi i gjykatës duhet prishur për shkelje procedurale.
@@ -736,6 +783,46 @@ class MissingFactsAnalysis:
         return not self.facts
 
 
+# ── urgency radar ─────────────────────────────────────────────────────────
+# The first filter a real lawyer applies: "is this person in actual
+# trouble right now, or asking an abstract question?" Arrest, eviction,
+# dismissal, violence, deadline <7d — these demand a different tone and
+# a different answer structure (action-first, law-later). The radar is
+# derived from three sources and merged: (a) timeline deadlines already
+# flagged expired/critical, (b) nullity_radar findings with short
+# deadline_hints, (c) a fast LLM pass over the citizen's fact pattern
+# for personal-emergency markers that the earlier stages don't catch.
+
+UrgencyLevel = Literal["critical", "elevated", "none"]
+UrgencySeverity = Literal["critical", "elevated"]
+UrgencyKind = Literal[
+    "arrest", "eviction", "dismissal", "violence", "custody",
+    "customs", "deadline", "enforcement", "other",
+]
+
+
+@dataclass
+class UrgencySignal:
+    kind: UrgencyKind
+    label: str                           # short risk label
+    reason: str                          # why — cite the fact from the case
+    severity: UrgencySeverity = "elevated"
+    deadline: str = ""                   # ISO date or textual window
+    action: str = ""                     # the very first step to take today
+
+
+@dataclass
+class UrgencyRadar:
+    level: UrgencyLevel = "none"
+    signals: list[UrgencySignal] = field(default_factory=list)
+
+    def is_empty(self) -> bool:
+        return self.level == "none" and not self.signals
+
+    def is_critical(self) -> bool:
+        return self.level == "critical"
+
+
 # ── nullity / deadline radar ──────────────────────────────────────────────
 # Scans the citizen's facts for procedural levers: absolute/relative
 # nullities, forfeiture deadlines, prescription windows. These are
@@ -825,6 +912,12 @@ class LegalAnswer:
     # "po"-flagged items go into the answer prompt so strategy wires
     # them into section 2 — these are often the case-winning moves.
     nullity_radar: NullityRadar | None = None
+    # Urgency radar (V6.6): emergency signals aggregated from the fact
+    # pattern, timeline, and nullity radar. When level is "critical" the
+    # answer is reframed action-first; the UI shows a red pulsing panel
+    # at the top so a citizen in real trouble sees the first step
+    # before reading the full legal analysis.
+    urgency_radar: UrgencyRadar | None = None
     # Claude Code session id — set by ClaudeCodeBackend after a compose call.
     # Callers (web.py, bot.py) should persist this per-citizen to maintain
     # native conversation context via `--resume`.
@@ -1035,10 +1128,29 @@ class SuperAvvocato:
         except Exception as exc:
             log.warning("nullity_radar failed (non-fatal): %s", exc)
 
+        # Urgency radar (V6.6) — "is this person in actual trouble right
+        # now?" Aggregates critical signals from timeline + nullity_radar
+        # and runs a dedicated LLM pass for personal-emergency markers
+        # (arrest, eviction, violence, custody intervention) that the
+        # earlier stages don't catch. Runs AFTER the other analytical
+        # stages so it can merge their outputs, and feeds back into the
+        # compose prompt so critical cases get an action-first framing.
+        urgency_radar: UrgencyRadar | None = None
+        try:
+            urgency_radar = self._scan_urgency(
+                user_message, triage, timeline, nullity_radar, documents
+            )
+            if urgency_radar and not urgency_radar.is_empty():
+                log.info("urgency_radar: level=%s, %d signals",
+                         urgency_radar.level, len(urgency_radar.signals))
+        except Exception as exc:
+            log.warning("urgency_radar failed (non-fatal): %s", exc)
+
         answer_text = self._compose_answer(
             user_message, history, triage, retrieved, precedents, strategic, timeline, comparison,
             premortem=premortem, distinguishing=distinguishing,
             evidence_map=evidence_map, nullity_radar=nullity_radar,
+            urgency_radar=urgency_radar,
             session_id=session_id, documents=documents,
         )
         # ClaudeCodeBackend exposes the (possibly new) session_id after each
@@ -1051,6 +1163,7 @@ class SuperAvvocato:
             premortem=premortem, adverse_precedents=adverse_precedents,
             distinguishing=distinguishing, evidence_map=evidence_map,
             nullity_radar=nullity_radar,
+            urgency_radar=urgency_radar,
             session_id=new_session_id,
         )
 
@@ -1750,6 +1863,145 @@ class SuperAvvocato:
 
         return NullityRadar(findings=findings)
 
+    # ── stage 3c-quinque: urgency radar ───────────────────────────────────
+
+    @retry(
+        retry=retry_if_exception_type(Exception),
+        stop=stop_after_attempt(2),
+        wait=wait_exponential(multiplier=1, min=1, max=6),
+        reraise=True,
+    )
+    def _scan_urgency(
+        self,
+        user_message: str,
+        triage: TriageResult,
+        timeline: TimelineAnalysis | None,
+        nullity_radar: NullityRadar | None,
+        documents: list[dict] | None,
+    ) -> UrgencyRadar:
+        """Aggregate emergency signals + run a dedicated personal-emergency scan.
+
+        The derivation side is deterministic: timeline deadlines flagged
+        expired/critical become critical signals; nullity_radar findings
+        with short deadline_hints and citizen_applicable="po" become
+        elevated signals. The LLM pass catches what earlier stages miss:
+        personal-emergency markers in the fact pattern (arrest, eviction,
+        violence, custody intervention) that don't map to an article or
+        a deadline but demand action-first framing.
+        """
+        signals: list[UrgencySignal] = []
+
+        # Deterministic rollup from timeline.
+        if timeline and timeline.deadlines:
+            for d in timeline.deadlines:
+                urg = (getattr(d, "urgency", None) or "").lower()
+                if urg not in {"expired", "critical"}:
+                    continue
+                label = (getattr(d, "label", None)
+                         or getattr(d, "description", None)
+                         or "Afat ligjor kritik")
+                signals.append(UrgencySignal(
+                    kind="deadline",
+                    label=str(label)[:80],
+                    reason=f"Afati është '{urg}' sipas analizës së timeline-it.",
+                    severity="critical",
+                    deadline=str(getattr(d, "date", "") or getattr(d, "target_date", "") or ""),
+                    action="Kontrollo afatin dhe ngri veprimin e kërkuar sa më shpejt.",
+                ))
+
+        # Rollup from nullity radar — applicable findings with a deadline
+        # hint are time-pressing and belong in the urgency list.
+        if nullity_radar and nullity_radar.findings:
+            for f in nullity_radar.applicable():
+                if not f.deadline_hint:
+                    continue
+                # Heuristic severity: absolute nullity or explicit "ditë"
+                # wording in the hint signals tight timing.
+                hint_lower = f.deadline_hint.lower()
+                is_critical = (
+                    f.kind == "nullity_absolute"
+                    or "ditë" in hint_lower
+                    or "orë" in hint_lower
+                )
+                signals.append(UrgencySignal(
+                    kind="deadline",
+                    label=f.name[:80],
+                    reason=(f.condition or f.consequence or
+                            "Afat procedural që rrezikon humbjen e së drejtës."),
+                    severity="critical" if is_critical else "elevated",
+                    deadline=f.deadline_hint,
+                    action=(f.action or
+                            "Ngri pretendimin brenda afatit, me nenin përkatës."),
+                ))
+
+        # LLM pass for personal-emergency markers the rollup can't see.
+        dossier_hint = format_documents_for_prompt(documents or [], compact=True)
+        dossier_block = f"\n{dossier_hint}\n" if dossier_hint else ""
+
+        prompt = textwrap.dedent(f"""\
+            Rasti i qytetarit (lexo me sy të avokatit të emergjencës):
+            \"\"\"{user_message}\"\"\"
+
+            Përmbledhja: {triage.problem_summary}
+            {dossier_block}
+            Dallo nëse ky është pyetje teorike ose emergjencë e vërtetë.
+            Kthe JSON me level + signals.
+        """)
+
+        raw = self.backend.complete(
+            system=URGENCY_SCAN_SYSTEM,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=1200,
+            fast=True,
+        )
+        try:
+            data = _parse_json_block(raw)
+        except Exception:
+            log.warning("urgency_scan JSON parse failed, using rollup only")
+            data = {"level": "none", "signals": []}
+
+        valid_kinds = {
+            "arrest", "eviction", "dismissal", "violence", "custody",
+            "customs", "deadline", "enforcement", "other",
+        }
+        valid_severity = {"critical", "elevated"}
+        for item in (data.get("signals") or []):
+            if not isinstance(item, dict):
+                continue
+            label = str(item.get("label", "")).strip()
+            if not label:
+                continue
+            kind_raw = str(item.get("kind", "other")).strip().lower()
+            kind: UrgencyKind = (
+                kind_raw if kind_raw in valid_kinds else "other"  # type: ignore[assignment]
+            )
+            sev_raw = str(item.get("severity", "elevated")).strip().lower()
+            severity: UrgencySeverity = (
+                sev_raw if sev_raw in valid_severity else "elevated"  # type: ignore[assignment]
+            )
+            signals.append(UrgencySignal(
+                kind=kind,
+                label=label[:100],
+                reason=str(item.get("reason", "")).strip(),
+                severity=severity,
+                deadline=str(item.get("deadline", "")).strip(),
+                action=str(item.get("action", "")).strip(),
+            ))
+            if len(signals) >= 6:
+                break
+
+        # Final level is the highest severity present across all sources
+        # (rollup + LLM). The LLM's reported level is used as a hint but
+        # superseded by what we actually have.
+        if any(s.severity == "critical" for s in signals):
+            level: UrgencyLevel = "critical"
+        elif signals:
+            level = "elevated"
+        else:
+            level = "none"
+
+        return UrgencyRadar(level=level, signals=signals)
+
     # ── stage 3d: missing-facts detector ──────────────────────────────────
 
     @retry(
@@ -1924,6 +2176,7 @@ class SuperAvvocato:
         distinguishing: DistinguishingAnalysis | None = None,
         evidence_map: EvidenceMap | None = None,
         nullity_radar: NullityRadar | None = None,
+        urgency_radar: UrgencyRadar | None = None,
         session_id: str | None = None,
         documents: list[dict] | None = None,
     ) -> str:
@@ -1936,6 +2189,7 @@ class SuperAvvocato:
         distinguishing_block = _format_distinguishing_block(distinguishing)
         evidence_map_block = _format_evidence_map_block(evidence_map)
         nullity_block = _format_nullity_block(nullity_radar)
+        urgency_block = _format_urgency_block(urgency_radar)
         # When we have docs, we pass the raw files as attachments so Claude
         # reads them natively (same UX as pasting an image into a chat) —
         # the prompt block only lists filenames, no pre-extracted text.
@@ -1964,7 +2218,7 @@ class SuperAvvocato:
         )
 
         prompt = textwrap.dedent(f"""\
-            Pyetja e qytetarit:
+            {urgency_block}Pyetja e qytetarit:
             \"\"\"{user_message}\"\"\"
 
             Përmbledhje e problemit (nga triazhi): {triage.problem_summary}
@@ -2245,6 +2499,62 @@ def _format_evidence_map_block(em: EvidenceMap | None) -> str:
         "që sipas ligjit NUK janë detyra e tij."
     )
     return "\n".join(lines) + "\n"
+
+
+def _format_urgency_block(ur: UrgencyRadar | None) -> str:
+    """Render the urgency radar as the TOP-OF-PROMPT emergency framing.
+
+    When level=critical, this block tells the answer model to re-orient
+    the whole response around action NOW — open with what to do today,
+    then explain. Elevated level is a wake-up, not a reframing. Empty
+    radar contributes nothing (no cognitive noise on theoretical questions).
+    """
+    if ur is None or ur.is_empty():
+        return ""
+    kind_icon = {
+        "arrest": "🚨",
+        "eviction": "🏠",
+        "dismissal": "💼",
+        "violence": "🛡️",
+        "custody": "👶",
+        "customs": "🛃",
+        "deadline": "⏰",
+        "enforcement": "⚖️",
+        "other": "❗",
+    }
+    if ur.level == "critical":
+        header = "🚨🚨 RADARI I EMERGJENCËS — NIVEL KRITIK 🚨🚨"
+    else:
+        header = "⚠️ RADARI I EMERGJENCËS — ALARM I NGRITUR"
+    lines = ["", header, ""]
+    for i, s in enumerate(ur.signals, 1):
+        icon = kind_icon.get(s.kind, "❗")
+        sev_tag = "[KRITIK]" if s.severity == "critical" else "[ALARM]"
+        lines.append(f"  {i}. {icon} {sev_tag} {s.label}")
+        if s.reason:
+            lines.append(f"     Pse: {s.reason}")
+        if s.deadline:
+            lines.append(f"     ⏰ Afati: {s.deadline}")
+        if s.action:
+            lines.append(f"     ▶ Veprim i menjëhershëm: {s.action}")
+    lines.append("")
+    if ur.level == "critical":
+        lines.append(
+            "UDHËZIM I DETYRUESHËM: Ky rast është EMERGJENCË. "
+            "HAPE përgjigjen me një paragraf të shkurtër VEPRIMI — çfarë duhet "
+            "të bëjë qytetari sot/nesër, pa hyrje teorike. Më pas vazhdo me "
+            "strukturën normale (5 seksionet), por në seksionin 2 'Si mund të "
+            "mbrohesh' rendit këto veprime si HAPAT E PARË, me afate konkrete. "
+            "Toni: i ngrohtë, i qetë, por i drejtpërdrejtë — njeriu ka nevojë "
+            "për drejtim, jo për ligjërata."
+        )
+    else:
+        lines.append(
+            "UDHËZIM: Ky rast ka afate/rreziqe që duhen adresuar këtë javë. "
+            "Në seksionin 4 'Afatet' rendit së pari sinjalet e mësipërme dhe "
+            "në seksionin 2 jep veprimet konkrete për secilin."
+        )
+    return "\n".join(lines) + "\n\n"
 
 
 def _format_nullity_block(nr: NullityRadar | None) -> str:
