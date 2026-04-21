@@ -1,0 +1,31 @@
+# Postgres + pgvector for the Super Avvocato legal knowledge base.
+#
+# Local dev uses this; production (VPS) will use the same image with env
+# vars overridden via a .env file. The volume persists across restarts
+# so scraped data survives `docker compose down`.
+#
+# Note: on this laptop we currently run Postgres 14 via Homebrew; this
+# compose file is the target setup once the VPS is in play. Use either
+# one — not both at the same time (port 5432 clash).
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: super_avvocato_pg
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${LEGALKB_DB:-legalkb}
+      POSTGRES_USER: ${LEGALKB_USER:-super_avvocato}
+      POSTGRES_PASSWORD: ${LEGALKB_PASSWORD:-super_avvocato_dev}
+    ports:
+      - "${LEGALKB_PORT:-5432}:5432"
+    volumes:
+      - legalkb_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${LEGALKB_USER:-super_avvocato} -d ${LEGALKB_DB:-legalkb}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  legalkb_data:

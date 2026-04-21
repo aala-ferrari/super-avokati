@@ -15,3 +15,8 @@ data/app.db-journal
 data/.secret_key
 # Per-case lawyer uploads (PDFs, images) — private client material, never commit.
 data/uploads/
+# Raw scraped decisions — ~345 MB of .doc/.pdf/.html. Regenerable via
+# `python -m src.scrapers.run`; Case.full_text in legalkb holds the parsed text.
+data/raw/
+# Claude Code local state
+.claude/

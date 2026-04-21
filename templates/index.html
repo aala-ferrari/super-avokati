@@ -59,7 +59,7 @@
     <div class="brain-status {{ 'on' if has_brain else 'off' }}" title="{{ backend_name or 'pa backend' }}">
       <span class="dot"></span>
       {% if has_brain %}
-        {% if backend_name == 'claude_code' %}Claude Code
+        {% if backend_name == 'claude_code' %}Tetramorph
         {% elif backend_name == 'gemini' %}Gemini
         {% elif backend_name == 'anthropic' %}Claude API
         {% else %}{{ backend_name }}

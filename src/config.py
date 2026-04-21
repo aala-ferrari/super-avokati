@@ -52,6 +52,15 @@ INDEX_PATH = Path(os.getenv("INDEX_PATH", ROOT / "data" / "index"))
 LOG_PATH = Path(os.getenv("LOG_PATH", ROOT / "logs" / "super_avvocato.log"))
 # SQLite database for users + cases + messages.
 APP_DB_PATH = Path(os.getenv("APP_DB_PATH", ROOT / "data" / "app.db"))
+# Postgres legal knowledge base: court decisions, judges, prosecutors,
+# lawyers, vetting records, disciplinary actions, asset declarations.
+# Separate from APP_DB_PATH: this is the shared, growing corpus that
+# every user's brain queries; the SQLite app.db holds only per-user
+# operational data (accounts, cases, messages, uploaded documents).
+LEGALKB_URL = os.getenv(
+    "LEGALKB_URL",
+    "postgresql+psycopg://super_avvocato:super_avvocato_dev@localhost:5432/legalkb",
+)
 # User-uploaded case documents (PDF/JPG/PNG/SVG) live here, one folder per
 # case. Files never leave the server — the lawyer and the brain are the
 # only consumers.
