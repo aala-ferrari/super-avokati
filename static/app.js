@@ -129,6 +129,7 @@
         comparison: m.comparison || null,
         missing_facts: m.missing_facts || null,
         premortem: m.premortem || null,
+        distinguishing: m.distinguishing || null,
       });
     }
     renderDossier(c.documents || []);
@@ -575,6 +576,14 @@
       msgEl.insertBefore(renderPremortem(premortem), null);
     }
 
+    // Distinguishing — adverse precedents + lawyer's response for each.
+    // Shown after the pre-mortem (so the user has the big-picture risk
+    // frame first) and before the general precedent list.
+    const distinguishing = data.distinguishing;
+    if (distinguishing && (distinguishing.items || []).length) {
+      msgEl.insertBefore(renderDistinguishing(distinguishing), null);
+    }
+
     // Timeline widget — past anchors + future deadlines with colour-coded
     // urgency badges. Rendered before the precedents block so citizens see
     // the "act by X" summary first.
@@ -742,6 +751,39 @@
       if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
       n.parentNode.replaceChild(frag, n);
     }
+  }
+
+  // ─── render distinguishing panel (adverse precedents + rebuttal) ──
+  function renderDistinguishing(d) {
+    const wrap = document.createElement("details");
+    const items = d.items || [];
+    const dangerous = items.filter((i) => i.still_dangerous);
+    wrap.className = "distinguishing" + (dangerous.length ? " dist-has-danger" : "");
+    wrap.open = dangerous.length > 0;
+
+    const lis = items.map((item) => {
+      const cls = item.still_dangerous ? "dist-danger" : "dist-safe";
+      const tag = item.still_dangerous ? "⚠️ RREZIKSHËM" : "✂ DISTINGUISH";
+      return `
+        <li class="dist-item ${cls}">
+          <div class="dist-head">
+            <span class="dist-tag">${tag}</span>
+            <a class="dist-cite" href="/case-precedent/${item.case_id}" target="_blank" rel="noopener">${escapeHtml(item.case_citation)}</a>
+          </div>
+          <div class="dist-reason">${escapeHtml(item.reason)}</div>
+        </li>
+      `;
+    }).join("");
+
+    const label = dangerous.length
+      ? `🛡️ Precedentë sfavorizues (${items.length}, ${dangerous.length} ende të rrezikshëm)`
+      : `🛡️ Precedentë sfavorizues (${items.length} — të gjithë distinguish)`;
+    wrap.innerHTML = `
+      <summary>${label}</summary>
+      <div class="dist-intro">Çdo vendim më poshtë u gjet nga BM25 si i ngjashëm me rastin — dhe për secilin është bërë distinguishing: pse nuk aplikohet, ose si mbrohemi nëse aplikohet.</div>
+      <ul class="dist-list">${lis}</ul>
+    `;
+    return wrap;
   }
 
   // ─── render pre-mortem panel (red-team "why we could lose") ─────

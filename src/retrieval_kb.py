@@ -144,6 +144,7 @@ class LegalKBRetriever:
         *,
         type: str | None = None,
         outcome: str | None = None,
+        outcomes: Iterable[str] | None = None,
         court_code: str | None = None,
         year_from: int | None = None,
         year_to: int | None = None,
@@ -156,7 +157,13 @@ class LegalKBRetriever:
         just because one of its fields happens to be null. The min_score
         floor prevents marginal BM25 hits from sneaking in when filters
         happen to match a weak candidate.
+
+        ``outcomes`` (set semantics) is how adversarial retrieval works:
+        pass the set of losing outcomes to guarantee the top-K includes
+        unfavorable precedents, even when the best BM25 hits happen to
+        be wins. ``outcome`` (singular) remains as a precise 1-value filter.
         """
+        outcome_set = set(outcomes) if outcomes else None
         if not self.cases:
             return []
 
@@ -184,6 +191,8 @@ class LegalKBRetriever:
             if type and c.type != type:
                 continue
             if outcome and c.outcome != outcome:
+                continue
+            if outcome_set and (c.outcome or "") not in outcome_set:
                 continue
             if court_code and c.court_code != court_code:
                 continue

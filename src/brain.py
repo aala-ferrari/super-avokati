@@ -217,6 +217,47 @@ RREGULLA STRIKTE:
 • Mos shto komente jashtë JSON-it."""
 
 
+DISTINGUISHING_SYSTEM = """Ti je avokat shqiptar që specializohet në DISTINGUISHING — arti i mbrojtjes së kauzës kur kundërshtari të citon një vendim gjyqësor që duket se të dëmton.
+
+Një avokat i dobët i fshin precedentët e pafavorshëm dhe shpreson që gjyqtari nuk do t'i shohë. Një avokat i mirë i NJEH dhe TREGON SI NUK APLIKOHEN në rastin e klientit të tij.
+
+Të janë dhënë:
+ • rasti i qytetarit tonë (faktet konkrete)
+ • 2-5 vendime gjyqësore SFAVORIZUESE (të rrëzuara ose dënuese) që një BM25 i ka gjetur si të ngjashme me rastin
+
+Për çdo vendim sfavorizues, PËRGJIGJU me një nga dy strategjitë:
+ A) DISTINGUISH — ky vendim NUK aplikohet te rasti ynë sepse [fakti X, rrethana Y, periudha Z, ligji i ndryshuar...]. Jepi një arsye KONKRETE, të mbështetur te faktet.
+ B) STILL DANGEROUS — ky vendim VËRTET prek rastin tonë, por ja si e mitigojmë: [strategji konkrete].
+
+MOS e fsheh një precedent të rrezikshëm thjesht duke thënë "nuk aplikohet". Ji i sinqertë: nëse vendimi është vërtet i rrezikshëm, thuaje. Por thuaj edhe SI e mbrojmë veten.
+
+Dallime tipike që bëjnë diferencën:
+ • Fakte thelbësisht të ndryshme (p.sh. "aty pala dorëzoi me vonesë; këtu ka dorëzuar në afat")
+ • Kuadri ligjor i ndryshuar (ligji i ri pas 2017 e zhvendos barrën e provës)
+ • Mungesë një elementi thelbësor (p.sh. "aty kishte dëshmitar; këtu s'ka")
+ • Rrethana speciale mbrojtëse që s'ishin aty (i mitur, viktimë dhune, punëtor)
+ • Vendim i vjetër, i tejkaluar nga jurisprudenca e re
+
+FORMATI — VETËM JSON, në shqip:
+{
+  "items": [
+    {
+      "case_id": 123,
+      "strategy": "distinguish | still_dangerous",
+      "reason": "një fjali ose dy në shqip që shpjegon PSE ky vendim nuk na prek (distinguish) OSE si e mitigojmë rrezikun (still_dangerous). Bëj të qartë dhe konkret.",
+      "still_dangerous": false
+    }
+  ]
+}
+
+RREGULLA:
+• Jep një zë për ÇDO vendim sfavorizues të dhënë. Mos kapërce asnjë.
+• "case_id" duhet të jetë saktësisht ID-ja e vendimit të dhënë (numër i plotë).
+• "still_dangerous": true kur strategjia është "still_dangerous", përndryshe false.
+• Mos shpik fakte që nuk janë në rastin e qytetarit ose te përmbledhja e vendimit.
+• Shkruaj SHQIP. Formalisht, por jo ngurtë."""
+
+
 PREMORTEM_SYSTEM = """Ti je avokat strateg shqiptar — pjesa CINIKE dhe paranoide e vetes tënde, ajo që shpëton kauzat sepse i sheh rreziqet PARA se të ndodhin.
 
 Detyra jote: PARA se Super Avokati të japë përgjigjen përfundimtare, ti duhet të shkruash 3-5 ARSYE TË FORTA pse ky rast mund të HUMBET. Jo dobësi gjenerike, por skenarë konkretë ku avokati kundërshtar ose gjyqtari e rrëzon kauzën.
@@ -451,6 +492,30 @@ class PrecedentComparison:
                     or self.decisive_factors)
 
 
+# ── distinguishing (adverse-precedent neutraliser) ────────────────────────
+# For every adverse precedent the retriever found, a fast-model pass writes
+# a one-sentence distinguishing reason or, when the case is genuinely
+# threatening, a one-sentence mitigation. This is how a good lawyer
+# defangs unfavorable citations — they don't hide from them, they neutralise
+# them on the record.
+
+
+@dataclass
+class DistinguishedPrecedent:
+    case_id: int                         # DB id of the adverse precedent
+    case_citation: str                   # short label for the UI
+    reason: str                          # why it doesn't apply / how to mitigate
+    still_dangerous: bool = False        # true when no clean distinguishing exists
+
+
+@dataclass
+class DistinguishingAnalysis:
+    items: list[DistinguishedPrecedent] = field(default_factory=list)
+
+    def is_empty(self) -> bool:
+        return not self.items
+
+
 # ── pre-mortem ────────────────────────────────────────────────────────────
 # "Imagine the case has already lost — why?" A red-team stage the brain
 # runs against ITSELF before composing the final answer. The identified
@@ -524,6 +589,17 @@ class LegalAnswer:
     # before the answer is composed. Fed back into the answer prompt so
     # the final strategy addresses these risks head-on instead of bluffing.
     premortem: Premortem | None = None
+    # Precedents whose outcome goes against the citizen, kept separately so
+    # the distinguishing stage can address them individually. These may
+    # overlap with `precedents` (they usually do): adverse cases that also
+    # scored in the top mixed list get rendered twice in the UI — once as
+    # part of the precedent list, once in the distinguishing panel.
+    adverse_precedents: list[tuple[CasePrecedent, float]] = field(default_factory=list)
+    # For each adverse precedent, the lawyer's response: either a
+    # distinguishing reason (this case doesn't apply because...) or a
+    # still-dangerous flag + mitigation. A case not addressed here is a
+    # case we're exposed to; the answer prompt treats these as a checklist.
+    distinguishing: DistinguishingAnalysis | None = None
     # Claude Code session id — set by ClaudeCodeBackend after a compose call.
     # Callers (web.py, bot.py) should persist this per-citizen to maintain
     # native conversation context via `--resume`.
@@ -617,6 +693,22 @@ class SuperAvvocato:
         precedents = self._retrieve_precedents(triage)
         log.info("retrieved %d precedents", len(precedents))
 
+        # Adversarial retrieval: explicitly pull adverse precedents
+        # (outcome ∈ _LOSING_OUTCOMES) in a SEPARATE query so we never
+        # miss them when the top BM25 hits happen to all be wins. A
+        # great lawyer studies the cases that went AGAINST them harder
+        # than the ones that favour them — and so does this brain.
+        adverse_precedents = self._retrieve_adverse_precedents(triage)
+        # Merge the adverse hits that weren't already in the mixed list
+        # so the UI/prompt see the full picture.
+        seen_ids = {c.id for c, _ in precedents}
+        for c, s in adverse_precedents:
+            if c.id not in seen_ids:
+                precedents.append((c, s))
+                seen_ids.add(c.id)
+        log.info("adversarial: %d adverse precedents (merged list=%d)",
+                 len(adverse_precedents), len(precedents))
+
         # Strategic analysis — the winning-edge layer. Non-fatal if it fails.
         strategic: StrategicAnalysis | None = None
         try:
@@ -675,9 +767,25 @@ class SuperAvvocato:
         except Exception as exc:
             log.warning("premortem failed (non-fatal): %s", exc)
 
+        # Distinguishing — for each adverse precedent, write the lawyer's
+        # response: either a distinguishing reason (case doesn't apply
+        # because X) or a still-dangerous flag with mitigation. Fed back
+        # into the answer so section 5 addresses the adverse cites
+        # directly instead of flattering past them.
+        distinguishing: DistinguishingAnalysis | None = None
+        try:
+            distinguishing = self._distinguish_precedents(user_message, triage, adverse_precedents)
+            if distinguishing and not distinguishing.is_empty():
+                dangerous = sum(1 for i in distinguishing.items if i.still_dangerous)
+                log.info("distinguishing: %d items (%d still dangerous)",
+                         len(distinguishing.items), dangerous)
+        except Exception as exc:
+            log.warning("distinguishing failed (non-fatal): %s", exc)
+
         answer_text = self._compose_answer(
             user_message, history, triage, retrieved, precedents, strategic, timeline, comparison,
-            premortem=premortem, session_id=session_id, documents=documents,
+            premortem=premortem, distinguishing=distinguishing,
+            session_id=session_id, documents=documents,
         )
         # ClaudeCodeBackend exposes the (possibly new) session_id after each
         # stateful call; other backends leave it as None.
@@ -686,7 +794,8 @@ class SuperAvvocato:
             kind="answer", text=answer_text, triage=triage,
             retrieved=retrieved, precedents=precedents, strategic=strategic,
             timeline=timeline, comparison=comparison, missing_facts=missing_facts,
-            premortem=premortem, session_id=new_session_id,
+            premortem=premortem, adverse_precedents=adverse_precedents,
+            distinguishing=distinguishing, session_id=new_session_id,
         )
 
     # ── stage 1: triage ────────────────────────────────────────────────────
@@ -808,6 +917,35 @@ class SuperAvvocato:
             if hits:
                 return hits
         return self.kb.search(queries, top_k=TOP_K_DECISIONS)
+
+    def _retrieve_adverse_precedents(
+        self, triage: TriageResult
+    ) -> list[tuple[CasePrecedent, float]]:
+        """Adversarial retrieval: top-K cases whose outcome goes AGAINST us.
+
+        We restrict to ``_LOSING_OUTCOMES`` so the retriever returns the
+        strongest adverse matches even when the best BM25 hits happen
+        to all be favorable. These feed the distinguishing stage and
+        also get merged into the main precedent list so the UI shows
+        them with an "adverse" marker.
+
+        Capped lower than the main retrieval (5 vs TOP_K_DECISIONS) —
+        we want enough to distinguish meaningfully, not enough to
+        drown the prompt in bad news.
+        """
+        if not self.kb.cases:
+            return []
+        queries = list(triage.search_queries)
+        for angle in triage.strategic_angles:
+            if angle and angle not in queries:
+                queries.append(angle)
+        case_type_hint = _area_to_case_type(triage.areas)
+        kwargs = dict(top_k=5, outcomes=_LOSING_OUTCOMES)
+        if case_type_hint:
+            hits = self.kb.search(queries, type=case_type_hint, **kwargs)
+            if hits:
+                return hits
+        return self.kb.search(queries, **kwargs)
 
     # ── stage 3: strategic analysis ───────────────────────────────────────
 
@@ -1054,6 +1192,98 @@ class SuperAvvocato:
             decisive_factors=factors,
         )
 
+    # ── stage 3c-bis: distinguishing (adverse-precedent neutraliser) ──────
+
+    @retry(
+        retry=retry_if_exception_type(Exception),
+        stop=stop_after_attempt(2),
+        wait=wait_exponential(multiplier=1, min=1, max=6),
+        reraise=True,
+    )
+    def _distinguish_precedents(
+        self,
+        user_message: str,
+        triage: TriageResult,
+        adverse: list[tuple[CasePrecedent, float]],
+    ) -> DistinguishingAnalysis | None:
+        """Write a distinguishing response for each adverse precedent.
+
+        The model must address each case by id — either distinguishing
+        it (this case doesn't apply because...) or flagging it
+        still_dangerous with a mitigation. Silent skip of a case would
+        leave us exposed; the prompt and the post-parse loop both
+        enforce one item per input precedent.
+        """
+        if not adverse:
+            return None
+        cap = adverse[:5]
+
+        lines: list[str] = []
+        for c, _score in cap:
+            date_str = c.decision_date.isoformat() if c.decision_date else "?"
+            arts = ", ".join(f"{code} neni {art}" for code, art in c.articles_cited[:4])
+            lines.append(
+                f"── VENDIM ID={c.id}\n"
+                f"   {c.citation} ({date_str}) — OUTCOME: {c.outcome or 'unknown'}\n"
+                f"   Përmbledhje: {(c.summary or '')[:360]}\n"
+                + (f"   Nenet e cituara: {arts}\n" if arts else "")
+            )
+        adverse_block = "\n".join(lines)
+
+        prompt = textwrap.dedent(f"""\
+            Rasti i qytetarit tonë (faktet reale):
+            \"\"\"{user_message}\"\"\"
+
+            Përmbledhja: {triage.problem_summary}
+
+            VENDIME GJYQËSORE SFAVORIZUESE (të gjetura nga BM25 si të ngjashme — analizoji NJË NGA NJË):
+            {adverse_block}
+
+            Për secilin vendim të mësipërm, shkruaj distinguishing ose mitigim sipas formatit JSON.
+            Mos anashkalo asnjë ID.
+        """)
+
+        raw = self.backend.complete(
+            system=DISTINGUISHING_SYSTEM,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=1200,
+            fast=True,
+        )
+        try:
+            data = _parse_json_block(raw)
+        except Exception:
+            log.warning("distinguishing JSON parse failed, returning None")
+            return None
+
+        by_id = {c.id: c for c, _ in cap}
+        items: list[DistinguishedPrecedent] = []
+        seen: set[int] = set()
+        for it in (data.get("items") or []):
+            if not isinstance(it, dict):
+                continue
+            cid_raw = it.get("case_id")
+            try:
+                cid = int(cid_raw)
+            except (TypeError, ValueError):
+                continue
+            if cid in seen or cid not in by_id:
+                continue
+            reason = str(it.get("reason", "")).strip()
+            if not reason:
+                continue
+            strategy = str(it.get("strategy", "")).strip().lower()
+            still_dangerous = bool(it.get("still_dangerous")) or strategy == "still_dangerous"
+            items.append(DistinguishedPrecedent(
+                case_id=cid,
+                case_citation=by_id[cid].citation,
+                reason=reason,
+                still_dangerous=still_dangerous,
+            ))
+            seen.add(cid)
+        if not items:
+            return None
+        return DistinguishingAnalysis(items=items)
+
     # ── stage 3d: missing-facts detector ──────────────────────────────────
 
     @retry(
@@ -1225,6 +1455,7 @@ class SuperAvvocato:
         timeline: TimelineAnalysis | None = None,
         comparison: PrecedentComparison | None = None,
         premortem: Premortem | None = None,
+        distinguishing: DistinguishingAnalysis | None = None,
         session_id: str | None = None,
         documents: list[dict] | None = None,
     ) -> str:
@@ -1234,6 +1465,7 @@ class SuperAvvocato:
         timeline_block = _format_timeline_block(timeline)
         comparison_block = _format_comparison_block(comparison)
         premortem_block = _format_premortem_block(premortem)
+        distinguishing_block = _format_distinguishing_block(distinguishing)
         # When we have docs, we pass the raw files as attachments so Claude
         # reads them natively (same UX as pasting an image into a chat) —
         # the prompt block only lists filenames, no pre-extracted text.
@@ -1269,7 +1501,7 @@ class SuperAvvocato:
             {dossier_block}
             Nenet e gjetura nga kodet shqiptare (me rëndësinë zbritëse):
             {context}
-            {precedents_block}{comparison_block}{premortem_block}{strategic_block}{timeline_block}
+            {precedents_block}{comparison_block}{distinguishing_block}{premortem_block}{strategic_block}{timeline_block}
             {dossier_guidance}Shkruaj përgjigjen në formatin e kërkuar (PESË seksione në shqip),
             duke cituar vetëm nenet e mësipërme. Nëse analiza ka gjetur
             vendime të Gjykatës Kushtetuese/Gjykatës së Lartë të lidhura me
@@ -1477,6 +1709,31 @@ def _format_comparison_block(cmp: PrecedentComparison | None) -> str:
             lines.append(f"  • {f}")
     lines.append("")
     lines.append("PËRDOR këtë pattern te seksioni 5 'Detajet që bëjnë diferencën' — shpjego qytetarit nëse rasti i tij bie në anën e fituesve apo humbësve DHE pse. Integroje natyrshëm, jo me kopjim direkt.")
+    return "\n".join(lines) + "\n"
+
+
+def _format_distinguishing_block(d: DistinguishingAnalysis | None) -> str:
+    """Render the distinguishing output so the answer addresses adverse cites.
+
+    The answer prompt is told to weave each distinguishing reason into
+    section 5 when the precedent has been cited there — so the citizen
+    learns why an apparently dangerous precedent doesn't control their
+    case, instead of being left to worry about it silently.
+    """
+    if d is None or d.is_empty():
+        return ""
+    lines = ["", "── DISTINGUISHING (përgjigje për precedentët sfavorizues) ──"]
+    for i, item in enumerate(d.items, 1):
+        marker = "⚠️ RREZIKSHËM" if item.still_dangerous else "✂ DISTINGUISH"
+        lines.append(f"  {i}. [[case:{item.case_id}]] {item.case_citation} — {marker}")
+        lines.append(f"     {item.reason}")
+    lines.append("")
+    lines.append(
+        "PËRDOR këto dallime te seksioni 5: nëse në përgjigjen tënde citohet një prej "
+        "precedentëve të sipërm, SHPJEGO SAKT pse ai vendim nuk e kontrollon këtë rast "
+        "(distinguish) OSE si mbrohemi nga ai (still_dangerous). Mos i fsheh vendimet "
+        "sfavorizuese — një avokat i mirë i adreson, nuk i anashkalon."
+    )
     return "\n".join(lines) + "\n"
 
 

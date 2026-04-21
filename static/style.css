@@ -645,6 +645,53 @@ main {
 }
 .mf-impact strong { color: var(--black); }
 
+/* ─── distinguishing panel (adverse-precedent neutraliser) ───────
+   Shows each adverse precedent with either a distinguishing reason
+   (why it doesn't apply) or a still-dangerous flag + mitigation.
+   Teal accent by default, red when any precedent is still dangerous. */
+.distinguishing { margin-top: 10px; font-size: 0.85rem; }
+.distinguishing summary {
+  cursor: pointer; font-weight: 700; padding: 9px 13px;
+  background: linear-gradient(135deg, #e6f4f1 0%, #cbe6df 100%);
+  border: 1px solid #7bb3a5; color: #1f4f45;
+  border-radius: var(--radius-sm); user-select: none;
+}
+.distinguishing summary:hover { background: #bfdfd6; }
+.distinguishing[open] summary { margin-bottom: 10px; }
+.distinguishing.dist-has-danger summary {
+  background: linear-gradient(135deg, #ffe2e2 0%, #ffc9c9 100%);
+  border-color: #d84444; color: #7a0e0e;
+}
+.distinguishing.dist-has-danger summary:hover { background: #ffb5b5; }
+.dist-intro {
+  color: var(--gray-700); font-size: 0.82rem; line-height: 1.45;
+  margin: 0 2px 8px; font-style: italic;
+}
+.dist-list { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+.dist-item {
+  padding: 10px 12px; background: var(--paper);
+  border: 1px solid var(--gray-100);
+  border-left: 4px solid #4a9b8a;
+  border-radius: var(--radius-sm);
+}
+.dist-item.dist-danger { border-left-color: #d84444; background: #fff8f8; }
+.dist-head {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.dist-tag {
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em;
+  padding: 2px 8px; border-radius: 4px;
+  background: #e6f4f1; color: #1f4f45;
+}
+.dist-item.dist-danger .dist-tag { background: #ffe2e2; color: #7a0e0e; }
+.dist-cite {
+  color: #0a4f68; font-weight: 600;
+  text-decoration: none; border-bottom: 1px dashed #0a4f68;
+}
+.dist-cite:hover { color: #053444; border-bottom-style: solid; }
+.dist-reason { color: var(--black); line-height: 1.5; }
+
 /* ─── pre-mortem panel ("imagine the case is lost — why?") ──────
    A red-team block: 3-5 reasons the case could be LOST. Amber theme
    by default; red accent when at least one high-severity risk is

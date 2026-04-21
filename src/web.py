@@ -226,6 +226,7 @@ def api_get_case(case_id: str):
              "articles": m.articles, "precedents": m.precedents,
              "timeline": m.timeline, "comparison": m.comparison,
              "missing_facts": m.missing_facts, "premortem": m.premortem,
+             "distinguishing": m.distinguishing,
              "created_at": m.created_at}
             for m in messages
         ],
@@ -312,6 +313,7 @@ def api_export_case(case_id: str):
                  "articles": m.articles, "precedents": m.precedents,
                  "timeline": m.timeline, "comparison": m.comparison,
                  "missing_facts": m.missing_facts, "premortem": m.premortem,
+                 "distinguishing": m.distinguishing,
                  "created_at": m.created_at}
                 for m in messages
             ],
@@ -532,11 +534,13 @@ def api_ask():
     comparison_payload = _comparison_payload(result.comparison)
     missing_facts_payload = _missing_facts_payload(result.missing_facts)
     premortem_payload = _premortem_payload(result.premortem)
+    distinguishing_payload = _distinguishing_payload(result.distinguishing)
     storage.add_message(case.id, "assistant", result.text,
                         kind=result.kind, articles=articles, precedents=precedents,
                         timeline=timeline_payload, comparison=comparison_payload,
                         missing_facts=missing_facts_payload,
-                        premortem=premortem_payload)
+                        premortem=premortem_payload,
+                        distinguishing=distinguishing_payload)
     if result.session_id:
         storage.update_case_claude_session(case.id, user.id, result.session_id)
 
@@ -556,6 +560,7 @@ def api_ask():
         "comparison": comparison_payload,
         "missing_facts": missing_facts_payload,
         "premortem": premortem_payload,
+        "distinguishing": distinguishing_payload,
         "case_id": case.id,
     })
 
@@ -637,6 +642,13 @@ def _premortem_payload(pm) -> dict | None:
     if pm is None or pm.is_empty():
         return None
     return {"risks": [asdict(r) for r in pm.risks]}
+
+
+def _distinguishing_payload(d) -> dict | None:
+    """Serialise DistinguishingAnalysis for the UI. None when empty."""
+    if d is None or d.is_empty():
+        return None
+    return {"items": [asdict(i) for i in d.items]}
 
 
 def _precedent_payload(c, score: float) -> dict:
