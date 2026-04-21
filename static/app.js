@@ -134,6 +134,7 @@
         nullity_radar: m.nullity_radar || null,
         urgency_radar: m.urgency_radar || null,
         action_plan: m.action_plan || null,
+        contradictions: m.contradictions || null,
       });
     }
     renderDossier(c.documents || []);
@@ -615,6 +616,16 @@
     const evidenceMap = data.evidence_map;
     if (evidenceMap && (evidenceMap.claims || []).length) {
       msgEl.insertBefore(renderEvidenceMap(evidenceMap), null);
+    }
+
+    // Contradictions — inter-document inconsistencies (dates, amounts,
+    // parties, signatures, narrative). Rendered after evidence_map so
+    // the citizen has the proof frame before seeing where the proofs
+    // contradict each other. Only appears when ≥1 contradiction found;
+    // a single-doc dossier never triggers the stage.
+    const contradictions = data.contradictions;
+    if (contradictions && (contradictions.items || []).length) {
+      msgEl.insertBefore(renderContradictions(contradictions), null);
     }
 
     // Nullity + deadline radar — procedural levers: nullities,
@@ -1127,6 +1138,82 @@
       <summary>${summary}</summary>
       <div class="ap-intro">Ky është plani i konsoliduar — të gjitha veprimet nga analizat paraprake, të grupuara sipas kohës. Filloji nga lart.</div>
       ${sections}
+    `;
+    return wrap;
+  }
+
+  // ─── render contradictions (cross-document inconsistencies) ────
+  function renderContradictions(cr) {
+    const wrap = document.createElement("details");
+    const items = cr.items || [];
+    const hasHigh = items.some((c) => c.severity === "high");
+    wrap.className = "contradictions" + (hasHigh ? " ct-has-high" : "");
+    // Open by default when we have a high-severity contradiction —
+    // those are the strategic levers the citizen can't afford to miss.
+    wrap.open = hasHigh;
+
+    const kindIcon = {
+      date: "📅",
+      amount: "💰",
+      party: "👤",
+      signature: "✍️",
+      narrative: "📖",
+      procedure: "⚙️",
+      other: "❓",
+    };
+    const kindLabel = {
+      date: "Datë",
+      amount: "Shumë",
+      party: "Palë",
+      signature: "Nënshkrim",
+      narrative: "Narrativë",
+      procedure: "Procedurë",
+      other: "Tjetër",
+    };
+    const sevIcon = { high: "🔴", medium: "🟡", low: "🟢" };
+    const sevLabel = { high: "I LARTË", medium: "MESATAR", low: "I ULËT" };
+
+    const liHtml = items.map((c, i) => {
+      const kind = c.kind || "other";
+      const kIcon = kindIcon[kind] || "❓";
+      const kLab = kindLabel[kind] || kind;
+      const sev = c.severity || "medium";
+      const cv = c.conflicting_values || {};
+      const cvRows = Object.entries(cv).map(([doc, val]) => `
+        <div class="ct-cv-row">
+          <span class="ct-cv-doc">${escapeHtml(doc)}</span>
+          <span class="ct-cv-val">«${escapeHtml(val)}»</span>
+        </div>
+      `).join("");
+      const refs = (c.doc_refs || []).map((d) =>
+        `<span class="ct-doc-ref">${escapeHtml(d)}</span>`
+      ).join("");
+      const impl = c.implication
+        ? `<div class="ct-impl"><strong>▶ Implikim:</strong> ${escapeHtml(c.implication)}</div>`
+        : "";
+      return `
+        <li class="ct-item ct-kind-${escapeHtml(kind)} ct-sev-${escapeHtml(sev)}">
+          <div class="ct-head">
+            <span class="ct-num">${i + 1}</span>
+            <span class="ct-kind-tag">${kIcon} ${escapeHtml(kLab)}</span>
+            <span class="ct-sev-tag ct-sev-tag-${escapeHtml(sev)}">${sevIcon[sev] || "🟡"} ${sevLabel[sev] || "MESATAR"}</span>
+          </div>
+          <div class="ct-desc">${escapeHtml(c.description || "")}</div>
+          ${refs ? `<div class="ct-refs">${refs}</div>` : ""}
+          ${cvRows ? `<div class="ct-cv">${cvRows}</div>` : ""}
+          ${impl}
+        </li>
+      `;
+    }).join("");
+
+    const label = hasHigh
+      ? `⚖️ ${items.length} kontradikta në dosje — ${items.filter(c => c.severity === "high").length} e lartë`
+      : `⚖️ ${items.length} kontradikta në dosje`;
+
+    wrap.innerHTML = `
+      <summary>${label}</summary>
+      <div class="ct-intro">Këto janë mospërputhjet mes dokumenteve të dosjes. Një avokat i mirë i përdor si levë — dyshim për besueshmëri, shkak për pavlefshmëri, bazë për negocim.</div>
+      <ul class="ct-list">${liHtml}</ul>
     `;
     return wrap;
   }

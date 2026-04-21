@@ -230,6 +230,7 @@ def api_get_case(case_id: str):
              "nullity_radar": m.nullity_radar,
              "urgency_radar": m.urgency_radar,
              "action_plan": m.action_plan,
+             "contradictions": m.contradictions,
              "created_at": m.created_at}
             for m in messages
         ],
@@ -320,6 +321,7 @@ def api_export_case(case_id: str):
                  "nullity_radar": m.nullity_radar,
                  "urgency_radar": m.urgency_radar,
                  "action_plan": m.action_plan,
+                 "contradictions": m.contradictions,
                  "created_at": m.created_at}
                 for m in messages
             ],
@@ -545,6 +547,7 @@ def api_ask():
     nullity_radar_payload = _nullity_radar_payload(result.nullity_radar)
     urgency_radar_payload = _urgency_radar_payload(result.urgency_radar)
     action_plan_payload = _action_plan_payload(result.action_plan)
+    contradictions_payload = _contradictions_payload(result.contradictions)
     storage.add_message(case.id, "assistant", result.text,
                         kind=result.kind, articles=articles, precedents=precedents,
                         timeline=timeline_payload, comparison=comparison_payload,
@@ -554,7 +557,8 @@ def api_ask():
                         evidence_map=evidence_map_payload,
                         nullity_radar=nullity_radar_payload,
                         urgency_radar=urgency_radar_payload,
-                        action_plan=action_plan_payload)
+                        action_plan=action_plan_payload,
+                        contradictions=contradictions_payload)
     if result.session_id:
         storage.update_case_claude_session(case.id, user.id, result.session_id)
 
@@ -579,6 +583,7 @@ def api_ask():
         "nullity_radar": nullity_radar_payload,
         "urgency_radar": urgency_radar_payload,
         "action_plan": action_plan_payload,
+        "contradictions": contradictions_payload,
         "case_id": case.id,
     })
 
@@ -701,6 +706,14 @@ def _action_plan_payload(ap) -> dict | None:
     if ap is None or ap.is_empty():
         return None
     return {"items": [asdict(it) for it in ap.items]}
+
+
+def _contradictions_payload(cr) -> dict | None:
+    """Serialise ContradictionReport for the UI. None when empty — a
+    single-document dossier or a clean dossier doesn't render a panel."""
+    if cr is None or cr.is_empty():
+        return None
+    return {"items": [asdict(c) for c in cr.items]}
 
 
 def _precedent_payload(c, score: float) -> dict:

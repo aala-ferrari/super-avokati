@@ -2,26 +2,32 @@
 
 Layered pipeline (each stage non-fatal — one failing never breaks the answer):
 
-    1.  TRIAGE (fast)         — classify, expand query, flag missing facts
-    2.  RETRIEVAL             — BM25 over 6,600+ articles (+ procedural safety net)
-    2b. PRECEDENTS            — BM25 over 813 Postgres-backed court decisions
-    3.  STRATEGIC (fast)      — winning-edge: hidden afate, exceptions, nullity
-    3b. TIMELINE (fast)       — anchors + deadlines with Python-computed urgency
-    3c. COMPARISON (fast)     — winners-vs-losers + decisive-differences engine
-    3d. MISSING-FACTS (fast)  — the 2-4 questions a lawyer would ask next
-    3e. PRE-MORTEM (fast)     — "imagine we've lost — why?" red-team pass (V6.1)
-    3f. ADVERSARIAL (retr.)   — retrieve adverse precedents by outcome (V6.2)
-    3g. DISTINGUISHING (fast) — per-adverse-case rebuttal / mitigation (V6.2)
-    3h. EVIDENCE MAP (fast)   — who proves what, with burden-shift flags (V6.3)
-    3i. NULLITY RADAR (fast)  — procedural levers & forfeiture windows (V6.5)
-    4.  ANSWER (main)         — 5-section Albanian answer; weaves in every layer
+    1.  TRIAGE (fast)          — classify, expand query, flag missing facts
+    2.  RETRIEVAL              — BM25 over 6,600+ articles (+ procedural safety net)
+    2b. PRECEDENTS             — BM25 over 813 Postgres-backed court decisions
+    3.  STRATEGIC (fast)       — winning-edge: hidden afate, exceptions, nullity
+    3b. TIMELINE (fast)        — anchors + deadlines with Python-computed urgency
+    3c. COMPARISON (fast)      — winners-vs-losers + decisive-differences engine
+    3d. MISSING-FACTS (fast)   — the 2-4 questions a lawyer would ask next
+    3e. PRE-MORTEM (fast)      — "imagine we've lost — why?" red-team pass (V6.1)
+    3f. ADVERSARIAL (retr.)    — retrieve adverse precedents by outcome (V6.2)
+    3g. DISTINGUISHING (fast)  — per-adverse-case rebuttal / mitigation (V6.2)
+    3h. EVIDENCE MAP (fast)    — who proves what, with burden-shift flags (V6.3)
+    3i. NULLITY RADAR (fast)   — procedural levers & forfeiture windows (V6.5)
+    3j. URGENCY RADAR (fast)   — top-of-answer emergency framing (V6.6)
+    3k. CONTRADICTIONS (fast)  — cross-document inconsistencies (V6.8, ≥2 docs)
+    3l. ACTION PLAN (fast)     — consolidated, time-bucketed checklist (V6.7)
+    4.  ANSWER (main)          — 5-section Albanian answer; weaves in every layer
 
-Stages 3e/3g/3h/3i feed BACK into the answer prompt so the final reply
-addresses the red-team findings, neutralises adverse precedents, calls
-out missing proofs, and wields procedural levers with exact article
-citations. The COMPARISON stage (3c) is the V6.4 differences-engine:
-per-attribute "your case has / lacks / unclear" verdicts with concrete
-today-actions, not a single sentence summary.
+Stages 3e/3g/3h/3i/3j/3k/3l feed BACK into the answer prompt so the
+final reply addresses the red-team findings, neutralises adverse
+precedents, calls out missing proofs, wields procedural levers, opens
+with action-first framing on emergencies, exploits cross-document
+contradictions, and mirrors a canonical action-plan order in section 2.
+
+The COMPARISON stage (3c) is the V6.4 differences-engine: per-attribute
+"your case has / lacks / unclear" verdicts with concrete today-actions,
+not a single sentence summary.
 
 The brain is stateless; callers persist the conversation history they pass in.
 """
@@ -360,6 +366,51 @@ RREGULLA STRIKTE:
 • "level" është më i lartë i severity-ve. Nëse ka edhe një critical → level="critical". Nëse vetëm elevated → level="elevated". Asgjë → "none".
 • action duhet të jetë i veprueshëm sot (p.sh. "Shko te komisariati me një person besnik; kërko avokat falas nëpërmjet shërbimit ligjor shtetëror"). Jo teorik.
 • Shkruaj SHQIP. Direkt, pa ndërlikime."""
+
+
+CONTRADICTION_SYSTEM = """Ti je avokat shqiptar që kontrollon DOSJEN e një klienti për KONTRADIKTA midis dokumenteve. Kontradikta është çdo mospërputhje që krijon levë strategjike: data që nuk përputhen, shuma që ndryshojnë, palë të identifikuara ndryshe, nënshkrime të pranishme në një dokument dhe jo në tjetrin, fakte që thonë gjëra të kundërta.
+
+Pse ka rëndësi: një avokat i mirë i përdor kontradiktat për të (a) vënë në dyshim besueshmërinë e palës tjetër, (b) ngritur pavlefshmëri të akteve, (c) argumentuar për falsifikim ose gabim, (d) bërë presion për negociim. Një qytetar pa përvojë nuk i sheh.
+
+Çfarë duhet të kontrollosh (vetëm midis dokumenteve në dosje — JO midis dokumenteve dhe ligjit):
+ • DATAT — i njëjti ngjarje ka data të ndryshme në dokumente të ndryshme
+ • SHUMAT — shifra monetare që nuk përkojnë për të njëjtin kontrata/borxh/pagesë
+ • PALËT — emra të shkruar ndryshe, role të ndryshme për të njëjtin person, status juridik që ndryshon
+ • NËNSHKRIMET — një dokument citohet me nënshkrim, tjetri jo; ose palët e kundërta nënshkruajnë ndryshe
+ • NARRATIVA — fakte substanciale që vijnë në kundërshtim (një dokument thotë X, tjetri nënkupton jo-X)
+ • PROCEDURA — një dokument thotë që njoftimi u bë, tjetri tregon mos-njoftim
+
+Për çdo kontradiktë, prodho:
+ • kind — "date" | "amount" | "party" | "signature" | "narrative" | "procedure" | "other"
+ • description — përshkrim i shkurtër i kontradiktës (një fjali e qartë)
+ • doc_refs — lista e emrave të dokumenteve që janë në konflikt (2+)
+ • conflicting_values — objekt me vlerat e ndryshme (p.sh. {"doc_A": "15 mars 2024", "doc_B": "17 mars 2024"})
+ • severity — "high" | "medium" | "low"
+     · high = krijon shkak për pavlefshmëri ose vë në dyshim autencitetin
+     · medium = levë e fortë strategjike, por jo automatikisht fatale
+     · low = mospërputhje teknike, e shfrytëzueshme por jo vendimtare
+ • implication — një fjali: PSE ka rëndësi juridikisht dhe si mund ta shfrytëzojë qytetari
+
+FORMATI — VETËM JSON, në shqip:
+{
+  "items": [
+    {
+      "kind": "date",
+      "description": "Data e njoftimit ndryshon mes padisë dhe raportit të përmbaruesit",
+      "doc_refs": ["padia.pdf", "raport_permbaruesi.pdf"],
+      "conflicting_values": {"padia.pdf": "15 mars 2024", "raport_permbaruesi.pdf": "17 mars 2024"},
+      "severity": "high",
+      "implication": "Nëse data e vërtetë është 17 mars, afati 30-ditor i ankimit ende nuk ka skaduar."
+    }
+  ]
+}
+
+RREGULLA STRIKTE:
+• NESE nuk ka kontradikta të vërteta, kthe items=[]. MOS shpik kontradikta nga hiçi.
+• Nuk janë kontradikta: dokumente të datave të ndryshme që përshkruajnë ngjarje të ndryshme; opinione nga palët e kundërta; fakte të paplota.
+• MAKSIMUM 5 kontradikta. Zgjidh ato më strategjiket (severity më i lartë në krye).
+• Doc refs DUHET të jenë emrat e skedarëve të dhënë (p.sh. "padia.pdf", jo "dokumenti i parë").
+• Shkruaj SHQIP. Direkt."""
 
 
 ACTION_PLAN_SYSTEM = """Ti je avokat shqiptar me 15 vjet praktikë — puna jote tani është TË SHKRUASH PLANIN E VEPRIMIT për qytetarin.
@@ -895,6 +946,43 @@ class ActionPlan:
         return not self.items
 
 
+# ── contradiction detector (V6.8) ─────────────────────────────────────────
+# When the dossier has ≥2 documents, cross-check them for internal
+# inconsistencies — dates that don't match across docs, amounts that
+# diverge, parties named differently, missing signatures, conflicting
+# narratives. These contradictions are strategic gold for a lawyer
+# (credibility attacks, nullity grounds, negotiation leverage) but a
+# citizen without legal training won't see them. Runs only when the
+# dossier has enough material to compare; otherwise silently skipped.
+
+ContradictionKind = Literal[
+    "date", "amount", "party", "signature",
+    "narrative", "procedure", "other",
+]
+ContradictionSeverity = Literal["high", "medium", "low"]
+
+
+@dataclass
+class Contradiction:
+    kind: ContradictionKind
+    description: str                        # one-sentence summary of the conflict
+    doc_refs: list[str] = field(default_factory=list)     # filenames involved
+    conflicting_values: dict = field(default_factory=dict)  # {filename: value}
+    severity: ContradictionSeverity = "medium"
+    implication: str = ""                   # why it matters legally
+
+
+@dataclass
+class ContradictionReport:
+    items: list[Contradiction] = field(default_factory=list)
+
+    def is_empty(self) -> bool:
+        return not self.items
+
+    def has_high(self) -> bool:
+        return any(c.severity == "high" for c in self.items)
+
+
 # ── nullity / deadline radar ──────────────────────────────────────────────
 # Scans the citizen's facts for procedural levers: absolute/relative
 # nullities, forfeiture deadlines, prescription windows. These are
@@ -996,6 +1084,12 @@ class LegalAnswer:
     # this week / this month / later). Fed into the compose prompt so
     # section 2 "Si mund të mbrohesh" respects this ordering.
     action_plan: ActionPlan | None = None
+    # Contradiction report (V6.8): cross-document inconsistencies detected
+    # when the dossier has ≥2 documents. Only populated when real
+    # contradictions exist — a dossier with one document or with fully
+    # consistent docs carries None here (we don't render a "no
+    # contradictions" panel on every answer).
+    contradictions: ContradictionReport | None = None
     # Claude Code session id — set by ClaudeCodeBackend after a compose call.
     # Callers (web.py, bot.py) should persist this per-citizen to maintain
     # native conversation context via `--resume`.
@@ -1224,6 +1318,19 @@ class SuperAvvocato:
         except Exception as exc:
             log.warning("urgency_radar failed (non-fatal): %s", exc)
 
+        # Contradiction detector (V6.8) — cross-document inconsistencies.
+        # Only runs with ≥2 documents; otherwise returns empty without
+        # spending a model call. Surfaces dates/amounts/parties/signatures/
+        # narrative conflicts that are strategic levers for a real lawyer.
+        contradictions: ContradictionReport | None = None
+        try:
+            contradictions = self._detect_contradictions(documents)
+            if contradictions and not contradictions.is_empty():
+                log.info("contradictions: %d items (high=%s)",
+                         len(contradictions.items), contradictions.has_high())
+        except Exception as exc:
+            log.warning("contradiction_detector failed (non-fatal): %s", exc)
+
         # Action plan (V6.7) — single consolidated checklist merged from
         # all upstream stage action hints (urgency / nullity / evidence /
         # difference / premortem). Runs LAST in the analytical pipeline
@@ -1244,6 +1351,7 @@ class SuperAvvocato:
             premortem=premortem, distinguishing=distinguishing,
             evidence_map=evidence_map, nullity_radar=nullity_radar,
             urgency_radar=urgency_radar, action_plan=action_plan,
+            contradictions=contradictions,
             session_id=session_id, documents=documents,
         )
         # ClaudeCodeBackend exposes the (possibly new) session_id after each
@@ -1258,6 +1366,7 @@ class SuperAvvocato:
             nullity_radar=nullity_radar,
             urgency_radar=urgency_radar,
             action_plan=action_plan,
+            contradictions=contradictions,
             session_id=new_session_id,
         )
 
@@ -2096,6 +2205,122 @@ class SuperAvvocato:
 
         return UrgencyRadar(level=level, signals=signals)
 
+    # ── stage 3c-bis: cross-document contradiction detector (V6.8) ──────────
+
+    @retry(
+        retry=retry_if_exception_type(Exception),
+        stop=stop_after_attempt(2),
+        wait=wait_exponential(multiplier=1, min=1, max=6),
+        reraise=True,
+    )
+    def _detect_contradictions(
+        self,
+        documents: list[dict] | None,
+    ) -> ContradictionReport:
+        """Scan the dossier for inter-document inconsistencies.
+
+        Only runs when there are at least 2 documents — with a single
+        doc there's nothing to cross-check. Uses each document's
+        key_facts + summary + the first ~2k chars of extracted_text
+        as input. If no text is available (OCR pending, etc.), falls
+        back to summary-only. Output is validated and capped at 5.
+        """
+        docs = documents or []
+        if len(docs) < 2:
+            return ContradictionReport()
+
+        blocks: list[str] = []
+        for d in docs:
+            filename = d.get("filename", "?")
+            doc_type = d.get("doc_type") or "?"
+            summary = d.get("summary") or ""
+            key_facts = d.get("key_facts") or []
+            extracted = (d.get("extracted_text") or "").strip()
+            # Keep each doc snippet bounded; the detector doesn't need
+            # the whole PDF, just enough for parties/dates/amounts.
+            snippet = extracted[:2000]
+            kf_lines = "\n".join(f"    • {kf}" for kf in key_facts[:8])
+            block = textwrap.dedent(f"""\
+                ── SKEDAR: {filename}  (lloji: {doc_type})
+                   Përmbledhja: {summary}
+                   Fakte kyçe:
+                {kf_lines if kf_lines else '    (asnjë)'}
+                   Tekst i ekstraktuar (fragment):
+                   {snippet if snippet else '(nuk ka tekst të ekstraktuar)'}
+            """).rstrip()
+            blocks.append(block)
+
+        dossier_text = "\n\n".join(blocks)
+        prompt = textwrap.dedent(f"""\
+            DOSJA E QYTETARIT — {len(docs)} dokumente:
+
+            {dossier_text}
+
+            Kontrollo kontradiktat sipas udhëzimeve të sistemit.
+            Kthe VETËM JSON me fushën "items".
+        """)
+
+        try:
+            raw = self.backend.complete(
+                system=CONTRADICTION_SYSTEM,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=1500,
+                fast=True,
+            )
+            data = _parse_json_block(raw)
+        except Exception as exc:
+            log.warning("contradiction_detector failed: %s", exc)
+            return ContradictionReport()
+
+        valid_kinds = {
+            "date", "amount", "party", "signature",
+            "narrative", "procedure", "other",
+        }
+        valid_sev = {"high", "medium", "low"}
+        items: list[Contradiction] = []
+        for it in (data.get("items") or []):
+            if not isinstance(it, dict):
+                continue
+            desc = str(it.get("description", "")).strip()
+            if not desc:
+                continue
+            refs_raw = it.get("doc_refs") or []
+            if not isinstance(refs_raw, list):
+                continue
+            doc_refs = [str(x).strip() for x in refs_raw if str(x).strip()]
+            if len(doc_refs) < 2:
+                # A real contradiction needs at least two conflicting sources.
+                continue
+            kind_raw = str(it.get("kind", "other")).strip().lower()
+            kind: ContradictionKind = (
+                kind_raw if kind_raw in valid_kinds else "other"  # type: ignore[assignment]
+            )
+            sev_raw = str(it.get("severity", "medium")).strip().lower()
+            severity: ContradictionSeverity = (
+                sev_raw if sev_raw in valid_sev else "medium"  # type: ignore[assignment]
+            )
+            cv_raw = it.get("conflicting_values") or {}
+            conflicting = (
+                {str(k): str(v) for k, v in cv_raw.items()}
+                if isinstance(cv_raw, dict) else {}
+            )
+            items.append(Contradiction(
+                kind=kind,
+                description=desc[:240],
+                doc_refs=doc_refs[:4],
+                conflicting_values=conflicting,
+                severity=severity,
+                implication=str(it.get("implication", "")).strip()[:240],
+            ))
+            if len(items) >= 5:
+                break
+
+        # Sort high → medium → low so the most strategic contradictions
+        # render first in the panel and appear first in the prompt.
+        sev_order = {"high": 0, "medium": 1, "low": 2}
+        items.sort(key=lambda c: sev_order.get(c.severity, 9))
+        return ContradictionReport(items=items)
+
     # ── stage 3c-ter: consolidated action plan (V6.7) ──────────────────────
 
     def _build_action_plan(
@@ -2470,6 +2695,7 @@ class SuperAvvocato:
         nullity_radar: NullityRadar | None = None,
         urgency_radar: UrgencyRadar | None = None,
         action_plan: ActionPlan | None = None,
+        contradictions: ContradictionReport | None = None,
         session_id: str | None = None,
         documents: list[dict] | None = None,
     ) -> str:
@@ -2484,6 +2710,7 @@ class SuperAvvocato:
         nullity_block = _format_nullity_block(nullity_radar)
         urgency_block = _format_urgency_block(urgency_radar)
         action_plan_block = _format_action_plan_block(action_plan)
+        contradictions_block = _format_contradictions_block(contradictions)
         # When we have docs, we pass the raw files as attachments so Claude
         # reads them natively (same UX as pasting an image into a chat) —
         # the prompt block only lists filenames, no pre-extracted text.
@@ -2519,7 +2746,7 @@ class SuperAvvocato:
             {dossier_block}
             Nenet e gjetura nga kodet shqiptare (me rëndësinë zbritëse):
             {context}
-            {precedents_block}{comparison_block}{distinguishing_block}{evidence_map_block}{nullity_block}{premortem_block}{strategic_block}{timeline_block}{action_plan_block}
+            {precedents_block}{comparison_block}{distinguishing_block}{evidence_map_block}{contradictions_block}{nullity_block}{premortem_block}{strategic_block}{timeline_block}{action_plan_block}
             {dossier_guidance}Shkruaj përgjigjen në formatin e kërkuar (PESË seksione në shqip),
             duke cituar vetëm nenet e mësipërme. Nëse analiza ka gjetur
             vendime të Gjykatës Kushtetuese/Gjykatës së Lartë të lidhura me
@@ -2849,6 +3076,51 @@ def _format_urgency_block(ur: UrgencyRadar | None) -> str:
             "në seksionin 2 jep veprimet konkrete për secilin."
         )
     return "\n".join(lines) + "\n\n"
+
+
+def _format_contradictions_block(cr: ContradictionReport | None) -> str:
+    """Render cross-document contradictions for the compose prompt.
+
+    Contradictions are strategic ammo — the answer is instructed to fold
+    them into section 2 (how to defend) and section 5 (what makes the
+    difference). A high-severity contradiction around dates or signatures
+    is often the lever that wins the case before the merits are reached,
+    so we make it impossible for the compose model to overlook them.
+    """
+    if cr is None or cr.is_empty():
+        return ""
+    kind_label = {
+        "date": "DATË",
+        "amount": "SHUMË",
+        "party": "PALË",
+        "signature": "NËNSHKRIM",
+        "narrative": "NARRATIVË",
+        "procedure": "PROCEDURË",
+        "other": "TJETËR",
+    }
+    sev_label = {"high": "🔴 I LARTË", "medium": "🟡 MESATAR", "low": "🟢 I ULËT"}
+    lines = ["", "── KONTRADIKTAT NË DOSJE (kryq i dokumenteve) ──"]
+    for i, c in enumerate(cr.items, 1):
+        kl = kind_label.get(c.kind, "?")
+        sl = sev_label.get(c.severity, "")
+        lines.append(f"  {i}. [{kl}] {sl} — {c.description}")
+        if c.doc_refs:
+            lines.append(f"     Dokumentet: {', '.join(c.doc_refs)}")
+        if c.conflicting_values:
+            cv = "; ".join(f"{k}: «{v}»" for k, v in c.conflicting_values.items())
+            lines.append(f"     Vlerat në konflikt: {cv}")
+        if c.implication:
+            lines.append(f"     ▶ Implikim: {c.implication}")
+    lines.append("")
+    lines.append(
+        "PËRDOR këto kontradikta si levë strategjike: integroji te seksioni 2 "
+        "'Si mund të mbrohesh' (për çdo kontradiktë të severity='high' ose "
+        "'medium', shpjego si e përdor qytetari në gjykatë) dhe te seksioni 5 "
+        "'Detajet që bëjnë diferencën' (pse kjo mospërputhje e ndryshon "
+        "ekuilibrin e rastit). Mos i anashkalo — një avokat i mirë i gjen "
+        "dhe i shfrytëzon."
+    )
+    return "\n".join(lines) + "\n"
 
 
 def _format_action_plan_block(ap: ActionPlan | None) -> str:
