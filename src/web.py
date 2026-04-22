@@ -37,7 +37,7 @@ from .auth import (
     login_user, logout_user,
 )
 from .backends import detect_available_backend
-from .brain import SuperAvvocato
+from .brain import ANSWER_SYSTEM_VERSION, SuperAvvocato
 from .config import (
     APP_DB_PATH,
     LEGAL_DOCUMENTS,
@@ -479,6 +479,18 @@ def api_ask():
     if case is None:
         return jsonify({"error": "case not found"}), 404
 
+    # ANSWER_SYSTEM versioning (V6.9): Claude Code's `--resume` keeps the
+    # session's baked-in system prompt, so a case that was started under
+    # an older brain would keep using it even after we ship a new one.
+    # If the fingerprint doesn't match, we null the session_id here so
+    # the next compose starts fresh with the current system prompt. The
+    # new fingerprint is written only after the fresh session succeeds.
+    if storage.invalidate_case_session_if_stale(
+        case.id, user.id, ANSWER_SYSTEM_VERSION,
+    ):
+        log.info("case %s: dropped stale Claude session (version mismatch)", case.id)
+        case.claude_session_id = None
+
     storage.add_message(case.id, "user", message)
     history = storage.conversation_history(case.id, MAX_CONVERSATION_TURNS)
     # Drop the trailing user turn we just added — SuperAvvocato.answer
@@ -561,6 +573,11 @@ def api_ask():
                         contradictions=contradictions_payload)
     if result.session_id:
         storage.update_case_claude_session(case.id, user.id, result.session_id)
+        # Record the fingerprint alongside the session so the next turn
+        # can detect drift if ANSWER_SYSTEM changes again.
+        storage.set_case_answer_system_version(
+            case.id, user.id, ANSWER_SYSTEM_VERSION,
+        )
 
     # Auto-title the case with the first user message if it's still default.
     if case.title in ("Rast i ri", "Rast pa titull"):

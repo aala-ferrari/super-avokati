@@ -129,6 +129,7 @@ def init_db(db_path: Path = APP_DB_PATH) -> None:
         _add_column_if_missing(conn, "messages", "urgency_radar_json", "TEXT")
         _add_column_if_missing(conn, "messages", "action_plan_json", "TEXT")
         _add_column_if_missing(conn, "messages", "contradictions_json", "TEXT")
+        _add_column_if_missing(conn, "cases", "answer_system_version", "TEXT")
         conn.commit()
     log.info("app db ready at %s", db_path)
 
@@ -174,6 +175,10 @@ class Case:
     claude_session_id: str | None
     created_at: str
     updated_at: str
+    # Fingerprint of the ANSWER_SYSTEM prompt used when this session was
+    # started. NULL on pre-V6.9 rows; callers treat NULL as "stale" so
+    # older cases invalidate their session on the next question.
+    answer_system_version: str | None = None
 
 
 @dataclass
@@ -204,9 +209,12 @@ def _user_from_row(r: sqlite3.Row) -> User:
 
 
 def _case_from_row(r: sqlite3.Row) -> Case:
+    keys = r.keys()
+    asv = r["answer_system_version"] if "answer_system_version" in keys else None
     return Case(id=r["id"], user_id=r["user_id"], title=r["title"],
                 claude_session_id=r["claude_session_id"],
-                created_at=r["created_at"], updated_at=r["updated_at"])
+                created_at=r["created_at"], updated_at=r["updated_at"],
+                answer_system_version=asv)
 
 
 def _message_from_row(r: sqlite3.Row) -> Message:
@@ -365,6 +373,50 @@ def update_case_claude_session(case_id: str, user_id: int, session_id: str | Non
             "WHERE id = ? AND user_id = ?",
             (session_id, _utcnow(), case_id, user_id),
         )
+
+
+def set_case_answer_system_version(
+    case_id: str, user_id: int, version: str | None,
+) -> None:
+    """Record which ANSWER_SYSTEM fingerprint this case's session was
+    started under. Called right after a fresh session is created so we
+    can detect drift at the next turn and invalidate if needed."""
+    with db() as conn:
+        conn.execute(
+            "UPDATE cases SET answer_system_version = ?, updated_at = ? "
+            "WHERE id = ? AND user_id = ?",
+            (version, _utcnow(), case_id, user_id),
+        )
+
+
+def invalidate_case_session_if_stale(
+    case_id: str, user_id: int, current_version: str,
+) -> bool:
+    """Drop claude_session_id if the case's session was started under a
+    different ANSWER_SYSTEM fingerprint (or none at all). Returns True
+    when invalidation happened. The case's version is NOT updated here —
+    the next successful compose writes the new fingerprint, which keeps
+    invalidation and write-of-new-session transactional at the call
+    site instead of eagerly overwriting before we know the new session
+    took hold."""
+    with db() as conn:
+        row = conn.execute(
+            "SELECT claude_session_id, answer_system_version "
+            "FROM cases WHERE id = ? AND user_id = ?",
+            (case_id, user_id),
+        ).fetchone()
+        if not row:
+            return False
+        if row["claude_session_id"] is None:
+            return False
+        if row["answer_system_version"] == current_version:
+            return False
+        conn.execute(
+            "UPDATE cases SET claude_session_id = NULL, updated_at = ? "
+            "WHERE id = ? AND user_id = ?",
+            (_utcnow(), case_id, user_id),
+        )
+    return True
 
 
 def rename_case(case_id: str, user_id: int, new_title: str) -> bool:

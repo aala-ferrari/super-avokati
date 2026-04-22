@@ -33,6 +33,7 @@ The brain is stateless; callers persist the conversation history they pass in.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import textwrap
 from dataclasses import dataclass, field
@@ -667,6 +668,14 @@ Kur seksioni "VENDIME RELEVANTE TË GJYKATAVE" të paraqitet më poshtë, ato ja
 - Shënuesi shndërrohet automatikisht në një link që e çon qytetarin te fashikulli i plotë — kështu që MOS e shkruaj si URL dhe MOS e ndrysho formatin (saktësisht `[[case:NUMER]]`).
 - Cito vetëm ID-të që të janë dhënë më poshtë. Mos shpik ID-të.
 - Përdori precedentët për të përforcuar argumentin te seksioni 1 (ligji), seksioni 4 (afatet, nëse vendimi qartëson një afat) ose seksioni 5 (strategjia)."""
+
+
+# Short fingerprint of the answer system prompt. Claude Code's `--resume`
+# reuses the session's baked-in system prompt, so when we ship an updated
+# ANSWER_SYSTEM the old session keeps answering with the old instructions
+# unless we start a fresh session. Callers (web.py, bot.py) compare this
+# against the per-case stored version and drop the session on mismatch.
+ANSWER_SYSTEM_VERSION = hashlib.sha1(ANSWER_SYSTEM.encode("utf-8")).hexdigest()[:12]
 
 
 # ── data types ─────────────────────────────────────────────────────────────
