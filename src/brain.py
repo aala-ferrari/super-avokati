@@ -37,17 +37,20 @@ import hashlib
 import json
 import re
 import textwrap
+import time
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from pathlib import Path
-from typing import Literal
+from typing import Callable, Literal, TypeVar
 
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from .backends import LLMBackend, build_backend
 from .config import (
-    ALBANIAN_EDITOR_ENABLED, LEGAL_DOCUMENTS, TOP_K_ARTICLES, TOP_K_DECISIONS,
+    ALBANIAN_EDITOR_ENABLED, BRAIN_PARALLEL_STAGES, BRAIN_PARALLEL_WORKERS,
+    LEGAL_DOCUMENTS, TOP_K_ARTICLES, TOP_K_DECISIONS,
 )
 from .documents import format_documents_for_prompt
 from .logging_utils import get_logger
@@ -1023,7 +1026,7 @@ class MissingFactsAnalysis:
 # deadline_hints, (c) a fast LLM pass over the citizen's fact pattern
 # for personal-emergency markers that the earlier stages don't catch.
 
-UrgencyLevel = Literal["critical", "elevated", "none"]
+RadarLevel = Literal["critical", "elevated", "none"]
 UrgencySeverity = Literal["critical", "elevated"]
 UrgencyKind = Literal[
     "arrest", "eviction", "dismissal", "violence", "custody",
@@ -1043,7 +1046,7 @@ class UrgencySignal:
 
 @dataclass
 class UrgencyRadar:
-    level: UrgencyLevel = "none"
+    level: RadarLevel = "none"
     signals: list[UrgencySignal] = field(default_factory=list)
 
     def is_empty(self) -> bool:
@@ -1268,6 +1271,57 @@ class SuperAvvocato:
             len(self.kb.cases),
         )
 
+    # ── stage orchestration helpers ────────────────────────────────────────
+
+    def _run_stages(
+        self,
+        plan: dict[str, Callable[[], object]],
+    ) -> dict[str, object | None]:
+        """Run independent analytical stages and return a name→result map.
+
+        Each stage is guarded by its own try/except: an exception in one
+        stage is logged and the slot becomes ``None`` — the pipeline never
+        breaks because one layer failed. When ``BRAIN_PARALLEL_STAGES`` is
+        on, stages run concurrently via a thread pool (subprocess and I/O
+        release the GIL, so this gives real wall-clock parallelism). We
+        also record per-stage timing so slow stages surface in ops logs.
+        """
+        results: dict[str, object | None] = {}
+        timings: dict[str, float] = {}
+
+        def _one(name: str, fn: Callable[[], object]) -> tuple[str, object | None, float]:
+            t0 = time.monotonic()
+            try:
+                out = fn()
+            except Exception as exc:
+                log.warning("%s failed (non-fatal): %s", name, exc)
+                out = None
+            return name, out, time.monotonic() - t0
+
+        if BRAIN_PARALLEL_STAGES and len(plan) > 1:
+            workers = min(BRAIN_PARALLEL_WORKERS, len(plan))
+            with ThreadPoolExecutor(max_workers=workers) as ex:
+                for name, out, dt in ex.map(lambda kv: _one(*kv), plan.items()):
+                    results[name] = out
+                    timings[name] = dt
+        else:
+            for name, fn in plan.items():
+                _, out, dt = _one(name, fn)
+                results[name] = out
+                timings[name] = dt
+
+        if timings:
+            # Single structured log line — easy to parse for latency audits.
+            stages_str = " ".join(f"{k}={v:.2f}s" for k, v in timings.items())
+            total = sum(timings.values())
+            slowest = max(timings.items(), key=lambda kv: kv[1])
+            log.info(
+                "stage_timings parallel=%s total=%.2fs slowest=%s@%.2fs | %s",
+                BRAIN_PARALLEL_STAGES and len(plan) > 1,
+                total, slowest[0], slowest[1], stages_str,
+            )
+        return results
+
     # ── public entrypoint ──────────────────────────────────────────────────
 
     def answer(
@@ -1325,7 +1379,12 @@ class SuperAvvocato:
         retrieved = self._retrieve(triage)
         log.info("retrieved %d articles", len(retrieved))
 
-        precedents = self._retrieve_precedents(triage)
+        # Hydrate (code, number) pairs from retrieved articles so the
+        # precedent retriever can score article-overlap bonuses —
+        # without this hint the overlap bonus in retrieval_kb is dead code.
+        cited_pairs = [(a.code, a.number) for a, _ in retrieved]
+
+        precedents = self._retrieve_precedents(triage, cited_pairs)
         log.info("retrieved %d precedents", len(precedents))
 
         # Adversarial retrieval: explicitly pull adverse precedents
@@ -1333,7 +1392,7 @@ class SuperAvvocato:
         # miss them when the top BM25 hits happen to all be wins. A
         # great lawyer studies the cases that went AGAINST them harder
         # than the ones that favour them — and so does this brain.
-        adverse_precedents = self._retrieve_adverse_precedents(triage)
+        adverse_precedents = self._retrieve_adverse_precedents(triage, cited_pairs)
         # Merge the adverse hits that weren't already in the mixed list
         # so the UI/prompt see the full picture.
         seen_ids = {c.id for c, _ in precedents}
@@ -1344,106 +1403,65 @@ class SuperAvvocato:
         log.info("adversarial: %d adverse precedents (merged list=%d)",
                  len(adverse_precedents), len(precedents))
 
-        # Strategic analysis — the winning-edge layer. Non-fatal if it fails.
-        strategic: StrategicAnalysis | None = None
-        try:
-            strategic = self._strategic_analysis(user_message, triage, retrieved)
+        # V7.2: the nine analytical stages below are independent — none
+        # feeds into another, all only depend on triage / retrieved /
+        # precedents / documents which are already computed. We run them
+        # concurrently via a thread pool so end-to-end latency drops from
+        # ~9×fast_call to ~1×fast_call + overhead. Each stage still has
+        # its own try/except so one failure never breaks the pipeline.
+        # Contradictions is included here too (depends only on documents).
+        # Urgency radar + action plan stay sequential after — they consume
+        # timeline / nullity_radar / evidence_map / comparison / etc.
+        stage_plan: dict[str, Callable[[], object]] = {
+            "strategic":       lambda: self._strategic_analysis(user_message, triage, retrieved),
+            "timeline":        lambda: self._analyze_timeline(user_message, triage, retrieved, documents),
+            "comparison":      lambda: self._compare_precedents(user_message, triage, precedents),
+            "missing_facts":   lambda: self._detect_missing_facts(user_message, triage, retrieved, documents),
+            "premortem":       lambda: self._premortem(user_message, triage, retrieved, precedents, documents),
+            "distinguishing":  lambda: self._distinguish_precedents(user_message, triage, adverse_precedents),
+            "evidence_map":    lambda: self._analyze_evidence_map(user_message, triage, retrieved, documents),
+            "nullity_radar":   lambda: self._scan_nullities(user_message, triage, retrieved, documents),
+            "contradictions":  lambda: self._detect_contradictions(documents),
+        }
+        stage_results = self._run_stages(stage_plan)
+        strategic: StrategicAnalysis | None = stage_results.get("strategic")
+        timeline: TimelineAnalysis | None = stage_results.get("timeline")
+        comparison: PrecedentComparison | None = stage_results.get("comparison")
+        missing_facts: MissingFactsAnalysis | None = stage_results.get("missing_facts")
+        premortem: Premortem | None = stage_results.get("premortem")
+        distinguishing: DistinguishingAnalysis | None = stage_results.get("distinguishing")
+        evidence_map: EvidenceMap | None = stage_results.get("evidence_map")
+        nullity_radar: NullityRadar | None = stage_results.get("nullity_radar")
+        contradictions: ContradictionReport | None = stage_results.get("contradictions")
+        if strategic is not None:
             log.info("strategic: %d details, %d warnings",
                      len(strategic.critical_details), len(strategic.risk_warnings))
-        except Exception as exc:
-            log.warning("strategic analysis failed (non-fatal): %s", exc)
-
-        # Timeline — anchors (past events that start deadlines running) +
-        # future cutoffs with urgency badges. Runs after retrieval so the
-        # extractor can cite real article numbers. Non-fatal: timeline loss
-        # must not block the primary answer.
-        timeline: TimelineAnalysis | None = None
-        try:
-            timeline = self._analyze_timeline(user_message, triage, retrieved, documents)
+        if timeline is not None:
             log.info("timeline: %d anchors, %d deadlines",
                      len(timeline.anchors), len(timeline.deadlines))
-        except Exception as exc:
-            log.warning("timeline analysis failed (non-fatal): %s", exc)
-
-        # Precedent comparison — only worth doing when we have signal on
-        # both sides (≥1 winning + ≥1 losing outcome). A one-sided set
-        # produces a pattern the LLM has to invent the other side of.
-        comparison: PrecedentComparison | None = None
-        try:
-            comparison = self._compare_precedents(user_message, triage, precedents)
-            if comparison and not comparison.is_empty():
-                log.info("comparison: alignment=%s, %d factors",
-                         comparison.citizen_alignment, len(comparison.decisive_factors))
-        except Exception as exc:
-            log.warning("comparison analysis failed (non-fatal): %s", exc)
-
-        # Missing-facts — "the 3 questions a lawyer would ask next." Runs
-        # independently; not fed into the answer prompt (it's post-hoc
-        # guidance that augments the answer, not a premise for it).
-        missing_facts: MissingFactsAnalysis | None = None
-        try:
-            missing_facts = self._detect_missing_facts(user_message, triage, retrieved, documents)
-            if missing_facts and not missing_facts.is_empty():
-                log.info("missing_facts: %d questions", len(missing_facts.facts))
-        except Exception as exc:
-            log.warning("missing-facts detector failed (non-fatal): %s", exc)
-
-        # Pre-mortem — "imagine the case is already lost; why?" This MUST
-        # run before compose because its output is fed back into the answer
-        # prompt. Forces the final reasoning to address identified weaknesses
-        # head-on instead of walking past them.
-        premortem: Premortem | None = None
-        try:
-            premortem = self._premortem(user_message, triage, retrieved, precedents, documents)
-            if premortem and not premortem.is_empty():
-                log.info("premortem: %d risks (severities=%s)",
-                         len(premortem.risks),
-                         [r.severity for r in premortem.risks])
-        except Exception as exc:
-            log.warning("premortem failed (non-fatal): %s", exc)
-
-        # Distinguishing — for each adverse precedent, write the lawyer's
-        # response: either a distinguishing reason (case doesn't apply
-        # because X) or a still-dangerous flag with mitigation. Fed back
-        # into the answer so section 5 addresses the adverse cites
-        # directly instead of flattering past them.
-        distinguishing: DistinguishingAnalysis | None = None
-        try:
-            distinguishing = self._distinguish_precedents(user_message, triage, adverse_precedents)
-            if distinguishing and not distinguishing.is_empty():
-                dangerous = sum(1 for i in distinguishing.items if i.still_dangerous)
-                log.info("distinguishing: %d items (%d still dangerous)",
-                         len(distinguishing.items), dangerous)
-        except Exception as exc:
-            log.warning("distinguishing failed (non-fatal): %s", exc)
-
-        # Evidence map — "what do we need to prove, with what, and who
-        # bears the burden?" Fed back so section 3 ("Çfarë duhet të
-        # bësh") becomes a concrete evidence-gathering checklist and
-        # section 5 can flag any burden-shift rules that flip the case.
-        evidence_map: EvidenceMap | None = None
-        try:
-            evidence_map = self._analyze_evidence_map(user_message, triage, retrieved, documents)
-            if evidence_map and not evidence_map.is_empty():
-                shifts = sum(1 for c in evidence_map.claims if c.burden_shift)
-                log.info("evidence_map: %d claims (%d with burden-shift)",
-                         len(evidence_map.claims), shifts)
-        except Exception as exc:
-            log.warning("evidence_map failed (non-fatal): %s", exc)
-
-        # Nullity + deadline radar — scan the fact pattern for procedural
-        # levers (nullities, forfeitures, prescription). Often the single
-        # highest-value finding in the whole answer: a procedural defect
-        # can dispose of the opponent's act without merits being reached.
-        nullity_radar: NullityRadar | None = None
-        try:
-            nullity_radar = self._scan_nullities(user_message, triage, retrieved, documents)
-            if nullity_radar and not nullity_radar.is_empty():
-                applicable = len(nullity_radar.applicable())
-                log.info("nullity_radar: %d findings (%d flagged applicable)",
-                         len(nullity_radar.findings), applicable)
-        except Exception as exc:
-            log.warning("nullity_radar failed (non-fatal): %s", exc)
+        if comparison is not None and not comparison.is_empty():
+            log.info("comparison: alignment=%s, %d factors",
+                     comparison.citizen_alignment, len(comparison.decisive_factors))
+        if missing_facts is not None and not missing_facts.is_empty():
+            log.info("missing_facts: %d questions", len(missing_facts.facts))
+        if premortem is not None and not premortem.is_empty():
+            log.info("premortem: %d risks (severities=%s)",
+                     len(premortem.risks), [r.severity for r in premortem.risks])
+        if distinguishing is not None and not distinguishing.is_empty():
+            dangerous = sum(1 for i in distinguishing.items if i.still_dangerous)
+            log.info("distinguishing: %d items (%d still dangerous)",
+                     len(distinguishing.items), dangerous)
+        if evidence_map is not None and not evidence_map.is_empty():
+            shifts = sum(1 for c in evidence_map.claims if c.burden_shift)
+            log.info("evidence_map: %d claims (%d with burden-shift)",
+                     len(evidence_map.claims), shifts)
+        if nullity_radar is not None and not nullity_radar.is_empty():
+            applicable = len(nullity_radar.applicable())
+            log.info("nullity_radar: %d findings (%d flagged applicable)",
+                     len(nullity_radar.findings), applicable)
+        if contradictions is not None and not contradictions.is_empty():
+            log.info("contradictions: %d items (high=%s)",
+                     len(contradictions.items), contradictions.has_high())
 
         # Urgency radar (V6.6) — "is this person in actual trouble right
         # now?" Aggregates critical signals from timeline + nullity_radar
@@ -1463,18 +1481,8 @@ class SuperAvvocato:
         except Exception as exc:
             log.warning("urgency_radar failed (non-fatal): %s", exc)
 
-        # Contradiction detector (V6.8) — cross-document inconsistencies.
-        # Only runs with ≥2 documents; otherwise returns empty without
-        # spending a model call. Surfaces dates/amounts/parties/signatures/
-        # narrative conflicts that are strategic levers for a real lawyer.
-        contradictions: ContradictionReport | None = None
-        try:
-            contradictions = self._detect_contradictions(documents)
-            if contradictions and not contradictions.is_empty():
-                log.info("contradictions: %d items (high=%s)",
-                         len(contradictions.items), contradictions.has_high())
-        except Exception as exc:
-            log.warning("contradiction_detector failed (non-fatal): %s", exc)
+        # (Contradiction detector ran above in the parallel stage batch —
+        # its result is already bound to `contradictions`.)
 
         # Action plan (V6.7+V6.9) — single consolidated checklist merged
         # from all upstream stage action hints (urgency / nullity /
@@ -1503,6 +1511,13 @@ class SuperAvvocato:
             contradictions=contradictions,
             session_id=session_id, documents=documents,
         )
+        # Citation verifier (V7.2): strip any [[case:ID]] marker in the
+        # final text whose ID is NOT in the retrieved precedent list — the
+        # model occasionally invents an ID that doesn't round-trip to a
+        # real DB row, which would render the link as broken UX *and* as
+        # a silently-fabricated cite. Runs before the editor so the editor
+        # doesn't try to preserve a marker we're about to remove.
+        answer_text = _verify_citations(answer_text, precedents)
         # Albanian editor pass (V7.0 Tappa 3): fast-model redaktor juridik
         # rewrites the answer for fluent shqipe standarde. Falls back to
         # the original on any drift in legal invariants — see
@@ -1618,7 +1633,11 @@ class SuperAvvocato:
 
     # ── stage 2b: precedents (court decisions) ────────────────────────────
 
-    def _retrieve_precedents(self, triage: TriageResult) -> list[tuple[CasePrecedent, float]]:
+    def _retrieve_precedents(
+        self,
+        triage: TriageResult,
+        cited_articles: list[tuple[str, str]] | None = None,
+    ) -> list[tuple[CasePrecedent, float]]:
         """Pull top-K court decisions from the V4 Postgres KB.
 
         The retriever ranks by BM25 over a composite text per case
@@ -1648,13 +1667,20 @@ class SuperAvvocato:
         case_type_hint = _area_to_case_type(triage.areas)
 
         if case_type_hint:
-            hits = self.kb.search(queries, top_k=TOP_K_DECISIONS, type=case_type_hint)
+            hits = self.kb.search(
+                queries, top_k=TOP_K_DECISIONS, type=case_type_hint,
+                cited_articles=cited_articles,
+            )
             if hits:
                 return hits
-        return self.kb.search(queries, top_k=TOP_K_DECISIONS)
+        return self.kb.search(
+            queries, top_k=TOP_K_DECISIONS, cited_articles=cited_articles,
+        )
 
     def _retrieve_adverse_precedents(
-        self, triage: TriageResult
+        self,
+        triage: TriageResult,
+        cited_articles: list[tuple[str, str]] | None = None,
     ) -> list[tuple[CasePrecedent, float]]:
         """Adversarial retrieval: top-K cases whose outcome goes AGAINST us.
 
@@ -1675,7 +1701,7 @@ class SuperAvvocato:
             if angle and angle not in queries:
                 queries.append(angle)
         case_type_hint = _area_to_case_type(triage.areas)
-        kwargs = dict(top_k=5, outcomes=_LOSING_OUTCOMES)
+        kwargs = dict(top_k=5, outcomes=_LOSING_OUTCOMES, cited_articles=cited_articles)
         if case_type_hint:
             hits = self.kb.search(queries, type=case_type_hint, **kwargs)
             if hits:
@@ -2364,7 +2390,7 @@ class SuperAvvocato:
         # (rollup + LLM). The LLM's reported level is used as a hint but
         # superseded by what we actually have.
         if any(s.severity == "critical" for s in signals):
-            level: UrgencyLevel = "critical"
+            level: RadarLevel = "critical"
         elif signals:
             level = "elevated"
         else:
@@ -3203,15 +3229,27 @@ def _apply_corrections(text: str) -> str:
 # verify after.
 _INVARIANT_PATTERNS: dict[str, re.Pattern[str]] = {
     "case_ids": re.compile(r"\[\[case:\d+\]\]"),
+    # "neni 37/a" is a common Albanian numbering style — the suffix can be
+    # a letter, not only a digit, so allow alphanumeric after the slash.
     "article_refs": re.compile(
-        r"\bnen(?:i|it|in|eve|e)?\s+\d+(?:[/-]\d+)?\b", re.IGNORECASE,
+        r"\bnen(?:i|it|in|eve|e)?\s+\d+(?:[/-][\w\d]+)?\b", re.IGNORECASE,
     ),
+    # Matches both orderings ("500 EUR" and "EUR 500"), optional
+    # magnitude modifiers ("mijë", "milion", "miliard"), and the
+    # singular/plural lek(ë), euro/dollarë variants. Overly-permissive by
+    # design: the multiset check compares exact strings, so more captures
+    # mean finer-grained drift detection.
     "currency": re.compile(
-        r"\b\d[\d.,]*\s*(?:EUR|USD|GBP|ALL|€|\$|£|lekë)\b", re.IGNORECASE,
+        r"(?:\b\d[\d.,]*\s*(?:mijë|milion|miliard)?\s*"
+        r"(?:EUR|USD|GBP|ALL|€|\$|£|lekë?|euro|dollarë?)\b|"
+        r"(?:EUR|USD|GBP|ALL|€|\$|£|euro|dollarë?)\s*\d[\d.,]*)",
+        re.IGNORECASE,
     ),
     "iso_dates": re.compile(r"\b\d{4}-\d{2}-\d{2}\b"),
     "slashed_dates": re.compile(r"\b\d{1,2}[/.]\d{1,2}[/.]\d{2,4}\b"),
-    "section_headings": re.compile(r"^##\s+\d+\.\s+\S+", re.MULTILINE),
+    # Capture the full heading line (including emoji and all text) so any
+    # drift in emoji choice, number, or wording is caught by the multiset.
+    "section_headings": re.compile(r"^##\s+\d+\.\s+.+$", re.MULTILINE),
 }
 
 # Classes where casing is stylistic and we don't want "Neni 130" vs
@@ -3241,6 +3279,50 @@ def _check_invariants(original: str, rewritten: str) -> tuple[bool, str]:
             extra = b[key] - a[key]
             return False, f"{key} drift missing={dict(missing)} extra={dict(extra)}"
     return True, "ok"
+
+
+_CASE_MARKER_RE = re.compile(r"\[\[case:(\d+)\]\]")
+
+
+def _verify_citations(
+    text: str,
+    precedents: list[tuple[CasePrecedent, float]],
+) -> str:
+    """Strip ``[[case:ID]]`` markers whose ID was never retrieved.
+
+    The compose prompt instructs the model to cite precedents only via
+    the ``[[case:ID]]`` marker that round-trips to a DB row. Occasionally
+    the model invents an ID that wasn't in the retrieval set — rendering
+    the link as broken UX and silently fabricating authority. We scan
+    the final text, keep every marker whose ID is in the retrieved set,
+    and remove the rest. The surrounding sentence is preserved (the
+    model's claim may still be legitimate even if the marker is bogus),
+    but the dangling ``[[case:X]]`` token is deleted.
+    """
+    if not text:
+        return text
+    allowed = {str(c.id) for c, _ in precedents}
+    removed: list[str] = []
+
+    def _repl(m: re.Match[str]) -> str:
+        cid = m.group(1)
+        if cid in allowed:
+            return m.group(0)
+        removed.append(cid)
+        return ""
+
+    cleaned = _CASE_MARKER_RE.sub(_repl, text)
+    # Collapse any double spaces we may have created where a marker was
+    # flanked by spaces on both sides.
+    if removed:
+        cleaned = re.sub(r" {2,}", " ", cleaned)
+        cleaned = re.sub(r" +([.,;:)])", r"\1", cleaned)
+        log.warning(
+            "citation_verifier: stripped %d fabricated case marker(s) %s "
+            "(retrieved=%d precedents)",
+            len(removed), removed, len(allowed),
+        )
+    return cleaned
 
 
 def _format_articles_for_prompt(pairs: list[tuple[Article, float]]) -> str:

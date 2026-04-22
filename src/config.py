@@ -93,6 +93,15 @@ MAX_CONVERSATION_TURNS = int(os.getenv("MAX_CONVERSATION_TURNS", "20"))
 # the deterministic word/phrase corrections (those are always on).
 ALBANIAN_EDITOR_ENABLED = os.getenv("ALBANIAN_EDITOR_ENABLED", "1") == "1"
 
+# V7.2: run the nine analytical stages (strategic, timeline, comparison,
+# missing_facts, premortem, distinguishing, evidence_map, nullity_radar,
+# contradictions) concurrently instead of sequentially. They are
+# independent (none feed into each other) so the latency drops roughly
+# from N×fast_call to max(fast_call)+overhead. Urgency radar and action
+# plan still run sequentially after because they consume the outputs.
+BRAIN_PARALLEL_STAGES = os.getenv("BRAIN_PARALLEL_STAGES", "1") == "1"
+BRAIN_PARALLEL_WORKERS = int(os.getenv("BRAIN_PARALLEL_WORKERS", "9"))
+
 for path in (RAW_DATA_PATH, PROCESSED_DATA_PATH, INDEX_PATH, LOG_PATH.parent,
              JURISPRUDENCE_PATH, UPLOAD_PATH):
     path.mkdir(parents=True, exist_ok=True)

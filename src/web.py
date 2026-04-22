@@ -578,6 +578,14 @@ def api_ask():
         storage.set_case_answer_system_version(
             case.id, user.id, ANSWER_SYSTEM_VERSION,
         )
+        # Audit trail: if the backend fell back from --resume to a fresh
+        # session, the conversational thread was lost and we now wrote a
+        # brand-new session id. Loud log so it shows up in ops.
+        if getattr(_BRAIN.backend, "last_resume_failed", False):
+            log.error(
+                "case %s: --resume lost, rebuilt as fresh session %s",
+                case.id, result.session_id,
+            )
 
     # Auto-title the case with the first user message if it's still default.
     if case.title in ("Rast i ri", "Rast pa titull"):

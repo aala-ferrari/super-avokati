@@ -43,6 +43,11 @@ Message = dict[str, str]  # {"role": "user"|"assistant", "content": "..."}
 class LLMBackend(ABC):
     name: str = "abstract"
     last_session_id: str | None = None  # set by session-aware backends
+    # Set True by a session-aware backend when a resume attempt fails and
+    # the call silently falls back to a fresh session. Callers should read
+    # this after complete() to know the conversational thread was lost —
+    # typically to invalidate the stale stored session_id.
+    last_resume_failed: bool = False
 
     @abstractmethod
     def complete(
@@ -113,6 +118,8 @@ class ClaudeCodeBackend(LLMBackend):
                  attachments: list[Path] | None = None) -> str:
         from .config import ROOT
 
+        # Reset per-call — only meaningful for the current complete().
+        self.last_resume_failed = False
         model = self.fast_model if fast else self.model
         cmd = [self.cli, "-p", "--output-format", "json", "--model", model]
 
@@ -175,13 +182,25 @@ class ClaudeCodeBackend(LLMBackend):
                 f"claude CLI timed out after {self.timeout_s}s"
             ) from exc
 
-        # If --resume failed (session evicted / wrong id), retry fresh once.
+        # If --resume failed (session evicted / wrong id), retry fresh once
+        # and flag the failure so the caller can invalidate the stale id.
+        # Logged at ERROR because the citizen loses conversational context —
+        # this is data loss, not a routine warning.
         if proc.returncode != 0 and session_id:
-            log.warning(
-                "claude --resume %s failed (rc=%d): %s — retrying fresh",
+            log.error(
+                "claude --resume %s failed (rc=%d): %s — retrying fresh, "
+                "conversational context lost",
                 session_id, proc.returncode, proc.stderr[-300:].strip(),
             )
-            return self.complete(system, messages, max_tokens, fast, session_id=None)
+            self.last_resume_failed = True
+            text = self.complete(
+                system, messages, max_tokens, fast, session_id=None,
+                attachments=attachments,
+            )
+            # The recursive call cleared the flag on entry; re-raise it so
+            # the caller sees the failure signal from the outer invocation.
+            self.last_resume_failed = True
+            return text
 
         if proc.returncode != 0:
             raise RuntimeError(
