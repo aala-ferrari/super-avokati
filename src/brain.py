@@ -827,6 +827,14 @@ RREGULLA:
 - Ji empatik — njerëzit që pyesin shpesh janë në situata të vështira, ndonjëherë kritike.
 - Seksioni 5 nuk duhet të jetë kurrë bosh — gjithmonë thuaji diçka strategjikisht të vlefshme.
 
+LIGJET E NDRYSHUESHME (SHËNIM "⚠ VOLATILE" / "ℹ" te blloku i nenit):
+- Nëse nenit që citon i shoqërohet shënimi "⚠ VOLATILE", SHTO pa dështuar një paragraf të shkurtër
+  te seksioni 3 ose 5 që e paralajmëron qytetarin: "Ky ligj ndryshon shpesh — para se të veprosh,
+  kontrollo versionin aktual në QBZ (qbz.gov.al)." Përmend datën e versionit të indeksuar.
+- Nëse shënimi është "ℹ Ligj i ndryshuar periodikisht", mjaftohu me një shprehje të shkurtër që
+  përmend datën e versionit të indeksuar te seksioni 4 (afatet) ose 5 (strategjia), pa alarmuar.
+- Për nenet pa shënim (STABLE), mos e përmend fare këtë aspekt.
+
 CITIM I VENDIMEVE (PRECEDENT):
 Kur seksioni "VENDIME RELEVANTE TË GJYKATAVE" të paraqitet më poshtë, ato janë precedent të vërtetë të indeksuar te baza jonë e të dhënave. Çdo vendim ka një shënues në formën `[[case:ID]]` (p.sh. `[[case:347]]`).
 - Kur referon një vendim në përgjigje, VENDOSE menjëherë shënuesin `[[case:ID]]` pas emrit të vendimit, p.sh.: "Gjykata e Lartë, vendim nr. 123/2024 [[case:347]] ka vendosur që...".
@@ -3653,10 +3661,27 @@ def _format_articles_for_prompt(pairs: list[tuple[Article, float]]) -> str:
     for a, score in pairs:
         hierarchy = " / ".join(x for x in (a.pjesa, a.kreu, a.seksioni) if x)
         hierarchy = f"  [{hierarchy}]\n" if hierarchy else ""
+        # V7.4 — surface volatility so the model can warn the user when it
+        # cites a statute that changes often (tax, consumer, bankruptcy).
+        volatility = getattr(a, "volatility", "STABLE") or "STABLE"
+        amended = getattr(a, "last_amendment_date", "") or ""
+        vol_note = ""
+        if volatility == "VOLATILE":
+            vol_note = (
+                f"  ⚠ VOLATILE — ligj i ndryshueshëm shpesh"
+                f"{f' (versioni i indeksuar: {amended})' if amended else ''}. "
+                f"Kontrollo QBZ për versionin aktual para se të veprosh.\n"
+            )
+        elif volatility == "MEDIUM":
+            vol_note = (
+                f"  ℹ Ligj i ndryshuar periodikisht"
+                f"{f' (versioni i indeksuar: {amended})' if amended else ''}.\n"
+            )
         blocks.append(
             f"── {a.citation} (score={score:.2f})\n"
             f"  Titulli: {a.heading}\n"
             f"{hierarchy}"
+            f"{vol_note}"
             f"  {a.body}"
         )
     return "\n\n".join(blocks)

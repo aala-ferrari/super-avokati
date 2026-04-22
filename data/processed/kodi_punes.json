@@ -9,7 +9,9 @@
     "pjesa": "",
     "kreu": "KREU I",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -21,7 +23,9 @@
     "pjesa": "",
     "kreu": "KREU I — Neni1",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -33,7 +37,9 @@
     "pjesa": "",
     "kreu": "KREU II — A. NË HAPËSIRË",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -45,7 +51,9 @@
     "pjesa": "",
     "kreu": "KREU II — A. NË HAPËSIRË",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -57,7 +65,9 @@
     "pjesa": "",
     "kreu": "KREU II — A. NË HAPËSIRË",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -69,7 +79,9 @@
     "pjesa": "",
     "kreu": "KREU II — A. NË HAPËSIRË",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -81,7 +93,9 @@
     "pjesa": "",
     "kreu": "KREU II — A. NË HAPËSIRË",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -93,7 +107,9 @@
     "pjesa": "",
     "kreu": "KREU II — A. NË HAPËSIRË",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -105,7 +121,9 @@
     "pjesa": "",
     "kreu": "KREU III — A. NDALIMI I PUNËS SË DETYRUAR",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -117,7 +135,9 @@
     "pjesa": "",
     "kreu": "KREU III — A. NDALIMI I PUNËS SË DETYRUAR",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -129,7 +149,9 @@
     "pjesa": "",
     "kreu": "KREU III — A. NDALIMI I PUNËS SË DETYRUAR",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -141,7 +163,9 @@
     "pjesa": "",
     "kreu": "KREU III — A. NDALIMI I PUNËS SË DETYRUAR",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -153,7 +177,9 @@
     "pjesa": "",
     "kreu": "KREU IV",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -165,7 +191,9 @@
     "pjesa": "",
     "kreu": "KREU IV — Neni11",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -177,7 +205,9 @@
     "pjesa": "",
     "kreu": "KREU V — A. PËRKUFIZIM",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -189,7 +219,9 @@
     "pjesa": "",
     "kreu": "KREU V — A. PËRKUFIZIM",
     "seksioni": "",
-    "repealed": true
+    "repealed": true,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -201,7 +233,9 @@
     "pjesa": "",
     "kreu": "KREU V — A. PËRKUFIZIM",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -213,7 +247,9 @@
     "pjesa": "",
     "kreu": "KREU V — A. PËRKUFIZIM",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -225,7 +261,9 @@
     "pjesa": "",
     "kreu": "KREU V — A. PËRKUFIZIM",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -237,7 +275,9 @@
     "pjesa": "",
     "kreu": "KREU V — A. PËRKUFIZIM",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -249,7 +289,9 @@
     "pjesa": "",
     "kreu": "KREU V — A. PËRKUFIZIM",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -261,7 +303,9 @@
     "pjesa": "",
     "kreu": "KREU V — A. PËRKUFIZIM",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -273,7 +317,9 @@
     "pjesa": "",
     "kreu": "KREU V — A. PËRKUFIZIM",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -285,7 +331,9 @@
     "pjesa": "",
     "kreu": "KREU V — A. PËRKUFIZIM",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -297,7 +345,9 @@
     "pjesa": "",
     "kreu": "KREU V — A. PËRKUFIZIM",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -309,7 +359,9 @@
     "pjesa": "",
     "kreu": "KREU V — A. PËRKUFIZIM",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -321,7 +373,9 @@
     "pjesa": "",
     "kreu": "KREU V — A. PËRKUFIZIM",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -333,7 +387,9 @@
     "pjesa": "",
     "kreu": "KREU V — A. PËRKUFIZIM",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -345,7 +401,9 @@
     "pjesa": "",
     "kreu": "KREU V — A. PËRKUFIZIM",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -357,7 +415,9 @@
     "pjesa": "",
     "kreu": "KREU VI — KRYERJA E PUNËSPERSONALISHT",
     "seksioni": "",
-    "repealed": true
+    "repealed": true,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -369,7 +429,9 @@
     "pjesa": "",
     "kreu": "KREU VI — KRYERJA E PUNËSPERSONALISHT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -381,7 +443,9 @@
     "pjesa": "",
     "kreu": "KREU VI — KRYERJA E PUNËSPERSONALISHT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -393,7 +457,9 @@
     "pjesa": "",
     "kreu": "KREU VI — KRYERJA E PUNËSPERSONALISHT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -405,7 +471,9 @@
     "pjesa": "",
     "kreu": "KREU VI — KRYERJA E PUNËSPERSONALISHT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -417,7 +485,9 @@
     "pjesa": "",
     "kreu": "KREU VI — KRYERJA E PUNËSPERSONALISHT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -429,7 +499,9 @@
     "pjesa": "",
     "kreu": "KREU VI — KRYERJA E PUNËSPERSONALISHT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -441,7 +513,9 @@
     "pjesa": "",
     "kreu": "KREU VI — KRYERJA E PUNËSPERSONALISHT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -453,7 +527,9 @@
     "pjesa": "",
     "kreu": "KREU VI — KRYERJA E PUNËSPERSONALISHT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -465,7 +541,9 @@
     "pjesa": "",
     "kreu": "KREU VI — KRYERJA E PUNËSPERSONALISHT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -477,7 +555,9 @@
     "pjesa": "",
     "kreu": "KREU VII — MBROJTJA E PERSONALITETIT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -489,7 +569,9 @@
     "pjesa": "",
     "kreu": "KREU VII — MBROJTJA E PERSONALITETIT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -501,7 +583,9 @@
     "pjesa": "",
     "kreu": "KREU VII — MBROJTJA E PERSONALITETIT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -513,7 +597,9 @@
     "pjesa": "",
     "kreu": "KREU VII — MBROJTJA E PERSONALITETIT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -525,7 +611,9 @@
     "pjesa": "",
     "kreu": "KREU VII — MBROJTJA E PERSONALITETIT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -537,7 +625,9 @@
     "pjesa": "",
     "kreu": "KREU VII — MBROJTJA E PERSONALITETIT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -549,7 +639,9 @@
     "pjesa": "",
     "kreu": "KREU VII — MBROJTJA E PERSONALITETIT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -561,7 +653,9 @@
     "pjesa": "",
     "kreu": "KREU VII — MBROJTJA E PERSONALITETIT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -573,7 +667,9 @@
     "pjesa": "",
     "kreu": "KREU VIII — PËRGJEGJËSIA E PUNËDHËNËSIT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -585,7 +681,9 @@
     "pjesa": "",
     "kreu": "KREU VIII — PËRGJEGJËSIA E PUNËDHËNËSIT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -597,7 +695,9 @@
     "pjesa": "",
     "kreu": "KREU VIII — PËRGJEGJËSIA E PUNËDHËNËSIT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -609,7 +709,9 @@
     "pjesa": "",
     "kreu": "KREU VIII — PËRGJEGJËSIA E PUNËDHËNËSIT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -621,7 +723,9 @@
     "pjesa": "",
     "kreu": "KREU VIII — PËRGJEGJËSIA E PUNËDHËNËSIT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -633,7 +737,9 @@
     "pjesa": "",
     "kreu": "KREU VIII — PËRGJEGJËSIA E PUNËDHËNËSIT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -645,7 +751,9 @@
     "pjesa": "",
     "kreu": "KREU VIII — PËRGJEGJËSIA E PUNËDHËNËSIT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -657,7 +765,9 @@
     "pjesa": "",
     "kreu": "KREU VIII — PËRGJEGJËSIA E PUNËDHËNËSIT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -669,7 +779,9 @@
     "pjesa": "",
     "kreu": "KREU VIII — PËRGJEGJËSIA E PUNËDHËNËSIT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -681,7 +793,9 @@
     "pjesa": "",
     "kreu": "KREU VIII — PËRGJEGJËSIA E PUNËDHËNËSIT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -693,7 +807,9 @@
     "pjesa": "",
     "kreu": "KREU VIII — PËRGJEGJËSIA E PUNËDHËNËSIT",
     "seksioni": "",
-    "repealed": true
+    "repealed": true,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -705,7 +821,9 @@
     "pjesa": "",
     "kreu": "KREU VIII — PËRGJEGJËSIA E PUNËDHËNËSIT",
     "seksioni": "",
-    "repealed": true
+    "repealed": true,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -717,7 +835,9 @@
     "pjesa": "",
     "kreu": "KREU VIII — PËRGJEGJËSIA E PUNËDHËNËSIT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -729,7 +849,9 @@
     "pjesa": "",
     "kreu": "KREU VIII — PËRGJEGJËSIA E PUNËDHËNËSIT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -741,7 +863,9 @@
     "pjesa": "",
     "kreu": "KREU VIII — PËRGJEGJËSIA E PUNËDHËNËSIT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -753,7 +877,9 @@
     "pjesa": "",
     "kreu": "KREU VIII — PËRGJEGJËSIA E PUNËDHËNËSIT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -765,7 +891,9 @@
     "pjesa": "",
     "kreu": "KREU VIII — PËRGJEGJËSIA E PUNËDHËNËSIT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -777,7 +905,9 @@
     "pjesa": "",
     "kreu": "KREU VIII — PËRGJEGJËSIA E PUNËDHËNËSIT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -789,7 +919,9 @@
     "pjesa": "",
     "kreu": "KREU VIII — PËRGJEGJËSIA E PUNËDHËNËSIT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -801,7 +933,9 @@
     "pjesa": "",
     "kreu": "KREU VIII — PËRGJEGJËSIA E PUNËDHËNËSIT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -813,7 +947,9 @@
     "pjesa": "",
     "kreu": "KREU VIII — PËRGJEGJËSIA E PUNËDHËNËSIT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -825,7 +961,9 @@
     "pjesa": "",
     "kreu": "KREU VIII — PËRGJEGJËSIA E PUNËDHËNËSIT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -837,7 +975,9 @@
     "pjesa": "",
     "kreu": "KREU VIII — PËRGJEGJËSIA E PUNËDHËNËSIT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -849,7 +989,9 @@
     "pjesa": "",
     "kreu": "KREU VIII — PËRGJEGJËSIA E PUNËDHËNËSIT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -861,7 +1003,9 @@
     "pjesa": "",
     "kreu": "KREU VIII — PËRGJEGJËSIA E PUNËDHËNËSIT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -873,7 +1017,9 @@
     "pjesa": "",
     "kreu": "KREU VIII — PËRGJEGJËSIA E PUNËDHËNËSIT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -885,7 +1031,9 @@
     "pjesa": "",
     "kreu": "KREU VIII — PËRGJEGJËSIA E PUNËDHËNËSIT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -897,7 +1045,9 @@
     "pjesa": "",
     "kreu": "KREU VIII — PËRGJEGJËSIA E PUNËDHËNËSIT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -909,7 +1059,9 @@
     "pjesa": "",
     "kreu": "KREU VIII — PËRGJEGJËSIA E PUNËDHËNËSIT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -921,7 +1073,9 @@
     "pjesa": "",
     "kreu": "KREU VIII — PËRGJEGJËSIA E PUNËDHËNËSIT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -933,7 +1087,9 @@
     "pjesa": "",
     "kreu": "KREU VIII — PËRGJEGJËSIA E PUNËDHËNËSIT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -945,7 +1101,9 @@
     "pjesa": "",
     "kreu": "KREU VIII — PËRGJEGJËSIA E PUNËDHËNËSIT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -957,7 +1115,9 @@
     "pjesa": "",
     "kreu": "KREU VIII — PËRGJEGJËSIA E PUNËDHËNËSIT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -969,7 +1129,9 @@
     "pjesa": "",
     "kreu": "KREU VIII — PËRGJEGJËSIA E PUNËDHËNËSIT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -981,7 +1143,9 @@
     "pjesa": "",
     "kreu": "KREU VIII — PËRGJEGJËSIA E PUNËDHËNËSIT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -993,7 +1157,9 @@
     "pjesa": "",
     "kreu": "KREU VIII — PËRGJEGJËSIA E PUNËDHËNËSIT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1005,7 +1171,9 @@
     "pjesa": "",
     "kreu": "KREU VIII — PËRGJEGJËSIA E PUNËDHËNËSIT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1017,7 +1185,9 @@
     "pjesa": "",
     "kreu": "KREU IX — PËRKUFIZIME",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1029,7 +1199,9 @@
     "pjesa": "",
     "kreu": "KREU IX — PËRKUFIZIME",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1041,7 +1213,9 @@
     "pjesa": "",
     "kreu": "KREU IX — PËRKUFIZIME",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1053,7 +1227,9 @@
     "pjesa": "",
     "kreu": "KREU IX — PËRKUFIZIME",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1065,7 +1241,9 @@
     "pjesa": "",
     "kreu": "KREU IX — PËRKUFIZIME",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1077,7 +1255,9 @@
     "pjesa": "",
     "kreu": "KREU IX — PËRKUFIZIME",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1089,7 +1269,9 @@
     "pjesa": "",
     "kreu": "KREU IX — PËRKUFIZIME",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1101,7 +1283,9 @@
     "pjesa": "",
     "kreu": "KREU IX — PËRKUFIZIME",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1113,7 +1297,9 @@
     "pjesa": "",
     "kreu": "KREU IX — PËRKUFIZIME",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1125,7 +1311,9 @@
     "pjesa": "",
     "kreu": "KREU IX — PËRKUFIZIME",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1137,7 +1325,9 @@
     "pjesa": "",
     "kreu": "KREU IX — PËRKUFIZIME",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1149,7 +1339,9 @@
     "pjesa": "",
     "kreu": "KREU IX — PËRKUFIZIME",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1161,7 +1353,9 @@
     "pjesa": "",
     "kreu": "KREU IX — PËRKUFIZIME",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1173,7 +1367,9 @@
     "pjesa": "",
     "kreu": "KREU IX — PËRKUFIZIME",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1185,7 +1381,9 @@
     "pjesa": "",
     "kreu": "KREU IX — PËRKUFIZIME",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1197,7 +1395,9 @@
     "pjesa": "",
     "kreu": "KREU IX — PËRKUFIZIME",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1209,7 +1409,9 @@
     "pjesa": "",
     "kreu": "KREU IX — PËRKUFIZIME",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1221,7 +1423,9 @@
     "pjesa": "",
     "kreu": "KREU IX — PËRKUFIZIME",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1233,7 +1437,9 @@
     "pjesa": "",
     "kreu": "KREU IX — PËRKUFIZIME",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1245,7 +1451,9 @@
     "pjesa": "",
     "kreu": "KREU IX — PËRKUFIZIME",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1257,7 +1465,9 @@
     "pjesa": "",
     "kreu": "KREU IX — PËRKUFIZIME",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1269,7 +1479,9 @@
     "pjesa": "",
     "kreu": "KREU IX — PËRKUFIZIME",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1281,7 +1493,9 @@
     "pjesa": "",
     "kreu": "KREU IX — PËRKUFIZIME",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1293,7 +1507,9 @@
     "pjesa": "",
     "kreu": "KREU X — A. MBROJTJA E VEÇANTË PËR FËMIJËT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1305,7 +1521,9 @@
     "pjesa": "",
     "kreu": "KREU X — A. MBROJTJA E VEÇANTË PËR FËMIJËT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1317,7 +1535,9 @@
     "pjesa": "",
     "kreu": "KREU X — A. MBROJTJA E VEÇANTË PËR FËMIJËT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1329,7 +1549,9 @@
     "pjesa": "",
     "kreu": "KREU X — A. MBROJTJA E VEÇANTË PËR FËMIJËT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1341,7 +1563,9 @@
     "pjesa": "",
     "kreu": "KREU X — A. MBROJTJA E VEÇANTË PËR FËMIJËT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1353,7 +1577,9 @@
     "pjesa": "",
     "kreu": "KREU X — A. MBROJTJA E VEÇANTË PËR FËMIJËT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1365,7 +1591,9 @@
     "pjesa": "",
     "kreu": "KREU X — A. MBROJTJA E VEÇANTË PËR FËMIJËT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1377,7 +1605,9 @@
     "pjesa": "",
     "kreu": "KREU X — A. MBROJTJA E VEÇANTË PËR FËMIJËT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1389,7 +1619,9 @@
     "pjesa": "",
     "kreu": "KREU X — A. MBROJTJA E VEÇANTË PËR FËMIJËT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1401,7 +1633,9 @@
     "pjesa": "",
     "kreu": "KREU X — A. MBROJTJA E VEÇANTË PËR FËMIJËT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1413,7 +1647,9 @@
     "pjesa": "",
     "kreu": "KREU X — A. MBROJTJA E VEÇANTË PËR FËMIJËT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1425,7 +1661,9 @@
     "pjesa": "",
     "kreu": "KREU X — A. MBROJTJA E VEÇANTË PËR FËMIJËT",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1437,7 +1675,9 @@
     "pjesa": "",
     "kreu": "KREU XI — A. CAKTIMI I PAGËS",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1449,7 +1689,9 @@
     "pjesa": "",
     "kreu": "KREU XI — A. CAKTIMI I PAGËS",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1461,7 +1703,9 @@
     "pjesa": "",
     "kreu": "KREU XI — A. CAKTIMI I PAGËS",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1473,7 +1717,9 @@
     "pjesa": "",
     "kreu": "KREU XI — A. CAKTIMI I PAGËS",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1485,7 +1731,9 @@
     "pjesa": "",
     "kreu": "KREU XI — A. CAKTIMI I PAGËS",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1497,7 +1745,9 @@
     "pjesa": "",
     "kreu": "KREU XI — A. CAKTIMI I PAGËS",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1509,7 +1759,9 @@
     "pjesa": "",
     "kreu": "KREU XI — A. CAKTIMI I PAGËS",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1521,7 +1773,9 @@
     "pjesa": "",
     "kreu": "KREU XI — A. CAKTIMI I PAGËS",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1533,7 +1787,9 @@
     "pjesa": "",
     "kreu": "KREU XI — A. CAKTIMI I PAGËS",
     "seksioni": "",
-    "repealed": true
+    "repealed": true,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1545,7 +1801,9 @@
     "pjesa": "",
     "kreu": "KREU XI — A. CAKTIMI I PAGËS",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1557,7 +1815,9 @@
     "pjesa": "",
     "kreu": "KREU XI — A. CAKTIMI I PAGËS",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1569,7 +1829,9 @@
     "pjesa": "",
     "kreu": "KREU XI — A. CAKTIMI I PAGËS",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1581,7 +1843,9 @@
     "pjesa": "",
     "kreu": "KREU XI — A. CAKTIMI I PAGËS",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1593,7 +1857,9 @@
     "pjesa": "",
     "kreu": "KREU XI — A. CAKTIMI I PAGËS",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1605,7 +1871,9 @@
     "pjesa": "",
     "kreu": "KREU XI — A. CAKTIMI I PAGËS",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1617,7 +1885,9 @@
     "pjesa": "",
     "kreu": "KREU XI — A. CAKTIMI I PAGËS",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1629,7 +1899,9 @@
     "pjesa": "",
     "kreu": "KREU XI — A. CAKTIMI I PAGËS",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1641,7 +1913,9 @@
     "pjesa": "",
     "kreu": "KREU XI — A. CAKTIMI I PAGËS",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1653,7 +1927,9 @@
     "pjesa": "",
     "kreu": "KREU XI — A. CAKTIMI I PAGËS",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1665,7 +1941,9 @@
     "pjesa": "",
     "kreu": "KREU XI — A. CAKTIMI I PAGËS",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1677,7 +1955,9 @@
     "pjesa": "",
     "kreu": "KREU XI — A. CAKTIMI I PAGËS",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1689,7 +1969,9 @@
     "pjesa": "",
     "kreu": "KREU XI — A. CAKTIMI I PAGËS",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1701,7 +1983,9 @@
     "pjesa": "",
     "kreu": "KREU XI — A. CAKTIMI I PAGËS",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1713,7 +1997,9 @@
     "pjesa": "",
     "kreu": "KREU XI — A. CAKTIMI I PAGËS",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1725,7 +2011,9 @@
     "pjesa": "",
     "kreu": "KREU XI — A. CAKTIMI I PAGËS",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1737,7 +2025,9 @@
     "pjesa": "",
     "kreu": "KREU XI — A. CAKTIMI I PAGËS",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1749,7 +2039,9 @@
     "pjesa": "",
     "kreu": "KREU XI — A. CAKTIMI I PAGËS",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1761,7 +2053,9 @@
     "pjesa": "",
     "kreu": "KREU XII — SHPIKJET",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1773,7 +2067,9 @@
     "pjesa": "",
     "kreu": "KREU XII — SHPIKJET",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1785,7 +2081,9 @@
     "pjesa": "",
     "kreu": "KREU XIII — VËNIA NË DISPOZICION E PUNËMARRËSVE",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1797,7 +2095,9 @@
     "pjesa": "",
     "kreu": "KREU XIII — VËNIA NË DISPOZICION E PUNËMARRËSVE",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1809,7 +2109,9 @@
     "pjesa": "",
     "kreu": "KREU XIII — VËNIA NË DISPOZICION E PUNËMARRËSVE",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1821,7 +2123,9 @@
     "pjesa": "",
     "kreu": "KREU XIII — VËNIA NË DISPOZICION E PUNËMARRËSVE",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1833,7 +2137,9 @@
     "pjesa": "",
     "kreu": "KREU XIV — KOHËZGJATJA E KONTRATËSSË PUNËS",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1845,7 +2151,9 @@
     "pjesa": "",
     "kreu": "KREU XIV — KOHËZGJATJA E KONTRATËSSË PUNËS",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1857,7 +2165,9 @@
     "pjesa": "",
     "kreu": "KREU XIV — KOHËZGJATJA E KONTRATËSSË PUNËS",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1869,7 +2179,9 @@
     "pjesa": "",
     "kreu": "KREU XIV — KOHËZGJATJA E KONTRATËSSË PUNËS",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1881,7 +2193,9 @@
     "pjesa": "",
     "kreu": "KREU XIV — KOHËZGJATJA E KONTRATËSSË PUNËS",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1893,7 +2207,9 @@
     "pjesa": "",
     "kreu": "KREU XIV — KOHËZGJATJA E KONTRATËSSË PUNËS",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1905,7 +2221,9 @@
     "pjesa": "",
     "kreu": "KREU XIV — KOHËZGJATJA E KONTRATËSSË PUNËS",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1917,7 +2235,9 @@
     "pjesa": "",
     "kreu": "KREU XIV — KOHËZGJATJA E KONTRATËSSË PUNËS",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1929,7 +2249,9 @@
     "pjesa": "",
     "kreu": "KREU XIV — KOHËZGJATJA E KONTRATËSSË PUNËS",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1941,7 +2263,9 @@
     "pjesa": "",
     "kreu": "KREU XIV — KOHËZGJATJA E KONTRATËSSË PUNËS",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1953,7 +2277,9 @@
     "pjesa": "",
     "kreu": "KREU XIV — KOHËZGJATJA E KONTRATËSSË PUNËS",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1965,7 +2291,9 @@
     "pjesa": "",
     "kreu": "KREU XIV — KOHËZGJATJA E KONTRATËSSË PUNËS",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1977,7 +2305,9 @@
     "pjesa": "",
     "kreu": "KREU XIV — KOHËZGJATJA E KONTRATËSSË PUNËS",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -1989,7 +2319,9 @@
     "pjesa": "",
     "kreu": "KREU XIV — KOHËZGJATJA E KONTRATËSSË PUNËS",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2001,7 +2333,9 @@
     "pjesa": "",
     "kreu": "KREU XIV — KOHËZGJATJA E KONTRATËSSË PUNËS",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2013,7 +2347,9 @@
     "pjesa": "",
     "kreu": "KREU XIV — KOHËZGJATJA E KONTRATËSSË PUNËS",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2025,7 +2361,9 @@
     "pjesa": "",
     "kreu": "KREU XIV — KOHËZGJATJA E KONTRATËSSË PUNËS",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2037,7 +2375,9 @@
     "pjesa": "",
     "kreu": "KREU XIV — KOHËZGJATJA E KONTRATËSSË PUNËS",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2049,7 +2389,9 @@
     "pjesa": "",
     "kreu": "KREU XIV — KOHËZGJATJA E KONTRATËSSË PUNËS",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2061,7 +2403,9 @@
     "pjesa": "",
     "kreu": "KREU XIV — KOHËZGJATJA E KONTRATËSSË PUNËS",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2073,7 +2417,9 @@
     "pjesa": "",
     "kreu": "KREU XIV — KOHËZGJATJA E KONTRATËSSË PUNËS",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2085,7 +2431,9 @@
     "pjesa": "",
     "kreu": "KREU XV — PËRMBAJTJA",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2097,7 +2445,9 @@
     "pjesa": "",
     "kreu": "KREU XV — PËRMBAJTJA",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2109,7 +2459,9 @@
     "pjesa": "",
     "kreu": "KREU XV — PËRMBAJTJA",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2121,7 +2473,9 @@
     "pjesa": "",
     "kreu": "KREU XV — PËRMBAJTJA",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2133,7 +2487,9 @@
     "pjesa": "",
     "kreu": "KREU XV — PËRMBAJTJA",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2145,7 +2501,9 @@
     "pjesa": "",
     "kreu": "KREU XV — PËRMBAJTJA",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2157,7 +2515,9 @@
     "pjesa": "",
     "kreu": "KREU XV — PËRMBAJTJA",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2169,7 +2529,9 @@
     "pjesa": "",
     "kreu": "KREU XV — PËRMBAJTJA",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2181,7 +2543,9 @@
     "pjesa": "",
     "kreu": "KREU XV — PËRMBAJTJA",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2193,7 +2557,9 @@
     "pjesa": "",
     "kreu": "KREU XV — PËRMBAJTJA",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2205,7 +2571,9 @@
     "pjesa": "",
     "kreu": "KREU XV — PËRMBAJTJA",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2217,7 +2585,9 @@
     "pjesa": "",
     "kreu": "KREU XV — PËRMBAJTJA",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2229,7 +2599,9 @@
     "pjesa": "",
     "kreu": "KREU XV — PËRMBAJTJA",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2241,7 +2613,9 @@
     "pjesa": "",
     "kreu": "KREU XV — PËRMBAJTJA",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2253,7 +2627,9 @@
     "pjesa": "",
     "kreu": "KREU XV — PËRMBAJTJA",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2265,7 +2641,9 @@
     "pjesa": "",
     "kreu": "KREU XV — PËRMBAJTJA",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2277,7 +2655,9 @@
     "pjesa": "",
     "kreu": "KREU XV — PËRMBAJTJA",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2289,7 +2669,9 @@
     "pjesa": "",
     "kreu": "KREU XVI — A. KRIJIMI",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2301,7 +2683,9 @@
     "pjesa": "",
     "kreu": "KREU XVI — A. KRIJIMI",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2313,7 +2697,9 @@
     "pjesa": "",
     "kreu": "KREU XVI — A. KRIJIMI",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2325,7 +2711,9 @@
     "pjesa": "",
     "kreu": "KREU XVI — A. KRIJIMI",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2337,7 +2725,9 @@
     "pjesa": "",
     "kreu": "KREU XVI — A. KRIJIMI",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2349,7 +2739,9 @@
     "pjesa": "",
     "kreu": "KREU XVI — A. KRIJIMI",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2361,7 +2753,9 @@
     "pjesa": "",
     "kreu": "KREU XVI — A. KRIJIMI",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2373,7 +2767,9 @@
     "pjesa": "",
     "kreu": "KREU XVI — A. KRIJIMI",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2385,7 +2781,9 @@
     "pjesa": "",
     "kreu": "KREU XVI — A. KRIJIMI",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2397,7 +2795,9 @@
     "pjesa": "",
     "kreu": "KREU XVI — A. KRIJIMI",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2409,7 +2809,9 @@
     "pjesa": "",
     "kreu": "KREU XVI — A. KRIJIMI",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2421,7 +2823,9 @@
     "pjesa": "",
     "kreu": "KREU XVI — A. KRIJIMI",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2433,7 +2837,9 @@
     "pjesa": "",
     "kreu": "KREU XVII — (Ndryshuar titulliikreutme ligjin nr. 9125, datë 29.7.2003)",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2445,7 +2851,9 @@
     "pjesa": "",
     "kreu": "KREU XVII — (Ndryshuar titulliikreutme ligjin nr. 9125, datë 29.7.2003)",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2457,7 +2865,9 @@
     "pjesa": "",
     "kreu": "KREU XVII — (Ndryshuar titulliikreutme ligjin nr. 9125, datë 29.7.2003)",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2469,7 +2879,9 @@
     "pjesa": "",
     "kreu": "KREU XVII — (Ndryshuar titulliikreutme ligjin nr. 9125, datë 29.7.2003)",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2481,7 +2893,9 @@
     "pjesa": "",
     "kreu": "KREU XVII — (Ndryshuar titulliikreutme ligjin nr. 9125, datë 29.7.2003)",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2493,7 +2907,9 @@
     "pjesa": "",
     "kreu": "KREU XVII — (Ndryshuar titulliikreutme ligjin nr. 9125, datë 29.7.2003)",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2505,7 +2921,9 @@
     "pjesa": "",
     "kreu": "KREU XVII — (Ndryshuar titulliikreutme ligjin nr. 9125, datë 29.7.2003)",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2517,7 +2935,9 @@
     "pjesa": "",
     "kreu": "KREU XVII — (Ndryshuar titulliikreutme ligjin nr. 9125, datë 29.7.2003)",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2529,7 +2949,9 @@
     "pjesa": "",
     "kreu": "KREU XVII — (Ndryshuar titulliikreutme ligjin nr. 9125, datë 29.7.2003)",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2541,7 +2963,9 @@
     "pjesa": "",
     "kreu": "KREU XVII — (Ndryshuar titulliikreutme ligjin nr. 9125, datë 29.7.2003)",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2553,7 +2977,9 @@
     "pjesa": "",
     "kreu": "KREU XVII — (Ndryshuar titulliikreutme ligjin nr. 9125, datë 29.7.2003)",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2565,7 +2991,9 @@
     "pjesa": "",
     "kreu": "KREU XVII — (Ndryshuar titulliikreutme ligjin nr. 9125, datë 29.7.2003)",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2577,7 +3005,9 @@
     "pjesa": "",
     "kreu": "KREU XVII — (Ndryshuar titulliikreutme ligjin nr. 9125, datë 29.7.2003)",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2589,7 +3019,9 @@
     "pjesa": "",
     "kreu": "KREU XVII — (Ndryshuar titulliikreutme ligjin nr. 9125, datë 29.7.2003)",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2601,7 +3033,9 @@
     "pjesa": "",
     "kreu": "KREU XVII — (Ndryshuar titulliikreutme ligjin nr. 9125, datë 29.7.2003)",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2613,7 +3047,9 @@
     "pjesa": "",
     "kreu": "KREU XVII — (Ndryshuar titulliikreutme ligjin nr. 9125, datë 29.7.2003)",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2625,7 +3061,9 @@
     "pjesa": "",
     "kreu": "KREU XVII — (Ndryshuar titulliikreutme ligjin nr. 9125, datë 29.7.2003)",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2637,7 +3075,9 @@
     "pjesa": "",
     "kreu": "KREU XVII — (Ndryshuar titulliikreutme ligjin nr. 9125, datë 29.7.2003)",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2649,7 +3089,9 @@
     "pjesa": "",
     "kreu": "KREU XVII — (Ndryshuar titulliikreutme ligjin nr. 9125, datë 29.7.2003)",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2661,7 +3103,9 @@
     "pjesa": "",
     "kreu": "KREU XVII — (Ndryshuar titulliikreutme ligjin nr. 9125, datë 29.7.2003)",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2673,7 +3117,9 @@
     "pjesa": "",
     "kreu": "KREU XVII — (Ndryshuar titulliikreutme ligjin nr. 9125, datë 29.7.2003)",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2685,7 +3131,9 @@
     "pjesa": "",
     "kreu": "KREU XVII — (Ndryshuar titulliikreutme ligjin nr. 9125, datë 29.7.2003)",
     "seksioni": "",
-    "repealed": true
+    "repealed": true,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2697,7 +3145,9 @@
     "pjesa": "",
     "kreu": "KREU XVIII — MINISTRIA PËRGJEGJËSE PËRPUNËN",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2709,7 +3159,9 @@
     "pjesa": "",
     "kreu": "KREU XVIII — MINISTRIA PËRGJEGJËSE PËRPUNËN",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2721,7 +3173,9 @@
     "pjesa": "",
     "kreu": "KREU XVIII — MINISTRIA PËRGJEGJËSE PËRPUNËN",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2733,7 +3187,9 @@
     "pjesa": "",
     "kreu": "KREU XIX — SANKSIONE CIVILE",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2745,7 +3201,9 @@
     "pjesa": "",
     "kreu": "KREU XIX — SANKSIONE CIVILE",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2757,7 +3215,9 @@
     "pjesa": "",
     "kreu": "KREU XIX — SANKSIONE CIVILE",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2769,7 +3229,9 @@
     "pjesa": "",
     "kreu": "KREU XIX — SANKSIONE CIVILE",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   },
   {
     "code": "kodi_punes",
@@ -2781,6 +3243,8 @@
     "pjesa": "",
     "kreu": "KREU XIX — SANKSIONE CIVILE",
     "seksioni": "",
-    "repealed": false
+    "repealed": false,
+    "volatility": "STABLE",
+    "last_amendment_date": ""
   }
 ]

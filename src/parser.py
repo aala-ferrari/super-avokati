@@ -26,8 +26,11 @@ log = get_logger(__name__)
 
 # Matches "Neni 37", "Neni 83/a", "Neni 170/ç" or the glued form "Neni37"
 # that some PDFs produce when the text-extractor drops the space.
+# NOTE: we use [ \t] (not \s) inside the number group — otherwise newlines are
+# consumed and page-number footers get glued to the article number, producing
+# phantom articles like "Neni 1913" (really "Neni 19" + page footer "13").
 ARTICLE_RE = re.compile(
-    r"(?m)^[ \t]*Neni\s*(\d+(?:\s*/\s*[a-zçëA-ZÇË0-9]+)?)\s*$"
+    r"(?m)^[ \t]*Neni[ \t]*(\d+(?:[ \t]*/[ \t]*[a-zçëA-ZÇË0-9]+)?)[ \t]*$"
 )
 
 # Hierarchy headers (PJESA / KREU / SEKSIONI / TITULLI). Used as context.
@@ -52,6 +55,8 @@ class Article:
     kreu: str = ""          # chapter
     seksioni: str = ""      # section
     repealed: bool = False
+    volatility: str = "STABLE"            # V7.4 — inherited from LegalDocument
+    last_amendment_date: str = ""          # V7.4 — ISO date of last indexed amendment
 
     @property
     def citation(self) -> str:
@@ -114,7 +119,51 @@ def _hierarchy_context(text_before: str) -> tuple[str, str, str]:
 
 def split_into_articles(text: str, doc: LegalDocument) -> list[Article]:
     """Split the full code text into Article objects."""
-    matches = list(ARTICLE_RE.finditer(text))
+    raw_matches = list(ARTICLE_RE.finditer(text))
+
+    # V7.4 step 1 — filter out phantom matches. A "Neni 1913" produced by a
+    # page-footer "13" glued to the real "Neni 19" has either no body or just
+    # another "Neni X" header in its range. Drop those before any further
+    # analysis so counter-restart detection isn't poisoned by fake maxima.
+    filtered: list = []
+    for i, m in enumerate(raw_matches):
+        number = re.sub(r"\s+", "", m.group(1))
+        num_only = number.split("/")[0]
+        end = raw_matches[i + 1].start() if i + 1 < len(raw_matches) else len(text)
+        body_len = len(text[m.end():end].strip())
+        if num_only.isdigit():
+            n_int = int(num_only)
+            # Hard cap — no Albanian code exceeds ~1300 articles (Kodi Civil)
+            if n_int > 2000:
+                continue
+            # Implausible + empty body → page-footer collision artifact
+            if n_int > 500 and body_len < 40:
+                continue
+        filtered.append(m)
+
+    # V7.4 step 2 — some official PDFs (especially for ligji_*) bundle the
+    # main law with implementing acts (VKM, UDHËZIM) that each start their
+    # own Neni 1. Detect a counter restart (a number far below the running
+    # max) and drop everything past that point.
+    seen_max = 0
+    truncate_idx = len(filtered)
+    for i, m in enumerate(filtered):
+        num_str = re.sub(r"\s+", "", m.group(1))
+        try:
+            num_int = int(num_str.split("/")[0])
+        except ValueError:
+            num_int = 0
+        if i > 0 and num_int > 0 and num_int < seen_max - 5:
+            log.info(
+                "parser: truncating %s at Neni %s — counter dropped from %d",
+                doc.code, num_str, seen_max,
+            )
+            truncate_idx = i
+            break
+        if num_int > seen_max:
+            seen_max = num_int
+    matches = filtered[:truncate_idx]
+
     articles: list[Article] = []
     for i, m in enumerate(matches):
         number = re.sub(r"\s+", "", m.group(1))  # "83 / a" -> "83/a"
@@ -145,6 +194,8 @@ def split_into_articles(text: str, doc: LegalDocument) -> list[Article]:
                 kreu=kreu,
                 seksioni=seksioni,
                 repealed=repealed,
+                volatility=doc.volatility,
+                last_amendment_date=doc.last_amendment_date,
             )
         )
     return articles

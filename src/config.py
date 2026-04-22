@@ -118,6 +118,14 @@ class LegalDocument:
     url: str = ""       # official source URL (filled by downloader)
     local_pdf: str = "" # path on disk relative to RAW_DATA_PATH
 
+    # V7.4 — volatility tagging so the compose layer can warn when citing
+    # fast-moving statutes (tax, customs, data protection secondary acts).
+    # STABLE    = codes and foundational statutes, safe to cite verbatim
+    # MEDIUM    = amended every few years (consumer, bankruptcy, business reg)
+    # VOLATILE  = rewritten often (tax, customs tariffs, VAT thresholds)
+    volatility: str = "STABLE"
+    last_amendment_date: str = ""  # ISO date of the most recent amendment we indexed
+
 
 LEGAL_DOCUMENTS: tuple[LegalDocument, ...] = (
     LegalDocument(
@@ -223,6 +231,59 @@ LEGAL_DOCUMENTS: tuple[LegalDocument, ...] = (
         area="Ajror",
         url="https://www.infrastruktura.gov.al/wp-content/uploads/2020/10/Kodi-Ajror_ligj-2020-07-23-96.pdf",
         local_pdf="kodi_ajror.pdf",
+    ),
+    # ── V7.4 — sectoral commercial / consumer / data statutes ────────────
+    LegalDocument(
+        code="ligji_shoqerite_tregtare",
+        title_sq="Ligji nr. 9901/2008 «Për tregtarët dhe shoqëritë tregtare»",
+        title_en="Law on Traders and Commercial Companies (SHPK/SHA)",
+        area="Tregtare",
+        # portavendore.al version — PDF bundles the law + implementing acts;
+        # parser truncates on numbering restart to keep only the main statute.
+        url="https://portavendore.al/wp-content/uploads/2018/05/Ligji-nr.9901-dat%C3%AB-14.4.2008-%E2%80%9CP%C3%ABr-tregtar%C3%ABt-dhe-shoq%C3%ABrit%C3%AB-tregtare%E2%80%9D-dhe-aktet-e-dala-n%C3%AB-zbatim-t%C3%AB-tij.pdf",
+        local_pdf="ligji_shoqerite_tregtare.pdf",
+        volatility="STABLE",
+        last_amendment_date="2018-05-01",
+    ),
+    LegalDocument(
+        code="ligji_falimentimi",
+        title_sq="Ligji nr. 110/2016 «Për falimentimin»",
+        title_en="Bankruptcy Law",
+        area="Tregtare",
+        url="https://portavendore.al/wp-content/uploads/2018/05/Ligji-nr.1102016-P%C3%ABr-falimentimin-dhe-aktet-n%C3%ABnligjore-t%C3%AB-dala-n%C3%AB-zbatim-tij.pdf",
+        local_pdf="ligji_falimentimi.pdf",
+        volatility="MEDIUM",
+        last_amendment_date="2018-05-01",
+    ),
+    LegalDocument(
+        code="ligji_konsumatoret",
+        title_sq="Ligji nr. 9902/2008 «Për mbrojtjen e konsumatorëve»",
+        title_en="Consumer Protection Law",
+        area="Konsumator",
+        url="https://erru.al/doc/Ligji_9902_per_mbrojten_e_konsumatoreve_2018_vf.pdf",
+        local_pdf="ligji_konsumatoret.pdf",
+        volatility="STABLE",
+        last_amendment_date="2018-10-18",
+    ),
+    LegalDocument(
+        code="ligji_te_dhenat",
+        title_sq="Ligji nr. 9887/2008 «Për mbrojtjen e të dhënave personale»",
+        title_en="Personal Data Protection Law",
+        area="Data",
+        url="https://idp.al/wp-content/uploads/2024/02/Ligj-2008-03-10-9887-perditesuar-nga-QBZ-1.pdf",
+        local_pdf="ligji_te_dhenat.pdf",
+        volatility="STABLE",
+        last_amendment_date="2024-02-01",
+    ),
+    LegalDocument(
+        code="ligji_qkb",
+        title_sq="Ligji nr. 131/2015 «Për Qendrën Kombëtare të Biznesit»",
+        title_en="National Business Center (QKB) Law",
+        area="Tregtare",
+        url="https://bashkiaskrapar.gov.al/wp-content/uploads/2019/12/ligj-2015-11-26-131.pdf",
+        local_pdf="ligji_qkb.pdf",
+        volatility="STABLE",
+        last_amendment_date="2015-11-26",
     ),
 )
 
