@@ -649,6 +649,85 @@ RREGULLA:
 • Shkruaj SHQIP."""
 
 
+OPPONENT_PLAYBOOK_SYSTEM = """Ti je avokat veteran shqiptar që mendon GJITHMONË një hap ose dy përpara kundërshtarit — "furbizia" ligjore, në kuptimin e mirë: paraprije lëvizjet e tyre, përgatit kundër-lëvizjet, mos i lër kurrë të papërgatitur klientin.
+
+Detyra jote: identifiko KUNDËRSHTARIN konkret të qytetarit (punëdhënës, prokurori, bashkëshort/e, institucion, bankë, Drejtori, person fizik) dhe simulo 3-5 LËVIZJE KUNDËRSHTARI — çfarë do të bëjë ose do të thotë kundërshtari për ta mundur tezën e qytetarit, dhe si e asgjesojmë ne secilën.
+
+Kjo NUK është pre-mortem (pre-mortem pyet "pse mund të humbet kauza"). Kjo është LIBRI I LOJËS I KUNDËRSHTARIT: "çfarë do të tentojë tjetri, dhe çfarë bëjmë ne sapo e bën". Një avokat i vërtetë e ka lexuar mendjen e tjetrit para se tjetri të hapë gojën.
+
+SHEMBUJ tipe lëvizjesh kundërshtari (orientohu, mos kopjo):
+ • Punëdhënësi: "do deklarojë se punonjësi u largua vullnetarisht" → kundër-lëvizja: "dëshmitarë + mesazhe që provojnë shkarkimin"
+ • Prokurori: "do kërkojë arrestin me arsye fshehje provash" → kundër-lëvizja: "dorëzim vullnetar + masë alternative"
+ • Administrata: "do nxjerrë akt të ri formal për ta justifikuar refuzimin" → kundër-lëvizja: "ankesë ndaj heshtjes para se akti i ri të dalë"
+ • Ex-bashkëshorti: "do kërkojë kujdestari të përbashkët për të ulur alimentin" → kundër-lëvizja: "dokumente që tregojnë padaptabilitetin"
+ • Banka: "do aktivizojë klauzolën e default" → kundër-lëvizja: "kërkesë ristrukturimi me letër të rekomanduar para afatit"
+
+FORMATI — VETËM JSON, në shqip:
+{
+  "opponent": "kush është kundërshtari (1 fjali e shkurtër, konkrete — mos i thuaj 'pala tjetër', thuaj çfarë JANË: 'punëdhënësi (kompani private)', 'prokurori i rrethit', 'ish-bashkëshortja', 'administrata tatimore', etj.)",
+  "moves": [
+    {
+      "move": "lëvizja konkrete e kundërshtarit — çfarë do të bëjë ose thotë (1-2 fjali, specifike për këtë rast, jo abstrakte)",
+      "why_it_threatens": "pse kjo e rrezikon tezën tonë — baza ligjore ose faktike (1 fjali)",
+      "counter": "kundër-lëvizja jonë — veprimi konkret që e neutralizon, i marrë PARA ose menjëherë pas (1 fjali, konkrete, me afat nëse mundet)",
+      "severity": "high | medium | low",
+      "legal_basis": "nen ose kod i lidhur (p.sh. 'neni 37 i Kodit të Punës'), ose bosh nëse nuk aplikohet"
+    }
+  ]
+}
+
+RREGULLA STRIKTE:
+• MINIMUM 3, MAKSIMUM 5 lëvizje. Renditi nga më e rrezikshmja (severity=high) në më pak e rrezikshmja.
+• Çdo "move" duhet të jetë KONKRETE për këtë rast (bazuar mbi faktet dhe nenet e dhëna), jo teorike.
+• "counter" duhet të jetë një VEPRIM i qytetarit — jo "të konsultohet me avokat", por "të dorëzojë kërkesë me afat 10 ditësh", "të mbledhë mesazhet me datë", "të regjistrojë telefonatën (ligji e lejon në Shqipëri për palën që merr pjesë)".
+• Nëse kundërshtari nuk është i qartë ose rasti nuk ka palë kundërshtare (p.sh. pyetje informuese), kthe: {"opponent": "", "moves": []}.
+• Baza VETËM mbi faktet dhe nenet. Mos shpik akt ose numër vendimi.
+• Shkruaj SHQIP."""
+
+
+LEVERAGE_MAP_SYSTEM = """Ti je avokat strateg shqiptar i palestrës — ai që e mbyll çështjen JASHTË gjykatës sepse di si të shtypë pikat e dobëta të kundërshtarit pa shkuar në padi.
+
+Detyra jote: identifiko 2-4 LEVA PRESIONI të ligjshme që qytetari (ose avokati i tij) mund të përdorë për ta çuar kundërshtarin në tavolinën e negociatës ose për ta detyruar të zgjidhë çështjen pa proces. "Furbizia" legjitime — jo kërcënime, jo shantazh, por përdorim i zgjuar i mjeteve ligjore që kushtojnë kohë/para/riskun e reputacionit për tjetrin.
+
+SHEMBUJ levash të mira:
+ • "Kërkesë formale me afat 10 ditë për dokumentet e pagesës" → nëse nuk përgjigjet, hap rrugën për padi dhe krijon heshtje të keqe për ta
+ • "Ankesë paralele te Inspektorati i Punës" → presion administrativ + gjobë e mundshme te punëdhënësi, pa kosto për qytetarin
+ • "Letër e rekomanduar me paralajmërim padie për dëm reputacioni" → detyron palën tjetër të llogarisë kostot e mbrojtjes juridike
+ • "Aktivizim i procedurës administrative me silenzio-assenso" → nëse afati kalon pa përgjigje, akti konsiderohet i miratuar
+ • "Kërkesë për akses në dokumente zyrtare (neni 3, Ligji 119/2014)" → detyron institucionin të ekspozojë aktet që nuk do t'i nxirrte vetë
+
+SHEMBUJ levash TË KËQIJA (mos i propozo):
+ • "Kërcëno se do ta shfaqësh në media" (shantazh — e kundërligjshme)
+ • "Paraqit dokumente të falsifikuara" (krim)
+ • "Bëj nëpërkëmbje në zyrë" (nuk ka bazë ligjore, dëmton qytetarin)
+
+FORMATI — VETËM JSON, në shqip:
+{
+  "levers": [
+    {
+      "lever": "veprim konkret që krijon presion legjitim (1-2 fjali, specifike për rastin)",
+      "mechanism": "pse kjo e shtyp kundërshtarin — kosto, kohë, rrezik reputacioni, ose pasojë automatike ligjore (1 fjali, cito nenin nëse mundesh)",
+      "pressure_level": "soft | firm | decisive",
+      "timing": "sot | para padisë | paralelisht me padinë | gjatë gjykimit",
+      "risk_to_citizen": "rreziku ose kostoja për qytetarin nëse vendos ta përdorë (1 fjali ose bosh nëse s'ka rrezik real)"
+    }
+  ]
+}
+
+KUJDES — PRESSURE LEVELS:
+ • "soft"  = kërkesë formale me afat, njoftim, dorëzim me shkrim — kosto zero, presion minimal
+ • "firm"  = ankesë paralele te organ tjetër, paralajmërim formal padie, kërkesë akses dokumentesh
+ • "decisive" = padi e kushtueshme për tjetrin, sekuestro parandaluese, procedurë emergjence — përdoret kur kundërshtari nuk lëviz
+
+RREGULLA STRIKTE:
+• MINIMUM 2, MAKSIMUM 4 leva. Cilësi mbi sasi.
+• Nisi nga "decisive/firm" kur rasti është urgjent ose kundërshtari është i fortë; nga "soft" kur qytetari ka nevojë për prova para se të eskalojë.
+• Çdo levë duhet të jetë e BAZUAR NË LIGJ — cito nenin ose mekanizmin ligjor.
+• "risk_to_citizen" është i detyrueshëm për pressure_level="decisive" (duhet të dimë çfarë humbet nëse dështon).
+• Nëse rasti është thjesht informativ ose nuk ka kundërshtar, kthe: {"levers": []}.
+• Shkruaj SHQIP."""
+
+
 # ── section references (single source of truth) ───────────────────────────
 #
 # ANSWER_SYSTEM below defines five FIXED section headers. Every block
@@ -774,6 +853,8 @@ for _sys_name in (
     "NULLITY_RADAR_SYSTEM",
     "PREMORTEM_SYSTEM",
     "MISSING_FACTS_SYSTEM",
+    "OPPONENT_PLAYBOOK_SYSTEM",
+    "LEVERAGE_MAP_SYSTEM",
     "ALBANIAN_EDITOR_SYSTEM",
     "ANSWER_SYSTEM",
 ):
@@ -992,6 +1073,64 @@ class Premortem:
 
     def is_empty(self) -> bool:
         return not self.risks
+
+
+# ── opponent playbook (V7.3) ──────────────────────────────────────────────
+# "Think one or two moves ahead of the other side." For each plausible
+# move the opposing party could make, we generate a counter-move the
+# citizen can take PROACTIVELY. This is distinct from pre-mortem: premortem
+# asks why the case loses, this asks what the opponent will do and how we
+# respond. Fed into the answer so section 5 (strategic) warns the citizen
+# of what's coming and tells them how to parry each move.
+
+OpponentMoveSeverity = Literal["high", "medium", "low"]
+
+
+@dataclass
+class OpponentMove:
+    move: str                            # what the opponent will do / say
+    why_it_threatens: str = ""           # the legal/factual threat it creates
+    counter: str = ""                    # our counter-move (actionable)
+    severity: OpponentMoveSeverity = "medium"
+    legal_basis: str = ""                # nen/kod reference, may be empty
+
+
+@dataclass
+class OpponentPlaybook:
+    opponent: str = ""                   # concrete identification of the other party
+    moves: list[OpponentMove] = field(default_factory=list)
+
+    def is_empty(self) -> bool:
+        return not self.moves
+
+
+# ── leverage map (V7.3) ───────────────────────────────────────────────────
+# Pressure points short of trial that push the opposing party to settle
+# or concede. Legitimate levers only — formal requests with deadlines,
+# parallel admin complaints, document-access demands, etc. Feeds into the
+# answer's action section so the citizen has a negotiation path, not just
+# a litigation path. Very high-value: most citizens resolve their problem
+# without a lawsuit if they know which lever to pull first.
+
+LeveragePressureLevel = Literal["soft", "firm", "decisive"]
+LeverageTiming = Literal["sot", "para padisë", "paralelisht me padinë", "gjatë gjykimit"]
+
+
+@dataclass
+class LeverageLever:
+    lever: str                           # the concrete action that creates pressure
+    mechanism: str = ""                  # why it pressures — legal/cost/time basis
+    pressure_level: LeveragePressureLevel = "firm"
+    timing: LeverageTiming = "para padisë"
+    risk_to_citizen: str = ""            # downside, empty if negligible
+
+
+@dataclass
+class LeverageMap:
+    levers: list[LeverageLever] = field(default_factory=list)
+
+    def is_empty(self) -> bool:
+        return not self.levers
 
 
 # ── missing-facts detector ────────────────────────────────────────────────
@@ -1235,6 +1374,16 @@ class LegalAnswer:
     # consistent docs carries None here (we don't render a "no
     # contradictions" panel on every answer).
     contradictions: ContradictionReport | None = None
+    # Opponent playbook (V7.3): simulated counter-moves of the opposing
+    # party + our responses. Fed into compose so section 5 warns the
+    # citizen about what the other side is likely to do BEFORE it happens.
+    # "Thinking two moves ahead" — the layer that makes the advice furbo.
+    opponent_playbook: OpponentPlaybook | None = None
+    # Leverage map (V7.3): legitimate pressure points short of trial —
+    # formal deadlines, parallel complaints, silenzio-assenso, access
+    # demands. Fed into section 3 so the citizen has a negotiation path
+    # alongside the litigation path.
+    leverage: LeverageMap | None = None
     # Claude Code session id — set by ClaudeCodeBackend after a compose call.
     # Callers (web.py, bot.py) should persist this per-citizen to maintain
     # native conversation context via `--resume`.
@@ -1422,6 +1571,8 @@ class SuperAvvocato:
             "evidence_map":    lambda: self._analyze_evidence_map(user_message, triage, retrieved, documents),
             "nullity_radar":   lambda: self._scan_nullities(user_message, triage, retrieved, documents),
             "contradictions":  lambda: self._detect_contradictions(documents),
+            "opponent":        lambda: self._simulate_opponent(user_message, triage, retrieved, precedents, documents),
+            "leverage":        lambda: self._map_leverage(user_message, triage, retrieved, documents),
         }
         stage_results = self._run_stages(stage_plan)
         strategic: StrategicAnalysis | None = stage_results.get("strategic")
@@ -1433,6 +1584,8 @@ class SuperAvvocato:
         evidence_map: EvidenceMap | None = stage_results.get("evidence_map")
         nullity_radar: NullityRadar | None = stage_results.get("nullity_radar")
         contradictions: ContradictionReport | None = stage_results.get("contradictions")
+        opponent_playbook: OpponentPlaybook | None = stage_results.get("opponent")
+        leverage: LeverageMap | None = stage_results.get("leverage")
         if strategic is not None:
             log.info("strategic: %d details, %d warnings",
                      len(strategic.critical_details), len(strategic.risk_warnings))
@@ -1462,6 +1615,13 @@ class SuperAvvocato:
         if contradictions is not None and not contradictions.is_empty():
             log.info("contradictions: %d items (high=%s)",
                      len(contradictions.items), contradictions.has_high())
+        if opponent_playbook is not None and not opponent_playbook.is_empty():
+            log.info("opponent_playbook: opponent=%r, %d moves",
+                     opponent_playbook.opponent, len(opponent_playbook.moves))
+        if leverage is not None and not leverage.is_empty():
+            log.info("leverage: %d levers (levels=%s)",
+                     len(leverage.levers),
+                     [l.pressure_level for l in leverage.levers])
 
         # Urgency radar (V6.6) — "is this person in actual trouble right
         # now?" Aggregates critical signals from timeline + nullity_radar
@@ -1509,6 +1669,7 @@ class SuperAvvocato:
             evidence_map=evidence_map, nullity_radar=nullity_radar,
             urgency_radar=urgency_radar, action_plan=action_plan,
             contradictions=contradictions,
+            opponent_playbook=opponent_playbook, leverage=leverage,
             session_id=session_id, documents=documents,
         )
         # Citation verifier (V7.2): strip any [[case:ID]] marker in the
@@ -1545,6 +1706,8 @@ class SuperAvvocato:
             urgency_radar=urgency_radar,
             action_plan=action_plan,
             contradictions=contradictions,
+            opponent_playbook=opponent_playbook,
+            leverage=leverage,
             session_id=new_session_id,
         )
 
@@ -2911,6 +3074,160 @@ class SuperAvvocato:
         risks.sort(key=lambda x: sev_rank.get(x.severity, 1))
         return Premortem(risks=risks[:5])
 
+    # ── stage 3l: opponent playbook (V7.3) ────────────────────────────────
+
+    def _simulate_opponent(
+        self,
+        user_message: str,
+        triage: TriageResult,
+        retrieved: list[tuple[Article, float]],
+        precedents: list[tuple[CasePrecedent, float]],
+        documents: list[dict] | None,
+    ) -> OpponentPlaybook:
+        """Simulate the opposing party's strongest moves + our counters.
+
+        Output is fed back into the compose prompt so the answer warns
+        the citizen about what the opposing side is likely to do and
+        pairs each threat with a concrete counter-action. This is the
+        "think two moves ahead" layer that separates a senior lawyer's
+        advice from a textbook citation.
+        """
+        if not retrieved:
+            return OpponentPlaybook()
+
+        articles_context = _format_articles_for_prompt(retrieved)
+        dossier_hint = format_documents_for_prompt(documents or [], compact=True)
+        dossier_block = f"\n{dossier_hint}\n" if dossier_hint else ""
+        precedent_hint = ""
+        if precedents:
+            lines = ["Precedent relevant (si ka vendosur gjykata në raste të ngjashme):"]
+            for c, _ in precedents[:5]:
+                out = f" — {c.outcome}" if c.outcome else ""
+                lines.append(f"  • {c.citation}{out}")
+            precedent_hint = "\n" + "\n".join(lines) + "\n"
+
+        prompt = textwrap.dedent(f"""\
+            Rasti i qytetarit:
+            \"\"\"{user_message}\"\"\"
+
+            Përmbledhja: {triage.problem_summary}
+            {dossier_block}{precedent_hint}
+            Nenet e gjetura:
+            {articles_context}
+
+            Identifiko KUNDËRSHTARIN dhe shkruaj LIBRIN E LOJËS — 3-5 lëvizje
+            që kundërshtari do të bëjë, dhe kundër-lëvizjet tona. JSON.
+        """)
+
+        raw = self.backend.complete(
+            system=OPPONENT_PLAYBOOK_SYSTEM,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=1300,
+            fast=True,
+        )
+        try:
+            data = _parse_json_block(raw)
+        except Exception:
+            log.warning("opponent_playbook JSON parse failed, returning empty")
+            return OpponentPlaybook()
+
+        opponent = str(data.get("opponent", "")).strip()
+        moves: list[OpponentMove] = []
+        for item in (data.get("moves") or []):
+            if not isinstance(item, dict):
+                continue
+            mv = str(item.get("move", "")).strip()
+            if not mv:
+                continue
+            sev_raw = str(item.get("severity", "medium")).strip().lower()
+            sev: OpponentMoveSeverity = (
+                sev_raw if sev_raw in ("high", "medium", "low") else "medium"  # type: ignore[assignment]
+            )
+            moves.append(OpponentMove(
+                move=mv,
+                why_it_threatens=str(item.get("why_it_threatens", "")).strip(),
+                counter=str(item.get("counter", "")).strip(),
+                severity=sev,
+                legal_basis=str(item.get("legal_basis", "")).strip(),
+            ))
+        sev_rank = {"high": 0, "medium": 1, "low": 2}
+        moves.sort(key=lambda x: sev_rank.get(x.severity, 1))
+        return OpponentPlaybook(opponent=opponent, moves=moves[:5])
+
+    # ── stage 3m: leverage map (V7.3) ─────────────────────────────────────
+
+    def _map_leverage(
+        self,
+        user_message: str,
+        triage: TriageResult,
+        retrieved: list[tuple[Article, float]],
+        documents: list[dict] | None,
+    ) -> LeverageMap:
+        """Identify 2-4 legitimate pressure points that push the opposing
+        party toward settlement — formal deadlines, parallel complaints,
+        silenzio-assenso, document-access demands. Kept independent of
+        the opponent playbook so the two can run in parallel.
+        """
+        if not retrieved:
+            return LeverageMap()
+
+        articles_context = _format_articles_for_prompt(retrieved)
+        dossier_hint = format_documents_for_prompt(documents or [], compact=True)
+        dossier_block = f"\n{dossier_hint}\n" if dossier_hint else ""
+
+        prompt = textwrap.dedent(f"""\
+            Rasti i qytetarit:
+            \"\"\"{user_message}\"\"\"
+
+            Përmbledhja: {triage.problem_summary}
+            {dossier_block}
+            Nenet e gjetura:
+            {articles_context}
+
+            Identifiko 2-4 LEVA PRESIONI legjitime për ta zgjidhur çështjen
+            PA shkuar në gjyq (ose duke forcuar pozicionin para gjyqit). JSON.
+        """)
+
+        raw = self.backend.complete(
+            system=LEVERAGE_MAP_SYSTEM,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=1100,
+            fast=True,
+        )
+        try:
+            data = _parse_json_block(raw)
+        except Exception:
+            log.warning("leverage_map JSON parse failed, returning empty")
+            return LeverageMap()
+
+        valid_pressure = {"soft", "firm", "decisive"}
+        valid_timing = {"sot", "para padisë", "paralelisht me padinë", "gjatë gjykimit"}
+        levers: list[LeverageLever] = []
+        for item in (data.get("levers") or []):
+            if not isinstance(item, dict):
+                continue
+            lv = str(item.get("lever", "")).strip()
+            if not lv:
+                continue
+            pl_raw = str(item.get("pressure_level", "firm")).strip().lower()
+            pl: LeveragePressureLevel = (
+                pl_raw if pl_raw in valid_pressure else "firm"  # type: ignore[assignment]
+            )
+            tm_raw = str(item.get("timing", "para padisë")).strip().lower()
+            tm: LeverageTiming = (
+                tm_raw if tm_raw in valid_timing else "para padisë"  # type: ignore[assignment]
+            )
+            levers.append(LeverageLever(
+                lever=lv,
+                mechanism=str(item.get("mechanism", "")).strip(),
+                pressure_level=pl,
+                timing=tm,
+                risk_to_citizen=str(item.get("risk_to_citizen", "")).strip(),
+            ))
+        pressure_rank = {"decisive": 0, "firm": 1, "soft": 2}
+        levers.sort(key=lambda x: pressure_rank.get(x.pressure_level, 1))
+        return LeverageMap(levers=levers[:4])
+
     # ── stage 4: answer composition ───────────────────────────────────────
 
     @retry(
@@ -2936,6 +3253,8 @@ class SuperAvvocato:
         urgency_radar: UrgencyRadar | None = None,
         action_plan: ActionPlan | None = None,
         contradictions: ContradictionReport | None = None,
+        opponent_playbook: OpponentPlaybook | None = None,
+        leverage: LeverageMap | None = None,
         session_id: str | None = None,
         documents: list[dict] | None = None,
     ) -> str:
@@ -2951,6 +3270,8 @@ class SuperAvvocato:
         urgency_block = _format_urgency_block(urgency_radar)
         action_plan_block = _format_action_plan_block(action_plan)
         contradictions_block = _format_contradictions_block(contradictions)
+        opponent_block = _format_opponent_block(opponent_playbook)
+        leverage_block = _format_leverage_block(leverage)
         # When we have docs, we pass the raw files as attachments so Claude
         # reads them natively (same UX as pasting an image into a chat) —
         # the prompt block only lists filenames, no pre-extracted text.
@@ -2986,7 +3307,7 @@ class SuperAvvocato:
             {dossier_block}
             Nenet e gjetura nga kodet shqiptare (me rëndësinë zbritëse):
             {context}
-            {precedents_block}{comparison_block}{distinguishing_block}{evidence_map_block}{contradictions_block}{nullity_block}{premortem_block}{strategic_block}{timeline_block}{action_plan_block}
+            {precedents_block}{comparison_block}{distinguishing_block}{evidence_map_block}{contradictions_block}{nullity_block}{premortem_block}{opponent_block}{leverage_block}{strategic_block}{timeline_block}{action_plan_block}
             {dossier_guidance}Shkruaj përgjigjen në formatin e kërkuar (PESË seksione në shqip),
             duke cituar vetëm nenet e mësipërme. Nëse analiza ka gjetur
             vendime të Gjykatës Kushtetuese/Gjykatës së Lartë të lidhura me
@@ -3846,6 +4167,79 @@ def _format_strategic_block(strategic: StrategicAnalysis | None) -> str:
             lines.append(f"  ⚠ {w}")
     lines.append("")
     return "\n".join(lines)
+
+
+def _format_opponent_block(op: OpponentPlaybook | None) -> str:
+    """Render the opposing party's moves + our counters for the answer prompt.
+
+    This is the "two moves ahead" block: the compose model is told to
+    weave each high/medium move into section 5 so the citizen leaves
+    the conversation knowing what the other side will try AND what to
+    do the moment they try it. Low-severity moves are still rendered
+    so the answer can address them briefly but don't force section-5
+    integration.
+    """
+    if op is None or op.is_empty():
+        return ""
+    sev_icon = {"high": "🔴", "medium": "🟡", "low": "🟢"}
+    lines = ["", "── LIBRI I LOJËS I KUNDËRSHTARIT (çfarë do të bëjë pala tjetër dhe si e kundërshtojmë) ──"]
+    if op.opponent:
+        lines.append(f"  Kundërshtari: {op.opponent}")
+    for i, m in enumerate(op.moves, 1):
+        icon = sev_icon.get(m.severity, "🟡")
+        lines.append(f"  {i}. {icon} Lëvizja: {m.move}")
+        if m.why_it_threatens:
+            lines.append(f"     Pse na kërcënon: {m.why_it_threatens}")
+        if m.counter:
+            lines.append(f"     Kundër-lëvizja: {m.counter}")
+        if m.legal_basis:
+            lines.append(f"     Bazë ligjore: {m.legal_basis}")
+    lines.append("")
+    lines.append(
+        f"INTEGRO lëvizjet high/medium te {SECTION_REF['strategic']} — për "
+        "secilën, thuaji qytetarit hapur 'kundërshtari ka gjasë të bëjë X; "
+        "sapo e bën, ti bën Y'. Ky është avokati që mendon një hap përpara — "
+        "qytetari duhet ta ndjejë që je përgatitur për lëvizjet e tjetrit PARA "
+        "se ato të ndodhin. Nëse një kundër-lëvizje ka afat ose duhet bërë sot, "
+        "reflektoje edhe te seksioni 3 'Çfarë duhet të bësh'."
+    )
+    return "\n".join(lines) + "\n"
+
+
+def _format_leverage_block(lm: LeverageMap | None) -> str:
+    """Render legitimate pressure points for the answer prompt.
+
+    The compose model is instructed to surface these in section 3
+    (actions) as a negotiation path — the citizen should always know
+    the cheapest legitimate pressure they can apply BEFORE escalating
+    to a lawsuit. For decisive-level levers we also want the risk
+    disclosed so the citizen decides with open eyes.
+    """
+    if lm is None or lm.is_empty():
+        return ""
+    lvl_icon = {"decisive": "🟥", "firm": "🟧", "soft": "🟨"}
+    lines = ["", "── LEVA PRESIONI (si ta zgjidhim pa gjyq ose ta forcojmë pozicionin para gjyqit) ──"]
+    for i, lv in enumerate(lm.levers, 1):
+        icon = lvl_icon.get(lv.pressure_level, "🟧")
+        lines.append(
+            f"  {i}. {icon} [{lv.pressure_level}] {lv.lever}"
+        )
+        if lv.mechanism:
+            lines.append(f"     Mekanizmi: {lv.mechanism}")
+        if lv.timing:
+            lines.append(f"     Koha: {lv.timing}")
+        if lv.risk_to_citizen:
+            lines.append(f"     Rreziku për qytetarin: {lv.risk_to_citizen}")
+    lines.append("")
+    lines.append(
+        f"INTEGRO levat te {SECTION_REF['actions']} — për secilën, jepi "
+        "qytetarit një VEPRIM konkret (letër e rekomanduar, kërkesë formale, "
+        "ankesë paralele) me afat. Nisi nga leva më e lirë (soft) dhe "
+        "eskalo vetëm nëse kundërshtari nuk lëviz. Për leva decisive, mos "
+        "harro të përmendësh qartë rrezikun. Qëllimi nuk është të shtyjmë "
+        "qytetarin në gjyq — shumë raste zgjidhen vetëm me letra të zgjuara."
+    )
+    return "\n".join(lines) + "\n"
 
 
 # ── CLI test ───────────────────────────────────────────────────────────────

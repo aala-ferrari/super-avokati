@@ -67,6 +67,8 @@ CREATE TABLE IF NOT EXISTS messages (
     urgency_radar_json TEXT,                 -- JSON-serialised urgency signals (top-of-page emergency panel)
     action_plan_json TEXT,                   -- JSON-serialised consolidated action plan (time-bucketed checklist)
     contradictions_json TEXT,                -- JSON-serialised cross-document contradiction report
+    opponent_playbook_json TEXT,             -- JSON-serialised opponent playbook (V7.3 — two moves ahead)
+    leverage_json   TEXT,                    -- JSON-serialised leverage map (V7.3 — pressure points short of trial)
     created_at      TEXT NOT NULL,
     FOREIGN KEY (case_id) REFERENCES cases(id) ON DELETE CASCADE
 );
@@ -129,6 +131,8 @@ def init_db(db_path: Path = APP_DB_PATH) -> None:
         _add_column_if_missing(conn, "messages", "urgency_radar_json", "TEXT")
         _add_column_if_missing(conn, "messages", "action_plan_json", "TEXT")
         _add_column_if_missing(conn, "messages", "contradictions_json", "TEXT")
+        _add_column_if_missing(conn, "messages", "opponent_playbook_json", "TEXT")
+        _add_column_if_missing(conn, "messages", "leverage_json", "TEXT")
         _add_column_if_missing(conn, "cases", "answer_system_version", "TEXT")
         conn.commit()
     log.info("app db ready at %s", db_path)
@@ -200,6 +204,8 @@ class Message:
     urgency_radar: dict | None
     action_plan: dict | None
     contradictions: dict | None
+    opponent_playbook: dict | None
+    leverage: dict | None
     created_at: str
 
 
@@ -232,6 +238,8 @@ def _message_from_row(r: sqlite3.Row) -> Message:
     urgency_radar_raw = r["urgency_radar_json"] if "urgency_radar_json" in keys else None
     action_plan_raw = r["action_plan_json"] if "action_plan_json" in keys else None
     contradictions_raw = r["contradictions_json"] if "contradictions_json" in keys else None
+    opponent_raw = r["opponent_playbook_json"] if "opponent_playbook_json" in keys else None
+    leverage_raw = r["leverage_json"] if "leverage_json" in keys else None
     return Message(
         id=r["id"], case_id=r["case_id"], role=r["role"],
         content=r["content"], kind=r["kind"],
@@ -247,6 +255,8 @@ def _message_from_row(r: sqlite3.Row) -> Message:
         urgency_radar=json.loads(urgency_radar_raw) if urgency_radar_raw else None,
         action_plan=json.loads(action_plan_raw) if action_plan_raw else None,
         contradictions=json.loads(contradictions_raw) if contradictions_raw else None,
+        opponent_playbook=json.loads(opponent_raw) if opponent_raw else None,
+        leverage=json.loads(leverage_raw) if leverage_raw else None,
         created_at=r["created_at"],
     )
 
@@ -469,6 +479,8 @@ def add_message(
     urgency_radar: dict | None = None,
     action_plan: dict | None = None,
     contradictions: dict | None = None,
+    opponent_playbook: dict | None = None,
+    leverage: dict | None = None,
 ) -> Message:
     now = _utcnow()
     articles_json = json.dumps(articles, ensure_ascii=False) if articles else None
@@ -495,18 +507,26 @@ def add_message(
     contradictions_json = (
         json.dumps(contradictions, ensure_ascii=False) if contradictions else None
     )
+    opponent_playbook_json = (
+        json.dumps(opponent_playbook, ensure_ascii=False) if opponent_playbook else None
+    )
+    leverage_json = (
+        json.dumps(leverage, ensure_ascii=False) if leverage else None
+    )
     with db() as conn:
         cur = conn.execute(
             "INSERT INTO messages (case_id, role, content, kind, "
             "articles_json, precedents_json, timeline_json, comparison_json, "
             "missing_facts_json, premortem_json, distinguishing_json, "
             "evidence_map_json, nullity_radar_json, urgency_radar_json, "
-            "action_plan_json, contradictions_json, created_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "action_plan_json, contradictions_json, opponent_playbook_json, "
+            "leverage_json, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (case_id, role, content, kind, articles_json, precedents_json,
              timeline_json, comparison_json, missing_json, premortem_json,
              distinguishing_json, evidence_map_json, nullity_radar_json,
-             urgency_radar_json, action_plan_json, contradictions_json, now),
+             urgency_radar_json, action_plan_json, contradictions_json,
+             opponent_playbook_json, leverage_json, now),
         )
         mid = cur.lastrowid
         conn.execute("UPDATE cases SET updated_at = ? WHERE id = ?", (now, case_id))
@@ -517,7 +537,9 @@ def add_message(
         premortem=premortem, distinguishing=distinguishing,
         evidence_map=evidence_map, nullity_radar=nullity_radar,
         urgency_radar=urgency_radar, action_plan=action_plan,
-        contradictions=contradictions, created_at=now,
+        contradictions=contradictions,
+        opponent_playbook=opponent_playbook, leverage=leverage,
+        created_at=now,
     )
 
 

@@ -231,6 +231,8 @@ def api_get_case(case_id: str):
              "urgency_radar": m.urgency_radar,
              "action_plan": m.action_plan,
              "contradictions": m.contradictions,
+             "opponent_playbook": m.opponent_playbook,
+             "leverage": m.leverage,
              "created_at": m.created_at}
             for m in messages
         ],
@@ -322,6 +324,8 @@ def api_export_case(case_id: str):
                  "urgency_radar": m.urgency_radar,
                  "action_plan": m.action_plan,
                  "contradictions": m.contradictions,
+                 "opponent_playbook": m.opponent_playbook,
+                 "leverage": m.leverage,
                  "created_at": m.created_at}
                 for m in messages
             ],
@@ -560,6 +564,8 @@ def api_ask():
     urgency_radar_payload = _urgency_radar_payload(result.urgency_radar)
     action_plan_payload = _action_plan_payload(result.action_plan)
     contradictions_payload = _contradictions_payload(result.contradictions)
+    opponent_payload = _opponent_playbook_payload(result.opponent_playbook)
+    leverage_payload = _leverage_payload(result.leverage)
     storage.add_message(case.id, "assistant", result.text,
                         kind=result.kind, articles=articles, precedents=precedents,
                         timeline=timeline_payload, comparison=comparison_payload,
@@ -570,7 +576,9 @@ def api_ask():
                         nullity_radar=nullity_radar_payload,
                         urgency_radar=urgency_radar_payload,
                         action_plan=action_plan_payload,
-                        contradictions=contradictions_payload)
+                        contradictions=contradictions_payload,
+                        opponent_playbook=opponent_payload,
+                        leverage=leverage_payload)
     if result.session_id:
         storage.update_case_claude_session(case.id, user.id, result.session_id)
         # Record the fingerprint alongside the session so the next turn
@@ -609,6 +617,8 @@ def api_ask():
         "urgency_radar": urgency_radar_payload,
         "action_plan": action_plan_payload,
         "contradictions": contradictions_payload,
+        "opponent_playbook": opponent_payload,
+        "leverage": leverage_payload,
         "case_id": case.id,
     })
 
@@ -739,6 +749,24 @@ def _contradictions_payload(cr) -> dict | None:
     if cr is None or cr.is_empty():
         return None
     return {"items": [asdict(c) for c in cr.items]}
+
+
+def _opponent_playbook_payload(op) -> dict | None:
+    """Serialise OpponentPlaybook for the UI. None when empty so purely
+    informative questions (no opposing party) don't render a panel."""
+    if op is None or op.is_empty():
+        return None
+    return {
+        "opponent": op.opponent,
+        "moves": [asdict(m) for m in op.moves],
+    }
+
+
+def _leverage_payload(lm) -> dict | None:
+    """Serialise LeverageMap for the UI. None when empty."""
+    if lm is None or lm.is_empty():
+        return None
+    return {"levers": [asdict(lv) for lv in lm.levers]}
 
 
 def _precedent_payload(c, score: float) -> dict:
