@@ -65,6 +65,7 @@ class CasePrecedent:
     id: int                              # DB primary key → pin-to-row citations
     court_code: str
     court_name: str
+    court_level: str
     case_number: str
     decision_date: date | None
     type: str                            # penal | civil | administrativ | cedu | ...
@@ -103,6 +104,10 @@ class LegalKBRetriever:
         self.bm25 = bm25
         self._cited_codes_per_case = [
             {code for code, _art in c.articles_cited} for c in cases
+        ]
+        self._cited_articles_per_case = [
+            {_article_key(code, art) for code, art in c.articles_cited}
+            for c in cases
         ]
 
     # ── construction ───────────────────────────────────────────────────
@@ -149,6 +154,7 @@ class LegalKBRetriever:
         year_from: int | None = None,
         year_to: int | None = None,
         cited_code: str | None = None,
+        cited_articles: Iterable[tuple[str, str]] | None = None,
         min_score: float = 1.0,
     ) -> list[tuple[CasePrecedent, float]]:
         """Rank cases by max-BM25 over any of ``queries``, then filter.
@@ -164,6 +170,11 @@ class LegalKBRetriever:
         be wins. ``outcome`` (singular) remains as a precise 1-value filter.
         """
         outcome_set = set(outcomes) if outcomes else None
+        article_hint_set = {
+            _article_key(code, article) for code, article in (cited_articles or [])
+            if code and article
+        }
+        code_hint_set = {code for code, _article in article_hint_set}
         if not self.cases:
             return []
 
@@ -202,10 +213,17 @@ class LegalKBRetriever:
                 continue
             if cited_code and cited_code not in self._cited_codes_per_case[idx]:
                 continue
-            out.append((c, score))
-            if len(out) >= top_k:
-                break
-        return out
+            enriched_score = score + _precedent_match_bonus(
+                c,
+                article_hint_set=article_hint_set,
+                code_hint_set=code_hint_set,
+                case_codes=self._cited_codes_per_case[idx],
+                case_articles=self._cited_articles_per_case[idx],
+            )
+            out.append((c, enriched_score))
+
+        out.sort(key=lambda pair: (-pair[1], -(pair[0].year or 0), pair[0].citation))
+        return out[:top_k]
 
     # ── direct lookup (for citation pin-back) ──────────────────────────
 
@@ -252,6 +270,7 @@ def _row_to_precedent(case: Case) -> CasePrecedent:
         id=case.id,
         court_code=case.court.code if case.court else "",
         court_name=case.court.name if case.court else "",
+        court_level=case.court.level if case.court else "",
         case_number=case.case_number or "",
         decision_date=case.decision_date,
         type=case.type or "",
@@ -287,3 +306,55 @@ def _searchable_text(p: CasePrecedent) -> str:
         p.excerpt,
     ]
     return "\n".join(x for x in parts if x)
+
+
+def _article_key(code: str, article: str) -> tuple[str, str]:
+    return (code.strip(), _normalise_article(article))
+
+
+def _normalise_article(article: str) -> str:
+    return "".join((article or "").strip().lower().split())
+
+
+def _court_authority_bonus(level: str) -> float:
+    return {
+        "kushtetuese": 0.60,
+        "larte": 0.45,
+        "apel": 0.20,
+        "administrative": 0.18,
+        "administrativ": 0.18,
+        "shkalla_pare": 0.08,
+        "ushtarake": 0.05,
+    }.get((level or "").strip().lower(), 0.0)
+
+
+def _precedent_match_bonus(
+    case: CasePrecedent,
+    *,
+    article_hint_set: set[tuple[str, str]],
+    code_hint_set: set[str],
+    case_codes: set[str],
+    case_articles: set[tuple[str, str]],
+) -> float:
+    """Structured bonus on top of BM25.
+
+    The best precedent is not just lexically similar; it often cites the
+    same article(s) and comes from a court whose authority matters more.
+    These bonuses are intentionally modest: BM25 stays primary, but the
+    ranking nudges toward legally stronger, more on-point cases.
+    """
+    bonus = _court_authority_bonus(case.court_level)
+
+    exact_article_overlap = len(case_articles & article_hint_set)
+    if exact_article_overlap:
+        bonus += min(1.35, exact_article_overlap * 0.55)
+
+    shared_codes = len(case_codes & code_hint_set)
+    if shared_codes:
+        bonus += min(0.45, shared_codes * 0.15)
+
+    if case.year:
+        age = max(0, date.today().year - case.year)
+        bonus += max(0.0, 0.12 - min(0.12, age * 0.01))
+
+    return bonus

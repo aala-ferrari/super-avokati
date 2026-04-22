@@ -256,9 +256,15 @@ RREGULLA:
 
 
 COMPARISON_SYSTEM = """Ti je avokat strateg shqiptar që analizon precedent.
-Të janë dhënë dy grupe vendimesh gjyqësore të ngjashme me rastin e qytetarit:
+Të janë dhënë deri në dy grupe vendimesh gjyqësore të ngjashme me rastin e qytetarit:
  • vendime ku kërkesa u PRANUA (fituesit)
  • vendime ku kërkesa u RRËZUA (humbësit)
+
+Ndonjëherë do të kesh TË DY grupet. Ndonjëherë do të kesh VETËM NJËRIN.
+Ti duhet të nxjerrësh maksimumin edhe nga një set i njëanshëm:
+ • nëse ke vetëm fituesit → nxirr "ÇFARË DUHET IMITUAR"
+ • nëse ke vetëm humbësit → nxirr "ÇFARË DUHET SHMANGUR"
+ • nëse ke të dyja → bëj dallimin klasik fitues vs humbës
 
 Detyra jote ka DY hapa:
  (1) Nxirr PATTERN-in — çfarë kishin të përbashkët fituesit, çfarë kishin të përbashkët humbësit, dhe në cilën anë bien faktet e qytetarit TONË.
@@ -285,10 +291,11 @@ Ktheje vetëm një objekt JSON:
 
 RREGULLA STRIKTE:
 • Asnjëherë mos shpik vendim apo fakt. Bazohu VETËM mbi vendimet e dhëna dhe faktet e qytetarit.
-• Nëse grupi i fituesve ose humbësve është bosh ose shumë i vogël për të nxjerrë pattern, kthe citizen_alignment="unknown" dhe lër pattern_winners/pattern_losers bosh dhe decisive_differences=[].
-• MINIMUM 2, MAKSIMUM 4 decisive_differences. Zgjidhi ato më peshëmbajtëset. Një rast me "afat" + "provë me shkrim" + "njoftim i datuar" është tipik.
+• Nëse të dy grupet janë bosh OSE sinjali është shumë i dobët, kthe citizen_alignment="unknown" dhe lër pattern_winners/pattern_losers bosh dhe decisive_differences=[].
+• Nëse vetëm një grup është bosh, mbush vetëm pattern-in për grupin që ekziston; tjetri le të mbetet bosh. Edhe në këtë rast përpiqu të japësh 1-3 decisive_differences nga ajo që DUHET imituar ose shmangur.
+• Kur ke të dy grupet, jep MINIMUM 2, MAKSIMUM 4 decisive_differences. Kur ke vetëm njërin grup, jep MINIMUM 1, MAKSIMUM 3.
 • citizen_status duhet të jetë faktik: "ka" vetëm kur faktet e thonë qartë; "mungon" kur faktet e thonë qartë që mungon; "e paqartë" kur faktet nuk e zbulojnë.
-• action duhet të jetë konkret dhe i ekzekutueshëm (p.sh. "Kërko kopjen e noterizuar të aktit të njoftimit tek sekretaria e gjykatës së shkallës së parë").
+• action duhet të jetë konkret dhe i ekzekutueshëm (p.sh. "Kërko kopjen e noterizuar të aktit të njoftimit tek sekretaria e gjykatës së shkallës së parë"). Nëse citizen_status="ka", action le të jetë vetëm ruajtëse/provuese (p.sh. "Mbaje këtë avantazh, dokumentoje").
 • Shkruaj SHQIP. Jo latinisht, jo italisht.
 • Mos shto komente jashtë JSON-it."""
 
@@ -1858,16 +1865,20 @@ class SuperAvvocato:
     ) -> PrecedentComparison | None:
         """Split precedents by outcome and ask the fast model for the pattern.
 
-        We only run when there's at least one winning AND one losing outcome
-        in the set — anything less forces the model to fabricate one side,
-        and the comparison then becomes noise instead of signal.
+        Runs when at least one side is non-empty — one-sided retrieval
+        (only wins OR only losses) still yields signal: "what to imitate"
+        from a stack of wins, or "what to avoid" from a stack of losses.
+        Only a completely empty set short-circuits; the prompt knows how
+        to scope its analysis to whichever side is present.
         """
         winners = [c for c, _ in precedents if (c.outcome or "") in _WINNING_OUTCOMES]
         losers = [c for c, _ in precedents if (c.outcome or "") in _LOSING_OUTCOMES]
-        if not winners or not losers:
+        if not winners and not losers:
             return None
 
         def _render_set(label: str, cases: list[CasePrecedent]) -> str:
+            if not cases:
+                return f"── {label} (0) — asnjë vendim i këtij grupi në këtë rast ──"
             lines = [f"── {label} ({len(cases)}) ──"]
             for c in cases[:4]:  # cap: prompt budget
                 arts = ", ".join(f"{code} n.{art}" for code, art in c.articles_cited[:4])
