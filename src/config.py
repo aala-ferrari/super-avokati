@@ -85,6 +85,14 @@ TOP_K_ARTICLES = int(os.getenv("TOP_K_ARTICLES", "12"))
 TOP_K_DECISIONS = int(os.getenv("TOP_K_DECISIONS", "4"))
 MAX_CONVERSATION_TURNS = int(os.getenv("MAX_CONVERSATION_TURNS", "20"))
 
+# Albanian post-processing (V7.0): the editor pass rewrites the final
+# answer in shqipe standarde juridike via a fast-model call, then a
+# deterministic invariant check falls back to the original if the
+# editor mutated any protected token (case links, article numbers,
+# currency, dates). Disabling this skips the LLM rewrite but keeps
+# the deterministic word/phrase corrections (those are always on).
+ALBANIAN_EDITOR_ENABLED = os.getenv("ALBANIAN_EDITOR_ENABLED", "1") == "1"
+
 for path in (RAW_DATA_PATH, PROCESSED_DATA_PATH, INDEX_PATH, LOG_PATH.parent,
              JURISPRUDENCE_PATH, UPLOAD_PATH):
     path.mkdir(parents=True, exist_ok=True)

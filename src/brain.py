@@ -37,6 +37,7 @@ import hashlib
 import json
 import re
 import textwrap
+from collections import Counter
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from pathlib import Path
@@ -45,7 +46,9 @@ from typing import Literal
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from .backends import LLMBackend, build_backend
-from .config import LEGAL_DOCUMENTS, TOP_K_ARTICLES, TOP_K_DECISIONS
+from .config import (
+    ALBANIAN_EDITOR_ENABLED, LEGAL_DOCUMENTS, TOP_K_ARTICLES, TOP_K_DECISIONS,
+)
 from .documents import format_documents_for_prompt
 from .logging_utils import get_logger
 from .parser import Article
@@ -660,6 +663,34 @@ SECTION_REF = {
 }
 
 
+ALBANIAN_EDITOR_SYSTEM = """Ti je REDAKTOR JURIDIK shqiptar — puna jote është të rafinosh gjuhën, jo të ndryshosh përmbajtjen.
+
+Do të marrësh një përgjigje juridike të shkruar në shqip. Detyra jote: ta kthesh në shqipe standarde, të rrjedhshme, profesionale, pa kalkime italiane/angleze, pa gabime gramatikore — duke RUAJTUR TË PANDRYSHUAR çdo fakt juridik.
+
+RREGULLA E ARTË — NUK MUND TË PREKËSH:
+• numrat e neneve dhe kodeve (p.sh. "neni 130 i Kodit Penal") — as numrin, as emrin e kodit
+• datat (p.sh. "14 maj 2026", "2026-04-22", "14/05/2024") — as ditën, muajin, vitin
+• shumat me njësi (p.sh. "20,000 EUR", "1.500 ALL", "500 lekë") — as shifrën, as valutën
+• shënuesit `[[case:ID]]` (p.sh. `[[case:347]]`) — as formatin, as numrin
+• emrat e personave dhe institucioneve (Gjykata e Lartë, Avokati i Popullit, etj.)
+• strukturën me PESË seksione dhe kokëfaqet e tyre (## 1. 📜 / ## 2. ⚖️ / ## 3. 🛠️ / ## 4. ⏰ / ## 5. 🎯)
+• kuptimin juridik të çdo fjalie
+
+ÇFARË DUHET TË PËRMIRËSOSH:
+• gabimet e rasave të përemrave dëftorë (kjo/ky për kryefjalë, këtë/këtë për kundrinë)
+• kalkimet nga italishtja ose anglishtja (p.sh. "realizoj" → "kryej", "aplikoj" → "zbatoj", "efektuoj" → "kryej")
+• fjalinë e gjatë me nënfjali të shumta — ndaje në 2-3 fjali të shkurtra kur është më e qartë
+• etnonime dhe mbiemra prejemërorë të shkruar gabim (p.sh. "korian" → "korean")
+• pikësimin, diakritikët (ë, ç), drejtshkrimin
+• fjalët e vagëta kur ekziston termi juridik i saktë
+
+QËLLIMI:
+Kur qytetari lexon përgjigjen, duhet të ndjejë se e ka shkruar një avokat i vërtetë shqiptar — jo një përkthim, jo një formë letrare. Shqip i pastër, profesional, i ngrohtë.
+
+KTHIMI:
+Kthe VETËM tekstin e rafinuar, pa komente, pa preambula, pa markup shtesë. Nëse origjinali tashmë është i pastër, ktheje ashtu siç është."""
+
+
 ANSWER_SYSTEM = """Ti je Super Avokati — avokat virtual falas për qytetarët shqiptarë që nuk mund të përballojnë tarifat.
 Je i ngrohtë, i qartë dhe flet gjuhën e njerëzve të thjeshtë, jo zhargon ligjor.
 Por nën sipërfaqen e butë, je një avokat strateg që NUK harron asnjë detaj vendimtar.
@@ -733,6 +764,7 @@ for _sys_name in (
     "NULLITY_RADAR_SYSTEM",
     "PREMORTEM_SYSTEM",
     "MISSING_FACTS_SYSTEM",
+    "ALBANIAN_EDITOR_SYSTEM",
     "ANSWER_SYSTEM",
 ):
     globals()[_sys_name] = globals()[_sys_name] + "\n\n" + ALBANIAN_LANGUAGE_RULES
@@ -1464,7 +1496,16 @@ class SuperAvvocato:
             contradictions=contradictions,
             session_id=session_id, documents=documents,
         )
-        # Albanian post-processing (V7.0): deterministic word/phrase
+        # Albanian editor pass (V7.0 Tappa 3): fast-model redaktor juridik
+        # rewrites the answer for fluent shqipe standarde. Falls back to
+        # the original on any drift in legal invariants — see
+        # _check_invariants for what is guarded.
+        if ALBANIAN_EDITOR_ENABLED:
+            try:
+                answer_text = self._polish_albanian(answer_text)
+            except Exception as exc:
+                log.warning("albanian_editor failed (non-fatal): %s", exc)
+        # Albanian post-processing (V7.0 Tappa 2): deterministic word/phrase
         # corrections applied to the final answer. Protected tokens
         # (case:ID, numbers, dates, article refs) are preserved
         # verbatim — see _apply_corrections for the protection list.
@@ -2937,6 +2978,46 @@ class SuperAvvocato:
             attachments=attachment_paths or None,
         )
 
+    # ── stage 5: Albanian editor pass (V7.0 Tappa 3) ───────────────────────
+
+    def _polish_albanian(self, text: str) -> str:
+        """Run a fast-model redaktor juridik over ``text`` and accept the
+        rewrite only if every legal invariant (case IDs, article refs,
+        currency, dates, section headings) survived unchanged.
+
+        Philosophy: the editor is allowed to fix case agreement, calques,
+        punctuation and long sentences, but NEVER to add/drop/mutate a
+        legal fact. Any drift → we log and keep the original. The pass is
+        an enhancement, never a corrupter."""
+        if not text or not text.strip():
+            return text
+        # Headroom for a modest expansion (the editor sometimes splits
+        # long sentences into two). Capped so a runaway rewrite can't
+        # blow the budget — if the model tries to rewrite a long answer,
+        # we'd rather truncate and fail the invariant check than spend.
+        budget = min(4000, max(1200, len(text) // 2 + 600))
+        try:
+            rewritten = self.backend.complete(
+                system=ALBANIAN_EDITOR_SYSTEM,
+                messages=[{"role": "user", "content": text}],
+                max_tokens=budget,
+                fast=True,
+            )
+        except Exception as exc:
+            log.warning("albanian_editor backend failed: %s", exc)
+            return text
+        rewritten = (rewritten or "").strip()
+        if not rewritten:
+            return text
+        ok, reason = _check_invariants(text, rewritten)
+        if not ok:
+            log.warning(
+                "albanian_editor drift detected — keeping original (%s)", reason,
+            )
+            return text
+        log.info("albanian_editor applied (+%d chars)", len(rewritten) - len(text))
+        return rewritten
+
 
 # ── helpers ────────────────────────────────────────────────────────────────
 
@@ -3101,6 +3182,54 @@ def _apply_corrections(text: str) -> str:
         working = working.replace(f"\0P{i}\0", tok, 1)
 
     return working
+
+
+# Invariants the Albanian editor pass MUST preserve. A multiset mismatch
+# between original and rewrite is treated as drift and causes us to drop
+# the rewrite. Same ``[[case:]]``/article/currency/date/heading families
+# used for the protect-and-restore in ``_apply_corrections``, but here
+# we compare rather than protect — the editor rewrites freely and we
+# verify after.
+_INVARIANT_PATTERNS: dict[str, re.Pattern[str]] = {
+    "case_ids": re.compile(r"\[\[case:\d+\]\]"),
+    "article_refs": re.compile(
+        r"\bnen(?:i|it|in|eve|e)?\s+\d+(?:[/-]\d+)?\b", re.IGNORECASE,
+    ),
+    "currency": re.compile(
+        r"\b\d[\d.,]*\s*(?:EUR|USD|GBP|ALL|€|\$|£|lekë)\b", re.IGNORECASE,
+    ),
+    "iso_dates": re.compile(r"\b\d{4}-\d{2}-\d{2}\b"),
+    "slashed_dates": re.compile(r"\b\d{1,2}[/.]\d{1,2}[/.]\d{2,4}\b"),
+    "section_headings": re.compile(r"^##\s+\d+\.\s+\S+", re.MULTILINE),
+}
+
+# Classes where casing is stylistic and we don't want "Neni 130" vs
+# "neni 130" to trigger a false-positive drift.
+_INVARIANT_CASE_INSENSITIVE = {"article_refs", "currency"}
+
+
+def _extract_invariants(text: str) -> dict[str, Counter]:
+    """Multiset of each invariant class found in ``text``."""
+    out: dict[str, Counter] = {}
+    for key, pat in _INVARIANT_PATTERNS.items():
+        matches = [m.group(0) for m in pat.finditer(text)]
+        if key in _INVARIANT_CASE_INSENSITIVE:
+            matches = [x.lower() for x in matches]
+        out[key] = Counter(matches)
+    return out
+
+
+def _check_invariants(original: str, rewritten: str) -> tuple[bool, str]:
+    """Return ``(ok, reason)``. ``ok=False`` means the rewrite added,
+    dropped, or mutated a protected token — always a reason to discard."""
+    a = _extract_invariants(original)
+    b = _extract_invariants(rewritten)
+    for key in a:
+        if a[key] != b[key]:
+            missing = a[key] - b[key]
+            extra = b[key] - a[key]
+            return False, f"{key} drift missing={dict(missing)} extra={dict(extra)}"
+    return True, "ok"
 
 
 def _format_articles_for_prompt(pairs: list[tuple[Article, float]]) -> str:
