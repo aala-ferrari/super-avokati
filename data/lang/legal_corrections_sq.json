@@ -1,0 +1,45 @@
+{
+  "_comment": "Deterministic word-level corrections applied to every Albanian string sent to the citizen. Entries are case-INSENSITIVE, whole-word matches. Case of the output mirrors the input (first letter preserves capitalisation). Add a rule ONLY when you see a recurring error in a real response — speculation belongs in ALBANIAN_LANGUAGE_RULES, not here.",
+  "_format": "wrong: correct — wrong is the incorrect form the model produced; correct is the shqipe standarde form. Both single tokens, no spaces (for multi-word corrections, use phrases section below).",
+
+  "words": {
+    "korian": "korean",
+    "koriane": "koreane",
+    "korianët": "koreanët",
+    "korianëve": "koreanëve",
+    "realizoj": "kryej",
+    "realizon": "kryen",
+    "realizoni": "kryeni",
+    "realizova": "kreva",
+    "realizoi": "kreu",
+    "realizuar": "kryer",
+    "aplikoj": "zbatoj",
+    "aplikon": "zbaton",
+    "aplikoni": "zbatoni",
+    "aplikohet": "zbatohet",
+    "aplikuar": "zbatuar",
+    "efektuoj": "kryej",
+    "efektuon": "kryen",
+    "efektuar": "kryer",
+    "prezantoj": "paraqes",
+    "prezanton": "paraqet",
+    "prezantoni": "paraqisni",
+    "prezantuar": "paraqitur",
+    "individuoj": "identifikoj",
+    "individuon": "identifikon",
+    "individuar": "identifikuar",
+    "verifikoj": "kontrolloj",
+    "verifikon": "kontrollon",
+    "verifikohet": "kontrollohet"
+  },
+
+  "_phrases_comment": "Multi-word corrections. Applied as whole-phrase case-insensitive replacements BEFORE the single-word pass.",
+  "phrases": {
+    "në rast kontrari": "përndryshe",
+    "në merit të": "për sa i përket",
+    "në merit": "lidhur me këtë",
+    "të bëjë referim": "t'i referohet",
+    "bëj referim": "i referohem",
+    "bën referim": "i referohet"
+  }
+}

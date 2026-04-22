@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import textwrap
 from dataclasses import dataclass, field
 from datetime import date, datetime
@@ -1274,8 +1275,11 @@ class SuperAvvocato:
             )
 
         if triage.needs_followup and triage.followup_question:
+            # Post-process the follow-up question too — it's citizen-facing
+            # (the missing-facts screenshot where we caught korian/këtë).
+            followup_text = _apply_corrections(triage.followup_question)
             return LegalAnswer(
-                kind="followup", text=triage.followup_question, triage=triage,
+                kind="followup", text=followup_text, triage=triage,
                 session_id=session_id,
             )
 
@@ -1460,6 +1464,11 @@ class SuperAvvocato:
             contradictions=contradictions,
             session_id=session_id, documents=documents,
         )
+        # Albanian post-processing (V7.0): deterministic word/phrase
+        # corrections applied to the final answer. Protected tokens
+        # (case:ID, numbers, dates, article refs) are preserved
+        # verbatim — see _apply_corrections for the protection list.
+        answer_text = _apply_corrections(answer_text)
         # ClaudeCodeBackend exposes the (possibly new) session_id after each
         # stateful call; other backends leave it as None.
         new_session_id = getattr(self.backend, "last_session_id", None) or session_id
@@ -2964,6 +2973,134 @@ def _validate_doc_refs(refs_raw: list, valid_filenames: set[str]) -> list[str]:
         seen.add(name)
         out.append(name)
     return out
+
+
+# ── Albanian post-processing (V7.0) ────────────────────────────────────────
+# Deterministic corrections for recurring word- and phrase-level drifts.
+# Loaded once from disk; missing file is not an error (ships with empty
+# corrections). Applied to every citizen-facing Albanian string.
+
+_CORRECTIONS_PATH = Path(__file__).parent.parent / "data" / "lang" / "legal_corrections_sq.json"
+
+# Placeholder pattern that protects tokens we must never mutate:
+#   [[case:123]]  — precedent links
+#   numbers with units (20,000 EUR / 1.500 ALL)
+#   bare numbers embedded in text
+#   ISO/slashed dates (2026-04-22, 14/05/2026)
+#   article refs ("neni 130", "nenit 13", "neneve 15-17")
+_PROTECTED_PATTERNS = [
+    re.compile(r"\[\[case:\d+\]\]"),
+    re.compile(r"\b\d[\d.,]*\s*(?:EUR|USD|GBP|ALL|€|\$|£|lekë)\b", re.IGNORECASE),
+    re.compile(r"\b\d{4}-\d{2}-\d{2}\b"),
+    re.compile(r"\b\d{1,2}[/.]\d{1,2}[/.]\d{2,4}\b"),
+    re.compile(r"\bnen(?:i|it|in|eve|e)?\s+\d+(?:[/-]\d+)?\b", re.IGNORECASE),
+    re.compile(r"\b\d+\b"),
+]
+
+
+def _load_corrections() -> tuple[dict[str, str], dict[str, str]]:
+    """Read the corrections JSON. Returns (phrases, words). Silent on
+    missing file or malformed payload — Albanian post-processing is
+    an enhancement, not a hard dependency."""
+    try:
+        raw = _CORRECTIONS_PATH.read_text(encoding="utf-8")
+        data = json.loads(raw)
+    except (OSError, ValueError) as exc:
+        log.warning("albanian corrections: %s — skipping post-processing", exc)
+        return {}, {}
+    phrases = {
+        str(k): str(v)
+        for k, v in (data.get("phrases") or {}).items()
+        if k and v and not k.startswith("_")
+    }
+    words = {
+        str(k): str(v)
+        for k, v in (data.get("words") or {}).items()
+        if k and v and not k.startswith("_")
+    }
+    return phrases, words
+
+
+_CORR_PHRASES, _CORR_WORDS = _load_corrections()
+
+
+def _match_case(source: str, replacement: str) -> str:
+    """Mirror source token's capitalisation onto replacement.
+
+    "Korian" → "Korean" (first-letter cap preserved)
+    "KORIAN" → "KOREAN" (all-caps preserved)
+    "korian" → "korean" (lowercase stays lowercase)
+    Mixed-case sources beyond these three patterns are rare in Albanian
+    prose and fall through as-is — good enough for a post-processor.
+    """
+    if source.isupper():
+        return replacement.upper()
+    if source[:1].isupper() and source[1:].islower():
+        return replacement[:1].upper() + replacement[1:]
+    return replacement
+
+
+def _apply_corrections(text: str) -> str:
+    """Run phrase + word corrections while preserving protected tokens.
+
+    Strategy: substitute every protected span (case links, numbers,
+    dates, article refs) with an opaque placeholder first, run the
+    corrections on the neutralised text, then splice the original
+    spans back in. Guarantees post-processing never alters a legal
+    fact even if a correction pattern would collide.
+    """
+    if not text or (not _CORR_PHRASES and not _CORR_WORDS):
+        return text
+
+    # Phase 1: protect. Collect all spans, sort by start position, and
+    # build a placeholder-substituted working string. Overlapping spans
+    # are resolved by keeping the earlier/longer match (we scan patterns
+    # in declared order, which puts [[case:]] and currency first).
+    spans: list[tuple[int, int, str]] = []
+    claimed: list[tuple[int, int]] = []
+    for pat in _PROTECTED_PATTERNS:
+        for m in pat.finditer(text):
+            s, e = m.span()
+            if any(not (e <= cs or s >= ce) for cs, ce in claimed):
+                continue
+            spans.append((s, e, m.group(0)))
+            claimed.append((s, e))
+    spans.sort(key=lambda x: x[0])
+
+    parts: list[str] = []
+    tokens: list[str] = []
+    cursor = 0
+    for i, (s, e, tok) in enumerate(spans):
+        parts.append(text[cursor:s])
+        parts.append(f"\0P{i}\0")
+        tokens.append(tok)
+        cursor = e
+    parts.append(text[cursor:])
+    working = "".join(parts)
+
+    # Phase 2: phrase pass (longest-first to avoid shadowing).
+    for wrong in sorted(_CORR_PHRASES, key=len, reverse=True):
+        right = _CORR_PHRASES[wrong]
+        # Whole-phrase case-insensitive. Preserve first-letter case via
+        # lambda so "Në rast kontrari" → "Përndryshe" (capital P).
+        pat = re.compile(r"\b" + re.escape(wrong) + r"\b", re.IGNORECASE)
+        working = pat.sub(
+            lambda m, r=right: _match_case(m.group(0), r), working,
+        )
+
+    # Phase 3: single-word pass.
+    for wrong in sorted(_CORR_WORDS, key=len, reverse=True):
+        right = _CORR_WORDS[wrong]
+        pat = re.compile(r"\b" + re.escape(wrong) + r"\b", re.IGNORECASE)
+        working = pat.sub(
+            lambda m, r=right: _match_case(m.group(0), r), working,
+        )
+
+    # Phase 4: restore protected tokens.
+    for i, tok in enumerate(tokens):
+        working = working.replace(f"\0P{i}\0", tok, 1)
+
+    return working
 
 
 def _format_articles_for_prompt(pairs: list[tuple[Article, float]]) -> str:
