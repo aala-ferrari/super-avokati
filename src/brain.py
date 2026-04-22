@@ -80,6 +80,50 @@ CODES_INDEX = "\n".join(
     f"  - {d.code}: {d.title_sq} ({d.area})" for d in LEGAL_DOCUMENTS
 )
 
+
+# ── shared Albanian language rules ────────────────────────────────────────
+# Every Albanian-output prompt appends this block. The point is not to
+# teach the model Albanian (Opus knows it well) but to correct specific,
+# recurring drifts we've observed in production — mostly case-agreement
+# on demonstratives (Italian interference: "questa" → "këtë" when the
+# correct form is nominative "kjo") and a handful of ethnonym / Italian-
+# calque swaps. Keep this list SHORT. Every rule is a real pattern seen
+# in a real response; don't pile on speculation.
+
+ALBANIAN_LANGUAGE_RULES = """── RREGULLA GJUHËSORE (shqipe standarde juridike) ──
+
+GRAMATIKË — rasat e përemrave dëftorë
+• Në kryefjalë (subjekt) përdor NOMINATIVIN: kjo / ky / këto / këta.
+    Shembull: "A ka **kjo** makinë ndonjë qëllim?" (makina është kryefjalë)
+    JO: "A ka **këtë** makinë ndonjë qëllim?"
+• Në kundrinë të drejtë përdor KALLËZOREN: këtë / këtë / këto / këta.
+    Shembull: "E bleva **këtë** makinë." (makinën si objekt)
+• Në kundrinë të zhdrejtë me parafjalë përdor rasën e duhur:
+    "për **këtë** rast", "nga **kjo** situatë", "me **këto** dokumente".
+
+TERMINOLOGJI — etnonime dhe mbiemra prejemërorë
+• "Koreja e Jugut/Veriut" → mbiemri është **korean/koreane** (JO "korian").
+• "Kina" → **kinez/kineze**. "Japonia" → **japonez/japoneze**.
+• "Gjermania" → **gjerman/gjermane**. "Franca" → **francez/franceze**.
+
+KALKIME NGA ITALISHTJA — shmangi
+• "realizoj një veprim" → **kryej / përmbush** një veprim.
+• "aplikoj një ligj" → **zbatoj** një ligj.
+• "efektuoj një pagesë" → **kryej** një pagesë.
+• "prezantoj një ankim" → **paraqes** një ankim.
+• "individuoj një zgjidhje" → **gjej / identifikoj** një zgjidhje.
+• "një takim me avokatin" — mirë; "një takim te avokati" — mirë.
+• Mos thuaj "në rast kontrari" — thuaj "përndryshe" ose "në të kundërt".
+• Mos thuaj "në merit të" — thuaj "për sa i përket" ose "lidhur me".
+
+REGJISTRI DHE FORMAT
+• Fjali të shkurtra, të qarta — preferohen pa nënfjali të tejzgjatura.
+• Ruaj emrat e institucioneve në formën zyrtare (Gjykata e Lartë,
+    Këshilli i Lartë Gjyqësor, Avokati i Popullit, etj.).
+• Numrat e neneve: "neni 130 i Kodit Penal" (jo "neni 130, Kodi Penal").
+• Data: shkruaj "14 maj 2026" (ditë muaj vit pa presje)."""
+
+
 TRIAGE_SYSTEM = f"""Ti je asistent i një avokati strateg që ndihmon qytetarë shqiptarë me pyetje ligjore.
 Detyra jote është VETËM triazhi: përgatit kërkesën, nuk përgjigjesh ligjërisht.
 
@@ -668,6 +712,30 @@ Kur seksioni "VENDIME RELEVANTE TË GJYKATAVE" të paraqitet më poshtë, ato ja
 - Shënuesi shndërrohet automatikisht në një link që e çon qytetarin te fashikulli i plotë — kështu që MOS e shkruaj si URL dhe MOS e ndrysho formatin (saktësisht `[[case:NUMER]]`).
 - Cito vetëm ID-të që të janë dhënë më poshtë. Mos shpik ID-të.
 - Përdori precedentët për të përforcuar argumentin te seksioni 1 (ligji), seksioni 4 (afatet, nëse vendimi qartëson një afat) ose seksioni 5 (strategjia)."""
+
+
+# Append shared Albanian language rules to every prompt whose output lands
+# in front of the citizen (or feeds the citizen-facing compose prompt).
+# Done here in one place so a new rule propagates everywhere. Variables
+# are rebound rather than edited inline, keeping the prompt literals
+# above readable as standalone prompts.
+for _sys_name in (
+    "TRIAGE_SYSTEM",
+    "STRATEGIC_SYSTEM",
+    "TIMELINE_SYSTEM",
+    "COMPARISON_SYSTEM",
+    "EVIDENCE_MAP_SYSTEM",
+    "DISTINGUISHING_SYSTEM",
+    "URGENCY_SCAN_SYSTEM",
+    "CONTRADICTION_SYSTEM",
+    "ACTION_PLAN_SYSTEM",
+    "NULLITY_RADAR_SYSTEM",
+    "PREMORTEM_SYSTEM",
+    "MISSING_FACTS_SYSTEM",
+    "ANSWER_SYSTEM",
+):
+    globals()[_sys_name] = globals()[_sys_name] + "\n\n" + ALBANIAN_LANGUAGE_RULES
+del _sys_name
 
 
 # Short fingerprint of the answer system prompt. Claude Code's `--resume`
