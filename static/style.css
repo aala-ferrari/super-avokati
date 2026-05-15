@@ -6911,6 +6911,57 @@ main {
   .prec-cards { grid-template-columns: 1fr; }
 }
 
+/* ── V9.3 Corporate Intelligence ── */
+.corp-tabs { display: flex; gap: 4px; margin-bottom: 14px; border-bottom: 2px solid var(--gray-200); }
+.corp-tab {
+  padding: 8px 16px; border: none; background: none; cursor: pointer;
+  font-size: 13px; color: var(--gray-600); border-radius: 6px 6px 0 0;
+  transition: background .15s, color .15s;
+}
+.corp-tab:hover { background: var(--gray-100); color: var(--gray-900); }
+.corp-tab-active { background: #e3f2fd; color: #1565c0; font-weight: 600; border-bottom: 2px solid #1565c0; }
+.corp-tab-panel { padding: 4px 0; }
+.corp-row { display: flex; gap: 8px; margin-bottom: 10px; }
+.corp-row .pro-input, .corp-row .pro-select { flex: 1; }
+.corp-actions-row { display: flex; align-items: center; gap: 10px; margin: 10px 0; }
+.corp-hint { font-size: 12px; color: var(--gray-600); margin-bottom: 12px; }
+.corp-docs-list { font-size: 12px; color: var(--gray-700); margin-bottom: 10px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.corp-doc-chip { background: #e3f2fd; border-radius: 12px; padding: 3px 10px; display: flex; align-items: center; gap: 4px; }
+.corp-doc-del { background: none; border: none; cursor: pointer; color: #888; font-size: 14px; line-height: 1; padding: 0 2px; }
+.corp-doc-del:hover { color: #c00; }
+.corp-sub { font-size: 12px; font-weight: 700; color: var(--gray-700); margin: 12px 0 4px; text-transform: uppercase; letter-spacing: .04em; }
+.corp-table { border-collapse: collapse; width: 100%; font-size: 13px; margin-bottom: 8px; }
+.corp-table th { text-align: left; color: var(--gray-600); font-weight: 500; padding: 3px 8px 3px 0; width: 130px; white-space: nowrap; }
+.corp-table td { padding: 3px 0; }
+.corp-list { margin: 4px 0 10px 16px; padding: 0; font-size: 13px; line-height: 1.6; }
+.corp-anomalie { background: #fff3e0; border-left: 4px solid #ef6c00; padding: 8px 12px; border-radius: 4px; margin-top: 10px; font-size: 13px; }
+.corp-anomalie ul { margin: 4px 0 0 14px; padding: 0; }
+/* Gatekeeper */
+.corp-gate-header { margin-bottom: 12px; }
+.corp-gate-ok { background: #e8f5e9; color: #2e7d32; font-weight: 700; font-size: 14px; padding: 6px 14px; border-radius: 6px; border: 1px solid #a5d6a7; }
+.corp-gate-no { background: #ffebee; color: #c62828; font-weight: 700; font-size: 14px; padding: 6px 14px; border-radius: 6px; border: 1px solid #ef9a9a; }
+.corp-warn { color: #e65100; font-weight: 600; }
+.corp-warn-list { list-style: none; padding: 0; margin: 8px 0; font-size: 13px; }
+.corp-risk-list { list-style: none; padding: 0; margin: 8px 0; font-size: 13px; }
+.corp-rec { background: #f3f4f6; border-radius: 8px; padding: 10px 14px; font-size: 13px; margin-top: 12px; font-weight: 500; }
+/* KYC */
+.corp-risk-badge { display: inline-block; border-radius: 12px; padding: 4px 14px; font-weight: 700; font-size: 13px; margin-bottom: 10px; }
+.corp-risk-high { background: #ffebee; color: #b71c1c; }
+.corp-risk-med  { background: #fff8e1; color: #e65100; }
+.corp-risk-low  { background: #e8f5e9; color: #1b5e20; }
+.corp-kyc-table { border-collapse: collapse; width: 100%; font-size: 12px; margin: 8px 0; }
+.corp-kyc-table td { padding: 5px 6px; border-bottom: 1px solid var(--gray-200); vertical-align: top; }
+.corp-kyc-table tr.corp-missing td { color: #c62828; }
+.corp-basis { color: var(--gray-500); font-size: 11px; white-space: nowrap; }
+.corp-expiring { background: #fff8e1; border-left: 4px solid #f9a825; padding: 8px 12px; border-radius: 4px; margin: 10px 0; font-size: 13px; }
+.corp-expiring ul { margin: 4px 0 0 14px; }
+.corp-missing-block { background: #ffebee; border-left: 4px solid #ef5350; padding: 8px 12px; border-radius: 4px; margin: 10px 0; font-size: 13px; }
+.corp-missing-block ul { margin: 4px 0 0 14px; }
+/* Expiry colours used inline */
+.corp-expired { color: #c62828; font-weight: 700; }
+.corp-expiring-soon { color: #e53935; font-weight: 600; }
+.corp-expiring-warn { color: #ef6c00; font-weight: 600; }
+
 /* ── V8.17 Settlement ── */
 .settle-row {
   display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin: 12px 0;

@@ -696,6 +696,22 @@ CREATE TABLE IF NOT EXISTS precedent_briefs (
 );
 CREATE INDEX IF NOT EXISTS idx_precedent_case ON precedent_briefs(case_id, started_at DESC);
 CREATE INDEX IF NOT EXISTS idx_precedent_user ON precedent_briefs(user_id, started_at DESC);
+
+-- ── V9.3 Corporate Intelligence ──────────────────────────────────────
+-- One row per document analysed. Multiple rows per case are merged by
+-- the backend into a single corporate profile (soci, CDA, procure, …).
+CREATE TABLE IF NOT EXISTS corporate_extractions (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    case_id         TEXT    NOT NULL,
+    user_id         INTEGER NOT NULL,
+    doc_name        TEXT    NOT NULL,
+    doc_type        TEXT    NOT NULL DEFAULT 'i panjohur',
+    extracted_json  TEXT    NOT NULL DEFAULT '{}',
+    created_at      TEXT    NOT NULL,
+    FOREIGN KEY (case_id) REFERENCES cases(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id)  ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_corp_case ON corporate_extractions(case_id, created_at DESC);
 """
 
 # Roles ordered by seniority/permission breadth. Used by permission checks.
@@ -5220,3 +5236,51 @@ def list_precedent_briefs(*, case_id: str | None = None,
         "status": r["status"], "elapsed_ms": r["elapsed_ms"],
         "started_at": r["started_at"], "completed_at": r["completed_at"],
     } for r in rows]
+
+
+# ── V9.3 Corporate Intelligence persistence ───────────────────────────
+
+def save_corporate_extraction(
+    *,
+    case_id: str,
+    user_id: int,
+    doc_name: str,
+    doc_type: str,
+    extracted: dict,
+) -> int:
+    now = _utcnow()
+    with db() as conn:
+        cur = conn.execute(
+            "INSERT INTO corporate_extractions "
+            "(case_id, user_id, doc_name, doc_type, extracted_json, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (case_id, user_id, doc_name, doc_type,
+             json.dumps(extracted, ensure_ascii=False), now),
+        )
+        return int(cur.lastrowid)
+
+
+def list_corporate_extractions(case_id: str) -> list[dict]:
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT id, doc_name, doc_type, extracted_json, created_at "
+            "FROM corporate_extractions WHERE case_id = ? "
+            "ORDER BY created_at DESC",
+            (case_id,),
+        ).fetchall()
+    return [{
+        "id": r["id"],
+        "doc_name": r["doc_name"],
+        "doc_type": r["doc_type"],
+        "extracted": json.loads(r["extracted_json"] or "{}"),
+        "created_at": r["created_at"],
+    } for r in rows]
+
+
+def delete_corporate_extraction(extraction_id: int, case_id: str) -> bool:
+    with db() as conn:
+        cur = conn.execute(
+            "DELETE FROM corporate_extractions WHERE id = ? AND case_id = ?",
+            (extraction_id, case_id),
+        )
+        return cur.rowcount > 0

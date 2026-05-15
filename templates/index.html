@@ -251,6 +251,10 @@
               <span class="pro-menu-ico">⏱️</span>
               <div><strong>Rindërto ditën</strong><em>Auto-fill timesheet nga aktivitetet e ditës</em></div>
             </button>
+            <button type="button" class="pro-menu-item pro-menu-new" data-pro="corporate" role="menuitem">
+              <span class="pro-menu-ico">🏢</span>
+              <div><strong>Corporate Intelligence</strong><em>Ekstrakto soci/CDA/prokuror nga visura · Contract Gatekeeper · Checklist KYC/AML</em></div>
+            </button>
           </div>
         </div>
         <button type="button" id="export-md-btn" class="icon-btn" title="Shkarko si Markdown">📝</button>
@@ -1465,6 +1469,79 @@
         </div>
       </div>
       <div id="precedent-result" class="pro-result" hidden></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ V9.3 CORPORATE INTELLIGENCE ══════════ -->
+<div id="corporate-modal" class="pro-modal" hidden role="dialog" aria-modal="true" aria-labelledby="corporate-modal-title">
+  <div class="pro-modal-backdrop" data-close></div>
+  <div class="pro-modal-card pro-modal-wide">
+    <header class="pro-modal-head">
+      <h3 id="corporate-modal-title">🏢 Corporate Intelligence</h3>
+      <p class="pro-modal-sub">Ngarko dokumentin e shoqërisë → Opus ekstrakton soci, CDA, prokurorë, scadenze. Kontrollo firmatarin para nënshkrimit. Gjenero checklist KYC/AML (Ligji 9917/2008).</p>
+      <button type="button" class="pro-modal-close" data-close aria-label="Mbyll">&times;</button>
+    </header>
+    <div class="pro-modal-body">
+
+      <!-- Tab bar -->
+      <div class="corp-tabs" role="tablist">
+        <button class="corp-tab corp-tab-active" data-tab="extract" role="tab" aria-selected="true">📄 Ekstrakt Dokumenti</button>
+        <button class="corp-tab" data-tab="gatekeeper" role="tab" aria-selected="false">🔐 Gatekeeper</button>
+        <button class="corp-tab" data-tab="kyc" role="tab" aria-selected="false">✅ KYC / AML</button>
+      </div>
+
+      <!-- TAB 1: Document extraction -->
+      <div id="corp-tab-extract" class="corp-tab-panel">
+        <div class="corp-row">
+          <select id="corp-doc-type" class="pro-select">
+            <option value="visura">Visura / Ekstrakt QKB</option>
+            <option value="statuto">Statuti / Akti i themelimit</option>
+            <option value="procura">Prokurë / Autorizim</option>
+            <option value="bilanci">Bilanci</option>
+            <option value="id">Dokument Identiteti</option>
+            <option value="certifikata_tatimore">Certifikatë Tatimore</option>
+            <option value="i panjohur">Lloj tjetër</option>
+          </select>
+          <input id="corp-doc-name" class="pro-input" type="text" placeholder="Emri dokumentit (p.sh. Ekstrakt QKB 2025-05)">
+        </div>
+        <textarea id="corp-doc-text" class="pro-textarea" rows="6" placeholder="Ngjit tekstin e dokumentit të shoqërisë këtu (visura, statut, prokurë, bilanci…)"></textarea>
+        <div class="corp-actions-row">
+          <button id="corp-extract-btn" class="pro-run-btn">Ekstrakto me Opus</button>
+          <span id="corp-extract-status" class="pro-status"></span>
+        </div>
+        <!-- Uploaded docs list -->
+        <div id="corp-docs-list" class="corp-docs-list" hidden></div>
+        <div id="corp-extract-result" class="pro-result" hidden></div>
+      </div>
+
+      <!-- TAB 2: Gatekeeper -->
+      <div id="corp-tab-gatekeeper" class="corp-tab-panel" hidden>
+        <p class="corp-hint">Pasi ke ngarkuar dokumentet e shoqërisë, kontrollo nëse firmatari ka autorizim të vlefshëm.</p>
+        <div class="corp-row">
+          <input id="corp-signatory" class="pro-input" type="text" placeholder="Emri i plotë i firmataret (p.sh. Bledi Mehta)">
+        </div>
+        <div class="corp-row">
+          <input id="corp-value" class="pro-input" type="number" min="0" placeholder="Vlera e kontratës (ALL) — 0 nëse e panjohur">
+          <input id="corp-contract-type" class="pro-input" type="text" placeholder="Lloji kontratës (p.sh. kontratë shitjeje)">
+        </div>
+        <div class="corp-actions-row">
+          <button id="corp-gate-btn" class="pro-run-btn">Kontrollo autoritetin</button>
+          <span id="corp-gate-status" class="pro-status"></span>
+        </div>
+        <div id="corp-gate-result" class="pro-result" hidden></div>
+      </div>
+
+      <!-- TAB 3: KYC Checklist -->
+      <div id="corp-tab-kyc" class="corp-tab-panel" hidden>
+        <p class="corp-hint">Analizë e gap-it KYC/AML bazuar në dokumentet e ngarkuara (rregull fiks, pa thirrje AI).</p>
+        <div class="corp-actions-row">
+          <button id="corp-kyc-btn" class="pro-run-btn">Gjenero Checklist</button>
+          <span id="corp-kyc-status" class="pro-status"></span>
+        </div>
+        <div id="corp-kyc-result" class="pro-result" hidden></div>
+      </div>
+
     </div>
   </div>
 </div>

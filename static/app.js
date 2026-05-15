@@ -2819,6 +2819,7 @@
     "financial": document.getElementById("financial-modal"),
     "workflow": document.getElementById("workflow-modal"),
     "time-recon": document.getElementById("time-recon-modal"),
+    "corporate": document.getElementById("corporate-modal"),
   };
 
   function openProModal(key) {
@@ -2842,6 +2843,7 @@
     if (key === "financial") initFinancial();
     if (key === "workflow") initWorkflow();
     if (key === "time-recon") initTimeRecon();
+    if (key === "corporate") initCorporate();
   }
   function closeProModal(m) {
     m.hidden = true;
@@ -6379,6 +6381,275 @@
       ${precsHtml}
     `;
     precResultEl.hidden = false;
+  }
+
+  // ── V9.3 CORPORATE INTELLIGENCE ────────────────────────────────
+  const corpExtractBtn  = document.getElementById("corp-extract-btn");
+  const corpDocText     = document.getElementById("corp-doc-text");
+  const corpDocType     = document.getElementById("corp-doc-type");
+  const corpDocName     = document.getElementById("corp-doc-name");
+  const corpExtractSt   = document.getElementById("corp-extract-status");
+  const corpExtractRes  = document.getElementById("corp-extract-result");
+  const corpDocsList    = document.getElementById("corp-docs-list");
+  const corpGateBtn     = document.getElementById("corp-gate-btn");
+  const corpSignatory   = document.getElementById("corp-signatory");
+  const corpValue       = document.getElementById("corp-value");
+  const corpContractType= document.getElementById("corp-contract-type");
+  const corpGateSt      = document.getElementById("corp-gate-status");
+  const corpGateRes     = document.getElementById("corp-gate-result");
+  const corpKycBtn      = document.getElementById("corp-kyc-btn");
+  const corpKycSt       = document.getElementById("corp-kyc-status");
+  const corpKycRes      = document.getElementById("corp-kyc-result");
+
+  // Tab switching
+  document.querySelectorAll(".corp-tab").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".corp-tab").forEach(b => {
+        b.classList.remove("corp-tab-active");
+        b.setAttribute("aria-selected", "false");
+      });
+      document.querySelectorAll(".corp-tab-panel").forEach(p => p.hidden = true);
+      btn.classList.add("corp-tab-active");
+      btn.setAttribute("aria-selected", "true");
+      const panel = document.getElementById("corp-tab-" + btn.dataset.tab);
+      if (panel) panel.hidden = false;
+    });
+  });
+
+  function initCorporate() {
+    corpExtractRes.hidden = true;
+    corpGateRes.hidden = true;
+    corpKycRes.hidden = true;
+    corpExtractSt.textContent = "";
+    corpGateSt.textContent = "";
+    corpKycSt.textContent = "";
+    // reset to extract tab
+    document.querySelectorAll(".corp-tab").forEach(b => {
+      b.classList.toggle("corp-tab-active", b.dataset.tab === "extract");
+      b.setAttribute("aria-selected", b.dataset.tab === "extract" ? "true" : "false");
+    });
+    document.querySelectorAll(".corp-tab-panel").forEach(p => {
+      p.hidden = p.id !== "corp-tab-extract";
+    });
+    loadCorpDocs();
+  }
+
+  async function loadCorpDocs() {
+    if (!currentCaseId) { corpDocsList.hidden = true; return; }
+    const r = await fetch(`/api/cases/${currentCaseId}/corporate`);
+    if (!r.ok) { corpDocsList.hidden = true; return; }
+    const { items } = await r.json();
+    if (!items || !items.length) { corpDocsList.hidden = true; return; }
+    corpDocsList.innerHTML = "<strong>Dokumente të ngarkuara:</strong> " +
+      items.map(it =>
+        `<span class="corp-doc-chip">${escHtml(it.doc_name)}
+          <button class="corp-doc-del" data-id="${it.id}" aria-label="Fshi" title="Fshi">×</button>
+        </span>`
+      ).join("");
+    corpDocsList.hidden = false;
+    corpDocsList.querySelectorAll(".corp-doc-del").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        await fetch(`/api/cases/${currentCaseId}/corporate/${btn.dataset.id}`, { method: "DELETE" });
+        loadCorpDocs();
+      });
+    });
+  }
+
+  corpExtractBtn && corpExtractBtn.addEventListener("click", async () => {
+    const docText = corpDocText.value.trim();
+    if (!docText) { corpExtractSt.textContent = "Ngjit tekstin e dokumentit."; return; }
+    if (!currentCaseId) { corpExtractSt.textContent = "Hap një rast fillimisht."; return; }
+    corpExtractBtn.disabled = true;
+    corpExtractSt.textContent = "Duke ekstraktuar me Opus…";
+    corpExtractRes.hidden = true;
+    try {
+      const r = await fetch(`/api/cases/${currentCaseId}/corporate/extract`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          doc_text: docText,
+          doc_name: corpDocName.value.trim() || corpDocType.options[corpDocType.selectedIndex].text,
+          doc_type: corpDocType.value,
+        }),
+      });
+      const data = await r.json();
+      if (!r.ok) { corpExtractSt.textContent = data.error || "Gabim."; return; }
+      corpExtractSt.textContent = `✓ ${(data.elapsed_ms/1000).toFixed(1)}s`;
+      corpExtractRes.innerHTML = renderCorpExtracted(data.extracted);
+      corpExtractRes.hidden = false;
+      corpDocText.value = "";
+      corpDocName.value = "";
+      loadCorpDocs();
+    } catch (e) {
+      corpExtractSt.textContent = "Gabim rrjeti.";
+    } finally {
+      corpExtractBtn.disabled = false;
+    }
+  });
+
+  corpGateBtn && corpGateBtn.addEventListener("click", async () => {
+    const name = corpSignatory.value.trim();
+    if (!name) { corpGateSt.textContent = "Shkruaj emrin e firmataret."; return; }
+    if (!currentCaseId) { corpGateSt.textContent = "Hap një rast fillimisht."; return; }
+    corpGateBtn.disabled = true;
+    corpGateSt.textContent = "Duke kontrolluar autoritetin…";
+    corpGateRes.hidden = true;
+    try {
+      const r = await fetch(`/api/cases/${currentCaseId}/corporate/gatekeeper`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          signatory_name: name,
+          value_all: parseFloat(corpValue.value) || 0,
+          contract_type: corpContractType.value.trim() || "kontratë tregtare",
+        }),
+      });
+      const data = await r.json();
+      if (!r.ok) { corpGateSt.textContent = data.error || "Gabim."; return; }
+      corpGateSt.textContent = `✓ ${(data.elapsed_ms/1000).toFixed(1)}s`;
+      corpGateRes.innerHTML = renderGatekeeper(data);
+      corpGateRes.hidden = false;
+    } catch (e) {
+      corpGateSt.textContent = "Gabim rrjeti.";
+    } finally {
+      corpGateBtn.disabled = false;
+    }
+  });
+
+  corpKycBtn && corpKycBtn.addEventListener("click", async () => {
+    if (!currentCaseId) { corpKycSt.textContent = "Hap një rast fillimisht."; return; }
+    corpKycBtn.disabled = true;
+    corpKycSt.textContent = "Duke analizuar gap-et KYC…";
+    corpKycRes.hidden = true;
+    try {
+      const r = await fetch(`/api/cases/${currentCaseId}/corporate/kyc`, { method: "POST" });
+      const data = await r.json();
+      if (!r.ok) { corpKycSt.textContent = data.error || "Gabim."; return; }
+      corpKycSt.textContent = "✓ Analiza e plotë";
+      corpKycRes.innerHTML = renderKyc(data);
+      corpKycRes.hidden = false;
+    } catch (e) {
+      corpKycSt.textContent = "Gabim rrjeti.";
+    } finally {
+      corpKycBtn.disabled = false;
+    }
+  });
+
+  function renderCorpExtracted(ex) {
+    if (!ex) return "<p>Nuk u ekstraktua asgjë.</p>";
+    const rows = [];
+    if (ex.emri_shoqerise) rows.push(["Shoqëria", escHtml(ex.emri_shoqerise)]);
+    if (ex.nuis)            rows.push(["NUIS", escHtml(ex.nuis)]);
+    if (ex.forma_juridike)  rows.push(["Forma juridike", escHtml(ex.forma_juridike)]);
+    if (ex.kapitali_themeltar) rows.push(["Kapitali", escHtml(String(ex.kapitali_themeltar)) + " ALL"]);
+    if (ex.veprimtaria)     rows.push(["Veprimtaria", escHtml(ex.veprimtaria)]);
+    if (ex.seli)            rows.push(["Selia", escHtml(ex.seli)]);
+
+    let html = rows.length
+      ? `<table class="corp-table">${rows.map(([k,v]) => `<tr><th>${k}</th><td>${v}</td></tr>`).join("")}</table>`
+      : "";
+
+    if (ex.soci?.length) {
+      html += `<h5 class="corp-sub">Aksionarë/Ortakë</h5><ul class="corp-list">` +
+        ex.soci.map(s => `<li><strong>${escHtml(s.emri)}</strong> — ${s.quota_pct ?? "?"}% (${escHtml(s.lloji || "?")})</li>`).join("") +
+        `</ul>`;
+    }
+    if (ex.cda?.length) {
+      html += `<h5 class="corp-sub">Organi drejtues (CDA/Administrator)</h5><ul class="corp-list">` +
+        ex.cda.map(c => {
+          let line = `<strong>${escHtml(c.emri)}</strong> — ${escHtml(c.roli || "?")}`;
+          if (c.nenshkrim_forme) line += ` · <em>${escHtml(c.nenshkrim_forme)}</em>`;
+          if (c.limit_all) line += ` · limit ${Number(c.limit_all).toLocaleString()} ALL`;
+          if (c.mandati_skadon) line += ` · skadon <strong>${escHtml(c.mandati_skadon)}</strong>`;
+          return `<li>${line}</li>`;
+        }).join("") + `</ul>`;
+    }
+    if (ex.procure?.length) {
+      html += `<h5 class="corp-sub">Prokurorë / Autorizuar</h5><ul class="corp-list">` +
+        ex.procure.map(p => {
+          let line = `<strong>${escHtml(p.emri)}</strong> — ${escHtml(p.qellimi || "?")}`;
+          if (p.limit_all) line += ` · limit ${Number(p.limit_all).toLocaleString()} ALL`;
+          if (p.skadon) line += ` · skadon <strong class="${_daysClass(p.skadon)}">${escHtml(p.skadon)}</strong>`;
+          if (p.forme) line += ` <em>(${escHtml(p.forme)})</em>`;
+          return `<li>${line}</li>`;
+        }).join("") + `</ul>`;
+    }
+    if (ex.anomalie?.length) {
+      html += `<div class="corp-anomalie"><strong>⚠️ Anomali:</strong> <ul>` +
+        ex.anomalie.map(a => `<li>${escHtml(a)}</li>`).join("") + `</ul></div>`;
+    }
+    return html || "<p>Asnjë të dhënë të identifikueshme.</p>";
+  }
+
+  function renderGatekeeper(d) {
+    const ok = d.ka_autoritet;
+    const badge = ok
+      ? `<span class="corp-gate-ok">✓ KA AUTORITET</span>`
+      : `<span class="corp-gate-no">✗ NUK KA AUTORITET</span>`;
+    let html = `<div class="corp-gate-header">${badge}</div>`;
+    if (d.baza_ligjore) html += `<p><strong>Baza ligjore:</strong> ${escHtml(d.baza_ligjore)}</p>`;
+    if (d.fusha_e_autorizimit) html += `<p><strong>Fusha:</strong> ${escHtml(d.fusha_e_autorizimit)}</p>`;
+    if (d.limit_financiar_all) {
+      const cls = d.brenda_limitit === false ? "corp-warn" : "";
+      html += `<p><strong>Limit:</strong> <span class="${cls}">${Number(d.limit_financiar_all).toLocaleString()} ALL</span>`;
+      if (d.brenda_limitit === false) html += ` — <strong class="corp-warn">vlera e kontratës e kalon limitin!</strong>`;
+      html += `</p>`;
+    }
+    if (d.skadon) {
+      const cls = _daysClass(d.skadon);
+      html += `<p><strong>Skadon:</strong> <span class="${cls}">${escHtml(d.skadon)}</span>`;
+      if (d.dite_mbetur !== null && d.dite_mbetur !== undefined)
+        html += ` (${d.dite_mbetur} ditë)`;
+      html += `</p>`;
+    }
+    if (d.paralajmerime?.length) {
+      html += `<ul class="corp-warn-list">` +
+        d.paralajmerime.map(w => `<li>⚠️ ${escHtml(w)}</li>`).join("") + `</ul>`;
+    }
+    if (d.risqe?.length) {
+      html += `<ul class="corp-risk-list">` +
+        d.risqe.map(r2 => `<li>🔴 ${escHtml(r2)}</li>`).join("") + `</ul>`;
+    }
+    if (d.rekomandim) {
+      html += `<div class="corp-rec">${escHtml(d.rekomandim)}</div>`;
+    }
+    return html;
+  }
+
+  function renderKyc(d) {
+    const riskColor = { "i lartë": "corp-risk-high", "i mesëm": "corp-risk-med", "i ulët": "corp-risk-low" };
+    let html = `<div class="corp-risk-badge ${riskColor[d.risk_level] || ''}">Rrezik: ${escHtml(d.risk_level || "?")}</div>`;
+    if (d.emri_shoqerise) html += `<p><strong>${escHtml(d.emri_shoqerise)}</strong>${d.nuis ? " · NUIS: " + escHtml(d.nuis) : ""}</p>`;
+
+    html += `<table class="corp-kyc-table">` +
+      (d.checklist || []).map(item => {
+        const icon = item.present ? "✅" : "❌";
+        const cls  = item.present ? "" : "corp-missing";
+        return `<tr class="${cls}"><td>${icon}</td><td>${escHtml(item.label)}</td><td class="corp-basis">${escHtml(item.basis)}</td></tr>`;
+      }).join("") + `</table>`;
+
+    if (d.expiring_soon?.length) {
+      html += `<div class="corp-expiring"><strong>⏰ Skadon së shpejti:</strong><ul>` +
+        d.expiring_soon.map(e2 => `<li>${escHtml(e2)}</li>`).join("") + `</ul></div>`;
+    }
+    if (d.anomalie?.length) {
+      html += `<div class="corp-anomalie"><strong>⚠️ Anomali:</strong><ul>` +
+        d.anomalie.map(a => `<li>${escHtml(a)}</li>`).join("") + `</ul></div>`;
+    }
+    if (d.missing?.length) {
+      html += `<div class="corp-missing-block"><strong>Dokumente që mungojnë:</strong><ul>` +
+        d.missing.map(m2 => `<li>${escHtml(m2)}</li>`).join("") + `</ul></div>`;
+    }
+    return html;
+  }
+
+  function _daysClass(dateStr) {
+    if (!dateStr) return "";
+    const diff = Math.round((new Date(dateStr) - Date.now()) / 86400000);
+    if (diff < 0) return "corp-expired";
+    if (diff <= 30) return "corp-expiring-soon";
+    if (diff <= 60) return "corp-expiring-warn";
+    return "";
   }
 
   // ── V8.17 SETTLEMENT MONTE CARLO ───────────────────────────────

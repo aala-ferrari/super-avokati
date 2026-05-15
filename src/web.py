@@ -2252,6 +2252,137 @@ def api_precedent_list_standalone():
     })
 
 
+# ── V9.3 Corporate Intelligence ─────────────────────────────────────────────
+
+from . import corporate as corp_mod  # noqa: E402
+
+
+@app.post("/api/cases/<case_id>/corporate/extract")
+@login_required_api
+def api_corporate_extract(case_id: str):
+    """Extract structured data from a corporate document.
+
+    Body: { doc_text, doc_name, doc_type }
+    Returns: { id, extracted, doc_name, doc_type }
+    """
+    user = request.user  # type: ignore[attr-defined]
+    case = storage.get_case(case_id, user.id)
+    if not case:
+        return jsonify({"error": "Rasti nuk u gjet"}), 404
+
+    body = request.get_json(silent=True) or {}
+    doc_text = (body.get("doc_text") or "").strip()
+    doc_name = (body.get("doc_name") or "Dokument i panjohur").strip()
+    doc_type = (body.get("doc_type") or "i panjohur").strip()
+
+    if not doc_text:
+        return jsonify({"error": "doc_text mungon"}), 400
+
+    if _BRAIN is None:
+        return jsonify({"error": "Backend jo i disponueshëm"}), 503
+
+    t0 = time.monotonic()
+    extracted = corp_mod.extract_corporate(doc_text, doc_type, backend=_BRAIN.backend)
+    elapsed_ms = int((time.monotonic() - t0) * 1000)
+
+    row_id = storage.save_corporate_extraction(
+        case_id=case_id,
+        user_id=user.id,
+        doc_name=doc_name,
+        doc_type=doc_type,
+        extracted=extracted,
+    )
+    return jsonify({
+        "id": row_id,
+        "doc_name": doc_name,
+        "doc_type": doc_type,
+        "extracted": extracted,
+        "elapsed_ms": elapsed_ms,
+    }), 201
+
+
+@app.post("/api/cases/<case_id>/corporate/gatekeeper")
+@login_required_api
+def api_corporate_gatekeeper(case_id: str):
+    """Check signatory authority before signing a contract.
+
+    Body: { signatory_name, value_all?, contract_type? }
+    Returns: gatekeeper result dict
+    """
+    user = request.user  # type: ignore[attr-defined]
+    case = storage.get_case(case_id, user.id)
+    if not case:
+        return jsonify({"error": "Rasti nuk u gjet"}), 404
+
+    body = request.get_json(silent=True) or {}
+    signatory_name = (body.get("signatory_name") or "").strip()
+    if not signatory_name:
+        return jsonify({"error": "signatory_name mungon"}), 400
+
+    value_all = float(body.get("value_all") or 0)
+    contract_type = (body.get("contract_type") or "kontratë tregtare").strip()
+
+    rows = storage.list_corporate_extractions(case_id)
+    if not rows:
+        return jsonify({"error": "Nuk ka dokumente korporative të ngarkuara për këtë rast"}), 400
+
+    if _BRAIN is None:
+        return jsonify({"error": "Backend jo i disponueshëm"}), 503
+
+    t0 = time.monotonic()
+    result = corp_mod.check_signatory(
+        signatory_name, value_all, contract_type,
+        [r["extracted"] for r in rows],
+        backend=_BRAIN.backend,
+    )
+    result["elapsed_ms"] = int((time.monotonic() - t0) * 1000)
+    return jsonify(result)
+
+
+@app.post("/api/cases/<case_id>/corporate/kyc")
+@login_required_api
+def api_corporate_kyc(case_id: str):
+    """Return KYC/AML checklist for the case (rule-based, no AI call)."""
+    user = request.user  # type: ignore[attr-defined]
+    case = storage.get_case(case_id, user.id)
+    if not case:
+        return jsonify({"error": "Rasti nuk u gjet"}), 404
+
+    rows = storage.list_corporate_extractions(case_id)
+    uploaded_types = [r["doc_type"] for r in rows]
+    extractions = [r["extracted"] for r in rows]
+
+    result = corp_mod.kyc_checklist(extractions, uploaded_types)
+    return jsonify(result)
+
+
+@app.get("/api/cases/<case_id>/corporate")
+@login_required_api
+def api_corporate_list(case_id: str):
+    """List all corporate extractions for a case."""
+    user = request.user  # type: ignore[attr-defined]
+    case = storage.get_case(case_id, user.id)
+    if not case:
+        return jsonify({"error": "Rasti nuk u gjet"}), 404
+
+    rows = storage.list_corporate_extractions(case_id)
+    return jsonify({"items": rows})
+
+
+@app.delete("/api/cases/<case_id>/corporate/<int:extraction_id>")
+@login_required_api
+def api_corporate_delete(case_id: str, extraction_id: int):
+    user = request.user  # type: ignore[attr-defined]
+    case = storage.get_case(case_id, user.id)
+    if not case:
+        return jsonify({"error": "Rasti nuk u gjet"}), 404
+
+    deleted = storage.delete_corporate_extraction(extraction_id, case_id)
+    if not deleted:
+        return jsonify({"error": "Nuk u gjet"}), 404
+    return jsonify({"ok": True})
+
+
 # ── V8.6 agentic mode (suggestions + auto-letters) ─────────────────────────
 
 AGENT_SCAN_SYSTEM = """Je 'agent proaktiv' brenda Super Avvocato — ndihmës i avokatit shqiptar.
