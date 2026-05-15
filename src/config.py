@@ -24,6 +24,11 @@ TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 BRAIN_BACKEND = os.getenv("BRAIN_BACKEND", "auto")
 
 CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "claude-opus-4-7")
+# V8.10 medium tier (post-pivot lawyer-first): Sonnet 4.6 sostituisce
+# Haiku come default per task lawyer-facing intermedi (lead intake
+# classification, hearing quick Q&A, jargon→qytetar, AI client wizard).
+# Haiku resta solo per scaffolding puro (parse JSON, BM25 lookup).
+CLAUDE_MEDIUM_MODEL = os.getenv("CLAUDE_MEDIUM_MODEL", "claude-sonnet-4-6")
 CLAUDE_FAST_MODEL = os.getenv("CLAUDE_FAST_MODEL", "claude-haiku-4-5-20251001")
 # Extended thinking budget (tokens) for the main model on hard legal
 # reasoning — pavlefshmëria, parashkrimi, konflikte ndërmjet neneve.
@@ -31,14 +36,16 @@ CLAUDE_FAST_MODEL = os.getenv("CLAUDE_FAST_MODEL", "claude-haiku-4-5-20251001")
 # Default is generous: a lawyer defending a client needs the model to
 # think deeply before answering. Set to 0 to disable.
 CLAUDE_THINKING_BUDGET = int(os.getenv("CLAUDE_THINKING_BUDGET", "16000"))
-# Claude Code CLI uses aliases ("opus", "sonnet", "haiku") or full names.
-# Aliases auto-resolve to the latest model under your subscription.
-# Default is opus: this assistant gives legal advice to people who
-# cannot afford a lawyer — accuracy and strategic depth beat latency
-# every time. A 3-minute answer that catches a nullity ground is worth
-# more than a 30-second answer that misses it.
-CLAUDE_CODE_MODEL = os.getenv("CLAUDE_CODE_MODEL", "opus")
-CLAUDE_CODE_FAST_MODEL = os.getenv("CLAUDE_CODE_FAST_MODEL", "haiku")
+# Claude Code CLI accepts full model IDs or aliases.
+# We pin the full ID so we're GUARANTEED to run the smartest model
+# available — Opus 4.7 (January 2026, current flagship). Aliases like
+# "opus" auto-resolve to the latest, but pinning makes the choice
+# explicit and survives CLI alias remapping. This assistant gives
+# legal advice to people who cannot afford a lawyer: accuracy and
+# strategic depth beat latency every time.
+CLAUDE_CODE_MODEL = os.getenv("CLAUDE_CODE_MODEL", "claude-opus-4-7")
+CLAUDE_CODE_MEDIUM_MODEL = os.getenv("CLAUDE_CODE_MEDIUM_MODEL", "claude-sonnet-4-6")
+CLAUDE_CODE_FAST_MODEL = os.getenv("CLAUDE_CODE_FAST_MODEL", "claude-haiku-4-5-20251001")
 # Effort level for the main answer stage: low / medium / high / xhigh /
 # max. Default "max" — we want the lawyer's edge, not a quick reply.
 # Ignored on fast-model calls (triage/strategic stay fast).
@@ -91,7 +98,13 @@ MAX_CONVERSATION_TURNS = int(os.getenv("MAX_CONVERSATION_TURNS", "20"))
 # editor mutated any protected token (case links, article numbers,
 # currency, dates). Disabling this skips the LLM rewrite but keeps
 # the deterministic word/phrase corrections (those are always on).
-ALBANIAN_EDITOR_ENABLED = os.getenv("ALBANIAN_EDITOR_ENABLED", "1") == "1"
+# V7.8 — disabled by default. The Haiku pass over Opus 4.7's output was
+# adding ~10s wall-clock for a median +1-char diff (observed in prod logs),
+# i.e. almost always a no-op, and when it DID rewrite it risked introducing
+# its own Albanian errors (Haiku is weaker than Opus on shqipe standarde).
+# Opus writes clean legal Albanian on its own; keep the deterministic
+# `_apply_corrections` pass which is cheap and safe. Set to 1 to re-enable.
+ALBANIAN_EDITOR_ENABLED = os.getenv("ALBANIAN_EDITOR_ENABLED", "0") == "1"
 
 # V7.2: run the nine analytical stages (strategic, timeline, comparison,
 # missing_facts, premortem, distinguishing, evidence_map, nullity_radar,
@@ -100,7 +113,23 @@ ALBANIAN_EDITOR_ENABLED = os.getenv("ALBANIAN_EDITOR_ENABLED", "1") == "1"
 # from N×fast_call to max(fast_call)+overhead. Urgency radar and action
 # plan still run sequentially after because they consume the outputs.
 BRAIN_PARALLEL_STAGES = os.getenv("BRAIN_PARALLEL_STAGES", "1") == "1"
-BRAIN_PARALLEL_WORKERS = int(os.getenv("BRAIN_PARALLEL_WORKERS", "9"))
+BRAIN_PARALLEL_WORKERS = int(os.getenv("BRAIN_PARALLEL_WORKERS", "3"))
+
+# V7.5 — fast path for short follow-ups in an active Claude Code session.
+# When the session already has the context (≥2 prior turns) and the message
+# is below this threshold with no new dossier, skip triage + retrieval +
+# the 11 analytical stages and resume straight to compose. Set to 0 to
+# disable the fast path entirely.
+FOLLOWUP_FASTPATH_MAX_CHARS = int(os.getenv("FOLLOWUP_FASTPATH_MAX_CHARS", "200"))
+
+# V7.6 — simple-query fast path. Triage classifies each question as
+# "simple" (informative, no adversary, no deadline) or "complex"
+# (litigation, strategy, dossier). On "simple" we skip the 11 analytical
+# stages + precedent retrieval + urgency radar + action plan, and go
+# straight to compose on Opus. Mirrors how a real lawyer handles easy
+# questions on the spot. Set to 0 to force the full pipeline on every
+# fresh query (e.g. for debugging).
+SIMPLE_FASTPATH_ENABLED = os.getenv("SIMPLE_FASTPATH_ENABLED", "1") == "1"
 
 for path in (RAW_DATA_PATH, PROCESSED_DATA_PATH, INDEX_PATH, LOG_PATH.parent,
              JURISPRUDENCE_PATH, UPLOAD_PATH):

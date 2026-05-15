@@ -171,10 +171,29 @@ def split_into_articles(text: str, doc: LegalDocument) -> list[Article]:
         end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
         raw = text[start:end].strip()
 
-        # The first non-empty line after "Neni N" is the heading.
+        # Heading = the FIRST COMPLETE SENTENCE after "Neni N", body = rest.
+        # The Albanian PDFs hard-wrap mid-sentence ("Trashëgimlënësi edhe pa
+        # caktuar trashëgimtarë në testament\nmund të përjashtojë nga...");
+        # the old parser took only line[0], producing tronche headings that
+        # poisoned BM25 retrieval and led the model to drift on
+        # successioni-testamentari analyses (V9.0.3 doctrine bug). We now
+        # glue lines until a sentence terminator is reached.
         lines = [ln.strip() for ln in raw.splitlines() if ln.strip()]
-        heading = lines[0] if lines else ""
-        body = "\n".join(lines[1:]).strip() if len(lines) > 1 else ""
+        heading = ""
+        body = ""
+        if lines:
+            buf = lines[0]
+            consumed = 1
+            # Sentence is complete if it ends with `.`, `:`, `!`, `?` AND
+            # is at least 25 chars (so we don't stop on "p.sh." abbreviation
+            # at the very start). Cap at 8 lines to never swallow whole body.
+            def _is_complete(s: str) -> bool:
+                return len(s) >= 25 and s[-1] in ".:!?"
+            while consumed < len(lines) and consumed < 8 and not _is_complete(buf):
+                buf = buf + " " + lines[consumed]
+                consumed += 1
+            heading = buf
+            body = "\n".join(lines[consumed:]).strip()
 
         # Hierarchy from the text *before* this article
         pjesa, kreu, seksioni = _hierarchy_context(text[: m.start()])

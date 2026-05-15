@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#0a0a0a" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>Në seancë — {{ case.title }}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #1a1622;
+    --surface-2: #232030;
+    --border: #3a2f47;
+    --gold: #c9a24d;
+    --text: #f3eee0;
+    --muted: #b0a8c4;
+    --danger: #ff6b6b;
+    --ok: #6bcf6b;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Inter", -apple-system, system-ui, sans-serif;
+    font-size: 17px;
+    line-height: 1.5;
+    overscroll-behavior: none;
+  }
+  body { display: flex; flex-direction: column; min-height: 100vh; }
+
+  .hh-header {
+    position: sticky; top: 0; z-index: 10;
+    padding: env(safe-area-inset-top) 14px 10px;
+    background: rgba(10,10,10,0.95);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center; gap: 10px;
+  }
+  .hh-header h1 {
+    margin: 0; font-size: 17px; font-weight: 600; color: var(--gold);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;
+  }
+  .hh-header .hh-close {
+    background: transparent; border: 1px solid var(--border);
+    color: var(--muted); padding: 8px 14px; border-radius: 8px;
+    font-size: 14px; text-decoration: none;
+  }
+
+  .hh-feed {
+    flex: 1;
+    padding: 14px;
+    padding-bottom: 200px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .hh-empty {
+    text-align: center; color: var(--muted); padding: 40px 20px;
+    font-style: italic;
+  }
+  .hh-bubble {
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    word-break: break-word;
+    line-height: 1.5;
+    font-size: 17px;
+  }
+  .hh-bubble .hh-meta {
+    font-size: 11px; color: var(--muted);
+    margin-bottom: 4px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .hh-bubble .hh-del {
+    background: transparent; border: 0; color: var(--muted);
+    font-size: 16px; cursor: pointer; padding: 0 4px;
+  }
+  .hh-question { background: rgba(201,162,77,0.12); border-color: var(--gold); }
+  .hh-question .hh-meta { color: var(--gold); }
+  .hh-ai {
+    background: linear-gradient(135deg, #1d1825, #2a2230);
+    border-color: var(--gold);
+    align-self: stretch;
+  }
+  .hh-ai .hh-meta { color: var(--gold); }
+  .hh-note { background: var(--surface); }
+
+  .hh-bar {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    padding: 10px 12px calc(env(safe-area-inset-bottom, 0) + 12px);
+    background: rgba(10,10,10,0.96);
+    backdrop-filter: blur(8px);
+    border-top: 1px solid var(--border);
+    display: flex; flex-direction: column; gap: 8px; z-index: 20;
+  }
+
+  .hh-input-row {
+    display: flex; gap: 8px; align-items: stretch;
+  }
+  .hh-input {
+    flex: 1; resize: none; min-height: 50px; max-height: 140px;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 17px;
+    line-height: 1.4;
+  }
+  .hh-input:focus { outline: 2px solid var(--gold); outline-offset: 0; }
+
+  .hh-mic {
+    width: 56px; height: 56px;
+    border: 1px solid var(--border); border-radius: 50%;
+    background: var(--surface);
+    color: var(--text);
+    font-size: 22px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; flex-shrink: 0;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .hh-mic.listening {
+    background: var(--gold); border-color: var(--gold); color: #0a0a0a;
+    animation: hhPulse 1.2s ease-in-out infinite;
+  }
+  .hh-mic[disabled] { opacity: 0.4; cursor: not-allowed; }
+  @keyframes hhPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(201,162,77,0.7); }
+    50% { box-shadow: 0 0 0 12px rgba(201,162,77,0); }
+  }
+
+  .hh-actions {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+  .hh-actions button {
+    padding: 12px 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    border-radius: 10px;
+    font-size: 14px; font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    min-height: 48px;
+    transition: background 0.15s;
+  }
+  .hh-actions button:hover { background: var(--surface-2); }
+  .hh-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .hh-btn-ask { background: var(--gold) !important; color: #0a0a0a !important; border-color: var(--gold) !important; }
+  .hh-btn-ask:hover { filter: brightness(1.1); }
+
+  .hh-status {
+    text-align: center; font-size: 12px; color: var(--muted);
+    min-height: 16px;
+  }
+  .hh-status.error { color: var(--danger); }
+  .hh-status.ok { color: var(--ok); }
+
+  /* Light mode (rare in court but supported) */
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #fbf8f2; --surface: #fff; --surface-2: #f3ece0;
+      --border: #d6cfc1; --gold: #8a6914; --text: #2a1f12; --muted: #6b5d44;
+    }
+    .hh-question { background: rgba(138,105,20,0.08); }
+    .hh-ai { background: linear-gradient(135deg, #fffbf2, #f7f0d9); }
+  }
+</style>
+</head>
+<body>
+
+<header class="hh-header">
+  <h1>⚖️ {{ case.title }}</h1>
+  <a href="/" class="hh-close">✕ Dil</a>
+</header>
+
+<main id="hh-feed" class="hh-feed" aria-live="polite">
+  <p class="hh-empty">Duke ngarkuar…</p>
+</main>
+
+<div class="hh-bar">
+  <div class="hh-input-row">
+    <textarea id="hh-input" class="hh-input" rows="1" placeholder="Shkruaj ose dikto…" enterkeyhint="send"></textarea>
+    <button type="button" id="hh-mic" class="hh-mic" title="Mikrofon (sq-AL)">🎤</button>
+  </div>
+  <div class="hh-actions">
+    <button type="button" id="hh-note">📝 Shëno</button>
+    <button type="button" id="hh-ask" class="hh-btn-ask">⚡ Pyet AI</button>
+    <button type="button" id="hh-clear">🧹 Pastro</button>
+  </div>
+  <div id="hh-status" class="hh-status"></div>
+</div>
+
+<script>
+(function () {
+  const CASE_ID = "{{ case.id }}";
+  const feed = document.getElementById("hh-feed");
+  const input = document.getElementById("hh-input");
+  const mic = document.getElementById("hh-mic");
+  const btnNote = document.getElementById("hh-note");
+  const btnAsk = document.getElementById("hh-ask");
+  const btnClear = document.getElementById("hh-clear");
+  const statusEl = document.getElementById("hh-status");
+
+  function escapeHtml(s) {
+    return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  }
+  function fmtTime(iso) {
+    const d = new Date(iso);
+    const pad = n => String(n).padStart(2, "0");
+    return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  function setStatus(msg, kind = "") {
+    statusEl.textContent = msg;
+    statusEl.className = "hh-status " + kind;
+    if (msg) setTimeout(() => { if (statusEl.textContent === msg) { statusEl.textContent = ""; statusEl.className = "hh-status"; } }, 4000);
+  }
+
+  function renderNotes(notes) {
+    if (!notes.length) {
+      feed.innerHTML = '<p class="hh-empty">Asnjë shënim ende. Dikto ose pyet AI-n.</p>';
+      return;
+    }
+    feed.innerHTML = notes.map(n => {
+      const klass = n.kind === "question" ? "hh-question"
+                  : n.kind === "ai_reply" ? "hh-ai"
+                  : "hh-note";
+      const label = n.kind === "question" ? "❓ PYETJE"
+                  : n.kind === "ai_reply" ? "🤖 SUPER AVVOCATO"
+                  : "📝 SHËNIM";
+      return `
+        <div class="hh-bubble ${klass}" data-id="${n.id}">
+          <div class="hh-meta">
+            <span>${label}</span>
+            <span>${fmtTime(n.created_at)} <button type="button" class="hh-del" data-del="${n.id}" title="Fshi">✕</button></span>
+          </div>
+          <div>${escapeHtml(n.body_sq).replace(/\n/g, "<br>")}</div>
+        </div>`;
+    }).join("");
+    requestAnimationFrame(() => { window.scrollTo(0, document.body.scrollHeight); });
+  }
+
+  async function loadNotes() {
+    try {
+      const r = await fetch(`/api/cases/${CASE_ID}/hearing/notes`);
+      if (!r.ok) throw new Error();
+      const data = await r.json();
+      renderNotes(data.notes || []);
+    } catch {
+      feed.innerHTML = '<p class="hh-empty">Gabim në ngarkim.</p>';
+    }
+  }
+
+  feed.addEventListener("click", async (e) => {
+    const del = e.target.closest("[data-del]");
+    if (!del) return;
+    const id = del.getAttribute("data-del");
+    if (!confirm("Heq këtë?")) return;
+    const r = await fetch(`/api/cases/${CASE_ID}/hearing/notes/${id}`, { method: "DELETE" });
+    if (r.ok) await loadNotes();
+  });
+
+  function autoresize() {
+    input.style.height = "auto";
+    input.style.height = Math.min(140, input.scrollHeight) + "px";
+  }
+  input.addEventListener("input", autoresize);
+
+  btnNote.addEventListener("click", async () => {
+    const body = input.value.trim();
+    if (!body) { setStatus("Shkruaj diçka."); return; }
+    btnNote.disabled = true;
+    try {
+      const r = await fetch(`/api/cases/${CASE_ID}/hearing/notes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ body_sq: body, kind: "note" }),
+      });
+      if (!r.ok) throw new Error();
+      input.value = ""; autoresize();
+      setStatus("Shënim u ruajt", "ok");
+      await loadNotes();
+    } catch {
+      setStatus("Ruajtja dështoi", "error");
+    } finally {
+      btnNote.disabled = false;
+    }
+  });
+
+  btnAsk.addEventListener("click", async () => {
+    const q = input.value.trim();
+    if (!q) { setStatus("Shkruaj pyetjen."); return; }
+    btnAsk.disabled = true;
+    setStatus("Po pyes…");
+    try {
+      const r = await fetch(`/api/cases/${CASE_ID}/hearing/quick`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: q }),
+      });
+      if (!r.ok) {
+        const err = await r.json();
+        throw new Error(err.error || "AI s'u përgjigj");
+      }
+      input.value = ""; autoresize();
+      setStatus("✓ Përgjigja", "ok");
+      await loadNotes();
+    } catch (err) {
+      setStatus(err.message, "error");
+    } finally {
+      btnAsk.disabled = false;
+    }
+  });
+
+  btnClear.addEventListener("click", () => { input.value = ""; autoresize(); input.focus(); });
+
+  // ── Voice input via Web Speech API (Albanian) ────────────────────
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    mic.disabled = true;
+    mic.title = "Shfletuesi yt nuk e mbështet diktimin.";
+  } else {
+    let rec = null;
+    let listening = false;
+
+    function startRec() {
+      rec = new SR();
+      rec.lang = "sq-AL";
+      rec.interimResults = true;
+      rec.continuous = true;
+      let baseline = input.value;
+      let interim = "";
+      rec.onresult = (e) => {
+        interim = "";
+        let final = "";
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const t = e.results[i][0].transcript;
+          if (e.results[i].isFinal) final += t + " ";
+          else interim += t;
+        }
+        if (final) {
+          baseline = (baseline ? baseline.trim() + " " : "") + final.trim();
+        }
+        input.value = (baseline + (interim ? " " + interim : "")).trim();
+        autoresize();
+      };
+      rec.onerror = (e) => {
+        setStatus("Mikrofon: " + e.error, "error");
+        stopRec();
+      };
+      rec.onend = () => {
+        if (listening) {
+          // browser auto-stopped — restart unless user toggled off
+          try { rec.start(); } catch {}
+        }
+      };
+      try {
+        rec.start();
+        listening = true;
+        mic.classList.add("listening");
+        setStatus("Po dëgjoj…", "ok");
+      } catch (err) {
+        setStatus("S'fillova mikrofonin", "error");
+      }
+    }
+    function stopRec() {
+      listening = false;
+      if (rec) try { rec.stop(); } catch {}
+      mic.classList.remove("listening");
+    }
+    mic.addEventListener("click", () => {
+      if (listening) { stopRec(); setStatus("U ndal", ""); }
+      else { startRec(); }
+    });
+  }
+
+  // Initial load
+  loadNotes();
+  // Poll every 30s in case other devices add notes
+  setInterval(loadNotes, 30000);
+
+  // Keep screen awake during a hearing if supported
+  if ("wakeLock" in navigator) {
+    navigator.wakeLock.request("screen").catch(() => {});
+  }
+})();
+</script>
+</body>
+</html>

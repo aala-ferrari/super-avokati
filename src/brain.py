@@ -39,6 +39,7 @@ import re
 import textwrap
 import time
 from collections import Counter
+from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import date, datetime
@@ -50,6 +51,7 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_ex
 from .backends import LLMBackend, build_backend
 from .config import (
     ALBANIAN_EDITOR_ENABLED, BRAIN_PARALLEL_STAGES, BRAIN_PARALLEL_WORKERS,
+    FOLLOWUP_FASTPATH_MAX_CHARS, SIMPLE_FASTPATH_ENABLED,
     LEGAL_DOCUMENTS, TOP_K_ARTICLES, TOP_K_DECISIONS,
 )
 from .documents import format_documents_for_prompt
@@ -97,6 +99,105 @@ CODES_INDEX = "\n".join(
 # calque swaps. Keep this list SHORT. Every rule is a real pattern seen
 # in a real response; don't pile on speculation.
 
+# V7.9 — stream status strings, centralised for review + future i18n.
+# Albanian only for now (the product is Albanian-first). If we add a
+# second locale, this becomes the keyset for a proper i18n layer.
+STREAM_STATUS_SQ: dict[str, str] = {
+    "followup_answering":    "Po të përgjigjem…",
+    "simple_composing":      "Po përgatis përgjigjen…",
+    "complex_retrieving":    "Po kërkoj nenet e duhura…",
+    "complex_precedents":    "Po lexoj vendimet e gjykatave…",
+    "complex_analyzing":     "Po analizoj rastin nga 9 kënde njëherësh…",
+    "complex_urgency":       "Po vlerësoj urgjencën dhe afatet…",
+    "complex_composing":     "Po shkruaj përgjigjen…",
+}
+
+
+# ── V8.13 multi-jurisdiction ─────────────────────────────────────────────
+#
+# Each case carries a `jurisdiction` ∈ {AL, IT, EU}. The default Albanian
+# KB drives retrieval for AL cases. For IT and EU, the BM25 retrieval
+# still runs against the Albanian corpus (no false-positive there: an
+# Italian query usually misses the Albanian articles and the Citation
+# Shield will refuse), but the system prompt is reframed so the model
+# answers in the right language and applies the right body of law.
+#
+# Building out a full Italian / EU BM25 corpus is V8.13.x follow-up; this
+# layer ships the architectural seam (schema, parameter, prompt prefix)
+# so the rest of the app can already be jurisdiction-aware.
+
+JURISDICTION_PREAMBLE_AL = ""  # default — the existing prompts are AL-native
+
+JURISDICTION_PREAMBLE_IT = """━━━ CONTESTO GIURISDIZIONALE ━━━
+Questo caso è incardinato nella giurisdizione ITALIANA. Devi:
+
+• Rispondere IN ITALIANO (registro tecnico-giuridico, terza persona).
+• Applicare il diritto italiano: Codice Civile, Codice di Procedura Civile,
+    Codice Penale, Codice di Procedura Penale, Costituzione della Repubblica,
+    Codice del Consumo, Statuto dei Lavoratori, GDPR (regolamento UE 2016/679),
+    direttive UE rilevanti.
+• Citare gli articoli nella forma "art. 1418 c.c." / "art. 2043 c.c." /
+    "art. 81 c.p." / "art. 414 c.p.c." (NON nella forma albanese "Neni X").
+• Se la base normativa italiana applicabile non ti è certa, dichiararlo
+    esplicitamente e raccomandare verifica con fonti normative aggiornate
+    (Normattiva, Gazzetta Ufficiale).
+• La knowledge base albanese collegata al sistema NON contiene il diritto
+    italiano: usa la tua conoscenza giuridica generale; non inventare numeri
+    di articolo. Se non sei certo del numero, scrivi "art. N.N. c.c. (da
+    verificare)" piuttosto che fabbricare un riferimento.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+"""
+
+JURISDICTION_PREAMBLE_EU = """━━━ EU LAW CONTEXT ━━━
+This case is governed by EU law. You must:
+
+• Reply IN ENGLISH (or in the user's language if explicitly requested),
+    in a technical-legal register.
+• Apply EU primary and secondary law: TFEU, TEU, the Charter of Fundamental
+    Rights, regulations (GDPR 2016/679, Digital Services Act 2022/2065,
+    Digital Markets Act 2022/1925, AI Act 2024/1689) and relevant directives
+    (e.g. Directive 95/46/EC predecessor, Consumer Rights Directive
+    2011/83/EU, etc.).
+• Cite using the EU style: "Article 6(1)(b) GDPR", "Article 5 AI Act",
+    "Article 102 TFEU", "Case C-131/12 Google Spain".
+• Distinguish carefully between regulations (directly applicable) and
+    directives (require national transposition).
+• If the EU normative base is uncertain, say so explicitly and recommend
+    EUR-Lex verification.
+• The Albanian knowledge base attached to this system does NOT contain EU
+    law: rely on your general legal knowledge; do not fabricate article
+    numbers. Where uncertain, write "Article N (to verify)" rather than
+    inventing a reference.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+"""
+
+
+def jurisdiction_preamble(jurisdiction: str | None) -> str:
+    """Return the system-prompt preamble for the given jurisdiction.
+
+    AL → empty (the existing system prompts are AL-native).
+    IT → Italian-language preamble switching the model to italian law.
+    EU → English-language preamble switching the model to EU law.
+    Anything else → AL fallback.
+    """
+    j = (jurisdiction or "AL").upper()
+    if j == "IT":
+        return JURISDICTION_PREAMBLE_IT
+    if j == "EU":
+        return JURISDICTION_PREAMBLE_EU
+    return JURISDICTION_PREAMBLE_AL
+
+
+def apply_jurisdiction(system_prompt: str, jurisdiction: str | None) -> str:
+    """Prepend the jurisdiction preamble to a system prompt."""
+    pre = jurisdiction_preamble(jurisdiction)
+    return pre + system_prompt if pre else system_prompt
+
+
 ALBANIAN_LANGUAGE_RULES = """── RREGULLA GJUHËSORE (shqipe standarde juridike) ──
 
 GRAMATIKË — rasat e përemrave dëftorë
@@ -119,16 +220,34 @@ KALKIME NGA ITALISHTJA — shmangi
 • "efektuoj një pagesë" → **kryej** një pagesë.
 • "prezantoj një ankim" → **paraqes** një ankim.
 • "individuoj një zgjidhje" → **gjej / identifikoj** një zgjidhje.
+• "procedoj / të procedosh / procedojsh" → **vazhdoj / të vazhdosh** ose **veproj / të veprosh**.
 • "një takim me avokatin" — mirë; "një takim te avokati" — mirë.
 • Mos thuaj "në rast kontrari" — thuaj "përndryshe" ose "në të kundërt".
 • Mos thuaj "në merit të" — thuaj "për sa i përket" ose "lidhur me".
+
+GABIME TË SHPESHTA — shmangi
+• "Nëu" NUK është fjalë shqipe — shkruaj **"Nëse"** (kushtore).
+• "kërkëso / kërkësoji" NUK është fjalë shqipe — shkruaj **"kërko / kërkoji"**.
+• "akt zyror / njoftim zyror" — mbiemri i saktë është **zyrtar/zyrtare** (p.sh. "ftesë zyrtare", "njoftim zyrtar").
+• "rëndësisht" do të thotë "me rëndësi / shumë"; për "formalisht" përdor **"zyrtarisht"**.
 
 REGJISTRI DHE FORMAT
 • Fjali të shkurtra, të qarta — preferohen pa nënfjali të tejzgjatura.
 • Ruaj emrat e institucioneve në formën zyrtare (Gjykata e Lartë,
     Këshilli i Lartë Gjyqësor, Avokati i Popullit, etj.).
 • Numrat e neneve: "neni 130 i Kodit Penal" (jo "neni 130, Kodi Penal").
-• Data: shkruaj "14 maj 2026" (ditë muaj vit pa presje)."""
+• Data: shkruaj "14 maj 2026" (ditë muaj vit pa presje).
+
+KUFI JURIDIKSIONAL — KRITIK PËR AVOKATIN
+• Ti aplikon VETËM të drejtën SHQIPTARE. Mos importo doktrina italiane/franceze në një çështje shqiptare.
+• Kodi Civil shqiptar lejon liri testamentare DUKSHËM më të gjerë se sistemi italian (riserva/legittima) apo ai francez (réserve héréditaire / quotité disponible). Mos transplantos kuota 50%/66%/75% të rezervës nga këto sisteme: ato NUK janë parim universal — janë rregulla të huaja.
+• Ndalim i shprehur:
+   – mos përdor termat "riserva", "legittima", "réserve", "quotité disponible", "successione necessaria" si bazë argumentimi;
+   – mos thuaj "rezerva ligjore mbron 50% të bashkëshortit" si rregull i përgjithshëm — kjo është vizion italo-francez, jo shqiptar;
+   – mos arsyeto "me analogji nga Kodi Civil italian/francez" sepse traditat janë të ngjashme.
+• Kur konteksti të jep nene konkrete të Kodit shqiptar, ATO janë autoriteti — vetëm këto. Nëse të lind një ngjasim me institut italian/francez, NDALO dhe verifiko nëse parashikohet vërtet në nenin shqiptar që ke. Nëse jo, mos e shkruaj.
+• Liria testamentare në KC shqiptar: trashëgimlënësi mund të përjashtojë trashëgimtarë ligjorë dhe të disponojë mbi pjesën e vet brenda kufijve të Kodit shqiptar. Bazohu te dispozitat shqiptare që ke në bllokun e konteksit, jo te kujtesa jote për të drejtën e huaj.
+• Nëse pyetja kërkon shprehimisht krahasim me të drejtën italiane/franceze, mund ta bësh — por SHËNO se është krahasim, jo bazë vendimi për gjykatën shqiptare."""
 
 
 TRIAGE_SYSTEM = f"""Ti je asistent i një avokati strateg që ndihmon qytetarë shqiptarë me pyetje ligjore.
@@ -149,9 +268,15 @@ Përgjigju vetëm me një objekt JSON me këtë strukturë EKZAKTE:
   "areas": ["lista e 'area' që duhen kërkuar, p.sh. ['Familje', 'Civil'] — jo emrat e kodeve"],
   "search_queries": ["3-6 kërkime të shkurtra me terma të specializuar ligjorë; përfshi të paktën NJË kërkim për afatet/parashkrimin dhe NJË për përjashtimet nëse aplikohet"],
   "strategic_angles": ["2-4 kënde strategjike për t'u hulumtuar në nene, p.sh.: 'afatet e parashkrimit', 'përjashtimet për viktimat e dhunës', 'barra e provës te punëdhënësi', 'shkaqe pavlefshmërie të aktit administrativ'"],
+  "complexity": "simple" OSE "complex",
   "needs_followup": false,
   "followup_question": "nëse needs_followup=true, një pyetje e vetme dhe konkrete në shqip për të qartësuar faktet"
 }}
+
+"complexity" RREGULLA — mendo si avokat i ngarkuar: një pyetje "sa m2 na takojnë nga trashëgimia" i përgjigjesh me kokë, një padi kundër punëdhënësit kërkon strategji.
+  • "simple" = pyetje informative/e përgjithshme (kuota trashëgimie, përkufizime, procedura bazë, si-bëhet, rregulla të përgjithshme PA kundërshtar aktiv, pa afate që po skadojnë, pa fakte të ngatërruara). Shembuj: "sa m2 na takojnë", "si bëhet divorci me marrëveshje", "cili është afati i parashkrimit për kontratat", "a mund ta dhurojë nëna pjesën e saj".
+  • "complex" = ka kundërshtar identifikuar, afat real që po afron, dokumente të bashkangjitura, kërkesa për strategji/nulltet/ankim, fakte të diskutueshme, dëm konkret, mundësi fitimi/humbjeje. Çdo gjë që të shtyn drejt sallës së gjyqit.
+  • NË DYSHIM → "complex" (më mirë të përgjigjemi thellë se sipërfaqësisht).
 
 Vendos needs_followup=true VETËM kur mungojnë fakte kritike (p.sh. data e saktë e ngjarjes, a ka dëshmitarë, vlera e dëmit, a ka pasur akt njoftimi). Në shumicën e rasteve përpiqu të përgjigjesh pa pyetje të tjera — qytetarët shpesh janë në vështirësi dhe nuk duhen ngarkuar."""
 
@@ -843,6 +968,43 @@ Kur seksioni "VENDIME RELEVANTE TË GJYKATAVE" të paraqitet më poshtë, ato ja
 - Përdori precedentët për të përforcuar argumentin te seksioni 1 (ligji), seksioni 4 (afatet, nëse vendimi qartëson një afat) ose seksioni 5 (strategjia)."""
 
 
+# V7.7 — simple-query answer prompt. Colloquial, no rigid 5-section
+# template. Used by the simple fast-path for informative questions
+# ("sa m2 na takojnë", "si bëhet divorci me marrëveshje") where the
+# war-room format feels out of place. Still grounded in the retrieved
+# articles and still in shqip — but answered the way a lawyer would
+# answer a friend asking a quick question.
+ANSWER_SIMPLE_SYSTEM = """Ti je Super Avokati — avokat virtual falas për qytetarët shqiptarë që nuk mund të përballojnë tarifat.
+Kjo është një pyetje e thjeshtë informative (jo gjyq, jo kundërshtar, jo afate që skadojnë). Përgjigju si do t'i përgjigjej një mik avokat që e di përgjigjen përmendësh: shkurt, qartë, natyrshëm, pa formularë.
+
+GJUHA: GJITHMONË në shqip.
+
+SI TË PËRGJIGJESH:
+- Shko direkt te përgjigjja. Pa preambul ("kjo është një pyetje interesante..."), pa 5 seksione me ikona, pa tituj H2 përveç nëse vërtet ndihmojnë qytetarin.
+- Sa më shkurt sa mundet pa lënë jashtë çfarë duhet ditur — një avokat i mirë nuk bën monolog kur pyetja ka një përgjigje të qartë.
+- Cito nenet që përdor, me formatin EKZAKT: "Neni X i Kodit Y" (p.sh. "Neni 361 i Kodit Civil"). Mos shpik numra nenesh — nëse nuk të janë dhënë, mos citoni.
+- Kur përgjigjja ka kushte ose përjashtime (p.sh. "varet nëse...", "përveç në rastin kur..."), përmendi shkurt — janë ato që e bëjnë avokatin avokat.
+- Bëhu i ngrohtë por jo i stërzgjatur; qytetari kërkon qartësi, jo formalitet.
+
+KUR NUK KE MBULIM:
+Nëse nga nenet që ke NUK del përgjigjja e saktë, thuaje hapur: "Nga nenet që kam, nuk gjej përgjigje të drejtpërdrejtë për këtë pikë — këshilloj të verifikosh me një avokat ose ndihmë juridike falas."
+
+KUR PYETJA KA NUANCA STRATEGJIKE:
+Nëse gjatë përgjigjes të del një detaj që mund t'i shërbejë qytetarit (p.sh. "mos harro se dhurata e prindit në jetë mund të llogaritet në matje të trashëgimisë"), përmende me një fjali në fund. Pa seksione të veçanta — vetëm si këshillë e avokatit mik.
+
+LIGJET E NDRYSHUESHME:
+- Nëse nenit që citon i shoqërohet "⚠ VOLATILE", shto një fjali: "Ky ligj ndryshon shpesh — para se të veprosh, verifikoje në qbz.gov.al."
+- Për "ℹ Ligj i ndryshuar periodikisht", mjafton një përmendje e shpejtë e datës së indeksimit nëse është relevante.
+- Për nenet STABLE, mos e prek fare këtë temë.
+
+FORMATIMI:
+- Paragrafë të shkurtër, pika kur ndihmojnë, asnjë tabelë e panevojshme.
+- NUK ka kokëfaqe "## 1. Çfarë thotë ligji" etj. — ai format është për raste komplekse, jo për pyetje si kjo.
+- Asnjë "përmbledhje e problemit" në krye — qytetari e di çfarë pyeti.
+
+Mbylle me një fjali gjysëm-private: "Nëse del diçka më specifike ose hyn në kontest me dikë, më thuaj dhe e shohim më thellë." (ose ekuivalent natyral). Pa fundore zyrtare, pa "💙 Ky është informacion ligjor falas" — atë e shtojmë vetëm në përgjigjet e gjata."""
+
+
 # Append shared Albanian language rules to every prompt whose output lands
 # in front of the citizen (or feeds the citizen-facing compose prompt).
 # Done here in one place so a new rule propagates everywhere. Variables
@@ -865,6 +1027,7 @@ for _sys_name in (
     "LEVERAGE_MAP_SYSTEM",
     "ALBANIAN_EDITOR_SYSTEM",
     "ANSWER_SYSTEM",
+    "ANSWER_SIMPLE_SYSTEM",
 ):
     globals()[_sys_name] = globals()[_sys_name] + "\n\n" + ALBANIAN_LANGUAGE_RULES
 del _sys_name
@@ -889,6 +1052,12 @@ class TriageResult:
     strategic_angles: list[str] = field(default_factory=list)
     needs_followup: bool = False
     followup_question: str = ""
+    # V7.6 — "simple" = domanda informativa/generale (quote ereditarie,
+    # definizioni, procedure base, regole di massima) con pochi fatti
+    # controversi e nessun contenzioso attivo. "complex" = litigio,
+    # deadline, nullità, strategia contro controparte. Default "complex"
+    # (fail-safe: se triage fallisce o dimentica il campo, pipeline pieno).
+    complexity: Literal["simple", "complex"] = "complex"
 
 
 @dataclass
@@ -1409,6 +1578,12 @@ class SuperAvvocato:
         backend: LLMBackend | None = None,
     ):
         self.backend = backend or build_backend()
+        # V8.13 — per-thread jurisdiction context. answer() / answer_stream()
+        # set this before composing; helpers read it via _system_for() to
+        # auto-prepend the right preamble. Thread-local so concurrent
+        # requests on different cases don't trample each other.
+        import threading as _threading
+        self._jurisdiction_ctx = _threading.local()
         self.index = index or ArticleIndex.load()
         # Legal KB (Postgres) is optional — if the DB is unreachable the
         # brain still works on articles alone. We don't want an outage of
@@ -1427,6 +1602,15 @@ class SuperAvvocato:
             len(self.index.articles),
             len(self.kb.cases),
         )
+
+    # ── V8.13 jurisdiction-aware system prompt helper ─────────────────────
+
+    def _current_jurisdiction(self) -> str:
+        return getattr(self._jurisdiction_ctx, "code", None) or "AL"
+
+    def _system_for(self, prompt: str) -> str:
+        """Prepend the active jurisdiction preamble to a system prompt."""
+        return apply_jurisdiction(prompt, self._current_jurisdiction())
 
     # ── stage orchestration helpers ────────────────────────────────────────
 
@@ -1481,13 +1665,280 @@ class SuperAvvocato:
 
     # ── public entrypoint ──────────────────────────────────────────────────
 
+    def answer_stream(
+        self,
+        user_message: str,
+        history: list[dict[str, str]] | None = None,
+        session_id: str | None = None,
+        documents: list[dict] | None = None,
+        jurisdiction: str = "AL",
+    ) -> Iterator[tuple[str, object]]:
+        """V7.7 — streaming variant for fast-path queries.
+
+        Yields (kind, payload) events:
+          ("status", str)        — human-readable progress line
+          ("delta", str)         — text chunk to append to the UI
+          ("final", LegalAnswer) — once at the end, with full answer
+          ("error", str)         — on unrecoverable failure
+
+        Streams ONLY when a fast path is chosen (simple or followup).
+        Complex queries fall back to the blocking `answer()` and emit a
+        single ("final", result) event after it resolves — the UI still
+        shows a "thinking..." spinner in that case.
+        """
+        history = history or []
+        documents = documents or []
+        # V8.13 — pin jurisdiction context for the lifetime of the stream.
+        self._jurisdiction_ctx.code = (jurisdiction or "AL").upper()
+        backend = self.backend
+        can_stream = (
+            getattr(backend, "name", "") == "claude_code"
+            and hasattr(backend, "complete_stream")
+        )
+
+        # Followup fast path (V7.5) + streaming (V7.7). Same gate as in answer().
+        if (
+            can_stream
+            and FOLLOWUP_FASTPATH_MAX_CHARS > 0
+            and session_id
+            and len(history) >= 4
+            and len(user_message) <= FOLLOWUP_FASTPATH_MAX_CHARS
+            and not documents
+        ):
+            log.info("stream: followup fast-path")
+            yield ("status", STREAM_STATUS_SQ["followup_answering"])
+            collected: list[str] = []
+            new_sid = session_id
+            for kind, payload in backend.complete_stream(
+                system=self._system_for(ANSWER_SYSTEM),
+                messages=[{"role": "user", "content": user_message}],
+                fast=False,
+                session_id=session_id,
+            ):
+                if kind == "delta":
+                    collected.append(str(payload))
+                    yield ("delta", payload)
+                elif kind == "final":
+                    assert isinstance(payload, dict)
+                    new_sid = payload.get("session_id") or session_id
+            text = _apply_corrections("".join(collected))
+            yield ("final", LegalAnswer(
+                kind="answer", text=text, session_id=new_sid,
+            ))
+            return
+
+        # Fresh query — triage first.
+        try:
+            triage = self._triage(user_message, history, documents)
+            log.info("stream triage: complexity=%s areas=%s",
+                     triage.complexity, triage.areas)
+        except Exception as exc:
+            log.warning("stream triage failed: %s", exc)
+            triage = TriageResult(
+                problem_summary=user_message, areas=[],
+                search_queries=[user_message], strategic_angles=[],
+                needs_followup=False, followup_question="",
+            )
+
+        if triage.needs_followup and triage.followup_question:
+            followup_text = _apply_corrections(triage.followup_question)
+            yield ("final", LegalAnswer(
+                kind="followup", text=followup_text, triage=triage,
+                session_id=session_id,
+            ))
+            return
+
+        retrieved = self._retrieve(triage)
+
+        # Simple fast-path streaming.
+        if (
+            can_stream
+            and SIMPLE_FASTPATH_ENABLED
+            and triage.complexity == "simple"
+            and not documents
+        ):
+            log.info("stream: simple fast-path")
+            yield ("status", STREAM_STATUS_SQ["simple_composing"])
+            context = _format_articles_for_prompt(retrieved)
+            prompt = textwrap.dedent(f"""\
+                Pyetja e qytetarit:
+                \"\"\"{user_message}\"\"\"
+
+                Nenet që kam në dispozicion për këtë pyetje:
+                {context}
+
+                Përgjigju drejtpërdrejt, shkurt, natyrshëm — si avokat mik që e
+                di përgjigjen përmendësh. Cito nenet që përdor me formatin
+                "Neni X i Kodit Y". Pa 5 seksione, pa preambul.
+            """)
+            if session_id:
+                msgs = [{"role": "user", "content": prompt}]
+            else:
+                msgs = list(history) + [{"role": "user", "content": prompt}]
+            collected = []
+            new_sid = session_id
+            for kind, payload in backend.complete_stream(
+                system=self._system_for(ANSWER_SIMPLE_SYSTEM),
+                messages=msgs,
+                fast=False,
+                session_id=session_id,
+            ):
+                if kind == "delta":
+                    collected.append(str(payload))
+                    yield ("delta", payload)
+                elif kind == "final":
+                    assert isinstance(payload, dict)
+                    new_sid = payload.get("session_id") or session_id
+            text = _apply_corrections(_verify_citations("".join(collected), []))
+            yield ("final", LegalAnswer(
+                kind="answer", text=text, triage=triage,
+                retrieved=retrieved, session_id=new_sid,
+            ))
+            return
+
+        # V7.9 — complex path with streaming compose and live status.
+        # Runs the same analytical pipeline as answer() but emits status
+        # lines between phases so the UI isn't silent for 5-8 minutes,
+        # and streams the final Opus compose token-by-token.
+        log.info("stream: complex path — streaming pipeline")
+        yield ("status", STREAM_STATUS_SQ["complex_retrieving"])
+
+        cited_pairs = [(a.code, a.number) for a, _ in retrieved]
+        try:
+            precedents = self._retrieve_precedents(triage, cited_pairs)
+        except Exception as exc:
+            log.warning("stream: precedents retrieval failed: %s", exc)
+            precedents = []
+        log.info("stream: retrieved %d precedents", len(precedents))
+
+        yield ("status", STREAM_STATUS_SQ["complex_precedents"])
+        try:
+            adverse_precedents = self._retrieve_adverse_precedents(
+                triage, cited_pairs)
+        except Exception as exc:
+            log.warning("stream: adverse retrieval failed: %s", exc)
+            adverse_precedents = []
+        seen_ids = {c.id for c, _ in precedents}
+        for c, s in adverse_precedents:
+            if c.id not in seen_ids:
+                precedents.append((c, s))
+                seen_ids.add(c.id)
+
+        yield ("status", STREAM_STATUS_SQ["complex_analyzing"])
+        stage_plan: dict[str, Callable[[], object]] = {
+            "strategic":       lambda: self._strategic_analysis(user_message, triage, retrieved),
+            "timeline":        lambda: self._analyze_timeline(user_message, triage, retrieved, documents),
+            "comparison":      lambda: self._compare_precedents(user_message, triage, precedents),
+            "missing_facts":   lambda: self._detect_missing_facts(user_message, triage, retrieved, documents),
+            "premortem":       lambda: self._premortem(user_message, triage, retrieved, precedents, documents),
+            "distinguishing":  lambda: self._distinguish_precedents(user_message, triage, adverse_precedents),
+            "evidence_map":    lambda: self._analyze_evidence_map(user_message, triage, retrieved, documents),
+            "nullity_radar":   lambda: self._scan_nullities(user_message, triage, retrieved, documents),
+            "contradictions":  lambda: self._detect_contradictions(documents),
+        }
+        adversary_present = _has_adversary(user_message, triage, documents)
+        if adversary_present:
+            stage_plan["opponent"] = lambda: self._simulate_opponent(
+                user_message, triage, retrieved, precedents, documents)
+            stage_plan["leverage"] = lambda: self._map_leverage(
+                user_message, triage, retrieved, documents)
+        else:
+            log.info("stream adversary gate: no opposing party — "
+                     "skipping opponent + leverage")
+        stage_results = self._run_stages(stage_plan)
+        strategic: StrategicAnalysis | None = stage_results.get("strategic")
+        timeline: TimelineAnalysis | None = stage_results.get("timeline")
+        comparison: PrecedentComparison | None = stage_results.get("comparison")
+        missing_facts: MissingFactsAnalysis | None = stage_results.get("missing_facts")
+        premortem: Premortem | None = stage_results.get("premortem")
+        distinguishing: DistinguishingAnalysis | None = stage_results.get("distinguishing")
+        evidence_map: EvidenceMap | None = stage_results.get("evidence_map")
+        nullity_radar: NullityRadar | None = stage_results.get("nullity_radar")
+        contradictions: ContradictionReport | None = stage_results.get("contradictions")
+        opponent_playbook: OpponentPlaybook | None = stage_results.get("opponent")
+        leverage: LeverageMap | None = stage_results.get("leverage")
+
+        yield ("status", STREAM_STATUS_SQ["complex_urgency"])
+        urgency_radar: UrgencyRadar | None = None
+        try:
+            urgency_radar = self._scan_urgency(
+                user_message, triage, timeline, nullity_radar, documents)
+        except Exception as exc:
+            log.warning("stream urgency_radar failed: %s", exc)
+
+        action_plan: ActionPlan | None = None
+        try:
+            action_plan = self._build_action_plan(
+                triage, urgency_radar, nullity_radar,
+                evidence_map, comparison, premortem,
+                contradictions=contradictions,
+            )
+        except Exception as exc:
+            log.warning("stream action_plan failed: %s", exc)
+
+        yield ("status", STREAM_STATUS_SQ["complex_composing"])
+        collected: list[str] = []
+        new_sid = session_id
+        try:
+            for kind, payload in self._compose_answer_stream(
+                user_message, history, triage, retrieved, precedents,
+                strategic=strategic, timeline=timeline, comparison=comparison,
+                premortem=premortem, distinguishing=distinguishing,
+                evidence_map=evidence_map, nullity_radar=nullity_radar,
+                urgency_radar=urgency_radar, action_plan=action_plan,
+                contradictions=contradictions,
+                opponent_playbook=opponent_playbook, leverage=leverage,
+                session_id=session_id, documents=documents,
+            ):
+                if kind == "delta":
+                    collected.append(str(payload))
+                    yield ("delta", payload)
+                elif kind == "final":
+                    if isinstance(payload, dict):
+                        new_sid = payload.get("session_id") or new_sid
+        except Exception as exc:
+            log.error("stream compose failed, falling back to blocking: %s", exc)
+            # Fall back to full blocking answer() so the citizen still gets
+            # a response even if the stream broke mid-pipeline.
+            result = self.answer(user_message, history=history,
+                                 session_id=session_id, documents=documents)
+            yield ("final", result)
+            return
+
+        answer_text = "".join(collected)
+        answer_text = _verify_citations(answer_text, precedents)
+        if ALBANIAN_EDITOR_ENABLED:
+            try:
+                answer_text = self._polish_albanian(answer_text)
+            except Exception as exc:
+                log.warning("stream albanian_editor failed (non-fatal): %s", exc)
+        answer_text = _apply_corrections(answer_text)
+
+        final_sid = getattr(self.backend, "last_session_id", None) or new_sid
+        yield ("final", LegalAnswer(
+            kind="answer", text=answer_text, triage=triage,
+            retrieved=retrieved, precedents=precedents, strategic=strategic,
+            timeline=timeline, comparison=comparison, missing_facts=missing_facts,
+            premortem=premortem, adverse_precedents=adverse_precedents,
+            distinguishing=distinguishing, evidence_map=evidence_map,
+            nullity_radar=nullity_radar, urgency_radar=urgency_radar,
+            action_plan=action_plan, contradictions=contradictions,
+            opponent_playbook=opponent_playbook, leverage=leverage,
+            session_id=final_sid,
+        ))
+
     def answer(
         self,
         user_message: str,
         history: list[dict[str, str]] | None = None,
         session_id: str | None = None,
         documents: list[dict] | None = None,
+        jurisdiction: str = "AL",
     ) -> LegalAnswer:
+        # V8.13 — pin the jurisdiction for the lifetime of this answer call
+        # so internal helpers (compose, stages) auto-prepend the right
+        # preamble without explicit param-threading.
+        self._jurisdiction_ctx.code = (jurisdiction or "AL").upper()
         """Process one user message and return either a follow-up or a full answer.
 
         `session_id`, when provided, is passed to the compose stage so the
@@ -1503,6 +1954,44 @@ class SuperAvvocato:
         history = history or []
         documents = documents or []
 
+        # V7.5 — short follow-up fast path.
+        # When the citizen is already in an active conversation (session_id
+        # present, 2+ prior turns) and the new message is a short question
+        # AND no new dossier is attached, the Claude Code session already
+        # holds the full context. Running triage + retrieval + 11 parallel
+        # analytical stages on "si do ndahet pjesa?" burns ~14 min of wall
+        # clock via the subscription rate-limiter and produces an answer
+        # no better than a single --resume call. Skip straight to compose.
+        is_claude_code = getattr(self.backend, "name", "") == "claude_code"
+        if (
+            FOLLOWUP_FASTPATH_MAX_CHARS > 0
+            and is_claude_code
+            and session_id
+            and len(history) >= 4  # ≥ 2 full turns (user+assistant pairs)
+            and len(user_message) <= FOLLOWUP_FASTPATH_MAX_CHARS
+            and not documents
+        ):
+            log.info("followup fast-path: short msg (%d chars) in active "
+                     "session, skipping triage + stages", len(user_message))
+            text = self.backend.complete(
+                system=apply_jurisdiction(ANSWER_SYSTEM, jurisdiction),
+                messages=[{"role": "user", "content": user_message}],
+                max_tokens=2500,
+                fast=False,
+                session_id=session_id,
+            )
+            if ALBANIAN_EDITOR_ENABLED:
+                try:
+                    text = self._polish_albanian(text)
+                except Exception as exc:
+                    log.warning("albanian_editor failed (non-fatal): %s", exc)
+            text = _apply_corrections(text)
+            new_session_id = getattr(self.backend, "last_session_id",
+                                     None) or session_id
+            return LegalAnswer(
+                kind="answer", text=text, session_id=new_session_id,
+            )
+
         # Triage with a safety net: if the fast model refuses to emit JSON
         # (sometimes happens when a dossier document reads like direct
         # instructions), fall back to a minimal triage rather than 500-ing
@@ -1510,8 +1999,8 @@ class SuperAvvocato:
         # grounded on their original question.
         try:
             triage = self._triage(user_message, history, documents)
-            log.info("triage: areas=%s queries=%s angles=%s followup=%s",
-                     triage.areas, triage.search_queries,
+            log.info("triage: complexity=%s areas=%s queries=%s angles=%s followup=%s",
+                     triage.complexity, triage.areas, triage.search_queries,
                      triage.strategic_angles, triage.needs_followup)
         except Exception as exc:
             log.warning("triage failed, using fallback: %s", exc)
@@ -1535,6 +2024,40 @@ class SuperAvvocato:
 
         retrieved = self._retrieve(triage)
         log.info("retrieved %d articles", len(retrieved))
+
+        # V7.6 — simple-query fast path.
+        # Like a real lawyer: informative questions with no adversary, no
+        # deadline, no dossier get answered on the spot — no strategic
+        # war-room stages. Triage classifies complexity; if "simple" we
+        # skip the 11 analytical stages + precedent retrieval + urgency
+        # radar + action plan, and go directly to a lean compose on Opus.
+        # Total latency: ~50-90s instead of 3-6 min. The compose still
+        # uses the main model (Opus 4.7) — we don't downgrade the brain,
+        # we just stop asking it 11 questions it doesn't need to answer.
+        if (
+            SIMPLE_FASTPATH_ENABLED
+            and triage.complexity == "simple"
+            and not documents
+        ):
+            log.info("simple fast-path: complexity=simple, skipping 11 "
+                     "analytical stages + precedents + urgency/action_plan "
+                     "+ albanian editor")
+            answer_text = self._compose_simple_answer(
+                user_message, history, triage, retrieved,
+                session_id=session_id,
+            )
+            answer_text = _verify_citations(answer_text, [])
+            # V7.7 — Albanian editor pass deliberately SKIPPED on simple:
+            # Opus 4.7's shqipe standarde is already clean, and the editor
+            # adds ~10s (Haiku call + diff check) for a marginal polish
+            # that a citizen asking "sa m2 na takon" doesn't need.
+            answer_text = _apply_corrections(answer_text)
+            new_session_id = getattr(self.backend, "last_session_id",
+                                     None) or session_id
+            return LegalAnswer(
+                kind="answer", text=answer_text, triage=triage,
+                retrieved=retrieved, session_id=new_session_id,
+            )
 
         # Hydrate (code, number) pairs from retrieved articles so the
         # precedent retriever can score article-overlap bonuses —
@@ -1579,9 +2102,20 @@ class SuperAvvocato:
             "evidence_map":    lambda: self._analyze_evidence_map(user_message, triage, retrieved, documents),
             "nullity_radar":   lambda: self._scan_nullities(user_message, triage, retrieved, documents),
             "contradictions":  lambda: self._detect_contradictions(documents),
-            "opponent":        lambda: self._simulate_opponent(user_message, triage, retrieved, precedents, documents),
-            "leverage":        lambda: self._map_leverage(user_message, triage, retrieved, documents),
         }
+        # V7.9 — only simulate an opponent + build a leverage map when the
+        # case actually has one. Informative "how does X work?" questions
+        # that still crossed the complexity gate (long but non-adversarial)
+        # burn ~60-120s here producing empty JSON that gets dropped.
+        adversary_present = _has_adversary(user_message, triage, documents)
+        if adversary_present:
+            stage_plan["opponent"] = lambda: self._simulate_opponent(
+                user_message, triage, retrieved, precedents, documents)
+            stage_plan["leverage"] = lambda: self._map_leverage(
+                user_message, triage, retrieved, documents)
+        else:
+            log.info("adversary gate: no opposing party detected — "
+                     "skipping opponent playbook + leverage map")
         stage_results = self._run_stages(stage_plan)
         strategic: StrategicAnalysis | None = stage_results.get("strategic")
         timeline: TimelineAnalysis | None = stage_results.get("timeline")
@@ -1749,6 +2283,8 @@ class SuperAvvocato:
         else:
             triage_message = user_message
         messages = list(history) + [{"role": "user", "content": triage_message}]
+        # V8.10: triage resta Haiku — classificatore binario simple/complex,
+        # latenza critica per UX streaming. Pure scaffolding.
         raw = self.backend.complete(
             system=TRIAGE_SYSTEM,
             messages=messages,
@@ -1756,6 +2292,17 @@ class SuperAvvocato:
             fast=True,
         )
         data = _parse_json_block(raw)
+        complexity_raw = str(data.get("complexity", "")).strip().lower()
+        complexity = "simple" if complexity_raw == "simple" else "complex"
+        # V7.8 — deterministic override: if the message looks clearly informative
+        # (short, no adversary/deadline markers, no dossier), force "simple".
+        # The LLM classifier has a habit of defaulting to "complex" on anything
+        # with multiple parties mentioned (e.g. "3 vëllezër dhe nëna") even
+        # when no contenzioso exists. A real lawyer answers "sa m2 na takojnë"
+        # from memory in 30 seconds; we should too.
+        if complexity == "complex" and _looks_simple(user_message, documents):
+            log.info("triage: heuristic override complex→simple")
+            complexity = "simple"
         return TriageResult(
             problem_summary=str(data.get("problem_summary", "")),
             areas=list(data.get("areas") or []),
@@ -1763,6 +2310,7 @@ class SuperAvvocato:
             strategic_angles=list(data.get("strategic_angles") or []),
             needs_followup=bool(data.get("needs_followup", False)),
             followup_question=str(data.get("followup_question", "")).strip(),
+            complexity=complexity,
         )
 
     # ── stage 2: retrieval ─────────────────────────────────────────────────
@@ -1918,7 +2466,7 @@ class SuperAvvocato:
             system=STRATEGIC_SYSTEM,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=1200,
-            fast=True,
+            medium=True,  # V8.10 — Sonnet per stage analitiche lawyer-facing
         )
         try:
             data = _parse_json_block(raw)
@@ -1989,7 +2537,7 @@ class SuperAvvocato:
             system=TIMELINE_SYSTEM.format(today=date.today().isoformat()),
             messages=[{"role": "user", "content": prompt}],
             max_tokens=1200,
-            fast=True,
+            medium=True,  # V8.10 Sonnet
         )
         try:
             data = _parse_json_block(raw)
@@ -2103,7 +2651,7 @@ class SuperAvvocato:
             system=COMPARISON_SYSTEM,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=900,
-            fast=True,
+            medium=True,  # V8.10 Sonnet
         )
         try:
             data = _parse_json_block(raw)
@@ -2217,7 +2765,7 @@ class SuperAvvocato:
             system=DISTINGUISHING_SYSTEM,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=1200,
-            fast=True,
+            medium=True,  # V8.10 Sonnet
         )
         try:
             data = _parse_json_block(raw)
@@ -2299,7 +2847,7 @@ class SuperAvvocato:
             system=EVIDENCE_MAP_SYSTEM,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=1400,
-            fast=True,
+            medium=True,  # V8.10 Sonnet
         )
         try:
             data = _parse_json_block(raw)
@@ -2380,7 +2928,7 @@ class SuperAvvocato:
             system=NULLITY_RADAR_SYSTEM,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=1500,
-            fast=True,
+            medium=True,  # V8.10 Sonnet
         )
         try:
             data = _parse_json_block(raw)
@@ -2519,7 +3067,7 @@ class SuperAvvocato:
             system=URGENCY_SCAN_SYSTEM,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=1200,
-            fast=True,
+            medium=True,  # V8.10 Sonnet
         )
         try:
             data = _parse_json_block(raw)
@@ -2640,7 +3188,7 @@ class SuperAvvocato:
                 system=CONTRADICTION_SYSTEM,
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=1500,
-                fast=True,
+                medium=True,  # V8.10 Sonnet
             )
             data = _parse_json_block(raw)
         except Exception as exc:
@@ -2847,7 +3395,7 @@ class SuperAvvocato:
                 system=ACTION_PLAN_SYSTEM,
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=1600,
-                fast=True,
+                medium=True,  # V8.10 Sonnet
             )
             data = _parse_json_block(raw)
         except Exception as exc:
@@ -2975,7 +3523,7 @@ class SuperAvvocato:
             system=MISSING_FACTS_SYSTEM,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=900,
-            fast=True,
+            medium=True,  # V8.10 Sonnet
         )
         try:
             data = _parse_json_block(raw)
@@ -3053,7 +3601,7 @@ class SuperAvvocato:
             system=PREMORTEM_SYSTEM,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=1100,
-            fast=True,
+            medium=True,  # V8.10 Sonnet
         )
         try:
             data = _parse_json_block(raw)
@@ -3131,7 +3679,7 @@ class SuperAvvocato:
             system=OPPONENT_PLAYBOOK_SYSTEM,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=1300,
-            fast=True,
+            medium=True,  # V8.10 Sonnet
         )
         try:
             data = _parse_json_block(raw)
@@ -3200,7 +3748,7 @@ class SuperAvvocato:
             system=LEVERAGE_MAP_SYSTEM,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=1100,
-            fast=True,
+            medium=True,  # V8.10 Sonnet
         )
         try:
             data = _parse_json_block(raw)
@@ -3244,28 +3792,73 @@ class SuperAvvocato:
         wait=wait_exponential(multiplier=1, min=1, max=10),
         reraise=True,
     )
-    def _compose_answer(
+    def _compose_simple_answer(
+        self,
+        user_message: str,
+        history: list[dict[str, str]],
+        triage: TriageResult,
+        retrieved: list[tuple[Article, float]],
+        session_id: str | None = None,
+    ) -> str:
+        """V7.7 — lean compose for the simple fast-path.
+
+        No strategic blocks, no precedents, no 5-section template — just
+        the question + retrieved articles, answered colloquially via
+        ANSWER_SIMPLE_SYSTEM. Uses the main model (Opus 4.7) so we don't
+        downgrade quality, just shed ceremony.
+        """
+        context = _format_articles_for_prompt(retrieved)
+        prompt = textwrap.dedent(f"""\
+            Pyetja e qytetarit:
+            \"\"\"{user_message}\"\"\"
+
+            Nenet që kam në dispozicion për këtë pyetje:
+            {context}
+
+            Përgjigju drejtpërdrejt, shkurt, natyrshëm — si avokat mik që e di
+            përgjigjen përmendësh. Cito nenet që përdor me formatin "Neni X i
+            Kodit Y". Pa 5 seksione, pa preambul.
+        """)
+        if session_id:
+            messages = [{"role": "user", "content": prompt}]
+        else:
+            messages = list(history) + [{"role": "user", "content": prompt}]
+        return self.backend.complete(
+            system=self._system_for(ANSWER_SIMPLE_SYSTEM),
+            messages=messages,
+            max_tokens=1500,
+            fast=False,
+            session_id=session_id,
+        )
+
+    def _build_compose_messages(
         self,
         user_message: str,
         history: list[dict[str, str]],
         triage: TriageResult,
         retrieved: list[tuple[Article, float]],
         precedents: list[tuple[CasePrecedent, float]],
-        strategic: StrategicAnalysis | None = None,
-        timeline: TimelineAnalysis | None = None,
-        comparison: PrecedentComparison | None = None,
-        premortem: Premortem | None = None,
-        distinguishing: DistinguishingAnalysis | None = None,
-        evidence_map: EvidenceMap | None = None,
-        nullity_radar: NullityRadar | None = None,
-        urgency_radar: UrgencyRadar | None = None,
-        action_plan: ActionPlan | None = None,
-        contradictions: ContradictionReport | None = None,
-        opponent_playbook: OpponentPlaybook | None = None,
-        leverage: LeverageMap | None = None,
-        session_id: str | None = None,
-        documents: list[dict] | None = None,
-    ) -> str:
+        strategic: StrategicAnalysis | None,
+        timeline: TimelineAnalysis | None,
+        comparison: PrecedentComparison | None,
+        premortem: Premortem | None,
+        distinguishing: DistinguishingAnalysis | None,
+        evidence_map: EvidenceMap | None,
+        nullity_radar: NullityRadar | None,
+        urgency_radar: UrgencyRadar | None,
+        action_plan: ActionPlan | None,
+        contradictions: ContradictionReport | None,
+        opponent_playbook: OpponentPlaybook | None,
+        leverage: LeverageMap | None,
+        session_id: str | None,
+        documents: list[dict] | None,
+    ) -> tuple[list[dict[str, str]], list[Path]]:
+        """Build the (messages, attachment_paths) pair for compose.
+
+        Shared by the blocking ``_compose_answer`` and the streaming
+        ``_compose_answer_stream`` so the prompt is identical in both
+        paths — streaming must not drift from blocking.
+        """
         context = _format_articles_for_prompt(retrieved)
         precedents_block = _format_precedents_block(precedents)
         strategic_block = _format_strategic_block(strategic)
@@ -3280,9 +3873,6 @@ class SuperAvvocato:
         contradictions_block = _format_contradictions_block(contradictions)
         opponent_block = _format_opponent_block(opponent_playbook)
         leverage_block = _format_leverage_block(leverage)
-        # When we have docs, we pass the raw files as attachments so Claude
-        # reads them natively (same UX as pasting an image into a chat) —
-        # the prompt block only lists filenames, no pre-extracted text.
         attachment_paths = [
             Path(d["storage_path"]) for d in (documents or [])
             if d.get("storage_path")
@@ -3326,23 +3916,122 @@ class SuperAvvocato:
             detaj është vendimtar për rastin e tij konkret.
         """)
 
-        # When a session_id is active, the Claude Code backend resumes the
-        # session natively — no need to resend history; Claude has it.
-        # For other backends (Gemini, Anthropic API), session_id is ignored
-        # and we still need to pass history in messages.
         if session_id:
             messages = [{"role": "user", "content": prompt}]
         else:
             messages = list(history) + [{"role": "user", "content": prompt}]
+        return messages, attachment_paths
 
+    def _compose_answer(
+        self,
+        user_message: str,
+        history: list[dict[str, str]],
+        triage: TriageResult,
+        retrieved: list[tuple[Article, float]],
+        precedents: list[tuple[CasePrecedent, float]],
+        strategic: StrategicAnalysis | None = None,
+        timeline: TimelineAnalysis | None = None,
+        comparison: PrecedentComparison | None = None,
+        premortem: Premortem | None = None,
+        distinguishing: DistinguishingAnalysis | None = None,
+        evidence_map: EvidenceMap | None = None,
+        nullity_radar: NullityRadar | None = None,
+        urgency_radar: UrgencyRadar | None = None,
+        action_plan: ActionPlan | None = None,
+        contradictions: ContradictionReport | None = None,
+        opponent_playbook: OpponentPlaybook | None = None,
+        leverage: LeverageMap | None = None,
+        session_id: str | None = None,
+        documents: list[dict] | None = None,
+    ) -> str:
+        messages, attachment_paths = self._build_compose_messages(
+            user_message, history, triage, retrieved, precedents,
+            strategic, timeline, comparison, premortem, distinguishing,
+            evidence_map, nullity_radar, urgency_radar, action_plan,
+            contradictions, opponent_playbook, leverage,
+            session_id, documents,
+        )
         return self.backend.complete(
-            system=ANSWER_SYSTEM,
+            system=self._system_for(ANSWER_SYSTEM),
             messages=messages,
             max_tokens=2500,
             fast=False,
             session_id=session_id,
             attachments=attachment_paths or None,
         )
+
+    def _compose_answer_stream(
+        self,
+        user_message: str,
+        history: list[dict[str, str]],
+        triage: TriageResult,
+        retrieved: list[tuple[Article, float]],
+        precedents: list[tuple[CasePrecedent, float]],
+        strategic: StrategicAnalysis | None = None,
+        timeline: TimelineAnalysis | None = None,
+        comparison: PrecedentComparison | None = None,
+        premortem: Premortem | None = None,
+        distinguishing: DistinguishingAnalysis | None = None,
+        evidence_map: EvidenceMap | None = None,
+        nullity_radar: NullityRadar | None = None,
+        urgency_radar: UrgencyRadar | None = None,
+        action_plan: ActionPlan | None = None,
+        contradictions: ContradictionReport | None = None,
+        opponent_playbook: OpponentPlaybook | None = None,
+        leverage: LeverageMap | None = None,
+        session_id: str | None = None,
+        documents: list[dict] | None = None,
+    ) -> Iterator[tuple[str, object]]:
+        """V7.9 — streaming variant of ``_compose_answer``.
+
+        Yields ("delta", str) chunks and a terminal ("final", dict)
+        event carrying {"text": full, "session_id": sid}. Falls back to
+        the blocking path when attachments are present — the current
+        ``complete_stream`` backend API doesn't pipe files to Claude.
+        """
+        messages, attachment_paths = self._build_compose_messages(
+            user_message, history, triage, retrieved, precedents,
+            strategic, timeline, comparison, premortem, distinguishing,
+            evidence_map, nullity_radar, urgency_radar, action_plan,
+            contradictions, opponent_playbook, leverage,
+            session_id, documents,
+        )
+        backend = self.backend
+        can_stream = (
+            getattr(backend, "name", "") == "claude_code"
+            and hasattr(backend, "complete_stream")
+            and not attachment_paths
+        )
+        if not can_stream:
+            text = backend.complete(
+                system=self._system_for(ANSWER_SYSTEM),
+                messages=messages,
+                max_tokens=2500,
+                fast=False,
+                session_id=session_id,
+                attachments=attachment_paths or None,
+            )
+            new_sid = getattr(backend, "last_session_id", None) or session_id
+            # Emit as a single delta so the UI can still render progress.
+            yield ("delta", text)
+            yield ("final", {"text": text, "session_id": new_sid})
+            return
+
+        new_sid = session_id
+        collected: list[str] = []
+        for kind, payload in backend.complete_stream(
+            system=self._system_for(ANSWER_SYSTEM),
+            messages=messages,
+            fast=False,
+            session_id=session_id,
+        ):
+            if kind == "delta":
+                collected.append(str(payload))
+                yield ("delta", payload)
+            elif kind == "final":
+                if isinstance(payload, dict):
+                    new_sid = payload.get("session_id") or new_sid
+        yield ("final", {"text": "".join(collected), "session_id": new_sid})
 
     # ── stage 5: Albanian editor pass (V7.0 Tappa 3) ───────────────────────
 
@@ -3386,6 +4075,128 @@ class SuperAvvocato:
 
 
 # ── helpers ────────────────────────────────────────────────────────────────
+
+
+# V7.8 — keywords that mark a query as *clearly* contenzioso, not informative.
+# When NONE of these appear AND the question is short AND there's no dossier,
+# we override the LLM's "complex" verdict to "simple". The list is deliberately
+# Albanian-only; the triage already handles bilingual input by translating.
+# Conservative on purpose: a false "simple" just uses a lean compose (still
+# Opus, still grounded in articles). A false "complex" wastes 8 minutes.
+_COMPLEX_MARKERS = (
+    # contencioso / adversary
+    "padi", "paditje", "paditur", "kundërshtar", "kundershtar",
+    "punëdhënës", "punedhenes", "shkarkim", "shkarkuar",
+    "pushim nga puna", "pushuar nga puna",
+    # procedural
+    "ankim", "apel", "kasacion", "rekurs", "apelim", "rekursim",
+    "procesi", "procedurë", "procedure", "gjyq", "gjyqtar",
+    "gjyqtare", "prokuror", "sallë gjyqi", "salle gjyqi",
+    # deadlines
+    "afat", "afate", "parashkrim", "prekluzion", "dekadenc",
+    "skadon", "skaduar", "mbaron afati",
+    # criminal
+    "arrest", "arrestoj", "dënim", "denim", "sanksion", "masa sigurimi",
+    "paraburgim", "ndalim", "kallzim",
+    # enforcement / state action
+    "përmbarues", "permbarues", "sekuestro", "bllokim llogarie",
+    "tatim", "gjob", "doganë", "sfratto", "dëbim",
+    # active disputes / violence (omit "divorc" alone — "si bëhet divorci" is
+    # informative; "divorc kundër" or "divorc i kontestuar" is caught by the
+    # compound markers below)
+    "dhunë familjeje", "dhune familjeje", "alimentacion",
+    "kujdestari të fëmijës", "kujdestari te femijes",
+    # concrete dossier facts (not the abstract concepts — "çfarë është barra
+    # e provës" is informative; "kam kontratën" carries real case facts)
+    "kam dokument", "kam kontrat", "kam faturën", "kam faturen",
+    "kam provë", "kam prove", "kam dëshmi", "kam deshmi",
+    "akti i njoftimit", "akt njoftimi", "vendimi i gjykatës",
+    "vendimi i gjykates", "kam marrë vendim", "kam marre vendim",
+)
+
+
+def _looks_simple(user_message: str, documents: list[dict] | None) -> bool:
+    """Heuristic gate that forces `simple` when the signal is unambiguous.
+
+    A real lawyer listens for two things before deciding how to answer:
+    "are you in a fight with someone?" and "is time running out?" If
+    neither is true and you're asking how the law works in general,
+    you get answered on the spot. This mirrors that.
+    """
+    if documents:
+        return False
+    msg = user_message.strip()
+    # Long messages usually carry facts + grievance + ask, which is the
+    # complex shape. Short messages are almost always informative.
+    if len(msg) > 280:
+        return False
+    lower = msg.lower()
+    if any(marker in lower for marker in _COMPLEX_MARKERS):
+        return False
+    return True
+
+
+# V7.9 — is there an actual adversary in this case?
+# The opponent playbook + leverage map stages are only useful when there's
+# someone on the other side: employer, prosecutor, ex-spouse, tax office,
+# evicting landlord, etc. For "cfare eshte emërimi i kujdestarit?" there
+# is literally no opposing party — simulating one burns ~60-120s of Haiku
+# calls producing empty JSON that gets dropped. Gate those two stages.
+_ADVERSARY_MARKERS = (
+    # explicit parties on the other side
+    "kundërshtar", "kundershtar", "pala tjetër", "pala tjeter",
+    "punëdhënës", "punedhenes", "shef", "drejtori",
+    "ish-bashkëshort", "ish bashkeshort", "ish-burri", "ish-gruaja",
+    "qiradhënës", "qiradhenes", "qiramarrës", "qiramarres",
+    "fqinj", "shitësi", "shitesi", "blerësi", "bleresi",
+    "banka", "kreditori", "debitori", "garantuesi",
+    # institutions acting against
+    "prokuror", "tatim", "doganë", "dogane", "përmbarues", "permbarues",
+    "inspektorati", "bashkia më", "bashkia me", "administrata",
+    # active disputes
+    "padi", "paditje", "paditur", "gjyq", "padit", "ankim", "apel",
+    "kasacion", "rekurs", "kallzim", "akuzoj", "akuzuar",
+    "shkarkim", "shkarkuar", "pushim nga puna", "pushuar nga puna",
+    "sekuestro", "bllokim", "gjob", "dëbim", "sfratto",
+    "dhunë", "dhune", "sulm", "kërcënim", "kercenim",
+    # grievance verbs (in first person)
+    "nuk më paguan", "nuk me paguan", "më ka pushuar", "me ka pushuar",
+    "më kanë larguar", "me kane larguar", "kanë refuzuar", "kane refuzuar",
+    "më akuzojnë", "me akuzojne", "më ka paditur", "me ka padituar",
+    "më kanë arrestuar", "me kane arrestuar",
+)
+
+
+def _has_adversary(
+    user_message: str,
+    triage: TriageResult | None,
+    documents: list[dict] | None,
+) -> bool:
+    """True when the case has a real opposing party worth war-gaming.
+
+    Called inside the complex pipeline to decide whether the opponent
+    playbook + leverage map stages are worth running. They each burn a
+    Haiku call (~20-40s) and produce empty JSON when there's no one on
+    the other side — a big waste for long-but-informative questions
+    like "shpjegomë si funksionon procedura e trashëgimisë".
+
+    Conservative in the "assume adversary" direction: a dossier or a
+    triage flag for a criminal / contentious area is enough; we only
+    skip when we're confident the case is purely informative.
+    """
+    if documents:
+        return True
+    if triage is not None:
+        adversarial_areas = {"Penal", "Punë", "Administrativ", "Doganor"}
+        if any(a in adversarial_areas for a in (triage.areas or [])):
+            return True
+        # Strategic angles sometimes name the opposing party explicitly
+        # ("padi civile ndaj punëdhënësit", "ankimim i vendimit X").
+        blob = " ".join(triage.strategic_angles or []).lower()
+        if any(marker in blob for marker in _ADVERSARY_MARKERS):
+            return True
+    lower = (user_message or "").lower()
+    return any(marker in lower for marker in _ADVERSARY_MARKERS)
 
 
 def _parse_json_block(raw: str) -> dict:

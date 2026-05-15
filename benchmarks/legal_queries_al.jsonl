@@ -1,0 +1,50 @@
+{"id": "AL-001", "area": "penale", "query": "Çfarë parashikon Kodi Penal për vjedhjen e thjeshtë?", "expected_codes": ["kodi_penal"], "expected_articles": ["134", "135"]}
+{"id": "AL-002", "area": "penale", "query": "Cilat janë afatet e parashkrimit penal për krimet e rënda?", "expected_codes": ["kodi_penal"], "expected_articles": ["66", "67"]}
+{"id": "AL-003", "area": "penale", "query": "Si dënohet vrasja me dashje sipas Kodit Penal?", "expected_codes": ["kodi_penal"], "expected_articles": ["76", "77", "78"]}
+{"id": "AL-004", "area": "penale", "query": "Çfarë është mashtrimi sipas Kodit Penal shqiptar?", "expected_codes": ["kodi_penal"], "expected_articles": ["143"]}
+{"id": "AL-005", "area": "penale", "query": "Cilat janë rrethanat lehtësuese të dënimit?", "expected_codes": ["kodi_penal"], "expected_articles": ["48", "49"]}
+{"id": "AL-006", "area": "civile", "query": "Si bëhet ndarja e pasurisë në martesë?", "expected_codes": ["kodi_familjes", "kodi_civil"], "expected_articles": []}
+{"id": "AL-007", "area": "civile", "query": "Cilat janë afatet e parashkrimit në Kodin Civil?", "expected_codes": ["kodi_civil"], "expected_articles": []}
+{"id": "AL-008", "area": "civile", "query": "Çfarë parashikon Kodi Civil për kontratën e shitjes?", "expected_codes": ["kodi_civil"], "expected_articles": []}
+{"id": "AL-009", "area": "civile", "query": "Cilat janë kushtet për trashëgiminë testamentare?", "expected_codes": ["kodi_civil"], "expected_articles": []}
+{"id": "AL-010", "area": "civile", "query": "Si bëhet kontrata e qirasë sipas Kodit Civil?", "expected_codes": ["kodi_civil"], "expected_articles": []}
+{"id": "AL-011", "area": "familjare", "query": "Cilat janë kushtet e divorcit të kërkuar nga njëri prej bashkëshortëve?", "expected_codes": ["kodi_familjes"], "expected_articles": []}
+{"id": "AL-012", "area": "familjare", "query": "Si caktohet kujdestaria e fëmijës pas divorcit?", "expected_codes": ["kodi_familjes"], "expected_articles": []}
+{"id": "AL-013", "area": "familjare", "query": "Cilat janë detyrimet e prindërve për fëmijët e mitur?", "expected_codes": ["kodi_familjes"], "expected_articles": []}
+{"id": "AL-014", "area": "familjare", "query": "Sa është ushqimia minimale për fëmijën?", "expected_codes": ["kodi_familjes"], "expected_articles": []}
+{"id": "AL-015", "area": "pune", "query": "Si dënohet pushimi nga puna pa shkak të arsyeshëm?", "expected_codes": ["kodi_punes"], "expected_articles": []}
+{"id": "AL-016", "area": "pune", "query": "Çfarë parashikon Kodi i Punës për paralajmërimin për pushim?", "expected_codes": ["kodi_punes"], "expected_articles": []}
+{"id": "AL-017", "area": "pune", "query": "Sa orë pune në javë lejohen sipas Kodit të Punës?", "expected_codes": ["kodi_punes"], "expected_articles": []}
+{"id": "AL-018", "area": "pune", "query": "Cilat janë të drejtat e punëtores shtatzënë?", "expected_codes": ["kodi_punes"], "expected_articles": []}
+{"id": "AL-019", "area": "pune", "query": "Si llogaritet shpërblimi i largimit nga puna?", "expected_codes": ["kodi_punes"], "expected_articles": []}
+{"id": "AL-020", "area": "proc_civile", "query": "Cilat janë afatet për ankim ndaj vendimit të gjykatës së apelit?", "expected_codes": ["kodi_proc_civile"], "expected_articles": []}
+{"id": "AL-021", "area": "proc_civile", "query": "Si paraqitet padia në gjykatë?", "expected_codes": ["kodi_proc_civile"], "expected_articles": []}
+{"id": "AL-022", "area": "proc_civile", "query": "Çfarë janë masat e sigurimit të padisë?", "expected_codes": ["kodi_proc_civile"], "expected_articles": []}
+{"id": "AL-023", "area": "proc_civile", "query": "Cilat janë afatet e Rekursit në Gjykatën e Lartë?", "expected_codes": ["kodi_proc_civile"], "expected_articles": []}
+{"id": "AL-024", "area": "proc_penale", "query": "Si bëhet kallëzimi penal?", "expected_codes": ["kodi_proc_penale"], "expected_articles": []}
+{"id": "AL-025", "area": "proc_penale", "query": "Cilat janë të drejtat e të pandehurit gjatë hetimeve paraprake?", "expected_codes": ["kodi_proc_penale"], "expected_articles": []}
+{"id": "AL-026", "area": "proc_penale", "query": "Si caktohet masa e arrestit me burgim?", "expected_codes": ["kodi_proc_penale"], "expected_articles": []}
+{"id": "AL-027", "area": "proc_penale", "query": "Çfarë afatesh ka prokuroria për të vendosur?", "expected_codes": ["kodi_proc_penale"], "expected_articles": []}
+{"id": "AL-028", "area": "proc_admin", "query": "Cilat janë afatet për ankim administrativ?", "expected_codes": ["kodi_proc_admin"], "expected_articles": []}
+{"id": "AL-029", "area": "proc_admin", "query": "Si bëhet ankimi në gjykatën administrative?", "expected_codes": ["kodi_proc_admin"], "expected_articles": []}
+{"id": "AL-030", "area": "proc_admin", "query": "Çfarë është heshtja administrative?", "expected_codes": ["kodi_proc_admin"], "expected_articles": []}
+{"id": "AL-031", "area": "kushtetuese", "query": "Cilat janë të drejtat themelore sipas Kushtetutës?", "expected_codes": ["kushtetuta"], "expected_articles": []}
+{"id": "AL-032", "area": "kushtetuese", "query": "Çfarë mbron Kushtetuta për lirinë e shprehjes?", "expected_codes": ["kushtetuta"], "expected_articles": []}
+{"id": "AL-033", "area": "kushtetuese", "query": "Si funksionon Gjykata Kushtetuese?", "expected_codes": ["kushtetuta"], "expected_articles": []}
+{"id": "AL-034", "area": "rrugor", "query": "Sa është gjoba për alkoolin në timon?", "expected_codes": ["kodi_rrugor"], "expected_articles": []}
+{"id": "AL-035", "area": "rrugor", "query": "Çfarë parashikon Kodi Rrugor për kalimin e kuq?", "expected_codes": ["kodi_rrugor"], "expected_articles": []}
+{"id": "AL-036", "area": "doganor", "query": "Cilat janë sanksionet për kontrabandën?", "expected_codes": ["kodi_doganor"], "expected_articles": []}
+{"id": "AL-037", "area": "tregtar", "query": "Si themelohet një shoqëri me përgjegjësi të kufizuar?", "expected_codes": ["ligji_shoqerite_tregtare"], "expected_articles": []}
+{"id": "AL-038", "area": "tregtar", "query": "Cilat janë kushtet e falimentimit të një biznesi?", "expected_codes": ["ligji_falimentimi"], "expected_articles": []}
+{"id": "AL-039", "area": "konsumator", "query": "Cilat janë të drejtat e konsumatorit në kthim malli?", "expected_codes": ["ligji_konsumatoret"], "expected_articles": []}
+{"id": "AL-040", "area": "konsumator", "query": "Sa kohë mund të kthehet një produkt sipas ligjit?", "expected_codes": ["ligji_konsumatoret"], "expected_articles": []}
+{"id": "AL-041", "area": "te_dhena", "query": "Cilat janë detyrimet e mbrojtjes së të dhënave personale?", "expected_codes": ["ligji_te_dhenat"], "expected_articles": []}
+{"id": "AL-042", "area": "te_dhena", "query": "Si bëhet kërkesa për qasje në të dhënat personale?", "expected_codes": ["ligji_te_dhenat"], "expected_articles": []}
+{"id": "AL-043", "area": "tregtar", "query": "Si regjistrohet një biznes në QKB?", "expected_codes": ["ligji_qkb"], "expected_articles": []}
+{"id": "AL-044", "area": "zgjedhor", "query": "Cilat janë afatet e fushatës zgjedhore?", "expected_codes": ["kodi_zgjedhor"], "expected_articles": []}
+{"id": "AL-045", "area": "detar", "query": "Cilat janë rregullat e regjistrimit të anijes?", "expected_codes": ["kodi_detar"], "expected_articles": []}
+{"id": "AL-046", "area": "ajror", "query": "Si rregullohen të drejtat e pasagjerëve të anuluar?", "expected_codes": ["kodi_ajror"], "expected_articles": []}
+{"id": "AL-047", "area": "civile", "query": "Cilat janë kushtet e dëmshpërblimit jashtëkontraktor?", "expected_codes": ["kodi_civil"], "expected_articles": []}
+{"id": "AL-048", "area": "familjare", "query": "Si bëhet birësimi i një fëmije?", "expected_codes": ["kodi_familjes"], "expected_articles": []}
+{"id": "AL-049", "area": "penale", "query": "Çfarë parashikon Kodi Penal për korrupsionin pasiv?", "expected_codes": ["kodi_penal"], "expected_articles": []}
+{"id": "AL-050", "area": "penale", "query": "Si dënohet trafikimi i drogës?", "expected_codes": ["kodi_penal"], "expected_articles": ["283", "284"]}

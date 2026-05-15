@@ -165,6 +165,30 @@ class DecisionIndex:
                 decisions.append(Decision(**data))
         return cls.build(decisions)
 
+    @classmethod
+    def from_unified(cls, path: Path = DECISIONS_JSONL) -> "DecisionIndex":
+        """Load Kushtetuese (jsonl) + Gjykata e Lartë + ECHR (Postgres) into a
+        single index. Falls back to jsonl-only if Postgres is unreachable.
+
+        This is what we want for the Precedent Pattern Analyzer — the model
+        searches across the full ~1100 decisions corpus, not just one court.
+        """
+        decisions: list[Decision] = []
+        if path.exists():
+            with path.open(encoding="utf-8") as fh:
+                for line in fh:
+                    data = json.loads(line)
+                    data.pop("kind", None)
+                    decisions.append(Decision(**data))
+            log.info("loaded %d Kushtetuese decisions from jsonl", len(decisions))
+        try:
+            pg_decisions = _load_postgres_decisions()
+            decisions.extend(pg_decisions)
+            log.info("loaded %d cases from Postgres legalkb", len(pg_decisions))
+        except Exception as exc:  # noqa: BLE001
+            log.warning("Postgres legalkb unreachable (%s) — index will be jsonl-only", exc)
+        return cls.build(decisions)
+
     # ── persistence ─────────────────────────────────────────────────────────
 
     def save(self, path: Path = DECISIONS_INDEX_FILE) -> None:
@@ -231,10 +255,122 @@ def build_and_save() -> ArticleIndex:
     return index
 
 
-def build_and_save_decisions() -> DecisionIndex:
-    index = DecisionIndex.from_jsonl()
+def build_and_save_decisions(unified: bool = True) -> DecisionIndex:
+    """Build and save the decisions BM25 index.
+
+    Default `unified=True` merges Kushtetuese (282 from jsonl) +
+    Gjykata e Lartë + ECHR Albania (~815 from Postgres legalkb) into one
+    index so the Precedent Analyzer searches across the full corpus.
+
+    Pass `unified=False` for a jsonl-only build (legacy / offline).
+    """
+    if unified:
+        index = DecisionIndex.from_unified()
+    else:
+        index = DecisionIndex.from_jsonl()
     index.save()
     return index
+
+
+# ── Postgres legalkb ingestion ─────────────────────────────────────────────
+
+# Map outcomes from the Postgres extraction vocabulary (English, see
+# src/extract/llm.py EXTRACTION_SCHEMA enum) to the shqip vocabulary used
+# by the Kushtetuese parser. We unify so the model sees one terminology
+# regardless of which court issued the decision.
+_OUTCOME_MAP_EN_TO_SQ: dict[str, str] = {
+    "accepted": "pranim",
+    "partially_accepted": "pjesërisht",
+    "rejected": "rrëzim",
+    "dismissed": "pushim",
+    "remanded": "kthim për rishqyrtim",
+    "settled": "marrëveshje",
+    "modified": "ndryshim",
+    "convicted": "fajësim",
+    "acquitted": "pafajësim",
+    "other": "",
+    "unknown": "",
+}
+
+
+def _load_postgres_decisions() -> list[Decision]:
+    """Pull complete cases from Postgres legalkb and shape them as Decision.
+
+    We deliberately keep the schema mapping minimal:
+      - objekti        ← summary (LLM-extracted one-liner)
+      - reasoning      ← full_text (capped via Decision.searchable_text)
+      - cited_articles ← articles_cited rows (normalised)
+      - judges         ← participations where role='judge'
+      - dispositif     ← left empty (no structured operative-part field
+                         in legalkb — full_text already covers it)
+
+    Empty raw_path / missing decision_date falls through gracefully.
+    """
+    from .db import Case, Court, session_scope
+    from sqlalchemy.orm import joinedload
+
+    decisions: list[Decision] = []
+    with session_scope() as sess:
+        q = (
+            sess.query(Case)
+            .options(
+                joinedload(Case.court),
+                joinedload(Case.articles_cited),
+                joinedload(Case.participations),
+            )
+            .filter(Case.extraction_status == "complete")
+        )
+        for case in q.all():
+            year = case.decision_date.year if case.decision_date else 0
+            date = case.decision_date.strftime("%d.%m.%Y") if case.decision_date else ""
+            court = case.court
+            short_sq = _short_sq(court.code if court else "")
+            citation = f"Vendimi nr. {case.case_number}/{year} i {short_sq}" if year else \
+                       f"Vendimi nr. {case.case_number} i {short_sq}"
+            cited = sorted({
+                f"{a.code}:{a.article}" for a in case.articles_cited
+                if a.code and a.article
+            })
+            judges = [
+                p.person.canonical_name
+                for p in case.participations
+                if p.role == "judge" and p.person and p.person.canonical_name
+            ]
+            outcome_sq = _OUTCOME_MAP_EN_TO_SQ.get(
+                (case.outcome or "").strip().lower(), case.outcome or ""
+            )
+            decisions.append(Decision(
+                court_code=court.code if court else "",
+                court_title_sq=court.name if court else "",
+                court_short_sq=short_sq,
+                year=year,
+                number=str(case.case_number or ""),
+                date=date,
+                citation=citation,
+                short_id="",
+                objekti=(case.summary or "")[:800],
+                kerkues="",
+                subjekte_interesuara="",
+                baza_ligjore="",
+                judges=judges[:12],
+                cited_articles=cited[:40],
+                outcome=outcome_sq,
+                dispositif="",
+                reasoning=(case.full_text or "")[:8000],
+                source_file=case.raw_path or "",
+                source_url=case.source_url or "",
+            ))
+    return decisions
+
+
+def _short_sq(court_code: str) -> str:
+    """Map court_code → display string in shqip."""
+    return {
+        "kushtetuese": "Gjykata Kushtetuese",
+        "gjykata_elarte": "Gjykata e Lartë",
+        "ecthr_albania": "Gjykata Evropiane e të Drejtave të Njeriut",
+        "apel_tirane": "Gjykata e Apelit Tiranë",
+    }.get(court_code, court_code)
 
 
 if __name__ == "__main__":
@@ -243,7 +379,9 @@ if __name__ == "__main__":
     parser.add_argument("--build", action="store_true",
                         help="Rebuild the articles index from parsed articles")
     parser.add_argument("--build-decisions", action="store_true",
-                        help="Rebuild the decisions index from parsed decisions")
+                        help="Rebuild the unified decisions index (Kushtetuese jsonl + Postgres legalkb)")
+    parser.add_argument("--build-decisions-jsonl-only", action="store_true",
+                        help="Build decisions index from jsonl only (no Postgres lookup)")
     parser.add_argument("--query", type=str, default=None,
                         help="Test query against the articles index")
     parser.add_argument("--query-decisions", type=str, default=None,
@@ -258,8 +396,10 @@ if __name__ == "__main__":
         idx = ArticleIndex.load()
         log.info("loaded articles index: %d articles", len(idx.articles))
 
-    if args.build_decisions or (not DECISIONS_INDEX_FILE.exists() and DECISIONS_JSONL.exists()):
-        didx = build_and_save_decisions()
+    if args.build_decisions_jsonl_only:
+        didx = build_and_save_decisions(unified=False)
+    elif args.build_decisions or (not DECISIONS_INDEX_FILE.exists() and DECISIONS_JSONL.exists()):
+        didx = build_and_save_decisions(unified=True)
     else:
         didx = DecisionIndex.load()
         log.info("loaded decisions index: %d decisions", len(didx.decisions))

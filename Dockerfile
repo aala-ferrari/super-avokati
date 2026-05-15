@@ -1,5 +1,12 @@
-# Super Avvocato V3 — multi-user legal assistant for Albanian citizens,
-# with per-case dossier upload (PDF/JPG/PNG/SVG) and AI analysis.
+# Super Avvocato V9.1 — multi-user legal assistant for Albanian lawyers,
+# 18-source legal corpus (Kushtetuta + 13 codes + 5 sectoral laws,
+# 5615 articles) with volatility tagging, 282 Constitutional Court
+# decisions (2015-2024) indexed for precedent retrieval, per-case
+# dossier upload, V9.0 Genio Legale (6 parallel Opus perspectives), and
+# AI analysis via the 15-stage parallel pipeline.
+#
+# V9.1 (2026-04-27): parser heading multi-line fix + jurisdiction
+# guard against italo-francez doctrine drift (KUFI JURIDIKSIONAL).
 #
 # Default backend inside the container is the Anthropic API (ANTHROPIC_API_KEY)
 # or Gemini (GEMINI_API_KEY) — the Claude Code CLI backend is unavailable
@@ -7,12 +14,12 @@
 # Note: the dossier's image/scanned-PDF OCR requires ANTHROPIC_API_KEY or
 # GEMINI_API_KEY (native PDF text layers work without either).
 #
-# Build:   docker build -t super-avvocato:v3 .
+# Build:   docker build -t super-avvocato:v9.1 .
 # Run:     docker run --rm -p 5050:5050 \
 #            -v $(pwd)/data:/app/data \
 #            -e ANTHROPIC_API_KEY=sk-ant-... \
 #            -e BRAIN_BACKEND=anthropic \
-#            super-avvocato:v3
+#            super-avvocato:v9.1
 # The data volume persists: sqlite DB, session secret, AND the per-case
 # uploaded files under data/uploads/ — mount it or lose them on restart.
 # Then provision the first admin user:
@@ -27,7 +34,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     HOST=0.0.0.0 \
     PORT=5050 \
-    BRAIN_BACKEND=auto
+    BRAIN_BACKEND=auto \
+    BRAIN_PARALLEL_STAGES=1 \
+    BRAIN_PARALLEL_WORKERS=3 \
+    CLAUDE_CODE_MAX_CONCURRENCY=3 \
+    FOLLOWUP_FASTPATH_MAX_CHARS=200 \
+    SIMPLE_FASTPATH_ENABLED=1
 
 WORKDIR /app
 

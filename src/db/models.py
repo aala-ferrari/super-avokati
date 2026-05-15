@@ -161,6 +161,57 @@ class Case(Base):
     )
 
 
+class CaseAnalysis(Base):
+    """Structured ratio decidendi for a case — what won, what lost, what to imitate.
+
+    Populated by ``src/extract/ratio.py`` via Opus over ``Case.full_text``. One
+    row per case, idempotent (UNIQUE on case_id). The Precedent Pattern
+    Analyzer reads these rows to synthesize "moves to imitate / traps to
+    avoid" for a current case dossier.
+
+    Fields are written in shqip — the output is for an Albanian lawyer.
+    """
+
+    __tablename__ = "case_analyses"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    case_id: Mapped[int] = mapped_column(
+        ForeignKey("cases.id"), unique=True, index=True,
+    )
+    # The single argument that decided the case in the winner's favor.
+    # 1-3 sentences, in shqip, anchored to a specific neni or fact.
+    winning_argument: Mapped[str | None] = mapped_column(Text)
+    # The procedural / substantive error the losing party made (or
+    # equivalently, the gap in their argument). Empty if not identifiable
+    # (some decisions are won purely on substantive grounds with no
+    # opposing-counsel "mistake" to point to).
+    losing_mistake: Mapped[str | None] = mapped_column(Text)
+    # The single fact that pendulated the balance. Often a date, a
+    # document, a piece of evidence — the thing without which the
+    # outcome would have been different.
+    dispositive_fact: Mapped[str | None] = mapped_column(Text)
+    # 1-2 sentences of actionable lesson — what should an avvocato do
+    # in a similar case (imitate or avoid).
+    transferable_lesson: Mapped[str | None] = mapped_column(Text)
+    # A short archetype label for matching: "kontestim_testamenti",
+    # "ankim_jashteafati", "shpronesim_publik", etc. Free-form but
+    # constrained to lowercase + underscores by the prompt.
+    case_archetype: Mapped[str | None] = mapped_column(String(80), index=True)
+
+    extracted_at: Mapped[datetime] = mapped_column(
+        DateTime, server_default=func.now()
+    )
+    # pending | complete | failed
+    extraction_status: Mapped[str] = mapped_column(String(20), default="pending")
+    extraction_notes: Mapped[str | None] = mapped_column(Text)
+    model: Mapped[str | None] = mapped_column(String(40))
+    input_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    output_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    cost_usd: Mapped[Decimal] = mapped_column(Numeric(8, 4), default=Decimal("0"))
+
+    case: Mapped["Case"] = relationship()
+
+
 class Participation(Base):
     __tablename__ = "participations"
 

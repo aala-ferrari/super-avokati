@@ -28,9 +28,17 @@
     "individuoj": "identifikoj",
     "individuon": "identifikon",
     "individuar": "identifikuar",
-    "verifikoj": "kontrolloj",
-    "verifikon": "kontrollon",
-    "verifikohet": "kontrollohet"
+    "nëu": "nëse",
+    "kërkëso": "kërko",
+    "kërkësoji": "kërkoji",
+    "zyrore": "zyrtare",
+    "zyrori": "zyrtari",
+    "procedoj": "veproj",
+    "procedon": "vepron",
+    "procedosh": "veprosh",
+    "procedojsh": "veprosh",
+    "procedonte": "vepronte",
+    "proceduar": "vepruar"
   },
 
   "_phrases_comment": "Multi-word corrections. Applied as whole-phrase case-insensitive replacements BEFORE the single-word pass.",

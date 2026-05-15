@@ -306,7 +306,7 @@ def summarize_document(extracted_text: str, filename: str, backend) -> dict:
             system=ANALYSIS_SYSTEM,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=900,
-            fast=True,
+            medium=True,  # V8.10 Sonnet — lawyer reads doc summary
         )
     except Exception as exc:
         log.warning("doc analysis failed for %s: %s", filename, exc)
