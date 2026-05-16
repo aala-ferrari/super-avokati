@@ -763,6 +763,26 @@ CREATE TABLE IF NOT EXISTS case_alerts (
 );
 CREATE INDEX IF NOT EXISTS idx_case_alerts_user ON case_alerts(user_id, dismissed, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_case_alerts_case ON case_alerts(case_id, dismissed, created_at DESC);
+
+-- ── V9.6 Ratio Coach (case post-mortems) ─────────────────────────────
+CREATE TABLE IF NOT EXISTS case_lessons (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    case_id             TEXT    NOT NULL,
+    user_id             INTEGER NOT NULL,
+    firm_id             INTEGER,
+    outcome             TEXT    NOT NULL DEFAULT 'fituar',
+    archetype           TEXT,
+    transferable_lesson TEXT,
+    summary_hint        TEXT,
+    lesson_json         TEXT    NOT NULL DEFAULT '{}',
+    elapsed_ms          INTEGER,
+    created_at          TEXT    NOT NULL,
+    FOREIGN KEY (case_id) REFERENCES cases(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+    UNIQUE(case_id)
+);
+CREATE INDEX IF NOT EXISTS idx_case_lessons_user ON case_lessons(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_case_lessons_firm ON case_lessons(firm_id, created_at DESC);
 """
 
 # Roles ordered by seniority/permission breadth. Used by permission checks.
@@ -5522,6 +5542,90 @@ def dismiss_alert(alert_id: int, user_id: int) -> bool:
             (now, alert_id, user_id),
         )
         return cur.rowcount > 0
+
+
+# ── V9.6 Ratio Coach persistence ──────────────────────────────────────
+
+def save_case_lesson(*, case_id: str, user_id: int, firm_id: int | None,
+                     outcome: str, summary_hint: str | None,
+                     lesson: dict, elapsed_ms: int) -> int:
+    """Insert or replace the lesson for this case (UNIQUE on case_id)."""
+    now = _utcnow()
+    archetype = lesson.get("archetype") or ""
+    transferable = lesson.get("transferable_lesson") or ""
+    payload = json.dumps(lesson, ensure_ascii=False)
+    with db() as conn:
+        # delete existing lesson for this case (UNIQUE constraint)
+        conn.execute("DELETE FROM case_lessons WHERE case_id = ?", (case_id,))
+        cur = conn.execute(
+            "INSERT INTO case_lessons "
+            "(case_id, user_id, firm_id, outcome, archetype, transferable_lesson, "
+            " summary_hint, lesson_json, elapsed_ms, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (case_id, user_id, firm_id, outcome, archetype, transferable,
+             summary_hint, payload, elapsed_ms, now),
+        )
+        return int(cur.lastrowid)
+
+
+def get_case_lesson(case_id: str) -> dict | None:
+    with db() as conn:
+        r = conn.execute(
+            "SELECT * FROM case_lessons WHERE case_id = ?", (case_id,),
+        ).fetchone()
+    if r is None:
+        return None
+    return _lesson_row_to_dict(r)
+
+
+def list_case_lessons(*, user_id: int, firm_id: int | None = None,
+                      limit: int = 100) -> list[dict]:
+    """List lessons visible to the user — own + firm-shared if firm_id given."""
+    with db() as conn:
+        if firm_id is not None:
+            rows = conn.execute(
+                "SELECT l.*, c.title AS case_title FROM case_lessons l "
+                "JOIN cases c ON c.id = l.case_id "
+                "WHERE l.user_id = ? OR l.firm_id = ? "
+                "ORDER BY l.created_at DESC LIMIT ?",
+                (user_id, firm_id, limit),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT l.*, c.title AS case_title FROM case_lessons l "
+                "JOIN cases c ON c.id = l.case_id "
+                "WHERE l.user_id = ? "
+                "ORDER BY l.created_at DESC LIMIT ?",
+                (user_id, limit),
+            ).fetchall()
+    return [_lesson_row_to_dict(r) for r in rows]
+
+
+def delete_case_lesson(case_id: str, user_id: int) -> bool:
+    with db() as conn:
+        cur = conn.execute(
+            "DELETE FROM case_lessons WHERE case_id = ? AND user_id = ?",
+            (case_id, user_id),
+        )
+        return cur.rowcount > 0
+
+
+def _lesson_row_to_dict(r) -> dict:
+    keys = r.keys()
+    return {
+        "id": r["id"],
+        "case_id": r["case_id"],
+        "user_id": r["user_id"],
+        "firm_id": r["firm_id"],
+        "outcome": r["outcome"],
+        "archetype": r["archetype"],
+        "transferable_lesson": r["transferable_lesson"],
+        "summary_hint": r["summary_hint"],
+        "lesson_json": json.loads(r["lesson_json"] or "{}"),
+        "elapsed_ms": r["elapsed_ms"],
+        "created_at": r["created_at"],
+        "case_title": r["case_title"] if "case_title" in keys else None,
+    }
 
 
 def list_user_open_cases_for_matching(user_id: int) -> list[dict]:

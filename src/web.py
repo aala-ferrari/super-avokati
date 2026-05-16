@@ -2628,6 +2628,152 @@ def api_vigilanza_update_get(update_id: int):
     return jsonify(upd)
 
 
+# ── V9.6 Ratio Coach ────────────────────────────────────────────────────────
+
+from . import ratio_coach as coach_mod  # noqa: E402
+
+
+def _build_postmortem_context(case_id: str) -> tuple[str, str, str]:
+    """Return (case_title, conversation_text, documents_text) for the post-mortem."""
+    case = storage.get_case_unscoped(case_id)
+    title = (case.title if case else "") or ""
+    msgs = storage.list_messages(case_id) or []
+    convo = "\n".join(
+        f"[{m.role}] {(m.content or '')[:500]}"
+        for m in msgs[-25:]
+    )
+    docs = []
+    try:
+        for d in storage.list_documents(case_id) or []:
+            summary = (getattr(d, "summary", "") or "").strip()
+            if summary:
+                docs.append(f"- {d.filename}: {summary[:300]}")
+    except Exception:
+        pass
+    return title, convo, "\n".join(docs)
+
+
+@app.post("/api/cases/<case_id>/post-mortem")
+@login_required_api
+def api_postmortem_run(case_id: str):
+    """Generate a structured post-mortem lesson for the case.
+
+    Body: { outcome: 'fituar'|'humbur'|'marrëveshje'|'tërhequr'|'i hapur',
+            summary_hint?: string }
+    Returns: { lesson_id, lesson, elapsed_ms }
+    """
+    user = request.user  # type: ignore[attr-defined]
+    case = storage.get_case(case_id, user.id)
+    if not case:
+        return jsonify({"error": "Rasti nuk u gjet"}), 404
+    if _BRAIN is None:
+        return jsonify({"error": "Backend jo i disponueshëm"}), 503
+
+    body = request.get_json(silent=True) or {}
+    outcome = (body.get("outcome") or coach_mod.DEFAULT_OUTCOME).strip()
+    if outcome not in coach_mod.OUTCOMES:
+        return jsonify({"error": f"Outcome jo i vlefshëm. Lejohen: {coach_mod.OUTCOMES}"}), 400
+    summary_hint = (body.get("summary_hint") or "").strip()
+
+    title, convo, docs = _build_postmortem_context(case_id)
+
+    inp = coach_mod.PostmortemInput(
+        case_title=title, outcome=outcome,
+        summary_hint=summary_hint, conversation=convo, documents=docs,
+    )
+
+    t0 = time.monotonic()
+    lesson = coach_mod.case_postmortem(inp, backend=_BRAIN.backend, case_id=case_id)
+    elapsed_ms = int((time.monotonic() - t0) * 1000)
+
+    firm_id = getattr(case, "firm_id", None)
+    lesson_id = storage.save_case_lesson(
+        case_id=case_id, user_id=user.id, firm_id=firm_id,
+        outcome=outcome, summary_hint=summary_hint,
+        lesson=lesson, elapsed_ms=elapsed_ms,
+    )
+
+    return jsonify({
+        "lesson_id": lesson_id, "lesson": lesson,
+        "elapsed_ms": elapsed_ms, "outcome": outcome,
+    }), 201
+
+
+@app.get("/api/cases/<case_id>/lesson")
+@login_required_api
+def api_case_lesson_get(case_id: str):
+    user = request.user  # type: ignore[attr-defined]
+    case = storage.get_case(case_id, user.id)
+    if not case:
+        return jsonify({"error": "Rasti nuk u gjet"}), 404
+    lesson = storage.get_case_lesson(case_id)
+    if not lesson:
+        return jsonify({"lesson": None})
+    return jsonify({"lesson": lesson})
+
+
+@app.delete("/api/cases/<case_id>/lesson")
+@login_required_api
+def api_case_lesson_delete(case_id: str):
+    user = request.user  # type: ignore[attr-defined]
+    case = storage.get_case(case_id, user.id)
+    if not case:
+        return jsonify({"error": "Rasti nuk u gjet"}), 404
+    deleted = storage.delete_case_lesson(case_id, user.id)
+    return jsonify({"ok": deleted})
+
+
+@app.get("/api/lessons")
+@login_required_api
+def api_lessons_list():
+    """List all lessons (own + firm-shared) for the current user."""
+    user = request.user  # type: ignore[attr-defined]
+    firm_id = getattr(user, "firm_id", None)
+    return jsonify({
+        "items": storage.list_case_lessons(user_id=user.id, firm_id=firm_id),
+    })
+
+
+@app.post("/api/lessons/relevant")
+@login_required_api
+def api_lessons_relevant():
+    """Find the top-3 past lessons most relevant to a new case description.
+
+    Body: { description } OR { case_id }
+    """
+    user = request.user  # type: ignore[attr-defined]
+    body = request.get_json(silent=True) or {}
+    description = (body.get("description") or "").strip()
+    case_id = (body.get("case_id") or "").strip()
+
+    if case_id and not description:
+        # build description from case content
+        case = storage.get_case(case_id, user.id)
+        if not case:
+            return jsonify({"error": "Rasti nuk u gjet"}), 404
+        title, convo, docs = _build_postmortem_context(case_id)
+        description = "\n".join([title, convo, docs])
+
+    if not description:
+        return jsonify({"items": []})
+
+    firm_id = getattr(user, "firm_id", None)
+    stored = storage.list_case_lessons(user_id=user.id, firm_id=firm_id)
+    # exclude this case's own lesson if matching from a case
+    if case_id:
+        stored = [s for s in stored if s["case_id"] != case_id]
+
+    matches = coach_mod.surface_lessons(description, stored, top_k=3)
+    return jsonify({"items": [{
+        "lesson_id": m.lesson_id, "case_id": m.case_id,
+        "archetype": m.archetype,
+        "transferable_lesson": m.transferable_lesson,
+        "relevance_score": m.relevance_score,
+        "overlap_terms": m.overlap_terms,
+        "outcome": m.outcome,
+    } for m in matches]})
+
+
 # ── V8.6 agentic mode (suggestions + auto-letters) ─────────────────────────
 
 AGENT_SCAN_SYSTEM = """Je 'agent proaktiv' brenda Super Avvocato — ndihmës i avokatit shqiptar.

@@ -6911,6 +6911,74 @@ main {
   .prec-cards { grid-template-columns: 1fr; }
 }
 
+/* ── V9.6 Ratio Coach ── */
+.coach-tabs { display: flex; gap: 4px; margin-bottom: 14px; border-bottom: 2px solid var(--gray-200); flex-wrap: wrap; }
+.coach-tab {
+  padding: 8px 14px; border: none; background: none; cursor: pointer;
+  font-size: 12px; color: var(--gray-600); border-radius: 6px 6px 0 0;
+}
+.coach-tab:hover { background: var(--gray-100); color: var(--gray-900); }
+.coach-tab-active { background: #e8f5e9; color: #2e7d32; font-weight: 600; border-bottom: 2px solid #2e7d32; }
+.coach-tab-panel { padding: 4px 0; }
+.coach-row { display: flex; gap: 8px; margin-bottom: 10px; }
+.coach-row .pro-select { flex: 1; max-width: 280px; }
+.coach-actions-row { display: flex; align-items: center; gap: 10px; margin: 12px 0 4px; }
+.coach-hint { font-size: 12px; color: var(--gray-600); margin-bottom: 12px; }
+.coach-empty { color: var(--gray-500); font-style: italic; padding: 18px; text-align: center; }
+.coach-existing { margin: 10px 0; }
+.coach-existing-banner { background: #e8f5e9; padding: 8px 12px; border-radius: 6px; font-size: 13px; display: flex; gap: 8px; align-items: center; }
+
+.coach-card { background: var(--gray-50, #fafafa); border-radius: 10px; padding: 14px 18px; margin-bottom: 10px; border: 1px solid var(--gray-200); }
+.coach-card h4 { margin: 0; font-size: 15px; }
+.coach-card h5 { margin: 0 0 6px; font-size: 12px; color: var(--gray-700); text-transform: uppercase; letter-spacing: .04em; font-weight: 700; }
+.coach-card p { margin: 0; font-size: 14px; line-height: 1.5; }
+.coach-card ul { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.6; }
+
+.coach-out { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 8px; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 6px; }
+.coach-out-win { background: #c8e6c9; color: #1b5e20; }
+.coach-out-lose { background: #ffcdd2; color: #b71c1c; }
+.coach-out-other { background: #fff3e0; color: #e65100; }
+
+.coach-archetype { background: linear-gradient(180deg, #e8f5e9, #f3f4f6); }
+.coach-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.coach-tag { background: var(--gray-200); color: var(--gray-800); border-radius: 8px; padding: 2px 8px; font-size: 11px; font-weight: 600; }
+.coach-tag-art { background: #e3f2fd; color: #0d47a1; }
+
+.coach-lesson-main { background: #fff8e1; border-left: 4px solid #f9a825; }
+.coach-dispositive { background: #f3e5f5; border-left: 4px solid #7b1fa2; }
+.coach-worked { background: #f1f8e9; border-left: 4px solid #2e7d32; }
+.coach-failed { background: #ffebee; border-left: 4px solid #c62828; }
+.coach-opp { background: #fff3e0; border-left: 4px solid #ef6c00; }
+.coach-warn { background: #fff8e1; border-left: 4px solid #f57f17; }
+
+.coach-library, .coach-relevant { display: flex; flex-direction: column; gap: 8px; }
+.coach-lib-item, .coach-rel-item { background: #fafafa; padding: 10px 14px; border-radius: 6px; border: 1px solid var(--gray-200); }
+.coach-lib-head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 4px; }
+.coach-lib-arch { font-weight: 600; font-size: 12px; color: var(--gray-800); }
+.coach-lib-date { font-size: 11px; color: var(--gray-500); margin-left: auto; }
+.coach-lib-case { font-size: 12px; color: var(--gray-600); margin: 4px 0; font-style: italic; }
+.coach-lib-lesson { font-size: 13px; line-height: 1.4; margin: 4px 0; }
+.coach-score { font-size: 11px; color: var(--gray-700); font-family: var(--font-mono, monospace); margin-left: auto; }
+.coach-overlap { font-size: 11px; color: var(--gray-600); margin-top: 6px; }
+.coach-overlap code { background: var(--gray-200); padding: 1px 5px; border-radius: 4px; font-size: 10px; }
+.coach-err { background: #ffebee; border-left: 4px solid #c62828; padding: 10px 14px; border-radius: 6px; font-size: 13px; }
+
+/* Auto-surface banner above chat */
+.coach-banner {
+  margin: 8px 12px 0; padding: 0;
+  background: linear-gradient(90deg, #e8f5e9, #fff8e1);
+  border-radius: 10px; border: 1px solid #a5d6a7;
+}
+.coach-banner-inner { display: flex; gap: 10px; align-items: center; padding: 10px 14px; font-size: 13px; }
+.coach-banner-icon { font-size: 18px; }
+.coach-banner-text { flex: 1; line-height: 1.4; }
+.coach-banner-text em { color: var(--gray-600); font-style: italic; }
+
+@media (max-width: 720px) {
+  .coach-banner { margin: 6px 6px 0; }
+  .coach-banner-inner { flex-wrap: wrap; padding: 8px 10px; font-size: 12px; }
+}
+
 /* ── V9.5 Vigilanza Normativa ── */
 .vig-tabs { display: flex; gap: 4px; margin-bottom: 14px; border-bottom: 2px solid var(--gray-200); }
 .vig-tab {

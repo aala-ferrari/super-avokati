@@ -155,6 +155,10 @@
       el.classList.toggle("active", el.dataset.id === id);
     });
     if (window.innerWidth < 900) closeSidebar();
+    // V9.6: surface relevant lessons from past cases
+    if (typeof window.surfaceRelevantLessons === "function") {
+      window.surfaceRelevantLessons(id);
+    }
   }
 
   async function renderCaseList() {
@@ -2822,6 +2826,7 @@
     "corporate": document.getElementById("corporate-modal"),
     "bench": document.getElementById("bench-modal"),
     "vigilanza": document.getElementById("vigilanza-modal"),
+    "coach": document.getElementById("coach-modal"),
   };
 
   function openProModal(key) {
@@ -2848,6 +2853,7 @@
     if (key === "corporate") initCorporate();
     if (key === "bench") initBench();
     if (key === "vigilanza") initVigilanza();
+    if (key === "coach") initCoach();
   }
   function closeProModal(m) {
     m.hidden = true;
@@ -6387,6 +6393,227 @@
     precResultEl.hidden = false;
   }
 
+  // ── V9.6 RATIO COACH ───────────────────────────────────────────
+  const coachRunBtn    = document.getElementById("coach-run-btn");
+  const coachOutcome   = document.getElementById("coach-outcome");
+  const coachSummary   = document.getElementById("coach-summary");
+  const coachStatus    = document.getElementById("coach-status");
+  const coachResult    = document.getElementById("coach-result");
+  const coachExisting  = document.getElementById("coach-existing");
+  const coachLibrary   = document.getElementById("coach-library");
+  const coachRelevant  = document.getElementById("coach-relevant");
+
+  document.querySelectorAll(".coach-tab").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".coach-tab").forEach(b => b.classList.remove("coach-tab-active"));
+      document.querySelectorAll(".coach-tab-panel").forEach(p => p.hidden = true);
+      btn.classList.add("coach-tab-active");
+      const panel = document.getElementById("coach-tab-" + btn.dataset.ctab);
+      if (panel) panel.hidden = false;
+      if (btn.dataset.ctab === "library") loadCoachLibrary();
+      if (btn.dataset.ctab === "relevant") loadCoachRelevant();
+      if (btn.dataset.ctab === "postmortem") loadExistingLesson();
+    });
+  });
+
+  function initCoach() {
+    coachStatus.textContent = "";
+    coachResult.hidden = true;
+    coachExisting.hidden = true;
+    document.querySelectorAll(".coach-tab").forEach(b => {
+      b.classList.toggle("coach-tab-active", b.dataset.ctab === "postmortem");
+    });
+    document.querySelectorAll(".coach-tab-panel").forEach(p => {
+      p.hidden = p.id !== "coach-tab-postmortem";
+    });
+    loadExistingLesson();
+  }
+
+  async function loadExistingLesson() {
+    if (!activeCaseId) {
+      coachExisting.hidden = true;
+      return;
+    }
+    try {
+      const r = await fetch(`/api/cases/${activeCaseId}/lesson`);
+      if (!r.ok) { coachExisting.hidden = true; return; }
+      const { lesson } = await r.json();
+      if (!lesson) { coachExisting.hidden = true; return; }
+      coachExisting.innerHTML = `
+        <div class="coach-existing-banner">
+          ✓ Ky fascikul tashmë ka post-mortem (${escHtml(lesson.outcome)} · ${(lesson.created_at||"").slice(0,10)})
+          <button id="coach-show-existing" class="pro-btn-small">Shfaq</button>
+          <button id="coach-del-existing" class="pro-btn-small">Fshi</button>
+        </div>`;
+      coachExisting.hidden = false;
+      document.getElementById("coach-show-existing").addEventListener("click", () => {
+        renderLesson(lesson.lesson_json, lesson.outcome);
+      });
+      document.getElementById("coach-del-existing").addEventListener("click", async () => {
+        if (!confirm("Fshi mësimin e këtij fascikuli?")) return;
+        await fetch(`/api/cases/${activeCaseId}/lesson`, { method: "DELETE" });
+        coachExisting.hidden = true;
+        coachResult.hidden = true;
+      });
+    } catch (e) { coachExisting.hidden = true; }
+  }
+
+  coachRunBtn && coachRunBtn.addEventListener("click", async () => {
+    if (!activeCaseId) { coachStatus.textContent = "Hap një rast fillimisht."; return; }
+    coachRunBtn.disabled = true;
+    coachStatus.textContent = "Opus po analizon historikun e fascikulit… (≈30-60s)";
+    coachResult.hidden = true;
+    try {
+      const r = await fetch(`/api/cases/${activeCaseId}/post-mortem`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          outcome: coachOutcome.value,
+          summary_hint: coachSummary.value.trim(),
+        }),
+      });
+      const data = await r.json();
+      if (!r.ok) { coachStatus.textContent = data.error || "Gabim."; return; }
+      coachStatus.textContent = `✓ ${(data.elapsed_ms/1000).toFixed(1)}s · mësim #${data.lesson_id}`;
+      renderLesson(data.lesson, data.outcome);
+      loadExistingLesson();
+    } catch (e) {
+      coachStatus.textContent = "Gabim rrjeti.";
+    } finally {
+      coachRunBtn.disabled = false;
+    }
+  });
+
+  function renderLesson(L, outcome) {
+    if (!L) { coachResult.hidden = true; return; }
+    if (L._parse_error) {
+      coachResult.innerHTML = `<div class="coach-err">⚠️ Gabim parsimi: ${escHtml(L._parse_error)}</div>`;
+      coachResult.hidden = false;
+      return;
+    }
+    const outClass = outcome === "fituar" ? "coach-out-win"
+                   : outcome === "humbur" ? "coach-out-lose"
+                   : "coach-out-other";
+    const wHtml = (L.what_worked || []).map(w => `<li>✓ ${escHtml(w)}</li>`).join("");
+    const fHtml = (L.what_failed || []).map(w => `<li>✗ ${escHtml(w)}</li>`).join("");
+    const wsHtml = (L.warning_signs_for_future || []).map(w => `<li>⚠️ ${escHtml(w)}</li>`).join("");
+    const codes = (L.applicable_codes || []).map(c => `<span class="coach-tag">${escHtml(c)}</span>`).join(" ");
+    const arts = (L.key_articles || []).map(c => `<span class="coach-tag coach-tag-art">${escHtml(c)}</span>`).join(" ");
+
+    coachResult.innerHTML = `
+      <div class="coach-card coach-archetype">
+        <div class="coach-out ${outClass}">${escHtml(outcome || "")}</div>
+        <h4>${escHtml(L.archetype || "—")}</h4>
+        <div class="coach-tags">${codes} ${arts}</div>
+      </div>
+      <div class="coach-card coach-lesson-main">
+        <h5>📌 Mësimi i transferueshëm</h5>
+        <p>${escHtml(L.transferable_lesson || "")}</p>
+      </div>
+      <div class="coach-card coach-dispositive">
+        <h5>🎯 Faktori vendimtar</h5>
+        <p>${escHtml(L.dispositive_factor || "")}</p>
+      </div>
+      ${wHtml ? `<div class="coach-card coach-worked"><h5>Lëvizjet që funksionuan</h5><ul>${wHtml}</ul></div>` : ""}
+      ${fHtml ? `<div class="coach-card coach-failed"><h5>Çfarë dështoi</h5><ul>${fHtml}</ul></div>` : ""}
+      ${L.opponent_strategy ? `<div class="coach-card coach-opp"><h5>Strategjia e kundërshtarit</h5><p>${escHtml(L.opponent_strategy)}</p></div>` : ""}
+      ${wsHtml ? `<div class="coach-card coach-warn"><h5>Sinjale që duhet të kërkosh në të ardhmen</h5><ul>${wsHtml}</ul></div>` : ""}
+    `;
+    coachResult.hidden = false;
+  }
+
+  async function loadCoachLibrary() {
+    if (!coachLibrary) return;
+    try {
+      const r = await fetch("/api/lessons");
+      const { items } = await r.json();
+      if (!items.length) { coachLibrary.innerHTML = `<p class="coach-empty">Biblioteka e zbrazët.</p>`; return; }
+      coachLibrary.innerHTML = items.map(L => {
+        const outClass = L.outcome === "fituar" ? "coach-out-win"
+                       : L.outcome === "humbur" ? "coach-out-lose" : "coach-out-other";
+        return `<div class="coach-lib-item">
+          <div class="coach-lib-head">
+            <span class="coach-out ${outClass}">${escHtml(L.outcome || "")}</span>
+            <span class="coach-lib-arch">${escHtml(L.archetype || "")}</span>
+            <span class="coach-lib-date">${(L.created_at||"").slice(0,10)}</span>
+          </div>
+          <div class="coach-lib-case">${escHtml(L.case_title || L.case_id)}</div>
+          <p class="coach-lib-lesson">${escHtml(L.transferable_lesson || "")}</p>
+        </div>`;
+      }).join("");
+    } catch (e) { coachLibrary.innerHTML = `<p class="coach-empty">Gabim rrjeti.</p>`; }
+  }
+
+  async function loadCoachRelevant() {
+    if (!coachRelevant) return;
+    if (!activeCaseId) { coachRelevant.innerHTML = `<p class="coach-empty">Hap një fascikul fillimisht.</p>`; return; }
+    coachRelevant.innerHTML = `<p class="coach-empty">Po kërkoj…</p>`;
+    try {
+      const r = await fetch("/api/lessons/relevant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ case_id: activeCaseId }),
+      });
+      const { items } = await r.json();
+      if (!items.length) { coachRelevant.innerHTML = `<p class="coach-empty">Asnjë mësim relevant nga e shkuara.</p>`; return; }
+      coachRelevant.innerHTML = items.map(m => {
+        const outClass = m.outcome === "fituar" ? "coach-out-win"
+                       : m.outcome === "humbur" ? "coach-out-lose" : "coach-out-other";
+        return `<div class="coach-rel-item">
+          <div class="coach-lib-head">
+            <span class="coach-out ${outClass}">${escHtml(m.outcome || "")}</span>
+            <span class="coach-lib-arch">${escHtml(m.archetype || "")}</span>
+            <span class="coach-score">match ${m.relevance_score.toFixed(2)}</span>
+          </div>
+          <p class="coach-lib-lesson">${escHtml(m.transferable_lesson || "")}</p>
+          ${m.overlap_terms?.length ? `<div class="coach-overlap">Terma të përbashkëta: ${m.overlap_terms.map(t=>`<code>${escHtml(t)}</code>`).join(" ")}</div>` : ""}
+        </div>`;
+      }).join("");
+    } catch (e) { coachRelevant.innerHTML = `<p class="coach-empty">Gabim rrjeti.</p>`; }
+  }
+
+  // Auto-surface relevant lessons when a case is opened (called from selectCase).
+  window.surfaceRelevantLessons = async function (caseId) {
+    if (!caseId) return;
+    const banner = document.getElementById("coach-banner");
+    if (!banner) return;
+    banner.hidden = true;
+    banner.innerHTML = "";
+    try {
+      const r = await fetch("/api/lessons/relevant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ case_id: caseId }),
+      });
+      if (!r.ok) return;
+      const { items } = await r.json();
+      if (!items.length) return;
+      const top = items[0];
+      banner.innerHTML = `
+        <div class="coach-banner-inner">
+          <span class="coach-banner-icon">📝</span>
+          <div class="coach-banner-text">
+            <strong>Mësim nga rast i ngjashëm:</strong> ${escHtml(top.transferable_lesson || top.archetype || "")}
+            ${items.length > 1 ? ` <em>(+${items.length-1} të tjerë)</em>` : ""}
+          </div>
+          <button class="pro-btn-small" id="coach-banner-open">Shfaq të gjitha</button>
+          <button class="pro-btn-small" id="coach-banner-dismiss" aria-label="Mbyll">×</button>
+        </div>`;
+      banner.hidden = false;
+      document.getElementById("coach-banner-open").addEventListener("click", () => {
+        openProModal("coach");
+        // switch to relevant tab
+        setTimeout(() => {
+          const tab = document.querySelector('.coach-tab[data-ctab="relevant"]');
+          if (tab) tab.click();
+        }, 50);
+      });
+      document.getElementById("coach-banner-dismiss").addEventListener("click", () => {
+        banner.hidden = true;
+      });
+    } catch (e) { /* silent */ }
+  };
+
   // ── V9.5 VIGILANZA NORMATIVA ───────────────────────────────────
   const vigUploadBtn  = document.getElementById("vig-upload-btn");
   const vigUpContent  = document.getElementById("vig-up-content");
@@ -6601,9 +6828,9 @@
 
   async function loadBenchHistory() {
     benchHistEl.innerHTML = `<option value="">— Hap memo të mëparshme —</option>`;
-    if (!currentCaseId) return;
+    if (!activeCaseId) return;
     try {
-      const r = await fetch(`/api/cases/${currentCaseId}/bench-memos`);
+      const r = await fetch(`/api/cases/${activeCaseId}/bench-memos`);
       if (!r.ok) return;
       const { items } = await r.json();
       (items || []).forEach(it => {
@@ -6631,12 +6858,12 @@
   });
 
   benchRunBtn && benchRunBtn.addEventListener("click", async () => {
-    if (!currentCaseId) { benchStatusEl.textContent = "Hap një rast fillimisht."; return; }
+    if (!activeCaseId) { benchStatusEl.textContent = "Hap një rast fillimisht."; return; }
     benchRunBtn.disabled = true;
     benchStatusEl.textContent = "Gjyqtari po e shqyrton çështjen… (≈45-90s)";
     benchResEl.hidden = true;
     try {
-      const r = await fetch(`/api/cases/${currentCaseId}/bench-memo`, {
+      const r = await fetch(`/api/cases/${activeCaseId}/bench-memo`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -6802,8 +7029,8 @@
   }
 
   async function loadCorpDocs() {
-    if (!currentCaseId) { corpDocsList.hidden = true; return; }
-    const r = await fetch(`/api/cases/${currentCaseId}/corporate`);
+    if (!activeCaseId) { corpDocsList.hidden = true; return; }
+    const r = await fetch(`/api/cases/${activeCaseId}/corporate`);
     if (!r.ok) { corpDocsList.hidden = true; return; }
     const { items } = await r.json();
     if (!items || !items.length) { corpDocsList.hidden = true; return; }
@@ -6816,7 +7043,7 @@
     corpDocsList.hidden = false;
     corpDocsList.querySelectorAll(".corp-doc-del").forEach(btn => {
       btn.addEventListener("click", async () => {
-        await fetch(`/api/cases/${currentCaseId}/corporate/${btn.dataset.id}`, { method: "DELETE" });
+        await fetch(`/api/cases/${activeCaseId}/corporate/${btn.dataset.id}`, { method: "DELETE" });
         loadCorpDocs();
       });
     });
@@ -6825,12 +7052,12 @@
   corpExtractBtn && corpExtractBtn.addEventListener("click", async () => {
     const docText = corpDocText.value.trim();
     if (!docText) { corpExtractSt.textContent = "Ngjit tekstin e dokumentit."; return; }
-    if (!currentCaseId) { corpExtractSt.textContent = "Hap një rast fillimisht."; return; }
+    if (!activeCaseId) { corpExtractSt.textContent = "Hap një rast fillimisht."; return; }
     corpExtractBtn.disabled = true;
     corpExtractSt.textContent = "Duke ekstraktuar me Opus…";
     corpExtractRes.hidden = true;
     try {
-      const r = await fetch(`/api/cases/${currentCaseId}/corporate/extract`, {
+      const r = await fetch(`/api/cases/${activeCaseId}/corporate/extract`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -6857,12 +7084,12 @@
   corpGateBtn && corpGateBtn.addEventListener("click", async () => {
     const name = corpSignatory.value.trim();
     if (!name) { corpGateSt.textContent = "Shkruaj emrin e firmataret."; return; }
-    if (!currentCaseId) { corpGateSt.textContent = "Hap një rast fillimisht."; return; }
+    if (!activeCaseId) { corpGateSt.textContent = "Hap një rast fillimisht."; return; }
     corpGateBtn.disabled = true;
     corpGateSt.textContent = "Duke kontrolluar autoritetin…";
     corpGateRes.hidden = true;
     try {
-      const r = await fetch(`/api/cases/${currentCaseId}/corporate/gatekeeper`, {
+      const r = await fetch(`/api/cases/${activeCaseId}/corporate/gatekeeper`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -6884,12 +7111,12 @@
   });
 
   corpKycBtn && corpKycBtn.addEventListener("click", async () => {
-    if (!currentCaseId) { corpKycSt.textContent = "Hap një rast fillimisht."; return; }
+    if (!activeCaseId) { corpKycSt.textContent = "Hap një rast fillimisht."; return; }
     corpKycBtn.disabled = true;
     corpKycSt.textContent = "Duke analizuar gap-et KYC…";
     corpKycRes.hidden = true;
     try {
-      const r = await fetch(`/api/cases/${currentCaseId}/corporate/kyc`, { method: "POST" });
+      const r = await fetch(`/api/cases/${activeCaseId}/corporate/kyc`, { method: "POST" });
       const data = await r.json();
       if (!r.ok) { corpKycSt.textContent = data.error || "Gabim."; return; }
       corpKycSt.textContent = "✓ Analiza e plotë";

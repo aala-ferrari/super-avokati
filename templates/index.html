@@ -149,6 +149,7 @@
   </aside>
 
   <section class="chat-area">
+    <div id="coach-banner" class="coach-banner" hidden></div>
     <div class="case-header" id="case-header" hidden>
       <div class="case-header-title">
         <span id="case-title-text"></span>
@@ -270,6 +271,10 @@
             <button type="button" class="pro-menu-item pro-menu-new" data-pro="vigilanza" role="menuitem">
               <span class="pro-menu-ico">📰</span>
               <div><strong>Vigilanza Normativa</strong><em>Klasifiko ndryshime ligjore + matchim automatik me fascikujt e tu të hapur</em></div>
+            </button>
+            <button type="button" class="pro-menu-item pro-menu-new" data-pro="coach" role="menuitem">
+              <span class="pro-menu-ico">📝</span>
+              <div><strong>Ratio Coach</strong><em>Post-mortem strukturuar i fascikulit + surface mësimesh nga rastet e mëparshme të ngjashme</em></div>
             </button>
           </div>
         </div>
@@ -1485,6 +1490,63 @@
         </div>
       </div>
       <div id="precedent-result" class="pro-result" hidden></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ V9.6 RATIO COACH ══════════ -->
+<div id="coach-modal" class="pro-modal" hidden role="dialog" aria-modal="true" aria-labelledby="coach-modal-title">
+  <div class="pro-modal-backdrop" data-close></div>
+  <div class="pro-modal-card pro-modal-wide">
+    <header class="pro-modal-head">
+      <h3 id="coach-modal-title">📝 Ratio Coach — Mësime që përsëriten</h3>
+      <p class="pro-modal-sub">Pas çdo rasti të mbyllur, Opus ekstrakton mësimin e transferueshëm: çfarë funksionoi, çfarë dështoi, faktori vendimtar. Në rastet e ardhshme të ngjashme, mësimet ngrihen automatikisht para se të bësh të njëjtin gabim ose të humbasësh të njëjtën lëvizje fituese.</p>
+      <button type="button" class="pro-modal-close" data-close aria-label="Mbyll">&times;</button>
+    </header>
+    <div class="pro-modal-body">
+
+      <div class="coach-tabs" role="tablist">
+        <button class="coach-tab coach-tab-active" data-ctab="postmortem" role="tab">🎯 Post-mortem fascikuli aktual</button>
+        <button class="coach-tab" data-ctab="library" role="tab">📚 Biblioteka e mësimeve</button>
+        <button class="coach-tab" data-ctab="relevant" role="tab">🔍 Mësime relevante për këtë rast</button>
+      </div>
+
+      <!-- TAB 1: post-mortem -->
+      <div id="coach-tab-postmortem" class="coach-tab-panel">
+        <p class="coach-hint">Trego rezultatin e fascikulit aktual dhe Opus do ta analizojë historikun + dokumentet për të nxjerrë mësimin e transferueshëm.</p>
+        <div class="coach-row">
+          <select id="coach-outcome" class="pro-select">
+            <option value="fituar">✓ Fituar</option>
+            <option value="humbur">✗ Humbur</option>
+            <option value="marrëveshje">🤝 Marrëveshje</option>
+            <option value="tërhequr">↩ Tërhequr</option>
+            <option value="i hapur">○ Akoma i hapur (analizë e ndërmjetme)</option>
+          </select>
+        </div>
+        <textarea id="coach-summary" class="pro-textarea" rows="3" placeholder="Përshkrim shtesë (opsional) — si vajti, çfarë kishte rëndësi, çfarë kishte papritur"></textarea>
+        <div class="coach-actions-row">
+          <button id="coach-run-btn" class="pro-run-btn">Gjenero Post-Mortem</button>
+          <span id="coach-status" class="pro-status"></span>
+        </div>
+        <div id="coach-existing" class="coach-existing" hidden></div>
+        <div id="coach-result" class="pro-result" hidden></div>
+      </div>
+
+      <!-- TAB 2: library -->
+      <div id="coach-tab-library" class="coach-tab-panel" hidden>
+        <div id="coach-library" class="coach-library">
+          <p class="coach-empty">Biblioteka e zbrazët. Bëj post-mortem të rasteve të mbyllura për të nisur ndërtimin.</p>
+        </div>
+      </div>
+
+      <!-- TAB 3: relevant for current case -->
+      <div id="coach-tab-relevant" class="coach-tab-panel" hidden>
+        <p class="coach-hint">Top-3 mësime nga rastet e mëparshme që janë më të ngjashme me fascikulin aktual.</p>
+        <div id="coach-relevant" class="coach-relevant">
+          <p class="coach-empty">Hap një fascikul fillimisht.</p>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
