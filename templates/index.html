@@ -68,6 +68,14 @@
       <span class="calendar-toggle-label">Kalendari</span>
       <span class="calendar-badge" id="calendar-badge" hidden>0</span>
     </button>
+    <button type="button" id="vigilanza-topbar-btn" class="calendar-toggle" title="Vigilanza Normativa — alerte për fascikujt e tu" aria-label="Hap vigilanzën">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+        <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+              d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/>
+      </svg>
+      <span class="calendar-toggle-label">Vigilanza</span>
+      <span class="calendar-badge" id="vigilanza-badge" hidden>0</span>
+    </button>
     <button type="button" id="studio-btn" class="calendar-toggle" title="Studio (anëtarët, rolet, ndarja e rasteve)" aria-label="Hap studion">
       <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
         <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
@@ -258,6 +266,10 @@
             <button type="button" class="pro-menu-item pro-menu-new" data-pro="bench" role="menuitem">
               <span class="pro-menu-ico">⚖️</span>
               <div><strong>Bench Memo</strong><em>Si do të mendojë gjyqtari → P(fitore) · dobësi · upgrade argumentesh · FIGHT/SETTLE/FOLD</em></div>
+            </button>
+            <button type="button" class="pro-menu-item pro-menu-new" data-pro="vigilanza" role="menuitem">
+              <span class="pro-menu-ico">📰</span>
+              <div><strong>Vigilanza Normativa</strong><em>Klasifiko ndryshime ligjore + matchim automatik me fascikujt e tu të hapur</em></div>
             </button>
           </div>
         </div>
@@ -1473,6 +1485,70 @@
         </div>
       </div>
       <div id="precedent-result" class="pro-result" hidden></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ V9.5 VIGILANZA NORMATIVA ══════════ -->
+<div id="vigilanza-modal" class="pro-modal" hidden role="dialog" aria-modal="true" aria-labelledby="vigilanza-modal-title">
+  <div class="pro-modal-backdrop" data-close></div>
+  <div class="pro-modal-card pro-modal-wide">
+    <header class="pro-modal-head">
+      <h3 id="vigilanza-modal-title">📰 Vigilanza Normativa</h3>
+      <p class="pro-modal-sub">Çdo akt i ri (ligj, vendim, udhëzim) që ngarkon këtu klasifikohet automatikisht me Opus dhe matchohet kundër fascikujve të tu të hapur. Rezultati: alert i drejtpërdrejtë në ato raste që preken.</p>
+      <button type="button" class="pro-modal-close" data-close aria-label="Mbyll">&times;</button>
+    </header>
+    <div class="pro-modal-body">
+
+      <div class="vig-tabs" role="tablist">
+        <button class="vig-tab vig-tab-active" data-vtab="alerts" role="tab">🔔 Alerte (<span id="vig-alert-count">0</span>)</button>
+        <button class="vig-tab" data-vtab="upload" role="tab">⬆️ Ngarko ndryshim</button>
+        <button class="vig-tab" data-vtab="updates" role="tab">📚 Histori update-esh</button>
+      </div>
+
+      <!-- TAB 1: alerts -->
+      <div id="vig-tab-alerts" class="vig-tab-panel">
+        <div class="vig-alerts-toolbar">
+          <label><input type="checkbox" id="vig-show-dismissed"> Shfaq edhe të mënjanuara</label>
+          <button id="vig-refresh-btn" class="pro-btn-small">↻ Rifresko</button>
+        </div>
+        <div id="vig-alerts-list" class="vig-alerts-list">
+          <p class="vig-empty">Asnjë alert. Ngarko një ndryshim ligjor ose prit vendimin e radhës.</p>
+        </div>
+      </div>
+
+      <!-- TAB 2: upload -->
+      <div id="vig-tab-upload" class="vig-tab-panel" hidden>
+        <p class="vig-hint">Ngjit tekstin e plotë të aktit (ligj, VKM, udhëzim, vendim Gjykate). Opus do ta klasifikojë dhe matchojë me fascikujt e tu të hapur.</p>
+        <div class="vig-row">
+          <input id="vig-up-title" class="pro-input" type="text" placeholder="Titull (opsional — Opus do ta plotësojë)">
+          <select id="vig-up-source" class="pro-select">
+            <option value="manual">Manual</option>
+            <option value="fletorja_zyrtare">Fletorja Zyrtare</option>
+            <option value="gjykata_lartë">Gjykata e Lartë</option>
+            <option value="gjykata_kushtetuese">Gjykata Kushtetuese</option>
+            <option value="ekspert_juridik">Burim ekspert</option>
+          </select>
+        </div>
+        <div class="vig-row">
+          <input id="vig-up-url" class="pro-input" type="url" placeholder="URL burimit (opsional)">
+          <input id="vig-up-pubdate" class="pro-input" type="date" placeholder="Data e publikimit">
+        </div>
+        <textarea id="vig-up-content" class="pro-textarea" rows="10" placeholder="Ngjit tekstin e plotë këtu (≥50 karaktere)…"></textarea>
+        <div class="vig-actions-row">
+          <button id="vig-upload-btn" class="pro-run-btn">Klasifiko & matcho me fascikujt</button>
+          <span id="vig-upload-status" class="pro-status"></span>
+        </div>
+        <div id="vig-upload-result" class="pro-result" hidden></div>
+      </div>
+
+      <!-- TAB 3: history -->
+      <div id="vig-tab-updates" class="vig-tab-panel" hidden>
+        <div id="vig-updates-list" class="vig-updates-list">
+          <p class="vig-empty">Histori e zbrazët.</p>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>

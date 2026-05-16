@@ -2515,6 +2515,119 @@ def api_bench_memo_courts():
     })
 
 
+# ── V9.5 Vigilanza Normativa ────────────────────────────────────────────────
+
+from . import vigilanza as vig_mod  # noqa: E402
+
+
+@app.post("/api/vigilanza/manual")
+@login_required_api
+def api_vigilanza_manual():
+    """Lawyer pastes a new legal update → classify + match against open cases.
+
+    Body: { content, title?, source?, source_url?, published_at? }
+    Returns: { update_id, classification, matches[], alerts_created }
+    """
+    user = request.user  # type: ignore[attr-defined]
+    if _BRAIN is None:
+        return jsonify({"error": "Backend jo i disponueshëm"}), 503
+
+    body = request.get_json(silent=True) or {}
+    content = (body.get("content") or "").strip()
+    if not content or len(content) < 50:
+        return jsonify({"error": "Përmbajtja mungon ose është shumë e shkurtër"}), 400
+
+    title_hint = (body.get("title") or "").strip()
+    source = (body.get("source") or "manual").strip()
+    source_url = (body.get("source_url") or "").strip() or None
+    published_at = (body.get("published_at") or "").strip() or None
+
+    classification = vig_mod.classify_update(content, backend=_BRAIN.backend)
+    title = (title_hint or classification.get("title") or "Update i panjohur")[:300]
+
+    update_id = storage.save_legal_update(
+        source=source, source_url=source_url, title=title,
+        content=content, published_at=published_at,
+        classification=classification, fetched_by=user.id,
+    )
+
+    open_cases = storage.list_user_open_cases_for_matching(user.id)
+    matches = vig_mod.match_to_cases(classification, open_cases)
+    alerts_created = 0
+    for m in matches:
+        alert_id = storage.create_case_alert(
+            case_id=m.case_id, update_id=update_id, user_id=user.id,
+            relevance_score=m.relevance_score,
+            match_summary={
+                "matched_codes": m.matched_codes,
+                "matched_articles": m.matched_articles,
+                "matched_topics": m.matched_topics,
+            },
+        )
+        if alert_id is not None:
+            alerts_created += 1
+
+    return jsonify({
+        "update_id": update_id,
+        "classification": classification,
+        "matches": [{
+            "case_id": m.case_id, "case_title": m.case_title,
+            "relevance_score": m.relevance_score,
+            "matched_codes": m.matched_codes,
+            "matched_articles": m.matched_articles,
+            "matched_topics": m.matched_topics,
+        } for m in matches],
+        "alerts_created": alerts_created,
+    }), 201
+
+
+@app.get("/api/vigilanza/alerts")
+@login_required_api
+def api_vigilanza_alerts():
+    """List alerts for the current user. ?case_id=X to filter, ?all=1 to include dismissed."""
+    user = request.user  # type: ignore[attr-defined]
+    case_id = request.args.get("case_id")
+    include_dismissed = request.args.get("all") == "1"
+    items = storage.list_case_alerts(
+        user_id=user.id, case_id=case_id,
+        include_dismissed=include_dismissed,
+    )
+    return jsonify({"items": items})
+
+
+@app.get("/api/vigilanza/alerts/count")
+@login_required_api
+def api_vigilanza_alerts_count():
+    user = request.user  # type: ignore[attr-defined]
+    return jsonify({"pending": storage.count_pending_alerts(user.id)})
+
+
+@app.post("/api/vigilanza/alerts/<int:alert_id>/dismiss")
+@login_required_api
+def api_vigilanza_dismiss(alert_id: int):
+    user = request.user  # type: ignore[attr-defined]
+    ok = storage.dismiss_alert(alert_id, user.id)
+    if not ok:
+        return jsonify({"error": "Alert nuk u gjet"}), 404
+    return jsonify({"ok": True})
+
+
+@app.get("/api/vigilanza/updates")
+@login_required_api
+def api_vigilanza_updates():
+    """List recent legal updates classified by the system."""
+    return jsonify({"items": storage.list_legal_updates()})
+
+
+@app.get("/api/vigilanza/updates/<int:update_id>")
+@login_required_api
+def api_vigilanza_update_get(update_id: int):
+    upd = storage.get_legal_update(update_id)
+    if not upd:
+        return jsonify({"error": "Update nuk u gjet"}), 404
+    return jsonify(upd)
+
+
 # ── V8.6 agentic mode (suggestions + auto-letters) ─────────────────────────
 
 AGENT_SCAN_SYSTEM = """Je 'agent proaktiv' brenda Super Avvocato — ndihmës i avokatit shqiptar.

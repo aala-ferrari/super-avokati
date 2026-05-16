@@ -2821,6 +2821,7 @@
     "time-recon": document.getElementById("time-recon-modal"),
     "corporate": document.getElementById("corporate-modal"),
     "bench": document.getElementById("bench-modal"),
+    "vigilanza": document.getElementById("vigilanza-modal"),
   };
 
   function openProModal(key) {
@@ -2846,6 +2847,7 @@
     if (key === "time-recon") initTimeRecon();
     if (key === "corporate") initCorporate();
     if (key === "bench") initBench();
+    if (key === "vigilanza") initVigilanza();
   }
   function closeProModal(m) {
     m.hidden = true;
@@ -6383,6 +6385,202 @@
       ${precsHtml}
     `;
     precResultEl.hidden = false;
+  }
+
+  // ── V9.5 VIGILANZA NORMATIVA ───────────────────────────────────
+  const vigUploadBtn  = document.getElementById("vig-upload-btn");
+  const vigUpContent  = document.getElementById("vig-up-content");
+  const vigUpTitle    = document.getElementById("vig-up-title");
+  const vigUpSource   = document.getElementById("vig-up-source");
+  const vigUpUrl      = document.getElementById("vig-up-url");
+  const vigUpDate     = document.getElementById("vig-up-pubdate");
+  const vigUpStatus   = document.getElementById("vig-upload-status");
+  const vigUpRes      = document.getElementById("vig-upload-result");
+  const vigAlertsList = document.getElementById("vig-alerts-list");
+  const vigAlertCount = document.getElementById("vig-alert-count");
+  const vigShowDism   = document.getElementById("vig-show-dismissed");
+  const vigRefreshBtn = document.getElementById("vig-refresh-btn");
+  const vigUpdatesList= document.getElementById("vig-updates-list");
+  const vigBadge      = document.getElementById("vigilanza-badge");
+  const vigTopbarBtn  = document.getElementById("vigilanza-topbar-btn");
+
+  vigTopbarBtn && vigTopbarBtn.addEventListener("click", () => openProModal("vigilanza"));
+
+  // tab switching
+  document.querySelectorAll(".vig-tab").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".vig-tab").forEach(b => b.classList.remove("vig-tab-active"));
+      document.querySelectorAll(".vig-tab-panel").forEach(p => p.hidden = true);
+      btn.classList.add("vig-tab-active");
+      const panel = document.getElementById("vig-tab-" + btn.dataset.vtab);
+      if (panel) panel.hidden = false;
+      if (btn.dataset.vtab === "alerts") loadVigAlerts();
+      if (btn.dataset.vtab === "updates") loadVigUpdates();
+    });
+  });
+
+  vigShowDism && vigShowDism.addEventListener("change", loadVigAlerts);
+  vigRefreshBtn && vigRefreshBtn.addEventListener("click", () => {
+    loadVigAlerts(); refreshVigBadge();
+  });
+
+  function initVigilanza() {
+    vigUpRes.hidden = true;
+    vigUpStatus.textContent = "";
+    document.querySelectorAll(".vig-tab").forEach(b => {
+      b.classList.toggle("vig-tab-active", b.dataset.vtab === "alerts");
+    });
+    document.querySelectorAll(".vig-tab-panel").forEach(p => {
+      p.hidden = p.id !== "vig-tab-alerts";
+    });
+    loadVigAlerts();
+  }
+
+  async function refreshVigBadge() {
+    try {
+      const r = await fetch("/api/vigilanza/alerts/count");
+      if (!r.ok) return;
+      const { pending } = await r.json();
+      if (pending > 0) {
+        vigBadge.textContent = pending;
+        vigBadge.hidden = false;
+      } else {
+        vigBadge.hidden = true;
+      }
+    } catch (e) { /* silent */ }
+  }
+  // poll badge every 2 minutes + once on load
+  refreshVigBadge();
+  setInterval(refreshVigBadge, 120000);
+
+  async function loadVigAlerts() {
+    if (!vigAlertsList) return;
+    const includeDism = vigShowDism && vigShowDism.checked;
+    try {
+      const r = await fetch(`/api/vigilanza/alerts${includeDism ? "?all=1" : ""}`);
+      if (!r.ok) { vigAlertsList.innerHTML = `<p class="vig-empty">Gabim ngarkimi.</p>`; return; }
+      const { items } = await r.json();
+      vigAlertCount.textContent = items.filter(i => !i.dismissed).length;
+      if (!items.length) {
+        vigAlertsList.innerHTML = `<p class="vig-empty">Asnjë alert. Ngarko një ndryshim ligjor ose prit vendimin e radhës.</p>`;
+        return;
+      }
+      vigAlertsList.innerHTML = items.map(renderVigAlert).join("");
+      vigAlertsList.querySelectorAll(".vig-alert-dismiss").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          const id = btn.dataset.id;
+          await fetch(`/api/vigilanza/alerts/${id}/dismiss`, { method: "POST" });
+          loadVigAlerts(); refreshVigBadge();
+        });
+      });
+      vigAlertsList.querySelectorAll(".vig-alert-open-case").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const cid = btn.dataset.caseId;
+          if (cid) selectCase(cid);
+          closeProModal(document.getElementById("vigilanza-modal"));
+        });
+      });
+    } catch (e) { vigAlertsList.innerHTML = `<p class="vig-empty">Gabim rrjeti.</p>`; }
+  }
+
+  function renderVigAlert(a) {
+    const cls = a.update_classification || {};
+    const urgClass = (cls.urgency || "").includes("lartë") ? "vig-urg-high"
+                   : (cls.urgency || "").includes("mesëm") ? "vig-urg-med" : "vig-urg-low";
+    const score = (a.relevance_score || 0).toFixed(2);
+    const dt = (a.created_at || "").slice(0, 10);
+    const codes = (a.match_summary?.matched_codes || []).map(c => `<span class="vig-tag">${escHtml(c)}</span>`).join(" ");
+    const arts = (a.match_summary?.matched_articles || []).map(c => `<span class="vig-tag vig-tag-art">${escHtml(c)}</span>`).join(" ");
+    return `
+      <div class="vig-alert ${a.dismissed ? 'vig-alert-dismissed' : ''}">
+        <div class="vig-alert-head">
+          <span class="vig-urg ${urgClass}">${escHtml(cls.urgency || "—")}</span>
+          <span class="vig-score">match ${score}</span>
+          <span class="vig-date">${dt}</span>
+          ${a.dismissed ? '<span class="vig-dism">mënjanuar</span>' : ''}
+        </div>
+        <h4 class="vig-alert-title">${escHtml(a.update_title || "—")}</h4>
+        <div class="vig-alert-meta">
+          <strong>Fascikul:</strong> ${escHtml(a.case_title || a.case_id)} ·
+          <strong>Burim:</strong> ${escHtml(a.update_source || "—")}
+          ${a.update_url ? ` · <a href="${escHtml(a.update_url)}" target="_blank" rel="noopener">↗ burimi</a>` : ""}
+        </div>
+        <p class="vig-alert-summary">${escHtml(cls.summary || "")}</p>
+        ${cls.actionable_for_lawyers ? `<div class="vig-alert-action">📌 ${escHtml(cls.actionable_for_lawyers)}</div>` : ""}
+        ${(codes || arts) ? `<div class="vig-tags">${codes} ${arts}</div>` : ""}
+        <div class="vig-alert-actions">
+          <button class="pro-btn-small vig-alert-open-case" data-case-id="${escHtml(a.case_id)}">Hap fascikulin</button>
+          ${!a.dismissed ? `<button class="pro-btn-small vig-alert-dismiss" data-id="${a.id}">Mënjano</button>` : ""}
+        </div>
+      </div>`;
+  }
+
+  vigUploadBtn && vigUploadBtn.addEventListener("click", async () => {
+    const content = vigUpContent.value.trim();
+    if (content.length < 50) { vigUpStatus.textContent = "Përmbajtja shumë e shkurtër (≥50 char)."; return; }
+    vigUploadBtn.disabled = true;
+    vigUpStatus.textContent = "Opus po klasifikon dhe matchon… (≈20-40s)";
+    vigUpRes.hidden = true;
+    try {
+      const r = await fetch("/api/vigilanza/manual", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content, title: vigUpTitle.value.trim(),
+          source: vigUpSource.value, source_url: vigUpUrl.value.trim(),
+          published_at: vigUpDate.value || null,
+        }),
+      });
+      const data = await r.json();
+      if (!r.ok) { vigUpStatus.textContent = data.error || "Gabim."; return; }
+      const cls = data.classification || {};
+      const matchHtml = (data.matches || []).map(m =>
+        `<li><strong>${escHtml(m.case_title || m.case_id)}</strong>
+          <span class="vig-score">match ${m.relevance_score.toFixed(2)}</span>
+          <div class="vig-tags">${(m.matched_codes||[]).map(c=>`<span class="vig-tag">${escHtml(c)}</span>`).join(" ")}
+            ${(m.matched_articles||[]).map(c=>`<span class="vig-tag vig-tag-art">${escHtml(c)}</span>`).join(" ")}</div></li>`).join("");
+      vigUpRes.innerHTML = `
+        <div class="vig-summary-card">
+          <h4>${escHtml(cls.title || "—")}</h4>
+          <p>${escHtml(cls.summary || "")}</p>
+          <div class="vig-meta">
+            ${cls.kind ? `<span class="vig-tag">${escHtml(cls.kind)}</span>` : ""}
+            ${cls.urgency ? `<span class="vig-tag">urgency: ${escHtml(cls.urgency)}</span>` : ""}
+            ${cls.effective_date ? `<span class="vig-tag">hyn fuqi: ${escHtml(cls.effective_date)}</span>` : ""}
+          </div>
+          ${cls.actionable_for_lawyers ? `<p class="vig-alert-action">📌 ${escHtml(cls.actionable_for_lawyers)}</p>` : ""}
+        </div>
+        <h4 class="vig-sub">Fascikujt e prekur (${data.matches.length}, alerte të reja: ${data.alerts_created})</h4>
+        <ul class="vig-match-list">${matchHtml || "<li class='vig-empty'>Asnjë fascikul i prekur.</li>"}</ul>`;
+      vigUpRes.hidden = false;
+      vigUpStatus.textContent = `✓ Krijuar update #${data.update_id}`;
+      refreshVigBadge();
+    } catch (e) {
+      vigUpStatus.textContent = "Gabim rrjeti.";
+    } finally {
+      vigUploadBtn.disabled = false;
+    }
+  });
+
+  async function loadVigUpdates() {
+    if (!vigUpdatesList) return;
+    try {
+      const r = await fetch("/api/vigilanza/updates");
+      const { items } = await r.json();
+      if (!items.length) { vigUpdatesList.innerHTML = `<p class="vig-empty">Histori e zbrazët.</p>`; return; }
+      vigUpdatesList.innerHTML = items.map(u => {
+        const cls = u.classification || {};
+        return `<div class="vig-update">
+          <div class="vig-alert-head">
+            <span class="vig-tag">${escHtml(u.source)}</span>
+            <span class="vig-date">${(u.fetched_at||"").slice(0,10)}</span>
+          </div>
+          <h4>${escHtml(u.title)}</h4>
+          <p>${escHtml(cls.summary || "")}</p>
+          ${u.source_url ? `<a href="${escHtml(u.source_url)}" target="_blank" rel="noopener">↗ burimi</a>` : ""}
+        </div>`;
+      }).join("");
+    } catch (e) { vigUpdatesList.innerHTML = `<p class="vig-empty">Gabim rrjeti.</p>`; }
   }
 
   // ── V9.4 BENCH MEMO ────────────────────────────────────────────

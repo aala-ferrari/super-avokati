@@ -6911,6 +6911,57 @@ main {
   .prec-cards { grid-template-columns: 1fr; }
 }
 
+/* ── V9.5 Vigilanza Normativa ── */
+.vig-tabs { display: flex; gap: 4px; margin-bottom: 14px; border-bottom: 2px solid var(--gray-200); }
+.vig-tab {
+  padding: 8px 16px; border: none; background: none; cursor: pointer;
+  font-size: 13px; color: var(--gray-600); border-radius: 6px 6px 0 0;
+}
+.vig-tab:hover { background: var(--gray-100); color: var(--gray-900); }
+.vig-tab-active { background: #fff3e0; color: #e65100; font-weight: 600; border-bottom: 2px solid #e65100; }
+.vig-tab-panel { padding: 4px 0; }
+.vig-row { display: flex; gap: 8px; margin-bottom: 10px; }
+.vig-row .pro-input, .vig-row .pro-select { flex: 1; }
+.vig-actions-row { display: flex; align-items: center; gap: 10px; margin: 12px 0 4px; }
+.vig-hint { font-size: 12px; color: var(--gray-600); margin-bottom: 12px; }
+.vig-empty { color: var(--gray-500); font-style: italic; padding: 20px; text-align: center; }
+
+.vig-alerts-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 12px; color: var(--gray-700); }
+.vig-alerts-list { display: flex; flex-direction: column; gap: 10px; }
+.vig-alert { background: #fff8e1; border-left: 4px solid #f9a825; border-radius: 6px; padding: 10px 14px; transition: opacity .2s; }
+.vig-alert-dismissed { opacity: .55; border-left-color: var(--gray-400); background: var(--gray-50); }
+.vig-alert-head { display: flex; gap: 8px; align-items: center; font-size: 11px; margin-bottom: 4px; }
+.vig-urg { padding: 2px 7px; border-radius: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.vig-urg-high { background: #ffcdd2; color: #b71c1c; }
+.vig-urg-med  { background: #fff3e0; color: #e65100; }
+.vig-urg-low  { background: #eceff1; color: #455a64; }
+.vig-score { color: var(--gray-700); font-family: var(--font-mono, monospace); }
+.vig-date { color: var(--gray-500); margin-left: auto; }
+.vig-dism { color: var(--gray-500); font-style: italic; }
+.vig-alert-title { margin: 4px 0; font-size: 14px; }
+.vig-alert-meta { font-size: 12px; color: var(--gray-700); margin-bottom: 6px; }
+.vig-alert-summary { font-size: 13px; line-height: 1.5; margin: 4px 0; }
+.vig-alert-action { background: #e3f2fd; border-left: 3px solid #1565c0; padding: 6px 10px; border-radius: 4px; font-size: 12px; margin: 6px 0; }
+.vig-tags { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
+.vig-tag { background: var(--gray-200); color: var(--gray-800); border-radius: 8px; padding: 2px 8px; font-size: 11px; font-weight: 600; }
+.vig-tag-art { background: #e3f2fd; color: #0d47a1; }
+.vig-alert-actions { display: flex; gap: 6px; margin-top: 8px; }
+
+.vig-summary-card { background: #f3f4f6; padding: 14px 18px; border-radius: 8px; margin-bottom: 14px; }
+.vig-summary-card h4 { margin: 0 0 6px; }
+.vig-meta { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
+.vig-sub { font-size: 13px; color: var(--gray-700); margin: 14px 0 6px; text-transform: uppercase; letter-spacing: .04em; }
+.vig-match-list { list-style: none; padding: 0; margin: 0; }
+.vig-match-list li { padding: 8px 0; border-bottom: 1px solid var(--gray-200); }
+.vig-match-list li:last-child { border-bottom: none; }
+
+.vig-update { background: #fafafa; padding: 10px 14px; border-radius: 6px; margin-bottom: 8px; border: 1px solid var(--gray-200); }
+.vig-update h4 { margin: 4px 0; font-size: 13px; }
+.vig-update p { margin: 4px 0; font-size: 12px; color: var(--gray-700); }
+
+.pro-btn-small { padding: 4px 10px; font-size: 12px; border: 1px solid var(--gray-300); background: #fff; border-radius: 4px; cursor: pointer; color: var(--gray-700); }
+.pro-btn-small:hover { background: var(--gray-100); }
+
 /* ── V9.4 Bench Memo ── */
 .bench-launch-row { display: flex; gap: 8px; margin-bottom: 10px; }
 .bench-launch-row .pro-select { flex: 1; }

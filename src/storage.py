@@ -730,6 +730,39 @@ CREATE TABLE IF NOT EXISTS bench_memos (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 );
 CREATE INDEX IF NOT EXISTS idx_bench_case ON bench_memos(case_id, started_at DESC);
+
+-- ── V9.5 Vigilanza Normativa ─────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS legal_updates (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    source          TEXT    NOT NULL DEFAULT 'manual',
+    source_url      TEXT,
+    title           TEXT    NOT NULL,
+    content         TEXT    NOT NULL,
+    published_at    TEXT,
+    classification_json TEXT NOT NULL DEFAULT '{}',
+    fetched_at      TEXT    NOT NULL,
+    fetched_by      INTEGER,
+    FOREIGN KEY (fetched_by) REFERENCES users(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_legal_updates_fetched ON legal_updates(fetched_at DESC);
+
+CREATE TABLE IF NOT EXISTS case_alerts (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    case_id         TEXT    NOT NULL,
+    update_id       INTEGER NOT NULL,
+    user_id         INTEGER NOT NULL,
+    relevance_score REAL    NOT NULL DEFAULT 0,
+    match_summary   TEXT    NOT NULL DEFAULT '{}',
+    dismissed       INTEGER NOT NULL DEFAULT 0,
+    created_at      TEXT    NOT NULL,
+    dismissed_at    TEXT,
+    FOREIGN KEY (case_id) REFERENCES cases(id) ON DELETE CASCADE,
+    FOREIGN KEY (update_id) REFERENCES legal_updates(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+    UNIQUE(case_id, update_id)
+);
+CREATE INDEX IF NOT EXISTS idx_case_alerts_user ON case_alerts(user_id, dismissed, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_case_alerts_case ON case_alerts(case_id, dismissed, created_at DESC);
 """
 
 # Roles ordered by seniority/permission breadth. Used by permission checks.
@@ -5362,3 +5395,164 @@ def list_bench_memos(case_id: str, limit: int = 20) -> list[dict]:
         "status": r["status"], "elapsed_ms": r["elapsed_ms"],
         "started_at": r["started_at"], "completed_at": r["completed_at"],
     } for r in rows]
+
+
+# ── V9.5 Vigilanza Normativa persistence ──────────────────────────────
+
+def save_legal_update(*, source: str, source_url: str | None,
+                      title: str, content: str, published_at: str | None,
+                      classification: dict, fetched_by: int | None) -> int:
+    now = _utcnow()
+    with db() as conn:
+        cur = conn.execute(
+            "INSERT INTO legal_updates "
+            "(source, source_url, title, content, published_at, "
+            " classification_json, fetched_at, fetched_by) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (source, source_url, title, content, published_at,
+             json.dumps(classification, ensure_ascii=False),
+             now, fetched_by),
+        )
+        return int(cur.lastrowid)
+
+
+def list_legal_updates(limit: int = 50) -> list[dict]:
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT id, source, source_url, title, published_at, "
+            "       classification_json, fetched_at "
+            "FROM legal_updates ORDER BY fetched_at DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+    return [{
+        "id": r["id"], "source": r["source"], "source_url": r["source_url"],
+        "title": r["title"], "published_at": r["published_at"],
+        "classification": json.loads(r["classification_json"] or "{}"),
+        "fetched_at": r["fetched_at"],
+    } for r in rows]
+
+
+def get_legal_update(update_id: int) -> dict | None:
+    with db() as conn:
+        r = conn.execute(
+            "SELECT * FROM legal_updates WHERE id = ?", (update_id,),
+        ).fetchone()
+    if r is None:
+        return None
+    return {
+        "id": r["id"], "source": r["source"], "source_url": r["source_url"],
+        "title": r["title"], "content": r["content"],
+        "published_at": r["published_at"],
+        "classification": json.loads(r["classification_json"] or "{}"),
+        "fetched_at": r["fetched_at"], "fetched_by": r["fetched_by"],
+    }
+
+
+def create_case_alert(*, case_id: str, update_id: int, user_id: int,
+                      relevance_score: float, match_summary: dict) -> int | None:
+    """Insert a new alert; returns id or None if (case_id, update_id) already exists."""
+    now = _utcnow()
+    try:
+        with db() as conn:
+            cur = conn.execute(
+                "INSERT INTO case_alerts "
+                "(case_id, update_id, user_id, relevance_score, match_summary, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (case_id, update_id, user_id, relevance_score,
+                 json.dumps(match_summary, ensure_ascii=False), now),
+            )
+            return int(cur.lastrowid)
+    except sqlite3.IntegrityError:
+        return None  # duplicate (case_id, update_id)
+
+
+def list_case_alerts(*, user_id: int, case_id: str | None = None,
+                     include_dismissed: bool = False,
+                     limit: int = 100) -> list[dict]:
+    where = ["a.user_id = ?"]
+    args: list = [user_id]
+    if case_id is not None:
+        where.append("a.case_id = ?")
+        args.append(case_id)
+    if not include_dismissed:
+        where.append("a.dismissed = 0")
+    args.append(limit)
+    sql = (
+        "SELECT a.*, u.title AS update_title, u.source AS update_source, "
+        "       u.source_url AS update_url, u.published_at AS update_published, "
+        "       u.classification_json AS update_class, "
+        "       c.title AS case_title "
+        "FROM case_alerts a "
+        "JOIN legal_updates u ON u.id = a.update_id "
+        "JOIN cases c ON c.id = a.case_id "
+        "WHERE " + " AND ".join(where) +
+        " ORDER BY a.created_at DESC LIMIT ?"
+    )
+    with db() as conn:
+        rows = conn.execute(sql, args).fetchall()
+    return [{
+        "id": r["id"], "case_id": r["case_id"], "update_id": r["update_id"],
+        "case_title": r["case_title"],
+        "update_title": r["update_title"], "update_source": r["update_source"],
+        "update_url": r["update_url"], "update_published": r["update_published"],
+        "update_classification": json.loads(r["update_class"] or "{}"),
+        "relevance_score": r["relevance_score"],
+        "match_summary": json.loads(r["match_summary"] or "{}"),
+        "dismissed": bool(r["dismissed"]),
+        "created_at": r["created_at"], "dismissed_at": r["dismissed_at"],
+    } for r in rows]
+
+
+def count_pending_alerts(user_id: int) -> int:
+    with db() as conn:
+        r = conn.execute(
+            "SELECT COUNT(*) AS n FROM case_alerts "
+            "WHERE user_id = ? AND dismissed = 0",
+            (user_id,),
+        ).fetchone()
+    return int(r["n"]) if r else 0
+
+
+def dismiss_alert(alert_id: int, user_id: int) -> bool:
+    now = _utcnow()
+    with db() as conn:
+        cur = conn.execute(
+            "UPDATE case_alerts SET dismissed = 1, dismissed_at = ? "
+            "WHERE id = ? AND user_id = ?",
+            (now, alert_id, user_id),
+        )
+        return cur.rowcount > 0
+
+
+def list_user_open_cases_for_matching(user_id: int) -> list[dict]:
+    """Return all cases of user with concatenated content for matching."""
+    with db() as conn:
+        case_rows = conn.execute(
+            "SELECT id, title, stage FROM cases WHERE user_id = ? "
+            "ORDER BY updated_at DESC",
+            (user_id,),
+        ).fetchall()
+        result = []
+        for cr in case_rows:
+            cid = cr["id"]
+            msgs = conn.execute(
+                "SELECT role, content FROM messages WHERE case_id = ? "
+                "ORDER BY id DESC LIMIT 30",
+                (cid,),
+            ).fetchall()
+            doc_summaries = conn.execute(
+                "SELECT filename, COALESCE(summary, '') AS summary "
+                "FROM documents WHERE case_id = ?",
+                (cid,),
+            ).fetchall()
+            content_parts = [cr["title"] or ""]
+            content_parts.extend(m["content"] or "" for m in msgs)
+            content_parts.extend(
+                f"{d['filename']}: {d['summary']}" for d in doc_summaries
+            )
+            result.append({
+                "case_id": cid,
+                "title": cr["title"] or "",
+                "content": "\n".join(p for p in content_parts if p),
+            })
+    return result
