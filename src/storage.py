@@ -712,6 +712,24 @@ CREATE TABLE IF NOT EXISTS corporate_extractions (
     FOREIGN KEY (user_id) REFERENCES users(id)  ON DELETE SET NULL
 );
 CREATE INDEX IF NOT EXISTS idx_corp_case ON corporate_extractions(case_id, created_at DESC);
+
+-- ── V9.4 Bench Memo Predictor ────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS bench_memos (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    case_id         TEXT    NOT NULL,
+    user_id         INTEGER NOT NULL,
+    description     TEXT    NOT NULL,
+    court_code      TEXT    NOT NULL DEFAULT 'gjykata_lartë',
+    opponent_filing TEXT,
+    memo_json       TEXT    NOT NULL DEFAULT '{}',
+    status          TEXT    NOT NULL DEFAULT 'running',
+    elapsed_ms      INTEGER,
+    started_at      TEXT    NOT NULL,
+    completed_at    TEXT,
+    FOREIGN KEY (case_id) REFERENCES cases(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_bench_case ON bench_memos(case_id, started_at DESC);
 """
 
 # Roles ordered by seniority/permission breadth. Used by permission checks.
@@ -5284,3 +5302,63 @@ def delete_corporate_extraction(extraction_id: int, case_id: str) -> bool:
             (extraction_id, case_id),
         )
         return cur.rowcount > 0
+
+
+# ── V9.4 Bench Memo persistence ───────────────────────────────────────
+
+def create_bench_memo(*, case_id: str, user_id: int, description: str,
+                      court_code: str, opponent_filing: str | None) -> int:
+    now = _utcnow()
+    with db() as conn:
+        cur = conn.execute(
+            "INSERT INTO bench_memos (case_id, user_id, description, court_code, "
+            "opponent_filing, memo_json, status, started_at) "
+            "VALUES (?, ?, ?, ?, ?, '{}', 'running', ?)",
+            (case_id, user_id, description, court_code, opponent_filing, now),
+        )
+        return int(cur.lastrowid)
+
+
+def finalize_bench_memo(memo_id: int, *, memo: dict, status: str,
+                        elapsed_ms: int) -> None:
+    now = _utcnow()
+    with db() as conn:
+        conn.execute(
+            "UPDATE bench_memos SET memo_json = ?, status = ?, "
+            "elapsed_ms = ?, completed_at = ? WHERE id = ?",
+            (json.dumps(memo, ensure_ascii=False), status, elapsed_ms, now, memo_id),
+        )
+
+
+def get_bench_memo(memo_id: int) -> dict | None:
+    with db() as conn:
+        r = conn.execute(
+            "SELECT * FROM bench_memos WHERE id = ?", (memo_id,),
+        ).fetchone()
+    if r is None:
+        return None
+    return {
+        "id": r["id"], "case_id": r["case_id"], "user_id": r["user_id"],
+        "description": r["description"], "court_code": r["court_code"],
+        "opponent_filing": r["opponent_filing"],
+        "memo": json.loads(r["memo_json"] or "{}"),
+        "status": r["status"], "elapsed_ms": r["elapsed_ms"],
+        "started_at": r["started_at"], "completed_at": r["completed_at"],
+    }
+
+
+def list_bench_memos(case_id: str, limit: int = 20) -> list[dict]:
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT id, case_id, court_code, status, elapsed_ms, "
+            "       started_at, completed_at "
+            "FROM bench_memos WHERE case_id = ? "
+            "ORDER BY started_at DESC LIMIT ?",
+            (case_id, limit),
+        ).fetchall()
+    return [{
+        "id": r["id"], "case_id": r["case_id"],
+        "court_code": r["court_code"],
+        "status": r["status"], "elapsed_ms": r["elapsed_ms"],
+        "started_at": r["started_at"], "completed_at": r["completed_at"],
+    } for r in rows]

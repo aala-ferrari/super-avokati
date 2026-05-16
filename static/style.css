@@ -6911,6 +6911,68 @@ main {
   .prec-cards { grid-template-columns: 1fr; }
 }
 
+/* ── V9.4 Bench Memo ── */
+.bench-launch-row { display: flex; gap: 8px; margin-bottom: 10px; }
+.bench-launch-row .pro-select { flex: 1; }
+.bench-actions-row { display: flex; align-items: center; gap: 10px; margin: 12px 0 4px; }
+.bench-card {
+  background: var(--gray-50, #fafafa); border-radius: 10px; padding: 14px 18px;
+  margin-bottom: 12px; border: 1px solid var(--gray-200);
+}
+.bench-card h4 { margin: 0 0 8px; font-size: 13px; color: var(--gray-700); text-transform: uppercase; letter-spacing: .04em; font-weight: 700; }
+.bench-card p { margin: 0; font-size: 14px; line-height: 1.5; }
+.bench-list { list-style: none; padding: 0; margin: 0; font-size: 13px; }
+.bench-list li { padding: 8px 0; border-bottom: 1px solid var(--gray-200); line-height: 1.5; }
+.bench-list li:last-child { border-bottom: none; }
+
+/* Recommendation card */
+.bench-card-rec { display: flex; align-items: center; gap: 16px; padding: 18px 22px; }
+.bench-rec-label { font-size: 11px; font-weight: 700; color: var(--gray-600); letter-spacing: .08em; }
+.bench-rec-text { font-size: 15px; font-weight: 600; flex: 1; }
+.bench-rec-fight { background: linear-gradient(90deg, #e8f5e9, #c8e6c9); border-color: #81c784; }
+.bench-rec-settle { background: linear-gradient(90deg, #fff8e1, #ffe082); border-color: #ffb300; }
+.bench-rec-fold { background: linear-gradient(90deg, #ffebee, #ef9a9a); border-color: #e57373; }
+
+/* Issue framing */
+.bench-card-issue { background: #f3f4f6; border-left: 4px solid #5e35b1; }
+
+/* Outcome prediction bar */
+.bench-card-pred { background: linear-gradient(180deg, #e3f2fd, #f3f4f6); }
+.bench-pred-bar {
+  display: flex; height: 28px; border-radius: 14px; overflow: hidden;
+  margin: 8px 0; box-shadow: inset 0 0 0 1px rgba(0,0,0,.08);
+}
+.bench-pred-p { background: linear-gradient(90deg, #1976d2, #42a5f5); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; padding: 0 8px; }
+.bench-pred-d { background: linear-gradient(90deg, #c62828, #ef5350); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; padding: 0 8px; }
+.bench-pred-key { font-size: 13px; margin-top: 8px; }
+.bench-pred-court { font-size: 12px; color: var(--gray-700); margin-top: 4px; }
+
+/* Relevance / weight badges */
+.bench-rel { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 8px; margin-left: 6px; text-transform: uppercase; letter-spacing: .04em; }
+.bench-rel-high { background: #c8e6c9; color: #1b5e20; }
+.bench-rel-med  { background: #fff3e0; color: #e65100; }
+.bench-rel-low  { background: #eceff1; color: #455a64; }
+.bench-sev { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 8px; margin-left: 6px; }
+.bench-sev-high { background: #ffcdd2; color: #b71c1c; }
+.bench-sev-med  { background: #fff3e0; color: #e65100; }
+.bench-sev-low  { background: #eceff1; color: #455a64; }
+.bench-out { font-size: 11px; color: var(--gray-700); font-style: italic; margin-left: 6px; }
+.bench-ratio { font-size: 12px; color: var(--gray-700); margin-top: 4px; padding-left: 12px; border-left: 2px solid var(--gray-300); }
+.bench-attack { font-size: 12px; color: var(--gray-700); margin-top: 4px; padding-left: 12px; }
+
+/* Cards by sentiment */
+.bench-card-weak { border-left: 4px solid #c62828; background: #fff5f5; }
+.bench-card-opp  { border-left: 4px solid #ef6c00; background: #fff8e1; }
+.bench-card-upg  { border-left: 4px solid #2e7d32; background: #f1f8e9; }
+
+.bench-upg-cur { font-size: 13px; color: var(--gray-700); }
+.bench-upg-new { font-size: 13px; margin-top: 4px; color: #1b5e20; }
+.bench-shift { display: inline-block; margin-top: 6px; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 8px; background: var(--gray-200); color: var(--gray-700); }
+.bench-shift-pos { background: #c8e6c9; color: #1b5e20; }
+.bench-shift-neg { background: #ffcdd2; color: #b71c1c; }
+.bench-mit { font-size: 12px; color: var(--gray-700); margin-top: 4px; padding-left: 12px; }
+.bench-err { background: #ffebee; border-left: 4px solid #c62828; padding: 10px 14px; border-radius: 6px; font-size: 13px; }
+
 /* ── V9.3 Corporate Intelligence ── */
 .corp-tabs { display: flex; gap: 4px; margin-bottom: 14px; border-bottom: 2px solid var(--gray-200); }
 .corp-tab {

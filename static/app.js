@@ -2820,6 +2820,7 @@
     "workflow": document.getElementById("workflow-modal"),
     "time-recon": document.getElementById("time-recon-modal"),
     "corporate": document.getElementById("corporate-modal"),
+    "bench": document.getElementById("bench-modal"),
   };
 
   function openProModal(key) {
@@ -2844,6 +2845,7 @@
     if (key === "workflow") initWorkflow();
     if (key === "time-recon") initTimeRecon();
     if (key === "corporate") initCorporate();
+    if (key === "bench") initBench();
   }
   function closeProModal(m) {
     m.hidden = true;
@@ -6382,6 +6384,173 @@
     `;
     precResultEl.hidden = false;
   }
+
+  // ── V9.4 BENCH MEMO ────────────────────────────────────────────
+  const benchRunBtn  = document.getElementById("bench-run-btn");
+  const benchDescEl  = document.getElementById("bench-desc");
+  const benchOppEl   = document.getElementById("bench-opp");
+  const benchCourtEl = document.getElementById("bench-court");
+  const benchHistEl  = document.getElementById("bench-history");
+  const benchStatusEl= document.getElementById("bench-status");
+  const benchResEl   = document.getElementById("bench-result");
+
+  function initBench() {
+    benchStatusEl.textContent = "";
+    benchResEl.hidden = true;
+    benchResEl.innerHTML = "";
+    loadBenchHistory();
+  }
+
+  async function loadBenchHistory() {
+    benchHistEl.innerHTML = `<option value="">— Hap memo të mëparshme —</option>`;
+    if (!currentCaseId) return;
+    try {
+      const r = await fetch(`/api/cases/${currentCaseId}/bench-memos`);
+      if (!r.ok) return;
+      const { items } = await r.json();
+      (items || []).forEach(it => {
+        const opt = document.createElement("option");
+        opt.value = it.id;
+        const dt = (it.completed_at || it.started_at || "").slice(0, 16).replace("T", " ");
+        opt.textContent = `${dt} · ${it.court_code} · ${it.status}`;
+        benchHistEl.appendChild(opt);
+      });
+    } catch (e) { /* silent */ }
+  }
+
+  benchHistEl && benchHistEl.addEventListener("change", async () => {
+    const id = benchHistEl.value;
+    if (!id) return;
+    benchStatusEl.textContent = "Duke ngarkuar…";
+    try {
+      const r = await fetch(`/api/bench-memo/${id}`);
+      if (!r.ok) { benchStatusEl.textContent = "Gabim ngarkimi"; return; }
+      const data = await r.json();
+      benchCourtEl.value = data.court_code || "gjykata_lartë";
+      renderBenchMemo(data.memo);
+      benchStatusEl.textContent = `✓ Memo ${id}`;
+    } catch (e) { benchStatusEl.textContent = "Gabim rrjeti"; }
+  });
+
+  benchRunBtn && benchRunBtn.addEventListener("click", async () => {
+    if (!currentCaseId) { benchStatusEl.textContent = "Hap një rast fillimisht."; return; }
+    benchRunBtn.disabled = true;
+    benchStatusEl.textContent = "Gjyqtari po e shqyrton çështjen… (≈45-90s)";
+    benchResEl.hidden = true;
+    try {
+      const r = await fetch(`/api/cases/${currentCaseId}/bench-memo`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          description: benchDescEl.value.trim(),
+          court_code: benchCourtEl.value,
+          opponent_filing: benchOppEl.value.trim(),
+        }),
+      });
+      const data = await r.json();
+      if (!r.ok) { benchStatusEl.textContent = data.error || "Gabim."; return; }
+      benchStatusEl.textContent = `✓ ${(data.elapsed_ms/1000).toFixed(1)}s · memo #${data.memo_id}`;
+      renderBenchMemo(data.memo);
+      loadBenchHistory();
+    } catch (e) {
+      benchStatusEl.textContent = "Gabim rrjeti.";
+    } finally {
+      benchRunBtn.disabled = false;
+    }
+  });
+
+  function renderBenchMemo(m) {
+    if (!m) { benchResEl.hidden = true; return; }
+    if (m._parse_error) {
+      benchResEl.innerHTML = `<div class="bench-err">⚠️ Gabim parsimi: ${escHtml(m._parse_error)}</div>` +
+        (m._raw ? `<details><summary>Përgjigja e papërpunuar</summary><pre>${escHtml(m._raw)}</pre></details>` : "");
+      benchResEl.hidden = false;
+      return;
+    }
+
+    const op = m.outcome_prediction || {};
+    const pP = Number(op.p_plaintiff_pct) || 0;
+    const pD = Number(op.p_defendant_pct) || 0;
+    const conf = op.confidence || "i ulët";
+    const rec = (m.recommendation || "").trim();
+    const recCls = rec.startsWith("FIGHT") ? "bench-rec-fight"
+                 : rec.startsWith("SETTLE") ? "bench-rec-settle"
+                 : rec.startsWith("FOLD") ? "bench-rec-fold" : "";
+
+    const lawHtml = (m.applicable_law || []).map(l =>
+      `<li><strong>${escHtml(l.reference || "")}</strong>
+        <span class="bench-rel bench-rel-${_relClass(l.relevance)}">${escHtml(l.relevance || "")}</span>
+        <em>${escHtml(l.why || "")}</em></li>`).join("");
+
+    const precHtml = (m.controlling_precedents || []).map(p =>
+      `<li><strong>${escHtml(p.citation || "")}</strong> — ${escHtml(p.court || "")}
+        <span class="bench-out">${escHtml(p.outcome || "")}</span>
+        <span class="bench-rel bench-rel-${_relClass(p.weight)}">${escHtml(p.weight || "")}</span>
+        <div class="bench-ratio">${escHtml(p.ratio_used || "")}</div></li>`).join("");
+
+    const weakHtml = (m.our_weaknesses || []).map(w =>
+      `<li><strong>${escHtml(w.point || "")}</strong>
+        <span class="bench-sev bench-sev-${_sevClass(w.severity)}">${escHtml(w.severity || "")}</span>
+        <div class="bench-attack">⚔️ ${escHtml(w.judge_attack || "")}</div></li>`).join("");
+
+    const oppHtml = (m.opponent_strengths || []).map(s =>
+      `<li><strong>${escHtml(s.point || "")}</strong>
+        <span class="bench-rel bench-rel-${_relClass(s.weight)}">${escHtml(s.weight || "")}</span>
+        <div class="bench-attack">${escHtml(s.why_judge_accepts || "")}</div></li>`).join("");
+
+    const upgHtml = (m.argument_upgrades || []).map(u => {
+      const shift = Number(u.p_shift_pct) || 0;
+      const sCls = shift > 0 ? "bench-shift-pos" : shift < 0 ? "bench-shift-neg" : "";
+      const sign = shift > 0 ? "+" : "";
+      return `<li>
+        <div class="bench-upg-cur"><strong>Tani:</strong> ${escHtml(u.current || "")}</div>
+        <div class="bench-upg-new"><strong>Riformulim:</strong> ${escHtml(u.upgrade || "")}</div>
+        <div class="bench-shift ${sCls}">P-shift: ${sign}${shift}%</div>
+      </li>`;
+    }).join("");
+
+    const procHtml = (m.procedural_risks || []).map(r =>
+      `<li><strong>⚠️ ${escHtml(r.risk || "")}</strong>
+        <div class="bench-mit">↪ ${escHtml(r.mitigation || "")}</div></li>`).join("");
+
+    benchResEl.innerHTML = `
+      <div class="bench-card bench-card-rec ${recCls}">
+        <div class="bench-rec-label">VERDIKTI I REKOMANDUAR</div>
+        <div class="bench-rec-text">${escHtml(rec)}</div>
+      </div>
+
+      <div class="bench-card bench-card-issue">
+        <h4>📜 Si do ta inkuadrojë gjyqtari</h4>
+        <p>${escHtml(m.issue_framing || "")}</p>
+      </div>
+
+      <div class="bench-card bench-card-pred">
+        <h4>🎯 Parashikimi i rezultatit · besueshmëri ${escHtml(conf)}</h4>
+        <div class="bench-pred-bar">
+          <div class="bench-pred-p" style="width:${pP}%" title="P(Paditësi fiton): ${pP}%">P ${pP}%</div>
+          <div class="bench-pred-d" style="width:${pD}%" title="P(I padituri fiton): ${pD}%">D ${pD}%</div>
+        </div>
+        <div class="bench-pred-key"><strong>Faktori kyç:</strong> ${escHtml(op.key_factor || "")}</div>
+        <div class="bench-pred-court"><em>Kalibrimi për gjykatën:</em> ${escHtml(op.court_calibration_note || "")}</div>
+      </div>
+
+      ${lawHtml ? `<div class="bench-card"><h4>📚 Nenet e zbatueshme</h4><ul class="bench-list">${lawHtml}</ul></div>` : ""}
+      ${precHtml ? `<div class="bench-card"><h4>⚖️ Precedentë kontrollues</h4><ul class="bench-list">${precHtml}</ul></div>` : ""}
+      ${weakHtml ? `<div class="bench-card bench-card-weak"><h4>🔴 Dobësitë tona që do të sulmohen</h4><ul class="bench-list">${weakHtml}</ul></div>` : ""}
+      ${oppHtml ? `<div class="bench-card bench-card-opp"><h4>💪 Forcat e kundërshtarit që pranohen</h4><ul class="bench-list">${oppHtml}</ul></div>` : ""}
+      ${upgHtml ? `<div class="bench-card bench-card-upg"><h4>🚀 Upgrade argumentesh</h4><ul class="bench-list">${upgHtml}</ul></div>` : ""}
+      ${procHtml ? `<div class="bench-card"><h4>⚠️ Rreziqe procedurale</h4><ul class="bench-list">${procHtml}</ul></div>` : ""}
+    `;
+    benchResEl.hidden = false;
+  }
+
+  function _relClass(s) {
+    s = (s || "").toLowerCase();
+    if (s.includes("lartë") || s.includes("larte")) return "high";
+    if (s.includes("mesëm") || s.includes("mesem")) return "med";
+    return "low";
+  }
+  function _sevClass(s) { return _relClass(s); }
 
   // ── V9.3 CORPORATE INTELLIGENCE ────────────────────────────────
   const corpExtractBtn  = document.getElementById("corp-extract-btn");

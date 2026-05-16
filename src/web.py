@@ -2383,6 +2383,138 @@ def api_corporate_delete(case_id: str, extraction_id: int):
     return jsonify({"ok": True})
 
 
+# ── V9.4 Bench Memo Predictor ────────────────────────────────────────────────
+
+from . import bench_memo as bench_mod  # noqa: E402
+
+
+def _build_case_summary_for_memo(case_id: str, body_desc: str | None) -> tuple[str, str]:
+    """Return (case_description, documents_summary) for the bench memo prompt.
+
+    Stitches case title + recent messages + document summaries so the bench
+    memo prompt has rich context beyond the bare description string.
+    """
+    case = storage.get_case_unscoped(case_id)
+    case_title = (case.title if case else "") or ""
+    parts = []
+    if body_desc:
+        parts.append(body_desc.strip())
+    if case_title:
+        parts.append(f"Titulli i fascikujit: {case_title}")
+    try:
+        msgs = storage.list_messages(case_id) or []
+        if msgs:
+            convo = "\n".join(
+                f"[{m.role}] {(m.content or '')[:300]}"
+                for m in msgs[-12:]
+            )
+            parts.append(f"Bisedimet e fundit:\n{convo}")
+    except Exception:
+        pass
+    case_description = "\n\n".join(parts) or (body_desc or "")
+
+    doc_lines = []
+    try:
+        for d in storage.list_documents(case_id) or []:
+            summary = (getattr(d, "summary", "") or "").strip()
+            if summary:
+                doc_lines.append(f"- {d.filename}: {summary[:300]}")
+    except Exception:
+        pass
+    documents_summary = "\n".join(doc_lines)
+    return case_description, documents_summary
+
+
+@app.post("/api/cases/<case_id>/bench-memo")
+@login_required_api
+def api_bench_memo_run(case_id: str):
+    """Generate a judicial bench memo for the case.
+
+    Body: { description?, court_code?, opponent_filing? }
+    Returns: { memo_id, status, elapsed_ms, memo }
+    """
+    user = request.user  # type: ignore[attr-defined]
+    case = storage.get_case(case_id, user.id)
+    if not case:
+        return jsonify({"error": "Rasti nuk u gjet"}), 404
+    if _BRAIN is None or _INDEX is None:
+        return jsonify({"error": "Backend ose KB jo i disponueshëm"}), 503
+
+    body = request.get_json(silent=True) or {}
+    description_hint = (body.get("description") or "").strip()
+    court_code = (body.get("court_code") or bench_mod.DEFAULT_COURT).strip()
+    opponent_filing = (body.get("opponent_filing") or "").strip()
+
+    case_description, documents_summary = _build_case_summary_for_memo(
+        case_id, description_hint
+    )
+    if not case_description:
+        return jsonify({"error": "Përshkrimi i çështjes mungon"}), 400
+
+    memo_id = storage.create_bench_memo(
+        case_id=case_id, user_id=user.id,
+        description=case_description, court_code=court_code,
+        opponent_filing=opponent_filing or None,
+    )
+
+    inp = bench_mod.BenchMemoInput(
+        case_description=case_description,
+        documents_summary=documents_summary,
+        opponent_filing=opponent_filing,
+        court_code=court_code,
+    )
+
+    t0 = time.monotonic()
+    memo = bench_mod.generate_bench_memo(
+        inp, backend=_BRAIN.backend,
+        article_index=_INDEX, decision_index=None,
+        case_id=case_id,
+    )
+    elapsed_ms = int((time.monotonic() - t0) * 1000)
+    status = "error" if memo.get("_parse_error") else "completed"
+    storage.finalize_bench_memo(memo_id, memo=memo, status=status,
+                                elapsed_ms=elapsed_ms)
+
+    return jsonify({
+        "memo_id": memo_id, "status": status, "elapsed_ms": elapsed_ms,
+        "memo": memo, "court_code": court_code,
+    }), 201
+
+
+@app.get("/api/bench-memo/<int:memo_id>")
+@login_required_api
+def api_bench_memo_get(memo_id: int):
+    user = request.user  # type: ignore[attr-defined]
+    row = storage.get_bench_memo(memo_id)
+    if not row:
+        return jsonify({"error": "Bench memo nuk u gjet"}), 404
+    case = storage.get_case(row["case_id"], user.id) if row["case_id"] else None
+    if not case:
+        return jsonify({"error": "Nuk autorizuar"}), 403
+    return jsonify(row)
+
+
+@app.get("/api/cases/<case_id>/bench-memos")
+@login_required_api
+def api_bench_memo_list(case_id: str):
+    user = request.user  # type: ignore[attr-defined]
+    case = storage.get_case(case_id, user.id)
+    if not case:
+        return jsonify({"error": "Rasti nuk u gjet"}), 404
+    return jsonify({"items": storage.list_bench_memos(case_id)})
+
+
+@app.get("/api/bench-memo/courts")
+@login_required_api
+def api_bench_memo_courts():
+    """Return the list of court codes the user can pick for calibration."""
+    return jsonify({
+        "default": bench_mod.DEFAULT_COURT,
+        "courts": [{"code": k, "label": v}
+                   for k, v in bench_mod.COURT_LABELS.items()],
+    })
+
+
 # ── V8.6 agentic mode (suggestions + auto-letters) ─────────────────────────
 
 AGENT_SCAN_SYSTEM = """Je 'agent proaktiv' brenda Super Avvocato — ndihmës i avokatit shqiptar.

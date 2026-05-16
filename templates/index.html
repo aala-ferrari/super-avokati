@@ -255,6 +255,10 @@
               <span class="pro-menu-ico">🏢</span>
               <div><strong>Corporate Intelligence</strong><em>Ekstrakto soci/CDA/prokuror nga visura · Contract Gatekeeper · Checklist KYC/AML</em></div>
             </button>
+            <button type="button" class="pro-menu-item pro-menu-new" data-pro="bench" role="menuitem">
+              <span class="pro-menu-ico">⚖️</span>
+              <div><strong>Bench Memo</strong><em>Si do të mendojë gjyqtari → P(fitore) · dobësi · upgrade argumentesh · FIGHT/SETTLE/FOLD</em></div>
+            </button>
           </div>
         </div>
         <button type="button" id="export-md-btn" class="icon-btn" title="Shkarko si Markdown">📝</button>
@@ -1469,6 +1473,41 @@
         </div>
       </div>
       <div id="precedent-result" class="pro-result" hidden></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ V9.4 BENCH MEMO ══════════ -->
+<div id="bench-modal" class="pro-modal" hidden role="dialog" aria-modal="true" aria-labelledby="bench-modal-title">
+  <div class="pro-modal-backdrop" data-close></div>
+  <div class="pro-modal-card pro-modal-wide">
+    <header class="pro-modal-head">
+      <h3 id="bench-modal-title">⚖️ Bench Memo — Si do të mendojë gjyqtari</h3>
+      <p class="pro-modal-sub">Memorandum gjyqësor i kalibruar për gjykatën specifike: inkuadrimi i çështjes, P(fitore), dobësitë e tua që do të sulmohen, forcat e kundërshtarit që do të pranohen, upgrade argumentesh, rekomandim final.</p>
+      <button type="button" class="pro-modal-close" data-close aria-label="Mbyll">&times;</button>
+    </header>
+    <div class="pro-modal-body">
+      <div class="bench-launch-row">
+        <select id="bench-court" class="pro-select">
+          <option value="gjykata_lartë">Gjykata e Lartë</option>
+          <option value="gjykata_apelit">Gjykata e Apelit</option>
+          <option value="gjykata_shkalle1">Gjykata e Shkallës së Parë</option>
+          <option value="gjykata_kushtetuese">Gjykata Kushtetuese</option>
+          <option value="gjykata_administrative">Gjykata Administrative</option>
+          <option value="gjykata_komerciale">Gjykata Komerciale (Tiranë)</option>
+          <option value="ecthr_albania">GjEDNj — Shqipëri</option>
+        </select>
+        <select id="bench-history" class="pro-select" aria-label="Bench memo të mëparshme">
+          <option value="">— Hap memo të mëparshme —</option>
+        </select>
+      </div>
+      <textarea id="bench-desc" class="pro-textarea" rows="3" placeholder="Përshkrim shtesë i çështjes (opsional — fascikuli aktual ngarkohet automatikisht)"></textarea>
+      <textarea id="bench-opp" class="pro-textarea" rows="4" placeholder="Memorie / parashtrim i kundërshtarit (opsional — kopjo tekstin këtu për analizë më të thellë)"></textarea>
+      <div class="bench-actions-row">
+        <button id="bench-run-btn" class="pro-run-btn">Gjenero Bench Memo</button>
+        <span id="bench-status" class="pro-status"></span>
+      </div>
+      <div id="bench-result" class="pro-result" hidden></div>
     </div>
   </div>
 </div>
