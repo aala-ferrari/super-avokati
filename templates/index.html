@@ -68,7 +68,7 @@
       <span class="calendar-toggle-label">Kalendari</span>
       <span class="calendar-badge" id="calendar-badge" hidden>0</span>
     </button>
-    <button type="button" id="vigilanza-topbar-btn" class="calendar-toggle" title="Vigilanza Normativa — alerte për fascikujt e tu" aria-label="Hap vigilanzën">
+    <button type="button" id="vigilanza-topbar-btn" class="calendar-toggle" title="Vigilanza Normativa — alerte për fascikujt e tu" aria-label="Hap vigilanzën" hidden>
       <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
         <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
               d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/>
@@ -177,65 +177,15 @@
             <span class="pro-menu-label">Pro</span>
           </button>
           <div id="pro-menu" class="pro-menu" hidden role="menu" aria-label="Mjete profesionale">
+            <div class="pro-menu-divider" aria-hidden="true">— BETEJA —</div>
             <button type="button" class="pro-menu-item" data-pro="stress" role="menuitem">
               <span class="pro-menu-ico">⚔️</span>
-              <div><strong>Stres-test udienza</strong><em>Simulim i kundërshtarit para seancës</em></div>
+              <div><strong>Red Team</strong><em>Stres-test i tezës — raund i vetëm ose loop derisa konvergon</em></div>
             </button>
-            <button type="button" class="pro-menu-item" data-pro="audit" role="menuitem">
-              <span class="pro-menu-ico">🔎</span>
-              <div><strong>Audit i citimeve</strong><em>Verifikon çdo "Neni X i Kodit Y" në një atë tekst</em></div>
-            </button>
-            <button type="button" class="pro-menu-item" data-pro="draft" role="menuitem">
-              <span class="pro-menu-ico">📜</span>
-              <div><strong>Fabrika e akteve</strong><em>Harton padi, ankime, memorie — gati për depozitim</em></div>
-            </button>
-            <button type="button" class="pro-menu-item" data-pro="cascade" role="menuitem">
-              <span class="pro-menu-ico">⏳</span>
-              <div><strong>Kaskadë afatesh</strong><em>Nga një ngjarje procedurale → të gjitha afatet</em></div>
-            </button>
-            <button type="button" class="pro-menu-item" data-pro="timeline" role="menuitem">
-              <span class="pro-menu-ico">📅</span>
-              <div><strong>Linja kohore e dosjes</strong><em>Kronologjia e çdo ngjarje + kontradiktat midis dokumenteve</em></div>
-            </button>
-            <button type="button" class="pro-menu-item" data-pro="adversarial" role="menuitem">
-              <span class="pro-menu-ico">🥊</span>
-              <div><strong>Avokat kundërshtar (loop)</strong><em>Stres-test në disa raunde derisa strategjia konvergon</em></div>
-            </button>
-            <button type="button" class="pro-menu-item" data-pro="strategy" role="menuitem">
-              <span class="pro-menu-ico">🧭</span>
-              <div><strong>Busulla strategjike</strong><em>Pemë vendimesh me probabilitete bazuar në KB</em></div>
-            </button>
-            <button type="button" class="pro-menu-item" data-pro="submit-draft" role="menuitem">
-              <span class="pro-menu-ico">📝</span>
-              <div><strong>Sotomet bozzë për revizion</strong><em>Praktikanti shkruan, avokati senior aprovon</em></div>
-            </button>
-            <button type="button" class="pro-menu-item" data-pro="contract" role="menuitem">
-              <span class="pro-menu-ico">📑</span>
-              <div><strong>Rishiko kontratë</strong><em>Semafor 🟢🟡🔴 për çdo klauzolë + GDPR-AL flags</em></div>
-            </button>
-            <button type="button" class="pro-menu-item" data-pro="money" role="menuitem">
-              <span class="pro-menu-ico">💰</span>
-              <div><strong>Orë e fatura</strong><em>Regjistrim orari + faturë automatike (tarifa Dh.K.A.)</em></div>
-            </button>
-            <button type="button" class="pro-menu-item" data-pro="agent" role="menuitem">
-              <span class="pro-menu-ico">🤖</span>
-              <div><strong>Modaliteti agentik</strong><em>AI skanon rastin dhe propozon hapat e ardhshëm</em></div>
-            </button>
-            <button type="button" class="pro-menu-item" data-pro="in-hearing" role="menuitem">
+            <button type="button" class="pro-menu-item pro-menu-new" data-pro="bench" role="menuitem">
               <span class="pro-menu-ico">⚖️</span>
-              <div><strong>Në seancë (mobile)</strong><em>Diktim me zë + Q&A i shpejtë gjatë seancës</em></div>
+              <div><strong>Bench Memo</strong><em>Si do të mendojë gjyqtari → P(fitore) · dobësi · upgrade argumentesh · FIGHT/SETTLE/FOLD</em></div>
             </button>
-            <button type="button" class="pro-menu-item" data-pro="rehearsal" role="menuitem">
-              <span class="pro-menu-ico">🎭</span>
-              <div><strong>Provë me zë</strong><em>Praktikë argumenti me gjyqtar / kundërshtar / trajner</em></div>
-            </button>
-            <button type="button" class="pro-menu-item" data-pro="inbox" role="menuitem">
-              <span class="pro-menu-ico">📥</span>
-              <div><strong>Inbox kërkesash</strong><em>Hyrjet nga qytetarët (web/Telegram) — klasifikim AI</em><span id="pro-inbox-badge" class="pro-menu-badge" hidden></span></div>
-            </button>
-
-            <div class="pro-menu-divider" aria-hidden="true">— I RI —</div>
-
             <button type="button" class="pro-menu-item pro-menu-new" data-pro="genio" role="menuitem">
               <span class="pro-menu-ico">🧠</span>
               <div><strong>Genio Legale</strong><em>6 perspektiva Opus paralele: rifrazim · kill-shot · levat · pemë · e vërteta · zëri yt</em></div>
@@ -244,37 +194,39 @@
               <span class="pro-menu-ico">📚</span>
               <div><strong>Pattern e precedentëve</strong><em>BM25 mbi 1.095 vendime + ratio Opus → lëvizjet që fituan, kurthet që humbën, kill-shot</em></div>
             </button>
-            <button type="button" class="pro-menu-item pro-menu-new" data-pro="settlement" role="menuitem">
-              <span class="pro-menu-ico">🎯</span>
-              <div><strong>Settlement Monte Carlo</strong><em>10k simulime → percentile i ofertës + kontër-ofertë e rekomanduar</em></div>
+
+            <div class="pro-menu-divider" aria-hidden="true">— DOKUMENTE —</div>
+            <button type="button" class="pro-menu-item" data-pro="draft" role="menuitem">
+              <span class="pro-menu-ico">📜</span>
+              <div><strong>Fabrika e akteve</strong><em>Harton padi, ankime, memorie — gati për depozitim</em></div>
             </button>
-            <button type="button" class="pro-menu-item pro-menu-new" data-pro="financial" role="menuitem">
-              <span class="pro-menu-ico">📊</span>
-              <div><strong>Financial OS</strong><em>Profitability rasti · realization · WIP aging · cashflow</em></div>
-            </button>
-            <button type="button" class="pro-menu-item pro-menu-new" data-pro="workflow" role="menuitem">
-              <span class="pro-menu-ico">🧩</span>
-              <div><strong>Workflow library</strong><em>5 fluxe të paracaktuar (hapje rast · M&A · seancë · masa) ose DSL custom</em></div>
-            </button>
-            <button type="button" class="pro-menu-item pro-menu-new" data-pro="time-recon" role="menuitem">
-              <span class="pro-menu-ico">⏱️</span>
-              <div><strong>Rindërto ditën</strong><em>Auto-fill timesheet nga aktivitetet e ditës</em></div>
+            <button type="button" class="pro-menu-item" data-pro="contract" role="menuitem">
+              <span class="pro-menu-ico">📑</span>
+              <div><strong>Rishiko kontratë</strong><em>Semafor 🟢🟡🔴 për çdo klauzolë + GDPR-AL flags</em></div>
             </button>
             <button type="button" class="pro-menu-item pro-menu-new" data-pro="corporate" role="menuitem">
               <span class="pro-menu-ico">🏢</span>
               <div><strong>Corporate Intelligence</strong><em>Ekstrakto soci/CDA/prokuror nga visura · Contract Gatekeeper · Checklist KYC/AML</em></div>
             </button>
-            <button type="button" class="pro-menu-item pro-menu-new" data-pro="bench" role="menuitem">
-              <span class="pro-menu-ico">⚖️</span>
-              <div><strong>Bench Memo</strong><em>Si do të mendojë gjyqtari → P(fitore) · dobësi · upgrade argumentesh · FIGHT/SETTLE/FOLD</em></div>
-            </button>
-            <button type="button" class="pro-menu-item pro-menu-new" data-pro="vigilanza" role="menuitem">
-              <span class="pro-menu-ico">📰</span>
-              <div><strong>Vigilanza Normativa</strong><em>Klasifiko ndryshime ligjore + matchim automatik me fascikujt e tu të hapur</em></div>
+
+            <div class="pro-menu-divider" aria-hidden="true">— ANALIZË —</div>
+            <button type="button" class="pro-menu-item pro-menu-new" data-pro="settlement" role="menuitem">
+              <span class="pro-menu-ico">🎯</span>
+              <div><strong>Settlement Monte Carlo</strong><em>10k simulime → percentile i ofertës + kontër-ofertë e rekomanduar</em></div>
             </button>
             <button type="button" class="pro-menu-item pro-menu-new" data-pro="coach" role="menuitem">
               <span class="pro-menu-ico">📝</span>
               <div><strong>Ratio Coach</strong><em>Post-mortem strukturuar i fascikulit + surface mësimesh nga rastet e mëparshme të ngjashme</em></div>
+            </button>
+
+            <div class="pro-menu-divider" aria-hidden="true">— STUDIO —</div>
+            <button type="button" class="pro-menu-item" data-pro="money" role="menuitem">
+              <span class="pro-menu-ico">💰</span>
+              <div><strong>Orë e fatura</strong><em>Regjistrim orari + faturë automatike (tarifa Dh.K.A.)</em></div>
+            </button>
+            <button type="button" class="pro-menu-item pro-menu-new" data-pro="financial" role="menuitem">
+              <span class="pro-menu-ico">📊</span>
+              <div><strong>Financial OS</strong><em>Profitability rasti · realization · WIP aging · cashflow</em></div>
             </button>
           </div>
         </div>
@@ -698,15 +650,27 @@
   <div class="pro-modal-card">
     <header class="pro-modal-head">
       <div>
-        <h3 id="stress-modal-title">⚔️ Stres-test i udienzës</h3>
-        <p class="pro-modal-sub">Avokati i kundërshtarit do të shkruajë kontra-argumentet, pyetjet e kryq-pyetjes dhe kundërshtimet procedurale ndaj rastit tënd.</p>
+        <h3 id="stress-modal-title">⚔️ Red Team — stres-test i tezës</h3>
+        <p class="pro-modal-sub">Sulmo tezën tënde para se gjyqtari ta bëjë. Raund i vetëm (i shpejtë) ose loop iterativ derisa strategjia konvergon.</p>
       </div>
       <button type="button" class="icon-btn" data-close aria-label="Mbyll">&times;</button>
     </header>
     <div class="pro-modal-body">
+      <div class="pro-segmented" role="tablist" aria-label="Modaliteti i Red Team">
+        <button type="button" class="pro-seg-btn pro-seg-active" data-stress-mode="single" role="tab" aria-selected="true">🎯 Raund i vetëm</button>
+        <button type="button" class="pro-seg-btn" data-stress-mode="loop" role="tab" aria-selected="false">🥊 Loop multi-raund</button>
+      </div>
       <label class="pro-field">
         <span>Përshkruaj rastin (fakte, argumenti yt, çfarë do të thuash në seancë)</span>
         <textarea id="stress-hypothesis" rows="7" placeholder="Klientja ime u pushua nga puna pa procedurë disiplinore. Ne do të argumentojmë që pushimi është i pavlefshëm sipas Nenit 144 të Kodit të Punës sepse..."></textarea>
+      </label>
+      <label class="pro-field" id="stress-rounds-field" hidden>
+        <span>Numri i raundeve (3 i shpejtë, 5 i thelluar)</span>
+        <select id="stress-rounds" class="pro-select">
+          <option value="3">3 raunde (~3 min)</option>
+          <option value="5" selected>5 raunde (~5 min)</option>
+          <option value="7">7 raunde (~7 min)</option>
+        </select>
       </label>
       <div class="pro-actions">
         <button type="button" id="stress-run" class="primary">Lësho stres-testin →</button>

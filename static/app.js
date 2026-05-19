@@ -2798,34 +2798,20 @@
   const stressModal = document.getElementById("stress-modal");
   const auditModal = document.getElementById("audit-modal");
   const draftModal = document.getElementById("draft-modal");
-  const cascadeModal = document.getElementById("cascade-modal");
-  const timelineModal = document.getElementById("timeline-modal");
-  const adversarialModal = document.getElementById("adversarial-modal");
-  const strategyModal = document.getElementById("strategy-modal");
-  const draftSubmitModal = document.getElementById("draft-submit-modal");
   const PRO_MODALS = {
-    stress: stressModal, audit: auditModal,
-    draft: draftModal, cascade: cascadeModal,
-    timeline: timelineModal, adversarial: adversarialModal,
-    strategy: strategyModal,
-    "submit-draft": draftSubmitModal,
+    stress: stressModal,
+    draft: draftModal,
     "intake": document.getElementById("intake-modal"),
     "clients": document.getElementById("clients-modal"),
     "jargon": document.getElementById("jargon-modal"),
     "contract": document.getElementById("contract-modal"),
     "money": document.getElementById("money-modal"),
-    "agent": document.getElementById("agent-modal"),
-    "rehearsal": document.getElementById("rehearsal-modal"),
-    "inbox": document.getElementById("inbox-modal"),
     "genio": document.getElementById("genio-modal"),
     "precedent": document.getElementById("precedent-modal"),
     "settlement": document.getElementById("settlement-modal"),
     "financial": document.getElementById("financial-modal"),
-    "workflow": document.getElementById("workflow-modal"),
-    "time-recon": document.getElementById("time-recon-modal"),
     "corporate": document.getElementById("corporate-modal"),
     "bench": document.getElementById("bench-modal"),
-    "vigilanza": document.getElementById("vigilanza-modal"),
     "coach": document.getElementById("coach-modal"),
   };
 
@@ -2835,24 +2821,15 @@
     m.hidden = false;
     document.body.style.overflow = "hidden";
     if (key === "draft") ensureDraftTypes();
-    if (key === "cascade") ensureCascadeTypes();
-    if (key === "timeline") loadTimelineForCase();
-    if (key === "submit-draft") prepareDraftSubmit();
     if (key === "clients") loadClientsForCase();
     if (key === "contract") loadContractHistory();
     if (key === "money") loadMoneyForCase();
-    if (key === "agent") loadAgentForCase();
-    if (key === "rehearsal") initRehearsal();
-    if (key === "inbox") loadInbox();
     if (key === "genio") initGenio();
     if (key === "precedent") initPrecedent();
     if (key === "settlement") initSettlement();
     if (key === "financial") initFinancial();
-    if (key === "workflow") initWorkflow();
-    if (key === "time-recon") initTimeRecon();
     if (key === "corporate") initCorporate();
     if (key === "bench") initBench();
-    if (key === "vigilanza") initVigilanza();
     if (key === "coach") initCoach();
   }
   function closeProModal(m) {
@@ -2879,11 +2856,6 @@
       const key = btn.getAttribute("data-pro");
       proMenu.hidden = true;
       proMenuBtn.setAttribute("aria-expanded", "false");
-      if (key === "in-hearing") {
-        if (!activeCaseId) { toast("Hap një rast së pari", "error"); return; }
-        window.location.href = `/case/${activeCaseId}/in-hearing`;
-        return;
-      }
       openProModal(key);
     });
   });
@@ -2901,11 +2873,29 @@
     });
   });
 
-  // ── ① STRESS-TEST ────────────────────────────────────────────────
+  // ── ① RED TEAM (stress-test single + adversarial loop) ───────────
   const stressInput = document.getElementById("stress-hypothesis");
   const stressRun = document.getElementById("stress-run");
   const stressStatus = document.getElementById("stress-status");
   const stressResult = document.getElementById("stress-result");
+  const stressRoundsField = document.getElementById("stress-rounds-field");
+  const stressRoundsSel = document.getElementById("stress-rounds");
+  let stressMode = "single";
+
+  document.querySelectorAll("[data-stress-mode]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      stressMode = btn.dataset.stressMode;
+      document.querySelectorAll("[data-stress-mode]").forEach((b) => {
+        const on = b === btn;
+        b.classList.toggle("pro-seg-active", on);
+        b.setAttribute("aria-selected", on ? "true" : "false");
+      });
+      if (stressRoundsField) stressRoundsField.hidden = stressMode !== "loop";
+      stressRun.textContent = stressMode === "loop"
+        ? "⚔️ Nis betejën multi-raund →"
+        : "Lësho stres-testin →";
+    });
+  });
 
   stressRun?.addEventListener("click", async () => {
     if (!activeCaseId) {
@@ -2914,30 +2904,50 @@
       return;
     }
     const text = (stressInput.value || "").trim();
-    if (text.length < 20) {
-      stressStatus.textContent = "Shkruaj të paktën 20 karaktere.";
+    const minLen = stressMode === "loop" ? 30 : 20;
+    if (text.length < minLen) {
+      stressStatus.textContent = `Shkruaj të paktën ${minLen} karaktere.`;
       stressStatus.className = "pro-status error";
       return;
     }
     stressRun.disabled = true;
-    stressStatus.textContent = "Po stres-teston… (~60s)";
-    stressStatus.className = "pro-status";
     stressResult.hidden = true;
+    stressStatus.className = "pro-status";
+
     try {
-      const resp = await fetch(`/api/cases/${activeCaseId}/stress-test`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ hypothesis: text }),
-      });
-      if (!resp.ok) {
-        const err = await resp.json().catch(() => ({}));
-        throw new Error(err.error || `HTTP ${resp.status}`);
+      if (stressMode === "loop") {
+        const rounds = parseInt(stressRoundsSel?.value || "5", 10);
+        stressStatus.textContent = `⚔️ Po fillon beteja — ${rounds} raunde (~${rounds} min)...`;
+        const r = await fetch(`/api/cases/${activeCaseId}/adversarial`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ hypothesis: text, max_rounds: rounds }),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+        renderAdversarialInto(stressResult, data.result);
+        stressResult.hidden = false;
+        const summary = data.result.summary || {};
+        stressStatus.textContent = `✓ ${data.result.round_count} raunde · verdikti: ${summary.verdict_likelihood || "?"}`;
+        stressStatus.className = "pro-status ok";
+        toast("Beteja përfundoi.", "success");
+      } else {
+        stressStatus.textContent = "Po stres-teston… (~60s)";
+        const resp = await fetch(`/api/cases/${activeCaseId}/stress-test`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ hypothesis: text }),
+        });
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({}));
+          throw new Error(err.error || `HTTP ${resp.status}`);
+        }
+        const data = await resp.json();
+        renderStressResult(data.result);
+        stressStatus.textContent = "Gati ✓";
+        stressStatus.className = "pro-status ok";
+        toast("Stres-testi u ruajt në rastin", "ok");
       }
-      const data = await resp.json();
-      renderStressResult(data.result);
-      stressStatus.textContent = "Gati ✓";
-      stressStatus.className = "pro-status ok";
-      toast("Stres-testi u ruajt në rastin", "ok");
     } catch (err) {
       stressStatus.textContent = "Gabim: " + err.message;
       stressStatus.className = "pro-status error";
@@ -3579,14 +3589,22 @@
         </details>`;
     }).join("");
 
-    adversarialResult.innerHTML = `
+    const html = `
       ${summaryHtml}
       <div class="pro-section">
         <h4>🥊 Raundet (${rounds.length})</h4>
         <div class="adv-rounds">${roundsHtml || "<p>Asnjë raund.</p>"}</div>
       </div>
     `;
-    adversarialResult.hidden = false;
+    const target = renderAdversarial._target || adversarialResult;
+    if (!target) return;
+    target.innerHTML = html;
+    target.hidden = false;
+    renderAdversarial._target = null;
+  }
+  function renderAdversarialInto(container, result) {
+    renderAdversarial._target = container;
+    renderAdversarial(result);
   }
 
   // ── ⑦ STRATEGY COMPASS ───────────────────────────────────────────
@@ -6676,9 +6694,10 @@
       }
     } catch (e) { /* silent */ }
   }
-  // poll badge every 2 minutes + once on load
-  refreshVigBadge();
-  setInterval(refreshVigBadge, 120000);
+  // Vigilanza UI suspended (no real Fletorja/gjykataelarte scraping yet).
+  // Endpoints and modal logic remain wired; topbar button is hidden and badge polling is off.
+  // Re-enable by removing `hidden` from #vigilanza-topbar-btn and restoring the interval below.
+  // refreshVigBadge(); setInterval(refreshVigBadge, 120000);
 
   async function loadVigAlerts() {
     if (!vigAlertsList) return;

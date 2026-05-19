@@ -7255,3 +7255,31 @@ main {
   .recon-block { grid-template-columns: auto 1fr; }
   .recon-block-time, .recon-block-meta { grid-column: 2; }
 }
+
+/* segmented control (Red Team single/loop) */
+.pro-segmented {
+  display: inline-flex;
+  gap: 0;
+  background: var(--gray-100, #f3f3ee);
+  border: 1px solid var(--gray-200, #e3e3da);
+  border-radius: 999px;
+  padding: 3px;
+  margin-bottom: 12px;
+}
+.pro-seg-btn {
+  border: 0;
+  background: transparent;
+  color: var(--gray-700, #555);
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.pro-seg-btn:hover { color: var(--gray-900, #222); }
+.pro-seg-btn.pro-seg-active {
+  background: var(--accent, #d4af37);
+  color: #1a1a17;
+  font-weight: 600;
+}
