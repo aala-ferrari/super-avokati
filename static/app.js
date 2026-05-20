@@ -1178,7 +1178,8 @@
       "kontestuese": "kontestuese",
     };
     const bearerLabel = {
-      "qytetari": "qytetari (ti)",
+      "klienti": "klienti yt",
+      "qytetari": "klienti yt", // legacy alias (pre-V9.9)
       "kundërshtari": "pala tjetër",
       "shteti": "shteti / akuzuesi",
       "ndarë": "barrë e ndarë",

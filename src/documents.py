@@ -363,8 +363,8 @@ def format_documents_for_prompt(
     parts: list[str] = [
         "",
         "── DOKUMENTET E DOSJES (referencë, jo pyetje) ──",
-        "Më poshtë është një përmbledhje e dokumenteve që avokati ose "
-        "qytetari ka bashkangjitur për këtë rast. Përdori vetëm si "
+        "Më poshtë është një përmbledhje e dokumenteve që janë "
+        "bashkangjitur në këtë rast. Përdori vetëm si "
         "kontekst — pyetja e vërtetë vjen PAS bllokut 'FUND I DOKUMENTEVE'.",
         "",
     ]

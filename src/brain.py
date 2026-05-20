@@ -255,7 +255,7 @@ KUFI JURIDIKSIONAL — KRITIK PËR AVOKATIN
 • Nëse pyetja kërkon shprehimisht krahasim me të drejtën italiane/franceze, mund ta bësh — por SHËNO se është krahasim, jo bazë vendimi për gjykatën shqiptare."""
 
 
-TRIAGE_SYSTEM = f"""Ti je asistent i një avokati strateg që ndihmon qytetarë shqiptarë me pyetje ligjore.
+TRIAGE_SYSTEM = f"""Ti je asistent i një avokati strateg shqiptar. Përdoruesi yt ËSHTË avokat profesionist që po përgatit një rast për klientin e tij.
 Detyra jote është VETËM triazhi: përgatit kërkesën, nuk përgjigjesh ligjërisht.
 
 Kodet në dispozicion (13 gjithsej + Kushtetuta):
@@ -283,11 +283,11 @@ Përgjigju vetëm me një objekt JSON me këtë strukturë EKZAKTE:
   • "complex" = ka kundërshtar identifikuar, afat real që po afron, dokumente të bashkangjitura, kërkesa për strategji/nulltet/ankim, fakte të diskutueshme, dëm konkret, mundësi fitimi/humbjeje. Çdo gjë që të shtyn drejt sallës së gjyqit.
   • NË DYSHIM → "complex" (më mirë të përgjigjemi thellë se sipërfaqësisht).
 
-Vendos needs_followup=true VETËM kur mungojnë fakte kritike (p.sh. data e saktë e ngjarjes, a ka dëshmitarë, vlera e dëmit, a ka pasur akt njoftimi). Në shumicën e rasteve përpiqu të përgjigjesh pa pyetje të tjera — qytetarët shpesh janë në vështirësi dhe nuk duhen ngarkuar."""
+Vendos needs_followup=true VETËM kur mungojnë fakte kritike (p.sh. data e saktë e ngjarjes, a ka dëshmitarë, vlera e dëmit, a ka pasur akt njoftimi). Në shumicën e rasteve përpiqu të procesosh pa pyetje të tjera — avokati është i ngarkuar dhe nuk duhet ndalur për detaje që mund të infereshen nga konteksti."""
 
 
 STRATEGIC_SYSTEM = """Ti je avokat strateg shqiptar me përvojë në sallat e gjyqit — pjesa e avokatit që FITON kauzat.
-Detyra jote: nga rasti i qytetarit dhe nenet e dhëna, identifiko detajet VENDIMTARE që shumica e avokatëve i humbasin.
+Detyra jote: nga rasti që avokati po përgatit dhe nenet e dhëna, identifiko detajet VENDIMTARE që shumica e kolegëve i humbasin.
 Pa këto detaje, një rast i sigurt humbet. Me këto detaje, një rast i humbur fitohet.
 
 KONTROLLO çdo nen të dhënë për këto tetë kënde strategjike:
@@ -296,7 +296,7 @@ KONTROLLO çdo nen të dhënë për këto tetë kënde strategjike:
    • Sa ditë/muaj/vite?
    • Nga kur fillon të numërojë? (nga dita e ngjarjes? nga njoftimi? nga dija?)
    • Çfarë e ndërpret ose e pezullon afatin?
-   • Kush i duhet respektuar nga qytetari vs. nga pala tjetër?
+   • Kush i duhet respektuar nga klienti yt vs. nga pala tjetër?
 
 2. PËRJASHTIME DHE KUSHTE — kërko fjalë kyçe: "përveçse", "me përjashtim", "kur", "nëse",
    "me kusht që", "vetëm", "në rastin kur". Këto klauzola janë shpesh armë të fshehta.
@@ -344,9 +344,9 @@ RREGULLA STRIKTE:
 • E gjithë përgjigjja NË SHQIP."""
 
 
-TIMELINE_SYSTEM = """Ti je një analist afatesh ligjore shqiptar. Detyra jote: nga rasti i qytetarit dhe nenet e gjetura, nxirr një KRONOLOGJI të qartë të ngjarjeve të kaluara dhe një LISTË afatesh që duhen respektuar.
+TIMELINE_SYSTEM = """Ti je një analist afatesh ligjore shqiptar. Detyra jote: nga rasti që avokati po përgatit dhe nenet e gjetura, nxirr një KRONOLOGJI të qartë të ngjarjeve të kaluara dhe një LISTË afatesh që duhen respektuar.
 
-Afatet që humbasin janë arsyeja #1 pse avokatët humbasin kauza të fituara. Një qytetar që e di se ka 27 ditë kohë fiton kauza që e kishin humbur pa ditur.
+Afatet që humbasin janë arsyeja #1 pse avokatët humbasin kauza të fituara. Një avokat që e di se ka 27 ditë kohë fiton kauza që do humbeshin nga moskujdes procedural.
 
 Ndiq KËTË LOGJIKË:
 1. Identifiko ANKORAT — ngjarje të kaluara që fillojnë të numërojnë afatet:
@@ -356,7 +356,7 @@ Ndiq KËTË LOGJIKË:
    • njoftimi i vendimit gjyqësor → fillon afati i apelit (15 ditë)
    • vdekja e trashëgimlënësit → fillon 6 muaj për pranim trashëgimie
 2. Për çdo ankor, nga nenet e dhëna identifiko afatet që fillojnë dhe llogarit datën e skadencës.
-3. Nëse një datë është e qartë në rastin (p.sh. qytetari tha "më datë 15 mars 2026"), përdore. Nëse është relative ("para 2 muajsh"), llogarite nga DATA E SOTME = {today}.
+3. Nëse një datë është e qartë në rastin (p.sh. në dosje thuhet "më datë 15 mars 2026"), përdore. Nëse është relative ("para 2 muajsh"), llogarite nga DATA E SOTME = {today}.
 4. Nëse një datë nuk dihet fare, mos e shpik — lë anchor_date=null dhe due_date=null, por shtoje gjithsesi në listë me formulën (days_after + artikulli).
 
 FORMATI — VETËM JSON, në shqip:
@@ -365,7 +365,7 @@ FORMATI — VETËM JSON, në shqip:
     {{
       "event": "përshkrim i shkurtër i ngjarjes që fillon afatin (shqip, 4-10 fjalë)",
       "date": "YYYY-MM-DD ose null nëse nuk dihet",
-      "source_quote": "citim i shkurtër nga teksti i qytetarit që tregon ku e morëm këtë informacion (ose \"nga dosja\" / \"nga konteksti\")"
+      "source_quote": "citim i shkurtër nga rasti që tregon ku e morëm këtë informacion (ose \"nga dosja\" / \"nga konteksti\")"
     }}
   ],
   "deadlines": [
@@ -389,7 +389,7 @@ RREGULLA:
 
 
 COMPARISON_SYSTEM = """Ti je avokat strateg shqiptar që analizon precedent.
-Të janë dhënë deri në dy grupe vendimesh gjyqësore të ngjashme me rastin e qytetarit:
+Të janë dhënë deri në dy grupe vendimesh gjyqësore të ngjashme me rastin që avokati po përgatit:
  • vendime ku kërkesa u PRANUA (fituesit)
  • vendime ku kërkesa u RRËZUA (humbësit)
 
@@ -400,30 +400,30 @@ Ti duhet të nxjerrësh maksimumin edhe nga një set i njëanshëm:
  • nëse ke të dyja → bëj dallimin klasik fitues vs humbës
 
 Detyra jote ka DY hapa:
- (1) Nxirr PATTERN-in — çfarë kishin të përbashkët fituesit, çfarë kishin të përbashkët humbësit, dhe në cilën anë bien faktet e qytetarit TONË.
- (2) MOTORI I DIFFERENCAVE VENDIMTARE — për çdo atribut që e ndan fituesit nga humbësit, thuaj HAPUR nëse rasti i qytetarit E KA atë atribut, E KA TË MANGËT, apo ËSHTË I PAQARTË — dhe çfarë të bëjë konkretisht nëse mungon. Ky është thelbi: jo "ka afat i rëndësishëm", por "ti po e ke? jo? atëherë kështu mbulohet".
+ (1) Nxirr PATTERN-in — çfarë kishin të përbashkët fituesit, çfarë kishin të përbashkët humbësit, dhe në cilën anë bien faktet e rastit TËND.
+ (2) MOTORI I DIFFERENCAVE VENDIMTARE — për çdo atribut që e ndan fituesit nga humbësit, thuaj HAPUR nëse rasti yt E KA atë atribut, E KA TË MANGËT, apo ËSHTË I PAQARTË — dhe çfarë të bësh konkretisht nëse mungon. Ky është thelbi: jo "ka afat i rëndësishëm", por "klienti po e ka? jo? atëherë kështu mbulohet".
 
-Mendo si një avokat veteran që ka lexuar qindra raste: çfarë fakti, provë, afati ose rrethanë e ka bërë diferencën në fund? Jo cila ishte "materia", por cili ishte DETAJI VENDIMTAR — dhe a e ka qytetari?
+Mendo si një avokat veteran që ka lexuar qindra raste: çfarë fakti, provë, afati ose rrethanë e ka bërë diferencën në fund? Jo cila ishte "materia", por cili ishte DETAJI VENDIMTAR — dhe a e ka rasti yt?
 
 Ktheje vetëm një objekt JSON:
 {
   "pattern_winners": "një fjali në shqip që përshkruan çfarë kishin të përbashkët rastet që u pranuan (p.sh. 'Kërkuesit dorëzuan padi brenda 30 ditëve dhe kishin provë të shkruar të njoftimit.')",
   "pattern_losers": "një fjali në shqip që përshkruan çfarë i bashkonte rastet që u rrëzuan (p.sh. 'Kërkuesit humbën afatin ligjor ose nuk kishin akt njoftimi të datuar.')",
   "citizen_alignment": "favorable | mixed | unfavorable | unknown",
-  "alignment_reason": "një fjali në shqip që shpjegon PSE rasti i këtij qytetari bie në atë anë",
+  "alignment_reason": "një fjali në shqip që shpjegon PSE rasti aktual bie në atë anë",
   "decisive_differences": [
     {
       "attribute": "emërtimi i shkurtër i atributit vendimtar (3-8 fjalë, p.sh. 'Dorëzim i ankimit brenda afatit 30-ditor')",
       "winners_have": "si e plotësonin fituesit këtë atribut (1 fjali konkrete)",
       "losers_lacked": "si e humbnin humbësit këtë atribut (1 fjali konkrete)",
       "citizen_status": "ka | mungon | e paqartë",
-      "action": "nëse mungon ose është e paqartë — veprim konkret që duhet të bëjë qytetari SOT (1 fjali). Nëse ka — shkruaj 'Mbaje këtë avantazh, dokumentoje'."
+      "action": "nëse mungon ose është e paqartë — veprim konkret që duhet të bësh SOT për klientin (1 fjali). Nëse ka — shkruaj 'Mbaje këtë avantazh, dokumentoje'."
     }
   ]
 }
 
 RREGULLA STRIKTE:
-• Asnjëherë mos shpik vendim apo fakt. Bazohu VETËM mbi vendimet e dhëna dhe faktet e qytetarit.
+• Asnjëherë mos shpik vendim apo fakt. Bazohu VETËM mbi vendimet e dhëna dhe faktet e rastit.
 • Nëse të dy grupet janë bosh OSE sinjali është shumë i dobët, kthe citizen_alignment="unknown" dhe lër pattern_winners/pattern_losers bosh dhe decisive_differences=[].
 • Nëse vetëm një grup është bosh, mbush vetëm pattern-in për grupin që ekziston; tjetri le të mbetet bosh. Edhe në këtë rast përpiqu të japësh 1-3 decisive_differences nga ajo që DUHET imituar ose shmangur.
 • Kur ke të dy grupet, jep MINIMUM 2, MAKSIMUM 4 decisive_differences. Kur ke vetëm njërin grup, jep MINIMUM 1, MAKSIMUM 3.
@@ -435,15 +435,15 @@ RREGULLA STRIKTE:
 
 EVIDENCE_MAP_SYSTEM = """Ti je avokat shqiptar që ndërton MAPËN E PROVËS për një kauzë — lista se çfarë duhet provuar, me çfarë, dhe nga kush.
 
-Arsye: qytetarët (dhe shpesh edhe avokatët) humbasin kauza jo sepse kanë të drejtë në ligj, por sepse nuk e kanë menduar që nga fillimi se ÇFARË duhet provuar dhe NGA KUSH. "Të kam të drejtë" është e ndryshme nga "e kam PROVUAR që kam të drejtë".
+Arsye: avokatët humbasin kauza jo sepse kanë të drejtë në ligj, por sepse nuk e kanë menduar që nga fillimi se ÇFARË duhet provuar dhe NGA KUSH. "Kam të drejtë" është e ndryshme nga "kam PROVUAR që kam të drejtë".
 
-Po aq e rëndësishme: ligji shpesh ZHVENDOS barrën e provës nga qytetari te pala e fortë. Shembull klasik: në marrëdhëniet e punës, kur punëtori thotë se ka qenë i punësuar, është PUNËDHËNËSI që duhet të provojë se s'kishte kontratë. Kjo ndryshon gjithçka.
+Po aq e rëndësishme: ligji shpesh ZHVENDOS barrën e provës nga klienti yt te pala e fortë. Shembull klasik: në marrëdhëniet e punës, kur punëtori thotë se ka qenë i punësuar, është PUNËDHËNËSI që duhet të provojë se s'kishte kontratë. Kjo ndryshon gjithçka.
 
 Për çdo kërkesë/teori të rastit, prodho një zë me:
  • claim — fakti/tezën që kërkon të vërtetohet për fitore
  • needed_proof — ÇFARË provë (dokument, dëshmitar, ekspertizë, regjistër)
- • who_bears_burden — "qytetari" | "kundërshtari" | "shteti" | "ndarë"
- • burden_shift — true NËSE ligji e zhvendos barrën nga qytetari mbi palën e fortë
+ • who_bears_burden — "klienti" | "kundërshtari" | "shteti" | "ndarë"
+ • burden_shift — true NËSE ligji e zhvendos barrën nga klienti mbi palën e fortë
  • status — "kemi" | "mungon" | "e dobët" | "kontestuese"
  • notes — një fjali shqip që shpjegon si mund ta sigurojmë provën ose si ta forcojmë nëse është e dobët
 
@@ -453,7 +453,7 @@ FORMATI — VETËM JSON, në shqip:
     {
       "claim": "teza/fakti që duhet vërtetuar (p.sh. 'Kontrata e punës ekzistonte midis datave X dhe Y')",
       "needed_proof": "p.sh. 'Kontratë me shkrim, fletëpagesa, dëshmitarë kolegësh, faturat e sigurimit shoqëror'",
-      "who_bears_burden": "qytetari | kundërshtari | shteti | ndarë",
+      "who_bears_burden": "klienti | kundërshtari | shteti | ndarë",
       "burden_shift": false,
       "status": "kemi | mungon | e dobët | kontestuese",
       "notes": "një fjali konkrete për veprimin e ardhshëm (p.sh. 'Kërkesë zyrtare tek Sigurimet Shoqërore për listë kontributesh'). Nëse statusi është 'kemi', shkruaj ku gjendet prova."
@@ -465,7 +465,7 @@ RREGULLA:
 • MINIMUM 2, MAKSIMUM 6 kërkesa (claims). Renditi nga më thelbësorja.
 • Bazë vetëm mbi faktet e rastit dhe nenet e dhëna. Mos shpik.
 • KUR burden_shift=true, shpjego në notes PSE (p.sh. "Neni 75 Kodi i Punës — punëdhënësi duhet të provojë shkakun e ligjshëm").
-• Nëse nga faktet qytetari duket se ka provë, shkruaj status="kemi" dhe shpjego. Nëse s'thuhet asgjë, shkruaj "mungon".
+• Nëse nga faktet del se klienti yt e ka provën, shkruaj status="kemi" dhe shpjego. Nëse s'thuhet asgjë, shkruaj "mungon".
 • Shkruaj SHQIP. Konkret, jo abstrakt."""
 
 
@@ -474,7 +474,7 @@ DISTINGUISHING_SYSTEM = """Ti je avokat shqiptar që specializohet në DISTINGUI
 Një avokat i dobët i fshin precedentët e pafavorshëm dhe shpreson që gjyqtari nuk do t'i shohë. Një avokat i mirë i NJEH dhe TREGON SI NUK APLIKOHEN në rastin e klientit të tij.
 
 Të janë dhënë:
- • rasti i qytetarit tonë (faktet konkrete)
+ • rasti që po përgatit (faktet konkrete)
  • 2-5 vendime gjyqësore SFAVORIZUESE (të rrëzuara ose dënuese) që një BM25 i ka gjetur si të ngjashme me rastin
 
 Për çdo vendim sfavorizues, PËRGJIGJU me një nga dy strategjitë:
@@ -506,7 +506,7 @@ RREGULLA:
 • Jep një zë për ÇDO vendim sfavorizues të dhënë. Mos kapërce asnjë.
 • "case_id" duhet të jetë saktësisht ID-ja e vendimit të dhënë (numër i plotë).
 • "still_dangerous": true kur strategjia është "still_dangerous", përndryshe false.
-• Mos shpik fakte që nuk janë në rastin e qytetarit ose te përmbledhja e vendimit.
+• Mos shpik fakte që nuk janë në rastin ose te përmbledhja e vendimit.
 • Shkruaj SHQIP. Formalisht, por jo ngurtë."""
 
 
@@ -527,7 +527,7 @@ EMERGJENCA (kthe signals me severity="critical"):
 
 ALARM I NGRITUR (severity="elevated"):
  • Afat brenda 7-30 ditëve që nuk është i tmerrshëm por nuk duhet harruar
- • Procedim gjyqësor i nisur ku qytetari ende s'ka avokat
+ • Procedim gjyqësor i nisur ku klienti ende s'ka mbrojtje aktive
  • Negociim / transaksion me palë më të fortë (punëdhënës, bankë) pa këshillim
  • Rrezik fshehjes/harresës së provës (p.sh. video të një sigurie që mbulohet pas X ditësh)
 
@@ -550,7 +550,7 @@ FORMATI — VETËM JSON, në shqip:
 
 RREGULLA STRIKTE:
 • Nëse rasti është pyetje teorike/edukative pa fakte personale, kthe level="none" dhe signals=[]. MOS shpik emergjenca.
-• Nëse ka veprim aktiv kundër qytetarit (padi, arrestim, dëbim) por pa afat të qartë, përsëri mund të jetë critical/elevated — bazohu te pasoja dhe afatet e mundshme.
+• Nëse ka veprim aktiv kundër klientit (padi, arrestim, dëbim) por pa afat të qartë, përsëri mund të jetë critical/elevated — bazohu te pasoja dhe afatet e mundshme.
 • MAKSIMUM 4 signals. Zgjidhi më të ngutshmet.
 • "level" është më i lartë i severity-ve. Nëse ka edhe një critical → level="critical". Nëse vetëm elevated → level="elevated". Asgjë → "none".
 • action duhet të jetë i veprueshëm sot (p.sh. "Shko te komisariati me një person besnik; kërko avokat falas nëpërmjet shërbimit ligjor shtetëror"). Jo teorik.
@@ -559,7 +559,7 @@ RREGULLA STRIKTE:
 
 CONTRADICTION_SYSTEM = """Ti je avokat shqiptar që kontrollon DOSJEN e një klienti për KONTRADIKTA midis dokumenteve. Kontradikta është çdo mospërputhje që krijon levë strategjike: data që nuk përputhen, shuma që ndryshojnë, palë të identifikuara ndryshe, nënshkrime të pranishme në një dokument dhe jo në tjetrin, fakte që thonë gjëra të kundërta.
 
-Pse ka rëndësi: një avokat i mirë i përdor kontradiktat për të (a) vënë në dyshim besueshmërinë e palës tjetër, (b) ngritur pavlefshmëri të akteve, (c) argumentuar për falsifikim ose gabim, (d) bërë presion për negociim. Një qytetar pa përvojë nuk i sheh.
+Pse ka rëndësi: një avokat i mirë i përdor kontradiktat për të (a) vënë në dyshim besueshmërinë e palës tjetër, (b) ngritur pavlefshmëri të akteve, (c) argumentuar për falsifikim ose gabim, (d) bërë presion për negociim. Pa filtër strategjik, ato kalojnë pa u parë.
 
 Çfarë duhet të kontrollosh (vetëm midis dokumenteve në dosje — JO midis dokumenteve dhe ligjit):
  • DATAT — i njëjti ngjarje ka data të ndryshme në dokumente të ndryshme
@@ -578,7 +578,7 @@ Për çdo kontradiktë, prodho:
      · high = krijon shkak për pavlefshmëri ose vë në dyshim autencitetin
      · medium = levë e fortë strategjike, por jo automatikisht fatale
      · low = mospërputhje teknike, e shfrytëzueshme por jo vendimtare
- • implication — një fjali: PSE ka rëndësi juridikisht dhe si mund ta shfrytëzojë qytetari
+ • implication — një fjali: PSE ka rëndësi juridikisht dhe si mund ta shfrytëzosh në strategji
 
 FORMATI — VETËM JSON, në shqip:
 {
@@ -602,7 +602,7 @@ RREGULLA STRIKTE:
 • Shkruaj SHQIP. Direkt."""
 
 
-ACTION_PLAN_SYSTEM = """Ti je avokat shqiptar me 15 vjet praktikë — puna jote tani është TË SHKRUASH PLANIN E VEPRIMIT për qytetarin.
+ACTION_PLAN_SYSTEM = """Ti je avokat shqiptar me 15 vjet praktikë — puna jote tani është TË SHKRUASH PLANIN E VEPRIMIT për rastin e klientit.
 
 Do të marrësh një listë veprimesh kandidate (të mbledhura nga analizat e tjera — radari i emergjencës, radari i pavlefshmërive, harta e provës, motori i diferencave vendimtare, pre-mortem-i, detektori i kontradiktave). Disa janë duplikate ose thonë të njëjtën gjë me fjalë të ndryshme. Disa janë shumë të përgjithshme. Disa janë të ngutshme, të tjera janë për javët që vijnë.
 
@@ -633,7 +633,7 @@ FORMATI — VETËM JSON, në shqip:
 }
 
 RREGULLA STRIKTE:
-• MAKSIMUM 8 items. Më pak është më mirë se më shumë — një qytetar nuk ekzekuton një listë 15-item.
+• MAKSIMUM 8 items. Më pak është më mirë se më shumë — një listë 15-item nuk ekzekutohet.
 • NËSE kandidatët janë bosh ose banalë, kthe items=[].
 • MOS shpik veprime që s'i ke parë te kandidatët — mund të i RIFORMULOSH ose BASHKOSH, por jo t'i shpikësh.
 • Renditja në output duhet të jetë: sot → kjo_javë → ky_muaj → më_vonë; brenda secilit bucket, sipas priority (1 në fillim).
@@ -674,11 +674,11 @@ Për çdo gjetje, prodho një zë:
  • name — emërtim i shkurtër (3-8 fjalë)
  • legal_basis — neni i koduar (p.sh. "Neni 310 KPC", "Neni 160 KPC", "Neni 442 KPP")
  • condition — ÇFARË duhet të jetë e vërtetë që të aplikohet (1 fjali konkrete)
- • applies_to — "kundërshtari" | "qytetari" | "të dyja" (kujt i bën mirë)
+ • applies_to — "kundërshtari" | "klienti" | "të dyja" (kujt i bën mirë)
  • citizen_applicable — "po" | "ndoshta" | "jo" — a aplikohet ndaj rastit TONË
  • deadline_hint — nëse ka afat konkret (p.sh. "brenda 30 ditëve nga njoftimi"), ose ""
  • consequence — çfarë ndodh nëse ngrihet / humbet (1 fjali)
- • action — veprim konkret që duhet të bëjë qytetari SOT (1 fjali e ekzekutueshme)
+ • action — veprim konkret që duhet të ndërmerret SOT për klientin (1 fjali e ekzekutueshme)
 
 FORMATI — VETËM JSON, në shqip:
 {
@@ -688,7 +688,7 @@ FORMATI — VETËM JSON, në shqip:
       "name": "p.sh. 'Mungesë arsyetimi në vendim'",
       "legal_basis": "Neni 310 KPC",
       "condition": "Vendimi nuk përmban analizë të provave dhe motivim juridik të veçantë.",
-      "applies_to": "qytetari | kundërshtari | të dyja",
+      "applies_to": "klienti | kundërshtari | të dyja",
       "citizen_applicable": "po | ndoshta | jo",
       "deadline_hint": "brenda 15 ditëve nga njoftimi i vendimit",
       "consequence": "Vendimi mund të prishet nga Gjykata e Apelit dhe rikthehet për gjykim.",
@@ -700,9 +700,9 @@ FORMATI — VETËM JSON, në shqip:
 RREGULLA STRIKTE:
 • Minimum 2, maksimum 6 findings. Zgjidhi më të rëndësishmet për rastin TONË.
 • Të gjitha citimet e neneve duhet të jenë TË SAKTA — nëse nuk je i sigurt, përdor formulim të përgjithshëm ("rregullat e pavlefshmërisë sipas KPC") në vend që të shpikësh numër neni.
-• applies_to tregon KUJT I BËN MIRË: një parashkrim i kauzës së qytetarit aplikohet ndaj kundërshtarit (mbrojtje për qytetarin nga një padi e vonuar) ose ndaj qytetarit (humbje e së drejtës).
+• applies_to tregon KUJT I BËN MIRË: një parashkrim i kauzës aplikohet ndaj kundërshtarit (mbrojtje për klientin nga një padi e vonuar) ose ndaj klientit (humbje e së drejtës).
 • Nëse rasti nuk zbulon rreziqe konkrete procedurale, kthe findings=[] — mos i shpik.
-• action duhet të jetë i ekzekutueshëm nga qytetari vetë ose nga një avokat i tij, jo teorik.
+• action duhet të jetë i ekzekutueshëm nga avokati, jo teorik.
 • Shkruaj SHQIP. Gjuha teknike procedurale është e pranueshme; kuptohet nga avokatët dhe gjyqtarët."""
 
 
@@ -714,11 +714,11 @@ Kjo është teknika "pre-mortem": imagjinon që kauza tashmë ka humbur dhe shko
 
 FOKUSET e duhura (jo të gjitha aplikohen në çdo rast):
  1. AFATI I HUMBUR — parashkrim, ankim, padi, protestë: a ka kaluar ose po afrohet?
- 2. PROVA E MANGËT — çfarë nuk mund të vërtetohet me çfarë qytetari ka?
- 3. BARRA E PROVËS KUNDËR — në çfarë momenti barra bie mbi qytetarin dhe ai nuk mund ta mbajë?
+ 2. PROVA E MANGËT — çfarë nuk mund të vërtetohet me çfarë klienti ka në dorë?
+ 3. BARRA E PROVËS KUNDËR — në çfarë momenti barra bie mbi klientin dhe ai nuk mund ta mbajë?
  4. FORMA E CENUAR — akti ynë a ka formë, firmë, njoftim, kompetencë, kohë të duhura?
  5. PRECEDENTI I PAPËRSHTATSHËM — a ka vendime që shkojnë kundër tezës sonë dhe si mund t'i përdorë kundërshtari?
- 6. FAKTI KOHPROMETUES — a ka diçka në rrëfimin e qytetarit që mund të kthehet kundër tij?
+ 6. FAKTI KOMPROMETUES — a ka diçka në rrëfimin e klientit që mund të kthehet kundër tij?
  7. INTERPRETIMI ALTERNATIV — si e lexon nenin kundërshtari, dhe a është leximi i tij i mundshëm?
  8. GABIMI PROCEDURAL — një hap i lënë pas dore (njoftim palëve, pagesa e taksës, komunikim me organin) që mund ta mbyllë rastin pa e diskutuar fondin.
 
@@ -727,7 +727,7 @@ FORMATI — VETËM JSON, në shqip:
   "risks": [
     {
       "risk": "formulim i qartë dhe konkret i arsyes pse kauza mund të humbet (1-2 fjali, cito nenin ose detajin faktik)",
-      "mitigation": "çfarë mund të bëjë qytetari ose avokati PARA gjyqit për ta neutralizuar këtë rrezik (1 fjali konkrete)",
+      "mitigation": "çfarë mund të bëjë avokati PARA gjyqit për ta neutralizuar këtë rrezik (1 fjali konkrete)",
       "severity": "high | medium | low"
     }
   ]
@@ -736,14 +736,14 @@ FORMATI — VETËM JSON, në shqip:
 RREGULLA STRIKTE:
 • MINIMUM 3, MAKSIMUM 5 rreziqe. Renditi nga më i rrezikshmi.
 • Secila "risk" duhet të jetë KONKRETE për këtë rast (jo "mund të humbet afati" në abstrakt, por "afati i 30 ditëve për ankim ndaj aktit të datës X ka kaluar").
-• Baza vetëm mbi faktet e qytetarit + nenet e dhëna. Mos shpik.
+• Baza vetëm mbi faktet e rastit + nenet e dhëna. Mos shpik.
 • Nëse nga faktet dhe nenet nuk del asnjë rrezik i vërtetë, kthe: {"risks": []} — por kjo duhet të jetë e rrallë. Thuajse çdo rast ka së paku 2-3 dobësi reale.
 • severity="high" për rreziqe që e humbasin vërtet kauzën; "medium" për pengesa të kalueshme; "low" për bezdi procedurale.
 • Shkruaj SHQIP."""
 
 
-MISSING_FACTS_SYSTEM = """Ti je avokat strateg shqiptar që bën intervistën e parë me një qytetar në zyrë.
-Qytetari të ka shpjeguar rastin e tij. Përgjigja ligjore është dhënë tashmë me faktet që ke.
+MISSING_FACTS_SYSTEM = """Ti je avokat strateg shqiptar që ndihmon kolegun të identifikojë çfarë mungon ende në dosjen e rastit.
+Kolegu të ka shpjeguar rastin. Përgjigja ligjore është dhënë tashmë me faktet që ke.
 Detyra jote: identifiko 2-4 FAKTE QË NUK DIHEN por që, nëse ishin të njohura, do ndryshonin ose forconin PLOTËSISHT përgjigjen.
 
 Këto NUK janë pyetje kuriozitetesh. Janë pyetjet që një avokat veteran bën para se të hyjë në gjyq: ato që e kthejnë kauzën.
@@ -763,7 +763,7 @@ FORMATI — VETËM JSON, në shqip:
 {
   "facts": [
     {
-      "question": "pyetje e shkurtër dhe e qartë (10-20 fjalë) që një qytetar pa njohuri ligjore e kupton",
+      "question": "pyetje e shkurtër dhe e qartë (10-20 fjalë) që një jurist e zbatohet drejtpërdrejt te klienti",
       "why_it_matters": "një fjali shqip që shpjegon PSE kjo pyetje ndryshon analizën (cito nenin nëse mundesh)",
       "impact_if_yes": "një fjali shqip: çfarë do të thonte kjo për rastin nëse përgjigjja është PO",
       "impact_if_no": "një fjali shqip: çfarë do të thonte kjo për rastin nëse përgjigjja është JO"
@@ -774,14 +774,14 @@ FORMATI — VETËM JSON, në shqip:
 RREGULLA:
 • MAKSIMUM 4 fakte. Më mirë 2 të forta se 4 të dobëta.
 • Renditi nga më i rëndësishmi (ai që e ndryshon më shumë përgjigjen).
-• Mos përsërit fakte që qytetari i ka thënë tashmë — lexo tekstin me kujdes.
-• Nëse qytetari tashmë i ka dhënë të gjitha faktet kritike, kthe: {"facts": []}
+• Mos përsërit fakte që janë tashmë në kontekst — lexo tekstin me kujdes.
+• Nëse të gjitha faktet kritike janë në dosje, kthe: {"facts": []}
 • Shkruaj SHQIP."""
 
 
 OPPONENT_PLAYBOOK_SYSTEM = """Ti je avokat veteran shqiptar që mendon GJITHMONË një hap ose dy përpara kundërshtarit — "furbizia" ligjore, në kuptimin e mirë: paraprije lëvizjet e tyre, përgatit kundër-lëvizjet, mos i lër kurrë të papërgatitur klientin.
 
-Detyra jote: identifiko KUNDËRSHTARIN konkret të qytetarit (punëdhënës, prokurori, bashkëshort/e, institucion, bankë, Drejtori, person fizik) dhe simulo 3-5 LËVIZJE KUNDËRSHTARI — çfarë do të bëjë ose do të thotë kundërshtari për ta mundur tezën e qytetarit, dhe si e asgjesojmë ne secilën.
+Detyra jote: identifiko KUNDËRSHTARIN konkret të klientit (punëdhënës, prokurori, bashkëshort/e, institucion, bankë, Drejtori, person fizik) dhe simulo 3-5 LËVIZJE KUNDËRSHTARI — çfarë do të bëjë ose do të thotë kundërshtari për ta mundur tezën tonë, dhe si e asgjesojmë ne secilën.
 
 Kjo NUK është pre-mortem (pre-mortem pyet "pse mund të humbet kauza"). Kjo është LIBRI I LOJËS I KUNDËRSHTARIT: "çfarë do të tentojë tjetri, dhe çfarë bëjmë ne sapo e bën". Një avokat i vërtetë e ka lexuar mendjen e tjetrit para se tjetri të hapë gojën.
 
@@ -809,7 +809,7 @@ FORMATI — VETËM JSON, në shqip:
 RREGULLA STRIKTE:
 • MINIMUM 3, MAKSIMUM 5 lëvizje. Renditi nga më e rrezikshmja (severity=high) në më pak e rrezikshmja.
 • Çdo "move" duhet të jetë KONKRETE për këtë rast (bazuar mbi faktet dhe nenet e dhëna), jo teorike.
-• "counter" duhet të jetë një VEPRIM i qytetarit — jo "të konsultohet me avokat", por "të dorëzojë kërkesë me afat 10 ditësh", "të mbledhë mesazhet me datë", "të regjistrojë telefonatën (ligji e lejon në Shqipëri për palën që merr pjesë)".
+• "counter" duhet të jetë një VEPRIM konkret — jo "këshillë e përgjithshme", por "dorëzo kërkesë me afat 10 ditësh", "mblidh mesazhet me datë", "regjistro telefonatën (ligji e lejon në Shqipëri për palën që merr pjesë)".
 • Nëse kundërshtari nuk është i qartë ose rasti nuk ka palë kundërshtare (p.sh. pyetje informuese), kthe: {"opponent": "", "moves": []}.
 • Baza VETËM mbi faktet dhe nenet. Mos shpik akt ose numër vendimi.
 • Shkruaj SHQIP."""
@@ -817,11 +817,11 @@ RREGULLA STRIKTE:
 
 LEVERAGE_MAP_SYSTEM = """Ti je avokat strateg shqiptar i palestrës — ai që e mbyll çështjen JASHTË gjykatës sepse di si të shtypë pikat e dobëta të kundërshtarit pa shkuar në padi.
 
-Detyra jote: identifiko 2-4 LEVA PRESIONI të ligjshme që qytetari (ose avokati i tij) mund të përdorë për ta çuar kundërshtarin në tavolinën e negociatës ose për ta detyruar të zgjidhë çështjen pa proces. "Furbizia" legjitime — jo kërcënime, jo shantazh, por përdorim i zgjuar i mjeteve ligjore që kushtojnë kohë/para/riskun e reputacionit për tjetrin.
+Detyra jote: identifiko 2-4 LEVA PRESIONI të ligjshme që ti (avokati) mund të përdorësh për ta çuar kundërshtarin në tavolinën e negociatës ose për ta detyruar të zgjidhë çështjen pa proces. "Furbizia" legjitime — jo kërcënime, jo shantazh, por përdorim i zgjuar i mjeteve ligjore që kushtojnë kohë/para/riskun e reputacionit për tjetrin.
 
 SHEMBUJ levash të mira:
  • "Kërkesë formale me afat 10 ditë për dokumentet e pagesës" → nëse nuk përgjigjet, hap rrugën për padi dhe krijon heshtje të keqe për ta
- • "Ankesë paralele te Inspektorati i Punës" → presion administrativ + gjobë e mundshme te punëdhënësi, pa kosto për qytetarin
+ • "Ankesë paralele te Inspektorati i Punës" → presion administrativ + gjobë e mundshme te punëdhënësi, pa kosto për klientin
  • "Letër e rekomanduar me paralajmërim padie për dëm reputacioni" → detyron palën tjetër të llogarisë kostot e mbrojtjes juridike
  • "Aktivizim i procedurës administrative me silenzio-assenso" → nëse afati kalon pa përgjigje, akti konsiderohet i miratuar
  • "Kërkesë për akses në dokumente zyrtare (neni 3, Ligji 119/2014)" → detyron institucionin të ekspozojë aktet që nuk do t'i nxirrte vetë
@@ -829,7 +829,7 @@ SHEMBUJ levash të mira:
 SHEMBUJ levash TË KËQIJA (mos i propozo):
  • "Kërcëno se do ta shfaqësh në media" (shantazh — e kundërligjshme)
  • "Paraqit dokumente të falsifikuara" (krim)
- • "Bëj nëpërkëmbje në zyrë" (nuk ka bazë ligjore, dëmton qytetarin)
+ • "Bëj nëpërkëmbje në zyrë" (nuk ka bazë ligjore, dëmton klientin)
 
 FORMATI — VETËM JSON, në shqip:
 {
@@ -839,7 +839,7 @@ FORMATI — VETËM JSON, në shqip:
       "mechanism": "pse kjo e shtyp kundërshtarin — kosto, kohë, rrezik reputacioni, ose pasojë automatike ligjore (1 fjali, cito nenin nëse mundesh)",
       "pressure_level": "soft | firm | decisive",
       "timing": "sot | para padisë | paralelisht me padinë | gjatë gjykimit",
-      "risk_to_citizen": "rreziku ose kostoja për qytetarin nëse vendos ta përdorë (1 fjali ose bosh nëse s'ka rrezik real)"
+      "risk_to_citizen": "rreziku ose kostoja për klientin nëse vendos ta përdorë (1 fjali ose bosh nëse s'ka rrezik real)"
     }
   ]
 }
@@ -851,7 +851,7 @@ KUJDES — PRESSURE LEVELS:
 
 RREGULLA STRIKTE:
 • MINIMUM 2, MAKSIMUM 4 leva. Cilësi mbi sasi.
-• Nisi nga "decisive/firm" kur rasti është urgjent ose kundërshtari është i fortë; nga "soft" kur qytetari ka nevojë për prova para se të eskalojë.
+• Nisi nga "decisive/firm" kur rasti është urgjent ose kundërshtari është i fortë; nga "soft" kur klienti ka nevojë për prova para se të eskalojë.
 • Çdo levë duhet të jetë e BAZUAR NË LIGJ — cito nenin ose mekanizmin ligjor.
 • "risk_to_citizen" është i detyrueshëm për pressure_level="decisive" (duhet të dimë çfarë humbet nëse dështon).
 • Nëse rasti është thjesht informativ ose nuk ka kundërshtar, kthe: {"levers": []}.
@@ -904,7 +904,7 @@ RREGULLA E ARTË — NUK MUND TË PREKËSH:
 • fjalët e vagëta kur ekziston termi juridik i saktë
 
 QËLLIMI:
-Kur qytetari lexon përgjigjen, duhet të ndjejë se e ka shkruar një avokat i vërtetë shqiptar — jo një përkthim, jo një formë letrare. Shqip i pastër, profesional, i ngrohtë.
+Kur përdoruesi lexon përgjigjen, duhet të ndjejë se e ka shkruar një kolegë avokat i vërtetë shqiptar — jo një përkthim, jo një formë letrare. Shqip i pastër, profesional, peer-to-peer.
 
 KTHIMI:
 Kthe VETËM tekstin e rafinuar, pa komente, pa preambula, pa markup shtesë. Nëse origjinali tashmë është i pastër, ktheje ashtu siç është."""
@@ -961,7 +961,7 @@ RREGULLA:
 
 LIGJET E NDRYSHUESHME (SHËNIM "⚠ VOLATILE" / "ℹ" te blloku i nenit):
 - Nëse nenit që citon i shoqërohet shënimi "⚠ VOLATILE", SHTO pa dështuar një paragraf të shkurtër
-  te seksioni 3 ose 5 që e paralajmëron qytetarin: "Ky ligj ndryshon shpesh — para se të veprosh,
+  te seksioni 3 ose 5 që paralajmëron: "Ky ligj ndryshon shpesh — para se të veprosh,
   kontrollo versionin aktual në QBZ (qbz.gov.al)." Përmend datën e versionit të indeksuar.
 - Nëse shënimi është "ℹ Ligj i ndryshuar periodikisht", mjaftohu me një shprehje të shkurtër që
   përmend datën e versionit të indeksuar te seksioni 4 (afatet) ose 5 (strategjia), pa alarmuar.
@@ -970,7 +970,7 @@ LIGJET E NDRYSHUESHME (SHËNIM "⚠ VOLATILE" / "ℹ" te blloku i nenit):
 CITIM I VENDIMEVE (PRECEDENT):
 Kur seksioni "VENDIME RELEVANTE TË GJYKATAVE" të paraqitet më poshtë, ato janë precedent të vërtetë të indeksuar te baza jonë e të dhënave. Çdo vendim ka një shënues në formën `[[case:ID]]` (p.sh. `[[case:347]]`).
 - Kur referon një vendim në përgjigje, VENDOSE menjëherë shënuesin `[[case:ID]]` pas emrit të vendimit, p.sh.: "Gjykata e Lartë, vendim nr. 123/2024 [[case:347]] ka vendosur që...".
-- Shënuesi shndërrohet automatikisht në një link që e çon qytetarin te fashikulli i plotë — kështu që MOS e shkruaj si URL dhe MOS e ndrysho formatin (saktësisht `[[case:NUMER]]`).
+- Shënuesi shndërrohet automatikisht në një link që të çon te fashikulli i plotë — kështu që MOS e shkruaj si URL dhe MOS e ndrysho formatin (saktësisht `[[case:NUMER]]`).
 - Cito vetëm ID-të që të janë dhënë më poshtë. Mos shpik ID-të.
 - Përdori precedentët për të përforcuar argumentin te seksioni 1 (ligji), seksioni 4 (afatet, nëse vendimi qartëson një afat) ose seksioni 5 (strategjia)."""
 
@@ -1190,15 +1190,18 @@ class PrecedentComparison:
 # trying to prove something the law doesn't require them to.
 
 EvidenceStatus = Literal["kemi", "mungon", "e dobët", "kontestuese"]
-BurdenBearer = Literal["qytetari", "kundërshtari", "shteti", "ndarë"]
+# "qytetari" kept alongside "klienti" for backward-compat with EvidenceMap
+# rows persisted before the V9.9 B2B pivot. New generations emit "klienti";
+# the parser normalises legacy "qytetari" to "klienti" at read time.
+BurdenBearer = Literal["klienti", "qytetari", "kundërshtari", "shteti", "ndarë"]
 
 
 @dataclass
 class EvidenceClaim:
     claim: str                           # the fact/proposition to prove
     needed_proof: str                    # what kind of evidence would prove it
-    who_bears_burden: BurdenBearer = "qytetari"
-    burden_shift: bool = False           # true when law shifts burden off citizen
+    who_bears_burden: BurdenBearer = "klienti"
+    burden_shift: bool = False           # true when law shifts burden off our side
     status: EvidenceStatus = "mungon"    # current state given known facts
     notes: str = ""                      # one sentence: how to obtain / strengthen
 
@@ -1464,7 +1467,7 @@ NullityKind = Literal[
     "nullity_absolute", "nullity_relative", "deadline",
     "prescription", "procedural_defect",
 ]
-NullityApplies = Literal["kundërshtari", "qytetari", "të dyja"]
+NullityApplies = Literal["kundërshtari", "klienti", "qytetari", "të dyja"]
 NullityApplicable = Literal["po", "ndoshta", "jo"]
 
 
@@ -1474,7 +1477,7 @@ class NullityFinding:
     name: str                            # short label
     legal_basis: str = ""                # code article(s) citation
     condition: str = ""                  # what must be true for it to apply
-    applies_to: NullityApplies = "qytetari"  # who benefits from raising it
+    applies_to: NullityApplies = "klienti"  # who benefits from raising it
     citizen_applicable: NullityApplicable = "ndoshta"
     deadline_hint: str = ""              # e.g. "brenda 30 ditëve nga njoftimi"
     consequence: str = ""                # what happens if raised / missed
@@ -1768,7 +1771,7 @@ class SuperAvvocato:
             yield ("status", STREAM_STATUS_SQ["simple_composing"])
             context = _format_articles_for_prompt(retrieved)
             prompt = textwrap.dedent(f"""\
-                Pyetja e qytetarit:
+                Pyetja:
                 \"\"\"{user_message}\"\"\"
 
                 Nenet që kam në dispozicion për këtë pyetje:
@@ -2456,7 +2459,7 @@ class SuperAvvocato:
         angles = ", ".join(triage.strategic_angles) if triage.strategic_angles else "(asnjë këndvështrim i dhënë)"
 
         prompt = textwrap.dedent(f"""\
-            Rasti i qytetarit:
+            Rasti që po përgatit:
             \"\"\"{user_message}\"\"\"
 
             Përmbledhje e problemit: {triage.problem_summary}
@@ -2529,7 +2532,7 @@ class SuperAvvocato:
         dossier_block = f"\n{dossier_hint}\n" if dossier_hint else ""
 
         prompt = textwrap.dedent(f"""\
-            Rasti i qytetarit:
+            Rasti që po përgatit:
             \"\"\"{user_message}\"\"\"
 
             Përmbledhje: {triage.problem_summary}
@@ -2642,7 +2645,7 @@ class SuperAvvocato:
             return "\n".join(lines)
 
         prompt = textwrap.dedent(f"""\
-            Rasti i qytetarit (faktet reale që duhen krahasuar):
+            Rasti që po përgatit (faktet reale që duhen krahasuar):
             \"\"\"{user_message}\"\"\"
 
             Përmbledhje e rastit: {triage.problem_summary}
@@ -2756,7 +2759,7 @@ class SuperAvvocato:
         adverse_block = "\n".join(lines)
 
         prompt = textwrap.dedent(f"""\
-            Rasti i qytetarit tonë (faktet reale):
+            Rasti që po përgatit (faktet reale):
             \"\"\"{user_message}\"\"\"
 
             Përmbledhja: {triage.problem_summary}
@@ -2839,7 +2842,7 @@ class SuperAvvocato:
         dossier_block = f"\n{dossier_hint}\n" if dossier_hint else ""
 
         prompt = textwrap.dedent(f"""\
-            Rasti i qytetarit:
+            Rasti që po përgatit:
             \"\"\"{user_message}\"\"\"
 
             Përmbledhja: {triage.problem_summary}
@@ -2863,7 +2866,7 @@ class SuperAvvocato:
             return EvidenceMap()
 
         claims: list[EvidenceClaim] = []
-        valid_bearers = {"qytetari", "kundërshtari", "shteti", "ndarë"}
+        valid_bearers = {"klienti", "kundërshtari", "shteti", "ndarë"}
         valid_status = {"kemi", "mungon", "e dobët", "kontestuese"}
         for item in (data.get("claims") or []):
             if not isinstance(item, dict):
@@ -2872,9 +2875,12 @@ class SuperAvvocato:
             needed = str(item.get("needed_proof", "")).strip()
             if not claim or not needed:
                 continue
-            bearer_raw = str(item.get("who_bears_burden", "qytetari")).strip().lower()
+            bearer_raw = str(item.get("who_bears_burden", "klienti")).strip().lower()
+            # Normalise legacy "qytetari" → "klienti" (V9.9 pivot).
+            if bearer_raw == "qytetari":
+                bearer_raw = "klienti"
             bearer: BurdenBearer = (
-                bearer_raw if bearer_raw in valid_bearers else "qytetari"  # type: ignore[assignment]
+                bearer_raw if bearer_raw in valid_bearers else "klienti"  # type: ignore[assignment]
             )
             status_raw = str(item.get("status", "mungon")).strip().lower()
             status: EvidenceStatus = (
@@ -2919,7 +2925,7 @@ class SuperAvvocato:
         dossier_block = f"\n{dossier_hint}\n" if dossier_hint else ""
 
         prompt = textwrap.dedent(f"""\
-            Rasti i qytetarit:
+            Rasti që po përgatit:
             \"\"\"{user_message}\"\"\"
 
             Përmbledhja: {triage.problem_summary}
@@ -2947,7 +2953,7 @@ class SuperAvvocato:
             "nullity_absolute", "nullity_relative", "deadline",
             "prescription", "procedural_defect",
         }
-        valid_applies = {"kundërshtari", "qytetari", "të dyja"}
+        valid_applies = {"kundërshtari", "klienti", "të dyja"}
         valid_applicable = {"po", "ndoshta", "jo"}
 
         findings: list[NullityFinding] = []
@@ -2961,9 +2967,12 @@ class SuperAvvocato:
             kind: NullityKind = (
                 kind_raw if kind_raw in valid_kinds else "procedural_defect"  # type: ignore[assignment]
             )
-            applies_raw = str(item.get("applies_to", "qytetari")).strip().lower()
+            applies_raw = str(item.get("applies_to", "klienti")).strip().lower()
+            # Normalise legacy "qytetari" → "klienti" (V9.9 pivot).
+            if applies_raw == "qytetari":
+                applies_raw = "klienti"
             applies: NullityApplies = (
-                applies_raw if applies_raw in valid_applies else "qytetari"  # type: ignore[assignment]
+                applies_raw if applies_raw in valid_applies else "klienti"  # type: ignore[assignment]
             )
             applicable_raw = str(item.get("citizen_applicable", "ndoshta")).strip().lower()
             applicable: NullityApplicable = (
@@ -3061,7 +3070,7 @@ class SuperAvvocato:
         dossier_block = f"\n{dossier_hint}\n" if dossier_hint else ""
 
         prompt = textwrap.dedent(f"""\
-            Rasti i qytetarit (lexo me sy të avokatit të emergjencës):
+            Rasti që po përgatit (lexo me sy të avokatit të emergjencës):
             \"\"\"{user_message}\"\"\"
 
             Përmbledhja: {triage.problem_summary}
@@ -3515,7 +3524,7 @@ class SuperAvvocato:
         dossier_block = f"\n{dossier_hint}\n" if dossier_hint else ""
 
         prompt = textwrap.dedent(f"""\
-            Pyetja e qytetarit:
+            Pyetja:
             \"\"\"{user_message}\"\"\"
 
             Përmbledhja e rastit: {triage.problem_summary}
@@ -3593,7 +3602,7 @@ class SuperAvvocato:
             precedent_hint = "\n" + "\n".join(lines) + "\n"
 
         prompt = textwrap.dedent(f"""\
-            Rasti i qytetarit:
+            Rasti që po përgatit:
             \"\"\"{user_message}\"\"\"
 
             Përmbledhja: {triage.problem_summary}
@@ -3670,7 +3679,7 @@ class SuperAvvocato:
             precedent_hint = "\n" + "\n".join(lines) + "\n"
 
         prompt = textwrap.dedent(f"""\
-            Rasti i qytetarit:
+            Rasti që po përgatit:
             \"\"\"{user_message}\"\"\"
 
             Përmbledhja: {triage.problem_summary}
@@ -3739,7 +3748,7 @@ class SuperAvvocato:
         dossier_block = f"\n{dossier_hint}\n" if dossier_hint else ""
 
         prompt = textwrap.dedent(f"""\
-            Rasti i qytetarit:
+            Rasti që po përgatit:
             \"\"\"{user_message}\"\"\"
 
             Përmbledhja: {triage.problem_summary}
@@ -3816,7 +3825,7 @@ class SuperAvvocato:
         """
         context = _format_articles_for_prompt(retrieved)
         prompt = textwrap.dedent(f"""\
-            Pyetja e qytetarit:
+            Pyetja:
             \"\"\"{user_message}\"\"\"
 
             Nenet që kam në dispozicion për këtë pyetje:
@@ -3905,7 +3914,7 @@ class SuperAvvocato:
         )
 
         prompt = textwrap.dedent(f"""\
-            {urgency_block}Pyetja e qytetarit:
+            {urgency_block}Pyetja:
             \"\"\"{user_message}\"\"\"
 
             Përmbledhje e problemit (nga triazhi): {triage.problem_summary}
@@ -3918,9 +3927,9 @@ class SuperAvvocato:
             vendime të Gjykatës Kushtetuese/Gjykatës së Lartë të lidhura me
             rastin, CITO emrin e vendimit (p.sh. "Vendimi nr. 42/2024 i Gjykatës
             Kushtetuese") si përforcim te seksioni 1 ose 5. Në seksionin 5
-            "Detajet që bëjnë diferencën", integro analizën strategjike me
-            tonin e një avokati të ngrohtë që i shpjegon qytetarit PSE secili
-            detaj është vendimtar për rastin e tij konkret.
+            "Levat që bëjnë diferencën", integro analizën strategjike me
+            tonin e një kolegu senior që shpjegon peer-to-peer PSE secila
+            levë është vendimtare për rastin konkret.
         """)
 
         if session_id:
@@ -4652,7 +4661,7 @@ def _format_comparison_block(cmp: PrecedentComparison | None) -> str:
     if cmp.decisive_differences:
         status_icon = {"ka": "✅", "mungon": "❌", "e paqartë": "❓"}
         lines.append("")
-        lines.append("MOTORI I DIFFERENCAVE VENDIMTARE (atribut → a e ka qytetari?):")
+        lines.append("MOTORI I DIFFERENCAVE VENDIMTARE (atribut → a e ka klienti?):")
         for d in cmp.decisive_differences:
             icon = status_icon.get(d.citizen_status, "❓")
             lines.append(f"  {icon} {d.attribute} — {d.citizen_status.upper()}")
@@ -4669,10 +4678,10 @@ def _format_comparison_block(cmp: PrecedentComparison | None) -> str:
     lines.append("")
     lines.append(
         f"PËRDOR pattern-in dhe diferencat te {SECTION_REF['strategic']} — "
-        "për ÇDO atribut me status 'mungon' ose 'e paqartë' trego qytetarit "
-        "CILIN VEPRIM duhet të bëjë SOT për ta mbuluar, përpara seancës. "
-        "Kjo është pjesa që shumica e avokatëve e humb: nuk mjafton të thuash çfarë "
-        "kishin fituesit, duhet të thuash SI t'i arrijë qytetari yt."
+        "për ÇDO atribut me status 'mungon' ose 'e paqartë' trego HAPUR "
+        "CILIN VEPRIM duhet të ndërmerret SOT për klientin, përpara seancës. "
+        "Kjo është pjesa që shumica e kolegëve e humb: nuk mjafton të thuash çfarë "
+        "kishin fituesit, duhet të thuash SI t'i arrijë rasti yt."
     )
     return "\n".join(lines) + "\n"
 
@@ -4690,7 +4699,8 @@ def _format_evidence_map_block(em: EvidenceMap | None) -> str:
         return ""
     status_icon = {"kemi": "✅", "mungon": "❌", "e dobët": "⚠️", "kontestuese": "❓"}
     bearer_label = {
-        "qytetari": "qytetari",
+        "klienti": "klienti yt",
+        "qytetari": "klienti yt",  # legacy alias (pre-V9.9)
         "kundërshtari": "pala tjetër",
         "shteti": "shteti/akuzuesi",
         "ndarë": "ndarë",
@@ -4708,10 +4718,10 @@ def _format_evidence_map_block(em: EvidenceMap | None) -> str:
     lines.append("")
     lines.append(
         f"PËRDOR mapën te {SECTION_REF['actions']} dhe te {SECTION_REF['strategic']}: për çdo "
-        "pretendim me status 'mungon'/'e dobët' thuaji qytetarit HAPUR cilën provë duhet "
-        "të mbledhë PARA se të padisë, dhe kur barra është e ZHVENDOSUR (p.sh. në të drejtën "
+        "pretendim me status 'mungon'/'e dobët' shpjego HAPUR cilën provë duhet "
+        "të mbledhë klienti PARA se të padisë, dhe kur barra është e ZHVENDOSUR (p.sh. në të drejtën "
         "e punës, diskriminim, konsumator, dhunë në familje) CITO nenin që e zhvendos dhe "
-        "shpjego që pala tjetër duhet të provojë të kundërtën. Mos kërko nga qytetari prova "
+        "shpjego që pala tjetër duhet të provojë të kundërtën. Mos kërko nga klienti prova "
         "që sipas ligjit NUK janë detyra e tij."
     )
     return "\n".join(lines) + "\n"
@@ -4758,11 +4768,11 @@ def _format_urgency_block(ur: UrgencyRadar | None) -> str:
         lines.append(
             "UDHËZIM I DETYRUESHËM: Ky rast është EMERGJENCË. "
             "HAPE përgjigjen me një paragraf të shkurtër VEPRIMI — çfarë duhet "
-            "të bëjë qytetari sot/nesër, pa hyrje teorike. Më pas vazhdo me "
+            "të ndërmerret sot/nesër për klientin, pa hyrje teorike. Më pas vazhdo me "
             f"strukturën normale (5 seksionet), por në {SECTION_REF['actions']} "
             "rendit këto veprime si HAPAT E PARË, me afate konkrete. "
-            "Toni: i ngrohtë, i qetë, por i drejtpërdrejtë — njeriu ka nevojë "
-            "për drejtim, jo për ligjërata."
+            "Toni: peer-to-peer, i qetë, i drejtpërdrejtë — kolegu ka nevojë "
+            "për drejtim operativ, jo për ligjërata."
         )
     else:
         lines.append(
@@ -4809,8 +4819,8 @@ def _format_contradictions_block(cr: ContradictionReport | None) -> str:
     lines.append("")
     lines.append(
         f"PËRDOR këto kontradikta si levë strategjike: integroji te {SECTION_REF['actions']} "
-        "(për çdo kontradiktë të severity='high' ose 'medium', shpjego si e "
-        f"përdor qytetari në gjykatë) dhe te {SECTION_REF['strategic']} (pse "
+        "(për çdo kontradiktë të severity='high' ose 'medium', shpjego si "
+        f"përdoret në gjykatë) dhe te {SECTION_REF['strategic']} (pse "
         "kjo mospërputhje e ndryshon ekuilibrin e rastit). Mos i anashkalo — "
         "një avokat i mirë i gjen dhe i shfrytëzon."
     )
@@ -4906,7 +4916,8 @@ def _format_nullity_block(nr: NullityRadar | None) -> str:
             label = kind_label.get(f.kind, f.kind.upper())
             basis = f" ({f.legal_basis})" if f.legal_basis else ""
             beneficiary = {
-                "qytetari": "në favor tonin",
+                "klienti": "në favor tonin",
+                "qytetari": "në favor tonin",  # legacy alias (pre-V9.9)
                 "kundërshtari": "në favor të palës tjetër",
                 "të dyja": "dypalësh",
             }.get(f.applies_to, "")
@@ -4931,9 +4942,9 @@ def _format_nullity_block(nr: NullityRadar | None) -> str:
     lines.append("")
     lines.append(
         f"INTEGRO radarin te {SECTION_REF['actions']} DHE te {SECTION_REF['deadlines']}: "
-        "për çdo gjetje 'po', shpjego qytetarit HAPUR — me nenin e saktë — SI ta ngrejë "
+        "për çdo gjetje 'po', shpjego HAPUR — me nenin e saktë — SI ngrihet "
         "në gjykatë dhe brenda cilit afat. Këto janë levat që shumicën e rasteve e fitojnë "
-        "pa u prekur tema. Nëse ka afat dekadencial ose parashkrim që rrjedh kundër qytetarit, "
+        "pa u prekur tema. Nëse ka afat dekadencial ose parashkrim që rrjedh kundër klientit, "
         f"theksoje si të parin në {SECTION_REF['deadlines']}."
     )
     return "\n".join(lines) + "\n"
@@ -4984,11 +4995,11 @@ def _format_premortem_block(pm: Premortem | None) -> str:
     lines.append("")
     lines.append(
         f"INTEGRO këto rreziqe te {SECTION_REF['strategic']} — për "
-        "secilin rrezik high/medium, shpjego qytetarit hapur PSE kauza mund të "
-        "humbet nga ajo anë DHE jepi mitigjimin konkret. Mos i fsheh. Qytetari "
-        "ka më shumë rrespekt për avokatin që i thotë të vërtetën sesa për atë "
-        "që i jep shpresa të rreme. Mos harro të tregosh edhe PIKA TË FORTA — "
-        "pre-mortem nuk do të thotë pesimizëm, por onestitet strategjik."
+        "secilin rrezik high/medium, shpjego hapur PSE kauza mund të "
+        "humbet nga ajo anë DHE jep mitigjimin konkret. Mos i fsheh. Onestiteti "
+        "strategjik është pjesë e këshillës peer-to-peer: nuk i japim shpresa "
+        "të rreme kolegut, i japim hartën e plotë të rrezikut. Mos harro të "
+        "tregosh edhe PIKA TË FORTA — pre-mortem nuk do të thotë pesimizëm."
     )
     return "\n".join(lines) + "\n"
 
@@ -5040,11 +5051,11 @@ def _format_opponent_block(op: OpponentPlaybook | None) -> str:
     lines.append("")
     lines.append(
         f"INTEGRO lëvizjet high/medium te {SECTION_REF['strategic']} — për "
-        "secilën, thuaji qytetarit hapur 'kundërshtari ka gjasë të bëjë X; "
-        "sapo e bën, ti bën Y'. Ky është avokati që mendon një hap përpara — "
-        "qytetari duhet ta ndjejë që je përgatitur për lëvizjet e tjetrit PARA "
+        "secilën, formulo hapur 'kundërshtari ka gjasë të bëjë X; "
+        "sapo e bën, ne bëjmë Y'. Ky është mendimi strategjik që mendon një hap përpara — "
+        "duhet të dukët qartë se rasti është përgatitur për lëvizjet e tjetrit PARA "
         "se ato të ndodhin. Nëse një kundër-lëvizje ka afat ose duhet bërë sot, "
-        "reflektoje edhe te seksioni 3 'Çfarë duhet të bësh'."
+        "reflektoje edhe te seksioni 3 'Hapat procedurale'."
     )
     return "\n".join(lines) + "\n"
 
@@ -5072,15 +5083,15 @@ def _format_leverage_block(lm: LeverageMap | None) -> str:
         if lv.timing:
             lines.append(f"     Koha: {lv.timing}")
         if lv.risk_to_citizen:
-            lines.append(f"     Rreziku për qytetarin: {lv.risk_to_citizen}")
+            lines.append(f"     Rreziku për klientin: {lv.risk_to_citizen}")
     lines.append("")
     lines.append(
-        f"INTEGRO levat te {SECTION_REF['actions']} — për secilën, jepi "
-        "qytetarit një VEPRIM konkret (letër e rekomanduar, kërkesë formale, "
+        f"INTEGRO levat te {SECTION_REF['actions']} — për secilën, formulo "
+        "një VEPRIM konkret (letër e rekomanduar, kërkesë formale, "
         "ankesë paralele) me afat. Nisi nga leva më e lirë (soft) dhe "
         "eskalo vetëm nëse kundërshtari nuk lëviz. Për leva decisive, mos "
         "harro të përmendësh qartë rrezikun. Qëllimi nuk është të shtyjmë "
-        "qytetarin në gjyq — shumë raste zgjidhen vetëm me letra të zgjuara."
+        "rastin në gjyq — shumë çështje zgjidhen vetëm me letra të zgjuara."
     )
     return "\n".join(lines) + "\n"
 
