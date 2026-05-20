@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="sq">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Audit log AI · Super Avvocato</title>
+<style>
+  :root {
+    --bg: #f6f4ef; --card: #fff; --ink: #1a1a17; --muted: #666;
+    --border: #e3e3da; --accent: #d4af37; --green: #1a6e2c; --red: #9b1622;
+    --amber: #c08b00;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.45 system-ui, -apple-system, sans-serif;
+         background: var(--bg); color: var(--ink); }
+  header { background: var(--card); border-bottom: 1px solid var(--border);
+           padding: 14px 24px; display: flex; align-items: center; gap: 16px; }
+  header h1 { margin: 0; font-size: 18px; font-weight: 700; }
+  header .crumb { color: var(--muted); font-size: 13px; }
+  header a { color: var(--accent); text-decoration: none; font-weight: 500; }
+  main { padding: 20px 24px; max-width: 1400px; margin: 0 auto; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr));
+           gap: 12px; margin-bottom: 18px; }
+  .stat { background: var(--card); border: 1px solid var(--border);
+          border-radius: 8px; padding: 14px; }
+  .stat .label { font-size: 11px; text-transform: uppercase; color: var(--muted);
+                 letter-spacing: 0.05em; margin-bottom: 6px; }
+  .stat .value { font-size: 22px; font-weight: 700; }
+  .stat .sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .filters { background: var(--card); border: 1px solid var(--border);
+             border-radius: 8px; padding: 12px; display: flex; gap: 10px;
+             flex-wrap: wrap; align-items: end; margin-bottom: 16px; }
+  .filters label { display: flex; flex-direction: column; font-size: 11px;
+                   text-transform: uppercase; letter-spacing: 0.04em;
+                   color: var(--muted); gap: 4px; }
+  .filters input, .filters select { padding: 6px 8px; border: 1px solid var(--border);
+                                    border-radius: 6px; font-size: 13px;
+                                    text-transform: none; letter-spacing: normal;
+                                    color: var(--ink); background: #fff; }
+  .filters button { padding: 7px 14px; border: 0; background: var(--accent);
+                    color: #1a1a17; font-weight: 600; border-radius: 6px;
+                    cursor: pointer; }
+  .filters .ghost { background: transparent; color: var(--muted);
+                    border: 1px solid var(--border); }
+  table { width: 100%; background: var(--card); border: 1px solid var(--border);
+          border-radius: 8px; border-collapse: collapse; overflow: hidden;
+          font-size: 12.5px; }
+  th, td { padding: 9px 10px; text-align: left; border-bottom: 1px solid var(--border);
+           vertical-align: top; }
+  th { background: #faf8f3; font-size: 11px; text-transform: uppercase;
+       letter-spacing: 0.04em; color: var(--muted); font-weight: 600; }
+  tr:last-child td { border-bottom: 0; }
+  tr:hover { background: #faf8f3; }
+  .tag { display: inline-block; padding: 1px 6px; border-radius: 4px;
+         font-size: 11px; font-weight: 600; }
+  .tag-ok    { background: rgba(46,160,67,0.12); color: var(--green); }
+  .tag-err   { background: rgba(207,34,46,0.10); color: var(--red); }
+  .tag-warn  { background: rgba(255,193,7,0.15); color: var(--amber); }
+  .tag-tier  { background: #f0eee5; color: #5a4400; }
+  code { font-family: ui-monospace, "SF Mono", monospace; font-size: 12px;
+         background: #f5f3ec; padding: 1px 5px; border-radius: 3px; }
+  .muted { color: var(--muted); }
+  .empty { padding: 30px; text-align: center; color: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <h1>🛡️ Audit log AI</h1>
+  <span class="crumb">EU AI Act V8.12 · DPO inspection</span>
+  <a href="/" style="margin-left:auto">← Kthehu te aplikacioni</a>
+  <a id="export-link" href="/api/admin/audit.jsonl">⬇ Eksporto JSONL</a>
+</header>
+<main>
+  <div class="stats" id="stats">
+    <div class="stat"><div class="label">Të gjitha thirrjet</div><div class="value" id="s-total">…</div></div>
+    <div class="stat"><div class="label">Sukses</div><div class="value" id="s-ok">…</div><div class="sub">outcome=ok</div></div>
+    <div class="stat"><div class="label">Gabime / refuzuar</div><div class="value" id="s-err">…</div></div>
+    <div class="stat"><div class="label">Latenca mesatare</div><div class="value" id="s-lat">…</div><div class="sub">ms</div></div>
+  </div>
+
+  <div class="filters">
+    <label>Callsite <input id="f-callsite" placeholder="p.sh. brain.ask"></label>
+    <label>Outcome
+      <select id="f-outcome">
+        <option value="">— të gjitha —</option>
+        <option value="ok">ok</option>
+        <option value="error">error</option>
+        <option value="refused">refused</option>
+      </select>
+    </label>
+    <label>User ID <input id="f-user" type="number" min="1" placeholder="opsional"></label>
+    <label>Case ID <input id="f-case" placeholder="opsional"></label>
+    <label>Që nga <input id="f-since" type="date"></label>
+    <label>Limit <input id="f-limit" type="number" min="20" max="2000" value="200"></label>
+    <button id="apply">Apliko</button>
+    <button class="ghost" id="reset">Pastro</button>
+  </div>
+
+  <table id="audit-table">
+    <thead>
+      <tr>
+        <th style="width:140px">Timestamp</th>
+        <th>Callsite</th>
+        <th>Model · Tier</th>
+        <th>User · Case</th>
+        <th>Outcome</th>
+        <th style="width:90px">Latenca</th>
+        <th>Detaje</th>
+      </tr>
+    </thead>
+    <tbody id="rows"><tr><td colspan="7" class="empty">Po ngarkohet…</td></tr></tbody>
+  </table>
+</main>
+<script>
+const $ = s => document.querySelector(s);
+function fmt(v) { return v == null ? '—' : v; }
+function row(r) {
+  const tag = r.outcome === 'ok' ? 'tag-ok'
+            : r.outcome === 'refused' ? 'tag-warn' : 'tag-err';
+  const lat = r.latency_ms != null ? r.latency_ms + ' ms' : '—';
+  const cite = r.case_id ? `<code>${r.case_id.slice(0,8)}…</code>` : '—';
+  const detail = (r.error || r.refusal_reason || r.note || '').slice(0, 110);
+  return `<tr>
+    <td><code>${(r.timestamp || '').replace('T',' ').slice(0,19)}</code></td>
+    <td><code>${fmt(r.callsite)}</code></td>
+    <td>${fmt(r.model)} <span class="tag tag-tier">${fmt(r.tier)}</span></td>
+    <td>u${fmt(r.user_id)} · ${cite}</td>
+    <td><span class="tag ${tag}">${fmt(r.outcome)}</span></td>
+    <td>${lat}</td>
+    <td class="muted">${detail}</td>
+  </tr>`;
+}
+async function loadSummary(qs) {
+  const r = await fetch('/api/admin/audit/summary' + (qs ? '?' + qs : ''));
+  if (!r.ok) return;
+  const s = await r.json();
+  $('#s-total').textContent = s.total ?? 0;
+  $('#s-ok').textContent = (s.outcomes && s.outcomes.ok) || 0;
+  $('#s-err').textContent = ((s.outcomes && s.outcomes.error) || 0)
+                          + ((s.outcomes && s.outcomes.refused) || 0);
+  $('#s-lat').textContent = s.avg_latency_ms != null
+    ? Math.round(s.avg_latency_ms) : '—';
+}
+async function loadRows(qs) {
+  const tbody = $('#rows');
+  tbody.innerHTML = '<tr><td colspan="7" class="empty">Po ngarkohet…</td></tr>';
+  const r = await fetch('/api/admin/audit' + (qs ? '?' + qs : ''));
+  if (!r.ok) {
+    tbody.innerHTML = `<tr><td colspan="7" class="empty">Gabim ${r.status} — ka pak siguri që je admin?</td></tr>`;
+    return;
+  }
+  const { items } = await r.json();
+  if (!items.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">Asnjë rresht.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = items.map(row).join('');
+}
+function buildQS() {
+  const p = new URLSearchParams();
+  const m = { callsite: 'f-callsite', outcome: 'f-outcome',
+              user_id: 'f-user', case_id: 'f-case',
+              since: 'f-since', limit: 'f-limit' };
+  for (const [k, id] of Object.entries(m)) {
+    const v = $('#' + id).value.trim();
+    if (v) p.set(k, v);
+  }
+  return p.toString();
+}
+function apply() {
+  const qs = buildQS();
+  loadSummary(qs);
+  loadRows(qs);
+  // also propagate `since` to the JSONL export link
+  const sinceP = new URLSearchParams();
+  if ($('#f-since').value) sinceP.set('since', $('#f-since').value);
+  $('#export-link').href = '/api/admin/audit.jsonl' + (sinceP.toString() ? '?' + sinceP : '');
+}
+$('#apply').addEventListener('click', apply);
+$('#reset').addEventListener('click', () => {
+  document.querySelectorAll('.filters input, .filters select')
+    .forEach(el => { if (el.id !== 'f-limit') el.value = ''; });
+  apply();
+});
+apply();
+</script>
+</body>
+</html>

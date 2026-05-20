@@ -33,6 +33,18 @@
   // disabled and the welcome screen is shown.
   let activeCaseId = null;
 
+  // V9.8 First-visit tour — auto-open the welcome-tour details on the first
+  // page load; persist dismissal so it stays closed thereafter.
+  const tourEl = document.getElementById("welcome-tour");
+  if (tourEl) {
+    if (!localStorage.getItem("sa.tour.seen")) {
+      tourEl.open = true;
+    }
+    tourEl.addEventListener("toggle", () => {
+      if (!tourEl.open) localStorage.setItem("sa.tour.seen", "1");
+    });
+  }
+
   // ─── sidebar drawer (mobile) ─────────────────────────────────────
   const openSidebar = () => {
     sidebar.classList.add("open");
@@ -159,6 +171,87 @@
     if (typeof window.surfaceRelevantLessons === "function") {
       window.surfaceRelevantLessons(id);
     }
+    // V9.8: surface contextual Pro-tool suggestions based on stage/content
+    surfaceCaseSuggestions(c);
+  }
+
+  // ── V9.8 contextual suggestions ──────────────────────────────────
+  // Rule-based: from stage + title + last message, propose 1-2 Pro tools
+  // the lawyer is most likely to need right now. Non-blocking banner;
+  // dismissible per case via localStorage.
+  function surfaceCaseSuggestions(c) {
+    const banner = document.getElementById("suggest-banner");
+    if (!banner) return;
+    const dismissedKey = `sa.suggest.dismissed.${c.id}`;
+    if (localStorage.getItem(dismissedKey)) { banner.hidden = true; return; }
+
+    const stage = c.stage || "intake";
+    const docCount = (c.documents || []).length;
+    const msgCount = (c.messages || []).length;
+    const lastUserMsg = [...(c.messages || [])].reverse().find(m => m.role === "user");
+    const haystack = ((c.title || "") + " " + (lastUserMsg?.content || "")).toLowerCase();
+
+    const picks = [];
+    const seen = new Set();
+    const add = (key, ico, label, why) => {
+      if (seen.has(key)) return;
+      seen.add(key);
+      picks.push({ key, ico, label, why });
+    };
+
+    // Stage-driven
+    if (stage === "intake" || msgCount <= 1) {
+      add("genio", "🧠", "Genio Legale", "Rifrazo rastin nga 6 perspektiva para se të hapësh strategjinë");
+    }
+    if (stage === "preparation" || (msgCount >= 3 && docCount >= 2)) {
+      add("bench", "⚖️", "Bench Memo", "Llogarit P(fitore) dhe identifiko upgrade-t e argumentit");
+      add("precedent", "📚", "Pattern e precedentëve", "Cilat lëvizje fituan në raste të ngjashme");
+    }
+    if (stage === "hearing") {
+      add("stress", "⚔️", "Red Team", "Stres-test i tezës para se gjyqtari ta bëjë");
+    }
+    if (stage === "decision" || stage === "execution") {
+      add("coach", "📝", "Ratio Coach", "Bëj post-mortem dhe ruaj mësimet për rastet e ardhshme");
+    }
+
+    // Content keywords (additive, capped)
+    if (/\bkontrat[ëe]\b|\bklauzol/i.test(haystack))
+      add("contract", "📑", "Rishiko kontratë", "Semafor 🟢🟡🔴 për çdo klauzolë + flag GDPR-AL");
+    if (/\bshoq[ëe]ri|sh\.p\.k|\bsha\b|visur[ëe]|statut|prokur/i.test(haystack))
+      add("corporate", "🏢", "Corporate Intelligence", "Ekstrakto soci/CDA + checklist KYC/AML");
+    if (/marr[ëe]veshj|akord|negoci|settlement/i.test(haystack))
+      add("settlement", "🎯", "Settlement Monte Carlo", "10k simulime → percentile i ofertës");
+    if (/\bpunes\b|pushim|punet[oë]r|kodi.*pun/i.test(haystack))
+      add("stress", "⚔️", "Red Team", "Rastet e punës shpesh kanë levat procedurale të padukshme");
+
+    const top = picks.slice(0, 2);
+    if (!top.length) { banner.hidden = true; return; }
+
+    banner.innerHTML = `
+      <div class="suggest-head">
+        <span class="suggest-icon">💡</span>
+        <span class="suggest-title">Për këtë rast mund të të ndihmojnë:</span>
+        <button type="button" class="suggest-dismiss" title="Mos shfaq më për këtë rast">×</button>
+      </div>
+      <div class="suggest-row">
+        ${top.map(p => `
+          <button type="button" class="suggest-chip" data-pro-key="${p.key}">
+            <span class="suggest-chip-ico">${p.ico}</span>
+            <span class="suggest-chip-body">
+              <strong>${escapeHtml(p.label)}</strong>
+              <em>${escapeHtml(p.why)}</em>
+            </span>
+          </button>`).join("")}
+      </div>`;
+    banner.hidden = false;
+
+    banner.querySelector(".suggest-dismiss")?.addEventListener("click", () => {
+      localStorage.setItem(dismissedKey, "1");
+      banner.hidden = true;
+    });
+    banner.querySelectorAll("[data-pro-key]").forEach(b => {
+      b.addEventListener("click", () => openProModal(b.dataset.proKey));
+    });
   }
 
   async function renderCaseList() {
@@ -497,11 +590,77 @@
     dossierList.appendChild(node);
   }
 
+  // ── V9.8 slash commands (inline tools without leaving chat) ──────
+  // Currently: /afatet — KPC/KPP deadline cascade. Format:
+  //   /afatet                         → list event types
+  //   /afatet <event_type> [YYYY-MM-DD]  → compute (date defaults to today)
+  async function handleSlashCommand(text) {
+    const m = /^\/(\w[\w-]*)(?:\s+(.*))?$/.exec(text);
+    if (!m) return false;
+    const cmd = m[1].toLowerCase();
+    const argstr = (m[2] || "").trim();
+    if (cmd === "afatet") {
+      appendUser(text);
+      if (!argstr) {
+        try {
+          const r = await fetch("/api/cascade/event-types");
+          const { items } = await r.json();
+          const lines = items.map(t => `• \`${t.key}\` — ${t.label}`).join("\n");
+          appendInfoBot(`**Llojet e ngjarjeve procedurale**\n\n${lines}\n\nPërdor: \`/afatet <lloji> [data YYYY-MM-DD]\``);
+        } catch { appendError("Gabim ngarkimi i llojeve."); }
+        return true;
+      }
+      const parts = argstr.split(/\s+/);
+      const eventType = parts[0];
+      const eventDate = parts[1] || new Date().toISOString().slice(0, 10);
+      appendTyping();
+      try {
+        const r = await fetch("/api/cascade/compute", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ event_type: eventType, event_date: eventDate }),
+        });
+        messages.querySelector(".msg.typing")?.remove();
+        const data = await r.json();
+        if (!r.ok) { appendError(data.error || "Gabim"); return true; }
+        const head = `**⏳ Afatet procedurale** për *${escapeHtml(data.event_label || eventType)}* nga **${eventDate}**\n\n`;
+        const rows = (data.deadlines || []).map(d =>
+          `• **${d.label}** — afati: **${d.deadline_date}** (${d.days_from_event} ditë) · ${d.legal_basis || ""}`
+        ).join("\n");
+        appendInfoBot(head + (rows || "Asnjë afat."));
+      } catch (err) {
+        messages.querySelector(".msg.typing")?.remove();
+        appendError("Gabim rrjeti: " + err.message);
+      }
+      return true;
+    }
+    return false;
+  }
+
+  function appendInfoBot(markdown) {
+    const tpl = document.getElementById("bot-msg-tpl");
+    const node = tpl.content.cloneNode(true);
+    const msgEl = node.querySelector(".msg");
+    const body = msgEl.querySelector(".bot-body");
+    body.innerHTML = renderMarkdown(markdown);
+    highlightNeni(body);
+    msgEl.classList.add("slash-info");
+    messages.appendChild(node);
+    scroll();
+  }
+
   // ─── submit ──────────────────────────────────────────────────────
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const text = input.value.trim();
     if (!text) return;
+    // Slash commands handled inline — no LLM call, no case context required.
+    if (text.startsWith("/")) {
+      input.value = ""; autoGrow();
+      const handled = await handleSlashCommand(text);
+      if (handled) return;
+      // Unknown slash command → fall through to normal chat send
+    }
     if (!activeCaseId) {
       const c = await createCase();
       if (!c) return;
@@ -644,7 +803,8 @@
     const body = node.querySelector(".bot-body");
 
     body.innerHTML = renderMarkdown(data.text || "");
-    highlightNeni(body);
+    const citStatusMap = buildCitStatusMap(data.citations);
+    highlightNeni(body, citStatusMap);
     linkCaseMarkers(body, data.precedents || []);
 
     // Citation trust badge — provenance lock. Always at the very top of
@@ -862,8 +1022,28 @@
   }
 
   // ─── highlight "Neni X" citations after markdown render ─────────
-  function highlightNeni(root) {
-    const re = /\bNeni\s*\d+(?:\s*[\/-]\s*[a-zçëA-ZÇË0-9]+)?/g;
+  // Build a {articleNumber → worstStatus} map from the citation shield payload.
+  // Worst-status wins so the lawyer never sees green over a fake citation
+  // (same number can appear under multiple codes; we color defensively).
+  function buildCitStatusMap(citations) {
+    const map = new Map();
+    if (!citations || !Array.isArray(citations.items)) return map;
+    const rank = { fake: 3, needs_code: 2, verified: 1 };
+    const numRe = /Neni\s*(\d+(?:[\/-][a-zçëA-ZÇË0-9]+)?)/;
+    for (const c of citations.items) {
+      const m = numRe.exec(c.raw || "");
+      if (!m) continue;
+      const key = m[1].toLowerCase();
+      const prev = map.get(key);
+      if (!prev || (rank[c.status] || 0) > (rank[prev] || 0)) {
+        map.set(key, c.status);
+      }
+    }
+    return map;
+  }
+
+  function highlightNeni(root, citStatusMap) {
+    const re = /\bNeni\s*(\d+(?:\s*[\/-]\s*[a-zçëA-ZÇË0-9]+)?)/g;
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
     const toReplace = [];
     let node;
@@ -872,6 +1052,11 @@
       if (re.test(node.nodeValue)) toReplace.push(node);
       re.lastIndex = 0;
     }
+    const statusClass = {
+      verified: "neni-cite-ok",
+      fake: "neni-cite-fake",
+      needs_code: "neni-cite-warn",
+    };
     for (const n of toReplace) {
       const frag = document.createDocumentFragment();
       let last = 0;
@@ -881,7 +1066,12 @@
       while ((m = rx.exec(text)) !== null) {
         if (m.index > last) frag.appendChild(document.createTextNode(text.slice(last, m.index)));
         const span = document.createElement("span");
-        span.className = "neni-cite";
+        const num = (m[1] || "").replace(/\s+/g, "").toLowerCase();
+        const status = citStatusMap ? citStatusMap.get(num) : null;
+        span.className = "neni-cite" + (status ? " " + statusClass[status] : "");
+        if (status === "verified") span.title = "Citim i verifikuar kundër korpusit";
+        if (status === "fake") span.title = "⚠ Citim që nuk u gjet në korpus";
+        if (status === "needs_code") span.title = "ℹ Kod i pa-specifikuar — verifiko";
         span.textContent = m[0];
         frag.appendChild(span);
         last = m.index + m[0].length;

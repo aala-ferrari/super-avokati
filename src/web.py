@@ -5570,6 +5570,17 @@ def api_case_provenance_list(case_id: str):
 # admin users; the DPO inspects the log via this surface during incident
 # triage or supervisory authority requests.
 
+@app.get("/admin/audit")
+@login_required_page
+def admin_audit_page():
+    """DPO-facing audit log viewer — paired with the JSON/JSONL API endpoints
+    below. Admin-only; non-admin users get a 403 to keep the surface honest."""
+    user = current_user()
+    if not user.is_admin:
+        return ("Forbidden — admin access required.", 403)
+    return render_template("admin_audit.html")
+
+
 @app.get("/api/admin/audit/summary")
 @login_required_api
 def api_admin_audit_summary():
