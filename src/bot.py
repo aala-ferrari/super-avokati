@@ -49,9 +49,7 @@ WELCOME = (
     "nga kodet shqiptare dhe do të të jap një përgjigje të qartë.\n\n"
     "💼 *A të duhet një avokat i vërtetë?* Shkruaj /intake — kërkesa jote do t'i shkojë "
     "një avokati nga ekipi ynë që do të të kontaktojë drejtpërdrejt.\n\n"
-    "_Shkruaj /reset për të nisur një bisedë të re, /help për ndihmë._\n\n"
-    "⚠️ *Kujdes:* informacioni këtu është ligjor dhe i bazuar në kodet, por "
-    "nuk zëvendëson një avokat të vërtetë në raste të rënda."
+    "_Shkruaj /reset për të nisur një bisedë të re, /help për ndihmë._"
 )
 
 HELP_TEXT = (
