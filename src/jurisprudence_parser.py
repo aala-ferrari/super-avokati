@@ -29,9 +29,10 @@ from __future__ import annotations
 import argparse
 import json
 import re
+from collections.abc import Iterable
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Iterable, Literal
+from typing import Literal
 
 import pdfplumber
 from docx import Document
@@ -394,7 +395,7 @@ def print_summary(decisions: list[Decision]) -> None:
     with_articles = sum(1 for d in decisions if d.cited_articles)
     with_judges = sum(1 for d in decisions if d.judges)
     with_outcome = sum(1 for d in decisions if d.outcome)
-    print(f"Fields populated:")
+    print("Fields populated:")
     print(f"  cited_articles: {with_articles}/{len(decisions)}")
     print(f"  judges:         {with_judges}/{len(decisions)}")
     print(f"  outcome:        {with_outcome}/{len(decisions)}")

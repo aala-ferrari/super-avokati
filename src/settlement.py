@@ -29,8 +29,6 @@ import random
 import re
 import statistics
 from dataclasses import dataclass
-from typing import Any
-
 
 SCENARIO_SCHEMA_HINT = """
 Kthe vetëm JSON, pa preambël. Skema:

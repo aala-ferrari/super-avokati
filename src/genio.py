@@ -33,11 +33,9 @@ import json
 import re
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor, Future
+from collections.abc import Iterator
 from dataclasses import dataclass
-from queue import Queue, Empty
-from typing import Iterator
-
+from queue import Empty, Queue
 
 # ── Jurisdiction guard — prepended to every perspective system prompt ──
 # Kept in a single place so a doctrine-boundary fix propagates to all 6

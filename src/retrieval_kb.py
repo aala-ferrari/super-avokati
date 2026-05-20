@@ -26,15 +26,15 @@ when the corpus grows (same pattern as the articles BM25 index).
 """
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import date
-from typing import Iterable
 
 from rank_bm25 import BM25Okapi
 from sqlalchemy.orm import selectinload
 
 from src.config import TOP_K_DECISIONS
-from src.db import ArticleCited, Case, Court, Participation, Person, session_scope
+from src.db import Case, Participation, session_scope
 from src.logging_utils import get_logger
 from src.retrieval import tokenize  # reuse Albanian tokenizer
 
@@ -113,7 +113,7 @@ class LegalKBRetriever:
     # ── construction ───────────────────────────────────────────────────
 
     @classmethod
-    def load(cls) -> "LegalKBRetriever":
+    def load(cls) -> LegalKBRetriever:
         """Pull all ``complete`` cases from Postgres and build the index.
 
         Only ``extraction_status='complete'`` cases are indexed — pending

@@ -275,7 +275,7 @@ class LLMClient:
                 try:
                     data = json.loads(raw)
                 except json.JSONDecodeError as e:
-                    raise LLMError(f"no structured_output and result not JSON") from e
+                    raise LLMError("no structured_output and result not JSON") from e
             else:
                 raise LLMError(
                     f"no structured_output in response: {json.dumps(payload)[:300]}"

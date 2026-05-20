@@ -163,9 +163,9 @@ def gather_precedents(case_description: str, *, top_k: int = 5,
     analyses_by_key: dict[tuple[str, str], dict] = {}
     if legalkb_keys:
         try:
-            from .db import Case, CaseAnalysis, Court, session_scope
             from sqlalchemy import select
-            from sqlalchemy.orm import joinedload
+
+            from .db import Case, CaseAnalysis, Court, session_scope
             with session_scope() as sess:
                 # Fetch cases by (court_code, case_number) via join — small set
                 # so we just fetch all and filter in memory.

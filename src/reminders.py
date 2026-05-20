@@ -16,11 +16,10 @@ from __future__ import annotations
 import json
 import logging
 import threading
-import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from . import storage
 from .config import TELEGRAM_BOT_TOKEN
@@ -107,7 +106,7 @@ def _send_telegram(chat_id: str, text: str) -> str | None:
 
 def _tick() -> int:
     """Process one polling round. Returns count of reminders processed."""
-    now_iso = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    now_iso = datetime.now(UTC).isoformat().replace("+00:00", "Z")
     try:
         pending = storage.list_pending_reminders(now_iso)
     except Exception as exc:

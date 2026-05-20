@@ -68,8 +68,8 @@ class Court(Base):
     city: Mapped[str | None] = mapped_column(String(80))
     source_url: Mapped[str | None] = mapped_column(Text)
 
-    cases: Mapped[list["Case"]] = relationship(back_populates="court")
-    affiliations: Mapped[list["Affiliation"]] = relationship(back_populates="court")
+    cases: Mapped[list[Case]] = relationship(back_populates="court")
+    affiliations: Mapped[list[Affiliation]] = relationship(back_populates="court")
 
 
 class Person(Base):
@@ -90,10 +90,10 @@ class Person(Base):
         DateTime, server_default=func.now()
     )
 
-    affiliations: Mapped[list["Affiliation"]] = relationship(back_populates="person")
-    participations: Mapped[list["Participation"]] = relationship(back_populates="person")
-    vetting_records: Mapped[list["VettingRecord"]] = relationship(back_populates="person")
-    disciplinary_actions: Mapped[list["DisciplinaryAction"]] = relationship(back_populates="person")
+    affiliations: Mapped[list[Affiliation]] = relationship(back_populates="person")
+    participations: Mapped[list[Participation]] = relationship(back_populates="person")
+    vetting_records: Mapped[list[VettingRecord]] = relationship(back_populates="person")
+    disciplinary_actions: Mapped[list[DisciplinaryAction]] = relationship(back_populates="person")
 
 
 class Affiliation(Base):
@@ -113,8 +113,8 @@ class Affiliation(Base):
     status: Mapped[str] = mapped_column(String(40), default="active")
     source_url: Mapped[str | None] = mapped_column(Text)
 
-    person: Mapped["Person"] = relationship(back_populates="affiliations")
-    court: Mapped["Court | None"] = relationship(back_populates="affiliations")
+    person: Mapped[Person] = relationship(back_populates="affiliations")
+    court: Mapped[Court | None] = relationship(back_populates="affiliations")
 
 
 class Case(Base):
@@ -147,11 +147,11 @@ class Case(Base):
     extraction_status: Mapped[str] = mapped_column(String(20), default="pending")
     extraction_notes: Mapped[str | None] = mapped_column(Text)
 
-    court: Mapped["Court"] = relationship(back_populates="cases")
-    participations: Mapped[list["Participation"]] = relationship(
+    court: Mapped[Court] = relationship(back_populates="cases")
+    participations: Mapped[list[Participation]] = relationship(
         back_populates="case", cascade="all, delete-orphan"
     )
-    articles_cited: Mapped[list["ArticleCited"]] = relationship(
+    articles_cited: Mapped[list[ArticleCited]] = relationship(
         back_populates="case", cascade="all, delete-orphan"
     )
 
@@ -209,7 +209,7 @@ class CaseAnalysis(Base):
     output_tokens: Mapped[int] = mapped_column(Integer, default=0)
     cost_usd: Mapped[Decimal] = mapped_column(Numeric(8, 4), default=Decimal("0"))
 
-    case: Mapped["Case"] = relationship()
+    case: Mapped[Case] = relationship()
 
 
 class Participation(Base):
@@ -225,8 +225,8 @@ class Participation(Base):
     # Client name / party the lawyer represented, if applicable
     representing: Mapped[str | None] = mapped_column(String(200))
 
-    case: Mapped["Case"] = relationship(back_populates="participations")
-    person: Mapped["Person"] = relationship(back_populates="participations")
+    case: Mapped[Case] = relationship(back_populates="participations")
+    person: Mapped[Person] = relationship(back_populates="participations")
 
 
 class ArticleCited(Base):
@@ -244,7 +244,7 @@ class ArticleCited(Base):
     # reasoning context, not just the bare number.
     context: Mapped[str | None] = mapped_column(Text)
 
-    case: Mapped["Case"] = relationship(back_populates="articles_cited")
+    case: Mapped[Case] = relationship(back_populates="articles_cited")
 
     __table_args__ = (Index("ix_ac_code_article", "code", "article"),)
 
@@ -282,7 +282,7 @@ class VettingRecord(Base):
     decision_url: Mapped[str | None] = mapped_column(Text)
     reasoning_excerpt: Mapped[str | None] = mapped_column(Text)
 
-    person: Mapped["Person"] = relationship(back_populates="vetting_records")
+    person: Mapped[Person] = relationship(back_populates="vetting_records")
 
 
 class DisciplinaryAction(Base):
@@ -302,7 +302,7 @@ class DisciplinaryAction(Base):
     # True while the sanction is still in effect (e.g. suspension ongoing)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
 
-    person: Mapped["Person"] = relationship(back_populates="disciplinary_actions")
+    person: Mapped[Person] = relationship(back_populates="disciplinary_actions")
 
 
 class AssetDeclaration(Base):

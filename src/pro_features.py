@@ -19,8 +19,7 @@ from __future__ import annotations
 import json
 import re
 import textwrap
-from dataclasses import asdict
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 from .backends import LLMBackend
@@ -743,7 +742,7 @@ def compute_deadline_cascade(
         "event_type": event_type,
         "event_label": EVENT_TYPE_LABELS_SQ.get(event_type, event_type),
         "event_date": event_date,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "derived_deadlines": derived,
     }
 
@@ -868,7 +867,7 @@ def build_case_timeline(
             sp = d.get("storage_path")
             if sp and Path(sp).exists():
                 attachments.append(Path(sp))
-        docs_block = f"\nDOKUMENTET E DOSJES (bashkëngjitur):\n" + "\n".join(names) + "\n"
+        docs_block = "\nDOKUMENTET E DOSJES (bashkëngjitur):\n" + "\n".join(names) + "\n"
 
     prompt = textwrap.dedent(f"""\
         EMRI I RASTIT: {case_title}
@@ -911,7 +910,7 @@ def build_case_timeline(
     data.setdefault("contradictions", [])
     data.setdefault("gaps", [])
     data.setdefault("summary", "")
-    data["generated_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    data["generated_at"] = datetime.now(UTC).isoformat(timespec="seconds")
     data["doc_count"] = len(case_docs or [])
     data["event_count"] = len(events)
     return data
@@ -1135,7 +1134,7 @@ def adversarial_loop(
              "heading": a.heading, "score": round(s, 2)}
             for a, s in retrieved[:8]
         ],
-        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
     }
 
 
@@ -1267,7 +1266,7 @@ def build_strategy_compass(
     data["meta"] = {
         "node_count": node_count,
         "depth": max_depth,
-        "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "retrieved_articles": [
             {"citation": a.citation, "code": a.code, "number": a.number,
              "heading": a.heading, "score": round(s, 2)}
@@ -1287,9 +1286,10 @@ def provenance_docx(pack: dict) -> bytes:
     full list of citations and retrieved articles so a reader can audit
     the answer years later — even after the live KB has rotated.
     """
+    from io import BytesIO
+
     from docx import Document
     from docx.shared import Pt
-    from io import BytesIO
 
     doc = Document()
 

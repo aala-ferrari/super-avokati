@@ -18,7 +18,6 @@ from src.scrapers.base import BaseScraper
 from src.scrapers.gjykata_elarte import GjykataELarteScraper
 from src.scrapers.hudoc_echr import HudocEchrScraper
 
-
 SCRAPERS: dict[str, type[BaseScraper]] = {
     GjykataELarteScraper.COURT_CODE: GjykataELarteScraper,
     HudocEchrScraper.COURT_CODE: HudocEchrScraper,

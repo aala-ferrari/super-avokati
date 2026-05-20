@@ -39,20 +39,25 @@ import re
 import textwrap
 import time
 from collections import Counter
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from pathlib import Path
-from typing import Callable, Literal, TypeVar
+from typing import Literal
 
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from .backends import LLMBackend, build_backend
 from .config import (
-    ALBANIAN_EDITOR_ENABLED, BRAIN_PARALLEL_STAGES, BRAIN_PARALLEL_WORKERS,
-    FOLLOWUP_FASTPATH_MAX_CHARS, SIMPLE_FASTPATH_ENABLED,
-    LEGAL_DOCUMENTS, TOP_K_ARTICLES, TOP_K_DECISIONS,
+    ALBANIAN_EDITOR_ENABLED,
+    BRAIN_PARALLEL_STAGES,
+    BRAIN_PARALLEL_WORKERS,
+    FOLLOWUP_FASTPATH_MAX_CHARS,
+    LEGAL_DOCUMENTS,
+    SIMPLE_FASTPATH_ENABLED,
+    TOP_K_ARTICLES,
+    TOP_K_DECISIONS,
 )
 from .documents import format_documents_for_prompt
 from .logging_utils import get_logger

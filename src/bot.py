@@ -17,7 +17,6 @@ import asyncio
 import html
 import signal
 from dataclasses import dataclass, field
-from typing import Any
 
 from telegram import Update
 from telegram.constants import ChatAction, ParseMode

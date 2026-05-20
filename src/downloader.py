@@ -6,8 +6,6 @@ Prints a summary of successes and failures so you can retry specific codes.
 """
 from __future__ import annotations
 
-from pathlib import Path
-
 import requests
 from tenacity import (
     retry,

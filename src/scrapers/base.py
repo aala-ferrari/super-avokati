@@ -18,10 +18,10 @@ import hashlib
 import logging
 import time
 from abc import ABC, abstractmethod
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import date
 from pathlib import Path
-from typing import Iterator
 
 import httpx
 from tenacity import (

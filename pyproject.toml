@@ -1,0 +1,23 @@
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+extend-exclude = [".venv", "venv", ".snapshots", "data", "__pycache__"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = [
+    "E501",  # line length — many Albanian legal strings are long by nature
+    "E701",  # multiple-statements-on-one-line-colon — frequent in concise validators
+    "E702",  # multiple-statements-on-one-line-semicolon — same
+    "E741",  # ambiguous variable name (l, I) — fine in narrow scopes
+    "B007",  # unused-loop-control — rare, not worth blocking
+    "B008",  # function-call-in-default-argument — common in Flask handlers
+    "B904",  # raise-without-from-inside-except — stylistic
+    "F841",  # unused local var — surfaces useful info but not blocking
+    "E402",  # module-level imports not at top — web.py needs it for the brain pattern
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-q --tb=short"

@@ -5,8 +5,11 @@ __pycache__/
 *.pyo
 .DS_Store
 .pytest_cache/
+.ruff_cache/
 logs/
 *.log
+# Local mini-git snapshots (scripts/snapshot.py) — not pushed to remote
+.snapshots/
 # Data is tracked on purpose: the snapshot ships with articles + decisions
 # already parsed and indexed, so the app runs immediately after clone/build.
 # The live user database and session secret are instance-local — never commit.

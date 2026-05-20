@@ -32,8 +32,8 @@ import argparse
 import logging
 import signal
 import sys
+from collections.abc import Iterable
 from datetime import UTC, datetime
-from typing import Iterable
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session

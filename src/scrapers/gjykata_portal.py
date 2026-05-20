@@ -17,8 +17,8 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Iterator, Sequence
 from datetime import date, datetime
-from typing import Iterator, Sequence
 from urllib.parse import urljoin
 
 from selectolax.parser import HTMLParser

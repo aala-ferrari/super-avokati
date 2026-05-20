@@ -14,8 +14,6 @@ from __future__ import annotations
 import json
 import logging
 import re
-import time
-from collections import Counter
 from dataclasses import dataclass
 
 from .backends import LLMBackend

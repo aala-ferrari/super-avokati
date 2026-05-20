@@ -17,11 +17,12 @@ import json
 import re
 import sqlite3
 import uuid
+from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 
 from .config import APP_DB_PATH
 from .logging_utils import get_logger
@@ -805,7 +806,7 @@ ROLE_PERMISSIONS = {
 
 
 def _utcnow() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 # ── connection management ───────────────────────────────────────────────────
@@ -1635,8 +1636,8 @@ def _compute_fire_at(starts_at: str, offset_minutes: int) -> str:
     fire = dt - timedelta(minutes=offset_minutes)
     # Emit with Z suffix so it round-trips cleanly.
     if fire.tzinfo is None:
-        fire = fire.replace(tzinfo=timezone.utc)
-    return fire.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        fire = fire.replace(tzinfo=UTC)
+    return fire.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def create_event(
@@ -2767,7 +2768,7 @@ def firm_capacity_snapshot(firm_id: int, *, horizon_days: int = 7) -> list[dict]
     avoid baking judgment into a percentage — a partner with 30 cases isn't
     necessarily over-loaded; the UI compares relative to peers.
     """
-    horizon_end = (datetime.now(timezone.utc)
+    horizon_end = (datetime.now(UTC)
                    + timedelta(days=horizon_days)).strftime("%Y-%m-%dT%H:%M:%SZ")
     now_iso = _utcnow()
     members = list_members(firm_id)
@@ -3465,7 +3466,7 @@ def create_time_entry(
         hourly_rate = ALBANIAN_BAR_TARIFF_EUR.get(rate_key, 4000)
     if hourly_rate < 0:
         raise ValueError("hourly_rate must be >= 0")
-    entry_date = entry_date or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    entry_date = entry_date or datetime.now(UTC).strftime("%Y-%m-%d")
     now = _utcnow()
     with db() as conn:
         cur = conn.execute(
@@ -3511,7 +3512,7 @@ def delete_time_entry(entry_id: int, case_id: str) -> bool:
 
 def _next_invoice_no(firm_id: int | None) -> str:
     """INV-YYYY-NNNN. Per-firm sequence (per-user if no firm)."""
-    year = datetime.now(timezone.utc).year
+    year = datetime.now(UTC).year
     prefix = f"INV-{year}-"
     with db() as conn:
         if firm_id is not None:
@@ -3571,7 +3572,7 @@ def create_invoice_from_unbilled(
         })
     vat_cents = (subtotal * vat_rate) // 100
     total = subtotal + vat_cents
-    issue_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    issue_date = datetime.now(UTC).strftime("%Y-%m-%d")
     invoice_no = _next_invoice_no(firm_id)
     now = _utcnow()
     md = _render_invoice_markdown(
@@ -4743,7 +4744,7 @@ def _hhmm(iso_ts: str) -> str:
     """Return HH:MM (UTC) of an ISO-8601 timestamp."""
     try:
         dt = datetime.fromisoformat(iso_ts.replace("Z", "+00:00"))
-        return dt.astimezone(timezone.utc).strftime("%H:%M")
+        return dt.astimezone(UTC).strftime("%H:%M")
     except (TypeError, ValueError):
         return "00:00"
 

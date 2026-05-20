@@ -24,12 +24,20 @@ import re
 import secrets
 import time
 from dataclasses import asdict
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from flask import (
-    Flask, Response, jsonify, redirect, render_template, render_template_string,
-    request, send_file, session, stream_with_context, url_for,
+    Flask,
+    Response,
+    jsonify,
+    redirect,
+    render_template,
+    render_template_string,
+    request,
+    send_file,
+    stream_with_context,
+    url_for,
 )
 
 from . import citation_shield as cs_mod
@@ -39,8 +47,13 @@ from . import pro_features as pro_mod
 from . import reminders as reminders_mod
 from . import storage
 from .auth import (
-    authenticate, current_user, login_required_api, login_required_page,
-    login_user, logout_user, require_permission,
+    authenticate,
+    current_user,
+    login_required_api,
+    login_required_page,
+    login_user,
+    logout_user,
+    require_permission,
 )
 from .backends import detect_available_backend
 from .brain import ANSWER_SYSTEM_VERSION, SuperAvvocato
@@ -51,7 +64,6 @@ from .config import (
     MAX_CONVERSATION_TURNS,
     MAX_DOCUMENTS_PER_CASE,
     MAX_UPLOAD_SIZE_MB,
-    ROOT,
 )
 from .logging_utils import get_logger
 from .retrieval import ArticleIndex
@@ -401,8 +413,8 @@ def api_daily_brief():
     user = request.user  # type: ignore[attr-defined]
     firm = request.firm  # type: ignore[attr-defined]
     role = request.role  # type: ignore[attr-defined]
-    from datetime import datetime, timedelta, timezone as _tz
-    now = datetime.now(_tz.utc)
+    from datetime import datetime, timedelta
+    now = datetime.now(UTC)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     horizon = today_start + timedelta(days=7)
 
@@ -1744,7 +1756,7 @@ def api_time_reconstruction():
     user = request.user  # type: ignore[attr-defined]
     date_str = (request.args.get("date") or "").strip()
     if not date_str:
-        date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        date_str = datetime.now(UTC).strftime("%Y-%m-%d")
     if not re.match(r"^\d{4}-\d{2}-\d{2}$", date_str):
         return jsonify({"error": "invalid_date_format"}), 400
     result = storage.reconstruct_time_blocks(user.id, date_str)
@@ -2867,7 +2879,7 @@ def _build_agent_context(case_id: str, user_id: int) -> str:
         events = []
     if events:
         upcoming = [e for e in events
-                    if getattr(e, "starts_at", "") >= datetime.now(timezone.utc).strftime("%Y-%m-%d")]
+                    if getattr(e, "starts_at", "") >= datetime.now(UTC).strftime("%Y-%m-%d")]
         if upcoming:
             lines.append("## Ngjarje të ardhshme")
             for e in upcoming[:6]:
@@ -2958,7 +2970,7 @@ def api_agent_scan(case_id: str):
         except ValueError:
             continue
     return jsonify({
-        "scanned_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "scanned_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "suggestions": [_serialize_suggestion(s) for s in saved],
     }), 201
 
@@ -3936,7 +3948,7 @@ def api_export_case(case_id: str):
     if fmt == "md":
         buf = io.StringIO()
         buf.write(f"# {case.title}\n\n")
-        buf.write(f"_Super Avvocato — eksport i bisedës_\n")
+        buf.write("_Super Avvocato — eksport i bisedës_\n")
         buf.write(f"Krijuar: {case.created_at} · Përditësuar: {case.updated_at}\n\n")
         buf.write("---\n\n")
         for m in messages:
@@ -4606,7 +4618,7 @@ def _autopopulate_events_from_result(
             starts_at = f"{m.group(1)}T09:00:00+00:00"
             try:
                 dt = datetime.fromisoformat(starts_at.replace("Z", "+00:00"))
-                starts_iso = dt.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+                starts_iso = dt.astimezone(UTC).isoformat().replace("+00:00", "Z")
             except Exception:
                 continue
             source_ref = f"case:{case_id}:timeline:{idx}"
@@ -4643,7 +4655,7 @@ def _autopopulate_events_from_result(
             starts_at = f"{m.group(1)}T09:00:00+00:00"
             try:
                 dt = datetime.fromisoformat(starts_at.replace("Z", "+00:00"))
-                starts_iso = dt.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+                starts_iso = dt.astimezone(UTC).isoformat().replace("+00:00", "Z")
             except Exception:
                 continue
             source_ref = f"case:{case_id}:urgency:{idx}"
@@ -5238,7 +5250,7 @@ def api_cascade_schedule():
         iso_date = d["due_date"]
         starts_at = datetime.fromisoformat(
             f"{iso_date}T09:00:00+00:00",
-        ).astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+        ).astimezone(UTC).isoformat().replace("+00:00", "Z")
         source_ref = (
             f"cascade:{event_type}:{event_date}:{d['key']}"
             + (f":{case_id}" if case_id else "")

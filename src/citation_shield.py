@@ -28,13 +28,12 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from dataclasses import dataclass, asdict, field
-from datetime import datetime, timezone
-from pathlib import Path
-from typing import Any, Iterable
+from collections.abc import Iterable
+from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime
+from typing import Any
 
 from .config import PROCESSED_DATA_PATH
-
 
 # Confidence threshold below which the response carries a "refusal" preamble.
 # Picked at 0.5 because mixed (1 verified + 1 fake) sits at 0.5 and that's
@@ -250,11 +249,11 @@ def build_provenance_pack(
         except Exception:
             continue
 
-    response_id = _hash_text(f"{user_message}|{response_text}|{datetime.now(timezone.utc).isoformat()}")[:12]
+    response_id = _hash_text(f"{user_message}|{response_text}|{datetime.now(UTC).isoformat()}")[:12]
 
     return ProvenancePack(
         response_id=response_id,
-        timestamp_iso=datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        timestamp_iso=datetime.now(UTC).isoformat(timespec="seconds"),
         jurisdiction=jurisdiction,
         kb_version=kb_version(jurisdiction),
         model=model,

@@ -12,7 +12,6 @@ import json
 import logging
 import re
 import time
-from collections import Counter
 from dataclasses import dataclass
 
 from .backends import LLMBackend
@@ -153,10 +152,10 @@ class LessonMatch:
 
 _TOKEN_RE = re.compile(r"[a-zA-ZçëÇË]{4,}")
 _STOPWORDS = {
-    "është", "ishin", "është", "shumë", "është", "duhet", "këtë", "këto",
-    "atë", "ata", "ato", "një", "dhe", "për", "është", "siç", "kemi",
+    "është", "ishin", "shumë", "duhet", "këtë", "këto",
+    "atë", "ata", "ato", "një", "dhe", "për", "siç", "kemi",
     "kanë", "deri", "nuk", "mos", "ose", "edhe", "kur", "ku", "si",
-    "secili", "njëri", "veç", "vetëm", "ende", "tashmë", "ndaj", "kur",
+    "secili", "njëri", "veç", "vetëm", "ende", "tashmë", "ndaj",
 }
 
 

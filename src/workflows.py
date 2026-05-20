@@ -31,7 +31,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 # ── DSL types (lightweight — plain dicts, validated at load) ───────────
 
 # Step shape:

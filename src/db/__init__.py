@@ -1,19 +1,19 @@
 """Legal knowledge base (Postgres) — schema, engine, session helpers."""
-from src.db.engine import engine, session_scope, SessionLocal
+from src.db.engine import SessionLocal, engine, session_scope
 from src.db.models import (
-    Base,
-    Court,
-    Person,
     Affiliation,
+    ArticleCited,
+    AssetDeclaration,
+    Base,
     Case,
     CaseAnalysis,
-    Participation,
-    ArticleCited,
-    VettingRecord,
-    DisciplinaryAction,
-    AssetDeclaration,
+    Court,
     CriminalProceeding,
+    DisciplinaryAction,
+    Participation,
+    Person,
     ScrapeJob,
+    VettingRecord,
 )
 
 __all__ = [

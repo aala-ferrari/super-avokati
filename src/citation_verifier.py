@@ -18,11 +18,10 @@ from __future__ import annotations
 
 import re
 from collections import defaultdict
-from dataclasses import dataclass, asdict
-from typing import Iterable
+from collections.abc import Iterable
+from dataclasses import asdict, dataclass
 
 from .retrieval import ArticleIndex
-
 
 # ── Code aliases ────────────────────────────────────────────────────────────
 # Maps the spoken/written form Albanian lawyers use → the internal corpus key.
@@ -196,7 +195,7 @@ def _build_lookup(index: ArticleIndex) -> dict[tuple[str, str], object]:
         if art.repealed:
             continue
         table[(art.code, _normalise_number(art.number))] = art
-    setattr(index, "_citation_lookup", table)
+    index._citation_lookup = table
     return table
 
 
@@ -212,7 +211,7 @@ def _build_number_to_codes(index: ArticleIndex) -> dict[str, list[str]]:
         table[_normalise_number(art.number)].append(art.code)
     # de-dup while preserving order
     table = {k: list(dict.fromkeys(v)) for k, v in table.items()}
-    setattr(index, "_citation_num_index", table)
+    index._citation_num_index = table
     return table
 
 

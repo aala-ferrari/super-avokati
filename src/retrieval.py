@@ -15,9 +15,9 @@ from __future__ import annotations
 import json
 import pickle
 import re
+from collections.abc import Iterable
 from dataclasses import asdict
 from pathlib import Path
-from typing import Iterable
 
 from rank_bm25 import BM25Okapi
 
@@ -39,10 +39,10 @@ DECISIONS_JSONL = PROCESSED_DATA_PATH / "all_decisions.jsonl"
 STOPWORDS: frozenset[str] = frozenset({
     "a", "e", "i", "të", "ta", "atë", "ai", "ajo", "ata", "ato", "un", "unë",
     "ti", "ne", "ju", "dhe", "edhe", "ose", "apo", "është", "ishte", "janë",
-    "janë", "kam", "kemi", "ka", "kanë", "do", "duhet", "nuk", "as", "më",
+    "kam", "kemi", "ka", "kanë", "do", "duhet", "nuk", "as", "më",
     "se", "sikur", "nëse", "kur", "ku", "si", "cila", "cili", "cilat", "cilët",
     "ky", "kjo", "këto", "këta", "këtij", "kësaj", "asaj", "atij", "aty",
-    "këtu", "atje", "un", "po", "jo", "pa", "deri", "qysh", "çdo",
+    "këtu", "atje", "po", "jo", "pa", "deri", "qysh", "çdo",
 })
 
 TOKEN_RE = re.compile(r"[a-zçëï0-9]+", re.IGNORECASE)
@@ -64,7 +64,7 @@ class ArticleIndex:
     # ── construction ────────────────────────────────────────────────────────
 
     @classmethod
-    def build(cls, articles: list[Article]) -> "ArticleIndex":
+    def build(cls, articles: list[Article]) -> ArticleIndex:
         log.info("tokenising %d articles ...", len(articles))
         corpus = [tokenize(a.searchable_text) for a in articles]
         log.info("building BM25 index ...")
@@ -72,7 +72,7 @@ class ArticleIndex:
         return cls(articles, bm25)
 
     @classmethod
-    def from_jsonl(cls, path: Path = ARTICLES_JSONL) -> "ArticleIndex":
+    def from_jsonl(cls, path: Path = ARTICLES_JSONL) -> ArticleIndex:
         articles: list[Article] = []
         with path.open(encoding="utf-8") as fh:
             for line in fh:
@@ -90,7 +90,7 @@ class ArticleIndex:
         log.info("index saved to %s (%d articles)", path, len(self.articles))
 
     @classmethod
-    def load(cls, path: Path = INDEX_FILE) -> "ArticleIndex":
+    def load(cls, path: Path = INDEX_FILE) -> ArticleIndex:
         with path.open("rb") as fh:
             data = pickle.load(fh)
         articles = [Article(**a) for a in data["articles"]]
@@ -145,7 +145,7 @@ class DecisionIndex:
     # ── construction ────────────────────────────────────────────────────────
 
     @classmethod
-    def build(cls, decisions: list[Decision]) -> "DecisionIndex":
+    def build(cls, decisions: list[Decision]) -> DecisionIndex:
         log.info("tokenising %d decisions ...", len(decisions))
         corpus = [tokenize(d.searchable_text) for d in decisions]
         log.info("building BM25 decisions index ...")
@@ -153,7 +153,7 @@ class DecisionIndex:
         return cls(decisions, bm25)
 
     @classmethod
-    def from_jsonl(cls, path: Path = DECISIONS_JSONL) -> "DecisionIndex":
+    def from_jsonl(cls, path: Path = DECISIONS_JSONL) -> DecisionIndex:
         decisions: list[Decision] = []
         if not path.exists():
             log.warning("no decisions jsonl at %s — index will be empty", path)
@@ -166,7 +166,7 @@ class DecisionIndex:
         return cls.build(decisions)
 
     @classmethod
-    def from_unified(cls, path: Path = DECISIONS_JSONL) -> "DecisionIndex":
+    def from_unified(cls, path: Path = DECISIONS_JSONL) -> DecisionIndex:
         """Load Kushtetuese (jsonl) + Gjykata e Lartë + ECHR (Postgres) into a
         single index. Falls back to jsonl-only if Postgres is unreachable.
 
@@ -201,7 +201,7 @@ class DecisionIndex:
         log.info("decisions index saved to %s (%d decisions)", path, len(self.decisions))
 
     @classmethod
-    def load(cls, path: Path = DECISIONS_INDEX_FILE) -> "DecisionIndex":
+    def load(cls, path: Path = DECISIONS_INDEX_FILE) -> DecisionIndex:
         if not path.exists():
             return cls([], None)  # type: ignore[arg-type]
         with path.open("rb") as fh:
@@ -306,8 +306,9 @@ def _load_postgres_decisions() -> list[Decision]:
 
     Empty raw_path / missing decision_date falls through gracefully.
     """
-    from .db import Case, Court, session_scope
     from sqlalchemy.orm import joinedload
+
+    from .db import Case, session_scope
 
     decisions: list[Decision] = []
     with session_scope() as sess:
