@@ -551,7 +551,7 @@ CREATE TABLE IF NOT EXISTS provenance_packs (
     user_id         INTEGER NOT NULL,
     jurisdiction    TEXT NOT NULL DEFAULT 'AL',        -- 'AL'|'IT'|'EU'|...
     kb_version      TEXT NOT NULL,                     -- KB hash at retrieval time
-    model           TEXT NOT NULL,                     -- 'claude-opus-4-7' etc
+    model           TEXT NOT NULL,                     -- 'claude-opus-4-8' etc
     system_prompt_version TEXT,                        -- short hash of system prompt
     prompt_hash     TEXT NOT NULL,
     response_hash   TEXT NOT NULL,

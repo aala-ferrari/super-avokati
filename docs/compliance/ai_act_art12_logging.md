@@ -14,7 +14,7 @@ call with timing + hashing + audit emission.
 | `case_id` | which dossier the call belongs to (nullable) |
 | `callsite` | which function inside the codebase made the call (auto-inferred from stack) |
 | `backend` | claude_code / anthropic / gemini |
-| `model` | exact model identifier (e.g. `claude-opus-4-7`) |
+| `model` | exact model identifier (e.g. `claude-opus-4-8`) |
 | `tier` | `default` / `medium` / `fast` (lawyer-first routing) |
 | `prompt_hash` | SHA-256[:16] of the system + flattened messages |
 | `response_hash` | SHA-256[:16] of the assistant text (null on error) |

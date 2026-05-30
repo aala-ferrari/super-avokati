@@ -23,13 +23,13 @@ TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 # Force a specific provider with BRAIN_BACKEND=anthropic or BRAIN_BACKEND=gemini.
 BRAIN_BACKEND = os.getenv("BRAIN_BACKEND", "auto")
 
-CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "claude-opus-4-7")
+CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "claude-opus-4-8")
 # V8.10 medium tier (post-pivot lawyer-first): Sonnet 4.6 sostituisce
 # Haiku come default per task lawyer-facing intermedi (lead intake
 # classification, hearing quick Q&A, jargon→qytetar, AI client wizard).
 # Haiku resta solo per scaffolding puro (parse JSON, BM25 lookup).
 CLAUDE_MEDIUM_MODEL = os.getenv("CLAUDE_MEDIUM_MODEL", "claude-sonnet-4-6")
-CLAUDE_FAST_MODEL = os.getenv("CLAUDE_FAST_MODEL", "claude-haiku-4-5-20251001")
+CLAUDE_FAST_MODEL = os.getenv("CLAUDE_FAST_MODEL", "claude-sonnet-4-6")
 # Extended thinking budget (tokens) for the main model on hard legal
 # reasoning — pavlefshmëria, parashkrimi, konflikte ndërmjet neneve.
 # Applies only to the final answer stage; triage/strategic stay fast.
@@ -43,9 +43,9 @@ CLAUDE_THINKING_BUDGET = int(os.getenv("CLAUDE_THINKING_BUDGET", "16000"))
 # explicit and survives CLI alias remapping. This assistant gives
 # legal advice to people who cannot afford a lawyer: accuracy and
 # strategic depth beat latency every time.
-CLAUDE_CODE_MODEL = os.getenv("CLAUDE_CODE_MODEL", "claude-opus-4-7")
+CLAUDE_CODE_MODEL = os.getenv("CLAUDE_CODE_MODEL", "claude-opus-4-8")
 CLAUDE_CODE_MEDIUM_MODEL = os.getenv("CLAUDE_CODE_MEDIUM_MODEL", "claude-sonnet-4-6")
-CLAUDE_CODE_FAST_MODEL = os.getenv("CLAUDE_CODE_FAST_MODEL", "claude-haiku-4-5-20251001")
+CLAUDE_CODE_FAST_MODEL = os.getenv("CLAUDE_CODE_FAST_MODEL", "claude-sonnet-4-6")
 # Effort level for the main answer stage: low / medium / high / xhigh /
 # max. Default "max" — we want the lawyer's edge, not a quick reply.
 # Ignored on fast-model calls (triage/strategic stay fast).
