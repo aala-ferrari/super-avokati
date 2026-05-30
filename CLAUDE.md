@@ -75,10 +75,12 @@ attaccaci esplicitamente il guard — non confidare che basti
 
 ## Tier di backend
 
-- **Opus** (default per Super Avvocato) — profondità > velocità.
-- **Sonnet** (`medium=True`) — tasks moderati (intake, jargon plain,
-  contract review iniziale).
-- **Haiku** (`fast=True`) — solo scaffolding.
+- **Opus 4.8** (default per Super Avvocato) — profondità > velocità,
+  thinking max. È il cervello del ragionamento legale.
+- **Sonnet 4.6** (`medium=True` e `fast=True`) — tutto il resto:
+  intake, jargon plain, contract review iniziale, scaffolding.
+- **Haiku rimosso**: in uno strumento legale non vogliamo modelli
+  "piccoli". Solo Opus (risposta) + Sonnet (resto).
 
 ## Lingua
 

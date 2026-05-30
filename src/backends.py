@@ -194,7 +194,7 @@ class ClaudeCodeBackend(LLMBackend):
         self,
         model: str = "opus",
         medium_model: str = "sonnet",
-        fast_model: str = "haiku",
+        fast_model: str = "sonnet",
         cli_path: str | None = None,
         timeout_s: int = 600,
         effort: str | None = "max",
