@@ -24,10 +24,10 @@ TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 BRAIN_BACKEND = os.getenv("BRAIN_BACKEND", "auto")
 
 CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "claude-opus-4-8")
-# V8.10 medium tier (post-pivot lawyer-first): Sonnet 4.6 sostituisce
-# Haiku come default per task lawyer-facing intermedi (lead intake
-# classification, hearing quick Q&A, jargon→qytetar, AI client wizard).
-# Haiku resta solo per scaffolding puro (parse JSON, BM25 lookup).
+# V9.x tier (Haiku rimosso): in uno strumento legale non vogliamo
+# modelli "piccoli". Solo Opus (risposta legale) + Sonnet (tutto il
+# resto: medium E fast — intake, Q&A udienza, jargon→qytetar, wizard,
+# scaffolding/parse JSON/BM25 lookup).
 CLAUDE_MEDIUM_MODEL = os.getenv("CLAUDE_MEDIUM_MODEL", "claude-sonnet-4-6")
 CLAUDE_FAST_MODEL = os.getenv("CLAUDE_FAST_MODEL", "claude-sonnet-4-6")
 # Extended thinking budget (tokens) for the main model on hard legal
@@ -38,7 +38,7 @@ CLAUDE_FAST_MODEL = os.getenv("CLAUDE_FAST_MODEL", "claude-sonnet-4-6")
 CLAUDE_THINKING_BUDGET = int(os.getenv("CLAUDE_THINKING_BUDGET", "16000"))
 # Claude Code CLI accepts full model IDs or aliases.
 # We pin the full ID so we're GUARANTEED to run the smartest model
-# available — Opus 4.7 (January 2026, current flagship). Aliases like
+# available — Opus 4.8 (current flagship). Aliases like
 # "opus" auto-resolve to the latest, but pinning makes the choice
 # explicit and survives CLI alias remapping. This assistant gives
 # legal advice to people who cannot afford a lawyer: accuracy and

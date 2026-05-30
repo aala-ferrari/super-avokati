@@ -38,7 +38,10 @@ log = logging.getLogger(__name__)
 
 
 CLAUDE_BIN = os.getenv("CLAUDE_BIN", "/Users/mac/.local/bin/claude")
-EXTRACTION_MODEL = "haiku"  # alias — Claude Code CLI resolves to latest
+# Haiku rimosso (policy V9.x: in uno strumento legale niente modelli
+# "piccoli"). L'estrazione metadati gira su Sonnet — alias risolto
+# dalla CLI all'ultimo Sonnet disponibile.
+EXTRACTION_MODEL = os.getenv("EXTRACTION_MODEL", "sonnet")
 
 # Truncate decisions beyond this so we stay well inside Haiku's window
 # and keep cost predictable. We keep head + tail so the judges block
