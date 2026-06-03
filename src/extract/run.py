@@ -9,7 +9,7 @@ Usage::
 For each pending case we:
 
 1. Read the raw file (``Case.raw_path``) into plain text via readers.
-2. Call Haiku with the extraction tool → structured metadata.
+2. Call the extraction model (Sonnet) with the tool → structured metadata.
 3. Upsert ``Person`` rows (exact canonical_name match; fuzzy dedup is
    a separate later pass to keep this idempotent).
 4. Insert ``Participation`` rows (judge, prosecution, defense, party).

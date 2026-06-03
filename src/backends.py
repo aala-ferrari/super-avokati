@@ -5,7 +5,7 @@ Three providers are supported:
 - **Claude Code (subscription)** — headless `claude -p` CLI. No API key, no
   per-token billing; auth lives in the Claude Code login. Best answer quality
   plus native conversation sessions via `--resume`.
-- **Anthropic (Claude 4.7 Opus + Haiku 4.5)** — API key, paid per call.
+- **Anthropic (Claude Opus 4.8 + Sonnet 4.6)** — API key, paid per call.
 - **Google Gemini (2.5 Pro / 2.5 Flash)** — free tier (~1500 req/day on Flash).
 
 The brain uses the `LLMBackend` interface so it never cares which provider
@@ -142,10 +142,10 @@ class LLMBackend(ABC):
     ) -> str:
         """Return the assistant's text for the given system + message history.
 
-        Tier selection (V8.10 lawyer-first):
+        Tier selection (V9.x lawyer-first, Haiku rimosso):
           • default (fast=False, medium=False) → main Opus model + max effort
           • medium=True → Sonnet 4.6 (lawyer-facing intermediate tasks)
-          • fast=True → Haiku 4.5 (scaffolding ONLY: parse JSON, BM25 lookup)
+          • fast=True → Sonnet 4.6 (scaffolding: parse JSON, BM25 lookup)
             takes precedence over medium when both are True (backwards compat).
 
         `attachments`, when provided, is a list of file paths (PDF/JPG/PNG/
@@ -214,7 +214,7 @@ class ClaudeCodeBackend(LLMBackend):
         self.effort = effort
 
     def _pick_model(self, fast: bool, medium: bool) -> str:
-        """V8.10 tier selection: fast (Haiku) > medium (Sonnet) > default (Opus)."""
+        """V9.x tier selection: fast (Sonnet) > medium (Sonnet) > default (Opus)."""
         if fast:
             return self.fast_model
         if medium:

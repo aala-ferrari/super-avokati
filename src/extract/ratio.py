@@ -56,7 +56,7 @@ RATIO_MODEL = "opus"  # Opus 4.7 — depth matters for ratio extraction
 
 # Same head+tail truncation strategy as src/extract/llm.py: keep the
 # header (parties, articles cited) AND the operative part (which is at
-# the end). Opus context is generous; we go higher than Haiku's MAX.
+# the end). Opus context is generous; we go higher than the extractor's MAX.
 MAX_CHARS = 60_000
 
 

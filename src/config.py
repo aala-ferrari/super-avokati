@@ -98,10 +98,11 @@ MAX_CONVERSATION_TURNS = int(os.getenv("MAX_CONVERSATION_TURNS", "20"))
 # editor mutated any protected token (case links, article numbers,
 # currency, dates). Disabling this skips the LLM rewrite but keeps
 # the deterministic word/phrase corrections (those are always on).
-# V7.8 — disabled by default. The Haiku pass over Opus 4.7's output was
+# V7.8 — disabled by default. The editor pass over Opus's output was
 # adding ~10s wall-clock for a median +1-char diff (observed in prod logs),
 # i.e. almost always a no-op, and when it DID rewrite it risked introducing
-# its own Albanian errors (Haiku is weaker than Opus on shqipe standarde).
+# its own Albanian errors (the small editor model is weaker than Opus on
+# shqipe standarde).
 # Opus writes clean legal Albanian on its own; keep the deterministic
 # `_apply_corrections` pass which is cheap and safe. Set to 1 to re-enable.
 ALBANIAN_EDITOR_ENABLED = os.getenv("ALBANIAN_EDITOR_ENABLED", "0") == "1"

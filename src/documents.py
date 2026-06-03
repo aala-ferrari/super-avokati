@@ -289,8 +289,8 @@ def summarize_document(extracted_text: str, filename: str, backend) -> dict:
         return {"doc_type": "Bosh", "summary": "Dokumenti nuk ka tekst të lexueshëm.",
                 "key_facts": []}
 
-    # Cap the text we send to Haiku/Flash — most documents fit, but a
-    # scanned 40-page file would blow through the budget.
+    # Cap the text we send to the fast tier (Sonnet/Flash) — most
+    # documents fit, but a scanned 40-page file would blow the budget.
     clipped = text[:12000]
     if len(text) > 12000:
         clipped += "\n\n[… teksti i mëtejshëm u shkurtua për analizë …]"

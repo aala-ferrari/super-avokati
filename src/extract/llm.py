@@ -6,7 +6,7 @@ already logged in via OAuth and we want zero extra configuration.
 
 Flow per call:
 
-1. Spawn ``claude -p --model haiku --output-format json --json-schema <S>``
+1. Spawn ``claude -p --model sonnet --output-format json --json-schema <S>``
    with the decision text on stdin.
 2. Parse the ``structured_output`` field from the JSON response — that
    is the schema-validated extraction result.
@@ -15,8 +15,9 @@ Flow per call:
 The CLI enforces the JSON schema server-side, so we never need to
 defensively parse free-form LLM prose.
 
-Cost per call (Haiku 4.5, Apr 2026): ~$0.01–0.04 depending on cache
-reuse. For 815 decisions we budget ~$10–15 worst case.
+Cost per call (Sonnet 4.6): higher than the old Haiku pass but still
+modest; for 815 decisions budget a few tens of dollars worst case.
+Haiku rimosso per policy (niente modelli "piccoli" nello strumento legale).
 """
 from __future__ import annotations
 
@@ -43,7 +44,7 @@ CLAUDE_BIN = os.getenv("CLAUDE_BIN", "/Users/mac/.local/bin/claude")
 # dalla CLI all'ultimo Sonnet disponibile.
 EXTRACTION_MODEL = os.getenv("EXTRACTION_MODEL", "sonnet")
 
-# Truncate decisions beyond this so we stay well inside Haiku's window
+# Truncate decisions beyond this so we stay well inside the model's window
 # and keep cost predictable. We keep head + tail so the judges block
 # (top) and the "VENDOSI:" dispositivo (bottom) both survive.
 MAX_CHARS = 40_000

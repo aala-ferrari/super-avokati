@@ -2058,8 +2058,8 @@ class SuperAvvocato:
             )
             answer_text = _verify_citations(answer_text, [])
             # V7.7 — Albanian editor pass deliberately SKIPPED on simple:
-            # Opus 4.7's shqipe standarde is already clean, and the editor
-            # adds ~10s (Haiku call + diff check) for a marginal polish
+            # Opus's shqipe standarde is already clean, and the editor
+            # adds ~10s (extra model call + diff check) for a marginal polish
             # that a citizen asking "sa m2 na takon" doesn't need.
             answer_text = _apply_corrections(answer_text)
             new_session_id = getattr(self.backend, "last_session_id",
@@ -2293,8 +2293,8 @@ class SuperAvvocato:
         else:
             triage_message = user_message
         messages = list(history) + [{"role": "user", "content": triage_message}]
-        # V8.10: triage resta Haiku — classificatore binario simple/complex,
-        # latenza critica per UX streaming. Pure scaffolding.
+        # Triage gira sul tier fast (Sonnet) — classificatore binario
+        # simple/complex, latenza critica per UX streaming. Pure scaffolding.
         raw = self.backend.complete(
             system=TRIAGE_SYSTEM,
             messages=messages,
@@ -4156,8 +4156,8 @@ def _looks_simple(user_message: str, documents: list[dict] | None) -> bool:
 # The opponent playbook + leverage map stages are only useful when there's
 # someone on the other side: employer, prosecutor, ex-spouse, tax office,
 # evicting landlord, etc. For "cfare eshte emërimi i kujdestarit?" there
-# is literally no opposing party — simulating one burns ~60-120s of Haiku
-# calls producing empty JSON that gets dropped. Gate those two stages.
+# is literally no opposing party — simulating one burns ~60-120s of
+# fast-tier calls producing empty JSON that gets dropped. Gate those two stages.
 _ADVERSARY_MARKERS = (
     # explicit parties on the other side
     "kundërshtar", "kundershtar", "pala tjetër", "pala tjeter",
@@ -4192,7 +4192,7 @@ def _has_adversary(
 
     Called inside the complex pipeline to decide whether the opponent
     playbook + leverage map stages are worth running. They each burn a
-    Haiku call (~20-40s) and produce empty JSON when there's no one on
+    fast-tier (Sonnet) call (~20-40s) and produce empty JSON when there's no one on
     the other side — a big waste for long-but-informative questions
     like "shpjegomë si funksionon procedura e trashëgimisë".
 
