@@ -1780,7 +1780,7 @@ def api_time_reconstruction():
                         system="Ti je asistent fakturimi për avokat shqiptar. Shkurt, faktik.",
                         messages=[{"role": "user", "content": prompt}],
                         max_tokens=80,
-                        fast=True,  # Haiku — etichettatura banale
+                        fast=True,  # Sonnet — etichettatura banale
                         callsite="time_block_label",
                     )
                     b["suggested_description"] = text.strip().splitlines()[0][:140]
@@ -3266,8 +3266,8 @@ def api_hearing_quick(case_id: str):
     user_msg += f"\n\n## Pyetja TANI në seancë\n{question}"
 
     try:
-        # V8.10: avvocato in udienza merita risposta intelligente, non Haiku-quality.
-        # Sonnet bilancia qualità e latenza (~3-5s, accettabile in court).
+        # Avvocato in udienza merita risposta intelligente: Sonnet bilancia
+        # qualità e latenza (~3-5s, accettabile in court).
         reply = _BRAIN.backend.complete(
             system=HEARING_QUICK_SYSTEM,
             messages=[{"role": "user", "content": user_msg}],
@@ -4197,10 +4197,8 @@ def api_ask():
     if not _BRAIN:
         hits = _INDEX.search(message, top_k=10)
         articles = [_article_payload(a, s) for a, s in hits]
-        text = ("⚠️ Asnjë backend LLM nuk është i disponueshëm — "
-                "instaloni Claude Code (`claude /login`) ose vendosni "
-                "GEMINI_API_KEY/ANTHROPIC_API_KEY. Po tregoj vetëm "
-                "nenet që BM25-ja gjeti për pyetjen tënde.")
+        text = ("⚠️ Motori AI nuk është i disponueshëm për momentin. "
+                "Po tregoj vetëm nenet që u gjetën për pyetjen tënde.")
         storage.add_message(case.id, "assistant", text,
                             kind="retrieval_only", articles=articles)
         return jsonify({"kind": "retrieval_only", "text": text,

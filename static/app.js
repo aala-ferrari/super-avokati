@@ -5193,7 +5193,7 @@
       return;
     }
     contractRunBtn.disabled = true;
-    contractStatus.textContent = "Po analizon kontratën… (~60-90s, full Opus)";
+    contractStatus.textContent = "Po analizon kontratën… (~60-90s)";
     contractStatus.className = "pro-status";
     contractResult.hidden = true;
     try {
@@ -6670,7 +6670,7 @@
   coachRunBtn && coachRunBtn.addEventListener("click", async () => {
     if (!activeCaseId) { coachStatus.textContent = "Hap një rast fillimisht."; return; }
     coachRunBtn.disabled = true;
-    coachStatus.textContent = "Opus po analizon historikun e fascikulit… (≈30-60s)";
+    coachStatus.textContent = "AI po analizon historikun e fascikulit… (≈30-60s)";
     coachResult.hidden = true;
     try {
       const r = await fetch(`/api/cases/${activeCaseId}/post-mortem`, {
@@ -6956,7 +6956,7 @@
     const content = vigUpContent.value.trim();
     if (content.length < 50) { vigUpStatus.textContent = "Përmbajtja shumë e shkurtër (≥50 char)."; return; }
     vigUploadBtn.disabled = true;
-    vigUpStatus.textContent = "Opus po klasifikon dhe matchon… (≈20-40s)";
+    vigUpStatus.textContent = "AI po klasifikon dhe matchon… (≈20-40s)";
     vigUpRes.hidden = true;
     try {
       const r = await fetch("/api/vigilanza/manual", {
@@ -7264,7 +7264,7 @@
     if (!docText) { corpExtractSt.textContent = "Ngjit tekstin e dokumentit."; return; }
     if (!activeCaseId) { corpExtractSt.textContent = "Hap një rast fillimisht."; return; }
     corpExtractBtn.disabled = true;
-    corpExtractSt.textContent = "Duke ekstraktuar me Opus…";
+    corpExtractSt.textContent = "Duke ekstraktuar me AI…";
     corpExtractRes.hidden = true;
     try {
       const r = await fetch(`/api/cases/${activeCaseId}/corporate/extract`, {

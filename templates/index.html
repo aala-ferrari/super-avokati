@@ -83,14 +83,10 @@
       </svg>
       <span class="calendar-toggle-label">Studio</span>
     </button>
-    <div class="brain-status {{ 'on' if has_brain else 'off' }}" title="{{ backend_name or 'pa backend' }}">
+    <div class="brain-status {{ 'on' if has_brain else 'off' }}" title="{{ 'Tetramorph' if has_brain else 'pa motor' }}">
       <span class="dot"></span>
       {% if has_brain %}
-        {% if backend_name == 'claude_code' %}Tetramorph
-        {% elif backend_name == 'gemini' %}Gemini
-        {% elif backend_name == 'anthropic' %}Claude API
-        {% else %}{{ backend_name }}
-        {% endif %}
+        Tetramorph
       {% else %}
         Offline
       {% endif %}
@@ -185,11 +181,11 @@
             </button>
             <button type="button" class="pro-menu-item pro-menu-new" data-pro="genio" role="menuitem">
               <span class="pro-menu-ico">🧠</span>
-              <div><strong>Genio Legale</strong><em>6 perspektiva Opus paralele: rifrazim · kill-shot · levat · pemë · e vërteta · zëri yt</em></div>
+              <div><strong>Genio Legale</strong><em>6 perspektiva paralele: rifrazim · kill-shot · levat · pemë · e vërteta · zëri yt</em></div>
             </button>
             <button type="button" class="pro-menu-item pro-menu-new" data-pro="precedent" role="menuitem">
               <span class="pro-menu-ico">📚</span>
-              <div><strong>Pattern e precedentëve</strong><em>BM25 mbi 1.095 vendime + ratio Opus → lëvizjet që fituan, kurthet që humbën, kill-shot</em></div>
+              <div><strong>Pattern e precedentëve</strong><em>BM25 mbi 1.095 vendime + ratio AI → lëvizjet që fituan, kurthet që humbën, kill-shot</em></div>
             </button>
 
             <div class="pro-menu-divider" aria-hidden="true">— DOKUMENTE —</div>
@@ -1050,7 +1046,7 @@
     <header class="pro-modal-head">
       <div>
         <h3 id="genio-modal-title">🧠 Genio Legale — Senior Partner Brief</h3>
-        <p class="pro-modal-sub">Lësho 6 mendje Opus paralele mbi këtë rast. Çdo lente është një partner senior tjetër. Mendojnë në kohë reale.</p>
+        <p class="pro-modal-sub">Lësho 6 mendje paralele mbi këtë rast. Çdo lente është një partner senior tjetër. Mendojnë në kohë reale.</p>
       </div>
       <button type="button" class="pro-modal-close" data-close aria-label="Mbyll">&times;</button>
     </header>
@@ -1103,7 +1099,7 @@
     <header class="pro-modal-head">
       <div>
         <h3 id="precedent-modal-title">📚 Pattern e precedentëve</h3>
-        <p class="pro-modal-sub">BM25 mbi 1.095 vendime (Kushtetuese · Gjykata e Lartë · GjEDNj-Albania) + ratio Opus → lëvizjet që fituan, kurthet që humbën, kill-shot.</p>
+        <p class="pro-modal-sub">BM25 mbi 1.095 vendime (Kushtetuese · Gjykata e Lartë · GjEDNj-Albania) + ratio AI → lëvizjet që fituan, kurthet që humbën, kill-shot.</p>
       </div>
       <button type="button" class="pro-modal-close" data-close aria-label="Mbyll">&times;</button>
     </header>
@@ -1136,7 +1132,7 @@
   <div class="pro-modal-card pro-modal-wide">
     <header class="pro-modal-head">
       <h3 id="coach-modal-title">📝 Ratio Coach — Mësime që përsëriten</h3>
-      <p class="pro-modal-sub">Pas çdo rasti të mbyllur, Opus ekstrakton mësimin e transferueshëm: çfarë funksionoi, çfarë dështoi, faktori vendimtar. Në rastet e ardhshme të ngjashme, mësimet ngrihen automatikisht para se të bësh të njëjtin gabim ose të humbasësh të njëjtën lëvizje fituese.</p>
+      <p class="pro-modal-sub">Pas çdo rasti të mbyllur, AI ekstrakton mësimin e transferueshëm: çfarë funksionoi, çfarë dështoi, faktori vendimtar. Në rastet e ardhshme të ngjashme, mësimet ngrihen automatikisht para se të bësh të njëjtin gabim ose të humbasësh të njëjtën lëvizje fituese.</p>
       <button type="button" class="pro-modal-close" data-close aria-label="Mbyll">&times;</button>
     </header>
     <div class="pro-modal-body">
@@ -1149,7 +1145,7 @@
 
       <!-- TAB 1: post-mortem -->
       <div id="coach-tab-postmortem" class="coach-tab-panel">
-        <p class="coach-hint">Trego rezultatin e fascikulit aktual dhe Opus do ta analizojë historikun + dokumentet për të nxjerrë mësimin e transferueshëm.</p>
+        <p class="coach-hint">Trego rezultatin e fascikulit aktual dhe AI do ta analizojë historikun + dokumentet për të nxjerrë mësimin e transferueshëm.</p>
         <div class="coach-row">
           <select id="coach-outcome" class="pro-select">
             <option value="fituar">✓ Fituar</option>
@@ -1193,7 +1189,7 @@
   <div class="pro-modal-card pro-modal-wide">
     <header class="pro-modal-head">
       <h3 id="vigilanza-modal-title">📰 Vigilanza Normativa</h3>
-      <p class="pro-modal-sub">Çdo akt i ri (ligj, vendim, udhëzim) që ngarkon këtu klasifikohet automatikisht me Opus dhe matchohet kundër fascikujve të tu të hapur. Rezultati: alert i drejtpërdrejtë në ato raste që preken.</p>
+      <p class="pro-modal-sub">Çdo akt i ri (ligj, vendim, udhëzim) që ngarkon këtu klasifikohet automatikisht me AI dhe matchohet kundër fascikujve të tu të hapur. Rezultati: alert i drejtpërdrejtë në ato raste që preken.</p>
       <button type="button" class="pro-modal-close" data-close aria-label="Mbyll">&times;</button>
     </header>
     <div class="pro-modal-body">
@@ -1217,9 +1213,9 @@
 
       <!-- TAB 2: upload -->
       <div id="vig-tab-upload" class="vig-tab-panel" hidden>
-        <p class="vig-hint">Ngjit tekstin e plotë të aktit (ligj, VKM, udhëzim, vendim Gjykate). Opus do ta klasifikojë dhe matchojë me fascikujt e tu të hapur.</p>
+        <p class="vig-hint">Ngjit tekstin e plotë të aktit (ligj, VKM, udhëzim, vendim Gjykate). AI do ta klasifikojë dhe matchojë me fascikujt e tu të hapur.</p>
         <div class="vig-row">
-          <input id="vig-up-title" class="pro-input" type="text" placeholder="Titull (opsional — Opus do ta plotësojë)">
+          <input id="vig-up-title" class="pro-input" type="text" placeholder="Titull (opsional — AI do ta plotësojë)">
           <select id="vig-up-source" class="pro-select">
             <option value="manual">Manual</option>
             <option value="fletorja_zyrtare">Fletorja Zyrtare</option>
@@ -1292,7 +1288,7 @@
   <div class="pro-modal-card pro-modal-wide">
     <header class="pro-modal-head">
       <h3 id="corporate-modal-title">🏢 Corporate Intelligence</h3>
-      <p class="pro-modal-sub">Ngarko dokumentin e shoqërisë → Opus ekstrakton soci, CDA, prokurorë, scadenze. Kontrollo firmatarin para nënshkrimit. Gjenero checklist KYC/AML (Ligji 9917/2008).</p>
+      <p class="pro-modal-sub">Ngarko dokumentin e shoqërisë → AI ekstrakton soci, CDA, prokurorë, scadenze. Kontrollo firmatarin para nënshkrimit. Gjenero checklist KYC/AML (Ligji 9917/2008).</p>
       <button type="button" class="pro-modal-close" data-close aria-label="Mbyll">&times;</button>
     </header>
     <div class="pro-modal-body">
@@ -1320,7 +1316,7 @@
         </div>
         <textarea id="corp-doc-text" class="pro-textarea" rows="6" placeholder="Ngjit tekstin e dokumentit të shoqërisë këtu (visura, statut, prokurë, bilanci…)"></textarea>
         <div class="corp-actions-row">
-          <button id="corp-extract-btn" class="pro-run-btn">Ekstrakto me Opus</button>
+          <button id="corp-extract-btn" class="pro-run-btn">Ekstrakto me AI</button>
           <span id="corp-extract-status" class="pro-status"></span>
         </div>
         <!-- Uploaded docs list -->
