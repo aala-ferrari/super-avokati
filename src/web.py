@@ -49,6 +49,7 @@ from . import storage
 from .auth import (
     authenticate,
     current_user,
+    hash_password,
     login_required_api,
     login_required_page,
     login_user,
@@ -134,6 +135,7 @@ def index() -> str:
         codes=[{"code": d.code, "title": d.title_sq, "area": d.area}
                for d in LEGAL_DOCUMENTS],
         username=user.username,
+        user_id=user.id,
         is_admin=user.is_admin,
         cascade_event_types=pro_mod.cascade_event_types(),
         act_types=[{"key": k, "label": v} for k, v in pro_mod.ACT_TYPES.items()],
@@ -201,6 +203,7 @@ def api_me():
         return jsonify({"authenticated": False}), 401
     return jsonify({
         "authenticated": True,
+        "id": u.id,
         "username": u.username,
         "is_admin": u.is_admin,
     })
@@ -5624,6 +5627,94 @@ def api_admin_audit_export():
             "Content-Disposition": 'attachment; filename="ai_audit_log.jsonl"',
         },
     )
+
+
+# ── admin user management (V9.2) ──────────────────────────────────────────
+# Self-serve user provisioning from the Studio modal. Only admins can list,
+# create, delete, or reset passwords for other users. Any logged-in user can
+# change their OWN password.
+
+def _user_payload(u) -> dict:
+    return {
+        "id": u.id,
+        "username": u.username,
+        "is_admin": u.is_admin,
+        "created_at": u.created_at.isoformat() if hasattr(u, "created_at") and u.created_at else None,
+    }
+
+
+@app.get("/api/admin/users")
+@login_required_api
+def api_admin_users_list():
+    user = request.user  # type: ignore[attr-defined]
+    if not user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    rows = storage.list_users()
+    return jsonify({"items": [_user_payload(u) for u in rows], "count": len(rows)})
+
+
+@app.post("/api/admin/users")
+@login_required_api
+def api_admin_users_create():
+    user = request.user  # type: ignore[attr-defined]
+    if not user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    data = request.get_json(silent=True) or {}
+    username = (data.get("username") or "").strip().lower()
+    password = data.get("password") or ""
+    is_admin_flag = bool(data.get("is_admin"))
+    if not username or not username.replace(".", "").replace("_", "").replace("-", "").isalnum():
+        return jsonify({"error": "username invalido (solo lettere, numeri, . _ -)"}), 400
+    if len(password) < 6:
+        return jsonify({"error": "password troppo corta (min 6 caratteri)"}), 400
+    if storage.get_user_by_username(username):
+        return jsonify({"error": f"utente '{username}' esiste già"}), 409
+    new_user = storage.create_user(
+        username=username,
+        password_hash=hash_password(password),
+        is_admin=is_admin_flag,
+    )
+    log.info("admin %s created user %s (admin=%s)", user.username, username, is_admin_flag)
+    return jsonify(_user_payload(new_user)), 201
+
+
+@app.patch("/api/admin/users/<int:user_id>/password")
+@login_required_api
+def api_admin_users_set_password(user_id):
+    user = request.user  # type: ignore[attr-defined]
+    target = storage.get_user_by_id(user_id)
+    if target is None:
+        return jsonify({"error": "utente non trovato"}), 404
+    # Admin può cambiare a chiunque, non-admin solo se è la propria
+    if not user.is_admin and user.id != target.id:
+        return jsonify({"error": "forbidden"}), 403
+    data = request.get_json(silent=True) or {}
+    new_pw = data.get("password") or ""
+    if len(new_pw) < 6:
+        return jsonify({"error": "password troppo corta (min 6 caratteri)"}), 400
+    ok = storage.set_password_hash(target.username, hash_password(new_pw))
+    if not ok:
+        return jsonify({"error": "errore aggiornamento password"}), 500
+    log.info("user %s changed password for user %s", user.username, target.username)
+    return jsonify({"ok": True})
+
+
+@app.delete("/api/admin/users/<int:user_id>")
+@login_required_api
+def api_admin_users_delete(user_id):
+    user = request.user  # type: ignore[attr-defined]
+    if not user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    target = storage.get_user_by_id(user_id)
+    if target is None:
+        return jsonify({"error": "utente non trovato"}), 404
+    if target.id == user.id:
+        return jsonify({"error": "non puoi eliminare il tuo stesso utente"}), 400
+    ok = storage.delete_user(target.username)
+    if not ok:
+        return jsonify({"error": "errore eliminazione"}), 500
+    log.info("admin %s deleted user %s", user.username, target.username)
+    return jsonify({"ok": True})
 
 
 # ── helpers ────────────────────────────────────────────────────────────────

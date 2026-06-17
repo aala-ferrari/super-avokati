@@ -13,7 +13,7 @@
 <link rel="stylesheet" href="/static/style.css" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%230a0a0a'/%3E%3Cpath d='M32 14v36M14 22h36M8 22l-4 10h8zM56 22l-4 10h8zM26 50h12v4H26z' stroke='%23e41e26' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='32' cy='14' r='3' fill='%23c9a24d'/%3E%3C/svg%3E" />
 </head>
-<body data-username="{{ username }}" data-admin="{{ '1' if is_admin else '0' }}">
+<body data-username="{{ username }}" data-admin="{{ '1' if is_admin else '0' }}" data-user-id="{{ user_id }}">
 
 <!-- Scales-of-justice SVG used inline as logo + favicon mirror -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -991,6 +991,40 @@
           <button type="button" id="studio-create-btn" class="ghost" title="Krijo një studio të re">＋ Studio e re</button>
         </div>
       </div>
+
+      <!-- ▼▼▼ V9.2 — Përdoruesit e sistemit (vetëm admin) -->
+      <div id="users-admin-section" hidden>
+        <h4 class="studio-section-title">👥 Përdoruesit e sistemit</h4>
+        <p class="pro-modal-sub" style="margin: 0 0 8px;">
+          Si admin mund të krijosh përdorues të rinj, t'i fshish ose t'u ndryshosh fjalëkalimin. Pastaj mund t'i shtosh në cilindo studio si anëtar.
+        </p>
+        <table class="studio-members" id="users-admin-table">
+          <thead><tr><th>Username</th><th>Admin</th><th>Krijuar</th><th></th></tr></thead>
+          <tbody id="users-admin-body"><tr><td colspan="4" class="studio-empty">Duke ngarkuar…</td></tr></tbody>
+        </table>
+        <div class="studio-invite" style="margin-top: 12px;">
+          <h4 class="studio-section-title">Krijo përdorues të ri</h4>
+          <div class="studio-invite-row" style="flex-wrap: wrap; gap: 6px;">
+            <input type="text" id="new-user-username" placeholder="username (lowercase)" autocomplete="off" />
+            <input type="password" id="new-user-password" placeholder="password (min 6)" autocomplete="new-password" />
+            <label style="display:flex; align-items:center; gap:4px; color:#aaa; font-size:13px; padding: 0 6px;">
+              <input type="checkbox" id="new-user-admin" /> Admin
+            </label>
+            <button type="button" id="new-user-btn" class="primary">＋ Krijo</button>
+          </div>
+          <p id="new-user-status" class="pro-status" aria-live="polite"></p>
+        </div>
+        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #2a2a2a;">
+          <h4 class="studio-section-title">🔑 Ndrysho fjalëkalimin tim</h4>
+          <div class="studio-invite-row">
+            <input type="password" id="my-new-password" placeholder="fjalëkalimi i ri (min 6)" autocomplete="new-password" />
+            <button type="button" id="my-passwd-btn" class="primary">Ndrysho</button>
+          </div>
+          <p id="my-passwd-status" class="pro-status" aria-live="polite"></p>
+        </div>
+        <hr style="margin: 16px 0; border-color: #2a2a2a;" />
+      </div>
+      <!-- ▲▲▲ V9.2 fine -->
 
       <h4 class="studio-section-title">Anëtarët</h4>
       <table class="studio-members" id="studio-members-table">

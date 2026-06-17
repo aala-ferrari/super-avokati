@@ -51,6 +51,11 @@ RUN apt-get update \
         libxml2 \
         libxslt1.1 \
         curl \
+        ca-certificates \
+        gnupg \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && npm install -g @anthropic-ai/claude-code \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt ./

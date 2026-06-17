@@ -7873,6 +7873,171 @@
     }
   });
 
+  // ═══════════════════════════════════════════════════════════════
+  // V9.2 — Admin user management (dentro Studio modal)
+  // ═══════════════════════════════════════════════════════════════
+  const IS_ADMIN = document.body.dataset.admin === "1";
+  const usersAdminSection = document.getElementById("users-admin-section");
+  const usersAdminBody    = document.getElementById("users-admin-body");
+  const newUserBtn        = document.getElementById("new-user-btn");
+  const newUserUsername   = document.getElementById("new-user-username");
+  const newUserPassword   = document.getElementById("new-user-password");
+  const newUserAdminChk   = document.getElementById("new-user-admin");
+  const newUserStatus     = document.getElementById("new-user-status");
+  const myPasswdBtn       = document.getElementById("my-passwd-btn");
+  const myNewPassword     = document.getElementById("my-new-password");
+  const myPasswdStatus    = document.getElementById("my-passwd-status");
+
+  function escHtml(s) {
+    return String(s ?? "").replace(/[&<>"]/g, (c) => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"
+    }[c]));
+  }
+
+  async function loadAdminUsers() {
+    if (!IS_ADMIN || !usersAdminBody) return;
+    usersAdminSection.hidden = false;
+    try {
+      const r = await fetch("/api/admin/users");
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const data = await r.json();
+      if (!data.items?.length) {
+        usersAdminBody.innerHTML = '<tr><td colspan="4" class="studio-empty">Asnjë përdorues.</td></tr>';
+        return;
+      }
+      const meId = parseInt(document.body.dataset.userId || "0", 10);
+      usersAdminBody.innerHTML = data.items.map((u) => `
+        <tr>
+          <td><strong>${escHtml(u.username)}</strong></td>
+          <td>${u.is_admin ? "👑 Admin" : "👤 User"}</td>
+          <td>${u.created_at ? new Date(u.created_at).toLocaleDateString("sq-AL") : "—"}</td>
+          <td style="text-align: right; white-space: nowrap;">
+            <button type="button" class="ghost" data-action="passwd" data-uid="${u.id}" data-uname="${escHtml(u.username)}">🔑</button>
+            ${u.id === meId ? "" : `<button type="button" class="ghost" data-action="delete" data-uid="${u.id}" data-uname="${escHtml(u.username)}" style="color:#c66;">🗑</button>`}
+          </td>
+        </tr>
+      `).join("");
+    } catch (e) {
+      usersAdminBody.innerHTML = `<tr><td colspan="4" class="studio-empty">Gabim: ${escHtml(e.message)}</td></tr>`;
+    }
+  }
+
+  // delegated click handler per delete/passwd
+  usersAdminBody?.addEventListener("click", async (e) => {
+    const btn = e.target.closest("button[data-action]");
+    if (!btn) return;
+    const action = btn.dataset.action;
+    const uid = parseInt(btn.dataset.uid, 10);
+    const uname = btn.dataset.uname;
+
+    if (action === "delete") {
+      if (!confirm(`Të fshish përdoruesin '${uname}'? Veprimi nuk mund të zhbëhet.`)) return;
+      const r = await fetch(`/api/admin/users/${uid}`, { method: "DELETE" });
+      const data = await r.json().catch(() => ({}));
+      if (r.ok) {
+        if (typeof toast === "function") toast(`U fshi përdoruesi '${uname}'`, "success");
+        loadAdminUsers();
+      } else {
+        if (typeof toast === "function") toast("Gabim: " + (data.error || r.status), "error");
+      }
+    } else if (action === "passwd") {
+      const newPw = prompt(`Fjalëkalimi i ri për '${uname}' (min 6 karaktere):`);
+      if (!newPw) return;
+      if (newPw.length < 6) {
+        alert("Fjalëkalimi duhet të jetë të paktën 6 karaktere.");
+        return;
+      }
+      const r = await fetch(`/api/admin/users/${uid}/password`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: newPw }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (r.ok) {
+        if (typeof toast === "function") toast(`Fjalëkalimi i '${uname}' u ndryshua`, "success");
+      } else {
+        if (typeof toast === "function") toast("Gabim: " + (data.error || r.status), "error");
+      }
+    }
+  });
+
+  newUserBtn?.addEventListener("click", async () => {
+    const username = newUserUsername.value.trim().toLowerCase();
+    const password = newUserPassword.value;
+    const isAdmin  = newUserAdminChk.checked;
+    if (!username || password.length < 6) {
+      newUserStatus.textContent = "Plotëso username dhe fjalëkalim (min 6 karaktere).";
+      newUserStatus.style.color = "#c66";
+      return;
+    }
+    newUserBtn.disabled = true;
+    newUserStatus.textContent = "Duke krijuar…";
+    newUserStatus.style.color = "#aaa";
+    try {
+      const r = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password, is_admin: isAdmin }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+      newUserStatus.textContent = `✓ U krijua '${data.username}'`;
+      newUserStatus.style.color = "#6c6";
+      newUserUsername.value = "";
+      newUserPassword.value = "";
+      newUserAdminChk.checked = false;
+      loadAdminUsers();
+    } catch (e) {
+      newUserStatus.textContent = "Gabim: " + e.message;
+      newUserStatus.style.color = "#c66";
+    } finally {
+      newUserBtn.disabled = false;
+    }
+  });
+
+  myPasswdBtn?.addEventListener("click", async () => {
+    const newPw = myNewPassword.value;
+    if (newPw.length < 6) {
+      myPasswdStatus.textContent = "Min 6 karaktere.";
+      myPasswdStatus.style.color = "#c66";
+      return;
+    }
+    // Trovo l'id corrente da /api/me
+    const meR = await fetch("/api/me");
+    const me = await meR.json().catch(() => ({}));
+    const meId = me?.user?.id;
+    if (!meId) {
+      myPasswdStatus.textContent = "Errore: utente non identificato";
+      myPasswdStatus.style.color = "#c66";
+      return;
+    }
+    myPasswdBtn.disabled = true;
+    const r = await fetch(`/api/admin/users/${meId}/password`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: newPw }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (r.ok) {
+      myPasswdStatus.textContent = "✓ Fjalëkalimi u ndryshua";
+      myPasswdStatus.style.color = "#6c6";
+      myNewPassword.value = "";
+    } else {
+      myPasswdStatus.textContent = "Gabim: " + (data.error || r.status);
+      myPasswdStatus.style.color = "#c66";
+    }
+    myPasswdBtn.disabled = false;
+  });
+
+  // hook a openStudioModal — ricarica utenti ogni volta che apre Studio
+  const _origOpenStudio = openStudioModal;
+  openStudioModal = function() {
+    _origOpenStudio();
+    loadAdminUsers();
+  };
+  studioBtn?.removeEventListener("click", _origOpenStudio);
+  studioBtn?.addEventListener("click", openStudioModal);
+
   // ─── init ────────────────────────────────────────────────────────
   renderCaseList();
   loadDailyBrief();
