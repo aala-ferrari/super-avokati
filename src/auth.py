@@ -96,6 +96,12 @@ def login_required_api(fn):
         request.firm = firm  # type: ignore[attr-defined]
         request.role = (storage.get_user_role_in_firm(user.id, firm.id)
                         if firm else None)  # type: ignore[attr-defined]
+        # V9.2 — bump last_active for the admin online-users dashboard.
+        # Try/except so a transient DB hiccup never blocks the request.
+        try:
+            storage.update_user_last_active(user.id)
+        except Exception:
+            pass
         return fn(*args, **kwargs)
     return wrapper
 
@@ -112,6 +118,10 @@ def login_required_page(fn):
         request.firm = firm  # type: ignore[attr-defined]
         request.role = (storage.get_user_role_in_firm(user.id, firm.id)
                         if firm else None)  # type: ignore[attr-defined]
+        try:
+            storage.update_user_last_active(user.id)
+        except Exception:
+            pass
         return fn(*args, **kwargs)
     return wrapper
 

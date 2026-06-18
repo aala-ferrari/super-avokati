@@ -1023,6 +1023,36 @@
           <p id="my-passwd-status" class="pro-status" aria-live="polite"></p>
         </div>
         <hr style="margin: 16px 0; border-color: #2a2a2a;" />
+
+        <!-- V9.2 — usage / billing dashboard -->
+        <div id="usage-dashboard" style="margin-top: 8px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 8px;">
+            <h4 class="studio-section-title" style="margin: 0;">📊 Përdorimi & Faturat</h4>
+            <select id="usage-period" class="studio-select" style="max-width:160px;">
+              <option value="day">Sot (24h)</option>
+              <option value="week">7 ditë</option>
+              <option value="month" selected>30 ditë</option>
+              <option value="all">Gjithë periudha</option>
+            </select>
+          </div>
+          <div id="usage-summary" class="pro-modal-sub" style="margin: 8px 0; display:flex; gap: 16px; flex-wrap:wrap;">
+            <span>Duke ngarkuar…</span>
+          </div>
+          <table class="studio-members" id="usage-table">
+            <thead>
+              <tr>
+                <th>Përdoruesi</th>
+                <th title="Thirrjet ndaj modelit AI">Thirrje</th>
+                <th title="Token në hyrje (input)">In</th>
+                <th title="Token në dalje (output)">Out</th>
+                <th title="Kosto e barasvlefshme API (USD)">$ ~</th>
+                <th title="Aktiv së fundmi">Aktiv</th>
+              </tr>
+            </thead>
+            <tbody id="usage-body"><tr><td colspan="6" class="studio-empty">Duke ngarkuar…</td></tr></tbody>
+          </table>
+        </div>
+        <hr style="margin: 16px 0; border-color: #2a2a2a;" />
       </div>
       <!-- ▲▲▲ V9.2 fine -->
 

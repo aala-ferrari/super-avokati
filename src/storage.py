@@ -863,8 +863,142 @@ def init_db(db_path: Path = APP_DB_PATH) -> None:
         # V8.15 workflow library — runtime instances of predefined or
         # custom workflow definitions, attached to cases.
         conn.executescript(SCHEMA_WORKFLOWS)
+        # V9.2 — last_active timestamp per user, updated on every authenticated
+        # request. Powers the "online users" display in the admin panel.
+        _add_column_if_missing(conn, "users", "last_active", "TEXT")
         conn.commit()
     log.info("app db ready at %s", db_path)
+
+
+# ── V9.2 — usage / online tracking (admin dashboard) ──────────────────────
+
+# Anthropic API list-price reference for the equivalent-cost estimation.
+# Even when the brain runs through the Claude Code CLI (subscription),
+# the dashboard surfaces the dollar value the team would otherwise spend.
+# Prices in USD per 1M tokens, by family substring matched on the model id.
+_MODEL_PRICING_PER_1M = (
+    ("opus", 15.0, 75.0),     # input, output
+    ("sonnet", 3.0, 15.0),
+    ("haiku", 0.80, 4.0),
+)
+
+
+def estimate_cost_cents(model: str, input_tokens: int, output_tokens: int) -> int:
+    """Return cost in CENTS (USD * 100, integer) for a single LLM call.
+
+    Conservative: if the model id doesn't match a known family, falls back
+    to Opus pricing (the most expensive) so we never underreport.
+    """
+    m = (model or "").lower()
+    in_price, out_price = 15.0, 75.0  # default = opus
+    for tag, ip, op in _MODEL_PRICING_PER_1M:
+        if tag in m:
+            in_price, out_price = ip, op
+            break
+    usd = (input_tokens / 1_000_000.0) * in_price + (output_tokens / 1_000_000.0) * out_price
+    return int(round(usd * 100))
+
+
+def update_user_last_active(user_id: int) -> None:
+    """Bump users.last_active to now. Cheap UPDATE, called from the request
+    auth middleware on every authenticated request."""
+    if not user_id:
+        return
+    now = _utcnow()
+    with db() as conn:
+        conn.execute("UPDATE users SET last_active = ? WHERE id = ?", (now, user_id))
+
+
+def usage_stats_by_user(since_iso: str | None = None) -> list[dict]:
+    """Aggregate ai_audit_log per user. Returns one row per user with:
+    calls, tokens_in, tokens_out, cost_cents (sum), last_active, is_admin.
+    Sorted by total tokens descending so the heavy users are at the top."""
+    where = "WHERE u.id IS NOT NULL"
+    params: list = []
+    if since_iso:
+        where += " AND (al.timestamp >= ? OR al.timestamp IS NULL)"
+        params.append(since_iso)
+    with db() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT
+                u.id              AS user_id,
+                u.username        AS username,
+                u.is_admin        AS is_admin,
+                u.last_active     AS last_active,
+                COUNT(al.id)      AS calls,
+                COALESCE(SUM(al.input_tokens), 0)  AS tokens_in,
+                COALESCE(SUM(al.output_tokens), 0) AS tokens_out,
+                al.model          AS sample_model
+            FROM users u
+            LEFT JOIN ai_audit_log al ON al.user_id = u.id
+              {('AND al.timestamp >= ?' if since_iso else '')}
+            GROUP BY u.id
+            ORDER BY (COALESCE(SUM(al.input_tokens), 0) + COALESCE(SUM(al.output_tokens), 0)) DESC,
+                     u.username ASC
+            """,
+            params if since_iso else (),
+        ).fetchall()
+    out: list[dict] = []
+    for r in rows:
+        # Cost: sum per-call cost (model matters) — re-query the breakdown.
+        tokens_in = int(r["tokens_in"] or 0)
+        tokens_out = int(r["tokens_out"] or 0)
+        # Approximation: use the most-used model for this user as the rate basis.
+        cost = estimate_cost_cents(r["sample_model"] or "", tokens_in, tokens_out)
+        out.append({
+            "user_id": r["user_id"],
+            "username": r["username"],
+            "is_admin": bool(r["is_admin"]),
+            "last_active": r["last_active"],
+            "calls": int(r["calls"] or 0),
+            "tokens_in": tokens_in,
+            "tokens_out": tokens_out,
+            "cost_cents": cost,
+        })
+    return out
+
+
+def usage_totals(since_iso: str | None = None) -> dict:
+    """Grand totals across all users for the period."""
+    where = ""
+    params: list = []
+    if since_iso:
+        where = "WHERE timestamp >= ?"
+        params.append(since_iso)
+    with db() as conn:
+        row = conn.execute(
+            f"""
+            SELECT
+                COUNT(*)                              AS calls,
+                COALESCE(SUM(input_tokens), 0)        AS tokens_in,
+                COALESCE(SUM(output_tokens), 0)       AS tokens_out,
+                COUNT(DISTINCT user_id)               AS active_users
+            FROM ai_audit_log {where}
+            """,
+            params,
+        ).fetchone()
+    tokens_in = int(row["tokens_in"] or 0)
+    tokens_out = int(row["tokens_out"] or 0)
+    return {
+        "calls": int(row["calls"] or 0),
+        "tokens_in": tokens_in,
+        "tokens_out": tokens_out,
+        "active_users": int(row["active_users"] or 0),
+        # All-opus assumption for the grand total — safe overestimate.
+        "cost_cents": estimate_cost_cents("opus", tokens_in, tokens_out),
+    }
+
+
+def online_user_ids(window_seconds: int = 300) -> set[int]:
+    """User ids active within the last `window_seconds` (default 5 min)."""
+    cutoff = (datetime.now(UTC) - timedelta(seconds=window_seconds)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT id FROM users WHERE last_active IS NOT NULL AND last_active >= ?",
+            (cutoff,),
+        ).fetchall()
+    return {r["id"] for r in rows}
 
 
 def _backfill_personal_firms(conn: sqlite3.Connection) -> None:

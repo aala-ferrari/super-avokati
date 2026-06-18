@@ -5699,6 +5699,41 @@ def api_admin_users_set_password(user_id):
     return jsonify({"ok": True})
 
 
+@app.get("/api/admin/usage")
+@login_required_api
+def api_admin_usage():
+    """Aggregated usage stats per user. Admin-only.
+    Query param `period` = 'day' | 'week' | 'month' | 'all' (default: month)."""
+    from datetime import datetime, timedelta, UTC
+    user = request.user  # type: ignore[attr-defined]
+    if not user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    period = (request.args.get("period") or "month").lower()
+    since_iso = None
+    if period == "day":
+        since = datetime.now(UTC) - timedelta(days=1)
+        since_iso = since.strftime("%Y-%m-%dT%H:%M:%SZ")
+    elif period == "week":
+        since = datetime.now(UTC) - timedelta(days=7)
+        since_iso = since.strftime("%Y-%m-%dT%H:%M:%SZ")
+    elif period == "month":
+        since = datetime.now(UTC) - timedelta(days=30)
+        since_iso = since.strftime("%Y-%m-%dT%H:%M:%SZ")
+    # 'all' = no filter
+    rows = storage.usage_stats_by_user(since_iso=since_iso)
+    totals = storage.usage_totals(since_iso=since_iso)
+    online = storage.online_user_ids(window_seconds=300)
+    for r in rows:
+        r["online"] = r["user_id"] in online
+    return jsonify({
+        "period": period,
+        "since": since_iso,
+        "users": rows,
+        "totals": totals,
+        "online_count": len(online),
+    })
+
+
 @app.delete("/api/admin/users/<int:user_id>")
 @login_required_api
 def api_admin_users_delete(user_id):

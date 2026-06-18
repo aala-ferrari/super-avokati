@@ -8029,11 +8029,77 @@
     myPasswdBtn.disabled = false;
   });
 
-  // hook a openStudioModal — ricarica utenti ogni volta che apre Studio
+  // V9.2 — usage dashboard (admin only)
+  const usagePeriodSel = document.getElementById("usage-period");
+  const usageSummary   = document.getElementById("usage-summary");
+  const usageBody      = document.getElementById("usage-body");
+
+  function fmtNum(n) {
+    if (!n) return "0";
+    if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
+    if (n >= 1_000) return (n / 1_000).toFixed(1) + "k";
+    return String(n);
+  }
+  function fmtCost(cents) {
+    if (!cents) return "$0.00";
+    return "$" + (cents / 100).toFixed(2);
+  }
+  function fmtRelative(iso) {
+    if (!iso) return "—";
+    const then = new Date(iso).getTime();
+    const diffSec = Math.floor((Date.now() - then) / 1000);
+    if (diffSec < 60) return "ora";
+    if (diffSec < 3600) return Math.floor(diffSec / 60) + " min fa";
+    if (diffSec < 86400) return Math.floor(diffSec / 3600) + " h fa";
+    return Math.floor(diffSec / 86400) + " gg fa";
+  }
+
+  async function loadUsageDashboard() {
+    if (!IS_ADMIN || !usageBody) return;
+    const period = usagePeriodSel?.value || "month";
+    usageBody.innerHTML = '<tr><td colspan="6" class="studio-empty">Duke ngarkuar…</td></tr>';
+    try {
+      const r = await fetch(`/api/admin/usage?period=${period}`);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const data = await r.json();
+      const t = data.totals;
+      usageSummary.innerHTML = `
+        <span>🟢 <strong>${data.online_count}</strong> online</span>
+        <span>📞 <strong>${fmtNum(t.calls)}</strong> thirrje</span>
+        <span>↗ <strong>${fmtNum(t.tokens_in)}</strong> in</span>
+        <span>↘ <strong>${fmtNum(t.tokens_out)}</strong> out</span>
+        <span>💰 <strong>${fmtCost(t.cost_cents)}</strong> ~ kosto API</span>
+      `;
+      if (!data.users.length) {
+        usageBody.innerHTML = '<tr><td colspan="6" class="studio-empty">Asnjë e dhënë.</td></tr>';
+        return;
+      }
+      usageBody.innerHTML = data.users.map((u) => `
+        <tr>
+          <td>
+            ${u.online ? '<span style="color:#6c6;">●</span>' : '<span style="color:#555;">○</span>'}
+            <strong>${escHtml(u.username)}</strong>
+            ${u.is_admin ? ' 👑' : ''}
+          </td>
+          <td>${fmtNum(u.calls)}</td>
+          <td>${fmtNum(u.tokens_in)}</td>
+          <td>${fmtNum(u.tokens_out)}</td>
+          <td>${fmtCost(u.cost_cents)}</td>
+          <td style="color:#888; font-size:12px;">${fmtRelative(u.last_active)}</td>
+        </tr>
+      `).join("");
+    } catch (e) {
+      usageBody.innerHTML = `<tr><td colspan="6" class="studio-empty">Gabim: ${escHtml(e.message)}</td></tr>`;
+    }
+  }
+  usagePeriodSel?.addEventListener("change", loadUsageDashboard);
+
+  // hook a openStudioModal — ricarica utenti + usage ogni volta che apre Studio
   const _origOpenStudio = openStudioModal;
   openStudioModal = function() {
     _origOpenStudio();
     loadAdminUsers();
+    loadUsageDashboard();
   };
   studioBtn?.removeEventListener("click", _origOpenStudio);
   studioBtn?.addEventListener("click", openStudioModal);
