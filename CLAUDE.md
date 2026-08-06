@@ -2,11 +2,11 @@
 
 Strumento AI per avvocati shqiptar (B2B). Front-end Flask su porta 5050,
 SQLite (`data/app.db`) + Postgres `legalkb` per i casi giurisprudenziali,
-BM25 retrieval sopra 5615 nene + 282 vendime Kushtetuese.
+BM25 retrieval sopra 6061 nene (21 codici) + 1258 precedenti (Kushtetuese+Gjykata e Lartë+CEDU).
 
 ## Regola #1 — Scope: SOLO LEGGE ALBANESE
 
-Tutto il corpus è albanese: 18 fonti normative (Kushtetuta + 13 codici +
+Tutto il corpus è albanese: 21 fonti normative (Kushtetuta + codici +
 5 ligji settoriali = 5615 nene), 282 vendime Gjykata Kushtetuese
 (2015-2024), ~813 casi in Postgres `legalkb` (Gjykata e Lartë + ECHR
 limitatamente ai casi Albania).
@@ -86,3 +86,63 @@ attaccaci esplicitamente il guard — non confidare che basti
 
 - Risposte all'utente: shqip (albanese).
 - Conversazione con Romeo: italiano informale ("fratello").
+
+---
+
+# PRODUZIONE — VPS, DEPLOY, BUILD  (aggiornato 7 ago 2026, v9.82)
+
+Numeri attuali: **6061 nene · 21 codici · 1258 precedenti** (pickle vivo). Corpus cresciuto da 5615 (18 codici) aggiungendo: Kodi Civil +2, Familjes +4, Konsumatorët +3, Ligji Policia 108/2014 (135), Rregullore Policia VKM 750/2015 (255), Ligj Policia 82/2024 (143, ATTUALE). Dedup Zgjedhor -96.
+
+## Dove gira
+- **VPS**: `root@31.220.90.246` (SSH dal Mac senza password). App in `/var/www/apps/super-avvocato`.
+- **Container Docker** `super-avvocato`, image `super-avvocato:vX.Y` (attuale **v9.82**). Flask su `127.0.0.1:5050`; nginx `superavokati.ai` → 5050.
+- **Volumi**: `-v /var/www/apps/super-avvocato/data:/app/data` (SQLite `app.db` + BM25 `index/bm25.pkl` — PERSISTONO tra recreate); `-v /opt/claude-creds:/home/avvocato/.claude` (credenziali del backend).
+- **Cervello**: backend = **`claude` CLI headless** in subprocess (`src/backends.py`), name interno "Tetramorph". Opus 4.8 effort=max default; `medium=True`→Sonnet; `fast=True`→Sonnet senza web. **Il backend Opus (non-fast) ha WebSearch/WebFetch ABILITATI** (`backends.py:280`) — usato da Ligj i gjallë per il check legge live. `BRAIN_PARALLEL_WORKERS=6` (fasi in parallelo).
+
+## Deploy / build (procedura usata ~25 volte)
+```bash
+cd /var/www/apps/super-avvocato
+docker build -q -t super-avvocato:vNEW .
+sed -i 's/super-avvocato:vOLD/super-avvocato:vNEW/' run.sh
+./run.sh
+# health-check:
+for i in 1 2 3 4 5 6; do docker inspect -f '{{.State.Health.Status}}' super-avvocato; sleep 4; done  # atteso: healthy
+curl -s -o /dev/null -w '%{http_code}' https://superavokati.ai/   # atteso: 200
+```
+Dockerfile COPY: `data/ src/ static/ templates/ scripts/ tools/`. Dopo un cambio env (NEXT_PUBLIC inlined) serve rebuild — qui NON applicabile (Flask), ma per gli altri servizi sì.
+
+## Fix corpus (GOTCHA importante)
+I fix agli articoli vivono nel **PICKLE `data/index/bm25.pkl`** (volume montato), NON nel sorgente. Per aggiungere/correggere articoli: script python che fa `ArticleIndex.load()` → append `Article(...)` → `ArticleIndex.build(arts).save()` → `chown 1000:1000 data/index/bm25.pkl` → `docker restart super-avvocato`. Un re-parse da zero PERDE questi fix. Article ha campi: code, title_sq, area, number, heading, body, pjesa, kreu, seksioni, repealed, volatility (STABLE/MEDIUM), last_amendment_date.
+
+## Patch UTF-8 (GOTCHA)
+Le patch a file con ë/ç/emoji: SEMPRE via file `.py` scp'd sul VPS (`scp patch.py root@…:/tmp/ && python3 /tmp/patch.py`), MAI heredoc SSH inline (mangia UTF-8/`\n`). Anchor precisi + `assert old in s and s.count(old)==1`.
+
+## QA — rete di sicurezza (lanciare dopo ogni build)
+```bash
+docker exec super-avvocato python3 tools/golden_check.py   # 19 check deterministici: corpus + Verifikuar + heading-scan. Baseline 19/19.
+docker exec super-avvocato python3 tools/smoke_test.py     # 68 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 68/68.
+```
+Estendere GOLDENS/smoke quando emerge un bug nuovo.
+
+## Mappa feature / moduli (src/)
+- **expertise.py** — Modele Ekspertize (8 template, incl. abuzim_policor "due menti"). `retrieve_grounded` (seed + `_expand_terms` LLM + `_heading_scan` stem 5-char diacritic-fold + BM25). Riusato da prosecutor/notary/deadlines/afati.
+- **prosecutor.py** — Super Prokuror: analyze, draft_indictment, investigation_plan, investigative_act(kind), coercive_measure, dismissal_request, stress_test + cittadino (citizen_complaint, victim_rights, dismissal_appeal, delay_complaint). Assistivo, mai auto-accusa (EU AI Act).
+- **notary.py** — Super Noteri: DEED_TYPES (20), PROKURA_SCOPES (16 tagra), DECLARATION_TYPES (6), draft_deed/prokura/declaration, check_deed, succession, documents_needed, draft_revocation, check_conflicts.
+- **living_law.py** — Ligj i gjallë: verify_claims (verifica frase↔testo reale nen), check_law_live (web→QBZ). + freschezza in citation_verifier (volatility/stale).
+- **intake.py** — Pika e parë: triage(story) → orientamento + urgenza + ROUTE token → instrada allo strumento.
+- **afati.py** — Motore afate: TRIGGERS (8) → scadenze grounded + blocco `AFAT | titolo | YYYY-MM-DD` → calendario (POST /api/events).
+- **vault.py** — Fashikull: build_context(case_id), ask (Q&A [Dok N]), find_needle, who_said_what. **pro_features.py** build_case_timeline (events/contradictions/gaps).
+- **citation_verifier.py** — Verifikuar (verified/fake/repealed/needs_code + volatility/stale). **deadlines.py** prescrizione.
+- **second_opinion/adversary/fable_drafter.py** — tool Fable (model_override="fable").
+- **web.py** — endpoint (199 rotte). UI: `static/app.js` (hub `_openHub` nel menu PRO: Super Prokurori/Super Noteri/Ligj i gjallë; mode-bar snellite che puntano ai hub; `openFascikull`, `openIntake`, `openAfati`, `openSavedResearch`). `templates/index.html` menu PRO.
+
+## Regole ferree (customer-facing)
+- Errori customer-facing MAI nominano il modello → sempre "Tetramorph"/generico.
+- Tutto **assistivo**: il professionista verifica e firma; niente auto-accusa/archiviazione/scadenze cieche.
+- **Grounding sempre**: i nene vengono dal corpus, MAI dalla memoria del modello. Precisione > velocità (Opus max, anche 4 min ok).
+- Super Avokati ha auth propria (login_required_api); utenti creati da admin o auto-provisionati da AALA (`/api/provision-demo`, secret-guarded).
+
+## Storia versioni (sessione 6-7 ago 2026)
+v9.50→9.54 piattaforma 3 professioni · 9.55 extra tool · 9.56 full-text+matching · 9.61-9.68 police laws + Super Noteri + revoca/conflitti · 9.69-9.71 Super Prokuror + hub · 9.72 Ligj i gjallë · 9.73 Pika e parë · 9.74 Fashikull · 9.75-9.76 Motore afate + golden · 9.77 fix needle empty-state · 9.78 upload in Fashikull · 9.79-9.80 Shiko të ruajturat · 9.81 fix forgot-password · 9.82 mode-bar snellite. Punto di ritorno sicuro storico: commit `1e9fb84`.
+
+Dettaglio completo nelle memorie Claude (`~/.claude/.../memory/`): super_avokati_piattaforma, _super_prokuror, _super_noteri, _ligj_i_gjalle, _pika_e_pare, _fashikull, _afate_golden, aala_audit_backup_nginx.

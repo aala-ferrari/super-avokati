@@ -2,8 +2,8 @@
 
 Three providers are supported:
 
-- **Claude Code (subscription)** — headless `claude -p` CLI. No API key, no
-  per-token billing; auth lives in the Claude Code login. Best answer quality
+- **Tetramorph (subscription)** — headless `claude -p` CLI. No API key, no
+  per-token billing; auth lives in the Tetramorph login. Best answer quality
   plus native conversation sessions via `--resume`.
 - **Anthropic (Claude Opus 4.8 + Sonnet 4.6)** — API key, paid per call.
 - **Google Gemini (2.5 Pro / 2.5 Flash)** — free tier (~1500 req/day on Flash).
@@ -12,11 +12,11 @@ The brain uses the `LLMBackend` interface so it never cares which provider
 served the call. Selection order:
 
   1. `BRAIN_BACKEND` env var (`claude_code` | `anthropic` | `gemini`);
-  2. `auto` (default): Claude Code CLI if logged in, else Gemini if key,
+  2. `auto` (default): Tetramorph CLI if logged in, else Gemini if key,
      else Anthropic if key, else error.
 
 `session_id` is an optional kwarg on `complete()`:
-  - Claude Code: when provided, uses `--resume <id>` so the CLI carries the
+  - Tetramorph: when provided, uses `--resume <id>` so the CLI carries the
     conversation natively; the new/updated id is exposed via
     `backend.last_session_id` after each call.
   - Other backends: ignored (they rely on the caller to pass full history).
@@ -164,7 +164,7 @@ class LLMBackend(ABC):
         )
 
 
-# ── Claude Code (headless CLI, subscription auth) ─────────────────────────
+# ── Tetramorph (headless CLI, subscription auth) ─────────────────────────
 
 class ClaudeCodeBackend(LLMBackend):
     """Invokes the `claude` CLI in headless `-p` mode.
@@ -174,7 +174,7 @@ class ClaudeCodeBackend(LLMBackend):
         → fresh call, system prompt set via `--system-prompt`, history
         flattened into the piped prompt.
       * answer composition (conversational): `session_id=<flask-tracked>`
-        → `--resume <id>` so Claude Code preserves the thread with the
+        → `--resume <id>` so Tetramorph preserves the thread with the
         citizen across turns (no re-sending history).
     """
     name = "claude_code"
@@ -186,9 +186,7 @@ class ClaudeCodeBackend(LLMBackend):
     # stretches wall-clock time to hours without improving throughput.
     # Tunable via CLAUDE_CODE_MAX_CONCURRENCY (default: 3 — empirically
     # the sweet spot on a single subscription).
-    _concurrency_sem: threading.Semaphore = threading.Semaphore(
-        int(os.getenv("CLAUDE_CODE_MAX_CONCURRENCY", "3"))
-    )
+    _concurrency_sem: threading.Semaphore = threading.Semaphore(6)  # 6 menti parallele Genio (forzato)
 
     def __init__(
         self,
@@ -196,13 +194,13 @@ class ClaudeCodeBackend(LLMBackend):
         medium_model: str = "sonnet",
         fast_model: str = "sonnet",
         cli_path: str | None = None,
-        timeout_s: int = 600,
+        timeout_s: int = 1800,
         effort: str | None = "max",
     ):
         self.cli = cli_path or shutil.which("claude")
         if not self.cli:
             raise RuntimeError(
-                "claude CLI not found in PATH. Install Claude Code "
+                "Tetramorph not found in PATH. Install Tetramorph "
                 "(https://docs.claude.com/claude-code) and run `claude /login`."
             )
         self.model = model
@@ -227,12 +225,15 @@ class ClaudeCodeBackend(LLMBackend):
                  attachments: list[Path] | None = None,
                  callsite: str | None = None,
                  user_id: int | None = None,
-                 case_id: str | None = None) -> str:
+                 case_id: str | None = None,
+                 model_override: str | None = None) -> str:
         from .config import ROOT
 
         # Reset per-call — only meaningful for the current complete().
         self.last_resume_failed = False
-        model = self._pick_model(fast, medium)
+        # model_override lets an ADDITIVE feature pick a specific model (e.g.
+        # Fable for the second-advisor pass) without touching tier routing.
+        model = model_override or self._pick_model(fast, medium)
         tier = _tier_label(fast, medium)
         prompt_serialized = _serialize_prompt(system, messages)
         prompt_hash = _hash16(prompt_serialized)
@@ -261,25 +262,28 @@ class ClaudeCodeBackend(LLMBackend):
 
         # Extended thinking on the main answer stage — Opus reasons
         # through hard legal questions before writing the final text.
-        if not fast and self.effort:
+        if not fast and self.effort and not model_override:
             cmd.extend(["--effort", self.effort])
 
-        if session_id:
-            # Resume existing session — system prompt + history are baked in;
-            # only pipe the latest user turn.
-            cmd.extend(["--resume", session_id])
-            prompt = _last_user_content(messages)
-        else:
-            # Fresh call — set our system prompt and flatten full history.
-            cmd.extend(["--system-prompt", system])
-            prompt = _flatten_messages(messages)
+        # --resume DISABILITATO: in headless -p le sessioni non persistono
+        # ("No conversation found"). Sempre system-prompt + history completa,
+        # cosi i follow-up mantengono il contesto e non ripetono/errorano.
+        cmd.extend(["--system-prompt", system])
+        prompt = _flatten_messages(messages)
 
         # If the caller has files to attach (dossier), hand them to Claude
         # via the Read tool — same UX as pasting an image into a chat.
         # Allow directories that contain each file so Read can access them.
+        # Strumenti del cervello: per le chiamate ragionate (non-fast: Genio,
+        # risposta strategica) abilita la RICERCA WEB (leggi aggiornate +
+        # precedenti pubblici) e, se ci sono allegati, il Read del dossier.
+        _tools = ["WebSearch", "WebFetch"] if not fast else []
         if attachments:
-            cmd.extend(["--allowedTools", "Read",
+            _tools.append("Read")
+        if _tools:
+            cmd.extend(["--allowedTools", *_tools,
                         "--permission-mode", "bypassPermissions"])
+        if attachments:
             seen_dirs: set[str] = set()
             file_list_lines: list[str] = []
             for p in attachments:
@@ -306,23 +310,44 @@ class ClaudeCodeBackend(LLMBackend):
         # V7.5 — gate concurrent CLI invocations. brain._run_stages fans out
         # up to 9 parallel calls; without this, the subscription rate-limiter
         # serialises them anyway and wall-clock time balloons to ~14 min/stage.
-        try:
-            with self._concurrency_sem:
-                proc = subprocess.run(
-                    cmd,
-                    input=prompt,
-                    capture_output=True,
-                    text=True,
-                    timeout=self.timeout_s,
-                    cwd=str(ROOT),
-                    check=False,
-                )
-        except subprocess.TimeoutExpired as exc:
-            _emit_audit(outcome="error", response_text=None,
-                        error_class="TimeoutExpired")
-            raise RuntimeError(
-                f"claude CLI timed out after {self.timeout_s}s"
-            ) from exc
+        # V9.9 — retry me backoff kur backend-i eshte i zene (rate limit/overload).
+        # Genio-ja niset me 6 mendje paralele: nese kapin limitin, presim e riprovojme
+        # ne vend qe te dështojmë. Saktesia para shpejtesise; jitter per te shmangur
+        # thundering-herd kur te gjitha stagjet riprovojne njeheresh.
+        _rl_max = int(os.environ.get("TETRAMORPH_RETRY_MAX", "4"))
+        _rl_base = int(os.environ.get("TETRAMORPH_RETRY_WAIT", "20"))
+        proc = None
+        for _rl_try in range(_rl_max + 1):
+            try:
+                with self._concurrency_sem:
+                    proc = subprocess.run(
+                        cmd,
+                        input=prompt,
+                        capture_output=True,
+                        text=True,
+                        encoding="utf-8",
+                        errors="replace",
+                        timeout=self.timeout_s,
+                        cwd=str(ROOT),
+                        check=False,
+                    )
+            except subprocess.TimeoutExpired as exc:
+                _emit_audit(outcome="error", response_text=None,
+                            error_class="TimeoutExpired")
+                raise RuntimeError(
+                    f"Tetramorph timed out after {self.timeout_s}s"
+                ) from exc
+            _rl_blob = " ".join([str(proc.stderr or ""), str(proc.stdout or "")]).lower()
+            _rl_busy = proc.returncode != 0 and any(
+                k in _rl_blob for k in ("usage limit", "session limit", "rate limit",
+                                        "429", "quota", "overloaded", "529", "503", "overload"))
+            if _rl_busy and _rl_try < _rl_max:
+                _rl_wait = _rl_base * (_rl_try + 1) + (abs(hash(prompt)) % 8)
+                log.warning("Tetramorph i zene (prova %d/%d) — pres %ds pastaj riprovoj",
+                            _rl_try + 1, _rl_max, _rl_wait)
+                time.sleep(_rl_wait)
+                continue
+            break
 
         # If --resume failed (session evicted / wrong id), retry fresh once
         # and flag the failure so the caller can invalidate the stale id.
@@ -352,26 +377,22 @@ class ClaudeCodeBackend(LLMBackend):
         if proc.returncode != 0:
             _emit_audit(outcome="error", response_text=None,
                         error_class="NonZeroReturnCode")
-            raise RuntimeError(
-                f"claude CLI failed (rc={proc.returncode}): "
-                f"{proc.stderr[-500:].strip() or proc.stdout[-500:].strip()}"
-            )
+            raise RuntimeError(_humanize_cli_failure(
+                proc.returncode, proc.stdout, proc.stderr))
 
         try:
             data = json.loads(proc.stdout.strip() or "{}")
         except json.JSONDecodeError as exc:
             _emit_audit(outcome="error", response_text=None,
                         error_class="JSONDecodeError")
-            raise RuntimeError(
-                f"claude CLI non-JSON output: {proc.stdout[:500]}"
-            ) from exc
+            log.warning("Tetramorph non-JSON output: %s", proc.stdout[:500])
+            raise RuntimeError(_humanize_cli_failure(stdout=proc.stdout)) from exc
 
         if data.get("is_error"):
             _emit_audit(outcome="error", response_text=None,
                         error_class="ClaudeCliError")
-            raise RuntimeError(
-                f"claude CLI reported error: {str(data.get('result', ''))[:500]}"
-            )
+            raise RuntimeError(_humanize_cli_failure(
+                result=str(data.get('result', ''))))
 
         new_sid = data.get("session_id")
         if new_sid:
@@ -382,7 +403,7 @@ class ClaudeCodeBackend(LLMBackend):
             _emit_audit(outcome="error", response_text=None,
                         error_class="EmptyResult")
             raise RuntimeError(
-                f"claude CLI returned empty result (session={new_sid}, "
+                f"Tetramorph returned empty result (session={new_sid}, "
                 f"stop_reason={data.get('stop_reason')})"
             )
         _emit_audit(outcome="success", response_text=text, error_class=None)
@@ -444,12 +465,11 @@ class ClaudeCodeBackend(LLMBackend):
         ]
         if not fast and self.effort:
             cmd.extend(["--effort", self.effort])
-        if session_id:
-            cmd.extend(["--resume", session_id])
-            prompt = _last_user_content(messages)
-        else:
-            cmd.extend(["--system-prompt", system])
-            prompt = _flatten_messages(messages)
+        # --resume DISABILITATO: in headless -p le sessioni non persistono
+        # ("No conversation found"). Sempre system-prompt + history completa,
+        # cosi i follow-up mantengono il contesto e non ripetono/errorano.
+        cmd.extend(["--system-prompt", system])
+        prompt = _flatten_messages(messages)
 
         log.debug("claude stream cmd: %s (prompt=%d chars)", cmd, len(prompt))
 
@@ -465,9 +485,26 @@ class ClaudeCodeBackend(LLMBackend):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 bufsize=1,  # line-buffered
                 cwd=str(ROOT),
             )
+            # Drain stderr on a side thread — a chatty --verbose CLI must never
+            # fill the stderr pipe and deadlock the stdout read loop.
+            _stderr_buf: list[str] = []
+            _st = threading.Thread(
+                target=lambda p=proc.stderr: _stderr_buf.extend(p) if p else None,
+                daemon=True,
+            )
+            _st.start()
+            # Watchdog — a stalled CLI must not hold a semaphore slot forever.
+            _killer = threading.Timer(
+                self.timeout_s,
+                lambda p=proc: p.kill() if p.poll() is None else None,
+            )
+            _killer.daemon = True
+            _killer.start()
             try:
                 assert proc.stdin is not None and proc.stdout is not None
                 proc.stdin.write(prompt)
@@ -506,7 +543,7 @@ class ClaudeCodeBackend(LLMBackend):
                             err = str(evt.get("result", ""))[:500]
                             _emit_audit(outcome="error", response_text=None,
                                         error_class="ClaudeCliError")
-                            raise RuntimeError(f"claude CLI error: {err}")
+                            raise RuntimeError(_humanize_cli_failure(stderr=err))
                         sid = evt.get("session_id")
                         if sid:
                             new_session_id = sid
@@ -519,8 +556,9 @@ class ClaudeCodeBackend(LLMBackend):
                         continue
 
                 rc = proc.wait(timeout=self.timeout_s)
+                _st.join(timeout=2)
                 if rc != 0:
-                    stderr = (proc.stderr.read() if proc.stderr else "")[:500]
+                    stderr = ("".join(_stderr_buf))[:500]
                     resume_failed = bool(session_id)
                     if resume_failed:
                         self.last_resume_failed = True
@@ -531,11 +569,16 @@ class ClaudeCodeBackend(LLMBackend):
                         _emit_audit(outcome="error", response_text=None,
                                     error_class="NonZeroReturnCode")
                         raise RuntimeError(
-                            f"claude CLI stream failed (rc={rc}): {stderr.strip()}"
+                            _humanize_cli_failure(rc, "", stderr)
                         )
             finally:
+                _killer.cancel()
                 if proc.poll() is None:
                     proc.kill()
+                try:
+                    proc.wait(timeout=5)  # reap, avoid zombies
+                except Exception:  # noqa: BLE001
+                    pass
 
         # V7.9 — if --resume failed, retry fresh (same logic as complete()).
         # We do it after releasing the semaphore to avoid deadlocking when
@@ -573,7 +616,7 @@ class ClaudeCodeBackend(LLMBackend):
             _emit_audit(outcome="error", response_text=None,
                         error_class="EmptyResult")
             raise RuntimeError(
-                f"claude CLI stream returned no text (session={new_session_id})"
+                f"Tetramorph stream returned no text (session={new_session_id})"
             )
         _emit_audit(outcome="success", response_text=text, error_class=None)
         yield ("final", {"text": text, "session_id": new_session_id})
@@ -610,22 +653,22 @@ class ClaudeCodeBackend(LLMBackend):
                 )
         except subprocess.TimeoutExpired as exc:
             raise RuntimeError(
-                f"claude CLI OCR timed out after {self.timeout_s}s"
+                f"Tetramorph OCR timed out after {self.timeout_s}s"
             ) from exc
         if proc.returncode != 0:
             raise RuntimeError(
-                f"claude CLI OCR failed (rc={proc.returncode}): "
+                f"Tetramorph OCR failed (rc={proc.returncode}): "
                 f"{proc.stderr[-400:].strip() or proc.stdout[-400:].strip()}"
             )
         try:
             data = json.loads(proc.stdout.strip() or "{}")
         except json.JSONDecodeError as exc:
             raise RuntimeError(
-                f"claude CLI OCR non-JSON output: {proc.stdout[:400]}"
+                f"Tetramorph OCR non-JSON output: {proc.stdout[:400]}"
             ) from exc
         if data.get("is_error"):
             raise RuntimeError(
-                f"claude CLI OCR reported error: {str(data.get('result', ''))[:400]}"
+                f"Tetramorph OCR reported error: {str(data.get('result', ''))[:400]}"
             )
         return (data.get("result") or "").strip()
 
@@ -859,7 +902,7 @@ class GeminiBackend(LLMBackend):
         return (resp.text or "").strip()
 
 
-# ── prompt flattening helpers (for Claude Code -p mode) ───────────────────
+# ── prompt flattening helpers (for Tetramorph -p mode) ───────────────────
 
 def _last_user_content(messages: list[Message]) -> str:
     for m in reversed(messages):
@@ -868,10 +911,22 @@ def _last_user_content(messages: list[Message]) -> str:
     return ""
 
 
+def _humanize_cli_failure(rc=None, stdout="", stderr="", result=""):
+    """Errore tecnico del CLI -> messaggio pulito per l'utente (shqip), senza
+    esporre JSON grezzo o il vendor. Rileva i limiti d'uso e il sovraccarico."""
+    blob = " ".join([str(stderr or ""), str(stdout or ""), str(result or "")]).lower()
+    if any(k in blob for k in ("session limit", "usage limit", "rate limit", "429", "quota")):
+        return ("Tetramorph eshte i zene me shume kerkesa per momentin. "
+                "Te lutem provo serish pas disa minutash.")
+    if any(k in blob for k in ("overloaded", "529", "503", "overload")):
+        return "Tetramorph eshte perkohesisht i mbingarkuar. Provo serish pas pak."
+    return "Tetramorph hasi nje problem teknik te perkohshem. Provo serish."
+
+
 def _flatten_messages(messages: list[Message]) -> str:
     """Flatten a message history into one piped-stdin prompt for `claude -p`.
 
-    Only used on FRESH sessions (no --resume). Claude Code's -p takes a
+    Only used on FRESH sessions (no --resume). Tetramorph's -p takes a
     single prompt over stdin, so we serialize the turn tape with clear
     role markers so the model can tell prior turns from the current ask.
     """
@@ -912,7 +967,7 @@ def build_backend() -> LLMBackend:
     cli_available = shutil.which("claude") is not None
 
     if choice == "auto":
-        # Prefer Claude Code CLI when available — best quality, uses the
+        # Prefer Tetramorph CLI when available — best quality, uses the
         # user's subscription, and supports native conversation sessions.
         if cli_available:
             choice = "claude_code"
@@ -922,7 +977,7 @@ def build_backend() -> LLMBackend:
             choice = "anthropic"
         else:
             raise RuntimeError(
-                "No LLM available. Install Claude Code (`claude /login`), "
+                "No LLM available. Install Tetramorph (`claude /login`), "
                 "or set GEMINI_API_KEY / ANTHROPIC_API_KEY in .env."
             )
 
@@ -930,9 +985,9 @@ def build_backend() -> LLMBackend:
         if not cli_available:
             raise RuntimeError(
                 "BRAIN_BACKEND=claude_code but `claude` CLI is not in PATH. "
-                "Install Claude Code and run `claude /login`."
+                "Install Tetramorph and run `claude /login`."
             )
-        log.info("using Claude Code backend (%s / %s / %s, effort=%s)",
+        log.info("using Tetramorph backend (%s / %s / %s, effort=%s)",
                  CLAUDE_CODE_MODEL, CLAUDE_CODE_MEDIUM_MODEL,
                  CLAUDE_CODE_FAST_MODEL, CLAUDE_CODE_EFFORT or "off")
         return ClaudeCodeBackend(

@@ -112,9 +112,9 @@ STREAM_STATUS_SQ: dict[str, str] = {
     "simple_composing":      "Po përgatis përgjigjen…",
     "complex_retrieving":    "Po kërkoj nenet e duhura…",
     "complex_precedents":    "Po lexoj vendimet e gjykatave…",
-    "complex_analyzing":     "Po analizoj rastin nga 9 kënde njëherësh…",
+    "complex_analyzing":     "Po analizoj rastin me kujdes maksimal nga shumë kënde dhe po verifikoj ligjin e shifrat në burimet zyrtare — saktësia para shpejtësisë, prandaj merr pak minuta…",
     "complex_urgency":       "Po vlerësoj urgjencën dhe afatet…",
-    "complex_composing":     "Po shkruaj përgjigjen…",
+    "complex_composing":     "Po shkruaj përgjigjen përfundimtare — verifikoj çdo nen e shifër para se ta jap, që të jesh i sigurt…",
 }
 
 
@@ -266,6 +266,8 @@ RREGULL KRITIK për 'areas': kur rasti prek një kod material, përfshi GJITHMON
   - Civil, Familje, Punë → përfshi "Civil" (Kodi i Procedurës Civile mbulon edhe familjen e punën)
   - Doganor, Rrugor, Administrativ, Zgjedhor → përfshi "Administrativ"
 Kjo sepse avokatët fitojnë kauzat te rregullat procedurale (afate, mjete ankimi, barra e provës), jo vetëm te ligji material.
+
+RREGULL FISKAL/NUMERIK: nëse pyetja kërkon një SHUMË ose PËRQINDJE (dogana, taksa, akcizë, tarifa, gjoba, çmime, afate me numra), shto te 'search_queries' të paktën NJË kërkim për tarifën/shifrën zyrtare (p.sh. 'tarifa doganore akciza automjete cilindrata mosha VKM') dhe te 'strategic_angles' këndin 'shifrat zyrtare aktuale të tarifës/akcizës (kërkim web) + rivlerësimi i vlerës doganore sipas Nenit 66/70'. Për pyetje që kërkojnë një SHUMË ose PËRQINDJE konkrete (sa paguaj/sa është/sa përqind te dogana, taksa, akciza), vendos complexity='complex' — sepse duhet kërkim web për shifrat zyrtare aktuale dhe fast-path nuk ka vegla web.
 
 Përgjigju vetëm me një objekt JSON me këtë strukturë EKZAKTE:
 {{
@@ -972,7 +974,16 @@ Kur seksioni "VENDIME RELEVANTE TË GJYKATAVE" të paraqitet më poshtë, ato ja
 - Kur referon një vendim në përgjigje, VENDOSE menjëherë shënuesin `[[case:ID]]` pas emrit të vendimit, p.sh.: "Gjykata e Lartë, vendim nr. 123/2024 [[case:347]] ka vendosur që...".
 - Shënuesi shndërrohet automatikisht në një link që të çon te fashikulli i plotë — kështu që MOS e shkruaj si URL dhe MOS e ndrysho formatin (saktësisht `[[case:NUMER]]`).
 - Cito vetëm ID-të që të janë dhënë më poshtë. Mos shpik ID-të.
-- Përdori precedentët për të përforcuar argumentin te seksioni 1 (ligji), seksioni 4 (afatet, nëse vendimi qartëson një afat) ose seksioni 5 (strategjia)."""
+- Përdori precedentët për të përforcuar argumentin te seksioni 1 (ligji), seksioni 4 (afatet, nëse vendimi qartëson një afat) ose seksioni 5 (strategjia).
+
+PYETJE FISKALE / ME SHIFRA (taksa, dogana, akcizë, tarifa, gjoba, çmime, përqindje, afate me numra):
+Kur avokati pyet "sa është" / "sa paguaj" / "sa përqind", PËRGJIGJU ME SHIFRA — mos u mjafto me "nuk është te nenet e mia". Bëj kështu:
+ • Jep STRUKTURËN e plotë: detyrimi doganor (%), TVSH (20%), formula e akcizës (cilindratë × moshë × CO2/karburant), taksa e karbonit, taksa e regjistrimit/luksit — secila me bazën ligjore kur e ke.
+ • Për përqindjet/tarifat që NUK janë te nenet (janë te Tarifa Doganore / VKM / ligji i akcizave), PËRDOR kërkimin web te burimet ZYRTARE (dogana.gov.al, tatime.gov.al, qbz.gov.al, financa.gov.al), merr shifrën AKTUALE dhe citoje me URL + datë.
+ • Jep një VLERËSIM konkret në euro/lekë me llogaritjen hap-pas-hapi mbi vlerën doganore (te makinat "okazion" kujto Nenin 66/70: vlera doganore mund të rivlerësohet më lart se çmimi i blerjes).
+ • Mbylle me shifrën që PESHON më shumë (p.sh. te automjetet e vjetra me cilindratë të madhe = akciza) dhe ku ta verifikojë saktësisht sot.
+
+SAKTËSIA MBI GJITHÇKA — RREGULL I SHENJTË: një avokat NUK mund të gabojë; një shifër ose nen i gabuar humbet kauzën dhe klientin. Më mirë vono dhe jep të saktën sesa shpejt e gabim. MOS HAMENDËSO KURRË një numër, nen apo afat. Nëse pas verifikimit nuk e gjen dot shifrën e saktë, thuaj QARTË: çfarë është e SIGURT (p.sh. TVSH 20%, struktura e detyrimeve) dhe çfarë duhet marrë nga VKM-ja në fuqi me linkun e saktë. Dallo gjithmonë "e sigurt" nga "duhet verifikuar" — kjartësia është mbrojtja e avokatit."""
 
 
 # V7.7 — simple-query answer prompt. Colloquial, no rigid 5-section
@@ -4116,7 +4127,7 @@ _COMPLEX_MARKERS = (
     "paraburgim", "ndalim", "kallzim",
     # enforcement / state action
     "përmbarues", "permbarues", "sekuestro", "bllokim llogarie",
-    "tatim", "gjob", "doganë", "sfratto", "dëbim",
+    "tatim", "gjob", "dogan", "akciz", "tvsh", "tarifë doganore", "sfratto", "dëbim",
     # active disputes / violence (omit "divorc" alone — "si bëhet divorci" is
     # informative; "divorc kundër" or "divorc i kontestuar" is caught by the
     # compound markers below)
@@ -4129,6 +4140,13 @@ _COMPLEX_MARKERS = (
     "akti i njoftimit", "akt njoftimi", "vendimi i gjykatës",
     "vendimi i gjykates", "kam marrë vendim", "kam marre vendim",
 )
+
+
+def _norm(s: str) -> str:
+    """Normalizo tekstin para matching-ut: njerezit shpesh nuk i shkruajne
+    diakritiket shqip (c, e). Heq ata (c->c, e->e) qe 'dogana'/'dogane'/'doganor',
+    'gjob'/'gjobe', 'kundershtar'/'kundershtar' te kapen njesoj."""
+    return (s or "").lower().replace("ë", "e").replace("ç", "c")
 
 
 def _looks_simple(user_message: str, documents: list[dict] | None) -> bool:
@@ -4146,8 +4164,16 @@ def _looks_simple(user_message: str, documents: list[dict] | None) -> bool:
     # complex shape. Short messages are almost always informative.
     if len(msg) > 280:
         return False
-    lower = msg.lower()
-    if any(marker in lower for marker in _COMPLEX_MARKERS):
+    lower = _norm(msg)
+    if any(_norm(marker) in lower for marker in _COMPLEX_MARKERS):
+        return False
+    # Pyetjet fiskale/me shifra kërkojnë verifikim zyrtar në web (tarifa, akciza,
+    # taksa, dogana) -> kurrë fast-path, që s'ka vegla web. Saktësia para shpejtësisë.
+    _FISCAL = ("dogan", "akciz", "tatim", "taks", "tvsh", "tarif", "gjob")
+    if any(k in lower for k in _FISCAL):
+        return False
+    if "sa " in lower and any(k in lower for k in (
+            "paguaj", "kushton", "përqind", "perqind", "detyrim", "vler")):
         return False
     return True
 
@@ -4167,7 +4193,7 @@ _ADVERSARY_MARKERS = (
     "fqinj", "shitësi", "shitesi", "blerësi", "bleresi",
     "banka", "kreditori", "debitori", "garantuesi",
     # institutions acting against
-    "prokuror", "tatim", "doganë", "dogane", "përmbarues", "permbarues",
+    "prokuror", "tatim", "dogan", "përmbarues", "permbarues",
     "inspektorati", "bashkia më", "bashkia me", "administrata",
     # active disputes
     "padi", "paditje", "paditur", "gjyq", "padit", "ankim", "apel",
@@ -4208,11 +4234,11 @@ def _has_adversary(
             return True
         # Strategic angles sometimes name the opposing party explicitly
         # ("padi civile ndaj punëdhënësit", "ankimim i vendimit X").
-        blob = " ".join(triage.strategic_angles or []).lower()
-        if any(marker in blob for marker in _ADVERSARY_MARKERS):
+        blob = _norm(" ".join(triage.strategic_angles or []))
+        if any(_norm(marker) in blob for marker in _ADVERSARY_MARKERS):
             return True
-    lower = (user_message or "").lower()
-    return any(marker in lower for marker in _ADVERSARY_MARKERS)
+    lower = _norm(user_message)
+    return any(_norm(marker) in lower for marker in _ADVERSARY_MARKERS)
 
 
 def _parse_json_block(raw: str) -> dict:

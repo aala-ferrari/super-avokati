@@ -329,6 +329,22 @@ CREATE INDEX IF NOT EXISTS idx_drafts_firm_status ON case_drafts(firm_id, status
 CREATE INDEX IF NOT EXISTS idx_drafts_case ON case_drafts(case_id);
 CREATE INDEX IF NOT EXISTS idx_drafts_author ON case_drafts(author_id);
 
+-- Saved research: any AI output (answer, devil's advocate, adversary, draft,
+-- needle, vault) the lawyer chooses to keep on a case — browsable later so the
+-- same question isn't asked twice. Separate from the review-loop drafts.
+CREATE TABLE IF NOT EXISTS case_research (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    case_id     TEXT    NOT NULL,
+    firm_id     INTEGER,
+    user_id     INTEGER,
+    source      TEXT    NOT NULL DEFAULT 'research',
+    title       TEXT    NOT NULL,
+    content     TEXT    NOT NULL,
+    client_name TEXT,
+    created_at  TEXT    NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_research_case ON case_research(case_id);
+
 -- V8.3 — client portal. The citizen we represent gets a magic-link
 -- (portal_token) to a read-only view of THEIR case: current stage,
 -- upcoming hearings/deadlines, status updates the lawyer chose to share.
@@ -842,11 +858,13 @@ def init_db(db_path: Path = APP_DB_PATH) -> None:
         _add_column_if_missing(conn, "messages", "opponent_playbook_json", "TEXT")
         _add_column_if_missing(conn, "messages", "leverage_json", "TEXT")
         _add_column_if_missing(conn, "cases", "answer_system_version", "TEXT")
+        _add_column_if_missing(conn, "case_research", "client_name", "TEXT")
         # V7.10 calendar — users need a Telegram chat_id for push reminders
         # and a random token so they can subscribe their Apple/Google
         # Calendar to their feed without logging into the app.
         _add_column_if_missing(conn, "users", "telegram_chat_id", "TEXT")
         _add_column_if_missing(conn, "users", "ical_token", "TEXT")
+        _add_column_if_missing(conn, "users", "profession", "TEXT NOT NULL DEFAULT 'avokat'")
         # V8.0 multi-tenancy
         _add_column_if_missing(conn, "cases", "firm_id", "INTEGER")
         _add_column_if_missing(conn, "users", "active_firm_id", "INTEGER")
@@ -866,6 +884,13 @@ def init_db(db_path: Path = APP_DB_PATH) -> None:
         # V9.2 — last_active timestamp per user, updated on every authenticated
         # request. Powers the "online users" display in the admin panel.
         _add_column_if_missing(conn, "users", "last_active", "TEXT")
+        # V9.14 — demo access: time-limited trial accounts. NULL = permanent
+        # (owner/admin). A timestamp means login is refused past that instant.
+        _add_column_if_missing(conn, "users", "demo_expires_at", "TEXT")
+        # V9.15 — admin can suspend a user (e.g. stopped paying). Login is
+        # refused while suspended, but all their cases/data are preserved so
+        # a re-activation restores full access instantly.
+        _add_column_if_missing(conn, "users", "suspended", "INTEGER NOT NULL DEFAULT 0")
         conn.commit()
     log.info("app db ready at %s", db_path)
 
@@ -1076,6 +1101,8 @@ class User:
     username: str
     is_admin: bool
     created_at: str
+    suspended: bool = False
+    profession: str = "avokat"  # avokat | prokuror | noter
 
 
 CASE_STAGES: tuple[str, ...] = (
@@ -1134,8 +1161,11 @@ class Message:
 
 
 def _user_from_row(r: sqlite3.Row) -> User:
+    susp = bool(r["suspended"]) if "suspended" in r.keys() else False
+    prof = r["profession"] if "profession" in r.keys() and r["profession"] else "avokat"
     return User(id=r["id"], username=r["username"],
-                is_admin=bool(r["is_admin"]), created_at=r["created_at"])
+                is_admin=bool(r["is_admin"]), created_at=r["created_at"],
+                suspended=susp, profession=prof)
 
 
 def _case_from_row(r: sqlite3.Row) -> Case:
@@ -1205,16 +1235,27 @@ def _message_from_row(r: sqlite3.Row) -> Message:
 
 # ── users ───────────────────────────────────────────────────────────────────
 
-def create_user(username: str, password_hash: str, is_admin: bool = False) -> User:
+def set_user_profession(user_id: int, profession: str) -> bool:
+    if profession not in ("avokat", "prokuror", "noter"):
+        return False
+    with db() as conn:
+        cur = conn.execute("UPDATE users SET profession = ? WHERE id = ?",
+                           (profession, user_id))
+        return cur.rowcount > 0
+
+
+def create_user(username: str, password_hash: str, is_admin: bool = False,
+                profession: str = "avokat") -> User:
     username = username.strip()
     if not username:
         raise ValueError("username cannot be empty")
     now = _utcnow()
     with db() as conn:
         cur = conn.execute(
-            "INSERT INTO users (username, password_hash, is_admin, created_at) "
-            "VALUES (?, ?, ?, ?)",
-            (username, password_hash, int(is_admin), now),
+            "INSERT INTO users (username, password_hash, is_admin, profession, created_at) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (username, password_hash, int(is_admin),
+             (profession if profession in ("avokat", "prokuror", "noter") else "avokat"), now),
         )
         uid = cur.lastrowid
         # V8.0: every new user gets a personal firm so they can immediately
@@ -1252,6 +1293,61 @@ def get_user_by_username(username: str) -> User | None:
     return _user_from_row(row) if row else None
 
 
+def get_user_demo_expiry(username: str) -> str | None:
+    """Return the demo expiry timestamp for a user, or None if permanent."""
+    with db() as conn:
+        row = conn.execute(
+            "SELECT demo_expires_at FROM users WHERE username = ? COLLATE NOCASE",
+            (username.strip(),),
+        ).fetchone()
+    return row["demo_expires_at"] if row else None
+
+
+def provision_demo_user(username: str, password_hash: str, hours: int = 6) -> str:
+    """Create or refresh a time-limited demo account. Returns the ISO expiry.
+    A re-issued code resets the password + clock. Admin/permanent accounts are
+    never touched (returns their existing state untouched)."""
+    username = username.strip()
+    if not username:
+        raise ValueError("username cannot be empty")
+    expires = (datetime.now(UTC) + timedelta(hours=hours)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    existing = get_user_by_username(username)
+    if existing is not None and existing.is_admin:
+        raise ValueError("refusing to demote an admin account to demo")
+    if existing is None:
+        create_user(username=username, password_hash=password_hash, is_admin=False)
+    with db() as conn:
+        conn.execute(
+            "UPDATE users SET password_hash = ?, demo_expires_at = ? "
+            "WHERE username = ? COLLATE NOCASE",
+            (password_hash, expires, username),
+        )
+        conn.commit()
+    log.info("provisioned demo user %r until %s", username, expires)
+    return expires
+
+
+def is_user_suspended(username: str) -> bool:
+    """True if the account is suspended (admin cut off access)."""
+    with db() as conn:
+        row = conn.execute(
+            "SELECT suspended FROM users WHERE username = ? COLLATE NOCASE",
+            (username.strip(),),
+        ).fetchone()
+    return bool(row["suspended"]) if row else False
+
+
+def set_user_suspended(user_id: int, suspended: bool) -> bool:
+    """Flip a user's suspended flag. Returns True if a row changed."""
+    with db() as conn:
+        cur = conn.execute(
+            "UPDATE users SET suspended = ? WHERE id = ?",
+            (1 if suspended else 0, user_id),
+        )
+        conn.commit()
+        return cur.rowcount > 0
+
+
 def get_user_password_hash(username: str) -> str | None:
     with db() as conn:
         row = conn.execute(
@@ -1264,7 +1360,7 @@ def get_user_password_hash(username: str) -> str | None:
 def get_user_by_id(user_id: int) -> User | None:
     with db() as conn:
         row = conn.execute(
-            "SELECT id, username, is_admin, created_at FROM users WHERE id = ?",
+            "SELECT id, username, is_admin, created_at, suspended FROM users WHERE id = ?",
             (user_id,),
         ).fetchone()
     return _user_from_row(row) if row else None
@@ -1273,7 +1369,7 @@ def get_user_by_id(user_id: int) -> User | None:
 def list_users() -> list[User]:
     with db() as conn:
         rows = conn.execute(
-            "SELECT id, username, is_admin, created_at FROM users "
+            "SELECT id, username, is_admin, created_at, suspended FROM users "
             "ORDER BY id ASC"
         ).fetchall()
     return [_user_from_row(r) for r in rows]
@@ -2861,23 +2957,37 @@ def add_case_party(case_id: str, firm_id: int, display_name: str,
                      side=side, source=source, created_at=now)
 
 
+def _fold_party_name(s: str) -> str:
+    """Lowercase, collapse whitespace, and strip Albanian diacritics (ë->e,
+    ç->c) so name matching is order- and accent-insensitive."""
+    import unicodedata
+    s = re.sub(r"\s+", " ", (s or "").lower()).strip()
+    return "".join(ch for ch in unicodedata.normalize("NFKD", s)
+                   if not unicodedata.combining(ch))
+
+
 def search_parties_in_firm(firm_id: int, query: str) -> list[dict]:
-    """Substring + token-overlap search; returns matched parties with case meta."""
-    q = re.sub(r"\s+", " ", (query or "").lower()).strip()
-    if len(q) < 2:
+    """Token-set match: a party matches when EVERY token of the query name is
+    present as a token of the stored name (diacritic-folded, order-independent).
+    Catches surname-first order ("Hoxha Ardit" == "Ardit Hoxha") and ë/ç
+    variants, and avoids substring false hits ("Ana Ka" != "Ana Kadare")."""
+    q = _fold_party_name(query)
+    q_tokens = set(q.split())
+    if len(q) < 2 or not q_tokens:
         return []
     with db() as conn:
         rows = conn.execute(
             "SELECT p.*, c.title AS case_title, c.user_id AS case_creator "
             "FROM case_parties p JOIN cases c ON c.id = p.case_id "
-            "WHERE p.firm_id = ? AND (p.name LIKE ? OR p.name = ?)",
-            (firm_id, f"%{q}%", q),
+            "WHERE p.firm_id = ?",
+            (firm_id,),
         ).fetchall()
     out = []
-    q_tokens = set(q.split())
     for r in rows:
-        toks = set(r["name"].split())
-        overlap = len(q_tokens & toks) / max(len(q_tokens), 1)
+        toks = set(_fold_party_name(r["name"]).split())
+        if not toks or not q_tokens.issubset(toks):
+            continue
+        overlap = len(q_tokens & toks) / max(len(q_tokens | toks), 1)
         out.append({
             "id": r["id"], "case_id": r["case_id"], "case_title": r["case_title"],
             "case_creator_user_id": r["case_creator"],
@@ -2951,7 +3061,7 @@ def firm_capacity_snapshot(firm_id: int, *, horizon_days: int = 7) -> list[dict]
     return out
 
 
-def find_substitutes_for_event(event_id: str) -> list[dict] | None:
+def find_substitutes_for_event(event_id: str, firm_id: int | None = None) -> list[dict] | None:
     """Rank candidates who could cover this hearing.
 
     Eligible: firm members with role in {owner, partner, lawyer} (paralegals
@@ -2968,6 +3078,9 @@ def find_substitutes_for_event(event_id: str) -> list[dict] | None:
             (event_id,),
         ).fetchone()
         if not ev_row or not ev_row["firm_id"]:
+            return None
+        # cross-firm guard: never reveal another firm's roster
+        if firm_id is not None and ev_row["firm_id"] != firm_id:
             return None
         firm_id = ev_row["firm_id"]
         starts = ev_row["starts_at"]
@@ -3057,6 +3170,80 @@ class CaseDraft:
     reviewed_at: str | None
     created_at: str
     updated_at: str
+
+
+def save_research(case_id: str, firm_id, user_id, *, source: str,
+                  title: str, content: str, client_name: str | None = None) -> int:
+    title = (title or "").strip()[:200] or "Kërkim"
+    content = (content or "").strip()
+    if len(content) < 5:
+        raise ValueError("empty research content")
+    now = _utcnow()
+    with db() as conn:
+        cur = conn.execute(
+            "INSERT INTO case_research (case_id, firm_id, user_id, source, "
+            "title, content, client_name, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (case_id, firm_id, user_id, source or "research", title, content,
+             (client_name or None), now),
+        )
+        return int(cur.lastrowid)
+
+
+def list_research(case_id: str) -> list[dict]:
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT id, source, title, content, client_name, created_at "
+            "FROM case_research WHERE case_id = ? ORDER BY id DESC", (case_id,),
+        ).fetchall()
+    return [{"id": r["id"], "source": r["source"], "title": r["title"],
+             "content": r["content"], "client_name": r["client_name"],
+             "created_at": r["created_at"]} for r in rows]
+
+
+def delete_research(research_id: int, case_id: str) -> bool:
+    with db() as conn:
+        cur = conn.execute(
+            "DELETE FROM case_research WHERE id = ? AND case_id = ?",
+            (research_id, case_id),
+        )
+        return cur.rowcount > 0
+
+
+def list_firm_clients(firm_id: int) -> list[dict]:
+    """Distinct clients across the firm (grouped by name), with their cases."""
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT cc.name, cc.phone, cc.email, cc.case_id, c.title AS case_title "
+            "FROM client_contacts cc JOIN cases c ON c.id = cc.case_id "
+            "WHERE cc.firm_id = ? ORDER BY cc.name COLLATE NOCASE", (firm_id,),
+        ).fetchall()
+    clients: dict[str, dict] = {}
+    for r in rows:
+        key = (r["name"] or "").strip().lower()
+        if not key:
+            continue
+        cl = clients.setdefault(key, {"name": r["name"], "phone": r["phone"],
+                                      "email": r["email"], "cases": []})
+        if not cl.get("phone") and r["phone"]:
+            cl["phone"] = r["phone"]
+        cl["cases"].append({"case_id": r["case_id"],
+                            "case_title": r["case_title"] or "Rast"})
+    return list(clients.values())
+
+
+def list_firm_research(firm_id: int, limit: int = 500) -> list[dict]:
+    """Every saved research across the firm's cases (newest first)."""
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT r.id, r.source, r.title, r.content, r.client_name, "
+            "r.case_id, r.created_at, c.title AS case_title "
+            "FROM case_research r JOIN cases c ON c.id = r.case_id "
+            "WHERE c.firm_id = ? ORDER BY r.id DESC LIMIT ?", (firm_id, limit),
+        ).fetchall()
+    return [{"id": r["id"], "source": r["source"], "title": r["title"],
+             "content": r["content"], "client_name": r["client_name"],
+             "case_id": r["case_id"], "case_title": r["case_title"],
+             "created_at": r["created_at"]} for r in rows]
 
 
 def _draft_from_row(r: sqlite3.Row) -> CaseDraft:

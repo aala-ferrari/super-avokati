@@ -6,6 +6,7 @@ user id; server-side look-up enforces authorisation on every request.
 """
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from functools import wraps
 
 from flask import jsonify, redirect, request, session, url_for
@@ -35,6 +36,19 @@ def authenticate(username: str, password: str) -> storage.User | None:
     which of username/password was wrong — same response either way."""
     stored = storage.get_user_password_hash(username)
     if stored and verify_password(password, stored):
+        # demo accounts carry an expiry; once the clock passes it we refuse
+        # the login with the same generic response (no info leak).
+        expiry = storage.get_user_demo_expiry(username)
+        if expiry:
+            now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+            if now >= expiry:
+                log.info("demo expired for %r", username)
+                return None
+        # suspended accounts (e.g. stopped paying) are refused with the same
+        # generic response — data is kept, admin can re-activate any time.
+        if storage.is_user_suspended(username):
+            log.info("login refused: %r is suspended", username)
+            return None
         return storage.get_user_by_username(username)
     return None
 

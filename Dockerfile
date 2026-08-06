@@ -37,7 +37,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     BRAIN_BACKEND=auto \
     BRAIN_PARALLEL_STAGES=1 \
     BRAIN_PARALLEL_WORKERS=3 \
-    CLAUDE_CODE_MAX_CONCURRENCY=3 \
+    CLAUDE_CODE_MAX_CONCURRENCY=6 \
     FOLLOWUP_FASTPATH_MAX_CHARS=200 \
     SIMPLE_FASTPATH_ENABLED=1
 
@@ -68,6 +68,7 @@ COPY src/ ./src/
 COPY static/ ./static/
 COPY templates/ ./templates/
 COPY scripts/ ./scripts/
+COPY tools/ ./tools/
 COPY README.md .env.example ./
 
 # Non-root user for runtime safety.

@@ -52,7 +52,6 @@ CODE_ALIASES: dict[str, str] = {
     "kdet": "kodi_detar",
     "kz": "kodi_zgjedhor",
     "kzgj": "kodi_zgjedhor",
-    "ka": "kodi_ajror",
 
     # Spelled-out — keep all common case-form variants
     "kodi penal": "kodi_penal",
@@ -76,14 +75,21 @@ CODE_ALIASES: dict[str, str] = {
     "kodi i procedurave administrative": "kodi_proc_admin",
     "kodit të procedurave administrative": "kodi_proc_admin",
     "kodi procedures administrative": "kodi_proc_admin",
+    "kodi i procedurës administrative": "kodi_proc_admin",
+    "kodit të procedurës administrative": "kodi_proc_admin",
+    "kodi i procedures administrative": "kodi_proc_admin",
+    "kodit te procedures administrative": "kodi_proc_admin",
 
     "kodi i familjes": "kodi_familjes",
     "kodit të familjes": "kodi_familjes",
+    "kodin e familjes": "kodi_familjes",
 
     "kodi i punës": "kodi_punes",
     "kodit të punës": "kodi_punes",
     "kodi i punes": "kodi_punes",
     "kodit te punes": "kodi_punes",
+    "kodin e punës": "kodi_punes",
+    "kodin e punes": "kodi_punes",
 
     "kodi rrugor": "kodi_rrugor",
     "kodit rrugor": "kodi_rrugor",
@@ -113,7 +119,40 @@ CODE_ALIASES: dict[str, str] = {
     "ligji i te dhenave personale": "ligji_te_dhenat",
     "ligji i qkb": "ligji_qkb",
     "ligji per qkb": "ligji_qkb",
+    "ligji i policisë së shtetit": "ligji_policia_2024",
+    "ligji per policine e shtetit": "ligji_policia_2024",
+    "ligji i policise se shtetit": "ligji_policia_2024",
+    "ligji i policisë": "ligji_policia_2024",
+    "ligji i policise": "ligji_policia_2024",
+    "ligji per policine": "ligji_policia_2024",
+    "policinë e shtetit": "ligji_policia_2024",
+    "policisë së shtetit": "ligji_policia_2024",
+    "policia e shtetit": "ligji_policia_2024",
+    "rregullorja e policisë së shtetit": "rregullore_policia",
+    "rregullore e policisë së shtetit": "rregullore_policia",
+    "rregullorja e policisë": "rregullore_policia",
+    "rregullore e policisë": "rregullore_policia",
+    "rregullores së policisë": "rregullore_policia",
+    "rregullorja e policise": "rregullore_policia",
+    "ligji për policinë e shtetit": "ligji_policia_2024",
+    "ligjit për policinë e shtetit": "ligji_policia_2024",
+    "ligjit i policisë": "ligji_policia_2024",
+    "ligji i policise": "ligji_policia_2024",
 }
+
+# The 5 special laws are most often cited by statute number ("ligji nr. 9901"),
+# not by name. Map the canonical numbers to the corpus keys.
+_LAW_NUMBER_ALIASES: dict[str, str] = {
+    "9901": "ligji_shoqerite_tregtare",   # shoqëritë tregtare
+    "8901": "ligji_falimentimi",          # falimentimi (klasik)
+    "9887": "ligji_te_dhenat",            # mbrojtja e të dhënave personale
+    "9902": "ligji_konsumatoret",         # mbrojtja e konsumatorëve
+    "9723": "ligji_qkb",                  # QKB
+    "108": "ligji_policia",              # Policia e Shtetit (108/2014)
+    "750": "rregullore_policia",         # Rregullore Policia (VKM 750/2015)
+    "82": "ligji_policia_2024",          # Policia e Shtetit (aktual, 82/2024)
+}
+_LAW_NUM_RE = re.compile(r"ligj\w*\s+(?:nr\.?\s*)?(\d{2,5})", re.IGNORECASE)
 
 # Human-readable label per code → shown in the UI badge.
 CODE_LABELS: dict[str, str] = {
@@ -135,6 +174,9 @@ CODE_LABELS: dict[str, str] = {
     "ligji_konsumatoret": "Ligji Konsumatorët",
     "ligji_te_dhenat": "Ligji Mbr. Dhënash",
     "ligji_qkb": "Ligji QKB",
+    "ligji_policia": "Ligji Policia 108/2014",
+    "ligji_policia_2024": "Ligji Policia 82/2024",
+    "rregullore_policia": "Rregullore Policia",
 }
 
 
@@ -150,11 +192,21 @@ CODE_LABELS: dict[str, str] = {
 # the next sentence in as if it were the code. The tail is then probed for
 # a known code alias.
 
+# One article-number token: "132", "132/a", "132/1", "132-a", "4/1/2".
+_NUM_TOKEN = r"\d+(?:[/\-\u2013][a-zA-Z\u00e7\u00eb\u00c7\u00cb0-9]{1,4})*"
+# Enumerated-list separators: "nenet 134, 135 dhe 136 të Kodit Penal".
+_LIST_SEP = r"(?:\s*(?:,|;|\bdhe\b|\be\b)\s*)"
+
 CITATION_RE = re.compile(
-    r"\bnen(?:i|in|it|et|eve|ve)?\b\s+(\d+(?:[/\-][a-zA-Z0-9]{1,4})?)"
-    r"(?P<tail>(?:\s+[^.,;:\n()]{0,60})?)",
+    r"\bnen(?:i|in|it|et|eve|ve)?\b\s+"
+    r"(?P<nums>" + _NUM_TOKEN + r"(?:" + _LIST_SEP + _NUM_TOKEN + r")*)"
+    # Tail = up to 8 words, but never crossing "dhe" or another "nen..." —
+    # otherwise one citation swallows the next and steals its code.
+    r"(?P<tail>(?:\s+(?!nen(?:i|in|it|et|eve|ve)?\b)(?!dhe\b)[^\s,;:\n()]+){0,8})",
     re.IGNORECASE,
 )
+# Pull each individual number out of a (possibly enumerated) nums block.
+_NUM_RE = re.compile(_NUM_TOKEN)
 
 # Detect a code alias inside the tail. We use word boundaries so "kpc" inside
 # "skpcial" wouldn't match (no risk in practice but cheap insurance).
@@ -176,12 +228,14 @@ class Citation:
     status: str              # "verified" | "fake" | "needs_code"
     candidates: list[dict]   # for needs_code: which codes contain this number
     article_heading: str | None = None  # populated when verified
+    volatility: str | None = None            # STABLE/MEDIUM — freshness hint
+    last_amendment_date: str | None = None   # last known amendment date
 
 
 def _normalise_number(n: str) -> str:
     """Normalise '132/A' / '132-a' / '132 / a' → '132/a' (lowercase)."""
     s = n.strip().lower().replace(" ", "")
-    s = s.replace("-", "/")
+    s = s.replace("-", "/").replace("\u2013", "/")
     return s
 
 
@@ -196,6 +250,19 @@ def _build_lookup(index: ArticleIndex) -> dict[tuple[str, str], object]:
             continue
         table[(art.code, _normalise_number(art.number))] = art
     index._citation_lookup = table
+    return table
+
+
+def _build_lookup_all(index: ArticleIndex) -> dict[tuple[str, str], object]:
+    """(code, number) -> Article, INCLUDING repealed ones. Lets us tell a real
+    but repealed article apart from a genuinely nonexistent (hallucinated) one."""
+    cached = getattr(index, "_citation_lookup_all", None)
+    if cached is not None:
+        return cached
+    table: dict[tuple[str, str], object] = {}
+    for art in index.articles:
+        table[(art.code, _normalise_number(art.number))] = art
+    index._citation_lookup_all = table
     return table
 
 
@@ -219,11 +286,55 @@ def _resolve_code(tail: str) -> str | None:
     """Extract a canonical code key from the text right after the article num."""
     if not tail:
         return None
-    m = _ALIAS_RE.search(tail.lower())
-    if not m:
-        return None
-    alias = m.group(1).lower()
-    return CODE_ALIASES.get(alias)
+    # Fold whitespace (newlines, double spaces) so multi-word code aliases
+    # like "kodit të procedurës penale" still match when the source wraps
+    # mid-phrase ("të Kodit të\nProcedurës Penale").
+    flat = re.sub(r"\s+", " ", tail.lower())
+    m = _ALIAS_RE.search(flat)
+    if m:
+        return CODE_ALIASES.get(m.group(1).lower())
+    # No named code — try a special law cited by number ("ligji nr. 9901").
+    lm = _LAW_NUM_RE.search(flat)
+    if lm:
+        return _LAW_NUMBER_ALIASES.get(lm.group(1))
+    return None
+
+
+def _verify_number(lookup: dict, code: str, number: str):
+    """Resolve an article, tolerant of paragraph/range notation.
+
+    Albanian citations write paragraphs as "134/1" (paragraph 1 of art. 134)
+    and ranges as "379-390". Neither is a distinct article number, so an exact
+    lookup misses and a valid citation would be flagged "fake". We fall back to
+    the base article and, for ranges, the range endpoints — a conservative
+    move that kills false-fakes without inventing anything.
+    """
+    art = lookup.get((code, number))
+    if art is not None:
+        return art
+    if "/" in number:
+        parts = number.split("/")
+        base, first = parts[0], parts[1]
+        # Only a NUMERIC first suffix is a paragraph/range of the base article
+        # ("134/1" -> 134, "379/390" -> 379, "4/1/2" -> 4). A LETTER suffix
+        # ("134/a") is a DISTINCT inserted article — never collapse it to the
+        # base. And never resolve the suffix itself as a standalone article:
+        # that green-lit hallucinations like "480/5" -> real art. 5.
+        if first.isdigit():
+            art = lookup.get((code, base))
+            if art is not None:
+                return art
+    return None
+
+
+def _codes_for_number(num_to_codes: dict, number: str) -> list:
+    """Candidate codes for a bare number, tolerant of paragraph/range form."""
+    codes = list(num_to_codes.get(number, []))
+    if not codes and "/" in number:
+        parts = number.split("/")
+        if len(parts) > 1 and parts[1].isdigit():
+            codes = list(num_to_codes.get(parts[0], []))
+    return codes
 
 
 def verify_text(
@@ -246,82 +357,102 @@ def verify_text(
         }
     """
     lookup = _build_lookup(index)
+    lookup_all = _build_lookup_all(index)
     num_to_codes = _build_number_to_codes(index)
     retrieved_codes = set(retrieved_codes or [])
 
     seen: set[tuple[str, str]] = set()  # dedupe (number, code-or-empty)
     citations: list[Citation] = []
 
-    for m in CITATION_RE.finditer(text):
-        number_raw = m.group(1)
-        tail = m.group("tail") or ""
-        number = _normalise_number(number_raw)
-        code = _resolve_code(tail)
-
-        key = (number, code or "")
-        if key in seen:
-            continue
-        seen.add(key)
-
-        raw_match = text[m.start():m.end()].strip()
-        # Trim raw to the article + first few words of the tail so the UI
-        # has a clean label without the rest of the sentence.
-        if len(raw_match) > 60:
-            raw_match = raw_match[:60].rstrip() + "…"
-
+    def _emit(number: str, code: str | None, raw: str) -> None:
+        """Classify one (number, code) pair and append its Citation."""
         if code:
-            art = lookup.get((code, number))
+            art = _verify_number(lookup, code, number)
             if art is not None:
                 citations.append(Citation(
-                    raw=raw_match, number=number, code=code,
+                    raw=raw, number=number, code=code,
                     code_label=CODE_LABELS.get(code, code),
-                    status="verified",
-                    candidates=[],
+                    status="verified", candidates=[],
                     article_heading=getattr(art, "heading", None),
                 ))
-            else:
+                return
+            rart = _verify_number(lookup_all, code, number)
+            if rart is not None:
+                # exists in this code but REPEALED — real, not hallucinated
                 citations.append(Citation(
-                    raw=raw_match, number=number, code=code,
+                    raw=raw, number=number, code=code,
                     code_label=CODE_LABELS.get(code, code),
-                    status="fake",
-                    candidates=[],
+                    status="repealed", candidates=[],
+                    article_heading=getattr(rart, "heading", None),
                 ))
+                return
+            citations.append(Citation(
+                raw=raw, number=number, code=code,
+                code_label=CODE_LABELS.get(code, code),
+                status="fake", candidates=[],
+            ))
+            return
+        candidate_codes = _codes_for_number(num_to_codes, number)
+        # Promotion via retrieval context: if exactly one candidate appears in
+        # the retrieved set, we treat it as verified.
+        in_ctx = [c for c in candidate_codes if c in retrieved_codes]
+        if len(in_ctx) == 1:
+            code_resolved = in_ctx[0]
+            art = _verify_number(lookup, code_resolved, number)
+            citations.append(Citation(
+                raw=raw, number=number, code=code_resolved,
+                code_label=CODE_LABELS.get(code_resolved, code_resolved),
+                status="verified", candidates=[],
+                article_heading=getattr(art, "heading", None),
+            ))
+        elif candidate_codes:
+            citations.append(Citation(
+                raw=raw, number=number, code=None, code_label=None,
+                status="needs_code",
+                candidates=[{"code": c, "label": CODE_LABELS.get(c, c)}
+                            for c in candidate_codes[:6]],
+            ))
         else:
-            candidate_codes = num_to_codes.get(number, [])
-            # Promotion via retrieval context: if exactly one candidate
-            # appears in the retrieved set, we treat it as verified.
-            in_ctx = [c for c in candidate_codes if c in retrieved_codes]
-            if len(in_ctx) == 1:
-                code_resolved = in_ctx[0]
-                art = lookup.get((code_resolved, number))
-                citations.append(Citation(
-                    raw=raw_match, number=number, code=code_resolved,
-                    code_label=CODE_LABELS.get(code_resolved, code_resolved),
-                    status="verified",
-                    candidates=[],
-                    article_heading=getattr(art, "heading", None),
-                ))
-            elif candidate_codes:
-                citations.append(Citation(
-                    raw=raw_match, number=number, code=None,
-                    code_label=None,
-                    status="needs_code",
-                    candidates=[
-                        {"code": c, "label": CODE_LABELS.get(c, c)}
-                        for c in candidate_codes[:6]
-                    ],
-                ))
-            else:
-                # Number not present in any code in our corpus → fake.
-                citations.append(Citation(
-                    raw=raw_match, number=number, code=None,
-                    code_label=None, status="fake", candidates=[],
-                ))
+            # Number not present in any code in our corpus → fake.
+            citations.append(Citation(
+                raw=raw, number=number, code=None,
+                code_label=None, status="fake", candidates=[],
+            ))
 
+    for m in CITATION_RE.finditer(text):
+        nums_block = m.group("nums")
+        tail = m.group("tail") or ""
+        code = _resolve_code(tail)              # one shared code for the list
+        numbers = _NUM_RE.findall(nums_block)
+        full_raw = text[m.start():m.end()].strip()
+        if len(full_raw) > 60:
+            full_raw = full_raw[:60].rstrip() + "…"
+        multi = len(numbers) > 1
+        for number_raw in numbers:
+            number = _normalise_number(number_raw)
+            key = (number, code or "")
+            if key in seen:
+                continue
+            seen.add(key)
+            # In a list each article gets its own clean label; a lone citation
+            # keeps the full matched span for context.
+            raw = ("neni " + number_raw) if multi else full_raw
+            _emit(number, code, raw)
+
+    for _c in citations:
+        if _c.status in ("verified", "repealed") and _c.code:
+            _a = (_verify_number(lookup, _c.code, _c.number)
+                  or _verify_number(lookup_all, _c.code, _c.number))
+            if _a is not None:
+                _c.volatility = getattr(_a, "volatility", None)
+                _c.last_amendment_date = getattr(_a, "last_amendment_date", None)
     stats = {
         "verified": sum(1 for c in citations if c.status == "verified"),
         "fake": sum(1 for c in citations if c.status == "fake"),
+        "repealed": sum(1 for c in citations if c.status == "repealed"),
         "needs_code": sum(1 for c in citations if c.status == "needs_code"),
+        "stale": sum(1 for c in citations if c.status == "verified"
+                     and (c.volatility or "").upper() == "MEDIUM"),
         "total": len(citations),
     }
     return {

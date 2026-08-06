@@ -22,6 +22,7 @@ import json
 import os
 import re
 import secrets
+import threading
 import time
 from dataclasses import asdict
 from datetime import UTC, datetime, timedelta
@@ -42,10 +43,26 @@ from flask import (
 
 from . import citation_shield as cs_mod
 from . import citation_verifier as cv_mod
+from . import decision_verifier as dv_mod
 from . import documents as docs_mod
 from . import pro_features as pro_mod
 from . import reminders as reminders_mod
+from . import secretary as secretary_mod
 from . import storage
+from . import validity as validity_mod
+from . import actcheck as actcheck_mod
+from . import conflicts as conflicts_mod
+from . import vault as vault_mod
+from . import second_opinion as second_opinion_mod
+from . import fable_drafter as fable_drafter_mod
+from . import adversary as adversary_mod
+from . import expertise as expertise_mod
+from . import prosecutor as prosecutor_mod
+from . import living_law as living_mod
+from . import intake as intake_mod
+from . import afati as afati_mod
+from . import notary as notary_mod
+from . import deadlines as deadlines_mod
 from .auth import (
     authenticate,
     current_user,
@@ -137,6 +154,7 @@ def index() -> str:
         username=user.username,
         user_id=user.id,
         is_admin=user.is_admin,
+        profession=getattr(user, "profession", "avokat"),
         cascade_event_types=pro_mod.cascade_event_types(),
         act_types=[{"key": k, "label": v} for k, v in pro_mod.ACT_TYPES.items()],
     )
@@ -190,6 +208,32 @@ def api_login():
                                          "is_admin": user.is_admin}})
 
 
+@app.post("/api/provision-demo")
+def api_provision_demo():
+    """Server-to-server: AALA calls this when an admin approves a legal demo
+    lead. Creates/refreshes a time-limited trial account (username=email,
+    password=code). Guarded by a shared secret; reachable only on localhost."""
+    secret = os.environ.get("DEMO_PROVISION_SECRET", "")
+    if not secret or request.headers.get("X-Provision-Secret", "") != secret:
+        return jsonify({"error": "forbidden"}), 403
+    data = request.get_json(force=True, silent=True) or {}
+    email = (data.get("email") or "").strip()
+    code = (data.get("code") or "").strip()
+    try:
+        hours = int(data.get("hours") or 6)
+    except (TypeError, ValueError):
+        hours = 6
+    if not email or not code:
+        return jsonify({"error": "missing email/code"}), 400
+    from .auth import hash_password
+    try:
+        expires = storage.provision_demo_user(email, hash_password(code), hours)
+    except Exception as exc:  # noqa: BLE001 - best-effort provisioning
+        log.warning("provision-demo failed for %r: %s", email, exc)
+        return jsonify({"error": "provision failed"}), 500
+    return jsonify({"ok": True, "expires_at": expires})
+
+
 @app.post("/api/logout")
 def api_logout():
     logout_user()
@@ -207,6 +251,45 @@ def api_me():
         "username": u.username,
         "is_admin": u.is_admin,
     })
+
+
+# ── Bolla Segretaria (assistant AI: agjenda + shkrim me konfirmim) ─────────
+
+@app.post("/api/secretary/message")
+@login_required_api
+def api_secretary_message():
+    _ensure_loaded()
+    if _BRAIN is None:
+        return jsonify({"error": "brain unavailable"}), 503
+    user = request.user  # type: ignore[attr-defined]
+    data = request.get_json(silent=True) or {}
+    messages = data.get("messages")
+    if not isinstance(messages, list) or not messages:
+        return jsonify({"error": "messages required"}), 400
+    clean = []
+    for m in messages[-12:]:
+        if not isinstance(m, dict):
+            continue
+        role = "assistant" if m.get("role") == "assistant" else "user"
+        content = str(m.get("content") or "").strip()
+        if content:
+            clean.append({"role": role, "content": content[:4000]})
+    if not clean:
+        return jsonify({"error": "empty message"}), 400
+    result = secretary_mod.handle_message(_BRAIN, user.id, clean)
+    return jsonify(result)
+
+
+@app.post("/api/secretary/execute")
+@login_required_api
+def api_secretary_execute():
+    user = request.user  # type: ignore[attr-defined]
+    data = request.get_json(silent=True) or {}
+    action = data.get("action")
+    if not isinstance(action, dict):
+        return jsonify({"error": "action required"}), 400
+    result = secretary_mod.execute_action(user.id, action)
+    return jsonify(result), (200 if result.get("ok") else 400)
 
 
 # ── firm (studio) API ──────────────────────────────────────────────────────
@@ -351,7 +434,7 @@ def api_event_substitutes(event_id: str):
     firm = request.firm  # type: ignore[attr-defined]
     if firm is None:
         return jsonify({"error": "no active firm"}), 400
-    candidates = storage.find_substitutes_for_event(event_id)
+    candidates = storage.find_substitutes_for_event(event_id, firm.id)
     if candidates is None:
         return jsonify({"error": "event not found or not firm-scoped"}), 404
     return jsonify({"event_id": event_id, "candidates": candidates})
@@ -366,7 +449,10 @@ def api_firm_capacity():
     firm = request.firm  # type: ignore[attr-defined]
     if firm is None:
         return jsonify({"error": "no active firm"}), 400
-    horizon = max(1, min(30, int(request.args.get("days", 7))))
+    try:
+        horizon = max(1, min(30, int(request.args.get("days", 7))))
+    except (TypeError, ValueError):
+        horizon = 7
     return jsonify({
         "firm": _firm_payload(firm),
         "horizon_days": horizon,
@@ -722,6 +808,19 @@ def _intake_parse_json(raw: str) -> dict:
 
 # ── cases API ──────────────────────────────────────────────────────────────
 
+def _safe_err(exc) -> str:
+    """Client-safe error text: keep humanized Albanian messages, but never let
+    a vendor name, file path, or traceback reach the user (Tetramorph rule)."""
+    msg = str(exc or "")
+    low = msg.lower()
+    if not msg or any(k in low for k in (
+        "claude", "anthropic", "openai", "gemini", "traceback",
+        "/app/", "/home/", "/usr/", "/var/", "model", "subprocess",
+        "sqlite", "psycopg", "http", "token")):
+        return "Gabim teknik i përkohshëm. Provo përsëri pas pak."
+    return msg[:200]
+
+
 def _resolve_case(case_id: str):
     """Firm-aware case fetch — applies role-based visibility when in a firm.
 
@@ -731,7 +830,7 @@ def _resolve_case(case_id: str):
     user = request.user  # type: ignore[attr-defined]
     firm = request.firm  # type: ignore[attr-defined]
     if firm is None:
-        return _resolve_case(case_id)
+        return storage.get_case(case_id, user.id)   # user-scoped legacy fallback
     return storage.get_case_for_member(case_id, user.id, firm.id)
 
 
@@ -2156,6 +2255,246 @@ def _build_precedent_description(case_id: str | None, body_desc: str) -> str:
     return "\n\n".join(parts).strip()
 
 
+@app.post("/api/act-check")
+@login_required_api
+def api_act_check():
+    """Quality-check a drafted act: fake / repealed / ambiguous articles."""
+    _ensure_loaded()
+    if _INDEX is None:
+        return jsonify({"error": "index_unavailable"}), 503
+    body = request.get_json(silent=True) or {}
+    text = (body.get("text") or "").strip()
+    if not text:
+        return jsonify({"error": "text_required"}), 400
+    return jsonify(actcheck_mod.check_act(_INDEX, text[:60000]))
+
+
+@app.post("/api/second-opinion")
+@login_required_api
+def api_second_opinion():
+    """Fable 5 second advisor: a shrewd devil's-advocate review of an answer.
+
+    Additive and optional — only runs when the lawyer clicks. Never replaces
+    the main Opus answer. Its citations pass the Verifikuar shield."""
+    _ensure_loaded()
+    if _BRAIN is None:
+        return jsonify({"error": "unavailable"}), 503
+    body = request.get_json(silent=True) or {}
+    question = (body.get("question") or "").strip()
+    answer = (body.get("answer") or "").strip()
+    if len(answer) < 20:
+        return jsonify({"error": "answer_required"}), 400
+    try:
+        res = second_opinion_mod.review(
+            _BRAIN.backend,
+            question=question[:4000],
+            answer_text=answer[:16000],
+        )
+    except Exception as exc:  # noqa: BLE001
+        log.exception("second-opinion failed")
+        return jsonify({"error": _safe_err(exc)}), 200
+    md = res.get("markdown") or ""
+    citations = {"items": [], "stats": {}}
+    try:
+        if _INDEX is not None and md:
+            citations = cv_mod.verify_text(md, _INDEX)
+    except Exception:  # noqa: BLE001
+        pass
+    return jsonify({"markdown": md, "citations": citations})
+
+
+@app.post("/api/devil-consult")
+@login_required_api
+def api_devil_consult():
+    """Pyet Avokatin e Djallit — standalone shrewd consultation (Fable)."""
+    _ensure_loaded()
+    if _BRAIN is None:
+        return jsonify({"error": "unavailable"}), 503
+    body = request.get_json(silent=True) or {}
+    situation = (body.get("situation") or "").strip()
+    if len(situation) < 15:
+        return jsonify({"error": "situation_required"}), 400
+    try:
+        res = second_opinion_mod.consult(_BRAIN.backend, situation=situation[:12000])
+    except Exception as exc:  # noqa: BLE001
+        log.exception("devil-consult failed")
+        return jsonify({"error": _safe_err(exc)}), 200
+    md = res.get("markdown") or ""
+    citations = {"items": [], "stats": {}}
+    try:
+        if _INDEX is not None and md:
+            citations = cv_mod.verify_text(md, _INDEX)
+    except Exception:  # noqa: BLE001
+        pass
+    return jsonify({"markdown": md, "citations": citations})
+
+
+@app.post("/api/adversary")
+@login_required_api
+def api_adversary():
+    """Kundershtari — Fable attacks a pasted contract/act as opposing counsel."""
+    _ensure_loaded()
+    if _BRAIN is None:
+        return jsonify({"error": "unavailable"}), 503
+    body = request.get_json(silent=True) or {}
+    text = (body.get("text") or "").strip()
+    if len(text) < 30:
+        return jsonify({"error": "text_required"}), 400
+    try:
+        res = adversary_mod.attack(_BRAIN.backend, text=text[:16000])
+    except Exception as exc:  # noqa: BLE001
+        log.exception("adversary failed")
+        return jsonify({"error": _safe_err(exc)}), 200
+    md = res.get("markdown") or ""
+    citations = {"items": [], "stats": {}}
+    try:
+        if _INDEX is not None and md:
+            citations = cv_mod.verify_text(md, _INDEX)
+    except Exception:  # noqa: BLE001
+        pass
+    return jsonify({"markdown": md, "citations": citations})
+
+
+@app.post("/api/cases/<case_id>/needle")
+@login_required_api
+def api_case_needle(case_id: str):
+    """Gjilpëra në dosje — Fable hunts the overlooked detail across case docs."""
+    _ensure_loaded()
+    case = _resolve_case(case_id)
+    if case is None:
+        return jsonify({"error": "not found"}), 404
+    if _BRAIN is None:
+        return jsonify({"error": "unavailable"}), 503
+    try:
+        res = vault_mod.find_needle(_BRAIN.backend, case_id)
+    except Exception as exc:  # noqa: BLE001
+        log.exception("needle failed")
+        return jsonify({"error": _safe_err(exc)}), 200
+    md = res.get("markdown") or ""
+    citations = {"items": [], "stats": {}}
+    try:
+        if _INDEX is not None and md:
+            citations = cv_mod.verify_text(md, _INDEX)
+    except Exception:  # noqa: BLE001
+        pass
+    return jsonify({"markdown": md, "citations": citations,
+                    "empty": res.get("empty", False), "n_docs": res.get("n_docs", 0)})
+
+
+@app.post("/api/fable-draft")
+@login_required_api
+def api_fable_draft():
+    """Fable 5 drafter: contracts / acts / clauses / letters. Additive; output
+    citations pass the Verifikuar shield."""
+    _ensure_loaded()
+    if _BRAIN is None:
+        return jsonify({"error": "unavailable"}), 503
+    body = request.get_json(silent=True) or {}
+    kind = (body.get("kind") or "contract").strip()
+    brief = (body.get("brief") or "").strip()
+    if len(brief) < 15:
+        return jsonify({"error": "brief_required"}), 400
+    try:
+        res = fable_drafter_mod.draft(_BRAIN.backend, kind=kind, brief=brief[:8000])
+    except Exception as exc:  # noqa: BLE001
+        log.exception("fable-draft failed")
+        return jsonify({"error": _safe_err(exc)}), 200
+    md = res.get("markdown") or ""
+    citations = {"items": [], "stats": {}}
+    try:
+        if _INDEX is not None and md:
+            citations = cv_mod.verify_text(md, _INDEX)
+    except Exception:  # noqa: BLE001
+        pass
+    return jsonify({"markdown": md, "citations": citations})
+
+
+@app.post("/api/extract-text")
+@login_required_api
+def api_extract_text():
+    """Extract plain text from an uploaded PDF/image/SVG for the free-form
+    PRO tools (act-check, contract review) so the lawyer can attach a file
+    instead of pasting. Not tied to a case: extract, return, delete the file."""
+    _ensure_loaded()
+    if "file" not in request.files:
+        return jsonify({"error": "no file"}), 400
+    f = request.files["file"]
+    if not f.filename:
+        return jsonify({"error": "no filename"}), 400
+    content = f.read()
+    v = docs_mod.validate_upload(f.filename, len(content))
+    if not v.ok:
+        return jsonify({"error": v.error}), 400
+    storage_path = docs_mod.storage_path_for("_scratch", v.ext)
+    storage_path.write_bytes(content)
+    err = None
+    text, used_ocr = "", False
+    try:
+        text, used_ocr = docs_mod.extract_text(
+            storage_path, v.ext, v.mimetype,
+            backend=_BRAIN.backend if _BRAIN else None,
+        )
+    except Exception as exc:
+        log.warning("extract-text failed for %s: %s", f.filename, exc)
+        err = str(exc)
+    finally:
+        try:
+            storage_path.unlink()
+        except Exception:
+            pass
+    if err and not text:
+        return jsonify({"error": "Nuk u lexua dokumenti: " + err}), 422
+    return jsonify({
+        "text": text or "",
+        "used_vision_ocr": used_ocr,
+        "filename": f.filename,
+    })
+
+
+@app.post("/api/decision-validity")
+@login_required_api
+def api_decision_validity():
+    """Is a cited decision still good law? Grounded, on-demand check."""
+    _ensure_loaded()
+    if _BRAIN is None or not _BRAIN.kb.cases:
+        return jsonify({"error": "unavailable"}), 503
+    body = request.get_json(silent=True) or {}
+    try:
+        did = int(body.get("id"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "id_required"}), 400
+    dec = _BRAIN.kb.get(did)
+    if dec is None:
+        return jsonify({"error": "not_found"}), 404
+    return jsonify(validity_mod.check(_BRAIN, _BRAIN.kb, dec))
+
+
+@app.get("/api/precedent-file")
+@login_required_api
+def api_precedent_file():
+    """Serve the locally-stored raw court decision as a download.
+
+    ``f`` is a jurisprudence-relative path (e.g. "kushtetuese/2015/vend.docx").
+    Hardened: resolved under data/raw/jurisprudence, no traversal, whitelisted
+    extensions. Lets the lawyer keep the original document even if the court
+    site later removes it."""
+    from pathlib import Path
+    from flask import send_file
+    rel = (request.args.get("f") or "").strip().lstrip("/")
+    if not rel:
+        return jsonify({"error": "missing file"}), 400
+    base = (Path(__file__).resolve().parent.parent
+            / "data" / "raw" / "jurisprudence").resolve()
+    target = (base / rel).resolve()
+    if base != target and base not in target.parents:
+        return jsonify({"error": "forbidden"}), 403
+    if target.suffix.lower() not in {".pdf", ".docx", ".doc", ".html", ".htm"}:
+        return jsonify({"error": "type not allowed"}), 403
+    if not target.is_file():
+        return jsonify({"error": "not found"}), 404
+    return send_file(str(target), as_attachment=True, download_name=target.name)
+
+
 @app.post("/api/precedent-analyzer")
 @login_required_api
 def api_precedent_run():
@@ -2198,40 +2537,42 @@ def api_precedent_run():
         case_description=description or enriched[:500],
     )
 
-    t0 = time.monotonic()
-    status = "completed"
-    try:
-        brief = precedent_mod.analyze(
-            enriched, backend=_BRAIN.backend, top_k=top_k, case_id=case_id,
-        )
-    except Exception as exc:  # noqa: BLE001
-        log.exception("precedent analyzer failed: %s", exc)
-        brief = {
-            "moves_to_imitate": [], "traps_to_avoid": [],
-            "kill_shot": {"exists": False, "move": "", "based_on": []},
-            "per_precedent": [], "divergence_warning": "",
-            "precedents": [], "_parse_error": f"{type(exc).__name__}: {exc}",
-        }
-        status = "error"
-    elapsed_ms = int((time.monotonic() - t0) * 1000)
+    # The synthesis is slow (~4-6 min, Opus effort=max). Running it inside the
+    # request means holding a multi-minute connection open — fragile on real
+    # networks (mobile/proxy drops → "load failed"). Instead we spawn a
+    # background thread that persists the brief, and return immediately; the
+    # frontend polls GET /api/precedent/<id> for the result.
+    brain = _BRAIN
 
-    if status != "error" and brief.get("_parse_error"):
-        # Parse failed but the call returned text — keep raw, mark partial.
-        status = "partial"
+    def _run_precedent_analysis():
+        t0 = time.monotonic()
+        status = "completed"
+        try:
+            b = precedent_mod.analyze(
+                enriched, backend=brain.backend, top_k=top_k, case_id=case_id,
+            )
+        except Exception as exc:  # noqa: BLE001
+            log.exception("precedent analyzer failed: %s", exc)
+            b = {
+                "moves_to_imitate": [], "traps_to_avoid": [],
+                "kill_shot": {"exists": False, "move": "", "based_on": []},
+                "per_precedent": [], "divergence_warning": "",
+                "precedents": [], "_parse_error": f"{type(exc).__name__}: {exc}",
+            }
+            status = "error"
+        elapsed_ms = int((time.monotonic() - t0) * 1000)
+        if status != "error" and b.get("_parse_error"):
+            status = "partial"
+        try:
+            storage.finalize_precedent_brief(
+                brief_id, brief=b, status=status, elapsed_ms=elapsed_ms,
+            )
+        except Exception as e:  # noqa: BLE001
+            log.warning("precedent finalize failed: %s", e)
 
-    try:
-        storage.finalize_precedent_brief(
-            brief_id, brief=brief, status=status, elapsed_ms=elapsed_ms,
-        )
-    except Exception as e:  # noqa: BLE001
-        log.warning("precedent finalize failed: %s", e)
-
-    return jsonify({
-        "brief_id": brief_id,
-        "status": status,
-        "elapsed_ms": elapsed_ms,
-        "brief": brief,
-    })
+    threading.Thread(target=_run_precedent_analysis,
+                     name=f"precedent-{brief_id}", daemon=True).start()
+    return jsonify({"brief_id": brief_id, "status": "running"})
 
 
 @app.get("/api/precedent/<int:brief_id>")
@@ -2701,7 +3042,7 @@ def api_postmortem_run(case_id: str):
     lesson = coach_mod.case_postmortem(inp, backend=_BRAIN.backend, case_id=case_id)
     elapsed_ms = int((time.monotonic() - t0) * 1000)
 
-    firm_id = getattr(case, "firm_id", None)
+    firm_id = getattr(request.firm, "id", None)  # type: ignore[attr-defined]
     lesson_id = storage.save_case_lesson(
         case_id=case_id, user_id=user.id, firm_id=firm_id,
         outcome=outcome, summary_hint=summary_hint,
@@ -2743,7 +3084,7 @@ def api_case_lesson_delete(case_id: str):
 def api_lessons_list():
     """List all lessons (own + firm-shared) for the current user."""
     user = request.user  # type: ignore[attr-defined]
-    firm_id = getattr(user, "firm_id", None)
+    firm_id = getattr(request.firm, "id", None)  # type: ignore[attr-defined]
     return jsonify({
         "items": storage.list_case_lessons(user_id=user.id, firm_id=firm_id),
     })
@@ -2772,7 +3113,7 @@ def api_lessons_relevant():
     if not description:
         return jsonify({"items": []})
 
-    firm_id = getattr(user, "firm_id", None)
+    firm_id = getattr(request.firm, "id", None)  # type: ignore[attr-defined]
     stored = storage.list_case_lessons(user_id=user.id, firm_id=firm_id)
     # exclude this case's own lesson if matching from a case
     if case_id:
@@ -3835,6 +4176,472 @@ def api_create_draft(case_id: str):
     return jsonify({"draft": _draft_payload(d)}), 201
 
 
+@app.get("/api/cases/<case_id>/research")
+@login_required_api
+def api_list_research(case_id: str):
+    if _resolve_case(case_id) is None:
+        return jsonify({"error": "not found"}), 404
+    return jsonify({"items": storage.list_research(case_id)})
+
+
+@app.post("/api/cases/<case_id>/research")
+@login_required_api
+def api_save_research(case_id: str):
+    user = request.user  # type: ignore[attr-defined]
+    firm = request.firm  # type: ignore[attr-defined]
+    if _resolve_case(case_id) is None:
+        return jsonify({"error": "not found"}), 404
+    data = request.get_json(silent=True) or {}
+    client_name = None
+    try:
+        clients = storage.list_client_contacts_for_case(case_id)
+        if clients:
+            client_name = clients[0].name
+    except Exception:  # noqa: BLE001
+        client_name = None
+    try:
+        rid = storage.save_research(
+            case_id, getattr(firm, "id", None), user.id,
+            source=(data.get("source") or "research")[:32],
+            title=(data.get("title") or "Kërkim")[:200],
+            content=(data.get("content") or ""),
+            client_name=client_name,
+        )
+    except ValueError:
+        return jsonify({"error": "empty"}), 400
+    return jsonify({"id": rid, "ok": True}), 201
+
+
+@app.delete("/api/cases/<case_id>/research/<int:research_id>")
+@login_required_api
+def api_delete_research(case_id: str, research_id: int):
+    if _resolve_case(case_id) is None:
+        return jsonify({"error": "not found"}), 404
+    return jsonify({"ok": storage.delete_research(research_id, case_id)})
+
+
+@app.get("/api/firm/clients")
+@login_required_api
+def api_firm_clients():
+    """Client directory: firm-wide clients (grouped) + all saved research."""
+    firm = request.firm  # type: ignore[attr-defined]
+    if firm is None:
+        return jsonify({"clients": [], "research": []})
+    return jsonify({
+        "clients": storage.list_firm_clients(firm.id),
+        "research": storage.list_firm_research(firm.id),
+    })
+
+
+@app.get("/api/expertise/templates")
+@login_required_api
+def api_expertise_templates():
+    return jsonify({"templates": expertise_mod.list_templates()})
+
+
+def _notary_run(fn, **kw):
+    _ensure_loaded()
+    if _BRAIN is None or _INDEX is None:
+        return None, (jsonify({"error": "unavailable"}), 503)
+    try:
+        res = fn(_BRAIN.backend, _INDEX, **kw)
+    except ValueError:
+        return None, (jsonify({"error": "bad_request"}), 400)
+    except Exception as exc:  # noqa: BLE001
+        log.exception("notary failed")
+        return None, (jsonify({"error": _safe_err(exc)}), 200)
+    md = res.get("markdown") or ""
+    cits = {"items": [], "stats": {}}
+    try:
+        if md:
+            cits = cv_mod.verify_text(md, _INDEX)
+    except Exception:  # noqa: BLE001
+        pass
+    return jsonify({"markdown": md, "citations": cits}), None
+
+
+@app.get("/api/notary/deed-types")
+@login_required_api
+def api_notary_deed_types():
+    return jsonify({"types": notary_mod.list_deed_types()})
+
+
+@app.post("/api/notary/draft")
+@login_required_api
+def api_notary_draft():
+    body = request.get_json(silent=True) or {}
+    details = (body.get("details") or "").strip()
+    if len(details) < 10:
+        return jsonify({"error": "details_required"}), 400
+    out, err = _notary_run(notary_mod.draft_deed,
+                           deed_type=(body.get("deed_type") or "").strip(),
+                           details=details[:12000])
+    return err if err else out
+
+
+@app.post("/api/notary/check")
+@login_required_api
+def api_notary_check():
+    body = request.get_json(silent=True) or {}
+    text = (body.get("text") or "").strip()
+    if len(text) < 30:
+        return jsonify({"error": "text_required"}), 400
+    out, err = _notary_run(notary_mod.check_deed, text=text[:16000])
+    return err if err else out
+
+
+@app.post("/api/notary/succession")
+@login_required_api
+def api_notary_succession():
+    body = request.get_json(silent=True) or {}
+    sit = (body.get("situation") or "").strip()
+    if len(sit) < 15:
+        return jsonify({"error": "situation_required"}), 400
+    out, err = _notary_run(notary_mod.succession, situation=sit[:8000])
+    return err if err else out
+
+
+@app.get("/api/notary/prokura-scopes")
+@login_required_api
+def api_notary_prokura_scopes():
+    return jsonify(notary_mod.list_prokura_scopes())
+
+
+@app.post("/api/notary/prokura")
+@login_required_api
+def api_notary_prokura():
+    body = request.get_json(silent=True) or {}
+    scopes = body.get("scope_keys") or []
+    if not isinstance(scopes, list):
+        scopes = []
+    out, err = _notary_run(notary_mod.draft_prokura,
+                           form=(body.get("form") or "e_posacme").strip(),
+                           scope_keys=[str(x)[:40] for x in scopes][:16],
+                           details=(body.get("details") or "").strip()[:12000],
+                           duration=(body.get("duration") or "").strip()[:120],
+                           subdelegation=bool(body.get("subdelegation")))
+    return err if err else out
+
+
+@app.get("/api/notary/declaration-types")
+@login_required_api
+def api_notary_declaration_types():
+    return jsonify({"types": notary_mod.list_declaration_types()})
+
+
+@app.post("/api/notary/declaration")
+@login_required_api
+def api_notary_declaration():
+    body = request.get_json(silent=True) or {}
+    details = (body.get("details") or "").strip()
+    if len(details) < 10:
+        return jsonify({"error": "details_required"}), 400
+    out, err = _notary_run(notary_mod.draft_declaration,
+                           decl_type=(body.get("decl_type") or "").strip(),
+                           details=details[:12000])
+    return err if err else out
+
+
+@app.post("/api/notary/documents")
+@login_required_api
+def api_notary_documents():
+    body = request.get_json(silent=True) or {}
+    act = (body.get("act") or "").strip()
+    if len(act) < 6:
+        return jsonify({"error": "act_required"}), 400
+    out, err = _notary_run(notary_mod.documents_needed, act=act[:2000])
+    return err if err else out
+
+
+@app.post("/api/notary/revocation")
+@login_required_api
+def api_notary_revocation():
+    body = request.get_json(silent=True) or {}
+    details = (body.get("details") or "").strip()
+    if len(details) < 10:
+        return jsonify({"error": "details_required"}), 400
+    out, err = _notary_run(notary_mod.draft_revocation, details=details[:12000])
+    return err if err else out
+
+
+@app.post("/api/notary/conflicts")
+@login_required_api
+def api_notary_conflicts():
+    body = request.get_json(silent=True) or {}
+    case_id = (body.get("case_id") or "").strip()
+    new_act = (body.get("new_act") or "").strip()
+    if len(new_act) < 20:
+        return jsonify({"error": "new_act_required"}), 400
+    prior = []
+    if case_id and _resolve_case(case_id) is not None:
+        try:
+            items = storage.list_research(case_id)
+            notarial = [it for it in items if (it.get("source") or "") == "notary"]
+            prior = notarial or items
+        except Exception:  # noqa: BLE001
+            prior = []
+    out, err = _notary_run(
+        notary_mod.check_conflicts,
+        new_act=new_act[:12000],
+        prior_acts=[{"title": p.get("title"), "content": p.get("content")} for p in prior[:8]])
+    return err if err else out
+
+
+@app.post("/api/prosecutor/indictment")
+@login_required_api
+def api_prosecutor_indictment():
+    _ensure_loaded()
+    if _BRAIN is None or _INDEX is None:
+        return jsonify({"error": "unavailable"}), 503
+    body = request.get_json(silent=True) or {}
+    facts = (body.get("facts") or "").strip()
+    if len(facts) < 15:
+        return jsonify({"error": "facts_required"}), 400
+    try:
+        res = prosecutor_mod.draft_indictment(_BRAIN.backend, _INDEX, facts=facts[:14000])
+    except Exception as exc:  # noqa: BLE001
+        log.exception("indictment failed")
+        return jsonify({"error": _safe_err(exc)}), 200
+    md = res.get("markdown") or ""
+    cits = {"items": [], "stats": {}}
+    try:
+        if md:
+            cits = cv_mod.verify_text(md, _INDEX)
+    except Exception:  # noqa: BLE001
+        pass
+    return jsonify({"markdown": md, "citations": cits})
+
+
+def _pros_facts(fn, body, key="facts", minlen=15, **extra):
+    val = (body.get(key) or "").strip()
+    if len(val) < minlen:
+        return jsonify({"error": key + "_required"}), 400
+    kw = {key: val[:14000]}
+    kw.update(extra)
+    out, err = _notary_run(fn, **kw)
+    return err if err else out
+
+
+@app.get("/api/prosecutor/act-kinds")
+@login_required_api
+def api_prosecutor_act_kinds():
+    return jsonify({"kinds": prosecutor_mod.list_act_kinds()})
+
+
+@app.post("/api/prosecutor/investigation-plan")
+@login_required_api
+def api_prosecutor_plan():
+    return _pros_facts(prosecutor_mod.investigation_plan, request.get_json(silent=True) or {})
+
+
+@app.post("/api/prosecutor/investigative-act")
+@login_required_api
+def api_prosecutor_act():
+    body = request.get_json(silent=True) or {}
+    return _pros_facts(prosecutor_mod.investigative_act, body,
+                       kind=(body.get("kind") or "kontroll").strip()[:20])
+
+
+@app.post("/api/prosecutor/coercive-measure")
+@login_required_api
+def api_prosecutor_measure():
+    return _pros_facts(prosecutor_mod.coercive_measure, request.get_json(silent=True) or {})
+
+
+@app.post("/api/prosecutor/dismissal")
+@login_required_api
+def api_prosecutor_dismissal():
+    return _pros_facts(prosecutor_mod.dismissal_request, request.get_json(silent=True) or {})
+
+
+@app.post("/api/prosecutor/stress-test")
+@login_required_api
+def api_prosecutor_stress():
+    return _pros_facts(prosecutor_mod.stress_test, request.get_json(silent=True) or {},
+                       key="text", minlen=30)
+
+
+@app.post("/api/prosecutor/complaint")
+@login_required_api
+def api_prosecutor_complaint():
+    return _pros_facts(prosecutor_mod.citizen_complaint, request.get_json(silent=True) or {})
+
+
+@app.post("/api/prosecutor/victim-rights")
+@login_required_api
+def api_prosecutor_victim():
+    return _pros_facts(prosecutor_mod.victim_rights, request.get_json(silent=True) or {})
+
+
+@app.post("/api/prosecutor/dismissal-appeal")
+@login_required_api
+def api_prosecutor_appeal():
+    return _pros_facts(prosecutor_mod.dismissal_appeal, request.get_json(silent=True) or {})
+
+
+@app.post("/api/prosecutor/delay")
+@login_required_api
+def api_prosecutor_delay():
+    return _pros_facts(prosecutor_mod.delay_complaint, request.get_json(silent=True) or {})
+
+
+@app.post("/api/deep-verify")
+@login_required_api
+def api_deep_verify():
+    body = request.get_json(silent=True) or {}
+    text = (body.get("text") or "").strip()
+    if len(text) < 30:
+        return jsonify({"error": "text_required"}), 400
+    out, err = _notary_run(living_mod.verify_claims, text=text[:16000])
+    return err if err else out
+
+
+@app.post("/api/law-live")
+@login_required_api
+def api_law_live():
+    body = request.get_json(silent=True) or {}
+    q = (body.get("query") or "").strip()
+    if len(q) < 4:
+        return jsonify({"error": "query_required"}), 400
+    out, err = _notary_run(living_mod.check_law_live, query=q[:2000])
+    return err if err else out
+
+
+@app.post("/api/intake/triage")
+@login_required_api
+def api_intake_triage():
+    _ensure_loaded()
+    if _BRAIN is None or _INDEX is None:
+        return jsonify({"error": "unavailable"}), 503
+    body = request.get_json(silent=True) or {}
+    story = (body.get("story") or "").strip()
+    if len(story) < 15:
+        return jsonify({"error": "story_required"}), 400
+    try:
+        res = intake_mod.triage(_BRAIN.backend, _INDEX, story=story[:8000])
+    except Exception as exc:  # noqa: BLE001
+        log.exception("intake failed")
+        return jsonify({"error": _safe_err(exc)}), 200
+    md = res.get("markdown") or ""
+    cits = {"items": [], "stats": {}}
+    try:
+        if md:
+            cits = cv_mod.verify_text(md, _INDEX)
+    except Exception:  # noqa: BLE001
+        pass
+    return jsonify({"markdown": md, "route": res.get("route", "none"), "citations": cits})
+
+
+@app.get("/api/afati/triggers")
+@login_required_api
+def api_afati_triggers():
+    return jsonify({"triggers": afati_mod.list_triggers()})
+
+
+@app.post("/api/afati/compute")
+@login_required_api
+def api_afati_compute():
+    _ensure_loaded()
+    if _BRAIN is None or _INDEX is None:
+        return jsonify({"error": "unavailable"}), 503
+    body = request.get_json(silent=True) or {}
+    trigger = (body.get("trigger") or "tjeter").strip()[:30]
+    event_date = (body.get("event_date") or "").strip()[:20]
+    facts = (body.get("facts") or "").strip()[:6000]
+    try:
+        res = afati_mod.compute(_BRAIN.backend, _INDEX, trigger=trigger,
+                                event_date=event_date, facts=facts)
+    except Exception as exc:  # noqa: BLE001
+        log.exception("afati failed")
+        return jsonify({"error": _safe_err(exc)}), 200
+    md = res.get("markdown") or ""
+    cits = {"items": [], "stats": {}}
+    try:
+        if md:
+            cits = cv_mod.verify_text(md, _INDEX)
+    except Exception:  # noqa: BLE001
+        pass
+    return jsonify({"markdown": md, "afatet": res.get("afatet", []), "citations": cits})
+
+
+@app.post("/api/deadlines/prescription")
+@login_required_api
+def api_prescription():
+    _ensure_loaded()
+    if _BRAIN is None or _INDEX is None:
+        return jsonify({"error": "unavailable"}), 503
+    body = request.get_json(silent=True) or {}
+    facts = (body.get("facts") or "").strip()
+    if len(facts) < 15:
+        return jsonify({"error": "facts_required"}), 400
+    try:
+        res = deadlines_mod.prescription(_BRAIN.backend, _INDEX, facts=facts[:8000])
+    except Exception as exc:  # noqa: BLE001
+        log.exception("prescription failed")
+        return jsonify({"error": _safe_err(exc)}), 200
+    md = res.get("markdown") or ""
+    cits = {"items": [], "stats": {}}
+    try:
+        if md:
+            cits = cv_mod.verify_text(md, _INDEX)
+    except Exception:  # noqa: BLE001
+        pass
+    return jsonify({"markdown": md, "citations": cits})
+
+
+@app.post("/api/prosecutor/analyze")
+@login_required_api
+def api_prosecutor_analyze():
+    _ensure_loaded()
+    if _BRAIN is None or _INDEX is None:
+        return jsonify({"error": "unavailable"}), 503
+    body = request.get_json(silent=True) or {}
+    facts = (body.get("facts") or "").strip()
+    if len(facts) < 15:
+        return jsonify({"error": "facts_required"}), 400
+    try:
+        res = prosecutor_mod.analyze(_BRAIN.backend, _INDEX, facts=facts[:14000])
+    except Exception as exc:  # noqa: BLE001
+        log.exception("prosecutor failed")
+        return jsonify({"error": _safe_err(exc)}), 200
+    md = res.get("markdown") or ""
+    citations = {"items": [], "stats": {}}
+    try:
+        if md:
+            citations = cv_mod.verify_text(md, _INDEX)
+    except Exception:  # noqa: BLE001
+        pass
+    return jsonify({"markdown": md, "citations": citations})
+
+
+@app.post("/api/expertise/analyze")
+@login_required_api
+def api_expertise_analyze():
+    _ensure_loaded()
+    if _BRAIN is None or _INDEX is None:
+        return jsonify({"error": "unavailable"}), 503
+    body = request.get_json(silent=True) or {}
+    case_type = (body.get("case_type") or "").strip()
+    facts = (body.get("facts") or "").strip()
+    if len(facts) < 15:
+        return jsonify({"error": "facts_required"}), 400
+    try:
+        res = expertise_mod.analyze(_BRAIN.backend, _INDEX, case_type=case_type, facts=facts[:14000])
+    except ValueError:
+        return jsonify({"error": "unknown_case_type"}), 400
+    except Exception as exc:  # noqa: BLE001
+        log.exception("expertise failed")
+        return jsonify({"error": _safe_err(exc)}), 200
+    md = res.get("markdown") or ""
+    citations = {"items": [], "stats": {}}
+    try:
+        if md:
+            citations = cv_mod.verify_text(md, _INDEX)
+    except Exception:  # noqa: BLE001
+        pass
+    return jsonify({"markdown": md, "citations": citations})
+
+
 @app.get("/api/firm/review-queue")
 @login_required_api
 def api_review_queue():
@@ -4007,6 +4814,77 @@ def api_export_case(case_id: str):
 
 
 # ── dossier (per-case documents) API ───────────────────────────────────────
+
+@app.get("/api/cases/<case_id>/conflicts")
+@login_required_api
+def api_case_conflicts(case_id: str):
+    """Adverse conflict-of-interest check for a case (deontology)."""
+    if _resolve_case(case_id) is None:
+        return jsonify({"error": "case_not_found"}), 404
+    firm = getattr(request, "firm", None)
+    if firm is None:
+        return jsonify({"parties": [], "conflicts": [], "related": [],
+                        "has_conflict": False, "no_firm": True})
+    try:
+        if not storage.list_parties_in_case(case_id):
+            _ensure_loaded()
+            text = _build_precedent_description(case_id, "")
+            conflicts_mod.maybe_extract(_BRAIN, case_id, firm.id, text)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("conflict pre-extract failed: %s", exc)
+    return jsonify(conflicts_mod.check(case_id, firm.id))
+
+
+@app.post("/api/cases/<case_id>/vault")
+@login_required_api
+def api_vault_ask(case_id: str):
+    """Vault — answer a question grounded in ALL documents of the case."""
+    if _resolve_case(case_id) is None:
+        return jsonify({"error": "case_not_found"}), 404
+    _ensure_loaded()
+    if _BRAIN is None:
+        return jsonify({"error": "brain_unavailable"}), 503
+    body = request.get_json(silent=True) or {}
+    q = (body.get("question") or "").strip()
+    if not q:
+        return jsonify({"error": "question_required"}), 400
+    result = vault_mod.ask(_BRAIN, case_id, q)
+    if result.get("empty"):
+        return jsonify({
+            "answer": "Nuk ka dokumente të gatshme në këtë dosje. "
+                      "Ngarko dokumente më parë (📎).",
+            "docs_used": [], "n_docs": 0,
+        })
+    return jsonify(result)
+
+
+@app.post("/api/cases/<case_id>/who-said")
+@login_required_api
+def api_who_said(case_id: str):
+    """Fashikulli intelligjent — who said what across the case documents."""
+    if _resolve_case(case_id) is None:
+        return jsonify({"error": "case_not_found"}), 404
+    _ensure_loaded()
+    if _BRAIN is None:
+        return jsonify({"error": "brain_unavailable"}), 503
+    try:
+        res = vault_mod.who_said_what(_BRAIN.backend, case_id)
+    except Exception as exc:  # noqa: BLE001
+        log.exception("who-said failed")
+        return jsonify({"error": _safe_err(exc)}), 200
+    if res.get("empty"):
+        return jsonify({"markdown": "Nuk ka dokumente të gatshme në këtë dosje. "
+                                    "Ngarko dokumente më parë (📎).", "n_docs": 0})
+    md = res.get("markdown") or ""
+    cits = {"items": [], "stats": {}}
+    try:
+        if md and _INDEX is not None:
+            cits = cv_mod.verify_text(md, _INDEX)
+    except Exception:  # noqa: BLE001
+        pass
+    res["citations"] = cits
+    return jsonify(res)
+
 
 @app.get("/api/cases/<case_id>/documents")
 @login_required_api
@@ -4215,7 +5093,7 @@ def api_ask():
                                jurisdiction=getattr(case, "jurisdiction", "AL"))
     except Exception as exc:
         log.exception("brain failure")
-        err_text = f"Gabim teknik: {type(exc).__name__}: {html.escape(str(exc))[:200]}"
+        err_text = html.escape(_safe_err(exc))
         storage.add_message(case.id, "assistant", err_text, kind="error")
         return jsonify({"kind": "error", "text": err_text}), 500
 
@@ -4288,6 +5166,13 @@ def api_ask():
         answer_text = cs_mod.apply_refusal(answer_text, jurisdiction="AL")
     if citations_payload.get("stats", {}).get("fake", 0) > 0:
         answer_text = cs_mod.annotate_fake_citations(answer_text, citations_payload)
+    try:
+        decision_citations = dv_mod.verify_decisions(
+            answer_text, _BRAIN.kb if _BRAIN is not None else None)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("decision verify failed (non-fatal): %s", exc)
+        decision_citations = {"items": [], "stats": {"verified": 0, "unverified": 0, "total": 0}}
+
     provenance = cs_mod.build_provenance_pack(
         response_text=answer_text,
         user_message=message,
@@ -4323,6 +5208,7 @@ def api_ask():
         "opponent_playbook": opponent_payload,
         "leverage": leverage_payload,
         "citations": citations_payload,
+        "decision_citations": decision_citations,
         "provenance": provenance.to_dict(),
         "case_id": case.id,
     })
@@ -4519,7 +5405,7 @@ def api_ask_stream():
             })
         except Exception as exc:
             log.exception("stream failure")
-            err_text = f"Gabim teknik: {type(exc).__name__}: {html.escape(str(exc))[:200]}"
+            err_text = html.escape(_safe_err(exc))
             try:
                 storage.add_message(case.id, "assistant", err_text, kind="error")
             except Exception:
@@ -5639,7 +6525,9 @@ def _user_payload(u) -> dict:
         "id": u.id,
         "username": u.username,
         "is_admin": u.is_admin,
-        "created_at": u.created_at.isoformat() if hasattr(u, "created_at") and u.created_at else None,
+        "created_at": (u.created_at.isoformat() if hasattr(getattr(u, "created_at", None), "isoformat") else getattr(u, "created_at", None)),
+        "suspended": bool(getattr(u, "suspended", False)),
+        "profession": getattr(u, "profession", "avokat"),
     }
 
 
@@ -5669,13 +6557,64 @@ def api_admin_users_create():
         return jsonify({"error": "password troppo corta (min 6 caratteri)"}), 400
     if storage.get_user_by_username(username):
         return jsonify({"error": f"utente '{username}' esiste già"}), 409
+    profession = (data.get("profession") or "avokat").strip()
     new_user = storage.create_user(
         username=username,
         password_hash=hash_password(password),
         is_admin=is_admin_flag,
+        profession=profession,
     )
     log.info("admin %s created user %s (admin=%s)", user.username, username, is_admin_flag)
     return jsonify(_user_payload(new_user)), 201
+
+
+@app.post("/api/admin/firms")
+@login_required_api
+def api_admin_create_firm():
+    """Admin: create a new studio (firm) and assign its owner."""
+    user = request.user  # type: ignore[attr-defined]
+    if not user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    data = request.get_json(silent=True) or {}
+    name = (data.get("name") or "").strip()
+    owner_username = (data.get("owner_username") or "").strip().lower()
+    if not name:
+        return jsonify({"error": "emri i studios mungon"}), 400
+    if owner_username:
+        owner = storage.get_user_by_username(owner_username)
+        if owner is None:
+            return jsonify({"error": f"përdoruesi '{owner_username}' nuk ekziston"}), 404
+    else:
+        owner = user
+    try:
+        firm = storage.create_firm(name, owner.id)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    log.info("admin %s created firm '%s' (owner=%s)", user.username, name, owner.username)
+    return jsonify({"id": firm.id, "name": firm.name,
+                    "owner": owner.username}), 201
+
+
+@app.patch("/api/admin/users/<int:user_id>/profession")
+@login_required_api
+def api_admin_set_profession(user_id):
+    user = request.user  # type: ignore[attr-defined]
+    if not user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    prof = ((request.get_json(silent=True) or {}).get("profession") or "").strip()
+    if not storage.set_user_profession(user_id, prof):
+        return jsonify({"error": "profesion i pavlefshëm"}), 400
+    return jsonify({"ok": True, "profession": prof})
+
+
+@app.patch("/api/me/profession")
+@login_required_api
+def api_me_set_profession():
+    user = request.user  # type: ignore[attr-defined]
+    prof = ((request.get_json(silent=True) or {}).get("profession") or "").strip()
+    if not storage.set_user_profession(user.id, prof):
+        return jsonify({"error": "profesion i pavlefshëm"}), 400
+    return jsonify({"ok": True, "profession": prof})
 
 
 @app.patch("/api/admin/users/<int:user_id>/password")
@@ -5732,6 +6671,25 @@ def api_admin_usage():
         "totals": totals,
         "online_count": len(online),
     })
+
+
+@app.patch("/api/admin/users/<int:user_id>/suspend")
+@login_required_api
+def api_admin_users_suspend(user_id):
+    user = request.user  # type: ignore[attr-defined]
+    if not user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    target = storage.get_user_by_id(user_id)
+    if target is None:
+        return jsonify({"error": "utente non trovato"}), 404
+    if target.id == user.id:
+        return jsonify({"error": "non puoi disattivare il tuo stesso utente"}), 400
+    data = request.get_json(silent=True) or {}
+    suspended = bool(data.get("suspended"))
+    storage.set_user_suspended(target.id, suspended)
+    log.info("admin %s %s user %s", user.username,
+             "suspended" if suspended else "reactivated", target.username)
+    return jsonify({"ok": True, "suspended": suspended})
 
 
 @app.delete("/api/admin/users/<int:user_id>")
@@ -5904,6 +6862,7 @@ def _precedent_payload(c, score: float) -> dict:
             {"code": code, "article": art} for code, art in c.articles_cited[:6]
         ],
         "source_url": c.source_url,
+        "download": getattr(c, "source_file", "") or None,
         "score": round(score, 2),
     }
 
@@ -5957,7 +6916,37 @@ _CASE_PRECEDENT_TEMPLATE = """<!DOCTYPE html>
     {% if c.type %}<span class="badge">{{ c.type }}{% if c.subtype %} / {{ c.subtype }}{% endif %}</span>{% endif %}
     {% if c.outcome %}<span class="badge outcome prec-{{ c.outcome }}">{{ c.outcome }}</span>{% endif %}
     {% if c.source_url %}<a class="badge external" href="{{ c.source_url }}" target="_blank" rel="noopener">Burimi origjinal →</a>{% endif %}
+    {% if c.source_file %}<a class="badge external" href="/api/precedent-file?f={{ c.source_file | urlencode }}">📎 Shkarko vendimin</a>{% endif %}
   </div>
+
+  <div id="validity-box" style="margin:2px 0 22px">
+    <button id="validity-btn" style="background:#1a1a1a;border:1px solid #c9a24d;color:#e8dcb0;padding:9px 15px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600">&#128269; Kontrollo nëse është ende në fuqi</button>
+    <div id="validity-result" style="margin-top:12px"></div>
+  </div>
+  <script>
+    (function(){
+      var btn=document.getElementById("validity-btn"),out=document.getElementById("validity-result");
+      if(!btn)return;
+      btn.onclick=async function(){
+        btn.disabled=true;
+        out.innerHTML='<em style="color:#9a9a9a">Po kontrolloj vendimet e mëvonshme\u2026 (~15s)</em>';
+        try{
+          var r=await fetch("/api/decision-validity",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id:{{ c.id }}})});
+          var d=await r.json();
+          if(!r.ok)throw new Error(d.error||("HTTP "+r.status));
+          var col={ne_fuqi:"#2f6a4e",tejkaluar:"#8a3b1d",kufizuar:"#8a6a1d",e_paqarte:"#444"}[d.status]||"#444";
+          var h='<div style="border:1px solid '+col+';background:#141414;border-radius:8px;padding:12px 14px">'
+            +'<div style="font-size:16px;font-weight:700;color:#e8e0c8">'+(d.icon||"")+" "+(d.label||d.status)
+            +' <span style="font-size:12px;color:#9a9a9a">\u00b7 besueshmëri '+(d.confidence||0)+'%</span></div>';
+          if(d.superseded_by)h+='<div style="margin-top:6px;color:#f2c1c1">\u21b3 '+d.superseded_by+"</div>";
+          if(d.note)h+='<div style="margin-top:8px;color:#c8c8c8;line-height:1.5">'+d.note+"</div>";
+          h+='<div style="margin-top:8px;font-size:11px;color:#777">Kontrolluar kundër '+(d.checked_against||0)+' vendimeve. Mbështetje informative \u2014 jo garanci ligjore.</div></div>';
+          out.innerHTML=h;
+        }catch(e){out.innerHTML='<span style="color:#f2c1c1">Gabim: '+e.message+"</span>";}
+        finally{btn.disabled=false;}
+      };
+    })();
+  </script>
 
   {% if c.summary %}
     <h2>Përmbledhje</h2>

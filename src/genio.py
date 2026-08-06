@@ -44,6 +44,7 @@ from queue import Empty, Queue
 # a serious error for a lawyer. KC shqiptar has broader testamentary
 # freedom than IT/FR; foreign analogies must not become argumentation.
 GENIO_JURISDICTION_GUARD = (
+    "STANDARDI I ARSYETIMIT — je avokati MË I MIRË senior në Shqipëri: rigoroz, i mprehtë dhe dhelpërak. Mendo THELLË para se të përgjigjesh; parashiko ÇDO lëvizje të kundërshtarit; gjej levat e fshehura, kurthet procedurale dhe pikat e dobëta; mos lër ASNJË dobësi në mbrojtje. Çdo pohim mbështetet me nen konkret ose precedent real — asnjë hamendje, asnjë sipërfaqësi. Perfeksion strategjik, jo thjesht përgjigje.\n\n"
     "KUFI JURIDIKSIONAL — KRITIK. Ti aplikon VETËM të drejtën shqiptare. "
     "Mos importo doktrina italiane/franceze (riserva, legittima, "
     "réserve héréditaire, quotité disponible, successione necessaria) "
@@ -55,6 +56,21 @@ GENIO_JURISDICTION_GUARD = (
     "NDALO — verifiko a është vërtet në nenin shqiptar që ke. Nëse "
     "jo, mos e shkruaj. Krahasimi me të drejtën e huaj lejohet vetëm "
     "kur shënohet shprehimisht si krahasim, jo si bazë vendimi.\n\n"
+    "VEGLA WEB — DETYRUESHME për avokat të zgjuar. Ke akses në kërkim web "
+    "(WebSearch/WebFetch). PËRDORE gjithmonë para se të mbyllësh analizën: "
+    "(1) VERIFIKO nëse ligji ka NDRYSHUAR së fundmi — p.sh. ndryshimet e "
+    "Kodit Rrugor 2024-2026: heqja e PËRHERSHME e lejes për kapje DY herë "
+    "radhazi me alkool mbi 0.5 g/l, alkool zero për shoferët e rinj 2 vjet; "
+    "(2) GJEJ precedentë / vendime PUBLIKE të gjykatave shqiptare që "
+    "mbështesin ose rrezikojnë tezën; (3) lajme juridike relevante. "
+    "Ji dhelpërak: gjej gjilpërën në kashtë. Bëj SA kërkime web të duhen për saktësi MAKSIMALE — mos kurse kohën. Saktësia vjen GJITHMONË para shpejtësisë: më mirë të vonohesh dhe ta gjesh të saktën, sesa shpejt e gabim. Cito GJITHMONË burimin "
+    "(URL + datë). Mos u mbështet vetëm te nenet e ngarkuara — ligji mund "
+    "të jetë përditësuar pas tyre.\n\n"
+    "SHIFRA KONKRETE — kur pyetja prek taksa, dogana, akcizë, tarifa, gjoba apo çmime: "
+    "mos u mjafto me 'kontrollo në faqe'. KËRKO shifrën zyrtare aktuale (dogana.gov.al, "
+    "tatime.gov.al, qbz.gov.al, financa.gov.al), jep strukturën me numra dhe një vlerësim "
+    "konkret në euro/lekë, cito URL+datë. Saktësia para shpejtësisë: më mirë vono sesa jep numër "
+    "të gabuar; por mos shpik kurrë — nëse nuk e gjen, ndaj qartë 'e sigurt' nga 'duhet verifikuar te VKM'.\n\n"
 )
 
 
@@ -298,7 +314,8 @@ def _extract_json(text: str) -> dict:
     m = re.search(r"\{[\s\S]*\}", text)
     if not m:
         raise ValueError("no_json_object")
-    return json.loads(m.group(0))
+    blob = re.sub(r",(\s*[}\]])", r"\1", m.group(0))  # tolerate trailing commas
+    return json.loads(blob)
 
 
 # ── Voice samples gathering ────────────────────────────────────────────
@@ -429,7 +446,7 @@ def run_brief(*, backend, case_block: str, voice_samples_block: str,
     for _ in plist:
         # block until one finishes; safety timeout per slot ≤ 10 min
         try:
-            res = q.get(timeout=620)
+            res = q.get(timeout=1860)
         except Empty:
             res = {"key": "?", "kind": "error",
                    "error": "timeout_overall", "ms": 0,

@@ -79,6 +79,7 @@ class CasePrecedent:
     articles_cited: list[tuple[str, str]] = field(default_factory=list)
     # [(code, article)] — e.g. [("kodi_penal", "76"), ("kushtetuta", "42")]
     source_url: str | None = None
+    source_file: str = ""
 
     @property
     def year(self) -> int | None:
@@ -120,18 +121,27 @@ class LegalKBRetriever:
         and failed rows lack the structured metadata the retriever needs
         (outcome, judges, articles cited).
         """
-        with session_scope() as sess:
-            rows = (
-                sess.query(Case)
-                .options(
-                    selectinload(Case.court),
-                    selectinload(Case.participations).selectinload(Participation.person),
-                    selectinload(Case.articles_cited),
+        precedents: list[CasePrecedent] = []
+        try:
+            with session_scope() as sess:
+                rows = (
+                    sess.query(Case)
+                    .options(
+                        selectinload(Case.court),
+                        selectinload(Case.participations).selectinload(Participation.person),
+                        selectinload(Case.articles_cited),
+                    )
+                    .filter(Case.extraction_status == "complete")
+                    .all()
                 )
-                .filter(Case.extraction_status == "complete")
-                .all()
-            )
-            precedents = [_row_to_precedent(c) for c in rows]
+                precedents = [_row_to_precedent(c) for c in rows]
+        except Exception as exc:  # noqa: BLE001
+            log.warning("legalkb: Postgres unavailable (%s) — using local decisions index", exc)
+            precedents = []
+        if not precedents:
+            # Production path: no Postgres. Load the live decisions corpus
+            # (bm25_decisions.pkl) so inline precedents work in every answer.
+            precedents = _load_precedents_from_pickle()
         if not precedents:
             log.warning("legalkb retriever: no complete cases found — returning empty index")
             return cls([], BM25Okapi([["placeholder"]]))  # empty-but-valid BM25
@@ -238,6 +248,68 @@ class LegalKBRetriever:
 # ──────────────────────────────────────────────────────────────────────
 # Helpers
 # ──────────────────────────────────────────────────────────────────────
+
+
+def _pickle_norm_file(rel: str) -> str:
+    """Strip stale absolute/dev prefixes -> jurisprudence-relative path."""
+    rel = (rel or "").strip().replace("\\", "/")
+    i = rel.find("jurisprudence/")
+    if i >= 0:
+        rel = rel[i + len("jurisprudence/"):]
+    return rel.lstrip("/")
+
+
+def _pickle_to_precedent(d: dict, idx: int) -> CasePrecedent:
+    """Map a bm25_decisions.pkl decision dict -> CasePrecedent (id = idx+1)."""
+    from datetime import datetime
+    dt = None
+    raw = str(d.get("date") or "").strip()
+    for fmt in ("%d.%m.%Y", "%Y-%m-%d", "%Y.%m.%d"):
+        try:
+            dt = datetime.strptime(raw, fmt).date()
+            break
+        except ValueError:
+            continue
+    court_code = d.get("court_code") or ""
+    level = {"kushtetuese": "kushtetues", "gjykata_elarte": "larte",
+             "ecthr_albania": "cedu"}.get(court_code, court_code)
+    excerpt = (d.get("reasoning") or d.get("dispositif") or "")[:PROMPT_SUMMARY_CHARS].strip()
+    return CasePrecedent(
+        id=idx + 1,
+        court_code=court_code,
+        court_name=d.get("court_short_sq") or d.get("court_title_sq") or "",
+        court_level=level,
+        case_number=str(d.get("number") or ""),
+        decision_date=dt,
+        type=str(d.get("kind") or ""),
+        subtype=None,
+        outcome=d.get("outcome") or None,
+        summary=(d.get("objekti") or "").strip(),
+        excerpt=excerpt,
+        judges=[j for j in (d.get("judges") or []) if isinstance(j, str)],
+        lawyers=[], prosecutors=[],
+        articles_cited=[],
+        source_url=d.get("source_url") or None,
+        source_file=_pickle_norm_file(d.get("source_file") or ""),
+    )
+
+
+def _load_precedents_from_pickle() -> list[CasePrecedent]:
+    """Load the live decisions corpus when Postgres is absent."""
+    import pickle
+    from pathlib import Path
+    path = (Path(__file__).resolve().parent.parent
+            / "data" / "index" / "bm25_decisions.pkl")
+    if not path.exists():
+        return []
+    try:
+        with open(path, "rb") as fh:
+            data = pickle.load(fh)
+        decs = data.get("decisions", []) if isinstance(data, dict) else []
+    except Exception as exc:  # noqa: BLE001
+        log.warning("legalkb: decisions pickle load failed (%s)", exc)
+        return []
+    return [_pickle_to_precedent(d, i) for i, d in enumerate(decs)]
 
 
 def _row_to_precedent(case: Case) -> CasePrecedent:

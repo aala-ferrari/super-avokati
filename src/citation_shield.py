@@ -74,8 +74,10 @@ def confidence_from_stats(stats: dict[str, int]) -> float:
     verified = int(stats.get("verified") or 0)
     fake = int(stats.get("fake") or 0)
     needs = int(stats.get("needs_code") or 0)
-    # weight: verified=+1, needs_code=+0.5, fake=-1
-    score = (verified + 0.5 * needs - fake) / max(total, 1)
+    repealed = int(stats.get("repealed") or 0)
+    # weight: verified=+1, repealed=+0.5 (real but superseded, NOT fabricated),
+    # needs_code=+0.5, fake=-1
+    score = (verified + 0.5 * repealed + 0.5 * needs - fake) / max(total, 1)
     # clip to [0,1]
     if score < 0.0:
         return 0.0

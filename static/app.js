@@ -78,7 +78,7 @@
   });
   logoutBtn?.addEventListener("click", async () => {
     await fetch("/api/logout", { method: "POST" });
-    window.location.href = "/login";
+    window.location.href = "/";
   });
 
   // ─── textarea auto-grow ──────────────────────────────────────────
@@ -121,6 +121,32 @@
     return c;
   }
 
+  function _sideLabel(s) {
+    return { client: "klient", opponent: "kundërshtar", third: "palë e tretë" }[s] || "palë";
+  }
+  async function checkCaseConflicts(id) {
+    try {
+      var old = document.getElementById("conflict-banner");
+      if (old) old.remove();
+      var r = await fetch("/api/cases/" + id + "/conflicts");
+      if (!r.ok) return;
+      var d = await r.json();
+      if (!d.has_conflict || id !== activeCaseId) return;
+      var lines = (d.conflicts || []).map(function (c) {
+        return "<li><strong>" + escapeHtml(c.party) + "</strong> \u2014 te ju është <b>" +
+          _sideLabel(c.here_side) + "</b>, por te «" + escapeHtml(c.other_case_title || "një rast tjetër") +
+          "» figuron si <b>" + _sideLabel(c.other_side) + "</b></li>";
+      }).join("");
+      var b = document.createElement("div");
+      b.id = "conflict-banner";
+      b.className = "conflict-banner";
+      b.innerHTML = '<div class="cb-head">\u26A0\uFE0F Konflikt i mundshëm interesi</div>' +
+        '<ul class="cb-list">' + lines + "</ul>" +
+        '<div class="cb-foot">Verifiko para se të vazhdosh \u2014 detyrim deontologjik i avokatit.</div>';
+      messages.prepend(b);
+    } catch (e) { /* silent */ }
+  }
+
   async function selectCase(id) {
     activeCaseId = id;
     const resp = await fetch(`/api/cases/${id}`);
@@ -155,6 +181,8 @@
       });
     }
     renderDossier(c.documents || []);
+    checkCaseConflicts(id);
+    loadResearch(id);
     dossierPanel.hidden = true;  // reset to collapsed when switching cases
     if (typeof window.__refreshClientsCount === "function") {
       window.__refreshClientsCount();
@@ -302,6 +330,8 @@
   }
 
   newCaseBtn.addEventListener("click", () => createCase());
+  document.getElementById("clients-dir-btn")?.addEventListener("click", openClientsDir);
+  initModeBar();
 
   renameBtn.addEventListener("click", async () => {
     if (!activeCaseId) return;
@@ -339,9 +369,40 @@
     if (!activeCaseId) return;
     window.location.href = `/api/cases/${activeCaseId}/export?format=md`;
   });
-  exportJsonBtn.addEventListener("click", () => {
+  exportJsonBtn.addEventListener("click", async () => {
     if (!activeCaseId) return;
-    window.location.href = `/api/cases/${activeCaseId}/export?format=json`;
+    try {
+      const cssResp = await fetch("/static/style.css");
+      const css = cssResp.ok ? await cssResp.text() : "";
+      const clone = messages.cloneNode(true);
+      clone.querySelectorAll("button, input, textarea, select, .composer, #composer, .pro-menu, script, [contenteditable]").forEach((el) => el.remove());
+      const te = document.getElementById("case-title-text");
+      const title = ((te && te.textContent) || "Rasti").trim();
+      const esc = (s) => String(s).replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]));
+      const extra = 'body{background:#fff!important;margin:0;padding:22px;color:#1a1a1a}' +
+        'main,.messages{display:block!important}' +
+        '.topbar,.sidebar,.sidebar-scrim,#composer,.composer,.case-header,.case-header-actions,.icon-btn,.pro-menu-wrap,.user-menu,.logout-fab,.menu-btn{display:none!important}' +
+        '.exp-head{font-family:Georgia,"Times New Roman",serif;color:#7a1f1f;border-bottom:2px solid #c9a24d;padding-bottom:10px;margin:0 0 4px;font-size:24px}' +
+        '.exp-sub{color:#888;font-size:12px;margin:0 0 20px}' +
+        '.messages{max-width:860px;margin:0 auto}' +
+        '@media print{body{padding:0}}';
+      const doc = '<!doctype html><html lang="sq"><head><meta charset="utf-8">' +
+        '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+        '<title>' + esc(title) + ' — Super Avokati</title>' +
+        '<style>' + css + '</style><style>' + extra + '</style></head><body>' +
+        '<h1 class="exp-head">' + esc(title) + '</h1>' +
+        '<p class="exp-sub">Super Avokati — Beteja fitohet para se të nisë · ' + new Date().toLocaleString("sq") + '</p>' +
+        '<div class="messages">' + clone.innerHTML + '</div></body></html>';
+      const blob = new Blob([doc], { type: "text/html;charset=utf-8" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = (title.replace(/[^a-z0-9]+/gi, "_").slice(0, 50) || "rasti") + ".html";
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+    } catch (e) {
+      window.location.href = `/api/cases/${activeCaseId}/export?format=md`;
+    }
   });
 
   deleteCaseBtn.addEventListener("click", async () => {
@@ -448,9 +509,73 @@
     renderDossier(documents || []);
   }
 
+  // ─── Vault: pyet dokumentet e dosjes (Harvey-style) ────────────────
+  var vaultBox = document.getElementById("vault-box");
+  var vaultQ = document.getElementById("vault-q");
+  var vaultAsk = document.getElementById("vault-ask");
+  var vaultAnswer = document.getElementById("vault-answer");
+  function _vaultFmt(t) {
+    return escapeHtml(t || "")
+      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+      .replace(/\[Dok (\d+)\]/g, '<span class="vault-cite">[Dok $1]</span>')
+      .replace(/\n/g, "<br>");
+  }
+  async function askVault() {
+    var q = ((vaultQ && vaultQ.value) || "").trim();
+    if (!q || !activeCaseId) return;
+    vaultAsk.disabled = true;
+    vaultAnswer.hidden = false;
+    vaultAnswer.innerHTML = "<em>Po lexoj dokumentet e dosjes\u2026 (~30s)</em>";
+    try {
+      var r = await fetch("/api/cases/" + activeCaseId + "/vault", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: q }),
+      });
+      var data = await r.json();
+      if (!r.ok) throw new Error(data.error || ("HTTP " + r.status));
+      var cites = (data.docs_used || []).map(function (d) {
+        return "[Dok " + d.n + "] " + escapeHtml(d.filename);
+      }).join(" \u00b7 ");
+      vaultAnswer.innerHTML = '<div class="vault-ans-text">' + _vaultFmt(data.answer) + "</div>" +
+        (cites ? '<div class="vault-cites">\ud83d\udcce ' + cites + "</div>" : "");
+      _attachSecondOpinion(vaultAnswer, q, data.answer || "");
+      _addSaveToCase(vaultAnswer, "vault", "Vault: " + q, data.answer || "");
+      setTimeout(function () { try { vaultAnswer.scrollIntoView({ block: "nearest" }); } catch (e) {} }, 40);
+    } catch (e) {
+      vaultAnswer.innerHTML = '<span style="color:#c0392b">Gabim: ' + escapeHtml(e.message) + "</span>";
+    } finally { vaultAsk.disabled = false; }
+  }
+  if (vaultAsk) vaultAsk.addEventListener("click", askVault);
+  var needleBtn = document.getElementById("needle-btn");
+  var needleAnswer = document.getElementById("needle-answer");
+  if (needleBtn) needleBtn.addEventListener("click", async function () {
+    if (!activeCaseId) return;
+    needleBtn.disabled = true;
+    needleAnswer.hidden = false;
+    needleAnswer.innerHTML = "<em>Avokati i Djallit po kërkon gjilpërën në dosje\u2026 (~30s)</em>";
+    try {
+      var r = await fetch("/api/cases/" + activeCaseId + "/needle", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+      var d = await r.json();
+      if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
+      if (d.empty) { needleAnswer.innerHTML = "<em>Nuk ka dokumente të lexueshme në këtë dosje.</em>"; return; }
+      needleAnswer.innerHTML = '<div class="fd-out"></div>';
+      var out = needleAnswer.querySelector(".fd-out");
+      out.innerHTML = renderMarkdown(d.markdown || "");
+      if (d.citations) highlightNeni(out, buildCitStatusMap(d.citations));
+      if (d.citations && d.citations.stats && d.citations.stats.total > 0) needleAnswer.insertBefore(renderCitationsBadge(d.citations, null), out);
+      _addSaveToCase(needleAnswer, "needle", "Gjilpëra në dosje", d.markdown || "");
+      setTimeout(function () { try { needleAnswer.scrollIntoView({ block: "nearest" }); } catch (e) {} }, 40);
+    } catch (e) { needleAnswer.innerHTML = '<span style="color:#c0392b">Gabim: ' + escapeHtml(e.message) + "</span>"; }
+    finally { needleBtn.disabled = false; }
+  });
+  if (vaultQ) vaultQ.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") { e.preventDefault(); askVault(); }
+  });
+
   function renderDossier(documents) {
     dossierList.innerHTML = "";
     updateDossierBadge(documents.length);
+    if (vaultBox) vaultBox.hidden = !documents.length;
     if (!documents.length) return;
     for (const d of documents) appendDoc(d);
   }
@@ -671,10 +796,13 @@
     const typing = appendTyping();
     sendBtn.disabled = true;
     let streamEl = null;
+    let statusEl = null;
+    const clearStatus = () => { if (statusEl) { statusEl.remove(); statusEl = null; } };
     let streamBuffer = "";
     const ensureStreamEl = () => {
       if (streamEl) return;
       typing.remove();
+      clearStatus();
       const tpl = document.getElementById("bot-msg-tpl");
       const node = tpl.content.cloneNode(true);
       streamEl = node.querySelector(".msg");
@@ -729,7 +857,17 @@
           if (evt.type === "delta" && typeof evt.text === "string") {
             appendStreamChunk(evt.text);
           } else if (evt.type === "status") {
-            // keep typing indicator while in pre-stream phases
+            // Trego tekstin e progresit SI RRESHT i plotë poshtë flluskës (jo brenda saj)
+            if (!streamEl && typing && typing.isConnected && typeof evt.text === "string" && evt.text.trim()) {
+              if (!statusEl) {
+                statusEl = document.createElement("div");
+                statusEl.className = "typing-status";
+                statusEl.style.cssText = "margin:6px 4px 2px 14px;font-size:13px;color:#6b7280;font-style:italic;line-height:1.5;max-width:80%;white-space:normal;overflow-wrap:anywhere";
+                typing.after(statusEl);
+              }
+              statusEl.textContent = evt.text;
+              scroll();
+            }
           } else if (evt.type === "final") {
             finalPayload = evt.data || evt;
           } else if (evt.type === "error") {
@@ -739,6 +877,7 @@
           }
         }
       }
+      clearStatus();
       if (streamEl) {
         streamEl.remove();
         streamEl = null;
@@ -761,6 +900,7 @@
         caseTitleText.textContent = c.title;
       }
     } catch (err) {
+      clearStatus();
       if (streamEl) streamEl.remove();
       else typing.remove();
       appendError("Gabim rrjeti: " + err.message);
@@ -779,7 +919,195 @@
   });
 
   // ─── message rendering ───────────────────────────────────────────
+  var _lastQuestion = "";
+
+  function _srcLabel(x) {
+    return ({ answer: "\ud83d\udcac Përgjigje", devil: "\ud83d\ude08 Avokati i Djallit",
+      adversary: "\u2694\ufe0f Kundërshtari", draft: "\u270d\ufe0f Draft",
+      needle: "\ud83d\udd0d Gjilpëra", vault: "\ud83d\udd0e Vault",
+      research: "\ud83d\udcdd Kërkim", expertise: "\ud83c\udfaf Ekspertizë", prosecutor: "\ud83c\udfdb\ufe0f Prokuror", notary: "\ud83d\udcdc Noter", deadlines: "\u23f0 Afatet" })[x] || "\ud83d\uddc2\ufe0f";
+  }
+
+  async function _addSaveToCase(container, source, titleHint, md) {
+    if (!container || !md || md.length < 10) return;
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "save-case-btn";
+    b.innerHTML = "\ud83d\udcbe Ruaj në fashikull";
+    b.addEventListener("click", async function () {
+      if (!activeCaseId) { if (typeof toast === "function") toast("Hap ose krijo një rast që ta ruash", "warn"); return; }
+      b.disabled = true;
+      try {
+        var r = await fetch("/api/cases/" + activeCaseId + "/research", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ source: source, title: (titleHint || "Kërkim").slice(0, 120), content: md }),
+        });
+        if (!r.ok) throw new Error();
+        b.innerHTML = "\u2713 U ruajt në fashikull";
+        loadResearch(activeCaseId);
+      } catch (e) { b.disabled = false; if (typeof toast === "function") toast("Ruajtja dështoi", "err"); }
+    });
+    container.appendChild(b);
+
+    var v = document.createElement("button");
+    v.type = "button"; v.className = "view-case-btn";
+    v.innerHTML = "\ud83d\uddc2\ufe0f Shiko të ruajturat";
+    v.addEventListener("click", function () { openSavedResearch(); });
+    container.appendChild(v);
+  }
+
+  (function () {
+    var srch = document.getElementById("research-search");
+    if (srch) srch.addEventListener("input", function () {
+      var q = srch.value.trim().toLowerCase();
+      var list = document.getElementById("research-list");
+      if (!list) return;
+      Array.prototype.forEach.call(list.querySelectorAll(".research-item"), function (li) {
+        li.style.display = (!q || (li.dataset.search || "").indexOf(q) >= 0) ? "" : "none";
+      });
+    });
+  })();
+
+  async function loadResearch(id) {
+    var box = document.getElementById("research-box");
+    var list = document.getElementById("research-list");
+    if (!box || !list || !id) return;
+    try {
+      var r = await fetch("/api/cases/" + id + "/research");
+      if (!r.ok) { box.hidden = true; return; }
+      var d = await r.json();
+      var items = d.items || [];
+      box.hidden = false;
+      var _emp = document.getElementById("research-empty");
+      if (_emp) _emp.hidden = items.length > 0;
+      list.innerHTML = "";
+      items.forEach(function (it) {
+        var li = document.createElement("li");
+        li.className = "research-item";
+        li.dataset.search = ((it.title || "") + " " + (it.content || "") + " " + (it.client_name || "")).toLowerCase();
+        var head = document.createElement("div");
+        head.className = "research-head";
+        head.innerHTML = '<span class="research-src">' + escapeHtml(_srcLabel(it.source)) + '</span>' +
+          (it.client_name ? '<span class="research-cli">\ud83d\udc64 ' + escapeHtml(it.client_name) + '</span>' : "") +
+          '<span class="research-ttl">' + escapeHtml(it.title || "") + '</span>' +
+          '<button class="research-del" title="Fshij" type="button">\u00d7</button>';
+        var body = document.createElement("div");
+        body.className = "research-body"; body.hidden = true;
+        head.addEventListener("click", function (e) {
+          if (e.target.classList.contains("research-del")) return;
+          if (body.hidden) { body.innerHTML = renderMarkdown(it.content || ""); body.hidden = false; }
+          else body.hidden = true;
+        });
+        head.querySelector(".research-del").addEventListener("click", async function (e) {
+          e.stopPropagation();
+          if (!confirm("Fshij këtë kërkim nga fashikulli?")) return;
+          await fetch("/api/cases/" + id + "/research/" + it.id, { method: "DELETE" });
+          loadResearch(id);
+        });
+        li.appendChild(head); li.appendChild(body); list.appendChild(li);
+      });
+    } catch (e) { box.hidden = true; }
+  }
+
+  async function openSavedResearch() {
+    if (!activeCaseId) { if (typeof toast === "function") toast("Hap një rast që të shohësh të ruajturat", "warn"); return; }
+    var ov = document.getElementById("saved-ov");
+    if (ov) ov.remove();
+    ov = document.createElement("div");
+    ov.id = "saved-ov"; ov.className = "ac-overlay";
+    ov.innerHTML = '<div class="ac-modal exp-modal">' +
+      '<div class="ac-head"><span>🗂️ Kërkime të ruajtura</span><button class="ac-x" type="button" aria-label="Mbyll">×</button></div>' +
+      '<input type="text" class="research-search sv-search" placeholder="🔍 Kërko në të ruajturat…" />' +
+      '<div class="exp-body"><ul class="research-list sv-list"><li>Po ngarkoj…</li></ul></div>' +
+      '</div>';
+    document.body.appendChild(ov);
+    function close() { ov.remove(); }
+    ov.querySelector(".ac-x").onclick = close;
+    ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
+    var list = ov.querySelector(".sv-list"), srch = ov.querySelector(".sv-search");
+    async function render() {
+      list.innerHTML = "<li>Po ngarkoj…</li>";
+      try {
+        var r = await fetch("/api/cases/" + activeCaseId + "/research");
+        var d = await r.json(); var items = d.items || [];
+        if (!items.length) { list.innerHTML = '<li class="research-empty">Ende asnjë kërkim i ruajtur. Kliko “💾 Ruaj në fashikull” te një rezultat.</li>'; return; }
+        list.innerHTML = "";
+        items.forEach(function (it) {
+          var li = document.createElement("li"); li.className = "research-item";
+          li.dataset.search = ((it.title || "") + " " + (it.content || "") + " " + (it.client_name || "")).toLowerCase();
+          var head = document.createElement("div"); head.className = "research-head";
+          head.innerHTML = '<span class="research-src">' + escapeHtml(_srcLabel(it.source)) + '</span>' +
+            (it.client_name ? '<span class="research-cli">👤 ' + escapeHtml(it.client_name) + '</span>' : "") +
+            '<span class="research-ttl">' + escapeHtml(it.title || "") + '</span>' +
+            '<button class="research-del" title="Fshij" type="button">×</button>';
+          var body = document.createElement("div"); body.className = "research-body"; body.hidden = true;
+          head.addEventListener("click", function (e) {
+            if (e.target.classList.contains("research-del")) return;
+            if (body.hidden) { body.innerHTML = renderMarkdown(it.content || ""); body.hidden = false; }
+            else body.hidden = true;
+          });
+          head.querySelector(".research-del").addEventListener("click", async function (e) {
+            e.stopPropagation();
+            if (!confirm("Fshij këtë kërkim nga fashikulli?")) return;
+            try { await fetch("/api/cases/" + activeCaseId + "/research/" + it.id, { method: "DELETE" }); } catch (e2) {}
+            render(); if (typeof loadResearch === "function") loadResearch(activeCaseId);
+          });
+          li.appendChild(head); li.appendChild(body); list.appendChild(li);
+        });
+      } catch (e) { list.innerHTML = "<li>Gabim gjatë ngarkimit.</li>"; }
+    }
+    if (srch) srch.addEventListener("input", function () {
+      var q = srch.value.trim().toLowerCase();
+      Array.prototype.forEach.call(list.querySelectorAll(".research-item"), function (li) {
+        li.style.display = (!q || (li.dataset.search || "").indexOf(q) >= 0) ? "" : "none";
+      });
+    });
+    render();
+  }
+
+  async function _runSecondOpinion(question, answer, panel, btn) {
+    btn.disabled = true;
+    panel.hidden = false;
+    panel.innerHTML = '<div class="so-loading">\ud83d\udd2e Avokati i Djallit po mendon thell\u00eb\u2026</div>';
+    try {
+      const r = await fetch("/api/second-opinion", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: question || "", answer: answer || "" }),
+      });
+      const d = await r.json();
+      if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
+      panel.innerHTML =
+        '<div class="so-head">\ud83d\udd2e Avokati i Djallit'
+        + '<span class="so-tag">k\u00ebndv\u00ebshtrim i dyt\u00eb</span></div>'
+        + '<div class="so-body">' + renderMarkdown(d.markdown || "") + '</div>';
+      const bodyEl = panel.querySelector(".so-body");
+      if (bodyEl && d.citations) highlightNeni(bodyEl, buildCitStatusMap(d.citations));
+      if (bodyEl && d.citations && d.citations.stats && d.citations.stats.total > 0) {
+        panel.insertBefore(renderCitationsBadge(d.citations, null), bodyEl);
+      }
+      _addSaveToCase(panel, "devil", "Avokati i Djallit", d.markdown || "");
+    } catch (e) {
+      panel.innerHTML = '<div class="so-err">Gabim: ' + escapeHtml(e.message) + '</div>';
+      btn.disabled = false;
+    }
+  }
+
+  function _attachSecondOpinion(msgEl, question, answer) {
+    if (!msgEl || (answer || "").length < 40) return;
+    const wrap = document.createElement("div");
+    wrap.className = "so-wrap";
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "so-btn";
+    btn.innerHTML = '\ud83d\udd2e Avokati i Djallit <em>gjej gjilp\u00ebr\u00ebn n\u00eb kasht\u00eb</em>';
+    const panel = document.createElement("div");
+    panel.className = "so-panel"; panel.hidden = true;
+    btn.addEventListener("click", function () { _runSecondOpinion(question, answer, panel, btn); });
+    wrap.appendChild(btn); wrap.appendChild(panel);
+    msgEl.appendChild(wrap);
+  }
+
   function appendUser(text) {
+    _lastQuestion = text;
     const tpl = document.getElementById("user-msg-tpl");
     const node = tpl.content.cloneNode(true);
     node.querySelector("p").textContent = text;
@@ -806,12 +1134,15 @@
     const citStatusMap = buildCitStatusMap(data.citations);
     highlightNeni(body, citStatusMap);
     linkCaseMarkers(body, data.precedents || []);
+    if (data.kind !== "error") _attachSecondOpinion(msgEl, _lastQuestion, data.text || "");
+    if (data.kind !== "error") _addSaveToCase(msgEl, "answer", _lastQuestion || "Përgjigje", data.text || "");
 
     // Citation trust badge — provenance lock. Always at the very top of
     // the answer (before urgency/action-plan) so the lawyer's eye lands on
     // it first: "are these citations real or hallucinated?"
-    if (data.citations && data.citations.stats && data.citations.stats.total > 0) {
-      msgEl.insertBefore(renderCitationsBadge(data.citations), body);
+    if ((data.citations && data.citations.stats && data.citations.stats.total > 0) ||
+        (data.decision_citations && data.decision_citations.stats && data.decision_citations.stats.total > 0)) {
+      msgEl.insertBefore(renderCitationsBadge(data.citations || { stats: {}, items: [] }, data.decision_citations), body);
     }
     // V8.11 Citation Shield V2 — provenance panel beneath the badge.
     // Lawyer can inspect KB version, model, hash; export full pack.
@@ -952,12 +1283,15 @@
           ${d.articles_cited && d.articles_cited.length ? `<div class="prec-articles">${articlesBadges(d.articles_cited)}</div>` : ""}
           ${judgesLine(d.judges)}
           ${d.source_url ? `<a class="prec-link" href="${encodeURI(d.source_url)}" target="_blank" rel="noopener">Lexo vendimin →</a>` : ""}
+          ${d.download ? `<a class="prec-dl" href="/api/precedent-file?f=${encodeURIComponent(d.download)}" title="Shkarko dokumentin origjinal">📎 Shkarko vendimin</a>` : ""}
+          <button type="button" class="prec-validity" data-vid="${d.id}">🔍 Statusi i vendimit</button><span class="prec-vresult" data-vid="${d.id}"></span>
         </li>
       `).join("");
       prec.innerHTML = `
         <summary>⚖️ Vendime relevante të gjykatave (${precedents.length})</summary>
         <ul class="precedents-list">${items}</ul>
       `;
+      prec.addEventListener("click", onPrecValidity);
       msgEl.insertBefore(prec, null);
     }
 
@@ -1028,7 +1362,7 @@
   function buildCitStatusMap(citations) {
     const map = new Map();
     if (!citations || !Array.isArray(citations.items)) return map;
-    const rank = { fake: 3, needs_code: 2, verified: 1 };
+    const rank = { fake: 4, repealed: 3, needs_code: 2, verified: 1 };
     const numRe = /Neni\s*(\d+(?:[\/-][a-zçëA-ZÇË0-9]+)?)/;
     for (const c of citations.items) {
       const m = numRe.exec(c.raw || "");
@@ -1055,6 +1389,7 @@
     const statusClass = {
       verified: "neni-cite-ok",
       fake: "neni-cite-fake",
+      repealed: "neni-cite-warn",
       needs_code: "neni-cite-warn",
     };
     for (const n of toReplace) {
@@ -1071,6 +1406,7 @@
         span.className = "neni-cite" + (status ? " " + statusClass[status] : "");
         if (status === "verified") span.title = "Citim i verifikuar kundër korpusit";
         if (status === "fake") span.title = "⚠ Citim që nuk u gjet në korpus";
+        if (status === "repealed") span.title = "⚠ Neni ekziston por është shfuqizuar";
         if (status === "needs_code") span.title = "ℹ Kod i pa-specifikuar — verifiko";
         span.textContent = m[0];
         frag.appendChild(span);
@@ -1082,6 +1418,32 @@
   }
 
   // ─── convert [[case:ID]] markers → clickable pin-to-row links ───
+  async function onPrecValidity(e) {
+    var btn = e.target.closest(".prec-validity");
+    if (!btn) return;
+    var vid = btn.getAttribute("data-vid");
+    var res = btn.parentElement.querySelector('.prec-vresult[data-vid="' + vid + '"]');
+    btn.disabled = true;
+    if (res) res.innerHTML = ' <em style="color:#9a8a63">po kontrolloj vendimet e mëvonshme\u2026</em>';
+    try {
+      var r = await fetch("/api/decision-validity", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: parseInt(vid, 10) }),
+      });
+      var d = await r.json();
+      if (!r.ok) throw new Error(d.error || ("HTTP " + r.status));
+      var cls = { ne_fuqi: "v-ok", tejkaluar: "v-bad", kufizuar: "v-warn", e_paqarte: "v-unk" }[d.status] || "v-unk";
+      var h = '<span class="prec-vbadge ' + cls + '">' + (d.icon || "") + " " + escapeHtml(d.label || d.status) + "</span>";
+      if (d.superseded_by) h += ' <span class="prec-vnote">\u21b3 ' + escapeHtml(d.superseded_by) + "</span>";
+      if (d.note) h += '<div class="prec-vnote">' + escapeHtml(d.note) + "</div>";
+      if (res) res.innerHTML = h;
+      btn.style.display = "none";
+    } catch (err) {
+      if (res) res.innerHTML = ' <span style="color:#c0392b">Gabim: ' + escapeHtml(err.message) + "</span>";
+      btn.disabled = false;
+    }
+  }
+
   function linkCaseMarkers(root, precedents) {
     const byId = new Map((precedents || []).map((p) => [String(p.id), p]));
     const re = /\[\[case:(\d+)\]\]/g;
@@ -1324,29 +1686,47 @@
   // Shows a single pill at the top of the bot answer summarising how many
   // legal citations were verified against the indexed corpus. Click to
   // expand the per-citation breakdown.
-  function renderCitationsBadge(payload) {
+  function renderCitationsBadge(payload, decPayload) {
     const stats = payload.stats || {};
     const items = payload.items || [];
     const total = stats.total || 0;
     const verified = stats.verified || 0;
     const fake = stats.fake || 0;
     const needs = stats.needs_code || 0;
+    const repealed = stats.repealed || 0;
+    const stale = stats.stale || 0;
+    const dStats = (decPayload && decPayload.stats) || {};
+    const dItems = (decPayload && decPayload.items) || [];
+    const dVer = dStats.verified || 0;
+    const dUnv = dStats.unverified || 0;
+    const dTotal = dStats.total || 0;
 
     let level, label, icon;
+    const artStr = verified + "/" + total + " nene";
+    const decStr = dTotal ? (dVer + "/" + dTotal + " vendime") : "";
+    const base = artStr + (decStr ? " + " + decStr : "");
     if (fake > 0) {
-      level = "danger";
-      icon = "⚠";
-      label = `${verified}/${total} të verifikuara · ${fake} fantazmë`;
-    } else if (needs > 0) {
-      level = "partial";
-      icon = "ℹ";
-      label = `${verified}/${total} të verifikuara · ${needs} pa kod të qartë`;
+      level = "danger"; icon = "⚠";
+      label = base + " · " + fake + " nene fantazmë";
+    } else if (repealed > 0 || needs > 0 || dUnv > 0) {
+      level = "partial"; icon = "🛡";
+      label = "Verifikuar: " + base +
+        (repealed ? " · " + repealed + " nene të shfuqizuara" : "") +
+        (dUnv ? " · " + dUnv + " vendime s’u konfirmuan" : "") +
+        (needs ? " · " + needs + " pa kod" : "");
     } else {
-      level = "ok";
-      icon = "✓";
-      label = `${verified}/${total} citime të verifikuara`;
+      level = "ok"; icon = "🛡";
+      label = "Verifikuar — " + base;
     }
 
+    if (stale > 0 && level !== "danger") { label += " · ⏳ " + stale + " për t\u2019u rifreskuar"; }
+    const decHtml = dItems.length ? ('<div class="cit-dechead">Vendime të cituara</div><ul class="cit-list">' +
+      dItems.map(function (dc) {
+        var ok = dc.status === "verified";
+        return '<li class="cit-row ' + (ok ? "cit-row-ok" : "cit-row-warn") + '"><span class="cit-status">' +
+          (ok ? "✓" : "?") + '</span><code>' + escapeHtml(dc.raw) + '</code><span class="cit-meta">' +
+          (ok ? "e gjetur në bazën tonë" : "s’u konfirmua në bazë — kontrollo") + "</span></li>";
+      }).join("") + "</ul>") : "";
     const wrap = document.createElement("details");
     wrap.className = `citations-badge cit-${level}`;
     wrap.innerHTML = `
@@ -1359,10 +1739,11 @@
         ${items.map((c) => {
           if (c.status === "verified") {
             const head = c.article_heading ? ` — ${escapeHtml(c.article_heading.slice(0, 60))}` : "";
+            const fresh = (c.volatility || "").toUpperCase() === "MEDIUM" ? ` <span class="cit-fresh" title="Kjo dispozitë ndryshon herë pas here — verifiko versionin aktual (Ligj i gjallë)">⏳</span>` : "";
             return `<li class="cit-row cit-row-ok">
               <span class="cit-status">✓</span>
               <code>${escapeHtml(c.raw)}</code>
-              <span class="cit-meta">${escapeHtml(c.code_label || "")}${head}</span>
+              <span class="cit-meta">${escapeHtml(c.code_label || "")}${head}${fresh}</span>
             </li>`;
           }
           if (c.status === "fake") {
@@ -1370,6 +1751,14 @@
               <span class="cit-status">✗</span>
               <code>${escapeHtml(c.raw)}</code>
               <span class="cit-meta">nuk u gjet ${c.code_label ? `në ${escapeHtml(c.code_label)}` : "në asnjë kod"}</span>
+            </li>`;
+          }
+          if (c.status === "repealed") {
+            const rhead = c.article_heading ? ` — ${escapeHtml(c.article_heading.slice(0, 60))}` : "";
+            return `<li class="cit-row cit-row-warn">
+              <span class="cit-status">⚠</span>
+              <code>${escapeHtml(c.raw)}</code>
+              <span class="cit-meta">ekziston te ${escapeHtml(c.code_label || "")} por është SHFUQIZUAR${rhead}</span>
             </li>`;
           }
           // needs_code
@@ -1381,6 +1770,7 @@
           </li>`;
         }).join("")}
       </ul>
+      ${decHtml}
     `;
     return wrap;
   }
@@ -3006,6 +3396,1422 @@
     "coach": document.getElementById("coach-modal"),
   };
 
+  function _renderActReport(d) {
+    if (d.empty) return "";
+    if (d.clean) return '<div class="ac-badge ac-ok">\u2705 Të gjitha ' + d.verified + ' nenet e cituara janë të vlefshme dhe në fuqi.</div>';
+    var h = '<div class="ac-summary">Gjithsej ' + d.total + ' citime \u00b7 <b style="color:#1c7a3e">' + d.verified + ' të vlefshme</b>' +
+      (d.fake.length ? ' \u00b7 <b style="color:#c0392b">' + d.fake.length + ' inekzistente</b>' : "") +
+      (d.repealed.length ? ' \u00b7 <b style="color:#a1341a">' + d.repealed.length + ' të shfuqizuara</b>' : "") +
+      (d.needs_code.length ? ' \u00b7 <b style="color:#8a6a1d">' + d.needs_code.length + ' të paqarta</b>' : "") + "</div>";
+    function block(title, arr, cls) {
+      if (!arr.length) return "";
+      return '<div class="ac-block ' + cls + '"><div class="ac-bt">' + title + '</div><ul>' +
+        arr.map(function (i) {
+          return "<li>" + escapeHtml(i.raw || ("neni " + i.number)) +
+            (i.code_label ? ' <span class="ac-code">' + escapeHtml(i.code_label) + "</span>" : "") + "</li>";
+        }).join("") + "</ul></div>";
+    }
+    h += block("\ud83d\udd34 Nene INEKZISTENTE \u2014 hiqi ose korrigjoji", d.fake, "ac-bad");
+    h += block("\ud83d\udfe0 Nene TË SHFUQIZUARA \u2014 jo më në fuqi", d.repealed, "ac-warn");
+    h += block("\ud83d\udfe1 Nene TË PAQARTA \u2014 specifiko kodin", d.needs_code, "ac-unk");
+    return h;
+  }
+  async function _extractFileText(file, statusEl) {
+    var fd = new FormData();
+    fd.append("file", file);
+    if (statusEl) statusEl.textContent = "Po lexoj dokumentin\u2026";
+    var r = await fetch("/api/extract-text", { method: "POST", body: fd });
+    var d = await r.json().catch(function () { return {}; });
+    if (!r.ok) throw new Error(d.error || ("HTTP " + r.status));
+    return d;
+  }
+
+  function _openFableTool(cfg) {
+    var ov = document.getElementById(cfg.id);
+    if (ov) ov.remove();
+    ov = document.createElement("div");
+    ov.id = cfg.id; ov.className = "ac-overlay";
+    var attachHtml = cfg.attach
+      ? '<div class="ac-attach-row"><label class="ac-attach">\ud83d\udcce Bashkëngjit PDF/foto<input type="file" class="ft-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.svg,.tif,.tiff" hidden></label><span class="ac-attach-hint">ose ngjit tekstin poshtë</span></div>'
+      : "";
+    ov.innerHTML =
+      '<div class="ac-modal">' +
+        '<div class="ac-head"><span>' + cfg.title + '</span><button class="ac-x" type="button" aria-label="Mbyll">\u00d7</button></div>' +
+        '<div class="ac-sub">' + cfg.sub + '</div>' +
+        attachHtml +
+        '<textarea class="ac-ta" placeholder="' + cfg.placeholder + '"></textarea>' +
+        '<div class="ac-row"><button class="ac-run" type="button">' + cfg.btn + '</button><span class="ac-status"></span></div>' +
+        '<div class="ac-result"></div>' +
+      "</div>";
+    document.body.appendChild(ov);
+    var ta = ov.querySelector(".ac-ta"), run = ov.querySelector(".ac-run"),
+        status = ov.querySelector(".ac-status"), result = ov.querySelector(".ac-result"),
+        ftFile = ov.querySelector(".ft-file");
+    function close() { ov.remove(); }
+    ov.querySelector(".ac-x").onclick = close;
+    ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
+    if (ftFile) ftFile.onchange = async function () {
+      var file = ftFile.files && ftFile.files[0]; if (!file) return;
+      run.disabled = true;
+      try {
+        var dd = await _extractFileText(file, status);
+        var tx = (dd.text || "").trim();
+        if (!tx) { status.textContent = "Dokumenti nuk ka tekst të lexueshëm."; }
+        else { ta.value = ta.value.trim() ? (ta.value.trim() + "\n\n" + tx) : tx;
+               status.textContent = dd.used_vision_ocr ? "\u2713 Lexuar me OCR" : "\u2713 Dokumenti u lexua"; }
+      } catch (e) { status.textContent = "Gabim: " + e.message; }
+      finally { run.disabled = false; ftFile.value = ""; }
+    };
+    run.onclick = async function () {
+      var val = (ta.value || "").trim();
+      if (val.length < 15) { status.textContent = "Shkruaj pak më shumë."; return; }
+      run.disabled = true; status.textContent = cfg.loading; result.innerHTML = "";
+      try {
+        var payload = {}; payload[cfg.payloadKey] = val;
+        var r = await fetch(cfg.endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        var d = await r.json();
+        if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
+        status.textContent = "";
+        result.innerHTML = '<div class="fd-out"></div>';
+        var out = result.querySelector(".fd-out");
+        out.innerHTML = renderMarkdown(d.markdown || "");
+        if (d.citations) highlightNeni(out, buildCitStatusMap(d.citations));
+        if (d.citations && d.citations.stats && d.citations.stats.total > 0) result.insertBefore(renderCitationsBadge(d.citations, null), out);
+        _addSaveToCase(result, cfg.source || "research", cfg.saveTitle || "Kërkim", d.markdown || "");
+        if (cfg.calendar) _addToCalendar(result, cfg.calendarTitle || cfg.saveTitle || "Afat", d.markdown || "");
+      } catch (e) { status.textContent = "Gabim: " + e.message; }
+      finally { run.disabled = false; }
+    };
+    setTimeout(function () { ta.focus(); }, 50);
+  }
+
+  function openDevilConsult() {
+    _openFableTool({ id: "consult-ov", title: "\ud83d\ude08 Pyet Avokatin e Djallit",
+      sub: "Përshkruaj situatën ose pyetjen. Avokati i Djallit të jep këndin fitues, kurthin dhe lëvizjen e zgjuar.",
+      placeholder: "P.sh. Klienti nënshkroi një kontratë me penalitet 5% në ditë vonesë. Si ta sulmoj?",
+      btn: "Pyet \u2192", loading: "Avokati i Djallit po mendon\u2026", endpoint: "/api/devil-consult", payloadKey: "situation", attach: true, source: "devil", saveTitle: "Avokati i Djallit" });
+  }
+
+  function openAdversary() {
+    _openFableTool({ id: "adv-ov", title: "\u2694\ufe0f Kundërshtari",
+      sub: "Ngjit një kontratë ose akt. Avokati i palës kundërshtare do të gjejë çdo dobësi dhe si do ta godasë.",
+      placeholder: "Ngjit tekstin e plotë të kontratës ose aktit që do të stress-testohet\u2026",
+      btn: "Sulmo \u2192", loading: "Kundërshtari po sulmon\u2026", endpoint: "/api/adversary", payloadKey: "text", attach: true, source: "adversary", saveTitle: "Kundërshtari" });
+  }
+
+  function openFableDraft() {
+    var ov = document.getElementById("fabledraft-ov");
+    if (ov) ov.remove();
+    ov = document.createElement("div");
+    ov.id = "fabledraft-ov"; ov.className = "ac-overlay";
+    ov.innerHTML =
+      '<div class="ac-modal">' +
+        '<div class="ac-head"><span>\u270d\ufe0f Redakto me Tetramorph</span><button class="ac-x" type="button" aria-label="Mbyll">\u00d7</button></div>' +
+        '<div class="ac-sub">Zgjidh llojin dhe p\u00ebrshkruaj \u00e7far\u00eb t\u00eb duhet. Tetramorph harton dokumentin; \u00e7do nen i cituar kalon nga Verifikuar.</div>' +
+        '<select class="fd-kind">' +
+          '<option value="contract">\ud83d\udcc4 Kontrat\u00eb</option>' +
+          '<option value="act">\u2696\ufe0f Akt procedural (padi/ankim)</option>' +
+          '<option value="aktakuze">\ud83c\udfdb\ufe0f Aktakuzë (prokuror)</option>' +
+          '<option value="clause">\ud83d\udcce Klauzol\u00eb</option>' +
+          '<option value="letter">\u2709\ufe0f Let\u00ebr zyrtare</option>' +
+        '</select>' +
+        '<div class="ac-attach-row"><label class="ac-attach">\ud83d\udcce Bashk\u00ebngjit PDF/foto<input type="file" class="fd-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.svg,.tif,.tiff" hidden></label><span class="ac-attach-hint">ose p\u00ebrshkruaj posht\u00eb</span></div>' +
+        '<textarea class="ac-ta" placeholder="P.sh. Kontrat\u00eb qiraje p\u00ebr ambient biznesi. Qiradh\u00ebn\u00ebs [emri], qiramarr\u00ebs [emri]. Qira 1200 EUR/muaj, afat 5 vjet, ndalohet n\u00ebnqiraja, penalitet 0.1%/dit\u00eb von\u00ebs, garanci 3 muaj\u2026"></textarea>' +
+        '<div class="ac-row"><button class="ac-run" type="button">Harto \u2192</button><span class="ac-status"></span></div>' +
+        '<div class="ac-result"></div>' +
+      "</div>";
+    document.body.appendChild(ov);
+    var kind = ov.querySelector(".fd-kind"), ta = ov.querySelector(".ac-ta"),
+        run = ov.querySelector(".ac-run"), status = ov.querySelector(".ac-status"),
+        result = ov.querySelector(".ac-result");
+    var fdFile = ov.querySelector(".fd-file");
+    if (fdFile) fdFile.onchange = async function () {
+      var file = fdFile.files && fdFile.files[0];
+      if (!file) return;
+      run.disabled = true;
+      try {
+        var dd = await _extractFileText(file, status);
+        var tx = (dd.text || "").trim();
+        if (!tx) { status.textContent = "Dokumenti nuk ka tekst t\u00eb lexuesh\u00ebm."; }
+        else {
+          ta.value = ta.value.trim() ? (ta.value.trim() + "\n\n" + tx) : tx;
+          status.textContent = dd.used_vision_ocr ? "\u2713 Lexuar me OCR" : "\u2713 Dokumenti u lexua";
+        }
+      } catch (e) { status.textContent = "Gabim: " + e.message; }
+      finally { run.disabled = false; fdFile.value = ""; }
+    };
+    function close() { ov.remove(); }
+    ov.querySelector(".ac-x").onclick = close;
+    ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
+    run.onclick = async function () {
+      var brief = (ta.value || "").trim();
+      if (brief.length < 15) { status.textContent = "P\u00ebrshkruaj pak m\u00eb shum\u00eb."; return; }
+      run.disabled = true; status.textContent = "Tetramorph po harton\u2026"; result.innerHTML = "";
+      try {
+        var r = await fetch("/api/fable-draft", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ kind: kind.value, brief: brief }),
+        });
+        var d = await r.json();
+        if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
+        status.textContent = "";
+        result.innerHTML = '<div class="fd-out"></div>';
+        var out = result.querySelector(".fd-out");
+        out.innerHTML = renderMarkdown(d.markdown || "");
+        if (d.citations) highlightNeni(out, buildCitStatusMap(d.citations));
+        if (d.citations && d.citations.stats && d.citations.stats.total > 0) {
+          result.insertBefore(renderCitationsBadge(d.citations, null), out);
+        }
+        var copy = document.createElement("button");
+        copy.className = "fd-copy"; copy.type = "button"; copy.textContent = "\ud83d\udccb Kopjo tekstin";
+        copy.onclick = function () {
+          navigator.clipboard.writeText(d.markdown || "").then(function () {
+            copy.textContent = "\u2713 U kopjua";
+          }).catch(function () {});
+        };
+        result.appendChild(copy);
+        _addSaveToCase(result, "draft", "Draft: " + (kind ? kind.value : ""), d.markdown || "");
+      } catch (e) { status.textContent = "Gabim: " + e.message; }
+      finally { run.disabled = false; }
+    };
+    setTimeout(function () { ta.focus(); }, 50);
+  }
+
+  async function openExpertise(preselect) {
+    var ov = document.getElementById("exp-ov");
+    if (ov) ov.remove();
+    ov = document.createElement("div");
+    ov.id = "exp-ov"; ov.className = "ac-overlay";
+    ov.innerHTML = '<div class="ac-modal exp-modal">' +
+      '<div class="ac-head"><span>\ud83c\udfaf Modele Ekspertize</span><button class="ac-x" type="button" aria-label="Mbyll">\u00d7</button></div>' +
+      '<div class="exp-body"><em>Po ngarkoj\u2026</em></div>' +
+      "</div>";
+    document.body.appendChild(ov);
+    var body = ov.querySelector(".exp-body");
+    function close() { ov.remove(); }
+    ov.querySelector(".ac-x").onclick = close;
+    ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
+    var tpls = [];
+    try { var r = await fetch("/api/expertise/templates"); if (r.ok) tpls = (await r.json()).templates || []; } catch (e) {}
+    function grid() {
+      body.innerHTML = '<div class="exp-sub">Zgjidh llojin e \u00e7\u00ebshtjes. Modeli t\u00eb jep baz.n ligjore, elementet q\u00eb duhen provuar, provat, afatet, mbrojtjet \u2014 dhe p\u00ebr \u00e7\u00ebshtjet penale, t\u00eb DYja mendjet (prokuror + avokat).</div><div class="exp-grid"></div>';
+      var g = body.querySelector(".exp-grid");
+      tpls.forEach(function (t) {
+        var b = document.createElement("button");
+        b.type = "button"; b.className = "exp-card";
+        b.innerHTML = '<span class="exp-ico">' + t.emoji + '</span><span class="exp-label">' + escapeHtml(t.label) +
+          '</span><span class="exp-dom exp-dom-' + t.domain + '">' + (t.domain === "penal" ? "penale" : "civile") + '</span>';
+        b.onclick = function () { detail(t); };
+        g.appendChild(b);
+      });
+    }
+    function _pl(title, arr) {
+      return (arr && arr.length) ? '<div class="exp-pl"><b>' + title + '</b><ul>' +
+        arr.map(function (x) { return '<li>' + escapeHtml(x) + '</li>'; }).join("") + '</ul></div>' : "";
+    }
+    function detail(t) {
+      body.innerHTML =
+        '<button class="exp-back" type="button">\u2190 Mbrapa</button>' +
+        '<div class="exp-title">' + t.emoji + ' ' + escapeHtml(t.label) + '</div>' +
+        _pl("Elementet q\u00eb duhen provuar", t.elements) +
+        _pl("Provat tipike", t.evidence) +
+        _pl("Mbrojtjet / pikat e dob\u00ebta", t.defenses) +
+        _pl("Afatet", t.deadlines) +
+        _pl("Pyetje udh\u00ebzuese", t.questions) +
+        '<div class="exp-attachrow"><label class="ac-attach">\ud83d\udcce Bashk\u00ebngjit PDF/foto<input type="file" class="exp-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.svg,.tif,.tiff" hidden></label></div>' +
+        '<textarea class="ac-ta exp-ta" placeholder="P\u00ebrshkruaj faktet e \u00e7\u00ebshtjes (ose bashk\u00ebngjit dokumentet)\u2026"></textarea>' +
+        '<div class="ac-row"><button class="ac-run exp-run" type="button">Gjenero ekspertiz\u00ebn \u2192</button><span class="ac-status exp-status"></span></div>' +
+        '<div class="ac-result exp-result"></div>';
+      body.querySelector(".exp-back").onclick = grid;
+      var ta = body.querySelector(".exp-ta"), run = body.querySelector(".exp-run"),
+          status = body.querySelector(".exp-status"), result = body.querySelector(".exp-result"),
+          file = body.querySelector(".exp-file");
+      if (file) file.onchange = async function () {
+        var f = file.files && file.files[0]; if (!f) return; run.disabled = true;
+        try { var dd = await _extractFileText(f, status); var tx = (dd.text || "").trim();
+          if (tx) { ta.value = ta.value.trim() ? (ta.value.trim() + "\n\n" + tx) : tx;
+            status.textContent = dd.used_vision_ocr ? "\u2713 Lexuar me OCR" : "\u2713 Dokumenti u lexua"; } }
+        catch (e) { status.textContent = "Gabim: " + e.message; } finally { run.disabled = false; file.value = ""; }
+      };
+      run.onclick = async function () {
+        var facts = (ta.value || "").trim();
+        if (facts.length < 15) { status.textContent = "P\u00ebrshkruaj faktet."; return; }
+        run.disabled = true; status.textContent = "Po nd\u00ebrtoj ekspertiz\u00ebn me dy mendjet\u2026 (~3-4 min)"; result.innerHTML = "";
+        try {
+          var r = await fetch("/api/expertise/analyze", { method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ case_type: t.key, facts: facts }) });
+          var d = await r.json();
+          if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
+          status.textContent = "";
+          result.innerHTML = '<div class="fd-out"></div>';
+          var out = result.querySelector(".fd-out");
+          out.innerHTML = renderMarkdown(d.markdown || "");
+          if (d.citations) highlightNeni(out, buildCitStatusMap(d.citations));
+          if (d.citations && d.citations.stats && d.citations.stats.total > 0) result.insertBefore(renderCitationsBadge(d.citations, null), out);
+          _addSaveToCase(result, "expertise", "Ekspertiz\u00eb: " + t.label, d.markdown || "");
+          _addToCalendar(result, "Afat", d.markdown || "");
+        } catch (e) { status.textContent = "Gabim: " + e.message; }
+        finally { run.disabled = false; }
+      };
+      setTimeout(function () { ta.focus(); }, 50);
+    }
+    if (preselect) {
+      var pre = tpls.filter(function (x) { return x.key === preselect; })[0];
+      if (pre) { detail(pre); } else { grid(); }
+    } else { grid(); }
+  }
+
+  async function openClientsDir() {
+    var ov = document.getElementById("cdir-ov");
+    if (ov) ov.remove();
+    ov = document.createElement("div");
+    ov.id = "cdir-ov"; ov.className = "ac-overlay";
+    ov.innerHTML =
+      '<div class="ac-modal cdir-modal">' +
+        '<div class="ac-head"><span>\ud83d\udc65 Klientët & Kërkimet</span><button class="ac-x" type="button" aria-label="Mbyll">\u00d7</button></div>' +
+        '<input type="text" class="cdir-search" placeholder="\ud83d\udd0d Kërko klient, rast ose kërkim\u2026" />' +
+        '<button type="button" class="cdir-addbtn">\u2795 Shto klient</button>' +
+        '<div class="cdir-addform" hidden>' +
+          '<input class="cdir-f-name" placeholder="Emri i klientit *" />' +
+          '<input class="cdir-f-phone" placeholder="Telefoni" />' +
+          '<input class="cdir-f-email" placeholder="Email" />' +
+          '<div class="cdir-addrow"><button type="button" class="cdir-f-save">Ruaj klientin (krijon rast të ri)</button><span class="cdir-f-status"></span></div>' +
+        '</div>' +
+        '<div class="cdir-body"><em>Po ngarkoj\u2026</em></div>' +
+      "</div>";
+    document.body.appendChild(ov);
+    var body = ov.querySelector(".cdir-body"), search = ov.querySelector(".cdir-search");
+    var addBtn = ov.querySelector(".cdir-addbtn"), addForm = ov.querySelector(".cdir-addform");
+    if (addBtn) addBtn.onclick = function () { addForm.hidden = !addForm.hidden; };
+    var saveBtn = ov.querySelector(".cdir-f-save");
+    if (saveBtn) saveBtn.onclick = async function () {
+      var nm = (ov.querySelector(".cdir-f-name").value || "").trim();
+      var ph = (ov.querySelector(".cdir-f-phone").value || "").trim();
+      var em = (ov.querySelector(".cdir-f-email").value || "").trim();
+      var st = ov.querySelector(".cdir-f-status");
+      if (nm.length < 2) { st.textContent = "Shkruaj emrin."; return; }
+      saveBtn.disabled = true; st.textContent = "Duke ruajtur\u2026";
+      try {
+        var cr = await fetch("/api/cases", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: nm }) });
+        var c = await cr.json();
+        if (!cr.ok) throw new Error(c.error || "rast");
+        var clr = await fetch("/api/cases/" + c.id + "/clients", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: nm, phone: ph, email: em }) });
+        if (!clr.ok) { var e = await clr.json().catch(function () { return {}; }); throw new Error(e.error || "klient"); }
+        st.textContent = "\u2713 Klienti u shtua (u krijua rast i ri)";
+        ov.querySelector(".cdir-f-name").value = ""; ov.querySelector(".cdir-f-phone").value = ""; ov.querySelector(".cdir-f-email").value = "";
+        if (typeof renderCaseList === "function") renderCaseList();
+        try { var rr = await fetch("/api/firm/clients"); if (rr.ok) data = await rr.json(); } catch (e2) {}
+        render(search.value);
+      } catch (e) { st.textContent = "Gabim: " + e.message; }
+      finally { saveBtn.disabled = false; }
+    };
+    function close() { ov.remove(); }
+    ov.querySelector(".ac-x").onclick = close;
+    ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
+    var data = { clients: [], research: [] };
+    try {
+      var r = await fetch("/api/firm/clients");
+      if (r.ok) data = await r.json();
+    } catch (e) {}
+    function render(q) {
+      q = (q || "").trim().toLowerCase();
+      var clients = data.clients || [], research = data.research || [];
+      var fc = clients.filter(function (c) {
+        return !q || ((c.name || "") + " " + (c.phone || "") + " " + (c.email || "")).toLowerCase().indexOf(q) >= 0;
+      });
+      var fr = research.filter(function (it) {
+        return !q || ((it.title || "") + " " + (it.client_name || "") + " " + (it.case_title || "") + " " + (it.content || "")).toLowerCase().indexOf(q) >= 0;
+      });
+      var h = '<div class="cdir-sec">\ud83d\udc64 Klientët (' + clients.length + ')</div>';
+      if (!fc.length) h += '<div class="cdir-empty">Ende asnjë klient. Shtoje një klient te një rast (menu PRO \u2192 Klientët & Portal).</div>';
+      fc.forEach(function (c) {
+        h += '<div class="cdir-client"><div class="cdir-cname">' + escapeHtml(c.name || "") +
+          (c.phone ? ' · <span class="cdir-meta">' + escapeHtml(c.phone) + '</span>' : "") + '</div><div class="cdir-cases">';
+        (c.cases || []).forEach(function (cs) {
+          h += '<button class="cdir-case" type="button" data-case="' + cs.case_id + '">\ud83d\udcc1 ' + escapeHtml(cs.case_title || "Rast") + '</button>';
+        });
+        h += "</div></div>";
+      });
+      h += '<div class="cdir-sec">\ud83d\uddc2\ufe0f Kërkimet e ruajtura (' + research.length + ')</div>';
+      if (!fr.length) h += '<div class="cdir-empty">Asnjë kërkim i ruajtur. Ruaj një përgjigje ose vegël PRO me \u201c\ud83d\udcbe Ruaj në fashikull\u201d.</div>';
+      fr.forEach(function (it) {
+        h += '<div class="cdir-res" data-id="' + it.id + '"><div class="cdir-rhead">' +
+          '<span class="research-src">' + escapeHtml(_srcLabel(it.source)) + '</span>' +
+          (it.client_name ? '<span class="research-cli">\ud83d\udc64 ' + escapeHtml(it.client_name) + '</span>' : "") +
+          '<button class="cdir-case cdir-caselink" type="button" data-case="' + it.case_id + '">\ud83d\udcc1 ' + escapeHtml(it.case_title || "Rast") + '</button>' +
+          '<span class="cdir-rttl">' + escapeHtml(it.title || "") + '</span></div>' +
+          '<div class="cdir-rbody" hidden></div></div>';
+      });
+      body.innerHTML = h;
+      Array.prototype.forEach.call(body.querySelectorAll(".cdir-case"), function (b) {
+        b.addEventListener("click", function (e) {
+          e.stopPropagation();
+          var cid = b.getAttribute("data-case");
+          close();
+          if (typeof selectCase === "function") selectCase(cid);
+        });
+      });
+      Array.prototype.forEach.call(body.querySelectorAll(".cdir-res"), function (el) {
+        var it = fr.filter(function (x) { return String(x.id) === el.getAttribute("data-id"); })[0];
+        el.querySelector(".cdir-rhead").addEventListener("click", function (e) {
+          if (e.target.closest(".cdir-case")) return;
+          var bd = el.querySelector(".cdir-rbody");
+          if (bd.hidden) { bd.innerHTML = renderMarkdown((it && it.content) || ""); bd.hidden = false; }
+          else bd.hidden = true;
+        });
+      });
+    }
+    search.addEventListener("input", function () { render(search.value); });
+    render("");
+  }
+
+  function openProsecutor() {
+    _openFableTool({ id: "pros-ov", title: "\ud83c\udfdb\ufe0f Analiza e prokurorit",
+      sub: "Përshkruaj faktet ose fashikullin. Merr kualifikimin ligjor, mjaftueshmërinë e provave, hapat hetimorë dhe review-n e objektivitetit (ana e mbrojtjes).",
+      placeholder: "Përshkruaj faktet e çështjes penale (ose bashkëngjit fashikullin)\u2026",
+      btn: "Analizo \u2192", loading: "Po ndërtoj analizën e prokurorit\u2026 (~3-4 min)",
+      endpoint: "/api/prosecutor/analyze", payloadKey: "facts", attach: true,
+      source: "prosecutor", saveTitle: "Analiza e prokurorit", calendar: true, calendarTitle: "Afat procedural" });
+  }
+
+  async function openNotaryDeed() {
+    var ov = document.getElementById("nd-ov");
+    if (ov) ov.remove();
+    ov = document.createElement("div");
+    ov.id = "nd-ov"; ov.className = "ac-overlay";
+    ov.innerHTML = '<div class="ac-modal">' +
+      '<div class="ac-head"><span>\ud83d\udcdc Redakto akt notarial</span><button class="ac-x" type="button" aria-label="Mbyll">\u00d7</button></div>' +
+      '<div class="ac-sub">Zgjidh llojin e aktit dhe jep të dhënat. Merr një draft të plotë me klauzolat e detyrueshme (çdo nen kalon nga Verifikuar). Noteri e verifikon dhe e nënshkruan.</div>' +
+      '<select class="fd-kind nd-kind"></select>' +
+      '<div class="nd-must"></div>' +
+      '<div class="ac-attach-row"><label class="ac-attach">\ud83d\udcce Bashkëngjit PDF/foto<input type="file" class="nd-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.svg,.tif,.tiff" hidden></label></div>' +
+      '<textarea class="ac-ta" placeholder="Jep të dhënat: palët, objekti, çmimi, nr. pasurie, data… (ato që s\u2019i ke, do vihen [___])"></textarea>' +
+      '<div class="ac-row"><button class="ac-run" type="button">Harto aktin \u2192</button><span class="ac-status"></span></div>' +
+      '<div class="ac-result"></div>' +
+      "</div>";
+    document.body.appendChild(ov);
+    var kind = ov.querySelector(".nd-kind"), must = ov.querySelector(".nd-must"),
+        ta = ov.querySelector(".ac-ta"), run = ov.querySelector(".ac-run"),
+        status = ov.querySelector(".ac-status"), result = ov.querySelector(".ac-result"),
+        file = ov.querySelector(".nd-file");
+    function close() { ov.remove(); }
+    ov.querySelector(".ac-x").onclick = close;
+    ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
+    var types = [];
+    try { var r = await fetch("/api/notary/deed-types"); if (r.ok) types = (await r.json()).types || []; } catch (e) {}
+    kind.innerHTML = types.map(function (t) { return '<option value="' + t.key + '">' + t.emoji + ' ' + escapeHtml(t.label) + '</option>'; }).join("");
+    function showMust() {
+      var t = types.filter(function (x) { return x.key === kind.value; })[0];
+      must.innerHTML = t ? '<div class="nd-must-box"><b>Klauzolat e detyrueshme:</b><ul>' +
+        (t.must || []).map(function (m) { return '<li>' + escapeHtml(m) + '</li>'; }).join("") + '</ul></div>' : "";
+    }
+    kind.onchange = showMust; showMust();
+    if (file) file.onchange = async function () {
+      var f = file.files && file.files[0]; if (!f) return; run.disabled = true;
+      try { var dd = await _extractFileText(f, status); var tx = (dd.text || "").trim();
+        if (tx) { ta.value = ta.value.trim() ? (ta.value.trim() + "\n\n" + tx) : tx;
+          status.textContent = dd.used_vision_ocr ? "\u2713 Lexuar me OCR" : "\u2713 Dokumenti u lexua"; } }
+      catch (e) { status.textContent = "Gabim: " + e.message; } finally { run.disabled = false; file.value = ""; }
+    };
+    run.onclick = async function () {
+      var details = (ta.value || "").trim();
+      if (details.length < 10) { status.textContent = "Jep të dhënat."; return; }
+      run.disabled = true; status.textContent = "Po harton aktin\u2026 (~3-4 min)"; result.innerHTML = "";
+      try {
+        var r = await fetch("/api/notary/draft", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ deed_type: kind.value, details: details }) });
+        var d = await r.json();
+        if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
+        status.textContent = "";
+        result.innerHTML = '<div class="fd-out"></div>';
+        var out = result.querySelector(".fd-out");
+        out.innerHTML = renderMarkdown(d.markdown || "");
+        if (d.citations) highlightNeni(out, buildCitStatusMap(d.citations));
+        if (d.citations && d.citations.stats && d.citations.stats.total > 0) result.insertBefore(renderCitationsBadge(d.citations, null), out);
+        var copy = document.createElement("button"); copy.className = "fd-copy"; copy.type = "button"; copy.textContent = "\ud83d\udccb Kopjo tekstin";
+        copy.onclick = function () { navigator.clipboard.writeText(d.markdown || "").then(function () { copy.textContent = "\u2713 U kopjua"; }).catch(function () {}); };
+        result.appendChild(copy);
+        _addSaveToCase(result, "notary", "Akt: " + (kind.options[kind.selectedIndex] ? kind.options[kind.selectedIndex].text : ""), d.markdown || "");
+      } catch (e) { status.textContent = "Gabim: " + e.message; }
+      finally { run.disabled = false; }
+    };
+    setTimeout(function () { ta.focus(); }, 50);
+  }
+
+  function openNotaryCheck() {
+    _openFableTool({ id: "ncheck-ov", title: "\u2705 Kontroll vlefshmërie akti",
+      sub: "Ngjit aktin notarial. Kontrollohen klauzolat e detyrueshme, mospërputhjet dhe nenet e cituara — para noterizimit.",
+      placeholder: "Ngjit tekstin e plotë të aktit notarial\u2026",
+      btn: "Kontrollo \u2192", loading: "Po kontrolloj aktin\u2026 (~2-3 min)",
+      endpoint: "/api/notary/check", payloadKey: "text", attach: true, source: "notary", saveTitle: "Kontroll akti" });
+  }
+
+  function openNotarySuccession() {
+    _openFableTool({ id: "nsucc-ov", title: "\u2696\ufe0f Analizë trashëgimie",
+      sub: "Përshkruaj gjendjen familjare (i ndjeri, bashkëshorti, fëmijët, prindërit…). Merr trashëgimtarët dhe pjesët takuese, të bazuara në ligj.",
+      placeholder: "P.sh. I ndjeri la bashkëshorten dhe 2 fëmijë; prindërit jetojnë; pasuria: apartament + kursime\u2026",
+      btn: "Analizo \u2192", loading: "Po llogaris trashëgiminë\u2026 (~2-3 min)",
+      endpoint: "/api/notary/succession", payloadKey: "situation", attach: false, source: "notary", saveTitle: "Analizë trashëgimie" });
+  }
+
+  async function openProkura() {
+    var ov = document.getElementById("prok-ov");
+    if (ov) ov.remove();
+    ov = document.createElement("div");
+    ov.id = "prok-ov"; ov.className = "ac-overlay";
+    ov.innerHTML = '<div class="ac-modal">' +
+      '<div class="ac-head"><span>📝 Redakto prokurë</span><button class="ac-x" type="button" aria-label="Mbyll">×</button></div>' +
+      '<div class="ac-sub">Zgjidh formën dhe tagrat. Merr një prokurë të plotë, gati për noterizim (çdo nen kalon nga Verifikuar). Noteri e verifikon dhe e nënshkruan.</div>' +
+      '<div class="prok-forms nd-must-box"></div>' +
+      '<div class="prok-scopes nd-must-box"><em>Po ngarkoj…</em></div>' +
+      '<div class="ac-row" style="gap:10px;flex-wrap:wrap"><input type="text" class="prok-dur ac-ta" style="min-height:auto;height:38px;flex:1;min-width:180px" placeholder="Afati (p.sh. 1 vit — ose lere bosh)" /><label style="display:flex;align-items:center;gap:6px"><input type="checkbox" class="prok-subdel" /> Lejo nën-delegim</label></div>' +
+      '<textarea class="ac-ta" placeholder="Të dhënat: i përfaqësuari (emër, atësi, ID), përfaqësuesi (emër, ID), pasuria/shoqëria nëse ka… (ato që s’i ke do vihen [___])"></textarea>' +
+      '<div class="ac-row"><button class="ac-run" type="button">Harto prokurën →</button><span class="ac-status"></span></div>' +
+      '<div class="ac-result"></div>' +
+      "</div>";
+    document.body.appendChild(ov);
+    var forms = ov.querySelector(".prok-forms"), scopesBox = ov.querySelector(".prok-scopes"),
+        ta = ov.querySelector(".ac-ta:not(.prok-dur)") || ov.querySelectorAll(".ac-ta")[1],
+        dur = ov.querySelector(".prok-dur"), subdel = ov.querySelector(".prok-subdel"),
+        run = ov.querySelector(".ac-run"), status = ov.querySelector(".ac-status"),
+        result = ov.querySelector(".ac-result");
+    function close() { ov.remove(); }
+    ov.querySelector(".ac-x").onclick = close;
+    ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
+    var data = { forms: [], scopes: [] };
+    try { var r = await fetch("/api/notary/prokura-scopes"); if (r.ok) data = await r.json(); } catch (e) {}
+    forms.innerHTML = '<b>Forma:</b><div style="margin-top:6px">' + (data.forms || []).map(function (f, i) {
+      return '<label style="display:block;margin:3px 0"><input type="radio" name="prokform" value="' + f.key + '"' +
+        (f.key === "e_posacme" ? " checked" : "") + '> ' + escapeHtml(f.label) + '</label>';
+    }).join("") + '</div>';
+    scopesBox.innerHTML = '<b>Tagrat / qëllimet (zgjidh një ose disa):</b><div class="prok-scope-grid" style="margin-top:6px;display:grid;grid-template-columns:1fr 1fr;gap:2px 14px">' +
+      (data.scopes || []).map(function (sc) {
+        return '<label style="display:flex;gap:6px;align-items:flex-start;font-size:13px"><input type="checkbox" class="prok-sc" value="' + sc.key + '"> ' + escapeHtml(sc.label) + '</label>';
+      }).join("") + '</div>';
+    run.onclick = async function () {
+      var form = (ov.querySelector('input[name="prokform"]:checked') || {}).value || "e_posacme";
+      var scope_keys = Array.prototype.map.call(ov.querySelectorAll(".prok-sc:checked"), function (c) { return c.value; });
+      var details = (ta.value || "").trim();
+      if (form === "e_posacme" && !scope_keys.length) { status.textContent = "Zgjidh të paktën një tager (ose forma e përgjithshme)."; return; }
+      if (details.length < 10) { status.textContent = "Jep të dhënat e palëve."; return; }
+      run.disabled = true; status.textContent = "Po harton prokurën… (~2-3 min)"; result.innerHTML = "";
+      try {
+        var r = await fetch("/api/notary/prokura", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ form: form, scope_keys: scope_keys, details: details, duration: (dur.value || "").trim(), subdelegation: !!subdel.checked }) });
+        var d = await r.json();
+        if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
+        status.textContent = "";
+        result.innerHTML = '<div class="fd-out"></div>';
+        var out = result.querySelector(".fd-out");
+        out.innerHTML = renderMarkdown(d.markdown || "");
+        if (d.citations) highlightNeni(out, buildCitStatusMap(d.citations));
+        if (d.citations && d.citations.stats && d.citations.stats.total > 0) result.insertBefore(renderCitationsBadge(d.citations, null), out);
+        var copy = document.createElement("button"); copy.className = "fd-copy"; copy.type = "button"; copy.textContent = "📋 Kopjo tekstin";
+        copy.onclick = function () { navigator.clipboard.writeText(d.markdown || "").then(function () { copy.textContent = "✓ U kopjua"; }).catch(function () {}); };
+        result.appendChild(copy);
+        _addSaveToCase(result, "notary", "Prokurë", d.markdown || "");
+      } catch (e) { status.textContent = "Gabim: " + e.message; }
+      finally { run.disabled = false; }
+    };
+    setTimeout(function () { ta.focus(); }, 50);
+  }
+
+  async function openDeclaration() {
+    var ov = document.getElementById("ndecl-ov");
+    if (ov) ov.remove();
+    ov = document.createElement("div");
+    ov.id = "ndecl-ov"; ov.className = "ac-overlay";
+    ov.innerHTML = '<div class="ac-modal">' +
+      '<div class="ac-head"><span>✍️ Deklaratë noteriale</span><button class="ac-x" type="button" aria-label="Mbyll">×</button></div>' +
+      '<div class="ac-sub">Zgjidh llojin e deklaratës dhe jep të dhënat. Merr një deklaratë të plotë (çdo nen kalon nga Verifikuar). Noteri e verifikon dhe e nënshkruan.</div>' +
+      '<select class="fd-kind ndecl-kind"></select>' +
+      '<div class="ndecl-must nd-must"></div>' +
+      '<textarea class="ac-ta" placeholder="Jep të dhënat: deklaruesi, i mituri/objekti, periudha… (ato që s’i ke do vihen [___])"></textarea>' +
+      '<div class="ac-row"><button class="ac-run" type="button">Harto deklaratën →</button><span class="ac-status"></span></div>' +
+      '<div class="ac-result"></div>' +
+      "</div>";
+    document.body.appendChild(ov);
+    var kind = ov.querySelector(".ndecl-kind"), must = ov.querySelector(".ndecl-must"),
+        ta = ov.querySelector(".ac-ta"), run = ov.querySelector(".ac-run"),
+        status = ov.querySelector(".ac-status"), result = ov.querySelector(".ac-result");
+    function close() { ov.remove(); }
+    ov.querySelector(".ac-x").onclick = close;
+    ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
+    var types = [];
+    try { var r = await fetch("/api/notary/declaration-types"); if (r.ok) types = (await r.json()).types || []; } catch (e) {}
+    kind.innerHTML = types.map(function (t) { return '<option value="' + t.key + '">' + t.emoji + ' ' + escapeHtml(t.label) + '</option>'; }).join("");
+    function showMust() {
+      var t = types.filter(function (x) { return x.key === kind.value; })[0];
+      must.innerHTML = t ? '<div class="nd-must-box"><b>Elementet e detyrueshme:</b><ul>' +
+        (t.must || []).map(function (m) { return '<li>' + escapeHtml(m) + '</li>'; }).join("") + '</ul></div>' : "";
+    }
+    kind.onchange = showMust; showMust();
+    run.onclick = async function () {
+      var details = (ta.value || "").trim();
+      if (details.length < 10) { status.textContent = "Jep të dhënat."; return; }
+      run.disabled = true; status.textContent = "Po harton deklaratën… (~2 min)"; result.innerHTML = "";
+      try {
+        var r = await fetch("/api/notary/declaration", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ decl_type: kind.value, details: details }) });
+        var d = await r.json();
+        if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
+        status.textContent = "";
+        result.innerHTML = '<div class="fd-out"></div>';
+        var out = result.querySelector(".fd-out");
+        out.innerHTML = renderMarkdown(d.markdown || "");
+        if (d.citations) highlightNeni(out, buildCitStatusMap(d.citations));
+        if (d.citations && d.citations.stats && d.citations.stats.total > 0) result.insertBefore(renderCitationsBadge(d.citations, null), out);
+        var copy = document.createElement("button"); copy.className = "fd-copy"; copy.type = "button"; copy.textContent = "📋 Kopjo tekstin";
+        copy.onclick = function () { navigator.clipboard.writeText(d.markdown || "").then(function () { copy.textContent = "✓ U kopjua"; }).catch(function () {}); };
+        result.appendChild(copy);
+        _addSaveToCase(result, "notary", "Deklaratë: " + (kind.options[kind.selectedIndex] ? kind.options[kind.selectedIndex].text : ""), d.markdown || "");
+      } catch (e) { status.textContent = "Gabim: " + e.message; }
+      finally { run.disabled = false; }
+    };
+    setTimeout(function () { ta.focus(); }, 50);
+  }
+
+  function openDocsChecklist() {
+    _openFableTool({ id: "ndocs-ov", title: "📋 Dokumentet e nevojshme",
+      sub: "Përshkruaj aktin/shërbimin noterial. Merr listën e plotë të dokumenteve që duhet të sjellë klienti dhe kush i lëshon.",
+      placeholder: "P.sh. Kontratë shitje apartamenti mes dy personave fizikë…",
+      btn: "Listo dokumentet →", loading: "Po përgatis listën…",
+      endpoint: "/api/notary/documents", payloadKey: "act", attach: false, source: "notary", saveTitle: "Dokumentet e nevojshme" });
+  }
+
+  function openRevocation() {
+    _openFableTool({ id: "nrev-ov", title: "♻️ Revokim prokure",
+      sub: "Përshkruaj (ose ngjit) prokurën që do të revokohet dhe të dhënat e palëve. Merr aktin e revokimit, gati për noterizim, me njoftimet e detyrueshme ndaj të tretëve (neni 74 KC).",
+      placeholder: "P.sh. Revokoj prokurën nr. ___ rep., datë __.__.____, hartuar te noteri ___, dhënë përfaqësuesit ___ (ID ___), për shitje pasurie…",
+      btn: "Harto revokimin →", loading: "Po harton revokimin… (~2 min)",
+      endpoint: "/api/notary/revocation", payloadKey: "details", attach: true, source: "notary", saveTitle: "Revokim prokure" });
+  }
+
+  async function openConflictCheck() {
+    var ov = document.getElementById("nconf-ov");
+    if (ov) ov.remove();
+    ov = document.createElement("div");
+    ov.id = "nconf-ov"; ov.className = "ac-overlay";
+    var hasCase = !!activeCaseId;
+    ov.innerHTML = '<div class="ac-modal">' +
+      '<div class="ac-head"><span>🚦 Kontroll konfliktesh</span><button class="ac-x" type="button" aria-label="Mbyll">×</button></div>' +
+      '<div class="ac-sub">Krahason aktin e ri me aktet e ruajtura më parë të të njëjtit rast/klient dhe gjen konfliktet (dy prokura që japin të njëjtin tager, akte kontradiktore, prokurë e revokuar që përdoret ende…).' +
+        (hasCase ? '' : ' <b>⚠️ Hap një rast me akte të ruajtura që krahasimi të ketë kuptim.</b>') + '</div>' +
+      '<div class="ac-attach-row"><label class="ac-attach">📎 Bashkëngjit PDF/foto<input type="file" class="nconf-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.svg,.tif,.tiff" hidden></label></div>' +
+      '<textarea class="ac-ta" placeholder="Ngjit tekstin e plotë të AKTIT TË RI që do të noterizohet…"></textarea>' +
+      '<div class="ac-row"><button class="ac-run" type="button">Kontrollo konfliktet →</button><span class="ac-status"></span></div>' +
+      '<div class="ac-result"></div>' +
+      "</div>";
+    document.body.appendChild(ov);
+    var ta = ov.querySelector(".ac-ta"), run = ov.querySelector(".ac-run"),
+        status = ov.querySelector(".ac-status"), result = ov.querySelector(".ac-result"),
+        file = ov.querySelector(".nconf-file");
+    function close() { ov.remove(); }
+    ov.querySelector(".ac-x").onclick = close;
+    ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
+    if (file) file.onchange = async function () {
+      var f = file.files && file.files[0]; if (!f) return; run.disabled = true;
+      try { var dd = await _extractFileText(f, status); var tx = (dd.text || "").trim();
+        if (tx) { ta.value = ta.value.trim() ? (ta.value.trim() + "\n\n" + tx) : tx;
+          status.textContent = dd.used_vision_ocr ? "✓ Lexuar me OCR" : "✓ Dokumenti u lexua"; } }
+      catch (e) { status.textContent = "Gabim: " + e.message; } finally { run.disabled = false; file.value = ""; }
+    };
+    run.onclick = async function () {
+      var newAct = (ta.value || "").trim();
+      if (newAct.length < 20) { status.textContent = "Ngjit aktin e ri."; return; }
+      run.disabled = true; status.textContent = "Po kontrolloj konfliktet… (~2-3 min)"; result.innerHTML = "";
+      try {
+        var r = await fetch("/api/notary/conflicts", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ case_id: activeCaseId || "", new_act: newAct }) });
+        var d = await r.json();
+        if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
+        status.textContent = "";
+        result.innerHTML = '<div class="fd-out"></div>';
+        var out = result.querySelector(".fd-out");
+        out.innerHTML = renderMarkdown(d.markdown || "");
+        if (d.citations) highlightNeni(out, buildCitStatusMap(d.citations));
+        _addSaveToCase(result, "notary", "Kontroll konfliktesh", d.markdown || "");
+      } catch (e) { status.textContent = "Gabim: " + e.message; }
+      finally { run.disabled = false; }
+    };
+    setTimeout(function () { ta.focus(); }, 50);
+  }
+
+  function openProsPlan() {
+    _openFableTool({ id: "pplan-ov", title: "🔎 Plani i hetimit",
+      sub: "Nga kallëzimi ose faktet, merr një plan hetimi: hipotezat, veprimet hetimore, kush të pyetet, afatet dhe objektiviteti. Prokurori vendos.",
+      placeholder: "Përshkruaj kallëzimin / faktet e çështjes…",
+      btn: "Ndërto planin →", loading: "Po ndërtoj planin e hetimit… (~3 min)",
+      endpoint: "/api/prosecutor/investigation-plan", payloadKey: "facts", attach: true, source: "prosecutor", saveTitle: "Plani i hetimit" });
+  }
+
+  function openProsMeasure() {
+    _openFableTool({ id: "pmeas-ov", title: "🔒 Kërkesë për masë sigurimi",
+      sub: "Harton projekt-kërkesën (fumus + periculum + proporcionalitet). ⚠️ Vetëm projekt — gjykata vendos; nuk rekomandohet arresti si i sigurt.",
+      placeholder: "Faktet, vepra, dyshimi i arsyeshëm, rreziqet konkrete…",
+      btn: "Harto kërkesën →", loading: "Po harton kërkesën për masë… (~3 min)",
+      endpoint: "/api/prosecutor/coercive-measure", payloadKey: "facts", attach: true, source: "prosecutor", saveTitle: "Kërkesë për masë sigurimi" });
+  }
+
+  function openProsDismissal() {
+    _openFableTool({ id: "pdism-ov", title: "🗄️ Kërkesë për pushim / mosfillim",
+      sub: "Harton projekt-vendimin e arsyetuar për pushim ose mosfillim. Vendimi i takon prokurorit.",
+      placeholder: "Faktet dhe pse nuk ka vend për ndjekje…",
+      btn: "Harto projektin →", loading: "Po harton… (~3 min)",
+      endpoint: "/api/prosecutor/dismissal", payloadKey: "facts", attach: true, source: "prosecutor", saveTitle: "Pushim / Mosfillim" });
+  }
+
+  function openProsStress() {
+    _openFableTool({ id: "pstress-ov", title: "🛡️ Stres-test i aktit (ana e mbrojtjes)",
+      sub: "Ngjit një akt të prokurorisë (aktakuzë, kërkesë mase, analizë). Gjen dobësitë, pavlefshmëritë procedurale dhe provat shfajësuese para paraqitjes.",
+      placeholder: "Ngjit tekstin e plotë të aktit…",
+      btn: "Testo aktin →", loading: "Po e stres-testoj… (~2-3 min)",
+      endpoint: "/api/prosecutor/stress-test", payloadKey: "text", attach: true, source: "prosecutor", saveTitle: "Stres-test i aktit" });
+  }
+
+  function openProsComplaint() {
+    _openFableTool({ id: "pcompl-ov", title: "🧾 Ndihmë për kallëzim penal",
+      sub: "Nga rrëfimi yt, merr një kallëzim të plotë, ku dorëzohet (Prokuroria vs SPAK) dhe dokumentet për t'u bashkangjitur. Ndihmesë, jo këshillë ligjore.",
+      placeholder: "Trego çfarë të ndodhi: kush, çfarë, kur, ku, çfarë dëmi, çfarë provash ke…",
+      btn: "Përgatit kallëzimin →", loading: "Po përgatis kallëzimin… (~2-3 min)",
+      endpoint: "/api/prosecutor/complaint", payloadKey: "facts", attach: true, source: "prosecutor", saveTitle: "Kallëzim penal" });
+  }
+
+  function openProsVictim() {
+    _openFableTool({ id: "pvict-ov", title: "⚖️ Të drejtat e viktimës",
+      sub: "Shpjegim i thjeshtë i të drejtave (neni 58 KPP) dhe i fazave të procesit për të dëmtuarin.",
+      placeholder: "Përshkruaj situatën tënde…",
+      btn: "Shpjego →", loading: "Po përgatis shpjegimin…",
+      endpoint: "/api/prosecutor/victim-rights", payloadKey: "facts", attach: false, source: "prosecutor", saveTitle: "Të drejtat e viktimës" });
+  }
+
+  function openProsAppeal() {
+    _openFableTool({ id: "pappeal-ov", title: "📤 Ankim kundër pushimit",
+      sub: "Deshifron një vendim pushimi/mosfillimi dhe harton ankimin drejtuar gjykatës. ⚠️ Afatet janë vendimtare — verifikoji.",
+      placeholder: "Përshkruaj ose ngjit vendimin e pushimit/mosfillimit…",
+      btn: "Harto ankimin →", loading: "Po harton ankimin… (~2-3 min)",
+      endpoint: "/api/prosecutor/dismissal-appeal", payloadKey: "facts", attach: true, source: "prosecutor", saveTitle: "Ankim kundër pushimit", calendar: true, calendarTitle: "Afat ankimi" });
+  }
+
+  function openProsDelay() {
+    _openFableTool({ id: "pdelay-ov", title: "📨 Ankesa për vonesa",
+      sub: "Harton ankesat për vonesa: te prokuroria, te Avokati i Popullit, dhe kërkesë për kopje aktesh.",
+      placeholder: "Prej sa kohësh po vonon, çfarë çështjeje, çfarë ke kërkuar…",
+      btn: "Harto ankesat →", loading: "Po harton ankesat…",
+      endpoint: "/api/prosecutor/delay", payloadKey: "facts", attach: false, source: "prosecutor", saveTitle: "Ankesa për vonesa" });
+  }
+
+  async function openProsAct() {
+    var ov = document.getElementById("pact-ov");
+    if (ov) ov.remove();
+    ov = document.createElement("div");
+    ov.id = "pact-ov"; ov.className = "ac-overlay";
+    ov.innerHTML = '<div class="ac-modal">' +
+      '<div class="ac-head"><span>🧩 Veprime hetimore</span><button class="ac-x" type="button" aria-label="Mbyll">×</button></div>' +
+      '<div class="ac-sub">Zgjidh veprimin dhe jep faktet. Merr kërkesën/urdhrin me bazën ligjore, kushtet dhe arsyetimin (çdo nen kalon nga Verifikuar). Prokurori/gjykata vendos.</div>' +
+      '<select class="fd-kind pact-kind"></select>' +
+      '<div class="ac-attach-row"><label class="ac-attach">📎 Bashkëngjit PDF/foto<input type="file" class="pact-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.svg,.tif,.tiff" hidden></label></div>' +
+      '<textarea class="ac-ta" placeholder="Faktet: çfarë kërkohet, ku/te kush, çfarë prove pritet…"></textarea>' +
+      '<div class="ac-row"><button class="ac-run" type="button">Harto kërkesën →</button><span class="ac-status"></span></div>' +
+      '<div class="ac-result"></div>' +
+      "</div>";
+    document.body.appendChild(ov);
+    var kind = ov.querySelector(".pact-kind"), ta = ov.querySelector(".ac-ta"),
+        run = ov.querySelector(".ac-run"), status = ov.querySelector(".ac-status"),
+        result = ov.querySelector(".ac-result"), file = ov.querySelector(".pact-file");
+    function close() { ov.remove(); }
+    ov.querySelector(".ac-x").onclick = close;
+    ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
+    var kinds = [];
+    try { var r = await fetch("/api/prosecutor/act-kinds"); if (r.ok) kinds = (await r.json()).kinds || []; } catch (e) {}
+    kind.innerHTML = kinds.map(function (k) { return '<option value="' + k.key + '">' + escapeHtml(k.label) + '</option>'; }).join("");
+    if (file) file.onchange = async function () {
+      var f = file.files && file.files[0]; if (!f) return; run.disabled = true;
+      try { var dd = await _extractFileText(f, status); var tx = (dd.text || "").trim();
+        if (tx) { ta.value = ta.value.trim() ? (ta.value.trim() + "\n\n" + tx) : tx;
+          status.textContent = dd.used_vision_ocr ? "✓ Lexuar me OCR" : "✓ Dokumenti u lexua"; } }
+      catch (e) { status.textContent = "Gabim: " + e.message; } finally { run.disabled = false; file.value = ""; }
+    };
+    run.onclick = async function () {
+      var facts = (ta.value || "").trim();
+      if (facts.length < 15) { status.textContent = "Jep faktet."; return; }
+      run.disabled = true; status.textContent = "Po harton kërkesën… (~2-3 min)"; result.innerHTML = "";
+      try {
+        var r = await fetch("/api/prosecutor/investigative-act", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ kind: kind.value, facts: facts }) });
+        var d = await r.json();
+        if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
+        status.textContent = "";
+        result.innerHTML = '<div class="fd-out"></div>';
+        var out = result.querySelector(".fd-out");
+        out.innerHTML = renderMarkdown(d.markdown || "");
+        if (d.citations) highlightNeni(out, buildCitStatusMap(d.citations));
+        if (d.citations && d.citations.stats && d.citations.stats.total > 0) result.insertBefore(renderCitationsBadge(d.citations, null), out);
+        _addSaveToCase(result, "prosecutor", "Veprim hetimor: " + (kind.options[kind.selectedIndex] ? kind.options[kind.selectedIndex].text : ""), d.markdown || "");
+      } catch (e) { status.textContent = "Gabim: " + e.message; }
+      finally { run.disabled = false; }
+    };
+    setTimeout(function () { ta.focus(); }, 50);
+  }
+
+  function _openHub(cfg) {
+    var ov = document.getElementById(cfg.id);
+    if (ov) ov.remove();
+    ov = document.createElement("div");
+    ov.id = cfg.id; ov.className = "ac-overlay";
+    var fns = [], body = "";
+    (cfg.sections || []).forEach(function (sec) {
+      if (sec.label) body += '<div class="hub-sec">' + escapeHtml(sec.label) + '</div>';
+      body += '<div class="exp-grid">';
+      sec.cards.forEach(function (c) {
+        var idx = fns.length; fns.push(c.fn);
+        body += '<button type="button" class="exp-card" data-fn="' + idx + '">' +
+          '<span class="exp-ico">' + c.emoji + '</span>' +
+          '<span class="exp-label">' + escapeHtml(c.label) + '</span>' +
+          (c.tag ? '<span class="exp-dom exp-dom-' + (c.tagKind || "penal") + '">' + escapeHtml(c.tag) + '</span>' : '') +
+          '</button>';
+      });
+      body += '</div>';
+    });
+    ov.innerHTML = '<div class="ac-modal exp-modal">' +
+      '<div class="ac-head"><span>' + cfg.title + '</span><button class="ac-x" type="button" aria-label="Mbyll">×</button></div>' +
+      '<div class="exp-body">' + (cfg.sub ? '<div class="exp-sub">' + cfg.sub + '</div>' : '') + body + '</div>' +
+      '</div>';
+    document.body.appendChild(ov);
+    function close() { ov.remove(); }
+    ov.querySelector(".ac-x").onclick = close;
+    ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
+    Array.prototype.forEach.call(ov.querySelectorAll(".exp-card"), function (b) {
+      b.onclick = function () {
+        var f = fns[parseInt(b.getAttribute("data-fn"), 10)];
+        close();
+        if (typeof f === "function") setTimeout(f, 10);
+      };
+    });
+  }
+
+  function openProsHub() {
+    _openHub({ id: "prohub-ov", title: "🏛️ Super Prokurori",
+      sub: "Vegla për prokurorin dhe për qytetarin. Zgjidh një funksion. Çdo output kalon nga Verifikuar — prokurori/gjykata vendos dhe firmos.",
+      sections: [
+        { label: "— PROKURORI —", cards: [
+          { emoji: "🏛️", label: "Analiza e prokurorit", tag: "analizë", fn: openProsecutor },
+          { emoji: "📜", label: "Aktakuzë", tag: "draft", fn: openIndictment },
+          { emoji: "🔎", label: "Plani i hetimit", tag: "hetim", fn: openProsPlan },
+          { emoji: "🧩", label: "Veprime hetimore", tag: "kërkesë", fn: openProsAct },
+          { emoji: "🔒", label: "Kërkesë për masë sigurimi", tag: "kërkesë", fn: openProsMeasure },
+          { emoji: "🗄️", label: "Pushim / Mosfillim", tag: "projekt", fn: openProsDismissal },
+          { emoji: "🛡️", label: "Stres-test i aktit", tag: "kontroll", fn: openProsStress },
+          { emoji: "⏰", label: "Parashkrimi & afatet", tag: "afat", fn: openPrescription } ] },
+        { label: "— QYTETARI —", cards: [
+          { emoji: "🧾", label: "Ndihmë për kallëzim penal", tag: "qytetar", tagKind: "civil", fn: openProsComplaint },
+          { emoji: "⚖️", label: "Të drejtat e viktimës", tag: "qytetar", tagKind: "civil", fn: openProsVictim },
+          { emoji: "📤", label: "Ankim kundër pushimit", tag: "qytetar", tagKind: "civil", fn: openProsAppeal },
+          { emoji: "📨", label: "Ankesa për vonesa", tag: "qytetar", tagKind: "civil", fn: openProsDelay } ] }
+      ] });
+  }
+
+  function openNoterHub() {
+    _openHub({ id: "noterhub-ov", title: "📜 Super Noteri",
+      sub: "Vegla noteriale: procure, akte, deklarata, kontrolle. Zgjidh një funksion. Çdo nen kalon nga Verifikuar — noteri e verifikon dhe e nënshkruan.",
+      sections: [
+        { label: "— HARTIM —", cards: [
+          { emoji: "📝", label: "Redakto prokurë", tag: "hartim", fn: openProkura },
+          { emoji: "📜", label: "Redakto akt notarial", tag: "hartim", fn: openNotaryDeed },
+          { emoji: "✍️", label: "Deklaratë noteriale", tag: "hartim", fn: openDeclaration } ] },
+        { label: "— KONTROLL & ANALIZË —", cards: [
+          { emoji: "✅", label: "Kontroll vlefshmërie", tag: "kontroll", fn: openNotaryCheck },
+          { emoji: "🚦", label: "Kontroll konfliktesh", tag: "kontroll", fn: openConflictCheck },
+          { emoji: "⚖️", label: "Analizë trashëgimie", tag: "analizë", fn: openNotarySuccession },
+          { emoji: "♻️", label: "Revokim prokure", tag: "akt", fn: openRevocation } ] },
+        { label: "— NDIHMË —", cards: [
+          { emoji: "📋", label: "Dokumentet e nevojshme", tag: "ndihmë", tagKind: "civil", fn: openDocsChecklist },
+          { emoji: "🧮", label: "Tarifat & taksat", tag: "ndihmë", tagKind: "civil", fn: openNotaryFees } ] }
+      ] });
+  }
+
+  function openDeepVerify() {
+    _openFableTool({ id: "dverify-ov", title: "🔬 Verifikim i thellë",
+      sub: "Ngjit një përgjigje ose tekst juridik. Kontrollohet nëse çdo nen i cituar VËRTET e mbështet pohimin — kundrejt tekstit REAL të nenit nga korpusi.",
+      placeholder: "Ngjit tekstin/përgjigjen juridike që do të kontrollohet…",
+      btn: "Verifiko thellë →", loading: "Po kontrolloj çdo pohim kundrejt tekstit real… (~2-3 min)",
+      endpoint: "/api/deep-verify", payloadKey: "text", attach: true, source: "research", saveTitle: "Verifikim i thellë" });
+  }
+
+  function openLawLive() {
+    _openFableTool({ id: "lawlive-ov", title: "🌐 A është ende në fuqi?",
+      sub: "Shkruaj ligjin/nenin. Kontrollohet ONLINE te burimet zyrtare (QBZ / Fletorja Zyrtare) nëse është në fuqi, i ndryshuar apo i shfuqizuar — me burime.",
+      placeholder: "P.sh. Neni 134 i Kodit Penal; ose Ligji nr. 7895, datë 27.1.1995…",
+      btn: "Kontrollo online →", loading: "Po kontrolloj te burimet zyrtare online… (~2-3 min)",
+      endpoint: "/api/law-live", payloadKey: "query", attach: false, source: "research", saveTitle: "Kontroll ligji (live)" });
+  }
+
+  function openLivingHub() {
+    _openHub({ id: "livehub-ov", title: "🟢 Ligj i gjallë",
+      sub: "Besueshmëria — asi ynë: kontrollo që teksti të mbështetet VËRTET nga nenet, dhe që ligji të jetë ENDE në fuqi.",
+      sections: [ { cards: [
+        { emoji: "🔬", label: "Verifikim i thellë", tag: "besueshmëri", tagKind: "civil", fn: openDeepVerify },
+        { emoji: "🌐", label: "A është ende në fuqi?", tag: "live", tagKind: "civil", fn: openLawLive } ] } ] });
+  }
+
+  async function openIntake() {
+    var ov = document.getElementById("intake-ov");
+    if (ov) ov.remove();
+    ov = document.createElement("div");
+    ov.id = "intake-ov"; ov.className = "ac-overlay";
+    ov.innerHTML = '<div class="ac-modal">' +
+      '<div class="ac-head"><span>🎙️ Pika e parë — tregoni problemin</span><button class="ac-x" type="button" aria-label="Mbyll">×</button></div>' +
+      '<div class="ac-sub">Tregoni me fjalët tuaja çfarë ju ndodhi (me zë ose me shkrim). Ju themi nëse ka çështje, sa urgjente është, kush ju ndihmon — dhe ju përgatisim dokumentin e parë. Orientim, jo këshillë përfundimtare.</div>' +
+      '<div class="intake-inrow"><button type="button" class="intake-mic" title="Fol shqip">🎙️</button>' +
+      '<textarea class="ac-ta intake-ta" placeholder="P.sh. Më rrahu një fqinj para 3 ditësh, kam mavijosje dhe një dëshmitar…"></textarea></div>' +
+      '<div class="ac-row"><button class="ac-run" type="button">Më orjento →</button><span class="ac-status"></span></div>' +
+      '<div class="ac-result"></div>' +
+      "</div>";
+    document.body.appendChild(ov);
+    var ta = ov.querySelector(".intake-ta"), run = ov.querySelector(".ac-run"),
+        status = ov.querySelector(".ac-status"), result = ov.querySelector(".ac-result"),
+        mic = ov.querySelector(".intake-mic");
+    function close() { try { if (rec) rec.stop(); } catch (e) {} ov.remove(); }
+    ov.querySelector(".ac-x").onclick = close;
+    ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
+
+    // voice (Web Speech), same pattern as rehearsal
+    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    var rec = null, listening = false;
+    if (!SR) { mic.setAttribute("disabled", ""); mic.title = "Shfletuesi yt nuk e mbështet diktimin."; }
+    else mic.onclick = function () {
+      if (listening) { try { rec.stop(); } catch (e) {} listening = false; mic.classList.remove("listening"); return; }
+      rec = new SR(); rec.lang = "sq-AL"; rec.interimResults = true; rec.continuous = true;
+      var baseline = ta.value;
+      rec.onresult = function (e) {
+        var interim = "", final = "";
+        for (var i = e.resultIndex; i < e.results.length; i++) {
+          var t = e.results[i][0].transcript;
+          if (e.results[i].isFinal) final += t + " "; else interim += t;
+        }
+        if (final) baseline = (baseline ? baseline.trim() + " " : "") + final.trim();
+        ta.value = (baseline + (interim ? " " + interim : "")).trim();
+      };
+      rec.onerror = function () { listening = false; mic.classList.remove("listening"); };
+      rec.onend = function () { if (listening) { try { rec.start(); } catch (e) {} } };
+      try { rec.start(); listening = true; mic.classList.add("listening"); }
+      catch (e) { status.textContent = "S'fillova mikrofonin."; }
+    };
+
+    var ROUTE_MAP = {
+      proscomplaint: ["🧾 Përgatit kallëzimin", openProsComplaint],
+      prosvictim: ["⚖️ Të drejtat e tua", openProsVictim],
+      prosdelay: ["📨 Ankesa për vonesa", openProsDelay],
+      expertise: ["🎯 Analizë e çështjes", openExpertise],
+      noterdeed: ["📜 Redakto akt notarial", openNotaryDeed],
+      noterprokura: ["📝 Redakto prokurë", openProkura],
+      notersucc: ["⚖️ Analizë trashëgimie", openNotarySuccession],
+      devil: ["🔮 Këshillë strategjike", openDevilConsult]
+    };
+
+    run.onclick = async function () {
+      var story = (ta.value || "").trim();
+      if (story.length < 15) { status.textContent = "Tregoni pak më shumë."; return; }
+      if (listening) { try { rec.stop(); } catch (e) {} listening = false; mic.classList.remove("listening"); }
+      run.disabled = true; status.textContent = "Po ju orjentoj… (~1-2 min)"; result.innerHTML = "";
+      try {
+        var r = await fetch("/api/intake/triage", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ story: story }) });
+        var d = await r.json();
+        if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
+        status.textContent = "";
+        result.innerHTML = '<div class="fd-out"></div>';
+        var out = result.querySelector(".fd-out");
+        out.innerHTML = renderMarkdown(d.markdown || "");
+        if (d.citations) highlightNeni(out, buildCitStatusMap(d.citations));
+        if (d.citations && d.citations.stats && d.citations.stats.total > 0) result.insertBefore(renderCitationsBadge(d.citations, null), out);
+        var rt = ROUTE_MAP[d.route];
+        if (rt) {
+          var go = document.createElement("button");
+          go.className = "ac-run intake-go"; go.type = "button";
+          go.textContent = "Vazhdo → " + rt[0];
+          go.onclick = function () {
+            close();
+            setTimeout(function () {
+              rt[1]();
+              setTimeout(function () {
+                var overlays = document.querySelectorAll(".ac-overlay");
+                var last = overlays[overlays.length - 1];
+                var nta = last && last.querySelector(".ac-ta");
+                if (nta && !nta.value) { nta.value = story; }
+              }, 80);
+            }, 10);
+          };
+          result.appendChild(go);
+        }
+        _addSaveToCase(result, "research", "Pika e parë (triazh)", d.markdown || "");
+      } catch (e) { status.textContent = "Gabim: " + e.message; }
+      finally { run.disabled = false; }
+    };
+    setTimeout(function () { ta.focus(); }, 50);
+  }
+
+  function _renderFkTimeline(res) {
+    var h = "";
+    if (res.summary) h += '<div class="fk-sum">' + escapeHtml(res.summary) + '</div>';
+    var ev = res.events || [];
+    if (ev.length) {
+      h += '<ol class="fk-tl">' + ev.map(function (e) {
+        return '<li><span class="fk-date">' + escapeHtml(e.date || "?") + '</span>' +
+          '<div><b>' + escapeHtml(e.type || "") + '</b> — ' + escapeHtml(e.summary || "") +
+          (e.parties && e.parties.length ? '<div class="fk-meta">👥 ' + escapeHtml(e.parties.join(", ")) + '</div>' : "") +
+          (e.source_doc ? '<div class="fk-src">📄 ' + escapeHtml(e.source_doc) + (e.source_excerpt ? ': “' + escapeHtml(e.source_excerpt) + '”' : "") + '</div>' : "") +
+          (e.legal_significance ? '<div class="fk-sig">⚖️ ' + escapeHtml(e.legal_significance) + '</div>' : "") +
+          '</div></li>';
+      }).join("") + '</ol>';
+    }
+    var ct = res.contradictions || [];
+    if (ct.length) {
+      h += '<div class="fk-h">⚔️ Kontradikta (' + ct.length + ')</div>' + ct.map(function (c) {
+        return '<div class="fk-ct fk-' + (c.severity || "medium") + '"><b>' + escapeHtml(c.issue || "") + '</b>' +
+          (c.claims ? '<ul>' + c.claims.map(function (x) { return '<li>' + escapeHtml(x.value || "") + ' — <i>' + escapeHtml(x.source || "") + '</i></li>'; }).join("") + '</ul>' : "") +
+          (c.tactical_note ? '<div class="fk-meta">🎯 ' + escapeHtml(c.tactical_note) + '</div>' : "") + '</div>';
+      }).join("");
+    }
+    var gp = res.gaps || [];
+    if (gp.length) {
+      h += '<div class="fk-h">🕳️ Boshllëqe (' + gp.length + ')</div>' + gp.map(function (g) {
+        return '<div class="fk-gap">' + escapeHtml((g.from || "?") + " → " + (g.to || "?")) + ' (' + (g.duration_days || 0) + ' ditë): ' + escapeHtml(g.concern || "") + '</div>';
+      }).join("");
+    }
+    return h || '<em>Asnjë ngjarje e datuar nuk u gjet.</em>';
+  }
+
+  async function openFascikull() {
+    var ov = document.getElementById("fk-ov");
+    if (ov) ov.remove();
+    ov = document.createElement("div");
+    ov.id = "fk-ov"; ov.className = "ac-overlay";
+    ov.innerHTML = '<div class="ac-modal exp-modal">' +
+      '<div class="ac-head"><span>🗂️ Fashikulli intelligjent</span><button class="ac-x" type="button" aria-label="Mbyll">×</button></div>' +
+      '<div class="exp-body">' +
+        '<div class="exp-sub">Inteligjenca mbi dokumentet e rastit: kronologjia, kush tha çfarë, pyet dokumentet, gjilpëra — të gjitha të bazuara VETËM te dokumentet e ngarkuara [Dok N].</div>' +
+        '<div class="fk-caseinfo"></div>' +
+        '<details class="fk-sec" open><summary>📅 Kronologjia (ngjarje · kontradikta · boshllëqe)</summary>' +
+          '<div class="ac-row"><button class="ac-run fk-tl-btn" type="button">Ndërto/rifresko kronologjinë →</button><span class="ac-status fk-tl-st"></span></div>' +
+          '<div class="ac-result fk-tl-res"></div></details>' +
+        '<details class="fk-sec"><summary>🗣️ Kush tha çfarë (versionet & përplasjet)</summary>' +
+          '<div class="ac-row"><button class="ac-run fk-who-btn" type="button">Harto hartën →</button><span class="ac-status fk-who-st"></span></div>' +
+          '<div class="ac-result fk-who-res"></div></details>' +
+        '<details class="fk-sec"><summary>🔍 Pyet dokumentet</summary>' +
+          '<textarea class="ac-ta fk-ask-ta" placeholder="P.sh. Cila është data e njoftimit dhe kush e nënshkroi?"></textarea>' +
+          '<div class="ac-row"><button class="ac-run fk-ask-btn" type="button">Pyet →</button><span class="ac-status fk-ask-st"></span></div>' +
+          '<div class="ac-result fk-ask-res"></div></details>' +
+        '<details class="fk-sec"><summary>💉 Gjilpëra në kashtë (detajin e mbivështruar)</summary>' +
+          '<div class="ac-row"><button class="ac-run fk-nd-btn" type="button">Gjej gjilpërën →</button><span class="ac-status fk-nd-st"></span></div>' +
+          '<div class="ac-result fk-nd-res"></div></details>' +
+      '</div></div>';
+    document.body.appendChild(ov);
+    function close() { ov.remove(); }
+    ov.querySelector(".ac-x").onclick = close;
+    ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
+    var info = ov.querySelector(".fk-caseinfo");
+    async function refreshInfo() {
+      var txt = "";
+      if (activeCaseId) {
+        try {
+          var rd = await fetch("/api/cases/" + activeCaseId + "/documents");
+          if (rd.ok) {
+            var dj = await rd.json(); var docs = dj.documents || []; var n = docs.length;
+            var ready = docs.filter(function (d) { return (d.status || "") === "ready"; }).length;
+            txt = n ? ('<span class="fk-ok">📎 ' + n + ' dokument(e)' + (ready < n ? (' · ' + (n - ready) + ' në përpunim…') : ' gati') + '</span>')
+                    : '<span class="fk-warn">Asnjë dokument — ngarko për të nisur.</span>';
+          }
+        } catch (e) {}
+      } else {
+        txt = '<span class="fk-warn">Do të krijohet një rast i ri kur të ngarkosh.</span>';
+      }
+      info.innerHTML = '<div class="fk-uprow"><label class="fk-upload">📎 Ngarko dokumente<input type="file" multiple class="fk-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.tif,.tiff,.docx,.txt" hidden></label> ' + txt + '</div>';
+      var fkFile = info.querySelector(".fk-file");
+      if (fkFile) fkFile.onchange = async function () {
+        if (!fkFile.files || !fkFile.files.length) return;
+        var files = [].slice.call(fkFile.files); fkFile.value = "";
+        var lbl = info.querySelector(".fk-upload"); if (lbl) lbl.textContent = "⏳ Po ngarkoj…";
+        try { await uploadFiles(files); } catch (e) {}
+        await refreshInfo();
+      };
+    }
+    await refreshInfo();
+    function _need() { if (!activeCaseId) { return false; } return true; }
+    function _render(res, box, md) {
+      if (!md || !String(md).trim()) {
+        box.innerHTML = '<div class="fk-warn">📎 Nuk ka dokumente të gatshme në këtë dosje. Ngarko dokumente te dosja (📎) dhe prit sa të përpunohen — pastaj kjo vegël i analizon.</div>';
+        return;
+      }
+      box.innerHTML = '<div class="fd-out"></div>';
+      var out = box.querySelector(".fd-out");
+      out.innerHTML = renderMarkdown(md || "");
+      if (res && res.citations) { highlightNeni(out, buildCitStatusMap(res.citations));
+        if (res.citations.stats && res.citations.stats.total > 0) box.insertBefore(renderCitationsBadge(res.citations, null), out); }
+      _addSaveToCase(box, "research", "Fashikull", md || "");
+    }
+    // Kronologjia — try cached, then build on click
+    var tlBtn = ov.querySelector(".fk-tl-btn"), tlSt = ov.querySelector(".fk-tl-st"), tlRes = ov.querySelector(".fk-tl-res");
+    if (activeCaseId) { try { var rc = await fetch("/api/cases/" + activeCaseId + "/timeline");
+      if (rc.ok) { var cj = await rc.json(); if (cj.result) { tlRes.innerHTML = _renderFkTimeline(cj.result); tlSt.textContent = "e ruajtur"; } } } catch (e) {} }
+    tlBtn.onclick = async function () {
+      if (!_need()) { tlSt.textContent = "Hap një rast."; return; }
+      tlBtn.disabled = true; tlSt.textContent = "Po lexoj dokumentet dhe ndërtoj kronologjinë… (~1-2 min)";
+      try {
+        var r = await fetch("/api/cases/" + activeCaseId + "/timeline", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+        var d = await r.json(); if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
+        tlRes.innerHTML = _renderFkTimeline(d.result || {});
+        tlSt.textContent = "✓ " + ((d.result && d.result.event_count) || 0) + " ngjarje · " + ((d.result && (d.result.contradictions || []).length) || 0) + " kontradikta";
+      } catch (e) { tlSt.textContent = "Gabim: " + e.message; } finally { tlBtn.disabled = false; }
+    };
+    // Kush tha çfarë
+    var whoBtn = ov.querySelector(".fk-who-btn"), whoSt = ov.querySelector(".fk-who-st"), whoRes = ov.querySelector(".fk-who-res");
+    whoBtn.onclick = async function () {
+      if (!_need()) { whoSt.textContent = "Hap një rast."; return; }
+      whoBtn.disabled = true; whoSt.textContent = "Po hartoj kush-tha-çfarë… (~2 min)";
+      try {
+        var r = await fetch("/api/cases/" + activeCaseId + "/who-said", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+        var d = await r.json(); if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
+        whoSt.textContent = ""; _render(d, whoRes, d.markdown);
+      } catch (e) { whoSt.textContent = "Gabim: " + e.message; } finally { whoBtn.disabled = false; }
+    };
+    // Pyet dokumentet
+    var askTa = ov.querySelector(".fk-ask-ta"), askBtn = ov.querySelector(".fk-ask-btn"), askSt = ov.querySelector(".fk-ask-st"), askRes = ov.querySelector(".fk-ask-res");
+    askBtn.onclick = async function () {
+      if (!_need()) { askSt.textContent = "Hap një rast."; return; }
+      var q = (askTa.value || "").trim(); if (q.length < 5) { askSt.textContent = "Shkruaj pyetjen."; return; }
+      askBtn.disabled = true; askSt.textContent = "Po lexoj dokumentet…";
+      try {
+        var r = await fetch("/api/cases/" + activeCaseId + "/vault", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question: q }) });
+        var d = await r.json(); if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
+        askSt.textContent = d.truncated ? ("shfrytëzuar " + d.n_docs + " dok") : "";
+        _render(d, askRes, d.answer);
+      } catch (e) { askSt.textContent = "Gabim: " + e.message; } finally { askBtn.disabled = false; }
+    };
+    // Gjilpëra
+    var ndBtn = ov.querySelector(".fk-nd-btn"), ndSt = ov.querySelector(".fk-nd-st"), ndRes = ov.querySelector(".fk-nd-res");
+    ndBtn.onclick = async function () {
+      if (!_need()) { ndSt.textContent = "Hap një rast."; return; }
+      ndBtn.disabled = true; ndSt.textContent = "Po gjurmoj gjilpërën…";
+      try {
+        var r = await fetch("/api/cases/" + activeCaseId + "/needle", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+        var d = await r.json(); if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
+        ndSt.textContent = ""; _render(d, ndRes, d.markdown);
+      } catch (e) { ndSt.textContent = "Gabim: " + e.message; } finally { ndBtn.disabled = false; }
+    };
+  }
+
+  async function openAfati() {
+    var ov = document.getElementById("afati-ov");
+    if (ov) ov.remove();
+    ov = document.createElement("div");
+    ov.id = "afati-ov"; ov.className = "ac-overlay";
+    ov.innerHTML = '<div class="ac-modal">' +
+      '<div class="ac-head"><span>⏰ Motori i afateve</span><button class="ac-x" type="button" aria-label="Mbyll">×</button></div>' +
+      '<div class="ac-sub">Zgjidh ngjarjen-nisëse dhe datën. Llogariten TË GJITHA afatet procedurale që lindin, të bazuara në nenet reale (kur teksti s’jep numër, të thotë ta verifikosh). Pastaj i shton në kalendar me një klik. Profesionisti konfirmon.</div>' +
+      '<div class="ac-row" style="gap:8px;flex-wrap:wrap">' +
+        '<select class="fd-kind afati-trig" style="flex:1;min-width:200px"></select>' +
+        '<label style="display:flex;align-items:center;gap:6px">Data e ngjarjes <input type="date" class="afati-date"></label>' +
+      '</div>' +
+      '<textarea class="ac-ta afati-ta" placeholder="Detaje (opsionale): p.sh. arrestim në flagrancë për vjedhje; vendimi u njoftua sot…"></textarea>' +
+      '<div class="ac-row"><button class="ac-run afati-run" type="button">Llogarit afatet →</button><span class="ac-status afati-st"></span></div>' +
+      '<div class="ac-result afati-res"></div>' +
+      "</div>";
+    document.body.appendChild(ov);
+    var trig = ov.querySelector(".afati-trig"), date = ov.querySelector(".afati-date"),
+        ta = ov.querySelector(".afati-ta"), run = ov.querySelector(".afati-run"),
+        status = ov.querySelector(".afati-st"), result = ov.querySelector(".afati-res");
+    function close() { ov.remove(); }
+    ov.querySelector(".ac-x").onclick = close;
+    ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
+    var triggers = [];
+    try { var r = await fetch("/api/afati/triggers"); if (r.ok) triggers = (await r.json()).triggers || []; } catch (e) {}
+    trig.innerHTML = triggers.map(function (t) { return '<option value="' + t.key + '">' + escapeHtml(t.label) + '</option>'; }).join("");
+    run.onclick = async function () {
+      run.disabled = true; status.textContent = "Po llogaris afatet… (~2 min)"; result.innerHTML = "";
+      try {
+        var r = await fetch("/api/afati/compute", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ trigger: trig.value, event_date: date.value || "", facts: (ta.value || "").trim() }) });
+        var d = await r.json();
+        if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
+        status.textContent = "";
+        result.innerHTML = '<div class="fd-out"></div>';
+        var out = result.querySelector(".fd-out");
+        out.innerHTML = renderMarkdown(d.markdown || "");
+        if (d.citations) highlightNeni(out, buildCitStatusMap(d.citations));
+        if (d.citations && d.citations.stats && d.citations.stats.total > 0) result.insertBefore(renderCitationsBadge(d.citations, null), out);
+        var afatet = d.afatet || [];
+        if (afatet.length) {
+          var box = document.createElement("div");
+          box.className = "afati-cal";
+          box.innerHTML = '<div class="afati-cal-h">📅 Shto në kalendar (kontrollo datat para se t’i ruash):</div>' +
+            afatet.map(function (a, i) {
+              return '<label class="afati-cal-row"><input type="checkbox" class="afati-cb" data-i="' + i + '" checked> ' +
+                '<input type="date" class="afati-cd" data-i="' + i + '" value="' + escapeHtml(a.date) + '"> ' +
+                '<span>' + escapeHtml(a.title) + '</span></label>';
+            }).join("") +
+            '<div class="ac-row"><button type="button" class="ac-run afati-add">➕ Shto të zgjedhurat në kalendar</button><span class="ac-status afati-add-st"></span></div>';
+          result.appendChild(box);
+          var addBtn = box.querySelector(".afati-add"), addSt = box.querySelector(".afati-add-st");
+          addBtn.onclick = async function () {
+            if (!activeCaseId) { addSt.textContent = "Hap ose krijo një rast që t’i ruash."; return; }
+            var rows = box.querySelectorAll(".afati-cb");
+            var todo = [];
+            Array.prototype.forEach.call(rows, function (cb) {
+              if (!cb.checked) return;
+              var i = cb.getAttribute("data-i");
+              var dd = box.querySelector('.afati-cd[data-i="' + i + '"]').value;
+              if (dd) todo.push({ title: afatet[i].title, date: dd });
+            });
+            if (!todo.length) { addSt.textContent = "Zgjidh të paktën një afat me datë."; return; }
+            addBtn.disabled = true; addSt.textContent = "Duke ruajtur…";
+            var ok = 0;
+            for (var j = 0; j < todo.length; j++) {
+              try {
+                var rr = await fetch("/api/events", { method: "POST", headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ title: todo[j].title, kind: "afat", starts_at: todo[j].date + "T09:00:00",
+                    case_id: activeCaseId, reminders: [43200, 10080, 1440] }) });
+                if (rr.ok) ok++;
+              } catch (e) {}
+            }
+            addSt.textContent = "✓ U shtuan " + ok + "/" + todo.length + " afate (me alarm 30/7/1 ditë para)";
+            addBtn.disabled = false;
+          };
+        }
+        _addSaveToCase(result, "research", "Afatet procedurale", d.markdown || "");
+      } catch (e) { status.textContent = "Gabim: " + e.message; }
+      finally { run.disabled = false; }
+    };
+    setTimeout(function () { trig.focus(); }, 50);
+  }
+
+  function initModeBar() {
+    var bar = document.getElementById("mode-bar");
+    if (!bar) return;
+    var FN = {
+      openExpertise: openExpertise, openProsecutor: openProsecutor,
+      openFableDraft: openFableDraft, openDevilConsult: openDevilConsult,
+      openAdversary: openAdversary, openNotaryDeed: openNotaryDeed,
+      openNotaryCheck: openNotaryCheck, openNotarySuccession: openNotarySuccession,
+      openIndictment: openIndictment, openPrescription: openPrescription,
+      openNotaryFees: openNotaryFees,
+      openProkura: openProkura, openDeclaration: openDeclaration, openDocsChecklist: openDocsChecklist,
+      openRevocation: openRevocation, openConflictCheck: openConflictCheck,
+      openIntake: openIntake, openFascikull: openFascikull, openAfati: openAfati,
+      openProsHub: openProsHub, openNoterHub: openNoterHub, openLivingHub: openLivingHub,
+      openProsPlan: openProsPlan, openProsAct: openProsAct, openProsMeasure: openProsMeasure,
+      openProsDismissal: openProsDismissal, openProsStress: openProsStress,
+      openProsComplaint: openProsComplaint, openProsVictim: openProsVictim,
+      openProsAppeal: openProsAppeal, openProsDelay: openProsDelay,
+      openAbuzimPolicor: function () { openExpertise("abuzim_policor"); }
+    };
+    var LABELS = { avokat: "\u2696\ufe0f Avokat", prokuror: "\ud83c\udfdb\ufe0f Prokuror", noter: "\ud83d\udcdc Noter" };
+    var TOOLS = {
+      avokat: [["\ud83c\udfaf Modele Ekspertize", "openExpertise"], ["\ud83d\uddc2\ufe0f Fashikulli", "openFascikull"], ["\ud83d\udfe2 Ligj i gjall\u00eb", "openLivingHub"]],
+      prokuror: [["\ud83c\udfdb\ufe0f Super Prokurori", "openProsHub"], ["\ud83c\udfaf Modele Ekspertize", "openExpertise"], ["\ud83d\udfe2 Ligj i gjall\u00eb", "openLivingHub"]],
+      noter: [["\ud83d\udcdc Super Noteri", "openNoterHub"], ["\ud83d\uddc2\ufe0f Fashikulli", "openFascikull"], ["\ud83d\udfe2 Ligj i gjall\u00eb", "openLivingHub"]]
+    };
+    var _INTAKE = ["\ud83c\udf99\ufe0f Pika e parë", "openIntake"];
+    ["avokat", "prokuror", "noter"].forEach(function (m) { if (TOOLS[m]) TOOLS[m].unshift(_INTAKE); });
+    var prof = (document.body.dataset.profession || "avokat");
+    var mode = localStorage.getItem("sa_mode") || prof;
+    if (!TOOLS[mode]) mode = "avokat";
+    function render() {
+      var chips = ["avokat", "prokuror", "noter"].map(function (m) {
+        return '<button type="button" class="mode-chip' + (m === mode ? " active" : "") + '" data-mode="' + m + '">' + LABELS[m] + '</button>';
+      }).join("");
+      var tools = (TOOLS[mode] || []).map(function (t, i) {
+        return '<button type="button" class="mode-tool" data-i="' + i + '">' + t[0] + '</button>';
+      }).join("");
+      bar.innerHTML = '<div class="mode-chips">' + chips + '</div><div class="mode-tools">' + tools + '</div>';
+      Array.prototype.forEach.call(bar.querySelectorAll(".mode-chip"), function (b) {
+        b.onclick = function () { mode = b.getAttribute("data-mode"); localStorage.setItem("sa_mode", mode); render(); };
+      });
+      Array.prototype.forEach.call(bar.querySelectorAll(".mode-tool"), function (b) {
+        b.onclick = function () {
+          var t = TOOLS[mode][parseInt(b.getAttribute("data-i"), 10)];
+          var fn = t && FN[t[1]];
+          if (typeof fn === "function") fn();
+        };
+      });
+    }
+    render();
+  }
+
+  function openIndictment() {
+    _openFableTool({ id: "indict-ov", title: "\ud83d\udcdc Aktakuzë (prokuror)",
+      sub: "Përshkruaj faktet. Merr një draft aktakuze të strukturuar (palët, faktet, kualifikimi ligjor, provat, kërkesa), me nene nga korpusi.",
+      placeholder: "Përshkruaj faktet e çështjes penale\u2026",
+      btn: "Harto aktakuzën \u2192", loading: "Po harton aktakuzën\u2026 (~3-4 min)",
+      endpoint: "/api/prosecutor/indictment", payloadKey: "facts", attach: true,
+      source: "prosecutor", saveTitle: "Aktakuzë", calendar: true, calendarTitle: "Afat penal" });
+  }
+
+  function openPrescription() {
+    _openFableTool({ id: "presc-ov", title: "\u23f0 Parashkrimi & afatet",
+      sub: "Përshkruaj veprën ose pretendimin DHE datën. Llogaritet afati i parashkrimit (Kodi Penal neni 66 ose Kodi Civil neni 124+), data e skadimit dhe a ka skaduar sot.",
+      placeholder: "P.sh. Vjedhje e kryer më 03.01.2020… OSE padi civile për dëm më 10.05.2019\u2026",
+      btn: "Llogarit \u2192", loading: "Po llogaris parashkrimin\u2026 (~2-3 min)",
+      endpoint: "/api/deadlines/prescription", payloadKey: "facts", attach: false,
+      source: "deadlines", saveTitle: "Parashkrimi & afatet", calendar: true });
+  }
+
+  function openNotaryFees() {
+    var ov = document.getElementById("fees-ov");
+    if (ov) ov.remove();
+    ov = document.createElement("div");
+    ov.id = "fees-ov"; ov.className = "ac-overlay";
+    function inp(id, label, val, hint) {
+      return '<label class="fee-lbl">' + label + (hint ? ' <span class="fee-hint">' + hint + '</span>' : '') +
+        '<input type="number" id="' + id + '" value="' + val + '" min="0"></label>';
+    }
+    ov.innerHTML = '<div class="ac-modal fees-modal">' +
+      '<div class="ac-head"><span>\ud83e\uddee Llogaritës tarifash & taksash</span><button class="ac-x" type="button" aria-label="Mbyll">\u00d7</button></div>' +
+      '<div class="ac-sub">Për shitje/dhurim pasurie të paluajtshme. Tarifat janë të REDAKTUESHME — verifiko vlerat zyrtare aktuale.</div>' +
+      '<div class="fee-grid">' +
+        inp("fee-val", "Vlera e transaksionit (ALL)", 10000000) +
+        inp("fee-m2", "Sipërfaqja (m²)", 80) +
+        inp("fee-buy", "Vlera e blerjes (për tatimin mbi fitimin, ALL)", 7000000) +
+      '</div>' +
+      '<div class="fee-rates"><b>Tarifat (redakto):</b><div class="fee-grid">' +
+        inp("fee-tm2", "Taksa e kalimit — ndërtesë (ALL/m²)", 1000, "Tiranë banim ~1000, tregtar ~2000") +
+        inp("fee-gain", "Tatimi mbi fitimin (%)", 15, "5% me rivlerësim deri 31.12.2026") +
+        inp("fee-reg", "Regjistrimi ASHK (ALL)", 3500) +
+        inp("fee-sub", "Depozitim te ASHK nga noteri (ALL)", 4000) +
+      '</div></div>' +
+      '<div class="fee-result"></div>' +
+      '<details class="fee-fixed"><summary>Tarifa fikse noteriale (referencë)</summary><ul>' +
+        '<li>Prokurë: 3.000 (e posaçme) / 5.000 (e përgjithshme) ALL</li>' +
+        '<li>Testament: 8.000 (zyrë) / 10.000 (shtëpi); depozitim 3.000; hapje 5.000</li>' +
+        '<li>Hipotekë: 2.000–15.000 sipas kredisë</li>' +
+        '<li>Dëshmi trashëgimie: 10.000 (ligjore) / 15.000 (me testament)</li>' +
+        '<li>Themelim shoqërie: 20.000 (sh.p.k.) / 30.000 (sh.a.)</li>' +
+        '<li>Këmbim: 10.000 · Certifikatë pronësie (ASHK): 1.500</li>' +
+      '</ul></details>' +
+      '<div class="fee-warn">\u26a0\ufe0f Vlera TREGUESE. Verifiko: paketa fiskale e bashkisë (taksa/m²), VKM \u00e7mimet e referencës (baza s\u2019mund të jetë nën \u00e7mimin e referencës së zonës), tarifat noteriale 2026, dhe TVSH 20% nëse noteri e aplikon.</div>' +
+      "</div>";
+    document.body.appendChild(ov);
+    ov.querySelector(".ac-x").onclick = function () { ov.remove(); };
+    ov.addEventListener("click", function (e) { if (e.target === ov) ov.remove(); });
+    function num(id) { var v = parseFloat((document.getElementById(id) || {}).value); return isNaN(v) ? 0 : v; }
+    function fmt(n) { return Math.round(n).toLocaleString("de-DE") + " ALL"; }
+    function scale(v) {
+      if (v <= 6000000) return 0.35; if (v <= 15000000) return 0.30;
+      if (v <= 50000000) return 0.28; if (v <= 100000000) return 0.25; return 0.23;
+    }
+    function recompute() {
+      var v = num("fee-val"), m2 = num("fee-m2"), buy = num("fee-buy");
+      var r = scale(v), notary = v * r / 100;
+      var transfer = m2 * num("fee-tm2");
+      var gainBase = Math.max(0, v - buy), gainTax = gainBase * num("fee-gain") / 100;
+      var reg = num("fee-reg") + num("fee-sub");
+      var total = notary + transfer + gainTax + reg;
+      document.querySelector("#fees-ov .fee-result").innerHTML =
+        '<table class="fee-tbl">' +
+        '<tr><td>Tarifa noteriale (' + r + '% e vlerës)</td><td>' + fmt(notary) + '</td></tr>' +
+        '<tr><td>Taksa e kalimit (' + m2 + ' m² × ' + fmt(num("fee-tm2")).replace(" ALL", "") + ')</td><td>' + fmt(transfer) + '</td></tr>' +
+        '<tr><td>Tatimi mbi fitimin (' + num("fee-gain") + '% × ' + fmt(gainBase).replace(" ALL", "") + ')</td><td>' + fmt(gainTax) + '</td></tr>' +
+        '<tr><td>Regjistrim + depozitim (ASHK)</td><td>' + fmt(reg) + '</td></tr>' +
+        '<tr class="fee-total"><td><b>TOTALI</b></td><td><b>' + fmt(total) + '</b></td></tr>' +
+        '</table>';
+    }
+    Array.prototype.forEach.call(ov.querySelectorAll("input"), function (i) { i.addEventListener("input", recompute); });
+    recompute();
+  }
+
+  function _addToCalendar(container, title, md) {
+    if (!container) return;
+    var wrap = document.createElement("div");
+    wrap.className = "cal-wrap";
+    var btn = document.createElement("button");
+    btn.type = "button"; btn.className = "cal-btn";
+    btn.innerHTML = "\ud83d\udcc5 Shto afatin n\u00eb kalendar";
+    var form = document.createElement("div");
+    form.className = "cal-form"; form.hidden = true;
+    // best-effort: pull the last DD.MM.YYYY from the analysis as a default
+    var guess = "";
+    var dates = (md || "").match(/(\d{1,2})[.\/](\d{1,2})[.\/](20\d{2})/g);
+    if (dates && dates.length) {
+      var p = dates[dates.length - 1].split(/[.\/]/);
+      guess = p[2] + "-" + ("0" + p[1]).slice(-2) + "-" + ("0" + p[0]).slice(-2);
+    }
+    form.innerHTML =
+      '<label class="cal-lbl">Data e afatit<input type="date" class="cal-date" value="' + guess + '"></label>' +
+      '<label class="cal-lbl">Titulli<input type="text" class="cal-title" value="' + escapeHtml(title) + '"></label>' +
+      '<div class="cal-row"><button type="button" class="cal-save">Ruaj n\u00eb kalendar</button><span class="cal-status"></span></div>' +
+      '<div class="cal-hint">\u2713 Verifiko dat\u00ebn nga analiza para se ta ruash. Do t\u00eb marr\u00ebsh alarm 30, 7 dhe 1 dit\u00eb para.</div>';
+    btn.addEventListener("click", function () { form.hidden = !form.hidden; });
+    wrap.appendChild(btn); wrap.appendChild(form); container.appendChild(wrap);
+    form.querySelector(".cal-save").addEventListener("click", async function () {
+      var st = form.querySelector(".cal-status");
+      if (!activeCaseId) { st.textContent = "Hap ose krijo nj\u00eb rast q\u00eb ta ruash."; return; }
+      var d = form.querySelector(".cal-date").value;
+      var t = (form.querySelector(".cal-title").value || "Afat").trim();
+      if (!d) { st.textContent = "Zgjidh dat\u00ebn e afatit."; return; }
+      st.textContent = "Duke ruajtur\u2026";
+      try {
+        var r = await fetch("/api/events", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: t, kind: "afat", starts_at: d + "T09:00:00",
+            case_id: activeCaseId, reminders: [43200, 10080, 1440] }),
+        });
+        if (!r.ok) { var e = await r.json().catch(function () { return {}; }); throw new Error(e.error || ("HTTP " + r.status)); }
+        st.textContent = "\u2713 U shtua n\u00eb kalendar (me alarm 30/7/1 dit\u00eb para)";
+      } catch (e) { st.textContent = "Gabim: " + e.message; }
+    });
+  }
+
+  function openActCheck() {
+    var ov = document.getElementById("actcheck-ov");
+    if (ov) ov.remove();
+    ov = document.createElement("div");
+    ov.id = "actcheck-ov"; ov.className = "ac-overlay";
+    ov.innerHTML =
+      '<div class="ac-modal">' +
+        '<div class="ac-head"><span>\ud83d\udee1\ufe0f Kontroll cilësie i aktit</span><button class="ac-x" type="button" aria-label="Mbyll">\u00d7</button></div>' +
+        '<div class="ac-sub">Ngjit tekstin e aktit (padi, ankim, memorie, kontratë). Verifikohen nenet e cituara: inekzistente, të shfuqizuara ose të paqarta \u2014 para depozitimit.</div>' +
+        '<div class="ac-attach-row"><label class="ac-attach">\ud83d\udcce Bashkëngjit PDF/foto<input type="file" class="ac-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.svg,.tif,.tiff" hidden></label><span class="ac-attach-hint">ose ngjit tekstin poshtë</span></div>' +
+        '<textarea class="ac-ta" placeholder="Ngjit këtu tekstin e aktit\u2026"></textarea>' +
+        '<div class="ac-row"><button class="ac-run" type="button">Kontrollo aktin</button><span class="ac-status"></span></div>' +
+        '<div class="ac-result"></div>' +
+      "</div>";
+    document.body.appendChild(ov);
+    var ta = ov.querySelector(".ac-ta"), run = ov.querySelector(".ac-run"),
+        status = ov.querySelector(".ac-status"), result = ov.querySelector(".ac-result");
+    function close() { ov.remove(); }
+    ov.querySelector(".ac-x").onclick = close;
+    ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
+    run.onclick = async function () {
+      var txt = (ta.value || "").trim();
+      if (txt.length < 10) { status.textContent = "Ngjit tekstin e aktit."; return; }
+      run.disabled = true; status.textContent = "Po verifikoj nenet\u2026"; result.innerHTML = "";
+      try {
+        var r = await fetch("/api/act-check", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: txt }) });
+        var d = await r.json();
+        if (!r.ok) throw new Error(d.error || ("HTTP " + r.status));
+        status.textContent = ""; result.innerHTML = _renderActReport(d);
+      } catch (e) { status.textContent = "Gabim: " + e.message; }
+      finally { run.disabled = false; }
+    };
+    var acFile = ov.querySelector(".ac-file");
+    if (acFile) acFile.onchange = async function () {
+      var file = acFile.files && acFile.files[0];
+      if (!file) return;
+      run.disabled = true;
+      try {
+        var d = await _extractFileText(file, status);
+        var t = (d.text || "").trim();
+        if (!t) { status.textContent = "Dokumenti nuk ka tekst të lexueshëm."; }
+        else {
+          ta.value = ta.value.trim() ? (ta.value.trim() + "\n\n" + t) : t;
+          status.textContent = d.used_vision_ocr ? "\u2713 Lexuar me OCR \u2014 kontrollo tekstin" : "\u2713 Dokumenti u lexua";
+        }
+      } catch (e) { status.textContent = "Gabim: " + e.message; }
+      finally { run.disabled = false; acFile.value = ""; }
+    };
+    setTimeout(function () { ta.focus(); }, 50);
+  }
+
   function openProModal(key) {
     const m = PRO_MODALS[key];
     if (!m) return;
@@ -3036,6 +4842,11 @@
     proMenuBtn.setAttribute("aria-expanded", expanded ? "false" : "true");
     proMenu.hidden = expanded;
   });
+  document.getElementById("pro-menu-close")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    proMenu.hidden = true;
+    proMenuBtn.setAttribute("aria-expanded", "false");
+  });
   document.addEventListener("click", (e) => {
     if (!proMenu || proMenu.hidden) return;
     if (proMenu.contains(e.target) || proMenuBtn.contains(e.target)) return;
@@ -3047,7 +4858,39 @@
       const key = btn.getAttribute("data-pro");
       proMenu.hidden = true;
       proMenuBtn.setAttribute("aria-expanded", "false");
-      openProModal(key);
+      if (key === "actcheck") { openActCheck(); }
+      else if (key === "hubpros") { openProsHub(); }
+      else if (key === "hubnoter") { openNoterHub(); }
+      else if (key === "hublive") { openLivingHub(); }
+      else if (key === "intake") { openIntake(); }
+      else if (key === "fascikull") { openFascikull(); }
+      else if (key === "afati") { openAfati(); }
+      else if (key === "expertise") { openExpertise(); }
+      else if (key === "prosecutor") { openProsecutor(); }
+      else if (key === "indictment") { openIndictment(); }
+      else if (key === "prosplan") { openProsPlan(); }
+      else if (key === "prosact") { openProsAct(); }
+      else if (key === "prosmeasure") { openProsMeasure(); }
+      else if (key === "prosdismiss") { openProsDismissal(); }
+      else if (key === "prosstress") { openProsStress(); }
+      else if (key === "proscomplaint") { openProsComplaint(); }
+      else if (key === "prosvictim") { openProsVictim(); }
+      else if (key === "prosappeal") { openProsAppeal(); }
+      else if (key === "prosdelay") { openProsDelay(); }
+      else if (key === "prescription") { openPrescription(); }
+      else if (key === "notaryprokura") { openProkura(); }
+      else if (key === "notarydecl") { openDeclaration(); }
+      else if (key === "notarydocs") { openDocsChecklist(); }
+      else if (key === "notaryrevoke") { openRevocation(); }
+      else if (key === "notaryconflict") { openConflictCheck(); }
+      else if (key === "notarydeed") { openNotaryDeed(); }
+      else if (key === "notarycheck") { openNotaryCheck(); }
+      else if (key === "notarysucc") { openNotarySuccession(); }
+      else if (key === "notaryfees") { openNotaryFees(); }
+      else if (key === "fabledraft") { openFableDraft(); }
+      else if (key === "devilconsult") { openDevilConsult(); }
+      else if (key === "adversary") { openAdversary(); }
+      else { openProModal(key); }
     });
   });
   // modal close wiring (backdrop + × button)
@@ -5180,6 +7023,24 @@
     } catch {}
   }
 
+  const contractFile = document.getElementById("contract-file");
+  contractFile?.addEventListener("change", async () => {
+    const file = contractFile.files && contractFile.files[0];
+    if (!file) return;
+    if (contractRunBtn) contractRunBtn.disabled = true;
+    try {
+      const d = await _extractFileText(file, contractStatus);
+      const t = (d.text || "").trim();
+      if (!t) { contractStatus.textContent = "Dokumenti nuk ka tekst të lexueshëm."; }
+      else {
+        contractSource.value = contractSource.value.trim() ? (contractSource.value.trim() + "\n\n" + t) : t;
+        contractStatus.textContent = d.used_vision_ocr ? "\u2713 Lexuar me OCR \u2014 kontrollo tekstin" : "\u2713 Dokumenti u lexua";
+        if (contractLabel && !contractLabel.value.trim() && d.filename) contractLabel.value = d.filename.replace(/\.[^.]+$/, "").slice(0, 120);
+      }
+    } catch (e) { contractStatus.textContent = "Gabim: " + e.message; }
+    finally { if (contractRunBtn) contractRunBtn.disabled = false; contractFile.value = ""; }
+  });
+
   contractRunBtn?.addEventListener("click", async () => {
     if (!activeCaseId) {
       contractStatus.textContent = "Hap një rast së pari.";
@@ -6481,7 +8342,7 @@
     }
     const topK = parseInt(precTopkEl.value || "5", 10);
     precRunBtn.disabled = true;
-    precStatusEl.textContent = "Po kërkon precedentët, po lexon ratio decidendi, po sintetizon… (~40s)";
+    precStatusEl.textContent = "Po kërkon precedentët, po lexon ratio decidendi, po sintetizon… (~2-4 min — mos e mbyll dritaren, po punon)";
     precStatusEl.className = "pro-status";
     precResultEl.hidden = true;
     try {
@@ -6496,12 +8357,40 @@
         const err = await r.json().catch(() => ({}));
         throw new Error(err.error || `HTTP ${r.status}`);
       }
-      const data = await r.json();
-      renderPrecedentBrief(data.brief || {});
-      const sec = (data.elapsed_ms / 1000).toFixed(1);
-      precStatusEl.textContent = `Gati në ${sec}s ✓ (#${data.brief_id})`;
-      precStatusEl.className = "pro-status ok";
-      loadPrecedentHistory();
+      const started = await r.json();
+      const briefId = started.brief_id;
+      // The analysis runs server-side (~4-6 min). Poll for the result so
+      // we never hold a fragile multi-minute connection open (that dropped
+      // as 'load failed'). A blip on one poll just retries the next.
+      const t0 = Date.now();
+      let done = false;
+      for (let i = 0; i < 200 && !done; i++) {
+        await new Promise((res) => setTimeout(res, 5000));
+        let row;
+        try {
+          const pr = await fetch(`/api/precedent/${briefId}`);
+          if (!pr.ok) continue;
+          row = await pr.json();
+        } catch (_e) { continue; }
+        if (row.status && row.status !== "running") {
+          done = true;
+          renderPrecedentBrief(row.brief || {});
+          const sec = ((row.elapsed_ms || (Date.now() - t0)) / 1000).toFixed(0);
+          precStatusEl.textContent = row.status === "error"
+            ? "Analiza dështoi. Provo përsëri."
+            : `Gati në ${sec}s ✓ (#${briefId})`;
+          precStatusEl.className = row.status === "error" ? "pro-status error" : "pro-status ok";
+          loadPrecedentHistory();
+        } else {
+          const el = Math.round((Date.now() - t0) / 1000);
+          precStatusEl.textContent = `Po analizon precedentët… (${el}s — mos e mbyll)`;
+        }
+      }
+      if (!done) {
+        precStatusEl.textContent = "Po zgjat më shumë — shiko te 'Histori briefe' pas pak.";
+        precStatusEl.className = "pro-status";
+        loadPrecedentHistory();
+      }
     } catch (e) {
       precStatusEl.textContent = "Gabim: " + e.message;
       precStatusEl.className = "pro-status error";
@@ -6571,6 +8460,9 @@
           const link = p.source_url
             ? `<a href="${htmlEsc(p.source_url)}" target="_blank" rel="noopener">burimi ↗</a>`
             : "";
+          const dl = p.download
+            ? `<a class="prec-dl" href="/api/precedent-file?f=${encodeURIComponent(p.download)}" title="Shkarko dokumentin origjinal">📎 Shkarko vendimin</a>`
+            : "";
           return `
             <li class="prec-card">
               <header>
@@ -6582,7 +8474,7 @@
               <footer>
                 ${p.outcome ? `<span class="prec-outcome">${htmlEsc(p.outcome)}</span>` : ""}
                 <span class="prec-score">BM25: ${p.bm25_score ?? "—"}</span>
-                ${link}
+                ${link}${dl}
               </footer>
               ${rel ? `<div class="prec-relevance"><em>${htmlEsc(rel)}</em></div>` : ""}
             </li>`;
@@ -7907,13 +9799,14 @@
       }
       const meId = parseInt(document.body.dataset.userId || "0", 10);
       usersAdminBody.innerHTML = data.items.map((u) => `
-        <tr>
-          <td><strong>${escHtml(u.username)}</strong></td>
+        <tr${u.suspended ? ' style="opacity:.5;"' : ''}>
+          <td><strong>${escHtml(u.username)}</strong>${u.suspended ? ' <span class="admin-badge" style="background:#c0392b;color:#fff;">i çaktivizuar</span>' : ''}</td>
           <td>${u.is_admin ? "👑 Admin" : "👤 User"}</td>
           <td>${u.created_at ? new Date(u.created_at).toLocaleDateString("sq-AL") : "—"}</td>
           <td style="text-align: right; white-space: nowrap;">
-            <button type="button" class="ghost" data-action="passwd" data-uid="${u.id}" data-uname="${escHtml(u.username)}">🔑</button>
-            ${u.id === meId ? "" : `<button type="button" class="ghost" data-action="delete" data-uid="${u.id}" data-uname="${escHtml(u.username)}" style="color:#c66;">🗑</button>`}
+            <button type="button" class="ghost" data-action="passwd" data-uid="${u.id}" data-uname="${escHtml(u.username)}" title="Ndrysho fjalëkalimin">🔑</button>
+            ${u.id === meId ? "" : `<button type="button" class="ghost" data-action="suspend" data-uid="${u.id}" data-uname="${escHtml(u.username)}" data-suspended="${u.suspended ? '1' : '0'}" title="${u.suspended ? 'Riaktivizo aksesin' : 'Çaktivizo aksesin (nuk fshin të dhënat)'}">${u.suspended ? '✅' : '⛔'}</button>`}
+            ${u.id === meId ? "" : `<button type="button" class="ghost" data-action="delete" data-uid="${u.id}" data-uname="${escHtml(u.username)}" title="Fshi përfundimisht" style="color:#c66;">🗑</button>`}
           </td>
         </tr>
       `).join("");
@@ -7940,6 +9833,26 @@
       } else {
         if (typeof toast === "function") toast("Gabim: " + (data.error || r.status), "error");
       }
+    } else if (action === "suspend") {
+      const willSuspend = btn.dataset.suspended !== "1";
+      const verb = willSuspend ? "çaktivizosh" : "riaktivizosh";
+      const note = willSuspend
+        ? "Përdoruesi nuk do të mund të hyjë, por të dhënat e tij ruhen. Mund ta riaktivizosh kur të dojë."
+        : "Përdoruesi do të rifitojë aksesin menjëherë.";
+      if (!confirm(`Të ${verb} përdoruesin '${uname}'?\n\n${note}`)) return;
+      const r = await fetch(`/api/admin/users/${uid}/suspend`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ suspended: willSuspend }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (r.ok) {
+        if (typeof toast === "function")
+          toast(willSuspend ? `'${uname}' u çaktivizua` : `'${uname}' u riaktivizua`, "success");
+        loadAdminUsers();
+      } else {
+        if (typeof toast === "function") toast("Gabim: " + (data.error || r.status), "error");
+      }
     } else if (action === "passwd") {
       const newPw = prompt(`Fjalëkalimi i ri për '${uname}' (min 6 karaktere):`);
       if (!newPw) return;
@@ -7961,6 +9874,26 @@
     }
   });
 
+  document.getElementById("new-firm-btn")?.addEventListener("click", async () => {
+    var nameEl = document.getElementById("new-firm-name");
+    var ownerEl = document.getElementById("new-firm-owner");
+    var st = document.getElementById("new-firm-status");
+    var name = (nameEl.value || "").trim();
+    if (!name) { st.textContent = "Shkruaj emrin e studios."; return; }
+    st.textContent = "Duke krijuar\u2026";
+    try {
+      var r = await fetch("/api/admin/firms", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name, owner_username: (ownerEl.value || "").trim() }),
+      });
+      var d = await r.json();
+      if (!r.ok) throw new Error(d.error || ("HTTP " + r.status));
+      st.textContent = "\u2713 Studio '" + (d.name || name) + "' u krijua (pronar: " + (d.owner || "-") + ")";
+      nameEl.value = ""; ownerEl.value = "";
+      if (typeof toast === "function") toast("Studio u krijua", "success");
+    } catch (e) { st.textContent = "Gabim: " + e.message; }
+  });
+
   newUserBtn?.addEventListener("click", async () => {
     const username = newUserUsername.value.trim().toLowerCase();
     const password = newUserPassword.value;
@@ -7977,7 +9910,7 @@
       const r = await fetch("/api/admin/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password, is_admin: isAdmin }),
+        body: JSON.stringify({ username, password, is_admin: isAdmin, profession: (document.getElementById("new-user-profession") || {}).value || "avokat" }),
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
@@ -8108,3 +10041,5 @@
   renderCaseList();
   loadDailyBrief();
 })();
+
+document.getElementById("logout-fab")?.addEventListener("click", async function(){ try{ await fetch("/api/logout", { method: "POST" }); }catch(e){} window.location.href = "/"; });

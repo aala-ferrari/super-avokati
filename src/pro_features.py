@@ -44,7 +44,8 @@ def _parse_json_block(raw: str) -> dict:
     end = s.rfind("}")
     if start == -1 or end == -1:
         raise ValueError(f"no JSON object in output: {raw[:200]}")
-    return json.loads(s[start : end + 1])
+    blob = re.sub(r",(\s*[}\]])", r"\1", s[start : end + 1])  # tolerate trailing commas
+    return json.loads(blob)
 
 
 def _format_articles_compact(pairs: list[tuple[Article, float]]) -> str:
@@ -486,6 +487,28 @@ def draft_act(
     data.setdefault("petitum", [])
     data.setdefault("cited_articles", [])
     data.setdefault("warnings", [])
+    # A drafted act with no body is worse than an error — it looks finished
+    # and could be filed. Flag it loudly instead of rendering a blank filing.
+    if not (data.get("body_markdown") or "").strip():
+        data["warnings"].insert(
+            0, "\u26a0 Drafti erdhi i paplotë (mungon trupi i aktit) — mos e depozito, riprovo."
+        )
+        data["incomplete"] = True
+    # Verify every article cited in the body against the corpus — a
+    # hallucinated nen inside a filing is a disaster (same shield as answers).
+    try:
+        from .citation_verifier import verify_text as _verify_text
+        _vres = _verify_text(data.get("body_markdown") or "", index)
+        _bad = [c.get("raw") for c in _vres.get("items", [])
+                if c.get("status") in ("fake", "repealed")]
+        if _bad:
+            data["warnings"].insert(
+                0, "\u26a0 Kontrollo këto citime para depozitimit (të pa-verifikuara ose të shfuqizuara): "
+                   + "; ".join(x for x in _bad[:8] if x)
+            )
+            data["citation_flags"] = _bad
+    except Exception:  # noqa: BLE001
+        pass
     data["act_type"] = act_type
     return data
 
@@ -546,7 +569,7 @@ def render_act_docx(draft: dict, out_path: Path) -> Path:
         doc.add_heading("Bazë ligjore e cituar", level=2)
         for c in cited:
             doc.add_paragraph(
-                f"• {c.get('citation') or c.get('code') + ' nr. ' + c.get('number', '')}"
+                f"• {c.get('citation') or ((c.get('code') or '?') + ' nr. ' + (c.get('number') or '?'))}"
             )
 
     out_path.parent.mkdir(parents=True, exist_ok=True)

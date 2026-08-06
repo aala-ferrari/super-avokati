@@ -315,6 +315,36 @@ LEGAL_DOCUMENTS: tuple[LegalDocument, ...] = (
         volatility="STABLE",
         last_amendment_date="2015-11-26",
     ),
+    LegalDocument(
+        code="ligji_policia",
+        title_sq="Ligji nr. 108/2014 «Për Policinë e Shtetit»",
+        title_en="State Police Law",
+        area="Administrativ",
+        url="https://asp.gov.al/wp-content/uploads/2025/08/Ligji-Nr.108.2014-Per-Policine-e-Shtetit.pdf",
+        local_pdf="ligji_policia.pdf",
+        volatility="MEDIUM",
+        last_amendment_date="2017-06-01",
+    ),
+    LegalDocument(
+        code="rregullore_policia",
+        title_sq="Rregullore e Policisë së Shtetit (VKM nr. 750/2015)",
+        title_en="State Police Regulation",
+        area="Administrativ",
+        url="https://www.asp.gov.al/wp-content/uploads/2022/12/Rregullore_PSH.pdf",
+        local_pdf="rregullore_policia.pdf",
+        volatility="MEDIUM",
+        last_amendment_date="2015-09-16",
+    ),
+    LegalDocument(
+        code="ligji_policia_2024",
+        title_sq="Ligji nr. 82/2024 «Për Policinë e Shtetit» (aktual)",
+        title_en="State Police Law 2024",
+        area="Administrativ",
+        url="https://akademiaesigurise.asp.gov.al/wp-content/uploads/2024/08/Ligji-nr.-82-dt.-26.7.2024.pdf",
+        local_pdf="ligji_policia_2024.pdf",
+        volatility="MEDIUM",
+        last_amendment_date="2024-07-26",
+    ),
 )
 
 
