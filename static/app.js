@@ -5125,8 +5125,8 @@
     };
     var LABELS = { avokat: "\u2696\ufe0f Avokat", prokuror: "\ud83c\udfdb\ufe0f Prokuror", noter: "\ud83d\udcdc Noter" };
     var TOOLS = {
-      avokat: [["\ud83c\udfaf Modele Ekspertize", "openExpertise"], ["\ud83d\uddc2\ufe0f Fashikulli", "openFascikull"], ["\ud83d\udfe2 Ligj i gjall\u00eb", "openLivingHub"]],
-      prokuror: [["\ud83c\udfdb\ufe0f Super Prokurori", "openProsHub"], ["\ud83d\uddc2\ufe0f Fashikulli", "openFascikull"], ["\ud83c\udfaf Modele Ekspertize", "openExpertise"], ["\ud83d\udfe2 Ligj i gjall\u00eb", "openLivingHub"]],
+      avokat: [["\ud83c\udfaf Modele Ekspertize", "openExpertise"], ["\ud83d\uddc2\ufe0f Fashikulli", "openFascikull"], ["\u23f0 Afatet", "openAfati"], ["\ud83d\udfe2 Ligj i gjall\u00eb", "openLivingHub"]],
+      prokuror: [["\ud83c\udfdb\ufe0f Super Prokurori", "openProsHub"], ["\ud83d\uddc2\ufe0f Fashikulli", "openFascikull"], ["\u23f0 Afatet", "openAfati"], ["\ud83c\udfaf Modele Ekspertize", "openExpertise"], ["\ud83d\udfe2 Ligj i gjall\u00eb", "openLivingHub"]],
       noter: [["\ud83d\udcdc Super Noteri", "openNoterHub"], ["\ud83d\uddc2\ufe0f Fashikulli", "openFascikull"], ["\ud83d\udfe2 Ligj i gjall\u00eb", "openLivingHub"]]
     };
     var _INTAKE = ["\ud83c\udf99\ufe0f Pika e parë", "openIntake"];
