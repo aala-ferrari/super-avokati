@@ -4416,6 +4416,11 @@
         '<details class="fk-sec"><summary>💉 Gjilpëra në kashtë (detajin e mbivështruar)</summary>' +
           '<div class="ac-row"><button class="ac-run fk-nd-btn" type="button">Gjej gjilpërën →</button><span class="ac-status fk-nd-st"></span></div>' +
           '<div class="ac-result fk-nd-res"></div></details>' +
+        '<details class="fk-sec"><summary>🔎 Regjistri (kërko akte semantik)</summary>' +
+          '<input type="text" class="research-search fk-rg-q" placeholder="🔎 P.sh. dhurime me uzufrukt, ku shfaqet 7/512…" />' +
+          '<label class="ck-dossier"><input type="checkbox" class="fk-rg-case" checked> Vetëm ky rast (çaktivizoje për tërë studion)</label>' +
+          '<div class="ac-row"><button class="ac-run fk-rg-btn" type="button">Kërko →</button><span class="ac-status fk-rg-st"></span></div>' +
+          '<div class="ac-result fk-rg-res"></div></details>' +
       '</div></div>';
     document.body.appendChild(ov);
     function close() { ov.remove(); }
@@ -4510,6 +4515,40 @@
         ndSt.textContent = ""; _render(d, ndRes, d.markdown);
       } catch (e) { ndSt.textContent = "Gabim: " + e.message; } finally { ndBtn.disabled = false; }
     };
+    var rgQ = ov.querySelector(".fk-rg-q"), rgCase = ov.querySelector(".fk-rg-case"),
+        rgBtn = ov.querySelector(".fk-rg-btn"), rgSt = ov.querySelector(".fk-rg-st"), rgRes = ov.querySelector(".fk-rg-res");
+    async function rgGo() {
+      var query = (rgQ.value || "").trim();
+      if (query.length < 2) { rgSt.textContent = "Shkruaj pyetjen."; return; }
+      rgBtn.disabled = true; rgSt.textContent = "Po kërkoj… (~1 min)"; rgRes.innerHTML = "";
+      try {
+        var payload = { query: query };
+        if (rgCase && rgCase.checked && activeCaseId) payload.case_id = activeCaseId;
+        var r = await fetch("/api/registry/search", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        var d = await r.json(); if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
+        rgSt.textContent = "";
+        rgRes.innerHTML = '<div class="fd-out"></div>';
+        rgRes.querySelector(".fd-out").innerHTML = renderMarkdown(d.markdown || "");
+        var matches = d.matches || [];
+        if (matches.length) {
+          var ul = document.createElement("ul"); ul.className = "research-list"; ul.style.marginTop = "10px";
+          matches.forEach(function (it) {
+            var li = document.createElement("li"); li.className = "research-item";
+            var head = document.createElement("div"); head.className = "research-head";
+            head.innerHTML = '<span class="research-src">' + escapeHtml(_srcLabel(it.source)) + '</span>' +
+              (it.client_name ? '<span class="research-cli">👤 ' + escapeHtml(it.client_name) + '</span>' : "") +
+              '<span class="research-ttl">' + escapeHtml(it.title || "") + '</span>';
+            var body = document.createElement("div"); body.className = "research-body"; body.hidden = true;
+            head.addEventListener("click", function () { if (body.hidden) { body.innerHTML = renderMarkdown(it.content || ""); body.hidden = false; } else body.hidden = true; });
+            li.appendChild(head); li.appendChild(body); ul.appendChild(li);
+          });
+          rgRes.appendChild(ul);
+        }
+      } catch (e) { rgSt.textContent = "Gabim: " + e.message; }
+      finally { rgBtn.disabled = false; }
+    }
+    rgBtn.onclick = rgGo;
+    rgQ.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); rgGo(); } });
   }
 
   async function openAfati() {

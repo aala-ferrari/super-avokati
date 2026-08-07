@@ -4496,8 +4496,14 @@ def api_registry_search():
     q = (body.get("query") or "").strip()
     if len(q) < 2:
         return jsonify({"error": "query_required"}), 400
+    case_id = (body.get("case_id") or "").strip()
     acts = []
-    if firm is not None:
+    if case_id and _resolve_case(case_id) is not None:
+        try:
+            acts = storage.list_research(case_id)
+        except Exception:  # noqa: BLE001
+            acts = []
+    elif firm is not None:
         try:
             acts = storage.list_firm_research(firm.id)
         except Exception:  # noqa: BLE001
