@@ -4422,6 +4422,17 @@
           '<label class="ck-dossier"><input type="checkbox" class="fk-rg-case" checked> Vetëm ky rast (çaktivizoje për tërë studion)</label>' +
           '<div class="ac-row"><button class="ac-run fk-rg-btn" type="button">Kërko →</button><span class="ac-status fk-rg-st"></span></div>' +
           '<div class="ac-result fk-rg-res"></div></details>' +
+        '<details class="fk-sec"><summary>🕵️ Ispektor i aktit (revizor senior)</summary>' +
+          '<div class="ac-attach-row"><label class="ac-attach">📎 Bashkëngjit<input type="file" class="fk-isp-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.tif,.tiff,.docx" hidden></label></div>' +
+          '<textarea class="ac-ta fk-isp-ta" placeholder="Ngjit aktin që do të inspektohet (kontratë, akt notarial, padi, aktakuzë…)…"></textarea>' +
+          '<div class="ac-row"><button class="ac-run fk-isp-btn" type="button">Inspekto →</button><span class="ac-status fk-isp-st"></span></div>' +
+          '<div class="ac-result fk-isp-res"></div></details>' +
+        '<details class="fk-sec"><summary>📸 Lexo & mbush (nxjerr të dhënat)</summary>' +
+          '<div class="ac-attach-row"><label class="ac-attach">📎 Bashkëngjit<input type="file" class="fk-ext-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.tif,.tiff,.docx" hidden multiple></label>' +
+            '<label class="ck-dossier"><input type="checkbox" class="fk-ext-case" checked> Nga dokumentet e rastit</label></div>' +
+          '<textarea class="ac-ta fk-ext-ta" placeholder="Ose ngjit tekstin e dokumentit…"></textarea>' +
+          '<div class="ac-row"><button class="ac-run fk-ext-btn" type="button">Nxirr të dhënat →</button><span class="ac-status fk-ext-st"></span></div>' +
+          '<div class="ac-result fk-ext-res"></div></details>' +
       '</div></div>';
     document.body.appendChild(ov);
     function close() { ov.remove(); }
@@ -4550,6 +4561,55 @@
     }
     rgBtn.onclick = rgGo;
     rgQ.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); rgGo(); } });
+    // Ispektor
+    var ispTa = ov.querySelector(".fk-isp-ta"), ispBtn = ov.querySelector(".fk-isp-btn"),
+        ispSt = ov.querySelector(".fk-isp-st"), ispRes = ov.querySelector(".fk-isp-res"), ispFile = ov.querySelector(".fk-isp-file");
+    if (ispFile) ispFile.onchange = async function () {
+      var f = ispFile.files && ispFile.files[0]; if (!f) return; ispBtn.disabled = true;
+      try { var dd = await _extractFileText(f, ispSt); var tx = (dd.text || "").trim();
+        if (tx) ispTa.value = ispTa.value.trim() ? (ispTa.value.trim() + "\n\n" + tx) : tx; }
+      catch (e) {} finally { ispBtn.disabled = false; ispFile.value = ""; }
+    };
+    ispBtn.onclick = async function () {
+      var text = (ispTa.value || "").trim();
+      if (text.length < 30) { ispSt.textContent = "Ngjit aktin."; return; }
+      ispBtn.disabled = true; ispSt.textContent = "Po inspektoj… (~2-3 min)"; ispRes.innerHTML = "";
+      try {
+        var r = await fetch("/api/notary/inspect", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: text, case_id: activeCaseId || "" }) });
+        var d = await r.json(); if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
+        ispSt.textContent = "";
+        ispRes.innerHTML = _riskGauge(d.risk, d.verdict) + '<div class="fd-out"></div>';
+        var out = ispRes.querySelector(".fd-out"); out.innerHTML = renderMarkdown(d.markdown || "");
+        if (d.citations) highlightNeni(out, buildCitStatusMap(d.citations));
+        if (d.citations && d.citations.stats && d.citations.stats.total > 0) ispRes.insertBefore(renderCitationsBadge(d.citations, null), out);
+        _addSaveToCase(ispRes, "notary", "Ispektim akti", (d.risk != null ? ("Rreziku: " + d.risk + "/100\n\n") : "") + (d.markdown || ""));
+      } catch (e) { ispSt.textContent = "Gabim: " + e.message; } finally { ispBtn.disabled = false; }
+    };
+    // Lexo & mbush
+    var extTa = ov.querySelector(".fk-ext-ta"), extCase = ov.querySelector(".fk-ext-case"), extBtn = ov.querySelector(".fk-ext-btn"),
+        extSt = ov.querySelector(".fk-ext-st"), extRes = ov.querySelector(".fk-ext-res"), extFile = ov.querySelector(".fk-ext-file");
+    if (extFile) extFile.onchange = async function () {
+      var files = extFile.files ? [].slice.call(extFile.files) : []; if (!files.length) return; extBtn.disabled = true;
+      if (extCase) extCase.checked = false;
+      for (var i = 0; i < files.length; i++) { try { var dd = await _extractFileText(files[i], extSt); var tx = (dd.text || "").trim(); if (tx) extTa.value = extTa.value.trim() ? (extTa.value.trim() + "\n\n" + tx) : tx; } catch (e) {} }
+      extSt.textContent = "✓ u lexuan"; extBtn.disabled = false; extFile.value = "";
+    };
+    extBtn.onclick = async function () {
+      var text = (extTa.value || "").trim(); var payload = {};
+      if (text) payload.text = text; else if (extCase && extCase.checked && activeCaseId) payload.case_id = activeCaseId;
+      else { extSt.textContent = "Jep tekstin ose zgjidh dokumentet e rastit."; return; }
+      extBtn.disabled = true; extSt.textContent = "Po nxjerr të dhënat… (~1-2 min)"; extRes.innerHTML = "";
+      try {
+        var r = await fetch("/api/notary/extract", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        var d = await r.json(); if (!r.ok || d.error) throw new Error(d.error === "text_required" ? "Nuk ka tekst — bashkëngjit ose përdor dokumentet e rastit." : (d.error || ("HTTP " + r.status)));
+        extSt.textContent = "";
+        extRes.innerHTML = '<div class="fd-out"></div>'; extRes.querySelector(".fd-out").innerHTML = renderMarkdown(d.markdown || "");
+        var cpx = document.createElement("button"); cpx.className = "fd-copy"; cpx.type = "button"; cpx.textContent = "📋 Kopjo";
+        cpx.onclick = function () { navigator.clipboard.writeText(d.markdown || "").then(function () { cpx.textContent = "✓ U kopjua"; }).catch(function () {}); };
+        extRes.appendChild(cpx);
+        _addSaveToCase(extRes, "notary", "Të dhëna të nxjerra", d.markdown || "");
+      } catch (e) { extSt.textContent = "Gabim: " + e.message; } finally { extBtn.disabled = false; }
+    };
   }
 
   async function openAfati() {

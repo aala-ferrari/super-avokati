@@ -4437,6 +4437,14 @@ def api_notary_inspect():
 def api_notary_extract():
     body = request.get_json(silent=True) or {}
     text = (body.get("text") or "").strip()
+    case_id = (body.get("case_id") or "").strip()
+    if not text and case_id and _resolve_case(case_id) is not None:
+        try:
+            ctx, used, _n = vault_mod.build_context(case_id)
+            if used:
+                text = ctx
+        except Exception:  # noqa: BLE001
+            text = ""
     if len(text) < 20:
         return jsonify({"error": "text_required"}), 400
     out, err = _notary_run(notary_mod.extract_data, text=text[:16000])
