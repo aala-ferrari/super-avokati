@@ -36,12 +36,13 @@ _SYSTEM = (
 )
 
 
-def draft(backend, *, kind: str, brief: str, max_tokens: int = 4200) -> dict:
+def draft(backend, *, kind: str, brief: str, clauses_text: str = "", max_tokens: int = 4200) -> dict:
     """Return {"markdown": str} — a drafted document via Fable."""
     label = KINDS.get(kind, KINDS["contract"])
     prompt = (
         "LLOJI I DOKUMENTIT: " + label
         + "\n\nUDH\u00ceZIMET E AVOKATIT:\n" + (brief or "").strip()
+        + (("\n\nKLAUZOLAT E PREFERUARA TE STUDIOS (perdori kur pershtaten, ruaj stilin e studios):\n" + clauses_text) if clauses_text else "")
         + "\n\nHarto dokumentin e plot\u00eb, t\u00eb strukturuar dhe gati p\u00ebr p\u00ebrdorim. "
         + "N\u00ebse citon nene, sigurohu q\u00eb jan\u00eb realë."
     )

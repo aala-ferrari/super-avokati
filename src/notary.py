@@ -726,7 +726,7 @@ def client_comm(backend, index, *, kind, text, max_tokens=2000):
 def what_if(backend, index, *, act, change, max_tokens=2600):
     art_block, arts = _art_block(backend, index, (act or "") + " " + (change or ""), None)
     system = (
-        "Ti je NOTER-ANALIST. Te jepet AKTI aktual (ose parametrat e tij) dhe nje NDRYSHIM qe noteri "
+        "Ti je ANALIST JURIDIK. Te jepet AKTI aktual (kontratë, akt procedural/gjyqësor ose akt notarial) dhe nje NDRYSHIM qe profesionisti "
         "po mendon ('cka nese...'). Analizo IMPAKTIN e ketij ndryshimi — i bazuar te akti, te ndryshimi "
         "dhe te nenet nga korpusi. MOS shpik nene apo shifra taksash. Jep (markdown):\n"
         "### 🔄 Ndryshimi — permblidh shkurt cfare ndryshon\n"

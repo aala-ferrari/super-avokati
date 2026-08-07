@@ -3517,6 +3517,7 @@
         '</select>' +
         '<div class="ac-attach-row"><label class="ac-attach">\ud83d\udcce Bashk\u00ebngjit PDF/foto<input type="file" class="fd-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.svg,.tif,.tiff" hidden></label><span class="ac-attach-hint">ose p\u00ebrshkruaj posht\u00eb</span></div>' +
         '<textarea class="ac-ta" placeholder="P.sh. Kontrat\u00eb qiraje p\u00ebr ambient biznesi. Qiradh\u00ebn\u00ebs [emri], qiramarr\u00ebs [emri]. Qira 1200 EUR/muaj, afat 5 vjet, ndalohet n\u00ebnqiraja, penalitet 0.1%/dit\u00eb von\u00ebs, garanci 3 muaj\u2026"></textarea>' +
+        '<label class="ac-clauses"><input type="checkbox" class="fd-useclauses"> \ud83d\udcda P\u00ebrdor klauzolat e studios</label>' +
         '<div class="ac-row"><button class="ac-run" type="button">Harto \u2192</button><span class="ac-status"></span></div>' +
         '<div class="ac-result"></div>' +
       "</div>";
@@ -3550,7 +3551,7 @@
       try {
         var r = await fetch("/api/fable-draft", {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ kind: kind.value, brief: brief }),
+          body: JSON.stringify({ kind: kind.value, brief: brief, use_clauses: !!(ov.querySelector(".fd-useclauses") && ov.querySelector(".fd-useclauses").checked) }),
         });
         var d = await r.json();
         if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
@@ -5383,6 +5384,8 @@
       else if (key === "lexombush") { openExtract(); }
       else if (key === "regjistri") { openRegistry(); }
       else if (key === "cklist") { openChecklist(); }
+      else if (key === "whatif") { openWhatIf(); }
+      else if (key === "klauzolat") { openClauses(); }
       else if (key === "intake") { openIntake(); }
       else if (key === "fascikull") { openFascikull(); }
       else if (key === "afati") { openAfati(); }

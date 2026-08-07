@@ -2396,7 +2396,8 @@ def api_fable_draft():
     if len(brief) < 15:
         return jsonify({"error": "brief_required"}), 400
     try:
-        res = fable_drafter_mod.draft(_BRAIN.backend, kind=kind, brief=brief[:8000])
+        res = fable_drafter_mod.draft(_BRAIN.backend, kind=kind, brief=brief[:8000],
+                                      clauses_text=_firm_clauses_text(body))
     except Exception as exc:  # noqa: BLE001
         log.exception("fable-draft failed")
         return jsonify({"error": _safe_err(exc)}), 200
