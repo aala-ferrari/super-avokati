@@ -146,3 +146,21 @@ Estendere GOLDENS/smoke quando emerge un bug nuovo.
 v9.50→9.54 piattaforma 3 professioni · 9.55 extra tool · 9.56 full-text+matching · 9.61-9.68 police laws + Super Noteri + revoca/conflitti · 9.69-9.71 Super Prokuror + hub · 9.72 Ligj i gjallë · 9.73 Pika e parë · 9.74 Fashikull · 9.75-9.76 Motore afate + golden · 9.77 fix needle empty-state · 9.78 upload in Fashikull · 9.79-9.80 Shiko të ruajturat · 9.81 fix forgot-password · 9.82 mode-bar snellite. Punto di ritorno sicuro storico: commit `1e9fb84`.
 
 Dettaglio completo nelle memorie Claude (`~/.claude/.../memory/`): super_avokati_piattaforma, _super_prokuror, _super_noteri, _ligj_i_gjalle, _pika_e_pare, _fashikull, _afate_golden, aala_audit_backup_nginx.
+
+## GIT / BACKUP  (config 7 ago 2026)
+
+Il codice sta in **4 posti**: (1) VPS produzione `/var/www/apps/super-avvocato` (NON è un repo git — i deploy editano i file direttamente), (2) copia locale Mac `/Users/aldo/Desktop/multi service/Super Avocati/` (QUESTA è il repo git), (3) **GitHub `git@github.com:aala-ferrari/super-avokati.git`** (privato, branch main), (4) tarball in `_backups/`.
+
+**Workflow per restare allineati** (dopo modifiche sul VPS):
+```bash
+# 1) sync VPS -> locale (codice + corpus, escludi cache/bak/app.db)
+cd "/Users/aldo/Desktop/multi service/Super Avocati"
+SRC=root@31.220.90.246:/var/www/apps/super-avvocato
+for d in src static templates tools; do rsync -az -e ssh --exclude='__pycache__/' --exclude='*.pyc' --exclude='*.bak' --exclude='*.bak-*' "$SRC/$d/" "$d/"; done
+rsync -az -e ssh "$SRC/Dockerfile" "$SRC/run.sh" "$SRC/CLAUDE.md" .
+rsync -az -e ssh "$SRC/data/index/bm25.pkl" data/index/bm25.pkl   # corpus (12M, committato)
+# 2) commit + push (dal Mac; chiave dedicata gia configurata)
+git add -A && git commit -m "vX.Y: ..." && git push origin main
+```
+
+**SSH/chiavi (GOTCHA)**: una chiave SSH può stare in UN SOLO posto su GitHub (chiave-account XOR deploy-key di un repo). Il Mac usa una **chiave dedicata** `~/.ssh/id_ed25519_gh` (aggiunta come chiave-ACCOUNT di aala-ferrari); `~/.ssh/config` ha `Host github.com → IdentityFile ~/.ssh/id_ed25519_gh, IdentitiesOnly yes`. La vecchia `~/.ssh/id_ed25519` era incastrata come deploy-key del repo `aala`, per questo servì la chiave nuova. Il VPS ha una deploy-key separata (`~/.ssh/id_ed25519_aala`) per il repo AALA. `data/` NON è gitignored qui → il pickle bm25.pkl (corpus) è committato di proposito.
