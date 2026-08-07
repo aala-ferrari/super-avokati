@@ -87,7 +87,7 @@ def _art_block(backend, index, text, seed):
         or "(asnjë nen i gjetur — përshkruaj me fjalë, mos shpik)", arts
 
 
-def draft_deed(backend, index, *, deed_type: str, details: str, max_tokens: int = 3600) -> dict:
+def draft_deed(backend, index, *, deed_type: str, details: str, clauses_text: str = "", max_tokens: int = 3600) -> dict:
     tpl = DEED_TYPES.get(deed_type)
     if tpl is None:
         raise ValueError("unknown deed_type")
@@ -103,6 +103,7 @@ def draft_deed(backend, index, *, deed_type: str, details: str, max_tokens: int 
     prompt = ("LLOJI I AKTIT: " + tpl["label"]
               + "\n\nKLAUZOLAT E DETYRUESHME:\n- " + "\n- ".join(tpl["must"])
               + "\n\nTË DHËNAT NGA NOTERI:\n" + (details or "").strip()
+              + (("\n\n─────\nKLAUZOLAT E PREFERUARA TË STUDIOS (përdori kur i përshtaten aktit, ruaj stilin e studios):\n" + clauses_text) if clauses_text else "")
               + "\n\n─────\nNENET NGA KORPUSI (cito vetëm këto):\n" + art_block
               + "\n\nHarto aktin e plotë në markdown.")
     md = backend.complete(system=system, messages=[{"role": "user", "content": prompt}],
@@ -328,7 +329,8 @@ def list_prokura_scopes() -> dict:
 
 
 def draft_prokura(backend, index, *, form: str, scope_keys=None, details: str = "",
-                  duration: str = "", subdelegation: bool = False, max_tokens: int = 3200) -> dict:
+                  duration: str = "", subdelegation: bool = False, clauses_text: str = "",
+                  max_tokens: int = 3200) -> dict:
     form = form if form in PROKURA_FORMS else "e_posacme"
     scope_keys = [k for k in (scope_keys or []) if k in PROKURA_SCOPES]
     seed = list(_PROKURA_BASE)
@@ -359,6 +361,7 @@ def draft_prokura(backend, index, *, form: str, scope_keys=None, details: str = 
               + "\nNËN-DELEGIM: " + ("i lejuar" if subdelegation else "i palejuar")
               + "\n\nTË DHËNAT NGA NOTERI:\n" + (details or "").strip()
               + "\n\n─────\nNENET NGA KORPUSI (cito vetëm këto):\n" + art_block
+              + (("\n\n─────\nKLAUZOLAT E PREFERUARA TË STUDIOS (përdori kur përshtaten):\n" + clauses_text) if clauses_text else "")
               + "\n\nHarto prokurën e plotë në markdown.")
     md = backend.complete(system=system, messages=[{"role": "user", "content": prompt}],
                           max_tokens=max_tokens, callsite="notary_prokura")
@@ -512,3 +515,235 @@ def check_conflicts(backend, index, *, new_act: str, prior_acts=None, max_tokens
     md = backend.complete(system=system, messages=[{"role": "user", "content": prompt}],
                           max_tokens=max_tokens, callsite="notary_conflicts")
     return {"markdown": (md or "").strip(), "articles": []}
+
+
+# ═══════════════════════════════════════════════════════════════════
+# ISPEKTOR — Revisore Senior (Tier 1 #1): attacca l'atto come un
+# ispettore/giudice e produce un indice di rischio ONESTO (riflette i
+# problemi realmente trovati, non una probabilità inventata).
+# ═══════════════════════════════════════════════════════════════════
+import re as _re
+
+_RISK_RE = _re.compile(r"RISK:\s*(\d{1,3})\s*(?:/\s*100)?\s*[·|\-–—:]*\s*(.*)", _re.IGNORECASE)
+
+
+def inspect_act(backend, index, *, text: str, prior_acts=None, max_tokens: int = 3000) -> dict:
+    """Adversarial senior-reviewer pass over a notarial act. Returns a markdown
+    report + a risk score (0-100, low=good) grounded in the issues found."""
+    art_block, arts = _art_block(backend, index, text, None)
+    prior_acts = prior_acts or []
+    if prior_acts:
+        blocks = []
+        for i, p in enumerate(prior_acts[:6], 1):
+            blocks.append("### [Akt i mëparshëm %d] %s\n%s" % (
+                i, (p.get("title") or "").strip(), (p.get("content") or "").strip()[:1200]))
+        prior_block = "\n\n".join(blocks)
+    else:
+        prior_block = "(pa akte të mëparshme për krahasim)"
+    system = (
+        "Ti je INSPEKTOR / REVIZOR SENIOR i akteve juridike shqiptare (kontrata, padi, ankime, aktakuza, akte notariale) — e lexon aktin si një "
+        "inspektor ose gjyqtar që DËSHIRON të provojë se akti është i gabuar. SULMOJE. Bazohu VETËM "
+        "te teksti i aktit, te aktet e mëparshme (nëse jepen) dhe te nenet nga korpusi — MOS shpik "
+        "nene, fakte apo numra. Kërko me imtësi:\n"
+        "• koherencën e brendshme — emra, data, ID/NIPT, kuota/përqindje, çmime, nr. pasurie/zona "
+        "kadastrale që NUK përputhen brenda aktit;\n"
+        "• klauzola të paqarta, të dobëta, kontradiktore ose të rrezikshme;\n"
+        "• elemente/formalitete të DETYRUESHME që mungojnë sipas llojit të aktit (palët, objekti, data, "
+        "nënshkrimet; për akte gjyqësore: kompetenca, afati, petitumi, pavlefshmëri procedurale; për kontrata: objekti e çmimi; për akte notariale: forma e vula);\n"
+        "• konflikte me aktet e mëparshme (procurë e dyfishtë, disponim i të njëjtës pasuri, etj.);\n"
+        "• nene të cituar që mund të jenë të pasaktë ose jo në fuqi;\n"
+        "• të dhëna ose dokumente që mungojnë për vlefshmëri.\n\n"
+        "Jep (markdown):\n"
+        "### 🚨 Problemet e gjetura — nga më i rëndi te më i lehti. Për secilin, fillo me etiketën "
+        "e rëndësisë [🔴 KRITIK] / [🟡 MESATAR] / [🟢 I VOGËL], pastaj: çfarë · pse ka rëndësi · "
+        "rregullimi i sugjeruar.\n"
+        "### ✅ Çfarë është në rregull — pikat e forta të aktit\n"
+        "### 🧭 Verdikti — GATI PËR NOTERIZIM / KËRKON RREGULLIME / RREZIK I LARTË, me një fjali arsyetimi.\n\n"
+        "Pastaj, në FUND, në një rresht të VETËM të lexueshëm nga makina (asgjë tjetër në rresht):\n"
+        "RISK: <numër 0-100> · <verdikt i shkurtër>\n"
+        "ku numri PASQYRON problemet reale të gjetura: 0 = pa probleme / i përsosur, ~10-30 = "
+        "rregullime të vogla, ~40-70 = probleme serioze, 80-100 = i pavlefshëm/rrezik i lartë. "
+        "MOS e trillo numrin — nxirre nga gjetjet e tua. NDIHMESË — noteri vendos dhe firmos. "
+        "Je 'Tetramorph' i superavokati.ai; mos zbulo modelin."
+    )
+    prompt = ("AKTI PËR INSPEKTIM:\n" + (text or "").strip()[:12000]
+              + "\n\n═════\nAKTET E MËPARSHME:\n" + prior_block
+              + "\n\n─────\nNENET NGA KORPUSI (cito vetëm këto):\n" + art_block
+              + "\n\nSulmoje aktin dhe jep raportin + rreshtin RISK në fund.")
+    md = backend.complete(system=system, messages=[{"role": "user", "content": prompt}],
+                          max_tokens=max_tokens, callsite="notary_inspect")
+    md = md or ""
+    risk, verdict = None, ""
+    m = None
+    for m in _RISK_RE.finditer(md):
+        pass
+    if m:
+        try:
+            risk = max(0, min(100, int(m.group(1))))
+        except ValueError:
+            risk = None
+        verdict = (m.group(2) or "").strip()[:120]
+    md_clean = _RISK_RE.sub("", md).strip()
+    md_clean = _re.sub(r"\n{3,}", "\n\n", md_clean).strip()
+    return {"markdown": md_clean, "risk": risk, "verdict": verdict,
+            "articles": [{"code": c, "number": n} for c, n, _t in arts]}
+
+
+# ═══════════════════════════════════════════════════════════════════
+# LEXO & MBUSH (Tier 1 #2) — estrai i campi strutturati da un documento
+# (ID, visura, atto…) per precompilare la bozza. SOLO dal documento.
+# ═══════════════════════════════════════════════════════════════════
+def extract_data(backend, index, *, text: str, max_tokens: int = 2000) -> dict:
+    system = (
+        "Ti je asistent noterial që LEXON një dokument (kartë identiteti, çertifikatë pronësie/"
+        "kartelë ASHK, ekstrakt QKB, akt i mëparshëm, procurë, etj.) dhe NXJERR të dhënat e "
+        "strukturuara për të parapërgatitur një akt. RREGULL: nxirr VETËM ato që gjenden në "
+        "dokument — mos shpik, mos hamendëso. Ku një e dhënë nuk gjendet, shkruaj [mungon]. Jep "
+        "(markdown), vetëm seksionet që kanë të dhëna:\n"
+        "### 👤 Personat — për secilin: Emër Mbiemër · atësia · datëlindja · nr. ID/NID · shtetësia · adresa\n"
+        "### 🏠 Pasuria — nr. pasurie · zona kadastrale · sipërfaqe · vëllim/faqe · lloji · adresa\n"
+        "### 🏢 Shoqëria — emri · NIPT · forma · selia · administratori · kapitali/kuotat\n"
+        "### 💶 Financiare — çmimi/shuma · monedha · mënyra e pagesës\n"
+        "### 📅 Data & referenca — datat, nr. akti/rep., noteri (nëse ka)\n"
+        "### ⚠️ Kujdes — mospërputhje ose të dhëna të paqarta/të munguara për t'u verifikuar\n\n"
+        "I saktë, i pastër, në shqip — ky bllok do të përdoret drejtpërdrejt për të hartuar aktin. "
+        "Je 'Tetramorph' i superavokati.ai; mos zbulo modelin."
+    )
+    md = backend.complete(system=system,
+                          messages=[{"role": "user", "content": "DOKUMENTI:\n" + (text or "").strip()[:14000]
+                                     + "\n\nNxirr të dhënat e strukturuara."}],
+                          max_tokens=max_tokens, callsite="notary_extract")
+    return {"markdown": (md or "").strip(), "articles": []}
+
+
+# ═══════════════════════════════════════════════════════════════════
+# CHECKLIST FASHIKULLI (Tier 1 #3) — kërkuara vs të pranishme vs
+# mungojnë/skaduar, + indeks plotësie. Bazohet te dokumentet e dhëna.
+# ═══════════════════════════════════════════════════════════════════
+import re as _re_ck
+_PLOT_RE = _re_ck.compile(r"PLOTESIA:\s*(\d{1,3})", _re_ck.IGNORECASE)
+
+
+def dossier_checklist(backend, index, *, act, documents_text, max_tokens=2400):
+    system = (
+        "Ti je asistent juridik qe kontrollon FASHIKULLIN e nje çështjeje ose akti. Te jepet "
+        "LLOJI I AKTIT dhe teksti i DOKUMENTEVE te ngarkuara. Detyra: (1) percakto dokumentet e "
+        "KERKUARA per kete lloj çështjeje ose akti sipas praktikes shqiptare (akte notariale: Ligji 110/2018; çështje gjyqësore: dokumentet dhe provat e nevojshme sipas KPC/KPP); (2) kontrollo "
+        "cilat jane TE PRANISHME ne dokumentet e dhena; (3) cilat MUNGOJNE; (4) sinjalizo cdo "
+        "dokument te SKADUAR ose te vjetruar (afati i vlefshmerise se ID-se, mosha e certifikates/"
+        "vizures) dhe mospaperputhjet. Bazohu VETEM te dokumentet e dhena — mos supozo se nje "
+        "dokument ekziston nese s'e sheh. Jep (markdown):\n"
+        "### \U0001f4cb Dokumentet e kerkuara per kete akt\n"
+        "### ✅ Te pranishme (gjetur ne fashikull)\n"
+        "### ❌ Mungojne\n"
+        "### ⏳ Skaduar / per t'u verifikuar (data, afate)\n"
+        "### \U0001f9ed Plotesia — perfundim i shkurter\n\n"
+        "Pastaj, ne fund, ne nje rresht te vetem te lexueshem nga makina (asgje tjeter):\n"
+        "PLOTESIA: <numer 0-100>\n"
+        "ku 100 = fashikull i plote e gati, dhe numri ul-et sipas dokumenteve qe mungojne/skaduar. "
+        "NDIHMESE — noteri verifikon. Je 'Tetramorph' i superavokati.ai; mos zbulo modelin."
+    )
+    prompt = ("LLOJI I AKTIT: " + (act or "").strip()
+              + "\n\nDOKUMENTET E NGARKUARA (teksti):\n" + (documents_text or "").strip()[:14000]
+              + "\n\nBej checklist-in dhe rreshtin PLOTESIA ne fund.")
+    md = backend.complete(system=system, messages=[{"role": "user", "content": prompt}],
+                          max_tokens=max_tokens, callsite="notary_checklist")
+    md = md or ""
+    comp = None
+    m = None
+    for m in _PLOT_RE.finditer(md):
+        pass
+    if m:
+        try:
+            comp = max(0, min(100, int(m.group(1))))
+        except ValueError:
+            comp = None
+    md_clean = _PLOT_RE.sub("", md).strip()
+    md_clean = _re_ck.sub(r"\n{3,}", "\n\n", md_clean).strip()
+    return {"markdown": md_clean, "completeness": comp, "articles": []}
+
+
+# ═══════════════════════════════════════════════════════════════════
+# PËR KLIENTIN (Tier 1 #4) — spiega l'atto in lingua semplice + email
+# ═══════════════════════════════════════════════════════════════════
+_CLIENT_KINDS = {
+    "shpjego": {"label": "Shpjego aktin për klientin", "ground": True},
+    "email_dokumente": {"label": "Email: kërkesë dokumentesh", "ground": False},
+    "email_takim": {"label": "Email: caktim takimi", "ground": False},
+    "email_perfundim": {"label": "Email: përfundim / përmbledhje", "ground": False},
+}
+
+_CLIENT_SYS = {
+    "shpjego": (
+        "Ti je NOTER që i shpjegon klientit (person i zakonshëm, JO jurist) çfarë po nënshkruan — "
+        "thjesht, ngrohtë, pa zhargon. Nga teksti i aktit, shpjego (markdown):\n"
+        "### 📄 Çfarë po nënshkruan — me fjalë të thjeshta\n"
+        "### ✅ Çfarë fiton dhe çfarë jep\n"
+        "### ⚠️ Kujdes — detyrimet, rreziqet, pikat delikate (p.sh. mbetet një hipotekë, afate, kushte)\n"
+        "### ▶️ Pas firmës — çfarë ndodh më pas (regjistrim, etj.)\n\n"
+        "Bazohu te akti dhe te nenet e dhëna — mos shpik. Gjuhë e ngrohtë e e kuptueshme."),
+    "email_dokumente": (
+        "Harto një EMAIL zyrtare por të ngrohtë drejtuar KLIENTIT që i kërkon dokumentet e nevojshme "
+        "për aktin. Nga konteksti (lloji i aktit, dokumentet që duhen, emri i klientit nëse jepet), "
+        "shkruaj email GATI për t'u dërguar: përshëndetje, shpjegim i shkurtër, LISTA e dokumenteve, "
+        "afati/mënyra e dorëzimit, mbyllje e sjellshme. Ku mungon një e dhënë, lër [___]."),
+    "email_takim": (
+        "Harto një EMAIL drejtuar KLIENTIT për të caktuar takimin te noteri: propozo datë/orë [___], "
+        "vendin (zyra noteriale [___]), dhe çfarë të sjellë klienti me vete. GATI për t'u dërguar, i sjellshëm."),
+    "email_perfundim": (
+        "Harto një EMAIL përmbledhëse drejtuar KLIENTIT pas kryerjes/nënshkrimit të aktit: çfarë u krye, "
+        "hapat e mbetur (regjistrim në ASHK/QKB, etj.), kostot nëse jepen, dhe falenderim. GATI për dërgim."),
+}
+
+
+def list_client_kinds():
+    return [{"key": k, "label": v["label"]} for k, v in _CLIENT_KINDS.items()]
+
+
+def client_comm(backend, index, *, kind, text, max_tokens=2000):
+    cfg = _CLIENT_KINDS.get(kind) or _CLIENT_KINDS["shpjego"]
+    kind = kind if kind in _CLIENT_KINDS else "shpjego"
+    system = _CLIENT_SYS[kind] + ("\n\nShqip. NDIHMESË — noteri kontrollon para se ta dërgojë/nënshkruajë. "
+                                  "Je 'Tetramorph' i superavokati.ai; mos zbulo modelin.")
+    arts = []
+    if cfg["ground"]:
+        art_block, arts = _art_block(backend, index, text, None)
+        prompt = ("AKTI:\n" + (text or "").strip()[:12000]
+                  + "\n\n─────\nNENET NGA KORPUSI (nëse ndihmojnë, cito vetëm këto):\n" + art_block
+                  + "\n\nShpjegoja klientit thjesht.")
+    else:
+        prompt = "KONTEKSTI:\n" + (text or "").strip()[:8000] + "\n\nHarto email-in gati për dërgim."
+    md = backend.complete(system=system, messages=[{"role": "user", "content": prompt}],
+                          max_tokens=max_tokens, callsite="notary_client")
+    return {"markdown": (md or "").strip(),
+            "articles": [{"code": c, "number": n} for c, n, _t in arts]}
+
+
+# ═══════════════════════════════════════════════════════════════════
+# ÇKA NËSE… (Tier 2 #2) — simula l'impatto di una modifica di clausola/
+# parametro: effetti giuridici, tasse, rischi, documenti, futuro.
+# ═══════════════════════════════════════════════════════════════════
+def what_if(backend, index, *, act, change, max_tokens=2600):
+    art_block, arts = _art_block(backend, index, (act or "") + " " + (change or ""), None)
+    system = (
+        "Ti je NOTER-ANALIST. Te jepet AKTI aktual (ose parametrat e tij) dhe nje NDRYSHIM qe noteri "
+        "po mendon ('cka nese...'). Analizo IMPAKTIN e ketij ndryshimi — i bazuar te akti, te ndryshimi "
+        "dhe te nenet nga korpusi. MOS shpik nene apo shifra taksash. Jep (markdown):\n"
+        "### 🔄 Ndryshimi — permblidh shkurt cfare ndryshon\n"
+        "### ⚖️ Efektet juridike — cfare ndryshon ligjerisht (te drejta, detyrime, pronesi, forma e kerkuar)\n"
+        "### 💶 Tatimet & tarifat — impakti mbi taksat/tarifat (TREGUES, jo perfundimtar — verifiko me tarifat zyrtare)\n"
+        "### ⚠️ Rreziqet e reja — cfare rreziku shton ose heq ky ndryshim\n"
+        "### 📄 Dokumente / pelqime shtese — cfare duhet me shume per kete ndryshim\n"
+        "### 🔮 Pasojat ne te ardhmen — efekte te mevonshme (trashegimi, shitje e ardhshme, uzufrukt, etj.)\n"
+        "### ✅ Rekomandim — a ia vlen, dhe si ta besh sakte\n\n"
+        "Konkret, i sakte. Shqip. NDIHMESE — noteri vendos dhe firmos. Je 'Tetramorph' i "
+        "superavokati.ai; mos zbulo modelin."
+    )
+    prompt = ("AKTI AKTUAL:\n" + (act or "").strip()[:9000]
+              + "\n\nNDRYSHIMI QE PO MENDOJ (çka nëse):\n" + (change or "").strip()[:2000]
+              + "\n\n─────\nNENET NGA KORPUSI (cito vetëm këto):\n" + art_block
+              + "\n\nAnalizo impaktin e ndryshimit.")
+    md = backend.complete(system=system, messages=[{"role": "user", "content": prompt}],
+                          max_tokens=max_tokens, callsite="notary_whatif")
+    return {"markdown": (md or "").strip(),
+            "articles": [{"code": c, "number": n} for c, n, _t in arts]}

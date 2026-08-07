@@ -61,6 +61,7 @@ from . import prosecutor as prosecutor_mod
 from . import living_law as living_mod
 from . import intake as intake_mod
 from . import afati as afati_mod
+from . import registry as registry_mod
 from . import notary as notary_mod
 from . import deadlines as deadlines_mod
 from .auth import (
@@ -4275,7 +4276,8 @@ def api_notary_draft():
         return jsonify({"error": "details_required"}), 400
     out, err = _notary_run(notary_mod.draft_deed,
                            deed_type=(body.get("deed_type") or "").strip(),
-                           details=details[:12000])
+                           details=details[:12000],
+                           clauses_text=_firm_clauses_text(body))
     return err if err else out
 
 
@@ -4319,7 +4321,8 @@ def api_notary_prokura():
                            scope_keys=[str(x)[:40] for x in scopes][:16],
                            details=(body.get("details") or "").strip()[:12000],
                            duration=(body.get("duration") or "").strip()[:120],
-                           subdelegation=bool(body.get("subdelegation")))
+                           subdelegation=bool(body.get("subdelegation")),
+                           clauses_text=_firm_clauses_text(body))
     return err if err else out
 
 
@@ -4385,6 +4388,219 @@ def api_notary_conflicts():
         new_act=new_act[:12000],
         prior_acts=[{"title": p.get("title"), "content": p.get("content")} for p in prior[:8]])
     return err if err else out
+
+
+@app.post("/api/notary/inspect")
+@login_required_api
+def api_notary_inspect():
+    _ensure_loaded()
+    if _BRAIN is None or _INDEX is None:
+        return jsonify({"error": "unavailable"}), 503
+    body = request.get_json(silent=True) or {}
+    text = (body.get("text") or "").strip()
+    if len(text) < 30:
+        return jsonify({"error": "text_required"}), 400
+    case_id = (body.get("case_id") or "").strip()
+    prior = []
+    if case_id and _resolve_case(case_id) is not None:
+        try:
+            items = storage.list_research(case_id)
+            notarial = [it for it in items if (it.get("source") or "") == "notary"]
+            prior = [{"title": p.get("title"), "content": p.get("content")}
+                     for p in (notarial or items)[:6]]
+        except Exception:  # noqa: BLE001
+            prior = []
+    try:
+        res = notary_mod.inspect_act(_BRAIN.backend, _INDEX, text=text[:14000], prior_acts=prior)
+    except Exception as exc:  # noqa: BLE001
+        log.exception("inspect failed")
+        return jsonify({"error": _safe_err(exc)}), 200
+    md = res.get("markdown") or ""
+    cits = {"items": [], "stats": {}}
+    try:
+        if md:
+            cits = cv_mod.verify_text(md, _INDEX)
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        storage.log_inspection(getattr(getattr(request, "firm", None), "id", None),
+                               res.get("risk"), res.get("verdict"))
+    except Exception:  # noqa: BLE001
+        pass
+    return jsonify({"markdown": md, "risk": res.get("risk"),
+                    "verdict": res.get("verdict"), "citations": cits})
+
+
+@app.post("/api/notary/extract")
+@login_required_api
+def api_notary_extract():
+    body = request.get_json(silent=True) or {}
+    text = (body.get("text") or "").strip()
+    if len(text) < 20:
+        return jsonify({"error": "text_required"}), 400
+    out, err = _notary_run(notary_mod.extract_data, text=text[:16000])
+    return err if err else out
+
+
+@app.post("/api/notary/checklist")
+@login_required_api
+def api_notary_checklist():
+    _ensure_loaded()
+    if _BRAIN is None or _INDEX is None:
+        return jsonify({"error": "unavailable"}), 503
+    body = request.get_json(silent=True) or {}
+    act = (body.get("act") or "").strip()
+    if len(act) < 3:
+        return jsonify({"error": "act_required"}), 400
+    text = (body.get("text") or "").strip()
+    case_id = (body.get("case_id") or "").strip()
+    if not text and case_id and _resolve_case(case_id) is not None:
+        try:
+            ctx, used, _n = vault_mod.build_context(case_id)
+            if used:
+                text = ctx
+        except Exception:  # noqa: BLE001
+            text = ""
+    if len(text) < 20:
+        return jsonify({"error": "documents_required"}), 400
+    try:
+        res = notary_mod.dossier_checklist(_BRAIN.backend, _INDEX, act=act[:200],
+                                           documents_text=text[:16000])
+    except Exception as exc:  # noqa: BLE001
+        log.exception("checklist failed")
+        return jsonify({"error": _safe_err(exc)}), 200
+    md = res.get("markdown") or ""
+    cits = {"items": [], "stats": {}}
+    try:
+        if md:
+            cits = cv_mod.verify_text(md, _INDEX)
+    except Exception:  # noqa: BLE001
+        pass
+    return jsonify({"markdown": md, "completeness": res.get("completeness"), "citations": cits})
+
+
+@app.get("/api/notary/client-kinds")
+@login_required_api
+def api_notary_client_kinds():
+    return jsonify({"kinds": notary_mod.list_client_kinds()})
+
+
+@app.post("/api/registry/search")
+@login_required_api
+def api_registry_search():
+    _ensure_loaded()
+    if _BRAIN is None:
+        return jsonify({"error": "unavailable"}), 503
+    firm = getattr(request, "firm", None)
+    body = request.get_json(silent=True) or {}
+    q = (body.get("query") or "").strip()
+    if len(q) < 2:
+        return jsonify({"error": "query_required"}), 400
+    acts = []
+    if firm is not None:
+        try:
+            acts = storage.list_firm_research(firm.id)
+        except Exception:  # noqa: BLE001
+            acts = []
+    if not acts:
+        return jsonify({"markdown": "Regjistri është bosh — ende asnjë akt i ruajtur. "
+                                    "Ruaj akte me \u201c\ud83d\udcbe Ruaj në fashikull\u201d.",
+                        "matches": []})
+    try:
+        res = registry_mod.search_acts(_BRAIN.backend, q, acts)
+    except Exception as exc:  # noqa: BLE001
+        log.exception("registry failed")
+        return jsonify({"error": _safe_err(exc)}), 200
+    ids = set(res.get("match_ids") or [])
+    matches = [a for a in acts if str(a.get("id")) in ids]
+    return jsonify({"markdown": res.get("markdown") or "", "matches": matches})
+
+
+@app.post("/api/notary/client")
+@login_required_api
+def api_notary_client():
+    body = request.get_json(silent=True) or {}
+    text = (body.get("text") or "").strip()
+    if len(text) < 10:
+        return jsonify({"error": "text_required"}), 400
+    out, err = _notary_run(notary_mod.client_comm,
+                           kind=(body.get("kind") or "shpjego").strip()[:30],
+                           text=text[:14000])
+    return err if err else out
+
+
+@app.post("/api/notary/whatif")
+@login_required_api
+def api_notary_whatif():
+    body = request.get_json(silent=True) or {}
+    act = (body.get("act") or "").strip()
+    change = (body.get("change") or "").strip()
+    if len(act) < 15 or len(change) < 4:
+        return jsonify({"error": "act_and_change_required"}), 400
+    out, err = _notary_run(notary_mod.what_if, act=act[:12000], change=change[:2000])
+    return err if err else out
+
+
+def _firm_clauses_text(body):
+    """Build the studio's preferred-clauses block, if the request opted in."""
+    if not (body or {}).get("use_clauses"):
+        return ""
+    firm = getattr(request, "firm", None)
+    if firm is None:
+        return ""
+    try:
+        cl = storage.list_firm_clauses(firm.id)
+    except Exception:  # noqa: BLE001
+        return ""
+    return "\n\n".join(
+        "\u2022 [%s] %s\n%s" % ((c.get("category") or "-"), (c.get("label") or ""),
+                                  (c.get("content") or "")[:1200])
+        for c in cl[:20])
+
+
+@app.get("/api/firm/dashboard")
+@login_required_api
+def api_firm_dashboard():
+    firm = getattr(request, "firm", None)
+    if firm is None:
+        return jsonify({"empty": True})
+    return jsonify(storage.firm_dashboard(firm.id))
+
+
+@app.get("/api/firm/clauses")
+@login_required_api
+def api_firm_clauses_list():
+    firm = getattr(request, "firm", None)
+    if firm is None:
+        return jsonify({"clauses": []})
+    return jsonify({"clauses": storage.list_firm_clauses(firm.id)})
+
+
+@app.post("/api/firm/clauses")
+@login_required_api
+def api_firm_clauses_add():
+    user = request.user  # type: ignore[attr-defined]
+    firm = getattr(request, "firm", None)
+    if firm is None:
+        return jsonify({"error": "no_firm"}), 400
+    body = request.get_json(silent=True) or {}
+    try:
+        cid = storage.add_firm_clause(firm.id, user.id,
+                                      label=(body.get("label") or "").strip(),
+                                      category=(body.get("category") or "").strip() or None,
+                                      content=(body.get("content") or "").strip())
+    except ValueError:
+        return jsonify({"error": "empty"}), 400
+    return jsonify({"id": cid, "ok": True}), 201
+
+
+@app.delete("/api/firm/clauses/<int:clause_id>")
+@login_required_api
+def api_firm_clauses_delete(clause_id: int):
+    firm = getattr(request, "firm", None)
+    if firm is None:
+        return jsonify({"ok": False}), 400
+    return jsonify({"ok": storage.delete_firm_clause(clause_id, firm.id)})
 
 
 @app.post("/api/prosecutor/indictment")

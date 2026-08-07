@@ -345,6 +345,26 @@ CREATE TABLE IF NOT EXISTS case_research (
 );
 CREATE INDEX IF NOT EXISTS idx_research_case ON case_research(case_id);
 
+CREATE TABLE IF NOT EXISTS firm_clauses (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    firm_id     INTEGER NOT NULL,
+    user_id     INTEGER,
+    label       TEXT    NOT NULL,
+    category    TEXT,
+    content     TEXT    NOT NULL,
+    created_at  TEXT    NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_clauses_firm ON firm_clauses(firm_id);
+
+CREATE TABLE IF NOT EXISTS firm_inspections (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    firm_id     INTEGER NOT NULL,
+    risk        INTEGER,
+    verdict     TEXT,
+    created_at  TEXT    NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_insp_firm ON firm_inspections(firm_id);
+
 -- V8.3 — client portal. The citizen we represent gets a magic-link
 -- (portal_token) to a read-only view of THEIR case: current stage,
 -- upcoming hearings/deadlines, status updates the lawyer chose to share.
@@ -3207,6 +3227,92 @@ def delete_research(research_id: int, case_id: str) -> bool:
             (research_id, case_id),
         )
         return cur.rowcount > 0
+
+
+def add_firm_clause(firm_id, user_id, *, label: str, category: str | None, content: str) -> int:
+    label = (label or "").strip()[:120] or "Klauzolë"
+    content = (content or "").strip()
+    if len(content) < 3:
+        raise ValueError("empty clause")
+    now = _utcnow()
+    with db() as conn:
+        cur = conn.execute(
+            "INSERT INTO firm_clauses (firm_id, user_id, label, category, content, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (firm_id, user_id, label, (category or None), content, now),
+        )
+        return int(cur.lastrowid)
+
+
+def list_firm_clauses(firm_id, limit: int = 300) -> list[dict]:
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT id, label, category, content, created_at FROM firm_clauses "
+            "WHERE firm_id = ? ORDER BY id DESC LIMIT ?", (firm_id, limit),
+        ).fetchall()
+    return [{"id": r["id"], "label": r["label"], "category": r["category"],
+             "content": r["content"], "created_at": r["created_at"]} for r in rows]
+
+
+def delete_firm_clause(clause_id: int, firm_id) -> bool:
+    with db() as conn:
+        cur = conn.execute(
+            "DELETE FROM firm_clauses WHERE id = ? AND firm_id = ?", (clause_id, firm_id),
+        )
+        return cur.rowcount > 0
+
+
+def log_inspection(firm_id, risk, verdict) -> None:
+    if firm_id is None:
+        return
+    try:
+        rv = int(risk) if isinstance(risk, (int, float)) else None
+    except (TypeError, ValueError):
+        rv = None
+    now = _utcnow()
+    try:
+        with db() as conn:
+            conn.execute(
+                "INSERT INTO firm_inspections (firm_id, risk, verdict, created_at) "
+                "VALUES (?, ?, ?, ?)", (firm_id, rv, (verdict or "")[:120] or None, now))
+    except Exception:  # noqa: BLE001 - best-effort logging
+        pass
+
+
+def inspection_stats(firm_id) -> dict:
+    try:
+        with db() as conn:
+            rows = conn.execute(
+                "SELECT risk FROM firm_inspections WHERE firm_id = ? AND risk IS NOT NULL",
+                (firm_id,)).fetchall()
+        risks = [r["risk"] for r in rows]
+    except Exception:  # noqa: BLE001
+        risks = []
+    return {"count": len(risks),
+            "avg_risk": round(sum(risks) / len(risks)) if risks else None,
+            "high": sum(1 for x in risks if x > 50)}
+
+
+def firm_dashboard(firm_id) -> dict:
+    from collections import Counter
+    research = list_firm_research(firm_id)
+    try:
+        clauses = list_firm_clauses(firm_id)
+    except Exception:  # noqa: BLE001
+        clauses = []
+    by_source = Counter((r.get("source") or "research") for r in research)
+    by_month = Counter((r.get("created_at") or "")[:7] for r in research if r.get("created_at"))
+    clients = Counter((r.get("client_name") or "").strip() for r in research
+                      if (r.get("client_name") or "").strip())
+    return {
+        "total_acts": len(research),
+        "total_clauses": len(clauses),
+        "total_clients": len(clients),
+        "by_source": sorted(by_source.items(), key=lambda x: -x[1]),
+        "by_month": sorted(by_month.items())[-6:],
+        "top_clients": clients.most_common(8),
+        "inspections": inspection_stats(firm_id),
+    }
 
 
 def list_firm_clients(firm_id: int) -> list[dict]:

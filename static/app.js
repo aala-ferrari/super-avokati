@@ -3786,6 +3786,7 @@
       '<div class="nd-must"></div>' +
       '<div class="ac-attach-row"><label class="ac-attach">\ud83d\udcce Bashkëngjit PDF/foto<input type="file" class="nd-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.svg,.tif,.tiff" hidden></label></div>' +
       '<textarea class="ac-ta" placeholder="Jep të dhënat: palët, objekti, çmimi, nr. pasurie, data… (ato që s\u2019i ke, do vihen [___])"></textarea>' +
+      '<label class="ac-clauses"><input type="checkbox" class="nd-useclauses"> 📚 Përdor klauzolat e studios</label>' +
       '<div class="ac-row"><button class="ac-run" type="button">Harto aktin \u2192</button><span class="ac-status"></span></div>' +
       '<div class="ac-result"></div>' +
       "</div>";
@@ -3819,7 +3820,7 @@
       run.disabled = true; status.textContent = "Po harton aktin\u2026 (~3-4 min)"; result.innerHTML = "";
       try {
         var r = await fetch("/api/notary/draft", { method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ deed_type: kind.value, details: details }) });
+          body: JSON.stringify({ deed_type: kind.value, details: details, use_clauses: !!(ov.querySelector(".nd-useclauses") && ov.querySelector(".nd-useclauses").checked) }) });
         var d = await r.json();
         if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
         status.textContent = "";
@@ -3866,6 +3867,7 @@
       '<div class="prok-scopes nd-must-box"><em>Po ngarkoj…</em></div>' +
       '<div class="ac-row" style="gap:10px;flex-wrap:wrap"><input type="text" class="prok-dur ac-ta" style="min-height:auto;height:38px;flex:1;min-width:180px" placeholder="Afati (p.sh. 1 vit — ose lere bosh)" /><label style="display:flex;align-items:center;gap:6px"><input type="checkbox" class="prok-subdel" /> Lejo nën-delegim</label></div>' +
       '<textarea class="ac-ta" placeholder="Të dhënat: i përfaqësuari (emër, atësi, ID), përfaqësuesi (emër, ID), pasuria/shoqëria nëse ka… (ato që s’i ke do vihen [___])"></textarea>' +
+      '<label class="ac-clauses"><input type="checkbox" class="prok-useclauses"> 📚 Përdor klauzolat e studios</label>' +
       '<div class="ac-row"><button class="ac-run" type="button">Harto prokurën →</button><span class="ac-status"></span></div>' +
       '<div class="ac-result"></div>' +
       "</div>";
@@ -3897,7 +3899,7 @@
       run.disabled = true; status.textContent = "Po harton prokurën… (~2-3 min)"; result.innerHTML = "";
       try {
         var r = await fetch("/api/notary/prokura", { method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ form: form, scope_keys: scope_keys, details: details, duration: (dur.value || "").trim(), subdelegation: !!subdel.checked }) });
+          body: JSON.stringify({ form: form, scope_keys: scope_keys, details: details, duration: (dur.value || "").trim(), subdelegation: !!subdel.checked, use_clauses: !!(ov.querySelector(".prok-useclauses") && ov.querySelector(".prok-useclauses").checked) }) });
         var d = await r.json();
         if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
         status.textContent = "";
@@ -4216,17 +4218,26 @@
       sub: "Vegla noteriale: procure, akte, deklarata, kontrolle. Zgjidh një funksion. Çdo nen kalon nga Verifikuar — noteri e verifikon dhe e nënshkruan.",
       sections: [
         { label: "— HARTIM —", cards: [
+          { emoji: "📸", label: "Lexo & mbush (auto)", tag: "hartim", fn: openExtract },
           { emoji: "📝", label: "Redakto prokurë", tag: "hartim", fn: openProkura },
           { emoji: "📜", label: "Redakto akt notarial", tag: "hartim", fn: openNotaryDeed },
-          { emoji: "✍️", label: "Deklaratë noteriale", tag: "hartim", fn: openDeclaration } ] },
+          { emoji: "✍️", label: "Deklaratë noteriale", tag: "hartim", fn: openDeclaration },
+          { emoji: "📚", label: "Klauzolat e studios", tag: "hartim", fn: openClauses } ] },
         { label: "— KONTROLL & ANALIZË —", cards: [
+          { emoji: "🕵️", label: "Ispektor (Revizor Senior)", tag: "kontroll", fn: openIspektor },
           { emoji: "✅", label: "Kontroll vlefshmërie", tag: "kontroll", fn: openNotaryCheck },
           { emoji: "🚦", label: "Kontroll konfliktesh", tag: "kontroll", fn: openConflictCheck },
           { emoji: "⚖️", label: "Analizë trashëgimie", tag: "analizë", fn: openNotarySuccession },
-          { emoji: "♻️", label: "Revokim prokure", tag: "akt", fn: openRevocation } ] },
+          { emoji: "♻️", label: "Revokim prokure", tag: "akt", fn: openRevocation },
+          { emoji: "🔮", label: "Çka nëse… (simulator)", tag: "analizë", fn: openWhatIf } ] },
         { label: "— NDIHMË —", cards: [
+          { emoji: "✅", label: "Checklist fashikulli (auto)", tag: "ndihmë", tagKind: "civil", fn: openChecklist },
+          { emoji: "🗣️", label: "Për klientin (shpjego/email)", tag: "ndihmë", tagKind: "civil", fn: openClientComm },
+          { emoji: "🔎", label: "Regjistri (kërko akte)", tag: "ndihmë", tagKind: "civil", fn: openRegistry },
           { emoji: "📋", label: "Dokumentet e nevojshme", tag: "ndihmë", tagKind: "civil", fn: openDocsChecklist },
-          { emoji: "🧮", label: "Tarifat & taksat", tag: "ndihmë", tagKind: "civil", fn: openNotaryFees } ] }
+          { emoji: "🧮", label: "Tarifat & taksat", tag: "ndihmë", tagKind: "civil", fn: openNotaryFees } ] },
+        { label: "— STUDIO —", cards: [
+          { emoji: "📊", label: "Paneli i studios", tag: "studio", tagKind: "civil", fn: openDashboard } ] }
       ] });
   }
 
@@ -4585,6 +4596,473 @@
     setTimeout(function () { trig.focus(); }, 50);
   }
 
+  function _riskGauge(risk, verdict) {
+    if (risk === null || risk === undefined) return "";
+    var lvl = risk <= 20 ? "ok" : (risk <= 50 ? "warn" : "danger");
+    var word = risk <= 20 ? "I ulët" : (risk <= 50 ? "Mesatar" : "I lartë");
+    return '<div class="isp-gauge isp-' + lvl + '">' +
+      '<div class="isp-num">' + risk + '<span>/100</span></div>' +
+      '<div class="isp-bar"><i style="width:' + risk + '%"></i></div>' +
+      '<div class="isp-cap">Indeksi i rrezikut · <b>' + word + '</b></div>' +
+      (verdict ? '<div class="isp-verdict">' + escapeHtml(verdict) + '</div>' : '') +
+      '</div>';
+  }
+
+  async function openIspektor() {
+    var ov = document.getElementById("isp-ov");
+    if (ov) ov.remove();
+    ov = document.createElement("div");
+    ov.id = "isp-ov"; ov.className = "ac-overlay";
+    ov.innerHTML = '<div class="ac-modal">' +
+      '<div class="ac-head"><span>🕵️ Ispektor — Revizor Senior</span><button class="ac-x" type="button" aria-label="Mbyll">×</button></div>' +
+      '<div class="ac-sub">Ngjit aktin (ose bashkëngjit PDF/foto). Inspektori e SULMON si një gjyqtar dhe jep një indeks rreziku 0-100, problemet sipas rëndësisë dhe rregullimet. Nëse ka një rast hapur, krahason edhe me aktet e ruajtura. Ndihmesë — noteri vendos.</div>' +
+      '<div class="ac-attach-row"><label class="ac-attach">📎 Bashkëngjit PDF/foto<input type="file" class="isp-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.tif,.tiff,.docx" hidden></label></div>' +
+      '<textarea class="ac-ta" placeholder="Ngjit tekstin e plotë të aktit notarial që do të inspektohet…"></textarea>' +
+      '<div class="ac-row"><button class="ac-run" type="button">Inspekto aktin →</button><span class="ac-status"></span></div>' +
+      '<div class="ac-result"></div>' +
+      "</div>";
+    document.body.appendChild(ov);
+    var ta = ov.querySelector(".ac-ta"), run = ov.querySelector(".ac-run"),
+        status = ov.querySelector(".ac-status"), result = ov.querySelector(".ac-result"),
+        file = ov.querySelector(".isp-file");
+    function close() { ov.remove(); }
+    ov.querySelector(".ac-x").onclick = close;
+    ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
+    if (file) file.onchange = async function () {
+      var f = file.files && file.files[0]; if (!f) return; run.disabled = true;
+      try { var dd = await _extractFileText(f, status); var tx = (dd.text || "").trim();
+        if (tx) { ta.value = ta.value.trim() ? (ta.value.trim() + "\n\n" + tx) : tx;
+          status.textContent = dd.used_vision_ocr ? "✓ Lexuar me OCR" : "✓ Dokumenti u lexua"; } }
+      catch (e) { status.textContent = "Gabim: " + e.message; } finally { run.disabled = false; file.value = ""; }
+    };
+    run.onclick = async function () {
+      var text = (ta.value || "").trim();
+      if (text.length < 30) { status.textContent = "Ngjit aktin."; return; }
+      run.disabled = true; status.textContent = "Inspektori po e sulmon aktin… (~2-3 min)"; result.innerHTML = "";
+      try {
+        var r = await fetch("/api/notary/inspect", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: text, case_id: activeCaseId || "" }) });
+        var d = await r.json();
+        if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
+        status.textContent = "";
+        var gauge = _riskGauge(d.risk, d.verdict);
+        result.innerHTML = gauge + '<div class="fd-out"></div>';
+        var out = result.querySelector(".fd-out");
+        out.innerHTML = renderMarkdown(d.markdown || "");
+        if (d.citations) highlightNeni(out, buildCitStatusMap(d.citations));
+        if (d.citations && d.citations.stats && d.citations.stats.total > 0) result.insertBefore(renderCitationsBadge(d.citations, null), out);
+        _addSaveToCase(result, "notary", "Ispektim akti", (gauge ? ("Indeksi i rrezikut: " + d.risk + "/100 — " + (d.verdict || "") + "\n\n") : "") + (d.markdown || ""));
+      } catch (e) { status.textContent = "Gabim: " + e.message; }
+      finally { run.disabled = false; }
+    };
+    setTimeout(function () { ta.focus(); }, 50);
+  }
+
+  async function openExtract() {
+    var ov = document.getElementById("ext-ov");
+    if (ov) ov.remove();
+    ov = document.createElement("div");
+    ov.id = "ext-ov"; ov.className = "ac-overlay";
+    ov.innerHTML = '<div class="ac-modal">' +
+      '<div class="ac-head"><span>📸 Lexo & mbush</span><button class="ac-x" type="button" aria-label="Mbyll">×</button></div>' +
+      '<div class="ac-sub">Bashkëngjit ose ngjit një ose disa dokumente (ID, certifikatë pronësie/ASHK, ekstrakt QKB, akt i mëparshëm…). Nxjerr të dhënat e strukturuara — VETËM ato që gjenden, pa shpikur — dhe i çon direkt te bozza e aktit.</div>' +
+      '<div class="ac-attach-row"><label class="ac-attach">📎 Bashkëngjit PDF/foto<input type="file" class="ext-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.tif,.tiff,.docx" hidden multiple></label></div>' +
+      '<textarea class="ac-ta" placeholder="Ose ngjit këtu tekstin e dokumentit/dokumenteve…"></textarea>' +
+      '<div class="ac-row"><button class="ac-run" type="button">Nxirr të dhënat →</button><span class="ac-status"></span></div>' +
+      '<div class="ac-result"></div>' +
+      "</div>";
+    document.body.appendChild(ov);
+    var ta = ov.querySelector(".ac-ta"), run = ov.querySelector(".ac-run"),
+        status = ov.querySelector(".ac-status"), result = ov.querySelector(".ac-result"),
+        file = ov.querySelector(".ext-file");
+    function close() { ov.remove(); }
+    ov.querySelector(".ac-x").onclick = close;
+    ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
+    if (file) file.onchange = async function () {
+      var files = file.files ? [].slice.call(file.files) : []; if (!files.length) return;
+      run.disabled = true;
+      for (var i = 0; i < files.length; i++) {
+        try { var dd = await _extractFileText(files[i], status); var tx = (dd.text || "").trim();
+          if (tx) ta.value = ta.value.trim() ? (ta.value.trim() + "\n\n" + tx) : tx; }
+        catch (e) { status.textContent = "Gabim: " + e.message; }
+      }
+      status.textContent = "✓ " + files.length + " dokument(e) u lexuan"; run.disabled = false; file.value = "";
+    };
+    run.onclick = async function () {
+      var text = (ta.value || "").trim();
+      if (text.length < 20) { status.textContent = "Bashkëngjit ose ngjit dokumentin."; return; }
+      run.disabled = true; status.textContent = "Po nxjerr të dhënat… (~1-2 min)"; result.innerHTML = "";
+      try {
+        var r = await fetch("/api/notary/extract", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: text }) });
+        var d = await r.json();
+        if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
+        status.textContent = "";
+        var extracted = d.markdown || "";
+        result.innerHTML = '<div class="fd-out"></div>';
+        result.querySelector(".fd-out").innerHTML = renderMarkdown(extracted);
+        var go = document.createElement("button");
+        go.className = "ac-run"; go.type = "button"; go.style.marginTop = "12px";
+        go.textContent = "📄 Vazhdo në draft me këto të dhëna →";
+        go.onclick = function () {
+          var mode = localStorage.getItem("sa_mode") || (document.body && document.body.dataset ? document.body.dataset.profession : "") || "noter";
+          var fn = mode === "prokuror" ? openIndictment : (mode === "avokat" ? openFableDraft : openNotaryDeed);
+          close();
+          setTimeout(function () {
+            fn();
+            setTimeout(function () {
+              var ovs = document.querySelectorAll(".ac-overlay");
+              var last = ovs[ovs.length - 1];
+              var t = last && last.querySelector(".ac-ta");
+              if (t && !t.value) { t.value = extracted; try { t.focus(); } catch (e) {} }
+            }, 140);
+          }, 10);
+        };
+        result.appendChild(go);
+        var cpx = document.createElement("button"); cpx.className = "fd-copy"; cpx.type = "button"; cpx.textContent = "📋 Kopjo të dhënat";
+        cpx.onclick = function () { navigator.clipboard.writeText(extracted).then(function () { cpx.textContent = "✓ U kopjua"; }).catch(function () {}); };
+        result.appendChild(cpx);
+        _addSaveToCase(result, "notary", "Të dhëna të nxjerra", extracted);
+      } catch (e) { status.textContent = "Gabim: " + e.message; }
+      finally { run.disabled = false; }
+    };
+    setTimeout(function () { ta.focus(); }, 50);
+  }
+
+  function _compGauge(pct) {
+    if (pct === null || pct === undefined) return "";
+    var lvl = pct >= 80 ? "ok" : (pct >= 50 ? "warn" : "danger");
+    var word = pct >= 80 ? "I plotë" : (pct >= 50 ? "I pjesshëm" : "I paplotë");
+    return '<div class="isp-gauge isp-' + lvl + '">' +
+      '<div class="isp-num">' + pct + '<span>/100</span></div>' +
+      '<div class="isp-bar"><i style="width:' + pct + '%"></i></div>' +
+      '<div class="isp-cap">Plotësia e fashikullit · <b>' + word + '</b></div></div>';
+  }
+
+  async function openChecklist() {
+    var ov = document.getElementById("ck-ov");
+    if (ov) ov.remove();
+    ov = document.createElement("div");
+    ov.id = "ck-ov"; ov.className = "ac-overlay";
+    var hasCase = !!activeCaseId;
+    ov.innerHTML = '<div class="ac-modal">' +
+      '<div class="ac-head"><span>✅ Checklist i fashikullit</span><button class="ac-x" type="button" aria-label="Mbyll">×</button></div>' +
+      '<div class="ac-sub">Shkruaj llojin e aktit dhe jep dokumentet (bashkëngjit/ngjit, ose përdor fashikullin e rastit). Kontrollohet çfarë ËSHTË, çfarë MUNGON dhe çfarë ka SKADUAR, me një indeks plotësie.</div>' +
+      '<input type="text" class="ac-ta ck-act" style="min-height:auto;height:40px" placeholder="Lloji i aktit — p.sh. Kontratë shitje apartamenti" />' +
+      '<div class="ac-attach-row"><label class="ac-attach">📎 Bashkëngjit PDF/foto<input type="file" class="ck-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.tif,.tiff,.docx" hidden multiple></label>' +
+      (hasCase ? '<label class="ck-dossier"><input type="checkbox" class="ck-usecase" checked> Përdor dokumentet e rastit</label>' : '') + '</div>' +
+      '<textarea class="ac-ta ck-docs" placeholder="Ose ngjit tekstin e dokumenteve…"></textarea>' +
+      '<div class="ac-row"><button class="ac-run" type="button">Kontrollo fashikullin →</button><span class="ac-status"></span></div>' +
+      '<div class="ac-result"></div>' +
+      "</div>";
+    document.body.appendChild(ov);
+    var actIn = ov.querySelector(".ck-act"), docs = ov.querySelector(".ck-docs"),
+        run = ov.querySelector(".ac-run"), status = ov.querySelector(".ac-status"),
+        result = ov.querySelector(".ac-result"), file = ov.querySelector(".ck-file"),
+        useCase = ov.querySelector(".ck-usecase");
+    function close() { ov.remove(); }
+    ov.querySelector(".ac-x").onclick = close;
+    ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
+    if (file) file.onchange = async function () {
+      var files = file.files ? [].slice.call(file.files) : []; if (!files.length) return;
+      run.disabled = true; if (useCase) useCase.checked = false;
+      for (var i = 0; i < files.length; i++) {
+        try { var dd = await _extractFileText(files[i], status); var tx = (dd.text || "").trim();
+          if (tx) docs.value = docs.value.trim() ? (docs.value.trim() + "\n\n" + tx) : tx; } catch (e) {}
+      }
+      status.textContent = "✓ " + files.length + " dokument(e) u lexuan"; run.disabled = false; file.value = "";
+    };
+    run.onclick = async function () {
+      var act = (actIn.value || "").trim();
+      if (act.length < 3) { status.textContent = "Shkruaj llojin e aktit."; return; }
+      var text = (docs.value || "").trim();
+      var payload = { act: act };
+      if (text) payload.text = text;
+      else if (useCase && useCase.checked && activeCaseId) payload.case_id = activeCaseId;
+      else { status.textContent = "Jep dokumentet ose zgjidh fashikullin e rastit."; return; }
+      run.disabled = true; status.textContent = "Po kontrolloj fashikullin… (~1-2 min)"; result.innerHTML = "";
+      try {
+        var r = await fetch("/api/notary/checklist", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        var d = await r.json();
+        if (!r.ok || d.error) throw new Error(d.error === "documents_required" ? "Nuk ka dokumente — bashkëngjit ose hap një rast me dokumente." : (d.error || ("HTTP " + r.status)));
+        status.textContent = "";
+        result.innerHTML = _compGauge(d.completeness) + '<div class="fd-out"></div>';
+        var out = result.querySelector(".fd-out");
+        out.innerHTML = renderMarkdown(d.markdown || "");
+        if (d.citations) highlightNeni(out, buildCitStatusMap(d.citations));
+        _addSaveToCase(result, "notary", "Checklist: " + act, (d.completeness != null ? ("Plotësia: " + d.completeness + "/100\n\n") : "") + (d.markdown || ""));
+      } catch (e) { status.textContent = "Gabim: " + e.message; }
+      finally { run.disabled = false; }
+    };
+    setTimeout(function () { actIn.focus(); }, 50);
+  }
+
+  async function openClientComm() {
+    var ov = document.getElementById("cc-ov");
+    if (ov) ov.remove();
+    ov = document.createElement("div");
+    ov.id = "cc-ov"; ov.className = "ac-overlay";
+    ov.innerHTML = '<div class="ac-modal">' +
+      '<div class="ac-head"><span>🗣️ Për klientin</span><button class="ac-x" type="button" aria-label="Mbyll">×</button></div>' +
+      '<div class="ac-sub">Zgjidh: shpjego aktin me fjalë të thjeshta për klientin, ose gjenero një email gati për dërgim. Ngjit aktin ose kontekstin.</div>' +
+      '<select class="fd-kind cc-kind"></select>' +
+      '<textarea class="ac-ta" placeholder="Ngjit aktin (për shpjegimin) ose kontekstin (lloji akti, emri klientit, çfarë duhet, data)…"></textarea>' +
+      '<div class="ac-row"><button class="ac-run" type="button">Gjenero →</button><span class="ac-status"></span></div>' +
+      '<div class="ac-result"></div>' +
+      "</div>";
+    document.body.appendChild(ov);
+    var kind = ov.querySelector(".cc-kind"), ta = ov.querySelector(".ac-ta"),
+        run = ov.querySelector(".ac-run"), status = ov.querySelector(".ac-status"),
+        result = ov.querySelector(".ac-result");
+    function close() { ov.remove(); }
+    ov.querySelector(".ac-x").onclick = close;
+    ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
+    var kinds = [];
+    try { var r = await fetch("/api/notary/client-kinds"); if (r.ok) kinds = (await r.json()).kinds || []; } catch (e) {}
+    kind.innerHTML = kinds.map(function (k) { return '<option value="' + k.key + '">' + escapeHtml(k.label) + '</option>'; }).join("");
+    run.onclick = async function () {
+      var text = (ta.value || "").trim();
+      if (text.length < 10) { status.textContent = "Ngjit aktin ose kontekstin."; return; }
+      run.disabled = true; status.textContent = "Po gjeneroj… (~1-2 min)"; result.innerHTML = "";
+      try {
+        var r = await fetch("/api/notary/client", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ kind: kind.value, text: text }) });
+        var d = await r.json();
+        if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
+        status.textContent = "";
+        result.innerHTML = '<div class="fd-out"></div>';
+        var out = result.querySelector(".fd-out");
+        out.innerHTML = renderMarkdown(d.markdown || "");
+        if (d.citations) highlightNeni(out, buildCitStatusMap(d.citations));
+        if (d.citations && d.citations.stats && d.citations.stats.total > 0) result.insertBefore(renderCitationsBadge(d.citations, null), out);
+        var copy = document.createElement("button"); copy.className = "fd-copy"; copy.type = "button"; copy.textContent = "📋 Kopjo";
+        copy.onclick = function () { navigator.clipboard.writeText(d.markdown || "").then(function () { copy.textContent = "✓ U kopjua"; }).catch(function () {}); };
+        result.appendChild(copy);
+        _addSaveToCase(result, "notary", (kind.options[kind.selectedIndex] ? kind.options[kind.selectedIndex].text : "Për klientin"), d.markdown || "");
+      } catch (e) { status.textContent = "Gabim: " + e.message; }
+      finally { run.disabled = false; }
+    };
+    setTimeout(function () { ta.focus(); }, 50);
+  }
+
+  async function openRegistry() {
+    var ov = document.getElementById("reg-ov");
+    if (ov) ov.remove();
+    ov = document.createElement("div");
+    ov.id = "reg-ov"; ov.className = "ac-overlay";
+    ov.innerHTML = '<div class="ac-modal exp-modal">' +
+      '<div class="ac-head"><span>🔎 Regjistri i akteve</span><button class="ac-x" type="button" aria-label="Mbyll">×</button></div>' +
+      '<div class="exp-body">' +
+        '<div class="exp-sub">Kërko me KUPTIM te aktet e ruajtura të studios — jo vetëm fjalët. P.sh. “dhurime me uzufrukt”, “ku shfaqet pasuria 7/512”, “aktet e Arben Dodës”, “shitjet e 2024”.</div>' +
+        '<input type="text" class="research-search reg-q" placeholder="🔎 Shkruaj pyetjen…" />' +
+        '<div class="ac-row"><button class="ac-run reg-run" type="button">Kërko →</button><span class="ac-status reg-st"></span></div>' +
+        '<div class="ac-result reg-res"></div>' +
+      '</div></div>';
+    document.body.appendChild(ov);
+    var q = ov.querySelector(".reg-q"), run = ov.querySelector(".reg-run"),
+        status = ov.querySelector(".reg-st"), result = ov.querySelector(".reg-res");
+    function close() { ov.remove(); }
+    ov.querySelector(".ac-x").onclick = close;
+    ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
+    async function go() {
+      var query = (q.value || "").trim();
+      if (query.length < 2) { status.textContent = "Shkruaj pyetjen."; return; }
+      run.disabled = true; status.textContent = "Po kërkoj në regjistër… (~1 min)"; result.innerHTML = "";
+      try {
+        var r = await fetch("/api/registry/search", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query: query }) });
+        var d = await r.json();
+        if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
+        status.textContent = "";
+        result.innerHTML = '<div class="fd-out"></div>';
+        result.querySelector(".fd-out").innerHTML = renderMarkdown(d.markdown || "");
+        var matches = d.matches || [];
+        if (matches.length) {
+          var ul = document.createElement("ul"); ul.className = "research-list"; ul.style.marginTop = "12px";
+          matches.forEach(function (it) {
+            var li = document.createElement("li"); li.className = "research-item";
+            var head = document.createElement("div"); head.className = "research-head";
+            head.innerHTML = '<span class="research-src">' + escapeHtml(_srcLabel(it.source)) + '</span>' +
+              (it.client_name ? '<span class="research-cli">👤 ' + escapeHtml(it.client_name) + '</span>' : "") +
+              '<span class="research-ttl">' + escapeHtml(it.title || "") + '</span>' +
+              (it.created_at ? '<span class="research-cli">' + escapeHtml(String(it.created_at).slice(0, 10)) + '</span>' : "");
+            var body = document.createElement("div"); body.className = "research-body"; body.hidden = true;
+            head.addEventListener("click", function () {
+              if (body.hidden) { body.innerHTML = renderMarkdown(it.content || ""); body.hidden = false; } else body.hidden = true;
+            });
+            li.appendChild(head); li.appendChild(body); ul.appendChild(li);
+          });
+          result.appendChild(ul);
+        }
+      } catch (e) { status.textContent = "Gabim: " + e.message; }
+      finally { run.disabled = false; }
+    }
+    run.onclick = go;
+    q.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); go(); } });
+    setTimeout(function () { q.focus(); }, 50);
+  }
+
+  async function openWhatIf() {
+    var ov = document.getElementById("wi-ov");
+    if (ov) ov.remove();
+    ov = document.createElement("div");
+    ov.id = "wi-ov"; ov.className = "ac-overlay";
+    ov.innerHTML = '<div class="ac-modal">' +
+      '<div class="ac-head"><span>🔮 Çka nëse… (simulator)</span><button class="ac-x" type="button" aria-label="Mbyll">×</button></div>' +
+      '<div class="ac-sub">Jep aktin aktual dhe një ndryshim që po mendon. Simulohen efektet juridike, tatimet/tarifat (tregues), rreziqet e reja, dokumentet shtesë dhe pasojat në të ardhmen.</div>' +
+      '<div class="ac-attach-row"><label class="ac-attach">📎 Bashkëngjit aktin (PDF/foto)<input type="file" class="wi-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.tif,.tiff,.docx" hidden></label></div>' +
+      '<textarea class="ac-ta wi-act" placeholder="Akti aktual — ngjit tekstin ose parametrat kryesorë…"></textarea>' +
+      '<textarea class="ac-ta wi-change" style="min-height:70px" placeholder="Ndryshimi që po mendon — p.sh. “Çka nëse shtoj një uzufrukt për shitësin?” ose “Çka nëse çmimi bëhet 3M në vend të 5M?”"></textarea>' +
+      '<div class="ac-row"><button class="ac-run" type="button">Simulo →</button><span class="ac-status"></span></div>' +
+      '<div class="ac-result"></div>' +
+      "</div>";
+    document.body.appendChild(ov);
+    var actTa = ov.querySelector(".wi-act"), changeTa = ov.querySelector(".wi-change"),
+        run = ov.querySelector(".ac-run"), status = ov.querySelector(".ac-status"),
+        result = ov.querySelector(".ac-result"), file = ov.querySelector(".wi-file");
+    function close() { ov.remove(); }
+    ov.querySelector(".ac-x").onclick = close;
+    ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
+    if (file) file.onchange = async function () {
+      var f = file.files && file.files[0]; if (!f) return; run.disabled = true;
+      try { var dd = await _extractFileText(f, status); var tx = (dd.text || "").trim();
+        if (tx) { actTa.value = actTa.value.trim() ? (actTa.value.trim() + "\n\n" + tx) : tx;
+          status.textContent = "✓ Dokumenti u lexua"; } }
+      catch (e) { status.textContent = "Gabim: " + e.message; } finally { run.disabled = false; file.value = ""; }
+    };
+    run.onclick = async function () {
+      var act = (actTa.value || "").trim(), change = (changeTa.value || "").trim();
+      if (act.length < 15) { status.textContent = "Jep aktin aktual."; return; }
+      if (change.length < 4) { status.textContent = "Shkruaj ndryshimin që po mendon."; return; }
+      run.disabled = true; status.textContent = "Po simuloj impaktin… (~2 min)"; result.innerHTML = "";
+      try {
+        var r = await fetch("/api/notary/whatif", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ act: act, change: change }) });
+        var d = await r.json();
+        if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
+        status.textContent = "";
+        result.innerHTML = '<div class="fd-out"></div>';
+        var out = result.querySelector(".fd-out");
+        out.innerHTML = renderMarkdown(d.markdown || "");
+        if (d.citations) highlightNeni(out, buildCitStatusMap(d.citations));
+        if (d.citations && d.citations.stats && d.citations.stats.total > 0) result.insertBefore(renderCitationsBadge(d.citations, null), out);
+        _addSaveToCase(result, "notary", "Simulim: " + change.slice(0, 60), d.markdown || "");
+      } catch (e) { status.textContent = "Gabim: " + e.message; }
+      finally { run.disabled = false; }
+    };
+    setTimeout(function () { actTa.focus(); }, 50);
+  }
+
+  async function openClauses() {
+    var ov = document.getElementById("cl-ov");
+    if (ov) ov.remove();
+    ov = document.createElement("div");
+    ov.id = "cl-ov"; ov.className = "ac-overlay";
+    ov.innerHTML = '<div class="ac-modal exp-modal">' +
+      '<div class="ac-head"><span>📚 Klauzolat e studios</span><button class="ac-x" type="button" aria-label="Mbyll">×</button></div>' +
+      '<div class="exp-body">' +
+        '<div class="exp-sub">Ruaj klauzolat/formulimet e preferuara të studios. Kur harton një akt ose prokurë, zgjidh “Përdor klauzolat e studios” dhe drafteri i përdor, duke ruajtur stilin tënd.</div>' +
+        '<input type="text" class="cl-label" placeholder="Titulli (p.sh. Klauzolë çmimi i paguar)" style="width:100%;box-sizing:border-box;margin-bottom:6px" />' +
+        '<input type="text" class="cl-cat" placeholder="Kategoria (opsionale — p.sh. shitje, prokurë, dhurim)" style="width:100%;box-sizing:border-box;margin-bottom:6px" />' +
+        '<textarea class="ac-ta cl-content" placeholder="Teksti i klauzolës…"></textarea>' +
+        '<div class="ac-row"><button class="ac-run cl-add" type="button">➕ Ruaj klauzolën</button><span class="ac-status cl-st"></span></div>' +
+        '<div class="cl-list"><em>Po ngarkoj…</em></div>' +
+      '</div></div>';
+    document.body.appendChild(ov);
+    var label = ov.querySelector(".cl-label"), cat = ov.querySelector(".cl-cat"),
+        content = ov.querySelector(".cl-content"), add = ov.querySelector(".cl-add"),
+        st = ov.querySelector(".cl-st"), list = ov.querySelector(".cl-list");
+    function close() { ov.remove(); }
+    ov.querySelector(".ac-x").onclick = close;
+    ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
+    async function load() {
+      list.innerHTML = "<em>Po ngarkoj…</em>";
+      try {
+        var r = await fetch("/api/firm/clauses"); var d = await r.json();
+        var cl = d.clauses || [];
+        if (!cl.length) { list.innerHTML = '<div class="fk-warn">Ende asnjë klauzolë. Shto të parën lart.</div>'; return; }
+        list.innerHTML = "";
+        var ul = document.createElement("ul"); ul.className = "research-list";
+        cl.forEach(function (c) {
+          var li = document.createElement("li"); li.className = "research-item";
+          var head = document.createElement("div"); head.className = "research-head";
+          head.innerHTML = (c.category ? '<span class="research-src">' + escapeHtml(c.category) + '</span>' : '') +
+            '<span class="research-ttl">' + escapeHtml(c.label || "") + '</span>' +
+            '<button class="research-del" title="Fshij" type="button">×</button>';
+          var body = document.createElement("div"); body.className = "research-body"; body.hidden = true;
+          head.addEventListener("click", function (e) {
+            if (e.target.classList.contains("research-del")) return;
+            if (body.hidden) { body.innerHTML = renderMarkdown(c.content || ""); body.hidden = false; } else body.hidden = true;
+          });
+          head.querySelector(".research-del").addEventListener("click", async function (e) {
+            e.stopPropagation();
+            if (!confirm("Fshij këtë klauzolë?")) return;
+            try { await fetch("/api/firm/clauses/" + c.id, { method: "DELETE" }); } catch (e2) {}
+            load();
+          });
+          li.appendChild(head); li.appendChild(body); ul.appendChild(li);
+        });
+        list.appendChild(ul);
+      } catch (e) { list.innerHTML = '<div class="fk-warn">Gabim gjatë ngarkimit.</div>'; }
+    }
+    add.onclick = async function () {
+      var lb = (label.value || "").trim(), ct = (content.value || "").trim();
+      if (lb.length < 2 || ct.length < 3) { st.textContent = "Jep titullin dhe tekstin."; return; }
+      add.disabled = true; st.textContent = "Duke ruajtur…";
+      try {
+        var r = await fetch("/api/firm/clauses", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ label: lb, category: (cat.value || "").trim(), content: ct }) });
+        if (!r.ok) throw new Error();
+        label.value = ""; cat.value = ""; content.value = ""; st.textContent = "✓ U ruajt"; load();
+      } catch (e) { st.textContent = "Gabim gjatë ruajtjes."; } finally { add.disabled = false; }
+    };
+    load();
+    setTimeout(function () { label.focus(); }, 50);
+  }
+
+  function _barRows(pairs, label) {
+    if (!pairs || !pairs.length) return "";
+    var max = Math.max.apply(null, pairs.map(function (p) { return p[1]; })) || 1;
+    return '<div class="dash-h">' + escapeHtml(label) + '</div>' + pairs.map(function (p) {
+      return '<div class="dash-row"><span class="dash-lbl">' + escapeHtml(String(p[0] || "-")) + '</span>' +
+        '<span class="dash-track"><i style="width:' + Math.round(p[1] / max * 100) + '%"></i></span>' +
+        '<span class="dash-n">' + p[1] + '</span></div>';
+    }).join("");
+  }
+
+  async function openDashboard() {
+    var ov = document.getElementById("dash-ov");
+    if (ov) ov.remove();
+    ov = document.createElement("div");
+    ov.id = "dash-ov"; ov.className = "ac-overlay";
+    ov.innerHTML = '<div class="ac-modal exp-modal">' +
+      '<div class="ac-head"><span>📊 Paneli i studios</span><button class="ac-x" type="button" aria-label="Mbyll">×</button></div>' +
+      '<div class="exp-body"><div class="dash-body"><em>Po ngarkoj…</em></div></div></div>';
+    document.body.appendChild(ov);
+    var body = ov.querySelector(".dash-body");
+    function close() { ov.remove(); }
+    ov.querySelector(".ac-x").onclick = close;
+    ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
+    try {
+      var r = await fetch("/api/firm/dashboard"); var d = await r.json();
+      var insp = d.inspections || {};
+      var srcLabels = { research: "Kërkim", expertise: "Ekspertizë", prosecutor: "Prokuror", notary: "Noter", deadlines: "Afatet" };
+      var bySource = (d.by_source || []).map(function (p) { return [srcLabels[p[0]] || p[0], p[1]]; });
+      var cards =
+        '<div class="dash-cards">' +
+          '<div class="dash-card"><div class="dash-num">' + (d.total_acts || 0) + '</div><div class="dash-cap">Akte të ruajtura</div></div>' +
+          '<div class="dash-card"><div class="dash-num">' + (d.total_clients || 0) + '</div><div class="dash-cap">Klientë</div></div>' +
+          '<div class="dash-card"><div class="dash-num">' + (d.total_clauses || 0) + '</div><div class="dash-cap">Klauzola studios</div></div>' +
+          '<div class="dash-card"><div class="dash-num">' + (insp.avg_risk == null ? "—" : insp.avg_risk) + '</div><div class="dash-cap">Rreziku mesatar (Ispektor)</div></div>' +
+        '</div>';
+      var note = (d.total_acts ? "" : '<div class="fk-warn" style="margin:10px 0">Paneli rritet ndërsa ruan akte me “💾 Ruaj në fashikull” dhe përdor Ispektorin. Tani është bosh.</div>');
+      body.innerHTML = cards + note +
+        _barRows(bySource, "Sipas llojit") +
+        _barRows(d.top_clients, "Klientët më aktivë") +
+        _barRows(d.by_month, "Aktiviteti mujor") +
+        (insp.count ? ('<div class="dash-h">Ispektor</div><div class="dash-row"><span class="dash-lbl">Inspektime</span><span class="dash-n">' + insp.count + '</span></div><div class="dash-row"><span class="dash-lbl">Me rrezik të lartë (&gt;50)</span><span class="dash-n">' + (insp.high || 0) + '</span></div>') : "");
+    } catch (e) { body.innerHTML = '<div class="fk-warn">Nuk u ngarkua paneli.</div>'; }
+  }
+
   function initModeBar() {
     var bar = document.getElementById("mode-bar");
     if (!bar) return;
@@ -4862,6 +5340,10 @@
       else if (key === "hubpros") { openProsHub(); }
       else if (key === "hubnoter") { openNoterHub(); }
       else if (key === "hublive") { openLivingHub(); }
+      else if (key === "inspekt") { openIspektor(); }
+      else if (key === "lexombush") { openExtract(); }
+      else if (key === "regjistri") { openRegistry(); }
+      else if (key === "cklist") { openChecklist(); }
       else if (key === "intake") { openIntake(); }
       else if (key === "fascikull") { openFascikull(); }
       else if (key === "afati") { openAfati(); }

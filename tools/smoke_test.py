@@ -41,6 +41,7 @@ import src.living_law as living
 import src.intake as intake
 import src.afati as afati
 import src.vault as vault
+import src.registry as registry
 try:
     import src.second_opinion as second_opinion
 except Exception:
@@ -86,6 +87,11 @@ run("notary.succession", lambda: notary.succession(be, idx, situation=F))
 run("notary.documents_needed", lambda: notary.documents_needed(be, idx, act=F))
 run("notary.draft_revocation", lambda: notary.draft_revocation(be, idx, details=F))
 run("notary.check_conflicts", lambda: notary.check_conflicts(be, idx, new_act=F, prior_acts=[{"title": "x", "content": "y"}]))
+run("notary.inspect_act", lambda: notary.inspect_act(be, idx, text=F))
+run("notary.extract_data", lambda: notary.extract_data(be, idx, text=F))
+run("notary.dossier_checklist", lambda: notary.dossier_checklist(be, idx, act="Kontrate shitje", documents_text=F))
+run("notary.client_comm", lambda: notary.client_comm(be, idx, kind="shpjego", text=F))
+run("notary.what_if", lambda: notary.what_if(be, idx, act=F, change="cka nese shtoj uzufrukt"))
 
 print("[living_law / intake / afati / deadlines]")
 run("deadlines.prescription", lambda: deadlines.prescription(be, idx, facts=F))
@@ -96,6 +102,7 @@ for tk in afati.TRIGGERS:
     run("afati.compute:" + tk, lambda tk=tk: afati.compute(be, idx, trigger=tk, event_date="2026-08-01", facts=F))
 run("vault.who_said_what(no docs)", lambda: vault.who_said_what(be, "nonexistent-case-id"))
 run("vault.find_needle(no docs)", lambda: vault.find_needle(be, "nonexistent-case-id"))
+run("registry.search_acts", lambda: registry.search_acts(be, "test", [{"id":1,"title":"x","content":"y","client_name":"z"}]))
 
 if second_opinion:
     for nm in dir(second_opinion):
