@@ -10566,10 +10566,11 @@
       const meId = parseInt(document.body.dataset.userId || "0", 10);
       usersAdminBody.innerHTML = data.items.map((u) => `
         <tr${u.suspended ? ' style="opacity:.5;"' : ''}>
-          <td><strong>${escHtml(u.username)}</strong>${u.suspended ? ' <span class="admin-badge" style="background:#c0392b;color:#fff;">i çaktivizuar</span>' : ''}</td>
+          <td><strong>${escHtml(u.username)}</strong>${u.suspended ? ' <span class="admin-badge" style="background:#c0392b;color:#fff;">i çaktivizuar</span>' : ''}<div class="u-meta">${moduleChips(u)}${statusChip(u)}</div></td>
           <td>${u.is_admin ? "👑 Admin" : "👤 User"}</td>
           <td>${u.created_at ? new Date(u.created_at).toLocaleDateString("sq-AL") : "—"}</td>
           <td style="text-align: right; white-space: nowrap;">
+            <button type="button" class="ghost" data-action="manage" data-uid="${u.id}" data-uname="${escHtml(u.username)}" data-modules="${(u.modules||[]).join(',')}" data-plan="${u.plan_expires_at||''}" data-admin="${u.is_admin?1:0}" data-status="${u.status||''}" data-days="${u.days_left==null?'':u.days_left}" title="Menaxho modulet & abonimin">⚙️</button>
             <button type="button" class="ghost" data-action="passwd" data-uid="${u.id}" data-uname="${escHtml(u.username)}" title="Ndrysho fjalëkalimin">🔑</button>
             ${u.id === meId ? "" : `<button type="button" class="ghost" data-action="suspend" data-uid="${u.id}" data-uname="${escHtml(u.username)}" data-suspended="${u.suspended ? '1' : '0'}" title="${u.suspended ? 'Riaktivizo aksesin' : 'Çaktivizo aksesin (nuk fshin të dhënat)'}">${u.suspended ? '✅' : '⛔'}</button>`}
             ${u.id === meId ? "" : `<button type="button" class="ghost" data-action="delete" data-uid="${u.id}" data-uname="${escHtml(u.username)}" title="Fshi përfundimisht" style="color:#c66;">🗑</button>`}
@@ -10581,6 +10582,79 @@
     }
   }
 
+  function moduleChips(u) {
+    var m = u.is_admin ? ["avokat", "prokuror", "noter"] : (u.modules || []);
+    var ic = { avokat: "⚖️", prokuror: "🏛️", noter: "📜" };
+    return m.map(function (x) { return '<span class="u-chip u-' + x + '" title="' + x + '">' + (ic[x] || "") + '</span>'; }).join("");
+  }
+  function statusChip(u) {
+    if (u.is_admin) return '<span class="u-chip u-full">3-in-1</span>';
+    if (u.suspended) return "";
+    if (u.status === "plan_expired" || u.status === "demo_expired") return '<span class="u-chip u-exp">skaduar</span>';
+    if (u.plan_expires_at) {
+      var d = u.days_left;
+      var cls = (d != null && d <= 7) ? "u-warn" : "u-ok";
+      return '<span class="u-chip ' + cls + '">' + (d != null ? d + "d" : "aktiv") + '</span>';
+    }
+    return '<span class="u-chip u-ok">aktiv</span>';
+  }
+  function openUserManage(d) {
+    var ov = document.createElement("div"); ov.className = "wa-modal-ov";
+    var moduleRow = ["avokat", "prokuror", "noter"].map(function (m) {
+      var lbl = { avokat: "⚖️ Avokat", prokuror: "🏛️ Prokuror", noter: "📜 Noter" }[m];
+      var on = d.modules.indexOf(m) >= 0;
+      return '<label class="um-mod"><input type="checkbox" value="' + m + '"' + (on ? " checked" : "") + "> " + lbl + "</label>";
+    }).join("");
+    var expTxt = d.isAdmin ? "Admin — i plotë, pa afat"
+      : (d.plan ? ("Skadon: " + new Date(d.plan).toLocaleDateString("sq-AL") + (d.days != null ? (" (" + d.days + " ditë)") : ""))
+                : "Pa afat (i përhershëm)");
+    var okStatus = (d.isAdmin || d.status === "active");
+    ov.innerHTML = '<div class="wa-modal"><button class="wa-x" type="button" aria-label="Mbyll">×</button>' +
+      "<h3>⚙️ " + escHtml(d.uname) + "</h3>" +
+      '<div class="wa-note ' + (okStatus ? "ok" : "warn") + '">Statusi: <b>' + (d.isAdmin ? "admin" : escHtml(d.status || "active")) + "</b> · " + expTxt + "</div>" +
+      (d.isAdmin ? '<p class="wa-sub">Admin i ka të gjitha modulet — nuk preket.</p>'
+        : '<label class="wa-lab">Modulet e paguara</label><div class="um-mods">' + moduleRow + "</div>" +
+          '<div class="wa-row"><button class="um-save-mods wa-save" type="button">Ruaj modulet</button><span class="um-msg1 wa-msg"></span></div>' +
+          '<label class="wa-lab" style="margin-top:12px">Abonimi (zgjat nga fundi aktual)</label>' +
+          '<div class="um-plan"><button type="button" data-mo="1">+1 muaj</button><button type="button" data-mo="3">+3 muaj</button><button type="button" data-mo="6">+6 muaj</button><button type="button" data-mo="12">+1 vit</button><button type="button" class="um-clear">♾ Pa afat</button></div>' +
+          '<div class="wa-row"><span class="um-msg2 wa-msg"></span></div>') +
+      "</div>";
+    document.body.appendChild(ov);
+    function close() { ov.remove(); }
+    ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
+    ov.querySelector(".wa-x").onclick = close;
+    if (d.isAdmin) return;
+    ov.querySelector(".um-save-mods").onclick = async function () {
+      var sel = [].slice.call(ov.querySelectorAll(".um-mods input:checked")).map(function (x) { return x.value; });
+      var msg = ov.querySelector(".um-msg1");
+      if (!sel.length) { msg.textContent = "Zgjidh të paktën një modul"; return; }
+      try {
+        var r = await fetch("/api/admin/users/" + d.uid + "/modules", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ modules: sel }) });
+        if (!r.ok) throw new Error();
+        msg.textContent = "✓ Ruajtur"; if (typeof toast === "function") toast("Modulet u ruajtën", "ok"); loadAdminUsers();
+      } catch (e) { msg.textContent = "Gabim"; }
+    };
+    ov.querySelectorAll(".um-plan button[data-mo]").forEach(function (b) {
+      b.onclick = async function () {
+        var msg = ov.querySelector(".um-msg2");
+        try {
+          var r = await fetch("/api/admin/users/" + d.uid + "/plan", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ months: parseInt(b.dataset.mo, 10) }) });
+          var j = await r.json(); if (!r.ok) throw new Error();
+          msg.textContent = "✓ Deri " + (j.plan_expires_at ? new Date(j.plan_expires_at).toLocaleDateString("sq-AL") : "");
+          if (typeof toast === "function") toast("Abonimi u zgjat", "ok"); loadAdminUsers(); setTimeout(close, 1000);
+        } catch (e) { msg.textContent = "Gabim"; }
+      };
+    });
+    ov.querySelector(".um-clear").onclick = async function () {
+      var msg = ov.querySelector(".um-msg2");
+      try {
+        var r = await fetch("/api/admin/users/" + d.uid + "/plan", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ clear: true }) });
+        if (!r.ok) throw new Error();
+        msg.textContent = "✓ Pa afat"; if (typeof toast === "function") toast("Bërë i përhershëm", "ok"); loadAdminUsers(); setTimeout(close, 1000);
+      } catch (e) { msg.textContent = "Gabim"; }
+    };
+  }
+
   // delegated click handler per delete/passwd
   usersAdminBody?.addEventListener("click", async (e) => {
     const btn = e.target.closest("button[data-action]");
@@ -10588,6 +10662,15 @@
     const action = btn.dataset.action;
     const uid = parseInt(btn.dataset.uid, 10);
     const uname = btn.dataset.uname;
+
+    if (action === "manage") {
+      openUserManage({ uid: uid, uname: uname,
+        modules: (btn.dataset.modules || "").split(",").filter(Boolean),
+        plan: btn.dataset.plan || "", isAdmin: btn.dataset.admin === "1",
+        status: btn.dataset.status || "",
+        days: btn.dataset.days === "" ? null : parseInt(btn.dataset.days, 10) });
+      return;
+    }
 
     if (action === "delete") {
       if (!confirm(`Të fshish përdoruesin '${uname}'? Veprimi nuk mund të zhbëhet.`)) return;

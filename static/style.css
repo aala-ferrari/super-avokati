@@ -7563,6 +7563,28 @@ main {
   .dl-docx-btn, .dl-pdf-btn { background:#2a2416; border-color:#5a4a26; color:#d8c69a; }
 }
 
+/* admin: module chips + subscription status */
+.u-meta { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.u-chip { display: inline-flex; align-items: center; font-size: .72rem; font-weight: 700;
+  padding: 1px 6px; border-radius: 999px; line-height: 1.5; }
+.u-chip.u-avokat { background: #e6effa; color: #1c4e80; }
+.u-chip.u-prokuror { background: #fbe9e7; color: #b23b1e; }
+.u-chip.u-noter { background: #f3ecdc; color: #7a5c1e; }
+.u-chip.u-full { background: #0f2540; color: #f3e6c4; }
+.u-chip.u-ok { background: #e7f4e8; color: #2f6b34; }
+.u-chip.u-warn { background: #fbf2e3; color: #8a6a1d; }
+.u-chip.u-exp { background: #c0392b; color: #fff; }
+.um-mods { display: flex; flex-wrap: wrap; gap: 10px; margin: 4px 0 2px; }
+.um-mod { display: inline-flex; align-items: center; gap: 5px; font-size: .95rem; color: #2a2416; cursor: pointer; }
+.um-plan { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0; }
+.um-plan button { background: #fbf7ec; border: 1px solid #d8c69a; color: #6b5836; border-radius: 8px;
+  padding: 6px 10px; font-weight: 700; font-size: .82rem; cursor: pointer; }
+.um-plan button:hover { background: #f4ecd6; }
+.um-plan .um-clear { background: #eef3ec; border-color: #bcd3b8; color: #37623a; }
+@media (prefers-color-scheme: dark) {
+  .um-mod { color: #e0d8c4; }
+}
+
 /* WhatsApp link modal */
 .wa-modal-ov { position: fixed; inset: 0; background: rgba(15,20,30,.55); display: flex;
   align-items: center; justify-content: center; z-index: 4000; padding: 16px; }
