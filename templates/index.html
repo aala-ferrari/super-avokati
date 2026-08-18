@@ -102,11 +102,13 @@
           <strong>{{ username }}</strong>
           {% if is_admin %}<span class="admin-badge">admin</span>{% endif %}
         </div>
+        <button type="button" id="wa-link-btn" class="dropdown-item">📱 WhatsApp për kujtesat</button>
         <button type="button" id="logout-btn" class="dropdown-item">🚪 Dil</button>
       </div>
     </div>
   </div>
 </header>
+<div id="deadline-banner" class="deadline-banner" hidden></div>
 <button id="logout-fab" class="logout-fab" type="button" aria-label="Dil / Logout">🚪 Dil</button>
 
 <main>

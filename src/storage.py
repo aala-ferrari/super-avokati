@@ -884,6 +884,7 @@ def init_db(db_path: Path = APP_DB_PATH) -> None:
         # Calendar to their feed without logging into the app.
         _add_column_if_missing(conn, "users", "telegram_chat_id", "TEXT")
         _add_column_if_missing(conn, "users", "ical_token", "TEXT")
+        _add_column_if_missing(conn, "users", "whatsapp_phone", "TEXT")
         _add_column_if_missing(conn, "users", "profession", "TEXT NOT NULL DEFAULT 'avokat'")
         # V8.0 multi-tenancy
         _add_column_if_missing(conn, "cases", "firm_id", "INTEGER")
@@ -2153,6 +2154,23 @@ def get_user_telegram_chat(user_id: int) -> str | None:
             (user_id,),
         ).fetchone()
     return row["telegram_chat_id"] if row else None
+
+
+def set_user_whatsapp(user_id: int, phone: str | None) -> None:
+    with db() as conn:
+        conn.execute(
+            "UPDATE users SET whatsapp_phone = ? WHERE id = ?",
+            (phone, user_id),
+        )
+
+
+def get_user_whatsapp(user_id: int) -> str | None:
+    with db() as conn:
+        row = conn.execute(
+            "SELECT whatsapp_phone FROM users WHERE id = ?",
+            (user_id,),
+        ).fetchone()
+    return row["whatsapp_phone"] if row else None
 
 
 def ensure_ical_token(user_id: int) -> str:

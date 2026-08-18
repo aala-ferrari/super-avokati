@@ -5845,6 +5845,59 @@ def api_list_events():
     return jsonify({"events": payload})
 
 
+@app.get("/api/agenda/upcoming")
+@login_required_api
+def api_agenda_upcoming():
+    """Deadline safety-net: overdue + upcoming (not-done) events."""
+    from datetime import datetime, timedelta, UTC
+    user = request.user  # type: ignore[attr-defined]
+    try:
+        days = int(request.args.get("days") or 7)
+    except (TypeError, ValueError):
+        days = 7
+    days = max(1, min(days, 60))
+    now = datetime.now(UTC)
+    back = (now - timedelta(days=30)).isoformat().replace("+00:00", "Z")
+    ahead = (now + timedelta(days=days)).isoformat().replace("+00:00", "Z")
+    events = storage.list_events(user.id, start=back, end=ahead)
+
+    def _parse(v):
+        try:
+            return datetime.fromisoformat((v or "").replace("Z", "+00:00"))
+        except Exception:  # noqa: BLE001
+            return None
+
+    case_titles: dict = {}
+    overdue, upcoming = [], []
+    for e in events:
+        if e.done:
+            continue
+        ct = None
+        if e.case_id:
+            if e.case_id not in case_titles:
+                c = _resolve_case(e.case_id)
+                case_titles[e.case_id] = c.title if c else None
+            ct = case_titles[e.case_id]
+        dt = _parse(e.starts_at)
+        item = {"id": e.id, "title": e.title, "kind": e.kind,
+                "starts_at": e.starts_at, "location": e.location,
+                "case_title": ct}
+        if dt is not None and dt < now:
+            item["days_overdue"] = (now - dt).days
+            overdue.append(item)
+        else:
+            if dt is not None:
+                item["days_until"] = (dt - now).days
+            upcoming.append(item)
+    today_n = sum(1 for it in upcoming if it.get("days_until") == 0)
+    return jsonify({
+        "overdue": overdue,
+        "upcoming": upcoming,
+        "counts": {"overdue": len(overdue), "upcoming": len(upcoming),
+                   "today": today_n, "days": days},
+    })
+
+
 @app.get("/api/firm/calendar")
 @login_required_api
 def api_firm_calendar():
@@ -5990,6 +6043,29 @@ def api_settings_telegram_set():
         return jsonify({"error": "chat_id duhet të jetë numër"}), 400
     storage.set_user_telegram_chat(user.id, raw or None)
     return jsonify({"linked": bool(raw)})
+
+
+@app.get("/api/settings/whatsapp")
+@login_required_api
+def api_settings_whatsapp_get():
+    from .config import WHATSAPP_TOKEN, WHATSAPP_PHONE_NUMBER_ID, WHATSAPP_TEMPLATE_NAME
+    user = request.user  # type: ignore[attr-defined]
+    phone = storage.get_user_whatsapp(user.id)
+    backend_ready = bool(WHATSAPP_TOKEN and WHATSAPP_PHONE_NUMBER_ID and WHATSAPP_TEMPLATE_NAME)
+    return jsonify({"phone": phone, "linked": bool(phone), "backend_ready": backend_ready})
+
+
+@app.post("/api/settings/whatsapp")
+@login_required_api
+def api_settings_whatsapp_set():
+    user = request.user  # type: ignore[attr-defined]
+    data = request.get_json(silent=True) or {}
+    raw = (data.get("phone") or "").strip()
+    digits = re.sub(r"[^\d]", "", raw)
+    if raw and not (6 <= len(digits) <= 15):
+        return jsonify({"error": "Numri i WhatsApp duhet 6–15 shifra (me prefiks shteti, p.sh. 3556…)"}), 400
+    storage.set_user_whatsapp(user.id, digits or None)
+    return jsonify({"linked": bool(digits), "phone": digits or None})
 
 
 @app.get("/api/calendar/ical/<token>.ics")

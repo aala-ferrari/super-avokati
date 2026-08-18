@@ -19,6 +19,13 @@ ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "") or os.getenv("GOOGLE_API_KEY", "")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 
+# WhatsApp Business Cloud API (Meta) — reminders channel. Dormant until
+# all three are set + a message template is approved in Meta Business.
+WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN", "")
+WHATSAPP_PHONE_NUMBER_ID = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")
+WHATSAPP_TEMPLATE_NAME = os.getenv("WHATSAPP_TEMPLATE_NAME", "")
+WHATSAPP_TEMPLATE_LANG = os.getenv("WHATSAPP_TEMPLATE_LANG", "sq")
+
 # "auto" picks Gemini if its key is set (free tier), otherwise Anthropic.
 # Force a specific provider with BRAIN_BACKEND=anthropic or BRAIN_BACKEND=gemini.
 BRAIN_BACKEND = os.getenv("BRAIN_BACKEND", "auto")

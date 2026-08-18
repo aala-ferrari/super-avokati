@@ -3247,7 +3247,7 @@
     try {
       const now = new Date();
       const in48 = new Date(now.getTime() + 48*3600*1000);
-      const resp = await fetch(`/api/events?from=${now.toISOString()}&to=${in48.toISOString()}`);
+      const resp = await fetch(`/api/events?start=${now.toISOString()}&end=${in48.toISOString()}`);
       if (!resp.ok) return;
       const data = await resp.json();
       const count = (data.events || []).filter(e => !e.done).length;
@@ -3260,7 +3260,72 @@
         }
       }
     } catch {}
+    loadDeadlineBanner();
   }
+
+  async function loadDeadlineBanner() {
+    var el = document.getElementById("deadline-banner");
+    if (!el) return;
+    try {
+      var r = await fetch("/api/agenda/upcoming?days=7");
+      if (!r.ok) { el.hidden = true; return; }
+      var d = await r.json();
+      var od = d.overdue || [], up = d.upcoming || [];
+      var today = (d.counts && d.counts.today) || 0;
+      if (!od.length && !up.length) { el.hidden = true; return; }
+      var parts = [];
+      if (od.length) parts.push('<b class="db-overdue">' + od.length + (od.length === 1 ? ' e skaduar' : ' të skaduara') + '</b>');
+      if (today) parts.push('<b class="db-today">' + today + ' sot</b>');
+      var soon = up.length - today;
+      if (soon > 0) parts.push(soon + ' në 7 ditë');
+      var next = od[0] || up[0];
+      var nextTxt = next ? (escapeHtml(next.title || '') + (next.case_title ? ' · ' + escapeHtml(next.case_title) : '')) : '';
+      el.innerHTML = '<span class="db-icon">⏰</span>' +
+        '<span class="db-text"><b>Afatet:</b> ' + parts.join(' · ') +
+        (nextTxt ? ' — <span class="db-next">' + nextTxt + '</span>' : '') + '</span>' +
+        '<button type="button" class="db-open">Hap kalendarin</button>' +
+        '<button type="button" class="db-close" aria-label="Mbyll">×</button>';
+      el.classList.toggle("db-alert", (od.length > 0 || today > 0));
+      el.hidden = false;
+      var ob = el.querySelector(".db-open"); if (ob) ob.onclick = function () { el.hidden = true; if (typeof openCalendar === "function") openCalendar(); };
+      var cb = el.querySelector(".db-close"); if (cb) cb.onclick = function () { el.hidden = true; };
+    } catch (e) { el.hidden = true; }
+  }
+
+  var _waBtn = document.getElementById("wa-link-btn");
+  if (_waBtn) _waBtn.addEventListener("click", async function () {
+    var dd = document.getElementById("user-dropdown"); if (dd) dd.hidden = true;
+    var cur = {};
+    try { var rr = await fetch("/api/settings/whatsapp"); if (rr.ok) cur = await rr.json(); } catch (e) {}
+    var ready = !!cur.backend_ready;
+    var ov = document.createElement("div"); ov.className = "wa-modal-ov";
+    ov.innerHTML = '<div class="wa-modal">' +
+      '<button class="wa-x" type="button" aria-label="Mbyll">×</button>' +
+      '<h3>📱 WhatsApp për kujtesat</h3>' +
+      '<p class="wa-sub">Merr kujtesat e afateve dhe seancave direkt në WhatsApp.</p>' +
+      '<label class="wa-lab">Numri yt (me prefiks shteti)</label>' +
+      '<input class="wa-inp" type="tel" placeholder="p.sh. 355691234567" value="' + (cur.phone ? escapeHtml(cur.phone) : '') + '">' +
+      '<div class="wa-note ' + (ready ? 'ok' : 'warn') + '">' + (ready
+        ? '✓ Kanali WhatsApp është aktiv.'
+        : '⚠ Numri ruhet tani; dërgimi aktivizohet kur të lidhet Meta WhatsApp (token + template i miratuar).') + '</div>' +
+      '<div class="wa-row"><button class="wa-save" type="button">Ruaj</button><span class="wa-msg"></span></div>' +
+      '</div>';
+    document.body.appendChild(ov);
+    function close() { ov.remove(); }
+    ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
+    ov.querySelector(".wa-x").onclick = close;
+    ov.querySelector(".wa-save").onclick = async function () {
+      var inp = ov.querySelector(".wa-inp"), msg = ov.querySelector(".wa-msg"), btn = ov.querySelector(".wa-save");
+      btn.disabled = true; msg.textContent = "";
+      try {
+        var r = await fetch("/api/settings/whatsapp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ phone: inp.value }) });
+        var d = await r.json(); if (!r.ok) throw new Error(d.error || "Gabim");
+        msg.textContent = d.linked ? "✓ U ruajt" : "✓ U hoq";
+        if (typeof toast === "function") toast(d.linked ? "WhatsApp u lidh" : "WhatsApp u hoq", "ok");
+        setTimeout(close, 700);
+      } catch (e) { msg.textContent = e.message; btn.disabled = false; }
+    };
+  });
 
   // ─── nav wiring ─────────────────────────────────────────────────
   calendarBtn?.addEventListener("click", openCalendar);

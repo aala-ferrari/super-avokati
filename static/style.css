@@ -7563,6 +7563,55 @@ main {
   .dl-docx-btn, .dl-pdf-btn { background:#2a2416; border-color:#5a4a26; color:#d8c69a; }
 }
 
+/* WhatsApp link modal */
+.wa-modal-ov { position: fixed; inset: 0; background: rgba(15,20,30,.55); display: flex;
+  align-items: center; justify-content: center; z-index: 4000; padding: 16px; }
+.wa-modal { position: relative; background: #fdfaf3; border: 1px solid #e3d3a5; border-radius: 16px;
+  padding: 22px 22px 18px; width: 100%; max-width: 400px; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
+.wa-modal h3 { margin: 0 0 4px; color: #0f2540; font-size: 1.1rem; }
+.wa-modal .wa-sub { margin: 0 0 14px; color: #6b5f47; font-size: .9rem; }
+.wa-modal .wa-lab { display: block; font-weight: 700; font-size: .82rem; color: #4a3f28; margin-bottom: 4px; }
+.wa-modal .wa-inp { width: 100%; box-sizing: border-box; padding: 9px 12px; border: 1px solid #d8c69a;
+  border-radius: 9px; font-size: 1rem; background: #fff; color: #201a0d; }
+.wa-modal .wa-note { margin: 10px 0; padding: 8px 10px; border-radius: 8px; font-size: .82rem; }
+.wa-modal .wa-note.ok { background: #eef6ec; color: #2f6b34; }
+.wa-modal .wa-note.warn { background: #fbf2e3; color: #8a6a1d; }
+.wa-modal .wa-row { display: flex; align-items: center; gap: 10px; }
+.wa-modal .wa-save { background: #25603a; color: #eaf5ea; border: none; border-radius: 9px;
+  padding: 8px 18px; font-weight: 700; cursor: pointer; }
+.wa-modal .wa-save:disabled { opacity: .6; cursor: default; }
+.wa-modal .wa-msg { font-size: .85rem; color: #6b5f47; }
+.wa-modal .wa-x { position: absolute; top: 10px; right: 12px; background: none; border: none;
+  font-size: 1.4rem; line-height: 1; color: #9a8c6e; cursor: pointer; }
+@media (prefers-color-scheme: dark) {
+  .wa-modal { background: #201d15; border-color: #3a3320; }
+  .wa-modal h3 { color: #e8dcc0; } .wa-modal .wa-sub { color: #b6a888; }
+  .wa-modal .wa-inp { background: #16130d; color: #e0d8c4; border-color: #4a4026; }
+}
+
+/* deadline banner (kujtesa e afateve) */
+.deadline-banner { display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin: 0; padding: 9px 16px; background: #fbf7ec; border-bottom: 1px solid #e3d3a5;
+  color: #4a3f28; font-size: .92rem; }
+.deadline-banner.db-alert { background: #fdf0ec; border-bottom-color: #e8b9a6; }
+.deadline-banner .db-icon { font-size: 1.05rem; }
+.deadline-banner .db-text { flex: 1 1 auto; min-width: 180px; }
+.deadline-banner .db-next { color: #6b5836; }
+.deadline-banner .db-overdue { color: #b23b1e; }
+.deadline-banner .db-today { color: #b8860b; }
+.deadline-banner .db-open { background: #0f2540; color: #f3e6c4; border: none;
+  border-radius: 8px; padding: 6px 12px; font-weight: 700; font-size: .85rem; cursor: pointer; }
+.deadline-banner .db-open:hover { filter: brightness(1.1); }
+.deadline-banner .db-close { background: none; border: none; color: #9a8c6e;
+  font-size: 1.3rem; line-height: 1; cursor: pointer; padding: 0 4px; }
+.deadline-banner .db-close:hover { color: #b23b1e; }
+@media (prefers-color-scheme: dark) {
+  .deadline-banner { background: #221f16; border-bottom-color: #3a3320; color: #e0d8c4; }
+  .deadline-banner.db-alert { background: #2a1c17; border-bottom-color: #5a3326; }
+  .deadline-banner .db-next { color: #cbb98f; }
+  .deadline-banner .db-open { background: #c9a24b; color: #201a0d; }
+}
+
 /* research v2: search + client badge */
 .research-search { width: 100%; padding: 8px 12px; margin-bottom: 8px; border: 1px solid #e6dcc6;
   border-radius: 10px; background: #fff; font-size: .9rem; box-sizing: border-box; }
