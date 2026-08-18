@@ -221,7 +221,9 @@ def _send_email(to_email: str, event, reminder) -> str | None:
     req = urllib.request.Request(
         RESEND_API, data=payload, method="POST",
         headers={"Authorization": f"Bearer {RESEND_API_KEY}",
-                 "Content-Type": "application/json"},
+                 "Content-Type": "application/json",
+                 "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+                               "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"},
     )
     try:
         with urllib.request.urlopen(req, timeout=15) as resp:
