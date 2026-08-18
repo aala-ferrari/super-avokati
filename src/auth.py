@@ -36,28 +36,35 @@ def authenticate(username: str, password: str) -> storage.User | None:
     which of username/password was wrong — same response either way."""
     stored = storage.get_user_password_hash(username)
     if stored and verify_password(password, stored):
-        # demo accounts carry an expiry; once the clock passes it we refuse
-        # the login with the same generic response (no info leak).
-        expiry = storage.get_user_demo_expiry(username)
-        if expiry:
-            now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
-            if now >= expiry:
-                log.info("demo expired for %r", username)
-                return None
-        # suspended accounts (e.g. stopped paying) are refused with the same
-        # generic response — data is kept, admin can re-activate any time.
-        if storage.is_user_suspended(username):
-            log.info("login refused: %r is suspended", username)
+        user = storage.get_user_by_username(username)
+        reason = storage.access_block_reason(user)
+        if reason:
+            log.info("login refused for %r: %s", username, reason)
             return None
-        return storage.get_user_by_username(username)
+        return user
     return None
+
+
+def login_reason(username: str, password: str) -> str | None:
+    """If the password is valid but access is blocked, return the reason
+    (suspended / demo_expired / plan_expired) so the login UI can show a clear
+    message. Returns None on wrong password (no info leak) or when access is OK."""
+    stored = storage.get_user_password_hash(username)
+    if not (stored and verify_password(password, stored)):
+        return None
+    return storage.access_block_reason(storage.get_user_by_username(username))
 
 
 def current_user() -> storage.User | None:
     uid = session.get("user_id")
     if not uid:
         return None
-    return storage.get_user_by_id(uid)
+    user = storage.get_user_by_id(uid)
+    # Enforce on every request: an active session is cut off the moment the
+    # subscription/demo expires or the account is suspended (admin exempt).
+    if user is not None and storage.access_block_reason(user):
+        return None
+    return user
 
 
 def current_firm() -> storage.Firm | None:

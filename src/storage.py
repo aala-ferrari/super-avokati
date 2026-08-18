@@ -913,6 +913,9 @@ def init_db(db_path: Path = APP_DB_PATH) -> None:
         # refused while suspended, but all their cases/data are preserved so
         # a re-activation restores full access instantly.
         _add_column_if_missing(conn, "users", "suspended", "INTEGER NOT NULL DEFAULT 0")
+        _add_column_if_missing(conn, "users", "modules", "TEXT")
+        _add_column_if_missing(conn, "users", "plan_expires_at", "TEXT")
+        conn.execute("UPDATE users SET modules = profession WHERE modules IS NULL OR modules = ''")
         conn.commit()
     log.info("app db ready at %s", db_path)
 
@@ -1125,6 +1128,9 @@ class User:
     created_at: str
     suspended: bool = False
     profession: str = "avokat"  # avokat | prokuror | noter
+    modules: str = ""           # comma-set: avokat,prokuror,noter (empty -> profession)
+    demo_expires_at: str | None = None
+    plan_expires_at: str | None = None
 
 
 CASE_STAGES: tuple[str, ...] = (
@@ -1183,11 +1189,16 @@ class Message:
 
 
 def _user_from_row(r: sqlite3.Row) -> User:
-    susp = bool(r["suspended"]) if "suspended" in r.keys() else False
-    prof = r["profession"] if "profession" in r.keys() and r["profession"] else "avokat"
+    keys = r.keys()
+    susp = bool(r["suspended"]) if "suspended" in keys else False
+    prof = r["profession"] if "profession" in keys and r["profession"] else "avokat"
+    mods = r["modules"] if "modules" in keys and r["modules"] else ""
+    demo = r["demo_expires_at"] if "demo_expires_at" in keys else None
+    plan = r["plan_expires_at"] if "plan_expires_at" in keys else None
     return User(id=r["id"], username=r["username"],
                 is_admin=bool(r["is_admin"]), created_at=r["created_at"],
-                suspended=susp, profession=prof)
+                suspended=susp, profession=prof, modules=mods,
+                demo_expires_at=demo, plan_expires_at=plan)
 
 
 def _case_from_row(r: sqlite3.Row) -> Case:
@@ -1266,6 +1277,60 @@ def set_user_profession(user_id: int, profession: str) -> bool:
         return cur.rowcount > 0
 
 
+VALID_MODULES = ("avokat", "prokuror", "noter")
+
+
+def user_modules(user) -> set:
+    """Entitled modules for a user. Admin = all. Empty modules falls back to
+    the legacy `profession` field so nobody loses access after the migration."""
+    if getattr(user, "is_admin", False):
+        return set(VALID_MODULES)
+    raw = (getattr(user, "modules", "") or "").strip()
+    if not raw:
+        prof = getattr(user, "profession", "avokat") or "avokat"
+        return {prof} if prof in VALID_MODULES else {"avokat"}
+    mods = {m.strip() for m in raw.split(",") if m.strip() in VALID_MODULES}
+    return mods or {"avokat"}
+
+
+def set_user_modules(user_id: int, modules) -> bool:
+    clean = sorted({m for m in (modules or []) if m in VALID_MODULES})
+    if not clean:
+        return False
+    with db() as conn:
+        cur = conn.execute("UPDATE users SET modules = ? WHERE id = ?",
+                           (",".join(clean), user_id))
+        conn.commit()
+        return cur.rowcount > 0
+
+
+def set_user_plan_expiry(user_id: int, iso_or_none) -> bool:
+    with db() as conn:
+        cur = conn.execute("UPDATE users SET plan_expires_at = ? WHERE id = ?",
+                           (iso_or_none, user_id))
+        conn.commit()
+        return cur.rowcount > 0
+
+
+def access_block_reason(user):
+    """Why this user is blocked, or None if OK. Admin is NEVER blocked.
+    Order: suspended > demo_expired > plan_expired."""
+    if user is None:
+        return "unknown"
+    if getattr(user, "is_admin", False):
+        return None
+    if getattr(user, "suspended", False):
+        return "suspended"
+    now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    demo = getattr(user, "demo_expires_at", None)
+    if demo and now >= demo:
+        return "demo_expired"
+    plan = getattr(user, "plan_expires_at", None)
+    if plan and now >= plan:
+        return "plan_expired"
+    return None
+
+
 def create_user(username: str, password_hash: str, is_admin: bool = False,
                 profession: str = "avokat") -> User:
     username = username.strip()
@@ -1308,8 +1373,7 @@ def create_user(username: str, password_hash: str, is_admin: bool = False,
 def get_user_by_username(username: str) -> User | None:
     with db() as conn:
         row = conn.execute(
-            "SELECT id, username, is_admin, created_at FROM users "
-            "WHERE username = ? COLLATE NOCASE",
+            "SELECT * FROM users WHERE username = ? COLLATE NOCASE",
             (username.strip(),),
         ).fetchone()
     return _user_from_row(row) if row else None
@@ -1382,7 +1446,7 @@ def get_user_password_hash(username: str) -> str | None:
 def get_user_by_id(user_id: int) -> User | None:
     with db() as conn:
         row = conn.execute(
-            "SELECT id, username, is_admin, created_at, suspended FROM users WHERE id = ?",
+            "SELECT * FROM users WHERE id = ?",
             (user_id,),
         ).fetchone()
     return _user_from_row(row) if row else None
@@ -1391,8 +1455,7 @@ def get_user_by_id(user_id: int) -> User | None:
 def list_users() -> list[User]:
     with db() as conn:
         rows = conn.execute(
-            "SELECT id, username, is_admin, created_at, suspended FROM users "
-            "ORDER BY id ASC"
+            "SELECT * FROM users ORDER BY id ASC"
         ).fetchall()
     return [_user_from_row(r) for r in rows]
 

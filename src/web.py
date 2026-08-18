@@ -201,6 +201,16 @@ def api_login():
         return jsonify({"error": "missing credentials"}), 400
     user = authenticate(username, password)
     if user is None:
+        from .auth import login_reason
+        reason = login_reason(username, password)
+        if reason:
+            msg = {
+                "suspended": "Llogaria juaj është pezulluar. Kontaktoni studion.",
+                "demo_expired": "Demo ka skaduar.",
+                "plan_expired": "Abonimi juaj ka skaduar. Kontaktoni për ta rinovuar.",
+            }.get(reason, "Qasja është bllokuar.")
+            log.info("blocked login for %r: %s", username, reason)
+            return jsonify({"error": msg, "blocked": reason}), 403
         log.info("failed login for %r", username)
         return jsonify({"error": "invalid credentials"}), 401
     login_user(user)
@@ -6889,6 +6899,19 @@ def api_admin_audit_export():
 # change their OWN password.
 
 def _user_payload(u) -> dict:
+    from datetime import datetime, UTC
+    reason = storage.access_block_reason(u)
+    status = "admin" if u.is_admin else (reason or "active")
+    plan = getattr(u, "plan_expires_at", None)
+    demo = getattr(u, "demo_expires_at", None)
+    days_left = None
+    exp = plan or demo
+    if exp and not u.is_admin:
+        try:
+            dt = datetime.fromisoformat(exp.replace("Z", "+00:00"))
+            days_left = (dt - datetime.now(UTC)).days
+        except Exception:  # noqa: BLE001
+            days_left = None
     return {
         "id": u.id,
         "username": u.username,
@@ -6896,6 +6919,11 @@ def _user_payload(u) -> dict:
         "created_at": (u.created_at.isoformat() if hasattr(getattr(u, "created_at", None), "isoformat") else getattr(u, "created_at", None)),
         "suspended": bool(getattr(u, "suspended", False)),
         "profession": getattr(u, "profession", "avokat"),
+        "modules": sorted(storage.user_modules(u)),
+        "plan_expires_at": plan,
+        "demo_expires_at": demo,
+        "status": status,
+        "days_left": days_left,
     }
 
 
@@ -6932,6 +6960,14 @@ def api_admin_users_create():
         is_admin=is_admin_flag,
         profession=profession,
     )
+    mods = data.get("modules")
+    if isinstance(mods, list) and any(m in storage.VALID_MODULES for m in mods):
+        storage.set_user_modules(new_user.id, mods)
+    elif profession in storage.VALID_MODULES:
+        storage.set_user_modules(new_user.id, [profession])
+    if data.get("plan_expires_at"):
+        storage.set_user_plan_expiry(new_user.id, str(data["plan_expires_at"]))
+    new_user = storage.get_user_by_id(new_user.id)
     log.info("admin %s created user %s (admin=%s)", user.username, username, is_admin_flag)
     return jsonify(_user_payload(new_user)), 201
 
@@ -6973,6 +7009,65 @@ def api_admin_set_profession(user_id):
     if not storage.set_user_profession(user_id, prof):
         return jsonify({"error": "profesion i pavlefshëm"}), 400
     return jsonify({"ok": True, "profession": prof})
+
+
+@app.patch("/api/admin/users/<int:user_id>/modules")
+@login_required_api
+def api_admin_set_modules(user_id):
+    user = request.user  # type: ignore[attr-defined]
+    if not user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    mods = (request.get_json(silent=True) or {}).get("modules")
+    if not isinstance(mods, list) or not any(m in storage.VALID_MODULES for m in mods):
+        return jsonify({"error": "të paktën një modul i vlefshëm"}), 400
+    if not storage.set_user_modules(user_id, mods):
+        return jsonify({"error": "dështoi"}), 400
+    return jsonify(_user_payload(storage.get_user_by_id(user_id)))
+
+
+@app.patch("/api/admin/users/<int:user_id>/plan")
+@login_required_api
+def api_admin_set_plan(user_id):
+    """Set/extend/clear subscription expiry. Body: {months:N} extend from
+    max(now, current); {expires_at:"ISO"} explicit; {clear:true} permanent."""
+    from datetime import datetime, UTC
+    import calendar
+    user = request.user  # type: ignore[attr-defined]
+    if not user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    target = storage.get_user_by_id(user_id)
+    if target is None:
+        return jsonify({"error": "user not found"}), 404
+    data = request.get_json(silent=True) or {}
+    if data.get("clear"):
+        storage.set_user_plan_expiry(user_id, None)
+        return jsonify(_user_payload(storage.get_user_by_id(user_id)))
+    if data.get("expires_at"):
+        storage.set_user_plan_expiry(user_id, str(data["expires_at"]))
+        return jsonify(_user_payload(storage.get_user_by_id(user_id)))
+    if data.get("months"):
+        try:
+            months = int(data["months"])
+        except (TypeError, ValueError):
+            return jsonify({"error": "muaj i pavlefshëm"}), 400
+        now = datetime.now(UTC)
+        base = now
+        cur = getattr(target, "plan_expires_at", None)
+        if cur:
+            try:
+                curdt = datetime.fromisoformat(cur.replace("Z", "+00:00"))
+                if curdt > now:
+                    base = curdt
+            except Exception:  # noqa: BLE001
+                base = now
+        m = base.month - 1 + months
+        y = base.year + m // 12
+        m = m % 12 + 1
+        d = min(base.day, calendar.monthrange(y, m)[1])
+        newdt = base.replace(year=y, month=m, day=d)
+        storage.set_user_plan_expiry(user_id, newdt.strftime("%Y-%m-%dT%H:%M:%SZ"))
+        return jsonify(_user_payload(storage.get_user_by_id(user_id)))
+    return jsonify({"error": "specifiko months, expires_at ose clear"}), 400
 
 
 @app.patch("/api/me/profession")
