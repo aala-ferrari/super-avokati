@@ -191,6 +191,26 @@ def login_page() -> str:
 
 # ── auth API ───────────────────────────────────────────────────────────────
 
+def require_module(*mods):
+    """Gate an endpoint to users entitled to >=1 of `mods` (admin always
+    passes — storage.user_modules returns all for admins). Stack BELOW
+    @login_required_api so request.user is already set."""
+    from functools import wraps as _wraps
+
+    def _deco(fn):
+        @_wraps(fn)
+        def _wrapper(*args, **kwargs):
+            u = getattr(request, "user", None)
+            if u is None:
+                return jsonify({"error": "unauthorized"}), 401
+            if not (set(mods) & storage.user_modules(u)):
+                return jsonify({"error": "Ky mjet nuk përfshihet në abonimin tuaj.",
+                                "need_module": list(mods)}), 403
+            return fn(*args, **kwargs)
+        return _wrapper
+    return _deco
+
+
 @app.post("/api/login")
 def api_login():
     _ensure_loaded()
@@ -2316,6 +2336,7 @@ def api_second_opinion():
 
 @app.post("/api/devil-consult")
 @login_required_api
+@require_module("avokat", "prokuror")
 def api_devil_consult():
     """Pyet Avokatin e Djallit — standalone shrewd consultation (Fable)."""
     _ensure_loaded()
@@ -2342,6 +2363,7 @@ def api_devil_consult():
 
 @app.post("/api/adversary")
 @login_required_api
+@require_module("avokat", "prokuror")
 def api_adversary():
     """Kundershtari — Fable attacks a pasted contract/act as opposing counsel."""
     _ensure_loaded()
@@ -4280,6 +4302,7 @@ def api_notary_deed_types():
 
 @app.post("/api/notary/draft")
 @login_required_api
+@require_module("noter")
 def api_notary_draft():
     body = request.get_json(silent=True) or {}
     details = (body.get("details") or "").strip()
@@ -4305,6 +4328,7 @@ def api_notary_check():
 
 @app.post("/api/notary/succession")
 @login_required_api
+@require_module("noter")
 def api_notary_succession():
     body = request.get_json(silent=True) or {}
     sit = (body.get("situation") or "").strip()
@@ -4322,6 +4346,7 @@ def api_notary_prokura_scopes():
 
 @app.post("/api/notary/prokura")
 @login_required_api
+@require_module("noter")
 def api_notary_prokura():
     body = request.get_json(silent=True) or {}
     scopes = body.get("scope_keys") or []
@@ -4345,6 +4370,7 @@ def api_notary_declaration_types():
 
 @app.post("/api/notary/declaration")
 @login_required_api
+@require_module("noter")
 def api_notary_declaration():
     body = request.get_json(silent=True) or {}
     details = (body.get("details") or "").strip()
@@ -4358,6 +4384,7 @@ def api_notary_declaration():
 
 @app.post("/api/notary/documents")
 @login_required_api
+@require_module("noter")
 def api_notary_documents():
     body = request.get_json(silent=True) or {}
     act = (body.get("act") or "").strip()
@@ -4369,6 +4396,7 @@ def api_notary_documents():
 
 @app.post("/api/notary/revocation")
 @login_required_api
+@require_module("noter")
 def api_notary_revocation():
     body = request.get_json(silent=True) or {}
     details = (body.get("details") or "").strip()
@@ -4506,6 +4534,7 @@ def api_notary_client_kinds():
 
 @app.post("/api/registry/search")
 @login_required_api
+@require_module("avokat", "prokuror")
 def api_registry_search():
     _ensure_loaded()
     if _BRAIN is None:
@@ -4630,6 +4659,7 @@ def api_firm_clauses_delete(clause_id: int):
 
 @app.post("/api/prosecutor/indictment")
 @login_required_api
+@require_module("prokuror")
 def api_prosecutor_indictment():
     _ensure_loaded()
     if _BRAIN is None or _INDEX is None:
@@ -4671,12 +4701,14 @@ def api_prosecutor_act_kinds():
 
 @app.post("/api/prosecutor/investigation-plan")
 @login_required_api
+@require_module("prokuror")
 def api_prosecutor_plan():
     return _pros_facts(prosecutor_mod.investigation_plan, request.get_json(silent=True) or {})
 
 
 @app.post("/api/prosecutor/investigative-act")
 @login_required_api
+@require_module("prokuror")
 def api_prosecutor_act():
     body = request.get_json(silent=True) or {}
     return _pros_facts(prosecutor_mod.investigative_act, body,
@@ -4685,18 +4717,21 @@ def api_prosecutor_act():
 
 @app.post("/api/prosecutor/coercive-measure")
 @login_required_api
+@require_module("prokuror")
 def api_prosecutor_measure():
     return _pros_facts(prosecutor_mod.coercive_measure, request.get_json(silent=True) or {})
 
 
 @app.post("/api/prosecutor/dismissal")
 @login_required_api
+@require_module("prokuror")
 def api_prosecutor_dismissal():
     return _pros_facts(prosecutor_mod.dismissal_request, request.get_json(silent=True) or {})
 
 
 @app.post("/api/prosecutor/stress-test")
 @login_required_api
+@require_module("prokuror")
 def api_prosecutor_stress():
     return _pros_facts(prosecutor_mod.stress_test, request.get_json(silent=True) or {},
                        key="text", minlen=30)
@@ -4704,24 +4739,28 @@ def api_prosecutor_stress():
 
 @app.post("/api/prosecutor/complaint")
 @login_required_api
+@require_module("prokuror")
 def api_prosecutor_complaint():
     return _pros_facts(prosecutor_mod.citizen_complaint, request.get_json(silent=True) or {})
 
 
 @app.post("/api/prosecutor/victim-rights")
 @login_required_api
+@require_module("prokuror")
 def api_prosecutor_victim():
     return _pros_facts(prosecutor_mod.victim_rights, request.get_json(silent=True) or {})
 
 
 @app.post("/api/prosecutor/dismissal-appeal")
 @login_required_api
+@require_module("prokuror")
 def api_prosecutor_appeal():
     return _pros_facts(prosecutor_mod.dismissal_appeal, request.get_json(silent=True) or {})
 
 
 @app.post("/api/prosecutor/delay")
 @login_required_api
+@require_module("prokuror")
 def api_prosecutor_delay():
     return _pros_facts(prosecutor_mod.delay_complaint, request.get_json(silent=True) or {})
 
@@ -4750,6 +4789,7 @@ def api_law_live():
 
 @app.post("/api/intake/triage")
 @login_required_api
+@require_module("avokat", "prokuror")
 def api_intake_triage():
     _ensure_loaded()
     if _BRAIN is None or _INDEX is None:
@@ -4832,6 +4872,7 @@ def api_prescription():
 
 @app.post("/api/prosecutor/analyze")
 @login_required_api
+@require_module("prokuror")
 def api_prosecutor_analyze():
     _ensure_loaded()
     if _BRAIN is None or _INDEX is None:
@@ -4857,6 +4898,7 @@ def api_prosecutor_analyze():
 
 @app.post("/api/expertise/analyze")
 @login_required_api
+@require_module("avokat", "prokuror")
 def api_expertise_analyze():
     _ensure_loaded()
     if _BRAIN is None or _INDEX is None:
@@ -5256,6 +5298,7 @@ def api_view_document(case_id: str, doc_id: str):
 
 @app.post("/api/ask")
 @login_required_api
+@require_module("avokat", "prokuror")
 def api_ask():
     _ensure_loaded()
     user = request.user  # type: ignore[attr-defined]
@@ -5462,6 +5505,7 @@ def api_ask():
 # at the end — the UI just shows a spinner during that wait.
 @app.post("/api/ask/stream")
 @login_required_api
+@require_module("avokat", "prokuror")
 def api_ask_stream():
     _ensure_loaded()
     user = request.user  # type: ignore[attr-defined]
@@ -6350,6 +6394,7 @@ def api_act_types():
 
 @app.post("/api/draft-act")
 @login_required_api
+@require_module("avokat", "prokuror")
 def api_draft_act_create():
     _ensure_loaded()
     user = request.user  # type: ignore[attr-defined]
