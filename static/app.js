@@ -4433,6 +4433,14 @@
           '<textarea class="ac-ta fk-ext-ta" placeholder="Ose ngjit tekstin e dokumentit…"></textarea>' +
           '<div class="ac-row"><button class="ac-run fk-ext-btn" type="button">Nxirr të dhënat →</button><span class="ac-status fk-ext-st"></span></div>' +
           '<div class="ac-result fk-ext-res"></div></details>' +
+        '<details class="fk-sec"><summary>🔮 Çka nëse… (simulator)</summary>' +
+          '<textarea class="ac-ta fk-wi-act" placeholder="Akti aktual (ngjit tekstin ose parametrat)…"></textarea>' +
+          '<textarea class="ac-ta fk-wi-change" style="min-height:60px" placeholder="Ndryshimi që po mendon — p.sh. Çka nëse shtoj një uzufrukt?"></textarea>' +
+          '<div class="ac-row"><button class="ac-run fk-wi-btn" type="button">Simulo →</button><span class="ac-status fk-wi-st"></span></div>' +
+          '<div class="ac-result fk-wi-res"></div></details>' +
+        '<details class="fk-sec"><summary>📚 Klauzolat e studios</summary>' +
+          '<div class="ac-row"><button class="ac-run fk-cl-manage" type="button">📚 Menaxho / shto klauzola</button></div>' +
+          '<div class="fk-cl-list"></div></details>' +
       '</div></div>';
     document.body.appendChild(ov);
     function close() { ov.remove(); }
@@ -4610,6 +4618,43 @@
         _addSaveToCase(extRes, "notary", "Të dhëna të nxjerra", d.markdown || "");
       } catch (e) { extSt.textContent = "Gabim: " + e.message; } finally { extBtn.disabled = false; }
     };
+    // Çka nëse
+    var wiAct = ov.querySelector(".fk-wi-act"), wiChange = ov.querySelector(".fk-wi-change"), wiBtn = ov.querySelector(".fk-wi-btn"),
+        wiSt = ov.querySelector(".fk-wi-st"), wiRes = ov.querySelector(".fk-wi-res");
+    wiBtn.onclick = async function () {
+      var act = (wiAct.value || "").trim(), change = (wiChange.value || "").trim();
+      if (act.length < 15) { wiSt.textContent = "Jep aktin aktual."; return; }
+      if (change.length < 4) { wiSt.textContent = "Shkruaj ndryshimin."; return; }
+      wiBtn.disabled = true; wiSt.textContent = "Po simuloj… (~2 min)"; wiRes.innerHTML = "";
+      try {
+        var r = await fetch("/api/notary/whatif", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ act: act, change: change }) });
+        var d = await r.json(); if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
+        wiSt.textContent = "";
+        wiRes.innerHTML = '<div class="fd-out"></div>'; var out = wiRes.querySelector(".fd-out"); out.innerHTML = renderMarkdown(d.markdown || "");
+        if (d.citations) highlightNeni(out, buildCitStatusMap(d.citations));
+        if (d.citations && d.citations.stats && d.citations.stats.total > 0) wiRes.insertBefore(renderCitationsBadge(d.citations, null), out);
+        _addSaveToCase(wiRes, "notary", "Simulim: " + change.slice(0, 50), d.markdown || "");
+      } catch (e) { wiSt.textContent = "Gabim: " + e.message; } finally { wiBtn.disabled = false; }
+    };
+    // Klauzolat
+    var clManage = ov.querySelector(".fk-cl-manage"), clList = ov.querySelector(".fk-cl-list");
+    if (clManage) clManage.onclick = function () { close(); setTimeout(function () { openClauses(); }, 10); };
+    (async function clLoad() {
+      try {
+        var r = await fetch("/api/firm/clauses"); var d = await r.json(); var cl = d.clauses || [];
+        if (!cl.length) { clList.innerHTML = '<div class="fk-warn" style="margin-top:8px">Ende asnjë klauzolë — kliko lart për të shtuar.</div>'; return; }
+        var ul = document.createElement("ul"); ul.className = "research-list"; ul.style.marginTop = "8px";
+        cl.forEach(function (c) {
+          var li = document.createElement("li"); li.className = "research-item";
+          var head = document.createElement("div"); head.className = "research-head";
+          head.innerHTML = (c.category ? '<span class="research-src">' + escapeHtml(c.category) + '</span>' : '') + '<span class="research-ttl">' + escapeHtml(c.label || "") + '</span>';
+          var body = document.createElement("div"); body.className = "research-body"; body.hidden = true;
+          head.addEventListener("click", function () { if (body.hidden) { body.innerHTML = renderMarkdown(c.content || ""); body.hidden = false; } else body.hidden = true; });
+          li.appendChild(head); li.appendChild(body); ul.appendChild(li);
+        });
+        clList.innerHTML = ""; clList.appendChild(ul);
+      } catch (e) {}
+    })();
   }
 
   async function openAfati() {
