@@ -3327,6 +3327,42 @@
     };
   });
 
+  var _mailBtn = document.getElementById("mail-link-btn");
+  if (_mailBtn) _mailBtn.addEventListener("click", async function () {
+    var dd = document.getElementById("user-dropdown"); if (dd) dd.hidden = true;
+    var cur = {};
+    try { var rr = await fetch("/api/settings/reminder-email"); if (rr.ok) cur = await rr.json(); } catch (e) {}
+    var ready = !!cur.backend_ready;
+    var val = cur.email || cur.suggestion || "";
+    var ov = document.createElement("div"); ov.className = "wa-modal-ov";
+    ov.innerHTML = '<div class="wa-modal">' +
+      '<button class="wa-x" type="button" aria-label="Mbyll">×</button>' +
+      '<h3>✉️ Email për kujtesat</h3>' +
+      '<p class="wa-sub">Çdo studio i merr kujtesat në adresën e vet.</p>' +
+      '<label class="wa-lab">Email-i i studios tuaj</label>' +
+      '<input class="wa-inp" type="email" placeholder="p.sh. studio@shembull.al" value="' + (val ? escapeHtml(val) : '') + '">' +
+      '<div class="wa-note ' + (ready ? 'ok' : 'warn') + '">' + (ready
+        ? '✓ Kanali email është aktiv.'
+        : '⚠ Adresa ruhet tani; dërgimi aktivizohet kur të verifikohet domeni dërgues në Resend.') + '</div>' +
+      '<div class="wa-row"><button class="wa-save" type="button">Ruaj</button><span class="wa-msg"></span></div>' +
+      '</div>';
+    document.body.appendChild(ov);
+    function close() { ov.remove(); }
+    ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
+    ov.querySelector(".wa-x").onclick = close;
+    ov.querySelector(".wa-save").onclick = async function () {
+      var inp = ov.querySelector(".wa-inp"), msg = ov.querySelector(".wa-msg"), btn = ov.querySelector(".wa-save");
+      btn.disabled = true; msg.textContent = "";
+      try {
+        var r = await fetch("/api/settings/reminder-email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: inp.value }) });
+        var d = await r.json(); if (!r.ok) throw new Error(d.error || "Gabim");
+        msg.textContent = d.linked ? "✓ U ruajt" : "✓ U hoq";
+        if (typeof toast === "function") toast(d.linked ? "Email u lidh" : "Email u hoq", "ok");
+        setTimeout(close, 700);
+      } catch (e) { msg.textContent = e.message; btn.disabled = false; }
+    };
+  });
+
   // ─── nav wiring ─────────────────────────────────────────────────
   calendarBtn?.addEventListener("click", openCalendar);
   calCloseBtn?.addEventListener("click", closeCalendar);

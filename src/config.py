@@ -26,6 +26,12 @@ WHATSAPP_PHONE_NUMBER_ID = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")
 WHATSAPP_TEMPLATE_NAME = os.getenv("WHATSAPP_TEMPLATE_NAME", "")
 WHATSAPP_TEMPLATE_LANG = os.getenv("WHATSAPP_TEMPLATE_LANG", "sq")
 
+# Email reminders via Resend (fallback channel). Each studio receives on
+# its own registered address. Dormant until BOTH are set + a sending
+# domain is verified in Resend (test mode delivers only to the account owner).
+RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
+REMINDER_EMAIL_FROM = os.getenv("REMINDER_EMAIL_FROM", "")
+
 # "auto" picks Gemini if its key is set (free tier), otherwise Anthropic.
 # Force a specific provider with BRAIN_BACKEND=anthropic or BRAIN_BACKEND=gemini.
 BRAIN_BACKEND = os.getenv("BRAIN_BACKEND", "auto")

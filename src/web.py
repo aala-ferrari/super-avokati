@@ -6068,6 +6068,31 @@ def api_settings_whatsapp_set():
     return jsonify({"linked": bool(digits), "phone": digits or None})
 
 
+@app.get("/api/settings/reminder-email")
+@login_required_api
+def api_settings_reminder_email_get():
+    from .config import RESEND_API_KEY, REMINDER_EMAIL_FROM
+    user = request.user  # type: ignore[attr-defined]
+    email = storage.get_user_reminder_email(user.id)
+    uname = getattr(user, "username", "") or ""
+    suggestion = uname if ("@" in uname and "." in uname) else None
+    backend_ready = bool(RESEND_API_KEY and REMINDER_EMAIL_FROM)
+    return jsonify({"email": email, "linked": bool(email),
+                    "suggestion": suggestion, "backend_ready": backend_ready})
+
+
+@app.post("/api/settings/reminder-email")
+@login_required_api
+def api_settings_reminder_email_set():
+    user = request.user  # type: ignore[attr-defined]
+    data = request.get_json(silent=True) or {}
+    raw = (data.get("email") or "").strip()
+    if raw and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", raw):
+        return jsonify({"error": "Email e pavlefshme"}), 400
+    storage.set_user_reminder_email(user.id, raw or None)
+    return jsonify({"linked": bool(raw), "email": raw or None})
+
+
 @app.get("/api/calendar/ical/<token>.ics")
 def api_ical_feed(token: str):
     """Public iCal feed — auth is the token itself, so users can paste the

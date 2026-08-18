@@ -885,6 +885,7 @@ def init_db(db_path: Path = APP_DB_PATH) -> None:
         _add_column_if_missing(conn, "users", "telegram_chat_id", "TEXT")
         _add_column_if_missing(conn, "users", "ical_token", "TEXT")
         _add_column_if_missing(conn, "users", "whatsapp_phone", "TEXT")
+        _add_column_if_missing(conn, "users", "reminder_email", "TEXT")
         _add_column_if_missing(conn, "users", "profession", "TEXT NOT NULL DEFAULT 'avokat'")
         # V8.0 multi-tenancy
         _add_column_if_missing(conn, "cases", "firm_id", "INTEGER")
@@ -2171,6 +2172,23 @@ def get_user_whatsapp(user_id: int) -> str | None:
             (user_id,),
         ).fetchone()
     return row["whatsapp_phone"] if row else None
+
+
+def set_user_reminder_email(user_id: int, email: str | None) -> None:
+    with db() as conn:
+        conn.execute(
+            "UPDATE users SET reminder_email = ? WHERE id = ?",
+            (email, user_id),
+        )
+
+
+def get_user_reminder_email(user_id: int) -> str | None:
+    with db() as conn:
+        row = conn.execute(
+            "SELECT reminder_email FROM users WHERE id = ?",
+            (user_id,),
+        ).fetchone()
+    return row["reminder_email"] if row else None
 
 
 def ensure_ical_token(user_id: int) -> str:

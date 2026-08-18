@@ -29,8 +29,12 @@ import urllib.parse
 import urllib.request
 from datetime import UTC, datetime
 
+from html import escape as _html_escape
+
 from . import storage
 from .config import (
+    REMINDER_EMAIL_FROM,
+    RESEND_API_KEY,
     TELEGRAM_BOT_TOKEN,
     WHATSAPP_PHONE_NUMBER_ID,
     WHATSAPP_TEMPLATE_LANG,
@@ -43,6 +47,7 @@ log = logging.getLogger(__name__)
 POLL_SECONDS = 60
 TG_API = "https://api.telegram.org"
 WA_API = "https://graph.facebook.com/v21.0"
+RESEND_API = "https://api.resend.com/emails"
 _KIND_EMOJI = {
     "seance": "⚖️",
     "afat": "🔴",
@@ -58,6 +63,10 @@ _stop = threading.Event()
 
 def _wa_configured() -> bool:
     return bool(WHATSAPP_TOKEN and WHATSAPP_PHONE_NUMBER_ID and WHATSAPP_TEMPLATE_NAME)
+
+
+def _email_configured() -> bool:
+    return bool(RESEND_API_KEY and REMINDER_EMAIL_FROM)
 
 
 # ── formatting helpers (shared by both channels) ──────────────────────────
@@ -175,22 +184,82 @@ def _send_whatsapp(phone: str, event, reminder) -> str | None:
         return f"{type(e).__name__}: {str(e)[:200]}"
 
 
+# ── Email channel (Resend HTTP API, per-studio recipient) ─────────────────
+
+def _send_email(to_email: str, event, reminder) -> str | None:
+    if not _email_configured():
+        return "email not configured"
+    to = (to_email or "").strip()
+    if "@" not in to:
+        return "invalid email"
+    ahead = _fmt_ahead(reminder)
+    when = _fmt_when(event)
+    title = event.title or "Kujtesë"
+    kind = _KIND_EMOJI.get(event.kind, "📌")
+    desc = ""
+    if event.description:
+        snippet = event.description.strip().splitlines()[0][:300]
+        desc = f'<p style="color:#555;margin:10px 0 0">{_html_escape(snippet)}</p>'
+    subject = f"⏰ Kujtesë ({ahead}): {title}"
+    html = (
+        '<div style="font-family:Georgia,serif;max-width:520px;margin:0 auto;color:#1a1a1a">'
+        '<div style="background:#0f2540;color:#f3e6c4;padding:14px 18px;border-radius:12px 12px 0 0">'
+        f'<b>{kind} Kujtesë</b> · {_html_escape(ahead)}</div>'
+        '<div style="border:1px solid #e3d3a5;border-top:none;border-radius:0 0 12px 12px;padding:16px 18px">'
+        f'<h2 style="margin:0 0 6px;color:#0f2540">{_html_escape(title)}</h2>'
+        f'<p style="margin:0;color:#6b5836">🗓 {_html_escape(when)}</p>'
+        f'{desc}'
+        '<p style="margin:16px 0 0;font-size:12px;color:#999">Super Avokati · kujtesë automatike e agjendës</p>'
+        '</div></div>'
+    )
+    payload = json.dumps({
+        "from": REMINDER_EMAIL_FROM,
+        "to": [to],
+        "subject": subject,
+        "html": html,
+    }).encode("utf-8")
+    req = urllib.request.Request(
+        RESEND_API, data=payload, method="POST",
+        headers={"Authorization": f"Bearer {RESEND_API_KEY}",
+                 "Content-Type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = json.loads(resp.read().decode("utf-8", errors="ignore"))
+            if data.get("id"):
+                return None
+            return f"resend error: {str(data)[:200]}"
+    except urllib.error.HTTPError as e:
+        try:
+            err_body = e.read().decode("utf-8", errors="ignore")
+        except Exception:  # noqa: BLE001
+            err_body = str(e)
+        return f"http {e.code}: {err_body[:250]}"
+    except Exception as e:  # noqa: BLE001
+        return f"{type(e).__name__}: {str(e)[:200]}"
+
+
 # ── channel selection ─────────────────────────────────────────────────────
 
 def _deliver(event, reminder) -> str | None:
     wa_phone = storage.get_user_whatsapp(event.user_id) if _wa_configured() else None
     tg_chat = storage.get_user_telegram_chat(event.user_id)
+    email = storage.get_user_reminder_email(event.user_id) if _email_configured() else None
     pref = (getattr(reminder, "channel", "") or "").strip().lower()
     if pref == "whatsapp" and wa_phone:
         return _send_whatsapp(wa_phone, event, reminder)
     if pref == "telegram" and tg_chat:
         return _send_telegram(tg_chat, _format_message(event, reminder))
-    # auto: prefer WhatsApp (the channel users actually read), fall back to TG
+    if pref == "email" and email:
+        return _send_email(email, event, reminder)
+    # auto priority: WhatsApp (read most) > Telegram > Email (fallback)
     if wa_phone:
         return _send_whatsapp(wa_phone, event, reminder)
     if tg_chat:
         return _send_telegram(tg_chat, _format_message(event, reminder))
-    return "no channel linked (whatsapp/telegram)"
+    if email:
+        return _send_email(email, event, reminder)
+    return "no channel linked (whatsapp/telegram/email)"
 
 
 def _tick() -> int:
@@ -232,14 +301,16 @@ def start_background() -> None:
     global _thread
     if _thread and _thread.is_alive():
         return
-    if not (TELEGRAM_BOT_TOKEN or _wa_configured()):
-        log.warning("no reminder channel configured (telegram/whatsapp) — scheduler disabled")
+    if not (TELEGRAM_BOT_TOKEN or _wa_configured() or _email_configured()):
+        log.warning("no reminder channel configured (telegram/whatsapp/email) — scheduler disabled")
         return
     channels = []
     if _wa_configured():
         channels.append("whatsapp")
     if TELEGRAM_BOT_TOKEN:
         channels.append("telegram")
+    if _email_configured():
+        channels.append("email")
     log.info("reminder scheduler enabled — channels: %s", ", ".join(channels))
     _stop.clear()
     _thread = threading.Thread(target=_loop, name="reminder-scheduler", daemon=True)
