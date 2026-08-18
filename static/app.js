@@ -5373,19 +5373,34 @@
     };
     var _INTAKE = ["\ud83c\udf99\ufe0f Pika e parë", "openIntake"];
     ["avokat", "prokuror", "noter"].forEach(function (m) { if (TOOLS[m]) TOOLS[m].unshift(_INTAKE); });
+    var _isAdmin = (document.body.dataset.admin === "1");
+    var owned = _isAdmin ? ["avokat", "prokuror", "noter"]
+      : (document.body.dataset.modules || document.body.dataset.profession || "avokat")
+          .split(",").map(function (x) { return x.trim(); }).filter(Boolean);
+    if (!owned.length) owned = ["avokat"];
+    // No free legal chat for users without avokat/prokuror (e.g. noter-only).
+    var _canChat = _isAdmin || owned.indexOf("avokat") >= 0 || owned.indexOf("prokuror") >= 0;
+    if (!_canChat) {
+      var _af = document.getElementById("ask-form"); if (_af) _af.style.display = "none";
+      var _ch = document.getElementById("composer-hint"); if (_ch) _ch.textContent = "";
+    }
     var prof = (document.body.dataset.profession || "avokat");
     var mode = localStorage.getItem("sa_mode") || prof;
-    if (!TOOLS[mode]) mode = "avokat";
+    if (owned.indexOf(mode) < 0) mode = owned[0];
     function render() {
       var chips = ["avokat", "prokuror", "noter"].map(function (m) {
-        return '<button type="button" class="mode-chip' + (m === mode ? " active" : "") + '" data-mode="' + m + '">' + LABELS[m] + '</button>';
+        var ownedM = owned.indexOf(m) >= 0;
+        return '<button type="button" class="mode-chip' + (m === mode ? " active" : "") + (ownedM ? "" : " locked") + '" data-mode="' + m + '"' + (ownedM ? "" : ' data-locked="1"') + '>' + LABELS[m] + (ownedM ? "" : " \ud83d\udd12") + '</button>';
       }).join("");
       var tools = (TOOLS[mode] || []).map(function (t, i) {
         return '<button type="button" class="mode-tool" data-i="' + i + '">' + t[0] + '</button>';
       }).join("");
       bar.innerHTML = '<div class="mode-chips">' + chips + '</div><div class="mode-tools">' + tools + '</div>';
       Array.prototype.forEach.call(bar.querySelectorAll(".mode-chip"), function (b) {
-        b.onclick = function () { mode = b.getAttribute("data-mode"); localStorage.setItem("sa_mode", mode); render(); };
+        b.onclick = function () {
+          if (b.getAttribute("data-locked")) { if (typeof toast === "function") toast("Ky modul nuk përfshihet në abonimin tuaj. Kontakto studion për ta shtuar.", "warn"); return; }
+          mode = b.getAttribute("data-mode"); localStorage.setItem("sa_mode", mode); render();
+        };
       });
       Array.prototype.forEach.call(bar.querySelectorAll(".mode-tool"), function (b) {
         b.onclick = function () {

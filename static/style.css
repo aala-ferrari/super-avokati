@@ -7563,6 +7563,9 @@ main {
   .dl-docx-btn, .dl-pdf-btn { background:#2a2416; border-color:#5a4a26; color:#d8c69a; }
 }
 
+.mode-chip.locked { opacity: .55; filter: grayscale(.5); }
+.mode-chip.locked:hover { opacity: .8; }
+
 /* admin: module chips + subscription status */
 .u-meta { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
 .u-chip { display: inline-flex; align-items: center; font-size: .72rem; font-weight: 700;

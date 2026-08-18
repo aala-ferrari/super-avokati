@@ -156,6 +156,7 @@ def index() -> str:
         user_id=user.id,
         is_admin=user.is_admin,
         profession=getattr(user, "profession", "avokat"),
+        modules=sorted(storage.user_modules(user)),
         cascade_event_types=pro_mod.cascade_event_types(),
         act_types=[{"key": k, "label": v} for k, v in pro_mod.ACT_TYPES.items()],
     )
