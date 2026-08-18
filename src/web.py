@@ -6311,6 +6311,42 @@ def api_draft_act_docx(act_id: str):
     )
 
 
+@app.post("/api/export/docx")
+@login_required_api
+def api_export_docx():
+    """Generic: any Copilota markdown output -> downloadable .docx."""
+    data = request.get_json(silent=True) or {}
+    md = (data.get("markdown") or "").strip()
+    title = (data.get("title") or "Dokument").strip()
+    if len(md) < 5:
+        return Response("empty", status=400)
+    # light inline-markdown cleanup so the .docx reads cleanly
+    lines = []
+    for ln in md.split("\n"):
+        t = ln.rstrip()
+        st = t.lstrip()
+        # normalise "* bullet" -> "- bullet" (render_act_docx handles "- ")
+        if st.startswith("* ") and not st.startswith("**"):
+            t = t[: len(t) - len(st)] + "- " + st[2:]
+        t = re.sub(r"\*\*(.+?)\*\*", r"\1", t)   # bold
+        t = re.sub(r"`([^`]+)`", r"\1", t)          # inline code
+        t = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r"\1 (\2)", t)  # links
+        lines.append(t)
+    draft = {"title": title, "body_markdown": "\n".join(lines)}
+    safe = re.sub(r"[^0-9A-Za-zçëÇË _-]", "", title)[:60].strip() or "dokument"
+    out_dir = APP_DB_PATH.parent / "exports"
+    out_path = out_dir / (safe.replace(" ", "_") + ".docx")
+    try:
+        pro_mod.render_act_docx(draft, out_path)
+    except Exception as exc:  # noqa: BLE001
+        log.exception("export docx failure")
+        return Response(f"render error: {exc}", status=500)
+    return send_file(
+        out_path, as_attachment=True, download_name=safe + ".docx",
+        mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    )
+
+
 @app.get("/api/drafted-acts")
 @login_required_api
 def api_drafted_acts_list():

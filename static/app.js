@@ -928,6 +928,21 @@
       research: "\ud83d\udcdd Kërkim", expertise: "\ud83c\udfaf Ekspertizë", prosecutor: "\ud83c\udfdb\ufe0f Prokuror", notary: "\ud83d\udcdc Noter", deadlines: "\u23f0 Afatet" })[x] || "\ud83d\uddc2\ufe0f";
   }
 
+  function _printAsPdf(title, md) {
+    var w = window.open("", "_blank");
+    if (!w) { if (typeof toast === "function") toast("Lejo dritaret pop-up për PDF", "warn"); return; }
+    var safeTitle = String(title || "Dokument").replace(/[<>&]/g, "");
+    var body = (typeof renderMarkdown === "function") ? renderMarkdown(md || "") : escapeHtml(md || "");
+    w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>' + safeTitle +
+      '</title><style>body{font-family:Georgia,\'Times New Roman\',serif;max-width:800px;margin:32px auto;padding:0 24px;color:#111;line-height:1.55}' +
+      'h1,h2,h3{color:#0f2540;line-height:1.3}h1{font-size:22px;border-bottom:2px solid #c9a24b;padding-bottom:6px}h2{font-size:18px}h3{font-size:15px}' +
+      'ul,ol{margin:8px 0 8px 22px}code{background:#f3f3f3;padding:1px 4px;border-radius:3px;font-size:.92em}' +
+      'table{border-collapse:collapse;margin:10px 0}td,th{border:1px solid #ccc;padding:4px 8px}@media print{body{margin:0}}</style></head><body>' +
+      '<h1>' + safeTitle + '</h1>' + body + '</body></html>');
+    w.document.close();
+    setTimeout(function () { try { w.focus(); w.print(); } catch (e) {} }, 350);
+  }
+
   async function _addSaveToCase(container, source, titleHint, md) {
     if (!container || !md || md.length < 10) return;
     var b = document.createElement("button");
@@ -953,6 +968,27 @@
     v.innerHTML = "\ud83d\uddc2\ufe0f Shiko të ruajturat";
     v.addEventListener("click", function () { openSavedResearch(); });
     container.appendChild(v);
+
+    var dx = document.createElement("button");
+    dx.type = "button"; dx.className = "dl-docx-btn"; dx.innerHTML = "⬇️ DOCX";
+    dx.addEventListener("click", async function () {
+      dx.disabled = true;
+      try {
+        var r = await fetch("/api/export/docx", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ markdown: md, title: titleHint || "Dokument" }) });
+        if (!r.ok) throw new Error();
+        var blob = await r.blob(); var url = URL.createObjectURL(blob);
+        var a2 = document.createElement("a"); a2.href = url;
+        a2.download = ((titleHint || "dokument").replace(/[^0-9A-Za-z _-]/g, "").slice(0, 60).trim() || "dokument") + ".docx";
+        document.body.appendChild(a2); a2.click(); a2.remove(); URL.revokeObjectURL(url);
+      } catch (e) { if (typeof toast === "function") toast("Shkarkimi dështoi", "err"); }
+      finally { dx.disabled = false; }
+    });
+    container.appendChild(dx);
+
+    var pf = document.createElement("button");
+    pf.type = "button"; pf.className = "dl-pdf-btn"; pf.innerHTML = "⬇️ PDF";
+    pf.addEventListener("click", function () { _printAsPdf(titleHint || "Dokument", md); });
+    container.appendChild(pf);
   }
 
   (function () {

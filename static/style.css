@@ -7539,6 +7539,11 @@ main {
   font-size: .88rem; padding: 8px 14px; border-radius: 10px; }
 .save-case-btn:hover { filter: brightness(.98); }
 .save-case-btn:disabled { opacity: .7; cursor: default; }
+.dl-docx-btn, .dl-pdf-btn { display: inline-block; margin: 12px 8px 0 0; cursor: pointer;
+  background: #fbf7ec; border: 1px solid #d8c69a; color: #6b5836; font-weight: 700;
+  font-size: .88rem; padding: 8px 14px; border-radius: 10px; }
+.dl-docx-btn:hover, .dl-pdf-btn:hover { background: #f4ecd6; }
+.dl-docx-btn:disabled { opacity: .7; cursor: default; }
 .research-box { margin-top: 14px; border-top: 1px solid #e6dcc6; padding-top: 12px; }
 .research-title { font-weight: 800; color: #7a5c1e; margin-bottom: 8px; }
 .research-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
@@ -7555,6 +7560,7 @@ main {
   .research-item { background: #221f16; border-color: #3a3320; }
   .research-ttl { color: #e0d8c4; }
   .save-case-btn { background:#22301f; border-color:#37623a; color:#bcd3b8; }
+  .dl-docx-btn, .dl-pdf-btn { background:#2a2416; border-color:#5a4a26; color:#d8c69a; }
 }
 
 /* research v2: search + client badge */
