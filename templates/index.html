@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="sq">
+<html lang="{{ ui_lang }}">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -1144,7 +1144,7 @@
           Si admin mund të krijosh përdorues të rinj, t'i fshish ose t'u ndryshosh fjalëkalimin. Pastaj mund t'i shtosh në cilindo studio si anëtar.
         </p>
         <table class="studio-members" id="users-admin-table">
-          <thead><tr><th>Username</th><th>Admin</th><th>Krijuar</th><th></th></tr></thead>
+          <thead><tr><th>Username</th><th>Admin</th><th>{% if ui_lang == 'it' %}Creato{% else %}Krijuar{% endif %}</th><th></th></tr></thead>
           <tbody id="users-admin-body"><tr><td colspan="4" class="studio-empty">Duke ngarkuar…</td></tr></tbody>
         </table>
         <div class="studio-invite" style="margin-top: 12px;">
