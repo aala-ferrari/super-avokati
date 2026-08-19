@@ -148,13 +148,33 @@ def _ensure_loaded() -> None:
 
 # ── pages ──────────────────────────────────────────────────────────────────
 
-_LEGAL_DOCS_IT = [
+_LEGAL_DOCS_IT_FALLBACK = [
     {"code": "costituzione", "title": "Costituzione della Repubblica Italiana", "area": "Costituzionale"},
     {"code": "codice_civile", "title": "Codice Civile", "area": "Civile"},
     {"code": "codice_procedura_civile", "title": "Codice di Procedura Civile", "area": "Procedura Civile"},
     {"code": "codice_penale", "title": "Codice Penale", "area": "Penale"},
     {"code": "codice_procedura_penale", "title": "Codice di Procedura Penale", "area": "Procedura Penale"},
 ]
+_IT_CODES_CACHE: list | None = None
+
+
+def _legal_docs_it():
+    """The Italian corpora we actually index, in display order.
+
+    Read once from data/processed/it_codes.json (written when the index is
+    built); falls back to the five fundamental codes if that file is absent."""
+    global _IT_CODES_CACHE
+    if _IT_CODES_CACHE is None:
+        try:
+            import json as _json
+            from pathlib import Path as _Path
+            p = _Path(__file__).resolve().parent.parent / "data" / "processed" / "it_codes.json"
+            rows = _json.loads(p.read_text(encoding="utf-8"))
+            _IT_CODES_CACHE = [{"code": r["code"], "title": r["title"],
+                                "area": r.get("area") or ""} for r in rows if r.get("code")]
+        except Exception:  # noqa: BLE001 - metadata is optional
+            _IT_CODES_CACHE = list(_LEGAL_DOCS_IT_FALLBACK)
+    return _IT_CODES_CACHE
 
 
 @app.route("/")
@@ -164,7 +184,7 @@ def index() -> str:
     user = current_user()
     _juris = _active_jurisdiction(user)
     if _juris == "IT" and _INDEX_IT is not None:
-        _codes = _LEGAL_DOCS_IT
+        _codes = _legal_docs_it()
         _total_articles = len(_INDEX_IT.articles)
     else:
         _codes = [{"code": d.code, "title": d.title_sq, "area": d.area}

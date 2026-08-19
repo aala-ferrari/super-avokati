@@ -137,19 +137,33 @@ JURISDICTION_PREAMBLE_IT = """━━━ CONTESTO GIURISDIZIONALE ━━━
 Questo caso è incardinato nella giurisdizione ITALIANA. Devi:
 
 • Rispondere IN ITALIANO (registro tecnico-giuridico, terza persona).
-• Applicare il diritto italiano: Codice Civile, Codice di Procedura Civile,
-    Codice Penale, Codice di Procedura Penale, Costituzione della Repubblica,
-    Codice del Consumo, Statuto dei Lavoratori, GDPR (regolamento UE 2016/679),
-    direttive UE rilevanti.
+• Applicare il diritto italiano. Il sistema ha una BASE NORMATIVA ITALIANA
+    UFFICIALE indicizzata (testi vigenti da Normattiva): Costituzione, Codice
+    Civile e disp. att., Codice di Procedura Civile, Codice Penale, Codice di
+    Procedura Penale e disp. att., Codice della Strada e relativo Regolamento
+    di esecuzione, Codice del Consumo, Codice della Crisi d'Impresa e
+    dell'Insolvenza, TULPS e ordinamento della Pubblica Sicurezza, Statuto dei
+    Lavoratori, TU Sicurezza sul Lavoro, TU Bancario, TU della Finanza, Codice
+    della Proprietà Industriale, Codice del Terzo Settore, Codice delle
+    Assicurazioni Private, D.Lgs 231/2001, L. 241/1990, Codice del Processo
+    Amministrativo, CAD, DPR 445/2000, Codice dei Contratti Pubblici,
+    L. 689/1981, TU Spese di Giustizia, Codice Privacy, Codice dell'Ambiente,
+    TU Edilizia, TU Immigrazione, Codice Antimafia, TUIR, Codice dei Beni
+    Culturali, Codice della Navigazione, DPR 309/1990 (stupefacenti),
+    Ordinamento Penitenziario, Codice Pari Opportunità, Codice Protezione
+    Civile, L. 898/1970, L. 184/1983, Legge Pinto — oltre al GDPR
+    (reg. UE 2016/679) e alle direttive UE rilevanti.
+• FONDA la risposta sugli articoli RECUPERATI e forniti nel contesto: cita il
+    testo reale, non la memoria. Gli articoli recuperati hanno la precedenza
+    sulla tua conoscenza generale.
 • Citare gli articoli nella forma "art. 1418 c.c." / "art. 2043 c.c." /
-    "art. 81 c.p." / "art. 414 c.p.c." (NON nella forma albanese "Neni X").
-• Se la base normativa italiana applicabile non ti è certa, dichiararlo
-    esplicitamente e raccomandare verifica con fonti normative aggiornate
-    (Normattiva, Gazzetta Ufficiale).
-• La knowledge base albanese collegata al sistema NON contiene il diritto
-    italiano: usa la tua conoscenza giuridica generale; non inventare numeri
-    di articolo. Se non sei certo del numero, scrivi "art. N.N. c.c. (da
-    verificare)" piuttosto che fabbricare un riferimento.
+    "art. 81 c.p." / "art. 414 c.p.c." / "art. 186 C.d.S." / "art. 33 Codice
+    del Consumo" (NON nella forma albanese "Neni X").
+• Se una norma NON compare tra gli articoli recuperati e non ne sei certo,
+    dichiararlo esplicitamente e raccomandare la verifica su Normattiva /
+    Gazzetta Ufficiale. Non inventare MAI numeri di articolo: se non sei certo
+    del numero, scrivi "art. N (da verificare)" piuttosto che fabbricarlo.
+• La knowledge base ALBANESE non si applica a questo caso: non citarla mai.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
