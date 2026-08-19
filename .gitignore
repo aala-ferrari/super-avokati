@@ -23,3 +23,5 @@ data/uploads/
 data/raw/
 # Claude Code local state
 .claude/
+src/*.bak-*
+*.bak-*
