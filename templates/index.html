@@ -499,7 +499,7 @@
       <div class="calendar-title-text">
         <span class="calendar-eyebrow">
           <span class="eyebrow-dot" aria-hidden="true"></span>
-          Kalendari &amp; Agjenda
+          <span data-i18n="cal_eyebrow">Kalendari &amp; Agjenda</span>
         </span>
         <h2 id="calendar-label" class="calendar-title-main">—</h2>
         <span id="calendar-sub" class="calendar-sub">—</span>
@@ -514,7 +514,7 @@
         </button>
         <button type="button" id="cal-today" class="cal-today-btn" title="Sot (T)">
           <span class="cal-today-dot" aria-hidden="true"></span>
-          Sot
+          <span data-i18n="cal_today">Sot</span>
         </button>
         <button type="button" id="cal-next" class="nav-arrow" title="Tjetër (→ ose l)" aria-label="Tjetër">
           <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -522,7 +522,7 @@
       </div>
       <label class="cal-jump" title="Shko te një datë e caktuar">
         <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path d="M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
-        <span>Shko te</span>
+        <span data-i18n="cal_jumpto">Shko te</span>
         <input type="date" id="cal-jump-input" aria-label="Shko te data" />
       </label>
     </div>
@@ -533,27 +533,27 @@
         <span class="views-slider" aria-hidden="true"></span>
         <button type="button" class="view-btn active" data-view="month" role="tab" aria-selected="true" title="Muaj (M)">
           <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="1.8" fill="none" stroke="currentColor" stroke-width="1.7"/><line x1="3" y1="9" x2="21" y2="9" stroke="currentColor" stroke-width="1.7"/><line x1="9" y1="9" x2="9" y2="21" stroke="currentColor" stroke-width="1"/><line x1="15" y1="9" x2="15" y2="21" stroke="currentColor" stroke-width="1"/><line x1="3" y1="15" x2="21" y2="15" stroke="currentColor" stroke-width="1"/></svg>
-          <span>Muaj</span>
+          <span data-i18n="cal_month">Muaj</span>
         </button>
         <button type="button" class="view-btn" data-view="week" role="tab" aria-selected="false" title="Javë (W)">
           <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="1.8" fill="none" stroke="currentColor" stroke-width="1.7"/><line x1="3" y1="9" x2="21" y2="9" stroke="currentColor" stroke-width="1.7"/><line x1="8" y1="9" x2="8" y2="21" stroke="currentColor" stroke-width="1"/><line x1="13" y1="9" x2="13" y2="21" stroke="currentColor" stroke-width="1"/><line x1="18" y1="9" x2="18" y2="21" stroke="currentColor" stroke-width="1"/></svg>
-          <span>Javë</span>
+          <span data-i18n="cal_week">Javë</span>
         </button>
         <button type="button" class="view-btn" data-view="day" role="tab" aria-selected="false" title="Ditë (D)">
           <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="1.8" fill="none" stroke="currentColor" stroke-width="1.7"/><line x1="3" y1="9" x2="21" y2="9" stroke="currentColor" stroke-width="1.7"/><line x1="7" y1="13" x2="17" y2="13" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><line x1="7" y1="17" x2="14" y2="17" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
-          <span>Ditë</span>
+          <span data-i18n="cal_day">Ditë</span>
         </button>
         <button type="button" class="view-btn" data-view="agenda" role="tab" aria-selected="false" title="Agjendë (A)">
           <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><circle cx="5" cy="7" r="1.3" fill="currentColor"/><circle cx="5" cy="12" r="1.3" fill="currentColor"/><circle cx="5" cy="17" r="1.3" fill="currentColor"/><line x1="9" y1="7" x2="20" y2="7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><line x1="9" y1="12" x2="20" y2="12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><line x1="9" y1="17" x2="20" y2="17" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-          <span>Agjendë</span>
+          <span data-i18n="cal_agenda">Agjendë</span>
         </button>
       </div>
 
       <div class="calendar-divider" aria-hidden="true"></div>
 
       <div class="calendar-scope" id="cal-scope-toggle" hidden role="tablist" aria-label="Pamja e kalendarit">
-        <button type="button" class="scope-btn active" data-scope="me" role="tab" aria-selected="true">Imja</button>
-        <button type="button" class="scope-btn" data-scope="firm" role="tab" aria-selected="false">Studio</button>
+        <button type="button" class="scope-btn active" data-scope="me" role="tab" aria-selected="true" data-i18n="cal_mine">Imja</button>
+        <button type="button" class="scope-btn" data-scope="firm" role="tab" aria-selected="false" data-i18n="cal_firm">Studio</button>
       </div>
 
       <div class="calendar-actions">
@@ -562,12 +562,12 @@
             <path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"
               fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
           </svg>
-          <span class="cal-icon-btn-label">Sinkro</span>
+          <span class="cal-icon-btn-label" data-i18n="cal_sync">Sinkro</span>
           <span id="ical-status-dot" class="cal-status-dot" aria-hidden="true" title="Jo i lidhur"></span>
         </button>
         <button type="button" id="cal-new-btn" class="cal-primary-btn" title="Shto ngjarje të re (N)">
           <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>
-          <span>Ngjarje e re</span>
+          <span data-i18n="cal_newevent">Ngjarje e re</span>
           <kbd class="cal-kbd-hint" aria-hidden="true">N</kbd>
         </button>
         <button type="button" id="cal-close" class="cal-icon-btn cal-close-btn" title="Mbyll (Esc)" aria-label="Mbyll">
@@ -579,11 +579,11 @@
     <!-- Info strip -->
     <div class="calendar-infostrip">
       <div class="cal-breakdown" aria-live="polite">
-        <span class="cal-kind-pill" data-kind="seance" title="Seanca gjyqësore në këtë pamje"><span class="kind-dot"></span><strong id="bd-seance">0</strong> <span>seanca</span></span>
-        <span class="cal-kind-pill" data-kind="afat" title="Afate ligjore në këtë pamje"><span class="kind-dot"></span><strong id="bd-afat">0</strong> <span>afate</span></span>
-        <span class="cal-kind-pill" data-kind="takim" title="Takime në këtë pamje"><span class="kind-dot"></span><strong id="bd-takim">0</strong> <span>takime</span></span>
-        <span class="cal-kind-pill" data-kind="dorëzim" title="Dorëzime në këtë pamje"><span class="kind-dot"></span><strong id="bd-dorezim">0</strong> <span>dorëzime</span></span>
-        <span class="cal-kind-pill" data-kind="tjetër" title="Ngjarje të tjera"><span class="kind-dot"></span><strong id="bd-tjeter">0</strong> <span>të tjera</span></span>
+        <span class="cal-kind-pill" data-kind="seance" title="Seanca gjyqësore në këtë pamje"><span class="kind-dot"></span><strong id="bd-seance">0</strong> <span data-i18n="cal_p_seance">seanca</span></span>
+        <span class="cal-kind-pill" data-kind="afat" title="Afate ligjore në këtë pamje"><span class="kind-dot"></span><strong id="bd-afat">0</strong> <span data-i18n="cal_p_afat">afate</span></span>
+        <span class="cal-kind-pill" data-kind="takim" title="Takime në këtë pamje"><span class="kind-dot"></span><strong id="bd-takim">0</strong> <span data-i18n="cal_p_takim">takime</span></span>
+        <span class="cal-kind-pill" data-kind="dorëzim" title="Dorëzime në këtë pamje"><span class="kind-dot"></span><strong id="bd-dorezim">0</strong> <span data-i18n="cal_p_dorez">dorëzime</span></span>
+        <span class="cal-kind-pill" data-kind="tjetër" title="Ngjarje të tjera"><span class="kind-dot"></span><strong id="bd-tjeter">0</strong> <span data-i18n="cal_p_other">të tjera</span></span>
       </div>
       <div class="cal-keyhints" aria-hidden="true">
         <span class="kh-group"><kbd>←</kbd><kbd>→</kbd> Lëviz</span>
@@ -612,51 +612,51 @@
 
       <section class="cal-side-block">
         <header class="cal-side-head">
-          <h4>Statistikë</h4>
+          <h4 data-i18n="cal_stats">Statistikë</h4>
         </header>
         <div class="cal-stats">
-          <div class="cal-stat"><strong id="stat-period">0</strong><span>në këtë pamje</span></div>
-          <div class="cal-stat"><strong id="stat-upcoming">0</strong><span>48 orët e ardhshme</span></div>
-          <div class="cal-stat cal-stat-overdue"><strong id="stat-overdue">0</strong><span>të vonuara</span></div>
+          <div class="cal-stat"><strong id="stat-period">0</strong><span data-i18n="cal_inview">në këtë pamje</span></div>
+          <div class="cal-stat"><strong id="stat-upcoming">0</strong><span data-i18n="cal_next48">48 orët e ardhshme</span></div>
+          <div class="cal-stat cal-stat-overdue"><strong id="stat-overdue">0</strong><span data-i18n="cal_overdue">të vonuara</span></div>
         </div>
       </section>
 
       <section class="cal-side-block">
         <header class="cal-side-head">
-          <h4>Filtro</h4>
-          <button type="button" id="filter-reset" class="cal-side-link">Pastro</button>
+          <h4 data-i18n="cal_filter">Filtro</h4>
+          <button type="button" id="filter-reset" class="cal-side-link" data-i18n="cal_clear">Pastro</button>
         </header>
         <div class="cal-filters">
-          <button type="button" class="cal-filter-pill active" data-filter="all">Të gjitha</button>
-          <button type="button" class="cal-filter-pill" data-filter="seance" data-kind="seance">⚖️ Seanca</button>
-          <button type="button" class="cal-filter-pill" data-filter="afat" data-kind="afat">🔴 Afate</button>
-          <button type="button" class="cal-filter-pill" data-filter="takim" data-kind="takim">👤 Takime</button>
-          <button type="button" class="cal-filter-pill" data-filter="dorëzim" data-kind="dorëzim">📨 Dorëzime</button>
-          <button type="button" class="cal-filter-pill" data-filter="tjetër" data-kind="tjetër">📌 Tjetër</button>
+          <button type="button" class="cal-filter-pill active" data-filter="all" data-i18n="cal_all">Të gjitha</button>
+          <button type="button" class="cal-filter-pill" data-filter="seance" data-kind="seance" data-i18n="cal_f_seance">⚖️ Seanca</button>
+          <button type="button" class="cal-filter-pill" data-filter="afat" data-kind="afat" data-i18n="cal_f_afat">🔴 Afate</button>
+          <button type="button" class="cal-filter-pill" data-filter="takim" data-kind="takim" data-i18n="cal_f_takim">👤 Takime</button>
+          <button type="button" class="cal-filter-pill" data-filter="dorëzim" data-kind="dorëzim" data-i18n="cal_f_dorez">📨 Dorëzime</button>
+          <button type="button" class="cal-filter-pill" data-filter="tjetër" data-kind="tjetër" data-i18n="cal_f_other">📌 Tjetër</button>
         </div>
       </section>
 
       <section class="cal-side-block">
         <header class="cal-side-head">
-          <h4>Po vjen së shpejti</h4>
+          <h4 data-i18n="cal_upcoming">Po vjen së shpejti</h4>
         </header>
         <ul id="cal-upcoming" class="cal-upcoming">
-          <li class="cal-upcoming-empty">Asnjë ngjarje e planifikuar.</li>
+          <li class="cal-upcoming-empty" data-i18n="cal_noevents">Asnjë ngjarje e planifikuar.</li>
         </ul>
       </section>
 
       <section class="cal-side-block">
         <header class="cal-side-head">
-          <h4>Legjenda</h4>
+          <h4 data-i18n="cal_legend">Legjenda</h4>
         </header>
         <ul class="cal-legend">
-          <li><span class="legend-dot" data-kind="seance"></span> Seancë gjyqësore</li>
-          <li><span class="legend-dot" data-kind="afat"></span> Afat ligjor</li>
-          <li><span class="legend-dot" data-kind="takim"></span> Takim me klientin</li>
-          <li><span class="legend-dot" data-kind="dorëzim"></span> Dorëzim akti</li>
-          <li><span class="legend-dot" data-kind="tjetër"></span> Tjetër</li>
+          <li><span class="legend-dot" data-kind="seance"></span> <span data-i18n="cal_l_seance">Seancë gjyqësore</span></li>
+          <li><span class="legend-dot" data-kind="afat"></span> <span data-i18n="cal_l_afat">Afat ligjor</span></li>
+          <li><span class="legend-dot" data-kind="takim"></span> <span data-i18n="cal_l_takim">Takim me klientin</span></li>
+          <li><span class="legend-dot" data-kind="dorëzim"></span> <span data-i18n="cal_l_dorez">Dorëzim akti</span></li>
+          <li><span class="legend-dot" data-kind="tjetër"></span> <span data-i18n="cal_l_other">Tjetër</span></li>
         </ul>
-        <p class="cal-side-hint">Ngjarjet e krijuara automatikisht nga afatet e rasteve shënohen me ikonën <strong>✨</strong>.</p>
+        <p class="cal-side-hint"><span data-i18n="cal_autohint">Ngjarjet e krijuara automatikisht nga afatet e rasteve shënohen me ikonën</span> <strong>✨</strong>.</p>
       </section>
     </aside>
 
@@ -669,27 +669,27 @@
   <div class="event-modal-backdrop" data-close></div>
   <form id="event-form" class="event-modal-card" autocomplete="off">
     <header class="event-modal-head">
-      <h3 id="event-modal-title">Ngjarje e re</h3>
+      <h3 id="event-modal-title" data-i18n="cal_newevent">Ngjarje e re</h3>
       <button type="button" class="icon-btn" data-close aria-label="Mbyll">&times;</button>
     </header>
     <div class="event-modal-body">
       <label class="field">
-        <span>Titulli</span>
-        <input type="text" name="title" required maxlength="200" placeholder="P.sh. Seanca Cani vs ALUIZNI" />
+        <span data-i18n="ev_title">Titulli</span>
+        <input type="text" name="title" required maxlength="200" data-i18n-ph="ev_title_ph" placeholder="P.sh. Seanca Cani vs ALUIZNI" />
       </label>
       <div class="field-row">
         <label class="field">
-          <span>Lloji</span>
+          <span data-i18n="ev_kind">Lloji</span>
           <select name="kind">
-            <option value="takim">👤 Takim me klientin</option>
-            <option value="seance">⚖️ Seancë gjyqësore</option>
-            <option value="afat">🔴 Afat ligjor</option>
-            <option value="dorëzim">📨 Dorëzim akti</option>
-            <option value="tjetër">📌 Tjetër</option>
+            <option value="takim" data-i18n="ev_k_takim">👤 Takim me klientin</option>
+            <option value="seance" data-i18n="ev_k_seance">⚖️ Seancë gjyqësore</option>
+            <option value="afat" data-i18n="ev_k_afat">🔴 Afat ligjor</option>
+            <option value="dorëzim" data-i18n="ev_k_dorez">📨 Dorëzim akti</option>
+            <option value="tjetër" data-i18n="ev_k_other">📌 Tjetër</option>
           </select>
         </label>
         <label class="field">
-          <span>Rasti</span>
+          <span data-i18n="ev_case">Rasti</span>
           <select name="case_id">
             <option value="">— I pavarur —</option>
           </select>
@@ -697,43 +697,43 @@
       </div>
       <div class="field-row">
         <label class="field">
-          <span>Data dhe ora</span>
+          <span data-i18n="ev_datetime">Data dhe ora</span>
           <input type="datetime-local" name="starts_at" required />
         </label>
         <label class="field">
-          <span>Mbaron (opsionale)</span>
+          <span data-i18n="ev_ends">Mbaron (opsionale)</span>
           <input type="datetime-local" name="ends_at" />
         </label>
       </div>
       <label class="field checkbox">
-        <input type="checkbox" name="all_day" /> <span>Ngjarje gjithë-ditore</span>
+        <input type="checkbox" name="all_day" /> <span data-i18n="ev_allday">Ngjarje gjithë-ditore</span>
       </label>
       <label class="field">
-        <span>Vendi</span>
-        <input type="text" name="location" maxlength="200" placeholder="P.sh. Gjykata e Rrethit Tiranë, salla 5" />
+        <span data-i18n="ev_place">Vendi</span>
+        <input type="text" name="location" maxlength="200" data-i18n-ph="ev_place_ph" placeholder="P.sh. Gjykata e Rrethit Tiranë, salla 5" />
       </label>
       <label class="field">
-        <span>Shënime</span>
-        <textarea name="description" rows="3" placeholder="Detaje, palët, numri i çështjes…"></textarea>
+        <span data-i18n="ev_notes">Shënime</span>
+        <textarea name="description" rows="3" data-i18n-ph="ev_notes_ph" placeholder="Detaje, palët, numri i çështjes…"></textarea>
       </label>
       <div id="substitutes-section" class="field substitutes-section" hidden>
-        <span>🔁 Sostituti suggeriti për këtë seancë</span>
+        <span data-i18n="ev_subs">🔁 Sostituti suggeriti për këtë seancë</span>
         <div id="substitutes-list" class="substitutes-list"></div>
       </div>
       <fieldset class="field reminders-field">
-        <legend>Kujtesa me Telegram</legend>
-        <label><input type="checkbox" name="rem" value="10080" /> 1 javë para</label>
-        <label><input type="checkbox" name="rem" value="2880" /> 2 ditë para</label>
-        <label><input type="checkbox" name="rem" value="1440" checked /> 1 ditë para</label>
-        <label><input type="checkbox" name="rem" value="180" /> 3 orë para</label>
-        <label><input type="checkbox" name="rem" value="60" /> 1 orë para</label>
+        <legend data-i18n="ev_reminders">Kujtesa me Telegram</legend>
+        <label><input type="checkbox" name="rem" value="10080" /> <span data-i18n="ev_r_1w">1 javë para</span></label>
+        <label><input type="checkbox" name="rem" value="2880" /> <span data-i18n="ev_r_2d">2 ditë para</span></label>
+        <label><input type="checkbox" name="rem" value="1440" checked /> <span data-i18n="ev_r_1d">1 ditë para</span></label>
+        <label><input type="checkbox" name="rem" value="180" /> <span data-i18n="ev_r_3h">3 orë para</span></label>
+        <label><input type="checkbox" name="rem" value="60" /> <span data-i18n="ev_r_1h">1 orë para</span></label>
       </fieldset>
     </div>
     <footer class="event-modal-foot">
-      <button type="button" id="event-delete-btn" class="icon-btn danger" hidden>🗑️ Fshi</button>
+      <button type="button" id="event-delete-btn" class="icon-btn danger" hidden data-i18n="ev_delete">🗑️ Fshi</button>
       <div class="spacer"></div>
-      <button type="button" class="icon-btn" data-close>Anulo</button>
-      <button type="submit" class="primary">Ruaj</button>
+      <button type="button" class="icon-btn" data-close data-i18n="ev_cancel">Anulo</button>
+      <button type="submit" class="primary" data-i18n="ev_save">Ruaj</button>
     </footer>
   </form>
 </div>
@@ -743,23 +743,23 @@
   <div class="event-modal-backdrop" data-close></div>
   <div class="event-modal-card">
     <header class="event-modal-head">
-      <h3>Sinkronizo me Google / Apple Calendar</h3>
+      <h3 data-i18n="ic_title">Sinkronizo me Google / Apple Calendar</h3>
       <button type="button" class="icon-btn" data-close aria-label="Mbyll">&times;</button>
     </header>
     <div class="event-modal-body">
       <p>Kopjo linkun e mëposhtëm dhe ngjite te <strong>"Shto kalendar me URL"</strong> në Google Calendar ose <strong>"Subscribe to Calendar"</strong> në Apple Calendar. Çdo ndryshim në Super Avokati do të reflektohet automatikisht.</p>
       <div class="ical-url-row">
         <input type="text" id="ical-url-input" readonly />
-        <button type="button" id="ical-copy-btn" class="primary">Kopjo</button>
+        <button type="button" id="ical-copy-btn" class="primary" data-i18n="ic_copy">Kopjo</button>
       </div>
       <p class="ical-hint">Linku është privat — kushdo që e ka mund t'i shohë ngjarjet. Mos e ndaj publikisht.</p>
 
       <hr style="border: 0; border-top: 1px solid var(--cal-border); margin: 18px 0 10px;" />
-      <h4 style="margin: 0 0 6px; font-size: 14px;">Kujtesat me Telegram</h4>
+      <h4 style="margin: 0 0 6px; font-size: 14px;" data-i18n="ic_tg">Kujtesat me Telegram</h4>
       <p class="ical-hint" style="margin-top: 4px;">Për të marrë kujtesat në Telegram, shkruaji <strong>@userinfobot</strong> dhe kopjo <em>Id</em>-në tënde (një numër). Më pas filloji një bisedë bot-it tonë Super Avokat dhe ngjite Id-në më poshtë.</p>
       <div class="ical-url-row">
         <input type="text" id="tg-chat-input" placeholder="P.sh. 123456789" maxlength="20" />
-        <button type="button" id="tg-save-btn" class="primary">Ruaj</button>
+        <button type="button" id="tg-save-btn" class="primary" data-i18n="ev_save">Ruaj</button>
       </div>
       <p id="tg-status" class="ical-hint" aria-live="polite"></p>
     </div>
