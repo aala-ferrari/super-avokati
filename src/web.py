@@ -157,6 +157,8 @@ def index() -> str:
         is_admin=user.is_admin,
         profession=getattr(user, "profession", "avokat"),
         modules=sorted(storage.user_modules(user)),
+        jurisdiction=_active_jurisdiction(user),
+        jurisdictions=sorted(storage.user_jurisdictions(user)),
         cascade_event_types=pro_mod.cascade_event_types(),
         act_types=[{"key": k, "label": v} for k, v in pro_mod.ACT_TYPES.items()],
     )
@@ -911,7 +913,7 @@ def api_create_case():
                             "your_role": role}), 403
     data = request.get_json(force=True, silent=True) or {}
     title = (data.get("title") or "").strip() or "Rast i ri"
-    jurisdiction = (data.get("jurisdiction") or "AL").upper()
+    jurisdiction = (data.get("jurisdiction") or _active_jurisdiction(user)).upper()
     firm_id = firm.id if firm else None
     case = storage.create_case(user.id, title, firm_id=firm_id,
                                jurisdiction=jurisdiction)
@@ -6955,6 +6957,18 @@ def api_admin_audit_export():
 # create, delete, or reset passwords for other users. Any logged-in user can
 # change their OWN password.
 
+def _active_jurisdiction(user):
+    """The jurisdiction locked for THIS session — one of the user's entitled
+    countries. The brain loads only this law + language (no mixing). Defaults
+    to the session choice if allowed, else AL, else the first entitled."""
+    from flask import session
+    allowed = storage.user_jurisdictions(user)
+    j = (session.get("jurisdiction") or "").upper()
+    if j in allowed:
+        return j
+    return "AL" if "AL" in allowed else sorted(allowed)[0]
+
+
 def _user_payload(u) -> dict:
     from datetime import datetime, UTC
     reason = storage.access_block_reason(u)
@@ -6977,6 +6991,7 @@ def _user_payload(u) -> dict:
         "suspended": bool(getattr(u, "suspended", False)),
         "profession": getattr(u, "profession", "avokat"),
         "modules": sorted(storage.user_modules(u)),
+        "jurisdictions": sorted(storage.user_jurisdictions(u)),
         "plan_expires_at": plan,
         "demo_expires_at": demo,
         "status": status,
@@ -7125,6 +7140,40 @@ def api_admin_set_plan(user_id):
         storage.set_user_plan_expiry(user_id, newdt.strftime("%Y-%m-%dT%H:%M:%SZ"))
         return jsonify(_user_payload(storage.get_user_by_id(user_id)))
     return jsonify({"error": "specifiko months, expires_at ose clear"}), 400
+
+
+@app.get("/api/session/jurisdiction")
+@login_required_api
+def api_session_jurisdiction_get():
+    user = request.user  # type: ignore[attr-defined]
+    return jsonify({"active": _active_jurisdiction(user),
+                    "available": sorted(storage.user_jurisdictions(user))})
+
+
+@app.post("/api/session/jurisdiction")
+@login_required_api
+def api_session_jurisdiction_set():
+    from flask import session
+    user = request.user  # type: ignore[attr-defined]
+    j = ((request.get_json(silent=True) or {}).get("jurisdiction") or "").upper()
+    if j not in storage.user_jurisdictions(user):
+        return jsonify({"error": "juridiksion i palejuar"}), 403
+    session["jurisdiction"] = j
+    return jsonify({"active": j})
+
+
+@app.patch("/api/admin/users/<int:user_id>/jurisdictions")
+@login_required_api
+def api_admin_set_jurisdictions(user_id):
+    user = request.user  # type: ignore[attr-defined]
+    if not user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    js = (request.get_json(silent=True) or {}).get("jurisdictions")
+    if not isinstance(js, list) or not any(str(x).strip().upper() in storage.VALID_JURISDICTIONS for x in js):
+        return jsonify({"error": "të paktën një juridiksion i vlefshëm"}), 400
+    if not storage.set_user_jurisdictions(user_id, js):
+        return jsonify({"error": "dështoi"}), 400
+    return jsonify(_user_payload(storage.get_user_by_id(user_id)))
 
 
 @app.patch("/api/me/profession")

@@ -916,6 +916,8 @@ def init_db(db_path: Path = APP_DB_PATH) -> None:
         _add_column_if_missing(conn, "users", "modules", "TEXT")
         _add_column_if_missing(conn, "users", "plan_expires_at", "TEXT")
         conn.execute("UPDATE users SET modules = profession WHERE modules IS NULL OR modules = ''")
+        _add_column_if_missing(conn, "users", "jurisdictions", "TEXT")
+        conn.execute("UPDATE users SET jurisdictions = 'AL' WHERE jurisdictions IS NULL OR jurisdictions = ''")
         conn.commit()
     log.info("app db ready at %s", db_path)
 
@@ -1131,6 +1133,7 @@ class User:
     modules: str = ""           # comma-set: avokat,prokuror,noter (empty -> profession)
     demo_expires_at: str | None = None
     plan_expires_at: str | None = None
+    jurisdictions: str = ""      # comma-set: AL,IT (empty -> AL)
 
 
 CASE_STAGES: tuple[str, ...] = (
@@ -1195,10 +1198,11 @@ def _user_from_row(r: sqlite3.Row) -> User:
     mods = r["modules"] if "modules" in keys and r["modules"] else ""
     demo = r["demo_expires_at"] if "demo_expires_at" in keys else None
     plan = r["plan_expires_at"] if "plan_expires_at" in keys else None
+    jur = r["jurisdictions"] if "jurisdictions" in keys and r["jurisdictions"] else ""
     return User(id=r["id"], username=r["username"],
                 is_admin=bool(r["is_admin"]), created_at=r["created_at"],
                 suspended=susp, profession=prof, modules=mods,
-                demo_expires_at=demo, plan_expires_at=plan)
+                demo_expires_at=demo, plan_expires_at=plan, jurisdictions=jur)
 
 
 def _case_from_row(r: sqlite3.Row) -> Case:
@@ -1299,6 +1303,32 @@ def set_user_modules(user_id: int, modules) -> bool:
         return False
     with db() as conn:
         cur = conn.execute("UPDATE users SET modules = ? WHERE id = ?",
+                           (",".join(clean), user_id))
+        conn.commit()
+        return cur.rowcount > 0
+
+
+VALID_JURISDICTIONS = ("AL", "IT")
+
+
+def user_jurisdictions(user) -> set:
+    """Countries a studio can work in. Admin = all. Empty falls back to AL."""
+    if getattr(user, "is_admin", False):
+        return set(VALID_JURISDICTIONS)
+    raw = (getattr(user, "jurisdictions", "") or "").strip()
+    if not raw:
+        return {"AL"}
+    js = {j.strip().upper() for j in raw.split(",") if j.strip().upper() in VALID_JURISDICTIONS}
+    return js or {"AL"}
+
+
+def set_user_jurisdictions(user_id: int, jurisdictions) -> bool:
+    clean = sorted({str(j).strip().upper() for j in (jurisdictions or [])
+                    if str(j).strip().upper() in VALID_JURISDICTIONS})
+    if not clean:
+        return False
+    with db() as conn:
+        cur = conn.execute("UPDATE users SET jurisdictions = ? WHERE id = ?",
                            (",".join(clean), user_id))
         conn.commit()
         return cur.rowcount > 0
