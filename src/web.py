@@ -2312,6 +2312,7 @@ def api_act_check():
 
 @app.post("/api/second-opinion")
 @login_required_api
+@require_module("avokat", "prokuror")
 def api_second_opinion():
     """Fable 5 second advisor: a shrewd devil's-advocate review of an answer.
 
@@ -2426,6 +2427,7 @@ def api_case_needle(case_id: str):
 
 @app.post("/api/fable-draft")
 @login_required_api
+@require_module("avokat", "prokuror")
 def api_fable_draft():
     """Fable 5 drafter: contracts / acts / clauses / letters. Additive; output
     citations pass the Verifikuar shield."""
