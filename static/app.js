@@ -3606,7 +3606,7 @@
       : "";
     ov.innerHTML =
       '<div class="ac-modal">' +
-        '<div class="ac-head"><span>' + cfg.title + '</span><button class="ac-x" type="button" aria-label="Mbyll">\u00d7</button></div>' +
+        '<div class="ac-head"><span>' + tMode(cfg.title) + '</span><button class="ac-x" type="button" aria-label="Mbyll">\u00d7</button></div>' +
         '<div class="ac-sub">' + cfg.sub + '</div>' +
         attachHtml +
         '<textarea class="ac-ta" placeholder="' + cfg.placeholder + '"></textarea>' +
@@ -4334,21 +4334,21 @@
     ov.id = cfg.id; ov.className = "ac-overlay";
     var fns = [], body = "";
     (cfg.sections || []).forEach(function (sec) {
-      if (sec.label) body += '<div class="hub-sec">' + escapeHtml(sec.label) + '</div>';
+      if (sec.label) body += '<div class="hub-sec">' + escapeHtml(t(sec.label)) + '</div>';
       body += '<div class="exp-grid">';
       sec.cards.forEach(function (c) {
         var idx = fns.length; fns.push(c.fn);
         body += '<button type="button" class="exp-card" data-fn="' + idx + '">' +
           '<span class="exp-ico">' + c.emoji + '</span>' +
-          '<span class="exp-label">' + escapeHtml(c.label) + '</span>' +
-          (c.tag ? '<span class="exp-dom exp-dom-' + (c.tagKind || "penal") + '">' + escapeHtml(c.tag) + '</span>' : '') +
+          '<span class="exp-label">' + escapeHtml(t(c.label)) + '</span>' +
+          (c.tag ? '<span class="exp-dom exp-dom-' + (c.tagKind || "penal") + '">' + escapeHtml(t(c.tag)) + '</span>' : '') +
           '</button>';
       });
       body += '</div>';
     });
     ov.innerHTML = '<div class="ac-modal exp-modal">' +
-      '<div class="ac-head"><span>' + cfg.title + '</span><button class="ac-x" type="button" aria-label="Mbyll">×</button></div>' +
-      '<div class="exp-body">' + (cfg.sub ? '<div class="exp-sub">' + cfg.sub + '</div>' : '') + body + '</div>' +
+      '<div class="ac-head"><span>' + tMode(cfg.title) + '</span><button class="ac-x" type="button" aria-label="Mbyll">×</button></div>' +
+      '<div class="exp-body">' + (cfg.sub ? '<div class="exp-sub">' + t(cfg.sub) + '</div>' : '') + body + '</div>' +
       '</div>';
     document.body.appendChild(ov);
     function close() { ov.remove(); }
@@ -5407,6 +5407,34 @@
     "\ud83d\uddc2\ufe0f Shiko t\u00eb ruajturat": "\ud83d\uddc2\ufe0f Vedi i salvati"
   };
   function t(sq) { return (UI_LANG === "it" && T_IT[sq]) ? T_IT[sq] : sq; }
+  Object.assign(T_IT, {
+    "Vegla për prokurorin dhe për qytetarin. Zgjidh një funksion. Çdo output kalon nga Verifikuar — prokurori/gjykata vendos dhe firmos.": "Strumenti per il procuratore e per il cittadino. Scegli una funzione. Ogni output passa dal Verificatore — il procuratore/giudice decide e firma.",
+    "Vegla noteriale: procure, akte, deklarata, kontrolle. Zgjidh një funksion. Çdo nen kalon nga Verifikuar — noteri e verifikon dhe e nënshkruan.": "Strumenti notarili: procure, atti, dichiarazioni, controlli. Scegli una funzione. Ogni articolo passa dal Verificatore — il notaio verifica e firma.",
+    "Besueshmëria — asi ynë: kontrollo që teksti të mbështetet VËRTET nga nenet, dhe që ligji të jetë ENDE në fuqi.": "L'affidabilità — il nostro asso: verifica che il testo sia DAVVERO sostenuto dagli articoli e che la legge sia ANCORA in vigore.",
+    "— PROKURORI —": "— PROCURATORE —", "— QYTETARI —": "— CITTADINO —",
+    "— HARTIM —": "— REDAZIONE —", "— KONTROLL & ANALIZË —": "— CONTROLLO & ANALISI —",
+    "— NDIHMË —": "— ASSISTENZA —", "— STUDIO —": "— STUDIO —",
+    "Analiza e prokurorit": "Analisi del procuratore", "Aktakuzë": "Atto d'accusa",
+    "Plani i hetimit": "Piano d'indagine", "Veprime hetimore": "Atti d'indagine",
+    "Kërkesë për masë sigurimi": "Richiesta misura cautelare", "Pushim / Mosfillim": "Archiviazione",
+    "Stres-test i aktit": "Stress-test dell'atto", "Parashkrimi & afatet": "Prescrizione & termini",
+    "Ndihmë për kallëzim penal": "Aiuto per denuncia penale", "Të drejtat e viktimës": "Diritti della vittima",
+    "Ankim kundër pushimit": "Opposizione all'archiviazione", "Ankesa për vonesa": "Reclamo per ritardi",
+    "Lexo & mbush (auto)": "Leggi & compila (auto)", "Redakto prokurë": "Redigi procura",
+    "Redakto akt notarial": "Redigi atto notarile", "Deklaratë noteriale": "Dichiarazione notarile",
+    "Klauzolat e studios": "Clausole dello studio", "Ispektor (Revizor Senior)": "Ispettore (Revisore Senior)",
+    "Kontroll vlefshmërie": "Controllo validità", "Kontroll konfliktesh": "Controllo conflitti",
+    "Analizë trashëgimie": "Analisi successione", "Revokim prokure": "Revoca procura",
+    "Çka nëse… (simulator)": "E se… (simulatore)", "Checklist fashikulli (auto)": "Checklist fascicolo (auto)",
+    "Për klientin (shpjego/email)": "Per il cliente (spiega/email)", "Regjistri (kërko akte)": "Registro (cerca atti)",
+    "Dokumentet e nevojshme": "Documenti necessari", "Tarifat & taksat": "Tariffe & imposte",
+    "Paneli i studios": "Pannello dello studio", "Verifikim i thellë": "Verifica approfondita",
+    "A është ende në fuqi?": "È ancora in vigore?",
+    "analizë": "analisi", "draft": "bozza", "hetim": "indagine", "kërkesë": "richiesta",
+    "projekt": "progetto", "kontroll": "controllo", "afat": "termine", "qytetar": "cittadino",
+    "hartim": "redazione", "akt": "atto", "ndihmë": "assistenza", "studio": "studio",
+    "besueshmëri": "affidabilità"
+  });
 
   function tMode(sq) {
     if (UI_LANG !== "it") return sq;
