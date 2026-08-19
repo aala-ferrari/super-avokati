@@ -119,17 +119,26 @@ app.permanent_session_lifetime = timedelta(days=30)
 app.config["MAX_CONTENT_LENGTH"] = (MAX_UPLOAD_SIZE_MB + 2) * 1024 * 1024
 
 _INDEX: ArticleIndex | None = None
+_INDEX_IT: ArticleIndex | None = None
 _BRAIN: SuperAvvocato | None = None
 
 
 def _ensure_loaded() -> None:
-    global _INDEX, _BRAIN
+    global _INDEX, _BRAIN, _INDEX_IT
     if _INDEX is None:
         _INDEX = ArticleIndex.load()
         log.info("index loaded: %d articles", len(_INDEX.articles))
+        try:
+            from .retrieval import INDEX_FILE
+            _it_path = INDEX_FILE.parent / "bm25_it.pkl"
+            if _it_path.exists():
+                _INDEX_IT = ArticleIndex.load(_it_path)
+                log.info("IT index loaded: %d articles", len(_INDEX_IT.articles))
+        except Exception as exc:  # noqa: BLE001
+            log.warning("IT index not loaded: %s", exc)
     if _BRAIN is None and detect_available_backend():
         try:
-            _BRAIN = SuperAvvocato(index=_INDEX)
+            _BRAIN = SuperAvvocato(index=_INDEX, index_it=_INDEX_IT)
         except Exception as exc:
             log.warning("brain init failed: %s", exc)
             _BRAIN = None

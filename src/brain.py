@@ -1597,6 +1597,7 @@ class SuperAvvocato:
         index: ArticleIndex | None = None,
         kb: LegalKBRetriever | None = None,
         backend: LLMBackend | None = None,
+        index_it: ArticleIndex | None = None,
     ):
         self.backend = backend or build_backend()
         # V8.13 — per-thread jurisdiction context. answer() / answer_stream()
@@ -1606,6 +1607,7 @@ class SuperAvvocato:
         import threading as _threading
         self._jurisdiction_ctx = _threading.local()
         self.index = index or ArticleIndex.load()
+        self.index_it = index_it  # V-IT: optional Italian corpus
         # Legal KB (Postgres) is optional — if the DB is unreachable the
         # brain still works on articles alone. We don't want an outage of
         # the precedent store to take down the citizen-facing answer flow.
@@ -2358,15 +2360,21 @@ class SuperAvvocato:
             if angle and angle not in all_queries:
                 all_queries.append(angle)
 
+        # V-IT: for an Italian case, ground on the Italian corpus. The
+        # restrict_codes come from Albanian triage, so drop them for IT.
+        idx = self.index
+        if self.index_it is not None and self._current_jurisdiction() == "IT":
+            idx = self.index_it
+        restrict = None if idx is self.index_it else codes
         seen: dict[tuple[str, str], float] = {}
         for q in all_queries:
-            for art, score in self.index.search(q, top_k=TOP_K_ARTICLES,
-                                                restrict_codes=codes):
+            for art, score in idx.search(q, top_k=TOP_K_ARTICLES,
+                                         restrict_codes=restrict):
                 key = (art.code, art.number)
                 if score > seen.get(key, 0.0):
                     seen[key] = score
 
-        art_by_key = {(a.code, a.number): a for a in self.index.articles}
+        art_by_key = {(a.code, a.number): a for a in idx.articles}
         pairs = [(art_by_key[k], s) for k, s in seen.items() if k in art_by_key]
         pairs.sort(key=lambda x: x[1], reverse=True)
         return pairs[: TOP_K_ARTICLES]
