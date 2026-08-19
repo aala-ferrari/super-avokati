@@ -1587,13 +1587,24 @@
       "e dobët": "⚠️",
       "kontestuese": "❓",
     };
-    const statusLabel = {
+    const statusLabel = _CAL_IT ? {
+      "kemi": "ce l'abbiamo",
+      "mungon": "manca",
+      "e dobët": "debole",
+      "kontestuese": "contestabile",
+    } : {
       "kemi": "e kemi",
       "mungon": "mungon",
       "e dobët": "e dobët",
       "kontestuese": "kontestuese",
     };
-    const bearerLabel = {
+    const bearerLabel = _CAL_IT ? {
+      "klienti": "il tuo cliente",
+      "qytetari": "il tuo cliente",
+      "kundërshtari": "la controparte",
+      "shteti": "lo Stato / l'accusa",
+      "ndarë": "onere ripartito",
+    } : {
       "klienti": "klienti yt",
       "qytetari": "klienti yt", // legacy alias (pre-V9.9)
       "kundërshtari": "pala tjetër",
@@ -1670,7 +1681,13 @@
       prescription: "📅",
       procedural_defect: "⚙️",
     };
-    const kindLabel = {
+    const kindLabel = _CAL_IT ? {
+      nullity_absolute: "Nullità assoluta",
+      nullity_relative: "Nullità relativa",
+      deadline: "Termine di decadenza",
+      prescription: "Prescrizione",
+      procedural_defect: "Vizio procedurale",
+    } : {
       nullity_absolute: "Pavlefshmëri absolute",
       nullity_relative: "Pavlefshmëri relative",
       deadline: "Afat dekadencial",
@@ -1682,7 +1699,11 @@
       ndoshta: "❓ NDOSHTA",
       jo: "— nuk aplikohet",
     };
-    const appliesLabel = {
+    const appliesLabel = _CAL_IT ? {
+      qytetari: "a nostro favore",
+      kundërshtari: "a favore della controparte",
+      "të dyja": "bilaterale",
+    } : {
       qytetari: "në favor tonin",
       kundërshtari: "në favor të palës tjetër",
       "të dyja": "dypalësh",
@@ -1941,7 +1962,12 @@
     const hasToday = items.some((it) => it.bucket === "sot");
     wrap.open = hasToday;
 
-    const bucketLabel = {
+    const bucketLabel = _CAL_IT ? {
+      sot: "🔥 Oggi / domani",
+      "kjo_javë": "📅 Questa settimana",
+      "ky_muaj": "🗓️ Questo mese",
+      "më_vonë": "🕰️ Più tardi",
+    } : {
       sot: "🔥 Sot / nesër",
       "kjo_javë": "📅 Kjo javë",
       "ky_muaj": "🗓️ Ky muaj",
@@ -2038,7 +2064,9 @@
       other: "Tjetër",
     };
     const sevIcon = { high: "🔴", medium: "🟡", low: "🟢" };
-    const sevLabel = { high: "I LARTË", medium: "MESATAR", low: "I ULËT" };
+    const sevLabel = _CAL_IT
+      ? { high: "ALTO", medium: "MEDIO", low: "BASSO" }
+      : { high: "I LARTË", medium: "MESATAR", low: "I ULËT" };
 
     const liHtml = items.map((c, i) => {
       const kind = c.kind || "other";
@@ -2063,7 +2091,7 @@
           <div class="ct-head">
             <span class="ct-num">${i + 1}</span>
             <span class="ct-kind-tag">${kIcon} ${escapeHtml(kLab)}</span>
-            <span class="ct-sev-tag ct-sev-tag-${escapeHtml(sev)}">${sevIcon[sev] || "🟡"} ${sevLabel[sev] || "MESATAR"}</span>
+            <span class="ct-sev-tag ct-sev-tag-${escapeHtml(sev)}">${sevIcon[sev] || "🟡"} ${sevLabel[sev] || (_CAL_IT ? "MEDIO" : "MESATAR")}</span>
           </div>
           <div class="ct-desc">${escapeHtml(c.description || "")}</div>
           ${refs ? `<div class="ct-refs">${refs}</div>` : ""}
@@ -2096,12 +2124,14 @@
     wrap.open = hasHigh;
 
     const sevIcon = { high: "🔴", medium: "🟡", low: "🟢" };
-    const sevLabel = { high: "I LARTË", medium: "MESATAR", low: "I ULËT" };
+    const sevLabel = _CAL_IT
+      ? { high: "ALTO", medium: "MEDIO", low: "BASSO" }
+      : { high: "I LARTË", medium: "MESATAR", low: "I ULËT" };
     const items = risks.map((r, i) => `
       <li class="pm-item pm-sev-${escapeHtml(r.severity || "medium")}">
         <div class="pm-head">
           <span class="pm-num">${i + 1}</span>
-          <span class="pm-sev">${sevIcon[r.severity] || "🟡"} ${sevLabel[r.severity] || "MESATAR"}</span>
+          <span class="pm-sev">${sevIcon[r.severity] || "🟡"} ${sevLabel[r.severity] || (_CAL_IT ? "MEDIO" : "MESATAR")}</span>
         </div>
         <div class="pm-risk">${escapeHtml(r.risk)}</div>
         ${r.mitigation ? `<div class="pm-mitig"><strong>Mitigim:</strong> ${escapeHtml(r.mitigation)}</div>` : ""}
@@ -2127,8 +2157,8 @@
 
     const items = (mf.facts || []).map((f, i) => {
       const impact = [];
-      if (f.impact_if_yes) impact.push(`<div class="mf-impact"><strong>Nëse PO:</strong> ${escapeHtml(f.impact_if_yes)}</div>`);
-      if (f.impact_if_no)  impact.push(`<div class="mf-impact"><strong>Nëse JO:</strong> ${escapeHtml(f.impact_if_no)}</div>`);
+      if (f.impact_if_yes) impact.push(`<div class="mf-impact"><strong>${_CAL_IT ? "Se SÌ:" : "Nëse PO:"}</strong> ${escapeHtml(f.impact_if_yes)}</div>`);
+      if (f.impact_if_no)  impact.push(`<div class="mf-impact"><strong>${_CAL_IT ? "Se NO:" : "Nëse JO:"}</strong> ${escapeHtml(f.impact_if_no)}</div>`);
       return `
         <li class="mf-item">
           <button class="mf-ask" type="button" data-question="${escapeHtml(f.question)}">
@@ -2171,7 +2201,12 @@
     wrap.className = `comparison cmp-${c.citizen_alignment || "unknown"}`;
     wrap.open = true;
 
-    const alignLabel = {
+    const alignLabel = _CAL_IT ? {
+      favorable:   "🧭 Il tuo caso è allineato ai vincenti",
+      mixed:       "⚖️ Il caso è misto — ci sono rischi",
+      unfavorable: "⚠️ Il tuo caso è allineato ai perdenti — strategia difensiva",
+      unknown:     "🧭 Confronto tra precedenti",
+    } : {
       favorable:   "🧭 Rasti yt përputhet me fituesit",
       mixed:       "⚖️ Rasti është i përzier — ka rreziqe",
       unfavorable: "⚠️ Rasti yt përputhet me humbësit — strategji mbrojtëse",
@@ -2182,12 +2217,14 @@
     // engine. Prefer it when populated; fall back to the legacy
     // decisive_factors bullets for historical rows.
     const statusIcon = { "ka": "✅", "mungon": "❌", "e paqartë": "❓" };
-    const statusLabel = { "ka": "E KA", "mungon": "MUNGON", "e paqartë": "E PAQARTË" };
+    const statusLabel = _CAL_IT
+      ? { "ka": "PRESENTE", "mungon": "ASSENTE", "e paqartë": "NON CHIARO" }
+      : { "ka": "E KA", "mungon": "MUNGON", "e paqartë": "E PAQARTË" };
     const diffs = (c.decisive_differences || []).filter((d) => d.attribute);
     const differencesHtml = diffs.length ? diffs.map((d) => {
       const cls = `cmp-diff-${(d.citizen_status || "e paqartë").replace(/\s+/g, "-")}`;
       const icon = statusIcon[d.citizen_status] || "❓";
-      const label = statusLabel[d.citizen_status] || "E PAQARTË";
+      const label = statusLabel[d.citizen_status] || (_CAL_IT ? "NON CHIARO" : "E PAQARTË");
       const win = d.winners_have
         ? `<div class="cmp-diff-row"><span class="cmp-diff-key">Fituesit:</span> ${escapeHtml(d.winners_have)}</div>` : "";
       const lose = d.losers_lacked
@@ -8926,9 +8963,15 @@
   function renderInboxList() {
     const filtered = inboxLeads.filter(l => l.status === inboxCurrentTab);
     if (!filtered.length) {
-      const labels = { new: "kërkesa të reja", contacted: "kërkesa të kontaktuara",
-                       converted: "kërkesa të konvertuara", rejected: "kërkesa të refuzuara" };
-      inboxList.innerHTML = `<p class="inbox-empty">Asnjë ${labels[inboxCurrentTab] || "kërkesë"} për momentin.</p>`;
+      const labels = _CAL_IT
+        ? { new: "nuove richieste", contacted: "richieste contattate",
+            converted: "richieste convertite", rejected: "richieste rifiutate" }
+        : { new: "kërkesa të reja", contacted: "kërkesa të kontaktuara",
+            converted: "kërkesa të konvertuara", rejected: "kërkesa të refuzuara" };
+      const _fallback = _CAL_IT ? "richiesta" : "kërkesë";
+      inboxList.innerHTML = _CAL_IT
+        ? `<p class="inbox-empty">Nessuna ${labels[inboxCurrentTab] || _fallback} al momento.</p>`
+        : `<p class="inbox-empty">Asnjë ${labels[inboxCurrentTab] || _fallback} për momentin.</p>`;
       return;
     }
     inboxList.innerHTML = filtered.map(l => {
@@ -10408,12 +10451,17 @@
     const d = data.distribution || {};
     const r = data.recommendation || {};
     const verdict = r.verdict || "no_offer";
-    const verdictLabel = {
+    const verdictLabel = (_CAL_IT ? {
+      accept: "✓ ACCETTA l'offerta",
+      counter: "↔ CONTRO-OFFERTA",
+      reject: "✗ RIFIUTA",
+      no_offer: "Nessuna offerta registrata"
+    } : {
       accept: "✓ PRANO ofertën",
       counter: "↔ KONTËR-OFERTË",
       reject: "✗ REFUZO",
       no_offer: "Asnjë ofertë e regjistruar"
-    }[verdict] || verdict;
+    })[verdict] || verdict;
     const pct = (k) => {
       const v = d[k]; if (v == null) return "—";
       return Math.round(v).toLocaleString("sq-AL") + " €";
