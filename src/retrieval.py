@@ -54,31 +54,61 @@ def tokenize(text: str) -> list[str]:
     return [t for t in tokens if t not in STOPWORDS and len(t) > 1]
 
 
+# ── Italian tokenizer (for the IT corpus) ────────────────────────────────────
+TOKEN_RE_IT = re.compile(r"[a-zàáèéìíòóùúü0-9]+", re.IGNORECASE)
+STOPWORDS_IT: frozenset[str] = frozenset({
+    "il", "lo", "la", "i", "gli", "le", "l", "un", "uno", "una",
+    "di", "a", "da", "in", "con", "su", "per", "tra", "fra",
+    "del", "dello", "della", "dei", "degli", "delle", "dell",
+    "al", "allo", "alla", "ai", "agli", "alle", "all",
+    "dal", "dallo", "dalla", "dai", "dagli", "dalle", "dall",
+    "nel", "nello", "nella", "nei", "negli", "nelle", "nell",
+    "sul", "sullo", "sulla", "sui", "sugli", "sulle", "sull",
+    "col", "coi", "e", "ed", "o", "od", "ma", "che", "chi", "cui", "come", "se",
+    "è", "sono", "ha", "hanno", "essere", "avere", "sia", "siano",
+    "si", "ne", "ci", "vi", "questo", "questa", "questi", "queste",
+    "quello", "quella", "quelli", "quelle", "anche", "ovvero", "nonché",
+    "ogni", "quale", "quali", "esso", "essa", "essi", "loro",
+})
+
+
+def tokenize_it(text: str) -> list[str]:
+    """Tokenize Italian text — lowercase, keep àèéìòù, drop Italian stopwords.
+    Keeps negations (non) and legal terms."""
+    tokens = TOKEN_RE_IT.findall(text.lower())
+    return [t for t in tokens if t not in STOPWORDS_IT and len(t) > 1]
+
+
+def tokenize_for(lang: str, text: str) -> list[str]:
+    return tokenize_it(text) if (lang or "sq") == "it" else tokenize(text)
+
+
 class ArticleIndex:
     """BM25 index over every article from every code."""
 
-    def __init__(self, articles: list[Article], bm25: BM25Okapi):
+    def __init__(self, articles: list[Article], bm25: BM25Okapi, lang: str = "sq"):
         self.articles = articles
         self.bm25 = bm25
+        self.lang = lang
 
     # ── construction ────────────────────────────────────────────────────────
 
     @classmethod
-    def build(cls, articles: list[Article]) -> ArticleIndex:
-        log.info("tokenising %d articles ...", len(articles))
-        corpus = [tokenize(a.searchable_text) for a in articles]
+    def build(cls, articles: list[Article], lang: str = "sq") -> ArticleIndex:
+        log.info("tokenising %d articles (lang=%s) ...", len(articles), lang)
+        corpus = [tokenize_for(lang, a.searchable_text) for a in articles]
         log.info("building BM25 index ...")
         bm25 = BM25Okapi(corpus)
-        return cls(articles, bm25)
+        return cls(articles, bm25, lang)
 
     @classmethod
-    def from_jsonl(cls, path: Path = ARTICLES_JSONL) -> ArticleIndex:
+    def from_jsonl(cls, path: Path = ARTICLES_JSONL, lang: str = "sq") -> ArticleIndex:
         articles: list[Article] = []
         with path.open(encoding="utf-8") as fh:
             for line in fh:
                 data = json.loads(line)
                 articles.append(Article(**data))
-        return cls.build(articles)
+        return cls.build(articles, lang=lang)
 
     # ── persistence ─────────────────────────────────────────────────────────
 
@@ -86,7 +116,8 @@ class ArticleIndex:
         path.parent.mkdir(parents=True, exist_ok=True)
         with path.open("wb") as fh:
             pickle.dump({"articles": [asdict(a) for a in self.articles],
-                         "bm25": self.bm25}, fh)
+                         "bm25": self.bm25,
+                         "lang": getattr(self, "lang", "sq")}, fh)
         log.info("index saved to %s (%d articles)", path, len(self.articles))
 
     @classmethod
@@ -94,7 +125,7 @@ class ArticleIndex:
         with path.open("rb") as fh:
             data = pickle.load(fh)
         articles = [Article(**a) for a in data["articles"]]
-        return cls(articles, data["bm25"])
+        return cls(articles, data["bm25"], data.get("lang", "sq"))
 
     # ── querying ────────────────────────────────────────────────────────────
 
@@ -106,7 +137,7 @@ class ArticleIndex:
         restrict_codes: Iterable[str] | None = None,
     ) -> list[tuple[Article, float]]:
         """Return (article, score) pairs sorted by BM25 score descending."""
-        tokens = tokenize(query)
+        tokens = tokenize_for(getattr(self, "lang", "sq"), query)
         if not tokens:
             return []
 
@@ -230,7 +261,7 @@ class DecisionIndex:
         """
         if not self.decisions or self.bm25 is None:
             return []
-        tokens = tokenize(query)
+        tokens = tokenize_for(getattr(self, "lang", "sq"), query)
         if not tokens:
             return []
 
