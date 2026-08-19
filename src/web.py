@@ -736,6 +736,81 @@ INTAKE_SYSTEM_BRIEF = (
 )
 
 
+INTAKE_SYSTEM_NEXT_IT = (
+    "Sei un assistente legale professionale per uno studio legale italiano. "
+    "Stai conducendo il primo INTAKE con un potenziale cliente. Compito: fai "
+    "UNA sola domanda, chiara, SOLO in ITALIANO — la domanda che aiuterebbe "
+    "di più l'avvocato a capire il caso. Non dare consulenza legale. Non "
+    "dare nulla per scontato. Fai solo domande informative.\n\n"
+    "REGOLE IMPORTANTI:\n"
+    "- Ogni domanda e ogni `why` DEVONO essere SOLO in italiano.\n"
+    "- Non ripetere domande su temi gia coperti nella conversazione.\n"
+    "- Se l'ultima risposta non risponde all'ultima domanda, riformula la "
+    "domanda o chiedi al cliente di chiarire.\n"
+    "- Le domande devono essere concrete e comprensibili da un cliente "
+    "comune (niente terminologia giuridica approfondita).\n\n"
+    "Temi da coprire (nell'ordine che ha senso in base alle risposte):\n"
+    "1. Identita del cliente (nome completo, contatto se manca)\n"
+    "2. Materia giuridica (civile/penale/famiglia/lavoro/commerciale/"
+    "amministrativo)\n"
+    "3. Altre parti coinvolte (controparte, testimoni)\n"
+    "4. Fatti principali (cosa e successo, quando, dove)\n"
+    "5. Date / termini (scadenze procedurali, provvedimenti del giudice)\n"
+    "6. Prove esistenti (documenti, testimoni)\n"
+    "7. Procedimenti gia avviati (e stata iniziata una causa?)\n"
+    "8. Aspettativa / obiettivo (cosa vuole il cliente — risarcimento, "
+    "annullamento, ecc.)\n\n"
+    "Quando hai raccolto QUANTO SERVE (di norma 6-8 domande), restituisci "
+    "{\"done\": true} senza domanda. Non superare 10 domande in totale.\n\n"
+    "RISPONDI SEMPRE E SOLO CON JSON valido:\n"
+    "{\"question\": \"...\", \"why\": \"breve spiegazione del perche fai "
+    "questa domanda (1 frase)\", \"done\": false}\n"
+    "oppure\n"
+    "{\"done\": true}"
+)
+
+INTAKE_SYSTEM_BRIEF_IT = (
+    "Sei un assistente legale professionale. Stai creando un RIEPILOGO "
+    "STRUTTURATO dell'intake, che sara letto dall'avvocato che prendera il "
+    "caso. Scrivi in modo chiaro, senza abbellimenti, senza consulenza "
+    "legale.\n\n"
+    "REGOLA ASSOLUTA DI LINGUA: ogni valore testuale nel JSON DEVE essere "
+    "SOLO in ITALIANO — inclusi title, facts, deadlines, evidence, "
+    "client_goal, open_questions, suggested_next_steps. Anche se le "
+    "risposte del cliente contengono parole in altre lingue, il riepilogo "
+    "e SOLO in italiano.\n\n"
+    "RISPONDI SOLO CON JSON valido con questo schema:\n"
+    "{\n"
+    '  "title": "Titolo breve in ITALIANO (max 60 caratteri)",\n'
+    '  "area": "civile|penale|famiglia|lavoro|commerciale|amministrativo|altro",\n'
+    '  "client": "Nome e ruolo del cliente",\n'
+    '  "counterparty": "Controparte oppure null",\n'
+    '  "facts": "Descrizione dei fatti in ITALIANO (3-6 frasi)",\n'
+    '  "deadlines": "Termini / date critiche in ITALIANO oppure null",\n'
+    '  "evidence": "Prove disponibili in ITALIANO oppure null",\n'
+    '  "client_goal": "Cosa chiede il cliente — in ITALIANO",\n'
+    '  "open_questions": ["Domanda in ITALIANO per l\'avvocato"],\n'
+    '  "urgency": "low|medium|high",\n'
+    '  "suggested_next_steps": ["Passo in ITALIANO", "Passo 2 in ITALIANO"]\n'
+    "}"
+)
+
+
+def _intake_prompts():
+    """(system_next, system_brief, user_prefix) per la giurisdizione attiva."""
+    try:
+        if _active_jurisdiction(getattr(request, "user", None)) == "IT":
+            return (INTAKE_SYSTEM_NEXT_IT, INTAKE_SYSTEM_BRIEF_IT,
+                    "Conversazione finora:\n{t}\n\nFai la prossima domanda "
+                    "oppure restituisci {{\"done\": true}} se sei pronto per "
+                    "il riepilogo.")
+    except Exception:  # noqa: BLE001
+        pass
+    return (INTAKE_SYSTEM_NEXT, INTAKE_SYSTEM_BRIEF,
+            "Bisedoja deri tani:\n{t}\n\nBëj pyetjen tjetër ose kthe "
+            "{{\"done\": true}} nëse je gati për përmbledhje.")
+
+
 def _format_intake_brief(brief: dict) -> str:
     """Render the structured brief as the case's first user message."""
     def _line(label, val):
@@ -803,14 +878,11 @@ def api_firm_intake():
     transcript = _intake_history_to_text(history)
 
     if action == "next":
-        prompt = (
-            f"Bisedoja deri tani:\n{transcript}\n\n"
-            f"Bëj pyetjen tjetër ose kthe {{\"done\": true}} nëse "
-            f"je gati për përmbledhje."
-        )
+        _sys_next, _sys_brief, _tpl = _intake_prompts()
+        prompt = _tpl.format(t=transcript)
         try:
             raw = _BRAIN.backend.complete(
-                system=INTAKE_SYSTEM_NEXT,
+                system=_sys_next,
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=400,
                 medium=True,  # Sonnet — wizard conversazionale per il cliente
@@ -853,7 +925,7 @@ def api_firm_intake():
             # V8.10: brief finale è il documento che legge l'avvocato →
             # Opus default, niente shortcut
             raw = _BRAIN.backend.complete(
-                system=INTAKE_SYSTEM_BRIEF,
+                system=_intake_prompts()[1],
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=1200,
             )
