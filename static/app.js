@@ -773,7 +773,7 @@
         appendInfoBot(head + (rows || "Asnjë afat."));
       } catch (err) {
         messages.querySelector(".msg.typing")?.remove();
-        appendError("Gabim rrjeti: " + err.message);
+        appendError((_CAL_IT ? "Errore di rete: " : "Gabim rrjeti: ") + err.message);
       }
       return true;
     }
@@ -921,7 +921,7 @@
       clearStatus();
       if (streamEl) streamEl.remove();
       else typing.remove();
-      appendError("Gabim rrjeti: " + err.message);
+      appendError((_CAL_IT ? "Errore di rete: " : "Gabim rrjeti: ") + err.message);
     } finally {
       sendBtn.disabled = false;
       if (window.innerWidth >= 900) input.focus();
@@ -3656,7 +3656,7 @@
         if (!tx) { status.textContent = "Dokumenti nuk ka tekst të lexueshëm."; }
         else { ta.value = ta.value.trim() ? (ta.value.trim() + "\n\n" + tx) : tx;
                status.textContent = dd.used_vision_ocr ? t("\u2713 Lexuar me OCR") : t("\u2713 Dokumenti u lexua"); }
-      } catch (e) { status.textContent = "Gabim: " + e.message; }
+      } catch (e) { status.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; }
       finally { run.disabled = false; ftFile.value = ""; }
     };
     run.onclick = async function () {
@@ -3676,7 +3676,7 @@
         if (d.citations && d.citations.stats && d.citations.stats.total > 0) result.insertBefore(renderCitationsBadge(d.citations, null), out);
         _addSaveToCase(result, cfg.source || "research", cfg.saveTitle || "Kërkim", d.markdown || "");
         if (cfg.calendar) _addToCalendar(result, cfg.calendarTitle || cfg.saveTitle || "Afat", d.markdown || "");
-      } catch (e) { status.textContent = "Gabim: " + e.message; }
+      } catch (e) { status.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; }
       finally { run.disabled = false; }
     };
     setTimeout(function () { ta.focus(); }, 50);
@@ -3735,7 +3735,7 @@
           ta.value = ta.value.trim() ? (ta.value.trim() + "\n\n" + tx) : tx;
           status.textContent = dd.used_vision_ocr ? t("\u2713 Lexuar me OCR") : t("\u2713 Dokumenti u lexua");
         }
-      } catch (e) { status.textContent = "Gabim: " + e.message; }
+      } catch (e) { status.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; }
       finally { run.disabled = false; fdFile.value = ""; }
     };
     function close() { ov.remove(); }
@@ -3769,7 +3769,7 @@
         };
         result.appendChild(copy);
         _addSaveToCase(result, "draft", "Draft: " + (kind ? kind.value : ""), d.markdown || "");
-      } catch (e) { status.textContent = "Gabim: " + e.message; }
+      } catch (e) { status.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; }
       finally { run.disabled = false; }
     };
     setTimeout(function () { ta.focus(); }, 50);
@@ -3829,7 +3829,7 @@
         try { var dd = await _extractFileText(f, status); var tx = (dd.text || "").trim();
           if (tx) { ta.value = ta.value.trim() ? (ta.value.trim() + "\n\n" + tx) : tx;
             status.textContent = dd.used_vision_ocr ? TT("\u2713 Lexuar me OCR") : TT("\u2713 Dokumenti u lexua"); } }
-        catch (e) { status.textContent = "Gabim: " + e.message; } finally { run.disabled = false; file.value = ""; }
+        catch (e) { status.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; } finally { run.disabled = false; file.value = ""; }
       };
       run.onclick = async function () {
         var facts = (ta.value || "").trim();
@@ -3848,7 +3848,7 @@
           if (d.citations && d.citations.stats && d.citations.stats.total > 0) result.insertBefore(renderCitationsBadge(d.citations, null), out);
           _addSaveToCase(result, "expertise", "Ekspertiz\u00eb: " + t.label, d.markdown || "");
           _addToCalendar(result, "Afat", d.markdown || "");
-        } catch (e) { status.textContent = "Gabim: " + e.message; }
+        } catch (e) { status.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; }
         finally { run.disabled = false; }
       };
       setTimeout(function () { ta.focus(); }, 50);
@@ -3900,7 +3900,7 @@
         if (typeof renderCaseList === "function") renderCaseList();
         try { var rr = await fetch("/api/firm/clients"); if (rr.ok) data = await rr.json(); } catch (e2) {}
         render(search.value);
-      } catch (e) { st.textContent = "Gabim: " + e.message; }
+      } catch (e) { st.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; }
       finally { saveBtn.disabled = false; }
     };
     function close() { ov.remove(); }
@@ -4010,7 +4010,7 @@
       try { var dd = await _extractFileText(f, status); var tx = (dd.text || "").trim();
         if (tx) { ta.value = ta.value.trim() ? (ta.value.trim() + "\n\n" + tx) : tx;
           status.textContent = dd.used_vision_ocr ? t("\u2713 Lexuar me OCR") : t("\u2713 Dokumenti u lexua"); } }
-      catch (e) { status.textContent = "Gabim: " + e.message; } finally { run.disabled = false; file.value = ""; }
+      catch (e) { status.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; } finally { run.disabled = false; file.value = ""; }
     };
     run.onclick = async function () {
       var details = (ta.value || "").trim();
@@ -4031,7 +4031,7 @@
         copy.onclick = function () { navigator.clipboard.writeText(d.markdown || "").then(function () { copy.textContent = "\u2713 U kopjua"; }).catch(function () {}); };
         result.appendChild(copy);
         _addSaveToCase(result, "notary", "Akt: " + (kind.options[kind.selectedIndex] ? kind.options[kind.selectedIndex].text : ""), d.markdown || "");
-      } catch (e) { status.textContent = "Gabim: " + e.message; }
+      } catch (e) { status.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; }
       finally { run.disabled = false; }
     };
     setTimeout(function () { ta.focus(); }, 50);
@@ -4110,7 +4110,7 @@
         copy.onclick = function () { navigator.clipboard.writeText(d.markdown || "").then(function () { copy.textContent = "✓ U kopjua"; }).catch(function () {}); };
         result.appendChild(copy);
         _addSaveToCase(result, "notary", "Prokurë", d.markdown || "");
-      } catch (e) { status.textContent = "Gabim: " + e.message; }
+      } catch (e) { status.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; }
       finally { run.disabled = false; }
     };
     setTimeout(function () { ta.focus(); }, 50);
@@ -4165,7 +4165,7 @@
         copy.onclick = function () { navigator.clipboard.writeText(d.markdown || "").then(function () { copy.textContent = "✓ U kopjua"; }).catch(function () {}); };
         result.appendChild(copy);
         _addSaveToCase(result, "notary", "Deklaratë: " + (kind.options[kind.selectedIndex] ? kind.options[kind.selectedIndex].text : ""), d.markdown || "");
-      } catch (e) { status.textContent = "Gabim: " + e.message; }
+      } catch (e) { status.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; }
       finally { run.disabled = false; }
     };
     setTimeout(function () { ta.focus(); }, 50);
@@ -4214,7 +4214,7 @@
       try { var dd = await _extractFileText(f, status); var tx = (dd.text || "").trim();
         if (tx) { ta.value = ta.value.trim() ? (ta.value.trim() + "\n\n" + tx) : tx;
           status.textContent = dd.used_vision_ocr ? t("✓ Lexuar me OCR") : t("✓ Dokumenti u lexua"); } }
-      catch (e) { status.textContent = "Gabim: " + e.message; } finally { run.disabled = false; file.value = ""; }
+      catch (e) { status.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; } finally { run.disabled = false; file.value = ""; }
     };
     run.onclick = async function () {
       var newAct = (ta.value || "").trim();
@@ -4231,7 +4231,7 @@
         out.innerHTML = renderMarkdown(d.markdown || "");
         if (d.citations) highlightNeni(out, buildCitStatusMap(d.citations));
         _addSaveToCase(result, "notary", "Kontroll konfliktesh", d.markdown || "");
-      } catch (e) { status.textContent = "Gabim: " + e.message; }
+      } catch (e) { status.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; }
       finally { run.disabled = false; }
     };
     setTimeout(function () { ta.focus(); }, 50);
@@ -4330,7 +4330,7 @@
       try { var dd = await _extractFileText(f, status); var tx = (dd.text || "").trim();
         if (tx) { ta.value = ta.value.trim() ? (ta.value.trim() + "\n\n" + tx) : tx;
           status.textContent = dd.used_vision_ocr ? t("✓ Lexuar me OCR") : t("✓ Dokumenti u lexua"); } }
-      catch (e) { status.textContent = "Gabim: " + e.message; } finally { run.disabled = false; file.value = ""; }
+      catch (e) { status.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; } finally { run.disabled = false; file.value = ""; }
     };
     run.onclick = async function () {
       var facts = (ta.value || "").trim();
@@ -4348,7 +4348,7 @@
         if (d.citations) highlightNeni(out, buildCitStatusMap(d.citations));
         if (d.citations && d.citations.stats && d.citations.stats.total > 0) result.insertBefore(renderCitationsBadge(d.citations, null), out);
         _addSaveToCase(result, "prosecutor", "Veprim hetimor: " + (kind.options[kind.selectedIndex] ? kind.options[kind.selectedIndex].text : ""), d.markdown || "");
-      } catch (e) { status.textContent = "Gabim: " + e.message; }
+      } catch (e) { status.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; }
       finally { run.disabled = false; }
     };
     setTimeout(function () { ta.focus(); }, 50);
@@ -4555,7 +4555,7 @@
           result.appendChild(go);
         }
         _addSaveToCase(result, "research", "Pika e parë (triazh)", d.markdown || "");
-      } catch (e) { status.textContent = "Gabim: " + e.message; }
+      } catch (e) { status.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; }
       finally { run.disabled = false; }
     };
     setTimeout(function () { ta.focus(); }, 50);
@@ -4697,7 +4697,7 @@
         var d = await r.json(); if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
         tlRes.innerHTML = _renderFkTimeline(d.result || {});
         tlSt.textContent = "✓ " + ((d.result && d.result.event_count) || 0) + " ngjarje · " + ((d.result && (d.result.contradictions || []).length) || 0) + " kontradikta";
-      } catch (e) { tlSt.textContent = "Gabim: " + e.message; } finally { tlBtn.disabled = false; }
+      } catch (e) { tlSt.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; } finally { tlBtn.disabled = false; }
     };
     // Kush tha çfarë
     var whoBtn = ov.querySelector(".fk-who-btn"), whoSt = ov.querySelector(".fk-who-st"), whoRes = ov.querySelector(".fk-who-res");
@@ -4708,7 +4708,7 @@
         var r = await fetch("/api/cases/" + activeCaseId + "/who-said", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
         var d = await r.json(); if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
         whoSt.textContent = ""; _render(d, whoRes, d.markdown);
-      } catch (e) { whoSt.textContent = "Gabim: " + e.message; } finally { whoBtn.disabled = false; }
+      } catch (e) { whoSt.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; } finally { whoBtn.disabled = false; }
     };
     // Pyet dokumentet
     var askTa = ov.querySelector(".fk-ask-ta"), askBtn = ov.querySelector(".fk-ask-btn"), askSt = ov.querySelector(".fk-ask-st"), askRes = ov.querySelector(".fk-ask-res");
@@ -4721,7 +4721,7 @@
         var d = await r.json(); if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
         askSt.textContent = d.truncated ? ("shfrytëzuar " + d.n_docs + " dok") : "";
         _render(d, askRes, d.answer);
-      } catch (e) { askSt.textContent = "Gabim: " + e.message; } finally { askBtn.disabled = false; }
+      } catch (e) { askSt.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; } finally { askBtn.disabled = false; }
     };
     // Gjilpëra
     var ndBtn = ov.querySelector(".fk-nd-btn"), ndSt = ov.querySelector(".fk-nd-st"), ndRes = ov.querySelector(".fk-nd-res");
@@ -4732,7 +4732,7 @@
         var r = await fetch("/api/cases/" + activeCaseId + "/needle", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
         var d = await r.json(); if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
         ndSt.textContent = ""; _render(d, ndRes, d.markdown);
-      } catch (e) { ndSt.textContent = "Gabim: " + e.message; } finally { ndBtn.disabled = false; }
+      } catch (e) { ndSt.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; } finally { ndBtn.disabled = false; }
     };
     var rgQ = ov.querySelector(".fk-rg-q"), rgCase = ov.querySelector(".fk-rg-case"),
         rgBtn = ov.querySelector(".fk-rg-btn"), rgSt = ov.querySelector(".fk-rg-st"), rgRes = ov.querySelector(".fk-rg-res");
@@ -4763,7 +4763,7 @@
           });
           rgRes.appendChild(ul);
         }
-      } catch (e) { rgSt.textContent = "Gabim: " + e.message; }
+      } catch (e) { rgSt.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; }
       finally { rgBtn.disabled = false; }
     }
     rgBtn.onclick = rgGo;
@@ -4790,7 +4790,7 @@
         if (d.citations) highlightNeni(out, buildCitStatusMap(d.citations));
         if (d.citations && d.citations.stats && d.citations.stats.total > 0) ispRes.insertBefore(renderCitationsBadge(d.citations, null), out);
         _addSaveToCase(ispRes, "notary", "Ispektim akti", (d.risk != null ? ("Rreziku: " + d.risk + "/100\n\n") : "") + (d.markdown || ""));
-      } catch (e) { ispSt.textContent = "Gabim: " + e.message; } finally { ispBtn.disabled = false; }
+      } catch (e) { ispSt.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; } finally { ispBtn.disabled = false; }
     };
     // Lexo & mbush
     var extTa = ov.querySelector(".fk-ext-ta"), extCase = ov.querySelector(".fk-ext-case"), extBtn = ov.querySelector(".fk-ext-btn"),
@@ -4815,7 +4815,7 @@
         cpx.onclick = function () { navigator.clipboard.writeText(d.markdown || "").then(function () { cpx.textContent = "✓ U kopjua"; }).catch(function () {}); };
         extRes.appendChild(cpx);
         _addSaveToCase(extRes, "notary", "Të dhëna të nxjerra", d.markdown || "");
-      } catch (e) { extSt.textContent = "Gabim: " + e.message; } finally { extBtn.disabled = false; }
+      } catch (e) { extSt.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; } finally { extBtn.disabled = false; }
     };
     // Çka nëse
     var wiAct = ov.querySelector(".fk-wi-act"), wiChange = ov.querySelector(".fk-wi-change"), wiBtn = ov.querySelector(".fk-wi-btn"),
@@ -4833,7 +4833,7 @@
         if (d.citations) highlightNeni(out, buildCitStatusMap(d.citations));
         if (d.citations && d.citations.stats && d.citations.stats.total > 0) wiRes.insertBefore(renderCitationsBadge(d.citations, null), out);
         _addSaveToCase(wiRes, "notary", "Simulim: " + change.slice(0, 50), d.markdown || "");
-      } catch (e) { wiSt.textContent = "Gabim: " + e.message; } finally { wiBtn.disabled = false; }
+      } catch (e) { wiSt.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; } finally { wiBtn.disabled = false; }
     };
     // Klauzolat
     var clManage = ov.querySelector(".fk-cl-manage"), clList = ov.querySelector(".fk-cl-list");
@@ -4934,7 +4934,7 @@
           };
         }
         _addSaveToCase(result, "research", "Afatet procedurale", d.markdown || "");
-      } catch (e) { status.textContent = "Gabim: " + e.message; }
+      } catch (e) { status.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; }
       finally { run.disabled = false; }
     };
     setTimeout(function () { trig.focus(); }, 50);
@@ -4977,7 +4977,7 @@
       try { var dd = await _extractFileText(f, status); var tx = (dd.text || "").trim();
         if (tx) { ta.value = ta.value.trim() ? (ta.value.trim() + "\n\n" + tx) : tx;
           status.textContent = dd.used_vision_ocr ? t("✓ Lexuar me OCR") : t("✓ Dokumenti u lexua"); } }
-      catch (e) { status.textContent = "Gabim: " + e.message; } finally { run.disabled = false; file.value = ""; }
+      catch (e) { status.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; } finally { run.disabled = false; file.value = ""; }
     };
     run.onclick = async function () {
       var text = (ta.value || "").trim();
@@ -4996,7 +4996,7 @@
         if (d.citations) highlightNeni(out, buildCitStatusMap(d.citations));
         if (d.citations && d.citations.stats && d.citations.stats.total > 0) result.insertBefore(renderCitationsBadge(d.citations, null), out);
         _addSaveToCase(result, "notary", "Ispektim akti", (gauge ? ("Indeksi i rrezikut: " + d.risk + "/100 — " + (d.verdict || "") + "\n\n") : "") + (d.markdown || ""));
-      } catch (e) { status.textContent = "Gabim: " + e.message; }
+      } catch (e) { status.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; }
       finally { run.disabled = false; }
     };
     setTimeout(function () { ta.focus(); }, 50);
@@ -5028,7 +5028,7 @@
       for (var i = 0; i < files.length; i++) {
         try { var dd = await _extractFileText(files[i], status); var tx = (dd.text || "").trim();
           if (tx) ta.value = ta.value.trim() ? (ta.value.trim() + "\n\n" + tx) : tx; }
-        catch (e) { status.textContent = "Gabim: " + e.message; }
+        catch (e) { status.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; }
       }
       status.textContent = "✓ " + files.length + t(" dokument(e) u lexuan"); run.disabled = false; file.value = "";
     };
@@ -5067,7 +5067,7 @@
         cpx.onclick = function () { navigator.clipboard.writeText(extracted).then(function () { cpx.textContent = "✓ U kopjua"; }).catch(function () {}); };
         result.appendChild(cpx);
         _addSaveToCase(result, "notary", "Të dhëna të nxjerra", extracted);
-      } catch (e) { status.textContent = "Gabim: " + e.message; }
+      } catch (e) { status.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; }
       finally { run.disabled = false; }
     };
     setTimeout(function () { ta.focus(); }, 50);
@@ -5135,7 +5135,7 @@
         out.innerHTML = renderMarkdown(d.markdown || "");
         if (d.citations) highlightNeni(out, buildCitStatusMap(d.citations));
         _addSaveToCase(result, "notary", "Checklist: " + act, (d.completeness != null ? ("Plotësia: " + d.completeness + "/100\n\n") : "") + (d.markdown || ""));
-      } catch (e) { status.textContent = "Gabim: " + e.message; }
+      } catch (e) { status.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; }
       finally { run.disabled = false; }
     };
     setTimeout(function () { actIn.focus(); }, 50);
@@ -5183,7 +5183,7 @@
         copy.onclick = function () { navigator.clipboard.writeText(d.markdown || "").then(function () { copy.textContent = "✓ U kopjua"; }).catch(function () {}); };
         result.appendChild(copy);
         _addSaveToCase(result, "notary", (kind.options[kind.selectedIndex] ? kind.options[kind.selectedIndex].text : "Për klientin"), d.markdown || "");
-      } catch (e) { status.textContent = "Gabim: " + e.message; }
+      } catch (e) { status.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; }
       finally { run.disabled = false; }
     };
     setTimeout(function () { ta.focus(); }, 50);
@@ -5237,7 +5237,7 @@
           });
           result.appendChild(ul);
         }
-      } catch (e) { status.textContent = "Gabim: " + e.message; }
+      } catch (e) { status.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; }
       finally { run.disabled = false; }
     }
     run.onclick = go;
@@ -5271,7 +5271,7 @@
       try { var dd = await _extractFileText(f, status); var tx = (dd.text || "").trim();
         if (tx) { actTa.value = actTa.value.trim() ? (actTa.value.trim() + "\n\n" + tx) : tx;
           status.textContent = t("✓ Dokumenti u lexua"); } }
-      catch (e) { status.textContent = "Gabim: " + e.message; } finally { run.disabled = false; file.value = ""; }
+      catch (e) { status.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; } finally { run.disabled = false; file.value = ""; }
     };
     run.onclick = async function () {
       var act = (actTa.value || "").trim(), change = (changeTa.value || "").trim();
@@ -5290,7 +5290,7 @@
         if (d.citations) highlightNeni(out, buildCitStatusMap(d.citations));
         if (d.citations && d.citations.stats && d.citations.stats.total > 0) result.insertBefore(renderCitationsBadge(d.citations, null), out);
         _addSaveToCase(result, "notary", "Simulim: " + change.slice(0, 60), d.markdown || "");
-      } catch (e) { status.textContent = "Gabim: " + e.message; }
+      } catch (e) { status.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; }
       finally { run.disabled = false; }
     };
     setTimeout(function () { actTa.focus(); }, 50);
@@ -5732,7 +5732,7 @@
         });
         if (!r.ok) { var e = await r.json().catch(function () { return {}; }); throw new Error(e.error || ("HTTP " + r.status)); }
         st.textContent = t("\u2713 U shtua n\u00eb kalendar (me alarm 30/7/1 dit\u00eb para)");
-      } catch (e) { st.textContent = "Gabim: " + e.message; }
+      } catch (e) { st.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; }
     });
   }
 
@@ -5765,7 +5765,7 @@
         var d = await r.json();
         if (!r.ok) throw new Error(d.error || ("HTTP " + r.status));
         status.textContent = ""; result.innerHTML = _renderActReport(d);
-      } catch (e) { status.textContent = "Gabim: " + e.message; }
+      } catch (e) { status.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; }
       finally { run.disabled = false; }
     };
     var acFile = ov.querySelector(".ac-file");
@@ -5781,7 +5781,7 @@
           ta.value = ta.value.trim() ? (ta.value.trim() + "\n\n" + t) : t;
           status.textContent = d.used_vision_ocr ? t("\u2713 Lexuar me OCR \u2014 kontrollo tekstin") : t("\u2713 Dokumenti u lexua");
         }
-      } catch (e) { status.textContent = "Gabim: " + e.message; }
+      } catch (e) { status.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; }
       finally { run.disabled = false; acFile.value = ""; }
     };
     setTimeout(function () { ta.focus(); }, 50);
@@ -5965,7 +5965,7 @@
         toast("Stres-testi u ruajt në rastin", "ok");
       }
     } catch (err) {
-      stressStatus.textContent = "Gabim: " + err.message;
+      stressStatus.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + err.message;
       stressStatus.className = "pro-status error";
     } finally {
       stressRun.disabled = false;
@@ -6057,7 +6057,7 @@
       auditStatus.textContent = "Gati ✓";
       auditStatus.className = "pro-status ok";
     } catch (err) {
-      auditStatus.textContent = "Gabim: " + err.message;
+      auditStatus.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + err.message;
       auditStatus.className = "pro-status error";
     } finally {
       auditRun.disabled = false;
@@ -6152,7 +6152,7 @@
       draftStatus.className = "pro-status ok";
       toast("Akti u hartua", "ok");
     } catch (err) {
-      draftStatus.textContent = "Gabim: " + err.message;
+      draftStatus.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + err.message;
       draftStatus.className = "pro-status error";
     } finally {
       draftRun.disabled = false;
@@ -6246,7 +6246,7 @@
       cascadeStatus.textContent = "Gati ✓";
       cascadeStatus.className = "pro-status ok";
     } catch (err) {
-      cascadeStatus.textContent = "Gabim: " + err.message;
+      cascadeStatus.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + err.message;
       cascadeStatus.className = "pro-status error";
     } finally {
       cascadeCompute.disabled = false;
@@ -6276,7 +6276,7 @@
       cascadeSchedule.disabled = false;
       refreshBadge();
     } catch (err) {
-      toast("Gabim: " + err.message, "error");
+      toast((_CAL_IT ? "Errore: " : "Gabim: ") + err.message, "error");
       cascadeSchedule.disabled = false;
     }
   });
@@ -6366,7 +6366,7 @@
       timelineDelete.hidden = false;
       toast("Linja kohore u ndërtua.", "success");
     } catch (err) {
-      timelineStatus.textContent = "Gabim: " + err.message;
+      timelineStatus.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + err.message;
       timelineStatus.className = "pro-status error";
     } finally {
       timelineBuild.disabled = false;
@@ -6384,7 +6384,7 @@
       timelineStatus.textContent = "U fshi.";
       timelineStatus.className = "pro-status";
     } catch (e) {
-      timelineStatus.textContent = "Gabim: " + e.message;
+      timelineStatus.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message;
       timelineStatus.className = "pro-status error";
     }
   });
@@ -6526,7 +6526,7 @@
       adversarialStatus.className = "pro-status ok";
       toast("Beteja përfundoi.", "success");
     } catch (err) {
-      adversarialStatus.textContent = "Gabim: " + err.message;
+      adversarialStatus.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + err.message;
       adversarialStatus.className = "pro-status error";
     } finally {
       adversarialRun.disabled = false;
@@ -8019,7 +8019,7 @@
         contractStatus.textContent = d.used_vision_ocr ? "\u2713 Lexuar me OCR \u2014 kontrollo tekstin" : "\u2713 Dokumenti u lexua";
         if (contractLabel && !contractLabel.value.trim() && d.filename) contractLabel.value = d.filename.replace(/\.[^.]+$/, "").slice(0, 120);
       }
-    } catch (e) { contractStatus.textContent = "Gabim: " + e.message; }
+    } catch (e) { contractStatus.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; }
     finally { if (contractRunBtn) contractRunBtn.disabled = false; contractFile.value = ""; }
   });
 
@@ -9204,7 +9204,7 @@
         }
       }
     }).catch((err) => {
-      genioStatusEl.textContent = "Gabim: " + err.message;
+      genioStatusEl.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + err.message;
       genioStatusEl.className = "pro-status error";
     }).finally(() => {
       genioRunBtn.disabled = false;
@@ -9374,7 +9374,7 @@
         loadPrecedentHistory();
       }
     } catch (e) {
-      precStatusEl.textContent = "Gabim: " + e.message;
+      precStatusEl.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message;
       precStatusEl.className = "pro-status error";
     } finally {
       precRunBtn.disabled = false;
@@ -10398,7 +10398,7 @@
       settleStatusEl.className = "pro-status ok";
       loadSettleHistory();
     } catch (e) {
-      settleStatusEl.textContent = "Gabim: " + e.message;
+      settleStatusEl.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message;
       settleStatusEl.className = "pro-status error";
     } finally {
       settleRunBtn.disabled = false;
@@ -10572,7 +10572,7 @@
       toast("Fluxi u nis ✓", "ok");
       loadWorkflowActive();
     } catch (e) {
-      toast("Gabim: " + e.message, "error");
+      toast((_CAL_IT ? "Errore: " : "Gabim: ") + e.message, "error");
     }
   }
   async function loadWorkflowActive() {
@@ -10623,7 +10623,7 @@
             toast("Hapi u përparua ✓", "ok");
             loadWorkflowActive();
           } catch (e) {
-            toast("Gabim: " + e.message, "error");
+            toast((_CAL_IT ? "Errore: " : "Gabim: ") + e.message, "error");
             b.disabled = false;
           }
         });
@@ -10667,7 +10667,7 @@
       reconStatusEl.textContent = `${(d.blocks||[]).length} blloqe të propozuara`;
       reconStatusEl.className = "pro-status ok";
     } catch (e) {
-      reconStatusEl.textContent = "Gabim: " + e.message;
+      reconStatusEl.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message;
       reconStatusEl.className = "pro-status error";
     } finally {
       reconRunBtn.disabled = false;
@@ -10741,7 +10741,7 @@
       reconStatusEl.textContent = "U regjistrua ✓";
       reconStatusEl.className = "pro-status ok";
     } catch (e) {
-      toast("Gabim: " + e.message, "error");
+      toast((_CAL_IT ? "Errore: " : "Gabim: ") + e.message, "error");
     } finally {
       reconAcceptBtn.disabled = false;
     }
@@ -10975,7 +10975,7 @@
       st.textContent = "\u2713 Studio '" + (d.name || name) + "' u krijua (pronar: " + (d.owner || "-") + ")";
       nameEl.value = ""; ownerEl.value = "";
       if (typeof toast === "function") toast("Studio u krijua", "success");
-    } catch (e) { st.textContent = "Gabim: " + e.message; }
+    } catch (e) { st.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; }
   });
 
   newUserBtn?.addEventListener("click", async () => {
@@ -11005,7 +11005,7 @@
       newUserAdminChk.checked = false;
       loadAdminUsers();
     } catch (e) {
-      newUserStatus.textContent = "Gabim: " + e.message;
+      newUserStatus.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message;
       newUserStatus.style.color = "#c66";
     } finally {
       newUserBtn.disabled = false;
