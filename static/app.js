@@ -3513,6 +3513,39 @@
 
   const proMenuBtn = document.getElementById("pro-menu-btn");
   const proMenu = document.getElementById("pro-menu");
+  function _gateProMenu() {
+    if (!proMenu) return;
+    var isAdmin = (document.body.dataset.admin === "1");
+    var owned = isAdmin ? ["avokat", "prokuror", "noter"]
+      : (document.body.dataset.modules || document.body.dataset.profession || "avokat")
+          .split(",").map(function (x) { return x.trim(); }).filter(Boolean);
+    if (!owned.length) owned = ["avokat"];
+    var GATE = {
+      stress: ["avokat", "prokuror"], bench: ["avokat", "prokuror"], genio: ["avokat", "prokuror"], precedent: ["avokat", "prokuror"],
+      draft: ["avokat", "prokuror"], contract: ["avokat", "prokuror"], corporate: ["avokat", "prokuror"],
+      settlement: ["avokat", "prokuror"], coach: ["avokat", "prokuror"], expertise: ["avokat", "prokuror"],
+      intake: ["avokat", "prokuror"], regjistri: ["avokat", "prokuror"], hublive: ["avokat", "prokuror"],
+      devilconsult: ["avokat", "prokuror"], adversary: ["avokat", "prokuror"], prescription: ["avokat", "prokuror"],
+      hubpros: ["prokuror"], hubnoter: ["noter"]
+    };
+    Array.prototype.forEach.call(proMenu.querySelectorAll(".pro-menu-item[data-pro]"), function (el) {
+      var need = GATE[el.getAttribute("data-pro")];
+      el.style.display = (need && !need.some(function (m) { return owned.indexOf(m) >= 0; })) ? "none" : "";
+    });
+    var kids = Array.prototype.slice.call(proMenu.children);
+    for (var i = 0; i < kids.length; i++) {
+      if (kids[i].classList && kids[i].classList.contains("pro-menu-divider")) {
+        var vis = false;
+        for (var j = i + 1; j < kids.length; j++) {
+          var k = kids[j];
+          if (k.classList && k.classList.contains("pro-menu-divider")) break;
+          if (k.classList && k.classList.contains("pro-menu-item") && k.style.display !== "none") { vis = true; break; }
+        }
+        kids[i].style.display = vis ? "" : "none";
+      }
+    }
+  }
+  _gateProMenu();
   const stressModal = document.getElementById("stress-modal");
   const auditModal = document.getElementById("audit-modal");
   const draftModal = document.getElementById("draft-modal");
@@ -5615,6 +5648,7 @@
     e.stopPropagation();
     const expanded = proMenuBtn.getAttribute("aria-expanded") === "true";
     proMenuBtn.setAttribute("aria-expanded", expanded ? "false" : "true");
+    if (!expanded) _gateProMenu();
     proMenu.hidden = expanded;
   });
   document.getElementById("pro-menu-close")?.addEventListener("click", (e) => {
