@@ -102,15 +102,15 @@
           <strong>{{ username }}</strong>
           {% if is_admin %}<span class="admin-badge">admin</span>{% endif %}
         </div>
-        <button type="button" id="wa-link-btn" class="dropdown-item">📱 WhatsApp për kujtesat</button>
-        <button type="button" id="mail-link-btn" class="dropdown-item">✉️ Email për kujtesat</button>
-        <button type="button" id="logout-btn" class="dropdown-item">🚪 Dil</button>
+        <button type="button" id="wa-link-btn" class="dropdown-item">📱 <span data-i18n="wa_reminders">WhatsApp për kujtesat</span></button>
+        <button type="button" id="mail-link-btn" class="dropdown-item">✉️ <span data-i18n="email_reminders">Email për kujtesat</span></button>
+        <button type="button" id="logout-btn" class="dropdown-item">🚪 <span data-i18n="logout">Dil</span></button>
       </div>
     </div>
   </div>
 </header>
 <div id="deadline-banner" class="deadline-banner" hidden></div>
-<button id="logout-fab" class="logout-fab" type="button" aria-label="Dil / Logout">🚪 Dil</button>
+<button id="logout-fab" class="logout-fab" type="button" aria-label="Dil / Logout">🚪 <span data-i18n="logout">Dil</span></button>
 
 <main>
   <div id="sidebar-scrim" class="sidebar-scrim" aria-hidden="true"></div>

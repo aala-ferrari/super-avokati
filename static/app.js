@@ -947,7 +947,7 @@
     if (!container || !md || md.length < 10) return;
     var b = document.createElement("button");
     b.type = "button"; b.className = "save-case-btn";
-    b.innerHTML = "\ud83d\udcbe Ruaj në fashikull";
+    b.innerHTML = t("\ud83d\udcbe Ruaj në fashikull");
     b.addEventListener("click", async function () {
       if (!activeCaseId) { if (typeof toast === "function") toast("Hap ose krijo një rast që ta ruash", "warn"); return; }
       b.disabled = true;
@@ -957,7 +957,7 @@
           body: JSON.stringify({ source: source, title: (titleHint || "Kërkim").slice(0, 120), content: md }),
         });
         if (!r.ok) throw new Error();
-        b.innerHTML = "\u2713 U ruajt në fashikull";
+        b.innerHTML = t("\u2713 U ruajt në fashikull");
         loadResearch(activeCaseId);
       } catch (e) { b.disabled = false; if (typeof toast === "function") toast("Ruajtja dështoi", "err"); }
     });
@@ -965,7 +965,7 @@
 
     var v = document.createElement("button");
     v.type = "button"; v.className = "view-case-btn";
-    v.innerHTML = "\ud83d\uddc2\ufe0f Shiko të ruajturat";
+    v.innerHTML = t("\ud83d\uddc2\ufe0f Shiko të ruajturat");
     v.addEventListener("click", function () { openSavedResearch(); });
     container.appendChild(v);
 
@@ -3274,16 +3274,16 @@
       var today = (d.counts && d.counts.today) || 0;
       if (!od.length && !up.length) { el.hidden = true; return; }
       var parts = [];
-      if (od.length) parts.push('<b class="db-overdue">' + od.length + (od.length === 1 ? ' e skaduar' : ' të skaduara') + '</b>');
-      if (today) parts.push('<b class="db-today">' + today + ' sot</b>');
+      if (od.length) parts.push('<b class="db-overdue">' + od.length + (od.length === 1 ? t(' e skaduar') : t(' të skaduara')) + '</b>');
+      if (today) parts.push('<b class="db-today">' + today + t(' sot') + '</b>');
       var soon = up.length - today;
-      if (soon > 0) parts.push(soon + ' në 7 ditë');
+      if (soon > 0) parts.push(soon + t(' në 7 ditë'));
       var next = od[0] || up[0];
       var nextTxt = next ? (escapeHtml(next.title || '') + (next.case_title ? ' · ' + escapeHtml(next.case_title) : '')) : '';
       el.innerHTML = '<span class="db-icon">⏰</span>' +
-        '<span class="db-text"><b>Afatet:</b> ' + parts.join(' · ') +
+        '<span class="db-text"><b>' + t('Afatet:') + '</b> ' + parts.join(' · ') +
         (nextTxt ? ' — <span class="db-next">' + nextTxt + '</span>' : '') + '</span>' +
-        '<button type="button" class="db-open">Hap kalendarin</button>' +
+        '<button type="button" class="db-open">' + t('Hap kalendarin') + '</button>' +
         '<button type="button" class="db-close" aria-label="Mbyll">×</button>';
       el.classList.toggle("db-alert", (od.length > 0 || today > 0));
       el.hidden = false;
@@ -5384,6 +5384,7 @@
     tagline: "La battaglia si vince prima di iniziare.",
     codes: "codici", articles: "articoli", calendar: "Calendario",
     my_cases: "I miei casi", new_case: "Nuovo caso",
+    wa_reminders: "WhatsApp per i promemoria", email_reminders: "Email per i promemoria", logout: "Esci",
     intake_ai: "Intake cliente (AI)", clients_research: "Clienti & Ricerche",
     composer_hint: "Apri un caso per iniziare la conversazione",
     ask_placeholder: "Scrivi qui la tua domanda\u2026",
@@ -5397,6 +5398,16 @@
     ["Pika e par\u00eb", "Primo contatto"],
     ["Avokat", "Avvocato"], ["Prokuror", "Procuratore"], ["Noter", "Notaio"]
   ];
+  var T_IT = {
+    "Afatet:": "Scadenze:", "Hap kalendarin": "Apri calendario",
+    " sot": " oggi", " n\u00eb 7 dit\u00eb": " in 7 giorni",
+    " e skaduar": " scaduta", " t\u00eb skaduara": " scadute",
+    "\ud83d\udcbe Ruaj n\u00eb fashikull": "\ud83d\udcbe Salva nel fascicolo",
+    "\u2713 U ruajt n\u00eb fashikull": "\u2713 Salvato nel fascicolo",
+    "\ud83d\uddc2\ufe0f Shiko t\u00eb ruajturat": "\ud83d\uddc2\ufe0f Vedi i salvati"
+  };
+  function t(sq) { return (UI_LANG === "it" && T_IT[sq]) ? T_IT[sq] : sq; }
+
   function tMode(sq) {
     if (UI_LANG !== "it") return sq;
     for (var i = 0; i < MODEBAR_TXT.length; i++) {
