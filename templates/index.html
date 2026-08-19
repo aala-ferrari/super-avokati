@@ -49,14 +49,14 @@
     </div>
     <div class="brand-text">
       <h1><span class="brand-word">SUPER</span> <span class="brand-word">AVOKATI</span></h1>
-      <p class="tagline">Beteja fitohet para se të nisë.</p>
+      <p class="tagline" data-i18n="tagline">Beteja fitohet para se të nisë.</p>
     </div>
   </div>
 
   <div class="stats">
     <div class="stat-pills-stack">
-      <div class="stat-pill"><strong>{{ num_codes }}</strong><span>kode</span></div>
-      <div class="stat-pill"><strong>{{ "{:,}".format(total_articles).replace(",", ".") }}</strong><span>nene</span></div>
+      <div class="stat-pill"><strong>{{ num_codes }}</strong><span data-i18n="codes">kode</span></div>
+      <div class="stat-pill"><strong>{{ "{:,}".format(total_articles).replace(",", ".") }}</strong><span data-i18n="articles">nene</span></div>
     </div>
     <button type="button" id="calendar-btn" class="calendar-toggle" title="Kalendari i agjendës" aria-label="Hap kalendarin">
       <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
@@ -65,7 +65,7 @@
         <line x1="8" y1="3" x2="8" y2="7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
         <line x1="16" y1="3" x2="16" y2="7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
       </svg>
-      <span class="calendar-toggle-label">Kalendari</span>
+      <span class="calendar-toggle-label" data-i18n="calendar">Kalendari</span>
       <span class="calendar-badge" id="calendar-badge" hidden>0</span>
     </button>
     <button type="button" id="vigilanza-topbar-btn" class="calendar-toggle" title="Vigilanza Normativa — alerte për fascikujt e tu" aria-label="Hap vigilanzën" hidden>
@@ -117,26 +117,26 @@
 
   <aside id="sidebar" class="sidebar" aria-label="Rastet dhe kodet">
     <div class="sidebar-head">
-      <h3>📁 Rastet e mia</h3>
+      <h3>📁 <span data-i18n="my_cases">Rastet e mia</span></h3>
       <button id="sidebar-close" class="sidebar-close" aria-label="Mbyll menunë" type="button">&times;</button>
     </div>
 
     <button id="new-case-btn" class="new-case-btn" type="button">
-      <span class="new-case-plus">＋</span> Rast i ri
+      <span class="new-case-plus">＋</span> <span data-i18n="new_case">Rast i ri</span>
     </button>
 
     <button id="intake-btn" class="intake-btn" type="button" title="Intake i drejtuar nga AI: bëj pyetje klientit dhe gjenero përmbledhjen">
-      <span class="intake-ico">🎙️</span> Intake klienti (AI)
+      <span class="intake-ico">🎙️</span> <span data-i18n="intake_ai">Intake klienti (AI)</span>
     </button>
 
     <button id="clients-dir-btn" class="intake-btn" type="button" title="Rubrika e klientëve: rastet dhe kërkimet e ruajtura në një vend">
-      <span class="intake-ico">👥</span> Klientët & Kërkimet
+      <span class="intake-ico">👥</span> <span data-i18n="clients_research">Klientët & Kërkimet</span>
     </button>
 
     <div id="mode-bar" class="mode-bar" aria-label="Modaliteti profesional"></div>
 
     <ul id="case-list" class="case-list" aria-live="polite">
-      <li class="case-empty">Nuk ke ende asnjë rast të hapur. Kliko "Rast i ri" për të filluar.</li>
+      <li class="case-empty" data-i18n="no_cases">Nuk ke ende asnjë rast të hapur. Kliko "Rast i ri" për të filluar.</li>
     </ul>
 
     <details class="codes-section">
@@ -412,7 +412,7 @@
             <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M21 11l-8 8a5 5 0 0 1-7-7l9-9a3.5 3.5 0 0 1 5 5l-9 9a2 2 0 0 1-3-3l8-8"/>
           </svg>
         </button>
-        <textarea id="ask-input" rows="1" placeholder="Shkruaj pyetjen tënde këtu…" enterkeyhint="send"></textarea>
+        <textarea id="ask-input" rows="1" placeholder="Shkruaj pyetjen tënde këtu…" data-i18n-ph="ask_placeholder" enterkeyhint="send"></textarea>
         <button type="submit" id="send-btn" class="primary" aria-label="Dërgo" disabled>
           <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
             <path d="M3 12l18-9-9 18-2-8-7-1z" fill="currentColor"/>
@@ -420,7 +420,7 @@
         </button>
       </div>
       <div class="composer-meta">
-        <span class="composer-hint" id="composer-hint">Hap një rast për të filluar bisedën</span>
+        <span class="composer-hint" id="composer-hint" data-i18n="composer_hint">Hap një rast për të filluar bisedën</span>
       </div>
     </form>
   </section>

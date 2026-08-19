@@ -5378,6 +5378,44 @@
     } catch (e) { body.innerHTML = '<div class="fk-warn">Nuk u ngarkua paneli.</div>'; }
   }
 
+  // ── i18n (Fase C) — Italian UI for IT sessions ────────────────────────────
+  var UI_LANG = (document.body && document.body.dataset ? document.body.dataset.lang : "") || "sq";
+  var I18N_IT = {
+    tagline: "La battaglia si vince prima di iniziare.",
+    codes: "codici", articles: "articoli", calendar: "Calendario",
+    my_cases: "I miei casi", new_case: "Nuovo caso",
+    intake_ai: "Intake cliente (AI)", clients_research: "Clienti & Ricerche",
+    composer_hint: "Apri un caso per iniziare la conversazione",
+    ask_placeholder: "Scrivi qui la tua domanda\u2026",
+    no_cases: "Non hai ancora nessun caso aperto. Clicca \"Nuovo caso\" per iniziare."
+  };
+  // mode-bar: match the TEXT part (emoji-agnostic); longest keys first.
+  var MODEBAR_TXT = [
+    ["Super Prokurori", "Super Procuratore"], ["Super Noteri", "Super Notaio"],
+    ["Modele Ekspertize", "Modelli di perizia"], ["Fashikulli", "Fascicolo"],
+    ["Afatet", "Scadenze"], ["Ligj i gjall\u00eb", "Legge viva"],
+    ["Pika e par\u00eb", "Primo contatto"],
+    ["Avokat", "Avvocato"], ["Prokuror", "Procuratore"], ["Noter", "Notaio"]
+  ];
+  function tMode(sq) {
+    if (UI_LANG !== "it") return sq;
+    for (var i = 0; i < MODEBAR_TXT.length; i++) {
+      if (sq.indexOf(MODEBAR_TXT[i][0]) >= 0) return sq.replace(MODEBAR_TXT[i][0], MODEBAR_TXT[i][1]);
+    }
+    return sq;
+  }
+  function applyStaticI18n(root) {
+    if (UI_LANG !== "it") return;
+    var r = root || document;
+    Array.prototype.forEach.call(r.querySelectorAll("[data-i18n]"), function (el) {
+      var k = el.getAttribute("data-i18n"); if (I18N_IT[k]) el.textContent = I18N_IT[k];
+    });
+    Array.prototype.forEach.call(r.querySelectorAll("[data-i18n-ph]"), function (el) {
+      var k = el.getAttribute("data-i18n-ph"); if (I18N_IT[k]) el.setAttribute("placeholder", I18N_IT[k]);
+    });
+  }
+  applyStaticI18n();
+
   function initModeBar() {
     var bar = document.getElementById("mode-bar");
     if (!bar) return;
@@ -5423,10 +5461,10 @@
     function render() {
       var chips = ["avokat", "prokuror", "noter"].map(function (m) {
         var ownedM = owned.indexOf(m) >= 0;
-        return '<button type="button" class="mode-chip' + (m === mode ? " active" : "") + (ownedM ? "" : " locked") + '" data-mode="' + m + '"' + (ownedM ? "" : ' data-locked="1"') + '>' + LABELS[m] + (ownedM ? "" : " \ud83d\udd12") + '</button>';
+        return '<button type="button" class="mode-chip' + (m === mode ? " active" : "") + (ownedM ? "" : " locked") + '" data-mode="' + m + '"' + (ownedM ? "" : ' data-locked="1"') + '>' + tMode(LABELS[m]) + (ownedM ? "" : " \ud83d\udd12") + '</button>';
       }).join("");
       var tools = (TOOLS[mode] || []).map(function (t, i) {
-        return '<button type="button" class="mode-tool" data-i="' + i + '">' + t[0] + '</button>';
+        return '<button type="button" class="mode-tool" data-i="' + i + '">' + tMode(t[0]) + '</button>';
       }).join("");
       bar.innerHTML = '<div class="mode-chips">' + chips + '</div><div class="mode-tools">' + tools + '</div>';
       Array.prototype.forEach.call(bar.querySelectorAll(".mode-chip"), function (b) {
