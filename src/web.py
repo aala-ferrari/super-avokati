@@ -255,15 +255,24 @@ def api_provision_demo():
         hours = int(data.get("hours") or 6)
     except (TypeError, ValueError):
         hours = 6
+    months = data.get("months")
+    try:
+        months = int(months) if months else None
+    except (TypeError, ValueError):
+        months = None
+    modules = data.get("modules")
+    if not isinstance(modules, list):
+        modules = None
     if not email or not code:
         return jsonify({"error": "missing email/code"}), 400
     from .auth import hash_password
     try:
-        expires = storage.provision_demo_user(email, hash_password(code), hours)
+        expires = storage.provision_account(email, hash_password(code),
+                                             modules=modules, months=months, hours=hours)
     except Exception as exc:  # noqa: BLE001 - best-effort provisioning
-        log.warning("provision-demo failed for %r: %s", email, exc)
+        log.warning("provision failed for %r: %s", email, exc)
         return jsonify({"error": "provision failed"}), 500
-    return jsonify({"ok": True, "expires_at": expires})
+    return jsonify({"ok": True, "expires_at": expires, "paid": bool(months)})
 
 
 @app.post("/api/logout")

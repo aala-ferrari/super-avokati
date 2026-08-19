@@ -1413,6 +1413,50 @@ def provision_demo_user(username: str, password_hash: str, hours: int = 6) -> st
     return expires
 
 
+def _add_months(dt, months: int):
+    import calendar
+    m = dt.month - 1 + int(months)
+    y = dt.year + m // 12
+    m = m % 12 + 1
+    d = min(dt.day, calendar.monthrange(y, m)[1])
+    return dt.replace(year=y, month=m, day=d)
+
+
+def provision_account(username: str, password_hash: str, modules=None,
+                      months=None, hours: int = 6) -> str:
+    """Create/refresh an account provisioned from AALA. `modules` = entitlements;
+    `months` set => PAID subscription (plan_expires_at); otherwise `hours` => demo
+    (demo_expires_at). Re-activates (suspended=0). Refuses admin accounts.
+    Returns the ISO expiry."""
+    username = username.strip()
+    if not username:
+        raise ValueError("username cannot be empty")
+    mods = sorted({m for m in (modules or []) if m in VALID_MODULES}) or ["avokat"]
+    now = datetime.now(UTC)
+    if months:
+        expires = _add_months(now, int(months)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        demo_iso, plan_iso = None, expires
+    else:
+        expires = (now + timedelta(hours=int(hours or 6))).strftime("%Y-%m-%dT%H:%M:%SZ")
+        demo_iso, plan_iso = expires, None
+    existing = get_user_by_username(username)
+    if existing is not None and existing.is_admin:
+        raise ValueError("refusing to modify an admin account")
+    if existing is None:
+        create_user(username=username, password_hash=password_hash,
+                    is_admin=False, profession=mods[0])
+    with db() as conn:
+        conn.execute(
+            "UPDATE users SET password_hash=?, modules=?, demo_expires_at=?, "
+            "plan_expires_at=?, suspended=0 WHERE username=? COLLATE NOCASE",
+            (password_hash, ",".join(mods), demo_iso, plan_iso, username),
+        )
+        conn.commit()
+    log.info("provisioned account %r modules=%s months=%s until %s",
+             username, mods, months, expires)
+    return expires
+
+
 def is_user_suspended(username: str) -> bool:
     """True if the account is suspended (admin cut off access)."""
     with db() as conn:
