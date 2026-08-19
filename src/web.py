@@ -167,6 +167,7 @@ def index() -> str:
         profession=getattr(user, "profession", "avokat"),
         modules=sorted(storage.user_modules(user)),
         jurisdiction=_active_jurisdiction(user),
+        ui_lang=("it" if _active_jurisdiction(user) == "IT" else "sq"),
         jurisdictions=sorted(storage.user_jurisdictions(user)),
         cascade_event_types=pro_mod.cascade_event_types(),
         act_types=[{"key": k, "label": v} for k, v in pro_mod.ACT_TYPES.items()],

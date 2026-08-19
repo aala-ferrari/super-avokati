@@ -13,7 +13,7 @@
 <link rel="stylesheet" href="/static/style.css" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%230a0a0a'/%3E%3Cpath d='M32 14v36M14 22h36M8 22l-4 10h8zM56 22l-4 10h8zM26 50h12v4H26z' stroke='%23e41e26' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='32' cy='14' r='3' fill='%23c9a24d'/%3E%3C/svg%3E" />
 </head>
-<body data-username="{{ username }}" data-admin="{{ '1' if is_admin else '0' }}" data-user-id="{{ user_id }}" data-profession="{{ profession }}" data-modules="{{ modules|join(',') }}" data-lang="{{ ui_lang }}">
+<body data-username="{{ username }}" data-admin="{{ '1' if is_admin else '0' }}" data-user-id="{{ user_id }}">
 
 <!-- Scales-of-justice SVG used inline as logo + favicon mirror -->
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
@@ -102,14 +102,11 @@
           <strong>{{ username }}</strong>
           {% if is_admin %}<span class="admin-badge">admin</span>{% endif %}
         </div>
-        <button type="button" id="wa-link-btn" class="dropdown-item">📱 WhatsApp për kujtesat</button>
-        <button type="button" id="mail-link-btn" class="dropdown-item">✉️ Email për kujtesat</button>
         <button type="button" id="logout-btn" class="dropdown-item">🚪 Dil</button>
       </div>
     </div>
   </div>
 </header>
-<div id="deadline-banner" class="deadline-banner" hidden></div>
 <button id="logout-fab" class="logout-fab" type="button" aria-label="Dil / Logout">🚪 Dil</button>
 
 <main>
@@ -128,12 +125,6 @@
     <button id="intake-btn" class="intake-btn" type="button" title="Intake i drejtuar nga AI: bëj pyetje klientit dhe gjenero përmbledhjen">
       <span class="intake-ico">🎙️</span> Intake klienti (AI)
     </button>
-
-    <button id="clients-dir-btn" class="intake-btn" type="button" title="Rubrika e klientëve: rastet dhe kërkimet e ruajtura në një vend">
-      <span class="intake-ico">👥</span> Klientët & Kërkimet
-    </button>
-
-    <div id="mode-bar" class="mode-bar" aria-label="Modaliteti profesional"></div>
 
     <ul id="case-list" class="case-list" aria-live="polite">
       <li class="case-empty">Nuk ke ende asnjë rast të hapur. Kliko "Rast i ri" për të filluar.</li>
@@ -223,98 +214,6 @@
               <div><strong>Ratio Coach</strong><em>Post-mortem strukturuar i fascikulit + surface mësimesh nga rastet e mëparshme të ngjashme</em></div>
             </button>
 
-            <button type="button" class="pro-menu-item pro-menu-new" data-pro="expertise" role="menuitem">
-              <span class="pro-menu-ico">🎯</span>
-              <div><strong>Modele Ekspertize</strong><em>Për çdo lloj çështjeje: bazë ligjore, elementet, provat, afatet, mbrojtjet — dhe të dyja mendjet (prokuror + avokat)</em></div>
-            </button>
-
-            <div class="pro-menu-divider" aria-hidden="true">— AFATET —</div>
-            <button type="button" class="pro-menu-item pro-menu-new" data-pro="afati" role="menuitem">
-              <span class="pro-menu-ico">⏰</span>
-              <div><strong>Motori i afateve</strong><em>Nga një ngjarje-nisëse → të gjitha afatet procedurale (grounded) → në kalendar me alarme</em></div>
-            </button>
-
-            <div class="pro-menu-divider" aria-hidden="true">— FASHIKULLI —</div>
-            <button type="button" class="pro-menu-item pro-menu-new" data-pro="fascikull" role="menuitem">
-              <span class="pro-menu-ico">🗂️</span>
-              <div><strong>Fashikulli intelligjent</strong><em>Kronologji + kontradikta, kush tha çfarë, pyet dokumentet, gjilpëra — mbi dokumentet e rastit</em></div>
-            </button>
-
-            <div class="pro-menu-divider" aria-hidden="true">— PIKA E PARË —</div>
-            <button type="button" class="pro-menu-item pro-menu-new" data-pro="intake" role="menuitem">
-              <span class="pro-menu-ico">🎙️</span>
-              <div><strong>Pika e parë (triazh qytetari)</strong><em>Qytetari tregon me zë ose shkrim → a ka çështje, urgjenca, kush e ndihmon, dhe dokumenti i parë</em></div>
-            </button>
-
-            <div class="pro-menu-divider" aria-hidden="true">— AKTET (të gjithë) —</div>
-            <button type="button" class="pro-menu-item pro-menu-new" data-pro="inspekt" role="menuitem">
-              <span class="pro-menu-ico">🕵️</span>
-              <div><strong>Ispektor i aktit</strong><em>Sulmon çdo akt (kontratë, padi, ankim, aktakuzë, akt notarial) → indeks rreziku + problemet + rregullimet</em></div>
-            </button>
-            <button type="button" class="pro-menu-item pro-menu-new" data-pro="lexombush" role="menuitem">
-              <span class="pro-menu-ico">📸</span>
-              <div><strong>Lexo & mbush</strong><em>Lexon dokumentet → nxjerr të dhënat → i çon te drafti (sipas profesionit)</em></div>
-            </button>
-            <button type="button" class="pro-menu-item pro-menu-new" data-pro="cklist" role="menuitem">
-              <span class="pro-menu-ico">✅</span>
-              <div><strong>Checklist i fashikullit</strong><em>Për një çështje/akt: dokumentet/provat e kërkuara vs të pranishme vs mungojnë/skaduar + plotësia</em></div>
-            </button>
-            <button type="button" class="pro-menu-item pro-menu-new" data-pro="regjistri" role="menuitem">
-              <span class="pro-menu-ico">🔎</span>
-              <div><strong>Regjistri (kërko akte)</strong><em>Kërkim semantik në aktet e ruajtura të studios — sipas kuptimit, entitetit ose pasurisë</em></div>
-            </button>
-            <button type="button" class="pro-menu-item pro-menu-new" data-pro="whatif" role="menuitem">
-              <span class="pro-menu-ico">🔮</span>
-              <div><strong>Çka nëse… (simulator)</strong><em>Ndrysho një klauzolë/parametër → efektet juridike, tatimet, rreziqet, dokumentet, e ardhmja</em></div>
-            </button>
-            <button type="button" class="pro-menu-item pro-menu-new" data-pro="klauzolat" role="menuitem">
-              <span class="pro-menu-ico">📚</span>
-              <div><strong>Klauzolat e studios</strong><em>Ruaj klauzolat e preferuara; drafteri (akt/prokurë/Redakto) i përdor për të ruajtur stilin</em></div>
-            </button>
-
-            <div class="pro-menu-divider" aria-hidden="true">— BESUESHMËRIA —</div>
-            <button type="button" class="pro-menu-item pro-menu-new" data-pro="hublive" role="menuitem">
-              <span class="pro-menu-ico">🟢</span>
-              <div><strong>Ligj i gjallë</strong><em>Verifikim i thellë (a e mbështet neni pohimin) + kontroll online nëse ligji është ende në fuqi</em></div>
-            </button>
-
-            <div class="pro-menu-divider" aria-hidden="true">— PROKURORIA —</div>
-            <button type="button" class="pro-menu-item pro-menu-new" data-pro="hubpros" role="menuitem">
-              <span class="pro-menu-ico">🏛️</span>
-              <div><strong>Super Prokurori</strong><em>Analiza, aktakuzë, plan hetimi, veprime hetimore, masë sigurimi, pushim, stres-test + qytetari (kallëzim, të drejtat, ankim, vonesa)</em></div>
-            </button>
-
-            <button type="button" class="pro-menu-item pro-menu-new" data-pro="prescription" role="menuitem">
-              <span class="pro-menu-ico">⏰</span>
-              <div><strong>Parashkrimi & afatet</strong><em>Llogarit afatin e parashkrimit (penal/civil) dhe a ka skaduar</em></div>
-            </button>
-
-            <div class="pro-menu-divider" aria-hidden="true">— NOTERI —</div>
-            <button type="button" class="pro-menu-item pro-menu-new" data-pro="hubnoter" role="menuitem">
-              <span class="pro-menu-ico">📜</span>
-              <div><strong>Super Noteri</strong><em>Prokura, akte, deklarata, kontroll vlefshmërie, konflikte, trashëgimi, revokim, dokumentet, tarifat</em></div>
-            </button>
-
-            <button type="button" class="pro-menu-item pro-menu-new" data-pro="actcheck" role="menuitem">
-              <span class="pro-menu-ico">🛡️</span>
-              <div><strong>Kontroll cilësie i aktit</strong><em>Verifiko nene inekzistente, të shfuqizuara ose të paqarta para depozitimit</em></div>
-            </button>
-
-            <button type="button" class="pro-menu-item pro-menu-new" data-pro="fabledraft" role="menuitem">
-              <span class="pro-menu-ico">✍️</span>
-              <div><strong>Redakto me Tetramorph</strong><em>Harto kontrata, akte, klauzola ose letra — çdo nen kalon nga Verifikuar</em></div>
-            </button>
-
-            <button type="button" class="pro-menu-item pro-menu-new" data-pro="devilconsult" role="menuitem">
-              <span class="pro-menu-ico">😈</span>
-              <div><strong>Pyet Avokatin e Djallit</strong><em>Konsulencë e drejtpërdrejtë e zgjuar — këndi fitues, kurthi, lëvizja</em></div>
-            </button>
-
-            <button type="button" class="pro-menu-item pro-menu-new" data-pro="adversary" role="menuitem">
-              <span class="pro-menu-ico">⚔️</span>
-              <div><strong>Kundërshtari</strong><em>Fable sulmon kontratën/aktin tënd si pala kundërshtare — gjen çdo dobësi</em></div>
-            </button>
-
             <div class="pro-menu-divider" aria-hidden="true">— STUDIO —</div>
             <button type="button" class="pro-menu-item" data-pro="money" role="menuitem">
               <span class="pro-menu-ico">💰</span>
@@ -355,13 +254,6 @@
 
       <ul id="dossier-list" class="dossier-list" aria-live="polite"></ul>
 
-      <div id="research-box" class="research-box" hidden>
-        <div class="research-title">🗂️ Kërkime të ruajtura</div>
-        <input type="text" id="research-search" class="research-search" placeholder="🔍 Kërko në të ruajturat…" />
-        <ul id="research-list" class="research-list"></ul>
-        <div id="research-empty" class="research-empty" hidden>Ende asnjë kërkim i ruajtur. Kliko “💾 Ruaj në fashikull” te një përgjigje ose te një vegël PRO.</div>
-      </div>
-
       <div id="vault-box" class="vault-box" hidden>
         <div class="vault-title">🔎 Pyet dokumentet e dosjes</div>
         <div class="vault-row">
@@ -369,8 +261,6 @@
           <button type="button" id="vault-ask" class="vault-ask">Pyet</button>
         </div>
         <div id="vault-answer" class="vault-answer" hidden></div>
-        <button type="button" id="needle-btn" class="vault-ask needle-btn">🔍 Gjej gjilpërën në dosje</button>
-        <div id="needle-answer" class="vault-answer" hidden></div>
       </div>
     </section>
 
@@ -991,7 +881,6 @@
     <div class="pro-modal-body">
       <div id="contract-input-block">
         <input type="text" id="contract-label" placeholder="Etiketë e shkurtër (p.sh. 'Qira Tirana - Kapllani')" maxlength="120" />
-        <div class="cr-attach-row"><label class="cr-attach">📎 Bashkëngjit PDF/foto<input type="file" id="contract-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.svg,.tif,.tiff" hidden></label><span class="cr-attach-hint">ose ngjit tekstin poshtë</span></div>
         <textarea id="contract-source" rows="10" maxlength="60000" placeholder="Ngjit tekstin e plotë të kontratës këtu (min 100 karaktere)…"></textarea>
         <div class="pro-actions">
           <button type="button" id="contract-run-btn" class="primary">Rishiko →</button>
@@ -1132,25 +1021,9 @@
             <label style="display:flex; align-items:center; gap:4px; color:#aaa; font-size:13px; padding: 0 6px;">
               <input type="checkbox" id="new-user-admin" /> Admin
             </label>
-            <select id="new-user-profession" title="Profesioni">
-              <option value="avokat">⚖️ Avokat</option>
-              <option value="prokuror">🏛️ Prokuror</option>
-              <option value="noter">📜 Noter</option>
-            </select>
             <button type="button" id="new-user-btn" class="primary">＋ Krijo</button>
           </div>
           <p id="new-user-status" class="pro-status" aria-live="polite"></p>
-        </div>
-
-        <div class="studio-invite" style="margin-top: 12px;">
-          <h4 class="studio-section-title">🏢 Krijo studio të ri</h4>
-          <p class="pro-modal-sub" style="margin: 0 0 8px;">Krijo një studio (firm) të re dhe cakto pronarin (një përdorues ekzistues; bosh = ti).</p>
-          <div class="studio-invite-row" style="flex-wrap: wrap; gap: 6px;">
-            <input type="text" id="new-firm-name" placeholder="emri i studios" autocomplete="off" />
-            <input type="text" id="new-firm-owner" placeholder="username i pronarit (bosh = ti)" autocomplete="off" />
-            <button type="button" id="new-firm-btn" class="primary">＋ Krijo studio</button>
-          </div>
-          <p id="new-firm-status" class="pro-status" aria-live="polite"></p>
         </div>
         <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #2a2a2a;">
           <h4 class="studio-section-title">🔑 Ndrysho fjalëkalimin tim</h4>

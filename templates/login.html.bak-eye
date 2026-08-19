@@ -55,51 +55,32 @@
       <div class="logo-glow" aria-hidden="true"></div>
     </div>
     <h1>Super Avokati</h1>
-    <p class="login-tagline" data-i18n="tagline">Beteja fitohet para se të nisë.</p>
-    <style>.ll-btn.active{background:rgba(201,162,75,.18)!important;border-color:#c9a24b!important}</style>
-    <div class="login-lang" style="display:flex;gap:6px;justify-content:center;margin:2px 0 14px">
-      <button type="button" class="ll-btn" data-lang="sq" style="background:none;border:1px solid rgba(201,162,75,.35);color:#c9a24b;border-radius:8px;padding:3px 10px;font-size:12px;font-weight:700;cursor:pointer">🇦🇱 SQ</button>
-      <button type="button" class="ll-btn" data-lang="it" style="background:none;border:1px solid rgba(201,162,75,.35);color:#c9a24b;border-radius:8px;padding:3px 10px;font-size:12px;font-weight:700;cursor:pointer">🇮🇹 IT</button>
-    </div>
+    <p class="login-tagline">Beteja fitohet para se të nisë.</p>
 
     <form id="login-form" class="login-form" autocomplete="on">
       <label>
-        <span data-i18n="username">Përdoruesi</span>
+        <span>Përdoruesi</span>
         <input type="text" id="login-username" name="username"
                autocomplete="username" autocapitalize="none"
                required autofocus />
       </label>
       <label>
-        <span data-i18n="password">Fjalëkalimi</span>
-        <div style="position:relative;display:flex;align-items:center">
-          <input type="password" id="login-password" name="password"
-                 autocomplete="current-password" required style="padding-right:46px;width:100%" />
-          <button type="button" id="toggle-pw" aria-label="Shfaq/fshih fjalëkalimin" title="Shfaq/fshih"
-                  style="position:absolute;right:8px;background:none;border:none;cursor:pointer;color:#9a8a5e;padding:6px;display:flex;align-items:center">
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-          </button>
-        </div>
+        <span>Fjalëkalimi</span>
+        <input type="password" id="login-password" name="password"
+               autocomplete="current-password" required />
       </label>
-      <script>
-      (function(){
-        var b=document.getElementById('toggle-pw'),i=document.getElementById('login-password');if(!b||!i)return;
-        var EYE='<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
-        var OFF='<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
-        b.addEventListener('click',function(){var show=i.type==='password';i.type=show?'text':'password';b.innerHTML=show?OFF:EYE;});
-      })();
-      </script>
-      <button type="submit" id="login-btn" class="primary" data-i18n="login">Hyr</button>
+      <button type="submit" id="login-btn" class="primary">Hyr</button>
       <div id="login-error" class="login-error" hidden></div>
     </form>
 
     <div class="login-footer">
-      <a href="#" id="forgot-link" style="color:#c9a24b;text-decoration:none;font-size:13px" data-i18n="forgot">Harrova fjalëkalimin?</a>
+      <a href="#" id="forgot-link" style="color:#c9a24b;text-decoration:none;font-size:13px">Harrova fjalëkalimin?</a>
       <form id="forgot-form" hidden style="margin-top:14px;text-align:left">
-        <label style="display:block;font-size:12px;color:#b99a4e;margin-bottom:6px;letter-spacing:.04em" data-i18n="forgot_label">Email-i yt (i regjistruar)</label>
+        <label style="display:block;font-size:12px;color:#b99a4e;margin-bottom:6px;letter-spacing:.04em">Email-i yt (i regjistruar)</label>
         <input type="email" id="forgot-email" required placeholder="ti@email.com"
           style="width:100%;padding:11px 13px;border-radius:9px;border:1px solid rgba(201,162,75,.4);background:rgba(255,255,255,.06);color:#f5efe0;font-size:14px;box-sizing:border-box" />
         <button type="submit" id="forgot-btn"
-          style="margin-top:10px;width:100%;padding:11px;border:none;border-radius:9px;background:linear-gradient(135deg,#e7ce8e,#b0883e);color:#1a1206;font-weight:600;cursor:pointer" data-i18n="forgot_btn">Dërgo kërkesën</button>
+          style="margin-top:10px;width:100%;padding:11px;border:none;border-radius:9px;background:linear-gradient(135deg,#e7ce8e,#b0883e);color:#1a1206;font-weight:600;cursor:pointer">Dërgo kërkesën</button>
         <div id="forgot-msg" style="margin-top:10px;font-size:13px;color:#3aa981" hidden></div>
       </form>
     </div>
@@ -111,10 +92,10 @@
       form.addEventListener('submit',function(e){e.preventDefault();
         var em=document.getElementById('forgot-email').value.trim();if(!em)return;
         var btn=document.getElementById('forgot-btn');btn.disabled=true;btn.textContent='...';
-        fetch('/api/leads/intake',{method:'POST',headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({contact_name:'Reset fjalekalimi',contact_email:em,source:'web',
-            problem_text:'KERKESE RESET FJALEKALIMI per Super Avokati (superavokati.ai). Perdoruesi me email '+em+' kerkon rivendosjen e fjalekalimit. Ju lutem kontaktoni perdoruesin dhe rivendosni fjalekalimin.'})})
-        .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(function(){
+        fetch('/api/leads',{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({name:'Reset fjalekalimi',email:em,service:'legal',source:'contact-form',
+            message:'KERKESE RESET FJALEKALIMI per Super Avokati (superavokati.ai). Perdoruesi kerkon rivendosjen e fjalekalimit ne kete email.'})})
+        .then(function(r){return r.json();}).then(function(){
           document.getElementById('forgot-email').style.display='none';btn.style.display='none';
           msg.hidden=false;msg.textContent='\u2713 Kerkesa u dergua. Do te kontaktohesh me email nga administratori.';
         }).catch(function(){btn.disabled=false;btn.textContent='Dergo kerkesen';msg.hidden=false;msg.style.color='#e57373';msg.textContent='Gabim, provo serish.';});
@@ -124,24 +105,6 @@
   </div>
 </div>
 
-<script>
-(function(){
-  var I18N={
-    sq:{tagline:"Beteja fitohet para se të nisë.",username:"Përdoruesi",password:"Fjalëkalimi",login:"Hyr",forgot:"Harrova fjalëkalimin?",forgot_label:"Email-i yt (i regjistruar)",forgot_btn:"Dërgo kërkesën"},
-    it:{tagline:"La battaglia si vince prima di iniziare.",username:"Nome utente",password:"Password",login:"Entra",forgot:"Password dimenticata?",forgot_label:"La tua email (registrata)",forgot_btn:"Invia richiesta"}
-  };
-  function apply(lang){
-    var d=I18N[lang]||I18N.sq;
-    document.documentElement.lang=lang;
-    document.querySelectorAll("[data-i18n]").forEach(function(el){var k=el.getAttribute("data-i18n");if(d[k])el.textContent=d[k];});
-    document.querySelectorAll(".ll-btn").forEach(function(b){b.classList.toggle("active",b.getAttribute("data-lang")===lang);});
-    try{localStorage.setItem("sa_ui_lang",lang);}catch(e){}
-  }
-  var lang="sq";try{lang=localStorage.getItem("sa_ui_lang")||"sq";}catch(e){}
-  document.querySelectorAll(".ll-btn").forEach(function(b){b.addEventListener("click",function(){apply(b.getAttribute("data-lang"));});});
-  apply(lang);
-})();
-</script>
 <script src="/static/login.js"></script>
 </body>
 </html>
