@@ -2318,7 +2318,7 @@ def api_act_check():
     text = (body.get("text") or "").strip()
     if not text:
         return jsonify({"error": "text_required"}), 400
-    return jsonify(actcheck_mod.check_act(_INDEX, text[:60000]))
+    return jsonify(actcheck_mod.check_act(_req_index(), text[:60000]))
 
 
 @app.post("/api/second-opinion")
@@ -2350,7 +2350,7 @@ def api_second_opinion():
     citations = {"items": [], "stats": {}}
     try:
         if _INDEX is not None and md:
-            citations = cv_mod.verify_text(md, _INDEX)
+            citations = cv_mod.verify_text(md, _req_index())
     except Exception:  # noqa: BLE001
         pass
     return jsonify({"markdown": md, "citations": citations})
@@ -2377,7 +2377,7 @@ def api_devil_consult():
     citations = {"items": [], "stats": {}}
     try:
         if _INDEX is not None and md:
-            citations = cv_mod.verify_text(md, _INDEX)
+            citations = cv_mod.verify_text(md, _req_index())
     except Exception:  # noqa: BLE001
         pass
     return jsonify({"markdown": md, "citations": citations})
@@ -2404,7 +2404,7 @@ def api_adversary():
     citations = {"items": [], "stats": {}}
     try:
         if _INDEX is not None and md:
-            citations = cv_mod.verify_text(md, _INDEX)
+            citations = cv_mod.verify_text(md, _req_index())
     except Exception:  # noqa: BLE001
         pass
     return jsonify({"markdown": md, "citations": citations})
@@ -2429,7 +2429,7 @@ def api_case_needle(case_id: str):
     citations = {"items": [], "stats": {}}
     try:
         if _INDEX is not None and md:
-            citations = cv_mod.verify_text(md, _INDEX)
+            citations = cv_mod.verify_text(md, _req_index())
     except Exception:  # noqa: BLE001
         pass
     return jsonify({"markdown": md, "citations": citations,
@@ -2460,7 +2460,7 @@ def api_fable_draft():
     citations = {"items": [], "stats": {}}
     try:
         if _INDEX is not None and md:
-            citations = cv_mod.verify_text(md, _INDEX)
+            citations = cv_mod.verify_text(md, _req_index())
     except Exception:  # noqa: BLE001
         pass
     return jsonify({"markdown": md, "citations": citations})
@@ -2880,7 +2880,7 @@ def api_bench_memo_run(case_id: str):
     t0 = time.monotonic()
     memo = bench_mod.generate_bench_memo(
         inp, backend=_BRAIN.backend,
-        article_index=_INDEX, decision_index=None,
+        article_index=_req_index(), decision_index=None,
         case_id=case_id,
     )
     elapsed_ms = int((time.monotonic() - t0) * 1000)
@@ -4301,7 +4301,7 @@ def _notary_run(fn, **kw):
     if _BRAIN is None or _INDEX is None:
         return None, (jsonify({"error": "unavailable"}), 503)
     try:
-        res = fn(_BRAIN.backend, _INDEX, **kw)
+        res = fn(_BRAIN.backend, _req_index(), **kw)
     except ValueError:
         return None, (jsonify({"error": "bad_request"}), 400)
     except Exception as exc:  # noqa: BLE001
@@ -4311,7 +4311,7 @@ def _notary_run(fn, **kw):
     cits = {"items": [], "stats": {}}
     try:
         if md:
-            cits = cv_mod.verify_text(md, _INDEX)
+            cits = cv_mod.verify_text(md, _req_index())
     except Exception:  # noqa: BLE001
         pass
     return jsonify({"markdown": md, "citations": cits}), None
@@ -4473,7 +4473,7 @@ def api_notary_inspect():
         except Exception:  # noqa: BLE001
             prior = []
     try:
-        res = notary_mod.inspect_act(_BRAIN.backend, _INDEX, text=text[:14000], prior_acts=prior)
+        res = notary_mod.inspect_act(_BRAIN.backend, _req_index(), text=text[:14000], prior_acts=prior)
     except Exception as exc:  # noqa: BLE001
         log.exception("inspect failed")
         return jsonify({"error": _safe_err(exc)}), 200
@@ -4481,7 +4481,7 @@ def api_notary_inspect():
     cits = {"items": [], "stats": {}}
     try:
         if md:
-            cits = cv_mod.verify_text(md, _INDEX)
+            cits = cv_mod.verify_text(md, _req_index())
     except Exception:  # noqa: BLE001
         pass
     try:
@@ -4534,7 +4534,7 @@ def api_notary_checklist():
     if len(text) < 20:
         return jsonify({"error": "documents_required"}), 400
     try:
-        res = notary_mod.dossier_checklist(_BRAIN.backend, _INDEX, act=act[:200],
+        res = notary_mod.dossier_checklist(_BRAIN.backend, _req_index(), act=act[:200],
                                            documents_text=text[:16000])
     except Exception as exc:  # noqa: BLE001
         log.exception("checklist failed")
@@ -4543,7 +4543,7 @@ def api_notary_checklist():
     cits = {"items": [], "stats": {}}
     try:
         if md:
-            cits = cv_mod.verify_text(md, _INDEX)
+            cits = cv_mod.verify_text(md, _req_index())
     except Exception:  # noqa: BLE001
         pass
     return jsonify({"markdown": md, "completeness": res.get("completeness"), "citations": cits})
@@ -4692,7 +4692,7 @@ def api_prosecutor_indictment():
     if len(facts) < 15:
         return jsonify({"error": "facts_required"}), 400
     try:
-        res = prosecutor_mod.draft_indictment(_BRAIN.backend, _INDEX, facts=facts[:14000])
+        res = prosecutor_mod.draft_indictment(_BRAIN.backend, _req_index(), facts=facts[:14000])
     except Exception as exc:  # noqa: BLE001
         log.exception("indictment failed")
         return jsonify({"error": _safe_err(exc)}), 200
@@ -4700,7 +4700,7 @@ def api_prosecutor_indictment():
     cits = {"items": [], "stats": {}}
     try:
         if md:
-            cits = cv_mod.verify_text(md, _INDEX)
+            cits = cv_mod.verify_text(md, _req_index())
     except Exception:  # noqa: BLE001
         pass
     return jsonify({"markdown": md, "citations": cits})
@@ -4822,7 +4822,7 @@ def api_intake_triage():
     if len(story) < 15:
         return jsonify({"error": "story_required"}), 400
     try:
-        res = intake_mod.triage(_BRAIN.backend, _INDEX, story=story[:8000])
+        res = intake_mod.triage(_BRAIN.backend, _req_index(), story=story[:8000])
     except Exception as exc:  # noqa: BLE001
         log.exception("intake failed")
         return jsonify({"error": _safe_err(exc)}), 200
@@ -4830,7 +4830,7 @@ def api_intake_triage():
     cits = {"items": [], "stats": {}}
     try:
         if md:
-            cits = cv_mod.verify_text(md, _INDEX)
+            cits = cv_mod.verify_text(md, _req_index())
     except Exception:  # noqa: BLE001
         pass
     return jsonify({"markdown": md, "route": res.get("route", "none"), "citations": cits})
@@ -4853,7 +4853,7 @@ def api_afati_compute():
     event_date = (body.get("event_date") or "").strip()[:20]
     facts = (body.get("facts") or "").strip()[:6000]
     try:
-        res = afati_mod.compute(_BRAIN.backend, _INDEX, trigger=trigger,
+        res = afati_mod.compute(_BRAIN.backend, _req_index(), trigger=trigger,
                                 event_date=event_date, facts=facts)
     except Exception as exc:  # noqa: BLE001
         log.exception("afati failed")
@@ -4862,7 +4862,7 @@ def api_afati_compute():
     cits = {"items": [], "stats": {}}
     try:
         if md:
-            cits = cv_mod.verify_text(md, _INDEX)
+            cits = cv_mod.verify_text(md, _req_index())
     except Exception:  # noqa: BLE001
         pass
     return jsonify({"markdown": md, "afatet": res.get("afatet", []), "citations": cits})
@@ -4879,7 +4879,7 @@ def api_prescription():
     if len(facts) < 15:
         return jsonify({"error": "facts_required"}), 400
     try:
-        res = deadlines_mod.prescription(_BRAIN.backend, _INDEX, facts=facts[:8000])
+        res = deadlines_mod.prescription(_BRAIN.backend, _req_index(), facts=facts[:8000])
     except Exception as exc:  # noqa: BLE001
         log.exception("prescription failed")
         return jsonify({"error": _safe_err(exc)}), 200
@@ -4887,7 +4887,7 @@ def api_prescription():
     cits = {"items": [], "stats": {}}
     try:
         if md:
-            cits = cv_mod.verify_text(md, _INDEX)
+            cits = cv_mod.verify_text(md, _req_index())
     except Exception:  # noqa: BLE001
         pass
     return jsonify({"markdown": md, "citations": cits})
@@ -4905,7 +4905,7 @@ def api_prosecutor_analyze():
     if len(facts) < 15:
         return jsonify({"error": "facts_required"}), 400
     try:
-        res = prosecutor_mod.analyze(_BRAIN.backend, _INDEX, facts=facts[:14000])
+        res = prosecutor_mod.analyze(_BRAIN.backend, _req_index(), facts=facts[:14000])
     except Exception as exc:  # noqa: BLE001
         log.exception("prosecutor failed")
         return jsonify({"error": _safe_err(exc)}), 200
@@ -4913,7 +4913,7 @@ def api_prosecutor_analyze():
     citations = {"items": [], "stats": {}}
     try:
         if md:
-            citations = cv_mod.verify_text(md, _INDEX)
+            citations = cv_mod.verify_text(md, _req_index())
     except Exception:  # noqa: BLE001
         pass
     return jsonify({"markdown": md, "citations": citations})
@@ -4932,7 +4932,7 @@ def api_expertise_analyze():
     if len(facts) < 15:
         return jsonify({"error": "facts_required"}), 400
     try:
-        res = expertise_mod.analyze(_BRAIN.backend, _INDEX, case_type=case_type, facts=facts[:14000])
+        res = expertise_mod.analyze(_BRAIN.backend, _req_index(), case_type=case_type, facts=facts[:14000])
     except ValueError:
         return jsonify({"error": "unknown_case_type"}), 400
     except Exception as exc:  # noqa: BLE001
@@ -4942,7 +4942,7 @@ def api_expertise_analyze():
     citations = {"items": [], "stats": {}}
     try:
         if md:
-            citations = cv_mod.verify_text(md, _INDEX)
+            citations = cv_mod.verify_text(md, _req_index())
     except Exception:  # noqa: BLE001
         pass
     return jsonify({"markdown": md, "citations": citations})
@@ -5185,7 +5185,7 @@ def api_who_said(case_id: str):
     cits = {"items": [], "stats": {}}
     try:
         if md and _INDEX is not None:
-            cits = cv_mod.verify_text(md, _INDEX)
+            cits = cv_mod.verify_text(md, _req_index())
     except Exception:  # noqa: BLE001
         pass
     res["citations"] = cits
@@ -5383,7 +5383,7 @@ def api_ask():
         })
 
     if not _BRAIN:
-        hits = _INDEX.search(message, top_k=10)
+        hits = _req_index().search(message, top_k=10)
         articles = [_article_payload(a, s) for a, s in hits]
         text = ("⚠️ Motori AI nuk është i disponueshëm për momentin. "
                 "Po tregoj vetëm nenet që u gjetën për pyetjen tënde.")
@@ -5462,7 +5462,7 @@ def api_ask():
 
     retrieved_codes = {a.code for a, _ in result.retrieved}
     citations_payload = cv_mod.verify_text(
-        result.text or "", _INDEX, retrieved_codes=retrieved_codes,
+        result.text or "", _req_index(), retrieved_codes=retrieved_codes,
     )
 
     # V8.11 Citation Shield V2 — refusal preamble when all citations are
@@ -5662,7 +5662,7 @@ def api_ask_stream():
 
             retrieved_codes = {a.code for a, _ in result.retrieved}
             citations_payload = cv_mod.verify_text(
-                result.text or "", _INDEX, retrieved_codes=retrieved_codes,
+                result.text or "", _req_index(), retrieved_codes=retrieved_codes,
             )
 
             # V8.11 Citation Shield V2 — same logic as the blocking path
@@ -6293,7 +6293,7 @@ def api_stress_test_create(case_id: str):
         return jsonify({"error": "hypothesis too short (min 20 chars)"}), 400
     try:
         result = pro_mod.stress_test_hearing(
-            _BRAIN.backend, _INDEX, hypothesis,
+            _BRAIN.backend, _req_index(), hypothesis,
             case_docs=_load_case_docs(case.id),
         )
     except Exception as exc:
@@ -6364,7 +6364,7 @@ def api_citation_audit_create():
     if case_id and not _resolve_case(case_id):
         return jsonify({"error": "case not found"}), 404
     try:
-        result = pro_mod.audit_citations(_BRAIN.backend, _INDEX, source_text)
+        result = pro_mod.audit_citations(_BRAIN.backend, _req_index(), source_text)
     except Exception as exc:
         log.exception("citation audit failure")
         return jsonify({"error": f"{type(exc).__name__}: {exc}"}), 500
@@ -6438,7 +6438,7 @@ def api_draft_act_create():
         case_docs = _load_case_docs(case_id)
     try:
         draft = pro_mod.draft_act(
-            _BRAIN.backend, _INDEX,
+            _BRAIN.backend, _req_index(),
             act_type=act_type, brief=brief, case_docs=case_docs,
         )
     except Exception as exc:
@@ -6976,6 +6976,22 @@ def _active_jurisdiction(user):
     if j in allowed:
         return j
     return "AL" if "AL" in allowed else sorted(allowed)[0]
+
+
+def _index_for(user):
+    """Article index for the user's active jurisdiction — Italian corpus for IT
+    sessions, Albanian otherwise."""
+    try:
+        if _INDEX_IT is not None and user is not None and _active_jurisdiction(user) == "IT":
+            return _INDEX_IT
+    except Exception:  # noqa: BLE001
+        pass
+    return _INDEX
+
+
+def _req_index():
+    """Index for the current request's user (safe if unauthenticated -> AL)."""
+    return _index_for(getattr(request, "user", None))
 
 
 def _user_payload(u) -> dict:

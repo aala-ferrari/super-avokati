@@ -219,6 +219,38 @@ _ALIAS_RE = re.compile(
 )
 
 
+# ── Italian citations (art. N c.c./c.p./c.p.c./c.p.p./Cost.) ─────────────────
+_NUM_TOKEN_IT = r"\d+(?:[\-\s](?:bis|ter|quater|quinquies|sexies|septies|octies|novies|decies))?"
+CITATION_RE_IT = re.compile(
+    r"\bart(?:t|icol[oi])?\.?\s+"
+    r"(?P<nums>" + _NUM_TOKEN_IT + r"(?:\s*(?:,|;|\be\b|\bed\b)\s*" + _NUM_TOKEN_IT + r")*)"
+    r"(?P<tail>(?:\s+(?!art\b)[^\s,;:\n()]+){0,6})",
+    re.IGNORECASE,
+)
+_NUM_RE_IT = re.compile(_NUM_TOKEN_IT)
+# Ordered longest/most-specific first so cpc/cpp beat cp, codice* beats abbrevs.
+_IT_CODE_CHECKS = [
+    ("codicediprocedurapenale", "codice_procedura_penale"),
+    ("codicediproceduracivile", "codice_procedura_civile"),
+    ("codicecivile", "codice_civile"),
+    ("codicepenale", "codice_penale"),
+    ("costituzione", "costituzione"),
+    ("cpp", "codice_procedura_penale"),
+    ("cpc", "codice_procedura_civile"),
+    ("cp", "codice_penale"),
+    ("cc", "codice_civile"),
+    ("cost", "costituzione"),
+]
+
+
+def _resolve_code_it(tail: str):
+    compact = re.sub(r"[^a-z]", "", (tail or "").lower())
+    for pat, code in _IT_CODE_CHECKS:
+        if pat in compact:
+            return code
+    return None
+
+
 @dataclass
 class Citation:
     raw: str                 # the matched substring, e.g. "neni 132 KP"
@@ -361,6 +393,13 @@ def verify_text(
     num_to_codes = _build_number_to_codes(index)
     retrieved_codes = set(retrieved_codes or [])
 
+    # V-IT: Italian corpus -> Italian citation extraction (art. N c.c. ...).
+    _lang = getattr(index, "lang", "sq")
+    _cite_re = CITATION_RE_IT if _lang == "it" else CITATION_RE
+    _num_re = _NUM_RE_IT if _lang == "it" else _NUM_RE
+    _resolve = _resolve_code_it if _lang == "it" else _resolve_code
+    _cite_prefix = "art. " if _lang == "it" else "neni "
+
     seen: set[tuple[str, str]] = set()  # dedupe (number, code-or-empty)
     citations: list[Citation] = []
 
@@ -419,11 +458,11 @@ def verify_text(
                 code_label=None, status="fake", candidates=[],
             ))
 
-    for m in CITATION_RE.finditer(text):
+    for m in _cite_re.finditer(text):
         nums_block = m.group("nums")
         tail = m.group("tail") or ""
-        code = _resolve_code(tail)              # one shared code for the list
-        numbers = _NUM_RE.findall(nums_block)
+        code = _resolve(tail)              # one shared code for the list
+        numbers = _num_re.findall(nums_block)
         full_raw = text[m.start():m.end()].strip()
         if len(full_raw) > 60:
             full_raw = full_raw[:60].rstrip() + "…"
@@ -436,7 +475,7 @@ def verify_text(
             seen.add(key)
             # In a list each article gets its own clean label; a lone citation
             # keeps the full matched span for context.
-            raw = ("neni " + number_raw) if multi else full_raw
+            raw = (_cite_prefix + number_raw) if multi else full_raw
             _emit(number, code, raw)
 
     for _c in citations:
