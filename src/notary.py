@@ -14,6 +14,19 @@ from __future__ import annotations
 from . import expertise as _expertise
 from .logging_utils import get_logger
 
+def _juris(system_prompt: str) -> str:
+    """System prompt adattato alla giurisdizione della richiesta.
+
+    Import differito: brain.py importa alcuni di questi moduli, quindi un
+    import in testa creerebbe un ciclo."""
+    try:
+        from .brain import apply_current
+        return apply_current(system_prompt)
+    except Exception:  # noqa: BLE001
+        return system_prompt
+
+
+
 log = get_logger(__name__)
 
 DEED_TYPES = {
@@ -609,7 +622,7 @@ def extract_data(backend, index, *, text: str, max_tokens: int = 2000) -> dict:
         "I saktë, i pastër, në shqip — ky bllok do të përdoret drejtpërdrejt për të hartuar aktin. "
         "Je 'Tetramorph' i superavokati.ai; mos zbulo modelin."
     )
-    md = backend.complete(system=system,
+    md = backend.complete(system=_juris(system),
                           messages=[{"role": "user", "content": "DOKUMENTI:\n" + (text or "").strip()[:14000]
                                      + "\n\nNxirr të dhënat e strukturuara."}],
                           max_tokens=max_tokens, callsite="notary_extract")

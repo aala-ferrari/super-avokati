@@ -43,27 +43,13 @@ from flask import (
 
 from . import citation_shield as cs_mod
 from . import citation_verifier as cv_mod
-from . import decision_verifier as dv_mod
 from . import documents as docs_mod
 from . import pro_features as pro_mod
 from . import reminders as reminders_mod
 from . import secretary as secretary_mod
 from . import storage
 from . import validity as validity_mod
-from . import actcheck as actcheck_mod
-from . import conflicts as conflicts_mod
 from . import vault as vault_mod
-from . import second_opinion as second_opinion_mod
-from . import fable_drafter as fable_drafter_mod
-from . import adversary as adversary_mod
-from . import expertise as expertise_mod
-from . import prosecutor as prosecutor_mod
-from . import living_law as living_mod
-from . import intake as intake_mod
-from . import afati as afati_mod
-from . import registry as registry_mod
-from . import notary as notary_mod
-from . import deadlines as deadlines_mod
 from .auth import (
     authenticate,
     current_user,
@@ -119,26 +105,17 @@ app.permanent_session_lifetime = timedelta(days=30)
 app.config["MAX_CONTENT_LENGTH"] = (MAX_UPLOAD_SIZE_MB + 2) * 1024 * 1024
 
 _INDEX: ArticleIndex | None = None
-_INDEX_IT: ArticleIndex | None = None
 _BRAIN: SuperAvvocato | None = None
 
 
 def _ensure_loaded() -> None:
-    global _INDEX, _BRAIN, _INDEX_IT
+    global _INDEX, _BRAIN
     if _INDEX is None:
         _INDEX = ArticleIndex.load()
         log.info("index loaded: %d articles", len(_INDEX.articles))
-        try:
-            from .retrieval import INDEX_FILE
-            _it_path = INDEX_FILE.parent / "bm25_it.pkl"
-            if _it_path.exists():
-                _INDEX_IT = ArticleIndex.load(_it_path)
-                log.info("IT index loaded: %d articles", len(_INDEX_IT.articles))
-        except Exception as exc:  # noqa: BLE001
-            log.warning("IT index not loaded: %s", exc)
     if _BRAIN is None and detect_available_backend():
         try:
-            _BRAIN = SuperAvvocato(index=_INDEX, index_it=_INDEX_IT)
+            _BRAIN = SuperAvvocato(index=_INDEX)
         except Exception as exc:
             log.warning("brain init failed: %s", exc)
             _BRAIN = None
@@ -148,63 +125,22 @@ def _ensure_loaded() -> None:
 
 # ── pages ──────────────────────────────────────────────────────────────────
 
-_LEGAL_DOCS_IT_FALLBACK = [
-    {"code": "costituzione", "title": "Costituzione della Repubblica Italiana", "area": "Costituzionale"},
-    {"code": "codice_civile", "title": "Codice Civile", "area": "Civile"},
-    {"code": "codice_procedura_civile", "title": "Codice di Procedura Civile", "area": "Procedura Civile"},
-    {"code": "codice_penale", "title": "Codice Penale", "area": "Penale"},
-    {"code": "codice_procedura_penale", "title": "Codice di Procedura Penale", "area": "Procedura Penale"},
-]
-_IT_CODES_CACHE: list | None = None
-
-
-def _legal_docs_it():
-    """The Italian corpora we actually index, in display order.
-
-    Read once from data/processed/it_codes.json (written when the index is
-    built); falls back to the five fundamental codes if that file is absent."""
-    global _IT_CODES_CACHE
-    if _IT_CODES_CACHE is None:
-        try:
-            import json as _json
-            from pathlib import Path as _Path
-            p = _Path(__file__).resolve().parent.parent / "data" / "processed" / "it_codes.json"
-            rows = _json.loads(p.read_text(encoding="utf-8"))
-            _IT_CODES_CACHE = [{"code": r["code"], "title": r["title"],
-                                "area": r.get("area") or ""} for r in rows if r.get("code")]
-        except Exception:  # noqa: BLE001 - metadata is optional
-            _IT_CODES_CACHE = list(_LEGAL_DOCS_IT_FALLBACK)
-    return _IT_CODES_CACHE
-
-
 @app.route("/")
 @login_required_page
 def index() -> str:
     _ensure_loaded()
     user = current_user()
-    _juris = _active_jurisdiction(user)
-    if _juris == "IT" and _INDEX_IT is not None:
-        _codes = _legal_docs_it()
-        _total_articles = len(_INDEX_IT.articles)
-    else:
-        _codes = [{"code": d.code, "title": d.title_sq, "area": d.area}
-                  for d in LEGAL_DOCUMENTS]
-        _total_articles = len(_INDEX.articles)
     return render_template(
         "index.html",
-        total_articles=_total_articles,
-        num_codes=len(_codes),
+        total_articles=len(_INDEX.articles),
+        num_codes=len(LEGAL_DOCUMENTS),
         has_brain=bool(_BRAIN),
         backend_name=_BRAIN.backend.name if _BRAIN else None,
-        codes=_codes,
+        codes=[{"code": d.code, "title": d.title_sq, "area": d.area}
+               for d in LEGAL_DOCUMENTS],
         username=user.username,
         user_id=user.id,
         is_admin=user.is_admin,
-        profession=getattr(user, "profession", "avokat"),
-        modules=sorted(storage.user_modules(user)),
-        jurisdiction=_juris,
-        ui_lang=("it" if _juris == "IT" else "sq"),
-        jurisdictions=sorted(storage.user_jurisdictions(user)),
         cascade_event_types=pro_mod.cascade_event_types(),
         act_types=[{"key": k, "label": v} for k, v in pro_mod.ACT_TYPES.items()],
     )
@@ -240,26 +176,6 @@ def login_page() -> str:
 
 # ── auth API ───────────────────────────────────────────────────────────────
 
-def require_module(*mods):
-    """Gate an endpoint to users entitled to >=1 of `mods` (admin always
-    passes — storage.user_modules returns all for admins). Stack BELOW
-    @login_required_api so request.user is already set."""
-    from functools import wraps as _wraps
-
-    def _deco(fn):
-        @_wraps(fn)
-        def _wrapper(*args, **kwargs):
-            u = getattr(request, "user", None)
-            if u is None:
-                return jsonify({"error": "unauthorized"}), 401
-            if not (set(mods) & storage.user_modules(u)):
-                return jsonify({"error": "Ky mjet nuk përfshihet në abonimin tuaj.",
-                                "need_module": list(mods)}), 403
-            return fn(*args, **kwargs)
-        return _wrapper
-    return _deco
-
-
 @app.post("/api/login")
 def api_login():
     _ensure_loaded()
@@ -270,27 +186,9 @@ def api_login():
         return jsonify({"error": "missing credentials"}), 400
     user = authenticate(username, password)
     if user is None:
-        from .auth import login_reason
-        reason = login_reason(username, password)
-        if reason:
-            msg = {
-                "suspended": "Llogaria juaj është pezulluar. Kontaktoni studion.",
-                "demo_expired": "Demo ka skaduar.",
-                "plan_expired": "Abonimi juaj ka skaduar. Kontaktoni për ta rinovuar.",
-            }.get(reason, "Qasja është bllokuar.")
-            log.info("blocked login for %r: %s", username, reason)
-            return jsonify({"error": msg, "blocked": reason}), 403
         log.info("failed login for %r", username)
         return jsonify({"error": "invalid credentials"}), 401
     login_user(user)
-    try:
-        from flask import session as _sess
-        _lang = str(data.get("lang") or "").strip().lower()
-        _chosen = "IT" if _lang == "it" else ("AL" if _lang == "sq" else "")
-        if _chosen and _chosen in storage.user_jurisdictions(user):
-            _sess["jurisdiction"] = _chosen
-    except Exception:  # noqa: BLE001
-        pass
     log.info("login ok: %r", user.username)
     return jsonify({"ok": True, "user": {"username": user.username,
                                          "is_admin": user.is_admin}})
@@ -311,24 +209,15 @@ def api_provision_demo():
         hours = int(data.get("hours") or 6)
     except (TypeError, ValueError):
         hours = 6
-    months = data.get("months")
-    try:
-        months = int(months) if months else None
-    except (TypeError, ValueError):
-        months = None
-    modules = data.get("modules")
-    if not isinstance(modules, list):
-        modules = None
     if not email or not code:
         return jsonify({"error": "missing email/code"}), 400
     from .auth import hash_password
     try:
-        expires = storage.provision_account(email, hash_password(code),
-                                             modules=modules, months=months, hours=hours)
+        expires = storage.provision_demo_user(email, hash_password(code), hours)
     except Exception as exc:  # noqa: BLE001 - best-effort provisioning
-        log.warning("provision failed for %r: %s", email, exc)
+        log.warning("provision-demo failed for %r: %s", email, exc)
         return jsonify({"error": "provision failed"}), 500
-    return jsonify({"ok": True, "expires_at": expires, "paid": bool(months)})
+    return jsonify({"ok": True, "expires_at": expires})
 
 
 @app.post("/api/logout")
@@ -531,7 +420,7 @@ def api_event_substitutes(event_id: str):
     firm = request.firm  # type: ignore[attr-defined]
     if firm is None:
         return jsonify({"error": "no active firm"}), 400
-    candidates = storage.find_substitutes_for_event(event_id, firm.id)
+    candidates = storage.find_substitutes_for_event(event_id)
     if candidates is None:
         return jsonify({"error": "event not found or not firm-scoped"}), 404
     return jsonify({"event_id": event_id, "candidates": candidates})
@@ -546,10 +435,7 @@ def api_firm_capacity():
     firm = request.firm  # type: ignore[attr-defined]
     if firm is None:
         return jsonify({"error": "no active firm"}), 400
-    try:
-        horizon = max(1, min(30, int(request.args.get("days", 7))))
-    except (TypeError, ValueError):
-        horizon = 7
+    horizon = max(1, min(30, int(request.args.get("days", 7))))
     return jsonify({
         "firm": _firm_payload(firm),
         "horizon_days": horizon,
@@ -736,81 +622,6 @@ INTAKE_SYSTEM_BRIEF = (
 )
 
 
-INTAKE_SYSTEM_NEXT_IT = (
-    "Sei un assistente legale professionale per uno studio legale italiano. "
-    "Stai conducendo il primo INTAKE con un potenziale cliente. Compito: fai "
-    "UNA sola domanda, chiara, SOLO in ITALIANO — la domanda che aiuterebbe "
-    "di più l'avvocato a capire il caso. Non dare consulenza legale. Non "
-    "dare nulla per scontato. Fai solo domande informative.\n\n"
-    "REGOLE IMPORTANTI:\n"
-    "- Ogni domanda e ogni `why` DEVONO essere SOLO in italiano.\n"
-    "- Non ripetere domande su temi gia coperti nella conversazione.\n"
-    "- Se l'ultima risposta non risponde all'ultima domanda, riformula la "
-    "domanda o chiedi al cliente di chiarire.\n"
-    "- Le domande devono essere concrete e comprensibili da un cliente "
-    "comune (niente terminologia giuridica approfondita).\n\n"
-    "Temi da coprire (nell'ordine che ha senso in base alle risposte):\n"
-    "1. Identita del cliente (nome completo, contatto se manca)\n"
-    "2. Materia giuridica (civile/penale/famiglia/lavoro/commerciale/"
-    "amministrativo)\n"
-    "3. Altre parti coinvolte (controparte, testimoni)\n"
-    "4. Fatti principali (cosa e successo, quando, dove)\n"
-    "5. Date / termini (scadenze procedurali, provvedimenti del giudice)\n"
-    "6. Prove esistenti (documenti, testimoni)\n"
-    "7. Procedimenti gia avviati (e stata iniziata una causa?)\n"
-    "8. Aspettativa / obiettivo (cosa vuole il cliente — risarcimento, "
-    "annullamento, ecc.)\n\n"
-    "Quando hai raccolto QUANTO SERVE (di norma 6-8 domande), restituisci "
-    "{\"done\": true} senza domanda. Non superare 10 domande in totale.\n\n"
-    "RISPONDI SEMPRE E SOLO CON JSON valido:\n"
-    "{\"question\": \"...\", \"why\": \"breve spiegazione del perche fai "
-    "questa domanda (1 frase)\", \"done\": false}\n"
-    "oppure\n"
-    "{\"done\": true}"
-)
-
-INTAKE_SYSTEM_BRIEF_IT = (
-    "Sei un assistente legale professionale. Stai creando un RIEPILOGO "
-    "STRUTTURATO dell'intake, che sara letto dall'avvocato che prendera il "
-    "caso. Scrivi in modo chiaro, senza abbellimenti, senza consulenza "
-    "legale.\n\n"
-    "REGOLA ASSOLUTA DI LINGUA: ogni valore testuale nel JSON DEVE essere "
-    "SOLO in ITALIANO — inclusi title, facts, deadlines, evidence, "
-    "client_goal, open_questions, suggested_next_steps. Anche se le "
-    "risposte del cliente contengono parole in altre lingue, il riepilogo "
-    "e SOLO in italiano.\n\n"
-    "RISPONDI SOLO CON JSON valido con questo schema:\n"
-    "{\n"
-    '  "title": "Titolo breve in ITALIANO (max 60 caratteri)",\n'
-    '  "area": "civile|penale|famiglia|lavoro|commerciale|amministrativo|altro",\n'
-    '  "client": "Nome e ruolo del cliente",\n'
-    '  "counterparty": "Controparte oppure null",\n'
-    '  "facts": "Descrizione dei fatti in ITALIANO (3-6 frasi)",\n'
-    '  "deadlines": "Termini / date critiche in ITALIANO oppure null",\n'
-    '  "evidence": "Prove disponibili in ITALIANO oppure null",\n'
-    '  "client_goal": "Cosa chiede il cliente — in ITALIANO",\n'
-    '  "open_questions": ["Domanda in ITALIANO per l\'avvocato"],\n'
-    '  "urgency": "low|medium|high",\n'
-    '  "suggested_next_steps": ["Passo in ITALIANO", "Passo 2 in ITALIANO"]\n'
-    "}"
-)
-
-
-def _intake_prompts():
-    """(system_next, system_brief, user_prefix) per la giurisdizione attiva."""
-    try:
-        if _active_jurisdiction(getattr(request, "user", None)) == "IT":
-            return (INTAKE_SYSTEM_NEXT_IT, INTAKE_SYSTEM_BRIEF_IT,
-                    "Conversazione finora:\n{t}\n\nFai la prossima domanda "
-                    "oppure restituisci {{\"done\": true}} se sei pronto per "
-                    "il riepilogo.")
-    except Exception:  # noqa: BLE001
-        pass
-    return (INTAKE_SYSTEM_NEXT, INTAKE_SYSTEM_BRIEF,
-            "Bisedoja deri tani:\n{t}\n\nBëj pyetjen tjetër ose kthe "
-            "{{\"done\": true}} nëse je gati për përmbledhje.")
-
-
 def _format_intake_brief(brief: dict) -> str:
     """Render the structured brief as the case's first user message."""
     def _line(label, val):
@@ -878,11 +689,14 @@ def api_firm_intake():
     transcript = _intake_history_to_text(history)
 
     if action == "next":
-        _sys_next, _sys_brief, _tpl = _intake_prompts()
-        prompt = _tpl.format(t=transcript)
+        prompt = (
+            f"Bisedoja deri tani:\n{transcript}\n\n"
+            f"Bëj pyetjen tjetër ose kthe {{\"done\": true}} nëse "
+            f"je gati për përmbledhje."
+        )
         try:
             raw = _BRAIN.backend.complete(
-                system=_sys_next,
+                system=INTAKE_SYSTEM_NEXT,
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=400,
                 medium=True,  # Sonnet — wizard conversazionale per il cliente
@@ -925,7 +739,7 @@ def api_firm_intake():
             # V8.10: brief finale è il documento che legge l'avvocato →
             # Opus default, niente shortcut
             raw = _BRAIN.backend.complete(
-                system=_intake_prompts()[1],
+                system=INTAKE_SYSTEM_BRIEF,
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=1200,
             )
@@ -977,19 +791,6 @@ def _intake_parse_json(raw: str) -> dict:
 
 # ── cases API ──────────────────────────────────────────────────────────────
 
-def _safe_err(exc) -> str:
-    """Client-safe error text: keep humanized Albanian messages, but never let
-    a vendor name, file path, or traceback reach the user (Tetramorph rule)."""
-    msg = str(exc or "")
-    low = msg.lower()
-    if not msg or any(k in low for k in (
-        "claude", "anthropic", "openai", "gemini", "traceback",
-        "/app/", "/home/", "/usr/", "/var/", "model", "subprocess",
-        "sqlite", "psycopg", "http", "token")):
-        return "Gabim teknik i përkohshëm. Provo përsëri pas pak."
-    return msg[:200]
-
-
 def _resolve_case(case_id: str):
     """Firm-aware case fetch — applies role-based visibility when in a firm.
 
@@ -999,7 +800,7 @@ def _resolve_case(case_id: str):
     user = request.user  # type: ignore[attr-defined]
     firm = request.firm  # type: ignore[attr-defined]
     if firm is None:
-        return storage.get_case(case_id, user.id)   # user-scoped legacy fallback
+        return _resolve_case(case_id)
     return storage.get_case_for_member(case_id, user.id, firm.id)
 
 
@@ -1039,7 +840,7 @@ def api_create_case():
                             "your_role": role}), 403
     data = request.get_json(force=True, silent=True) or {}
     title = (data.get("title") or "").strip() or "Rast i ri"
-    jurisdiction = (data.get("jurisdiction") or _active_jurisdiction(user)).upper()
+    jurisdiction = (data.get("jurisdiction") or "AL").upper()
     firm_id = firm.id if firm else None
     case = storage.create_case(user.id, title, firm_id=firm_id,
                                jurisdiction=jurisdiction)
@@ -2424,207 +2225,6 @@ def _build_precedent_description(case_id: str | None, body_desc: str) -> str:
     return "\n\n".join(parts).strip()
 
 
-@app.post("/api/act-check")
-@login_required_api
-def api_act_check():
-    """Quality-check a drafted act: fake / repealed / ambiguous articles."""
-    _ensure_loaded()
-    if _INDEX is None:
-        return jsonify({"error": "index_unavailable"}), 503
-    body = request.get_json(silent=True) or {}
-    text = (body.get("text") or "").strip()
-    if not text:
-        return jsonify({"error": "text_required"}), 400
-    return jsonify(actcheck_mod.check_act(_req_index(), text[:60000]))
-
-
-@app.post("/api/second-opinion")
-@login_required_api
-@require_module("avokat", "prokuror")
-def api_second_opinion():
-    """Fable 5 second advisor: a shrewd devil's-advocate review of an answer.
-
-    Additive and optional — only runs when the lawyer clicks. Never replaces
-    the main Opus answer. Its citations pass the Verifikuar shield."""
-    _ensure_loaded()
-    if _BRAIN is None:
-        return jsonify({"error": "unavailable"}), 503
-    body = request.get_json(silent=True) or {}
-    question = (body.get("question") or "").strip()
-    answer = (body.get("answer") or "").strip()
-    if len(answer) < 20:
-        return jsonify({"error": "answer_required"}), 400
-    try:
-        res = second_opinion_mod.review(
-            _BRAIN.backend,
-            question=question[:4000],
-            answer_text=answer[:16000],
-        )
-    except Exception as exc:  # noqa: BLE001
-        log.exception("second-opinion failed")
-        return jsonify({"error": _safe_err(exc)}), 200
-    md = res.get("markdown") or ""
-    citations = {"items": [], "stats": {}}
-    try:
-        if _INDEX is not None and md:
-            citations = cv_mod.verify_text(md, _req_index())
-    except Exception:  # noqa: BLE001
-        pass
-    return jsonify({"markdown": md, "citations": citations})
-
-
-@app.post("/api/devil-consult")
-@login_required_api
-@require_module("avokat", "prokuror")
-def api_devil_consult():
-    """Pyet Avokatin e Djallit — standalone shrewd consultation (Fable)."""
-    _ensure_loaded()
-    if _BRAIN is None:
-        return jsonify({"error": "unavailable"}), 503
-    body = request.get_json(silent=True) or {}
-    situation = (body.get("situation") or "").strip()
-    if len(situation) < 15:
-        return jsonify({"error": "situation_required"}), 400
-    try:
-        res = second_opinion_mod.consult(_BRAIN.backend, situation=situation[:12000])
-    except Exception as exc:  # noqa: BLE001
-        log.exception("devil-consult failed")
-        return jsonify({"error": _safe_err(exc)}), 200
-    md = res.get("markdown") or ""
-    citations = {"items": [], "stats": {}}
-    try:
-        if _INDEX is not None and md:
-            citations = cv_mod.verify_text(md, _req_index())
-    except Exception:  # noqa: BLE001
-        pass
-    return jsonify({"markdown": md, "citations": citations})
-
-
-@app.post("/api/adversary")
-@login_required_api
-@require_module("avokat", "prokuror")
-def api_adversary():
-    """Kundershtari — Fable attacks a pasted contract/act as opposing counsel."""
-    _ensure_loaded()
-    if _BRAIN is None:
-        return jsonify({"error": "unavailable"}), 503
-    body = request.get_json(silent=True) or {}
-    text = (body.get("text") or "").strip()
-    if len(text) < 30:
-        return jsonify({"error": "text_required"}), 400
-    try:
-        res = adversary_mod.attack(_BRAIN.backend, text=text[:16000])
-    except Exception as exc:  # noqa: BLE001
-        log.exception("adversary failed")
-        return jsonify({"error": _safe_err(exc)}), 200
-    md = res.get("markdown") or ""
-    citations = {"items": [], "stats": {}}
-    try:
-        if _INDEX is not None and md:
-            citations = cv_mod.verify_text(md, _req_index())
-    except Exception:  # noqa: BLE001
-        pass
-    return jsonify({"markdown": md, "citations": citations})
-
-
-@app.post("/api/cases/<case_id>/needle")
-@login_required_api
-def api_case_needle(case_id: str):
-    """Gjilpëra në dosje — Fable hunts the overlooked detail across case docs."""
-    _ensure_loaded()
-    case = _resolve_case(case_id)
-    if case is None:
-        return jsonify({"error": "not found"}), 404
-    if _BRAIN is None:
-        return jsonify({"error": "unavailable"}), 503
-    try:
-        res = vault_mod.find_needle(_BRAIN.backend, case_id)
-    except Exception as exc:  # noqa: BLE001
-        log.exception("needle failed")
-        return jsonify({"error": _safe_err(exc)}), 200
-    md = res.get("markdown") or ""
-    citations = {"items": [], "stats": {}}
-    try:
-        if _INDEX is not None and md:
-            citations = cv_mod.verify_text(md, _req_index())
-    except Exception:  # noqa: BLE001
-        pass
-    return jsonify({"markdown": md, "citations": citations,
-                    "empty": res.get("empty", False), "n_docs": res.get("n_docs", 0)})
-
-
-@app.post("/api/fable-draft")
-@login_required_api
-@require_module("avokat", "prokuror")
-def api_fable_draft():
-    """Fable 5 drafter: contracts / acts / clauses / letters. Additive; output
-    citations pass the Verifikuar shield."""
-    _ensure_loaded()
-    if _BRAIN is None:
-        return jsonify({"error": "unavailable"}), 503
-    body = request.get_json(silent=True) or {}
-    kind = (body.get("kind") or "contract").strip()
-    brief = (body.get("brief") or "").strip()
-    if len(brief) < 15:
-        return jsonify({"error": "brief_required"}), 400
-    try:
-        res = fable_drafter_mod.draft(_BRAIN.backend, kind=kind, brief=brief[:8000],
-                                      clauses_text=_firm_clauses_text(body))
-    except Exception as exc:  # noqa: BLE001
-        log.exception("fable-draft failed")
-        return jsonify({"error": _safe_err(exc)}), 200
-    md = res.get("markdown") or ""
-    citations = {"items": [], "stats": {}}
-    try:
-        if _INDEX is not None and md:
-            citations = cv_mod.verify_text(md, _req_index())
-    except Exception:  # noqa: BLE001
-        pass
-    return jsonify({"markdown": md, "citations": citations})
-
-
-@app.post("/api/extract-text")
-@login_required_api
-def api_extract_text():
-    """Extract plain text from an uploaded PDF/image/SVG for the free-form
-    PRO tools (act-check, contract review) so the lawyer can attach a file
-    instead of pasting. Not tied to a case: extract, return, delete the file."""
-    _ensure_loaded()
-    if "file" not in request.files:
-        return jsonify({"error": "no file"}), 400
-    f = request.files["file"]
-    if not f.filename:
-        return jsonify({"error": "no filename"}), 400
-    content = f.read()
-    v = docs_mod.validate_upload(f.filename, len(content))
-    if not v.ok:
-        return jsonify({"error": v.error}), 400
-    storage_path = docs_mod.storage_path_for("_scratch", v.ext)
-    storage_path.write_bytes(content)
-    err = None
-    text, used_ocr = "", False
-    try:
-        text, used_ocr = docs_mod.extract_text(
-            storage_path, v.ext, v.mimetype,
-            backend=_BRAIN.backend if _BRAIN else None,
-        )
-    except Exception as exc:
-        log.warning("extract-text failed for %s: %s", f.filename, exc)
-        err = str(exc)
-    finally:
-        try:
-            storage_path.unlink()
-        except Exception:
-            pass
-    if err and not text:
-        return jsonify({"error": "Nuk u lexua dokumenti: " + err}), 422
-    return jsonify({
-        "text": text or "",
-        "used_vision_ocr": used_ocr,
-        "filename": f.filename,
-    })
-
-
 @app.post("/api/decision-validity")
 @login_required_api
 def api_decision_validity():
@@ -2997,7 +2597,7 @@ def api_bench_memo_run(case_id: str):
     t0 = time.monotonic()
     memo = bench_mod.generate_bench_memo(
         inp, backend=_BRAIN.backend,
-        article_index=_req_index(), decision_index=None,
+        article_index=_INDEX, decision_index=None,
         case_id=case_id,
     )
     elapsed_ms = int((time.monotonic() - t0) * 1000)
@@ -3216,7 +2816,7 @@ def api_postmortem_run(case_id: str):
     lesson = coach_mod.case_postmortem(inp, backend=_BRAIN.backend, case_id=case_id)
     elapsed_ms = int((time.monotonic() - t0) * 1000)
 
-    firm_id = getattr(request.firm, "id", None)  # type: ignore[attr-defined]
+    firm_id = getattr(case, "firm_id", None)
     lesson_id = storage.save_case_lesson(
         case_id=case_id, user_id=user.id, firm_id=firm_id,
         outcome=outcome, summary_hint=summary_hint,
@@ -3258,7 +2858,7 @@ def api_case_lesson_delete(case_id: str):
 def api_lessons_list():
     """List all lessons (own + firm-shared) for the current user."""
     user = request.user  # type: ignore[attr-defined]
-    firm_id = getattr(request.firm, "id", None)  # type: ignore[attr-defined]
+    firm_id = getattr(user, "firm_id", None)
     return jsonify({
         "items": storage.list_case_lessons(user_id=user.id, firm_id=firm_id),
     })
@@ -3287,7 +2887,7 @@ def api_lessons_relevant():
     if not description:
         return jsonify({"items": []})
 
-    firm_id = getattr(request.firm, "id", None)  # type: ignore[attr-defined]
+    firm_id = getattr(user, "firm_id", None)
     stored = storage.list_case_lessons(user_id=user.id, firm_id=firm_id)
     # exclude this case's own lesson if matching from a case
     if case_id:
@@ -4350,721 +3950,6 @@ def api_create_draft(case_id: str):
     return jsonify({"draft": _draft_payload(d)}), 201
 
 
-@app.get("/api/cases/<case_id>/research")
-@login_required_api
-def api_list_research(case_id: str):
-    if _resolve_case(case_id) is None:
-        return jsonify({"error": "not found"}), 404
-    return jsonify({"items": storage.list_research(case_id)})
-
-
-@app.post("/api/cases/<case_id>/research")
-@login_required_api
-def api_save_research(case_id: str):
-    user = request.user  # type: ignore[attr-defined]
-    firm = request.firm  # type: ignore[attr-defined]
-    if _resolve_case(case_id) is None:
-        return jsonify({"error": "not found"}), 404
-    data = request.get_json(silent=True) or {}
-    client_name = None
-    try:
-        clients = storage.list_client_contacts_for_case(case_id)
-        if clients:
-            client_name = clients[0].name
-    except Exception:  # noqa: BLE001
-        client_name = None
-    try:
-        rid = storage.save_research(
-            case_id, getattr(firm, "id", None), user.id,
-            source=(data.get("source") or "research")[:32],
-            title=(data.get("title") or "Kërkim")[:200],
-            content=(data.get("content") or ""),
-            client_name=client_name,
-        )
-    except ValueError:
-        return jsonify({"error": "empty"}), 400
-    return jsonify({"id": rid, "ok": True}), 201
-
-
-@app.delete("/api/cases/<case_id>/research/<int:research_id>")
-@login_required_api
-def api_delete_research(case_id: str, research_id: int):
-    if _resolve_case(case_id) is None:
-        return jsonify({"error": "not found"}), 404
-    return jsonify({"ok": storage.delete_research(research_id, case_id)})
-
-
-@app.get("/api/firm/clients")
-@login_required_api
-def api_firm_clients():
-    """Client directory: firm-wide clients (grouped) + all saved research."""
-    firm = request.firm  # type: ignore[attr-defined]
-    if firm is None:
-        return jsonify({"clients": [], "research": []})
-    return jsonify({
-        "clients": storage.list_firm_clients(firm.id),
-        "research": storage.list_firm_research(firm.id),
-    })
-
-
-@app.get("/api/expertise/templates")
-@login_required_api
-def api_expertise_templates():
-    return jsonify({"templates": expertise_mod.list_templates()})
-
-
-def _notary_run(fn, **kw):
-    _ensure_loaded()
-    if _BRAIN is None or _INDEX is None:
-        return None, (jsonify({"error": "unavailable"}), 503)
-    try:
-        res = fn(_BRAIN.backend, _req_index(), **kw)
-    except ValueError:
-        return None, (jsonify({"error": "bad_request"}), 400)
-    except Exception as exc:  # noqa: BLE001
-        log.exception("notary failed")
-        return None, (jsonify({"error": _safe_err(exc)}), 200)
-    md = res.get("markdown") or ""
-    cits = {"items": [], "stats": {}}
-    try:
-        if md:
-            cits = cv_mod.verify_text(md, _req_index())
-    except Exception:  # noqa: BLE001
-        pass
-    return jsonify({"markdown": md, "citations": cits}), None
-
-
-@app.get("/api/notary/deed-types")
-@login_required_api
-def api_notary_deed_types():
-    return jsonify({"types": notary_mod.list_deed_types()})
-
-
-@app.post("/api/notary/draft")
-@login_required_api
-@require_module("noter")
-def api_notary_draft():
-    body = request.get_json(silent=True) or {}
-    details = (body.get("details") or "").strip()
-    if len(details) < 10:
-        return jsonify({"error": "details_required"}), 400
-    out, err = _notary_run(notary_mod.draft_deed,
-                           deed_type=(body.get("deed_type") or "").strip(),
-                           details=details[:12000],
-                           clauses_text=_firm_clauses_text(body))
-    return err if err else out
-
-
-@app.post("/api/notary/check")
-@login_required_api
-def api_notary_check():
-    body = request.get_json(silent=True) or {}
-    text = (body.get("text") or "").strip()
-    if len(text) < 30:
-        return jsonify({"error": "text_required"}), 400
-    out, err = _notary_run(notary_mod.check_deed, text=text[:16000])
-    return err if err else out
-
-
-@app.post("/api/notary/succession")
-@login_required_api
-@require_module("noter")
-def api_notary_succession():
-    body = request.get_json(silent=True) or {}
-    sit = (body.get("situation") or "").strip()
-    if len(sit) < 15:
-        return jsonify({"error": "situation_required"}), 400
-    out, err = _notary_run(notary_mod.succession, situation=sit[:8000])
-    return err if err else out
-
-
-@app.get("/api/notary/prokura-scopes")
-@login_required_api
-def api_notary_prokura_scopes():
-    return jsonify(notary_mod.list_prokura_scopes())
-
-
-@app.post("/api/notary/prokura")
-@login_required_api
-@require_module("noter")
-def api_notary_prokura():
-    body = request.get_json(silent=True) or {}
-    scopes = body.get("scope_keys") or []
-    if not isinstance(scopes, list):
-        scopes = []
-    out, err = _notary_run(notary_mod.draft_prokura,
-                           form=(body.get("form") or "e_posacme").strip(),
-                           scope_keys=[str(x)[:40] for x in scopes][:16],
-                           details=(body.get("details") or "").strip()[:12000],
-                           duration=(body.get("duration") or "").strip()[:120],
-                           subdelegation=bool(body.get("subdelegation")),
-                           clauses_text=_firm_clauses_text(body))
-    return err if err else out
-
-
-@app.get("/api/notary/declaration-types")
-@login_required_api
-def api_notary_declaration_types():
-    return jsonify({"types": notary_mod.list_declaration_types()})
-
-
-@app.post("/api/notary/declaration")
-@login_required_api
-@require_module("noter")
-def api_notary_declaration():
-    body = request.get_json(silent=True) or {}
-    details = (body.get("details") or "").strip()
-    if len(details) < 10:
-        return jsonify({"error": "details_required"}), 400
-    out, err = _notary_run(notary_mod.draft_declaration,
-                           decl_type=(body.get("decl_type") or "").strip(),
-                           details=details[:12000])
-    return err if err else out
-
-
-@app.post("/api/notary/documents")
-@login_required_api
-@require_module("noter")
-def api_notary_documents():
-    body = request.get_json(silent=True) or {}
-    act = (body.get("act") or "").strip()
-    if len(act) < 6:
-        return jsonify({"error": "act_required"}), 400
-    out, err = _notary_run(notary_mod.documents_needed, act=act[:2000])
-    return err if err else out
-
-
-@app.post("/api/notary/revocation")
-@login_required_api
-@require_module("noter")
-def api_notary_revocation():
-    body = request.get_json(silent=True) or {}
-    details = (body.get("details") or "").strip()
-    if len(details) < 10:
-        return jsonify({"error": "details_required"}), 400
-    out, err = _notary_run(notary_mod.draft_revocation, details=details[:12000])
-    return err if err else out
-
-
-@app.post("/api/notary/conflicts")
-@login_required_api
-def api_notary_conflicts():
-    body = request.get_json(silent=True) or {}
-    case_id = (body.get("case_id") or "").strip()
-    new_act = (body.get("new_act") or "").strip()
-    if len(new_act) < 20:
-        return jsonify({"error": "new_act_required"}), 400
-    prior = []
-    if case_id and _resolve_case(case_id) is not None:
-        try:
-            items = storage.list_research(case_id)
-            notarial = [it for it in items if (it.get("source") or "") == "notary"]
-            prior = notarial or items
-        except Exception:  # noqa: BLE001
-            prior = []
-    out, err = _notary_run(
-        notary_mod.check_conflicts,
-        new_act=new_act[:12000],
-        prior_acts=[{"title": p.get("title"), "content": p.get("content")} for p in prior[:8]])
-    return err if err else out
-
-
-@app.post("/api/notary/inspect")
-@login_required_api
-def api_notary_inspect():
-    _ensure_loaded()
-    if _BRAIN is None or _INDEX is None:
-        return jsonify({"error": "unavailable"}), 503
-    body = request.get_json(silent=True) or {}
-    text = (body.get("text") or "").strip()
-    if len(text) < 30:
-        return jsonify({"error": "text_required"}), 400
-    case_id = (body.get("case_id") or "").strip()
-    prior = []
-    if case_id and _resolve_case(case_id) is not None:
-        try:
-            items = storage.list_research(case_id)
-            notarial = [it for it in items if (it.get("source") or "") == "notary"]
-            prior = [{"title": p.get("title"), "content": p.get("content")}
-                     for p in (notarial or items)[:6]]
-        except Exception:  # noqa: BLE001
-            prior = []
-    try:
-        res = notary_mod.inspect_act(_BRAIN.backend, _req_index(), text=text[:14000], prior_acts=prior)
-    except Exception as exc:  # noqa: BLE001
-        log.exception("inspect failed")
-        return jsonify({"error": _safe_err(exc)}), 200
-    md = res.get("markdown") or ""
-    cits = {"items": [], "stats": {}}
-    try:
-        if md:
-            cits = cv_mod.verify_text(md, _req_index())
-    except Exception:  # noqa: BLE001
-        pass
-    try:
-        storage.log_inspection(getattr(getattr(request, "firm", None), "id", None),
-                               res.get("risk"), res.get("verdict"))
-    except Exception:  # noqa: BLE001
-        pass
-    return jsonify({"markdown": md, "risk": res.get("risk"),
-                    "verdict": res.get("verdict"), "citations": cits})
-
-
-@app.post("/api/notary/extract")
-@login_required_api
-def api_notary_extract():
-    body = request.get_json(silent=True) or {}
-    text = (body.get("text") or "").strip()
-    case_id = (body.get("case_id") or "").strip()
-    if not text and case_id and _resolve_case(case_id) is not None:
-        try:
-            ctx, used, _n = vault_mod.build_context(case_id)
-            if used:
-                text = ctx
-        except Exception:  # noqa: BLE001
-            text = ""
-    if len(text) < 20:
-        return jsonify({"error": "text_required"}), 400
-    out, err = _notary_run(notary_mod.extract_data, text=text[:16000])
-    return err if err else out
-
-
-@app.post("/api/notary/checklist")
-@login_required_api
-def api_notary_checklist():
-    _ensure_loaded()
-    if _BRAIN is None or _INDEX is None:
-        return jsonify({"error": "unavailable"}), 503
-    body = request.get_json(silent=True) or {}
-    act = (body.get("act") or "").strip()
-    if len(act) < 3:
-        return jsonify({"error": "act_required"}), 400
-    text = (body.get("text") or "").strip()
-    case_id = (body.get("case_id") or "").strip()
-    if not text and case_id and _resolve_case(case_id) is not None:
-        try:
-            ctx, used, _n = vault_mod.build_context(case_id)
-            if used:
-                text = ctx
-        except Exception:  # noqa: BLE001
-            text = ""
-    if len(text) < 20:
-        return jsonify({"error": "documents_required"}), 400
-    try:
-        res = notary_mod.dossier_checklist(_BRAIN.backend, _req_index(), act=act[:200],
-                                           documents_text=text[:16000])
-    except Exception as exc:  # noqa: BLE001
-        log.exception("checklist failed")
-        return jsonify({"error": _safe_err(exc)}), 200
-    md = res.get("markdown") or ""
-    cits = {"items": [], "stats": {}}
-    try:
-        if md:
-            cits = cv_mod.verify_text(md, _req_index())
-    except Exception:  # noqa: BLE001
-        pass
-    return jsonify({"markdown": md, "completeness": res.get("completeness"), "citations": cits})
-
-
-@app.get("/api/notary/client-kinds")
-@login_required_api
-def api_notary_client_kinds():
-    return jsonify({"kinds": notary_mod.list_client_kinds()})
-
-
-@app.post("/api/registry/search")
-@login_required_api
-@require_module("avokat", "prokuror")
-def api_registry_search():
-    _ensure_loaded()
-    if _BRAIN is None:
-        return jsonify({"error": "unavailable"}), 503
-    firm = getattr(request, "firm", None)
-    body = request.get_json(silent=True) or {}
-    q = (body.get("query") or "").strip()
-    if len(q) < 2:
-        return jsonify({"error": "query_required"}), 400
-    case_id = (body.get("case_id") or "").strip()
-    acts = []
-    if case_id and _resolve_case(case_id) is not None:
-        try:
-            acts = storage.list_research(case_id)
-        except Exception:  # noqa: BLE001
-            acts = []
-    elif firm is not None:
-        try:
-            acts = storage.list_firm_research(firm.id)
-        except Exception:  # noqa: BLE001
-            acts = []
-    if not acts:
-        return jsonify({"markdown": "Regjistri është bosh — ende asnjë akt i ruajtur. "
-                                    "Ruaj akte me \u201c\ud83d\udcbe Ruaj në fashikull\u201d.",
-                        "matches": []})
-    try:
-        res = registry_mod.search_acts(_BRAIN.backend, q, acts)
-    except Exception as exc:  # noqa: BLE001
-        log.exception("registry failed")
-        return jsonify({"error": _safe_err(exc)}), 200
-    ids = set(res.get("match_ids") or [])
-    matches = [a for a in acts if str(a.get("id")) in ids]
-    return jsonify({"markdown": res.get("markdown") or "", "matches": matches})
-
-
-@app.post("/api/notary/client")
-@login_required_api
-def api_notary_client():
-    body = request.get_json(silent=True) or {}
-    text = (body.get("text") or "").strip()
-    if len(text) < 10:
-        return jsonify({"error": "text_required"}), 400
-    out, err = _notary_run(notary_mod.client_comm,
-                           kind=(body.get("kind") or "shpjego").strip()[:30],
-                           text=text[:14000])
-    return err if err else out
-
-
-@app.post("/api/notary/whatif")
-@login_required_api
-def api_notary_whatif():
-    body = request.get_json(silent=True) or {}
-    act = (body.get("act") or "").strip()
-    change = (body.get("change") or "").strip()
-    if len(act) < 15 or len(change) < 4:
-        return jsonify({"error": "act_and_change_required"}), 400
-    out, err = _notary_run(notary_mod.what_if, act=act[:12000], change=change[:2000])
-    return err if err else out
-
-
-def _firm_clauses_text(body):
-    """Build the studio's preferred-clauses block, if the request opted in."""
-    if not (body or {}).get("use_clauses"):
-        return ""
-    firm = getattr(request, "firm", None)
-    if firm is None:
-        return ""
-    try:
-        cl = storage.list_firm_clauses(firm.id)
-    except Exception:  # noqa: BLE001
-        return ""
-    return "\n\n".join(
-        "\u2022 [%s] %s\n%s" % ((c.get("category") or "-"), (c.get("label") or ""),
-                                  (c.get("content") or "")[:1200])
-        for c in cl[:20])
-
-
-@app.get("/api/firm/dashboard")
-@login_required_api
-def api_firm_dashboard():
-    firm = getattr(request, "firm", None)
-    if firm is None:
-        return jsonify({"empty": True})
-    return jsonify(storage.firm_dashboard(firm.id))
-
-
-@app.get("/api/firm/clauses")
-@login_required_api
-def api_firm_clauses_list():
-    firm = getattr(request, "firm", None)
-    if firm is None:
-        return jsonify({"clauses": []})
-    return jsonify({"clauses": storage.list_firm_clauses(firm.id)})
-
-
-@app.post("/api/firm/clauses")
-@login_required_api
-def api_firm_clauses_add():
-    user = request.user  # type: ignore[attr-defined]
-    firm = getattr(request, "firm", None)
-    if firm is None:
-        return jsonify({"error": "no_firm"}), 400
-    body = request.get_json(silent=True) or {}
-    try:
-        cid = storage.add_firm_clause(firm.id, user.id,
-                                      label=(body.get("label") or "").strip(),
-                                      category=(body.get("category") or "").strip() or None,
-                                      content=(body.get("content") or "").strip())
-    except ValueError:
-        return jsonify({"error": "empty"}), 400
-    return jsonify({"id": cid, "ok": True}), 201
-
-
-@app.delete("/api/firm/clauses/<int:clause_id>")
-@login_required_api
-def api_firm_clauses_delete(clause_id: int):
-    firm = getattr(request, "firm", None)
-    if firm is None:
-        return jsonify({"ok": False}), 400
-    return jsonify({"ok": storage.delete_firm_clause(clause_id, firm.id)})
-
-
-@app.post("/api/prosecutor/indictment")
-@login_required_api
-@require_module("prokuror")
-def api_prosecutor_indictment():
-    _ensure_loaded()
-    if _BRAIN is None or _INDEX is None:
-        return jsonify({"error": "unavailable"}), 503
-    body = request.get_json(silent=True) or {}
-    facts = (body.get("facts") or "").strip()
-    if len(facts) < 15:
-        return jsonify({"error": "facts_required"}), 400
-    try:
-        res = prosecutor_mod.draft_indictment(_BRAIN.backend, _req_index(), facts=facts[:14000])
-    except Exception as exc:  # noqa: BLE001
-        log.exception("indictment failed")
-        return jsonify({"error": _safe_err(exc)}), 200
-    md = res.get("markdown") or ""
-    cits = {"items": [], "stats": {}}
-    try:
-        if md:
-            cits = cv_mod.verify_text(md, _req_index())
-    except Exception:  # noqa: BLE001
-        pass
-    return jsonify({"markdown": md, "citations": cits})
-
-
-def _pros_facts(fn, body, key="facts", minlen=15, **extra):
-    val = (body.get(key) or "").strip()
-    if len(val) < minlen:
-        return jsonify({"error": key + "_required"}), 400
-    kw = {key: val[:14000]}
-    kw.update(extra)
-    out, err = _notary_run(fn, **kw)
-    return err if err else out
-
-
-@app.get("/api/prosecutor/act-kinds")
-@login_required_api
-def api_prosecutor_act_kinds():
-    return jsonify({"kinds": prosecutor_mod.list_act_kinds()})
-
-
-@app.post("/api/prosecutor/investigation-plan")
-@login_required_api
-@require_module("prokuror")
-def api_prosecutor_plan():
-    return _pros_facts(prosecutor_mod.investigation_plan, request.get_json(silent=True) or {})
-
-
-@app.post("/api/prosecutor/investigative-act")
-@login_required_api
-@require_module("prokuror")
-def api_prosecutor_act():
-    body = request.get_json(silent=True) or {}
-    return _pros_facts(prosecutor_mod.investigative_act, body,
-                       kind=(body.get("kind") or "kontroll").strip()[:20])
-
-
-@app.post("/api/prosecutor/coercive-measure")
-@login_required_api
-@require_module("prokuror")
-def api_prosecutor_measure():
-    return _pros_facts(prosecutor_mod.coercive_measure, request.get_json(silent=True) or {})
-
-
-@app.post("/api/prosecutor/dismissal")
-@login_required_api
-@require_module("prokuror")
-def api_prosecutor_dismissal():
-    return _pros_facts(prosecutor_mod.dismissal_request, request.get_json(silent=True) or {})
-
-
-@app.post("/api/prosecutor/stress-test")
-@login_required_api
-@require_module("prokuror")
-def api_prosecutor_stress():
-    return _pros_facts(prosecutor_mod.stress_test, request.get_json(silent=True) or {},
-                       key="text", minlen=30)
-
-
-@app.post("/api/prosecutor/complaint")
-@login_required_api
-@require_module("prokuror")
-def api_prosecutor_complaint():
-    return _pros_facts(prosecutor_mod.citizen_complaint, request.get_json(silent=True) or {})
-
-
-@app.post("/api/prosecutor/victim-rights")
-@login_required_api
-@require_module("prokuror")
-def api_prosecutor_victim():
-    return _pros_facts(prosecutor_mod.victim_rights, request.get_json(silent=True) or {})
-
-
-@app.post("/api/prosecutor/dismissal-appeal")
-@login_required_api
-@require_module("prokuror")
-def api_prosecutor_appeal():
-    return _pros_facts(prosecutor_mod.dismissal_appeal, request.get_json(silent=True) or {})
-
-
-@app.post("/api/prosecutor/delay")
-@login_required_api
-@require_module("prokuror")
-def api_prosecutor_delay():
-    return _pros_facts(prosecutor_mod.delay_complaint, request.get_json(silent=True) or {})
-
-
-@app.post("/api/deep-verify")
-@login_required_api
-def api_deep_verify():
-    body = request.get_json(silent=True) or {}
-    text = (body.get("text") or "").strip()
-    if len(text) < 30:
-        return jsonify({"error": "text_required"}), 400
-    out, err = _notary_run(living_mod.verify_claims, text=text[:16000])
-    return err if err else out
-
-
-@app.post("/api/law-live")
-@login_required_api
-def api_law_live():
-    body = request.get_json(silent=True) or {}
-    q = (body.get("query") or "").strip()
-    if len(q) < 4:
-        return jsonify({"error": "query_required"}), 400
-    out, err = _notary_run(living_mod.check_law_live, query=q[:2000])
-    return err if err else out
-
-
-@app.post("/api/intake/triage")
-@login_required_api
-@require_module("avokat", "prokuror")
-def api_intake_triage():
-    _ensure_loaded()
-    if _BRAIN is None or _INDEX is None:
-        return jsonify({"error": "unavailable"}), 503
-    body = request.get_json(silent=True) or {}
-    story = (body.get("story") or "").strip()
-    if len(story) < 15:
-        return jsonify({"error": "story_required"}), 400
-    try:
-        res = intake_mod.triage(_BRAIN.backend, _req_index(), story=story[:8000])
-    except Exception as exc:  # noqa: BLE001
-        log.exception("intake failed")
-        return jsonify({"error": _safe_err(exc)}), 200
-    md = res.get("markdown") or ""
-    cits = {"items": [], "stats": {}}
-    try:
-        if md:
-            cits = cv_mod.verify_text(md, _req_index())
-    except Exception:  # noqa: BLE001
-        pass
-    return jsonify({"markdown": md, "route": res.get("route", "none"), "citations": cits})
-
-
-@app.get("/api/afati/triggers")
-@login_required_api
-def api_afati_triggers():
-    return jsonify({"triggers": afati_mod.list_triggers()})
-
-
-@app.post("/api/afati/compute")
-@login_required_api
-def api_afati_compute():
-    _ensure_loaded()
-    if _BRAIN is None or _INDEX is None:
-        return jsonify({"error": "unavailable"}), 503
-    body = request.get_json(silent=True) or {}
-    trigger = (body.get("trigger") or "tjeter").strip()[:30]
-    event_date = (body.get("event_date") or "").strip()[:20]
-    facts = (body.get("facts") or "").strip()[:6000]
-    try:
-        res = afati_mod.compute(_BRAIN.backend, _req_index(), trigger=trigger,
-                                event_date=event_date, facts=facts)
-    except Exception as exc:  # noqa: BLE001
-        log.exception("afati failed")
-        return jsonify({"error": _safe_err(exc)}), 200
-    md = res.get("markdown") or ""
-    cits = {"items": [], "stats": {}}
-    try:
-        if md:
-            cits = cv_mod.verify_text(md, _req_index())
-    except Exception:  # noqa: BLE001
-        pass
-    return jsonify({"markdown": md, "afatet": res.get("afatet", []), "citations": cits})
-
-
-@app.post("/api/deadlines/prescription")
-@login_required_api
-def api_prescription():
-    _ensure_loaded()
-    if _BRAIN is None or _INDEX is None:
-        return jsonify({"error": "unavailable"}), 503
-    body = request.get_json(silent=True) or {}
-    facts = (body.get("facts") or "").strip()
-    if len(facts) < 15:
-        return jsonify({"error": "facts_required"}), 400
-    try:
-        res = deadlines_mod.prescription(_BRAIN.backend, _req_index(), facts=facts[:8000])
-    except Exception as exc:  # noqa: BLE001
-        log.exception("prescription failed")
-        return jsonify({"error": _safe_err(exc)}), 200
-    md = res.get("markdown") or ""
-    cits = {"items": [], "stats": {}}
-    try:
-        if md:
-            cits = cv_mod.verify_text(md, _req_index())
-    except Exception:  # noqa: BLE001
-        pass
-    return jsonify({"markdown": md, "citations": cits})
-
-
-@app.post("/api/prosecutor/analyze")
-@login_required_api
-@require_module("prokuror")
-def api_prosecutor_analyze():
-    _ensure_loaded()
-    if _BRAIN is None or _INDEX is None:
-        return jsonify({"error": "unavailable"}), 503
-    body = request.get_json(silent=True) or {}
-    facts = (body.get("facts") or "").strip()
-    if len(facts) < 15:
-        return jsonify({"error": "facts_required"}), 400
-    try:
-        res = prosecutor_mod.analyze(_BRAIN.backend, _req_index(), facts=facts[:14000])
-    except Exception as exc:  # noqa: BLE001
-        log.exception("prosecutor failed")
-        return jsonify({"error": _safe_err(exc)}), 200
-    md = res.get("markdown") or ""
-    citations = {"items": [], "stats": {}}
-    try:
-        if md:
-            citations = cv_mod.verify_text(md, _req_index())
-    except Exception:  # noqa: BLE001
-        pass
-    return jsonify({"markdown": md, "citations": citations})
-
-
-@app.post("/api/expertise/analyze")
-@login_required_api
-@require_module("avokat", "prokuror")
-def api_expertise_analyze():
-    _ensure_loaded()
-    if _BRAIN is None or _INDEX is None:
-        return jsonify({"error": "unavailable"}), 503
-    body = request.get_json(silent=True) or {}
-    case_type = (body.get("case_type") or "").strip()
-    facts = (body.get("facts") or "").strip()
-    if len(facts) < 15:
-        return jsonify({"error": "facts_required"}), 400
-    try:
-        res = expertise_mod.analyze(_BRAIN.backend, _req_index(), case_type=case_type, facts=facts[:14000])
-    except ValueError:
-        return jsonify({"error": "unknown_case_type"}), 400
-    except Exception as exc:  # noqa: BLE001
-        log.exception("expertise failed")
-        return jsonify({"error": _safe_err(exc)}), 200
-    md = res.get("markdown") or ""
-    citations = {"items": [], "stats": {}}
-    try:
-        if md:
-            citations = cv_mod.verify_text(md, _req_index())
-    except Exception:  # noqa: BLE001
-        pass
-    return jsonify({"markdown": md, "citations": citations})
-
-
 @app.get("/api/firm/review-queue")
 @login_required_api
 def api_review_queue():
@@ -5238,26 +4123,6 @@ def api_export_case(case_id: str):
 
 # ── dossier (per-case documents) API ───────────────────────────────────────
 
-@app.get("/api/cases/<case_id>/conflicts")
-@login_required_api
-def api_case_conflicts(case_id: str):
-    """Adverse conflict-of-interest check for a case (deontology)."""
-    if _resolve_case(case_id) is None:
-        return jsonify({"error": "case_not_found"}), 404
-    firm = getattr(request, "firm", None)
-    if firm is None:
-        return jsonify({"parties": [], "conflicts": [], "related": [],
-                        "has_conflict": False, "no_firm": True})
-    try:
-        if not storage.list_parties_in_case(case_id):
-            _ensure_loaded()
-            text = _build_precedent_description(case_id, "")
-            conflicts_mod.maybe_extract(_BRAIN, case_id, firm.id, text)
-    except Exception as exc:  # noqa: BLE001
-        log.warning("conflict pre-extract failed: %s", exc)
-    return jsonify(conflicts_mod.check(case_id, firm.id))
-
-
 @app.post("/api/cases/<case_id>/vault")
 @login_required_api
 def api_vault_ask(case_id: str):
@@ -5279,34 +4144,6 @@ def api_vault_ask(case_id: str):
             "docs_used": [], "n_docs": 0,
         })
     return jsonify(result)
-
-
-@app.post("/api/cases/<case_id>/who-said")
-@login_required_api
-def api_who_said(case_id: str):
-    """Fashikulli intelligjent — who said what across the case documents."""
-    if _resolve_case(case_id) is None:
-        return jsonify({"error": "case_not_found"}), 404
-    _ensure_loaded()
-    if _BRAIN is None:
-        return jsonify({"error": "brain_unavailable"}), 503
-    try:
-        res = vault_mod.who_said_what(_BRAIN.backend, case_id)
-    except Exception as exc:  # noqa: BLE001
-        log.exception("who-said failed")
-        return jsonify({"error": _safe_err(exc)}), 200
-    if res.get("empty"):
-        return jsonify({"markdown": "Nuk ka dokumente të gatshme në këtë dosje. "
-                                    "Ngarko dokumente më parë (📎).", "n_docs": 0})
-    md = res.get("markdown") or ""
-    cits = {"items": [], "stats": {}}
-    try:
-        if md and _INDEX is not None:
-            cits = cv_mod.verify_text(md, _req_index())
-    except Exception:  # noqa: BLE001
-        pass
-    res["citations"] = cits
-    return jsonify(res)
 
 
 @app.get("/api/cases/<case_id>/documents")
@@ -5438,7 +4275,6 @@ def api_view_document(case_id: str, doc_id: str):
 
 @app.post("/api/ask")
 @login_required_api
-@require_module("avokat", "prokuror")
 def api_ask():
     _ensure_loaded()
     user = request.user  # type: ignore[attr-defined]
@@ -5500,7 +4336,7 @@ def api_ask():
         })
 
     if not _BRAIN:
-        hits = _req_index().search(message, top_k=10)
+        hits = _INDEX.search(message, top_k=10)
         articles = [_article_payload(a, s) for a, s in hits]
         text = ("⚠️ Motori AI nuk është i disponueshëm për momentin. "
                 "Po tregoj vetëm nenet që u gjetën për pyetjen tënde.")
@@ -5517,7 +4353,7 @@ def api_ask():
                                jurisdiction=getattr(case, "jurisdiction", "AL"))
     except Exception as exc:
         log.exception("brain failure")
-        err_text = html.escape(_safe_err(exc))
+        err_text = f"Gabim teknik: {type(exc).__name__}: {html.escape(str(exc))[:200]}"
         storage.add_message(case.id, "assistant", err_text, kind="error")
         return jsonify({"kind": "error", "text": err_text}), 500
 
@@ -5579,7 +4415,7 @@ def api_ask():
 
     retrieved_codes = {a.code for a, _ in result.retrieved}
     citations_payload = cv_mod.verify_text(
-        result.text or "", _req_index(), retrieved_codes=retrieved_codes,
+        result.text or "", _INDEX, retrieved_codes=retrieved_codes,
     )
 
     # V8.11 Citation Shield V2 — refusal preamble when all citations are
@@ -5590,13 +4426,6 @@ def api_ask():
         answer_text = cs_mod.apply_refusal(answer_text, jurisdiction="AL")
     if citations_payload.get("stats", {}).get("fake", 0) > 0:
         answer_text = cs_mod.annotate_fake_citations(answer_text, citations_payload)
-    try:
-        decision_citations = dv_mod.verify_decisions(
-            answer_text, _BRAIN.kb if _BRAIN is not None else None)
-    except Exception as exc:  # noqa: BLE001
-        log.warning("decision verify failed (non-fatal): %s", exc)
-        decision_citations = {"items": [], "stats": {"verified": 0, "unverified": 0, "total": 0}}
-
     provenance = cs_mod.build_provenance_pack(
         response_text=answer_text,
         user_message=message,
@@ -5632,7 +4461,6 @@ def api_ask():
         "opponent_playbook": opponent_payload,
         "leverage": leverage_payload,
         "citations": citations_payload,
-        "decision_citations": decision_citations,
         "provenance": provenance.to_dict(),
         "case_id": case.id,
     })
@@ -5645,7 +4473,6 @@ def api_ask():
 # at the end — the UI just shows a spinner during that wait.
 @app.post("/api/ask/stream")
 @login_required_api
-@require_module("avokat", "prokuror")
 def api_ask_stream():
     _ensure_loaded()
     user = request.user  # type: ignore[attr-defined]
@@ -5779,7 +4606,7 @@ def api_ask_stream():
 
             retrieved_codes = {a.code for a, _ in result.retrieved}
             citations_payload = cv_mod.verify_text(
-                result.text or "", _req_index(), retrieved_codes=retrieved_codes,
+                result.text or "", _INDEX, retrieved_codes=retrieved_codes,
             )
 
             # V8.11 Citation Shield V2 — same logic as the blocking path
@@ -5830,7 +4657,7 @@ def api_ask_stream():
             })
         except Exception as exc:
             log.exception("stream failure")
-            err_text = html.escape(_safe_err(exc))
+            err_text = f"Gabim teknik: {type(exc).__name__}: {html.escape(str(exc))[:200]}"
             try:
                 storage.add_message(case.id, "assistant", err_text, kind="error")
             except Exception:
@@ -6039,59 +4866,6 @@ def api_list_events():
     return jsonify({"events": payload})
 
 
-@app.get("/api/agenda/upcoming")
-@login_required_api
-def api_agenda_upcoming():
-    """Deadline safety-net: overdue + upcoming (not-done) events."""
-    from datetime import datetime, timedelta, UTC
-    user = request.user  # type: ignore[attr-defined]
-    try:
-        days = int(request.args.get("days") or 7)
-    except (TypeError, ValueError):
-        days = 7
-    days = max(1, min(days, 60))
-    now = datetime.now(UTC)
-    back = (now - timedelta(days=30)).isoformat().replace("+00:00", "Z")
-    ahead = (now + timedelta(days=days)).isoformat().replace("+00:00", "Z")
-    events = storage.list_events(user.id, start=back, end=ahead)
-
-    def _parse(v):
-        try:
-            return datetime.fromisoformat((v or "").replace("Z", "+00:00"))
-        except Exception:  # noqa: BLE001
-            return None
-
-    case_titles: dict = {}
-    overdue, upcoming = [], []
-    for e in events:
-        if e.done:
-            continue
-        ct = None
-        if e.case_id:
-            if e.case_id not in case_titles:
-                c = _resolve_case(e.case_id)
-                case_titles[e.case_id] = c.title if c else None
-            ct = case_titles[e.case_id]
-        dt = _parse(e.starts_at)
-        item = {"id": e.id, "title": e.title, "kind": e.kind,
-                "starts_at": e.starts_at, "location": e.location,
-                "case_title": ct}
-        if dt is not None and dt < now:
-            item["days_overdue"] = (now - dt).days
-            overdue.append(item)
-        else:
-            if dt is not None:
-                item["days_until"] = (dt - now).days
-            upcoming.append(item)
-    today_n = sum(1 for it in upcoming if it.get("days_until") == 0)
-    return jsonify({
-        "overdue": overdue,
-        "upcoming": upcoming,
-        "counts": {"overdue": len(overdue), "upcoming": len(upcoming),
-                   "today": today_n, "days": days},
-    })
-
-
 @app.get("/api/firm/calendar")
 @login_required_api
 def api_firm_calendar():
@@ -6239,54 +5013,6 @@ def api_settings_telegram_set():
     return jsonify({"linked": bool(raw)})
 
 
-@app.get("/api/settings/whatsapp")
-@login_required_api
-def api_settings_whatsapp_get():
-    from .config import WHATSAPP_TOKEN, WHATSAPP_PHONE_NUMBER_ID, WHATSAPP_TEMPLATE_NAME
-    user = request.user  # type: ignore[attr-defined]
-    phone = storage.get_user_whatsapp(user.id)
-    backend_ready = bool(WHATSAPP_TOKEN and WHATSAPP_PHONE_NUMBER_ID and WHATSAPP_TEMPLATE_NAME)
-    return jsonify({"phone": phone, "linked": bool(phone), "backend_ready": backend_ready})
-
-
-@app.post("/api/settings/whatsapp")
-@login_required_api
-def api_settings_whatsapp_set():
-    user = request.user  # type: ignore[attr-defined]
-    data = request.get_json(silent=True) or {}
-    raw = (data.get("phone") or "").strip()
-    digits = re.sub(r"[^\d]", "", raw)
-    if raw and not (6 <= len(digits) <= 15):
-        return jsonify({"error": "Numri i WhatsApp duhet 6–15 shifra (me prefiks shteti, p.sh. 3556…)"}), 400
-    storage.set_user_whatsapp(user.id, digits or None)
-    return jsonify({"linked": bool(digits), "phone": digits or None})
-
-
-@app.get("/api/settings/reminder-email")
-@login_required_api
-def api_settings_reminder_email_get():
-    from .config import RESEND_API_KEY, REMINDER_EMAIL_FROM
-    user = request.user  # type: ignore[attr-defined]
-    email = storage.get_user_reminder_email(user.id)
-    uname = getattr(user, "username", "") or ""
-    suggestion = uname if ("@" in uname and "." in uname) else None
-    backend_ready = bool(RESEND_API_KEY and REMINDER_EMAIL_FROM)
-    return jsonify({"email": email, "linked": bool(email),
-                    "suggestion": suggestion, "backend_ready": backend_ready})
-
-
-@app.post("/api/settings/reminder-email")
-@login_required_api
-def api_settings_reminder_email_set():
-    user = request.user  # type: ignore[attr-defined]
-    data = request.get_json(silent=True) or {}
-    raw = (data.get("email") or "").strip()
-    if raw and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", raw):
-        return jsonify({"error": "Email e pavlefshme"}), 400
-    storage.set_user_reminder_email(user.id, raw or None)
-    return jsonify({"linked": bool(raw), "email": raw or None})
-
-
 @app.get("/api/calendar/ical/<token>.ics")
 def api_ical_feed(token: str):
     """Public iCal feed — auth is the token itself, so users can paste the
@@ -6410,7 +5136,7 @@ def api_stress_test_create(case_id: str):
         return jsonify({"error": "hypothesis too short (min 20 chars)"}), 400
     try:
         result = pro_mod.stress_test_hearing(
-            _BRAIN.backend, _req_index(), hypothesis,
+            _BRAIN.backend, _INDEX, hypothesis,
             case_docs=_load_case_docs(case.id),
         )
     except Exception as exc:
@@ -6481,7 +5207,7 @@ def api_citation_audit_create():
     if case_id and not _resolve_case(case_id):
         return jsonify({"error": "case not found"}), 404
     try:
-        result = pro_mod.audit_citations(_BRAIN.backend, _req_index(), source_text)
+        result = pro_mod.audit_citations(_BRAIN.backend, _INDEX, source_text)
     except Exception as exc:
         log.exception("citation audit failure")
         return jsonify({"error": f"{type(exc).__name__}: {exc}"}), 500
@@ -6534,7 +5260,6 @@ def api_act_types():
 
 @app.post("/api/draft-act")
 @login_required_api
-@require_module("avokat", "prokuror")
 def api_draft_act_create():
     _ensure_loaded()
     user = request.user  # type: ignore[attr-defined]
@@ -6555,7 +5280,7 @@ def api_draft_act_create():
         case_docs = _load_case_docs(case_id)
     try:
         draft = pro_mod.draft_act(
-            _BRAIN.backend, _req_index(),
+            _BRAIN.backend, _INDEX,
             act_type=act_type, brief=brief, case_docs=case_docs,
         )
     except Exception as exc:
@@ -6603,42 +5328,6 @@ def api_draft_act_docx(act_id: str):
     safe_name = f"{row.act_type}-{row.created_at[:10]}.docx"
     return send_file(
         out_path, as_attachment=True, download_name=safe_name,
-        mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    )
-
-
-@app.post("/api/export/docx")
-@login_required_api
-def api_export_docx():
-    """Generic: any Copilota markdown output -> downloadable .docx."""
-    data = request.get_json(silent=True) or {}
-    md = (data.get("markdown") or "").strip()
-    title = (data.get("title") or "Dokument").strip()
-    if len(md) < 5:
-        return Response("empty", status=400)
-    # light inline-markdown cleanup so the .docx reads cleanly
-    lines = []
-    for ln in md.split("\n"):
-        t = ln.rstrip()
-        st = t.lstrip()
-        # normalise "* bullet" -> "- bullet" (render_act_docx handles "- ")
-        if st.startswith("* ") and not st.startswith("**"):
-            t = t[: len(t) - len(st)] + "- " + st[2:]
-        t = re.sub(r"\*\*(.+?)\*\*", r"\1", t)   # bold
-        t = re.sub(r"`([^`]+)`", r"\1", t)          # inline code
-        t = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r"\1 (\2)", t)  # links
-        lines.append(t)
-    draft = {"title": title, "body_markdown": "\n".join(lines)}
-    safe = re.sub(r"[^0-9A-Za-zçëÇË _-]", "", title)[:60].strip() or "dokument"
-    out_dir = APP_DB_PATH.parent / "exports"
-    out_path = out_dir / (safe.replace(" ", "_") + ".docx")
-    try:
-        pro_mod.render_act_docx(draft, out_path)
-    except Exception as exc:  # noqa: BLE001
-        log.exception("export docx failure")
-        return Response(f"render error: {exc}", status=500)
-    return send_file(
-        out_path, as_attachment=True, download_name=safe + ".docx",
         mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     )
 
@@ -7083,73 +5772,13 @@ def api_admin_audit_export():
 # create, delete, or reset passwords for other users. Any logged-in user can
 # change their OWN password.
 
-@app.before_request
-def _arm_jurisdiction():
-    """Ogni richiesta porta con se la propria giurisdizione: i moduli la
-    leggono da brain.request_jurisdiction() senza doverla passare a mano."""
-    try:
-        from . import brain as _brain_mod
-        _brain_mod.set_request_jurisdiction(
-            _active_jurisdiction(getattr(request, "user", None)))
-    except Exception:  # noqa: BLE001
-        pass
-
-
-def _active_jurisdiction(user):
-    """The jurisdiction locked for THIS session — one of the user's entitled
-    countries. The brain loads only this law + language (no mixing). Defaults
-    to the session choice if allowed, else AL, else the first entitled."""
-    from flask import session
-    allowed = storage.user_jurisdictions(user)
-    j = (session.get("jurisdiction") or "").upper()
-    if j in allowed:
-        return j
-    return "AL" if "AL" in allowed else sorted(allowed)[0]
-
-
-def _index_for(user):
-    """Article index for the user's active jurisdiction — Italian corpus for IT
-    sessions, Albanian otherwise."""
-    try:
-        if _INDEX_IT is not None and user is not None and _active_jurisdiction(user) == "IT":
-            return _INDEX_IT
-    except Exception:  # noqa: BLE001
-        pass
-    return _INDEX
-
-
-def _req_index():
-    """Index for the current request's user (safe if unauthenticated -> AL)."""
-    return _index_for(getattr(request, "user", None))
-
-
 def _user_payload(u) -> dict:
-    from datetime import datetime, UTC
-    reason = storage.access_block_reason(u)
-    status = "admin" if u.is_admin else (reason or "active")
-    plan = getattr(u, "plan_expires_at", None)
-    demo = getattr(u, "demo_expires_at", None)
-    days_left = None
-    exp = plan or demo
-    if exp and not u.is_admin:
-        try:
-            dt = datetime.fromisoformat(exp.replace("Z", "+00:00"))
-            days_left = (dt - datetime.now(UTC)).days
-        except Exception:  # noqa: BLE001
-            days_left = None
     return {
         "id": u.id,
         "username": u.username,
         "is_admin": u.is_admin,
-        "created_at": (u.created_at.isoformat() if hasattr(getattr(u, "created_at", None), "isoformat") else getattr(u, "created_at", None)),
+        "created_at": u.created_at.isoformat() if hasattr(u, "created_at") and u.created_at else None,
         "suspended": bool(getattr(u, "suspended", False)),
-        "profession": getattr(u, "profession", "avokat"),
-        "modules": sorted(storage.user_modules(u)),
-        "jurisdictions": sorted(storage.user_jurisdictions(u)),
-        "plan_expires_at": plan,
-        "demo_expires_at": demo,
-        "status": status,
-        "days_left": days_left,
     }
 
 
@@ -7179,165 +5808,13 @@ def api_admin_users_create():
         return jsonify({"error": "password troppo corta (min 6 caratteri)"}), 400
     if storage.get_user_by_username(username):
         return jsonify({"error": f"utente '{username}' esiste già"}), 409
-    profession = (data.get("profession") or "avokat").strip()
     new_user = storage.create_user(
         username=username,
         password_hash=hash_password(password),
         is_admin=is_admin_flag,
-        profession=profession,
     )
-    mods = data.get("modules")
-    if isinstance(mods, list) and any(m in storage.VALID_MODULES for m in mods):
-        storage.set_user_modules(new_user.id, mods)
-    elif profession in storage.VALID_MODULES:
-        storage.set_user_modules(new_user.id, [profession])
-    if data.get("plan_expires_at"):
-        storage.set_user_plan_expiry(new_user.id, str(data["plan_expires_at"]))
-    new_user = storage.get_user_by_id(new_user.id)
     log.info("admin %s created user %s (admin=%s)", user.username, username, is_admin_flag)
     return jsonify(_user_payload(new_user)), 201
-
-
-@app.post("/api/admin/firms")
-@login_required_api
-def api_admin_create_firm():
-    """Admin: create a new studio (firm) and assign its owner."""
-    user = request.user  # type: ignore[attr-defined]
-    if not user.is_admin:
-        return jsonify({"error": "forbidden"}), 403
-    data = request.get_json(silent=True) or {}
-    name = (data.get("name") or "").strip()
-    owner_username = (data.get("owner_username") or "").strip().lower()
-    if not name:
-        return jsonify({"error": "emri i studios mungon"}), 400
-    if owner_username:
-        owner = storage.get_user_by_username(owner_username)
-        if owner is None:
-            return jsonify({"error": f"përdoruesi '{owner_username}' nuk ekziston"}), 404
-    else:
-        owner = user
-    try:
-        firm = storage.create_firm(name, owner.id)
-    except ValueError as exc:
-        return jsonify({"error": str(exc)}), 400
-    log.info("admin %s created firm '%s' (owner=%s)", user.username, name, owner.username)
-    return jsonify({"id": firm.id, "name": firm.name,
-                    "owner": owner.username}), 201
-
-
-@app.patch("/api/admin/users/<int:user_id>/profession")
-@login_required_api
-def api_admin_set_profession(user_id):
-    user = request.user  # type: ignore[attr-defined]
-    if not user.is_admin:
-        return jsonify({"error": "forbidden"}), 403
-    prof = ((request.get_json(silent=True) or {}).get("profession") or "").strip()
-    if not storage.set_user_profession(user_id, prof):
-        return jsonify({"error": "profesion i pavlefshëm"}), 400
-    return jsonify({"ok": True, "profession": prof})
-
-
-@app.patch("/api/admin/users/<int:user_id>/modules")
-@login_required_api
-def api_admin_set_modules(user_id):
-    user = request.user  # type: ignore[attr-defined]
-    if not user.is_admin:
-        return jsonify({"error": "forbidden"}), 403
-    mods = (request.get_json(silent=True) or {}).get("modules")
-    if not isinstance(mods, list) or not any(m in storage.VALID_MODULES for m in mods):
-        return jsonify({"error": "të paktën një modul i vlefshëm"}), 400
-    if not storage.set_user_modules(user_id, mods):
-        return jsonify({"error": "dështoi"}), 400
-    return jsonify(_user_payload(storage.get_user_by_id(user_id)))
-
-
-@app.patch("/api/admin/users/<int:user_id>/plan")
-@login_required_api
-def api_admin_set_plan(user_id):
-    """Set/extend/clear subscription expiry. Body: {months:N} extend from
-    max(now, current); {expires_at:"ISO"} explicit; {clear:true} permanent."""
-    from datetime import datetime, UTC
-    import calendar
-    user = request.user  # type: ignore[attr-defined]
-    if not user.is_admin:
-        return jsonify({"error": "forbidden"}), 403
-    target = storage.get_user_by_id(user_id)
-    if target is None:
-        return jsonify({"error": "user not found"}), 404
-    data = request.get_json(silent=True) or {}
-    if data.get("clear"):
-        storage.set_user_plan_expiry(user_id, None)
-        return jsonify(_user_payload(storage.get_user_by_id(user_id)))
-    if data.get("expires_at"):
-        storage.set_user_plan_expiry(user_id, str(data["expires_at"]))
-        return jsonify(_user_payload(storage.get_user_by_id(user_id)))
-    if data.get("months"):
-        try:
-            months = int(data["months"])
-        except (TypeError, ValueError):
-            return jsonify({"error": "muaj i pavlefshëm"}), 400
-        now = datetime.now(UTC)
-        base = now
-        cur = getattr(target, "plan_expires_at", None)
-        if cur:
-            try:
-                curdt = datetime.fromisoformat(cur.replace("Z", "+00:00"))
-                if curdt > now:
-                    base = curdt
-            except Exception:  # noqa: BLE001
-                base = now
-        m = base.month - 1 + months
-        y = base.year + m // 12
-        m = m % 12 + 1
-        d = min(base.day, calendar.monthrange(y, m)[1])
-        newdt = base.replace(year=y, month=m, day=d)
-        storage.set_user_plan_expiry(user_id, newdt.strftime("%Y-%m-%dT%H:%M:%SZ"))
-        return jsonify(_user_payload(storage.get_user_by_id(user_id)))
-    return jsonify({"error": "specifiko months, expires_at ose clear"}), 400
-
-
-@app.get("/api/session/jurisdiction")
-@login_required_api
-def api_session_jurisdiction_get():
-    user = request.user  # type: ignore[attr-defined]
-    return jsonify({"active": _active_jurisdiction(user),
-                    "available": sorted(storage.user_jurisdictions(user))})
-
-
-@app.post("/api/session/jurisdiction")
-@login_required_api
-def api_session_jurisdiction_set():
-    from flask import session
-    user = request.user  # type: ignore[attr-defined]
-    j = ((request.get_json(silent=True) or {}).get("jurisdiction") or "").upper()
-    if j not in storage.user_jurisdictions(user):
-        return jsonify({"error": "juridiksion i palejuar"}), 403
-    session["jurisdiction"] = j
-    return jsonify({"active": j})
-
-
-@app.patch("/api/admin/users/<int:user_id>/jurisdictions")
-@login_required_api
-def api_admin_set_jurisdictions(user_id):
-    user = request.user  # type: ignore[attr-defined]
-    if not user.is_admin:
-        return jsonify({"error": "forbidden"}), 403
-    js = (request.get_json(silent=True) or {}).get("jurisdictions")
-    if not isinstance(js, list) or not any(str(x).strip().upper() in storage.VALID_JURISDICTIONS for x in js):
-        return jsonify({"error": "të paktën një juridiksion i vlefshëm"}), 400
-    if not storage.set_user_jurisdictions(user_id, js):
-        return jsonify({"error": "dështoi"}), 400
-    return jsonify(_user_payload(storage.get_user_by_id(user_id)))
-
-
-@app.patch("/api/me/profession")
-@login_required_api
-def api_me_set_profession():
-    user = request.user  # type: ignore[attr-defined]
-    prof = ((request.get_json(silent=True) or {}).get("profession") or "").strip()
-    if not storage.set_user_profession(user.id, prof):
-        return jsonify({"error": "profesion i pavlefshëm"}), 400
-    return jsonify({"ok": True, "profession": prof})
 
 
 @app.patch("/api/admin/users/<int:user_id>/password")

@@ -11,6 +11,19 @@ from __future__ import annotations
 
 from .logging_utils import get_logger
 
+def _juris(system_prompt: str) -> str:
+    """System prompt adattato alla giurisdizione della richiesta.
+
+    Import differito: brain.py importa alcuni di questi moduli, quindi un
+    import in testa creerebbe un ciclo."""
+    try:
+        from .brain import apply_current
+        return apply_current(system_prompt)
+    except Exception:  # noqa: BLE001
+        return system_prompt
+
+
+
 log = get_logger(__name__)
 
 FABLE_MODEL = "fable"
@@ -50,7 +63,7 @@ def review(backend, *, question: str, answer_text: str,
         + "\n\nJep second-opinion-in tEnd tE mprehtE, konkret dhe tE ankoruar."
     )
     md = backend.complete(
-        system=_SYSTEM,
+        system=_juris(_SYSTEM),
         messages=[{"role": "user", "content": prompt}],
         max_tokens=max_tokens,
         model_override=FABLE_MODEL,
@@ -78,7 +91,7 @@ def consult(backend, *, situation: str, max_tokens: int = 1600) -> dict:
     prompt = ("SITUATA:\n" + (situation or "").strip()
               + "\n\nJep konsulencEn tEnde tE mprehtE, konkrete dhe tE ankoruar.")
     md = backend.complete(
-        system=_CONSULT_SYSTEM,
+        system=_juris(_CONSULT_SYSTEM),
         messages=[{"role": "user", "content": prompt}],
         max_tokens=max_tokens,
         model_override=FABLE_MODEL,

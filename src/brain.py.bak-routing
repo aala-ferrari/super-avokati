@@ -34,7 +34,6 @@ The brain is stateless; callers persist the conversation history they pass in.
 from __future__ import annotations
 
 import hashlib
-import threading as _threading
 import json
 import re
 import textwrap
@@ -118,16 +117,6 @@ STREAM_STATUS_SQ: dict[str, str] = {
     "complex_composing":     "Po shkruaj përgjigjen përfundimtare — verifikoj çdo nen e shifër para se ta jap, që të jesh i sigurt…",
 }
 
-STREAM_STATUS_IT: dict[str, str] = {
-    "followup_answering":    "Ti rispondo…",
-    "simple_composing":      "Sto preparando la risposta…",
-    "complex_retrieving":    "Sto cercando gli articoli pertinenti…",
-    "complex_precedents":    "Sto leggendo le decisioni dei giudici…",
-    "complex_analyzing":     "Sto analizzando il caso con la massima cura da piu angolazioni e verifico norme e importi sulle fonti ufficiali — prima la precisione, poi la velocita: servono alcuni minuti…",
-    "complex_urgency":       "Sto valutando urgenze e termini…",
-    "complex_composing":     "Sto scrivendo la risposta definitiva — verifico ogni articolo e ogni importo prima di dartela…",
-}
-
 
 # ── V8.13 multi-jurisdiction ─────────────────────────────────────────────
 #
@@ -148,33 +137,19 @@ JURISDICTION_PREAMBLE_IT = """━━━ CONTESTO GIURISDIZIONALE ━━━
 Questo caso è incardinato nella giurisdizione ITALIANA. Devi:
 
 • Rispondere IN ITALIANO (registro tecnico-giuridico, terza persona).
-• Applicare il diritto italiano. Il sistema ha una BASE NORMATIVA ITALIANA
-    UFFICIALE indicizzata (testi vigenti da Normattiva): Costituzione, Codice
-    Civile e disp. att., Codice di Procedura Civile, Codice Penale, Codice di
-    Procedura Penale e disp. att., Codice della Strada e relativo Regolamento
-    di esecuzione, Codice del Consumo, Codice della Crisi d'Impresa e
-    dell'Insolvenza, TULPS e ordinamento della Pubblica Sicurezza, Statuto dei
-    Lavoratori, TU Sicurezza sul Lavoro, TU Bancario, TU della Finanza, Codice
-    della Proprietà Industriale, Codice del Terzo Settore, Codice delle
-    Assicurazioni Private, D.Lgs 231/2001, L. 241/1990, Codice del Processo
-    Amministrativo, CAD, DPR 445/2000, Codice dei Contratti Pubblici,
-    L. 689/1981, TU Spese di Giustizia, Codice Privacy, Codice dell'Ambiente,
-    TU Edilizia, TU Immigrazione, Codice Antimafia, TUIR, Codice dei Beni
-    Culturali, Codice della Navigazione, DPR 309/1990 (stupefacenti),
-    Ordinamento Penitenziario, Codice Pari Opportunità, Codice Protezione
-    Civile, L. 898/1970, L. 184/1983, Legge Pinto — oltre al GDPR
-    (reg. UE 2016/679) e alle direttive UE rilevanti.
-• FONDA la risposta sugli articoli RECUPERATI e forniti nel contesto: cita il
-    testo reale, non la memoria. Gli articoli recuperati hanno la precedenza
-    sulla tua conoscenza generale.
+• Applicare il diritto italiano: Codice Civile, Codice di Procedura Civile,
+    Codice Penale, Codice di Procedura Penale, Costituzione della Repubblica,
+    Codice del Consumo, Statuto dei Lavoratori, GDPR (regolamento UE 2016/679),
+    direttive UE rilevanti.
 • Citare gli articoli nella forma "art. 1418 c.c." / "art. 2043 c.c." /
-    "art. 81 c.p." / "art. 414 c.p.c." / "art. 186 C.d.S." / "art. 33 Codice
-    del Consumo" (NON nella forma albanese "Neni X").
-• Se una norma NON compare tra gli articoli recuperati e non ne sei certo,
-    dichiararlo esplicitamente e raccomandare la verifica su Normattiva /
-    Gazzetta Ufficiale. Non inventare MAI numeri di articolo: se non sei certo
-    del numero, scrivi "art. N (da verificare)" piuttosto che fabbricarlo.
-• La knowledge base ALBANESE non si applica a questo caso: non citarla mai.
+    "art. 81 c.p." / "art. 414 c.p.c." (NON nella forma albanese "Neni X").
+• Se la base normativa italiana applicabile non ti è certa, dichiararlo
+    esplicitamente e raccomandare verifica con fonti normative aggiornate
+    (Normattiva, Gazzetta Ufficiale).
+• La knowledge base albanese collegata al sistema NON contiene il diritto
+    italiano: usa la tua conoscenza giuridica generale; non inventare numeri
+    di articolo. Se non sei certo del numero, scrivi "art. N.N. c.c. (da
+    verificare)" piuttosto che fabbricare un riferimento.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -222,71 +197,10 @@ def jurisdiction_preamble(jurisdiction: str | None) -> str:
     return JURISDICTION_PREAMBLE_AL
 
 
-JURISDICTION_OVERRIDE_IT = """
-
-━━━ ISTRUZIONE FINALE — PREVALE SU TUTTO QUANTO PRECEDE ━━━
-Questo caso e ITALIANO. Ignora ogni istruzione precedente che imponga la
-lingua albanese o il diritto albanese: quelle regole NON si applicano qui.
-
-• Scrivi TUTTO in ITALIANO (titoli, elenchi, campi JSON, note): nessuna
-    parola in albanese, nemmeno nelle etichette.
-• Applica ESCLUSIVAMENTE il diritto italiano. NON citare mai Kodi Civil,
-    Kodi Penal, KPC, KPP, Kushtetuta e Republikes se Shqiperise o altre
-    fonti albanesi: in un atto italiano sono un errore professionale.
-• Cita nella forma italiana: "art. 1655 c.c.", "art. 633 c.p.c.",
-    "art. 640 c.p.", "art. 21 Cost.", "art. 186 C.d.S.".
-• Fonda le affermazioni sugli articoli RECUPERATI nel contesto; se una
-    norma non compare tra questi e non ne sei certo, dillo apertamente e
-    rimanda alla verifica su Normattiva invece di inventare il numero.
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-"""
-
-JURISDICTION_OVERRIDE_EU = """
-
-━━━ FINAL INSTRUCTION — OVERRIDES EVERYTHING ABOVE ━━━
-This matter is governed by EU law. Ignore any earlier instruction imposing
-Albanian language or Albanian law. Write everything in English, apply EU
-law only, and never cite Albanian sources.
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-"""
-
-
-# Contesto di giurisdizione PER RICHIESTA, condiviso da tutti i moduli.
-# web.py lo imposta a ogni richiesta; i moduli separati (perizie, notaio,
-# avversario, …) lo leggono via apply_current(), altrimenti userebbero i
-# prompt albanesi anche in sessione IT.
-_REQUEST_JURISDICTION = _threading.local()
-
-
-def set_request_jurisdiction(code: str | None) -> None:
-    _REQUEST_JURISDICTION.code = (code or "AL").upper()
-
-
-def request_jurisdiction() -> str:
-    return getattr(_REQUEST_JURISDICTION, "code", None) or "AL"
-
-
-def apply_current(system_prompt: str) -> str:
-    """Come apply_jurisdiction, ma legge la giurisdizione della richiesta."""
-    return apply_jurisdiction(system_prompt, request_jurisdiction())
-
-
 def apply_jurisdiction(system_prompt: str, jurisdiction: str | None) -> str:
-    """Wrap a system prompt with the jurisdiction context.
-
-    The base prompts are Albanian-native: prepending the preamble is not
-    enough, because the Albanian language rules that follow would win by
-    recency. For IT/EU the constraint is therefore repeated AFTER the prompt
-    as an explicit override."""
+    """Prepend the jurisdiction preamble to a system prompt."""
     pre = jurisdiction_preamble(jurisdiction)
-    if not pre:
-        return system_prompt
-    j = (jurisdiction or "AL").upper()
-    if j == "IT":
-        return pre + system_prompt + JURISDICTION_OVERRIDE_IT
-    if j == "EU":
-        return pre + system_prompt + JURISDICTION_OVERRIDE_EU
-    return pre + system_prompt
+    return pre + system_prompt if pre else system_prompt
 
 
 ALBANIAN_LANGUAGE_RULES = """── RREGULLA GJUHËSORE (shqipe standarde juridike) ──
@@ -353,7 +267,7 @@ RREGULL KRITIK për 'areas': kur rasti prek një kod material, përfshi GJITHMON
   - Doganor, Rrugor, Administrativ, Zgjedhor → përfshi "Administrativ"
 Kjo sepse avokatët fitojnë kauzat te rregullat procedurale (afate, mjete ankimi, barra e provës), jo vetëm te ligji material.
 
-RREGULL FISKAL/NUMERIK: nëse pyetja kërkon një SHUMË ose PËRQINDJE (dogana, taksa, akcizë, tarifa, gjoba, çmime, afate me numra), shto te 'search_queries' të paktën NJË kërkim për tarifën/shifrën zyrtare (p.sh. 'tarifa doganore akciza automjete cilindrata mosha VKM') dhe te 'strategic_angles' këndin 'shifrat zyrtare aktuale të tarifës/akcizës (kërkim web) + rivlerësimi i vlerës doganore sipas Nenit 66/70'. Për pyetje që kërkojnë një SHUMË ose PËRQINDJE konkrete (sa paguaj/sa është/sa përqind te dogana, taksa, akciza), vendos complexity='complex' — sepse duhet kërkim web për shifrat zyrtare aktuale dhe fast-path nuk ka vegla web.
+RREGULL FISKAL/NUMERIK: nëse pyetja kërkon një SHUMË ose PËRQINDJE (dogana, taksa, akcizë, tarifa, gjoba, çmime, afate me numra), shto te 'search_queries' të paktën NJË kërkim për tarifën/shifrën zyrtare (p.sh. 'tarifa doganore akciza automjete cilindrata mosha VKM') dhe te 'strategic_angles' këndin 'shifrat zyrtare aktuale të tarifës/akcizës (kërkim web) + rivlerësimi i vlerës doganore sipas Nenit 66/70'.
 
 Përgjigju vetëm me një objekt JSON me këtë strukturë EKZAKTE:
 {{
@@ -1683,7 +1597,6 @@ class SuperAvvocato:
         index: ArticleIndex | None = None,
         kb: LegalKBRetriever | None = None,
         backend: LLMBackend | None = None,
-        index_it: ArticleIndex | None = None,
     ):
         self.backend = backend or build_backend()
         # V8.13 — per-thread jurisdiction context. answer() / answer_stream()
@@ -1693,7 +1606,6 @@ class SuperAvvocato:
         import threading as _threading
         self._jurisdiction_ctx = _threading.local()
         self.index = index or ArticleIndex.load()
-        self.index_it = index_it  # V-IT: optional Italian corpus
         # Legal KB (Postgres) is optional — if the DB is unreachable the
         # brain still works on articles alone. We don't want an outage of
         # the precedent store to take down the citizen-facing answer flow.
@@ -1716,15 +1628,6 @@ class SuperAvvocato:
 
     def _current_jurisdiction(self) -> str:
         return getattr(self._jurisdiction_ctx, "code", None) or "AL"
-
-    def _status(self, key: str) -> str:
-        """Messaggio di avanzamento nella lingua della giurisdizione attiva."""
-        try:
-            if self._current_jurisdiction() == "IT":
-                return STREAM_STATUS_IT.get(key, STREAM_STATUS_SQ.get(key, ""))
-        except Exception:  # noqa: BLE001
-            pass
-        return STREAM_STATUS_SQ.get(key, "")
 
     def _system_for(self, prompt: str) -> str:
         """Prepend the active jurisdiction preamble to a system prompt."""
@@ -1808,7 +1711,6 @@ class SuperAvvocato:
         documents = documents or []
         # V8.13 — pin jurisdiction context for the lifetime of the stream.
         self._jurisdiction_ctx.code = (jurisdiction or "AL").upper()
-        set_request_jurisdiction(jurisdiction)
         backend = self.backend
         can_stream = (
             getattr(backend, "name", "") == "claude_code"
@@ -1825,7 +1727,7 @@ class SuperAvvocato:
             and not documents
         ):
             log.info("stream: followup fast-path")
-            yield ("status", self._status("followup_answering"))
+            yield ("status", STREAM_STATUS_SQ["followup_answering"])
             collected: list[str] = []
             new_sid = session_id
             for kind, payload in backend.complete_stream(
@@ -1877,7 +1779,7 @@ class SuperAvvocato:
             and not documents
         ):
             log.info("stream: simple fast-path")
-            yield ("status", self._status("simple_composing"))
+            yield ("status", STREAM_STATUS_SQ["simple_composing"])
             context = _format_articles_for_prompt(retrieved)
             prompt = textwrap.dedent(f"""\
                 Pyetja:
@@ -1920,7 +1822,7 @@ class SuperAvvocato:
         # lines between phases so the UI isn't silent for 5-8 minutes,
         # and streams the final Opus compose token-by-token.
         log.info("stream: complex path — streaming pipeline")
-        yield ("status", self._status("complex_retrieving"))
+        yield ("status", STREAM_STATUS_SQ["complex_retrieving"])
 
         cited_pairs = [(a.code, a.number) for a, _ in retrieved]
         try:
@@ -1930,7 +1832,7 @@ class SuperAvvocato:
             precedents = []
         log.info("stream: retrieved %d precedents", len(precedents))
 
-        yield ("status", self._status("complex_precedents"))
+        yield ("status", STREAM_STATUS_SQ["complex_precedents"])
         try:
             adverse_precedents = self._retrieve_adverse_precedents(
                 triage, cited_pairs)
@@ -1943,7 +1845,7 @@ class SuperAvvocato:
                 precedents.append((c, s))
                 seen_ids.add(c.id)
 
-        yield ("status", self._status("complex_analyzing"))
+        yield ("status", STREAM_STATUS_SQ["complex_analyzing"])
         stage_plan: dict[str, Callable[[], object]] = {
             "strategic":       lambda: self._strategic_analysis(user_message, triage, retrieved),
             "timeline":        lambda: self._analyze_timeline(user_message, triage, retrieved, documents),
@@ -1977,7 +1879,7 @@ class SuperAvvocato:
         opponent_playbook: OpponentPlaybook | None = stage_results.get("opponent")
         leverage: LeverageMap | None = stage_results.get("leverage")
 
-        yield ("status", self._status("complex_urgency"))
+        yield ("status", STREAM_STATUS_SQ["complex_urgency"])
         urgency_radar: UrgencyRadar | None = None
         try:
             urgency_radar = self._scan_urgency(
@@ -1995,7 +1897,7 @@ class SuperAvvocato:
         except Exception as exc:
             log.warning("stream action_plan failed: %s", exc)
 
-        yield ("status", self._status("complex_composing"))
+        yield ("status", STREAM_STATUS_SQ["complex_composing"])
         collected: list[str] = []
         new_sid = session_id
         try:
@@ -2058,7 +1960,6 @@ class SuperAvvocato:
         # so internal helpers (compose, stages) auto-prepend the right
         # preamble without explicit param-threading.
         self._jurisdiction_ctx.code = (jurisdiction or "AL").upper()
-        set_request_jurisdiction(jurisdiction)
         """Process one user message and return either a follow-up or a full answer.
 
         `session_id`, when provided, is passed to the compose stage so the
@@ -2406,7 +2307,7 @@ class SuperAvvocato:
         # Triage gira sul tier fast (Sonnet) — classificatore binario
         # simple/complex, latenza critica per UX streaming. Pure scaffolding.
         raw = self.backend.complete(
-            system=self._system_for(TRIAGE_SYSTEM),
+            system=TRIAGE_SYSTEM,
             messages=messages,
             max_tokens=800,
             fast=True,
@@ -2457,21 +2358,15 @@ class SuperAvvocato:
             if angle and angle not in all_queries:
                 all_queries.append(angle)
 
-        # V-IT: for an Italian case, ground on the Italian corpus. The
-        # restrict_codes come from Albanian triage, so drop them for IT.
-        idx = self.index
-        if self.index_it is not None and self._current_jurisdiction() == "IT":
-            idx = self.index_it
-        restrict = None if idx is self.index_it else codes
         seen: dict[tuple[str, str], float] = {}
         for q in all_queries:
-            for art, score in idx.search(q, top_k=TOP_K_ARTICLES,
-                                         restrict_codes=restrict):
+            for art, score in self.index.search(q, top_k=TOP_K_ARTICLES,
+                                                restrict_codes=codes):
                 key = (art.code, art.number)
                 if score > seen.get(key, 0.0):
                     seen[key] = score
 
-        art_by_key = {(a.code, a.number): a for a in idx.articles}
+        art_by_key = {(a.code, a.number): a for a in self.index.articles}
         pairs = [(art_by_key[k], s) for k, s in seen.items() if k in art_by_key]
         pairs.sort(key=lambda x: x[1], reverse=True)
         return pairs[: TOP_K_ARTICLES]
@@ -2589,7 +2484,7 @@ class SuperAvvocato:
         """)
 
         raw = self.backend.complete(
-            system=self._system_for(STRATEGIC_SYSTEM),
+            system=STRATEGIC_SYSTEM,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=1200,
             medium=True,  # V8.10 — Sonnet per stage analitiche lawyer-facing
@@ -2660,7 +2555,7 @@ class SuperAvvocato:
         """)
 
         raw = self.backend.complete(
-            system=self._system_for(TIMELINE_SYSTEM.format(today=date.today().isoformat())),
+            system=TIMELINE_SYSTEM.format(today=date.today().isoformat()),
             messages=[{"role": "user", "content": prompt}],
             max_tokens=1200,
             medium=True,  # V8.10 Sonnet
@@ -2774,7 +2669,7 @@ class SuperAvvocato:
         """)
 
         raw = self.backend.complete(
-            system=self._system_for(COMPARISON_SYSTEM),
+            system=COMPARISON_SYSTEM,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=900,
             medium=True,  # V8.10 Sonnet
@@ -2888,7 +2783,7 @@ class SuperAvvocato:
         """)
 
         raw = self.backend.complete(
-            system=self._system_for(DISTINGUISHING_SYSTEM),
+            system=DISTINGUISHING_SYSTEM,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=1200,
             medium=True,  # V8.10 Sonnet
@@ -2970,7 +2865,7 @@ class SuperAvvocato:
         """)
 
         raw = self.backend.complete(
-            system=self._system_for(EVIDENCE_MAP_SYSTEM),
+            system=EVIDENCE_MAP_SYSTEM,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=1400,
             medium=True,  # V8.10 Sonnet
@@ -3054,7 +2949,7 @@ class SuperAvvocato:
         """)
 
         raw = self.backend.complete(
-            system=self._system_for(NULLITY_RADAR_SYSTEM),
+            system=NULLITY_RADAR_SYSTEM,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=1500,
             medium=True,  # V8.10 Sonnet
@@ -3196,7 +3091,7 @@ class SuperAvvocato:
         """)
 
         raw = self.backend.complete(
-            system=self._system_for(URGENCY_SCAN_SYSTEM),
+            system=URGENCY_SCAN_SYSTEM,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=1200,
             medium=True,  # V8.10 Sonnet
@@ -3317,7 +3212,7 @@ class SuperAvvocato:
 
         try:
             raw = self.backend.complete(
-                system=self._system_for(CONTRADICTION_SYSTEM),
+                system=CONTRADICTION_SYSTEM,
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=1500,
                 medium=True,  # V8.10 Sonnet
@@ -3524,7 +3419,7 @@ class SuperAvvocato:
 
         try:
             raw = self.backend.complete(
-                system=self._system_for(ACTION_PLAN_SYSTEM),
+                system=ACTION_PLAN_SYSTEM,
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=1600,
                 medium=True,  # V8.10 Sonnet
@@ -3652,7 +3547,7 @@ class SuperAvvocato:
         """)
 
         raw = self.backend.complete(
-            system=self._system_for(MISSING_FACTS_SYSTEM),
+            system=MISSING_FACTS_SYSTEM,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=900,
             medium=True,  # V8.10 Sonnet
@@ -3730,7 +3625,7 @@ class SuperAvvocato:
         """)
 
         raw = self.backend.complete(
-            system=self._system_for(PREMORTEM_SYSTEM),
+            system=PREMORTEM_SYSTEM,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=1100,
             medium=True,  # V8.10 Sonnet
@@ -3808,7 +3703,7 @@ class SuperAvvocato:
         """)
 
         raw = self.backend.complete(
-            system=self._system_for(OPPONENT_PLAYBOOK_SYSTEM),
+            system=OPPONENT_PLAYBOOK_SYSTEM,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=1300,
             medium=True,  # V8.10 Sonnet
@@ -3877,7 +3772,7 @@ class SuperAvvocato:
         """)
 
         raw = self.backend.complete(
-            system=self._system_for(LEVERAGE_MAP_SYSTEM),
+            system=LEVERAGE_MAP_SYSTEM,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=1100,
             medium=True,  # V8.10 Sonnet
@@ -4185,7 +4080,7 @@ class SuperAvvocato:
         budget = min(4000, max(1200, len(text) // 2 + 600))
         try:
             rewritten = self.backend.complete(
-                system=self._system_for(ALBANIAN_EDITOR_SYSTEM),
+                system=ALBANIAN_EDITOR_SYSTEM,
                 messages=[{"role": "user", "content": text}],
                 max_tokens=budget,
                 fast=True,
@@ -4232,7 +4127,7 @@ _COMPLEX_MARKERS = (
     "paraburgim", "ndalim", "kallzim",
     # enforcement / state action
     "përmbarues", "permbarues", "sekuestro", "bllokim llogarie",
-    "tatim", "gjob", "dogan", "akciz", "tvsh", "tarifë doganore", "sfratto", "dëbim",
+    "tatim", "gjob", "doganë", "sfratto", "dëbim",
     # active disputes / violence (omit "divorc" alone — "si bëhet divorci" is
     # informative; "divorc kundër" or "divorc i kontestuar" is caught by the
     # compound markers below)
@@ -4245,13 +4140,6 @@ _COMPLEX_MARKERS = (
     "akti i njoftimit", "akt njoftimi", "vendimi i gjykatës",
     "vendimi i gjykates", "kam marrë vendim", "kam marre vendim",
 )
-
-
-def _norm(s: str) -> str:
-    """Normalizo tekstin para matching-ut: njerezit shpesh nuk i shkruajne
-    diakritiket shqip (c, e). Heq ata (c->c, e->e) qe 'dogana'/'dogane'/'doganor',
-    'gjob'/'gjobe', 'kundershtar'/'kundershtar' te kapen njesoj."""
-    return (s or "").lower().replace("ë", "e").replace("ç", "c")
 
 
 def _looks_simple(user_message: str, documents: list[dict] | None) -> bool:
@@ -4269,16 +4157,8 @@ def _looks_simple(user_message: str, documents: list[dict] | None) -> bool:
     # complex shape. Short messages are almost always informative.
     if len(msg) > 280:
         return False
-    lower = _norm(msg)
-    if any(_norm(marker) in lower for marker in _COMPLEX_MARKERS):
-        return False
-    # Pyetjet fiskale/me shifra kërkojnë verifikim zyrtar në web (tarifa, akciza,
-    # taksa, dogana) -> kurrë fast-path, që s'ka vegla web. Saktësia para shpejtësisë.
-    _FISCAL = ("dogan", "akciz", "tatim", "taks", "tvsh", "tarif", "gjob")
-    if any(k in lower for k in _FISCAL):
-        return False
-    if "sa " in lower and any(k in lower for k in (
-            "paguaj", "kushton", "përqind", "perqind", "detyrim", "vler")):
+    lower = msg.lower()
+    if any(marker in lower for marker in _COMPLEX_MARKERS):
         return False
     return True
 
@@ -4298,7 +4178,7 @@ _ADVERSARY_MARKERS = (
     "fqinj", "shitësi", "shitesi", "blerësi", "bleresi",
     "banka", "kreditori", "debitori", "garantuesi",
     # institutions acting against
-    "prokuror", "tatim", "dogan", "përmbarues", "permbarues",
+    "prokuror", "tatim", "doganë", "dogane", "përmbarues", "permbarues",
     "inspektorati", "bashkia më", "bashkia me", "administrata",
     # active disputes
     "padi", "paditje", "paditur", "gjyq", "padit", "ankim", "apel",
@@ -4339,11 +4219,11 @@ def _has_adversary(
             return True
         # Strategic angles sometimes name the opposing party explicitly
         # ("padi civile ndaj punëdhënësit", "ankimim i vendimit X").
-        blob = _norm(" ".join(triage.strategic_angles or []))
-        if any(_norm(marker) in blob for marker in _ADVERSARY_MARKERS):
+        blob = " ".join(triage.strategic_angles or []).lower()
+        if any(marker in blob for marker in _ADVERSARY_MARKERS):
             return True
-    lower = _norm(user_message)
-    return any(_norm(marker) in lower for marker in _ADVERSARY_MARKERS)
+    lower = (user_message or "").lower()
+    return any(marker in lower for marker in _ADVERSARY_MARKERS)
 
 
 def _parse_json_block(raw: str) -> dict:

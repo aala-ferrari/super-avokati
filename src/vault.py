@@ -10,6 +10,19 @@ from __future__ import annotations
 from . import storage
 from .logging_utils import get_logger
 
+def _juris(system_prompt: str) -> str:
+    """System prompt adattato alla giurisdizione della richiesta.
+
+    Import differito: brain.py importa alcuni di questi moduli, quindi un
+    import in testa creerebbe un ciclo."""
+    try:
+        from .brain import apply_current
+        return apply_current(system_prompt)
+    except Exception:  # noqa: BLE001
+        return system_prompt
+
+
+
 log = get_logger(__name__)
 
 _MAX_PER_DOC = 9000     # chars of each document fed to the brain
@@ -61,7 +74,7 @@ def ask(brain, case_id: str, question: str) -> dict:
     )
     try:
         answer = brain.backend.complete(
-            system=_SYSTEM,
+            system=_juris(_SYSTEM),
             messages=[{"role": "user", "content": prompt}],
             max_tokens=2000, medium=True, callsite="vault",
         )
@@ -95,7 +108,7 @@ def find_needle(backend, case_id: str, max_tokens: int = 1600) -> dict:
     prompt = ("DOKUMENTET E DOSJES:\n" + ctx
               + "\n\n\u2500\u2500\u2500\u2500\u2500\nGjej gjilpErEn nE kashtE.")
     md = backend.complete(
-        system=_NEEDLE_SYSTEM,
+        system=_juris(_NEEDLE_SYSTEM),
         messages=[{"role": "user", "content": prompt}],
         max_tokens=max_tokens,
         model_override="fable",
@@ -127,7 +140,7 @@ def who_said_what(backend, case_id: str, max_tokens: int = 2600) -> dict:
     prompt = ("DOKUMENTET E DOSJES:\n" + ctx
               + "\n\n─────\nHarto 'Kush tha çfarë' dhe përplasjet, me citime [Dok N].")
     md = backend.complete(
-        system=_WHO_SYSTEM,
+        system=_juris(_WHO_SYSTEM),
         messages=[{"role": "user", "content": prompt}],
         max_tokens=max_tokens, callsite="who_said",
     )

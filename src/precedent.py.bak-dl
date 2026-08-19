@@ -20,7 +20,6 @@ the actual case law in our index.
 from __future__ import annotations
 
 import json
-import os
 import re
 import time
 from dataclasses import dataclass
@@ -30,49 +29,7 @@ from .genio import GENIO_JURISDICTION_GUARD
 from .logging_utils import get_logger
 from .retrieval import DecisionIndex
 
-def _juris(system_prompt: str) -> str:
-    """System prompt adattato alla giurisdizione della richiesta.
-
-    Import differito: brain.py importa alcuni di questi moduli, quindi un
-    import in testa creerebbe un ciclo."""
-    try:
-        from .brain import apply_current
-        return apply_current(system_prompt)
-    except Exception:  # noqa: BLE001
-        return system_prompt
-
-
-
 log = get_logger(__name__)
-
-_JURIS_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    "data", "raw", "jurisprudence",
-)
-
-
-def _local_file(rel: str) -> str:
-    """Return the jurisprudence-relative path if the raw decision file exists
-    locally, else "". Guards against path traversal. Powers the download
-    button — we only expose it when the file is genuinely on disk."""
-    rel = (rel or "").strip().replace(chr(92), "/")
-    if not rel:
-        return ""
-    # tolerate stale absolute/dev paths (e.g. old Mac paths): keep only the
-    # portion under jurisprudence/ so the file resolves inside the container.
-    marker = "jurisprudence/"
-    i = rel.find(marker)
-    if i >= 0:
-        rel = rel[i + len(marker):]
-    rel = rel.lstrip("/")
-    if not rel:
-        return ""
-    p = os.path.normpath(os.path.join(_JURIS_DIR, rel))
-    # true path-boundary check (prefix match alone would allow a sibling dir
-    # like jurisprudence_backup/ to pass)
-    if (p == _JURIS_DIR or p.startswith(_JURIS_DIR + os.sep)) and os.path.isfile(p):
-        return os.path.relpath(p, _JURIS_DIR)
-    return ""
 
 
 PRECEDENT_SYSTEM = (
@@ -162,7 +119,6 @@ class PrecedentRef:
     losing_mistake: str | None = None
     dispositive_fact: str | None = None
     transferable_lesson: str | None = None
-    source_file: str = ""
 
     def to_block(self) -> str:
         """Render the precedent as a prompt-ready block."""
@@ -183,79 +139,8 @@ class PrecedentRef:
         return "\n".join(lines)
 
 
-_EXPAND_SYSTEM = (
-    "Ti je jurist shqiptar ekspert. Nga PËRSHKRIMI i rastit, nxirr fjalët-kyçe "
-    "dhe konceptet juridike për të kërkuar precedentë: institute juridike, "
-    "sinonime, terma teknikë dhe numra nenesh të mundshëm (Kodi Civil, Kodi i "
-    "Familjes, KPC, KPP, Kushtetuta). Kthe VETËM një listë të shkurtër "
-    "fjalësh/frazash të ndara me presje, në shqip — pa fjali, pa shpjegime."
-)
-
-
-def _expand_query(case_description: str, backend) -> str:
-    """Brain-driven query expansion → legal keywords/concepts string."""
-    try:
-        out = backend.complete(
-            system=_juris(_EXPAND_SYSTEM),
-            messages=[{"role": "user", "content": case_description.strip()[:2000]}],
-            max_tokens=250, fast=True, callsite="precedent_expand",
-        )
-        return (out or "").strip().replace("\n", " ")
-    except Exception as exc:  # noqa: BLE001
-        log.warning("precedent: query expansion failed (%s)", exc)
-        return ""
-
-
-_RERANK_SYSTEM = (
-    "Ti je jurist shqiptar. Ke një RAST dhe një listë vendimesh kandidatë. "
-    "Zgjidh vetëm vendimet VËRTET relevante juridikisht (i njëjti institut ose "
-    "problem i ngjashëm), të renditura nga më relevanti te më pak. Injoro ato "
-    "që përkojnë vetëm me fjalë procedurale të përgjithshme. Kthe VETËM JSON: "
-    '{"rank": [indekset e plota me radhë sipas relevancës]}'
-)
-
-
-def _rerank(case_description: str, candidates, backend, top_k: int):
-    """LLM re-rank of BM25 candidates by true legal relevance.
-    candidates: list[(Decision, score)]. Falls back to BM25 order on failure."""
-    if len(candidates) <= top_k:
-        return candidates
-    lines = []
-    for i, (d, _sc) in enumerate(candidates):
-        obj = (d.objekti or "")[:200]
-        lines.append(f"[{i}] {d.citation} | {d.outcome or '?'} | {obj}")
-    prompt = (
-        "RASTI:\n" + case_description.strip()[:1500]
-        + "\n\nKANDIDATËT:\n" + "\n".join(lines)
-        + f"\n\nKthe {top_k} indekset më relevante, JSON."
-    )
-    try:
-        out = backend.complete(
-            system=_juris(_RERANK_SYSTEM),
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=250, fast=True, callsite="precedent_rerank",
-        )
-        data, _err = _extract_json(out)
-        idxs = (data or {}).get("rank") or []
-        picked, seen = [], set()
-        for i in idxs:
-            if isinstance(i, int) and 0 <= i < len(candidates) and i not in seen:
-                picked.append(candidates[i]); seen.add(i)
-        # top up with remaining BM25 order so we always return top_k
-        for j, c in enumerate(candidates):
-            if len(picked) >= top_k:
-                break
-            if j not in seen:
-                picked.append(c)
-        return picked[:top_k]
-    except Exception as exc:  # noqa: BLE001
-        log.warning("precedent: rerank failed (%s)", exc)
-        return candidates[:top_k]
-
-
 def gather_precedents(case_description: str, *, top_k: int = 5,
-                      decision_index: DecisionIndex | None = None,
-                      backend=None) -> list[PrecedentRef]:
+                      decision_index: DecisionIndex | None = None) -> list[PrecedentRef]:
     """BM25 retrieve top-K decisions for the case + load their ratio analyses.
 
     The ratio is best-effort — decisions without a CaseAnalysis row still
@@ -264,18 +149,7 @@ def gather_precedents(case_description: str, *, top_k: int = 5,
     the brief will be deeper when the ratio is present).
     """
     didx = decision_index if decision_index is not None else DecisionIndex.load()
-    if backend is not None:
-        # Semantic hybrid: expand the query with legal concepts, cast a wider
-        # BM25 net, then let the brain re-rank by true legal relevance.
-        expanded = _expand_query(case_description, backend)
-        query = (case_description + "  " + expanded).strip() if expanded else case_description
-        pool = didx.search(query, top_k=max(top_k * 4, 24), min_score=0.3)
-        if not pool:  # expansion drifted — retry with the raw case
-            pool = didx.search(case_description, top_k=max(top_k * 4, 24), min_score=0.3)
-        hits = _rerank(case_description, pool, backend, top_k) if pool else []
-        log.info("precedent: semantic retrieval — pool=%d → top_k=%d", len(pool), len(hits))
-    else:
-        hits = didx.search(case_description, top_k=top_k, min_score=0.5)
+    hits = didx.search(case_description, top_k=top_k, min_score=0.5)
     if not hits:
         return []
 
@@ -325,7 +199,6 @@ def gather_precedents(case_description: str, *, top_k: int = 5,
             outcome=d.outcome or "",
             objekti=d.objekti or "",
             source_url=d.source_url or "",
-            source_file=_local_file(getattr(d, "source_file", "") or ""),
             bm25_score=score,
             case_id=analysis["case_id"] if analysis else None,
             archetype=analysis["archetype"] if analysis else None,
@@ -371,7 +244,7 @@ def synthesize(case_description: str, refs: list[PrecedentRef], *,
     t0 = time.monotonic()
     try:
         text = backend.complete(
-            system=_juris(PRECEDENT_SYSTEM),
+            system=PRECEDENT_SYSTEM,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=3500,
             callsite="precedent_analyzer",
@@ -411,7 +284,7 @@ def analyze(case_description: str, *, backend, top_k: int = 5,
             case_id: str | None = None,
             decision_index: DecisionIndex | None = None) -> dict[str, Any]:
     """Convenience: gather + synthesize. Returns the brief dict."""
-    refs = gather_precedents(case_description, top_k=top_k, decision_index=decision_index, backend=backend)
+    refs = gather_precedents(case_description, top_k=top_k, decision_index=decision_index)
     brief = synthesize(case_description, refs, backend=backend, case_id=case_id)
     brief["precedents"] = [
         {
@@ -420,7 +293,6 @@ def analyze(case_description: str, *, backend, top_k: int = 5,
             "outcome": r.outcome,
             "objekti": r.objekti,
             "source_url": r.source_url,
-            "download": r.source_file or None,
             "bm25_score": round(r.bm25_score, 2),
             "archetype": r.archetype,
             "has_ratio": r.winning_argument is not None,

@@ -18,6 +18,19 @@ from .genio import GENIO_JURISDICTION_GUARD
 from .precedent import PrecedentRef, gather_precedents
 from .retrieval import ArticleIndex, DecisionIndex
 
+def _juris(system_prompt: str) -> str:
+    """System prompt adattato alla giurisdizione della richiesta.
+
+    Import differito: brain.py importa alcuni di questi moduli, quindi un
+    import in testa creerebbe un ciclo."""
+    try:
+        from .brain import apply_current
+        return apply_current(system_prompt)
+    except Exception:  # noqa: BLE001
+        return system_prompt
+
+
+
 log = logging.getLogger(__name__)
 
 # ── Court calibration labels ──────────────────────────────────────────
@@ -170,7 +183,7 @@ def generate_bench_memo(
     t0 = time.monotonic()
     try:
         text = backend.complete(
-            system=BENCH_SYSTEM,
+            system=_juris(BENCH_SYSTEM),
             messages=[{"role": "user", "content": prompt}],
             max_tokens=4500,
             callsite="bench_memo",

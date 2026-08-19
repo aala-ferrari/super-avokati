@@ -11,6 +11,19 @@ from __future__ import annotations
 
 from .logging_utils import get_logger
 
+def _juris(system_prompt: str) -> str:
+    """System prompt adattato alla giurisdizione della richiesta.
+
+    Import differito: brain.py importa alcuni di questi moduli, quindi un
+    import in testa creerebbe un ciclo."""
+    try:
+        from .brain import apply_current
+        return apply_current(system_prompt)
+    except Exception:  # noqa: BLE001
+        return system_prompt
+
+
+
 log = get_logger(__name__)
 
 _LABEL = {
@@ -371,7 +384,7 @@ def analyze(backend, index, *, case_type: str, facts: str, max_tokens: int = 280
         + "\n\nNdërto ekspertizën e plotë."
     )
     md = backend.complete(
-        system=_system(tpl),
+        system=_juris(_system(tpl)),
         messages=[{"role": "user", "content": prompt}],
         max_tokens=max_tokens, callsite="expertise",  # default = Opus effort=max (dy mendjet)
     )

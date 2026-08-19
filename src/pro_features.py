@@ -27,6 +27,19 @@ from .logging_utils import get_logger
 from .parser import Article
 from .retrieval import ArticleIndex
 
+def _juris(system_prompt: str) -> str:
+    """System prompt adattato alla giurisdizione della richiesta.
+
+    Import differito: brain.py importa alcuni di questi moduli, quindi un
+    import in testa creerebbe un ciclo."""
+    try:
+        from .brain import apply_current
+        return apply_current(system_prompt)
+    except Exception:  # noqa: BLE001
+        return system_prompt
+
+
+
 log = get_logger(__name__)
 
 
@@ -151,7 +164,7 @@ def stress_test_hearing(
             attachments.append(Path(sp))
 
     raw = backend.complete(
-        system=STRESS_TEST_SYSTEM,
+        system=_juris(STRESS_TEST_SYSTEM),
         messages=[{"role": "user", "content": prompt}],
         max_tokens=4000,
         fast=False,
@@ -371,7 +384,7 @@ def audit_citations(
         Vlerësoji të gjitha sipas skemës së JSON-it.
     """)
     raw = backend.complete(
-        system=AUDIT_SYSTEM,
+        system=_juris(AUDIT_SYSTEM),
         messages=[{"role": "user", "content": prompt}],
         max_tokens=3500,
         fast=False,
@@ -476,7 +489,7 @@ def draft_act(
         Harto aktin duke respektuar strukturën e skemës JSON.
     """)
     raw = backend.complete(
-        system=DRAFT_SYSTEM,
+        system=_juris(DRAFT_SYSTEM),
         messages=[{"role": "user", "content": prompt}],
         max_tokens=6000,
         fast=False,
@@ -903,7 +916,7 @@ def build_case_timeline(
     """)
 
     raw = backend.complete(
-        system=TIMELINE_SYSTEM,
+        system=_juris(TIMELINE_SYSTEM),
         messages=[{"role": "user", "content": prompt}],
         max_tokens=6000,
         fast=False,
@@ -1058,7 +1071,7 @@ def adversarial_loop(
             Gjeneroj sulmin për këtë raund sipas skemës JSON.
         """)
         atk_raw = backend.complete(
-            system=ADVERSARIAL_ATTACK_SYSTEM,
+            system=_juris(ADVERSARIAL_ATTACK_SYSTEM),
             messages=[{"role": "user", "content": attack_prompt}],
             max_tokens=2500,
             fast=False,
@@ -1089,7 +1102,7 @@ def adversarial_loop(
             Jep kundërpërgjigjen sipas skemës JSON.
         """)
         def_raw = backend.complete(
-            system=ADVERSARIAL_DEFENSE_SYSTEM,
+            system=_juris(ADVERSARIAL_DEFENSE_SYSTEM),
             messages=[{"role": "user", "content": defense_prompt}],
             max_tokens=2500,
             fast=False,
@@ -1128,7 +1141,7 @@ def adversarial_loop(
         Distilo strategjinë finale sipas skemës JSON.
     """)
     sum_raw = backend.complete(
-        system=ADVERSARIAL_SUMMARY_SYSTEM,
+        system=_juris(ADVERSARIAL_SUMMARY_SYSTEM),
         messages=[{"role": "user", "content": summary_prompt}],
         max_tokens=2500,
         fast=False,
@@ -1262,7 +1275,7 @@ def build_strategy_compass(
     """)
 
     raw = backend.complete(
-        system=STRATEGY_COMPASS_SYSTEM,
+        system=_juris(STRATEGY_COMPASS_SYSTEM),
         messages=[{"role": "user", "content": user_prompt}],
         max_tokens=4500,
     )

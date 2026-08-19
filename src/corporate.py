@@ -16,6 +16,19 @@ from datetime import date, datetime
 from .backends import LLMBackend
 from .genio import GENIO_JURISDICTION_GUARD
 
+def _juris(system_prompt: str) -> str:
+    """System prompt adattato alla giurisdizione della richiesta.
+
+    Import differito: brain.py importa alcuni di questi moduli, quindi un
+    import in testa creerebbe un ciclo."""
+    try:
+        from .brain import apply_current
+        return apply_current(system_prompt)
+    except Exception:  # noqa: BLE001
+        return system_prompt
+
+
+
 log = logging.getLogger(__name__)
 
 # ── System prompts ────────────────────────────────────────────────────
@@ -169,7 +182,7 @@ def extract_corporate(
         doc_text=doc_text[:12000],
     )
     raw = backend.complete(
-        system=_EXTRACT_SYSTEM,
+        system=_juris(_EXTRACT_SYSTEM),
         messages=[{"role": "user", "content": prompt}],
         max_tokens=2000,
         callsite="corporate_extract",
@@ -239,7 +252,7 @@ def check_signatory(
         today=date.today().isoformat(),
     )
     raw = backend.complete(
-        system=_GATE_SYSTEM,
+        system=_juris(_GATE_SYSTEM),
         messages=[{"role": "user", "content": prompt}],
         max_tokens=1200,
         callsite="corporate_gatekeeper",

@@ -83,6 +83,21 @@ def tokenize_for(lang: str, text: str) -> list[str]:
     return tokenize_it(text) if (lang or "sq") == "it" else tokenize(text)
 
 
+# ── corpus italiano: priorita ai codici fondamentali ─────────────────────
+# Con 43 corpora indicizzati un codice SETTORIALE puo vincere per pura
+# frequenza del termine: "appalto ristrutturazione non pagato" pescava il
+# Codice dei Contratti Pubblici (dove "appalto" ricorre migliaia di volte)
+# invece del Codice Civile. Un bonus contenuto riporta davanti il diritto
+# comune senza spegnere i settoriali sulle loro query (strada, consumo,
+# edilizia, privacy restano in cima). Calibrato su 10 query tipiche:
+# +11 risultati pertinenti, -1. Si applica SOLO all'indice italiano.
+IT_CORE_CODES = frozenset({
+    "codice_civile", "codice_penale", "codice_procedura_civile",
+    "codice_procedura_penale", "costituzione", "disp_att_cc", "disp_att_cpp",
+})
+IT_CORE_BOOST = 1.3
+
+
 class ArticleIndex:
     """BM25 index over every article from every code."""
 
@@ -142,6 +157,11 @@ class ArticleIndex:
             return []
 
         scores = self.bm25.get_scores(tokens)
+        if getattr(self, "lang", "sq") == "it":
+            scores = [
+                s * IT_CORE_BOOST if self.articles[i].code in IT_CORE_CODES else s
+                for i, s in enumerate(scores)
+            ]
         ranked = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)
 
         results: list[tuple[Article, float]] = []

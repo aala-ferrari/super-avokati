@@ -15,6 +15,19 @@ from __future__ import annotations
 from . import expertise as _expertise
 from .logging_utils import get_logger
 
+def _juris(system_prompt: str) -> str:
+    """System prompt adattato alla giurisdizione della richiesta.
+
+    Import differito: brain.py importa alcuni di questi moduli, quindi un
+    import in testa creerebbe un ciclo."""
+    try:
+        from .brain import apply_current
+        return apply_current(system_prompt)
+    except Exception:  # noqa: BLE001
+        return system_prompt
+
+
+
 log = get_logger(__name__)
 
 _LABEL = {
@@ -67,7 +80,7 @@ def analyze(backend, index, *, facts: str, max_tokens: int = 3000) -> dict:
         + "\n\nNdërto analizën akuzuese të plotë, me review objektiviteti të detyrueshëm."
     )
     md = backend.complete(
-        system=_SYSTEM,
+        system=_juris(_SYSTEM),
         messages=[{"role": "user", "content": prompt}],
         max_tokens=max_tokens, callsite="prosecutor",  # default = Opus effort=max
     )
@@ -98,7 +111,7 @@ def draft_indictment(backend, index, *, facts, max_tokens=3200):
     prompt = ("FAKTET E ÇËSHTJES:\n" + (facts or "").strip()
               + "\n\n\u2500\u2500\u2500\u2500\u2500\nNENET NGA KORPUSI (cito vetëm këto):\n"
               + art_block + "\n\nHarto aktakuzën e plotë.")
-    md = backend.complete(system=_INDICT_SYSTEM,
+    md = backend.complete(system=_juris(_INDICT_SYSTEM),
                           messages=[{"role": "user", "content": prompt}],
                           max_tokens=max_tokens, callsite="indictment")
     return {"markdown": (md or "").strip(),

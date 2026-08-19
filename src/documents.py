@@ -37,6 +37,19 @@ from .config import (
 )
 from .logging_utils import get_logger
 
+def _juris(system_prompt: str) -> str:
+    """System prompt adattato alla giurisdizione della richiesta.
+
+    Import differito: brain.py importa alcuni di questi moduli, quindi un
+    import in testa creerebbe un ciclo."""
+    try:
+        from .brain import apply_current
+        return apply_current(system_prompt)
+    except Exception:  # noqa: BLE001
+        return system_prompt
+
+
+
 log = get_logger(__name__)
 
 MAX_UPLOAD_BYTES = MAX_UPLOAD_SIZE_MB * 1024 * 1024
@@ -303,7 +316,7 @@ def summarize_document(extracted_text: str, filename: str, backend) -> dict:
 
     try:
         raw = backend.complete(
-            system=ANALYSIS_SYSTEM,
+            system=_juris(ANALYSIS_SYSTEM),
             messages=[{"role": "user", "content": prompt}],
             max_tokens=900,
             medium=True,  # V8.10 Sonnet — lawyer reads doc summary

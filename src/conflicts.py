@@ -13,6 +13,19 @@ import re
 from . import storage
 from .logging_utils import get_logger
 
+def _juris(system_prompt: str) -> str:
+    """System prompt adattato alla giurisdizione della richiesta.
+
+    Import differito: brain.py importa alcuni di questi moduli, quindi un
+    import in testa creerebbe un ciclo."""
+    try:
+        from .brain import apply_current
+        return apply_current(system_prompt)
+    except Exception:  # noqa: BLE001
+        return system_prompt
+
+
+
 log = get_logger(__name__)
 
 _attempted: set[str] = set()  # per-process guard: don't re-extract nameless cases
@@ -58,7 +71,7 @@ def maybe_extract(brain, case_id: str, firm_id: int, text: str) -> None:
         return  # not a real attempt (short text / brain down) — retry later
     try:
         raw = brain.backend.complete(
-            system=_EXTRACT_SYSTEM,
+            system=_juris(_EXTRACT_SYSTEM),
             messages=[{"role": "user", "content": text[:4000]}],
             max_tokens=300, fast=True, callsite="conflict_extract",
         )
