@@ -744,7 +744,7 @@ INTAKE_SYSTEM_NEXT_IT = (
     "dare nulla per scontato. Fai solo domande informative.\n\n"
     "REGOLE IMPORTANTI:\n"
     "- Ogni domanda e ogni `why` DEVONO essere SOLO in italiano.\n"
-    "- Non ripetere domande su temi gia coperti nella conversazione.\n"
+    "- Non ripetere domande su temi già coperti nella conversazione.\n"
     "- Se l'ultima risposta non risponde all'ultima domanda, riformula la "
     "domanda o chiedi al cliente di chiarire.\n"
     "- Le domande devono essere concrete e comprensibili da un cliente "
@@ -763,7 +763,7 @@ INTAKE_SYSTEM_NEXT_IT = (
     "Quando hai raccolto QUANTO SERVE (di norma 6-8 domande), restituisci "
     "{\"done\": true} senza domanda. Non superare 10 domande in totale.\n\n"
     "RISPONDI SEMPRE E SOLO CON JSON valido:\n"
-    "{\"question\": \"...\", \"why\": \"breve spiegazione del perche fai "
+    "{\"question\": \"...\", \"why\": \"breve spiegazione del perché fai "
     "questa domanda (1 frase)\", \"done\": false}\n"
     "oppure\n"
     "{\"done\": true}"
@@ -771,7 +771,7 @@ INTAKE_SYSTEM_NEXT_IT = (
 
 INTAKE_SYSTEM_BRIEF_IT = (
     "Sei un assistente legale professionale. Stai creando un RIEPILOGO "
-    "STRUTTURATO dell'intake, che sara letto dall'avvocato che prendera il "
+    "STRUTTURATO dell'intake, che sarà letto dall'avvocato che prenderà il "
     "caso. Scrivi in modo chiaro, senza abbellimenti, senza consulenza "
     "legale.\n\n"
     "REGOLA ASSOLUTA DI LINGUA: ogni valore testuale nel JSON DEVE essere "

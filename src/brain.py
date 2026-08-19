@@ -123,7 +123,7 @@ STREAM_STATUS_IT: dict[str, str] = {
     "simple_composing":      "Sto preparando la risposta…",
     "complex_retrieving":    "Sto cercando gli articoli pertinenti…",
     "complex_precedents":    "Sto leggendo le decisioni dei giudici…",
-    "complex_analyzing":     "Sto analizzando il caso con la massima cura da piu angolazioni e verifico norme e importi sulle fonti ufficiali — prima la precisione, poi la velocita: servono alcuni minuti…",
+    "complex_analyzing":     "Sto analizzando il caso con la massima cura da più angolazioni e verifico norme e importi sulle fonti ufficiali — prima la precisione, poi la velocità: servono alcuni minuti…",
     "complex_urgency":       "Sto valutando urgenze e termini…",
     "complex_composing":     "Sto scrivendo la risposta definitiva — verifico ogni articolo e ogni importo prima di dartela…",
 }

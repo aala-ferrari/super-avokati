@@ -41,6 +41,21 @@ HIERARCHY_RE = re.compile(
 REPEALED_MARKERS = ("shfuqizuar", "shfuqizohet")
 
 
+# Slug dei corpora italiani: servono a citare "art. N" invece di "Neni N".
+_IT_CODE_PREFIXES = ("codice_", "tu_", "disp_att_", "regolamento_")
+_IT_CODE_EXACT = frozenset({
+    "costituzione", "tulps", "tuir", "statuto_lavoratori", "sicurezza_lavoro",
+    "responsabilita_enti", "procedimento_amministrativo", "sanzioni_amministrative",
+    "ordinamento_polizia", "ordinamento_penitenziario", "stupefacenti",
+    "divorzio", "adozione", "equa_riparazione",
+})
+
+
+def _is_italian_code(code: str) -> bool:
+    c = (code or "").lower()
+    return c in _IT_CODE_EXACT or c.startswith(_IT_CODE_PREFIXES)
+
+
 @dataclass
 class Article:
     """A single article extracted from a code."""
@@ -60,6 +75,12 @@ class Article:
 
     @property
     def citation(self) -> str:
+        """Citazione nella forma della giurisdizione dell'articolo.
+
+        I corpora italiani usano slug noti (codice_*, tu_*, disp_att_*, …):
+        per quelli si cita "art. N Titolo", non "Neni N i Titolo"."""
+        if _is_italian_code(self.code):
+            return f"art. {self.number} {self.title_sq}"
         return f"Neni {self.number} i {self.title_sq}"
 
     @property
