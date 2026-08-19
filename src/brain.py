@@ -1748,7 +1748,19 @@ class SuperAvvocato:
         results: dict[str, object | None] = {}
         timings: dict[str, float] = {}
 
+        # catturata nel thread della richiesta, propagata ai worker
+        _stage_jurisdiction = self._current_jurisdiction()
+
         def _one(name: str, fn: Callable[[], object]) -> tuple[str, object | None, float]:
+            # I worker sono thread diversi da quello della richiesta: la
+            # giurisdizione vive in un threading.local(), quindi va ri-armata
+            # qui dentro, altrimenti la fase ricade su AL (prompt e diritto
+            # albanesi) mentre la risposta principale e in italiano.
+            try:
+                self._jurisdiction_ctx.code = _stage_jurisdiction
+                set_request_jurisdiction(_stage_jurisdiction)
+            except Exception:  # noqa: BLE001
+                pass
             t0 = time.monotonic()
             try:
                 out = fn()
