@@ -7,7 +7,7 @@
   window.__sekrLoaded = true;
 
   var CSS = `
-  .sekr-fab{position:fixed;right:12px;top:210px;width:40px;height:40px;border:none;
+  .sekr-fab{position:fixed;right:18px;bottom:104px;top:auto;width:40px;height:40px;border:none;
     border-radius:50%;cursor:pointer;z-index:9998;padding:0;background:transparent;
     filter:drop-shadow(0 4px 12px rgba(201,162,77,.4));transition:transform .2s}
   .sekr-fab:hover{transform:scale(1.1)}
@@ -72,7 +72,7 @@
   .sekr-send:disabled{opacity:.5;cursor:default}
   @media (max-width:560px){
     .sekr-panel{right:8px;left:8px;width:auto;bottom:12px;height:min(72dvh,calc(100dvh - 90px))}
-    .sekr-fab{right:8px;top:160px;bottom:auto;width:38px;height:38px}
+    .sekr-fab{right:10px;bottom:92px;top:auto;width:38px;height:38px}
   }`;
 
   var st = document.createElement("style");

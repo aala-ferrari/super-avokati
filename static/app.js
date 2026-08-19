@@ -150,7 +150,13 @@
   async function selectCase(id) {
     activeCaseId = id;
     const resp = await fetch(`/api/cases/${id}`);
-    if (!resp.ok) { activeCaseId = null; return; }
+    if (!resp.ok) {
+      activeCaseId = null;
+      try { localStorage.removeItem("sa_last_case"); } catch (e) {}
+      return;
+    }
+    // ricorda il caso aperto: alla ricarica si riprende da qui
+    try { localStorage.setItem("sa_last_case", id); } catch (e) {}
     const c = await resp.json();
     messages.innerHTML = "";
     welcomeMsg?.remove();
@@ -333,6 +339,17 @@
   newCaseBtn.addEventListener("click", () => createCase());
   document.getElementById("clients-dir-btn")?.addEventListener("click", openClientsDir);
   initModeBar();
+
+  // Riprende il caso su cui si stava lavorando: alla ricarica l'app tornava
+  // sempre alla schermata vuota. Se il caso non esiste piu, selectCase()
+  // ripulisce da solo la memoria.
+  (async function restoreLastCase() {
+    try {
+      const last = localStorage.getItem("sa_last_case");
+      if (last && !activeCaseId) await selectCase(last);
+    } catch (e) { /* nessun caso da riprendere */ }
+  })();
+
 
   renameBtn.addEventListener("click", async () => {
     if (!activeCaseId) return;
