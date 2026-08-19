@@ -7577,7 +7577,7 @@ main {
 .u-chip.u-ok { background: #e7f4e8; color: #2f6b34; }
 .u-chip.u-warn { background: #fbf2e3; color: #8a6a1d; }
 .u-chip.u-exp { background: #c0392b; color: #fff; }
-.um-mods { display: flex; flex-wrap: wrap; gap: 10px; margin: 4px 0 2px; }
+.um-mods, .um-jurs { display: flex; flex-wrap: wrap; gap: 10px; margin: 4px 0 2px; }
 .um-mod { display: inline-flex; align-items: center; gap: 5px; font-size: .95rem; color: #2a2416; cursor: pointer; }
 .um-plan { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0; }
 .um-plan button { background: #fbf7ec; border: 1px solid #d8c69a; color: #6b5836; border-radius: 8px;

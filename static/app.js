@@ -10619,7 +10619,7 @@
           <td>${u.is_admin ? "👑 Admin" : "👤 User"}</td>
           <td>${u.created_at ? new Date(u.created_at).toLocaleDateString("sq-AL") : "—"}</td>
           <td style="text-align: right; white-space: nowrap;">
-            <button type="button" class="ghost" data-action="manage" data-uid="${u.id}" data-uname="${escHtml(u.username)}" data-modules="${(u.modules||[]).join(',')}" data-plan="${u.plan_expires_at||''}" data-admin="${u.is_admin?1:0}" data-status="${u.status||''}" data-days="${u.days_left==null?'':u.days_left}" title="Menaxho modulet & abonimin">⚙️</button>
+            <button type="button" class="ghost" data-action="manage" data-uid="${u.id}" data-uname="${escHtml(u.username)}" data-modules="${(u.modules||[]).join(',')}" data-jurisdictions="${(u.jurisdictions||['AL']).join(',')}" data-plan="${u.plan_expires_at||''}" data-admin="${u.is_admin?1:0}" data-status="${u.status||''}" data-days="${u.days_left==null?'':u.days_left}" title="Menaxho modulet & abonimin">⚙️</button>
             <button type="button" class="ghost" data-action="passwd" data-uid="${u.id}" data-uname="${escHtml(u.username)}" title="Ndrysho fjalëkalimin">🔑</button>
             ${u.id === meId ? "" : `<button type="button" class="ghost" data-action="suspend" data-uid="${u.id}" data-uname="${escHtml(u.username)}" data-suspended="${u.suspended ? '1' : '0'}" title="${u.suspended ? 'Riaktivizo aksesin' : 'Çaktivizo aksesin (nuk fshin të dhënat)'}">${u.suspended ? '✅' : '⛔'}</button>`}
             ${u.id === meId ? "" : `<button type="button" class="ghost" data-action="delete" data-uid="${u.id}" data-uname="${escHtml(u.username)}" title="Fshi përfundimisht" style="color:#c66;">🗑</button>`}
@@ -10654,6 +10654,11 @@
       var on = d.modules.indexOf(m) >= 0;
       return '<label class="um-mod"><input type="checkbox" value="' + m + '"' + (on ? " checked" : "") + "> " + lbl + "</label>";
     }).join("");
+    var jurRow = ["AL", "IT"].map(function (jj) {
+      var lbl = { AL: "🇦🇱 Shqipëri", IT: "🇮🇹 Itali" }[jj];
+      var on = (d.jurisdictions || ["AL"]).indexOf(jj) >= 0;
+      return '<label class="um-mod"><input type="checkbox" value="' + jj + '"' + (on ? " checked" : "") + "> " + lbl + "</label>";
+    }).join("");
     var expTxt = d.isAdmin ? "Admin — i plotë, pa afat"
       : (d.plan ? ("Skadon: " + new Date(d.plan).toLocaleDateString("sq-AL") + (d.days != null ? (" (" + d.days + " ditë)") : ""))
                 : "Pa afat (i përhershëm)");
@@ -10664,6 +10669,8 @@
       (d.isAdmin ? '<p class="wa-sub">Admin i ka të gjitha modulet — nuk preket.</p>'
         : '<label class="wa-lab">Modulet e paguara</label><div class="um-mods">' + moduleRow + "</div>" +
           '<div class="wa-row"><button class="um-save-mods wa-save" type="button">Ruaj modulet</button><span class="um-msg1 wa-msg"></span></div>' +
+          '<label class="wa-lab" style="margin-top:12px">Juridiksioni (shteti · ligji)</label><div class="um-jurs">' + jurRow + '</div>' +
+          '<div class="wa-row"><button class="um-save-jur wa-save" type="button">Ruaj juridiksionin</button><span class="um-msgj wa-msg"></span></div>' +
           '<label class="wa-lab" style="margin-top:12px">Abonimi (zgjat nga fundi aktual)</label>' +
           '<div class="um-plan"><button type="button" data-mo="1">+1 muaj</button><button type="button" data-mo="3">+3 muaj</button><button type="button" data-mo="6">+6 muaj</button><button type="button" data-mo="12">+1 vit</button><button type="button" class="um-clear">♾ Pa afat</button></div>' +
           '<div class="wa-row"><span class="um-msg2 wa-msg"></span></div>') +
@@ -10681,6 +10688,17 @@
         var r = await fetch("/api/admin/users/" + d.uid + "/modules", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ modules: sel }) });
         if (!r.ok) throw new Error();
         msg.textContent = "✓ Ruajtur"; if (typeof toast === "function") toast("Modulet u ruajtën", "ok"); loadAdminUsers();
+      } catch (e) { msg.textContent = "Gabim"; }
+    };
+    var _jb = ov.querySelector(".um-save-jur");
+    if (_jb) _jb.onclick = async function () {
+      var js = [].slice.call(ov.querySelectorAll(".um-jurs input:checked")).map(function (x) { return x.value; });
+      var msg = ov.querySelector(".um-msgj");
+      if (!js.length) { msg.textContent = "Zgjidh të paktën një"; return; }
+      try {
+        var r = await fetch("/api/admin/users/" + d.uid + "/jurisdictions", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jurisdictions: js }) });
+        if (!r.ok) throw new Error();
+        msg.textContent = "✓ Ruajtur"; if (typeof toast === "function") toast("Juridiksioni u ruajt", "ok"); loadAdminUsers();
       } catch (e) { msg.textContent = "Gabim"; }
     };
     ov.querySelectorAll(".um-plan button[data-mo]").forEach(function (b) {
@@ -10715,6 +10733,7 @@
     if (action === "manage") {
       openUserManage({ uid: uid, uname: uname,
         modules: (btn.dataset.modules || "").split(",").filter(Boolean),
+        jurisdictions: (btn.dataset.jurisdictions || "AL").split(",").filter(Boolean),
         plan: btn.dataset.plan || "", isAdmin: btn.dataset.admin === "1",
         status: btn.dataset.status || "",
         days: btn.dataset.days === "" ? null : parseInt(btn.dataset.days, 10) });
