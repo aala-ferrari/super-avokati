@@ -4442,14 +4442,15 @@
     ov = document.createElement("div");
     ov.id = "intake-ov"; ov.className = "ac-overlay";
     ov.innerHTML = '<div class="ac-modal">' +
-      '<div class="ac-head"><span>🎙️ Pika e parë — tregoni problemin</span><button class="ac-x" type="button" aria-label="Mbyll">×</button></div>' +
-      '<div class="ac-sub">Tregoni me fjalët tuaja çfarë ju ndodhi (me zë ose me shkrim). Ju themi nëse ka çështje, sa urgjente është, kush ju ndihmon — dhe ju përgatisim dokumentin e parë. Orientim, jo këshillë përfundimtare.</div>' +
+      '<div class="ac-head"><span data-i18n="intake_title">🎙️ Pika e parë — tregoni problemin</span><button class="ac-x" type="button" aria-label="Mbyll">×</button></div>' +
+      '<div class="ac-sub" data-i18n="intake_sub">Tregoni me fjalët tuaja çfarë ju ndodhi (me zë ose me shkrim). Ju themi nëse ka çështje, sa urgjente është, kush ju ndihmon — dhe ju përgatisim dokumentin e parë. Orientim, jo këshillë përfundimtare.</div>' +
       '<div class="intake-inrow"><button type="button" class="intake-mic" title="Fol shqip">🎙️</button>' +
-      '<textarea class="ac-ta intake-ta" placeholder="P.sh. Më rrahu një fqinj para 3 ditësh, kam mavijosje dhe një dëshmitar…"></textarea></div>' +
-      '<div class="ac-row"><button class="ac-run" type="button">Më orjento →</button><span class="ac-status"></span></div>' +
+      '<textarea class="ac-ta intake-ta" data-i18n-ph="intake_ph" placeholder="P.sh. Më rrahu një fqinj para 3 ditësh, kam mavijosje dhe një dëshmitar…"></textarea></div>' +
+      '<div class="ac-row"><button class="ac-run" type="button" data-i18n="intake_go">Më orjento →</button><span class="ac-status"></span></div>' +
       '<div class="ac-result"></div>' +
       "</div>";
     document.body.appendChild(ov);
+    applyStaticI18n(ov);
     var ta = ov.querySelector(".intake-ta"), run = ov.querySelector(".ac-run"),
         status = ov.querySelector(".ac-status"), result = ov.querySelector(".ac-result"),
         mic = ov.querySelector(".intake-mic");
@@ -4460,7 +4461,7 @@
     // voice (Web Speech), same pattern as rehearsal
     var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     var rec = null, listening = false;
-    if (!SR) { mic.setAttribute("disabled", ""); mic.title = "Shfletuesi yt nuk e mbështet diktimin."; }
+    if (!SR) { mic.setAttribute("disabled", ""); mic.title = t("Shfletuesi yt nuk e mbështet diktimin."); }
     else mic.onclick = function () {
       if (listening) { try { rec.stop(); } catch (e) {} listening = false; mic.classList.remove("listening"); return; }
       rec = new SR(); rec.lang = "sq-AL"; rec.interimResults = true; rec.continuous = true;
@@ -4477,7 +4478,7 @@
       rec.onerror = function () { listening = false; mic.classList.remove("listening"); };
       rec.onend = function () { if (listening) { try { rec.start(); } catch (e) {} } };
       try { rec.start(); listening = true; mic.classList.add("listening"); }
-      catch (e) { status.textContent = "S'fillova mikrofonin."; }
+      catch (e) { status.textContent = t("S'fillova mikrofonin."); }
     };
 
     var ROUTE_MAP = {
@@ -4493,9 +4494,9 @@
 
     run.onclick = async function () {
       var story = (ta.value || "").trim();
-      if (story.length < 15) { status.textContent = "Tregoni pak më shumë."; return; }
+      if (story.length < 15) { status.textContent = t("Tregoni pak më shumë."); return; }
       if (listening) { try { rec.stop(); } catch (e) {} listening = false; mic.classList.remove("listening"); }
-      run.disabled = true; status.textContent = "Po ju orjentoj… (~1-2 min)"; result.innerHTML = "";
+      run.disabled = true; status.textContent = t("Po ju orjentoj… (~1-2 min)"); result.innerHTML = "";
       try {
         var r = await fetch("/api/intake/triage", { method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ story: story }) });
@@ -4511,7 +4512,7 @@
         if (rt) {
           var go = document.createElement("button");
           go.className = "ac-run intake-go"; go.type = "button";
-          go.textContent = "Vazhdo → " + rt[0];
+          go.textContent = t("Vazhdo → ") + tMode(rt[0]);
           go.onclick = function () {
             close();
             setTimeout(function () {
@@ -4570,52 +4571,53 @@
     ov = document.createElement("div");
     ov.id = "fk-ov"; ov.className = "ac-overlay";
     ov.innerHTML = '<div class="ac-modal exp-modal">' +
-      '<div class="ac-head"><span>🗂️ Fashikulli intelligjent</span><button class="ac-x" type="button" aria-label="Mbyll">×</button></div>' +
+      '<div class="ac-head"><span data-i18n="fk_title">🗂️ Fashikulli intelligjent</span><button class="ac-x" type="button" aria-label="Mbyll">×</button></div>' +
       '<div class="exp-body">' +
-        '<div class="exp-sub">Inteligjenca mbi dokumentet e rastit: kronologjia, kush tha çfarë, pyet dokumentet, gjilpëra — të gjitha të bazuara VETËM te dokumentet e ngarkuara [Dok N].</div>' +
+        '<div class="exp-sub" data-i18n="fk_sub">Inteligjenca mbi dokumentet e rastit: kronologjia, kush tha çfarë, pyet dokumentet, gjilpëra — të gjitha të bazuara VETËM te dokumentet e ngarkuara [Dok N].</div>' +
         '<div class="fk-caseinfo"></div>' +
-        '<details class="fk-sec" open><summary>📅 Kronologjia (ngjarje · kontradikta · boshllëqe)</summary>' +
-          '<div class="ac-row"><button class="ac-run fk-tl-btn" type="button">Ndërto/rifresko kronologjinë →</button><span class="ac-status fk-tl-st"></span></div>' +
+        '<details class="fk-sec" open><summary data-i18n="fk_s_tl">📅 Kronologjia (ngjarje · kontradikta · boshllëqe)</summary>' +
+          '<div class="ac-row"><button class="ac-run fk-tl-btn" type="button" data-i18n="fk_b_tl">Ndërto/rifresko kronologjinë →</button><span class="ac-status fk-tl-st"></span></div>' +
           '<div class="ac-result fk-tl-res"></div></details>' +
-        '<details class="fk-sec"><summary>🗣️ Kush tha çfarë (versionet & përplasjet)</summary>' +
-          '<div class="ac-row"><button class="ac-run fk-who-btn" type="button">Harto hartën →</button><span class="ac-status fk-who-st"></span></div>' +
+        '<details class="fk-sec"><summary data-i18n="fk_s_who">🗣️ Kush tha çfarë (versionet & përplasjet)</summary>' +
+          '<div class="ac-row"><button class="ac-run fk-who-btn" type="button" data-i18n="fk_b_who">Harto hartën →</button><span class="ac-status fk-who-st"></span></div>' +
           '<div class="ac-result fk-who-res"></div></details>' +
-        '<details class="fk-sec"><summary>🔍 Pyet dokumentet</summary>' +
-          '<textarea class="ac-ta fk-ask-ta" placeholder="P.sh. Cila është data e njoftimit dhe kush e nënshkroi?"></textarea>' +
-          '<div class="ac-row"><button class="ac-run fk-ask-btn" type="button">Pyet →</button><span class="ac-status fk-ask-st"></span></div>' +
+        '<details class="fk-sec"><summary data-i18n="fk_s_ask">🔍 Pyet dokumentet</summary>' +
+          '<textarea class="ac-ta fk-ask-ta" data-i18n-ph="fk_ph_ask" placeholder="P.sh. Cila është data e njoftimit dhe kush e nënshkroi?"></textarea>' +
+          '<div class="ac-row"><button class="ac-run fk-ask-btn" type="button" data-i18n="fk_b_ask">Pyet →</button><span class="ac-status fk-ask-st"></span></div>' +
           '<div class="ac-result fk-ask-res"></div></details>' +
-        '<details class="fk-sec"><summary>💉 Gjilpëra në kashtë (detajin e mbivështruar)</summary>' +
-          '<div class="ac-row"><button class="ac-run fk-nd-btn" type="button">Gjej gjilpërën →</button><span class="ac-status fk-nd-st"></span></div>' +
+        '<details class="fk-sec"><summary data-i18n="fk_s_nd">💉 Gjilpëra në kashtë (detajin e mbivështruar)</summary>' +
+          '<div class="ac-row"><button class="ac-run fk-nd-btn" type="button" data-i18n="fk_b_nd">Gjej gjilpërën →</button><span class="ac-status fk-nd-st"></span></div>' +
           '<div class="ac-result fk-nd-res"></div></details>' +
-        '<details class="fk-sec"><summary>🔎 Regjistri (kërko akte semantik)</summary>' +
-          '<input type="text" class="research-search fk-rg-q" placeholder="🔎 P.sh. dhurime me uzufrukt, ku shfaqet 7/512…" />' +
-          '<label class="ck-dossier"><input type="checkbox" class="fk-rg-case" checked> Vetëm ky rast (çaktivizoje për tërë studion)</label>' +
-          '<div class="ac-row"><button class="ac-run fk-rg-btn" type="button">Kërko →</button><span class="ac-status fk-rg-st"></span></div>' +
+        '<details class="fk-sec"><summary data-i18n="fk_s_rg">🔎 Regjistri (kërko akte semantik)</summary>' +
+          '<input type="text" class="research-search fk-rg-q" data-i18n-ph="fk_ph_rg" placeholder="🔎 P.sh. dhurime me uzufrukt, ku shfaqet 7/512…" />' +
+          '<label class="ck-dossier"><input type="checkbox" class="fk-rg-case" checked> <span data-i18n="fk_onlycase">Vetëm ky rast (çaktivizoje për tërë studion)</span></label>' +
+          '<div class="ac-row"><button class="ac-run fk-rg-btn" type="button" data-i18n="fk_b_rg">Kërko →</button><span class="ac-status fk-rg-st"></span></div>' +
           '<div class="ac-result fk-rg-res"></div></details>' +
-        '<details class="fk-sec"><summary>🕵️ Ispektor i aktit (revizor senior)</summary>' +
-          '<div class="ac-attach-row"><label class="ac-attach">📎 Bashkëngjit<input type="file" class="fk-isp-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.tif,.tiff,.docx" hidden></label></div>' +
-          '<textarea class="ac-ta fk-isp-ta" placeholder="Ngjit aktin që do të inspektohet (kontratë, akt notarial, padi, aktakuzë…)…"></textarea>' +
-          '<div class="ac-row"><button class="ac-run fk-isp-btn" type="button">Inspekto →</button><span class="ac-status fk-isp-st"></span></div>' +
+        '<details class="fk-sec"><summary data-i18n="fk_s_isp">🕵️ Ispektor i aktit (revizor senior)</summary>' +
+          '<div class="ac-attach-row"><label class="ac-attach"><span data-i18n="fk_attach">📎 Bashkëngjit</span><input type="file" class="fk-isp-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.tif,.tiff,.docx" hidden></label></div>' +
+          '<textarea class="ac-ta fk-isp-ta" data-i18n-ph="fk_ph_isp" placeholder="Ngjit aktin që do të inspektohet (kontratë, akt notarial, padi, aktakuzë…)…"></textarea>' +
+          '<div class="ac-row"><button class="ac-run fk-isp-btn" type="button" data-i18n="fk_b_isp">Inspekto →</button><span class="ac-status fk-isp-st"></span></div>' +
           '<div class="ac-result fk-isp-res"></div></details>' +
-        '<details class="fk-sec"><summary>📸 Lexo & mbush (nxjerr të dhënat)</summary>' +
-          '<div class="ac-attach-row"><label class="ac-attach">📎 Bashkëngjit<input type="file" class="fk-ext-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.tif,.tiff,.docx" hidden multiple></label>' +
-            '<label class="ck-dossier"><input type="checkbox" class="fk-ext-case" checked> Nga dokumentet e rastit</label></div>' +
-          '<textarea class="ac-ta fk-ext-ta" placeholder="Ose ngjit tekstin e dokumentit…"></textarea>' +
-          '<div class="ac-row"><button class="ac-run fk-ext-btn" type="button">Nxirr të dhënat →</button><span class="ac-status fk-ext-st"></span></div>' +
+        '<details class="fk-sec"><summary data-i18n="fk_s_ext">📸 Lexo & mbush (nxjerr të dhënat)</summary>' +
+          '<div class="ac-attach-row"><label class="ac-attach"><span data-i18n="fk_attach">📎 Bashkëngjit</span><input type="file" class="fk-ext-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.tif,.tiff,.docx" hidden multiple></label>' +
+            '<label class="ck-dossier"><input type="checkbox" class="fk-ext-case" checked> <span data-i18n="fk_fromcase">Nga dokumentet e rastit</span></label></div>' +
+          '<textarea class="ac-ta fk-ext-ta" data-i18n-ph="fk_ph_ext" placeholder="Ose ngjit tekstin e dokumentit…"></textarea>' +
+          '<div class="ac-row"><button class="ac-run fk-ext-btn" type="button" data-i18n="fk_b_ext">Nxirr të dhënat →</button><span class="ac-status fk-ext-st"></span></div>' +
           '<div class="ac-result fk-ext-res"></div></details>' +
-        '<details class="fk-sec"><summary>🔮 Çka nëse… (simulator)</summary>' +
-          '<textarea class="ac-ta fk-wi-act" placeholder="Akti aktual (ngjit tekstin ose parametrat)…"></textarea>' +
-          '<textarea class="ac-ta fk-wi-change" style="min-height:60px" placeholder="Ndryshimi që po mendon — p.sh. Çka nëse shtoj një uzufrukt?"></textarea>' +
-          '<div class="ac-row"><button class="ac-run fk-wi-btn" type="button">Simulo →</button><span class="ac-status fk-wi-st"></span></div>' +
+        '<details class="fk-sec"><summary data-i18n="fk_s_wi">🔮 Çka nëse… (simulator)</summary>' +
+          '<textarea class="ac-ta fk-wi-act" data-i18n-ph="fk_ph_wi_act" placeholder="Akti aktual (ngjit tekstin ose parametrat)…"></textarea>' +
+          '<textarea class="ac-ta fk-wi-change" style="min-height:60px" data-i18n-ph="fk_ph_wi_change" placeholder="Ndryshimi që po mendon — p.sh. Çka nëse shtoj një uzufrukt?"></textarea>' +
+          '<div class="ac-row"><button class="ac-run fk-wi-btn" type="button" data-i18n="fk_b_wi">Simulo →</button><span class="ac-status fk-wi-st"></span></div>' +
           '<div class="ac-result fk-wi-res"></div></details>' +
-        '<details class="fk-sec"><summary>📚 Klauzolat e studios</summary>' +
-          '<div class="ac-row"><button class="ac-run fk-cl-manage" type="button">📚 Menaxho / shto klauzola</button></div>' +
+        '<details class="fk-sec"><summary data-i18n="fk_s_cl">📚 Klauzolat e studios</summary>' +
+          '<div class="ac-row"><button class="ac-run fk-cl-manage" type="button" data-i18n="fk_b_cl">📚 Menaxho / shto klauzola</button></div>' +
           '<div class="fk-cl-list"></div></details>' +
       '</div></div>';
     document.body.appendChild(ov);
     function close() { ov.remove(); }
     ov.querySelector(".ac-x").onclick = close;
     ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
+    applyStaticI18n(ov);
     var info = ov.querySelector(".fk-caseinfo");
     async function refreshInfo() {
       var txt = "";
@@ -4625,19 +4627,19 @@
           if (rd.ok) {
             var dj = await rd.json(); var docs = dj.documents || []; var n = docs.length;
             var ready = docs.filter(function (d) { return (d.status || "") === "ready"; }).length;
-            txt = n ? ('<span class="fk-ok">📎 ' + n + ' dokument(e)' + (ready < n ? (' · ' + (n - ready) + ' në përpunim…') : ' gati') + '</span>')
-                    : '<span class="fk-warn">Asnjë dokument — ngarko për të nisur.</span>';
+            txt = n ? ('<span class="fk-ok">📎 ' + n + t(' dokument(e)') + (ready < n ? (' · ' + (n - ready) + t(' në përpunim…')) : t(' gati')) + '</span>')
+                    : '<span class="fk-warn">' + t("Asnjë dokument — ngarko për të nisur.") + '</span>';
           }
         } catch (e) {}
       } else {
-        txt = '<span class="fk-warn">Do të krijohet një rast i ri kur të ngarkosh.</span>';
+        txt = '<span class="fk-warn">' + t("Do të krijohet një rast i ri kur të ngarkosh.") + '</span>';
       }
-      info.innerHTML = '<div class="fk-uprow"><label class="fk-upload">📎 Ngarko dokumente<input type="file" multiple class="fk-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.tif,.tiff,.docx,.txt" hidden></label> ' + txt + '</div>';
+      info.innerHTML = '<div class="fk-uprow"><label class="fk-upload">' + t('📎 Ngarko dokumente') + '<input type="file" multiple class="fk-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.tif,.tiff,.docx,.txt" hidden></label> ' + txt + '</div>';
       var fkFile = info.querySelector(".fk-file");
       if (fkFile) fkFile.onchange = async function () {
         if (!fkFile.files || !fkFile.files.length) return;
         var files = [].slice.call(fkFile.files); fkFile.value = "";
-        var lbl = info.querySelector(".fk-upload"); if (lbl) lbl.textContent = "⏳ Po ngarkoj…";
+        var lbl = info.querySelector(".fk-upload"); if (lbl) lbl.textContent = t("⏳ Po ngarkoj…");
         try { await uploadFiles(files); } catch (e) {}
         await refreshInfo();
       };
@@ -4646,7 +4648,7 @@
     function _need() { if (!activeCaseId) { return false; } return true; }
     function _render(res, box, md) {
       if (!md || !String(md).trim()) {
-        box.innerHTML = '<div class="fk-warn">📎 Nuk ka dokumente të gatshme në këtë dosje. Ngarko dokumente te dosja (📎) dhe prit sa të përpunohen — pastaj kjo vegël i analizon.</div>';
+        box.innerHTML = '<div class="fk-warn">' + t("📎 Nuk ka dokumente të gatshme në këtë dosje. Ngarko dokumente te dosja (📎) dhe prit sa të përpunohen — pastaj kjo vegël i analizon.") + '</div>';
         return;
       }
       box.innerHTML = '<div class="fd-out"></div>';
@@ -4659,10 +4661,10 @@
     // Kronologjia — try cached, then build on click
     var tlBtn = ov.querySelector(".fk-tl-btn"), tlSt = ov.querySelector(".fk-tl-st"), tlRes = ov.querySelector(".fk-tl-res");
     if (activeCaseId) { try { var rc = await fetch("/api/cases/" + activeCaseId + "/timeline");
-      if (rc.ok) { var cj = await rc.json(); if (cj.result) { tlRes.innerHTML = _renderFkTimeline(cj.result); tlSt.textContent = "e ruajtur"; } } } catch (e) {} }
+      if (rc.ok) { var cj = await rc.json(); if (cj.result) { tlRes.innerHTML = _renderFkTimeline(cj.result); tlSt.textContent = t("e ruajtur"); } } } catch (e) {} }
     tlBtn.onclick = async function () {
-      if (!_need()) { tlSt.textContent = "Hap një rast."; return; }
-      tlBtn.disabled = true; tlSt.textContent = "Po lexoj dokumentet dhe ndërtoj kronologjinë… (~1-2 min)";
+      if (!_need()) { tlSt.textContent = t("Hap një rast."); return; }
+      tlBtn.disabled = true; tlSt.textContent = t("Po lexoj dokumentet dhe ndërtoj kronologjinë… (~1-2 min)");
       try {
         var r = await fetch("/api/cases/" + activeCaseId + "/timeline", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
         var d = await r.json(); if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
@@ -4673,8 +4675,8 @@
     // Kush tha çfarë
     var whoBtn = ov.querySelector(".fk-who-btn"), whoSt = ov.querySelector(".fk-who-st"), whoRes = ov.querySelector(".fk-who-res");
     whoBtn.onclick = async function () {
-      if (!_need()) { whoSt.textContent = "Hap një rast."; return; }
-      whoBtn.disabled = true; whoSt.textContent = "Po hartoj kush-tha-çfarë… (~2 min)";
+      if (!_need()) { whoSt.textContent = t("Hap një rast."); return; }
+      whoBtn.disabled = true; whoSt.textContent = t("Po hartoj kush-tha-çfarë… (~2 min)");
       try {
         var r = await fetch("/api/cases/" + activeCaseId + "/who-said", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
         var d = await r.json(); if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
@@ -4684,9 +4686,9 @@
     // Pyet dokumentet
     var askTa = ov.querySelector(".fk-ask-ta"), askBtn = ov.querySelector(".fk-ask-btn"), askSt = ov.querySelector(".fk-ask-st"), askRes = ov.querySelector(".fk-ask-res");
     askBtn.onclick = async function () {
-      if (!_need()) { askSt.textContent = "Hap një rast."; return; }
-      var q = (askTa.value || "").trim(); if (q.length < 5) { askSt.textContent = "Shkruaj pyetjen."; return; }
-      askBtn.disabled = true; askSt.textContent = "Po lexoj dokumentet…";
+      if (!_need()) { askSt.textContent = t("Hap një rast."); return; }
+      var q = (askTa.value || "").trim(); if (q.length < 5) { askSt.textContent = t("Shkruaj pyetjen."); return; }
+      askBtn.disabled = true; askSt.textContent = t("Po lexoj dokumentet…");
       try {
         var r = await fetch("/api/cases/" + activeCaseId + "/vault", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question: q }) });
         var d = await r.json(); if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
@@ -4697,8 +4699,8 @@
     // Gjilpëra
     var ndBtn = ov.querySelector(".fk-nd-btn"), ndSt = ov.querySelector(".fk-nd-st"), ndRes = ov.querySelector(".fk-nd-res");
     ndBtn.onclick = async function () {
-      if (!_need()) { ndSt.textContent = "Hap një rast."; return; }
-      ndBtn.disabled = true; ndSt.textContent = "Po gjurmoj gjilpërën…";
+      if (!_need()) { ndSt.textContent = t("Hap një rast."); return; }
+      ndBtn.disabled = true; ndSt.textContent = t("Po gjurmoj gjilpërën…");
       try {
         var r = await fetch("/api/cases/" + activeCaseId + "/needle", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
         var d = await r.json(); if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
@@ -4709,8 +4711,8 @@
         rgBtn = ov.querySelector(".fk-rg-btn"), rgSt = ov.querySelector(".fk-rg-st"), rgRes = ov.querySelector(".fk-rg-res");
     async function rgGo() {
       var query = (rgQ.value || "").trim();
-      if (query.length < 2) { rgSt.textContent = "Shkruaj pyetjen."; return; }
-      rgBtn.disabled = true; rgSt.textContent = "Po kërkoj… (~1 min)"; rgRes.innerHTML = "";
+      if (query.length < 2) { rgSt.textContent = t("Shkruaj pyetjen."); return; }
+      rgBtn.disabled = true; rgSt.textContent = t("Po kërkoj… (~1 min)"); rgRes.innerHTML = "";
       try {
         var payload = { query: query };
         if (rgCase && rgCase.checked && activeCaseId) payload.case_id = activeCaseId;
@@ -4750,8 +4752,8 @@
     };
     ispBtn.onclick = async function () {
       var text = (ispTa.value || "").trim();
-      if (text.length < 30) { ispSt.textContent = "Ngjit aktin."; return; }
-      ispBtn.disabled = true; ispSt.textContent = "Po inspektoj… (~2-3 min)"; ispRes.innerHTML = "";
+      if (text.length < 30) { ispSt.textContent = t("Ngjit aktin."); return; }
+      ispBtn.disabled = true; ispSt.textContent = t("Po inspektoj… (~2-3 min)"); ispRes.innerHTML = "";
       try {
         var r = await fetch("/api/notary/inspect", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: text, case_id: activeCaseId || "" }) });
         var d = await r.json(); if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
@@ -4770,16 +4772,16 @@
       var files = extFile.files ? [].slice.call(extFile.files) : []; if (!files.length) return; extBtn.disabled = true;
       if (extCase) extCase.checked = false;
       for (var i = 0; i < files.length; i++) { try { var dd = await _extractFileText(files[i], extSt); var tx = (dd.text || "").trim(); if (tx) extTa.value = extTa.value.trim() ? (extTa.value.trim() + "\n\n" + tx) : tx; } catch (e) {} }
-      extSt.textContent = "✓ u lexuan"; extBtn.disabled = false; extFile.value = "";
+      extSt.textContent = t("✓ u lexuan"); extBtn.disabled = false; extFile.value = "";
     };
     extBtn.onclick = async function () {
       var text = (extTa.value || "").trim(); var payload = {};
       if (text) payload.text = text; else if (extCase && extCase.checked && activeCaseId) payload.case_id = activeCaseId;
-      else { extSt.textContent = "Jep tekstin ose zgjidh dokumentet e rastit."; return; }
-      extBtn.disabled = true; extSt.textContent = "Po nxjerr të dhënat… (~1-2 min)"; extRes.innerHTML = "";
+      else { extSt.textContent = t("Jep tekstin ose zgjidh dokumentet e rastit."); return; }
+      extBtn.disabled = true; extSt.textContent = t("Po nxjerr të dhënat… (~1-2 min)"); extRes.innerHTML = "";
       try {
         var r = await fetch("/api/notary/extract", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-        var d = await r.json(); if (!r.ok || d.error) throw new Error(d.error === "text_required" ? "Nuk ka tekst — bashkëngjit ose përdor dokumentet e rastit." : (d.error || ("HTTP " + r.status)));
+        var d = await r.json(); if (!r.ok || d.error) throw new Error(d.error === "text_required" ? t("Nuk ka tekst — bashkëngjit ose përdor dokumentet e rastit.") : (d.error || ("HTTP " + r.status)));
         extSt.textContent = "";
         extRes.innerHTML = '<div class="fd-out"></div>'; extRes.querySelector(".fd-out").innerHTML = renderMarkdown(d.markdown || "");
         var cpx = document.createElement("button"); cpx.className = "fd-copy"; cpx.type = "button"; cpx.textContent = "📋 Kopjo";
@@ -4793,9 +4795,9 @@
         wiSt = ov.querySelector(".fk-wi-st"), wiRes = ov.querySelector(".fk-wi-res");
     wiBtn.onclick = async function () {
       var act = (wiAct.value || "").trim(), change = (wiChange.value || "").trim();
-      if (act.length < 15) { wiSt.textContent = "Jep aktin aktual."; return; }
-      if (change.length < 4) { wiSt.textContent = "Shkruaj ndryshimin."; return; }
-      wiBtn.disabled = true; wiSt.textContent = "Po simuloj… (~2 min)"; wiRes.innerHTML = "";
+      if (act.length < 15) { wiSt.textContent = t("Jep aktin aktual."); return; }
+      if (change.length < 4) { wiSt.textContent = t("Shkruaj ndryshimin."); return; }
+      wiBtn.disabled = true; wiSt.textContent = t("Po simuloj… (~2 min)"); wiRes.innerHTML = "";
       try {
         var r = await fetch("/api/notary/whatif", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ act: act, change: change }) });
         var d = await r.json(); if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
@@ -4812,7 +4814,7 @@
     (async function clLoad() {
       try {
         var r = await fetch("/api/firm/clauses"); var d = await r.json(); var cl = d.clauses || [];
-        if (!cl.length) { clList.innerHTML = '<div class="fk-warn" style="margin-top:8px">Ende asnjë klauzolë — kliko lart për të shtuar.</div>'; return; }
+        if (!cl.length) { clList.innerHTML = '<div class="fk-warn" style="margin-top:8px">' + t("Ende asnjë klauzolë — kliko lart për të shtuar.") + '</div>'; return; }
         var ul = document.createElement("ul"); ul.className = "research-list"; ul.style.marginTop = "8px";
         cl.forEach(function (c) {
           var li = document.createElement("li"); li.className = "research-item";
@@ -5380,7 +5382,7 @@
 
   // ── i18n (Fase C) — Italian UI for IT sessions ────────────────────────────
   var UI_LANG = (document.body && document.body.dataset ? document.body.dataset.lang : "") || "sq";
-  var I18N_IT = {
+  var I18N_IT = { intake_title: "🎙️ Primo contatto — racconta il problema", intake_sub: "Racconta con parole tue cosa ti è successo (a voce o per iscritto). Ti diciamo se c'è un caso, quanto è urgente, chi ti aiuta — e ti prepariamo il primo documento. Orientamento, non consulenza definitiva.", intake_ph: "Es. Un vicino mi ha aggredito 3 giorni fa, ho lividi e un testimone…", intake_go: "Orientami →", fk_title: "🗂️ Fascicolo intelligente", fk_sub: "Intelligenza sui documenti del caso: cronologia, chi ha detto cosa, interroga i documenti, l'ago — tutto basato SOLO sui documenti caricati [Doc N].", fk_s_tl: "📅 Cronologia (eventi · contraddizioni · lacune)", fk_s_who: "🗣️ Chi ha detto cosa (versioni & contrasti)", fk_s_ask: "🔍 Interroga i documenti", fk_s_nd: "💉 L'ago nel pagliaio (il dettaglio trascurato)", fk_s_rg: "🔎 Registro (cerca atti — semantico)", fk_s_isp: "🕵️ Ispettore dell'atto (revisore senior)", fk_s_ext: "📸 Leggi & compila (estrai i dati)", fk_s_wi: "🔮 E se… (simulatore)", fk_s_cl: "📚 Clausole dello studio", fk_b_tl: "Costruisci/aggiorna la cronologia →", fk_b_who: "Costruisci la mappa →", fk_b_ask: "Chiedi →", fk_b_nd: "Trova l'ago →", fk_b_rg: "Cerca →", fk_b_isp: "Ispeziona →", fk_b_ext: "Estrai i dati →", fk_b_wi: "Simula →", fk_b_cl: "📚 Gestisci / aggiungi clausole", fk_ph_ask: "Es. Qual è la data della notifica e chi l'ha firmata?", fk_ph_rg: "🔎 Es. donazioni con usufrutto, dove compare 7/512…", fk_ph_isp: "Incolla l'atto da ispezionare (contratto, atto notarile, citazione, atto d'accusa…)…", fk_ph_ext: "Oppure incolla il testo del documento…", fk_ph_wi_act: "Atto attuale (incolla il testo o i parametri)…", fk_ph_wi_change: "La modifica che stai pensando — es. E se aggiungo un usufrutto?", fk_onlycase: "Solo questo caso (disattiva per tutto lo studio)", fk_fromcase: "Dai documenti del caso", fk_attach: "📎 Allega",
     tagline: "La battaglia si vince prima di iniziare.",
     codes: "codici", articles: "articoli", calendar: "Calendario",
     my_cases: "I miei casi", new_case: "Nuovo caso",
@@ -5407,7 +5409,7 @@
     "\ud83d\uddc2\ufe0f Shiko t\u00eb ruajturat": "\ud83d\uddc2\ufe0f Vedi i salvati"
   };
   function t(sq) { return (UI_LANG === "it" && T_IT[sq]) ? T_IT[sq] : sq; }
-  Object.assign(T_IT, { "📎 Bashkëngjit PDF/foto": "📎 Allega PDF/foto", "ose ngjit tekstin poshtë": "oppure incolla il testo qui sotto", "Shkruaj pak më shumë.": "Scrivi un po' di più.", "Pyet Avokatin e Djallit": "Chiedi all'Avvocato del Diavolo", "Përshkruaj situatën ose pyetjen. Avokati i Djallit të jep këndin fitues, kurthin dhe lëvizjen e zgjuar.": "Descrivi la situazione o la domanda. L'Avvocato del Diavolo ti dà l'angolo vincente, la trappola e la mossa astuta.", "P.sh. Klienti nënshkroi një kontratë me penalitet 5% në ditë vonesë. Si ta sulmoj?": "Es. Il cliente ha firmato un contratto con penale del 5% al giorno di ritardo. Come lo attacco?", "Pyet →": "Chiedi →", "Avokati i Djallit po mendon…": "L'Avvocato del Diavolo sta pensando…", "Kundërshtari": "L'Avversario", "Ngjit një kontratë ose akt. Avokati i palës kundërshtare do të gjejë çdo dobësi dhe si do ta godasë.": "Incolla un contratto o un atto. L'avvocato della controparte troverà ogni debolezza e come colpirla.", "Ngjit tekstin e plotë të kontratës ose aktit që do të stress-testohet…": "Incolla il testo completo del contratto o dell'atto da stress-testare…", "Sulmo →": "Attacca →", "Kundërshtari po sulmon…": "L'Avversario sta attaccando…", "Përshkruaj faktet ose fashikullin. Merr kualifikimin ligjor, mjaftueshmërinë e provave, hapat hetimorë dhe review-n e objektivitetit (ana e mbrojtjes).": "Descrivi i fatti o il fascicolo. Ottieni la qualificazione giuridica, la sufficienza delle prove, gli atti d'indagine e la revisione di obiettività (lato difesa).", "Përshkruaj faktet e çështjes penale (ose bashkëngjit fashikullin)…": "Descrivi i fatti del caso penale (o allega il fascicolo)…", "Analizo →": "Analizza →", "Po ndërtoj analizën e prokurorit… (~3-4 min)": "Sto costruendo l'analisi del procuratore… (~3-4 min)", "Kontroll vlefshmërie akti": "Controllo validità dell'atto", "Ngjit aktin notarial. Kontrollohen klauzolat e detyrueshme, mospërputhjet dhe nenet e cituara — para noterizimit.": "Incolla l'atto notarile. Si controllano le clausole obbligatorie, le incongruenze e gli articoli citati — prima della stipula.", "Ngjit tekstin e plotë të aktit notarial…": "Incolla il testo completo dell'atto notarile…", "Kontrollo →": "Controlla →", "Po kontrolloj aktin… (~2-3 min)": "Sto controllando l'atto… (~2-3 min)", "Përshkruaj gjendjen familjare (i ndjeri, bashkëshorti, fëmijët, prindërit…). Merr trashëgimtarët dhe pjesët takuese, të bazuara në ligj.": "Descrivi la situazione familiare (il defunto, il coniuge, i figli, i genitori…). Ottieni gli eredi e le quote spettanti, in base alla legge.", "P.sh. I ndjeri la bashkëshorten dhe 2 fëmijë; prindërit jetojnë; pasuria: apartament + kursime…": "Es. Il defunto ha lasciato il coniuge e 2 figli; i genitori sono in vita; patrimonio: appartamento + risparmi…", "Po llogaris trashëgiminë… (~2-3 min)": "Sto calcolando la successione… (~2-3 min)", "Përshkruaj aktin/shërbimin noterial. Merr listën e plotë të dokumenteve që duhet të sjellë klienti dhe kush i lëshon.": "Descrivi l'atto/servizio notarile. Ottieni l'elenco completo dei documenti che il cliente deve portare e chi li rilascia.", "P.sh. Kontratë shitje apartamenti mes dy personave fizikë…": "Es. Contratto di compravendita di appartamento tra due persone fisiche…", "Listo dokumentet →": "Elenca i documenti →", "Po përgatis listën…": "Sto preparando l'elenco…", "Përshkruaj (ose ngjit) prokurën që do të revokohet dhe të dhënat e palëve. Merr aktin e revokimit, gati për noterizim, me njoftimet e detyrueshme ndaj të tretëve (neni 74 KC).": "Descrivi (o incolla) la procura da revocare e i dati delle parti. Ottieni l'atto di revoca, pronto per la stipula, con le notifiche obbligatorie ai terzi (art. 74 c.c.).", "Harto revokimin →": "Redigi la revoca →", "Po harton revokimin… (~2 min)": "Sto redigendo la revoca… (~2 min)", "Nga kallëzimi ose faktet, merr një plan hetimi: hipotezat, veprimet hetimore, kush të pyetet, afatet dhe objektiviteti. Prokurori vendos.": "Dalla denuncia o dai fatti, ottieni un piano d'indagine: le ipotesi, gli atti d'indagine, chi interrogare, i termini e l'obiettività. Il procuratore decide.", "Përshkruaj kallëzimin / faktet e çështjes…": "Descrivi la denuncia / i fatti del caso…", "Ndërto planin →": "Costruisci il piano →", "Po ndërtoj planin e hetimit… (~3 min)": "Sto costruendo il piano d'indagine… (~3 min)", "Harton projekt-kërkesën (fumus + periculum + proporcionalitet). ⚠️ Vetëm projekt — gjykata vendos; nuk rekomandohet arresti si i sigurt.": "Redige la bozza di richiesta (fumus + periculum + proporzionalità). ⚠️ Solo bozza — il giudice decide; l'arresto non è raccomandato come sicuro.", "Faktet, vepra, dyshimi i arsyeshëm, rreziqet konkrete…": "I fatti, il reato, il ragionevole sospetto, i pericoli concreti…", "Harto kërkesën →": "Redigi la richiesta →", "Po harton kërkesën për masë… (~3 min)": "Sto redigendo la richiesta di misura… (~3 min)", "Kërkesë për pushim / mosfillim": "Richiesta di archiviazione", "Harton projekt-vendimin e arsyetuar për pushim ose mosfillim. Vendimi i takon prokurorit.": "Redige la bozza di provvedimento motivato di archiviazione. La decisione spetta al procuratore.", "Faktet dhe pse nuk ka vend për ndjekje…": "I fatti e perché non c'è luogo a procedere…", "Harto projektin →": "Redigi la bozza →", "Po harton… (~3 min)": "Sto redigendo… (~3 min)", "Stres-test i aktit (ana e mbrojtjes)": "Stress-test dell'atto (lato difesa)", "Ngjit një akt të prokurorisë (aktakuzë, kërkesë mase, analizë). Gjen dobësitë, pavlefshmëritë procedurale dhe provat shfajësuese para paraqitjes.": "Incolla un atto della procura (atto d'accusa, richiesta di misura, analisi). Trova le debolezze, le nullità procedurali e le prove a discarico prima del deposito.", "Ngjit tekstin e plotë të aktit…": "Incolla il testo completo dell'atto…", "Testo aktin →": "Testa l'atto →", "Po e stres-testoj… (~2-3 min)": "Sto stress-testando… (~2-3 min)", "Nga rrëfimi yt, merr një kallëzim të plotë, ku dorëzohet (Prokuroria vs SPAK) dhe dokumentet për t'u bashkangjitur. Ndihmesë, jo këshillë ligjore.": "Dal tuo racconto, ottieni una denuncia completa, dove presentarla e i documenti da allegare. Assistenza, non consulenza legale.", "Trego çfarë të ndodhi: kush, çfarë, kur, ku, çfarë dëmi, çfarë provash ke…": "Racconta cosa è successo: chi, cosa, quando, dove, che danno, che prove hai…", "Përgatit kallëzimin →": "Prepara la denuncia →", "Po përgatis kallëzimin… (~2-3 min)": "Sto preparando la denuncia… (~2-3 min)", "Shpjegim i thjeshtë i të drejtave (neni 58 KPP) dhe i fazave të procesit për të dëmtuarin.": "Spiegazione semplice dei diritti e delle fasi del processo per la persona offesa.", "Përshkruaj situatën tënde…": "Descrivi la tua situazione…", "Shpjego →": "Spiega →", "Po përgatis shpjegimin…": "Sto preparando la spiegazione…", "Deshifron një vendim pushimi/mosfillimi dhe harton ankimin drejtuar gjykatës. ⚠️ Afatet janë vendimtare — verifikoji.": "Decifra un provvedimento di archiviazione e redige l'opposizione al giudice. ⚠️ I termini sono decisivi — verificali.", "Përshkruaj ose ngjit vendimin e pushimit/mosfillimit…": "Descrivi o incolla il provvedimento di archiviazione…", "Harto ankimin →": "Redigi l'opposizione →", "Po harton ankimin… (~2-3 min)": "Sto redigendo l'opposizione… (~2-3 min)", "Harton ankesat për vonesa: te prokuroria, te Avokati i Popullit, dhe kërkesë për kopje aktesh.": "Redige i reclami per ritardi: alla procura, al Difensore civico, e la richiesta di copia degli atti.", "Prej sa kohësh po vonon, çfarë çështjeje, çfarë ke kërkuar…": "Da quanto tempo è in ritardo, che caso, cosa hai richiesto…", "Harto ankesat →": "Redigi i reclami →", "Po harton ankesat…": "Sto redigendo i reclami…", "Ngjit një përgjigje ose tekst juridik. Kontrollohet nëse çdo nen i cituar VËRTET e mbështet pohimin — kundrejt tekstit REAL të nenit nga korpusi.": "Incolla una risposta o un testo giuridico. Si verifica se ogni articolo citato sostiene DAVVERO l'affermazione — rispetto al testo REALE dell'articolo dal corpus.", "Ngjit tekstin/përgjigjen juridike që do të kontrollohet…": "Incolla il testo/la risposta giuridica da controllare…", "Verifiko thellë →": "Verifica a fondo →", "Po kontrolloj çdo pohim kundrejt tekstit real… (~2-3 min)": "Sto controllando ogni affermazione rispetto al testo reale… (~2-3 min)", "Shkruaj ligjin/nenin. Kontrollohet ONLINE te burimet zyrtare (QBZ / Fletorja Zyrtare) nëse është në fuqi, i ndryshuar apo i shfuqizuar — me burime.": "Scrivi la legge/l'articolo. Si verifica ONLINE alle fonti ufficiali se è in vigore, modificato o abrogato — con le fonti.", "P.sh. Neni 134 i Kodit Penal; ose Ligji nr. 7895, datë 27.1.1995…": "Es. Art. 575 del Codice Penale; oppure Legge n. 241/1990…", "Kontrollo online →": "Controlla online →", "Po kontrolloj te burimet zyrtare online… (~2-3 min)": "Sto controllando le fonti ufficiali online… (~2-3 min)", "Aktakuzë (prokuror)": "Atto d'accusa (procuratore)", "Përshkruaj faktet. Merr një draft aktakuze të strukturuar (palët, faktet, kualifikimi ligjor, provat, kërkesa), me nene nga korpusi.": "Descrivi i fatti. Ottieni una bozza di atto d'accusa strutturata (parti, fatti, qualificazione giuridica, prove, richieste), con articoli dal corpus.", "Harto aktakuzën →": "Redigi l'atto d'accusa →", "Po harton aktakuzën… (~3-4 min)": "Sto redigendo l'atto d'accusa… (~3-4 min)", "Përshkruaj veprën ose pretendimin DHE datën. Llogaritet afati i parashkrimit (Kodi Penal neni 66 ose Kodi Civil neni 124+), data e skadimit dhe a ka skaduar sot.": "Descrivi il reato o la pretesa E la data. Si calcola il termine di prescrizione, la data di scadenza e se è già scaduto oggi.", "P.sh. Vjedhje e kryer më 03.01.2020… OSE padi civile për dëm më 10.05.2019…": "Es. Furto commesso il 03.01.2020… OPPURE azione civile per danno il 10.05.2019…", "Llogarit →": "Calcola →", "Po llogaris parashkrimin… (~2-3 min)": "Sto calcolando la prescrizione… (~2-3 min)",
+  Object.assign(T_IT, { "Tregoni pak më shumë.": "Racconta un po' di più.", "Po ju orjentoj… (~1-2 min)": "Ti sto orientando… (~1-2 min)", "S'fillova mikrofonin.": "Non ho avviato il microfono.", "Shfletuesi yt nuk e mbështet diktimin.": "Il tuo browser non supporta la dettatura.", "Vazhdo → ": "Continua → ", "Përgatit kallëzimin": "Prepara la denuncia", "Të drejtat e tua": "I tuoi diritti", "Analizë e çështjes": "Analisi del caso", "Këshillë strategjike": "Consiglio strategico", "e ruajtur": "salvata", "Hap një rast.": "Apri un caso.", "Po lexoj dokumentet dhe ndërtoj kronologjinë… (~1-2 min)": "Sto leggendo i documenti e costruendo la cronologia… (~1-2 min)", "Po hartoj kush-tha-çfarë… (~2 min)": "Sto costruendo chi-ha-detto-cosa… (~2 min)", "Shkruaj pyetjen.": "Scrivi la domanda.", "Po lexoj dokumentet…": "Sto leggendo i documenti…", "Po gjurmoj gjilpërën…": "Sto cercando l'ago…", "Po kërkoj… (~1 min)": "Sto cercando… (~1 min)", "Ngjit aktin.": "Incolla l'atto.", "Po inspektoj… (~2-3 min)": "Sto ispezionando… (~2-3 min)", "✓ u lexuan": "✓ letti", "Jep tekstin ose zgjidh dokumentet e rastit.": "Fornisci il testo o seleziona i documenti del caso.", "Po nxjerr të dhënat… (~1-2 min)": "Sto estraendo i dati… (~1-2 min)", "Nuk ka tekst — bashkëngjit ose përdor dokumentet e rastit.": "Nessun testo — allega o usa i documenti del caso.", "Jep aktin aktual.": "Fornisci l'atto attuale.", "Shkruaj ndryshimin.": "Scrivi la modifica.", "Po simuloj… (~2 min)": "Sto simulando… (~2 min)", " dokument(e)": " documento/i", " në përpunim…": " in elaborazione…", " gati": " pronti", "Asnjë dokument — ngarko për të nisur.": "Nessun documento — carica per iniziare.", "Do të krijohet një rast i ri kur të ngarkosh.": "Verrà creato un nuovo caso al caricamento.", "📎 Ngarko dokumente": "📎 Carica documenti", "⏳ Po ngarkoj…": "⏳ Sto caricando…", "📎 Nuk ka dokumente të gatshme në këtë dosje. Ngarko dokumente te dosja (📎) dhe prit sa të përpunohen — pastaj kjo vegël i analizon.": "📎 Non ci sono documenti pronti in questo fascicolo. Carica documenti nel fascicolo (📎) e attendi l'elaborazione — poi questo strumento li analizza.", "Ende asnjë klauzolë — kliko lart për të shtuar.": "Ancora nessuna clausola — clicca sopra per aggiungerne.", "📎 Bashkëngjit PDF/foto": "📎 Allega PDF/foto", "ose ngjit tekstin poshtë": "oppure incolla il testo qui sotto", "Shkruaj pak më shumë.": "Scrivi un po' di più.", "Pyet Avokatin e Djallit": "Chiedi all'Avvocato del Diavolo", "Përshkruaj situatën ose pyetjen. Avokati i Djallit të jep këndin fitues, kurthin dhe lëvizjen e zgjuar.": "Descrivi la situazione o la domanda. L'Avvocato del Diavolo ti dà l'angolo vincente, la trappola e la mossa astuta.", "P.sh. Klienti nënshkroi një kontratë me penalitet 5% në ditë vonesë. Si ta sulmoj?": "Es. Il cliente ha firmato un contratto con penale del 5% al giorno di ritardo. Come lo attacco?", "Pyet →": "Chiedi →", "Avokati i Djallit po mendon…": "L'Avvocato del Diavolo sta pensando…", "Kundërshtari": "L'Avversario", "Ngjit një kontratë ose akt. Avokati i palës kundërshtare do të gjejë çdo dobësi dhe si do ta godasë.": "Incolla un contratto o un atto. L'avvocato della controparte troverà ogni debolezza e come colpirla.", "Ngjit tekstin e plotë të kontratës ose aktit që do të stress-testohet…": "Incolla il testo completo del contratto o dell'atto da stress-testare…", "Sulmo →": "Attacca →", "Kundërshtari po sulmon…": "L'Avversario sta attaccando…", "Përshkruaj faktet ose fashikullin. Merr kualifikimin ligjor, mjaftueshmërinë e provave, hapat hetimorë dhe review-n e objektivitetit (ana e mbrojtjes).": "Descrivi i fatti o il fascicolo. Ottieni la qualificazione giuridica, la sufficienza delle prove, gli atti d'indagine e la revisione di obiettività (lato difesa).", "Përshkruaj faktet e çështjes penale (ose bashkëngjit fashikullin)…": "Descrivi i fatti del caso penale (o allega il fascicolo)…", "Analizo →": "Analizza →", "Po ndërtoj analizën e prokurorit… (~3-4 min)": "Sto costruendo l'analisi del procuratore… (~3-4 min)", "Kontroll vlefshmërie akti": "Controllo validità dell'atto", "Ngjit aktin notarial. Kontrollohen klauzolat e detyrueshme, mospërputhjet dhe nenet e cituara — para noterizimit.": "Incolla l'atto notarile. Si controllano le clausole obbligatorie, le incongruenze e gli articoli citati — prima della stipula.", "Ngjit tekstin e plotë të aktit notarial…": "Incolla il testo completo dell'atto notarile…", "Kontrollo →": "Controlla →", "Po kontrolloj aktin… (~2-3 min)": "Sto controllando l'atto… (~2-3 min)", "Përshkruaj gjendjen familjare (i ndjeri, bashkëshorti, fëmijët, prindërit…). Merr trashëgimtarët dhe pjesët takuese, të bazuara në ligj.": "Descrivi la situazione familiare (il defunto, il coniuge, i figli, i genitori…). Ottieni gli eredi e le quote spettanti, in base alla legge.", "P.sh. I ndjeri la bashkëshorten dhe 2 fëmijë; prindërit jetojnë; pasuria: apartament + kursime…": "Es. Il defunto ha lasciato il coniuge e 2 figli; i genitori sono in vita; patrimonio: appartamento + risparmi…", "Po llogaris trashëgiminë… (~2-3 min)": "Sto calcolando la successione… (~2-3 min)", "Përshkruaj aktin/shërbimin noterial. Merr listën e plotë të dokumenteve që duhet të sjellë klienti dhe kush i lëshon.": "Descrivi l'atto/servizio notarile. Ottieni l'elenco completo dei documenti che il cliente deve portare e chi li rilascia.", "P.sh. Kontratë shitje apartamenti mes dy personave fizikë…": "Es. Contratto di compravendita di appartamento tra due persone fisiche…", "Listo dokumentet →": "Elenca i documenti →", "Po përgatis listën…": "Sto preparando l'elenco…", "Përshkruaj (ose ngjit) prokurën që do të revokohet dhe të dhënat e palëve. Merr aktin e revokimit, gati për noterizim, me njoftimet e detyrueshme ndaj të tretëve (neni 74 KC).": "Descrivi (o incolla) la procura da revocare e i dati delle parti. Ottieni l'atto di revoca, pronto per la stipula, con le notifiche obbligatorie ai terzi (art. 74 c.c.).", "Harto revokimin →": "Redigi la revoca →", "Po harton revokimin… (~2 min)": "Sto redigendo la revoca… (~2 min)", "Nga kallëzimi ose faktet, merr një plan hetimi: hipotezat, veprimet hetimore, kush të pyetet, afatet dhe objektiviteti. Prokurori vendos.": "Dalla denuncia o dai fatti, ottieni un piano d'indagine: le ipotesi, gli atti d'indagine, chi interrogare, i termini e l'obiettività. Il procuratore decide.", "Përshkruaj kallëzimin / faktet e çështjes…": "Descrivi la denuncia / i fatti del caso…", "Ndërto planin →": "Costruisci il piano →", "Po ndërtoj planin e hetimit… (~3 min)": "Sto costruendo il piano d'indagine… (~3 min)", "Harton projekt-kërkesën (fumus + periculum + proporcionalitet). ⚠️ Vetëm projekt — gjykata vendos; nuk rekomandohet arresti si i sigurt.": "Redige la bozza di richiesta (fumus + periculum + proporzionalità). ⚠️ Solo bozza — il giudice decide; l'arresto non è raccomandato come sicuro.", "Faktet, vepra, dyshimi i arsyeshëm, rreziqet konkrete…": "I fatti, il reato, il ragionevole sospetto, i pericoli concreti…", "Harto kërkesën →": "Redigi la richiesta →", "Po harton kërkesën për masë… (~3 min)": "Sto redigendo la richiesta di misura… (~3 min)", "Kërkesë për pushim / mosfillim": "Richiesta di archiviazione", "Harton projekt-vendimin e arsyetuar për pushim ose mosfillim. Vendimi i takon prokurorit.": "Redige la bozza di provvedimento motivato di archiviazione. La decisione spetta al procuratore.", "Faktet dhe pse nuk ka vend për ndjekje…": "I fatti e perché non c'è luogo a procedere…", "Harto projektin →": "Redigi la bozza →", "Po harton… (~3 min)": "Sto redigendo… (~3 min)", "Stres-test i aktit (ana e mbrojtjes)": "Stress-test dell'atto (lato difesa)", "Ngjit një akt të prokurorisë (aktakuzë, kërkesë mase, analizë). Gjen dobësitë, pavlefshmëritë procedurale dhe provat shfajësuese para paraqitjes.": "Incolla un atto della procura (atto d'accusa, richiesta di misura, analisi). Trova le debolezze, le nullità procedurali e le prove a discarico prima del deposito.", "Ngjit tekstin e plotë të aktit…": "Incolla il testo completo dell'atto…", "Testo aktin →": "Testa l'atto →", "Po e stres-testoj… (~2-3 min)": "Sto stress-testando… (~2-3 min)", "Nga rrëfimi yt, merr një kallëzim të plotë, ku dorëzohet (Prokuroria vs SPAK) dhe dokumentet për t'u bashkangjitur. Ndihmesë, jo këshillë ligjore.": "Dal tuo racconto, ottieni una denuncia completa, dove presentarla e i documenti da allegare. Assistenza, non consulenza legale.", "Trego çfarë të ndodhi: kush, çfarë, kur, ku, çfarë dëmi, çfarë provash ke…": "Racconta cosa è successo: chi, cosa, quando, dove, che danno, che prove hai…", "Përgatit kallëzimin →": "Prepara la denuncia →", "Po përgatis kallëzimin… (~2-3 min)": "Sto preparando la denuncia… (~2-3 min)", "Shpjegim i thjeshtë i të drejtave (neni 58 KPP) dhe i fazave të procesit për të dëmtuarin.": "Spiegazione semplice dei diritti e delle fasi del processo per la persona offesa.", "Përshkruaj situatën tënde…": "Descrivi la tua situazione…", "Shpjego →": "Spiega →", "Po përgatis shpjegimin…": "Sto preparando la spiegazione…", "Deshifron një vendim pushimi/mosfillimi dhe harton ankimin drejtuar gjykatës. ⚠️ Afatet janë vendimtare — verifikoji.": "Decifra un provvedimento di archiviazione e redige l'opposizione al giudice. ⚠️ I termini sono decisivi — verificali.", "Përshkruaj ose ngjit vendimin e pushimit/mosfillimit…": "Descrivi o incolla il provvedimento di archiviazione…", "Harto ankimin →": "Redigi l'opposizione →", "Po harton ankimin… (~2-3 min)": "Sto redigendo l'opposizione… (~2-3 min)", "Harton ankesat për vonesa: te prokuroria, te Avokati i Popullit, dhe kërkesë për kopje aktesh.": "Redige i reclami per ritardi: alla procura, al Difensore civico, e la richiesta di copia degli atti.", "Prej sa kohësh po vonon, çfarë çështjeje, çfarë ke kërkuar…": "Da quanto tempo è in ritardo, che caso, cosa hai richiesto…", "Harto ankesat →": "Redigi i reclami →", "Po harton ankesat…": "Sto redigendo i reclami…", "Ngjit një përgjigje ose tekst juridik. Kontrollohet nëse çdo nen i cituar VËRTET e mbështet pohimin — kundrejt tekstit REAL të nenit nga korpusi.": "Incolla una risposta o un testo giuridico. Si verifica se ogni articolo citato sostiene DAVVERO l'affermazione — rispetto al testo REALE dell'articolo dal corpus.", "Ngjit tekstin/përgjigjen juridike që do të kontrollohet…": "Incolla il testo/la risposta giuridica da controllare…", "Verifiko thellë →": "Verifica a fondo →", "Po kontrolloj çdo pohim kundrejt tekstit real… (~2-3 min)": "Sto controllando ogni affermazione rispetto al testo reale… (~2-3 min)", "Shkruaj ligjin/nenin. Kontrollohet ONLINE te burimet zyrtare (QBZ / Fletorja Zyrtare) nëse është në fuqi, i ndryshuar apo i shfuqizuar — me burime.": "Scrivi la legge/l'articolo. Si verifica ONLINE alle fonti ufficiali se è in vigore, modificato o abrogato — con le fonti.", "P.sh. Neni 134 i Kodit Penal; ose Ligji nr. 7895, datë 27.1.1995…": "Es. Art. 575 del Codice Penale; oppure Legge n. 241/1990…", "Kontrollo online →": "Controlla online →", "Po kontrolloj te burimet zyrtare online… (~2-3 min)": "Sto controllando le fonti ufficiali online… (~2-3 min)", "Aktakuzë (prokuror)": "Atto d'accusa (procuratore)", "Përshkruaj faktet. Merr një draft aktakuze të strukturuar (palët, faktet, kualifikimi ligjor, provat, kërkesa), me nene nga korpusi.": "Descrivi i fatti. Ottieni una bozza di atto d'accusa strutturata (parti, fatti, qualificazione giuridica, prove, richieste), con articoli dal corpus.", "Harto aktakuzën →": "Redigi l'atto d'accusa →", "Po harton aktakuzën… (~3-4 min)": "Sto redigendo l'atto d'accusa… (~3-4 min)", "Përshkruaj veprën ose pretendimin DHE datën. Llogaritet afati i parashkrimit (Kodi Penal neni 66 ose Kodi Civil neni 124+), data e skadimit dhe a ka skaduar sot.": "Descrivi il reato o la pretesa E la data. Si calcola il termine di prescrizione, la data di scadenza e se è già scaduto oggi.", "P.sh. Vjedhje e kryer më 03.01.2020… OSE padi civile për dëm më 10.05.2019…": "Es. Furto commesso il 03.01.2020… OPPURE azione civile per danno il 10.05.2019…", "Llogarit →": "Calcola →", "Po llogaris parashkrimin… (~2-3 min)": "Sto calcolando la prescrizione… (~2-3 min)",
     "Vegla për prokurorin dhe për qytetarin. Zgjidh një funksion. Çdo output kalon nga Verifikuar — prokurori/gjykata vendos dhe firmos.": "Strumenti per il procuratore e per il cittadino. Scegli una funzione. Ogni output passa dal Verificatore — il procuratore/giudice decide e firma.",
     "Vegla noteriale: procure, akte, deklarata, kontrolle. Zgjidh një funksion. Çdo nen kalon nga Verifikuar — noteri e verifikon dhe e nënshkruan.": "Strumenti notarili: procure, atti, dichiarazioni, controlli. Scegli una funzione. Ogni articolo passa dal Verificatore — il notaio verifica e firma.",
     "Besueshmëria — asi ynë: kontrollo që teksti të mbështetet VËRTET nga nenet, dhe që ligji të jetë ENDE në fuqi.": "L'affidabilità — il nostro asso: verifica che il testo sia DAVVERO sostenuto dagli articoli e che la legge sia ANCORA in vigore.",
