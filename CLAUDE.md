@@ -1,13 +1,24 @@
 # Super Avvocato — istruzioni di progetto
 
-Strumento AI per avvocati shqiptar (B2B). Front-end Flask su porta 5050,
-SQLite (`data/app.db`) + Postgres `legalkb` per i casi giurisprudenziali,
-BM25 retrieval sopra 6061 nene (21 codici) + 1258 precedenti (Kushtetuese+Gjykata e Lartë+CEDU).
+Strumento AI per avvocati (B2B), **bi-giurisdizione AL + IT**. Front-end Flask
+su porta 5050, SQLite (`data/app.db`) + Postgres `legalkb` per i casi
+giurisprudenziali. Due corpora BM25 SEPARATI:
+- **AL** (`bm25.pkl`): 6061 nene / 21 codici + `bm25_decisions.pkl` 1258 precedenti
+  (Kushtetuese + Gjykata e Lartë + CEDU).
+- **IT** (`bm25_it.pkl`): **15.507 articoli / 43 corpora** da Normattiva
+  (testi vigenti ufficiali) — vedi "CORPUS ITALIANO" più sotto.
 
-## Regola #1 — Scope: SOLO LEGGE ALBANESE
+## Regola #1 — Scope: UNA SOLA GIURISDIZIONE PER SESSIONE
 
-Tutto il corpus è albanese: 21 fonti normative (Kushtetuta + codici +
-5 ligji settoriali = 5615 nene), 282 vendime Gjykata Kushtetuese
+**Le due giurisdizioni non si mescolano MAI.** La sessione è bloccata su AL
+oppure IT (`web._active_jurisdiction`, scelta al login con la bandiera 🇦🇱/🇮🇹
+tra quelle a cui lo studio è abilitato); il caso eredita la giurisdizione
+della sessione, e retrieval + preambolo + UI seguono quella. In sessione AL
+vale tutto quanto scritto qui sotto; in sessione IT vale il diritto italiano
+con il corpus italiano.
+
+**In sessione AL** il corpus è albanese: 21 fonti normative (Kushtetuta +
+codici + 5 ligji settoriali = 5615 nene), 282 vendime Gjykata Kushtetuese
 (2015-2024), ~813 casi in Postgres `legalkb` (Gjykata e Lartë + ECHR
 limitatamente ai casi Albania).
 
@@ -28,9 +39,60 @@ Il modello deve operare e ragionare SOLO dentro questo perimetro:
 - **Conversazione meta con Romeo (debug, design, analisi rischi):**
   vale lo stesso vincolo. Niente esempi ipotetici con framework
   stranieri (tedesco, US, ecc.) nemmeno come ipotesi.
-- **Schema `cases.jurisdiction` AL/IT/EU (V8.13):** è predisposizione
-  futura. Oggi il KB è solo AL — non comportarsi come se IT/EU fosse
-  attivo.
+- **Schema `cases.jurisdiction` AL/IT/EU:** **IT è ATTIVO** (dal 19 ago 2026,
+  v9.114→9.131): corpus, retrieval, verifica citazioni, preambolo e UI
+  italiani sono live. EU resta predisposizione futura. In sessione AL non
+  citare mai il corpus IT e viceversa.
+
+## CORPUS ITALIANO (attivo — 43 corpora / 15.507 articoli)
+
+Fonte: **Normattiva** (normattiva.it, testi vigenti ufficiali; le leggi
+italiane non hanno copyright, art. 5 L. 633/1941). NON Wikisource: copre
+male i codici moderni e salta gli articoli abrogati/rinumerati.
+
+Contenuto: Costituzione, c.c. (3216) + disp. att., c.p.c. (982), c.p. (978),
+c.p.p. (902) + disp. att., Codice della Strada + Regolamento di esecuzione,
+Consumo, Crisi d'Impresa, TULPS + ordinamento Pubblica Sicurezza, Statuto
+Lavoratori, TU Sicurezza Lavoro, TUB, TUF, Proprietà Industriale, Terzo
+Settore, Assicurazioni, D.Lgs 231, L.241/1990, Processo Amministrativo, CAD,
+DPR 445, Contratti Pubblici, L.689/1981, Spese Giustizia, Privacy, Ambiente,
+Edilizia, Immigrazione, Antimafia, Testo Unico imposte sui redditi, Beni
+Culturali, Navigazione, Stupefacenti, Penitenziario, Pari Opportunità,
+Protezione Civile, Divorzio, Adozione, Legge Pinto.
+
+Pipeline in `tools/`: `normattiva_lib.py` (sessione + parsing) ·
+`ingest_it_normattiva.py` (scarica, resume-safe, un JSON per atto in
+`data/processed/it_acts/`) · `build_it_index.py` (→ `bm25_it.pkl` +
+`it_codes.json`, con backup del pkl precedente) · `repair_it_corpus.py`
+(ri-scarica gli atti incompleti) · `qa_it_corpus.py` (controllo qualità).
+
+**GOTCHA (costati ore — non ripeterli):**
+- `/atto/caricaArticolo` dà **HTTP 500 senza sessione**: aprire prima la
+  pagina dell'atto (URN) con lo stesso cookie jar. Serve UA da browser.
+- Normattiva serve **TRE formati di markup**: AKN con commi (decreti
+  moderni), AKN testo unico (`art-just-text-akn`), e allegato legacy
+  (`attachment-just-text`, usato dai CODICI veri: c.c./c.p./c.p.c./c.p.p.,
+  TULPS). Il parser li gestisce tutti.
+- Delimitare `class="bodyTesto"` **per indici**, non con regex non-greedy
+  (si ferma al primo `</div>` annidato e **tronca** l'articolo).
+- Il corpo è **tutto il resto** dopo numero/rubrica: iterare sui singoli
+  `art-comma-div-akn` perde i commi 2..N (art. 186 CdS: 20 commi → 1).
+- **Max 1-2 flussi paralleli**: 3 fanno scattare il rate limiting (centinaia
+  di GET fallite). `_get` ha 5 retry a backoff + riapertura sessione.
+- Eseguire l'ingest **sull'host, non nel container** (un deploy lo ucciderebbe);
+  l'output va nel volume `data/processed/it_acts/`.
+- Se tutti gli articoli di un atto restituiscono lo stesso testo
+  "PROVVEDIMENTO ABROGATO", l'atto è abrogato → cercare il sostitutivo
+  (è successo col TUIR: DPR 917/1986 → D.Lgs 117/2026).
+- Nel QA, "articolo precedente" nel testo è **linguaggio normativo
+  legittimo**, non navigazione: falso positivo.
+
+**Per aggiungere altri codici**: una riga nella lista `ACTS` di
+`tools/ingest_it_normattiva.py` (id, titolo, area, URN NIR, wave), poi
+`ingest` → `build_it_index` → deploy. Le sigle per il verificatore di
+citazioni si aggiungono in `_IT_CODE_CHECKS` (`src/citation_verifier.py`,
+ordine longest-first: `ccii` prima di `cc`, `cpa`/`cpi` prima di `cp`) e
+l'etichetta badge in `CODE_LABELS`.
 
 ## Implementazione attiva (V9.0.3 + V9.1)
 
@@ -84,8 +146,28 @@ attaccaci esplicitamente il guard — non confidare che basti
 
 ## Lingua
 
-- Risposte all'utente: shqip (albanese).
+- Risposte all'utente: **shqip in sessione AL, italiano in sessione IT**
+  (il preambolo di giurisdizione impone la lingua al cervello).
 - Conversazione con Romeo: italiano informale ("fratello").
+
+### UI bilingue (i18n) — come funziona
+
+`body[data-lang]` vale `it` quando la giurisdizione attiva è IT. In `app.js`:
+- `UI_LANG` letto da `data-lang`; `I18N_IT` + `applyStaticI18n(root)` traducono
+  gli elementi con `data-i18n` / `data-i18n-ph` (layer statico, anche dentro i
+  modali creati a runtime: chiamare `applyStaticI18n(ov)` dopo l'append).
+- `T_IT` + `t(sq)` traducono le stringhe generate a runtime (match esatto);
+  `tMode(sq)` traduce i titoli con emoji (match a sottostringa + fallback
+  emoji+testo sul dizionario).
+- **TRAPPOLA**: dentro callback il cui parametro si chiama `t` (template, type,
+  trigger) la funzione `t()` è mascherata → usare l'alias **`TT(...)`**.
+  Ha già rotto la griglia perizie e 3 dropdown (fix v9.130).
+- **TRAPPOLA**: `initModeBar()` gira a inizio file, PRIMA che `UI_LANG` sia
+  assegnato → va ri-chiamato dopo `applyStaticI18n()`, altrimenti la mode-bar
+  resta albanese (fix v9.131).
+- Le etichette che arrivano dalle API (tipi atto, poteri procura, template
+  perizia, clausole obbligatorie…) passano da `t()` con una mappa AL→IT nel
+  dizionario (~340 voci).
 
 ---
 
@@ -142,6 +224,19 @@ Estendere GOLDENS/smoke quando emerge un bug nuovo.
 - **Grounding sempre**: i nene vengono dal corpus, MAI dalla memoria del modello. Precisione > velocità (Opus max, anche 4 min ok).
 - Super Avokati ha auth propria (login_required_api); utenti creati da admin o auto-provisionati da AALA (`/api/provision-demo`, secret-guarded).
 
+## Storia versioni (sessione 19 ago 2026 — espansione ITALIA)
+v9.112-9.113 giurisdizione come entitlement + isolamento sessione · 9.114-9.116
+corpus IT (Wikisource) + retrieval jurisdiction-aware + Verifikuar IT · 9.118-9.128
+**Fase C**: UI italiana completa (login bilingue, mode-bar, 3 hub, 19 modali
+`_openFableTool`, drafter notaio, Modelli di perizia, Fascicolo, Primo contatto,
+12 renderer standalone, dropdown backend, 271 stringhe legali di clausole/perizie,
+calendario + dashboard) · 9.129 **sessione IT davvero italiana** (login imposta la
+giurisdizione, codici jurisdiction-aware, mode-bar, benvenuto) · 9.130 fix `t()`
+mascherata da parametri `t` · **9.131 CORPUS ITALIANO NORMATTIVA: 43 corpora /
+15.507 articoli** (da 5 / 5.180) + verificatore esteso ai 43 codici + preambolo IT
+corretto (fondare sul corpus, non sulla memoria) + lista codici dinamica.
+Account di test: `admin.it` (admin, AL+IT) e `avvocato.it` (avvocato IT).
+
 ## Storia versioni (sessione 6-7 ago 2026)
 v9.50→9.54 piattaforma 3 professioni · 9.55 extra tool · 9.56 full-text+matching · 9.61-9.68 police laws + Super Noteri + revoca/conflitti · 9.69-9.71 Super Prokuror + hub · 9.72 Ligj i gjallë · 9.73 Pika e parë · 9.74 Fashikull · 9.75-9.76 Motore afate + golden · 9.77 fix needle empty-state · 9.78 upload in Fashikull · 9.79-9.80 Shiko të ruajturat · 9.81 fix forgot-password · 9.82 mode-bar snellite. Punto di ritorno sicuro storico: commit `1e9fb84`.
 
@@ -158,7 +253,11 @@ cd "/Users/aldo/Desktop/multi service/Super Avocati"
 SRC=root@31.220.90.246:/var/www/apps/super-avvocato
 for d in src static templates tools; do rsync -az -e ssh --exclude='__pycache__/' --exclude='*.pyc' --exclude='*.bak' --exclude='*.bak-*' "$SRC/$d/" "$d/"; done
 rsync -az -e ssh "$SRC/Dockerfile" "$SRC/run.sh" "$SRC/CLAUDE.md" .
-rsync -az -e ssh "$SRC/data/index/bm25.pkl" data/index/bm25.pkl   # corpus (12M, committato)
+rsync -az -e ssh "$SRC/data/index/bm25.pkl" data/index/bm25.pkl        # corpus AL (12M)
+rsync -az -e ssh "$SRC/data/index/bm25_it.pkl" data/index/bm25_it.pkl  # corpus IT (35M)
+rsync -az -e ssh "$SRC/data/processed/it_codes.json" data/processed/   # metadata codici IT (UI)
+# I JSON sorgente degli atti (data/processed/it_acts/, 21M) NON si committano:
+# si rigenerano con tools/ingest_it_normattiva.py (vedi "CORPUS ITALIANO").
 # 2) commit + push (dal Mac; chiave dedicata gia configurata)
 git add -A && git commit -m "vX.Y: ..." && git push origin main
 ```

@@ -1,0 +1,260 @@
+[
+ {
+  "code": "costituzione",
+  "title": "Costituzione della Repubblica Italiana",
+  "area": "Costituzionale",
+  "count": 139
+ },
+ {
+  "code": "codice_civile",
+  "title": "Codice Civile",
+  "area": "Civile",
+  "count": 3216
+ },
+ {
+  "code": "disp_att_cc",
+  "title": "Disposizioni di attuazione del Codice Civile",
+  "area": "Civile",
+  "count": 314
+ },
+ {
+  "code": "codice_procedura_civile",
+  "title": "Codice di Procedura Civile",
+  "area": "Procedura Civile",
+  "count": 982
+ },
+ {
+  "code": "codice_penale",
+  "title": "Codice Penale",
+  "area": "Penale",
+  "count": 978
+ },
+ {
+  "code": "codice_procedura_penale",
+  "title": "Codice di Procedura Penale",
+  "area": "Procedura Penale",
+  "count": 902
+ },
+ {
+  "code": "disp_att_cpp",
+  "title": "Disposizioni di attuazione del Codice di Procedura Penale",
+  "area": "Procedura Penale",
+  "count": 324
+ },
+ {
+  "code": "codice_strada",
+  "title": "Codice della Strada",
+  "area": "Strada",
+  "count": 266
+ },
+ {
+  "code": "regolamento_strada",
+  "title": "Regolamento di esecuzione del Codice della Strada",
+  "area": "Strada",
+  "count": 409
+ },
+ {
+  "code": "codice_consumo",
+  "title": "Codice del Consumo",
+  "area": "Consumo",
+  "count": 249
+ },
+ {
+  "code": "codice_crisi_impresa",
+  "title": "Codice della Crisi d'Impresa e dell'Insolvenza",
+  "area": "Impresa",
+  "count": 415
+ },
+ {
+  "code": "ordinamento_polizia",
+  "title": "Ordinamento dell'Amministrazione della Pubblica Sicurezza",
+  "area": "Sicurezza",
+  "count": 118
+ },
+ {
+  "code": "tulps",
+  "title": "Testo Unico delle Leggi di Pubblica Sicurezza (TULPS)",
+  "area": "Sicurezza",
+  "count": 234
+ },
+ {
+  "code": "statuto_lavoratori",
+  "title": "Statuto dei Lavoratori",
+  "area": "Lavoro",
+  "count": 41
+ },
+ {
+  "code": "sicurezza_lavoro",
+  "title": "Testo Unico Sicurezza sul Lavoro",
+  "area": "Lavoro",
+  "count": 321
+ },
+ {
+  "code": "tu_bancario",
+  "title": "Testo Unico Bancario",
+  "area": "Bancario",
+  "count": 346
+ },
+ {
+  "code": "tu_finanza",
+  "title": "Testo Unico della Finanza",
+  "area": "Finanza",
+  "count": 512
+ },
+ {
+  "code": "codice_proprieta_industriale",
+  "title": "Codice della Proprietà Industriale",
+  "area": "Impresa",
+  "count": 291
+ },
+ {
+  "code": "codice_terzo_settore",
+  "title": "Codice del Terzo Settore",
+  "area": "Impresa",
+  "count": 105
+ },
+ {
+  "code": "codice_assicurazioni",
+  "title": "Codice delle Assicurazioni Private",
+  "area": "Assicurazioni",
+  "count": 610
+ },
+ {
+  "code": "responsabilita_enti",
+  "title": "Responsabilità amministrativa degli enti (D.Lgs 231/2001)",
+  "area": "Impresa",
+  "count": 105
+ },
+ {
+  "code": "procedimento_amministrativo",
+  "title": "Legge sul Procedimento Amministrativo (L. 241/1990)",
+  "area": "Amministrativo",
+  "count": 51
+ },
+ {
+  "code": "codice_processo_amministrativo",
+  "title": "Codice del Processo Amministrativo",
+  "area": "Amministrativo",
+  "count": 142
+ },
+ {
+  "code": "codice_amministrazione_digitale",
+  "title": "Codice dell'Amministrazione Digitale",
+  "area": "Amministrativo",
+  "count": 123
+ },
+ {
+  "code": "tu_documentazione_amministrativa",
+  "title": "Testo Unico Documentazione Amministrativa",
+  "area": "Amministrativo",
+  "count": 92
+ },
+ {
+  "code": "codice_contratti_pubblici",
+  "title": "Codice dei Contratti Pubblici",
+  "area": "Amministrativo",
+  "count": 241
+ },
+ {
+  "code": "sanzioni_amministrative",
+  "title": "Sanzioni amministrative (L. 689/1981)",
+  "area": "Amministrativo",
+  "count": 159
+ },
+ {
+  "code": "tu_spese_giustizia",
+  "title": "Testo Unico Spese di Giustizia",
+  "area": "Procedura Civile",
+  "count": 316
+ },
+ {
+  "code": "codice_privacy",
+  "title": "Codice in materia di protezione dei dati personali (Privacy)",
+  "area": "Privacy",
+  "count": 221
+ },
+ {
+  "code": "codice_ambiente",
+  "title": "Codice dell'Ambiente",
+  "area": "Ambiente",
+  "count": 447
+ },
+ {
+  "code": "tu_edilizia",
+  "title": "Testo Unico dell'Edilizia",
+  "area": "Edilizia",
+  "count": 151
+ },
+ {
+  "code": "tu_immigrazione",
+  "title": "Testo Unico sull'Immigrazione",
+  "area": "Immigrazione",
+  "count": 77
+ },
+ {
+  "code": "codice_antimafia",
+  "title": "Codice Antimafia",
+  "area": "Penale",
+  "count": 136
+ },
+ {
+  "code": "tuir",
+  "title": "Testo Unico delle Imposte sui Redditi",
+  "area": "Tributario",
+  "count": 386
+ },
+ {
+  "code": "codice_beni_culturali",
+  "title": "Codice dei Beni Culturali e del Paesaggio",
+  "area": "Beni Culturali",
+  "count": 194
+ },
+ {
+  "code": "codice_navigazione",
+  "title": "Codice della Navigazione",
+  "area": "Navigazione",
+  "count": 1362
+ },
+ {
+  "code": "stupefacenti",
+  "title": "Testo Unico Stupefacenti",
+  "area": "Penale",
+  "count": 145
+ },
+ {
+  "code": "ordinamento_penitenziario",
+  "title": "Ordinamento Penitenziario",
+  "area": "Penale",
+  "count": 137
+ },
+ {
+  "code": "codice_pari_opportunita",
+  "title": "Codice delle Pari Opportunità",
+  "area": "Civile",
+  "count": 74
+ },
+ {
+  "code": "codice_protezione_civile",
+  "title": "Codice della Protezione Civile",
+  "area": "Amministrativo",
+  "count": 51
+ },
+ {
+  "code": "divorzio",
+  "title": "Legge sul Divorzio (L. 898/1970)",
+  "area": "Famiglia",
+  "count": 18
+ },
+ {
+  "code": "adozione",
+  "title": "Legge sull'Adozione (L. 184/1983)",
+  "area": "Famiglia",
+  "count": 92
+ },
+ {
+  "code": "equa_riparazione",
+  "title": "Legge Pinto — equa riparazione (L. 89/2001)",
+  "area": "Procedura Civile",
+  "count": 15
+ }
+]
