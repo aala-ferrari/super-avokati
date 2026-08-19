@@ -140,7 +140,7 @@
     </ul>
 
     <details class="codes-section">
-      <summary>📚 Kodet e mbuluara ({{ num_codes }})</summary>
+      <summary>📚 {% if ui_lang == 'it' %}Codici coperti{% else %}Kodet e mbuluara{% endif %} ({{ num_codes }})</summary>
       <ul class="codes-list">
         {% for c in codes %}
         <li><span class="area-tag area-{{ c.area|lower }}">{{ c.area }}</span><span class="code-title">{{ c.title }}</span></li>
@@ -407,6 +407,15 @@
         </p>
 
         <details id="welcome-tour" class="welcome-tour">
+          {% if ui_lang == 'it' %}
+          <summary>📖 Guida rapida — come funziona Super Avvocato</summary>
+          <ol class="tour-steps">
+            <li><strong>Apri un caso</strong> — clicca "＋ Nuovo caso" a sinistra. Ogni caso ha la propria memoria, i propri documenti e le analisi Pro collegate.</li>
+            <li><strong>Parla come con un collega senior</strong> — scrivi in italiano, senza formule. Ogni "art. X" nella risposta viene verificato contro il corpus ({{ '{:,}'.format(total_articles).replace(',', '.') }} articoli in {{ num_codes }} codici).</li>
+            <li><strong>Strumenti Pro</strong> ⭐ — a caso aperto puoi lanciare: 🧠 <em>Genio Legale</em> (6 prospettive parallele), ⚖️ <em>Bench Memo</em> (come ragionerà il giudice), ⚔️ <em>Red Team</em> (stress-test della tesi), 📚 <em>Pattern dei precedenti</em>, 📝 <em>Ratio Coach</em> (post-mortem + lezioni apprese).</li>
+            <li><strong>Comandi rapidi in chat</strong> — scrivi <code>/afatet</code> per calcolare le scadenze procedurali (c.p.c./c.p.p.) a partire da un evento.</li>
+          </ol>
+          {% else %}
           <summary>📖 Tour i shpejtë — si funksionon Super Avvocato</summary>
           <ol class="tour-steps">
             <li><strong>Hap një rast</strong> — kliko "＋ Rast i ri" majtas. Çdo rast ka kujtesë të vetën, dokumentet e veta dhe analizat Pro të lidhura.</li>
@@ -414,6 +423,7 @@
             <li><strong>Mjete Pro</strong> ⭐ — pasi rasti është i hapur, mund të lëshosh: 🧠 <em>Genio Legale</em> (6 perspektiva paralele), ⚖️ <em>Bench Memo</em> (si do mendojë gjyqtari), ⚔️ <em>Red Team</em> (stres-test i tezës), 📚 <em>Pattern e precedentëve</em>, 📝 <em>Ratio Coach</em> (post-mortem + mësime).</li>
             <li><strong>Komanda të shpejta në bisedë</strong> — shkruaj <code>/afatet</code> për të llogaritur afatet procedurale KPC/KPP nga një ngjarje.</li>
           </ol>
+          {% endif %}
         </details>
       </div>
     </div>
