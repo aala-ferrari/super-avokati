@@ -148,26 +148,42 @@ def _ensure_loaded() -> None:
 
 # ── pages ──────────────────────────────────────────────────────────────────
 
+_LEGAL_DOCS_IT = [
+    {"code": "costituzione", "title": "Costituzione della Repubblica Italiana", "area": "Costituzionale"},
+    {"code": "codice_civile", "title": "Codice Civile", "area": "Civile"},
+    {"code": "codice_procedura_civile", "title": "Codice di Procedura Civile", "area": "Procedura Civile"},
+    {"code": "codice_penale", "title": "Codice Penale", "area": "Penale"},
+    {"code": "codice_procedura_penale", "title": "Codice di Procedura Penale", "area": "Procedura Penale"},
+]
+
+
 @app.route("/")
 @login_required_page
 def index() -> str:
     _ensure_loaded()
     user = current_user()
+    _juris = _active_jurisdiction(user)
+    if _juris == "IT" and _INDEX_IT is not None:
+        _codes = _LEGAL_DOCS_IT
+        _total_articles = len(_INDEX_IT.articles)
+    else:
+        _codes = [{"code": d.code, "title": d.title_sq, "area": d.area}
+                  for d in LEGAL_DOCUMENTS]
+        _total_articles = len(_INDEX.articles)
     return render_template(
         "index.html",
-        total_articles=len(_INDEX.articles),
-        num_codes=len(LEGAL_DOCUMENTS),
+        total_articles=_total_articles,
+        num_codes=len(_codes),
         has_brain=bool(_BRAIN),
         backend_name=_BRAIN.backend.name if _BRAIN else None,
-        codes=[{"code": d.code, "title": d.title_sq, "area": d.area}
-               for d in LEGAL_DOCUMENTS],
+        codes=_codes,
         username=user.username,
         user_id=user.id,
         is_admin=user.is_admin,
         profession=getattr(user, "profession", "avokat"),
         modules=sorted(storage.user_modules(user)),
-        jurisdiction=_active_jurisdiction(user),
-        ui_lang=("it" if _active_jurisdiction(user) == "IT" else "sq"),
+        jurisdiction=_juris,
+        ui_lang=("it" if _juris == "IT" else "sq"),
         jurisdictions=sorted(storage.user_jurisdictions(user)),
         cascade_event_types=pro_mod.cascade_event_types(),
         act_types=[{"key": k, "label": v} for k, v in pro_mod.ACT_TYPES.items()],
@@ -247,6 +263,14 @@ def api_login():
         log.info("failed login for %r", username)
         return jsonify({"error": "invalid credentials"}), 401
     login_user(user)
+    try:
+        from flask import session as _sess
+        _lang = str(data.get("lang") or "").strip().lower()
+        _chosen = "IT" if _lang == "it" else ("AL" if _lang == "sq" else "")
+        if _chosen and _chosen in storage.user_jurisdictions(user):
+            _sess["jurisdiction"] = _chosen
+    except Exception:  # noqa: BLE001
+        pass
     log.info("login ok: %r", user.username)
     return jsonify({"ok": True, "user": {"username": user.username,
                                          "is_admin": user.is_admin}})

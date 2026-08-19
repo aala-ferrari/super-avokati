@@ -5464,6 +5464,7 @@
     });
   }
   applyStaticI18n();
+  try { if (typeof initModeBar === "function") initModeBar(); } catch (e) {}
 
   function initModeBar() {
     var bar = document.getElementById("mode-bar");

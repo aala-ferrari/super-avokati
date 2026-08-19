@@ -17,6 +17,7 @@
         body: JSON.stringify({
           username: usernameEl.value.trim(),
           password: passwordEl.value,
+          lang: (function () { try { return localStorage.getItem("sa_ui_lang") || ""; } catch (e) { return ""; } })(),
         }),
       });
       const data = await resp.json().catch(() => ({}));

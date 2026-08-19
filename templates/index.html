@@ -379,18 +379,31 @@
         <div class="welcome-crest" aria-hidden="true">
           <svg viewBox="0 0 80 80"><use href="#icon-scales"/></svg>
         </div>
-        <p><strong>Mirë se erdhe, {{ username }}.</strong></p>
+        <p><strong>{% if ui_lang == 'it' %}Benvenuto, {{ username }}.{% else %}Mirë se erdhe, {{ username }}.{% endif %}</strong></p>
 
         <div id="daily-brief" class="daily-brief" hidden></div>
 
+        {% if ui_lang == 'it' %}
+        <p>Apri un nuovo <em>caso</em> per ogni fascicolo — la memoria della conversazione,
+           i documenti e le analisi Pro vi si collegano e restano archiviati.</p>
+        <p>Per iniziare, clicca <strong>"＋ Nuovo caso"</strong> a sinistra.</p>
+        {% else %}
         <p>Hap një <em>rast</em> të ri për çdo fascikul — memoria e bisedës,
            dokumentet dhe analizat Pro lidhen me të dhe mbeten të arkivuara.</p>
         <p>Për të filluar, kliko <strong>"＋ Rast i ri"</strong> në anën e majtë.</p>
+        {% endif %}
         <p class="examples">
+          {% if ui_lang == 'it' %}
+          <span class="chip">licenziamento senza procedura disciplinare</span>
+          <span class="chip">azione per adempimento contrattuale — art. 1453 c.c.</span>
+          <span class="chip">sentenza d'appello — termini per il ricorso</span>
+          <span class="chip">KYC per un nuovo cliente S.r.l.</span>
+          {% else %}
           <span class="chip">kontratë pune e pushuar pa procedurë disiplinore</span>
           <span class="chip">padi për përmbushje detyrimi — neni 463 KPC</span>
           <span class="chip">vendim i apelit — afatet për rekurs</span>
           <span class="chip">KYC për klient SHPK të ri</span>
+          {% endif %}
         </p>
 
         <details id="welcome-tour" class="welcome-tour">
