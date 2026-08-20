@@ -22,3 +22,10 @@ data/app.db
 data/.secret_key
 # Per-case uploads are volume-mounted at runtime.
 data/uploads/
+
+# Backup di lavoro (*.bak-*): restano sull'host come punti di ritorno,
+# ma non devono finire nell'immagine — sono copie intere di web.py/app.js
+# che pesano ~10MB senza essere mai servite.
+*.bak*
+**/*.bak*
+src.bak-*
