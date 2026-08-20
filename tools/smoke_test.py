@@ -36,6 +36,7 @@ def run(name, fn):
 import src.expertise as expertise
 import src.prosecutor as prosecutor
 import src.notary as notary
+import src.letters as letters
 import src.deadlines as deadlines
 import src.living_law as living
 import src.intake as intake
@@ -107,6 +108,28 @@ run("registry.search_acts", lambda: registry.search_acts(be, "test", [{"id":1,"t
 if second_opinion:
     for nm in dir(second_opinion):
         pass
+
+print("[letters]")
+for _juris in ("IT", "AL"):
+    for _k in letters.list_kinds(_juris):
+        run("letters.draft:%s:%s" % (_juris, _k["key"]),
+            lambda k=_k["key"], j=_juris: letters.draft(
+                be, idx, kind=k, facts=F, jurisdiction=j,
+                form="email" if k.endswith("i") else "letter"))
+
+# letter_body decide cosa finisce nel .docx: la lettera si', le note al
+# collega no (il modello le aggiunge quando scarta una richiesta illecita)
+def _check_letter_body():
+    md = ("### Dokumenti\n\n> Nota per l'avvocato: da NON inviare.\n\n---\n\n"
+          "Spett.le Alfa,\ncon la presente diffido.\n\n### Si dergohet\nPEC.")
+    out = letters.letter_body(md)
+    assert "NON inviare" not in out, "nota al collega finita nel documento"
+    assert "diffido" in out, "il corpo della lettera e' andato perso"
+    assert "PEC." not in out, "le sezioni operative sono finite nel documento"
+    return {"markdown": out}
+
+run("letters.letter_body", _check_letter_body)
+
 
 print("\n== %d OK, %d FAIL ==" % (len(OK), len(BAD)))
 if BAD:

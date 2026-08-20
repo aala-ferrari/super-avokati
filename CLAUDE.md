@@ -111,9 +111,35 @@ Tre layer di protezione contro doctrine drift:
    JSON+DOCX. Se il retrieval fallisce, il modello rifiuta invece di
    hallucinare.
 
+4. **Giurisdizione al collo di bottiglia (v9.155)** — il vincolo di
+   giurisdizione si applica dentro `backends.complete()` /
+   `complete_stream()`, da cui passa OGNI chiamata al cervello.
+   `brain.apply_jurisdiction` è **idempotente**, quindi chi la applica già a
+   monte non ottiene il vincolo due volte. Guardia: `tools/juris_guard.py`.
+
 Quando aggiungi un nuovo system prompt fuori `brain.py`/`genio.py`,
 attaccaci esplicitamente il guard — non confidare che basti
 `ALBANIAN_LANGUAGE_RULES`.
+
+### GOTCHA storico: "in sessione IT risponde in albanese"
+
+Costato tre giri di correzioni giuste ma inefficaci. **Due cause distinte:**
+
+1. **Il contesto arrivava vuoto.** Il `@app.before_request` che armava la
+   giurisdizione girava PRIMA che `login_required_api` impostasse
+   `request.user` → leggeva `None` → default AL per **tutti** gli strumenti
+   con endpoint separato. `/api/ask` si salvava perché il brain prende la
+   giurisdizione dal **caso**, non dalla richiesta. Fix:
+   `auth._arm_request_jurisdiction(user)` chiamata subito dopo
+   `request.user = user` (in `login_required_api` **e** `login_required_page`);
+   il `before_request` resta solo come reset ad AL.
+2. **41 chiamate al cervello non applicavano il vincolo**, sparse in 15
+   moduli (notary 12, web 15, intake, afati, secretary, vigilanza…). Fix
+   strutturale: il collo di bottiglia sopra, invece di 41 rattoppi.
+
+**Metodo che l'ha risolto**: smettere di rincorrere gli screenshot e
+**misurare tutti i punti d'ingresso insieme** (`tools/audit_tools_it.py`):
+da 1/14 strumenti corretti a **14/14**.
 
 ## Comandi rapidi
 
@@ -182,6 +208,13 @@ Numeri attuali: **6061 nene · 21 codici · 1258 precedenti** (pickle vivo). Cor
 - **Cervello**: backend = **`claude` CLI headless** in subprocess (`src/backends.py`), name interno "Tetramorph". Opus 4.8 effort=max default; `medium=True`→Sonnet; `fast=True`→Sonnet senza web. **Il backend Opus (non-fast) ha WebSearch/WebFetch ABILITATI** (`backends.py:280`) — usato da Ligj i gjallë per il check legge live. `BRAIN_PARALLEL_WORKERS=6` (fasi in parallelo).
 
 ## Deploy / build (procedura usata ~25 volte)
+**Deployare SEMPRE con `./run.sh`**, non con un `docker run` a mano: lo
+script monta anche `-v /opt/claude-creds:/home/avvocato/.claude` e ripristina
+`.claude.json`. Un deploy manuale che dimentica quel volume lascia il
+container in piedi e apparentemente sano. E se `run.sh` resta indietro di
+versione, chi lo lancia **riporta l'app a un'immagine vecchia**: aggiornarlo
+sempre insieme al build.
+
 ```bash
 cd /var/www/apps/super-avvocato
 docker build -q -t super-avvocato:vNEW .
@@ -202,9 +235,15 @@ Le patch a file con ë/ç/emoji: SEMPRE via file `.py` scp'd sul VPS (`scp patch
 ## QA — rete di sicurezza (lanciare dopo ogni build)
 ```bash
 docker exec super-avvocato python3 tools/golden_check.py   # 19 check deterministici: corpus + Verifikuar + heading-scan. Baseline 19/19.
-docker exec super-avvocato python3 tools/smoke_test.py     # 68 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 68/68.
+docker exec super-avvocato python3 tools/smoke_test.py     # 101 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 101/101.
+docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 ```
 Estendere GOLDENS/smoke quando emerge un bug nuovo.
+
+**Con il cervello vero** (lento, ~40 min, ma è l'unico che vede la lingua
+delle risposte): `tools/audit_tools_it.py` chiama i 14 strumenti in sessione
+IT e per ciascuno conta albanese / diritto AL / diritto IT. Baseline **14/14**.
+Da rilanciare dopo ogni modifica alla giurisdizione.
 
 ## Mappa feature / moduli (src/)
 - **expertise.py** — Modele Ekspertize (8 template, incl. abuzim_policor "due menti"). `retrieve_grounded` (seed + `_expand_terms` LLM + `_heading_scan` stem 5-char diacritic-fold + BM25). Riusato da prosecutor/notary/deadlines/afati.
@@ -215,6 +254,15 @@ Estendere GOLDENS/smoke quando emerge un bug nuovo.
 - **afati.py** — Motore afate: TRIGGERS (8) → scadenze grounded + blocco `AFAT | titolo | YYYY-MM-DD` → calendario (POST /api/events).
 - **vault.py** — Fashikull: build_context(case_id), ask (Q&A [Dok N]), find_needle, who_said_what. **pro_features.py** build_case_timeline (events/contradictions/gaps).
 - **citation_verifier.py** — Verifikuar (verified/fake/repealed/needs_code + volatility/stale). **deadlines.py** prescrizione.
+- **letters.py** — Letra dhe shkresa: lettere/PEC pronte da inviare, radicate
+  nel **fascicolo** (`vault.build_context`) e negli articoli **recuperati**
+  (`expertise.retrieve_grounded`). Cataloghi separati per giurisdizione
+  (**14 IT / 12 AL**): destinatario, canale, elementi obbligatori, seed.
+  Tre famiglie — `CLAIM` (controparte), `REPORT` (autorità), `REQUEST` (PA) —
+  con **divieto duro di mescolarle**: minacciare una denuncia per ottenere
+  pagamento è estorsione, e il prompt lo vieta esplicitamente (annunciare le
+  vie legali resta lecito). `letter_body()` isola la sola lettera per il
+  .docx, scartando le note al collega. Export via `pro_features.render_act_docx`.
 - **second_opinion/adversary/fable_drafter.py** — tool Fable (model_override="fable").
 - **web.py** — endpoint (199 rotte). UI: `static/app.js` (hub `_openHub` nel menu PRO: Super Prokurori/Super Noteri/Ligj i gjallë; mode-bar snellite che puntano ai hub; `openFascikull`, `openIntake`, `openAfati`, `openSavedResearch`). `templates/index.html` menu PRO.
 
@@ -236,6 +284,16 @@ mascherata da parametri `t` · **9.131 CORPUS ITALIANO NORMATTIVA: 43 corpora /
 15.507 articoli** (da 5 / 5.180) + verificatore esteso ai 43 codici + preambolo IT
 corretto (fondare sul corpus, non sulla memoria) + lista codici dinamica.
 Account di test: `admin.it` (admin, AL+IT) e `avvocato.it` (avvocato IT).
+
+## Storia versioni (sessione 20 ago 2026 — giurisdizione + lettere)
+v9.154 giurisdizione armata dentro l'autenticazione (causa #1) · **9.155 il
+vincolo al collo di bottiglia in `backends.complete()`** + `apply_jurisdiction`
+idempotente + `tools/juris_guard.py` → audit strumenti IT da 1/14 a **14/14** ·
+9.156 testo cliente: tagline al congiuntivo, **nessun nome di modello negli
+asset serviti** (Fable/Opus rimossi anche da commenti HTML/CSS e identificatori
+JS), cache-bust anche per style.css · 9.157 i backup `.bak-*` esclusi
+dall'immagine (2.01→1.81 GB) · **9.158-9.159 Lettere e atti** (`src/letters.py`,
+26 destinatari IT+AL, export .docx) + smoke 74→101.
 
 ## Storia versioni (sessione 6-7 ago 2026)
 v9.50→9.54 piattaforma 3 professioni · 9.55 extra tool · 9.56 full-text+matching · 9.61-9.68 police laws + Super Noteri + revoca/conflitti · 9.69-9.71 Super Prokuror + hub · 9.72 Ligj i gjallë · 9.73 Pika e parë · 9.74 Fashikull · 9.75-9.76 Motore afate + golden · 9.77 fix needle empty-state · 9.78 upload in Fashikull · 9.79-9.80 Shiko të ruajturat · 9.81 fix forgot-password · 9.82 mode-bar snellite. Punto di ritorno sicuro storico: commit `1e9fb84`.

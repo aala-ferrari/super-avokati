@@ -7837,3 +7837,28 @@ main {
 .dash-track i { display: block; height: 100%; background: linear-gradient(90deg,#e7ce8e,#b0883e); border-radius: 5px; }
 .dash-n { flex: 0 0 auto; font-weight: 700; color: #8a6d3b; min-width: 22px; text-align: right; }
 @media (max-width: 560px) { .dash-cards { grid-template-columns: repeat(2, 1fr); } .dash-num { font-size: 1.5rem; } }
+
+
+/* ── Letra dhe shkresa ────────────────────────────────────────────────── */
+.lt-kind, .lt-form {
+  width: 100%; margin: 8px 0; padding: 10px 12px; border-radius: 10px;
+  border: 1px solid var(--line, #d8d2c4); background: var(--surface, #fffdf7);
+  color: inherit; font: inherit;
+}
+.lt-info { margin: 6px 0 2px; }
+.lt-meta {
+  font-size: .88rem; line-height: 1.5; padding: 10px 12px; border-radius: 10px;
+  background: rgba(0, 0, 0, .035); border: 1px solid var(--line, #e3ddcf);
+}
+.lt-note, .lt-warn {
+  font-size: .85rem; line-height: 1.5; padding: 9px 12px; border-radius: 10px;
+  margin-top: 6px;
+}
+.lt-note { background: rgba(37, 99, 235, .07); border: 1px solid rgba(37, 99, 235, .28); }
+.lt-warn { background: rgba(180, 83, 9, .09); border: 1px solid rgba(180, 83, 9, .32); }
+.lt-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+@media (prefers-color-scheme: dark) {
+  .lt-meta { background: rgba(255, 255, 255, .05); }
+  .lt-note { background: rgba(96, 165, 250, .12); }
+  .lt-warn { background: rgba(251, 191, 36, .12); }
+}

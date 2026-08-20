@@ -64,6 +64,7 @@ from . import afati as afati_mod
 from . import registry as registry_mod
 from . import notary as notary_mod
 from . import deadlines as deadlines_mod
+from . import letters as letters_mod
 from .auth import (
     authenticate,
     current_user,
@@ -4438,6 +4439,97 @@ def _notary_run(fn, **kw):
 @login_required_api
 def api_notary_deed_types():
     return jsonify({"types": notary_mod.list_deed_types()})
+
+
+@app.get("/api/letters/kinds")
+@login_required_api
+def api_letters_kinds():
+    """Catalogo dei destinatari per la giurisdizione della sessione."""
+    user = getattr(request, "user", None)
+    return jsonify({"kinds": letters_mod.list_kinds(_active_jurisdiction(user))})
+
+
+@app.post("/api/letters/draft")
+@login_required_api
+@require_module("avokat", "prokuror", "noter")
+def api_letters_draft():
+    """Lettera pronta da inviare, radicata nel fascicolo e nel corpus."""
+    _ensure_loaded()
+    if _BRAIN is None or _INDEX is None:
+        return jsonify({"error": "unavailable"}), 503
+    body = request.get_json(silent=True) or {}
+    kind = (body.get("kind") or "").strip()
+    facts = (body.get("facts") or "").strip()
+    case_id = (body.get("case_id") or "").strip()
+
+    # il fascicolo e' la ragione d'essere dello strumento: se c'e' un caso,
+    # i suoi documenti entrano nel contesto senza che l'avvocato li incolli
+    case_context = ""
+    if case_id and _resolve_case(case_id) is not None:
+        try:
+            ctx, used, _n = vault_mod.build_context(case_id)
+            if used:
+                case_context = ctx
+        except Exception:  # noqa: BLE001
+            case_context = ""
+    if len(facts) < 15 and len(case_context) < 200:
+        return jsonify({"error": "facts_required"}), 400
+
+    try:
+        res = letters_mod.draft(
+            _BRAIN.backend, _req_index(),
+            kind=kind, facts=facts, case_context=case_context,
+            jurisdiction=_active_jurisdiction(getattr(request, "user", None)),
+            form=(body.get("form") or "letter").strip(),
+            extra=(body.get("extra") or "").strip()[:4000],
+        )
+    except ValueError:
+        return jsonify({"error": "bad_request"}), 400
+    except Exception as exc:  # noqa: BLE001
+        log.exception("letters draft failed")
+        return jsonify({"error": _safe_err(exc)}), 200
+
+    md = res.get("markdown") or ""
+    cits = {"items": [], "stats": {}}
+    try:
+        if md:
+            cits = cv_mod.verify_text(md, _req_index())
+    except Exception:  # noqa: BLE001
+        pass
+    res["citations"] = cits
+    return jsonify(res)
+
+
+@app.post("/api/letters/docx")
+@login_required_api
+def api_letters_docx():
+    """Solo la lettera in .docx: le sezioni operative restano all'avvocato."""
+    body = request.get_json(silent=True) or {}
+    md = letters_mod.letter_body((body.get("markdown") or "").strip())
+    if len(md) < 5:
+        return Response("empty", status=400)
+    title = (body.get("title") or "Lettera").strip()
+    lines = []
+    for ln in md.split("\n"):
+        t = ln.rstrip()
+        st = t.lstrip()
+        if st.startswith("* ") and not st.startswith("**"):
+            t = t[: len(t) - len(st)] + "- " + st[2:]
+        t = re.sub(r"\*\*(.+?)\*\*", r"\1", t)
+        t = re.sub(r"`([^`]+)`", r"\1", t)
+        lines.append(t)
+    safe = re.sub(r"[^0-9A-Za-zçëÇË _-]", "", title)[:60].strip() or "lettera"
+    out_path = APP_DB_PATH.parent / "exports" / (safe.replace(" ", "_") + ".docx")
+    try:
+        pro_mod.render_act_docx({"title": title, "body_markdown": "\n".join(lines)},
+                                out_path)
+    except Exception as exc:  # noqa: BLE001
+        log.exception("letters docx failure")
+        return Response(f"render error: {exc}", status=500)
+    return send_file(
+        out_path, as_attachment=True, download_name=safe + ".docx",
+        mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    )
 
 
 @app.post("/api/notary/draft")
