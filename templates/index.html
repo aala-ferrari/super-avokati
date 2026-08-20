@@ -38,7 +38,7 @@
 </svg>
 
 <header class="topbar">
-  <button id="menu-btn" class="menu-btn" aria-label="Hap menunë" type="button">
+  <button id="menu-btn" class="menu-btn" aria-label="Hap menunë" data-i18n-aria="open_menu" type="button">
     <span></span><span></span><span></span>
   </button>
 
@@ -58,7 +58,7 @@
       <div class="stat-pill"><strong>{{ num_codes }}</strong><span data-i18n="codes">kode</span></div>
       <div class="stat-pill"><strong>{{ "{:,}".format(total_articles).replace(",", ".") }}</strong><span data-i18n="articles">nene</span></div>
     </div>
-    <button type="button" id="calendar-btn" class="calendar-toggle" title="Kalendari i agjendës" aria-label="Hap kalendarin">
+    <button type="button" id="calendar-btn" class="calendar-toggle" title="Kalendari i agjendës" data-i18n-title="calendar_title" aria-label="Hap kalendarin" data-i18n-aria="open_calendar">
       <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
         <rect x="3" y="5" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
         <line x1="3" y1="10" x2="21" y2="10" stroke="currentColor" stroke-width="2"/>
@@ -68,7 +68,7 @@
       <span class="calendar-toggle-label" data-i18n="calendar">Kalendari</span>
       <span class="calendar-badge" id="calendar-badge" hidden>0</span>
     </button>
-    <button type="button" id="vigilanza-topbar-btn" class="calendar-toggle" title="Vigilanza Normativa — alerte për fascikujt e tu" aria-label="Hap vigilanzën" hidden>
+    <button type="button" id="vigilanza-topbar-btn" class="calendar-toggle" title="Vigilanza Normativa — alerte për fascikujt e tu" data-i18n-title="vigilanza_title" aria-label="Hap vigilanzën" data-i18n-aria="open_vigilanza" hidden>
       <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
         <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
               d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/>
@@ -76,7 +76,7 @@
       <span class="calendar-toggle-label">Vigilanza</span>
       <span class="calendar-badge" id="vigilanza-badge" hidden>0</span>
     </button>
-    <button type="button" id="studio-btn" class="calendar-toggle" title="Studio (anëtarët, rolet, ndarja e rasteve)" aria-label="Hap studion">
+    <button type="button" id="studio-btn" class="calendar-toggle" title="Studio (anëtarët, rolet, ndarja e rasteve)" data-i18n-title="studio_title" aria-label="Hap studion" data-i18n-aria="open_studio">
       <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
         <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
               d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm12 10v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
@@ -115,7 +115,7 @@
 <main>
   <div id="sidebar-scrim" class="sidebar-scrim" aria-hidden="true"></div>
 
-  <aside id="sidebar" class="sidebar" aria-label="Rastet dhe kodet">
+  <aside id="sidebar" class="sidebar" aria-label="Rastet dhe kodet" data-i18n-aria="sidebar_aria">
     <div class="sidebar-head">
       <h3>📁 <span data-i18n="my_cases">Rastet e mia</span></h3>
       <button id="sidebar-close" class="sidebar-close" aria-label="Mbyll menunë" type="button">&times;</button>
@@ -133,7 +133,7 @@
       <span class="intake-ico">👥</span> <span data-i18n="clients_research">Klientët & Kërkimet</span>
     </button>
 
-    <div id="mode-bar" class="mode-bar" aria-label="Modaliteti profesional"></div>
+    <div id="mode-bar" class="mode-bar" aria-label="Modaliteti profesional" data-i18n-aria="modebar_aria"></div>
 
     <ul id="case-list" class="case-list" aria-live="polite">
       <li class="case-empty" data-i18n="no_cases">Nuk ke ende asnjë rast të hapur. Kliko "Rast i ri" për të filluar.</li>
@@ -169,7 +169,7 @@
         <button type="button" id="clients-btn" class="icon-btn clients-toggle" title="Klientët dhe portali i tyre">
           👤 <span class="clients-count" id="clients-count-badge" hidden>0</span>
         </button>
-        <button type="button" id="dossier-btn" class="icon-btn dossier-toggle" title="Dosja e rastit">
+        <button type="button" id="dossier-btn" class="icon-btn dossier-toggle" title="Dosja e rastit" data-i18n-title="dossier_title">
           📎 <span class="dossier-count" id="dossier-count-badge" hidden>0</span>
         </button>
         <div class="pro-menu-wrap">
@@ -326,18 +326,18 @@
             </button>
           </div>
         </div>
-        <button type="button" id="export-md-btn" class="icon-btn" title="Shkarko si Markdown">📝</button>
-        <button type="button" id="export-json-btn" class="icon-btn" title="Shkarko dokumentin (i lexueshme, PDF)">⬇️</button>
+        <button type="button" id="export-md-btn" class="icon-btn" title="Shkarko si Markdown" data-i18n-title="dl_md">📝</button>
+        <button type="button" id="export-json-btn" class="icon-btn" title="Shkarko dokumentin (i lexueshme, PDF)" data-i18n-title="dl_pdf">⬇️</button>
         <button type="button" id="delete-case-btn" class="icon-btn danger" title="Fshi rastin">🗑️</button>
       </div>
     </div>
 
-    <section class="dossier" id="dossier-panel" hidden aria-label="Dosja e rastit">
+    <section class="dossier" id="dossier-panel" hidden aria-label="Dosja e rastit" data-i18n-aria="dossier_title">
       <div class="dossier-head">
         <div class="dossier-title">
           <span class="dossier-icon">📁</span>
           <div>
-            <strong>Dosja e rastit</strong>
+            <strong data-i18n="dossier_title">Dosja e rastit</strong>
             <p class="dossier-help">Ngarko PDF, foto ose skanime të dokumenteve të çështjes (vendime, kontrata, padi, njoftime). Super Avokati do t'i lexojë dhe do t'i përdorë si provë për përgjigje më të sakta.</p>
           </div>
         </div>
@@ -348,7 +348,7 @@
         <input type="file" id="dossier-input" multiple accept=".pdf,.jpg,.jpeg,.png,.svg,.webp,.tif,.tiff" hidden />
         <div class="dossier-drop-inner">
           <span class="dossier-drop-plus">＋</span>
-          <strong>Ngarko dokumente</strong>
+          <strong data-i18n="upload_docs">Ngarko dokumente</strong>
           <span class="dossier-drop-hint">Tërhiqi këtu ose kliko për të zgjedhur · PDF, JPG, PNG, SVG · max 25 MB/skedar</span>
         </div>
       </label>

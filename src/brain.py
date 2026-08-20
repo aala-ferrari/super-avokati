@@ -2497,6 +2497,11 @@ class SuperAvvocato:
     ) -> list[tuple[CasePrecedent, float]]:
         """Pull top-K court decisions from the V4 Postgres KB.
 
+        NOTA (multi-giurisdizione): la base giurisprudenziale e solo ALBANESE
+        (Kushtetuese, Gjykata e Larte, CEDU nei casi Albania). Per un caso
+        italiano quei precedenti sarebbero fuorvianti, quindi si salta la
+        ricerca finche non esiste una base italiana (Cassazione).
+
         The retriever ranks by BM25 over a composite text per case
         (summary + court + judges + articles cited + body excerpt). We
         feed it the triage queries AND the strategic angles so that
@@ -2508,6 +2513,8 @@ class SuperAvvocato:
         *don't* exclude all other cases — a Constitutional Court ruling
         on fundamental rights can be precedent for any case.
         """
+        if self._current_jurisdiction() != "AL":
+            return []
         if not self.kb.cases:
             return []
 
@@ -2551,6 +2558,8 @@ class SuperAvvocato:
         we want enough to distinguish meaningfully, not enough to
         drown the prompt in bad news.
         """
+        if self._current_jurisdiction() != "AL":
+            return []
         if not self.kb.cases:
             return []
         queries = list(triage.search_queries)
