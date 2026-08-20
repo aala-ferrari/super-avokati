@@ -260,9 +260,12 @@ class ClaudeCodeBackend(LLMBackend):
 
         cmd = [self.cli, "-p", "--output-format", "json", "--model", model]
 
-        # Extended thinking on the main answer stage — Opus reasons
-        # through hard legal questions before writing the final text.
-        if not fast and self.effort and not model_override:
+        # Extended thinking: Opus ragiona sulle questioni legali difficili
+        # prima di scrivere. Vale anche per i modelli scelti esplicitamente
+        # (Fable per Avvocato del Diavolo / secondo parere / drafter): prima
+        # la condizione `not model_override` li escludeva, quindi rispondevano
+        # senza ragionamento esteso. Il percorso veloce resta senza effort.
+        if not fast and self.effort:
             cmd.extend(["--effort", self.effort])
 
         # --resume DISABILITATO: in headless -p le sessioni non persistono
