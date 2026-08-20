@@ -100,6 +100,23 @@ def logout_user() -> None:
 
 # ── decorators ──────────────────────────────────────────────────────────────
 
+def _arm_request_jurisdiction(user) -> None:
+    """Rende disponibile la giurisdizione della sessione a TUTTI i moduli.
+
+    Va chiamata quando l'utente e gia noto: un before_request girerebbe prima
+    e vedrebbe request.user assente, facendo ricadere ogni strumento su AL."""
+    try:
+        from flask import session
+        from . import storage as _storage, brain as _brain
+        allowed = _storage.user_jurisdictions(user)
+        chosen = (session.get("jurisdiction") or "").upper()
+        if chosen not in allowed:
+            chosen = "AL" if "AL" in allowed else sorted(allowed)[0]
+        _brain.set_request_jurisdiction(chosen)
+    except Exception:  # noqa: BLE001 - non deve mai bloccare la richiesta
+        pass
+
+
 def login_required_api(fn):
     """For JSON APIs — returns 401 JSON when unauthenticated.
 
@@ -114,6 +131,7 @@ def login_required_api(fn):
             return jsonify({"error": "unauthorized"}), 401
         firm = current_firm()
         request.user = user  # type: ignore[attr-defined]
+        _arm_request_jurisdiction(user)
         request.firm = firm  # type: ignore[attr-defined]
         request.role = (storage.get_user_role_in_firm(user.id, firm.id)
                         if firm else None)  # type: ignore[attr-defined]
@@ -136,6 +154,7 @@ def login_required_page(fn):
             return redirect(url_for("login_page"))
         firm = current_firm()
         request.user = user  # type: ignore[attr-defined]
+        _arm_request_jurisdiction(user)
         request.firm = firm  # type: ignore[attr-defined]
         request.role = (storage.get_user_role_in_firm(user.id, firm.id)
                         if firm else None)  # type: ignore[attr-defined]

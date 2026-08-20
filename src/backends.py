@@ -61,6 +61,25 @@ _AUDIT_STORE_RAW = os.getenv("AI_AUDIT_STORE_RAW", "").strip() in ("1", "true", 
 _AUDIT_RAW_TRUNCATE = int(os.getenv("AI_AUDIT_RAW_TRUNCATE", "4000"))
 
 
+def _apply_juris(system):
+    """Rete di sicurezza: la giurisdizione della sessione applicata a OGNI
+    chiamata al cervello.
+
+    I moduli separati (notaio, perizie, intake, scadenze, segretaria…) non
+    la applicavano tutti a mano: in sessione IT rispondevano in albanese con
+    diritto albanese. Qui passa tutto, quindi il vincolo non puo' sfuggire.
+    apply_jurisdiction e' idempotente, percio' chi la applica gia' a monte
+    non viene toccato. Import differito: brain importa backends."""
+    if not isinstance(system, str) or not system:
+        return system
+    try:
+        from .brain import apply_current
+        return apply_current(system)
+    except Exception:  # noqa: BLE001 - non deve mai bloccare una risposta
+        return system
+
+
+
 def _hash16(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8", errors="replace")).hexdigest()[:16]
 
@@ -227,6 +246,7 @@ class ClaudeCodeBackend(LLMBackend):
                  user_id: int | None = None,
                  case_id: str | None = None,
                  model_override: str | None = None) -> str:
+        system = _apply_juris(system)  # giurisdizione della sessione
         from .config import ROOT
 
         # Reset per-call — only meaningful for the current complete().
@@ -430,6 +450,7 @@ class ClaudeCodeBackend(LLMBackend):
         user_id: int | None = None,
         case_id: str | None = None,
     ) -> Iterator[tuple[str, object]]:
+        system = _apply_juris(system)  # giurisdizione della sessione
         from .config import ROOT
 
         self.last_resume_failed = False
@@ -706,6 +727,7 @@ class AnthropicBackend(LLMBackend):
                  callsite: str | None = None,
                  user_id: int | None = None,
                  case_id: str | None = None) -> str:
+        system = _apply_juris(system)  # giurisdizione della sessione
         model = self._pick_model(fast, medium)
         tier = _tier_label(fast, medium)
         prompt_serialized = _serialize_prompt(system, messages)
@@ -830,6 +852,7 @@ class GeminiBackend(LLMBackend):
                  callsite: str | None = None,
                  user_id: int | None = None,
                  case_id: str | None = None) -> str:
+        system = _apply_juris(system)  # giurisdizione della sessione
         # Gemini backend: no separate medium tier — `medium=True` falls back
         # to the main Pro model (per pivot lawyer-first decision).
         model = self.fast_model if fast else self.model

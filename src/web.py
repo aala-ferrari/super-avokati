@@ -7085,12 +7085,16 @@ def api_admin_audit_export():
 
 @app.before_request
 def _arm_jurisdiction():
-    """Ogni richiesta porta con se la propria giurisdizione: i moduli la
-    leggono da brain.request_jurisdiction() senza doverla passare a mano."""
+    """Reset di partenza per ogni richiesta.
+
+    ATTENZIONE: qui request.user NON e ancora impostato (lo fa
+    login_required_api dopo), quindi questo non basta: il valore giusto lo
+    arma auth._arm_request_jurisdiction() quando l'utente e noto. Qui si
+    azzera soltanto, per non ereditare la giurisdizione di una richiesta
+    precedente sullo stesso thread."""
     try:
         from . import brain as _brain_mod
-        _brain_mod.set_request_jurisdiction(
-            _active_jurisdiction(getattr(request, "user", None)))
+        _brain_mod.set_request_jurisdiction("AL")
     except Exception:  # noqa: BLE001
         pass
 

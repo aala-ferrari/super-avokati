@@ -282,10 +282,18 @@ def apply_jurisdiction(system_prompt: str, jurisdiction: str | None) -> str:
     if not pre:
         return system_prompt
     j = (jurisdiction or "AL").upper()
+    # IDEMPOTENTE: backends.complete() applica la giurisdizione a tutti come
+    # rete di sicurezza, quindi un prompt gia' adattato non va raddoppiato.
     if j == "IT":
+        if JURISDICTION_OVERRIDE_IT in system_prompt:
+            return system_prompt
         return pre + system_prompt + JURISDICTION_OVERRIDE_IT
     if j == "EU":
+        if JURISDICTION_OVERRIDE_EU in system_prompt:
+            return system_prompt
         return pre + system_prompt + JURISDICTION_OVERRIDE_EU
+    if pre in system_prompt:
+        return system_prompt
     return pre + system_prompt
 
 
