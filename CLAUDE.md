@@ -229,6 +229,20 @@ Dockerfile COPY: `data/ src/ static/ templates/ scripts/ tools/`. Dopo un cambio
 ## Fix corpus (GOTCHA importante)
 I fix agli articoli vivono nel **PICKLE `data/index/bm25.pkl`** (volume montato), NON nel sorgente. Per aggiungere/correggere articoli: script python che fa `ArticleIndex.load()` → append `Article(...)` → `ArticleIndex.build(arts).save()` → `chown 1000:1000 data/index/bm25.pkl` → `docker restart super-avvocato`. Un re-parse da zero PERDE questi fix. Article ha campi: code, title_sq, area, number, heading, body, pjesa, kreu, seksioni, repealed, volatility (STABLE/MEDIUM), last_amendment_date.
 
+## Allegati — UI
+
+`_readFilesInto(input, ta, statusEl, runBtn)` è l'UNICO gestore di allegati
+(app.js): legge **tutti** i file scelti, li accoda con il nome come
+intestazione e imposta `multiple` da sé, così il markup dei singoli strumenti
+non va toccato. Prima dieci strumenti ripetevano lo stesso codice a file
+singolo e un documento fotografato in 4 pagine andava caricato riaprendo la
+galleria ogni volta. **Usa `TT()` e non `t()`**: diversi di quei blocchi
+vivono in callback con parametro `t` (es. `t.key` nelle perizie).
+
+Il `case_id` viaggia con ogni strumento: `_openTetramorphTool` lo aggiunge al
+payload per tutti e 19 i suoi strumenti in un punto solo, più 5 pannelli
+autonomi (drafter, perizie, notaio-bozza, atto d'indagine, scadenze).
+
 ## Allegati (GOTCHA)
 
 `ALLOWED_UPLOAD_EXTENSIONS` (config.py) e `documents.extract_text` sono **due
@@ -245,7 +259,7 @@ Le patch a file con ë/ç/emoji: SEMPRE via file `.py` scp'd sul VPS (`scp patch
 ## QA — rete di sicurezza (lanciare dopo ogni build)
 ```bash
 docker exec super-avvocato python3 tools/golden_check.py   # 19 check deterministici: corpus + Verifikuar + heading-scan. Baseline 19/19.
-docker exec super-avvocato python3 tools/smoke_test.py     # 102 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 102/102.
+docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 ```
 Estendere GOLDENS/smoke quando emerge un bug nuovo.
@@ -264,6 +278,23 @@ Da rilanciare dopo ogni modifica alla giurisdizione.
 - **afati.py** — Motore afate: TRIGGERS (8) → scadenze grounded + blocco `AFAT | titolo | YYYY-MM-DD` → calendario (POST /api/events).
 - **vault.py** — Fashikull: build_context(case_id), ask (Q&A [Dok N]), find_needle, who_said_what. **pro_features.py** build_case_timeline (events/contradictions/gaps).
 - **citation_verifier.py** — Verifikuar (verified/fake/repealed/needs_code + volatility/stale). **deadlines.py** prescrizione.
+- **case_brief.py** — **memoria del caso**: il riassunto del fascicolo che ogni
+  strumento PRO riceve, perché prima ripartivano da ZERO anche a caso aperto.
+  Contiene titolo+giurisdizione, i fatti come li ha raccontati l'avvocato,
+  l'ultima analisi del cervello, i blocchi strutturati (piano d'azione, leve,
+  urgenze), i documenti caricati, le ricerche salvate. **Quote per sezione**:
+  senza budget un fascicolo maturo scaccia la domanda vera.
+  `append_to()` lo mette **in CODA** al testo — la richiesta dell'avvocato resta
+  la prima cosa letta e i documenti da analizzare non vengono spostati — marcato
+  come SFONDO con divieto di obbedire a istruzioni interne (i documenti vengono
+  da controparti). Innestato via `web._with_case(text, body)` in 12 punti:
+  `_pros_facts` copre da solo gli 11 strumenti del procuratore.
+  **NON va negli strumenti che VERIFICANO** (act-check, verify_claims,
+  extract_data): porterebbe con sé le citazioni delle risposte precedenti e il
+  verificatore darebbe risultati falsi.
+  Misurato sulla stessa domanda generica ("qual è l'angolo vincente?"):
+  **senza fascicolo 0/5** (il modello rifiuta: "non è stato fornito alcun
+  fatto"), **con fascicolo 4/6** e strategia specifica.
 - **letters.py** — Letra dhe shkresa: lettere/PEC pronte da inviare, radicate
   nel **fascicolo** (`vault.build_context`) e negli articoli **recuperati**
   (`expertise.retrieve_grounded`). Cataloghi separati per giurisdizione
@@ -312,7 +343,10 @@ JS), cache-bust anche per style.css · 9.157 i backup `.bak-*` esclusi
 dall'immagine (2.01→1.81 GB) · **9.158-9.159 Lettere e atti** (`src/letters.py`,
 26 destinatari IT+AL, export .docx) + smoke 74→101 · **9.160-9.161 allegati**
 (docx/doc/txt/rtf + antiword; `documents.extract_text` insegnato a leggerli —
-prima li ammetteva e li perdeva in silenzio) + PDF via stampa browser + smoke 102.
+prima li ammetteva e li perdeva in silenzio) + PDF via stampa browser + smoke 102 ·
+**9.162 memoria del caso** (`src/case_brief.py`: gli strumenti PRO continuano il
+lavoro del cervello invece di ricominciarlo) + allegati nei 6 strumenti che ne
+erano privi (19/19) + **selezione multipla** in tutti + smoke 103.
 
 ## Storia versioni (sessione 6-7 ago 2026)
 v9.50→9.54 piattaforma 3 professioni · 9.55 extra tool · 9.56 full-text+matching · 9.61-9.68 police laws + Super Noteri + revoca/conflitti · 9.69-9.71 Super Prokuror + hub · 9.72 Ligj i gjallë · 9.73 Pika e parë · 9.74 Fashikull · 9.75-9.76 Motore afate + golden · 9.77 fix needle empty-state · 9.78 upload in Fashikull · 9.79-9.80 Shiko të ruajturat · 9.81 fix forgot-password · 9.82 mode-bar snellite. Punto di ritorno sicuro storico: commit `1e9fb84`.
