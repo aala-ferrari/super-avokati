@@ -137,6 +137,13 @@ def extract_text(
         return _extract_svg(path), False
     if ext in {".jpg", ".jpeg", ".png", ".webp", ".tif", ".tiff"}:
         return _vision_ocr_image(path, mimetype, backend), True
+    if ext in {".docx", ".doc", ".txt", ".rtf", ".html", ".htm"}:
+        # Word/testo: li legge extract.readers (python-docx, antiword, plain).
+        # Senza questo ramo un .docx ammesso dall'upload tornava vuoto SENZA
+        # errore — l'allegato spariva in silenzio.
+        from .extract.readers import read_text as _read
+        res = _read(path)
+        return (res.text or ""), False
     return "", False
 
 

@@ -4482,6 +4482,7 @@ def api_letters_draft():
             jurisdiction=_active_jurisdiction(getattr(request, "user", None)),
             form=(body.get("form") or "letter").strip(),
             extra=(body.get("extra") or "").strip()[:4000],
+            received=(body.get("received") or "").strip()[:24000],
         )
     except ValueError:
         return jsonify({"error": "bad_request"}), 400

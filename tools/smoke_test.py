@@ -131,6 +131,39 @@ def _check_letter_body():
 run("letters.letter_body", _check_letter_body)
 
 
+# Ogni estensione ammessa all'upload dev'essere davvero LEGGIBILE: ammetterla
+# senza insegnarla a documents.extract_text la faceva tornare vuota in
+# silenzio, e l'allegato spariva senza che nessuno se ne accorgesse.
+def _check_upload_extensions():
+    import tempfile, pathlib
+    from src.config import ALLOWED_UPLOAD_EXTENSIONS
+    from src import documents as _docs
+    testabili = {".txt": b"Egregio Sig. Rossi, la licenziamo per giusta causa.",
+                 ".rtf": b"Egregio Sig. Rossi, la licenziamo per giusta causa."}
+    vuoti = []
+    with tempfile.TemporaryDirectory() as td:
+        for ext, payload in testabili.items():
+            if ext not in ALLOWED_UPLOAD_EXTENSIONS:
+                continue
+            p = pathlib.Path(td) / ("prova" + ext)
+            p.write_bytes(payload)
+            txt, _ = _docs.extract_text(p, ext, "text/plain", backend=None)
+            if not (txt or "").strip():
+                vuoti.append(ext)
+        if ".docx" in ALLOWED_UPLOAD_EXTENSIONS:
+            from docx import Document
+            p = pathlib.Path(td) / "prova.docx"
+            doc = Document(); doc.add_paragraph("Licenziamento per giusta causa."); doc.save(str(p))
+            txt, _ = _docs.extract_text(p, ".docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", backend=None)
+            if not (txt or "").strip():
+                vuoti.append(".docx")
+    assert not vuoti, "estensioni ammesse ma illeggibili (allegato perso in silenzio): %s" % vuoti
+    return {"markdown": "ok"}
+
+print("[uploads]")
+run("documents.estensioni allegabili", _check_upload_extensions)
+
+
 print("\n== %d OK, %d FAIL ==" % (len(OK), len(BAD)))
 if BAD:
     for n, e in BAD:

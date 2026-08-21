@@ -7862,3 +7862,16 @@ main {
   .lt-note { background: rgba(96, 165, 250, .12); }
   .lt-warn { background: rgba(251, 191, 36, .12); }
 }
+
+.lt-files { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 2px; }
+.lt-chip {
+  display: inline-flex; align-items: center; gap: 6px; font-size: .82rem;
+  padding: 4px 8px; border-radius: 999px; background: rgba(0, 0, 0, .05);
+  border: 1px solid var(--line, #ddd6c6);
+}
+.lt-chip button {
+  border: 0; background: none; cursor: pointer; font-size: 1rem;
+  line-height: 1; color: inherit; opacity: .6; padding: 0;
+}
+.lt-chip button:hover { opacity: 1; color: #b91c1c; }
+@media (prefers-color-scheme: dark) { .lt-chip { background: rgba(255,255,255,.07); } }

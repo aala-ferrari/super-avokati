@@ -96,8 +96,12 @@ MAX_DOCUMENTS_PER_CASE = int(os.getenv("MAX_DOCUMENTS_PER_CASE", "20"))
 # extracted_text + AI summary; if a document is longer than this we use the
 # summary in full + a head-and-tail slice of the raw text.
 DOC_CONTEXT_CHAR_BUDGET = int(os.getenv("DOC_CONTEXT_CHAR_BUDGET", "6000"))
+# .docx/.doc/.txt/.rtf: il lettore (extract/readers.py) li gestisce gia'; il
+# .doc binario passa da antiword, installato nel Dockerfile. Servono per
+# allegare cio' che arriva davvero da controparti e tribunali.
 ALLOWED_UPLOAD_EXTENSIONS = frozenset({".pdf", ".jpg", ".jpeg", ".png", ".svg",
-                                       ".webp", ".tif", ".tiff"})
+                                       ".webp", ".tif", ".tiff",
+                                       ".docx", ".doc", ".txt", ".rtf"})
 
 TOP_K_ARTICLES = int(os.getenv("TOP_K_ARTICLES", "12"))
 # How many precedent decisions to retrieve alongside articles (added to the
