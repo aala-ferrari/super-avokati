@@ -229,6 +229,24 @@ Dockerfile COPY: `data/ src/ static/ templates/ scripts/ tools/`. Dopo un cambio
 ## Fix corpus (GOTCHA importante)
 I fix agli articoli vivono nel **PICKLE `data/index/bm25.pkl`** (volume montato), NON nel sorgente. Per aggiungere/correggere articoli: script python che fa `ArticleIndex.load()` → append `Article(...)` → `ArticleIndex.build(arts).save()` → `chown 1000:1000 data/index/bm25.pkl` → `docker restart super-avvocato`. Un re-parse da zero PERDE questi fix. Article ha campi: code, title_sq, area, number, heading, body, pjesa, kreu, seksioni, repealed, volatility (STABLE/MEDIUM), last_amendment_date.
 
+## nginx: limite di caricamento (GOTCHA GRAVE)
+
+`client_max_body_size 30m` nel blocco server di superavokati.ai (**entrambi**,
+:80 e :443). Il predefinito di nginx e' **1 MB**: qualunque allegato piu'
+grande — uno screenshot lo supera facilmente — veniva respinto con un **413 in
+HTML**, che il client provava a leggere come JSON e mostrava all'avvocato
+`Unexpected token '<'`. L'app dichiara 25 MB, ma nginx si fermava molto prima.
+I test con file piccoli (17 KB) **non lo intercettano**: provare sempre con
+un file oltre 1 MB.
+
+**ATTENZIONE ai backup in `sites-enabled/`**: nginx carica *tutti* i file di
+quella cartella. Un `cp config config.bak` fatto li' dentro crea un secondo
+blocco per lo stesso `server_name` e nginx usa il primo che trova — la
+modifica sembra non avere effetto. I backup vanno in `sites-available/`.
+
+Gli altri siti (aala.global, crm, auto, taxi) sono **ancora al predefinito di
+1 MB**: se un giorno caricano allegati, avranno lo stesso difetto.
+
 ## Cache dell'HTML (GOTCHA GRAVE)
 
 `web._no_cache_html` manda `Cache-Control: no-store` su ogni risposta HTML e

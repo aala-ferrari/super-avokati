@@ -533,7 +533,17 @@
         const resp = await fetch(`/api/cases/${activeCaseId}/documents`, {
           method: "POST", body: fd,
         });
-        const data = await resp.json();
+        // La risposta non e' sempre JSON: un 413 di nginx o un 502 arrivano
+        // come pagina HTML, e leggerla come JSON dava all'avvocato
+        // "Unexpected token '<'" invece del motivo vero.
+        let data;
+        try {
+          data = await resp.json();
+        } catch (e) {
+          data = { error: resp.status === 413
+            ? TT("Skedar shumë i madh për serverin.")
+            : TT("Serveri ktheu një përgjigje të papritur (HTTP ") + resp.status + ")" };
+        }
         if (!resp.ok) {
           pending.remove();
           appendErrorDoc(f.name, data.error || `HTTP ${resp.status}`);
@@ -5732,6 +5742,7 @@
   };
   function t(sq) { return (UI_LANG === "it" && T_IT[sq]) ? T_IT[sq] : sq; }
   var TT = t;  // alias: use inside callbacks whose param is named `t`
+  Object.assign(T_IT, { "Skedar shumë i madh për serverin.": "File troppo grande per il server.", "Serveri ktheu një përgjigje të papritur (HTTP ": "Il server ha risposto in modo inatteso (HTTP " });
   Object.assign(T_IT, { "Nuk u lexua asnjë skedar. Provo ta zgjedhësh me butonin.": "Nessun file letto. Prova a sceglierlo con il pulsante.", "Asnjë skedar i zgjedhur. Formatet e pranuara: PDF, Word, foto (JPG, PNG, HEIC).": "Nessun file selezionato. Formati accettati: PDF, Word, foto (JPG, PNG, HEIC).", "Skedar shumë i madh (max 25 MB): ": "File troppo grande (max 25 MB): " });
   Object.assign(T_IT, { "Po e analizojmë…": "Analisi in corso…" });
   Object.assign(T_IT, { "Tërhiqi këtu ose kliko për të zgjedhur · PDF, Word, foto · max 25 MB/skedar": "Trascina qui o clicca per scegliere · PDF, Word, foto · max 25 MB per file" });
