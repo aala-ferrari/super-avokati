@@ -65,6 +65,7 @@ from . import registry as registry_mod
 from . import notary as notary_mod
 from . import deadlines as deadlines_mod
 from . import letters as letters_mod
+from . import case_brief as brief_mod
 from .auth import (
     authenticate,
     current_user,
@@ -2487,7 +2488,8 @@ def api_devil_consult():
     if len(situation) < 15:
         return jsonify({"error": "situation_required"}), 400
     try:
-        res = second_opinion_mod.consult(_BRAIN.backend, situation=situation[:12000])
+        res = second_opinion_mod.consult(_BRAIN.backend,
+                                         situation=_with_case(situation[:12000], body))
     except Exception as exc:  # noqa: BLE001
         log.exception("devil-consult failed")
         return jsonify({"error": _safe_err(exc)}), 200
@@ -2514,7 +2516,7 @@ def api_adversary():
     if len(text) < 30:
         return jsonify({"error": "text_required"}), 400
     try:
-        res = adversary_mod.attack(_BRAIN.backend, text=text[:16000])
+        res = adversary_mod.attack(_BRAIN.backend, text=_with_case(text[:16000], body))
     except Exception as exc:  # noqa: BLE001
         log.exception("adversary failed")
         return jsonify({"error": _safe_err(exc)}), 200
@@ -2569,7 +2571,8 @@ def api_fable_draft():
     if len(brief) < 15:
         return jsonify({"error": "brief_required"}), 400
     try:
-        res = fable_drafter_mod.draft(_BRAIN.backend, kind=kind, brief=brief[:8000],
+        res = fable_drafter_mod.draft(_BRAIN.backend, kind=kind,
+                                      brief=_with_case(brief[:8000], body),
                                       clauses_text=_firm_clauses_text(body))
     except Exception as exc:  # noqa: BLE001
         log.exception("fable-draft failed")
@@ -4414,6 +4417,21 @@ def api_expertise_templates():
     return jsonify({"templates": expertise_mod.list_templates()})
 
 
+def _with_case(text: str, body: dict) -> str:
+    """Aggiunge al testo il riassunto del fascicolo aperto.
+
+    Cosi' lo strumento PRO continua il lavoro invece di ricominciarlo: sa
+    gia' i fatti, cosa ha risposto il cervello e cosa c'e' nel fascicolo.
+    Silenzioso se non c'e' un caso o se il caso e' vuoto."""
+    cid = (body.get("case_id") or "").strip()
+    if not cid or _resolve_case(cid) is None:
+        return text or ""
+    try:
+        return brief_mod.append_to(text or "", cid)
+    except Exception:  # noqa: BLE001 - mai bloccare uno strumento per il contesto
+        return text or ""
+
+
 def _notary_run(fn, **kw):
     _ensure_loaded()
     if _BRAIN is None or _INDEX is None:
@@ -4543,7 +4561,7 @@ def api_notary_draft():
         return jsonify({"error": "details_required"}), 400
     out, err = _notary_run(notary_mod.draft_deed,
                            deed_type=(body.get("deed_type") or "").strip(),
-                           details=details[:12000],
+                           details=_with_case(details[:12000], body),
                            clauses_text=_firm_clauses_text(body))
     return err if err else out
 
@@ -4555,7 +4573,7 @@ def api_notary_check():
     text = (body.get("text") or "").strip()
     if len(text) < 30:
         return jsonify({"error": "text_required"}), 400
-    out, err = _notary_run(notary_mod.check_deed, text=text[:16000])
+    out, err = _notary_run(notary_mod.check_deed, text=_with_case(text[:16000], body))
     return err if err else out
 
 
@@ -4567,7 +4585,7 @@ def api_notary_succession():
     sit = (body.get("situation") or "").strip()
     if len(sit) < 15:
         return jsonify({"error": "situation_required"}), 400
-    out, err = _notary_run(notary_mod.succession, situation=sit[:8000])
+    out, err = _notary_run(notary_mod.succession, situation=_with_case(sit[:8000], body))
     return err if err else out
 
 
@@ -4623,7 +4641,7 @@ def api_notary_documents():
     act = (body.get("act") or "").strip()
     if len(act) < 6:
         return jsonify({"error": "act_required"}), 400
-    out, err = _notary_run(notary_mod.documents_needed, act=act[:2000])
+    out, err = _notary_run(notary_mod.documents_needed, act=_with_case(act[:2000], body))
     return err if err else out
 
 
@@ -4635,7 +4653,7 @@ def api_notary_revocation():
     details = (body.get("details") or "").strip()
     if len(details) < 10:
         return jsonify({"error": "details_required"}), 400
-    out, err = _notary_run(notary_mod.draft_revocation, details=details[:12000])
+    out, err = _notary_run(notary_mod.draft_revocation, details=_with_case(details[:12000], body))
     return err if err else out
 
 
@@ -4920,7 +4938,7 @@ def _pros_facts(fn, body, key="facts", minlen=15, **extra):
     val = (body.get(key) or "").strip()
     if len(val) < minlen:
         return jsonify({"error": key + "_required"}), 400
-    kw = {key: val[:14000]}
+    kw = {key: _with_case(val[:14000], body)}
     kw.update(extra)
     out, err = _notary_run(fn, **kw)
     return err if err else out
@@ -5064,7 +5082,7 @@ def api_afati_compute():
     facts = (body.get("facts") or "").strip()[:6000]
     try:
         res = afati_mod.compute(_BRAIN.backend, _req_index(), trigger=trigger,
-                                event_date=event_date, facts=facts)
+                                event_date=event_date, facts=_with_case(facts, body))
     except Exception as exc:  # noqa: BLE001
         log.exception("afati failed")
         return jsonify({"error": _safe_err(exc)}), 200
@@ -5089,7 +5107,8 @@ def api_prescription():
     if len(facts) < 15:
         return jsonify({"error": "facts_required"}), 400
     try:
-        res = deadlines_mod.prescription(_BRAIN.backend, _req_index(), facts=facts[:8000])
+        res = deadlines_mod.prescription(_BRAIN.backend, _req_index(),
+                                         facts=_with_case(facts[:8000], body))
     except Exception as exc:  # noqa: BLE001
         log.exception("prescription failed")
         return jsonify({"error": _safe_err(exc)}), 200
@@ -5142,7 +5161,8 @@ def api_expertise_analyze():
     if len(facts) < 15:
         return jsonify({"error": "facts_required"}), 400
     try:
-        res = expertise_mod.analyze(_BRAIN.backend, _req_index(), case_type=case_type, facts=facts[:14000])
+        res = expertise_mod.analyze(_BRAIN.backend, _req_index(), case_type=case_type,
+                                    facts=_with_case(facts[:14000], body))
     except ValueError:
         return jsonify({"error": "unknown_case_type"}), 400
     except Exception as exc:  # noqa: BLE001

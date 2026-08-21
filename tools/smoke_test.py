@@ -164,6 +164,22 @@ print("[uploads]")
 run("documents.estensioni allegabili", _check_upload_extensions)
 
 
+# La memoria del caso e' contesto AGGIUNTIVO: deve reggere un fascicolo
+# vuoto, uno inesistente e uno pieno senza mai far fallire lo strumento che
+# la usa. Se un giorno diventasse una dipendenza, questo test lo dice subito.
+def _check_case_brief():
+    import src.case_brief as cb
+    assert cb.build("") == "", "id vuoto deve dare stringa vuota"
+    assert cb.build("caso-che-non-esiste") == "", "caso assente deve dare stringa vuota"
+    assert cb.append_to("testo dell avvocato", "") == "testo dell avvocato", \
+        "senza caso il testo deve restare intatto"
+    assert cb.BUDGET_TOTAL >= 2000, "budget troppo stretto per essere utile"
+    return {"markdown": "ok"}
+
+
+print("[case_brief]")
+run("case_brief.memoria del caso", _check_case_brief)
+
 print("\n== %d OK, %d FAIL ==" % (len(OK), len(BAD)))
 if BAD:
     for n, e in BAD:
