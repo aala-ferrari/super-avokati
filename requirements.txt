@@ -17,3 +17,6 @@ httpx>=0.27.0
 selectolax>=0.3.21
 rapidfuzz>=3.9.0
 python-dateutil>=2.9.0
+# Foto iPhone: insegna a Pillow ad aprire l'HEIC, che il cervello
+# non sa leggere e va convertito in JPEG prima dell'OCR.
+pillow-heif>=0.18.0

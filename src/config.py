@@ -101,6 +101,7 @@ DOC_CONTEXT_CHAR_BUDGET = int(os.getenv("DOC_CONTEXT_CHAR_BUDGET", "6000"))
 # allegare cio' che arriva davvero da controparti e tribunali.
 ALLOWED_UPLOAD_EXTENSIONS = frozenset({".pdf", ".jpg", ".jpeg", ".png", ".svg",
                                        ".webp", ".tif", ".tiff",
+                                       ".heic", ".heif",   # foto iPhone
                                        ".docx", ".doc", ".txt", ".rtf"})
 
 TOP_K_ARTICLES = int(os.getenv("TOP_K_ARTICLES", "12"))

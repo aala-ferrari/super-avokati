@@ -102,6 +102,12 @@ def validate_upload(filename: str, size_bytes: int) -> ValidationResult:
             ".webp": "image/webp",
             ".tif": "image/tiff",
             ".tiff": "image/tiff",
+            ".heic": "image/heic",
+            ".heif": "image/heif",
+            ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            ".doc": "application/msword",
+            ".txt": "text/plain",
+            ".rtf": "application/rtf",
         }.get(ext, "application/octet-stream")
     return ValidationResult(True, ext, mimetype)
 
@@ -135,14 +141,32 @@ def extract_text(
         return text, used_ocr
     if ext == ".svg":
         return _extract_svg(path), False
-    if ext in {".jpg", ".jpeg", ".png", ".webp", ".tif", ".tiff"}:
+    if ext in {".jpg", ".jpeg", ".png", ".webp"}:
         return _vision_ocr_image(path, mimetype, backend), True
+    if ext in {".heic", ".heif", ".tif", ".tiff"}:
+        # Il cervello legge JPG/PNG/WebP: questi formati vanno convertiti,
+        # altrimenti l'allegato risulta illeggibile senza spiegazione.
+        jpg = _to_jpeg(path)
+        try:
+            return _vision_ocr_image(jpg, "image/jpeg", backend), True
+        finally:
+            if jpg != path:
+                try:
+                    jpg.unlink(missing_ok=True)
+                except OSError:
+                    pass
     if ext in {".docx", ".doc", ".txt", ".rtf", ".html", ".htm"}:
         # Word/testo: li legge extract.readers (python-docx, antiword, plain).
         # Senza questo ramo un .docx ammesso dall'upload tornava vuoto SENZA
         # errore — l'allegato spariva in silenzio.
         from .extract.readers import read_text as _read
         res = _read(path)
+        if not res.ok:
+            # Il lettore ha fallito: se restituissimo "" il documento
+            # risulterebbe caricato e vuoto, senza spiegazione. Meglio un
+            # errore visibile, che l'avvocato puo' capire e correggere
+            # (tipico: un .doc del 1997 che antiword non digerisce).
+            raise RuntimeError(res.error or f"impossibile leggere {path.suffix}")
         return (res.text or ""), False
     return "", False
 
@@ -215,6 +239,33 @@ VISION_PROMPT = (
     "shënoji në kllapa katrore (p.sh. [VULA: Gjykata e Rrethit Tiranë]). "
     "Nëse imazhi është i paqartë ose bosh, kthe vetëm '[IMAZH I PAQARTË]'."
 )
+
+
+def _to_jpeg(path: Path) -> Path:
+    """Converte in JPEG i formati che il cervello non sa leggere.
+
+    HEIC e' il formato predefinito delle foto iPhone — il caso piu' comune
+    per chi fotografa un documento cartaceo. Il TIFF arriva dagli scanner.
+    Nessuno dei due e' leggibile dal backend, quindi si passa da Pillow.
+    Se la conversione non riesce si restituisce l'originale: meglio un
+    tentativo di OCR che fallisce con un errore chiaro, che un'eccezione
+    qui."""
+    try:
+        from PIL import Image
+        try:                       # abilita l'apertura degli HEIC
+            import pillow_heif
+            pillow_heif.register_heif_opener()
+        except Exception:  # noqa: BLE001 - TIFF funziona anche senza
+            pass
+        out = path.with_suffix(".converted.jpg")
+        with Image.open(path) as im:
+            if im.mode not in ("RGB", "L"):
+                im = im.convert("RGB")
+            im.save(out, "JPEG", quality=88, optimize=True)
+        return out
+    except Exception as exc:  # noqa: BLE001
+        log.warning("conversione in JPEG fallita per %s: %s", path.name, exc)
+        return path
 
 
 def _vision_ocr_image(path: Path, mimetype: str, backend) -> str:

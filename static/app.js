@@ -3750,7 +3750,7 @@
     ov = document.createElement("div");
     ov.id = cfg.id; ov.className = "ac-overlay";
     var attachHtml = cfg.attach
-      ? '<div class="ac-attach-row"><label class="ac-attach">' + t('\ud83d\udcce Bashkëngjit PDF/foto') + '<input type="file" class="ft-file" accept=".pdf,.docx,.doc,.txt,.rtf,.jpg,.jpeg,.png,.webp,.svg,.tif,.tiff" hidden></label><span class="ac-attach-hint">' + t('ose ngjit tekstin poshtë') + '</span></div>'
+      ? '<div class="ac-attach-row"><label class="ac-attach">' + t('\ud83d\udcce Bashkëngjit PDF/foto') + '<input type="file" class="ft-file" accept=".pdf,.docx,.doc,.txt,.rtf,.jpg,.jpeg,.png,.webp,.svg,.tif,.tiff,.heic,.heif" hidden></label><span class="ac-attach-hint">' + t('ose ngjit tekstin poshtë') + '</span></div>'
       : "";
     ov.innerHTML =
       '<div class="ac-modal">' +
@@ -4032,7 +4032,7 @@
           '<option value="clause">\ud83d\udcce Klauzol\u00eb</option>' +
           '<option value="letter">\u2709\ufe0f Let\u00ebr zyrtare</option>' +
         '</select>' +
-        '<div class="ac-attach-row"><label class="ac-attach">\ud83d\udcce Bashk\u00ebngjit PDF/foto<input type="file" class="fd-file" accept=".pdf,.docx,.doc,.txt,.rtf,.jpg,.jpeg,.png,.webp,.svg,.tif,.tiff" hidden></label><span class="ac-attach-hint">ose p\u00ebrshkruaj posht\u00eb</span></div>' +
+        '<div class="ac-attach-row"><label class="ac-attach">\ud83d\udcce Bashk\u00ebngjit PDF/foto<input type="file" class="fd-file" accept=".pdf,.docx,.doc,.txt,.rtf,.jpg,.jpeg,.png,.webp,.svg,.tif,.tiff,.heic,.heif" hidden></label><span class="ac-attach-hint">ose p\u00ebrshkruaj posht\u00eb</span></div>' +
         '<textarea class="ac-ta" placeholder="P.sh. Kontrat\u00eb qiraje p\u00ebr ambient biznesi. Qiradh\u00ebn\u00ebs [emri], qiramarr\u00ebs [emri]. Qira 1200 EUR/muaj, afat 5 vjet, ndalohet n\u00ebnqiraja, penalitet 0.1%/dit\u00eb von\u00ebs, garanci 3 muaj\u2026"></textarea>' +
         '<label class="ac-clauses"><input type="checkbox" class="fd-useclauses"> \ud83d\udcda P\u00ebrdor klauzolat e studios</label>' +
         '<div class="ac-row"><button class="ac-run" type="button">Harto \u2192</button><span class="ac-status"></span></div>' +
@@ -4122,7 +4122,7 @@
         _pl(TT("Mbrojtjet / pikat e dob\u00ebta"), t.defenses) +
         _pl(TT("Afatet"), t.deadlines) +
         _pl(TT("Pyetje udh\u00ebzuese"), t.questions) +
-        '<div class="exp-attachrow"><label class="ac-attach">' + TT("\ud83d\udcce Bashkëngjit PDF/foto") + '<input type="file" class="exp-file" accept=".pdf,.docx,.doc,.txt,.rtf,.jpg,.jpeg,.png,.webp,.svg,.tif,.tiff" hidden></label></div>' +
+        '<div class="exp-attachrow"><label class="ac-attach">' + TT("\ud83d\udcce Bashkëngjit PDF/foto") + '<input type="file" class="exp-file" accept=".pdf,.docx,.doc,.txt,.rtf,.jpg,.jpeg,.png,.webp,.svg,.tif,.tiff,.heic,.heif" hidden></label></div>' +
         '<textarea class="ac-ta exp-ta" placeholder="' + TT("Përshkruaj faktet e çështjes (ose bashkëngjit dokumentet)…") + '"></textarea>' +
         '<div class="ac-row"><button class="ac-run exp-run" type="button">' + TT("Gjenero ekspertiz\u00ebn \u2192") + '</button><span class="ac-status exp-status"></span></div>' +
         '<div class="ac-result exp-result"></div>';
@@ -4282,7 +4282,7 @@
       '<div class="ac-sub">' + t("Zgjidh llojin e aktit dhe jep të dhënat. Merr një draft të plotë me klauzolat e detyrueshme (çdo nen kalon nga Verifikuar). Noteri e verifikon dhe e nënshkruan.") + '</div>' +
       '<select class="fd-kind nd-kind"></select>' +
       '<div class="nd-must"></div>' +
-      '<div class="ac-attach-row"><label class="ac-attach">' + t("\ud83d\udcce Bashkëngjit PDF/foto") + '<input type="file" class="nd-file" accept=".pdf,.docx,.doc,.txt,.rtf,.jpg,.jpeg,.png,.webp,.svg,.tif,.tiff" hidden></label></div>' +
+      '<div class="ac-attach-row"><label class="ac-attach">' + t("\ud83d\udcce Bashkëngjit PDF/foto") + '<input type="file" class="nd-file" accept=".pdf,.docx,.doc,.txt,.rtf,.jpg,.jpeg,.png,.webp,.svg,.tif,.tiff,.heic,.heif" hidden></label></div>' +
       '<textarea class="ac-ta" placeholder="' + t("Jep të dhënat: palët, objekti, çmimi, nr. pasurie, data… (ato që s’i ke, do vihen [___])") + '"></textarea>' +
       '<label class="ac-clauses"><input type="checkbox" class="nd-useclauses"> ' + t("📚 Përdor klauzolat e studios") + '</label>' +
       '<div class="ac-row"><button class="ac-run" type="button">' + t("Harto aktin \u2192") + '</button><span class="ac-status"></span></div>' +
@@ -4491,7 +4491,7 @@
       '<div class="ac-head"><span>' + tMode("🚦 Kontroll konfliktesh") + '</span><button class="ac-x" type="button" aria-label="Mbyll">×</button></div>' +
       '<div class="ac-sub">' + t("Krahason aktin e ri me aktet e ruajtura më parë të të njëjtit rast/klient dhe gjen konfliktet (dy prokura që japin të njëjtin tager, akte kontradiktore, prokurë e revokuar që përdoret ende…).") + '' +
         (hasCase ? '' : ' <b>' + t("⚠️ Hap një rast me akte të ruajtura që krahasimi të ketë kuptim.") + '</b>') + '</div>' +
-      '<div class="ac-attach-row"><label class="ac-attach">' + t("📎 Bashkëngjit PDF/foto") + '<input type="file" class="nconf-file" accept=".pdf,.docx,.doc,.txt,.rtf,.jpg,.jpeg,.png,.webp,.svg,.tif,.tiff" hidden></label></div>' +
+      '<div class="ac-attach-row"><label class="ac-attach">' + t("📎 Bashkëngjit PDF/foto") + '<input type="file" class="nconf-file" accept=".pdf,.docx,.doc,.txt,.rtf,.jpg,.jpeg,.png,.webp,.svg,.tif,.tiff,.heic,.heif" hidden></label></div>' +
       '<textarea class="ac-ta" placeholder="' + t("Ngjit tekstin e plotë të AKTIT TË RI që do të noterizohet…") + '"></textarea>' +
       '<div class="ac-row"><button class="ac-run" type="button">' + t("Kontrollo konfliktet →") + '</button><span class="ac-status"></span></div>' +
       '<div class="ac-result"></div>' +
@@ -4598,7 +4598,7 @@
       '<div class="ac-head"><span>🧩 Veprime hetimore</span><button class="ac-x" type="button" aria-label="Mbyll">×</button></div>' +
       '<div class="ac-sub">Zgjidh veprimin dhe jep faktet. Merr kërkesën/urdhrin me bazën ligjore, kushtet dhe arsyetimin (çdo nen kalon nga Verifikuar). Prokurori/gjykata vendos.</div>' +
       '<select class="fd-kind pact-kind"></select>' +
-      '<div class="ac-attach-row"><label class="ac-attach">📎 Bashkëngjit PDF/foto<input type="file" class="pact-file" accept=".pdf,.docx,.doc,.txt,.rtf,.jpg,.jpeg,.png,.webp,.svg,.tif,.tiff" hidden></label></div>' +
+      '<div class="ac-attach-row"><label class="ac-attach">📎 Bashkëngjit PDF/foto<input type="file" class="pact-file" accept=".pdf,.docx,.doc,.txt,.rtf,.jpg,.jpeg,.png,.webp,.svg,.tif,.tiff,.heic,.heif" hidden></label></div>' +
       '<textarea class="ac-ta" placeholder="Faktet: çfarë kërkohet, ku/te kush, çfarë prove pritet…"></textarea>' +
       '<div class="ac-row"><button class="ac-run" type="button">Harto kërkesën →</button><span class="ac-status"></span></div>' +
       '<div class="ac-result"></div>' +
@@ -6034,7 +6034,7 @@
       '<div class="ac-modal">' +
         '<div class="ac-head"><span>' + tMode("\ud83d\udee1\ufe0f Kontroll cilësie i aktit") + '</span><button class="ac-x" type="button" aria-label="Mbyll">\u00d7</button></div>' +
         '<div class="ac-sub">' + t("Ngjit tekstin e aktit (padi, ankim, memorie, kontratë). Verifikohen nenet e cituara: inekzistente, të shfuqizuara ose të paqarta — para depozitimit.") + '</div>' +
-        '<div class="ac-attach-row"><label class="ac-attach">' + t("\ud83d\udcce Bashkëngjit PDF/foto") + '<input type="file" class="ac-file" accept=".pdf,.docx,.doc,.txt,.rtf,.jpg,.jpeg,.png,.webp,.svg,.tif,.tiff" hidden></label><span class="ac-attach-hint">' + t("ose ngjit tekstin poshtë") + '</span></div>' +
+        '<div class="ac-attach-row"><label class="ac-attach">' + t("\ud83d\udcce Bashkëngjit PDF/foto") + '<input type="file" class="ac-file" accept=".pdf,.docx,.doc,.txt,.rtf,.jpg,.jpeg,.png,.webp,.svg,.tif,.tiff,.heic,.heif" hidden></label><span class="ac-attach-hint">' + t("ose ngjit tekstin poshtë") + '</span></div>' +
         '<textarea class="ac-ta" placeholder="' + t("Ngjit këtu tekstin e aktit…") + '"></textarea>' +
         '<div class="ac-row"><button class="ac-run" type="button">' + t("Kontrollo aktin") + '</button><span class="ac-status"></span></div>' +
         '<div class="ac-result"></div>' +

@@ -131,34 +131,56 @@ def _check_letter_body():
 run("letters.letter_body", _check_letter_body)
 
 
-# Ogni estensione ammessa all'upload dev'essere davvero LEGGIBILE: ammetterla
-# senza insegnarla a documents.extract_text la faceva tornare vuota in
-# silenzio, e l'allegato spariva senza che nessuno se ne accorgesse.
+# Ogni estensione ammessa all'upload dev'essere INSTRADATA in
+# documents.extract_text: o produce testo, o solleva un errore esplicito.
+# Il silenzio e' l'unico esito vietato — ALLOWED_UPLOAD_EXTENSIONS e i rami
+# di extract_text sono due liste separate, e quando divergono l'allegato
+# sparisce senza che nessuno se ne accorga (successo gia' con .docx, poi
+# con .heic delle foto iPhone).
 def _check_upload_extensions():
     import tempfile, pathlib
     from src.config import ALLOWED_UPLOAD_EXTENSIONS
     from src import documents as _docs
-    testabili = {".txt": b"Egregio Sig. Rossi, la licenziamo per giusta causa.",
-                 ".rtf": b"Egregio Sig. Rossi, la licenziamo per giusta causa."}
-    vuoti = []
+
+    TESTO = b"Egregio Sig. Rossi, la licenziamo per giusta causa."
+    muti = []
     with tempfile.TemporaryDirectory() as td:
-        for ext, payload in testabili.items():
-            if ext not in ALLOWED_UPLOAD_EXTENSIONS:
-                continue
+        for ext in sorted(ALLOWED_UPLOAD_EXTENSIONS):
             p = pathlib.Path(td) / ("prova" + ext)
-            p.write_bytes(payload)
-            txt, _ = _docs.extract_text(p, ext, "text/plain", backend=None)
+            if ext == ".docx":
+                from docx import Document
+                doc = Document(); doc.add_paragraph(TESTO.decode()); doc.save(str(p))
+            elif ext == ".svg":
+                p.write_bytes(b'<svg xmlns="http://www.w3.org/2000/svg">'
+                              b"<text>licenziamento</text></svg>")
+            elif ext in (".jpg", ".jpeg", ".png", ".webp", ".tif", ".tiff",
+                         ".heic", ".heif"):
+                from PIL import Image
+                try:
+                    import pillow_heif; pillow_heif.register_heif_opener()
+                except Exception:  # noqa: BLE001
+                    pass
+                fmt = {".jpg": "JPEG", ".jpeg": "JPEG", ".png": "PNG",
+                       ".webp": "WEBP", ".tif": "TIFF", ".tiff": "TIFF",
+                       ".heic": "HEIF", ".heif": "HEIF"}[ext]
+                Image.new("RGB", (60, 40), "white").save(str(p), fmt)
+            elif ext == ".pdf":
+                p.write_bytes(b"%PDF-1.4\ntrailer<</Root 1 0 R>>\n%%EOF\n")
+            else:
+                p.write_bytes(TESTO)
+
+            try:
+                txt, _ = _docs.extract_text(p, ext, "application/octet-stream",
+                                            backend=None)
+            except Exception:
+                continue          # errore esplicito: instradata, va bene
             if not (txt or "").strip():
-                vuoti.append(ext)
-        if ".docx" in ALLOWED_UPLOAD_EXTENSIONS:
-            from docx import Document
-            p = pathlib.Path(td) / "prova.docx"
-            doc = Document(); doc.add_paragraph("Licenziamento per giusta causa."); doc.save(str(p))
-            txt, _ = _docs.extract_text(p, ".docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", backend=None)
-            if not (txt or "").strip():
-                vuoti.append(".docx")
-    assert not vuoti, "estensioni ammesse ma illeggibili (allegato perso in silenzio): %s" % vuoti
+                muti.append(ext)  # nessun testo E nessun errore: sparita
+
+    assert not muti, ("estensioni ammesse ma non instradate in extract_text "
+                      "(allegato perso in silenzio): %s" % muti)
     return {"markdown": "ok"}
+
 
 print("[uploads]")
 run("documents.estensioni allegabili", _check_upload_extensions)

@@ -273,7 +273,14 @@ autonomi (drafter, perizie, notaio-bozza, atto d'indagine, scadenze).
 `ALLOWED_UPLOAD_EXTENSIONS` (config.py) e `documents.extract_text` sono **due
 liste separate**: ammettere un'estensione senza aggiungere il ramo che la
 legge fa tornare testo **vuoto senza errore**, e l'allegato sparisce in
-silenzio. Formati letti: PDF (pdfplumber + OCR di riserva), immagini (vision
+silenzio. Successo due volte (.docx, poi .heic). Un lettore che fallisce ora
+**solleva** invece di restituire "": meglio un errore visibile che un
+documento apparentemente caricato e vuoto.
+
+**Foto iPhone**: le foto sono **HEIC**, che il cervello non sa leggere e che
+il selettore mostrava grigie. Ora sono ammesse e `_to_jpeg()` le converte
+(via `pillow-heif`) prima dell'OCR — stesso trattamento per i TIFF degli
+scanner. Gli screenshot PNG funzionavano gia'. Formati letti: PDF (pdfplumber + OCR di riserva), immagini (vision
 OCR), e via `extract/readers.py` docx (python-docx), doc (**antiword**, nel
 Dockerfile), txt/rtf/html. Guardia: `smoke_test` verifica che ogni estensione
 ammessa produca davvero testo.
@@ -371,7 +378,7 @@ dall'immagine (2.01→1.81 GB) · **9.158-9.159 Lettere e atti** (`src/letters.p
 prima li ammetteva e li perdeva in silenzio) + PDF via stampa browser + smoke 102 ·
 **9.162 memoria del caso** (`src/case_brief.py`: gli strumenti PRO continuano il
 lavoro del cervello invece di ricominciarlo) + allegati nei 6 strumenti che ne
-erano privi (19/19) + **selezione multipla** in tutti + smoke 103 · **9.163-9.167** HTML non piu in cache (l utente girava con app.js di 3 release prima), caricamento documenti asincrono (160s -> 0,4s) con lingua corretta nel thread.
+erano privi (19/19) + **selezione multipla** in tutti + smoke 103 · **9.163-9.167** HTML non piu in cache (l utente girava con app.js di 3 release prima), caricamento documenti asincrono (160s -> 0,4s) con lingua corretta nel thread · **9.168-9.169 foto iPhone (HEIC)** convertite prima dell'OCR + guardia estensioni estesa a TUTTI i formati.
 
 ## Storia versioni (sessione 6-7 ago 2026)
 v9.50→9.54 piattaforma 3 professioni · 9.55 extra tool · 9.56 full-text+matching · 9.61-9.68 police laws + Super Noteri + revoca/conflitti · 9.69-9.71 Super Prokuror + hub · 9.72 Ligj i gjallë · 9.73 Pika e parë · 9.74 Fashikull · 9.75-9.76 Motore afate + golden · 9.77 fix needle empty-state · 9.78 upload in Fashikull · 9.79-9.80 Shiko të ruajturat · 9.81 fix forgot-password · 9.82 mode-bar snellite. Punto di ritorno sicuro storico: commit `1e9fb84`.
