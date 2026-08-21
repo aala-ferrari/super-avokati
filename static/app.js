@@ -517,6 +517,33 @@
       }
     }
     await refreshDossier();
+    _pollDossier();
+  }
+
+  // Il server accetta il file e lo analizza in sottofondo (estrazione, OCR,
+  // classificazione: 30-60s a documento). Qui si ricontrolla finche' tutti
+  // sono pronti, cosi' la scheda passa da sola da "in analisi" a "analizzato"
+  // senza che l'avvocato debba ricaricare.
+  var _pollTimer = null;
+  function _pollDossier() {
+    if (_pollTimer) clearTimeout(_pollTimer);
+    var tentativi = 0;
+    var caso = activeCaseId;
+    (function giro() {
+      _pollTimer = setTimeout(async function () {
+        if (!activeCaseId || activeCaseId !== caso) return;   // caso cambiato
+        tentativi++;
+        try {
+          const resp = await fetch(`/api/cases/${caso}/documents`);
+          if (!resp.ok) return;
+          const { documents } = await resp.json();
+          if (activeCaseId !== caso) return;
+          renderDossier(documents || []);
+          const inCorso = (documents || []).some((d) => d.status === "pending");
+          if (inCorso && tentativi < 90) giro();              // ~6 minuti
+        } catch (e) { /* rete instabile: si riprova al giro dopo */ }
+      }, 4000);
+    })();
   }
 
   async function refreshDossier() {
@@ -681,6 +708,8 @@
     const status = node.querySelector(".doc-status");
     if (d.status === "error") {
       status.textContent = "⚠ " + (d.error || "gabim");
+    } else if (d.status === "pending") {
+      status.innerHTML = '<span class="spinner"></span> ' + TT("Po e analizojmë…");
     } else if (d.has_text || d.summary) {
       status.textContent = "✓ e analizuar";
       status.classList.add("ok");
@@ -5673,6 +5702,8 @@
   };
   function t(sq) { return (UI_LANG === "it" && T_IT[sq]) ? T_IT[sq] : sq; }
   var TT = t;  // alias: use inside callbacks whose param is named `t`
+  Object.assign(T_IT, { "Po e analizojmë…": "Analisi in corso…" });
+  Object.assign(T_IT, { "Tërhiqi këtu ose kliko për të zgjedhur · PDF, Word, foto · max 25 MB/skedar": "Trascina qui o clicca per scegliere · PDF, Word, foto · max 25 MB per file" });
   Object.assign(T_IT, { "dokumente u lexuan": "documenti letti" });
   Object.assign(T_IT, { "📎 Bashkëngjit dokumentin e marrë": "📎 Allega il documento ricevuto", "letra e pushimit, akti, njoftimi — që t'i përgjigjemi pikë për pikë": "la lettera di licenziamento, l'atto, la notifica — per ribattere punto per punto", "Kopjo letrën": "Copia la lettera", "PDF (shtyp)": "PDF (stampa)", "Blloko dritaret u aktivizua — lejo dritaret.": "Il blocco pop-up è attivo: consenti le finestre per questo sito." });
   Object.assign(T_IT, { "Letra dhe shkresa": "Lettere e atti", "Zgjidh kujt i shkruhet. Shkresa ndërtohet mbi fashikullin e hapur dhe mbi nenet e marra nga korpusi — gati për dërgim.": "Scegli a chi scrivere. La lettera si costruisce sul fascicolo aperto e sugli articoli recuperati dal corpus — pronta da inviare.", "Po ngarkohet…": "Caricamento…", "Email / PEC": "Email / PEC", "Fakte shtesë ose udhëzime: emrat, shumat, datat, çfarë të theksohet. Nëse fashikulli është i plotë, mund ta lësh bosh.": "Fatti aggiuntivi o istruzioni: nomi, importi, date, cosa sottolineare. Se il fascicolo e completo, puoi lasciare vuoto.", "Harto shkresën →": "Scrivi la lettera →", "Marrësi": "Destinatario", "Kanali": "Canale", "Kjo shkresë i drejtohet palës kundërshtare. Forca vjen nga nenet, jo nga kërcënimet: njoftimi se do t'i drejtohemi gjykatës lejohet, kërcënimi me kallëzim penal apo me njoftim te tatimet për të marrë pagesë është shantazh.": "Questa lettera si rivolge alla controparte. La forza viene dagli articoli, non dalle minacce: annunciare che si adira il giudice e legittimo, minacciare una denuncia penale o una segnalazione al fisco per ottenere il pagamento e estorsione.", "Kjo shkresë i drejtohet autoritetit. Toni është faktik dhe nuk lidhet me asnjë kërkesë pagese — përndryshe shndërrohet në shantazh.": "Questa lettera si rivolge all'autorita. Il tono e fattuale e non si collega ad alcuna richiesta di pagamento — altrimenti diventa estorsione.", "Hap një fashikull ose shkruaj faktet këtu.": "Apri un fascicolo oppure scrivi qui i fatti.", "Po hartohet shkresa…": "Sto scrivendo la lettera…", "Kopjo tekstin": "Copia il testo", "Shkarko .docx": "Scarica .docx", "Nuk u ngarkua katalogu": "Catalogo non caricato", "Shkresa gati për dërgim nga fashikulli — punëdhënësit, tatimeve, prokurorisë, institucioneve": "Lettere pronte da inviare, costruite sul fascicolo — al datore di lavoro, al fisco, alla Procura, alle istituzioni", "✉️ \n Letra dhe shkresa Shkresa gati për dërgim nga fashikulli — punëdhënësit, tatimeve, prokurorisë, institucioneve": "✉️ \n Lettere e atti Lettere pronte da inviare, costruite sul fascicolo — al datore di lavoro, al fisco, alla Procura, alle istituzioni" });

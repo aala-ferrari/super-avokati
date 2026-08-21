@@ -66,6 +66,7 @@ from . import notary as notary_mod
 from . import deadlines as deadlines_mod
 from . import letters as letters_mod
 from . import case_brief as brief_mod
+from . import brain as brain_mod
 from .auth import (
     authenticate,
     current_user,
@@ -5478,35 +5479,51 @@ def api_upload_document(case_id: str):
         storage_path=str(storage_path),
     )
 
-    try:
-        text, used_ocr = docs_mod.extract_text(
-            storage_path, v.ext, v.mimetype,
-            backend=_BRAIN.backend if _BRAIN else None,
-        )
-    except Exception as exc:
-        log.exception("extraction failed for %s", f.filename)
-        storage.mark_document_error(doc.id, f"{type(exc).__name__}: {exc}")
-        return jsonify(_document_payload(storage.get_document(doc.id, case_id))), 200
+    # Estrazione + analisi girano IN SOTTOFONDO: tenere aperta la richiesta
+    # costava 30-65 secondi per file (OCR delle foto + classificazione), e
+    # l'avvocato concludeva che il caricamento non funzionasse. La riga
+    # esiste gia' con stato 'pending', quindi il documento compare subito e
+    # passa da solo a 'e analizuar'.
+    backend = _BRAIN.backend if _BRAIN else None
+    doc_id, fname, ext, mime = doc.id, f.filename, v.ext, v.mimetype
+    # la giurisdizione vive in una threading.local: va passata a mano, o il
+    # thread ricade su AL e classifica in albanese un documento italiano
+    juris = _active_jurisdiction(user)
+    uid = user.id
 
-    analysis = {"doc_type": None, "summary": None, "key_facts": []}
-    if text and _BRAIN:
+    def _process() -> None:
         try:
-            analysis = docs_mod.summarize_document(text, f.filename, _BRAIN.backend)
-        except Exception as exc:
-            log.warning("analysis failed for %s: %s", f.filename, exc)
+            brain_mod.set_request_jurisdiction(juris)
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            text, _ocr = docs_mod.extract_text(storage_path, ext, mime, backend=backend)
+        except Exception as exc:  # noqa: BLE001
+            log.exception("extraction failed for %s", fname)
+            storage.mark_document_error(doc_id, f"{type(exc).__name__}: {exc}")
+            return
+        analysis = {"doc_type": None, "summary": None, "key_facts": []}
+        if text and backend is not None:
+            try:
+                analysis = docs_mod.summarize_document(text, fname, backend)
+            except Exception as exc:  # noqa: BLE001
+                log.warning("analysis failed for %s: %s", fname, exc)
+        try:
+            storage.update_document_analysis(
+                doc_id,
+                extracted_text=text or None,
+                doc_type=analysis.get("doc_type"),
+                summary=analysis.get("summary"),
+                key_facts=analysis.get("key_facts") or [],
+            )
+            storage.touch_case(case_id, uid)
+        except Exception:  # noqa: BLE001
+            log.exception("could not store analysis for %s", fname)
 
-    storage.update_document_analysis(
-        doc.id,
-        extracted_text=text or None,
-        doc_type=analysis.get("doc_type"),
-        summary=analysis.get("summary"),
-        key_facts=analysis.get("key_facts") or [],
-    )
-    storage.touch_case(case_id, user.id)
+    threading.Thread(target=_process, name=f"doc-{doc_id[:8]}", daemon=True).start()
 
-    fresh = storage.get_document(doc.id, case_id)
-    payload = _document_payload(fresh)
-    payload["used_vision_ocr"] = used_ocr
+    payload = _document_payload(storage.get_document(doc_id, case_id))
+    payload["processing"] = True
     return jsonify(payload), 201
 
 
@@ -7195,6 +7212,26 @@ def api_admin_audit_export():
 # Self-serve user provisioning from the Studio modal. Only admins can list,
 # create, delete, or reset passwords for other users. Any logged-in user can
 # change their OWN password.
+
+@app.after_request
+def _no_cache_html(resp):
+    """HTML sempre fresco, asset versionati con cache lunga.
+
+    Senza questo il browser trattiene la pagina e continua a chiedere la
+    vecchia `app.js?v=N`: il cache-busting non serve a nulla, perche' e'
+    proprio l'HTML vecchio a dire quale versione caricare."""
+    try:
+        ctype = (resp.headers.get("Content-Type") or "")
+        if ctype.startswith("text/html"):
+            resp.headers["Cache-Control"] = "no-store, must-revalidate"
+            resp.headers["Pragma"] = "no-cache"
+        elif request.path.startswith("/static/") and request.args.get("v"):
+            # l'URL cambia a ogni release: si puo' tenere a lungo
+            resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    except Exception:  # noqa: BLE001 - mai far fallire una risposta per gli header
+        pass
+    return resp
+
 
 @app.before_request
 def _arm_jurisdiction():

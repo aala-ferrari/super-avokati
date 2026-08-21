@@ -315,10 +315,29 @@ def summarize_document(extracted_text: str, filename: str, backend) -> dict:
     if len(text) > 12000:
         clipped += "\n\n[… teksti i mëtejshëm u shkurtua për analizë …]"
 
+    # La lingua va detta QUI, nel messaggio, non solo nel preambolo di
+    # giurisdizione: il tier veloce non ragiona a lungo e su un compito
+    # breve tende ad ancorarsi al prompt di sistema, che e' albanese.
+    # Misurato: 1 documento su 3 classificato in albanese in sessione
+    # italiana. L'istruzione accanto al testo da analizzare non sfugge.
+    _LANG_LINE = {
+        "IT": "IMPORTANTE: scrivi doc_type, summary e key_facts "
+              "ESCLUSIVAMENTE IN ITALIANO.\n\n",
+        "EU": "IMPORTANT: write doc_type, summary and key_facts "
+              "IN ENGLISH ONLY.\n\n",
+    }
+    try:
+        from .brain import request_jurisdiction
+        lang_line = _LANG_LINE.get(request_jurisdiction(), "")
+    except Exception:  # noqa: BLE001
+        lang_line = ""
+
     prompt = (
-        f"Skedari: {filename}\n\n"
+        lang_line
+        + f"Skedari: {filename}\n\n"
         f"Përmbajtja e dokumentit:\n\"\"\"\n{clipped}\n\"\"\"\n\n"
         f"Analizo dokumentin dhe kthe JSON sipas formatit të kërkuar."
+        + (("\n\n" + lang_line.strip()) if lang_line else "")
     )
 
     try:
@@ -326,7 +345,14 @@ def summarize_document(extracted_text: str, filename: str, backend) -> dict:
             system=_juris(ANALYSIS_SYSTEM),
             messages=[{"role": "user", "content": prompt}],
             max_tokens=900,
-            medium=True,  # V8.10 Sonnet — lawyer reads doc summary
+            # Tier VELOCE, non "medium": classificare un allegato e riassumerlo
+            # e' catalogazione, non ragionamento giuridico. Con `medium` la
+            # chiamata riceveva comunque `--effort max` e un caricamento
+            # richiedeva 50s-3min PER FILE: quattro foto di un documento
+            # significavano oltre dieci minuti, e l'avvocato concludeva che il
+            # caricamento non funzionasse. Stesso modello (Sonnet), senza
+            # ragionamento esteso ne' web.
+            fast=True,
         )
     except Exception as exc:
         log.warning("doc analysis failed for %s: %s", filename, exc)

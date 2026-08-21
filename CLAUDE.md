@@ -229,6 +229,31 @@ Dockerfile COPY: `data/ src/ static/ templates/ scripts/ tools/`. Dopo un cambio
 ## Fix corpus (GOTCHA importante)
 I fix agli articoli vivono nel **PICKLE `data/index/bm25.pkl`** (volume montato), NON nel sorgente. Per aggiungere/correggere articoli: script python che fa `ArticleIndex.load()` → append `Article(...)` → `ArticleIndex.build(arts).save()` → `chown 1000:1000 data/index/bm25.pkl` → `docker restart super-avvocato`. Un re-parse da zero PERDE questi fix. Article ha campi: code, title_sq, area, number, heading, body, pjesa, kreu, seksioni, repealed, volatility (STABLE/MEDIUM), last_amendment_date.
 
+## Cache dell'HTML (GOTCHA GRAVE)
+
+`web._no_cache_html` manda `Cache-Control: no-store` su ogni risposta HTML e
+`immutable` sugli static con `?v=`. **Senza, il cache-busting non serve a
+nulla**: e' l'HTML a dire quale `app.js?v=N` caricare, e se il browser
+trattiene l'HTML vecchio continua a chiedere la versione vecchia. Scoperto
+guardando la pagina viva dell'utente: caricava `app.js?v=100` mentre il
+server serviva `?v=103` — girava con l'interfaccia di tre release prima e
+nessuna correzione UI lo raggiungeva. Se un utente segnala un bug gia'
+corretto, **prima cosa: verificare quale `?v=` sta caricando**.
+
+## Caricamento documenti — asincrono
+
+Il POST crea la riga (`status='pending'`) e **ritorna subito**; estrazione,
+OCR e classificazione girano in un thread. Prima la richiesta restava aperta
+30-65s PER FILE (quattro pagine fotografate = oltre 4 minuti) e l'avvocato
+concludeva che il caricamento non funzionasse. Misurato: **160s → 0,4s** per
+comparire, analisi completa in ~20s in sottofondo. Il client ripolla ogni 4s
+(`_pollDossier`) finche' restano `pending`.
+**Due trappole**: la giurisdizione vive in una `threading.local` e va passata
+a mano al thread, altrimenti classifica in albanese un documento italiano; e
+la lingua va ripetuta **nel messaggio utente** (`documents._LANG_LINE`), non
+solo nel preambolo — il tier veloce non ragiona a lungo e si ancora al prompt
+di sistema albanese (misurato: 1 documento su 3 sbagliato).
+
 ## Allegati — UI
 
 `_readFilesInto(input, ta, statusEl, runBtn)` è l'UNICO gestore di allegati
@@ -346,7 +371,7 @@ dall'immagine (2.01→1.81 GB) · **9.158-9.159 Lettere e atti** (`src/letters.p
 prima li ammetteva e li perdeva in silenzio) + PDF via stampa browser + smoke 102 ·
 **9.162 memoria del caso** (`src/case_brief.py`: gli strumenti PRO continuano il
 lavoro del cervello invece di ricominciarlo) + allegati nei 6 strumenti che ne
-erano privi (19/19) + **selezione multipla** in tutti + smoke 103.
+erano privi (19/19) + **selezione multipla** in tutti + smoke 103 · **9.163-9.167** HTML non piu in cache (l utente girava con app.js di 3 release prima), caricamento documenti asincrono (160s -> 0,4s) con lingua corretta nel thread.
 
 ## Storia versioni (sessione 6-7 ago 2026)
 v9.50→9.54 piattaforma 3 professioni · 9.55 extra tool · 9.56 full-text+matching · 9.61-9.68 police laws + Super Noteri + revoca/conflitti · 9.69-9.71 Super Prokuror + hub · 9.72 Ligj i gjallë · 9.73 Pika e parë · 9.74 Fashikull · 9.75-9.76 Motore afate + golden · 9.77 fix needle empty-state · 9.78 upload in Fashikull · 9.79-9.80 Shiko të ruajturat · 9.81 fix forgot-password · 9.82 mode-bar snellite. Punto di ritorno sicuro storico: commit `1e9fb84`.
