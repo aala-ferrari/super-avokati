@@ -465,7 +465,12 @@
 
   // File input: bubble up through the label click, then pick up the change.
   dossierInput?.addEventListener("change", () => {
-    if (!dossierInput.files?.length) return;
+    if (!dossierInput.files?.length) {
+      // capita quando il formato non e' tra quelli ammessi: il sistema lo
+      // mostra grigio e non lo lascia scegliere. Meglio dirlo che tacere.
+      _dossierAvviso(TT("Asnjë skedar i zgjedhur. Formatet e pranuara: PDF, Word, foto (JPG, PNG, HEIC)."));
+      return;
+    }
     uploadFiles([...dossierInput.files]);
     dossierInput.value = "";  // allow re-selecting the same file
   });
@@ -484,10 +489,27 @@
     });
   });
   dossierDrop?.addEventListener("drop", (e) => {
-    if (!activeCaseId) return;
+    // niente `if (!activeCaseId) return`: uploadFiles apre il caso da se',
+    // e prima il file trascinato spariva senza un messaggio
     const files = [...(e.dataTransfer?.files || [])];
     if (files.length) uploadFiles(files);
+    else _dossierAvviso(TT("Nuk u lexua asnjë skedar. Provo ta zgjedhësh me butonin."));
   });
+
+  // Messaggio visibile dentro il pannello del fascicolo: gli errori di
+  // caricamento devono arrivare all'avvocato, non finire nella console.
+  function _dossierAvviso(testo, tipo) {
+    if (!dossierList) return;
+    var li = document.createElement("li");
+    li.className = "doc-item " + (tipo === "ok" ? "ok" : "error");
+    li.innerHTML = '<div class="doc-row"><span class="doc-icon">' +
+      (tipo === "ok" ? "\u2705" : "\u26a0\ufe0f") +
+      '</span><div class="doc-main"><div class="doc-meta"></div></div></div>';
+    li.querySelector(".doc-meta").textContent = testo;
+    dossierList.appendChild(li);
+    toggleDossier(true);
+    setTimeout(function () { try { li.remove(); } catch (e) {} }, 12000);
+  }
 
   async function uploadFiles(files) {
     if (!activeCaseId) {
@@ -495,6 +517,14 @@
       if (!c) return;
     }
     toggleDossier(true);
+    const MAX = 25 * 1024 * 1024;
+    const troppoGrandi = files.filter((f) => f.size > MAX);
+    if (troppoGrandi.length) {
+      _dossierAvviso(TT("Skedar shumë i madh (max 25 MB): ") +
+                     troppoGrandi.map((f) => f.name).join(", "));
+      files = files.filter((f) => f.size <= MAX);
+    }
+    if (!files.length) return;
     for (const f of files) {
       const pending = appendPendingDoc(f);
       try {
@@ -5702,6 +5732,7 @@
   };
   function t(sq) { return (UI_LANG === "it" && T_IT[sq]) ? T_IT[sq] : sq; }
   var TT = t;  // alias: use inside callbacks whose param is named `t`
+  Object.assign(T_IT, { "Nuk u lexua asnjë skedar. Provo ta zgjedhësh me butonin.": "Nessun file letto. Prova a sceglierlo con il pulsante.", "Asnjë skedar i zgjedhur. Formatet e pranuara: PDF, Word, foto (JPG, PNG, HEIC).": "Nessun file selezionato. Formati accettati: PDF, Word, foto (JPG, PNG, HEIC).", "Skedar shumë i madh (max 25 MB): ": "File troppo grande (max 25 MB): " });
   Object.assign(T_IT, { "Po e analizojmë…": "Analisi in corso…" });
   Object.assign(T_IT, { "Tërhiqi këtu ose kliko për të zgjedhur · PDF, Word, foto · max 25 MB/skedar": "Trascina qui o clicca per scegliere · PDF, Word, foto · max 25 MB per file" });
   Object.assign(T_IT, { "dokumente u lexuan": "documenti letti" });
