@@ -23,6 +23,9 @@ import os
 import re
 import secrets
 import threading
+
+from . import jobs as jobs_mod
+from . import push as push_mod
 import time
 from dataclasses import asdict
 from datetime import UTC, datetime, timedelta
@@ -38,6 +41,7 @@ from flask import (
     request,
     send_file,
     stream_with_context,
+    send_from_directory,
     url_for,
 )
 
@@ -178,6 +182,82 @@ def _legal_docs_it():
         except Exception:  # noqa: BLE001 - metadata is optional
             _IT_CODES_CACHE = list(_LEGAL_DOCS_IT_FALLBACK)
     return _IT_CODES_CACHE
+
+
+# ── PWA ───────────────────────────────────────────────────────────────────
+# Due file di testo, serviti dalla radice per una ragione precisa: un service
+# worker vale solo per la cartella da cui viene servito. Da `/static/sw.js`
+# governerebbe soltanto `/static/`, cioe' niente. Da `/sw.js` governa il sito.
+
+
+# ── notifiche push ────────────────────────────────────────────────────────
+
+
+@app.get("/api/push/key")
+@login_required_api
+def api_push_key():
+    """La chiave pubblica con cui il browser lega l'abbonamento a noi."""
+    return jsonify({"key": push_mod.VAPID_PUBLIC_KEY,
+                    "enabled": push_mod.configurato()})
+
+
+@app.post("/api/push/subscribe")
+@login_required_api
+def api_push_subscribe():
+    d = request.get_json(force=True, silent=True) or {}
+    endpoint = (d.get("endpoint") or "").strip()
+    keys = d.get("keys") or {}
+    p256dh = (keys.get("p256dh") or "").strip()
+    auth = (keys.get("auth") or "").strip()
+    if not (endpoint and p256dh and auth):
+        return jsonify({"error": "incomplete subscription"}), 400
+    storage.save_push_subscription(
+        request.user.id, endpoint, p256dh, auth,  # type: ignore[attr-defined]
+        (request.headers.get("User-Agent") or "")[:300],
+    )
+    return jsonify({"ok": True})
+
+
+@app.post("/api/push/unsubscribe")
+@login_required_api
+def api_push_unsubscribe():
+    d = request.get_json(force=True, silent=True) or {}
+    endpoint = (d.get("endpoint") or "").strip()
+    if endpoint:
+        storage.delete_push_subscription(endpoint)
+    return jsonify({"ok": True})
+
+
+@app.post("/api/push/test")
+@login_required_api
+def api_push_test():
+    """Manda una notifica di prova a chi la chiede: senza, l'utente non ha
+    modo di sapere se ha davvero attivato qualcosa."""
+    push_mod.avvisa(storage, request.user.id,  # type: ignore[attr-defined]
+                    "Super Avokati",
+                    "Njoftimet janë aktive. Do të të lajmërojmë kur analiza të jetë gati.",
+                    url="/", tag="test")
+    return jsonify({"ok": True, "enabled": push_mod.configurato()})
+
+
+@app.get("/manifest.webmanifest")
+def pwa_manifest():
+    """Il manifest, con il tipo MIME giusto (Flask non conosce .webmanifest)."""
+    return send_from_directory(
+        app.static_folder, "manifest.webmanifest",
+        mimetype="application/manifest+json",
+    )
+
+
+@app.get("/sw.js")
+def pwa_service_worker():
+    """Il service worker. `max-age=0`: un service worker sbagliato che resta
+    in cache e' un problema che non si risolve a distanza."""
+    resp = send_from_directory(app.static_folder, "sw.js",
+                               mimetype="application/javascript")
+    resp.headers["Cache-Control"] = "no-cache, max-age=0"
+    resp.headers["Service-Worker-Allowed"] = "/"
+    return resp
 
 
 @app.route("/")
@@ -5773,22 +5853,24 @@ def api_ask():
 # token on fast-path queries (simple / short followup). Complex queries
 # still run the full blocking pipeline and emit a single "final" event
 # at the end — the UI just shows a spinner during that wait.
-@app.post("/api/ask/stream")
-@login_required_api
-@require_module("avokat", "prokuror")
-def api_ask_stream():
+def _ask_prepare(user, data):
+    """Build the SSE generator for one question.
+
+    Returns `(generate, None)` when the request is good, `(None, (payload,
+    status))` when it is not. Everything the generator will need is captured
+    here, inside the request context: it has to be able to run later in a
+    thread, where `request` no longer exists.
+    """
     _ensure_loaded()
-    user = request.user  # type: ignore[attr-defined]
-    data = request.get_json(force=True, silent=True) or {}
     message = (data.get("message") or "").strip()
     case_id = (data.get("case_id") or "").strip()
     if not message:
-        return jsonify({"error": "empty message"}), 400
+        return None, ({"error": "empty message"}, 400)
     if not case_id:
-        return jsonify({"error": "missing case_id"}), 400
+        return None, ({"error": "missing case_id"}, 400)
     case = _resolve_case(case_id)
     if case is None:
-        return jsonify({"error": "case not found"}), 404
+        return None, ({"error": "case not found"}, 404)
 
     if storage.invalidate_case_session_if_stale(
         case.id, user.id, ANSWER_SYSTEM_VERSION,
@@ -5828,10 +5910,11 @@ def api_ask_stream():
             yield _sse_event({"type": "error",
                               "message": "Asnjë backend LLM nuk është i disponueshëm."})
             yield _sse_event({"type": "done"})
-        return Response(stream_with_context(nobrain()),
-                        mimetype="text/event-stream",
-                        headers={"X-Accel-Buffering": "no",
-                                 "Cache-Control": "no-cache"})
+        return nobrain, None
+
+    # `_req_index()` reads Flask's `request`, which does not exist inside a
+    # thread. Take it now, while we are still in the request.
+    _idx = _req_index()
 
     def generate():
         try:
@@ -5909,7 +5992,7 @@ def api_ask_stream():
 
             retrieved_codes = {a.code for a, _ in result.retrieved}
             citations_payload = cv_mod.verify_text(
-                result.text or "", _req_index(), retrieved_codes=retrieved_codes,
+                result.text or "", _idx, retrieved_codes=retrieved_codes,
             )
 
             # V8.11 Citation Shield V2 — same logic as the blocking path
@@ -5969,10 +6052,130 @@ def api_ask_stream():
         finally:
             yield _sse_event({"type": "done"})
 
-    return Response(stream_with_context(generate()),
-                    mimetype="text/event-stream",
-                    headers={"X-Accel-Buffering": "no",
-                             "Cache-Control": "no-cache"})
+    return generate, None
+
+
+_SSE_HEADERS = {
+    "X-Accel-Buffering": "no",      # nginx must not buffer an event stream
+    "Cache-Control": "no-cache",
+    "Connection": "keep-alive",
+}
+
+
+@app.post("/api/ask/stream")
+@login_required_api
+@require_module("avokat", "prokuror")
+def api_ask_stream():
+    """Legacy path: the brain streams straight into this connection.
+
+    Kept working on purpose. If anything about the job path misbehaves, the
+    client can fall back to this without waiting for a deploy.
+    """
+    gen, err = _ask_prepare(request.user,  # type: ignore[attr-defined]
+                            request.get_json(force=True, silent=True) or {})
+    if err is not None:
+        payload, status = err
+        return jsonify(payload), status
+    return Response(stream_with_context(gen()),
+                    mimetype="text/event-stream", headers=_SSE_HEADERS)
+
+
+@app.post("/api/ask/start")
+@login_required_api
+@require_module("avokat", "prokuror")
+def api_ask_start():
+    """Run the answer in the background; hand back a job id at once.
+
+    This is what makes the answer survive the page. The connection that
+    started the work is free to die a second later — on a phone it usually
+    does — and the brain keeps going.
+    """
+    user = request.user  # type: ignore[attr-defined]
+    data = request.get_json(force=True, silent=True) or {}
+    gen, err = _ask_prepare(user, data)
+    if err is not None:
+        payload, status = err
+        return jsonify(payload), status
+
+    job_id = jobs_mod.create(user.id, (data.get("case_id") or "").strip())
+    _uid = user.id                                   # catturati qui: dentro
+    _cid = (data.get("case_id") or "").strip()       # il thread non c'e' request
+
+    def _run():
+        try:
+            for frame in gen():
+                jobs_mod.push(job_id, frame)
+        except Exception as exc:  # noqa: BLE001
+            log.exception("ask job %s failed", job_id)
+            jobs_mod.push(job_id, _sse_event(
+                {"type": "error", "message": html.escape(_safe_err(exc))}))
+            jobs_mod.push(job_id, _sse_event({"type": "done"}))
+        finally:
+            jobs_mod.finish(job_id)
+            # L'unico punto in cui le notifiche toccano il percorso di una
+            # risposta, e non puo' fare danni: se qui esplode qualcosa, la
+            # risposta e' gia' salvata e l'utente la trova comunque.
+            try:
+                push_mod.avvisa(
+                    storage, _uid,
+                    "Përgjigjja është gati",
+                    "Analiza jote ka përfunduar. Hape për ta lexuar.",
+                    url="/", tag="ask-%s" % _cid[:8],
+                )
+            except Exception:  # noqa: BLE001
+                log.debug("push notify skipped", exc_info=True)
+
+    threading.Thread(target=_run, name="ask-%s" % job_id[:8],
+                     daemon=True).start()
+    return jsonify({"job_id": job_id})
+
+
+@app.get("/api/ask/events")
+@login_required_api
+def api_ask_events():
+    """Replay a job's frames from `from`, then follow the live ones.
+
+    Idempotent by design: asking twice from the same index gives the same
+    frames. That is what lets a client reconnect without the server having to
+    remember anything about the connection that died.
+    """
+    job_id = (request.args.get("job") or "").strip()
+    try:
+        since = max(0, int(request.args.get("from") or 0))
+    except (TypeError, ValueError):
+        since = 0
+
+    job = jobs_mod.get(job_id)
+    if job is None:
+        return jsonify({"error": "job not found"}), 404
+    if job.user_id != request.user.id:  # type: ignore[attr-defined]
+        return jsonify({"error": "forbidden"}), 403
+
+    def follow():
+        i = since
+        quiet = 0
+        while True:
+            frames, done, i = jobs_mod.slice_from(job_id, i)
+            for f in frames:
+                yield f
+            if frames:
+                quiet = 0
+                continue
+            if done:
+                break
+            # An SSE comment: the client ignores it, but it stops nginx and
+            # the phone's radio from concluding the connection is dead.
+            yield ": ping\n\n"
+            quiet += 1
+            if quiet > 900:      # 15 minutes without a single frame
+                yield _sse_event({"type": "error",
+                                  "message": "Timeout: përgjigja nuk mbërriti."})
+                yield _sse_event({"type": "done"})
+                break
+            time.sleep(1)
+
+    return Response(stream_with_context(follow()),
+                    mimetype="text/event-stream", headers=_SSE_HEADERS)
 
 
 def _sse_event(payload: dict) -> str:

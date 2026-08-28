@@ -7875,3 +7875,10 @@ main {
 }
 .lt-chip button:hover { opacity: 1; color: #b91c1c; }
 @media (prefers-color-scheme: dark) { .lt-chip { background: rgba(255,255,255,.07); } }
+
+/* Quando gira come app installata (non nel browser) l'intestazione ha
+   bisogno di un filo d'aria in piu': non c'e' la barra degli indirizzi a
+   fare da stacco fra il bordo dello schermo e il logo. */
+@media (display-mode: standalone) {
+  .topbar { padding-top: calc(18px + var(--safe-t)); }
+}

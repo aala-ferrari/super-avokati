@@ -5,13 +5,26 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="theme-color" content="#0a0a0a" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Superavokati" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black" />
 <title>Super Avokati — asistent ligjor falas</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="/static/style.css?v=108" />
+<link rel="stylesheet" href="/static/style.css?v=109" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%230a0a0a'/%3E%3Cpath d='M32 14v36M14 22h36M8 22l-4 10h8zM56 22l-4 10h8zM26 50h12v4H26z' stroke='%23e41e26' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='32' cy='14' r='3' fill='%23c9a24d'/%3E%3C/svg%3E" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png" />
+<script>
+  /* Registrazione silenziosa: se fallisce, il sito funziona esattamente
+     come prima. Non e' una funzione da cui dipende niente. */
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("/sw.js", { scope: "/" })
+        .catch(function () {});
+    });
+  }
+</script>
 </head>
 <body data-username="{{ username }}" data-admin="{{ '1' if is_admin else '0' }}" data-user-id="{{ user_id }}" data-profession="{{ profession }}" data-modules="{{ modules|join(',') }}" data-lang="{{ ui_lang }}">
 
@@ -182,6 +195,10 @@
           <div id="pro-menu" class="pro-menu" hidden role="menu" aria-label="Mjete profesionale">
             <button type="button" id="pro-menu-close" class="pro-menu-close" aria-label="Mbyll">×</button>
             <div class="pro-menu-divider" aria-hidden="true">— BETEJA —</div>
+            <button type="button" class="pro-menu-item" id="push-toggle" role="menuitem"
+                    title="Merr njoftim kur analiza mbaron, edhe nëse mbyll faqen">
+              🔔 <span id="push-toggle-label">Njoftime kur analiza është gati</span>
+            </button>
             <button type="button" class="pro-menu-item" data-pro="stress" role="menuitem">
               <span class="pro-menu-ico">⚔️</span>
               <div><strong>Red Team</strong><em>Stres-test i tezës — raund i vetëm ose loop derisa konvergon</em></div>
@@ -1663,7 +1680,7 @@
   </div>
 </template>
 
-<script src="/static/app.js?v=108"></script>
+<script src="/static/app.js?v=109"></script>
 <script src="/static/secretary.js?v=1"></script>
 </body>
 </html>

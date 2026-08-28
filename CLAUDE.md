@@ -307,6 +307,14 @@ ammessa produca davvero testo.
 Le patch a file con ë/ç/emoji: SEMPRE via file `.py` scp'd sul VPS (`scp patch.py root@…:/tmp/ && python3 /tmp/patch.py`), MAI heredoc SSH inline (mangia UTF-8/`\n`). Anchor precisi + `assert old in s and s.count(old)==1`.
 
 ## QA — rete di sicurezza (lanciare dopo ogni build)
+
+Dal 28 ago 2026 conviene aggiungere, oltre a golden+smoke+juris_guard, una
+**prova viva** su due domande vere (una AL, una IT) passando dal percorso
+nuovo `start` + `events`: i test dicono che gli strumenti si chiamano senza
+errori, non che le risposte sono ancora giuste. Riferimento verificato il
+28 ago: prescrizione ordinaria → **10 vjet** (AL) e **art. 2946 c.c.** (IT),
+12 articoli recuperati per ciascuna.
+
 ```bash
 docker exec super-avvocato python3 tools/golden_check.py   # 19 check deterministici: corpus + Verifikuar + heading-scan. Baseline 19/19.
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
@@ -361,8 +369,72 @@ Da rilanciare dopo ogni modifica alla giurisdizione.
   mai mescolato alle istruzioni dell'avvocato, che sarebbe anche un vettore di
   prompt injection. Con l'allegato la lettera passa da 3/6 a **6/6** riscontri
   puntuali (nomina la controparte, la data, usa le loro parole contro di loro).
+- **jobs.py** (28 ago 2026) — registro dei lavori lunghi. Il cervello impiega
+  minuti e prima girava DENTRO la richiesta HTTP: sul telefono bastava passare
+  a WhatsApp perché il sistema sospendesse la scheda, la connessione cadesse e
+  **il lavoro morisse con lei** («Gabim rrjeti» in rosso, dopo che il server
+  aveva già fatto tutto). Ora `POST /api/ask/start` avvia un thread e torna
+  subito un `job_id`; `GET /api/ask/events?job=&from=N` rigioca i frame dal
+  numero N e poi segue i vivi. Riconnettersi = chiedere di nuovo da dove si è
+  rimasti, quindi una caduta di rete costa un secondo, non una risposta.
+  I frame si conservano **già formattati** (`data: {...}`), e `slice_from()`
+  restituisce frame+done+indice **sotto un solo lock**: altrimenti un frame
+  appeso fra le due domande verrebbe perso in silenzio.
+  **TRAPPOLA**: `_req_index()` legge l'oggetto `request` di Flask e in un
+  thread esplode → va catturato PRIMA (`_idx = _req_index()`). Vale per
+  qualunque altro lavoro si sposti in background.
+  Il vecchio `POST /api/ask/stream` è rimasto identico e funzionante: il
+  rollback è cambiare solo `app.js`.
+- **push.py** (28 ago 2026) — notifica quando l'analisi è pronta. Possibile
+  solo perché il lavoro sopravvive alla pagina. VAPID in `/opt/super-avvocato.env`
+  (`VAPID_PRIVATE_KEY/PUBLIC_KEY/SUBJECT`) — **cambiarle invalida tutti gli
+  abbonamenti degli utenti**. Invia in un thread, non solleva mai, e su 404/410
+  cancella l'abbonamento (dispositivo sparito) invece di ritentare per sempre.
+  Tabella `push_subscriptions` (endpoint UNIQUE + upsert: un telefono non
+  diventa dieci righe). L'aggancio è **una riga sola** dopo `jobs_mod.finish()`,
+  dentro un try che ingoia tutto: se le notifiche si rompono, la risposta
+  arriva comunque.
 - **second_opinion/adversary/fable_drafter.py** — tool Fable (model_override="fable").
 - **web.py** — endpoint (199 rotte). UI: `static/app.js` (hub `_openHub` nel menu PRO: Super Prokurori/Super Noteri/Ligj i gjallë; mode-bar snellite che puntano ai hub; `openFascikull`, `openIntake`, `openAfati`, `openSavedResearch`). `templates/index.html` menu PRO.
+
+## PWA — installabile sul telefono (28 ago 2026)
+
+Il sito era già responsive; mancava solo la confezione. Ora si aggiunge alla
+schermata home e si apre a schermo intero, senza store e senza costi.
+
+- **`/manifest.webmanifest` e `/sw.js` sono rotte Flask, servite dalla RADICE.**
+  Non è pignoleria: un service worker vale solo per la cartella da cui viene
+  servito — da `/static/sw.js` governerebbe soltanto `/static/`, cioè niente.
+  Header `Service-Worker-Allowed: /` e `Cache-Control: no-cache, max-age=0`
+  (un service worker sbagliato che resta in cache non si corregge a distanza).
+- **⚠️ IL SERVICE WORKER NON METTE IN CACHE L'APPLICAZIONE, E NON DEVE MAI
+  FARLO.** In cache ci sono due sole cose: `offline.html` e un'icona. Salta
+  `/api/`, i POST e gli altri domini. Un service worker che conserva pagine o
+  `app.js` sopravvive ai deploy e continua a servire codice vecchio a utenti
+  che non capiscono perché — e per toglierlo devi convincere il browser di
+  ognuno. Se un giorno serve cache, si aggiunga **solo** su asset con hash nel
+  nome, mai su HTML.
+  Verifica: in console `caches.open('sa-guscio-2').then(c=>c.keys()).then(k=>k.map(r=>r.url))`
+  deve restituire due sole voci.
+- **Icone**: `static/icon-{192,512}.png`, `icon-maskable-512.png` (margine 22%,
+  Android ritaglia), `apple-touch-icon.png`. Generate con Pillow **dentro il
+  container** (sul VPS non c'è né Pillow né ImageMagick) ridisegnando la
+  bilancia della favicon SVG già presente in `index.html`.
+- **iPhone**: `apple-mobile-web-app-status-bar-style` deve restare **`black`**,
+  NON `black-translucent`. Con translucent iOS fa passare la pagina sotto la
+  barra di stato e l'intestazione finisce dietro l'orologio. Il CSS gestiva già
+  la safe-area (`--safe-t`): il problema era il meta, non il CSS.
+- **Il nome sotto l'icona** viene da `short_name` (Android) e dal meta
+  `apple-mobile-web-app-title` (iPhone — è questo che decide, non `short_name`).
+  **È congelato al momento dell'installazione**: per vederlo cambiare bisogna
+  togliere e rimettere l'icona dalla home.
+- **Notifiche**: voce nel menu ☰, permesso chiesto **solo al click** (chiederlo
+  all'apertura si prende un "blocca" quasi definitivo) + notifica di prova
+  immediata. Il service worker **non mostra nulla se l'app è già in primo
+  piano** (`clients.matchAll` + `focused`): notificare una cosa che uno ha
+  davanti agli occhi è il modo più rapido per farsi disattivare le notifiche.
+- **Dopo ogni modifica a `style.css` o `app.js` va alzato `?v=` in
+  `templates/index.html`**, altrimenti i browser servono la versione vecchia.
 
 ## Regole ferree (customer-facing)
 - Errori customer-facing MAI nominano il modello → sempre "Tetramorph"/generico.

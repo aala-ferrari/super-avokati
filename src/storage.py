@@ -820,6 +820,20 @@ CREATE TABLE IF NOT EXISTS case_lessons (
 );
 CREATE INDEX IF NOT EXISTS idx_case_lessons_user ON case_lessons(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_case_lessons_firm ON case_lessons(firm_id, created_at DESC);
+
+-- Un telefono (o un browser) che ha detto sI alle notifiche. Un utente puo
+-- averne piu di uno: portatile in studio, telefono in tribunale. L endpoint e
+-- unico perche e lui a identificare il dispositivo presso il servizio push.
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id     INTEGER NOT NULL,
+    endpoint    TEXT NOT NULL UNIQUE,
+    p256dh      TEXT NOT NULL,
+    auth        TEXT NOT NULL,
+    user_agent  TEXT,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_push_user ON push_subscriptions(user_id);
 """
 
 # Roles ordered by seniority/permission breadth. Used by permission checks.
@@ -6261,3 +6275,35 @@ def list_user_open_cases_for_matching(user_id: int) -> list[dict]:
                 "content": "\n".join(p for p in content_parts if p),
             })
     return result
+
+# ── notifiche push ─────────────────────────────────────────────────────────
+
+def save_push_subscription(user_id: int, endpoint: str, p256dh: str,
+                           auth: str, user_agent: str | None = None) -> None:
+    """Register a device. Re-subscribing the same endpoint just refreshes it —
+    browsers hand back the same endpoint, and a UNIQUE plus upsert is what
+    keeps one phone from becoming ten rows."""
+    with _connect() as conn:
+        conn.execute(
+            """INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth, user_agent)
+               VALUES (?, ?, ?, ?, ?)
+               ON CONFLICT(endpoint) DO UPDATE SET
+                   user_id=excluded.user_id, p256dh=excluded.p256dh,
+                   auth=excluded.auth, user_agent=excluded.user_agent""",
+            (user_id, endpoint, p256dh, auth, user_agent),
+        )
+
+
+def list_push_subscriptions(user_id: int) -> list[dict]:
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT endpoint, p256dh, auth FROM push_subscriptions WHERE user_id = ?",
+            (user_id,),
+        ).fetchall()
+    return [{"endpoint": r[0], "p256dh": r[1], "auth": r[2]} for r in rows]
+
+
+def delete_push_subscription(endpoint: str) -> None:
+    with _connect() as conn:
+        conn.execute("DELETE FROM push_subscriptions WHERE endpoint = ?", (endpoint,))
+

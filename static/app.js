@@ -908,62 +908,45 @@
       scroll();
     };
     try {
-      const resp = await fetch("/api/ask/stream", {
+      // Due passi invece di uno. Il primo dice al server di cominciare e
+      // torna subito: da quel momento il cervello lavora per conto suo, e
+      // questa connessione puo' morire quanto vuole senza portarsi via
+      // niente.
+      const startResp = await fetch("/api/ask/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text, case_id: activeCaseId }),
       });
-      if (!resp.ok && resp.status === 401) {
+      if (startResp.status === 401) {
         typing.remove();
         window.location.href = "/login";
         return;
       }
-      if (!resp.ok || !resp.body) {
+      if (!startResp.ok) {
         typing.remove();
-        appendError("Gabim serveri: " + resp.status);
+        appendError("Gabim serveri: " + startResp.status);
         return;
       }
-      const reader = resp.body.getReader();
-      const decoder = new TextDecoder();
-      let carry = "";
-      let finalPayload = null;
-      let sawError = null;
-      outer: while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        carry += decoder.decode(value, { stream: true });
-        let idx;
-        while ((idx = carry.indexOf("\n\n")) !== -1) {
-          const rawEvt = carry.slice(0, idx);
-          carry = carry.slice(idx + 2);
-          if (!rawEvt.startsWith("data:")) continue;
-          const jsonStr = rawEvt.slice(5).trim();
-          if (!jsonStr) continue;
-          let evt;
-          try { evt = JSON.parse(jsonStr); } catch { continue; }
-          if (evt.type === "delta" && typeof evt.text === "string") {
-            appendStreamChunk(evt.text);
-          } else if (evt.type === "status") {
-            // Trego tekstin e progresit SI RRESHT i plotë poshtë flluskës (jo brenda saj)
-            if (!streamEl && typing && typing.isConnected && typeof evt.text === "string" && evt.text.trim()) {
-              if (!statusEl) {
-                statusEl = document.createElement("div");
-                statusEl.className = "typing-status";
-                statusEl.style.cssText = "margin:6px 4px 2px 14px;font-size:13px;color:#6b7280;font-style:italic;line-height:1.5;max-width:80%;white-space:normal;overflow-wrap:anywhere";
-                typing.after(statusEl);
-              }
-              statusEl.textContent = evt.text;
-              scroll();
+      const jobId = (await startResp.json()).job_id;
+      rememberJob(activeCaseId, jobId);
+
+      const esito = await askAttach(jobId, 0, {
+        onDelta: appendStreamChunk,
+        onStatus: (t) => {
+          if (!streamEl && typing && typing.isConnected && t && t.trim()) {
+            if (!statusEl) {
+              statusEl = document.createElement("div");
+              statusEl.className = "typing-status";
+              statusEl.style.cssText = "margin:6px 4px 2px 14px;font-size:13px;color:#6b7280;font-style:italic;line-height:1.5;max-width:80%;white-space:normal;overflow-wrap:anywhere";
+              typing.after(statusEl);
             }
-          } else if (evt.type === "final") {
-            finalPayload = evt.data || evt;
-          } else if (evt.type === "error") {
-            sawError = evt.message || "Gabim i panjohur";
-          } else if (evt.type === "done") {
-            break outer;
+            statusEl.textContent = t;
+            scroll();
           }
-        }
-      }
+        },
+      });
+      forgetJob(activeCaseId);
+
       clearStatus();
       if (streamEl) {
         streamEl.remove();
@@ -971,10 +954,10 @@
       } else {
         typing.remove();
       }
-      if (sawError) {
-        appendError(sawError);
-      } else if (finalPayload) {
-        appendBot(finalPayload);
+      if (esito.error) {
+        appendError(esito.error);
+      } else if (esito.final) {
+        appendBot(esito.final);
       } else if (streamBuffer) {
         appendBot({ kind: "answer", text: streamBuffer, articles: [] });
       } else {
@@ -11456,3 +11439,247 @@
 })();
 
 document.getElementById("logout-fab")?.addEventListener("click", async function(){ try{ await fetch("/api/logout", { method: "POST" }); }catch(e){} window.location.href = "/"; });
+
+/* ── Riattacco al lavoro del cervello ────────────────────────────────────
+ *
+ * Il cervello impiega minuti. Tenere aperta una connessione per tutto quel
+ * tempo, su un telefono, non funziona: basta guardare un messaggio su
+ * WhatsApp e il sistema operativo sospende la pagina.
+ *
+ * Qui la connessione e' usa e getta. Se cade ci si riattacca dicendo da quale
+ * evento riprendere, e il server rimanda solo quello che manca. Cadere non
+ * costa una risposta: costa un secondo.
+ */
+
+function jobKey(caseId) { return "sa_job_" + caseId; }
+
+function rememberJob(caseId, jobId) {
+  try { localStorage.setItem(jobKey(caseId), jobId); } catch (e) {}
+}
+
+function forgetJob(caseId) {
+  try { localStorage.removeItem(jobKey(caseId)); } catch (e) {}
+}
+
+function pendingJob(caseId) {
+  try { return localStorage.getItem(jobKey(caseId)); } catch (e) { return null; }
+}
+
+/* Aspetta che la pagina sia di nuovo in primo piano: riprovare mentre il
+ * telefono e' bloccato in tasca brucia batteria senza servire a niente. */
+function attendiVisibile(ms) {
+  return new Promise((risolvi) => {
+    const vai = () => setTimeout(risolvi, ms);
+    if (document.visibilityState === "visible") return vai();
+    const alRitorno = () => {
+      if (document.visibilityState === "visible") {
+        document.removeEventListener("visibilitychange", alRitorno);
+        vai();
+      }
+    };
+    document.addEventListener("visibilitychange", alRitorno);
+  });
+}
+
+function mostraRiconnessione(attivo) {
+  let el = document.getElementById("sa-reconnect");
+  if (!attivo) { if (el) el.remove(); return; }
+  if (el) return;
+  el = document.createElement("div");
+  el.id = "sa-reconnect";
+  el.style.cssText = "margin:6px 4px 2px 14px;font-size:13px;color:#9ca3af;font-style:italic";
+  el.textContent = (typeof _CAL_IT !== "undefined" && _CAL_IT)
+    ? "Connessione interrotta — riprendo, il lavoro continua…"
+    : "Lidhja u ndërpre — po vazhdoj, puna nuk humbi…";
+  const t = document.querySelector(".typing") || document.getElementById("chat");
+  if (t && t.after) t.after(el);
+}
+
+/* Segue un lavoro fino alla fine, riattaccandosi da solo quando serve.
+ * Torna {final, error}. Non lancia per una connessione caduta: quella non e'
+ * un errore, e' la normalita' su una rete mobile. */
+async function askAttach(jobId, daEvento, cb) {
+  let idx = daEvento || 0;
+  let final = null;
+  let error = null;
+  let tentativiVuoti = 0;
+
+  while (true) {
+    try {
+      const resp = await fetch(`/api/ask/events?job=${encodeURIComponent(jobId)}&from=${idx}`);
+      if (resp.status === 401) { window.location.href = "/login"; return { final, error }; }
+      if (resp.status === 404) {
+        // il lavoro non esiste piu' (server riavviato, o troppo tempo fa)
+        return { final, error: error || null, gone: true };
+      }
+      if (!resp.ok || !resp.body) throw new Error("HTTP " + resp.status);
+
+      mostraRiconnessione(false);
+      tentativiVuoti = 0;
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let carry = "";
+      let concluso = false;
+
+      while (!concluso) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        carry += decoder.decode(value, { stream: true });
+        let i;
+        while ((i = carry.indexOf("\n\n")) !== -1) {
+          const raw = carry.slice(0, i);
+          carry = carry.slice(i + 2);
+          if (!raw.startsWith("data:")) continue;   // i ping non si contano
+          const js = raw.slice(5).trim();
+          if (!js) continue;
+          let evt;
+          try { evt = JSON.parse(js); } catch (e) { continue; }
+          idx += 1;                                  // conta come il server
+          if (evt.type === "delta" && typeof evt.text === "string") {
+            if (cb && cb.onDelta) cb.onDelta(evt.text);
+          } else if (evt.type === "status") {
+            if (cb && cb.onStatus) cb.onStatus(evt.text);
+          } else if (evt.type === "final") {
+            final = evt.data || evt;
+          } else if (evt.type === "error") {
+            error = evt.message || "Gabim i panjohur";
+          } else if (evt.type === "done") {
+            concluso = true;
+            break;
+          }
+        }
+      }
+      if (concluso) { mostraRiconnessione(false); return { final, error }; }
+
+      // Il flusso e' finito senza un "done": la connessione e' caduta a
+      // meta'. Il cervello sta ancora lavorando: ci si riattacca.
+      tentativiVuoti += 1;
+      if (tentativiVuoti > 200) return { final, error: error || "Timeout" };
+      mostraRiconnessione(true);
+      await attendiVisibile(1200);
+    } catch (e) {
+      tentativiVuoti += 1;
+      if (tentativiVuoti > 200) return { final, error: error || e.message };
+      mostraRiconnessione(true);
+      await attendiVisibile(1500);
+    }
+  }
+}
+
+/* ── Notifiche: «avvisami quando e' pronta» ──────────────────────────────
+ *
+ * Il cervello impiega minuti. Senza notifica, l'avvocato deve restare a
+ * guardare lo schermo — che e' esattamente cio' che nessuno fa col telefono
+ * in mano. Con la notifica puo' chiudere e tornare quando serve.
+ *
+ * Il permesso si chiede SOLO quando l'utente clicca. Chiederlo all'apertura
+ * della pagina fa dire di no, e un no in questo campo e' quasi definitivo.
+ */
+
+function b64ToU8(base64) {
+  const pad = "=".repeat((4 - (base64.length % 4)) % 4);
+  const b64 = (base64 + pad).replace(/-/g, "+").replace(/_/g, "/");
+  const raw = atob(b64);
+  return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
+}
+
+async function statoNotifiche() {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) return "non-supportato";
+  if (Notification.permission === "denied") return "bloccato";
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    return sub ? "attive" : "spente";
+  } catch (e) { return "spente"; }
+}
+
+async function attivaNotifiche() {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+    toast("Ky shfletues nuk i mbështet njoftimet", "error");
+    return false;
+  }
+  const permesso = await Notification.requestPermission();
+  if (permesso !== "granted") {
+    toast("Njoftimet nuk u lejuan", "error");
+    return false;
+  }
+  const info = await (await fetch("/api/push/key")).json();
+  if (!info.enabled || !info.key) {
+    toast("Njoftimet nuk janë të konfiguruara në server", "error");
+    return false;
+  }
+  const reg = await navigator.serviceWorker.ready;
+  const sub = await reg.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: b64ToU8(info.key),
+  });
+  const r = await fetch("/api/push/subscribe", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(sub.toJSON()),
+  });
+  if (!r.ok) { toast("Regjistrimi dështoi", "error"); return false; }
+  // una prova subito: senza, nessuno sa se ha attivato davvero qualcosa
+  fetch("/api/push/test", { method: "POST" }).catch(() => {});
+  return true;
+}
+
+async function spegniNotifiche() {
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if (sub) {
+      await fetch("/api/push/unsubscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ endpoint: sub.endpoint }),
+      }).catch(() => {});
+      await sub.unsubscribe();
+    }
+  } catch (e) {}
+}
+
+(function collegaInterruttoreNotifiche() {
+  const btn = document.getElementById("push-toggle");
+  if (!btn) return;
+  const etichetta = document.getElementById("push-toggle-label");
+  const IT = (typeof _CAL_IT !== "undefined" && _CAL_IT);
+
+  const testi = {
+    "attive":         IT ? "Notifiche attive — tocca per spegnerle" : "Njoftimet janë aktive — prek për t’i fikur",
+    "spente":         IT ? "Avvisami quando l’analisi è pronta"     : "Njoftime kur analiza është gati",
+    "bloccato":       IT ? "Notifiche bloccate nel browser"          : "Njoftimet janë bllokuar në shfletues",
+    "non-supportato": IT ? "Notifiche non supportate qui"            : "Njoftimet nuk mbështeten këtu",
+  };
+
+  async function aggiorna() {
+    const st = await statoNotifiche();
+    if (etichetta) etichetta.textContent = testi[st] || testi["spente"];
+    btn.dataset.stato = st;
+    btn.style.opacity = (st === "bloccato" || st === "non-supportato") ? ".55" : "";
+  }
+
+  btn.addEventListener("click", async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const st = btn.dataset.stato;
+    if (st === "bloccato" || st === "non-supportato") return;
+    btn.disabled = true;
+    try {
+      if (st === "attive") {
+        await spegniNotifiche();
+        toast(IT ? "Notifiche disattivate" : "Njoftimet u fikën");
+      } else {
+        if (await attivaNotifiche()) {
+          toast(IT ? "Notifiche attive" : "Njoftimet janë aktive");
+        }
+      }
+    } finally {
+      btn.disabled = false;
+      aggiorna();
+    }
+  });
+
+  aggiorna();
+})();

@@ -20,3 +20,5 @@ python-dateutil>=2.9.0
 # Foto iPhone: insegna a Pillow ad aprire l'HEIC, che il cervello
 # non sa leggere e va convertito in JPEG prima dell'OCR.
 pillow-heif>=0.18.0
+# Notifiche push (VAPID) quando l'analisi e' pronta
+pywebpush>=2.0.0

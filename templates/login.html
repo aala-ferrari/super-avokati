@@ -4,6 +4,9 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="theme-color" content="#0a0a0a" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="Superavokati" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black" />
 <title>Super Avokati — Avokat me AI, Asistencë Ligjore & Kontrata në Shqipëri</title>
 <meta name="description" content="Super Avokati — sistem avokat me inteligjencë artificiale për asistencë ligjore, praktika ligjore dhe hartim kontratash në Shqipëri. Konsulencë juridike e zgjuar, bazuar në ligjin shqiptar, strategji dhe precedentë." />
 <meta name="keywords" content="avokat online, avokat me AI, asistencë ligjore, asistencë juridike, konsulencë ligjore, kontrata ligjore, praktika ligjore, avokat Shqipëri, ndihmë juridike, software për avokatë, avvocato AI, assistenza legale Albania, stipulazione contratti, AI lawyer Albania, Super Avokati" />
@@ -24,6 +27,18 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="/static/style.css" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%230a0a0a'/%3E%3Cpath d='M32 14v36M14 22h36M8 22l-4 10h8zM56 22l-4 10h8zM26 50h12v4H26z' stroke='%23e41e26' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='32' cy='14' r='3' fill='%23c9a24d'/%3E%3C/svg%3E" />
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png" />
+<script>
+  /* Registrazione silenziosa: se fallisce, il sito funziona esattamente
+     come prima. Non e' una funzione da cui dipende niente. */
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("/sw.js", { scope: "/" })
+        .catch(function () {});
+    });
+  }
+</script>
 </head>
 <body class="login-page">
 
