@@ -2359,7 +2359,7 @@ def _gather_case_recent_messages(case_id: str, limit: int = 8) -> list[dict]:
     return [{"role": m.role, "content": m.content} for m in msgs[-limit:]]
 
 
-def _gather_case_documents(case_id: str, limit: int = 8) -> list[dict]:
+def _gather_case_documents(case_id: str, limit: int = 12) -> list[dict]:
     """Document summaries for the case, if storage exposes them."""
     if not hasattr(storage, "list_documents"):
         return []
@@ -2370,34 +2370,58 @@ def _gather_case_documents(case_id: str, limit: int = 8) -> list[dict]:
             "filename": getattr(d, "filename", ""),
             "doc_type": getattr(d, "doc_type", None),
             "summary": getattr(d, "summary", None),
+            "extracted_text": getattr(d, "extracted_text", None),
+            "storage_path": getattr(d, "storage_path", None),
         })
     return out
 
 
-@app.post("/api/cases/<case_id>/genio")
-@login_required_api
-def api_genio_run(case_id: str):
-    """Stream the 6-perspective Senior Partner Brief over SSE.
+def _genio_prepare(case_id: str, description: str = ""):
+    """Prepara un giro di Genio. Torna `(generatore, brief_id, None)` se si
+    puo' partire, oppure `(None, None, (payload, status))` se no.
 
-    Body: { "description": "string (optional, defaults to case title)" }
+    Tre valori e non due di proposito: `jsonify(...), 404` e' anch'essa una
+    tupla, e distinguere il successo dall'errore guardando la forma sarebbe
+    un trabocchetto per chi legge questo codice fra sei mesi.
     """
     case = _resolve_case(case_id)
     if case is None:
-        return jsonify({"error": "not_found"}), 404
+        return None, None, ({"error": "not_found"}, 404)
     user = request.user  # type: ignore[attr-defined]
-    body = request.get_json(force=True, silent=True) or {}
-    description = (body.get("description") or "").strip()
 
     _ensure_loaded()
     if _BRAIN is None:
-        return jsonify({"error": "brain_unavailable"}), 503
+        return None, None, ({"error": "brain_unavailable"}, 503)
 
     jur = getattr(case, "jurisdiction", "AL")
     recent_msgs = _gather_case_recent_messages(case_id)
     docs = _gather_case_documents(case_id)
+
+    # I file senza testo estratto — foto, scansioni — vanno allegati davvero:
+    # per quelli il riassunto non dice niente e il testo non esiste. Pochi,
+    # perché ogni allegato viaggia con tutte e sei le lenti.
+    allegati: list[Path] = []
+    for d in docs:
+        if allegati and len(allegati) >= 4:
+            break
+        if (d.get("extracted_text") or "").strip():
+            continue
+        p = d.get("storage_path")
+        if p and Path(p).exists():
+            allegati.append(Path(p))
+            d["allegato"] = True
+
+    # Cosa aveva concluso il Genio la volta scorsa su questo caso: senza,
+    # ogni giro riparte da zero e rianalizza gli stessi fatti.
+    try:
+        precedenti = storage.list_genio_briefs(case_id) or []
+    except Exception:  # noqa: BLE001
+        precedenti = []
+
     case_block = genio_mod.build_case_block(
         case, jurisdiction=jur, extra_description=description,
         recent_messages=recent_msgs, documents=docs,
+        previous_briefs=precedenti,
     )
     voice_block = genio_mod._gather_voice_samples(user.id)
 
@@ -2421,6 +2445,7 @@ def api_genio_run(case_id: str):
         for evt in genio_mod.run_brief(
             backend=backend, case_block=case_block,
             voice_samples_block=voice_block, case_id=case_id,
+            attachments=allegati,
         ):
             if evt["type"] == "perspective":
                 r = evt["result"]
@@ -2450,10 +2475,79 @@ def api_genio_run(case_id: str):
         yield _event({"type": "done", "brief_id": brief_id,
                       "status": status, "elapsed_ms": elapsed})
 
-    return Response(stream_with_context(_stream()),
-                    mimetype="text/event-stream",
-                    headers={"Cache-Control": "no-cache",
-                             "X-Accel-Buffering": "no"})
+    return _stream, brief_id, None
+
+
+def _genio_body_description() -> str:
+    body = request.get_json(force=True, silent=True) or {}
+    return (body.get("description") or "").strip()
+
+
+@app.post("/api/cases/<case_id>/genio")
+@login_required_api
+@require_module("avokat", "prokuror")
+def api_genio_run(case_id: str):
+    """Percorso storico: il Genio trasmette dentro questa connessione.
+
+    Tenuto vivo di proposito — se il percorso in background facesse i
+    capricci, il client torna qui cambiando una riga, senza un deploy.
+    """
+    gen, _bid, err = _genio_prepare(case_id, _genio_body_description())
+    if err is not None:
+        payload, status = err
+        return jsonify(payload), status
+    return Response(stream_with_context(gen()),
+                    mimetype="text/event-stream", headers=_SSE_HEADERS)
+
+
+@app.post("/api/genio/start")
+@login_required_api
+@require_module("avokat", "prokuror")
+def api_genio_start():
+    """Commissiona il Genio e restituisce subito il numero di pratica.
+
+    Da qui in poi il socio anziano lavora per conto suo: la connessione che
+    ha dato il via puo' morire un secondo dopo — sul telefono succede — e i
+    sette-trentatre minuti di ragionamento non si perdono.
+    """
+    data = request.get_json(force=True, silent=True) or {}
+    case_id = (data.get("case_id") or "").strip()
+    if not case_id:
+        return jsonify({"error": "missing case_id"}), 400
+    gen, brief_id, err = _genio_prepare(
+        case_id, (data.get("description") or "").strip())
+    if err is not None:
+        payload, status = err
+        return jsonify(payload), status
+
+    user = request.user  # type: ignore[attr-defined]
+    job_id = jobs_mod.create(user.id, case_id)
+    _uid, _cid = user.id, case_id
+
+    def _run():
+        try:
+            for frame in gen():
+                jobs_mod.push(job_id, frame)
+        except Exception as exc:  # noqa: BLE001
+            log.exception("genio job %s failed", job_id)
+            jobs_mod.push(job_id, _sse_event(
+                {"type": "error", "message": html.escape(_safe_err(exc))}))
+            jobs_mod.push(job_id, _sse_event({"type": "done"}))
+        finally:
+            jobs_mod.finish(job_id)
+            try:
+                push_mod.avvisa(
+                    storage, _uid,
+                    "Gjenio Legale është gati",
+                    "Analiza e thellë e rastit ka përfunduar. Hape për ta lexuar.",
+                    url="/", tag="genio-%s" % _cid[:8],
+                )
+            except Exception:  # noqa: BLE001
+                log.debug("push notify skipped (genio)", exc_info=True)
+
+    threading.Thread(target=_run, name="genio-%s" % job_id[:8],
+                     daemon=True).start()
+    return jsonify({"job_id": job_id, "brief_id": brief_id})
 
 
 @app.get("/api/cases/<case_id>/genio")

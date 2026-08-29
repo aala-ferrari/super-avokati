@@ -7907,3 +7907,9 @@ main {
    diverso sull'etichetta, e la dimensione accanto al nome. */
 .dosja-src-doc{background:#e6eef7;color:#3a5a80}
 .dosja-size{color:#a49a80;font-size:11px;white-space:nowrap;margin-left:8px}
+
+/* La seconda mente dentro la carta del Genio: staccata da una riga, cosi'
+   si capisce a colpo d'occhio che e' un secondo parere e non un seguito. */
+.gn-second{margin-top:12px;padding-top:10px;border-top:2px dashed #c9a24d}
+.gn-second-h{font-size:12px;font-weight:700;color:#a9842f;margin-bottom:6px}
+.genio-card.has-second{box-shadow:0 0 0 2px rgba(201,162,77,.35)}

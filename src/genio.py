@@ -29,6 +29,9 @@ Design notes
 """
 from __future__ import annotations
 
+import logging
+import os
+
 import json
 import re
 import threading
@@ -356,12 +359,32 @@ def _gather_voice_samples(user_id: int, *, max_samples: int = 3,
     return "\n".join(parts)
 
 
+# ── Quanto della macchina puo' prendersi il Genio ──────────────────────
+#
+# Il semaforo globale delle chiamate al modello (backends) e' 6. Se il Genio
+# ne lancia 6 in parallelo li prende TUTTI, e per la durata del giro nessun
+# altro avvocato riesce a far partire niente: misurato, 7 minuti di media e
+# fino a 33 nel caso peggiore.
+#
+# Quattro invece di sei lascia due slot sempre liberi per le domande normali.
+# Le sei lenti si fanno tutte lo stesso — cambia quante corrono insieme, non
+# quante ne corrono — e il giro dura un po' di piu' in cambio di un sistema
+# che non si ferma mai per nessuno.
+MENTI_PARALLELE = int(os.environ.get("GENIO_PARALLEL", "4"))
+
+# Un Genio alla volta in tutto il sistema. Due giri insieme raddoppierebbero
+# il blocco senza far finire prima nessuno dei due: il secondo si accoda, e
+# con la notifica di fine lavoro l'attesa non pesa a nessuno.
+_genio_sem = threading.Semaphore(int(os.environ.get("GENIO_CONCURRENT", "1")))
+
+
 # ── Single perspective execution ──────────────────────────────────────
 
 def run_perspective(p: Perspective, *,
                     backend, case_block: str,
                     voice_samples_block: str = "",
-                    case_id: str | None = None) -> dict:
+                    case_id: str | None = None,
+                    attachments: list | None = None) -> dict:
     """Execute one perspective. Returns: {
         "key": str, "label_sq": str, "label_it": str,
         "raw": str (full text response),
@@ -384,6 +407,7 @@ def run_perspective(p: Perspective, *,
             max_tokens=p.max_tokens,
             callsite=f"genio:{p.key}",
             case_id=case_id,
+            attachments=attachments or None,
         )
     except Exception as e:
         err = f"{type(e).__name__}: {e}"
@@ -410,11 +434,134 @@ def run_perspective(p: Perspective, *,
             "error": parse_err}
 
 
+# ── Il secondo cervello ────────────────────────────────────────────────
+
+log = logging.getLogger(__name__)
+
+FABLE_MODEL = "fable"
+
+# Le lenti che devono TROVARE qualcosa. Le altre tre — l'albero delle
+# decisioni, la verita' scomoda, la voce — producono comunque un contenuto
+# utile anche quando la risposta e' «poco»: non ha senso ritentarle.
+LENTI_DA_RITENTARE = ("kill_shot", "leverage", "riframing")
+
+
+def _a_mani_vuote(res: dict) -> bool:
+    """La lente non ha trovato niente di utilizzabile?
+
+    Non basta guardare se c'e' del testo: un modello scrive sempre qualcosa.
+    Si guarda se le liste che contano sono vuote — nessun kill shot, nessuna
+    leva, nessuna riformulazione — o se il JSON non e' nemmeno uscito.
+    """
+    if res.get("kind") == "error":
+        return True
+    parsed = res.get("parsed")
+    if not isinstance(parsed, dict):
+        # niente JSON: se il testo e' comunque sostanzioso lo teniamo
+        return len((res.get("raw") or "").strip()) < 400
+    for chiave in ("kill_shots", "leverage_points", "leva", "reframings",
+                   "alternative_theories", "points", "items"):
+        v = parsed.get(chiave)
+        if isinstance(v, list) and v:
+            return False
+    # nessuna delle liste attese e' popolata: si guarda se almeno c'e' sostanza
+    testo = " ".join(str(v) for v in parsed.values() if isinstance(v, str))
+    return len(testo.strip()) < 200
+
+
+SPRONE_FABLE = (
+    "\n\n━━━ KUJDES ━━━\n"
+    "Një mendje tjetër e ka parë tashmë këtë rast me këtë pyetje dhe "
+    "NUK gjeti asgjë të përdorshme. Kjo NUK do të thotë që nuk ka asgjë: "
+    "do të thotë që nuk u pa nga ai kënd.\n"
+    "Mos e përsërit rrugën e tij. Kërko aty ku nuk shikohet zakonisht: "
+    "afate procedurale të harruara, pavlefshmëri formale, mospërputhje midis "
+    "dokumenteve, kompetenca, legjitimiteti i palëve, prova të marra në mënyrë "
+    "të papranueshme, kontradikta në qëndrimin e kundërshtarit.\n"
+    "Nëse edhe pas kësaj vërtet nuk ka asgjë, thuaje qartë — një përgjigje "
+    "boshe e ndershme vlen më shumë se një e trilluar."
+)
+
+
+def ritenta_con_fable(res: dict, p: Perspective, *, backend,
+                      case_block: str, voice_samples_block: str = "",
+                      case_id: str | None = None,
+                      attachments: list | None = None) -> dict | None:
+    """Rifa' una lente con Fable. Torna None se non c'era motivo di rifarla.
+
+    Il risultato di Opus non viene toccato: questo si affianca, marcato con la
+    mente che l'ha prodotto, cosi' l'avvocato sa sempre chi ha detto cosa.
+    """
+    if p.key not in LENTI_DA_RITENTARE or not _a_mani_vuote(res):
+        return None
+    prompt = p.user_template.format(
+        case_block=case_block,
+        voice_samples_block=voice_samples_block,
+    ) + SPRONE_FABLE
+    t0 = time.monotonic()
+    try:
+        text = backend.complete(
+            system=GENIO_JURISDICTION_GUARD + p.system,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=p.max_tokens,
+            callsite=f"genio:{p.key}:fable",
+            case_id=case_id,
+            attachments=attachments or None,
+            model_override=FABLE_MODEL,
+        )
+    except Exception as e:  # noqa: BLE001
+        log.warning("genio: secondo cervello fallito su %s: %s", p.key, e)
+        return None
+    parsed = None
+    try:
+        parsed = _extract_json(text)
+    except (ValueError, json.JSONDecodeError):
+        pass
+    fuori = {
+        "key": p.key + ":fable",
+        "label_sq": p.label_sq + " — mendja e dytë",
+        "label_it": p.label_it + " — seconda mente",
+        "raw": text, "parsed": parsed,
+        "kind": "json" if parsed is not None else "text",
+        "ms": int((time.monotonic() - t0) * 1000),
+        "error": None,
+        "second_brain": True,
+    }
+    # Se anche Fable torna a mani vuote, non si mostra niente: due risposte
+    # vuote una sotto l'altra sono rumore, non trasparenza.
+    if _a_mani_vuote(fuori):
+        return None
+    return fuori
+
+
 # ── Orchestrator (parallel + streaming events) ─────────────────────────
 
 def run_brief(*, backend, case_block: str, voice_samples_block: str,
               case_id: str | None = None,
               perspectives: list[Perspective] | None = None,
+              attachments: list | None = None,
+              ) -> Iterator[dict]:
+    """Un Genio alla volta, con il semaforo restituito in ogni caso.
+
+    Involucro sottile: tutta la logica resta in `_run_brief`. Serve solo a
+    garantire che il semaforo torni libero anche se il giro salta o se chi
+    ascolta se ne va a meta'.
+    """
+    _genio_sem.acquire()
+    try:
+        yield from _run_brief(
+            backend=backend, case_block=case_block,
+            voice_samples_block=voice_samples_block, case_id=case_id,
+            perspectives=perspectives, attachments=attachments,
+        )
+    finally:
+        _genio_sem.release()
+
+
+def _run_brief(*, backend, case_block: str, voice_samples_block: str,
+              case_id: str | None = None,
+              perspectives: list[Perspective] | None = None,
+              attachments: list | None = None,
               ) -> Iterator[dict]:
     """Run all 6 perspectives in parallel; yield events as they complete.
 
@@ -436,8 +583,20 @@ def run_brief(*, backend, case_block: str, voice_samples_block: str,
         res = run_perspective(p, backend=backend,
                               case_block=case_block,
                               voice_samples_block=voice_samples_block,
-                              case_id=case_id)
+                              case_id=case_id,
+                              attachments=attachments)
         q.put(res)
+    # Un cancello prima del lancio: le menti partono a ondate di
+    # MENTI_PARALLELE invece che tutte insieme, cosi' il semaforo globale non
+    # viene svuotato e le domande normali degli altri avvocati continuano a
+    # passare.
+    cancello = threading.Semaphore(max(1, MENTI_PARALLELE))
+    _runner_vero = _runner
+
+    def _runner(p: Perspective):  # noqa: F811
+        with cancello:
+            _runner_vero(p)
+
     threads: list[threading.Thread] = []
     for p in plist:
         t = threading.Thread(target=_runner, args=(p,), daemon=True)
@@ -453,6 +612,22 @@ def run_brief(*, backend, case_block: str, voice_samples_block: str,
                    "raw": "", "parsed": None}
         by_key[res["key"]] = res
         yield {"type": "perspective", "result": res}
+        # Se la lente e' tornata a mani vuote, la stessa domanda va alla mente
+        # piu' scaltra. Solo per le tre lenti che devono trovare qualcosa, e
+        # solo quando la prima non ha trovato: se Opus ha visto, Fable non
+        # parte e non costa niente.
+        p_orig = next((x for x in plist if x.key == res.get("key")), None)
+        if p_orig is not None:
+            try:
+                bis = ritenta_con_fable(
+                    res, p_orig, backend=backend, case_block=case_block,
+                    voice_samples_block=voice_samples_block,
+                    case_id=case_id, attachments=attachments)
+            except Exception:  # noqa: BLE001
+                bis = None
+            if bis:
+                by_key[bis["key"]] = bis
+                yield {"type": "perspective", "result": bis}
     for t in threads:
         t.join(timeout=5)
     elapsed_ms = int((time.monotonic() - t_start) * 1000)
@@ -461,10 +636,77 @@ def run_brief(*, backend, case_block: str, voice_samples_block: str,
 
 # ── Convenience: build the case_block from db state ────────────────────
 
+# Quanto testo di documenti entra nel contesto, in tutto. È un tetto
+# complessivo e non per file di proposito: un contratto da quarantamila
+# caratteri, con un tetto per file, si mangerebbe lo spazio degli altri sette.
+BUDGET_DOCUMENTI = 24_000
+
+
+def _blocco_documenti(documents: list[dict]) -> list[str]:
+    """I documenti come li leggerebbe un socio anziano: per intero, finché c'è
+    spazio, e in ordine — il primo caricato è di solito quello che conta.
+
+    Prima qui arrivavano duecento caratteri di riassunto per file. Sei menti
+    che ragionano sette minuti ciascuna su due righe di sommario sono sei menti
+    sprecate.
+    """
+    fuori: list[str] = ["\nDOKUMENTET E FASHIKULLIT:"]
+    rimasto = BUDGET_DOCUMENTI
+    for d in documents:
+        nome = d.get("filename") or "?"
+        fuori.append(f"\n── {nome} [{d.get('doc_type') or '?'}] ──")
+        sunto = (d.get("summary") or "").strip()
+        if sunto:
+            fuori.append(f"Përmbledhje: {sunto[:400]}")
+        testo = (d.get("extracted_text") or "").strip()
+        if testo and rimasto > 500:
+            quota = min(len(testo), rimasto)
+            fuori.append("Përmbajtja:\n" + testo[:quota]
+                         + ("\n[…i shkurtuar]" if quota < len(testo) else ""))
+            rimasto -= quota
+        elif d.get("allegato"):
+            # niente testo estratto: il file viaggia come allegato vero
+            fuori.append("(skedar i bashkangjitur — shihe drejtpërdrejt)")
+        elif not sunto:
+            fuori.append("(pa tekst të nxjerrë)")
+    return fuori
+
+
+def _blocco_precedente(briefs: list[dict] | None) -> list[str]:
+    """Cosa aveva concluso il Genio la volta scorsa su questo stesso caso.
+
+    Senza questo, il secondo giro riparte da zero: rianalizza gli stessi fatti
+    e riscopre le stesse cose, per quaranta minuti di modello. Con questo
+    diventa un aggiornamento — «questo dicevamo, cosa è cambiato» — che è
+    esattamente il modo in cui un socio anziano riprende un caso in mano.
+    """
+    if not briefs:
+        return []
+    ultimo = briefs[0]
+    per_lente = ultimo.get("by_key") or {}
+    if not isinstance(per_lente, dict) or not per_lente:
+        return []
+    quando = (ultimo.get("completed_at") or ultimo.get("started_at") or "")[:10]
+    fuori = [
+        f"\n━━━ GJENIO I MËPARSHËM ({quando}) ━━━",
+        "Ky rast është analizuar tashmë. Më poshtë janë përfundimet e atëhershme.",
+        "MOS I PËRSËRIT: nis prej tyre, thuaj çfarë ka NDRYSHUAR me faktet e reja, "
+        "çfarë qëndron, çfarë bie, dhe çfarë nuk ishte parë.",
+    ]
+    for chiave, ris in per_lente.items():
+        grezzo = (ris or {}).get("raw") or ""
+        if not grezzo.strip():
+            continue
+        fuori.append(f"\n[{chiave}] {grezzo.strip()[:700]}")
+    fuori.append("\n━━━ FUND I GJENIOS SË MËPARSHME ━━━")
+    return fuori
+
+
 def build_case_block(case, *, jurisdiction: str = "AL",
                      extra_description: str = "",
                      recent_messages: list[dict] | None = None,
-                     documents: list[dict] | None = None) -> str:
+                     documents: list[dict] | None = None,
+                     previous_briefs: list[dict] | None = None) -> str:
     """Compose the human-readable case context block for prompts."""
     parts: list[str] = []
     parts.append(f"ÇËSHTJA: {case.title}")
@@ -473,16 +715,12 @@ def build_case_block(case, *, jurisdiction: str = "AL",
     if extra_description:
         parts.append("\nPËRSHKRIM (nga avokati):\n" + extra_description.strip())
     if documents:
-        parts.append("\nDOKUMENTET KYÇE:")
-        for d in documents[:8]:
-            parts.append(
-                f"- [{d.get('doc_type') or '?'}] {d.get('filename')} — "
-                f"{(d.get('summary') or '')[:200]}"
-            )
+        parts.extend(_blocco_documenti(documents))
     if recent_messages:
         parts.append("\nFJALOSJA E FUNDIT (avokati ↔ Super Avvocato):")
         for m in recent_messages[-6:]:
             role = "Avokati" if m.get("role") == "user" else "AI"
             content = (m.get("content") or "")[:400]
             parts.append(f"\n{role}: {content}")
+    parts.extend(_blocco_precedente(previous_briefs))
     return "\n".join(parts)

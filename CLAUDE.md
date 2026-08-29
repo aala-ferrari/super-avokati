@@ -395,6 +395,50 @@ Da rilanciare dopo ogni modifica alla giurisdizione.
   dentro un try che ingoia tutto: se le notifiche si rompono, la risposta
   arriva comunque.
 - **second_opinion/adversary/fable_drafter.py** — tool Fable (model_override="fable").
+- **genio.py** — Genio Legale, 6 lenti in parallelo. Rifatto il 29 ago 2026
+  (v9.183-9.185) su cinque punti; i numeri qui sotto sono **misurati**, non stimati.
+  * **Memoria.** `build_case_block` riceve `previous_briefs`: del Genio
+    precedente entrano 700 caratteri per lente, con l'ordine `MOS I PËRSËRIT`.
+    Prima ogni giro ripartiva da zero: 27 brief su 12 casi = **15 ri-giri, circa
+    11 ore di modello** spese a ripensare cose già pensate.
+  * **Allegati veri.** `_blocco_documenti()` passa il **testo estratto** dei
+    documenti del fascicolo, con budget **totale** `BUDGET_DOCUMENTI = 24_000`
+    (non per file: dieci documenti non devono moltiplicare il contesto per dieci).
+    Le lenti ricevono anche `attachments` per PDF/foto/docx.
+  * **Capacità.** Il semaforo globale delle chiamate al modello è 6 e il Genio
+    ne prendeva **tutti e sei**: per la durata del giro nessun altro avvocato
+    riusciva a far partire niente. Ora `MENTI_PARALLELE = 4` (env `GENIO_PARALLEL`)
+    lascia due slot sempre liberi, e `_genio_sem` (env `GENIO_CONCURRENT`, 1)
+    tiene **un Genio alla volta** in tutto il sistema. Le sei lenti si fanno
+    comunque tutte: cambia quante corrono insieme, non quante ne corrono.
+    Verificato dal vivo: mai più di 4 processi `claude -p` durante un giro.
+    **`run_brief` è un involucro con `try/finally` attorno a `_run_brief`**: il
+    `finally` di un generatore scatta anche se chi consuma abbandona a metà
+    (utente che chiude, connessione che cade). Senza, il semaforo resterebbe
+    preso per sempre e il Genio sarebbe bloccato a tutti fino al riavvio.
+  * **In background.** `POST /api/genio/start` → `job_id` in **0,2s**, il lavoro
+    gira in un thread sul registro di `jobs.py`, il client si riattacca con
+    `askAttach`. Alla fine parte la notifica push. Verificato: pagina chiusa,
+    cervello ancora al lavoro 37 minuti dopo. Il percorso storico
+    `POST /api/cases/<id>/genio` resta funzionante — rollback = una riga in `app.js`.
+    `_genio_prepare` torna **tre** valori `(gen, brief_id, err)` e non due:
+    anche `jsonify(...), 404` è una tupla, e distinguerli dalla forma sarebbe
+    un trabocchetto.
+  * **Seconda mente (Fable).** Se una delle tre lenti che devono *trovare*
+    (`LENTI_DA_RITENTARE = kill_shot, leverage, riframing`) torna a mani vuote,
+    la stessa domanda va a **Fable effort max** con `SPRONE_FABLE`: «un'altra
+    mente non ha trovato nulla, non rifare la sua strada». Additivo, mai
+    sostitutivo: arriva come chiave `leverage:fable` e si vede da chi viene.
+    Se anche Fable torna vuoto non si mostra niente (due risposte vuote sono
+    rumore, non trasparenza). **Ha già salvato un caso reale**: brief #30,
+    `leverage` di Opus in timeout a 1800s, Fable trova 3 leve in 7,8 minuti
+    citando le date del documento caricato.
+  * **GOTCHA UI**: `leverage:fable` non ha una carta sua, va **dentro** quella
+    della lente fallita. E il ramo `kind === "error"` fa `body.textContent =`,
+    che azzera il corpo: siccome il caso più probabile per la seconda mente è
+    proprio una lente in errore, quel ramo ora **conserva** un `.gn-second` già
+    presente. Dal vivo l'ordine è giusto per costruzione, ma riaprendo dallo
+    storico dipendeva dall'ordine delle chiavi nel JSON.
 - **web.py** — endpoint (199 rotte). UI: `static/app.js` (hub `_openHub` nel menu PRO: Super Prokurori/Super Noteri/Ligj i gjallë; mode-bar snellite che puntano ai hub; `openFascikull`, `openIntake`, `openAfati`, `openSavedResearch`). `templates/index.html` menu PRO.
 
 ## PWA — installabile sul telefono (28 ago 2026)
@@ -469,6 +513,19 @@ prima li ammetteva e li perdeva in silenzio) + PDF via stampa browser + smoke 10
 **9.162 memoria del caso** (`src/case_brief.py`: gli strumenti PRO continuano il
 lavoro del cervello invece di ricominciarlo) + allegati nei 6 strumenti che ne
 erano privi (19/19) + **selezione multipla** in tutti + smoke 103 · **9.163-9.167** HTML non piu in cache (l utente girava con app.js di 3 release prima), caricamento documenti asincrono (160s -> 0,4s) con lingua corretta nel thread · **9.168-9.169 foto iPhone (HEIC)** convertite prima dell'OCR + guardia estensioni estesa a TUTTI i formati.
+
+## Storia versioni (sessione 28-29 ago 2026 — lavori lunghi, PWA, Dosja, Genio)
+v9.170-9.174 **il lavoro sopravvive alla pagina** (`jobs.py`, `/api/ask/start` +
+`/api/ask/events`): su iPhone passare a WhatsApp uccideva l'analisi con «Gabim
+rrjeti» · 9.175-9.177 **PWA** installabile + **notifiche push** (`push.py`) ·
+9.178 nome icona «Superavokati» + barra di stato iPhone (`black`, non
+`black-translucent`) · 9.179-9.182 **Dosja**: le carte prodotte non si perdono
+più chiudendo la pagina — ricerche salvate + documenti caricati, raggruppati per
+fascicolo, con copia/PDF/scarico; il pulsante 🗂️ compare in ogni strumento via
+MutationObserver · **9.183-9.185 Genio Legale rifatto** (memoria fra i giri,
+allegati veri, 4 menti su 6 e uno alla volta, background + notifica, seconda
+mente Fable quando la prima torna a mani vuote) — vedi `genio.py` nella mappa
+moduli. QA dopo il deploy: golden 19/19, smoke 103/103, juris_guard verde.
 
 ## Storia versioni (sessione 6-7 ago 2026)
 v9.50→9.54 piattaforma 3 professioni · 9.55 extra tool · 9.56 full-text+matching · 9.61-9.68 police laws + Super Noteri + revoca/conflitti · 9.69-9.71 Super Prokuror + hub · 9.72 Ligj i gjallë · 9.73 Pika e parë · 9.74 Fashikull · 9.75-9.76 Motore afate + golden · 9.77 fix needle empty-state · 9.78 upload in Fashikull · 9.79-9.80 Shiko të ruajturat · 9.81 fix forgot-password · 9.82 mode-bar snellite. Punto di ritorno sicuro storico: commit `1e9fb84`.

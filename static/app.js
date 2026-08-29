@@ -9485,40 +9485,39 @@
     genioStatusEl.className = "pro-status";
     genioRunBtn.disabled = true;
 
-    fetch(`/api/cases/${activeCaseId}/genio`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ description: desc }),
-    }).then(async (resp) => {
-      if (!resp.ok) {
-        const err = await resp.json().catch(() => ({}));
-        throw new Error(err.error || `HTTP ${resp.status}`);
-      }
-      const reader = resp.body.getReader();
-      const decoder = new TextDecoder("utf-8");
-      let buf = "";
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buf += decoder.decode(value, { stream: true });
-        const parts = buf.split("\n\n");
-        buf = parts.pop();
-        for (const p of parts) {
-          const line = p.trim();
-          if (!line.startsWith("data:")) continue;
-          try {
-            const evt = JSON.parse(line.slice(5).trim());
-            handleGenioEvent(evt);
-          } catch {}
-        }
-      }
-    }).catch((err) => {
+    genioAttach(desc).catch((err) => {
       genioStatusEl.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + err.message;
       genioStatusEl.className = "pro-status error";
     }).finally(() => {
       genioRunBtn.disabled = false;
     });
   });
+
+  /* Commissiona il Genio e segue il lavoro, riattaccandosi se serve.
+   *
+   * Il giro dura da sette a trentatre minuti: tenere aperta una connessione
+   * per tutto quel tempo non funziona, e chiudere la pagina significava
+   * buttare quaranta minuti di ragionamento. Ora il server lavora per conto
+   * suo e questa e' solo una finestra su quel lavoro — se si rompe, se ne
+   * apre un'altra dal punto in cui si era. */
+  async function genioAttach(desc) {
+    const avvio = await fetch("/api/genio/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ case_id: activeCaseId, description: desc }),
+    });
+    if (!avvio.ok) {
+      const e = await avvio.json().catch(() => ({}));
+      throw new Error(e.error || `HTTP ${avvio.status}`);
+    }
+    const { job_id } = await avvio.json();
+    try { localStorage.setItem("sa_genio_" + activeCaseId, job_id); } catch (e) {}
+    genioStatusEl.textContent = _CAL_IT
+      ? "Genio al lavoro — puoi chiudere: ti avvisiamo quando è pronto."
+      : "Gjenio po punon — mund ta mbyllësh: të lajmërojmë kur të jetë gati.";
+    await askAttach(job_id, 0, { onEvent: handleGenioEvent });
+    try { localStorage.removeItem("sa_genio_" + activeCaseId); } catch (e) {}
+  }
   function handleGenioEvent(evt) {
     if (evt.type === "perspective") {
       renderGenioCard(evt.result.key, evt.result);
@@ -9530,6 +9529,27 @@
     }
   }
   function renderGenioCard(key, res) {
+    // Un risultato della seconda mente arriva come «kill_shot:fable»: non ha
+    // una carta sua, e non deve averla. Va sotto la prima risposta, marcato,
+    // cosi' si vede che la prima non aveva trovato e cosa ha trovato l'altra.
+    if (typeof key === "string" && key.indexOf(":fable") !== -1) {
+      const base = key.split(":")[0];
+      const c = genioGrid.querySelector(`.genio-card[data-key="${base}"]`);
+      if (!c) return;
+      const corpo = c.querySelector(".genio-body");
+      if (!corpo || corpo.querySelector(".gn-second")) return;
+      const box = document.createElement("div");
+      box.className = "gn-second";
+      box.innerHTML = '<div class="gn-second-h">🦊 ' +
+        (_CAL_IT ? "Seconda mente — la prima non aveva trovato nulla"
+                 : "Mendja e dytë — e para nuk gjeti asgjë") + "</div>";
+      const dentro = document.createElement("div");
+      dentro.innerHTML = renderGenioContent(base, res);
+      box.appendChild(dentro);
+      corpo.appendChild(box);
+      c.classList.add("has-second");
+      return;
+    }
     const card = genioGrid.querySelector(`.genio-card[data-key="${key}"]`);
     if (!card) return;
     card.classList.remove("is-running");
@@ -9538,7 +9558,12 @@
     if (res.kind === "error") {
       card.classList.add("is-error");
       badge.textContent = "gabim";
+      // La seconda mente entra proprio nelle carte come questa: e' quando la
+      // prima fallisce che serve. Scrivere l'errore non deve cancellarla se
+      // per qualche ragione e' gia' arrivata (riapertura dallo storico).
+      const seconda = body.querySelector(".gn-second");
       body.textContent = res.error || "—";
+      if (seconda) body.appendChild(seconda);
       return;
     }
     card.classList.add("is-done");
@@ -11536,6 +11561,9 @@
             let evt;
             try { evt = JSON.parse(js); } catch (e) { continue; }
             idx += 1;                                  // conta come il server
+            // Chi vuole gli eventi grezzi li riceve tutti: il Genio ha i suoi
+            // tipi (perspective, completed) e riusa lo stesso riattacco.
+            if (cb && cb.onEvent) { try { cb.onEvent(evt); } catch (e) {} }
             if (evt.type === "delta" && typeof evt.text === "string") {
               if (cb && cb.onDelta) cb.onDelta(evt.text);
             } else if (evt.type === "status") {
