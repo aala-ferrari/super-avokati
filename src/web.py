@@ -2553,6 +2553,7 @@ def api_second_opinion():
             citations = cv_mod.verify_text(md, _req_index())
     except Exception:  # noqa: BLE001
         pass
+    md = _scudo_citazioni(md, citations)
     return jsonify({"markdown": md, "citations": citations})
 
 
@@ -2581,6 +2582,7 @@ def api_devil_consult():
             citations = cv_mod.verify_text(md, _req_index())
     except Exception:  # noqa: BLE001
         pass
+    md = _scudo_citazioni(md, citations)
     return jsonify({"markdown": md, "citations": citations})
 
 
@@ -2608,6 +2610,7 @@ def api_adversary():
             citations = cv_mod.verify_text(md, _req_index())
     except Exception:  # noqa: BLE001
         pass
+    md = _scudo_citazioni(md, citations)
     return jsonify({"markdown": md, "citations": citations})
 
 
@@ -2665,6 +2668,7 @@ def api_fable_draft():
             citations = cv_mod.verify_text(md, _req_index())
     except Exception:  # noqa: BLE001
         pass
+    md = _scudo_citazioni(md, citations)
     return jsonify({"markdown": md, "citations": citations})
 
 
@@ -4550,6 +4554,7 @@ def _notary_run(fn, **kw):
             cits = cv_mod.verify_text(md, _req_index())
     except Exception:  # noqa: BLE001
         pass
+    md = _scudo_citazioni(md, cits)
     return jsonify({"markdown": md, "citations": cits}), None
 
 
@@ -5031,6 +5036,7 @@ def api_prosecutor_indictment():
             cits = cv_mod.verify_text(md, _req_index())
     except Exception:  # noqa: BLE001
         pass
+    md = _scudo_citazioni(md, cits)
     return jsonify({"markdown": md, "citations": cits})
 
 
@@ -5219,6 +5225,7 @@ def api_prescription():
             cits = cv_mod.verify_text(md, _req_index())
     except Exception:  # noqa: BLE001
         pass
+    md = _scudo_citazioni(md, cits)
     return jsonify({"markdown": md, "citations": cits})
 
 
@@ -5245,6 +5252,7 @@ def api_prosecutor_analyze():
             citations = cv_mod.verify_text(md, _req_index())
     except Exception:  # noqa: BLE001
         pass
+    md = _scudo_citazioni(md, citations)
     return jsonify({"markdown": md, "citations": citations})
 
 
@@ -5275,6 +5283,7 @@ def api_expertise_analyze():
             citations = cv_mod.verify_text(md, _req_index())
     except Exception:  # noqa: BLE001
         pass
+    md = _scudo_citazioni(md, citations)
     return jsonify({"markdown": md, "citations": citations})
 
 
@@ -7492,6 +7501,38 @@ def _index_for(user):
     except Exception:  # noqa: BLE001
         pass
     return _INDEX
+
+
+def _scudo_citazioni(md: str, citations: dict) -> str:
+    """Fa viaggiare l'avviso insieme al testo, non solo a schermo.
+
+    Il badge dice all'avvocato che una citazione e' falsa finche' guarda la
+    pagina. Ma la risposta viene copiata dentro le memorie, e da li' in poi il
+    badge non c'e' piu': l'articolo inventato arriverebbe in tribunale senza
+    un segno addosso.
+
+    Stessa logica del cervello principale, e stessa prudenza: si rifiuta solo
+    quando NON c'e' nemmeno una citazione buona (`should_refuse` lascia
+    passare le risposte miste, col badge a dire quali sono quali).
+
+    Non chiama il modello: e' calcolo sul testo gia' prodotto, quindi non
+    rallenta niente e non puo' cambiare il ragionamento.
+    """
+    if not md or not isinstance(citations, dict):
+        return md
+    try:
+        juris = "AL"
+        try:
+            juris = _active_jurisdiction(getattr(request, "user", None)) or "AL"
+        except Exception:  # noqa: BLE001
+            pass
+        if cs_mod.should_refuse(citations):
+            md = cs_mod.apply_refusal(md, jurisdiction=juris)
+        if int((citations.get("stats") or {}).get("fake") or 0) > 0:
+            md = cs_mod.annotate_fake_citations(md, citations)
+    except Exception:  # noqa: BLE001
+        log.debug("citation shield skipped", exc_info=True)
+    return md
 
 
 def _req_index():
