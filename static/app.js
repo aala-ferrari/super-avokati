@@ -11745,7 +11745,9 @@
 
   /* ── La Dosja ────────────────────────────────────────────────────────────
    *
-   * Tutto quello che e' stato salvato, di tutti i fascicoli, in un posto solo.
+   * Tutto quello che riguarda i casi, in un posto solo: quello che il sistema
+   * ha prodotto (risposte, atti, procure, lettere) e quello che il cliente ha
+   * portato (contratti, foto, PDF).
    *
    * Nasce da una cosa successa davvero: una procura da quindicimila caratteri
    * era stata salvata dentro un fascicolo che si chiamava «Rast i ri», e il
@@ -11753,10 +11755,16 @@
    * perche' per vedere i salvataggi bisognava prima indovinare il fascicolo.
    *
    * Qui la domanda e' rovesciata: non «cosa c'e' in questo fascicolo» ma
-   * «dov'e' finita quella cosa». Per questo e' una lista piatta, ordinata per
-   * data, raggruppata per fascicolo e cercabile — e per questo sta nel menu
-   * principale e non dentro un caso.
+   * «dov'e' finita quella cosa». Per questo e' una lista piatta, raggruppata
+   * per fascicolo e cercabile — e per questo sta nel menu principale.
    */
+  function _dosjaMisura(b) {
+    if (!b) return "";
+    if (b < 1024) return b + " B";
+    if (b < 1024 * 1024) return Math.round(b / 1024) + " KB";
+    return (b / 1048576).toFixed(1) + " MB";
+  }
+
   async function openDosja() {
     var ov = document.getElementById("dosja-ov");
     if (ov) ov.remove();
@@ -11765,8 +11773,8 @@
     ov.innerHTML = '<div class="ac-modal exp-modal">' +
       '<div class="ac-head"><span>📁 ' + t("Dosja") + '</span>' +
       '<button class="ac-x" type="button" aria-label="Mbyll">×</button></div>' +
-      '<div class="ac-sub">' + t("Gjithçka që ke ruajtur, nga të gjitha rastet. Mbetet edhe pasi mbyll faqen.") + '</div>' +
-      '<input type="text" class="research-search dosja-search" placeholder="' + t("🔍 Kërko: titull, klient, rast, përmbajtje…") + '" />' +
+      '<div class="ac-sub">' + t("Gjithçka e rasteve: çfarë ke ruajtur dhe çfarë ke ngarkuar. Mbetet edhe pasi mbyll faqen.") + '</div>' +
+      '<input type="text" class="research-search dosja-search" placeholder="' + t("🔍 Kërko: titull, skedar, klient, rast, përmbajtje…") + '" />' +
       '<div class="exp-body"><div class="dosja-list"><em>' + t("Po ngarkoj…") + '</em></div></div>' +
       "</div>";
     document.body.appendChild(ov);
@@ -11782,19 +11790,19 @@
       var q = (filtro || "").trim().toLowerCase();
       var voci = !q ? tutto : tutto.filter(function (it) {
         return ((it.title || "") + " " + (it.case_title || "") + " " +
-                (it.client_name || "") + " " + (it.content || ""))
+                (it.client_name || "") + " " + (it.content || "") + " " +
+                (it.summary || "") + " " + (it.doc_type || ""))
                 .toLowerCase().indexOf(q) !== -1;
       });
       if (!voci.length) {
         lista.innerHTML = '<p class="research-empty">' +
           (q ? t("Asgjë nuk përputhet me kërkimin.")
-             : t("Ende asgjë e ruajtur. Kliko “💾 Ruaj në fashikull” te çdo rezultat.")) +
+             : t("Ende asgjë. Ruaj një rezultat ose ngarko një dokument në një rast.")) +
           "</p>";
         return;
       }
-      // raggruppate per fascicolo: e' cosi' che uno le cerca a mente
-      var gruppi = [];
-      var indice = {};
+
+      var gruppi = [], indice = {};
       voci.forEach(function (it) {
         var k = it.case_id || "-";
         if (!(k in indice)) { indice[k] = gruppi.length; gruppi.push({ it: it, voci: [] }); }
@@ -11817,16 +11825,47 @@
           li.className = "research-item";
           var head = document.createElement("div");
           head.className = "research-head";
-          head.innerHTML = '<span class="research-src">' + escapeHtml(_srcLabel(it.source)) + "</span>" +
+          var etichetta = it._doc
+            ? ('<span class="research-src dosja-src-doc">📎 ' + escapeHtml(t("I ngarkuar")) + "</span>")
+            : ('<span class="research-src">' + escapeHtml(_srcLabel(it.source)) + "</span>");
+          head.innerHTML = etichetta +
             '<span class="research-ttl">' + escapeHtml(it.title || "") + "</span>" +
+            (it._doc && it.size_bytes ? '<span class="dosja-size">' + _dosjaMisura(it.size_bytes) + "</span>" : "") +
             '<span class="dosja-date">' + escapeHtml((it.created_at || "").slice(0, 10)) + "</span>";
+
           var body = document.createElement("div");
           body.className = "research-body"; body.hidden = true;
+
           head.addEventListener("click", function () {
-            if (body.hidden) {
+            if (!body.hidden) { body.hidden = true; return; }
+            body.innerHTML = "";
+
+            if (it._doc) {
+              // Di un file caricato non si mostra il testo grezzo — puo' essere
+              // un contratto scansionato di trentamila caratteri. Si mostra
+              // cosa ci ha capito il sistema, e si offre l'originale.
+              var info = document.createElement("div");
+              info.innerHTML =
+                (it.doc_type ? "<p><strong>" + escapeHtml(it.doc_type) + "</strong></p>" : "") +
+                (it.summary ? renderMarkdown(it.summary)
+                            : '<p class="research-empty">' + t("Pa përmbledhje.") + "</p>");
+              body.appendChild(info);
+            } else {
               body.innerHTML = renderMarkdown(it.content || "");
-              var azioni = document.createElement("div");
-              azioni.className = "ac-row";
+            }
+
+            var azioni = document.createElement("div");
+            azioni.className = "ac-row";
+
+            if (it._doc) {
+              var dl = document.createElement("a");
+              dl.className = "dl-docx-btn";
+              dl.href = "/api/cases/" + it.case_id + "/documents/" + it.id + "/raw";
+              dl.target = "_blank"; dl.rel = "noopener";
+              dl.innerHTML = "⬇️ " + t("Shkarko origjinalin");
+              dl.addEventListener("click", function (e) { e.stopPropagation(); });
+              azioni.appendChild(dl);
+            } else {
               var cp = document.createElement("button");
               cp.type = "button"; cp.className = "copy-btn";
               cp.innerHTML = "📋 " + t("Kopjo tekstin");
@@ -11840,10 +11879,11 @@
               pdf.type = "button"; pdf.className = "dl-pdf-btn"; pdf.innerHTML = "⬇️ PDF";
               pdf.onclick = function (e) { e.stopPropagation(); _printAsPdf(it.title || "Dokument", it.content || ""); };
               azioni.appendChild(cp); azioni.appendChild(pdf);
-              body.appendChild(azioni);
-              body.hidden = false;
-            } else body.hidden = true;
+            }
+            body.appendChild(azioni);
+            body.hidden = false;
           });
+
           li.appendChild(head); li.appendChild(body); ul.appendChild(li);
         });
         lista.appendChild(ul);
@@ -11853,7 +11893,17 @@
     try {
       var r = await fetch("/api/dosja");
       var d = await r.json();
-      tutto = d.items || [];
+      var salvati = (d.items || []).map(function (x) { x._doc = false; return x; });
+      var docs = (d.docs || []).map(function (x) {
+        x._doc = true;
+        x.title = x.filename || t("Dokument");
+        return x;
+      });
+      // Prodotti e caricati insieme, in ordine di tempo: nella testa di chi
+      // cerca sono la stessa cosa — roba di quel caso, di quel giorno.
+      tutto = salvati.concat(docs).sort(function (a, b) {
+        return (b.created_at || "").localeCompare(a.created_at || "");
+      });
       disegna("");
     } catch (e) {
       lista.innerHTML = '<p class="research-empty">' + t("Nuk u ngarkua dot.") + "</p>";

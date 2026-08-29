@@ -3524,6 +3524,34 @@ def list_firm_clients(firm_id: int) -> list[dict]:
     return list(clients.values())
 
 
+def list_firm_documents(firm_id: int, limit: int = 500) -> list[dict]:
+    """Every uploaded document across the firm's cases (newest first).
+
+    The twin of `list_firm_research`: that one returns what the system
+    produced, this one what the client brought in. A lawyer looking for
+    something about a case does not care which of the two it was.
+
+    The extracted text is deliberately left out — some of these are scanned
+    contracts of tens of thousands of characters, and this list is meant to be
+    skimmed. The summary is what tells you whether it is the right file.
+    """
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT d.id, d.case_id, d.filename, d.ext, d.mimetype, "
+            "d.size_bytes, d.doc_type, d.summary, d.status, d.created_at, "
+            "c.title AS case_title "
+            "FROM documents d JOIN cases c ON c.id = d.case_id "
+            "WHERE c.firm_id = ? ORDER BY d.created_at DESC LIMIT ?",
+            (firm_id, limit),
+        ).fetchall()
+    return [{"id": r["id"], "case_id": r["case_id"], "filename": r["filename"],
+             "ext": r["ext"], "mimetype": r["mimetype"],
+             "size_bytes": r["size_bytes"], "doc_type": r["doc_type"],
+             "summary": r["summary"], "status": r["status"],
+             "created_at": r["created_at"], "case_title": r["case_title"]}
+            for r in rows]
+
+
 def list_firm_research(firm_id: int, limit: int = 500) -> list[dict]:
     """Every saved research across the firm's cases (newest first)."""
     with db() as conn:

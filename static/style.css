@@ -7902,3 +7902,8 @@ main {
   padding:1px 8px;font-size:11px;font-weight:700}
 .dosja-date{margin-left:auto;color:#a49a80;font-size:11px;white-space:nowrap}
 .dosja-list .research-list{margin:0}
+
+/* Nella Dosja un file caricato si distingue da un atto prodotto: colore
+   diverso sull'etichetta, e la dimensione accanto al nome. */
+.dosja-src-doc{background:#e6eef7;color:#3a5a80}
+.dosja-size{color:#a49a80;font-size:11px;white-space:nowrap;margin-left:8px}

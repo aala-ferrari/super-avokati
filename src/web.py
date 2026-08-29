@@ -4448,7 +4448,10 @@ def api_dosja():
     firm = request.firm  # type: ignore[attr-defined]
     if firm is None:
         return jsonify({"items": []})
-    return jsonify({"items": storage.list_firm_research(firm.id, limit=500)})
+    return jsonify({
+        "items": storage.list_firm_research(firm.id, limit=500),
+        "docs": storage.list_firm_documents(firm.id, limit=500),
+    })
 
 
 @app.get("/api/cases/<case_id>/research")
