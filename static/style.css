@@ -7882,3 +7882,14 @@ main {
 @media (display-mode: standalone) {
   .topbar { padding-top: calc(18px + var(--safe-t)); }
 }
+
+/* Il bottone «te ruajturat» nell'intestazione dei pannelli. `margin-left:auto`
+   perche' .ac-head e' space-between: senza, con tre figli il bottone finirebbe
+   al centro invece che accanto alla ×. */
+.ac-saved-link{margin-left:auto;background:none;border:1px solid #dcd0b4;border-radius:8px;
+  padding:3px 9px;font-size:14px;line-height:1.4;cursor:pointer;color:#8a7a4e;
+  font-family:inherit;display:inline-flex;align-items:center;gap:5px}
+.ac-saved-link:hover{border-color:#c9a24d;color:#a9842f}
+.ac-saved-n{background:#c9a24d;color:#fff;border-radius:999px;padding:0 6px;
+  font-size:11px;font-weight:700}
+.ac-head .ac-x{margin-left:6px}

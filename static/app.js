@@ -11436,250 +11436,309 @@
   // ─── init ────────────────────────────────────────────────────────
   renderCaseList();
   loadDailyBrief();
-})();
+  document.getElementById("logout-fab")?.addEventListener("click", async function(){ try{ await fetch("/api/logout", { method: "POST" }); }catch(e){} window.location.href = "/"; });
 
-document.getElementById("logout-fab")?.addEventListener("click", async function(){ try{ await fetch("/api/logout", { method: "POST" }); }catch(e){} window.location.href = "/"; });
+  /* ── Riattacco al lavoro del cervello ────────────────────────────────────
+   *
+   * Il cervello impiega minuti. Tenere aperta una connessione per tutto quel
+   * tempo, su un telefono, non funziona: basta guardare un messaggio su
+   * WhatsApp e il sistema operativo sospende la pagina.
+   *
+   * Qui la connessione e' usa e getta. Se cade ci si riattacca dicendo da quale
+   * evento riprendere, e il server rimanda solo quello che manca. Cadere non
+   * costa una risposta: costa un secondo.
+   */
 
-/* ── Riattacco al lavoro del cervello ────────────────────────────────────
- *
- * Il cervello impiega minuti. Tenere aperta una connessione per tutto quel
- * tempo, su un telefono, non funziona: basta guardare un messaggio su
- * WhatsApp e il sistema operativo sospende la pagina.
- *
- * Qui la connessione e' usa e getta. Se cade ci si riattacca dicendo da quale
- * evento riprendere, e il server rimanda solo quello che manca. Cadere non
- * costa una risposta: costa un secondo.
- */
+  function jobKey(caseId) { return "sa_job_" + caseId; }
 
-function jobKey(caseId) { return "sa_job_" + caseId; }
+  function rememberJob(caseId, jobId) {
+    try { localStorage.setItem(jobKey(caseId), jobId); } catch (e) {}
+  }
 
-function rememberJob(caseId, jobId) {
-  try { localStorage.setItem(jobKey(caseId), jobId); } catch (e) {}
-}
+  function forgetJob(caseId) {
+    try { localStorage.removeItem(jobKey(caseId)); } catch (e) {}
+  }
 
-function forgetJob(caseId) {
-  try { localStorage.removeItem(jobKey(caseId)); } catch (e) {}
-}
+  function pendingJob(caseId) {
+    try { return localStorage.getItem(jobKey(caseId)); } catch (e) { return null; }
+  }
 
-function pendingJob(caseId) {
-  try { return localStorage.getItem(jobKey(caseId)); } catch (e) { return null; }
-}
+  /* Aspetta che la pagina sia di nuovo in primo piano: riprovare mentre il
+   * telefono e' bloccato in tasca brucia batteria senza servire a niente. */
+  function attendiVisibile(ms) {
+    return new Promise((risolvi) => {
+      const vai = () => setTimeout(risolvi, ms);
+      if (document.visibilityState === "visible") return vai();
+      const alRitorno = () => {
+        if (document.visibilityState === "visible") {
+          document.removeEventListener("visibilitychange", alRitorno);
+          vai();
+        }
+      };
+      document.addEventListener("visibilitychange", alRitorno);
+    });
+  }
 
-/* Aspetta che la pagina sia di nuovo in primo piano: riprovare mentre il
- * telefono e' bloccato in tasca brucia batteria senza servire a niente. */
-function attendiVisibile(ms) {
-  return new Promise((risolvi) => {
-    const vai = () => setTimeout(risolvi, ms);
-    if (document.visibilityState === "visible") return vai();
-    const alRitorno = () => {
-      if (document.visibilityState === "visible") {
-        document.removeEventListener("visibilitychange", alRitorno);
-        vai();
-      }
-    };
-    document.addEventListener("visibilitychange", alRitorno);
-  });
-}
+  function mostraRiconnessione(attivo) {
+    let el = document.getElementById("sa-reconnect");
+    if (!attivo) { if (el) el.remove(); return; }
+    if (el) return;
+    el = document.createElement("div");
+    el.id = "sa-reconnect";
+    el.style.cssText = "margin:6px 4px 2px 14px;font-size:13px;color:#9ca3af;font-style:italic";
+    el.textContent = (typeof _CAL_IT !== "undefined" && _CAL_IT)
+      ? "Connessione interrotta — riprendo, il lavoro continua…"
+      : "Lidhja u ndërpre — po vazhdoj, puna nuk humbi…";
+    const t = document.querySelector(".typing") || document.getElementById("chat");
+    if (t && t.after) t.after(el);
+  }
 
-function mostraRiconnessione(attivo) {
-  let el = document.getElementById("sa-reconnect");
-  if (!attivo) { if (el) el.remove(); return; }
-  if (el) return;
-  el = document.createElement("div");
-  el.id = "sa-reconnect";
-  el.style.cssText = "margin:6px 4px 2px 14px;font-size:13px;color:#9ca3af;font-style:italic";
-  el.textContent = (typeof _CAL_IT !== "undefined" && _CAL_IT)
-    ? "Connessione interrotta — riprendo, il lavoro continua…"
-    : "Lidhja u ndërpre — po vazhdoj, puna nuk humbi…";
-  const t = document.querySelector(".typing") || document.getElementById("chat");
-  if (t && t.after) t.after(el);
-}
+  /* Segue un lavoro fino alla fine, riattaccandosi da solo quando serve.
+   * Torna {final, error}. Non lancia per una connessione caduta: quella non e'
+   * un errore, e' la normalita' su una rete mobile. */
+  async function askAttach(jobId, daEvento, cb) {
+    let idx = daEvento || 0;
+    let final = null;
+    let error = null;
+    let tentativiVuoti = 0;
 
-/* Segue un lavoro fino alla fine, riattaccandosi da solo quando serve.
- * Torna {final, error}. Non lancia per una connessione caduta: quella non e'
- * un errore, e' la normalita' su una rete mobile. */
-async function askAttach(jobId, daEvento, cb) {
-  let idx = daEvento || 0;
-  let final = null;
-  let error = null;
-  let tentativiVuoti = 0;
+    while (true) {
+      try {
+        const resp = await fetch(`/api/ask/events?job=${encodeURIComponent(jobId)}&from=${idx}`);
+        if (resp.status === 401) { window.location.href = "/login"; return { final, error }; }
+        if (resp.status === 404) {
+          // il lavoro non esiste piu' (server riavviato, o troppo tempo fa)
+          return { final, error: error || null, gone: true };
+        }
+        if (!resp.ok || !resp.body) throw new Error("HTTP " + resp.status);
 
-  while (true) {
-    try {
-      const resp = await fetch(`/api/ask/events?job=${encodeURIComponent(jobId)}&from=${idx}`);
-      if (resp.status === 401) { window.location.href = "/login"; return { final, error }; }
-      if (resp.status === 404) {
-        // il lavoro non esiste piu' (server riavviato, o troppo tempo fa)
-        return { final, error: error || null, gone: true };
-      }
-      if (!resp.ok || !resp.body) throw new Error("HTTP " + resp.status);
+        mostraRiconnessione(false);
+        tentativiVuoti = 0;
 
-      mostraRiconnessione(false);
-      tentativiVuoti = 0;
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let carry = "";
+        let concluso = false;
 
-      const reader = resp.body.getReader();
-      const decoder = new TextDecoder();
-      let carry = "";
-      let concluso = false;
-
-      while (!concluso) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        carry += decoder.decode(value, { stream: true });
-        let i;
-        while ((i = carry.indexOf("\n\n")) !== -1) {
-          const raw = carry.slice(0, i);
-          carry = carry.slice(i + 2);
-          if (!raw.startsWith("data:")) continue;   // i ping non si contano
-          const js = raw.slice(5).trim();
-          if (!js) continue;
-          let evt;
-          try { evt = JSON.parse(js); } catch (e) { continue; }
-          idx += 1;                                  // conta come il server
-          if (evt.type === "delta" && typeof evt.text === "string") {
-            if (cb && cb.onDelta) cb.onDelta(evt.text);
-          } else if (evt.type === "status") {
-            if (cb && cb.onStatus) cb.onStatus(evt.text);
-          } else if (evt.type === "final") {
-            final = evt.data || evt;
-          } else if (evt.type === "error") {
-            error = evt.message || "Gabim i panjohur";
-          } else if (evt.type === "done") {
-            concluso = true;
-            break;
+        while (!concluso) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          carry += decoder.decode(value, { stream: true });
+          let i;
+          while ((i = carry.indexOf("\n\n")) !== -1) {
+            const raw = carry.slice(0, i);
+            carry = carry.slice(i + 2);
+            if (!raw.startsWith("data:")) continue;   // i ping non si contano
+            const js = raw.slice(5).trim();
+            if (!js) continue;
+            let evt;
+            try { evt = JSON.parse(js); } catch (e) { continue; }
+            idx += 1;                                  // conta come il server
+            if (evt.type === "delta" && typeof evt.text === "string") {
+              if (cb && cb.onDelta) cb.onDelta(evt.text);
+            } else if (evt.type === "status") {
+              if (cb && cb.onStatus) cb.onStatus(evt.text);
+            } else if (evt.type === "final") {
+              final = evt.data || evt;
+            } else if (evt.type === "error") {
+              error = evt.message || "Gabim i panjohur";
+            } else if (evt.type === "done") {
+              concluso = true;
+              break;
+            }
           }
         }
+        if (concluso) { mostraRiconnessione(false); return { final, error }; }
+
+        // Il flusso e' finito senza un "done": la connessione e' caduta a
+        // meta'. Il cervello sta ancora lavorando: ci si riattacca.
+        tentativiVuoti += 1;
+        if (tentativiVuoti > 200) return { final, error: error || "Timeout" };
+        mostraRiconnessione(true);
+        await attendiVisibile(1200);
+      } catch (e) {
+        tentativiVuoti += 1;
+        if (tentativiVuoti > 200) return { final, error: error || e.message };
+        mostraRiconnessione(true);
+        await attendiVisibile(1500);
       }
-      if (concluso) { mostraRiconnessione(false); return { final, error }; }
-
-      // Il flusso e' finito senza un "done": la connessione e' caduta a
-      // meta'. Il cervello sta ancora lavorando: ci si riattacca.
-      tentativiVuoti += 1;
-      if (tentativiVuoti > 200) return { final, error: error || "Timeout" };
-      mostraRiconnessione(true);
-      await attendiVisibile(1200);
-    } catch (e) {
-      tentativiVuoti += 1;
-      if (tentativiVuoti > 200) return { final, error: error || e.message };
-      mostraRiconnessione(true);
-      await attendiVisibile(1500);
     }
   }
-}
 
-/* ── Notifiche: «avvisami quando e' pronta» ──────────────────────────────
- *
- * Il cervello impiega minuti. Senza notifica, l'avvocato deve restare a
- * guardare lo schermo — che e' esattamente cio' che nessuno fa col telefono
- * in mano. Con la notifica puo' chiudere e tornare quando serve.
- *
- * Il permesso si chiede SOLO quando l'utente clicca. Chiederlo all'apertura
- * della pagina fa dire di no, e un no in questo campo e' quasi definitivo.
- */
+  /* ── Notifiche: «avvisami quando e' pronta» ──────────────────────────────
+   *
+   * Il cervello impiega minuti. Senza notifica, l'avvocato deve restare a
+   * guardare lo schermo — che e' esattamente cio' che nessuno fa col telefono
+   * in mano. Con la notifica puo' chiudere e tornare quando serve.
+   *
+   * Il permesso si chiede SOLO quando l'utente clicca. Chiederlo all'apertura
+   * della pagina fa dire di no, e un no in questo campo e' quasi definitivo.
+   */
 
-function b64ToU8(base64) {
-  const pad = "=".repeat((4 - (base64.length % 4)) % 4);
-  const b64 = (base64 + pad).replace(/-/g, "+").replace(/_/g, "/");
-  const raw = atob(b64);
-  return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
-}
-
-async function statoNotifiche() {
-  if (!("serviceWorker" in navigator) || !("PushManager" in window)) return "non-supportato";
-  if (Notification.permission === "denied") return "bloccato";
-  try {
-    const reg = await navigator.serviceWorker.ready;
-    const sub = await reg.pushManager.getSubscription();
-    return sub ? "attive" : "spente";
-  } catch (e) { return "spente"; }
-}
-
-async function attivaNotifiche() {
-  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-    toast("Ky shfletues nuk i mbështet njoftimet", "error");
-    return false;
-  }
-  const permesso = await Notification.requestPermission();
-  if (permesso !== "granted") {
-    toast("Njoftimet nuk u lejuan", "error");
-    return false;
-  }
-  const info = await (await fetch("/api/push/key")).json();
-  if (!info.enabled || !info.key) {
-    toast("Njoftimet nuk janë të konfiguruara në server", "error");
-    return false;
-  }
-  const reg = await navigator.serviceWorker.ready;
-  const sub = await reg.pushManager.subscribe({
-    userVisibleOnly: true,
-    applicationServerKey: b64ToU8(info.key),
-  });
-  const r = await fetch("/api/push/subscribe", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(sub.toJSON()),
-  });
-  if (!r.ok) { toast("Regjistrimi dështoi", "error"); return false; }
-  // una prova subito: senza, nessuno sa se ha attivato davvero qualcosa
-  fetch("/api/push/test", { method: "POST" }).catch(() => {});
-  return true;
-}
-
-async function spegniNotifiche() {
-  try {
-    const reg = await navigator.serviceWorker.ready;
-    const sub = await reg.pushManager.getSubscription();
-    if (sub) {
-      await fetch("/api/push/unsubscribe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ endpoint: sub.endpoint }),
-      }).catch(() => {});
-      await sub.unsubscribe();
-    }
-  } catch (e) {}
-}
-
-(function collegaInterruttoreNotifiche() {
-  const btn = document.getElementById("push-toggle");
-  if (!btn) return;
-  const etichetta = document.getElementById("push-toggle-label");
-  const IT = (typeof _CAL_IT !== "undefined" && _CAL_IT);
-
-  const testi = {
-    "attive":         IT ? "Notifiche attive — tocca per spegnerle" : "Njoftimet janë aktive — prek për t’i fikur",
-    "spente":         IT ? "Avvisami quando l’analisi è pronta"     : "Njoftime kur analiza është gati",
-    "bloccato":       IT ? "Notifiche bloccate nel browser"          : "Njoftimet janë bllokuar në shfletues",
-    "non-supportato": IT ? "Notifiche non supportate qui"            : "Njoftimet nuk mbështeten këtu",
-  };
-
-  async function aggiorna() {
-    const st = await statoNotifiche();
-    if (etichetta) etichetta.textContent = testi[st] || testi["spente"];
-    btn.dataset.stato = st;
-    btn.style.opacity = (st === "bloccato" || st === "non-supportato") ? ".55" : "";
+  function b64ToU8(base64) {
+    const pad = "=".repeat((4 - (base64.length % 4)) % 4);
+    const b64 = (base64 + pad).replace(/-/g, "+").replace(/_/g, "/");
+    const raw = atob(b64);
+    return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
   }
 
-  btn.addEventListener("click", async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const st = btn.dataset.stato;
-    if (st === "bloccato" || st === "non-supportato") return;
-    btn.disabled = true;
+  async function statoNotifiche() {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return "non-supportato";
+    if (Notification.permission === "denied") return "bloccato";
     try {
-      if (st === "attive") {
-        await spegniNotifiche();
-        toast(IT ? "Notifiche disattivate" : "Njoftimet u fikën");
-      } else {
-        if (await attivaNotifiche()) {
-          toast(IT ? "Notifiche attive" : "Njoftimet janë aktive");
-        }
-      }
-    } finally {
-      btn.disabled = false;
-      aggiorna();
-    }
-  });
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      return sub ? "attive" : "spente";
+    } catch (e) { return "spente"; }
+  }
 
-  aggiorna();
+  async function attivaNotifiche() {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+      toast("Ky shfletues nuk i mbështet njoftimet", "error");
+      return false;
+    }
+    const permesso = await Notification.requestPermission();
+    if (permesso !== "granted") {
+      toast("Njoftimet nuk u lejuan", "error");
+      return false;
+    }
+    const info = await (await fetch("/api/push/key")).json();
+    if (!info.enabled || !info.key) {
+      toast("Njoftimet nuk janë të konfiguruara në server", "error");
+      return false;
+    }
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: b64ToU8(info.key),
+    });
+    const r = await fetch("/api/push/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(sub.toJSON()),
+    });
+    if (!r.ok) { toast("Regjistrimi dështoi", "error"); return false; }
+    // una prova subito: senza, nessuno sa se ha attivato davvero qualcosa
+    fetch("/api/push/test", { method: "POST" }).catch(() => {});
+    return true;
+  }
+
+  async function spegniNotifiche() {
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) {
+        await fetch("/api/push/unsubscribe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ endpoint: sub.endpoint }),
+        }).catch(() => {});
+        await sub.unsubscribe();
+      }
+    } catch (e) {}
+  }
+
+  (function collegaInterruttoreNotifiche() {
+    const btn = document.getElementById("push-toggle");
+    if (!btn) return;
+    const etichetta = document.getElementById("push-toggle-label");
+    const IT = (typeof _CAL_IT !== "undefined" && _CAL_IT);
+
+    const testi = {
+      "attive":         IT ? "Notifiche attive — tocca per spegnerle" : "Njoftimet janë aktive — prek për t’i fikur",
+      "spente":         IT ? "Avvisami quando l’analisi è pronta"     : "Njoftime kur analiza është gati",
+      "bloccato":       IT ? "Notifiche bloccate nel browser"          : "Njoftimet janë bllokuar në shfletues",
+      "non-supportato": IT ? "Notifiche non supportate qui"            : "Njoftimet nuk mbështeten këtu",
+    };
+
+    async function aggiorna() {
+      const st = await statoNotifiche();
+      if (etichetta) etichetta.textContent = testi[st] || testi["spente"];
+      btn.dataset.stato = st;
+      btn.style.opacity = (st === "bloccato" || st === "non-supportato") ? ".55" : "";
+    }
+
+    btn.addEventListener("click", async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const st = btn.dataset.stato;
+      if (st === "bloccato" || st === "non-supportato") return;
+      btn.disabled = true;
+      try {
+        if (st === "attive") {
+          await spegniNotifiche();
+          toast(IT ? "Notifiche disattivate" : "Njoftimet u fikën");
+        } else {
+          if (await attivaNotifiche()) {
+            toast(IT ? "Notifiche attive" : "Njoftimet janë aktive");
+          }
+        }
+      } finally {
+        btn.disabled = false;
+        aggiorna();
+      }
+    });
+
+    aggiorna();
+  })();
+
+
+  /* ── «Shiko të ruajturat», in ogni strumento ──────────────────────────
+   *
+   * Salvi un atto nel fashikull, chiudi la pagina, e il giorno dopo riapri lo
+   * strumento: prima non c'era piu' nessuna porta per tornarci. Il bottone
+   * esisteva solo attaccato a un risultato appena generato, e quello sparisce
+   * con la pagina.
+   *
+   * Si aggancia qui una volta sola invece che in ventiquattro pannelli: ogni
+   * strumento apre un `.ac-overlay` con la stessa intestazione, quindi basta
+   * accorgersi quando ne compare uno. Gli strumenti nuovi lo avranno senza
+   * che nessuno se lo ricordi.
+   */
+  (function bottoneSalvatiOvunque() {
+    function aggiungi(ov) {
+      if (!ov || ov.nodeType !== 1 || !ov.classList) return;
+      if (!ov.classList.contains("ac-overlay")) return;
+      if (ov.id === "saved-ov") return;          // il pannello dei salvati stesso
+      var head = ov.querySelector(".ac-head");
+      if (!head || head.querySelector(".ac-saved-link")) return;
+      var x = head.querySelector(".ac-x");
+      if (!x) return;
+
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "ac-saved-link";
+      b.title = t("Shiko çfarë ke ruajtur në këtë fashikull");
+      b.innerHTML = "🗂️";
+      b.addEventListener("click", function (e) {
+        e.stopPropagation();
+        openSavedResearch();
+      });
+      head.insertBefore(b, x);
+
+      // Il numero, quando c'e': dice a colpo d'occhio se vale la pena aprirlo.
+      // Se la chiamata fallisce resta il bottone nudo — non e' un dato di cui
+      // qualcosa dipenda.
+      if (typeof activeCaseId !== "undefined" && activeCaseId) {
+        fetch("/api/cases/" + activeCaseId + "/research")
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (d) {
+            var n = (d && d.items) ? d.items.length : 0;
+            if (n > 0 && b.isConnected) {
+              b.innerHTML = '🗂️ <span class="ac-saved-n">' + n + "</span>";
+            }
+          })
+          .catch(function () {});
+      }
+    }
+
+    try {
+      new MutationObserver(function (muts) {
+        muts.forEach(function (m) {
+          Array.prototype.forEach.call(m.addedNodes, aggiungi);
+        });
+      }).observe(document.body, { childList: true });
+    } catch (e) { /* browser antico: si resta senza, il resto funziona */ }
+  })();
+
 })();
