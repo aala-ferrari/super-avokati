@@ -4435,6 +4435,22 @@ def api_create_draft(case_id: str):
     return jsonify({"draft": _draft_payload(d)}), 201
 
 
+@app.get("/api/dosja")
+@login_required_api
+def api_dosja():
+    """Tutto quello che e' stato salvato, in tutti i fascicoli dello studio.
+
+    Esiste perche' `list_research` da sola non basta: mostra un fascicolo per
+    volta, e chi ha chiuso la pagina non si ricorda in quale aveva salvato.
+    Qui la domanda e' l'altra — «dov'e' finita quella procura?» — e la
+    risposta non puo' dipendere dal ricordarsi il fascicolo.
+    """
+    firm = request.firm  # type: ignore[attr-defined]
+    if firm is None:
+        return jsonify({"items": []})
+    return jsonify({"items": storage.list_firm_research(firm.id, limit=500)})
+
+
 @app.get("/api/cases/<case_id>/research")
 @login_required_api
 def api_list_research(case_id: str):

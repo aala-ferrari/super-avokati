@@ -6146,6 +6146,7 @@
       else if (key === "klauzolat") { openClauses(); }
       else if (key === "intake") { openIntake(); }
       else if (key === "fascikull") { openFascikull(); }
+      else if (key === "dosja") { openDosja(); }
       else if (key === "afati") { openAfati(); }
       else if (key === "expertise") { openExpertise(); }
       else if (key === "prosecutor") { openProsecutor(); }
@@ -11740,5 +11741,124 @@
       }).observe(document.body, { childList: true });
     } catch (e) { /* browser antico: si resta senza, il resto funziona */ }
   })();
+
+
+  /* ── La Dosja ────────────────────────────────────────────────────────────
+   *
+   * Tutto quello che e' stato salvato, di tutti i fascicoli, in un posto solo.
+   *
+   * Nasce da una cosa successa davvero: una procura da quindicimila caratteri
+   * era stata salvata dentro un fascicolo che si chiamava «Rast i ri», e il
+   * suo autore non riusciva piu' a trovarla. Non era persa — era invisibile,
+   * perche' per vedere i salvataggi bisognava prima indovinare il fascicolo.
+   *
+   * Qui la domanda e' rovesciata: non «cosa c'e' in questo fascicolo» ma
+   * «dov'e' finita quella cosa». Per questo e' una lista piatta, ordinata per
+   * data, raggruppata per fascicolo e cercabile — e per questo sta nel menu
+   * principale e non dentro un caso.
+   */
+  async function openDosja() {
+    var ov = document.getElementById("dosja-ov");
+    if (ov) ov.remove();
+    ov = document.createElement("div");
+    ov.id = "dosja-ov"; ov.className = "ac-overlay";
+    ov.innerHTML = '<div class="ac-modal exp-modal">' +
+      '<div class="ac-head"><span>📁 ' + t("Dosja") + '</span>' +
+      '<button class="ac-x" type="button" aria-label="Mbyll">×</button></div>' +
+      '<div class="ac-sub">' + t("Gjithçka që ke ruajtur, nga të gjitha rastet. Mbetet edhe pasi mbyll faqen.") + '</div>' +
+      '<input type="text" class="research-search dosja-search" placeholder="' + t("🔍 Kërko: titull, klient, rast, përmbajtje…") + '" />' +
+      '<div class="exp-body"><div class="dosja-list"><em>' + t("Po ngarkoj…") + '</em></div></div>' +
+      "</div>";
+    document.body.appendChild(ov);
+    function close() { ov.remove(); }
+    ov.querySelector(".ac-x").onclick = close;
+    ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
+
+    var lista = ov.querySelector(".dosja-list");
+    var cerca = ov.querySelector(".dosja-search");
+    var tutto = [];
+
+    function disegna(filtro) {
+      var q = (filtro || "").trim().toLowerCase();
+      var voci = !q ? tutto : tutto.filter(function (it) {
+        return ((it.title || "") + " " + (it.case_title || "") + " " +
+                (it.client_name || "") + " " + (it.content || ""))
+                .toLowerCase().indexOf(q) !== -1;
+      });
+      if (!voci.length) {
+        lista.innerHTML = '<p class="research-empty">' +
+          (q ? t("Asgjë nuk përputhet me kërkimin.")
+             : t("Ende asgjë e ruajtur. Kliko “💾 Ruaj në fashikull” te çdo rezultat.")) +
+          "</p>";
+        return;
+      }
+      // raggruppate per fascicolo: e' cosi' che uno le cerca a mente
+      var gruppi = [];
+      var indice = {};
+      voci.forEach(function (it) {
+        var k = it.case_id || "-";
+        if (!(k in indice)) { indice[k] = gruppi.length; gruppi.push({ it: it, voci: [] }); }
+        gruppi[indice[k]].voci.push(it);
+      });
+
+      lista.innerHTML = "";
+      gruppi.forEach(function (g) {
+        var h = document.createElement("div");
+        h.className = "dosja-case";
+        h.innerHTML = '<span class="dosja-case-ttl">' + escapeHtml(g.it.case_title || t("Rast")) + "</span>" +
+          (g.it.client_name ? '<span class="research-cli">👤 ' + escapeHtml(g.it.client_name) + "</span>" : "") +
+          '<span class="dosja-case-n">' + g.voci.length + "</span>";
+        lista.appendChild(h);
+
+        var ul = document.createElement("ul");
+        ul.className = "research-list";
+        g.voci.forEach(function (it) {
+          var li = document.createElement("li");
+          li.className = "research-item";
+          var head = document.createElement("div");
+          head.className = "research-head";
+          head.innerHTML = '<span class="research-src">' + escapeHtml(_srcLabel(it.source)) + "</span>" +
+            '<span class="research-ttl">' + escapeHtml(it.title || "") + "</span>" +
+            '<span class="dosja-date">' + escapeHtml((it.created_at || "").slice(0, 10)) + "</span>";
+          var body = document.createElement("div");
+          body.className = "research-body"; body.hidden = true;
+          head.addEventListener("click", function () {
+            if (body.hidden) {
+              body.innerHTML = renderMarkdown(it.content || "");
+              var azioni = document.createElement("div");
+              azioni.className = "ac-row";
+              var cp = document.createElement("button");
+              cp.type = "button"; cp.className = "copy-btn";
+              cp.innerHTML = "📋 " + t("Kopjo tekstin");
+              cp.onclick = function (e) {
+                e.stopPropagation();
+                navigator.clipboard.writeText(it.content || "");
+                cp.innerHTML = "✓";
+                setTimeout(function () { cp.innerHTML = "📋 " + t("Kopjo tekstin"); }, 1500);
+              };
+              var pdf = document.createElement("button");
+              pdf.type = "button"; pdf.className = "dl-pdf-btn"; pdf.innerHTML = "⬇️ PDF";
+              pdf.onclick = function (e) { e.stopPropagation(); _printAsPdf(it.title || "Dokument", it.content || ""); };
+              azioni.appendChild(cp); azioni.appendChild(pdf);
+              body.appendChild(azioni);
+              body.hidden = false;
+            } else body.hidden = true;
+          });
+          li.appendChild(head); li.appendChild(body); ul.appendChild(li);
+        });
+        lista.appendChild(ul);
+      });
+    }
+
+    try {
+      var r = await fetch("/api/dosja");
+      var d = await r.json();
+      tutto = d.items || [];
+      disegna("");
+    } catch (e) {
+      lista.innerHTML = '<p class="research-empty">' + t("Nuk u ngarkua dot.") + "</p>";
+    }
+    cerca.addEventListener("input", function () { disegna(cerca.value); });
+  }
 
 })();
