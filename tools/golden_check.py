@@ -15,6 +15,8 @@ sys.path.insert(0, "/app")
 from src.retrieval import ArticleIndex           # noqa: E402
 from src import citation_verifier as cv           # noqa: E402
 from src import expertise as ex                   # noqa: E402
+from src import brain                             # noqa: E402
+from src.retrieval import INDEX_FILE              # noqa: E402
 
 FAILS = []
 PASSES = 0
@@ -49,6 +51,24 @@ def scanned(idx, term):
     # bug lived; retrieve_grounded's term-expansion needs the LLM so we test the
     # scanner directly.
     return {(c, n) for c, n, _h in ex._heading_scan(idx, term)}
+
+
+def ancorato(idx, query, aree, chiave):
+    """L'articolo entra nei dodici che vede il cervello?
+
+    Ricostruisce la stessa fusione BM25 di `brain._retrieve` e poi applica le
+    ancore: cosi' la prova misura il comportamento vero, non una scorciatoia.
+    """
+    seen = {}
+    for art, sc in idx.search(query, top_k=12):
+        k = (art.code, art.number)
+        if sc > seen.get(k, 0.0):
+            seen[k] = sc
+    per_k = {(a.code, a.number): a for a in idx.articles}
+    pairs = sorted([(per_k[k], v) for k, v in seen.items() if k in per_k],
+                   key=lambda x: x[1], reverse=True)
+    finali = brain._applica_ancore(pairs, idx, [query], aree)[:12]
+    return chiave in {(a.code, a.number) for a, _ in finali}
 
 
 def main():
@@ -86,6 +106,34 @@ def main():
           ("kodi_civil", "316") in scanned(idx, "trashegimia"))
     check("seed pairs respektohen (KP 66 për parashkrim)",
           ("kodi_penal", "66") in retrieved(idx, "parashkrim", seed=[("kodi_penal", "66")]))
+
+    print("\n[4] Ancore — rregulli i përgjithshëm nuk humbet nga përjashtimet")
+    K114 = ("kodi_civil", "114")
+    check("ekziston KC 114 (parashkrimi i zakonshëm)", has_article(idx, *K114))
+    # Il difetto misurato: senza ancora non entrava nei dodici con NESSUNA
+    # delle formulazioni normali della domanda.
+    check("KC 114 hyn te 12 nenet — pyetje civile për parashkrimin",
+          ancorato(idx, "afati i parashkrimit të zakonshëm", ["Civil"], K114))
+    check("KC 114 hyn edhe pa 'areas' nga triazhi",
+          ancorato(idx, "sa është afati i parashkrimit", [], K114))
+    # Le due che contano di piu': l'ancora deve tacere.
+    check("KC 114 NUK hyn në pyetje penale (do të ishte këshillë e gabuar)",
+          not ancorato(idx, "parashkrimi i ndjekjes penale", ["Penal"], K114))
+    check("KC 114 NUK hyn në pyetje pa lidhje me parashkrimin",
+          not ancorato(idx, "si bëhet divorci me marrëveshje", ["Familje"], K114))
+
+    print("\n[5] Korpusi italian — rregulli i përgjithshëm del vetë")
+    _it = INDEX_FILE.parent / "bm25_it.pkl"
+    if _it.exists():
+        idx_it = ArticleIndex.load(_it)
+        top = {(a.code, a.number) for a, _ in
+               idx_it.search("qual è il termine di prescrizione ordinaria", top_k=6)}
+        # Qui NON c'è nessuna ancora di proposito: esce da solo. Questa prova
+        # esiste perché il giorno in cui smettesse, nessuno se ne accorgerebbe.
+        check("art. 2946 c.c. del vetë te 6 të parët (pa ankorim)",
+              ("codice_civile", "2946") in top)
+    else:
+        check("korpusi italian i pranishëm", False, "bm25_it.pkl mungon")
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

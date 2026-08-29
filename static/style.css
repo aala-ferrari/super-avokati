@@ -7920,3 +7920,13 @@ main {
   width:44px;height:44px;border:1px solid #d9cdb4;border-radius:10px;
   background:#fffdf7;cursor:pointer;font-size:19px;flex:0 0 auto}
 .genio-clip:hover{background:#f6efdf;border-color:#c9a24d}
+
+/* La domanda interrotta: si vede che e' una nota del sistema e non una
+   risposta del cervello — mai far sembrare una spiegazione tecnica un
+   parere legale. */
+.msg-interrotta{margin:10px 14px;padding:12px 14px;border:1px dashed #d9cdb4;
+  border-radius:10px;background:#fffdf7;max-width:640px}
+.msg-interrotta-t{font-size:14px;color:#6b6250;line-height:1.5;margin-bottom:8px}
+.msg-interrotta-b{border:1px solid #c9a24d;background:#f6efdf;color:#7a5f16;
+  padding:8px 14px;border-radius:8px;font-weight:600;cursor:pointer;font-size:14px}
+.msg-interrotta-b:hover{background:#efe4c9}

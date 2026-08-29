@@ -76,6 +76,85 @@ log = get_logger(__name__)
 # This mapping forces retrieval to always include the matching procedural
 # code — even if the triage model forgot — because that's where the
 # case-winning deadline usually hides.
+# ── Ancore: la regola generale non deve perdere contro le eccezioni ────
+#
+# Misurato: alla domanda piu' banale sul parashkrim, il Neni 114 del Kodi
+# Civil — la regola generale — non entrava nei primi dodici. Sopra di lui
+# finivano il parashkrim doganale e le eccezioni, perche' BM25 premia chi
+# ripete le parole della domanda e la regola generale le dice con parole sue
+# («parashkruhen brenda dhjete vjeteve», non «afati i parashkrimit»).
+#
+# Un'ancora e' un articolo che entra nel blocco per ragione giuridica invece
+# che lessicale. Stessa idea del safety-net qui sotto sui codici procedurali,
+# un livello piu' in giu'.
+#
+# Forma: (parole che accendono, aree che SPENGONO, articoli da ancorare).
+# L'esclusione conta piu' dell'inclusione: la prescrizione civile dentro una
+# domanda penale sarebbe un anti-consiglio.
+#
+# Si ancora solo cio' che si e' misurato rotto. Sul corpus italiano l'art.
+# 2946 c.c. esce gia' secondo: li' non serve, e un'ancora inutile toglie il
+# posto a un risultato vero.
+import copy as _copy
+
+ANCORE_AL: tuple[tuple[tuple[str, ...], tuple[str, ...], tuple[tuple[str, str], ...]], ...] = (
+    (("parashkrim", "parashkru"), ("Penal",), (("kodi_civil", "114"),)),
+)
+
+
+def _punteggio_reale(idx, queries: list[str], chiave: tuple[str, str],
+                     profondita: int = 400) -> float:
+    """Il punteggio BM25 vero dell'articolo, non uno inventato.
+
+    Un'ancora messa in testa con un punteggio finto direbbe al modello una
+    bugia su quanto quell'articolo somiglia alla domanda. Costa poco saperlo:
+    BM25 calcola comunque tutti i punteggi, `top_k` decide solo dove taglia.
+    """
+    migliore = 0.0
+    for q in queries:
+        try:
+            for art, s in idx.search(q, top_k=profondita):
+                if (art.code, art.number) == chiave and s > migliore:
+                    migliore = s
+        except Exception:  # noqa: BLE001 — un'ancora non deve mai far cadere una risposta
+            continue
+    return migliore
+
+
+def _applica_ancore(pairs, idx, queries: list[str], aree: list[str]):
+    """Mette in testa le regole generali che la ricerca lessicale si perde.
+
+    Torna la lista invariata se non c'e' niente da ancorare o se l'articolo
+    c'era gia': un'ancora che punta a un articolo inesistente e' un non-fatto,
+    non un errore.
+    """
+    testo = " ".join(queries).lower()
+    presenti = {(a.code, a.number) for a, _ in pairs}
+    per_chiave = {(a.code, a.number): a for a in idx.articles}
+    aggiunte = []
+    for parole, aree_spente, articoli in ANCORE_AL:
+        if not any(p in testo for p in parole):
+            continue
+        if any(x in aree for x in aree_spente):
+            continue
+        for chiave in articoli:
+            if chiave in presenti or chiave not in per_chiave:
+                continue
+            # Copia, non l'originale: gli articoli stanno in un indice
+            # condiviso e sei richieste girano insieme. Marcare l'oggetto
+            # vero farebbe comparire l'ancora di un avvocato nel blocco
+            # di un altro.
+            marcato = _copy.copy(per_chiave[chiave])
+            marcato._ancora = True  # type: ignore[attr-defined]
+            aggiunte.append((marcato, _punteggio_reale(idx, queries, chiave)))
+            presenti.add(chiave)
+    if not aggiunte:
+        return pairs
+    log.info("retrieval: ancorati %s",
+             ", ".join("%s %s" % (a.code, a.number) for a, _ in aggiunte))
+    return aggiunte + pairs
+
+
 PROCEDURAL_MAPPING: dict[str, tuple[str, ...]] = {
     "Penal":         ("kodi_proc_penale",),
     "Civil":         ("kodi_proc_civile",),
@@ -2494,6 +2573,11 @@ class SuperAvvocato:
         art_by_key = {(a.code, a.number): a for a in idx.articles}
         pairs = [(art_by_key[k], s) for k, s in seen.items() if k in art_by_key]
         pairs.sort(key=lambda x: x[1], reverse=True)
+        # Le ancore entrano PRIMA del taglio, altrimenti sarebbero proprio loro
+        # a cadere: sono in fondo per punteggio, e' il motivo per cui esistono.
+        # Solo sul corpus albanese — sull'italiano non c'e' niente da riparare.
+        if idx is self.index:
+            pairs = _applica_ancore(pairs, idx, all_queries, triage.areas)
         return pairs[: TOP_K_ARTICLES]
 
     # ── stage 2b: precedents (court decisions) ────────────────────────────
@@ -4664,8 +4748,21 @@ def _format_articles_for_prompt(pairs: list[tuple[Article, float]]) -> str:
                 f"  ℹ Ligj i ndryshuar periodikisht"
                 f"{f' (versioni i indeksuar: {amended})' if amended else ''}.\n"
             )
+        # Un'ancora entra per ragione giuridica, non perche' somiglia alle
+        # parole della domanda — il suo punteggio puo' essere zero (misurato:
+        # il Neni 114 non condivide NESSUNA parola con «afati i parashkrimit»).
+        # Presentarlo come uno zero secco lo farebbe scartare: va detto perche'
+        # sta li'.
+        if getattr(a, "_ancora", False):
+            intestazione = (
+                f"── {a.citation}  ⚑ RREGULL E PËRGJITHSHME\n"
+                f"  (nuk u gjet nga kërkimi me fjalë — u shtua sepse është "
+                f"rregulli bazë i kësaj teme; lexoje si bazë, jo si përjashtim)\n"
+            )
+        else:
+            intestazione = f"── {a.citation} (score={score:.2f})\n"
         blocks.append(
-            f"── {a.citation} (score={score:.2f})\n"
+            f"{intestazione}"
             f"  Titulli: {a.heading}\n"
             f"{hierarchy}"
             f"{vol_note}"

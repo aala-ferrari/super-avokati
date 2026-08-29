@@ -115,6 +115,29 @@ def slice_from(job_id: str, since: int) -> tuple[list[str], bool, int]:
         return chunk, job.done, since + len(chunk)
 
 
+def find_active(user_id: int, case_id: str) -> str | None:
+    """Il lavoro ancora in corso per questo fascicolo, se c'e'.
+
+    Serve a distinguere i due casi che dal client sembrano identici: una
+    domanda senza risposta perche' il cervello sta ancora pensando (e allora
+    ci si riattacca) e una senza risposta perche' il lavoro e' morto con un
+    riavvio (e allora si dice e si offre di rilanciare).
+
+    Vincolato all'utente di proposito: il registro dei lavori e' un elenco di
+    chi sta chiedendo cosa, e non deve poterlo leggere nessun altro.
+
+    Il piu' recente se per caso ce ne fossero due — e' quello che l'avvocato
+    si aspetta di vedere.
+    """
+    with _lock:
+        vivi = [j for j in _jobs.values()
+                if not j.done and j.user_id == user_id and j.case_id == case_id]
+        if not vivi:
+            return None
+        vivi.sort(key=lambda j: j.started, reverse=True)
+        return vivi[0].id
+
+
 def stats() -> dict:
     with _lock:
         running = sum(1 for j in _jobs.values() if not j.done)

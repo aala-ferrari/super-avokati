@@ -186,6 +186,7 @@
         contradictions: m.contradictions || null,
       });
     }
+    verificaDomandaAppesa(id, c.messages || []);
     renderDossier(c.documents || []);
     checkCaseConflicts(id);
     loadResearch(id);
@@ -883,6 +884,47 @@
     appendUser(text);
     const typing = appendTyping();
     sendBtn.disabled = true;
+    try {
+      // Due passi invece di uno. Il primo dice al server di cominciare e
+      // torna subito: da quel momento il cervello lavora per conto suo, e
+      // questa connessione puo' morire quanto vuole senza portarsi via
+      // niente.
+      const startResp = await fetch("/api/ask/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text, case_id: activeCaseId }),
+      });
+      if (startResp.status === 401) {
+        typing.remove();
+        window.location.href = "/login";
+        return;
+      }
+      if (!startResp.ok) {
+        typing.remove();
+        appendError("Gabim serveri: " + startResp.status);
+        return;
+      }
+      const jobId = (await startResp.json()).job_id;
+      rememberJob(activeCaseId, jobId);
+      await seguiJob(jobId, activeCaseId, typing);
+    } catch (err) {
+      // Cade la rete proprio sulla chiamata d'avvio: senza questo i tre
+      // puntini resterebbero a girare per sempre e nessuno direbbe niente.
+      // `seguiJob` ha il suo, questo copre solo la partenza.
+      if (typing && typing.isConnected) typing.remove();
+      appendError((_CAL_IT ? "Errore di rete: " : "Gabim rrjeti: ") + err.message);
+    } finally {
+      sendBtn.disabled = false;
+      if (window.innerWidth >= 900) input.focus();
+    }
+  });
+
+  /* Segue un lavoro fino alla risposta e la disegna.
+   *
+   * Uno solo per due strade: la domanda appena inviata, e la domanda
+   * ritrovata riaprendo il fascicolo. Due copie divergerebbero, e a divergere
+   * sarebbe il modo in cui l'avvocato vede la risposta. */
+  async function seguiJob(jobId, caseId, typing) {
     let streamEl = null;
     let statusEl = null;
     const clearStatus = () => { if (statusEl) { statusEl.remove(); statusEl = null; } };
@@ -909,28 +951,6 @@
       scroll();
     };
     try {
-      // Due passi invece di uno. Il primo dice al server di cominciare e
-      // torna subito: da quel momento il cervello lavora per conto suo, e
-      // questa connessione puo' morire quanto vuole senza portarsi via
-      // niente.
-      const startResp = await fetch("/api/ask/start", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, case_id: activeCaseId }),
-      });
-      if (startResp.status === 401) {
-        typing.remove();
-        window.location.href = "/login";
-        return;
-      }
-      if (!startResp.ok) {
-        typing.remove();
-        appendError("Gabim serveri: " + startResp.status);
-        return;
-      }
-      const jobId = (await startResp.json()).job_id;
-      rememberJob(activeCaseId, jobId);
-
       const esito = await askAttach(jobId, 0, {
         onDelta: appendStreamChunk,
         onStatus: (t) => {
@@ -946,7 +966,7 @@
           }
         },
       });
-      forgetJob(activeCaseId);
+      forgetJob(caseId);
 
       clearStatus();
       if (streamEl) {
@@ -961,11 +981,15 @@
         appendBot(esito.final);
       } else if (streamBuffer) {
         appendBot({ kind: "answer", text: streamBuffer, articles: [] });
+      } else if (esito.gone) {
+        // Il lavoro non c'e' piu' (riavvio del server). Dirlo e offrire di
+        // rimandarla vale infinitamente piu' di un errore generico.
+        mostraDomandaInterrotta(caseId);
       } else {
         appendError("Nuk u kthye përgjigje nga serveri.");
       }
       await renderCaseList();
-      const resp2 = await fetch(`/api/cases/${activeCaseId}`);
+      const resp2 = await fetch(`/api/cases/${caseId}`);
       if (resp2.ok) {
         const c = await resp2.json();
         caseTitleText.textContent = c.title;
@@ -975,11 +999,8 @@
       if (streamEl) streamEl.remove();
       else typing.remove();
       appendError((_CAL_IT ? "Errore di rete: " : "Gabim rrjeti: ") + err.message);
-    } finally {
-      sendBtn.disabled = false;
-      if (window.innerWidth >= 900) input.focus();
     }
-  });
+  }
 
   // Enter = send, Shift+Enter = newline
   input.addEventListener("keydown", (e) => {
@@ -11490,6 +11511,71 @@
 
   function forgetJob(caseId) {
     try { localStorage.removeItem(jobKey(caseId)); } catch (e) {}
+  }
+
+  /* Il fascicolo finisce con una domanda e nessuna risposta: cos'e' successo?
+   *
+   * Due casi che dal client sembrano identici. O il cervello sta ancora
+   * pensando — e allora ci si riattacca, e la risposta compare anche se la
+   * domanda era partita da un altro dispositivo. O il lavoro e' morto con un
+   * riavvio, e allora si dice: una riga onesta vale piu' di una pagina muta.
+   * La differenza la sa solo il server. */
+  async function verificaDomandaAppesa(caseId, msgs) {
+    const ultimo = msgs[msgs.length - 1];
+    if (!ultimo || ultimo.role !== "user") return;
+    let jobId = null;
+    try {
+      const r = await fetch("/api/ask/active?case=" + encodeURIComponent(caseId));
+      if (r.ok) jobId = (await r.json()).job_id;
+      else jobId = pendingJob(caseId);
+    } catch (e) {
+      jobId = pendingJob(caseId);   // la rete non risponde: si prova col ricordo locale
+    }
+    // L'avvocato puo' aver gia' cambiato fascicolo mentre chiedevamo.
+    if (caseId !== activeCaseId) return;
+    if (jobId) {
+      const typing = appendTyping();
+      seguiJob(jobId, caseId, typing);
+      return;
+    }
+    mostraDomandaInterrotta(caseId, ultimo.content);
+  }
+
+  /* La riga che dice quello che e' successo, con il modo di rimediare.
+   *
+   * Il pulsante rimanda la domanda per davvero e lo dice: un giro del
+   * cervello sono minuti veri, non deve partire da un click ambiguo. */
+  function mostraDomandaInterrotta(caseId, testo) {
+    if (messages.querySelector(".msg-interrotta")) return;
+    // Chi chiama da dentro `seguiJob` non ha il testo a portata di mano.
+    // `_lastQuestion` lo tiene gia': lo aggiorna `appendUser`, che disegna sia
+    // la domanda appena scritta sia quelle rilette aprendo il fascicolo.
+    // Meglio di raschiare il DOM: quello dipende dal markup del template.
+    if (!testo) testo = _lastQuestion || "";
+    const box = document.createElement("div");
+    box.className = "msg-interrotta";
+    const riga = document.createElement("div");
+    riga.className = "msg-interrotta-t";
+    riga.textContent = _CAL_IT
+      ? "Questa domanda si è interrotta prima della risposta (di solito un riavvio del server). Non è andato perso nulla del fascicolo."
+      : "Kjo pyetje u ndërpre para përgjigjes (zakonisht një rinisje e serverit). Asgjë nga fashikulli nuk humbi.";
+    box.appendChild(riga);
+    const testoDaMandare = (testo || "").trim();
+    if (testoDaMandare) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "msg-interrotta-b";
+      b.textContent = _CAL_IT ? "🔄 Rimanda la domanda" : "🔄 Ridërgoje pyetjen";
+      b.addEventListener("click", () => {
+        box.remove();
+        input.value = testoDaMandare;
+        autoGrow();
+        form.requestSubmit();
+      });
+      box.appendChild(b);
+    }
+    messages.appendChild(box);
+    scroll();
   }
 
   function pendingJob(caseId) {

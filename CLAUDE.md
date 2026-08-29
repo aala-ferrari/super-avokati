@@ -111,7 +111,40 @@ Tre layer di protezione contro doctrine drift:
    JSON+DOCX. Se il retrieval fallisce, il modello rifiuta invece di
    hallucinare.
 
-4. **Giurisdizione al collo di bottiglia (v9.155)** — il vincolo di
+4. **Ancore — la regola generale non perde contro le eccezioni (v9.187)**
+   — `brain.ANCORE_AL` + `_applica_ancore`. **Misurato**: alla domanda più
+   banale sul parashkrim, il **Neni 114 KC** — *la* regola generale — non
+   entrava nei primi dodici con **nessuna** delle formulazioni normali. Sopra
+   di lui il parashkrim doganale e le eccezioni, perché BM25 premia chi ripete
+   le parole della domanda e la regola generale le dice con parole sue
+   («parashkruhen brenda dhjetë vjetëve», non «afati i parashkrimit»). Il suo
+   punteggio BM25 per quella domanda è **zero**: nessuna parola in comune.
+   Il cervello se n'era accorto e lo scriveva all'avvocato («neni 114 nuk
+   figuronte…»), rispondendo giusto **dalla sua preparazione** — cioè senza
+   grounding, che è l'opposto della promessa del prodotto.
+   Un'ancora è un articolo che entra per **ragione giuridica**, non lessicale.
+   Stessa idea del safety-net sui codici procedurali, un livello più in giù.
+   Quattro regole:
+   * **si aggiunge, non sostituisce** — se BM25 l'aveva già trovato, nulla cambia;
+   * **entra PRIMA del taglio** a `TOP_K_ARTICLES` — è in fondo per punteggio,
+     è il motivo per cui esiste;
+   * **si dichiara al cervello** (`⚑ RREGULL E PËRGJITHSHME`) invece di mostrare
+     un `score=0.00` che lo farebbe scartare. Marcata su una **copia**
+     (`copy.copy`), mai sull'oggetto dell'indice: sei richieste girano insieme
+     e l'ancora di un avvocato non deve comparire nel blocco di un altro;
+   * **escludere conta più che includere** — la prescrizione civile dentro una
+     domanda penale è un anti-consiglio: l'ancora non scatta se il triage ha
+     visto materia penale.
+   Solo AL: sul corpus italiano l'art. 2946 c.c. esce già secondo, e un'ancora
+   inutile toglie il posto a un risultato vero. **Si ancora ciò che si è
+   misurato rotto**, non per simmetria. Sorvegliata dal set aureo (sezioni
+   [4] e [5], 6 check: scatta / scatta senza `areas` / NON scatta sul penale /
+   NON scatta fuori tema / esiste / l'italiano esce da solo).
+   Verificato in produzione: `retrieval: ancorati kodi_civil 114` → risposta
+   corretta in **44 secondi** citando il neni, contro 22 minuti e una nota di
+   scusa prima.
+
+5. **Giurisdizione al collo di bottiglia (v9.155)** — il vincolo di
    giurisdizione si applica dentro `backends.complete()` /
    `complete_stream()`, da cui passa OGNI chiamata al cervello.
    `brain.apply_jurisdiction` è **idempotente**, quindi chi la applica già a
@@ -316,7 +349,7 @@ errori, non che le risposte sono ancora giuste. Riferimento verificato il
 12 articoli recuperati per ciascuna.
 
 ```bash
-docker exec super-avvocato python3 tools/golden_check.py   # 19 check deterministici: corpus + Verifikuar + heading-scan. Baseline 19/19.
+docker exec super-avvocato python3 tools/golden_check.py   # 25 check deterministici: corpus + Verifikuar + heading-scan + ancore. Baseline 25/25.
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 ```
@@ -385,6 +418,24 @@ Da rilanciare dopo ogni modifica alla giurisdizione.
   qualunque altro lavoro si sposti in background.
   Il vecchio `POST /api/ask/stream` è rimasto identico e funzionante: il
   rollback è cambiare solo `app.js`.
+  **La domanda appesa (v9.187)** — il registro vive in memoria, quindi **un
+  deploy uccide i lavori in corso**. Misurato sullo storico: **8 fascicoli su
+  71** finivano con una domanda dell'avvocato e nient'altro — nessuna
+  risposta, nessun errore, nessuna spiegazione. (Attenzione contando: «domanda
+  senza assistant subito dopo» ne dà 20, ma la maggior parte sono domande
+  consecutive poi risposte. Il conto vero è «domanda che è l'ULTIMO messaggio
+  del suo caso».) Ora riaprendo un fascicolo così, `jobs.find_active` +
+  `GET /api/ask/active?case=` distinguono i due casi che dal client sembrano
+  identici: **lavoro vivo** → ci si riattacca e la risposta compare (anche se
+  la domanda era partita da un altro dispositivo — questo prima non
+  succedeva); **lavoro morto** → si dice, con il pulsante per rimandarla.
+  `find_active` è vincolato all'utente: il registro dei lavori è un elenco di
+  chi sta chiedendo cosa.
+  **`seguiJob` è UNO SOLO** per le due strade (domanda inviata / domanda
+  ritrovata): due copie divergerebbero, e a divergere sarebbe il modo in cui
+  l'avvocato vede la risposta. Estraendolo dal gestore d'invio è facilissimo
+  portarsi via anche il suo `catch` — successo, e riprodurrebbe esattamente il
+  difetto che si sta riparando un livello più su.
 - **push.py** (28 ago 2026) — notifica quando l'analisi è pronta. Possibile
   solo perché il lavoro sopravvive alla pagina. VAPID in `/opt/super-avvocato.env`
   (`VAPID_PRIVATE_KEY/PUBLIC_KEY/SUBJECT`) — **cambiarle invalida tutti gli
@@ -525,7 +576,13 @@ fascicolo, con copia/PDF/scarico; il pulsante 🗂️ compare in ogni strumento 
 MutationObserver · **9.183-9.185 Genio Legale rifatto** (memoria fra i giri,
 allegati veri, 4 menti su 6 e uno alla volta, background + notifica, seconda
 mente Fable quando la prima torna a mani vuote) — vedi `genio.py` nella mappa
-moduli. QA dopo il deploy: golden 19/19, smoke 103/103, juris_guard verde.
+moduli · **9.186 la graffetta nel Genio** (il pannello leggeva i documenti del
+fascicolo ma non permetteva di attaccarne uno lì per lì) + tempo dichiarato
+onesto (~10 min → ~20-30, misurato 37,8) · **9.187 due difetti trovati provando
+dal browser**: la domanda che restava appesa in silenzio dopo un riavvio
+(8 fascicoli su 71) e il Neni 114 che non veniva mai recuperato — vedi
+«Ancore» sopra e `jobs.py` nella mappa moduli.
+QA dopo il deploy: golden **25/25**, smoke 103/103, juris_guard verde.
 
 ## Storia versioni (sessione 6-7 ago 2026)
 v9.50→9.54 piattaforma 3 professioni · 9.55 extra tool · 9.56 full-text+matching · 9.61-9.68 police laws + Super Noteri + revoca/conflitti · 9.69-9.71 Super Prokuror + hub · 9.72 Ligj i gjallë · 9.73 Pika e parë · 9.74 Fashikull · 9.75-9.76 Motore afate + golden · 9.77 fix needle empty-state · 9.78 upload in Fashikull · 9.79-9.80 Shiko të ruajturat · 9.81 fix forgot-password · 9.82 mode-bar snellite. Punto di ritorno sicuro storico: commit `1e9fb84`.

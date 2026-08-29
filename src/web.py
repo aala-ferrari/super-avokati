@@ -2500,6 +2500,23 @@ def api_genio_run(case_id: str):
                     mimetype="text/event-stream", headers=_SSE_HEADERS)
 
 
+@app.get("/api/ask/active")
+@login_required_api
+def api_ask_active():
+    """C'e' un lavoro ancora in corso per questo fascicolo?
+
+    Il client lo chiede quando riapre un fascicolo che finisce con una domanda
+    senza risposta. Se c'e', si riattacca e la risposta compare — anche se la
+    domanda era partita da un altro dispositivo. Se non c'e', sa di poterlo
+    dire all'avvocato invece di lasciarlo davanti a una pagina muta.
+    """
+    user = request.user  # type: ignore[attr-defined]
+    case_id = (request.args.get("case") or "").strip()
+    if not case_id:
+        return jsonify({"error": "missing case"}), 400
+    return jsonify({"job_id": jobs_mod.find_active(user.id, case_id)})
+
+
 @app.post("/api/genio/start")
 @login_required_api
 @require_module("avokat", "prokuror")
