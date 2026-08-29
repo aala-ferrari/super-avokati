@@ -7913,3 +7913,10 @@ main {
 .gn-second{margin-top:12px;padding-top:10px;border-top:2px dashed #c9a24d}
 .gn-second-h{font-size:12px;font-weight:700;color:#a9842f;margin-bottom:6px}
 .genio-card.has-second{box-shadow:0 0 0 2px rgba(201,162,77,.35)}
+
+/* Graffetta del Genio: stessa altezza del pulsante di lancio, cosi' la riga
+   resta allineata anche quando lo stato scrive un messaggio lungo. */
+.genio-clip{display:inline-flex;align-items:center;justify-content:center;
+  width:44px;height:44px;border:1px solid #d9cdb4;border-radius:10px;
+  background:#fffdf7;cursor:pointer;font-size:19px;flex:0 0 auto}
+.genio-clip:hover{background:#f6efdf;border-color:#c9a24d}

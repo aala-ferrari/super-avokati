@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="/static/style.css?v=115" />
+<link rel="stylesheet" href="/static/style.css?v=116" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%230a0a0a'/%3E%3Cpath d='M32 14v36M14 22h36M8 22l-4 10h8zM56 22l-4 10h8zM26 50h12v4H26z' stroke='%23e41e26' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='32' cy='14' r='3' fill='%23c9a24d'/%3E%3C/svg%3E" />
 <link rel="manifest" href="/manifest.webmanifest" />
 <link rel="apple-touch-icon" href="/static/apple-touch-icon.png" />
@@ -1309,7 +1309,9 @@
       <div class="genio-launch">
         <textarea id="genio-description" rows="3" placeholder="Përshkrim shtesë (opsional) — fakte, gjendja aktuale, ç'shqetëson sot…"></textarea>
         <div class="genio-launch-row">
-          <button type="button" id="genio-run" class="primary" style="background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;border:none;padding:12px 24px;border-radius:10px;font-weight:700;font-size:1.05rem;cursor:pointer;box-shadow:0 3px 10px rgba(22,163,74,.35)">🚀 Lësho Genio (~10 min)</button>
+          <label for="genio-file" class="genio-clip" title="Bashkëngjit PDF, foto, docx">📎</label>
+          <input type="file" id="genio-file" hidden accept=".pdf,.png,.jpg,.jpeg,.heic,.heif,.tif,.tiff,.docx,.doc,.txt,.rtf,.html">
+          <button type="button" id="genio-run" class="primary" style="background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;border:none;padding:12px 24px;border-radius:10px;font-weight:700;font-size:1.05rem;cursor:pointer;box-shadow:0 3px 10px rgba(22,163,74,.35)">🚀 Lësho Genio (~20–30 min)</button>
           <span id="genio-status" class="pro-status"></span>
         </div>
         <div class="genio-history-row">
@@ -1688,7 +1690,7 @@
   </div>
 </template>
 
-<script src="/static/app.js?v=115"></script>
+<script src="/static/app.js?v=116"></script>
 <script src="/static/secretary.js?v=1"></script>
 </body>
 </html>
