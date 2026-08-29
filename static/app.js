@@ -338,6 +338,7 @@
 
   newCaseBtn.addEventListener("click", () => createCase());
   document.getElementById("clients-dir-btn")?.addEventListener("click", openClientsDir);
+  document.getElementById("dosja-btn")?.addEventListener("click", openDosja);
   initModeBar();
 
   // Riprende il caso su cui si stava lavorando: alla ricarica l'app tornava
