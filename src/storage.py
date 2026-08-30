@@ -613,6 +613,20 @@ CREATE INDEX IF NOT EXISTS idx_prov_response ON provenance_packs(response_id);
 --   * latency + token usage if available
 --   * who called (user_id) and from what feature (callsite)
 --   * outcome (success / error class)
+CREATE TABLE IF NOT EXISTS case_access_log (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts          TEXT NOT NULL,        -- ISO-8601 UTC
+    user_id     INTEGER NOT NULL,     -- chi ha guardato
+    username    TEXT,                 -- copia leggibile: l'utenza puo' sparire
+    case_id     TEXT NOT NULL,        -- cosa ha guardato
+    firm_id     INTEGER,              -- sotto quale studio
+    action      TEXT NOT NULL,        -- 'open' | 'download' | 'export'
+    ip          TEXT,                 -- da dove
+    user_agent  TEXT                  -- con cosa (troncato)
+);
+CREATE INDEX IF NOT EXISTS idx_access_case ON case_access_log(case_id, ts);
+CREATE INDEX IF NOT EXISTS idx_access_user ON case_access_log(user_id, ts);
+
 CREATE TABLE IF NOT EXISTS ai_audit_log (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     timestamp       TEXT NOT NULL,
@@ -867,6 +881,51 @@ def _connect(db_path: Path = APP_DB_PATH) -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON;")
     return conn
+
+
+def log_case_access(*, user_id: int, username: str | None, case_id: str,
+                    firm_id: int | None, action: str, ip: str | None,
+                    user_agent: str | None) -> None:
+    """Registra un accesso a un fascicolo. Non solleva MAI.
+
+    Non ripete lo stesso accesso entro cinque minuti: l'interfaccia ripolla il
+    fascicolo di continuo e senza filtro il registro diventerebbe rumore in cui
+    non si trova piu' niente — cioe' inutile proprio quando serve.
+    """
+    try:
+        with db() as conn:
+            gia = conn.execute(
+                "SELECT 1 FROM case_access_log "
+                "WHERE user_id=? AND case_id=? AND action=? "
+                "AND ts > datetime('now','-5 minutes') LIMIT 1",
+                (user_id, case_id, action),
+            ).fetchone()
+            if gia:
+                return
+            conn.execute(
+                "INSERT INTO case_access_log "
+                "(ts, user_id, username, case_id, firm_id, action, ip, user_agent) "
+                "VALUES (datetime('now'), ?, ?, ?, ?, ?, ?, ?)",
+                (user_id, username, case_id, firm_id, action,
+                 (ip or "")[:64], (user_agent or "")[:200]),
+            )
+    except Exception:  # noqa: BLE001
+        # Un registro che fa cadere una risposta e' peggio di nessun registro:
+        # verrebbe spento al primo incidente, e il giorno che serve non c'e'.
+        log.debug("case access log skipped", exc_info=True)
+
+
+def case_access_history(case_id: str, limit: int = 200) -> list[dict]:
+    """Chi ha aperto questo fascicolo — per il titolare e per il GDPR."""
+    try:
+        with db() as conn:
+            rows = conn.execute(
+                "SELECT ts, user_id, username, action, ip FROM case_access_log "
+                "WHERE case_id=? ORDER BY id DESC LIMIT ?", (case_id, limit),
+            ).fetchall()
+        return [dict(r) for r in rows]
+    except Exception:  # noqa: BLE001
+        return []
 
 
 def init_db(db_path: Path = APP_DB_PATH) -> None:

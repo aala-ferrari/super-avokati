@@ -1155,8 +1155,25 @@ def _resolve_case(case_id: str):
     user = request.user  # type: ignore[attr-defined]
     firm = request.firm  # type: ignore[attr-defined]
     if firm is None:
-        return storage.get_case(case_id, user.id)   # user-scoped legacy fallback
-    return storage.get_case_for_member(case_id, user.id, firm.id)
+        caso = storage.get_case(case_id, user.id)   # user-scoped legacy fallback
+    else:
+        caso = storage.get_case_for_member(case_id, user.id, firm.id)
+    # Si registra SOLO quando l'accesso e' andato a buon fine: un 404 non e'
+    # un accesso, e riempire il registro di tentativi falliti lo renderebbe
+    # illeggibile proprio quando serve leggerlo.
+    #
+    # Qui perche' e' il collo di bottiglia: ogni endpoint che tocca un
+    # fascicolo passa da questa funzione. Un aggancio invece di sessanta.
+    if caso is not None:
+        storage.log_case_access(
+            user_id=user.id, username=getattr(user, "username", None),
+            case_id=case_id, firm_id=(firm.id if firm else None),
+            action="open",
+            ip=(request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+                or request.remote_addr),
+            user_agent=request.headers.get("User-Agent"),
+        )
+    return caso
 
 
 @app.get("/api/cases")
