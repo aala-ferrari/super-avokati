@@ -175,6 +175,20 @@ def main():
     check("kërkimi i nxjerr precedentët e Gjykatës së Lartë", bool(gjet),
           "asnjë te 25 të parët")
 
+    print("\n[9] Truri — modeli i deklaruar është ai që përgjigjet vërtet")
+    from src import config as _cfg   # noqa: E402
+    check("truri kryesor = Opus 5", "opus-5" in (_cfg.CLAUDE_CODE_MODEL or ""),
+          _cfg.CLAUDE_CODE_MODEL)
+    check("effort = max", (_cfg.CLAUDE_CODE_EFFORT or "") == "max",
+          _cfg.CLAUDE_CODE_EFFORT)
+    check("ndihmësit = Sonnet 5", "sonnet-5" in (_cfg.CLAUDE_CODE_MEDIUM_MODEL or ""),
+          _cfg.CLAUDE_CODE_MEDIUM_MODEL)
+    # ⚠ il provenance pack certifica COME è stata prodotta una risposta:
+    # se dichiara un modello diverso da quello che risponde, mente.
+    check("provenance-i deklaron të njëjtin model si CLI-ja",
+          _cfg.CLAUDE_MODEL == _cfg.CLAUDE_CODE_MODEL,
+          "%s vs %s" % (_cfg.CLAUDE_MODEL, _cfg.CLAUDE_CODE_MODEL))
+
     print("\n[8] Shkronjat brenda nenit — të vërtetat kalojnë, të sajuarat jo")
     # «432/c» = shkronja c) e nenit 432 (shkelje procedurale) — citim krejt i
     # saktë, që dilte "fake" dhe i shfaqej avokatit si nen fantazmë.

@@ -194,6 +194,24 @@ da 1/14 strumenti corretti a **14/14**.
 ./scripts/snapshot.py list
 ```
 
+## Modelli — cosa gira davvero (verificato 30 ago 2026)
+
+Sorgente di verità: `/opt/super-avvocato.env`, letto da `config.py`.
+- **`CLAUDE_CODE_MODEL=claude-opus-5`** + **`CLAUDE_CODE_EFFORT=max`** — il cervello;
+- `CLAUDE_CODE_MEDIUM_MODEL` / `FAST_MODEL` = **`claude-sonnet-5`** — fasi ausiliarie;
+- **Fable**: `model_override="fable"` va dritto al CLI come `--model fable`.
+  **Verificato chiedendo al modello il proprio identificativo: risponde
+  `claude-fable-5`.** E l'effort si applica anche a lui — `backends.py` fa
+  `if not fast and self.effort`, senza escludere `model_override` (un bug
+  precedente lo escludeva e Fable rispondeva senza ragionamento esteso).
+
+**GOTCHA**: esistono DUE costanti che sembrano la stessa cosa.
+`CLAUDE_CODE_MODEL` (backend CLI, quello in uso) e `CLAUDE_MODEL` (backend API
+diretta). La seconda era ferma a `claude-opus-4-8` e finiva nel **provenance
+pack** — il documento che certifica come è stata prodotta una risposta:
+dichiarava opus-4-8 mentre rispondeva opus-5. Ora `CLAUDE_MODEL` segue
+`CLAUDE_CODE_MODEL`. Sorvegliato dal golden, sezione [9].
+
 ## Tier di backend
 
 - **Opus 4.8** (default per Super Avvocato) — profondità > velocità,
@@ -224,6 +242,20 @@ da 1/14 strumenti corretti a **14/14**.
 - **TRAPPOLA**: `initModeBar()` gira a inizio file, PRIMA che `UI_LANG` sia
   assegnato → va ri-chiamato dopo `applyStaticI18n()`, altrimenti la mode-bar
   resta albanese (fix v9.131).
+- **⚠️ DUE difetti diversi, e vanno cercati tutti e due** (audit 30 ago 2026):
+  1. l'elemento ha `data-i18n="x"` ma `x` **non è nel dizionario** → resta
+     l'albanese scritto nell'HTML. Ne è stato trovato **uno solo**: `dosja`;
+  2. testo albanese **senza nessun `data-i18n`** → non verrà mai tradotto, e
+     nessuno se ne accorge finché un avvocato italiano non ci finisce sopra.
+     Ne sono stati trovati **72**, quasi tutte le voci del menu PRO con la loro
+     descrizione. **Cercare solo il primo tipo dà «tutto a posto» mentre il
+     difetto è in piena vista.**
+  Lo script di audit sta in `scratchpad/audit_italiano.py` (confronta le chiavi
+  `data-i18n` usate nell'HTML con quelle del dizionario, e cerca testo albanese
+  senza attributo). **GOTCHA dell'audit**: le chiavi di `I18N_IT` sono **non
+  quotate** (`sidebar_aria: "..."`), quindi un regex che le cerca fra virgolette
+  trova zero chiavi e dichiara «tutto non tradotto».
+  Il marchio **«SUPER AVOKATI» non si traduce** in nessuna lingua.
 - Le etichette che arrivano dalle API (tipi atto, poteri procura, template
   perizia, clausole obbligatorie…) passano da `t()` con una mappa AL→IT nel
   dizionario (~340 voci).
@@ -461,7 +493,7 @@ errori, non che le risposte sono ancora giuste. Riferimento verificato il
 12 articoli recuperati per ciascuna.
 
 ```bash
-docker exec super-avvocato python3 tools/golden_check.py   # 39 check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja. Baseline 51/51.
+docker exec super-avvocato python3 tools/golden_check.py   # 39 check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja. Baseline 55/55.
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 ```

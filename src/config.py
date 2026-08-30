@@ -36,7 +36,12 @@ REMINDER_EMAIL_FROM = os.getenv("REMINDER_EMAIL_FROM", "")
 # Force a specific provider with BRAIN_BACKEND=anthropic or BRAIN_BACKEND=gemini.
 BRAIN_BACKEND = os.getenv("BRAIN_BACKEND", "auto")
 
-CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "claude-opus-4-8")
+# Segue il modello che gira DAVVERO (backend CLI). Erano due costanti
+# scollegate, e la vecchia finiva nel provenance pack: dichiarava
+# opus-4-8 mentre rispondeva opus-5. Un certificato che dice il modello
+# sbagliato e' peggio di uno che non lo dice.
+CLAUDE_MODEL = os.getenv("CLAUDE_MODEL",
+                         os.getenv("CLAUDE_CODE_MODEL", "claude-opus-5"))
 # V9.x tier (Haiku rimosso): in uno strumento legale non vogliamo
 # modelli "piccoli". Solo Opus (risposta legale) + Sonnet (tutto il
 # resto: medium E fast — intake, Q&A udienza, jargon→qytetar, wizard,
