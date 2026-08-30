@@ -446,16 +446,77 @@ def _verify_number(lookup: dict, code: str, number: str):
             art = lookup.get((code, base))
             if art is not None:
                 return art
+        else:
+            # Suffisso-LETTERA. Due casi che si scrivono uguale:
+            #
+            #   «149/a» → articolo inserito a se' (Shkelja e te drejtave te
+            #             pronesise industriale). Sta nel lookup, e l'abbiamo
+            #             gia' trovato sopra.
+            #   «432/c» → la lettera c) e' un COMMA dentro l'articolo 432
+            #             («per shkelje procedurale...»). Non e' un articolo,
+            #             ma la citazione e' correttissima.
+            #
+            # Il secondo caso finiva "fake", e all'avvocato compariva un
+            # «nen fantazme» su una citazione giusta e decisiva. Per
+            # distinguerli non si indovina: si guarda se quel comma c'e'
+            # davvero scritto nel testo dell'articolo base.
+            padre = lookup.get((code, base))
+            if padre is not None and _lettera_e_un_koma(padre, first):
+                return padre
+            # «149/a/2» = comma 2 dell'articolo 149/a. Prima di arrendersi si
+            # prova la coppia base+lettera, che puo' essere un articolo vero.
+            if len(parts) > 2:
+                art = lookup.get((code, base + "/" + first))
+                if art is not None:
+                    return art
     return None
 
 
-def _codes_for_number(num_to_codes: dict, number: str) -> list:
-    """Candidate codes for a bare number, tolerant of paragraph/range form."""
+def _lettera_e_un_koma(article, lettera: str) -> bool:
+    """La lettera e' davvero un comma scritto dentro questo articolo?
+
+    Si cerca il marcatore come lo stampa il codice — «c)» a inizio comma —
+    nel corpo e nella rubrica. Se non c'e', la citazione resta falsa: cosi'
+    un «neni 432/z» inventato continua a cadere, perche' nel 432 non esiste
+    nessuna lettera z.
+    """
+    if article is None:
+        return False
+    lettera = (lettera or "").strip().lower()
+    if not lettera or len(lettera) > 2 or not lettera.isalpha():
+        return False
+    testo = ((getattr(article, "body", "") or "") + " " +
+             (getattr(article, "heading", "") or "")).lower()
+    if not testo.strip():
+        return False
+    return re.search(r"(?:^|[\s;,.])%s\s*[)\]]" % re.escape(lettera),
+                     testo) is not None
+
+
+def _codes_for_number(num_to_codes: dict, number: str,
+                      lookup_koma: dict | None = None) -> list:
+    """Candidate codes for a bare number, tolerant of paragraph/range form.
+
+    `lookup_koma` — (code, number) → Article — serve per il caso «432/c»
+    scritto senza nominare il codice: un codice diventa candidato solo se in
+    quel codice l'articolo base contiene davvero la lettera come comma.
+    Senza questo controllo si aprirebbe la maglia a qualunque lettera; con
+    questo, «432/z» resta senza candidati e quindi falso.
+    """
     codes = list(num_to_codes.get(number, []))
     if not codes and "/" in number:
         parts = number.split("/")
+        base = parts[0]
         if len(parts) > 1 and parts[1].isdigit():
-            codes = list(num_to_codes.get(parts[0], []))
+            codes = list(num_to_codes.get(base, []))
+        elif len(parts) > 1 and lookup_koma is not None:
+            lettera = parts[1]
+            # prima: «149/a» come articolo inserito a se'
+            codes = list(num_to_codes.get(base + "/" + lettera, []))
+            if not codes:
+                # poi: la lettera come comma dentro l'articolo base
+                codes = [c for c in num_to_codes.get(base, [])
+                         if _lettera_e_un_koma(lookup_koma.get((c, base)), lettera)]
     return codes
 
 
@@ -521,7 +582,7 @@ def verify_text(
                 status="fake", candidates=[],
             ))
             return
-        candidate_codes = _codes_for_number(num_to_codes, number)
+        candidate_codes = _codes_for_number(num_to_codes, number, lookup_all)
         # Promotion via retrieval context: if exactly one candidate appears in
         # the retrieved set, we treat it as verified.
         in_ctx = [c for c in candidate_codes if c in retrieved_codes]

@@ -321,6 +321,36 @@ prodotto) e non solleva mai. L'avviso si **attacca al markdown**, perché il
 badge resta sullo schermo mentre la risposta viene copiata dentro una memoria.
 Sorvegliato dal golden, sezione [7].
 
+## Lettere dentro il nene: «432/c» NON è un fantasma (v9.189-9.190)
+
+Su una domanda vera di giurisprudenza il cervello ha citato **`neni 432/c KPP`**
+— la lettera c) dell'art. 432, *«shkelje procedurale që kanë ndikuar në dhënien
+e vendimit»*: il motivo di ricorso esatto. Lo scudo l'ha marcato **fake** e
+all'avvocato è comparso **«2 nene fantazmë» su una citazione giusta e decisiva**.
+
+**Due cose si scrivono uguale e non lo sono:**
+- `149/a` = **articolo inserito a sé** (esiste nel corpus come articolo);
+- `432/c` = **comma dentro** l'art. 432 (il corpo elenca «a) … b) … c) …»).
+
+La regola diceva «un suffisso-lettera è sempre un articolo distinto, mai
+collassarlo» — vera per il primo caso, falsa per il secondo.
+
+**Come si distinguono senza indovinare**: `_lettera_e_un_koma()` guarda se quel
+comma è **davvero scritto** nel corpo dell'articolo base. Se c'è → citazione
+valida. Se non c'è → resta fake. Così `neni 432/z` continua a cadere.
+Aggiunto anche il livello triplo: `149/a/2` prova `149/a` prima di arrendersi.
+
+**⚠️ GOTCHA che ha reso la prima correzione inutile**: vanno riparate **due
+strade**. `_verify_number` (quando il codice è scritto: «neni 432/c i KPP») e
+`_codes_for_number` (quando NON lo è: «neni 432/c», come si scrive davvero fra
+giuristi). La prima correzione passava i test e falliva sul caso reale, perché
+i test scrivevano il codice per esteso e il cervello no. **Una prova che non
+somiglia al caso vero dà una sicurezza falsa** — il golden ora ha entrambe le
+forme (sezione [8], 10 check, metà dei quali verificano che le lettere
+inventate CADANO ancora).
+
+Effetto misurato sulla stessa risposta: `fake 2 → 0`, `verified 6 → 7`.
+
 **GOTCHA costato una correzione doppia**: per sapere **come è finita** una
 decisione si guarda il **dispositivo**, MAI l'intestazione — «mospranim» sta in
 fondo, dopo trenta pagine, e 5 inammissibilità sono passate col filtro sui primi
@@ -424,7 +454,7 @@ errori, non che le risposte sono ancora giuste. Riferimento verificato il
 12 articoli recuperati per ciascuna.
 
 ```bash
-docker exec super-avvocato python3 tools/golden_check.py   # 39 check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime. Baseline 39/39.
+docker exec super-avvocato python3 tools/golden_check.py   # 39 check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja. Baseline 49/49.
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 ```

@@ -175,6 +175,34 @@ def main():
     check("kërkimi i nxjerr precedentët e Gjykatës së Lartë", bool(gjet),
           "asnjë te 25 të parët")
 
+    print("\n[8] Shkronjat brenda nenit — të vërtetat kalojnë, të sajuarat jo")
+    # «432/c» = shkronja c) e nenit 432 (shkelje procedurale) — citim krejt i
+    # saktë, që dilte "fake" dhe i shfaqej avokatit si nen fantazmë.
+    check("neni 432/c KPP → verified (shkronja c) është në tekst)",
+          status_of(idx, "neni 432/c i Kodit të Procedurës Penale") == "verified")
+    check("neni 432/b KPP → verified",
+          status_of(idx, "neni 432/b i Kodit të Procedurës Penale") == "verified")
+    # ⚠ dhe në drejtimin tjetër: një shkronjë që NUK ekziston duhet të bjerë
+    check("neni 432/z KPP → fake (nuk ka shkronjë z)",
+          status_of(idx, "neni 432/z i Kodit të Procedurës Penale") == "fake")
+    check("neni 300/z KP → fake (i sajuar)",
+          status_of(idx, "neni 300/z i Kodit Penal") == "fake")
+    # tre nivele: 149/a ekziston si nen më vete, /2 është paragrafi
+    check("Neni 149/a/2 KP → verified (149/a ekziston)",
+          status_of(idx, "Neni 149/a/2 i Kodit Penal") == "verified")
+    check("neni 149/a KP → verified (nen i shtuar)",
+          status_of(idx, "neni 149/a i Kodit Penal") == "verified")
+    check("neni 76/2 KP → verified (paragraf numerik)",
+          status_of(idx, "neni 76/2 i Kodit Penal") == "verified")
+    check("neni 99999 KP → fake (mbetet i rreptë)",
+          status_of(idx, "neni 99999 i Kodit Penal") == "fake")
+    # ⚠ dhe pa emrin e kodit — ashtu si shkruhet vërtet mes juristëve.
+    # Prova e parë kalonte me kodin e shkruar dhe dështonte në realitet.
+    check("«neni 432/c» pa emrin e kodit → NUK është fantazmë",
+          status_of(idx, "Sipas neni 432/c duhet vepruar.") != "fake")
+    check("«neni 432/z» pa emrin e kodit → mbetet fake",
+          status_of(idx, "Sipas neni 432/z duhet vepruar.") == "fake")
+
     print("\n[7] Verifikuesi i vendimeve — numrat e sajuar nuk kalojnë më")
     idxd2 = DecisionIndex.load(DECISIONS_INDEX_FILE)
     vera = next((d for d in idxd2.decisions
