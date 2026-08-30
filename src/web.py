@@ -344,6 +344,66 @@ def require_module(*mods):
     return _deco
 
 
+# ── Freno ai tentativi di password ────────────────────────────────────
+#
+# Due contatori: per utenza e per indirizzo. Uno solo non basta —
+# quello per utenza lascia passare chi prova UNA password su mille nomi
+# diversi, quello per indirizzo punisce uno studio intero dietro un IP solo.
+# Per UTENZA: chi prova a entrare in un account preciso ha 5 colpi.
+_TENTATIVI_MAX = int(os.environ.get("LOGIN_MAX_TENTATIVI", "5"))
+# Per INDIRIZZO: piu' alto di proposito. Uno studio con dieci avvocati esce da
+# un IP solo, e con la stessa soglia si bloccherebbero a vicenda — difesa che
+# fa perdere il cliente invece dell'attaccante. Qui serve solo a fermare chi
+# prova una password su mille utenze: 20 in un quarto d'ora e' un muro per
+# quello e non si sente in uno studio vero.
+_TENTATIVI_MAX_IP = int(os.environ.get("LOGIN_MAX_TENTATIVI_IP", "20"))
+_FINESTRA_S = int(os.environ.get("LOGIN_FINESTRA_S", "900"))      # 15 minuti
+_BLOCCO_S = int(os.environ.get("LOGIN_BLOCCO_S", "900"))          # 15 minuti
+_tentativi_login: dict[str, list[float]] = {}
+_lock_tentativi = threading.Lock()
+
+
+def _chiavi_tentativo(username: str) -> list[str]:
+    ip = (request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+          or request.remote_addr or "?")
+    return ["u:" + (username or "").lower(), "ip:" + ip]
+
+
+def _login_bloccato(username: str) -> int:
+    """Secondi di attesa rimasti, 0 se puo' provare."""
+    ora = time.time()
+    with _lock_tentativi:
+        for k in _chiavi_tentativo(username):
+            recenti = [t for t in _tentativi_login.get(k, []) if ora - t < _FINESTRA_S]
+            _tentativi_login[k] = recenti
+            soglia = _TENTATIVI_MAX_IP if k.startswith("ip:") else _TENTATIVI_MAX
+            if len(recenti) >= soglia:
+                resta = int(_BLOCCO_S - (ora - recenti[-1]))
+                if resta > 0:
+                    return resta
+                _tentativi_login[k] = []      # il blocco si e' sciolto
+    return 0
+
+
+def _segna_fallito(username: str) -> None:
+    ora = time.time()
+    with _lock_tentativi:
+        for k in _chiavi_tentativo(username):
+            _tentativi_login.setdefault(k, []).append(ora)
+        # una pulizia ogni tanto, per non tenere in memoria chiavi morte
+        if len(_tentativi_login) > 5000:
+            for k in list(_tentativi_login):
+                if not [t for t in _tentativi_login[k] if ora - t < _FINESTRA_S]:
+                    _tentativi_login.pop(k, None)
+
+
+def _azzera_tentativi(username: str) -> None:
+    """Chi entra ha dimostrato di essere lui: gli errori di prima non contano."""
+    with _lock_tentativi:
+        for k in _chiavi_tentativo(username):
+            _tentativi_login.pop(k, None)
+
+
 @app.post("/api/login")
 def api_login():
     _ensure_loaded()
@@ -352,6 +412,16 @@ def api_login():
     password = data.get("password") or ""
     if not username or not password:
         return jsonify({"error": "missing credentials"}), 400
+    # Il freno scatta PRIMA di controllare la password: cosi' non si puo'
+    # usare il tempo di risposta per capire se un'utenza esiste.
+    _attesa = _login_bloccato(username)
+    if _attesa:
+        log.warning("login bloccato per %r: troppi tentativi", username)
+        return jsonify({
+            "error": ("Shumë përpjekje. Provo përsëri pas %d minutash."
+                      % max(1, _attesa // 60)),
+            "retry_after": _attesa,
+        }), 429
     user = authenticate(username, password)
     if user is None:
         from .auth import login_reason
@@ -365,7 +435,9 @@ def api_login():
             log.info("blocked login for %r: %s", username, reason)
             return jsonify({"error": msg, "blocked": reason}), 403
         log.info("failed login for %r", username)
+        _segna_fallito(username)
         return jsonify({"error": "invalid credentials"}), 401
+    _azzera_tentativi(username)
     login_user(user)
     try:
         from flask import session as _sess
