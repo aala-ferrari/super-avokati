@@ -472,6 +472,33 @@ delle risposte): `tools/audit_tools_it.py` chiama i 14 strumenti in sessione
 IT e per ciascuno conta albanese / diritto AL / diritto IT. Baseline **14/14**.
 Da rilanciare dopo ogni modifica alla giurisdizione.
 
+## Chi decide il tempo di una risposta (misurato 30 ago 2026)
+
+**`nullity_radar` è una fase del cervello della CHAT, non del Genio.** Non si
+toccano:
+- **chat, percorso `complex`** → 9-11 fasi «war room» (`_run_stages` in
+  `brain.py`): strategic · timeline · comparison · missing_facts · premortem ·
+  distinguishing · evidence_map · **nullity_radar** · contradictions (+ opponent
+  e leverage se `_has_adversary`);
+- **Genio** → 6 lenti sue (riframing, kill_shot, leverage, decision_tree,
+  brutal_truth, voice). `nullity_radar` lì non entra mai.
+
+Scatta **solo** se il triage dice `complex`: una domanda semplice prende il
+fast-path (misurato **44 s** sul parashkrim), una complessa 28-65 min.
+**La variabilità è del modello**: stessa domanda, stesso indice, due giri con
+`nullity_radar` a **810s** e **2353s**.
+
+**⚠️ NON sono i precedenti a rallentare** — domanda che torna spesso, misurata:
+una ricerca su 1.407 precedenti costa **7-13 ms**, l'indice si carica in 0,67 s
+una volta sola, e al modello ne arrivano **4** (numero fisso: il testo che legge
+è identico con 1.258 o 1.407). La ricerca costa ~200.000 volte meno della fase
+lenta, e le due prove avevano lo **stesso** indice. Toglierli non guadagna un
+secondo e fa tornare «non confermabili» 4 delle 6 sentenze citate.
+
+Se un giorno serve accorciare: la leva è un tetto su `nullity_radar` — ma è la
+lente che cerca pavlefshmëri e afate, cioè le leve procedurali che vincono senza
+entrare nel merito. L'alternativa già pronta è il background + notifica.
+
 ## Mappa feature / moduli (src/)
 - **expertise.py** — Modele Ekspertize (8 template, incl. abuzim_policor "due menti"). `retrieve_grounded` (seed + `_expand_terms` LLM + `_heading_scan` stem 5-char diacritic-fold + BM25). Riusato da prosecutor/notary/deadlines/afati.
 - **prosecutor.py** — Super Prokuror: analyze, draft_indictment, investigation_plan, investigative_act(kind), coercive_measure, dismissal_request, stress_test + cittadino (citizen_complaint, victim_rights, dismissal_appeal, delay_complaint). Assistivo, mai auto-accusa (EU AI Act).
