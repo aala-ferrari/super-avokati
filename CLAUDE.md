@@ -806,8 +806,96 @@ la **chat** non abilita `Read` (solo Genio e strumenti PRO passano allegati).
 ## Ancora aperto
 
 Documenti caricati e `app.db` in chiaro · passphrase sulle chiavi SSH (tocca
-all'utente) · pacchetto GDPR (contratto studio↔superavokati.ai da mostrare al
-primo accesso).
+all'utente) · far rileggere le 9 bozze legali a un avvocato · nomina del DPO ·
+dal piano d'azione della DPIA: 2FA, allerte automatiche, valutazione LUKS,
+canale web disattivabile con allegati, esclusione per-caso dal trattamento
+esterno, secondo amministratore.
+
+---
+
+# GDPR — i documenti, e DOVE si vedono (31 ago 2026, v9.199-9.206)
+
+## I 9 documenti — `legal/`, non nel codice
+
+**Pubblici** (si mostrano, si firmano): `condizioni_{it,sq}.md` ·
+`privacy_{it,sq}.md` (informativa sui dati **dell'avvocato**, art. 13) ·
+`dpa_{it,sq}.md` (accordo sui dati dei **suoi clienti**, art. 26 L.124/2024 /
+art. 28 GDPR — lo studio è titolare, noi responsabili).
+**Interni** (non escono mai): `interno_registro_trattamenti.md` ·
+`interno_procedura_violazione.md` (+ `violazioni/LEGGIMI.md`) · `interno_dpia.md`.
+
+**Su file e non nel codice**: devono essere **gli stessi** che si mandano via
+email. Se il testo a schermo e quello firmato divergono, la firma non prova niente.
+
+⚠️ **Nei documenti per il cliente il motore si chiama «Tetramorph»**, ma nel
+DPA il sub-responsabile deve restare **identificabile** — è il cliente ad avere
+il diritto di sapere chi tratta i dati dei suoi assistiti e di opporsi a un
+sub-responsabile nuovo. Formula: **«Tetramorph — operato da Anthropic PBC»**.
+Nasconderlo violerebbe la clausola stessa che quel documento contiene.
+⚠️ **Un contratto nomina la SOCIETÀ, non un marchio**: «Super Avokati» è il
+prodotto e non può firmare né essere convenuto. Firmano **AALA** (Albania) e
+**Deltalux Srl** (Italia, P.IVA 12021700963).
+
+## Le TRE strade per leggerli — e perché servono tutte
+
+1. **Al primo accesso** — `controllaCondizioni()` → finestra con spunta e
+   «Accetto». `LEGAL_VERSION` in `web.py`: alzandola tutti riaccettano.
+   Traccia in `legal_acceptances` (chi, quando, IP, versione).
+2. **Dopo, dal menu ☰ → «Kushtet dhe të dhënat» / «Condizioni e dati»**
+   (v9.203). ⚠️ **Questo mancava del tutto**: `controllaCondizioni` apriva la
+   finestra solo a `!st.accepted`, quindi chi aveva accettato non aveva
+   **nessun modo** di rileggere cosa aveva firmato. Il GDPR chiede che
+   l'informativa sia *accessibile*, non che sia stata mostrata una volta.
+   Stessa finestra con `mostraCondizioni(versione, soloLettura)`: via spunta e
+   «Accetto», resta «Chiudi», titolo «Condizioni e dati» (non «Prima di
+   cominciare» — chi rilegge ha già cominciato) e link alla pagina pubblica.
+3. **`GET /legale` e `/legale/<lang>`, PUBBLICA, senza login** (v9.203).
+   ⚠️ Non è una comodità: uno studio strutturato, prima di aprire un account,
+   manda il proprio responsabile protezione dati a leggere il DPA. Se per
+   leggerlo bisogna già essere clienti, la trattativa si ferma lì.
+   Sorvegliata dal golden: se qualcuno ci mette `login_required`, il QA cade.
+
+**Fonte unica per tutte e tre**: gli stessi file `.md`. Sono tre viste, non tre
+testi.
+
+## Il renderer della pagina pubblica (v9.206)
+
+La prima versione serviva **markdown crudo** — `# Condizioni d'uso`, `**...**`,
+le tabelle come file di barre. Difetto visibile **solo da fuori**, cioè
+esattamente dove guarda chi non è ancora cliente: dentro l'app `renderMarkdown`
+(app.js) rendeva già bene.
+
+`web._legal_md_to_html()`. **Non riuso quello di app.js**: `app.js` avvia tutta
+l'applicazione autenticata (login, service worker, chiamate API) e caricarlo su
+una pagina pubblica è assurdo. Nel container **non c'è nessuna libreria
+markdown** (verificato: markdown, markdown2, mistune, commonmark tutte assenti).
+
+⚠️ **Due renderer sullo stesso testo sono una condizione di divergenza**, e a
+divergere sarebbe *cosa si vede* di un testo che si firma: una tabella non resa
+è informazione persa, non un difetto estetico. Non la elimino, la **sorveglio**:
+il renderer copre gli **8 costrutti misurati** nei file (h1-h3, paragrafi,
+`**grassetto**`, elenchi puntati e numerati, tabelle, `---`, `>`) e il **golden
+sezione [10]** fallisce se in un documento legale compare un link, del codice,
+dell'HTML o delle stelline spaiate. **Verificato che morda**: 4 costrutti
+iniettati → 4 fallimenti. Meglio un QA rosso che una clausola che sparisce in
+silenzio. Tutto passa da `markupsafe.escape` prima del markup.
+
+Golden **59 → 98 check**.
+
+## Il resto dell'impianto
+
+- `legal_acceptances` + `case_access_log` (`storage.py`). Il registro accessi è
+  agganciato a **`_resolve_case`**, il collo di bottiglia: un aggancio invece di 60.
+- `GET /api/legal/doc/<nome>` — **whitelist di tre nomi**, quindi i documenti
+  interni non possono uscire di lì (verificato anche con `../`).
+  Serve il testo nella lingua della sessione e, se non c'è, **lo dice**: un
+  consenso a un testo che non si capisce non è un consenso.
+- `/legale/<lang>` accetta solo `it`; qualunque altra cosa cade su `sq`. Non è
+  un nome di file: `/legale/interno_dpia` dà la pagina albanese, non la DPIA.
+
+**Cosa resta all'utente**: far rileggere le bozze a un avvocato (lo dicono loro
+stesse in testa), decidere sulla nomina del DPO, confermare la conclusione sul
+rischio residuo della DPIA.
 
 ---
 

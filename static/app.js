@@ -343,6 +343,12 @@
   // le condizioni prima di tutto: e' il momento in cui uno studio accetta
   // che i dati dei suoi clienti passino da qui.
   controllaCondizioni();
+  // E un modo per RILEGGERLI dopo: senza questo l'informativa si vede una
+  // volta sola e poi sparisce, che non e' «accessibile».
+  document.getElementById("legal-menu")?.addEventListener("click", async () => {
+    const st = await fetch("/api/legal/status").then(r => r.ok ? r.json() : null);
+    mostraCondizioni((st && st.version) || "", true);
+  });
   initModeBar();
 
   // Riprende il caso su cui si stava lavorando: alla ricarica l'app tornava
@@ -5723,6 +5729,7 @@
   // ── i18n (Fase C) — Italian UI for IT sessions ────────────────────────────
   var UI_LANG = (document.body && document.body.dataset ? document.body.dataset.lang : "") || "sq";
   var I18N_IT = {
+    legal_menu: "Condizioni e dati",
     dosja: "Fascicolo",
     it_01: "BM25 su 1.258 decisioni + ratio AI → le mosse che hanno vinto, le trappole che hanno perso, il kill-shot",
     it_02: "Estrai soci/CdA/procuratori dalla visura · Contract Gatekeeper · Checklist KYC/AML",
@@ -11667,7 +11674,7 @@
     } catch (e) { /* mai bloccare l'applicazione per questo */ }
   }
 
-  async function mostraCondizioni(versione) {
+  async function mostraCondizioni(versione, soloLettura) {
     if (document.getElementById("legal-ov")) return;
     const IT = _CAL_IT;
     const DOCS = [
@@ -11733,6 +11740,23 @@
 
     const chk = ov.querySelector("#legal-check");
     const ok = ov.querySelector("#legal-accetta");
+    if (soloLettura) {
+      // legal_titolo_rilettura: «Prima di cominciare» vale al primo accesso,
+      // non a chi riapre i documenti sei mesi dopo.
+      const h = ov.querySelector("h2, h3, .legal-tit");
+      if (h) h.textContent = IT ? "Condizioni e dati" : "Kushtet dhe të dhënat";
+      // Riletura: non si ri-accetta niente, si guarda e si chiude.
+      ov.querySelector(".legal-ok").style.display = "none";
+      ok.remove();
+      const esci = ov.querySelector("#legal-esci");
+      esci.textContent = IT ? "Chiudi" : "Mbyll";
+      esci.classList.remove("legal-b2"); esci.classList.add("legal-b1");
+      esci.addEventListener("click", (e) => { e.stopImmediatePropagation(); ov.remove(); }, true);
+      const p = ov.querySelector(".legal-sub");
+      p.innerHTML = (IT ? "Versione " : "Versioni ") + versione +
+        ' · <a href="/legale/' + (IT ? "it" : "sq") + '" target="_blank">' +
+        (IT ? "pagina pubblica" : "faqja publike") + "</a>";
+    }
     chk.addEventListener("change", () => { ok.disabled = !chk.checked; });
     ov.querySelector("#legal-esci").addEventListener("click", () => {
       window.location.href = "/logout";

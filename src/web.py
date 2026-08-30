@@ -2598,6 +2598,133 @@ LEGAL_VERSION = os.environ.get("LEGAL_VERSION", "2026-08-31")
 LEGAL_DOCS = "terms,privacy,dpa"
 
 
+def _legal_md_to_html(md: str) -> str:
+    """Markdown → HTML per la pagina pubblica dei documenti legali.
+
+    Copre gli otto costrutti effettivamente usati nei file di `legal/`
+    (h1-h3, paragrafi, **grassetto**, elenchi puntati e numerati, tabelle,
+    righe orizzontali, citazioni). Non e' un renderer generico e non vuole
+    esserlo: `tools/golden_check.py` sezione [10] fallisce se in quei file
+    compare un costrutto che qui non c'e', invece di lasciarlo sparire.
+
+    Tutto passa da `escape()` prima di qualunque markup: i file li scriviamo
+    noi, ma un documento legale reso senza escaping e' un'abitudine che prima
+    o poi incontra un testo che non hai scritto tu.
+    """
+    from markupsafe import escape
+
+    def inline(t: str) -> str:
+        t = str(escape(t))
+        pezzi = t.split("**")
+        # dispari = dentro le stelline; se restano spaiate si lascia il testo
+        return "".join(f"<strong>{p}</strong>" if i % 2 else p
+                       for i, p in enumerate(pezzi))
+
+    out: list[str] = []
+    lista: str = ""        # "ul" / "ol" / "" — quale elenco e' aperto
+    tabella: list[str] = []
+
+    def chiudi_lista() -> None:
+        nonlocal lista
+        if lista:
+            out.append(f"</{lista}>")
+            lista = ""
+
+    def chiudi_tabella() -> None:
+        if not tabella:
+            return
+        righe = [[c.strip() for c in r.strip().strip("|").split("|")]
+                 for r in tabella]
+        del tabella[:]
+        # la riga di separazione (|---|---|) non e' contenuto
+        corpo = [r for r in righe[1:]
+                 if not all(set(c) <= set("-: ") for c in r)]
+        out.append("<table><thead><tr>")
+        out.extend(f"<th>{inline(c)}</th>" for c in righe[0])
+        out.append("</tr></thead><tbody>")
+        for r in corpo:
+            out.append("<tr>" + "".join(f"<td>{inline(c)}</td>" for c in r) + "</tr>")
+        out.append("</tbody></table>")
+
+    for riga in (md or "").replace("\r\n", "\n").split("\n"):
+        r = riga.rstrip()
+        if r.lstrip().startswith("|"):
+            chiudi_lista()
+            tabella.append(r)
+            continue
+        chiudi_tabella()
+        if not r.strip():
+            chiudi_lista()
+            continue
+        if r.startswith("---") and set(r) == {"-"}:
+            chiudi_lista()
+            out.append("<hr>")
+        elif r.startswith("#"):
+            chiudi_lista()
+            liv = len(r) - len(r.lstrip("#"))
+            out.append(f"<h{min(liv, 3)}>{inline(r[liv:].strip())}</h{min(liv, 3)}>")
+        elif r.startswith("> "):
+            chiudi_lista()
+            out.append(f"<blockquote>{inline(r[2:])}</blockquote>")
+        elif r[:2] in ("- ", "* "):
+            if lista != "ul":
+                chiudi_lista()
+                out.append("<ul>")
+                lista = "ul"
+            out.append(f"<li>{inline(r[2:])}</li>")
+        elif r[:1].isdigit() and ". " in r[:4]:
+            if lista != "ol":
+                chiudi_lista()
+                out.append("<ol>")
+                lista = "ol"
+            out.append(f"<li>{inline(r.split('. ', 1)[1])}</li>")
+        else:
+            chiudi_lista()
+            out.append(f"<p>{inline(r)}</p>")
+    chiudi_tabella()
+    chiudi_lista()
+    return "\n".join(out)
+
+
+@app.get("/legale")
+@app.get("/legale/<lang>")
+def pagina_legale(lang: str = ""):
+    """Pagina pubblica: i documenti si leggono SENZA account.
+
+    Serve a chi sta valutando il prodotto. Uno studio serio, prima di aprire un
+    account, manda il proprio responsabile protezione dati a leggere l'accordo
+    sul trattamento: se per leggerlo bisogna gia' essere clienti, la trattativa
+    si ferma prima di cominciare.
+
+    Senza `login_required` di proposito. Non espone nulla: sono gli stessi
+    documenti che chiunque riceverebbe via email prima di firmare.
+    """
+    lingua = "it" if str(lang).lower().startswith("it") else "sq"
+    base = Path(__file__).resolve().parent.parent / "legal"
+    pezzi = []
+    titoli = {
+        "sq": [("condizioni", "Kushtet e përdorimit"),
+               ("privacy", "Të dhënat e tua"),
+               ("dpa", "Të dhënat e klientëve të tu")],
+        "it": [("condizioni", "Condizioni d'uso"),
+               ("privacy", "I tuoi dati"),
+               ("dpa", "Dati dei tuoi clienti")],
+    }[lingua]
+    for nome, etichetta in titoli:
+        f = base / f"{nome}_{lingua}.md"
+        if not f.is_file():
+            f = base / f"{nome}_it.md"
+        if f.is_file():
+            try:
+                pezzi.append((nome, etichetta,
+                              _legal_md_to_html(f.read_text(encoding="utf-8"))))
+            except OSError:
+                pass
+    altra = "sq" if lingua == "it" else "it"
+    return render_template("legale.html", pezzi=pezzi, lingua=lingua,
+                           altra=altra, versione=LEGAL_VERSION)
+
+
 @app.get("/api/legal/doc/<nome>")
 @login_required_api
 def api_legal_doc(nome: str):

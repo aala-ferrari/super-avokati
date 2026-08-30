@@ -277,6 +277,57 @@ def main():
     except OSError:
         check("burimi i web.py i lexueshëm", False, "nuk u lexua")
 
+    # ── [10] dokumentet ligjore: faqja publike i tregon te plote ────────
+    # Renderi i faqes publike mbulon vetem 8 ndertime. Nese dikush shkruan
+    # nje ndertim tjeter, brenda aplikacionit duket mire dhe NE FAQEN PUBLIKE
+    # humbet — pikerisht atje ku lexon kush nuk eshte ende klient.
+    import glob as _glob, io as _io, os as _os, re as _re
+    _rrenja = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+    _lg = _os.path.join(_rrenja, "legal")
+    _pub = sorted(_glob.glob(_os.path.join(_lg, "condizioni_*.md"))
+                  + _glob.glob(_os.path.join(_lg, "privacy_*.md"))
+                  + _glob.glob(_os.path.join(_lg, "dpa_*.md")))
+    check("ligjore: 6 dokumentet publike ekzistojne", len(_pub) == 6,
+          "u gjeten %d" % len(_pub))
+
+    _pambuluar = [
+        (r"\[[^\]]+\]\([^)]+\)", "link"),
+        (r"```", "bllok kodi"),
+        (r"(?<![\w`])`[^`\n]+`(?![\w`])", "kod inline"),
+        (r"<[a-zA-Z/]", "HTML i papershtatur"),
+    ]
+    for _f in _pub:
+        _t = _io.open(_f, encoding="utf-8").read()
+        _n = _os.path.basename(_f)
+        for _pat, _et in _pambuluar:
+            _g = _re.search(_pat, _t, _re.M)
+            check("ligjore: %s pa %s" % (_n, _et), not _g,
+                  "u gjet: %r" % (_g.group(0)[:40] if _g else ""))
+        check("ligjore: %s ka ** te balancuara" % _n, _t.count("**") % 2 == 0,
+              "%d shenja **" % _t.count("**"))
+        # una tabella senza riga di separazione perde l'intestazione
+        _righe = [r for r in _t.split("\n") if r.lstrip().startswith("|")]
+        if _righe:
+            _sep = [r for r in _righe if set(r.replace("|", "").strip()) <= set("-: ")
+                    and r.strip()]
+            check("ligjore: %s tabelat kane rreshtin ndares" % _n, bool(_sep),
+                  "asnje rresht |---|")
+
+    try:
+        _w = _io.open(_os.path.join(_rrenja, "src", "web.py"), encoding="utf-8").read()
+    except OSError:
+        _w = ""
+    check("ligjore: renderi ekziston", "_legal_md_to_html" in _w)
+    check("ligjore: rruga publike e perdor renderin",
+          _w.count("_legal_md_to_html") >= 2, "i percaktuar por i pathirrur")
+    # la pagina pubblica DEVE restare senza login: e' tutto il suo scopo
+    _blok = _w.split('@app.get("/legale")')[1].split("\ndef ")[0] if '@app.get("/legale")' in _w else "X"
+    check("ligjore: faqja publike pa login", "login_required" not in _blok)
+    # e i documenti INTERNI non devono uscire da nessuna delle due strade
+    check("ligjore: dokumentet e brendshme nuk sherbehen",
+          "interno_" not in _w, "nje rruge permend interno_")
+
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
