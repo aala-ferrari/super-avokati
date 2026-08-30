@@ -2,7 +2,7 @@
 
 **Fra lo Studio (Titolare del trattamento) e Super Avokati (Responsabile del trattamento)**
 
-Versione 2026-08-31 · art. 28 GDPR (UE 2016/679) · neni 28, Ligji nr. 124/2024
+Versione 2026-08-31 · art. 28 GDPR (UE 2016/679) · **neni 26**, Ligji nr. 124/2024
 
 ---
 
@@ -23,6 +23,10 @@ inserire nella piattaforma, per quale finalità e per quanto tempo.
 **Responsabile del trattamento** è **Super Avokati** (superavokati.ai), che
 tratta quei dati **soltanto** su istruzione dello Studio e per erogare il
 servizio.
+
+Il **neni 26 della Legge albanese 124/2024** impone che questo rapporto sia
+regolato da una **marrëveshje me shkrim** — un accordo scritto. Questo è quel
+documento.
 
 Questa distinzione non è formale: significa che **Super Avokati non usa i dati
 dei clienti dello Studio per finalità proprie**, non li cede, non li usa per
@@ -93,8 +97,10 @@ preavviso**; lo Studio può opporsi e, in tal caso, recedere senza penali.
 
 ## 7. Legge applicabile
 
-GDPR (UE 2016/679) e **Ligji nr. 124/2024** albanese, che ne recepisce i
-principi. Foro competente: quello indicato nel contratto di servizio.
+**Ligji nr. 124/2024** «Për mbrojtjen e të dhënave personale» (in vigore da
+febbraio 2025) e, per gli studi che operano in Italia, il Regolamento UE
+2016/679 (GDPR), con cui la legge albanese è armonizzata. Foro competente:
+quello indicato nel contratto di servizio.
 
 ---
 

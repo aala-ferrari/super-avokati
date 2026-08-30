@@ -2,7 +2,7 @@
 
 **Per chi usa Super Avokati** — avvocati, notai, procuratori
 
-Versione 2026-08-31 · art. 13 GDPR · neni 13, Ligji nr. 124/2024
+Versione 2026-08-31 · art. 13 GDPR (UE 2016/679) · Ligji nr. 124/2024
 
 ---
 
