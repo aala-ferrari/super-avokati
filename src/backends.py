@@ -183,6 +183,29 @@ class LLMBackend(ABC):
         )
 
 
+# ── Da dove parte il cervello ──────────────────────────────────────────
+#
+# NON da `ROOT` (cioe' `/app`). La cartella di lavoro di un processo e'
+# sempre leggibile dai suoi strumenti, qualunque limite si metta a `Read`:
+# partendo da `/app` il modello arrivava a `src/` (il sorgente) e a
+# `data/app.db` (le cause di tutti gli studi). Verificato in produzione —
+# «Il file /app/src/config.py ha 422 righe».
+#
+# Da una cartella vuota, con lo stesso identico comando, la risposta diventa
+# «Non ho i permessi per leggere quel file». Gli allegati non ne soffrono:
+# arrivano con percorso assoluto e sono autorizzati uno per uno.
+#
+# Fissa e riusabile invece che una per chiamata: la CLI ci scrive i suoi file
+# di sessione, e una cartella nuova a ogni richiesta lascerebbe rifiuti a ogni
+# giro. Dentro non c'e' niente da rubare.
+_CWD_CERVELLO = Path(os.environ.get("BRAIN_CWD", "/tmp/brain-cwd"))
+try:
+    _CWD_CERVELLO.mkdir(parents=True, exist_ok=True)
+except OSError:  # sistema in sola lettura: si ripiega su una temporanea
+    import tempfile
+    _CWD_CERVELLO = Path(tempfile.mkdtemp(prefix="brain-cwd-"))
+
+
 # ── Tetramorph (headless CLI, subscription auth) ─────────────────────────
 
 class ClaudeCodeBackend(LLMBackend):
@@ -301,21 +324,36 @@ class ClaudeCodeBackend(LLMBackend):
         # risposta strategica) abilita la RICERCA WEB (leggi aggiornate +
         # precedenti pubblici) e, se ci sono allegati, il Read del dossier.
         _tools = ["WebSearch", "WebFetch"] if not fast else []
+        seen_dirs: set[str] = set()
+        file_list_lines: list[str] = []
         if attachments:
-            _tools.append("Read")
-        if _tools:
-            cmd.extend(["--allowedTools", *_tools,
-                        "--permission-mode", "bypassPermissions"])
-        if attachments:
-            seen_dirs: set[str] = set()
-            file_list_lines: list[str] = []
             for p in attachments:
                 ap = Path(p).resolve()
-                d = str(ap.parent)
-                if d not in seen_dirs:
-                    cmd.extend(["--add-dir", d])
-                    seen_dirs.add(d)
+                seen_dirs.add(str(ap.parent))
                 file_list_lines.append(f"- {ap}")
+            # Read LIMITATO alle cartelle degli allegati di QUESTA chiamata.
+            #
+            # Prima era `Read` nudo con `--permission-mode bypassPermissions`,
+            # e quel bypass toglie ogni confine sul filesystem: il cervello
+            # leggeva /app/src/*.py (il sorgente) e qualunque altro file
+            # dell'utente che lo esegue. Verificato in produzione.
+            #
+            # Due cose NON bastano, provate: cambiare la cartella di lavoro
+            # (legge lo stesso con percorso assoluto) e limitare Read
+            # lasciando il bypass (il bypass scavalca l'elenco). L'unica cosa
+            # che chiude e' TOGLIERE il bypass.
+            for d in sorted(seen_dirs):
+                _tools.append(f"Read({d}/**)")
+        if _tools:
+            # niente `--permission-mode`: sarebbe il bypass a riaprire tutto.
+            # `--allowedTools` e' variadico e qui resta in coda — funziona
+            # perche' il prompt viaggia su stdin (`input=prompt`). Se un
+            # giorno lo si passasse come argomento, la CLI se lo mangerebbe
+            # come nome di tool.
+            cmd.extend(["--allowedTools", *_tools])
+        if attachments:
+            for d in sorted(seen_dirs):
+                cmd.extend(["--add-dir", d])
             prompt = (
                 "DOKUMENTET E DOSJES (lexoji para se të përgjigjesh):\n"
                 + "\n".join(file_list_lines)
@@ -351,7 +389,7 @@ class ClaudeCodeBackend(LLMBackend):
                         encoding="utf-8",
                         errors="replace",
                         timeout=self.timeout_s,
-                        cwd=str(ROOT),
+                        cwd=str(_CWD_CERVELLO),
                         check=False,
                     )
             except subprocess.TimeoutExpired as exc:
@@ -512,7 +550,7 @@ class ClaudeCodeBackend(LLMBackend):
                 encoding="utf-8",
                 errors="replace",
                 bufsize=1,  # line-buffered
-                cwd=str(ROOT),
+                cwd=str(_CWD_CERVELLO),
             )
             # Drain stderr on a side thread — a chatty --verbose CLI must never
             # fill the stderr pipe and deadlock the stdout read loop.
@@ -665,15 +703,16 @@ class ClaudeCodeBackend(LLMBackend):
             self.cli, "-p",
             "--output-format", "json",
             "--model", self.fast_model,
-            "--allowedTools", "Read",
-            "--permission-mode", "bypassPermissions",
+            # stessa gabbia dell'altro percorso: Read solo dove sta
+            # l'immagine, e nessun bypass che la scavalchi.
+            "--allowedTools", f"Read({extra_dir}/**)",
             "--add-dir", extra_dir,
         ]
         try:
             with self._concurrency_sem:
                 proc = subprocess.run(
                     cmd, input=full_prompt, capture_output=True, text=True,
-                    timeout=self.timeout_s, cwd=str(ROOT), check=False,
+                    timeout=self.timeout_s, cwd=str(_CWD_CERVELLO), check=False,
                 )
         except subprocess.TimeoutExpired as exc:
             raise RuntimeError(

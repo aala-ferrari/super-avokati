@@ -175,6 +175,21 @@ def main():
     check("kërkimi i nxjerr precedentët e Gjykatës së Lartë", bool(gjet),
           "asnjë te 25 të parët")
 
+    print("\n[10] Kafazi i trurit — nuk lexon dot kodin as bazën e të dhënave")
+    _bk = open("/app/src/backends.py", encoding="utf-8").read()
+    # 1. asnjë bypass: ai i heq të gjithë kufijtë e sistemit të skedarëve
+    check("asnjë '--permission-mode' nuk i jepet CLI-së",
+          '"--permission-mode"' not in _bk,
+          "u gjet — bypass-i i rihap të gjitha")
+    # 2. truri NUK niset nga /app: dosja e punës lexohet gjithnjë
+    check("truri nuk niset nga ROOT (/app)", "cwd=str(ROOT)" not in _bk,
+          "u gjet cwd=ROOT — src/ dhe app.db bëhen të lexueshme")
+    check("truri niset nga një dosje e veçuar", "_CWD_CERVELLO" in _bk)
+    # 3. Read i kufizuar te dosjet e bashkëngjitjeve, jo i zhveshur
+    check("Read është i kufizuar me shteg, jo i zhveshur",
+          'Read({d}/**)' in _bk or 'Read(%s/**)' in _bk or "Read({extra_dir}/**)" in _bk,
+          "Read pa shteg = pa kufi")
+
     print("\n[9] Truri — modeli i deklaruar është ai që përgjigjet vërtet")
     from src import config as _cfg   # noqa: E402
     check("truri kryesor = Opus 5", "opus-5" in (_cfg.CLAUDE_CODE_MODEL or ""),
