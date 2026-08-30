@@ -17,6 +17,7 @@ from src import citation_verifier as cv           # noqa: E402
 from src import expertise as ex                   # noqa: E402
 from src import brain                             # noqa: E402
 from src.retrieval import INDEX_FILE              # noqa: E402
+from src.retrieval import DecisionIndex, DECISIONS_INDEX_FILE  # noqa: E402
 
 FAILS = []
 PASSES = 0
@@ -134,6 +135,44 @@ def main():
               ("codice_civile", "2946") in top)
     else:
         check("korpusi italian i pranishëm", False, "bm25_it.pkl mungon")
+
+    print("\n[6] Precedentët — çfarë hyri dhe çfarë NUK duhet të kishte hyrë")
+    dec = DecisionIndex.load(DECISIONS_INDEX_FILE).decisions
+    gjl = [d for d in dec if d.court_code == "gjykata_elarte"]
+    korte = {d.court_code for d in dec}
+    # 1. asgjë nuk humbi: rindërtimi nga e para lexon Postgres-in, që nga
+    #    kontejneri nuk përgjigjet — do t\'i zhdukte 813 pa asnjë gabim
+    check("≥1400 precedentë", len(dec) >= 1400, "gjetur %d" % len(dec))
+    check("të tri gjykatat të pranishme (Postgres-i nuk u humb)",
+          {"kushtetuese", "gjykata_elarte", "ecthr_albania"} <= korte,
+          "gjetur %s" % sorted(korte))
+    # 2. asnjë mospranim: nuk vendos mbi themelin
+    mosk = [d for d in gjl if "mospranim" in (d.dispositif or "").lower()]
+    check("asnjë vendim mospranimi te precedentët e rinj", not mosk,
+          "gjetur %d" % len(mosk))
+    # 3. vetëm arsyetimi i Kolegjit — jo i shkallëve që u prishën
+    marker = ("vlerëson", "vlereson", "çmon", "cmon", "arsyeton", "VLERËSIMI")
+    te_reja = [d for d in gjl if d.dispositif.startswith("[")]
+    keq = [d for d in te_reja
+           if not any(m in (d.reasoning or "")[:400] for m in marker)]
+    check("arsyetimi nis te 'Kolegji vlerëson' (jo shkallët e prishura)",
+          not keq, "%d pa marker" % len(keq))
+    # 4. esiti sempre dichiarato
+    pa_esit = [d for d in te_reja if not d.dispositif.startswith("[")
+               or len(d.dispositif) < 20]
+    check("çdo precedent i ri e deklaron si përfundoi", not pa_esit,
+          "%d pa përfundim" % len(pa_esit))
+    # 5. një vendim i prishur nuk mund të dalë si i lënë në fuqi
+    kund = [d for d in te_reja
+            if d.dispositif.startswith("[prishje") and d.outcome == "rrëzim"]
+    check("një vendim i PRISHUR nuk paraqitet si i konfirmuar", not kund,
+          "gjetur %d" % len(kund))
+    # 6. dhe dalin vërtet nga kërkimi
+    idxd = DecisionIndex.load(DECISIONS_INDEX_FILE)
+    gjet = [a for a, _s in idxd.search("vrasje me paramendim", top_k=25)
+            if a.court_code == "gjykata_elarte"]
+    check("kërkimi i nxjerr precedentët e Gjykatës së Lartë", bool(gjet),
+          "asnjë te 25 të parët")
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

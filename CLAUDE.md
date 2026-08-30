@@ -232,7 +232,7 @@ da 1/14 strumenti corretti a **14/14**.
 
 # PRODUZIONE — VPS, DEPLOY, BUILD  (aggiornato 7 ago 2026, v9.82)
 
-Numeri attuali: **6061 nene · 21 codici · 1258 precedenti** (pickle vivo). Corpus cresciuto da 5615 (18 codici) aggiungendo: Kodi Civil +2, Familjes +4, Konsumatorët +3, Ligji Policia 108/2014 (135), Rregullore Policia VKM 750/2015 (255), Ligj Policia 82/2024 (143, ATTUALE). Dedup Zgjedhor -96.
+Numeri attuali: **6061 nene · 21 codici · 1402 precedenti** (pickle vivo). Corpus cresciuto da 5615 (18 codici) aggiungendo: Kodi Civil +2, Familjes +4, Konsumatorët +3, Ligji Policia 108/2014 (135), Rregullore Policia VKM 750/2015 (255), Ligj Policia 82/2024 (143, ATTUALE). Dedup Zgjedhor -96.
 
 ## Dove gira
 - **VPS**: `root@31.220.90.246` (SSH dal Mac senza password). App in `/var/www/apps/super-avvocato`.
@@ -258,6 +258,48 @@ for i in 1 2 3 4 5 6; do docker inspect -f '{{.State.Health.Status}}' super-avvo
 curl -s -o /dev/null -w '%{http_code}' https://superavokati.ai/   # atteso: 200
 ```
 Dockerfile COPY: `data/ src/ static/ templates/ scripts/ tools/`. Dopo un cambio env (NEXT_PUBLIC inlined) serve rebuild — qui NON applicabile (Flask), ma per gli altri servizi sì.
+
+## Precedenti — cosa entra e cosa NON deve entrare (29 ago 2026)
+
+**1.258 → 1.402** (Kushtetuese 445 · **Gjykata e Lartë 533** · CEDU 424).
+Aggiunte 144 decisioni della Gjykata e Lartë scaricate dall'archivio ufficiale
+(`panel.gjykataelarte.gov.al/graphql`, Strapi pubblico, campo `files`).
+
+**⚠️ MAI chiamare `build_and_save_decisions()`** per aggiungere: ricostruisce da
+zero leggendo Postgres `legalkb`, che **dal container non è raggiungibile** —
+sparirebbero gli 813 precedenti (Gjykata e Lartë + CEDU) che oggi vivono solo
+nel pickle, e senza un errore. Si fa come per gli articoli: `DecisionIndex.load()`
+→ append → `DecisionIndex.build(tutte).save()` → `chown 1000:1000` → restart.
+
+**Regola permanente (utente, 29 ago 2026): entra SOLO ciò che migliora.**
+Su 437 decisioni scaricate ne sono entrate 144. Tenute fuori di proposito:
+- **mospranim / inammissibilità** — non decidono il merito; come precedente
+  valgono zero e il recupero, che va per parole, le citerebbe come autorità;
+- documenti che **non sono decisioni** (leggi, elenchi candidati, relazioni);
+- quelle **già presenti**.
+
+**Il rischio più grave, e come è chiuso**: in 74 di queste la Cassazione ha
+**annullato** (`prishje`) la decisione di sotto. Dentro il documento c'è per
+esteso il ragionamento di quel grado — che è diritto dichiarato sbagliato.
+Si indicizza **solo dal marcatore «Kolegji vlerëson»** (presente nel 96%) fino a
+«PËR KËTO ARSYE»: quello è il ragionamento della Cassazione, mai quello cassato.
+L'esito letterale sta in `dispositif` fra parentesi quadre (`[prishje + kthim]`,
+`[lënia në fuqi]`) e `outcome` resta nel vocabolario esistente
+(pranim/rrëzim/pushim/pjesërisht/kthim për rishqyrtim/ndryshim) perché il
+modello veda un solo lessico.
+
+**GOTCHA costato una correzione doppia**: per sapere **come è finita** una
+decisione si guarda il **dispositivo**, MAI l'intestazione — «mospranim» sta in
+fondo, dopo trenta pagine, e 5 inammissibilità sono passate col filtro sui primi
+8.000 caratteri (le ha trovate il golden check, non io). Ma non si guarda nemmeno
+il *ragionamento*: una decisione che **discute** l'inammissibilità di un grado
+inferiore ha comunque deciso nel merito — cercando lì avevo tolto 13 precedenti
+invece di 5, di cui 8 validi. **Solo il dispositivo dice cosa è stato deciso.**
+
+Sorveglianza: `golden_check.py` sezione [6], 6 check di cui **5 sorvegliano un
+danno** (nessuna inammissibilità · le tre corti ancora presenti · il ragionamento
+parte dal marcatore del Kolegji · l'esito sempre dichiarato · una annullata non
+può risultare confermata).
 
 ## Fix corpus (GOTCHA importante)
 I fix agli articoli vivono nel **PICKLE `data/index/bm25.pkl`** (volume montato), NON nel sorgente. Per aggiungere/correggere articoli: script python che fa `ArticleIndex.load()` → append `Article(...)` → `ArticleIndex.build(arts).save()` → `chown 1000:1000 data/index/bm25.pkl` → `docker restart super-avvocato`. Un re-parse da zero PERDE questi fix. Article ha campi: code, title_sq, area, number, heading, body, pjesa, kreu, seksioni, repealed, volatility (STABLE/MEDIUM), last_amendment_date.
@@ -349,7 +391,7 @@ errori, non che le risposte sono ancora giuste. Riferimento verificato il
 12 articoli recuperati per ciascuna.
 
 ```bash
-docker exec super-avvocato python3 tools/golden_check.py   # 25 check deterministici: corpus + Verifikuar + heading-scan + ancore. Baseline 25/25.
+docker exec super-avvocato python3 tools/golden_check.py   # 32 check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti. Baseline 32/32.
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 ```
