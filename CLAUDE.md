@@ -205,11 +205,18 @@ Sorgente di verità: `/opt/super-avvocato.env`, letto da `config.py`.
   `if not fast and self.effort`, senza escludere `model_override` (un bug
   precedente lo escludeva e Fable rispondeva senza ragionamento esteso).
 
-**⚠️ Solo Super Avokati fissa il modello.** `CLAUDE_CODE_MODEL` è impostato
-solo in `/opt/super-avvocato.env`. Gli altri tre cervelli — Bolla di AALA,
-Nabuel, OwnerAssistant del Taxi — non lo fissano né nel `.env` né in pm2:
-prendono il **default del CLI**, quindi se quel default cambia, cambiano modello
-in silenzio. Ancorarli è una scelta commerciale, non una correzione tecnica.
+**✅ Opus 5 su tutti i cervelli (30 ago 2026).** Bolla + Super Consulente
+(AALA), Nabuel e l'OwnerAssistant del Taxi ora sono ancorati a `claude-opus-5`
+come Super Avokati. **Il modello era scritto nel CODICE, non solo nell'env** —
+un controllo sull'ambiente diceva «non fissato» e ingannava. Cambiati env
+**e** fallback nel sorgente: se resta indietro il fallback, alla prima perdita
+di un `.env` il prodotto torna al modello vecchio in silenzio. Per il Taxi
+toccato anche `dist/` (è quello che gira; `src/` è quello che sopravvive al
+prossimo build).
+**Costo misurato**: Opus 5 impiega 17-19s contro i 7s di Opus 4.8; la Bolla ha
+un timeout di 45s e ripiega su risposte a regole se scade. Provato dopo il
+cambio: Bolla 10-14s, Nabuel 9-19s, sempre col modello. Se un giorno la Bolla
+risponde con frasi generiche, guardare quel timeout per primo.
 
 **GOTCHA**: esistono DUE costanti che sembrano la stessa cosa.
 `CLAUDE_CODE_MODEL` (backend CLI, quello in uso) e `CLAUDE_MODEL` (backend API
