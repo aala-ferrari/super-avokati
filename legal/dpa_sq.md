@@ -14,6 +14,18 @@ Versioni 2026-08-31 · neni 26 i Ligjit nr. 124/2024 · neni 28 GDPR (BE 2016/67
 
 ---
 
+## Kush nënshkruan
+
+| | Shqipëri | Itali |
+|---|---|---|
+| **Shoqëria** | **AALA** — Albania Auto Legal Alliance | **Deltalux Srl** |
+| **Selia** | Tiranë | Via San Raffaele 1, Milano |
+| **NIPT/P.IVA** | — | 12021700963 |
+
+Super Avokati është **produkti**; palë kontraktuese është shoqëria e treguar më
+sipër sipas tregut. Një marrëveshje që përmend vetëm një markë nuk individualizon
+një subjekt që mund të marrë përsipër detyrime.
+
 ## 1. Kush është kush
 
 **Kontrollues** është **Studioja** (avokati, noteri ose prokurori titullar i
@@ -57,12 +69,12 @@ për punën e tyre.
 
 | Kush | Çfarë bën | Ku |
 |---|---|---|
-| **Anthropic PBC** | përpunon tekstet e dërguara te modeli gjuhësor | Shtetet e Bashkuara |
+| **Tetramorph** — motori i analizës, i operuar nga **Anthropic PBC** | përpunon tekstet e dërguara te modeli gjuhësor | Shtetet e Bashkuara |
 | **Contabo GmbH** | strehon serverin | Gjermani (BE) |
 | **Resend** | dërgon email-et e shërbimit | BE/SHBA |
 
 ⚠️ **Transferim jashtë vendit.** Tekstet që Studioja i dërgon motorit të
-analizës përpunohen nga Anthropic PBC në Shtetet e Bashkuara, mbi bazën e
+analizës përpunohen nga motori **Tetramorph**, i operuar nga Anthropic PBC në Shtetet e Bashkuara, mbi bazën e
 **Klauzolave Kontraktore Standarde** të Komisionit Europian. **Studioja
 njoftohet për këtë dhe e pranon duke përdorur shërbimin.** Nëse Studioja nuk
 dëshiron të transferojë të dhëna jashtë, nuk duhet t'i ngarkojë ato të dhëna.

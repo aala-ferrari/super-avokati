@@ -110,11 +110,11 @@ istruzione dello studio**. Titolare è ciascuno studio.
 
 | Chi | Cosa | Dove | Garanzia |
 |---|---|---|---|
-| **Anthropic PBC** | elabora i testi inviati al motore | **Stati Uniti** | Clausole Contrattuali Standard |
+| **Tetramorph** — motore di analisi, operato da **Anthropic PBC** | elabora i testi inviati al motore | **Stati Uniti** | Clausole Contrattuali Standard |
 | **Contabo GmbH** | ospita il server | Germania (UE) | interno UE |
 | **Resend** | email di servizio | UE/USA | Clausole Contrattuali Standard |
 
-⚠️ **Il trasferimento verso Anthropic è il punto più delicato del registro.**
+⚠️ **Il trasferimento verso il motore Tetramorph è il punto più delicato del registro.**
 È dichiarato nell'accordo con gli studi e nell'informativa. Va **riverificato**
 se cambia il fornitore del motore o la sua sede.
 

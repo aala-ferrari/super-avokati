@@ -40,7 +40,7 @@ Kontakt: **info@aala.global** · +355 69 95 55 777 · Tiranë / Milano
 ## 3. Kush tjetër i sheh
 
 - **Contabo GmbH** (Gjermani, BE) — strehon serverin
-- **Anthropic PBC** (Shtetet e Bashkuara) — përpunon tekstet e dërguara te motori
+- **Tetramorph** (motori i analizës, i operuar nga Anthropic PBC — SHBA) — përpunon tekstet që dërgon
 - **Resend** — dërgon email-et e shërbimit
 
 ⚠️ **Tekstet që i dërgon motorit të analizës përpunohen në Shtetet e

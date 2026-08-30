@@ -14,6 +14,18 @@ Versione 2026-08-31 · art. 28 GDPR (UE 2016/679) · **neni 26**, Ligji nr. 124/
 
 ---
 
+## Chi firma
+
+| | Albania | Italia |
+|---|---|---|
+| **Società** | **AALA** — Albania Auto Legal Alliance | **Deltalux Srl** |
+| **Sede** | Tirana | Via San Raffaele 1, Milano |
+| **P.IVA** | — | 12021700963 |
+
+Super Avokati è il **prodotto**; la parte contrattuale è la società indicata
+sopra secondo il mercato. Un accordo che nomina soltanto un marchio non
+individua un soggetto che possa assumere obblighi.
+
 ## 1. Chi è chi
 
 **Titolare del trattamento** è lo **Studio** (avvocato, notaio o procuratore
@@ -57,12 +69,12 @@ responsabile del loro operato.
 
 | Chi | Cosa fa | Dove |
 |---|---|---|
-| **Anthropic PBC** | elabora i testi inviati al modello linguistico | Stati Uniti |
+| **Tetramorph** — il motore di analisi, operato da **Anthropic PBC** | elabora i testi inviati al modello linguistico | Stati Uniti |
 | **Contabo GmbH** | ospita il server | Germania (UE) |
 | **Resend** | invia le email di servizio | UE/USA |
 
 ⚠️ **Trasferimento fuori dall'Unione.** I testi che lo Studio invia al motore
-di analisi sono elaborati da Anthropic PBC negli Stati Uniti, sulla base delle
+di analisi sono elaborati dal motore **Tetramorph**, operato da Anthropic PBC negli Stati Uniti, sulla base delle
 **Clausole Contrattuali Standard** della Commissione europea. **Lo Studio ne è
 informato e lo accetta usando il servizio.** Se lo Studio non intende
 trasferire dati fuori dall'UE, non deve caricare quei dati.

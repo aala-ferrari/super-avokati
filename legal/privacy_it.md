@@ -40,7 +40,7 @@ Contatto: **info@aala.global** · +355 69 95 55 777 · Tirana / Milano
 ## 3. Chi altro li vede
 
 - **Contabo GmbH** (Germania, UE) — ospita il server
-- **Anthropic PBC** (Stati Uniti) — elabora i testi inviati al motore
+- **Tetramorph** (motore di analisi, operato da Anthropic PBC — Stati Uniti) — elabora i testi che invii
 - **Resend** — invia le email di servizio
 
 ⚠️ **I testi che invii al motore di analisi vengono elaborati negli Stati
