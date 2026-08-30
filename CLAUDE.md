@@ -778,6 +778,25 @@ Fuori solo 22/80/443, verificato bussando da fuori.
 `npx next start -p <porta> -H 127.0.0.1`. Con la sola variabile tre app su
 quattro restano su `*` e sembra fatto.
 
+## 🟠 Permessi sui dati: non più leggibili da tutta la macchina
+
+Erano `755`/`644` — **chiunque** sulla macchina leggeva `app.db` e i documenti
+(verificato: `www-data` ci arrivava), e lì girano **11 utenti non-root**: un
+difetto di lettura file in un qualunque altro dei cinque siti sarebbe arrivato
+ai fascicoli. Ora `700`/`600`, `chown 1000:1000`.
+⚠️ **Da rilanciare dopo un ripristino**: `/root/permessi-dati.sh`. I permessi
+non sopravvivono a un tar estratto male.
+
+## 💭 Perché i documenti NON sono cifrati a riposo
+
+Scelta ragionata, non dimenticanza: il controllo d'accesso è solido (nessun
+IDOR — 4 attacchi, 4 bloccati), i permessi ora sono stretti, e **i backup — la
+via realistica per cui un file esce — sono già cifrati**. Una cifratura
+applicativa avrebbe la chiave sul server (l'app legge senza un umano): protegge
+da un'immagine disco rubata, **non** da chi diventa root. E costerebbe cara:
+tocca caricamento, OCR, **allegati del cervello** (la CLI legge dal disco col
+tool `Read`) e scarico. Se un giorno serve, la strada è **LUKS sul volume**.
+
 ## Cosa tiene già (verificato)
 
 Isolamento fra studi (4 tentativi cross-tenant → 404, fallisce chiuso) ·
