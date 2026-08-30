@@ -205,6 +205,12 @@ Sorgente di verità: `/opt/super-avvocato.env`, letto da `config.py`.
   `if not fast and self.effort`, senza escludere `model_override` (un bug
   precedente lo escludeva e Fable rispondeva senza ragionamento esteso).
 
+**⚠️ Solo Super Avokati fissa il modello.** `CLAUDE_CODE_MODEL` è impostato
+solo in `/opt/super-avvocato.env`. Gli altri tre cervelli — Bolla di AALA,
+Nabuel, OwnerAssistant del Taxi — non lo fissano né nel `.env` né in pm2:
+prendono il **default del CLI**, quindi se quel default cambia, cambiano modello
+in silenzio. Ancorarli è una scelta commerciale, non una correzione tecnica.
+
 **GOTCHA**: esistono DUE costanti che sembrano la stessa cosa.
 `CLAUDE_CODE_MODEL` (backend CLI, quello in uso) e `CLAUDE_MODEL` (backend API
 diretta). La seconda era ferma a `claude-opus-4-8` e finiva nel **provenance
