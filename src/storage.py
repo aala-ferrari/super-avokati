@@ -613,6 +613,19 @@ CREATE INDEX IF NOT EXISTS idx_prov_response ON provenance_packs(response_id);
 --   * latency + token usage if available
 --   * who called (user_id) and from what feature (callsite)
 --   * outcome (success / error class)
+CREATE TABLE IF NOT EXISTS legal_acceptances (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id     INTEGER NOT NULL,
+    username    TEXT,                 -- copia leggibile: l'utenza puo' sparire
+    version     TEXT NOT NULL,        -- QUALE testo ha accettato (es. '2026-08-31')
+    documents   TEXT NOT NULL,        -- quali: 'terms,privacy,dpa'
+    accepted_at TEXT NOT NULL,        -- quando (ISO-8601 UTC)
+    ip          TEXT,                 -- da dove
+    user_agent  TEXT,
+    UNIQUE(user_id, version)          -- una sola accettazione per versione
+);
+CREATE INDEX IF NOT EXISTS idx_legal_user ON legal_acceptances(user_id, version);
+
 CREATE TABLE IF NOT EXISTS case_access_log (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     ts          TEXT NOT NULL,        -- ISO-8601 UTC
@@ -881,6 +894,55 @@ def _connect(db_path: Path = APP_DB_PATH) -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON;")
     return conn
+
+
+def has_accepted_legal(user_id: int, version: str) -> bool:
+    """Ha gia' accettato QUESTA versione? La versione e' il punto: un consenso
+    a un testo che nel frattempo e' cambiato non prova nulla."""
+    try:
+        with db() as conn:
+            r = conn.execute(
+                "SELECT 1 FROM legal_acceptances WHERE user_id=? AND version=?",
+                (user_id, version),
+            ).fetchone()
+        return r is not None
+    except Exception:  # noqa: BLE001
+        # In dubbio si considera NON accettato: meglio richiedere due volte che
+        # non poter dimostrare una volta.
+        return False
+
+
+def record_legal_acceptance(*, user_id: int, username: str | None, version: str,
+                            documents: str, ip: str | None,
+                            user_agent: str | None) -> bool:
+    """Scrive la prova. Torna False se non ci riesce — e chi chiama DEVE
+    dirlo all'utente invece di far finta: un'accettazione che risulta presa
+    e non e' scritta e' il peggiore dei due mondi."""
+    try:
+        with db() as conn:
+            conn.execute(
+                "INSERT OR IGNORE INTO legal_acceptances "
+                "(user_id, username, version, documents, accepted_at, ip, user_agent) "
+                "VALUES (?, ?, ?, ?, datetime('now'), ?, ?)",
+                (user_id, username, version, documents,
+                 (ip or "")[:64], (user_agent or "")[:200]),
+            )
+        return True
+    except Exception:  # noqa: BLE001
+        log.exception("impossibile registrare l'accettazione di %s", username)
+        return False
+
+
+def legal_acceptances_for(user_id: int) -> list[dict]:
+    """Lo storico di un utente — per rispondere a chi chiede «cosa ho firmato»."""
+    try:
+        with db() as conn:
+            rows = conn.execute(
+                "SELECT version, documents, accepted_at, ip FROM legal_acceptances "
+                "WHERE user_id=? ORDER BY id DESC", (user_id,)).fetchall()
+        return [dict(r) for r in rows]
+    except Exception:  # noqa: BLE001
+        return []
 
 
 def log_case_access(*, user_id: int, username: str | None, case_id: str,

@@ -2590,6 +2590,94 @@ def api_genio_run(case_id: str):
                     mimetype="text/event-stream", headers=_SSE_HEADERS)
 
 
+# ── Condizioni, privacy e accordo sul trattamento ─────────────────────
+#
+# La versione e' una data. Cambiando i testi si alza, e tutti riaccettano:
+# altrimenti l'accettazione si riferisce a un documento che non esiste piu'.
+LEGAL_VERSION = os.environ.get("LEGAL_VERSION", "2026-08-31")
+LEGAL_DOCS = "terms,privacy,dpa"
+
+
+@app.get("/api/legal/doc/<nome>")
+@login_required_api
+def api_legal_doc(nome: str):
+    """Serve un documento legale. Fonte unica: i file in `legal/`.
+
+    Scritti su file e non nel codice perche' cambiano e perche' devono essere
+    **gli stessi** che si mandano via email: se il testo a schermo e quello
+    firmato divergono, la firma non prova niente.
+    """
+    if nome not in ("condizioni", "privacy", "dpa"):
+        return jsonify({"error": "not found"}), 404
+    # dal file stesso: non dipende da un import che potrebbe non esserci
+    base = Path(__file__).resolve().parent.parent / "legal"
+    juris = "AL"
+    try:
+        juris = _active_jurisdiction(getattr(request, "user", None)) or "AL"
+    except Exception:  # noqa: BLE001
+        pass
+    lingua = "sq" if str(juris).upper() == "AL" else "it"
+    # la sua lingua se c'e'; altrimenti l'italiano, ma DICENDOLO: un consenso a
+    # un testo che non si capisce non e' un consenso.
+    f = base / f"{nome}_{lingua}.md"
+    tradotto = f.is_file()
+    if not tradotto:
+        f = base / f"{nome}_it.md"
+    if not f.is_file():
+        return jsonify({"error": "not found"}), 404
+    try:
+        testo = f.read_text(encoding="utf-8")
+    except OSError:
+        return jsonify({"error": "unreadable"}), 500
+    return jsonify({"name": nome, "lang": lingua if tradotto else "it",
+                    "translated": tradotto, "version": LEGAL_VERSION,
+                    "markdown": testo})
+
+
+@app.get("/api/legal/status")
+@login_required_api
+def api_legal_status():
+    """Deve vedere le condizioni? E cosa ha gia' accettato in passato."""
+    user = request.user  # type: ignore[attr-defined]
+    ok = storage.has_accepted_legal(user.id, LEGAL_VERSION)
+    return jsonify({
+        "version": LEGAL_VERSION,
+        "accepted": bool(ok),
+        "documents": LEGAL_DOCS.split(","),
+        "history": storage.legal_acceptances_for(user.id) if ok else [],
+    })
+
+
+@app.post("/api/legal/accept")
+@login_required_api
+def api_legal_accept():
+    """Registra l'accettazione — o dice chiaramente che non ci e' riuscito.
+
+    Se la scrittura fallisce si risponde con un errore invece di lasciar
+    passare: un'accettazione che l'utente crede data e che non e' registrata
+    e' il peggiore dei due mondi — lui pensa di aver firmato e noi non
+    possiamo dimostrarlo.
+    """
+    user = request.user  # type: ignore[attr-defined]
+    data = request.get_json(force=True, silent=True) or {}
+    if (data.get("version") or "") != LEGAL_VERSION:
+        # il client ha in mano un testo vecchio: meglio farglielo ricaricare
+        return jsonify({"error": "version_mismatch",
+                        "version": LEGAL_VERSION}), 409
+    ok = storage.record_legal_acceptance(
+        user_id=user.id, username=getattr(user, "username", None),
+        version=LEGAL_VERSION, documents=LEGAL_DOCS,
+        ip=(request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+            or request.remote_addr),
+        user_agent=request.headers.get("User-Agent"),
+    )
+    if not ok:
+        return jsonify({"error": "not_recorded"}), 500
+    log.info("condizioni accettate da %s (versione %s)",
+             getattr(user, "username", "?"), LEGAL_VERSION)
+    return jsonify({"ok": True, "version": LEGAL_VERSION})
+
+
 @app.get("/api/ask/active")
 @login_required_api
 def api_ask_active():

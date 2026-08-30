@@ -340,6 +340,9 @@
   newCaseBtn.addEventListener("click", () => createCase());
   document.getElementById("clients-dir-btn")?.addEventListener("click", openClientsDir);
   document.getElementById("dosja-btn")?.addEventListener("click", openDosja);
+  // le condizioni prima di tutto: e' il momento in cui uno studio accetta
+  // che i dati dei suoi clienti passino da qui.
+  controllaCondizioni();
   initModeBar();
 
   // Riprende il caso su cui si stava lavorando: alla ricarica l'app tornava
@@ -11649,6 +11652,109 @@
     }
     messages.appendChild(box);
     scroll();
+  }
+
+  /* Le condizioni al primo accesso — e a ogni versione nuova.
+   *
+   * Non e' un banner: e' il momento in cui uno studio accetta che i dati dei
+   * suoi clienti passino da qui. Deve poterli leggere, e noi dobbiamo poter
+   * dimostrare cosa ha accettato e quando. */
+  async function controllaCondizioni() {
+    try {
+      const st = await fetch("/api/legal/status").then(r => r.ok ? r.json() : null);
+      if (!st || st.accepted) return;
+      await mostraCondizioni(st.version);
+    } catch (e) { /* mai bloccare l'applicazione per questo */ }
+  }
+
+  async function mostraCondizioni(versione) {
+    if (document.getElementById("legal-ov")) return;
+    const IT = _CAL_IT;
+    const DOCS = [
+      ["condizioni", IT ? "Condizioni d'uso" : "Kushtet e përdorimit"],
+      ["privacy",    IT ? "I tuoi dati" : "Të dhënat e tua"],
+      ["dpa",        IT ? "Dati dei tuoi clienti" : "Të dhënat e klientëve të tu"],
+    ];
+    const ov = document.createElement("div");
+    ov.id = "legal-ov";
+    ov.className = "legal-ov";
+    ov.innerHTML =
+      '<div class="legal-box">' +
+        '<h2>' + (IT ? "Prima di cominciare" : "Para se të fillosh") + '</h2>' +
+        '<p class="legal-sub">' + (IT
+          ? "Qui dentro passeranno i fascicoli dei tuoi clienti. Leggi cosa facciamo con quei dati, e cosa non facciamo."
+          : "Këtu do të kalojnë fashikujt e klientëve të tu. Lexo çfarë bëjmë me ato të dhëna, dhe çfarë nuk bëjmë.") + '</p>' +
+        '<div class="legal-tabs"></div>' +
+        '<div class="legal-body"></div>' +
+        '<label class="legal-ok"><input type="checkbox" id="legal-check"> <span></span></label>' +
+        '<div class="legal-actions">' +
+          '<button type="button" id="legal-esci" class="legal-b2"></button>' +
+          '<button type="button" id="legal-accetta" class="legal-b1" disabled></button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(ov);
+
+    ov.querySelector(".legal-ok span").textContent = IT
+      ? "Ho letto e accetto le condizioni d'uso, l'informativa e l'accordo sul trattamento dei dati."
+      : "I kam lexuar dhe i pranoj kushtet, informacionin dhe marrëveshjen për përpunimin e të dhënave.";
+    ov.querySelector("#legal-esci").textContent = IT ? "Esci" : "Dil";
+    ov.querySelector("#legal-accetta").textContent = IT ? "Accetto e continuo" : "Pranoj dhe vazhdoj";
+
+    const tabs = ov.querySelector(".legal-tabs");
+    const body = ov.querySelector(".legal-body");
+    const cache = {};
+    async function apri(nome, btn) {
+      tabs.querySelectorAll("button").forEach(b => b.classList.remove("on"));
+      btn.classList.add("on");
+      body.innerHTML = "<p style='color:#888'>…</p>";
+      if (!cache[nome]) {
+        try {
+          cache[nome] = await fetch("/api/legal/doc/" + nome).then(r => r.json());
+        } catch (e) { body.textContent = "—"; return; }
+      }
+      const d = cache[nome];
+      // Se non c'e' nella sua lingua lo si dice, invece di far finta: un
+      // consenso a un testo che non capisce non e' un consenso.
+      const avviso = d.translated ? "" :
+        '<div class="legal-nota">' + (IT
+          ? "⚠️ Questo testo non è ancora disponibile nella lingua della tua sessione: lo stai leggendo in italiano."
+          : "⚠️ Ky tekst ende nuk është në gjuhën tënde: po e lexon në italisht.") + '</div>';
+      body.innerHTML = avviso + renderMarkdown(d.markdown || "");
+      body.scrollTop = 0;
+    }
+    DOCS.forEach(([nome, etichetta], i) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = etichetta;
+      b.addEventListener("click", () => apri(nome, b));
+      tabs.appendChild(b);
+      if (i === 0) setTimeout(() => apri(nome, b), 0);
+    });
+
+    const chk = ov.querySelector("#legal-check");
+    const ok = ov.querySelector("#legal-accetta");
+    chk.addEventListener("change", () => { ok.disabled = !chk.checked; });
+    ov.querySelector("#legal-esci").addEventListener("click", () => {
+      window.location.href = "/logout";
+    });
+    ok.addEventListener("click", async () => {
+      ok.disabled = true;
+      try {
+        const r = await fetch("/api/legal/accept", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ version: versione }),
+        });
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        ov.remove();
+      } catch (e) {
+        // Se non si e' riusciti a REGISTRARE l'accettazione non la si da' per
+        // presa: l'avvocato crederebbe di aver firmato e noi non potremmo
+        // dimostrarlo. Meglio dirlo e farlo riprovare.
+        ok.disabled = false;
+        alert(IT ? "Non sono riuscito a registrare l'accettazione. Riprova."
+                 : "Nuk arrita ta regjistroj pranimin. Provo përsëri.");
+      }
+    });
   }
 
   function pendingJob(caseId) {

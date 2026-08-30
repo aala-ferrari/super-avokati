@@ -70,6 +70,8 @@ COPY static/ ./static/
 COPY templates/ ./templates/
 COPY scripts/ ./scripts/
 COPY tools/ ./tools/
+# i testi legali: fonte unica, mostrati nell'app e firmati fuori
+COPY legal/ ./legal/
 COPY README.md .env.example ./
 
 # Non-root user for runtime safety.
