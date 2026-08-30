@@ -261,8 +261,8 @@ Dockerfile COPY: `data/ src/ static/ templates/ scripts/ tools/`. Dopo un cambio
 
 ## Precedenti — cosa entra e cosa NON deve entrare (29 ago 2026)
 
-**1.258 → 1.402** (Kushtetuese 445 · **Gjykata e Lartë 533** · CEDU 424).
-Aggiunte 144 decisioni della Gjykata e Lartë scaricate dall'archivio ufficiale
+**1.258 → 1.407** (Kushtetuese 445 · **Gjykata e Lartë 538** · CEDU 424).
+Aggiunte 149 decisioni della Gjykata e Lartë scaricate dall'archivio ufficiale
 (`panel.gjykataelarte.gov.al/graphql`, Strapi pubblico, campo `files`).
 
 **⚠️ MAI chiamare `build_and_save_decisions()`** per aggiungere: ricostruisce da
@@ -287,6 +287,24 @@ L'esito letterale sta in `dispositif` fra parentesi quadre (`[prishje + kthim]`,
 `[lënia në fuqi]`) e `outcome` resta nel vocabolario esistente
 (pranim/rrëzim/pushim/pjesërisht/kthim për rishqyrtim/ndryshim) perché il
 modello veda un solo lessico.
+
+**GOTCHA della chiave anti-duplicati**: il controllo «c'è già?» deve essere
+`(corte, anno, numero)`. Senza la corte, la Kushtetuese n. 68/2025 blocca la
+Gjykata e Lartë 00-2025-68, che è tutt'altra decisione — 5 vendime veri esclusi
+così. E la normalizzazione deve reggere DUE formati: i precedenti vecchi hanno
+`number="42"`, quelli nuovi `number="00-2025-68"` (togliendo i non-numeri
+diventa "00202568" e NIENTE combacia più → si duplicherebbe tutto).
+Conseguenza concreta e misurata: uno dei 5 esclusi è proprio il vendim che il
+cervello ha poi **citato in una risposta senza averlo nel corpus**,
+ricostruendolo dalla propria preparazione. L'esclusione sbagliata crea la
+condizione per una citazione non fondata.
+
+**⚠️ LIMITE APERTO — il Citation Shield NON copre i vendime.**
+`citation_verifier` verifica i **nene** (esistono? abrogati? freschi?), non i
+numeri di sentenza. In una risposta di prova il cervello ha citato
+`00-2025-1760`, che **non esiste in nessun documento scaricato né nell'indice**.
+Finché non c'è un verificatore anche per le citazioni di giurisprudenza, un
+numero di vendim inventato passa senza che nessuno se ne accorga.
 
 **GOTCHA costato una correzione doppia**: per sapere **come è finita** una
 decisione si guarda il **dispositivo**, MAI l'intestazione — «mospranim» sta in
