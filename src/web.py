@@ -47,6 +47,7 @@ from flask import (
 
 from . import citation_shield as cs_mod
 from . import citation_verifier as cv_mod
+from . import case_citation_verifier as ccv_mod
 from . import decision_verifier as dv_mod
 from . import documents as docs_mod
 from . import pro_features as pro_mod
@@ -7643,7 +7644,53 @@ def _scudo_citazioni(md: str, citations: dict) -> str:
             md = cs_mod.annotate_fake_citations(md, citations)
     except Exception:  # noqa: BLE001
         log.debug("citation shield skipped", exc_info=True)
+    # ── e adesso i VENDIME, che il controllo dei nene non guarda ──────
+    #
+    # Misurato: una risposta citava «00-2025-1760», un numero di sentenza che
+    # non esiste in nessun documento nostro. I nene erano tutti buoni, quindi
+    # lo scudo taceva e il numero inventato arrivava in fondo — e da li' in un
+    # atto. Qui si dice quali non si possono confermare.
+    #
+    # Non rifiuta e non cancella: la nostra base ha 1.407 decisioni su molte di
+    # piu' pubblicate, quindi «non lo trovo» significa «controllala», non
+    # «e' falsa». Marchiare come falso un precedente vero sarebbe grave quanto
+    # lasciar passare uno inventato.
+    try:
+        idx_dec = _decisions_index()
+        if idx_dec is not None:
+            casi = ccv_mod.verify_cases(md, idx_dec)
+            if (casi.get("stats") or {}).get("unverified"):
+                md = ccv_mod.annotate_unverified(md, casi, jurisdiction=juris)
+    except Exception:  # noqa: BLE001
+        log.debug("case citation shield skipped", exc_info=True)
     return md
+
+
+def _decisions_index():
+    """L'indice dei precedenti gia' caricato, senza rileggerlo dal disco.
+
+    Il pickle pesa 33 MB: ricaricarlo a ogni risposta costerebbe piu' della
+    verifica stessa. Il cervello ce l'ha gia' in memoria.
+    """
+    try:
+        _ensure_loaded()
+        for attr in ("decisions_index", "decision_index", "_decisions"):
+            got = getattr(_BRAIN, attr, None)
+            if got is not None and getattr(got, "decisions", None):
+                return got
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        from .retrieval import DecisionIndex, DECISIONS_INDEX_FILE
+        global _DEC_IDX
+        if _DEC_IDX is None:
+            _DEC_IDX = DecisionIndex.load(DECISIONS_INDEX_FILE)
+        return _DEC_IDX
+    except Exception:  # noqa: BLE001
+        return None
+
+
+_DEC_IDX = None
 
 
 def _req_index():

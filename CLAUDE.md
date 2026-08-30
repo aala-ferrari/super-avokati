@@ -299,12 +299,27 @@ cervello ha poi **citato in una risposta senza averlo nel corpus**,
 ricostruendolo dalla propria preparazione. L'esclusione sbagliata crea la
 condizione per una citazione non fondata.
 
-**⚠️ LIMITE APERTO — il Citation Shield NON copre i vendime.**
-`citation_verifier` verifica i **nene** (esistono? abrogati? freschi?), non i
-numeri di sentenza. In una risposta di prova il cervello ha citato
-`00-2025-1760`, che **non esiste in nessun documento scaricato né nell'indice**.
-Finché non c'è un verificatore anche per le citazioni di giurisprudenza, un
-numero di vendim inventato passa senza che nessuno se ne accorga.
+**✅ CHIUSO (v9.188) — `src/case_citation_verifier.py`, il Verifikuesi i vendimeve.**
+`citation_verifier` guarda i **nene**; questo guarda i **numeri di sentenza**,
+che prima nessuno controllava: una risposta di prova citava `00-2025-1760`, che
+non esiste in nessun documento nostro, e passava perché i nene erano tutti buoni.
+Riconosce due formati (`00-ANNO-N` della Gjykata e Lartë; `Vendim nr. N, datë …`
+della Kushtetuese) e su quella stessa risposta trova **7 citazioni**, non le 4
+che avevo visto a mano.
+
+**⚠️ LA DIFFERENZA DA NON SBAGLIARE MAI**: per i nene il corpus è completo,
+quindi «non c'è» = `fake` è onesto. Per le sentenze **no**: ne abbiamo 1.407 su
+molte di più pubblicate, quindi «non lo trovo» vuol dire solo
+**`unverified` — controllala**. Marchiare come falso un precedente vero farebbe
+buttare all'avvocato una carta buona: è un danno grande quanto lasciar passare
+un numero inventato. Per questo **non rifiuta e non censura mai**, avvisa.
+Quando invece lo trova, mostra anche **come è finito** (`outcome` + dispositivo).
+
+Innestato in **`_scudo_citazioni`**, da cui passa ogni risposta: un aggancio
+solo copre tutti i percorsi. Non chiama il modello (calcolo sul testo già
+prodotto) e non solleva mai. L'avviso si **attacca al markdown**, perché il
+badge resta sullo schermo mentre la risposta viene copiata dentro una memoria.
+Sorvegliato dal golden, sezione [7].
 
 **GOTCHA costato una correzione doppia**: per sapere **come è finita** una
 decisione si guarda il **dispositivo**, MAI l'intestazione — «mospranim» sta in
@@ -409,7 +424,7 @@ errori, non che le risposte sono ancora giuste. Riferimento verificato il
 12 articoli recuperati per ciascuna.
 
 ```bash
-docker exec super-avvocato python3 tools/golden_check.py   # 32 check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti. Baseline 32/32.
+docker exec super-avvocato python3 tools/golden_check.py   # 39 check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime. Baseline 39/39.
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 ```

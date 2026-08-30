@@ -18,6 +18,7 @@ from src import expertise as ex                   # noqa: E402
 from src import brain                             # noqa: E402
 from src.retrieval import INDEX_FILE              # noqa: E402
 from src.retrieval import DecisionIndex, DECISIONS_INDEX_FILE  # noqa: E402
+from src import case_citation_verifier as ccv        # noqa: E402
 
 FAILS = []
 PASSES = 0
@@ -173,6 +174,37 @@ def main():
             if a.court_code == "gjykata_elarte"]
     check("kërkimi i nxjerr precedentët e Gjykatës së Lartë", bool(gjet),
           "asnjë te 25 të parët")
+
+    print("\n[7] Verifikuesi i vendimeve — numrat e sajuar nuk kalojnë më")
+    idxd2 = DecisionIndex.load(DECISIONS_INDEX_FILE)
+    vera = next((d for d in idxd2.decisions
+                 if d.court_code == "gjykata_elarte"
+                 and str(d.number).startswith("00-")), None)
+    txt_vera = "Sipas vendimit nr. %s të Gjykatës së Lartë..." % (vera.number if vera else "00-2026-680")
+    r1 = ccv.verify_cases(txt_vera, idxd2)
+    check("njeh një vendim që e kemi vërtet",
+          r1["stats"]["verified"] >= 1, str(r1["stats"]))
+    # il numero che aveva scatenato tutto
+    r2 = ccv.verify_cases("shih vendimin nr. 00-2025-1760 të Gjykatës së Lartë", idxd2)
+    check("nuk konfirmon një numër që s\'e kemi (00-2025-1760)",
+          r2["stats"]["unverified"] == 1, str(r2["stats"]))
+    # ⚠ e non lo chiama MAI falso: baza jonë nuk i ka të gjitha
+    check("nuk e quan KURRË 'fake' — vetëm 'i paverifikuar'",
+          all(i["status"] in ("verified", "unverified") for i in r2["items"]),
+          str([i["status"] for i in r2["items"]]))
+    # l'avviso viaggia col testo, non solo sullo schermo
+    md = ccv.annotate_unverified("Përgjigje me vendimin nr. 00-2025-1760.", r2)
+    check("paralajmërimi ngjitet te teksti (jo vetëm badge)",
+          "00-2025-1760" in md and ("Kujdes" in md or "verifikuar" in md))
+    check("thotë qartë se MOSGJETJA nuk do të thotë e rreme",
+          "nuk" in md.lower() and "pavërteta" in md.lower(), md[-160:])
+    # se tutto è confermato, non aggiunge rumore
+    check("nuk shton asgjë kur gjithçka konfirmohet",
+          ccv.annotate_unverified(txt_vera, r1) == txt_vera)
+    # e non deve scambiare un neni per una sentenza
+    r3 = ccv.verify_cases("Neni 76 i Kodit Penal dhe neni 2946 c.c.", idxd2)
+    check("nuk ngatërron një nen me një vendim", r3["stats"]["total"] == 0,
+          str(r3["stats"]))
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
