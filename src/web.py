@@ -6142,6 +6142,25 @@ def _ask_prepare(user, data):
                 answer_text = cs_mod.apply_refusal(answer_text, jurisdiction="AL")
             if citations_payload.get("stats", {}).get("fake", 0) > 0:
                 answer_text = cs_mod.annotate_fake_citations(answer_text, citations_payload)
+            # ── e i VENDIME ────────────────────────────────────────────
+            #
+            # Questo percorso — la chat, quello che l'avvocato usa tutto il
+            # giorno — NON passa da `_scudo_citazioni`: ha una copia sua dello
+            # scudo, scritta prima e mai unificata. Agganciare li' il
+            # verificatore delle sentenze copriva i diciannove strumenti e
+            # lasciava scoperta proprio la risposta principale.
+            # Misurato: 13 citazioni di sentenze, 7 non confermabili, e nel
+            # testo nessun avviso.
+            try:
+                _idx_dec = _decisions_index()
+                if _idx_dec is not None:
+                    cases_payload = ccv_mod.verify_cases(answer_text, _idx_dec)
+                    if (cases_payload.get("stats") or {}).get("unverified"):
+                        answer_text = ccv_mod.annotate_unverified(
+                            answer_text, cases_payload,
+                            jurisdiction=getattr(case, "jurisdiction", "AL") or "AL")
+            except Exception:  # noqa: BLE001
+                log.debug("case citation shield skipped (stream)", exc_info=True)
             provenance = cs_mod.build_provenance_pack(
                 response_text=answer_text,
                 user_message=message,

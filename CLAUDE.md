@@ -315,8 +315,15 @@ buttare all'avvocato una carta buona: è un danno grande quanto lasciar passare
 un numero inventato. Per questo **non rifiuta e non censura mai**, avvisa.
 Quando invece lo trova, mostra anche **come è finito** (`outcome` + dispositivo).
 
-Innestato in **`_scudo_citazioni`**, da cui passa ogni risposta: un aggancio
-solo copre tutti i percorsi. Non chiama il modello (calcolo sul testo già
+**⚠️ DUE agganci, non uno.** `_scudo_citazioni` copre i **19 strumenti**
+(Fable, notaio, procuratore…). Ma la **chat** — la risposta del cervello, il
+percorso più usato — ha una **copia sua** dello scudo (in `_ask_prepare`, con
+provenance pack e refusal) e NON passa di lì. Avevo agganciato solo il primo e
+dichiarato «copre tutti i percorsi»: falso, e l'ha scoperto la prova viva —
+13 citazioni di sentenze, **7 non confermabili, e nel testo nessun avviso**.
+Ora l'aggancio è in tutti e due (v9.191). Un golden strutturale conta gli
+agganci nel sorgente, perché nessun test funzionale vede *dove* è attaccata una
+protezione. Non chiama il modello (calcolo sul testo già
 prodotto) e non solleva mai. L'avviso si **attacca al markdown**, perché il
 badge resta sullo schermo mentre la risposta viene copiata dentro una memoria.
 Sorvegliato dal golden, sezione [7].
@@ -454,7 +461,7 @@ errori, non che le risposte sono ancora giuste. Riferimento verificato il
 12 articoli recuperati per ciascuna.
 
 ```bash
-docker exec super-avvocato python3 tools/golden_check.py   # 39 check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja. Baseline 49/49.
+docker exec super-avvocato python3 tools/golden_check.py   # 39 check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja. Baseline 51/51.
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 ```

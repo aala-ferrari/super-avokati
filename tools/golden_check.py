@@ -233,6 +233,20 @@ def main():
     r3 = ccv.verify_cases("Neni 76 i Kodit Penal dhe neni 2946 c.c.", idxd2)
     check("nuk ngatërron një nen me një vendim", r3["stats"]["total"] == 0,
           str(r3["stats"]))
+    # ⚠ Strukturore: mbrojtja mbulon EDHE bisedën, jo vetëm veglat.
+    # Gabimi im: e lidha te `_scudo_citazioni` (19 veglat) dhe e quajta
+    # "e mbuluar kudo". Rruga kryesore — përgjigjja e trurit — ka një kopje
+    # të vetën të mburojës dhe mbeti jashtë. Asnjë test nuk e pa, sepse asnjë
+    # test nuk shikonte KU ishte lidhur.
+    try:
+        _src = open("/app/src/web.py", encoding="utf-8").read()
+        check("mbrojtja e vendimeve lidhet në ≥2 rrugë (vegla + bisedë)",
+              _src.count("ccv_mod.verify_cases") >= 2,
+              "gjetur %d lidhje" % _src.count("ccv_mod.verify_cases"))
+        check("rruga e bisedës e ka mburojën e vendimeve",
+              "case citation shield skipped (stream)" in _src)
+    except OSError:
+        check("burimi i web.py i lexueshëm", False, "nuk u lexua")
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
