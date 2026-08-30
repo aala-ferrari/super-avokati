@@ -715,6 +715,83 @@ schermata home e si apre a schermo intero, senza store e senza costi.
 - **Dopo ogni modifica a `style.css` o `app.js` va alzato `?v=` in
   `templates/index.html`**, altrimenti i browser servono la versione vecchia.
 
+# SICUREZZA — cosa è chiuso e come (30 ago 2026)
+
+Audit completo e blindatura. **Tutto misurato**, non ipotizzato.
+
+## 🔴 Il cervello non legge più il codice né i dati (v9.193-9.195)
+
+Con gli allegati riceveva `Read` + `--permission-mode bypassPermissions`, e
+quel bypass **toglie ogni confine sul filesystem**. Verificato in produzione:
+chiedendo `/app/src/config.py` rispondeva «422 righe».
+
+**Due rimedi che NON funzionano** (provati):
+1. limitare `Read(/percorso/**)` **lasciando** il bypass → legge lo stesso;
+2. spostare la cartella di lavoro **lasciando** il bypass → legge lo stesso.
+
+**Servono INSIEME**: niente `--permission-mode`, **e** non partire da `/app`.
+⚠️ **La cartella di lavoro è sempre leggibile dagli strumenti del processo.**
+Ora parte da `_CWD_CERVELLO` (`/tmp/brain-cwd`, vuota) e `Read` è limitato alle
+cartelle degli allegati di **quella** chiamata.
+⚠️ `--allowedTools` è variadico: era chiuso da `--permission-mode`, quindi ora
+il prompt DEVE arrivare da stdin (e così fa). Passandolo come argomento la CLI
+se lo mangia come nome di tool — errore fuorviante «Input must be provided».
+
+## 🔴 SSH solo a chiave
+
+`/etc/ssh/sshd_config.d/00-blindatura.conf`. ⚠️ **Il prefisso `00-` non è
+estetica**: in sshd vince la **PRIMA** occorrenza e `50-cloud-init.conf` dice
+`PasswordAuthentication yes` — un file `99-` non ha effetto e `sshd -T`
+continua a mostrare `yes`.
+
+## 🟠 Freno al login (v9.196-9.197)
+
+**5 per utenza, 20 per indirizzo.** ⚠️ Uguali sarebbe un difetto: uno studio con
+dieci avvocati esce da un IP solo e si bloccherebbe da solo. Scatta **prima**
+di controllare la password (il tempo di risposta non deve rivelare se l'utenza
+esiste); si azzera al login riuscito.
+
+## 🟠 Backup cifrati
+
+37 file AES-256, i 4 script cifrano e cancellano il chiaro, chiave in
+`/root/.backup-key` (600), ripristino in `/root/ripristina-backup.sh`
+**provato**. ⚠️ La chiave va copiata **fuori dal server**.
+⚠️ I comandi di cifratura su **UNA riga**: le continuazioni dentro un heredoc si
+sono rotte fra gli escape e hanno prodotto un backup **in chiaro**.
+
+## 🟡 CSP — solo su superavokati.ai
+
+**NON** nello snippet condiviso `aala-security.conf` (lo includono anche aala,
+taxi, auto, crm, korauto). La riga che conta è **`connect-src 'self'`**.
+`script-src` senza `'unsafe-inline'`; `style-src` ce l'ha per i 24 `style=`
+nel markup.
+
+## 🟡 Registro accessi ai fascicoli (v9.198)
+
+`case_access_log`, agganciato a **`_resolve_case`** (un aggancio invece di 60).
+Solo metadati, solo accessi riusciti, non ripete entro 5 minuti, non solleva mai.
+
+## 🟡 Porte: da 7 esposte a 0
+
+Fuori solo 22/80/443, verificato bussando da fuori.
+⚠️ Per Next.js **`HOSTNAME=127.0.0.1` NON basta** con `npm start`: serve
+`npx next start -p <porta> -H 127.0.0.1`. Con la sola variabile tre app su
+quattro restano su `*` e sembra fatto.
+
+## Cosa tiene già (verificato)
+
+Isolamento fra studi (4 tentativi cross-tenant → 404, fallisce chiuso) ·
+password PBKDF2 salate · TLS 1.3 + HSTS · ufw · fail2ban · `ai_audit_log` ·
+la **chat** non abilita `Read` (solo Genio e strumenti PRO passano allegati).
+
+## Ancora aperto
+
+Documenti caricati e `app.db` in chiaro · passphrase sulle chiavi SSH (tocca
+all'utente) · pacchetto GDPR (contratto studio↔superavokati.ai da mostrare al
+primo accesso).
+
+---
+
 ## Regole ferree (customer-facing)
 - Errori customer-facing MAI nominano il modello → sempre "Tetramorph"/generico.
 - Tutto **assistivo**: il professionista verifica e firma; niente auto-accusa/archiviazione/scadenze cieche.
