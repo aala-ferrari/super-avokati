@@ -51,6 +51,7 @@ RUN apt-get update \
         libxml2 \
         antiword \
         ffmpeg \
+        libimage-exiftool-perl \
         libxslt1.1 \
         curl \
         ca-certificates \

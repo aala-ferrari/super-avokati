@@ -544,6 +544,83 @@ Se un giorno serve accorciare: la leva è un tetto su `nullity_radar` — ma è 
 lente che cerca pavlefshmëri e afate, cioè le leve procedurali che vincono senza
 entrare nel merito. L'alternativa già pronta è il background + notifica.
 
+# IMPALCATURA FORENSE — SWGDE (v9.223-9.225, 31 ago 2026)
+
+Nata leggendo lo standard vero, **SWGDE Best Practices for Digital Forensic
+Video Analysis**, che è ciò su cui sono costruiti Amped FIVE e gli altri. I
+suoi quattro requisiti **non riguardano l'intelligenza artificiale**:
+integrità · riproducibilità · il miglioramento non può aggiungere informazione ·
+i rilievi vanno separati dalle interpretazioni.
+
+⚠️ **La nostra analisi era filosoficamente l'opposto**: un modello che descrive
+è interpretazione pura, e nel documento era mescolata alle misure. `src/forensics.py`
+mette attorno l'impalcatura che mancava.
+
+## Cosa c'è ora nel documento
+
+1. **Impronta SHA-256 dell'originale**, stampata nel referto. È la cosa più
+   economica e più importante: permette di scrivere in un atto «il file che ho
+   analizzato è questo», e a chiunque di verificarlo con un comando.
+2. **Registro di lavorazione**: il comando ffmpeg con i parametri veri
+   (`select='gt(scene,0.25)'`, scala, qualità, tetto), i **minutaggi di ogni
+   fotogramma letti da `showinfo`** (non stimati), il modello di trascrizione e
+   la lingua riconosciuta con la sua confidenza, le versioni degli strumenti.
+   È quello che fa il referto di Amped, e per noi costava solo scriverlo.
+3. **Metadati profondi con `exiftool`** (nel Dockerfile): gli atomi del
+   contenitore, i tag del produttore, le date per traccia. Da lì si capisce se
+   un file esce da una telecamera o da un editor. Le firme (`Lavf`, `Adobe`,
+   `HandBrake`, `WhatsApp`, `ExifTool`…) vengono da Xiang et al., *Forensic
+   Analysis of Video Files Using Metadata* (Purdue): con i **soli metadati** si
+   distingue un originale da un rielaborato al 99%. **Regole, non modelli** —
+   quindi deterministico, quindi difendibile.
+4. **Due sezioni separate**: `RILIEVI (misure — verificabili)` e
+   `INTERPRETAZIONE DEL MOTORE (non misure)`.
+5. **Dichiarazioni esplicite**: non miglioriamo l'immagine (né
+   super-risoluzione né denoise) e non identifichiamo persone.
+
+⚠️ **Sui nomi degli strumenti** — tensione risolta di proposito: gli strumenti
+**deterministici** si nominano con la versione (sono liberi, e sono la parte
+che un altro **può** rifare); il motore di descrizione resta **«Tetramorph»**,
+con accanto scritto che quella parte **non è riproducibile per natura**. Dare
+un nome e lasciar credere il contrario sarebbe peggio.
+
+**Posizionamento**: non competiamo con Amped FIVE (oltre 10.000 €/postazione +
+certificazione LEVA) — quello è *la perizia*. Noi siamo lo strumento
+dell'**avvocato**: triage di ore di filmato, linea temporale, e il confronto
+col verbale. Va detto nel documento, e ci protegge.
+
+Sorveglianza: golden sezione [14], 11 check (impronta, registro con i parametri
+veri, separazione nelle due lingue, le due dichiarazioni, il motore che non si
+chiama col nome del modello). **173/173.**
+
+# YOLO: MISURATO, E PER ORA NO (31 ago 2026)
+
+Promesso di misurare prima di installare. Misurato sul video reale
+dell'utente (4,6 MB, 21 s, 1280×720), **3 thread su 6 core, nessuna GPU**:
+
+| | ms/fotogramma | 10 min di video a 2 fps | 60 min |
+|---|---|---|---|
+| **yolov8n** | **717 ms** | 14 min | 86 min |
+| **yolov8s** | **1492 ms** | 30 min | 179 min |
+
+⚠️ **Avevo stimato 50-150 ms: era sbagliato di 5-10 volte.** Il vantaggio sul
+modello di visione (~30 s/fotogramma) è quindi **~42×**, non 200× come avevo
+detto.
+
+**E l'accuratezza non è chiaramente migliore.** Su quel filmato: yolov8n vede
+al massimo 5 persone (media 2,0) e inventa **un cavallo e una sedia**;
+yolov8s al massimo 7 (media 2,8) e una **cravatta**. Il modello di visione
+diceva «circa 8-10 persone». Un falso positivo «cavallo» in un atto giudiziario
+è imbarazzante; presentare quei numeri come misure sarebbe peggio che non
+averli.
+
+**Conclusione: non si installa ora.** Costa 2 GB nell'immagine e ~1,4× il tempo
+reale su una macchina che regge già sei siti, per un guadagno di affidabilità
+non dimostrato. Il valore vero di YOLO resta **la copertura temporale** («dove
+succede qualcosa in 40 ore») e la **riproducibilità** — due cose che
+diventerebbero interessanti con una macchina con GPU o su un caso d'uso di
+sorveglianza lunga. Da riprendere allora, non prima.
+
 # ⚠️ JAVASCRIPT INLINE = CODICE MORTO (v9.216-9.219, 31 ago 2026)
 
 **Regressione mia del 30 agosto, scoperta dall'utente un giorno dopo.**

@@ -582,6 +582,55 @@ def main():
         check("ripolling: app.js i lexueshem", False)
 
 
+    # ── [14] impalcatura forense (SWGDE) ───────────────────────────────
+    try:
+        from src import forensics as _fx
+        import inspect as _in2
+        _vsrc = _io2.open(_os2.path.join(_rr, "src", "video.py"), encoding="utf-8").read()
+
+        # 1) integriteti: gjurma SHA-256 e skedarit
+        check("forense: llogaritet gjurma SHA-256",
+              hasattr(_fx, "impronta") and "impronta(path)" in _vsrc,
+              "pa gjurme, analiza flet per nje skedar qe askush nuk e identifikon")
+        # 2) riprodhueshmeria: regjistri i perpunimit
+        check("forense: regjistri i perpunimit ekziston",
+              hasattr(_fx, "Registro") and "blocco_registro" in _vsrc)
+        check("forense: regjistri shkruan parametrat e vertete",
+              "gt(scene," in _vsrc and "showinfo" in _vsrc,
+              "parametrat duhet te jene ata realet, jo te pergjithshem")
+        # 3) ndarja: matje vs interpretim
+        for _g in ("sq", "it"):
+            _e = _fx and None
+        import src.video as _vv
+        for _g in ("sq", "it"):
+            _et = _vv._INTESTAZIONE[_g]
+            check("forense: [%s] ndarje matje/interpretim" % _g,
+                  "rilevato" in _et and "interpretato" in _et)
+        # 4) deklarimet qe na mbrojne DHE i ndihmojne
+        for _g, _fj in (("sq", "nuk identifikon persona"),
+                        ("it", "non identifica persone")):
+            check("forense: [%s] deklarohet mos-identifikimi" % _g,
+                  _fj in _fx._REG[_g]["limite"])
+        # ⚠️ ë/ç piegate PRIMA di confrontare: «nuk përmirëson» non combacia
+        # mai con «permireson». Vale per ogni confronto letterale sullo shqip.
+        def _piega(t):
+            return t.lower().replace("ë", "e").replace("ç", "c")
+        for _g, _fj in (("sq", "nuk permireson"), ("it", "non migliora")):
+            check("forense: [%s] deklarohet mos-permiresimi" % _g,
+                  _fj in _piega(_fx._REG[_g]["limite"]),
+                  "permiresimi i bere keq shton informacion qe nuk kishte")
+        # 5) rilievi del contenitore in due lingue, stesse chiavi
+        check("forense: verejtjet e kontejnerit ne te dyja gjuhet",
+              set(_fx._TESTI["sq"]) == set(_fx._TESTI["it"]))
+        # 6) motori i pershkrimit nuk emertohet me modelin
+        _tutto = " ".join(_fx._REG[g]["limite"] for g in ("sq", "it"))
+        check("forense: motori quhet Tetramorph, jo modeli",
+              "Tetramorph" in _tutto
+              and not any(x in _tutto.lower() for x in ("claude", "gpt", "opus", "sonnet")))
+    except Exception as _e:
+        check("forense: moduli i lexueshem", False, str(_e))
+
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

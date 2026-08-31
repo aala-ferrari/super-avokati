@@ -34,8 +34,11 @@ import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .config import VIDEO_EXTENSIONS, VIDEO_MAX_FRAMES, VIDEO_SCENE_THRESHOLD
+from .config import (VIDEO_EXTENSIONS, VIDEO_MAX_FRAMES,
+                     VIDEO_SCENE_THRESHOLD,
+                     WHISPER_MODEL as _MODELLO_TRASCRIZIONE)
 from . import audio as audio_mod
+from . import forensics as forense
 
 log = logging.getLogger(__name__)
 
@@ -390,6 +393,8 @@ _INTESTAZIONE = {
     "sq": {
         "titolo": "ANALIZË VIDEOJE",
         "skeda": "Të dhënat e skedarit",
+        "rilevato": "RILEVIME (matje — të verifikueshme)",
+        "interpretato": "INTERPRETIM I MOTORIT (jo matje)",
         "kohore": "Rrjedha kohore (nga fotogramat)",
         "integritet": "Vërejtje mbi skedarin",
         "kufi": "KUFIJTË E KËSAJ ANALIZE — LEXOJI",
@@ -411,6 +416,8 @@ _INTESTAZIONE = {
     "it": {
         "titolo": "ANALISI VIDEO",
         "skeda": "Dati del file",
+        "rilevato": "RILIEVI (misure — verificabili)",
+        "interpretato": "INTERPRETAZIONE DEL MOTORE (non misure)",
         "kohore": "Linea temporale (dai fotogrammi)",
         "integritet": "Rilievi sul file",
         "kufi": "LIMITI DI QUESTA ANALISI — DA LEGGERE",
@@ -442,7 +449,28 @@ def analizza(path: Path, nome_file: str, backend, lingua: str = "sq") -> str:
     L = _INTESTAZIONE.get(lingua, _INTESTAZIONE["sq"])
     meta = probe(path)
 
+    # ── impalcatura forense (SWGDE): impronta, registro, metadati profondi ──
+    # Ogni pezzo dentro un try: se fallisce, l'analisi continua come prima.
+    reg = forense.Registro()
+    sha, byte = "", 0
+    exif: dict = {}
+    try:
+        sha, byte = forense.impronta(path)
+        reg.aggiungi(f"Impronta SHA-256 calcolata sul file originale ({byte} byte).")
+    except OSError as exc:  # noqa: BLE001
+        log.warning("impronta non calcolata: %s", exc)
+    try:
+        exif = forense.metadati_estesi(path)
+        if exif:
+            reg.aggiungi("Metadati del contenitore letti con exiftool "
+                         "(`exiftool -json -a -G1`).")
+    except Exception as exc:  # noqa: BLE001
+        log.warning("exiftool: %s", exc)
+
     righe: list[str] = [f"# {L['titolo']} — {nome_file}", ""]
+
+    # ═══ ciò che è MISURATO ═══
+    righe += [f"# {L['rilevato']}", ""]
 
     # scheda
     righe += [f"## {L['skeda']}", ""]
@@ -460,6 +488,10 @@ def analizza(path: Path, nome_file: str, backend, lingua: str = "sq") -> str:
 
     # rilievi sul file
     rilievi = rilievi_integrita(meta, nome_file, lingua)
+    try:
+        rilievi += forense.rilievi_contenitore(exif, lingua)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("rilievi contenitore: %s", exc)
     if rilievi:
         righe += [f"## {L['integritet']}", ""]
         righe += [f"- {r}" for r in rilievi]
@@ -475,6 +507,15 @@ def analizza(path: Path, nome_file: str, backend, lingua: str = "sq") -> str:
         # mezzo, non una prova da conservare — e sono volti di persone
         fotogrammi = estrai_fotogrammi(path, Path(tmp), meta)
         n_estratti = len(fotogrammi)
+        reg.aggiungi(
+            f"Fotogrammi estratti con ffmpeg: rilevamento cambio scena "
+            f"`select='gt(scene,{VIDEO_SCENE_THRESHOLD})'` con ripiego a "
+            f"intervallo regolare, scala max 1280px, qualità JPEG 4, "
+            f"tetto {VIDEO_MAX_FRAMES}. Estratti: {n_estratti}."
+        )
+        if fotogrammi:
+            reg.aggiungi("Minutaggi dei fotogrammi (letti da `showinfo`, non "
+                         "stimati): " + ", ".join(_mmss(t) for t, _ in fotogrammi))
         if fotogrammi and backend is not None:
             descrizioni = descrivi_fotogrammi(fotogrammi, backend, lingua)
 
@@ -485,7 +526,14 @@ def analizza(path: Path, nome_file: str, backend, lingua: str = "sq") -> str:
                 if wav is not None:
                     # lingua RICONOSCIUTA, non imposta: chi parla in un
                     # video puo' benissimo non parlare la lingua della sessione
+                    reg.aggiungi("Traccia audio estratta: 16 kHz, mono, PCM "
+                                 "16 bit (`ffmpeg -vn -ac 1 -ar 16000`).")
                     battute, _lang, _conf = audio_mod.trascrivi(wav, None)
+                    reg.aggiungi(
+                        f"Trascrizione con faster-whisper, modello "
+                        f"`{_MODELLO_TRASCRIZIONE}`, int8, VAD attivo. "
+                        f"Lingua riconosciuta: {_lang} ({_conf:.0%})."
+                    )
                     if battute:
                         nota_audio = L["audio_lang"].format(
                             l=audio_mod.nome_lingua(_lang, lingua),
@@ -505,7 +553,8 @@ def analizza(path: Path, nome_file: str, backend, lingua: str = "sq") -> str:
     voci.sort(key=lambda x: x[0])
 
     if voci:
-        righe += [f"## {L['kohore']}", ""]
+        # ═══ da qui in giù è INTERPRETAZIONE, non misura (SWGDE) ═══
+        righe += ["", f"# {L['interpretato']}", "", f"## {L['kohore']}", ""]
         for t, d in voci:
             righe += [f"**[{_mmss(t)}]** {d}", ""]
     if nota_audio:
@@ -521,6 +570,15 @@ def analizza(path: Path, nome_file: str, backend, lingua: str = "sq") -> str:
         L["kufi_testo"].format(n=len(descrizioni) or n_estratti),
         "",
     ]
+
+    # il registro di lavorazione, in fondo
+    try:
+        strumenti = [forense.versione("ffmpeg"), forense.versione("exiftool")]
+        strumenti = [x for x in strumenti if x]
+        strumenti.append("Tetramorph — motore di descrizione (interpretazione)")
+        righe += forense.blocco_registro(sha, byte, reg, strumenti, lingua)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("registro di lavorazione: %s", exc)
     return "\n".join(righe)
 
 # ── il confronto: dove il video incontra le carte ──────────────────────
