@@ -3,6 +3,55 @@
 // (`script-src 'self'`) blocca gli script inline, e il browser lo fa
 // in SILENZIO — nessun errore, la pagina sembra a posto e non funziona.
 // Se serve un valore dal server, passalo con un attributo `data-`.
+//
+// ⚠️ IL BLOCCO QUI SOTTO (invio del modulo di accesso) ESISTEVA GIA' in questo
+// file dal 19 agosto, e il 31 agosto l'ho sovrascritto estraendo gli script
+// inline dell'HTML: il pulsante «Hyr» ha smesso di funzionare, perche' il
+// modulo non ha ne' `action` ne' `method` e dipende solo da qui.
+// Recuperato dall'immagine v9.215. Prima di scrivere un file, guardare se c'e'.
+
+(() => {
+  const form = document.getElementById("login-form");
+  const usernameEl = document.getElementById("login-username");
+  const passwordEl = document.getElementById("login-password");
+  const btn = document.getElementById("login-btn");
+  const errEl = document.getElementById("login-error");
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    errEl.hidden = true;
+    btn.disabled = true;
+    btn.textContent = "Po verifikoj…";
+    try {
+      const resp = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: usernameEl.value.trim(),
+          password: passwordEl.value,
+          lang: (function () { try { return localStorage.getItem("sa_ui_lang") || ""; } catch (e) { return ""; } })(),
+        }),
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        errEl.textContent = data.error === "invalid credentials"
+          ? "⚠️ Kredencialet janë të gabuara."
+          : "⚠️ Gabim gjatë hyrjes: " + (data.error || resp.status);
+        errEl.hidden = false;
+        passwordEl.value = "";
+        passwordEl.focus();
+        return;
+      }
+      window.location.href = "/";
+    } catch (err) {
+      errEl.textContent = "⚠️ Gabim rrjeti: " + err.message;
+      errEl.hidden = false;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Hyr";
+    }
+  });
+})();
 
 /* Registrazione silenziosa: se fallisce, il sito funziona esattamente
      come prima. Non e' una funzione da cui dipende niente. */

@@ -534,6 +534,35 @@ def main():
         pass   # dentro il container non c'e' nginx: non e' un fallimento
 
 
+    # ── hyrja: butoni "Hyr" duhet te kete ende kodin e vet ─────────────
+    # Formulari nuk ka as `action` as `method`: pa kete JavaScript, klikimi
+    # nuk ben ASGJE — pa gabim, pa mesazh. Ka ndodhur me 31 gusht, duke
+    # mbishkruar skedarin gjate nxjerrjes se skripteve inline.
+    try:
+        _lj = _io2.open(_os2.path.join(_rr, "static", "login.js"), encoding="utf-8").read()
+        check("hyrja: login.js ka trajtuesin e formularit",
+              'getElementById("login-form")' in _lj or "getElementById('login-form')" in _lj,
+              "pa te, butoni 'Hyr' nuk ben asgje")
+        check("hyrja: login.js therret /api/login", "/api/login" in _lj)
+        # gli altri pezzi che vivono nello stesso file
+        for _k, _perse in (("toggle-pw", "syri i fjalekalimit"),
+                           ("ll-btn", "butonat e gjuhes"),
+                           ("forgot-form", "rikuperimi i fjalekalimit")):
+            check("hyrja: login.js ka %s (%s)" % (_k, _perse), _k in _lj)
+        _lh = _io2.open(_os2.path.join(_rr, "templates", "login.html"),
+                        encoding="utf-8").read()
+        # il tag deve esserci UNA volta e con la versione, o il browser
+        # continua a servire il file vecchio dopo una correzione
+        _tag = _re2.findall(r'<script src="/static/login\.js([^"]*)"', _lh)
+        check("hyrja: login.js i lidhur nje here e vetme", len(_tag) == 1,
+              "%d here" % len(_tag))
+        check("hyrja: login.js ka numer versioni",
+              bool(_tag) and "?v=" in _tag[0],
+              "pa te, shfletuesi sherben skedarin e vjeter")
+    except OSError as _e:
+        check("hyrja: skedaret e lexueshem", False, str(_e))
+
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

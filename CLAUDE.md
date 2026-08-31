@@ -569,6 +569,30 @@ passano da attributi `data-` (`data-firm-slug`, `data-case-id`).
 un template, se usa attributi `on*`, **o se indebolisce la CSP** per farlo
 funzionare. Verificato che morda.
 
+## ⚠️⚠️ IL DANNO PIÙ GRAVE: HO SOVRASCRITTO UN FILE CHE ESISTEVA
+
+**`static/login.js` esisteva già dal 19 agosto** e conteneva **l'unico gestore
+dell'invio del modulo di accesso**. Il template aveva
+`<script src="/static/login.js">`, che ho letto come «tag rotto verso un file
+inesistente» — senza verificarlo — e la mia estrazione degli script inline ci
+ha **scritto sopra**.
+
+Risultato: **il pulsante «Hyr» non faceva più niente.** Il modulo non ha né
+`action` né `method`: senza quel JavaScript il click non produce nulla —
+nessun errore, nessun messaggio, nessun indizio. Se ne è accorto l'utente,
+che non riusciva più a entrare nel proprio prodotto.
+
+Recuperato dall'immagine `v9.215` e riunito con i blocchi estratti.
+**Prima di scrivere un file, guardare se c'è.** Avevo perfino notato il tag e
+concluso che puntasse al vuoto: un `ls` sarebbe bastato. Gli altri quattro file
+(`sw-register`, `intake`, `in_hearing`, `admin_audit`) li ho creati io —
+verificato, nessun altro danno.
+
+**Guardia**: il golden ora controlla che `login.js` contenga il gestore del
+modulo, la chiamata a `/api/login`, l'occhio, i pulsanti lingua e il recupero
+password — e che il tag sia **uno solo e con il numero di versione**.
+Verificato che morda.
+
 ## Due trappole trovate riparando
 
 **1. Un file caricato due volte = ogni gestore agganciato due volte.** In
