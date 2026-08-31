@@ -506,7 +506,7 @@ errori, non che le risposte sono ancora giuste. Riferimento verificato il
 12 articoli recuperati per ciascuna.
 
 ```bash
-docker exec super-avvocato python3 tools/golden_check.py   # 39 check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja. Baseline 55/55.
+docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali. Baseline **98/98** (31 ago).
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 ```
@@ -932,6 +932,19 @@ prima li ammetteva e li perdeva in silenzio) + PDF via stampa browser + smoke 10
 **9.162 memoria del caso** (`src/case_brief.py`: gli strumenti PRO continuano il
 lavoro del cervello invece di ricominciarlo) + allegati nei 6 strumenti che ne
 erano privi (19/19) + **selezione multipla** in tutti + smoke 103 · **9.163-9.167** HTML non piu in cache (l utente girava con app.js di 3 release prima), caricamento documenti asincrono (160s -> 0,4s) con lingua corretta nel thread · **9.168-9.169 foto iPhone (HEIC)** convertite prima dell'OCR + guardia estensioni estesa a TUTTI i formati.
+
+## Storia versioni (sessione 30-31 ago 2026 — blindatura e documenti legali)
+
+v9.193-9.198 **sicurezza** (cervello in gabbia, SSH a chiave, freno al login,
+backup cifrati, CSP, registro accessi, porte da 7 a 0) — vedi la sezione
+SICUREZZA · v9.199-9.202 **pacchetto GDPR** (9 documenti in `legal/`,
+accettazione tracciata al primo accesso) · **v9.203 i documenti si possono
+RILEGGERE**: voce nel menu ☰ in sola lettura + **`/legale` pubblica senza
+login** — prima sparivano dopo l'accettazione e chi valutava il prodotto non
+poteva leggerli affatto · **v9.206 la pagina pubblica rende il markdown**
+(serviva `#` e `**` crudi, e le tabelle dell'accordo come file di barre) +
+**golden sezione [10]** che sorveglia i costrutti non coperti dal renderer.
+QA dopo il deploy: golden **98/98** (da 59), smoke 103/103, juris verde.
 
 ## Storia versioni (sessione 28-29 ago 2026 — lavori lunghi, PWA, Dosja, Genio)
 v9.170-9.174 **il lavoro sopravvive alla pagina** (`jobs.py`, `/api/ask/start` +
