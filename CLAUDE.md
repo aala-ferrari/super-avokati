@@ -269,6 +269,49 @@ dichiarava opus-4-8 mentre rispondeva opus-5. Ora `CLAUDE_MODEL` segue
   quotate** (`sidebar_aria: "..."`), quindi un regex che le cerca fra virgolette
   trova zero chiavi e dichiara «tutto non tradotto».
   Il marchio **«SUPER AVOKATI» non si traduce** in nessuna lingua.
+
+  ### ⚠️⚠️ COME SI MISURA LA TRADUZIONE — e come NON si misura (1 set 2026)
+
+  Cercando «alcune frasi in albanese» ho prodotto **tre audit statici** che
+  hanno detto, in fila: «16 mancanti», «187», «181». **Tutti e tre falsi.**
+  Due ragioni strutturali, e vanno sapute prima di scrivere il quarto:
+
+  1. **`T_IT` viene ESTESO otto volte** con `Object.assign(T_IT, {…})` più
+     avanti nel file. Chi lo legge in un punto solo conta una frazione delle
+     chiavi e conclude che manchi tutto.
+  2. **Le stringhe passate a `t()` sono spesso solo il testo predefinito**, che
+     `applyStaticI18n` sostituisce un istante dopo tramite `data-i18n`.
+     Contare le chiamate a `t()` non misura **niente**.
+
+  A queste si aggiungono i due errori di regex già noti (chiavi non quotate,
+  **più chiavi sulla stessa riga**) — che mi hanno morso di nuovo.
+
+  **L'unica misura vera: aprire i pannelli in sessione italiana e leggere.**
+  Fatto su venti pannelli: diciotto giusti, due sbagliati.
+
+  ### ⚠️ La traduzione spaccava una parola: «Pyet Avvocatoin e Djallit»
+
+  `tMode()`, quando non trova la traduzione esatta, sostituisce una
+  **sottostringa** dalla tabella `MODEBAR_TXT`. La coppia
+  `["Avokat", "Avvocato"]` colpiva **dentro** «Avokat*in*» e produceva
+  **«Pyet Avvocatoin e Djallit»** — né albanese né italiano, sul titolo del
+  pannello più caratteristico del prodotto. Nessuna analisi del testo l'avrebbe
+  trovato: solo aprire il pannello.
+
+  **La correzione non è la traduzione, è la causa**: la sostituzione avviene ora
+  solo su **confine di parola** (`(^|[^\wëçËÇ])… (?![\wëçËÇ])`). Aggiunte anche
+  le due traduzioni esatte (`"😈 Pyet Avokatin e Djallit"`, `"Dosja"`), perché
+  una traduzione scritta è sempre meglio di una sostituzione automatica.
+  ⚠️ `tMode` esce subito se `UI_LANG !== "it"`: in sessione albanese è inerte,
+  quindi la modifica non poteva romperla.
+
+  **E una lezione sulle guardie**: ne ho scritte due «intelligenti» che
+  rifacevano `tMode` per verificare i titoli. La prima segnalava «Super Noteri»
+  come rotto (**falso** — la tabella prova prima le voci più lunghe), la seconda
+  si è inventata una stringa combinando male i blocchi del dizionario. Il golden
+  sezione [16] sorveglia ora **la causa** — una riga sola che non si può
+  fraintendere — più due regressioni. **Una guardia che grida al lupo è peggio
+  di nessuna guardia: insegna a ignorare il QA.**
 - Le etichette che arrivano dalle API (tipi atto, poteri procura, template
   perizia, clausole obbligatorie…) passano da `t()` con una mappa AL→IT nel
   dizionario (~340 voci).
