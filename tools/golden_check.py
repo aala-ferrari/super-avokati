@@ -631,6 +631,32 @@ def main():
         check("forense: moduli i lexueshem", False, str(_e))
 
 
+    # ── frazat e regjistrit: te dyja gjuhet, te njejtat celesa ─────────
+    # Gabim i perseritur TRE here ne dy dite: teksti i ri lind vetem ne
+    # italisht dhe del ne nje dokument shqip. Kontrolli kushton me pak se
+    # vemendja.
+    try:
+        check("forense: hapat e regjistrit ne te dyja gjuhet",
+              set(_fx.PASSI["sq"]) == set(_fx.PASSI["it"]),
+              "ndryshim: %s" % (set(_fx.PASSI["sq"]) ^ set(_fx.PASSI["it"])))
+        # nessuna frase albanese deve essere identica all'italiana: vorrebbe
+        # dire che e' stata copiata e non tradotta
+        _uguali = [k for k in _fx.PASSI["sq"]
+                   if _fx.PASSI["sq"][k] == _fx.PASSI["it"][k]
+                   and not _fx.PASSI["sq"][k].startswith("Tetramorph")]
+        check("forense: nessuna frase copiata invece che tradotta",
+              not _uguali, "identiche: %s" % _uguali)
+        # i segnaposto devono coincidere, o il testo tradotto esplode
+        import re as _re4
+        _diff = [k for k in _fx.PASSI["sq"]
+                 if set(_re4.findall(r"\{(\w+)\}", _fx.PASSI["sq"][k]))
+                 != set(_re4.findall(r"\{(\w+)\}", _fx.PASSI["it"][k]))]
+        check("forense: gli stessi segnaposto nelle due lingue",
+              not _diff, "diversi in: %s" % _diff)
+    except Exception as _e:
+        check("forense: tabella dei passi leggibile", False, str(_e))
+
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

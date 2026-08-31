@@ -302,3 +302,53 @@ def blocco_registro(sha: str, byte: int, registro: Registro,
         righe.append("")
     righe += [L["limite"], ""]
     return righe
+
+# ── le frasi dei passaggi, nelle due lingue ────────────────────────────
+# ⚠️ Stanno QUI e non in video.py: sparse in due file, il prossimo che le
+# tocca ne traduce una sola. Le chiavi devono restare identiche fra sq e it —
+# il set aureo lo verifica.
+PASSI = {
+    "sq": {
+        "impronta": "Gjurma SHA-256 e llogaritur mbi skedarin origjinal ({n} bajt).",
+        "exif": ("Metadatat e kontejnerit u lexuan me exiftool "
+                 "(`exiftool -json -a -G1`)."),
+        "fotogrammi": ("Fotogramat u nxorën me ffmpeg: dallim i ndryshimit të skenës "
+                       "`select='gt(scene,{soglia})'` me rikthim te intervali i "
+                       "rregullt, shkallë maks 1280px, cilësi JPEG 4, tavan {tetto}. "
+                       "Të nxjerra: {n}."),
+        "minutaggi": ("Minutazhet e fotogramave (lexuar nga `showinfo`, jo të "
+                      "vlerësuara): {lista}"),
+        "audio": ("Pista audio u nxor: 16 kHz, mono, PCM 16 bit "
+                  "(`ffmpeg -vn -ac 1 -ar 16000`)."),
+        "trascrizione": ("Transkriptim me faster-whisper, modeli `{modello}`, int8, "
+                         "VAD aktiv. Gjuha e dalluar: {lingua} ({conf})."),
+        "motore": "Tetramorph — motori i përshkrimit (interpretim)",
+    },
+    "it": {
+        "impronta": "Impronta SHA-256 calcolata sul file originale ({n} byte).",
+        "exif": ("Metadati del contenitore letti con exiftool "
+                 "(`exiftool -json -a -G1`)."),
+        "fotogrammi": ("Fotogrammi estratti con ffmpeg: rilevamento cambio scena "
+                       "`select='gt(scene,{soglia})'` con ripiego a intervallo "
+                       "regolare, scala max 1280px, qualità JPEG 4, tetto {tetto}. "
+                       "Estratti: {n}."),
+        "minutaggi": ("Minutaggi dei fotogrammi (letti da `showinfo`, non "
+                      "stimati): {lista}"),
+        "audio": ("Traccia audio estratta: 16 kHz, mono, PCM 16 bit "
+                  "(`ffmpeg -vn -ac 1 -ar 16000`)."),
+        "trascrizione": ("Trascrizione con faster-whisper, modello `{modello}`, int8, "
+                         "VAD attivo. Lingua riconosciuta: {lingua} ({conf})."),
+        "motore": "Tetramorph — motore di descrizione (interpretazione)",
+    },
+}
+
+
+def passo(chiave: str, lang: str = "sq", **campi) -> str:
+    """Una frase del registro, nella lingua del documento.
+
+    ⚠️ Il parametro si chiama `lang` e non `lingua` di proposito: uno dei testi
+    ha un campo `{lingua}` (quella riconosciuta nell'audio), e con lo stesso
+    nome Python direbbe «got multiple values for argument».
+    """
+    tab = PASSI.get(lang, PASSI["sq"])
+    return tab[chiave].format(**campi)

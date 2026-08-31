@@ -456,14 +456,13 @@ def analizza(path: Path, nome_file: str, backend, lingua: str = "sq") -> str:
     exif: dict = {}
     try:
         sha, byte = forense.impronta(path)
-        reg.aggiungi(f"Impronta SHA-256 calcolata sul file originale ({byte} byte).")
+        reg.aggiungi(forense.passo("impronta", lingua, n=byte))
     except OSError as exc:  # noqa: BLE001
         log.warning("impronta non calcolata: %s", exc)
     try:
         exif = forense.metadati_estesi(path)
         if exif:
-            reg.aggiungi("Metadati del contenitore letti con exiftool "
-                         "(`exiftool -json -a -G1`).")
+            reg.aggiungi(forense.passo("exif", lingua))
     except Exception as exc:  # noqa: BLE001
         log.warning("exiftool: %s", exc)
 
@@ -507,15 +506,13 @@ def analizza(path: Path, nome_file: str, backend, lingua: str = "sq") -> str:
         # mezzo, non una prova da conservare — e sono volti di persone
         fotogrammi = estrai_fotogrammi(path, Path(tmp), meta)
         n_estratti = len(fotogrammi)
-        reg.aggiungi(
-            f"Fotogrammi estratti con ffmpeg: rilevamento cambio scena "
-            f"`select='gt(scene,{VIDEO_SCENE_THRESHOLD})'` con ripiego a "
-            f"intervallo regolare, scala max 1280px, qualità JPEG 4, "
-            f"tetto {VIDEO_MAX_FRAMES}. Estratti: {n_estratti}."
-        )
+        reg.aggiungi(forense.passo(
+            "fotogrammi", lingua, soglia=VIDEO_SCENE_THRESHOLD,
+            tetto=VIDEO_MAX_FRAMES, n=n_estratti))
         if fotogrammi:
-            reg.aggiungi("Minutaggi dei fotogrammi (letti da `showinfo`, non "
-                         "stimati): " + ", ".join(_mmss(t) for t, _ in fotogrammi))
+            reg.aggiungi(forense.passo(
+                "minutaggi", lingua,
+                lista=", ".join(_mmss(t) for t, _ in fotogrammi)))
         if fotogrammi and backend is not None:
             descrizioni = descrivi_fotogrammi(fotogrammi, backend, lingua)
 
@@ -526,14 +523,12 @@ def analizza(path: Path, nome_file: str, backend, lingua: str = "sq") -> str:
                 if wav is not None:
                     # lingua RICONOSCIUTA, non imposta: chi parla in un
                     # video puo' benissimo non parlare la lingua della sessione
-                    reg.aggiungi("Traccia audio estratta: 16 kHz, mono, PCM "
-                                 "16 bit (`ffmpeg -vn -ac 1 -ar 16000`).")
+                    reg.aggiungi(forense.passo("audio", lingua))
                     battute, _lang, _conf = audio_mod.trascrivi(wav, None)
-                    reg.aggiungi(
-                        f"Trascrizione con faster-whisper, modello "
-                        f"`{_MODELLO_TRASCRIZIONE}`, int8, VAD attivo. "
-                        f"Lingua riconosciuta: {_lang} ({_conf:.0%})."
-                    )
+                    reg.aggiungi(forense.passo(
+                        "trascrizione", lingua,
+                        modello=_MODELLO_TRASCRIZIONE, lingua=_lang,
+                        conf=f"{_conf:.0%}"))
                     if battute:
                         nota_audio = L["audio_lang"].format(
                             l=audio_mod.nome_lingua(_lang, lingua),
@@ -575,7 +570,7 @@ def analizza(path: Path, nome_file: str, backend, lingua: str = "sq") -> str:
     try:
         strumenti = [forense.versione("ffmpeg"), forense.versione("exiftool")]
         strumenti = [x for x in strumenti if x]
-        strumenti.append("Tetramorph — motore di descrizione (interpretazione)")
+        strumenti.append(forense.passo("motore", lingua))
         righe += forense.blocco_registro(sha, byte, reg, strumenti, lingua)
     except Exception as exc:  # noqa: BLE001
         log.warning("registro di lavorazione: %s", exc)
