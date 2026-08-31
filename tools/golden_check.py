@@ -657,6 +657,38 @@ def main():
         check("forense: tabella dei passi leggibile", False, str(_e))
 
 
+    # ── [15] parkimi i pergjigjeve te gjata (telefoni qe bie) ──────────
+    try:
+        _w5 = _io2.open(_os2.path.join(_rr, "src", "web.py"), encoding="utf-8").read()
+        _a5 = _io2.open(_os2.path.join(_rr, "static", "app.js"), encoding="utf-8").read()
+
+        # server: il magazzino, l'aggancio e la rotta per riprendersela
+        check("parkimi: magazina ekziston", "_PARCHEGGIO" in _w5)
+        check("parkimi: lidhet me after_request",
+              "_parcheggia_risposta" in _w5 and "X-Job-Key" in _w5)
+        check("parkimi: rruga per ta marre", "/api/tool/result" in _w5)
+        # ⚠️ i lidhur me perdoruesin: nje fashikull nuk del nga nje sesion tjeter
+        check("parkimi: i lidhur me perdoruesin",
+              "proprietario != uid" in _w5,
+              "pa kete, kush gjen celesin merr pergjigjen e nje studioje tjeter")
+        # ha un tetto e una scadenza: e' memoria, non un archivio
+        check("parkimi: ka tavan dhe skadence",
+              "_PARCHEGGIO_MAX" in _w5 and "_PARCHEGGIO_TTL" in _w5)
+
+        # client: manda la chiave, la ricorda, la ripesca
+        check("parkimi: klienti dergon celesin",
+              '"X-Job-Key": chiave' in _a5)
+        check("parkimi: klienti e ripeshkon", "_ripescaRisposta" in _a5)
+        # ⚠️ in localStorage: su Android la scheda a volte viene UCCISA, e al
+        # ritorno la pagina riparte da zero — senza questo non si trova nulla
+        check("parkimi: celesi mbahet edhe pas rinisjes se faqes",
+              "localStorage.setItem(_PARCHEGGIO_CHIAVE" in _a5,
+              "pa kete, nje skede e vrare humbet pergjigjen perfundimisht")
+        check("parkimi: rikuperimi ne nisje", "_recuperaLavoroInSospeso" in _a5)
+    except OSError as _e:
+        check("parkimi: skedaret e lexueshem", False, str(_e))
+
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

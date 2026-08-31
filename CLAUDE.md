@@ -544,6 +544,55 @@ Se un giorno serve accorciare: la leva è un tetto su `nullity_radar` — ma è 
 lente che cerca pavlefshmëri e afate, cioè le leve procedurali che vincono senza
 entrare nel merito. L'alternativa già pronta è il background + notifica.
 
+# IL TELEFONO CHE CADE — parcheggio delle risposte (v9.227-9.228, 31 ago 2026)
+
+**Il difetto, vecchio e mai visto.** I **venti strumenti PRO** — compresi
+«Avokati i Djallit» (`/api/devil-consult`) e «Kundërshtari» (`/api/adversary`)
+— chiamavano il server con una `fetch` normale che tiene aperta la richiesta
+HTTP per **tutti i minuti** dell'analisi. Sul telefono basta passare a WhatsApp:
+il sistema sospende la scheda, la connessione cade, e al ritorno compare
+«Gabim rrjeti».
+
+⚠️ **E la parte peggiore non si vedeva: il server aveva finito il lavoro.**
+Flask esegue la funzione fino in fondo anche se il client se n'è andato — è solo
+la scrittura finale che fallisce. Il cervello ragionava dieci minuti, la
+risposta esisteva, e **nessuno la raccoglieva**.
+
+Era lo stesso difetto già riparato per la **chat** (v9.170) e per il **Genio**
+(v9.183). Per gli strumenti PRO no, e sono venti.
+
+## Il rimedio, in un punto solo
+
+Non venti endpoint riscritti: **un `after_request`** che, quando la richiesta
+porta l'intestazione `X-Job-Key`, **parcheggia** la risposta prima di provare a
+scriverla. Se la scrittura fallisce, il risultato è già al sicuro e il client se
+lo riprende con `GET /api/tool/result?key=…`. Lato client basta toccare
+`_openTetramorphTool`, che è il punto da cui passano **tutti e venti**.
+
+**Due casi, e servono entrambi:**
+1. **scheda sospesa e ripresa** → la pagina è viva, la `fetch` è morta: si
+   ripesca con la chiave che si ha in mano;
+2. **scheda UCCISA** (Android libera memoria, la pagina riparte da zero) → la
+   chiave in memoria è persa, per questo si scrive anche in **`localStorage`** e
+   all'avvio si controlla se c'è un lavoro in sospeso. È il caso che succede
+   davvero su un telefono con poca memoria, ed è il peggiore: l'avvocato torna e
+   non trova **niente**, nemmeno l'errore. La risposta recuperata si mostra in
+   un pannello suo, perché la finestra da cui era partita non c'è più.
+
+⚠️ **Legato all'utente**: la chiave è un UUID, ma il parcheggio è comunque
+vincolato a chi ha fatto la richiesta — verificato: proprietario `200`, altro
+studio `202` (come se non esistesse), senza sessione `401`.
+⚠️ **Vive in memoria**, come il registro dei lavori: un deploy lo svuota. Tetto
+200 voci, scadenza 40 minuti.
+
+**Verificato sul campo**: connessione tagliata dopo 8 secondi come fa il
+telefono, risposta completa (3.374 caratteri) recuperata 160 secondi dopo.
+
+Sorveglianza: golden sezione [15], 9 check — magazzino, aggancio, rotta, legame
+con l'utente, tetto e scadenza, e lato client la chiave inviata, il ripescaggio
+e **il ricordo in `localStorage`** (senza il quale una scheda uccisa perde la
+risposta per sempre). **185/185.**
+
 # IMPALCATURA FORENSE — SWGDE (v9.223-9.225, 31 ago 2026)
 
 Nata leggendo lo standard vero, **SWGDE Best Practices for Digital Forensic

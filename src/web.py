@@ -8014,6 +8014,80 @@ def api_admin_audit_export():
 # create, delete, or reset passwords for other users. Any logged-in user can
 # change their OWN password.
 
+# ── Parcheggio delle risposte lunghe ───────────────────────────────────
+#
+# Gli strumenti PRO tengono aperta la richiesta per minuti. Sul telefono,
+# passare a WhatsApp sospende la scheda e la connessione cade: al ritorno
+# l'avvocato vede «Gabim rrjeti» — ma il server ha finito il lavoro comunque
+# (Flask esegue la funzione fino in fondo anche se il client se n'e' andato).
+# Qui la risposta viene messa da parte PRIMA di provare a scriverla, cosi'
+# c'e' ancora quando il telefono torna.
+_PARCHEGGIO: dict[str, tuple[float, int, bytes, str]] = {}
+_PARCHEGGIO_LOCK = threading.Lock()
+_PARCHEGGIO_TTL = 40 * 60          # mezz'ora abbondante: copre l'analisi + il ritorno
+_PARCHEGGIO_MAX = 200              # tetto: e' memoria, non un archivio
+
+
+def _parcheggia(chiave: str, uid: int, corpo: bytes, mimetype: str) -> None:
+    """Mette da parte una risposta. Non solleva mai: e' un di piu'."""
+    try:
+        adesso = time.time()
+        with _PARCHEGGIO_LOCK:
+            # pulizia delle scadute, cosi' non cresce all'infinito
+            for k in [k for k, (t, *_r) in _PARCHEGGIO.items()
+                      if adesso - t > _PARCHEGGIO_TTL]:
+                _PARCHEGGIO.pop(k, None)
+            if len(_PARCHEGGIO) >= _PARCHEGGIO_MAX:
+                # via la piu' vecchia
+                vecchia = min(_PARCHEGGIO.items(), key=lambda x: x[1][0])[0]
+                _PARCHEGGIO.pop(vecchia, None)
+            _PARCHEGGIO[chiave] = (adesso, uid, corpo, mimetype)
+    except Exception:  # noqa: BLE001
+        log.exception("parcheggio risposta")
+
+
+@app.get("/api/tool/result")
+@login_required_api
+def api_tool_result():
+    """La risposta parcheggiata, se c'e'.
+
+    202 = non ancora (o mai esistita): il client continua ad aspettare. Non
+    distinguiamo i due casi di proposito — dall'esterno sono identici, e
+    dirlo aprirebbe un modo per sapere se una chiave esiste.
+    """
+    chiave = (request.args.get("key") or "").strip()
+    if not chiave:
+        return jsonify({"error": "no key"}), 400
+    uid = request.user.id  # type: ignore[attr-defined]
+    with _PARCHEGGIO_LOCK:
+        voce = _PARCHEGGIO.get(chiave)
+    if not voce:
+        return jsonify({"status": "running"}), 202
+    _t, proprietario, corpo, mimetype = voce
+    # ⚠️ legato all'utente: la chiave e' imprevedibile, ma il fascicolo di uno
+    # studio non deve poter uscire da un'altra sessione nemmeno per sbaglio.
+    if proprietario != uid:
+        return jsonify({"status": "running"}), 202
+    return app.response_class(corpo, mimetype=mimetype or "application/json")
+
+
+@app.after_request
+def _parcheggia_risposta(resp):
+    """Mette da parte la risposta quando il client ha chiesto di poterla
+    ritrovare. Silenzioso e inerte senza l'intestazione."""
+    try:
+        chiave = request.headers.get("X-Job-Key", "").strip()
+        if (chiave and resp.status_code == 200
+                and (resp.mimetype or "").endswith("json")
+                and not resp.direct_passthrough):
+            uid = getattr(getattr(request, "user", None), "id", None)
+            if uid is not None:
+                _parcheggia(chiave, uid, resp.get_data(), resp.mimetype)
+    except Exception:  # noqa: BLE001
+        pass
+    return resp
+
+
 @app.after_request
 def _no_cache_html(resp):
     """HTML sempre fresco, asset versionati con cache lunga.

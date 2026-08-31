@@ -343,6 +343,9 @@
   // le condizioni prima di tutto: e' il momento in cui uno studio accetta
   // che i dati dei suoi clienti passino da qui.
   controllaCondizioni();
+  // Un lavoro rimasto in sospeso quando la pagina e' morta (telefono che
+  // libera memoria): la risposta e' parcheggiata sul server, si recupera.
+  setTimeout(function () { _recuperaLavoroInSospeso(); }, 1500);
   // E un modo per RILEGGERLI dopo: senza questo l'informativa si vede una
   // volta sola e poi sparisce, che non e' «accessibile».
   document.getElementById("legal-menu")?.addEventListener("click", async () => {
@@ -3876,9 +3879,29 @@
         // il fascicolo aperto viaggia con ogni strumento: il PRO continua il
         // lavoro del cervello invece di ricominciarlo da zero
         if (activeCaseId) payload.case_id = activeCaseId;
-        var r = await fetch(cfg.endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-        var d = await r.json();
-        if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
+        // ⚠️ La chiave serve a ritrovare la risposta se la connessione
+        // cade: sul telefono basta passare a WhatsApp perche' il sistema
+        // sospenda la scheda. Il server ha finito il lavoro comunque —
+        // senza questa chiave, la risposta si perde e basta.
+        var chiave = _nuovaChiave();
+        _ricordaInSospeso(chiave, cfg);
+        var d;
+        try {
+          var r = await fetch(cfg.endpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-Job-Key": chiave },
+            body: JSON.stringify(payload),
+          });
+          d = await r.json();
+          if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
+        } catch (eRete) {
+          // La rete e' caduta (o il telefono ha sospeso la scheda): il
+          // lavoro sul server continua. Si aspetta e si ripesca.
+          status.textContent = TT("Lidhja u ndërpre — analiza vazhdon në server. Po e pres…");
+          d = await _ripescaRisposta(chiave, status);
+          if (!d) throw eRete;
+        }
+        _dimenticaInSospeso(chiave);
         status.textContent = "";
         result.innerHTML = '<div class="fd-out"></div>';
         var out = result.querySelector(".fd-out");
@@ -5999,6 +6022,10 @@
     ["Avokat", "Avvocato"], ["Prokuror", "Procuratore"], ["Noter", "Notaio"]
   ];
   var T_IT = {
+    "Lidhja u ndërpre — analiza vazhdon në server. Po e pres…": "Connessione caduta — l'analisi continua sul server. Sto aspettando…",
+    "Nuk arriti përgjigjja në kohë. Provo ta hapësh sërish veglën.": "La risposta non è arrivata in tempo. Prova a riaprire lo strumento.",
+    "Përgjigjja e ruajtur": "Risposta recuperata",
+    "Lidhja ra ndërsa po punonte. Përgjigjja u ruajt në server dhe ja ku është.": "La connessione è caduta mentre lavorava. La risposta era salva sul server ed eccola.",
     "Analiza po zgjat më shumë se zakonisht. Ajo vazhdon në server edhe nëse e mbyll faqen.": "L'analisi sta durando più del solito. Continua sul server anche se chiudi la pagina.",
     "Rikontrollo tani": "Ricontrolla ora",
     "Hap një rast për të ngarkuar video ose audio.": "Apri un caso per caricare video o audio.",
@@ -12015,6 +12042,97 @@
   /* Segue un lavoro fino alla fine, riattaccandosi da solo quando serve.
    * Torna {final, error}. Non lancia per una connessione caduta: quella non e'
    * un errore, e' la normalita' su una rete mobile. */
+  // ── Ripescare una risposta lunga quando la connessione cade ─────────
+  //
+  // Il server parcheggia la risposta sotto una chiave (vedi `_parcheggia` in
+  // web.py). Qui la si genera, la si ricorda e, se serve, la si va a
+  // riprendere. Vale per tutti e venti gli strumenti PRO, perché passano
+  // tutti da `_openTetramorphTool`.
+  var _PARCHEGGIO_CHIAVE = "sa_lavoro_in_sospeso";
+
+  function _nuovaChiave() {
+    try {
+      if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    } catch (e) {}
+    return "k" + Date.now() + Math.random().toString(36).slice(2, 10);
+  }
+
+  // ⚠️ In localStorage e non solo in memoria: su Android la scheda non viene
+  // solo sospesa, a volte viene UCCISA — al ritorno la pagina riparte da zero
+  // e senza questo l'avvocato non trova nemmeno l'errore.
+  function _ricordaInSospeso(chiave, cfg) {
+    try {
+      localStorage.setItem(_PARCHEGGIO_CHIAVE, JSON.stringify({
+        chiave: chiave, titolo: cfg.saveTitle || cfg.title || "", quando: Date.now(),
+      }));
+    } catch (e) {}
+  }
+  function _dimenticaInSospeso() {
+    try { localStorage.removeItem(_PARCHEGGIO_CHIAVE); } catch (e) {}
+  }
+
+  // Aspetta la risposta parcheggiata. `null` se non arriva entro il tempo:
+  // meglio dire «non ce l'ho fatta» che restare a girare per sempre.
+  async function _ripescaRisposta(chiave, status, minuti) {
+    var scadenza = Date.now() + (minuti || 25) * 60 * 1000;
+    while (Date.now() < scadenza) {
+      await new Promise(function (r) { setTimeout(r, 4000); });
+      try {
+        var resp = await fetch("/api/tool/result?key=" + encodeURIComponent(chiave));
+        if (resp.status === 200) return await resp.json();
+        // 202 = non ancora pronta: si continua ad aspettare
+      } catch (e) { /* ancora offline: si riprova al giro dopo */ }
+    }
+    if (status) status.textContent = TT("Nuk arriti përgjigjja në kohë. Provo ta hapësh sërish veglën.");
+    return null;
+  }
+
+  // All'avvio: c'era un lavoro in sospeso quando la pagina è morta?
+  async function _recuperaLavoroInSospeso() {
+    var grezzo;
+    try { grezzo = localStorage.getItem(_PARCHEGGIO_CHIAVE); } catch (e) { return; }
+    if (!grezzo) return;
+    var v;
+    try { v = JSON.parse(grezzo); } catch (e) { _dimenticaInSospeso(); return; }
+    // più vecchio di 40 minuti: il server l'ha già scordato
+    if (!v || !v.chiave || Date.now() - (v.quando || 0) > 40 * 60 * 1000) {
+      _dimenticaInSospeso(); return;
+    }
+    var resp;
+    try { resp = await fetch("/api/tool/result?key=" + encodeURIComponent(v.chiave)); }
+    catch (e) { return; }
+    if (resp.status !== 200) { return; }      // ancora al lavoro: si riproverà
+    var d;
+    try { d = await resp.json(); } catch (e) { _dimenticaInSospeso(); return; }
+    _dimenticaInSospeso();
+    _mostraRispostaRecuperata(v.titolo, d);
+  }
+
+  // La si mostra in un pannello suo: l'avvocato ha chiuso l'app, non può
+  // ritrovarsi il risultato dentro una finestra che non ha più aperto.
+  function _mostraRispostaRecuperata(titolo, d) {
+    if (!d || !(d.markdown || d.result)) return;
+    var ov = document.createElement("div");
+    ov.className = "ac-overlay";
+    ov.innerHTML = '<div class="ac-modal exp-modal">' +
+      '<div class="ac-head"><span></span><button class="ac-x" type="button">×</button></div>' +
+      '<div class="exp-body"><div class="vd-note"></div><div class="ac-result"></div></div></div>';
+    ov.querySelector(".ac-head span").textContent =
+      "↩︎ " + (titolo || TT("Përgjigjja e ruajtur"));
+    ov.querySelector(".vd-note").textContent =
+      TT("Lidhja ra ndërsa po punonte. Përgjigjja u ruajt në server dhe ja ku është.");
+    var box = ov.querySelector(".ac-result");
+    box.innerHTML = '<div class="fd-out"></div>';
+    var out = box.querySelector(".fd-out");
+    out.innerHTML = renderMarkdown(d.markdown || d.result || "");
+    if (d.citations) { try { highlightNeni(out, buildCitStatusMap(d.citations)); } catch (e) {} }
+    document.body.appendChild(ov);
+    applyStaticI18n(ov);
+    ov.querySelector(".ac-x").onclick = function () { ov.remove(); };
+    ov.addEventListener("click", function (e) { if (e.target === ov) ov.remove(); });
+    try { _addSaveToCase(box, "research", titolo || "Kërkim", d.markdown || d.result || ""); } catch (e) {}
+  }
+
   async function askAttach(jobId, daEvento, cb) {
     let idx = daEvento || 0;
     let final = null;
