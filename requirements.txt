@@ -22,3 +22,7 @@ python-dateutil>=2.9.0
 pillow-heif>=0.18.0
 # Notifiche push (VAPID) quando l'analisi e' pronta
 pywebpush>=2.0.0
+# Trascrizione di audio e della traccia dei video (prove sonore).
+# ⚠️ 1.2.1 e non 1.0.3: quella non ha wheel per Python 3.14 e pip falliva in
+# silenzio dentro una pipe, col build che dichiarava successo.
+faster-whisper==1.2.1

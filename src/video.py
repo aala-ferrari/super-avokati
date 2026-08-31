@@ -35,6 +35,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .config import VIDEO_EXTENSIONS, VIDEO_MAX_FRAMES, VIDEO_SCENE_THRESHOLD
+from . import audio as audio_mod
 
 log = logging.getLogger(__name__)
 
@@ -400,6 +401,9 @@ _INTESTAZIONE = {
             "Për çdo pretendim vendimtar shihet videoja e plotë, dhe kur duhet, "
             "caktohet ekspert."
         ),
+        "audio_no": "Skedari nuk ka pistë audio: nuk ka çfarë të transkriptohet.",
+        "audio_lang": "Fjalët e transkriptuara janë në **{l}** (siguri {p}%). Transkripti është bozë — dëgjo regjistrimin para se ta citosh.",
+        "audio_ko": "Transkriptimi i audios nuk u krye ({e}).",
         "durata": "Kohëzgjatja", "codec": "Kodeku", "ris": "Rezolucioni",
         "fps": "Fotograme/sek", "audio": "Pista audio", "creato": "Data në skedar",
         "peso": "Madhësia", "nessuna": "asnjë",
@@ -418,6 +422,9 @@ _INTESTAZIONE = {
             "fila e confrontare. Per ogni affermazione decisiva si guarda il video "
             "intero e, quando serve, si nomina un perito."
         ),
+        "audio_no": "Il file non ha traccia audio: non c'è nulla da trascrivere.",
+        "audio_lang": "Le parole trascritte sono in **{l}** (confidenza {p}%). La trascrizione è una bozza — riascolta la registrazione prima di citarla.",
+        "audio_ko": "La trascrizione dell'audio non è riuscita ({e}).",
         "durata": "Durata", "codec": "Codec", "ris": "Risoluzione",
         "fps": "Fotogrammi/sec", "audio": "Tracce audio", "creato": "Data nel file",
         "peso": "Dimensione", "nessuna": "nessuna",
@@ -458,9 +465,11 @@ def analizza(path: Path, nome_file: str, backend, lingua: str = "sq") -> str:
         righe += [f"- {r}" for r in rilievi]
         righe.append("")
 
-    # fotogrammi → linea temporale
+    # fotogrammi + parlato → UNA linea temporale
     descrizioni: list[tuple[float, str]] = []
+    battute: list[tuple[float, float, str]] = []
     n_estratti = 0
+    nota_audio = ""
     with tempfile.TemporaryDirectory(prefix="video-") as tmp:
         # la cartella temporanea sparisce all'uscita: i fotogrammi sono un
         # mezzo, non una prova da conservare — e sono volti di persone
@@ -469,11 +478,38 @@ def analizza(path: Path, nome_file: str, backend, lingua: str = "sq") -> str:
         if fotogrammi and backend is not None:
             descrizioni = descrivi_fotogrammi(fotogrammi, backend, lingua)
 
-    utili = [(t, d) for t, d in descrizioni if d]
-    if utili:
+        # l'audio del video: se c'e', si trascrive e si mescola
+        if meta.n_tracce_audio and audio_mod.disponibile():
+            try:
+                wav = audio_mod.estrai_traccia(path, Path(tmp))
+                if wav is not None:
+                    # lingua RICONOSCIUTA, non imposta: chi parla in un
+                    # video puo' benissimo non parlare la lingua della sessione
+                    battute, _lang, _conf = audio_mod.trascrivi(wav, None)
+                    if battute:
+                        nota_audio = L["audio_lang"].format(
+                            l=audio_mod.nome_lingua(_lang, lingua),
+                            p=int(_conf * 100))
+            except Exception as exc:  # noqa: BLE001
+                log.warning("trascrizione audio del video fallita: %s", exc)
+                nota_audio = L["audio_ko"].format(e=type(exc).__name__)
+        elif not meta.n_tracce_audio:
+            nota_audio = L["audio_no"]
+
+    # ⚠️ Intrecciati in ordine di TEMPO, non in due elenchi separati: in una
+    # rapina quello che conta e' che allo stesso minuto si veda una mano nella
+    # tasca E si senta la frase. Separati, l'incrocio lo deve fare l'avvocato
+    # a mente; insieme, e' gia' un racconto.
+    voci: list[tuple[float, str]] = [(t, d) for t, d in descrizioni if d]
+    voci += [(a, f"🔊 «{t}»") for a, _b, t in battute]
+    voci.sort(key=lambda x: x[0])
+
+    if voci:
         righe += [f"## {L['kohore']}", ""]
-        for t, d in utili:
+        for t, d in voci:
             righe += [f"**[{_mmss(t)}]** {d}", ""]
+    if nota_audio:
+        righe += [f"_{nota_audio}_", ""]
 
     # il limite, dichiarato dentro il testo che l'avvocato legge e copia —
     # non in fondo alla documentazione, dove non lo leggerebbe nessuno
@@ -482,7 +518,7 @@ def analizza(path: Path, nome_file: str, backend, lingua: str = "sq") -> str:
         "",
         f"⚠️ **{L['kufi']}**",
         "",
-        L["kufi_testo"].format(n=len(utili) or n_estratti),
+        L["kufi_testo"].format(n=len(descrizioni) or n_estratti),
         "",
     ]
     return "\n".join(righe)

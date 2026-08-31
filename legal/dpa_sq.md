@@ -61,6 +61,10 @@ asnjë marrëdhënie me Studion dhe nuk e dinë se ndodhen në një fashikull.
 Studioja zotohet të ngarkojë **vetëm pjesët e nevojshme** për mandatin: nëse
 kanë rëndësi tre minuta, nuk ngarkohen tre orë.
 
+**Regjistrimet audio** transkriptohen **në serverin tonë, në Evropë**: fjalët e
+regjistruara nuk i dërgohen asnjë ofruesi të jashtëm. Transkripti është bozë
+për t'u verifikuar, jo procesverbal.
+
 Shërbimi **nuk kryen njohje fytyre dhe as identifikim biometrik**: personat në
 kuadër tregohen sipas pozicionit («personi A», «personi B») dhe kurrë sipas
 tipareve individualizuese. Ndalimi është shkruar në udhëzimet e motorit dhe

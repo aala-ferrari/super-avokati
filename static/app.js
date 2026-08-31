@@ -534,10 +534,16 @@
     // spiegava perche' un sistema che dice di accettare video li rifiutasse.
     const MAX_DOC = 25 * 1024 * 1024;
     const MAX_VIDEO = 500 * 1024 * 1024;
-    const _limite = (f) => (VIDEO_EXT.test(f.name || "") ? MAX_VIDEO : MAX_DOC);
+    const MAX_AUDIO = 200 * 1024 * 1024;
+    const _limite = (f) => {
+      const n = f.name || "";
+      if (VIDEO_EXT.test(n)) return MAX_VIDEO;
+      if (AUDIO_EXT.test(n)) return MAX_AUDIO;
+      return MAX_DOC;
+    };
     const troppoGrandi = files.filter((f) => f.size > _limite(f));
     if (troppoGrandi.length) {
-      _dossierAvviso(TT("Skedar shumë i madh (max 25 MB dokument / 500 MB video): ") +
+      _dossierAvviso(TT("Skedar shumë i madh (max 25 MB dokument / 200 MB audio / 500 MB video): ") +
                      troppoGrandi.map((f) => f.name).join(", "));
       files = files.filter((f) => f.size <= _limite(f));
     }
@@ -4947,19 +4953,19 @@
     ov = document.createElement("div");
     ov.id = "vd-ov"; ov.className = "ac-overlay";
     ov.innerHTML = '<div class="ac-modal exp-modal">' +
-      '<div class="ac-head"><span data-i18n="vd_title">🎥 Analiza e videove</span>' +
+      '<div class="ac-head"><span data-i18n="vd_title">🎥 Video dhe audio</span>' +
         '<button class="ac-x" type="button" aria-label="Mbyll">×</button></div>' +
       '<div class="exp-body">' +
-        '<div class="exp-sub" data-i18n="vd_sub">Videot e depozituara si provë: të dhënat e skedarit, vërejtjet mbi origjinalitetin, dhe rrjedha kohore me minutazhe. Pastaj krahasimi me procesverbalet — aty ku nuk përputhen, aty është puna.</div>' +
-        '<div class="vd-note" data-i18n="vd_note">⚠️ Modeli nuk e sheh videon: sheh fotograme të nxjerra prej saj. Momenti vendimtar mund të bjerë midis dy fotogramave. Nuk identifikon persona dhe nuk vendos për fajësinë.</div>' +
-        '<details class="fk-sec" open><summary data-i18n="vd_s_up">📼 Videot e fashikullit</summary>' +
+        '<div class="exp-sub" data-i18n="vd_sub">Provat video dhe audio: të dhënat e skedarit, vërejtjet mbi origjinalitetin, rrjedha kohore me minutazhe dhe fjalët e transkriptuara. Pastaj krahasimi me procesverbalet — aty ku nuk përputhen, aty është puna.</div>' +
+        '<div class="vd-note" data-i18n="vd_note">⚠️ Modeli nuk e sheh videon: sheh fotograme të nxjerra prej saj — momenti vendimtar mund të bjerë midis dy fotogramave. Transkripti i audios është bozë (në shqip vetëm për orientim). Nuk identifikon persona dhe nuk vendos për fajësinë.</div>' +
+        '<details class="fk-sec" open><summary data-i18n="vd_s_up">📼 Video dhe audio të fashikullit</summary>' +
           '<div class="ac-row">' +
-            '<label class="fk-upload" data-i18n="vd_b_up">📎 Ngarko video' +
-              '<input type="file" multiple class="vd-file" accept=".mp4,.mov,.avi,.mkv,.m4v,.webm,.mpg,.wmv,.dav,video/*" hidden></label>' +
+            '<label class="fk-upload" data-i18n="vd_b_up">📎 Ngarko video ose audio' +
+              '<input type="file" multiple class="vd-file" accept=".mp4,.mov,.avi,.mkv,.m4v,.webm,.mpg,.wmv,.dav,video/*,.mp3,.wav,.m4a,.aac,.ogg,.opus,.amr,audio/*" hidden></label>' +
             '<span class="ac-status vd-up-st"></span>' +
           '</div>' +
           '<div class="vd-list"></div></details>' +
-        '<details class="fk-sec"><summary data-i18n="vd_s_cmp">⚖️ Krahaso videon me fashikullin</summary>' +
+        '<details class="fk-sec"><summary data-i18n="vd_s_cmp">⚖️ Krahaso me fashikullin</summary>' +
           '<div class="exp-hint" data-i18n="vd_cmp_hint">Çfarë e konfirmon videoja te procesverbalet, ku NUK përputhen, çfarë nuk mund ta thotë videoja, dhe çfarë duhet kërkuar.</div>' +
           '<div class="ac-row"><button class="ac-run vd-cmp-btn" type="button" data-i18n="vd_b_cmp">Krahaso →</button>' +
             '<span class="ac-status vd-cmp-st"></span></div>' +
@@ -4975,7 +4981,7 @@
 
     async function ricarica() {
       if (!activeCaseId) {
-        lista.innerHTML = '<div class="fk-warn">' + TT("Hap një rast për të ngarkuar video.") + '</div>';
+        lista.innerHTML = '<div class="fk-warn">' + TT("Hap një rast për të ngarkuar video ose audio.") + '</div>';
         return;
       }
       var r = await fetch("/api/cases/" + activeCaseId + "/videos");
@@ -4983,7 +4989,7 @@
       var j = await r.json();
       var vs = j.videos || [];
       if (!vs.length) {
-        lista.innerHTML = '<div class="fk-warn">' + TT("Asnjë video ende. Ngarko një skedar video (mp4, mov, avi, dav…).") + '</div>';
+        lista.innerHTML = '<div class="fk-warn">' + TT("Asnjë provë multimediale ende. Ngarko video (mp4, mov, dav…) ose audio (mp3, m4a, wav…).") + '</div>';
         return;
       }
       lista.innerHTML = vs.map(function (v, i) {
@@ -5020,7 +5026,7 @@
     inp.onchange = async function () {
       if (!inp.files || !inp.files.length) return;
       var files = [].slice.call(inp.files); inp.value = "";
-      upSt.textContent = TT("⏳ Po ngarkoj… (videot janë të mëdha, mund të zgjasë)");
+      upSt.textContent = TT("⏳ Po ngarkoj… (skedarët janë të mëdhenj, mund të zgjasë)");
       try { await uploadFiles(files); } catch (e) {}
       upSt.textContent = TT("Ngarkuar. Analiza vazhdon në sfond.");
       await ricarica();
@@ -5032,7 +5038,7 @@
     cmpBtn.onclick = async function () {
       if (!activeCaseId) { cmpSt.textContent = TT("Hap një rast."); return; }
       cmpBtn.disabled = true;
-      cmpSt.textContent = TT("⏳ Po krahasoj videon me dokumentet…");
+      cmpSt.textContent = TT("⏳ Po krahasoj provat me dokumentet…");
       cmpRes.innerHTML = "";
       try {
         var r = await fetch("/api/cases/" + activeCaseId + "/video/compare", {
@@ -5127,7 +5133,7 @@
       } else {
         txt = '<span class="fk-warn">' + t("Do të krijohet një rast i ri kur të ngarkosh.") + '</span>';
       }
-      info.innerHTML = '<div class="fk-uprow"><label class="fk-upload">' + t('📎 Ngarko dokumente') + '<input type="file" multiple class="fk-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.tif,.tiff,.docx,.txt,.mp4,.mov,.avi,.mkv,.m4v,.webm,.mpg,.wmv,.dav,video/*" hidden></label> ' + txt + '</div>';
+      info.innerHTML = '<div class="fk-uprow"><label class="fk-upload">' + t('📎 Ngarko dokumente') + '<input type="file" multiple class="fk-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.tif,.tiff,.docx,.txt,.mp4,.mov,.avi,.mkv,.m4v,.webm,.mpg,.wmv,.dav,video/*,.mp3,.wav,.m4a,.aac,.ogg,.opus,.amr,audio/*" hidden></label> ' + txt + '</div>';
       var fkFile = info.querySelector(".fk-file");
       if (fkFile) fkFile.onchange = async function () {
         if (!fkFile.files || !fkFile.files.length) return;
@@ -5859,14 +5865,14 @@
   // ── i18n (Fase C) — Italian UI for IT sessions ────────────────────────────
   var UI_LANG = (document.body && document.body.dataset ? document.body.dataset.lang : "") || "sq";
   var I18N_IT = {
-    pro_video_t: "Analisi video",
-    pro_video_d: "Prove video: dati del file · linea temporale con i minutaggi · confronto con i verbali",
-    vd_title: "🎥 Analisi video",
-    vd_sub: "I video depositati come prova: dati del file, rilievi sull'originalità, e la linea temporale con i minutaggi. Poi il confronto con i verbali — dove non tornano, lì c'è il lavoro.",
-    vd_note: "⚠️ Il modello non guarda il video: guarda fotogrammi estratti da esso. L'istante decisivo può cadere fra due fotogrammi. Non identifica persone e non decide sulla colpevolezza.",
-    vd_s_up: "📼 I video del fascicolo",
-    vd_b_up: "📎 Carica video",
-    vd_s_cmp: "⚖️ Confronta il video col fascicolo",
+    pro_video_t: "Video e audio",
+    pro_video_d: "Prove video e audio: dati del file · linea temporale con i minutaggi · trascrizione · confronto con i verbali",
+    vd_title: "🎥 Video e audio",
+    vd_sub: "Le prove video e audio: dati del file, rilievi sull'originalità, linea temporale con i minutaggi e le parole trascritte. Poi il confronto con i verbali — dove non tornano, lì c'è il lavoro.",
+    vd_note: "⚠️ Il modello non guarda il video: guarda fotogrammi estratti da esso — l'istante decisivo può cadere fra due fotogrammi. La trascrizione dell'audio è una bozza (in albanese solo per orientarsi). Non identifica persone e non decide sulla colpevolezza.",
+    vd_s_up: "📼 Video e audio del fascicolo",
+    vd_b_up: "📎 Carica video o audio",
+    vd_s_cmp: "⚖️ Confronta col fascicolo",
     vd_cmp_hint: "Cosa il video conferma dei verbali, dove NON tornano, cosa il video non può dire, e cosa chiedere.",
     vd_b_cmp: "Confronta →",
     legal_menu: "Condizioni e dati",
@@ -5961,15 +5967,15 @@
     ["Avokat", "Avvocato"], ["Prokuror", "Procuratore"], ["Noter", "Notaio"]
   ];
   var T_IT = {
-    "Hap një rast për të ngarkuar video.": "Apri un caso per caricare i video.",
-    "Asnjë video ende. Ngarko një skedar video (mp4, mov, avi, dav…).": "Nessun video. Carica un file video (mp4, mov, avi, dav…).",
+    "Hap një rast për të ngarkuar video ose audio.": "Apri un caso per caricare video o audio.",
+    "Asnjë provë multimediale ende. Ngarko video (mp4, mov, dav…) ose audio (mp3, m4a, wav…).": "Nessuna prova multimediale. Carica un video (mp4, mov, dav…) o un audio (mp3, m4a, wav…).",
     "i analizuar": "analizzato",
     "në përpunim…": "in lavorazione…",
     "Shiko analizën": "Vedi l'analisi",
-    "⏳ Po ngarkoj… (videot janë të mëdha, mund të zgjasë)": "⏳ Caricamento… (i video sono grandi, può volerci un po')",
+    "⏳ Po ngarkoj… (skedarët janë të mëdhenj, mund të zgjasë)": "⏳ Caricamento… (i file sono grandi, può volerci un po')",
     "Ngarkuar. Analiza vazhdon në sfond.": "Caricato. L'analisi continua in sottofondo.",
-    "⏳ Po krahasoj videon me dokumentet…": "⏳ Confronto il video con i documenti…",
-    "Skedar shumë i madh (max 25 MB dokument / 500 MB video): ": "File troppo grande (max 25 MB documento / 500 MB video): ",
+    "⏳ Po krahasoj provat me dokumentet…": "⏳ Confronto le prove con i documenti…",
+    "Skedar shumë i madh (max 25 MB dokument / 200 MB audio / 500 MB video): ": "File troppo grande (max 25 MB documento / 200 MB audio / 500 MB video): ",
     "Hap një rast.": "Apri un caso.",
     "Afatet:": "Scadenze:", "Hap kalendarin": "Apri calendario",
     " sot": " oggi", " n\u00eb 7 dit\u00eb": " in 7 giorni",
@@ -5983,6 +5989,9 @@
   // Gli stessi formati di config.VIDEO_EXTENSIONS: se divergono, un
   // video ammesso dal server risulta troppo grande nel browser.
   var VIDEO_EXT = /\.(mp4|mov|avi|mkv|m4v|webm|mpg|mpeg|wmv|flv|ts|mts|m2ts|3gp|dav)$/i;
+  // Registrazioni depositate come prova: telefonate, vocali, audio di
+  // telecamera. Stessi formati di config.AUDIO_EXTENSIONS.
+  var AUDIO_EXT = /\.(mp3|wav|m4a|aac|ogg|oga|opus|flac|wma|amr|3ga|caf|aiff|aif)$/i;
   Object.assign(T_IT, { "Skedar shumë i madh për serverin.": "File troppo grande per il server.", "Serveri ktheu një përgjigje të papritur (HTTP ": "Il server ha risposto in modo inatteso (HTTP " });
   Object.assign(T_IT, { "Nuk u lexua asnjë skedar. Provo ta zgjedhësh me butonin.": "Nessun file letto. Prova a sceglierlo con il pulsante.", "Asnjë skedar i zgjedhur. Formatet e pranuara: PDF, Word, foto (JPG, PNG, HEIC).": "Nessun file selezionato. Formati accettati: PDF, Word, foto (JPG, PNG, HEIC).", "Skedar shumë i madh (max 25 MB): ": "File troppo grande (max 25 MB): " });
   Object.assign(T_IT, { "Po e analizojmë…": "Analisi in corso…" });

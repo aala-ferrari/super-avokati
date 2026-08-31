@@ -415,6 +415,90 @@ def main():
         check("video: web.py i lexueshem", False)
 
 
+    # ── [12] audio si prove ───────────────────────────────────────────
+    try:
+        from src.config import (AUDIO_EXTENSIONS as _AE, MAX_AUDIO_SIZE_MB as _MA,
+                                WHISPER_MODEL as _WM, WHISPER_THREADS as _WT)
+        from src import audio as _aud
+    except Exception as _e:
+        check("audio: moduli importohet", False, str(_e))
+        _AE, _MA, _WM, _WT, _aud = set(), 0, "", 0, None
+
+    check("audio: formatet e pranuara >= 8", len(_AE) >= 8, "%d" % len(_AE))
+    check("audio: mp3/m4a/wav/amr pranohen",
+          {".mp3", ".m4a", ".wav", ".amr"} <= set(_AE))
+    check("audio: pragu i vet (midis dokumentit dhe videos)",
+          0 < _MA < 500, "%s MB" % _MA)
+    # meta makine, jo e gjitha: siper ka edhe pese site te tjere
+    check("audio: threads te kufizuara", 1 <= _WT <= 4, "%s" % _WT)
+
+    if _aud is not None:
+        check("audio: is_audio ndan audion nga videoja",
+              _aud.is_audio(".mp3") and not _aud.is_audio(".mp4"))
+        # ⚠️ KONTROLLI ME I RENDESISHEM I KETIJ SEKSIONI.
+        # Gjuha duhet te NJIHET, jo te imponohet nga sesioni. Difekti u kap nga
+        # prova e vertete: nje deklarate italisht, e transkriptuar duke imponuar
+        # shqipen, doli "una giakka skura ... kvalkosa im mano" — fonetika
+        # italiane e shkruar me drejtshkrim shqip. E gabuar DHE e besueshme.
+        import inspect as _insp
+        try:
+            _src_a = _insp.getsource(_aud.analizza)
+            check("audio: gjuha NJIHET, nuk imponohet nga sesioni",
+                  "trascrivi(path, None)" in _src_a,
+                  "duket sikur gjuha po imponohet perseri")
+            check("audio: gjuha e njohur DEKLAROHET ne tekst",
+                  '_NOMI_LINGUA' in _insp.getsource(_aud) or "lingua" in _src_a)
+        except Exception as _e:
+            check("audio: burimi i lexueshem", False, str(_e))
+        # nje transkriptim ne te njejten kohe: CPU-ja ndahet me pese site te tjere
+        check("audio: nje transkriptim ne te njejten kohe",
+              getattr(_aud, "_semaforo", None) is not None
+              and _aud._semaforo._value <= 1)
+        # avvertimento "bozza, non verbale" ne te dyja gjuhet
+        for _g in ("sq", "it"):
+            _av = _aud._INTESTAZIONE[_g].get("avviso", "")
+            check("audio: paralajmerimi 'boze, jo procesverbal' ne %s" % _g,
+                  ("BOZ" in _av.upper()) or ("BOZZ" in _av.upper()))
+
+    try:
+        _js2 = _io2.open(_os2.path.join(_rr, "static", "app.js"), encoding="utf-8").read()
+        _m2 = _re2.search(r"AUDIO_EXT\s*=\s*/\\\.\(([^)]+)\)", _js2)
+        _nel_js2 = set("." + x for x in (_m2.group(1).split("|") if _m2 else []))
+        check("audio: shfletuesi njeh te njejtat formate",
+              _nel_js2 and _nel_js2 == set(_AE),
+              "vetem server: %s | vetem shfletues: %s"
+              % (sorted(set(_AE) - _nel_js2), sorted(_nel_js2 - set(_AE))))
+        check("audio: shfletuesi ka prag te vetin",
+              "MAX_AUDIO" in _js2)
+    except OSError:
+        check("audio: app.js i lexueshem", False)
+
+
+    # ── selezionatori di file: i multimediali dove servono, e solo li ──
+    try:
+        _js3 = _io2.open(_os2.path.join(_rr, "static", "app.js"), encoding="utf-8").read()
+        _h3 = _io2.open(_os2.path.join(_rr, "templates", "index.html"), encoding="utf-8").read()
+        # 1) il caricamento nel fashikull DEVE accettarli
+        _dos = _re2.search(r'id="dossier-input"[^>]*accept="([^"]*)"', _h3)
+        check("zgjedhesit e skedareve: dossier-input pranon video/audio",
+              bool(_dos) and ".mp4" in _dos.group(1) and ".mp3" in _dos.group(1),
+              "pa kete, mp4-at duken gri ne dritaren e zgjedhjes")
+        _fk = _re2.search(r'class="fk-file" accept="([^"]*)"', _js3)
+        check("zgjedhesit e skedareve: fk-file pranon video/audio",
+              bool(_fk) and ".mp4" in _fk.group(1))
+        # 2) gli allegati degli STRUMENTI non devono: il cervello legge PDF e
+        #    immagini col tool Read, un mp4 non lo apre — sceglierlo
+        #    significherebbe fallire in silenzio
+        _con = [m.group(1) for m in
+                _re2.finditer(r'class="([a-z-]+)-file" accept="([^"]*)"', _js3)
+                if ".mp4" in m.group(2)]
+        check("zgjedhesit e skedareve: vetem 2 pranojne video (vd, fk)",
+              sorted(_con) == ["fk", "vd"],
+              "gjetur: %s" % sorted(_con))
+    except OSError:
+        check("zgjedhesit e skedareve: skedaret e lexueshem", False)
+
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

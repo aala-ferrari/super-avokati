@@ -106,7 +106,7 @@ istruzione dello studio**. Titolare è ciascuno studio.
 | **Conservazione** | durata del contratto; alla cessazione **restituzione o cancellazione entro 30 giorni**, backup compresi entro il ciclo di rotazione (max 14 giorni) |
 | **Trasferimenti** | vedi B1 |
 
-## A6. Analisi di registrazioni video depositate come prova
+## A6. Analisi di registrazioni video e audio depositate come prova
 
 ⚠️ **Trattamento con rischio più alto degli altri.** Un video di
 videosorveglianza contiene immagini di persone del tutto estranee al
@@ -117,17 +117,19 @@ fascicolo giudiziario. È stato aggiunto il 31 agosto 2026 ed è una modifica
 | | |
 |---|---|
 | **Finalità** | permettere al professionista di leggere, mettere in fila e confrontare con gli atti una prova video |
-| **Interessati** | le persone riprese: parti, testimoni, **e terzi estranei** (clienti, passanti, personale) |
-| **Dati** | immagini di persone e luoghi; metadati tecnici del file; descrizioni testuali dei fotogrammi |
+| **Interessati** | le persone riprese **o registrate**: parti, testimoni, **e terzi estranei** (clienti, passanti, personale) |
+| **Dati** | immagini di persone e luoghi; **registrazioni della voce** — che identifica quanto un volto; metadati tecnici del file; descrizioni testuali dei fotogrammi e **trascrizione del parlato** |
 | **Base giuridica** | esecuzione del contratto verso lo Studio (art. 6.1.b); per lo Studio, l'esercizio del diritto di difesa (art. 9.2.f) |
 | **Dove** | file su disco in `data/uploads/<caso>/`; descrizioni in `documents.extracted_text` |
 | **Conservazione** | come gli altri documenti del fascicolo: durata del contratto, poi restituzione o cancellazione entro 30 giorni |
-| **Destinatari** | Tetramorph (motore di analisi, operato da Anthropic PBC — Stati Uniti) per la descrizione dei fotogrammi |
+| **Destinatari** | Tetramorph (motore di analisi, operato da Anthropic PBC — Stati Uniti) **per la sola descrizione dei fotogrammi**. ⚠️ La **trascrizione dell'audio resta sul nostro server**: gira in locale e le parole registrate non escono dall'Unione Europea |
 | **Misure** | **nessun riconoscimento facciale né identificazione biometrica** — divieto scritto nelle istruzioni al motore e verificato a ogni rilascio dal controllo automatico; le persone sono indicate per posizione. I **fotogrammi estratti non vengono conservati**: vivono in una cartella temporanea cancellata a fine analisi. Limite di 500 MB per file. Minimizzazione richiesta contrattualmente allo Studio (caricare solo le porzioni necessarie). |
 
-**Limite dichiarato**: il motore non elabora il video ma un numero limitato di
-fotogrammi (massimo 24). L'avviso è scritto **dentro il risultato** che il
-professionista legge, non solo qui.
+**Limiti dichiarati**, entrambi scritti **dentro il risultato** che il
+professionista legge, non solo qui: il motore non elabora il video ma un numero
+limitato di fotogrammi (massimo 24); e la trascrizione è una **bozza**, non un
+verbale — accurata in italiano, da riascoltare in albanese. La lingua del
+parlato viene **riconosciuta e dichiarata**, non imposta dalla sessione.
 
 ## B1. Sub-responsabili e trasferimenti
 

@@ -6103,10 +6103,13 @@ def api_case_videos(case_id: str):
     case = _resolve_case(case_id)
     if case is None:
         return jsonify({"error": "not found"}), 404
-    from .config import VIDEO_EXTENSIONS as _VE
+    # audio e video insieme: sono la stessa prova vista da due lati, e
+    # separarli costringerebbe l'avvocato a ricordare dove ha messo cosa
+    from .config import VIDEO_EXTENSIONS as _VE, AUDIO_EXTENSIONS as _AE
     fuori = []
     for d in storage.list_documents(case_id):
-        if (getattr(d, "ext", "") or "").lower() not in _VE:
+        _e = (getattr(d, "ext", "") or "").lower()
+        if _e not in _VE and _e not in _AE:
             continue
         testo = getattr(d, "extracted_text", None) or ""
         fuori.append({
@@ -6114,6 +6117,7 @@ def api_case_videos(case_id: str):
             "filename": d.filename,
             "ext": d.ext,
             "size_mb": round((getattr(d, "size_bytes", 0) or 0) / 1048576, 1),
+            "kind": "audio" if _e in _AE else "video",
             "status": getattr(d, "status", ""),
             "error": getattr(d, "error", None),
             "analysis": testo,
@@ -6140,13 +6144,13 @@ def api_video_compare(case_id: str):
     body = request.get_json(silent=True) or {}
     voluti = set(body.get("doc_ids") or [])
 
-    from .config import VIDEO_EXTENSIONS as _VE
+    from .config import VIDEO_EXTENSIONS as _VE, AUDIO_EXTENSIONS as _AE
     testi_video, altri = [], []
     for d in storage.list_documents(case_id):
         testo = getattr(d, "extracted_text", None) or ""
         if not testo:
             continue
-        if (getattr(d, "ext", "") or "").lower() in _VE:
+        if (getattr(d, "ext", "") or "").lower() in (_VE | _AE):
             if not voluti or d.id in voluti:
                 testi_video.append(f"### {d.filename}\n\n{testo}")
         else:
@@ -6154,7 +6158,7 @@ def api_video_compare(case_id: str):
 
     if not testi_video:
         return jsonify({
-            "error": "asnjë video e analizuar në fashikull"
+            "error": "asnjë provë video ose audio e analizuar në fashikull"
         }), 400
 
     juris = _active_jurisdiction(request.user)  # type: ignore[attr-defined]

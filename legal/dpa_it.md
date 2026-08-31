@@ -61,6 +61,10 @@ hanno alcun rapporto con lo Studio e non sanno di trovarsi in un fascicolo. Lo
 Studio si impegna a caricare **solo le porzioni necessarie** al mandato: se
 rilevano tre minuti, non si caricano tre ore.
 
+Le **registrazioni audio** vengono trascritte **sul nostro server, in Europa**:
+le parole registrate non vengono inviate a nessun fornitore esterno. La
+trascrizione è una bozza da verificare, non un verbale.
+
 Il servizio **non esegue riconoscimento facciale né identificazione
 biometrica**: le persone inquadrate vengono indicate per posizione («persona
 A», «persona B») e mai per tratti individualizzanti. Il divieto è scritto nelle

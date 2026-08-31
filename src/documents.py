@@ -55,6 +55,8 @@ log = get_logger(__name__)
 MAX_UPLOAD_BYTES = MAX_UPLOAD_SIZE_MB * 1024 * 1024
 from .config import MAX_VIDEO_SIZE_MB, VIDEO_EXTENSIONS  # noqa: E402
 from . import video as video_mod  # noqa: E402
+from . import audio as audio_mod  # noqa: E402
+from .config import AUDIO_EXTENSIONS, MAX_AUDIO_SIZE_MB  # noqa: E402
 
 # When a PDF's text layer has less than this many characters total we assume
 # the PDF is a scanned image and attempt OCR page by page.
@@ -83,7 +85,12 @@ def validate_upload(filename: str, size_bytes: int) -> ValidationResult:
     # I video hanno una soglia loro: 25 MB sono giusti per un atto scansionato
     # e ridicoli per un video. Alzarla per tutti sarebbe sbagliato — un PDF da
     # 400 MB non e' un atto, e' un errore o un attacco.
-    limite_mb = MAX_VIDEO_SIZE_MB if ext in VIDEO_EXTENSIONS else MAX_UPLOAD_SIZE_MB
+    if ext in VIDEO_EXTENSIONS:
+        limite_mb = MAX_VIDEO_SIZE_MB
+    elif ext in AUDIO_EXTENSIONS:
+        limite_mb = MAX_AUDIO_SIZE_MB
+    else:
+        limite_mb = MAX_UPLOAD_SIZE_MB
     if size_bytes > limite_mb * 1024 * 1024:
         return ValidationResult(
             False, "", "",
@@ -125,6 +132,13 @@ def validate_upload(filename: str, size_bytes: int) -> ValidationResult:
             # standard — dichiararlo generico e' piu' onesto che
             # inventarne uno che nessun lettore riconosce.
             ".dav": "application/octet-stream",
+            ".mp3": "audio/mpeg", ".wav": "audio/wav",
+            ".m4a": "audio/mp4", ".aac": "audio/aac",
+            ".ogg": "audio/ogg", ".oga": "audio/ogg",
+            ".opus": "audio/opus", ".flac": "audio/flac",
+            ".wma": "audio/x-ms-wma", ".amr": "audio/amr",
+            ".3ga": "audio/3gpp", ".caf": "audio/x-caf",
+            ".aiff": "audio/aiff", ".aif": "audio/aiff",
         }.get(ext, "application/octet-stream")
     return ValidationResult(True, ext, mimetype)
 
@@ -177,6 +191,20 @@ def extract_text(
         return video_mod.analizza(
             path, original_filename or path.name, backend, lingua
         ), True
+
+    if audio_mod.is_audio(ext):
+        # Come per il video: il risultato e' TESTO con i minutaggi, quindi da
+        # qui in poi la registrazione e' un documento come gli altri.
+        if not audio_mod.disponibile():
+            raise RuntimeError(
+                "transkriptuesi nuk eshte i disponueshem: audio nuk lexohet dot"
+            )
+        try:
+            from .brain import request_jurisdiction
+            lingua = "it" if str(request_jurisdiction()).upper() == "IT" else "sq"
+        except Exception:  # noqa: BLE001
+            lingua = "sq"
+        return audio_mod.analizza(path, original_filename or path.name, lingua), True
 
     if ext == ".pdf":
         text, used_ocr = _extract_pdf(path, backend)

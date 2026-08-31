@@ -650,6 +650,80 @@ facciale), **registro dei trattamenti** (voce **A6**, con la misura che i
 fotogrammi estratti **non si conservano** — cartella temporanea) e **DPIA**
 (rischio nuovo, misure verificabili, rischio residuo **medio**).
 
+# PROVE AUDIO — trascrizione (v9.212-9.215, 31 ago 2026)
+
+Una telefonata registrata, un vocale, l'audio di una telecamera. Finora
+entravano solo se qualcuno li trascriveva a mano. `src/audio.py`, motore
+**faster-whisper** che gira **in locale sul nostro server** — le parole
+registrate non escono dall'Europa (i fotogrammi sì, vanno a Tetramorph).
+
+## Misurato PRIMA di prometterlo (6 core, 4 thread)
+
+| lingua | `small` | `medium` |
+|---|---|---|
+| **italiano** | **parola per parola**, 0,73× | uguale, 1,56× |
+| **albanese** | impreciso, 0,81× | **non migliora**, 2,13× |
+
+`medium` costa 2,6 volte tanto e in albanese non guadagna niente → **`small`**.
+Un video di 10 minuti costa ~7 minuti di trascrizione, in sottofondo.
+⚠️ **Dubbio onesto sulla misura albanese**: l'audio di prova era sintetico (TTS
+locale, qualità modesta). Può darsi che il problema fosse la voce e non la
+lingua — prima di dire «Whisper non sa l'albanese» va rifatta su una
+registrazione **vera**.
+
+## ⚠️ IL DIFETTO PIÙ GRAVE, E COME È STATO TROVATO
+
+Imponevo al trascrittore la lingua **della sessione**. Ma un avvocato che
+lavora in albanese ha spessissimo una registrazione **in italiano**. Misurato:
+la stessa dichiarazione italiana, forzata a shqip, usciva
+*«Uno aveva una giakka skura e teneva kvalkosa im mano»* — la fonetica italiana
+scritta in ortografia albanese. **Sbagliata e plausibile insieme**, che è la
+combinazione peggiore: un avvocato di fretta potrebbe citarla.
+
+Ora la lingua si **riconosce e si dichiara** (`it` 100%, `sq` 91% sulle prove),
+con avviso se la confidenza è sotto il 60%. Il golden sezione [12] fallisce se
+qualcuno rimette l'imposizione dalla sessione.
+
+**L'ha trovato la prova viva, non i test.** I test passavano tutti.
+
+## Come si innesta
+
+Stessa scelta del video: `documents.extract_text` ha un ramo audio che
+restituisce **testo con i minutaggi**, e da lì in poi la registrazione è un
+documento come gli altri.
+
+**Nel video, le battute sono INTRECCIATE ai fotogrammi in ordine di tempo**,
+non appese in fondo: in una rapina quello che conta è che allo stesso minuto si
+veda una mano nella tasca **e** si senta la frase. Separati, l'incrocio lo deve
+fare l'avvocato a mente.
+
+## Precauzioni sulla macchina
+
+**Una trascrizione alla volta** in tutto il sistema (semaforo in `audio.py`) e
+**3 thread su 6 core**: sopra ci sono altri cinque siti, e tre avvocati che
+caricano insieme prenderebbero dodici thread su sei core. Il modello sta nel
+**volume dati** (`data/whisper/`, 464 MB), non nell'immagine: sopravvive ai
+deploy e non pesa su ogni build. Si carica in 5,6 s, una volta sola.
+
+⚠️ `faster-whisper==1.2.1`, **non 1.0.3**: quella non ha wheel per Python 3.14 e
+pip falliva **in silenzio** dentro una pipe, col build che dichiarava successo.
+Se si aggiorna, provare che **importi**, non che il build passi.
+
+## I selezionatori di file — 18, e non sono la stessa cosa
+
+**Due** devono accettare video e audio (`dossier-input` e `fk-file`: caricano
+nel fascicolo e passano da `extract_text`). **Tutti gli altri no**, di
+proposito: sono allegati per uno strumento, finiscono al cervello che li legge
+col tool `Read` — che apre PDF e immagini e **non apre un mp4**. Metterceli
+vorrebbe dire far scegliere un video per poi fallire in silenzio.
+Il golden verifica **entrambe le direzioni**: che i due li accettino e che gli
+altri no.
+
+## Limiti e QA
+
+Tre soglie: **25 MB** atto · **200 MB** audio · **500 MB** video.
+Golden sezione [12] (12 check) + selezionatori (3): **115 → 130**.
+
 ## Mappa feature / moduli (src/)
 - **expertise.py** — Modele Ekspertize (8 template, incl. abuzim_policor "due menti"). `retrieve_grounded` (seed + `_expand_terms` LLM + `_heading_scan` stem 5-char diacritic-fold + BM25). Riusato da prosecutor/notary/deadlines/afati.
 - **prosecutor.py** — Super Prokuror: analyze, draft_indictment, investigation_plan, investigative_act(kind), coercive_measure, dismissal_request, stress_test + cittadino (citizen_complaint, victim_rights, dismissal_appeal, delay_complaint). Assistivo, mai auto-accusa (EU AI Act).

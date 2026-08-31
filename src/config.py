@@ -113,16 +113,37 @@ VIDEO_EXTENSIONS = frozenset({".mp4", ".mov", ".avi", ".mkv", ".m4v",
                               ".ts", ".mts", ".m2ts", ".3gp",
                               ".dav"})   # Dahua CCTV
 
+# Registrazioni depositate come prova: una telefonata, un vocale, l'audio di
+# una telecamera. Sono prove frequenti quanto le foto, e finora entravano solo
+# se qualcuno le trascriveva a mano.
+AUDIO_EXTENSIONS = frozenset({".mp3", ".wav", ".m4a", ".aac", ".ogg", ".oga",
+                              ".opus", ".flac", ".wma", ".amr", ".3ga", ".caf",
+                              ".aiff", ".aif"})
+MAX_AUDIO_SIZE_MB = int(os.getenv("MAX_AUDIO_SIZE_MB", "200"))
+
 ALLOWED_UPLOAD_EXTENSIONS = frozenset({".pdf", ".jpg", ".jpeg", ".png", ".svg",
                                        ".webp", ".tif", ".tiff",
                                        ".heic", ".heif",   # foto iPhone
-                                       ".docx", ".doc", ".txt", ".rtf"}) | VIDEO_EXTENSIONS
+                                       ".docx", ".doc", ".txt", ".rtf"}) | VIDEO_EXTENSIONS | AUDIO_EXTENSIONS
 
 # ⚠️ Soglia SEPARATA per i video. 25 MB vanno bene per un atto scansionato e
 # sono ridicoli per un video (tre minuti di telefono li superano). Ma alzare
 # il limite per tutti sarebbe sbagliato: un PDF da 400 MB non e' un atto, e'
 # un errore o un attacco.
 MAX_VIDEO_SIZE_MB = int(os.getenv("MAX_VIDEO_SIZE_MB", "500"))
+
+
+# Trascrittore. `small` scelto MISURANDO (31 ago 2026): in italiano trascrive
+# parola per parola a 0,73× la durata; `medium` costa 2,6 volte tanto e in
+# albanese non migliora di niente.
+WHISPER_MODEL = os.getenv("WHISPER_MODEL", "small")
+# Meta' macchina. Sopra ci sono altri cinque siti: prendersi tutti i core per
+# minuti interi li affamerebbe. Una trascrizione alla volta (semaforo in
+# `audio.py`) e' l'altra meta' della stessa precauzione.
+WHISPER_THREADS = int(os.getenv("WHISPER_THREADS", "3"))
+# Nel volume dati, non nell'immagine: sopravvive ai deploy e non aggiunge
+# mezzo giga a ogni build.
+WHISPER_DIR = os.getenv("WHISPER_DIR", str(ROOT / "data" / "whisper"))
 
 # Quanti fotogrammi al massimo finiscono davanti al cervello. Non e' un
 # risparmio: e' che un video di dieci minuti a un fotogramma al secondo fa 600

@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="/static/style.css?v=121" />
+<link rel="stylesheet" href="/static/style.css?v=123" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%230a0a0a'/%3E%3Cpath d='M32 14v36M14 22h36M8 22l-4 10h8zM56 22l-4 10h8zM26 50h12v4H26z' stroke='%23e41e26' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='32' cy='14' r='3' fill='%23c9a24d'/%3E%3C/svg%3E" />
 <link rel="manifest" href="/manifest.webmanifest" />
 <link rel="apple-touch-icon" href="/static/apple-touch-icon.png" />
@@ -209,7 +209,7 @@
             </button>
             <button type="button" class="pro-menu-item pro-menu-new" data-pro="video" role="menuitem">
               <span class="pro-menu-ico">🎥</span>
-              <div><strong data-i18n="pro_video_t">Analiza e videove</strong><em data-i18n="pro_video_d">Provat video: të dhënat e skedarit · rrjedha kohore me minutazhe · krahasim me procesverbalet</em></div>
+              <div><strong data-i18n="pro_video_t">Video dhe audio</strong><em data-i18n="pro_video_d">Provat video dhe audio: të dhënat e skedarit · rrjedha kohore me minutazhe · transkript · krahasim me procesverbalet</em></div>
             </button>
             <button type="button" class="pro-menu-item" data-pro="stress" role="menuitem">
               <span class="pro-menu-ico">⚔️</span>
@@ -383,7 +383,7 @@
       </div>
 
       <label id="dossier-drop" class="dossier-drop" tabindex="0">
-        <input type="file" id="dossier-input" multiple accept=".pdf,.docx,.doc,.txt,.rtf,.jpg,.jpeg,.png,.svg,.webp,.tif,.tiff,.heic,.heif" hidden />
+        <input type="file" id="dossier-input" multiple accept=".pdf,.docx,.doc,.txt,.rtf,.jpg,.jpeg,.png,.svg,.webp,.tif,.tiff,.heic,.heif,.mp4,.mov,.avi,.mkv,.m4v,.webm,.mpg,.wmv,.dav,video/*,.mp3,.wav,.m4a,.aac,.ogg,.opus,.amr,audio/*" hidden />
         <div class="dossier-drop-inner">
           <span class="dossier-drop-plus">＋</span>
           <strong data-i18n="upload_docs">Ngarko dokumente</strong>
@@ -1698,7 +1698,7 @@
   </div>
 </template>
 
-<script src="/static/app.js?v=121"></script>
+<script src="/static/app.js?v=123"></script>
 <script src="/static/secretary.js?v=1"></script>
 </body>
 </html>
