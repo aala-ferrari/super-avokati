@@ -544,6 +544,69 @@ Se un giorno serve accorciare: la leva è un tetto su `nullity_radar` — ma è 
 lente che cerca pavlefshmëri e afate, cioè le leve procedurali che vincono senza
 entrare nel merito. L'alternativa già pronta è il background + notifica.
 
+# ⚠️ JAVASCRIPT INLINE = CODICE MORTO (v9.216-9.219, 31 ago 2026)
+
+**Regressione mia del 30 agosto, scoperta dall'utente un giorno dopo.**
+La CSP `script-src 'self'` è giusta e **va tenuta** — è ciò che impedisce a uno
+script iniettato di eseguire. Ma vieta anche **il nostro** JavaScript scritto
+dentro l'HTML, e lo fa **in silenzio**: nessun errore, la pagina sembra a posto
+e non funziona.
+
+Sono rimasti muti per un giorno intero:
+- **`index.html`** → il service worker non si registrava: **PWA e notifiche
+  push ferme** (le notifiche sono ciò che avvisa quando l'analisi è pronta);
+- **`intake.html`** → il modulo di primo contatto **pubblico**, quello che
+  compila il cliente;
+- **`in_hearing.html`** → l'assistente d'udienza;
+- **`admin_audit.html`** → il registro degli accessi;
+- **`login.html`** → i pulsanti 🇦🇱/🇮🇹 e l'occhio della password.
+
+**Il rimedio NON è indebolire la CSP.** Tutto il codice sta ora in
+`/static/*.js`, che `'self'` permette. Le due variabili che venivano dal server
+passano da attributi `data-` (`data-firm-slug`, `data-case-id`).
+
+**Golden sezione [13]** (22 check): fallisce se qualcuno rimette JavaScript in
+un template, se usa attributi `on*`, **o se indebolisce la CSP** per farlo
+funzionare. Verificato che morda.
+
+## Due trappole trovate riparando
+
+**1. Un file caricato due volte = ogni gestore agganciato due volte.** In
+`login.html` c'era già un `<script src="/static/login.js">` che puntava a un
+file **inesistente** (404 silenzioso): creandolo, quel tag è tornato vivo e si
+è sommato al mio. Un click sull'occhio commutava **e ri-commutava**: effetto
+visibile **nessuno**, che è il modo più confondente di rompersi — sembra che il
+pulsante non risponda, mentre risponde due volte. Prima di aggiungere un tag,
+guardare se ce n'è già uno, **anche rotto**.
+
+**2. L'occhio ora usa la delega sul documento**, non `getElementById(...)
+.addEventListener`. Quest'ultimo era lì e non funzionava, e la diagnosi non è
+mai arrivata in fondo (il click arrivava al pulsante — trusted, fase di
+risalita — il file girava, l'elemento era unico, lo script differito; e
+riagganciando lo **stesso** gestore a mano funzionava). Quando una diagnosi non
+converge, la cosa utile non è insistere: è **togliere la condizione che può
+fallire**. ⚠️ Non tornare all'aggancio diretto.
+
+## E il cache-busting vale anche per questi file
+
+Cambiare `static/login.js` senza alzare il `?v=` serve a niente: il browser
+continua a servire il vecchio. Successo subito, la prima volta.
+
+## Le lingue miste: NON era un difetto di traduzione
+
+L'utente ha segnalato interfaccia mista. Misurato: **210 chiavi `data-i18n`
+usate, 210 tradotte, zero mancanti**; sulla pagina viva in sessione IT, **zero**
+testi albanesi nell'interfaccia (34 voci del menu PRO comprese). Quello che si
+vedeva in albanese erano i **titoli degli eventi**, cioè dati creati in sessione
+albanese fra il 20 e il 30 agosto.
+
+⚠️ **Due miei audit hanno dato «118 traduzioni mancanti», ed era falso.** Il
+primo contava le graffe e si spezzava sulle parentesi dentro le stringhe; il
+secondo cercava `^chiave:` e prendeva **solo la prima chiave per riga**, mentre
+il dizionario ne ha molte sulla stessa riga. **Quando un audit produce un
+numero allarmante, la prima ipotesi da scartare è che sia rotto l'audit** — se
+ci avessi creduto avrei riscritto traduzioni già presenti.
+
 # PROVE VIDEO (v9.207-9.211, 31 ago 2026)
 
 Rapina, omicidio, aggressione: la videosorveglianza è spesso **la** prova. Ora

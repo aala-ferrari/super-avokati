@@ -29,16 +29,6 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%230a0a0a'/%3E%3Cpath d='M32 14v36M14 22h36M8 22l-4 10h8zM56 22l-4 10h8zM26 50h12v4H26z' stroke='%23e41e26' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='32' cy='14' r='3' fill='%23c9a24d'/%3E%3C/svg%3E" />
 <link rel="manifest" href="/manifest.webmanifest" />
 <link rel="apple-touch-icon" href="/static/apple-touch-icon.png" />
-<script>
-  /* Registrazione silenziosa: se fallisce, il sito funziona esattamente
-     come prima. Non e' una funzione da cui dipende niente. */
-  if ("serviceWorker" in navigator) {
-    window.addEventListener("load", function () {
-      navigator.serviceWorker.register("/sw.js", { scope: "/" })
-        .catch(function () {});
-    });
-  }
-</script>
 </head>
 <body class="login-page">
 
@@ -89,20 +79,12 @@
         <div style="position:relative;display:flex;align-items:center">
           <input type="password" id="login-password" name="password"
                  autocomplete="current-password" required style="padding-right:46px;width:100%" />
-          <button type="button" id="toggle-pw" aria-label="Shfaq/fshih fjalëkalimin" title="Shfaq/fshih"
+          <button type="button" id="toggle-pw" aria-label="Shfaq/fshih fjalëkalimin" title="Shfaq/fshih" data-i18n-aria="pw_toggle" data-i18n-title="pw_toggle"
                   style="position:absolute;right:8px;background:none;border:none;cursor:pointer;color:#9a8a5e;padding:6px;display:flex;align-items:center">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
           </button>
         </div>
       </label>
-      <script>
-      (function(){
-        var b=document.getElementById('toggle-pw'),i=document.getElementById('login-password');if(!b||!i)return;
-        var EYE='<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
-        var OFF='<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
-        b.addEventListener('click',function(){var show=i.type==='password';i.type=show?'text':'password';b.innerHTML=show?OFF:EYE;});
-      })();
-      </script>
       <button type="submit" id="login-btn" class="primary" data-i18n="login">Hyr</button>
       <div id="login-error" class="login-error" hidden></div>
     </form>
@@ -118,45 +100,8 @@
         <div id="forgot-msg" style="margin-top:10px;font-size:13px;color:#3aa981" hidden></div>
       </form>
     </div>
-    <script>
-    (function(){
-      var link=document.getElementById('forgot-link'),form=document.getElementById('forgot-form'),msg=document.getElementById('forgot-msg');
-      if(!link)return;
-      link.addEventListener('click',function(e){e.preventDefault();form.hidden=!form.hidden;});
-      form.addEventListener('submit',function(e){e.preventDefault();
-        var em=document.getElementById('forgot-email').value.trim();if(!em)return;
-        var btn=document.getElementById('forgot-btn');btn.disabled=true;btn.textContent='...';
-        fetch('/api/leads/intake',{method:'POST',headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({contact_name:'Reset fjalekalimi',contact_email:em,source:'web',
-            problem_text:'KERKESE RESET FJALEKALIMI per Super Avokati (superavokati.ai). Perdoruesi me email '+em+' kerkon rivendosjen e fjalekalimit. Ju lutem kontaktoni perdoruesin dhe rivendosni fjalekalimin.'})})
-        .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(function(){
-          document.getElementById('forgot-email').style.display='none';btn.style.display='none';
-          msg.hidden=false;msg.textContent='\u2713 Kerkesa u dergua. Do te kontaktohesh me email nga administratori.';
-        }).catch(function(){btn.disabled=false;btn.textContent='Dergo kerkesen';msg.hidden=false;msg.style.color='#e57373';msg.textContent='Gabim, provo serish.';});
-      });
-    })();
-    </script>
   </div>
 </div>
-
-<script>
-(function(){
-  var I18N={
-    sq:{tagline:"Beteja fitohet para se të nisë.",username:"Përdoruesi",password:"Fjalëkalimi",login:"Hyr",forgot:"Harrova fjalëkalimin?",forgot_label:"Email-i yt (i regjistruar)",forgot_btn:"Dërgo kërkesën"},
-    it:{tagline:"La battaglia si vince prima che inizi.",username:"Nome utente",password:"Password",login:"Entra",forgot:"Password dimenticata?",forgot_label:"La tua email (registrata)",forgot_btn:"Invia richiesta"}
-  };
-  function apply(lang){
-    var d=I18N[lang]||I18N.sq;
-    document.documentElement.lang=lang;
-    document.querySelectorAll("[data-i18n]").forEach(function(el){var k=el.getAttribute("data-i18n");if(d[k])el.textContent=d[k];});
-    document.querySelectorAll(".ll-btn").forEach(function(b){b.classList.toggle("active",b.getAttribute("data-lang")===lang);});
-    try{localStorage.setItem("sa_ui_lang",lang);}catch(e){}
-  }
-  var lang="sq";try{lang=localStorage.getItem("sa_ui_lang")||"sq";}catch(e){}
-  document.querySelectorAll(".ll-btn").forEach(function(b){b.addEventListener("click",function(){apply(b.getAttribute("data-lang"));});});
-  apply(lang);
-})();
-</script>
-<script src="/static/login.js"></script>
+  <script src="/static/login.js?v=2" defer></script>
 </body>
 </html>

@@ -499,6 +499,41 @@ def main():
         check("zgjedhesit e skedareve: skedaret e lexueshem", False)
 
 
+    # ── [13] javascript inline: e' codice morto sotto la CSP ───────────
+    import glob as _g3
+    _tmpl = [f for f in _g3.glob(_os2.path.join(_rr, "templates", "*.html"))
+             if "bak" not in _os2.path.basename(f)]
+    check("csp: ka template per te kontrolluar", len(_tmpl) >= 5, "%d" % len(_tmpl))
+    for _f in sorted(_tmpl):
+        _n = _os2.path.basename(_f)
+        _t = _io2.open(_f, encoding="utf-8").read()
+        # <script> senza src ed eseguibile (application/ld+json non eshte kod)
+        _inline = _re2.findall(r"<script(?![^>]*\bsrc=)(?![^>]*type=[\"']application/)[^>]*>", _t)
+        check("csp: %s pa javascript inline" % _n, not _inline,
+              "%d blloqe — CSP i bllokon NE HESHTJE" % len(_inline))
+        # attributi on* : bllokohen njesoj
+        _on = _re2.findall(r"\son(?:click|change|submit|input|load)\s*=", _t)
+        check("csp: %s pa atribute on*" % _n, not _on, "%d" % len(_on))
+        # nje skedar i njejte i ngarkuar dy here => cdo degjues dy here =>
+        # klikimi kryhet dhe zhbehet: duket sikur butoni nuk pergjigjet
+        _src = _re2.findall(r'<script src="(/static/[^"?]+)', _t)
+        _dopio = {x for x in _src if _src.count(x) > 1}
+        check("csp: %s pa skedare te dyfishuar" % _n, not _dopio, "%s" % _dopio)
+
+    # la CSP non deve essere indebolita per far funzionare l'inline
+    try:
+        _cfg = _io2.open("/etc/nginx/sites-available/superavokati.ai",
+                         encoding="utf-8").read()
+        if "Content-Security-Policy" in _cfg:
+            _riga = [l for l in _cfg.split("\n") if "Content-Security-Policy" in l][0]
+            check("csp: script-src pa 'unsafe-inline'",
+                  "'unsafe-inline'" not in _riga.split("script-src")[1].split(";")[0]
+                  if "script-src" in _riga else True,
+                  "dobesimi i CSP nuk eshte rregullimi i duhur")
+    except (OSError, IndexError):
+        pass   # dentro il container non c'e' nginx: non e' un fallimento
+
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
