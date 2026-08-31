@@ -6022,6 +6022,10 @@
     ["Avokat", "Avvocato"], ["Prokuror", "Procuratore"], ["Noter", "Notaio"]
   ];
   var T_IT = {
+    // Verificate aprendo i pannelli in sessione italiana: erano gli unici
+    // due titoli sbagliati su venti.
+    "😈 Pyet Avokatin e Djallit": "😈 Chiedi all'Avvocato del Diavolo",
+    "Dosja": "Archivio",
     "Lidhja u ndërpre — analiza vazhdon në server. Po e pres…": "Connessione caduta — l'analisi continua sul server. Sto aspettando…",
     "Nuk arriti përgjigjja në kohë. Provo ta hapësh sërish veglën.": "La risposta non è arrivata in tempo. Prova a riaprire lo strumento.",
     "Përgjigjja e ruajtur": "Risposta recuperata",
@@ -6092,7 +6096,14 @@
   function tMode(sq) {
     if (UI_LANG !== "it") return sq;
     for (var i = 0; i < MODEBAR_TXT.length; i++) {
-      if (sq.indexOf(MODEBAR_TXT[i][0]) >= 0) return sq.replace(MODEBAR_TXT[i][0], MODEBAR_TXT[i][1]);
+      // ⚠️ Solo su confine di parola. Senza, «Avokat» colpiva dentro
+      // «Avokatin» e produceva «Avvocatoin» — né albanese né italiano, sul
+      // titolo del pannello più caratteristico del prodotto. Una sostituzione
+      // per sottostringa su testo naturale prima o poi spacca una parola.
+      var _re = new RegExp("(^|[^\\wëçËÇ])" +
+        MODEBAR_TXT[i][0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&") +
+        "(?![\\wëçËÇ])");
+      if (_re.test(sq)) return sq.replace(_re, function (_m, pre) { return pre + MODEBAR_TXT[i][1]; });
     }
     var _m = sq.match(/^(\S+\s+)(.+)$/);
     if (_m && T_IT[_m[2]]) return _m[1] + T_IT[_m[2]];

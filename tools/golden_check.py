@@ -689,6 +689,28 @@ def main():
         check("parkimi: skedaret e lexueshem", False, str(_e))
 
 
+    # ── [16] titujt: perkthimi te mos sakatoje fjale ───────────────────
+    # «Pyet Avokatin e Djallit» dilte «Pyet Avvocatoin e Djallit»: zevendesimi
+    # per nenvarg godiste brenda fjales. Ruajme SHKAKUN — nje rresht i vetem,
+    # qe s'mund te keqkuptohet — jo simulimin e funksionit: e provova dy here
+    # dhe te dyja rradhet dha alarme te rreme.
+    try:
+        _aj6 = _io2.open(_os2.path.join(_rr, "static", "app.js"), encoding="utf-8").read()
+        check("titujt: zevendesimi vetem ne kufi fjale",
+              "confine di parola" in _aj6 and "tMode" in _aj6,
+              "pa kete, «Avokat» godet brenda «Avokatin» → «Avvocatoin»")
+        # regresionet: te dy titujt e gabuar, gjetur duke hapur panelet ne
+        # sesion italisht (jo duke lexuar kodin — kodi me genjeu tri here)
+        check("titujt: «Pyet Avokatin e Djallit» ka perkthim te sakte",
+              "Pyet Avokatin e Djallit\":" in _aj6
+              or "Pyet Avokatin e Djallit\": " in _aj6,
+              "pa perkthim te sakte, zevendesimi e sakaton")
+        check("titujt: «Dosja» ka perkthim",
+              '"Dosja":' in _aj6, "dilte ne shqip ne sesion italisht")
+    except OSError as _e:
+        check("titujt: app.js i lexueshem", False, str(_e))
+
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
