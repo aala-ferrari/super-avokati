@@ -7962,3 +7962,28 @@ main {
 .legal-b2{background:#fff;color:#6b6250;border:1px solid #d9cdb4;
   padding:11px 18px;border-radius:9px;cursor:pointer;font-size:14.5px}
 @media(max-width:640px){.legal-box{padding:16px 14px;max-height:96vh}}
+
+/* ── 🎥 Analisi video ─────────────────────────────────────────────── */
+/* L'avviso sul limite non e' decorazione: dice che il modello guarda
+   fotogrammi e non il video, e va letto. Ambra, non rosso: e' una
+   condizione d'uso, non un errore. */
+.vd-note{margin:10px 0 16px;padding:10px 13px;border-radius:9px;
+  background:rgba(201,162,77,.10);border-left:3px solid var(--gold,#c9a24d);
+  font-size:13px;line-height:1.55;color:var(--ink-soft,#5a5346)}
+.vd-item{border:1px solid var(--line,#e7e0cf);border-radius:10px;
+  padding:10px 12px;margin:8px 0;background:rgba(255,255,255,.5)}
+.vd-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.vd-meta{font-size:12px;color:var(--ink-mute,#8b8272)}
+.vd-see{margin-left:auto;border:1px solid var(--line,#e7e0cf);background:#fff;
+  color:var(--ink-soft,#5a5346);border-radius:8px;padding:5px 11px;
+  font-size:12px;cursor:pointer}
+.vd-see:hover{border-color:var(--gold,#c9a24d);color:#7a5f16}
+.vd-body{margin-top:10px}
+.vd-body:empty{margin:0}
+.vd-wait{color:var(--ink-mute,#8b8272);font-size:12px}
+/* i minutaggi devono saltare all'occhio: sono la cosa che si cita in un atto */
+.vd-body .fd-out strong:first-child{color:#7a5f16}
+@media (prefers-color-scheme: dark){
+  .vd-item{background:rgba(255,255,255,.04)}
+  .vd-see{background:transparent}
+}

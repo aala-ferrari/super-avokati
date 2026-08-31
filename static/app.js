@@ -528,12 +528,18 @@
       if (!c) return;
     }
     toggleDossier(true);
-    const MAX = 25 * 1024 * 1024;
-    const troppoGrandi = files.filter((f) => f.size > MAX);
+    // ⚠️ Due soglie, come sul server: 25 MB per un atto, 500 per un video.
+    // Un tetto unico a 25 nel browser rendeva inutile qualunque limite alzato
+    // lato server — il video non partiva proprio, e il messaggio d'errore non
+    // spiegava perche' un sistema che dice di accettare video li rifiutasse.
+    const MAX_DOC = 25 * 1024 * 1024;
+    const MAX_VIDEO = 500 * 1024 * 1024;
+    const _limite = (f) => (VIDEO_EXT.test(f.name || "") ? MAX_VIDEO : MAX_DOC);
+    const troppoGrandi = files.filter((f) => f.size > _limite(f));
     if (troppoGrandi.length) {
-      _dossierAvviso(TT("Skedar shumë i madh (max 25 MB): ") +
+      _dossierAvviso(TT("Skedar shumë i madh (max 25 MB dokument / 500 MB video): ") +
                      troppoGrandi.map((f) => f.name).join(", "));
-      files = files.filter((f) => f.size <= MAX);
+      files = files.filter((f) => f.size <= _limite(f));
     }
     if (!files.length) return;
     for (const f of files) {
@@ -4928,6 +4934,130 @@
     return h || '<em>Asnjë ngjarje e datuar nuk u gjet.</em>';
   }
 
+  // ── 🎥 Analisi video ────────────────────────────────────────────────
+  //
+  // Il video e' gia' un documento (entra dal caricamento normale e diventa
+  // una linea temporale). Questo pannello esiste perche' quel testo, dentro
+  // l'elenco dei documenti, sarebbe illeggibile: qui si vede la scheda del
+  // file, i rilievi, i minutaggi — e soprattutto si lancia il CONFRONTO col
+  // fascicolo, che e' la cosa per cui vale la pena averlo.
+  async function openVideo() {
+    var ov = document.getElementById("vd-ov");
+    if (ov) ov.remove();
+    ov = document.createElement("div");
+    ov.id = "vd-ov"; ov.className = "ac-overlay";
+    ov.innerHTML = '<div class="ac-modal exp-modal">' +
+      '<div class="ac-head"><span data-i18n="vd_title">🎥 Analiza e videove</span>' +
+        '<button class="ac-x" type="button" aria-label="Mbyll">×</button></div>' +
+      '<div class="exp-body">' +
+        '<div class="exp-sub" data-i18n="vd_sub">Videot e depozituara si provë: të dhënat e skedarit, vërejtjet mbi origjinalitetin, dhe rrjedha kohore me minutazhe. Pastaj krahasimi me procesverbalet — aty ku nuk përputhen, aty është puna.</div>' +
+        '<div class="vd-note" data-i18n="vd_note">⚠️ Modeli nuk e sheh videon: sheh fotograme të nxjerra prej saj. Momenti vendimtar mund të bjerë midis dy fotogramave. Nuk identifikon persona dhe nuk vendos për fajësinë.</div>' +
+        '<details class="fk-sec" open><summary data-i18n="vd_s_up">📼 Videot e fashikullit</summary>' +
+          '<div class="ac-row">' +
+            '<label class="fk-upload" data-i18n="vd_b_up">📎 Ngarko video' +
+              '<input type="file" multiple class="vd-file" accept=".mp4,.mov,.avi,.mkv,.m4v,.webm,.mpg,.wmv,.dav,video/*" hidden></label>' +
+            '<span class="ac-status vd-up-st"></span>' +
+          '</div>' +
+          '<div class="vd-list"></div></details>' +
+        '<details class="fk-sec"><summary data-i18n="vd_s_cmp">⚖️ Krahaso videon me fashikullin</summary>' +
+          '<div class="exp-hint" data-i18n="vd_cmp_hint">Çfarë e konfirmon videoja te procesverbalet, ku NUK përputhen, çfarë nuk mund ta thotë videoja, dhe çfarë duhet kërkuar.</div>' +
+          '<div class="ac-row"><button class="ac-run vd-cmp-btn" type="button" data-i18n="vd_b_cmp">Krahaso →</button>' +
+            '<span class="ac-status vd-cmp-st"></span></div>' +
+          '<div class="ac-result vd-cmp-res"></div></details>' +
+      '</div></div>';
+    document.body.appendChild(ov);
+    applyStaticI18n(ov);
+    ov.querySelector(".ac-x").onclick = function () { ov.remove(); };
+    ov.addEventListener("click", function (e) { if (e.target === ov) ov.remove(); });
+
+    var lista = ov.querySelector(".vd-list");
+    var upSt = ov.querySelector(".vd-up-st");
+
+    async function ricarica() {
+      if (!activeCaseId) {
+        lista.innerHTML = '<div class="fk-warn">' + TT("Hap një rast për të ngarkuar video.") + '</div>';
+        return;
+      }
+      var r = await fetch("/api/cases/" + activeCaseId + "/videos");
+      if (!r.ok) { lista.innerHTML = ""; return; }
+      var j = await r.json();
+      var vs = j.videos || [];
+      if (!vs.length) {
+        lista.innerHTML = '<div class="fk-warn">' + TT("Asnjë video ende. Ngarko një skedar video (mp4, mov, avi, dav…).") + '</div>';
+        return;
+      }
+      lista.innerHTML = vs.map(function (v, i) {
+        var stato = v.status === "ready"
+          ? '<span class="fk-ok">' + TT("i analizuar") + '</span>'
+          : (v.status === "error"
+              ? '<span class="fk-warn">' + TT("gabim") + ': ' + (v.error || "") + '</span>'
+              : '<span class="vd-wait">⏳ ' + TT("në përpunim…") + '</span>');
+        return '<div class="vd-item" data-i="' + i + '">' +
+          '<div class="vd-h"><b>' + (v.filename || "") + '</b> ' +
+            '<span class="vd-meta">' + (v.size_mb || 0) + ' MB · ' + stato + '</span>' +
+            (v.has_analysis ? '<button class="vd-see" type="button">' + TT("Shiko analizën") + '</button>' : '') +
+          '</div><div class="vd-body"></div></div>';
+      }).join("");
+      lista.querySelectorAll(".vd-item").forEach(function (el) {
+        var v = vs[parseInt(el.getAttribute("data-i"), 10)];
+        var b = el.querySelector(".vd-see");
+        if (!b) return;
+        b.onclick = function () {
+          var corpo = el.querySelector(".vd-body");
+          if (corpo.innerHTML) { corpo.innerHTML = ""; return; }
+          corpo.innerHTML = '<div class="fd-out"></div>';
+          corpo.querySelector(".fd-out").innerHTML = renderMarkdown(v.analysis || "");
+        };
+      });
+      // qualcosa e' ancora in lavorazione: si ricontrolla, senza che
+      // l'avvocato debba riaprire il pannello per scoprirlo
+      if (vs.some(function (v) { return v.status !== "ready" && v.status !== "error"; })) {
+        setTimeout(function () { if (document.getElementById("vd-ov")) ricarica(); }, 5000);
+      }
+    }
+
+    var inp = ov.querySelector(".vd-file");
+    inp.onchange = async function () {
+      if (!inp.files || !inp.files.length) return;
+      var files = [].slice.call(inp.files); inp.value = "";
+      upSt.textContent = TT("⏳ Po ngarkoj… (videot janë të mëdha, mund të zgjasë)");
+      try { await uploadFiles(files); } catch (e) {}
+      upSt.textContent = TT("Ngarkuar. Analiza vazhdon në sfond.");
+      await ricarica();
+    };
+
+    var cmpBtn = ov.querySelector(".vd-cmp-btn");
+    var cmpSt = ov.querySelector(".vd-cmp-st");
+    var cmpRes = ov.querySelector(".vd-cmp-res");
+    cmpBtn.onclick = async function () {
+      if (!activeCaseId) { cmpSt.textContent = TT("Hap një rast."); return; }
+      cmpBtn.disabled = true;
+      cmpSt.textContent = TT("⏳ Po krahasoj videon me dokumentet…");
+      cmpRes.innerHTML = "";
+      try {
+        var r = await fetch("/api/cases/" + activeCaseId + "/video/compare", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        });
+        var j = await r.json();
+        if (!r.ok) { cmpSt.textContent = j.error || TT("gabim"); return; }
+        cmpSt.textContent = "";
+        cmpRes.innerHTML = '<div class="fd-out"></div>';
+        var out = cmpRes.querySelector(".fd-out");
+        out.innerHTML = renderMarkdown(j.result || "");
+        if (j.citations) { highlightNeni(out, buildCitStatusMap(j.citations)); }
+        if (typeof _addSaveToCase === "function") { _addSaveToCase(cmpRes, j.result || ""); }
+      } catch (e) {
+        cmpSt.textContent = TT("gabim rrjeti");
+      } finally {
+        cmpBtn.disabled = false;
+      }
+    };
+
+    await ricarica();
+  }
+
   async function openFascikull() {
     var ov = document.getElementById("fk-ov");
     if (ov) ov.remove();
@@ -4997,7 +5127,7 @@
       } else {
         txt = '<span class="fk-warn">' + t("Do të krijohet një rast i ri kur të ngarkosh.") + '</span>';
       }
-      info.innerHTML = '<div class="fk-uprow"><label class="fk-upload">' + t('📎 Ngarko dokumente') + '<input type="file" multiple class="fk-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.tif,.tiff,.docx,.txt" hidden></label> ' + txt + '</div>';
+      info.innerHTML = '<div class="fk-uprow"><label class="fk-upload">' + t('📎 Ngarko dokumente') + '<input type="file" multiple class="fk-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.tif,.tiff,.docx,.txt,.mp4,.mov,.avi,.mkv,.m4v,.webm,.mpg,.wmv,.dav,video/*" hidden></label> ' + txt + '</div>';
       var fkFile = info.querySelector(".fk-file");
       if (fkFile) fkFile.onchange = async function () {
         if (!fkFile.files || !fkFile.files.length) return;
@@ -5729,6 +5859,16 @@
   // ── i18n (Fase C) — Italian UI for IT sessions ────────────────────────────
   var UI_LANG = (document.body && document.body.dataset ? document.body.dataset.lang : "") || "sq";
   var I18N_IT = {
+    pro_video_t: "Analisi video",
+    pro_video_d: "Prove video: dati del file · linea temporale con i minutaggi · confronto con i verbali",
+    vd_title: "🎥 Analisi video",
+    vd_sub: "I video depositati come prova: dati del file, rilievi sull'originalità, e la linea temporale con i minutaggi. Poi il confronto con i verbali — dove non tornano, lì c'è il lavoro.",
+    vd_note: "⚠️ Il modello non guarda il video: guarda fotogrammi estratti da esso. L'istante decisivo può cadere fra due fotogrammi. Non identifica persone e non decide sulla colpevolezza.",
+    vd_s_up: "📼 I video del fascicolo",
+    vd_b_up: "📎 Carica video",
+    vd_s_cmp: "⚖️ Confronta il video col fascicolo",
+    vd_cmp_hint: "Cosa il video conferma dei verbali, dove NON tornano, cosa il video non può dire, e cosa chiedere.",
+    vd_b_cmp: "Confronta →",
     legal_menu: "Condizioni e dati",
     dosja: "Fascicolo",
     it_01: "BM25 su 1.258 decisioni + ratio AI → le mosse che hanno vinto, le trappole che hanno perso, il kill-shot",
@@ -5821,6 +5961,16 @@
     ["Avokat", "Avvocato"], ["Prokuror", "Procuratore"], ["Noter", "Notaio"]
   ];
   var T_IT = {
+    "Hap një rast për të ngarkuar video.": "Apri un caso per caricare i video.",
+    "Asnjë video ende. Ngarko një skedar video (mp4, mov, avi, dav…).": "Nessun video. Carica un file video (mp4, mov, avi, dav…).",
+    "i analizuar": "analizzato",
+    "në përpunim…": "in lavorazione…",
+    "Shiko analizën": "Vedi l'analisi",
+    "⏳ Po ngarkoj… (videot janë të mëdha, mund të zgjasë)": "⏳ Caricamento… (i video sono grandi, può volerci un po')",
+    "Ngarkuar. Analiza vazhdon në sfond.": "Caricato. L'analisi continua in sottofondo.",
+    "⏳ Po krahasoj videon me dokumentet…": "⏳ Confronto il video con i documenti…",
+    "Skedar shumë i madh (max 25 MB dokument / 500 MB video): ": "File troppo grande (max 25 MB documento / 500 MB video): ",
+    "Hap një rast.": "Apri un caso.",
     "Afatet:": "Scadenze:", "Hap kalendarin": "Apri calendario",
     " sot": " oggi", " n\u00eb 7 dit\u00eb": " in 7 giorni",
     " e skaduar": " scaduta", " t\u00eb skaduara": " scadute",
@@ -5830,6 +5980,9 @@
   };
   function t(sq) { return (UI_LANG === "it" && T_IT[sq]) ? T_IT[sq] : sq; }
   var TT = t;  // alias: use inside callbacks whose param is named `t`
+  // Gli stessi formati di config.VIDEO_EXTENSIONS: se divergono, un
+  // video ammesso dal server risulta troppo grande nel browser.
+  var VIDEO_EXT = /\.(mp4|mov|avi|mkv|m4v|webm|mpg|mpeg|wmv|flv|ts|mts|m2ts|3gp|dav)$/i;
   Object.assign(T_IT, { "Skedar shumë i madh për serverin.": "File troppo grande per il server.", "Serveri ktheu një përgjigje të papritur (HTTP ": "Il server ha risposto in modo inatteso (HTTP " });
   Object.assign(T_IT, { "Nuk u lexua asnjë skedar. Provo ta zgjedhësh me butonin.": "Nessun file letto. Prova a sceglierlo con il pulsante.", "Asnjë skedar i zgjedhur. Formatet e pranuara: PDF, Word, foto (JPG, PNG, HEIC).": "Nessun file selezionato. Formati accettati: PDF, Word, foto (JPG, PNG, HEIC).", "Skedar shumë i madh (max 25 MB): ": "File troppo grande (max 25 MB): " });
   Object.assign(T_IT, { "Po e analizojmë…": "Analisi in corso…" });
@@ -6250,6 +6403,7 @@
       else if (key === "whatif") { openWhatIf(); }
       else if (key === "klauzolat") { openClauses(); }
       else if (key === "intake") { openIntake(); }
+      else if (key === "video") { openVideo(); }
       else if (key === "fascikull") { openFascikull(); }
       else if (key === "dosja") { openDosja(); }
       else if (key === "afati") { openAfati(); }

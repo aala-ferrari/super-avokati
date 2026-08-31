@@ -50,6 +50,7 @@ from . import citation_verifier as cv_mod
 from . import case_citation_verifier as ccv_mod
 from . import decision_verifier as dv_mod
 from . import documents as docs_mod
+from . import video as video_mod
 from . import pro_features as pro_mod
 from . import reminders as reminders_mod
 from . import secretary as secretary_mod
@@ -124,7 +125,16 @@ app.permanent_session_lifetime = timedelta(days=30)
 # Flask only checks Content-Length against MAX_CONTENT_LENGTH when set —
 # without this the server would happily buffer multi-GB uploads. We add a
 # small cushion over the per-file limit to account for multipart overhead.
-app.config["MAX_CONTENT_LENGTH"] = (MAX_UPLOAD_SIZE_MB + 2) * 1024 * 1024
+#
+# ⚠️ Il tetto segue il file piu' grande che ACCETTIAMO, cioe' un video: con i
+# 25 MB degli atti, qualunque video veniva respinto da Flask **prima** che il
+# nostro codice potesse dire una parola — un 413 secco, senza spiegazione.
+# Questo resta la rete contro l'assurdo; la regola vera e' `validate_upload`,
+# che applica 25 MB agli atti e 500 ai video, ciascuno al suo tipo.
+from .config import MAX_VIDEO_SIZE_MB as _MAX_VIDEO_MB  # noqa: E402
+app.config["MAX_CONTENT_LENGTH"] = (
+    max(MAX_UPLOAD_SIZE_MB, _MAX_VIDEO_MB) + 2
+) * 1024 * 1024
 
 _INDEX: ArticleIndex | None = None
 _INDEX_IT: ArticleIndex | None = None
@@ -5984,22 +5994,51 @@ def api_upload_document(case_id: str):
     if not f.filename:
         return jsonify({"error": "no filename"}), 400
 
-    # Read file into memory for validation; upload limit (25MB default) makes
-    # this safe and saves a useless partial write on invalid uploads.
-    content = f.read()
-    v = docs_mod.validate_upload(f.filename, len(content))
-    if not v.ok:
-        return jsonify({"error": v.error}), 400
+    # salvataggio a flusso: i documenti passano ancora dalla memoria (sono
+    # piccoli e cosi' un file non valido non tocca mai il disco), i VIDEO no —
+    # 500 MB in RAM per ogni caricamento in corso metterebbero in ginocchio la
+    # macchina, e con lei gli altri cinque siti che ci girano.
+    from .config import VIDEO_EXTENSIONS as _VIDEO_EXT
+    _ext_dichiarata = Path(f.filename).suffix.lower()
 
-    storage_path = docs_mod.storage_path_for(case_id, v.ext)
-    storage_path.write_bytes(content)
+    if _ext_dichiarata in _VIDEO_EXT:
+        # Content-Length e' una DICHIARAZIONE del client: serve a rifiutare
+        # subito l'assurdo, non a fidarsi. La verifica vera e' dopo la scrittura.
+        dichiarato = request.content_length or 0
+        pre = docs_mod.validate_upload(f.filename, dichiarato or 1)
+        if not pre.ok:
+            return jsonify({"error": pre.error}), 400
+        storage_path = docs_mod.storage_path_for(case_id, pre.ext)
+        try:
+            f.save(str(storage_path))          # a pezzi, non in memoria
+        except OSError as exc:
+            log.exception("scrittura video fallita")
+            return jsonify({"error": f"nuk u ruajt: {exc}"}), 500
+        reale = storage_path.stat().st_size
+        v = docs_mod.validate_upload(f.filename, reale)
+        if not v.ok:
+            # dimensione vera diversa da quella dichiarata: si cancella,
+            # altrimenti bastano richieste che mentono per riempire il disco
+            storage_path.unlink(missing_ok=True)
+            return jsonify({"error": v.error}), 400
+        dimensione = reale
+    else:
+        # Read file into memory for validation; upload limit (25MB default) makes
+        # this safe and saves a useless partial write on invalid uploads.
+        content = f.read()
+        v = docs_mod.validate_upload(f.filename, len(content))
+        if not v.ok:
+            return jsonify({"error": v.error}), 400
+        storage_path = docs_mod.storage_path_for(case_id, v.ext)
+        storage_path.write_bytes(content)
+        dimensione = len(content)
 
     doc = storage.create_document(
         case_id=case_id,
         filename=f.filename,
         ext=v.ext,
         mimetype=v.mimetype,
-        size_bytes=len(content),
+        size_bytes=dimensione,
         storage_path=str(storage_path),
     )
 
@@ -6021,7 +6060,9 @@ def api_upload_document(case_id: str):
         except Exception:  # noqa: BLE001
             pass
         try:
-            text, _ocr = docs_mod.extract_text(storage_path, ext, mime, backend=backend)
+            text, _ocr = docs_mod.extract_text(storage_path, ext, mime,
+                                               backend=backend,
+                                               original_filename=fname)
         except Exception as exc:  # noqa: BLE001
             log.exception("extraction failed for %s", fname)
             storage.mark_document_error(doc_id, f"{type(exc).__name__}: {exc}")
@@ -6049,6 +6090,96 @@ def api_upload_document(case_id: str):
     payload = _document_payload(storage.get_document(doc_id, case_id))
     payload["processing"] = True
     return jsonify(payload), 201
+
+
+@app.get("/api/cases/<case_id>/videos")
+@login_required_api
+def api_case_videos(case_id: str):
+    """I video del fascicolo, con lo stato della loro analisi.
+
+    Serve al pannello per sapere cosa c'e' gia' dentro: un video di
+    sorveglianza si carica una volta e si riguarda per settimane.
+    """
+    case = _resolve_case(case_id)
+    if case is None:
+        return jsonify({"error": "not found"}), 404
+    from .config import VIDEO_EXTENSIONS as _VE
+    fuori = []
+    for d in storage.list_documents(case_id):
+        if (getattr(d, "ext", "") or "").lower() not in _VE:
+            continue
+        testo = getattr(d, "extracted_text", None) or ""
+        fuori.append({
+            "id": d.id,
+            "filename": d.filename,
+            "ext": d.ext,
+            "size_mb": round((getattr(d, "size_bytes", 0) or 0) / 1048576, 1),
+            "status": getattr(d, "status", ""),
+            "error": getattr(d, "error", None),
+            "analysis": testo,
+            "has_analysis": bool(testo),
+        })
+    return jsonify({"videos": fuori, "count": len(fuori)})
+
+
+@app.post("/api/cases/<case_id>/video/compare")
+@login_required_api
+def api_video_compare(case_id: str):
+    """Il video contro le carte: conferme, discordanze, silenzi.
+
+    E' la parte che vale. La descrizione dei fotogrammi da sola dice cosa si
+    vede; questa dice **dove il verbale e il video non tornano**, che e' la
+    crepa su cui si lavora.
+    """
+    case = _resolve_case(case_id)
+    if case is None:
+        return jsonify({"error": "not found"}), 404
+    if _BRAIN is None:
+        return jsonify({"error": "brain unavailable"}), 503
+
+    body = request.get_json(silent=True) or {}
+    voluti = set(body.get("doc_ids") or [])
+
+    from .config import VIDEO_EXTENSIONS as _VE
+    testi_video, altri = [], []
+    for d in storage.list_documents(case_id):
+        testo = getattr(d, "extracted_text", None) or ""
+        if not testo:
+            continue
+        if (getattr(d, "ext", "") or "").lower() in _VE:
+            if not voluti or d.id in voluti:
+                testi_video.append(f"### {d.filename}\n\n{testo}")
+        else:
+            altri.append(f"### {d.filename}\n\n{testo[:6000]}")
+
+    if not testi_video:
+        return jsonify({
+            "error": "asnjë video e analizuar në fashikull"
+        }), 400
+
+    juris = _active_jurisdiction(request.user)  # type: ignore[attr-defined]
+    lingua = "it" if str(juris).upper() == "IT" else "sq"
+    try:
+        out = video_mod.confronta(
+            testi_video, "\n\n".join(altri), _BRAIN.backend,
+            lingua=lingua, case_id=case_id,
+        )
+    except Exception as exc:  # noqa: BLE001
+        log.exception("confronto video fallito")
+        return jsonify({"error": f"{type(exc).__name__}: {exc}"}), 500
+
+    # Lo scudo delle citazioni vale anche qui: il confronto puo' citare nene
+    # e sentenze, e non deve essere l'unico percorso senza verifica.
+    # ⚠️ Le citazioni si CALCOLANO e si passano: lo scudo non le deduce.
+    citations = {"items": [], "stats": {}}
+    try:
+        if _INDEX is not None and out:
+            citations = cv_mod.verify_text(out, _req_index())
+        out = _scudo_citazioni(out, citations)
+    except Exception:  # noqa: BLE001
+        log.exception("scudo citazioni sul confronto video")
+    return jsonify({"result": out, "citations": citations,
+                    "n_video": len(testi_video), "n_docs": len(altri)})
 
 
 @app.delete("/api/cases/<case_id>/documents/<doc_id>")

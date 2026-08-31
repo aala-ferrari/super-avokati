@@ -54,6 +54,18 @@ akteve, kontratave, vendimeve dhe korrespondencës; **dhe — për vetë natyrë
 shërbimit — të dhëna që lidhen me dënime penale dhe vepra penale, si dhe
 kategori të veçanta të dhënash** kur fashikulli i përmban.
 
+**Regjistrime video** (kamera sigurie, filmime të depozituara si provë).
+Studioja merr dijeni se një video e tillë përmban zakonisht **pamje personash
+krejt të palidhur me procedimin** — klientë, kalimtarë, punonjës — që nuk kanë
+asnjë marrëdhënie me Studion dhe nuk e dinë se ndodhen në një fashikull.
+Studioja zotohet të ngarkojë **vetëm pjesët e nevojshme** për mandatin: nëse
+kanë rëndësi tre minuta, nuk ngarkohen tre orë.
+
+Shërbimi **nuk kryen njohje fytyre dhe as identifikim biometrik**: personat në
+kuadër tregohen sipas pozicionit («personi A», «personi B») dhe kurrë sipas
+tipareve individualizuese. Ndalimi është shkruar në udhëzimet e motorit dhe
+verifikohet automatikisht në çdo lëshim.
+
 Studioja pranon se po përpunon të dhëna të mbuluara nga **sekreti profesional**
 dhe se mbetet e vetmja përgjegjëse ndaj klientëve të vet.
 

@@ -54,6 +54,19 @@ contratti, sentenze, corrispondenza; **e — per la natura stessa del servizio �
 dati relativi a condanne penali e reati (art. 10 GDPR) e categorie particolari
 (art. 9)** quando il fascicolo li contiene.
 
+**Registrazioni video** (videosorveglianza, riprese depositate come prova). Lo
+Studio prende atto che un video di questo tipo contiene di regola **immagini di
+persone estranee al procedimento** — clienti, passanti, personale — che non
+hanno alcun rapporto con lo Studio e non sanno di trovarsi in un fascicolo. Lo
+Studio si impegna a caricare **solo le porzioni necessarie** al mandato: se
+rilevano tre minuti, non si caricano tre ore.
+
+Il servizio **non esegue riconoscimento facciale né identificazione
+biometrica**: le persone inquadrate vengono indicate per posizione («persona
+A», «persona B») e mai per tratti individualizzanti. Il divieto è scritto nelle
+istruzioni impartite al motore ed è verificato automaticamente a ogni
+rilascio.
+
 Lo Studio riconosce che sta trattando dati coperti da **segreto professionale**
 e che ne resta l'unico responsabile verso i propri clienti.
 

@@ -104,10 +104,33 @@ DOC_CONTEXT_CHAR_BUDGET = int(os.getenv("DOC_CONTEXT_CHAR_BUDGET", "6000"))
 # .docx/.doc/.txt/.rtf: il lettore (extract/readers.py) li gestisce gia'; il
 # .doc binario passa da antiword, installato nel Dockerfile. Servono per
 # allegare cio' che arriva davvero da controparti e tribunali.
+# I video sono una PROVA, non un allegato qualsiasi: in una rapina o in un
+# omicidio la videosorveglianza e' spesso l'elemento decisivo. `.dav` e' il
+# formato delle telecamere Dahua — cioe' di gran parte dei negozi e delle
+# banche in Albania: e' il caso d'uso vero, non un extra.
+VIDEO_EXTENSIONS = frozenset({".mp4", ".mov", ".avi", ".mkv", ".m4v",
+                              ".webm", ".mpg", ".mpeg", ".wmv", ".flv",
+                              ".ts", ".mts", ".m2ts", ".3gp",
+                              ".dav"})   # Dahua CCTV
+
 ALLOWED_UPLOAD_EXTENSIONS = frozenset({".pdf", ".jpg", ".jpeg", ".png", ".svg",
                                        ".webp", ".tif", ".tiff",
                                        ".heic", ".heif",   # foto iPhone
-                                       ".docx", ".doc", ".txt", ".rtf"})
+                                       ".docx", ".doc", ".txt", ".rtf"}) | VIDEO_EXTENSIONS
+
+# ⚠️ Soglia SEPARATA per i video. 25 MB vanno bene per un atto scansionato e
+# sono ridicoli per un video (tre minuti di telefono li superano). Ma alzare
+# il limite per tutti sarebbe sbagliato: un PDF da 400 MB non e' un atto, e'
+# un errore o un attacco.
+MAX_VIDEO_SIZE_MB = int(os.getenv("MAX_VIDEO_SIZE_MB", "500"))
+
+# Quanti fotogrammi al massimo finiscono davanti al cervello. Non e' un
+# risparmio: e' che un video di dieci minuti a un fotogramma al secondo fa 600
+# immagini, che in nessun contesto ci stanno. Meglio pochi fotogrammi scelti
+# sui cambi di scena che tanti presi a caso.
+VIDEO_MAX_FRAMES = int(os.getenv("VIDEO_MAX_FRAMES", "24"))
+# Sensibilita' del rilevamento cambio scena (0-1). Piu' basso = piu' fotogrammi.
+VIDEO_SCENE_THRESHOLD = float(os.getenv("VIDEO_SCENE_THRESHOLD", "0.25"))
 
 TOP_K_ARTICLES = int(os.getenv("TOP_K_ARTICLES", "12"))
 # How many precedent decisions to retrieve alongside articles (added to the

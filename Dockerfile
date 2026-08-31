@@ -50,6 +50,7 @@ RUN apt-get update \
         libjpeg62-turbo \
         libxml2 \
         antiword \
+        ffmpeg \
         libxslt1.1 \
         curl \
         ca-certificates \

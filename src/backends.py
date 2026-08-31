@@ -173,8 +173,15 @@ class LLMBackend(ABC):
         ignore the argument and rely on any OCR text already in `messages`.
         """
 
-    def ocr_image(self, path: Path, mimetype: str, prompt: str) -> str:
+    def ocr_image(self, path: Path, mimetype: str, prompt: str,
+                  istruzione_finale: str | None = None) -> str:
         """OCR an image file. Backends that don't support vision raise.
+
+        `istruzione_finale` sostituisce la riga di coda predefinita («restituisci
+        solo il testo estratto»). Serve a chi non vuole estrarre testo ma
+        **descrivere** l'immagine — i fotogrammi di un video: con la coda
+        predefinita il modello riceve due istruzioni opposte, se ne accorge, e
+        scrive un paragrafo sul conflitto invece della scena.
 
         Default: unsupported. Override in subclasses that have vision.
         """
@@ -683,7 +690,8 @@ class ClaudeCodeBackend(LLMBackend):
         _emit_audit(outcome="success", response_text=text, error_class=None)
         yield ("final", {"text": text, "session_id": new_session_id})
 
-    def ocr_image(self, path: Path, mimetype: str, prompt: str) -> str:
+    def ocr_image(self, path: Path, mimetype: str, prompt: str,
+                  istruzione_finale: str | None = None) -> str:
         """OCR via `claude -p` with the Read tool. Uses the subscription —
         no API key required. The model's Read tool handles PNG/JPG natively."""
         from .config import ROOT
@@ -693,12 +701,11 @@ class ClaudeCodeBackend(LLMBackend):
         # both persistent uploads (data/uploads/<case>/) and temp-file pages
         # we write during PDF rasterization.
         extra_dir = str(abs_path.parent)
-        full_prompt = (
-            f"{prompt}\n\n"
-            f"File: {abs_path}\n"
-            f"Read this file and return ONLY the extracted text. "
-            f"No commentary, no summary, no markdown fences."
+        coda = istruzione_finale or (
+            "Read this file and return ONLY the extracted text. "
+            "No commentary, no summary, no markdown fences."
         )
+        full_prompt = f"{prompt}\n\nFile: {abs_path}\n{coda}"
         cmd = [
             self.cli, "-p",
             "--output-format", "json",

@@ -306,3 +306,50 @@ si verifica un incidente significativo. **E comunque entro il 31 agosto 2027.**
 **Redatta da** ________________  data ________
 **Approvata da** _______________  data ________
 **Consultato il DPO** (se nominato) ________________
+
+---
+
+# Aggiornamento 31 agosto 2026 — analisi di prove video
+
+**Perché un aggiornamento e non una riga in più.** Accettare registrazioni
+video cambia la natura del trattamento: entrano nel sistema immagini di
+**persone estranee al procedimento**, che non hanno scelto niente e non sanno
+di essere lì. È il presupposto tipico di una valutazione d'impatto, non un
+dettaglio tecnico.
+
+## Il rischio nuovo
+
+Che lo strumento venga usato — o percepito — come mezzo per **identificare
+qualcuno**. Un «è lui» prodotto da un modello su un fotogramma sgranato è al
+tempo stesso il danno più grave per la persona indicata e il più difficile da
+correggere, perché arriva in un atto con l'apparenza dell'oggettività.
+
+## Le misure, e perché sono verificabili
+
+1. **Divieto di identificazione biometrica**, scritto nelle istruzioni al
+   motore in entrambe le lingue: le persone si indicano per posizione. Non è
+   una dichiarazione d'intenti — il **controllo automatico di qualità fallisce**
+   se qualcuno rimuove quel divieto dal codice.
+2. **Divieto di concludere sulla colpevolezza**: lo strumento confronta fonti,
+   non giudica. Stessa verifica automatica.
+3. **Il limite è dichiarato al professionista dentro il risultato**: il motore
+   vede un massimo di 24 fotogrammi, non il video; l'istante decisivo può
+   cadere fra due fotogrammi.
+4. **I fotogrammi non si conservano**: cartella temporanea, cancellata a fine
+   analisi. Restano il file originale (come ogni documento del fascicolo) e le
+   descrizioni testuali.
+5. **Minimizzazione a carico dello Studio**, scritta nell'accordo: si caricano
+   solo le porzioni necessarie al mandato.
+
+## Rischio residuo
+
+**Medio.** Le immagini di terzi estranei restano nel file caricato, e il file
+resta **non cifrato a riposo** come gli altri documenti (la scelta e i suoi
+motivi sono già discussi sopra). Le misure riducono il rischio dell'uso
+improprio, non quello dell'esistenza del dato: la vera riduzione dipende dalla
+minimizzazione fatta dallo Studio prima del caricamento, ed è il motivo per cui
+quell'obbligo è contrattuale e non solo consigliato.
+
+**Da valutare**, se i video diventeranno frequenti: la cifratura del volume
+(LUKS), già indicata nel piano d'azione, alza sensibilmente la protezione di
+questa categoria di dati più che di ogni altra.

@@ -544,6 +544,112 @@ Se un giorno serve accorciare: la leva è un tetto su `nullity_radar` — ma è 
 lente che cerca pavlefshmëri e afate, cioè le leve procedurali che vincono senza
 entrare nel merito. L'alternativa già pronta è il background + notifica.
 
+# PROVE VIDEO (v9.207-9.211, 31 ago 2026)
+
+Rapina, omicidio, aggressione: la videosorveglianza è spesso **la** prova. Ora
+entra nel fascicolo come tutto il resto — `.mp4 .mov .avi .mkv .dav` e altri
+11 formati. **`.dav` è il contenitore delle telecamere Dahua**, cioè di gran
+parte di negozi e banche in Albania: è il caso d'uso vero, non un extra.
+
+## ⚠️ IL LIMITE CHE DECIDE COSA POSSIAMO PROMETTERE
+
+**Il cervello non guarda i video**: prende immagini e testo. Quindi non
+«analizziamo un video» — estraiamo fotogrammi e li facciamo leggere uno per
+uno. Ne segue che **l'istante decisivo può cadere fra due fotogrammi** e non
+essere visto da nessuno. Questo avviso è scritto **dentro il risultato** che
+l'avvocato legge e copia, non nella documentazione dove non lo leggerebbe.
+
+## Cosa fa, e cosa NON fa di proposito
+
+Ricostruisce, mette in fila, misura, e guarda il **file**: com'è stato
+prodotto, se è stato ricodificato, se i tempi sono continui. **Non dice chi è
+la persona inquadrata** — riconoscere qualcuno dai tratti è identificazione
+biometrica, la linea rossa dell'AI Act, ed è il punto in cui un errore non è
+più recuperabile: un «è lui» sbagliato una volta brucia il prodotto. Le
+persone si indicano per posizione («persona A»).
+
+La mira è quella che vale per un difensore: non *«cosa mostra»* (lo vede anche
+lui) ma **«possono usarlo, e mostra davvero quello che l'accusa dice?»**.
+
+## `src/video.py`
+
+`probe()` (ffprobe → durata, codec, fps, data dichiarata, encoder) ·
+`rilievi_integrita()` (**osservazioni sul file, non accuse**: «prodotto da un
+programma di montaggio» è verificabile, «manomesso» è una conclusione che non
+ci spetta) · `estrai_fotogrammi()` · `descrivi_fotogrammi()` · `analizza()` ·
+**`confronta()`** — il video contro le carte.
+
+**Innesto**: `documents.extract_text` ha un ramo video che restituisce **testo
+con i minutaggi**. Da lì in poi il video è un documento come un PDF e
+attraversa analisi, fascicolo, contraddizioni e Q&A **senza che nessuno di
+quei moduli sappia che è un video**. Un percorso parallelo avrebbe voluto dire
+duplicarli tutti.
+
+**GOTCHA (costati una prova viva, non trovati dai test):**
+- **`ocr_image` aggiungeva «restituisci SOLO il testo estratto, nessun
+  commento»** — giusto per un documento scansionato, opposto a quel che serve
+  per descrivere una scena. Il modello notava il conflitto e ci scriveva sopra
+  un paragrafo, arrivando a chiedersi se fosse prompt injection: l'avvocato
+  leggeva la meta-discussione invece della scena. Ora `istruzione_finale` è
+  sostituibile; il predefinito resta identico per tutti gli altri.
+- **Il titolo mostrava il nome interno del file** (`4cc450930ecf….mp4`). In un
+  atto va il nome che l'avvocato riconosce: `extract_text` riceve
+  `original_filename`.
+- **Intestazioni in albanese e rilievi in italiano** nello stesso documento:
+  `rilievi_integrita` era scritta solo in italiano. Ora `_RILIEVI` ha le stesse
+  chiavi nelle due lingue, e il golden verifica che restino allineate.
+- **Fotogrammi sui cambi di scena, con ripiego a intervallo.** Senza ripiego,
+  un video con una sola inquadratura non produce **nessun** fotogramma e
+  l'analisi esce vuota senza errore.
+- **`showinfo` per i minutaggi veri**: stimarli dal numero d'ordine dà tempi
+  sbagliati, e un minutaggio sbagliato in un atto è peggio di uno mancante.
+
+## Limiti e caricamento
+
+**Due soglie diverse**: 25 MB per un atto, **500 MB** per un video. Alzarla per
+tutti sarebbe sbagliato — un PDF da 400 MB non è un atto, è un errore.
+La soglia vive in **quattro posti** e devono coincidere: `config.py`,
+`MAX_CONTENT_LENGTH` di Flask (era 27 MB e respingeva i video **prima** del
+nostro codice), `client_max_body_size` di nginx (**520m**, in entrambi i
+blocchi :80 e :443) e il tetto **nel browser** dentro `uploadFiles` — che da
+solo rendeva inutile tutto il resto, perché il video non partiva proprio.
+E l'`accept` del selettore: senza, un `.mp4` compare **grigio**, come già
+successo con .docx e .heic.
+
+I video si scrivono **a flusso** (`f.save()`), non in memoria: 500 MB in RAM
+per caricamento metterebbero in ginocchio la macchina e con lei gli altri
+cinque siti. La dimensione vera si verifica **dopo** la scrittura e il file si
+cancella se non torna — `Content-Length` è una dichiarazione del client.
+
+## Il pannello — 🎥 nel menu PRO
+
+`openVideo()`: elenco dei video del fascicolo con lo stato, la loro analisi, e
+il **confronto**. Bilingue (`data-i18n` + `I18N_IT` + `T_IT`).
+
+## Costi misurati
+
+Un video di 12 secondi → 12 fotogrammi → **~195 s**. Il confronto: **~230 s**.
+I fotogrammi si leggono **in sequenza**: parallelizzarli accorcerebbe l'attesa
+ma prenderebbe posti al semaforo globale (6), e la lezione del Genio è di
+lasciarne liberi. Tutto gira in sottofondo, il caricamento torna in 0 s.
+
+## Sorveglianza — golden sezione [11], 17 check
+
+Formati coincidenti nei tre posti · le due soglie diverse · rilievi bilingue
+con le stesse chiavi · **i prompt vietano l'identificazione e la conclusione
+sulla colpevolezza** · il limite dichiarato in entrambe le lingue · il
+caricamento scrive su disco. Verificato che morda: tolto il divieto di
+identificazione, il QA cade. Golden **98 → 115**.
+
+## GDPR — è un trattamento NUOVO, non un formato in più
+
+Un video di rapina contiene i volti di **persone che non c'entrano niente**.
+Aggiornati: **DPA** (il video fra i tipi di dato + obbligo di minimizzazione:
+se rilevano tre minuti non si caricano tre ore + il non-riconoscimento
+facciale), **registro dei trattamenti** (voce **A6**, con la misura che i
+fotogrammi estratti **non si conservano** — cartella temporanea) e **DPIA**
+(rischio nuovo, misure verificabili, rischio residuo **medio**).
+
 ## Mappa feature / moduli (src/)
 - **expertise.py** — Modele Ekspertize (8 template, incl. abuzim_policor "due menti"). `retrieve_grounded` (seed + `_expand_terms` LLM + `_heading_scan` stem 5-char diacritic-fold + BM25). Riusato da prosecutor/notary/deadlines/afati.
 - **prosecutor.py** — Super Prokuror: analyze, draft_indictment, investigation_plan, investigative_act(kind), coercive_measure, dismissal_request, stress_test + cittadino (citizen_complaint, victim_rights, dismissal_appeal, delay_complaint). Assistivo, mai auto-accusa (EU AI Act).

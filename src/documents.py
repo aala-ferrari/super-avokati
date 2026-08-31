@@ -53,6 +53,8 @@ def _juris(system_prompt: str) -> str:
 log = get_logger(__name__)
 
 MAX_UPLOAD_BYTES = MAX_UPLOAD_SIZE_MB * 1024 * 1024
+from .config import MAX_VIDEO_SIZE_MB, VIDEO_EXTENSIONS  # noqa: E402
+from . import video as video_mod  # noqa: E402
 
 # When a PDF's text layer has less than this many characters total we assume
 # the PDF is a scanned image and attempt OCR page by page.
@@ -77,12 +79,16 @@ def validate_upload(filename: str, size_bytes: int) -> ValidationResult:
     """Pre-flight check before we ever write to disk."""
     if size_bytes <= 0:
         return ValidationResult(False, "", "", "Skedar bosh")
-    if size_bytes > MAX_UPLOAD_BYTES:
+    ext = Path(filename).suffix.lower()
+    # I video hanno una soglia loro: 25 MB sono giusti per un atto scansionato
+    # e ridicoli per un video. Alzarla per tutti sarebbe sbagliato — un PDF da
+    # 400 MB non e' un atto, e' un errore o un attacco.
+    limite_mb = MAX_VIDEO_SIZE_MB if ext in VIDEO_EXTENSIONS else MAX_UPLOAD_SIZE_MB
+    if size_bytes > limite_mb * 1024 * 1024:
         return ValidationResult(
             False, "", "",
-            f"Skedari tejkalon {MAX_UPLOAD_SIZE_MB} MB",
+            f"Skedari tejkalon {limite_mb} MB",
         )
-    ext = Path(filename).suffix.lower()
     if ext not in ALLOWED_UPLOAD_EXTENSIONS:
         allowed = ", ".join(sorted(ALLOWED_UPLOAD_EXTENSIONS))
         return ValidationResult(
@@ -108,6 +114,17 @@ def validate_upload(filename: str, size_bytes: int) -> ValidationResult:
             ".doc": "application/msword",
             ".txt": "text/plain",
             ".rtf": "application/rtf",
+            ".mp4": "video/mp4", ".mov": "video/quicktime",
+            ".avi": "video/x-msvideo", ".mkv": "video/x-matroska",
+            ".webm": "video/webm", ".m4v": "video/x-m4v",
+            ".mpg": "video/mpeg", ".mpeg": "video/mpeg",
+            ".wmv": "video/x-ms-wmv", ".flv": "video/x-flv",
+            ".ts": "video/mp2t", ".mts": "video/mp2t",
+            ".m2ts": "video/mp2t", ".3gp": "video/3gpp",
+            # .dav: contenitore proprietario Dahua, nessun mimetype
+            # standard — dichiararlo generico e' piu' onesto che
+            # inventarne uno che nessun lettore riconosce.
+            ".dav": "application/octet-stream",
         }.get(ext, "application/octet-stream")
     return ValidationResult(True, ext, mimetype)
 
@@ -125,6 +142,7 @@ def storage_path_for(case_id: str, ext: str) -> Path:
 
 def extract_text(
     path: Path, ext: str, mimetype: str, backend=None,
+    original_filename: str = "",
 ) -> tuple[str, bool]:
     """Return (text, used_vision_ocr) for a file we just saved to disk.
 
@@ -136,6 +154,30 @@ def extract_text(
     scanned-PDF OCR go through `backend.ocr_image(...)`. Without a backend,
     only the deterministic paths (PDF text layer, SVG) work.
     """
+    if video_mod.is_video(ext):
+        # Il video diventa TESTO (linea temporale con i minutaggi): da qui in
+        # poi e' un documento come gli altri. `used_vision_ocr=True` perche'
+        # e' esattamente cio' che e': lettura fatta da un modello, non un
+        # livello di testo deterministico — e l'avvocato deve saperlo.
+        if not video_mod.strumenti_presenti():
+            raise RuntimeError(
+                "ffmpeg nuk eshte i disponueshem: videoja nuk mund te lexohet"
+            )
+        # La lingua segue la giurisdizione della sessione. Import differito
+        # come in `_juris`: brain importa questi moduli e in testa si
+        # creerebbe un ciclo.
+        try:
+            from .brain import request_jurisdiction
+            lingua = "it" if str(request_jurisdiction()).upper() == "IT" else "sq"
+        except Exception:  # noqa: BLE001
+            lingua = "sq"
+        # ⚠️ `path.name` e' il nome INTERNO con cui salviamo su disco
+        # (`4cc450930ecf….mp4`). In un atto va il nome che l'avvocato
+        # riconosce: quello arriva da chi chiama.
+        return video_mod.analizza(
+            path, original_filename or path.name, backend, lingua
+        ), True
+
     if ext == ".pdf":
         text, used_ocr = _extract_pdf(path, backend)
         return text, used_ocr

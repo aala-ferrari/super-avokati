@@ -328,6 +328,93 @@ def main():
           "interno_" not in _w, "nje rruge permend interno_")
 
 
+    # ── [11] video si provave: rruga te mos prishet ne heshtje ─────────
+    import io as _io2, os as _os2, re as _re2
+    _rr = _os2.path.dirname(_os2.path.dirname(_os2.path.abspath(__file__)))
+    try:
+        from src.config import (VIDEO_EXTENSIONS as _VE, MAX_VIDEO_SIZE_MB as _MV,
+                                MAX_UPLOAD_SIZE_MB as _MU, VIDEO_MAX_FRAMES as _VF)
+        from src import video as _vid
+    except Exception as _e:
+        check("video: moduli importohet", False, str(_e))
+        _VE, _MV, _MU, _VF, _vid = set(), 0, 0, 0, None
+
+    check("video: formatet e pranuara >= 10", len(_VE) >= 10, "u gjeten %d" % len(_VE))
+    check("video: .dav (Dahua) pranohet", ".dav" in _VE)
+    check("video: .mp4/.mov/.avi pranohen",
+          {".mp4", ".mov", ".avi"} <= set(_VE))
+    # ⚠️ Dy pragje TE NDRYSHME: 25 MB akt, 500 MB video. Te barabarta do te
+    # thote qe dikush i ka "thjeshtuar" — dhe ose videot nuk kalojne me, ose
+    # pranojme PDF gjysme-gigabajt.
+    check("video: pragu i vet, i ndryshem nga dokumentet", _MV > _MU,
+          "video %s MB vs dokument %s MB" % (_MV, _MU))
+    check("video: tavan fotogramash i arsyeshem", 6 <= _VF <= 60, "%s" % _VF)
+
+    if _vid is not None:
+        check("video: is_video ndan videon nga dokumenti",
+              _vid.is_video(".mp4") and not _vid.is_video(".pdf"))
+        # ⚠️ Verejtjet duhet te ekzistojne NE TE DYJA gjuhet me te njejtat celesa:
+        # difekti i gjetur nga prova e vertete ishte pikerisht ky — titujt ne
+        # shqip dhe verejtjet ne italisht, brenda te njejtit dokument.
+        try:
+            _sq = set(_vid._RILIEVI["sq"]); _it = set(_vid._RILIEVI["it"])
+            check("video: verejtjet ne te dyja gjuhet, te njejtat celesa",
+                  _sq == _it and len(_sq) >= 6,
+                  "sq=%d it=%d, ndryshim=%s" % (len(_sq), len(_it), _sq ^ _it))
+        except Exception as _e:
+            check("video: verejtjet dygjuhesore", False, str(_e))
+        # nuk identifikon persona: kufiri qe e mban produktin brenda AI Act
+        _p = (_vid._PROMPT_FOTOGRAMMA_SQ + _vid._PROMPT_FOTOGRAMMA_IT
+              + _vid._CONFRONTO_SQ + _vid._CONFRONTO_IT)
+        check("video: promptet ndalojne identifikimin e personave",
+              ("MOS identifiko" in _p) and ("NON identificare" in _p))
+        # ë/ç piegate come fa _norm(): senza, "fajësinë" non combacia mai
+        _pn = _p.lower().replace("ë", "e").replace("ç", "c")
+        check("video: promptet ndalojne perfundimin per fajesine/fajin",
+              ("faj" in _pn) and ("colpevolezza" in _pn or "colpa" in _pn),
+              "faj=%s colpa=%s" % ("faj" in _pn, "colpa" in _pn))
+        # kufiri i deklaruar brenda tekstit qe lexon avokati
+        for _g, _fjale in (("sq", "KUFIJTË"), ("it", "LIMITI")):
+            check("video: kufiri i deklaruar ne %s" % _g,
+                  _fjale in _vid._INTESTAZIONE[_g]["kufi"])
+
+    # ⚠️ Formatet duhet te perputhen ne TRE vende: config, `accept` i HTML-se
+    # dhe regex-i i shfletuesit. Nese ndryshojne, nje format i pranuar nga
+    # serveri del gri ne dritaren e zgjedhjes ose "shume i madh" ne shfletues:
+    # difekt i padukshem per ate qe shkruan kodin, i qarte per ate qe e perdor.
+    try:
+        _js = _io2.open(_os2.path.join(_rr, "static", "app.js"), encoding="utf-8").read()
+        _m = _re2.search(r"VIDEO_EXT\s*=\s*/\\\.\(([^)]+)\)", _js)
+        _nel_js = set("." + x for x in (_m.group(1).split("|") if _m else []))
+        check("video: shfletuesi njeh te njejtat formate",
+              _nel_js and _nel_js == set(_VE),
+              "vetem ne server: %s | vetem ne shfletues: %s"
+              % (sorted(set(_VE) - _nel_js), sorted(_nel_js - set(_VE))))
+        check("video: shfletuesi ka prag te vetin per videot",
+              "MAX_VIDEO" in _js, "nje prag i vetem 25 MB do t'i ndalonte videot")
+        check("video: paneli ekziston", "openVideo" in _js)
+    except OSError as _e:
+        check("video: app.js i lexueshem", False, str(_e))
+
+    try:
+        _h = _io2.open(_os2.path.join(_rr, "templates", "index.html"),
+                       encoding="utf-8").read()
+        check("video: zeri ne menune PRO", 'data-pro="video"' in _h)
+    except OSError:
+        check("video: index.html i lexueshem", False)
+
+    try:
+        _w2 = _io2.open(_os2.path.join(_rr, "src", "web.py"), encoding="utf-8").read()
+        check("video: rruget e reja ekzistojne",
+              "/videos" in _w2 and "/video/compare" in _w2)
+        # ngarkimi i videove NUK kalon nga memoria
+        check("video: ngarkimi shkruhet ne disk (jo ne memorie)",
+              "f.save(str(storage_path))" in _w2,
+              "500 MB ne RAM per cdo ngarkim")
+    except OSError:
+        check("video: web.py i lexueshem", False)
+
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
