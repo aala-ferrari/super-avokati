@@ -587,6 +587,40 @@ Se un giorno serve accorciare: la leva è un tetto su `nullity_radar` — ma è 
 lente che cerca pavlefshmëri e afate, cioè le leve procedurali che vincono senza
 entrare nel merito. L'alternativa già pronta è il background + notifica.
 
+# UTENTE MULTI-MODULO E PASSWORD CONFERMATA (v9.231-9.233, 1 set 2026)
+
+Il form «Krijo përdorues të ri» aveva un **menu a tendina** con una sola
+professione: il cliente **3-in-1** — quello che paga di più — andava creato e
+poi corretto dal pannello ⚙️. Due passaggi per il cliente migliore, e un
+passaggio che prima o poi qualcuno si dimentica.
+
+⚠️ **Il server era già pronto.** `POST /api/admin/users` accetta
+`modules: [...]` e ripiega sulla professione singola solo se manca. **Non ho
+toccato una riga di server**: era l'interfaccia a impoverire una cosa che
+funzionava già. Vale la pena guardare sempre, prima di costruire.
+
+Ora: **tre caselle** (Avvocato · Procuratore · Notaio, la prima spuntata),
+`profession` = la prima scelta (serve alla mode-bar), `modules` = la lista.
+
+**La password si scrive due volte, con l'occhio per vederla.** Un errore di
+battitura creava un utente che non riesce a entrare, e non se ne accorgeva
+nessuno finché il cliente non provava. Se non coincidono, **non si crea** —
+verificato dal browser: l'utente con le due password diverse non esiste in
+banca dati.
+
+⚠️ **Trappola dell'emoji**: `it_48` vale `"⚖️ Avvocato"`, emoji **inclusa**.
+Mettendo l'emoji fuori dallo span tradotto, in italiano ne comparivano **due** —
+e in albanese no, perché lì resta il testo dell'HTML. Un difetto visibile in
+una lingua sola. L'emoji va **dentro** lo span.
+
+**Il pannello ⚙️ resta com'è** e serve ancora: è lì che si cambiano i moduli
+**dopo** (un cliente che aggiunge il notaio a metà abbonamento), insieme a
+giurisdizione e durata dell'abbonamento.
+
+Sorveglianza: golden sezione [17], 8 check (tre caselle e non un menu, la
+lista inviata, almeno un modulo, la seconda password, il blocco se non
+coincidono, l'occhio, e l'emoji dentro lo span). **196/196.**
+
 # IL TELEFONO CHE CADE — parcheggio delle risposte (v9.227-9.228, 31 ago 2026)
 
 **Il difetto, vecchio e mai visto.** I **venti strumenti PRO** — compresi

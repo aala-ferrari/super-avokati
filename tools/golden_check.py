@@ -711,6 +711,40 @@ def main():
         check("titujt: app.js i lexueshem", False, str(_e))
 
 
+    # ── [17] krijimi i perdoruesit: module te shumefishta + fjalekalim 2x ─
+    try:
+        _h7 = _io2.open(_os2.path.join(_rr, "templates", "index.html"), encoding="utf-8").read()
+        _a7 = _io2.open(_os2.path.join(_rr, "static", "app.js"), encoding="utf-8").read()
+
+        # moduli: caselle, non un menu a tendina
+        _n = _h7.count('class="nu-mod"')
+        check("krijimi: tri kutiza modulesh (jo menu)", _n == 3, "u gjeten %d" % _n)
+        check("krijimi: menuja e vjeter u hoq",
+              'id="new-user-profession"' not in _h7,
+              "nje menu lejon nje profesion te vetem")
+        check("krijimi: dergohet lista e moduleve",
+              "modules: moduli" in _a7,
+              "serveri e pranon listen; interfaqja duhet ta dergoje")
+        check("krijimi: te pakten nje modul i detyrueshem",
+              "moduli.length" in _a7)
+
+        # password: due volte, e non si crea se non coincidono
+        check("krijimi: fusha e dyte e fjalekalimit",
+              'id="new-user-password2"' in _h7)
+        check("krijimi: bllokohet nese nuk perputhen",
+              "password !== password2" in _a7,
+              "nje gabim shtypi krijon nje perdorues qe s'hyn dot")
+        check("krijimi: syri per ta pare", 'id="new-user-eye"' in _h7)
+
+        # ⚠️ l'emoji sta DENTRO lo span tradotto: fuori, in italiano
+        # comparirebbe due volte (it_48 la contiene gia')
+        check("krijimi: emoji brenda span-it te perkthyer",
+              '> ⚖️ <span data-i18n="it_48"' not in _h7,
+              "jashte, ne italisht do te dukej dy here")
+    except OSError as _e:
+        check("krijimi: skedaret e lexueshem", False, str(_e))
+
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

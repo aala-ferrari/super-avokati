@@ -5920,6 +5920,10 @@
   // ── i18n (Fase C) — Italian UI for IT sessions ────────────────────────────
   var UI_LANG = (document.body && document.body.dataset ? document.body.dataset.lang : "") || "sq";
   var I18N_IT = {
+    nu_pass2: "ripeti la password",
+    nu_eye: "Mostra/nascondi la password",
+    nu_moduli: "Moduli pagati",
+    nu_noter: "📜 Notaio",
     pro_video_t: "Video e audio",
     pro_video_d: "Prove video e audio: dati del file · linea temporale con i minutaggi · trascrizione · confronto con i verbali",
     vd_title: "🎥 Video e audio",
@@ -6022,6 +6026,9 @@
     ["Avokat", "Avvocato"], ["Prokuror", "Procuratore"], ["Noter", "Notaio"]
   ];
   var T_IT = {
+    "Fjalëkalimet nuk përputhen.": "Le password non coincidono.",
+    "Zgjidh të paktën një modul.": "Scegli almeno un modulo.",
+    "Plotëso username dhe fjalëkalim (min 6 karaktere).": "Compila nome utente e password (min 6 caratteri).",
     // Verificate aprendo i pannelli in sessione italiana: erano gli unici
     // due titoli sbagliati su venti.
     "😈 Pyet Avokatin e Djallit": "😈 Chiedi all'Avvocato del Diavolo",
@@ -11665,9 +11672,26 @@
   newUserBtn?.addEventListener("click", async () => {
     const username = newUserUsername.value.trim().toLowerCase();
     const password = newUserPassword.value;
+    const password2 = (document.getElementById("new-user-password2") || {}).value || "";
     const isAdmin  = newUserAdminChk.checked;
+    // I moduli pagati: piu' d'uno si puo'. Il server accettava gia' una
+    // lista — era il menu a tendina a permetterne uno solo.
+    const moduli = [...document.querySelectorAll(".nu-mod:checked")].map(c => c.value);
     if (!username || password.length < 6) {
-      newUserStatus.textContent = "Plotëso username dhe fjalëkalim (min 6 karaktere).";
+      newUserStatus.textContent = TT("Plotëso username dhe fjalëkalim (min 6 karaktere).");
+      newUserStatus.style.color = "#c66";
+      return;
+    }
+    // ⚠️ Due password che non coincidono creerebbero un utente che non
+    // riesce a entrare, e non se ne accorge nessuno finche' il cliente
+    // non prova. Meglio fermarsi qui.
+    if (password !== password2) {
+      newUserStatus.textContent = TT("Fjalëkalimet nuk përputhen.");
+      newUserStatus.style.color = "#c66";
+      return;
+    }
+    if (!moduli.length) {
+      newUserStatus.textContent = TT("Zgjidh të paktën një modul.");
       newUserStatus.style.color = "#c66";
       return;
     }
@@ -11678,7 +11702,10 @@
       const r = await fetch("/api/admin/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password, is_admin: isAdmin, profession: (document.getElementById("new-user-profession") || {}).value || "avokat" }),
+        // `modules` e' la lista vera; `profession` resta la principale
+        // (la prima scelta), che il resto del prodotto usa per la mode-bar.
+        body: JSON.stringify({ username, password, is_admin: isAdmin,
+                               profession: moduli[0], modules: moduli }),
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
@@ -11686,6 +11713,9 @@
       newUserStatus.style.color = "#6c6";
       newUserUsername.value = "";
       newUserPassword.value = "";
+      var _p2 = document.getElementById("new-user-password2");
+      if (_p2) _p2.value = "";
+      document.querySelectorAll(".nu-mod").forEach(function (c, i) { c.checked = (i === 0); });
       newUserAdminChk.checked = false;
       loadAdminUsers();
     } catch (e) {
@@ -12059,6 +12089,22 @@
   // web.py). Qui la si genera, la si ricorda e, se serve, la si va a
   // riprendere. Vale per tutti e venti gli strumenti PRO, perché passano
   // tutti da `_openTetramorphTool`.
+  // L'occhio delle due password nel form di creazione utente. Delega sul
+  // documento, come sul login: non dipende da quando gira lo script.
+  document.addEventListener("click", function (e) {
+    var b = e.target && e.target.closest ? e.target.closest("#new-user-eye") : null;
+    if (!b) return;
+    e.preventDefault();
+    var mostra = false;
+    ["new-user-password", "new-user-password2"].forEach(function (id) {
+      var i = document.getElementById(id);
+      if (!i) return;
+      mostra = i.getAttribute("type") === "password";
+      i.setAttribute("type", mostra ? "text" : "password");
+    });
+    b.textContent = mostra ? "🙈" : "👁";
+  });
+
   var _PARCHEGGIO_CHIAVE = "sa_lavoro_in_sospeso";
 
   function _nuovaChiave() {

@@ -7998,3 +7998,16 @@ main {
   color:var(--ink-soft,#5a5346);border-radius:8px;padding:5px 12px;
   font-size:12px;cursor:pointer;white-space:nowrap}
 .dz-ricontrolla:hover{border-color:var(--gold,#c9a24d);color:#7a5f16}
+
+/* ── Creazione utente: moduli multipli e password ripetuta ─────────── */
+.nu-pw-wrap{display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap}
+.nu-pw-wrap input{margin:0}
+.nu-eye{border:1px solid var(--line,#e7e0cf);background:#fff;border-radius:8px;
+  padding:6px 9px;cursor:pointer;font-size:14px;line-height:1}
+.nu-eye:hover{border-color:var(--gold,#c9a24d)}
+.nu-moduli{display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  margin:8px 0 2px;font-size:13px;color:var(--ink-soft,#5a5346)}
+.nu-moduli-tit{font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--ink-mute,#8b8272)}
+.nu-moduli label{display:flex;align-items:center;gap:5px;cursor:pointer}
+@media (prefers-color-scheme: dark){ .nu-eye{background:transparent} }

@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="/static/style.css?v=127" />
+<link rel="stylesheet" href="/static/style.css?v=129" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%230a0a0a'/%3E%3Cpath d='M32 14v36M14 22h36M8 22l-4 10h8zM56 22l-4 10h8zM26 50h12v4H26z' stroke='%23e41e26' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='32' cy='14' r='3' fill='%23c9a24d'/%3E%3C/svg%3E" />
 <link rel="manifest" href="/manifest.webmanifest" />
 <link rel="apple-touch-icon" href="/static/apple-touch-icon.png" />
@@ -1179,16 +1179,27 @@
           <h4 class="studio-section-title">Krijo përdorues të ri</h4>
           <div class="studio-invite-row" style="flex-wrap: wrap; gap: 6px;">
             <input type="text" id="new-user-username" placeholder="username (lowercase)" autocomplete="off" />
-            <input type="password" id="new-user-password" placeholder="password (min 6)" autocomplete="new-password" />
+            <span class="nu-pw-wrap">
+              <input type="password" id="new-user-password" placeholder="password (min 6)" autocomplete="new-password" />
+              <input type="password" id="new-user-password2" placeholder="përsërit fjalëkalimin"
+                     data-i18n-ph="nu_pass2" autocomplete="new-password" />
+              <button type="button" id="new-user-eye" class="nu-eye" title="Shfaq/fshih"
+                      data-i18n-title="nu_eye" data-i18n-aria="nu_eye"
+                      aria-label="Shfaq/fshih fjalëkalimin">👁</button>
+            </span>
             <label style="display:flex; align-items:center; gap:4px; color:#aaa; font-size:13px; padding: 0 6px;">
               <input type="checkbox" id="new-user-admin" /> Admin
             </label>
-            <select id="new-user-profession" title="Profesioni">
-              <option data-i18n="it_48" value="avokat">⚖️ Avokat</option>
-              <option data-i18n="it_49" value="prokuror">🏛️ Prokuror</option>
-              <option value="noter">📜 Noter</option>
-            </select>
             <button type="button" id="new-user-btn" class="primary">＋ Krijo</button>
+          </div>
+          <!-- ⚠️ Caselle e non un menu: un cliente puo' pagare due o tre moduli,
+               ed e' quello che paga di piu'. Il server accettava gia' una lista;
+               era l'interfaccia a permetterne uno solo. -->
+          <div class="nu-moduli">
+            <span class="nu-moduli-tit" data-i18n="nu_moduli">Modulet e paguara</span>
+            <label><input type="checkbox" class="nu-mod" value="avokat" checked> <span data-i18n="it_48">⚖️ Avokat</span></label>
+            <label><input type="checkbox" class="nu-mod" value="prokuror"> <span data-i18n="it_49">🏛️ Prokuror</span></label>
+            <label><input type="checkbox" class="nu-mod" value="noter"> <span data-i18n="nu_noter">📜 Noter</span></label>
           </div>
           <p id="new-user-status" class="pro-status" aria-live="polite"></p>
         </div>
@@ -1688,7 +1699,7 @@
   </div>
 </template>
 
-<script src="/static/app.js?v=127"></script>
+<script src="/static/app.js?v=129"></script>
 <script src="/static/secretary.js?v=1"></script>
   <script src="/static/sw-register.js?v=1" defer></script>
 </body>
