@@ -563,6 +563,25 @@ def main():
         check("hyrja: skedaret e lexueshem", False, str(_e))
 
 
+    # ── ripolling i dokumenteve: mos u dorezo para se videoja te mbaroje ─
+    # Ishte 90 tentativa x 4s = GJASHTE minuta, te matura per nje dokument.
+    # Nje video merr dhjete-njezet: puna mbaronte, paneli mbetej "po
+    # analizohet" pergjithmone — dhe dorezohej NE HESHTJE.
+    try:
+        _aj = _io2.open(_os2.path.join(_rr, "static", "app.js"), encoding="utf-8").read()
+        _m = _re2.search(r"MAX_TENTATIVI\s*=\s*([0-9+ *]+);", _aj)
+        _val = eval(_m.group(1)) if _m else 0            # nje shprehje e thjeshte
+        check("ripolling: mbulon te pakten 30 minuta", _val >= 200,
+              "%s tentativa — nje video merr me shume" % _val)
+        check("ripolling: pret me gjate pas minutes se pare",
+              "function attesa(" in _aj, "pa kete, 40 min me 4s = 600 kerkesa")
+        check("ripolling: kur dorezohet, E THOTE",
+              "_dossierRinuncia" in _aj,
+              "nje rrote qe rrotullohet pergjithmone genjen")
+    except OSError:
+        check("ripolling: app.js i lexueshem", False)
+
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

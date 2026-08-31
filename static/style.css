@@ -7987,3 +7987,14 @@ main {
   .vd-item{background:rgba(255,255,255,.04)}
   .vd-see{background:transparent}
 }
+
+/* Il ripolling si e' fermato: si dice, invece di lasciare una rotella che
+   mente. Ambra e non rosso — non e' un errore, e' un'attesa lunga. */
+.dz-rinuncia{margin:10px 0 2px;padding:9px 12px;border-radius:9px;
+  background:rgba(201,162,77,.10);border-left:3px solid var(--gold,#c9a24d);
+  font-size:13px;line-height:1.5;color:var(--ink-soft,#5a5346);
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.dz-ricontrolla{border:1px solid var(--line,#e7e0cf);background:#fff;
+  color:var(--ink-soft,#5a5346);border-radius:8px;padding:5px 12px;
+  font-size:12px;cursor:pointer;white-space:nowrap}
+.dz-ricontrolla:hover{border-color:var(--gold,#c9a24d);color:#7a5f16}

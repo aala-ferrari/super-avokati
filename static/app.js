@@ -592,6 +592,14 @@
     if (_pollTimer) clearTimeout(_pollTimer);
     var tentativi = 0;
     var caso = activeCaseId;
+    // ⚠️ attesa progressiva. Prima era 90 tentativi ogni 4s = SEI MINUTI,
+    // tarati su un documento (30-60s). Un video ne impiega dieci o venti: il
+    // lavoro finiva, il pannello restava su «in analisi» per sempre — e si
+    // arrendeva in SILENZIO, lasciando a schermo una rotella che mente.
+    // Ora: 4s per il primo minuto (i documenti sono quasi sempre pronti li'),
+    // poi 10s fino a ~40 minuti, che copre un video lungo.
+    function attesa(n) { return n < 15 ? 4000 : 10000; }
+    var MAX_TENTATIVI = 15 + 4 * 60;      // ~1 min + ~40 min
     (function giro() {
       _pollTimer = setTimeout(async function () {
         if (!activeCaseId || activeCaseId !== caso) return;   // caso cambiato
@@ -603,10 +611,34 @@
           if (activeCaseId !== caso) return;
           renderDossier(documents || []);
           const inCorso = (documents || []).some((d) => d.status === "pending");
-          if (inCorso && tentativi < 90) giro();              // ~6 minuti
+          if (!inCorso) return;
+          if (tentativi < MAX_TENTATIVI) { giro(); return; }
+          // Ci siamo arresi: DIRLO, invece di lasciare la rotella che gira.
+          _dossierRinuncia(caso);
         } catch (e) { /* rete instabile: si riprova al giro dopo */ }
-      }, 4000);
+      }, attesa(tentativi));
     })();
+  }
+
+  // Il ripolling si e' fermato ma il lavoro puo' benissimo essere finito (o
+  // continuare): il server lavora in sottofondo e non dipende da questa
+  // pagina. Quindi non si dice «errore» — si dice cosa e' successo e si da'
+  // un modo per guardare.
+  function _dossierRinuncia(caso) {
+    var box = document.getElementById("dossier-list") ||
+              document.querySelector(".dossier-list, #dossier-panel");
+    if (!box || activeCaseId !== caso) return;
+    if (box.querySelector(".dz-rinuncia")) return;
+    var d = document.createElement("div");
+    d.className = "dz-rinuncia";
+    d.innerHTML = '<span></span> <button type="button" class="dz-ricontrolla"></button>';
+    d.querySelector("span").textContent = TT(
+      "Analiza po zgjat më shumë se zakonisht. Ajo vazhdon në server edhe nëse e mbyll faqen."
+    );
+    var b = d.querySelector(".dz-ricontrolla");
+    b.textContent = TT("Rikontrollo tani");
+    b.onclick = function () { d.remove(); refreshDossier(); _pollDossier(); };
+    box.appendChild(d);
   }
 
   async function refreshDossier() {
@@ -5967,6 +5999,8 @@
     ["Avokat", "Avvocato"], ["Prokuror", "Procuratore"], ["Noter", "Notaio"]
   ];
   var T_IT = {
+    "Analiza po zgjat më shumë se zakonisht. Ajo vazhdon në server edhe nëse e mbyll faqen.": "L'analisi sta durando più del solito. Continua sul server anche se chiudi la pagina.",
+    "Rikontrollo tani": "Ricontrolla ora",
     "Hap një rast për të ngarkuar video ose audio.": "Apri un caso per caricare video o audio.",
     "Asnjë provë multimediale ende. Ngarko video (mp4, mov, dav…) ose audio (mp3, m4a, wav…).": "Nessuna prova multimediale. Carica un video (mp4, mov, dav…) o un audio (mp3, m4a, wav…).",
     "i analizuar": "analizzato",

@@ -691,6 +691,20 @@ duplicarli tutti.
 - **`showinfo` per i minutaggi veri**: stimarli dal numero d'ordine dà tempi
   sbagliati, e un minutaggio sbagliato in un atto è peggio di uno mancante.
 
+## ⚠️ Il pannello diceva «in analisi» per sempre
+
+`_pollDossier` si fermava a **90 tentativi × 4s = sei minuti**, tarati su un
+documento (30-60s). Un video ne impiega **dieci-venti**: il lavoro finiva sul
+server e il pannello restava con la rotella che gira — **e si arrendeva in
+silenzio**. Misurato su un video vero di 20 secondi (4,4 MB): analisi completa
+in ~12 minuti, pannello fermo su «Po e analizojmë…».
+
+Ora: **attesa progressiva** (4s per il primo minuto, poi 10s) fino a **~40
+minuti**, e quando si arrende **lo dice** con un pulsante «Ricontrolla ora» —
+il lavoro continua sul server anche a pagina chiusa, quindi il messaggio non
+è un errore, è un'informazione. Golden: il limite non può tornare sotto i 30
+minuti e il messaggio non può sparire.
+
 ## Limiti e caricamento
 
 **Due soglie diverse**: 25 MB per un atto, **500 MB** per un video. Alzarla per
