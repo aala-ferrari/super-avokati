@@ -8011,3 +8011,8 @@ main {
   color:var(--ink-mute,#8b8272)}
 .nu-moduli label{display:flex;align-items:center;gap:5px;cursor:pointer}
 @media (prefers-color-scheme: dark){ .nu-eye{background:transparent} }
+
+/* «2-in-1»: paga due moduli. Piu' sobrio del 3-in-1 ma si deve vedere —
+   finora era indistinguibile da chi ne paga uno solo. */
+.u-chip.u-multi{background:rgba(201,162,77,.16);color:#7a5f16;
+  border:1px solid rgba(201,162,77,.45)}

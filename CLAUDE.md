@@ -613,6 +613,17 @@ Mettendo l'emoji fuori dallo span tradotto, in italiano ne comparivano **due** �
 e in albanese no, perché lì resta il testo dell'HTML. Un difetto visibile in
 una lingua sola. L'emoji va **dentro** lo span.
 
+⚠️ **Trovati creando davvero un utente dal browser** (non leggendo il codice):
+- il distintivo **«3-in-1» stava sull'essere amministratore**, non sui moduli
+  pagati. Un cliente con tre moduli **non lo vedeva**, un amministratore con un
+  modulo solo sì. Rapporto rovesciato: amministratore è un **permesso**, non un
+  abbonamento. Ora il distintivo racconta **cosa paga** — e c'è anche un
+  **«2-in-1»**, perché chi paga due moduli finora era indistinguibile da chi ne
+  paga uno.
+- il messaggio di conferma era **in albanese** anche in sessione italiana
+  (`✓ U krijua 'prima'`), ed è l'ultima cosa che l'avvocato legge dopo aver
+  creato un cliente. Ora dice anche **quanti moduli**.
+
 **Il pannello ⚙️ resta com'è** e serve ancora: è lì che si cambiano i moduli
 **dopo** (un cliente che aggiunge il notaio a metà abbonamento), insieme a
 giurisdizione e durata dell'abbonamento.

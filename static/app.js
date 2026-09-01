@@ -11489,13 +11489,23 @@
     }
   }
 
-  function moduleChips(u) {
-    var m = u.is_admin ? ["avokat", "prokuror", "noter"] : (u.modules || []);
+    // I moduli mostrati: l'amministratore vede tutto perché accede a tutto.
+  function moduliDi(u) {
+    return u.is_admin ? ["avokat", "prokuror", "noter"] : (u.modules || []);
+  }
+function moduleChips(u) {
+    var m = moduliDi(u);
     var ic = { avokat: "⚖️", prokuror: "🏛️", noter: "📜" };
     return m.map(function (x) { return '<span class="u-chip u-' + x + '" title="' + x + '">' + (ic[x] || "") + '</span>'; }).join("");
   }
   function statusChip(u) {
-    if (u.is_admin) return '<span class="u-chip u-full">3-in-1</span>';
+    // ⚠️ Il distintivo racconta COSA PAGA, non cosa può fare. Prima stava
+    // sull'amministratore: un cliente con tre moduli non lo vedeva, e un
+    // amministratore con un modulo solo sì. Rapporto rovesciato — essere
+    // amministratore è un permesso, non un abbonamento.
+    var _mod = moduliDi(u);
+    if (_mod.length >= 3) return '<span class="u-chip u-full">3-in-1</span>';
+    if (_mod.length === 2) return '<span class="u-chip u-multi">2-in-1</span>';
     if (u.suspended) return "";
     if (u.status === "plan_expired" || u.status === "demo_expired") return '<span class="u-chip u-exp">skaduar</span>';
     if (u.plan_expires_at) {
@@ -11709,7 +11719,11 @@
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
-      newUserStatus.textContent = `✓ U krijua '${data.username}'`;
+      // era in albanese anche in sessione italiana: è l'ultima cosa che
+      // l'avvocato legge dopo aver creato un cliente
+      newUserStatus.textContent = (_CAL_IT ? "✓ Creato '" : "✓ U krijua '")
+        + data.username + "'"
+        + (moduli.length > 1 ? " · " + moduli.length + (_CAL_IT ? " moduli" : " module") : "");
       newUserStatus.style.color = "#6c6";
       newUserUsername.value = "";
       newUserPassword.value = "";
