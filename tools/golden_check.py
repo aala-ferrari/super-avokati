@@ -745,6 +745,95 @@ def main():
         check("krijimi: skedaret e lexueshem", False, str(_e))
 
 
+    # ── [18] matja e konsumit: paneli te mos kthehet ne zero ne heshtje ──
+    try:
+        _b8 = _io2.open(_os2.path.join(_rr, "src", "backends.py"), encoding="utf-8").read()
+        _s8 = _io2.open(_os2.path.join(_rr, "src", "storage.py"), encoding="utf-8").read()
+        _w8 = _io2.open(_os2.path.join(_rr, "src", "web.py"), encoding="utf-8").read()
+
+        # La riga che raccoglie: senza, tutto torna a zero e nessuno se ne accorge.
+        check("konsumi: lexohet nga pergjigjja e CLI-se",
+              "_uso_da_risposta" in _b8,
+              "pa te, paneli kthehet ne zero pa asnje gabim")
+        check("konsumi: merret edhe ne streaming",
+              "_uso_finale" in _b8)
+        check("konsumi: kostoja vjen nga ofruesi",
+              "total_cost_usd" in _b8,
+              "llogaritja jone injoron cache-n dhe gabon shume here")
+
+        # ⚠️ Il costo NON va ri-stimato nei totali: la stima prezza tutto a
+        # tariffa piena e qui quasi tutto il volume e' cache.
+        _tot = _s8.split("def usage_totals")[1][:1600]
+        check("konsumi: totali nuk e ri-vlereson koston",
+              "estimate_cost_cents" not in _tot,
+              "vleresimi injoron cache-n")
+
+        # L'attribuzione: ripiego, mai sostituzione.
+        check("perdoruesi: kthehet vetem si zgjidhje e fundit",
+              'if kw.get("user_id") is None:' in _b8,
+              "mbishkrimi do t'ia jepte punen studios se gabuar")
+        check("perdoruesi: kontekst per kerkese",
+              "_REQUEST_USER" in _io2.open(
+                  _os2.path.join(_rr, "src", "brain.py"), encoding="utf-8").read())
+        _n8 = _w8.count("porta_utente")
+        check("perdoruesi: kalon ne punet ne sfond", _n8 >= 4,
+              "u gjeten %d nga 4 thread" % _n8)
+
+        # Il tetto per studio e la quota.
+        check("tavani: endpoint per ta vendosur",
+              "api_admin_set_cap" in _w8)
+        check("tavani: java levizese (jo javë kalendarike)",
+              "days=7" in _s8.split("def studi_oltre_soglia")[1][:900],
+              "e hena nuk fshin asgje")
+        check("kuota: llogaritet per studio", "quota_pct" in _w8)
+
+        # Punto 5: la guardia sul contesto.
+        _c8 = _io2.open(_os2.path.join(_rr, "src", "config.py"), encoding="utf-8").read()
+        check("konteksti: pragu i paralajmerimit ekziston",
+              "CONTEXT_ALERT_TOKENS" in _c8)
+        # La valvola vive SOLO nell'ambiente: se un giorno qualcuno le
+        # scrivesse un valore fisso nel codice, una causa vera verrebbe
+        # troncata a meta' per risparmiare centesimi.
+        check("konteksti: valvula rri e fikur si parazgjedhje",
+              'os.environ.get("TETRAMORPH_MAX_BUDGET_USD")' in _c8,
+              "ndalimi i nje analize ligjore ne mes eshte demi, jo ilaci")
+    except OSError as _e:
+        check("konsumi: skedaret e lexueshem", False, str(_e))
+
+
+    # ── [19] biseda: mos deklaro te vdekur ate qe eshte gjalle ──────────
+    try:
+        _w9 = _io2.open(_os2.path.join(_rr, "src", "web.py"), encoding="utf-8").read()
+        _a9 = _io2.open(_os2.path.join(_rr, "static", "app.js"), encoding="utf-8").read()
+
+        # ⚠️ La riga che ha fatto il danno: «900 secondi di silenzio → done».
+        # Il silenzio non dice nulla sul fatto che il lavoro sia vivo.
+        check("biseda: nuk dorezohet nga heshtja",
+              "quiet > 900" not in _w9,
+              "heshtja nuk tregon nese puna eshte gjalle")
+        check("biseda: dorezimi shikon regjistrin e punes",
+              "vivo = jobs_mod.get(job_id)" in _w9,
+              "vetem regjistri e di nese puna vazhdon")
+        check("biseda: mesazhi i vjeter 'Timeout' u hoq",
+              "Timeout: përgjigja nuk mbërriti" not in _w9,
+              "ishte genjeshter: serveri po punonte")
+
+        # Il battito, e da dove viene.
+        check("biseda: rrahje ne cdo minute", "def _battito" in _w9)
+        check("biseda: rrahja shtyhet nga prodhuesi",
+              "jobs_mod.push(job_id, _sse_event({" in _w9,
+              "nje kuader qe e sheh vetem nje lexues i prish numerimin klientit")
+
+        # La rete di sicurezza sul client.
+        check("biseda: endpoint /api/ask/alive", "api_ask_alive" in _w9)
+        check("biseda: klienti pyet para se te dorezohet",
+              "reteDiSicurezza" in _a9)
+        check("biseda: rrahja dhe gabimet ne dy gjuhe",
+              "text_it" in _w9 and "evt.text_it" in _a9)
+    except OSError as _e:
+        check("biseda: skedaret e lexueshem", False, str(_e))
+
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

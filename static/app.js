@@ -6033,6 +6033,7 @@
     ["Avokat", "Avvocato"], ["Prokuror", "Procuratore"], ["Noter", "Notaio"]
   ];
   var T_IT = {
+    "Gabim i panjohur": "Errore sconosciuto",
     "kulmi": "picco",
     "Konteksti më i madh i një thirrjeje të vetme. Afër tavanit, analiza mund të shkurtohet pa u vënë re.": "Il contesto più grande di una singola chiamata. Vicino al tetto, l'analisi può essere accorciata senza che si veda.",
     "Tavan javor në peshë ($). Bosh = pa mbikëqyrje.": "Tetto settimanale in peso ($). Vuoto = non sorvegliato.",
@@ -12319,6 +12320,17 @@ function moduleChips(u) {
     try { _addSaveToCase(box, "research", titolo || "Kërkim", d.markdown || d.result || ""); } catch (e) {}
   }
 
+  // Il lavoro e' ancora vivo sul server? Si chiede prima di dichiarare
+  // perso il lavoro di mezz'ora.
+  async function reteDiSicurezza(jobId) {
+    try {
+      var r = await fetch("/api/ask/alive?job=" + encodeURIComponent(jobId));
+      if (!r.ok) return false;
+      var d = await r.json();
+      return !!d.alive;
+    } catch (e) { return false; }
+  }
+
   async function askAttach(jobId, daEvento, cb) {
     let idx = daEvento || 0;
     let final = null;
@@ -12363,18 +12375,34 @@ function moduleChips(u) {
             if (evt.type === "delta" && typeof evt.text === "string") {
               if (cb && cb.onDelta) cb.onDelta(evt.text);
             } else if (evt.type === "status") {
-              if (cb && cb.onStatus) cb.onStatus(evt.text);
+              // il battito arriva in due lingue: si prende quella giusta
+              if (cb && cb.onStatus) cb.onStatus(
+                (_CAL_IT && evt.text_it) ? evt.text_it : evt.text);
             } else if (evt.type === "final") {
               final = evt.data || evt;
             } else if (evt.type === "error") {
-              error = evt.message || "Gabim i panjohur";
+              error = ((_CAL_IT && evt.message_it) ? evt.message_it : evt.message)
+                || TT("Gabim i panjohur");
             } else if (evt.type === "done") {
               concluso = true;
               break;
             }
           }
         }
-        if (concluso) { mostraRiconnessione(false); return { final, error }; }
+        if (concluso) {
+          mostraRiconnessione(false);
+          // ⚠️ Rete di sicurezza. Il server non dovrebbe piu' dichiarare
+          // finito un lavoro vivo (vedi `follow()` in web.py), ma se per
+          // qualunque ragione arriva un errore SENZA risposta, prima di
+          // arrendersi si chiede se il cervello sta ancora lavorando: in un
+          // caso vero sono andati persi 32 minuti di analisi su un omicidio
+          // perche' il client si e' fidato di un «done» sbagliato.
+          if (error && !final) {
+            var ancora = await reteDiSicurezza(jobId);
+            if (ancora) { error = null; concluso = false; continue; }
+          }
+          return { final, error };
+        }
 
         // Il flusso e' finito senza un "done": la connessione e' caduta a
         // meta'. Il cervello sta ancora lavorando: ci si riattacca.

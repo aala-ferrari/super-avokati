@@ -6725,10 +6725,59 @@ def api_ask_start():
             except Exception:  # noqa: BLE001
                 log.debug("push notify skipped", exc_info=True)
 
+    # ── Il battito ────────────────────────────────────────────────────
+    #
+    # Le fasi lavorano in silenzio per minuti: su un fascicolo grosso, piu'
+    # di quindici. Senza un segno di vita l'avvocato non sa se aspettare o
+    # rinunciare — e rinuncia, che e' il caso peggiore perche' il lavoro sta
+    # andando bene.
+    #
+    # ⚠️ Spinto nel LAVORO, non inventato dal lettore: il client conta i
+    # fotogrammi per sapere da dove riprendere dopo una caduta, e un
+    # fotogramma che esiste solo per un lettore gli sfaserebbe il conto.
+    def _battito():
+        partenza = time.time()
+        # ⚠️ Tetto duro. `jobs.py` ripulisce i lavori scaduti solo dentro
+        # `create()`: se nessuno fa piu' domande la pulizia non gira, e senza
+        # questo limite il battito continuerebbe per sempre su un lavoro
+        # morto. Allineato a KEEP_RUNNING_S: oltre le due ore il lavoro
+        # verrebbe buttato comunque.
+        _TETTO_BATTITO = 2 * 60 * 60
+        while time.time() - partenza < _TETTO_BATTITO:
+            time.sleep(60)
+            lavoro = jobs_mod.get(job_id)
+            if lavoro is None or lavoro.done:
+                return
+            minuti = int((time.time() - partenza) / 60)
+            jobs_mod.push(job_id, _sse_event({
+                "type": "status",
+                "text": "Po punoj ende — %d min. Analiza vazhdon edhe nëse "
+                        "e mbyll faqen." % minuti,
+                "text_it": "Sto ancora lavorando — %d min. L'analisi "
+                           "continua anche se chiudi la pagina." % minuti,
+            }))
+
     threading.Thread(target=brain_mod.porta_utente(_uid, _run),
-                 name="ask-%s" % job_id[:8],
+                     name="ask-%s" % job_id[:8], daemon=True).start()
+    threading.Thread(target=_battito, name="batt-%s" % job_id[:8],
                      daemon=True).start()
     return jsonify({"job_id": job_id})
+
+
+@app.get("/api/ask/alive")
+@login_required_api
+def api_ask_alive():
+    """Il lavoro esiste ancora e sta lavorando?
+
+    Serve al client come ultima verifica prima di dichiarare perso il lavoro
+    di mezz'ora. Risponde solo al proprietario: lo stato di un lavoro dice
+    che quell'utente ha una causa in analisi, ed e' gia' un'informazione.
+    """
+    job_id = (request.args.get("job") or "").strip()
+    lavoro = jobs_mod.get(job_id) if job_id else None
+    if lavoro is None or lavoro.user_id != request.user.id:  # type: ignore[attr-defined]
+        return jsonify({"alive": False})
+    return jsonify({"alive": not lavoro.done})
 
 
 @app.get("/api/ask/events")
@@ -6768,11 +6817,34 @@ def api_ask_events():
             # the phone's radio from concluding the connection is dead.
             yield ": ping\n\n"
             quiet += 1
-            if quiet > 900:      # 15 minutes without a single frame
-                yield _sse_event({"type": "error",
-                                  "message": "Timeout: përgjigja nuk mbërriti."})
-                yield _sse_event({"type": "done"})
-                break
+            # ⚠️ NON si dichiara finito cio' che e' vivo.
+            #
+            # Qui prima c'era «dopo 900 secondi di silenzio: errore + done».
+            # Quel `done` era una bugia — il lavoro stava lavorando — e il
+            # client, che e' costruito per riattaccarsi da solo quando la
+            # connessione cade, smetteva proprio perche' il server gli aveva
+            # detto che era finita. Un caso vero: 14 fasi riuscite, 32 minuti
+            # di analisi su un omicidio, e l'avvocato ha letto «Timeout».
+            #
+            # Le fasi tacciono a lungo quando il fascicolo e' grosso (una ha
+            # lavorato con 789.203 token). Il silenzio non dice niente sul
+            # fatto che il lavoro sia vivo: quello lo dice il registro dei
+            # lavori, e si guarda quello.
+            if quiet % 30 == 0:
+                vivo = jobs_mod.get(job_id)
+                if vivo is None:
+                    # Sparito davvero: riavvio del server, o le due ore di
+                    # KEEP_RUNNING_S. Si dice la verita', non «timeout».
+                    yield _sse_event({
+                        "type": "error",
+                        "message": "Puna u ndërpre në server (rinisje). "
+                                   "Pyetja nuk u humb — dërgoje sërish.",
+                        "message_it": "Il lavoro si è interrotto sul server "
+                                      "(riavvio). La domanda non è persa — "
+                                      "rimandala.",
+                    })
+                    yield _sse_event({"type": "done"})
+                    break
             time.sleep(1)
 
     return Response(stream_with_context(follow()),
