@@ -337,6 +337,37 @@ law only, and never cite Albanian sources.
 _REQUEST_JURISDICTION = _threading.local()
 
 
+# Chi ha chiesto, PER RICHIESTA. Stessa meccanica della giurisdizione qui
+# sopra, e per lo stesso motivo: il lavoro pesante gira in thread separati e
+# li' dentro non arriva niente che dica di chi e'. Senza questo, il registro
+# dei consumi attribuisce a nessuno il 97% delle chiamate — e con piu' studi
+# sullo stesso abbonamento e' proprio il numero che serve.
+_REQUEST_USER = _threading.local()
+
+
+def set_request_user(uid: int | None) -> None:
+    _REQUEST_USER.uid = int(uid) if uid else None
+
+
+def request_user_id() -> int | None:
+    return getattr(_REQUEST_USER, "uid", None)
+
+
+def porta_utente(uid: int | None, fn):
+    """Avvolge una funzione perche', girando in un thread nuovo, sappia di chi e'.
+
+    Il thread nato da `threading.Thread(target=fn)` non eredita niente: il
+    contesto vive in un `threading.local()`. Qui lo si ri-arma appena dentro.
+    """
+    def _dentro(*a, **k):
+        try:
+            set_request_user(uid)
+        except Exception:  # noqa: BLE001
+            pass
+        return fn(*a, **k)
+    return _dentro
+
+
 def set_request_jurisdiction(code: str | None) -> None:
     _REQUEST_JURISDICTION.code = (code or "AL").upper()
 
@@ -1837,6 +1868,9 @@ class SuperAvvocato:
 
         # catturata nel thread della richiesta, propagata ai worker
         _stage_jurisdiction = self._current_jurisdiction()
+        # e con lei chi ha chiesto: le fasi sono la parte piu' costosa di
+        # tutto il prodotto, ed erano quelle attribuite a nessuno.
+        _stage_utente = request_user_id()
 
         def _one(name: str, fn: Callable[[], object]) -> tuple[str, object | None, float]:
             # I worker sono thread diversi da quello della richiesta: la
@@ -1846,6 +1880,7 @@ class SuperAvvocato:
             try:
                 self._jurisdiction_ctx.code = _stage_jurisdiction
                 set_request_jurisdiction(_stage_jurisdiction)
+                set_request_user(_stage_utente)
             except Exception:  # noqa: BLE001
                 pass
             t0 = time.monotonic()

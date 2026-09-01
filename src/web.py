@@ -2877,7 +2877,8 @@ def api_genio_start():
             except Exception:  # noqa: BLE001
                 log.debug("push notify skipped (genio)", exc_info=True)
 
-    threading.Thread(target=_run, name="genio-%s" % job_id[:8],
+    threading.Thread(target=brain_mod.porta_utente(_uid, _run),
+                 name="genio-%s" % job_id[:8],
                      daemon=True).start()
     return jsonify({"job_id": job_id, "brief_id": brief_id})
 
@@ -3259,7 +3260,7 @@ def api_precedent_run():
         except Exception as e:  # noqa: BLE001
             log.warning("precedent finalize failed: %s", e)
 
-    threading.Thread(target=_run_precedent_analysis,
+    threading.Thread(target=brain_mod.porta_utente(user.id, _run_precedent_analysis),
                      name=f"precedent-{brief_id}", daemon=True).start()
     return jsonify({"brief_id": brief_id, "status": "running"})
 
@@ -6085,7 +6086,8 @@ def api_upload_document(case_id: str):
         except Exception:  # noqa: BLE001
             log.exception("could not store analysis for %s", fname)
 
-    threading.Thread(target=_process, name=f"doc-{doc_id[:8]}", daemon=True).start()
+    threading.Thread(target=brain_mod.porta_utente(uid, _process),
+                 name=f"doc-{doc_id[:8]}", daemon=True).start()
 
     payload = _document_payload(storage.get_document(doc_id, case_id))
     payload["processing"] = True
@@ -6723,7 +6725,8 @@ def api_ask_start():
             except Exception:  # noqa: BLE001
                 log.debug("push notify skipped", exc_info=True)
 
-    threading.Thread(target=_run, name="ask-%s" % job_id[:8],
+    threading.Thread(target=brain_mod.porta_utente(_uid, _run),
+                 name="ask-%s" % job_id[:8],
                      daemon=True).start()
     return jsonify({"job_id": job_id})
 
@@ -8492,15 +8495,57 @@ def api_admin_usage():
     rows = storage.usage_stats_by_user(since_iso=since_iso)
     totals = storage.usage_totals(since_iso=since_iso)
     online = storage.online_user_ids(window_seconds=300)
+    # La quota: il numero che serve davvero quando un abbonamento e' diviso
+    # fra piu' studi. «Lo studio A e' il 62% del consumo» si legge in un colpo
+    # d'occhio; «$4,10 contro $0,90» no.
+    _tot_micro = sum(int(r.get("cost_micro") or 0) for r in rows) or 0
     for r in rows:
         r["online"] = r["user_id"] in online
+        r["quota_pct"] = (
+            round(100.0 * int(r.get("cost_micro") or 0) / _tot_micro, 1)
+            if _tot_micro else 0.0
+        )
+    # Chi sta per saturare: si calcola sempre sulla settimana mobile, a
+    # prescindere dal periodo che l'amministratore sta guardando — il
+    # rischio non cambia perche' lui ha selezionato «oggi».
+    try:
+        allarmi = storage.studi_oltre_soglia()
+    except Exception:  # noqa: BLE001
+        log.exception("soglie studi")
+        allarmi = []
     return jsonify({
         "period": period,
         "since": since_iso,
         "users": rows,
         "totals": totals,
         "online_count": len(online),
+        "allarmi": allarmi,
     })
+
+
+@app.patch("/api/admin/users/<int:user_id>/cap")
+@login_required_api
+def api_admin_set_cap(user_id: int):
+    """Il tetto settimanale di consumo di uno studio. Solo amministratore.
+
+    Il corpo porta `cap_usd` (dollari di «peso» a settimana). Vuoto o 0 =
+    non sorvegliato: NON e' un tetto a zero, che vorrebbe dire «qualunque
+    uso e' troppo».
+    """
+    user = request.user  # type: ignore[attr-defined]
+    if not user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    data = request.get_json(force=True, silent=True) or {}
+    grezzo = data.get("cap_usd")
+    try:
+        usd = float(grezzo) if grezzo not in (None, "", "0", 0) else 0.0
+    except (TypeError, ValueError):
+        return jsonify({"error": "cap_usd non valido"}), 400
+    if usd < 0:
+        return jsonify({"error": "cap_usd non valido"}), 400
+    micro = int(round(usd * 1_000_000)) if usd > 0 else None
+    storage.imposta_tetto_settimanale(user_id, micro)
+    return jsonify({"ok": True, "cap_micro": micro})
 
 
 @app.patch("/api/admin/users/<int:user_id>/suspend")

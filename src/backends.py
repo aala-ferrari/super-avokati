@@ -125,10 +125,74 @@ def _infer_callsite() -> str:
     return "unknown"
 
 
+def _uso_da_risposta(data: dict) -> dict:
+    """Estrae il consumo dalla risposta del CLI.
+
+    Il CLI lo restituisce da sempre in `--output-format json`; noi leggevamo
+    solo `result` e `session_id`. Quattro numeri distinti, che NON vanno
+    sommati come se fossero la stessa cosa:
+
+    - `input_tokens`  — testo nuovo, tariffa piena
+    - `cache_write`   — contesto messo in cache, tariffa +25%
+    - `cache_read`    — contesto riletto dalla cache, tariffa 10%
+    - `output_tokens` — la risposta
+
+    Per questo il costo NON lo ricalcoliamo: `total_cost_usd` arriva gia'
+    fatto dal fornitore e tiene conto delle tre tariffe diverse.
+
+    Non solleva mai: un consumo non misurato non deve far fallire una
+    risposta legale gia' pronta.
+    """
+    try:
+        u = data.get("usage") or {}
+        inp = int(u.get("input_tokens") or 0)
+        out = int(u.get("output_tokens") or 0)
+        c_w = int(u.get("cache_creation_input_tokens") or 0)
+        c_r = int(u.get("cache_read_input_tokens") or 0)
+        costo = data.get("total_cost_usd")
+        return {
+            "input_tokens": inp or None,
+            "output_tokens": out or None,
+            "cache_write_tokens": c_w or None,
+            "cache_read_tokens": c_r or None,
+            # micro-dollari interi: si sommano per settimane senza deriva
+            "cost_micro_usd": int(round(float(costo) * 1_000_000)) if costo else None,
+            # quanto contesto ha davvero occupato la chiamata (punto 5)
+            "context_tokens": (inp + c_w + c_r) or None,
+        }
+    except Exception:  # noqa: BLE001
+        return {}
+
+
 def _audit_safe(**kw) -> None:
     """Best-effort audit log. Never raises."""
     if not kw.get("callsite") or kw.get("callsite") == "unknown":
         kw["callsite"] = _infer_callsite()
+    # ⚠️ RIPIEGO, non sostituzione: se il chiamante ha passato l'utente vince
+    # lui. Un contesto rimasto appeso in un thread riusato attribuirebbe il
+    # lavoro all'utente sbagliato, e un numero falso lo si crede.
+    if kw.get("user_id") is None:
+        try:
+            from .brain import request_user_id
+            kw["user_id"] = request_user_id()
+        except Exception:  # noqa: BLE001
+            pass
+    # ⚠️ Vicino al tetto: se una chiamata lo sfonda, il CLI compatta o tronca
+    # a META' di un'analisi legale e la risposta arriva lo stesso, costruita
+    # su un contesto riassunto. Un errore invisibile e' peggio di un errore.
+    # Qui non si blocca nulla: si lascia una traccia leggibile PRIMA che
+    # diventi un fallimento.
+    try:
+        _ctx = int(kw.get("context_tokens") or 0)
+        if _ctx:
+            from .config import CONTEXT_ALERT_TOKENS
+            if _ctx >= CONTEXT_ALERT_TOKENS:
+                log.warning(
+                    "contesto vicino al tetto: %s token (%s) — soglia %s",
+                    f"{_ctx:,}", kw.get("callsite"), f"{CONTEXT_ALERT_TOKENS:,}",
+                )
+    except Exception:  # noqa: BLE001
+        pass
     try:
         from . import storage
         storage.audit_log_call(**kw)
@@ -290,8 +354,9 @@ class ClaudeCodeBackend(LLMBackend):
         t0 = time.time()
 
         def _emit_audit(*, outcome: str, response_text: str | None,
-                        error_class: str | None) -> None:
+                        error_class: str | None, uso: dict | None = None) -> None:
             _audit_safe(
+                **(uso or {}),
                 callsite=callsite or "unknown",
                 backend=self.name,
                 model=model,
@@ -309,6 +374,15 @@ class ClaudeCodeBackend(LLMBackend):
             )
 
         cmd = [self.cli, "-p", "--output-format", "json", "--model", model]
+        # Valvola di sicurezza, DISATTIVATA per scelta (vedi config.py):
+        # fermare un'analisi legale a meta' per risparmiare centesimi e' un
+        # cattivo affare. Esiste per il giorno in cui servisse.
+        try:
+            from .config import TETRAMORPH_MAX_BUDGET_USD as _tetto
+            if _tetto:
+                cmd.extend(["--max-budget-usd", _tetto])
+        except Exception:  # noqa: BLE001
+            pass
 
         # Extended thinking: Opus ragiona sulle questioni legali difficili
         # prima di scrivere. Vale anche per i modelli scelti esplicitamente
@@ -474,7 +548,11 @@ class ClaudeCodeBackend(LLMBackend):
                 f"Tetramorph returned empty result (session={new_sid}, "
                 f"stop_reason={data.get('stop_reason')})"
             )
-        _emit_audit(outcome="success", response_text=text, error_class=None)
+        # ⚠️ Il consumo si legge QUI, dall'unica risposta che ce l'ha. Se
+        # non lo si prende adesso, e' perso per sempre — e' esattamente quello
+        # che e' successo alle prime 1.281 chiamate.
+        _emit_audit(outcome="success", response_text=text, error_class=None,
+                    uso=_uso_da_risposta(data))
         return text
 
     # V7.7 — streaming variant. Yields (kind, payload) events:
@@ -504,10 +582,13 @@ class ClaudeCodeBackend(LLMBackend):
         prompt_serialized = _serialize_prompt(system, messages)
         prompt_hash = _hash16(prompt_serialized)
         t0 = time.time()
+        # riempito dall'evento `result` in fondo allo stream
+        _uso_finale: dict = {}
 
         def _emit_audit(*, outcome: str, response_text: str | None,
-                        error_class: str | None) -> None:
+                        error_class: str | None, uso: dict | None = None) -> None:
             _audit_safe(
+                **(uso or {}),
                 callsite=callsite or "unknown",
                 backend=self.name,
                 model=model,
@@ -608,6 +689,10 @@ class ClaudeCodeBackend(LLMBackend):
                         continue
 
                     if etype == "result":
+                        # Anche in streaming l'evento finale porta il
+                        # consumo: si mette da parte per la riga di audit,
+                        # che viene scritta piu' sotto.
+                        _uso_finale.update(_uso_da_risposta(evt))
                         if evt.get("is_error"):
                             err = str(evt.get("result", ""))[:500]
                             _emit_audit(outcome="error", response_text=None,
@@ -687,7 +772,8 @@ class ClaudeCodeBackend(LLMBackend):
             raise RuntimeError(
                 f"Tetramorph stream returned no text (session={new_session_id})"
             )
-        _emit_audit(outcome="success", response_text=text, error_class=None)
+        _emit_audit(outcome="success", response_text=text, error_class=None,
+                    uso=dict(_uso_finale))
         yield ("final", {"text": text, "session_id": new_session_id})
 
     def ocr_image(self, path: Path, mimetype: str, prompt: str,

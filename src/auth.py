@@ -113,6 +113,9 @@ def _arm_request_jurisdiction(user) -> None:
         if chosen not in allowed:
             chosen = "AL" if "AL" in allowed else sorted(allowed)[0]
         _brain.set_request_jurisdiction(chosen)
+        # Chi sta chiedendo: stesso posto, stesso momento. Qui l'utente e'
+        # gia' noto (un before_request girerebbe troppo presto).
+        _brain.set_request_user(getattr(user, "id", None))
     except Exception:  # noqa: BLE001 - non deve mai bloccare la richiesta
         pass
 

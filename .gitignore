@@ -23,5 +23,8 @@ data/uploads/
 data/raw/
 # Claude Code local state
 .claude/
-src/*.bak-*
+
+# Scarti delle patch fatte sul VPS: arrivano con rsync, non vanno in git
 *.bak-*
+*.bak.py
+src.bak-*/

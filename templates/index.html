@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="/static/style.css?v=130" />
+<link rel="stylesheet" href="/static/style.css?v=133" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%230a0a0a'/%3E%3Cpath d='M32 14v36M14 22h36M8 22l-4 10h8zM56 22l-4 10h8zM26 50h12v4H26z' stroke='%23e41e26' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='32' cy='14' r='3' fill='%23c9a24d'/%3E%3C/svg%3E" />
 <link rel="manifest" href="/manifest.webmanifest" />
 <link rel="apple-touch-icon" href="/static/apple-touch-icon.png" />
@@ -1230,27 +1230,35 @@
             <h4 class="studio-section-title" style="margin: 0;">📊 Përdorimi & Faturat</h4>
             <select id="usage-period" class="studio-select" style="max-width:160px;">
               <option value="day">Sot (24h)</option>
-              <option value="week">7 ditë</option>
-              <option value="month" selected>30 ditë</option>
+              <option value="week" selected>7 ditë</option>
+              <option value="month">30 ditë</option>
               <option value="all">Gjithë periudha</option>
             </select>
           </div>
           <div id="usage-summary" class="pro-modal-sub" style="margin: 8px 0; display:flex; gap: 16px; flex-wrap:wrap;">
             <span>Duke ngarkuar…</span>
           </div>
+          <div id="usage-allarmi" style="display:none;"></div>
           <table class="studio-members" id="usage-table">
             <thead>
               <tr>
                 <th>Përdoruesi</th>
-                <th title="Thirrjet ndaj modelit AI">Thirrje</th>
-                <th title="Token në hyrje (input)">In</th>
-                <th title="Token në dalje (output)">Out</th>
-                <th title="Kosto e barasvlefshme API (USD)">$ ~</th>
-                <th title="Aktiv së fundmi">Aktiv</th>
+                <th title="Thirrjet ndaj modelit AI" data-i18n="us_th_calls">Thirrje</th>
+                <th title="Konteksti total i përpunuar (hyrje + cache). Kjo është pesha e vërtetë."
+                    data-i18n="us_th_ctx">Kontekst</th>
+                <th title="Token në dalje (output)" data-i18n="us_th_out">Dalje</th>
+                <th title="Pesha e konsumit, e llogaritur nga ofruesi. Me abonim nuk paguhet për thirrje: shërben për të krahasuar."
+                    data-i18n="us_th_weight">Peshë</th>
+                <th title="Sa përqind e konsumit të periudhës i takon këtij studioje"
+                    data-i18n="us_th_share">Kuota</th>
+                <th title="Tavani javor i konsumit për këtë studio ($ peshë). Bosh = pa mbikëqyrje."
+                    data-i18n="us_th_cap">Tavan</th>
+                <th title="Aktiv së fundmi" data-i18n="us_th_active">Aktiv</th>
               </tr>
             </thead>
-            <tbody id="usage-body"><tr><td colspan="6" class="studio-empty">Duke ngarkuar…</td></tr></tbody>
+            <tbody id="usage-body"><tr><td colspan="8" class="studio-empty">Duke ngarkuar…</td></tr></tbody>
           </table>
+          <p id="usage-nota"></p>
         </div>
         <hr style="margin: 16px 0; border-color: #2a2a2a;" />
       </div>
@@ -1699,7 +1707,7 @@
   </div>
 </template>
 
-<script src="/static/app.js?v=130"></script>
+<script src="/static/app.js?v=133"></script>
 <script src="/static/secretary.js?v=1"></script>
   <script src="/static/sw-register.js?v=1" defer></script>
 </body>

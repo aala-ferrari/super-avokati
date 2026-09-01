@@ -8016,3 +8016,28 @@ main {
    finora era indistinguibile da chi ne paga uno solo. */
 .u-chip.u-multi{background:rgba(201,162,77,.16);color:#7a5f16;
   border:1px solid rgba(201,162,77,.45)}
+
+/* ── Pannello uso: quota per studio ─────────────────────────────────
+   La barra serve a rispondere a colpo d'occhio alla domanda vera quando
+   un abbonamento e' diviso: non «quanto ha speso» ma «quanto ne ha preso». */
+.us-quota{position:relative;display:inline-block;min-width:74px;height:16px;
+  background:rgba(140,140,140,.16);border-radius:8px;overflow:hidden;vertical-align:middle}
+.us-quota-bar{position:absolute;inset:0 auto 0 0;background:rgba(201,162,77,.55)}
+.us-quota-txt{position:relative;font-size:11px;line-height:16px;padding:0 6px;
+  font-variant-numeric:tabular-nums}
+.us-nota{color:#8b8272;font-size:11px}
+#usage-nota{color:#8b8272;font-size:12px;line-height:1.5;margin:6px 0 0;
+  max-width:70ch}
+
+/* ── Soglia per studio ──────────────────────────────────────────────
+   La fascia sta sopra la tabella: quando un solo studio satura i limiti
+   condivisi, si fermano tutti, e quella e' la notizia. */
+.us-allarme{padding:8px 12px;border-radius:8px;margin:0 0 6px;font-size:13px;
+  background:rgba(201,162,77,.14);border:1px solid rgba(201,162,77,.45)}
+.us-allarme-grave{background:rgba(198,102,102,.14);border-color:rgba(198,102,102,.5)}
+.us-cap{width:66px;padding:3px 6px;border-radius:6px;font-size:12px;
+  border:1px solid var(--line,#e7e0cf);background:transparent;color:inherit;
+  font-variant-numeric:tabular-nums}
+.us-cap-ok{border-color:#6c6}
+.us-cap-ko{border-color:#c66}
+.us-picco{color:#8b8272}

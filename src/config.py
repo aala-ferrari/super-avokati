@@ -463,3 +463,20 @@ def court_by_code(code: str) -> Court | None:
         if c.code == code:
             return c
     return None
+
+# ── Guardia sul contesto ───────────────────────────────────────────────
+# Misurato sulle 874 sessioni vere: il picco reale e' 583.773 token, e 128
+# chiamate hanno superato i 150k. Il consumo grosso NON viene dalle domande
+# degli avvocati ma dai sotto-agenti di verifica web, che dentro una sola
+# chiamata aprono pagine e accumulano.
+#
+# La soglia non blocca: segna nel registro quando una chiamata si avvicina
+# al tetto, perche' se lo sfonda il CLI compatta o tronca a meta' di
+# un'analisi legale — e la risposta arriva lo stesso, costruita su un
+# contesto riassunto, senza che l'avvocato lo sappia.
+CONTEXT_ALERT_TOKENS = int(os.environ.get("CONTEXT_ALERT_TOKENS", "400000"))
+
+# Valvola SPENTA per scelta. `--max-budget-usd` ferma la chiamata quando
+# supera una cifra: fermare un'analisi a meta' per risparmiare centesimi, su
+# una causa vera, e' un cattivo affare. Vuoto = disattivata.
+TETRAMORPH_MAX_BUDGET_USD = (os.environ.get("TETRAMORPH_MAX_BUDGET_USD") or "").strip()

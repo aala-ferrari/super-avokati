@@ -5920,6 +5920,13 @@
   // ── i18n (Fase C) — Italian UI for IT sessions ────────────────────────────
   var UI_LANG = (document.body && document.body.dataset ? document.body.dataset.lang : "") || "sq";
   var I18N_IT = {
+    us_th_cap: "Tetto",
+    us_th_calls: "Chiamate",
+    us_th_ctx: "Contesto",
+    us_th_out: "Uscita",
+    us_th_weight: "Peso",
+    us_th_share: "Quota",
+    us_th_active: "Attivo",
     nu_pass2: "ripeti la password",
     nu_eye: "Mostra/nascondi la password",
     nu_moduli: "Moduli pagati",
@@ -6026,6 +6033,19 @@
     ["Avokat", "Avvocato"], ["Prokuror", "Procuratore"], ["Noter", "Notaio"]
   ];
   var T_IT = {
+    "kulmi": "picco",
+    "Konteksti më i madh i një thirrjeje të vetme. Afër tavanit, analiza mund të shkurtohet pa u vënë re.": "Il contesto più grande di una singola chiamata. Vicino al tetto, l'analisi può essere accorciata senza che si veda.",
+    "Tavan javor në peshë ($). Bosh = pa mbikëqyrje.": "Tetto settimanale in peso ($). Vuoto = non sorvegliato.",
+    "është në": "è al",
+    "të tavanit javor": "del tetto settimanale",
+    "Limitet janë të përbashkëta: rrezikohen të gjithë.": "I limiti sono condivisi: sono a rischio tutti.",
+    "thirrje": "chiamate",
+    "kontekst": "contesto",
+    "dalje": "uscita",
+    "peshë": "peso",
+    "të matura": "misurate",
+    "Disa thirrje janë para matjes": "Alcune chiamate sono precedenti alla misurazione",
+    "Me abonim nuk paguan për thirrje: «Pesha» është vlera e barasvlefshme që llogarit ofruesi, e dobishme vetëm për të krahasuar studiot mes tyre. Limitet janë të përbashkëta: kur një studio i mbush, ndalen të gjitha.": "Con l'abbonamento non paghi a chiamata: «Peso» è il valore equivalente calcolato dal fornitore, utile solo per confrontare gli studi fra loro. I limiti sono condivisi: quando uno studio li satura, si fermano tutti.",
     "Fjalëkalimet nuk përputhen.": "Le password non coincidono.",
     "Zgjidh të paktën një modul.": "Scegli almeno un modulo.",
     "Plotëso username dhe fjalëkalim (min 6 karaktere).": "Compila nome utente e password (min 6 caratteri).",
@@ -11789,6 +11809,25 @@ function moduleChips(u) {
     if (!cents) return "$0.00";
     return "$" + (cents / 100).toFixed(2);
   }
+  // ⚠️ PESO, non costo. Con l'abbonamento non si paga a chiamata: questo
+  // numero (calcolato dal fornitore) serve a confrontare gli studi fra loro.
+  // In micro-dollari perche' le singole chiamate valgono centesimi.
+  function fmtPeso(micro) {
+    if (!micro) return "—";                 // «—» e non «0»: vedi sotto
+    var usd = micro / 1e6;
+    if (usd < 0.01) return "<$0.01";
+    return "$" + usd.toFixed(2);
+  }
+  // La quota come barra: con piu' studi sullo stesso piano la domanda non e'
+  // «quanto ha speso» ma «quanto ne ha preso», e una barra si legge senza
+  // fare conti.
+  function fmtQuota(pct) {
+    if (!pct) return '<span style="color:#888;">—</span>';
+    var largh = Math.max(3, Math.min(100, pct));
+    return '<span class="us-quota"><span class="us-quota-bar" style="width:' +
+      largh + '%"></span><span class="us-quota-txt">' + pct.toFixed(1) +
+      '%</span></span>';
+  }
   function fmtRelative(iso) {
     if (!iso) return "—";
     const then = new Date(iso).getTime();
@@ -11802,23 +11841,36 @@ function moduleChips(u) {
   async function loadUsageDashboard() {
     if (!IS_ADMIN || !usageBody) return;
     const period = usagePeriodSel?.value || "month";
-    usageBody.innerHTML = '<tr><td colspan="6" class="studio-empty">Duke ngarkuar…</td></tr>';
+    usageBody.innerHTML = '<tr><td colspan="8" class="studio-empty">Duke ngarkuar…</td></tr>';
     try {
       const r = await fetch(`/api/admin/usage?period=${period}`);
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const data = await r.json();
       const t = data.totals;
+      // Quante chiamate hanno davvero una misura: le vecchie non ce l'hanno
+      // e dirlo apertamente evita di leggere un totale come se fosse completo.
+      var _mis = t.misurate || 0, _tot = t.calls || 0;
+      var _parziale = _mis < _tot
+        ? ' <span class="us-nota">(' + TT("të matura") + ": " + fmtNum(_mis) +
+          "/" + fmtNum(_tot) + ')</span>'
+        : "";
       usageSummary.innerHTML = `
         <span>🟢 <strong>${data.online_count}</strong> online</span>
-        <span>📞 <strong>${fmtNum(t.calls)}</strong> thirrje</span>
-        <span>↗ <strong>${fmtNum(t.tokens_in)}</strong> in</span>
-        <span>↘ <strong>${fmtNum(t.tokens_out)}</strong> out</span>
-        <span>💰 <strong>${fmtCost(t.cost_cents)}</strong> ~ kosto API</span>
+        <span>📞 <strong>${fmtNum(t.calls)}</strong> ${TT("thirrje")}</span>
+        <span>🧠 <strong>${fmtNum(t.ctx_tokens)}</strong> ${TT("kontekst")}</span>
+        <span>↘ <strong>${fmtNum(t.tokens_out)}</strong> ${TT("dalje")}</span>
+        <span>⚖️ <strong>${fmtPeso(t.cost_micro)}</strong> ${TT("peshë")}${_parziale}</span>
+        ${t.ctx_picco ? `<span class="us-picco" title="${TT(
+          "Konteksti më i madh i një thirrjeje të vetme. Afër tavanit, analiza "
+          + "mund të shkurtohet pa u vënë re.")}">📈 <strong>${fmtNum(t.ctx_picco)}</strong> ${
+          TT("kulmi")}</span>` : ""}
       `;
       if (!data.users.length) {
-        usageBody.innerHTML = '<tr><td colspan="6" class="studio-empty">Asnjë e dhënë.</td></tr>';
+        usageBody.innerHTML = '<tr><td colspan="8" class="studio-empty">Asnjë e dhënë.</td></tr>';
         return;
       }
+      _notaPeso();
+      _mostraAllarmi(data.allarmi || []);
       usageBody.innerHTML = data.users.map((u) => `
         <tr>
           <td>
@@ -11826,17 +11878,80 @@ function moduleChips(u) {
             <strong>${escHtml(u.username)}</strong>
             ${u.is_admin ? ' 👑' : ''}
           </td>
-          <td>${fmtNum(u.calls)}</td>
-          <td>${fmtNum(u.tokens_in)}</td>
-          <td>${fmtNum(u.tokens_out)}</td>
-          <td>${fmtCost(u.cost_cents)}</td>
+          <td>${fmtNum(u.calls)}${u.calls && !u.tutte_misurate
+                ? '<span class="us-nota" title="' + TT("Disa thirrje janë para matjes") + '"> *</span>'
+                : ''}</td>
+          <td>${u.ctx_tokens ? fmtNum(u.ctx_tokens) : '<span style="color:#888;">—</span>'}</td>
+          <td>${u.tokens_out ? fmtNum(u.tokens_out) : '<span style="color:#888;">—</span>'}</td>
+          <td>${fmtPeso(u.cost_micro)}</td>
+          <td>${fmtQuota(u.quota_pct)}</td>
+          <td><input class="us-cap" type="number" min="0" step="0.5"
+                     data-uid="${u.user_id}" placeholder="—"
+                     title="${TT("Tavan javor në peshë ($). Bosh = pa mbikëqyrje.")}"
+                     value="${u.cap_micro ? (u.cap_micro / 1e6) : ""}" /></td>
           <td style="color:#888; font-size:12px;">${fmtRelative(u.last_active)}</td>
         </tr>
       `).join("");
     } catch (e) {
-      usageBody.innerHTML = `<tr><td colspan="6" class="studio-empty">Gabim: ${escHtml(e.message)}</td></tr>`;
+      usageBody.innerHTML = `<tr><td colspan="8" class="studio-empty">Gabim: ${escHtml(e.message)}</td></tr>`;
     }
   }
+  // ⚠️ La nota non e' decorativa: senza, «⚖️ $12,40» si legge come una
+  // bolletta. Con l'abbonamento quel denaro non lo paghi — e' il metro per
+  // capire QUALE studio consuma il piano condiviso.
+  function _notaPeso() {
+    var el = document.getElementById("usage-nota");
+    if (!el) return;
+    el.textContent = TT(
+      "Me abonim nuk paguan për thirrje: «Pesha» është vlera e barasvlefshme " +
+      "që llogarit ofruesi, e dobishme vetëm për të krahasuar studiot mes tyre. " +
+      "Limitet janë të përbashkëta: kur një studio i mbush, ndalen të gjitha.");
+  }
+  // La fascia sta SOPRA la tabella, non dentro una riga: la notizia non e'
+  // «questa riga ha un numero alto», e' «l'abbonamento di tutti e' a rischio».
+  function _mostraAllarmi(lista) {
+    var box = document.getElementById("usage-allarmi");
+    if (!box) return;
+    if (!lista.length) { box.innerHTML = ""; box.style.display = "none"; return; }
+    box.style.display = "";
+    box.innerHTML = lista.map(function (a) {
+      var grave = a.superato;
+      return '<div class="us-allarme' + (grave ? " us-allarme-grave" : "") + '">' +
+        (grave ? "⛔ " : "⚠️ ") + "<strong>" + escHtml(a.username) + "</strong> " +
+        TT("është në") + " <strong>" + a.pct.toFixed(0) + "%</strong> " +
+        TT("të tavanit javor") + " (" + fmtPeso(a.speso_micro) + " / " +
+        fmtPeso(a.cap_micro) + ")." +
+        (grave ? " " + TT("Limitet janë të përbashkëta: rrezikohen të gjithë.") : "") +
+        "</div>";
+    }).join("");
+  }
+
+  // Il tetto si salva uscendo dal campo: nessun bottone da ricordarsi.
+  document.addEventListener("change", async function (e) {
+    var inp = e.target && e.target.classList
+      && e.target.classList.contains("us-cap") ? e.target : null;
+    if (!inp) return;
+    var uid = inp.getAttribute("data-uid");
+    var v = inp.value.trim();
+    inp.disabled = true;
+    try {
+      var r = await fetch("/api/admin/users/" + uid + "/cap", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cap_usd: v === "" ? 0 : parseFloat(v) }),
+      });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      inp.classList.add("us-cap-ok");
+      setTimeout(function () { inp.classList.remove("us-cap-ok"); }, 1200);
+      loadUsageDashboard();          // la fascia si ricalcola col tetto nuovo
+    } catch (err) {
+      inp.classList.add("us-cap-ko");
+      setTimeout(function () { inp.classList.remove("us-cap-ko"); }, 2000);
+    } finally {
+      inp.disabled = false;
+    }
+  });
+
   usagePeriodSel?.addEventListener("change", loadUsageDashboard);
 
   // hook a openStudioModal — ricarica utenti + usage ogni volta che apre Studio

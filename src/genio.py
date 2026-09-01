@@ -579,7 +579,21 @@ def _run_brief(*, backend, case_block: str, voice_samples_block: str,
     by_key: dict[str, dict] = {}
     # use a queue to avoid blocking on as_completed (executor + iter)
     q: Queue = Queue()
+    # Chi ha chiesto, catturato prima di lanciare le menti: ognuna gira in
+    # un thread suo e senza questo il lavoro piu' pesante del prodotto
+    # resterebbe senza padrone nel registro dei consumi.
+    try:
+        from .brain import request_user_id as _chi, set_request_user as _arma
+        _utente_genio = _chi()
+    except Exception:  # noqa: BLE001
+        _utente_genio, _arma = None, None
+
     def _runner(p: Perspective):
+        if _arma:
+            try:
+                _arma(_utente_genio)
+            except Exception:  # noqa: BLE001
+                pass
         res = run_perspective(p, backend=backend,
                               case_block=case_block,
                               voice_samples_block=voice_samples_block,

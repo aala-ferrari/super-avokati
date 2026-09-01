@@ -1012,11 +1012,30 @@ def init_db(db_path: Path = APP_DB_PATH) -> None:
         _add_column_if_missing(conn, "messages", "contradictions_json", "TEXT")
         _add_column_if_missing(conn, "messages", "opponent_playbook_json", "TEXT")
         _add_column_if_missing(conn, "messages", "leverage_json", "TEXT")
+        # ── Consumo reale di ogni chiamata al cervello ────────────────
+        # Il CLI ce li restituisce da sempre e li scartavamo (1.281 chiamate
+        # perse). Servono a sapere QUALE studio consuma l'abbonamento: con
+        # piu' studi sullo stesso piano, i limiti sono condivisi e quando uno
+        # li satura si fermano tutti.
+        _add_column_if_missing(conn, "ai_audit_log", "cache_read_tokens", "INTEGER")
+        _add_column_if_missing(conn, "ai_audit_log", "cache_write_tokens", "INTEGER")
+        # Il costo che calcola IL FORNITORE (total_cost_usd), non il nostro:
+        # il nostro prezza tutto a tariffa piena e ignora la cache, che qui e'
+        # quasi tutto il volume. In micro-dollari INTERI: si sommano per
+        # settimane e i float accumulerebbero errore.
+        _add_column_if_missing(conn, "ai_audit_log", "cost_micro_usd", "INTEGER")
+        # Contesto totale della chiamata: serve a vedere quanto ci si avvicina
+        # al tetto oltre il quale l'analisi verrebbe compattata o troncata.
+        _add_column_if_missing(conn, "ai_audit_log", "context_tokens", "INTEGER")
         _add_column_if_missing(conn, "cases", "answer_system_version", "TEXT")
         _add_column_if_missing(conn, "case_research", "client_name", "TEXT")
         # V7.10 calendar — users need a Telegram chat_id for push reminders
         # and a random token so they can subscribe their Apple/Google
         # Calendar to their feed without logging into the app.
+        # Tetto settimanale di consumo per studio, in micro-dollari di
+        # «peso». NULL = non sorvegliato (il valore di partenza per tutti):
+        # uno 0 vorrebbe dire «qualunque uso e' troppo».
+        _add_column_if_missing(conn, "users", "weekly_cap_micro", "INTEGER")
         _add_column_if_missing(conn, "users", "telegram_chat_id", "TEXT")
         _add_column_if_missing(conn, "users", "ical_token", "TEXT")
         _add_column_if_missing(conn, "users", "whatsapp_phone", "TEXT")
@@ -1113,15 +1132,26 @@ def usage_stats_by_user(since_iso: str | None = None) -> list[dict]:
                 u.username        AS username,
                 u.is_admin        AS is_admin,
                 u.last_active     AS last_active,
+                u.weekly_cap_micro AS cap_micro,
                 COUNT(al.id)      AS calls,
                 COALESCE(SUM(al.input_tokens), 0)  AS tokens_in,
                 COALESCE(SUM(al.output_tokens), 0) AS tokens_out,
+                -- Il contesto e' il volume VERO: in questo prodotto il grosso
+                -- e' cache riletta, che non compariva in nessuna colonna.
+                COALESCE(SUM(al.context_tokens), 0) AS ctx_tokens,
+                COALESCE(SUM(al.cache_read_tokens), 0)  AS cache_read,
+                COALESCE(SUM(al.cache_write_tokens), 0) AS cache_write,
+                -- il costo che calcola il fornitore, in micro-dollari interi
+                COALESCE(SUM(al.cost_micro_usd), 0) AS cost_micro,
+                COUNT(al.cost_micro_usd) AS calls_misurate,
+                MAX(al.context_tokens) AS ctx_picco,
                 al.model          AS sample_model
             FROM users u
             LEFT JOIN ai_audit_log al ON al.user_id = u.id
               {('AND al.timestamp >= ?' if since_iso else '')}
             GROUP BY u.id
-            ORDER BY (COALESCE(SUM(al.input_tokens), 0) + COALESCE(SUM(al.output_tokens), 0)) DESC,
+            ORDER BY COALESCE(SUM(al.cost_micro_usd), 0) DESC,
+                     COALESCE(SUM(al.context_tokens), 0) DESC,
                      u.username ASC
             """,
             params if since_iso else (),
@@ -1131,19 +1161,82 @@ def usage_stats_by_user(since_iso: str | None = None) -> list[dict]:
         # Cost: sum per-call cost (model matters) — re-query the breakdown.
         tokens_in = int(r["tokens_in"] or 0)
         tokens_out = int(r["tokens_out"] or 0)
-        # Approximation: use the most-used model for this user as the rate basis.
-        cost = estimate_cost_cents(r["sample_model"] or "", tokens_in, tokens_out)
+        micro = int(r["cost_micro"] or 0)
+        misurate = int(r["calls_misurate"] or 0)
+        chiamate = int(r["calls"] or 0)
         out.append({
             "user_id": r["user_id"],
             "username": r["username"],
             "is_admin": bool(r["is_admin"]),
             "last_active": r["last_active"],
-            "calls": int(r["calls"] or 0),
+            "calls": chiamate,
             "tokens_in": tokens_in,
             "tokens_out": tokens_out,
-            "cost_cents": cost,
+            "ctx_tokens": int(r["ctx_tokens"] or 0),
+            "cache_read": int(r["cache_read"] or 0),
+            "cache_write": int(r["cache_write"] or 0),
+            "ctx_picco": int(r["ctx_picco"] or 0),
+            # micro-dollari: il peso proporzionale del consumo
+            "cost_micro": micro,
+            "cost_cents": micro // 10_000,
+            # ⚠️ Quante di quelle chiamate hanno davvero una misura. Le vecchie
+            # non ce l'hanno e NON vanno mostrate come zero: uno zero si legge
+            # «non ha consumato», che e' falso.
+            "misurate": misurate,
+            "tutte_misurate": misurate >= chiamate,
+            "cap_micro": int(r["cap_micro"]) if r["cap_micro"] else None,
         })
     return out
+
+
+def imposta_tetto_settimanale(user_id: int, micro: int | None) -> None:
+    """Il tetto di consumo settimanale di uno studio. `None` = non sorvegliato."""
+    with db() as conn:
+        conn.execute(
+            "UPDATE users SET weekly_cap_micro = ? WHERE id = ?",
+            (int(micro) if micro else None, user_id),
+        )
+
+
+def studi_oltre_soglia(frazione: float = 0.8) -> list[dict]:
+    """Studi che nell'ultima settimana hanno superato `frazione` del loro tetto.
+
+    Una settimana MOBILE (ultimi 7 giorni), non la settimana di calendario:
+    i limiti dell'abbonamento si consumano cosi', e un lunedi' non azzera
+    niente. Guardarla per settimane solari mostrerebbe un consumo che scende
+    ogni lunedi' senza che sia successo nulla.
+    """
+    da = (datetime.now(UTC) - timedelta(days=7)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    with db() as conn:
+        rows = conn.execute(
+            """
+            SELECT u.id, u.username, u.weekly_cap_micro AS cap,
+                   COALESCE(SUM(a.cost_micro_usd), 0) AS speso,
+                   COUNT(a.id) AS chiamate
+            FROM users u
+            LEFT JOIN ai_audit_log a
+              ON a.user_id = u.id AND a.timestamp >= ?
+            WHERE u.weekly_cap_micro IS NOT NULL AND u.weekly_cap_micro > 0
+            GROUP BY u.id
+            """,
+            (da,),
+        ).fetchall()
+    fuori: list[dict] = []
+    for r in rows:
+        cap = int(r["cap"] or 0)
+        speso = int(r["speso"] or 0)
+        if cap and speso >= cap * frazione:
+            fuori.append({
+                "user_id": r["id"],
+                "username": r["username"],
+                "cap_micro": cap,
+                "speso_micro": speso,
+                "chiamate": int(r["chiamate"] or 0),
+                "pct": round(100.0 * speso / cap, 1),
+                "superato": speso >= cap,
+            })
+    fuori.sort(key=lambda x: -x["pct"])
+    return fuori
 
 
 def usage_totals(since_iso: str | None = None) -> dict:
@@ -1160,6 +1253,10 @@ def usage_totals(since_iso: str | None = None) -> dict:
                 COUNT(*)                              AS calls,
                 COALESCE(SUM(input_tokens), 0)        AS tokens_in,
                 COALESCE(SUM(output_tokens), 0)       AS tokens_out,
+                COALESCE(SUM(context_tokens), 0)      AS ctx_tokens,
+                COALESCE(SUM(cost_micro_usd), 0)      AS cost_micro,
+                COUNT(cost_micro_usd)                 AS calls_misurate,
+                MAX(context_tokens)                   AS ctx_picco,
                 COUNT(DISTINCT user_id)               AS active_users
             FROM ai_audit_log {where}
             """,
@@ -1171,9 +1268,16 @@ def usage_totals(since_iso: str | None = None) -> dict:
         "calls": int(row["calls"] or 0),
         "tokens_in": tokens_in,
         "tokens_out": tokens_out,
+        "ctx_tokens": int(row["ctx_tokens"] or 0),
+        "ctx_picco": int(row["ctx_picco"] or 0),
         "active_users": int(row["active_users"] or 0),
-        # All-opus assumption for the grand total — safe overestimate.
-        "cost_cents": estimate_cost_cents("opus", tokens_in, tokens_out),
+        # ⚠️ Il costo NON si stima piu': lo somma dal dato che il fornitore
+        # ci ha dato per ogni chiamata. La vecchia stima prezzava tutto a
+        # tariffa piena ignorando la cache — che qui e' quasi tutto il
+        # volume — e sbagliava di parecchie volte.
+        "cost_micro": int(row["cost_micro"] or 0),
+        "cost_cents": int(row["cost_micro"] or 0) // 10_000,
+        "misurate": int(row["calls_misurate"] or 0),
     }
 
 
@@ -5187,6 +5291,10 @@ def audit_log_call(
     latency_ms: int | None = None,
     input_tokens: int | None = None,
     output_tokens: int | None = None,
+    cache_read_tokens: int | None = None,
+    cache_write_tokens: int | None = None,
+    cost_micro_usd: int | None = None,
+    context_tokens: int | None = None,
     outcome: str = "success",
     error_class: str | None = None,
     extra: dict | None = None,
@@ -5199,6 +5307,40 @@ def audit_log_call(
     user-facing latency.
     """
     extra_json = json.dumps(extra, ensure_ascii=False) if extra else None
+    # ⚠️ Se `user_id` punta a un utente che non esiste piu' (cancellato mentre
+    # un lavoro lungo girava in sottofondo), il vincolo di chiave esterna fa
+    # fallire l'INSERT e la riga si perde TUTTA. Questo registro e' un obbligo
+    # (AI Act art. 12): sapere CHE una decisione automatica e' avvenuta conta
+    # piu' che sapere di chi era. Meglio una riga senza utente che nessuna riga.
+    for _tentativo in (user_id, None):
+        try:
+            return _scrivi_audit(
+                user_id=_tentativo, case_id=case_id, callsite=callsite,
+                backend=backend, model=model, tier=tier,
+                prompt_hash=prompt_hash, response_hash=response_hash,
+                prompt_raw=prompt_raw, response_raw=response_raw,
+                latency_ms=latency_ms, input_tokens=input_tokens,
+                output_tokens=output_tokens, cache_read_tokens=cache_read_tokens,
+                cache_write_tokens=cache_write_tokens,
+                cost_micro_usd=cost_micro_usd, context_tokens=context_tokens,
+                outcome=outcome, error_class=error_class, extra_json=extra_json,
+            )
+        except sqlite3.IntegrityError:
+            if _tentativo is None:
+                raise
+            log.warning(
+                "audit: utente %s non esiste piu' — riga salvata senza utente "
+                "(callsite=%s)", user_id, callsite,
+            )
+    return 0
+
+
+def _scrivi_audit(
+    *, user_id, case_id, callsite, backend, model, tier, prompt_hash,
+    response_hash, prompt_raw, response_raw, latency_ms, input_tokens,
+    output_tokens, cache_read_tokens, cache_write_tokens, cost_micro_usd,
+    context_tokens, outcome, error_class, extra_json,
+) -> int:
     with db() as conn:
         cur = conn.execute(
             """
@@ -5206,8 +5348,10 @@ def audit_log_call(
                 timestamp, user_id, case_id, callsite, backend, model, tier,
                 prompt_hash, response_hash, prompt_raw, response_raw,
                 latency_ms, input_tokens, output_tokens,
+                cache_read_tokens, cache_write_tokens, cost_micro_usd,
+                context_tokens,
                 outcome, error_class, extra_json
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 _utcnow(),
@@ -5224,6 +5368,10 @@ def audit_log_call(
                 latency_ms,
                 input_tokens,
                 output_tokens,
+                cache_read_tokens,
+                cache_write_tokens,
+                cost_micro_usd,
+                context_tokens,
                 outcome,
                 error_class,
                 extra_json,
