@@ -37,6 +37,7 @@ import hashlib
 import threading as _threading
 import json
 import re
+import os
 import textwrap
 import time
 from collections import Counter
@@ -1711,6 +1712,184 @@ class NullityRadar:
         return [f for f in self.findings if f.citizen_applicable == "po"]
 
 
+# L'ordine e' quello che il cervello riceve nel prompt (vedi ANSWER_SYSTEM:
+# «sot → kjo_javë → ky_muaj → më_vonë»). Preso da li' invece di inventarlo,
+# cosi' resta uno solo anche se un giorno cambia.
+_ORDINE_BUCKET = {"sot": 0, "kjo_javë": 1, "ky_muaj": 2, "më_vonë": 3}
+_ETICHETTA_BUCKET = {
+    "sot": "SOT",
+    "kjo_javë": "KËTË JAVË",
+    "ky_muaj": "KËTË MUAJ",
+    "më_vonë": "MË VONË",
+}
+
+
+# Quanto materiale si puo' dare da leggere in una sola composizione.
+# Oltre questo la chiamata sbatte contro il tetto dei 1800s: e' cosi' che e'
+# fallita la domanda sull'omicidio del 1 settembre (736.000 token, due
+# tentativi, due ore e sette minuti per un messaggio d'errore).
+ALLEGATI_MAX_FILE = int(os.environ.get("ALLEGATI_MAX_FILE", "6"))
+ALLEGATI_MAX_MB = float(os.environ.get("ALLEGATI_MAX_MB", "12"))
+
+
+def _allegati_per_cervello(documents):
+    """Quali file dare da leggere, e quali solo raccontare.
+
+    Ritorna `(da_leggere, solo_riassunto)`.
+
+    ⚠️ Chi resta fuori NON sparisce: entra nel prompt col riassunto e i
+    fatti chiave, e il cervello viene avvisato. Un'esclusione silenziosa
+    costruirebbe una risposta su un fascicolo monco senza dirlo — che e'
+    peggio della lentezza che stiamo curando.
+    """
+    from .config import AUDIO_EXTENSIONS, VIDEO_EXTENSIONS
+
+    da_leggere, fuori, visti = [], [], set()
+    peso = 0.0
+    for d in (documents or []):
+        percorso = d.get("storage_path")
+        if not percorso:
+            fuori.append(d)
+            continue
+        p = Path(percorso)
+        if not p.exists():
+            fuori.append(d)
+            continue
+        # ⚠️ COL punto: in config.py le estensioni sono scritte `.mp4`,
+        # `.m4a`. Togliendolo il confronto falliva sempre — e nella prova il
+        # video usciva lo stesso, ma per la ragione sbagliata (superava il
+        # tetto di dimensione), mentre un audio da 8 MB passava dritto.
+        est = p.suffix.lower()
+
+        # 1. Video e audio: il cervello non li puo' guardare ne' ascoltare.
+        # Cio' che se ne sa e' gia' nel referto scritto da video.py/audio.py,
+        # che vive nel riassunto. Il file originale sarebbe peso puro.
+        if est in VIDEO_EXTENSIONS or est in AUDIO_EXTENSIONS:
+            fuori.append(d)
+            continue
+
+        try:
+            dimensione = p.stat().st_size
+        except OSError:
+            fuori.append(d)
+            continue
+
+        # 2. Doppioni, per CONTENUTO e non per nome: i due .docx identici del
+        # fascicolo vero hanno nomi di archiviazione diversi. L'impronta
+        # SHA-256 esiste gia' in forensics.py — la riuso invece di
+        # scriverne un'altra.
+        try:
+            from .forensics import impronta as _impronta
+            firma = _impronta(p)[0]
+        except Exception:  # noqa: BLE001 — un doppione non trovato non e' grave
+            firma = "%s:%s" % (dimensione, p.name.lower())
+        if firma in visti:
+            fuori.append(d)
+            continue
+
+        # 3. Il tetto: quando e' pieno, il resto si racconta.
+        mb = dimensione / (1024 * 1024)
+        if len(da_leggere) >= ALLEGATI_MAX_FILE or peso + mb > ALLEGATI_MAX_MB:
+            fuori.append(d)
+            continue
+
+        visti.add(firma)
+        peso += mb
+        da_leggere.append(d)
+    return da_leggere, fuori
+
+
+def _risposta_dalle_fasi(triage, *, strategic=None, timeline=None,
+                         comparison=None, premortem=None, distinguishing=None,
+                         evidence_map=None, nullity_radar=None,
+                         urgency_radar=None, action_plan=None,
+                         contradictions=None, opponent_playbook=None,
+                         leverage=None) -> str:
+    """Il referto costruito dalle fasi, SENZA chiamare il cervello.
+
+    Ultimo gradino quando la composizione non ce la fa. Non chiama nulla,
+    quindi non puo' scadere: e' solo cucitura di cose gia' calcolate.
+
+    ⚠️ Dice sempre in testa cosa manca. Una risposta piu' povera che si
+    spaccia per completa e' peggio di un errore, perche' l'avvocato ci
+    costruisce sopra senza sapere che la sintesi finale non c'e'.
+    """
+    p: list[str] = [
+        "> ⚠️ **Sinteza përfundimuese nuk u prodhua dot** (analiza zgjati "
+        "përtej kufirit teknik). Më poshtë janë **rezultatet e plota të "
+        "fazave**, që u kryen me sukses. Pyet sërish për një sintezë të "
+        "shkruar.",
+        "",
+    ]
+
+    if urgency_radar is not None and not urgency_radar.is_empty():
+        p.append("## ⏰ Afate dhe rreziqe të ngutshme")
+        for sig in urgency_radar.signals[:8]:
+            riga = "- **%s**" % (sig.label or sig.kind)
+            if sig.deadline:
+                riga += " — afat: **%s**" % sig.deadline
+            p.append(riga)
+            if sig.reason:
+                p.append("  - *Pse:* %s" % sig.reason)
+            if sig.action:
+                p.append("  - *Veprim:* %s" % sig.action)
+        p.append("")
+
+    if action_plan is not None and not action_plan.is_empty():
+        p.append("## ✅ Plani i veprimit")
+        # ⚠️ Ordine cronologico, non alfabetico: «kjo_javë» viene prima di
+        # «sot» in alfabeto, e il piano usciva col rovescio. Su un piano
+        # d'azione legale l'ordine E' l'informazione — la prima riga e'
+        # quella che l'avvocato fa appena chiude lo schermo.
+        _ordinati = sorted(
+            action_plan.items,
+            key=lambda i: (_ORDINE_BUCKET.get(i.bucket, 9), i.priority),
+        )
+        _bucket = None
+        for it in _ordinati[:20]:
+            if it.bucket != _bucket:
+                _bucket = it.bucket
+                p.append("**%s**" % _ETICHETTA_BUCKET.get(_bucket, str(_bucket)))
+            riga = "- %s" % it.text
+            if it.legal_basis:
+                riga += "  *(%s)*" % it.legal_basis
+            p.append(riga)
+            if it.reason:
+                p.append("  - *%s*" % it.reason)
+        p.append("")
+
+    if nullity_radar is not None and not nullity_radar.is_empty():
+        _app = nullity_radar.applicable() or nullity_radar.findings
+        if _app:
+            p.append("## ⚖️ Pavlefshmëri të mundshme")
+            for f in _app[:8]:
+                p.append("- **%s**" % getattr(f, "label", getattr(f, "title", "—")))
+                _b = getattr(f, "legal_basis", "") or getattr(f, "basis", "")
+                if _b:
+                    p.append("  - *Baza:* %s" % _b)
+            p.append("")
+
+    if strategic is not None and not strategic.is_empty():
+        p.append("## 🎯 Pika strategjike")
+        for ins in strategic.critical_details[:8]:
+            p.append("- **%s** — %s" % (ins.title, ins.detail))
+        for w in strategic.risk_warnings[:6]:
+            p.append("- ⚠️ %s" % w)
+        p.append("")
+
+    if contradictions is not None and not getattr(contradictions, "is_empty", lambda: True)():
+        p.append("## 🔍 Kundërthënie në dosje")
+        for c in getattr(contradictions, "items", [])[:8]:
+            p.append("- %s" % (getattr(c, "description", None)
+                               or getattr(c, "text", "") or str(c))[:300])
+        p.append("")
+
+    if len(p) <= 2:
+        p.append("*Asnjë fazë nuk ktheu rezultate të përdorshme. "
+                 "Provo ta bësh pyetjen sërish.*")
+    return "\n".join(p)
+
+
 @dataclass
 class LegalAnswer:
     kind: Literal["answer", "followup"]
@@ -2150,12 +2329,52 @@ class SuperAvvocato:
                     if isinstance(payload, dict):
                         new_sid = payload.get("session_id") or new_sid
         except Exception as exc:
-            log.error("stream compose failed, falling back to blocking: %s", exc)
-            # Fall back to full blocking answer() so the citizen still gets
-            # a response even if the stream broke mid-pipeline.
-            result = self.answer(user_message, history=history,
-                                 session_id=session_id, documents=documents)
-            yield ("final", result)
+            # ⚠️ NON si ricomincia da capo.
+            #
+            # Qui c'era `self.answer(...)`, cioe' l'intera pipeline daccapo —
+            # triage e quattordici fasi. Misurato il 1 settembre: la
+            # composizione scade a 1800s, si rifa' tutto per mezz'ora e si
+            # sbatte contro lo STESSO tetto fisso. Due ore e sette minuti per
+            # consegnare «Tetramorph timed out after 1800s», con quattordici
+            # analisi riuscite buttate via due volte.
+            #
+            # Le fasi sono gia' qui, in queste variabili. Si riprova solo la
+            # composizione, e senza gli allegati: sono loro il peso che l'ha
+            # fatta scadere (736.000 token su quel fascicolo), e le fasi
+            # hanno gia' digerito i documenti — la sostanza e' nei risultati.
+            log.error("stream compose failed (%s) — ricompongo dalle fasi "
+                      "gia' fatte, senza allegati", exc)
+            _fasi = dict(
+                strategic=strategic, timeline=timeline, comparison=comparison,
+                premortem=premortem, distinguishing=distinguishing,
+                evidence_map=evidence_map, nullity_radar=nullity_radar,
+                urgency_radar=urgency_radar, action_plan=action_plan,
+                contradictions=contradictions,
+                opponent_playbook=opponent_playbook, leverage=leverage,
+            )
+            testo = ""
+            try:
+                testo = self._compose_answer(
+                    user_message, history, triage, retrieved, precedents,
+                    session_id=session_id, documents=None, **_fasi,
+                )
+            except Exception as exc2:  # noqa: BLE001
+                log.error("anche la ricomposizione e' fallita (%s) — "
+                          "consegno le fasi", exc2)
+            if not (testo or "").strip():
+                # Ultimo gradino: nessuna chiamata al cervello, quindi non
+                # puo' scadere. Meglio dodici analisi grezze di un errore.
+                testo = _risposta_dalle_fasi(triage, **_fasi)
+            else:
+                testo = _apply_corrections(_verify_citations(testo, precedents))
+            yield ("final", LegalAnswer(
+                kind="answer", text=testo, triage=triage,
+                retrieved=retrieved, precedents=precedents,
+                adverse_precedents=adverse_precedents,
+                missing_facts=missing_facts,
+                session_id=getattr(self.backend, "last_session_id", None) or session_id,
+                **_fasi,
+            ))
             return
 
         answer_text = "".join(collected)
@@ -4153,18 +4372,30 @@ class SuperAvvocato:
         contradictions_block = _format_contradictions_block(contradictions)
         opponent_block = _format_opponent_block(opponent_playbook)
         leverage_block = _format_leverage_block(leverage)
-        attachment_paths = [
-            Path(d["storage_path"]) for d in (documents or [])
-            if d.get("storage_path")
-            and Path(d["storage_path"]).exists()
-        ]
+        # ⚠️ NON tutti i file: video/audio (illeggibili per il cervello),
+        # doppioni e quelli oltre il tetto restano fuori — vedi
+        # `_allegati_per_cervello`. Prima passavano tutti, e la composizione
+        # sbatteva contro i 1800 secondi.
+        _da_leggere, _solo_riassunto = _allegati_per_cervello(documents)
+        attachment_paths = [Path(d["storage_path"]) for d in _da_leggere]
         if attachment_paths:
             filenames = "\n".join(
-                f"  • {d.get('filename', '?')}" for d in (documents or [])
+                f"  • {d.get('filename', '?')}" for d in _da_leggere
             )
             dossier_block = (
                 "\nDOKUMENTET E DOSJES (lexoji drejtpërdrejt):\n" + filenames + "\n"
             )
+            # Chi non e' allegato entra col riassunto, e il cervello lo sa:
+            # un fascicolo monco taciuto e' peggio di un fascicolo lento.
+            if _solo_riassunto:
+                dossier_block += (
+                    "\nDOKUMENTE QË NUK JANË BASHKANGJITUR PËR LEXIM "
+                    "(video/audio, dublikata ose vëllim i tepërt) — ke vetëm "
+                    "përmbledhjen e tyre më poshtë. Mos pretendo se i ke "
+                    "lexuar drejtpërdrejt:\n"
+                    + format_documents_for_prompt(_solo_riassunto)
+                    + "\n"
+                )
         else:
             dossier_block = format_documents_for_prompt(documents or [])
         dossier_guidance = (

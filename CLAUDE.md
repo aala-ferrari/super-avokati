@@ -1428,6 +1428,71 @@ prima li ammetteva e li perdeva in silenzio) + PDF via stampa browser + smoke 10
 lavoro del cervello invece di ricominciarlo) + allegati nei 6 strumenti che ne
 erano privi (19/19) + **selezione multipla** in tutti + smoke 103 · **9.163-9.167** HTML non piu in cache (l utente girava con app.js di 3 release prima), caricamento documenti asincrono (160s -> 0,4s) con lingua corretta nel thread · **9.168-9.169 foto iPhone (HEIC)** convertite prima dell'OCR + guardia estensioni estesa a TUTTI i formati.
 
+## Storia versioni (sessione 1-2 set 2026 — consumo, la bugia del Timeout, allegati mirati)
+
+**v9.236-9.237 — chi consuma l'abbonamento condiviso.** Il pannello
+«Përdorimi & faturat» mostrava `$0.00` a tutti e token a zero: non era
+incompleto, era **falso**. Il CLI restituisce `usage` + `total_cost_usd` a
+ogni chiamata in `--output-format json` e leggevamo solo `result` e
+`session_id` — **1.281 chiamate hanno perso la misura**. Ora 4 colonne nuove
+in `ai_audit_log` (`cache_read_tokens`, `cache_write_tokens`,
+`cost_micro_usd`, `context_tokens`).
+⚠️ **Il costo NON si ricalcola**: `estimate_cost_cents` prezza tutto a
+tariffa piena e ignora la cache, che qui è quasi tutto il volume. Si somma
+il `total_cost_usd` del fornitore, in **micro-dollari interi** (i float
+accumulano errore sommando settimane).
+⚠️ **Su abbonamento il denaro non è una fattura, è un metro**: serve solo a
+confrontare gli studi (colonna «Peshë» + **quota %**). Il saldo residuo del
+piano **non è esposto** da nessuna parte.
+**1.237 chiamate su 1.281 erano di nessuno**: il lavoro pesante gira in
+thread separati. Risolto col modello già usato per la giurisdizione
+(`_REQUEST_USER` in `brain.py`, `porta_utente()` sui 4 thread di `web.py`) +
+ripiego in `_audit_safe` — ⚠️ **ripiego, mai sostituzione**: sovrascrivere
+attribuirebbe il lavoro allo studio sbagliato.
+Tetto settimanale per studio (`users.weekly_cap_micro`) + fascia d'allarme +
+**email giornaliera** `/opt/quota-studi.py` (cron 9:15, Resend, avvisa sui
+**cambi di fascia** — settimana **mobile**, non solare).
+⚠️ Un `user_id` di un utente cancellato faceva perdere **tutta** la riga di
+`ai_audit_log` (chiave esterna, errore solo in un warning): ora riscrive
+senza utente — quel registro è un obbligo AI Act art. 12.
+**Auto-compact**: misurato su **874 sessioni vere**, sul VPS **non avviene**
+(`--resume` disabilitato, ogni domanda riparte da capo). Ma i sotto-agenti di
+verifica web arrivano a 583k token: guardia `CONTEXT_ALERT_TOKENS`, valvola
+`--max-budget-usd` presente ma **SPENTA**.
+
+**v9.238 — la chat non dichiara più morto ciò che è vivo.** 14 fasi riuscite,
+il browser scrive «Timeout», il server continua 54 minuti e salva 31.374
+caratteri — trovati solo col **refresh**. Causa: `if quiet > 900: yield done`
+in `follow()`. ⚠️ **`askAttach` era già robusto** (si riattacca fino a 200
+volte): si è fermato solo perché il server ha mentito. *Il pezzo più robusto
+del sistema spento dall'unico che mentiva.* Ora la resa guarda il registro
+dei lavori; **battito ogni minuto** (AL+IT) ⚠️ spinto dal **produttore**
+(`jobs_mod.push`) perché il client conta i fotogrammi per riprendere, tetto
+2h perché `jobs.py` pulisce solo dentro `create()`; `GET /api/ask/alive` +
+rete di sicurezza nel client.
+
+**v9.239-9.240 — la composizione non ricomincia e non ingoia tutto.** Una
+domanda è costata **2h07m** per consegnare `Tetramorph timed out after
+1800s`: il ramo di ripiego chiamava `self.answer(...)`, cioè l'intera
+pipeline da capo, contro lo **stesso tetto fisso**. Ora: si ricompone dalle
+fasi già fatte **senza allegati**; se anche quella scade, `_risposta_dalle_fasi()`
+costruisce il referto **senza chiamare il cervello** (non può scadere) e
+dichiara in testa che la sintesi manca. ⚠️ Il piano d'azione era ordinato
+**alfabeticamente** («kjo_javë» prima di «sot»): ora `_ORDINE_BUCKET`.
+**Allegati mirati** (`_allegati_per_cervello`): niente video/audio (il
+cervello non li può leggere, il referto è già nel riassunto — e un avvocato
+il video lo guarda meglio da sé), niente doppioni (per **impronta SHA-256**:
+i due .docx identici hanno nomi di archiviazione diversi), tetto 6 file / 12
+MB. ⚠️ Chi resta fuori **entra col riassunto** e il cervello è avvisato.
+⚠️ Tre errori miei trovati **provando, non leggendo**: `os` non importato in
+`brain.py` (l'app non sarebbe partita, `py_compile` non lo vede); le
+estensioni in `config.py` hanno **il punto** (`.mp4`) e io lo toglievo — il
+filtro non ha mai funzionato e il video usciva **per caso**; doppioni cercati
+per nome invece che per contenuto.
+QA: golden **226/226** (da 196), smoke 103/103, juris verde. Golden [18]
+consumo, [19] chat, [20] composizione — quest'ultima **esegue** il filtro su
+file finti invece di leggerlo.
+
 ## Storia versioni (sessione 30-31 ago 2026 — blindatura e documenti legali)
 
 v9.193-9.198 **sicurezza** (cervello in gabbia, SSH a chiave, freno al login,

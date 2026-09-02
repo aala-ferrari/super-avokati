@@ -834,6 +834,66 @@ def main():
         check("biseda: skedaret e lexueshem", False, str(_e))
 
 
+    # ── [20] kompozimi: mos rinis nga zeroja, mos gëlltit gjithë dosjen ──
+    try:
+        _b0 = _io2.open(_os2.path.join(_rr, "src", "brain.py"), encoding="utf-8").read()
+
+        # ⚠️ La riga che ha bruciato 2h07m: ricominciare l'intera pipeline
+        # quando la composizione scade. Il muro e' un tetto fisso: il secondo
+        # tentativo era condannato in partenza.
+        check("kompozimi: nuk rinis gjithë pipeline-n",
+              "result = self.answer(user_message, history=history," not in _b0,
+              "muri eshte tavan fiks: riprovimi ishte i dënuar që në fillim")
+        check("kompozimi: rikompozon nga fazat e bëra",
+              "ricompongo dalle fasi" in _b0)
+        check("kompozimi: riprova pa bashkëngjitjet",
+              "documents=None, **_fasi" in _b0,
+              "bashkëngjitjet janë pesha që e bëri të skadonte")
+        check("kompozimi: referat pa tru si hap i fundit",
+              "_risposta_dalle_fasi" in _b0,
+              "nje avokat parapelqen dymbedhjete analiza te papërpunuara para nje gabimi")
+
+        # L'ordine del piano d'azione: alfabetico metteva «kjo_javë» prima di «sot».
+        check("plani: rendi kronologjik, jo alfabetik",
+              "_ORDINE_BUCKET" in _b0,
+              "rreshti i pare eshte ai qe avokati ben sapo mbyll ekranin")
+
+        # Il filtro degli allegati — provato DAVVERO, non letto: leggendolo
+        # mi e' sembrato giusto due volte mentre era rotto (estensioni senza
+        # punto, doppioni per nome invece che per contenuto).
+        import sys as _sys2, tempfile as _tf2
+        _sys2.path.insert(0, _rr)
+        from src.brain import _allegati_per_cervello as _filtro
+        _d = _tf2.mkdtemp()
+        def _crea(n, kb, c=b"x"):
+            p = _os2.path.join(_d, n)
+            open(p, "wb").write(c * (kb * 1024))
+            return p
+        _docs = [
+            {"filename": "atto.docx", "storage_path": _crea("a1.docx", 200)},
+            {"filename": "copia.docx", "storage_path": _crea("a2.docx", 200)},
+            {"filename": "video.mp4", "storage_path": _crea("v.mp4", 300)},
+            {"filename": "audio.m4a", "storage_path": _crea("s.m4a", 100)},
+        ]
+        _leggi, _fuori = _filtro(_docs)
+        _nomi = [x["filename"] for x in _leggi]
+        check("bashkëngjitjet: videoja nuk i jepet trurit",
+              "video.mp4" not in _nomi,
+              "truri s'e sheh dot videon; raporti i shkruar eshte ne permbledhje")
+        check("bashkëngjitjet: audioja nuk i jepet trurit",
+              "audio.m4a" not in _nomi)
+        check("bashkëngjitjet: dublikata hiqet nga PERMBAJTJA",
+              "copia.docx" not in _nomi,
+              "dy .docx identike kane emra ruajtjeje te ndryshem")
+        check("bashkëngjitjet: dokumenti i vlefshëm mbetet",
+              "atto.docx" in _nomi)
+        check("bashkëngjitjet: te perjashtuarit nuk zhduken",
+              len(_fuori) == 3,
+              "nje dosje e cunguar ne heshtje eshte me keq se nje e ngadalte")
+    except Exception as _e:  # noqa: BLE001
+        check("kompozimi: kontrollet u ekzekutuan", False, str(_e))
+
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
