@@ -1255,7 +1255,6 @@ def api_update_case_jurisdiction(case_id: str):
 @app.get("/api/cases/<case_id>")
 @login_required_api
 def api_get_case(case_id: str):
-    user = request.user  # type: ignore[attr-defined]
     case = _resolve_case(case_id)
     if not case:
         return jsonify({"error": "not found"}), 404
@@ -5817,7 +5816,6 @@ def api_export_case(case_id: str):
     ?format=md — Markdown transcript with headings per message.
     default    — JSON with everything (articles, precedents, timestamps).
     """
-    user = request.user  # type: ignore[attr-defined]
     case = _resolve_case(case_id)
     if not case:
         return jsonify({"error": "not found"}), 404
@@ -5961,7 +5959,6 @@ def api_who_said(case_id: str):
 @app.get("/api/cases/<case_id>/documents")
 @login_required_api
 def api_list_documents(case_id: str):
-    user = request.user  # type: ignore[attr-defined]
     if _resolve_case(case_id) is None:
         return jsonify({"error": "not found"}), 404
     return jsonify({"documents": [_document_payload(d)
@@ -6191,7 +6188,6 @@ def api_video_compare(case_id: str):
 @app.delete("/api/cases/<case_id>/documents/<doc_id>")
 @login_required_api
 def api_delete_document(case_id: str, doc_id: str):
-    user = request.user  # type: ignore[attr-defined]
     if _resolve_case(case_id) is None:
         return jsonify({"error": "not found"}), 404
     removed = storage.delete_document(doc_id, case_id)
@@ -6209,7 +6205,6 @@ def api_delete_document(case_id: str, doc_id: str):
 @login_required_api
 def api_view_document(case_id: str, doc_id: str):
     """Stream the original file back to the owner — for preview/download."""
-    user = request.user  # type: ignore[attr-defined]
     if _resolve_case(case_id) is None:
         return jsonify({"error": "not found"}), 404
     doc = storage.get_document(doc_id, case_id)
@@ -8650,9 +8645,12 @@ def api_admin_users_delete(user_id):
         return jsonify({"error": "utente non trovato"}), 404
     if target.id == user.id:
         return jsonify({"error": "non puoi eliminare il tuo stesso utente"}), 400
-    ok = storage.delete_user(target.username)
+    ok, motivo = storage.delete_user(target.username)
     if not ok:
-        return jsonify({"error": "errore eliminazione"}), 500
+        # 409 col motivo vero: «è titolare di uno studio condiviso» deve
+        # arrivare all'amministratore, non un errore generico. Il client
+        # mostra gia' data.error nel toast.
+        return jsonify({"error": motivo or "errore eliminazione"}), 409
     log.info("admin %s deleted user %s", user.username, target.username)
     return jsonify({"ok": True})
 
@@ -8967,7 +8965,30 @@ def main() -> None:
     port = int(os.environ.get("PORT", "5050"))
     host = os.environ.get("HOST", "127.0.0.1")
     log.info("starting Super Avvocato web UI at http://%s:%d", host, port)
-    app.run(host=host, port=port, debug=False, use_reloader=False)
+    # ── Waitress: server di produzione, UN processo, molti thread ────
+    #
+    # ⚠️ VINCOLO PERMANENTE: lavori (`jobs.py`), parcheggio risposte,
+    # battiti e semafori vivono IN MEMORIA. Con piu' processi (gunicorn
+    # --workers>1) ogni richiesta vedrebbe una memoria diversa: risposte
+    # «sparite», riattacchi a vuoto. Qualunque cambio di server deve
+    # restare a UN processo.
+    #
+    # I thread invece servono generosi: ogni stream SSE ne occupa uno per
+    # tutta la durata (il dev server ne creava senza limite; qui il tetto
+    # e' esplicito e si regola con WEB_THREADS).
+    _fili = int(os.environ.get("WEB_THREADS", "32"))
+    try:
+        from waitress import serve
+        log.info("waitress in ascolto su http://%s:%d (thread=%d)",
+                 host, port, _fili)
+        # `ident` firma l'header Server: mai il nome dell'infrastruttura
+        # verso l'esterno (stessa regola dei messaggi d'errore).
+        serve(app, host=host, port=port, threads=_fili,
+              channel_timeout=600, ident="Tetramorph")
+    except ImportError:
+        # un sito su e' meglio di un sito giu' per un import mancante
+        log.warning("waitress assente — ripiego sul server di sviluppo")
+        app.run(host=host, port=port, debug=False, use_reloader=False)
 
 
 if __name__ == "__main__":

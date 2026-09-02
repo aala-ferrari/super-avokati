@@ -341,7 +341,6 @@ class ClaudeCodeBackend(LLMBackend):
                  case_id: str | None = None,
                  model_override: str | None = None) -> str:
         system = _apply_juris(system)  # giurisdizione della sessione
-        from .config import ROOT
 
         # Reset per-call — only meaningful for the current complete().
         self.last_resume_failed = False
@@ -574,7 +573,6 @@ class ClaudeCodeBackend(LLMBackend):
         case_id: str | None = None,
     ) -> Iterator[tuple[str, object]]:
         system = _apply_juris(system)  # giurisdizione della sessione
-        from .config import ROOT
 
         self.last_resume_failed = False
         model = self._pick_model(fast, medium)
@@ -780,8 +778,6 @@ class ClaudeCodeBackend(LLMBackend):
                   istruzione_finale: str | None = None) -> str:
         """OCR via `claude -p` with the Read tool. Uses the subscription —
         no API key required. The model's Read tool handles PNG/JPG natively."""
-        from .config import ROOT
-
         abs_path = Path(path).resolve()
         # Allow Claude to Read files from the image's directory. This covers
         # both persistent uploads (data/uploads/<case>/) and temp-file pages

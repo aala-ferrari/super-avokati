@@ -6034,8 +6034,8 @@
   ];
   var T_IT = {
     "Gabim i panjohur": "Errore sconosciuto",
-    "kulmi": "picco",
-    "Konteksti më i madh i një thirrjeje të vetme. Afër tavanit, analiza mund të shkurtohet pa u vënë re.": "Il contesto più grande di una singola chiamata. Vicino al tetto, l'analisi può essere accorciata senza che si veda.",
+    "vëll. maks": "vol. max",
+    "Vëllimi më i madh i përpunuar nga një thirrje e vetme — përfshin rileximet e nën-agjentëve të webit, s'është konteksti i njëkohshëm. Afër tavanit, analiza mund të shkurtohet pa u vënë re.": "Il volume più grande elaborato da una singola chiamata — include le riletture dei sotto-agenti web, non è il contesto simultaneo. Vicino al tetto, l'analisi può essere accorciata senza che si veda.",
     "Tavan javor në peshë ($). Bosh = pa mbikëqyrje.": "Tetto settimanale in peso ($). Vuoto = non sorvegliato.",
     "është në": "è al",
     "të tavanit javor": "del tetto settimanale",
@@ -8029,14 +8029,6 @@
       </div>${rows}`;
     } catch (e) {
       conflictResults.innerHTML = `<p class="conflict-empty">Gabim rrjeti: ${escapeHtml(e.message)}.</p>`;
-    }
-  }
-  function _sideLabel(side) {
-    switch (side) {
-      case "client": return "klient";
-      case "opponent": return "kundërshtar";
-      case "third": return "palë e tretë";
-      default: return "i panjohur";
     }
   }
   conflictBtn?.addEventListener("click", runConflictCheck);
@@ -11862,9 +11854,10 @@ function moduleChips(u) {
         <span>↘ <strong>${fmtNum(t.tokens_out)}</strong> ${TT("dalje")}</span>
         <span>⚖️ <strong>${fmtPeso(t.cost_micro)}</strong> ${TT("peshë")}${_parziale}</span>
         ${t.ctx_picco ? `<span class="us-picco" title="${TT(
-          "Konteksti më i madh i një thirrjeje të vetme. Afër tavanit, analiza "
-          + "mund të shkurtohet pa u vënë re.")}">📈 <strong>${fmtNum(t.ctx_picco)}</strong> ${
-          TT("kulmi")}</span>` : ""}
+          "Vëllimi më i madh i përpunuar nga një thirrje e vetme — përfshin "
+          + "rileximet e nën-agjentëve të webit, s'është konteksti i njëkohshëm. "
+          + "Afër tavanit, analiza mund të shkurtohet pa u vënë re.")}">📈 <strong>${fmtNum(t.ctx_picco)}</strong> ${
+          TT("vëll. maks")}</span>` : ""}
       `;
       if (!data.users.length) {
         usageBody.innerHTML = '<tr><td colspan="8" class="studio-empty">Asnjë e dhënë.</td></tr>';

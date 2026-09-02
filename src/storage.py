@@ -893,6 +893,16 @@ def _connect(db_path: Path = APP_DB_PATH) -> sqlite3.Connection:
     conn = sqlite3.connect(db_path, detect_types=sqlite3.PARSE_DECLTYPES)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON;")
+    # ── Concorrenza multi-studio ──────────────────────────────────────
+    # WAL: lettori e scrittore non si bloccano a vicenda (in `delete` si').
+    # busy_timeout: chi trova il lucchetto ASPETTA fino a 8s invece di
+    # fallire subito con «database is locked» in mezzo a un'analisi.
+    # synchronous NORMAL e' l'accoppiata canonica col WAL: piu' veloce,
+    # integrita' intatta (un crash costa al massimo l'ultimo checkpoint).
+    # Il backup regge: usa l'API online di SQLite, non un cp del file.
+    conn.execute("PRAGMA journal_mode = WAL;")
+    conn.execute("PRAGMA busy_timeout = 8000;")
+    conn.execute("PRAGMA synchronous = NORMAL;")
     return conn
 
 
@@ -1078,33 +1088,6 @@ def init_db(db_path: Path = APP_DB_PATH) -> None:
 
 # ── V9.2 — usage / online tracking (admin dashboard) ──────────────────────
 
-# Anthropic API list-price reference for the equivalent-cost estimation.
-# Even when the brain runs through the Claude Code CLI (subscription),
-# the dashboard surfaces the dollar value the team would otherwise spend.
-# Prices in USD per 1M tokens, by family substring matched on the model id.
-_MODEL_PRICING_PER_1M = (
-    ("opus", 15.0, 75.0),     # input, output
-    ("sonnet", 3.0, 15.0),
-    ("haiku", 0.80, 4.0),
-)
-
-
-def estimate_cost_cents(model: str, input_tokens: int, output_tokens: int) -> int:
-    """Return cost in CENTS (USD * 100, integer) for a single LLM call.
-
-    Conservative: if the model id doesn't match a known family, falls back
-    to Opus pricing (the most expensive) so we never underreport.
-    """
-    m = (model or "").lower()
-    in_price, out_price = 15.0, 75.0  # default = opus
-    for tag, ip, op in _MODEL_PRICING_PER_1M:
-        if tag in m:
-            in_price, out_price = ip, op
-            break
-    usd = (input_tokens / 1_000_000.0) * in_price + (output_tokens / 1_000_000.0) * out_price
-    return int(round(usd * 100))
-
-
 def update_user_last_active(user_id: int) -> None:
     """Bump users.last_active to now. Cheap UPDATE, called from the request
     auth middleware on every authenticated request."""
@@ -1119,10 +1102,8 @@ def usage_stats_by_user(since_iso: str | None = None) -> list[dict]:
     """Aggregate ai_audit_log per user. Returns one row per user with:
     calls, tokens_in, tokens_out, cost_cents (sum), last_active, is_admin.
     Sorted by total tokens descending so the heavy users are at the top."""
-    where = "WHERE u.id IS NOT NULL"
     params: list = []
     if since_iso:
-        where += " AND (al.timestamp >= ? OR al.timestamp IS NULL)"
         params.append(since_iso)
     with db() as conn:
         rows = conn.execute(
@@ -1144,8 +1125,7 @@ def usage_stats_by_user(since_iso: str | None = None) -> list[dict]:
                 -- il costo che calcola il fornitore, in micro-dollari interi
                 COALESCE(SUM(al.cost_micro_usd), 0) AS cost_micro,
                 COUNT(al.cost_micro_usd) AS calls_misurate,
-                MAX(al.context_tokens) AS ctx_picco,
-                al.model          AS sample_model
+                MAX(al.context_tokens) AS ctx_picco
             FROM users u
             LEFT JOIN ai_audit_log al ON al.user_id = u.id
               {('AND al.timestamp >= ?' if since_iso else '')}
@@ -1773,13 +1753,56 @@ def list_users() -> list[User]:
     return [_user_from_row(r) for r in rows]
 
 
-def delete_user(username: str) -> bool:
+def delete_user(username: str) -> tuple[bool, str | None]:
+    """Cancella un utente e cio' che e' SOLO suo. Ritorna (ok, motivo).
+
+    ⚠️ Pulizia ESPLICITA, non affidata al CASCADE. Il CASCADE su firms e
+    firm_members esiste ed e' attivo — eppure lo studio personale di un
+    utente di prova e' rimasto orfano (violazione FK trovata dall'audit):
+    una cancellazione passata da una connessione senza PRAGMA foreign_keys
+    lo scavalca. Qui il risultato non dipende da chi apre la connessione.
+
+    ⚠️ Studi CONDIVISI di cui e' titolare: ci si FERMA. Il CASCADE li
+    farebbe sparire in silenzio per tutti i membri — il raggruppamento e le
+    appartenenze, non i fascicoli (`cases.firm_id` non ha FK). Una
+    distruzione di massa non deve mai essere l'effetto collaterale di un
+    click: prima si trasferisce la titolarita', poi si cancella.
+    """
     with db() as conn:
-        cur = conn.execute(
-            "DELETE FROM users WHERE username = ? COLLATE NOCASE",
+        row = conn.execute(
+            "SELECT id FROM users WHERE username = ? COLLATE NOCASE",
             (username.strip(),),
-        )
-        return cur.rowcount > 0
+        ).fetchone()
+        if row is None:
+            return False, "utente non trovato"
+        uid = int(row["id"])
+
+        condivisi = conn.execute(
+            "SELECT name FROM firms WHERE owner_id = ? "
+            "AND COALESCE(is_personal, 0) = 0",
+            (uid,),
+        ).fetchall()
+        if condivisi:
+            nomi = ", ".join(r["name"] for r in condivisi)
+            return False, (
+                "Është titullar i studios së përbashkët: %s. Kaloja "
+                "titullaritetin një anëtari tjetër përpara se ta fshish." % nomi
+            )
+
+        personali = [int(r["id"]) for r in conn.execute(
+            "SELECT id FROM firms WHERE owner_id = ? "
+            "AND COALESCE(is_personal, 0) = 1", (uid,))]
+        if personali:
+            q = ",".join("?" * len(personali))
+            # cases.firm_id non ha FK: senza questo resterebbe un numero
+            # appeso a uno studio che non esiste piu'.
+            conn.execute(
+                f"UPDATE cases SET firm_id = NULL WHERE firm_id IN ({q})",
+                personali)
+            conn.execute(f"DELETE FROM firms WHERE id IN ({q})", personali)
+        conn.execute("DELETE FROM firm_members WHERE user_id = ?", (uid,))
+        cur = conn.execute("DELETE FROM users WHERE id = ?", (uid,))
+        return cur.rowcount > 0, None
 
 
 def set_password_hash(username: str, password_hash: str) -> bool:

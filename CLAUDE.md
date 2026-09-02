@@ -1493,6 +1493,44 @@ QA: golden **226/226** (da 196), smoke 103/103, juris verde. Golden [18]
 consumo, [19] chat, [20] composizione — quest'ultima **esegue** il filtro su
 file finti invece di leggerlo.
 
+**v9.241 — l'audit completo e i suoi quattro rimedi (2 set).** Su richiesta
+(«controlla tutto il progetto dall'inizio»), 18 controlli **eseguiti** (mai
+solo letti): log 26h (0 errori), import di tutti i 56 moduli, pyflakes,
+integrità DB, certificati, cron, disco, endpoint, doppioni JS.
+**[1] Cancellare un utente lasciava lo studio personale orfano.** Trovate 2
+violazioni FK (studio «prova3in1» → utente 25 cancellato). ⚠️ Il CASCADE
+c'era ed era attivo dal 20 aprile: le orfane vengono da una **pulizia
+manuale fuori dall'app** (connessione cruda senza PRAGMA). Lezione: *il
+CASCADE è una rete, non una garanzia* → `delete_user` ora pulisce
+ESPLICITAMENTE e ritorna `(ok, motivo)`. ⚠️ Scoperto controllando le FK:
+cancellare il **titolare di uno studio condiviso** l'avrebbe fatto sparire
+in silenzio per tutti i membri (il raggruppamento, non i fascicoli:
+`cases.firm_id` non ha FK) → ora ci si FERMA con un 409 col nome dello
+studio; il toast del client lo mostra già. Testato **eseguendo** su DB
+usa-e-getta. `admin.py` aggiornato (stampava «Deleted» anche sul rifiuto).
+**[2] WAL + busy_timeout 8s + synchronous NORMAL** in `_connect`: in
+journal `delete` un lettore lento blocca chi scrive; senza busy_timeout il
+lucchetto = «database is locked» in mezzo a un'analisi. Il backup regge
+già (usa l'API online, non un cp — verificato PRIMA di toccare).
+**[3] Igiene**: `_sideLabel` era definita DUE volte nello stesso scope (la
+seconda vinceva per hoisting — chi modificava la prima non vedeva effetti);
+stima del costo morta rimossa (`estimate_cost_cents` + tabella prezzi);
+`where`/`sample_model` morti; 3 `from .config import ROOT` residui; 5
+`user = request.user` mai letti; «kulmi» rinominato **«vëll. maks»** (è il
+VOLUME cumulato coi sotto-agenti, non il picco di contesto — 1,8M «di
+picco» avrebbe spaventato chiunque conosca i tetti). ⚠️ Le sonde `import
+faster_whisper`/`import pywebpush` NON si toccano: sono controlli di
+disponibilità voluti.
+**[4] Waitress al posto del dev server** (che si autodenunciava nei log).
+⚠️ **VINCOLO PERMANENTE scolpito nel codice**: jobs/parcheggio/battiti
+vivono IN MEMORIA → il server DEVE restare a UN processo (mai gunicorn
+--workers>1); i thread invece generosi (WEB_THREADS=32) perché ogni SSE ne
+occupa uno. Header `Server: Tetramorph` (mai nomi d'infrastruttura fuori).
+Golden sezione [21]: 11 guardie, incluso il conteggio ESEGUITO di
+`_sideLabel`. Restano sani (verificato): 0 «database is locked», backup
+quotidiani, certbot attivo, fail2ban, disco 36%, 0 testi grezzi nel
+registro audit.
+
 ## Storia versioni (sessione 30-31 ago 2026 — blindatura e documenti legali)
 
 v9.193-9.198 **sicurezza** (cervello in gabbia, SSH a chiave, freno al login,

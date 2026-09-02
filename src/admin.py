@@ -71,7 +71,11 @@ def cmd_deluser(username: str) -> None:
     if confirm != "y":
         print("Cancelled.")
         return
-    storage.delete_user(username)
+    ok, motivo = storage.delete_user(username)
+    if not ok:
+        # prima stampava «Deleted» qualunque cosa fosse successa
+        print(f"❌ {motivo or 'errore eliminazione'}", file=sys.stderr)
+        sys.exit(1)
     print(f"🗑  Deleted user {username!r}.")
 
 

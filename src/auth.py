@@ -6,7 +6,6 @@ user id; server-side look-up enforces authorisation on every request.
 """
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from functools import wraps
 
 from flask import jsonify, redirect, request, session, url_for

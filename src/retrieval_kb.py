@@ -136,7 +136,7 @@ class LegalKBRetriever:
                 )
                 precedents = [_row_to_precedent(c) for c in rows]
         except Exception as exc:  # noqa: BLE001
-            log.warning("legalkb: Postgres unavailable (%s) — using local decisions index", exc)
+            log.info("legalkb: Postgres unavailable (%s) — using local decisions index (expected in production)", exc)
             precedents = []
         if not precedents:
             # Production path: no Postgres. Load the live decisions corpus

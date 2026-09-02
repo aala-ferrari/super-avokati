@@ -894,6 +894,51 @@ def main():
         check("kompozimi: kontrollet u ekzekutuan", False, str(_e))
 
 
+    # ── [21] auditi i 2 shtatorit: kater rregullimet te mos kthehen ─────
+    try:
+        _s21 = _io2.open(_os2.path.join(_rr, "src", "storage.py"), encoding="utf-8").read()
+        _w21 = _io2.open(_os2.path.join(_rr, "src", "web.py"), encoding="utf-8").read()
+        _a21 = _io2.open(_os2.path.join(_rr, "static", "app.js"), encoding="utf-8").read()
+
+        # [1] fshirja e perdoruesit
+        check("fshirja: pastrim i qarte, jo vetem CASCADE",
+              "DELETE FROM firm_members WHERE user_id" in _s21,
+              "nje lidhje pa PRAGMA e anashkalon CASCADE-n (e provuar: prova3in1)")
+        check("fshirja: ndalon te studiot e perbashketa",
+              "COALESCE(is_personal, 0) = 0" in _s21,
+              "CASCADE do t'i zhdukte per te gjithe anetaret")
+        check("fshirja: arsyeja i shkon administratorit",
+              "motivo or \"errore eliminazione\"" in _w21)
+
+        # [2] baza e te dhenave
+        check("db: WAL i ndezur", "journal_mode = WAL" in _s21,
+              "ne delete-mode lexuesi bllokon shkruesin")
+        check("db: busy_timeout i ndezur", "busy_timeout" in _s21,
+              "pa te, «database is locked» ne mes te nje analize")
+
+        # [3] higjiena
+        check("app.js: _sideLabel eshte NJE e vetme",
+              _a21.count("function _sideLabel(") == 1,
+              "e dyta mbishkruante te paren ne heshtje")
+        check("stima e vdekur e kostos u hoq",
+              "estimate_cost_cents" not in _s21,
+              "vleresonte gjithcka me tarife te plote duke injoruar cache-n")
+        check("etiketa e vellimit nuk genjeb me",
+              "vëll. maks" in _a21 and '"kulmi"' not in _a21,
+              "1.8M si «pik» do te tremb kend qe njeh tavanet e modeleve")
+
+        # [4] serveri
+        check("serveri: waitress, jo dev-server",
+              "from waitress import serve" in _w21)
+        check("serveri: kufizimi NJE-proces i dokumentuar",
+              "UN processo" in _w21,
+              "multi-worker do te thyente jobs/parcheggio/battiti ne memorie")
+        _r21 = _io2.open(_os2.path.join(_rr, "requirements.txt"), encoding="utf-8").read()
+        check("serveri: waitress ne requirements", "waitress" in _r21)
+    except OSError as _e:
+        check("auditi: skedaret e lexueshem", False, str(_e))
+
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

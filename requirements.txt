@@ -26,3 +26,7 @@ pywebpush>=2.0.0
 # ⚠️ 1.2.1 e non 1.0.3: quella non ha wheel per Python 3.14 e pip falliva in
 # silenzio dentro una pipe, col build che dichiarava successo.
 faster-whisper==1.2.1
+# Server WSGI di produzione — UN processo, molti thread. Il vincolo del
+# processo unico e' spiegato in web.py accanto a serve(): jobs/parcheggio/
+# battiti vivono in memoria, il multi-worker li romperebbe.
+waitress>=3.0.0
