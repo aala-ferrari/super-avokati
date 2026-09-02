@@ -1732,6 +1732,35 @@ ALLEGATI_MAX_FILE = int(os.environ.get("ALLEGATI_MAX_FILE", "6"))
 ALLEGATI_MAX_MB = float(os.environ.get("ALLEGATI_MAX_MB", "12"))
 
 
+def _docs_per_compose(documents):
+    """Divide il fascicolo per la composizione: testo inline vs file da leggere.
+
+    Ritorna `(inline, da_leggere)`:
+    - `inline`  — documenti con testo utilizzabile (estratto, referto video,
+      trascrizione audio, o almeno un riassunto): entrano NEL PROMPT come
+      testo. Una passata sola, zero giri di Read.
+    - `da_leggere` — file esistenti SENZA testo utilizzabile (immagini pure,
+      scansioni con OCR fallito): l'unico caso in cui gli occhi del Read
+      servono davvero. Passeranno comunque da `_allegati_per_cervello`.
+
+    Misurato sul fascicolo dell'omicidio: con gli allegati la composizione
+    scadeva a 1800s; senza, 472s. Il costo erano i giri di Read, non i
+    caratteri.
+    """
+    inline, da_leggere = [], []
+    for d in (documents or []):
+        ha_testo = bool((d.get("extracted_text") or "").strip()
+                        or (d.get("summary") or "").strip())
+        percorso = d.get("storage_path")
+        if ha_testo:
+            inline.append(d)
+        elif percorso and Path(percorso).exists():
+            da_leggere.append(d)
+        else:
+            inline.append(d)   # niente testo e niente file: resta il nome
+    return inline, da_leggere
+
+
 def _allegati_per_cervello(documents):
     """Quali file dare da leggere, e quali solo raccontare.
 
@@ -4372,39 +4401,46 @@ class SuperAvvocato:
         contradictions_block = _format_contradictions_block(contradictions)
         opponent_block = _format_opponent_block(opponent_playbook)
         leverage_block = _format_leverage_block(leverage)
-        # ⚠️ NON tutti i file: video/audio (illeggibili per il cervello),
-        # doppioni e quelli oltre il tetto restano fuori — vedi
-        # `_allegati_per_cervello`. Prima passavano tutti, e la composizione
-        # sbatteva contro i 1800 secondi.
-        _da_leggere, _solo_riassunto = _allegati_per_cervello(documents)
+        # ── LA CURA (v9.242): testo inline, file solo se senza testo ──
+        #
+        # Il Read agentico era il costo: un giro di modello per ogni
+        # apertura, dentro una chiamata col tetto a 1800s. Misurato sul
+        # fascicolo dell'omicidio: CON allegati la composizione scadeva
+        # (due volte); SENZA, 472s. Quindi: il testo estratto entra NEL
+        # PROMPT (budget dedicato, una passata sola); si allega soltanto
+        # cio' che testo non ne ha — immagini pure, scansioni fallite —
+        # filtrato comunque da `_allegati_per_cervello`.
+        from .config import COMPOSE_DOC_CHAR_BUDGET
+        _inline, _ciechi = _docs_per_compose(documents)
+        _da_leggere, _fuori = _allegati_per_cervello(_ciechi)
         attachment_paths = [Path(d["storage_path"]) for d in _da_leggere]
+
+        dossier_block = format_documents_for_prompt(
+            _inline, char_budget=COMPOSE_DOC_CHAR_BUDGET)
         if attachment_paths:
             filenames = "\n".join(
                 f"  • {d.get('filename', '?')}" for d in _da_leggere
             )
-            dossier_block = (
-                "\nDOKUMENTET E DOSJES (lexoji drejtpërdrejt):\n" + filenames + "\n"
+            dossier_block += (
+                "\nDOKUMENTE PA TEKST TË NXJERRSHËM, bashkangjitur për "
+                "lexim të drejtpërdrejtë:\n" + filenames + "\n"
             )
-            # Chi non e' allegato entra col riassunto, e il cervello lo sa:
-            # un fascicolo monco taciuto e' peggio di un fascicolo lento.
-            if _solo_riassunto:
-                dossier_block += (
-                    "\nDOKUMENTE QË NUK JANË BASHKANGJITUR PËR LEXIM "
-                    "(video/audio, dublikata ose vëllim i tepërt) — ke vetëm "
-                    "përmbledhjen e tyre më poshtë. Mos pretendo se i ke "
-                    "lexuar drejtpërdrejt:\n"
-                    + format_documents_for_prompt(_solo_riassunto)
-                    + "\n"
-                )
-        else:
-            dossier_block = format_documents_for_prompt(documents or [])
+        if _fuori:
+            # Chi resta fuori si dichiara: un fascicolo monco taciuto e'
+            # peggio di un fascicolo lento.
+            dossier_block += (
+                "\nDOKUMENTE TË PËRJASHTUARA nga leximi i drejtpërdrejtë "
+                "(dublikata ose vëllim i tepërt) — vetëm emrat:\n"
+                + "\n".join(f"  • {d.get('filename', '?')}" for d in _fuori)
+                + "\n"
+            )
         dossier_guidance = (
-            "Dokumentet janë bashkangjitur SIKUR t'i kishe para syve. "
-            "Lexoji me kujdes dhe nxirr faktet konkrete (data, emra, shuma, "
-            "afate, numra akti) kur argumenton. Kur është e përshtatshme, "
-            "CITO dokumentin me emrin e tij të skedarit. Nëse një fakt i "
-            "dokumentit bie ndesh me ligjin material ose procedural, "
-            "shpjegoje hapur.\n"
+            "Teksti i dokumenteve është MË LART, i nxjerrë fjalë për fjalë "
+            "— përdore si t'i kishe skedarët para syve. Nxirr faktet "
+            "konkrete (data, emra, shuma, afate, numra akti) kur argumenton "
+            "dhe, kur është e përshtatshme, CITO dokumentin me emrin e tij "
+            "të skedarit. Nëse një fakt i dokumentit bie ndesh me ligjin "
+            "material ose procedural, shpjegoje hapur.\n"
             if documents else ""
         )
 

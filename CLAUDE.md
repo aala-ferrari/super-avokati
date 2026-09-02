@@ -1531,6 +1531,26 @@ Golden sezione [21]: 11 guardie, incluso il conteggio ESEGUITO di
 quotidiani, certbot attivo, fail2ban, disco 36%, 0 testi grezzi nel
 registro audit.
 
+**v9.242 — LA CURA della composizione: testo inline, Read solo per i ciechi.**
+La diagnosi era nei numeri della notte: composizione CON allegati scaduta a
+1800s (due volte), SENZA allegati 472s. Il costo non era il testo — era il
+**Read agentico**: un giro di modello per ogni apertura di file, dentro una
+chiamata col tetto. Cura: `_docs_per_compose()` divide il fascicolo — chi ha
+testo utilizzabile (estratto, referto video, trascrizione audio, riassunto)
+entra **inline nel prompt** con budget dedicato `COMPOSE_DOC_CHAR_BUDGET`
+(12.000 car./doc vs 6.000: i caratteri sono economici da quando spariscono i
+giri); si allega SOLO chi non ha testo (immagini pure, OCR falliti), sempre
+filtrato da `_allegati_per_cervello`. Il ramo inline esisteva già (era il
+percorso senza-file, collaudato da mesi) — promosso a via maestra.
+`format_documents_for_prompt` ha guadagnato `char_budget` opzionale (default
+invariato per gli altri chiamanti). Golden [22]: selettore **provato
+eseguendo** su documenti finti.
+**PROVA D'ACCETTAZIONE sul fascicolo dell'omicidio** (domanda vera:
+struttura del rekurs in Cassazione): compose **SUCCESS in 378s** con volume
+**63.865** (prima: 1800s timeout / 736k), risposta di **27.555 caratteri in
+streaming**, nessun ripiego. Margine sul tetto: 4,7×. Totale domanda ~41 min
+(35 di fasi — quello è il prossimo cantiere, non più la composizione).
+
 ## Storia versioni (sessione 30-31 ago 2026 — blindatura e documenti legali)
 
 v9.193-9.198 **sicurezza** (cervello in gabbia, SSH a chiave, freno al login,

@@ -508,7 +508,8 @@ def _parse_json_loose(raw: str) -> dict:
 
 
 def format_documents_for_prompt(
-    documents: list[dict], *, compact: bool = False
+    documents: list[dict], *, compact: bool = False,
+    char_budget: int | None = None,
 ) -> str:
     """Turn a list of analysed docs into the 'DOKUMENTET E DOSJES' block
     that the brain injects into triage + answer prompts.
@@ -550,7 +551,7 @@ def format_documents_for_prompt(
         if not compact:
             text = (d.get("extracted_text") or "").strip()
             if text:
-                clipped = _budget_clip(text, DOC_CONTEXT_CHAR_BUDGET)
+                clipped = _budget_clip(text, char_budget or DOC_CONTEXT_CHAR_BUDGET)
                 parts.append("  Përmbajtja tekstuale (për citim):")
                 for line in clipped.splitlines():
                     parts.append(f"    {line}")

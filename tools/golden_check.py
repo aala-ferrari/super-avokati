@@ -939,6 +939,58 @@ def main():
         check("auditi: skedaret e lexueshem", False, str(_e))
 
 
+    # ── [22] kompozimi: tekst inline, Read vetem per te verbrit ────────
+    try:
+        _b2 = _io2.open(_os2.path.join(_rr, "src", "brain.py"), encoding="utf-8").read()
+        _c2 = _io2.open(_os2.path.join(_rr, "src", "config.py"), encoding="utf-8").read()
+
+        # ⚠️ Kjo eshte kura: me bashkengjitje kompozimi skadonte (2x1800s),
+        # pa to 472s. Nese dikush i rikthen skedaret me tekst te Read-i,
+        # fashikujt e medhenj rikthehen ne timeout.
+        check("kompozimi: perdor ndarjen tekst/te-verber",
+              "_docs_per_compose" in _b2)
+        check("kompozimi: buxhet i dedikuar per tekstin inline",
+              "char_budget=COMPOSE_DOC_CHAR_BUDGET" in _b2,
+              "6000 gjermat e vjetra ishin per epoken e Read-it te shtrenjte")
+        check("kompozimi: buxheti ekziston ne config",
+              "COMPOSE_DOC_CHAR_BUDGET" in _c2)
+        check("kompozimi: udhezimi flet per tekst MË LART, jo skedare",
+              "Teksti i dokumenteve është MË LART" in _b2,
+              "udhezimi i vjeter i thoshte trurit se skedaret jane te leximit")
+
+        # Selektori i PROVUAR me dokumente te rreme.
+        import sys as _sy3
+        _sy3.path.insert(0, _rr)
+        from src.brain import _docs_per_compose as _sel
+        import tempfile as _tf3
+        _d3 = _tf3.mkdtemp()
+        _f3 = _os2.path.join(_d3, "skan.png")
+        open(_f3, "wb").write(b"x" * 1024)
+        _docs3 = [
+            {"filename": "akt.pdf", "extracted_text": "teksti i aktit",
+             "storage_path": _f3},                       # ka tekst → inline
+            {"filename": "video.mp4", "extracted_text": "",
+             "summary": "raporti forensik i videos",
+             "storage_path": _f3},                       # referto → inline
+            {"filename": "skan.png", "extracted_text": "", "summary": "",
+             "storage_path": _f3},                       # i verber → Read
+            {"filename": "humbur.docx", "extracted_text": "", "summary": ""},
+        ]
+        _inl, _ler = _sel(_docs3)
+        _ni = [x["filename"] for x in _inl]
+        _nl = [x["filename"] for x in _ler]
+        check("selektori: teksti shkon inline", "akt.pdf" in _ni)
+        check("selektori: raporti i videos shkon inline (jo Read)",
+              "video.mp4" in _ni and "video.mp4" not in _nl,
+              "truri s'e sheh dot videon; raportin e ka ne tekst")
+        check("selektori: i verberi shkon te Read-i", "skan.png" in _nl,
+              "vetem aty syte e Read-it duhen vertet")
+        check("selektori: pa tekst dhe pa skedar → mbetet emri",
+              "humbur.docx" in _ni)
+    except Exception as _e:  # noqa: BLE001
+        check("kompozimi[22]: kontrollet u ekzekutuan", False, str(_e))
+
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

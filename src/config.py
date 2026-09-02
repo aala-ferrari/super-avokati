@@ -101,6 +101,11 @@ MAX_DOCUMENTS_PER_CASE = int(os.getenv("MAX_DOCUMENTS_PER_CASE", "20"))
 # extracted_text + AI summary; if a document is longer than this we use the
 # summary in full + a head-and-tail slice of the raw text.
 DOC_CONTEXT_CHAR_BUDGET = int(os.getenv("DOC_CONTEXT_CHAR_BUDGET", "6000"))
+# Il budget della COMPOSIZIONE e' piu' generoso: da quando i documenti
+# entrano inline (una passata sola) invece che come file da leggere col
+# Read agentico (un giro di modello per apertura), i caratteri sono
+# economici — erano i giri a costare 14+ minuti sui fascicoli grossi.
+COMPOSE_DOC_CHAR_BUDGET = int(os.getenv("COMPOSE_DOC_CHAR_BUDGET", "12000"))
 # .docx/.doc/.txt/.rtf: il lettore (extract/readers.py) li gestisce gia'; il
 # .doc binario passa da antiword, installato nel Dockerfile. Servono per
 # allegare cio' che arriva davvero da controparti e tribunali.
