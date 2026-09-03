@@ -584,38 +584,46 @@ function robotBrain(sel){
   const dpr=Math.min(devicePixelRatio,2);let W=1,H=1;
   function size(){W=canvas.clientWidth||360;H=canvas.clientHeight||360;canvas.width=W*dpr;canvas.height=H*dpr;}
   size();addEventListener('resize',size);
-  // SAGOMA CERVELLO DI PROFILO (fronte a sinistra): corteccia + cervelletto striato + tronco
+  // SAGOMA sulla referenza neon: corteccia + LOBO TEMPORALE (solco) + cervelletto + tronco
   const nodes=[],edges=[];
   function path(pts,close){const b=nodes.length;for(let i=0;i<pts.length;i++)nodes.push({x:pts[i][0],y:pts[i][1],ph:Math.random()*6.28});
     for(let i=0;i<pts.length-1;i++)edges.push([b+i,b+i+1]);if(close)edges.push([b+pts.length-1,b]);}
-  // contorno base della corteccia — fa anche da poligono per il test "dentro"
-  const SIL=[[0.165,0.42],[0.175,0.335],[0.205,0.26],[0.255,0.195],[0.32,0.15],[0.40,0.122],[0.485,0.112],[0.565,0.122],[0.645,0.152],[0.715,0.198],[0.775,0.258],[0.815,0.33],[0.835,0.41],[0.828,0.487],[0.798,0.548],[0.752,0.586],[0.694,0.606],[0.628,0.625],[0.553,0.645],[0.478,0.66],[0.405,0.664],[0.34,0.648],[0.285,0.613],[0.235,0.563],[0.195,0.503],[0.17,0.458]];
+  // corteccia (SENZA il pollice temporale: quello e' un pezzo suo)
+  const SIL=[[0.135,0.40],[0.15,0.315],[0.19,0.235],[0.255,0.17],[0.335,0.125],[0.425,0.10],[0.515,0.098],[0.60,0.112],[0.685,0.148],[0.755,0.20],[0.81,0.265],[0.845,0.34],[0.855,0.42],[0.845,0.495],[0.815,0.55],[0.77,0.585],[0.715,0.60],[0.655,0.60],[0.60,0.59],[0.545,0.567],[0.49,0.545],[0.43,0.532],[0.37,0.528],[0.31,0.53],[0.25,0.522],[0.20,0.498],[0.163,0.462],[0.14,0.43]];
   function dentro(x,y){let c=false;for(let i=0,j=SIL.length-1;i<SIL.length;j=i++){const xi=SIL[i][0],yi=SIL[i][1],xj=SIL[j][0],yj=SIL[j][1];
     if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi))c=!c;}return c;}
-  // bordo disegnato con lieve ondulazione (le circonvoluzioni si sentono gia' sul contorno)
   {const out=[];for(let i=0;i<SIL.length;i++){const a=SIL[i],b=SIL[(i+1)%SIL.length];
     for(let k=0;k<2;k++){const f=k/2,x=a[0]+(b[0]-a[0])*f,y=a[1]+(b[1]-a[1])*f,w=0.008*Math.sin((i*2+k)*2.6);
       out.push([x+w,y+w*0.6]);}}
     path(out,true);}
-  // CIRCONVOLUZIONI: file ondulate che riempiono la sagoma (stesso linguaggio di prima)
+  // circonvoluzioni a file dentro la corteccia
   for(let row=0;row<11;row++){
-    const yy=0.155+(row/10)*0.475;
+    const yy=0.128+(row/10)*0.415;
     let seg=null;const passo=0.02;
-    for(let x=0.14;x<=0.87;x+=passo){
+    for(let x=0.11;x<=0.88;x+=passo){
       const dq=dentro(x,yy)&&dentro(x,yy-0.015)&&dentro(x,yy+0.015);
       if(dq){if(!seg)seg=[x,x];else seg[1]=x;}
-      if((!dq||x+passo>0.87)&&seg){
+      if((!dq||x+passo>0.88)&&seg){
         if(seg[1]-seg[0]>0.05){const line=[],n=Math.max(4,Math.round((seg[1]-seg[0])/0.055));
           for(let i=0;i<=n;i++){const f=i/n;line.push([seg[0]+(seg[1]-seg[0])*f,yy+0.022*Math.sin(f*8+row*1.7)]);}
           path(line);
           {const bx=seg[0]+(seg[1]-seg[0])*(row%2?0.62:0.34);
             path([[bx,yy-0.03],[bx+0.014,yy],[bx,yy+0.03]]);}}
         seg=null;}}}
-  // CERVELLETTO: lamelle parallele fitte che seguono la sfera (referenza wireframe),
-  // palla inclinata e infilata sotto la corteccia — confini registrati: la maglia
-  // automatica dentro resta a contatto, il disegno lo fanno le lamelle
+  // LOBO TEMPORALE: il pollice sotto, cucito alla corteccia lungo il solco laterale
+  {const cx=0.40,cy=0.625,rx=0.158,ry=0.058,rot=0.10,cr=Math.cos(rot),sr=Math.sin(rot);
+   const put=(px,py)=>[cx+px*cr-py*sr, cy+px*sr+py*cr];
+   const out=[];
+   for(let i=0;i<20;i++){const a=Math.PI*2*i/20,w=1+0.04*Math.sin(a*3+2);
+     out.push(put(Math.cos(a)*rx*w, Math.sin(a)*ry*w));}
+   path(out,true);
+   for(const t of [-0.38,0.22]){const half=Math.sqrt(1-t*t),line=[];
+     for(let i=0;i<=8;i++){const f=-half+2*half*i/8;
+       line.push(put(f*rx*0.94, t*ry+0.012*Math.sin(i*2.1+t*5)));}
+     path(line);}}
+  // CERVELLETTO: lamelle che seguono la sfera (referenza wireframe), +20%, in basso-destra
   const cbA=nodes.length;
-  {const cx=0.746,cy=0.652,rx=0.088,ry=0.082,tilt=-0.30,ct=Math.cos(tilt),st=Math.sin(tilt);
+  {const cx=0.745,cy=0.665,rx=0.105,ry=0.088,tilt=-0.24,ct=Math.cos(tilt),st=Math.sin(tilt);
    const put=(px,py)=>[cx+px*ct-py*st, cy+px*st*0.85+py*ct];
    const out=[];
    for(let i=0;i<26;i++){const a=Math.PI*2*i/26,w=1+0.022*Math.sin(a*4+1);
@@ -627,12 +635,11 @@ function robotBrain(sel){
        line.push(put(f*rx*0.96, t*ry*0.9+bow));}
      path(line);}}
   const cbB=nodes.length;
-  // TRONCO ENCEFALICO: due profili che scendono con lieve curva + traversine
-  // TRONCO ENCEFALICO: tubo che si assottiglia (maglia organica, niente scala a pioli)
-  {const seg=7,cl=[],wl=[];
+  // TRONCO: piu' centrale e verticale, largo al ponte, stretto al midollo
+  {const seg=8,cl=[],wl=[];
    for(let i=0;i<=seg;i++){const f=i/seg;
-     cl.push([0.578-0.062*f+0.018*Math.sin(f*3.1),0.652+0.223*f]);
-     wl.push(0.030*(1-f)+0.008);}
+     cl.push([0.578-0.045*f+0.010*Math.sin(f*3.0),0.592+0.343*f]);
+     wl.push(0.038*(1-f)+0.010);}
    const Lp=[],Mp=[],Rp=[];
    for(let i=0;i<=seg;i++){const j=0.006*Math.sin(i*2.4+1);
      Lp.push([cl[i][0]-wl[i],cl[i][1]+j]);
@@ -640,9 +647,9 @@ function robotBrain(sel){
      Rp.push([cl[i][0]+wl[i],cl[i][1]+j*0.8]);}
    path(Lp);path(Mp);path(Rp);}
   const N=nodes.length;
-  // mesh: collega nodi vicini (corteccia, cervelletto e tronco si saldano dove si toccano)
+  // maglia: nodi vicini si saldano; dentro il cervelletto solo a contatto (niente gomitolo)
   for(let i=0;i<N;i++)for(let j=i+1;j<N;j++){const dd=Math.hypot(nodes[i].x-nodes[j].x,nodes[i].y-nodes[j].y);if(i>=cbA&&j<cbB&&i<cbB&&j>=cbA){if(dd<0.028)edges.push([i,j]);continue;}if(dd<0.052)edges.push([i,j]);}
-  // RADICI nervose sotto il tronco (l'identita' di prima, in piccolo)
+  // RADICI nervose sotto il tronco
   function nerve(x,y,ang,len,depth){
     if(depth<=0||y>1.02)return;
     const segs=5,p=[];let nx=x,ny=y,a=ang;
@@ -652,8 +659,7 @@ function robotBrain(sel){
       if(Math.random()<0.85)nerve(nx,ny,ang+(0.35+Math.random()*0.3),len*0.72,depth-1);}
   }
   const nerveBase=nodes.length;
-  nerve(0.517,0.875,0.05,0.09,2); nerve(0.522,0.87,-0.30,0.05,1);
-  // le radici si attaccano solo al fondo del tronco
+  nerve(0.534,0.935,0.10,0.09,2); nerve(0.538,0.93,-0.28,0.05,1);
   for(let i=nerveBase;i<nodes.length;i++)for(let j=0;j<nerveBase;j++){if(nodes[j].y>0.82&&Math.hypot(nodes[i].x-nodes[j].x,nodes[i].y-nodes[j].y)<0.05)edges.push([i,j]);}
   for(let i=nerveBase;i<nodes.length;i++)for(let j=nerveBase;j<i;j++){if(Math.hypot(nodes[i].x-nodes[j].x,nodes[i].y-nodes[j].y)<0.022)edges.push([i,j]);}
   // adiacenza: gli elettroni VIAGGIANO lungo il cervello E i nervi (anche da un emisfero all'altro)
