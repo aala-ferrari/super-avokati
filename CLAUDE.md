@@ -1551,6 +1551,37 @@ struttura del rekurs in Cassazione): compose **SUCCESS in 378s** con volume
 streaming**, nessun ripiego. Margine sul tetto: 4,7×. Totale domanda ~41 min
 (35 di fasi — quello è il prossimo cantiere, non più la composizione).
 
+**v9.244-9.246 — dai concorrenti: spilla persistente + Tabela e Dosjes (3 set).**
+Giro di ricognizione su Harvey/Legora/CoCounsel/Lexis+ e sugli italiani
+(Lexroom, Libra WKI, edit.legal, Lisia, Lidia, Lextel). Approvati ①+② —
+**esclusa per scelta la «doppia velocità»** (regola del titolare: esattezza
+prima della rapidità) e **niente codice AGPL** (bettercallclaude si studia,
+non si copia). `anthropics/claude-for-legal` è **Apache 2.0**: pattern
+riusabili anche in prodotto chiuso.
+**① La spilla di fiducia sopravvive al refresh.** `renderCitationsBadge`
+esisteva già («provenance lock») ma le verifiche non si salvavano MAI: al
+refresh sparivano spilla e annotazioni ⚠. Ora `messages.citations_json`; il
+salvataggio resta PRIMA delle verifiche, poi `update_message_verification`
+aggiorna testo annotato + citazioni (stream+blocking); lo storico passa
+`citations` ad `appendBot`. Provato end-to-end: 14 citazioni persistite,
+server riavviato, refresh → spilla presente.
+**② Tabela e Dosjes** (Tabular Review alla Legora): 📊 nel menu PRO, righe=
+documenti, colonne=domande, ogni cella SOLO dal suo documento (Sonnet fast,
+`callsite=dossier_table`), citazione nel title (❞), «—» quando manca — mai
+inventare. CSV `;` (Excel it/al) + Ruaj në fashikull. Logica pura in
+`src/tabela.py` (le golden la PROVANO eseguendola). **+Upload nel pannello**
+(chiesto dal titolare: caso vuoto = vicolo cieco): stesso canale della
+Dosja, lista che si auto-aggiorna ogni 3s durante l'estrazione asincrona
+senza resettare le spunte. ⚠️ Fix dal collaudo: il client leggeva `.items`,
+l'endpoint risponde `{documents:[...]}` — ora legge entrambe. Collaudo con
+verità nota: 3 celle su 3 esatte con citazioni.
+QA: golden **261/261** (sez. [23]), smoke 103/103.
+**Piano rimanente approvando col titolare**: Profili i Studios (cold-start
+interview alla claude-for-legal), digest settimanale email, fraseggio
+guardrail, Cassazione live nei prompt IT, memo con bibliografia, pagina
+«Si e verifikojmë», miniera skills Apache (claim-chart → Harta e
+pretendimeve; deposition-prep → Udienza).
+
 ## Storia versioni (sessione 30-31 ago 2026 — blindatura e documenti legali)
 
 v9.193-9.198 **sicurezza** (cervello in gabbia, SSH a chiave, freno al login,
