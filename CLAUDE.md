@@ -1582,6 +1582,30 @@ guardrail, Cassazione live nei prompt IT, memo con bibliografia, pagina
 «Si e verifikojmë», miniera skills Apache (claim-chart → Harta e
 pretendimeve; deposition-prep → Udienza).
 
+**v9.247 — sprint pre-lancio dai concorrenti (3 set).** Approvati dal
+titolare 1-2-4-5-6-7 (3=guardrail nel cassetto per sua scelta; ✗ doppia
+velocità; ✗ AGPL). Pattern da `anthropics/claude-for-legal` (Apache 2.0),
+tutto riscritto. Cervello: zero ragionamento toccato.
+**1️⃣ Profili i Studios**: `firms.profile_json` + `src/profilo.py` (provato
+eseguendo) + GET/PUT `/api/firm/profile` (titolare/admin; 403→form
+nascosto) + form nel pannello Studio. Iniezione con la meccanica rodata:
+thread-local in auth, ri-armo nelle fasi Genio, e **`porta_utente` cattura
+il profilo DA SOLO all'avvolgimento** (i 4 chiamanti intatti). ⚠️ solo
+not-fast (triage/Tabela neutri) · ⚠️ blocco «JO burim ligjor».
+**2️⃣ Digest javor** `/opt/digest-javor.py` cron lun 08:00 (Resend, lingua
+per giurisdizione, **vuoto→non parte**; destinatari: reminder_email o
+username-email — oggi quasi tutti senza email: da compilare!).
+**4️⃣ Cassazione viva** nel binario IT (web obbligatorio, «MAI inventare»);
+**5️⃣ Burimet e webit** in coda ad ANSWER (bibliografia solo se web usato).
+**6️⃣ «Si e verifikojmë»**: 4ª sezione /legale sq+it + /verifikimi /verifica.
+**7️⃣ Harta e Pretendimeve** (claim-chart civile riscritto): matrice con
+CITIM TEKSTUAL, stati mbështetur/pjesërisht/kontestuar/**MUNGON**,
+«BOSHLLËQET — PRIORITETI», mai concludere. Collaudo 295s: 3/3 nene ✓ e
+per prima cosa un avviso onesto «fonte troncata» — «mai integrare in
+silenzio» al lavoro. 📌 Follow-up noti: allegare i file veri alla Harta
+(oggi usa solo il brief), pipe-table non renderizzata come <table>.
+QA: golden **280/280** (sez. [24]), smoke 103, juris verde.
+
 ## Storia versioni (sessione 30-31 ago 2026 — blindatura e documenti legali)
 
 v9.193-9.198 **sicurezza** (cervello in gabbia, SSH a chiave, freno al login,
