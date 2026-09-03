@@ -1713,6 +1713,25 @@ info@aala.global sui 7 account del titolare via `set_user_reminder_email`
 (mai SQL a mano), i 5 mai-entrati vuoti per scelta; da ora quota+digest
 raggiungono i suoi account (digest = per-utente: può arrivarne più d'uno).
 
+**v9.256 — Përkthim ligjor: la traduzione giuridica resta in casa.** Il
+punto non è la comodità: incollare l'atto di un cliente su Google Translate
+= mandarlo a un terzo. `src/perkthim.py` + `/api/translate` (tre
+professioni; PDF/foto passano dal canale allegati esistente con OCR — il
+tool traduce sempre testo). Ricetta del titolare: **«l'effort compra
+ragionamento, la taglia del modello compra lingua»** → Opus effort **high**
+(normale) via `effort_override` nuovo nelle 4 firme di `backends.py`
+(default None: il cervello legale non lo vede; `complete_stream` NON ce
+l'ha — la chat resta com'era). **Glossario viaggiante** (spezza ai confini
+di paragrafo, invariante `"".join(cope)==originale`), **rilettura** da
+giurista madrelingua con «Terma të pasigurt» e paracadute anti-taglio,
+**disclaimer sempre** (mai spacciarsi per përkthyes i betuar). UI: `langBar`
+opzionale nel pannello generico + «🌐 Përkthim» nei tre hub. Golden [27]
+eseguiti → **309/309**. Collaudato in due direzioni col cervello vero:
+la rilettura ha perfino cambiato «Risoluzione»→«Composizione» delle
+controversie per non collidere con la risoluzione del contratto. ⚠️ il
+blocco `--effort` appare DUE volte in backends (complete + stream):
+sostituire per indice, mai per conteggio.
+
 **Landing superavokati.ai (3 set, pomeriggio) — la pagina dice la verità.**
 La landing vive FUORI dal container: `/var/www/superavokati-landing/index.html`
 statico sotto nginx (`location = /`, col cookie `session` → app), UN file con
