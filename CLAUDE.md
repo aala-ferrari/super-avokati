@@ -1606,6 +1606,30 @@ silenzio» al lavoro. 📌 Follow-up noti: allegare i file veri alla Harta
 (oggi usa solo il brief), pipe-table non renderizzata come <table>.
 QA: golden **280/280** (sez. [24]), smoke 103, juris verde.
 
+**v9.248 — B+C+D+E: l'Italia offline, dalla fonte (3 set, notte 2).**
+**[B] Giurisprudenza IT a due strati.** ⚠️ La Consulta UFFICIALE serve un
+CAPTCHA Radware agli IP datacenter → si harvesta da **giurcost.org**
+(Consulta OnLine, aperto dal 1956, URL `{anno}/{num:04d}{s|o}-{aa}.html`,
+soft-404 con marcatore). `tools/ingest_it_giurcost.py` (host, stdlib,
+resumabile, salva anche il TESTO → il BM25 futuro è un index-build). Cron
+03:15: anno corrente + un anno indietro/notte. **REGOLA DI COPERTURA**
+(eseguita nel golden [25]): il verificatore timbra SOLO (corte, anno)
+CHIUSI nel meta — anno aperto o Cassazione (v1 non coperta) restano
+INTOCCATI: «non lo trovo ≠ è falso». `src/it_case_index.py` (cache mtime)
++ `_verify_decisions_smart(text, juris)` unico per stream+strumenti.
+⚠️ **I 3M di Lisia NON si toccano**: diritto sui generis sulle banche dati
+(dir. 96/9/CE) — la raccolta è protetta anche se le sentenze sono pubbliche.
+**[C] Offsite gated**: `/opt/backup-offsite.sh` via rclone; senza remote
+`offsite:` logga «in attesa credenziali» ed esce 0 (mai fingere un backup).
+→ SERVE dal titolare: chiave B2/S3. **[D] Email obbligatoria** alla
+creazione + campo nel ⚙️ (PATCH /email) + backfill 3 utenti — sblocca
+digest/reset/notifiche. **[E] Watcher GJK** (`gjykatakushtetuese.gov.al`,
+nuovo dominio!): diff URL → staging + email curatela, **MAI auto-ingest**
+(regola sacra nel codice); primo giro = censimento muto. GJL = SPA Angular,
+API ignota, TODO con probe annotati.
+QA: golden **290/290**, smoke 103, juris verde. Harvest iniziale 2024-2026
+lanciato in sottofondo.
+
 ## Storia versioni (sessione 30-31 ago 2026 — blindatura e documenti legali)
 
 v9.193-9.198 **sicurezza** (cervello in gabbia, SSH a chiave, freno al login,
