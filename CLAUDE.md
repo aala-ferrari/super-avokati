@@ -1677,6 +1677,29 @@ del giorno, nazionale). Golden **302/302**. ⚠️ da smoke: `kerko()` rende
 `passo`/`brano`, non `snippet`; script in /tmp del container → `sys.path`
 a mano.
 
+**v9.253-9.255 — pre-lancio 7+8+9: runbook, onboarding, /verifikimi sorvegliata.**
+① `/verifikimi` è il 12° controllo del monitor severo (`/opt/uptime-monitor.sh`,
+ora anche in `ops/` nel repo). ② RUNBOOK 1 pagina (`docs/RUNBOOK.md` +
+`/opt/RUNBOOK.md`), ogni riga verificata sul server. ③ **Onboarding primo
+accesso** (`static/onboarding.js`, 1 riga in index.html): turne a riflettore
+sq/it, tappe che si auto-escludono se l'ancora non si vede, replay
+«Si funksionon» nel pannello, «visto» in localStorage, tutto in try/catch.
+⚠️ TRE lezioni dal collaudo vero (utente usa-e-getta con le funzioni
+dell'app, giro dal browser, poi `delete_user("username")` — vuole lo
+USERNAME, non l'id): il turne partiva SOPRA il modale GDPR → cancello su
+`#legal-accetta` visibile; l'ombra-gigante 9999px come riflettore è
+inaffidabile nel compositor → **4 veli espliciti** attorno al buco; e il
+vecchio contatore «cervello libero?» si contava DA SOLO (la sua cmdline
+contiene "bin/claude") — il controllo giusto guarda **argv[0]** e fa
+`sys.exit(1)` per bloccare il build:
+```
+argv0 = open(f"/proc/{p}/cmdline","rb").read().split(b"\x00")[0]
+if argv0 == b"claude" or argv0.endswith(b"/claude"): c += 1
+```
+Le modifiche a `static/` e `templates/` vivono NELL'IMMAGINE: per provarle
+al volo `docker cp` nel container (sopravvive fino al prossimo run.sh),
+poi build vero.
+
 **Landing superavokati.ai (3 set, pomeriggio) — la pagina dice la verità.**
 La landing vive FUORI dal container: `/var/www/superavokati-landing/index.html`
 statico sotto nginx (`location = /`, col cookie `session` → app), UN file con
