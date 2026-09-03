@@ -626,6 +626,43 @@ def api_create_firm():
     return jsonify({"firm": _firm_payload(firm)}), 201
 
 
+@app.get("/api/firm/profile")
+@login_required_api
+def api_firm_profile_get():
+    """Le regole della casa dello studio attivo. Titolare o admin."""
+    user = request.user  # type: ignore[attr-defined]
+    firm = getattr(request, "firm", None)
+    fid = getattr(firm, "id", None) or getattr(user, "active_firm_id", None)
+    if not fid:
+        return jsonify({"error": "asnjë studio aktive"}), 404
+    ruolo = getattr(request, "role", None)
+    if not (user.is_admin or ruolo == "owner"):
+        return jsonify({"error": "forbidden"}), 403
+    return jsonify({"firm_id": fid,
+                    "profile": storage.get_firm_profile(fid) or {}})
+
+
+@app.put("/api/firm/profile")
+@login_required_api
+def api_firm_profile_put():
+    """Salva il profilo. La pulizia decide cosa entra (profilo.pastro)."""
+    from . import profilo as profilo_mod
+    from . import brain as _brain_mod2
+    user = request.user  # type: ignore[attr-defined]
+    firm = getattr(request, "firm", None)
+    fid = getattr(firm, "id", None) or getattr(user, "active_firm_id", None)
+    if not fid:
+        return jsonify({"error": "asnjë studio aktive"}), 404
+    ruolo = getattr(request, "role", None)
+    if not (user.is_admin or ruolo == "owner"):
+        return jsonify({"error": "forbidden"}), 403
+    dati = profilo_mod.pastro(request.get_json(force=True, silent=True) or {})
+    storage.set_firm_profile(fid, dati)
+    # la cache di 60s non deve far sembrare rotto il salvataggio
+    _brain_mod2._PROFILI_CACHE.pop(fid, None)
+    return jsonify({"ok": True, "profile": dati})
+
+
 @app.post("/api/firm/switch")
 @login_required_api
 def api_switch_firm():
@@ -2695,6 +2732,14 @@ def _legal_md_to_html(md: str) -> str:
     return "\n".join(out)
 
 
+@app.get("/verifikimi")
+@app.get("/verifica")
+def pagina_verifikimi():
+    """Scorciatoie pubbliche verso la sezione «Si e verifikojmë»."""
+    lingua = "it" if request.path.endswith("/verifica") else ""
+    return redirect("/legale/" + lingua if lingua else "/legale")
+
+
 @app.get("/legale")
 @app.get("/legale/<lang>")
 def pagina_legale(lang: str = ""):
@@ -2714,10 +2759,12 @@ def pagina_legale(lang: str = ""):
     titoli = {
         "sq": [("condizioni", "Kushtet e përdorimit"),
                ("privacy", "Të dhënat e tua"),
-               ("dpa", "Të dhënat e klientëve të tu")],
+               ("dpa", "Të dhënat e klientëve të tu"),
+               ("si_e_verifikojme", "Si e verifikojmë")],
         "it": [("condizioni", "Condizioni d'uso"),
                ("privacy", "I tuoi dati"),
-               ("dpa", "Dati dei tuoi clienti")],
+               ("dpa", "Dati dei tuoi clienti"),
+               ("si_e_verifikojme", "Come verifichiamo")],
     }[lingua]
     for nome, etichetta in titoli:
         f = base / f"{nome}_{lingua}.md"
@@ -3002,6 +3049,52 @@ def api_devil_consult():
         log.exception("devil-consult failed")
         return jsonify({"error": _safe_err(exc)}), 200
     md = res.get("markdown") or ""
+    citations = {"items": [], "stats": {}}
+    try:
+        if _INDEX is not None and md:
+            citations = cv_mod.verify_text(md, _req_index())
+    except Exception:  # noqa: BLE001
+        pass
+    md = _scudo_citazioni(md, citations)
+    return jsonify({"markdown": md, "citations": citations})
+
+
+_HARTA_SYSTEM = """Je «Harta e Pretendimeve» — ndërton matricën element-për-element që lidh çdo pretendim me bazën ligjore dhe me provat REALE të dosjes.
+
+METODA (e detyrueshme):
+1. Zbërthe çështjen në PRETENDIME të veçanta (ose elemente të veprës/padisë): një rresht për secilin.
+2. Për çdo pretendim, plotëso tabelën me EKZAKTËSISHT këto kolona:
+   | Pretendimi / Elementi | Baza ligjore (nen konkret) | Provat në dosje (citim TEKSTUAL + burimi) | Kundërprova / dobësia | Gjendja | Forca 1-5 + pse |
+3. Gjendja është një nga: **mbështetur** · **pjesërisht** · **kontestuar** · **MUNGON**.
+4. CITIM TEKSTUAL, kurrë parafrazë: «...fjalët e sakta...» [Dok N] ose (dëshmia e X, data). Pa provë në dosje → gjendja MUNGON — mos plotëso nga interneti apo nga kujtesa.
+5. PAS tabelës, seksioni «🕳️ BOSHLLËQET — PRIORITETI»: lista e elementeve MUNGON/pjesërisht me ÇFARË duhet saktësisht për t'i mbyllur (cili dokument, cila dëshmi, cili ekspert, cila kërkesë provash).
+6. Mbyll me «⚖️ Si peshon»: 3-4 rreshta se ku është më i fortë dhe më i dobët dosja — VLERËSIM PUNE, JO përfundim mbi themelin.
+
+RREGULLA TË HEKURTA: mos konkludo mbi fajësinë a themelin; mos shpik nene, prova a dëshmi; boshllëku i thënë hapur vlen më shumë se një tabelë që duket e plotë."""
+
+
+@app.post("/api/claim-chart")
+@login_required_api
+@require_module("avokat", "prokuror")
+def api_claim_chart():
+    """🧩 Harta e Pretendimeve — matrice pretese↔prove, alla claim-chart."""
+    _ensure_loaded()
+    if _BRAIN is None:
+        return jsonify({"error": "unavailable"}), 503
+    body = request.get_json(silent=True) or {}
+    facts = (body.get("facts") or "").strip()
+    if len(facts) < 15:
+        return jsonify({"error": "facts_required"}), 400
+    try:
+        md = _BRAIN.backend.complete(
+            system=_HARTA_SYSTEM,
+            messages=[{"role": "user", "content": _with_case(facts[:12000], body)}],
+            max_tokens=3000, fast=False,
+            callsite="claim_chart",
+        )
+    except Exception as exc:  # noqa: BLE001
+        log.exception("claim-chart failed")
+        return jsonify({"error": _safe_err(exc)}), 200
     citations = {"items": [], "stats": {}}
     try:
         if _INDEX is not None and md:

@@ -115,6 +115,9 @@ def _arm_request_jurisdiction(user) -> None:
         # Chi sta chiedendo: stesso posto, stesso momento. Qui l'utente e'
         # gia' noto (un before_request girerebbe troppo presto).
         _brain.set_request_user(getattr(user, "id", None))
+        # 1️⃣ e con loro le regole della casa dello studio attivo
+        _brain.set_request_profile(
+            _brain.profilo_di_firm(getattr(user, "active_firm_id", None)))
     except Exception:  # noqa: BLE001 - non deve mai bloccare la richiesta
         pass
 

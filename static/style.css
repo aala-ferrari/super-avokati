@@ -8078,3 +8078,10 @@ main {
 .tb-empty{font-size:13px;color:#8b8272}
 .tb-up-row{margin:2px 0 8px}
 .tb-wait{font-style:normal;font-size:11px;color:#b8860b}
+/* 1️⃣ Profili i Studios */
+.fp-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:6px 0}
+.fp-grid input,.fp-grid select{padding:7px 9px;border:1px solid var(--line,#e7e0cf);
+  border-radius:8px;font:inherit;font-size:13px;background:transparent;color:inherit}
+#fp-rregulla{width:100%;box-sizing:border-box;padding:8px;border:1px solid
+  var(--line,#e7e0cf);border-radius:8px;font:inherit;font-size:13px}
+@media(max-width:640px){.fp-grid{grid-template-columns:1fr}}

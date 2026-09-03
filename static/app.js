@@ -3917,6 +3917,13 @@
     setTimeout(function () { ta.focus(); }, 50);
   }
 
+  function openHarta() {
+    _openTetramorphTool({ id: "harta-ov", title: "\ud83e\udde9 Harta e Pretendimeve",
+      sub: "Përshkruaj çështjen (ose mbështetu te fashikulli i hapur): merr matricën pretendim → bazë ligjore → prova me citim → boshllëqe me prioritet.",
+      placeholder: "P.sh. Padi për kthim çmimi: kontratë shitjeje 8.500€, kësti i dytë i papaguar, blerësi pretendon difekte të fshehura\u2026",
+      btn: "Ndërto hartën \u2192", loading: "Po ndërtoj matricën e provave\u2026", endpoint: "/api/claim-chart", payloadKey: "facts", attach: true, source: "harta", saveTitle: "Harta e Pretendimeve" });
+  }
+
   function openDevilConsult() {
     _openTetramorphTool({ id: "consult-ov", title: "\ud83d\ude08 Pyet Avokatin e Djallit",
       sub: "Përshkruaj situatën ose pyetjen. Avokati i Djallit të jep këndin fitues, kurthin dhe lëvizjen e zgjuar.",
@@ -6127,6 +6134,14 @@
   // ── i18n (Fase C) — Italian UI for IT sessions ────────────────────────────
   var UI_LANG = (document.body && document.body.dataset ? document.body.dataset.lang : "") || "sq";
   var I18N_IT = {
+    harta_menu: "Mappa delle pretese",
+    fp_tit: "PROFILO DELLO STUDIO",
+    fp_hint: "Stile e regole della casa — entrano come preferenze in ogni analisi profonda. La legge e i fatti vincono sempre su di esse.",
+    fp_int: "Nome ufficiale dello studio per le lettere",
+    fp_foro: "Tribunale / foro principale",
+    fp_toni: "Tono coi clienti (es. calmo e concreto)",
+    fp_rr: "Regole della casa — una per riga (max 10)\\nes. Nessuna penale oltre 0,1%/giorno senza approvazione",
+    fp_save: "💾 Salva il profilo",
     tb_menu: "Tabella del fascicolo",
     tb_title: "📊 Tabella del fascicolo",
     tb_sub: "Le righe sono i documenti del fascicolo, le colonne le tue domande. Ogni cella risponde SOLO da quel documento — quando qualcosa manca, la cella dice «—» invece di inventare.",
@@ -6254,6 +6269,7 @@
     ["Avokat", "Avvocato"], ["Prokuror", "Procuratore"], ["Noter", "Notaio"]
   ];
   var T_IT = {
+    "✓ U ruajt — hyn në analizat e ardhshme.": "✓ Salvato — entra nelle prossime analisi.",
     "Hap një rast më parë.": "Apri prima un fascicolo.",
     "Fashikulli s'ka dokumente — ngarko me 📎 këtu lart.": "Il fascicolo non ha documenti — caricali col 📎 qui sopra.",
     "duke u përpunuar…": "in elaborazione…",
@@ -6744,6 +6760,7 @@
       else if (key === "klauzolat") { openClauses(); }
       else if (key === "intake") { openIntake(); }
       else if (key === "video") { openVideo(); }
+      else if (key === "harta") { openHarta(); }
       else if (key === "tabela") { openTabela(); }
       else if (key === "fascikull") { openFascikull(); }
       else if (key === "dosja") { openDosja(); }
@@ -12178,6 +12195,44 @@ function moduleChips(u) {
     }
   });
 
+  // ── 1️⃣ Profili i Studios ───────────────────────────────────────────
+  async function loadFirmProfile() {
+    var sec = document.getElementById("fp-sec");
+    if (!sec) return;
+    try {
+      var r = await fetch("/api/firm/profile");
+      if (!r.ok) { sec.hidden = true; return; }   // 403: non e' roba tua
+      var d = (await r.json()).profile || {};
+      sec.hidden = false;
+      var v = function (id, val) { var e = document.getElementById(id); if (e) e.value = val || ""; };
+      v("fp-stili", d.stili); v("fp-gjuha", d.gjuha);
+      v("fp-intestazione", d.intestazione); v("fp-foro", d.foro);
+      v("fp-toni", d.toni);
+      v("fp-rregulla", (d.rregulla || []).join("\n"));
+    } catch (e) { sec.hidden = true; }
+  }
+  document.getElementById("fp-save")?.addEventListener("click", async function () {
+    var st = document.getElementById("fp-st");
+    var g = function (id) { return (document.getElementById(id) || {}).value || ""; };
+    this.disabled = true;
+    try {
+      var r = await fetch("/api/firm/profile", {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          stili: g("fp-stili"), gjuha: g("fp-gjuha"),
+          intestazione: g("fp-intestazione"), foro: g("fp-foro"),
+          toni: g("fp-toni"), rregulla: g("fp-rregulla"),
+        }),
+      });
+      var d = await r.json();
+      if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
+      st.textContent = TT("✓ U ruajt — hyn në analizat e ardhshme.");
+      st.style.color = "";
+    } catch (e) {
+      st.textContent = TT("Gabim: ") + e.message; st.style.color = "#c66";
+    } finally { this.disabled = false; }
+  });
+
   usagePeriodSel?.addEventListener("change", loadUsageDashboard);
 
   // hook a openStudioModal — ricarica utenti + usage ogni volta che apre Studio
@@ -12186,6 +12241,7 @@ function moduleChips(u) {
     _origOpenStudio();
     loadAdminUsers();
     loadUsageDashboard();
+    loadFirmProfile();
   };
   studioBtn?.removeEventListener("click", _origOpenStudio);
   studioBtn?.addEventListener("click", openStudioModal);

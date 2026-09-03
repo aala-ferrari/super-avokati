@@ -1014,6 +1014,8 @@ def init_db(db_path: Path = APP_DB_PATH) -> None:
         # ① La spilla di fiducia deve sopravvivere al refresh: senza
         # questa colonna le verifiche vivevano solo nella risposta live.
         _add_column_if_missing(conn, "messages", "citations_json", "TEXT")
+        # 1️⃣ Profili i Studios: le regole della casa, per studio
+        _add_column_if_missing(conn, "firms", "profile_json", "TEXT")
         _add_column_if_missing(conn, "messages", "timeline_json", "TEXT")
         _add_column_if_missing(conn, "messages", "comparison_json", "TEXT")
         _add_column_if_missing(conn, "messages", "missing_facts_json", "TEXT")
@@ -1987,6 +1989,29 @@ def touch_case(case_id: str, user_id: int) -> None:
 
 
 # ── messages ────────────────────────────────────────────────────────────────
+
+def get_firm_profile(firm_id: int | None) -> dict | None:
+    """Il profilo dello studio, se esiste. None = mai compilato."""
+    if not firm_id:
+        return None
+    with db() as conn:
+        r = conn.execute(
+            "SELECT profile_json FROM firms WHERE id = ?", (firm_id,)
+        ).fetchone()
+    if not r or not r["profile_json"]:
+        return None
+    try:
+        return json.loads(r["profile_json"])
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def set_firm_profile(firm_id: int, dati: dict) -> None:
+    with db() as conn:
+        conn.execute(
+            "UPDATE firms SET profile_json = ? WHERE id = ?",
+            (json.dumps(dati, ensure_ascii=False), firm_id))
+
 
 def update_message_verification(message_id: int, citations: dict | None,
                                 content: str | None = None) -> None:

@@ -1053,6 +1053,77 @@ def main():
         check("besimi/tabela[23]: kontrollet u ekzekutuan", False, str(_e))
 
 
+    # ── [24] nga konkurrentet: profili, kasacioni, burimet, harta ───────
+    try:
+        _b4 = _io2.open(_os2.path.join(_rr, "src", "brain.py"), encoding="utf-8").read()
+        _w4 = _io2.open(_os2.path.join(_rr, "src", "web.py"), encoding="utf-8").read()
+        _bk4 = _io2.open(_os2.path.join(_rr, "src", "backends.py"), encoding="utf-8").read()
+        _a4 = _io2.open(_os2.path.join(_rr, "static", "app.js"), encoding="utf-8").read()
+        _h4 = _io2.open(_os2.path.join(_rr, "templates", "index.html"), encoding="utf-8").read()
+
+        # 4️⃣ binario IT: Cassazione e detyrueshme, shpikja e ndaluar
+        check("IT: Kasacioni kerkohet live",
+              "CASSAZIONE — VERIFICA VIVA" in _b4,
+              "konkurrentet italiane jetojne me Kasacion")
+        check("IT: ndalimi i shpikjes se ekstremeve",
+              "MAI inventare numero, sezione o anno" in _b4)
+
+        # 5️⃣ burimet e webit ne fund te pergjigjes
+        check("burimet: seksioni i detyruar kur perdoret webi",
+              "Burimet e webit" in _b4)
+
+        # 1️⃣ profili i studios — zinxhiri i plote
+        check("profili: kolona ne firms", "profile_json" in
+              _io2.open(_os2.path.join(_rr, "src", "storage.py"), encoding="utf-8").read())
+        check("profili: armatoset ne auth", "set_request_profile" in
+              _io2.open(_os2.path.join(_rr, "src", "auth.py"), encoding="utf-8").read())
+        check("profili: udheton me porta_utente",
+              "_profili = request_profile()" in _b4,
+              "pa te, punet ne sfond humbnin rregullat e shtepise")
+        check("profili: fazat e trurit e ri-armatosin",
+              "_stage_profili" in _b4)
+        check("profili: injektohet VETEM jo-fast",
+              "_shto_profilin" in _bk4 and "if fast:" in _bk4,
+              "triage dhe qelizat e tabeles duhet te mbeten neutrale")
+        check("profili: endpoint-et", "/api/firm/profile" in _w4)
+        check("profili: forma ne Studio", 'id="fp-sec"' in _h4
+              and "loadFirmProfile" in _a4)
+
+        # 6️⃣ faqja publike e verifikimit
+        check("verifikimi: skedaret ekzistojne",
+              _os2.path.isfile(_os2.path.join(_rr, "legal", "si_e_verifikojme_sq.md"))
+              and _os2.path.isfile(_os2.path.join(_rr, "legal", "si_e_verifikojme_it.md")))
+        check("verifikimi: seksion i /legale + shkurtore",
+              "si_e_verifikojme" in _w4 and '"/verifikimi"' in _w4)
+
+        # 7️⃣ harta e pretendimeve — parimet e metodologjise
+        check("harta: endpoint + menu",
+              "api_claim_chart" in _w4 and 'data-pro="harta"' in _h4)
+        check("harta: boshlleku eshte prioriteti",
+              "BOSHLLËQET — PRIORITETI" in _w4,
+              "harta sherben te fitosh discovery-n, jo te dukesh i plote")
+        check("harta: citim tekstual, jo parafraze",
+              "kurrë parafrazë" in _w4)
+        check("harta: nuk konkludon mbi themelin",
+              "mos konkludo mbi fajësinë" in _w4)
+
+        # profilo: formattatore PROVATO eseguendolo
+        import sys as _sy5
+        _sy5.path.insert(0, _rr)
+        from src.profilo import pastro, formato_blloku, MAX_RREGULLA
+        _d = pastro({"stili": "  Formal  ", "rregulla": "a\nb\n\n" + "\n".join("r%d" % i for i in range(20)), "boh": "x"})
+        check("profili: pastro heq te panjohurat dhe kufizon",
+              "boh" not in _d and len(_d["rregulla"]) == MAX_RREGULLA
+              and _d["stili"] == "Formal")
+        _bl = formato_blloku({"intestazione": "Studio X", "rregulla": ["mai penali >0,1%"]})
+        check("profili: blloku thote JO burim ligjor",
+              "JO burim ligjor" in _bl and "Studio X" in _bl,
+              "nje rregull shtepie s'duhet te behet kurre baze juridike")
+        check("profili: bosh → bllok bosh", formato_blloku({}) == "")
+    except Exception as _e:  # noqa: BLE001
+        check("konkurrentet[24]: kontrollet u ekzekutuan", False, str(_e))
+
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

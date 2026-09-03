@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="/static/style.css?v=138" />
+<link rel="stylesheet" href="/static/style.css?v=140" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%230a0a0a'/%3E%3Cpath d='M32 14v36M14 22h36M8 22l-4 10h8zM56 22l-4 10h8zM26 50h12v4H26z' stroke='%23e41e26' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='32' cy='14' r='3' fill='%23c9a24d'/%3E%3C/svg%3E" />
 <link rel="manifest" href="/manifest.webmanifest" />
 <link rel="apple-touch-icon" href="/static/apple-touch-icon.png" />
@@ -198,6 +198,7 @@
               📄 <span data-i18n="legal_menu">Kushtet dhe të dhënat</span>
             </button>
             <button type="button" class="pro-menu-item pro-menu-new" data-pro="tabela" role="menuitem">📊 <span data-i18n="tb_menu">Tabela e Dosjes</span></button>
+            <button type="button" class="pro-menu-item pro-menu-new" data-pro="harta" role="menuitem">🧩 <span data-i18n="harta_menu">Harta e Pretendimeve</span></button>
             <button type="button" class="pro-menu-item pro-menu-new" data-pro="video" role="menuitem">
               <span class="pro-menu-ico">🎥</span>
               <div><strong data-i18n="pro_video_t">Video dhe audio</strong><em data-i18n="pro_video_d">Provat video dhe audio: të dhënat e skedarit · rrjedha kohore me minutazhe · transkript · krahasim me procesverbalet</em></div>
@@ -1225,6 +1226,22 @@
         </div>
         <hr style="margin: 16px 0; border-color: #2a2a2a;" />
 
+        <!-- 1️⃣ Profili i Studios: le regole della casa, iniettate in ogni
+             analisi ragionata. Visibile solo a titolare/admin (403 = resta
+             nascosta). -->
+        <div id="fp-sec" hidden>
+          <div class="pro-modal-sub" style="margin-top:14px"><b>🏛️ <span data-i18n="fp_tit">PROFILI I STUDIOS</span></b></div>
+          <p class="exp-hint" data-i18n="fp_hint">Stili dhe rregullat e shtëpisë — hyjnë si preferenca në çdo analizë të thellë. Ligji dhe faktet fitojnë gjithmonë mbi to.</p>
+          <div class="fp-grid">
+            <select id="fp-stili"><option value="">— <span></span>stili…</option><option>Formal</option><option value="I përmbledhur">I përmbledhur</option><option value="I detajuar">I detajuar</option></select>
+            <select id="fp-gjuha"><option value="">— gjuha e akteve…</option><option>Shqip</option><option>Italisht</option><option value="Të dyja">Të dyja</option></select>
+            <input id="fp-intestazione" data-i18n-ph="fp_int" placeholder="Emri zyrtar i studios për shkresa" />
+            <input id="fp-foro" data-i18n-ph="fp_foro" placeholder="Gjykata / foroja kryesore" />
+            <input id="fp-toni" data-i18n-ph="fp_toni" placeholder="Toni me klientët (p.sh. i qetë dhe konkret)" />
+          </div>
+          <textarea id="fp-rregulla" rows="4" data-i18n-ph="fp_rr" placeholder="Rregullat e shtëpisë — një për rresht (max 10)\np.sh. Asnjë klauzolë penale mbi 0,1%/ditë pa miratim"></textarea>
+          <div class="ac-row"><button type="button" id="fp-save" class="ac-run" data-i18n="fp_save">💾 Ruaj profilin</button><span class="ac-status" id="fp-st"></span></div>
+        </div>
         <!-- V9.2 — usage / billing dashboard -->
         <div id="usage-dashboard" style="margin-top: 8px;">
           <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 8px;">
@@ -1708,7 +1725,7 @@
   </div>
 </template>
 
-<script src="/static/app.js?v=138"></script>
+<script src="/static/app.js?v=140"></script>
 <script src="/static/secretary.js?v=1"></script>
   <script src="/static/sw-register.js?v=1" defer></script>
 </body>

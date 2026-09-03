@@ -61,6 +61,25 @@ _AUDIT_STORE_RAW = os.getenv("AI_AUDIT_STORE_RAW", "").strip() in ("1", "true", 
 _AUDIT_RAW_TRUNCATE = int(os.getenv("AI_AUDIT_RAW_TRUNCATE", "4000"))
 
 
+def _shto_profilin(system: str, fast: bool) -> str:
+    """Antepone le regole della casa — SOLO alle chiamate ragionate.
+
+    Il triage e le estrazioni (fast) devono restare neutre: lo stile della
+    casa li' sprecherebbe token e sporcherebbe dati che devono essere fatti,
+    non forma. Idempotente: il marcatore evita il doppio blocco.
+    """
+    if fast:
+        return system
+    try:
+        from .brain import request_profile
+        blocco = request_profile()
+    except Exception:  # noqa: BLE001
+        return system
+    if not blocco or "PROFILI I STUDIOS" in system:
+        return system
+    return blocco + "\n" + system
+
+
 def _apply_juris(system):
     """Rete di sicurezza: la giurisdizione della sessione applicata a OGNI
     chiamata al cervello.
@@ -341,6 +360,7 @@ class ClaudeCodeBackend(LLMBackend):
                  case_id: str | None = None,
                  model_override: str | None = None) -> str:
         system = _apply_juris(system)  # giurisdizione della sessione
+        system = _shto_profilin(system, fast)  # regole della casa
 
         # Reset per-call — only meaningful for the current complete().
         self.last_resume_failed = False
@@ -573,6 +593,7 @@ class ClaudeCodeBackend(LLMBackend):
         case_id: str | None = None,
     ) -> Iterator[tuple[str, object]]:
         system = _apply_juris(system)  # giurisdizione della sessione
+        system = _shto_profilin(system, fast)  # regole della casa
 
         self.last_resume_failed = False
         model = self._pick_model(fast, medium)

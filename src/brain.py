@@ -319,6 +319,16 @@ lingua albanese o il diritto albanese: quelle regole NON si applicano qui.
     norma non compare tra questi e non ne sei certo, dillo apertamente e
     rimanda alla verifica su Normattiva invece di inventare il numero.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+── CASSAZIONE — VERIFICA VIVA (obbligatoria per le questioni non banali) ──
+Per ogni questione italiana sostanziale CERCA sul web la giurisprudenza di
+legittimità PRIMA di rispondere: Cassazione pertinente e recente (sezione,
+numero/anno). Formato: «Cass. civ., Sez. II, n. 12345/2024» + una riga di
+massima + fonte (URL) e data di consultazione. Fonti preferite:
+cortedicassazione.it, Italgiure, normattiva.it, Gazzetta Ufficiale.
+Se la ricerca NON conferma un estremo: dillo apertamente («orientamento da
+verificare») — MAI inventare numero, sezione o anno. Un estremo inventato
+in un atto è un danno professionale, non un aiuto.
 """
 
 JURISDICTION_OVERRIDE_EU = """
@@ -354,15 +364,54 @@ def request_user_id() -> int | None:
     return getattr(_REQUEST_USER, "uid", None)
 
 
+_REQUEST_PROFILE = _threading.local()
+
+
+def set_request_profile(blocco: str | None) -> None:
+    _REQUEST_PROFILE.txt = blocco or ""
+
+
+def request_profile() -> str:
+    return getattr(_REQUEST_PROFILE, "txt", "") or ""
+
+
+# Cache breve del profilo per studio: una SELECT per richiesta sarebbe
+# comunque poca cosa, ma il profilo cambia di rado e questo la azzera.
+_PROFILI_CACHE: dict[int, tuple[float, str]] = {}
+
+
+def profilo_di_firm(firm_id: int | None) -> str:
+    if not firm_id:
+        return ""
+    import time as _t
+    voce = _PROFILI_CACHE.get(firm_id)
+    if voce and _t.time() - voce[0] < 60:
+        return voce[1]
+    try:
+        from . import storage as _st
+        from .profilo import formato_blloku
+        blocco = formato_blloku(_st.get_firm_profile(firm_id))
+    except Exception:  # noqa: BLE001 — mai bloccare una risposta per lo stile
+        blocco = ""
+    _PROFILI_CACHE[firm_id] = (_t.time(), blocco)
+    return blocco
+
+
 def porta_utente(uid: int | None, fn):
     """Avvolge una funzione perche', girando in un thread nuovo, sappia di chi e'.
 
     Il thread nato da `threading.Thread(target=fn)` non eredita niente: il
     contesto vive in un `threading.local()`. Qui lo si ri-arma appena dentro.
     """
+    # ⚠️ Il profilo si cattura QUI, nel thread della richiesta (dove e'
+    # armato), non dentro `_dentro` (dove non c'e' piu'). Cosi' i quattro
+    # chiamanti non cambiano di una virgola.
+    _profili = request_profile()
+
     def _dentro(*a, **k):
         try:
             set_request_user(uid)
+            set_request_profile(_profili)
         except Exception:  # noqa: BLE001
             pass
         return fn(*a, **k)
@@ -1188,7 +1237,9 @@ Kur avokati pyet "sa është" / "sa paguaj" / "sa përqind", PËRGJIGJU ME SHIFR
  • Jep një VLERËSIM konkret në euro/lekë me llogaritjen hap-pas-hapi mbi vlerën doganore (te makinat "okazion" kujto Nenin 66/70: vlera doganore mund të rivlerësohet më lart se çmimi i blerjes).
  • Mbylle me shifrën që PESHON më shumë (p.sh. te automjetet e vjetra me cilindratë të madhe = akciza) dhe ku ta verifikojë saktësisht sot.
 
-SAKTËSIA MBI GJITHÇKA — RREGULL I SHENJTË: një avokat NUK mund të gabojë; një shifër ose nen i gabuar humbet kauzën dhe klientin. Më mirë vono dhe jep të saktën sesa shpejt e gabim. MOS HAMENDËSO KURRË një numër, nen apo afat. Nëse pas verifikimit nuk e gjen dot shifrën e saktë, thuaj QARTË: çfarë është e SIGURT (p.sh. TVSH 20%, struktura e detyrimeve) dhe çfarë duhet marrë nga VKM-ja në fuqi me linkun e saktë. Dallo gjithmonë "e sigurt" nga "duhet verifikuar" — kjartësia është mbrojtja e avokatit."""
+SAKTËSIA MBI GJITHÇKA — RREGULL I SHENJTË: një avokat NUK mund të gabojë; një shifër ose nen i gabuar humbet kauzën dhe klientin. Më mirë vono dhe jep të saktën sesa shpejt e gabim. MOS HAMENDËSO KURRË një numër, nen apo afat. Nëse pas verifikimit nuk e gjen dot shifrën e saktë, thuaj QARTË: çfarë është e SIGURT (p.sh. TVSH 20%, struktura e detyrimeve) dhe çfarë duhet marrë nga VKM-ja në fuqi me linkun e saktë. Dallo gjithmonë "e sigurt" nga "duhet verifikuar" — kjartësia është mbrojtja e avokatit.
+
+BURIMET E WEBIT — kur ke përdorur kërkimin në internet për këtë përgjigje, MBYLLE me seksionin «## Burimet e webit»: listë e numëruar; për çdo burim URL-ja e plotë, data e aksesit dhe gjysmë rreshti se çfarë mbështet. Nëse s'ke përdorur web: MOS e shto seksionin — një bibliografi e shpikur është e kundërta e qëllimit."""
 
 
 # V7.7 — simple-query answer prompt. Colloquial, no rigid 5-section
@@ -2079,6 +2130,7 @@ class SuperAvvocato:
         # e con lei chi ha chiesto: le fasi sono la parte piu' costosa di
         # tutto il prodotto, ed erano quelle attribuite a nessuno.
         _stage_utente = request_user_id()
+        _stage_profili = request_profile()
 
         def _one(name: str, fn: Callable[[], object]) -> tuple[str, object | None, float]:
             # I worker sono thread diversi da quello della richiesta: la
@@ -2089,6 +2141,7 @@ class SuperAvvocato:
                 self._jurisdiction_ctx.code = _stage_jurisdiction
                 set_request_jurisdiction(_stage_jurisdiction)
                 set_request_user(_stage_utente)
+                set_request_profile(_stage_profili)
             except Exception:  # noqa: BLE001
                 pass
             t0 = time.monotonic()
