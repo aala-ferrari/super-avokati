@@ -67,6 +67,11 @@ openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 \
   -pass file:/root/.backup-key && gunzip /tmp/sa.db.gz
 # poi: docker stop super-avvocato · sostituire data/app.db · docker start super-avvocato
 ```
+**Provato per davvero il 3 set 2026** (restore drill, prod mai toccata):
+decifrare **1 s** · integrità `ok` · conti utenti/casi/messaggi tornati ·
+app **risorta in 26 s** da container pulito col DB del backup (status 200,
+login servito) · anche l'archivio AALA FULL si apre e si legge.
+Il backup è delle 04:00 → nel caso peggiore si perde la giornata in corso.
 
 ## 5 · Dove guardare i log
 
