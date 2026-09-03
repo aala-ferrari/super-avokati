@@ -622,12 +622,20 @@ function robotBrain(sel){
       path(line);}}
   const cbB=nodes.length;
   // TRONCO ENCEFALICO: due profili che scendono con lieve curva + traversine
-  path([[0.545,0.652],[0.524,0.718],[0.506,0.788],[0.496,0.858],[0.492,0.925]]);
-  path([[0.614,0.658],[0.585,0.724],[0.558,0.794],[0.545,0.862],[0.541,0.925]]);
-  path([[0.531,0.75],[0.573,0.755]]);path([[0.503,0.845],[0.545,0.85]]);
+  // TRONCO ENCEFALICO: tubo che si assottiglia (maglia organica, niente scala a pioli)
+  {const seg=7,cl=[],wl=[];
+   for(let i=0;i<=seg;i++){const f=i/seg;
+     cl.push([0.578-0.062*f+0.018*Math.sin(f*3.1),0.652+0.223*f]);
+     wl.push(0.030*(1-f)+0.008);}
+   const Lp=[],Mp=[],Rp=[];
+   for(let i=0;i<=seg;i++){const j=0.006*Math.sin(i*2.4+1);
+     Lp.push([cl[i][0]-wl[i],cl[i][1]+j]);
+     Mp.push([cl[i][0]+0.004*Math.sin(i*2.9),cl[i][1]-j*0.6]);
+     Rp.push([cl[i][0]+wl[i],cl[i][1]+j*0.8]);}
+   path(Lp);path(Mp);path(Rp);}
   const N=nodes.length;
   // mesh: collega nodi vicini (corteccia, cervelletto e tronco si saldano dove si toccano)
-  for(let i=0;i<N;i++)for(let j=i+1;j<N;j++){if(i>=cbA&&j<cbB&&i<cbB&&j>=cbA)continue;if(Math.hypot(nodes[i].x-nodes[j].x,nodes[i].y-nodes[j].y)<0.052)edges.push([i,j]);}
+  for(let i=0;i<N;i++)for(let j=i+1;j<N;j++){const dd=Math.hypot(nodes[i].x-nodes[j].x,nodes[i].y-nodes[j].y);if(i>=cbA&&j<cbB&&i<cbB&&j>=cbA){if(dd<0.028)edges.push([i,j]);continue;}if(dd<0.052)edges.push([i,j]);}
   // RADICI nervose sotto il tronco (l'identita' di prima, in piccolo)
   function nerve(x,y,ang,len,depth){
     if(depth<=0||y>1.02)return;
@@ -638,9 +646,10 @@ function robotBrain(sel){
       if(Math.random()<0.85)nerve(nx,ny,ang+(0.35+Math.random()*0.3),len*0.72,depth-1);}
   }
   const nerveBase=nodes.length;
-  nerve(0.507,0.925,0.14,0.10,3); nerve(0.532,0.925,-0.06,0.09,2); nerve(0.552,0.92,-0.26,0.09,2);
+  nerve(0.517,0.875,0.05,0.09,2); nerve(0.522,0.87,-0.30,0.05,1);
   // le radici si attaccano solo al fondo del tronco
   for(let i=nerveBase;i<nodes.length;i++)for(let j=0;j<nerveBase;j++){if(nodes[j].y>0.82&&Math.hypot(nodes[i].x-nodes[j].x,nodes[i].y-nodes[j].y)<0.05)edges.push([i,j]);}
+  for(let i=nerveBase;i<nodes.length;i++)for(let j=nerveBase;j<i;j++){if(Math.hypot(nodes[i].x-nodes[j].x,nodes[i].y-nodes[j].y)<0.022)edges.push([i,j]);}
   // adiacenza: gli elettroni VIAGGIANO lungo il cervello E i nervi (anche da un emisfero all'altro)
   const adj=[];for(let i=0;i<nodes.length;i++)adj.push([]);
   for(let e=0;e<edges.length;e++){adj[edges[e][0]].push(edges[e][1]);adj[edges[e][1]].push(edges[e][0]);}
