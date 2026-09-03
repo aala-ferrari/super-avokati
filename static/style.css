@@ -8041,3 +8041,40 @@ main {
 .us-cap-ok{border-color:#6c6}
 .us-cap-ko{border-color:#c66}
 .us-picco{color:#8b8272}
+
+/* ── ② Tabela e Dosjes ──────────────────────────────────────────────
+   Righe=documenti, colonne=domande. La citazione vive nel title della
+   cella (❞): il tavolo resta pulito, la prova resta a un passaggio di
+   mouse. */
+.tb-step{font-size:12px;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--ink-mute,#8b8272);margin:14px 0 6px}
+.tb-docs{display:flex;flex-wrap:wrap;gap:8px 14px;margin-bottom:4px}
+.tb-doc{display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer}
+.tb-doc-off{opacity:.5;cursor:default}
+.tb-doc em{font-style:normal;font-size:11px;color:#a08}
+.tb-chips{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 6px}
+.tb-chip{border:1px dashed var(--gold,#c9a24d);background:transparent;
+  border-radius:14px;padding:4px 10px;font-size:12px;cursor:pointer}
+.tb-chip:hover{background:rgba(201,162,77,.12)}
+.tb-qs{width:100%;box-sizing:border-box;border:1px solid var(--line,#e7e0cf);
+  border-radius:8px;padding:8px;font:inherit;font-size:13px}
+.tb-wrap{overflow-x:auto;margin-top:10px;border:1px solid var(--line,#e7e0cf);
+  border-radius:8px}
+.tb-table{border-collapse:collapse;width:100%;font-size:13px;min-width:520px}
+.tb-table th{position:sticky;top:0;background:var(--cream,#faf6ec);
+  text-align:left;padding:8px 10px;border-bottom:2px solid var(--gold,#c9a24d);
+  white-space:nowrap}
+.tb-table td{padding:7px 10px;border-bottom:1px solid var(--line,#e7e0cf);
+  vertical-align:top;max-width:340px}
+.tb-doc-name{font-weight:600;white-space:nowrap;max-width:220px;
+  overflow:hidden;text-overflow:ellipsis}
+.tb-miss{color:#8b8272}
+.tb-err{color:#c66}
+.tb-q{color:var(--gold,#c9a24d);cursor:help;font-size:12px}
+.tb-skip{margin-top:6px;font-size:12px;color:#8b8272}
+.tb-csv{border:1px solid var(--line,#e7e0cf);background:transparent;
+  border-radius:8px;padding:6px 12px;cursor:pointer;font-size:13px}
+.tb-csv:hover{border-color:var(--gold,#c9a24d)}
+.tb-empty{font-size:13px;color:#8b8272}
+.tb-up-row{margin:2px 0 8px}
+.tb-wait{font-style:normal;font-size:11px;color:#b8860b}

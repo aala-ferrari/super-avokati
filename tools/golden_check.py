@@ -991,6 +991,68 @@ def main():
         check("kompozimi[22]: kontrollet u ekzekutuan", False, str(_e))
 
 
+    # ── [23] besimi qe mbahet mend + tabela qe s'shpik ──────────────────
+    try:
+        _s23 = _io2.open(_os2.path.join(_rr, "src", "storage.py"), encoding="utf-8").read()
+        _w23 = _io2.open(_os2.path.join(_rr, "src", "web.py"), encoding="utf-8").read()
+        _a23 = _io2.open(_os2.path.join(_rr, "static", "app.js"), encoding="utf-8").read()
+        _h23 = _io2.open(_os2.path.join(_rr, "templates", "index.html"), encoding="utf-8").read()
+
+        # ① Verifikat e citimeve MBIJETOJNE refresh-in. Pa keto, distinktivi
+        # i besimit dhe shenjat ⚠ zhdukeshin sapo rihapej faqja.
+        check("besimi: kolona citations_json ekziston",
+              "citations_json" in _s23)
+        check("besimi: mesazhi perditesohet PAS verifikave",
+              _w23.count("update_message_verification") >= 2,
+              "ruajtja mbetet e para (pergjigja mbijeton), verifikat shtohen pas")
+        check("besimi: historiku ia jep distinktivit citimet",
+              _w23.count('"citations": m.citations') >= 2)
+        check("besimi: klienti i kalon te appendBot",
+              "citations: m.citations || null" in _a23,
+              "distinktivi ekzistonte por historiku s'ia jepte te dhenat")
+
+        # ② Tabela — e gjetshme dhe e paster
+        check("tabela: ze ne menu PRO", 'data-pro="tabela"' in _h23)
+        check("tabela: dispatcher-i e hap", 'key === "tabela"' in _a23)
+        check("tabela: endpoint-i ekziston", "/table" in _w23 and "api_case_table" in _w23)
+        check("tabela: CSV me pikepresje (Excel it/al)", "join(\";\")" in _a23,
+              "me presje Excel-i lokal e hap gjithcka ne nje kolone")
+        # E gjetur nga titullari ne shikimin e pare: pa ngarkim, nje
+        # fashikull bosh ishte rruge pa krye.
+        check("tabela: ngarkon dokumente nga vete paneli",
+              "tb-up-inp" in _a23 and 'method: "POST", body: fd' in _a23)
+        check("tabela: lista vetepërditësohet gjate përpunimit",
+              "sorvegliaLista" in _a23,
+              "nxjerrja eshte asinkrone: kutia ndizet kur teksti ekziston")
+        check("tabela: lexon celesin e vertete te pergjigjes",
+              "j.documents || j.items" in _a23,
+              "endpoint kthen {documents}: .items betohej se s'ka dokumente")
+
+        # Parse-i i PROVUAR me pergjigje te renditura si i vjen modelit
+        import sys as _sy4
+        _sy4.path.insert(0, _rr)
+        from src.tabela import parse_qeliza, pastro_pyetjet, MAX_PYETJE
+        _ok1 = parse_qeliza('```json\n[{"answer":"Stiven","quote":"pala e demtuar Stiven","found":true}]\n```', 1)
+        check("tabela: parse me recinti ```", _ok1[0]["answer"] == "Stiven" and _ok1[0]["found"] is True)
+        _ok2 = parse_qeliza('Ja rezultati: [{"answer":"12.000 €","found":true},{"answer":"—","found":false}] shpresoj te ndihmoje', 2)
+        check("tabela: parse me proze rreth listes", _ok2[1]["found"] is False)
+        _ok3 = parse_qeliza('[{"answer":"vetem nje"}]', 3)
+        check("tabela: rreshti sfazuar plotesohet me «—»",
+              len(_ok3) == 3 and _ok3[2]["answer"] == "—",
+              "nje tabele e sfazuar nje kolone eshte me keq se nje qelize bosh")
+        try:
+            parse_qeliza("s'ka fare json ketu", 2)
+            check("tabela: plehra → ValueError", False, "duhej te ngrinte")
+        except ValueError:
+            check("tabela: plehra → ValueError", True)
+        _q = pastro_pyetjet(["  a?  ", "a?", "", "b?"] + ["x%d" % i for i in range(20)])
+        check("tabela: pyetjet pastrohen dhe kufizohen",
+              _q[0] == "a?" and len(_q) == MAX_PYETJE,
+              "dublikatat dhe boshlleqet s'behen kolona")
+    except Exception as _e:  # noqa: BLE001
+        check("besimi/tabela[23]: kontrollet u ekzekutuan", False, str(_e))
+
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

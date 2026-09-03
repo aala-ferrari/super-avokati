@@ -173,6 +173,7 @@
         kind: m.kind || "answer",
         text: m.content,
         articles: m.articles || [],
+        citations: m.citations || null,
         precedents: m.precedents || [],
         timeline: m.timeline || null,
         comparison: m.comparison || null,
@@ -5002,6 +5003,212 @@
   // l'elenco dei documenti, sarebbe illeggibile: qui si vede la scheda del
   // file, i rilievi, i minutaggi — e soprattutto si lancia il CONFRONTO col
   // fascicolo, che e' la cosa per cui vale la pena averlo.
+  // ── ② Tabela e Dosjes ─────────────────────────────────────────────
+  //
+  // Righe = documenti, colonne = domande: ogni cella risponde SOLO dal suo
+  // documento, col modello veloce e la citazione testuale sotto il mouse.
+  // Il cervello (Opus, 14 fasi) non c'entra: e' orchestrazione, alla Legora.
+  async function openTabela() {
+    if (!activeCaseId) { toast(TT("Hap një rast më parë."), "error"); return; }
+    var ov = document.getElementById("tb-ov");
+    if (ov) ov.remove();
+    ov = document.createElement("div");
+    ov.id = "tb-ov"; ov.className = "ac-overlay";
+    ov.innerHTML = '<div class="ac-modal exp-modal">' +
+      '<div class="ac-head"><span data-i18n="tb_title">📊 Tabela e Dosjes</span>' +
+        '<button class="ac-x" type="button" aria-label="Mbyll">×</button></div>' +
+      '<div class="exp-body">' +
+        '<div class="exp-sub" data-i18n="tb_sub">Rreshtat janë dokumentet e fashikullit, kolonat janë pyetjet e tua. Çdo qelizë përgjigjet VETËM nga ai dokument — kur diçka mungon, qeliza thotë «—» në vend që të shpikë.</div>' +
+        '<div class="tb-step" data-i18n="tb_docs">1 · Zgjidh dokumentet</div>' +
+        '<div class="ac-row tb-up-row">' +
+          '<label class="fk-upload" data-i18n="tb_up">📎 Ngarko dokumente' +
+            '<input type="file" multiple class="tb-up-inp" accept=".pdf,.docx,.doc,.txt,.rtf,.jpg,.jpeg,.png,.webp,.tif,.tiff,.heic,.heif,.mp4,.mov,.avi,.mkv,.m4v,.webm,.mpg,.wmv,.dav,.mp3,.wav,.m4a,.aac,.ogg,.opus,.amr" hidden></label>' +
+          '<span class="ac-status tb-up-st"></span></div>' +
+        '<div class="tb-docs"></div>' +
+        '<div class="tb-step" data-i18n="tb_qs">2 · Shkruaj pyetjet — një për rresht (max 8)</div>' +
+        '<div class="tb-chips">' +
+          '<button type="button" class="tb-chip" data-i18n="tb_chip1">+ Palët e përmendura</button>' +
+          '<button type="button" class="tb-chip" data-i18n="tb_chip2">+ Datat kryesore</button>' +
+          '<button type="button" class="tb-chip" data-i18n="tb_chip3">+ Shumat / objekti</button>' +
+        '</div>' +
+        '<textarea class="tb-qs" rows="3" data-i18n-ph="tb_ph" placeholder="p.sh. Cilat palë përmenden?\nÇfarë date mban dokumenti?"></textarea>' +
+        '<div class="ac-row"><button class="ac-run tb-run" type="button" data-i18n="tb_run">Ndërto tabelën →</button>' +
+          '<span class="ac-status tb-st"></span></div>' +
+        '<div class="exp-hint" data-i18n="tb_hint">Një thirrje e shpejtë për dokument — jo truri i plotë.</div>' +
+        '<div class="ac-result tb-res"></div>' +
+      '</div></div>';
+    document.body.appendChild(ov);
+    applyStaticI18n(ov);
+    ov.querySelector(".ac-x").onclick = function () { ov.remove(); };
+    ov.addEventListener("click", function (e) { if (e.target === ov) ov.remove(); });
+
+    // I documenti del fascicolo: tutti pre-selezionati, chi e' senza testo
+    // resta visibile ma spento — un fascicolo monco taciuto inganna.
+    //
+    // ⚠️ La lista e' una FUNZIONE, non un colpo solo: l'estrazione e'
+    // asincrona (un PDF e' pronto in secondi, una foto passa dall'OCR),
+    // quindi dopo un carico si riguarda ogni 3s finche' tutto e' terminale.
+    // Le spunte gia' scelte dall'avvocato NON si resettano a ogni giro.
+    var lista = ov.querySelector(".tb-docs");
+    lista.innerHTML = '<span class="ac-status">…</span>';
+    async function aggiornaLista() {
+      var docs = [];
+      try {
+        var r = await fetch("/api/cases/" + activeCaseId + "/documents");
+        var j = await r.json();
+        // l'endpoint risponde {documents:[...]}; `.items` era la chiave
+        // sbagliata e la lista giurava «s'ka dokumente» a carico riuscito
+        docs = j.documents || j.items || [];
+      } catch (e) { docs = []; }
+      // memoria delle spunte: chi era deselezionato resta deselezionato
+      var spente = {};
+      ov.querySelectorAll(".tb-doc input").forEach(function (i) {
+        if (!i.disabled && !i.checked) spente[i.value] = true;
+      });
+      if (!docs.length) {
+        lista.innerHTML = '<span class="tb-empty">' +
+          TT("Fashikulli s'ka dokumente — ngarko me 📎 këtu lart.") + "</span>";
+        return false;
+      }
+      var inLavoro = false;
+      lista.innerHTML = docs.map(function (d) {
+        var ka = !!d.has_text;
+        var stato = String(d.status || "");
+        var attesa = !ka && (stato === "pending" || stato === "processing");
+        if (attesa) inLavoro = true;
+        var nota = "";
+        if (attesa) nota = ' <em class="tb-wait">⏳ ' + TT("duke u përpunuar…") + "</em>";
+        else if (!ka && stato === "error") nota = ' <em>' + TT("gabim përpunimi") + "</em>";
+        else if (!ka) nota = ' <em>' + TT("pa tekst") + "</em>";
+        return '<label class="tb-doc' + (ka ? "" : " tb-doc-off") + '">' +
+          '<input type="checkbox" value="' + escHtml(String(d.id)) + '"' +
+          (ka ? (spente[String(d.id)] ? "" : " checked") : " disabled") + "> " +
+          escHtml(d.filename) + nota + "</label>";
+      }).join("");
+      return inLavoro;
+    }
+    var _tbGiri = 0;
+    async function sorvegliaLista() {
+      var ancora = await aggiornaLista();
+      if (ancora && _tbGiri < 60 && document.body.contains(ov)) {
+        _tbGiri += 1;
+        setTimeout(sorvegliaLista, 3000);
+      }
+    }
+    await aggiornaLista();
+
+    // il carico: STESSO canale della Dosja — il file entra nel fascicolo
+    // una volta sola e serve ovunque, non in un magazzino della Tabela.
+    ov.querySelector(".tb-up-inp").addEventListener("change", async function () {
+      var files = [...this.files]; this.value = "";
+      if (!files.length) return;
+      var st = ov.querySelector(".tb-up-st");
+      var fatti = 0;
+      for (var k = 0; k < files.length; k++) {
+        var f = files[k];
+        st.textContent = "⬆ " + f.name + " (" + (k + 1) + "/" + files.length + ")";
+        try {
+          var fd = new FormData();
+          fd.append("file", f);
+          var rr = await fetch("/api/cases/" + activeCaseId + "/documents",
+                               { method: "POST", body: fd });
+          if (rr.ok) fatti += 1;
+          else {
+            var dd; try { dd = await rr.json(); } catch (e) { dd = {}; }
+            toast((dd && dd.error) || ("HTTP " + rr.status), "error");
+          }
+        } catch (e) { toast(e.message, "error"); }
+      }
+      st.textContent = fatti ? ("✓ " + fatti) : "";
+      _tbGiri = 0;
+      sorvegliaLista();
+    });
+
+    var qs = ov.querySelector(".tb-qs");
+    ov.querySelectorAll(".tb-chip").forEach(function (c) {
+      c.addEventListener("click", function () {
+        var t = c.textContent.replace(/^\+\s*/, "").trim() + "?";
+        qs.value = (qs.value.trim() ? qs.value.trim() + "\n" : "") + t;
+      });
+    });
+
+    ov.querySelector(".tb-run").addEventListener("click", async function () {
+      var scelti = [...ov.querySelectorAll(".tb-doc input:checked")].map(function (i) { return i.value; });
+      var pyetje = qs.value.split("\n").map(function (x) { return x.trim(); }).filter(Boolean);
+      var st = ov.querySelector(".tb-st"), res = ov.querySelector(".tb-res");
+      if (!scelti.length || !pyetje.length) {
+        st.textContent = TT("Zgjidh të paktën një dokument dhe një pyetje."); return;
+      }
+      st.textContent = TT("Po lexoj dokumentet…") + " (" + scelti.length + ")";
+      this.disabled = true;
+      try {
+        var rr = await fetch("/api/cases/" + activeCaseId + "/table", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ docs: scelti, questions: pyetje }),
+        });
+        var d = await rr.json();
+        if (!rr.ok || d.error) throw new Error(d.error || ("HTTP " + rr.status));
+        st.textContent = "";
+        _disegnaTabela(res, d);
+      } catch (e) {
+        st.textContent = TT("Gabim: ") + e.message;
+      } finally { this.disabled = false; }
+    });
+  }
+
+  function _disegnaTabela(box, d) {
+    var cols = d.columns || [], rows = d.rows || [];
+    var h = '<div class="tb-wrap"><table class="tb-table"><thead><tr>' +
+      '<th data-i18n="tb_doku">Dokumenti</th>' +
+      cols.map(function (c) { return "<th>" + escHtml(c) + "</th>"; }).join("") +
+      "</tr></thead><tbody>";
+    rows.forEach(function (r) {
+      h += "<tr><td class='tb-doc-name'>" + escHtml(r.filename) + "</td>" +
+        (r.cells || []).map(function (c) {
+          var cls = c.error ? "tb-err" : (c.found ? "" : "tb-miss");
+          var tit = c.quote ? ' title="❞ ' + escHtml(c.quote) + '"' : "";
+          return "<td class='" + cls + "'" + tit + ">" + escHtml(c.answer || "—") +
+            (c.quote ? ' <span class="tb-q">❞</span>' : "") + "</td>";
+        }).join("") + "</tr>";
+    });
+    h += "</tbody></table></div>";
+    if ((d.skipped || []).length) {
+      h += '<div class="tb-skip">' + TT("Pa tekst, jashtë tabelës: ") +
+        d.skipped.map(escHtml).join(", ") + "</div>";
+    }
+    h += '<div class="ac-row"><button type="button" class="tb-csv" data-i18n="tb_csv">⬇ CSV (Excel)</button></div>';
+    box.innerHTML = h;
+    applyStaticI18n(box);
+
+    box.querySelector(".tb-csv").addEventListener("click", function () {
+      // punto e virgola: e' il separatore che Excel si aspetta nei locale
+      // italiani e albanesi — con la virgola aprirebbe tutto in una colonna
+      var esc = function (v) { return '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"'; };
+      var righe = [[TT("Dokumenti")].concat(cols).map(esc).join(";")];
+      rows.forEach(function (r) {
+        righe.push([r.filename].concat((r.cells || []).map(function (c) {
+          return c.answer + (c.quote ? "  ❞ " + c.quote : "");
+        })).map(esc).join(";"));
+      });
+      var blob = new Blob(["\ufeff" + righe.join("\r\n")], { type: "text/csv;charset=utf-8" });
+      var a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "tabela_dosjes.csv";
+      a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+    });
+
+    // il tavolo finisce anche nel fascicolo, come ogni altro strumento
+    var md = "| " + [TT("Dokumenti")].concat(cols).join(" | ") + " |\n" +
+      "|" + new Array(cols.length + 2).join("---|") + "\n" +
+      rows.map(function (r) {
+        return "| " + [r.filename].concat((r.cells || []).map(function (c) {
+          return String(c.answer || "—").replace(/\|/g, "\\|").replace(/\n/g, " ");
+        })).join(" | ") + " |";
+      }).join("\n");
+    try { _addSaveToCase(box, "research", TT("Tabela e Dosjes"), md); } catch (e) {}
+  }
+
   async function openVideo() {
     var ov = document.getElementById("vd-ov");
     if (ov) ov.remove();
@@ -5920,6 +6127,20 @@
   // ── i18n (Fase C) — Italian UI for IT sessions ────────────────────────────
   var UI_LANG = (document.body && document.body.dataset ? document.body.dataset.lang : "") || "sq";
   var I18N_IT = {
+    tb_menu: "Tabella del fascicolo",
+    tb_title: "📊 Tabella del fascicolo",
+    tb_sub: "Le righe sono i documenti del fascicolo, le colonne le tue domande. Ogni cella risponde SOLO da quel documento — quando qualcosa manca, la cella dice «—» invece di inventare.",
+    tb_docs: "1 · Scegli i documenti",
+    tb_up: "📎 Carica documenti",
+    tb_qs: "2 · Scrivi le domande — una per riga (max 8)",
+    tb_ph: "es. Quali parti sono menzionate?\nChe data porta il documento?",
+    tb_chip1: "+ Parti menzionate",
+    tb_chip2: "+ Date principali",
+    tb_chip3: "+ Importi / oggetto",
+    tb_run: "Costruisci la tabella →",
+    tb_hint: "Una chiamata veloce per documento — non il cervello completo.",
+    tb_doku: "Documento",
+    tb_csv: "⬇ CSV (Excel)",
     us_th_cap: "Tetto",
     us_th_calls: "Chiamate",
     us_th_ctx: "Contesto",
@@ -6033,6 +6254,16 @@
     ["Avokat", "Avvocato"], ["Prokuror", "Procuratore"], ["Noter", "Notaio"]
   ];
   var T_IT = {
+    "Hap një rast më parë.": "Apri prima un fascicolo.",
+    "Fashikulli s'ka dokumente — ngarko me 📎 këtu lart.": "Il fascicolo non ha documenti — caricali col 📎 qui sopra.",
+    "duke u përpunuar…": "in elaborazione…",
+    "gabim përpunimi": "errore di elaborazione",
+    "pa tekst": "senza testo",
+    "Zgjidh të paktën një dokument dhe një pyetje.": "Scegli almeno un documento e una domanda.",
+    "Po lexoj dokumentet…": "Sto leggendo i documenti…",
+    "Pa tekst, jashtë tabelës: ": "Senza testo, fuori tabella: ",
+    "Dokumenti": "Documento",
+    "Tabela e Dosjes": "Tabella del fascicolo",
     "Gabim i panjohur": "Errore sconosciuto",
     "vëll. maks": "vol. max",
     "Vëllimi më i madh i përpunuar nga një thirrje e vetme — përfshin rileximet e nën-agjentëve të webit, s'është konteksti i njëkohshëm. Afër tavanit, analiza mund të shkurtohet pa u vënë re.": "Il volume più grande elaborato da una singola chiamata — include le riletture dei sotto-agenti web, non è il contesto simultaneo. Vicino al tetto, l'analisi può essere accorciata senza che si veda.",
@@ -6513,6 +6744,7 @@
       else if (key === "klauzolat") { openClauses(); }
       else if (key === "intake") { openIntake(); }
       else if (key === "video") { openVideo(); }
+      else if (key === "tabela") { openTabela(); }
       else if (key === "fascikull") { openFascikull(); }
       else if (key === "dosja") { openDosja(); }
       else if (key === "afati") { openAfati(); }

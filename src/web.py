@@ -1269,7 +1269,7 @@ def api_get_case(case_id: str):
         "updated_at": case.updated_at,
         "messages": [
             {"id": m.id, "role": m.role, "content": m.content, "kind": m.kind,
-             "articles": m.articles, "precedents": m.precedents,
+             "articles": m.articles, "precedents": m.precedents, "citations": m.citations,
              "timeline": m.timeline, "comparison": m.comparison,
              "missing_facts": m.missing_facts, "premortem": m.premortem,
              "distinguishing": m.distinguishing, "evidence_map": m.evidence_map,
@@ -5861,7 +5861,7 @@ def api_export_case(case_id: str):
             },
             "messages": [
                 {"role": m.role, "content": m.content, "kind": m.kind,
-                 "articles": m.articles, "precedents": m.precedents,
+                 "articles": m.articles, "precedents": m.precedents, "citations": m.citations,
                  "timeline": m.timeline, "comparison": m.comparison,
                  "missing_facts": m.missing_facts, "premortem": m.premortem,
                  "distinguishing": m.distinguishing, "evidence_map": m.evidence_map,
@@ -6089,6 +6089,69 @@ def api_upload_document(case_id: str):
     payload = _document_payload(storage.get_document(doc_id, case_id))
     payload["processing"] = True
     return jsonify(payload), 201
+
+
+@app.post("/api/cases/<case_id>/table")
+@login_required_api
+def api_case_table(case_id: str):
+    """② Tabela e Dosjes — righe = documenti, colonne = domande.
+
+    Ogni cella risponde SOLO dal suo documento, col modello veloce e una
+    citazione testuale. Il cervello (Opus, le 14 fasi) NON viene toccato:
+    questa e' orchestrazione di chiamate brevi, alla Legora.
+    """
+    user = request.user  # type: ignore[attr-defined]
+    case = _resolve_case(case_id)
+    if case is None:
+        return jsonify({"error": "case not found"}), 404
+    if not _BRAIN:
+        return jsonify({"error": "Motori AI nuk është i disponueshëm."}), 503
+
+    from . import tabela as tb_mod
+    data = request.get_json(force=True, silent=True) or {}
+    pyetjet = tb_mod.pastro_pyetjet(data.get("questions"))
+    if not pyetjet:
+        return jsonify({"error": "asnjë pyetje"}), 400
+    kerkuar = set(str(x) for x in (data.get("docs") or []))
+
+    docs, pa_tekst = [], []
+    for d in storage.list_documents(case.id):
+        if kerkuar and str(d.id) not in kerkuar:
+            continue
+        if (d.extracted_text or "").strip():
+            docs.append(d)
+        else:
+            pa_tekst.append(d.filename)
+    docs = docs[:tb_mod.MAX_DOKUMENTE]
+    if not docs:
+        return jsonify({"error": "asnjë dokument me tekst"}), 400
+
+    def _nje(d):
+        try:
+            raw = _BRAIN.backend.complete(
+                system=tb_mod.SISTEMI,
+                messages=[{"role": "user",
+                           "content": tb_mod.pergatit_prompt(
+                               d.filename, d.doc_type, d.summary,
+                               d.extracted_text, pyetjet)}],
+                max_tokens=1500, fast=True,
+                callsite="dossier_table",
+                user_id=user.id, case_id=case.id,
+            )
+            qeliza = tb_mod.parse_qeliza(raw, len(pyetjet))
+        except Exception as exc:  # noqa: BLE001 — una cella rotta non
+            # affonda la tabella: si vede il gabim e le altre righe vivono
+            log.warning("tabela: dokumenti %s deshtoi: %s", d.filename, exc)
+            qeliza = [{"answer": "⚠", "quote": "", "found": False,
+                       "error": True} for _ in pyetjet]
+        return {"doc_id": str(d.id), "filename": d.filename, "cells": qeliza}
+
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=3) as ex:
+        rreshtat = list(ex.map(_nje, docs))
+
+    return jsonify({"columns": pyetjet, "rows": rreshtat,
+                    "skipped": pa_tekst})
 
 
 @app.get("/api/cases/<case_id>/videos")
@@ -6321,7 +6384,7 @@ def api_ask():
     contradictions_payload = _contradictions_payload(result.contradictions)
     opponent_payload = _opponent_playbook_payload(result.opponent_playbook)
     leverage_payload = _leverage_payload(result.leverage)
-    storage.add_message(case.id, "assistant", result.text,
+    saved_msg = storage.add_message(case.id, "assistant", result.text,
                         kind=result.kind, articles=articles, precedents=precedents,
                         timeline=timeline_payload, comparison=comparison_payload,
                         missing_facts=missing_facts_payload,
@@ -6399,6 +6462,12 @@ def api_ask():
     except Exception as exc:
         log.warning("provenance save failed (non-fatal): %s", exc)
 
+    # ① come nello stream: la spilla sopravvive al refresh
+    try:
+        storage.update_message_verification(
+            saved_msg.id, citations_payload, answer_text)
+    except Exception:  # noqa: BLE001
+        log.debug("persist citations (blocking) failed", exc_info=True)
     return jsonify({
         "kind": result.kind,
         "text": answer_text,
@@ -6533,7 +6602,7 @@ def _ask_prepare(user, data):
             contradictions_payload = _contradictions_payload(result.contradictions)
             opponent_payload = _opponent_playbook_payload(result.opponent_playbook)
             leverage_payload = _leverage_payload(result.leverage)
-            storage.add_message(case.id, "assistant", result.text,
+            saved_msg = storage.add_message(case.id, "assistant", result.text,
                                 kind=result.kind, articles=articles,
                                 precedents=precedents,
                                 timeline=timeline_payload,
@@ -6636,6 +6705,14 @@ def _ask_prepare(user, data):
                 "provenance": provenance.to_dict(),
                 "case_id": case.id,
             })
+            # ① la spilla sopravvive al refresh: testo annotato + verifiche
+            # scritti sul messaggio gia' salvato. Best-effort: un fallimento
+            # qui non deve toccare una risposta gia' consegnata.
+            try:
+                storage.update_message_verification(
+                    saved_msg.id, citations_payload, answer_text)
+            except Exception:  # noqa: BLE001
+                log.debug("persist citations (stream) failed", exc_info=True)
         except Exception as exc:
             log.exception("stream failure")
             err_text = html.escape(_safe_err(exc))

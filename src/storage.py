@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS messages (
     content         TEXT NOT NULL,
     kind            TEXT,                   -- 'answer' | 'followup' | 'error' | 'retrieval_only'
     articles_json   TEXT,                   -- JSON-serialised retrieved articles (assistant only)
+    citations_json  TEXT,                   -- verifiche delle citazioni (spilla di fiducia)
     precedents_json TEXT,                   -- JSON-serialised retrieved precedents (assistant only)
     timeline_json   TEXT,                   -- JSON-serialised timeline (anchors + deadlines)
     comparison_json TEXT,                   -- JSON-serialised precedent comparison (winners vs losers)
@@ -1010,6 +1011,9 @@ def init_db(db_path: Path = APP_DB_PATH) -> None:
     """
     with _connect(db_path) as conn:
         conn.executescript(SCHEMA)
+        # ① La spilla di fiducia deve sopravvivere al refresh: senza
+        # questa colonna le verifiche vivevano solo nella risposta live.
+        _add_column_if_missing(conn, "messages", "citations_json", "TEXT")
         _add_column_if_missing(conn, "messages", "timeline_json", "TEXT")
         _add_column_if_missing(conn, "messages", "comparison_json", "TEXT")
         _add_column_if_missing(conn, "messages", "missing_facts_json", "TEXT")
@@ -1408,6 +1412,8 @@ class Message:
     opponent_playbook: dict | None
     leverage: dict | None
     created_at: str
+    # verifiche citazioni (spilla): None sui messaggi storici pre-v9.243
+    citations: dict | None = None
 
 
 def _user_from_row(r: sqlite3.Row) -> User:
@@ -1472,6 +1478,7 @@ def _message_from_row(r: sqlite3.Row) -> Message:
         id=r["id"], case_id=r["case_id"], role=r["role"],
         content=r["content"], kind=r["kind"],
         articles=json.loads(r["articles_json"]) if r["articles_json"] else [],
+        citations=json.loads(r["citations_json"]) if r["citations_json"] else None,
         precedents=json.loads(r["precedents_json"]) if r["precedents_json"] else [],
         timeline=json.loads(timeline_raw) if timeline_raw else None,
         comparison=json.loads(comparison_raw) if comparison_raw else None,
@@ -1980,6 +1987,29 @@ def touch_case(case_id: str, user_id: int) -> None:
 
 
 # ── messages ────────────────────────────────────────────────────────────────
+
+def update_message_verification(message_id: int, citations: dict | None,
+                                content: str | None = None) -> None:
+    """Aggiorna un messaggio gia' salvato con l'esito delle verifiche.
+
+    Il salvataggio resta PRIMA delle verifiche — se il processo cade a meta',
+    la risposta c'e' comunque. Ma senza questo aggiornamento la spilla di
+    fiducia e le annotazioni ⚠ sulle citazioni non confermate evaporavano al
+    refresh: l'avvocato rileggeva domattina un testo che sembrava pulito.
+    """
+    with db() as conn:
+        if content is not None:
+            conn.execute(
+                "UPDATE messages SET content = ?, citations_json = ? WHERE id = ?",
+                (content,
+                 json.dumps(citations, ensure_ascii=False) if citations else None,
+                 message_id))
+        else:
+            conn.execute(
+                "UPDATE messages SET citations_json = ? WHERE id = ?",
+                (json.dumps(citations, ensure_ascii=False) if citations else None,
+                 message_id))
+
 
 def add_message(
     case_id: str,
