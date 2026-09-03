@@ -1630,6 +1630,19 @@ API ignota, TODO con probe annotati.
 QA: golden **290/290**, smoke 103, juris verde. Harvest iniziale 2024-2026
 lanciato in sottofondo.
 
+**v9.249 — il detector cieco e la legge che ha retto.** Prima notte
+dell'harvester: 3.127 «decisioni» nel solo 2024 — con la NOSTRA UA la
+soft-404 di giurcost è la shell SENZA il marcatore '404' (curl vedeva
+un'altra variante). ⚠️ **La regola di copertura ha salvato la produzione**:
+nessun anno chiuso → il verificatore non ha timbrato nulla. Correzione
+STRUTTURALE: `e_vendim()` — la pagina è vera solo se nomina il PROPRIO
+numero («SENTENZA N. 100»); 3 guardie golden la ESEGUONO. La purga aveva a
+sua volta i doppi-backslash (trappola di casa, lato eseguito) e ha
+azzerato il file — esito convergente: re-harvest pulito. **Stato finale
+provato live**: 499 decisioni CC, anni chiusi [2024, 2025], smoke
+100/2024→✓ · 999/2024→⚠ · 1999→intoccato, annotazione ⚠ nel testo.
+Golden **293/293**.
+
 ## Storia versioni (sessione 30-31 ago 2026 — blindatura e documenti legali)
 
 v9.193-9.198 **sicurezza** (cervello in gabbia, SSH a chiave, freno al login,
