@@ -1700,6 +1700,19 @@ Le modifiche a `static/` e `templates/` vivono NELL'IMMAGINE: per provarle
 al volo `docker cp` nel container (sopravvive fino al prossimo run.sh),
 poi build vero.
 
+**Restore drill (3 set sera, misurato)** — un backup mai ripristinato è una
+speranza, questo è provato: decifra **1 s** → `integrity_check` ok → conti
+utenti/casi/messaggi tornano → container pulito col DB del backup **risorto
+in 26 s** (status 200 con indici caricati, login servito); anche l'archivio
+AALA FULL si decifra e si lista. Numeri scolpiti nel RUNBOOK. Il drill si fa
+in `/root/restore-drill/` + porta 5099 solo-localhost: **la prod non si
+sfiora**. ⚠️ scoperta: il token del cervello vive DENTRO l'immagine
+(has_brain=true anche senza --env-file, eredità v9.3) — se l'immagine
+viaggia, viaggia col token; valutazione post-lancio. **Backfill email**:
+info@aala.global sui 7 account del titolare via `set_user_reminder_email`
+(mai SQL a mano), i 5 mai-entrati vuoti per scelta; da ora quota+digest
+raggiungono i suoi account (digest = per-utente: può arrivarne più d'uno).
+
 **Landing superavokati.ai (3 set, pomeriggio) — la pagina dice la verità.**
 La landing vive FUORI dal container: `/var/www/superavokati-landing/index.html`
 statico sotto nginx (`location = /`, col cookie `session` → app), UN file con
