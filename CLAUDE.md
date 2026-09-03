@@ -1660,6 +1660,23 @@ CCost-only. Collaudo sui dati veri: indice **514**, «appalto gara
 esclusione» → **CdS 6755/2026 in testa** alle CC. Cron: giurcost 03:15
 (+rebuild FTS), GA 03:45. Golden [26] eseguiti, **301/301** live.
 
+**v9.252 — TAR: la porta era aperta, ci è passata tutta Italia.** Probe su
+Bari prima di scrivere: ECLI cambia token per sede (`TARBA…`), `schema=tar`,
+stesso nomeFile → si generalizza, non si riscrive. Harvester **v2**:
+`--tutte-sedi` legge la lista **DAL form** (31 oggi: CdS + CGARS + 29 TAR —
+se il portale ne aggiunge una il cron la prende da solo), ECLI generico
+`ECLI:IT:<TOKEN>:` (il token si legge, non si indovina), chiave d'archivio
+**(corte, numero, anno)** perché la numerazione è PER SEDE, una sede rotta
+non ferma le altre trenta. Lato app `_tipo_per_corte()`: un TAR non si
+veste più da «kushtetuese» — chip `administrativ` già noto alla UI, zero
+CSS. Prima passata nazionale: **+326 sentenze da 24 sedi in 5½ min, zero
+cadute** → archivio **846** (CCost 499 + amministrative 347). Fumo:
+«silenzio assenso» → tre TAR su tre; «permesso di soggiorno» → TAR Milano
+accanto alle Consulte. Cron 03:45 → `--tutte-sedi --pagine 2` (le sentenze
+del giorno, nazionale). Golden **302/302**. ⚠️ da smoke: `kerko()` rende
+`passo`/`brano`, non `snippet`; script in /tmp del container → `sys.path`
+a mano.
+
 ## Storia versioni (sessione 30-31 ago 2026 — blindatura e documenti legali)
 
 v9.193-9.198 **sicurezza** (cervello in gabbia, SSH a chiave, freno al login,
