@@ -611,15 +611,21 @@ function robotBrain(sel){
           {const bx=seg[0]+(seg[1]-seg[0])*(row%2?0.62:0.34);
             path([[bx,yy-0.03],[bx+0.014,yy],[bx,yy+0.03]]);}}
         seg=null;}}}
-  // CERVELLETTO: palla striata in basso-dietro (confini registrati: niente gomitolo)
+  // CERVELLETTO: lamelle parallele fitte che seguono la sfera (referenza wireframe),
+  // palla inclinata e infilata sotto la corteccia — confini registrati: la maglia
+  // automatica dentro resta a contatto, il disegno lo fanno le lamelle
   const cbA=nodes.length;
-  {const cx=0.758,cy=0.668,rx=0.086,ry=0.077,out=[];
-    for(let i=0;i<22;i++){const a=Math.PI*2*i/22,w=1+0.05*Math.sin(a*5+1);
-      out.push([cx+Math.cos(a)*rx*w,cy+Math.sin(a)*ry*w]);}
-    path(out,true);
-    for(let st=1;st<=5;st++){const t=-1+2*st/6,yy=cy+t*ry*0.9,half=Math.sqrt(Math.max(0,1-t*t))*rx*0.92,line=[];
-      for(let i=0;i<=5;i++){const f=i/5;line.push([cx-half+2*half*f,yy+0.008*Math.sin(f*6+st)]);}
-      path(line);}}
+  {const cx=0.746,cy=0.652,rx=0.088,ry=0.082,tilt=-0.30,ct=Math.cos(tilt),st=Math.sin(tilt);
+   const put=(px,py)=>[cx+px*ct-py*st, cy+px*st*0.85+py*ct];
+   const out=[];
+   for(let i=0;i<26;i++){const a=Math.PI*2*i/26,w=1+0.022*Math.sin(a*4+1);
+     out.push(put(Math.cos(a)*rx*w, Math.sin(a)*ry*w));}
+   path(out,true);
+   for(let lam=1;lam<=7;lam++){const t=-1+2*lam/8,half=Math.sqrt(Math.max(0,1-t*t)),line=[];
+     for(let i=0;i<=7;i++){const f=-half+2*half*i/7;
+       const bow=0.22*ry*Math.sqrt(Math.max(0,half*half-f*f));
+       line.push(put(f*rx*0.96, t*ry*0.9+bow));}
+     path(line);}}
   const cbB=nodes.length;
   // TRONCO ENCEFALICO: due profili che scendono con lieve curva + traversine
   // TRONCO ENCEFALICO: tubo che si assottiglia (maglia organica, niente scala a pioli)
