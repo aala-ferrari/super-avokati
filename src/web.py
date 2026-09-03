@@ -50,6 +50,7 @@ from . import citation_verifier as cv_mod
 from . import case_citation_verifier as ccv_mod
 from . import decision_verifier as dv_mod
 from . import documents as docs_mod
+from . import perkthim as perkthim_mod
 from . import video as video_mod
 from . import pro_features as pro_mod
 from . import reminders as reminders_mod
@@ -3071,6 +3072,44 @@ METODA (e detyrueshme):
 6. Mbyll me «⚖️ Si peshon»: 3-4 rreshta se ku është më i fortë dhe më i dobët dosja — VLERËSIM PUNE, JO përfundim mbi themelin.
 
 RREGULLA TË HEKURTA: mos konkludo mbi fajësinë a themelin; mos shpik nene, prova a dëshmi; boshllëku i thënë hapur vlen më shumë se një tabelë që duket e plotë."""
+
+
+_PERKTHIM_TARGETS = {"sq", "it", "en"}
+
+
+@app.post("/api/translate")
+@login_required_api
+@require_module("avokat", "prokuror", "noter")
+def api_translate():
+    """🌐 Përkthim ligjor — traduzione giuridica in casa (mai da Google).
+
+    Il testo arriva già estratto dal canale allegati (/api/extract-text,
+    OCR compreso per le foto). Opus con effort NORMALE + glossario
+    viaggiante + rilettura — ricetta approvata dal titolare. NIENTE
+    contesto del fascicolo nel prompt: si traduce SOLO ciò che è scritto.
+    """
+    _ensure_loaded()
+    if _BRAIN is None:
+        return jsonify({"error": "unavailable"}), 503
+    body = request.get_json(silent=True) or {}
+    text = (body.get("text") or "").strip()
+    target = (body.get("target") or "").strip().lower()
+    if len(text) < 15:
+        return jsonify({"error": "text_required"}), 400
+    if target not in _PERKTHIM_TARGETS:
+        return jsonify({"error": "target_invalid"}), 400
+    if len(text) > 120_000:
+        return jsonify({"error": "too_long"}), 400
+    try:
+        res = perkthim_mod.perkthe(_BRAIN.backend, text, target)
+    except Exception as exc:  # noqa: BLE001
+        log.exception("perkthim failed")
+        return jsonify({"error": _safe_err(exc)}), 200
+    return jsonify({
+        "markdown": res["markdown"],
+        "meta": {"cope": res["cope"], "riletto": res["riletto"],
+                 "terma": len(res["glossar"])},
+    })
 
 
 @app.post("/api/claim-chart")

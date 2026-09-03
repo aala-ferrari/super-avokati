@@ -241,6 +241,7 @@ class LLMBackend(ABC):
         callsite: str | None = None,
         user_id: int | None = None,
         case_id: str | None = None,
+        effort_override: str | None = None,
     ) -> str:
         """Return the assistant's text for the given system + message history.
 
@@ -358,7 +359,8 @@ class ClaudeCodeBackend(LLMBackend):
                  callsite: str | None = None,
                  user_id: int | None = None,
                  case_id: str | None = None,
-                 model_override: str | None = None) -> str:
+                 model_override: str | None = None,
+                 effort_override: str | None = None) -> str:
         system = _apply_juris(system)  # giurisdizione della sessione
         system = _shto_profilin(system, fast)  # regole della casa
 
@@ -408,8 +410,9 @@ class ClaudeCodeBackend(LLMBackend):
         # (Fable per Avvocato del Diavolo / secondo parere / drafter): prima
         # la condizione `not model_override` li escludeva, quindi rispondevano
         # senza ragionamento esteso. Il percorso veloce resta senza effort.
-        if not fast and self.effort:
-            cmd.extend(["--effort", self.effort])
+        _eff = effort_override or self.effort
+        if not fast and _eff:
+            cmd.extend(["--effort", _eff])
 
         # --resume DISABILITATO: in headless -p le sessioni non persistono
         # ("No conversation found"). Sempre system-prompt + history completa,
@@ -875,7 +878,8 @@ class AnthropicBackend(LLMBackend):
                  attachments: list[Path] | None = None,
                  callsite: str | None = None,
                  user_id: int | None = None,
-                 case_id: str | None = None) -> str:
+                 case_id: str | None = None,
+                 effort_override: str | None = None) -> str:
         system = _apply_juris(system)  # giurisdizione della sessione
         model = self._pick_model(fast, medium)
         tier = _tier_label(fast, medium)
@@ -1000,7 +1004,8 @@ class GeminiBackend(LLMBackend):
                  attachments: list[Path] | None = None,
                  callsite: str | None = None,
                  user_id: int | None = None,
-                 case_id: str | None = None) -> str:
+                 case_id: str | None = None,
+                 effort_override: str | None = None) -> str:
         system = _apply_juris(system)  # giurisdizione della sessione
         # Gemini backend: no separate medium tier — `medium=True` falls back
         # to the main Pro model (per pivot lawyer-first decision).

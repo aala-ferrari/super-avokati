@@ -8085,3 +8085,10 @@ main {
 #fp-rregulla{width:100%;box-sizing:border-box;padding:8px;border:1px solid
   var(--line,#e7e0cf);border-radius:8px;font:inherit;font-size:13px}
 @media(max-width:640px){.fp-grid{grid-template-columns:1fr}}
+
+/* Përkthim ligjor — pillole della lingua di destinazione */
+.pk-langs{display:flex;align-items:center;gap:8px;margin:2px 0 10px}
+.pk-lang{border:1px solid var(--line,#d8d2c2);background:transparent;color:inherit;
+  padding:5px 14px;border-radius:999px;font-size:13px;font-weight:600;cursor:pointer}
+.pk-lang.on{background:#c9a24b;border-color:#c9a24b;color:#171717}
+.pk-langs-hint{font-size:12px;opacity:.65;margin-left:2px}

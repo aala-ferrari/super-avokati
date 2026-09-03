@@ -1256,6 +1256,68 @@ def main():
     except Exception as _e:  # noqa: BLE001
         check("IT-prec[26]: kontrollet u ekzekutuan", False, str(_e))
 
+    # ── [27] Përkthim ligjor: funksionet e pastra + rojet e firmave ──────
+    try:
+        from src import perkthim as _pk
+
+        # spezza: ASNJË gërmë e humbur — rindërtimi = origjinali, gjithmonë
+        _t27 = ("Neni 1. Palët bien dakord.\n\n" * 300) + "Fund."
+        _cope = _pk.spezza(_t27, max_cope=2000)
+        check("perkthim: spezza rindërton origjinalin gërmë për gërmë",
+              "".join(_cope) == _t27 and len(_cope) > 1
+              and all(len(c) <= 2000 for c in _cope),
+              "po humbasin gërma në kufijtë e copave")
+        _mostro = "x" * 5000  # paragraf pa asnjë \n: prerje e thatë
+        check("perkthim: paragrafi-përbindësh pritet pa humbje",
+              "".join(_pk.spezza(_mostro, max_cope=2000)) == _mostro)
+
+        # glossari: kapet, pastrohet, dhe mungesa nuk thyen asgjë
+        _resp = "Testo tradotto qui.\n\n---GLOSSAR---\nmasë sigurimi = misura cautelare\nkërkesë padi = atto di citazione\n"
+        _puro, _gl = _pk.estrai_glossar(_resp)
+        check("perkthim: glossari kapet dhe teksti pastrohet",
+              _gl.get("masë sigurimi") == "misura cautelare"
+              and len(_gl) == 2 and "GLOSSAR" not in _puro)
+        _puro2, _gl2 = _pk.estrai_glossar("Vetëm tekst, pa bllok.")
+        check("perkthim: pa bllok glossari — teksti i paprekur, fjalori bosh",
+              _gl2 == {} and _puro2 == "Vetëm tekst, pa bllok.")
+
+        # disclaimeri: GJITHMONË, në gjuhën e synuar — kurrë i betuar
+        for _tg in ("sq", "it", "en"):
+            pass
+        check("perkthim: disclaimer në të tria gjuhët, kurrë «i betuar»",
+              all(_tg in _pk.DISCLAIMER for _tg in ("sq", "it", "en"))
+              and _pk.attacca_disclaimer("Tekst.", "it").endswith(
+                  _pk.DISCLAIMER["it"])
+              and "giurato" in _pk.DISCLAIMER["it"]
+              and "betuar" in _pk.DISCLAIMER["sq"])
+
+        # firmat: effort_override ekziston KUDO me default None — truri
+        # ligjor nuk e sheh dhe mbetet në max
+        import inspect as _insp
+        from src import backends as _bk
+        _klasat = [c for c in vars(_bk).values()
+                   if _insp.isclass(c) and hasattr(c, "complete")
+                   and c.__module__ == _bk.__name__]
+        _ok_firma = True
+        for _c in _klasat:
+            try:
+                _par = _insp.signature(_c.complete).parameters.get("effort_override")
+                if _par is None or _par.default is not None:
+                    _ok_firma = False
+            except (ValueError, TypeError):
+                pass
+        check("perkthim: effort_override në çdo firmë, default None (truri max)",
+              _ok_firma and len(_klasat) >= 3,
+              "nje backend pa scavalco ose me default jo-None")
+
+        # prompt-i i përkthyesit: glosari udhëton dhe blloku kërkohet
+        _sysp = _pk._system_perkthyes("it", {"afat": "termine"})
+        check("perkthim: prompti mban glosarin dhe kërkon bllokun në fund",
+              "afat = termine" in _sysp and "---GLOSSAR---" in _sysp
+              and "italisht" in _sysp)
+    except Exception as _e:  # noqa: BLE001
+        check("perkthim[27]: kontrollet u ekzekutuan", False, str(_e))
+
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
