@@ -1124,6 +1124,59 @@ def main():
         check("konkurrentet[24]: kontrollet u ekzekutuan", False, str(_e))
 
 
+    # ── [25] jurisprudenca IT (mbulimi si ligj) + email-i i perdoruesit ──
+    try:
+        _w5 = _io2.open(_os2.path.join(_rr, "src", "web.py"), encoding="utf-8").read()
+        _c5 = _io2.open(_os2.path.join(_rr, "src", "case_citation_verifier.py"), encoding="utf-8").read()
+        _a5 = _io2.open(_os2.path.join(_rr, "static", "app.js"), encoding="utf-8").read()
+        _h5 = _io2.open(_os2.path.join(_rr, "templates", "index.html"), encoding="utf-8").read()
+
+        check("IT-vendime: helper i vetem per te dy binaret",
+              _w5.count("_verify_decisions_smart(") >= 3,
+              "stream + vegla/blocking kalojne nga e njejta dere")
+        check("IT-vendime: moduli i indeksit ekziston",
+              _os2.path.isfile(_os2.path.join(_rr, "src", "it_case_index.py")))
+        check("IT-vendime: pattern CCost i pranishem", "_IT_CCOST" in _c5)
+
+        # ⚠️ REGOLA E MBULIMIT — provuar duke EKZEKUTUAR, jo duke lexuar:
+        # nje vit i pambyllur s'guxon te vulose asgje.
+        import sys as _sy6, json as _js6, tempfile as _tf6, importlib as _il6
+        _sy6.path.insert(0, _rr)
+        import src.it_case_index as _ici
+        _d6 = _tf6.mkdtemp()
+        from pathlib import Path as _P6
+        _ici.FILE_DECISIONI = _P6(_d6) / "it_decisions.jsonl"
+        _ici.FILE_META = _P6(_d6) / "it_decisions_meta.json"
+        _ici._cache["mtime"] = None
+        _ici.FILE_DECISIONI.write_text(_js6.dumps(
+            {"court": "CCost", "number": 100, "year": 2024}) + "\n",
+            encoding="utf-8")
+        _ici.FILE_META.write_text(_js6.dumps(
+            {"CCost": {"complete_years": [2024]}}), encoding="utf-8")
+        from src.case_citation_verifier import verify_cases_it as _vit
+        _r1 = _vit("Shih Corte cost. n. 100/2024 dhe C. cost., sent. n. 999/2024.")
+        check("IT-vendime: e verteta vuloset ✓",
+              any(i["number"] == 100 and i["status"] == "verified"
+                  for i in _r1["items"]))
+        check("IT-vendime: e paekzistuara ne vit TE MBYLLUR vuloset ⚠",
+              any(i["number"] == 999 and i["status"] == "unverified"
+                  for i in _r1["items"]))
+        _r2 = _vit("Shih Corte cost. n. 50/1999.")
+        check("IT-vendime: viti i PAMBULUAR nuk preket fare",
+              _r2["stats"]["total"] == 0,
+              "«nuk e gjej ≠ eshte i rreme»: vrima jone s'njollos ekstremin e vertete")
+
+        # D — email-i i perdoruesit
+        check("email: krijimi e kerkon", '"email e pavlefshme' in _w5)
+        check("email: PATCH per administratorin", "api_admin_user_email" in _w5)
+        check("email: fusha ne formularin e krijimit",
+              'id="new-user-email"' in _h5)
+        check("email: modal-i ⚙️ e tregon dhe e ruan",
+              "um-save-email" in _a5 and "um-email" in _a5)
+    except Exception as _e:  # noqa: BLE001
+        check("IT/email[25]: kontrollet u ekzekutuan", False, str(_e))
+
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

@@ -6750,13 +6750,10 @@ def _ask_prepare(user, data):
             # Misurato: 13 citazioni di sentenze, 7 non confermabili, e nel
             # testo nessun avviso.
             try:
-                _idx_dec = _decisions_index()
-                if _idx_dec is not None:
-                    cases_payload = ccv_mod.verify_cases(answer_text, _idx_dec)
-                    if (cases_payload.get("stats") or {}).get("unverified"):
-                        answer_text = ccv_mod.annotate_unverified(
-                            answer_text, cases_payload,
-                            jurisdiction=getattr(case, "jurisdiction", "AL") or "AL")
+                # binario giusto per giurisdizione (IT = giurcost con
+                # regola di copertura; AL = indice storico)
+                answer_text, cases_payload = _verify_decisions_smart(
+                    answer_text, getattr(case, "jurisdiction", "AL") or "AL")
             except Exception:  # noqa: BLE001
                 log.debug("case citation shield skipped (stream)", exc_info=True)
             provenance = cs_mod.build_provenance_pack(
@@ -8428,14 +8425,36 @@ def _scudo_citazioni(md: str, citations: dict) -> str:
     # «e' falsa». Marchiare come falso un precedente vero sarebbe grave quanto
     # lasciar passare uno inventato.
     try:
-        idx_dec = _decisions_index()
-        if idx_dec is not None:
-            casi = ccv_mod.verify_cases(md, idx_dec)
-            if (casi.get("stats") or {}).get("unverified"):
-                md = ccv_mod.annotate_unverified(md, casi, jurisdiction=juris)
+        md, _casi = _verify_decisions_smart(md, juris)
     except Exception:  # noqa: BLE001
         log.debug("case citation shield skipped", exc_info=True)
     return md
+
+
+def _verify_decisions_smart(answer_text: str, jurisdiction: str) -> tuple[str, dict | None]:
+    """Verifica le sentenze nel binario giusto e annota il testo.
+
+    AL: percorso storico (indice pickle 1.400+). IT: indice giurcost con la
+    regola di copertura. Ritorna (testo_annotato, payload|None). Mai
+    sollevare: la verifica e' uno scudo, non un ostacolo alla risposta.
+    """
+    try:
+        if (jurisdiction or "AL").upper() == "IT":
+            pay = ccv_mod.verify_cases_it(answer_text or "")
+            if (pay.get("stats") or {}).get("unverified"):
+                answer_text = ccv_mod.annotate_unverified(
+                    answer_text, pay, jurisdiction="IT")
+            return answer_text, pay if (pay.get("stats") or {}).get("total") else None
+        idx = _decisions_index()
+        if idx is None:
+            return answer_text, None
+        pay = ccv_mod.verify_cases(answer_text or "", idx)
+        if (pay.get("stats") or {}).get("unverified"):
+            answer_text = ccv_mod.annotate_unverified(answer_text, pay)
+        return answer_text, pay
+    except Exception:  # noqa: BLE001
+        log.debug("verify decisions smart failed", exc_info=True)
+        return answer_text, None
 
 
 def _decisions_index():
@@ -8490,6 +8509,7 @@ def _user_payload(u) -> dict:
         "is_admin": u.is_admin,
         "created_at": (u.created_at.isoformat() if hasattr(getattr(u, "created_at", None), "isoformat") else getattr(u, "created_at", None)),
         "suspended": bool(getattr(u, "suspended", False)),
+            "email": u.reminder_email,
         "profession": getattr(u, "profession", "avokat"),
         "modules": sorted(storage.user_modules(u)),
         "jurisdictions": sorted(storage.user_jurisdictions(u)),
@@ -8527,12 +8547,20 @@ def api_admin_users_create():
     if storage.get_user_by_username(username):
         return jsonify({"error": f"utente '{username}' esiste già"}), 409
     profession = (data.get("profession") or "avokat").strip()
+    # D — l'email e' OBBLIGATORIA: digest, reset password e notifiche
+    # girano a vuoto senza. Validazione sobria: una @ e un punto nel
+    # dominio bastano; il resto lo decide il mondo reale.
+    email = (data.get("email") or "").strip().lower()
+    if "@" not in email or "." not in email.split("@")[-1]:
+        return jsonify({"error": "email e pavlefshme — duhet për njoftimet "
+                                 "dhe rikuperimin e fjalëkalimit"}), 400
     new_user = storage.create_user(
         username=username,
         password_hash=hash_password(password),
         is_admin=is_admin_flag,
         profession=profession,
     )
+    storage.set_user_reminder_email(new_user.id, email)
     mods = data.get("modules")
     if isinstance(mods, list) and any(m in storage.VALID_MODULES for m in mods):
         storage.set_user_modules(new_user.id, mods)
@@ -8758,6 +8786,23 @@ def api_admin_usage():
         "online_count": len(online),
         "allarmi": allarmi,
     })
+
+
+@app.patch("/api/admin/users/<int:user_id>/email")
+@login_required_api
+def api_admin_user_email(user_id: int):
+    """Corregge l'email di un utente. Solo admin."""
+    user = request.user  # type: ignore[attr-defined]
+    if not user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    if storage.get_user_by_id(user_id) is None:
+        return jsonify({"error": "utente non trovato"}), 404
+    email = ((request.get_json(force=True, silent=True) or {})
+             .get("email") or "").strip().lower()
+    if email and ("@" not in email or "." not in email.split("@")[-1]):
+        return jsonify({"error": "email e pavlefshme"}), 400
+    storage.set_user_reminder_email(user_id, email or None)
+    return jsonify({"ok": True, "email": email})
 
 
 @app.patch("/api/admin/users/<int:user_id>/cap")

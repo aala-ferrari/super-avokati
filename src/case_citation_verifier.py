@@ -26,6 +26,7 @@ marchiato male. Per questo qui gli esiti sono due soli:
 from __future__ import annotations
 
 import re
+import re as _re
 from dataclasses import dataclass, asdict
 
 # ── quali forme di citazione riconoscere ──────────────────────────────
@@ -78,6 +79,46 @@ def _mappa(index) -> dict:
         if k:
             m.setdefault(k, d)
     return m
+
+
+# ── ITALIA — Corte costituzionale (v1: unica corte coperta) ──────────
+# «Corte cost. n. 100/2024» · «C. cost., sent. n. 5/2019» ·
+# «Corte costituzionale, ordinanza n. 12 del 2021»
+_IT_CCOST = _re.compile(
+    r"\b[Cc](?:orte)?\.?\s*[Cc]ost(?:ituzionale)?\.?\s*,?\s*"
+    r"(?:sent(?:enza)?\.?|ord(?:inanza)?\.?)?\s*,?\s*"
+    r"n\.?\s*(\d{1,4})\s*(?:/\s*|\s+del\s+)(\d{4})")
+
+
+def verify_cases_it(text: str) -> dict:
+    """Verifica le citazioni ITALIANE contro l'indice locale (giurcost).
+
+    ⚠️ LA REGOLA DI COPERTURA: si giudica solo un (corte, anno) che
+    l'harvester ha CHIUSO. Anno non coperto → la citazione non entra
+    nemmeno negli items: «non lo trovo ≠ è falso», e un buco nostro non
+    deve mai sporcare un estremo vero. Cassazione: v1 non coperta,
+    intoccata per costruzione (nessun pattern attivo).
+    """
+    from .it_case_index import anno_coperto, esiste
+    items, visti = [], set()
+    for m in _IT_CCOST.finditer(text or ""):
+        numero, anno = int(m.group(1)), int(m.group(2))
+        chiave = ("CCost", numero, anno)
+        if chiave in visti:
+            continue
+        visti.add(chiave)
+        if not anno_coperto("CCost", anno):
+            continue                      # buco nostro, non suo
+        items.append({
+            "raw": m.group(0), "court": "CCost",
+            "number": numero, "year": anno,
+            "status": "verified" if esiste("CCost", numero, anno)
+                      else "unverified",
+        })
+    ver = sum(1 for i in items if i["status"] == "verified")
+    return {"items": items,
+            "stats": {"total": len(items), "verified": ver,
+                      "unverified": len(items) - ver}}
 
 
 def verify_cases(text: str, index) -> dict:

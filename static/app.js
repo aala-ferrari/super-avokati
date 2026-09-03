@@ -6134,6 +6134,9 @@
   // ── i18n (Fase C) — Italian UI for IT sessions ────────────────────────────
   var UI_LANG = (document.body && document.body.dataset ? document.body.dataset.lang : "") || "sq";
   var I18N_IT = {
+    nu_email: "email (per notifiche e recupero)",
+    um_email_l: "Email (notifiche e recupero)",
+    um_email_b: "Salva email",
     harta_menu: "Mappa delle pretese",
     fp_tit: "PROFILO DELLO STUDIO",
     fp_hint: "Stile e regole della casa — entrano come preferenze in ogni analisi profonda. La legge e i fatti vincono sempre su di esse.",
@@ -6269,6 +6272,7 @@
     ["Avokat", "Avvocato"], ["Prokuror", "Procuratore"], ["Noter", "Notaio"]
   ];
   var T_IT = {
+    "Shkruaj një email të vlefshme — duhet për njoftimet.": "Scrivi un'email valida — serve per le notifiche.",
     "✓ U ruajt — hyn në analizat e ardhshme.": "✓ Salvato — entra nelle prossime analisi.",
     "Hap një rast më parë.": "Apri prima un fascicolo.",
     "Fashikulli s'ka dokumente — ngarko me 📎 këtu lart.": "Il fascicolo non ha documenti — caricali col 📎 qui sopra.",
@@ -11739,7 +11743,7 @@
           <td>${u.is_admin ? "👑 Admin" : "👤 User"}</td>
           <td>${u.created_at ? new Date(u.created_at).toLocaleDateString("sq-AL") : "—"}</td>
           <td style="text-align: right; white-space: nowrap;">
-            <button type="button" class="ghost" data-action="manage" data-uid="${u.id}" data-uname="${escHtml(u.username)}" data-modules="${(u.modules||[]).join(',')}" data-jurisdictions="${(u.jurisdictions||['AL']).join(',')}" data-plan="${u.plan_expires_at||''}" data-admin="${u.is_admin?1:0}" data-status="${u.status||''}" data-days="${u.days_left==null?'':u.days_left}" title="Menaxho modulet & abonimin">⚙️</button>
+            <button type="button" class="ghost" data-action="manage" data-uid="${u.id}" data-uname="${escHtml(u.username)}" data-modules="${(u.modules||[]).join(',')}" data-jurisdictions="${(u.jurisdictions||['AL']).join(',')}" data-plan="${u.plan_expires_at||''}" data-admin="${u.is_admin?1:0}" data-status="${u.status||''}" data-email="${escHtml(u.email||'')}" data-days="${u.days_left==null?'':u.days_left}" title="Menaxho modulet & abonimin">⚙️</button>
             <button type="button" class="ghost" data-action="passwd" data-uid="${u.id}" data-uname="${escHtml(u.username)}" title="Ndrysho fjalëkalimin">🔑</button>
             ${u.id === meId ? "" : `<button type="button" class="ghost" data-action="suspend" data-uid="${u.id}" data-uname="${escHtml(u.username)}" data-suspended="${u.suspended ? '1' : '0'}" title="${u.suspended ? 'Riaktivizo aksesin' : 'Çaktivizo aksesin (nuk fshin të dhënat)'}">${u.suspended ? '✅' : '⛔'}</button>`}
             ${u.id === meId ? "" : `<button type="button" class="ghost" data-action="delete" data-uid="${u.id}" data-uname="${escHtml(u.username)}" title="Fshi përfundimisht" style="color:#c66;">🗑</button>`}
@@ -11801,6 +11805,9 @@ function moduleChips(u) {
           '<div class="wa-row"><button class="um-save-mods wa-save" type="button">Ruaj modulet</button><span class="um-msg1 wa-msg"></span></div>' +
           '<label class="wa-lab" style="margin-top:12px">Juridiksioni (shteti · ligji)</label><div class="um-jurs">' + jurRow + '</div>' +
           '<div class="wa-row"><button class="um-save-jur wa-save" type="button">Ruaj juridiksionin</button><span class="um-msgj wa-msg"></span></div>' +
+          '<label class="wa-lab" style="margin-top:12px" data-i18n="um_email_l">Email (njoftime & rikuperim)</label>' +
+          '<div class="wa-row"><input type="email" class="um-email" style="flex:1;padding:7px 9px;border:1px solid var(--line,#e7e0cf);border-radius:8px" value="' + escHtml(d.email || "") + '">' +
+          '<button class="um-save-email wa-save" type="button" data-i18n="um_email_b">Ruaj email</button><span class="um-msge wa-msg"></span></div>'  +
           '<label class="wa-lab" style="margin-top:12px">Abonimi (zgjat nga fundi aktual)</label>' +
           '<div class="um-plan"><button type="button" data-mo="1">+1 muaj</button><button type="button" data-mo="3">+3 muaj</button><button type="button" data-mo="6">+6 muaj</button><button type="button" data-mo="12">+1 vit</button><button type="button" class="um-clear">♾ Pa afat</button></div>' +
           '<div class="wa-row"><span class="um-msg2 wa-msg"></span></div>') +
@@ -11810,6 +11817,17 @@ function moduleChips(u) {
     ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
     ov.querySelector(".wa-x").onclick = close;
     if (d.isAdmin) return;
+    ov.querySelector(".um-save-email").onclick = async function () {
+      var em = (ov.querySelector(".um-email") || {}).value || "";
+      var ms = ov.querySelector(".um-msge");
+      var r = await fetch("/api/admin/users/" + d.uid + "/email", {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: em.trim() }) });
+      var j = await r.json().catch(function () { return {}; });
+      ms.textContent = r.ok ? "✓" : (j.error || ("HTTP " + r.status));
+      ms.style.color = r.ok ? "" : "#c66";
+      if (r.ok) loadAdminUsers();
+    };
     ov.querySelector(".um-save-mods").onclick = async function () {
       var sel = [].slice.call(ov.querySelectorAll(".um-mods input:checked")).map(function (x) { return x.value; });
       var msg = ov.querySelector(".um-msg1");
@@ -11866,6 +11884,7 @@ function moduleChips(u) {
         jurisdictions: (btn.dataset.jurisdictions || "AL").split(",").filter(Boolean),
         plan: btn.dataset.plan || "", isAdmin: btn.dataset.admin === "1",
         status: btn.dataset.status || "",
+        email: btn.dataset.email || "",
         days: btn.dataset.days === "" ? null : parseInt(btn.dataset.days, 10) });
       return;
     }
@@ -11945,6 +11964,7 @@ function moduleChips(u) {
     const username = newUserUsername.value.trim().toLowerCase();
     const password = newUserPassword.value;
     const password2 = (document.getElementById("new-user-password2") || {}).value || "";
+    const nuEmail = ((document.getElementById("new-user-email") || {}).value || "").trim().toLowerCase();
     const isAdmin  = newUserAdminChk.checked;
     // I moduli pagati: piu' d'uno si puo'. Il server accettava gia' una
     // lista — era il menu a tendina a permetterne uno solo.
@@ -11959,6 +11979,11 @@ function moduleChips(u) {
     // non prova. Meglio fermarsi qui.
     if (password !== password2) {
       newUserStatus.textContent = TT("Fjalëkalimet nuk përputhen.");
+      newUserStatus.style.color = "#c66";
+      return;
+    }
+    if (!nuEmail || nuEmail.indexOf("@") < 1) {
+      newUserStatus.textContent = TT("Shkruaj një email të vlefshme — duhet për njoftimet.");
       newUserStatus.style.color = "#c66";
       return;
     }
@@ -11977,7 +12002,8 @@ function moduleChips(u) {
         // `modules` e' la lista vera; `profession` resta la principale
         // (la prima scelta), che il resto del prodotto usa per la mode-bar.
         body: JSON.stringify({ username, password, is_admin: isAdmin,
-                               profession: moduli[0], modules: moduli }),
+                               profession: moduli[0], modules: moduli,
+                               email: nuEmail }),
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
@@ -11989,6 +12015,8 @@ function moduleChips(u) {
       newUserStatus.style.color = "#6c6";
       newUserUsername.value = "";
       newUserPassword.value = "";
+      var _ne = document.getElementById("new-user-email");
+      if (_ne) _ne.value = "";
       var _p2 = document.getElementById("new-user-password2");
       if (_p2) _p2.value = "";
       document.querySelectorAll(".nu-mod").forEach(function (c, i) { c.checked = (i === 0); });
