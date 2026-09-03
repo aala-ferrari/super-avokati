@@ -1643,6 +1643,23 @@ provato live**: 499 decisioni CC, anni chiusi [2024, 2025], smoke
 100/2024→✓ · 999/2024→⚠ · 1999→intoccato, annotazione ⚠ nel testo.
 Golden **293/293**.
 
+**v9.250-9.251 — Mossa 1+2: l'Italia ENTRA nel cervello.** Il vecchio
+guard «niente precedenti finché non esiste una base italiana» è diventato
+il ramo IT: `src/it_precedent_fts.py` (**FTS5 su disco** — mai pickle-in-RAM
+coi volumi IT — `snippet()` del motore per il passaggio «...», rebuild su
+mtime) + `brain._precedenti_it()` che restituisce **CasePrecedent veri**:
+compose/scudo/UI non sanno che sotto c'è un altro motore. AL a zero byte
+di distanza; l'adverse era GIÀ guardato (l'assert==1 fallito con 2 l'ha
+rivelato). ⚠️ citation doppiava l'anno → case_number nudo (trovato dallo
+smoke). **GA/CdS**: portlet Liferay domato (p_auth di sessione, `_cur=N`,
+ultima pagina 11.602 ≈ **232k sentenze raggiungibili**; ECLI↔file uniti
+**per numero**, l'adiacenza inganna; `mdp.*` 401 → sblocca il **Referer**).
+`tools/ingest_it_ga.py` v1 (CdS, .html, pdf-only dichiarati) —
+**retrieval-only**: mai nel meta di copertura, il verificatore resta
+CCost-only. Collaudo sui dati veri: indice **514**, «appalto gara
+esclusione» → **CdS 6755/2026 in testa** alle CC. Cron: giurcost 03:15
+(+rebuild FTS), GA 03:45. Golden [26] eseguiti, **301/301** live.
+
 ## Storia versioni (sessione 30-31 ago 2026 — blindatura e documenti legali)
 
 v9.193-9.198 **sicurezza** (cervello in gabbia, SSH a chiave, freno al login,
