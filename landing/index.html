@@ -621,20 +621,6 @@ function robotBrain(sel){
      for(let i=0;i<=8;i++){const f=-half+2*half*i/8;
        line.push(put(f*rx*0.94, t*ry+0.012*Math.sin(i*2.1+t*5)));}
      path(line);}}
-  // CERVELLETTO: lamelle che seguono la sfera (referenza wireframe), +20%, in basso-destra
-  const cbA=nodes.length;
-  {const cx=0.745,cy=0.665,rx=0.105,ry=0.088,tilt=-0.24,ct=Math.cos(tilt),st=Math.sin(tilt);
-   const put=(px,py)=>[cx+px*ct-py*st, cy+px*st*0.85+py*ct];
-   const out=[];
-   for(let i=0;i<26;i++){const a=Math.PI*2*i/26,w=1+0.022*Math.sin(a*4+1);
-     out.push(put(Math.cos(a)*rx*w, Math.sin(a)*ry*w));}
-   path(out,true);
-   for(let lam=1;lam<=7;lam++){const t=-1+2*lam/8,half=Math.sqrt(Math.max(0,1-t*t)),line=[];
-     for(let i=0;i<=7;i++){const f=-half+2*half*i/7;
-       const bow=0.22*ry*Math.sqrt(Math.max(0,half*half-f*f));
-       line.push(put(f*rx*0.96, t*ry*0.9+bow));}
-     path(line);}}
-  const cbB=nodes.length;
   // TRONCO: piu' centrale e verticale, largo al ponte, stretto al midollo
   {const seg=8,cl=[],wl=[];
    for(let i=0;i<=seg;i++){const f=i/seg;
@@ -648,7 +634,7 @@ function robotBrain(sel){
    path(Lp);path(Mp);path(Rp);}
   const N=nodes.length;
   // maglia: nodi vicini si saldano; dentro il cervelletto solo a contatto (niente gomitolo)
-  for(let i=0;i<N;i++)for(let j=i+1;j<N;j++){const dd=Math.hypot(nodes[i].x-nodes[j].x,nodes[i].y-nodes[j].y);if(i>=cbA&&j<cbB&&i<cbB&&j>=cbA){if(dd<0.028)edges.push([i,j]);continue;}if(dd<0.052)edges.push([i,j]);}
+  for(let i=0;i<N;i++)for(let j=i+1;j<N;j++){if(Math.hypot(nodes[i].x-nodes[j].x,nodes[i].y-nodes[j].y)<0.052)edges.push([i,j]);}
   // RADICI nervose sotto il tronco
   function nerve(x,y,ang,len,depth){
     if(depth<=0||y>1.02)return;
