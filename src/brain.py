@@ -2941,7 +2941,13 @@ class SuperAvvocato:
         *don't* exclude all other cases — a Constitutional Court ruling
         on fundamental rights can be precedent for any case.
         """
-        if self._current_jurisdiction() != "AL":
+        _jur = self._current_jurisdiction()
+        if _jur == "IT":
+            # La base italiana ora ESISTE (giurcost, cresce col cron):
+            # stessa forma CasePrecedent, cosi' compose/UI non sanno che
+            # sotto c'e' FTS5 invece del pickle. Mai sollevare.
+            return _precedenti_it(triage)
+        if _jur != "AL":
             return []
         if not self.kb.cases:
             return []
@@ -5170,6 +5176,56 @@ _AREA_TO_CASE_TYPE: dict[str, str] = {
     "Detar":         "detar",
     "Ajror":         "ajror",
 }
+
+
+def _precedenti_it(triage) -> list:
+    """Precedenti italiani via FTS5, gia' in forma CasePrecedent.
+
+    Duck-typed sul triage (legge solo search_queries/strategic_angles):
+    cosi' si prova eseguendo con un oggetto qualsiasi. La data italiana
+    («4 giugno 2024») si prova a leggere; se non si legge, None — la
+    citazione resta senza anno, mai sbagliata.
+    """
+    try:
+        from datetime import date as _date
+
+        from .it_precedent_fts import kerko
+        from .retrieval_kb import CasePrecedent
+        domande = list(getattr(triage, "search_queries", []) or [])
+        for a in getattr(triage, "strategic_angles", []) or []:
+            if a and a not in domande:
+                domande.append(a)
+        if not domande:
+            return []
+        _MESI = {"gennaio": 1, "febbraio": 2, "marzo": 3, "aprile": 4,
+                 "maggio": 5, "giugno": 6, "luglio": 7, "agosto": 8,
+                 "settembre": 9, "ottobre": 10, "novembre": 11,
+                 "dicembre": 12}
+        out = []
+        for i, r in enumerate(kerko(domande, top_k=5)):
+            dd = None
+            try:
+                g, m, a = (r.get("date") or "").split()
+                dd = _date(int(a), _MESI[m.lower()], int(g))
+            except Exception:  # noqa: BLE001
+                pass
+            out.append((CasePrecedent(
+                id=0,                          # nessuna riga DB: niente pin
+                court_code=r["court"],
+                court_name=r["court_name"],
+                court_level="kushtetuese",
+                case_number=str(r["number"]),  # citation aggiunge gia' /anno
+                decision_date=dd,
+                type="kushtetuese",
+                subtype=r.get("tipo"),
+                outcome=None,
+                summary=r.get("passo") or "",
+                excerpt=r.get("brano") or "",
+                source_url=r.get("url"),
+            ), max(0.1, 1.0 - i * 0.15)))
+        return out
+    except Exception:  # noqa: BLE001
+        return []
 
 
 def _area_to_case_type(areas: list[str]) -> str | None:

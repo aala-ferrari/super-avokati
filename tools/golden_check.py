@@ -1196,6 +1196,61 @@ def main():
         check("IT/email[25]: kontrollet u ekzekutuan", False, str(_e))
 
 
+    # ── [26] precedentet IT ne tru: FTS5 + dega IT, AL i paprekur ───────
+    try:
+        _b6 = _io2.open(_os2.path.join(_rr, "src", "brain.py"), encoding="utf-8").read()
+        check("IT-prec: dega IT ne _retrieve_precedents",
+              '_jur == "IT"' in _b6 and "_precedenti_it(triage)" in _b6)
+        check("IT-prec: AL i paprekur (guard-i i vjeter jeton)",
+              'if _jur != "AL":' in _b6 and "self.kb.cases" in _b6)
+
+        # FTS5 i PROVUAR: indeks i perkohshem, kerkese, fragment «...»
+        import sys as _sy7, json as _js7, tempfile as _tf7
+        _sy7.path.insert(0, _rr)
+        import src.it_precedent_fts as _fts
+        from pathlib import Path as _P7
+        _d7 = _tf7.mkdtemp()
+        _fts.JSONL = _P7(_d7) / "it_decisions.jsonl"
+        _fts.DB = _P7(_d7) / "fts.db"
+        _fts.JSONL.write_text(
+            _js7.dumps({"court": "CCost", "type": "sentenza", "number": 100,
+                        "year": 2024, "date": "4 giugno 2024",
+                        "url": "https://x/1",
+                        "text": "La clausola penale nel contratto di vendita "
+                                "eccede la misura consentita."}) + "\n" +
+            _js7.dumps({"court": "CCost", "type": "ordinanza", "number": 7,
+                        "year": 2025, "date": "", "url": "https://x/2",
+                        "text": "Questione di legittimita' sull'imposta di "
+                                "registro."}) + "\n", encoding="utf-8")
+        _n7 = _fts.rebuild_indeksi()
+        check("IT-prec: indeksi ndertohet", _n7 == 2)
+        _r7 = _fts.kerko(["clausola penale contratto"], top_k=3)
+        check("IT-prec: gjen vendimin e duhur",
+              len(_r7) >= 1 and _r7[0]["number"] == 100)
+        check("IT-prec: fragmenti i evidentuar «...»",
+              "«" in _r7[0]["passo"] and "»" in _r7[0]["passo"],
+              "pasazhi vjen nga motori FTS5, jo nga ne")
+        check("IT-prec: kerkesa boshe s'rrezon asgje",
+              _fts.kerko([], top_k=3) == [])
+
+        # dega e trurit e PROVUAR me nje triage-kukull (duck-typed)
+        from types import SimpleNamespace as _NS7
+        from src.brain import _precedenti_it as _pit
+        import src.brain as _br7
+        _br7.it_precedent_fts = _fts  # noop; importi eshte lazy brenda
+        _rr7 = _pit(_NS7(search_queries=["clausola penale"],
+                         strategic_angles=[]))
+        check("IT-prec: CasePrecedent i vertete me citim dhe pasazh",
+              len(_rr7) >= 1
+              and _rr7[0][0].court_name == "Corte costituzionale"
+              and "«" in _rr7[0][0].summary
+              and _rr7[0][0].source_url == "https://x/1")
+        check("IT-prec: data italiane e lexuar (4 giugno 2024)",
+              _rr7[0][0].year == 2024)
+    except Exception as _e:  # noqa: BLE001
+        check("IT-prec[26]: kontrollet u ekzekutuan", False, str(_e))
+
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

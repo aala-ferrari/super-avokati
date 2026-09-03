@@ -10,3 +10,6 @@ PREC=$((MIN-1))
 if [ "$PREC" -ge 1956 ]; then
   /usr/bin/python3 "$T" --anno "$PREC" --chiudi
 fi
+# Mossa 1: l'indice FTS si ricostruisce subito dopo l'harvest, cosi' il
+# primo avvocato del mattino non paga il rebuild.
+/usr/bin/python3 -c 'import sys; sys.path.insert(0, "/var/www/apps/super-avvocato"); from src.it_precedent_fts import rebuild_indeksi; print("fts:", rebuild_indeksi(), "decisioni indicizzate")'
