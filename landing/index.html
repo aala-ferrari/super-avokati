@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Super Avokati — Truri ligjor me AI · Avokat, Prokuror & Noter · Ligj shqiptar & italian</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNyIgZmlsbD0iIzBhMTAyNCIvPjxnIHN0cm9rZT0iI2U3Y2U4ZSIgc3Ryb2tlLXdpZHRoPSIxLjciIGZpbGw9Im5vbmUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTE2IDguNVYyNCIvPjxwYXRoIGQ9Ik0xMCAyNGgxMiIvPjxwYXRoIGQ9Ik02LjUgMTEuNWgxOSIvPjxwYXRoIGQ9Ik02LjUgMTEuNWwtMi42IDUuNGEyLjkgMi45IDAgMCAwIDUuMiAweiIgZmlsbD0icmdiYSgyMDEsMTYyLDc1LC4zKSIvPjxwYXRoIGQ9Ik0yNS41IDExLjVsLTIuNiA1LjRhMi45IDIuOSAwIDAgMCA1LjIgMHoiIGZpbGw9InJnYmEoMjAxLDE2Miw3NSwuMykiLz48L2c+PGNpcmNsZSBjeD0iMTYiIGN5PSI5IiByPSIxLjYiIGZpbGw9IiNlN2NlOGUiLz48L3N2Zz4=">
+<link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiI+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iNyIgZmlsbD0iIzBhMTAyNCIvPjxnIHN0cm9rZT0iI2U3Y2U4ZSIgc3Ryb2tlLXdpZHRoPSIxLjciIGZpbGw9Im5vbmUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTE2IDguNVYyNCIvPjxwYXRoIGQ9Ik0xMCAyNGgxMiIvPjxwYXRoIGQ9Ik02LjUgMTEuNWgxOSIvPjxwYXRoIGQ9Ik02LjUgMTEuNWwtMi42IDUuNGEyLjkgMi45IDAgMCAwIDUuMiAweiIgZmlsbD0icmdiYSgyMDEsMTYyLDc1LC4zKSIvPjxwYXRoIGQ9Ik0yNS41IDExLjVsLTIuNiA1LjRhMi45IDIuOSAwIDAgMCA1LjIgMHoiIGZpbGw9InJnYmEoMjAxLDE2Miw3NSwuMykiLz48L2c+PGNpcmNsZSBjeD0iMTYiIGN5PSI5IiByPSIxLjYiIGZpbGw9IiNlN2NlOGUiLz48L3N2Zz4=">
+
+<meta name="description" content="Super Avokati: truri ligjor me AI për avokatë, prokurorë dhe noterë — analizë, strategji, kontrata dhe modele ekspertize, mbi ligjin shqiptar dhe atë italian. 21 kode shqiptare, 43 kode e ligje italiane, mijëra precedentë." />
+<meta name="keywords" content="avokat me AI, avokat online, asistencë ligjore, konsulencë ligjore, kontrata ligjore, praktika ligjore, avokat Shqipëri, ndihmë juridike, software për avokatë, avvocato AI, assistenza legale, AI lawyer, Super Avokati, Tetramorph" />
+<link rel="canonical" href="https://superavokati.ai/" />
+<meta name="robots" content="index,follow,max-image-preview:large" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="Super Avokati" />
+<meta property="og:title" content="Super Avokati — Avokat me AI" />
+<meta property="og:description" content="Truri ligjor me AI për avokatë, prokurorë dhe noterë: analizë, strategji, kontrata dhe modele ekspertize — mbi ligjin shqiptar dhe atë italian." />
+<meta property="og:url" content="https://superavokati.ai/" />
+<meta property="og:locale" content="sq_AL" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="theme-color" content="#0a1024" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Organization","@id":"https://superavokati.ai/#org","name":"Super Avokati","url":"https://superavokati.ai","email":"info@aala.global","sameAs":["https://aala.global"]},{"@type":"LegalService","name":"Super Avokati","description":"Truri ligjor me inteligjencë artificiale për avokatë, prokurorë dhe noterë: analizë, strategji, hartim kontratash dhe modele ekspertize, mbi ligjin shqiptar dhe atë italian.","url":"https://superavokati.ai","provider":{"@id":"https://superavokati.ai/#org"},"areaServed":["Shqipëri","Kosovë","Itali"],"availableLanguage":["sq","it","en"],"serviceType":["asistencë ligjore","hartim kontratash","modele ekspertize","akte noteriale","konsulencë juridike","avokat me AI"]},{"@type":"WebSite","url":"https://superavokati.ai","name":"Super Avokati","inLanguage":["sq","it","en"]}]}</script>
+<style>
+  :root{
+    --navy:#0a1024; --navy2:#0d1b3e; --navy3:#122a55;
+    --gold:#c9a24b; --gold-lt:#e7ce8e; --gold-dk:#b0883e;
+    --ivory:#f5efe0; --slate:#9aa6c2; --emerald:#3aa981;
+    --line:rgba(201,162,75,.22);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{background:var(--navy);color:var(--ivory);font-family:'Inter',sans-serif;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+  h1,h2,h3,.serif{font-family:'Cormorant Garamond',serif;font-weight:600;letter-spacing:.2px}
+  a{color:inherit;text-decoration:none}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 24px}
+  .gold{color:var(--gold-lt)}
+  .eyebrow{font-family:'Inter';font-size:12px;letter-spacing:.32em;text-transform:uppercase;color:var(--gold);font-weight:500}
+
+  /* NAV */
+  nav{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;align-items:center;justify-content:space-between;
+      padding:16px 28px;backdrop-filter:blur(10px);background:linear-gradient(to bottom,rgba(10,16,36,.85),rgba(10,16,36,0));transition:.3s}
+  nav.scrolled{background:rgba(10,16,36,.92);border-bottom:1px solid var(--line);padding:11px 28px}
+  .brand{display:flex;align-items:center;gap:11px;font-family:'Cormorant Garamond';font-size:23px;font-weight:700}
+  .brand .mk{height:40px;width:auto;object-fit:contain;background:linear-gradient(135deg,#f7f0dd,#e6d7b6);
+    border-radius:10px;padding:5px 7px;box-shadow:0 5px 18px rgba(0,0,0,.45),0 0 0 1px rgba(201,162,75,.45)}
+  /* Bilancia della legge "AI" (canvas) */
+  .scales-band{padding:70px 0 96px;background:linear-gradient(180deg,transparent,rgba(18,42,85,.2),transparent)}
+  .scales{width:300px;max-width:80vw;aspect-ratio:220/190;margin:0 auto;display:block;filter:drop-shadow(0 8px 26px rgba(201,162,75,.4))}
+  .scales-motto{font-size:clamp(22px,3vw,32px);color:var(--gold-lt);font-style:italic;margin-top:20px;letter-spacing:.3px}
+  .nav-links{display:flex;gap:26px;align-items:center;font-size:14px;color:var(--slate)}
+  .nav-sections{display:flex;gap:30px;align-items:center}
+  .nav-links a:hover{color:var(--gold-lt)}
+  .lang{display:flex;gap:2px;border:1px solid var(--line);border-radius:99px;padding:3px;margin-left:6px}
+  .lang button{background:none;border:none;color:var(--slate);font-size:12px;font-weight:600;padding:5px 10px;border-radius:99px;cursor:pointer;font-family:'Inter';letter-spacing:.04em}
+  .lang button.on{background:linear-gradient(135deg,var(--gold),var(--gold-dk));color:#1a1206}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:12px 26px;border-radius:99px;font-weight:600;font-size:14px;cursor:pointer;transition:.25s;border:none;font-family:'Inter'}
+  .btn-gold{background:linear-gradient(135deg,var(--gold-lt),var(--gold-dk));color:#1a1206;box-shadow:0 10px 34px -12px rgba(201,162,75,.65)}
+  .btn-gold:hover{transform:translateY(-2px);box-shadow:0 16px 44px -12px rgba(201,162,75,.8)}
+  .btn-ghost{background:transparent;color:var(--ivory);border:1px solid var(--line)}
+  .btn-ghost:hover{border-color:var(--gold);color:var(--gold-lt)}
+
+  /* HERO */
+  header{position:relative;min-height:100svh;display:flex;align-items:center;overflow:hidden}
+  #scene{position:absolute;inset:0;z-index:0}
+  .hero-vignette{position:absolute;inset:0;z-index:1;pointer-events:none;
+    background:linear-gradient(to right,var(--navy) 4%,rgba(10,16,36,.55) 40%,transparent 66%),
+    radial-gradient(ellipse at 72% 46%,transparent 30%,rgba(10,16,36,.5) 80%,var(--navy) 100%)}
+  .hero-in{position:relative;z-index:2;max-width:640px}
+  .hero-in h1{font-size:clamp(40px,6.4vw,78px);line-height:1.02;margin:18px 0 20px}
+  .hero-in h1 em{font-style:italic;color:var(--gold-lt)}
+  .hero-sub{font-size:clamp(16px,2vw,19px);color:var(--slate);line-height:1.6;max-width:540px;margin-bottom:18px}
+  .hero-motto{font-size:clamp(20px,2.6vw,28px);font-style:italic;color:var(--gold-lt);margin-bottom:30px;
+    padding-left:18px;border-left:2px solid var(--gold);text-shadow:0 2px 20px rgba(201,162,75,.35)}
+  .hero-cta{display:flex;gap:14px;flex-wrap:wrap}
+  .trustbar{display:flex;gap:26px;margin-top:40px;flex-wrap:wrap;font-size:13px;color:var(--slate)}
+  .trustbar span{display:flex;align-items:center;gap:8px}
+  .trustbar b{color:var(--gold-lt);font-weight:600}
+
+  /* SECTIONS */
+  section{position:relative;padding:110px 0}
+  .sec-head{text-align:center;max-width:720px;margin:0 auto 60px}
+  .sec-head h2{font-size:clamp(30px,4.4vw,50px);line-height:1.08;margin:14px 0 16px}
+  .sec-head p{color:var(--slate);font-size:17px;line-height:1.65}
+
+  .values{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+  .vcard{background:linear-gradient(160deg,rgba(18,42,85,.5),rgba(13,27,62,.35));border:1px solid var(--line);
+    border-radius:18px;padding:34px 28px;transition:.35s;position:relative;overflow:hidden}
+  .vcard:hover{transform:translateY(-6px);border-color:var(--gold);box-shadow:0 24px 60px -30px rgba(0,0,0,.7)}
+  .vcard .ic{width:52px;height:52px;margin-bottom:20px;color:var(--gold)}
+  .vcard h3{font-size:25px;margin-bottom:10px;color:var(--ivory)}
+  .vcard p{color:var(--slate);font-size:15px;line-height:1.6}
+
+  /* TETRAMORPH band */
+  .tetra{background:linear-gradient(180deg,transparent,rgba(18,42,85,.35),transparent)}
+  .tetra-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:60px;align-items:center}
+  #tetraCanvas{width:100%;aspect-ratio:1/1;max-height:460px}
+  /* Titolo TETRAMORPH BRAIN sopra il cervello (solo mobile) */
+  .tetra-brain-title{display:block;position:relative;text-align:center;margin:0 auto 10px;font-family:'Inter';font-weight:700;letter-spacing:.34em;font-size:18px}
+  .tetra-brain-title span{background:linear-gradient(90deg,#8a6717,#f0dfa8,#c9a24b,#f0dfa8,#8a6717);-webkit-background-clip:text;background-clip:text;color:transparent;position:relative;z-index:1;animation:tbtPulse 2.4s ease-in-out infinite}
+  .tetra-brain-title .tbt-bolt{position:absolute;left:0;top:-16px;width:100%;height:calc(100% + 32px);pointer-events:none;z-index:2}
+  @keyframes tbtPulse{0%,100%{filter:drop-shadow(0 0 5px rgba(201,162,75,.45))}50%{filter:drop-shadow(0 0 17px rgba(240,223,168,.95))}}
+  .tetra-txt h2{font-size:clamp(30px,4.2vw,46px);margin:14px 0 20px;line-height:1.1}
+  .tetra-txt p{color:var(--slate);font-size:16px;line-height:1.7;margin-bottom:18px}
+  .tetra-list{list-style:none;margin-top:22px}
+  .tetra-list li{display:flex;gap:13px;align-items:flex-start;padding:11px 0;border-bottom:1px solid rgba(201,162,75,.12);font-size:15px}
+  .tetra-list li::before{content:"";flex:none;width:9px;height:9px;margin-top:6px;border-radius:2px;transform:rotate(45deg);
+    background:linear-gradient(135deg,var(--gold-lt),var(--gold-dk));box-shadow:0 0 12px rgba(201,162,75,.6)}
+
+  /* AUDIENCE */
+  .aud{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
+  .acard{background:linear-gradient(165deg,rgba(18,42,85,.42),rgba(13,27,62,.3));border:1px solid var(--line);
+    border-radius:18px;padding:30px 24px;transition:.35s}
+  .acard:hover{transform:translateY(-6px);border-color:var(--gold);background:linear-gradient(165deg,rgba(24,52,102,.6),rgba(13,27,62,.4))}
+  .acard .ic{width:44px;height:44px;color:var(--gold);margin-bottom:16px}
+  .acard h3{font-size:22px;margin-bottom:9px}
+  .acard p{color:var(--slate);font-size:14px;line-height:1.55}
+  .acard .tag{display:inline-block;margin-top:14px;font-size:11px;letter-spacing:.06em;color:var(--emerald);
+    border:1px solid rgba(58,169,129,.4);border-radius:99px;padding:4px 11px;font-weight:600}
+
+  /* SECURITY band */
+  .sec-band{background:linear-gradient(135deg,rgba(13,27,62,.9),rgba(18,42,85,.6));border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .sec-band .wrap{display:grid;grid-template-columns:repeat(4,1fr);gap:30px;text-align:center}
+  .sec-band .item .n{font-family:'Cormorant Garamond';font-size:46px;color:var(--gold-lt);font-weight:700;line-height:1}
+  .sec-band .item p{color:var(--slate);font-size:14px;margin-top:8px}
+
+  /* CTA */
+  .cta-final{text-align:center}
+  .cta-final h2{font-size:clamp(32px,5vw,58px);line-height:1.05;margin-bottom:20px}
+  .cta-final p{color:var(--slate);font-size:18px;margin-bottom:34px;max-width:560px;margin-left:auto;margin-right:auto}
+
+  footer{border-top:1px solid var(--line);padding:44px 0;color:var(--slate);font-size:14px}
+  footer .wrap{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:18px}
+  footer a:hover{color:var(--gold-lt)}
+
+  .reveal{opacity:0;transform:translateY(34px);transition:.9s cubic-bezier(.16,.8,.3,1)}
+  .reveal.in{opacity:1;transform:none}
+
+  /* Modale registrazione prova */
+  .modal-ov{position:fixed;inset:0;z-index:90;background:rgba(6,10,22,.72);backdrop-filter:blur(7px);display:none;align-items:center;justify-content:center;padding:20px}
+  .modal-ov.on{display:flex}
+  .modal{width:100%;max-width:440px;background:linear-gradient(160deg,#101d3d,#0b1330);border:1px solid var(--line);border-radius:20px;padding:36px 32px;position:relative;box-shadow:0 40px 110px -30px #000}
+  .modal h3{font-size:30px;margin:6px 0 8px}
+  .modal p.sub{color:var(--slate);font-size:14.5px;line-height:1.55;margin-bottom:20px}
+  .modal label{display:block;font-size:11px;letter-spacing:.08em;color:var(--gold);margin:15px 0 6px;text-transform:uppercase}
+  .modal input{width:100%;padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--ivory);font-size:15px;box-sizing:border-box;font-family:'Inter'}
+  .modal input:focus{outline:none;border-color:var(--gold)}
+  .modal .close{position:absolute;top:15px;right:18px;background:none;border:none;color:var(--slate);font-size:26px;cursor:pointer;line-height:1}
+  .modal .msg{margin-top:18px;font-size:14.5px;color:var(--emerald);text-align:center;line-height:1.5}
+
+  @media(max-width:900px){
+    .nav-sections{display:none}
+    nav{padding:12px 16px}
+    header{align-items:flex-start;overflow:visible}
+    .hero-in{max-width:100%;padding-top:104px}
+    #scene{opacity:.9;transform:translateY(34%);
+      -webkit-mask-image:radial-gradient(ellipse 92% 78% at 46% 50%,#000 54%,rgba(0,0,0,.35) 78%,transparent 94%);
+      mask-image:radial-gradient(ellipse 92% 78% at 46% 50%,#000 54%,rgba(0,0,0,.35) 78%,transparent 94%)}
+    .hero-vignette{background:radial-gradient(ellipse 125% 92% at 45% 52%,rgba(201,162,75,.06) 16%,transparent 62%,rgba(10,16,36,.28) 90%,var(--navy) 100%)}
+    .hero-motto{font-size:19px}
+    .values,.aud{grid-template-columns:1fr 1fr}
+    .tetra-grid{grid-template-columns:1fr;gap:34px}
+    #tetraCanvas{max-height:340px}
+    .tetra-brain-title{display:block}
+    .sec-band .wrap{grid-template-columns:1fr 1fr;gap:26px}
+    section{padding:80px 0}
+  }
+  @media(max-width:560px){
+    .values,.aud{grid-template-columns:1fr}
+    .brand em{display:none}
+    .brand{font-size:19px}
+    .brand .mk{height:34px}
+    .lang button{padding:5px 8px;font-size:11px}
+    .hero-in h1{font-size:40px}
+    .hero-cta .btn{padding:11px 20px}
+    footer .brand{font-size:17px}
+  }
+</style>
+</head>
+<body>
+
+<nav id="nav">
+  <a class="brand" href="/">
+    <img class="mk" alt="AALA — Albania Auto Legal Alliance" />
+    <span style="display:flex;flex-direction:column;line-height:1.05">Super Avokati<em style="font-family:'Cormorant Garamond';font-style:italic;font-size:12px;color:var(--gold);font-weight:500;letter-spacing:.02em" data-i18n="brand_slogan">Beteja fitohet para se të nisë</em></span>
+  </a>
+  <div class="nav-links">
+    <div class="nav-sections">
+      <a href="#about" data-i18n="nav_about">Kush jemi</a>
+      <a href="#tetra" data-i18n="nav_brain">Tetramorph</a>
+      <a href="#aud" data-i18n="nav_who">Për kë</a>
+      <a href="#security" data-i18n="nav_security">Siguria</a>
+    </div>
+    <div class="lang">
+      <button data-lang="sq" class="on">SQ</button>
+      <button data-lang="it">IT</button>
+      <button data-lang="en">EN</button>
+    </div>
+    <a href="/login" class="btn btn-gold" data-i18n="nav_enter">Hyr</a>
+  </div>
+</nav>
+
+<header>
+  <div id="scene"></div>
+  <div class="hero-vignette"></div>
+  <div class="wrap">
+    <div class="hero-in">
+      <span class="eyebrow" data-i18n="hero_eyebrow">Inteligjenca Ligjore</span>
+      <h1 data-i18n-html="hero_title">Avokati yt me <em>Inteligjencë Artificiale</em></h1>
+      <p class="hero-sub" data-i18n="hero_sub">Super Avokati analizon, këshillon dhe harton kontrata e akte — mbi ligjin shqiptar dhe atë italian, me saktësinë dhe strategjinë e një studioje ligjore të nivelit të lartë. Për avokatë, prokurorë dhe noterë.</p>
+      <p class="hero-motto serif" data-i18n="hero_motto">“Beteja fitohet para se të nisë.”</p>
+      <div class="hero-cta">
+        <button type="button" class="btn btn-gold" id="trialBtn" data-i18n="hero_cta1">Provoje tani</button>
+        <a href="#about" class="btn btn-ghost" data-i18n="hero_cta2">Mëso më shumë</a>
+      </div>
+      <div class="trustbar">
+        <span><b data-i18n="tb1n">21</b> <span data-i18n="tb1">kode &amp; ligje shqiptare</span></span>
+        <span><b data-i18n="tb2n">43</b> <span data-i18n="tb2">kode &amp; ligje italiane</span></span>
+        <span><b data-i18n="tb4n">24/7</b> <span data-i18n="tb4">gjithmonë aktiv</span></span>
+        <span><b data-i18n="tb3n">100%</b> <span data-i18n="tb3">konfidencial</span></span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ABOUT / VALORI -->
+<section id="about">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow" data-i18n="about_eyebrow">Kush jemi</span>
+      <h2 data-i18n="about_title">Besueshmëri e një studioje. Shpejtësia e AI-së.</h2>
+      <p data-i18n="about_sub">Super Avokati lind nga aleanca AALA për t'i dhënë çdo personi qasje në një mendje ligjore të jashtëzakonshme — të saktë, të pandërprerë dhe pa kompromis.</p>
+    </div>
+    <div class="values">
+      <div class="vcard reveal">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 3v18M5 8l7-5 7 5M5 8l-2 6a4 4 0 008 0L5 8zM19 8l-2 6a4 4 0 008 0l-6-6z"/></svg>
+        <h3 data-i18n="v1t">Besim</h3>
+        <p data-i18n="v1p">Përgjigje të mbështetura te ligji, jo hamendje. Çdo këshillë ndërtohet mbi nene, precedentë dhe logjikë juridike.</p>
+      </div>
+      <div class="vcard reveal">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        <h3 data-i18n="v2t">Transparencë</h3>
+        <p data-i18n="v2p">E qartë për atë që di dhe atë që duhet verifikuar. Të shpjegon arsyetimin, hap pas hapi, në gjuhën tënde.</p>
+      </div>
+      <div class="vcard reveal">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg>
+        <h3 data-i18n="v3t">Besnikëri</h3>
+        <p data-i18n="v3p">Punon vetëm për ty. Strategji e zgjuar, gjithmonë në interesin tënd, me konfidencialitet absolut.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- BILANCIA DELLA LEGGE -->
+<section class="scales-band">
+  <div class="wrap" style="text-align:center">
+    <div class="reveal"><canvas id="scalesCanvas" class="scales"></canvas></div>
+    <p class="scales-motto serif reveal" data-i18n="scales_motto">Drejtësia në ekuilibër. Saktësia në çdo vendim.</p>
+  </div>
+</section>
+
+<!-- TETRAMORPH -->
+<section id="tetra" class="tetra">
+  <div class="wrap">
+    <div class="tetra-grid">
+      <div class="reveal">
+        <div class="tetra-brain-title" aria-hidden="true"><canvas class="tbt-bolt"></canvas><span>TETRAMORPH BRAIN</span></div>
+        <canvas id="tetraCanvas"></canvas>
+      </div>
+      <div class="tetra-txt reveal">
+        <span class="eyebrow" data-i18n="tetra_eyebrow">Truri</span>
+        <h2 data-i18n-html="tetra_title">Tetramorph — <span class="gold">mendja pas Super Avokatit</span></h2>
+        <p data-i18n="tetra_p1">Tetramorph është truri ynë ligjor pronësor: një arkitekturë me gjashtë mendje që arsyetojnë njëkohësisht mbi ligjin, strategjinë, precedentët dhe faktet — si gjashtë juristë ekspertë që debatojnë deri te përgjigjja e saktë. Arsyeton mbi të drejtën shqiptare dhe atë italiane, sipas juridiksionit që zgjedh.</p>
+        <p data-i18n="tetra_p2">Nuk nxiton. Kur çështja është e ndërlikuar, mendon më gjatë — sepse një avokat nuk mund të gabojë.</p>
+        <p data-i18n="tetra_p3">Dhe nuk mjaftohet me citime: është një tru i vërtetë pune — avokat, prokuror dhe noter në një mendje të vetme, me strategji çështjesh, plane hetimi, akte noteriale dhe modele ekspertize të gatshme.</p>
+        <ul class="tetra-list">
+          <li data-i18n="tetra_l1">Analizë e thellë e fakteve dhe dokumenteve</li>
+          <li data-i18n="tetra_l2">Kërkim mbi 21 kode e ligje shqiptare, 43 italiane dhe mbi 2 000 vendime gjyqësore</li>
+          <li data-i18n="tetra_l3">Strategji: gjen anën e fortë dhe pikat e dobëta</li>
+          <li data-i18n="tetra_l4">Harton kontrata, shkresa dhe modele ekspertize të gatshme për përdorim</li>
+          <li data-i18n="tetra_l5">Çdo referencë ligjore verifikohet përpara se të mbërrijë tek ti</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- AUDIENCE -->
+<section id="aud">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="eyebrow" data-i18n="aud_eyebrow">Për kë</span>
+      <h2 data-i18n="aud_title">Nga studiot ligjore te studentët</h2>
+      <p data-i18n="aud_sub">Një mendje ligjore, e formësuar për nevojën e secilit.</p>
+    </div>
+    <div class="aud">
+      <div class="acard reveal">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6"/></svg>
+        <h3 data-i18n="a1t">Studio ligjore</h3>
+        <p data-i18n="a1p">Përshpejto kërkimin, harto akte, përgatit çështje. Më shumë klientë, më pak orë të humbura.</p>
+      </div>
+      <div class="acard reveal">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+        <h3 data-i18n="a2t">Avokatë, prokurorë &amp; noterë</h3>
+        <p data-i18n="a2p">Një bashkëpunëtor i palodhur: strategji, precedentë, akte dhe modele ekspertize — natë e ditë, për secilin profesion.</p>
+      </div>
+      <div class="acard reveal">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 3l9 4-9 4-9-4 9-4zM3 12l9 4 9-4M3 17l9 4 9-4"/></svg>
+        <h3 data-i18n="a3t">Qytetarë</h3>
+        <p data-i18n="a3p">Kupto të drejtat e tua, një kontratë apo një gjobë — me gjuhë të thjeshtë, kurdo që të duhet.</p>
+      </div>
+      <div class="acard reveal">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 10L12 5 2 10l10 5 10-5zM6 12v5c0 1 3 3 6 3s6-2 6-3v-5"/></svg>
+        <h3 data-i18n="a4t">Studentë të drejtësisë</h3>
+        <p data-i18n="a4p">Zgjidh kazuse dhe përgatitu për provime. Version me kufi mujor pyetjesh, i menduar për të mësuar.</p>
+        <span class="tag" data-i18n="a4tag">Version studenti · kufi mujor</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECURITY -->
+<section id="security" class="sec-band">
+  <div class="wrap">
+    <div class="item reveal"><div class="n">21+</div><p data-i18n="s1">Kode &amp; ligje shqiptare</p></div>
+    <div class="item reveal"><div class="n">43</div><p data-i18n="s_it">Kode &amp; ligje italiane</p></div>
+    <div class="item reveal"><div class="n">100%</div><p data-i18n="s3">Konfidencial &amp; i sigurt</p></div>
+    <div class="item reveal"><div class="n">3</div><p data-i18n="s4">Gjuhë: SQ · IT · EN</p></div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-final">
+  <div class="wrap reveal">
+    <span class="eyebrow" data-i18n="cta_eyebrow">Fillo tani</span>
+    <h2 data-i18n-html="cta_title">Drejtësia meriton <span class="gold">mendjen më të mirë</span>.</h2>
+    <p data-i18n="cta_sub">Provoje Super Avokatin sot dhe shih se çfarë do të thotë të kesh një avokat me AI në krah.</p>
+    <a href="/login" class="btn btn-gold" style="padding:15px 40px;font-size:16px" data-i18n="cta_btn">Hyr në Super Avokati</a>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap" style="flex-direction:column;align-items:stretch;gap:24px">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:20px">
+      <a class="brand" href="/" style="font-size:20px"><img class="mk" alt="AALA" style="height:26px" /> Super Avokati</a>
+      <div style="display:flex;gap:26px;flex-wrap:wrap;align-items:center">
+        <a href="mailto:info@aala.global">✉&nbsp; info@aala.global</a>
+        <a href="tel:+355699555777">☎&nbsp; +355 69 955 5777</a>
+        <a href="#about" data-i18n="nav_about">Kush jemi</a>
+        <a href="/login" class="btn btn-ghost" style="padding:8px 20px" data-i18n="nav_enter">Hyr</a>
+      </div>
+    </div>
+    <div style="border-top:1px solid var(--line);padding-top:20px;font-size:13px;color:var(--slate);line-height:1.7">
+      <span data-i18n-html="foot_prop">superavokati.ai është nën koordinimin dhe pronësinë e <b class="gold">Albania Auto Legal Alliance</b> — të gjitha të drejtat e rezervuara.</span>
+      <span style="opacity:.7"> &nbsp;·&nbsp; © <span id="yr"></span> · <a href="https://aala.global" class="gold">aala.global</a></span>
+    </div>
+  </div>
+</footer>
+
+<!-- MODALE: richiesta prova gratuita -->
+<div class="modal-ov" id="trialModal">
+  <div class="modal">
+    <button class="close" id="trialClose" aria-label="Mbyll">&times;</button>
+    <span class="eyebrow" data-i18n="reg_eyebrow">Provë falas</span>
+    <h3 class="serif" data-i18n="reg_title">Kërko provën tënde</h3>
+    <p class="sub" data-i18n="reg_sub">Plotëso të dhënat: do të marrësh një kod aktivizimi në email për të provuar Super Avokatin.</p>
+    <form id="trialForm">
+      <label data-i18n="reg_name">Emri dhe mbiemri</label>
+      <input type="text" id="tName" required autocomplete="name" />
+      <label data-i18n="reg_email">Email</label>
+      <input type="email" id="tEmail" required autocomplete="email" />
+      <label data-i18n="reg_phone">Telefoni</label>
+      <input type="tel" id="tPhone" autocomplete="tel" />
+      <button type="submit" class="btn btn-gold" style="width:100%;margin-top:22px;justify-content:center" id="trialSubmit" data-i18n="reg_submit">Kërko kodin</button>
+      <div class="msg" id="trialMsg" hidden></div>
+    </form>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ============ i18n ============ */
+const I18N = {
+  sq:{nav_about:"Kush jemi",nav_brain:"Tetramorph",nav_who:"Për kë",nav_security:"Siguria",nav_enter:"Hyr",
+    hero_eyebrow:"Inteligjenca Ligjore",hero_title:"Avokati yt me <em>Inteligjencë Artificiale</em>",
+    hero_sub:"Super Avokati analizon, këshillon dhe harton kontrata e akte — mbi ligjin shqiptar dhe atë italian, me saktësinë dhe strategjinë e një studioje ligjore të nivelit të lartë. Për avokatë, prokurorë dhe noterë.",
+    hero_cta1:"Provoje tani",hero_cta2:"Mëso më shumë",tb1n:"21",tb1:"kode & ligje shqiptare",tb2n:"43",tb2:"kode & ligje italiane",tb3n:"100%",tb3:"konfidencial",tb4n:"24/7",tb4:"gjithmonë aktiv",
+    about_eyebrow:"Kush jemi",about_title:"Besueshmëri e një studioje. Shpejtësia e AI-së.",
+    about_sub:"Super Avokati lind nga aleanca AALA për t'i dhënë çdo personi qasje në një mendje ligjore të jashtëzakonshme — të saktë, të pandërprerë dhe pa kompromis.",
+    v1t:"Besim",v1p:"Përgjigje të mbështetura te ligji, jo hamendje. Çdo këshillë ndërtohet mbi nene, precedentë dhe logjikë juridike.",
+    v2t:"Transparencë",v2p:"E qartë për atë që di dhe atë që duhet verifikuar. Të shpjegon arsyetimin, hap pas hapi, në gjuhën tënde.",
+    v3t:"Besnikëri",v3p:"Punon vetëm për ty. Strategji e zgjuar, gjithmonë në interesin tënd, me konfidencialitet absolut.",
+    tetra_eyebrow:"Truri",tetra_title:"Tetramorph — <span class='gold'>mendja pas Super Avokatit</span>",
+    tetra_p1:"Tetramorph është truri ynë ligjor pronësor: një arkitekturë me gjashtë mendje që arsyetojnë njëkohësisht mbi ligjin, strategjinë, precedentët dhe faktet — si gjashtë juristë ekspertë që debatojnë deri te përgjigjja e saktë. Arsyeton mbi të drejtën shqiptare dhe atë italiane, sipas juridiksionit që zgjedh.",
+    tetra_p2:"Nuk nxiton. Kur çështja është e ndërlikuar, mendon më gjatë — sepse një avokat nuk mund të gabojë.",
+    tetra_p3:"Dhe nuk mjaftohet me citime: është një tru i vërtetë pune — avokat, prokuror dhe noter në një mendje të vetme, me strategji çështjesh, plane hetimi, akte noteriale dhe modele ekspertize të gatshme.",
+    tetra_l1:"Analizë e thellë e fakteve dhe dokumenteve",tetra_l2:"Kërkim mbi 21 kode e ligje shqiptare, 43 italiane dhe mbi 2 000 vendime gjyqësore",
+    tetra_l3:"Strategji: gjen anën e fortë dhe pikat e dobëta",tetra_l4:"Harton kontrata, shkresa dhe modele ekspertize të gatshme për përdorim",tetra_l5:"Çdo referencë ligjore verifikohet përpara se të mbërrijë tek ti",
+    aud_eyebrow:"Për kë",aud_title:"Nga studiot ligjore te studentët",aud_sub:"Një mendje ligjore, e formësuar për nevojën e secilit.",
+    a1t:"Studio ligjore",a1p:"Përshpejto kërkimin, harto akte, përgatit çështje. Më shumë klientë, më pak orë të humbura.",
+    a2t:"Avokatë, prokurorë & noterë",a2p:"Një bashkëpunëtor i palodhur: strategji, precedentë, akte dhe modele ekspertize — natë e ditë, për secilin profesion.",
+    a3t:"Qytetarë",a3p:"Kupto të drejtat e tua, një kontratë apo një gjobë — me gjuhë të thjeshtë, kurdo që të duhet.",
+    a4t:"Studentë të drejtësisë",a4p:"Zgjidh kazuse dhe përgatitu për provime. Version me kufi mujor pyetjesh, i menduar për të mësuar.",a4tag:"Version studenti · kufi mujor",
+    s1:"Kode & ligje shqiptare",s_it:"Kode & ligje italiane",s2:"Gjithmonë në dispozicion",s3:"Konfidencial & i sigurt",s4:"Gjuhë: SQ · IT · EN",
+    cta_eyebrow:"Fillo tani",cta_title:"Drejtësia meriton <span class='gold'>mendjen më të mirë</span>.",
+    cta_sub:"Provoje Super Avokatin sot dhe shih se çfarë do të thotë të kesh një avokat me AI në krah.",cta_btn:"Hyr në Super Avokati",foot_by:"pjesë e aleancës",
+    brand_slogan:"Beteja fitohet para se të nisë",hero_motto:"“Beteja fitohet para se të nisë.”",scales_motto:"Drejtësia në ekuilibër. Saktësia në çdo vendim.",
+    foot_prop:"superavokati.ai është nën koordinimin dhe pronësinë e <b class='gold'>Albania Auto Legal Alliance</b> — të gjitha të drejtat e rezervuara.",
+    reg_eyebrow:"Provë falas",reg_title:"Kërko provën tënde",reg_sub:"Plotëso të dhënat: do të marrësh një kod aktivizimi në email për të provuar Super Avokatin.",reg_name:"Emri dhe mbiemri",reg_email:"Email",reg_phone:"Telefoni",reg_submit:"Kërko kodin",reg_success:"✓ Kërkesa u dërgua! Do të marrësh një kod aktivizimi në email sapo të miratohet."},
+  it:{nav_about:"Chi siamo",nav_brain:"Tetramorph",nav_who:"Per chi",nav_security:"Sicurezza",nav_enter:"Entra",
+    hero_eyebrow:"Intelligenza Legale",hero_title:"Il tuo Avvocato con <em>Intelligenza Artificiale</em>",
+    hero_sub:"Super Avokati analizza, consiglia e redige contratti e atti — sul diritto albanese e su quello italiano, con la precisione e la strategia di uno studio legale di alto livello. Per avvocati, procuratori e notai.",
+    hero_cta1:"Provalo ora",hero_cta2:"Scopri di più",tb1n:"21",tb1:"codici & leggi albanesi",tb2n:"43",tb2:"codici & leggi italiani",tb3n:"100%",tb3:"riservato",tb4n:"24/7",tb4:"sempre attivo",
+    about_eyebrow:"Chi siamo",about_title:"L'affidabilità di uno studio. La velocità dell'AI.",
+    about_sub:"Super Avokati nasce dall'alleanza AALA per dare a chiunque accesso a una mente legale straordinaria — precisa, instancabile e senza compromessi.",
+    v1t:"Fiducia",v1p:"Risposte fondate sulla legge, non supposizioni. Ogni consiglio poggia su articoli, precedenti e logica giuridica.",
+    v2t:"Trasparenza",v2p:"Chiaro su ciò che sa e ciò che va verificato. Ti spiega il ragionamento, passo dopo passo, nella tua lingua.",
+    v3t:"Lealtà",v3p:"Lavora solo per te. Strategia intelligente, sempre nel tuo interesse, con riservatezza assoluta.",
+    tetra_eyebrow:"Il cervello",tetra_title:"Tetramorph — <span class='gold'>la mente di Super Avokati</span>",
+    tetra_p1:"Tetramorph è il nostro cervello legale proprietario: un'architettura a sei menti che ragionano insieme su legge, strategia, precedenti e fatti — come sei giuristi esperti che discutono fino alla risposta esatta. Ragiona sul diritto albanese e su quello italiano, secondo la giurisdizione che scegli.",
+    tetra_p2:"Non ha fretta. Quando il caso è complesso, pensa più a lungo — perché un avvocato non può sbagliare.",
+    tetra_p3:"E non si ferma alle citazioni: è un vero cervello di lavoro — avvocato, procuratore e notaio in un'unica mente, con strategie di causa, piani d'indagine, atti notarili e modelli di perizia pronti.",
+    tetra_l1:"Analisi profonda di fatti e documenti",tetra_l2:"Ricerca su 21 codici e leggi albanesi, 43 italiani e oltre 2.000 sentenze",
+    tetra_l3:"Strategia: trova il punto forte e le debolezze",tetra_l4:"Redige contratti, atti e modelli di perizia pronti all'uso",tetra_l5:"Ogni riferimento giuridico è verificato prima di arrivare a te",
+    aud_eyebrow:"Per chi",aud_title:"Dagli studi legali agli studenti",aud_sub:"Una mente legale, plasmata sul bisogno di ciascuno.",
+    a1t:"Studi legali",a1p:"Accelera la ricerca, redige atti, prepara le cause. Più clienti, meno ore perse.",
+    a2t:"Avvocati, procuratori & notai",a2p:"Un collaboratore instancabile: strategia, precedenti, atti e modelli di perizia — giorno e notte, per ogni professione.",
+    a3t:"Cittadini",a3p:"Capisci i tuoi diritti, un contratto o una multa — con parole semplici, quando ti serve.",
+    a4t:"Studenti di giurisprudenza",a4p:"Risolvi casi e preparati agli esami. Versione con limite mensile di domande, pensata per imparare.",a4tag:"Versione studente · limite mensile",
+    s1:"Codici & leggi albanesi",s_it:"Codici & leggi italiani",s2:"Sempre disponibile",s3:"Riservato & sicuro",s4:"Lingue: SQ · IT · EN",
+    cta_eyebrow:"Inizia ora",cta_title:"La giustizia merita <span class='gold'>la mente migliore</span>.",
+    cta_sub:"Prova Super Avokati oggi e scopri cosa significa avere un avvocato con AI al tuo fianco.",cta_btn:"Entra in Super Avokati",foot_by:"parte dell'alleanza",
+    brand_slogan:"La battaglia si vince prima di iniziare",hero_motto:"“La battaglia si vince prima di iniziare.”",scales_motto:"Giustizia in equilibrio. Precisione in ogni decisione.",
+    foot_prop:"superavokati.ai è sotto il coordinamento e la proprietà di <b class='gold'>Albania Auto Legal Alliance</b> — tutti i diritti riservati.",
+    reg_eyebrow:"Prova gratuita",reg_title:"Richiedi la tua prova",reg_sub:"Compila i dati: riceverai un codice di attivazione via email per provare Super Avokati.",reg_name:"Nome e cognome",reg_email:"Email",reg_phone:"Telefono",reg_submit:"Richiedi il codice",reg_success:"✓ Richiesta inviata! Riceverai un codice di attivazione via email dopo l'approvazione."},
+  en:{nav_about:"About",nav_brain:"Tetramorph",nav_who:"For whom",nav_security:"Security",nav_enter:"Enter",
+    hero_eyebrow:"Legal Intelligence",hero_title:"Your Lawyer powered by <em>Artificial Intelligence</em>",
+    hero_sub:"Super Avokati analyzes, advises and drafts contracts and legal acts — grounded in Albanian and Italian law, with the precision and strategy of a top-tier law firm. For lawyers, prosecutors and notaries.",
+    hero_cta1:"Try it now",hero_cta2:"Learn more",tb1n:"21",tb1:"Albanian codes & laws",tb2n:"43",tb2:"Italian codes & laws",tb3n:"100%",tb3:"confidential",tb4n:"24/7",tb4:"always on",
+    about_eyebrow:"About us",about_title:"The trust of a firm. The speed of AI.",
+    about_sub:"Super Avokati is born from the AALA alliance to give everyone access to an extraordinary legal mind — precise, tireless and uncompromising.",
+    v1t:"Trust",v1p:"Answers grounded in law, not guesswork. Every piece of advice rests on articles, precedents and legal logic.",
+    v2t:"Transparency",v2p:"Clear about what it knows and what must be verified. It explains its reasoning, step by step, in your language.",
+    v3t:"Loyalty",v3p:"It works only for you. Smart strategy, always in your interest, with absolute confidentiality.",
+    tetra_eyebrow:"The brain",tetra_title:"Tetramorph — <span class='gold'>the mind behind Super Avokati</span>",
+    tetra_p1:"Tetramorph is our proprietary legal brain: a six-mind architecture reasoning at once over law, strategy, precedents and facts — like six expert jurists debating until the exact answer. It reasons over both Albanian and Italian law, following the jurisdiction you choose.",
+    tetra_p2:"It doesn't rush. When the case is complex, it thinks longer — because a lawyer cannot be wrong.",
+    tetra_p3:"And it doesn't stop at citations: it is a true working brain — lawyer, prosecutor and notary in a single mind, with case strategy, investigation plans, notarial deeds and ready-made expert-report templates.",
+    tetra_l1:"Deep analysis of facts and documents",tetra_l2:"Research across 21 Albanian codes & laws, 43 Italian ones and 2,000+ court decisions",
+    tetra_l3:"Strategy: finds the strength and the weak points",tetra_l4:"Drafts contracts, deeds and expert-report templates ready to use",tetra_l5:"Every legal reference is verified before it reaches you",
+    aud_eyebrow:"For whom",aud_title:"From law firms to students",aud_sub:"One legal mind, shaped to each need.",
+    a1t:"Law firms",a1p:"Speed up research, draft documents, prepare cases. More clients, fewer wasted hours.",
+    a2t:"Lawyers, prosecutors & notaries",a2p:"A tireless partner: strategy, precedents, deeds and expert-report templates — day and night, for each profession.",
+    a3t:"Citizens",a3p:"Understand your rights, a contract or a fine — in plain words, whenever you need.",
+    a4t:"Law students",a4p:"Solve cases and prepare for exams. A version with a monthly question limit, built to learn.",a4tag:"Student version · monthly limit",
+    s1:"Albanian codes & laws",s_it:"Italian codes & laws",s2:"Always available",s3:"Confidential & secure",s4:"Languages: SQ · IT · EN",
+    cta_eyebrow:"Start now",cta_title:"Justice deserves <span class='gold'>the finest mind</span>.",
+    cta_sub:"Try Super Avokati today and discover what it means to have an AI lawyer at your side.",cta_btn:"Enter Super Avokati",foot_by:"part of the alliance",
+    brand_slogan:"The battle is won before it begins",hero_motto:"“The battle is won before it begins.”",scales_motto:"Justice in balance. Precision in every decision.",
+    foot_prop:"superavokati.ai is under the coordination and ownership of <b class='gold'>Albania Auto Legal Alliance</b> — all rights reserved.",
+    reg_eyebrow:"Free trial",reg_title:"Request your trial",reg_sub:"Fill in your details: you'll receive an activation code by email to try Super Avokati.",reg_name:"Full name",reg_email:"Email",reg_phone:"Phone",reg_submit:"Request the code",reg_success:"✓ Request sent! You'll receive an activation code by email once approved."}
+};
+function setLang(l){
+  document.documentElement.lang=l;
+  document.querySelectorAll('[data-i18n]').forEach(e=>{const v=I18N[l][e.getAttribute('data-i18n')];if(v!=null)e.textContent=v;});
+  document.querySelectorAll('[data-i18n-html]').forEach(e=>{const v=I18N[l][e.getAttribute('data-i18n-html')];if(v!=null)e.innerHTML=v;});
+  document.querySelectorAll('.lang button').forEach(b=>b.classList.toggle('on',b.dataset.lang===l));
+  try{localStorage.setItem('sa_lang',l);}catch(e){}
+}
+document.querySelectorAll('.lang button').forEach(b=>b.onclick=()=>setLang(b.dataset.lang));
+let saved='sq';try{saved=localStorage.getItem('sa_lang')||'sq';}catch(e){}
+if(!I18N[saved])saved='sq';setLang(saved);
+document.getElementById('yr').textContent=new Date().getFullYear();
+
+/* logo AALA (base64 inline) → nav, footer e sigillo del click */
+const LOGO="data:image/png;base64,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";
+document.querySelectorAll('img.mk').forEach(i=>{i.src=LOGO;});
+const logoImg=new Image();logoImg.src=LOGO;
+
+/* Modale PROVA (Provoje tani) → richiesta al admin AALA come i demo (POST /api/leads proxato) */
+(function(){
+  var btn=document.getElementById('trialBtn'),ov=document.getElementById('trialModal');
+  if(!btn||!ov)return;
+  var closeBtn=document.getElementById('trialClose'),form=document.getElementById('trialForm'),msg=document.getElementById('trialMsg');
+  function shut(){ov.classList.remove('on');}
+  btn.addEventListener('click',function(){ov.classList.add('on');document.getElementById('tName').focus();});
+  closeBtn.addEventListener('click',shut);
+  ov.addEventListener('click',function(e){if(e.target===ov)shut();});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')shut();});
+  form.addEventListener('submit',function(e){e.preventDefault();
+    var n=document.getElementById('tName').value.trim(),em=document.getElementById('tEmail').value.trim(),ph=document.getElementById('tPhone').value.trim();
+    if(n.length<2||!em)return;
+    var sb=document.getElementById('trialSubmit');sb.disabled=true;sb.textContent='...';
+    var L=I18N[document.documentElement.lang]||I18N.sq;
+    fetch('/api/leads',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({name:n,email:em,phone:ph||undefined,service:'legal',source:'contact-form',locale:document.documentElement.lang,
+        message:'KERKESE PROVE FALAS per Super Avokati (superavokati.ai). Perdoruesi kerkon nje kod aktivizimi per provën.'})})
+    .then(function(r){return r.json();}).then(function(j){
+      Array.prototype.forEach.call(form.querySelectorAll('label,input,button'),function(el){el.style.display='none';});
+      msg.hidden=false;msg.style.color='';msg.textContent=L.reg_success;
+    }).catch(function(){sb.disabled=false;sb.textContent=L.reg_submit;msg.hidden=false;msg.style.color='#e57373';msg.textContent='Gabim, provo sërish.';});
+  });
+})();
+
+/* nav scroll + reveal */
+const nav=document.getElementById('nav');
+addEventListener('scroll',()=>nav.classList.toggle('scrolled',scrollY>40));
+const io=new IntersectionObserver(es=>es.forEach(x=>{if(x.isIntersecting){x.target.classList.add('in');io.unobserve(x.target);}}),{threshold:.14});
+document.querySelectorAll('.reveal').forEach(e=>io.observe(e));
+
+/* ============ 3D HERO — Tetramorph merkaba + neural particles ============ */
+function goldMerkaba(canvasSelector, opts){
+  opts=opts||{};
+  const holder = typeof canvasSelector==='string'?document.querySelector(canvasSelector):canvasSelector;
+  const isCanvasEl = holder.tagName==='CANVAS';
+  const W=()=>holder.clientWidth||holder.offsetWidth||window.innerWidth;
+  const H=()=>holder.clientHeight||holder.offsetHeight||window.innerHeight;
+  const renderer=new THREE.WebGLRenderer({canvas:isCanvasEl?holder:undefined,antialias:true,alpha:true});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  renderer.setSize(W(),H(),false);
+  if(!isCanvasEl){renderer.domElement.style.width='100%';renderer.domElement.style.height='100%';holder.appendChild(renderer.domElement);}
+  const scene=new THREE.Scene();
+  const cam=new THREE.PerspectiveCamera(48,W()/H(),.1,100);
+  cam.position.set(0,0,opts.dist||7);
+
+  const grp=new THREE.Group();scene.add(grp);
+  // responsive: su mobile la sfera va CENTRATA (offsetX 0) e più piccola (dist maggiore) così non si taglia
+  function resp(){var m=window.innerWidth<=900;grp.position.x=m?0:(opts.offsetX||0);cam.position.z=m?(opts.distMobile||((opts.dist||7)*1.25)):(opts.dist||7);}
+  resp();
+  // due tetraedri = star tetrahedron (merkaba) — 4+4 facce = "Tetramorph"
+  const goldLine=0xd8b45a;
+  function tetra(flip){
+    const g=new THREE.TetrahedronGeometry(2.05,0);
+    const edges=new THREE.EdgesGeometry(g);
+    const m=new THREE.LineBasicMaterial({color:goldLine,transparent:true,opacity:.92});
+    const l=new THREE.LineSegments(edges,m);
+    if(flip)l.rotation.x=Math.PI;
+    // facce leggere
+    const fm=new THREE.MeshBasicMaterial({color:0xc9a24b,transparent:true,opacity:.06,side:THREE.DoubleSide});
+    const face=new THREE.Mesh(g,fm);if(flip)face.rotation.x=Math.PI;
+    const gg=new THREE.Group();gg.add(l);gg.add(face);return gg;
+  }
+  grp.add(tetra(false));grp.add(tetra(true));
+  // core glow
+  const core=new THREE.Mesh(new THREE.IcosahedronGeometry(.55,1),new THREE.MeshBasicMaterial({color:0xf0dfa8}));
+  grp.add(core);
+  // glow sprite (additivo)
+  const c=document.createElement('canvas');c.width=c.height=128;const cx=c.getContext('2d');
+  const gr=cx.createRadialGradient(64,64,0,64,64,64);gr.addColorStop(0,'rgba(240,223,168,.9)');gr.addColorStop(.3,'rgba(201,162,75,.5)');gr.addColorStop(1,'rgba(201,162,75,0)');
+  cx.fillStyle=gr;cx.fillRect(0,0,128,128);
+  const glow=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),blending:THREE.AdditiveBlending,transparent:true,depthWrite:false}));
+  glow.scale.set(6,6,1);grp.add(glow);
+  // ring particles (neurale)
+  const N=opts.particles||900;const pos=new Float32Array(N*3);
+  for(let i=0;i<N;i++){const r=3+Math.random()*4.5,a=Math.random()*Math.PI*2,ph=Math.acos(2*Math.random()-1);
+    pos[i*3]=r*Math.sin(ph)*Math.cos(a);pos[i*3+1]=r*Math.sin(ph)*Math.sin(a)*.7;pos[i*3+2]=r*Math.cos(ph);}
+  const pg=new THREE.BufferGeometry();pg.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  const pts=new THREE.Points(pg,new THREE.PointsMaterial({color:0xc9a24b,size:.045,transparent:true,opacity:.75,blending:THREE.AdditiveBlending,depthWrite:false}));
+  scene.add(pts);
+
+  let mx=0,my=0;addEventListener('mousemove',e=>{mx=(e.clientX/innerWidth-.5);my=(e.clientY/innerHeight-.5);});
+  let t=0;
+  function loop(){requestAnimationFrame(loop);t+=.01;
+    grp.rotation.y+=.006;grp.rotation.x=Math.sin(t*.5)*.25;
+    pts.rotation.y-=.0016;pts.rotation.x+=.0006;
+    core.scale.setScalar(1+Math.sin(t*2.2)*.12);
+    glow.material.opacity=.7+Math.sin(t*2.2)*.18;
+    cam.position.x+=(mx*1.6-cam.position.x)*.05;cam.position.y+=(-my*1.1-cam.position.y)*.05;cam.lookAt(0,0,0);
+    renderer.render(scene,cam);
+  }
+  loop();
+  addEventListener('resize',()=>{renderer.setSize(W(),H(),false);cam.aspect=W()/H();cam.updateProjectionMatrix();resp();});
+}
+/* ====== CERVELLO ROBOT: rete neurale a FORMA DI CERVELLO (2 emisferi) con elettroni ====== */
+function robotBrain(sel){
+  const canvas=document.querySelector(sel);if(!canvas)return;const ctx=canvas.getContext('2d');
+  const dpr=Math.min(devicePixelRatio,2);let W=1,H=1;
+  function size(){W=canvas.clientWidth||360;H=canvas.clientHeight||360;canvas.width=W*dpr;canvas.height=H*dpr;}
+  size();addEventListener('resize',size);
+  // SAGOMA CERVELLO DI PROFILO realistica (contorno morbido + circonvoluzioni + cervelletto + tronco)
+  const nodes=[],edges=[];
+  function path(pts,close){const b=nodes.length;for(let i=0;i<pts.length;i++)nodes.push({x:pts[i][0],y:pts[i][1],ph:Math.random()*6.28});
+    for(let i=0;i<pts.length-1;i++)edges.push([b+i,b+i+1]);if(close)edges.push([b+pts.length-1,b]);}
+  // DUE EMISFERI (sinistro + destro) con circonvoluzioni ondulate — cervello umano dall'alto
+  function lobe(cx,isLeft){
+    const cy=0.5,rx=0.185,ry=0.35,dir=isLeft?1:-1;
+    // contorno con circonvoluzioni
+    const out=[];
+    for(let i=0;i<30;i++){const a=Math.PI*2*i/30;
+      const wob=0.06*Math.sin(a*7+(isLeft?0:1.3));
+      const inner=isLeft?(Math.cos(a)>0):(Math.cos(a)<0);
+      const rr=rx*(1+wob)*(inner?0.6:1);
+      out.push([cx+Math.cos(a)*rr, cy+Math.sin(a)*ry*(1+wob*0.5)]);}
+    path(out,true);
+    // PIEGHE ondulate che RIEMPIONO tutto l'emisfero (solchi fitti, niente buco)
+    for(let row=0;row<12;row++){
+      const yy=cy-ry*0.86+(row/11)*ry*1.72;
+      const t=(yy-cy)/ry, half=Math.sqrt(Math.max(0,1-t*t))*rx;
+      if(half<0.012)continue;
+      const xOut=cx-dir*half*0.97, xIn=cx+dir*half*0.56, line=[];
+      for(let i=0;i<=8;i++){const f=i/8;
+        line.push([xOut+(xIn-xOut)*f, yy+0.03*Math.sin(f*9+row*1.6)]);}
+      path(line);
+      // ponticelli verticali ondulati tra le file (aspetto a solchi)
+      if(row%2===0 && half>0.05){const bx=cx-dir*half*0.4;
+        path([[bx,yy-ry*0.08],[bx+dir*0.02,yy],[bx,yy+ry*0.08]]);}
+    }
+  }
+  lobe(0.335,true); lobe(0.665,false);
+  // CORPO CALLOSO: fibre nervose che collegano i due emisferi al centro
+  path([[0.445,0.40],[0.50,0.42],[0.555,0.40]]);
+  path([[0.44,0.475],[0.50,0.478],[0.56,0.475]]);
+  path([[0.445,0.55],[0.50,0.535],[0.555,0.55]]);
+  path([[0.45,0.61],[0.50,0.60],[0.55,0.61]]);
+  const N=nodes.length;
+  // mesh: collega nodi vicini (dentro gli emisferi + le fibre callose ai bordi interni)
+  for(let i=0;i<N;i++)for(let j=i+1;j<N;j++){if(Math.hypot(nodes[i].x-nodes[j].x,nodes[i].y-nodes[j].y)<0.058)edges.push([i,j]);}
+  // NERVI ramificati che scendono dal centro-basso (collegamento al resto del corpo)
+  function nerve(x,y,ang,len,depth){
+    if(depth<=0||y>1.03)return;
+    const segs=5,p=[];let nx=x,ny=y,a=ang;
+    for(let i=0;i<=segs;i++){p.push([nx,ny]);a+=(Math.random()-0.5)*0.42;const s=len/segs;nx+=Math.sin(a)*s;ny+=Math.cos(a)*s;}
+    path(p);
+    if(depth>1){nerve(nx,ny,ang-(0.35+Math.random()*0.3),len*0.72,depth-1);
+      if(Math.random()<0.85)nerve(nx,ny,ang+(0.35+Math.random()*0.3),len*0.72,depth-1);}
+  }
+  const nerveBase=nodes.length;
+  nerve(0.50,0.605,0.0,0.15,4); nerve(0.46,0.585,0.20,0.13,3); nerve(0.54,0.585,-0.20,0.13,3);
+  nerve(0.485,0.645,0.34,0.12,3); nerve(0.515,0.645,-0.34,0.12,3);
+  // collega i nervi al cervello IN MEZZO (senza infittire i nervi tra loro)
+  for(let i=nerveBase;i<nodes.length;i++)for(let j=0;j<nerveBase;j++){if(Math.hypot(nodes[i].x-nodes[j].x,nodes[i].y-nodes[j].y)<0.055)edges.push([i,j]);}
+  // adiacenza: gli elettroni VIAGGIANO lungo il cervello E i nervi (anche da un emisfero all'altro)
+  const adj=[];for(let i=0;i<nodes.length;i++)adj.push([]);
+  for(let e=0;e<edges.length;e++){adj[edges[e][0]].push(edges[e][1]);adj[edges[e][1]].push(edges[e][0]);}
+  const els=[],bursts=[];const MAX_ELS=20; // numero FISSO — 6 luci in più
+  function spawn(){if(!edges.length||els.length>=MAX_ELS)return;const e=edges[(Math.random()*edges.length)|0],d=Math.random()<.5;els.push({from:d?e[0]:e[1],to:d?e[1]:e[0],prev:-1,t:0,sp:0.011+Math.random()*0.017});}
+  for(let i=0;i<MAX_ELS;i++)spawn();
+  let tm=0;
+  function draw(){requestAnimationFrame(draw);tm+=0.016;
+    ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);ctx.globalCompositeOperation='lighter';ctx.lineCap='round';
+    // archi: linea sottile oro (visibile ma non accecante)
+    for(let e=0;e<edges.length;e++){const a=nodes[edges[e][0]],b=nodes[edges[e][1]];
+      const x1=a.x*W,y1=a.y*H,x2=b.x*W,y2=b.y*H;
+      ctx.strokeStyle='rgba(201,162,75,.09)';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+      ctx.strokeStyle='rgba(231,206,142,.4)';ctx.lineWidth=1.3;ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();}
+    // nodi PICCOLI (puntini, mai blob)
+    for(let n=0;n<N;n++){const p=nodes[n],x=p.x*W,y=p.y*H,r=1.2+Math.sin(tm*1.6+p.ph)*.45;
+      const g=ctx.createRadialGradient(x,y,0,x,y,r+2.6);g.addColorStop(0,'rgba(231,206,142,.45)');g.addColorStop(1,'rgba(201,162,75,0)');
+      ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,r+2.6,0,6.28);ctx.fill();
+      ctx.fillStyle='rgba(255,247,220,.8)';ctx.beginPath();ctx.arc(x,y,0.9,0,6.28);ctx.fill();}
+    // elettroni: numero FISSO, piccoli (come immagine di riferimento pulita)
+    for(let i=0;i<els.length;i++){const el=els[i];el.t+=el.sp;
+      if(el.t>=1){
+        if(Math.random()<0.03){const bx=nodes[el.to].x*W,by=nodes[el.to].y*H; // MICRO ESPLOSIONE (sinapsi)
+          for(let k=0;k<9;k++){const aa=Math.PI*2*k/9+Math.random()*.5,sp=1.1+Math.random()*2.1;bursts.push({x:bx,y:by,vx:Math.cos(aa)*sp,vy:Math.sin(aa)*sp,life:0,max:15+Math.random()*12});}
+          bursts.push({x:bx,y:by,vx:0,vy:0,life:0,max:12,flash:1});}
+        el.prev=el.from;el.from=el.to;const nb=adj[el.from];
+        if(nb&&nb.length){let nx=nb[(Math.random()*nb.length)|0];if(nb.length>1){let tr=0;while(nx===el.prev&&tr<4){nx=nb[(Math.random()*nb.length)|0];tr++;}}el.to=nx;}
+        el.t=0;}
+      const a=nodes[el.from],b=nodes[el.to],x=(a.x+(b.x-a.x)*el.t)*W,y=(a.y+(b.y-a.y)*el.t)*H;
+      const g=ctx.createRadialGradient(x,y,0,x,y,6.4);g.addColorStop(0,'rgba(255,252,240,.98)');g.addColorStop(.4,'rgba(231,206,142,.52)');g.addColorStop(1,'rgba(201,162,75,0)');
+      ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,6.4,0,6.28);ctx.fill();}
+    // scintille delle micro esplosioni
+    for(let i=bursts.length-1;i>=0;i--){const p=bursts[i];p.life++;const tt=1-p.life/p.max;if(tt<=0){bursts.splice(i,1);continue;}
+      if(!p.flash){p.x+=p.vx;p.y+=p.vy;p.vx*=0.9;p.vy*=0.9;}
+      const rr=p.flash?(14*tt+2):(2+p.life*0.14);
+      const g2=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,rr);
+      g2.addColorStop(0,'rgba(255,250,235,'+((p.flash?0.55:0.85)*tt)+')');g2.addColorStop(.5,'rgba(231,206,142,'+(0.4*tt)+')');g2.addColorStop(1,'rgba(201,162,75,0)');
+      ctx.fillStyle=g2;ctx.beginPath();ctx.arc(p.x,p.y,rr,0,6.28);ctx.fill();}
+    ctx.globalCompositeOperation='source-over';
+  }
+  draw();
+}
+
+/* ====== BILANCIA "AI" su canvas: nodi luminosi + orb pulsanti + particelle ====== */
+function aiScales(sel){
+  const canvas=document.querySelector(sel);if(!canvas)return;const ctx=canvas.getContext('2d');
+  const dpr=Math.min(devicePixelRatio,2);let S=1;
+  function size(){const w=canvas.clientWidth||300,h=canvas.clientHeight||260;canvas.width=w*dpr;canvas.height=h*dpr;S=w/220;}
+  size();addEventListener('resize',size);
+  const parts=[];let t=0;
+  function gline(x1,y1,x2,y2,w,op){ctx.strokeStyle='rgba(201,162,75,'+(op*0.3)+')';ctx.lineWidth=w*3;ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();ctx.strokeStyle='rgba(231,206,142,'+op+')';ctx.lineWidth=w;ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();}
+  function nd(x,y,r){const g=ctx.createRadialGradient(x,y,0,x,y,r*3);g.addColorStop(0,'rgba(240,223,168,.9)');g.addColorStop(1,'rgba(201,162,75,0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,r*3,0,6.28);ctx.fill();ctx.fillStyle='rgba(255,250,232,.95)';ctx.beginPath();ctx.arc(x,y,r,0,6.28);ctx.fill();}
+  function orb(x,y,r,ph){const rr=r*(1+0.14*Math.sin(ph));const g=ctx.createRadialGradient(x,y,0,x,y,rr*2);g.addColorStop(0,'rgba(255,251,238,.95)');g.addColorStop(.3,'rgba(231,206,142,.65)');g.addColorStop(1,'rgba(201,162,75,0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,rr*2,0,6.28);ctx.fill();}
+  function draw(){requestAnimationFrame(draw);t+=0.016;
+    ctx.setTransform(dpr*S,0,0,dpr*S,0,0);ctx.clearRect(0,0,250,215);ctx.globalCompositeOperation='lighter';ctx.lineCap='round';
+    gline(110,52,110,168,2.2,.5); // colonna
+    ctx.strokeStyle='rgba(231,206,142,.5)';ctx.lineWidth=2.2;ctx.beginPath();ctx.ellipse(110,172,36,7,0,0,6.28);ctx.stroke();
+    nd(110,46,3.2);
+    const ang=Math.sin(t*0.8)*0.12,bx=Math.cos(ang),by=Math.sin(ang);
+    const Lx=110-64*bx,Ly=52-64*by,Rx=110+64*bx,Ry=52+64*by;
+    gline(Lx,Ly,Rx,Ry,2.4,.62); // trave
+    nd(110,52,2.6);nd(Lx,Ly,2.4);nd(Rx,Ry,2.4);
+    const panY=104;
+    [[Lx,Ly,0],[Rx,Ry,1.7]].forEach(function(P){const px=P[0];
+      gline(px,P[1],px-11,panY,1.3,.5);gline(px,P[1],px+11,panY,1.3,.5);
+      ctx.strokeStyle='rgba(231,206,142,.6)';ctx.lineWidth=2;ctx.beginPath();ctx.arc(px,panY,22,0.12*Math.PI,0.88*Math.PI,false);ctx.stroke();
+      nd(px-11,panY,1.6);nd(px+11,panY,1.6);
+      orb(px,panY-5,7,t*2+P[2]);
+      if(Math.random()<0.16)parts.push({x:px+(Math.random()-.5)*20,y:panY-8,vy:-0.25-Math.random()*0.5,life:1});
+    });
+    for(let i=parts.length-1;i>=0;i--){const p=parts[i];p.y+=p.vy;p.life-=0.018;if(p.life<=0){parts.splice(i,1);continue;}
+      const g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,3.2);g.addColorStop(0,'rgba(231,206,142,'+p.life+')');g.addColorStop(1,'rgba(201,162,75,0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(p.x,p.y,3.2,0,6.28);ctx.fill();}
+    ctx.globalCompositeOperation='source-over';
+  }
+  draw();
+}
+
+if(window.THREE){
+  goldMerkaba('#scene',{dist:7.2,particles:1100,offsetX:2.9,distMobile:10.5});
+}
+robotBrain('#tetraCanvas');
+aiScales('#scalesCanvas');
+
+/* Titolo TETRAMORPH BRAIN: scariche elettriche fulminanti (canvas) */
+function lightningTitle(){
+  const holder=document.querySelector('.tetra-brain-title');if(!holder)return;
+  const cv=holder.querySelector('.tbt-bolt');if(!cv)return;const ctx=cv.getContext('2d');
+  const dpr=Math.min(devicePixelRatio,2);
+  function size(){cv.width=(holder.clientWidth||300)*dpr;cv.height=(holder.clientHeight||44)*dpr;}
+  size();addEventListener('resize',size);
+  let bolt=null,life=0;
+  function newBolt(){const W=holder.clientWidth||300,H=holder.clientHeight||44,y=H*0.5+(Math.random()-.5)*H*0.35,n=13,p=[];
+    for(let i=0;i<=n;i++)p.push([i/n*W,y+(Math.random()-.5)*H*1.25]);bolt=p;life=7;}
+  function draw(){requestAnimationFrame(draw);
+    const W=holder.clientWidth||300,H=holder.clientHeight||44;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
+    if(life>0&&bolt){const a=life/7;ctx.globalCompositeOperation='lighter';ctx.shadowColor='rgba(231,206,142,.9)';ctx.shadowBlur=9;
+      ctx.strokeStyle='rgba(255,247,215,'+a+')';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(bolt[0][0],bolt[0][1]);
+      for(let i=1;i<bolt.length;i++)ctx.lineTo(bolt[i][0],bolt[i][1]);ctx.stroke();
+      ctx.lineWidth=1;for(let i=2;i<bolt.length-1;i+=3){ctx.beginPath();ctx.moveTo(bolt[i][0],bolt[i][1]);ctx.lineTo(bolt[i][0]+(Math.random()-.5)*22,bolt[i][1]+(Math.random()-.5)*H);ctx.stroke();}
+      ctx.shadowBlur=0;ctx.globalCompositeOperation='source-over';life--;}
+    if(Math.random()<0.02)newBolt();
+  }
+  draw();
+}
+lightningTitle();
+
+/* ============ EFFETTO CURSORE "AVVOCATO": inchiostro dorato + SIGILLO al click ============ */
+(function(){
+  const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(reduce)return;
+  const cv=document.createElement('canvas');
+  cv.setAttribute('aria-hidden','true');
+  cv.style.cssText='position:fixed;inset:0;pointer-events:none;z-index:70';
+  document.body.appendChild(cv);
+  const ctx=cv.getContext('2d');let W,H,dpr=Math.min(devicePixelRatio,2);
+  function resize(){W=innerWidth;H=innerHeight;cv.width=W*dpr;cv.height=H*dpr;cv.style.width=W+'px';cv.style.height=H+'px';}
+  resize();addEventListener('resize',resize);
+
+  const ink=[],seals=[],sparks=[];let seen=false;
+  function pushInk(x,y){seen=true;ink.push({x:x,y:y,life:1});if(ink.length>120)ink.shift();}
+  function addSeal(x,y){seals.push({x:x,y:y,life:0,max:98});
+    for(let i=0;i<11;i++){const a=Math.PI*2*i/11+Math.random()*.4,s=1.1+Math.random()*2.6;
+      sparks.push({x:x,y:y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:0,max:26+Math.random()*18,sz:1+Math.random()*1.7});}}
+  addEventListener('mousemove',e=>pushInk(e.clientX,e.clientY),{passive:true});
+  addEventListener('mousedown',e=>addSeal(e.clientX,e.clientY),{passive:true});
+  addEventListener('touchmove',e=>{const t=e.touches[0];if(t)pushInk(t.clientX,t.clientY);},{passive:true});
+  addEventListener('touchstart',e=>{const t=e.touches[0];if(t)addSeal(t.clientX,t.clientY);},{passive:true});
+
+  function star(x,y,r,a){ // emblema a stella (due triangoli) del brand
+    ctx.strokeStyle='rgba(240,223,168,'+a+')';ctx.lineWidth=1.4;
+    for(let f=0;f<2;f++){ctx.beginPath();for(let i=0;i<3;i++){const ang=-Math.PI/2+f*Math.PI+i*2*Math.PI/3;
+      const px=x+Math.cos(ang)*r,py=y+Math.sin(ang)*r;i?ctx.lineTo(px,py):ctx.moveTo(px,py);}ctx.closePath();ctx.stroke();}
+  }
+  function frame(){
+    requestAnimationFrame(frame);
+    ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
+    ctx.globalCompositeOperation='lighter';
+
+    // INCHIOSTRO: nastro d'oro luminoso e fashion (penna stilografica) — 3 strati
+    for(let i=0;i<ink.length;i++)ink[i].life-=0.019;
+    while(ink.length&&ink[0].life<=0)ink.shift();
+    ctx.lineCap='round';ctx.lineJoin='round';
+    const layers=[[11,'rgba(201,162,75,',0.16],[5.6,'rgba(214,178,92,',0.62],[2.1,'rgba(255,247,222,',0.8]];
+    for(let L=0;L<layers.length;L++){const wd=layers[L][0],col=layers[L][1],op=layers[L][2];
+      for(let i=1;i<ink.length;i++){const p0=ink[i-1],p1=ink[i];const t=i/ink.length;const a=Math.max(p1.life,0);
+        ctx.strokeStyle=col+(a*op*t)+')';ctx.lineWidth=Math.max(.5,a*t*wd);
+        ctx.beginPath();ctx.moveTo(p0.x,p0.y);ctx.lineTo(p1.x,p1.y);ctx.stroke();}}
+    if(ink.length){const h=ink[ink.length-1];
+      const g=ctx.createRadialGradient(h.x,h.y,0,h.x,h.y,26);
+      g.addColorStop(0,'rgba(240,223,168,.6)');g.addColorStop(.45,'rgba(201,162,75,.22)');g.addColorStop(1,'rgba(201,162,75,0)');
+      ctx.fillStyle=g;ctx.beginPath();ctx.arc(h.x,h.y,26,0,6.2832);ctx.fill();
+      ctx.fillStyle='rgba(255,250,235,.95)';ctx.beginPath();ctx.arc(h.x,h.y,2.7,0,6.2832);ctx.fill();
+    }
+
+    // SIGILLO al click: anello che si imprime + bordo dentellato + emblema
+    for(let i=seals.length-1;i>=0;i--){const s=seals[i];s.life++;const k=s.life/s.max;
+      if(k>=1){seals.splice(i,1);continue;}
+      const ease=1-Math.pow(1-k,3),r=9+ease*28,a=1-k;
+      ctx.strokeStyle='rgba(201,162,75,'+(a*0.95)+')';ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(s.x,s.y,r,0,6.2832);ctx.stroke();
+      ctx.strokeStyle='rgba(231,206,142,'+(a*0.55)+')';ctx.lineWidth=1;
+      ctx.beginPath();ctx.arc(s.x,s.y,r*0.68,0,6.2832);ctx.stroke();
+      ctx.strokeStyle='rgba(201,162,75,'+(a*0.8)+')';ctx.lineWidth=1.4; // dentelli del sigillo
+      for(let j=0;j<14;j++){const ang=Math.PI*2*j/14+s.life*0.015,r1=r+2,r2=r+6;
+        ctx.beginPath();ctx.moveTo(s.x+Math.cos(ang)*r1,s.y+Math.sin(ang)*r1);ctx.lineTo(s.x+Math.cos(ang)*r2,s.y+Math.sin(ang)*r2);ctx.stroke();}
+      // medaglione avorio + logo AALA che si "preme" nel sigillo (timbro)
+      if(logoImg.complete&&logoImg.naturalWidth){const ls=Math.min(1,k*2.4)*(r*1.3);
+        ctx.save();ctx.globalCompositeOperation='source-over';ctx.globalAlpha=a;
+        ctx.fillStyle='rgba(245,238,222,0.95)';ctx.beginPath();ctx.arc(s.x,s.y,ls*0.6,0,6.2832);ctx.fill();
+        ctx.drawImage(logoImg,s.x-ls/2,s.y-ls*0.39,ls,ls*0.78);ctx.restore();}
+      else star(s.x,s.y,7*Math.min(1,k*2.4),a);
+    }
+
+    // scintille sobrie
+    for(let i=sparks.length-1;i>=0;i--){const p=sparks[i];p.life++;const k=1-p.life/p.max;
+      if(k<=0){sparks.splice(i,1);continue;}
+      p.x+=p.vx;p.y+=p.vy;p.vx*=0.92;p.vy=p.vy*0.92+0.02;
+      const g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.sz*3);
+      g.addColorStop(0,'rgba(231,206,142,'+k+')');g.addColorStop(1,'rgba(201,162,75,0)');
+      ctx.fillStyle=g;ctx.beginPath();ctx.arc(p.x,p.y,p.sz*3,0,6.2832);ctx.fill();}
+
+    ctx.globalCompositeOperation='source-over';
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
