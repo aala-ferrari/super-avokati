@@ -6162,6 +6162,7 @@
     fp_rr: "Regole della casa — una per riga (max 10)\\nes. Nessuna penale oltre 0,1%/giorno senza approvazione",
     fp_save: "💾 Salva il profilo",
     tb_menu: "Tabella del fascicolo",
+    perkthim_menu: "Traduzione legale",
     tb_title: "📊 Tabella del fascicolo",
     tb_sub: "Le righe sono i documenti del fascicolo, le colonne le tue domande. Ogni cella risponde SOLO da quel documento — quando qualcosa manca, la cella dice «—» invece di inventare.",
     tb_docs: "1 · Scegli i documenti",
@@ -6765,6 +6766,13 @@
     proMenuBtn.setAttribute("aria-expanded", expanded ? "false" : "true");
     if (!expanded) _gateProMenu();
     proMenu.hidden = expanded;
+    // pinza: il menu parte da meta' pagina, il fondo non deve sporgere
+    if (!expanded) {
+      try {
+        var _pr = proMenu.getBoundingClientRect();
+        proMenu.style.maxHeight = Math.max(220, window.innerHeight - _pr.top - 16) + "px";
+      } catch (e2) {}
+    }
   });
   document.getElementById("pro-menu-close")?.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -6825,6 +6833,7 @@
       else if (key === "letters") { openLetters(); }
       else if (key === "devilconsult") { openDevilConsult(); }
       else if (key === "adversary") { openAdversary(); }
+      else if (key === "perkthim") { openPerkthim(); }
       else { openProModal(key); }
     });
   });
