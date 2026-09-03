@@ -1677,6 +1677,26 @@ del giorno, nazionale). Golden **302/302**. ⚠️ da smoke: `kerko()` rende
 `passo`/`brano`, non `snippet`; script in /tmp del container → `sys.path`
 a mano.
 
+**Landing superavokati.ai (3 set, pomeriggio) — la pagina dice la verità.**
+La landing vive FUORI dal container: `/var/www/superavokati-landing/index.html`
+statico sotto nginx (`location = /`, col cookie `session` → app), UN file con
+dizionario I18N inline sq/it/en; deploy = scp del file, niente rebuild. Ora è
+**versionata nel repo** in `landing/index.html`. Aggiornata dai «18 kode» del
+2025 alla realtà: **21 AL + 43 IT** (badge hero, banda, meta/OG/JSON-LD),
+Tetramorph **bi-giurisdizione** senza «pronësor», lista portata a **10 voci**
+(redaktime, rishikim+inspektim, dosje, afate, **Sekretarja virtuale**, video,
+verifica in chiusura), carta «Avokatë, prokurorë & noterë». Validatore eseguito
+(76 chiavi ×3 lingue allineate, eval JS reale, JSON-LD, zero orfane) + browser.
+**Cervello ridisegnato**: da «farfalla» a profilo vero — corteccia a file
+ondulate dentro silhouette-poligono, **lobo temporale** cucito dal solco
+laterale, tronco a 3 fili affusolato con radichette; il cervelletto a lamelle
+è stato fatto e poi **TOLTO su scelta del titolare** (non rimetterlo). Design
+2D canvas intatto (elettroni/sinapsi sugli archi nuovi da soli). ⚠️ trappole:
+la geometria si PROVA in node (5× — `nerve()` è random: i figli nascono un
+passo OLTRE l'ultimo nodo del padre → saldature ≥ passo massimo); dal browser
+serve **hard-reload** (l'ancora `#tetra` non ricarica e mostra la cache);
+`const` dentro `eval` non esce dallo scope in node → `var` per il test.
+
 ## Storia versioni (sessione 30-31 ago 2026 — blindatura e documenti legali)
 
 v9.193-9.198 **sicurezza** (cervello in gabbia, SSH a chiave, freno al login,
