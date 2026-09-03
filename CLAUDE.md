@@ -1713,7 +1713,7 @@ info@aala.global sui 7 account del titolare via `set_user_reminder_email`
 (mai SQL a mano), i 5 mai-entrati vuoti per scelta; da ora quota+digest
 raggiungono i suoi account (digest = per-utente: può arrivarne più d'uno).
 
-**v9.256 — Përkthim ligjor: la traduzione giuridica resta in casa.** Il
+**v9.256-9.257 — Përkthim ligjor: la traduzione giuridica resta in casa.** Il
 punto non è la comodità: incollare l'atto di un cliente su Google Translate
 = mandarlo a un terzo. `src/perkthim.py` + `/api/translate` (tre
 professioni; PDF/foto passano dal canale allegati esistente con OCR — il
@@ -1730,7 +1730,12 @@ eseguiti → **309/309**. Collaudato in due direzioni col cervello vero:
 la rilettura ha perfino cambiato «Risoluzione»→«Composizione» delle
 controversie per non collidere con la risoluzione del contratto. ⚠️ il
 blocco `--effort` appare DUE volte in backends (complete + stream):
-sostituire per indice, mai per conteggio.
+sostituire per indice, mai per conteggio. **v9.257**: il pulsante ANCHE nel
+menu PRO (dopo Harta, senza GATE) — il titolare non lo trovava nella barra
+professione (sotto il bordo sul suo schermo); e la **pinza d'altezza** al
+menu PRO: si apre a ~300px dall'alto ma il max-height era sul viewport
+intero → il fondo sporgeva fuori schermo (misurato 902 su 757) e «non
+scorreva fino in fondo». maxHeight = viewport − top − 16, all'apertura.
 
 **Landing superavokati.ai (3 set, pomeriggio) — la pagina dice la verità.**
 La landing vive FUORI dal container: `/var/www/superavokati-landing/index.html`
