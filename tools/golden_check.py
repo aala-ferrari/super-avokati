@@ -1166,6 +1166,25 @@ def main():
               _r2["stats"]["total"] == 0,
               "«nuk e gjej ≠ eshte i rreme»: vrima jone s'njollos ekstremin e vertete")
 
+        # Harvester-i giurcost: validatori STRUKTUROR (marker '404' u
+        # tregua i verber nen urllib — 3.127 guacka ne nje nate; ligji i
+        # mbulimit e mbajti jashte prodhimit).
+        import importlib.util as _ilu
+        _spec = _ilu.spec_from_file_location(
+            "ing_it", _os2.path.join(_rr, "tools", "ingest_it_giurcost.py"))
+        _ing = _ilu.module_from_spec(_spec)
+        _spec.loader.exec_module(_ing)
+        check("giurcost: faqja e vertete pranohet",
+              _ing.e_vendim("bla SENTENZA N. 100 ANNO 2024 bla",
+                            "sentenza", 100))
+        check("giurcost: guacka (numri vetem ne koment URL) refuzohet",
+              not _ing.e_vendim(
+                  "<!-- decisioni, 2024, 3200s-24 --> CONSULTA ON LINE",
+                  "sentenza", 3200),
+              "markeri '404' u tregua i verber; kriteri strukturor jo")
+        check("giurcost: numri i gabuar refuzohet",
+              not _ing.e_vendim("SENTENZA N. 99 ...", "sentenza", 100))
+
         # D — email-i i perdoruesit
         check("email: krijimi e kerkon", '"email e pavlefshme' in _w5)
         check("email: PATCH per administratorin", "api_admin_user_email" in _w5)

@@ -42,7 +42,19 @@ UA = ("SuperAvokati-ingest/1.0 (archivio verificazione citazioni; "
 MAX_MISS = 15
 PAUSA = 0.6
 
-_MISS = re.compile(r"404|not found|non trovat", re.I)
+_TIPI_RE = {"sentenza": "SENTENZA", "ordinanza": "ORDINANZA"}
+
+
+def e_vendim(corpo: str, tipo: str, n: int) -> bool:
+    """Vera decisione ⇔ la pagina nomina il PROPRIO numero.
+
+    La soft-404 di giurcost e' la shell del sito: contiene il numero solo
+    nel commento dell'URL («<!-- decisioni, 2024, 3200s-24 -->»), mai nella
+    forma canonica «SENTENZA N. 3200». Un marcatore testuale ('404') si e'
+    gia' dimostrato cieco sotto urllib: questo criterio e' strutturale.
+    """
+    return re.search(
+        rf"{_TIPI_RE[tipo]}\s+N\.?\s*{n}\b", corpo or "", re.I) is not None
 _DATA = re.compile(r"Depositata in Cancelleria il\s+(\d{1,2}\s+\w+\s+\d{4})")
 _TAG = re.compile(r"<script.*?</script>|<style.*?</style>", re.S | re.I)
 _TAGS = re.compile(r"<[^>]+>")
@@ -124,7 +136,7 @@ def anno_harvest(anno: int, visti: set, out) -> tuple[int, bool]:
             if corpo is None:
                 rete_ok = False
                 break
-            if _MISS.search(corpo[:4000]) and len(corpo) < 30_000:
+            if not e_vendim(corpo, tipo, n):
                 miss += 1
                 continue
             miss = 0
