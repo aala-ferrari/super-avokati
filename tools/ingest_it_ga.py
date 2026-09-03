@@ -41,10 +41,10 @@ UA = ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
 FROM_HDR = "info@aala.global"
 PAUSA = 0.7
 
-_ECLI = re.compile(r"ECLI:IT:CDS:(\d{4}):(\d{1,6})[A-Z]*")
+_ECLI = re.compile(r"ECLI:IT:([A-Z0-9]+):(\d{4}):(\d{1,6})[A-Z]*")
 _FILE = re.compile(
     r'href="(https://mdp\.giustizia-amministrativa\.it/visualizza/[^"]*'
-    r'nomeFile=(\d{4})0?(\d{4,6})_\d+\.html[^"]*)"')
+    r'nomeFile=(\d{4})(\d{1,6})_\d+\.html[^"]*)"')
 _TAG = re.compile(r"<script.*?</script>|<style.*?</style>", re.S | re.I)
 _TAGS = re.compile(r"<[^>]+>")
 
@@ -58,6 +58,16 @@ def pulisci(raw: str) -> str:
     t = _html.unescape(t)
     t = re.sub(r"[ \t\r\f\v]+", " ", t)
     return "\n".join(r.strip() for r in t.split("\n") if r.strip())[:60_000]
+
+
+def corte_di(sede: str) -> str:
+    """Codice-corte leggibile dalla sede del form (e' anche il nome che
+    mostra la UI, via fallback del display)."""
+    if sede == "Consiglio di Stato":
+        return "CdS"
+    if sede.startswith("C.G.A.R.S"):
+        return "CGARS"
+    return f"TAR {sede}"
 
 
 def apri():
@@ -89,8 +99,8 @@ def pagina_risultati(op, tipo: str, sede: str) -> tuple[str, str]:
 def righe_da(html_pag: str) -> list[dict]:
     """ECLI ↔ file uniti PER NUMERO (l'adiacenza inganna — misurato)."""
     eclis = {}
-    for anno, num in _ECLI.findall(html_pag):
-        eclis[(int(anno), int(num))] = f"ECLI:IT:CDS:{anno}:{num}"
+    for token, anno, num in _ECLI.findall(html_pag):
+        eclis[(int(anno), int(num))] = f"ECLI:IT:{token}:{anno}:{num}"
     files = {}
     for url, anno, num in _FILE.findall(html_pag):
         files.setdefault((int(anno), int(num)), url.replace("&amp;", "&"))
@@ -115,58 +125,85 @@ def carica_visti() -> set:
     return visti
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--pagine", type=int, default=3)
-    ap.add_argument("--tipo", default="Sentenza")
-    ap.add_argument("--sede", default="Consiglio di Stato")
-    a = ap.parse_args()
+def sedi_dal_form(op) -> list[str]:
+    """Le sedi si leggono DAL form: se il portale ne aggiunge una, il cron
+    la prende da solo invece di restare indietro in silenzio."""
+    h = op.open(BASE, timeout=30).read().decode("utf-8", "replace")
+    m = re.search(r'name="[^"]*_sedeProvvedimenti"(.*?)</select>', h, re.S)
+    if not m:
+        return []
+    return re.findall(r'<option[^>]*value="([^"]+)"', m.group(1))
 
-    op = apri()
-    visti = carica_visti()
-    log(f"GA {a.sede} · {a.tipo} · {a.pagine} pagine…")
-    prima, tmpl = pagina_risultati(op, a.tipo, a.sede)
+
+def raccogli_sede(op, visti: set, out, sede: str, tipo: str,
+                  pagine_n: int) -> tuple[int, int]:
+    corte = corte_di(sede)
+    prima, tmpl = pagina_risultati(op, tipo, sede)
     pagine = [prima]
-    for cur in range(2, a.pagine + 1):
+    for cur in range(2, pagine_n + 1):
         if not tmpl:
             break
         u = re.sub(r"_cur=\d+", f"_cur={cur}", tmpl)
         time.sleep(PAUSA)
         pagine.append(op.open(u, timeout=45).read().decode("utf-8", "replace"))
+    nuove = pdf = 0
+    for pg in pagine:
+        for r in righe_da(pg):
+            chiave = (corte, r["number"], r["year"])
+            if chiave in visti:
+                continue
+            time.sleep(PAUSA)
+            try:
+                req = urllib.request.Request(
+                    r["url"], headers={"User-Agent": UA, "Referer": BASE,
+                                       "From": FROM_HDR})
+                corpo = op.open(req, timeout=40).read()                           .decode("utf-8", "replace")
+            except Exception as exc:  # noqa: BLE001
+                log(f"  ! {r['ecli']}: {exc}")
+                continue
+            testo = pulisci(corpo)
+            if len(testo) < 500:
+                continue
+            out.write(json.dumps({
+                "juris": "IT", "court": corte, "type": "sentenza",
+                "number": r["number"], "year": r["year"],
+                "date": None, "ecli": r["ecli"], "url": r["url"],
+                "text": testo,
+            }, ensure_ascii=False) + "\n")
+            out.flush()
+            visti.add(chiave)
+            nuove += 1
+        pdf += len(re.findall(r"nomeFile=\d+_\d+\.pdf", pg)) // 2
+    return nuove, pdf
 
-    nuove = pdf_saltati = 0
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--pagine", type=int, default=3)
+    ap.add_argument("--tipo", default="Sentenza")
+    ap.add_argument("--sede", default="Consiglio di Stato")
+    ap.add_argument("--tutte-sedi", dest="tutte_sedi", action="store_true",
+                    help="tutte le sedi del form (CdS + CGARS + 29 TAR)")
+    a = ap.parse_args()
+
+    op = apri()
+    visti = carica_visti()
+    sedi = sedi_dal_form(op) if a.tutte_sedi else [a.sede]
+    log(f"GA · {a.tipo} · {a.pagine} pagine · sedi: {len(sedi)}")
+    tot_nuove = tot_pdf = 0
     with open(OUT, "a", encoding="utf-8") as out:
-        for pg in pagine:
-            for r in righe_da(pg):
-                chiave = ("CdS", r["number"], r["year"])
-                if chiave in visti:
-                    continue
-                time.sleep(PAUSA)
-                try:
-                    req = urllib.request.Request(
-                        r["url"], headers={"User-Agent": UA,
-                                           "Referer": BASE,
-                                           "From": FROM_HDR})
-                    corpo = op.open(req, timeout=40).read() \
-                              .decode("utf-8", "replace")
-                except Exception as exc:  # noqa: BLE001
-                    log(f"  ! {r['ecli']}: {exc}")
-                    continue
-                testo = pulisci(corpo)
-                if len(testo) < 500:
-                    continue
-                out.write(json.dumps({
-                    "juris": "IT", "court": "CdS", "type": "sentenza",
-                    "number": r["number"], "year": r["year"],
-                    "date": None, "ecli": r["ecli"], "url": r["url"],
-                    "text": testo,
-                }, ensure_ascii=False) + "\n")
-                out.flush()
-                visti.add(chiave)
-                nuove += 1
-            # i .pdf senza .html si contano, non si tacciono
-            pdf_saltati += len(re.findall(r"nomeFile=\d+_\d+\.pdf", pg)) // 2
-    log(f"fine — CdS: +{nuove} sentenze · pdf-only saltati (v1): ~{pdf_saltati}")
+        for sede in sedi:
+            try:
+                n, p = raccogli_sede(op, visti, out, sede, a.tipo, a.pagine)
+            except Exception as exc:  # noqa: BLE001 — una sede rotta non
+                # deve fermare le altre trenta
+                log(f"  ! sede {sede}: {exc}")
+                continue
+            tot_nuove += n
+            tot_pdf += p
+            if n:
+                log(f"  {corte_di(sede)}: +{n}")
+    log(f"fine — +{tot_nuove} sentenze · pdf-only saltati (v1): ~{tot_pdf}")
 
 
 if __name__ == "__main__":

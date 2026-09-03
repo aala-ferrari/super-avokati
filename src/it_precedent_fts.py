@@ -19,7 +19,9 @@ DB = PROCESSED_DATA_PATH / "it_decisions_fts.db"
 
 _lock = threading.Lock()
 
-_COURT_NAME = {"CCost": "Corte costituzionale"}
+_COURT_NAME = {"CCost": "Corte costituzionale",
+               "CdS": "Consiglio di Stato",
+               "CGARS": "C.G.A.R.S."}
 # FTS5 tratta questi come operatori: nel testo di una query utente sono
 # solo rumore e farebbero esplodere il MATCH con un syntax error.
 _PULISCI_Q = re.compile(r'["*^:()\-]')

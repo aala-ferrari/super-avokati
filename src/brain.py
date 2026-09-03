@@ -5178,6 +5178,12 @@ _AREA_TO_CASE_TYPE: dict[str, str] = {
 }
 
 
+def _tipo_per_corte(court: str) -> str:
+    """CCost → kushtetuese; CdS/CGARS/TAR → administrativ (type gia' noto
+    alla UI dal corpus albanese: zero stili nuovi)."""
+    return "kushtetuese" if court == "CCost" else "administrativ"
+
+
 def _precedenti_it(triage) -> list:
     """Precedenti italiani via FTS5, gia' in forma CasePrecedent.
 
@@ -5213,10 +5219,10 @@ def _precedenti_it(triage) -> list:
                 id=0,                          # nessuna riga DB: niente pin
                 court_code=r["court"],
                 court_name=r["court_name"],
-                court_level="kushtetuese",
+                court_level=_tipo_per_corte(r["court"]),
                 case_number=str(r["number"]),  # citation aggiunge gia' /anno
                 decision_date=dd,
-                type="kushtetuese",
+                type=_tipo_per_corte(r["court"]),
                 subtype=r.get("tipo"),
                 outcome=None,
                 summary=r.get("passo") or "",

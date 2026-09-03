@@ -1247,6 +1247,12 @@ def main():
               and _rr7[0][0].source_url == "https://x/1")
         check("IT-prec: data italiane e lexuar (4 giugno 2024)",
               _rr7[0][0].year == 2024)
+        from src.brain import _tipo_per_corte as _tpc
+        check("IT-prec: TAR/CdS nuk vishen si kushtetuese",
+              _tpc("CCost") == "kushtetuese"
+              and _tpc("CdS") == "administrativ"
+              and _tpc("TAR Bari") == "administrativ",
+              "karta e nje TAR-i me chip «kushtetuese» eshte genjeshter vizive")
     except Exception as _e:  # noqa: BLE001
         check("IT-prec[26]: kontrollet u ekzekutuan", False, str(_e))
 
