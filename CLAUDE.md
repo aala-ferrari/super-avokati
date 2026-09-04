@@ -1798,6 +1798,13 @@ il form video mandava `source:'demo-video'` che AALA rifiutava (400) MA
 apriva il video comunque — **0 lead demo-video nel DB**; ora enum esteso
 lato AALA e `r.ok` rispettato lato form (niente lead = niente video).
 Due lead di prova con esiti veri lasciati nel pannello come esempio.
+**Percorso prokuror (stessa sera)**: sul form video il procuratore NON
+vede il video (era la porta di servizio: Prokuror + dati a caso = video
+gratis) — bottone «Dërgo kërkesën →», submit → riquadro «videoja ju vjen
+me email si link personal», sa_demo_ok NON settato, nota «⚠️ DËRGOJI
+VIDEON ME EMAIL» nella mail a info@. I due mp4 finali sono anche sul
+Desktop del titolare (Super-Avokati-Demo-Shqip/Italiano.mp4) per l'invio
+manuale via mail/WhatsApp.
 Commit: SA `a154c67`+`79cb457`, aala `e24b0fd`+`108343d` (GitHub).
 
 **Landing superavokati.ai (3 set, pomeriggio) — la pagina dice la verità.**
