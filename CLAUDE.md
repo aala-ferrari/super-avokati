@@ -1773,6 +1773,19 @@ frame con griglie PIL; scena nuova 9 frame action-sampled + `setpts=2.0`
 `sa_tour_v1_done=1` nel localStorage o il tour onboarding entra in scena.
 QA: golden 309/309, smoke 103/103, juris verde. Push `0a6c446`.
 
+**Tessera dell'ordine nel «Provoje tani» (4 set, scelta del titolare).**
+Campo file OPZIONALE nel modale della landing — «attivazione prioritaria»:
+filtra curiosi e concorrenti senza chiudere il funnel; NON sul form del
+video-demo. Il file (jpg/png/webp/heic/pdf ≤8 MB) viaggia in **multipart**
+verso `/api/leads` di AALA (il JSON resta per chi non allega, e il submit
+ora rispetta `r.ok` — prima un 400 veniva festeggiato come successo);
+finisce in `/opt/aala-tessere/<uuid>` (700/600, fuori repo), nome in
+`leads.tessera_file`; l'admin lo apre da `/admin/leads` («🪪 verifica»,
+route dedicata solo-admin). nginx aveva già `client_max_body_size 520m`.
+Lato AALA: commit `e24b0fd` (GitHub) / `5e6f8fb` (VPS). Collaudo: multipart
+ok, JSON ok, 401 senza auth; lead «Prova Tessera Claude» lasciato come
+esempio nel pannello.
+
 **Landing superavokati.ai (3 set, pomeriggio) — la pagina dice la verità.**
 La landing vive FUORI dal container: `/var/www/superavokati-landing/index.html`
 statico sotto nginx (`location = /`, col cookie `session` → app), UN file con
