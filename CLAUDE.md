@@ -1773,18 +1773,32 @@ frame con griglie PIL; scena nuova 9 frame action-sampled + `setpts=2.0`
 `sa_tour_v1_done=1` nel localStorage o il tour onboarding entra in scena.
 QA: golden 309/309, smoke 103/103, juris verde. Push `0a6c446`.
 
-**Tessera dell'ordine nel «Provoje tani» (4 set, scelta del titolare).**
-Campo file OPZIONALE nel modale della landing — «attivazione prioritaria»:
-filtra curiosi e concorrenti senza chiudere il funnel; NON sul form del
-video-demo. Il file (jpg/png/webp/heic/pdf ≤8 MB) viaggia in **multipart**
-verso `/api/leads` di AALA (il JSON resta per chi non allega, e il submit
-ora rispetta `r.ok` — prima un 400 veniva festeggiato come successo);
-finisce in `/opt/aala-tessere/<uuid>` (700/600, fuori repo), nome in
-`leads.tessera_file`; l'admin lo apre da `/admin/leads` («🪪 verifica»,
-route dedicata solo-admin). nginx aveva già `client_max_body_size 520m`.
-Lato AALA: commit `e24b0fd` (GitHub) / `5e6f8fb` (VPS). Collaudo: multipart
-ok, JSON ok, 401 senza auth; lead «Prova Tessera Claude» lasciato come
-esempio nel pannello.
+**Tessera dell'ordine + cancello di professione (4 set, v9.261-9.262).**
+Prima stesura: campo opzionale nel solo «Provoje tani». Poi la direttiva
+del titolare («mettilo anche nel video — non mi servono lead che non sono
+avvocati o notai; per i procuratori non chiedo documento, li incontro di
+persona») ha portato alla forma finale: **selettore Avokat/Noter/Prokuror
+su ENTRAMBI i form** della landing, tessera **OBBLIGATORIA** per avvocati
+e notai, procuratori esenti con nota dedicata; 8 chiavi i18n ×3 lingue.
+Il file (jpg/png/webp/heic/pdf ≤8 MB) viaggia in multipart verso
+`/api/leads` di AALA; finisce in `/opt/aala-tessere/<uuid>` (700/600,
+fuori repo), nome in `leads.tessera_file`; l'admin lo apre da
+`/admin/leads` (route solo-admin). nginx aveva già `client_max_body_size
+520m`. **Verifica AI (richiesta del titolare: «non che uno carica un
+documento d'identità e passa»)**: `/api/verify-tessera` sul Flask
+(segreto del ponte demo) — `src/verifikimi_teseres.py`, ocr_image
+fast_model, prompt anti-injection, JSON blindato, PDF→prima pagina;
+AALA la chiama fire-and-forget e scrive l'esito in `leads.tessera_check`
+→ badge nel pannello (verde ✓ tessera+nome+numero / ambra ⚠️ NON sembra /
+grigio in corso). MISURATO: tessera avokat riconosciuta (~10s), carta
+d'identità **respinta** (konfidenca 0.98). ⚠️ Lezione pagata: il Read del
+cervello decide dal SUFFISSO — salvavo `.img` e leggeva byte come testo
+(4m40 di forensics); estensioni vere = 9s. **E il buco dei lead persi**:
+il form video mandava `source:'demo-video'` che AALA rifiutava (400) MA
+apriva il video comunque — **0 lead demo-video nel DB**; ora enum esteso
+lato AALA e `r.ok` rispettato lato form (niente lead = niente video).
+Due lead di prova con esiti veri lasciati nel pannello come esempio.
+Commit: SA `a154c67`+`79cb457`, aala `e24b0fd`+`108343d` (GitHub).
 
 **Landing superavokati.ai (3 set, pomeriggio) — la pagina dice la verità.**
 La landing vive FUORI dal container: `/var/www/superavokati-landing/index.html`
