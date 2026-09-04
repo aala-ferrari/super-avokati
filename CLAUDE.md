@@ -1753,6 +1753,26 @@ lazy senza altezza = 0×0 = mai caricata** (fetch 200 e console pulita!) —
 via il lazy + aspect-ratio; ③ **tMode**: la coppia lunga PRIMA della corta
 o «Përkthim ligjor» diventa «Traduzione ligjor». QA: golden 309/309.
 
+**v9.259-9.260 — la sessione italiana non mastica più albanese (4 set).**
+Il titolare vede NEL VIDEO il badge «kod i pa-specifikuar — mund të jetë…»
+in sessione IT: i renderer client scrivevano stringhe crude. ① v9.259:
+helper `_t` scope-safe in `renderCitationsBadge`, 5 rami tradotti, 11 voci
+T_IT; ② v9.260: `renderTimeline` aveva `_CAL_IT` solo sul ramo days<0 —
+«brenda 3650 ditësh nga…» ripreso in camera; ora urgenze/titolo/timing/
+sezioni bilingui (stesso pattern di statusLabel/bearerLabel) e il badge
+declina il plurale (1 articolo inesistente / 1 nen fantazmë). ⚠️ resta
+albanese fisso in `_renderActReport` (controllo-atto): bonifica in un giro
+dedicato. **Video demo ripuliti**: SQ **1:43** (via 2 aperture Përkthim a
+vuoto + overlay del tour scattato in scena), IT **1:09** (via primo Traduci
+sbagliato pre-raw_system + tour; scena d'oro RI-girata su v9.260: dettagli
+citazioni in italiano, ✗ barrato «non trovato», ⚠ ABROGATO). Chirurgia =
+trim/concat ffmpeg re-encode a parametri identici, giunzioni verificate al
+frame con griglie PIL; scena nuova 9 frame action-sampled + `setpts=2.0`
+(su schermate statiche rallentare = solo più tempo di lettura). Player
+`?v=3` — bump A OGNI sostituzione video. ⚠️ prima di registrare:
+`sa_tour_v1_done=1` nel localStorage o il tour onboarding entra in scena.
+QA: golden 309/309, smoke 103/103, juris verde. Push `0a6c446`.
+
 **Landing superavokati.ai (3 set, pomeriggio) — la pagina dice la verità.**
 La landing vive FUORI dal container: `/var/www/superavokati-landing/index.html`
 statico sotto nginx (`location = /`, col cookie `session` → app), UN file con
