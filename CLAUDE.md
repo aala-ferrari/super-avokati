@@ -1737,6 +1737,22 @@ menu PRO: si apre a ~300px dall'alto ma il max-height era sul viewport
 intero → il fondo sporgeva fuori schermo (misurato 902 su 757) e «non
 scorreva fino in fondo». maxHeight = viewport − top − 16, all'apertura.
 
+**v9.258 — Video demo dietro registrazione (4 set): la landing pesca lead.**
+Sezione in FILLO TANI: anteprima SFOCATA + triangolo d'oro → modulo
+emri/mbiemri/telefoni/email (validazione severa eseguita: 123@mail.mm e
+123456789 respinti, domini usa-e-getta bloccati) → lead su /api/leads
+`source: demo-video` → video nella LINGUA di sessione da `/demo/demo-{sq,it}.mp4`
+(nginx `location ^~ /demo/` statica). Video REGISTRATI dall'app coi casi
+demo di fantasia (utenti `demo.video.sq/.it`, password in fixture, restano
+per demo future); il recorder campiona solo le azioni → le attese
+spariscono da sole; file sostituibili a piacere (stesso path). ⚠️ TRE
+lezioni pagate in scena: ① **raw_system** nel backend — il preambolo di
+giurisdizione trasformava «traduci in shqip» in un PARERE in italiano;
+il traduttore viaggia crudo (default False, cervello intatto); ② **img
+lazy senza altezza = 0×0 = mai caricata** (fetch 200 e console pulita!) —
+via il lazy + aspect-ratio; ③ **tMode**: la coppia lunga PRIMA della corta
+o «Përkthim ligjor» diventa «Traduzione ligjor». QA: golden 309/309.
+
 **Landing superavokati.ai (3 set, pomeriggio) — la pagina dice la verità.**
 La landing vive FUORI dal container: `/var/www/superavokati-landing/index.html`
 statico sotto nginx (`location = /`, col cookie `session` → app), UN file con
