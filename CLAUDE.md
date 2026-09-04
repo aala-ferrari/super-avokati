@@ -1805,6 +1805,14 @@ me email si link personal», sa_demo_ok NON settato, nota «⚠️ DËRGOJI
 VIDEON ME EMAIL» nella mail a info@. I due mp4 finali sono anche sul
 Desktop del titolare (Super-Avokati-Demo-Shqip/Italiano.mp4) per l'invio
 manuale via mail/WhatsApp.
+**Verifica IN LINEA (sera)**: il fire-and-forget bastava al pannello ma
+non al cancello — il titolare ha caricato un cervello disegnato e il
+video s'è aperto. Ora submit → «🧠 Po verifikojmë teserën…» → verdetto
+sincrono (45s timeout): farlocco = lead NON salvato + file eliminato +
+«ngarko teserën e avokatit — shqiptare ose italiane»; vera = video +
+lead col check già verde; guasto tecnico = passa col badge grigio
+(decide l'admin). MISURATO: cervello-immagine respinto 23s / 0 lead,
+tessera vera 15s.
 Commit: SA `a154c67`+`79cb457`, aala `e24b0fd`+`108343d` (GitHub).
 
 **Landing superavokati.ai (3 set, pomeriggio) — la pagina dice la verità.**
