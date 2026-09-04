@@ -174,6 +174,9 @@
   .modal label{display:block;font-size:11px;letter-spacing:.08em;color:var(--gold);margin:15px 0 6px;text-transform:uppercase}
   .modal input{width:100%;padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.05);color:var(--ivory);font-size:15px;box-sizing:border-box;font-family:'Inter'}
   .modal input:focus{outline:none;border-color:var(--gold)}
+  .modal input[type=file]{padding:9px 10px;font-size:13px;color:var(--mute,#9aa3b5)}
+  .modal input[type=file]::file-selector-button{border:1px solid var(--gold);background:linear-gradient(135deg,#d8b45a,#b8933f);color:#141a2e;font-weight:600;font-size:13px;padding:7px 14px;border-radius:8px;margin-right:12px;cursor:pointer;font-family:Inter}
+  .modal input[type=file]::file-selector-button:hover{filter:brightness(1.08)}
   .modal .close{position:absolute;top:15px;right:18px;background:none;border:none;color:var(--slate);font-size:26px;cursor:pointer;line-height:1}
   .modal .msg{margin-top:18px;font-size:14.5px;color:var(--emerald);text-align:center;line-height:1.5}
 
@@ -441,6 +444,9 @@
       <input type="email" id="tEmail" required autocomplete="email" />
       <label data-i18n="reg_phone">Telefoni</label>
       <input type="tel" id="tPhone" autocomplete="tel" />
+      <label data-i18n="reg_card">Tesera profesionale (opsionale) — aktivizim me përparësi</label>
+      <input type="file" id="tCard" accept="image/jpeg,image/png,image/webp,image/heic,application/pdf,.pdf,.heic" />
+      <p class="sub cardhint" style="font-size:12px;margin-top:6px" data-i18n="reg_card_hint">Avokat, prokuror a noter? Ngarko teserën (foto ose PDF, max 8 MB): kërkesa jote kalon e para. Përdoret vetëm për verifikimin e licencës dhe ruhet në mënyrë të rezervuar.</p>
       <button type="submit" class="btn btn-gold" style="width:100%;margin-top:22px;justify-content:center" id="trialSubmit" data-i18n="reg_submit">Kërko kodin</button>
       <div class="msg" id="trialMsg" hidden></div>
     </form>
@@ -477,7 +483,7 @@ const I18N = {
     brand_slogan:"Beteja fitohet para se të nisë",hero_motto:"“Beteja fitohet para se të nisë.”",scales_motto:"Drejtësia në ekuilibër. Saktësia në çdo vendim.",
     foot_prop:"superavokati.ai është nën koordinimin dhe pronësinë e <b class='gold'>Albania Auto Legal Alliance</b> — të gjitha të drejtat e rezervuara.",
     demo_cta:"🎬 Regjistrohu falas për të parë video-demon (2 min)",demo_eyebrow:"Video demo",demo_title:"Shiko Super Avokatin në punë",demo_sub:"Plotëso të dhënat e vërteta dhe videoja hapet menjëherë — një rast civil real, hap pas hapi.",demo_name:"Emri",demo_surname:"Mbiemri",demo_phone:"Telefoni (i vërtetë)",demo_email:"Email (i vërtetë)",demo_btn:"Shiko videon →",demo_gdpr:"Duke u regjistruar pranon <a href='/legale' target='_blank' rel='noopener'>Kushtet &amp; Privatësinë</a>. Të dhënat përdoren vetëm për t'ju kontaktuar rreth Super Avokatit.",demo_err_name:"Shkruaj emrin dhe mbiemrin e vërtetë.",demo_err_phone:"Numri i telefonit nuk duket i vërtetë.",demo_err_email:"Email-i nuk duket i vërtetë — përdor adresën tënde reale.",
-    reg_eyebrow:"Provë falas",reg_title:"Kërko provën tënde",reg_sub:"Plotëso të dhënat: do të marrësh një kod aktivizimi në email për të provuar Super Avokatin.",reg_name:"Emri dhe mbiemri",reg_email:"Email",reg_phone:"Telefoni",reg_submit:"Kërko kodin",reg_success:"✓ Kërkesa u dërgua! Do të marrësh një kod aktivizimi në email sapo të miratohet."},
+    reg_eyebrow:"Provë falas",reg_title:"Kërko provën tënde",reg_sub:"Plotëso të dhënat: do të marrësh një kod aktivizimi në email për të provuar Super Avokatin.",reg_name:"Emri dhe mbiemri",reg_email:"Email",reg_phone:"Telefoni",reg_submit:"Kërko kodin",reg_card:"Tesera profesionale (opsionale) — aktivizim me përparësi",reg_card_hint:"Avokat, prokuror a noter? Ngarko teserën (foto ose PDF, max 8 MB): kërkesa jote kalon e para. Përdoret vetëm për verifikimin e licencës dhe ruhet në mënyrë të rezervuar.",reg_card_big:"Skedari është shumë i madh (max 8 MB).",reg_success:"✓ Kërkesa u dërgua! Do të marrësh një kod aktivizimi në email sapo të miratohet."},
   it:{nav_about:"Chi siamo",nav_brain:"Tetramorph",nav_who:"Per chi",nav_security:"Sicurezza",nav_enter:"Entra",
     hero_eyebrow:"Intelligenza Legale",hero_title:"Il tuo Avvocato con <em>Intelligenza Artificiale</em>",
     hero_sub:"Super Avokati analizza, consiglia e redige contratti e atti — sul diritto albanese e su quello italiano, con la precisione e la strategia di uno studio legale di alto livello. Per avvocati, procuratori e notai.",
@@ -504,7 +510,7 @@ const I18N = {
     brand_slogan:"La battaglia si vince prima di iniziare",hero_motto:"“La battaglia si vince prima di iniziare.”",scales_motto:"Giustizia in equilibrio. Precisione in ogni decisione.",
     foot_prop:"superavokati.ai è sotto il coordinamento e la proprietà di <b class='gold'>Albania Auto Legal Alliance</b> — tutti i diritti riservati.",
     demo_cta:"🎬 Registrati gratis per vedere il video demo (2 min)",demo_eyebrow:"Video demo",demo_title:"Guarda Super Avokati al lavoro",demo_sub:"Inserisci dati veri e il video si apre subito — un caso civile reale, passo dopo passo.",demo_name:"Nome",demo_surname:"Cognome",demo_phone:"Telefono (reale)",demo_email:"Email (reale)",demo_btn:"Guarda il video →",demo_gdpr:"Registrandoti accetti <a href='/legale/it' target='_blank' rel='noopener'>Condizioni &amp; Privacy</a>. I dati servono solo per contattarti su Super Avokati.",demo_err_name:"Scrivi nome e cognome veri.",demo_err_phone:"Il numero di telefono non sembra reale.",demo_err_email:"L'email non sembra reale — usa il tuo indirizzo vero.",
-    reg_eyebrow:"Prova gratuita",reg_title:"Richiedi la tua prova",reg_sub:"Compila i dati: riceverai un codice di attivazione via email per provare Super Avokati.",reg_name:"Nome e cognome",reg_email:"Email",reg_phone:"Telefono",reg_submit:"Richiedi il codice",reg_success:"✓ Richiesta inviata! Riceverai un codice di attivazione via email dopo l'approvazione."},
+    reg_eyebrow:"Prova gratuita",reg_title:"Richiedi la tua prova",reg_sub:"Compila i dati: riceverai un codice di attivazione via email per provare Super Avokati.",reg_name:"Nome e cognome",reg_email:"Email",reg_phone:"Telefono",reg_submit:"Richiedi il codice",reg_card:"Tessera dell'ordine (opzionale) — attivazione prioritaria",reg_card_hint:"Avvocato, procuratore o notaio? Carica la tessera (foto o PDF, max 8 MB): la tua richiesta passa avanti. Usata solo per verificare l'abilitazione, conservata in modo riservato.",reg_card_big:"Il file è troppo grande (max 8 MB).",reg_success:"✓ Richiesta inviata! Riceverai un codice di attivazione via email dopo l'approvazione."},
   en:{nav_about:"About",nav_brain:"Tetramorph",nav_who:"For whom",nav_security:"Security",nav_enter:"Enter",
     hero_eyebrow:"Legal Intelligence",hero_title:"Your Lawyer powered by <em>Artificial Intelligence</em>",
     hero_sub:"Super Avokati analyzes, advises and drafts contracts and legal acts — grounded in Albanian and Italian law, with the precision and strategy of a top-tier law firm. For lawyers, prosecutors and notaries.",
@@ -531,7 +537,7 @@ const I18N = {
     brand_slogan:"The battle is won before it begins",hero_motto:"“The battle is won before it begins.”",scales_motto:"Justice in balance. Precision in every decision.",
     foot_prop:"superavokati.ai is under the coordination and ownership of <b class='gold'>Albania Auto Legal Alliance</b> — all rights reserved.",
     demo_cta:"🎬 Register free to watch the demo video (2 min)",demo_eyebrow:"Demo video",demo_title:"See Super Avokati at work",demo_sub:"Enter real details and the video opens right away — a real civil case, step by step.",demo_name:"First name",demo_surname:"Last name",demo_phone:"Phone (real)",demo_email:"Email (real)",demo_btn:"Watch the video →",demo_gdpr:"By registering you accept the <a href='/legale' target='_blank' rel='noopener'>Terms &amp; Privacy</a>. Your details are used only to contact you about Super Avokati.",demo_err_name:"Please enter your real first and last name.",demo_err_phone:"That phone number does not look real.",demo_err_email:"That email does not look real — use your actual address.",
-    reg_eyebrow:"Free trial",reg_title:"Request your trial",reg_sub:"Fill in your details: you'll receive an activation code by email to try Super Avokati.",reg_name:"Full name",reg_email:"Email",reg_phone:"Phone",reg_submit:"Request the code",reg_success:"✓ Request sent! You'll receive an activation code by email once approved."}
+    reg_eyebrow:"Free trial",reg_title:"Request your trial",reg_sub:"Fill in your details: you'll receive an activation code by email to try Super Avokati.",reg_name:"Full name",reg_email:"Email",reg_phone:"Phone",reg_submit:"Request the code",reg_card:"Professional card (optional) — priority activation",reg_card_hint:"Lawyer, prosecutor or notary? Upload your bar card (photo or PDF, max 8 MB): your request goes first. Used only to verify your licence, stored confidentially.",reg_card_big:"File too large (max 8 MB).",reg_success:"✓ Request sent! You'll receive an activation code by email once approved."}
 };
 function setLang(l){
   document.documentElement.lang=l;
@@ -563,15 +569,27 @@ const logoImg=new Image();logoImg.src=LOGO;
   form.addEventListener('submit',function(e){e.preventDefault();
     var n=document.getElementById('tName').value.trim(),em=document.getElementById('tEmail').value.trim(),ph=document.getElementById('tPhone').value.trim();
     if(n.length<2||!em)return;
-    var sb=document.getElementById('trialSubmit');sb.disabled=true;sb.textContent='...';
     var L=I18N[document.documentElement.lang]||I18N.sq;
-    fetch('/api/leads',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({name:n,email:em,phone:ph||undefined,service:'legal',source:'contact-form',locale:document.documentElement.lang,
-        message:'KERKESE PROVE FALAS per Super Avokati (superavokati.ai). Perdoruesi kerkon nje kod aktivizimi per provën.'})})
-    .then(function(r){return r.json();}).then(function(j){
-      Array.prototype.forEach.call(form.querySelectorAll('label,input,button'),function(el){el.style.display='none';});
+    var card=document.getElementById('tCard');
+    var f=(card&&card.files&&card.files[0])||null;
+    if(f&&f.size>8*1024*1024){msg.hidden=false;msg.style.color='#e57373';msg.textContent=L.reg_card_big;return;}
+    var sb=document.getElementById('trialSubmit');sb.disabled=true;sb.textContent='...';
+    var dati={name:n,email:em,phone:ph||undefined,service:'legal',source:'contact-form',locale:document.documentElement.lang,
+        message:'KERKESE PROVE FALAS per Super Avokati (superavokati.ai). Perdoruesi kerkon nje kod aktivizimi per provën.'+(f?' [ME TESERA — aktivizim me përparësi]':'')};
+    var invio;
+    if(f){
+      var fd=new FormData();
+      Object.keys(dati).forEach(function(k){if(dati[k]!==undefined)fd.append(k,dati[k]);});
+      fd.append('tessera',f,f.name);
+      invio=fetch('/api/leads',{method:'POST',body:fd});
+    }else{
+      invio=fetch('/api/leads',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(dati)});
+    }
+    invio.then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});}).then(function(x){
+      if(!x.ok)throw new Error((x.j&&x.j.error)||'Gabim');
+      Array.prototype.forEach.call(form.querySelectorAll('label,input,button,.cardhint'),function(el){el.style.display='none';});
       msg.hidden=false;msg.style.color='';msg.textContent=L.reg_success;
-    }).catch(function(){sb.disabled=false;sb.textContent=L.reg_submit;msg.hidden=false;msg.style.color='#e57373';msg.textContent='Gabim, provo sërish.';});
+    }).catch(function(err){sb.disabled=false;sb.textContent=L.reg_submit;msg.hidden=false;msg.style.color='#e57373';msg.textContent=(err&&err.message&&err.message!=='Gabim')?err.message:'Gabim, provo sërish.';});
   });
 })();
 
