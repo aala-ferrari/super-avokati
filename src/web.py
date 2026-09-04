@@ -498,6 +498,50 @@ def api_provision_demo():
     return jsonify({"ok": True, "expires_at": expires, "paid": bool(months)})
 
 
+@app.post("/api/verify-tessera")
+def api_verify_tessera():
+    """Server-to-server: AALA sends the professional-card file uploaded with
+    a «Provoje tani» request; the brain looks at it and says whether it is a
+    lawyer/prosecutor/notary card or just any document (an ID card must NOT
+    pass as a card). Advisory only — the admin decides. Same shared secret
+    as the demo-provision bridge."""
+    secret = os.environ.get("DEMO_PROVISION_SECRET", "")
+    if not secret or request.headers.get("X-Provision-Secret", "") != secret:
+        return jsonify({"error": "forbidden"}), 403
+    if _BRAIN is None or _BRAIN.backend is None:
+        return jsonify({"error": "brain unavailable"}), 503
+    f = request.files.get("tessera")
+    if f is None or not f.filename:
+        return jsonify({"error": "missing file"}), 400
+    from .verifikimi_teseres import MIME_LEJUARA, verifiko_tesere
+    mt = (f.mimetype or "").lower()
+    if mt not in MIME_LEJUARA:
+        return jsonify({"error": "unsupported type"}), 400
+    import tempfile
+    from .config import UPLOAD_PATH
+    UPLOAD_PATH.mkdir(parents=True, exist_ok=True)
+    ext = {
+        "application/pdf": ".pdf",
+        "image/jpeg": ".jpg",
+        "image/png": ".png",
+        "image/webp": ".webp",
+        "image/heic": ".heic",
+        "image/heif": ".heic",
+    }.get(mt, ".jpg")
+    tmp_dir = Path(tempfile.mkdtemp(prefix="tesere_", dir=str(UPLOAD_PATH)))
+    tmp = tmp_dir / ("tesera" + ext)
+    try:
+        f.save(str(tmp))
+        esito = verifiko_tesere(_BRAIN.backend, tmp, mt)
+        return jsonify({"ok": True, **esito})
+    except Exception as exc:  # noqa: BLE001 — best-effort: decide l'admin
+        log.warning("verify-tessera failed: %s", exc)
+        return jsonify({"error": "verification failed"}), 500
+    finally:
+        import shutil
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
 @app.post("/api/logout")
 def api_logout():
     logout_user()
