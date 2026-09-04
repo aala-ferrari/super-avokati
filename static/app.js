@@ -6284,7 +6284,7 @@
   var MODEBAR_TXT = [
     ["Super Prokurori", "Super Procuratore"], ["Super Noteri", "Super Notaio"],
     ["Modele Ekspertize", "Modelli di perizia"], ["Fashikulli", "Fascicolo"],
-    ["Afatet", "Scadenze"], ["Ligj i gjall\u00eb", "Legge viva"], ["P\u00ebrkthim", "Traduzione"], ["P\u00ebrkthim ligjor", "Traduzione legale"],
+    ["Afatet", "Scadenze"], ["Ligj i gjall\u00eb", "Legge viva"], ["P\u00ebrkthim ligjor", "Traduzione legale"], ["P\u00ebrkthim", "Traduzione"],
     ["Pika e par\u00eb", "Primo contatto"],
     ["Avokat", "Avvocato"], ["Prokuror", "Procuratore"], ["Noter", "Notaio"]
   ];

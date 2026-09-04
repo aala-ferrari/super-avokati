@@ -242,6 +242,7 @@ class LLMBackend(ABC):
         user_id: int | None = None,
         case_id: str | None = None,
         effort_override: str | None = None,
+        raw_system: bool = False,
     ) -> str:
         """Return the assistant's text for the given system + message history.
 
@@ -360,9 +361,11 @@ class ClaudeCodeBackend(LLMBackend):
                  user_id: int | None = None,
                  case_id: str | None = None,
                  model_override: str | None = None,
-                 effort_override: str | None = None) -> str:
-        system = _apply_juris(system)  # giurisdizione della sessione
-        system = _shto_profilin(system, fast)  # regole della casa
+                 effort_override: str | None = None,
+                 raw_system: bool = False) -> str:
+        if not raw_system:
+            system = _apply_juris(system)  # giurisdizione della sessione
+            system = _shto_profilin(system, fast)  # regole della casa
 
         # Reset per-call — only meaningful for the current complete().
         self.last_resume_failed = False
@@ -879,7 +882,8 @@ class AnthropicBackend(LLMBackend):
                  callsite: str | None = None,
                  user_id: int | None = None,
                  case_id: str | None = None,
-                 effort_override: str | None = None) -> str:
+                 effort_override: str | None = None,
+                 raw_system: bool = False) -> str:
         system = _apply_juris(system)  # giurisdizione della sessione
         model = self._pick_model(fast, medium)
         tier = _tier_label(fast, medium)
@@ -1005,7 +1009,8 @@ class GeminiBackend(LLMBackend):
                  callsite: str | None = None,
                  user_id: int | None = None,
                  case_id: str | None = None,
-                 effort_override: str | None = None) -> str:
+                 effort_override: str | None = None,
+                 raw_system: bool = False) -> str:
         system = _apply_juris(system)  # giurisdizione della sessione
         # Gemini backend: no separate medium tier — `medium=True` falls back
         # to the main Pro model (per pivot lawyer-first decision).

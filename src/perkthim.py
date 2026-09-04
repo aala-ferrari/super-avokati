@@ -161,7 +161,7 @@ def perkthe(backend, testo: str, target: str,
             messages=[{"role": "user", "content": pezzo}],
             max_tokens=8000,
             fast=False,
-            effort_override="high",  # normale: la lingua la fa il modello, non il pensatoio
+            effort_override="high", raw_system=True,  # normale: la lingua la fa il modello, non il pensatoio
             callsite=callsite,
         )
         puro, nuovi = estrai_glossar(out or "")
@@ -177,7 +177,7 @@ def perkthe(backend, testo: str, target: str,
             messages=[{"role": "user", "content": unito}],
             max_tokens=12000,
             fast=False,
-            effort_override="high",
+            effort_override="high", raw_system=True,
             callsite=callsite + "_rilettura",
         )
         out2 = (out2 or "").strip()

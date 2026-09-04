@@ -130,6 +130,33 @@
   .cta-final{text-align:center}
   .cta-final h2{font-size:clamp(32px,5vw,58px);line-height:1.05;margin-bottom:20px}
   .cta-final p{color:var(--slate);font-size:18px;margin-bottom:34px;max-width:560px;margin-left:auto;margin-right:auto}
+  /* ── video demo dietro registrazione ── */
+  .demo-wrap{max-width:760px;margin:46px auto 0}
+  .demo-teaser{position:relative;border-radius:18px;overflow:hidden;cursor:pointer;
+    border:1px solid rgba(201,162,75,.35);box-shadow:0 24px 70px rgba(0,0,0,.5)}
+  .demo-teaser img{display:block;width:100%;aspect-ratio:1400/864;object-fit:cover;filter:blur(13px) brightness(.62) saturate(.85);transform:scale(1.06)}
+  .demo-veil{position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(10,16,38,.15),rgba(10,16,38,.72))}
+  .demo-play{position:absolute;top:50%;left:50%;transform:translate(-50%,-62%);width:92px;height:92px;
+    border-radius:50%;border:2px solid rgba(240,223,168,.9);cursor:pointer;
+    background:linear-gradient(135deg,rgba(201,162,75,.92),rgba(231,206,142,.92));
+    display:flex;align-items:center;justify-content:center;transition:.25s;
+    box-shadow:0 10px 40px rgba(201,162,75,.45)}
+  .demo-play:hover{transform:translate(-50%,-62%) scale(1.07)}
+  .demo-play svg{margin-left:6px}
+  .demo-caption{position:absolute;left:0;right:0;bottom:0;padding:18px 16px 20px;text-align:center;
+    color:#f5efdd;font-size:15.5px;font-weight:600;text-shadow:0 2px 14px rgba(0,0,0,.8);
+    background:linear-gradient(180deg,transparent,rgba(6,10,26,.82))}
+  .demo-video{display:block;width:100%;border-radius:18px;border:1px solid rgba(201,162,75,.35)}
+  .demo-form label{display:block;text-align:left;font-size:12.5px;letter-spacing:.06em;
+    text-transform:uppercase;color:var(--gold-lt,#e7ce8e);margin:12px 0 5px}
+  .demo-form input{width:100%;padding:11px 13px;border-radius:10px;border:1px solid rgba(201,162,75,.35);
+    background:rgba(255,255,255,.06);color:inherit;font-size:15px}
+  .demo-form input:focus{outline:none;border-color:#c9a24b}
+  .demo-2col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .demo-gdpr{font-size:12px;opacity:.75;margin-top:14px;text-align:left;line-height:1.5}
+  .demo-gdpr a{color:#e7ce8e}
+  .demo-err{color:#e57373;font-size:13px;margin-top:10px;min-height:18px;text-align:left}
+  @media (max-width:560px){.demo-2col{grid-template-columns:1fr}.demo-play{width:72px;height:72px}}
 
   footer{border-top:1px solid var(--line);padding:44px 0;color:var(--slate);font-size:14px}
   footer .wrap{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:18px}
@@ -344,8 +371,43 @@
     <h2 data-i18n-html="cta_title">Drejtësia meriton <span class="gold">mendjen më të mirë</span>.</h2>
     <p data-i18n="cta_sub">Provoje Super Avokatin sot dhe shih se çfarë do të thotë të kesh një avokat me AI në krah.</p>
     <a href="/login" class="btn btn-gold" style="padding:15px 40px;font-size:16px" data-i18n="cta_btn">Hyr në Super Avokati</a>
+
+    <div class="demo-wrap" id="demo-wrap">
+      <div class="demo-teaser" id="demo-teaser">
+        <img src="/demo/poster-sq.jpg" alt="" id="demo-poster" />
+        <div class="demo-veil"></div>
+        <button type="button" class="demo-play" aria-label="Video demo">
+          <svg width="34" height="38" viewBox="0 0 34 38" aria-hidden="true"><path d="M2 2l30 17L2 36z" fill="#101a33"/></svg>
+        </button>
+        <div class="demo-caption" data-i18n="demo_cta">🎬 Regjistrohu falas për të parë video-demon (2 min)</div>
+      </div>
+    </div>
   </div>
 </section>
+
+<!-- MODALE: regjistrim per video demo -->
+<div class="modal-ov" id="demoModal">
+  <div class="modal">
+    <button class="close" id="demoClose" aria-label="Mbyll">&times;</button>
+    <span class="eyebrow" data-i18n="demo_eyebrow">Video demo</span>
+    <h3 class="serif" data-i18n="demo_title">Shiko Super Avokatin në punë</h3>
+    <p class="sub" data-i18n="demo_sub">Plotëso të dhënat e vërteta dhe videoja hapet menjëherë — një rast civil real, hap pas hapi.</p>
+    <form id="demoForm" class="demo-form" novalidate>
+      <div class="demo-2col">
+        <div><label for="dvName" data-i18n="demo_name">Emri</label><input type="text" id="dvName" autocomplete="given-name" /></div>
+        <div><label for="dvSurname" data-i18n="demo_surname">Mbiemri</label><input type="text" id="dvSurname" autocomplete="family-name" /></div>
+      </div>
+      <label for="dvPhone" data-i18n="demo_phone">Telefoni (i vërtetë)</label>
+      <input type="tel" id="dvPhone" autocomplete="tel" placeholder="+355 69 000 0000" />
+      <label for="dvEmail" data-i18n="demo_email">Email (i vërtetë)</label>
+      <input type="email" id="dvEmail" autocomplete="email" placeholder="emri@studio.al" />
+      <div class="demo-err" id="dvErr"></div>
+      <button type="submit" class="btn btn-gold" style="width:100%;margin-top:14px;justify-content:center" id="dvSubmit" data-i18n="demo_btn">Shiko videon →</button>
+      <div class="demo-gdpr" data-i18n-html="demo_gdpr">Duke u regjistruar pranon <a href="/legale" target="_blank" rel="noopener">Kushtet &amp; Privatësinë</a>. Të dhënat përdoren vetëm për t'ju kontaktuar rreth Super Avokatit.</div>
+    </form>
+    <div id="demoPlayer" hidden></div>
+  </div>
+</div>
 
 <footer>
   <div class="wrap" style="flex-direction:column;align-items:stretch;gap:24px">
@@ -414,6 +476,7 @@ const I18N = {
     cta_sub:"Provoje Super Avokatin sot dhe shih se çfarë do të thotë të kesh një avokat me AI në krah.",cta_btn:"Hyr në Super Avokati",foot_by:"pjesë e aleancës",
     brand_slogan:"Beteja fitohet para se të nisë",hero_motto:"“Beteja fitohet para se të nisë.”",scales_motto:"Drejtësia në ekuilibër. Saktësia në çdo vendim.",
     foot_prop:"superavokati.ai është nën koordinimin dhe pronësinë e <b class='gold'>Albania Auto Legal Alliance</b> — të gjitha të drejtat e rezervuara.",
+    demo_cta:"🎬 Regjistrohu falas për të parë video-demon (2 min)",demo_eyebrow:"Video demo",demo_title:"Shiko Super Avokatin në punë",demo_sub:"Plotëso të dhënat e vërteta dhe videoja hapet menjëherë — një rast civil real, hap pas hapi.",demo_name:"Emri",demo_surname:"Mbiemri",demo_phone:"Telefoni (i vërtetë)",demo_email:"Email (i vërtetë)",demo_btn:"Shiko videon →",demo_gdpr:"Duke u regjistruar pranon <a href='/legale' target='_blank' rel='noopener'>Kushtet &amp; Privatësinë</a>. Të dhënat përdoren vetëm për t'ju kontaktuar rreth Super Avokatit.",demo_err_name:"Shkruaj emrin dhe mbiemrin e vërtetë.",demo_err_phone:"Numri i telefonit nuk duket i vërtetë.",demo_err_email:"Email-i nuk duket i vërtetë — përdor adresën tënde reale.",
     reg_eyebrow:"Provë falas",reg_title:"Kërko provën tënde",reg_sub:"Plotëso të dhënat: do të marrësh një kod aktivizimi në email për të provuar Super Avokatin.",reg_name:"Emri dhe mbiemri",reg_email:"Email",reg_phone:"Telefoni",reg_submit:"Kërko kodin",reg_success:"✓ Kërkesa u dërgua! Do të marrësh një kod aktivizimi në email sapo të miratohet."},
   it:{nav_about:"Chi siamo",nav_brain:"Tetramorph",nav_who:"Per chi",nav_security:"Sicurezza",nav_enter:"Entra",
     hero_eyebrow:"Intelligenza Legale",hero_title:"Il tuo Avvocato con <em>Intelligenza Artificiale</em>",
@@ -440,6 +503,7 @@ const I18N = {
     cta_sub:"Prova Super Avokati oggi e scopri cosa significa avere un avvocato con AI al tuo fianco.",cta_btn:"Entra in Super Avokati",foot_by:"parte dell'alleanza",
     brand_slogan:"La battaglia si vince prima di iniziare",hero_motto:"“La battaglia si vince prima di iniziare.”",scales_motto:"Giustizia in equilibrio. Precisione in ogni decisione.",
     foot_prop:"superavokati.ai è sotto il coordinamento e la proprietà di <b class='gold'>Albania Auto Legal Alliance</b> — tutti i diritti riservati.",
+    demo_cta:"🎬 Registrati gratis per vedere il video demo (2 min)",demo_eyebrow:"Video demo",demo_title:"Guarda Super Avokati al lavoro",demo_sub:"Inserisci dati veri e il video si apre subito — un caso civile reale, passo dopo passo.",demo_name:"Nome",demo_surname:"Cognome",demo_phone:"Telefono (reale)",demo_email:"Email (reale)",demo_btn:"Guarda il video →",demo_gdpr:"Registrandoti accetti <a href='/legale/it' target='_blank' rel='noopener'>Condizioni &amp; Privacy</a>. I dati servono solo per contattarti su Super Avokati.",demo_err_name:"Scrivi nome e cognome veri.",demo_err_phone:"Il numero di telefono non sembra reale.",demo_err_email:"L'email non sembra reale — usa il tuo indirizzo vero.",
     reg_eyebrow:"Prova gratuita",reg_title:"Richiedi la tua prova",reg_sub:"Compila i dati: riceverai un codice di attivazione via email per provare Super Avokati.",reg_name:"Nome e cognome",reg_email:"Email",reg_phone:"Telefono",reg_submit:"Richiedi il codice",reg_success:"✓ Richiesta inviata! Riceverai un codice di attivazione via email dopo l'approvazione."},
   en:{nav_about:"About",nav_brain:"Tetramorph",nav_who:"For whom",nav_security:"Security",nav_enter:"Enter",
     hero_eyebrow:"Legal Intelligence",hero_title:"Your Lawyer powered by <em>Artificial Intelligence</em>",
@@ -466,6 +530,7 @@ const I18N = {
     cta_sub:"Try Super Avokati today and discover what it means to have an AI lawyer at your side.",cta_btn:"Enter Super Avokati",foot_by:"part of the alliance",
     brand_slogan:"The battle is won before it begins",hero_motto:"“The battle is won before it begins.”",scales_motto:"Justice in balance. Precision in every decision.",
     foot_prop:"superavokati.ai is under the coordination and ownership of <b class='gold'>Albania Auto Legal Alliance</b> — all rights reserved.",
+    demo_cta:"🎬 Register free to watch the demo video (2 min)",demo_eyebrow:"Demo video",demo_title:"See Super Avokati at work",demo_sub:"Enter real details and the video opens right away — a real civil case, step by step.",demo_name:"First name",demo_surname:"Last name",demo_phone:"Phone (real)",demo_email:"Email (real)",demo_btn:"Watch the video →",demo_gdpr:"By registering you accept the <a href='/legale' target='_blank' rel='noopener'>Terms &amp; Privacy</a>. Your details are used only to contact you about Super Avokati.",demo_err_name:"Please enter your real first and last name.",demo_err_phone:"That phone number does not look real.",demo_err_email:"That email does not look real — use your actual address.",
     reg_eyebrow:"Free trial",reg_title:"Request your trial",reg_sub:"Fill in your details: you'll receive an activation code by email to try Super Avokati.",reg_name:"Full name",reg_email:"Email",reg_phone:"Phone",reg_submit:"Request the code",reg_success:"✓ Request sent! You'll receive an activation code by email once approved."}
 };
 function setLang(l){
@@ -507,6 +572,72 @@ const logoImg=new Image();logoImg.src=LOGO;
       Array.prototype.forEach.call(form.querySelectorAll('label,input,button'),function(el){el.style.display='none';});
       msg.hidden=false;msg.style.color='';msg.textContent=L.reg_success;
     }).catch(function(){sb.disabled=false;sb.textContent=L.reg_submit;msg.hidden=false;msg.style.color='#e57373';msg.textContent='Gabim, provo sërish.';});
+  });
+})();
+
+/* ── Video demo dietro registrazione (lead qualificato → /api/leads) ── */
+(function(){
+  var wrap=document.getElementById('demo-wrap'),ov=document.getElementById('demoModal');
+  if(!wrap||!ov)return;
+  var form=document.getElementById('demoForm'),err=document.getElementById('dvErr'),
+      player=document.getElementById('demoPlayer'),closeBtn=document.getElementById('demoClose');
+  function lingua(){var l=document.documentElement.lang;return l==='it'?'it':'sq';}
+  function shut(){ov.classList.remove('on');var v=player.querySelector('video');if(v)v.pause();}
+  function apriVideo(){
+    form.hidden=true;
+    player.hidden=false;
+    player.innerHTML='<video class="demo-video" controls autoplay muted playsinline preload="metadata" '+
+      'src="/demo/demo-'+lingua()+'.mp4" poster="/demo/poster-'+lingua()+'.jpg"></video>';
+  }
+  wrap.addEventListener('click',function(){
+    ov.classList.add('on');
+    var visto=false;try{visto=localStorage.getItem('sa_demo_ok')==='1';}catch(e){}
+    if(visto){apriVideo();}
+    else{var n=document.getElementById('dvName');if(n)setTimeout(function(){n.focus();},60);}
+  });
+  closeBtn.addEventListener('click',shut);
+  ov.addEventListener('click',function(e){if(e.target===ov)shut();});
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')shut();});
+
+  // validazione severa: meglio un no in faccia che un lead spazzatura
+  var USA_E_GETTA=/(mailinator|tempmail|temp-mail|10minutemail|guerrillamail|yopmail|trashmail|sharklasers|maildrop|dispostable|fakeinbox|getnada|mohmal)\./i;
+  function emailOk(em){
+    if(!/^[^\s@]+@[^\s@]+\.[a-z]{2,12}$/i.test(em))return false;
+    var loc=em.split('@')[0];
+    if(/^\d{1,5}$/.test(loc))return false;            // 123@… non è nessuno
+    if(/^(test|prova|asdf|qwerty|abc|aaa+)$/i.test(loc))return false;
+    if(USA_E_GETTA.test(em))return false;
+    return true;
+  }
+  function telOk(ph){
+    var d=ph.replace(/[\s()\-.]/g,'');
+    if(!/^\+?\d{8,15}$/.test(d))return false;
+    var cifre=d.replace(/^\+/,'');
+    if(/^(\d)\1+$/.test(cifre))return false;           // 000000000
+    if('0123456789012345'.indexOf(cifre)>=0)return false;
+    if('9876543210987654'.indexOf(cifre)>=0)return false;
+    return true;
+  }
+  function nomeOk(x){return /^[a-zA-ZÀ-ÿçÇëËšŠžŽ' -]{2,40}$/.test(x);}
+
+  form.addEventListener('submit',function(e){
+    e.preventDefault();
+    var L=I18N[document.documentElement.lang]||I18N.sq;
+    var n=document.getElementById('dvName').value.trim(),
+        c=document.getElementById('dvSurname').value.trim(),
+        p=document.getElementById('dvPhone').value.trim(),
+        em=document.getElementById('dvEmail').value.trim();
+    err.textContent='';
+    if(!nomeOk(n)||!nomeOk(c)){err.textContent=L.demo_err_name;return;}
+    if(!telOk(p)){err.textContent=L.demo_err_phone;return;}
+    if(!emailOk(em)){err.textContent=L.demo_err_email;return;}
+    var sb=document.getElementById('dvSubmit');sb.disabled=true;sb.textContent='…';
+    fetch('/api/leads',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({name:n+' '+c,email:em,phone:p,service:'legal',
+        source:'demo-video',locale:document.documentElement.lang,
+        message:'REGJISTRIM PËR VIDEO-DEMON (superavokati.ai) — lead i kualifikuar: kërkoi të shohë demon.'})})
+    .then(function(){try{localStorage.setItem('sa_demo_ok','1');}catch(e2){}apriVideo();})
+    .catch(function(){sb.disabled=false;sb.textContent=L.demo_btn;err.textContent='Gabim rrjeti — provo sërish.';});
   });
 })();
 
