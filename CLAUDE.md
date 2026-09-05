@@ -1813,6 +1813,17 @@ sincrono (45s timeout): farlocco = lead NON salvato + file eliminato +
 lead col check già verde; guasto tecnico = passa col badge grigio
 (decide l'admin). MISURATO: cervello-immagine respinto 23s / 0 lead,
 tessera vera 15s.
+**Saga Genio nei video (notte 4-5 set, v9.263)**: 5 giri di Genio demo
+→ 1 solo brief buono (33 IT: 5/6 lenti). Causa vera nel `ai_audit_log`:
+il LIMITE della subscription — un giro di Genio da solo (6 menti Opus
+effort-max + ritenti Fable) satura la finestra: prima lente success,
+poi NonZeroReturnCode a raffica. Regole: MAI due Geni insieme; il Genio
+demo si lancia a finestra fresca. Il titolare ha chiuso: «lascia i
+video come sono». Resta in produzione la cura v9.263: `_direttiva_gjuhe`
+in genio.py — fascicolo IT → brief SOLO in italiano (prima il kill-shot
+usciva col corpo in albanese su un caso italiano). Video finali: SQ 1:38
+(senza pannello Genio vuoto), IT 1:09, `?v=4`. Brief parziali 31/33/35
+nel DB, riusabili per una scena futura.
 Commit: SA `a154c67`+`79cb457`, aala `e24b0fd`+`108343d` (GitHub).
 
 **Landing superavokati.ai (3 set, pomeriggio) — la pagina dice la verità.**
