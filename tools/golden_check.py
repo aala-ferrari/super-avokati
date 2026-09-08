@@ -1319,6 +1319,60 @@ def main():
         check("perkthim[27]: kontrollet u ekzekutuan", False, str(_e))
 
 
+    # ── [28] Huracán: la norma che PËRCAKTON shkeljen entra nel blocco ────
+    # Misurato 5-6 set 2026: «makina bën zhurmë» → Neni 79 (kontrolli teknik)
+    # per cinque risposte, mai il Neni 153 «Kufizimi i zhurmave» (gjoba).
+    try:
+        _hur = ("kam nje klient i cili esht me makin lamborghini huracan, nga "
+                "fabrika, i pa modifikuar, as pjesa e zhurmes se marmites nuk "
+                "esht modifikuar. e ndaloj policia e rendit, e cila i thot qe "
+                "makina ben zhurm. a perben shkelje kjo? cfar neni e kap?")
+        _rad = brain._radicet_e_pyetjes(_hur)
+        check("huracan[28]: la radice «zhurm» è un tema, «mjet/polic» no",
+              "zhurm" in _rad and "mjete" not in _rad and "polic" not in _rad,
+              str(sorted(_rad))[:120])
+        # stessa fusione di brain._retrieve: BM25 su più query + ancore + titoli
+        _qs = [_hur, "kontrolli teknik zhurmshmeria e mjetit policia rrugore",
+               "ndalimi i mjetit nga policia per zhurme pa matje"]
+        _seen = {}
+        for _q in _qs:
+            for _a, _sc in idx.search(_q, top_k=12):
+                _k = (_a.code, _a.number)
+                if _sc > _seen.get(_k, 0.0):
+                    _seen[_k] = _sc
+        _per = {(a.code, a.number): a for a in idx.articles}
+        _pairs = sorted([(_per[k], v) for k, v in _seen.items() if k in _per],
+                        key=lambda x: x[1], reverse=True)
+        _prima = {(a.code, a.number) for a, _ in _pairs[:12]}
+        check("huracan[28]: senza la cura il 153 NON entrava (il difetto è vero)",
+              ("kodi_rrugor", "153") not in _prima)
+        _pairs = brain._applica_ancore(_pairs, idx, _qs, ["Rrugor"])
+        _rr = ({d.code for d in brain.LEGAL_DOCUMENTS if d.area.lower() == "rrugor"}
+               | set(brain.PROCEDURAL_MAPPING["Rrugor"]))
+        _pairs = brain._ankoro_sipas_titullit(_pairs, idx, _hur, queries=_qs, restrict=_rr)
+        _dopo = {(a.code, a.number) for a, _ in _pairs[:12]}
+        check("huracan[28]: con l'ancora per titolo il Neni 153 KRr entra nei 12",
+              ("kodi_rrugor", "153") in _dopo, str(sorted(_dopo))[:160])
+        _marc = [a for a, _ in _pairs[:12] if getattr(a, "_ancora_titull", False)]
+        check("huracan[28]: le ancore per titolo sono marcate e al massimo 3",
+              0 < len(_marc) <= 3 and all(isinstance(s, float) for _, s in _pairs[:3]))
+        # selettività: una radice generica non ancora nulla
+        _gen = brain._ankoro_sipas_titullit(list(_pairs), idx, "mjeti policia ndalimi",
+                                            queries=_qs, restrict=_rr)
+        check("huracan[28]: radici generiche (mjet/polic/ndalim) non ancorano",
+              len(_gen) == len(_pairs))
+        # un titolo che non risuona con la domanda (BM25 reale 0) non entra:
+        # «vlerësimi» accende «Vlerësimi i provave» ma la domanda è sul rumore
+        _zero = brain._ankoro_sipas_titullit(list(_pairs), idx, "vleresimi i provave",
+                                             queries=["zhurma e marmites"], restrict=_rr)
+        check("huracan[28]: ancora a punteggio zero = rumore, resta fuori",
+              len(_zero) == len(_pairs))
+        check("huracan[28]: il triage cerca la norma che PËRCAKTON la shkelje",
+              any(isinstance(v, str) and "PËRCAKTON vetë kundërvajtjen" in v
+                  and "TERMAT E KODIT" in v for v in vars(brain).values()))
+    except Exception as _e:  # noqa: BLE001
+        check("huracan[28]: kontrollet u ekzekutuan", False, str(_e))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

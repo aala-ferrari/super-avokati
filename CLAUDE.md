@@ -1835,6 +1835,38 @@ restano SQ 1:38 / IT 1:09 (`?v=6`). Se si rifarà: regia a testo grande
 pronta col tag in run.sh, container ancora v9.263+hot-copy di p66: al
 prossimo restart parte v9.264, niente regressione. ⚠️ nel video IT resta
 «Traduzione ligjor» girato pre-cura (nel prodotto è «Traduzione legale»).
+
+**v9.265-9.266 — Ancore PER TITOLO: il caso Huracán (8 set).** Il titolare
+chiede in albanese «makina bën zhurmë (Lamborghini, marmita originale),
+cfar neni e kap?» → cinque risposte costruite sul Neni 79 KRr (kontrolli
+teknik) e MAI il Neni 153 «Kufizimi i zhurmave» — la norma che DEFINISCE
+l'infrazione e la gjobë (1.000-4.000 lekë); il cervello lo ammette («E kam
+gabim») solo quando l'avvocato lo nomina. Letto dal DB
+(`messages.articles_json`): il 153 non era in nessuno dei 12 per 5 turni —
+il cervello ragiona per regola SOLO sui nenet ricevuti, quindi ha ragionato
+bene su un articolo periferico. **Misurato prima di curare** (`misura_153`):
+BM25 senza stemming non lega «zhurm» a «zhurmave/zhurmëshues» (rango >80);
+un flag «sanzionatorio» NON discrimina (144/238 nenet del KRr contengono
+«gjobë»); la query nel linguaggio del codice («kufizimi i zhurmave») porta
+il 153 al rango 1. **Cura, cintura e bretelle**: ① `_ankoro_sipas_titullit`
+in brain.py — una radice (5 lettere, parole ≥6, senza diacritici) del
+`problem_summary` che compare nel TITOLO di ≤4 articoli DENTRO i codici
+dell'area è la classificazione del legislatore → l'articolo entra (copia
+marcata `_ancora_titull`, intestazione «⚑ NENI PËR KËTË TEMË»), max 2 per
+radice, max 3 in tutto, e SOLO se il suo BM25 reale sulle query è > 0;
+② il TRIAGE scrive le search_queries con i TERMAT E KODIT e, per una
+shkelje/gjobë, una query punta alla norma che PËRCAKTON la kundërvajtje.
+Prova dal vivo (triage Sonnet + `_retrieve` veri): query 1 = «kufiri i
+lejuar i zhurmës… sistemi zhurmëshues», 153 terzo nei 12. Golden 309→**316**
+(sezione [28] col caso vero, incluso «senza la cura NON entrava»). ⚠️ Tre
+versioni per arrivarci, ognuna bocciata da una misura: v1 selettività sul
+corpus intero (zhurm accende 9 titoli, nell'area 2); v2 radici da
+queries+summary (decine di radici → ancore procedurali a BM25 0 che
+CACCIAVANO il 153); v3 radici dal solo summary + soglia BM25>0. ⚠️ La
+malattia di fondo resta MORFOLOGICA (BM25 senza stemming): cura da
+misurare, mai da improvvisare sul cervello sacro. ⚠️ Ogni `./run.sh`
+cancella `/tmp/completa_brief.py` nel container: ricopiarlo se la cucina
+notturna del Genio è programmata.
 Commit: SA `a154c67`+`79cb457`, aala `e24b0fd`+`108343d` (GitHub).
 
 **Landing superavokati.ai (3 set, pomeriggio) — la pagina dice la verità.**

@@ -156,6 +156,107 @@ def _applica_ancore(pairs, idx, queries: list[str], aree: list[str]):
     return aggiunte + pairs
 
 
+# ── Ancora per titolo: il legislatore ha già classificato il tema ──────
+#
+# Misurato (caso Huracán, 5-6 set 2026): «makina bën zhurmë — cfar neni e
+# kap?» → cinque risposte sul Neni 79 KRr (kontrolli teknik: lungo, pieno
+# delle parole della domanda) e MAI il Neni 153 «Kufizimi i zhurmave»: cinque
+# righe, la gjobë 1.000-4.000 lekë. BM25 non ha stemming: «zhurm» non lega
+# «zhurmave/zhurmëshues», rango oltre l'ottantesimo. Un flag «sanzionatorio»
+# non aiuta: 144 nenet su 238 del KRr contengono «gjobë».
+#
+# Il TITOLO dell'articolo invece dice il tema con una parola sola. Regola:
+# una radice della domanda che compare nel titolo di POCHI articoli
+# (≤ _TITUJ_MAX) è una classificazione del legislatore, e quegli articoli
+# entrano nel blocco col loro punteggio vero. Le radici che accendono decine
+# di titoli (mjet, ndalim, polic) sono rumore e restano fuori: la
+# selettività è il filtro, non una lista di parole buone.
+_RADICE_GJATESI = 5
+_TITUJ_MAX = 4
+_TITUJ_MAX_PER_RADICE = 2
+_RADICE_MIN_FJALE = 6
+# radici troppo generiche per essere un tema (misurate sul KRr)
+_RADICE_PERJASHTO = frozenset({
+    "mjete", "mjeti", "polic", "perso", "perdo", "shkel", "kunde", "gjobe",
+    "ligji", "kodit", "rasti", "klien", "pyetj", "nenit", "neneve", "dispo",
+    "rregu", "detyr", "kerke", "vendi", "gjyka", "proce", "admin", "fabri",
+    "makin", "autom", "qarku", "ndalo", "ndali", "kontr", "tekni",
+})
+
+
+def _radicet_e_pyetjes(testo: str) -> set[str]:
+    """Le radici (5 lettere, senza diacritici) delle parole lunghe della
+    domanda — quelle che possono nominare un tema, non le funzionali."""
+    out = set()
+    for w in re.findall(r"[a-zçë]+", _norm(testo)):
+        if len(w) < _RADICE_MIN_FJALE:
+            continue
+        r = w[:_RADICE_GJATESI]
+        if r in _RADICE_PERJASHTO:
+            continue
+        out.add(r)
+    return out
+
+
+def _ankoro_sipas_titullit(pairs, idx, testo: str, queries: list[str] | None = None,
+                           restrict=None, sa: int = 3):
+    """Mette nel blocco gli articoli il cui TITOLO nomina il tema della domanda.
+
+    Stessa onestà delle ancore: copia marcata, punteggio BM25 vero. Torna la
+    lista invariata se nessuna radice è selettiva o se gli articoli c'erano
+    già. Mai più di `sa` aggiunte: il posto nei dodici è prezioso.
+    """
+    radicet = _radicet_e_pyetjes(testo)
+    if not radicet:
+        return pairs
+    presenti = {(a.code, a.number) for a, _ in pairs[:TOP_K_ARTICLES]}
+    # quante radici della domanda nomina ogni titolo: la pertinenza
+    kandidatet: dict[tuple[str, str], tuple[object, int]] = {}
+    for r in radicet:
+        hits = []
+        for a in idx.articles:
+            if getattr(a, "repealed", False):
+                continue
+            if restrict and a.code not in restrict:
+                continue
+            if any(w.startswith(r) for w in _norm(a.heading or "").split()):
+                hits.append(a)
+        # selettività misurata DENTRO i codici dell'area, come il flusso vero
+        if not (0 < len(hits) <= _TITUJ_MAX):
+            continue
+        # per radice al massimo _TITUJ_MAX_PER_RADICE: il più corto e' il
+        # più definitorio (il 153 sono cinque righe; il 78 è un elenco)
+        hits.sort(key=lambda a: len(a.body or ""))
+        for a in hits[:_TITUJ_MAX_PER_RADICE]:
+            k = (a.code, a.number)
+            if k in presenti:
+                continue
+            prec = kandidatet.get(k)
+            kandidatet[k] = (a, (prec[1] if prec else 0) + 1)
+    if not kandidatet:
+        return pairs
+    # Il punteggio vero sulle query del triage: un'ancora a zero è rumore
+    # (misurato: «Vlerësimi i provave» entrava per la radice «vlerës» e
+    # cacciava il 153). Qualcosa della domanda deve risuonare nel testo.
+    qs = list(queries or []) or [testo]
+    con_punt = []
+    for k, (a, n_rad) in kandidatet.items():
+        punt = _punteggio_reale(idx, qs, k)
+        if punt > 0.0:
+            con_punt.append((a, n_rad, punt))
+    if not con_punt:
+        return pairs
+    con_punt.sort(key=lambda t: (-t[1], -t[2], len(t[0].body or "")))
+    aggiunte = []
+    for a, _n, punt in con_punt[:sa]:
+        marcato = _copy.copy(a)
+        marcato._ancora_titull = True  # type: ignore[attr-defined]
+        aggiunte.append((marcato, punt))
+    log.info("retrieval: ancorati per titull %s",
+             ", ".join("%s %s" % (a.code, a.number) for a, _ in aggiunte))
+    return aggiunte + pairs
+
+
 PROCEDURAL_MAPPING: dict[str, tuple[str, ...]] = {
     "Penal":         ("kodi_proc_penale",),
     "Civil":         ("kodi_proc_civile",),
@@ -527,7 +628,7 @@ Përgjigju vetëm me një objekt JSON me këtë strukturë EKZAKTE:
 {{
   "problem_summary": "përshkrim i shkurtër neutral i problemit në shqip (1-2 fjali)",
   "areas": ["lista e 'area' që duhen kërkuar, p.sh. ['Familje', 'Civil'] — jo emrat e kodeve"],
-  "search_queries": ["3-6 kërkime të shkurtra me terma të specializuar ligjorë; përfshi të paktën NJË kërkim për afatet/parashkrimin dhe NJË për përjashtimet nëse aplikohet"],
+  "search_queries": ["3-6 kërkime të shkurtra me terma të specializuar ligjorë; përfshi të paktën NJË kërkim për afatet/parashkrimin dhe NJË për përjashtimet nëse aplikohet. Formuloji me TERMAT E KODIT — titujt e kreve/neneve (p.sh. 'kufizimi i zhurmave', 'sistemi zhurmëshues') — jo me fjalët e klientit ('makina bën zhurmë'). Nëse pyetja ka të bëjë me shkelje/kundërvajtje/gjobë ('a përbën shkelje', 'çfarë neni e kap'), NJË kërkim duhet të synojë normën që PËRCAKTON vetë kundërvajtjen dhe masën, jo vetëm rrethanat"],
   "strategic_angles": ["2-4 kënde strategjike për t'u hulumtuar në nene, p.sh.: 'afatet e parashkrimit', 'përjashtimet për viktimat e dhunës', 'barra e provës te punëdhënësi', 'shkaqe pavlefshmërie të aktit administrativ'"],
   "complexity": "simple" OSE "complex",
   "needs_followup": false,
@@ -2914,6 +3015,9 @@ class SuperAvvocato:
         # Solo sul corpus albanese — sull'italiano non c'e' niente da riparare.
         if idx is self.index:
             pairs = _applica_ancore(pairs, idx, all_queries, triage.areas)
+            pairs = _ankoro_sipas_titullit(
+                pairs, idx, (triage.problem_summary or all_queries[0]),
+                queries=all_queries, restrict=restrict)
         return pairs[: TOP_K_ARTICLES]
 
     # ── stage 2b: precedents (court decisions) ────────────────────────────
@@ -5119,6 +5223,13 @@ def _format_articles_for_prompt(pairs: list[tuple[Article, float]]) -> str:
                 f"── {a.citation}  ⚑ RREGULL E PËRGJITHSHME\n"
                 f"  (nuk u gjet nga kërkimi me fjalë — u shtua sepse është "
                 f"rregulli bazë i kësaj teme; lexoje si bazë, jo si përjashtim)\n"
+            )
+        elif getattr(a, "_ancora_titull", False):
+            intestazione = (
+                f"── {a.citation}  ⚑ NENI PËR KËTË TEMË\n"
+                f"  (titulli i nenit përmban temën e pyetjes — kontrollo i pari "
+                f"nëse është norma që e PËRCAKTON vetë shkeljen/masën, para se "
+                f"të ndërtosh mbrojtjen mbi nene periferike)\n"
             )
         else:
             intestazione = f"── {a.citation} (score={score:.2f})\n"
