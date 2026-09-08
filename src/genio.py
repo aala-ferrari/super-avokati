@@ -77,6 +77,21 @@ GENIO_JURISDICTION_GUARD = (
 )
 
 
+def _direttiva_gjuhe(case_block: str) -> str:
+    """Fashikull italian → brief VETËM në italisht. I sistemi delle lenti
+    sono in albanese: senza questa riga la lingua d'uscita va a fortuna
+    (misurato: kill-shot con corpo shqip su un caso IT, 4 set 2026)."""
+    if "Juridiksioni: IT" in (case_block or ""):
+        return (
+            "GJUHA E PËRGJIGJES — KRITIKE: fashikulli është ITALIAN. "
+            "SHKRUAJ GJITHÇKA VETËM NË GJUHËN ITALIANE — çdo fjali, çdo "
+            "listë, çdo titull, pa asnjë fjalë shqipe. "
+            "LINGUA DELLA RISPOSTA — CRITICO: il fascicolo è italiano, "
+            "l'intero brief va scritto SOLO in italiano.\n\n"
+        )
+    return ""
+
+
 # ── Perspective definitions ────────────────────────────────────────────
 
 @dataclass
@@ -402,7 +417,7 @@ def run_perspective(p: Perspective, *,
     text = ""
     try:
         text = backend.complete(
-            system=GENIO_JURISDICTION_GUARD + p.system,
+            system=_direttiva_gjuhe(case_block) + GENIO_JURISDICTION_GUARD + p.system,
             messages=[{"role": "user", "content": user_prompt}],
             max_tokens=p.max_tokens,
             callsite=f"genio:{p.key}",
@@ -501,7 +516,7 @@ def ritenta_con_fable(res: dict, p: Perspective, *, backend,
     t0 = time.monotonic()
     try:
         text = backend.complete(
-            system=GENIO_JURISDICTION_GUARD + p.system,
+            system=_direttiva_gjuhe(case_block) + GENIO_JURISDICTION_GUARD + p.system,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=p.max_tokens,
             callsite=f"genio:{p.key}:fable",
