@@ -1432,6 +1432,32 @@ def main():
     except Exception as _e:  # noqa: BLE001
         check("studio[30]: kontrollet u ekzekutuan", False, str(_e))
 
+    # ── [31] Stream SSE: asnjë header hop-by-hop (PEP 3333) ───────────────
+    # Misurato 8 set 2026: «Connection: keep-alive» → waitress AssertionError
+    # → HTTP 500 su /api/ask/events prima del primo evento.
+    try:
+        import re as _re31
+        _src = open("/app/src/web.py", encoding="utf-8").read()
+        _m = _re31.search(r"_SSE_HEADERS\s*=\s*\{(.*?)\}", _src, _re31.DOTALL)
+        _blocco = _m.group(1) if _m else ""
+        _chiavi = [k.lower() for k in _re31.findall(r'"([A-Za-z-]+)"\s*:', _blocco)]
+        try:   # la lista VERA del server, non una copia mia
+            from waitress.task import hop_by_hop as _hbh
+        except Exception:  # noqa: BLE001
+            _hbh = {"connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
+                    "te", "trailers", "transfer-encoding", "upgrade"}
+        _rifiutati = [k for k in _chiavi if k in _hbh]
+        check("sse[31]: _SSE_HEADERS esiste e waitress non lo rifiuta (hop-by-hop)",
+              bool(_m) and _chiavi and not _rifiutati, "rifiutati=%s" % _rifiutati)
+        check("sse[31]: lo stream resta senza buffering nginx e senza cache",
+              "x-accel-buffering" in _chiavi and "cache-control" in _chiavi)
+        _usi = len(_re31.findall(r"headers=_SSE_HEADERS", _src))
+        _conn = _re31.search(r'"Connection"\s*:', _src)
+        check("sse[31]: le 3 rotte SSE usano _SSE_HEADERS e nessuno rimette «Connection» a mano",
+              _usi == 3 and _conn is None, "usi=%d conn=%s" % (_usi, bool(_conn)))
+    except Exception as _e:  # noqa: BLE001
+        check("sse[31]: kontrollet u ekzekutuan", False, str(_e))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

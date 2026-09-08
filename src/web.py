@@ -6900,10 +6900,14 @@ def _ask_prepare(user, data):
     return generate, None
 
 
+# ⚠️ MAI header hop-by-hop qui (Connection, Keep-Alive, Transfer-Encoding,
+# Upgrade): waitress li rifiuta con AssertionError (PEP 3333) e lo stream
+# muore in HTTP 500 prima del primo evento — misurato l'8 set 2026: era
+# così dal passaggio a waitress (v9.241), il server di sviluppo lo tollerava.
+# La connessione la tengono aperta waitress e nginx da soli.
 _SSE_HEADERS = {
     "X-Accel-Buffering": "no",      # nginx must not buffer an event stream
     "Cache-Control": "no-cache",
-    "Connection": "keep-alive",
 }
 
 

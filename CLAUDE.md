@@ -549,11 +549,15 @@ errori, non che le risposte sono ancora giuste. Riferimento verificato il
 12 articoli recuperati per ciascuna.
 
 ```bash
-docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali. Baseline **98/98** (31 ago).
+docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali. Baseline **330/330** (8 set; era 98 il 31 ago).
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
+bash /root/prova_sse.sh                                    # SULL'HOST (legge il secret da /opt/super-avvocato.env; copia in tools/prova_sse.sh): account di prova → login → fascicolo → 1 domanda VERA → stream /api/ask/events attraverso waitress. Deve dire «HTTP 200 … done: 1» (~50s, costa 1 chiamata al cervello) e cancella l'account. Dopo OGNI build che tocca web.py o le rotte SSE.
 ```
-Estendere GOLDENS/smoke quando emerge un bug nuovo.
+Estendere GOLDENS/smoke quando emerge un bug nuovo. ⚠️ smoke e golden NON
+passano da waitress: lo stream (SSE) si prova solo con `prova_sse.sh` — per
+6 giorni (v9.241→v9.268) ogni risposta in diretta moriva in HTTP 500 con
+QA tutta verde.
 
 **Con il cervello vero** (lento, ~40 min, ma è l'unico che vede la lingua
 delle risposte): `tools/audit_tools_it.py` chiama i 14 strumenti in sessione
@@ -1900,6 +1904,28 @@ il modello della risposta. Costo: +1 Sonnet per domanda, +1 Fable max per
 complex (interruttori `STUDIO_*_ENABLED`). Non fatti: Arkivisti,
 Precedentisti, «il senior ribatte alle obiezioni».
 Commit: SA `a154c67`+`79cb457`, aala `e24b0fd`+`108343d` (GitHub).
+
+**v9.269 — Lo stream in diretta era MORTO da 6 giorni (8 set, notte).** Il
+titolare dal PC: «connessione interrotta… poi HTTP 500». Causa: `_SSE_HEADERS`
+portava `"Connection": "keep-alive"` dal 28 ago (v9.172); il server di
+sviluppo di Flask lo lasciava passare, **waitress** (dal 2 set, v9.241) lo
+rifiuta con `AssertionError: Connection is a "hop-by-hop" header (PEP 3333)`
+PRIMA del primo evento → ogni `/api/ask/events` (e `/api/ask/stream`, Genio
+storico) rispondeva 500. Il client (`askAttach`) riprova 200 volte ogni 1,5s
+(«Connessione interrotta — riprendo, il lavoro continua…», 201 errori nei log
+21:57→22:02 = 5 minuti esatti) e poi scrive «HTTP 500»; il cervello intanto
+finiva e salvava in DB, la risposta si vedeva solo riaprendo il fascicolo.
+Perché la QA era verde: smoke/golden non passano da waitress, e nessuno
+provava lo stream dal vivo. Cura: via l'header (waitress e nginx tengono
+aperta la connessione da soli), commento-sentinella sopra il dict, golden
+[31] con la lista `hop_by_hop` VERA di `waitress.task` (327→**330**), e
+`tools/prova_sse.sh` = prova dal vivo (provision → login → domanda → stream):
+**HTTP 200, 26 eventi, done in 47s**, e la domanda sulla marmita è andata
+dritta al **Neni 153** (ancore + Kërkuesi al lavoro). Hot-copy + restart
+alle 22:20 UTC, poi build v9.269 + run.sh + QA trio verde + completa_brief.py
+ricopiato per il cron delle 03:30. Lezione: **un header innocuo su un server
+diventa un 500 sull'altro — quando si cambia server WSGI si riprovano le
+rotte streaming a mano**.
 
 **Landing superavokati.ai (3 set, pomeriggio) — la pagina dice la verità.**
 La landing vive FUORI dal container: `/var/www/superavokati-landing/index.html`
