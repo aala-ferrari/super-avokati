@@ -2364,6 +2364,7 @@ class SuperAvvocato:
             return
 
         retrieved = self._retrieve(triage)
+        retrieved = self._studio_kerkuesi(user_message, triage, retrieved)
 
         # Simple fast-path streaming.
         if (
@@ -2568,6 +2569,7 @@ class SuperAvvocato:
             except Exception as exc:
                 log.warning("stream albanian_editor failed (non-fatal): %s", exc)
         answer_text = _apply_corrections(answer_text)
+        answer_text = self._studio_djalli(user_message, retrieved, precedents, answer_text)
 
         final_sid = getattr(self.backend, "last_session_id", None) or new_sid
         yield ("final", LegalAnswer(
@@ -2679,6 +2681,7 @@ class SuperAvvocato:
             )
 
         retrieved = self._retrieve(triage)
+        retrieved = self._studio_kerkuesi(user_message, triage, retrieved)
         log.info("retrieved %d articles", len(retrieved))
 
         # V7.6 — simple-query fast path.
@@ -2891,6 +2894,7 @@ class SuperAvvocato:
         # (case:ID, numbers, dates, article refs) are preserved
         # verbatim — see _apply_corrections for the protection list.
         answer_text = _apply_corrections(answer_text)
+        answer_text = self._studio_djalli(user_message, retrieved, precedents, answer_text)
         # ClaudeCodeBackend exposes the (possibly new) session_id after each
         # stateful call; other backends leave it as None.
         new_session_id = getattr(self.backend, "last_session_id", None) or session_id
@@ -2968,6 +2972,75 @@ class SuperAvvocato:
             followup_question=str(data.get("followup_question", "")).strip(),
             complexity=complexity,
         )
+
+    # ── lo studio: juristët e rinj (v9.267) ────────────────────────────────
+
+    def _kodet_e_fushes(self, triage):
+        """Gli stessi codici dell'area che usa _retrieve (None = tutti)."""
+        if not triage.areas:
+            return None
+        wanted = {a.lower() for a in triage.areas}
+        codes = {d.code for d in LEGAL_DOCUMENTS if d.area.lower() in wanted}
+        for area in triage.areas:
+            for proc_code in PROCEDURAL_MAPPING.get(area, ()):
+                codes.add(proc_code)
+        return codes or None
+
+    def _studio_kerkuesi(self, user_message, triage, retrieved):
+        """Il Kërkuesi: manca la norma che PËRCAKTON l'istituto? La fa
+        cercare nel linguaggio del codice. Solo articoli reali, testo
+        integrale, in testa. Fallimento silenzioso."""
+        try:
+            from .config import (STUDIO_KERKUES_ENABLED, STUDIO_KERKUES_MODEL,
+                                 STUDIO_KERKUES_EFFORT, STUDIO_KERKUES_MAX_NENE)
+            if not STUDIO_KERKUES_ENABLED:
+                return retrieved
+            from . import studio
+            idx = self.index
+            restrict = self._kodet_e_fushes(triage)
+            if self.index_it is not None and self._current_jurisdiction() == "IT":
+                idx, restrict = self.index_it, None
+            nuovo, esito = studio.kerkuesi(
+                self.backend, idx, domanda=user_message,
+                summary=triage.problem_summary, retrieved=retrieved,
+                queries=list(triage.search_queries), restrict=restrict,
+                modeli=STUDIO_KERKUES_MODEL, effort=STUDIO_KERKUES_EFFORT,
+                max_nene=STUDIO_KERKUES_MAX_NENE)
+            if esito.get("shtuar"):
+                log.info("studio: kërkuesi shtoi %s (%s)",
+                         ", ".join("%s %s" % k for k in esito["shtuar"]),
+                         (esito.get("pse") or "")[:120])
+            elif esito.get("mungon_norma_percaktuese"):
+                log.info("studio: kërkuesi tha «mungon» por s'gjeti asgjë reale")
+            return nuovo
+        except Exception as exc:  # noqa: BLE001 — la risposta esce comunque
+            log.warning("studio kërkuesi fallito (non-fatal): %s", exc)
+            return retrieved
+
+    def _studio_djalli(self, user_message, retrieved, precedents, answer_text):
+        """L'avvocato del diavolo attacca la risposta prima che arrivi
+        all'avvocato; la sua sezione si accoda, con le citazioni passate
+        dallo scudo. Fallimento silenzioso."""
+        try:
+            from .config import (STUDIO_DJALLI_ENABLED, STUDIO_DJALLI_MODEL,
+                                 STUDIO_DJALLI_EFFORT)
+            if not STUDIO_DJALLI_ENABLED or not (answer_text or "").strip():
+                return answer_text
+            from . import studio
+            lang = "it" if self._current_jurisdiction() == "IT" else "sq"
+            sez = studio.avokati_i_djallit(
+                self.backend, domanda=user_message,
+                blloku_neneve=_format_articles_for_prompt(retrieved),
+                pergjigja=answer_text, lang=lang,
+                modeli=STUDIO_DJALLI_MODEL, effort=STUDIO_DJALLI_EFFORT)
+            if not (sez or "").strip():
+                return answer_text
+            sez = _apply_corrections(_verify_citations(sez, precedents))
+            log.info("studio: avokati i djallit ka folur (%d shkronja)", len(sez))
+            return answer_text + sez
+        except Exception as exc:  # noqa: BLE001
+            log.warning("studio djalli fallito (non-fatal): %s", exc)
+            return answer_text
 
     # ── stage 2: retrieval ─────────────────────────────────────────────────
 
@@ -5223,6 +5296,12 @@ def _format_articles_for_prompt(pairs: list[tuple[Article, float]]) -> str:
                 f"── {a.citation}  ⚑ RREGULL E PËRGJITHSHME\n"
                 f"  (nuk u gjet nga kërkimi me fjalë — u shtua sepse është "
                 f"rregulli bazë i kësaj teme; lexoje si bazë, jo si përjashtim)\n"
+            )
+        elif getattr(a, "_kerkues", False):
+            intestazione = (
+                f"── {a.citation}  ⚑ GJETUR NGA KËRKUESI\n"
+                f"  (juristi i ri i studios e gjeti si normën që PËRCAKTON "
+                f"institutin/kundërvajtjen — lexoje i pari, tekst i plotë)\n"
             )
         elif getattr(a, "_ancora_titull", False):
             intestazione = (

@@ -485,3 +485,15 @@ CONTEXT_ALERT_TOKENS = int(os.environ.get("CONTEXT_ALERT_TOKENS", "400000"))
 # supera una cifra: fermare un'analisi a meta' per risparmiare centesimi, su
 # una causa vera, e' un cattivo affare. Vuoto = disattivata.
 TETRAMORPH_MAX_BUDGET_USD = (os.environ.get("TETRAMORPH_MAX_BUDGET_USD") or "").strip()
+
+
+# ── Studio ligjor: ruoli e modelli dei juristi giovani (v9.267) ─────────
+# «sonnet» = mente veloce; «opus» = il modello del senior (id vero); altro =
+# id esplicito (es. claude-fable-5-1). Effort vuoto = default del tier.
+STUDIO_KERKUES_ENABLED = os.getenv("STUDIO_KERKUES_ENABLED", "1") == "1"
+STUDIO_KERKUES_MODEL = os.getenv("STUDIO_KERKUES_MODEL", "sonnet")
+STUDIO_KERKUES_EFFORT = os.getenv("STUDIO_KERKUES_EFFORT", "")
+STUDIO_KERKUES_MAX_NENE = int(os.getenv("STUDIO_KERKUES_MAX_NENE", "4"))
+STUDIO_DJALLI_ENABLED = os.getenv("STUDIO_DJALLI_ENABLED", "1") == "1"
+STUDIO_DJALLI_MODEL = os.getenv("STUDIO_DJALLI_MODEL", "claude-fable-5-1")  # esplicito: CLI >= 2.1.251
+STUDIO_DJALLI_EFFORT = os.getenv("STUDIO_DJALLI_EFFORT", "max")

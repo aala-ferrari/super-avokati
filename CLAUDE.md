@@ -1867,6 +1867,38 @@ malattia di fondo resta MORFOLOGICA (BM25 senza stemming): cura da
 misurare, mai da improvvisare sul cervello sacro. ⚠️ Ogni `./run.sh`
 cancella `/tmp/completa_brief.py` nel container: ricopiarlo se la cucina
 notturna del Genio è programmata.
+
+**v9.267-9.268 — Lo STUDIO LIGJOR: juristët e rinj attorno al senior (8 set,
+sera).** Idea del titolare: «il cervello grande delega, come un avvocato
+vero con i giuristi che vanno a vedere cosa dice un nene, riassumono e
+portano; lui pensa, decide e vince». `src/studio.py` + innesti in brain:
+① **Kërkuesi** (default Sonnet, ~15s) — dopo `_retrieve`, riceve domanda +
+summary + i 12 nenet (numero/titolo/incipit) e dice in JSON se MANCA la
+norma che PËRCAKTON l'istituto/l'infrazione, con kërkime nel linguaggio
+del codice e numeri; entrano SOLO articoli REALI (esistono, non abrogati,
+non presenti), testo integrale, in testa, «⚑ GJETUR NGA KËRKUESI», max 4,
+BM25 vero; simple e complex. ② **Avokati i djallit** (default
+`claude-fable-5-1`, effort max, ~2 min) — dopo la risposta complex la
+attacca (nene letti male, norma mancante, fatti supposti, contro-argomento)
+e la sezione «⚔️ Avokati i djallit — kundërargumentet» si ACCODA (sq/it),
+passata dallo scudo citazioni; solo nei 2 rami complex. Modelli per ruolo
+in config, env E fallback (`STUDIO_*`): «sonnet» = fast, «opus» = il modello
+del senior (id vero), altro = id esplicito. Regola concordata: **il compito
+sceglie il modello** — verbatim/estrai → Sonnet; riassumere il fascicolo →
+Opus normale; giudizio → Opus max; contro-esame → Fable 5.1 max in serie.
+I junior NON riassumono mai la legge. PROVA REGINA (Huracán): Kërkuesi
+riporta il 153; il diavolo su una risposta finta sul 79 scrive «79/6 lavora
+contro la tesi, sanzione reale dal 153/5, 153/1 era in dossier e ignorato,
+10 giorni da nessun nene, manca l'onere della prova 82 KPA». Golden
+316→**327** ([29] Kërkuesi funzioni pure + shartimi reale, [30] djalli).
+**CLI**: Fable 5.1 vuole ≥ 2.1.251; il Dockerfile installava il CLI senza
+pin e la cache teneva la 2.1.197 → pin `@2.1.265`. ⚠️ sul CLI nuovo gli
+alias cambiano: «fable» → fable-5-1 (Genio/adversary/drafter passati a 5.1
+in silenzio), «opus» → opus-5 (sul vecchio era **opus-4-8**): lo studio
+usa id espliciti. Haiku nel `modelUsage` è un sotto-compito del CLI, non
+il modello della risposta. Costo: +1 Sonnet per domanda, +1 Fable max per
+complex (interruttori `STUDIO_*_ENABLED`). Non fatti: Arkivisti,
+Precedentisti, «il senior ribatte alle obiezioni».
 Commit: SA `a154c67`+`79cb457`, aala `e24b0fd`+`108343d` (GitHub).
 
 **Landing superavokati.ai (3 set, pomeriggio) — la pagina dice la verità.**

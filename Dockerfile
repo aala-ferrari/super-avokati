@@ -58,7 +58,7 @@ RUN apt-get update \
         gnupg \
     && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
-    && npm install -g @anthropic-ai/claude-code \
+    && npm install -g @anthropic-ai/claude-code@2.1.265 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt ./

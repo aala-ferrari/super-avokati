@@ -1373,6 +1373,65 @@ def main():
     except Exception as _e:  # noqa: BLE001
         check("huracan[28]: kontrollet u ekzekutuan", False, str(_e))
 
+    # ── [29] Studio: Kërkuesi — funksionet e pastra + shartimi ───────────
+    try:
+        from src import studio as _st
+        from src import config as _cfgs
+        _p = _st.kerkuesi_parse('Sigurisht. {"mungon_norma_percaktuese": true, "pse": "s ka norma bazë",'
+                                ' "kerkime": ["kufizimi i zhurmave", "", "sistemi zhurmëshues"],'
+                                ' "nene": [{"kodi": "kodi_rrugor", "numri": "153"}, {"x": 1}, "junk"]} Faleminderit.')
+        check("studio[29]: parse JSON i fortë (tekst rreth, bosh dhe junk filtrohen)",
+              _p["mungon_norma_percaktuese"] and _p["kerkime"] == ["kufizimi i zhurmave", "sistemi zhurmëshues"]
+              and _p["nene"] == [("kodi_rrugor", "153")])
+        _p2 = _st.kerkuesi_parse("nuk ka json ketu {thyer")
+        check("studio[29]: JSON i thyer = default i sigurt (asgjë nuk shtohet)",
+              _p2["mungon_norma_percaktuese"] is False and _p2["kerkime"] == [] and _p2["nene"] == [])
+        _rr = ({d.code for d in brain.LEGAL_DOCUMENTS if d.area.lower() == "rrugor"}
+               | set(brain.PROCEDURAL_MAPPING["Rrugor"]))
+        _base = [(a, 10.0) for a in idx.articles if a.code == "kodi_rrugor" and a.number == "79"]
+        _es = {"mungon_norma_percaktuese": True, "kerkime": ["kufizimi i zhurmave sistemi zhurmeshues"],
+               "nene": [("kodi_rrugor", "999"), ("kodi_rrugor", "79")]}
+        _nuovo, _shtuar = _st.kerkuesi_merge(_base, idx, _es, queries=["zhurma"], restrict=_rr, max_nene=2)
+        check("studio[29]: shartimi sjell nenin REAL (153), jo 999 e jo dyfishim të 79",
+              ("kodi_rrugor", "153") in _shtuar and ("kodi_rrugor", "999") not in _shtuar
+              and ("kodi_rrugor", "79") not in _shtuar and len(_shtuar) <= 2, str(_shtuar))
+        check("studio[29]: nenet e shtuara janë kopje të shënuara, në krye, me pikë reale",
+              getattr(_nuovo[0][0], "_kerkues", False) and isinstance(_nuovo[0][1], float)
+              and not getattr(_base[0][0], "_kerkues", False))
+        _kw = _st._kwargs_modeli("sonnet", "max")
+        _kw2 = _st._kwargs_modeli("opus", "medium")
+        _kw3 = _st._kwargs_modeli("claude-fable-5-1", "max")
+        check("studio[29]: alias modelesh — sonnet=fast pa effort, opus=senior, id=override",
+              _kw == {"fast": True} and _kw2 == {"effort_override": "medium"}
+              and _kw3 == {"model_override": "claude-fable-5-1", "effort_override": "max"})
+        check("studio[29]: config-i i roleve ekziston me default (kërkues sonnet, djalli max)",
+              _cfgs.STUDIO_KERKUES_MODEL and _cfgs.STUDIO_DJALLI_EFFORT == "max" and _cfgs.STUDIO_DJALLI_MODEL == "claude-fable-5-1"
+              and isinstance(_cfgs.STUDIO_KERKUES_MAX_NENE, int))
+        check("studio[29]: truri thërret kërkuesin pas retrieval dhe e paraqet nenin si GJETUR NGA KËRKUESI",
+              hasattr(brain.SuperAvvocato, "_studio_kerkuesi")
+              and "GJETUR NGA KËRKUESI" in open("/app/src/brain.py", encoding="utf-8").read())
+    except Exception as _e:  # noqa: BLE001
+        check("studio[29]: kontrollet u ekzekutuan", False, str(_e))
+
+    # ── [30] Studio: Avokati i djallit — formati + shartimi ───────────────
+    try:
+        from src import studio as _st2
+        check("studio[30]: seksioni bosh kur djalli hesht",
+              _st2.djalli_format("   ", "sq") == "")
+        _sq = _st2.djalli_format("- Neni 79 u lexua gabim.", "sq")
+        _it = _st2.djalli_format("- Art. 79 letto male.", "it")
+        check("studio[30]: titulli në gjuhën e përgjigjes (sq/it) dhe teksti i djallit",
+              "Avokati i djallit" in _sq and "Neni 79 u lexua gabim" in _sq
+              and "Avvocato del diavolo" in _it and "Avokati" not in _it)
+        check("studio[30]: truri e thërret djallin vetëm pas përgjigjes complex (2 rrugë)",
+              hasattr(brain.SuperAvvocato, "_studio_djalli")
+              and open("/app/src/brain.py", encoding="utf-8").read().count(
+                  "self._studio_djalli(user_message, retrieved, precedents, answer_text)") == 2)
+        check("studio[30]: prompti i djallit sulmon (nen gabim, normë që mungon, fakte, kundërargument) pa parere",
+              all(x in _st2.DJALLI_SYSTEM for x in ("GABIM", "MUNGON", "fakte", "kundërargument", "Mos shkruaj parere")))
+    except Exception as _e:  # noqa: BLE001
+        check("studio[30]: kontrollet u ekzekutuan", False, str(_e))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
