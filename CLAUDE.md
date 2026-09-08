@@ -1824,6 +1824,17 @@ in genio.py — fascicolo IT → brief SOLO in italiano (prima il kill-shot
 usciva col corpo in albanese su un caso italiano). Video finali: SQ 1:38
 (senza pannello Genio vuoto), IT 1:09, `?v=4`. Brief parziali 31/33/35
 nel DB, riusabili per una scena futura.
+**Epilogo (8 set)**: brief 37 IT completato 6/6 col metodo UNA-lente-per-
+volta (`/tmp/completa_brief.py` nel container: copia le lenti già pagate
+fra brief dello stesso caso, genera solo le mancanti in sequenza, salva
+dopo ognuna — 5 lenti riuscite così, un giro intero da 6 menti satura il
+limite da solo). La scena montata (1:27) è stata PROVATA e RITIRATA dal
+titolare: «muro di testo, disorienta — meglio i video di prima» → live
+restano SQ 1:38 / IT 1:09 (`?v=6`). Se si rifarà: regia a testo grande
+(zoom sulle frasi chiave), non scroll su testo fitto. ⚠️ v9.264 = build
+pronta col tag in run.sh, container ancora v9.263+hot-copy di p66: al
+prossimo restart parte v9.264, niente regressione. ⚠️ nel video IT resta
+«Traduzione ligjor» girato pre-cura (nel prodotto è «Traduzione legale»).
 Commit: SA `a154c67`+`79cb457`, aala `e24b0fd`+`108343d` (GitHub).
 
 **Landing superavokati.ai (3 set, pomeriggio) — la pagina dice la verità.**
