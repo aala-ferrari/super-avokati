@@ -108,6 +108,7 @@
   // «Analizë e thellë»: la prossima domanda parte con deep=true (sala di
   // guerra completa). Si consuma al primo invio.
   var _deepNext = false;
+  var _seniorNext = "";  // Skuadra: senior della prossima domanda (""=Opus, "fable"=Fable 5.1 max)
   async function fetchCases() {
     const resp = await fetch("/api/cases");
     if (!resp.ok) return [];
@@ -972,9 +973,10 @@
       const startResp = await fetch("/api/ask/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, case_id: activeCaseId, deep: _deepNext }),
+        body: JSON.stringify({ message: text, case_id: activeCaseId, deep: _deepNext, mendja: _seniorNext }),
       });
       _deepNext = false;
+      _seniorNext = "";
       if (startResp.status === 401) {
         typing.remove();
         window.location.href = "/login";
@@ -1322,11 +1324,27 @@
     btn.addEventListener("click", function () {
       if (!activeCaseId) return;
       _deepNext = true;
+      _seniorNext = "";
       input.value = question;
       btn.disabled = true;
       form.requestSubmit();
     });
     wrap.appendChild(btn);
+    var _btnF = document.createElement("button");
+    _btnF.type = "button";
+    _btnF.className = "so-btn deep-btn deep-btn-fable";
+    _btnF.innerHTML = _CAL_IT
+      ? "⚡ Squadra con Fable 5.1 <em>la mente più forte, casi molto difficili</em>"
+      : "⚡ Skuadra me Fable 5.1 <em>mendja më e fortë, raste shumë të vështira</em>";
+    _btnF.addEventListener("click", function () {
+      if (!activeCaseId) return;
+      _deepNext = true;
+      _seniorNext = "fable";
+      input.value = question;
+      _btnF.disabled = true;
+      form.requestSubmit();
+    });
+    wrap.appendChild(_btnF);
     msgEl.appendChild(wrap);
   }
 

@@ -1713,6 +1713,9 @@ def main():
         check("skuadra[37]: SACRO — «fable» → Fable max; vuoto/«opus» → nessun override (Opus default)",
               _brain37._senior_override("fable") == {"model_override": "fable", "effort_override": "max"}
               and _brain37._senior_override("") == {} and _brain37._senior_override("opus") == {})
+        _js37 = _io37.open(_os37.path.join(_rr37, "static", "app.js"), encoding="utf-8").read()
+        check("skuadra[37]: UI — pulsante «Skuadra me Fable 5.1» invia mendja al percorso deep",
+              "_seniorNext" in _js37 and "mendja: _seniorNext" in _js37 and "deep-btn-fable" in _js37)
     except Exception as _e:  # noqa: BLE001
         check("skuadra[37]: kontrollet u ekzekutuan", False, str(_e))
 
