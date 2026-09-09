@@ -10150,6 +10150,7 @@
 
   // ── V9.0 GENIO LEGALE ──────────────────────────────────────────
   const genioRunBtn   = document.getElementById("genio-run");
+  const genioResumeBtn = document.getElementById("genio-resume");
   const genioDescEl   = document.getElementById("genio-description");
   const genioStatusEl = document.getElementById("genio-status");
   // La graffetta del Genio passa dal gestore unico degli allegati:
@@ -10198,6 +10199,7 @@
         renderGenioCard(key, res);
       });
       _genioBriefId = brief.id || parseInt(id, 10) || null;
+      _genioUpdateResume();
       _genioFooter();
       genioStatusEl.textContent = `Brief #${brief.id} ${t("u ngarkua")} ✓`;
       genioStatusEl.className = "pro-status ok";
@@ -10211,6 +10213,7 @@
     if (_genioES) { try { _genioES.close(); } catch {} _genioES = null; }
     const desc = (genioDescEl.value || "").trim();
     _genioBriefId = null;            // giro nuovo → brief nuovo
+    if (genioResumeBtn) genioResumeBtn.hidden = true;
     const _oldF = document.getElementById("genio-footer"); if (_oldF) _oldF.remove();
     genioGrid.hidden = false;
     genioGrid.querySelectorAll(".genio-card").forEach(c => {
@@ -10276,6 +10279,7 @@
         const b = c.querySelector(".genio-badge"); if (b) b.textContent = "—";
       });
       loadGenioHistory();
+      _genioUpdateResume();
       _genioFooter();
     }
   }
@@ -10307,47 +10311,58 @@
 
   // Sotto il brief: «Riprova le menti mancanti» (riprende, non riparte) +
   // Ruaj në fashikull / DOCX / PDF (se c'è almeno una lente riuscita).
+  // La ripresa: rifà SOLO le menti non riuscite, tiene le buone.
+  function _genioResume() {
+    if (!activeCaseId || !_genioBriefId) return;
+    if (_genioES) { try { _genioES.close(); } catch (e) {} _genioES = null; }
+    const foot = document.getElementById("genio-footer"); if (foot) foot.remove();
+    genioGrid.querySelectorAll(".genio-card").forEach(c => {
+      if (c.classList.contains("is-done")) return;
+      c.classList.remove("is-error");
+      c.classList.add("is-running");
+      const b = c.querySelector(".genio-badge"); if (b) b.textContent = _CAL_IT ? "sto pensando\u2026" : "duke menduar\u2026";
+      const bd = c.querySelector(".genio-body"); if (bd) bd.innerHTML = "";
+    });
+    if (genioResumeBtn) genioResumeBtn.hidden = true;
+    genioStatusEl.textContent = _CAL_IT ? "Riprendo le menti mancanti\u2026" : "Po rifilloj mendjet q\u00eb munguan\u2026";
+    genioStatusEl.className = "pro-status";
+    genioRunBtn.disabled = true;
+    genioAttach((genioDescEl.value || "").trim(), _genioBriefId).catch((err) => {
+      genioStatusEl.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + err.message;
+      genioStatusEl.className = "pro-status error";
+    }).finally(() => { genioRunBtn.disabled = false; });
+  }
+  genioResumeBtn?.addEventListener("click", _genioResume);
+
+  // Mostra/nasconde il pulsante di ripresa accanto a «Lësho Genio»: c'è un
+  // brief con menti mancanti/fallite, il giro non è in corso, la griglia è su.
+  function _genioUpdateResume() {
+    if (!genioResumeBtn) return;
+    const cards = Array.prototype.slice.call(genioGrid.querySelectorAll(".genio-card"));
+    const running = cards.some(c => c.classList.contains("is-running"));
+    const badN = cards.filter(c => !c.classList.contains("is-done")).length;
+    if (_genioBriefId && badN > 0 && !running && !genioGrid.hidden) {
+      genioResumeBtn.textContent = (_CAL_IT ? "\ud83d\udd04 Riprova (" : "\ud83d\udd04 Provo p\u00ebrs\u00ebri (") + badN + ")";
+      genioResumeBtn.hidden = false;
+    } else {
+      genioResumeBtn.hidden = true;
+    }
+  }
+
+  // Footer sotto il brief: SOLO Ruaj në fashikull / DOCX / PDF.
   function _genioFooter() {
     const old = document.getElementById("genio-footer"); if (old) old.remove();
     if (!genioGrid || genioGrid.hidden) return;
     const cards = Array.prototype.slice.call(genioGrid.querySelectorAll(".genio-card"));
     if (cards.some(c => c.classList.contains("is-running"))) return;  // ancora in corso
-    const doneN = cards.filter(c => c.classList.contains("is-done")).length;
-    const badN = cards.filter(c => !c.classList.contains("is-done")).length;  // errore o mancante
-    const md = doneN > 0 ? _genioBriefMarkdown() : "";
-    const wantResume = _genioBriefId && badN > 0;
-    if (!wantResume && !md) return;
+    if (!cards.some(c => c.classList.contains("is-done"))) return;    // nessuna lente riuscita
+    const md = _genioBriefMarkdown();
+    if (!md) return;
     const f = document.createElement("div");
     f.id = "genio-footer"; f.className = "genio-footer";
     f.style.cssText = "display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:14px 4px 2px;padding-top:12px;border-top:1px solid #e6e1d5";
-    if (wantResume) {
-      const rb = document.createElement("button");
-      rb.type = "button"; rb.className = "genio-resume-btn";
-      rb.style.cssText = "background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;border:none;padding:9px 16px;border-radius:9px;font-weight:700;cursor:pointer";
-      rb.innerHTML = (_CAL_IT ? "\ud83d\udd04 Riprova le menti mancanti (" : "\ud83d\udd04 Provo p\u00ebrs\u00ebri mendjet q\u00eb munguan (") + badN + ")";
-      rb.addEventListener("click", () => {
-        if (!activeCaseId || !_genioBriefId) return;
-        if (_genioES) { try { _genioES.close(); } catch (e) {} _genioES = null; }
-        f.remove();
-        cards.forEach(c => {
-          if (c.classList.contains("is-done")) return;
-          c.classList.remove("is-error");
-          c.classList.add("is-running");
-          const b = c.querySelector(".genio-badge"); if (b) b.textContent = _CAL_IT ? "sto pensando\u2026" : "duke menduar\u2026";
-          const bd = c.querySelector(".genio-body"); if (bd) bd.innerHTML = "";
-        });
-        genioStatusEl.textContent = _CAL_IT ? "Riprendo le menti mancanti\u2026" : "Po rifilloj mendjet q\u00eb munguan\u2026";
-        genioStatusEl.className = "pro-status";
-        genioRunBtn.disabled = true;
-        genioAttach((genioDescEl.value || "").trim(), _genioBriefId).catch((err) => {
-          genioStatusEl.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + err.message;
-          genioStatusEl.className = "pro-status error";
-        }).finally(() => { genioRunBtn.disabled = false; });
-      });
-      f.appendChild(rb);
-    }
     genioGrid.after(f);
-    if (md) { try { _addSaveToCase(f, "genio", _CAL_IT ? "Genio \u2014 brief" : "Genio \u2014 brief", md); } catch (e) {} }
+    try { _addSaveToCase(f, "genio", _CAL_IT ? "Genio \u2014 brief" : "Genio \u2014 brief", md); } catch (e) {}
   }
   function renderGenioCard(key, res) {
     // Un risultato della seconda mente arriva come «kill_shot:fable»: non ha

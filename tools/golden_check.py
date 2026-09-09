@@ -1622,9 +1622,10 @@ def main():
               'resume_brief_id=_resume' in _w35 and 'data.get("resume_brief_id")' in _w35)
         check("genio[35]: storage.mark_genio_running riporta a 'running'",
               "def mark_genio_running(" in _st35 and "status='running'" in _st35)
-        check("genio[35]: UI — pulsante ripresa e footer salva/scarica",
-              "_genioFooter" in _js35 and "genio-resume-btn" in _js35
-              and "_genioBriefId" in _js35
+        _ht35 = _io35.open(_os35.path.join(_rr35, "templates", "index.html"), encoding="utf-8").read()
+        check("genio[35]: UI — pulsante ripresa accanto a «Lësho Genio» che riprende",
+              'id="genio-resume"' in _ht35 and "_genioResume" in _js35
+              and "_genioUpdateResume" in _js35 and "_genioBriefId" in _js35
               and 'genioAttach((genioDescEl.value || "").trim(), _genioBriefId)' in _js35)
         check("genio[35]: UI — brief salvabile via _addSaveToCase (Ruaj/DOCX/PDF)",
               '_addSaveToCase(f, "genio"' in _js35 and "_genioBriefMarkdown" in _js35)
