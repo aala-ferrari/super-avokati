@@ -355,10 +355,21 @@ cd /var/www/apps/super-avvocato
 docker build -q -t super-avvocato:vNEW .
 sed -i 's/super-avvocato:vOLD/super-avvocato:vNEW/' run.sh
 ./run.sh
+/opt/docker-prune.sh   # ⚠️ SEMPRE dopo il build (vedi sotto)
 # health-check:
 for i in 1 2 3 4 5 6; do docker inspect -f '{{.State.Health.Status}}' super-avvocato; sleep 4; done  # atteso: healthy
 curl -s -o /dev/null -w '%{http_code}' https://superavokati.ai/   # atteso: 200
 ```
+⚠️ **DISCO PIENO = SITO GIÙ (9 set 2026)**: ogni `docker build` lascia
+un'immagine da ~5GB + build cache; se ne erano accumulate **40** (v9.232→273)
+e il disco è arrivato a **193G/193G (100%)** → `run.sh` ha fatto `docker rm` del
+container e il nuovo `docker run` è morto con `no space left on device`: **sito
+offline**. Cura: `docker builder prune -f` + rimozione delle immagini vecchie
+ha liberato **106GB**. Prevenzione: **`/opt/docker-prune.sh`** (in `ops/`) tiene
+solo le **2 immagini più recenti** (attuale + rollback) e svuota la build cache;
+va lanciato **dopo ogni build**, e c'è un cron (`/etc/cron.d/docker-prune`, lun
+04:30) come rete. Se un deploy fallisce, controllare `df -h /` PRIMA di ogni
+altra ipotesi.
 Dockerfile COPY: `data/ src/ static/ templates/ scripts/ tools/`. Dopo un cambio env (NEXT_PUBLIC inlined) serve rebuild — qui NON applicabile (Flask), ma per gli altri servizi sì.
 
 ## Precedenti — cosa entra e cosa NON deve entrare (29 ago 2026)
