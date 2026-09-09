@@ -1012,6 +1012,7 @@
     let statusEl = null;
     const clearStatus = () => { if (statusEl) { statusEl.remove(); statusEl = null; } };
     let streamBuffer = "";
+    let _burimet = null;
     const ensureStreamEl = () => {
       if (streamEl) return;
       typing.remove();
@@ -1036,6 +1037,7 @@
     try {
       const esito = await askAttach(jobId, 0, {
         onDelta: appendStreamChunk,
+        onSkuadra: (s) => { _burimet = s; },
         onStatus: (t) => {
           if (!streamEl && typing && typing.isConnected && t && t.trim()) {
             if (!statusEl) {
@@ -1058,12 +1060,15 @@
       } else {
         typing.remove();
       }
+      if (_burimet && _burimet.length && esito.final && typeof esito.final === "object") {
+        esito.final._skuadra = _burimet;
+      }
       if (esito.error) {
         appendError(esito.error);
       } else if (esito.final) {
         appendBot(esito.final);
       } else if (streamBuffer) {
-        appendBot({ kind: "answer", text: streamBuffer, articles: [] });
+        appendBot({ kind: "answer", text: streamBuffer, articles: [], _skuadra: _burimet });
       } else if (esito.gone) {
         // Il lavoro non c'e' piu' (riavvio del server). Dirlo e offrire di
         // rimandarla vale infinitamente piu' di un errore generico.
@@ -1381,6 +1386,39 @@
     return el;
   }
 
+  function _renderSkuadraPanel(sources) {
+    // Le fonti raccolte dalla Skuadra: il «perché lo dico». Collassato.
+    var wrap = document.createElement("div");
+    wrap.className = "so-wrap skuadra-wrap";
+    var btn = document.createElement("button");
+    btn.type = "button"; btn.className = "so-btn skuadra-btn";
+    btn.innerHTML = "🔎 " + (_CAL_IT ? "Le fonti della Skuadra" : "Burimet e Skuadrës") +
+      " <em>" + sources.length + (_CAL_IT ? " fonti · perché lo dico" : " burime · pse e them") + "</em>";
+    var panel = document.createElement("div");
+    panel.className = "so-panel skuadra-panel"; panel.hidden = true;
+    var ETICH = { fletorja: "🆕", web: "🔎", qbz: "🌐" };
+    sources.forEach(function (s) {
+      var row = document.createElement("div");
+      row.style.cssText = "border-left:3px solid #8a6a1d;padding:6px 10px;margin:6px 0;background:#faf7f0;border-radius:6px";
+      var cap = (ETICH[s.agjenti] || "•") + " <strong>" + escapeHtml(s.tip || "") + "</strong>" +
+                (s.titulli ? " — " + escapeHtml(s.titulli) : "") +
+                (s.data ? ' <span style="color:#8a7a5a">(' + escapeHtml(s.data) + ")</span>" : "");
+      var cit = s.citim ? '<div style="margin:3px 0;color:#4a4a4a">\u00ab' + escapeHtml(s.citim) + '\u00bb</div>' : "";
+      var link = s.url ? '<a href="' + escapeHtml(s.url) + '" target="_blank" rel="noopener" style="font-size:12px;color:#8a6a1d">' + (_CAL_IT ? "apri la fonte" : "hap burimin") + " \u2197</a>" : "";
+      row.innerHTML = cap + cit + link;
+      panel.appendChild(row);
+    });
+    var nota = document.createElement("div");
+    nota.style.cssText = "font-size:12px;color:#8a7a5a;margin-top:6px;font-style:italic";
+    nota.textContent = _CAL_IT
+      ? "Raccolte dalla squadra (web, QBZ, Fletorja Zyrtare) \u2014 da verificare prima di citarle."
+      : "Mbledhur nga skuadra (web, QBZ, Fletorja Zyrtare) \u2014 verifikoji para se t\u2019i citosh.";
+    panel.appendChild(nota);
+    btn.addEventListener("click", function () { panel.hidden = !panel.hidden; });
+    wrap.appendChild(btn); wrap.appendChild(panel);
+    return wrap;
+  }
+
   function appendBot(data) {
     const tpl = document.getElementById("bot-msg-tpl");
     const node = tpl.content.cloneNode(true);
@@ -1402,6 +1440,7 @@
         (data.decision_citations && data.decision_citations.stats && data.decision_citations.stats.total > 0)) {
       msgEl.insertBefore(renderCitationsBadge(data.citations || { stats: {}, items: [] }, data.decision_citations), body);
     }
+    if (data._skuadra && data._skuadra.length) msgEl.insertBefore(_renderSkuadraPanel(data._skuadra), body);
     // V8.11 Citation Shield V2 — provenance panel beneath the badge.
     // Lawyer can inspect KB version, model, hash; export full pack.
     if (data.provenance && data.provenance.response_id) {
@@ -12935,6 +12974,8 @@ function moduleChips(u) {
               // il battito arriva in due lingue: si prende quella giusta
               if (cb && cb.onStatus) cb.onStatus(
                 (_CAL_IT && evt.text_it) ? evt.text_it : evt.text);
+            } else if (evt.type === "skuadra") {
+              if (cb && cb.onSkuadra) cb.onSkuadra(evt.sources || []);
             } else if (evt.type === "final") {
               final = evt.data || evt;
             } else if (evt.type === "error") {

@@ -2437,7 +2437,9 @@ class SuperAvvocato:
         ):
             log.info("stream: simple fast-path")
             yield ("status", self._status("simple_gathering"))
-            dosja_txt, precedents_s = self._studio_mbledhesit(user_message, triage, retrieved)
+            dosja_txt, precedents_s, burimet_s = self._studio_mbledhesit(user_message, triage, retrieved)
+            if burimet_s:
+                yield ("skuadra", burimet_s)
             yield ("status", self._status("simple_composing"))
             context = _format_articles_for_prompt(retrieved) + dosja_txt
             prompt = textwrap.dedent(f"""\
@@ -2770,7 +2772,7 @@ class SuperAvvocato:
             log.info("simple fast-path: complexity=simple, skipping 11 "
                      "analytical stages + precedents + urgency/action_plan "
                      "+ albanian editor")
-            dosja_txt, precedents_s = self._studio_mbledhesit(user_message, triage, retrieved)
+            dosja_txt, precedents_s, _ = self._studio_mbledhesit(user_message, triage, retrieved)
             answer_text = self._compose_simple_answer(
                 user_message, history, triage, retrieved,
                 session_id=session_id, dosja_txt=dosja_txt,
@@ -3105,7 +3107,7 @@ class SuperAvvocato:
                                  STUDIO_MBLEDHES_TIMEOUT, STUDIO_MBLEDHES_WEB,
                                  STUDIO_MBLEDHES_QBZ, STUDIO_MBLEDHES_FLETORJA)
             if not STUDIO_MBLEDHES_ENABLED:
-                return "", precedents
+                return "", precedents, []
             from . import studio
             lang = "it" if self._current_jurisdiction() == "IT" else "sq"
             dosja = studio.mbledh_dosjen(
@@ -3122,10 +3124,10 @@ class SuperAvvocato:
                      dosja.get("gabime") or "-")
             blocco = studio.formato_dosjen(
                 dosja, lang, precedents_block=_format_precedents_block(precedents))
-            return blocco, precedents
+            return blocco, precedents, studio.sintesi_burimet(dosja, lang)
         except Exception as exc:  # noqa: BLE001 — la risposta esce comunque
             log.warning("studio mbledhësit fallito (non-fatal): %s", exc)
-            return "", precedents
+            return "", precedents, []
 
     def _studio_djalli(self, user_message, retrieved, precedents, answer_text):
         """L'avvocato del diavolo attacca la risposta prima che arrivi

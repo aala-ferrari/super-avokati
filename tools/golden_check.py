@@ -1720,6 +1720,10 @@ def main():
         _js37 = _io37.open(_os37.path.join(_rr37, "static", "app.js"), encoding="utf-8").read()
         check("skuadra[37]: UI — pulsante «Skuadra me Fable 5.1» invia mendja al percorso deep",
               "_seniorNext" in _js37 and "mendja: _seniorNext" in _js37 and "deep-btn-fable" in _js37)
+        check("skuadra[37]: le FONTI escono dal brain come evento (sintesi_burimet → skuadra → web)",
+              "def sintesi_burimet(" in _st37 and 'yield ("skuadra"' in _br37 and '"type": "skuadra"' in _wb37)
+        check("skuadra[37]: UI — pannello «Burimet e Skuadrës» reso (il «perché lo dico»)",
+              "onSkuadra" in _js37 and "_renderSkuadraPanel" in _js37 and "skuadra-panel" in _js37)
     except Exception as _e:  # noqa: BLE001
         check("skuadra[37]: kontrollet u ekzekutuan", False, str(_e))
 

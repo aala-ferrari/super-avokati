@@ -618,3 +618,38 @@ def formato_dosjen(dosja: dict, lang: str = "sq", precedents_block: str = "") ->
     rr.append(T["udhezim"])
     rr.append("")
     return "\n".join(rr)
+
+
+def sintesi_burimet(dosja: dict, lang: str = "sq") -> list[dict]:
+    """Il dossier compattato PER L'AVVOCATO: cosa ha trovato ogni agente della
+    Skuadra, con la fonte cliccabile. È il «perché lo dico» — solo roba con URL
+    o stato reale, mai inventata. Vuoto se la squadra non ha portato nulla."""
+    d = dosja or {}
+    web = d.get("web") or {}
+    out: list[dict] = []
+    for f in (d.get("fletorja") or []):
+        out.append({"agjenti": "fletorja",
+                    "tip": ("Fletorja Zyrtare" if lang == "sq" else "Gazzetta Ufficiale"),
+                    "titulli": (f.get("neni") or f.get("ligji") or "")[:120],
+                    "citim": (f.get("citim") or "")[:500], "url": f.get("url") or "",
+                    "data": f.get("fletorja") or f.get("data") or ""})
+    for c in (web.get("akte_nenligjore") or []):
+        out.append({"agjenti": "web",
+                    "tip": ("akt nënligjor" if lang == "sq" else "norma attuativa"),
+                    "titulli": (c.get("titulli") or "")[:120], "citim": (c.get("citim") or "")[:500],
+                    "url": c.get("url") or "", "data": c.get("data") or ""})
+    _pa = (_STATUSE_QBZ["sq"][3], _STATUSE_QBZ["it"][3])
+    for q in (d.get("qbz") or []):
+        if q.get("statusi") in _pa:
+            continue
+        cit = q.get("statusi") or ""
+        if q.get("ndryshimi"):
+            cit += " — " + q["ndryshimi"]
+        out.append({"agjenti": "qbz", "tip": ("vigjenca" if lang == "sq" else "vigenza"),
+                    "titulli": (q.get("neni") or "")[:120], "citim": cit[:500],
+                    "url": q.get("url") or "", "data": q.get("data") or ""})
+    for c in (web.get("burime") or []):
+        out.append({"agjenti": "web", "tip": ("burim" if lang == "sq" else "fonte"),
+                    "titulli": (c.get("titulli") or "")[:120], "citim": (c.get("citim") or "")[:500],
+                    "url": c.get("url") or "", "data": c.get("data") or ""})
+    return out

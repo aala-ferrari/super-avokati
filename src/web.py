@@ -6831,6 +6831,8 @@ def _ask_prepare(user, data):
             ):
                 if kind == "status":
                     yield _sse_event({"type": "status", "text": str(payload)})
+                elif kind == "skuadra":
+                    yield _sse_event({"type": "skuadra", "sources": payload})
                 elif kind == "delta":
                     yield _sse_event({"type": "delta", "text": str(payload)})
                 elif kind == "final":
