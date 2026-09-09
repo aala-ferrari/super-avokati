@@ -480,6 +480,27 @@ def request_profile() -> str:
     return getattr(_REQUEST_PROFILE, "txt", "") or ""
 
 
+# Il SENIOR della Skuadra, PER RICHIESTA. Stessa meccanica del profilo qui
+# sopra. Opus 5 max resta il default sacro; «fable» sceglie Fable 5.1 max come
+# mente finale per i casi molto difficili — additivo, mai il contrario.
+_REQUEST_SENIOR = _threading.local()
+
+
+def set_request_senior(mendja: str | None) -> None:
+    _REQUEST_SENIOR.mendja = (mendja or "").strip().lower()
+
+
+def request_senior() -> str:
+    return getattr(_REQUEST_SENIOR, "mendja", "") or ""
+
+
+def _senior_override(mendja: str) -> dict:
+    """kwargs per il backend: Fable 5.1 max SOLO se «fable». Vuoto = Opus 5 max."""
+    if (mendja or "").strip().lower() == "fable":
+        return {"model_override": "fable", "effort_override": "max"}
+    return {}
+
+
 # Cache breve del profilo per studio: una SELECT per richiesta sarebbe
 # comunque poca cosa, ma il profilo cambia di rado e questo la azzera.
 _PROFILI_CACHE: dict[int, tuple[float, str]] = {}
@@ -3082,7 +3103,7 @@ class SuperAvvocato:
             from .config import (STUDIO_MBLEDHES_ENABLED, STUDIO_MBLEDHES_MODEL,
                                  STUDIO_MBLEDHES_EFFORT, STUDIO_MBLEDHES_BUDGET_USD,
                                  STUDIO_MBLEDHES_TIMEOUT, STUDIO_MBLEDHES_WEB,
-                                 STUDIO_MBLEDHES_QBZ)
+                                 STUDIO_MBLEDHES_QBZ, STUDIO_MBLEDHES_FLETORJA)
             if not STUDIO_MBLEDHES_ENABLED:
                 return "", precedents
             from . import studio
@@ -3092,11 +3113,12 @@ class SuperAvvocato:
                 retrieved=retrieved, lang=lang, modeli=STUDIO_MBLEDHES_MODEL,
                 effort=STUDIO_MBLEDHES_EFFORT, budget_usd=STUDIO_MBLEDHES_BUDGET_USD,
                 timeout_s=STUDIO_MBLEDHES_TIMEOUT, web=STUDIO_MBLEDHES_WEB,
-                qbz=STUDIO_MBLEDHES_QBZ)
+                qbz=STUDIO_MBLEDHES_QBZ, fletorja=STUDIO_MBLEDHES_FLETORJA)
             web = dosja.get("web") or {}
-            log.info("studio: mbledhësit — akte %d, burime %d, qbz %d, precedentë %d, kohë %s, gabime %s",
+            log.info("studio: mbledhësit — akte %d, burime %d, qbz %d, fletorja %d, precedentë %d, kohë %s, gabime %s",
                      len(web.get("akte_nenligjore") or []), len(web.get("burime") or []),
-                     len(dosja.get("qbz") or []), len(precedents), dosja.get("kohe"),
+                     len(dosja.get("qbz") or []), len(dosja.get("fletorja") or []),
+                     len(precedents), dosja.get("kohe"),
                      dosja.get("gabime") or "-")
             blocco = studio.formato_dosjen(
                 dosja, lang, precedents_block=_format_precedents_block(precedents))
@@ -4830,6 +4852,7 @@ class SuperAvvocato:
             fast=False,
             session_id=session_id,
             attachments=attachment_paths or None,
+            **_senior_override(request_senior()),
         )
 
     def _compose_answer_stream(
@@ -4873,6 +4896,7 @@ class SuperAvvocato:
             getattr(backend, "name", "") == "claude_code"
             and hasattr(backend, "complete_stream")
             and not attachment_paths
+            and request_senior() != "fable"  # Fable non ha complete_stream → ramo bloccante
         )
         if not can_stream:
             text = backend.complete(
@@ -4882,6 +4906,7 @@ class SuperAvvocato:
                 fast=False,
                 session_id=session_id,
                 attachments=attachment_paths or None,
+                **_senior_override(request_senior()),
             )
             new_sid = getattr(backend, "last_session_id", None) or session_id
             # Emit as a single delta so the UI can still render progress.

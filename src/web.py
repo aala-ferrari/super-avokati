@@ -6763,6 +6763,9 @@ def _ask_prepare(user, data):
     # «Analizë e thellë»: l'avvocato chiede la sala di guerra completa anche
     # su una domanda che il triage manderebbe al percorso breve.
     deep = bool(data.get("deep"))
+    mendja = (data.get("mendja") or "").strip().lower()
+    if mendja == "fable":
+        deep = True  # il senior Fable lavora sempre in modalità approfondita
     if not message:
         return None, ({"error": "empty message"}, 400)
     if not case_id:
@@ -6817,6 +6820,7 @@ def _ask_prepare(user, data):
 
     def generate():
         try:
+            brain_mod.set_request_senior(mendja)  # Skuadra: senior scelto per questa risposta
             final_result = None
             for kind, payload in _BRAIN.answer_stream(
                 message, history=history,

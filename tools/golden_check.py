@@ -1665,6 +1665,57 @@ def main():
     except Exception as _e:  # noqa: BLE001
         check("dosja[36]: kontrollet u ekzekutuan", False, str(_e))
 
+    # ── [37] La Skuadra: Agent D (Fletorja Zyrtare) + senior selector (Opus/Fable) ──
+    try:
+        import io as _io37, os as _os37
+        _rr37 = _os37.path.dirname(_os37.path.dirname(_os37.path.abspath(__file__)))
+        _st37 = _io37.open(_os37.path.join(_rr37, "src", "studio.py"), encoding="utf-8").read()
+        _br37 = _io37.open(_os37.path.join(_rr37, "src", "brain.py"), encoding="utf-8").read()
+        _cf37 = _io37.open(_os37.path.join(_rr37, "src", "config.py"), encoding="utf-8").read()
+        _wb37 = _io37.open(_os37.path.join(_rr37, "src", "web.py"), encoding="utf-8").read()
+        # Agent D — struttura
+        check("skuadra[37]: Agent D — prompt Fletorja/Gazzetta (sq+it), gatherer, parser",
+              "MBLEDHES_FLETORJA_SYSTEM" in _st37 and '"sq"' in _st37
+              and "def mbledhesi_fletorja(" in _st37 and "def mbledhes_fletorja_parse(" in _st37
+              and "Fletorja Zyrtare" in _st37 and "Gazzetta Ufficiale" in _st37)
+        check("skuadra[37]: Agent D — terzo raccoglitore in parallelo (fletorja + 3 worker)",
+              "fletorja=True" in _st37 and "max_workers=3" in _st37
+              and 'lavori["fletorja"]' in _st37 and '"fletorja": []' in _st37)
+        check("skuadra[37]: Agent D — mai auto-ingest (nessuna scrittura del corpus in studio.py)",
+              "ArticleIndex" not in _st37 and "build_and_save" not in _st37 and "DecisionIndex" not in _st37)
+        # Agent D — ESEGUITO: parser + dossier
+        from src import studio as _studio37
+        _raw = '{"ndryshime":[{"neni":"153 KRr","citim":"Ndalohet perdorimi i sistemeve zhurmeshuese te automjeteve.","url":"https://qbz.gov.al/x","fletorja":"nr.71/2024","data":"2024-05-15"}]}'
+        _one = _studio37.mbledhes_fletorja_parse(_raw)
+        check("skuadra[37]: parser ESEGUITO — citazione+URL reale → 1; fake senza URL → 0",
+              len(_one) == 1 and _one[0]["url"].startswith("http")
+              and _studio37.mbledhes_fletorja_parse('{"ndryshime":[{"neni":"x","citim":"short","url":""}]}') == [])
+        _txt = _studio37.formato_dosjen({"web": {"akte_nenligjore": [], "burime": []}, "qbz": [], "fletorja": _one}, "sq")
+        check("skuadra[37]: dossier ESEGUITO — la sezione «ligji i gjallë» compare, verbatim + URL",
+              "Fletorja Zyrtare" in _txt and "153 KRr" in _txt and "qbz.gov.al" in _txt
+              and _studio37.formato_dosjen({"web": {"akte_nenligjore": [], "burime": []}, "qbz": [], "fletorja": []}, "sq") == "")
+        # wiring
+        check("skuadra[37]: config flag + brain passa fletorja al raccoglitore",
+              "STUDIO_MBLEDHES_FLETORJA" in _cf37
+              and "fletorja=STUDIO_MBLEDHES_FLETORJA" in _br37 and "fletorja %d" in _br37)
+        # Senior selector
+        check("skuadra[37]: senior selector — thread-local + helper Opus/Fable",
+              "_REQUEST_SENIOR" in _br37 and "def set_request_senior(" in _br37
+              and "def _senior_override(" in _br37)
+        check("skuadra[37]: senior — override applicato in ENTRAMBI i compose complessi",
+              _br37.count("**_senior_override(request_senior())") == 2
+              and 'request_senior() != "fable"' in _br37)
+        check("skuadra[37]: web — mendja letta, armata nel job, e «fable» ⇒ approfondito",
+              'data.get("mendja")' in _wb37 and "brain_mod.set_request_senior(mendja)" in _wb37
+              and 'mendja == "fable"' in _wb37)
+        # SACRO — ESEGUITO: senza «fable» il cervello resta Opus (nessun override)
+        from src import brain as _brain37
+        check("skuadra[37]: SACRO — «fable» → Fable max; vuoto/«opus» → nessun override (Opus default)",
+              _brain37._senior_override("fable") == {"model_override": "fable", "effort_override": "max"}
+              and _brain37._senior_override("") == {} and _brain37._senior_override("opus") == {})
+    except Exception as _e:  # noqa: BLE001
+        check("skuadra[37]: kontrollet u ekzekutuan", False, str(_e))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
