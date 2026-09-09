@@ -5110,11 +5110,28 @@ def api_dosja():
     risposta non puo' dipendere dal ricordarsi il fascicolo.
     """
     firm = request.firm  # type: ignore[attr-defined]
+    case_id = (request.args.get("case") or "").strip()
+    if case_id:
+        # Filtro per fascicolo: dentro un caso la Dosja mostra SOLO quel caso —
+        # con 50 casi, tutto insieme è un caos (richiesta del titolare, 9 set).
+        # _resolve_case applica anche il cancello di giurisdizione (v9.270):
+        # un caso dell'altra sessione non esiste → dosja vuota, non 500.
+        caso = _resolve_case(case_id)
+        if caso is None:
+            return jsonify({"items": [], "docs": [], "scope": "case"})
+        items = [dict(it, case_id=case_id, case_title=caso.title)
+                 for it in storage.list_research(case_id)]
+        return jsonify({
+            "items": items,
+            "docs": storage.list_case_documents_dosja(case_id),
+            "scope": "case",
+        })
     if firm is None:
-        return jsonify({"items": []})
+        return jsonify({"items": [], "docs": [], "scope": "all"})
     return jsonify({
         "items": storage.list_firm_research(firm.id, limit=500),
         "docs": storage.list_firm_documents(firm.id, limit=500),
+        "scope": "all",
     })
 
 

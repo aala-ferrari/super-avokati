@@ -13165,7 +13165,8 @@ function moduleChips(u) {
     ov.innerHTML = '<div class="ac-modal exp-modal">' +
       '<div class="ac-head"><span>📁 ' + t("Dosja") + '</span>' +
       '<button class="ac-x" type="button" aria-label="Mbyll">×</button></div>' +
-      '<div class="ac-sub">' + t("Gjithçka e rasteve: çfarë ke ruajtur dhe çfarë ke ngarkuar. Mbetet edhe pasi mbyll faqen.") + '</div>' +
+      '<div class="dosja-scope-row" style="display:flex;gap:8px;align-items:center;margin:2px 0 8px"></div>' +
+      '<div class="ac-sub dosja-sub"></div>' +
       '<input type="text" class="research-search dosja-search" placeholder="' + t("🔍 Kërko: titull, skedar, klient, rast, përmbajtje…") + '" />' +
       '<div class="exp-body"><div class="dosja-list"><em>' + t("Po ngarkoj…") + '</em></div></div>' +
       "</div>";
@@ -13282,24 +13283,58 @@ function moduleChips(u) {
       });
     }
 
-    try {
-      var r = await fetch("/api/dosja");
-      var d = await r.json();
-      var salvati = (d.items || []).map(function (x) { x._doc = false; return x; });
-      var docs = (d.docs || []).map(function (x) {
-        x._doc = true;
-        x.title = x.filename || t("Dokument");
-        return x;
-      });
-      // Prodotti e caricati insieme, in ordine di tempo: nella testa di chi
-      // cerca sono la stessa cosa — roba di quel caso, di quel giorno.
-      tutto = salvati.concat(docs).sort(function (a, b) {
-        return (b.created_at || "").localeCompare(a.created_at || "");
-      });
-      disegna("");
-    } catch (e) {
-      lista.innerHTML = '<p class="research-empty">' + t("Nuk u ngarkua dot.") + "</p>";
+    // Dentro un caso la Dosja parte FILTRATA su quel caso (col titolare: con
+    // 50 casi tutto insieme è un caos). L'interruttore permette di vedere tutto.
+    var scope = activeCaseId ? "case" : "all";
+    var subEl = ov.querySelector(".dosja-sub");
+    var scopeRow = ov.querySelector(".dosja-scope-row");
+    if (activeCaseId) {
+      var bCase = document.createElement("button");
+      bCase.type = "button"; bCase.className = "dosja-scope-btn";
+      bCase.textContent = "📁 " + (_CAL_IT ? "Questo caso" : "Ky rast");
+      var bAll = document.createElement("button");
+      bAll.type = "button"; bAll.className = "dosja-scope-btn";
+      bAll.textContent = "🗂️ " + (_CAL_IT ? "Tutti i casi" : "Të gjitha rastet");
+      var _stile = "border:1px solid #d8d2c4;background:#fff;color:#5b5347;padding:5px 12px;border-radius:8px;cursor:pointer;font-weight:600";
+      function segnaScope() {
+        bCase.style.cssText = _stile; bAll.style.cssText = _stile;
+        var on = scope === "case" ? bCase : bAll;
+        on.style.background = "#8a6a1d"; on.style.color = "#fff"; on.style.borderColor = "#8a6a1d";
+      }
+      bCase.onclick = function () { if (scope === "case") return; scope = "case"; segnaScope(); caricaDosja(); };
+      bAll.onclick = function () { if (scope === "all") return; scope = "all"; segnaScope(); caricaDosja(); };
+      scopeRow.appendChild(bCase); scopeRow.appendChild(bAll); segnaScope();
+    } else if (scopeRow) {
+      scopeRow.remove();
     }
+
+    async function caricaDosja() {
+      lista.innerHTML = "<em>" + t("Po ngarkoj…") + "</em>";
+      subEl.textContent = (scope === "case")
+        ? (_CAL_IT ? "Solo questo caso: cosa hai salvato e caricato qui."
+                   : "Vetëm ky rast: çfarë ke ruajtur dhe ngarkuar këtu.")
+        : t("Gjithçka e rasteve: çfarë ke ruajtur dhe çfarë ke ngarkuar. Mbetet edhe pasi mbyll faqen.");
+      try {
+        var url = "/api/dosja" + (scope === "case" && activeCaseId ? "?case=" + encodeURIComponent(activeCaseId) : "");
+        var r = await fetch(url);
+        var d = await r.json();
+        var salvati = (d.items || []).map(function (x) { x._doc = false; return x; });
+        var docs = (d.docs || []).map(function (x) {
+          x._doc = true;
+          x.title = x.filename || t("Dokument");
+          return x;
+        });
+        // Prodotti e caricati insieme, in ordine di tempo: nella testa di chi
+        // cerca sono la stessa cosa — roba di quel caso, di quel giorno.
+        tutto = salvati.concat(docs).sort(function (a, b) {
+          return (b.created_at || "").localeCompare(a.created_at || "");
+        });
+        disegna(cerca.value || "");
+      } catch (e) {
+        lista.innerHTML = '<p class="research-empty">' + t("Nuk u ngarkua dot.") + "</p>";
+      }
+    }
+    caricaDosja();
     cerca.addEventListener("input", function () { disegna(cerca.value); });
   }
 

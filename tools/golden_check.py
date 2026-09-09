@@ -1632,6 +1632,39 @@ def main():
     except Exception as _e:  # noqa: BLE001
         check("genio[35]: kontrollet u ekzekutuan", False, str(_e))
 
+    # ── [36] Dosja per FASCICOLO: /api/dosja?case= (dentro un caso, solo quel caso) ──
+    try:
+        import io as _io36, os as _os36
+        _rr36 = _os36.path.dirname(_os36.path.dirname(_os36.path.abspath(__file__)))
+        _w36 = _io36.open(_os36.path.join(_rr36, "src", "web.py"), encoding="utf-8").read()
+        _st36 = _io36.open(_os36.path.join(_rr36, "src", "storage.py"), encoding="utf-8").read()
+        _js36 = _io36.open(_os36.path.join(_rr36, "static", "app.js"), encoding="utf-8").read()
+        _i_d = _w36.find("def api_dosja(")
+        _bd = _w36[_i_d:_i_d + 1800] if _i_d > 0 else ""
+        check("dosja[36]: /api/dosja accetta ?case= e filtra per fascicolo",
+              'request.args.get("case")' in _bd
+              and "storage.list_case_documents_dosja(case_id)" in _bd)
+        check("dosja[36]: il caso passa da _resolve_case (cancello di giurisdizione v9.270) → vuoto, non 500",
+              "caso = _resolve_case(case_id)" in _bd and "if caso is None:" in _bd)
+        check("dosja[36]: research del caso arricchito con case_id + case_title (forma da raggruppare)",
+              "dict(it, case_id=case_id, case_title=caso.title)" in _bd)
+        check("dosja[36]: lo scope viaggia nella risposta (case | all)",
+              '"scope": "case"' in _bd and '"scope": "all"' in _bd)
+        check("dosja[36]: storage — list_case_documents_dosja, come list_firm_documents ma WHERE d.case_id",
+              "def list_case_documents_dosja(" in _st36
+              and "WHERE d.case_id = ? ORDER BY d.created_at DESC" in _st36
+              and '"case_title": r["case_title"]' in _st36)
+        check("dosja[36]: UI — dentro un caso parte su «Ky rast», fuori su «Të gjitha»",
+              'var scope = activeCaseId ? "case" : "all";' in _js36)
+        check("dosja[36]: UI — fetch con ?case= solo quando lo scope è il caso attivo",
+              '"?case=" + encodeURIComponent(activeCaseId)' in _js36
+              and "async function caricaDosja()" in _js36)
+        check("dosja[36]: UI — interruttore Ky rast / Të gjitha (+ etichette IT)",
+              "dosja-scope-btn" in _js36 and "Ky rast" in _js36
+              and "Të gjitha rastet" in _js36 and "Questo caso" in _js36)
+    except Exception as _e:  # noqa: BLE001
+        check("dosja[36]: kontrollet u ekzekutuan", False, str(_e))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

@@ -3827,6 +3827,26 @@ def list_firm_clients(firm_id: int) -> list[dict]:
     return list(clients.values())
 
 
+def list_case_documents_dosja(case_id: str, limit: int = 500) -> list[dict]:
+    """Come list_firm_documents ma per UN solo fascicolo (stessa forma), per la
+    Dosja filtrata sul caso attivo — con 50 casi, tutto insieme è un caos."""
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT d.id, d.case_id, d.filename, d.ext, d.mimetype, "
+            "d.size_bytes, d.doc_type, d.summary, d.status, d.created_at, "
+            "c.title AS case_title "
+            "FROM documents d JOIN cases c ON c.id = d.case_id "
+            "WHERE d.case_id = ? ORDER BY d.created_at DESC LIMIT ?",
+            (case_id, limit),
+        ).fetchall()
+    return [{"id": r["id"], "case_id": r["case_id"], "filename": r["filename"],
+             "ext": r["ext"], "mimetype": r["mimetype"],
+             "size_bytes": r["size_bytes"], "doc_type": r["doc_type"],
+             "summary": r["summary"], "status": r["status"],
+             "created_at": r["created_at"], "case_title": r["case_title"]}
+            for r in rows]
+
+
 def list_firm_documents(firm_id: int, limit: int = 500) -> list[dict]:
     """Every uploaded document across the firm's cases (newest first).
 
