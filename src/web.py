@@ -2582,13 +2582,18 @@ def _gather_case_documents(case_id: str, limit: int = 12) -> list[dict]:
     return out
 
 
-def _genio_prepare(case_id: str, description: str = ""):
+def _genio_prepare(case_id: str, description: str = "", resume_brief_id=None):
     """Prepara un giro di Genio. Torna `(generatore, brief_id, None)` se si
     puo' partire, oppure `(None, None, (payload, status))` se no.
 
     Tre valori e non due di proposito: `jsonify(...), 404` e' anch'essa una
     tupla, e distinguere il successo dall'errore guardando la forma sarebbe
     un trabocchetto per chi legge questo codice fra sei mesi.
+
+    Con `resume_brief_id` si RIPRENDE un brief: le lenti già buone restano,
+    si rifanno SOLO quelle mancanti o in errore (una era andata in timeout).
+    Si riusa lo stesso brief e il suo case_block — il contesto non cambia fra
+    un tentativo e l'altro, e così non si ricomincia da capo.
     """
     case = _resolve_case(case_id)
     if case is None:
@@ -2598,14 +2603,10 @@ def _genio_prepare(case_id: str, description: str = ""):
     _ensure_loaded()
     if _BRAIN is None:
         return None, None, ({"error": "brain_unavailable"}, 503)
+    backend = _BRAIN.backend
 
-    jur = getattr(case, "jurisdiction", "AL")
-    recent_msgs = _gather_case_recent_messages(case_id)
     docs = _gather_case_documents(case_id)
-
-    # I file senza testo estratto — foto, scansioni — vanno allegati davvero:
-    # per quelli il riassunto non dice niente e il testo non esiste. Pochi,
-    # perché ogni allegato viaggia con tutte e sei le lenti.
+    # I file senza testo estratto — foto, scansioni — vanno allegati davvero.
     allegati: list[Path] = []
     for d in docs:
         if allegati and len(allegati) >= 4:
@@ -2616,27 +2617,47 @@ def _genio_prepare(case_id: str, description: str = ""):
         if p and Path(p).exists():
             allegati.append(Path(p))
             d["allegato"] = True
-
-    # Cosa aveva concluso il Genio la volta scorsa su questo caso: senza,
-    # ogni giro riparte da zero e rianalizza gli stessi fatti.
-    try:
-        precedenti = storage.list_genio_briefs(case_id) or []
-    except Exception:  # noqa: BLE001
-        precedenti = []
-
-    case_block = genio_mod.build_case_block(
-        case, jurisdiction=jur, extra_description=description,
-        recent_messages=recent_msgs, documents=docs,
-        previous_briefs=precedenti,
-    )
     voice_block = genio_mod._gather_voice_samples(user.id)
 
-    brief_id = storage.create_genio_brief(
-        case_id=case_id, user_id=user.id,
-        description=description, case_block=case_block,
-    )
-
-    backend = _BRAIN.backend
+    seed_by_key: dict = {}
+    plist = None  # None → tutte e sei le lenti
+    if resume_brief_id:
+        prev = storage.get_genio_brief(resume_brief_id)
+        if prev is None or prev.get("case_id") != case_id:
+            return None, None, ({"error": "brief_not_found"}, 404)
+        for k, r in (prev.get("by_key") or {}).items():
+            if not isinstance(r, dict):
+                continue
+            vuota = (not r.get("parsed")) and not (r.get("raw") or "").strip()
+            if r.get("kind") == "error" or vuota:
+                continue        # da rifare: errore o mani vuote
+            seed_by_key[k] = r  # buona: si tiene
+        buone = {str(k).split(":")[0] for k in seed_by_key}
+        plist = [p for p in genio_mod.PERSPECTIVES if p.key not in buone]
+        if not plist:
+            return None, None, ({"error": "nothing_to_resume"}, 409)
+        case_block = prev.get("case_block") or ""
+        brief_id = resume_brief_id
+        try:
+            storage.mark_genio_running(brief_id)
+        except Exception:  # noqa: BLE001
+            pass
+    else:
+        jur = getattr(case, "jurisdiction", "AL")
+        recent_msgs = _gather_case_recent_messages(case_id)
+        try:
+            precedenti = storage.list_genio_briefs(case_id) or []
+        except Exception:  # noqa: BLE001
+            precedenti = []
+        case_block = genio_mod.build_case_block(
+            case, jurisdiction=jur, extra_description=description,
+            recent_messages=recent_msgs, documents=docs,
+            previous_briefs=precedenti,
+        )
+        brief_id = storage.create_genio_brief(
+            case_id=case_id, user_id=user.id,
+            description=description, case_block=case_block,
+        )
 
     def _event(evt: dict) -> str:
         payload = json.dumps(evt, ensure_ascii=False)
@@ -2644,14 +2665,17 @@ def _genio_prepare(case_id: str, description: str = ""):
 
     def _stream():
         yield _event({"type": "brief_id", "id": brief_id})
-        by_key: dict = {}
+        by_key: dict = dict(seed_by_key)
+        # le lenti già buone si ridisegnano subito (riapertura pulita)
+        for _r in seed_by_key.values():
+            yield _event({"type": "perspective", "result": _r})
         had_any_error = False
-        had_any_success = False
+        had_any_success = bool(seed_by_key)
         elapsed = 0
         for evt in genio_mod.run_brief(
             backend=backend, case_block=case_block,
             voice_samples_block=voice_block, case_id=case_id,
-            attachments=allegati,
+            attachments=allegati, perspectives=plist,
         ):
             if evt["type"] == "perspective":
                 r = evt["result"]
@@ -2659,11 +2683,14 @@ def _genio_prepare(case_id: str, description: str = ""):
                     had_any_error = True
                 else:
                     had_any_success = True
+                by_key[r["key"]] = r
                 yield _event(evt)
             elif evt["type"] == "completed":
-                by_key = evt["by_key"]
+                for _k, _r in (evt.get("by_key") or {}).items():
+                    by_key[_k] = _r       # unisci: seed + lenti rifatte
                 elapsed = evt["elapsed_ms"]
-                yield _event(evt)
+                yield _event({"type": "completed", "elapsed_ms": elapsed,
+                              "by_key": by_key})
             else:
                 yield _event(evt)
         if had_any_success and had_any_error:
@@ -2962,8 +2989,14 @@ def api_genio_start():
     case_id = (data.get("case_id") or "").strip()
     if not case_id:
         return jsonify({"error": "missing case_id"}), 400
+    _resume = data.get("resume_brief_id")
+    try:
+        _resume = int(_resume) if _resume else None
+    except (TypeError, ValueError):
+        _resume = None
     gen, brief_id, err = _genio_prepare(
-        case_id, (data.get("description") or "").strip())
+        case_id, (data.get("description") or "").strip(),
+        resume_brief_id=_resume)
     if err is not None:
         payload, status = err
         return jsonify(payload), status

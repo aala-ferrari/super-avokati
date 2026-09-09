@@ -6185,6 +6185,17 @@ def finalize_genio_brief(brief_id: int, *, by_key: dict,
         )
 
 
+def mark_genio_running(brief_id: int) -> None:
+    """Ripresa: riporta il brief a 'running' mentre si rifanno le menti
+    mancanti (la finalize scriverà lo stato definitivo alla fine)."""
+    with db() as conn:
+        conn.execute(
+            "UPDATE genio_briefs SET status='running', completed_at=NULL "
+            "WHERE id=?",
+            (brief_id,),
+        )
+
+
 def get_genio_brief(brief_id: int) -> dict | None:
     with db() as conn:
         r = conn.execute(

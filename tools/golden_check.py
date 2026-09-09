@@ -1604,6 +1604,33 @@ def main():
     except Exception as _e:  # noqa: BLE001
         check("mbledhes[34]: kontrollet u ekzekutuan", False, str(_e))
 
+    # ── [35] Genio: ripresa (solo lenti mancanti) + salva/scarica ─────────
+    try:
+        import io as _io35, os as _os35
+        _rr35 = _os35.path.dirname(_os35.path.dirname(_os35.path.abspath(__file__)))
+        _w35 = _io35.open(_os35.path.join(_rr35, "src", "web.py"), encoding="utf-8").read()
+        _st35 = _io35.open(_os35.path.join(_rr35, "src", "storage.py"), encoding="utf-8").read()
+        _js35 = _io35.open(_os35.path.join(_rr35, "static", "app.js"), encoding="utf-8").read()
+        _i_gp = _w35.find("def _genio_prepare(")
+        _blk = _w35[_i_gp:_i_gp + 4200] if _i_gp > 0 else ""
+        check("genio[35]: _genio_prepare accetta resume_brief_id e rifà solo il subset",
+              "resume_brief_id=None" in _blk and "perspectives=plist" in _blk
+              and "nothing_to_resume" in _blk and "seed_by_key" in _blk)
+        check("genio[35]: le lenti buone si tengono (seed), errore/vuote si rifanno",
+              'r.get("kind") == "error"' in _blk and "genio_mod.PERSPECTIVES" in _blk)
+        check("genio[35]: /api/genio/start inoltra resume_brief_id (int o None)",
+              'resume_brief_id=_resume' in _w35 and 'data.get("resume_brief_id")' in _w35)
+        check("genio[35]: storage.mark_genio_running riporta a 'running'",
+              "def mark_genio_running(" in _st35 and "status='running'" in _st35)
+        check("genio[35]: UI — pulsante ripresa e footer salva/scarica",
+              "_genioFooter" in _js35 and "genio-resume-btn" in _js35
+              and "_genioBriefId" in _js35
+              and 'genioAttach((genioDescEl.value || "").trim(), _genioBriefId)' in _js35)
+        check("genio[35]: UI — brief salvabile via _addSaveToCase (Ruaj/DOCX/PDF)",
+              '_addSaveToCase(f, "genio"' in _js35 and "_genioBriefMarkdown" in _js35)
+    except Exception as _e:  # noqa: BLE001
+        check("genio[35]: kontrollet u ekzekutuan", False, str(_e))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

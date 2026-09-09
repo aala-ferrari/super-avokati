@@ -563,7 +563,7 @@ errori, non che le risposte sono ancora giuste. Riferimento verificato il
 12 articoli recuperati per ciascuna.
 
 ```bash
-docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali. Baseline **358/358** (9 set; era 98 il 31 ago).
+docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali. Baseline **364/364** (9 set; era 98 il 31 ago).
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 bash /root/prova_sse.sh                                    # SULL'HOST (legge il secret da /opt/super-avvocato.env; copia in tools/prova_sse.sh): account di prova → login → fascicolo → 1 domanda VERA → stream /api/ask/events attraverso waitress. Deve dire «HTTP 200 … done: 1» (~50s, costa 1 chiamata al cervello) e cancella l'account. Dopo OGNI build che tocca web.py o le rotte SSE.
@@ -2013,6 +2013,26 @@ offline a finestra fresca: dossier con QBZ 3 nenet + 4 precedenti in 79 s.
 limit) tornano vuoti, ma è degrado grazioso, non un bug. Non fatti: Arkivisti
 (scheda fatti dei fascicoli lunghi — l'unico riassunto ammesso: i fatti, mai
 la legge), Precedentisti vivi, «il senior ribatte alle obiezioni».
+
+**v9.272 — Genio: RIPRESA delle menti mancanti + salva/scarica (9 set).**
+Il titolare (prova come admin): una mente in **timeout a 1800s** → brief
+`partial`, e ripartire rifaceva TUTTO. Ora `_genio_prepare(resume_brief_id=)`
+riusa lo stesso brief e il suo `case_block`, **semina `by_key` con le lenti
+buone** (kind≠error e non vuote — anche una `kill_shot:fable` copre la base
+`kill_shot`) e rifà SOLO le mancanti/in errore passando `perspectives=plist`
+a `run_brief` (che già accettava il subset); il `completed` unisce seed +
+rifatte, la finalize scrive lo stato reale. `/api/genio/start` inoltra
+`resume_brief_id` (int|None); `storage.mark_genio_running`. Gate: brief
+inesistente→404 `brief_not_found`, tutte buone→409 `nothing_to_resume` (nessun
+giro). UI: `_genioBriefId` tracciato (risposta start / evento done / storico);
+`_genioFooter()` sotto la griglia mostra **🔄 Riprova le menti mancanti (N)**
+(segna le carte non-done come in-corso e chiama `genioAttach(desc, briefId)`)
+e, se ≥1 lente riuscita, **Ruaj në fashikull / DOCX / PDF** via `_addSaveToCase`
+(markdown assemblato da `_genioBriefMarkdown()`: solo le carte `is-done`).
+Golden [35], app.js?v=**144**. ⚠️ una mente rimasta `is-running` a fine giro
+viene segnata «—» così il footer/ripresa compare comunque. NON ho lanciato la
+ripresa vera sul brief 39 del titolare (2 lenti da rifare = giro Opus, limite):
+il pulsante è lì, la clicca lui a finestra fresca.
 
 **Landing superavokati.ai (3 set, pomeriggio) — la pagina dice la verità.**
 La landing vive FUORI dal container: `/var/www/superavokati-landing/index.html`
