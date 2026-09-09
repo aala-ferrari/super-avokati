@@ -1809,6 +1809,28 @@ def delete_user(username: str) -> tuple[bool, str | None]:
                 f"UPDATE cases SET firm_id = NULL WHERE firm_id IN ({q})",
                 personali)
             conn.execute(f"DELETE FROM firms WHERE id IN ({q})", personali)
+        # Pulizia esplicita PRIMA di cancellare l'utente. Il CASCADE è una rete,
+        # non una garanzia (lezione 2 set): le tabelle-prodotto con user_id NOT
+        # NULL e FK «SET NULL» o «NO ACTION» facevano fallire la cancellazione
+        # (bench_memos, settlement_simulations, genio_briefs, corporate_extractions,
+        # case_lessons…). Le trovo da sole, così una tabella nuova non riporta il
+        # bug. ⚠️ NON ai_audit_log/case_access_log/legal_acceptances: quelli
+        # restano (obbligo AI Act art. 12 + tracce di consenso/accesso); l'audit
+        # log ha user_id nullable e la FK «SET NULL» lo mette a NULL da sé.
+        _tieni = ("ai_audit_log", "case_access_log", "legal_acceptances")
+        for _t in [r["name"] for r in conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'").fetchall()]:
+            if _t in _tieni:
+                continue
+            try:
+                _blocca = any(
+                    f["from"] == "user_id" and f["table"] == "users"
+                    and (f["on_delete"] or "").upper() in ("SET NULL", "NO ACTION", "RESTRICT")
+                    for f in conn.execute("PRAGMA foreign_key_list(%s)" % _t).fetchall())
+                if _blocca:
+                    conn.execute("DELETE FROM %s WHERE user_id = ?" % _t, (uid,))
+            except Exception:  # noqa: BLE001 — mai far fallire una cancellazione per una tabella
+                pass
         conn.execute("DELETE FROM firm_members WHERE user_id = ?", (uid,))
         cur = conn.execute("DELETE FROM users WHERE id = ?", (uid,))
         return cur.rowcount > 0, None

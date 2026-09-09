@@ -904,6 +904,10 @@ def main():
         check("fshirja: pastrim i qarte, jo vetem CASCADE",
               "DELETE FROM firm_members WHERE user_id" in _s21,
               "nje lidhje pa PRAGMA e anashkalon CASCADE-n (e provuar: prova3in1)")
+        check("fshirja: pastrim DINAMIK i tabelave-produkt qe bllokojne (bench_memos/settlement…), audit i ruajtur",
+              "foreign_key_list" in _s21 and '"SET NULL", "NO ACTION"' in _s21
+              and '"ai_audit_log", "case_access_log", "legal_acceptances"' in _s21,
+              "FK SET NULL/NO ACTION + user_id NOT NULL bllokonte fshirjen; audit-i mbetet (AI Act)")
         check("fshirja: ndalon te studiot e perbashketa",
               "COALESCE(is_personal, 0) = 0" in _s21,
               "CASCADE do t'i zhdukte per te gjithe anetaret")
