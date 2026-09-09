@@ -1458,6 +1458,82 @@ def main():
     except Exception as _e:  # noqa: BLE001
         check("sse[31]: kontrollet u ekzekutuan", False, str(_e))
 
+    # ── [32] Lingua = SESSIONE (AL solo albanese, IT solo italiano) ─────────
+    # Regola del titolare, 9 set 2026. Misurato l'8 set: premortem albanese
+    # in un fascicolo IT (domanda in albanese) e fascicoli IT aperti in
+    # sessione AL (riapertura da localStorage).
+    try:
+        import os as _os32, io as _io32
+        _rr32 = _os32.path.dirname(_os32.path.dirname(_os32.path.abspath(__file__)))
+        from src import brain as _br32
+        _pa = _br32.direttiva_gjuhe_prompt("Pyetja", "AL")
+        _pi = _br32.direttiva_gjuhe_prompt("Domanda", "IT")
+        check("gjuha[32]: AL accoda «VETËM SHQIP», IT accoda «SOLO ITALIANO»",
+              "VETËM SHQIP" in _pa and "SOLO ITALIANO" in _pi and "SHQIP" not in _pi)
+        check("gjuha[32]: idempotente e vuoto resta vuoto",
+              _br32.direttiva_gjuhe_prompt(_pa, "AL") == _pa
+              and _br32.direttiva_gjuhe_prompt("   ", "IT") == "   ")
+        check("gjuha[32]: l'override IT copre la domanda scritta in albanese",
+              "ANCHE SE la domanda" in _br32.JURISDICTION_OVERRIDE_IT)
+        _bk32 = _io32.open(_os32.path.join(_rr32, "src", "backends.py"), encoding="utf-8").read()
+        check("gjuha[32]: il collo di bottiglia accoda la riga in complete() e complete_stream()",
+              _bk32.count("prompt = _direttiva_gjuhe(prompt)") == 2)
+        check("gjuha[32]: raw_system (Përkthim) salta la riga di lingua",
+              "if not raw_system:\n            prompt = _direttiva_gjuhe(prompt)" in _bk32)
+        _w32 = _io32.open(_os32.path.join(_rr32, "src", "web.py"), encoding="utf-8").read()
+        _i_list = _w32.find("def api_list_cases")
+        _i_res = _w32.find("def _resolve_case")
+        _i_cre = _w32.find("def api_create_case")
+        check("gjuha[32]: /api/cases elenca solo la giurisdizione attiva e conta i nascosti",
+              _i_list > 0 and "hidden_other" in _w32[_i_list:_i_list + 1600]
+              and "_active_jurisdiction(user)" in _w32[_i_list:_i_list + 1600])
+        check("gjuha[32]: _resolve_case non apre un fascicolo dell'altra giurisdizione",
+              _i_res > 0 and "!= _att" in _w32[_i_res:_i_res + 1800]
+              and "return None" in _w32[_i_res:_i_res + 1800])
+        check("gjuha[32]: POST /api/cases rifiuta (409) una giurisdizione diversa dalla sessione",
+              _i_cre > 0 and "409" in _w32[_i_cre:_i_cre + 1800]
+              and "jurisdiction != attiva" in _w32[_i_cre:_i_cre + 1800])
+        _js32 = _io32.open(_os32.path.join(_rr32, "static", "app.js"), encoding="utf-8").read()
+        _i_act = _js32.find("function _renderActReport")
+        check("gjuha[32]: controllo-atto bilingue (era albanese fisso in sessione IT)",
+              _i_act > 0 and "_CAL_IT" in _js32[_i_act:_i_act + 400]
+              and "Articoli INESISTENTI" in _js32[_i_act:_i_act + 3000])
+        check("gjuha[32]: il client dice quanti fascicoli sono nell'altra giurisdizione",
+              "_casiNascosti" in _js32 and "hidden_other" in _js32)
+        _pk32 = _io32.open(_os32.path.join(_rr32, "src", "perkthim.py"), encoding="utf-8").read()
+        check("gjuha[32]: il traduttore viaggia con raw_system=True (2 chiamate)",
+              _pk32.count("raw_system=True") == 2)
+    except Exception as _e:  # noqa: BLE001
+        check("gjuha[32]: kontrollet u ekzekutuan", False, str(_e))
+
+    # ── [33] Effort: il compito sceglie il budget (junior high, senior max) ──
+    # Misurato 8-9 set 2026: Sonnet 5 a max = 7-13 min a fase, a high 1-2 min
+    # con la stessa sostanza. Il senior NON cambia (regola: precisione prima).
+    try:
+        from src import config as _cf33
+        from src.backends import ClaudeCodeBackend as _CB33
+        import shutil as _sh33
+        check("effort[33]: config — senior a max, junior a high (env E fallback)",
+              _cf33.CLAUDE_CODE_EFFORT == "max" and _cf33.CLAUDE_CODE_MEDIUM_EFFORT == "high")
+        _cli33 = _sh33.which("claude") or "/usr/bin/claude"
+        _b33 = _CB33(cli_path=_cli33, effort="max", medium_effort="high")
+        check("effort[33]: fast → nessun effort; junior → high; senior → max; esplicito vince",
+              _b33._pick_effort(True, False) is None
+              and _b33._pick_effort(False, True) == "high"
+              and _b33._pick_effort(False, False) == "max"
+              and _b33._pick_effort(False, True, "max") == "max")
+        _b33b = _CB33(cli_path=_cli33, effort="max", medium_effort=None)
+        check("effort[33]: senza medium_effort il junior eredita il senior (retro-compatibile)",
+              _b33b._pick_effort(False, True) == "max")
+        import io as _io33, os as _os33
+        _rr33 = _os33.path.dirname(_os33.path.dirname(_os33.path.abspath(__file__)))
+        _bs33 = _io33.open(_os33.path.join(_rr33, "src", "backends.py"), encoding="utf-8").read()
+        check("effort[33]: complete() passa da _pick_effort e lo stream (senior) resta a self.effort",
+              "_eff = self._pick_effort(fast, medium, effort_override)" in _bs33
+              and _bs33.count('cmd.extend(["--effort", self.effort])') == 1)
+    except Exception as _e:  # noqa: BLE001
+        check("effort[33]: kontrollet u ekzekutuan", False, str(_e))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

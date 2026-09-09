@@ -99,6 +99,20 @@ def _apply_juris(system):
 
 
 
+def _direttiva_gjuhe(prompt):
+    """La lingua della SESSIONE ripetuta in coda al messaggio utente
+    (brain.DIRETTIVA_GJUHE): «sessione albanese → solo albanese, sessione
+    italiana → solo italiano», anche se la domanda è nell'altra lingua.
+    Import differito: brain importa backends. Non blocca mai una risposta."""
+    if not isinstance(prompt, str) or not prompt:
+        return prompt
+    try:
+        from .brain import direttiva_gjuhe_prompt, request_jurisdiction
+        return direttiva_gjuhe_prompt(prompt, request_jurisdiction())
+    except Exception:  # noqa: BLE001 - non deve mai bloccare una risposta
+        return prompt
+
+
 def _hash16(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8", errors="replace")).hexdigest()[:16]
 
@@ -330,6 +344,7 @@ class ClaudeCodeBackend(LLMBackend):
         cli_path: str | None = None,
         timeout_s: int = 1800,
         effort: str | None = "max",
+        medium_effort: str | None = None,
     ):
         self.cli = cli_path or shutil.which("claude")
         if not self.cli:
@@ -344,6 +359,22 @@ class ClaudeCodeBackend(LLMBackend):
         # Reasoning budget for the main (non-fast) call. Valid values:
         # low, medium, high, xhigh, max. None disables the flag.
         self.effort = effort
+        # Budget delle fasi junior (medium=True). None → come il senior.
+        # Misurato: Sonnet 5 a max = 7-13 min a fase, a high = 1-2 min,
+        # stessa sostanza (config.CLAUDE_CODE_MEDIUM_EFFORT).
+        self.medium_effort = medium_effort
+
+    def _pick_effort(self, fast: bool, medium: bool,
+                     effort_override: str | None = None) -> str | None:
+        """Il compito sceglie l'effort: fast → nessuno; esplicito → quello;
+        junior (medium) → medium_effort se impostato; senior → effort."""
+        if fast:
+            return None
+        if effort_override:
+            return effort_override
+        if medium and self.medium_effort:
+            return self.medium_effort
+        return self.effort
 
     def _pick_model(self, fast: bool, medium: bool) -> str:
         """V9.x tier selection: fast (Sonnet) > medium (Sonnet) > default (Opus)."""
@@ -413,7 +444,7 @@ class ClaudeCodeBackend(LLMBackend):
         # (Fable per Avvocato del Diavolo / secondo parere / drafter): prima
         # la condizione `not model_override` li escludeva, quindi rispondevano
         # senza ragionamento esteso. Il percorso veloce resta senza effort.
-        _eff = effort_override or self.effort
+        _eff = self._pick_effort(fast, medium, effort_override)
         if not fast and _eff:
             cmd.extend(["--effort", _eff])
 
@@ -422,6 +453,11 @@ class ClaudeCodeBackend(LLMBackend):
         # cosi i follow-up mantengono il contesto e non ripetono/errorano.
         cmd.extend(["--system-prompt", system])
         prompt = _flatten_messages(messages)
+        # La lingua la decide la sessione: riga in coda al messaggio utente
+        # (resta in fondo anche quando gli allegati avvolgono il prompt).
+        # Salta con raw_system: il traduttore cambia lingua di proposito.
+        if not raw_system:
+            prompt = _direttiva_gjuhe(prompt)
 
         # If the caller has files to attach (dossier), hand them to Claude
         # via the Read tool — same UX as pasting an image into a chat.
@@ -645,6 +681,7 @@ class ClaudeCodeBackend(LLMBackend):
         # cosi i follow-up mantengono il contesto e non ripetono/errorano.
         cmd.extend(["--system-prompt", system])
         prompt = _flatten_messages(messages)
+        prompt = _direttiva_gjuhe(prompt)   # la lingua la decide la sessione
 
         log.debug("claude stream cmd: %s (prompt=%d chars)", cmd, len(prompt))
 
@@ -1137,6 +1174,7 @@ def build_backend() -> LLMBackend:
         BRAIN_BACKEND,
         CLAUDE_CODE_EFFORT,
         CLAUDE_CODE_FAST_MODEL,
+        CLAUDE_CODE_MEDIUM_EFFORT,
         CLAUDE_CODE_MEDIUM_MODEL,
         CLAUDE_CODE_MODEL,
         CLAUDE_FAST_MODEL,
@@ -1172,14 +1210,16 @@ def build_backend() -> LLMBackend:
                 "BRAIN_BACKEND=claude_code but `claude` CLI is not in PATH. "
                 "Install Tetramorph and run `claude /login`."
             )
-        log.info("using Tetramorph backend (%s / %s / %s, effort=%s)",
+        log.info("using Tetramorph backend (%s / %s / %s, effort=%s, junior=%s)",
                  CLAUDE_CODE_MODEL, CLAUDE_CODE_MEDIUM_MODEL,
-                 CLAUDE_CODE_FAST_MODEL, CLAUDE_CODE_EFFORT or "off")
+                 CLAUDE_CODE_FAST_MODEL, CLAUDE_CODE_EFFORT or "off",
+                 CLAUDE_CODE_MEDIUM_EFFORT or (CLAUDE_CODE_EFFORT or "off"))
         return ClaudeCodeBackend(
             model=CLAUDE_CODE_MODEL,
             medium_model=CLAUDE_CODE_MEDIUM_MODEL,
             fast_model=CLAUDE_CODE_FAST_MODEL,
             effort=CLAUDE_CODE_EFFORT or None,
+            medium_effort=CLAUDE_CODE_MEDIUM_EFFORT or None,
         )
 
     if choice == "gemini":

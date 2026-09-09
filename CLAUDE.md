@@ -234,10 +234,24 @@ dichiarava opus-4-8 mentre rispondeva opus-5. Ora `CLAUDE_MODEL` segue
 - **Haiku rimosso**: in uno strumento legale non vogliamo modelli
   "piccoli". Solo Opus (risposta) + Sonnet (resto).
 
-## Lingua
+## Lingua — REGOLA FERREA del titolare (9 set 2026)
 
-- Risposte all'utente: **shqip in sessione AL, italiano in sessione IT**
-  (il preambolo di giurisdizione impone la lingua al cervello).
+**«Se entri nella sessione albanese, SOLO albanese; se entri nella sessione
+italiana, SOLO italiano.»** Ovunque: risposta principale, fasi (premortem,
+mappa prove, piano…), pannelli, Avokati i djallit, Genio, strumenti PRO,
+elenco fascicoli. **La lingua la decide la SESSIONE, mai la lingua della
+domanda**: una domanda scritta in albanese in sessione IT ha risposta in
+italiano, e viceversa. Un fascicolo appartiene alla giurisdizione in cui è
+nato e in un'altra sessione **non esiste** (404, elenco filtrato).
+Come è applicata (v9.270): `brain.DIRETTIVA_GJUHE` accodata **al messaggio
+utente** da `backends.complete()`/`complete_stream()` (il preambolo da solo
+non bastava: premortem albanese in un fascicolo IT — misurato l'8 set),
+salvo `raw_system=True` (Përkthim); `JURISDICTION_OVERRIDE_IT` con «anche
+se la domanda è in albanese»; `/api/cases` filtrato + `hidden_other`,
+`_resolve_case` col cancello, `POST /api/cases` 409 fuori sessione. Guardie:
+`juris_guard.py` sezione 4, golden [32]. Un canale nuovo verso il cervello
+che non passa da `backends.complete*` deve applicarla a mano; un renderer
+client nuovo nasce bilingue (`_CAL_IT`).
 - Conversazione con Romeo: italiano informale ("fratello").
 
 ### UI bilingue (i18n) — come funziona
@@ -549,10 +563,11 @@ errori, non che le risposte sono ancora giuste. Riferimento verificato il
 12 articoli recuperati per ciascuna.
 
 ```bash
-docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali. Baseline **330/330** (8 set; era 98 il 31 ago).
+docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali. Baseline **345/345** (9 set; era 98 il 31 ago).
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 bash /root/prova_sse.sh                                    # SULL'HOST (legge il secret da /opt/super-avvocato.env; copia in tools/prova_sse.sh): account di prova → login → fascicolo → 1 domanda VERA → stream /api/ask/events attraverso waitress. Deve dire «HTTP 200 … done: 1» (~50s, costa 1 chiamata al cervello) e cancella l'account. Dopo OGNI build che tocca web.py o le rotte SSE.
+bash /root/prova_gjuha.sh                                  # SULL'HOST (copia in tools/prova_gjuha.sh): LINGUA = SESSIONE dal vivo — A) sessione AL + domanda in italiano → risposta albanese (Neni 114 KC); B) sessione IT (admin.it) + domanda in albanese → risposta italiana (art. 2946 c.c.); C) lo stesso utente passa ad AL → il fascicolo IT dà 404 e compare in hidden_other. 2 chiamate al cervello (~2 min). Dopo ogni modifica a giurisdizione/lingua/prompt.
 ```
 Estendere GOLDENS/smoke quando emerge un bug nuovo. ⚠️ smoke e golden NON
 passano da waitress: lo stream (SSE) si prova solo con `prova_sse.sh` — per
@@ -1926,6 +1941,43 @@ alle 22:20 UTC, poi build v9.269 + run.sh + QA trio verde + completa_brief.py
 ricopiato per il cron delle 03:30. Lezione: **un header innocuo su un server
 diventa un 500 sull'altro — quando si cambia server WSGI si riprovano le
 rotte streaming a mano**.
+
+**v9.270 — LINGUA = SESSIONE + fasi junior a effort high (9 set, notte).**
+Il titolare, dopo l'Aventador (fascicolo IT aperto per sbaglio, domanda in
+albanese → risposta in italiano con premortem in albanese sotto): «se entri
+nella sessione albanese, solo albanese; se entri in quella italiana, solo
+italiano — mettilo in memoria e ovunque». Tre cure al collo di bottiglia:
+① `brain.DIRETTIVA_GJUHE` + `direttiva_gjuhe_prompt()`: la riga «VETËM
+SHQIP» / «SOLO ITALIANO» accodata AL MESSAGGIO UTENTE da
+`backends.complete()` e `complete_stream()` (il preambolo da solo non
+bastava — stessa lezione di `documents._LANG_LINE`), salvo `raw_system`
+(Përkthim); `JURISDICTION_OVERRIDE_IT` con «anche se la domanda è in
+albanese». ② Fascicoli: `/api/cases` elenca SOLO la giurisdizione attiva
+(+ `hidden_other`, il client lo scrive in fondo all'elenco), `_resolve_case`
+non apre quelli dell'altra (404 — l'app riapriva da localStorage un
+fascicolo IT in sessione AL), `POST /api/cases` 409 fuori sessione.
+③ `_renderActReport` bilingue (ultimo albanese fisso in sessione IT).
+**Effort junior**: `CLAUDE_CODE_MEDIUM_EFFORT=high` (env E fallback) →
+`backends._pick_effort(fast, medium, override)`: fast nessuno, junior high,
+senior (Opus, `CLAUDE_CODE_EFFORT`) max, esplicito vince; lo stream (senior)
+resta a `self.effort`. Misura che decide (registro AI, mediane su ~25
+esecuzioni per fase): Sonnet 4.6 a max = 1-4 min a fase; **Sonnet 5 a max =
+3-12 min e 30-56k token di ragionamento** (l'Aventador: 44 min, ~13 $, il
+piano d'azione 1M token di contesto sul web); A/B a high = 45-120 s con la
+stessa sostanza (art. 155 c.1/c.2 C.d.S., art. 237 Reg., 2700 c.c.), a
+medium la qualità cala (scivola sull'art. 659 c.p.). Worker restano 6 (il
+semaforo del backend è 6: alzarli toglierebbe posti agli altri studi).
+Guardie: `juris_guard.py` sezione 4, golden [32]+[33] → **345/345**; nuovo
+`tools/prova_gjuha.sh`. **PROVE VIVE dopo il deploy**: SSE 200/31 eventi/
+56 s; A) sessione AL + domanda in italiano → albanese, Neni 114 KC, 0 spie
+italiane (52 s); B) sessione IT + domanda in albanese → italiano, art. 2946
+c.c., 0 spie albanesi (155 s), 32 fascicoli visibili / 1 nascosto; C) lo
+stesso utente passa ad AL → il fascicolo IT dà 404 (anche su ask), 1/33.
+⚠️ I pulsanti «Ruaj në fashikull / DOCX / PDF» e «🔮 Avokati i Djallit»
+stanno SUBITO SOTTO il testo, prima dei pannelli e dei nenet: in una
+risposta lunga il titolare non li trovava («pas verifikim»).
+Prossimo: gradino B dello studio (raccoglitori in parallelo nel percorso
+simple: kodet + nënligjore + QBZ + web + precedentët → senior una volta).
 
 **Landing superavokati.ai (3 set, pomeriggio) — la pagina dice la verità.**
 La landing vive FUORI dal container: `/var/www/superavokati-landing/index.html`

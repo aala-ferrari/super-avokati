@@ -1250,6 +1250,20 @@ def _resolve_case(case_id: str):
         caso = storage.get_case(case_id, user.id)   # user-scoped legacy fallback
     else:
         caso = storage.get_case_for_member(case_id, user.id, firm.id)
+    # UNA giurisdizione per sessione (Regola #1): un fascicolo dell'altra
+    # giurisdizione in questa sessione NON esiste — come se fosse di un altro
+    # studio. Qui perche' e' il collo di bottiglia: l'app riapre l'ultimo
+    # fascicolo da localStorage, e senza questo cancello un fascicolo IT
+    # riaperto in sessione AL faceva rispondere il cervello in italiano.
+    if caso is not None:
+        try:
+            _att = _active_jurisdiction(user)
+            if (getattr(caso, "jurisdiction", None) or "AL").upper() != _att:
+                log.info("fascicolo %s (%s) nascosto in sessione %s",
+                         case_id, caso.jurisdiction, _att)
+                return None
+        except Exception:  # noqa: BLE001 - il cancello non deve mai rompere l'app
+            pass
     # Si registra SOLO quando l'accesso e' andato a buon fine: un 404 non e'
     # un accesso, e riempire il registro di tentativi falliti lo renderebbe
     # illeggibile proprio quando serve leggerlo.
@@ -1277,6 +1291,11 @@ def api_list_cases():
         cases = storage.list_cases(user.id)
     else:
         cases = storage.list_cases_for_member(user.id, firm.id)
+    # Solo i fascicoli della giurisdizione attiva (una per sessione); quanti
+    # restano fuori lo si dice, cosi' l'avvocato sa che deve cambiare sessione.
+    attiva = _active_jurisdiction(user)
+    visibili = [c for c in cases
+                if (getattr(c, "jurisdiction", None) or "AL").upper() == attiva]
     return jsonify({"cases": [
         {"id": c.id, "title": c.title,
          "created_at": c.created_at, "updated_at": c.updated_at,
@@ -1284,8 +1303,8 @@ def api_list_cases():
          "is_mine": c.user_id == user.id,
          "stage": c.stage,
          "stage_label": storage.CASE_STAGE_LABELS_SQ.get(c.stage, c.stage)}
-        for c in cases
-    ]})
+        for c in visibili
+    ], "jurisdiction": attiva, "hidden_other": len(cases) - len(visibili)})
 
 
 @app.post("/api/cases")
@@ -1304,7 +1323,13 @@ def api_create_case():
                             "your_role": role}), 403
     data = request.get_json(force=True, silent=True) or {}
     title = (data.get("title") or "").strip() or "Rast i ri"
-    jurisdiction = (data.get("jurisdiction") or _active_jurisdiction(user)).upper()
+    attiva = _active_jurisdiction(user)
+    jurisdiction = (data.get("jurisdiction") or attiva).upper()
+    if jurisdiction != attiva:
+        # Un fascicolo nasce SEMPRE nella giurisdizione della sessione: un
+        # fascicolo IT creato da una sessione AL sarebbe invisibile subito dopo.
+        return jsonify({"error": "juridiksioni i fashikullit duhet të jetë ai i sesionit",
+                        "session": attiva, "requested": jurisdiction}), 409
     firm_id = firm.id if firm else None
     case = storage.create_case(user.id, title, firm_id=firm_id,
                                jurisdiction=jurisdiction)

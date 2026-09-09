@@ -101,11 +101,27 @@
   });
 
   // ─── cases API ───────────────────────────────────────────────────
+  // Fascicoli dell'ALTRA giurisdizione: il server non li manda (una sola
+  // giurisdizione per sessione), ma dice quanti sono, e l'avvocato deve
+  // saperlo — altrimenti «mi sono spariti i fascicoli».
+  var _casiNascosti = 0;
   async function fetchCases() {
     const resp = await fetch("/api/cases");
     if (!resp.ok) return [];
     const data = await resp.json();
+    _casiNascosti = Number(data.hidden_other || 0);
     return data.cases || [];
+  }
+  function _notaCasiNascosti() {
+    if (!_casiNascosti) return null;
+    const li = document.createElement("li");
+    li.className = "case-empty case-hidden-note";
+    li.textContent = _CAL_IT
+      ? (_casiNascosti + (_casiNascosti === 1 ? " fascicolo" : " fascicoli") +
+         " nella giurisdizione albanese \u2014 passa alla sessione \ud83c\udde6\ud83c\uddf1 per vederli")
+      : (_casiNascosti + (_casiNascosti === 1 ? " fashikull" : " fashikuj") +
+         " n\u00eb juridiksionin italian \u2014 kalo n\u00eb sesionin \ud83c\uddee\ud83c\uddf9 p\u00ebr t\u2019i par\u00eb");
+    return li;
   }
 
   async function createCase(title = "Rast i ri") {
@@ -298,6 +314,8 @@
       li.className = "case-empty";
       li.textContent = "Nuk ke ende asnjë rast të hapur. Kliko \"Rast i ri\" për të filluar.";
       caseList.appendChild(li);
+      const nota0 = _notaCasiNascosti();
+      if (nota0) caseList.appendChild(nota0);
       return;
     }
     const tpl = document.getElementById("case-item-tpl");
@@ -315,6 +333,8 @@
       node.querySelector(".case-select").addEventListener("click", () => selectCase(c.id));
       caseList.appendChild(node);
     }
+    const nota = _notaCasiNascosti();
+    if (nota) caseList.appendChild(nota);
   }
 
   function stageEmoji(stage) {
@@ -3792,23 +3812,31 @@
   };
 
   function _renderActReport(d) {
+    // Lingua = sessione: era albanese fisso anche in sessione italiana.
+    var IT = _CAL_IT;
     if (d.empty) return "";
-    if (d.clean) return '<div class="ac-badge ac-ok">\u2705 Të gjitha ' + d.verified + ' nenet e cituara janë të vlefshme dhe në fuqi.</div>';
-    var h = '<div class="ac-summary">Gjithsej ' + d.total + ' citime \u00b7 <b style="color:#1c7a3e">' + d.verified + ' të vlefshme</b>' +
-      (d.fake.length ? ' \u00b7 <b style="color:#c0392b">' + d.fake.length + ' inekzistente</b>' : "") +
-      (d.repealed.length ? ' \u00b7 <b style="color:#a1341a">' + d.repealed.length + ' të shfuqizuara</b>' : "") +
-      (d.needs_code.length ? ' \u00b7 <b style="color:#8a6a1d">' + d.needs_code.length + ' të paqarta</b>' : "") + "</div>";
+    if (d.clean) return '<div class="ac-badge ac-ok">\u2705 ' + (IT
+      ? ('Tutti i ' + d.verified + ' articoli citati sono validi e in vigore.')
+      : ('Të gjitha ' + d.verified + ' nenet e cituara janë të vlefshme dhe në fuqi.')) + '</div>';
+    var h = '<div class="ac-summary">' + (IT ? 'Totale ' : 'Gjithsej ') + d.total + (IT ? ' citazioni' : ' citime') +
+      ' \u00b7 <b style="color:#1c7a3e">' + d.verified + (IT ? ' valide' : ' të vlefshme') + '</b>' +
+      (d.fake.length ? ' \u00b7 <b style="color:#c0392b">' + d.fake.length + (IT ? ' inesistenti' : ' inekzistente') + '</b>' : "") +
+      (d.repealed.length ? ' \u00b7 <b style="color:#a1341a">' + d.repealed.length + (IT ? ' abrogati' : ' të shfuqizuara') + '</b>' : "") +
+      (d.needs_code.length ? ' \u00b7 <b style="color:#8a6a1d">' + d.needs_code.length + (IT ? ' da chiarire' : ' të paqarta') + '</b>' : "") + "</div>";
     function block(title, arr, cls) {
       if (!arr.length) return "";
       return '<div class="ac-block ' + cls + '"><div class="ac-bt">' + title + '</div><ul>' +
         arr.map(function (i) {
-          return "<li>" + escapeHtml(i.raw || ("neni " + i.number)) +
+          return "<li>" + escapeHtml(i.raw || ((IT ? "art. " : "neni ") + i.number)) +
             (i.code_label ? ' <span class="ac-code">' + escapeHtml(i.code_label) + "</span>" : "") + "</li>";
         }).join("") + "</ul></div>";
     }
-    h += block("\ud83d\udd34 Nene INEKZISTENTE \u2014 hiqi ose korrigjoji", d.fake, "ac-bad");
-    h += block("\ud83d\udfe0 Nene TË SHFUQIZUARA \u2014 jo më në fuqi", d.repealed, "ac-warn");
-    h += block("\ud83d\udfe1 Nene TË PAQARTA \u2014 specifiko kodin", d.needs_code, "ac-unk");
+    h += block(IT ? "\ud83d\udd34 Articoli INESISTENTI \u2014 rimuovili o correggili"
+                  : "\ud83d\udd34 Nene INEKZISTENTE \u2014 hiqi ose korrigjoji", d.fake, "ac-bad");
+    h += block(IT ? "\ud83d\udfe0 Articoli ABROGATI \u2014 non più in vigore"
+                  : "\ud83d\udfe0 Nene TË SHFUQIZUARA \u2014 jo më në fuqi", d.repealed, "ac-warn");
+    h += block(IT ? "\ud83d\udfe1 Articoli DA CHIARIRE \u2014 specifica il codice"
+                  : "\ud83d\udfe1 Nene TË PAQARTA \u2014 specifiko kodin", d.needs_code, "ac-unk");
     return h;
   }
   async function _extractFileText(file, statusEl) {

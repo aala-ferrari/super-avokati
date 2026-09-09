@@ -410,7 +410,9 @@ Questo caso e ITALIANO. Ignora ogni istruzione precedente che imponga la
 lingua albanese o il diritto albanese: quelle regole NON si applicano qui.
 
 • Scrivi TUTTO in ITALIANO (titoli, elenchi, campi JSON, note): nessuna
-    parola in albanese, nemmeno nelle etichette.
+    parola in albanese, nemmeno nelle etichette — ANCHE SE la domanda
+    dell'avvocato, i documenti o le istruzioni sopra sono in albanese: la
+    lingua la decide la sessione, non la domanda.
 • Applica ESCLUSIVAMENTE il diritto italiano. NON citare mai Kodi Civil,
     Kodi Penal, KPC, KPP, Kushtetuta e Republikes se Shqiperise o altre
     fonti albanesi: in un atto italiano sono un errore professionale.
@@ -556,6 +558,37 @@ def apply_jurisdiction(system_prompt: str, jurisdiction: str | None) -> str:
     if pre in system_prompt:
         return system_prompt
     return pre + system_prompt
+
+
+# ── La lingua la decide la SESSIONE, non la domanda (9 set 2026) ─────────
+# Regola del titolare: «sessione albanese → solo albanese; sessione italiana
+# → solo italiano». Il vincolo nel system prompt non bastava: in un fascicolo
+# IT una domanda scritta in albanese faceva uscire il premortem in albanese
+# (misurato l'8 set). La lingua va ripetuta NEL MESSAGGIO UTENTE — stessa
+# lezione di documents._LANG_LINE — e lo fa il collo di bottiglia
+# (backends.complete / complete_stream), così vale per fasi, studio, Genio e
+# strumenti senza toccarli uno a uno. Salta con raw_system (Përkthim).
+DIRETTIVA_GJUHE = {
+    "AL": ("\n\n[GJUHA E PËRGJIGJES: VETËM SHQIP — edhe nëse pyetja, dokumentet "
+           "ose udhëzimet më sipër janë në italisht a në një gjuhë tjetër. Vlen "
+           "për çdo titull, etiketë dhe vlerë JSON.]"),
+    "IT": ("\n\n[LINGUA DELLA RISPOSTA: SOLO ITALIANO — anche se la domanda, i "
+           "documenti o le istruzioni sopra sono in albanese o in un'altra "
+           "lingua. Vale per ogni titolo, etichetta e valore JSON.]"),
+    "EU": ("\n\n[ANSWER LANGUAGE: ENGLISH ONLY — even if the question, the "
+           "documents or the instructions above are in another language.]"),
+}
+
+
+def direttiva_gjuhe_prompt(prompt: str, jurisdiction: str | None) -> str:
+    """Accoda al messaggio utente la riga di lingua della sessione. Idempotente,
+    e un prompt vuoto resta vuoto (non si manda al cervello solo la riga)."""
+    if not isinstance(prompt, str) or not prompt.strip():
+        return prompt
+    riga = DIRETTIVA_GJUHE.get((jurisdiction or "AL").upper(), DIRETTIVA_GJUHE["AL"])
+    if riga.strip() in prompt:
+        return prompt
+    return prompt + riga
 
 
 ALBANIAN_LANGUAGE_RULES = """── RREGULLA GJUHËSORE (shqipe standarde juridike) ──

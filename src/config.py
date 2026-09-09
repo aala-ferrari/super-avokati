@@ -68,6 +68,12 @@ CLAUDE_CODE_FAST_MODEL = os.getenv("CLAUDE_CODE_FAST_MODEL", "claude-sonnet-4-6"
 # max. Default "max" — we want the lawyer's edge, not a quick reply.
 # Ignored on fast-model calls (triage/strategic stay fast).
 CLAUDE_CODE_EFFORT = os.getenv("CLAUDE_CODE_EFFORT", "max")
+# Effort delle FASI JUNIOR (medium=True: analisi preliminari su Sonnet).
+# Misurato l'8 set 2026: a «max» Sonnet 5 scrive 30-56k token di ragionamento
+# per fase (7-13 min l'una, ~44 min a domanda complex); a «high» 45-120 s con
+# la stessa sostanza, a «medium» la qualità cala. Il senior (Opus, tier
+# default) resta a CLAUDE_CODE_EFFORT. Vuoto = come il senior.
+CLAUDE_CODE_MEDIUM_EFFORT = os.getenv("CLAUDE_CODE_MEDIUM_EFFORT", "high")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-pro")
 GEMINI_FAST_MODEL = os.getenv("GEMINI_FAST_MODEL", "gemini-2.5-flash")
 

@@ -84,6 +84,35 @@ check(_bk._apply_juris(BASE) == out,
 brain.set_request_jurisdiction("AL")
 check(_bk._apply_juris(BASE) == BASE, "tornando ad AL il prompt resta intatto")
 
+# ── 4. la LINGUA della sessione arriva nel messaggio utente ──────────────
+# (9 set 2026) «sessione albanese → solo albanese, italiana → solo italiano»:
+# il vincolo nel system prompt non bastava (premortem albanese in un
+# fascicolo IT quando la domanda era in albanese). La riga va in coda al
+# messaggio utente, dal collo di bottiglia, per tutte le chiamate.
+print("\n== 4. la lingua della sessione viaggia nel messaggio utente ==")
+_al = brain.direttiva_gjuhe_prompt("Pyetja ime", "AL")
+_it = brain.direttiva_gjuhe_prompt("La mia domanda", "IT")
+check(_al.endswith(brain.DIRETTIVA_GJUHE["AL"]) and "VETËM SHQIP" in _al,
+      "AL: la riga «VETËM SHQIP» e' in coda al messaggio")
+check(_it.endswith(brain.DIRETTIVA_GJUHE["IT"]) and "SOLO ITALIANO" in _it,
+      "IT: la riga «SOLO ITALIANO» e' in coda al messaggio")
+check(brain.direttiva_gjuhe_prompt(_it, "IT") == _it, "IT: idempotente (applicare due volte = una)")
+check(brain.direttiva_gjuhe_prompt("", "IT") == "", "un prompt vuoto resta vuoto")
+check("anche se la domanda" in brain.JURISDICTION_OVERRIDE_IT.lower()
+      or "ANCHE SE la domanda" in brain.JURISDICTION_OVERRIDE_IT,
+      "IT: l'istruzione finale copre la domanda scritta in albanese")
+_bsrc = io.open(os.path.join(SRC, "backends.py"), encoding="utf-8").read()
+check(_bsrc.count("prompt = _direttiva_gjuhe(prompt)") == 2,
+      "backends: complete() e complete_stream() accodano la riga di lingua")
+check("if not raw_system:\n            prompt = _direttiva_gjuhe(prompt)" in _bsrc,
+      "backends: raw_system (Përkthim) salta la riga — tradurre e' cambiare lingua")
+brain.set_request_jurisdiction("IT")
+check(_bk._direttiva_gjuhe("x").endswith(brain.DIRETTIVA_GJUHE["IT"]),
+      "backends._direttiva_gjuhe() legge la giurisdizione della richiesta")
+brain.set_request_jurisdiction("AL")
+check(_bk._direttiva_gjuhe("x").endswith(brain.DIRETTIVA_GJUHE["AL"]),
+      "tornando ad AL la riga torna albanese")
+
 # ── esito ────────────────────────────────────────────────────────────────
 print("\n" + "=" * 62)
 if fails:
