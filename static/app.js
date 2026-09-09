@@ -10164,7 +10164,7 @@
   let _genioES = null;
   let _genioBriefId = null;
 
-  function initGenio() {
+  async function initGenio() {
     if (!activeCaseId) {
       genioStatusEl.textContent = "Hap një rast së pari.";
       genioStatusEl.className = "pro-status error";
@@ -10172,37 +10172,49 @@
     }
     genioStatusEl.textContent = "";
     genioStatusEl.className = "pro-status";
-    loadGenioHistory();
+    const items = await loadGenioHistory();
+    // Apri sull'ULTIMO brief del caso: così si vede subito il lavoro e — se è
+    // a metà — il pulsante «Riprova» accanto a «Lësho Genio».
+    const last = (items || [])[0];
+    if (last && last.id) {
+      genioHistEl.value = String(last.id);
+      try { await _genioLoadBrief(last.id); } catch (e) {}
+    }
   }
   async function loadGenioHistory() {
     try {
       const r = await fetch(`/api/cases/${activeCaseId}/genio`);
-      if (!r.ok) return;
+      if (!r.ok) return [];
       const data = await r.json();
+      const items = data.items || [];
       genioHistEl.innerHTML = `<option value="">— i ri —</option>` +
-        (data.items || []).map(b => {
+        items.map(b => {
           const dt = (b.started_at || "").slice(0, 16).replace("T", " ");
           return `<option value="${b.id}">#${b.id} · ${b.status} · ${dt}</option>`;
         }).join("");
-    } catch {}
+      return items;
+    } catch { return []; }
+  }
+  async function _genioLoadBrief(id) {
+    const r = await fetch(`/api/genio/${id}`);
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const brief = await r.json();
+    genioGrid.hidden = false;
+    _genioResetCards();
+    Object.entries(brief.by_key || {}).forEach(([key, res]) => {
+      renderGenioCard(key, res);
+    });
+    _genioBriefId = brief.id || parseInt(id, 10) || null;
+    _genioUpdateResume();
+    _genioFooter();
+    genioStatusEl.textContent = `Brief #${brief.id} ${t("u ngarkua")} ✓`;
+    genioStatusEl.className = "pro-status ok";
   }
   genioHistEl?.addEventListener("change", async () => {
     const id = genioHistEl.value;
-    if (!id) return;
+    if (!id) { _genioResetCards(); _genioBriefId = null; _genioUpdateResume(); const _f = document.getElementById("genio-footer"); if (_f) _f.remove(); return; }
     try {
-      const r = await fetch(`/api/genio/${id}`);
-      if (!r.ok) return;
-      const brief = await r.json();
-      genioGrid.hidden = false;
-      _genioResetCards();
-      Object.entries(brief.by_key || {}).forEach(([key, res]) => {
-        renderGenioCard(key, res);
-      });
-      _genioBriefId = brief.id || parseInt(id, 10) || null;
-      _genioUpdateResume();
-      _genioFooter();
-      genioStatusEl.textContent = `Brief #${brief.id} ${t("u ngarkua")} ✓`;
-      genioStatusEl.className = "pro-status ok";
+      await _genioLoadBrief(id);
     } catch (e) {
       genioStatusEl.textContent = "Gabim ngarkimi: " + e.message;
       genioStatusEl.className = "pro-status error";
