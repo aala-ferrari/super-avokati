@@ -105,6 +105,9 @@
   // giurisdizione per sessione), ma dice quanti sono, e l'avvocato deve
   // saperlo — altrimenti «mi sono spariti i fascicoli».
   var _casiNascosti = 0;
+  // «Analizë e thellë»: la prossima domanda parte con deep=true (sala di
+  // guerra completa). Si consuma al primo invio.
+  var _deepNext = false;
   async function fetchCases() {
     const resp = await fetch("/api/cases");
     if (!resp.ok) return [];
@@ -969,8 +972,9 @@
       const startResp = await fetch("/api/ask/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, case_id: activeCaseId }),
+        body: JSON.stringify({ message: text, case_id: activeCaseId, deep: _deepNext }),
       });
+      _deepNext = false;
       if (startResp.status === 401) {
         typing.remove();
         window.location.href = "/login";
@@ -1296,6 +1300,36 @@
     }
   }
 
+  // Una risposta del percorso breve non ha pannelli: da lì l'avvocato può
+  // chiedere la sala di guerra completa sulla stessa domanda.
+  function _isSimpleAnswer(d) {
+    return !(d.premortem && (d.premortem.risks || []).length)
+      && !(d.action_plan && (d.action_plan.items || []).length)
+      && !(d.timeline && ((d.timeline.anchors || []).length || (d.timeline.deadlines || []).length))
+      && !(d.evidence_map && (d.evidence_map.claims || []).length)
+      && !(d.nullity_radar && (d.nullity_radar.findings || []).length);
+  }
+  function _attachDeepButton(msgEl, question) {
+    if (!msgEl || !question || question.length < 8) return;
+    const wrap = document.createElement("div");
+    wrap.className = "so-wrap deep-wrap";
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "so-btn deep-btn";
+    btn.innerHTML = _CAL_IT
+      ? '\ud83d\udd2c Analisi approfondita <em>sala di guerra completa, 10-15 min</em>'
+      : '\ud83d\udd2c Analiz\u00eb e thell\u00eb <em>salla e luft\u00ebs e plot\u00eb, 10-15 min</em>';
+    btn.addEventListener("click", function () {
+      if (!activeCaseId) return;
+      _deepNext = true;
+      input.value = question;
+      btn.disabled = true;
+      form.requestSubmit();
+    });
+    wrap.appendChild(btn);
+    msgEl.appendChild(wrap);
+  }
+
   function _attachSecondOpinion(msgEl, question, answer) {
     if (!msgEl || (answer || "").length < 40) return;
     const wrap = document.createElement("div");
@@ -1341,6 +1375,7 @@
     linkCaseMarkers(body, data.precedents || []);
     if (data.kind !== "error") _attachSecondOpinion(msgEl, _lastQuestion, data.text || "");
     if (data.kind !== "error") _addSaveToCase(msgEl, "answer", _lastQuestion || "Përgjigje", data.text || "");
+    if (data.kind === "answer" && _isSimpleAnswer(data)) _attachDeepButton(msgEl, _lastQuestion);
 
     // Citation trust badge — provenance lock. Always at the very top of
     // the answer (before urgency/action-plan) so the lawyer's eye lands on

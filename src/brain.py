@@ -291,6 +291,7 @@ CODES_INDEX = "\n".join(
 # second locale, this becomes the keyset for a proper i18n layer.
 STREAM_STATUS_SQ: dict[str, str] = {
     "followup_answering":    "Po të përgjigjem…",
+    "simple_gathering":      "Juristët e rinj po mbledhin burimet (nene, akte nënligjore, QBZ, web, precedentë)…",
     "simple_composing":      "Po përgatis përgjigjen…",
     "complex_retrieving":    "Po kërkoj nenet e duhura…",
     "complex_precedents":    "Po lexoj vendimet e gjykatave…",
@@ -301,6 +302,7 @@ STREAM_STATUS_SQ: dict[str, str] = {
 
 STREAM_STATUS_IT: dict[str, str] = {
     "followup_answering":    "Ti rispondo…",
+    "simple_gathering":      "I collaboratori raccolgono le fonti (articoli, regolamenti, vigenza, web, precedenti)…",
     "simple_composing":      "Sto preparando la risposta…",
     "complex_retrieving":    "Sto cercando gli articoli pertinenti…",
     "complex_precedents":    "Sto leggendo le decisioni dei giudici…",
@@ -670,6 +672,7 @@ Përgjigju vetëm me një objekt JSON me këtë strukturë EKZAKTE:
 
 "complexity" RREGULLA — mendo si avokat i ngarkuar: një pyetje "sa m2 na takojnë nga trashëgimia" i përgjigjesh me kokë, një padi kundër punëdhënësit kërkon strategji.
   • "simple" = pyetje informative/e përgjithshme (kuota trashëgimie, përkufizime, procedura bazë, si-bëhet, rregulla të përgjithshme PA kundërshtar aktiv, pa afate që po skadojnë, pa fakte të ngatërruara). Shembuj: "sa m2 na takojnë", "si bëhet divorci me marrëveshje", "cili është afati i parashkrimit për kontratat", "a mund ta dhurojë nëna pjesën e saj".
+  • PYETJE KUALIFIKIMI («cila është shkelja / cili nen e kap / sa është gjoba / si funksionon»), pa dokumente, pa afat që po skadon, pa padi të hapur → "simple" EDHE nëse përmend gjobë a sanksion: burimet (nene, akte nënligjore, statusi në QBZ, shifra nga webi, precedentë) i mbledhin juristët e rinj para përgjigjes, dhe avokati mund të kërkojë «Analizë e thellë» më pas.
   • "complex" = ka kundërshtar identifikuar, afat real që po afron, dokumente të bashkangjitura, kërkesa për strategji/nulltet/ankim, fakte të diskutueshme, dëm konkret, mundësi fitimi/humbjeje. Çdo gjë që të shtyn drejt sallës së gjyqit.
   • NË DYSHIM → "complex" (më mirë të përgjigjemi thellë se sipërfaqësisht).
 
@@ -2319,6 +2322,7 @@ class SuperAvvocato:
         session_id: str | None = None,
         documents: list[dict] | None = None,
         jurisdiction: str = "AL",
+        force_complex: bool = False,
     ) -> Iterator[tuple[str, object]]:
         """V7.7 — streaming variant for fast-path queries.
 
@@ -2396,6 +2400,10 @@ class SuperAvvocato:
             ))
             return
 
+        if force_complex and triage.complexity == "simple":
+            # «Analizë e thellë» chiesta dall'avvocato: sala di guerra completa.
+            log.info("analizë e thellë kërkuar: complexity simple → complex")
+            triage.complexity = "complex"
         retrieved = self._retrieve(triage)
         retrieved = self._studio_kerkuesi(user_message, triage, retrieved)
 
@@ -2407,8 +2415,10 @@ class SuperAvvocato:
             and not documents
         ):
             log.info("stream: simple fast-path")
+            yield ("status", self._status("simple_gathering"))
+            dosja_txt, precedents_s = self._studio_mbledhesit(user_message, triage, retrieved)
             yield ("status", self._status("simple_composing"))
-            context = _format_articles_for_prompt(retrieved)
+            context = _format_articles_for_prompt(retrieved) + dosja_txt
             prompt = textwrap.dedent(f"""\
                 Pyetja:
                 \"\"\"{user_message}\"\"\"
@@ -2438,10 +2448,10 @@ class SuperAvvocato:
                 elif kind == "final":
                     assert isinstance(payload, dict)
                     new_sid = payload.get("session_id") or session_id
-            text = _apply_corrections(_verify_citations("".join(collected), []))
+            text = _apply_corrections(_verify_citations("".join(collected), precedents_s))
             yield ("final", LegalAnswer(
                 kind="answer", text=text, triage=triage,
-                retrieved=retrieved, session_id=new_sid,
+                retrieved=retrieved, precedents=precedents_s, session_id=new_sid,
             ))
             return
 
@@ -2624,6 +2634,7 @@ class SuperAvvocato:
         session_id: str | None = None,
         documents: list[dict] | None = None,
         jurisdiction: str = "AL",
+        force_complex: bool = False,
     ) -> LegalAnswer:
         # V8.13 — pin the jurisdiction for the lifetime of this answer call
         # so internal helpers (compose, stages) auto-prepend the right
@@ -2713,6 +2724,10 @@ class SuperAvvocato:
                 session_id=session_id,
             )
 
+        if force_complex and triage.complexity == "simple":
+            # «Analizë e thellë» chiesta dall'avvocato: sala di guerra completa.
+            log.info("analizë e thellë kërkuar: complexity simple → complex")
+            triage.complexity = "complex"
         retrieved = self._retrieve(triage)
         retrieved = self._studio_kerkuesi(user_message, triage, retrieved)
         log.info("retrieved %d articles", len(retrieved))
@@ -2734,11 +2749,12 @@ class SuperAvvocato:
             log.info("simple fast-path: complexity=simple, skipping 11 "
                      "analytical stages + precedents + urgency/action_plan "
                      "+ albanian editor")
+            dosja_txt, precedents_s = self._studio_mbledhesit(user_message, triage, retrieved)
             answer_text = self._compose_simple_answer(
                 user_message, history, triage, retrieved,
-                session_id=session_id,
+                session_id=session_id, dosja_txt=dosja_txt,
             )
-            answer_text = _verify_citations(answer_text, [])
+            answer_text = _verify_citations(answer_text, precedents_s)
             # V7.7 — Albanian editor pass deliberately SKIPPED on simple:
             # Opus's shqipe standarde is already clean, and the editor
             # adds ~10s (extra model call + diff check) for a marginal polish
@@ -2748,7 +2764,8 @@ class SuperAvvocato:
                                      None) or session_id
             return LegalAnswer(
                 kind="answer", text=answer_text, triage=triage,
-                retrieved=retrieved, session_id=new_session_id,
+                retrieved=retrieved, precedents=precedents_s,
+                session_id=new_session_id,
             )
 
         # Hydrate (code, number) pairs from retrieved articles so the
@@ -3049,6 +3066,44 @@ class SuperAvvocato:
         except Exception as exc:  # noqa: BLE001 — la risposta esce comunque
             log.warning("studio kërkuesi fallito (non-fatal): %s", exc)
             return retrieved
+
+    def _studio_mbledhesit(self, user_message, triage, retrieved):
+        """I raccoglitori del percorso simple: web (akte nënligjore + shifra) e
+        QBZ (vigenza) in parallelo, più i precedenti dell'archivio locale.
+        Torna (blocco per il senior, precedenti). Fallimento silenzioso."""
+        precedents: list = []
+        try:
+            cited = [(a.code, a.number) for a, _ in retrieved]
+            precedents = _precedente_te_lidhur(self._retrieve_precedents(triage, cited), cited)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("studio mbledhësit: precedentë të parikuperueshëm (%s)", exc)
+            precedents = []
+        try:
+            from .config import (STUDIO_MBLEDHES_ENABLED, STUDIO_MBLEDHES_MODEL,
+                                 STUDIO_MBLEDHES_EFFORT, STUDIO_MBLEDHES_BUDGET_USD,
+                                 STUDIO_MBLEDHES_TIMEOUT, STUDIO_MBLEDHES_WEB,
+                                 STUDIO_MBLEDHES_QBZ)
+            if not STUDIO_MBLEDHES_ENABLED:
+                return "", precedents
+            from . import studio
+            lang = "it" if self._current_jurisdiction() == "IT" else "sq"
+            dosja = studio.mbledh_dosjen(
+                self.backend, domanda=user_message, summary=triage.problem_summary,
+                retrieved=retrieved, lang=lang, modeli=STUDIO_MBLEDHES_MODEL,
+                effort=STUDIO_MBLEDHES_EFFORT, budget_usd=STUDIO_MBLEDHES_BUDGET_USD,
+                timeout_s=STUDIO_MBLEDHES_TIMEOUT, web=STUDIO_MBLEDHES_WEB,
+                qbz=STUDIO_MBLEDHES_QBZ)
+            web = dosja.get("web") or {}
+            log.info("studio: mbledhësit — akte %d, burime %d, qbz %d, precedentë %d, kohë %s, gabime %s",
+                     len(web.get("akte_nenligjore") or []), len(web.get("burime") or []),
+                     len(dosja.get("qbz") or []), len(precedents), dosja.get("kohe"),
+                     dosja.get("gabime") or "-")
+            blocco = studio.formato_dosjen(
+                dosja, lang, precedents_block=_format_precedents_block(precedents))
+            return blocco, precedents
+        except Exception as exc:  # noqa: BLE001 — la risposta esce comunque
+            log.warning("studio mbledhësit fallito (non-fatal): %s", exc)
+            return "", precedents
 
     def _studio_djalli(self, user_message, retrieved, precedents, answer_text):
         """L'avvocato del diavolo attacca la risposta prima che arrivi
@@ -4596,6 +4651,7 @@ class SuperAvvocato:
         triage: TriageResult,
         retrieved: list[tuple[Article, float]],
         session_id: str | None = None,
+        dosja_txt: str = "",
     ) -> str:
         """V7.7 — lean compose for the simple fast-path.
 
@@ -4604,7 +4660,7 @@ class SuperAvvocato:
         ANSWER_SIMPLE_SYSTEM. Uses the main model (Opus 4.7) so we don't
         downgrade quality, just shed ceremony.
         """
-        context = _format_articles_for_prompt(retrieved)
+        context = _format_articles_for_prompt(retrieved) + (dosja_txt or "")
         prompt = textwrap.dedent(f"""\
             Pyetja:
             \"\"\"{user_message}\"\"\"
@@ -4916,7 +4972,7 @@ _COMPLEX_MARKERS = (
     "paraburgim", "ndalim", "kallzim",
     # enforcement / state action
     "përmbarues", "permbarues", "sekuestro", "bllokim llogarie",
-    "tatim", "gjob", "dogan", "akciz", "tvsh", "tarifë doganore", "sfratto", "dëbim",
+    "tatim", "dogan", "akciz", "tvsh", "tarifë doganore", "sfratto", "dëbim",
     # active disputes / violence (omit "divorc" alone — "si bëhet divorci" is
     # informative; "divorc kundër" or "divorc i kontestuar" is caught by the
     # compound markers below)
@@ -4958,7 +5014,10 @@ def _looks_simple(user_message: str, documents: list[dict] | None) -> bool:
         return False
     # Pyetjet fiskale/me shifra kërkojnë verifikim zyrtar në web (tarifa, akciza,
     # taksa, dogana) -> kurrë fast-path, që s'ka vegla web. Saktësia para shpejtësisë.
-    _FISCAL = ("dogan", "akciz", "tatim", "taks", "tvsh", "tarif", "gjob")
+    # «gjob» tolto il 9 set 2026: una domanda di qualificazione («cila është
+    # shkelja, sa është gjoba») resta simple — i raccoglitori portano le
+    # cifre dal web e il senior ha i tool web. Restano le materie di importi.
+    _FISCAL = ("dogan", "akciz", "tatim", "taks", "tvsh", "tarif")
     if any(k in lower for k in _FISCAL):
         return False
     if "sa " in lower and any(k in lower for k in (
@@ -5353,6 +5412,32 @@ def _format_articles_for_prompt(pairs: list[tuple[Article, float]]) -> str:
             f"  {a.body}"
         )
     return "\n\n".join(blocks)
+
+
+def _precedente_te_lidhur(pairs, cited, sa: int = 3):
+    """Nel percorso simple un precedente entra SOLO se cita almeno uno dei
+    nenet recuperati: la ricerca per parole porta anche un mutuo da
+    100.000 € accanto a una multa sul rumore, e il senior non deve vederlo."""
+    def _n(x):
+        return (str(x or "")).lower().replace("ë", "e").replace("ç", "c").replace("_", " ")
+    cit = {(_n(c), str(n).strip()) for c, n in (cited or [])}
+    numri = {n for _, n in cit}
+    out = []
+    for c, s in (pairs or []):
+        ok = False
+        for code, art in (getattr(c, "articles_cited", None) or []):
+            a = str(art).strip()
+            if a not in numri:
+                continue
+            k = _n(code)
+            if any(cc == k or cc in k or k in cc for cc, n in cit if n == a):
+                ok = True
+                break
+        if ok:
+            out.append((c, s))
+        if len(out) >= sa:
+            break
+    return out
 
 
 def _format_precedents_block(pairs: list[tuple[CasePrecedent, float]]) -> str:

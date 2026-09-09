@@ -1534,6 +1534,76 @@ def main():
     except Exception as _e:  # noqa: BLE001
         check("effort[33]: kontrollet u ekzekutuan", False, str(_e))
 
+    # ── [34] Gradino B — i raccoglitori del percorso simple ───────────────
+    try:
+        import io as _io34, os as _os34
+        from src import studio as _st34, config as _cf34
+        _rr34 = _os34.path.dirname(_os34.path.dirname(_os34.path.abspath(__file__)))
+        _w = _st34.mbledhes_web_parse(
+            '{"akte_nenligjore":[{"akti":"VKM 153","citim":"' + "x" * 40 + '","url":"https://qbz.gov.al/a","data":"2026-09-09","pse":"p"},'
+            '{"akti":"pa url","citim":"' + "y" * 40 + '","url":"javascript:alert(1)"}],'
+            '"burime":[{"titulli":"t","citim":"shkurt","url":"https://x"}]}')
+        check("mbledhes[34]: web — entra solo il citim con URL http e ≥20 shkronja",
+              len(_w["akte_nenligjore"]) == 1 and _w["akte_nenligjore"][0]["url"] == "https://qbz.gov.al/a"
+              and _w["burime"] == [])
+        check("mbledhes[34]: web — JSON rotto = liste vuote (mai inventare)",
+              _st34.mbledhes_web_parse("bla {non json") == {"akte_nenligjore": [], "burime": []})
+        _q = _st34.mbledhes_qbz_parse('{"nene":[{"neni":"153 Kodi Rrugor","statusi":"në fuqi","url":"https://qbz.gov.al/x"},'
+                                      '{"neni":"79","statusi":"boh","url":"ftp://no"}]}', "sq")
+        check("mbledhes[34]: qbz — statusi normalizzato, ignoto = «E PAQARTË», URL non http scartato",
+              [x["statusi"] for x in _q] == ["NË FUQI", "E PAQARTË"] and _q[1]["url"] == "")
+        _f = _st34.formato_dosjen({"web": _w, "qbz": _q}, "sq", precedents_block="")
+        _fi = _st34.formato_dosjen({"web": {}, "qbz": []}, "it", precedents_block="PREC")
+        check("mbledhes[34]: dossier sq/it con intestazioni e istruzione per il senior; vuoto → «»",
+              "DOSJA E BURIMEVE" in _f and "UDHËZIM PËR SENIORIN" in _f and "153 Kodi Rrugor: NË FUQI" in _f
+              and "DOSSIER DELLE FONTI" in _fi and "PREC" in _fi
+              and _st34.formato_dosjen({"web": {}, "qbz": []}, "sq") == "")
+        check("mbledhes[34]: config — sonnet/medium/0.30$/110s, web e qbz accesi",
+              _cf34.STUDIO_MBLEDHES_ENABLED and _cf34.STUDIO_MBLEDHES_MODEL == "sonnet"
+              and _cf34.STUDIO_MBLEDHES_EFFORT == "medium" and abs(_cf34.STUDIO_MBLEDHES_BUDGET_USD - 0.30) < 1e-9
+              and _cf34.STUDIO_MBLEDHES_TIMEOUT == 110 and _cf34.STUDIO_MBLEDHES_WEB and _cf34.STUDIO_MBLEDHES_QBZ)
+        _kw = _st34._kwargs_mbledhesi("sonnet", "medium")
+        check("mbledhes[34]: «sonnet» del raccoglitore = tier MEDIUM (ha il web) + effort medium",
+              _kw.get("medium") is True and _kw.get("effort_override") == "medium" and "fast" not in _kw)
+        _bs = _io34.open(_os34.path.join(_rr34, "src", "backends.py"), encoding="utf-8").read()
+        check("mbledhes[34]: backends — budget_usd per chiamata → --max-budget-usd",
+              "budget_usd: float | None = None) -> str:" in _bs
+              and 'cmd.extend(["--max-budget-usd", str(budget_usd)])' in _bs)
+        _br = _io34.open(_os34.path.join(_rr34, "src", "brain.py"), encoding="utf-8").read()
+        check("mbledhes[34]: brain — i raccoglitori agganciati nei DUE percorsi simple + status",
+              _br.count("self._studio_mbledhesit(user_message, triage, retrieved)") == 2
+              and '"simple_gathering"' in _br and _br.count("simple_gathering") >= 3)
+        check("mbledhes[34]: brain — force_complex nelle due firme e applicato dopo il triage",
+              _br.count("force_complex: bool = False") == 2
+              and _br.count("if force_complex and triage.complexity == \"simple\":") == 2)
+        _i_cm = _br.find("_COMPLEX_MARKERS = (")
+        _blocco_cm = _br[_i_cm:_br.find("\n)\n", _i_cm)] if _i_cm > 0 else "gjob"
+        _i_fi = _br.find("_FISCAL = (")
+        _riga_fi = _br[_i_fi:_br.find("\n", _i_fi)] if _i_fi > 0 else "gjob"
+        check("mbledhes[34]: «gjob» non forza più il percorso lungo (né _FISCAL né _COMPLEX_MARKERS; resta solo nell'adversary gate); il triage sa cos'è una pyetje kualifikimi",
+              '"gjob' not in _blocco_cm and '"gjob' not in _riga_fi
+              and '"gjob"' in _br and "PYETJE KUALIFIKIMI" in _br)
+        _fq = _st34.formato_dosjen({"web": {}, "qbz": [{"neni": "1", "statusi": "E PAQARTË", "ndryshimi": "", "url": "", "data": ""}]}, "sq")
+        check("mbledhes[34]: QBZ tutto «E PAQARTË» = nessun dossier (informazione nulla non si dà al senior)", _fq == "")
+        class _P34:
+            def __init__(self, arts): self.articles_cited = arts
+        _pp = _brn34_pre = None
+        from src import brain as _bb34
+        _sel = _bb34._precedente_te_lidhur(
+            [(_P34([("kodi_rrugor", "153")]), 9.0), (_P34([("kodi_civil", "114")]), 8.0), (_P34([]), 7.0)],
+            [("kodi_rrugor", "153"), ("kodi_rrugor", "78")])
+        check("mbledhes[34]: nel simple entrano solo i precedenti che citano un nene recuperato",
+              len(_sel) == 1 and _sel[0][1] == 9.0)
+        from src import brain as _brn34
+        check("mbledhes[34]: _looks_simple — «cila është shkelja … gjobë» breve resta simple (Aventador)",
+              _brn34._looks_simple("kam nje rast klienti ankohet se e ka ndaluar policia e shtetit, dhe i thot se "
+                                   "makina e tij lamborghini aventador ben zhurme dhe se do i vendosin gjobe. "
+                                   "nderkoh klienti deklaron se makina esht makin fabrike e pa modifikuar. "
+                                   "cila esht shkelja?", None) is True
+              and _brn34._looks_simple("sa paguaj dogane per nje makine 2019?", None) is False)
+    except Exception as _e:  # noqa: BLE001
+        check("mbledhes[34]: kontrollet u ekzekutuan", False, str(_e))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

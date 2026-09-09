@@ -503,3 +503,15 @@ STUDIO_KERKUES_MAX_NENE = int(os.getenv("STUDIO_KERKUES_MAX_NENE", "4"))
 STUDIO_DJALLI_ENABLED = os.getenv("STUDIO_DJALLI_ENABLED", "1") == "1"
 STUDIO_DJALLI_MODEL = os.getenv("STUDIO_DJALLI_MODEL", "claude-fable-5-1")  # esplicito: CLI >= 2.1.251
 STUDIO_DJALLI_EFFORT = os.getenv("STUDIO_DJALLI_EFFORT", "max")
+
+# ── Mbledhësit (raccoglitori) del percorso simple — gradino B (v9.271) ──
+# «sonnet» = Sonnet sul tier medium (HA il web); effort basso di proposito:
+# raccolgono verbatim, non ragionano. Tetto di spesa e di tempo per chiamata:
+# se un raccoglitore non torna, il senior risponde senza di lui.
+STUDIO_MBLEDHES_ENABLED = os.getenv("STUDIO_MBLEDHES_ENABLED", "1") == "1"
+STUDIO_MBLEDHES_MODEL = os.getenv("STUDIO_MBLEDHES_MODEL", "sonnet")
+STUDIO_MBLEDHES_EFFORT = os.getenv("STUDIO_MBLEDHES_EFFORT", "medium")
+STUDIO_MBLEDHES_BUDGET_USD = float(os.getenv("STUDIO_MBLEDHES_BUDGET_USD", "0.30"))
+STUDIO_MBLEDHES_TIMEOUT = int(os.getenv("STUDIO_MBLEDHES_TIMEOUT", "110"))
+STUDIO_MBLEDHES_WEB = os.getenv("STUDIO_MBLEDHES_WEB", "1") == "1"
+STUDIO_MBLEDHES_QBZ = os.getenv("STUDIO_MBLEDHES_QBZ", "1") == "1"

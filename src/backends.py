@@ -393,7 +393,8 @@ class ClaudeCodeBackend(LLMBackend):
                  case_id: str | None = None,
                  model_override: str | None = None,
                  effort_override: str | None = None,
-                 raw_system: bool = False) -> str:
+                 raw_system: bool = False,
+                 budget_usd: float | None = None) -> str:
         if not raw_system:
             system = _apply_juris(system)  # giurisdizione della sessione
             system = _shto_profilin(system, fast)  # regole della casa
@@ -438,6 +439,11 @@ class ClaudeCodeBackend(LLMBackend):
                 cmd.extend(["--max-budget-usd", _tetto])
         except Exception:  # noqa: BLE001
             pass
+        # Tetto PER CHIAMATA, chiesto dal chiamante (i raccoglitori dello
+        # studio): un junior che naviga il web non deve poter bruciare 1M di
+        # token come il piano d'azione dell'8 set. Il senior non lo passa mai.
+        if budget_usd:
+            cmd.extend(["--max-budget-usd", str(budget_usd)])
 
         # Extended thinking: Opus ragiona sulle questioni legali difficili
         # prima di scrivere. Vale anche per i modelli scelti esplicitamente

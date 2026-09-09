@@ -6710,6 +6710,9 @@ def _ask_prepare(user, data):
     _ensure_loaded()
     message = (data.get("message") or "").strip()
     case_id = (data.get("case_id") or "").strip()
+    # «Analizë e thellë»: l'avvocato chiede la sala di guerra completa anche
+    # su una domanda che il triage manderebbe al percorso breve.
+    deep = bool(data.get("deep"))
     if not message:
         return None, ({"error": "empty message"}, 400)
     if not case_id:
@@ -6770,6 +6773,7 @@ def _ask_prepare(user, data):
                 session_id=case.claude_session_id,
                 documents=case_docs,
                 jurisdiction=getattr(case, "jurisdiction", "AL"),
+                force_complex=deep,
             ):
                 if kind == "status":
                     yield _sse_event({"type": "status", "text": str(payload)})

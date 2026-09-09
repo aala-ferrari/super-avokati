@@ -563,11 +563,12 @@ errori, non che le risposte sono ancora giuste. Riferimento verificato il
 12 articoli recuperati per ciascuna.
 
 ```bash
-docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali. Baseline **345/345** (9 set; era 98 il 31 ago).
+docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali. Baseline **358/358** (9 set; era 98 il 31 ago).
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 bash /root/prova_sse.sh                                    # SULL'HOST (legge il secret da /opt/super-avvocato.env; copia in tools/prova_sse.sh): account di prova → login → fascicolo → 1 domanda VERA → stream /api/ask/events attraverso waitress. Deve dire «HTTP 200 … done: 1» (~50s, costa 1 chiamata al cervello) e cancella l'account. Dopo OGNI build che tocca web.py o le rotte SSE.
 bash /root/prova_gjuha.sh                                  # SULL'HOST (copia in tools/prova_gjuha.sh): LINGUA = SESSIONE dal vivo — A) sessione AL + domanda in italiano → risposta albanese (Neni 114 KC); B) sessione IT (admin.it) + domanda in albanese → risposta italiana (art. 2946 c.c.); C) lo stesso utente passa ad AL → il fascicolo IT dà 404 e compare in hidden_other. 2 chiamate al cervello (~2 min). Dopo ogni modifica a giurisdizione/lingua/prompt.
+bash /root/prova_b.sh                                      # SULL'HOST (copia in tools/prova_b.sh): GRADINO B dal vivo — l'Aventador AL via HTTP deve prendere il percorso SIMPLE coi raccoglitori, rispondere in albanese col Neni 153 in ~3 min (era 44). 1 domanda al cervello. Dopo ogni modifica ai raccoglitori/percorso simple. ⚠️ a finestra satura (dopo un Genio) i raccoglitori tornano vuoti: degrado grazioso, non un bug.
 ```
 Estendere GOLDENS/smoke quando emerge un bug nuovo. ⚠️ smoke e golden NON
 passano da waitress: lo stream (SSE) si prova solo con `prova_sse.sh` — per
@@ -1978,6 +1979,40 @@ stanno SUBITO SOTTO il testo, prima dei pannelli e dei nenet: in una
 risposta lunga il titolare non li trovava («pas verifikim»).
 Prossimo: gradino B dello studio (raccoglitori in parallelo nel percorso
 simple: kodet + nënligjore + QBZ + web + precedentët → senior una volta).
+
+**v9.271 — Gradino B: i RACCOGLITORI nel percorso simple (9 set, notte).**
+Idea del titolare: «uno va a trovare le leggi, uno le normative, uno QBZ,
+uno sul web, poi mandano al senior i dati e lui risponde». `src/studio.py`:
+① **mbledhesi_web** (akte nënligjore/regolamenti + shifra/prassi, CITAZIONI
+TESTUALI ≤600 char con URL e data, liste vuote se non trova — mai inventare)
+e ② **mbledhesi_qbz** (vigenza dei 2-4 nenet centrali: NË FUQI / I NDRYSHUAR
+/ I SHFUQIZUAR / E PAQARTË; nel dossier entrano SOLO gli stati confermati) in
+PARALLELO (`mbledh_dosjen`, ThreadPoolExecutor, tetto di tempo 110 s + di
+spesa 0,30 $/chiamata via `backends.complete(budget_usd=…)` → chi non torna
+resta fuori e il senior risponde lo stesso); ③ i precedenti locali, ma SOLO
+quelli che citano un nene recuperato (`_precedente_te_lidhur`: la ricerca
+per parole portava un mutuo da 100.000 € accanto a una multa sul rumore —
+non peggiorare il cervello). `formato_dosjen` sq/it accoda al contesto del
+senior un dossier VERBATIM con l'istruzione «usa e cita con la fonte, non
+inventare, cerca sul web solo se manca l'essenziale; il corpus è la verità,
+il web è da verificare». Innestato nei DUE percorsi simple (stream e non),
+status `simple_gathering`. Config `STUDIO_MBLEDHES_*` (env E fallback):
+il raccoglitore «sonnet» = tier **medium** (ha il web; il fast no), effort
+medium. **Il triage sa cos'è una pyetje kualifikimi**: «cila është shkelja /
+sa është gjoba», senza documenti né causa, resta **simple** anche se cita una
+gjobë (i raccoglitori portano le cifre) — «gjob» tolto da `_FISCAL` E da
+`_COMPLEX_MARKERS` (restano dogana/akciza/tvsh/tarifa). **«Analizë e thellë»**:
+`answer_stream(force_complex=True)` via `deep:true` in `/api/ask/start`, e un
+pulsante 🔬 sotto ogni risposta breve rimanda la stessa domanda alla sala di
+guerra completa. Golden [34] (345→**358**), `tools/prova_b.sh`. PROVA VIVA
+in produzione (Aventador AL via HTTP): percorso simple, **178 s** (era 44 min
+sul complex), risposta in albanese, **Neni 153** centrale, gatherers additivi
+(falliscono in silenzio, il senior risponde giusto dalle ancore). Prova
+offline a finestra fresca: dossier con QBZ 3 nenet + 4 precedenti in 79 s.
+⚠️ i raccoglitori consumano l'abbonamento: dopo una notte di Genio (rate
+limit) tornano vuoti, ma è degrado grazioso, non un bug. Non fatti: Arkivisti
+(scheda fatti dei fascicoli lunghi — l'unico riassunto ammesso: i fatti, mai
+la legge), Precedentisti vivi, «il senior ribatte alle obiezioni».
 
 **Landing superavokati.ai (3 set, pomeriggio) — la pagina dice la verità.**
 La landing vive FUORI dal container: `/var/www/superavokati-landing/index.html`
