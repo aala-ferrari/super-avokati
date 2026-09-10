@@ -1826,6 +1826,12 @@ def main():
               and "[WEB-001] VKM (secondary)" in _rap40
               and "_wr.raport_verifikimi(retrieved, burimet_x, precedents" in _br40
               and 'if request_senior() == "fable"' in _br40)
+        check("war[40]: RESEARCH LOOP (spec 35) — gap-detector + ricerca reale sull'indice, cablato su max-mode",
+              hasattr(_wr40, "parse_gaps") and hasattr(_wr40, "format_research_loop")
+              and _wr40.parse_gaps('{"boshlleqe":[{"pershkrim":"x","kerkim":"mbrojtja e konsumatorit"}]}')[0]["kerkim"] == "mbrojtja e konsumatorit"
+              and _wr40.parse_gaps("garbage") == []
+              and "def _research_loop(" in _br40 and "WAR_ROOM_LOOP_ENABLED" in _br40
+              and "self._research_loop(user_message, answer_text, retrieved" in _br40)
     except Exception as _e:  # noqa: BLE001
         check("war[40]: kontrollet u ekzekutuan", False, str(_e))
 

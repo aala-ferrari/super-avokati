@@ -502,6 +502,7 @@ STUDIO_KERKUES_EFFORT = os.getenv("STUDIO_KERKUES_EFFORT", "")
 STUDIO_KERKUES_MAX_NENE = int(os.getenv("STUDIO_KERKUES_MAX_NENE", "4"))
 STUDIO_DJALLI_ENABLED = os.getenv("STUDIO_DJALLI_ENABLED", "1") == "1"
 STUDIO_RED2_ENABLED = os.getenv("STUDIO_RED2_ENABLED", "1") == "1"  # 2° round avversarial condizionale
+WAR_ROOM_LOOP_ENABLED = os.getenv("WAR_ROOM_LOOP_ENABLED", "1") == "1"  # research loop (max-mode)
 STUDIO_DJALLI_MODEL = os.getenv("STUDIO_DJALLI_MODEL", "claude-fable-5-1")  # esplicito: CLI >= 2.1.251
 STUDIO_DJALLI_EFFORT = os.getenv("STUDIO_DJALLI_EFFORT", "max")
 

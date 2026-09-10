@@ -2642,6 +2642,16 @@ class SuperAvvocato:
             except Exception as exc:
                 log.warning("stream albanian_editor failed (non-fatal): %s", exc)
         answer_text = _apply_corrections(answer_text)
+        # War Room MAX-MODE research loop (⚡): il senior ha ragionato — c'è un buco?
+        # Il nene trovato entra PRIMA del Diavolo, così la catena avversariale lo testa.
+        if request_senior() == "fable":
+            try:
+                _lang_rl = "it" if self._current_jurisdiction() == "IT" else "sq"
+                _extra_rl = self._research_loop(user_message, answer_text, retrieved, _lang_rl)
+                if _extra_rl:
+                    answer_text = answer_text + _extra_rl
+            except Exception as _exc_rl:  # noqa: BLE001
+                log.warning("war_room research loop wiring dështoi (non-fatal): %s", _exc_rl)
         answer_text = self._studio_djalli(user_message, retrieved, precedents, answer_text)
         # War Room MAX-MODE (⚡ Fable): appende il RAPPORTO di verifica per qualità
         # (Source Verifier sul dossier canonico) — verificate vs da-verificare.
@@ -3155,6 +3165,58 @@ class SuperAvvocato:
             user_message, triage, retrieved,
             precedents_block=_format_precedents_block(precedents))
         return dosja_txt, precedents, sources
+
+    def _research_loop(self, user_message, answer_text, retrieved, lang):
+        """Research loop (War Room max-mode): il senior ha ragionato — l'analisi
+        usa un istituto/norma che NON aveva? Il gap-detector lo segnala, l'indice
+        lo trova (nene REALI e NUOVI, mai inventati), e lo porta. UNA iterazione,
+        tetto 3 nene, fail-silent. Torna un blocco da accodare (o «»)."""
+        try:
+            from .config import WAR_ROOM_LOOP_ENABLED
+            if not WAR_ROOM_LOOP_ENABLED or not (answer_text or "").strip():
+                return ""
+            from . import war_room
+            idx = self.index
+            if self.index_it is not None and self._current_jurisdiction() == "IT":
+                idx = self.index_it
+            if idx is None:
+                return ""
+            have = ", ".join(str(getattr(a, "number", "")) for a, _ in list(retrieved)[:12])
+            user = ("PYETJA:\n%s\n\nPËRGJIGJA:\n%s\n\nNENET QË KISHIM (numra):\n%s" %
+                    ((user_message or "")[:2000], (answer_text or "")[:6000], have))
+            raw = self.backend.complete(
+                system=war_room.GAP_SYSTEM.get(lang, war_room.GAP_SYSTEM["sq"]),
+                messages=[{"role": "user", "content": user}], max_tokens=400,
+                medium=True, callsite="war_room:gap")
+            gaps = war_room.parse_gaps(raw or "")
+            if not gaps:
+                return ""
+            have_keys = {(str(getattr(a, "code", "")), str(getattr(a, "number", "")))
+                         for a, _ in retrieved}
+            trovati = []
+            for g in gaps:
+                try:
+                    for art, _s in idx.search(g["kerkim"], top_k=8):
+                        if getattr(art, "repealed", False):
+                            continue
+                        key = (str(getattr(art, "code", "")), str(getattr(art, "number", "")))
+                        if key in have_keys:
+                            continue
+                        have_keys.add(key)
+                        trovati.append((
+                            g["pershkrim"], getattr(art, "number", ""),
+                            getattr(art, "title_sq", None) or getattr(art, "code", ""),
+                            getattr(art, "body", "") or ""))
+                        break  # un nene per gap
+                except Exception:  # noqa: BLE001
+                    continue
+            if not trovati:
+                return ""
+            log.info("war_room: research loop shtoi %d nene", len(trovati[:3]))
+            return war_room.format_research_loop(trovati[:3], lang)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("war_room research loop fallito (non-fatal): %s", exc)
+            return ""
 
     def _studio_djalli(self, user_message, retrieved, precedents, answer_text):
         """L'avvocato del diavolo attacca la risposta prima che arrivi
