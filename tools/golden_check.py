@@ -2024,6 +2024,23 @@ def main():
     except Exception as _e47:  # noqa: BLE001
         check("privacy[47]: kontrollet u ekzekutuan", False, str(_e47))
 
+    # ── [48] MISSING FACTS interattivo — Po/Jo per domanda + Dërgo → analisi definitiva ──
+    # Le domande di chiarimento hanno pulsanti Po/Jo; «Dërgo» assembla le risposte
+    # e le manda alla sala di guerra completa (deep) per una risposta definitiva
+    # (che rende via appendBot → ha i pulsanti salva/DOCX/PDF).
+    try:
+        import os as _os48, io as _io48
+        _rr48 = _os48.path.dirname(_os48.path.dirname(_os48.path.abspath(__file__)))
+        _aj48 = _io48.open(_os48.path.join(_rr48, "static", "app.js"), encoding="utf-8").read()
+        _i48 = _aj48.find("function renderMissingFacts(")
+        _seg48 = _aj48[_i48:_i48 + 5500] if _i48 >= 0 else ""
+        check("mf[48]: domande di chiarimento con Po/Jo + «Dërgo» che invia le risposte all'analisi definitiva (deep)",
+              _i48 >= 0 and "mf-po" in _seg48 and "mf-jo" in _seg48 and "mf-dergo" in _seg48
+              and "Dërgo" in _seg48 and "form.requestSubmit()" in _seg48
+              and "_deepNext = true" in _seg48 and "PËRFUNDIMTARE" in _seg48)
+    except Exception as _e48:  # noqa: BLE001
+        check("mf[48]: kontrollet u ekzekutuan", False, str(_e48))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

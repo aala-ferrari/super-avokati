@@ -2418,10 +2418,12 @@
     wrap.className = "missing-facts";
     wrap.open = true;
 
-    const items = (mf.facts || []).map((f, i) => {
+    const it = _CAL_IT;
+    const facts = mf.facts || [];
+    const items = facts.map((f, i) => {
       const impact = [];
-      if (f.impact_if_yes) impact.push(`<div class="mf-impact"><strong>${_CAL_IT ? "Se SÌ:" : "Nëse PO:"}</strong> ${escapeHtml(f.impact_if_yes)}</div>`);
-      if (f.impact_if_no)  impact.push(`<div class="mf-impact"><strong>${_CAL_IT ? "Se NO:" : "Nëse JO:"}</strong> ${escapeHtml(f.impact_if_no)}</div>`);
+      if (f.impact_if_yes) impact.push(`<div class="mf-impact"><strong>${it ? "Se SÌ:" : "Nëse PO:"}</strong> ${escapeHtml(f.impact_if_yes)}</div>`);
+      if (f.impact_if_no)  impact.push(`<div class="mf-impact"><strong>${it ? "Se NO:" : "Nëse JO:"}</strong> ${escapeHtml(f.impact_if_no)}</div>`);
       return `
         <li class="mf-item">
           <button class="mf-ask" type="button" data-question="${escapeHtml(f.question)}">
@@ -2430,21 +2432,70 @@
           </button>
           <div class="mf-why">${escapeHtml(f.why_it_matters)}</div>
           ${impact.join("")}
+          <div class="mf-ans" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0 2px 34px">
+            <button type="button" class="mf-po" data-idx="${i}" data-val="po" style="padding:4px 16px;border:1px solid #cbd5c0;border-radius:16px;background:#fff;cursor:pointer;font-weight:600">✓ ${it ? "SÌ" : "PO"}</button>
+            <button type="button" class="mf-jo" data-idx="${i}" data-val="jo" style="padding:4px 16px;border:1px solid #e0c8c8;border-radius:16px;background:#fff;cursor:pointer;font-weight:600">✗ ${it ? "NO" : "JO"}</button>
+          </div>
         </li>
       `;
     }).join("");
 
     wrap.innerHTML = `
-      <summary>❓ Pyetje që do ta sqaronin edhe më shumë rastin (${(mf.facts || []).length})</summary>
+      <summary>❓ ${it ? "Domande che chiarirebbero ancora di più il caso" : "Pyetje që do ta sqaronin edhe më shumë rastin"} (${facts.length})</summary>
+      <div class="pm-intro">${it ? "Rispondi SÌ/NO a ogni domanda (o clicca la domanda per scrivere una risposta), poi «Invia» per un'analisi DEFINITIVA del caso." : "Përgjigju PO/JO për çdo pyetje (ose kliko pyetjen për të shkruar një përgjigje), pastaj «Dërgo» për një analizë PËRFUNDIMTARE të rastit."}</div>
       <ul class="mf-list">${items}</ul>
+      <div class="mf-footer" style="display:flex;gap:12px;align-items:center;margin-top:10px;padding-left:34px">
+        <button type="button" class="mf-dergo" disabled style="padding:8px 20px;border:none;border-radius:8px;background:#8a6a1d;color:#fff;font-weight:700;cursor:pointer;opacity:.45">📨 ${it ? "Invia le risposte →" : "Dërgo përgjigjet →"}</button>
+        <span class="mf-count" style="font-size:13px;color:#6b7280">0/${facts.length}</span>
+      </div>
     `;
 
-    // Click-to-ask: pre-fill the composer with a leading sentence and the
-    // question, so the citizen only needs to add their answer underneath.
+    const answers = {};  // idx -> "po" | "jo"
+    const dergo = wrap.querySelector(".mf-dergo");
+    const count = wrap.querySelector(".mf-count");
+    function refresh() {
+      const n = Object.keys(answers).length;
+      count.textContent = n + "/" + facts.length;
+      dergo.disabled = n === 0;
+      dergo.style.opacity = n === 0 ? ".45" : "1";
+    }
+    wrap.querySelectorAll(".mf-po, .mf-jo").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        answers[btn.dataset.idx] = btn.dataset.val;
+        btn.closest(".mf-item").querySelectorAll(".mf-po, .mf-jo").forEach((b) => {
+          const sel = b === btn;
+          b.style.background = sel ? (b.dataset.val === "po" ? "#e6f0e0" : "#f6e4e4") : "#fff";
+          b.style.borderColor = sel ? (b.dataset.val === "po" ? "#7fae6a" : "#c98a8a") : "#d5d5d5";
+        });
+        refresh();
+      });
+    });
+    // Dërgo: assembla domande + risposte PO/JO → analisi DEFINITIVA (sala di guerra
+    // completa, mente massima). La risposta rende via appendBot → ha i pulsanti salva.
+    dergo.addEventListener("click", () => {
+      if (!activeCaseId) { if (typeof toast === "function") toast(it ? "Apri un caso" : "Hap një rast", "warn"); return; }
+      const lines = facts.map((f, i) => {
+        const a = answers[i];
+        if (!a) return null;
+        const yn = it ? (a === "po" ? "SÌ" : "NO") : (a === "po" ? "PO" : "JO");
+        return (i + 1) + ") " + f.question + " → " + yn;
+      }).filter(Boolean);
+      if (!lines.length) return;
+      const head = it
+        ? "In base alle mie risposte alle domande di chiarimento qui sotto, dai un'analisi DEFINITIVA e dettagliata del caso, con la strategia:"
+        : "Bazuar në përgjigjet e mia për pyetjet sqaruese më poshtë, jep një analizë PËRFUNDIMTARE dhe të detajuar të rastit, me strategjinë:";
+      input.value = head + "\n" + lines.join("\n");
+      _deepNext = true;      // sala di guerra completa
+      _seniorNext = "";      // senior default (max effort)
+      autoGrow();
+      dergo.disabled = true; dergo.textContent = it ? "Invio…" : "Po dërgohet…";
+      form.requestSubmit();
+    });
+    // Click sulla domanda: pre-compila per una risposta libera (fallback esistente)
     wrap.querySelectorAll(".mf-ask").forEach((btn) => {
       btn.addEventListener("click", () => {
         const q = btn.dataset.question || "";
-        input.value = `Përgjigja për pyetjen "${q}" është: `;
+        input.value = (it ? `La risposta alla domanda "${q}" è: ` : `Përgjigja për pyetjen "${q}" është: `);
         input.focus();
         input.setSelectionRange(input.value.length, input.value.length);
         autoGrow();
