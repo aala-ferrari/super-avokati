@@ -574,7 +574,7 @@ errori, non che le risposte sono ancora giuste. Riferimento verificato il
 12 articoli recuperati per ciascuna.
 
 ```bash
-docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali. Baseline **364/364** (9 set; era 98 il 31 ago).
+docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46]). Baseline **430/430** (10 set; era 98 il 31 ago).
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 bash /root/prova_sse.sh                                    # SULL'HOST (legge il secret da /opt/super-avvocato.env; copia in tools/prova_sse.sh): account di prova → login → fascicolo → 1 domanda VERA → stream /api/ask/events attraverso waitress. Deve dire «HTTP 200 … done: 1» (~50s, costa 1 chiamata al cervello) e cancella l'account. Dopo OGNI build che tocca web.py o le rotte SSE.
@@ -1430,6 +1430,50 @@ rischio residuo della DPIA.
 - Tutto **assistivo**: il professionista verifica e firma; niente auto-accusa/archiviazione/scadenze cieche.
 - **Grounding sempre**: i nene vengono dal corpus, MAI dalla memoria del modello. Precisione > velocità (Opus max, anche 4 min ok).
 - Super Avokati ha auth propria (login_required_api); utenti creati da admin o auto-provisionati da AALA (`/api/provision-demo`, secret-guarded).
+
+## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
+
+**v9.287 — War Room research loop** (ultima tessera del percorso ⚡ Fable): dopo
+il ragionamento del senior, un gap-detector chiede se l'analisi usa una norma che
+NON era nel dossier; se sì l'indice la porta (reale+nuova) PRIMA del Diavolo.
+`brain._research_loop` + `war_room.GAP_SYSTEM/parse_gaps/format_research_loop`.
+
+**AUDIT «LEGAL PLATFORM — NEXT GENERATION» (53 sezioni).** Il titolare ha dato uno
+spec enterprise enorme; io ho prodotto `LEGAL_PLATFORM_ARCHITECTURE_AUDIT.md`
+(radice repo, grounded nel codice) — **~60-70% dei comportamenti c'era già** (è il
+superset degli spec-1/2). Poi la **Fase 0** (gli slice «oro», additivi, golden [41-46]):
+
+- **v9.288 §13 afati DETERMINISTICI** — `src/deadline_engine.py`: l'LLM sceglie la
+  REGOLA (trigger|durata|njesi|feriale), Python calcola la data. dies a quo,
+  mesi/anni, proroga festiva, giorni lavorativi (festivi + Pasqua cattolica E
+  **ortodossa** per AL — v9.292), **sospensione feriale IT 1-31 agosto (solo IT)**.
+  Passi+avvisi bilingui. `afati.py` e (v9.292) `deadlines.py`/prescrizione lo usano
+  (fallback al formato vecchio = zero regressione). Bajram AL = avviso onesto (luna).
+- **v9.289 §18 settlement** — motore già onesto (scenari); FIX bug latente
+  (`renderSettleResult` leggeva `p10`/`suggested_counter` invece di `*_eur` →
+  mostrava «—») + disclaimer «scenario, non previsione» + bande + bilingue.
+- **v9.290 §5 `src/source_status.py`** — vocabolario canonico unico degli stati
+  fonte + mapper dai 3 verificatori + `means_absent()` («non trovato ≠ non esiste»
+  SOLO se corpus completo); `war_room` importa da lì. **§37-40 `tools/legal_eval.py`**
+  + `tools/golden_cases/` (3 seed da-validare) = misura l'accuratezza legale reale
+  (recall statuti), non il verde strutturale. ⚠️ golden_cases sotto `tools/` (il
+  Dockerfile COPIA tools/ non tests/).
+- **v9.291 §1-2 fondazione** — `src/corpus_hash.py` + `tools/snapshot_corpus.py`:
+  impronta SHA-256 per articolo → rileva quando un testo ufficiale CAMBIA
+  (baseline `data/index/corpus_hashes.json`, 21.568 art., nel volume). Il
+  versioning temporale PIENO resta NORD (data-blocked: manca la storia emendamenti).
+- **v9.293 SUPER NOTERI** (dal controllo dettagliato): **#2** `src/succession_engine.py`
+  verifica le quote successorie (somma=1 + caso 1° ordine Neni 361 = parti uguali,
+  con `Fraction`); l'LLM emette righe `PJESA`/`STRUKTURA`, Python controlla.
+  **#4** `themelim_shoqerie` seed societario (non più vuoto). **#5** atti nuovi
+  uzufrukt+servitut (DEED_TYPES 20→22, seed KC verificati). Il **#3 tariffe
+  esisteva già** (`openNotaryFees`, calcolatore editabile — non duplicato). Il
+  **#1 notaio ITALIANO** è rimandato.
+
+NORD (rimandato, audit sez. O-Q): versioning storico pieno, knowledge graph,
+fact/evidence graph, permessi granulari, ethical walls, Genio-come-view, §6
+semantico (da misurare). Vedi memorie `super_avokati_audit_next_gen`,
+`super_avokati_studio`. QA: golden **430**, smoke 103, juris verde.
 
 ## Storia versioni (sessione 19 ago 2026 — espansione ITALIA)
 v9.112-9.113 giurisdizione come entitlement + isolamento sessione · 9.114-9.116
