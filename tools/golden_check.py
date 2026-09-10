@@ -2058,6 +2058,23 @@ def main():
     except Exception as _e49:  # noqa: BLE001
         check("busy[49]: kontrollet u ekzekutuan", False, str(_e49))
 
+    # ── [50] STREAMING CHIARO — niente pannello vuoto «Nenet (0)» + indicatore «ancora al lavoro» ──
+    # Durante lo streaming il template porta un «Nenet e konsultuara (0)» vuoto e
+    # nessun pulsante → sembra finito mentre l'analisi profonda continua. Fix:
+    # rimuovere il pannello vuoto + mostrare un indicatore «Po analizoj ende…».
+    try:
+        import os as _os50, io as _io50
+        _rr50 = _os50.path.dirname(_os50.path.dirname(_os50.path.abspath(__file__)))
+        _aj50 = _io50.open(_os50.path.join(_rr50, "static", "app.js"), encoding="utf-8").read()
+        _ie50 = _aj50.find("const ensureStreamEl = () =>")
+        _seg50 = _aj50[_ie50:_ie50 + 1600] if _ie50 >= 0 else ""
+        check("stream[50]: streaming toglie il pannello vuoto «.retrieved» + mostra indicatore «ancora al lavoro»",
+              _ie50 >= 0 and 'querySelector(".retrieved")' in _seg50 and ".remove()" in _seg50
+              and "stream-working" in _seg50
+              and ("Po analizoj ende" in _seg50 and "Sto ancora analizzando" in _seg50))
+    except Exception as _e50:  # noqa: BLE001
+        check("stream[50]: kontrollet u ekzekutuan", False, str(_e50))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

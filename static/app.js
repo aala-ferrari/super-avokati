@@ -1035,6 +1035,22 @@
       const body = streamEl.querySelector(".bot-body");
       body.innerHTML = "";
       streamEl.dataset.streaming = "1";
+      // Il template porta il pannello vuoto «Nenet e konsultuara (0)»: durante lo
+      // streaming va tolto, altrimenti la risposta SEMBRA finita (pannello + niente
+      // pulsanti) mentre l'analisi profonda continua. Pannello e pulsanti veri
+      // arrivano solo alla risposta finale (appendBot).
+      const _ret = streamEl.querySelector(".retrieved");
+      if (_ret) _ret.remove();
+      // Indicatore CHIARO che l'analisi è ancora in corso — resta finché non
+      // arriva la risposta finale. Così l'avvocato sa che NON è finito e che i
+      // pulsanti (salva/DOCX/PDF/Diavolo) compaiono alla fine.
+      const _work = document.createElement("div");
+      _work.className = "stream-working";
+      _work.style.cssText = "margin:10px 14px;padding:7px 12px;font-size:13px;color:#8a6a1d;background:rgba(201,162,39,.10);border-left:3px solid #c9a227;border-radius:6px;font-style:italic";
+      _work.textContent = _CAL_IT
+        ? "⏳ Sto ancora analizzando… la risposta completa (con i pulsanti salva/DOCX/PDF e il Diavolo) arriva alla fine."
+        : "⏳ Po analizoj ende… përgjigjja e plotë (me butonat ruaj/DOCX/PDF dhe Djallin) vjen në fund.";
+      streamEl.appendChild(_work);
       messages.appendChild(node);
       scroll();
     };
