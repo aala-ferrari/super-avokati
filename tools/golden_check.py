@@ -1797,6 +1797,13 @@ def main():
         check("war[40]: #C stato raccoglitori — «controllato senza esito» per chi ha girato a vuoto (ESEGUITO)",
               "KONTROLLUAR PA REZULTAT" in _txt40 and "Kontrolli i vigjencës" in _txt40
               and "Rojtari i Fletores Zyrtare" in _txt40)
+        check("war[40]: #E secondo Red Team CONDIZIONALE — gate ESEGUITO + attacco #2 + revisione finale",
+              hasattr(_s40, "duhet_raund2") and hasattr(_s40, "sulmi_i_dyte")
+              and _s40.duhet_raund2("- [KRITIKE] x", "[REFUZOHET]") is True
+              and _s40.duhet_raund2("- [LARTË] x", "[REFUZOHET]") is False
+              and _s40.duhet_raund2("- [KRITIKE] x", "[PRANOHET]") is False
+              and "studio.duhet_raund2(sez, risposta)" in _br40 and "STUDIO_RED2_ENABLED" in _br40
+              and "finale=True" in _br40)
     except Exception as _e:  # noqa: BLE001
         check("war[40]: kontrollet u ekzekutuan", False, str(_e))
 

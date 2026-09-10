@@ -3166,9 +3166,9 @@ class SuperAvvocato:
             # 2° PASSAGGIO (spec titolare): il senior RISPONDE all'attacco —
             # accolto/respinto/parziale + strategia rivista. Stessa mente del
             # senior (Opus max di default, Fable se scelto). Fail-silent.
+            _mendja = "fable" if request_senior() == "fable" else "opus"
             risposta = ""
             try:
-                _mendja = "fable" if request_senior() == "fable" else "opus"
                 risposta = studio.senior_pergjigjja(
                     self.backend, domanda=user_message,
                     blloku_neneve=_format_articles_for_prompt(retrieved),
@@ -3179,7 +3179,33 @@ class SuperAvvocato:
                     log.info("studio: seniori iu përgjigj sulmeve (%d shkronja)", len(risposta))
             except Exception as _exc2:  # noqa: BLE001
                 log.warning("studio: përgjigja e seniorit dështoi (non-fatal): %s", _exc2)
-            return answer_text + sez + risposta
+            # 3°-4° PASSAGGIO CONDIZIONALE (spec «War Room» 44-47): se resta un
+            # kill-shot [KRITIKE] rifiutato/accolto in parte, un SECONDO round di
+            # Fable SOLO sul residuo + revisione FINALE del senior. Gated → solo
+            # sui casi tosti, non su ogni risposta. Fail-silent.
+            raund2 = ""
+            try:
+                from .config import STUDIO_RED2_ENABLED
+                if STUDIO_RED2_ENABLED and risposta and studio.duhet_raund2(sez, risposta):
+                    _s2 = studio.sulmi_i_dyte(
+                        self.backend, domanda=user_message,
+                        blloku_neneve=_format_articles_for_prompt(retrieved),
+                        pergjigja_v2=risposta, lang=lang,
+                        modeli=STUDIO_DJALLI_MODEL, effort=STUDIO_DJALLI_EFFORT)
+                    if (_s2 or "").strip():
+                        _s2 = _apply_corrections(_verify_citations(_s2, precedents))
+                        _fin = studio.senior_pergjigjja(
+                            self.backend, domanda=user_message,
+                            blloku_neneve=_format_articles_for_prompt(retrieved),
+                            pergjigja=answer_text, sulmi=_s2, lang=lang,
+                            modeli=_mendja, effort="max", finale=True)
+                        if _fin:
+                            _fin = _apply_corrections(_verify_citations(_fin, precedents))
+                            raund2 = _s2 + _fin
+                            log.info("studio: raundi i dytë avversarial u ekzekutua (%d shkronja)", len(raund2))
+            except Exception as _exc3:  # noqa: BLE001
+                log.warning("studio: raundi i dytë dështoi (non-fatal): %s", _exc3)
+            return answer_text + sez + risposta + raund2
         except Exception as exc:  # noqa: BLE001
             log.warning("studio djalli fallito (non-fatal): %s", exc)
             return answer_text
