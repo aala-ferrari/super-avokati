@@ -5523,6 +5523,22 @@ def api_notary_extract():
     return err if err else out
 
 
+@app.post("/api/notary/verify-property")
+@login_required_api
+def api_notary_verify_property():
+    # Funzione di garanzia: legge la certificata ASHK/estratto QKB caricato dal
+    # notaio e la cross-checka contro il veprim. È un tool di VERIFICA → NON iniettare
+    # il case_brief (porterebbe citazioni pregresse e falserebbe il verificatore).
+    body = request.get_json(silent=True) or {}
+    cert = (body.get("certificate") or body.get("text") or "").strip()
+    transaction = (body.get("transaction") or "").strip()
+    if len(cert) < 40:
+        return jsonify({"error": "certificate_required"}), 400
+    out, err = _notary_run(notary_mod.verify_property,
+                           certificate_text=cert[:16000], transaction=transaction[:3000])
+    return err if err else out
+
+
 @app.post("/api/notary/checklist")
 @login_required_api
 def api_notary_checklist():

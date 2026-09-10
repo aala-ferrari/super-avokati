@@ -854,3 +854,49 @@ def what_if(backend, index, *, act, change, max_tokens=2600):
                           max_tokens=max_tokens, callsite="notary_whatif")
     return {"markdown": (md or "").strip(),
             "articles": [{"code": c, "number": n} for c, n, _t in arts]}
+
+
+# ---- Verifica proprietà & gravami (funzione di garanzia del notaio) ----
+# NDIHMESË: il notaio pulls the official certificate from ASHK — questo mjet la
+# LEGGE e cross-checka; NON si collega live ad ASHK (nessuna API). Seed: solo nene
+# VERIFICATE (ipoteka 560/562/568, servitut 290/292, uzufrukt 250); pronësia/
+# sekuestro/regjistrim entrano dal BM25-fill sul testo.
+_VERIFY_PROP_SEED = [("kodi_civil", "560"), ("kodi_civil", "562"), ("kodi_civil", "568"),
+                     ("kodi_civil", "290"), ("kodi_civil", "292"), ("kodi_civil", "250")]
+
+
+def verify_property(backend, index, *, certificate_text: str, transaction: str = "",
+                    max_tokens: int = 2800) -> dict:
+    """Verifiko pronësinë dhe barrët nga certifikata/kartela ASHK ose ekstrakti QKB,
+    dhe kryqëzoji me veprimin e kërkuar. NDIHMESË: noteri e merr vetë certifikatën
+    zyrtare — ky mjet e lexon dhe kryqëzon, nuk lidhet live me ASHK."""
+    q = (transaction or "") + " pronësi pronar barrë hipotekë sekuestro servitut regjistrim ASHK kartelë pasurie"
+    art_block, arts = _art_block(backend, index, q, _VERIFY_PROP_SEED)
+    system = (
+        "Ti je NOTER shqiptar që kryen FUNKSIONIN E GARANCISË para një veprimi mbi pasuri "
+        "të paluajtshme (shitje, hipotekë, dhurim, shkëmbim). Të është dhënë teksti i "
+        "CERTIFIKATËS/KARTELËS së pronësisë (ASHK) ose i ekstraktit (QKB), i ngarkuar nga noteri.\n"
+        "DETYRA:\n"
+        "1) NXIRR nga certifikata: pronarin/pronarët e regjistruar dhe pjesët takuese; "
+        "identifikimin e pasurisë (nr. pasurie, zona kadastrale, sipërfaqja, vol./faqe, adresa); "
+        "dhe TË GJITHA barrët e kufizimet (hipotekë, barrë sigurie, sekuestro, urdhër bllokimi/pengesë, "
+        "servitut, uzufrukt, qira e regjistruar, kufizime ligjore).\n"
+        "2) KRYQËZO me veprimin e kërkuar: a është shitësi/disponuesi PIKËRISHT pronari i regjistruar? "
+        "a mjaftojnë pjesët për atë që disponohet? a përputhet identifikimi i pasurisë? a ka barrë që "
+        "e PENGON ose e KUSHTËZON veprimin (hipoteka → duhet shlyerje/pëlqim kreditori; sekuestro/bllokim → "
+        "i ndaluar; servitut/uzufrukt → duhet deklaruar)?\n"
+        "RREGULLA: cito VETËM nenet e dhëna, mos shpik. Ku një e dhënë MUNGON në certifikatë, shkruaj "
+        "'[mungon në certifikatë]' — mos e trillo. Mos nxirr përfundime mbi vlefshmërinë përtej asaj që "
+        "thotë certifikata. Përfundo me '### 🔎 Verdikti' me semafor: 🟢 mund të vazhdojë · "
+        "🟡 me kushte (listoji) · 🔴 e bllokuar (pse). " + _NOTARY_ID)
+    prompt = ("VEPRIMI I KËRKUAR:\n"
+              + ((transaction or "").strip()[:3000] or "(nuk u dha — bëj vetëm nxjerrjen e pronarit, pasurisë dhe barrëve)")
+              + "\n\n─────\nCERTIFIKATA/EKSTRAKTI (tekst i ngarkuar nga noteri):\n" + (certificate_text or "").strip()[:16000]
+              + "\n\n─────\nNENET NGA KORPUSI (cito vetëm këto):\n" + art_block
+              + "\n\nKthe në markdown, me këto seksione: "
+              + "**Pronari i regjistruar** · **Identifikimi i pasurisë** · **Barrët & kufizimet** (me rëndësi) · "
+              + "**Kryqëzimi me veprimin** (mospërputhjet) · **🔎 Verdikti** (semafor).")
+    md = backend.complete(system=system, messages=[{"role": "user", "content": prompt}],
+                          max_tokens=max_tokens, callsite="notary_verify_property")
+    return {"markdown": (md or "").strip(),
+            "articles": [{"code": c, "number": n} for c, n, _t in arts]}

@@ -93,6 +93,7 @@ run("notary.extract_data", lambda: notary.extract_data(be, idx, text=F))
 run("notary.dossier_checklist", lambda: notary.dossier_checklist(be, idx, act="Kontrate shitje", documents_text=F))
 run("notary.client_comm", lambda: notary.client_comm(be, idx, kind="shpjego", text=F))
 run("notary.what_if", lambda: notary.what_if(be, idx, act=F, change="cka nese shtoj uzufrukt"))
+run("notary.verify_property", lambda: notary.verify_property(be, idx, certificate_text=F, transaction="shitje apartament 7/512"))
 
 print("[living_law / intake / afati / deadlines]")
 run("deadlines.prescription", lambda: deadlines.prescription(be, idx, facts=F))

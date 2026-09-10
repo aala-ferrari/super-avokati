@@ -2106,6 +2106,26 @@ def main():
     except Exception as _e51:  # noqa: BLE001
         check("mf[51]: kontrollet u ekzekutuan", False, str(_e51))
 
+    # ── [52] NOTAIO — Verifica proprietà & gravami (funzione di garanzia) ──
+    # Legge la certificata ASHK/estratto QKB e la cross-checka contro il veprim.
+    # Tool di VERIFICA, grounded su nene verificate, con disclaimer onesto (non si
+    # collega live ad ASHK) e verdikt a semaforo; endpoint + card nel hub notaio.
+    try:
+        from src import notary as _nt52
+        import os as _os52, io as _io52
+        _rr52 = _os52.path.dirname(_os52.path.dirname(_os52.path.abspath(__file__)))
+        _nt52src = _io52.open(_os52.path.join(_rr52, "src", "notary.py"), encoding="utf-8").read()
+        _web52 = _io52.open(_os52.path.join(_rr52, "src", "web.py"), encoding="utf-8").read()
+        _aj52 = _io52.open(_os52.path.join(_rr52, "static", "app.js"), encoding="utf-8").read()
+        check("noteri[52]: verify_property grounded (seed verificati) + onesto (no ASHK live) + verdikt + endpoint + card hub",
+              hasattr(_nt52, "verify_property") and hasattr(_nt52, "_VERIFY_PROP_SEED")
+              and ("kodi_civil", "560") in _nt52._VERIFY_PROP_SEED
+              and "nuk lidhet live me ASHK" in _nt52src and "Verdikti" in _nt52src
+              and "/api/notary/verify-property" in _web52 and "certificate_required" in _web52
+              and "openVerifyProperty" in _aj52 and "Verifiko pronësinë & barrët" in _aj52)
+    except Exception as _e52:  # noqa: BLE001
+        check("noteri[52]: kontrollet u ekzekutuan", False, str(_e52))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

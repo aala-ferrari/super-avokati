@@ -574,7 +574,7 @@ errori, non che le risposte sono ancora giuste. Riferimento verificato il
 12 articoli recuperati per ciascuna.
 
 ```bash
-docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46]). Baseline **436/436** (10 set; era 98 il 31 ago).
+docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52]). Baseline **437/437** (11 set; era 98 il 31 ago).
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 bash /root/prova_sse.sh                                    # SULL'HOST (legge il secret da /opt/super-avvocato.env; copia in tools/prova_sse.sh): account di prova → login → fascicolo → 1 domanda VERA → stream /api/ask/events attraverso waitress. Deve dire «HTTP 200 … done: 1» (~50s, costa 1 chiamata al cervello) e cancella l'account. Dopo OGNI build che tocca web.py o le rotte SSE.
@@ -1073,7 +1073,7 @@ Golden sezione [12] (12 check) + selezionatori (3): **115 → 130**.
 ## Mappa feature / moduli (src/)
 - **expertise.py** — Modele Ekspertize (8 template, incl. abuzim_policor "due menti"). `retrieve_grounded` (seed + `_expand_terms` LLM + `_heading_scan` stem 5-char diacritic-fold + BM25). Riusato da prosecutor/notary/deadlines/afati.
 - **prosecutor.py** — Super Prokuror: analyze, draft_indictment, investigation_plan, investigative_act(kind), coercive_measure, dismissal_request, stress_test + cittadino (citizen_complaint, victim_rights, dismissal_appeal, delay_complaint). Assistivo, mai auto-accusa (EU AI Act).
-- **notary.py** — Super Noteri: DEED_TYPES (22), PROKURA_SCOPES (**19** tagra, incl. uso pasurie/automjeti + dalje jashtë shtetit), DECLARATION_TYPES (6), draft_deed/prokura/declaration, check_deed, succession, documents_needed, draft_revocation, check_conflicts. `GENERAL_POA_GUIDE`: la prokurë e përgjithshme spiega copertura+limiti secondo KC 71 (totalità dei diritti, non «solo ordinaria amministrazione») + KC 72 (disponimet → forma notarile + tager espresso).
+- **notary.py** — Super Noteri: DEED_TYPES (22), PROKURA_SCOPES (**19** tagra, incl. uso pasurie/automjeti + dalje jashtë shtetit), DECLARATION_TYPES (6), draft_deed/prokura/declaration, check_deed, succession, documents_needed, draft_revocation, check_conflicts. `GENERAL_POA_GUIDE`: la prokurë e përgjithshme spiega copertura+limiti secondo KC 71 (totalità dei diritti, non «solo ordinaria amministrazione») + KC 72 (disponimet → forma notarile + tager espresso). **verify_property** (v9.301): legge la certificata ASHK/estratto QKB e cross-checka contro il veprim (proprietario/pjesët/identificazione/barrët→semaforo); tool di VERIFICA, niente case_brief; onesto (non live ad ASHK); endpoint /api/notary/verify-property, UI openVerifyProperty (hub KONTROLL 🧾).
 - **living_law.py** — Ligj i gjallë: verify_claims (verifica frase↔testo reale nen), check_law_live (web→QBZ). + freschezza in citation_verifier (volatility/stale).
 - **intake.py** — Pika e parë: triage(story) → orientamento + urgenza + ROUTE token → instrada allo strumento.
 - **afati.py** — Motore afate: TRIGGERS (8) → scadenze grounded + blocco `AFAT | titolo | YYYY-MM-DD` → calendario (POST /api/events).
@@ -1432,6 +1432,27 @@ rischio residuo della DPIA.
 - Super Avokati ha auth propria (login_required_api); utenti creati da admin o auto-provisionati da AALA (`/api/provision-demo`, secret-guarded).
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
+
+**v9.301 — NOTAIO: ricerca concorrenti + B «Verifica proprietà & gravami» (11 set).**
+Su richiesta del titolare («cosa serve altro al notaio?»), ricerca approfondita
+(2 agenti web) su concorrenti AI per notai + audit interno. Verdetti: RON/
+e-notarizzazione NON per AL/IT (presenza fisica+firma autografa; AL esclude gli
+atti notarili) → il nostro modello ASSISTIVO è giusto; white space = Albania
+(nessun AI per notai AL); gemello aiNotaris (NL, solo olandese) → fossato =
+lingua+diritto AL/IT; wedge #1 = ANTIRICICLAGGIO (IT notai >90% delle SOS).
+Roadmap concordata «tutti e tre step by step»: **B (fatto) → C → A**. ⚠️ A (AML)
+riordinato dopo perché il grounding manca (Ligji 9917 AL e D.Lgs 231/2007 IT NON
+in corpus — c'è solo kodi_penal 287 e il 231/2001 enti) → da ingerire prima di A.
+**B costruito**: `notary.verify_property` legge la certificata ASHK/estratto QKB
+e cross-checka contro il veprim (venditore=proprietario? pjesët? identificazione?
+barrët che bloccano/condizionano: ipoteca→shlyerje/pëlqim, sekuestro→bllokim,
+servitut→deklaro) → 🔎 Verdikti a semaforo. Seed verificate (560/562/568, 290/292,
+250) + BM25-fill (149 esce da sé). Tool di VERIFICA → niente case_brief; ONESTO:
+non si collega live ad ASHK. Endpoint POST /api/notary/verify-property, UI
+openVerifyProperty (hub KONTROLL 🧾, attach OCR), IT tradotto, app.js?v=158. Golden
+[52], smoke 106. Prova viva: Arben Hoxha 1/1 + ipoteca BKT + servitù + vendita →
+«🟡 MË KUSHTE» corretto. QA: golden **437**, smoke 106, juris verde. Endpoint 401
+(registrato). Vedi [[super_avokati_super_noteri]].
 
 **v9.300 — PROCURE d'uso + procura GENERALE spiegata secondo legge (10 set).**
 Segnalazione del titolare: mancavano le procure d'USO (auto, beni/terreni/mobili)
