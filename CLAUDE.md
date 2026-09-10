@@ -574,7 +574,7 @@ errori, non che le risposte sono ancora giuste. Riferimento verificato il
 12 articoli recuperati per ciascuna.
 
 ```bash
-docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51]). Baseline **435/435** (10 set; era 98 il 31 ago).
+docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46]). Baseline **436/436** (10 set; era 98 il 31 ago).
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 bash /root/prova_sse.sh                                    # SULL'HOST (legge il secret da /opt/super-avvocato.env; copia in tools/prova_sse.sh): account di prova → login → fascicolo → 1 domanda VERA → stream /api/ask/events attraverso waitress. Deve dire «HTTP 200 … done: 1» (~50s, costa 1 chiamata al cervello) e cancella l'account. Dopo OGNI build che tocca web.py o le rotte SSE.
@@ -1073,7 +1073,7 @@ Golden sezione [12] (12 check) + selezionatori (3): **115 → 130**.
 ## Mappa feature / moduli (src/)
 - **expertise.py** — Modele Ekspertize (8 template, incl. abuzim_policor "due menti"). `retrieve_grounded` (seed + `_expand_terms` LLM + `_heading_scan` stem 5-char diacritic-fold + BM25). Riusato da prosecutor/notary/deadlines/afati.
 - **prosecutor.py** — Super Prokuror: analyze, draft_indictment, investigation_plan, investigative_act(kind), coercive_measure, dismissal_request, stress_test + cittadino (citizen_complaint, victim_rights, dismissal_appeal, delay_complaint). Assistivo, mai auto-accusa (EU AI Act).
-- **notary.py** — Super Noteri: DEED_TYPES (20), PROKURA_SCOPES (16 tagra), DECLARATION_TYPES (6), draft_deed/prokura/declaration, check_deed, succession, documents_needed, draft_revocation, check_conflicts.
+- **notary.py** — Super Noteri: DEED_TYPES (22), PROKURA_SCOPES (**19** tagra, incl. uso pasurie/automjeti + dalje jashtë shtetit), DECLARATION_TYPES (6), draft_deed/prokura/declaration, check_deed, succession, documents_needed, draft_revocation, check_conflicts. `GENERAL_POA_GUIDE`: la prokurë e përgjithshme spiega copertura+limiti secondo KC 71 (totalità dei diritti, non «solo ordinaria amministrazione») + KC 72 (disponimet → forma notarile + tager espresso).
 - **living_law.py** — Ligj i gjallë: verify_claims (verifica frase↔testo reale nen), check_law_live (web→QBZ). + freschezza in citation_verifier (volatility/stale).
 - **intake.py** — Pika e parë: triage(story) → orientamento + urgenza + ROUTE token → instrada allo strumento.
 - **afati.py** — Motore afate: TRIGGERS (8) → scadenze grounded + blocco `AFAT | titolo | YYYY-MM-DD` → calendario (POST /api/events).
@@ -1432,6 +1432,25 @@ rischio residuo della DPIA.
 - Super Avokati ha auth propria (login_required_api); utenti creati da admin o auto-provisionati da AALA (`/api/provision-demo`, secret-guarded).
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
+
+**v9.300 — PROCURE d'uso + procura GENERALE spiegata secondo legge (10 set).**
+Segnalazione del titolare: mancavano le procure d'USO (auto, beni/terreni/mobili)
+e quella per portare il mezzo all'estero. `PROKURA_SCOPES` 16→**19**:
+`perdorim_pasurie` (uso/amministrazione di terreno/edificio/mobili senza
+alienare), `perdorim_automjeti` (uso/guida nel Paese), `dalje_automjeti_jashte`
+(mezzo all'estero: guida + confine + dogana + carta verde). `_PROKURA_ORDER`
+riordinato per temi. UI dinamica (`/api/notary/prokura-scopes`) → appaiono da
+sole, label IT in T_IT. ⚠️ **Corretta una doctrine-drift**: la forma generale
+diceva «tutti gli atti di ordinaria amministrazione» (art. 1708 c.c. italiano,
+NON il KC). Il **neni 71 KC**: la generale copre la totalità dei diritti, salvo
+quelli esclusi espressamente. Nuovo `GENERAL_POA_GUIDE` (in `draft_prokura` se
+form==e_pergjithshme) → il documento genera «Çfarë mbulon (dhe kufijtë)»: copertura
+per il caso concreto + **neni 72 KC** (i disponimet richiedono forma notarile +
+tager espresso, la generale non basta; avviso se emerge un disponim). KC 71/72
+già in `_PROKURA_BASE`. Golden [46] esteso (nuove tagra + guard doctrine-drift),
+app.js?v=157. **Prova viva**: 3 tagra nuove servite; generale cita neni 71
+correttamente e avverte KC 72. QA: golden **436**, smoke 105, juris verde.
+Memoria [[super_avokati_super_noteri]].
 
 **v9.294-9.299 — domande interattive, privacy, chiarezza, e la REGOLA sul
 carattere delle domande (10 set).** Privacy (v9.294): rimosso il nome del

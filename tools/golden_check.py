@@ -2003,6 +2003,16 @@ def main():
               "uzufrukt" in _nt46.DEED_TYPES and "servitut" in _nt46.DEED_TYPES
               and bool(_nt46.DEED_TYPES["uzufrukt"]["seed"]) and bool(_nt46.DEED_TYPES["servitut"]["seed"])
               and "uzufrukt" in _nt46._ORDER and "servitut" in _nt46._ORDER)
+        # prokura d'USO (auto/beni/estero) + generale spiegata secondo legge (KC 71-72),
+        # senza la doctrine-drift italiana «solo ordinaria amministrazione»
+        check("noteri[46]: prokura USO — nuove tagra (perdorim pasurie/automjeti, dalje jashtë shtetit) + generale grounded KC 71-72 (no doctrine drift)",
+              all(k in _nt46.PROKURA_SCOPES and k in _nt46._PROKURA_ORDER
+                  for k in ("perdorim_pasurie", "perdorim_automjeti", "dalje_automjeti_jashte"))
+              and hasattr(_nt46, "GENERAL_POA_GUIDE")
+              and "neni 71" in _nt46.GENERAL_POA_GUIDE and "neni 72" in _nt46.GENERAL_POA_GUIDE
+              and "nenet 71" in _nt46.PROKURA_FORMS["e_pergjithshme"]
+              and "administrimit të zakonshëm" not in _nt46.PROKURA_FORMS["e_pergjithshme"]
+              and "GENERAL_POA_GUIDE" in _nt46src and 'form == "e_pergjithshme"' in _nt46src)
     except Exception as _e46:  # noqa: BLE001
         check("noteri[46]: kontrollet u ekzekutuan", False, str(_e46))
 

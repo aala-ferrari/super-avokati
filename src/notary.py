@@ -302,9 +302,28 @@ _PROKURA_BASE = [("kodi_civil", "64"), ("kodi_civil", "66"), ("kodi_civil", "69"
                  ("kodi_civil", "74"), ("kodi_civil", "75"), ("kodi_civil", "76")]
 
 PROKURA_FORMS = {
-    "e_pergjithshme": "Prokurë e përgjithshme (të gjitha veprimet e administrimit të zakonshëm)",
+    "e_pergjithshme": "Prokurë e përgjithshme (tërësia e të drejtave, përveç atyre të përjashtuara — nenet 71–72 KC)",
     "e_posacme": "Prokurë e posaçme (vetëm veprimet e listuara — e detyrueshme për disponime)",
 }
+
+# Kur zgjidhet prokura E PËRGJITHSHME: udhëzim i grounduar te nenet 71 e 72 KC
+# (JO doktrina italiane «vetëm administrim i zakonshëm» — neni 71 KC është më i
+# gjerë: tërësia e të drejtave, përveç atyre të përjashtuara shprehimisht).
+GENERAL_POA_GUIDE = (
+    "KJO ËSHTË PROKURË E PËRGJITHSHME (neni 71 KC). Shto një seksion "
+    "'### Çfarë mbulon (dhe kufijtë)' që sqaron KONKRETISHT për rastin e "
+    "përshkruar: sipas nenit 71 KC prokura e përgjithshme i jep përfaqësuesit "
+    "tagre për veprime juridike të shumëllojshme mbi TËRËSINË e të drejtave e "
+    "interesave të të përfaqësuarit (administrim, arkëtime e pagesa, përfaqësim "
+    "para institucioneve etj.), PËRVEÇ atyre që i përfaqësuari i përjashton "
+    "shprehimisht. KUFIRI KRYESOR (neni 72 KC): për veprimet që me ligj bëhen "
+    "vetëm me AKT NOTERIAL — sidomos DISPONIMET (shitje, hipotekim, dhurim i "
+    "pasurisë së paluajtshme, tjetërsim kuotash/aksionesh) — prokura duhet të "
+    "jetë në formë noteriale DHE me tagrin e përcaktuar SHPREHIMISHT; një prokurë "
+    "e përgjithshme që nuk i përmend, NUK mjafton për to. Nëse nga të dhënat "
+    "duket se kërkohet një disponim, PARALAJMËRO qartë se për të duhet tager i "
+    "posaçëm. Mos e zgjero prokurën në disponime pa tager shprehimor."
+)
 
 PROKURA_SCOPES = {
     "shitje_pasurie": {"label": "Shitje/blerje pasurie të paluajtshme",
@@ -373,11 +392,39 @@ PROKURA_SCOPES = {
     "terheqje_page": {"label": "Tërheqje page/pensioni/përfitimesh",
         "powers": ["të tërheqë pagën, pensionin ose përfitimet", "të nënshkruajë për marrjen e tyre"],
         "seed": [("kodi_civil", "73")]},
+    "perdorim_pasurie": {"label": "Përdorim/administrim i pasurisë (tokë, ndërtesë, sende të luajtshme)",
+        "powers": ["të përdorë dhe administrojë pasurinë e caktuar (tokë, ndërtesë, sende të luajtshme) PA e tjetërsuar",
+                   "të kryejë veprimet e administrimit të zakonshëm (mirëmbajtje, riparime, pagesë detyrimesh)",
+                   "të arkëtojë të ardhurat/qiratë dhe frytet e pasurisë",
+                   "të përfaqësojë të përfaqësuarin para të tretëve dhe institucioneve për këtë pasuri"],
+        "seed": [("kodi_civil", "64")]},
+    "perdorim_automjeti": {"label": "Përdorim/drejtim automjeti (brenda vendit)",
+        "powers": ["të përdorë e drejtojë automjetin e të përfaqësuarit brenda territorit të Shqipërisë",
+                   "të mbajë e paraqesë dokumentet e mjetit (leje qarkullimi, sigurim, kontroll teknik)",
+                   "të kryejë kontrollin teknik dhe rinovimin e sigurimit të detyrueshëm",
+                   "të përfaqësojë mjetin para DPSHTRR dhe policisë rrugore (pa e tjetërsuar)"],
+        "seed": [("kodi_civil", "64")]},
+    "dalje_automjeti_jashte": {"label": "Dalje/qarkullim i automjetit jashtë shtetit",
+        "powers": ["të drejtojë e nxjerrë automjetin jashtë territorit të Republikës së Shqipërisë dhe ta risjellë",
+                   "të kalojë kufirin shtetëror me mjetin dhe të paraqesë mjetin e dokumentet para autoriteteve doganore e kufitare",
+                   "të përcaktojë shtetet e destinacionit dhe periudhën e qarkullimit jashtë vendit",
+                   "të kryejë veprimet e nevojshme për sigurimin ndërkufitar (kartoni jeshil) — pa e tjetërsuar mjetin"],
+        "seed": [("kodi_civil", "64")]},
 }
-_PROKURA_ORDER = ["shitje_pasurie", "shitje_automjeti", "perfaqesim_tatimor", "administrim_shoqerie",
-                  "likuidim_shpk", "regjistrim_qkb", "perfaqesim_gjykate", "bankar",
-                  "terheqje_dokumentesh", "pranim_trashegimie", "heqje_dore_trashegimie",
-                  "hipotekim_kredi", "qira", "administrata_publike", "kuota_shitje", "terheqje_page"]
+_PROKURA_ORDER = [
+    # Pasuri e paluajtshme dhe sende
+    "shitje_pasurie", "perdorim_pasurie", "hipotekim_kredi", "qira",
+    # Automjeti / mjete
+    "shitje_automjeti", "perdorim_automjeti", "dalje_automjeti_jashte",
+    # Shoqëri tregtare
+    "administrim_shoqerie", "kuota_shitje", "regjistrim_qkb", "likuidim_shpk", "perfaqesim_tatimor",
+    # Institucione / gjykatë
+    "perfaqesim_gjykate", "administrata_publike", "terheqje_dokumentesh",
+    # Financa
+    "bankar", "terheqje_page",
+    # Trashëgimi
+    "pranim_trashegimie", "heqje_dore_trashegimie",
+]
 
 
 def list_prokura_scopes() -> dict:
@@ -413,7 +460,9 @@ def draft_prokura(backend, index, *, form: str, scope_keys=None, details: str = 
         "prokurë të POSAÇME me tagra shprehimisht të përcaktuara — mos i nënkupto. Ku mungon një e "
         "dhënë, lër [___]. Bazohu VETËM te nenet e dhëna — mos shpik nene. Shto në fund '### ✅ "
         "Kërkesat formale'. " + _NOTARY_ID)
+    general_block = ("\n\n─────\n" + GENERAL_POA_GUIDE) if form == "e_pergjithshme" else ""
     prompt = ("LLOJI: " + PROKURA_FORMS[form]
+              + general_block
               + "\n\nTAGRAT E KËRKUARA (qëllimet):\n" + scope_txt
               + "\n\nAFATI: " + (duration or "[___] (pa afat nëse s'përcaktohet)")
               + "\nNËN-DELEGIM: " + ("i lejuar" if subdelegation else "i palejuar")
