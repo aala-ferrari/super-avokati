@@ -1719,8 +1719,8 @@ def main():
               _brain37._senior_override("fable") == {"model_override": "fable", "effort_override": "max"}
               and _brain37._senior_override("") == {} and _brain37._senior_override("opus") == {})
         _js37 = _io37.open(_os37.path.join(_rr37, "static", "app.js"), encoding="utf-8").read()
-        check("skuadra[37]: UI — pulsante «Skuadra me Fable 5.1» invia mendja al percorso deep",
-              "_seniorNext" in _js37 and "mendja: _seniorNext" in _js37 and "deep-btn-fable" in _js37)
+        check("skuadra[37]: UI — pulsante «Skuadra maksimale» (senza nome modello) invia mendja al percorso deep",
+              "_seniorNext" in _js37 and "mendja: _seniorNext" in _js37 and "deep-btn-max" in _js37)
         check("skuadra[37]: le FONTI escono dal brain come evento (sintesi_burimet → skuadra → web)",
               "def sintesi_burimet(" in _st37 and 'yield ("skuadra"' in _br37 and '"type": "skuadra"' in _wb37)
         check("skuadra[37]: UI — pannello «Burimet e Skuadrës» reso (il «perché lo dico»)",
@@ -2005,6 +2005,24 @@ def main():
               and "uzufrukt" in _nt46._ORDER and "servitut" in _nt46._ORDER)
     except Exception as _e46:  # noqa: BLE001
         check("noteri[46]: kontrollet u ekzekutuan", False, str(_e46))
+
+    # ── [47] PRIVACY UI — nessun nome di modello nel testo VISIBILE (regola Tetramorph) ──
+    # Il cervello non deve MAI dire all'utente quale modello usa (opus/fable/sonnet/
+    # claude/anthropic). I token INTERNI di routing (param "fable", endpoint) restano;
+    # qui si guardano le FRASI VISIBILI (label/button/menu). Regressione reale: il
+    # pulsante «Skuadra me Fable 5.1» esponeva il modello (beccato dal titolare).
+    try:
+        import os as _os47, io as _io47
+        _rr47 = _os47.path.dirname(_os47.path.dirname(_os47.path.abspath(__file__)))
+        _aj47 = _io47.open(_os47.path.join(_rr47, "static", "app.js"), encoding="utf-8").read()
+        _ix47 = _io47.open(_os47.path.join(_rr47, "templates", "index.html"), encoding="utf-8").read()
+        _leaks47 = ["Fable 5", "me Fable", "con Fable", "Opus 5", "me Opus", "con Opus",
+                    "Sonnet 5", "Anthropic", "Claude "]
+        _found47 = [L for L in _leaks47 if L in _aj47 or L in _ix47]
+        check("privacy[47]: nessun nome di modello nel testo visibile (app.js/index.html) — solo «Tetramorph»",
+              not _found47, "trovati: " + ", ".join(_found47))
+    except Exception as _e47:  # noqa: BLE001
+        check("privacy[47]: kontrollet u ekzekutuan", False, str(_e47))
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

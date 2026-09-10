@@ -108,7 +108,7 @@
   // «Analizë e thellë»: la prossima domanda parte con deep=true (sala di
   // guerra completa). Si consuma al primo invio.
   var _deepNext = false;
-  var _seniorNext = "";  // Skuadra: senior della prossima domanda (""=Opus, "fable"=Fable 5.1 max)
+  var _seniorNext = "";  // Skuadra: senior della prossima domanda ("" = default, ⚡ = mente massima)
   async function fetchCases() {
     const resp = await fetch("/api/cases");
     if (!resp.ok) return [];
@@ -1337,10 +1337,10 @@
     wrap.appendChild(btn);
     var _btnF = document.createElement("button");
     _btnF.type = "button";
-    _btnF.className = "so-btn deep-btn deep-btn-fable";
+    _btnF.className = "so-btn deep-btn deep-btn-max";
     _btnF.innerHTML = _CAL_IT
-      ? "⚡ Squadra con Fable 5.1 <em>la mente più forte, casi molto difficili</em>"
-      : "⚡ Skuadra me Fable 5.1 <em>mendja më e fortë, raste shumë të vështira</em>";
+      ? "⚡ Squadra massima <em>la mente più forte, casi molto difficili</em>"
+      : "⚡ Skuadra maksimale <em>mendja më e fortë, raste shumë të vështira</em>";
     _btnF.addEventListener("click", function () {
       if (!activeCaseId) return;
       _deepNext = true;
@@ -5161,7 +5161,7 @@
   //
   // Righe = documenti, colonne = domande: ogni cella risponde SOLO dal suo
   // documento, col modello veloce e la citazione testuale sotto il mouse.
-  // Il cervello (Opus, 14 fasi) non c'entra: e' orchestrazione, alla Legora.
+  // Il cervello (14 fasi) non c'entra: e' orchestrazione, alla Legora.
   async function openTabela() {
     if (!activeCaseId) { toast(TT("Hap një rast më parë."), "error"); return; }
     var ov = document.getElementById("tb-ov");
