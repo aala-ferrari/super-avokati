@@ -1431,8 +1431,9 @@ def main():
               hasattr(brain.SuperAvvocato, "_studio_djalli")
               and open("/app/src/brain.py", encoding="utf-8").read().count(
                   "self._studio_djalli(user_message, retrieved, precedents, answer_text)") == 2)
-        check("studio[30]: prompti i djallit sulmon (nen gabim, normë që mungon, fakte, kundërargument) pa parere",
-              all(x in _st2.DJALLI_SYSTEM for x in ("GABIM", "MUNGON", "fakte", "kundërargument", "Mos shkruaj parere")))
+        check("studio[30]: prompt djalli — fronte + gravità [KRITIKE] + «pika ku do sulmoja», senza pareri nuovi, mai inventare",
+              all(x in _st2.DJALLI_SYSTEM for x in ("GABIM", "mungon", "parashkrimi", "barra",
+                                                    "[KRITIKE]", "PIKA KU DO TË SULMOJA", "MOS shpik nene", "Mos shkruaj parere")))
     except Exception as _e:  # noqa: BLE001
         check("studio[30]: kontrollet u ekzekutuan", False, str(_e))
 
@@ -1752,6 +1753,34 @@ def main():
               not _orf, "orfani: %s" % _orf)
     except Exception as _e:  # noqa: BLE001
         check("menu[38]: kontrollet u ekzekutuan", False, str(_e))
+
+    # ── [39] Miglioramenti dallo spec del titolare (senior 2-pass, temporale, fallimenti, diavolo) ──
+    try:
+        import io as _io39, os as _os39
+        _rr39 = _os39.path.dirname(_os39.path.dirname(_os39.path.abspath(__file__)))
+        _st39 = _io39.open(_os39.path.join(_rr39, "src", "studio.py"), encoding="utf-8").read()
+        _br39 = _io39.open(_os39.path.join(_rr39, "src", "brain.py"), encoding="utf-8").read()
+        from src import studio as _s39
+        check("spec[39]: #1 senior a DUE passaggi — risponde al Diavolo (pranohet/refuzohet/pjesërisht)",
+              hasattr(_s39, "senior_pergjigjja") and "studio.senior_pergjigjja(" in _br39
+              and "PERGJIGJE_SYSTEM" in _st39
+              and "PRANOHET" in _s39.PERGJIGJE_SYSTEM["sq"] and "ACCOLTO" in _s39.PERGJIGJE_SYSTEM["it"])
+        check("spec[39]: #1 il senior 2-pass usa la mente scelta (Opus default/Fable) + empty-guard ESEGUITO",
+              'request_senior() == "fable"' in _br39
+              and _s39.senior_pergjigjja(None, domanda="x", blloku_neneve="", pergjigja="", sulmi="a") == ""
+              and _s39.senior_pergjigjja(None, domanda="x", blloku_neneve="", pergjigja="r", sulmi="") == "")
+        _txt = _s39.formato_dosjen({"web": {"akte_nenligjore": [], "burime": []}, "qbz": [], "fletorja": [],
+                                    "gabime": ["qbz: TimeoutError"]}, "sq")
+        check("spec[39]: #3 il silenzio di un agente NON è «nessun problema» — fallimenti nel dossier ESEGUITO",
+              "KONTROLLE TË PAPËRFUNDUARA" in _txt and "Kontrolli i vigjencës" in _txt
+              and _s39.formato_dosjen({"web": {"akte_nenligjore": [], "burime": []}, "qbz": [], "fletorja": [], "gabime": []}, "sq") == "")
+        check("spec[39]: #4 Diavolo strutturato — gravità [KRITIKE] + «dove attaccare per primo»",
+              "[KRITIKE]" in _s39.DJALLI_SYSTEM and "PIKA KU DO TË SULMOJA" in _s39.DJALLI_SYSTEM)
+        check("spec[39]: #2 Agent C temporale — il testo di oggi ≠ quello applicabile ai fatti (sq+it)",
+              "TEKSTI I SOTËM NUK ËSHTË DOMOSDO" in _s39.MBLEDHES_QBZ_SYSTEM["sq"]
+              and "IL TESTO DI OGGI NON È" in _s39.MBLEDHES_QBZ_SYSTEM["it"])
+    except Exception as _e:  # noqa: BLE001
+        check("spec[39]: kontrollet u ekzekutuan", False, str(_e))
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

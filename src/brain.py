@@ -3161,7 +3161,23 @@ class SuperAvvocato:
                 return answer_text
             sez = _apply_corrections(_verify_citations(sez, precedents))
             log.info("studio: avokati i djallit ka folur (%d shkronja)", len(sez))
-            return answer_text + sez
+            # 2° PASSAGGIO (spec titolare): il senior RISPONDE all'attacco —
+            # accolto/respinto/parziale + strategia rivista. Stessa mente del
+            # senior (Opus max di default, Fable se scelto). Fail-silent.
+            risposta = ""
+            try:
+                _mendja = "fable" if request_senior() == "fable" else "opus"
+                risposta = studio.senior_pergjigjja(
+                    self.backend, domanda=user_message,
+                    blloku_neneve=_format_articles_for_prompt(retrieved),
+                    pergjigja=answer_text, sulmi=sez, lang=lang,
+                    modeli=_mendja, effort="max")
+                if risposta:
+                    risposta = _apply_corrections(_verify_citations(risposta, precedents))
+                    log.info("studio: seniori iu përgjigj sulmeve (%d shkronja)", len(risposta))
+            except Exception as _exc2:  # noqa: BLE001
+                log.warning("studio: përgjigja e seniorit dështoi (non-fatal): %s", _exc2)
+            return answer_text + sez + risposta
         except Exception as exc:  # noqa: BLE001
             log.warning("studio djalli fallito (non-fatal): %s", exc)
             return answer_text
