@@ -11656,39 +11656,55 @@
   function renderSettleResult(data) {
     const d = data.distribution || {};
     const r = data.recommendation || {};
-    const verdict = r.verdict || "no_offer";
-    const verdictLabel = (_CAL_IT ? {
-      accept: "✓ ACCETTA l'offerta",
-      counter: "↔ CONTRO-OFFERTA",
-      reject: "✗ RIFIUTA",
-      no_offer: "Nessuna offerta registrata"
+    const it = _CAL_IT;
+    // §18 — SCENARIO model, non previsione empirica: etichette qualitative +
+    // disclaimer. Le chiavi del backend hanno il suffisso _eur (bug storico:
+    // la UI leggeva p10/mean/suggested_counter → mostrava «—» ovunque).
+    const L = it ? {
+      disc: "🎲 Scenari — ipotesi del modello, NON una previsione empirica. Nessun dataset storico calibrato: le probabilità sono assunzioni da confermare.",
+      dist: "📊 Distribuzione (scenari simulati, n=",
+      ev: "Valore atteso (media degli scenari):",
+      counter: "Contro-offerta suggerita:", walk: "Soglia di rinuncia (walk-away):",
+      offerPct: "L'offerta attuale è al percentile", ofDist: "della distribuzione simulata",
+      scen: "🎲 Scenari ipotizzati (probabilità = assunzioni, non dati)",
+      bands: { hi: "molto probabile", mid: "probabile", low: "possibile", vlow: "poco probabile" }
     } : {
-      accept: "✓ PRANO ofertën",
-      counter: "↔ KONTËR-OFERTË",
-      reject: "✗ REFUZO",
-      no_offer: "Asnjë ofertë e regjistruar"
-    })[verdict] || verdict;
-    const pct = (k) => {
-      const v = d[k]; if (v == null) return "—";
-      return Math.round(v).toLocaleString("sq-AL") + " €";
+      disc: "🎲 Skenarë — supozime të modelit, JO parashikim empirik. Pa dataset historik të kalibruar: probabilitetet janë supozime, konfirmohen nga avokati.",
+      dist: "📊 Shpërndarja (skenarë të simuluar, n=",
+      ev: "Vlera e pritur (mesatarja e skenarëve):",
+      counter: "Kontër-ofertë e sugjeruar:", walk: "Kufiri i tërheqjes (walk-away):",
+      offerPct: "Oferta aktuale është te percentili", ofDist: "i shpërndarjes së simuluar",
+      scen: "🎲 Skenarët e supozuar (probabiliteti = supozim, jo e dhënë)",
+      bands: { hi: "shumë e mundshme", mid: "e mundshme", low: "e mundur", vlow: "pak e mundshme" }
     };
+    const verdict = r.verdict || "no_offer";
+    const verdictLabel = (it ? {
+      accept: "✓ ACCETTA l'offerta", counter: "↔ CONTRO-OFFERTA",
+      reject: "✗ RIFIUTA", no_offer: "Nessuna offerta registrata"
+    } : {
+      accept: "✓ PRANO ofertën", counter: "↔ KONTËR-OFERTË",
+      reject: "✗ REFUZO", no_offer: "Asnjë ofertë e regjistruar"
+    })[verdict] || verdict;
+    const eur = (v) => (v == null ? "—" : Math.round(v).toLocaleString(it ? "it-IT" : "sq-AL") + " €");
+    const pband = (p) => (p >= 0.5 ? L.bands.hi : p >= 0.3 ? L.bands.mid : p >= 0.15 ? L.bands.low : L.bands.vlow);
     settleResultEl.innerHTML = `
-      <h4 class="studio-section-title">📊 Shpërndarja (n=${data.samples})</h4>
+      <div style="margin:.4rem 0;padding:.5rem .7rem;border-left:3px solid #c9a227;background:rgba(201,162,39,.10);font-size:.9em;border-radius:4px;">${L.disc}</div>
+      <h4 class="studio-section-title">${L.dist}${data.samples})</h4>
       <div class="settle-distribution">
-        <div class="settle-pctile"><div class="settle-pctile-key">P10</div><div class="settle-pctile-val">${pct("p10")}</div></div>
-        <div class="settle-pctile"><div class="settle-pctile-key">P25</div><div class="settle-pctile-val">${pct("p25")}</div></div>
-        <div class="settle-pctile"><div class="settle-pctile-key">P50</div><div class="settle-pctile-val">${pct("p50")}</div></div>
-        <div class="settle-pctile"><div class="settle-pctile-key">P75</div><div class="settle-pctile-val">${pct("p75")}</div></div>
-        <div class="settle-pctile"><div class="settle-pctile-key">P90</div><div class="settle-pctile-val">${pct("p90")}</div></div>
+        <div class="settle-pctile"><div class="settle-pctile-key">P10</div><div class="settle-pctile-val">${eur(d.p10_eur)}</div></div>
+        <div class="settle-pctile"><div class="settle-pctile-key">P25</div><div class="settle-pctile-val">${eur(d.p25_eur)}</div></div>
+        <div class="settle-pctile"><div class="settle-pctile-key">P50</div><div class="settle-pctile-val">${eur(d.p50_eur)}</div></div>
+        <div class="settle-pctile"><div class="settle-pctile-key">P75</div><div class="settle-pctile-val">${eur(d.p75_eur)}</div></div>
+        <div class="settle-pctile"><div class="settle-pctile-key">P90</div><div class="settle-pctile-val">${eur(d.p90_eur)}</div></div>
       </div>
-      <div><span class="gn-label">EV mesatar:</span> <strong>${pct("mean")}</strong></div>
+      <div><span class="gn-label">${L.ev}</span> <strong>${eur(d.mean_eur)}</strong></div>
       <div class="settle-verdict ${verdict}">${verdictLabel}</div>
-      ${r.suggested_counter != null ? `<div class="settle-recom"><span class="gn-label">Kontër-ofertë e sugjeruar:</span> <strong>${Math.round(r.suggested_counter).toLocaleString("sq-AL")} €</strong></div>` : ""}
-      ${r.walk_away != null ? `<div class="settle-recom"><span class="gn-label">Walk-away:</span> ${Math.round(r.walk_away).toLocaleString("sq-AL")} €</div>` : ""}
-      ${r.current_offer_percentile != null ? `<div class="settle-recom"><span class="gn-label">Oferta aktuale = perc. ${Math.round(r.current_offer_percentile*100)}</span> e shpërndarjes</div>` : ""}
-      <h4 class="studio-section-title">🎲 Skenarët e elicituar</h4>
+      ${r.suggested_counter_eur != null ? `<div class="settle-recom"><span class="gn-label">${L.counter}</span> <strong>${eur(r.suggested_counter_eur)}</strong></div>` : ""}
+      ${r.walk_away_eur != null ? `<div class="settle-recom"><span class="gn-label">${L.walk}</span> ${eur(r.walk_away_eur)}</div>` : ""}
+      ${r.current_offer_percentile != null ? `<div class="settle-recom"><span class="gn-label">${L.offerPct} ~${Math.round(r.current_offer_percentile*100)}%</span> ${L.ofDist}</div>` : ""}
+      <h4 class="studio-section-title">${L.scen}</h4>
       <ul>${(data.scenarios||[]).map(s =>
-        `<li><strong>${htmlEsc(s.name||s.label||"")}</strong> (p=${s.probability}) — ${Math.round(s.min_eur).toLocaleString()} → <strong>${Math.round(s.mode_eur).toLocaleString()}</strong> → ${Math.round(s.max_eur).toLocaleString()} €<br><em>${htmlEsc(s.rationale||"")}</em></li>`
+        `<li><strong>${htmlEsc(s.label||s.name||"")}</strong> — <strong>${pband(s.probability)}</strong> <span style="opacity:.6">(p≈${s.probability})</span><br>${eur(s.min_eur)} → <strong>${eur(s.mode_eur)}</strong> → ${eur(s.max_eur)}<br><em>${htmlEsc(s.rationale||"")}</em></li>`
       ).join("")}</ul>
     `;
     settleResultEl.hidden = false;

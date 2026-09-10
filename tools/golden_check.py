@@ -1872,6 +1872,28 @@ def main():
     except Exception as _e41:  # noqa: BLE001
         check("afati[41]: kontrollet u ekzekutuan", False, str(_e41))
 
+    # ── [42] SETTLEMENT §18 — scenario (non previsione) + chiavi _eur corrette ──
+    # Il motore era già onesto (scenari), ma la UI: (a) mostrava «—» ovunque per
+    # un mismatch di chiavi (p10 vs p10_eur), (b) dava il % grezzo senza dire che
+    # è un'assunzione. Ora: chiavi corrette + disclaimer + bande qualitative + bilingue.
+    try:
+        import os as _os42, io as _io42
+        _rr42 = _os42.path.dirname(_os42.path.dirname(_os42.path.abspath(__file__)))
+        _aj42 = _io42.open(_os42.path.join(_rr42, "static", "app.js"), encoding="utf-8").read()
+        _i42 = _aj42.find("function renderSettleResult(")
+        _seg42 = _aj42[_i42:_i42 + 4600] if _i42 >= 0 else ""
+        check("settle[42]: §18 disclaimer «scenario, non previsione» (sq+it) nel render",
+              _i42 >= 0 and "JO parashikim" in _seg42 and "supozime" in _seg42
+              and "NON una previsione" in _seg42 and "ipotesi del modello" in _seg42)
+        check("settle[42]: chiavi distribuzione corrette (_eur) — niente più «—»",
+              "d.p10_eur" in _seg42 and "d.p50_eur" in _seg42 and "d.mean_eur" in _seg42)
+        check("settle[42]: recommendation corretta (_eur) — counter/walk-away ora mostrati",
+              "r.suggested_counter_eur" in _seg42 and "r.walk_away_eur" in _seg42)
+        check("settle[42]: bande qualitative sulla probabilità di scenario (pband, sq+it)",
+              "pband" in _seg42 and "shumë e mundshme" in _seg42 and "molto probabile" in _seg42)
+    except Exception as _e42:  # noqa: BLE001
+        check("settle[42]: kontrollet u ekzekutuan", False, str(_e42))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
