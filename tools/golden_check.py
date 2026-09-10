@@ -1942,6 +1942,35 @@ def main():
     except Exception as _e44:  # noqa: BLE001
         check("eval[44]: kontrollet u ekzekutuan", False, str(_e44))
 
+    # ── [45] CORPUS HASH §1-2/§4 — impronta + rilevamento cambi (fondazione) ──
+    # La prima pietra del versioning: non il testo storico (XL, data-blocked), ma
+    # l'impronta SHA-256 che fa accorgere quando un testo ufficiale CAMBIA.
+    try:
+        import types as _types45, os as _os45, io as _io45
+        from src import corpus_hash as _ch45
+        def _A45(**k):
+            base = {"code": "", "number": "", "title_sq": "", "heading": "", "body": "", "repealed": False}
+            base.update(k)
+            return _types45.SimpleNamespace(**base)
+        _h45 = _ch45.article_hash(_A45(code="c", number="1", body="testo uno"))
+        check("hash[45]: article_hash deterministico + sha256 + whitespace-norm + sensibile a corpo/abrogazione",
+              _h45 == _ch45.article_hash(_A45(code="c", number="1", body="testo  uno"))
+              and len(_h45) == 64
+              and _h45 != _ch45.article_hash(_A45(code="c", number="1", body="testo due"))
+              and _h45 != _ch45.article_hash(_A45(code="c", number="1", body="testo uno", repealed=True)))
+        _o45 = {"AL:c|1": {"hash": "x"}, "AL:c|2": {"hash": "y"}}
+        _n45 = {"AL:c|1": {"hash": "x"}, "AL:c|2": {"hash": "Z"}, "AL:c|3": {"hash": "w"}}
+        _d45 = _ch45.diff(_o45, _n45)
+        check("hash[45]: diff rileva nuovo/cambiato/rimosso/invariato",
+              _d45["new"] == ["AL:c|3"] and _d45["changed"] == ["AL:c|2"]
+              and _d45["removed"] == [] and _d45["unchanged"] == 1)
+        _rr45 = _os45.path.dirname(_os45.path.dirname(_os45.path.abspath(__file__)))
+        _sc45 = _io45.open(_os45.path.join(_rr45, "tools", "snapshot_corpus.py"), encoding="utf-8").read()
+        check("hash[45]: tool snapshot_corpus — fotografia nel volume + principio «mai auto-applicato» (§5)",
+              "corpus_hashes.json" in _sc45 and "--write" in _sc45 and "auto-applicato" in _sc45)
+    except Exception as _e45:  # noqa: BLE001
+        check("hash[45]: kontrollet u ekzekutuan", False, str(_e45))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
