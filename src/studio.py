@@ -608,6 +608,7 @@ _TITUJ_DOSJE = {
     "sq": {
         "kreu": "━━━ DOSJA E BURIMEVE — mbledhur nga juristët e rinj (tekste FJALË PËR FJALË, jo përmbledhje) ━━━",
         "gabime": "⚠️ KONTROLLE TË PAPËRFUNDUARA (mos e lexo mungesën si «asgjë e keqe»):",
+        "kontrolluar": "✓ KONTROLLUAR PA REZULTAT (kontrolloi, asgjë e re — mungesa NUK provon mosekzistencën):",
         "akte": "📜 AKTE NËNLIGJORE / RREGULLORE (citime tekstuale nga webi — ⚠ verifikoji para se t'i citosh):",
         "qbz": "🌐 STATUSI NË BURIMET ZYRTARE (QBZ) i neneve qendrore:",
         "fletorja": "🆕 NDRYSHIMI MË I FUNDIT (Fletorja Zyrtare — ligji i gjallë, ⚠ verifikoje):",
@@ -623,6 +624,7 @@ _TITUJ_DOSJE = {
     "it": {
         "kreu": "━━━ DOSSIER DELLE FONTI — raccolto dai collaboratori (testi PAROLA PER PAROLA, non riassunti) ━━━",
         "gabime": "⚠️ CONTROLLI NON COMPLETATI (non leggere l'assenza come «nessun problema»):",
+        "kontrolluar": "✓ CONTROLLATO SENZA ESITO (controllato, nulla di nuovo — l'assenza NON prova l'inesistenza):",
         "akte": "📜 NORME ATTUATIVE / REGOLAMENTI (citazioni testuali dal web — ⚠ da verificare prima di citarle):",
         "qbz": "🌐 VIGENZA SU FONTI UFFICIALI degli articoli centrali:",
         "fletorja": "🆕 MODIFICA PIÙ RECENTE (Gazzetta Ufficiale — legge viva, ⚠ da verificare):",
@@ -655,6 +657,7 @@ def formato_dosjen(dosja: dict, lang: str = "sq", precedents_block: str = "") ->
     qbz = (dosja or {}).get("qbz") or []
     fletorja = (dosja or {}).get("fletorja") or []
     gabime = (dosja or {}).get("gabime") or []
+    kohe = (dosja or {}).get("kohe") or {}
     prec = (precedents_block or "").strip()
     _pa0 = (_STATUSE_QBZ["sq"][3], _STATUSE_QBZ["it"][3])
     if not (akte or burime or fletorja or [q for q in qbz if q.get("statusi") not in _pa0] or prec or gabime):
@@ -667,6 +670,18 @@ def formato_dosjen(dosja: dict, lang: str = "sq", precedents_block: str = "") ->
         for g in gabime:
             _k = str(g).split(":")[0].strip()
             rr.append("  • %s — %s" % (_ag.get(_k, _k), _pa_txt))
+    # #C: chi ha girato ma non ha trovato nulla — controllato, non «inesistente»
+    _gab_keys = {str(g).split(":")[0].strip() for g in gabime}
+    _trovato = {"web": bool(akte or burime),
+                "qbz": bool([q for q in qbz if q.get("statusi") not in _pa0]),
+                "fletorja": bool(fletorja)}
+    _checked = [k for k in ("web", "qbz", "fletorja")
+                if k in kohe and k not in _gab_keys and not _trovato.get(k)]
+    if _checked:
+        rr.append(T["kontrolluar"])
+        _ag2 = _AGJENTET.get(lang, _AGJENTET["sq"])
+        for k in _checked:
+            rr.append("  • " + _ag2.get(k, k))
     if fletorja:
         rr.append(T["fletorja"])
         for f in fletorja:

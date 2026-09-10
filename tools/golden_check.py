@@ -1782,6 +1782,24 @@ def main():
     except Exception as _e:  # noqa: BLE001
         check("spec[39]: kontrollet u ekzekutuan", False, str(_e))
 
+    # ── [40] War Room: «non trovato ≠ non esiste» (#A) + stato raccoglitori (#C) ──
+    try:
+        import io as _io40, os as _os40
+        _rr40 = _os40.path.dirname(_os40.path.dirname(_os40.path.abspath(__file__)))
+        _br40 = _io40.open(_os40.path.join(_rr40, "src", "brain.py"), encoding="utf-8").read()
+        from src import studio as _s40
+        check("war[40]: #A «MOSGJETJA NUK ËSHTË MUNGESË» nei due prompt del senior (complex+simple)",
+              _br40.count("MOSGJETJA NUK ËSHTË MUNGESË") == 2)
+        _txt40 = _s40.formato_dosjen(
+            {"web": {"akte_nenligjore": [{"titulli": "X", "citim": "tekst i gjate sa duhet", "url": "https://x", "data": "2024"}], "burime": []},
+             "qbz": [{"neni": "1", "statusi": "E PAQARTË"}], "fletorja": [],
+             "kohe": {"web": 40, "qbz": 50, "fletorja": 50}, "gabime": []}, "sq")
+        check("war[40]: #C stato raccoglitori — «controllato senza esito» per chi ha girato a vuoto (ESEGUITO)",
+              "KONTROLLUAR PA REZULTAT" in _txt40 and "Kontrolli i vigjencës" in _txt40
+              and "Rojtari i Fletores Zyrtare" in _txt40)
+    except Exception as _e:  # noqa: BLE001
+        check("war[40]: kontrollet u ekzekutuan", False, str(_e))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
