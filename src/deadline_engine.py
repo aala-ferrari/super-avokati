@@ -29,9 +29,11 @@ Regole implementate (comuni a procedura AL e IT, salvo dove annotato):
     1° al 31 agosto → quei giorni non si contano. **Solo IT**; l'Albania non ha
     un equivalente → per AL il flag resta False.
 
-Limite dichiarato (meglio un avviso che una data sbagliata): le FESTIVITÀ MOBILI
-religiose albanesi (Pashkët ortodokse, Bajrami) non sono in tabella → in
-modalità giorni-lavorativi AL il motore AVVISA di verificarle.
+Festività: fisse nazionali + Pasqua CATTOLICA (gregoriana) e, per l'Albania,
+anche Pasqua ORTODOSSA (giuliana→gregoriana, calcolata). Limite dichiarato
+(meglio un avviso che una data sbagliata): le feste ISLAMICHE mobili (Fitër/
+Kurban Bajram) dipendono dall'avvistamento lunare (annunciate per decreto) → NON
+si calcolano; in modalità giorni-lavorativi AL il motore AVVISA di verificarle.
 """
 from __future__ import annotations
 
@@ -66,6 +68,21 @@ def easter_sunday(year: int) -> _dt.date:
     return _dt.date(year, month, day)
 
 
+def orthodox_easter_sunday(year: int) -> _dt.date:
+    """Pasqua ORTODOSSA (festivo ufficiale in Albania). Computus giuliano
+    (Meeus) → data giuliana, poi conversione al gregoriano (+13 giorni, valido
+    1900-2099). Deterministico. Verificato: 2024→5 mag, 2025→20 apr."""
+    a = year % 4
+    b = year % 7
+    c = year % 19
+    d = (19 * c + 15) % 30
+    e = (2 * a + 4 * b - d + 34) % 7
+    month = (d + e + 114) // 31
+    day = ((d + e + 114) % 31) + 1
+    julian = _dt.date(year, month, day)
+    return julian + _dt.timedelta(days=13)  # giuliano → gregoriano (1900-2099)
+
+
 # ── festività nazionali (fisse + Pasqua) ─────────────────────────────────────
 _IT_FIXED = {(1, 1), (1, 6), (4, 25), (5, 1), (6, 2), (8, 15), (11, 1), (12, 8), (12, 25), (12, 26)}
 _AL_FIXED = {(1, 1), (1, 2), (3, 14), (3, 22), (5, 1), (9, 5), (11, 28), (11, 29), (12, 8), (12, 25)}
@@ -75,7 +92,10 @@ def holidays(year: int, jurisdiction: str) -> set[_dt.date]:
     j = (jurisdiction or "AL").upper()
     fixed = _IT_FIXED if j == "IT" else _AL_FIXED
     out = {_dt.date(year, m, d) for (m, d) in fixed}
-    out.add(easter_sunday(year) + ONE_DAY)  # Lunedì dell'Angelo
+    out.add(easter_sunday(year) + ONE_DAY)  # Lunedì dell'Angelo (Pasqua cattolica)
+    if j == "AL":
+        # Albania osserva ANCHE la Pasqua ORTODOSSA (calendario giuliano).
+        out.add(orthodox_easter_sunday(year) + ONE_DAY)
     return out
 
 
@@ -142,7 +162,7 @@ _MSG = {
         "fest": " /festë",
         "w_feriale_nonit": "Pezullimi feriale u kërkua por juridiksioni nuk është IT: u shpërfill (Shqipëria nuk ka një pezullim feriale ekuivalent).",
         "w_feriale_monthyear": "Pezullimi feriale NUK zbatohet te afatet në muaj/vjet (afate materiale): u shpërfill.",
-        "w_al_mobile": "AL: festat e lëvizshme (Pashkët ortodokse, Bajrami) nuk janë në tabelë — verifiko nëse bien brenda periudhës së numëruar.",
+        "w_al_mobile": "AL: festat ISLAME të lëvizshme (Fitër Bajrami, Kurban Bajrami) s'janë në tabelë — data shpallet sipas hënës; verifiko nëse bien brenda periudhës (Pashkët katolike+ortodokse llogariten tashmë).",
         "w_det": "Motor determinist: avokati konfirmon RREGULLIN e zbatuar (ngjarja, afati, feriale). Llogaritja e datës verifikohet nga hapat më sipër.",
     },
     "it": {
@@ -159,7 +179,7 @@ _MSG = {
         "fest": " /festivo",
         "w_feriale_nonit": "Sospensione feriale richiesta ma la giurisdizione non è IT: ignorata (l'Albania non ha una sospensione feriale equivalente).",
         "w_feriale_monthyear": "La sospensione feriale NON si applica ai termini a mesi/anni (termini sostanziali): ignorata.",
-        "w_al_mobile": "AL: le festività mobili (Pashkët ortodokse, Bajrami) non sono in tabella — verifica se cadono nel periodo contato.",
+        "w_al_mobile": "AL: le festività ISLAMICHE mobili (Fitër/Kurban Bajram) non sono in tabella — la data è annunciata secondo la luna; verifica se cadono nel periodo (Pasqua cattolica+ortodossa già calcolate).",
         "w_det": "Motore deterministico: l'avvocato conferma la REGOLA applicata (trigger, durata, feriale). Il calcolo della data è verificabile dai passi qui sopra.",
     },
 }

@@ -5892,7 +5892,8 @@ def api_prescription():
         return jsonify({"error": "facts_required"}), 400
     try:
         res = deadlines_mod.prescription(_BRAIN.backend, _req_index(),
-                                         facts=_with_case(facts[:8000], body))
+                                         facts=_with_case(facts[:8000], body),
+                                         jurisdiction=_active_jurisdiction(getattr(request, "user", None)) or "AL")
     except Exception as exc:  # noqa: BLE001
         log.exception("prescription failed")
         return jsonify({"error": _safe_err(exc)}), 200

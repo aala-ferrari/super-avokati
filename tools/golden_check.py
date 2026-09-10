@@ -1869,6 +1869,18 @@ def main():
               and "_de.compute_deadline(" in _af41 and "jurisdiction: str" in _af41)
         check("afati[41]: web.py passa la giurisdizione della sessione al motore",
               "jurisdiction=_active_jurisdiction(" in _wb41)
+        # §13 esteso: Pasqua ortodossa (AL) + prescrizione deterministica (deadlines.py)
+        import datetime as _dt41
+        _oem41 = _de41.orthodox_easter_sunday(2024) + _dt41.timedelta(days=1)
+        check("afati[41]: Pasqua ORTODOSSA calcolata + festivo AL (non IT)",
+              _de41.orthodox_easter_sunday(2024) == _dt41.date(2024, 5, 5)
+              and _oem41 in _de41.holidays(2024, "AL")
+              and _oem41 not in _de41.holidays(2024, "IT"))
+        _dl41 = _io41.open(_os41.path.join(_rr41, "src", "deadlines.py"), encoding="utf-8").read()
+        check("afati[41]: prescrizione (deadlines.py) usa il motore determin. — no feriale/proroga + verdetto scaduto",
+              "_PRESH_RE" in _dl41 and "deadline_engine" in _dl41
+              and "roll_on_holiday=False" in _dl41 and "feriale=False" in _dl41
+              and ("PARASHKRUAR" in _dl41 or "PRESCRITTO" in _dl41))
     except Exception as _e41:  # noqa: BLE001
         check("afati[41]: kontrollet u ekzekutuan", False, str(_e41))
 
