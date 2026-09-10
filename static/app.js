@@ -109,6 +109,17 @@
   // guerra completa). Si consuma al primo invio.
   var _deepNext = false;
   var _seniorNext = "";  // Skuadra: senior della prossima domanda ("" = default, ⚡ = mente massima)
+  var _busy = false;     // cervello al lavoro: blocca nuovi invii (una domanda alla volta, non confondere l'analisi)
+  function _setBusy(on) {
+    _busy = on;
+    if (typeof sendBtn !== "undefined" && sendBtn) sendBtn.disabled = on;
+    if (typeof composerHint !== "undefined" && composerHint) {
+      composerHint.textContent = on
+        ? (_CAL_IT ? "Sto ragionando… attendi la risposta prima di chiedere ancora" : "Po mendon… prit përgjigjen para se të pyesësh sërish")
+        : (_CAL_IT ? "Invio con Invio · Shift+Invio per andare a capo" : "Enter për të dërguar · Shift+Enter për rresht të ri");
+    }
+    if (typeof input !== "undefined" && input) input.classList.toggle("is-busy", on);
+  }
   async function fetchCases() {
     const resp = await fetch("/api/cases");
     if (!resp.ok) return [];
@@ -947,6 +958,7 @@
   // ─── submit ──────────────────────────────────────────────────────
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
+    if (_busy) return;  // già in elaborazione: una domanda alla volta (non confondere l'analisi)
     const text = input.value.trim();
     if (!text) return;
     // Slash commands handled inline — no LLM call, no case context required.
@@ -964,7 +976,7 @@
     autoGrow();
     appendUser(text);
     const typing = appendTyping();
-    sendBtn.disabled = true;
+    _setBusy(true);  // blocca il composer finché l'analisi non finisce
     try {
       // Due passi invece di uno. Il primo dice al server di cominciare e
       // torna subito: da quel momento il cervello lavora per conto suo, e
@@ -997,7 +1009,7 @@
       if (typing && typing.isConnected) typing.remove();
       appendError((_CAL_IT ? "Errore di rete: " : "Gabim rrjeti: ") + err.message);
     } finally {
-      sendBtn.disabled = false;
+      _setBusy(false);  // sblocca il composer a fine analisi (o se la partenza fallisce)
       if (window.innerWidth >= 900) input.focus();
     }
   });
@@ -1094,6 +1106,7 @@
   input.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !e.shiftKey && window.innerWidth >= 900) {
       e.preventDefault();
+      if (_busy) return;  // cervello al lavoro: non inviare una seconda domanda
       form.requestSubmit();
     }
   });
@@ -12700,7 +12713,8 @@ function moduleChips(u) {
     if (caseId !== activeCaseId) return;
     if (jobId) {
       const typing = appendTyping();
-      seguiJob(jobId, caseId, typing);
+      _setBusy(true);  // riattacco a un'analisi in corso: blocca il composer finché non finisce
+      seguiJob(jobId, caseId, typing).finally(() => _setBusy(false));
       return;
     }
     mostraDomandaInterrotta(caseId, ultimo.content);

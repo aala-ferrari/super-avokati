@@ -2042,6 +2042,22 @@ def main():
     except Exception as _e48:  # noqa: BLE001
         check("mf[48]: kontrollet u ekzekutuan", False, str(_e48))
 
+    # ── [49] BUSY GUARD — una domanda alla volta (mentre il cervello lavora, blocca) ──
+    # Bug del titolare: il tasto Enter (o «Dërgo») faceva partire una 2ª domanda
+    # mentre la 1ª era ancora in corso, confondendo l'analisi. Flag _busy: guardia
+    # nel submit + nell'Enter + lock/unlock in finally + sul riattacco al job.
+    try:
+        import os as _os49, io as _io49
+        _rr49 = _os49.path.dirname(_os49.path.dirname(_os49.path.abspath(__file__)))
+        _aj49 = _io49.open(_os49.path.join(_rr49, "static", "app.js"), encoding="utf-8").read()
+        check("busy[49]: guardia _busy nel submit + Enter, lock _setBusy(true)/unlock in finally, + sul riattacco",
+              "function _setBusy(" in _aj49
+              and _aj49.count("if (_busy) return") >= 2
+              and "_setBusy(true)" in _aj49 and "_setBusy(false)" in _aj49
+              and ".finally(() => _setBusy(false))" in _aj49)
+    except Exception as _e49:  # noqa: BLE001
+        check("busy[49]: kontrollet u ekzekutuan", False, str(_e49))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
