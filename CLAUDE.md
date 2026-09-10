@@ -574,7 +574,7 @@ errori, non che le risposte sono ancora giuste. Riferimento verificato il
 12 articoli recuperati per ciascuna.
 
 ```bash
-docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46]). Baseline **430/430** (10 set; era 98 il 31 ago).
+docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51]). Baseline **435/435** (10 set; era 98 il 31 ago).
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 bash /root/prova_sse.sh                                    # SULL'HOST (legge il secret da /opt/super-avvocato.env; copia in tools/prova_sse.sh): account di prova → login → fascicolo → 1 domanda VERA → stream /api/ask/events attraverso waitress. Deve dire «HTTP 200 … done: 1» (~50s, costa 1 chiamata al cervello) e cancella l'account. Dopo OGNI build che tocca web.py o le rotte SSE.
@@ -1432,6 +1432,37 @@ rischio residuo della DPIA.
 - Super Avokati ha auth propria (login_required_api); utenti creati da admin o auto-provisionati da AALA (`/api/provision-demo`, secret-guarded).
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
+
+**v9.294-9.299 — domande interattive, privacy, chiarezza, e la REGOLA sul
+carattere delle domande (10 set).** Privacy (v9.294): rimosso il nome del
+modello da un pulsante visibile («⚡ Skuadra me Fable 5.1» → «Skuadra
+maksimale»), golden [47] sorveglia che nessun nome di modello (opus/fable/
+sonnet/claude/anthropic) compaia nel testo visibile — solo «Tetramorph».
+Domande di chiarimento interattive (v9.295-9.296): pulsanti **Po/Jo** per
+domanda + campo libero **«specifica»** + footer **«Dërgo»** che assembla le
+risposte sì/no e le manda alla sala di guerra completa (`deep`) per una
+risposta definitiva (golden [48]). Busy-guard (v9.297): mentre il cervello
+lavora il composer è bloccato — una 2ª domanda non parte più a confondere
+l'analisi (`_busy`/`_setBusy`, golden [49]). Streaming chiaro (v9.298): durante
+lo streaming si toglie il pannello vuoto «Nenet e konsultuara (0)» e si mostra
+«⏳ Po analizoj ende…» sq/it, così un'analisi lunga non SEMBRA finita; pannello
+e pulsanti veri arrivano solo con la risposta finale (golden [50]).
+**v9.299 — LE DOMANDE = SOLO FATTI, MAI DOMANDE LEGALI.** Feedback del titolare:
+le «Pyetje që do ta sqaronin» erano insensate — chiedevano all'avvocato cose
+LEGALI (serve apostille? chi ha competenza? è valido X? è scaduto l'afat?) che
+il cervello deve RICERCARE e RISPONDERE lui. `MISSING_FACTS_SYSTEM` riscritto:
+il cervello è DECISIVO (ricerca la legge, dà soluzioni/problemi/attenzioni) e
+chiede SOLO fatti semplici che solo il cliente conosce e che non si ricercano
+(amministratore unico o board? socio unico o più? proprietà o leasing? data
+dell'evento? documento in mano sì/no?); default `{"facts": []}`, max 3, mai
+allungare la causa. Tolto il vecchio «avvocato stratega che cerca i fatti che
+cambiano la risposta». La lingua non è più «Shkruaj SHQIP» fissa ma «gjuha e
+sesionit» (LINGUA=SESSIONE). Golden [51]. **Prova viva** (scenario procura/SHPK
+che tentava il vecchio prompt a domande legali): 3 domande tutte fattuali
+(«sei amministratore unico?», «il beneficiario è socio o terzo?»), zero spie
+legali, e il retrieval aveva già ancorato la legge societaria → il cervello
+risponde, non rimbalza. Vedi memoria [[feedback_decisivo_no_domande_legali]].
+QA: golden **435**, smoke 105, juris verde.
 
 **v9.287 — War Room research loop** (ultima tessera del percorso ⚡ Fable): dopo
 il ragionamento del senior, un gap-detector chiede se l'analisi usa una norma che

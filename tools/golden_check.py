@@ -2075,6 +2075,27 @@ def main():
     except Exception as _e50:  # noqa: BLE001
         check("stream[50]: kontrollet u ekzekutuan", False, str(_e50))
 
+    # ── [51] DOMANDE = SOLO FATTI — mai domande legali (regola del titolare 10 set) ──
+    # Feedback: le domande di chiarimento «insensate» chiedevano all'avvocato cose
+    # LEGALI che il cervello deve ricercare e rispondere. Regola: solo fatti semplici
+    # (chi/ruolo/proprietà/date/documenti in mano), MAI domande legali, default vuoto.
+    try:
+        _mfs = brain.MISSING_FACTS_SYSTEM
+        check("mf[51]: MISSING_FACTS chiede SOLO fatti semplici, mai domande legali, default {facts:[]}",
+              "NDALOHEN RREPTËSISHT pyetjet ligjore" in _mfs
+              and "LEJOHEN vetëm pyetje faktike" in _mfs
+              and "administrator i vetëm" in _mfs
+              and "ortak i vetëm apo disa ortakë" in _mfs
+              and "A ka filluar/skaduar afati" in _mfs   # esempio VIETATO (è legale → lo ricerca)
+              and "A duhet apostilë" in _mfs              # esempio VIETATO
+              and '{"facts": []}' in _mfs                 # default: non inventare domande
+              and "MAKSIMUM 3" in _mfs
+              # regressione: mai tornare al vecchio «avvocato stratega che cerca i fatti che cambiano la risposta»
+              and "avokat strateg shqiptar" not in _mfs
+              and "do ndryshonin ose forconin" not in _mfs)
+    except Exception as _e51:  # noqa: BLE001
+        check("mf[51]: kontrollet u ekzekutuan", False, str(_e51))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
