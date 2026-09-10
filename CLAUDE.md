@@ -574,7 +574,7 @@ errori, non che le risposte sono ancora giuste. Riferimento verificato il
 12 articoli recuperati per ciascuna.
 
 ```bash
-docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52]). Baseline **437/437** (11 set; era 98 il 31 ago).
+docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53]). Baseline **438/438** (11 set; era 98 il 31 ago).
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 bash /root/prova_sse.sh                                    # SULL'HOST (legge il secret da /opt/super-avvocato.env; copia in tools/prova_sse.sh): account di prova → login → fascicolo → 1 domanda VERA → stream /api/ask/events attraverso waitress. Deve dire «HTTP 200 … done: 1» (~50s, costa 1 chiamata al cervello) e cancella l'account. Dopo OGNI build che tocca web.py o le rotte SSE.
@@ -1073,7 +1073,7 @@ Golden sezione [12] (12 check) + selezionatori (3): **115 → 130**.
 ## Mappa feature / moduli (src/)
 - **expertise.py** — Modele Ekspertize (8 template, incl. abuzim_policor "due menti"). `retrieve_grounded` (seed + `_expand_terms` LLM + `_heading_scan` stem 5-char diacritic-fold + BM25). Riusato da prosecutor/notary/deadlines/afati.
 - **prosecutor.py** — Super Prokuror: analyze, draft_indictment, investigation_plan, investigative_act(kind), coercive_measure, dismissal_request, stress_test + cittadino (citizen_complaint, victim_rights, dismissal_appeal, delay_complaint). Assistivo, mai auto-accusa (EU AI Act).
-- **notary.py** — Super Noteri: DEED_TYPES (22), PROKURA_SCOPES (**19** tagra, incl. uso pasurie/automjeti + dalje jashtë shtetit), DECLARATION_TYPES (6), draft_deed/prokura/declaration, check_deed, succession, documents_needed, draft_revocation, check_conflicts. `GENERAL_POA_GUIDE`: la prokurë e përgjithshme spiega copertura+limiti secondo KC 71 (totalità dei diritti, non «solo ordinaria amministrazione») + KC 72 (disponimet → forma notarile + tager espresso). **verify_property** (v9.301): legge la certificata ASHK/estratto QKB e cross-checka contro il veprim (proprietario/pjesët/identificazione/barrët→semaforo); tool di VERIFICA, niente case_brief; onesto (non live ad ASHK); endpoint /api/notary/verify-property, UI openVerifyProperty (hub KONTROLL 🧾).
+- **notary.py** — Super Noteri: DEED_TYPES (22), PROKURA_SCOPES (**19** tagra, incl. uso pasurie/automjeti + dalje jashtë shtetit), DECLARATION_TYPES (6), draft_deed/prokura/declaration, check_deed, succession, documents_needed, draft_revocation, check_conflicts. `GENERAL_POA_GUIDE`: la prokurë e përgjithshme spiega copertura+limiti secondo KC 71 (totalità dei diritti, non «solo ordinaria amministrazione») + KC 72 (disponimet → forma notarile + tager espresso). **verify_property** (v9.301): legge la certificata ASHK/estratto QKB e cross-checka contro il veprim (proprietario/pjesët/identificazione/barrët→semaforo); tool di VERIFICA, niente case_brief; onesto (non live ad ASHK); endpoint /api/notary/verify-property, UI openVerifyProperty (hub KONTROLL 🧾). **post_deed_plan** (v9.302): roadmap adempimenti POST-atto (dove/cosa/quando registrare) con la scadenza di registrazione (30gg) calcolata dal deadline_engine e GARANTITA come footer verificato (non fidarsi che il modello ripeta le date); autorità AL (ASHK/e-Albania/QKB/DPSHTRR/tatime) e IT (Adempimento Unico/MUI); onesto sul resto; giurisdizione dalla sessione; endpoint /api/notary/post-deed, UI openPostDeed (hub NDIHMË 🧭).
 - **living_law.py** — Ligj i gjallë: verify_claims (verifica frase↔testo reale nen), check_law_live (web→QBZ). + freschezza in citation_verifier (volatility/stale).
 - **intake.py** — Pika e parë: triage(story) → orientamento + urgenza + ROUTE token → instrada allo strumento.
 - **afati.py** — Motore afate: TRIGGERS (8) → scadenze grounded + blocco `AFAT | titolo | YYYY-MM-DD` → calendario (POST /api/events).
@@ -1432,6 +1432,24 @@ rischio residuo della DPIA.
 - Super Avokati ha auth propria (login_required_api); utenti creati da admin o auto-provisionati da AALA (`/api/provision-demo`, secret-guarded).
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
+
+**v9.302 — NOTAIO: C «Adempimenti post-atto» + scadenza deterministica (11 set).**
+Secondo passo della roadmap compliance (B→C→A). `notary.post_deed_plan(act,
+jurisdiction, act_date)` — roadmap dei passi DOPO la firma (dove registrare, cosa,
+entro quando): chiude il gap pre/post (documents_needed è pre-atto). Autorità come
+fatti istituzionali: AL = ASHK via e-Albania / QKB / DPSHTRR / tatimet; IT =
+Adempimento Unico/MUI (registrazione+trascrizione+voltura). ⚠️ La scadenza di
+registrazione immobiliare (30 giorni) è calcolata dal **deadline_engine** e
+GARANTITA come **footer verificato** appeso in Python (non ci si fida che il
+modello ripeta l'aritmetica delle date — nel primo test il modello localizzava la
+data; il footer la rende verbatim e corretta, con roll su festivi/weekend). Il
+modello è istruito a NON calcolare date e a deferire al footer; le altre scadenze
+e le tariffe → «verifiko afatin/tarifën zyrtare — mund të ndryshojnë». Giurisdizione
+dalla sessione (LINGUA=SESSIONE). Endpoint /api/notary/post-deed (no _with_case),
+UI openPostDeed (hub NDIHMË 🧭, campo data), IT tradotto, app.js?v=159. Golden [53],
+smoke 107. Prova viva: atto 11.09.2026 → footer «deri më 12.10.2026» (Sun 11 ott →
+lun 12) + ASHK/e-Albania/tasse/checklist + IT Adempimento Unico ✓. QA: golden
+**438**, smoke 107, juris verde. Vedi [[super_avokati_super_noteri]].
 
 **v9.301 — NOTAIO: ricerca concorrenti + B «Verifica proprietà & gravami» (11 set).**
 Su richiesta del titolare («cosa serve altro al notaio?»), ricerca approfondita

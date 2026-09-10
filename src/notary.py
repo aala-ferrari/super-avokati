@@ -900,3 +900,90 @@ def verify_property(backend, index, *, certificate_text: str, transaction: str =
                           max_tokens=max_tokens, callsite="notary_verify_property")
     return {"markdown": (md or "").strip(),
             "articles": [{"code": c, "number": n} for c, n, _t in arts]}
+
+
+# ---- Adempimenti post-atto: roadmap di registrazione + scadenza deterministica ----
+# documents_needed è PRE-atto; questo è POST. Le AUTORITÀ sono fatti istituzionali;
+# l'UNICA scadenza concreta la calcola il deadline_engine (registrazione immobiliare
+# 30 giorni), le altre restano «verifiko afatin zyrtar» (niente giorni/tariffe inventate).
+_POST_DEED_PROPERTY = ("pasuri", "pron", "apartament", "truall", "tok", "ndërtes",
+                       "shtëpi", "hipotek", "shitje", "dhurim", "shkëmbim", "uzufrukt",
+                       "servitut", "immobil", "vendita", "donazione", "ipotec", "usufrutto")
+
+
+def post_deed_plan(backend, index, *, act: str, jurisdiction: str = "AL",
+                   act_date: str = "", max_tokens: int = 2400) -> dict:
+    """Roadmap degli adempimenti DOPO la firma: dove registrare, cosa, entro quando.
+    La scadenza di registrazione immobiliare (30 ditë) è DETERMINISTICA (deadline_engine);
+    le altre restano da verificare — niente giorni/tariffe inventate."""
+    juris = (jurisdiction or "AL").upper()
+    lang = "it" if juris == "IT" else "sq"
+    low = (act or "").lower()
+    # La scadenza esatta la calcola il motore UNA volta e la si GARANTISCE come footer
+    # verificato (non ci si fida che il modello faccia/ripeta l'aritmetica sulle date).
+    _basis = ("Regjistrimi i pasurisë në ASHK (e-Albania)" if juris == "AL"
+              else "Registrazione dell'atto (Adempimento Unico)")
+    _dres = None
+    _de = None
+    if act_date and any(h in low for h in _POST_DEED_PROPERTY):
+        try:
+            from . import deadline_engine as _de
+            _dres = _de.compute_deadline(act_date, 30, "days", jurisdiction=juris, lang=lang, legal_basis=_basis)
+        except Exception:  # noqa: BLE001
+            _dres = None; _de = None
+    afat_block = ""
+    if _dres is not None:
+        afat_block = (
+            "\n\nAFAT I REGJISTRIMIT: një bllok i VERIFIKUAR (DETERMINISTIK) me datën e saktë do të "
+            "shtohet automatikisht në fund. Për hapin e regjistrimit të pasurisë shkruaj 'brenda "
+            "afatit të verifikuar (shih fund)' — MOS llogarit vetë asnjë datë."
+            if juris == "AL" else
+            "\n\nSCADENZA DI REGISTRAZIONE: un blocco VERIFICATO (DETERMINISTIK) con la data esatta "
+            "sarà aggiunto automaticamente in fondo. Per il passo di registrazione scrivi 'entro la "
+            "scadenza verificata (vedi in fondo)' — NON calcolare tu una data.")
+    if juris == "IT":
+        auth = ("AUTORITÀ (usa quelle pertinenti all'atto): Agenzia delle Entrate tramite "
+                "ADEMPIMENTO UNICO/MUI — un unico invio telematico per registrazione (imposta di "
+                "registro), trascrizione in Conservatoria/RGI e voltura catastale, con imposte "
+                "autoliquidate; Registro Imprese (ComUnica) per gli atti societari; Registro "
+                "Generale dei Testamenti per i testamenti.")
+    else:
+        auth = ("AUTORITETET (përdor ato që i takojnë aktit): ASHK përmes e-Albania (regjistrimi i "
+                "pasurisë së paluajtshme dhe i barrëve); QKB (regjistrim/ndryshim i shoqërisë); "
+                "DPSHTRR (kalimi i automjetit); Drejtoria e Tatimeve (taksat/tatimet, p.sh. taksa e "
+                "kalimit të pronësisë); gjendja civile kur duhet.")
+    system = (
+        "Ti je NOTER me përvojë. Akti ËSHTË NËNSHKRUAR tashmë — detyra jote është të listosh HAPAT "
+        "PAS AKTIT që akti të prodhojë efektet e plota (regjistrim, transkriptim, kalim, pagesë "
+        "taksash). Për SECILIN hap: **KU** (autoriteti) · **ÇFARË** bëhet · **AFATI** · "
+        "**TARIFA/TAKSA** (tregues). " + auth + "\n"
+        "RREGULLA TË FORTA: si datë konkrete përdor VETËM afatin e llogaritur të dhënë (nëse ka); për "
+        "afatet e tjera dhe për tarifat shkruaj 'verifiko afatin/tarifën zyrtare aktuale — mund të "
+        "ndryshojnë' — MOS shpik ditë a shifra. Cito vetëm nenet e dhëna. Përfundo me "
+        "'### ✅ Lista e kontrollit' me kutiza [ ]. Ji konkret e praktik. " + _NOTARY_ID)
+    art_block, arts = _art_block(backend, index, (act or "") + " regjistrim kalim pronësie taksë afat", None)
+    prompt = ("AKTI I NËNSHKRUAR:\n" + (act or "").strip()[:3000]
+              + "\nJURIDIKSIONI: " + juris + (("\nDATA E AKTIT: " + act_date) if act_date else "")
+              + afat_block
+              + "\n\n─────\nNENET NGA KORPUSI (nëse ka, cito vetëm këto):\n" + art_block
+              + "\n\nListo hapat pas aktit me KU/ÇFARË/AFATI/TARIFA + listën e kontrollit.")
+    md = (backend.complete(system=system, messages=[{"role": "user", "content": prompt}],
+                           max_tokens=max_tokens, callsite="notary_post_deed") or "").strip()
+    # footer DETERMINISTICO garantito: la data esatta, verbatim, indipendente dal modello
+    if _dres is not None and _de is not None:
+        fmt = "%d/%m/%Y" if juris == "IT" else "%d.%m.%Y"
+        dl = _dres.deadline.strftime(fmt)
+        try:
+            ad = _de.parse_date(act_date).strftime(fmt)
+        except Exception:  # noqa: BLE001
+            ad = act_date
+        if juris == "IT":
+            md += ("\n\n---\n### 🗓️ Scadenza verificata (calcolo su calendario)\n**" + _basis +
+                   ":** entro il **" + dl + "** — 30 giorni dall'atto (" + ad + "), con proroga a "
+                   "giorno lavorativo se cade in un festivo/weekend.")
+        else:
+            md += ("\n\n---\n### 🗓️ Afat i verifikuar (llogaritje kalendarike)\n**" + _basis +
+                   ":** deri më **" + dl + "** — 30 ditë nga akti (" + ad + "), me shtyrje në ditë "
+                   "pune nëse bie në festë/fundjavë.")
+    return {"markdown": md,
+            "articles": [{"code": c, "number": n} for c, n, _t in arts]}

@@ -5539,6 +5539,22 @@ def api_notary_verify_property():
     return err if err else out
 
 
+@app.post("/api/notary/post-deed")
+@login_required_api
+def api_notary_post_deed():
+    # Adempimenti POST-atto: roadmap registrazione + scadenza deterministica (30gg)
+    # via deadline_engine. La giurisdizione viene dalla sessione (LINGUA=SESSIONE).
+    body = request.get_json(silent=True) or {}
+    act = (body.get("act") or "").strip()
+    if len(act) < 10:
+        return jsonify({"error": "act_required"}), 400
+    act_date = (body.get("act_date") or "").strip()
+    out, err = _notary_run(notary_mod.post_deed_plan, act=act[:3000],
+                           jurisdiction=_active_jurisdiction(getattr(request, "user", None)) or "AL",
+                           act_date=act_date[:20])
+    return err if err else out
+
+
 @app.post("/api/notary/checklist")
 @login_required_api
 def api_notary_checklist():

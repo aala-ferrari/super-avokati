@@ -2126,6 +2126,27 @@ def main():
     except Exception as _e52:  # noqa: BLE001
         check("noteri[52]: kontrollet u ekzekutuan", False, str(_e52))
 
+    # ── [53] NOTAIO — Adempimenti post-atto (roadmap + scadenza deterministica) ──
+    # Chiude il gap pre/post: la scadenza di registrazione (30gg) è calcolata dal
+    # deadline_engine (non inventata); autorità AL/IT come fatti; onesto sul resto.
+    try:
+        from src import notary as _nt53
+        import os as _os53, io as _io53
+        _rr53 = _os53.path.dirname(_os53.path.dirname(_os53.path.abspath(__file__)))
+        _nt53src = _io53.open(_os53.path.join(_rr53, "src", "notary.py"), encoding="utf-8").read()
+        _web53 = _io53.open(_os53.path.join(_rr53, "src", "web.py"), encoding="utf-8").read()
+        _aj53 = _io53.open(_os53.path.join(_rr53, "static", "app.js"), encoding="utf-8").read()
+        check("noteri[53]: post_deed_plan — scadenza deterministica (deadline_engine) + autorità AL/IT + onesto + endpoint + card",
+              hasattr(_nt53, "post_deed_plan")
+              and "deadline_engine" in _nt53src and "compute_deadline" in _nt53src
+              and "DETERMINISTIK" in _nt53src and "verifiko afatin" in _nt53src
+              and "e-Albania" in _nt53src and "Adempimento" in _nt53src
+              and "/api/notary/post-deed" in _web53 and "act_required" in _web53
+              and "_active_jurisdiction" in _web53
+              and "openPostDeed" in _aj53 and "Hapat pas aktit (regjistrim/afate)" in _aj53)
+    except Exception as _e53:  # noqa: BLE001
+        check("noteri[53]: kontrollet u ekzekutuan", False, str(_e53))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

@@ -5086,6 +5086,7 @@
           { emoji: "🗣️", label: "Për klientin (shpjego/email)", tag: "ndihmë", tagKind: "civil", fn: openClientComm },
           { emoji: "🔎", label: "Regjistri (kërko akte)", tag: "ndihmë", tagKind: "civil", fn: openRegistry },
           { emoji: "📋", label: "Dokumentet e nevojshme", tag: "ndihmë", tagKind: "civil", fn: openDocsChecklist },
+          { emoji: "🧭", label: "Hapat pas aktit (regjistrim/afate)", tag: "ndihmë", tagKind: "civil", fn: openPostDeed },
           { emoji: "🧮", label: "Tarifat & taksat", tag: "ndihmë", tagKind: "civil", fn: openNotaryFees } ] },
         { label: "— STUDIO —", cards: [
           { emoji: "📊", label: "Paneli i studios", tag: "studio", tagKind: "civil", fn: openDashboard } ] }
@@ -5974,6 +5975,50 @@
     setTimeout(function () { ta.focus(); }, 50);
   }
 
+  async function openPostDeed() {
+    var ov = document.getElementById("pdeed-ov");
+    if (ov) ov.remove();
+    ov = document.createElement("div");
+    ov.id = "pdeed-ov"; ov.className = "ac-overlay";
+    ov.innerHTML = '<div class="ac-modal">' +
+      '<div class="ac-head"><span>' + tMode("🧭 Hapat pas aktit") + '</span><button class="ac-x" type="button" aria-label="Mbyll">×</button></div>' +
+      '<div class="ac-sub">' + t("Pas nënshkrimit të aktit: ku të regjistrosh, çfarë, brenda cilit afat. Afati i regjistrimit të pasurisë (30 ditë) llogaritet në mënyrë DETERMINISTIKE (kalendar); afatet e tjera dhe tarifat verifikohen zyrtarisht — asgjë nuk shpiket.") + '</div>' +
+      '<textarea class="ac-ta pdeed-act" placeholder="' + t("Përshkruaj aktin e nënshkruar: p.sh. «shitje apartamenti nr. 7/512 nga X te Y»…") + '"></textarea>' +
+      '<div class="ac-row" style="gap:10px;flex-wrap:wrap"><label style="display:flex;align-items:center;gap:6px;font-size:13px">' + t("Data e aktit:") + ' <input type="date" class="pdeed-date" style="padding:7px 10px;border:1px solid var(--line,#d9cfc0);border-radius:8px;font-size:14px" /></label></div>' +
+      '<div class="ac-row"><button class="ac-run" type="button">' + t("Nxirr hapat →") + '</button><span class="ac-status"></span></div>' +
+      '<div class="ac-result"></div>' +
+      "</div>";
+    document.body.appendChild(ov);
+    var act = ov.querySelector(".pdeed-act"), date = ov.querySelector(".pdeed-date"),
+        run = ov.querySelector(".ac-run"), status = ov.querySelector(".ac-status"), result = ov.querySelector(".ac-result");
+    function close() { ov.remove(); }
+    ov.querySelector(".ac-x").onclick = close;
+    ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
+    run.onclick = async function () {
+      var a = (act.value || "").trim();
+      if (a.length < 10) { status.textContent = t("Përshkruaj aktin e nënshkruar."); return; }
+      run.disabled = true; status.textContent = t("Po nxjerr hapat pas aktit… (~1-2 min)"); result.innerHTML = "";
+      try {
+        var r = await fetch("/api/notary/post-deed", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ act: a, act_date: (date.value || "").trim() }) });
+        var d = await r.json();
+        if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
+        status.textContent = "";
+        result.innerHTML = '<div class="fd-out"></div>';
+        var out = result.querySelector(".fd-out");
+        out.innerHTML = renderMarkdown(d.markdown || "");
+        if (d.citations) highlightNeni(out, buildCitStatusMap(d.citations));
+        if (d.citations && d.citations.stats && d.citations.stats.total > 0) result.insertBefore(renderCitationsBadge(d.citations, null), out);
+        var copy = document.createElement("button"); copy.className = "fd-copy"; copy.type = "button"; copy.textContent = "📋 Kopjo tekstin";
+        copy.onclick = function () { navigator.clipboard.writeText(d.markdown || "").then(function () { copy.textContent = "✓ U kopjua"; }).catch(function () {}); };
+        result.appendChild(copy);
+        _addSaveToCase(result, "notary", "Hapat pas aktit", d.markdown || "");
+      } catch (e) { status.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; }
+      finally { run.disabled = false; }
+    };
+    setTimeout(function () { try { act.focus(); } catch (e) {} }, 50);
+  }
+
   async function openVerifyProperty() {
     var ov = document.getElementById("vprop-ov");
     if (ov) ov.remove();
@@ -6663,6 +6708,16 @@
     "Ngarko ose ngjit certifikatën e pronësisë.": "Carica o incolla la certificata di proprietà.",
     "Po verifikoj pronësinë dhe barrët… (~1-2 min)": "Sto verificando proprietà e gravami… (~1-2 min)",
     " dokument(e) u lexuan": " documento/i letto/i"
+  });
+  Object.assign(T_IT, {
+    "🧭 Hapat pas aktit": "🧭 Passi dopo l'atto",
+    "Hapat pas aktit (regjistrim/afate)": "Passi dopo l'atto (registrazione/scadenze)",
+    "Pas nënshkrimit të aktit: ku të regjistrosh, çfarë, brenda cilit afat. Afati i regjistrimit të pasurisë (30 ditë) llogaritet në mënyrë DETERMINISTIKE (kalendar); afatet e tjera dhe tarifat verifikohen zyrtarisht — asgjë nuk shpiket.": "Dopo la firma dell'atto: dove registrare, cosa, entro quale scadenza. La scadenza di registrazione dell'immobile (30 giorni) è calcolata in modo DETERMINISTICO (calendario); le altre scadenze e le tariffe si verificano ufficialmente — niente è inventato.",
+    "Përshkruaj aktin e nënshkruar: p.sh. «shitje apartamenti nr. 7/512 nga X te Y»…": "Descrivi l'atto firmato: es. «vendita appartamento n. 7/512 da X a Y»…",
+    "Data e aktit:": "Data dell'atto:",
+    "Nxirr hapat →": "Estrai i passi →",
+    "Përshkruaj aktin e nënshkruar.": "Descrivi l'atto firmato.",
+    "Po nxjerr hapat pas aktit… (~1-2 min)": "Sto estraendo i passi dopo l'atto… (~1-2 min)"
   });
   Object.assign(T_IT, { "📎 Bashkëngjit dokumentin e marrë": "📎 Allega il documento ricevuto", "letra e pushimit, akti, njoftimi — që t'i përgjigjemi pikë për pikë": "la lettera di licenziamento, l'atto, la notifica — per ribattere punto per punto", "Kopjo letrën": "Copia la lettera", "PDF (shtyp)": "PDF (stampa)", "Blloko dritaret u aktivizua — lejo dritaret.": "Il blocco pop-up è attivo: consenti le finestre per questo sito." });
   Object.assign(T_IT, { "Letra dhe shkresa": "Lettere e atti", "Zgjidh kujt i shkruhet. Shkresa ndërtohet mbi fashikullin e hapur dhe mbi nenet e marra nga korpusi — gati për dërgim.": "Scegli a chi scrivere. La lettera si costruisce sul fascicolo aperto e sugli articoli recuperati dal corpus — pronta da inviare.", "Po ngarkohet…": "Caricamento…", "Email / PEC": "Email / PEC", "Fakte shtesë ose udhëzime: emrat, shumat, datat, çfarë të theksohet. Nëse fashikulli është i plotë, mund ta lësh bosh.": "Fatti aggiuntivi o istruzioni: nomi, importi, date, cosa sottolineare. Se il fascicolo e completo, puoi lasciare vuoto.", "Harto shkresën →": "Scrivi la lettera →", "Marrësi": "Destinatario", "Kanali": "Canale", "Kjo shkresë i drejtohet palës kundërshtare. Forca vjen nga nenet, jo nga kërcënimet: njoftimi se do t'i drejtohemi gjykatës lejohet, kërcënimi me kallëzim penal apo me njoftim te tatimet për të marrë pagesë është shantazh.": "Questa lettera si rivolge alla controparte. La forza viene dagli articoli, non dalle minacce: annunciare che si adira il giudice e legittimo, minacciare una denuncia penale o una segnalazione al fisco per ottenere il pagamento e estorsione.", "Kjo shkresë i drejtohet autoritetit. Toni është faktik dhe nuk lidhet me asnjë kërkesë pagese — përndryshe shndërrohet në shantazh.": "Questa lettera si rivolge all'autorita. Il tono e fattuale e non si collega ad alcuna richiesta di pagamento — altrimenti diventa estorsione.", "Hap një fashikull ose shkruaj faktet këtu.": "Apri un fascicolo oppure scrivi qui i fatti.", "Po hartohet shkresa…": "Sto scrivendo la lettera…", "Kopjo tekstin": "Copia il testo", "Shkarko .docx": "Scarica .docx", "Nuk u ngarkua katalogu": "Catalogo non caricato", "Shkresa gati për dërgim nga fashikulli — punëdhënësit, tatimeve, prokurorisë, institucioneve": "Lettere pronte da inviare, costruite sul fascicolo — al datore di lavoro, al fisco, alla Procura, alle istituzioni", "✉️ \n Letra dhe shkresa Shkresa gati për dërgim nga fashikulli — punëdhënësit, tatimeve, prokurorisë, institucioneve": "✉️ \n Lettere e atti Lettere pronte da inviare, costruite sul fascicolo — al datore di lavoro, al fisco, alla Procura, alle istituzioni" });
