@@ -1731,6 +1731,28 @@ def main():
     except Exception as _e:  # noqa: BLE001
         check("skuadra[37]: kontrollet u ekzekutuan", False, str(_e))
 
+    # ── [38] Menu PRO: 35 tool in 9 gruppi (raggruppati, nessuno perso) ──
+    try:
+        import io as _io38, os as _os38, re as _re38
+        _rr38 = _os38.path.dirname(_os38.path.dirname(_os38.path.abspath(__file__)))
+        _ht38 = _io38.open(_os38.path.join(_rr38, "templates", "index.html"), encoding="utf-8").read()
+        _js38 = _io38.open(_os38.path.join(_rr38, "static", "app.js"), encoding="utf-8").read()
+        _tools = _re38.findall(r'data-pro="([a-z]+)"', _ht38)
+        check("menu[38]: 35 tool nel menu PRO, nessuno perso, nessuno doppio",
+              len(_tools) == 35 and len(set(_tools)) == 35)
+        _grp = _re38.findall(r'data-i18n="(grp_[a-z]+)"', _ht38)
+        check("menu[38]: 9 gruppi + Cilësime (10 separatori, con data-i18n)",
+              len(_grp) == 10 and "grp_mendja" in _grp and "grp_studio" in _grp)
+        check("menu[38]: le etichette dei gruppi tradotte in IT",
+              "grp_mendja:" in _js38 and "grp_cilesime:" in _js38)
+        _disp = set(_re38.findall(r'key === "([a-z]+)"', _js38))
+        _mod = set(_re38.findall(r'"([a-z]+)": document\.getElementById', _js38)) | {"stress", "draft"}
+        _orf = [t for t in set(_tools) if t not in _disp and t not in _mod]
+        check("menu[38]: ogni tool ha un handler (dispatch o modale) — nessun bottone morto",
+              not _orf, "orfani: %s" % _orf)
+    except Exception as _e:  # noqa: BLE001
+        check("menu[38]: kontrollet u ekzekutuan", False, str(_e))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

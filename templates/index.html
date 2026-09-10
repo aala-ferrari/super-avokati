@@ -188,54 +188,31 @@
           </button>
           <div id="pro-menu" class="pro-menu" hidden role="menu" aria-label="Mjete profesionale">
             <button type="button" id="pro-menu-close" class="pro-menu-close" aria-label="Mbyll">×</button>
-            <div class="pro-menu-divider" aria-hidden="true">— BETEJA —</div>
-            <button type="button" class="pro-menu-item" id="push-toggle" role="menuitem"
-                    title="Merr njoftim kur analiza mbaron, edhe nëse mbyll faqen">
-              🔔 <span id="push-toggle-label">Njoftime kur analiza është gati</span>
-            </button>
-            <button type="button" class="pro-menu-item" id="legal-menu" role="menuitem"
-                    title="Rilexo kushtet, privatësinë dhe marrëveshjen për të dhënat">
-              📄 <span data-i18n="legal_menu">Kushtet dhe të dhënat</span>
-            </button>
-            <button type="button" class="pro-menu-item pro-menu-new" data-pro="tabela" role="menuitem">📊 <span data-i18n="tb_menu">Tabela e Dosjes</span></button>
-            <button type="button" class="pro-menu-item pro-menu-new" data-pro="harta" role="menuitem">🧩 <span data-i18n="harta_menu">Harta e Pretendimeve</span></button>
-            <button type="button" class="pro-menu-item pro-menu-new" data-pro="perkthim" role="menuitem">🌐 <span data-i18n="perkthim_menu">Përkthim ligjor</span></button>
-            <button type="button" class="pro-menu-item pro-menu-new" data-pro="video" role="menuitem">
-              <span class="pro-menu-ico">🎥</span>
-              <div><strong data-i18n="pro_video_t">Video dhe audio</strong><em data-i18n="pro_video_d">Provat video dhe audio: të dhënat e skedarit · rrjedha kohore me minutazhe · transkript · krahasim me procesverbalet</em></div>
-            </button>
-            <button type="button" class="pro-menu-item" data-pro="stress" role="menuitem">
-              <span class="pro-menu-ico">⚔️</span>
-              <div><strong>Red Team</strong><em>Stres-test i tezës — raund i vetëm ose loop derisa konvergon</em></div>
+            <div class="pro-menu-divider" aria-hidden="true" data-i18n="grp_mendja">— MENDJA & STRATEGJIA —</div>
+            <button type="button" class="pro-menu-item pro-menu-new" data-pro="genio" role="menuitem">
+              <span class="pro-menu-ico">🧠</span>
+              <div><strong>Genio Legale</strong><em>6 perspektiva paralele: rifrazim · kill-shot · levat · pemë · e vërteta · zëri yt</em></div>
             </button>
             <button type="button" class="pro-menu-item pro-menu-new" data-pro="bench" role="menuitem">
               <span class="pro-menu-ico">⚖️</span>
               <div><strong>Bench Memo</strong><em>Si do të mendojë gjyqtari → P(fitore) · dobësi · upgrade argumentesh · FIGHT/SETTLE/FOLD</em></div>
             </button>
-            <button type="button" class="pro-menu-item pro-menu-new" data-pro="genio" role="menuitem">
-              <span class="pro-menu-ico">🧠</span>
-              <div><strong>Genio Legale</strong><em>6 perspektiva paralele: rifrazim · kill-shot · levat · pemë · e vërteta · zëri yt</em></div>
+            <button type="button" class="pro-menu-item" data-pro="stress" role="menuitem">
+              <span class="pro-menu-ico">⚔️</span>
+              <div><strong>Red Team</strong><em>Stres-test i tezës — raund i vetëm ose loop derisa konvergon</em></div>
             </button>
-            <button type="button" class="pro-menu-item pro-menu-new" data-pro="precedent" role="menuitem">
-              <span class="pro-menu-ico">📚</span>
-              <div><strong>Pattern e precedentëve</strong><em data-i18n="it_01">BM25 mbi 1.258 vendime + ratio AI → lëvizjet që fituan, kurthet që humbën, kill-shot</em></div>
+            <button type="button" class="pro-menu-item pro-menu-new" data-pro="devilconsult" role="menuitem">
+              <span class="pro-menu-ico">😈</span>
+              <div><strong data-i18n="it_24">Pyet Avokatin e Djallit</strong><em>Konsulencë e drejtpërdrejtë e zgjuar — këndi fitues, kurthi, lëvizja</em></div>
             </button>
-
-            <div class="pro-menu-divider" aria-hidden="true">— DOKUMENTE —</div>
-            <button type="button" class="pro-menu-item" data-pro="draft" role="menuitem">
-              <span class="pro-menu-ico">📜</span>
-              <div><strong>Fabrika e akteve</strong><em>Harton padi, ankime, memorie — gati për depozitim</em></div>
+            <button type="button" class="pro-menu-item pro-menu-new" data-pro="adversary" role="menuitem">
+              <span class="pro-menu-ico">⚔️</span>
+              <div><strong>Kundërshtari</strong><em>Tetramorph sulmon kontratën/aktin tënd si pala kundërshtare — gjen çdo dobësi</em></div>
             </button>
-            <button type="button" class="pro-menu-item" data-pro="contract" role="menuitem">
-              <span class="pro-menu-ico">📑</span>
-              <div><strong>Rishiko kontratë</strong><em>Semafor 🟢🟡🔴 për çdo klauzolë + GDPR-AL flags</em></div>
+            <button type="button" class="pro-menu-item pro-menu-new" data-pro="whatif" role="menuitem">
+              <span class="pro-menu-ico">🔮</span>
+              <div><strong>Çka nëse… (simulator)</strong><em>Ndrysho një klauzolë/parametër → efektet juridike, tatimet, rreziqet, dokumentet, e ardhmja</em></div>
             </button>
-            <button type="button" class="pro-menu-item pro-menu-new" data-pro="corporate" role="menuitem">
-              <span class="pro-menu-ico">🏢</span>
-              <div><strong>Corporate Intelligence</strong><em data-i18n="it_02">Ekstrakto soci/CDA/prokuror nga visura · Contract Gatekeeper · Checklist KYC/AML</em></div>
-            </button>
-
-            <div class="pro-menu-divider" aria-hidden="true">— ANALIZË —</div>
             <button type="button" class="pro-menu-item pro-menu-new" data-pro="settlement" role="menuitem">
               <span class="pro-menu-ico">🎯</span>
               <div><strong>Settlement Monte Carlo</strong><em>10k simulime → percentile i ofertës + kontër-ofertë e rekomanduar</em></div>
@@ -244,19 +221,11 @@
               <span class="pro-menu-ico">📝</span>
               <div><strong>Ratio Coach</strong><em data-i18n="it_03">Post-mortem strukturuar i fascikulit + surface mësimesh nga rastet e mëparshme të ngjashme</em></div>
             </button>
-
-            <button type="button" class="pro-menu-item pro-menu-new" data-pro="expertise" role="menuitem">
-              <span class="pro-menu-ico">🎯</span>
-              <div><strong>Modele Ekspertize</strong><em data-i18n="it_04">Për çdo lloj çështjeje: bazë ligjore, elementet, provat, afatet, mbrojtjet — dhe të dyja mendjet (prokuror + avokat)</em></div>
+            <button type="button" class="pro-menu-item pro-menu-new" data-pro="precedent" role="menuitem">
+              <span class="pro-menu-ico">📚</span>
+              <div><strong>Pattern e precedentëve</strong><em data-i18n="it_01">BM25 mbi 1.258 vendime + ratio AI → lëvizjet që fituan, kurthet që humbën, kill-shot</em></div>
             </button>
-
-            <div data-i18n="it_05" class="pro-menu-divider" aria-hidden="true">— AFATET —</div>
-            <button type="button" class="pro-menu-item pro-menu-new" data-pro="afati" role="menuitem">
-              <span class="pro-menu-ico">⏰</span>
-              <div><strong data-i18n="it_06">Motori i afateve</strong><em data-i18n="it_07">Nga një ngjarje-nisëse → të gjitha afatet procedurale (grounded) → në kalendar me alarme</em></div>
-            </button>
-
-            <div data-i18n="it_08" class="pro-menu-divider" aria-hidden="true">— FASHIKULLI —</div>
+            <div class="pro-menu-divider" aria-hidden="true" data-i18n="grp_fashikull">— FASHIKULLI —</div>
             <button type="button" class="pro-menu-item pro-menu-new" data-pro="dosja" role="menuitem">
               <span class="pro-menu-ico">📁</span>
               <div><strong>Dosja</strong><em data-i18n="it_09">Gjithçka që ke ruajtur — përgjigje, akte, prokura, shkresa — nga të gjitha rastet, në një vend</em></div>
@@ -265,22 +234,7 @@
               <span class="pro-menu-ico">🗂️</span>
               <div><strong data-i18n="it_10">Fashikulli intelligjent</strong><em>Kronologji + kontradikta, kush tha çfarë, pyet dokumentet, gjilpëra — mbi dokumentet e rastit</em></div>
             </button>
-
-            <div class="pro-menu-divider" aria-hidden="true">— PIKA E PARË —</div>
-            <button type="button" class="pro-menu-item pro-menu-new" data-pro="intake" role="menuitem">
-              <span class="pro-menu-ico">🎙️</span>
-              <div><strong>Pika e parë (triazh qytetari)</strong><em data-i18n="it_11">Qytetari tregon me zë ose shkrim → a ka çështje, urgjenca, kush e ndihmon, dhe dokumenti i parë</em></div>
-            </button>
-
-            <div class="pro-menu-divider" aria-hidden="true">— AKTET (të gjithë) —</div>
-            <button type="button" class="pro-menu-item pro-menu-new" data-pro="inspekt" role="menuitem">
-              <span class="pro-menu-ico">🕵️</span>
-              <div><strong>Ispektor i aktit</strong><em>Sulmon çdo akt (kontratë, padi, ankim, aktakuzë, akt notarial) → indeks rreziku + problemet + rregullimet</em></div>
-            </button>
-            <button type="button" class="pro-menu-item pro-menu-new" data-pro="lexombush" role="menuitem">
-              <span class="pro-menu-ico">📸</span>
-              <div><strong>Lexo & mbush</strong><em>Lexon dokumentet → nxjerr të dhënat → i çon te drafti (sipas profesionit)</em></div>
-            </button>
+            <button type="button" class="pro-menu-item pro-menu-new" data-pro="tabela" role="menuitem">📊 <span data-i18n="tb_menu">Tabela e Dosjes</span></button>
             <button type="button" class="pro-menu-item pro-menu-new" data-pro="cklist" role="menuitem">
               <span class="pro-menu-ico">✅</span>
               <div><strong data-i18n="it_12">Checklist i fashikullit</strong><em data-i18n="it_13">Për një çështje/akt: dokumentet/provat e kërkuara vs të pranishme vs mungojnë/skaduar + plotësia</em></div>
@@ -289,64 +243,83 @@
               <span class="pro-menu-ico">🔎</span>
               <div><strong data-i18n="it_14">Regjistri (kërko akte)</strong><em data-i18n="it_15">Kërkim semantik në aktet e ruajtura të studios — sipas kuptimit, entitetit ose pasurisë</em></div>
             </button>
-            <button type="button" class="pro-menu-item pro-menu-new" data-pro="whatif" role="menuitem">
-              <span class="pro-menu-ico">🔮</span>
-              <div><strong>Çka nëse… (simulator)</strong><em>Ndrysho një klauzolë/parametër → efektet juridike, tatimet, rreziqet, dokumentet, e ardhmja</em></div>
-            </button>
-            <button type="button" class="pro-menu-item pro-menu-new" data-pro="klauzolat" role="menuitem">
-              <span class="pro-menu-ico">📚</span>
-              <div><strong>Klauzolat e studios</strong><em data-i18n="it_16">Ruaj klauzolat e preferuara; drafteri (akt/prokurë/Redakto) i përdor për të ruajtur stilin</em></div>
-            </button>
-
-            <div class="pro-menu-divider" aria-hidden="true">— BESUESHMËRIA —</div>
-            <button type="button" class="pro-menu-item pro-menu-new" data-pro="hublive" role="menuitem">
-              <span class="pro-menu-ico">🟢</span>
-              <div><strong>Ligj i gjallë</strong><em>Verifikim i thellë (a e mbështet neni pohimin) + kontroll online nëse ligji është ende në fuqi</em></div>
-            </button>
-
-            <div data-i18n="it_17" class="pro-menu-divider" aria-hidden="true">— PROKURORIA —</div>
-            <button type="button" class="pro-menu-item pro-menu-new" data-pro="hubpros" role="menuitem">
-              <span class="pro-menu-ico">🏛️</span>
-              <div><strong data-i18n="it_18">Super Prokurori</strong><em>Analiza, aktakuzë, plan hetimi, veprime hetimore, masë sigurimi, pushim, stres-test + qytetari (kallëzim, të drejtat, ankim, vonesa)</em></div>
-            </button>
-
-            <button type="button" class="pro-menu-item pro-menu-new" data-pro="prescription" role="menuitem">
+            <button type="button" class="pro-menu-item pro-menu-new" data-pro="afati" role="menuitem">
               <span class="pro-menu-ico">⏰</span>
-              <div><strong data-i18n="it_19">Parashkrimi & afatet</strong><em data-i18n="it_20">Llogarit afatin e parashkrimit (penal/civil) dhe a ka skaduar</em></div>
+              <div><strong data-i18n="it_06">Motori i afateve</strong><em data-i18n="it_07">Nga një ngjarje-nisëse → të gjitha afatet procedurale (grounded) → në kalendar me alarme</em></div>
             </button>
-
-            <div class="pro-menu-divider" aria-hidden="true">— NOTERI —</div>
-            <button type="button" class="pro-menu-item pro-menu-new" data-pro="hubnoter" role="menuitem">
+            <div class="pro-menu-divider" aria-hidden="true" data-i18n="grp_redakto">— REDAKTO & AKTE —</div>
+            <button type="button" class="pro-menu-item" data-pro="draft" role="menuitem">
               <span class="pro-menu-ico">📜</span>
-              <div><strong>Super Noteri</strong><em data-i18n="it_21">Prokura, akte, deklarata, kontroll vlefshmërie, konflikte, trashëgimi, revokim, dokumentet, tarifat</em></div>
+              <div><strong>Fabrika e akteve</strong><em>Harton padi, ankime, memorie — gati për depozitim</em></div>
             </button>
-
-            <button type="button" class="pro-menu-item pro-menu-new" data-pro="actcheck" role="menuitem">
-              <span class="pro-menu-ico">🛡️</span>
-              <div><strong>Kontroll cilësie i aktit</strong><em>Verifiko nene inekzistente, të shfuqizuara ose të paqarta para depozitimit</em></div>
-            </button>
-
             <button type="button" class="pro-menu-item pro-menu-new" data-pro="fabledraft" role="menuitem">
               <span class="pro-menu-ico">✍️</span>
               <div><strong>Redakto me Tetramorph</strong><em>Harto kontrata, akte, klauzola ose letra — çdo nen kalon nga Verifikuar</em></div>
             </button>
-
+            <button type="button" class="pro-menu-item" data-pro="contract" role="menuitem">
+              <span class="pro-menu-ico">📑</span>
+              <div><strong>Rishiko kontratë</strong><em>Semafor 🟢🟡🔴 për çdo klauzolë + GDPR-AL flags</em></div>
+            </button>
             <button type="button" class="pro-menu-item pro-menu-new" data-pro="letters" role="menuitem">
               <span class="pro-menu-ico">✉️</span>
               <div><strong data-i18n="it_22">Letra dhe shkresa</strong><em data-i18n="it_23">Shkresa gati për dërgim nga fashikulli — punëdhënësit, tatimeve, prokurorisë, institucioneve</em></div>
             </button>
-
-            <button type="button" class="pro-menu-item pro-menu-new" data-pro="devilconsult" role="menuitem">
-              <span class="pro-menu-ico">😈</span>
-              <div><strong data-i18n="it_24">Pyet Avokatin e Djallit</strong><em>Konsulencë e drejtpërdrejtë e zgjuar — këndi fitues, kurthi, lëvizja</em></div>
+            <button type="button" class="pro-menu-item pro-menu-new" data-pro="expertise" role="menuitem">
+              <span class="pro-menu-ico">🎯</span>
+              <div><strong>Modele Ekspertize</strong><em data-i18n="it_04">Për çdo lloj çështjeje: bazë ligjore, elementet, provat, afatet, mbrojtjet — dhe të dyja mendjet (prokuror + avokat)</em></div>
             </button>
-
-            <button type="button" class="pro-menu-item pro-menu-new" data-pro="adversary" role="menuitem">
-              <span class="pro-menu-ico">⚔️</span>
-              <div><strong>Kundërshtari</strong><em>Tetramorph sulmon kontratën/aktin tënd si pala kundërshtare — gjen çdo dobësi</em></div>
+            <button type="button" class="pro-menu-item pro-menu-new" data-pro="harta" role="menuitem">🧩 <span data-i18n="harta_menu">Harta e Pretendimeve</span></button>
+            <button type="button" class="pro-menu-item pro-menu-new" data-pro="klauzolat" role="menuitem">
+              <span class="pro-menu-ico">📚</span>
+              <div><strong>Klauzolat e studios</strong><em data-i18n="it_16">Ruaj klauzolat e preferuara; drafteri (akt/prokurë/Redakto) i përdor për të ruajtur stilin</em></div>
             </button>
-
-            <div class="pro-menu-divider" aria-hidden="true">— STUDIO —</div>
+            <button type="button" class="pro-menu-item pro-menu-new" data-pro="corporate" role="menuitem">
+              <span class="pro-menu-ico">🏢</span>
+              <div><strong>Corporate Intelligence</strong><em data-i18n="it_02">Ekstrakto soci/CDA/prokuror nga visura · Contract Gatekeeper · Checklist KYC/AML</em></div>
+            </button>
+            <button type="button" class="pro-menu-item pro-menu-new" data-pro="lexombush" role="menuitem">
+              <span class="pro-menu-ico">📸</span>
+              <div><strong>Lexo & mbush</strong><em>Lexon dokumentet → nxjerr të dhënat → i çon te drafti (sipas profesionit)</em></div>
+            </button>
+            <div class="pro-menu-divider" aria-hidden="true" data-i18n="grp_besues">— BESUESHMËRIA —</div>
+            <button type="button" class="pro-menu-item pro-menu-new" data-pro="hublive" role="menuitem">
+              <span class="pro-menu-ico">🟢</span>
+              <div><strong>Ligj i gjallë</strong><em>Verifikim i thellë (a e mbështet neni pohimin) + kontroll online nëse ligji është ende në fuqi</em></div>
+            </button>
+            <button type="button" class="pro-menu-item pro-menu-new" data-pro="actcheck" role="menuitem">
+              <span class="pro-menu-ico">🛡️</span>
+              <div><strong>Kontroll cilësie i aktit</strong><em>Verifiko nene inekzistente, të shfuqizuara ose të paqarta para depozitimit</em></div>
+            </button>
+            <button type="button" class="pro-menu-item pro-menu-new" data-pro="inspekt" role="menuitem">
+              <span class="pro-menu-ico">🕵️</span>
+              <div><strong>Ispektor i aktit</strong><em>Sulmon çdo akt (kontratë, padi, ankim, aktakuzë, akt notarial) → indeks rreziku + problemet + rregullimet</em></div>
+            </button>
+            <button type="button" class="pro-menu-item pro-menu-new" data-pro="prescription" role="menuitem">
+              <span class="pro-menu-ico">⏰</span>
+              <div><strong data-i18n="it_19">Parashkrimi & afatet</strong><em data-i18n="it_20">Llogarit afatin e parashkrimit (penal/civil) dhe a ka skaduar</em></div>
+            </button>
+            <div class="pro-menu-divider" aria-hidden="true" data-i18n="grp_provat">— PROVAT —</div>
+            <button type="button" class="pro-menu-item pro-menu-new" data-pro="video" role="menuitem">
+              <span class="pro-menu-ico">🎥</span>
+              <div><strong data-i18n="pro_video_t">Video dhe audio</strong><em data-i18n="pro_video_d">Provat video dhe audio: të dhënat e skedarit · rrjedha kohore me minutazhe · transkript · krahasim me procesverbalet</em></div>
+            </button>
+            <div class="pro-menu-divider" aria-hidden="true" data-i18n="grp_perkthim">— PËRKTHIM —</div>
+            <button type="button" class="pro-menu-item pro-menu-new" data-pro="perkthim" role="menuitem">🌐 <span data-i18n="perkthim_menu">Përkthim ligjor</span></button>
+            <div class="pro-menu-divider" aria-hidden="true" data-i18n="grp_profesion">— PROKURORIA & NOTERIA —</div>
+            <button type="button" class="pro-menu-item pro-menu-new" data-pro="hubpros" role="menuitem">
+              <span class="pro-menu-ico">🏛️</span>
+              <div><strong data-i18n="it_18">Super Prokurori</strong><em>Analiza, aktakuzë, plan hetimi, veprime hetimore, masë sigurimi, pushim, stres-test + qytetari (kallëzim, të drejtat, ankim, vonesa)</em></div>
+            </button>
+            <button type="button" class="pro-menu-item pro-menu-new" data-pro="hubnoter" role="menuitem">
+              <span class="pro-menu-ico">📜</span>
+              <div><strong>Super Noteri</strong><em data-i18n="it_21">Prokura, akte, deklarata, kontroll vlefshmërie, konflikte, trashëgimi, revokim, dokumentet, tarifat</em></div>
+            </button>
+            <div class="pro-menu-divider" aria-hidden="true" data-i18n="grp_pika">— PIKA E PARË —</div>
+            <button type="button" class="pro-menu-item pro-menu-new" data-pro="intake" role="menuitem">
+              <span class="pro-menu-ico">🎙️</span>
+              <div><strong>Pika e parë (triazh qytetari)</strong><em data-i18n="it_11">Qytetari tregon me zë ose shkrim → a ka çështje, urgjenca, kush e ndihmon, dhe dokumenti i parë</em></div>
+            </button>
+            <div class="pro-menu-divider" aria-hidden="true" data-i18n="grp_studio">— STUDIO (orë, fatura) —</div>
             <button type="button" class="pro-menu-item" data-pro="money" role="menuitem">
               <span class="pro-menu-ico">💰</span>
               <div><strong>Orë e fatura</strong><em>Regjistrim orari + faturë automatike (tarifa Dh.K.A.)</em></div>
@@ -354,6 +327,15 @@
             <button type="button" class="pro-menu-item pro-menu-new" data-pro="financial" role="menuitem">
               <span class="pro-menu-ico">📊</span>
               <div><strong>Financial OS</strong><em>Profitability rasti · realization · WIP aging · cashflow</em></div>
+            </button>
+            <div class="pro-menu-divider" aria-hidden="true" data-i18n="grp_cilesime">— CILËSIME —</div>
+            <button type="button" class="pro-menu-item" id="push-toggle" role="menuitem"
+                    title="Merr njoftim kur analiza mbaron, edhe nëse mbyll faqen">
+              🔔 <span id="push-toggle-label">Njoftime kur analiza është gati</span>
+            </button>
+            <button type="button" class="pro-menu-item" id="legal-menu" role="menuitem"
+                    title="Rilexo kushtet, privatësinë dhe marrëveshjen për të dhënat">
+              📄 <span data-i18n="legal_menu">Kushtet dhe të dhënat</span>
             </button>
           </div>
         </div>
@@ -1729,7 +1711,7 @@
   </div>
 </template>
 
-<script src="/static/app.js?v=149"></script>
+<script src="/static/app.js?v=150"></script>
 <script src="/static/secretary.js?v=1"></script>
 <script src="/static/onboarding.js?v=1" defer></script>
   <script src="/static/sw-register.js?v=1" defer></script>

@@ -6281,6 +6281,16 @@
   // ── i18n (Fase C) — Italian UI for IT sessions ────────────────────────────
   var UI_LANG = (document.body && document.body.dataset ? document.body.dataset.lang : "") || "sq";
   var I18N_IT = {
+    grp_mendja: "— MENTE & STRATEGIA —",
+    grp_fashikull: "— IL FASCICOLO —",
+    grp_redakto: "— REDIGI & ATTI —",
+    grp_besues: "— AFFIDABILITÀ —",
+    grp_provat: "— LE PROVE —",
+    grp_perkthim: "— TRADUZIONE —",
+    grp_profesion: "— PROCURA & NOTAIO —",
+    grp_pika: "— PRIMO CONTATTO —",
+    grp_studio: "— STUDIO (ore, fatture) —",
+    grp_cilesime: "— IMPOSTAZIONI —",
     genio_hist: "Storico brief:",
     nu_email: "email (per notifiche e recupero)",
     um_email_l: "Email (notifiche e recupero)",
