@@ -1804,6 +1804,19 @@ def main():
               and _s40.duhet_raund2("- [KRITIKE] x", "[PRANOHET]") is False
               and "studio.duhet_raund2(sez, risposta)" in _br40 and "STUDIO_RED2_ENABLED" in _br40
               and "finale=True" in _br40)
+        from src import war_room as _wr40
+        from types import SimpleNamespace as _NS40
+        _items40 = _wr40.build_canonical(
+            [(_NS40(number="153", title_sq="X", code="KRr", body="tekst i korpusit"), 1.0)],
+            {"web": {"akte_nenligjore": [{"titulli": "VKM", "citim": "tekst zyrtar", "url": "https://qbz.gov.al/x"}],
+                     "burime": [{"titulli": "Blog", "citim": "koment", "url": "https://blog.example/y"}]},
+             "fletorja": []}, [], "sq")
+        _by40 = {i.id: i for i in _items40}
+        check("war[40]: FONDAZIONE dossier canonico — ID tipizzati + qualità (gov=PRIMARY, blog=SECONDARY) + verifica",
+              "LAW-001" in _by40 and _by40["LAW-001"].cilesia == "PRIMARY_OFFICIAL"
+              and _by40["LAW-001"].verifikimi == "VERIFIED"
+              and _by40["WEB-001"].cilesia == "PRIMARY_OFFICIAL" and _by40["WEB-002"].cilesia == "SECONDARY"
+              and "[LAW-001]" in _wr40.format_canonical(_items40, "sq"))
     except Exception as _e:  # noqa: BLE001
         check("war[40]: kontrollet u ekzekutuan", False, str(_e))
 
