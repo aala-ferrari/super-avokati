@@ -2435,6 +2435,7 @@
           <div class="mf-ans" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0 2px 34px">
             <button type="button" class="mf-po" data-idx="${i}" data-val="po" style="padding:4px 16px;border:1px solid #cbd5c0;border-radius:16px;background:#fff;cursor:pointer;font-weight:600">✓ ${it ? "SÌ" : "PO"}</button>
             <button type="button" class="mf-jo" data-idx="${i}" data-val="jo" style="padding:4px 16px;border:1px solid #e0c8c8;border-radius:16px;background:#fff;cursor:pointer;font-weight:600">✗ ${it ? "NO" : "JO"}</button>
+            <input type="text" class="mf-note" data-idx="${i}" placeholder="${it ? "specifica (opzionale)…" : "specifiko (opsionale)…"}" style="flex:1;min-width:180px;padding:6px 11px;border:1px solid #d8d2c4;border-radius:8px;font-size:13px;background:#fff">
           </div>
         </li>
       `;
@@ -2442,7 +2443,7 @@
 
     wrap.innerHTML = `
       <summary>❓ ${it ? "Domande che chiarirebbero ancora di più il caso" : "Pyetje që do ta sqaronin edhe më shumë rastin"} (${facts.length})</summary>
-      <div class="pm-intro">${it ? "Rispondi SÌ/NO a ogni domanda (o clicca la domanda per scrivere una risposta), poi «Invia» per un'analisi DEFINITIVA del caso." : "Përgjigju PO/JO për çdo pyetje (ose kliko pyetjen për të shkruar një përgjigje), pastaj «Dërgo» për një analizë PËRFUNDIMTARE të rastit."}</div>
+      <div class="pm-intro">${it ? "Rispondi SÌ/NO a ogni domanda e/o specifica nel campo accanto (es. «l'amministratore resta, ma la persona autorizzata esce dal paese»); poi «Invia» per un'analisi DEFINITIVA del caso." : "Përgjigju PO/JO për çdo pyetje dhe/ose specifiko në kutinë anash (p.sh. «administratori rri, por personi i autorizuar del jashtë vendit»); pastaj «Dërgo» për një analizë PËRFUNDIMTARE të rastit."}</div>
       <ul class="mf-list">${items}</ul>
       <div class="mf-footer" style="display:flex;gap:12px;align-items:center;margin-top:10px;padding-left:34px">
         <button type="button" class="mf-dergo" disabled style="padding:8px 20px;border:none;border-radius:8px;background:#8a6a1d;color:#fff;font-weight:700;cursor:pointer;opacity:.45">📨 ${it ? "Invia le risposte →" : "Dërgo përgjigjet →"}</button>
@@ -2453,8 +2454,17 @@
     const answers = {};  // idx -> "po" | "jo"
     const dergo = wrap.querySelector(".mf-dergo");
     const count = wrap.querySelector(".mf-count");
+    function noteFor(idx) {
+      const el = wrap.querySelector('.mf-note[data-idx="' + idx + '"]');
+      return el ? el.value.trim() : "";
+    }
+    function answeredCount() {
+      let n = 0;
+      for (let i = 0; i < facts.length; i++) { if (answers[i] || noteFor(i)) n++; }
+      return n;
+    }
     function refresh() {
-      const n = Object.keys(answers).length;
+      const n = answeredCount();
       count.textContent = n + "/" + facts.length;
       dergo.disabled = n === 0;
       dergo.style.opacity = n === 0 ? ".45" : "1";
@@ -2470,15 +2480,19 @@
         refresh();
       });
     });
+    wrap.querySelectorAll(".mf-note").forEach((el) => { el.addEventListener("input", refresh); });
     // Dërgo: assembla domande + risposte PO/JO → analisi DEFINITIVA (sala di guerra
     // completa, mente massima). La risposta rende via appendBot → ha i pulsanti salva.
     dergo.addEventListener("click", () => {
       if (!activeCaseId) { if (typeof toast === "function") toast(it ? "Apri un caso" : "Hap një rast", "warn"); return; }
       const lines = facts.map((f, i) => {
         const a = answers[i];
-        if (!a) return null;
-        const yn = it ? (a === "po" ? "SÌ" : "NO") : (a === "po" ? "PO" : "JO");
-        return (i + 1) + ") " + f.question + " → " + yn;
+        const note = noteFor(i);
+        if (!a && !note) return null;
+        const yn = a ? (it ? (a === "po" ? "SÌ" : "NO") : (a === "po" ? "PO" : "JO")) : "";
+        let line = (i + 1) + ") " + f.question + " → " + (yn || (it ? "(vedi nota)" : "(shih shënimin)"));
+        if (note) line += " — " + note;
+        return line;
       }).filter(Boolean);
       if (!lines.length) return;
       const head = it

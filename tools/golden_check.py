@@ -2033,9 +2033,10 @@ def main():
         _rr48 = _os48.path.dirname(_os48.path.dirname(_os48.path.abspath(__file__)))
         _aj48 = _io48.open(_os48.path.join(_rr48, "static", "app.js"), encoding="utf-8").read()
         _i48 = _aj48.find("function renderMissingFacts(")
-        _seg48 = _aj48[_i48:_i48 + 5500] if _i48 >= 0 else ""
-        check("mf[48]: domande di chiarimento con Po/Jo + «Dërgo» che invia le risposte all'analisi definitiva (deep)",
+        _seg48 = _aj48[_i48:_i48 + 6200] if _i48 >= 0 else ""
+        check("mf[48]: domande di chiarimento con Po/Jo + campo «specifica» + «Dërgo» → analisi definitiva (deep)",
               _i48 >= 0 and "mf-po" in _seg48 and "mf-jo" in _seg48 and "mf-dergo" in _seg48
+              and "mf-note" in _seg48 and "noteFor(" in _seg48
               and "Dërgo" in _seg48 and "form.requestSubmit()" in _seg48
               and "_deepNext = true" in _seg48 and "PËRFUNDIMTARE" in _seg48)
     except Exception as _e48:  # noqa: BLE001
