@@ -2508,6 +2508,7 @@ class SuperAvvocato:
 
         yield ("status", self._status("complex_analyzing"))
         stage_plan: dict[str, Callable[[], object]] = {
+            "skuadra_gather":  lambda: self._mbledh_gatherers(user_message, triage, retrieved),
             "strategic":       lambda: self._strategic_analysis(user_message, triage, retrieved),
             "timeline":        lambda: self._analyze_timeline(user_message, triage, retrieved, documents),
             "comparison":      lambda: self._compare_precedents(user_message, triage, precedents),
@@ -2539,6 +2540,8 @@ class SuperAvvocato:
         contradictions: ContradictionReport | None = stage_results.get("contradictions")
         opponent_playbook: OpponentPlaybook | None = stage_results.get("opponent")
         leverage: LeverageMap | None = stage_results.get("leverage")
+        _gather = stage_results.get("skuadra_gather")
+        dosja_txt_x, burimet_x = _gather if (isinstance(_gather, tuple) and len(_gather) == 2) else ("", [])
 
         yield ("status", self._status("complex_urgency"))
         urgency_radar: UrgencyRadar | None = None
@@ -2558,6 +2561,8 @@ class SuperAvvocato:
         except Exception as exc:
             log.warning("stream action_plan failed: %s", exc)
 
+        if burimet_x:
+            yield ("skuadra", burimet_x)
         yield ("status", self._status("complex_composing"))
         collected: list[str] = []
         new_sid = session_id
@@ -2570,7 +2575,7 @@ class SuperAvvocato:
                 urgency_radar=urgency_radar, action_plan=action_plan,
                 contradictions=contradictions,
                 opponent_playbook=opponent_playbook, leverage=leverage,
-                session_id=session_id, documents=documents,
+                session_id=session_id, documents=documents, dosja_txt=dosja_txt_x,
             ):
                 if kind == "delta":
                     collected.append(str(payload))
@@ -3090,24 +3095,18 @@ class SuperAvvocato:
             log.warning("studio kërkuesi fallito (non-fatal): %s", exc)
             return retrieved
 
-    def _studio_mbledhesit(self, user_message, triage, retrieved):
-        """I raccoglitori del percorso simple: web (akte nënligjore + shifra) e
-        QBZ (vigenza) in parallelo, più i precedenti dell'archivio locale.
-        Torna (blocco per il senior, precedenti). Fallimento silenzioso."""
-        precedents: list = []
-        try:
-            cited = [(a.code, a.number) for a, _ in retrieved]
-            precedents = _precedente_te_lidhur(self._retrieve_precedents(triage, cited), cited)
-        except Exception as exc:  # noqa: BLE001
-            log.warning("studio mbledhësit: precedentë të parikuperueshëm (%s)", exc)
-            precedents = []
+    def _mbledh_gatherers(self, user_message, triage, retrieved, precedents_block=""):
+        """Solo i raccoglitori in parallelo (web + QBZ + Fletorja Zyrtare/Agent D),
+        SENZA precedenti — così li usano sia il percorso simple sia il complex.
+        Torna (dossier per il senior, fonti per l'avvocato). Fail-silent: se
+        spenti o in errore, il senior risponde lo stesso dal corpus."""
         try:
             from .config import (STUDIO_MBLEDHES_ENABLED, STUDIO_MBLEDHES_MODEL,
                                  STUDIO_MBLEDHES_EFFORT, STUDIO_MBLEDHES_BUDGET_USD,
                                  STUDIO_MBLEDHES_TIMEOUT, STUDIO_MBLEDHES_WEB,
                                  STUDIO_MBLEDHES_QBZ, STUDIO_MBLEDHES_FLETORJA)
             if not STUDIO_MBLEDHES_ENABLED:
-                return "", precedents, []
+                return "", []
             from . import studio
             lang = "it" if self._current_jurisdiction() == "IT" else "sq"
             dosja = studio.mbledh_dosjen(
@@ -3117,17 +3116,30 @@ class SuperAvvocato:
                 timeout_s=STUDIO_MBLEDHES_TIMEOUT, web=STUDIO_MBLEDHES_WEB,
                 qbz=STUDIO_MBLEDHES_QBZ, fletorja=STUDIO_MBLEDHES_FLETORJA)
             web = dosja.get("web") or {}
-            log.info("studio: mbledhësit — akte %d, burime %d, qbz %d, fletorja %d, precedentë %d, kohë %s, gabime %s",
+            log.info("studio: mbledhësit — akte %d, burime %d, qbz %d, fletorja %d, kohë %s, gabime %s",
                      len(web.get("akte_nenligjore") or []), len(web.get("burime") or []),
                      len(dosja.get("qbz") or []), len(dosja.get("fletorja") or []),
-                     len(precedents), dosja.get("kohe"),
-                     dosja.get("gabime") or "-")
-            blocco = studio.formato_dosjen(
-                dosja, lang, precedents_block=_format_precedents_block(precedents))
-            return blocco, precedents, studio.sintesi_burimet(dosja, lang)
+                     dosja.get("kohe"), dosja.get("gabime") or "-")
+            blocco = studio.formato_dosjen(dosja, lang, precedents_block=precedents_block)
+            return blocco, studio.sintesi_burimet(dosja, lang)
         except Exception as exc:  # noqa: BLE001 — la risposta esce comunque
             log.warning("studio mbledhësit fallito (non-fatal): %s", exc)
-            return "", precedents, []
+            return "", []
+
+    def _studio_mbledhesit(self, user_message, triage, retrieved):
+        """Il percorso simple: i raccoglitori (sopra) + i precedenti dell'archivio
+        locale che citano un nene recuperato. Torna (blocco, precedenti, fonti)."""
+        precedents: list = []
+        try:
+            cited = [(a.code, a.number) for a, _ in retrieved]
+            precedents = _precedente_te_lidhur(self._retrieve_precedents(triage, cited), cited)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("studio mbledhësit: precedentë të parikuperueshëm (%s)", exc)
+            precedents = []
+        dosja_txt, sources = self._mbledh_gatherers(
+            user_message, triage, retrieved,
+            precedents_block=_format_precedents_block(precedents))
+        return dosja_txt, precedents, sources
 
     def _studio_djalli(self, user_message, retrieved, precedents, answer_text):
         """L'avvocato del diavolo attacca la risposta prima che arrivi
@@ -4729,6 +4741,7 @@ class SuperAvvocato:
         leverage: LeverageMap | None,
         session_id: str | None,
         documents: list[dict] | None,
+        dosja_txt: str = "",
     ) -> tuple[list[dict[str, str]], list[Path]]:
         """Build the (messages, attachment_paths) pair for compose.
 
@@ -4736,7 +4749,7 @@ class SuperAvvocato:
         ``_compose_answer_stream`` so the prompt is identical in both
         paths — streaming must not drift from blocking.
         """
-        context = _format_articles_for_prompt(retrieved)
+        context = _format_articles_for_prompt(retrieved) + (dosja_txt or "")
         precedents_block = _format_precedents_block(precedents)
         strategic_block = _format_strategic_block(strategic)
         timeline_block = _format_timeline_block(timeline)
@@ -4839,13 +4852,14 @@ class SuperAvvocato:
         leverage: LeverageMap | None = None,
         session_id: str | None = None,
         documents: list[dict] | None = None,
+        dosja_txt: str = "",
     ) -> str:
         messages, attachment_paths = self._build_compose_messages(
             user_message, history, triage, retrieved, precedents,
             strategic, timeline, comparison, premortem, distinguishing,
             evidence_map, nullity_radar, urgency_radar, action_plan,
             contradictions, opponent_playbook, leverage,
-            session_id, documents,
+            session_id, documents, dosja_txt=dosja_txt,
         )
         return self.backend.complete(
             system=self._system_for(ANSWER_SYSTEM),
@@ -4878,6 +4892,7 @@ class SuperAvvocato:
         leverage: LeverageMap | None = None,
         session_id: str | None = None,
         documents: list[dict] | None = None,
+        dosja_txt: str = "",
     ) -> Iterator[tuple[str, object]]:
         """V7.9 — streaming variant of ``_compose_answer``.
 
@@ -4891,7 +4906,7 @@ class SuperAvvocato:
             strategic, timeline, comparison, premortem, distinguishing,
             evidence_map, nullity_radar, urgency_radar, action_plan,
             contradictions, opponent_playbook, leverage,
-            session_id, documents,
+            session_id, documents, dosja_txt=dosja_txt,
         )
         backend = self.backend
         can_stream = (

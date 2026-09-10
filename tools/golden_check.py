@@ -1724,6 +1724,10 @@ def main():
               "def sintesi_burimet(" in _st37 and 'yield ("skuadra"' in _br37 and '"type": "skuadra"' in _wb37)
         check("skuadra[37]: UI — pannello «Burimet e Skuadrës» reso (il «perché lo dico»)",
               "onSkuadra" in _js37 and "_renderSkuadraPanel" in _js37 and "skuadra-panel" in _js37)
+        check("skuadra[37]: Skuadra ANCHE nel complex — raccoglitori fase parallela + dossier al senior",
+              "def _mbledh_gatherers(" in _br37 and '"skuadra_gather":  lambda' in _br37
+              and 'yield ("skuadra", burimet_x)' in _br37 and "dosja_txt=dosja_txt_x" in _br37
+              and 'articles_for_prompt(retrieved) + (dosja_txt' in _br37)
     except Exception as _e:  # noqa: BLE001
         check("skuadra[37]: kontrollet u ekzekutuan", False, str(_e))
 
