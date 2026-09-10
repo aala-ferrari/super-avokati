@@ -12,6 +12,7 @@ ASSISTIVE ONLY (the notary validates and signs — a defective deed is void):
 from __future__ import annotations
 
 from . import expertise as _expertise
+from . import succession_engine as _se
 from .logging_utils import get_logger
 
 def _juris(system_prompt: str) -> str:
@@ -74,7 +75,8 @@ DEED_TYPES = {
                  "Pasuritë e përfshira", "Data, nënshkrimet, vula"]},
     "themelim_shoqerie": {
         "label": "Akt themelimi shoqërie tregtare", "emoji": "\U0001f3e2",
-        "seed": [],
+        "seed": [("ligji_shoqerite_tregtare", "6"), ("ligji_shoqerite_tregtare", "8"),
+                 ("ligji_shoqerite_tregtare", "12")],
         "must": ["Themeluesit + kuotat", "Emri, forma ligjore (sh.p.k./sh.a.), selia",
                  "Kapitali dhe ndarja", "Objekti i veprimtarisë", "Administrimi/përfaqësimi",
                  "Data, nënshkrimet, vula; regjistrimi në QKB"]},
@@ -144,7 +146,7 @@ def check_deed(backend, index, *, text: str, max_tokens: int = 2400) -> dict:
             "articles": [{"code": c, "number": n} for c, n, _t in arts]}
 
 
-def succession(backend, index, *, situation: str, max_tokens: int = 2400) -> dict:
+def succession(backend, index, *, situation: str, jurisdiction: str = "AL", max_tokens: int = 2400) -> dict:
     art_block, arts = _art_block(backend, index, situation + " trashëgimi trashëgimtar pjesë takuese",
                                  [("kodi_civil", "316"), ("kodi_civil", "317"),
                                   ("kodi_civil", "361"), ("kodi_civil", "363")])
@@ -156,13 +158,33 @@ def succession(backend, index, *, situation: str, max_tokens: int = 2400) -> dic
         "### \U0001f465 Trashëgimtarët — kush trashëgon dhe pse (radha e trashëgimit)\n"
         "### \U0001f4ca Pjesët takuese — pjesa e secilit (dhe pjesa e rezervuar nëse ka)\n"
         "### ⚠️ Kujdes — çfarë duhet verifikuar (testament, heqje dorë, përfaqësim)\n"
-        "### \U0001f4dc Baza ligjore — nenet e zbatuara\n"
+        "### \U0001f4dc Baza ligjore — nenet e zbatuara\n\n"
+        "PASTAJ, në fund, jep rreshta të lexueshëm nga makina (asgjë tjetër në ato rreshta), për "
+        "KONTROLLIN aritmetik të pjesëve:\n"
+        "PJESA | <emri i trashëgimtarit> | <thyesë, p.sh. 1/3>\n"
+        "...një rresht PJESA për secilin trashëgimtar...\n"
+        "STRUKTURA | bashkeshort=<0|1> | femije=<numër> | rend=<1|2|tjeter>\n"
+        "  · rend=1 vetëm nëse është trashëgimi me ligj e radhës së parë (fëmijë/bashkëshort), pa "
+        "përfaqësim e pa testament; përndryshe rend=tjeter.\n"
         + _NOTARY_ID)
     prompt = ("GJENDJA FAMILJARE:\n" + (situation or "").strip()
               + "\n\n─────\nNENET NGA KORPUSI:\n" + art_block + "\n\nPërcakto trashëgimtarët dhe pjesët.")
     md = backend.complete(system=system, messages=[{"role": "user", "content": prompt}],
-                          max_tokens=max_tokens, callsite="notary_succession")
-    return {"markdown": (md or "").strip(),
+                          max_tokens=max_tokens, callsite="notary_succession") or ""
+    # §(notaio #2) — controllo aritmetico deterministico delle quote + strip righe macchina
+    _lang = "it" if (jurisdiction or "AL").upper() == "IT" else "sq"
+    extra = ""
+    try:
+        extra = _se.check(md, _lang)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("succession_engine check dështoi: %s", exc)
+    md_clean = _se._PJESA_RE.sub("", md)
+    md_clean = _se._STRUKT_RE.sub("", md_clean)
+    import re as _re_s
+    md_clean = _re_s.sub(r"\n{3,}", "\n\n", md_clean).strip()
+    if extra:
+        md_clean = (md_clean + extra).strip()
+    return {"markdown": md_clean,
             "articles": [{"code": c, "number": n} for c, n, _t in arts]}
 
 
@@ -250,6 +272,29 @@ DEED_TYPES.update({
 _ORDER += ["qira", "huaje", "sipermarrje", "peng", "shkembim", "shitje_automjeti",
            "shitje_kuotash", "premtim_shitje", "aktmarreveshje",
            "statut_shpk", "vendim_asambleje", "likuidim_shpk"]
+
+# ---- diritti reali (usufrutto/servitù) — atti notariali comuni mancanti ----
+# seed VERIFICATI contro il corpus (KC uzufrukt ~250/252, servitut ~290/292).
+DEED_TYPES.update({
+    "uzufrukt": {
+        "label": "Kontratë uzufrukti", "emoji": "\U0001f33f",
+        "seed": [("kodi_civil", "250"), ("kodi_civil", "252")],
+        "must": ["Palët (pronari i sendit / uzufruktari)",
+                 "Sendi/pasuria mbi të cilën krijohet uzufrukti (nr. pasurie, kadastër)",
+                 "Përmbajtja e uzufruktit (gëzimi dhe frutet)",
+                 "Kohëzgjatja (jo përtej jetës së uzufruktarit)",
+                 "Detyrimet e uzufruktarit (ruajtja, garancia/sigurimi i sendit)",
+                 "Regjistrimi në ASHK", "Data, nënshkrimet, vula noteriale"]},
+    "servitut": {
+        "label": "Kontratë servituti (e drejtë kalimi etj.)", "emoji": "\U0001f6e3️",
+        "seed": [("kodi_civil", "290"), ("kodi_civil", "292")],
+        "must": ["Palët (prona dominuese / prona shërbyese, me nr. pasurie)",
+                 "Lloji i servitutit (kalim, ujë, pamje etj.)",
+                 "Përmbajtja dhe mënyra e ushtrimit", "Kompensimi (nëse ka)",
+                 "Regjistrimi në ASHK mbi të dyja pasuritë",
+                 "Data, nënshkrimet, vula noteriale"]},
+})
+_ORDER += ["uzufrukt", "servitut"]
 
 # ---- PROKURA builder: forms + scope library (tagrat) ----
 _PROKURA_BASE = [("kodi_civil", "64"), ("kodi_civil", "66"), ("kodi_civil", "69"),

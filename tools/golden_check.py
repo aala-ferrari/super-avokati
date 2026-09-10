@@ -1983,6 +1983,29 @@ def main():
     except Exception as _e45:  # noqa: BLE001
         check("hash[45]: kontrollet u ekzekutuan", False, str(_e45))
 
+    # ── [46] SUPER NOTERI — quote successorie determin. (#2) + seed (#4) + atti nuovi (#5) ──
+    try:
+        import os as _os46, io as _io46
+        from fractions import Fraction as _F46
+        from src import succession_engine as _se46
+        from src import notary as _nt46
+        _rr46 = _os46.path.dirname(_os46.path.dirname(_os46.path.abspath(__file__)))
+        _nt46src = _io46.open(_os46.path.join(_rr46, "src", "notary.py"), encoding="utf-8").read()
+        check("noteri[46]: #2 motore quote — somma≠1=GABIM, somma=1 OK, 1° ordine (coniuge+2figli)=1/3, integrato",
+              _se46.first_order_shares(True, 2)["Bashkëshorti/ja"] == _F46(1, 3)
+              and "GABIM" in _se46.check("PJESA | A | 1/2\nPJESA | B | 1/3\n", "sq")
+              and "e saktë" in _se46.check("PJESA | A | 1/3\nPJESA | B | 1/3\nPJESA | C | 1/3\n", "sq")
+              and "succession_engine" in _nt46src and "_se.check(md" in _nt46src)
+        check("noteri[46]: #4 themelim_shoqerie grounded (seed ligji_shoqerite_tregtare, non vuoto)",
+              bool(_nt46.DEED_TYPES["themelim_shoqerie"]["seed"])
+              and _nt46.DEED_TYPES["themelim_shoqerie"]["seed"][0][0] == "ligji_shoqerite_tregtare")
+        check("noteri[46]: #5 atti nuovi uzufrukt+servitut con seed verificati + in elenco",
+              "uzufrukt" in _nt46.DEED_TYPES and "servitut" in _nt46.DEED_TYPES
+              and bool(_nt46.DEED_TYPES["uzufrukt"]["seed"]) and bool(_nt46.DEED_TYPES["servitut"]["seed"])
+              and "uzufrukt" in _nt46._ORDER and "servitut" in _nt46._ORDER)
+    except Exception as _e46:  # noqa: BLE001
+        check("noteri[46]: kontrollet u ekzekutuan", False, str(_e46))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

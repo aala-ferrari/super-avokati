@@ -5367,7 +5367,8 @@ def api_notary_succession():
     sit = (body.get("situation") or "").strip()
     if len(sit) < 15:
         return jsonify({"error": "situation_required"}), 400
-    out, err = _notary_run(notary_mod.succession, situation=_with_case(sit[:8000], body))
+    out, err = _notary_run(notary_mod.succession, situation=_with_case(sit[:8000], body),
+                           jurisdiction=_active_jurisdiction(getattr(request, "user", None)) or "AL")
     return err if err else out
 
 
