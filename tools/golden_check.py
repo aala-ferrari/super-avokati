@@ -1894,6 +1894,54 @@ def main():
     except Exception as _e42:  # noqa: BLE001
         check("settle[42]: kontrollet u ekzekutuan", False, str(_e42))
 
+    # ── [43] SOURCE STATUS §5 — vocabolario canonico unico + mapper + NOT_FOUND≠assente ──
+    try:
+        import os as _os43, io as _io43
+        from src import source_status as _ss43
+        from src import war_room as _wr43
+        _rr43 = _os43.path.dirname(_os43.path.dirname(_os43.path.abspath(__file__)))
+        _wr43src = _io43.open(_os43.path.join(_rr43, "src", "war_room.py"), encoding="utf-8").read()
+        check("status[43]: mapper verified/fake/unverified/needs_code/repealed → canonico",
+              _ss43.canonicalize("verified") == _ss43.VERIFIED
+              and _ss43.canonicalize("fake") == _ss43.NOT_FOUND_IN_SEARCH
+              and _ss43.canonicalize("unverified") == _ss43.NOT_FOUND_IN_SEARCH
+              and _ss43.canonicalize("needs_code") == _ss43.PARTIAL
+              and _ss43.canonicalize("repealed") == _ss43.REPEALED
+              and _ss43.canonicalize("blah") == _ss43.UNVERIFIED)
+        check("status[43]: PRINCIPIO NOT_FOUND≠assente — nene(completo)=assente, sentenza(incompleto)=da controllare",
+              _ss43.means_absent("fake", corpus_complete=True) is True
+              and _ss43.means_absent("unverified", corpus_complete=False) is False
+              and _ss43.means_absent("verified", corpus_complete=True) is False)
+        check("status[43]: label bilingui sq/it + severità",
+              _ss43.label("verified", "sq") == "e verifikuar" and _ss43.label("verified", "it") == "verificata"
+              and _ss43.severity("repealed") == "bad" and _ss43.severity("verified") == "ok")
+        check("status[43]: war_room importa il vocabolario da source_status (unica fonte di verità)",
+              "source_status" in _wr43src and "QUALITY = _ss.QUALITY" in _wr43src
+              and _wr43.VERIF == _ss43.VERIF and _wr43.QUALITY == _ss43.QUALITY)
+    except Exception as _e43:  # noqa: BLE001
+        check("status[43]: kontrollet u ekzekutuan", False, str(_e43))
+
+    # ── [44] EVAL FRAMEWORK §37-40 — harness + golden cases (seed, da validare) ──
+    try:
+        import os as _os44, io as _io44, json as _json44, glob as _glob44
+        _rr44 = _os44.path.dirname(_os44.path.dirname(_os44.path.abspath(__file__)))
+        _le44 = _io44.open(_os44.path.join(_rr44, "tools", "legal_eval.py"), encoding="utf-8").read()
+        check("eval[44]: harness legal_eval — Tier1 recall + Tier2 hook + lista codici",
+              "def eval_tier1(" in _le44 and "def load_cases(" in _le44
+              and "STATUTE_RETRIEVAL_RECALL" in _le44 and "--codes" in _le44 and "--full" in _le44)
+        _gc44 = sorted(_glob44.glob(_os44.path.join(_rr44, "tools", "golden_cases", "*.json")))
+        _cases44 = [_json44.load(_io44.open(p, encoding="utf-8")) for p in _gc44]
+        check("eval[44]: ≥3 golden case seed, ciascuno con id/jurisdiction/facts/expected_laws",
+              len(_cases44) >= 3 and all(
+                  c.get("id") and c.get("jurisdiction") in ("AL", "IT")
+                  and (c.get("facts") or "").strip()
+                  and c.get("expected_laws") and c["expected_laws"][0].get("code")
+                  and c["expected_laws"][0].get("number") for c in _cases44))
+        check("eval[44]: principio onestà — i seed sono marcati da-validare (validated_by null)",
+              all("validated_by" in c for c in _cases44))
+    except Exception as _e44:  # noqa: BLE001
+        check("eval[44]: kontrollet u ekzekutuan", False, str(_e44))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

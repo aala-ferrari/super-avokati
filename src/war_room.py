@@ -17,11 +17,14 @@ import re
 import time
 from dataclasses import dataclass, field
 
-# Qualità della fonte, indipendente dalla confidence del modello (spec sez. 14).
-QUALITY = ("PRIMARY_OFFICIAL", "AUTHORITATIVE_DATABASE", "INSTITUTIONAL",
-           "SECONDARY", "UNVERIFIED")
-# Stato di verifica (spec sez. 15).
-VERIF = ("VERIFIED", "PARTIAL", "SOURCE_NOT_RETRIEVED", "UNVERIFIED")
+from . import source_status as _ss
+
+# Qualità della fonte e stato di verifica: vocabolario CANONICO unico (§5),
+# definito in source_status.py e condiviso da tutti i verificatori. I valori
+# sono identici a prima — qui si importano invece di ri-dichiararli, così esiste
+# UNA sola fonte di verità per gli stati (spec sez. 14-15, §5).
+QUALITY = _ss.QUALITY
+VERIF = _ss.VERIF
 
 
 @dataclass

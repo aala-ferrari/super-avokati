@@ -1,0 +1,11 @@
+{
+  "id": "al-zhurma-makina-01",
+  "jurisdiction": "AL",
+  "title": "Zhurmë e tepërt nga automjeti (marmitë e zëshme)",
+  "facts": "Një automjet (Lamborghini me sistem shkarkimi origjinal por shumë të zëshëm) prodhon zhurmë të tepërt në qytet. Cili nen i Kodit Rrugor e kap këtë kundërvajtje dhe sa është gjoba?",
+  "expected_laws": [{"code": "kodi_rrugor", "number": "153"}],
+  "expected_issues": ["kufizimi i zhurmave", "gjobë për kundërvajtje"],
+  "expected_adverse_authority": [],
+  "notes": "SEED (Romeo, caso Huracán) — da validare. Neni 153 KRr «Kufizimi i zhurmave»: la norma che DEFINISCE l'infrazione e la sanzione.",
+  "validated_by": null
+}

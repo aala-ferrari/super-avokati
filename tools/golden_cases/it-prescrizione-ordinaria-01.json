@@ -1,0 +1,11 @@
+{
+  "id": "it-prescrizione-ordinaria-01",
+  "jurisdiction": "IT",
+  "title": "Prescrizione ordinaria del diritto di credito",
+  "facts": "Un credito tra privati (restituzione di un prestito) è sorto il 10.01.2014. Il creditore non ha compiuto alcun atto interruttivo. Qual è il termine di prescrizione e quando scade?",
+  "expected_laws": [{"code": "codice_civile", "number": "2946"}],
+  "expected_issues": ["prescrizione ordinaria decennale"],
+  "expected_adverse_authority": [],
+  "notes": "SEED (Romeo) — da validare. Art. 2946 c.c. = prescrizione ordinaria 10 anni.",
+  "validated_by": null
+}

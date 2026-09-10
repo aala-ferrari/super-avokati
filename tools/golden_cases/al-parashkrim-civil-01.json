@@ -1,0 +1,11 @@
+{
+  "id": "al-parashkrim-civil-01",
+  "jurisdiction": "AL",
+  "title": "Parashkrimi i përgjithshëm i detyrimit civil",
+  "facts": "Një detyrim civil (kthim huaje midis private) ka lindur më 10.01.2014. Kreditori nuk ka ndërmarrë asnjë veprim ndërprerës. Cili është afati i parashkrimit dhe a ka skaduar sot?",
+  "expected_laws": [{"code": "kodi_civil", "number": "114"}],
+  "expected_issues": ["parashkrimi i përgjithshëm dhjetëvjeçar"],
+  "expected_adverse_authority": [],
+  "notes": "SEED (Romeo) — da validare da avvocato. Neni 114 KC = afati i përgjithshëm 10 vjet (caso-ancora: BM25 non lo trova coi termini naturali).",
+  "validated_by": null
+}
