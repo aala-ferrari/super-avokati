@@ -1835,6 +1835,43 @@ def main():
     except Exception as _e:  # noqa: BLE001
         check("war[40]: kontrollet u ekzekutuan", False, str(_e))
 
+    # ── [41] AFATI — motore DETERMINISTICO delle scadenze (spec §13) ──
+    # Esegue il motore su casi noti (calcolati a mano): la matematica delle
+    # date NON è più affidata all'LLM. Un termine sbagliato = malpractice.
+    try:
+        import os as _os41, io as _io41
+        from src import deadline_engine as _de41
+        _rr41 = _os41.path.dirname(_os41.path.dirname(_os41.path.abspath(__file__)))
+        _af41 = _io41.open(_os41.path.join(_rr41, "src", "afati.py"), encoding="utf-8").read()
+        _wb41 = _io41.open(_os41.path.join(_rr41, "src", "web.py"), encoding="utf-8").read()
+        check("afati[41]: 10 anni → giorno corrispondente (2030-03-15)",
+              _de41.compute_deadline("2020-03-15", 10, "years", jurisdiction="IT").deadline.isoformat() == "2030-03-15")
+        check("afati[41]: 30 gg solari, dies a quo non computa (2024-02-09)",
+              _de41.compute_deadline("2024-01-10", 30, "days", jurisdiction="IT").deadline.isoformat() == "2024-02-09")
+        _rf41 = _de41.compute_deadline("2024-07-20", 30, "days", jurisdiction="IT", feriale=True)
+        check("afati[41]: sospensione feriale IT salta agosto (2024-09-19)",
+              _rf41.deadline.isoformat() == "2024-09-19" and _rf41.feriale_applied)
+        _ra41 = _de41.compute_deadline("2024-07-20", 30, "days", jurisdiction="AL", feriale=True)
+        check("afati[41]: AL NON ha feriale — ignorato (2024-08-19)",
+              _ra41.deadline.isoformat() == "2024-08-19" and not _ra41.feriale_applied)
+        check("afati[41]: 5 gg lavorativi saltano sab/dom/festivi (2024-12-31)",
+              _de41.compute_deadline("2024-12-20", 5, "business_days", jurisdiction="IT").deadline.isoformat() == "2024-12-31")
+        _rp41 = _de41.compute_deadline("2024-11-08", 30, "days", jurisdiction="IT")
+        check("afati[41]: proroga se la scadenza è festiva (8/12 dom → 9/12)",
+              _rp41.deadline.isoformat() == "2024-12-09" and _rp41.rolled)
+        _rsq41 = _de41.compute_deadline("2024-07-20", 30, "days", jurisdiction="IT", feriale=True, lang="sq")
+        _rit41 = _de41.compute_deadline("2024-07-20", 30, "days", jurisdiction="IT", feriale=True, lang="it")
+        check("afati[41]: BILINGUE (LINGUA=SESSIONE) — stessa data, passi sq/it",
+              _rsq41.deadline == _rit41.deadline
+              and any("gusht" in s for s in _rsq41.steps) and any("agosto" in s for s in _rit41.steps))
+        check("afati[41]: afati.py usa il motore (regola → engine, non l'LLM per la data)",
+              "_AFAT_RULE_RE" in _af41 and "deadline_engine" in _af41
+              and "_de.compute_deadline(" in _af41 and "jurisdiction: str" in _af41)
+        check("afati[41]: web.py passa la giurisdizione della sessione al motore",
+              "jurisdiction=_active_jurisdiction(" in _wb41)
+    except Exception as _e41:  # noqa: BLE001
+        check("afati[41]: kontrollet u ekzekutuan", False, str(_e41))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

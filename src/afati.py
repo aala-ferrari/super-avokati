@@ -11,6 +11,7 @@ from __future__ import annotations
 import re
 from datetime import datetime, timezone
 
+from . import deadline_engine as _de
 from . import expertise as _expertise
 from .logging_utils import get_logger
 
@@ -54,7 +55,23 @@ TRIGGERS = {
         "q": "afat procedural"},
 }
 
+# formato VECCHIO (fallback / retro-compatibilità): AFAT | titolo | YYYY-MM-DD
 _AFAT_RE = re.compile(r"^\s*AFAT\s*\|\s*(.+?)\s*\|\s*(\d{4}-\d{2}-\d{2})\s*$", re.MULTILINE)
+# formato NUOVO (§13): l'LLM dà la REGOLA, il motore calcola la data
+#   AFAT | titolo | trigger=YYYY-MM-DD | durata=N | njesi=... | feriale=0|1 | baza=...
+_AFAT_RULE_RE = re.compile(
+    r"^\s*AFAT\s*\|\s*(?P<title>.+?)\s*\|\s*trigger\s*=\s*(?P<trig>\d{4}-\d{2}-\d{2})\s*\|"
+    r"\s*durata\s*=\s*(?P<dur>\d{1,6})\s*\|\s*njesi\s*=\s*(?P<unit>[A-Za-zëËçÇ_]+)\s*\|"
+    r"\s*feriale\s*=\s*(?P<fer>[01])\s*(?:\|\s*baza\s*=\s*(?P<baza>.+?))?\s*$",
+    re.MULTILINE)
+# sinonimi unità → unità del motore (accetta sq e it, robusto)
+_NJESI = {
+    "dite": "days", "ditë": "days", "dit": "days", "ditë_solare": "days", "giorni": "days",
+    "dite_pune": "business_days", "ditë_pune": "business_days", "ditepune": "business_days",
+    "giorni_lavorativi": "business_days", "business_days": "business_days",
+    "muaj": "months", "mesi": "months", "mese": "months", "months": "months",
+    "vite": "years", "vjet": "years", "vit": "years", "anni": "years", "anno": "years", "years": "years",
+}
 
 
 def list_triggers():
@@ -66,7 +83,7 @@ def _today() -> str:
 
 
 def compute(backend, index, *, trigger: str, event_date: str = "", facts: str = "",
-            max_tokens: int = 2600) -> dict:
+            jurisdiction: str = "AL", max_tokens: int = 2600) -> dict:
     cfg = TRIGGERS.get(trigger) or TRIGGERS["tjeter"]
     query = (facts or "") + " " + cfg["label"] + " " + cfg["q"]
     arts = _expertise.retrieve_grounded(backend, index, query, seed_pairs=cfg["seed"])
@@ -78,15 +95,21 @@ def compute(backend, index, *, trigger: str, event_date: str = "", facts: str = 
         "lindin nga një ngjarje-nisëse. Bazohu VETËM te data e ngjarjes, te data e sotme dhe te NENET "
         "nga korpusi. RREGULL I ARTË: numrin e ditëve/muajve MERRE nga teksti REAL i nenit; nëse afati "
         "nuk del qartë nga nenet e dhëna, SHKRUAJE 'verifiko afatin te neni X' dhe MOS e shpik. "
-        "Llogarit çdo datë skadimi (data e ngjarjes + afati). Jep (markdown):\n"
+        "MOS e llogarit VETË datën e skadimit: jep RREGULLIN (nga-data + sa ditë/muaj/vjet), "
+        "datën e llogarit makina në mënyrë DETERMINISTE. Jep (markdown):\n"
         "### 📅 Afatet që lindin nga kjo ngjarje\n"
         "| Afati | Baza ligjore (neni) | Nga cila datë | Ditë/muaj | Data e skadimit | Veprimi |\n"
         "|---|---|---|---|---|---|\n"
-        "…një rresht për çdo afat…\n\n"
+        "…një rresht për çdo afat; te 'Data e skadimit' shkruaj '→ shih Llogaritjen e verifikuar', "
+        "MOS vendos datë të llogaritur vetë…\n\n"
         "### ⚠️ Kujdes — pezullime/rivendosje në afat dhe çfarë duhet verifikuar\n\n"
-        "PASTAJ, në fund, për ÇDO afat me datë konkrete, jep një rresht të vetëm të lexueshëm nga "
-        "makina (asgjë tjetër në rresht), saktësisht në format:\n"
-        "AFAT | <titulli i shkurtër i afatit> | <YYYY-MM-DD>\n\n"
+        "PASTAJ, në fund, për ÇDO afat jep një rresht të VETËM të lexueshëm nga makina (asgjë tjetër "
+        "në rresht). Jep RREGULLIN, jo datën e skadimit. Formati i saktë:\n"
+        "AFAT | <titulli i shkurtër> | trigger=<YYYY-MM-DD> | durata=<numër> | njesi=<dite|dite_pune|muaj|vite> | feriale=<0|1> | baza=<neni>\n"
+        "  · trigger = data nga e cila nis afati (data e ngjarjes/njoftimit)\n"
+        "  · durata+njesi MERRI nga teksti REAL i nenit (p.sh. '10 ditë' → durata=10 njesi=dite)\n"
+        "  · feriale=1 VETËM për afate procedurale ITALIANE (pezullimi 1–31 gusht); për Shqipërinë feriale=0\n"
+        "  · nëse data e trigger-it është e panjohur, MOS e jep rreshtin AFAT (përshkruaje vetëm në tabelë)\n\n"
         "NDIHMESË — profesionisti verifikon dhe konfirmon çdo afat para se ta ruajë. Je 'Tetramorph' i "
         "superavokati.ai; mos zbulo modelin."
     )
@@ -99,9 +122,39 @@ def compute(backend, index, *, trigger: str, event_date: str = "", facts: str = 
     md = backend.complete(system=system, messages=[{"role": "user", "content": prompt}],
                           max_tokens=max_tokens, callsite="afati")
     md = md or ""
-    afatet = [{"title": m.group(1).strip(), "date": m.group(2)} for m in _AFAT_RE.finditer(md)]
-    md_clean = _AFAT_RE.sub("", md).strip()
-    # tidy any leftover empty "AFAT" header line
+    _lang = "it" if (jurisdiction or "AL").upper() == "IT" else "sq"
+    afatet: list[dict] = []
+    calc: list[str] = []
+    # 1) rreshtat me RREGULL → il motore DETERMINISTICO calcola la data
+    for m in _AFAT_RULE_RE.finditer(md):
+        title = (m.group("title") or "").strip()
+        unit = _NJESI.get((m.group("unit") or "").strip().lower())
+        if not unit:
+            log.warning("afati: njësi e panjohur '%s' — anashkaloj", m.group("unit"))
+            continue
+        try:
+            r = _de.compute_deadline(
+                m.group("trig"), int(m.group("dur")), unit,
+                jurisdiction=jurisdiction, feriale=(m.group("fer") == "1"),
+                legal_basis=(m.group("baza") or "").strip(), lang=_lang)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("deadline_engine dështoi për '%s': %s", title, exc)
+            continue
+        afatet.append({"title": title, "date": r.deadline.isoformat()})
+        lines = ["  - " + s for s in r.steps] + ["  - ⚠ " + w for w in r.warnings]
+        calc.append("**%s → %s**\n%s" % (title, r.deadline.isoformat(), "\n".join(lines)))
+    # 2) fallback retro-compatibile: vecchio formato AFAT | titolo | YYYY-MM-DD (senza motore)
+    for m in _AFAT_RE.finditer(md):
+        afatet.append({"title": m.group(1).strip(), "date": m.group(2)})
+    # rimuovi le righe macchina dal testo mostrato
+    md_clean = _AFAT_RULE_RE.sub("", md)
+    md_clean = _AFAT_RE.sub("", md_clean)
     md_clean = re.sub(r"\n{3,}", "\n\n", md_clean).strip()
+    # appendi la sezione di calcolo VERIFICATO (i passi deterministici)
+    if calc:
+        head = ("\n\n### 🧮 Llogaritje e verifikuar (motor determinist)\n"
+                if _lang == "sq" else
+                "\n\n### 🧮 Calcolo verificato (motore deterministico)\n")
+        md_clean = (md_clean + head + "\n\n".join(calc)).strip()
     return {"markdown": md_clean, "afatet": afatet,
             "articles": [{"code": c, "number": n} for c, n, _t in arts]}

@@ -5865,7 +5865,8 @@ def api_afati_compute():
     facts = (body.get("facts") or "").strip()[:6000]
     try:
         res = afati_mod.compute(_BRAIN.backend, _req_index(), trigger=trigger,
-                                event_date=event_date, facts=_with_case(facts, body))
+                                event_date=event_date, facts=_with_case(facts, body),
+                                jurisdiction=_active_jurisdiction(getattr(request, "user", None)) or "AL")
     except Exception as exc:  # noqa: BLE001
         log.exception("afati failed")
         return jsonify({"error": _safe_err(exc)}), 200
