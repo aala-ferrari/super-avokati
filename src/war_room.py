@@ -158,3 +158,66 @@ def statistika(items: list[DossierItem]) -> dict:
         out[it.tip] = out.get(it.tip, 0) + 1
     out["primary"] = sum(1 for it in items if it.cilesia == "PRIMARY_OFFICIAL")
     return out
+
+
+def build_from_sources(retrieved, sources, precedents, lang="sq") -> list[DossierItem]:
+    """Come build_canonical ma dalle FONTI COMPATTE (studio.sintesi_burimet),
+    quando nel percorso di risposta il dossier grezzo non è a portata di mano.
+    Le voci QBZ sono STATI di vigenza, non fonti citabili: restano fuori."""
+    dosja: dict = {"web": {"akte_nenligjore": [], "burime": []}, "fletorja": []}
+    for s in (sources or []):
+        if not isinstance(s, dict):
+            continue
+        ag = s.get("agjenti")
+        if ag == "fletorja":
+            dosja["fletorja"].append({
+                "neni": s.get("titulli", ""), "citim": s.get("citim", ""),
+                "url": s.get("url", ""), "fletorja": s.get("data", "")})
+        elif ag == "web":
+            dosja["web"]["burime"].append({
+                "titulli": s.get("titulli", ""), "citim": s.get("citim", ""),
+                "url": s.get("url", ""), "data": s.get("data", "")})
+    return build_canonical(retrieved, dosja, precedents, lang)
+
+
+_RAPORT = {
+    "sq": {
+        "kreu": "━━━ RAPORT VERIFIKIMI (burimet e përdorura, sipas cilësisë) ━━━",
+        "verif": "✓ TË VËRTETUARA (korpus + arkiv — autoritet primar):",
+        "pjes": "⚠ PËR VERIFIKIM (nga webi — përdori VETËM pasi t'i kontrollosh):",
+        "nota": ("Rregull i War Room: një burim «për verifikim» ose me cilësi dytësore "
+                 "NUK citohet si autoritet i vërtetuar pa u kontrolluar; korpusi mbetet e vërteta."),
+    },
+    "it": {
+        "kreu": "━━━ RAPPORTO DI VERIFICA (fonti usate, per qualità) ━━━",
+        "verif": "✓ VERIFICATE (corpus + archivio — autorità primaria):",
+        "pjes": "⚠ DA VERIFICARE (dal web — usale SOLO dopo averle controllate):",
+        "nota": ("Regola War Room: una fonte «da verificare» o di qualità secondaria NON "
+                 "si cita come autorità verificata senza controllo; il corpus resta la verità."),
+    },
+}
+
+
+def raport_verifikimi(retrieved, sources, precedents, lang="sq") -> str:
+    """Il RAPPORTO del Source Verifier: cosa è verificato (corpus/archivio,
+    autorità primaria) e cosa è da verificare (web, per qualità). Trasparenza
+    del «perché lo dico» a livello di verifica. Vuoto se non c'è nulla."""
+    items = build_from_sources(retrieved, sources, precedents, lang)
+    if not items:
+        return ""
+    T = _RAPORT.get(lang, _RAPORT["sq"])
+    verif = [i for i in items if i.verifikimi == "VERIFIED"]
+    partial = [i for i in items if i.verifikimi != "VERIFIED"]
+    rr = ["", T["kreu"]]
+    if verif:
+        rr.append(T["verif"])
+        for i in verif[:14]:
+            rr.append("  • [%s] %s (%s)" % (i.id, i.titulli, i.cilesia.replace("_", " ").lower()))
+    if partial:
+        rr.append(T["pjes"])
+        for i in partial[:10]:
+            burim = i.burimi[:55] if i.burimi not in ("korpus", "arkiv") else i.burimi
+            rr.append("  • [%s] %s (%s) — %s" % (i.id, i.titulli, i.cilesia.replace("_", " ").lower(), burim))
+    rr.append(T["nota"])
+    rr.append("")
+    return "\n".join(rr)

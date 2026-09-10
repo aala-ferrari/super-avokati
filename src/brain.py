@@ -2643,6 +2643,19 @@ class SuperAvvocato:
                 log.warning("stream albanian_editor failed (non-fatal): %s", exc)
         answer_text = _apply_corrections(answer_text)
         answer_text = self._studio_djalli(user_message, retrieved, precedents, answer_text)
+        # War Room MAX-MODE (⚡ Fable): appende il RAPPORTO di verifica per qualità
+        # (Source Verifier sul dossier canonico) — verificate vs da-verificare.
+        # Solo sul percorso massimo; i percorsi normali non cambiano. Fail-silent.
+        if request_senior() == "fable":
+            try:
+                from . import war_room as _wr
+                _lang_wr = "it" if self._current_jurisdiction() == "IT" else "sq"
+                _rap = _wr.raport_verifikimi(retrieved, burimet_x, precedents, _lang_wr)
+                if _rap:
+                    answer_text = answer_text + _rap
+                    log.info("war_room: raport verifikimi u shtua (max-mode, %d shkronja)", len(_rap))
+            except Exception as _exc_wr:  # noqa: BLE001
+                log.warning("war_room raport dështoi (non-fatal): %s", _exc_wr)
 
         final_sid = getattr(self.backend, "last_session_id", None) or new_sid
         yield ("final", LegalAnswer(

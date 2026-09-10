@@ -1817,6 +1817,15 @@ def main():
               and _by40["LAW-001"].verifikimi == "VERIFIED"
               and _by40["WEB-001"].cilesia == "PRIMARY_OFFICIAL" and _by40["WEB-002"].cilesia == "SECONDARY"
               and "[LAW-001]" in _wr40.format_canonical(_items40, "sq"))
+        _rap40 = _wr40.raport_verifikimi(
+            [(_NS40(number="1", title_sq="X", code="C", body="t"), 1.0)],
+            [{"agjenti": "web", "titulli": "VKM", "citim": "tekst zyrtar mjaftueshem", "url": "https://blog.x/y"}],
+            [], "sq")
+        check("war[40]: Source Verifier — raporto verificate/da-verificare per qualità (ESEGUITO) + wired su max-mode ⚡",
+              "RAPORT VERIFIKIMI" in _rap40 and "TË VËRTETUARA" in _rap40 and "PËR VERIFIKIM" in _rap40
+              and "[WEB-001] VKM (secondary)" in _rap40
+              and "_wr.raport_verifikimi(retrieved, burimet_x, precedents" in _br40
+              and 'if request_senior() == "fable"' in _br40)
     except Exception as _e:  # noqa: BLE001
         check("war[40]: kontrollet u ekzekutuan", False, str(_e))
 
