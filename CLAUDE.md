@@ -1434,6 +1434,14 @@ rischio residuo della DPIA.
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
 
+**v9.310 — il Giudice Finale STRINGATO (11 set).** Scelta del titolare dopo v9.309, per
+non fare «muro di testo»: se la risposta è già corretta (caso più frequente) il Giudice
+conferma in **2-4 righe** («✅ Qëndron/Regge») + la riga operativa, SENZA ripetere il
+ragionamento né rielencare i nenet (è già lì sopra); si allunga **solo** quando trova un
+errore sostanziale — «la lunghezza si adatta all'errore». Cambio solo-prompt (`GJYQTARI_SYSTEM`
+sq+it in studio.py); wiring/privacy/golden invariati (445). Così la rete di sicurezza in più
+resta decisiva senza diventare un romanzo. QA: golden 445, smoke 110, juris verde.
+
 **v9.309 — blindatura proprietà (Neni 195) + il GIUDICE FINALE Fable 5.1 max (11 set).**
 Due richieste del titolare in un colpo. **(A) Blindatura «per sempre su ogni richiesta»**:
 errore reale beccato dal titolare — il cervello aveva applicato il Neni 195 K.C. (divieto
