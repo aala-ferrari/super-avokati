@@ -1397,6 +1397,12 @@ Kur avokati pyet "sa është" / "sa paguaj" / "sa përqind", PËRGJIGJU ME SHIFR
  • Jep një VLERËSIM konkret në euro/lekë me llogaritjen hap-pas-hapi mbi vlerën doganore (te makinat "okazion" kujto Nenin 66/70: vlera doganore mund të rivlerësohet më lart se çmimi i blerjes).
  • Mbylle me shifrën që PESHON më shumë (p.sh. te automjetet e vjetra me cilindratë të madhe = akciza) dhe ku ta verifikojë saktësisht sot.
 
+PASURI E PALUAJTSHME — KARTELA ASHK / KUFIZIMET (RREGULL FERRE — këtu bëhen gabimet, mos i shkel kurrë):
+Kur pyetja prek një kartelë/certifikatë pronësie ASHK ose një kufizim/barrë mbi pasuri të paluajtshme:
+ • SEKSIONI/RUBRIKA 'D' (KUFIZIMET/BARRËT) është burimi OPERATIV i pengesave — lexo çdo zë veç e veç (çfarë thotë saktësisht, data, nr. i regjistrimit, afati), dhe për SECILIN thuaj: a e NDALON apo e KUSHTËZON veprimin, dhe SI hiqet (kush, me ç'dokument). Mos i përmblidh me një fjali.
+ • OBJEKTI I REGJISTRUAR ≠ I PAREGJISTRUAR: Neni 195 KC (ndalimi i tjetërsimit të pasurisë SË PAREGJISTRUAR) NUK zbatohet mbi një objekt që TASHMË ka nr. regjistrimi. Nëse apartamenti/njësia është i regjistruar (ka nr. regjistrimi), MOS e ndalo shitjen me nenin 195 — përmend numrin e regjistrimit. Nëse trualli shënohet 0 m²/i paregjistruar, kjo prek statusin e TRUALLIT, jo shitjen e apartamentit të regjistruar. Kurrë mos ia ngarko objektit të regjistruar një pengesë që i takon truallit të paregjistruar.
+ • HIPOTEKA ≠ BLLOKIM: hipoteka/barra e sigurisë e KUSHTËZON veprimin (shlyerje ose pëlqim i kreditorit), NUK e ndalon; përkundrazi SEKUESTRO / URDHËR BLLOKIMI / KUFIZIM VEPRIMESH (p.sh. "kufizohen veprimet deri në rregullimin e …") e NDALON derisa ta heqë organi që e vendosi. Dalloji: mos e quaj "të bllokuar" një pasuri që ka vetëm hipotekë, as "të lirë" një pasuri me kufizim veprimesh.
+
 SAKTËSIA MBI GJITHÇKA — RREGULL I SHENJTË: një avokat NUK mund të gabojë; një shifër ose nen i gabuar humbet kauzën dhe klientin. Më mirë vono dhe jep të saktën sesa shpejt e gabim. MOS HAMENDËSO KURRË një numër, nen apo afat. Nëse pas verifikimit nuk e gjen dot shifrën e saktë, thuaj QARTË: çfarë është e SIGURT (p.sh. TVSH 20%, struktura e detyrimeve) dhe çfarë duhet marrë nga VKM-ja në fuqi me linkun e saktë. Dallo gjithmonë "e sigurt" nga "duhet verifikuar" — kjartësia është mbrojtja e avokatit.
 
 BURIMET E WEBIT — kur ke përdorur kërkimin në internet për këtë përgjigje, MBYLLE me seksionin «## Burimet e webit»: listë e numëruar; për çdo burim URL-ja e plotë, data e aksesit dhe gjysmë rreshti se çfarë mbështet. Nëse s'ke përdorur web: MOS e shto seksionin — një bibliografi e shpikur është e kundërta e qëllimit."""
@@ -2668,6 +2674,12 @@ class SuperAvvocato:
             except Exception as _exc_wr:  # noqa: BLE001
                 log.warning("war_room raport dështoi (non-fatal): %s", _exc_wr)
 
+        # ⚖️ IL GIUDICE FINALE (Fable 5.1 max): tutti gli agenti hanno consegnato —
+        # nenet verbatim + risposta + attacchi/repliche + dossier raccoglitori →
+        # verdetto finale. Saltato in modalità ⚡ (senior già Fable). Fail-silent.
+        answer_text = self._gjyqtari_fundit(
+            user_message, retrieved, precedents, answer_text, dosja_txt=dosja_txt_x)
+
         final_sid = getattr(self.backend, "last_session_id", None) or new_sid
         yield ("final", LegalAnswer(
             kind="answer", text=answer_text, triage=triage,
@@ -2999,6 +3011,8 @@ class SuperAvvocato:
         # verbatim — see _apply_corrections for the protection list.
         answer_text = _apply_corrections(answer_text)
         answer_text = self._studio_djalli(user_message, retrieved, precedents, answer_text)
+        # ⚖️ Il Giudice Finale (Fable 5.1 max): verdetto finale sul percorso non-stream.
+        answer_text = self._gjyqtari_fundit(user_message, retrieved, precedents, answer_text)
         # ClaudeCodeBackend exposes the (possibly new) session_id after each
         # stateful call; other backends leave it as None.
         new_session_id = getattr(self.backend, "last_session_id", None) or session_id
@@ -3284,6 +3298,37 @@ class SuperAvvocato:
             return answer_text + sez + risposta + raund2
         except Exception as exc:  # noqa: BLE001
             log.warning("studio djalli fallito (non-fatal): %s", exc)
+            return answer_text
+
+    def _gjyqtari_fundit(self, user_message, retrieved, precedents, answer_text,
+                         dosja_txt=""):
+        """Il Giudice Finale (Fable 5.1 max effort): riceve la risposta completa
+        (con gli attacchi del diavolo e le repliche = le menti degli altri agenti)
+        + i nenet VERBATIM + il dossier dei raccoglitori (web/QBZ/Fletorja) e appende
+        il VERDETTO FINALE — conferma o corregge, cerca l'ago nel pagliaio. Gira sul
+        percorso complesso; saltato quando il senior è già Fable (⚡: il verdetto è
+        già suo, non si raddoppia). Additivo, fail-silent."""
+        try:
+            from .config import (STUDIO_GJYQTARI_ENABLED, STUDIO_GJYQTARI_MODEL,
+                                 STUDIO_GJYQTARI_EFFORT)
+            if not STUDIO_GJYQTARI_ENABLED or not (answer_text or "").strip():
+                return answer_text
+            if request_senior() == "fable":
+                return answer_text
+            from . import studio
+            lang = "it" if self._current_jurisdiction() == "IT" else "sq"
+            vendim = studio.gjyqtari_fundit(
+                self.backend, domanda=user_message,
+                blloku_neneve=_format_articles_for_prompt(retrieved),
+                pergjigja=answer_text, dosja=dosja_txt or "", lang=lang,
+                modeli=STUDIO_GJYQTARI_MODEL, effort=STUDIO_GJYQTARI_EFFORT)
+            if not (vendim or "").strip():
+                return answer_text
+            vendim = _apply_corrections(_verify_citations(vendim, precedents))
+            log.info("studio: gjyqtari i fundit ka dhënë vendimin (%d shkronja)", len(vendim))
+            return answer_text + vendim
+        except Exception as exc:  # noqa: BLE001 — il verdetto non deve mai far cadere la risposta
+            log.warning("studio: gjyqtari i fundit dështoi (non-fatal): %s", exc)
             return answer_text
 
     # ── stage 2: retrieval ─────────────────────────────────────────────────

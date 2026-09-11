@@ -2250,6 +2250,54 @@ def main():
     except Exception as _e58:  # noqa: BLE001
         check("leggi[58]: kontrollet u ekzekutuan", False, str(_e58))
 
+    # ── [59] BLINDATURA PROPRIETÀ — kartela ASHK: sezione D, registrato≠non, ipoteca≠blocco ──
+    # Errore reale (titolare 11 set): Neni 195 (divieto di alienare bene NON REGISTRATO)
+    # applicato a un appartamento REGISTRATO (nr. 00061377). Blindato PER SEMPRE: nel tool
+    # verify_property E nel cervello (ANSWER_SYSTEM, su OGNI richiesta AL).
+    try:
+        import inspect as _insp59
+        from src import notary as _nt59
+        from src import brain as _br59
+        _src59 = _insp59.getsource(_nt59.verify_property)
+        _as59 = _br59.ANSWER_SYSTEM
+        _seed59 = ("kodi_civil", "195") in _nt59._VERIFY_PROP_SEED
+        _tool_ok = ("PAREGJISTRUAR" in _src59 and "195" in _src59
+                    and "HIPOTEKA ≠ BLLOKIM" in _src59 and "'D'" in _src59)
+        _brain_ok = ("KARTELA ASHK" in _as59 and "PAREGJISTRUAR" in _as59
+                     and "Neni 195" in _as59 and "HIPOTEKA ≠ BLLOKIM" in _as59)
+        check("blindatura[59]: kartela ASHK — sezione D operativa + registrato≠non-registrato (Neni 195) + ipoteca≠blocco, nel tool E nel cervello (ogni richiesta)",
+              _seed59 and _tool_ok and _brain_ok)
+    except Exception as _e59:  # noqa: BLE001
+        check("blindatura[59]: kontrollet u ekzekutuan", False, str(_e59))
+
+    # ── [60] IL GIUDICE FINALE (Gjyqtari i Fundit) — Fable 5.1 max arbitro finale ──
+    # Spec titolare 11 set: tutti gli agenti (senior, raccoglitori web/QBZ/Fletorja,
+    # avvocato del diavolo) consegnano a Fable 5.1 max, che dà il VERDETTO FINALE — nenet
+    # VERBATIM (mai riassunte), additivo, fail-silent, privacy (nessun nome-modello a video).
+    try:
+        import inspect as _insp60
+        from src import studio as _st60
+        from src import brain as _br60
+        from src import config as _cfg60
+        _fn60 = callable(getattr(_st60, "gjyqtari_fundit", None))
+        _sys60 = getattr(_st60, "GJYQTARI_SYSTEM", {})
+        _tit60 = getattr(_st60, "TITULLI_GJYQTARI", {})
+        _lang_ok = bool(_sys60.get("sq") and _sys60.get("it")
+                        and _tit60.get("sq") and _tit60.get("it"))
+        _blob60 = (str(_tit60.get("sq", "")) + str(_tit60.get("it", ""))).lower()
+        _priv60 = not any(w in _blob60 for w in
+                          ("fable", "opus", "sonnet", "claude", "anthropic", "tetramorph"))
+        _cfg60ok = (hasattr(_cfg60, "STUDIO_GJYQTARI_ENABLED")
+                    and getattr(_cfg60, "STUDIO_GJYQTARI_MODEL", "") == "claude-fable-5-1"
+                    and getattr(_cfg60, "STUDIO_GJYQTARI_EFFORT", "") == "max")
+        _wired60 = (hasattr(_br60.SuperAvvocato, "_gjyqtari_fundit")
+                    and "_gjyqtari_fundit" in _insp60.getsource(_br60.SuperAvvocato.answer_stream)
+                    and "_gjyqtari_fundit" in _insp60.getsource(_br60.SuperAvvocato.answer))
+        check("giudice[60]: gjyqtari_fundit (sq+it, Fable max, verbatim) + config + wiring answer_stream+answer + privacy",
+              _fn60 and _lang_ok and _priv60 and _cfg60ok and _wired60)
+    except Exception as _e60:  # noqa: BLE001
+        check("giudice[60]: kontrollet u ekzekutuan", False, str(_e60))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

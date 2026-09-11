@@ -506,6 +506,17 @@ WAR_ROOM_LOOP_ENABLED = os.getenv("WAR_ROOM_LOOP_ENABLED", "1") == "1"  # resear
 STUDIO_DJALLI_MODEL = os.getenv("STUDIO_DJALLI_MODEL", "claude-fable-5-1")  # esplicito: CLI >= 2.1.251
 STUDIO_DJALLI_EFFORT = os.getenv("STUDIO_DJALLI_EFFORT", "max")
 
+# ── Il Giudice Finale (Gjyqtari i Fundit) — arbitro finale (v9.309) ──────
+# Spec del titolare (11 set 2026): tutti gli agenti (Opus senior, i raccoglitori
+# web/QBZ/Fletorja Zyrtare, l'avvocato del diavolo) consegnano il loro lavoro a
+# Fable 5.1 max effort, che dà il VERDETTO FINALE — conferma o corregge, cerca
+# l'ago nel pagliaio. Le leggi/nenet gli arrivano VERBATIM, mai riassunte. Gira
+# sul percorso complesso; quando il senior è già Fable (⚡) si salta (ridondante).
+# Additivo, fail-silent: se non produce, la risposta resta com'è.
+STUDIO_GJYQTARI_ENABLED = os.getenv("STUDIO_GJYQTARI_ENABLED", "1") == "1"
+STUDIO_GJYQTARI_MODEL = os.getenv("STUDIO_GJYQTARI_MODEL", "claude-fable-5-1")
+STUDIO_GJYQTARI_EFFORT = os.getenv("STUDIO_GJYQTARI_EFFORT", "max")
+
 # ── Mbledhësit (raccoglitori) del percorso simple — gradino B (v9.271) ──
 # «sonnet» = Sonnet sul tier medium (HA il web); effort basso di proposito:
 # raccolgono verbatim, non ragionano. Tetto di spesa e di tempo per chiamata:

@@ -862,7 +862,8 @@ def what_if(backend, index, *, act, change, max_tokens=2600):
 # VERIFICATE (ipoteka 560/562/568, servitut 290/292, uzufrukt 250); pronësia/
 # sekuestro/regjistrim entrano dal BM25-fill sul testo.
 _VERIFY_PROP_SEED = [("kodi_civil", "560"), ("kodi_civil", "562"), ("kodi_civil", "568"),
-                     ("kodi_civil", "290"), ("kodi_civil", "292"), ("kodi_civil", "250")]
+                     ("kodi_civil", "290"), ("kodi_civil", "292"), ("kodi_civil", "250"),
+                     ("kodi_civil", "193"), ("kodi_civil", "195"), ("ligji_kadastra", "24")]
 
 
 def verify_property(backend, index, *, certificate_text: str, transaction: str = "",
@@ -883,18 +884,35 @@ def verify_property(backend, index, *, certificate_text: str, transaction: str =
         "servitut, uzufrukt, qira e regjistruar, kufizime ligjore).\n"
         "2) KRYQËZO me veprimin e kërkuar: a është shitësi/disponuesi PIKËRISHT pronari i regjistruar? "
         "a mjaftojnë pjesët për atë që disponohet? a përputhet identifikimi i pasurisë? a ka barrë që "
-        "e PENGON ose e KUSHTËZON veprimin (hipoteka → duhet shlyerje/pëlqim kreditori; sekuestro/bllokim → "
-        "i ndaluar; servitut/uzufrukt → duhet deklaruar)?\n"
+        "e PENGON ose e KUSHTËZON veprimin?\n"
+        "RREGULLA FERRE (mos i shkel kurrë — këtu bëhen gabimet):\n"
+        "• SEKSIONI/RUBRIKA 'D' (KUFIZIMET/BARRËT) është burimi OPERATIV i pengesave. Lexo ÇDO zë të tij "
+        "një nga një — çfarë thotë saktësisht, data, nr. i regjistrimit, afati — dhe për SECILIN përgjigju "
+        "veç e veç: a E NDALON veprimin apo e KUSHTËZON, dhe SI HIQET (kush e hoqi, me çfarë dokumenti/veprimi). "
+        "Mos i përmblidh me një fjali të vetme; trajtoji si urdhra veprues.\n"
+        "• OBJEKTI I REGJISTRUAR ≠ OBJEKTI I PAREGJISTRUAR. Kontrollo nr. e REGJISTRIMIT për ÇDO objekt veç e "
+        "veç: apartamenti/njësia ka nr. vet regjistrimi; TRUALLI ka nr. vet OSE shënohet me sipërfaqe 0 m². "
+        "Neni 195 KC (ndalimi i tjetërsimit të pasurisë SË PAREGJISTRUAR) NUK zbatohet mbi një objekt QË ËSHTË "
+        "TASHMË I REGJISTRUAR: nëse apartamenti ka nr. regjistrimi, PËRMEND ATË numër dhe MOS e ndalo shitjen e "
+        "tij me nenin 195. Nëse trualli është 0 m²/i paregjistruar, kjo prek statusin e TRUALLIT, jo shitjen e "
+        "apartamentit të regjistruar. Kurrë mos ia ngarko apartamentit të regjistruar një pengesë që i takon "
+        "truallit të paregjistruar.\n"
+        "• HIPOTEKA ≠ BLLOKIM. Hipoteka/barra e sigurisë NUK e ndalon shitjen — e KUSHTËZON (shlyerje ose pëlqim "
+        "i kreditorit; blerësi mund ta marrë edhe me barrën). Përkundrazi SEKUESTRO / URDHËR BLLOKIMI / KUFIZIM "
+        "VEPRIMESH (p.sh. 'kufizohen veprimet deri në rregullimin e …') e NDALON veprimin derisa ta heqë organi "
+        "që e vendosi. Dalloji qartë: mos e quaj 'të bllokuar' një pasuri që ka vetëm hipotekë, as 'të lirë' një "
+        "pasuri me kufizim veprimesh.\n"
         "RREGULLA: cito VETËM nenet e dhëna, mos shpik. Ku një e dhënë MUNGON në certifikatë, shkruaj "
         "'[mungon në certifikatë]' — mos e trillo. Mos nxirr përfundime mbi vlefshmërinë përtej asaj që "
         "thotë certifikata. Përfundo me '### 🔎 Verdikti' me semafor: 🟢 mund të vazhdojë · "
-        "🟡 me kushte (listoji) · 🔴 e bllokuar (pse). " + _NOTARY_ID)
+        "🟡 me kushte (listoji) · 🔴 e bllokuar (pse, dhe SI hiqet). " + _NOTARY_ID)
     prompt = ("VEPRIMI I KËRKUAR:\n"
               + ((transaction or "").strip()[:3000] or "(nuk u dha — bëj vetëm nxjerrjen e pronarit, pasurisë dhe barrëve)")
               + "\n\n─────\nCERTIFIKATA/EKSTRAKTI (tekst i ngarkuar nga noteri):\n" + (certificate_text or "").strip()[:16000]
               + "\n\n─────\nNENET NGA KORPUSI (cito vetëm këto):\n" + art_block
               + "\n\nKthe në markdown, me këto seksione: "
-              + "**Pronari i regjistruar** · **Identifikimi i pasurisë** · **Barrët & kufizimet** (me rëndësi) · "
+              + "**Pronari i regjistruar** · **Identifikimi i pasurisë** (secili objekt me nr. regjistrimi + a është i regjistruar) · "
+              + "**Barrët & kufizimet (Seksioni D)** — secili zë veç e veç: çfarë është · a e NDALON apo e KUSHTËZON · SI hiqet · "
               + "**Kryqëzimi me veprimin** (mospërputhjet) · **🔎 Verdikti** (semafor).")
     md = backend.complete(system=system, messages=[{"role": "user", "content": prompt}],
                           max_tokens=max_tokens, callsite="notary_verify_property")
