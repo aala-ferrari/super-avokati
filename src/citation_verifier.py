@@ -178,6 +178,8 @@ CODE_LABELS: dict[str, str] = {
     "ligji_policia_2024": "Ligji Policia 82/2024",
     "rregullore_policia": "Rregullore Policia",
     "ligji_pastrimi_parave": "Ligji Kundër Pastrimit 9917/2008",
+    "ligji_kadastra": "Ligji Kadastra 111/2018",
+    "ligji_noteri": "Ligji Noteria 110/2018",
     # ── corpus italiano ──
     "antiriciclaggio": "D.Lgs 231/2007 (antiricicl.)",
     "codice_civile": "c.c.",

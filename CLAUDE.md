@@ -3,7 +3,7 @@
 Strumento AI per avvocati (B2B), **bi-giurisdizione AL + IT**. Front-end Flask
 su porta 5050, SQLite (`data/app.db`) + Postgres `legalkb` per i casi
 giurisprudenziali. Due corpora BM25 SEPARATI:
-- **AL** (`bm25.pkl`): 6102 nene / 22 codici (+ Ligji 9917/2008 antiriciclaggio) + `bm25_decisions.pkl` 1258 precedenti
+- **AL** (`bm25.pkl`): 6320 nene / 24 codici (+ Ligji 9917/2008 antiriciclaggio, + Ligji 111/2018 kadastra, + Ligji 110/2018 noteri) + `bm25_decisions.pkl` 1258 precedenti
   (Kushtetuese + Gjykata e Lartë + CEDU).
 - **IT** (`bm25_it.pkl`): **15.595 articoli / 44 corpora** da Normattiva (+ D.Lgs 231/2007 antiriciclaggio)
   (testi vigenti ufficiali) — vedi "CORPUS ITALIANO" più sotto.
@@ -574,7 +574,7 @@ errori, non che le risposte sono ancora giuste. Riferimento verificato il
 12 articoli recuperati per ciascuna.
 
 ```bash
-docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57]). Baseline **442/442** (11 set; era 98 il 31 ago).
+docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58]). Baseline **443/443** (11 set; era 98 il 31 ago).
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 bash /root/prova_sse.sh                                    # SULL'HOST (legge il secret da /opt/super-avvocato.env; copia in tools/prova_sse.sh): account di prova → login → fascicolo → 1 domanda VERA → stream /api/ask/events attraverso waitress. Deve dire «HTTP 200 … done: 1» (~50s, costa 1 chiamata al cervello) e cancella l'account. Dopo OGNI build che tocca web.py o le rotte SSE.
@@ -1433,6 +1433,21 @@ rischio residuo della DPIA.
 - Super Avokati ha auth propria (login_required_api); utenti creati da admin o auto-provisionati da AALA (`/api/provision-demo`, secret-guarded).
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
+
+**v9.308 — leggi pubbliche nel corpus: Kadastra 111/2018 + Noteria 110/2018 (11 set).**
+Il titolare voleva il TESTO di queste leggi scaricato nel corpus (prima le citavamo a
+memoria/prompt, non erano nel corpus). Stesso metodo di Ligji 9917: PDF ufficiale →
+pdfplumber → `parser.split_into_articles(text, doc SimpleNamespace)` → APPESO al bm25.pkl
+(load/dedup/backup/build lang=sq/save/chown). ⚠️ **La sorgente conta**: il PDF ASHK del
+111/2018 parsava male (44 di ~70 art, heading sbagliati, layout); **FAOLEX**
+(`faolex.fao.org/docs/pdf/alb220473.pdf`) pulito → **73 art** (space% 0.126). Noteria
+110/2018 da **nchb.al** (Dhoma Kombëtare e Noterisë, autorevole) → **145 art** (space%
+0.123). AL 6102→6320, 22→24 codici (code `ligji_kadastra`, `ligji_noteri`; label in
+citation_verifier). Nessun tool nuovo — servono come GROUNDING per il notaio/proprietà
+(verify_property, aml_check, deed-check, la chat citano ora dal corpus). Golden [58]
+(verifica ≥60 kadastra, ≥100 noteri nel corpus). ⚠️ metodo generale ingestione legge AL:
+PDF pulito (FAOLEX/QBZ/camera competente, MAI fidarsi del 1° PDF — misura space% e
+articoli) → split_into_articles → append. QA: golden 443, smoke 110.
 
 **v9.307 — export HTML del caso mobile-safe + verdetto ASHK (11 set).** Bug del
 titolare: l'HTML del caso scaricato (bottone ⬇️, `exportJsonBtn` in app.js ~440, inline

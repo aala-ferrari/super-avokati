@@ -2235,6 +2235,21 @@ def main():
     except Exception as _e57:  # noqa: BLE001
         check("export[57]: kontrollet u ekzekutuan", False, str(_e57))
 
+    # ── [58] LEGGI PUBBLICHE nel corpus AL: Kadastra 111/2018 + Noteria 110/2018 ──
+    # Il titolare le voleva scaricate nel corpus (prima citate a memoria). Ingerite
+    # (FAOLEX kadastra / nchb noteri) → grounding per notaio/proprietà.
+    try:
+        from src.retrieval import ArticleIndex as _AI58
+        from src import citation_verifier as _cv58
+        _al58 = _AI58.load().articles
+        _kad = sum(1 for a in _al58 if a.code == "ligji_kadastra")
+        _not = sum(1 for a in _al58 if a.code == "ligji_noteri")
+        check("leggi[58]: Kadastra 111/2018 + Noteria 110/2018 nel corpus AL + label",
+              _kad >= 60 and _not >= 100
+              and _cv58.CODE_LABELS.get("ligji_kadastra") and _cv58.CODE_LABELS.get("ligji_noteri"))
+    except Exception as _e58:  # noqa: BLE001
+        check("leggi[58]: kontrollet u ekzekutuan", False, str(_e58))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
