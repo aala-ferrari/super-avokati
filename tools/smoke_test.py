@@ -95,6 +95,7 @@ run("notary.client_comm", lambda: notary.client_comm(be, idx, kind="shpjego", te
 run("notary.what_if", lambda: notary.what_if(be, idx, act=F, change="cka nese shtoj uzufrukt"))
 run("notary.verify_property", lambda: notary.verify_property(be, idx, certificate_text=F, transaction="shitje apartament 7/512"))
 run("notary.post_deed_plan", lambda: notary.post_deed_plan(be, idx, act="shitje apartamenti nr 7/512", jurisdiction="AL", act_date="2026-09-11"))
+run("notary.verify_subject", lambda: notary.verify_subject(be, idx, subject_text="NIPT M61924031M Alfa Group SHPK Statusi Ne likuidim administrator Fabio Qoshku", context="a mund te shese?"))
 
 print("[living_law / intake / afati / deadlines]")
 run("deadlines.prescription", lambda: deadlines.prescription(be, idx, facts=F))

@@ -987,3 +987,49 @@ def post_deed_plan(backend, index, *, act: str, jurisdiction: str = "AL",
                    "pune nëse bie në festë/fundjavë.")
     return {"markdown": md,
             "articles": [{"code": c, "number": n} for c, n, _t in arts]}
+
+
+# ---- Verifica SUBJEKTI (società/persona) dai dati QKB — due diligence per l'atto ----
+# QKB (qkb.gov.al) è pubblico: il professionista incolla l'estratto o il RISULTATO di
+# ricerca (per NIPT, per nome, o per PERSONA → più società). Qui si ANALIZZA (il valore):
+# status + poteri amministratore + soci + rete-persona → cross-check col veprim + red-flag
+# AML. NDIHMESË: i dati li prende il professionista da QKB; non ci si connette live.
+# corporate.py fa extract_corporate/check_signatory (per l'avvocato); questo è la due
+# diligence act-time con status/rete/cross-check, per notaio/avvocato/procuratore.
+_VERIFY_SUBJECT_SEED = [("ligji_shoqerite_tregtare", "12"), ("ligji_shoqerite_tregtare", "147"),
+                        ("ligji_shoqerite_tregtare", "167")]
+
+
+def verify_subject(backend, index, *, subject_text: str, context: str = "",
+                   max_tokens: int = 2800) -> dict:
+    """Analizo të dhënat e një SUBJEKTI nga QKB (ekstrakt ose rezultat kërkimi, edhe me
+    person → disa shoqëri) dhe kryqëzoji me veprimin/pyetjen. NDIHMESË: të dhënat i merr
+    vetë profesionisti nga QKB (publik) — ky mjet i analizon, nuk lidhet live me QKB."""
+    q = (context or "") + " shoqëri administrator ortak aksionar status likuidim çregjistrim përfaqësim tagra kuota"
+    art_block, arts = _art_block(backend, index, q, _VERIFY_SUBJECT_SEED)
+    system = (
+        "Ti je jurist që kryen KUJDESIN E DUHUR (due diligence) mbi një SUBJEKT tregtar para një veprimi "
+        "(shitje, prokurë, kontratë) ose për një pyetje të kolegut. Të është dhënë tekst nga QKB — një "
+        "EKSTRAKT ose një REZULTAT KËRKIMI (mund të përmbajë disa subjekte: kërkim me emër ose me PERSON).\n"
+        "DETYRA:\n"
+        "1) NXIRR për secilin subjekt: emrin, NIPT-in, formën (SHPK/SHA/Person Fizik), STATUSIN "
+        "(Aktiv / Pezulluar / Në likuidim / I çregjistruar), administratorët dhe tagrat, ortakët/aksionarët "
+        "me përqindje, kapitalin, objektin, datën e regjistrimit.\n"
+        "2) SINJALIZO RREZIQET: status jo-aktiv (likuidim/çregjistrim/pezullim → 🔴), mospërputhje ose kufizim "
+        "tagrash, ndryshime të fundit; dhe — nëse teksti është kërkim me PERSON — cilat nga shoqëritë e lidhura "
+        "me të janë në gjendje problematike (red-flag për pastrim parash / due diligence e thelluar).\n"
+        "3) KRYQËZO me veprimin/pyetjen: a mund të veprojë ligjërisht ky subjekt? a i ka firmëtari tagrat? "
+        "a përputhen palët/kuotat?\n"
+        "RREGULLA: analizo VETËM të dhënat e dhëna — mos shpik NIPT, emra a statuse. Ku mungon, shkruaj "
+        "'[mungon]'. Cito vetëm nenet e dhëna. Përfundo me '### 🔎 Verdikti' semafor: 🟢 në rregull · "
+        "🟡 me kujdes (çfarë) · 🔴 rrezik/mos vepro (pse). " + _NOTARY_ID)
+    prompt = ("VEPRIMI / PYETJA:\n"
+              + ((context or "").strip()[:2500] or "(nuk u dha — bëj vetëm analizën e subjektit/eve dhe rreziqet)")
+              + "\n\n─────\nTË DHËNAT NGA QKB (tekst i ngarkuar/ngjitur nga profesionisti):\n" + (subject_text or "").strip()[:16000]
+              + "\n\n─────\nNENET NGA KORPUSI (cito vetëm këto):\n" + art_block
+              + "\n\nKthe në markdown: **Subjekti/et** (të dhënat) · **Rreziqet & sinjalet** · "
+              + "**Kryqëzimi me veprimin** · **🔎 Verdikti**.")
+    md = backend.complete(system=system, messages=[{"role": "user", "content": prompt}],
+                          max_tokens=max_tokens, callsite="notary_verify_subject")
+    return {"markdown": (md or "").strip(),
+            "articles": [{"code": c, "number": n} for c, n, _t in arts]}

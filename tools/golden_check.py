@@ -2147,6 +2147,26 @@ def main():
     except Exception as _e53:  # noqa: BLE001
         check("noteri[53]: kontrollet u ekzekutuan", False, str(_e53))
 
+    # ── [54] NOTAIO/AVV/PROC — Verifica SUBJEKTI (QKB): due diligence società/persona ──
+    # Analizza estratto/risultato QKB (anche persona→più società): status/poteri/soci +
+    # red-flag AML + cross-check. Tool di VERIFICA, onesto (non si connette live a QKB).
+    try:
+        from src import notary as _nt54
+        import os as _os54, io as _io54
+        _rr54 = _os54.path.dirname(_os54.path.dirname(_os54.path.abspath(__file__)))
+        _nt54src = _io54.open(_os54.path.join(_rr54, "src", "notary.py"), encoding="utf-8").read()
+        _web54 = _io54.open(_os54.path.join(_rr54, "src", "web.py"), encoding="utf-8").read()
+        _aj54 = _io54.open(_os54.path.join(_rr54, "static", "app.js"), encoding="utf-8").read()
+        check("noteri[54]: verify_subject — status/red-flag/rete-persona + onesto (no QKB live) + endpoint + card",
+              hasattr(_nt54, "verify_subject") and hasattr(_nt54, "_VERIFY_SUBJECT_SEED")
+              and ("ligji_shoqerite_tregtare", "147") in _nt54._VERIFY_SUBJECT_SEED
+              and "nuk lidhet live me QKB" in _nt54src and "likuidim" in _nt54src.lower()
+              and "Verdikti" in _nt54src
+              and "/api/notary/verify-subject" in _web54 and "subject_required" in _web54
+              and "openVerifySubject" in _aj54 and "Verifiko subjektin (QKB)" in _aj54)
+    except Exception as _e54:  # noqa: BLE001
+        check("noteri[54]: kontrollet u ekzekutuan", False, str(_e54))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

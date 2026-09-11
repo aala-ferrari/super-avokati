@@ -5075,6 +5075,7 @@
           { emoji: "📚", label: "Klauzolat e studios", tag: "hartim", fn: openClauses } ] },
         { label: "— KONTROLL & ANALIZË —", cards: [
           { emoji: "🧾", label: "Verifiko pronësinë & barrët", tag: "kontroll", fn: openVerifyProperty },
+          { emoji: "🏢", label: "Verifiko subjektin (QKB)", tag: "kontroll", fn: openVerifySubject },
           { emoji: "🕵️", label: "Ispektor (Revizor Senior)", tag: "kontroll", fn: openIspektor },
           { emoji: "✅", label: "Kontroll vlefshmërie", tag: "kontroll", fn: openNotaryCheck },
           { emoji: "🚦", label: "Kontroll konfliktesh", tag: "kontroll", fn: openConflictCheck },
@@ -6019,6 +6020,62 @@
     setTimeout(function () { try { act.focus(); } catch (e) {} }, 50);
   }
 
+  async function openVerifySubject() {
+    var ov = document.getElementById("vsubj-ov");
+    if (ov) ov.remove();
+    ov = document.createElement("div");
+    ov.id = "vsubj-ov"; ov.className = "ac-overlay";
+    ov.innerHTML = '<div class="ac-modal">' +
+      '<div class="ac-head"><span>' + tMode("🏢 Verifiko subjektin (QKB)") + '</span><button class="ac-x" type="button" aria-label="Mbyll">×</button></div>' +
+      '<div class="ac-sub">' + t("Kërko subjektin te qkb.gov.al (publik, falas) dhe ngjit këtu ekstraktin ose REZULTATIN e kërkimit (edhe kërkim me person → disa shoqëri). Analizohet statusi, administratorët e tagrat, ortakët dhe rreziqet (likuidim/çregjistrim, red-flag). NDIHMESË: të dhënat i merr vetë profesionisti nga QKB — nuk lidhet live.") + '</div>' +
+      '<input type="text" class="vsubj-ctx" style="width:100%;box-sizing:border-box;padding:9px 12px;border:1px solid var(--line,#d9cfc0);border-radius:8px;font-size:14px;margin-bottom:8px" placeholder="' + t("Veprimi/pyetja: p.sh. «shoqëria X do të shesë — a mund të veprojë?» ose «a është Y në shoqëri me probleme?»") + '" />' +
+      '<div class="ac-attach-row"><label class="ac-attach">' + t("📎 Bashkëngjit ekstraktin (PDF/foto)") + '<input type="file" class="vsubj-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.tif,.tiff,.docx" hidden multiple></label></div>' +
+      '<textarea class="ac-ta vsubj-txt" placeholder="' + t("Ngjit të dhënat nga QKB (ekstrakt ose rezultat kërkimi)…") + '"></textarea>' +
+      '<div class="ac-row"><button class="ac-run" type="button">' + t("Verifiko subjektin →") + '</button><span class="ac-status"></span></div>' +
+      '<div class="ac-result"></div>' +
+      "</div>";
+    document.body.appendChild(ov);
+    var ctx = ov.querySelector(".vsubj-ctx"), txt = ov.querySelector(".vsubj-txt"),
+        run = ov.querySelector(".ac-run"), status = ov.querySelector(".ac-status"),
+        result = ov.querySelector(".ac-result"), file = ov.querySelector(".vsubj-file");
+    function close() { ov.remove(); }
+    ov.querySelector(".ac-x").onclick = close;
+    ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
+    if (file) file.onchange = async function () {
+      var files = file.files ? [].slice.call(file.files) : []; if (!files.length) return;
+      run.disabled = true;
+      for (var i = 0; i < files.length; i++) {
+        try { var dd = await _extractFileText(files[i], status); var t2 = (dd.text || "").trim();
+          if (t2) txt.value = txt.value.trim() ? (txt.value.trim() + "\n\n" + t2) : t2; }
+        catch (e) { status.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; }
+      }
+      status.textContent = "✓ " + files.length + t(" dokument(e) u lexuan"); run.disabled = false; file.value = "";
+    };
+    run.onclick = async function () {
+      var s = (txt.value || "").trim();
+      if (s.length < 30) { status.textContent = t("Ngjit të dhënat e subjektit nga QKB."); return; }
+      run.disabled = true; status.textContent = t("Po verifikoj subjektin… (~1-2 min)"); result.innerHTML = "";
+      try {
+        var r = await fetch("/api/notary/verify-subject", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ subject: s, context: (ctx.value || "").trim() }) });
+        var d = await r.json();
+        if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
+        status.textContent = "";
+        result.innerHTML = '<div class="fd-out"></div>';
+        var out = result.querySelector(".fd-out");
+        out.innerHTML = renderMarkdown(d.markdown || "");
+        if (d.citations) highlightNeni(out, buildCitStatusMap(d.citations));
+        if (d.citations && d.citations.stats && d.citations.stats.total > 0) result.insertBefore(renderCitationsBadge(d.citations, null), out);
+        var copy = document.createElement("button"); copy.className = "fd-copy"; copy.type = "button"; copy.textContent = "📋 Kopjo tekstin";
+        copy.onclick = function () { navigator.clipboard.writeText(d.markdown || "").then(function () { copy.textContent = "✓ U kopjua"; }).catch(function () {}); };
+        result.appendChild(copy);
+        _addSaveToCase(result, "notary", "Verifikim subjekti", d.markdown || "");
+      } catch (e) { status.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; }
+      finally { run.disabled = false; }
+    };
+    setTimeout(function () { try { ctx.focus(); } catch (e) {} }, 50);
+  }
+
   async function openVerifyProperty() {
     var ov = document.getElementById("vprop-ov");
     if (ov) ov.remove();
@@ -6718,6 +6775,17 @@
     "Nxirr hapat →": "Estrai i passi →",
     "Përshkruaj aktin e nënshkruar.": "Descrivi l'atto firmato.",
     "Po nxjerr hapat pas aktit… (~1-2 min)": "Sto estraendo i passi dopo l'atto… (~1-2 min)"
+  });
+  Object.assign(T_IT, {
+    "🏢 Verifiko subjektin (QKB)": "🏢 Verifica il soggetto (QKB)",
+    "Verifiko subjektin (QKB)": "Verifica il soggetto (QKB)",
+    "Kërko subjektin te qkb.gov.al (publik, falas) dhe ngjit këtu ekstraktin ose REZULTATIN e kërkimit (edhe kërkim me person → disa shoqëri). Analizohet statusi, administratorët e tagrat, ortakët dhe rreziqet (likuidim/çregjistrim, red-flag). NDIHMESË: të dhënat i merr vetë profesionisti nga QKB — nuk lidhet live.": "Cerca il soggetto su qkb.gov.al (pubblico, gratis) e incolla qui l'estratto o il RISULTATO della ricerca (anche ricerca per persona → più società). Si analizzano lo stato, gli amministratori e i poteri, i soci e i rischi (liquidazione/cancellazione, red-flag). ASSISTIVO: i dati li prende il professionista da QKB — non si collega in tempo reale.",
+    "Veprimi/pyetja: p.sh. «shoqëria X do të shesë — a mund të veprojë?» ose «a është Y në shoqëri me probleme?»": "L'operazione/domanda: es. «la società X vuole vendere — può agire?» o «Y è in società con problemi?»",
+    "📎 Bashkëngjit ekstraktin (PDF/foto)": "📎 Allega l'estratto (PDF/foto)",
+    "Ngjit të dhënat nga QKB (ekstrakt ose rezultat kërkimi)…": "Incolla i dati da QKB (estratto o risultato di ricerca)…",
+    "Verifiko subjektin →": "Verifica il soggetto →",
+    "Ngjit të dhënat e subjektit nga QKB.": "Incolla i dati del soggetto da QKB.",
+    "Po verifikoj subjektin… (~1-2 min)": "Sto verificando il soggetto… (~1-2 min)"
   });
   Object.assign(T_IT, { "📎 Bashkëngjit dokumentin e marrë": "📎 Allega il documento ricevuto", "letra e pushimit, akti, njoftimi — që t'i përgjigjemi pikë për pikë": "la lettera di licenziamento, l'atto, la notifica — per ribattere punto per punto", "Kopjo letrën": "Copia la lettera", "PDF (shtyp)": "PDF (stampa)", "Blloko dritaret u aktivizua — lejo dritaret.": "Il blocco pop-up è attivo: consenti le finestre per questo sito." });
   Object.assign(T_IT, { "Letra dhe shkresa": "Lettere e atti", "Zgjidh kujt i shkruhet. Shkresa ndërtohet mbi fashikullin e hapur dhe mbi nenet e marra nga korpusi — gati për dërgim.": "Scegli a chi scrivere. La lettera si costruisce sul fascicolo aperto e sugli articoli recuperati dal corpus — pronta da inviare.", "Po ngarkohet…": "Caricamento…", "Email / PEC": "Email / PEC", "Fakte shtesë ose udhëzime: emrat, shumat, datat, çfarë të theksohet. Nëse fashikulli është i plotë, mund ta lësh bosh.": "Fatti aggiuntivi o istruzioni: nomi, importi, date, cosa sottolineare. Se il fascicolo e completo, puoi lasciare vuoto.", "Harto shkresën →": "Scrivi la lettera →", "Marrësi": "Destinatario", "Kanali": "Canale", "Kjo shkresë i drejtohet palës kundërshtare. Forca vjen nga nenet, jo nga kërcënimet: njoftimi se do t'i drejtohemi gjykatës lejohet, kërcënimi me kallëzim penal apo me njoftim te tatimet për të marrë pagesë është shantazh.": "Questa lettera si rivolge alla controparte. La forza viene dagli articoli, non dalle minacce: annunciare che si adira il giudice e legittimo, minacciare una denuncia penale o una segnalazione al fisco per ottenere il pagamento e estorsione.", "Kjo shkresë i drejtohet autoritetit. Toni është faktik dhe nuk lidhet me asnjë kërkesë pagese — përndryshe shndërrohet në shantazh.": "Questa lettera si rivolge all'autorita. Il tono e fattuale e non si collega ad alcuna richiesta di pagamento — altrimenti diventa estorsione.", "Hap një fashikull ose shkruaj faktet këtu.": "Apri un fascicolo oppure scrivi qui i fatti.", "Po hartohet shkresa…": "Sto scrivendo la lettera…", "Kopjo tekstin": "Copia il testo", "Shkarko .docx": "Scarica .docx", "Nuk u ngarkua katalogu": "Catalogo non caricato", "Shkresa gati për dërgim nga fashikulli — punëdhënësit, tatimeve, prokurorisë, institucioneve": "Lettere pronte da inviare, costruite sul fascicolo — al datore di lavoro, al fisco, alla Procura, alle istituzioni", "✉️ \n Letra dhe shkresa Shkresa gati për dërgim nga fashikulli — punëdhënësit, tatimeve, prokurorisë, institucioneve": "✉️ \n Lettere e atti Lettere pronte da inviare, costruite sul fascicolo — al datore di lavoro, al fisco, alla Procura, alle istituzioni" });

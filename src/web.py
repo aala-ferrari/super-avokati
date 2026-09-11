@@ -5555,6 +5555,21 @@ def api_notary_post_deed():
     return err if err else out
 
 
+@app.post("/api/notary/verify-subject")
+@login_required_api
+def api_notary_verify_subject():
+    # Due diligence su un SUBJEKT dai dati QKB (pubblici; incollati/caricati dal
+    # professionista). Tool di VERIFICA → NON iniettare il case_brief.
+    body = request.get_json(silent=True) or {}
+    subj = (body.get("subject") or body.get("text") or "").strip()
+    context = (body.get("context") or "").strip()
+    if len(subj) < 30:
+        return jsonify({"error": "subject_required"}), 400
+    out, err = _notary_run(notary_mod.verify_subject,
+                           subject_text=subj[:16000], context=context[:2500])
+    return err if err else out
+
+
 @app.post("/api/notary/checklist")
 @login_required_api
 def api_notary_checklist():
