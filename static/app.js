@@ -447,12 +447,20 @@
       const te = document.getElementById("case-title-text");
       const title = ((te && te.textContent) || "Rasti").trim();
       const esc = (s) => String(s).replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]));
-      const extra = 'body{background:#fff!important;margin:0;padding:22px;color:#1a1a1a}' +
+      const extra = 'html,body{max-width:100%;overflow-x:hidden;-webkit-text-size-adjust:100%}' +
+        'body{background:#fff!important;margin:0;padding:22px;color:#1a1a1a}' +
         'main,.messages{display:block!important}' +
         '.topbar,.sidebar,.sidebar-scrim,#composer,.composer,.case-header,.case-header-actions,.icon-btn,.pro-menu-wrap,.user-menu,.logout-fab,.menu-btn{display:none!important}' +
-        '.exp-head{font-family:Georgia,"Times New Roman",serif;color:#7a1f1f;border-bottom:2px solid #c9a24d;padding-bottom:10px;margin:0 0 4px;font-size:24px}' +
+        '.exp-head{font-family:Georgia,"Times New Roman",serif;color:#7a1f1f;border-bottom:2px solid #c9a24d;padding-bottom:10px;margin:0 0 4px;font-size:24px;line-height:1.25}' +
         '.exp-sub{color:#888;font-size:12px;margin:0 0 20px}' +
-        '.messages{max-width:860px;margin:0 auto}' +
+        '.messages{max-width:820px;margin:0 auto;width:auto;box-sizing:border-box}' +
+        // forza tutto a stare dentro lo schermo (niente overflow orizzontale sul telefono)
+        '.messages *{max-width:100%!important;box-sizing:border-box}' +
+        '.messages .msg,.messages .bot-msg,.messages .user-msg,.messages .bot-body{width:auto!important;float:none!important;margin-left:0!important;margin-right:0!important}' +
+        '.messages table{display:block;overflow-x:auto;width:100%}' +
+        '.messages pre,.messages code{white-space:pre-wrap!important;word-break:break-word;overflow-wrap:anywhere}' +
+        '.messages img{height:auto}' +
+        '@media(max-width:640px){body{padding:14px}.exp-head{font-size:20px}.messages{max-width:100%}}' +
         '@media print{body{padding:0}}';
       const doc = '<!doctype html><html lang="sq"><head><meta charset="utf-8">' +
         '<meta name="viewport" content="width=device-width,initial-scale=1">' +

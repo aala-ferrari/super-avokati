@@ -2218,6 +2218,23 @@ def main():
     except Exception as _e56:  # noqa: BLE001
         check("aml[56]: kontrollet u ekzekutuan", False, str(_e56))
 
+    # ── [57] EXPORT HTML del caso — mobile-safe (bug titolare: sul telefono non si adattava) ──
+    # L'export inline lo style.css dell'app + override: forzare no overflow orizzontale,
+    # tutto a max-width:100%, tabelle scroll, pre a capo → si vede bene anche sul telefono.
+    try:
+        import os as _os57, io as _io57
+        _rr57 = _os57.path.dirname(_os57.path.dirname(_os57.path.abspath(__file__)))
+        _aj57 = _io57.open(_os57.path.join(_rr57, "static", "app.js"), encoding="utf-8").read()
+        _i57 = _aj57.find("const extra =")
+        _seg57 = _aj57[_i57:_i57 + 1400] if _i57 >= 0 else ""
+        check("export[57]: HTML del caso mobile-safe (overflow-x hidden + max-width 100% + tabelle scroll + pre a capo)",
+              _i57 >= 0 and "overflow-x:hidden" in _seg57
+              and ".messages *{max-width:100%" in _seg57
+              and "overflow-x:auto" in _seg57 and "white-space:pre-wrap" in _seg57
+              and "max-width:640px" in _seg57)
+    except Exception as _e57:  # noqa: BLE001
+        check("export[57]: kontrollet u ekzekutuan", False, str(_e57))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

@@ -574,7 +574,7 @@ errori, non che le risposte sono ancora giuste. Riferimento verificato il
 12 articoli recuperati per ciascuna.
 
 ```bash
-docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56]). Baseline **441/441** (11 set; era 98 il 31 ago).
+docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57]). Baseline **442/442** (11 set; era 98 il 31 ago).
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 bash /root/prova_sse.sh                                    # SULL'HOST (legge il secret da /opt/super-avvocato.env; copia in tools/prova_sse.sh): account di prova → login → fascicolo → 1 domanda VERA → stream /api/ask/events attraverso waitress. Deve dire «HTTP 200 … done: 1» (~50s, costa 1 chiamata al cervello) e cancella l'account. Dopo OGNI build che tocca web.py o le rotte SSE.
@@ -1433,6 +1433,22 @@ rischio residuo della DPIA.
 - Super Avokati ha auth propria (login_required_api); utenti creati da admin o auto-provisionati da AALA (`/api/provision-demo`, secret-guarded).
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
+
+**v9.307 — export HTML del caso mobile-safe + verdetto ASHK (11 set).** Bug del
+titolare: l'HTML del caso scaricato (bottone ⬇️, `exportJsonBtn` in app.js ~440, inline
+lo style.css dell'app + override) si vedeva bene su desktop ma **non si adattava sul
+telefono**. Il viewport meta c'era; il problema era l'OVERFLOW del contenuto (le bolle
+chat con width/float fissi + tabelle/pre larghi). Fix: override `extra` aggressivo —
+`html,body{overflow-x:hidden}`, `.messages *{max-width:100%}`, `.msg/.bot-msg{width:auto;
+float:none}`, tabelle `overflow-x:auto`, pre/code `white-space:pre-wrap`, media query
+≤640px. app.js?v=164, golden [57]. **ASHK/Kadastra — verdetto (indagato dal VPS)**:
+ashk.gov.al è raggiungibile ma NON ha una ricerca pubblica delle proprietà come QKB —
+la kartelë/certifikatë pronësie è protetta (dato personale) e si ottiene via **e-Albania**
+(login del professionista + tariffa). Quindi un auto-fetch live come QKB **non è
+fattibile** e non serve: **verify_property** già legge la certificata che il notaio scarica
+con le sue credenziali e la carica. Gli altri registri utili (DPSHTRR veicoli, gjendja
+civile, tatimet) sono anch'essi gated → gestiti via upload. QKB era l'unico registro
+aperto (fatto). QA: golden 442, smoke 110.
 
 **v9.306 — QKB fase 2: estratti profondi (simple/historical) (11 set).** Cattura di
 rete (curl dal VPS, fuori dal filtro browser): l'endpoint estratto è `POST
