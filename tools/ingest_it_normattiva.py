@@ -69,6 +69,8 @@ ACTS = [
     ("divorzio", "Legge sul Divorzio (L. 898/1970)", "Famiglia", "legge:1970-12-01;898", "wave4"),
     ("adozione", "Legge sull'Adozione (L. 184/1983)", "Famiglia", "legge:1983-05-04;184", "wave4"),
     ("equa_riparazione", "Legge Pinto — equa riparazione (L. 89/2001)", "Procedura Civile", "legge:2001-03-24;89", "wave4"),
+    # AML — per il tool antiriciclaggio del notaio (adeguata verifica, SOS a UIF)
+    ("antiriciclaggio", "Antiriciclaggio (D.Lgs 231/2007)", "Antiriciclaggio", "decreto.legislativo:2007-11-21;231", "wave_aml"),
 ]
 
 

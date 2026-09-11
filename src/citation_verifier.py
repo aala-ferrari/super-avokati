@@ -177,7 +177,9 @@ CODE_LABELS: dict[str, str] = {
     "ligji_policia": "Ligji Policia 108/2014",
     "ligji_policia_2024": "Ligji Policia 82/2024",
     "rregullore_policia": "Rregullore Policia",
+    "ligji_pastrimi_parave": "Ligji Kundër Pastrimit 9917/2008",
     # ── corpus italiano ──
+    "antiriciclaggio": "D.Lgs 231/2007 (antiricicl.)",
     "codice_civile": "c.c.",
     "codice_penale": "c.p.",
     "codice_procedura_civile": "c.p.c.",
@@ -275,6 +277,10 @@ _NUM_RE_IT = re.compile(_NUM_TOKEN_IT)
 # Ordered longest/most-specific first so cpc/cpp beat cp, codice* beats abbrevs.
 _IT_CODE_CHECKS = [
     # ── full names first (most specific wins) ──
+    # D.Lgs 231/2007 antiriciclaggio — «2312007» distingue dal 231/2001 (enti)
+    ("2312007", "antiriciclaggio"),
+    ("decretoantiriciclaggio", "antiriciclaggio"),
+    ("antiriciclaggio", "antiriciclaggio"),
     ("ordinamentodellamministrazionedellapubblicasicurezza", "ordinamento_polizia"),
     ("testounicodocumentazioneamministrativa", "tu_documentazione_amministrativa"),
     ("testounicodelleleggidipubblicasicurezza", "tulps"),

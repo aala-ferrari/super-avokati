@@ -1033,3 +1033,58 @@ def verify_subject(backend, index, *, subject_text: str, context: str = "",
                           max_tokens=max_tokens, callsite="notary_verify_subject")
     return {"markdown": (md or "").strip(),
             "articles": [{"code": c, "number": n} for c, n, _t in arts]}
+
+
+# ---- ANTIRICICLAGGIO — adeguata verifica / CDD (assistiva) ----
+# A del roadmap B→C→A. Grounded nelle leggi AML ingerite: Ligji 9917/2008 (AL,
+# code «ligji_pastrimi_parave») e D.Lgs 231/2007 (IT, code «antiriciclaggio»).
+# ⚠️ NON fa screening LIVE liste PEP/sanzioni (serve DB a pagamento): dà il quadro,
+# i red-flag e il draft di segnalazione; il professionista verifica le liste e riporta.
+_AML_SEED_AL = [("ligji_pastrimi_parave", "4"), ("ligji_pastrimi_parave", "4/1"),
+                ("ligji_pastrimi_parave", "8"), ("ligji_pastrimi_parave", "2")]
+_AML_SEED_IT = [("antiriciclaggio", "17"), ("antiriciclaggio", "18"),
+                ("antiriciclaggio", "35"), ("antiriciclaggio", "3")]
+_AML_Q_AL = (" pastrim parash vigjilenca e duhur identifikim pronar përfitues raportim "
+             "transaksion i dyshimtë person i eksponuar politikisht ruajtja e të dhënave")
+_AML_Q_IT = (" riciclaggio adeguata verifica identificazione titolare effettivo segnalazione "
+             "operazioni sospette persona politicamente esposta conservazione")
+
+
+def aml_check(backend, index, *, situation: str, jurisdiction: str = "AL",
+              max_tokens: int = 3000) -> dict:
+    """Adeguata verifica / CDD antiriciclaggio (assistiva). Vlerëson rrezikun e
+    klientit/operacionit, red-flag, nivelin e vigjilencës, çfarë të mbledhë, dhe a
+    duhet raportuar te NJVF (me draft). NUK bën skanim live PEP/sanksione."""
+    juris = (jurisdiction or "AL").upper()
+    seed = _AML_SEED_IT if juris == "IT" else _AML_SEED_AL
+    q = _AML_Q_IT if juris == "IT" else _AML_Q_AL
+    law = "D.Lgs 231/2007" if juris == "IT" else "Ligji nr. 9917/2008"
+    fiu = ("UIF — Unità di Informazione Finanziaria (Banca d'Italia)" if juris == "IT"
+           else "AIF — Agjencia e Inteligjencës Financiare (ish-DPPPP)")
+    art_block, arts = _art_block(backend, index, (situation or "") + q, seed)
+    system = (
+        "Ti je specialist i pajtueshmërisë KUNDËR PASTRIMIT TË PARAVE që ndihmon profesionistin "
+        "(noter/avokat/prokuror) — SUBJEKT RAPORTUES sipas " + law + " — të kryejë vigjilencën e "
+        "duhur (adeguata verifica) para ose gjatë një veprimi. NDIHMESË: profesionisti vendos, "
+        "kontrollon VETË listat PEP/sanksione dhe raporton. NUK bën skanim LIVE të listave (kërkon "
+        "bazë të dhënash me pagesë — thuaje qartë); jep kuadrin, sinjalet dhe draftin.\n"
+        "Jep në markdown, konkret për rastin:\n"
+        "### 🎯 Vlerësimi i rrezikut — klienti · operacioni · gjeografia → RREZIK: i ulët / mesatar / i lartë\n"
+        "### 🚩 Red-flag — sinjalet e gjetura (para në dorë mbi kufi, pagesë nga i tretë, strukturë e "
+        "pazakontë, shoqëri guaskë, PEP, mungesë logjike ekonomike, dokumente mospërputhëse)\n"
+        "### 🔍 Niveli i vigjilencës — e ZAKONSHME / E FORCUAR / e thjeshtuar — dhe PSE\n"
+        "### 📋 Çfarë duhet mbledhur — identiteti i klientit, PRONARI PËRFITUES real, burimi i fondeve, "
+        "qëllimi e natyra e veprimit\n"
+        "### 📨 A duhet raportuar? — nëse ka dyshim, PO: te " + fiu + "; jep një DRAFT të shkurtër "
+        "raportimi (kush, çfarë, pse dyshohet). Nëse jo, thuaje pse.\n"
+        "### ⚠️ Kujdes — afatet, ruajtja e të dhënave (5 vjet) dhe NDALIMI i tipping-off "
+        "(mos e njofto klientin për raportimin)\n\n"
+        "Cito VETËM nenet e dhëna nga korpusi. Mos jep këshilla investimi. " + _NOTARY_ID)
+    prompt = ("VEPRIMI / SITUATA (nga profesionisti):\n" + (situation or "").strip()[:8000]
+              + "\nJURIDIKSIONI: " + juris + " — " + law
+              + "\n\n─────\nNENET NGA KORPUSI (cito vetëm këto):\n" + art_block
+              + "\n\nKryej vlerësimin e adeguata verifica / CDD.")
+    md = backend.complete(system=system, messages=[{"role": "user", "content": prompt}],
+                          max_tokens=max_tokens, callsite="notary_aml")
+    return {"markdown": (md or "").strip(),
+            "articles": [{"code": c, "number": n} for c, n, _t in arts]}

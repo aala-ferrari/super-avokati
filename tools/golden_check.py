@@ -2190,6 +2190,32 @@ def main():
     except Exception as _e55:  # noqa: BLE001
         check("qkb[55]: kontrollet u ekzekutuan", False, str(_e55))
 
+    # ── [56] ANTIRICICLAGGIO (A) — adeguata verifica/CDD + leggi AML nel corpus ──
+    # Tool aml_check grounded nelle leggi AML INGERITE: Ligji 9917 (AL) + D.Lgs
+    # 231/2007 (IT). Verifica anche che le leggi siano davvero nel corpus (grounding).
+    try:
+        from src import notary as _nt56
+        from src.retrieval import ArticleIndex as _AI56
+        from pathlib import Path as _P56
+        import os as _os56, io as _io56
+        _rr56 = _os56.path.dirname(_os56.path.dirname(_os56.path.abspath(__file__)))
+        _nt56src = _io56.open(_os56.path.join(_rr56, "src", "notary.py"), encoding="utf-8").read()
+        _web56 = _io56.open(_os56.path.join(_rr56, "src", "web.py"), encoding="utf-8").read()
+        _aj56 = _io56.open(_os56.path.join(_rr56, "static", "app.js"), encoding="utf-8").read()
+        _aml_al = sum(1 for a in _AI56.load().articles if a.code == "ligji_pastrimi_parave")
+        _aml_it = sum(1 for a in _AI56.load(_P56("/app/data/index/bm25_it.pkl")).articles
+                      if a.code == "antiriciclaggio")
+        check("aml[56]: aml_check (seed AL+IT, red-flag, tipping-off, raportim) + leggi AML nel corpus + endpoint + card",
+              hasattr(_nt56, "aml_check") and hasattr(_nt56, "_AML_SEED_AL") and hasattr(_nt56, "_AML_SEED_IT")
+              and ("ligji_pastrimi_parave", "4") in _nt56._AML_SEED_AL
+              and ("antiriciclaggio", "17") in _nt56._AML_SEED_IT
+              and "tipping-off" in _nt56src and "raportuar" in _nt56src.lower()
+              and _aml_al >= 30 and _aml_it >= 70
+              and "/api/notary/aml-check" in _web56 and "situation_required" in _web56
+              and "openAmlCheck" in _aj56 and "aml-check" in _aj56 and "Kontroll AML" in _aj56)
+    except Exception as _e56:  # noqa: BLE001
+        check("aml[56]: kontrollet u ekzekutuan", False, str(_e56))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

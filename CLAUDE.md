@@ -3,9 +3,9 @@
 Strumento AI per avvocati (B2B), **bi-giurisdizione AL + IT**. Front-end Flask
 su porta 5050, SQLite (`data/app.db`) + Postgres `legalkb` per i casi
 giurisprudenziali. Due corpora BM25 SEPARATI:
-- **AL** (`bm25.pkl`): 6061 nene / 21 codici + `bm25_decisions.pkl` 1258 precedenti
+- **AL** (`bm25.pkl`): 6102 nene / 22 codici (+ Ligji 9917/2008 antiriciclaggio) + `bm25_decisions.pkl` 1258 precedenti
   (Kushtetuese + Gjykata e Lartë + CEDU).
-- **IT** (`bm25_it.pkl`): **15.507 articoli / 43 corpora** da Normattiva
+- **IT** (`bm25_it.pkl`): **15.595 articoli / 44 corpora** da Normattiva (+ D.Lgs 231/2007 antiriciclaggio)
   (testi vigenti ufficiali) — vedi "CORPUS ITALIANO" più sotto.
 
 ## Regola #1 — Scope: UNA SOLA GIURISDIZIONE PER SESSIONE
@@ -44,7 +44,7 @@ Il modello deve operare e ragionare SOLO dentro questo perimetro:
   italiani sono live. EU resta predisposizione futura. In sessione AL non
   citare mai il corpus IT e viceversa.
 
-## CORPUS ITALIANO (attivo — 43 corpora / 15.507 articoli)
+## CORPUS ITALIANO (attivo — 44 corpora / 15.595 articoli)
 
 Fonte: **Normattiva** (normattiva.it, testi vigenti ufficiali; le leggi
 italiane non hanno copyright, art. 5 L. 633/1941). NON Wikisource: copre
@@ -574,7 +574,7 @@ errori, non che le risposte sono ancora giuste. Riferimento verificato il
 12 articoli recuperati per ciascuna.
 
 ```bash
-docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55]). Baseline **440/440** (11 set; era 98 il 31 ago).
+docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56]). Baseline **441/441** (11 set; era 98 il 31 ago).
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 bash /root/prova_sse.sh                                    # SULL'HOST (legge il secret da /opt/super-avvocato.env; copia in tools/prova_sse.sh): account di prova → login → fascicolo → 1 domanda VERA → stream /api/ask/events attraverso waitress. Deve dire «HTTP 200 … done: 1» (~50s, costa 1 chiamata al cervello) e cancella l'account. Dopo OGNI build che tocca web.py o le rotte SSE.
@@ -1073,7 +1073,7 @@ Golden sezione [12] (12 check) + selezionatori (3): **115 → 130**.
 ## Mappa feature / moduli (src/)
 - **expertise.py** — Modele Ekspertize (8 template, incl. abuzim_policor "due menti"). `retrieve_grounded` (seed + `_expand_terms` LLM + `_heading_scan` stem 5-char diacritic-fold + BM25). Riusato da prosecutor/notary/deadlines/afati.
 - **prosecutor.py** — Super Prokuror: analyze, draft_indictment, investigation_plan, investigative_act(kind), coercive_measure, dismissal_request, stress_test + cittadino (citizen_complaint, victim_rights, dismissal_appeal, delay_complaint). Assistivo, mai auto-accusa (EU AI Act).
-- **notary.py** — Super Noteri: DEED_TYPES (22), PROKURA_SCOPES (**19** tagra, incl. uso pasurie/automjeti + dalje jashtë shtetit), DECLARATION_TYPES (6), draft_deed/prokura/declaration, check_deed, succession, documents_needed, draft_revocation, check_conflicts. `GENERAL_POA_GUIDE`: la prokurë e përgjithshme spiega copertura+limiti secondo KC 71 (totalità dei diritti, non «solo ordinaria amministrazione») + KC 72 (disponimet → forma notarile + tager espresso). **verify_property** (v9.301): legge la certificata ASHK/estratto QKB e cross-checka contro il veprim (proprietario/pjesët/identificazione/barrët→semaforo); tool di VERIFICA, niente case_brief; onesto (non live ad ASHK); endpoint /api/notary/verify-property, UI openVerifyProperty (hub KONTROLL 🧾). **post_deed_plan** (v9.302): roadmap adempimenti POST-atto (dove/cosa/quando registrare) con la scadenza di registrazione (30gg) calcolata dal deadline_engine e GARANTITA come footer verificato (non fidarsi che il modello ripeta le date); autorità AL (ASHK/e-Albania/QKB/DPSHTRR/tatime) e IT (Adempimento Unico/MUI); onesto sul resto; giurisdizione dalla sessione; endpoint /api/notary/post-deed, UI openPostDeed (hub NDIHMË 🧭). **verify_subject** (v9.303): due diligence su un SUBJEKT dai dati QKB (estratto o risultato di ricerca, anche persona→più società) — status (Aktiv/Në likuidim/I çregjistruar) + poteri amministratore + soci + rete-persona → red-flag AML + cross-check → 🔎 semaforo; tool di VERIFICA, onesto (non live a QKB); endpoint /api/notary/verify-subject, UI openVerifySubject (hub KONTROLL 🏢). ⚠️ QKB provato dal VPS: NON geo-bloccato, dietro WAF F5 header-based (passa con header browser); ricerca su `format.qkb.gov.al` (list.js+dexie=dataset client-side, mirrorabile). Auto-fetch fattibile ma NON fatto (fragile/grey-zone): il valore è l'ANALISI, il dato lo incolla il professionista.
+- **notary.py** — Super Noteri: DEED_TYPES (22), PROKURA_SCOPES (**19** tagra, incl. uso pasurie/automjeti + dalje jashtë shtetit), DECLARATION_TYPES (6), draft_deed/prokura/declaration, check_deed, succession, documents_needed, draft_revocation, check_conflicts. `GENERAL_POA_GUIDE`: la prokurë e përgjithshme spiega copertura+limiti secondo KC 71 (totalità dei diritti, non «solo ordinaria amministrazione») + KC 72 (disponimet → forma notarile + tager espresso). **verify_property** (v9.301): legge la certificata ASHK/estratto QKB e cross-checka contro il veprim (proprietario/pjesët/identificazione/barrët→semaforo); tool di VERIFICA, niente case_brief; onesto (non live ad ASHK); endpoint /api/notary/verify-property, UI openVerifyProperty (hub KONTROLL 🧾). **post_deed_plan** (v9.302): roadmap adempimenti POST-atto (dove/cosa/quando registrare) con la scadenza di registrazione (30gg) calcolata dal deadline_engine e GARANTITA come footer verificato (non fidarsi che il modello ripeta le date); autorità AL (ASHK/e-Albania/QKB/DPSHTRR/tatime) e IT (Adempimento Unico/MUI); onesto sul resto; giurisdizione dalla sessione; endpoint /api/notary/post-deed, UI openPostDeed (hub NDIHMË 🧭). **verify_subject** (v9.303): due diligence su un SUBJEKT dai dati QKB (estratto o risultato di ricerca, anche persona→più società) — status (Aktiv/Në likuidim/I çregjistruar) + poteri amministratore + soci + rete-persona → red-flag AML + cross-check → 🔎 semaforo; tool di VERIFICA, onesto (non live a QKB); endpoint /api/notary/verify-subject, UI openVerifySubject (hub KONTROLL 🏢). **aml_check** (v9.305): adeguata verifica/CDD antiriciclaggio, jurisdiction-aware grounded in Ligji 9917 (AL) / D.Lgs 231/2007 (IT) — rischio + red-flag + livello verifica + titolare effettivo + segnalazione FIU (bozza) + tipping-off; NON fa screening live PEP/sanzioni; endpoint /api/notary/aml-check, UI openAmlCheck (hub KONTROLL 🛡️). ⚠️ QKB provato dal VPS: NON geo-bloccato, dietro WAF F5 header-based (passa con header browser); ricerca su `format.qkb.gov.al` (list.js+dexie=dataset client-side, mirrorabile). Auto-fetch fattibile ma NON fatto (fragile/grey-zone): il valore è l'ANALISI, il dato lo incolla il professionista.
 - **qkb.py** (v9.304) — ricerca LIVE nel registro imprese QKB. `search(nipt/name/admin/shareholder)` → POST `format.qkb.gov.al/kerko-per-subjekt/` con header browser (passa il WAF F5) → parse del JSON embedded (`response = JSON.parse(...)`, chiavi nipti/emriISubjektit/statusiISubjektit/adminOrtakAksionar/+ red-flag QKB); fetch-on-demand + cache 30min + rate-limit + fail-silent. `format_results` → testo per verify_subject. Ricerca INVERSA persona→società via `administrator`/`aksionerOrtak`. Endpoint /api/notary/qkb-search; UI in openVerifySubject con fallback «incolla».
 - **living_law.py** — Ligj i gjallë: verify_claims (verifica frase↔testo reale nen), check_law_live (web→QBZ). + freschezza in citation_verifier (volatility/stale).
 - **intake.py** — Pika e parë: triage(story) → orientamento + urgenza + ROUTE token → instrada allo strumento.
@@ -1433,6 +1433,31 @@ rischio residuo della DPIA.
 - Super Avokati ha auth propria (login_required_api); utenti creati da admin o auto-provisionati da AALA (`/api/provision-demo`, secret-guarded).
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
+
+**v9.305 — A: ANTIRICICLAGGIO (adeguata verifica/CDD) + ingestione leggi AML (11 set).**
+Ultimo passo della roadmap notaio B→C→A, il wedge #1. **Ingerite le due leggi AML nel
+corpus** (prima mancavano → il tool sarebbe stato cieco): **D.Lgs 231/2007 (IT)** via
+la pipeline Normattiva (riga in `ACTS` di ingest_it_normattiva.py, wave «wave_aml» per
+ingerire solo quello; poi build_it_index → 88 art, code `antiriciclaggio`; ⚠️ è il 231
+del **2007** antiriciclaggio, distinto dal 231/**2001** enti già presente); **Ligji
+9917/2008 (AL)** — no pipeline AL, quindi: scaricato il PDF consolidato da fiu.gov.al,
+estratto con pdfplumber, parsato con `parser.split_into_articles(text, doc)` (doc =
+SimpleNamespace con code/title_sq/area/volatility/last_amendment_date), poi **APPESO**
+al bm25.pkl (`ArticleIndex.load()` → +41 art → `build(all, lang="sq").save()` → chown
+1000:1000; MAI rebuild da zero = perde i fix) → 41 art, code `ligji_pastrimi_parave`,
+backup tenuto. AL 6061→6102, IT 15507→15595. **`notary.aml_check(situation, jurisdiction)`**:
+grounded (seed AL 9917 nene 4/4-1/8/2, IT 231/2007 art 17/18/35/3, query per giurisdizione)
+→ valuta rischio (cliente/operazione/geografia), red-flag (contante, terzo pagatore,
+società guscio, PEP, logica economica assente), livello adeguata verifica (ordinaria/
+RAFFORZATA), cosa raccogliere (+ titolare effettivo), se segnalare a AIF (AL)/UIF (IT)
+con bozza, e divieto di tipping-off. ⚠️ NON fa screening LIVE liste PEP/sanzioni (serve
+DB a pagamento): dà il quadro + draft, il professionista verifica e riporta. Endpoint
+/api/notary/aml-check (giurisdizione dalla sessione), UI openAmlCheck (hub KONTROLL 🛡️,
+prima carta), citation_verifier con label + pattern 231/2007≠231/2001. app.js?v=162,
+golden [56] (verifica ANCHE che le leggi siano nel corpus), smoke 110. **Prova viva**:
+AL (PEP+contante+offshore) → rischio alto, vigjilenca forcuar, cita 9917 neni 12/2 (blocca
++ segnala); IT → adeguata verifica + segnalazione UIF, cita 231/2007 art 17/18/35. Vedi
+[[super_avokati_super_noteri]].
 
 **v9.304 — QKB: ricerca LIVE (auto-fetch) integrata (11 set).** Il titolare voleva
 l'agente che «va lì». Cattura di rete con Claude-in-Chrome → endpoint scoperto:

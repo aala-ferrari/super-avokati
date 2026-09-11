@@ -5074,6 +5074,7 @@
           { emoji: "✍️", label: "Deklaratë noteriale", tag: "hartim", fn: openDeclaration },
           { emoji: "📚", label: "Klauzolat e studios", tag: "hartim", fn: openClauses } ] },
         { label: "— KONTROLL & ANALIZË —", cards: [
+          { emoji: "🛡️", label: "Kontroll AML (vigjilenca e duhur)", tag: "kontroll", fn: openAmlCheck },
           { emoji: "🧾", label: "Verifiko pronësinë & barrët", tag: "kontroll", fn: openVerifyProperty },
           { emoji: "🏢", label: "Verifiko subjektin (QKB)", tag: "kontroll", fn: openVerifySubject },
           { emoji: "🕵️", label: "Ispektor (Revizor Senior)", tag: "kontroll", fn: openIspektor },
@@ -6020,6 +6021,60 @@
     setTimeout(function () { try { act.focus(); } catch (e) {} }, 50);
   }
 
+  async function openAmlCheck() {
+    var ov = document.getElementById("aml-ov");
+    if (ov) ov.remove();
+    ov = document.createElement("div");
+    ov.id = "aml-ov"; ov.className = "ac-overlay";
+    ov.innerHTML = '<div class="ac-modal">' +
+      '<div class="ac-head"><span>' + tMode("🛡️ Kontroll AML (vigjilenca e duhur)") + '</span><button class="ac-x" type="button" aria-label="Mbyll">×</button></div>' +
+      '<div class="ac-sub">' + t("Përshkruaj veprimin dhe palët (kush, çfarë, sa, si paguhet, nga vjen paraja). Vlerësohet rreziku i pastrimit të parave, red-flag, niveli i vigjilencës, çfarë të mbledhësh, dhe a duhet raportuar te NJVF — me draft. NDIHMESË: profesionisti kontrollon listat PEP/sanksione dhe raporton vetë.") + '</div>' +
+      '<div class="ac-attach-row"><label class="ac-attach">' + t("📎 Bashkëngjit dokumente (opsionale)") + '<input type="file" class="aml-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.tif,.tiff,.docx" hidden multiple></label></div>' +
+      '<textarea class="ac-ta aml-txt" placeholder="' + t("P.sh.: klienti X blen apartament 400.000 EUR, paguan 300.000 në dorë; pjesën një shoqëri e tretë; nuk provon burimin e parave…") + '"></textarea>' +
+      '<div class="ac-row"><button class="ac-run" type="button">' + t("Kontrollo AML →") + '</button><span class="ac-status"></span></div>' +
+      '<div class="ac-result"></div>' +
+      "</div>";
+    document.body.appendChild(ov);
+    var txt = ov.querySelector(".aml-txt"), run = ov.querySelector(".ac-run"),
+        status = ov.querySelector(".ac-status"), result = ov.querySelector(".ac-result"), file = ov.querySelector(".aml-file");
+    function close() { ov.remove(); }
+    ov.querySelector(".ac-x").onclick = close;
+    ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
+    if (file) file.onchange = async function () {
+      var files = file.files ? [].slice.call(file.files) : []; if (!files.length) return;
+      run.disabled = true;
+      for (var i = 0; i < files.length; i++) {
+        try { var dd = await _extractFileText(files[i], status); var t2 = (dd.text || "").trim();
+          if (t2) txt.value = txt.value.trim() ? (txt.value.trim() + "\n\n" + t2) : t2; }
+        catch (e) { status.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; }
+      }
+      status.textContent = "✓ " + files.length + t(" dokument(e) u lexuan"); run.disabled = false; file.value = "";
+    };
+    run.onclick = async function () {
+      var s = (txt.value || "").trim();
+      if (s.length < 20) { status.textContent = t("Përshkruaj veprimin dhe palët."); return; }
+      run.disabled = true; status.textContent = t("Po kontrolloj AML… (~1-2 min)"); result.innerHTML = "";
+      try {
+        var r = await fetch("/api/notary/aml-check", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ situation: s }) });
+        var d = await r.json();
+        if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
+        status.textContent = "";
+        result.innerHTML = '<div class="fd-out"></div>';
+        var out = result.querySelector(".fd-out");
+        out.innerHTML = renderMarkdown(d.markdown || "");
+        if (d.citations) highlightNeni(out, buildCitStatusMap(d.citations));
+        if (d.citations && d.citations.stats && d.citations.stats.total > 0) result.insertBefore(renderCitationsBadge(d.citations, null), out);
+        var copy = document.createElement("button"); copy.className = "fd-copy"; copy.type = "button"; copy.textContent = "📋 Kopjo tekstin";
+        copy.onclick = function () { navigator.clipboard.writeText(d.markdown || "").then(function () { copy.textContent = "✓ U kopjua"; }).catch(function () {}); };
+        result.appendChild(copy);
+        _addSaveToCase(result, "notary", "Kontroll AML", d.markdown || "");
+      } catch (e) { status.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; }
+      finally { run.disabled = false; }
+    };
+    setTimeout(function () { try { txt.focus(); } catch (e) {} }, 50);
+  }
+
   async function openVerifySubject() {
     var ov = document.getElementById("vsubj-ov");
     if (ov) ov.remove();
@@ -6831,6 +6886,16 @@
     "Asnjë subjekt i gjetur. Provo ndryshe ose ngjit manualisht.": "Nessun soggetto trovato. Prova diversamente o incolla manualmente.",
     "QKB s'u arrit tani — ngjit rezultatin manualisht nga qkb.gov.al.": "QKB non raggiungibile ora — incolla il risultato manualmente da qkb.gov.al.",
     "QKB s'u arrit tani — ngjit manualisht.": "QKB non raggiungibile ora — incolla manualmente."
+  });
+  Object.assign(T_IT, {
+    "🛡️ Kontroll AML (vigjilenca e duhur)": "🛡️ Controllo AML (adeguata verifica)",
+    "Kontroll AML (vigjilenca e duhur)": "Controllo AML (adeguata verifica)",
+    "Përshkruaj veprimin dhe palët (kush, çfarë, sa, si paguhet, nga vjen paraja). Vlerësohet rreziku i pastrimit të parave, red-flag, niveli i vigjilencës, çfarë të mbledhësh, dhe a duhet raportuar te NJVF — me draft. NDIHMESË: profesionisti kontrollon listat PEP/sanksione dhe raporton vetë.": "Descrivi l'operazione e le parti (chi, cosa, quanto, come si paga, da dove vengono i soldi). Si valutano il rischio di riciclaggio, i red-flag, il livello di adeguata verifica, cosa raccogliere, e se va segnalato alla UIF — con bozza. Assistivo: il professionista controlla le liste PEP/sanzioni e segnala di persona.",
+    "📎 Bashkëngjit dokumente (opsionale)": "📎 Allega documenti (opzionale)",
+    "P.sh.: klienti X blen apartament 400.000 EUR, paguan 300.000 në dorë; pjesën një shoqëri e tretë; nuk provon burimin e parave…": "Es.: il cliente X compra un immobile da 400.000 EUR, paga 300.000 in contanti; il resto una società terza; non prova la provenienza dei fondi…",
+    "Kontrollo AML →": "Controlla AML →",
+    "Përshkruaj veprimin dhe palët.": "Descrivi l'operazione e le parti.",
+    "Po kontrolloj AML… (~1-2 min)": "Sto controllando l'AML… (~1-2 min)"
   });
   Object.assign(T_IT, { "📎 Bashkëngjit dokumentin e marrë": "📎 Allega il documento ricevuto", "letra e pushimit, akti, njoftimi — që t'i përgjigjemi pikë për pikë": "la lettera di licenziamento, l'atto, la notifica — per ribattere punto per punto", "Kopjo letrën": "Copia la lettera", "PDF (shtyp)": "PDF (stampa)", "Blloko dritaret u aktivizua — lejo dritaret.": "Il blocco pop-up è attivo: consenti le finestre per questo sito." });
   Object.assign(T_IT, { "Letra dhe shkresa": "Lettere e atti", "Zgjidh kujt i shkruhet. Shkresa ndërtohet mbi fashikullin e hapur dhe mbi nenet e marra nga korpusi — gati për dërgim.": "Scegli a chi scrivere. La lettera si costruisce sul fascicolo aperto e sugli articoli recuperati dal corpus — pronta da inviare.", "Po ngarkohet…": "Caricamento…", "Email / PEC": "Email / PEC", "Fakte shtesë ose udhëzime: emrat, shumat, datat, çfarë të theksohet. Nëse fashikulli është i plotë, mund ta lësh bosh.": "Fatti aggiuntivi o istruzioni: nomi, importi, date, cosa sottolineare. Se il fascicolo e completo, puoi lasciare vuoto.", "Harto shkresën →": "Scrivi la lettera →", "Marrësi": "Destinatario", "Kanali": "Canale", "Kjo shkresë i drejtohet palës kundërshtare. Forca vjen nga nenet, jo nga kërcënimet: njoftimi se do t'i drejtohemi gjykatës lejohet, kërcënimi me kallëzim penal apo me njoftim te tatimet për të marrë pagesë është shantazh.": "Questa lettera si rivolge alla controparte. La forza viene dagli articoli, non dalle minacce: annunciare che si adira il giudice e legittimo, minacciare una denuncia penale o una segnalazione al fisco per ottenere il pagamento e estorsione.", "Kjo shkresë i drejtohet autoritetit. Toni është faktik dhe nuk lidhet me asnjë kërkesë pagese — përndryshe shndërrohet në shantazh.": "Questa lettera si rivolge all'autorita. Il tono e fattuale e non si collega ad alcuna richiesta di pagamento — altrimenti diventa estorsione.", "Hap një fashikull ose shkruaj faktet këtu.": "Apri un fascicolo oppure scrivi qui i fatti.", "Po hartohet shkresa…": "Sto scrivendo la lettera…", "Kopjo tekstin": "Copia il testo", "Shkarko .docx": "Scarica .docx", "Nuk u ngarkua katalogu": "Catalogo non caricato", "Shkresa gati për dërgim nga fashikulli — punëdhënësit, tatimeve, prokurorisë, institucioneve": "Lettere pronte da inviare, costruite sul fascicolo — al datore di lavoro, al fisco, alla Procura, alle istituzioni", "✉️ \n Letra dhe shkresa Shkresa gati për dërgim nga fashikulli — punëdhënësit, tatimeve, prokurorisë, institucioneve": "✉️ \n Lettere e atti Lettere pronte da inviare, costruite sul fascicolo — al datore di lavoro, al fisco, alla Procura, alle istituzioni" });

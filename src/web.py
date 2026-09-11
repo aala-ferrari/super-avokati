@@ -5595,6 +5595,20 @@ def api_notary_qkb_search():
                     "results": results, "formatted": qkb_mod.format_results(results)})
 
 
+@app.post("/api/notary/aml-check")
+@login_required_api
+def api_notary_aml_check():
+    # Antiriciclaggio — adeguata verifica / CDD (assistiva). Grounded Ligji 9917 (AL) /
+    # D.Lgs 231/2007 (IT). Giurisdizione dalla sessione.
+    body = request.get_json(silent=True) or {}
+    situation = (body.get("situation") or body.get("text") or "").strip()
+    if len(situation) < 20:
+        return jsonify({"error": "situation_required"}), 400
+    out, err = _notary_run(notary_mod.aml_check, situation=situation[:8000],
+                           jurisdiction=_active_jurisdiction(getattr(request, "user", None)) or "AL")
+    return err if err else out
+
+
 @app.post("/api/notary/checklist")
 @login_required_api
 def api_notary_checklist():
