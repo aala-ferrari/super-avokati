@@ -5595,6 +5595,26 @@ def api_notary_qkb_search():
                     "results": results, "formatted": qkb_mod.format_results(results)})
 
 
+@app.post("/api/notary/qkb-extract")
+@login_required_api
+def api_notary_qkb_extract():
+    # Fase 2 — estratto completo QKB (simple/historical) per un NIPT: PDF base64 → testo.
+    # Fail-silent; NON autoritativo (per l'atto, estratto sigillato via e-Albania).
+    body = request.get_json(silent=True) or {}
+    nipt = (body.get("nipt") or "").strip()[:20]
+    doc_type = (body.get("doc_type") or "simple").strip()
+    if not nipt:
+        return jsonify({"ok": False, "error": "no_nipt", "text": ""}), 400
+    try:
+        res = qkb_mod.fetch_extract(nipt, doc_type=doc_type)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("qkb extract endpoint failed: %s", exc)
+        return jsonify({"ok": False, "error": "unreachable", "text": ""})
+    return jsonify({"ok": res.get("ok"), "error": res.get("error"),
+                    "doc_type": res.get("doc_type"), "chars": res.get("chars", 0),
+                    "text": res.get("text", "")})
+
+
 @app.post("/api/notary/aml-check")
 @login_required_api
 def api_notary_aml_check():

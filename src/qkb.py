@@ -23,6 +23,8 @@ ha diritto all'estratto dei dati registrati. Endpoint scoperto con una cattura d
 """
 from __future__ import annotations
 
+import base64
+import io
 import json
 import logging
 import re
@@ -34,6 +36,10 @@ import requests
 log = logging.getLogger(__name__)
 
 SEARCH_URL = "https://format.qkb.gov.al/kerko-per-subjekt/"
+# Estratto (PDF in base64) — scoperto con cattura di rete: docType ∈ {simple,historical,rpp}
+EXTRACT_URL = ("https://format.qkb.gov.al/wp-content/themes/twentytwentyfive-child/"
+               "modules/search/national-registry/subject/search-for-subject-get-documents.php")
+_VALID_DOCTYPES = {"simple", "historical", "rpp"}
 
 # Header da browser reale: necessari per passare il WAF F5 (verificato dal VPS).
 _HEADERS = {
@@ -152,3 +158,41 @@ def format_results(results: list[dict]) -> str:
         if r.get("red_flags"):
             lines.append("  ⚠️ RED-FLAG (nga vetë QKB): " + " · ".join(r["red_flags"]))
     return "\n".join(lines)
+
+
+def _pdf_text(pdf_bytes: bytes) -> str:
+    import pdfplumber  # lazy: presente nel container
+    parts = []
+    with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
+        for p in pdf.pages:
+            parts.append(p.extract_text() or "")
+    return "\n".join(parts).strip()
+
+
+def fetch_extract(nipt: str, doc_type: str = "simple", timeout: int = _TIMEOUT) -> dict:
+    """Fase 2 — scarica l'ESTRATTO QKB (simple/historical/rpp) per un NIPT: POST →
+    JSON {status, data:<PDF base64>} → estrae il testo con pdfplumber. Storico =
+    cronologia amministratori/quote/capitale/status. Fail-silent; NON autoritativo.
+    ⚠️ rpp (titolare effettivo) di norma richiede accesso autenticato → può tornare vuoto."""
+    nipt = (nipt or "").strip()
+    dt = doc_type if doc_type in _VALID_DOCTYPES else "simple"
+    if not nipt:
+        return {"ok": False, "error": "no_nipt", "text": ""}
+    try:
+        with _LOCK:
+            gap = time.time() - _LAST[0]
+            if gap < _MIN_INTERVAL:
+                time.sleep(_MIN_INTERVAL - gap)
+            r = requests.post(EXTRACT_URL, headers=_HEADERS,
+                              data={"docType": dt, "nipt": nipt}, timeout=timeout)
+            _LAST[0] = time.time()
+        if r.status_code != 200 or "Request Rejected" in r.text[:400]:
+            return {"ok": False, "error": "blocked_%s" % r.status_code, "text": ""}
+        j = json.loads(r.text)
+        if not j.get("status") or not j.get("data"):
+            return {"ok": False, "error": "not_available", "text": ""}
+        text = _pdf_text(base64.b64decode(j["data"]))
+        return {"ok": True, "doc_type": dt, "chars": len(text), "text": text[:20000]}
+    except Exception as e:  # noqa: BLE001 — fail-silent
+        log.warning("qkb extract failed: %s", e)
+        return {"ok": False, "error": "unreachable", "text": ""}

@@ -6092,6 +6092,11 @@
           '<button class="qkb-go" type="button" style="padding:7px 14px;background:#c9a227;color:#fff;border:none;border-radius:7px;font-size:13px;cursor:pointer;white-space:nowrap">' + t("Kërko →") + '</button>' +
         '</div>' +
         '<div class="qkb-status" style="font-size:12px;color:#8a6a1d;margin-top:6px"></div>' +
+        '<div style="display:flex;gap:6px;align-items:center;margin-top:8px;flex-wrap:wrap">' +
+          '<span style="font-size:12px">' + t("📄 Ekstrakt i plotë nga NIPT:") + '</span>' +
+          '<select class="qkb-doctype" style="padding:6px 8px;border:1px solid var(--line,#d9cfc0);border-radius:6px;font-size:13px"><option value="simple">' + t("I thjeshtë") + '</option><option value="historical">' + t("Historik") + '</option></select>' +
+          '<button class="qkb-ext" type="button" style="padding:6px 12px;background:#8a6a1d;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer">' + t("Merr ekstraktin →") + '</button>' +
+        '</div>' +
       '</div>' +
       '<input type="text" class="vsubj-ctx" style="width:100%;box-sizing:border-box;padding:9px 12px;border:1px solid var(--line,#d9cfc0);border-radius:8px;font-size:14px;margin-bottom:8px" placeholder="' + t("Veprimi/pyetja: p.sh. «shoqëria X do të shesë — a mund të veprojë?» ose «a është Y në shoqëri me probleme?»") + '" />' +
       '<div class="ac-attach-row"><label class="ac-attach">' + t("📎 Bashkëngjit ekstraktin (PDF/foto)") + '<input type="file" class="vsubj-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.tif,.tiff,.docx" hidden multiple></label></div>' +
@@ -6127,6 +6132,24 @@
         }
       } catch (e) { qStatus.textContent = t("QKB s'u arrit tani — ngjit manualisht."); }
       finally { qGo.disabled = false; }
+    };
+    var qDoctype = ov.querySelector(".qkb-doctype"), qExt = ov.querySelector(".qkb-ext");
+    if (qExt) qExt.onclick = async function () {
+      var nipt = (qNipt.value || "").trim();
+      if (!nipt) { qStatus.textContent = t("Vendos NIPT për ekstraktin."); return; }
+      qExt.disabled = true; qStatus.textContent = t("Po marr ekstraktin nga QKB…");
+      try {
+        var r = await fetch("/api/notary/qkb-extract", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ nipt: nipt, doc_type: qDoctype.value }) });
+        var d = await r.json();
+        if (d.ok && d.text) {
+          txt.value = (txt.value.trim() ? txt.value.trim() + "\n\n" : "") + "EKSTRAKT QKB (" + qDoctype.value + "):\n" + d.text;
+          qStatus.textContent = "✓ " + t("Ekstrakti u shtua te të dhënat") + " (" + d.chars + t(" karaktere). Kliko «Verifiko».");
+        } else {
+          qStatus.textContent = t("Ekstrakti s'u mor — provo «I thjeshtë» ose ngjit manualisht.");
+        }
+      } catch (e) { qStatus.textContent = t("QKB s'u arrit — ngjit manualisht."); }
+      finally { qExt.disabled = false; }
     };
     if (file) file.onchange = async function () {
       var files = file.files ? [].slice.call(file.files) : []; if (!files.length) return;
@@ -6885,7 +6908,17 @@
     "subjekt(e) u gjetën — u shtuan te të dhënat. Kliko «Verifiko».": "soggetto/i trovati — aggiunti ai dati. Clicca «Verifica».",
     "Asnjë subjekt i gjetur. Provo ndryshe ose ngjit manualisht.": "Nessun soggetto trovato. Prova diversamente o incolla manualmente.",
     "QKB s'u arrit tani — ngjit rezultatin manualisht nga qkb.gov.al.": "QKB non raggiungibile ora — incolla il risultato manualmente da qkb.gov.al.",
-    "QKB s'u arrit tani — ngjit manualisht.": "QKB non raggiungibile ora — incolla manualmente."
+    "QKB s'u arrit tani — ngjit manualisht.": "QKB non raggiungibile ora — incolla manualmente.",
+    "📄 Ekstrakt i plotë nga NIPT:": "📄 Estratto completo da NIPT:",
+    "I thjeshtë": "Semplice",
+    "Historik": "Storico",
+    "Merr ekstraktin →": "Ottieni l'estratto →",
+    "Vendos NIPT për ekstraktin.": "Inserisci il NIPT per l'estratto.",
+    "Po marr ekstraktin nga QKB…": "Sto scaricando l'estratto da QKB…",
+    "Ekstrakti u shtua te të dhënat": "Estratto aggiunto ai dati",
+    " karaktere). Kliko «Verifiko».": " caratteri). Clicca «Verifica».",
+    "Ekstrakti s'u mor — provo «I thjeshtë» ose ngjit manualisht.": "Estratto non ottenuto — prova «Semplice» o incolla manualmente.",
+    "QKB s'u arrit — ngjit manualisht.": "QKB non raggiungibile — incolla manualmente."
   });
   Object.assign(T_IT, {
     "🛡️ Kontroll AML (vigjilenca e duhur)": "🛡️ Controllo AML (adeguata verifica)",

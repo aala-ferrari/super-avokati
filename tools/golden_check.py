@@ -2180,13 +2180,15 @@ def main():
         # format_results è puro (niente rete) — verificalo eseguendo
         _fr = _qkb55.format_results([{"nipt": "X1", "emri": "Test", "status": "Në likuidim",
                                       "forma": "SHPK", "admin_ortak": "Filan Fisteku;", "red_flags": ["x"]}])
-        check("qkb[55]: modulo qkb (search+format_results, cache, fail-silent, JSON parse) + endpoint + UI con fallback",
+        check("qkb[55]: modulo qkb (search+format_results+fetch_extract, cache, fail-silent, JSON parse) + endpoint + UI con fallback",
               hasattr(_qkb55, "search") and hasattr(_qkb55, "format_results")
+              and hasattr(_qkb55, "fetch_extract")
               and "X1" in _fr and "Në likuidim" in _fr
               and "JSON.parse" in _q55src and "Fail-silent" in _q55src
               and "_CACHE" in _q55src and "format.qkb.gov.al" in _q55src
-              and "/api/notary/qkb-search" in _web55 and "qkb_mod" in _web55
-              and "qkb-search" in _aj55 and "qkb-go" in _aj55 and "ngjit manualisht" in _aj55)
+              and "search-for-subject-get-documents" in _q55src  # endpoint estratto (fase 2)
+              and "/api/notary/qkb-search" in _web55 and "/api/notary/qkb-extract" in _web55 and "qkb_mod" in _web55
+              and "qkb-search" in _aj55 and "qkb-go" in _aj55 and "qkb-ext" in _aj55 and "ngjit manualisht" in _aj55)
     except Exception as _e55:  # noqa: BLE001
         check("qkb[55]: kontrollet u ekzekutuan", False, str(_e55))
 
