@@ -6027,7 +6027,17 @@
     ov.id = "vsubj-ov"; ov.className = "ac-overlay";
     ov.innerHTML = '<div class="ac-modal">' +
       '<div class="ac-head"><span>' + tMode("🏢 Verifiko subjektin (QKB)") + '</span><button class="ac-x" type="button" aria-label="Mbyll">×</button></div>' +
-      '<div class="ac-sub">' + t("Kërko subjektin te qkb.gov.al (publik, falas) dhe ngjit këtu ekstraktin ose REZULTATIN e kërkimit (edhe kërkim me person → disa shoqëri). Analizohet statusi, administratorët e tagrat, ortakët dhe rreziqet (likuidim/çregjistrim, red-flag). NDIHMESË: të dhënat i merr vetë profesionisti nga QKB — nuk lidhet live.") + '</div>' +
+      '<div class="ac-sub">' + t("Kërko subjektin drejtpërdrejt në QKB (butoni «Kërko»), ose ngjit ekstraktin/rezultatin manualisht nga qkb.gov.al. Analizohet statusi, administratorët e tagrat, ortakët dhe rreziqet (likuidim/çregjistrim, red-flag). Ndihmesë — për aktin, konfirmo te portali zyrtar.") + '</div>' +
+      '<div class="qkb-search" style="background:rgba(201,162,39,.07);border:1px solid var(--line,#d9cfc0);border-radius:8px;padding:10px;margin-bottom:10px">' +
+        '<div style="font-weight:600;font-size:13px;margin-bottom:6px">' + t("🔎 Kërko LIVE në QKB (regjistri tregtar)") + '</div>' +
+        '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
+          '<input type="text" class="qkb-nipt" placeholder="NIPT" style="flex:1;min-width:100px;padding:7px 10px;border:1px solid var(--line,#d9cfc0);border-radius:7px;font-size:13px" />' +
+          '<input type="text" class="qkb-name" placeholder="' + t("Emri i subjektit") + '" style="flex:1.5;min-width:120px;padding:7px 10px;border:1px solid var(--line,#d9cfc0);border-radius:7px;font-size:13px" />' +
+          '<input type="text" class="qkb-person" placeholder="' + t("Person (admin/ortak)") + '" style="flex:1.5;min-width:120px;padding:7px 10px;border:1px solid var(--line,#d9cfc0);border-radius:7px;font-size:13px" />' +
+          '<button class="qkb-go" type="button" style="padding:7px 14px;background:#c9a227;color:#fff;border:none;border-radius:7px;font-size:13px;cursor:pointer;white-space:nowrap">' + t("Kërko →") + '</button>' +
+        '</div>' +
+        '<div class="qkb-status" style="font-size:12px;color:#8a6a1d;margin-top:6px"></div>' +
+      '</div>' +
       '<input type="text" class="vsubj-ctx" style="width:100%;box-sizing:border-box;padding:9px 12px;border:1px solid var(--line,#d9cfc0);border-radius:8px;font-size:14px;margin-bottom:8px" placeholder="' + t("Veprimi/pyetja: p.sh. «shoqëria X do të shesë — a mund të veprojë?» ose «a është Y në shoqëri me probleme?»") + '" />' +
       '<div class="ac-attach-row"><label class="ac-attach">' + t("📎 Bashkëngjit ekstraktin (PDF/foto)") + '<input type="file" class="vsubj-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.tif,.tiff,.docx" hidden multiple></label></div>' +
       '<textarea class="ac-ta vsubj-txt" placeholder="' + t("Ngjit të dhënat nga QKB (ekstrakt ose rezultat kërkimi)…") + '"></textarea>' +
@@ -6038,9 +6048,31 @@
     var ctx = ov.querySelector(".vsubj-ctx"), txt = ov.querySelector(".vsubj-txt"),
         run = ov.querySelector(".ac-run"), status = ov.querySelector(".ac-status"),
         result = ov.querySelector(".ac-result"), file = ov.querySelector(".vsubj-file");
+    var qNipt = ov.querySelector(".qkb-nipt"), qName = ov.querySelector(".qkb-name"),
+        qPerson = ov.querySelector(".qkb-person"), qGo = ov.querySelector(".qkb-go"),
+        qStatus = ov.querySelector(".qkb-status");
     function close() { ov.remove(); }
     ov.querySelector(".ac-x").onclick = close;
     ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
+    if (qGo) qGo.onclick = async function () {
+      var nipt = (qNipt.value || "").trim(), name = (qName.value || "").trim(), person = (qPerson.value || "").trim();
+      if (!nipt && !name && !person) { qStatus.textContent = t("Vendos NIPT, emër ose person."); return; }
+      qGo.disabled = true; qStatus.textContent = t("Po kërkoj në QKB…");
+      try {
+        var r = await fetch("/api/notary/qkb-search", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ nipt: nipt, name: name, admin: person }) });
+        var d = await r.json();
+        if (d.ok && d.count > 0) {
+          txt.value = (txt.value.trim() ? txt.value.trim() + "\n\n" : "") + (d.formatted || "");
+          qStatus.textContent = "✓ " + d.count + " " + t("subjekt(e) u gjetën — u shtuan te të dhënat. Kliko «Verifiko».");
+        } else if (d.ok) {
+          qStatus.textContent = t("Asnjë subjekt i gjetur. Provo ndryshe ose ngjit manualisht.");
+        } else {
+          qStatus.textContent = t("QKB s'u arrit tani — ngjit rezultatin manualisht nga qkb.gov.al.");
+        }
+      } catch (e) { qStatus.textContent = t("QKB s'u arrit tani — ngjit manualisht."); }
+      finally { qGo.disabled = false; }
+    };
     if (file) file.onchange = async function () {
       var files = file.files ? [].slice.call(file.files) : []; if (!files.length) return;
       run.disabled = true;
@@ -6786,6 +6818,19 @@
     "Verifiko subjektin →": "Verifica il soggetto →",
     "Ngjit të dhënat e subjektit nga QKB.": "Incolla i dati del soggetto da QKB.",
     "Po verifikoj subjektin… (~1-2 min)": "Sto verificando il soggetto… (~1-2 min)"
+  });
+  Object.assign(T_IT, {
+    "Kërko subjektin drejtpërdrejt në QKB (butoni «Kërko»), ose ngjit ekstraktin/rezultatin manualisht nga qkb.gov.al. Analizohet statusi, administratorët e tagrat, ortakët dhe rreziqet (likuidim/çregjistrim, red-flag). Ndihmesë — për aktin, konfirmo te portali zyrtar.": "Cerca il soggetto direttamente su QKB (pulsante «Cerca»), oppure incolla l'estratto/risultato manualmente da qkb.gov.al. Si analizzano lo stato, gli amministratori e i poteri, i soci e i rischi (liquidazione/cancellazione, red-flag). Assistivo — per l'atto, conferma sul portale ufficiale.",
+    "🔎 Kërko LIVE në QKB (regjistri tregtar)": "🔎 Cerca LIVE su QKB (registro imprese)",
+    "Emri i subjektit": "Nome del soggetto",
+    "Person (admin/ortak)": "Persona (amministratore/socio)",
+    "Kërko →": "Cerca →",
+    "Vendos NIPT, emër ose person.": "Inserisci NIPT, nome o persona.",
+    "Po kërkoj në QKB…": "Sto cercando su QKB…",
+    "subjekt(e) u gjetën — u shtuan te të dhënat. Kliko «Verifiko».": "soggetto/i trovati — aggiunti ai dati. Clicca «Verifica».",
+    "Asnjë subjekt i gjetur. Provo ndryshe ose ngjit manualisht.": "Nessun soggetto trovato. Prova diversamente o incolla manualmente.",
+    "QKB s'u arrit tani — ngjit rezultatin manualisht nga qkb.gov.al.": "QKB non raggiungibile ora — incolla il risultato manualmente da qkb.gov.al.",
+    "QKB s'u arrit tani — ngjit manualisht.": "QKB non raggiungibile ora — incolla manualmente."
   });
   Object.assign(T_IT, { "📎 Bashkëngjit dokumentin e marrë": "📎 Allega il documento ricevuto", "letra e pushimit, akti, njoftimi — që t'i përgjigjemi pikë për pikë": "la lettera di licenziamento, l'atto, la notifica — per ribattere punto per punto", "Kopjo letrën": "Copia la lettera", "PDF (shtyp)": "PDF (stampa)", "Blloko dritaret u aktivizua — lejo dritaret.": "Il blocco pop-up è attivo: consenti le finestre per questo sito." });
   Object.assign(T_IT, { "Letra dhe shkresa": "Lettere e atti", "Zgjidh kujt i shkruhet. Shkresa ndërtohet mbi fashikullin e hapur dhe mbi nenet e marra nga korpusi — gati për dërgim.": "Scegli a chi scrivere. La lettera si costruisce sul fascicolo aperto e sugli articoli recuperati dal corpus — pronta da inviare.", "Po ngarkohet…": "Caricamento…", "Email / PEC": "Email / PEC", "Fakte shtesë ose udhëzime: emrat, shumat, datat, çfarë të theksohet. Nëse fashikulli është i plotë, mund ta lësh bosh.": "Fatti aggiuntivi o istruzioni: nomi, importi, date, cosa sottolineare. Se il fascicolo e completo, puoi lasciare vuoto.", "Harto shkresën →": "Scrivi la lettera →", "Marrësi": "Destinatario", "Kanali": "Canale", "Kjo shkresë i drejtohet palës kundërshtare. Forca vjen nga nenet, jo nga kërcënimet: njoftimi se do t'i drejtohemi gjykatës lejohet, kërcënimi me kallëzim penal apo me njoftim te tatimet për të marrë pagesë është shantazh.": "Questa lettera si rivolge alla controparte. La forza viene dagli articoli, non dalle minacce: annunciare che si adira il giudice e legittimo, minacciare una denuncia penale o una segnalazione al fisco per ottenere il pagamento e estorsione.", "Kjo shkresë i drejtohet autoritetit. Toni është faktik dhe nuk lidhet me asnjë kërkesë pagese — përndryshe shndërrohet në shantazh.": "Questa lettera si rivolge all'autorita. Il tono e fattuale e non si collega ad alcuna richiesta di pagamento — altrimenti diventa estorsione.", "Hap një fashikull ose shkruaj faktet këtu.": "Apri un fascicolo oppure scrivi qui i fatti.", "Po hartohet shkresa…": "Sto scrivendo la lettera…", "Kopjo tekstin": "Copia il testo", "Shkarko .docx": "Scarica .docx", "Nuk u ngarkua katalogu": "Catalogo non caricato", "Shkresa gati për dërgim nga fashikulli — punëdhënësit, tatimeve, prokurorisë, institucioneve": "Lettere pronte da inviare, costruite sul fascicolo — al datore di lavoro, al fisco, alla Procura, alle istituzioni", "✉️ \n Letra dhe shkresa Shkresa gati për dërgim nga fashikulli — punëdhënësit, tatimeve, prokurorisë, institucioneve": "✉️ \n Lettere e atti Lettere pronte da inviare, costruite sul fascicolo — al datore di lavoro, al fisco, alla Procura, alle istituzioni" });

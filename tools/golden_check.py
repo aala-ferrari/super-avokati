@@ -2167,6 +2167,29 @@ def main():
     except Exception as _e54:  # noqa: BLE001
         check("noteri[54]: kontrollet u ekzekutuan", False, str(_e54))
 
+    # ── [55] QKB — ricerca LIVE nel registro imprese (fetch-on-demand + fallback) ──
+    # Endpoint scoperto (POST format.qkb.gov.al/kerko-per-subjekt/, JSON embedded).
+    # Fetch-on-demand + cache + rate-limit + FAIL-SILENT → UI ripiega su «incolla».
+    try:
+        from src import qkb as _qkb55
+        import os as _os55, io as _io55
+        _rr55 = _os55.path.dirname(_os55.path.dirname(_os55.path.abspath(__file__)))
+        _q55src = _io55.open(_os55.path.join(_rr55, "src", "qkb.py"), encoding="utf-8").read()
+        _web55 = _io55.open(_os55.path.join(_rr55, "src", "web.py"), encoding="utf-8").read()
+        _aj55 = _io55.open(_os55.path.join(_rr55, "static", "app.js"), encoding="utf-8").read()
+        # format_results è puro (niente rete) — verificalo eseguendo
+        _fr = _qkb55.format_results([{"nipt": "X1", "emri": "Test", "status": "Në likuidim",
+                                      "forma": "SHPK", "admin_ortak": "Filan Fisteku;", "red_flags": ["x"]}])
+        check("qkb[55]: modulo qkb (search+format_results, cache, fail-silent, JSON parse) + endpoint + UI con fallback",
+              hasattr(_qkb55, "search") and hasattr(_qkb55, "format_results")
+              and "X1" in _fr and "Në likuidim" in _fr
+              and "JSON.parse" in _q55src and "Fail-silent" in _q55src
+              and "_CACHE" in _q55src and "format.qkb.gov.al" in _q55src
+              and "/api/notary/qkb-search" in _web55 and "qkb_mod" in _web55
+              and "qkb-search" in _aj55 and "qkb-go" in _aj55 and "ngjit manualisht" in _aj55)
+    except Exception as _e55:  # noqa: BLE001
+        check("qkb[55]: kontrollet u ekzekutuan", False, str(_e55))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

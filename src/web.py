@@ -70,6 +70,7 @@ from . import intake as intake_mod
 from . import afati as afati_mod
 from . import registry as registry_mod
 from . import notary as notary_mod
+from . import qkb as qkb_mod
 from . import deadlines as deadlines_mod
 from . import letters as letters_mod
 from . import case_brief as brief_mod
@@ -5568,6 +5569,30 @@ def api_notary_verify_subject():
     out, err = _notary_run(notary_mod.verify_subject,
                            subject_text=subj[:16000], context=context[:2500])
     return err if err else out
+
+
+@app.post("/api/notary/qkb-search")
+@login_required_api
+def api_notary_qkb_search():
+    # Ricerca LIVE sul registro imprese QKB (pubblico). Fetch-on-demand + cache in
+    # qkb.py; FAIL-SILENT → ok:False e la UI ripiega su «incolla manualmente».
+    # NON autoritativo: il professionista conferma sul portale ufficiale per l'atto.
+    body = request.get_json(silent=True) or {}
+    nipt = (body.get("nipt") or "").strip()[:20]
+    name = (body.get("name") or "").strip()[:120]
+    admin = (body.get("admin") or "").strip()[:120]
+    shareholder = (body.get("shareholder") or "").strip()[:120]
+    if not any([nipt, name, admin, shareholder]):
+        return jsonify({"ok": False, "error": "no_criteria", "results": []}), 400
+    try:
+        res = qkb_mod.search(nipt=nipt, name=name, admin=admin, shareholder=shareholder)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("qkb endpoint failed: %s", exc)
+        return jsonify({"ok": False, "error": "unreachable", "results": []})
+    results = res.get("results", [])
+    return jsonify({"ok": res.get("ok"), "error": res.get("error"),
+                    "cached": res.get("cached"), "count": len(results),
+                    "results": results, "formatted": qkb_mod.format_results(results)})
 
 
 @app.post("/api/notary/checklist")

@@ -574,7 +574,7 @@ errori, non che le risposte sono ancora giuste. Riferimento verificato il
 12 articoli recuperati per ciascuna.
 
 ```bash
-docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54]). Baseline **439/439** (11 set; era 98 il 31 ago).
+docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55]). Baseline **440/440** (11 set; era 98 il 31 ago).
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 bash /root/prova_sse.sh                                    # SULL'HOST (legge il secret da /opt/super-avvocato.env; copia in tools/prova_sse.sh): account di prova → login → fascicolo → 1 domanda VERA → stream /api/ask/events attraverso waitress. Deve dire «HTTP 200 … done: 1» (~50s, costa 1 chiamata al cervello) e cancella l'account. Dopo OGNI build che tocca web.py o le rotte SSE.
@@ -1074,6 +1074,7 @@ Golden sezione [12] (12 check) + selezionatori (3): **115 → 130**.
 - **expertise.py** — Modele Ekspertize (8 template, incl. abuzim_policor "due menti"). `retrieve_grounded` (seed + `_expand_terms` LLM + `_heading_scan` stem 5-char diacritic-fold + BM25). Riusato da prosecutor/notary/deadlines/afati.
 - **prosecutor.py** — Super Prokuror: analyze, draft_indictment, investigation_plan, investigative_act(kind), coercive_measure, dismissal_request, stress_test + cittadino (citizen_complaint, victim_rights, dismissal_appeal, delay_complaint). Assistivo, mai auto-accusa (EU AI Act).
 - **notary.py** — Super Noteri: DEED_TYPES (22), PROKURA_SCOPES (**19** tagra, incl. uso pasurie/automjeti + dalje jashtë shtetit), DECLARATION_TYPES (6), draft_deed/prokura/declaration, check_deed, succession, documents_needed, draft_revocation, check_conflicts. `GENERAL_POA_GUIDE`: la prokurë e përgjithshme spiega copertura+limiti secondo KC 71 (totalità dei diritti, non «solo ordinaria amministrazione») + KC 72 (disponimet → forma notarile + tager espresso). **verify_property** (v9.301): legge la certificata ASHK/estratto QKB e cross-checka contro il veprim (proprietario/pjesët/identificazione/barrët→semaforo); tool di VERIFICA, niente case_brief; onesto (non live ad ASHK); endpoint /api/notary/verify-property, UI openVerifyProperty (hub KONTROLL 🧾). **post_deed_plan** (v9.302): roadmap adempimenti POST-atto (dove/cosa/quando registrare) con la scadenza di registrazione (30gg) calcolata dal deadline_engine e GARANTITA come footer verificato (non fidarsi che il modello ripeta le date); autorità AL (ASHK/e-Albania/QKB/DPSHTRR/tatime) e IT (Adempimento Unico/MUI); onesto sul resto; giurisdizione dalla sessione; endpoint /api/notary/post-deed, UI openPostDeed (hub NDIHMË 🧭). **verify_subject** (v9.303): due diligence su un SUBJEKT dai dati QKB (estratto o risultato di ricerca, anche persona→più società) — status (Aktiv/Në likuidim/I çregjistruar) + poteri amministratore + soci + rete-persona → red-flag AML + cross-check → 🔎 semaforo; tool di VERIFICA, onesto (non live a QKB); endpoint /api/notary/verify-subject, UI openVerifySubject (hub KONTROLL 🏢). ⚠️ QKB provato dal VPS: NON geo-bloccato, dietro WAF F5 header-based (passa con header browser); ricerca su `format.qkb.gov.al` (list.js+dexie=dataset client-side, mirrorabile). Auto-fetch fattibile ma NON fatto (fragile/grey-zone): il valore è l'ANALISI, il dato lo incolla il professionista.
+- **qkb.py** (v9.304) — ricerca LIVE nel registro imprese QKB. `search(nipt/name/admin/shareholder)` → POST `format.qkb.gov.al/kerko-per-subjekt/` con header browser (passa il WAF F5) → parse del JSON embedded (`response = JSON.parse(...)`, chiavi nipti/emriISubjektit/statusiISubjektit/adminOrtakAksionar/+ red-flag QKB); fetch-on-demand + cache 30min + rate-limit + fail-silent. `format_results` → testo per verify_subject. Ricerca INVERSA persona→società via `administrator`/`aksionerOrtak`. Endpoint /api/notary/qkb-search; UI in openVerifySubject con fallback «incolla».
 - **living_law.py** — Ligj i gjallë: verify_claims (verifica frase↔testo reale nen), check_law_live (web→QBZ). + freschezza in citation_verifier (volatility/stale).
 - **intake.py** — Pika e parë: triage(story) → orientamento + urgenza + ROUTE token → instrada allo strumento.
 - **afati.py** — Motore afate: TRIGGERS (8) → scadenze grounded + blocco `AFAT | titolo | YYYY-MM-DD` → calendario (POST /api/events).
@@ -1432,6 +1433,25 @@ rischio residuo della DPIA.
 - Super Avokati ha auth propria (login_required_api); utenti creati da admin o auto-provisionati da AALA (`/api/provision-demo`, secret-guarded).
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
+
+**v9.304 — QKB: ricerca LIVE (auto-fetch) integrata (11 set).** Il titolare voleva
+l'agente che «va lì». Cattura di rete con Claude-in-Chrome → endpoint scoperto:
+**`POST https://format.qkb.gov.al/kerko-per-subjekt/`** (form-encoded; campi `nipt`,
+`emriISubjektit`, `emriTregtar`, **`administrator`**, **`aksionerOrtak`** [ricerca
+INVERSA persona→società], formeLigjore, ecc.). La pagina incorpora i risultati come
+`response = JSON.parse("[{…}]")` (JSON doppio-codificato) con chiavi: nipti,
+emriISubjektit, sektoriIVeprimtarise, adminOrtakAksionar, formaLigjore,
+**statusiISubjektit**, dataERegjistrimit, qyteti, shtetesia, e i **red-flag propri di
+QKB** (rppRedFlagText, bilanciRedFlagText, adminRedFlagText, showRedFlag). `src/qkb.py`
+(`search`/`format_results`): POST con **header browser** (passa il WAF F5), parse del
+JSON, **fetch-on-demand + cache 30min + rate-limit 1s + FAIL-SILENT**. ⚠️ NON un mirror
+aggressivo (hammering) e NON autoritativo: per l'atto si conferma sul portale ufficiale.
+Il container raggiunge QKB (requests già in requirements). Endpoint POST
+/api/notary/qkb-search; UI: riga «🔎 Kërko LIVE në QKB» in openVerifySubject (NIPT/nome/
+persona) → pre-riempie i dati → «Verifiko» analizza; **fallback morbido**: se QKB non
+risponde → «incolla manualmente» (mai un dato spacciato per vero). app.js?v=161, golden
+[55], smoke 109. **Prova viva**: NIPT→1, nome «alfa»→25, **persona «Fabio Qoshku»→2
+società** (reverse ✓). Vedi [[super_avokati_super_noteri]].
 
 **v9.303 — QKB: «Verifica soggetto» + feasibility ricerca-live (11 set).** Idea
 del titolare: società/amministratore che vende o è socio in altre società in guai

@@ -36,6 +36,7 @@ def run(name, fn):
 import src.expertise as expertise
 import src.prosecutor as prosecutor
 import src.notary as notary
+import src.qkb as qkb
 import src.letters as letters
 import src.deadlines as deadlines
 import src.living_law as living
@@ -96,6 +97,7 @@ run("notary.what_if", lambda: notary.what_if(be, idx, act=F, change="cka nese sh
 run("notary.verify_property", lambda: notary.verify_property(be, idx, certificate_text=F, transaction="shitje apartament 7/512"))
 run("notary.post_deed_plan", lambda: notary.post_deed_plan(be, idx, act="shitje apartamenti nr 7/512", jurisdiction="AL", act_date="2026-09-11"))
 run("notary.verify_subject", lambda: notary.verify_subject(be, idx, subject_text="NIPT M61924031M Alfa Group SHPK Statusi Ne likuidim administrator Fabio Qoshku", context="a mund te shese?"))
+run("qkb.format_results", lambda: {"markdown": qkb.format_results([{"nipt": "M1", "emri": "Test SHPK", "status": "Aprovuar", "forma": "SHPK", "admin_ortak": "X;", "red_flags": []}])})  # puro, niente rete
 
 print("[living_law / intake / afati / deadlines]")
 run("deadlines.prescription", lambda: deadlines.prescription(be, idx, facts=F))
