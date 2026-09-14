@@ -2298,6 +2298,27 @@ def main():
     except Exception as _e60:  # noqa: BLE001
         check("giudice[60]: kontrollet u ekzekutuan", False, str(_e60))
 
+    # ── [61] DOMANDE: il rilevatore LEGGE i documenti allegati (bug titolare 11 set) ──
+    # Con i 2 HEIC della kartela caricati (OCR ok, Sezione D estratta), il cervello
+    # chiedeva «che natura ha il kufizim — hipotekë, sekuestro…?» e «hai la certificata
+    # ASHK?»: domanda LEGALE su una cosa SCRITTA nel documento, + richiesta di un
+    # documento già allegato. Causa: _detect_missing_facts riceveva i documenti in
+    # modalità compact (testo omesso) → cieco alla Sezione D. Ora riceve il testo
+    # (compact=False) e il prompt vieta classificazione giuridica + chiedere allegati.
+    try:
+        import inspect as _insp61
+        _src61 = _insp61.getsource(brain.SuperAvvocato._detect_missing_facts)
+        _mfs61 = brain.MISSING_FACTS_SYSTEM
+        # la CHIAMATA vera, non le parole (il commento nella funzione cita «compact=True»)
+        check("mf[61]: il rilevatore domande VEDE il testo dei documenti (compact=False) + vieta classificazione giuridica + mai chiedere allegati già in dosja",
+              "format_documents_for_prompt(documents or [], compact=False)" in _src61
+              and "format_documents_for_prompt(documents or [], compact=True)" not in _src61
+              and "KLASIFIKIMI i natyrës juridike" in _mfs61
+              and "LEXO DOKUMENTET E BASHKËNGJITURA PARA se të pyesësh" in _mfs61
+              and "KURRË mos kërko një dokument që tashmë është bashkëngjitur" in _mfs61)
+    except Exception as _e61:  # noqa: BLE001
+        check("mf[61]: kontrollet u ekzekutuan", False, str(_e61))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

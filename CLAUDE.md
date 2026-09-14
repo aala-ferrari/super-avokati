@@ -574,7 +574,7 @@ errori, non che le risposte sono ancora giuste. Riferimento verificato il
 12 articoli recuperati per ciascuna.
 
 ```bash
-docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60]). Baseline **445/445** (11 set; era 98 il 31 ago).
+docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61]). Baseline **446/446** (14 set; era 98 il 31 ago).
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 bash /root/prova_sse.sh                                    # SULL'HOST (legge il secret da /opt/super-avvocato.env; copia in tools/prova_sse.sh): account di prova → login → fascicolo → 1 domanda VERA → stream /api/ask/events attraverso waitress. Deve dire «HTTP 200 … done: 1» (~50s, costa 1 chiamata al cervello) e cancella l'account. Dopo OGNI build che tocca web.py o le rotte SSE.
@@ -1433,6 +1433,27 @@ rischio residuo della DPIA.
 - Super Avokati ha auth propria (login_required_api); utenti creati da admin o auto-provisionati da AALA (`/api/provision-demo`, secret-guarded).
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
+
+**v9.311 — le domande di chiarimento LEGGONO i documenti allegati (14 set).** Bug del
+titolare (screenshot 11 set, stesso caso Neni 195): con i 2 HEIC della kartela caricati —
+OCR **riuscito**, Sezione D estratta per intero (`status=ready`, 1705 chr, «KUFIZOHEN VEPRIMET
+DERI NE RREGULLIMIN E MARDHENIEVE ME TRUALLIN» + ipoteca BKT) — il cervello ha risposto con
+una DOMANDA: «che natura ha il kufizim — hipotekë, sekuestro, processo, amministrativo?» +
+«hai la certificata ASHK?». Cioè una domanda **legale** su una cosa **scritta nel documento**,
+più la richiesta di un documento **già allegato**. ⚠️ La mia prima ipotesi (HEIC non letto)
+era SBAGLIATA: il DB provava l'OCR ok — mai fidarsi dell'ipotesi, interrogare il DB.
+**Causa vera** (riprodotta in container con i documenti reali): `_detect_missing_facts`
+riceveva i documenti con `format_documents_for_prompt(compact=True)` = solo nome+riassunto,
+**testo omesso** (677 chr vs 4222) → il rilevatore era CIECO alla Sezione D e chiedeva ciò che
+non vedeva; la regola v9.299 «non ripetere fatti già nel contesto» non poteva scattare.
+**Fix**: (1) `compact=False` nel rilevatore (riceve il testo budgettato come il compose);
+(2) `MISSING_FACTS_SYSTEM` vieta esplicitamente la CLASSIFICAZIONE giuridica («che tipo di
+kufizim/barrë è» → la determina da solo leggendo documento+legge) e impone «LEGGI I DOCUMENTI
+ALLEGATI PRIMA di chiedere; mai chiedere un documento già in dosja». **Prova viva** (stesso
+repro): ora cita da solo i nr. 00053647/00061831 e chiede solo fatti che sa il cliente («hai
+un avviso ASHK sulla causa del kufizim?», «il credito BKT è estinto?»). Golden [61]
+(compact=False nel sorgente + i due divieti nel prompt). Le altre 8 fasi restano `compact`
+(fanno analisi, non domande). QA: golden **446**, smoke 110, juris verde.
 
 **v9.310 — il Giudice Finale STRINGATO (11 set).** Scelta del titolare dopo v9.309, per
 non fare «muro di testo»: se la risposta è già corretta (caso più frequente) il Giudice

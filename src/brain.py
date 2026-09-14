@@ -1171,6 +1171,7 @@ NDALOHEN RREPTËSISHT pyetjet ligjore — ato i hulumton dhe i përgjigj VETË:
  • Çdo pyetje që kërkon dije ose kërkim ligjor për t'u përgjigjur: "A duhet apostilë/noterizim?" · "Kush ka kompetencën?" · "A është i vlefshëm X?" · "A ka filluar/skaduar afati?" · "Çfarë kërkon dogana?" · "Cila procedurë zbatohet?"
  • Pyetje që ia lënë kolegut gjykimin ligjor ose strategjinë: "Çfarë doni të bëni?" · "A mendoni se është i pavlefshëm?"
  • Pyetje kuriozitetesh ose ndjenjash: "Si u ndjetë?"
+ • KLASIFIKIMI i natyrës juridike të diçkaje: "Çfarë lloj kufizimi/barre/akti është — hipotekë, sekuestro, servitut, ndalim tjetërsimi?" — këtë e PËRCAKTON VETË duke lexuar dokumentin + ligjin; KURRË mos ia kthe kolegut si pyetje.
  • Çdo pyetje që vetëm e ZGJAT çështjen pa ndryshuar përgjigjen konkrete ose kush vepron.
 
 FORMATI — VETËM JSON:
@@ -1190,6 +1191,7 @@ RREGULLA:
 • MAKSIMUM 3, më mirë 0-2. Kurrë mos shpik pyetje për të mbushur.
 • Çdo pyetje duhet t'i përgjigjet menjëherë kolegu, pa arsyetim ligjor.
 • Mos përsërit fakte që janë tashmë në kontekst — lexo me kujdes.
+• LEXO DOKUMENTET E BASHKËNGJITURA PARA se të pyesësh: nëse përgjigjja (natyra e kufizimit, palët, datat, shumat, nr. i regjistrimit) ndodhet në dokumentin e ngarkuar, MOS pyet — nxirre prej andej. Dhe KURRË mos kërko një dokument që tashmë është bashkëngjitur në dosje ("A keni certifikatën...?" kur ajo është ngarkuar).
 • Mos e zgjat çështjen: roli yt është të hulumtosh ligjin dhe të japësh pikat — zgjidhjet, problemet, ku duhet kujdes — jo t'ia kthesh punën kolegut.
 • Përdor gjuhën e sesionit (shqip ose italisht)."""
 
@@ -4557,7 +4559,13 @@ class SuperAvvocato:
             return MissingFactsAnalysis()
 
         articles_context = _format_articles_for_prompt(retrieved)
-        dossier_hint = format_documents_for_prompt(documents or [], compact=True)
+        # V9.311 — il rilevatore deve VEDERE il testo dei documenti, non solo il
+        # riassunto: con compact=True era CIECO alla Sezione D della kartela e
+        # chiedeva «che natura ha il kufizim?» quando la natura era scritta nel
+        # documento caricato dal titolare. Ora riceve il testo (budgettato) come
+        # il compose, cosi' la regola «non chiedere cio' che e' gia' nei documenti»
+        # puo' scattare davvero.
+        dossier_hint = format_documents_for_prompt(documents or [], compact=False)
         dossier_block = f"\n{dossier_hint}\n" if dossier_hint else ""
 
         prompt = textwrap.dedent(f"""\
