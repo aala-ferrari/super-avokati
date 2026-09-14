@@ -574,7 +574,7 @@ errori, non che le risposte sono ancora giuste. Riferimento verificato il
 12 articoli recuperati per ciascuna.
 
 ```bash
-docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63], triage-trim+giudice-no-web [64]). Baseline **449/449** (14 set; era 98 il 31 ago).
+docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63], triage-trim+giudice-no-web [64], chat-web+verdetto-in-testa+pannelli-IT [65]). Baseline **450/450** (14 set; era 98 il 31 ago).
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 bash /root/prova_sse.sh                                    # SULL'HOST (legge il secret da /opt/super-avvocato.env; copia in tools/prova_sse.sh): account di prova → login → fascicolo → 1 domanda VERA → stream /api/ask/events attraverso waitress. Deve dire «HTTP 200 … done: 1» (~50s, costa 1 chiamata al cervello) e cancella l'account. Dopo OGNI build che tocca web.py o le rotte SSE.
@@ -1433,6 +1433,30 @@ rischio residuo della DPIA.
 - Super Avokati ha auth propria (login_required_api); utenti creati da admin o auto-provisionati da AALA (`/api/provision-demo`, secret-guarded).
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
+
+**v9.316 — LA CHAT COL WEB, verdetto IN TESTA, pannelli al Giudice, etichette IT (14 set).**
+Screenshot del titolare (auto targata AL della shpk, amministratore con permesso di soggiorno
+IT): «troppo lunga e confusa per una domanda semplice». Diagnosi, quattro difetti veri: **(1)
+il compose in STREAMING (la chat) non aveva `--allowedTools`** → zero web per il senior mentre
+l'override IT gli impone la «Cassazione — verifica viva» → cinque «accesso a WebSearch/WebFetch
+negato», tutto «da verificare», quattro «canali di verifica» falliti = metà del muro di testo
+(diavolo e Giudice, non-stream, navigavano). Fix `backends.complete_stream`: `--allowedTools
+WebSearch WebFetch` in coda quando non fast (prompt su stdin, come `complete`); e il testo
+finale = evento `result` del CLI (`final_text`), NON la cucitura dei delta (con i tool i delta
+portano anche i turni intermedi «cerco su…»): brain preferisce `payload["text"]` in
+`_compose_answer_stream`, complex, simple e followup fast-path. **(2) I pannelli
+contraddicevano il verdetto** (allerta «art. 93, 60 giorni» = norma caduta con Corte cost.
+113/2023; rischi «AIRE» vietata a uno straniero): le fasi girano PRIMA del compose e nessuno le
+correggeva → il Giudice riceve i pannelli come testo (`_risposta_dalle_fasi(...)` →
+`gjyqtari_fundit(fazat=)`, ≤14k chr) con la consegna «Pannelli da correggere:». **(3) Il
+verdetto stava in fondo** a 40 schermate → ora IN TESTA (BLUF): `TITULLI_GJYQTARI` senza «---»,
+poi `TITULLI_ANALIZA` «📚 Analisi completa (senior · avvocato del diavolo · replica)» e
+`_gjyqtari_fundit` ritorna `vendim + answer_text`; il prompt del Giudice apre con la
+conclusione. **(4) Albanese nei pannelli in sessione IT**: «Pse:», «⏰ Afati:», «▶ Veprim
+sot:», «▶ Veprim:», «🔄 BARRA E ZHVENDOSUR» (+title), intro mappa prove / contraddizioni /
+distinguishing — stringhe fisse nei renderer → `T_IT` (app.js?v=166). Golden **[65]**.
+Metodo: la scansione statica dei renderer trova le etichette corte; le frasi lunghe (>160 chr)
+sfuggono al filtro — leggere lo screenshot. QA: golden **450**, smoke 110, juris verde.
 
 **v9.315 — triage robusto ai documenti incollati + Giudice SENZA web + audit IT completo 9/10 (14 set).**
 Dall'audit non-notarile su v9.314 (`audit_tools_it.py -notaio`): **9/10 OK, tutti con

@@ -2417,6 +2417,39 @@ def main():
     except Exception as _e64:  # noqa: BLE001
         check("triage[64]: kontrollet u ekzekutuan", False, str(_e64))
 
+    # ── [65] LA CHAT CON IL WEB + verdetto IN TESTA + pannelli al Giudice + etichette IT (14 set) ──
+    # Screenshot del titolare (auto targata AL, shpk): il senior in streaming non aveva
+    # WebSearch/WebFetch → cinque «accesso negato», tutto «da verificare», quattro «canali»
+    # falliti; i pannelli (art. 93 superato, AIRE) contraddicevano il verdetto che stava in
+    # fondo; «Pse/Afati/Veprim/BARRA E ZHVENDOSUR» in albanese nella sessione italiana.
+    try:
+        import inspect as _insp65
+        from src import backends as _bk65
+        from src import studio as _st65
+        _cs65 = _insp65.getsource(_bk65)
+        _i65 = _cs65.find("def complete_stream(")
+        _stream65 = _cs65[_i65:_i65 + 9000] if _i65 >= 0 else ""
+        _gj65 = _insp65.getsource(_st65.gjyqtari_fundit)
+        _brgj65 = _insp65.getsource(brain.SuperAvvocato._gjyqtari_fundit)
+        _cas65 = _insp65.getsource(brain.SuperAvvocato._compose_answer_stream)
+        _as65 = _insp65.getsource(brain.SuperAvvocato.answer_stream)
+        _js65 = _io2.open(_os2.path.join(_os2.path.dirname(_os2.path.dirname(_os2.path.abspath(__file__))), "static", "app.js"), encoding="utf-8").read()
+        _lab65 = all(('"%s": "' % k) in _js65 for k in ("Pse:", "⏰ Afati:", "▶ Veprim sot:", "▶ Veprim:", "🔄 BARRA E ZHVENDOSUR",
+                                                        "Ligji e zhvendos barrën e provës mbi palën tjetër"))
+        _intro65 = '"Për çdo pretendim tregojmë ÇFARË duhet provuar' in _js65 and '"Këto janë mospërputhjet mes dokumenteve' in _js65
+        check("chat[65]: streaming con WebSearch/WebFetch + testo finale dal result (non i delta) + Giudice riceve i pannelli e mette il verdetto IN TESTA + etichette pannelli in italiano",
+              'cmd.extend(["--allowedTools", "WebSearch", "WebFetch"])' in _stream65
+              and "final_text = full" in _stream65
+              and 'text = (final_text or "".join(collected)).strip()' in _cs65
+              and "fazat" in _gj65 and "TITULLI_ANALIZA" in _gj65
+              and "return vendim + answer_text" in _brgj65
+              and "fazat_txt=_fazat_x" in _as65 and "_risposta_dalle_fasi(" in _as65
+              and 'final_text = str(payload.get("text") or "")' in _as65
+              and "collected = [_ft]" in _cas65
+              and _lab65 and _intro65)
+    except Exception as _e65:  # noqa: BLE001
+        check("chat[65]: kontrollet u ekzekutuan", False, str(_e65))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

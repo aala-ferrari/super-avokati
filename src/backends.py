@@ -690,6 +690,13 @@ class ClaudeCodeBackend(LLMBackend):
         # ("No conversation found"). Sempre system-prompt + history completa,
         # cosi i follow-up mantengono il contesto e non ripetono/errorano.
         cmd.extend(["--system-prompt", system])
+        # v9.316 — WEB anche in streaming (la chat). Senza, il senior italiano
+        # scriveva cinque volte «accesso a WebSearch/WebFetch negato», marcava
+        # tutto «da verificare» e aggiungeva «canali di verifica» falliti — meta'
+        # del muro di testo — mentre diavolo e Giudice (non-stream) navigavano.
+        # In coda come in complete(): il prompt viaggia su stdin.
+        if not fast:
+            cmd.extend(["--allowedTools", "WebSearch", "WebFetch"])
         prompt = _flatten_messages(messages)
         prompt = _direttiva_gjuhe(prompt)   # la lingua la decide la sessione
 
@@ -697,6 +704,7 @@ class ClaudeCodeBackend(LLMBackend):
 
         collected: list[str] = []
         new_session_id: str | None = None
+        final_text: str = ""   # il testo finale del CLI (evento result), v9.316
 
         # Same semaphore as the blocking path — streaming still holds a
         # CLI slot for its duration, so concurrent streams must queue.
@@ -776,6 +784,11 @@ class ClaudeCodeBackend(LLMBackend):
                         # If we missed deltas (no partial messages), fall
                         # back to the full result text for collected.
                         full = evt.get("result") or ""
+                        if full:
+                            # v9.316 — con i tool attivi i delta includono anche i
+                            # turni intermedi («cerco su Normattiva…»): il testo
+                            # finale pulito e' QUESTO, non la cucitura dei delta.
+                            final_text = full
                         if full and not collected:
                             collected.append(full)
                             yield ("delta", full)
@@ -837,7 +850,7 @@ class ClaudeCodeBackend(LLMBackend):
         if new_session_id:
             self.last_session_id = new_session_id
 
-        text = "".join(collected).strip()
+        text = (final_text or "".join(collected)).strip()
         if not text:
             _emit_audit(outcome="error", response_text=None,
                         error_class="EmptyResult")

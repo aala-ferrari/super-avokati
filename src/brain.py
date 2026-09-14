@@ -2445,6 +2445,7 @@ class SuperAvvocato:
             yield ("status", self._status("followup_answering"))
             collected: list[str] = []
             new_sid = session_id
+            final_txt = ""
             for kind, payload in backend.complete_stream(
                 system=self._answer_system(),
                 messages=[{"role": "user", "content": user_message}],
@@ -2457,7 +2458,8 @@ class SuperAvvocato:
                 elif kind == "final":
                     assert isinstance(payload, dict)
                     new_sid = payload.get("session_id") or session_id
-            text = _apply_corrections("".join(collected))
+                    final_txt = str(payload.get("text") or "")
+            text = _apply_corrections(final_txt or "".join(collected))
             yield ("final", LegalAnswer(
                 kind="answer", text=text, session_id=new_sid,
             ))
@@ -2523,6 +2525,7 @@ class SuperAvvocato:
                 msgs = list(history) + [{"role": "user", "content": prompt}]
             collected = []
             new_sid = session_id
+            final_txt = ""
             for kind, payload in backend.complete_stream(
                 system=self._answer_system(ANSWER_SIMPLE_SYSTEM),
                 messages=msgs,
@@ -2535,7 +2538,8 @@ class SuperAvvocato:
                 elif kind == "final":
                     assert isinstance(payload, dict)
                     new_sid = payload.get("session_id") or session_id
-            text = _apply_corrections(_verify_citations("".join(collected), precedents_s))
+                    final_txt = str(payload.get("text") or "")
+            text = _apply_corrections(_verify_citations(final_txt or "".join(collected), precedents_s))
             yield ("final", LegalAnswer(
                 kind="answer", text=text, triage=triage,
                 retrieved=retrieved, precedents=precedents_s, session_id=new_sid,
@@ -2630,6 +2634,7 @@ class SuperAvvocato:
         yield ("status", self._status("complex_composing"))
         collected: list[str] = []
         new_sid = session_id
+        final_text = ""   # v9.316: il testo finale pulito del compose (con i tool, i delta hanno anche i turni intermedi)
         try:
             for kind, payload in self._compose_answer_stream(
                 user_message, history, triage, retrieved, precedents,
@@ -2647,6 +2652,7 @@ class SuperAvvocato:
                 elif kind == "final":
                     if isinstance(payload, dict):
                         new_sid = payload.get("session_id") or new_sid
+                        final_text = str(payload.get("text") or "")
         except Exception as exc:
             # ⚠️ NON si ricomincia da capo.
             #
@@ -2696,7 +2702,7 @@ class SuperAvvocato:
             ))
             return
 
-        answer_text = "".join(collected)
+        answer_text = final_text or "".join(collected)
         answer_text = _verify_citations(answer_text, precedents)
         if ALBANIAN_EDITOR_ENABLED:
             try:
@@ -2732,8 +2738,19 @@ class SuperAvvocato:
         # ⚖️ IL GIUDICE FINALE (Fable 5.1 max): tutti gli agenti hanno consegnato —
         # nenet verbatim + risposta + attacchi/repliche + dossier raccoglitori →
         # verdetto finale. Saltato in modalità ⚡ (senior già Fable). Fail-silent.
+        # i pannelli (fasi) al Giudice, come testo: se sbagliano li corregge nel verdetto
+        _fazat_x = ""
+        try:
+            _fazat_x = _risposta_dalle_fasi(
+                triage, strategic=strategic, timeline=timeline, comparison=comparison,
+                premortem=premortem, distinguishing=distinguishing, evidence_map=evidence_map,
+                nullity_radar=nullity_radar, urgency_radar=urgency_radar, action_plan=action_plan,
+                contradictions=contradictions, opponent_playbook=opponent_playbook, leverage=leverage)
+        except Exception:  # noqa: BLE001 — i pannelli sono un di piu' per il Giudice
+            _fazat_x = ""
         answer_text = self._gjyqtari_fundit(
-            user_message, retrieved, precedents, answer_text, dosja_txt=dosja_txt_x)
+            user_message, retrieved, precedents, answer_text, dosja_txt=dosja_txt_x,
+            fazat_txt=_fazat_x)
 
         final_sid = getattr(self.backend, "last_session_id", None) or new_sid
         yield ("final", LegalAnswer(
@@ -3064,7 +3081,17 @@ class SuperAvvocato:
         answer_text = _apply_corrections(answer_text)
         answer_text = self._studio_djalli(user_message, retrieved, precedents, answer_text)
         # ⚖️ Il Giudice Finale (Fable 5.1 max): verdetto finale sul percorso non-stream.
-        answer_text = self._gjyqtari_fundit(user_message, retrieved, precedents, answer_text)
+        _fazat_n = ""
+        try:
+            _fazat_n = _risposta_dalle_fasi(
+                triage, strategic=strategic, timeline=timeline, comparison=comparison,
+                premortem=premortem, distinguishing=distinguishing, evidence_map=evidence_map,
+                nullity_radar=nullity_radar, urgency_radar=urgency_radar, action_plan=action_plan,
+                contradictions=contradictions, opponent_playbook=opponent_playbook, leverage=leverage)
+        except Exception:  # noqa: BLE001
+            _fazat_n = ""
+        answer_text = self._gjyqtari_fundit(user_message, retrieved, precedents, answer_text,
+                                            fazat_txt=_fazat_n)
         # ClaudeCodeBackend exposes the (possibly new) session_id after each
         # stateful call; other backends leave it as None.
         new_session_id = getattr(self.backend, "last_session_id", None) or session_id
@@ -3374,7 +3401,7 @@ class SuperAvvocato:
             return answer_text
 
     def _gjyqtari_fundit(self, user_message, retrieved, precedents, answer_text,
-                         dosja_txt=""):
+                         dosja_txt="", fazat_txt=""):
         """Il Giudice Finale (Fable 5.1 max effort): riceve la risposta completa
         (con gli attacchi del diavolo e le repliche = le menti degli altri agenti)
         + i nenet VERBATIM + il dossier dei raccoglitori (web/QBZ/Fletorja) e appende
@@ -3394,12 +3421,14 @@ class SuperAvvocato:
                 self.backend, domanda=user_message,
                 blloku_neneve=_format_articles_for_prompt(retrieved),
                 pergjigja=answer_text, dosja=dosja_txt or "", lang=lang,
-                modeli=STUDIO_GJYQTARI_MODEL, effort=STUDIO_GJYQTARI_EFFORT)
+                modeli=STUDIO_GJYQTARI_MODEL, effort=STUDIO_GJYQTARI_EFFORT,
+                fazat=fazat_txt or "")
             if not (vendim or "").strip():
                 return answer_text
             vendim = _apply_corrections(_verify_citations(vendim, precedents))
             log.info("studio: gjyqtari i fundit ka dhënë vendimin (%d shkronja)", len(vendim))
-            return answer_text + vendim
+            # v9.316 — il verdetto IN TESTA (prima la decisione, poi l'analisi completa)
+            return vendim + answer_text
         except Exception as exc:  # noqa: BLE001 — il verdetto non deve mai far cadere la risposta
             log.warning("studio: gjyqtari i fundit dështoi (non-fatal): %s", exc)
             return answer_text
@@ -5189,6 +5218,11 @@ class SuperAvvocato:
             elif kind == "final":
                 if isinstance(payload, dict):
                     new_sid = payload.get("session_id") or new_sid
+                    # v9.316 — con i tool attivi il backend consegna il testo
+                    # finale pulito (evento result): vince sui delta ricuciti
+                    _ft = str(payload.get("text") or "")
+                    if _ft.strip():
+                        collected = [_ft]
         yield ("final", {"text": "".join(collected), "session_id": new_sid})
 
     # ── stage 5: Albanian editor pass (V7.0 Tappa 3) ───────────────────────
