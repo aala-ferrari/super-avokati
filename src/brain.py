@@ -697,7 +697,8 @@ Përgjigju vetëm me një objekt JSON me këtë strukturë EKZAKTE:
   • "complex" = ka kundërshtar identifikuar, afat real që po afron, dokumente të bashkangjitura, kërkesa për strategji/nulltet/ankim, fakte të diskutueshme, dëm konkret, mundësi fitimi/humbjeje. Çdo gjë që të shtyn drejt sallës së gjyqit.
   • NË DYSHIM → "complex" (më mirë të përgjigjemi thellë se sipërfaqësisht).
 
-Vendos needs_followup=true VETËM kur mungojnë fakte kritike (p.sh. data e saktë e ngjarjes, a ka dëshmitarë, vlera e dëmit, a ka pasur akt njoftimi). Në shumicën e rasteve përpiqu të procesosh pa pyetje të tjera — avokati është i ngarkuar dhe nuk duhet ndalur për detaje që mund të infereshen nga konteksti."""
+Vendos needs_followup=true VETËM kur mungon një FAKT I THJESHTË që e di vetëm klienti/kolegu (p.sh. data e saktë e ngjarjes, a ka dëshmitarë, vlera e dëmit, a ka pasur akt njoftimi, a është administrator i vetëm). Në shumicën e rasteve përpiqu të procesosh pa pyetje të tjera — avokati është i ngarkuar dhe nuk duhet ndalur për detaje që mund të infereshen nga konteksti.
+NDALOHET si followup_question: çdo pyetje LIGJORE ose KLASIFIKIM juridik («çfarë lloj kufizimi/barre/akti është — hipotekë, sekuestro…?», «a është i vlefshëm?», «cila procedurë zbatohet?») — këto i përcakton VETË përgjigjja duke lexuar dokumentet dhe ligjin; dhe çdo pyetje për diçka që mund të jetë SHKRUAR në dokumentet e bashkëngjitura (natyra e një kufizimi, palët, datat, nr. e regjistrimit) — dokumentet i lexon përgjigjja e plotë, jo ti. Shënim: followup_question NUK e ndal kurrë përgjigjen — përgjigjja jepet gjithsesi në të dy degët dhe pyetja shtohet vetëm në fund."""
 
 
 STRATEGIC_SYSTEM = """Ti je avokat strateg shqiptar me përvojë në sallat e gjyqit — pjesa e avokatit që FITON kauzat.
@@ -2304,6 +2305,29 @@ class SuperAvvocato:
         giurisdizione della sessione, poi preambolo/override giurisdizionale."""
         return self._system_for(answer_system_for(base, self._current_jurisdiction()))
 
+    def _me_faktin_qe_mungon(self, user_message: str, followup_question: str) -> str:
+        """DECISIVO (v9.314): il fatto mancante trovato dal triage NON ferma la
+        risposta. Diventa una consegna in coda al messaggio: rispondi su ENTRAMBI
+        i rami (se sì / se no) e chiedi il fatto al collega in una riga finale;
+        se la risposta sta nei documenti allegati, prendila da lì e non chiedere.
+        Nella lingua della sessione (IT/AL), come ogni testo che il modello legge."""
+        q = _apply_corrections((followup_question or "").strip())[:400]
+        if not q:
+            return user_message
+        if self._current_jurisdiction() == "IT":
+            hint = ("\n\n[FATTO MANCANTE secondo il triage: «" + q + "» — NON fermare la "
+                    "risposta per questo: rispondi comunque su ENTRAMBI i rami (se sì / se "
+                    "no, o per ciascuno scenario possibile) e SOLO IN CODA chiedilo al collega "
+                    "con una riga «Per precisione: …». Se la risposta è nei documenti "
+                    "allegati, prendila da lì e NON chiedere affatto.]")
+        else:
+            hint = ("\n\n[FAKT QË MUNGON sipas triazhit: «" + q + "» — MOS e ndal përgjigjen "
+                    "për këtë: përgjigju gjithsesi NË TË DY DEGËT (nëse po / nëse jo, ose për "
+                    "secilin skenar të mundshëm) dhe VETËM NË FUND pyete kolegun me një rresht "
+                    "«Për saktësi: …». Nëse përgjigjja gjendet në dokumentet e bashkëngjitura, "
+                    "merre prej andej dhe MOS pyet fare.]")
+        return (user_message or "") + hint
+
     # ── stage orchestration helpers ────────────────────────────────────────
 
     def _run_stages(
@@ -2453,12 +2477,13 @@ class SuperAvvocato:
             )
 
         if triage.needs_followup and triage.followup_question:
-            followup_text = _apply_corrections(triage.followup_question)
-            yield ("final", LegalAnswer(
-                kind="followup", text=followup_text, triage=triage,
-                session_id=session_id,
-            ))
-            return
+            # DECISIVO (titolare, 10 e 14 set): NON ci si ferma alla domanda. Prima
+            # qui si tornava SOLO la domanda (kind="followup") e basta: «243 byte
+            # in 42 s» sul licenziamento, e la «natura del kufizim» chiesta con la
+            # risposta scritta nel documento. Ora il fatto mancante diventa una
+            # consegna al cervello: rispondi su ENTRAMBI i rami e chiedilo in coda.
+            user_message = self._me_faktin_qe_mungon(user_message, triage.followup_question)
+            log.info("stream triage: followup → degë + pyetje në fund (nuk ndalet)")
 
         if force_complex and triage.complexity == "simple":
             # «Analizë e thellë» chiesta dall'avvocato: sala di guerra completa.
@@ -2812,13 +2837,10 @@ class SuperAvvocato:
             )
 
         if triage.needs_followup and triage.followup_question:
-            # Post-process the follow-up question too — it's citizen-facing
-            # (the missing-facts screenshot where we caught korian/këtë).
-            followup_text = _apply_corrections(triage.followup_question)
-            return LegalAnswer(
-                kind="followup", text=followup_text, triage=triage,
-                session_id=session_id,
-            )
+            # DECISIVO: stessa regola del percorso stream — mai fermarsi alla
+            # domanda; il fatto mancante diventa consegna (due rami + domanda in coda).
+            user_message = self._me_faktin_qe_mungon(user_message, triage.followup_question)
+            log.info("triage: followup → degë + pyetje në fund (nuk ndalet)")
 
         if force_complex and triage.complexity == "simple":
             # «Analizë e thellë» chiesta dall'avvocato: sala di guerra completa.

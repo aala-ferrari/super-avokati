@@ -2359,10 +2359,36 @@ def main():
         # QKB = registro ALBANESE: la riga live sparisce in sessione IT, descrizione italiana
         _qkb62 = ('class="qkb-search" style="\' + ((document.body.dataset.lang === "it") ? "display:none;"' in _js62
                   and "Incolla la visura camerale (Registro Imprese)" in _js62)
-        check("i18n[62]: sessione IT = solo italiano — 15 residui del DOM vivo nel dizionario T_IT + it_58/59/61/64 senza albanese + option con value stabili + QKB nascosto in IT",
-              _in62 and _clean62 and _vals62 and _qkb62)
+        # il marcatore del verificatore di citazioni e' testo visibile: per lingua
+        import inspect as _insp62
+        from src import citation_shield as _cs62
+        _src62 = _insp62.getsource(_cs62.annotate_fake_citations)
+        _shield62 = ("verifica fallita" in _src62 and "verifikim dështoi" in _src62
+                     and "request_jurisdiction" in _src62)
+        check("i18n[62]: sessione IT = solo italiano — 15 residui del DOM vivo nel dizionario T_IT + it_58/59/61/64 senza albanese + option con value stabili + QKB nascosto in IT + marcatore citazioni per lingua",
+              _in62 and _clean62 and _vals62 and _qkb62 and _shield62)
     except Exception as _e62:  # noqa: BLE001
         check("i18n[62]: kontrollet u ekzekutuan", False, str(_e62))
+
+    # ── [63] DECISIVO: il triage NON ferma più la risposta con una sola domanda (14 set) ──
+    # Audit IT: «Avvocato — risposta principale» tornava in 42 s con 243 byte = SOLO la
+    # domanda del triage (kind="followup"), nessuna risposta; stesso schema dello
+    # screenshot AL («che natura ha il kufizim?»). Ora il fatto mancante diventa una
+    # consegna al cervello (due rami + domanda in coda), in entrambi i percorsi.
+    try:
+        import inspect as _insp63
+        _s_stream = _insp63.getsource(brain.SuperAvvocato.answer_stream)
+        _s_answer = _insp63.getsource(brain.SuperAvvocato.answer)
+        _tri63 = brain.TRIAGE_SYSTEM if hasattr(brain, "TRIAGE_SYSTEM") else ""
+        check("decisivo[63]: nessun ritorno kind=followup — il fatto mancante diventa consegna (due rami + domanda in coda) in answer_stream E answer; triage vieta classificazione/allegati",
+              # la COSTRUZIONE reale, non le parole (il commento cita kind="followup")
+              'kind="followup", text=' not in _s_stream and 'kind="followup", text=' not in _s_answer
+              and "_me_faktin_qe_mungon" in _s_stream and "_me_faktin_qe_mungon" in _s_answer
+              and hasattr(brain.SuperAvvocato, "_me_faktin_qe_mungon")
+              and "NDALOHET si followup_question" in _tri63
+              and "NUK e ndal kurrë përgjigjen" in _tri63)
+    except Exception as _e63:  # noqa: BLE001
+        check("decisivo[63]: kontrollet u ekzekutuan", False, str(_e63))
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

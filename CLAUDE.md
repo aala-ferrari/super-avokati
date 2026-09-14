@@ -574,7 +574,7 @@ errori, non che le risposte sono ancora giuste. Riferimento verificato il
 12 articoli recuperati per ciascuna.
 
 ```bash
-docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62]). Baseline **447/447** (14 set; era 98 il 31 ago).
+docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63]). Baseline **448/448** (14 set; era 98 il 31 ago).
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 bash /root/prova_sse.sh                                    # SULL'HOST (legge il secret da /opt/super-avvocato.env; copia in tools/prova_sse.sh): account di prova → login → fascicolo → 1 domanda VERA → stream /api/ask/events attraverso waitress. Deve dire «HTTP 200 … done: 1» (~50s, costa 1 chiamata al cervello) e cancella l'account. Dopo OGNI build che tocca web.py o le rotte SSE.
@@ -1433,6 +1433,27 @@ rischio residuo della DPIA.
 - Super Avokati ha auth propria (login_required_api); utenti creati da admin o auto-provisionati da AALA (`/api/provision-demo`, secret-guarded).
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
+
+**v9.314 — DECISIVO davvero: il triage non ferma più la risposta con una sola domanda (14 set).**
+Beccato dall'audit IT completo: «Avvocato — risposta principale» (licenziamento) tornava
+**in 42 s con 243 byte** = SOLO la domanda del triage («Qual è la data di assunzione e di
+ricezione della lettera…?»), nessuna risposta. Stesso schema dello screenshot AL dell'11 set
+(«che natura ha il kufizim?»). **Causa**: `TriageResult.needs_followup/followup_question` →
+`answer_stream` (riga ~2455) e `answer()` (~2814) restituivano `kind="followup"` e si fermavano
+PRIMA di retrieval/fasi/compose — un cancello DIVERSO da `_detect_missing_facts` (corretto in
+v9.311); e il triage vede i documenti in `compact` (testo omesso) → chiedeva cose scritte
+nell'allegato. **Fix**: il fatto mancante non ferma nulla — `SuperAvvocato._me_faktin_qe_mungon()`
+lo accoda al messaggio come consegna (nella lingua della sessione): «rispondi comunque su
+ENTRAMBI i rami (se sì/se no) e SOLO IN CODA chiedilo con una riga "Per precisione: …"; se è nei
+documenti allegati prendilo da lì e NON chiedere»; in entrambi i percorsi. `TRIAGE_SYSTEM`:
+`needs_followup` solo per FATTI SEMPLICI che sa solo il cliente; VIETATE classificazioni
+giuridiche e domande su cose che possono essere scritte negli allegati; «followup_question NON
+ferma mai la risposta». `kind="followup"` resta nel dataclass (compatibilità) ma non viene più
+emesso. Golden **[63]** (costruzione reale `kind="followup", text=` assente + helper cablato +
+regole nel triage). **Inoltre** (stesso audit): il Procuratore italiano conteneva
+«[⚠ verifikim dështoi]» — marcatore FISSO albanese di `citation_shield.annotate_fake_citations`
+(3 chiamanti in web.py) → per lingua via `request_jurisdiction()` (import differito): IT «[⚠
+verifica fallita]»; provato vivo; aggiunto a golden [62]. QA: golden **448**, smoke 110.
 
 **v9.313 — SESSIONE ITALIANA = SOLO ITALIANO: i residui veri del DOM vivo + audit 10/10 notaio IT (14 set).**
 Regola del titolare («ogni lettera in italiano, nulla in albanese nella sessione italiana, né

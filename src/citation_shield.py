@@ -295,11 +295,21 @@ def annotate_fake_citations(text: str, citations_payload: dict[str, Any]) -> str
     if not fake_raws:
         return text
 
+    # Il marcatore e' testo VISIBILE nella risposta: nella lingua della sessione
+    # (v9.314 — l'audit IT trovava «[⚠ verifikim dështoi]» dentro il parere del
+    # procuratore italiano). Import differito: brain importa questo modulo.
+    try:
+        from .brain import request_jurisdiction as _rj
+        _it = (_rj() or "AL").upper() == "IT"
+    except Exception:  # noqa: BLE001 - fuori richiesta si resta albanesi
+        _it = False
+    tag = " [⚠ verifica fallita]" if _it else " [⚠ verifikim dështoi]"
+
     out = text
     for raw in fake_raws:
         # Replace only first occurrence to avoid runaway substitutions on
         # repeated citations.
-        marker = f"{raw} [⚠ verifikim dështoi]"
+        marker = f"{raw}{tag}"
         # word-boundary replacement, case-insensitive
         pattern = re.compile(re.escape(raw), re.IGNORECASE)
         out, n = pattern.subn(marker, out, count=1)
