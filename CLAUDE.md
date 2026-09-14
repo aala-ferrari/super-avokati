@@ -574,7 +574,7 @@ errori, non che le risposte sono ancora giuste. Riferimento verificato il
 12 articoli recuperati per ciascuna.
 
 ```bash
-docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63], triage-trim+giudice-no-web [64], chat-web+verdetto-in-testa+pannelli-IT [65], codice-nominato→area [66], timeout-45min+ripiego-no-web [67]). Baseline **452/452** (14 set; era 98 il 31 ago).
+docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63], triage-trim+giudice-no-web [64], chat-web+verdetto-in-testa+pannelli-IT [65], codice-nominato→area [66], timeout-45min+ripiego-no-web [67], fasi-bilingue+giudice-no-web+duello-a-scomparsa [68]). Baseline **453/453** (15 set; era 98 il 31 ago).
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 bash /root/prova_sse.sh                                    # SULL'HOST (legge il secret da /opt/super-avvocato.env; copia in tools/prova_sse.sh): account di prova → login → fascicolo → 1 domanda VERA → stream /api/ask/events attraverso waitress. Deve dire «HTTP 200 … done: 1» (~50s, costa 1 chiamata al cervello) e cancella l'account. Dopo OGNI build che tocca web.py o le rotte SSE.
@@ -1433,6 +1433,26 @@ rischio residuo della DPIA.
 - Super Avokati ha auth propria (login_required_api); utenti creati da admin o auto-provisionati da AALA (`/api/provision-demo`, secret-guarded).
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
+
+**v9.319 — PROVA VIVA sul percorso della chat (caso auto shpk, IT e AL) + tre rifiniture (15 set).**
+`tools/prova_chat_caso.py` (job + SSE come il browser). **IT**: 1954 s, 42.321 chr — verdetto
+IN TESTA («SÌ, CON CONDIZIONI — ✅ Regge»), **17 fonti web** (il senior in streaming ha
+navigato: 686k token), zero «accesso negato» nel corpo, «Pannelli da correggere» con 4 errori
+reali (art. 93 abrogato dal D.L. 121/2021, AIRE solo per italiani, comma del 93-bis, fermo
+immediato), corregge un termine (Prefetto 60 gg), aggiunge patente (artt. 135-136) e dogana
+(residenza abituale, art. 5 n. 31 CDU), «Per precisione» in coda; 1 `ë` = «certifikatë banimi»
+(nome del documento). **AL** (stessa domanda in albanese): 1957 s, 38.268 chr — «VENDIMI: ✅
+Qëndron — Po, me kushte», 10 fonti, **0 italiano**, 6 pannelli corretti, discrepanza confisca
+180/30 gg marcata «për t'u verifikuar» (fonte ACI vecchia nel dossier). **Rifiniture**: (1)
+`_risposta_dalle_fasi` nella lingua della sessione (`_FASI_T`, `_ETICHETTA_BUCKET_IT`, `intro=`)
+— era solo albanese: in IT il ripiego finale usciva con titoli albanesi e il Giudice, che lo
+riceve come «pannelli», segnalava «intestazioni in albanese»; (2) il Giudice sa di essere
+**senza web per scelta** («la verifica viva richiesta sopra NON si applica a te»): l'override
+IT gli imponeva la Cassazione e lui scriveva «WebSearch negato»; (3) **duello a scomparsa**
+nella UI: `collapseSparring()` in `renderMarkdown` avvolge ⚔️/🛡️ (`<h4>`: i «###» escono h4)
+in `<details class="sparring">` fino al titolo successivo — verdetto → analisi leggibili, il
+controllo interno a un click (app.js?v=167). Golden **[68]**. Lunghezza residua: 5 sezioni +
+fonti ≈ 25-30k; il prossimo taglio è nel formato del senior, non nel Giudice.
 
 **v9.318 — compose scaduto: tetto 45 min (env) + ripiego SENZA web (14 set).** L'audit
 immobiliare IT (visura incollata, /api/ask non-stream): compose con web da 20:51 a 21:21 →

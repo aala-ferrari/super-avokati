@@ -2741,7 +2741,7 @@
       out.push(`<p>${inline(l)}</p>`);
     }
     closeList();
-    return out.join("\n").replace(/(<\/p>\s*){2,}/g, "</p>");
+    return collapseSparring(out.join("\n").replace(/(<\/p>\s*){2,}/g, "</p>"));
 
     function openList(kind) {
       if (inList === kind) return;
@@ -2765,6 +2765,32 @@
     return String(s)
       .replace(/&/g, "&amp;").replace(/</g, "&lt;")
       .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  // v9.319 — il duello interno (⚔️ avvocato del diavolo · 🛡️ replica del senior)
+  // va «a scomparsa»: la lettura principale è verdetto → analisi; il controllo
+  // interno resta a un click (il titolare: «troppo lunga e confusa»). I titoli
+  // «### …» del markdown escono come <h4>; una sezione si chiude al titolo
+  // successivo che non è un duello. Fallisce in silenzio: torna l'HTML intatto.
+  function collapseSparring(html) {
+    try {
+      if (!/<h4>(⚔️|🛡️)/.test(html)) return html;
+      const parts = html.split(/(?=<h[2-4]>)/);
+      let out = "", open = false;
+      for (const part of parts) {
+        const m = part.match(/^<h4>([^<]*)<\/h4>/);
+        if (m && /^(⚔️|🛡️)/.test(m[1])) {
+          if (open) out += "</details>";
+          out += '<details class="sparring"><summary>' + m[1] + "</summary>" + part.slice(m[0].length);
+          open = true;
+        } else {
+          if (open && /^<h[2-4]>/.test(part)) { out += "</details>"; open = false; }
+          out += part;
+        }
+      }
+      if (open) out += "</details>";
+      return out;
+    } catch (e) { return html; }
   }
 
 

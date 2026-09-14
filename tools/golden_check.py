@@ -2481,6 +2481,32 @@ def main():
     except Exception as _e67:  # noqa: BLE001
         check("timeout[67]: kontrollet u ekzekutuan", False, str(_e67))
 
+    # ── [68] Referto delle fasi bilingue + Giudice «senza web per scelta» + duello a scomparsa (15 set) ──
+    # Prova viva IT (caso auto shpk): il Giudice segnalava «intestazioni in albanese» nei
+    # pannelli (era _risposta_dalle_fasi, solo albanese — anche come ripiego finale in IT) e
+    # «WebSearch negato» (l'override IT gli imponeva la Cassazione viva). E il duello
+    # diavolo/replica allungava la lettura: ora <details> nella UI.
+    try:
+        import inspect as _insp68
+        from src import studio as _st68
+        _rf68 = _insp68.getsource(brain._risposta_dalle_fasi)
+        _rr68 = _os2.path.dirname(_os2.path.dirname(_os2.path.abspath(__file__)))
+        _js68 = _io2.open(_os2.path.join(_rr68, "static", "app.js"), encoding="utf-8").read()
+        _html68 = _io2.open(_os2.path.join(_rr68, "templates", "index.html"), encoding="utf-8").read()
+        _gs68 = _st68.GJYQTARI_SYSTEM
+        brain.set_request_jurisdiction("IT")
+        _it_txt = brain._risposta_dalle_fasi(brain.TriageResult(problem_summary="x", areas=[], search_queries=["x"], strategic_angles=[], needs_followup=False, followup_question=""))
+        brain.set_request_jurisdiction("AL")
+        _al_txt = brain._risposta_dalle_fasi(brain.TriageResult(problem_summary="x", areas=[], search_queries=["x"], strategic_angles=[], needs_followup=False, followup_question=""))
+        check("fasi[68]: _risposta_dalle_fasi nella lingua della sessione (IT/AL) + intro opzionale; Giudice «senza web per scelta» (sq+it); duello diavolo/replica a scomparsa (collapseSparring, app.js?v=167)",
+              "La sintesi finale non è stata prodotta" in _it_txt and "Sinteza përfundimuese" in _al_txt
+              and "intro: bool = True" in _rf68 and "_ETICHETTA_BUCKET_IT" in _rf68
+              and "SENZA WEB, PER SCELTA" in _gs68["it"] and "PA WEB, ME QËLLIM" in _gs68["sq"]
+              and "function collapseSparring(html)" in _js68 and "return collapseSparring(" in _js68
+              and "app.js?v=167" in _html68)
+    except Exception as _e68:  # noqa: BLE001
+        check("fasi[68]: kontrollet u ekzekutuan", False, str(_e68))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

@@ -1966,6 +1966,39 @@ _ETICHETTA_BUCKET = {
     "ky_muaj": "KËTË MUAJ",
     "më_vonë": "MË VONË",
 }
+_ETICHETTA_BUCKET_IT = {
+    "sot": "OGGI",
+    "kjo_javë": "QUESTA SETTIMANA",
+    "ky_muaj": "QUESTO MESE",
+    "më_vonë": "PIÙ AVANTI",
+}
+# v9.319 — il referto dalle fasi parla la lingua della sessione (era solo albanese:
+# in IT il ripiego finale usciva con titoli albanesi, e il Giudice — che lo riceve
+# come «pannelli» — segnalava «intestazioni in albanese» come errore).
+_FASI_T = {
+    "sq": {
+        "intro": ("> ⚠️ **Sinteza përfundimuese nuk u prodhua dot** (analiza zgjati "
+                  "përtej kufirit teknik). Më poshtë janë **rezultatet e plota të "
+                  "fazave**, që u kryen me sukses. Pyet sërish për një sintezë të shkruar."),
+        "urg": "## ⏰ Afate dhe rreziqe të ngutshme", "afat": " — afat: **%s**",
+        "pse": "  - *Pse:* %s", "veprim": "  - *Veprim:* %s",
+        "plan": "## ✅ Plani i veprimit", "nul": "## ⚖️ Pavlefshmëri të mundshme",
+        "baza": "  - *Baza:* %s", "strat": "## 🎯 Pika strategjike",
+        "kund": "## 🔍 Kundërthënie në dosje",
+        "asgje": "*Asnjë fazë nuk ktheu rezultate të përdorshme. Provo ta bësh pyetjen sërish.*",
+    },
+    "it": {
+        "intro": ("> ⚠️ **La sintesi finale non è stata prodotta** (l'analisi ha superato "
+                  "il limite tecnico). Qui sotto ci sono i **risultati completi delle fasi**, "
+                  "eseguite con successo. Richiedi una sintesi scritta."),
+        "urg": "## ⏰ Termini e rischi urgenti", "afat": " — termine: **%s**",
+        "pse": "  - *Perché:* %s", "veprim": "  - *Azione:* %s",
+        "plan": "## ✅ Piano d'azione", "nul": "## ⚖️ Possibili nullità",
+        "baza": "  - *Base:* %s", "strat": "## 🎯 Punti strategici",
+        "kund": "## 🔍 Contraddizioni nel fascicolo",
+        "asgje": "*Nessuna fase ha restituito risultati utilizzabili. Riprova la domanda.*",
+    },
+}
 
 
 # Quanto materiale si puo' dare da leggere in una sola composizione.
@@ -2077,7 +2110,7 @@ def _risposta_dalle_fasi(triage, *, strategic=None, timeline=None,
                          evidence_map=None, nullity_radar=None,
                          urgency_radar=None, action_plan=None,
                          contradictions=None, opponent_playbook=None,
-                         leverage=None) -> str:
+                         leverage=None, intro: bool = True) -> str:
     """Il referto costruito dalle fasi, SENZA chiamare il cervello.
 
     Ultimo gradino quando la composizione non ce la fa. Non chiama nulla,
@@ -2086,30 +2119,28 @@ def _risposta_dalle_fasi(triage, *, strategic=None, timeline=None,
     ⚠️ Dice sempre in testa cosa manca. Una risposta piu' povera che si
     spaccia per completa e' peggio di un errore, perche' l'avvocato ci
     costruisce sopra senza sapere che la sintesi finale non c'e'.
+    `intro=False` quando serve solo il contenuto (i pannelli per il Giudice).
+    Lingua della sessione (v9.319).
     """
-    p: list[str] = [
-        "> ⚠️ **Sinteza përfundimuese nuk u prodhua dot** (analiza zgjati "
-        "përtej kufirit teknik). Më poshtë janë **rezultatet e plota të "
-        "fazave**, që u kryen me sukses. Pyet sërish për një sintezë të "
-        "shkruar.",
-        "",
-    ]
+    T = _FASI_T["it" if (request_jurisdiction() or "AL").upper() == "IT" else "sq"]
+    _lbl = _ETICHETTA_BUCKET_IT if T is _FASI_T["it"] else _ETICHETTA_BUCKET
+    p: list[str] = [T["intro"], ""] if intro else []
 
     if urgency_radar is not None and not urgency_radar.is_empty():
-        p.append("## ⏰ Afate dhe rreziqe të ngutshme")
+        p.append(T["urg"])
         for sig in urgency_radar.signals[:8]:
             riga = "- **%s**" % (sig.label or sig.kind)
             if sig.deadline:
-                riga += " — afat: **%s**" % sig.deadline
+                riga += T["afat"] % sig.deadline
             p.append(riga)
             if sig.reason:
-                p.append("  - *Pse:* %s" % sig.reason)
+                p.append(T["pse"] % sig.reason)
             if sig.action:
-                p.append("  - *Veprim:* %s" % sig.action)
+                p.append(T["veprim"] % sig.action)
         p.append("")
 
     if action_plan is not None and not action_plan.is_empty():
-        p.append("## ✅ Plani i veprimit")
+        p.append(T["plan"])
         # ⚠️ Ordine cronologico, non alfabetico: «kjo_javë» viene prima di
         # «sot» in alfabeto, e il piano usciva col rovescio. Su un piano
         # d'azione legale l'ordine E' l'informazione — la prima riga e'
@@ -2122,7 +2153,7 @@ def _risposta_dalle_fasi(triage, *, strategic=None, timeline=None,
         for it in _ordinati[:20]:
             if it.bucket != _bucket:
                 _bucket = it.bucket
-                p.append("**%s**" % _ETICHETTA_BUCKET.get(_bucket, str(_bucket)))
+                p.append("**%s**" % _lbl.get(_bucket, str(_bucket)))
             riga = "- %s" % it.text
             if it.legal_basis:
                 riga += "  *(%s)*" % it.legal_basis
@@ -2134,16 +2165,16 @@ def _risposta_dalle_fasi(triage, *, strategic=None, timeline=None,
     if nullity_radar is not None and not nullity_radar.is_empty():
         _app = nullity_radar.applicable() or nullity_radar.findings
         if _app:
-            p.append("## ⚖️ Pavlefshmëri të mundshme")
+            p.append(T["nul"])
             for f in _app[:8]:
                 p.append("- **%s**" % getattr(f, "label", getattr(f, "title", "—")))
                 _b = getattr(f, "legal_basis", "") or getattr(f, "basis", "")
                 if _b:
-                    p.append("  - *Baza:* %s" % _b)
+                    p.append(T["baza"] % _b)
             p.append("")
 
     if strategic is not None and not strategic.is_empty():
-        p.append("## 🎯 Pika strategjike")
+        p.append(T["strat"])
         for ins in strategic.critical_details[:8]:
             p.append("- **%s** — %s" % (ins.title, ins.detail))
         for w in strategic.risk_warnings[:6]:
@@ -2151,15 +2182,14 @@ def _risposta_dalle_fasi(triage, *, strategic=None, timeline=None,
         p.append("")
 
     if contradictions is not None and not getattr(contradictions, "is_empty", lambda: True)():
-        p.append("## 🔍 Kundërthënie në dosje")
+        p.append(T["kund"])
         for c in getattr(contradictions, "items", [])[:8]:
             p.append("- %s" % (getattr(c, "description", None)
                                or getattr(c, "text", "") or str(c))[:300])
         p.append("")
 
-    if len(p) <= 2:
-        p.append("*Asnjë fazë nuk ktheu rezultate të përdorshme. "
-                 "Provo ta bësh pyetjen sërish.*")
+    if len(p) <= (2 if intro else 0):
+        p.append(T["asgje"])
     return "\n".join(p)
 
 
@@ -2745,7 +2775,8 @@ class SuperAvvocato:
                 triage, strategic=strategic, timeline=timeline, comparison=comparison,
                 premortem=premortem, distinguishing=distinguishing, evidence_map=evidence_map,
                 nullity_radar=nullity_radar, urgency_radar=urgency_radar, action_plan=action_plan,
-                contradictions=contradictions, opponent_playbook=opponent_playbook, leverage=leverage)
+                contradictions=contradictions, opponent_playbook=opponent_playbook, leverage=leverage,
+                intro=False)
         except Exception:  # noqa: BLE001 — i pannelli sono un di piu' per il Giudice
             _fazat_x = ""
         answer_text = self._gjyqtari_fundit(
@@ -3087,7 +3118,8 @@ class SuperAvvocato:
                 triage, strategic=strategic, timeline=timeline, comparison=comparison,
                 premortem=premortem, distinguishing=distinguishing, evidence_map=evidence_map,
                 nullity_radar=nullity_radar, urgency_radar=urgency_radar, action_plan=action_plan,
-                contradictions=contradictions, opponent_playbook=opponent_playbook, leverage=leverage)
+                contradictions=contradictions, opponent_playbook=opponent_playbook, leverage=leverage,
+                intro=False)
         except Exception:  # noqa: BLE001
             _fazat_n = ""
         answer_text = self._gjyqtari_fundit(user_message, retrieved, precedents, answer_text,
