@@ -2450,6 +2450,21 @@ def main():
     except Exception as _e65:  # noqa: BLE001
         check("chat[65]: kontrollet u ekzekutuan", False, str(_e65))
 
+    # ── [66] Il codice NOMINATO nella domanda entra sempre nelle aree del triage (14 set) ──
+    # Prova SSE: «Cili nen i Kodit Rrugor dënon zhurmën…» → il triage veloce una volta su
+    # cinque perde «Rrugor» → ancore su procedura amministrativa → «nuk gjej përgjigje».
+    try:
+        import inspect as _insp66
+        _t66 = _insp66.getsource(brain.SuperAvvocato._triage)
+        check("triage[66]: _areas_from_code_names (Kodit Rrugor→Rrugor, Kodit Civil→Civil, Kodit të Punës→Punë, procedurës penale→Penal) + merge nelle aree del triage (AL)",
+              brain._areas_from_code_names("Cili nen i Kodit Rrugor dënon zhurmën e tepërt të marmitës?") == ["Rrugor"]
+              and brain._areas_from_code_names("sipas Kodit Civil dhe Kodit të Punës") == ["Civil", "Punë"]
+              and brain._areas_from_code_names("neni 5 i Kodit të Procedurës Penale") == ["Penal"]
+              and brain._areas_from_code_names("una domanda senza codici") == []
+              and "_areas_from_code_names(user_message)" in _t66 and "areas=areas," in _t66)
+    except Exception as _e66:  # noqa: BLE001
+        check("triage[66]: kontrollet u ekzekutuan", False, str(_e66))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

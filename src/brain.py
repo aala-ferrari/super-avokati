@@ -3181,9 +3181,18 @@ class SuperAvvocato:
         if complexity == "complex" and _looks_simple(user_message, documents):
             log.info("triage: heuristic override complex→simple")
             complexity = "simple"
+        areas = list(data.get("areas") or [])
+        if self._current_jurisdiction() != "IT":
+            # v9.317 — il codice nominato dall'avvocato vince sulla variabilita'
+            # del classificatore (retrieval per area: senza «Rrugor» il Kodi
+            # Rrugor non entra nemmeno nel blocco dei nenet)
+            for _a in _areas_from_code_names(user_message):
+                if _a not in areas:
+                    areas.append(_a)
+                    log.info("triage: area «%s» shtuar nga emri i kodit në pyetje", _a)
         return TriageResult(
             problem_summary=str(data.get("problem_summary", "")),
-            areas=list(data.get("areas") or []),
+            areas=areas,
             search_queries=list(data.get("search_queries") or []) or [user_message],
             strategic_angles=list(data.get("strategic_angles") or []),
             needs_followup=bool(data.get("needs_followup", False)),
@@ -5407,6 +5416,37 @@ def _has_adversary(
             return True
     lower = _norm(user_message)
     return any(_norm(marker) in lower for marker in _ADVERSARY_MARKERS)
+
+
+# v9.317 — se la domanda NOMINA un codice, quell'area entra SEMPRE nel triage.
+# Misurato: sulla stessa domanda «Cili nen i Kodit Rrugor dënon zhurmën…» il
+# classificatore veloce dava ['Rrugor','Administrativ'] 4 volte su 5 e una volta
+# solo ['Administrativ'] → ancore su procedura amministrativa, risposta «nuk gjej».
+# Un nome di codice scritto dall'avvocato non e' un'opinione del modello.
+_KODE_NE_PYETJE = (
+    (re.compile(r"\bkod(?:i|it|in)\s+rrugor\b", re.I), "Rrugor"),
+    (re.compile(r"\bkod(?:i|it|in)\s+civil\b", re.I), "Civil"),
+    (re.compile(r"\bkod(?:i|it|in)\s+penal\b", re.I), "Penal"),
+    (re.compile(r"\bkod(?:i|it|in)\s+t[ëe]\s+pun[ëe]s\b", re.I), "Punë"),
+    (re.compile(r"\bkod(?:i|it|in)\s+t[ëe]\s+familjes\b", re.I), "Familje"),
+    (re.compile(r"\bkod(?:i|it|in)\s+doganor\b", re.I), "Doganor"),
+    (re.compile(r"\bkod(?:i|it|in)\s+detar\b", re.I), "Detar"),
+    (re.compile(r"\bkod(?:i|it|in)\s+ajror\b", re.I), "Ajror"),
+    (re.compile(r"\bkod(?:i|it|in)\s+zgjedhor\b", re.I), "Zgjedhor"),
+    (re.compile(r"\bkod(?:i|it|in)\s+(?:t[ëe]\s+)?procedur[ëa]s?\s+administrative\b", re.I), "Administrativ"),
+    (re.compile(r"\bkod(?:i|it|in)\s+(?:t[ëe]\s+)?procedur[ëa]s?\s+civile\b", re.I), "Civil"),
+    (re.compile(r"\bkod(?:i|it|in)\s+(?:t[ëe]\s+)?procedur[ëa]s?\s+penale\b", re.I), "Penal"),
+)
+
+
+def _areas_from_code_names(user_message: str) -> list[str]:
+    """Le aree dei codici NOMINATI nella domanda (AL), nell'ordine in cui compaiono."""
+    s = user_message or ""
+    out: list[str] = []
+    for rx, area in _KODE_NE_PYETJE:
+        if rx.search(s) and area not in out:
+            out.append(area)
+    return out
 
 
 _TRIAGE_BUDGET = 4000
