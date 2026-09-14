@@ -846,8 +846,8 @@ def main():
               "muri eshte tavan fiks: riprovimi ishte i dënuar që në fillim")
         check("kompozimi: rikompozon nga fazat e bëra",
               "ricompongo dalle fasi" in _b0)
-        check("kompozimi: riprova pa bashkëngjitjet",
-              "documents=None, **_fasi" in _b0,
+        check("kompozimi: riprova pa bashkëngjitjet (dhe pa web, v9.318)",
+              "documents=None, no_web=True, **_fasi" in _b0,
               "bashkëngjitjet janë pesha që e bëri të skadonte")
         check("kompozimi: referat pa tru si hap i fundit",
               "_risposta_dalle_fasi" in _b0,
@@ -2464,6 +2464,22 @@ def main():
               and "_areas_from_code_names(user_message)" in _t66 and "areas=areas," in _t66)
     except Exception as _e66:  # noqa: BLE001
         check("triage[66]: kontrollet u ekzekutuan", False, str(_e66))
+
+    # ── [67] Compose scaduto: tetto 45 min (env) + ripiego SENZA web (14 set) ──
+    # L'audit immobiliare IT: compose con web > 30 min → «brain failure». Ora il tetto
+    # e' TETRAMORPH_TIMEOUT_S (2700) e il ripiego «ricompongo dalle fasi» non naviga.
+    try:
+        import inspect as _insp67
+        from src import backends as _bk67
+        _bs67 = _insp67.getsource(_bk67)
+        _as67 = _insp67.getsource(brain.SuperAvvocato.answer_stream)
+        _ca67 = _insp67.getsource(brain.SuperAvvocato._compose_answer)
+        check("timeout[67]: TETRAMORPH_TIMEOUT_S (default 2700) + ripiego compose no_web=True",
+              'os.environ.get("TETRAMORPH_TIMEOUT_S", "2700")' in _bs67
+              and "documents=None, no_web=True, **_fasi" in _as67
+              and '({"no_web": True} if no_web else {})' in _ca67)
+    except Exception as _e67:  # noqa: BLE001
+        check("timeout[67]: kontrollet u ekzekutuan", False, str(_e67))
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

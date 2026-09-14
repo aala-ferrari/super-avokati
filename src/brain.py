@@ -2681,7 +2681,7 @@ class SuperAvvocato:
             try:
                 testo = self._compose_answer(
                     user_message, history, triage, retrieved, precedents,
-                    session_id=session_id, documents=None, **_fasi,
+                    session_id=session_id, documents=None, no_web=True, **_fasi,
                 )
             except Exception as exc2:  # noqa: BLE001
                 log.error("anche la ricomposizione e' fallita (%s) — "
@@ -5135,6 +5135,7 @@ class SuperAvvocato:
         session_id: str | None = None,
         documents: list[dict] | None = None,
         dosja_txt: str = "",
+        no_web: bool = False,
     ) -> str:
         messages, attachment_paths = self._build_compose_messages(
             user_message, history, triage, retrieved, precedents,
@@ -5151,6 +5152,8 @@ class SuperAvvocato:
             session_id=session_id,
             attachments=attachment_paths or None,
             **_senior_override(request_senior()),
+            # v9.318 — il ripiego dopo un compose scaduto gira SENZA web: deve finire
+            **({"no_web": True} if no_web else {}),
         )
 
     def _compose_answer_stream(

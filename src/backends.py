@@ -342,7 +342,9 @@ class ClaudeCodeBackend(LLMBackend):
         medium_model: str = "sonnet",
         fast_model: str = "sonnet",
         cli_path: str | None = None,
-        timeout_s: int = 1800,
+        # v9.318 — 45 min di default (era 30): il compose complesso IT con il web
+        # (Cassazione viva) ha superato i 30 min → «brain failure». Env per regolarlo.
+        timeout_s: int = int(os.environ.get("TETRAMORPH_TIMEOUT_S", "2700")),
         effort: str | None = "max",
         medium_effort: str | None = None,
     ):
