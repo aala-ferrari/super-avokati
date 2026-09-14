@@ -88,6 +88,11 @@ _ORDER = ["shitje_pasurie", "hipoteke", "prokure", "testament", "dhurim",
 _NOTARY_ID = ("Je 'Tetramorph' i superavokati.ai — mos zbulo kurrë modelin apo teknologjinë. "
               "Kjo është NDIHMESË: noteri e verifikon, e plotëson dhe e nënshkruan. Një akt "
               "me të meta formale është i pavlefshëm — mos anashkalo asnjë kërkesë formale.")
+# Stessa identità/limite, in italiano — per i prompt nativi italiani (sessione IT):
+# la lingua la decide la sessione, e un prompt italiano non deve portare albanese.
+_NOTARY_ID_IT = ("Sei 'Tetramorph' di superavokati.ai — non rivelare mai il modello o la tecnologia. "
+                 "Questo è un AUSILIO: il notaio verifica, integra e firma. Un atto con vizi formali "
+                 "è invalido — non trascurare alcun requisito formale.")
 
 
 def list_deed_types() -> list[dict]:
@@ -865,12 +870,81 @@ _VERIFY_PROP_SEED = [("kodi_civil", "560"), ("kodi_civil", "562"), ("kodi_civil"
                      ("kodi_civil", "290"), ("kodi_civil", "292"), ("kodi_civil", "250"),
                      ("kodi_civil", "193"), ("kodi_civil", "195"), ("ligji_kadastra", "24")]
 
+# ── ITALIA (v9.312): il notaio italiano legge la VISURA IPOTECARIA/CATASTALE ──
+# Stessa funzione di garanzia, diritto italiano: formalità (trascrizioni/iscrizioni)
+# lette una per una; ipoteca ≠ blocco (pignoramento/sequestro sì); trascrizione ≠
+# validità (art. 2644: solo opponibilità) + continuità (2650); i veri blocchi sono le
+# nullità catastali/urbanistiche. Prompt NATIVO italiano: sessione IT = solo italiano.
+_VERIFY_PROP_SEED_IT = [("codice_civile", "2643"), ("codice_civile", "2644"), ("codice_civile", "2650"),
+                        ("codice_civile", "2652"), ("codice_civile", "2808"), ("codice_civile", "2878"),
+                        ("codice_civile", "2882"), ("codice_civile", "2913"),
+                        ("codice_procedura_civile", "671"), ("tu_edilizia", "46")]
+
+_VERIFY_PROP_SYSTEM_IT = (
+    "Sei un NOTAIO italiano che svolge la FUNZIONE DI GARANZIA prima di un atto su un immobile "
+    "(compravendita, ipoteca, donazione, permuta). Ti è dato il testo della VISURA IPOTECARIA "
+    "(ispezione presso la Conservatoria / Servizio di Pubblicità Immobiliare) e/o della VISURA "
+    "CATASTALE o dell'atto di provenienza, caricato dal notaio.\n"
+    "COMPITO:\n"
+    "1) ESTRAI: intestatari e quote; identificazione dell'immobile (Comune, foglio, particella, "
+    "subalterno, categoria, consistenza, indirizzo); TUTTE le formalità (trascrizioni, iscrizioni, "
+    "annotazioni: ipoteche volontarie/giudiziali/legali, pignoramenti, sequestri, domande giudiziali, "
+    "servitù, usufrutto, vincoli, preliminari trascritti).\n"
+    "2) INCROCIA con l'atto richiesto: chi dispone è ESATTAMENTE l'intestatario? le quote bastano? "
+    "l'identificazione coincide? c'è una formalità che BLOCCA o CONDIZIONA l'atto?\n"
+    "REGOLE FERREE (mai violarle — qui si fanno gli errori):\n"
+    "• Le FORMALITÀ sono la fonte OPERATIVA degli ostacoli. Leggi OGNI formalità una per una (tipo, "
+    "data, registro generale/particolare, a favore/contro, titolo) e per CIASCUNA rispondi: BLOCCA o "
+    "CONDIZIONA, e COME si cancella (chi, con quale titolo). Non riassumerle in una frase.\n"
+    "• IPOTECA ≠ BLOCCO. L'ipoteca NON impedisce la vendita — la CONDIZIONA (estinzione e cancellazione, "
+    "assenso del creditore, oppure acquisto con l'ipoteca che segue il bene). Al contrario il "
+    "PIGNORAMENTO trascritto, il SEQUESTRO conservativo/penale e i VINCOLI DI INDISPONIBILITÀ BLOCCANO "
+    "finché non li cancella chi li ha iscritti (creditore procedente o giudice). Una DOMANDA GIUDIZIALE "
+    "trascritta non blocca ma rende l'esito opponibile all'acquirente: dichiarala e pesala. Non chiamare "
+    "«bloccato» un immobile con la sola ipoteca, né «libero» un immobile pignorato.\n"
+    "• TRASCRIZIONE ≠ VALIDITÀ. La mancata trascrizione NON invalida l'atto tra le parti — incide solo "
+    "sull'opponibilità ai terzi; non esiste un divieto di alienare beni non trascritti. Verifica invece "
+    "la CONTINUITÀ delle trascrizioni: se il titolo del venditore non è trascritto, la nuova trascrizione "
+    "non produce effetto finché non è trascritto l'atto anteriore (provenienza ventennale).\n"
+    "• I VERI BLOCCHI sono le NULLITÀ dell'atto: mancata identificazione catastale / conformità della "
+    "planimetria e mancate menzioni urbanistiche — segnalali sempre.\n"
+    "REGOLE: cita SOLO gli articoli forniti, non inventarne. Dove un dato MANCA nella visura scrivi "
+    "'[manca nella visura]' — non inventarlo. Non trarre conclusioni sulla validità oltre ciò che dice "
+    "il documento. Concludi con '### 🔎 Verdetto' a semaforo: 🟢 può procedere · 🟡 con condizioni "
+    "(elencale) · 🔴 bloccato (perché, e COME si sblocca). " + _NOTARY_ID_IT)
+
+
+def _verify_property_it(backend, index, *, certificate_text: str, transaction: str = "",
+                        max_tokens: int = 2800) -> dict:
+    """Ramo ITALIA di verify_property: visura ipotecaria/catastale, diritto italiano,
+    prompt nativo italiano (nessuna parola albanese in sessione IT)."""
+    q = ((transaction or "") + " proprietà intestatario trascrizione iscrizione ipoteca pignoramento "
+         "sequestro servitù visura ipotecaria catastale formalità")
+    art_block, arts = _art_block(backend, index, q, _VERIFY_PROP_SEED_IT)
+    prompt = ("ATTO RICHIESTO:\n"
+              + ((transaction or "").strip()[:3000]
+                 or "(non indicato — fai solo l'estrazione di intestatari, immobile e formalità)")
+              + "\n\n─────\nVISURA / DOCUMENTO (testo caricato dal notaio):\n" + (certificate_text or "").strip()[:16000]
+              + "\n\n─────\nARTICOLI DAL CORPUS (cita solo questi):\n" + art_block
+              + "\n\nRispondi in markdown con queste sezioni: "
+              + "**Intestatari** · **Identificazione dell'immobile** (ogni cespite con i dati catastali) · "
+              + "**Formalità (trascrizioni / iscrizioni)** — una per una: cos'è · BLOCCA o CONDIZIONA · COME si cancella · "
+              + "**Incrocio con l'atto** (discordanze) · **🔎 Verdetto** (semaforo).")
+    md = backend.complete(system=_VERIFY_PROP_SYSTEM_IT, messages=[{"role": "user", "content": prompt}],
+                          max_tokens=max_tokens, callsite="notary_verify_property")
+    return {"markdown": (md or "").strip(),
+            "articles": [{"code": c, "number": n} for c, n, _t in arts]}
+
 
 def verify_property(backend, index, *, certificate_text: str, transaction: str = "",
-                    max_tokens: int = 2800) -> dict:
+                    jurisdiction: str = "AL", max_tokens: int = 2800) -> dict:
     """Verifiko pronësinë dhe barrët nga certifikata/kartela ASHK ose ekstrakti QKB,
     dhe kryqëzoji me veprimin e kërkuar. NDIHMESË: noteri e merr vetë certifikatën
-    zyrtare — ky mjet e lexon dhe kryqëzon, nuk lidhet live me ASHK."""
+    zyrtare — ky mjet e lexon dhe kryqëzon, nuk lidhet live me ASHK.
+    Sessione IT → ramo italiano (_verify_property_it: visura ipotecaria/catastale)."""
+    if (jurisdiction or "AL").upper() == "IT":
+        return _verify_property_it(backend, index, certificate_text=certificate_text,
+                                   transaction=transaction, max_tokens=max_tokens)
     q = (transaction or "") + " pronësi pronar barrë hipotekë sekuestro servitut regjistrim ASHK kartelë pasurie"
     art_block, arts = _art_block(backend, index, q, _VERIFY_PROP_SEED)
     system = (

@@ -5536,7 +5536,8 @@ def api_notary_verify_property():
     if len(cert) < 40:
         return jsonify({"error": "certificate_required"}), 400
     out, err = _notary_run(notary_mod.verify_property,
-                           certificate_text=cert[:16000], transaction=transaction[:3000])
+                           certificate_text=cert[:16000], transaction=transaction[:3000],
+                           jurisdiction=_active_jurisdiction(getattr(request, "user", None)) or "AL")
     return err if err else out
 
 

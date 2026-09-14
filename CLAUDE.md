@@ -574,7 +574,7 @@ errori, non che le risposte sono ancora giuste. Riferimento verificato il
 12 articoli recuperati per ciascuna.
 
 ```bash
-docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61]). Baseline **446/446** (14 set; era 98 il 31 ago).
+docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62]). Baseline **447/447** (14 set; era 98 il 31 ago).
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 bash /root/prova_sse.sh                                    # SULL'HOST (legge il secret da /opt/super-avvocato.env; copia in tools/prova_sse.sh): account di prova → login → fascicolo → 1 domanda VERA → stream /api/ask/events attraverso waitress. Deve dire «HTTP 200 … done: 1» (~50s, costa 1 chiamata al cervello) e cancella l'account. Dopo OGNI build che tocca web.py o le rotte SSE.
@@ -1433,6 +1433,53 @@ rischio residuo della DPIA.
 - Super Avokati ha auth propria (login_required_api); utenti creati da admin o auto-provisionati da AALA (`/api/provision-demo`, secret-guarded).
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
+
+**v9.313 — SESSIONE ITALIANA = SOLO ITALIANO: i residui veri del DOM vivo + audit 10/10 notaio IT (14 set).**
+Regola del titolare («ogni lettera in italiano, nulla in albanese nella sessione italiana, né
+descrizioni né niente — regola chiara per sempre»; verificare «con Claude nel web ma anche lato
+server»). **Metodo**: (1) lato server `tools/i18n_verify.py` → 18+4 «residui» — ma **falsi
+positivi** (hanno `data-i18n`, tradotti a runtime da `applyStaticI18n`) e ciechi ai veri;
+(2) **DOM vivo in Chrome** (sessione `admin.it`, scansione di tutti i nodi di testo + attributi
+`title/placeholder/aria-label`) → **15 residui reali**: tooltip senza `data-i18n-title`
+(#dosja-btn «Gjithçka e ruajtur…» VISIBILE, #push-toggle, #legal-menu, 4 `<th>` consumi, label
+allega), l'area upload `.dossier-drop-hint`, le opzioni del profilo studio (`#fp-stili`
+Formal/I përmbledhur/I detajuar, `#fp-gjuha` Shqip/Italisht/Të dyja), e **4 traduzioni
+italiane «sporche» nel dizionario stesso** (it_58/59/61/64: «Corte di Cassazione (Gjykata e
+Lartë)»). **Fix**: blocco `Object.assign(T_IT, …)` per testo esatto (il traduttore del DOM
+aggancia testo/attributi per match esatto) + `value` espliciti sulle option (i valori salvati
+restano `Shqip`/`Formal`…, cambia solo la vista) + dizionario pulito + **QKB nascosto in
+sessione IT** (registro ALBANESE: la riga live in «Verifica soggetto» non ha senso per il
+notaio italiano; descrizione italiana su visura camerale) + app.js?v=165. Golden **[62]**.
+**Audit server-side (`audit_tools_it.py notaio`, 9 tool notarili + act-check, sessione IT,
+v9.312)**: **10/10 corretti** — zero diritto albanese, 58-141 riferimenti IT per tool,
+`verifica proprietà (visura)` 141 rif. IT (483 s). ⚠️ il filtro `notaio` prende anche i 5 tool
+notarili storici (9 test ≈ 45 min); `-notaio` = esclusione. Lo script ora salva gli output
+integrali in `/tmp/audit_it/*.txt` (dentro il container) e stampa QUALI token albanesi ha
+contato («albanese=1» era un singolo carattere, non una parola). ⚠️ la pipe `| grep` in coda
+bufferizza: usare `python3 -u … > file`. ⚠️ Chrome si congela se il server è saturo (audit in
+corso): leggere il DOM a server libero. QA: golden **447**, smoke 110, juris verde.
+
+**v9.312 — l'ITALIA riceve le stesse blindature: dottrina immobiliare PER GIURISDIZIONE + notaio IT + Giudice IT (14 set).**
+Domanda del titolare: «hai controllato anche l'avvocato italiano?». Risposta onesta: no — e
+il blocco v9.309 (ASHK/Neni 195, albanese) entrava ANCHE nel prompt italiano (l'IT usa lo
+stesso `ANSWER_SYSTEM` albanese + preambolo + override; l'override dice «ignora il diritto
+albanese», ma la protezione equivalente per l'Italia non c'era). Fix: (1) `brain.PROPERTY_DOCTRINE`
+= dizionario **{AL, IT}** — AL identico a prima (kartela/Rubrika D/Neni 195/ipoteca≠blocco),
+IT nuovo: **visura ipotecaria/catastale** — formalità lette una per una; **ipoteca ≠ blocco**
+(2808 c.c.) vs pignoramento trascritto (2913)/sequestro (671 c.p.c., 2906)/vincoli → bloccano;
+domanda giudiziale (2652-53) → opponibile, non blocca; **trascrizione ≠ validità** (2644: solo
+opponibilità; NON importare il Neni 195) + **continuità** (2650, provenienza ventennale); i veri
+blocchi italiani = nullità catastali/urbanistiche (art. 29 c.1-bis L. 52/1985, art. 46 DPR
+380/2001). Iniettato da `SuperAvvocato._answer_system(base)` (6 punti: compose stream/non,
+simple) SOLO per la giurisdizione della sessione (EU: niente). (2) `notary.verify_property`
+**jurisdiction-aware**: ramo `_verify_property_it` con `_VERIFY_PROP_SEED_IT` (2643/2644/2650/
+2652/2808/2878/2882/2913 c.c., 671 c.p.c., 46 TU Edilizia — tutti verificati nel corpus IT),
+prompt NATIVO italiano + `_NOTARY_ID_IT` (prima il notaio italiano riceveva il prompt albanese
+«NOTER shqiptar/ASHK» con seed KC); endpoint passa `_active_jurisdiction`. (3) Giudice Finale:
+etichette del payload per lingua. (4) `tools/audit_tools_it.py` **v3**: +verify-property (con
+visura-trappola: ipoteca + pignoramento su 1/2), post-deed, verify-subject, aml-check, +
+pipeline immobiliare completa via /api/ask; filtro per nome (`… notaio`). Golden [59] riscritto:
+controlla ENTRAMBE le giurisdizioni + wiring + tool IT. QA: golden 446, smoke 110, juris verde.
 
 **v9.311 — le domande di chiarimento LEGGONO i documenti allegati (14 set).** Bug del
 titolare (screenshot 11 set, stesso caso Neni 195): con i 2 HEIC della kartela caricati —

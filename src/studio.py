@@ -442,11 +442,20 @@ def gjyqtari_fundit(backend, *, domanda: str, blloku_neneve: str, pergjigja: str
     Le leggi NON si toccano: arrivano verbatim (blloku_neneve, dosja)."""
     if not (pergjigja or "").strip():
         return ""
-    parti = [f"PYETJA / RASTI:\n{(domanda or '')[:3500]}",
-             f"NENET (tekst i plotë, verbatim — mos i prek):\n{(blloku_neneve or '')[:60000]}"]
+    # etichette del payload nella lingua della sessione: un prompt italiano non porta albanese
+    if lang == "it":
+        _L = ("DOMANDA / CASO:", "ARTICOLI (testo integrale, verbatim — non toccarli):",
+              "DOSSIER DEI RACCOGLITORI (web / QBZ / Gazzetta Ufficiale):",
+              "RISPOSTA PREPARATA (con attacchi e repliche):")
+    else:
+        _L = ("PYETJA / RASTI:", "NENET (tekst i plotë, verbatim — mos i prek):",
+              "DOSJA E MBLEDHËSVE (web / QBZ / Fletorja Zyrtare):",
+              "PËRGJIGJA E PËRGATITUR (me sulmet dhe kundërpërgjigjet):")
+    parti = [f"{_L[0]}\n{(domanda or '')[:3500]}",
+             f"{_L[1]}\n{(blloku_neneve or '')[:60000]}"]
     if (dosja or "").strip():
-        parti.append("DOSJA E MBLEDHËSVE (web / QBZ / Fletorja Zyrtare):\n" + dosja[:20000])
-    parti.append(f"PËRGJIGJA E PËRGATITUR (me sulmet dhe kundërpërgjigjet):\n{(pergjigja or '')[:24000]}")
+        parti.append(f"{_L[2]}\n" + dosja[:20000])
+    parti.append(f"{_L[3]}\n{(pergjigja or '')[:24000]}")
     user = "\n\n─────\n".join(parti)
     raw = _chiama(backend, system=GJYQTARI_SYSTEM.get(lang, GJYQTARI_SYSTEM["sq"]),
                   user=user, modeli=modeli, effort=effort, max_tokens=1600,

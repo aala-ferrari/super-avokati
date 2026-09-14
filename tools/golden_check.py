@@ -2259,14 +2259,29 @@ def main():
         from src import notary as _nt59
         from src import brain as _br59
         _src59 = _insp59.getsource(_nt59.verify_property)
-        _as59 = _br59.ANSWER_SYSTEM
         _seed59 = ("kodi_civil", "195") in _nt59._VERIFY_PROP_SEED
         _tool_ok = ("PAREGJISTRUAR" in _src59 and "195" in _src59
                     and "HIPOTEKA ≠ BLLOKIM" in _src59 and "'D'" in _src59)
-        _brain_ok = ("KARTELA ASHK" in _as59 and "PAREGJISTRUAR" in _as59
-                     and "Neni 195" in _as59 and "HIPOTEKA ≠ BLLOKIM" in _as59)
-        check("blindatura[59]: kartela ASHK — sezione D operativa + registrato≠non-registrato (Neni 195) + ipoteca≠blocco, nel tool E nel cervello (ogni richiesta)",
-              _seed59 and _tool_ok and _brain_ok)
+        # v9.312 — dottrina PER GIURISDIZIONE: AL kartela/195, IT visura/2644/2650/2913;
+        # e MAI la dottrina albanese nel prompt italiano (sarebbe l'errore stesso)
+        _al59 = _br59.answer_system_for("", "AL")
+        _it59 = _br59.answer_system_for("", "IT")
+        _brain_al = ("KARTELA ASHK" in _al59 and "PAREGJISTRUAR" in _al59
+                     and "Neni 195" in _al59 and "HIPOTEKA ≠ BLLOKIM" in _al59)
+        _brain_it = ("VISURA IPOTECARIA" in _it59 and "IPOTECA ≠ BLOCCO" in _it59
+                     and "TRASCRIZIONE ≠ VALIDITÀ" in _it59 and "2644" in _it59
+                     and "2650" in _it59 and "2913" in _it59 and "KARTELA ASHK" not in _it59)
+        _wired59 = all("_answer_system" in _insp59.getsource(getattr(_br59.SuperAvvocato, _m))
+                       for _m in ("_compose_answer", "_compose_answer_stream", "_compose_simple_answer"))
+        # il notaio italiano: verify_property jurisdiction-aware, seed IT reale, prompt nativo IT
+        _it_tool = ("jurisdiction" in _src59 and "_verify_property_it" in _src59
+                    and ("codice_civile", "2644") in _nt59._VERIFY_PROP_SEED_IT
+                    and ("codice_civile", "2913") in _nt59._VERIFY_PROP_SEED_IT
+                    and "IPOTECA ≠ BLOCCO" in _nt59._VERIFY_PROP_SYSTEM_IT
+                    and "TRASCRIZIONE ≠ VALIDITÀ" in _nt59._VERIFY_PROP_SYSTEM_IT
+                    and "Tetramorph" in _nt59._NOTARY_ID_IT)
+        check("blindatura[59]: proprietà PER GIURISDIZIONE — AL kartela/sezione D/Neni 195/ipoteca≠blocco · IT visura/2644/2650/2913 — nel cervello (compose wired) E nel tool (verify_property AL+IT)",
+              _seed59 and _tool_ok and _brain_al and _brain_it and _wired59 and _it_tool)
     except Exception as _e59:  # noqa: BLE001
         check("blindatura[59]: kontrollet u ekzekutuan", False, str(_e59))
 
@@ -2318,6 +2333,36 @@ def main():
               and "KURRË mos kërko një dokument që tashmë është bashkëngjitur" in _mfs61)
     except Exception as _e61:  # noqa: BLE001
         check("mf[61]: kontrollet u ekzekutuan", False, str(_e61))
+
+    # ── [62] SESSIONE ITALIANA = SOLO ITALIANO — i residui trovati dal DOM vivo (14 set) ──
+    # Regola ferrea del titolare: «ogni lettera in italiano, nulla in albanese nella
+    # sessione italiana, né descrizioni né niente». Il DOM vivo (Chrome, admin.it) aveva
+    # 15 residui: tooltip senza data-i18n-title, l'area upload, le opzioni del profilo
+    # studio, e due traduzioni italiane «sporche» (albanese tra parentesi). Qui si
+    # sorvegliano quei testi esatti nel dizionario T_IT + i value stabili delle option.
+    try:
+        # radice propria: `_rr` viene riassegnato piu' sopra (set di codici rrugor)
+        _rr62 = _os2.path.dirname(_os2.path.dirname(_os2.path.abspath(__file__)))
+        _js62 = _io2.open(_os2.path.join(_rr62, "static", "app.js"), encoding="utf-8").read()
+        _html62 = _io2.open(_os2.path.join(_rr62, "templates", "index.html"), encoding="utf-8").read()
+        _keys62 = ["Gjithçka e ruajtur dhe e ngarkuar, nga të gjitha rastet",
+                   "Merr njoftim kur analiza mbaron, edhe nëse mbyll faqen",
+                   "Rilexo kushtet, privatësinë dhe marrëveshjen për të dhënat",
+                   "Bashkëngjit PDF, foto, docx", "Sa përqind e konsumit të periudhës i takon këtij studioje",
+                   "— gjuha e akteve…", "Shqip", "Italisht", "Të dyja", "stili…", "Formal",
+                   "I përmbledhur", "I detajuar", "Tërhiqi këtu ose kliko për të zgjedhur"]
+        _in62 = all(('"%s' % k) in _js62 and _re2.search(r'"' + _re2.escape(k) + r'[^"]*"\s*:\s*"', _js62) for k in _keys62)
+        _clean62 = ('it_58: "Corte di Cassazione",' in _js62 and 'it_59: "Corte Costituzionale",' in _js62
+                    and "(Gjykata e Lartë)" not in _js62 and "(Gjykata Kushtetuese)" not in _js62)
+        _vals62 = ('<option value="Shqip">Shqip</option>' in _html62 and '<option value="Formal">Formal</option>' in _html62
+                   and '<option value="Italisht">Italisht</option>' in _html62)
+        # QKB = registro ALBANESE: la riga live sparisce in sessione IT, descrizione italiana
+        _qkb62 = ('class="qkb-search" style="\' + ((document.body.dataset.lang === "it") ? "display:none;"' in _js62
+                  and "Incolla la visura camerale (Registro Imprese)" in _js62)
+        check("i18n[62]: sessione IT = solo italiano — 15 residui del DOM vivo nel dizionario T_IT + it_58/59/61/64 senza albanese + option con value stabili + QKB nascosto in IT",
+              _in62 and _clean62 and _vals62 and _qkb62)
+    except Exception as _e62:  # noqa: BLE001
+        check("i18n[62]: kontrollet u ekzekutuan", False, str(_e62))
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

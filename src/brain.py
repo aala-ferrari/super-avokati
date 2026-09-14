@@ -1399,12 +1399,6 @@ Kur avokati pyet "sa është" / "sa paguaj" / "sa përqind", PËRGJIGJU ME SHIFR
  • Jep një VLERËSIM konkret në euro/lekë me llogaritjen hap-pas-hapi mbi vlerën doganore (te makinat "okazion" kujto Nenin 66/70: vlera doganore mund të rivlerësohet më lart se çmimi i blerjes).
  • Mbylle me shifrën që PESHON më shumë (p.sh. te automjetet e vjetra me cilindratë të madhe = akciza) dhe ku ta verifikojë saktësisht sot.
 
-PASURI E PALUAJTSHME — KARTELA ASHK / KUFIZIMET (RREGULL FERRE — këtu bëhen gabimet, mos i shkel kurrë):
-Kur pyetja prek një kartelë/certifikatë pronësie ASHK ose një kufizim/barrë mbi pasuri të paluajtshme:
- • SEKSIONI/RUBRIKA 'D' (KUFIZIMET/BARRËT) është burimi OPERATIV i pengesave — lexo çdo zë veç e veç (çfarë thotë saktësisht, data, nr. i regjistrimit, afati), dhe për SECILIN thuaj: a e NDALON apo e KUSHTËZON veprimin, dhe SI hiqet (kush, me ç'dokument). Mos i përmblidh me një fjali.
- • OBJEKTI I REGJISTRUAR ≠ I PAREGJISTRUAR: Neni 195 KC (ndalimi i tjetërsimit të pasurisë SË PAREGJISTRUAR) NUK zbatohet mbi një objekt që TASHMË ka nr. regjistrimi. Nëse apartamenti/njësia është i regjistruar (ka nr. regjistrimi), MOS e ndalo shitjen me nenin 195 — përmend numrin e regjistrimit. Nëse trualli shënohet 0 m²/i paregjistruar, kjo prek statusin e TRUALLIT, jo shitjen e apartamentit të regjistruar. Kurrë mos ia ngarko objektit të regjistruar një pengesë që i takon truallit të paregjistruar.
- • HIPOTEKA ≠ BLLOKIM: hipoteka/barra e sigurisë e KUSHTËZON veprimin (shlyerje ose pëlqim i kreditorit), NUK e ndalon; përkundrazi SEKUESTRO / URDHËR BLLOKIMI / KUFIZIM VEPRIMESH (p.sh. "kufizohen veprimet deri në rregullimin e …") e NDALON derisa ta heqë organi që e vendosi. Dalloji: mos e quaj "të bllokuar" një pasuri që ka vetëm hipotekë, as "të lirë" një pasuri me kufizim veprimesh.
-
 SAKTËSIA MBI GJITHÇKA — RREGULL I SHENJTË: një avokat NUK mund të gabojë; një shifër ose nen i gabuar humbet kauzën dhe klientin. Më mirë vono dhe jep të saktën sesa shpejt e gabim. MOS HAMENDËSO KURRË një numër, nen apo afat. Nëse pas verifikimit nuk e gjen dot shifrën e saktë, thuaj QARTË: çfarë është e SIGURT (p.sh. TVSH 20%, struktura e detyrimeve) dhe çfarë duhet marrë nga VKM-ja në fuqi me linkun e saktë. Dallo gjithmonë "e sigurt" nga "duhet verifikuar" — kjartësia është mbrojtja e avokatit.
 
 BURIMET E WEBIT — kur ke përdorur kërkimin në internet për këtë përgjigje, MBYLLE me seksionin «## Burimet e webit»: listë e numëruar; për çdo burim URL-ja e plotë, data e aksesit dhe gjysmë rreshti se çfarë mbështet. Nëse s'ke përdorur web: MOS e shto seksionin — një bibliografi e shpikur është e kundërta e qëllimit."""
@@ -1482,6 +1476,35 @@ del _sys_name
 # unless we start a fresh session. Callers (web.py, bot.py) compare this
 # against the per-case stored version and drop the session on mismatch.
 ANSWER_SYSTEM_VERSION = hashlib.sha1(ANSWER_SYSTEM.encode("utf-8")).hexdigest()[:12]
+
+
+# ── DOTTRINA IMMOBILIARE PER GIURISDIZIONE (v9.309 AL · v9.312 IT) ──────────
+# Blindatura del titolare («per sempre su ogni richiesta»): l'errore Neni 195
+# (divieto sul bene NON registrato applicato a un appartamento registrato) e i
+# suoi equivalenti italiani (ipoteca scambiata per blocco, «non trascritto»
+# letto come «invalido»). Il blocco entra nel prompt di risposta SOLO per la
+# giurisdizione della sessione: dottrina albanese in un caso italiano — o
+# viceversa — sarebbe essa stessa l'errore. EU: nessun blocco.
+PROPERTY_DOCTRINE = {
+    "AL": """PASURI E PALUAJTSHME — KARTELA ASHK / KUFIZIMET (RREGULL FERRE — këtu bëhen gabimet, mos i shkel kurrë):
+Kur pyetja prek një kartelë/certifikatë pronësie ASHK ose një kufizim/barrë mbi pasuri të paluajtshme:
+ • SEKSIONI/RUBRIKA 'D' (KUFIZIMET/BARRËT) është burimi OPERATIV i pengesave — lexo çdo zë veç e veç (çfarë thotë saktësisht, data, nr. i regjistrimit, afati), dhe për SECILIN thuaj: a e NDALON apo e KUSHTËZON veprimin, dhe SI hiqet (kush, me ç'dokument). Mos i përmblidh me një fjali.
+ • OBJEKTI I REGJISTRUAR ≠ I PAREGJISTRUAR: Neni 195 KC (ndalimi i tjetërsimit të pasurisë SË PAREGJISTRUAR) NUK zbatohet mbi një objekt që TASHMË ka nr. regjistrimi. Nëse apartamenti/njësia është i regjistruar (ka nr. regjistrimi), MOS e ndalo shitjen me nenin 195 — përmend numrin e regjistrimit. Nëse trualli shënohet 0 m²/i paregjistruar, kjo prek statusin e TRUALLIT, jo shitjen e apartamentit të regjistruar. Kurrë mos ia ngarko objektit të regjistruar një pengesë që i takon truallit të paregjistruar.
+ • HIPOTEKA ≠ BLLOKIM: hipoteka/barra e sigurisë e KUSHTËZON veprimin (shlyerje ose pëlqim i kreditorit), NUK e ndalon; përkundrazi SEKUESTRO / URDHËR BLLOKIMI / KUFIZIM VEPRIMESH (p.sh. "kufizohen veprimet deri në rregullimin e …") e NDALON derisa ta heqë organi që e vendosi. Dalloji: mos e quaj "të bllokuar" një pasuri që ka vetëm hipotekë, as "të lirë" një pasuri me kufizim veprimesh.""",
+    "IT": """IMMOBILI — VISURA IPOTECARIA / CATASTALE E FORMALITÀ (REGOLA FERREA — qui si fanno gli errori, non violarla mai):
+Quando la domanda riguarda una visura ipotecaria (ispezione presso la Conservatoria / Servizio di Pubblicità Immobiliare), una visura catastale o un vincolo/formalità su un immobile:
+ • Le FORMALITÀ (trascrizioni, iscrizioni, annotazioni) sono la fonte OPERATIVA degli ostacoli: leggi OGNI formalità una per una (tipo, data, numeri di registro generale/particolare, a favore/contro, titolo) e per CIASCUNA di': BLOCCA o CONDIZIONA l'atto, e COME si cancella (chi, con quale titolo). Non riassumerle in una frase.
+ • IPOTECA ≠ BLOCCO: l'ipoteca (iscrizione) NON impedisce la vendita — la CONDIZIONA (estinzione del debito con cancellazione, assenso del creditore, oppure acquisto con l'ipoteca che segue il bene — art. 2808 c.c.). Al contrario il PIGNORAMENTO trascritto (art. 2913 c.c.: le alienazioni sono inefficaci verso il creditore procedente), il SEQUESTRO CONSERVATIVO (art. 671 c.p.c., effetti art. 2906 c.c.), il SEQUESTRO PENALE/PREVENTIVO e i VINCOLI DI INDISPONIBILITÀ BLOCCANO l'atto finché non li cancella chi li ha iscritti (creditore procedente o provvedimento del giudice). Una DOMANDA GIUDIZIALE trascritta (artt. 2652-2653 c.c.) non blocca ma rende l'esito del giudizio opponibile all'acquirente: va dichiarata e pesata. Non chiamare «bloccato» un immobile con la sola ipoteca, né «libero» un immobile pignorato.
+ • TRASCRIZIONE ≠ VALIDITÀ: in Italia la mancata trascrizione NON rende invalido l'atto tra le parti — incide solo sull'opponibilità ai terzi (art. 2644 c.c.). NON esiste un divieto di alienare beni non trascritti: non importare MAI la regola albanese (Neni 195 KC) in un caso italiano. Verifica invece la CONTINUITÀ delle trascrizioni (art. 2650 c.c.): se il titolo del venditore non è trascritto, la nuova trascrizione non produce effetto finché non è trascritto l'atto anteriore → controllo della provenienza (ventennale).
+ • I VERI «BLOCCHI» ITALIANI sono le NULLITÀ dell'atto: mancata identificazione catastale / dichiarazione di conformità della planimetria (art. 29 c. 1-bis L. 52/1985) e mancate menzioni urbanistiche (art. 46 DPR 380/2001; art. 40 L. 47/1985 per gli edifici anteriori) — controllali sempre in un atto traslativo. Cita il numero dell'articolo solo se è tra quelli recuperati; altrimenti nomina la norma e rimanda a Normattiva.""",
+}
+
+
+def answer_system_for(base: str, jurisdiction: str | None) -> str:
+    """Il prompt di risposta + la dottrina immobiliare della SUA giurisdizione
+    (AL → kartela/ASHK, IT → visura/formalità, altro → nessun blocco)."""
+    block = PROPERTY_DOCTRINE.get((jurisdiction or "AL").upper(), "")
+    return base + ("\n\n" + block if block else "")
 
 
 # ── data types ─────────────────────────────────────────────────────────────
@@ -2276,6 +2299,11 @@ class SuperAvvocato:
         """Prepend the active jurisdiction preamble to a system prompt."""
         return apply_jurisdiction(prompt, self._current_jurisdiction())
 
+    def _answer_system(self, base: str = ANSWER_SYSTEM) -> str:
+        """Prompt di risposta (complex o simple) + la dottrina immobiliare della
+        giurisdizione della sessione, poi preambolo/override giurisdizionale."""
+        return self._system_for(answer_system_for(base, self._current_jurisdiction()))
+
     # ── stage orchestration helpers ────────────────────────────────────────
 
     def _run_stages(
@@ -2394,7 +2422,7 @@ class SuperAvvocato:
             collected: list[str] = []
             new_sid = session_id
             for kind, payload in backend.complete_stream(
-                system=self._system_for(ANSWER_SYSTEM),
+                system=self._answer_system(),
                 messages=[{"role": "user", "content": user_message}],
                 fast=False,
                 session_id=session_id,
@@ -2471,7 +2499,7 @@ class SuperAvvocato:
             collected = []
             new_sid = session_id
             for kind, payload in backend.complete_stream(
-                system=self._system_for(ANSWER_SIMPLE_SYSTEM),
+                system=self._answer_system(ANSWER_SIMPLE_SYSTEM),
                 messages=msgs,
                 fast=False,
                 session_id=session_id,
@@ -4886,7 +4914,7 @@ class SuperAvvocato:
         else:
             messages = list(history) + [{"role": "user", "content": prompt}]
         return self.backend.complete(
-            system=self._system_for(ANSWER_SIMPLE_SYSTEM),
+            system=self._answer_system(ANSWER_SIMPLE_SYSTEM),
             messages=messages,
             max_tokens=1500,
             fast=False,
@@ -5035,7 +5063,7 @@ class SuperAvvocato:
             session_id, documents, dosja_txt=dosja_txt,
         )
         return self.backend.complete(
-            system=self._system_for(ANSWER_SYSTEM),
+            system=self._answer_system(),
             messages=messages,
             max_tokens=2500,
             fast=False,
@@ -5090,7 +5118,7 @@ class SuperAvvocato:
         )
         if not can_stream:
             text = backend.complete(
-                system=self._system_for(ANSWER_SYSTEM),
+                system=self._answer_system(),
                 messages=messages,
                 max_tokens=2500,
                 fast=False,
@@ -5107,7 +5135,7 @@ class SuperAvvocato:
         new_sid = session_id
         collected: list[str] = []
         for kind, payload in backend.complete_stream(
-            system=self._system_for(ANSWER_SYSTEM),
+            system=self._answer_system(),
             messages=messages,
             fast=False,
             session_id=session_id,

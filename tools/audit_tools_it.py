@@ -8,7 +8,7 @@ vie rimaste scoperte (notaio bozza/procura/checklist, intake).
 
 Per ogni strumento: quanto albanese, quanti riferimenti al diritto ITALIANO,
 quanti al diritto ALBANESE (errore grave)."""
-import json, re, sys, time, urllib.request, http.cookiejar
+import json, os, re, sys, time, urllib.request, http.cookiejar
 
 BASE = "http://127.0.0.1:5050"
 cj = http.cookiejar.CookieJar()
@@ -37,6 +37,22 @@ IT_LAW = re.compile(r"\bc\.c\.|\bc\.p\.c\.|\bc\.p\.p\.|\bC\.d\.S\.|codice civile
 ANSWER_IT = ("Il credito derivante dal contratto di appalto e' liquido ed esigibile; "
              "si puo' quindi chiedere decreto ingiuntivo ex art. 633 c.p.c., con "
              "provvisoria esecuzione ex art. 642 c.p.c. se ricorrono i presupposti.")
+
+# Visura ipotecaria realistica con la TRAPPOLA italiana speculare al caso Neni 195:
+# un'ipoteca (condiziona, non blocca) + un pignoramento su una quota (blocca).
+VISURA_IT = """AGENZIA DELLE ENTRATE - SERVIZIO DI PUBBLICITA' IMMOBILIARE DI MILANO 1
+ISPEZIONE IPOTECARIA - ELENCO SINTETICO DELLE FORMALITA'
+Immobile: Comune di Milano, Foglio 5, Particella 120, Subalterno 3 - Categoria A/2, vani 5,5, via Verdi 10, piano 2.
+Intestatari (visura catastale): ROSSI MARIO, nato a Milano il 12/03/1970, C.F. RSSMRA70C12F205X - proprieta' per 1/2;
+BIANCHI ANNA, nata a Monza il 05/07/1972, C.F. BNCNNA72L45F704Y - proprieta' per 1/2.
+Atto di provenienza: compravendita Notaio Verdi rep. 4521 del 10/05/2015, TRASCRITTA il 15/05/2015 R.G. 30211 R.P. 20105 (a favore Rossi/Bianchi, contro Neri Giuseppe).
+
+FORMALITA':
+1) ISCRIZIONE del 20/05/2015 R.G. 30890 R.P. 5120 - IPOTECA VOLONTARIA derivante da concessione a garanzia di mutuo fondiario, notaio Verdi rep. 4522 del 10/05/2015; a favore INTESA SANPAOLO S.P.A. (C.F. 00799960158); contro ROSSI MARIO, BIANCHI ANNA; capitale euro 180.000, totale euro 360.000; durata 25 anni.
+2) TRASCRIZIONE del 03/02/2026 R.G. 6021 R.P. 4110 - ATTO ESECUTIVO O CAUTELARE: VERBALE DI PIGNORAMENTO IMMOBILI, Tribunale di Milano, Ufficiale Giudiziario, rep. 1187 del 28/01/2026; a favore ALFA COSTRUZIONI S.R.L. (C.F. 05566778899); contro ROSSI MARIO per la quota di 1/2; importo precetto euro 42.500.
+
+Planimetria catastale: presente, ultimo aggiornamento 2015. Nessuna annotazione di cancellazione.
+Data ispezione: 14/09/2026."""
 
 TESTS = [
     ("Avvocato — risposta principale", "/api/ask",
@@ -84,7 +100,48 @@ TESTS = [
     ("Motore scadenze", "/api/afati/compute",
      {"trigger": "vendim_civil", "event_date": "2026-08-01", "facts": "Sentenza di primo grado notificata al cliente."},
      ["markdown"]),
+    # ── v3 (v9.312): gli strumenti nuovi del notaio (v9.301-9.306), mai misurati in IT ──
+    ("Notaio — verifica proprietà (visura)", "/api/notary/verify-property",
+     {"certificate": VISURA_IT,
+      "transaction": ("Rossi e Bianchi vogliono vendere l'intero appartamento a un terzo acquirente: "
+                      "il notaio può stipulare? Se no, come si cancellano le formalità?")},
+     ["markdown"]),
+    ("Notaio — adempimenti post-atto", "/api/notary/post-deed",
+     {"act": ("Compravendita di appartamento a Milano, via Verdi 10, foglio 5 particella 120 sub 3, "
+              "prezzo 250.000 euro, stipulata oggi davanti al notaio."),
+      "act_date": "2026-09-14"},
+     ["markdown"]),
+    ("Notaio — verifica soggetto", "/api/notary/verify-subject",
+     {"subject": ("Visura camerale: ROSSI COSTRUZIONI S.R.L., P.IVA 01234567890, sede legale Milano via Roma 1; "
+                  "stato attivita': ATTIVA; amministratore unico: Mario Rossi (nato 1970), poteri di ordinaria e "
+                  "straordinaria amministrazione; soci: Mario Rossi 60%, Luigi Bianchi 40%; capitale sociale "
+                  "10.000 euro i.v.; nessuna procedura concorsuale in corso."),
+      "context": "La societa' vende un capannone industriale a un terzo per 800.000 euro."},
+     ["markdown"]),
+    ("Notaio — antiriciclaggio", "/api/notary/aml-check",
+     {"situation": ("Acquirente: persona politicamente esposta straniera; propone il pagamento di 300.000 euro "
+                    "in contanti; l'immobile verrebbe intestato a una societa' con sede alle Isole Cayman.")},
+     ["markdown"]),
+    # la pipeline COMPLETA su un caso immobiliare: dottrina IT nel compose, domande di
+    # chiarimento (non devono chiedere la natura delle formalità: è scritta), Giudice finale
+    ("Avvocato — immobile con formalità (pipeline)", "/api/ask",
+     {"case_id": CID,
+      "message": ("Il mio cliente vuole comprare questo appartamento: il notaio può stipulare con queste "
+                  "formalità? Se no, come si cancellano? Controlla la visura qui sotto.\n\n" + VISURA_IT)},
+     ["text", "action_plan", "nullity_radar", "premortem", "missing_facts"]),
 ]
+
+# filtro opzionale: `python3 audit_tools_it.py notaio` esegue solo i test col nome;
+# `python3 audit_tools_it.py -notaio` esegue tutto TRANNE quelli (esclusione).
+ONLY = (sys.argv[1] if len(sys.argv) > 1 else "").strip().lower()
+if ONLY.startswith("-") and ONLY[1:]:
+    TESTS = [t for t in TESTS if ONLY[1:] not in t[0].lower()]
+elif ONLY:
+    TESTS = [t for t in TESTS if ONLY in t[0].lower()]
+
+# gli output integrali si salvano qui: i numeri dicono «quanto», il testo dice «cosa»
+OUT_DIR = "/tmp/audit_it"
+os.makedirs(OUT_DIR, exist_ok=True)
 
 rows = []
 for name, path, payload, keys in TESTS:
@@ -102,12 +159,26 @@ for name, path, payload, keys in TESTS:
             rows.append((name, "VUOTO", 0, 0, 0, time.time() - t0, str(d)[:130]))
             print(f"  {name:34s} VUOTO  ({str(d)[:80]})", flush=True)
             continue
-        al_l = len(AL_LANG.findall(blob))
+        try:
+            with open(os.path.join(OUT_DIR, re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_") + ".txt"),
+                      "w", encoding="utf-8") as _fh:
+                _fh.write(blob)
+        except Exception:  # noqa: BLE001 - il salvataggio non deve fermare l'audit
+            pass
+        al_hits = AL_LANG.findall(blob)
+        al_l = len(al_hits)
         al_w = len(AL_LAW.findall(blob))
         it_w = len(IT_LAW.findall(blob))
         verdict = "OK" if (al_l <= 3 and al_w == 0) else ("DIRITTO AL!" if al_w else "ALBANESE")
         rows.append((name, verdict, al_l, al_w, it_w, time.time() - t0, blob[:150]))
-        print(f"  {name:34s} {verdict:12s} albanese={al_l:>4} dirittoAL={al_w:>2} dirittoIT={it_w:>3}  ({time.time()-t0:.0f}s)", flush=True)
+        # QUALI token albanesi (con 12 caratteri di contesto): «ogni lettera» conta
+        _tok = ""
+        if al_l:
+            _ctx = []
+            for _m in list(AL_LANG.finditer(blob))[:4]:
+                _ctx.append(blob[max(0, _m.start() - 12):_m.end() + 12].replace("\n", " "))
+            _tok = "  «" + "» · «".join(_ctx) + "»"
+        print(f"  {name:34s} {verdict:12s} albanese={al_l:>4} dirittoAL={al_w:>2} dirittoIT={it_w:>3}  ({time.time()-t0:.0f}s){_tok}", flush=True)
     except Exception as e:
         rows.append((name, "ERRORE", 0, 0, 0, time.time() - t0, str(e)[:150]))
         print(f"  {name:34s} ERRORE: {type(e).__name__}: {str(e)[:90]}", flush=True)
