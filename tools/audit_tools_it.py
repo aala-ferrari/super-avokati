@@ -147,7 +147,9 @@ rows = []
 for name, path, payload, keys in TESTS:
     t0 = time.time()
     try:
-        d = post(path, payload)
+        # la pipeline completa (/api/ask complex: fasi + diavolo + Giudice) supera i
+        # 15 minuti: 40 min per lei, 15 per gli strumenti singoli
+        d = post(path, payload, timeout=2400 if path == "/api/ask" else 900)
         blob = ""
         for k in keys:
             v = d.get(k)

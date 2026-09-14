@@ -574,7 +574,7 @@ errori, non che le risposte sono ancora giuste. Riferimento verificato il
 12 articoli recuperati per ciascuna.
 
 ```bash
-docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63]). Baseline **448/448** (14 set; era 98 il 31 ago).
+docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63], triage-trim+giudice-no-web [64]). Baseline **449/449** (14 set; era 98 il 31 ago).
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 bash /root/prova_sse.sh                                    # SULL'HOST (legge il secret da /opt/super-avvocato.env; copia in tools/prova_sse.sh): account di prova → login → fascicolo → 1 domanda VERA → stream /api/ask/events attraverso waitress. Deve dire «HTTP 200 … done: 1» (~50s, costa 1 chiamata al cervello) e cancella l'account. Dopo OGNI build che tocca web.py o le rotte SSE.
@@ -1434,6 +1434,26 @@ rischio residuo della DPIA.
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
 
+**v9.315 — triage robusto ai documenti incollati + Giudice SENZA web + audit IT completo 9/10 (14 set).**
+Dall'audit non-notarile su v9.314 (`audit_tools_it.py -notaio`): **9/10 OK, tutti con
+albanese=0 e dirittoAL=0** (avvocato 35 rif. IT, procuratore analisi 162 / piano 124, perizia
+125, diavolo 65, secondo parere 97, intake 29, scadenze 63, act-check 3/3). Il 10° (pipeline
+immobiliare via /api/ask con la visura incollata) = `TimeoutError` del MISURATORE (15 min): sul
+server la pipeline è proseguita (stages 605 s, compose, diavolo, Giudice). Due difetti veri
+trovati nei log e corretti: **(1) triage**: con la visura nel messaggio il classificatore
+(tier fast) ha risposto col PARERE invece del JSON («No JSON object in model output: ## Esito
+della verifica…»), 9 min persi + fallback povero (query = messaggio intero) → `_triage_trim()`:
+testa+coda ≤ 4000 chr (la domanda, non l'atto) + promemoria «SOLO JSON» IN CODA nella lingua
+della sessione (recency) + UN nuovo tentativo ridotto (1500 chr) se manca il JSON. **(2) il
+Giudice navigava**: `backends._tools = ["WebSearch","WebFetch"] if not fast` = ogni chiamata
+ragionata ha il web; il Giudice (Fable max) ha toccato **440.877 token** in una chiamata (soglia
+400k) — giudica SOLO i materiali dati → `complete(no_web=True)` (nuovo kwarg, PRIMA di
+`budget_usd`: golden [34] cerca `budget_usd…) -> str:` letterale) via `_chiama(no_web=)` →
+`gjyqtari_fundit`. Golden **[64]**. ⚠️ Osservato (non toccato): anche `second_opinion` 626k,
+`pros_plan` 482k, `devil_consult` 415k token — è la «Cassazione — verifica viva» IT che fa
+navigare (precisione > velocità), ma è il costo maggiore per chiamata → [[super_avokati_consumo_studi]].
+Audit: timeout 40 min per /api/ask. QA: golden **449**, smoke 110, juris verde.
+
 **v9.314 — DECISIVO davvero: il triage non ferma più la risposta con una sola domanda (14 set).**
 Beccato dall'audit IT completo: «Avvocato — risposta principale» (licenziamento) tornava
 **in 42 s con 243 byte** = SOLO la domanda del triage («Qual è la data di assunzione e di
@@ -1453,7 +1473,12 @@ emesso. Golden **[63]** (costruzione reale `kind="followup", text=` assente + he
 regole nel triage). **Inoltre** (stesso audit): il Procuratore italiano conteneva
 «[⚠ verifikim dështoi]» — marcatore FISSO albanese di `citation_shield.annotate_fake_citations`
 (3 chiamanti in web.py) → per lingua via `request_jurisdiction()` (import differito): IT «[⚠
-verifica fallita]»; provato vivo; aggiunto a golden [62]. QA: golden **448**, smoke 110.
+verifica fallita]»; provato vivo; aggiunto a golden [62]. **PROVA (audit v9.314, stesso
+test)**: da 42 s/243 byte a **572 s/8.393 byte, 35 rif. IT, 0 albanese** — risponde subito
+(art. 7 St. Lav.), poi ENTRAMBI i rami (ante/post 7-3-2015: art. 18 c.4/c.6 vs D.Lgs 23/2015
+art. 3/4 con Cass. 28927/2024, 4879/2020, C.cost. 150/2020), requisito dimensionale vero (art.
+18 c.8), termini 60+180 (art. 6 L. 604/1966), revoca 15 gg, e SOLO IN CODA «Per precisione:
+mandami la data di assunzione e di comunicazione…». QA: golden **448**, smoke 110.
 
 **v9.313 — SESSIONE ITALIANA = SOLO ITALIANO: i residui veri del DOM vivo + audit 10/10 notaio IT (14 set).**
 Regola del titolare («ogni lettera in italiano, nulla in albanese nella sessione italiana, né

@@ -60,18 +60,22 @@ def _kwargs_mbledhesi(modeli: str, effort: str) -> dict[str, Any]:
 
 def _chiama(backend, *, system: str, user: str, modeli: str, effort: str,
             max_tokens: int, callsite: str, case_id: str | None = None,
-            mbledhes: bool = False, budget_usd: float | None = None) -> str:
+            mbledhes: bool = False, budget_usd: float | None = None,
+            no_web: bool = False) -> str:
     kw = _kwargs_mbledhesi(modeli, effort) if mbledhes else _kwargs_modeli(modeli, effort)
     if budget_usd:
         kw["budget_usd"] = budget_usd
+    if no_web:
+        kw["no_web"] = True        # giudica i materiali dati: niente web (v9.315)
     msgs = [{"role": "user", "content": user}]
     try:
         return backend.complete(system=system, messages=msgs, max_tokens=max_tokens,
                                 callsite=callsite, case_id=case_id, **kw) or ""
     except TypeError:
-        # backend pa model_override/budget (Anthropic/Gemini): heqim dorë
+        # backend pa model_override/budget/no_web (Anthropic/Gemini): heqim dorë
         kw.pop("model_override", None)
         kw.pop("budget_usd", None)
+        kw.pop("no_web", None)
         return backend.complete(system=system, messages=msgs, max_tokens=max_tokens,
                                 callsite=callsite, case_id=case_id, **kw) or ""
 
@@ -457,9 +461,11 @@ def gjyqtari_fundit(backend, *, domanda: str, blloku_neneve: str, pergjigja: str
         parti.append(f"{_L[2]}\n" + dosja[:20000])
     parti.append(f"{_L[3]}\n{(pergjigja or '')[:24000]}")
     user = "\n\n─────\n".join(parti)
+    # no_web: il Giudice valuta SOLO nenet verbatim + risposta + dossier — mai
+    # navigare (misurato: 440.877 token in una chiamata quando aveva il web)
     raw = _chiama(backend, system=GJYQTARI_SYSTEM.get(lang, GJYQTARI_SYSTEM["sq"]),
                   user=user, modeli=modeli, effort=effort, max_tokens=1600,
-                  callsite="studio:gjyqtari", case_id=case_id)
+                  callsite="studio:gjyqtari", case_id=case_id, no_web=True)
     raw = (raw or "").strip()
     if len(raw) < 30:
         return ""

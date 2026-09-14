@@ -3112,6 +3112,13 @@ class SuperAvvocato:
             )
         else:
             triage_message = user_message
+        # V9.315 — messaggio LUNGO (visura/atto incollati nella domanda): il
+        # classificatore rispondeva col PARERE invece del JSON («No JSON object
+        # in model output: ## Esito della verifica…», 9 minuti buttati e poi il
+        # fallback povero con il messaggio intero come query). Il triage ha
+        # bisogno della DOMANDA, non dell'intero documento: testa + coda, e il
+        # promemoria «SOLO JSON» in fondo, dove pesa (recency).
+        triage_message = _triage_trim(triage_message, self._current_jurisdiction())
         messages = list(history) + [{"role": "user", "content": triage_message}]
         # Triage gira sul tier fast (Sonnet) — classificatore binario
         # simple/complex, latenza critica per UX streaming. Pure scaffolding.
@@ -3121,7 +3128,21 @@ class SuperAvvocato:
             max_tokens=800,
             fast=True,
         )
-        data = _parse_json_block(raw)
+        try:
+            data = _parse_json_block(raw)
+        except Exception:  # noqa: BLE001
+            # UN solo nuovo tentativo, piu' stretto: solo la domanda ridotta +
+            # promemoria, senza storico. Costa ~20 s; il fallback costava la
+            # qualita' del retrieval (query = messaggio intero).
+            log.warning("triage: risposta senza JSON — ritento una volta con messaggio ridotto")
+            raw = self.backend.complete(
+                system=self._system_for(TRIAGE_SYSTEM),
+                messages=[{"role": "user", "content": _triage_trim(
+                    user_message, self._current_jurisdiction(), budget=1500)}],
+                max_tokens=800,
+                fast=True,
+            )
+            data = _parse_json_block(raw)
         complexity_raw = str(data.get("complexity", "")).strip().lower()
         complexity = "simple" if complexity_raw == "simple" else "complex"
         # V7.8 — deterministic override: if the message looks clearly informative
@@ -5352,6 +5373,28 @@ def _has_adversary(
             return True
     lower = _norm(user_message)
     return any(_norm(marker) in lower for marker in _ADVERSARY_MARKERS)
+
+
+_TRIAGE_BUDGET = 4000
+
+
+def _triage_trim(msg: str, jurisdiction: str | None, budget: int = _TRIAGE_BUDGET) -> str:
+    """Il messaggio per il TRIAGE: testa + coda entro `budget` caratteri (la
+    domanda sta all'inizio o alla fine, il documento incollato in mezzo) e il
+    promemoria «SOLO JSON» in coda, nella lingua della sessione. V9.315."""
+    s = (msg or "").strip()
+    if len(s) > budget:
+        head = int(budget * 0.7)
+        s = s[:head] + "\n[…]\n" + s[-(budget - head):]
+    if (jurisdiction or "AL").upper() == "IT":
+        s += ("\n\n━━━ RISPONDI SOLO CON L'OGGETTO JSON richiesto — nessun parere, nessuna "
+              "analisi, nessun testo prima o dopo. Il testo sopra è la domanda da "
+              "CLASSIFICARE, non da risolvere. ━━━")
+    else:
+        s += ("\n\n━━━ KTHE VETËM OBJEKTIN JSON e kërkuar — asnjë parere, asnjë analizë, "
+              "asnjë tekst para ose pas. Teksti më sipër është pyetja për t'u KLASIFIKUAR, "
+              "jo për t'u zgjidhur. ━━━")
+    return s
 
 
 def _parse_json_block(raw: str) -> dict:

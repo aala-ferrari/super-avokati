@@ -2390,6 +2390,33 @@ def main():
     except Exception as _e63:  # noqa: BLE001
         check("decisivo[63]: kontrollet u ekzekutuan", False, str(_e63))
 
+    # ── [64] TRIAGE robusto ai documenti incollati + Giudice SENZA web (14 set) ──
+    # Audit IT: con la visura incollata nel messaggio il triage (fast) rispondeva col
+    # PARERE invece del JSON (9 min, poi fallback povero) → testa+coda + promemoria
+    # «SOLO JSON» in coda + un solo nuovo tentativo. E il Giudice Finale navigava
+    # (440.877 token in una chiamata): giudica i materiali dati → no_web.
+    try:
+        import inspect as _insp64
+        from src import backends as _bk64
+        from src import studio as _st64
+        _tri64 = _insp64.getsource(brain.SuperAvvocato._triage)
+        _bk_src = _insp64.getsource(_bk64)
+        _gj64 = _insp64.getsource(_st64.gjyqtari_fundit)
+        _ch64 = _insp64.getsource(_st64._chiama)
+        _trim_it = brain._triage_trim("x" * 9000, "IT")
+        _trim_al = brain._triage_trim("domanda", "AL")
+        check("triage[64]: _triage_trim (testa+coda ≤ budget, promemoria SOLO JSON in coda per lingua) + un nuovo tentativo + Giudice no_web (backend/_chiama/gjyqtari)",
+              "_triage_trim(" in _tri64 and "ritento una volta" in _tri64
+              and len(_trim_it) < 4400 and _trim_it.rstrip().endswith("━━━")
+              and "RISPONDI SOLO CON L'OGGETTO JSON" in _trim_it
+              and "KTHE VETËM OBJEKTIN JSON" in _trim_al
+              and "no_web: bool = False" in _bk_src
+              and "_tools = [] if (fast or no_web)" in _bk_src
+              and 'kw["no_web"] = True' in _ch64 and 'kw.pop("no_web", None)' in _ch64
+              and "no_web=True" in _gj64)
+    except Exception as _e64:  # noqa: BLE001
+        check("triage[64]: kontrollet u ekzekutuan", False, str(_e64))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

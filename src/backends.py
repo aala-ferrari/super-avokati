@@ -394,7 +394,11 @@ class ClaudeCodeBackend(LLMBackend):
                  model_override: str | None = None,
                  effort_override: str | None = None,
                  raw_system: bool = False,
+                 no_web: bool = False,
                  budget_usd: float | None = None) -> str:
+        # no_web (v9.315): niente WebSearch/WebFetch per chi deve giudicare SOLO
+        # i materiali dati (il Giudice Finale navigava: 440.877 token in una
+        # chiamata, soglia 400k — costo e lentezza senza valore).
         if not raw_system:
             system = _apply_juris(system)  # giurisdizione della sessione
             system = _shto_profilin(system, fast)  # regole della casa
@@ -471,7 +475,7 @@ class ClaudeCodeBackend(LLMBackend):
         # Strumenti del cervello: per le chiamate ragionate (non-fast: Genio,
         # risposta strategica) abilita la RICERCA WEB (leggi aggiornate +
         # precedenti pubblici) e, se ci sono allegati, il Read del dossier.
-        _tools = ["WebSearch", "WebFetch"] if not fast else []
+        _tools = [] if (fast or no_web) else ["WebSearch", "WebFetch"]
         seen_dirs: set[str] = set()
         file_list_lines: list[str] = []
         if attachments:
