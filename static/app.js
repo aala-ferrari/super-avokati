@@ -2218,8 +2218,8 @@
       other: "❗",
     };
     const sevBadge = (s) => s === "critical"
-      ? `<span class="ur-sev ur-sev-critical">KRITIK</span>`
-      : `<span class="ur-sev ur-sev-elevated">ALARM</span>`;
+      ? `<span class="ur-sev ur-sev-critical">${_CAL_IT ? "CRITICO" : "KRITIK"}</span>`
+      : `<span class="ur-sev ur-sev-elevated">${_CAL_IT ? "ALLARME" : "ALARM"}</span>`;
 
     const items = signals.map((s) => {
       const icon = kindIcon[s.kind] || "❗";

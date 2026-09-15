@@ -574,7 +574,7 @@ errori, non che le risposte sono ancora giuste. Riferimento verificato il
 12 articoli recuperati per ciascuna.
 
 ```bash
-docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63], triage-trim+giudice-no-web [64], chat-web+verdetto-in-testa+pannelli-IT [65], codice-nominato→area [66], timeout-45min+ripiego-no-web [67], fasi-bilingue+giudice-no-web+duello-a-scomparsa [68]). Baseline **453/453** (15 set; era 98 il 31 ago).
+docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63], triage-trim+giudice-no-web [64], chat-web+verdetto-in-testa+pannelli-IT [65], codice-nominato→area [66], timeout-45min+ripiego-no-web [67], fasi-bilingue+giudice-no-web+duello-a-scomparsa [68], etichette-composte-bilingui [69]). Baseline **454/454** (15 set; era 98 il 31 ago).
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 bash /root/prova_sse.sh                                    # SULL'HOST (legge il secret da /opt/super-avvocato.env; copia in tools/prova_sse.sh): account di prova → login → fascicolo → 1 domanda VERA → stream /api/ask/events attraverso waitress. Deve dire «HTTP 200 … done: 1» (~50s, costa 1 chiamata al cervello) e cancella l'account. Dopo OGNI build che tocca web.py o le rotte SSE.
@@ -1433,6 +1433,22 @@ rischio residuo della DPIA.
 - Super Avokati ha auth propria (login_required_api); utenti creati da admin o auto-provisionati da AALA (`/api/provision-demo`, secret-guarded).
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
+
+**v9.320 — etichette COMPOSTE (contatori) bilingui alla fonte (15 set).** DOM vivo in sessione
+IT dopo v9.319: restava «📋 Mapa e provës — 5 provë që mungojnë, 1 me barrë të zhvendosur»
+(summary della mappa prove). Le stringhe con `${…}` NON passano dal match esatto di `T_IT`
+(cambiano a ogni numero): si traducono **alla fonte** con `_CAL_IT ? it : sq` (pattern
+`formatWhen`). **34 stringhe** via `scratchpad/patch_i18n_composte.py` (sostituzioni esatte,
+`assert count==1`): pannelli (mappa prove, radar nullità, contraddizioni, precedenti
+sfavorevoli), `/afatet`, calendario (eventi, «+N altri», «+N giorni»), barre di stato (stress
+test, adversarial, strategia, genio, precedenti, coach, recon), toast (termini al calendario,
+fattura, suggerimenti), tempo relativo («Ns fa»), bozze, fatturazione, admin utenti
+(elimina/sospendi/password). ⚠️ `_CAL_IT` è una `const` a riga ~2852 dentro l'IIFE: i renderer
+definiti prima la vedono perché girano dopo l'init (TDZ ok). **Verifica DOM vivo** (caso «auto»,
+sessione IT, v168): summary «📋 Mappa delle prove — 5 prove mancanti, 1 con onere invertito»,
+«🛡️ Radar di nullità e termini (5)», 2 `details.sparring`, **0 albanese** fuori dal messaggio
+dell'utente. Scanner utile: regex sui template literal con `${` + parola albanese (41 candidati,
+di cui 7 già ternari). Golden **[69]**, baseline **454**.
 
 **v9.319 — PROVA VIVA sul percorso della chat (caso auto shpk, IT e AL) + tre rifiniture (15 set).**
 `tools/prova_chat_caso.py` (job + SSE come il browser). **IT**: 1954 s, 42.321 chr — verdetto

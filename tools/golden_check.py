@@ -2520,7 +2520,8 @@ def main():
                    "(count === 1 ? \"1 evento\" : `${count} eventi`)",
                    "`+${dayEvents.length - 3} altri`", "`Aggiunti ${data.events_created || 0} termini al calendario`",
                    "`${sec}s fa`", "`Fattura ${inv.invoice_no} generata.`", "`Completato in ${(evt.elapsed_ms/1000).toFixed(1)}s ✓`",
-                   "`Eliminare l'utente '${uname}'?", "willSuspend ? \"disattivare\" : \"riattivare\""]
+                   "`Eliminare l'utente '${uname}'?", "willSuspend ? \"disattivare\" : \"riattivare\"",
+                   '${_CAL_IT ? "CRITICO" : "KRITIK"}', '${_CAL_IT ? "ALLARME" : "ALARM"}']
         _miss69 = [k for k in _need69 if k not in _js69]
         check("i18n[69]: etichette composte con contatori tradotte alla fonte (_CAL_IT) — pannelli, calendario, stato, toast, admin",
               not _miss69, "mancano: " + " | ".join(_miss69)[:200])
