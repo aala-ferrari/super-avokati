@@ -71,6 +71,37 @@ ACTS = [
     ("equa_riparazione", "Legge Pinto — equa riparazione (L. 89/2001)", "Procedura Civile", "legge:2001-03-24;89", "wave4"),
     # AML — per il tool antiriciclaggio del notaio (adeguata verifica, SOS a UIF)
     ("antiriciclaggio", "Antiriciclaggio (D.Lgs 231/2007)", "Antiriciclaggio", "decreto.legislativo:2007-11-21;231", "wave_aml"),
+    # ── wave5 (16 set 2026, richiesta del titolare: «tutto quello che manca, così va a prenderlo») ──
+    # dogana / tributario
+    ("codice_doganale_nazionale", "Disposizioni nazionali complementari al Codice Doganale UE (D.Lgs 141/2024)", "Doganale", "decreto.legislativo:2024-09-26;141", "wave5"),
+    ("accise", "Testo Unico delle Accise (D.Lgs 504/1995)", "Doganale", "decreto.legislativo:1995-10-26;504", "wave5"),
+    ("iva", "Imposta sul valore aggiunto (DPR 633/1972)", "Tributario", "decreto.presidente.repubblica:1972-10-26;633", "wave5"),
+    ("imposta_registro", "Testo Unico dell'imposta di registro (DPR 131/1986)", "Tributario", "decreto.presidente.repubblica:1986-04-26;131", "wave5"),
+    ("imposta_successioni", "Imposta sulle successioni e donazioni (D.Lgs 346/1990)", "Tributario", "decreto.legislativo:1990-10-31;346", "wave5"),
+    ("sanzioni_tributarie", "Sanzioni amministrative tributarie (D.Lgs 472/1997)", "Tributario", "decreto.legislativo:1997-12-18;472", "wave5"),
+    ("giustizia_tributaria", "Testo Unico della giustizia tributaria (D.Lgs 175/2024)", "Tributario", "decreto.legislativo:2024-11-14;175", "wave5"),
+    ("statuto_contribuente", "Statuto dei diritti del contribuente (L. 212/2000)", "Tributario", "legge:2000-07-27;212", "wave5"),
+    ("accertamento_imposte", "Accertamento delle imposte sui redditi (DPR 600/1973)", "Tributario", "decreto.presidente.repubblica:1973-09-29;600", "wave5"),
+    ("riscossione", "Riscossione delle imposte sui redditi (DPR 602/1973)", "Tributario", "decreto.presidente.repubblica:1973-09-29;602", "wave5"),
+    ("reati_tributari", "Reati in materia di imposte (D.Lgs 74/2000)", "Penale", "decreto.legislativo:2000-03-10;74", "wave5"),
+    # notarile / immobiliare
+    ("legge_notarile", "Ordinamento del notariato e degli archivi notarili (L. 89/1913)", "Notarile", "legge:1913-02-16;89", "wave5"),
+    ("legge_52_1985", "Trascrizioni immobiliari e conformità catastale (L. 52/1985)", "Notarile", "legge:1985-02-27;52", "wave5"),
+    ("condono_edilizio", "Controllo dell'attività urbanistico-edilizia e sanatoria (L. 47/1985)", "Edilizia", "legge:1985-02-28;47", "wave5"),
+    ("immobili_da_costruire", "Tutela degli acquirenti di immobili da costruire (D.Lgs 122/2005)", "Notarile", "decreto.legislativo:2005-06-20;122", "wave5"),
+    ("locazioni_abitative", "Locazioni e rilascio di immobili ad uso abitativo (L. 431/1998)", "Civile", "legge:1998-12-09;431", "wave5"),
+    ("locazioni_immobili_urbani", "Locazioni di immobili urbani (L. 392/1978)", "Civile", "legge:1978-07-27;392", "wave5"),
+    # procedura / professioni / lavoro / altro
+    ("mediazione_civile", "Mediazione civile e commerciale (D.Lgs 28/2010)", "Procedura Civile", "decreto.legislativo:2010-03-04;28", "wave5"),
+    ("riti_civili_semplificati", "Riduzione e semplificazione dei riti civili (D.Lgs 150/2011)", "Procedura Civile", "decreto.legislativo:2011-09-01;150", "wave5"),
+    ("ordinamento_forense", "Ordinamento della professione forense (L. 247/2012)", "Professioni", "legge:2012-12-31;247", "wave5"),
+    ("licenziamenti_individuali", "Licenziamenti individuali (L. 604/1966)", "Lavoro", "legge:1966-07-15;604", "wave5"),
+    ("tutele_crescenti", "Contratto a tutele crescenti (D.Lgs 23/2015)", "Lavoro", "decreto.legislativo:2015-03-04;23", "wave5"),
+    ("responsabilita_sanitaria", "Responsabilità professionale degli esercenti le professioni sanitarie (L. 24/2017)", "Civile", "legge:2017-03-08;24", "wave5"),
+    ("regolamento_immigrazione", "Regolamento di attuazione del TU Immigrazione (DPR 394/1999)", "Immigrazione", "decreto.presidente.repubblica:1999-08-31;394", "wave5"),
+    ("tuel", "Testo Unico degli enti locali (D.Lgs 267/2000)", "Amministrativo", "decreto.legislativo:2000-08-18;267", "wave5"),
+    ("processo_penale_minorile", "Processo penale a carico di imputati minorenni (DPR 448/1988)", "Procedura Penale", "decreto.presidente.repubblica:1988-09-22;448", "wave5"),
+    ("codice_nautica_diporto", "Codice della nautica da diporto (D.Lgs 171/2005)", "Navigazione", "decreto.legislativo:2005-07-18;171", "wave5"),
 ]
 
 

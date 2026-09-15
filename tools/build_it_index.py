@@ -28,7 +28,17 @@ ORDER = ["costituzione", "codice_civile", "disp_att_cc", "codice_procedura_civil
          "codice_ambiente", "tu_edilizia", "tu_immigrazione", "codice_antimafia",
          "tuir", "codice_beni_culturali", "codice_navigazione", "stupefacenti",
          "ordinamento_penitenziario", "codice_pari_opportunita", "codice_protezione_civile",
-         "divorzio", "adozione", "equa_riparazione"]
+         "divorzio", "adozione", "equa_riparazione", "antiriciclaggio",
+         # wave5 (16 set 2026) — dogana/tributario, notarile, procedura, lavoro, altro
+         "codice_doganale_nazionale", "codice_doganale_ue", "reg_ue_2015_2446", "reg_ue_2015_2447",
+         "accise", "iva", "imposta_registro", "imposta_successioni", "sanzioni_tributarie",
+         "giustizia_tributaria", "statuto_contribuente", "accertamento_imposte", "riscossione",
+         "reati_tributari", "legge_notarile", "legge_52_1985", "condono_edilizio",
+         "immobili_da_costruire", "successioni_ue", "locazioni_abitative", "locazioni_immobili_urbani",
+         "mediazione_civile", "riti_civili_semplificati", "bruxelles_i_bis", "roma_i", "roma_ii",
+         "bruxelles_ii_ter", "ordinamento_forense", "licenziamenti_individuali", "tutele_crescenti",
+         "responsabilita_sanitaria", "regolamento_immigrazione", "tuel", "processo_penale_minorile",
+         "codice_nautica_diporto", "gdpr"]
 
 
 def main():

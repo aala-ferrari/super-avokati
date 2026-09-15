@@ -182,6 +182,43 @@ CODE_LABELS: dict[str, str] = {
     "ligji_noteri": "Ligji Noteria 110/2018",
     # ── corpus italiano ──
     "antiriciclaggio": "D.Lgs 231/2007 (antiricicl.)",
+    # ── wave5 + EUR-Lex (16 set 2026) ──
+    "codice_doganale_nazionale": "D.Lgs 141/2024 (DNC dogane)",
+    "accise": "TU Accise (D.Lgs 504/1995)",
+    "iva": "DPR 633/1972 (IVA)",
+    "imposta_registro": "TU Registro (DPR 131/1986)",
+    "imposta_successioni": "D.Lgs 346/1990 (successioni)",
+    "sanzioni_tributarie": "D.Lgs 472/1997",
+    "giustizia_tributaria": "TU Giustizia trib. (D.Lgs 175/2024)",
+    "statuto_contribuente": "L. 212/2000 (Statuto contrib.)",
+    "accertamento_imposte": "DPR 600/1973",
+    "riscossione": "DPR 602/1973",
+    "reati_tributari": "D.Lgs 74/2000",
+    "legge_notarile": "L. 89/1913 (notariato)",
+    "legge_52_1985": "L. 52/1985",
+    "condono_edilizio": "L. 47/1985",
+    "immobili_da_costruire": "D.Lgs 122/2005",
+    "locazioni_abitative": "L. 431/1998",
+    "locazioni_immobili_urbani": "L. 392/1978",
+    "mediazione_civile": "D.Lgs 28/2010",
+    "riti_civili_semplificati": "D.Lgs 150/2011",
+    "ordinamento_forense": "L. 247/2012 (forense)",
+    "licenziamenti_individuali": "L. 604/1966",
+    "tutele_crescenti": "D.Lgs 23/2015",
+    "responsabilita_sanitaria": "L. 24/2017 (Gelli)",
+    "regolamento_immigrazione": "DPR 394/1999",
+    "tuel": "TUEL (D.Lgs 267/2000)",
+    "processo_penale_minorile": "DPR 448/1988",
+    "codice_nautica_diporto": "Cod. nautica (D.Lgs 171/2005)",
+    "codice_doganale_ue": "CDU (Reg. UE 952/2013)",
+    "reg_ue_2015_2446": "Reg. del. (UE) 2015/2446",
+    "reg_ue_2015_2447": "Reg. es. (UE) 2015/2447",
+    "gdpr": "GDPR (Reg. UE 2016/679)",
+    "bruxelles_i_bis": "Reg. UE 1215/2012",
+    "roma_i": "Reg. CE 593/2008 (Roma I)",
+    "roma_ii": "Reg. CE 864/2007 (Roma II)",
+    "bruxelles_ii_ter": "Reg. UE 2019/1111",
+    "successioni_ue": "Reg. UE 650/2012",
     "codice_civile": "c.c.",
     "codice_penale": "c.p.",
     "codice_procedura_civile": "c.p.c.",
@@ -283,6 +320,27 @@ _IT_CODE_CHECKS = [
     ("2312007", "antiriciclaggio"),
     ("decretoantiriciclaggio", "antiriciclaggio"),
     ("antiriciclaggio", "antiriciclaggio"),
+    # ── wave5 + EUR-Lex (16 set 2026): nomi per esteso / sigle ──
+    ("disposizioninazionalicomplementari", "codice_doganale_nazionale"),
+    ("codicedoganalenazionale", "codice_doganale_nazionale"),
+    ("codicedoganaledellunione", "codice_doganale_ue"),
+    ("statutodeidirittidelcontribuente", "statuto_contribuente"),
+    ("statutodelcontribuente", "statuto_contribuente"),
+    ("testounicodellegiustiziatributaria", "giustizia_tributaria"),
+    ("testounicoentilocali", "tuel"),
+    ("testounicoaccise", "accise"),
+    ("testounicodelleaccise", "accise"),
+    ("leggenotarile", "legge_notarile"),
+    ("ordinamentodelnotariato", "legge_notarile"),
+    ("ordinamentoforense", "ordinamento_forense"),
+    ("bruxellesiiter", "bruxelles_ii_ter"),
+    ("bruxellesibis", "bruxelles_i_bis"),
+    ("romaii", "roma_ii"),
+    ("romai", "roma_i"),
+    ("gdpr", "gdpr"),
+    ("tuel", "tuel"),
+    ("cdu", "codice_doganale_ue"),
+    ("dnc", "codice_doganale_nazionale"),
     ("ordinamentodellamministrazionedellapubblicasicurezza", "ordinamento_polizia"),
     ("testounicodocumentazioneamministrativa", "tu_documentazione_amministrativa"),
     ("testounicodelleleggidipubblicasicurezza", "tulps"),
@@ -341,11 +399,41 @@ _IT_CODE_CHECKS = [
 ]
 
 
+# Riferimenti PER NUMERO («D.Lgs. 141/2024», «Reg. (UE) 2015/2446», «DPR 633/1972»):
+# il passaggio alfabetico sopra scarta le cifre, quindi «dlgs» da solo non dice nulla.
+# Qui si confronta il numero+anno compattato (v9.326). Ordine: il piu' lungo prima.
+_IT_CODE_NUM_CHECKS = [
+    ("20152446", "reg_ue_2015_2446"), ("20152447", "reg_ue_2015_2447"), ("20191111", "bruxelles_ii_ter"),
+    ("12152012", "bruxelles_i_bis"), ("2016679", "gdpr"), ("9522013", "codice_doganale_ue"),
+    ("5932008", "roma_i"), ("8642007", "roma_ii"), ("6502012", "successioni_ue"),
+    ("1412024", "codice_doganale_nazionale"), ("5041995", "accise"), ("6331972", "iva"),
+    ("1311986", "imposta_registro"), ("3461990", "imposta_successioni"), ("4721997", "sanzioni_tributarie"),
+    ("1752024", "giustizia_tributaria"), ("2122000", "statuto_contribuente"), ("6001973", "accertamento_imposte"),
+    ("6021973", "riscossione"), ("742000", "reati_tributari"), ("891913", "legge_notarile"),
+    ("521985", "legge_52_1985"), ("471985", "condono_edilizio"), ("1222005", "immobili_da_costruire"),
+    ("4311998", "locazioni_abitative"), ("3921978", "locazioni_immobili_urbani"), ("282010", "mediazione_civile"),
+    ("1502011", "riti_civili_semplificati"), ("2472012", "ordinamento_forense"), ("6041966", "licenziamenti_individuali"),
+    ("232015", "tutele_crescenti"), ("242017", "responsabilita_sanitaria"), ("3941999", "regolamento_immigrazione"),
+    ("2672000", "tuel"), ("4481988", "processo_penale_minorile"), ("1712005", "codice_nautica_diporto"),
+    ("2312007", "antiriciclaggio"), ("2312001", "responsabilita_enti"), ("2852001", "codice_strada"),
+    ("3801992", "tu_edilizia"), ("2861998", "tu_immigrazione"), ("1962003", "codice_privacy"),
+    ("1522006", "codice_ambiente"), ("2062005", "codice_consumo"), ("2092005", "codice_assicurazioni"),
+    ("812008", "sicurezza_lavoro"), ("3001970", "statuto_lavoratori"), ("2411990", "procedimento_amministrativo"),
+    ("6891981", "sanzioni_amministrative"), ("1592011", "codice_antimafia"), ("142019", "codice_crisi_impresa"),
+]
+
+
 def _resolve_code_it(tail: str):
     compact = re.sub(r"[^a-z]", "", (tail or "").lower())
     for pat, code in _IT_CODE_CHECKS:
         if pat in compact:
             return code
+    # secondo passaggio: numero/anno (le sigle «D.Lgs.», «DPR», «Reg.» da sole non bastano)
+    with_digits = re.sub(r"[^a-z0-9]", "", (tail or "").lower())
+    if any(ch.isdigit() for ch in with_digits):
+        for pat, code in _IT_CODE_NUM_CHECKS:
+            if pat in with_digits:
+                return code
     return None
 
 

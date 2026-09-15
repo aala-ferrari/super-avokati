@@ -2620,6 +2620,33 @@ def main():
     except Exception as _e74:  # noqa: BLE001
         check("budget[74]: kontrollet u ekzekutuan", False, str(_e74))
 
+    # ── [75] CORPUS IT ALLARGATO (16 set): dogane (nazionale + UE), tributario, notarile, ecc. ──
+    # Il titolare: «aggiungi tutto quello che manca, così va a prenderlo» — e il cervello non
+    # naviga più per l'art. 212 Reg. 2015/2446 o l'art. 118 DNC: li legge dal corpus.
+    try:
+        from pathlib import Path as _P75
+        _it75 = ArticleIndex.load(_P75("/app/data/index/bm25_it.pkl")).articles
+        _have75 = {(a.code, str(a.number)) for a in _it75}
+        _codes75 = {a.code for a in _it75}
+        _need75 = [("codice_doganale_nazionale", "118"), ("codice_doganale_nazionale", "96"),
+                   ("codice_doganale_ue", "250"), ("codice_doganale_ue", "5"),
+                   ("reg_ue_2015_2446", "212"), ("reg_ue_2015_2446", "215"), ("reg_ue_2015_2446", "217"),
+                   ("iva", "70"), ("legge_notarile", "28"), ("legge_52_1985", "29"),
+                   ("imposta_registro", "1"), ("statuto_contribuente", "10"), ("gdpr", "6"),
+                   ("licenziamenti_individuali", "6"), ("tutele_crescenti", "3"), ("regolamento_immigrazione", "13")]
+        _miss75 = [f"{c} {n}" for c, n in _need75 if (c, n) not in _have75]
+        _lab75 = [c for c in _codes75 if c not in cv.CODE_LABELS]
+        check("corpus[75]: IT ≥ 75 atti; articoli-chiave presenti (DNC 96/118, CDU 5/250, Reg. 2015/2446 212/215/217, IVA 70, notarile 28, L.52/85 29, registro 1, Statuto 10, GDPR 6, L.604 6, D.Lgs 23 3, DPR 394 13); ogni codice ha una label",
+              len(_codes75) >= 75 and not _miss75 and not _lab75,
+              "mancano: %s | senza label: %s" % (", ".join(_miss75)[:200], ", ".join(_lab75)[:120]))
+        _r75 = cv._resolve_code_it
+        check("corpus[75]: risolutore citazioni IT per numero/anno e sigla (D.Lgs 141/2024, Reg. 2015/2446, CDU, DPR 633/1972, GDPR, TUEL)",
+              _r75("D.Lgs. 141/2024") == "codice_doganale_nazionale" and _r75("Reg. delegato (UE) 2015/2446") == "reg_ue_2015_2446"
+              and _r75("CDU") == "codice_doganale_ue" and _r75("DPR 633/1972") == "iva" and _r75("GDPR") == "gdpr"
+              and _r75("TUEL") == "tuel" and _r75("c.c.") == "codice_civile" and _r75("D.Lgs. 231/2007") == "antiriciclaggio")
+    except Exception as _e75:  # noqa: BLE001
+        check("corpus[75]: kontrollet u ekzekutuan", False, str(_e75))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
