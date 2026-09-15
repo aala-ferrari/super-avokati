@@ -2503,7 +2503,7 @@ def main():
               and "intro: bool = True" in _rf68 and "_ETICHETTA_BUCKET_IT" in _rf68
               and "SENZA WEB, PER SCELTA" in _gs68["it"] and "PA WEB, ME QËLLIM" in _gs68["sq"]
               and "function collapseSparring(html)" in _js68 and "return collapseSparring(" in _js68
-              and "app.js?v=16" in _html68)
+              and _re2.search(r"app\.js\?v=\d+", _html68) is not None)
     except Exception as _e68:  # noqa: BLE001
         check("fasi[68]: kontrollet u ekzekutuan", False, str(_e68))
 
@@ -2527,6 +2527,35 @@ def main():
               not _miss69, "mancano: " + " | ".join(_miss69)[:200])
     except Exception as _e69:  # noqa: BLE001
         check("i18n[69]: kontrollet u ekzekutuan", False, str(_e69))
+
+    # ── [70] LA MEMORIA DEL FILO + errori per lingua + replica non tronca + avviso pannelli (15 set) ──
+    # Caso vero: follow-up «auto un mese in Grecia» ragionato su un'auto IMMATRICOLATA IN ITALIA
+    # — il compose riceveva SOLO l'ultimo messaggio quando c'era un session_id («ci pensa il
+    # resume»), ma --resume e' disabilitato → nessuna memoria. Ora la storia entra sempre, potata.
+    try:
+        import inspect as _insp70
+        from src import backends as _bk70
+        from src import studio as _st70
+        _b70 = _insp70.getsource(brain)
+        _uses = _b70.count("_history_for_prompt(history) + [")
+        _drop = 'if session_id:\n            messages = [{"role": "user", "content": prompt}]' in _b70 \
+            or 'if session_id:\n                msgs = [{"role": "user", "content": prompt}]' in _b70
+        _h = brain._history_for_prompt([{"role": "user", "content": "a" * 9000},
+                                        {"role": "assistant", "content": "b" * 9000},
+                                        {"role": "user", "content": "c"}])
+        _hf70 = _insp70.getsource(_bk70._humanize_cli_failure)
+        _sp70 = _insp70.getsource(_st70.senior_pergjigjja)
+        _js70 = _io2.open(_os2.path.join(_os2.path.dirname(_os2.path.dirname(_os2.path.abspath(__file__))), "static", "app.js"), encoding="utf-8").read()
+        _gab = [L for L in _js70.split("\n") if "Gabim: " in L and "_CAL_IT" not in L and "TT(" not in L and "T_IT" not in L]
+        check("memoria[70]: _history_for_prompt in 4 punti (nessun «if session_id → solo prompt»), potatura 3500/2500, errori CLI per lingua, replica senior 1800 tok, avviso «Pannelli da correggere» + nessun «Gabim:» fisso nel client",
+              _uses >= 4 and not _drop
+              and len(_h) == 3 and len(_h[0]["content"]) <= 3510 and len(_h[1]["content"]) <= 2510
+              and "Tetramorph è impegnato" in _hf70 and "request_jurisdiction" in _hf70
+              and "max_tokens=1800" in _sp70
+              and 'className = "panels-notice"' in _js70 and "Pannelli da correggere:|Panele" in _js70
+              and not _gab, "Gabim fissi: %d" % len(_gab))
+    except Exception as _e70:  # noqa: BLE001
+        check("memoria[70]: kontrollet u ekzekutuan", False, str(_e70))
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

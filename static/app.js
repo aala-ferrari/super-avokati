@@ -729,7 +729,7 @@
       _addSaveToCase(vaultAnswer, "vault", "Vault: " + q, data.answer || "");
       setTimeout(function () { try { vaultAnswer.scrollIntoView({ block: "nearest" }); } catch (e) {} }, 40);
     } catch (e) {
-      vaultAnswer.innerHTML = '<span style="color:#c0392b">Gabim: ' + escapeHtml(e.message) + "</span>";
+      vaultAnswer.innerHTML = '<span style="color:#c0392b">' + (_CAL_IT ? 'Errore: ' : 'Gabim: ') + escapeHtml(e.message) + "</span>";
     } finally { vaultAsk.disabled = false; }
   }
   if (vaultAsk) vaultAsk.addEventListener("click", askVault);
@@ -752,7 +752,7 @@
       if (d.citations && d.citations.stats && d.citations.stats.total > 0) needleAnswer.insertBefore(renderCitationsBadge(d.citations, null), out);
       _addSaveToCase(needleAnswer, "needle", "Gjilpëra në dosje", d.markdown || "");
       setTimeout(function () { try { needleAnswer.scrollIntoView({ block: "nearest" }); } catch (e) {} }, 40);
-    } catch (e) { needleAnswer.innerHTML = '<span style="color:#c0392b">Gabim: ' + escapeHtml(e.message) + "</span>"; }
+    } catch (e) { needleAnswer.innerHTML = '<span style="color:#c0392b">' + (_CAL_IT ? 'Errore: ' : 'Gabim: ') + escapeHtml(e.message) + "</span>"; }
     finally { needleBtn.disabled = false; }
   });
   if (vaultQ) vaultQ.addEventListener("keydown", function (e) {
@@ -1339,7 +1339,7 @@
       }
       _addSaveToCase(panel, "devil", "Avokati i Djallit", d.markdown || "");
     } catch (e) {
-      panel.innerHTML = '<div class="so-err">Gabim: ' + escapeHtml(e.message) + '</div>';
+      panel.innerHTML = '<div class="so-err">' + (_CAL_IT ? 'Errore: ' : 'Gabim: ') + escapeHtml(e.message) + '</div>';
       btn.disabled = false;
     }
   }
@@ -1489,6 +1489,20 @@
     // to see "you're in an emergency; here's what to do now" BEFORE the
     // five-section analysis. Empty radar contributes nothing (we keep
     // theoretical questions visually calm).
+    // v9.322 — se il Giudice Finale ha corretto dei pannelli (allerta, piano, rischi…),
+    // l'avviso sta PRIMA dei pannelli: l'avvocato deve sapere che fa fede il verdetto,
+    // non l'allerta con la norma vecchia (le fasi girano prima della risposta).
+    try {
+      const _ansTxt = String(data.text || data.answer || data.markdown || "");
+      if (/Pannelli da correggere:|Panele për t'u korrigjuar:/.test(_ansTxt)) {
+        const _pn = document.createElement("div");
+        _pn.className = "panels-notice";
+        _pn.textContent = _CAL_IT
+          ? "⚖️ Il Giudice Finale ha rilevato imprecisioni in alcuni pannelli qui sotto: fa fede il Verdetto finale (voce «Pannelli da correggere»)."
+          : "⚖️ Gjyqtari i Fundit ka gjetur pasaktësi në disa panele më poshtë: vlen Vendimi përfundimtar (zëri «Panele për t'u korrigjuar»).";
+        msgEl.insertBefore(_pn, body);
+      }
+    } catch (e) {}
     const urgencyRadar = data.urgency_radar;
     if (urgencyRadar && urgencyRadar.level && urgencyRadar.level !== "none"
         && (urgencyRadar.signals || []).length) {
@@ -1773,7 +1787,7 @@
       if (res) res.innerHTML = h;
       btn.style.display = "none";
     } catch (err) {
-      if (res) res.innerHTML = ' <span style="color:#c0392b">Gabim: ' + escapeHtml(err.message) + "</span>";
+      if (res) res.innerHTML = ' <span style="color:#c0392b">' + (_CAL_IT ? 'Errore: ' : 'Gabim: ') + escapeHtml(err.message) + "</span>";
       btn.disabled = false;
     }
   }
@@ -8452,7 +8466,7 @@
       renderCapacity(firm);
       loadReviewQueue();
     } catch (e) {
-      studioMembersBody.innerHTML = `<tr><td colspan="4" class="studio-empty">Gabim: ${escapeHtml(e.message || "ngarkimi dështoi")}</td></tr>`;
+      studioMembersBody.innerHTML = `<tr><td colspan="4" class="studio-empty">${_CAL_IT ? 'Errore' : 'Gabim'}: ${escapeHtml(e.message || (_CAL_IT ? "caricamento fallito" : "ngarkimi dështoi"))}</td></tr>`;
     }
   }
 
@@ -10510,7 +10524,7 @@
       const r = await fetch("/api/leads", { credentials: "same-origin" });
       if (!r.ok) {
         const err = await r.json().catch(() => ({}));
-        inboxList.innerHTML = `<p class="inbox-empty">Gabim: ${err.error || r.status}</p>`;
+        inboxList.innerHTML = `<p class="inbox-empty">${_CAL_IT ? 'Errore' : 'Gabim'}: ${err.error || r.status}</p>`;
         return;
       }
       const data = await r.json();
@@ -10629,7 +10643,7 @@
         });
         const data = await r.json();
         if (!r.ok) {
-          setInboxStatus("Gabim: " + (data.error || r.status), "error");
+          setInboxStatus((_CAL_IT ? "Errore: " : "Gabim: ") + (data.error || r.status), "error");
           return;
         }
         setInboxStatus("Rasti u krijua.", "ok");
@@ -10653,7 +10667,7 @@
         });
         if (!r.ok) {
           const err = await r.json().catch(() => ({}));
-          setInboxStatus("Gabim: " + (err.error || r.status), "error");
+          setInboxStatus((_CAL_IT ? "Errore: " : "Gabim: ") + (err.error || r.status), "error");
           return;
         }
         setInboxStatus("U ruajt.", "ok");
@@ -12311,7 +12325,7 @@
       }
       _finLoaded[k] = true;
     } catch (e) {
-      pane.innerHTML = `<p class="pro-status error">Gabim: ${htmlEsc(e.message)}</p>`;
+      pane.innerHTML = `<p class="pro-status error">${_CAL_IT ? 'Errore' : 'Gabim'}: ${htmlEsc(e.message)}</p>`;
     }
   }
 
@@ -12339,7 +12353,7 @@
         c.addEventListener("click", () => startWorkflow(c.dataset.wfKey));
       });
     } catch (e) {
-      el.innerHTML = `<p class="pro-status error">Gabim: ${htmlEsc(e.message)}</p>`;
+      el.innerHTML = `<p class="pro-status error">${_CAL_IT ? 'Errore' : 'Gabim'}: ${htmlEsc(e.message)}</p>`;
     }
   }
   async function startWorkflow(key) {
@@ -12414,7 +12428,7 @@
         });
       });
     } catch (e) {
-      el.innerHTML = `<p class="pro-status error">Gabim: ${htmlEsc(e.message)}</p>`;
+      el.innerHTML = `<p class="pro-status error">${_CAL_IT ? 'Errore' : 'Gabim'}: ${htmlEsc(e.message)}</p>`;
     }
   }
 
@@ -12579,7 +12593,7 @@
         </tr>
       `).join("");
     } catch (e) {
-      usersAdminBody.innerHTML = `<tr><td colspan="4" class="studio-empty">Gabim: ${escHtml(e.message)}</td></tr>`;
+      usersAdminBody.innerHTML = `<tr><td colspan="4" class="studio-empty">${_CAL_IT ? 'Errore' : 'Gabim'}: ${escHtml(e.message)}</td></tr>`;
     }
   }
 
@@ -12725,7 +12739,7 @@ function moduleChips(u) {
         if (typeof toast === "function") toast(_CAL_IT ? `Utente '${uname}' eliminato` : `U fshi përdoruesi '${uname}'`, "success");
         loadAdminUsers();
       } else {
-        if (typeof toast === "function") toast("Gabim: " + (data.error || r.status), "error");
+        if (typeof toast === "function") toast((_CAL_IT ? "Errore: " : "Gabim: ") + (data.error || r.status), "error");
       }
     } else if (action === "suspend") {
       const willSuspend = btn.dataset.suspended !== "1";
@@ -12745,7 +12759,7 @@ function moduleChips(u) {
           toast(_CAL_IT ? (willSuspend ? `'${uname}' disattivato` : `'${uname}' riattivato`) : (willSuspend ? `'${uname}' u çaktivizua` : `'${uname}' u riaktivizua`), "success");
         loadAdminUsers();
       } else {
-        if (typeof toast === "function") toast("Gabim: " + (data.error || r.status), "error");
+        if (typeof toast === "function") toast((_CAL_IT ? "Errore: " : "Gabim: ") + (data.error || r.status), "error");
       }
     } else if (action === "passwd") {
       const newPw = prompt(_CAL_IT ? `Nuova password per '${uname}' (min 6 caratteri):` : `Fjalëkalimi i ri për '${uname}' (min 6 karaktere):`);
@@ -12763,7 +12777,7 @@ function moduleChips(u) {
       if (r.ok) {
         if (typeof toast === "function") toast(_CAL_IT ? `Password di '${uname}' modificata` : `Fjalëkalimi i '${uname}' u ndryshua`, "success");
       } else {
-        if (typeof toast === "function") toast("Gabim: " + (data.error || r.status), "error");
+        if (typeof toast === "function") toast((_CAL_IT ? "Errore: " : "Gabim: ") + (data.error || r.status), "error");
       }
     }
   });
@@ -12886,7 +12900,7 @@ function moduleChips(u) {
       myPasswdStatus.style.color = "#6c6";
       myNewPassword.value = "";
     } else {
-      myPasswdStatus.textContent = "Gabim: " + (data.error || r.status);
+      myPasswdStatus.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + (data.error || r.status);
       myPasswdStatus.style.color = "#c66";
     }
     myPasswdBtn.disabled = false;
@@ -12992,7 +13006,7 @@ function moduleChips(u) {
         </tr>
       `).join("");
     } catch (e) {
-      usageBody.innerHTML = `<tr><td colspan="8" class="studio-empty">Gabim: ${escHtml(e.message)}</td></tr>`;
+      usageBody.innerHTML = `<tr><td colspan="8" class="studio-empty">${_CAL_IT ? 'Errore' : 'Gabim'}: ${escHtml(e.message)}</td></tr>`;
     }
   }
   // ⚠️ La nota non e' decorativa: senza, «⚖️ $12,40» si legge come una

@@ -2478,7 +2478,8 @@ class SuperAvvocato:
             final_txt = ""
             for kind, payload in backend.complete_stream(
                 system=self._answer_system(),
-                messages=[{"role": "user", "content": user_message}],
+                # v9.322 — la storia entra sempre (--resume e' disabilitato)
+                messages=_history_for_prompt(history) + [{"role": "user", "content": user_message}],
                 fast=False,
                 session_id=session_id,
             ):
@@ -2549,10 +2550,8 @@ class SuperAvvocato:
                 di përgjigjen përmendësh. Cito nenet që përdor me formatin
                 "Neni X i Kodit Y". Pa 5 seksione, pa preambul.
             """)
-            if session_id:
-                msgs = [{"role": "user", "content": prompt}]
-            else:
-                msgs = list(history) + [{"role": "user", "content": prompt}]
+            # v9.322 — la storia entra sempre, potata (--resume e' disabilitato)
+            msgs = _history_for_prompt(history) + [{"role": "user", "content": prompt}]
             collected = []
             new_sid = session_id
             final_txt = ""
@@ -5022,10 +5021,8 @@ class SuperAvvocato:
             përgjigjen përmendësh. Cito nenet që përdor me formatin "Neni X i
             Kodit Y". Pa 5 seksione, pa preambul.
         """)
-        if session_id:
-            messages = [{"role": "user", "content": prompt}]
-        else:
-            messages = list(history) + [{"role": "user", "content": prompt}]
+        # v9.322 — la storia entra sempre, potata (--resume e' disabilitato)
+        messages = _history_for_prompt(history) + [{"role": "user", "content": prompt}]
         return self.backend.complete(
             system=self._answer_system(ANSWER_SIMPLE_SYSTEM),
             messages=messages,
@@ -5139,10 +5136,8 @@ class SuperAvvocato:
             levë është vendimtare për rastin konkret.
         """)
 
-        if session_id:
-            messages = [{"role": "user", "content": prompt}]
-        else:
-            messages = list(history) + [{"role": "user", "content": prompt}]
+        # v9.322 — la storia entra sempre, potata (--resume e' disabilitato)
+        messages = _history_for_prompt(history) + [{"role": "user", "content": prompt}]
         return messages, attachment_paths
 
     def _compose_answer(
@@ -5481,6 +5476,38 @@ def _areas_from_code_names(user_message: str) -> list[str]:
     for rx, area in _KODE_NE_PYETJE:
         if rx.search(s) and area not in out:
             out.append(area)
+    return out
+
+
+# v9.322 — LA MEMORIA DEL FILO. `--resume` e' disabilitato nel backend (le sessioni
+# headless non persistono), ma tre punti del compose passavano SOLO l'ultimo
+# messaggio quando c'era un session_id («ci pensa il resume»): il cervello
+# rispondeva ai follow-up SENZA sapere di cosa si parlava. Caso vero (15 set):
+# «se invece e' residente in Italia… auto un mese in Grecia?» → ha ragionato su
+# un'auto IMMATRICOLATA IN ITALIA (RCA italiana, «nessun documento doganale per
+# veicoli UE»), mentre l'auto era targata Albania: lo aveva letto due turni prima.
+# Qui la storia entra SEMPRE, potata: le risposte precedenti tengono la TESTA
+# (dove ora sta il verdetto), non le 40 schermate.
+_HIST_TURNS = 8
+_HIST_USER_CHARS = 3500
+_HIST_ASSISTANT_CHARS = 2500
+_HIST_BUDGET = 16000
+
+
+def _history_for_prompt(history) -> list[dict[str, str]]:
+    """Gli ultimi turni della conversazione, potati per non affogare il compose."""
+    out: list[dict[str, str]] = []
+    total = 0
+    for m in list(history or [])[-_HIST_TURNS:]:
+        role = str(m.get("role") or "user")
+        txt = str(m.get("content") or "")
+        cap = _HIST_ASSISTANT_CHARS if role == "assistant" else _HIST_USER_CHARS
+        if len(txt) > cap:
+            txt = txt[:cap].rstrip() + "\n[…]"
+        if total + len(txt) > _HIST_BUDGET:
+            break
+        total += len(txt)
+        out.append({"role": role, "content": txt})
     return out
 
 

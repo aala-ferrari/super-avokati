@@ -1159,15 +1159,25 @@ def _last_user_content(messages: list[Message]) -> str:
 
 
 def _humanize_cli_failure(rc=None, stdout="", stderr="", result=""):
-    """Errore tecnico del CLI -> messaggio pulito per l'utente (shqip), senza
-    esporre JSON grezzo o il vendor. Rileva i limiti d'uso e il sovraccarico."""
+    """Errore tecnico del CLI -> messaggio pulito per l'utente nella lingua
+    della SESSIONE (v9.322: in sessione IT usciva «Tetramorph eshte i zene…»),
+    senza esporre JSON grezzo o il vendor. Rileva i limiti d'uso e il sovraccarico."""
     blob = " ".join([str(stderr or ""), str(stdout or ""), str(result or "")]).lower()
+    try:
+        from .brain import request_jurisdiction as _rj
+        _it = (_rj() or "AL").upper() == "IT"
+    except Exception:  # noqa: BLE001
+        _it = False
     if any(k in blob for k in ("session limit", "usage limit", "rate limit", "429", "quota")):
-        return ("Tetramorph eshte i zene me shume kerkesa per momentin. "
-                "Te lutem provo serish pas disa minutash.")
+        return (("Tetramorph è impegnato con molte richieste in questo momento. "
+                 "Riprova tra qualche minuto.") if _it else
+                ("Tetramorph eshte i zene me shume kerkesa per momentin. "
+                 "Te lutem provo serish pas disa minutash."))
     if any(k in blob for k in ("overloaded", "529", "503", "overload")):
-        return "Tetramorph eshte perkohesisht i mbingarkuar. Provo serish pas pak."
-    return "Tetramorph hasi nje problem teknik te perkohshem. Provo serish."
+        return ("Tetramorph è temporaneamente sovraccarico. Riprova tra poco." if _it else
+                "Tetramorph eshte perkohesisht i mbingarkuar. Provo serish pas pak.")
+    return ("Tetramorph ha avuto un problema tecnico temporaneo. Riprova." if _it else
+            "Tetramorph hasi nje problem teknik te perkohshem. Provo serish.")
 
 
 def _flatten_messages(messages: list[Message]) -> str:

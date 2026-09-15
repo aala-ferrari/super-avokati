@@ -1434,6 +1434,28 @@ rischio residuo della DPIA.
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
 
+**v9.322 — LA MEMORIA DEL FILO: il cervello rispondeva ai follow-up senza sapere di cosa si
+parlava (15 set).** Il titolare, dopo il caso dell'auto della shpk: «se invece è residente in
+Italia… con l'auto sta 1 mese in Grecia?» → risposta su un'auto **immatricolata in Italia**
+(«polizza RCA italiana», «nessun documento doganale per veicoli UE»), mentre era targata Albania
+— letto due turni prima. **Causa**: tre punti del compose (`_build_compose_messages`,
+`_compose_simple_answer`, il simple fast-path stream) facevano `if session_id: messages =
+[prompt]` — «ci pensa il --resume» — ma **`--resume` è disabilitato** nel backend (headless: le
+sessioni non persistono, riga ~463) → nessuna memoria; e il followup fast-path passava SOLO
+l'ultimo messaggio. Fix: `_history_for_prompt(history)` (ultimi 8 turni, utente ≤3500 chr,
+assistente ≤2500 chr = la TESTA con il verdetto, budget 16k) entra SEMPRE nei 4 punti. **Inoltre**:
+`_humanize_cli_failure` per lingua (in IT usciva «Tetramorph eshte i zene me shume kerkesa…»);
+«Gabim:» fisso nei messaggi d'errore del client (16 spot: vault, needle, second-opinion, PRO
+`pro-status error`, inbox, studio, admin utenti/usage/password) → `_CAL_IT ? 'Errore' : 'Gabim'`
+(`scratchpad/patch_gabim.py`); replica del senior `max_tokens` 1100→1800 (si troncava a metà frase
+e il Giudice la completava); **avviso «Pannelli da correggere»** nella UI (`.panels-notice`,
+sopra l'allerta: «fa fede il Verdetto finale») quando il Giudice li ha corretti — le fasi girano
+prima della risposta e l'allerta con la norma vecchia restava a schermo. **Deploy senza uccidere
+il lavoro**: `ops/deploy_when_idle.sh vX.Y` — build subito, `run.sh` solo quando nel container
+non gira nessun claude CLI (tetto 45 min): mentre deployavo v9.320/321 il titolare stava usando
+la chat («Failed to fetch», «impegnato»). Golden **[70]**; [68] non più legato al numero di
+versione di app.js. QA: golden 455.
+
 **v9.321 — tag in produzione = v9.320 + badge urgenza «CRITICO/ALLARME» in IT (15 set).** Il
 badge dell'allerta usciva «KRITIK» nel DOM vivo IT → `_CAL_IT` (app.js?v=169, golden [69]
 esteso). Build separata solo per rendere permanente nell'immagine ciò che era hot-copiato.
