@@ -48,16 +48,15 @@ def fetch(url: str, timeout: int = 120) -> str:
         return r.read().decode("utf-8", "replace")
 
 
-def latest_celex(base: str) -> str:
-    """'32015R2446' -> '02015R2446-20260701' (newest consolidation) or base."""
+def consolidated_versions(base: str) -> list[str]:
+    """'32015R2446' -> ['02015R2446-20260701', '02015R2446-20250225', …] (newest first)."""
     try:
         page = fetch(f"https://eur-lex.europa.eu/legal-content/IT/ALL/?uri=CELEX:{base}")
-        cons = re.findall(r"0" + re.escape(base[1:]) + r"-(\d{8})", page)
-        if cons:
-            return "0" + base[1:] + "-" + max(cons)
+        cons = sorted(set(re.findall(r"0" + re.escape(base[1:]) + r"-(\d{8})", page)), reverse=True)
+        return ["0" + base[1:] + "-" + d for d in cons]
     except Exception as exc:  # noqa: BLE001
-        print(f"    (ALL page non letta: {exc}) — uso l'atto originale", flush=True)
-    return base
+        print(f"    (ALL page non letta: {exc})", flush=True)
+        return []
 
 
 _TAG = re.compile(r"<[^>]+>")
@@ -86,11 +85,12 @@ def _text(fragment: str) -> str:
 
 _SUFFIX = r"(?:bis|ter|quater|quinquies|sexies|septies|octies|novies|decies)"
 # due markup: testi consolidati («title-article-norm») e Gazzetta ufficiale UE («oj-ti-art»)
+# tre markup: consolidati («title-article-norm»), GU UE recente («oj-ti-art»), GU UE vecchia («ti-art»)
 _ART = re.compile(
-    r'<p[^>]*class="(?:title-article-norm|oj-ti-art)"[^>]*>\s*Articolo\s+(\d+)\s*(' + _SUFFIX + r'?)\s*</p>',
+    r'<p[^>]*class="(?:title-article-norm|oj-ti-art|ti-art)"[^>]*>\s*Articolo\s+(\d+)\s*(' + _SUFFIX + r'?)\s*</p>',
     re.I)
-_STITLE = re.compile(r'<p[^>]*class="(?:stitle-article-norm|oj-sti-art)"[^>]*>(.*?)</p>', re.S)
-_DIVISION = re.compile(r'<p[^>]*class="(?:title-division-\d|oj-ti-section-\d|oj-ti-grseq-\d|oj-doc-ti)"')
+_STITLE = re.compile(r'<p[^>]*class="(?:stitle-article-norm|oj-sti-art|sti-art)"[^>]*>(.*?)</p>', re.S)
+_DIVISION = re.compile(r'<p[^>]*class="(?:title-division-\d|oj-ti-section-\d|oj-ti-grseq-\d|oj-doc-ti|ti-section-\d|ti-grseq-\d|doc-ti)"')
 
 
 def _dedup(arts: list[dict]) -> list[dict]:
@@ -183,38 +183,43 @@ def main() -> None:
             except Exception:  # noqa: BLE001
                 pass
         t0 = time.time()
-        celex = latest_celex(base)
-        url = f"https://eur-lex.europa.eu/legal-content/IT/TXT/HTML/?uri=CELEX:{celex}"
-        print(f"\n▶ {cid}  ({title})\n    {url}", flush=True)
-        src = "html-consolidato"
-        try:
-            page = fetch(url)
-            arts = parse(page)
-            if len(arts) < 5 and celex != base:
-                # EUR-Lex non serve l'HTML dei consolidati molto grandi (pagina-guscio):
-                # si passa al PDF consolidato (stesso testo vigente), poi all'atto originale
-                print("    HTML consolidato vuoto → provo il PDF consolidato", flush=True)
-                try:
-                    pdf_path = Path(f"/tmp/eurlex_{celex}.pdf")
-                    req = urllib.request.Request(
-                        f"https://eur-lex.europa.eu/legal-content/IT/TXT/PDF/?uri=CELEX:{celex}",
-                        headers={"User-Agent": UA})
-                    with urllib.request.urlopen(req, timeout=300) as r:
-                        pdf_path.write_bytes(r.read())
-                    arts = parse_pdf(pdf_path)
-                    src = "pdf-consolidato"
-                except Exception as exc:  # noqa: BLE001
-                    print(f"    PDF consolidato fallito ({type(exc).__name__}: {str(exc)[:80]})", flush=True)
-                    arts = []
-            if len(arts) < 5:
-                print("    → atto originale (Gazzetta ufficiale UE, senza modifiche successive)", flush=True)
-                page = fetch(f"https://eur-lex.europa.eu/legal-content/IT/TXT/HTML/?uri=CELEX:{base}")
-                arts = parse(page)
-                src = "html-originale"
-        except Exception as exc:  # noqa: BLE001
-            print(f"  ✗ {cid} FALLITO: {type(exc).__name__}: {str(exc)[:120]}", flush=True)
+        print(f"\n▶ {cid}  ({title})", flush=True)
+        arts: list[dict] = []
+        src, celex = "", base
+        # 1) consolidati, dal più recente: HTML, poi PDF (EUR-Lex non serve l'HTML dei
+        #    testi molto grandi e non tutte le versioni hanno il PDF) — ogni tentativo
+        #    e' isolato: un 404 non deve far saltare l'atto (roma_ii, 16 set)
+        for cx in consolidated_versions(base)[:4]:
+            try:
+                arts = parse(fetch(f"https://eur-lex.europa.eu/legal-content/IT/TXT/HTML/?uri=CELEX:{cx}"))
+                if len(arts) >= 5:
+                    src, celex = "html-consolidato", cx
+                    break
+                print(f"    {cx}: HTML vuoto → provo il PDF", flush=True)
+                pdf_path = Path(f"/tmp/eurlex_{cx}.pdf")
+                req = urllib.request.Request(
+                    f"https://eur-lex.europa.eu/legal-content/IT/TXT/PDF/?uri=CELEX:{cx}", headers={"User-Agent": UA})
+                with urllib.request.urlopen(req, timeout=300) as r:
+                    pdf_path.write_bytes(r.read())
+                arts = parse_pdf(pdf_path)
+                if len(arts) >= 5:
+                    src, celex = "pdf-consolidato", cx
+                    break
+            except Exception as exc:  # noqa: BLE001
+                print(f"    {cx}: {type(exc).__name__}: {str(exc)[:70]}", flush=True)
+                arts = []
+        # 2) atto originale (Gazzetta ufficiale UE, senza modifiche successive)
+        if len(arts) < 5:
+            try:
+                arts = parse(fetch(f"https://eur-lex.europa.eu/legal-content/IT/TXT/HTML/?uri=CELEX:{base}"))
+                src, celex = "html-originale", base
+            except Exception as exc:  # noqa: BLE001
+                print(f"  ✗ {cid} FALLITO: {type(exc).__name__}: {str(exc)[:120]}", flush=True)
+                continue
+        if len(arts) < 5:
+            print(f"  ✗ {cid}: nessun articolo riconosciuto", flush=True)
             continue
-        print(f"    fonte: {src}", flush=True)
+        print(f"    fonte: {src} ({celex})", flush=True)
         payload = {"id": cid, "title": title, "area": area, "urn": f"eurlex:{celex}",
                    "wave": "eurlex", "source": src, "articles": arts, "failures": []}
         dest.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
