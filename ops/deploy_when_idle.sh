@@ -21,8 +21,13 @@ echo "BUILD START $(date -u +%H:%M:%S)  ($OLD -> $NEW)"
 df -h / | tail -1
 docker build -q -t "super-avvocato:$NEW" . || { echo "BUILD FALLITA"; exit 1; }
 
+# ⚠️ `docker exec` SENZA `-i` non passa lo stdin: la prima versione usava
+# `python3 - <<'PY'` e leggeva stdin vuoto → stampava niente → «0 attivi» →
+# il riavvio partiva sempre e ha ucciso una domanda del titolare (16 set).
+# Il conteggio va passato con -c, mai via stdin. Se il conteggio fallisce,
+# si assume OCCUPATO (999), non libero.
 _busy() {
-  docker exec super-avvocato python3 - <<'PY' 2>/dev/null || echo 0
+  docker exec super-avvocato python3 -c '
 import glob
 n = 0
 for f in glob.glob("/proc/[0-9]*/cmdline"):
@@ -33,13 +38,14 @@ for f in glob.glob("/proc/[0-9]*/cmdline"):
     if "/usr/bin/claude" in c:
         n += 1
 print(n)
-PY
+' 2>/dev/null || echo 999
 }
 
 waited=0
 while :; do
   n=$(_busy | tail -1)
-  if [ "${n:-0}" -eq 0 ]; then break; fi
+  case "$n" in ''|*[!0-9]*) n=999 ;; esac   # niente numero = non so = occupato
+  if [ "$n" -eq 0 ]; then break; fi
   if [ "$waited" -ge $((MAX_WAIT_MIN * 60)) ]; then
     echo "ATTESA SCADUTA ($MAX_WAIT_MIN min) con $n processi attivi: procedo comunque"
     break

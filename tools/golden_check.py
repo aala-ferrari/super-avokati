@@ -2593,6 +2593,17 @@ def main():
     except Exception as _e72:  # noqa: BLE001
         check("chiarimento[72]: kontrollet u ekzekutuan", False, str(_e72))
 
+    # ── [73] deploy_when_idle: il conteggio dei CLI passa con -c, MAI via stdin (16 set) ──
+    # `docker exec` senza -i non passa lo stdin: `python3 - <<PY` leggeva vuoto → «0 attivi»
+    # → run.sh partiva sempre → uccisa una domanda del titolare a 30 min di lavoro.
+    try:
+        _sh73 = _io2.open(_os2.path.join(_os2.path.dirname(_os2.path.dirname(_os2.path.abspath(__file__))), "ops", "deploy_when_idle.sh"), encoding="utf-8").read()
+        check("deploy[73]: deploy_when_idle conta i CLI con `python3 -c` (non stdin) e tratta un conteggio non numerico come OCCUPATO",
+              "docker exec super-avvocato python3 -c '" in _sh73 and "python3 - <<" not in _sh73
+              and "|| echo 999" in _sh73 and "n=999 ;; esac" in _sh73)
+    except Exception as _e73:  # noqa: BLE001
+        check("deploy[73]: kontrollet u ekzekutuan", False, str(_e73))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
