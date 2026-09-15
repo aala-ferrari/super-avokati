@@ -2557,6 +2557,24 @@ def main():
     except Exception as _e70:  # noqa: BLE001
         check("memoria[70]: kontrollet u ekzekutuan", False, str(_e70))
 
+    # ── [71] Il Giudice Finale anche sui follow-up sostanziosi (15 set) ──
+    # Prova viva in Chrome (caso «auto 2», follow-up Grecia): la memoria del filo ha funzionato
+    # («Rettifica preliminare: l'auto è targata Albania»), ma la risposta citava come verificata
+    # la «Cass. 10383/2026» che il verdetto precedente aveva bollato «non citare» e i «60 giorni»
+    # dell'art. 93 abrogato — il followup fast-path non passava dal Giudice.
+    try:
+        import inspect as _insp71
+        from src import studio as _st71
+        _as71 = _insp71.getsource(brain.SuperAvvocato.answer_stream)
+        _i71 = _as71.find("stream: followup fast-path")
+        _seg71 = _as71[_i71:_i71 + 4000]
+        check("giudice[71]: followup fast-path → _gjyqtari_fundit se ≥4000 chr, con il filo della conversazione; prompt del Giudice sa giudicare senza corpus (sq+it)",
+              "if len(text) >= 4000:" in _seg71 and "self._gjyqtari_fundit(user_message, [], [], text, dosja_txt=_lbl_f + _filo)" in _seg71
+              and "NËSE NUK KA NENE nga korpusi" in _st71.GJYQTARI_SYSTEM["sq"]
+              and "SE NON CI SONO ARTICOLI dal corpus" in _st71.GJYQTARI_SYSTEM["it"])
+    except Exception as _e71:  # noqa: BLE001
+        check("giudice[71]: kontrollet u ekzekutuan", False, str(_e71))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

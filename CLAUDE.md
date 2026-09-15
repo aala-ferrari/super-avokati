@@ -1434,6 +1434,26 @@ rischio residuo della DPIA.
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
 
+**v9.323 — PROVA IN CHROME «come il titolare» + il Giudice anche sui follow-up (15 set).**
+Con Chrome, sessione `admin.it`, caso «auto 2» del titolare (storia: domanda shpk ×2, risposta
+34k, follow-up Grecia sbagliato, ripetizione, errore «impegnato»): ho riscritto il follow-up
+«se invece è residente in Italia… un mese in Grecia?». Percorso: **followup fast-path** (storia
+≥4 turni, messaggio corto) — quello che prima non aveva memoria. **Esito (34 min, 17k chr,
+1,37M token: ha navigato molto)**: apre con «**Rettifica preliminare** — la risposta precedente
+ha ragionato su un'auto immatricolata in Italia… l'auto è **targata Albania**» → memoria del filo
+OK; ragionamento giusto: territorio doganale UE unico (art. 4 CDU), «stabilito» = residenza
+abituale (art. 5 n. 31), art. 212 par. 3 condizioni cumulative, deroghe 214/215 (215 par. 3 =
+solo lavoro dipendente), 217 sei mesi, Cass. 15208/2024, lato greco (contrabbando, triplo dei
+dazi, sequestro), carta verde obbligatoria per targhe AL, C-393/19 OM, Kapetanios c. Grecia;
+«Risposta secca: no». **Due residui**: cita come verificata «Cass. 10383/2026» che il verdetto
+precedente aveva bollato «non citare», e i «60 giorni» dell'art. 93 abrogato già corretti un turno
+prima → il followup fast-path **non passava dal Giudice**. Fix: se la risposta di follow-up è
+sostanziosa (≥4000 chr) → `_gjyqtari_fundit(user_message, [], [], text, dosja_txt=FILO)` con
+il filo potato (contiene il verdetto precedente); `GJYQTARI_SYSTEM` sa giudicare senza corpus
+(coerenza col filo, fatti, citazioni bollate). Golden **[71]**. Nota costo: un follow-up IT con
+web = 34 min/1,37M token (Cassazione viva + fonti greche) — precisione > velocità, ma è il profilo
+più caro; se l'abbonamento soffre, la leva è `no_web` sui follow-up brevi.
+
 **v9.322 — LA MEMORIA DEL FILO: il cervello rispondeva ai follow-up senza sapere di cosa si
 parlava (15 set).** Il titolare, dopo il caso dell'auto della shpk: «se invece è residente in
 Italia… con l'auto sta 1 mese in Grecia?» → risposta su un'auto **immatricolata in Italia**

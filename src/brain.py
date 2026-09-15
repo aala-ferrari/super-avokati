@@ -2491,6 +2491,24 @@ class SuperAvvocato:
                     new_sid = payload.get("session_id") or session_id
                     final_txt = str(payload.get("text") or "")
             text = _apply_corrections(final_txt or "".join(collected))
+            # v9.323 — anche il follow-up SOSTANZIOSO passa dal Giudice Finale (senza
+            # corpus: giudica coerenza col filo, fatti e citazioni). Caso vero (15 set):
+            # il follow-up «un mese in Grecia» citava come verificata una Cass. che il
+            # verdetto precedente aveva bollato «non citare», e riportava i «60 giorni»
+            # dell'art. 93 abrogato che il Giudice aveva gia' corretto un turno prima.
+            # Sotto i 4000 caratteri (chiacchiera, chiarimento breve) non serve.
+            if len(text) >= 4000:
+                try:
+                    _filo = "\n\n".join(
+                        "[%s] %s" % (m.get("role"), m.get("content"))
+                        for m in _history_for_prompt(history))
+                    _lang_f = "it" if self._current_jurisdiction() == "IT" else "sq"
+                    _lbl_f = ("FILO DELLA CONVERSAZIONE (turni precedenti, potati — qui sta il verdetto già dato):\n"
+                              if _lang_f == "it" else
+                              "FILLI I BISEDËS (kthesat e mëparshme, të shkurtuara — këtu është vendimi i dhënë më parë):\n")
+                    text = self._gjyqtari_fundit(user_message, [], [], text, dosja_txt=_lbl_f + _filo)
+                except Exception as _exc_f:  # noqa: BLE001 — il verdetto non deve mai far cadere la risposta
+                    log.warning("studio: gjyqtari (follow-up) dështoi (non-fatal): %s", _exc_f)
             yield ("final", LegalAnswer(
                 kind="answer", text=text, session_id=new_sid,
             ))
