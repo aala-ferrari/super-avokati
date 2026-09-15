@@ -2503,9 +2503,29 @@ def main():
               and "intro: bool = True" in _rf68 and "_ETICHETTA_BUCKET_IT" in _rf68
               and "SENZA WEB, PER SCELTA" in _gs68["it"] and "PA WEB, ME QËLLIM" in _gs68["sq"]
               and "function collapseSparring(html)" in _js68 and "return collapseSparring(" in _js68
-              and "app.js?v=167" in _html68)
+              and "app.js?v=16" in _html68)
     except Exception as _e68:  # noqa: BLE001
         check("fasi[68]: kontrollet u ekzekutuan", False, str(_e68))
+
+    # ── [69] Etichette COMPOSTE (contatori) bilingui alla fonte (15 set) ──
+    # DOM vivo in sessione IT: «📋 Mapa e provës — 5 provë që mungojnë, 1 me barrë të
+    # zhvendosur» — le stringhe con ${…} non passano dal match esatto di T_IT: si traducono
+    # alla fonte con `_CAL_IT ? it : sq` (pannelli, calendario, barre di stato, toast, admin).
+    try:
+        _js69 = _io2.open(_os2.path.join(_os2.path.dirname(_os2.path.dirname(_os2.path.abspath(__file__))), "static", "app.js"), encoding="utf-8").read()
+        _need69 = ["📋 Mappa delle prove — ${missing.length} prove mancanti",
+                   "🛡️ Radar di nullità e termini (${findings.length})",
+                   "⚖️ ${items.length} contraddizioni nel fascicolo",
+                   "🛡️ Precedenti sfavorevoli (${items.length}",
+                   "(count === 1 ? \"1 evento\" : `${count} eventi`)",
+                   "`+${dayEvents.length - 3} altri`", "`Aggiunti ${data.events_created || 0} termini al calendario`",
+                   "`${sec}s fa`", "`Fattura ${inv.invoice_no} generata.`", "`Completato in ${(evt.elapsed_ms/1000).toFixed(1)}s ✓`",
+                   "`Eliminare l'utente '${uname}'?", "willSuspend ? \"disattivare\" : \"riattivare\""]
+        _miss69 = [k for k in _need69 if k not in _js69]
+        check("i18n[69]: etichette composte con contatori tradotte alla fonte (_CAL_IT) — pannelli, calendario, stato, toast, admin",
+              not _miss69, "mancano: " + " | ".join(_miss69)[:200])
+    except Exception as _e69:  # noqa: BLE001
+        check("i18n[69]: kontrollet u ekzekutuan", False, str(_e69))
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

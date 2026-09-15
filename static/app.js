@@ -920,7 +920,7 @@
           const r = await fetch("/api/cascade/event-types");
           const { items } = await r.json();
           const lines = items.map(t => `• \`${t.key}\` — ${t.label}`).join("\n");
-          appendInfoBot(`**Llojet e ngjarjeve procedurale**\n\n${lines}\n\nPërdor: \`/afatet <lloji> [data YYYY-MM-DD]\``);
+          appendInfoBot(`**${_CAL_IT ? 'Tipi di eventi procedurali' : 'Llojet e ngjarjeve procedurale'}**\n\n${lines}\n\n${_CAL_IT ? 'Usa' : 'Përdor'}: \`/afatet <lloji> [data YYYY-MM-DD]\``);
         } catch { appendError("Gabim ngarkimi i llojeve."); }
         return true;
       }
@@ -937,9 +937,9 @@
         messages.querySelector(".msg.typing")?.remove();
         const data = await r.json();
         if (!r.ok) { appendError(data.error || "Gabim"); return true; }
-        const head = `**⏳ Afatet procedurale** për *${escapeHtml(data.event_label || eventType)}* nga **${eventDate}**\n\n`;
+        const head = `**⏳ ${_CAL_IT ? 'Termini procedurali' : 'Afatet procedurale'}** ${_CAL_IT ? 'per' : 'për'} *${escapeHtml(data.event_label || eventType)}* ${_CAL_IT ? 'dal' : 'nga'} **${eventDate}**\n\n`;
         const rows = (data.deadlines || []).map(d =>
-          `• **${d.label}** — afati: **${d.deadline_date}** (${d.days_from_event} ditë) · ${d.legal_basis || ""}`
+          `• **${d.label}** — ${_CAL_IT ? 'termine' : 'afati'}: **${d.deadline_date}** (${d.days_from_event} ${_CAL_IT ? 'giorni' : 'ditë'}) · ${d.legal_basis || ""}`
         ).join("\n");
         appendInfoBot(head + (rows || "Asnjë afat."));
       } catch (err) {
@@ -1836,9 +1836,14 @@
       `;
     }).join("");
 
-    const label = dangerous.length
-      ? `🛡️ Precedentë sfavorizues (${items.length}, ${dangerous.length} ende të rrezikshëm)`
-      : `🛡️ Precedentë sfavorizues (${items.length} — të gjithë distinguish)`;
+    // v9.320 — etichetta composta (contatori): tradotta alla fonte, come formatWhen
+    const label = _CAL_IT
+      ? (dangerous.length
+          ? `🛡️ Precedenti sfavorevoli (${items.length}, ${dangerous.length} ancora pericolosi)`
+          : `🛡️ Precedenti sfavorevoli (${items.length} — tutti distinti)`)
+      : (dangerous.length
+          ? `🛡️ Precedentë sfavorizues (${items.length}, ${dangerous.length} ende të rrezikshëm)`
+          : `🛡️ Precedentë sfavorizues (${items.length} — të gjithë distinguish)`);
     wrap.innerHTML = `
       <summary>${label}</summary>
       <div class="dist-intro">Çdo vendim më poshtë u gjet nga BM25 si i ngjashëm me rastin — dhe për secilin është bërë distinguishing: pse nuk aplikohet, ose si mbrohemi nëse aplikohet.</div>
@@ -1916,13 +1921,20 @@
       `;
     }).join("");
 
-    let label = `📋 Mapa e provës (${claims.length} pretendime)`;
+    // v9.320 — etichetta composta (contatori): tradotta alla fonte
+    let label = _CAL_IT ? `📋 Mappa delle prove (${claims.length} pretese)` : `📋 Mapa e provës (${claims.length} pretendime)`;
     if (shifts.length && missing.length) {
-      label = `📋 Mapa e provës — ${missing.length} provë që mungojnë, ${shifts.length} me barrë të zhvendosur`;
+      label = _CAL_IT
+        ? `📋 Mappa delle prove — ${missing.length} prove mancanti, ${shifts.length} con onere invertito`
+        : `📋 Mapa e provës — ${missing.length} provë që mungojnë, ${shifts.length} me barrë të zhvendosur`;
     } else if (shifts.length) {
-      label = `📋 Mapa e provës — ${shifts.length} rregull me barrë të zhvendosur 🔄`;
+      label = _CAL_IT
+        ? `📋 Mappa delle prove — ${shifts.length} regole con onere invertito 🔄`
+        : `📋 Mapa e provës — ${shifts.length} rregull me barrë të zhvendosur 🔄`;
     } else if (missing.length) {
-      label = `📋 Mapa e provës — ${missing.length}/${claims.length} provë ende pa mbledhur`;
+      label = _CAL_IT
+        ? `📋 Mappa delle prove — ${missing.length}/${claims.length} prove ancora da raccogliere`
+        : `📋 Mapa e provës — ${missing.length}/${claims.length} provë ende pa mbledhur`;
     }
 
     wrap.innerHTML = `
@@ -2026,11 +2038,16 @@
       `;
     }).join("");
 
-    let label = `🛡️ Radari i pavlefshmërive dhe afateve (${findings.length})`;
+    // v9.320 — etichetta composta (contatori): tradotta alla fonte
+    let label = _CAL_IT ? `🛡️ Radar di nullità e termini (${findings.length})` : `🛡️ Radari i pavlefshmërive dhe afateve (${findings.length})`;
     if (absolute.length) {
-      label = `🛑 ${absolute.length} pavlefshmëri absolute që mund ta ngremë + ${findings.length - absolute.length} të tjera`;
+      label = _CAL_IT
+        ? `🛑 ${absolute.length} nullità assolute da far valere + ${findings.length - absolute.length} altre`
+        : `🛑 ${absolute.length} pavlefshmëri absolute që mund ta ngremë + ${findings.length - absolute.length} të tjera`;
     } else if (applicable.length) {
-      label = `🛡️ ${applicable.length}/${findings.length} leva procedurale që aplikohen`;
+      label = _CAL_IT
+        ? `🛡️ ${applicable.length}/${findings.length} leve procedurali applicabili`
+        : `🛡️ ${applicable.length}/${findings.length} leva procedurale që aplikohen`;
     }
 
     wrap.innerHTML = `
@@ -2401,9 +2418,14 @@
       `;
     }).join("");
 
-    const label = hasHigh
-      ? `⚖️ ${items.length} kontradikta në dosje — ${items.filter(c => c.severity === "high").length} e lartë`
-      : `⚖️ ${items.length} kontradikta në dosje`;
+    // v9.320 — etichetta composta (contatori): tradotta alla fonte
+    const label = _CAL_IT
+      ? (hasHigh
+          ? `⚖️ ${items.length} contraddizioni nel fascicolo — ${items.filter(c => c.severity === "high").length} gravi`
+          : `⚖️ ${items.length} contraddizioni nel fascicolo`)
+      : (hasHigh
+          ? `⚖️ ${items.length} kontradikta në dosje — ${items.filter(c => c.severity === "high").length} e lartë`
+          : `⚖️ ${items.length} kontradikta në dosje`);
 
     wrap.innerHTML = `
       <summary>${label}</summary>
@@ -3030,7 +3052,7 @@
     } else {
       ctx = `30 ditët e ardhshme`;
     }
-    const label = count === 1 ? "1 ngjarje" : `${count} ngjarje`;
+    const label = _CAL_IT ? (count === 1 ? "1 evento" : `${count} eventi`) : (count === 1 ? "1 ngjarje" : `${count} ngjarje`);
     return `${dowNow} · ${timeNow} · ${ctx} · ${label}`;
   }
 
@@ -3105,7 +3127,7 @@
         const more = document.createElement("button");
         more.type = "button";
         more.className = "day-more";
-        more.textContent = `+${dayEvents.length - 3} më shumë`;
+        more.textContent = _CAL_IT ? `+${dayEvents.length - 3} altri` : `+${dayEvents.length - 3} më shumë`;
         const dc = new Date(d);
         more.addEventListener("click", (e) => {
           e.stopPropagation();
@@ -3407,7 +3429,7 @@
         li.classList.add("up-soon");
       } else if (days === 0) { inLabel = `${hours}h`; li.classList.add("up-soon"); }
       else if (days === 1) inLabel = "nesër";
-      else if (days < 7)   inLabel = `+${days} ditë`;
+      else if (days < 7)   inLabel = _CAL_IT ? `+${days} giorni` : `+${days} ditë`;
       else                 inLabel = fmtShortDate(ev._start);
       const kindColor = {
         seance:"var(--cal-seance)", afat:"var(--cal-afat)", takim:"var(--cal-takim)",
@@ -7519,7 +7541,7 @@
     const text = (stressInput.value || "").trim();
     const minLen = stressMode === "loop" ? 30 : 20;
     if (text.length < minLen) {
-      stressStatus.textContent = `Shkruaj të paktën ${minLen} karaktere.`;
+      stressStatus.textContent = _CAL_IT ? `Scrivi almeno ${minLen} caratteri.` : `Shkruaj të paktën ${minLen} karaktere.`;
       stressStatus.className = "pro-status error";
       return;
     }
@@ -7530,7 +7552,7 @@
     try {
       if (stressMode === "loop") {
         const rounds = parseInt(stressRoundsSel?.value || "5", 10);
-        stressStatus.textContent = `⚔️ Po fillon beteja — ${rounds} raunde (~${rounds} min)...`;
+        stressStatus.textContent = _CAL_IT ? `⚔️ Inizia la battaglia — ${rounds} round (~${rounds} min)...` : `⚔️ Po fillon beteja — ${rounds} raunde (~${rounds} min)...`;
         const r = await fetch(`/api/cases/${activeCaseId}/adversarial`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -7541,7 +7563,7 @@
         renderAdversarialInto(stressResult, data.result);
         stressResult.hidden = false;
         const summary = data.result.summary || {};
-        stressStatus.textContent = `✓ ${data.result.round_count} raunde · verdikti: ${summary.verdict_likelihood || "?"}`;
+        stressStatus.textContent = _CAL_IT ? `✓ ${data.result.round_count} round · verdetto: ${summary.verdict_likelihood || "?"}` : `✓ ${data.result.round_count} raunde · verdikti: ${summary.verdict_likelihood || "?"}`;
         stressStatus.className = "pro-status ok";
         toast("Beteja përfundoi.", "success");
       } else {
@@ -7869,7 +7891,7 @@
         throw new Error(err.error || `HTTP ${resp.status}`);
       }
       const data = await resp.json();
-      toast(`U shtuan ${data.events_created || 0} afate në kalendar`, "ok");
+      toast(_CAL_IT ? `Aggiunti ${data.events_created || 0} termini al calendario` : `U shtuan ${data.events_created || 0} afate në kalendar`, "ok");
       cascadeSchedule.disabled = false;
       refreshBadge();
     } catch (err) {
@@ -7958,7 +7980,7 @@
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || "HTTP " + r.status);
       renderCaseTimelineModal(data.result, data.updated_at);
-      timelineStatus.textContent = `✓ ${data.result.event_count} ngjarje · ${(data.result.contradictions || []).length} kontradikta · ${(data.result.gaps || []).length} boshllëqe`;
+      timelineStatus.textContent = `✓ ${data.result.event_count} ${_CAL_IT ? 'eventi' : 'ngjarje'} · ${(data.result.contradictions || []).length} ${_CAL_IT ? 'contraddizioni' : 'kontradikta'} · ${(data.result.gaps || []).length} ${_CAL_IT ? 'lacune' : 'boshllëqe'}`;
       timelineStatus.className = "pro-status ok";
       timelineDelete.hidden = false;
       toast("Linja kohore u ndërtua.", "success");
@@ -7991,9 +8013,9 @@
     const t = new Date(iso).getTime();
     if (!t) return iso;
     const sec = Math.max(1, Math.floor((Date.now() - t) / 1000));
-    if (sec < 60) return `${sec}s më parë`;
-    if (sec < 3600) return `${Math.floor(sec/60)}m më parë`;
-    if (sec < 86400) return `${Math.floor(sec/3600)}h më parë`;
+    if (sec < 60) return _CAL_IT ? `${sec}s fa` : `${sec}s më parë`;
+    if (sec < 3600) return _CAL_IT ? `${Math.floor(sec/60)}m fa` : `${Math.floor(sec/60)}m më parë`;
+    if (sec < 86400) return _CAL_IT ? `${Math.floor(sec/3600)}h fa` : `${Math.floor(sec/3600)}h më parë`;
     return new Date(iso).toLocaleDateString("sq-AL");
   }
 
@@ -8106,7 +8128,7 @@
     }
     const rounds = parseInt(adversarialRoundsSel.value || "5", 10);
     adversarialRun.disabled = true;
-    adversarialStatus.textContent = `⚔️ Po fillon beteja — ${rounds} raunde të planifikuara (~${rounds}min)...`;
+    adversarialStatus.textContent = _CAL_IT ? `⚔️ Inizia la battaglia — ${rounds} round pianificati (~${rounds}min)...` : `⚔️ Po fillon beteja — ${rounds} raunde të planifikuara (~${rounds}min)...`;
     adversarialStatus.className = "pro-status";
     adversarialResult.hidden = true;
     try {
@@ -8119,7 +8141,7 @@
       if (!r.ok) throw new Error(data.error || "HTTP " + r.status);
       renderAdversarial(data.result);
       const summary = data.result.summary || {};
-      adversarialStatus.textContent = `✓ ${data.result.round_count} raunde · verdikti: ${summary.verdict_likelihood || "?"}`;
+      adversarialStatus.textContent = _CAL_IT ? `✓ ${data.result.round_count} round · verdetto: ${summary.verdict_likelihood || "?"}` : `✓ ${data.result.round_count} raunde · verdikti: ${summary.verdict_likelihood || "?"}`;
       adversarialStatus.className = "pro-status ok";
       toast("Beteja përfundoi.", "success");
     } catch (err) {
@@ -8252,7 +8274,7 @@
       if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
       renderStrategyCompass(data.result);
       const meta = data.result.meta || {};
-      strategyStatus.textContent = `✓ ${meta.node_count || "?"} nyje · thellësi ${meta.depth ?? "?"}`;
+      strategyStatus.textContent = _CAL_IT ? `✓ ${meta.node_count || "?"} nodi · profondità ${meta.depth ?? "?"}` : `✓ ${meta.node_count || "?"} nyje · thellësi ${meta.depth ?? "?"}`;
       strategyStatus.className = "pro-status ok";
       toast("Pema u gjenerua.", "success");
     } catch (e) {
@@ -8661,7 +8683,7 @@
           : `Asnjë bozzë në pritje. Kur praktikantët sotometojnë, do t'i shohësh këtu.`;
       } else {
         reviewHelpEl.textContent = drafts.length
-          ? `Bozzat e tua që presin revizion (${drafts.length}).`
+          ? (_CAL_IT ? `Le tue bozze in attesa di revisione (${drafts.length}).` : `Bozzat e tua që presin revizion (${drafts.length}).`)
           : `Nuk ke bozza në pritje. Përdor "Sotomet bozzë" nga menuja Pro.`;
       }
       if (!drafts.length) {
@@ -9751,7 +9773,7 @@
       const entries = data.entries || [];
       const unbilledTotal = data.total_unbilled_cents || 0;
       moneyUnbilledPill.textContent = entries.length
-        ? `${entries.filter(e => !e.billed_invoice_id).length} të papaguara · ${fmtMoney(unbilledTotal, entries[0]?.currency || "EUR")}`
+        ? `${entries.filter(e => !e.billed_invoice_id).length} ${_CAL_IT ? 'non fatturate' : 'të papaguara'} · ${fmtMoney(unbilledTotal, entries[0]?.currency || "EUR")}`
         : "";
       if (!entries.length) {
         timeList.innerHTML = '<p class="money-empty">Ende asnjë orë e regjistruar për këtë rast.</p>';
@@ -9918,7 +9940,7 @@
         throw new Error(err.error || "krijimi dështoi");
       }
       const inv = await r.json();
-      invoiceStatus.textContent = `Faturë ${inv.invoice_no} e gjeneruar.`;
+      invoiceStatus.textContent = _CAL_IT ? `Fattura ${inv.invoice_no} generata.` : `Faturë ${inv.invoice_no} e gjeneruar.`;
       invoiceStatus.className = "pro-status ok";
       invoiceClient.value = ""; invoiceAddress.value = "";
       invoiceNotes.value = ""; invoiceDue.value = "";
@@ -10081,7 +10103,7 @@
       }
       const data = await r.json();
       agentScanStatus.textContent = data.suggestions.length
-        ? `${data.suggestions.length} sugjerime të reja.`
+        ? (_CAL_IT ? `${data.suggestions.length} nuovi suggerimenti.` : `${data.suggestions.length} sugjerime të reja.`)
         : "Asnjë veprim urgjent — gjithçka në rregull.";
       agentScanStatus.className = "pro-status ok";
       await loadSuggestions();
@@ -10841,7 +10863,7 @@
     } else if (evt.type === "perspective") {
       renderGenioCard(evt.result.key, evt.result);
     } else if (evt.type === "completed") {
-      genioStatusEl.textContent = `U mbarua në ${(evt.elapsed_ms/1000).toFixed(1)}s ✓`;
+      genioStatusEl.textContent = _CAL_IT ? `Completato in ${(evt.elapsed_ms/1000).toFixed(1)}s ✓` : `U mbarua në ${(evt.elapsed_ms/1000).toFixed(1)}s ✓`;
       genioStatusEl.className = "pro-status ok";
     } else if (evt.type === "done") {
       if (evt.brief_id) _genioBriefId = evt.brief_id;
@@ -11102,12 +11124,12 @@
           const sec = ((row.elapsed_ms || (Date.now() - t0)) / 1000).toFixed(0);
           precStatusEl.textContent = row.status === "error"
             ? "Analiza dështoi. Provo përsëri."
-            : `Gati në ${sec}s ✓ (#${briefId})`;
+            : (_CAL_IT ? `Pronto in ${sec}s ✓ (#${briefId})` : `Gati në ${sec}s ✓ (#${briefId})`);
           precStatusEl.className = row.status === "error" ? "pro-status error" : "pro-status ok";
           loadPrecedentHistory();
         } else {
           const el = Math.round((Date.now() - t0) / 1000);
-          precStatusEl.textContent = `Po analizon precedentët… (${el}s — mos e mbyll)`;
+          precStatusEl.textContent = _CAL_IT ? `Analizzo i precedenti… (${el}s — non chiudere)` : `Po analizon precedentët… (${el}s — mos e mbyll)`;
         }
       }
       if (!done) {
@@ -11299,7 +11321,7 @@
       });
       const data = await r.json();
       if (!r.ok) { coachStatus.textContent = data.error || "Gabim."; return; }
-      coachStatus.textContent = `✓ ${(data.elapsed_ms/1000).toFixed(1)}s · mësim #${data.lesson_id}`;
+      coachStatus.textContent = _CAL_IT ? `✓ ${(data.elapsed_ms/1000).toFixed(1)}s · lezione #${data.lesson_id}` : `✓ ${(data.elapsed_ms/1000).toFixed(1)}s · mësim #${data.lesson_id}`;
       renderLesson(data.lesson, data.outcome);
       loadExistingLesson();
     } catch (e) {
@@ -12019,7 +12041,7 @@
       const cls = _daysClass(d.skadon);
       html += `<p><strong>Skadon:</strong> <span class="${cls}">${escHtml(d.skadon)}</span>`;
       if (d.dite_mbetur !== null && d.dite_mbetur !== undefined)
-        html += ` (${d.dite_mbetur} ditë)`;
+        html += ` (${d.dite_mbetur} ${_CAL_IT ? 'giorni' : 'ditë'})`;
       html += `</p>`;
     }
     if (d.paralajmerime?.length) {
@@ -12427,7 +12449,7 @@
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const d = await r.json();
       renderReconBlocks(d.blocks || []);
-      reconStatusEl.textContent = `${(d.blocks||[]).length} blloqe të propozuara`;
+      reconStatusEl.textContent = _CAL_IT ? `${(d.blocks||[]).length} blocchi proposti` : `${(d.blocks||[]).length} blloqe të propozuara`;
       reconStatusEl.className = "pro-status ok";
     } catch (e) {
       reconStatusEl.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message;
@@ -12696,22 +12718,22 @@ function moduleChips(u) {
     }
 
     if (action === "delete") {
-      if (!confirm(`Të fshish përdoruesin '${uname}'? Veprimi nuk mund të zhbëhet.`)) return;
+      if (!confirm(_CAL_IT ? `Eliminare l'utente '${uname}'? L'operazione non può essere annullata.` : `Të fshish përdoruesin '${uname}'? Veprimi nuk mund të zhbëhet.`)) return;
       const r = await fetch(`/api/admin/users/${uid}`, { method: "DELETE" });
       const data = await r.json().catch(() => ({}));
       if (r.ok) {
-        if (typeof toast === "function") toast(`U fshi përdoruesi '${uname}'`, "success");
+        if (typeof toast === "function") toast(_CAL_IT ? `Utente '${uname}' eliminato` : `U fshi përdoruesi '${uname}'`, "success");
         loadAdminUsers();
       } else {
         if (typeof toast === "function") toast("Gabim: " + (data.error || r.status), "error");
       }
     } else if (action === "suspend") {
       const willSuspend = btn.dataset.suspended !== "1";
-      const verb = willSuspend ? "çaktivizosh" : "riaktivizosh";
+      const verb = _CAL_IT ? (willSuspend ? "disattivare" : "riattivare") : (willSuspend ? "çaktivizosh" : "riaktivizosh");
       const note = willSuspend
-        ? "Përdoruesi nuk do të mund të hyjë, por të dhënat e tij ruhen. Mund ta riaktivizosh kur të dojë."
-        : "Përdoruesi do të rifitojë aksesin menjëherë.";
-      if (!confirm(`Të ${verb} përdoruesin '${uname}'?\n\n${note}`)) return;
+        ? (_CAL_IT ? "L'utente non potrà accedere, ma i suoi dati restano. Potrai riattivarlo quando vuoi." : "Përdoruesi nuk do të mund të hyjë, por të dhënat e tij ruhen. Mund ta riaktivizosh kur të dojë.")
+        : (_CAL_IT ? "L'utente riavrà l'accesso immediatamente." : "Përdoruesi do të rifitojë aksesin menjëherë.");
+      if (!confirm(_CAL_IT ? `${verb.charAt(0).toUpperCase() + verb.slice(1)} l'utente '${uname}'?\n\n${note}` : `Të ${verb} përdoruesin '${uname}'?\n\n${note}`)) return;
       const r = await fetch(`/api/admin/users/${uid}/suspend`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -12720,13 +12742,13 @@ function moduleChips(u) {
       const data = await r.json().catch(() => ({}));
       if (r.ok) {
         if (typeof toast === "function")
-          toast(willSuspend ? `'${uname}' u çaktivizua` : `'${uname}' u riaktivizua`, "success");
+          toast(_CAL_IT ? (willSuspend ? `'${uname}' disattivato` : `'${uname}' riattivato`) : (willSuspend ? `'${uname}' u çaktivizua` : `'${uname}' u riaktivizua`), "success");
         loadAdminUsers();
       } else {
         if (typeof toast === "function") toast("Gabim: " + (data.error || r.status), "error");
       }
     } else if (action === "passwd") {
-      const newPw = prompt(`Fjalëkalimi i ri për '${uname}' (min 6 karaktere):`);
+      const newPw = prompt(_CAL_IT ? `Nuova password per '${uname}' (min 6 caratteri):` : `Fjalëkalimi i ri për '${uname}' (min 6 karaktere):`);
       if (!newPw) return;
       if (newPw.length < 6) {
         alert("Fjalëkalimi duhet të jetë të paktën 6 karaktere.");
@@ -12739,7 +12761,7 @@ function moduleChips(u) {
       });
       const data = await r.json().catch(() => ({}));
       if (r.ok) {
-        if (typeof toast === "function") toast(`Fjalëkalimi i '${uname}' u ndryshua`, "success");
+        if (typeof toast === "function") toast(_CAL_IT ? `Password di '${uname}' modificata` : `Fjalëkalimi i '${uname}' u ndryshua`, "success");
       } else {
         if (typeof toast === "function") toast("Gabim: " + (data.error || r.status), "error");
       }
