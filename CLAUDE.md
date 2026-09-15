@@ -1434,6 +1434,27 @@ rischio residuo della DPIA.
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
 
+**v9.325 — BUDGET DI RICERCA nel prompt + guardia deploy riparata + risposta ripristinata (16 set).**
+Il titolare: «per 2 domande quasi 7% dell'abbonamento, sembra troppo». Causa: l'override IT
+diceva «CERCA sul web la Cassazione PRIMA di rispondere» senza limite → 1,4M token a risposta.
+Ora `JURISDICTION_OVERRIDE_IT` ha il **BUDGET DI RICERCA**: «al massimo 4 ricerche e 6 pagine
+lette; cerca SOLO ciò che non è già negli articoli o nel filo; fonte primaria > commenti; trovato
+il dato, fermati»; stesso tetto in `ANSWER_SYSTEM` AL («BUXHETI I KËRKIMIT»). Golden [74].
+**Guardia deploy riparata**: `deploy_when_idle.sh` contava i CLI con `docker exec … python3 -
+<<'PY'` — `docker exec` SENZA `-i` non passa lo stdin → stdout vuoto → «0 attivi» → `run.sh`
+partiva SEMPRE: alle 22:34 ha ucciso la domanda del titolare (30 min di lavoro, nella fase del
+Giudice → nessun verdetto in testa e **risposta mai salvata nel DB**, vista solo in streaming).
+Ora `python3 -c '…'` e conteggio non numerico = OCCUPATO (999); golden [73] (salta nel
+container: `ops/` non è nell'immagine). **Risposta ripristinata** nel caso «auto 2» dal testo
+mostrato (25.4k chr, 2026-09-15T22:33:00Z) con nota di sistema. **Verifica del contenuto** (il
+titolare: «è stato esatto o confusionale?»): la risposta fondava tutto sul **D.Lgs. 192/2025**
+che «rovescia la regola sulla confisca» (nuovi artt. 96 c.7, 112 c.1, 118 c.8 DNC). Un primo
+WebFetch della GU (riassunto automatico dal solo titolo: «IRPEF/IRES») diceva «non è
+doganale» → **falso allarme**; il fetch dell'**art. 16** (GU 25G00202, «Modifiche alle
+disposizioni legislative in materia doganale») conferma parola per parola, e la circolare ADM
+35/2025 esiste. Il cervello era **esatto** — aveva trovato l'ago (legge di dicembre 2025).
+⚠️ Metodo: prima di dire «ha inventato», leggere la pagina esatta citata, non il riassunto.
+
 **v9.324 — CHIARIMENTO ≠ RICERCA: i follow-up «cosa significa / come si applica» rispondono
 dal filo, senza web (16 set).** Il titolare: «domanda semplice… sta 26 min che lavora» — «Può
 salvare il veicolo pagando prima del provvedimento ablativo: Corte cost. 93/2025 e Cass.

@@ -434,6 +434,11 @@ cortedicassazione.it, Italgiure, normattiva.it, Gazzetta Ufficiale.
 Se la ricerca NON conferma un estremo: dillo apertamente («orientamento da
 verificare») — MAI inventare numero, sezione o anno. Un estremo inventato
 in un atto è un danno professionale, non un aiuto.
+BUDGET DI RICERCA (v9.325 — il titolare paga ogni pagina letta): al massimo
+4 ricerche e 6 pagine lette per risposta. Cerca SOLO ciò che non è già negli
+articoli forniti o nel filo della conversazione; una fonte primaria (Normattiva,
+GU, EUR-Lex, cortedicassazione.it) vale più di cinque commenti. Trovato il
+dato, fermati e scrivi: non ricontrollare ciò che hai già verificato.
 """
 
 JURISDICTION_OVERRIDE_EU = """
@@ -1402,7 +1407,8 @@ Kur avokati pyet "sa është" / "sa paguaj" / "sa përqind", PËRGJIGJU ME SHIFR
 
 SAKTËSIA MBI GJITHÇKA — RREGULL I SHENJTË: një avokat NUK mund të gabojë; një shifër ose nen i gabuar humbet kauzën dhe klientin. Më mirë vono dhe jep të saktën sesa shpejt e gabim. MOS HAMENDËSO KURRË një numër, nen apo afat. Nëse pas verifikimit nuk e gjen dot shifrën e saktë, thuaj QARTË: çfarë është e SIGURT (p.sh. TVSH 20%, struktura e detyrimeve) dhe çfarë duhet marrë nga VKM-ja në fuqi me linkun e saktë. Dallo gjithmonë "e sigurt" nga "duhet verifikuar" — kjartësia është mbrojtja e avokatit.
 
-BURIMET E WEBIT — kur ke përdorur kërkimin në internet për këtë përgjigje, MBYLLE me seksionin «## Burimet e webit»: listë e numëruar; për çdo burim URL-ja e plotë, data e aksesit dhe gjysmë rreshti se çfarë mbështet. Nëse s'ke përdorur web: MOS e shto seksionin — një bibliografi e shpikur është e kundërta e qëllimit."""
+BURIMET E WEBIT — kur ke përdorur kërkimin në internet për këtë përgjigje, MBYLLE me seksionin «## Burimet e webit»: listë e numëruar; për çdo burim URL-ja e plotë, data e aksesit dhe gjysmë rreshti se çfarë mbështet. Nëse s'ke përdorur web: MOS e shto seksionin — një bibliografi e shpikur është e kundërta e qëllimit.
+BUXHETI I KËRKIMIT (çdo faqe e lexuar kushton): maksimumi 4 kërkime dhe 6 faqe të lexuara për përgjigje. Kërko VETËM atë që nuk është tashmë te nenet e dhëna ose te filli i bisedës; një burim parësor (QBZ, Fletorja Zyrtare, gjykata) vlen më shumë se pesë komente. Sapo e gjen të dhënën, ndalo dhe shkruaj."""
 
 
 # V7.7 — simple-query answer prompt. Colloquial, no rigid 5-section

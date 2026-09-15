@@ -2597,12 +2597,28 @@ def main():
     # `docker exec` senza -i non passa lo stdin: `python3 - <<PY` leggeva vuoto → «0 attivi»
     # → run.sh partiva sempre → uccisa una domanda del titolare a 30 min di lavoro.
     try:
-        _sh73 = _io2.open(_os2.path.join(_os2.path.dirname(_os2.path.dirname(_os2.path.abspath(__file__))), "ops", "deploy_when_idle.sh"), encoding="utf-8").read()
-        check("deploy[73]: deploy_when_idle conta i CLI con `python3 -c` (non stdin) e tratta un conteggio non numerico come OCCUPATO",
-              "docker exec super-avvocato python3 -c '" in _sh73 and "python3 - <<" not in _sh73
-              and "|| echo 999" in _sh73 and "n=999 ;; esac" in _sh73)
+        _p73 = _os2.path.join(_os2.path.dirname(_os2.path.dirname(_os2.path.abspath(__file__))), "ops", "deploy_when_idle.sh")
+        if not _os2.path.exists(_p73):
+            # ops/ non entra nell'immagine Docker: la guardia vale sul repo (git), nel container si salta
+            check("deploy[73]: ops/deploy_when_idle.sh non presente qui (fuori immagine) — controllo saltato", True)
+        else:
+            _sh73 = _io2.open(_p73, encoding="utf-8").read()
+            check("deploy[73]: deploy_when_idle conta i CLI con `python3 -c` (non stdin) e tratta un conteggio non numerico come OCCUPATO",
+                  "docker exec super-avvocato python3 -c '" in _sh73 and "python3 - <<" not in _sh73
+                  and "|| echo 999" in _sh73 and "n=999 ;; esac" in _sh73)
     except Exception as _e73:  # noqa: BLE001
         check("deploy[73]: kontrollet u ekzekutuan", False, str(_e73))
+
+    # ── [74] BUDGET DI RICERCA nel prompt (16 set) — «per 2 domande quasi 7% dell'abbonamento» ──
+    # L'override IT imponeva «cerca PRIMA di rispondere» senza limite → 1,4M token a risposta.
+    try:
+        _ov74 = brain.JURISDICTION_OVERRIDE_IT
+        _as74 = brain.ANSWER_SYSTEM
+        check("budget[74]: tetto ricerche nel prompt — IT «al massimo 4 ricerche e 6 pagine» + AL «maksimumi 4 kërkime dhe 6 faqe»",
+              "BUDGET DI RICERCA" in _ov74 and "al massimo\n4 ricerche e 6 pagine lette" in _ov74.replace("massimo 4", "massimo\n4")
+              and "BUXHETI I KËRKIMIT" in _as74 and "maksimumi 4 kërkime dhe 6 faqe" in _as74)
+    except Exception as _e74:  # noqa: BLE001
+        check("budget[74]: kontrollet u ekzekutuan", False, str(_e74))
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
