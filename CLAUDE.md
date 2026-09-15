@@ -1434,6 +1434,10 @@ rischio residuo della DPIA.
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
 
+**v9.321 — tag in produzione = v9.320 + badge urgenza «CRITICO/ALLARME» in IT (15 set).** Il
+badge dell'allerta usciva «KRITIK» nel DOM vivo IT → `_CAL_IT` (app.js?v=169, golden [69]
+esteso). Build separata solo per rendere permanente nell'immagine ciò che era hot-copiato.
+
 **v9.320 — etichette COMPOSTE (contatori) bilingui alla fonte (15 set).** DOM vivo in sessione
 IT dopo v9.319: restava «📋 Mapa e provës — 5 provë që mungojnë, 1 me barrë të zhvendosur»
 (summary della mappa prove). Le stringhe con `${…}` NON passano dal match esatto di `T_IT`
