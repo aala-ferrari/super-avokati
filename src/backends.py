@@ -645,6 +645,7 @@ class ClaudeCodeBackend(LLMBackend):
         callsite: str | None = None,
         user_id: int | None = None,
         case_id: str | None = None,
+        no_web: bool = False,
     ) -> Iterator[tuple[str, object]]:
         system = _apply_juris(system)  # giurisdizione della sessione
         system = _shto_profilin(system, fast)  # regole della casa
@@ -697,7 +698,7 @@ class ClaudeCodeBackend(LLMBackend):
         # tutto «da verificare» e aggiungeva «canali di verifica» falliti — meta'
         # del muro di testo — mentre diavolo e Giudice (non-stream) navigavano.
         # In coda come in complete(): il prompt viaggia su stdin.
-        if not fast:
+        if not fast and not no_web:
             cmd.extend(["--allowedTools", "WebSearch", "WebFetch"])
         prompt = _flatten_messages(messages)
         prompt = _direttiva_gjuhe(prompt)   # la lingua la decide la sessione

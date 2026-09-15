@@ -2575,6 +2575,24 @@ def main():
     except Exception as _e71:  # noqa: BLE001
         check("giudice[71]: kontrollet u ekzekutuan", False, str(_e71))
 
+    # ── [72] CHIARIMENTO ≠ RICERCA: follow-up «cosa significa / come si applica» senza web (16 set) ──
+    # Il titolare: «domanda semplice… sta 26 min che lavora» — il followup fast-path partiva
+    # col web + «verifica viva» della Cassazione per un chiarimento di cose già nel filo.
+    try:
+        import inspect as _insp72
+        from src import backends as _bk72
+        _as72 = _insp72.getsource(brain.SuperAvvocato.answer_stream)
+        _cs72 = _insp72.getsource(_bk72.ClaudeCodeBackend.complete_stream)
+        check("chiarimento[72]: _eshte_sqarim (cosa significa/come si applica, ≤400 chr, senza cue di ricerca) → complete_stream(no_web=True) + hint + niente Giudice; ricerca esplicita resta col web",
+              brain._eshte_sqarim("Può salvare il veicolo pagando prima del provvedimento: Corte cost. 93/2025, cosa significa, come si applica?")
+              and not brain._eshte_sqarim("cerca la sentenza più recente della Cassazione su questo punto e dimmi cosa significa")
+              and not brain._eshte_sqarim("x" * 500 + " cosa significa")
+              and brain._eshte_sqarim("çfarë do të thotë kjo në praktikë, si zbatohet?")
+              and "no_web=_sqarim" in _as72 and "if len(text) >= 4000 and not _sqarim:" in _as72
+              and "no_web: bool = False" in _cs72 and "if not fast and not no_web:" in _cs72)
+    except Exception as _e72:  # noqa: BLE001
+        check("chiarimento[72]: kontrollet u ekzekutuan", False, str(_e72))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

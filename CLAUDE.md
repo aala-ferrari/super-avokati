@@ -1434,6 +1434,23 @@ rischio residuo della DPIA.
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
 
+**v9.324 — CHIARIMENTO ≠ RICERCA: i follow-up «cosa significa / come si applica» rispondono
+dal filo, senza web (16 set).** Il titolare: «domanda semplice… sta 26 min che lavora» — «Può
+salvare il veicolo pagando prima del provvedimento ablativo: Corte cost. 93/2025 e Cass.
+6614/2025, cosa significa, come si applica?». Il followup fast-path partiva SEMPRE col web e,
+in IT, con l'obbligo «CERCA sul web la Cassazione PRIMA di rispondere» dell'override → 30+ min
+e 1,4M token per spiegare cose già scritte nel turno prima. Fix: `_eshte_sqarim()` (≤400 chr,
+cue «cosa significa/come si applica/spiega/in pratica/çfarë do të thotë/si zbatohet», e NESSUN
+cue di ricerca «cerca/verifica/sentenza/cassazione/kërko/verifiko») → `complete_stream(no_web=
+True)` (nuovo kwarg, guard `if not fast and not no_web`) + hint `_SQARIM_HINT` (rispondi dal
+filo, 15-30 righe, niente 5 sezioni, la «verifica viva» non si applica) + **niente Giudice**
+(risposta breve, nulla da arbitrare). Una richiesta di ricerca esplicita resta col web + Giudice.
+Golden **[72]**. Aspettativa: chiarimento in 2-4 min invece di 30. Prova in Chrome del giro
+precedente (follow-up Grecia con Giudice, v9.323): verdetto in testa, 3 rettifiche vere (IVA come
+diritto di confine ex art. 27 D.Lgs. 141/2024 → soglia penale ~29k€; debitore in solido con la
+shpk ex art. 84 CDU; incoerenza noleggio), Cass. 10383/2026 segnalata «fonte secondaria, da
+riscontrare», senior corretto da solo su Prefetto 60 gg — la memoria del filo tiene.
+
 **v9.323 — PROVA IN CHROME «come il titolare» + il Giudice anche sui follow-up (15 set).**
 Con Chrome, sessione `admin.it`, caso «auto 2» del titolare (storia: domanda shpk ×2, risposta
 34k, follow-up Grecia sbagliato, ripetizione, errore «impegnato»): ho riscritto il follow-up

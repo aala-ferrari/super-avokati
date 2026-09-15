@@ -2476,12 +2476,19 @@ class SuperAvvocato:
             collected: list[str] = []
             new_sid = session_id
             final_txt = ""
+            # v9.324 — chiarimento breve: niente web, niente 5 sezioni, niente Giudice
+            _sqarim = _eshte_sqarim(user_message)
+            _msg_f = user_message
+            if _sqarim:
+                _msg_f = user_message + _SQARIM_HINT["it" if self._current_jurisdiction() == "IT" else "sq"]
+                log.info("stream: followup = chiarimento → senza web")
             for kind, payload in backend.complete_stream(
                 system=self._answer_system(),
                 # v9.322 — la storia entra sempre (--resume e' disabilitato)
-                messages=_history_for_prompt(history) + [{"role": "user", "content": user_message}],
+                messages=_history_for_prompt(history) + [{"role": "user", "content": _msg_f}],
                 fast=False,
                 session_id=session_id,
+                no_web=_sqarim,
             ):
                 if kind == "delta":
                     collected.append(str(payload))
@@ -2497,7 +2504,7 @@ class SuperAvvocato:
             # verdetto precedente aveva bollato «non citare», e riportava i «60 giorni»
             # dell'art. 93 abrogato che il Giudice aveva gia' corretto un turno prima.
             # Sotto i 4000 caratteri (chiacchiera, chiarimento breve) non serve.
-            if len(text) >= 4000:
+            if len(text) >= 4000 and not _sqarim:
                 try:
                     _filo = "\n\n".join(
                         "[%s] %s" % (m.get("role"), m.get("content"))
@@ -5528,6 +5535,37 @@ def _history_for_prompt(history) -> list[dict[str, str]]:
         out.append({"role": role, "content": txt})
     return out
 
+
+# v9.324 — CHIARIMENTO ≠ RICERCA. Un follow-up che chiede «cosa significa / come si
+# applica» qualcosa gia' detto nel filo non ha bisogno del web ne' della «verifica
+# viva» della Cassazione: il titolare ha aspettato 26+ minuti per una domanda
+# semplice. Con il filo in mano si risponde in pochi minuti, e il Giudice non serve.
+_CHIARIMENTO_RX = re.compile(
+    r"(cosa significa|cosa vuol dire|che vuol dire|come si applica|come funziona in pratica|"
+    r"spiega|spiegami|in parole semplici|in pratica|cio[eè]\b|"
+    r"çfarë do të thotë|ç'do të thotë|si zbatohet|si funksionon|shpjego|më thjesht|domethënë)",
+    re.I)
+_RICERCA_RX = re.compile(
+    r"(cerca|verifica|trova|controlla|aggiorna|novit|sentenz|cassazion|precedent|giurisprudenz|"
+    r"kërko|verifiko|gjej|kontrollo|vendim|jurisprudenc)", re.I)
+
+
+def _eshte_sqarim(user_message: str) -> bool:
+    """Vero se il follow-up e' un chiarimento breve di cose gia' nel filo."""
+    s = (user_message or "").strip()
+    return (len(s) <= 400 and bool(_CHIARIMENTO_RX.search(s))
+            and not _RICERCA_RX.search(s))
+
+
+_SQARIM_HINT = {
+    "it": ("\n\n[CHIARIMENTO: rispondi dal filo della conversazione e dai materiali già citati "
+           "sopra — senza ricerche web, senza nuove fonti, senza le 5 sezioni. Spiega in modo "
+           "chiaro e concreto (cosa significa, come si applica al caso), 15-30 righe. La "
+           "«verifica viva» della giurisprudenza NON si applica a questo chiarimento.]"),
+    "sq": ("\n\n[SQARIM: përgjigju nga filli i bisedës dhe nga materialet e cituara më sipër — "
+           "pa kërkime në web, pa burime të reja, pa 5 seksione. Shpjego qartë e konkretisht "
+           "(çfarë do të thotë, si zbatohet në rast), 15-30 rreshta.]"),
+}
 
 _TRIAGE_BUDGET = 4000
 
