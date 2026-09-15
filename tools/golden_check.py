@@ -2569,7 +2569,7 @@ def main():
         _i71 = _as71.find("stream: followup fast-path")
         _seg71 = _as71[_i71:_i71 + 4000]
         check("giudice[71]: followup fast-path → _gjyqtari_fundit se ≥4000 chr, con il filo della conversazione; prompt del Giudice sa giudicare senza corpus (sq+it)",
-              "if len(text) >= 4000:" in _seg71 and "self._gjyqtari_fundit(user_message, [], [], text, dosja_txt=_lbl_f + _filo)" in _seg71
+              "if len(text) >= 4000 and not _sqarim:" in _seg71 and "self._gjyqtari_fundit(user_message, [], [], text, dosja_txt=_lbl_f + _filo)" in _seg71
               and "NËSE NUK KA NENE nga korpusi" in _st71.GJYQTARI_SYSTEM["sq"]
               and "SE NON CI SONO ARTICOLI dal corpus" in _st71.GJYQTARI_SYSTEM["it"])
     except Exception as _e71:  # noqa: BLE001
