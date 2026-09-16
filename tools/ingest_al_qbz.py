@@ -159,12 +159,19 @@ def cmd_apply() -> int:
     added, skipped, replaced = [], [], []
     new_lines: list[str] = []
     drop_codes: set[str] = set()
+    # `apply --only a,b`: solo questi codici, e vengono RISCRITTI anche senza `replace` nel
+    # JSON (16 set 2026: ri-parse dal PDF già scaricato dopo una regola nuova del parser)
+    only_apply: set[str] = set()
+    if "--only" in sys.argv:
+        only_apply = {c.strip() for c in sys.argv[sys.argv.index("--only") + 1].split(",") if c.strip()}
     for law in laws:
         if "code" not in law:
             continue
         code = law["code"]
+        if only_apply and code not in only_apply:
+            continue
         f = OUT / f"{code}.json"
-        if code in have and not law.get("replace"):
+        if code in have and not law.get("replace") and code not in only_apply:
             skipped.append(code); continue
         if not f.exists():
             print(f"  ! {code}: manca il probe — salto"); continue

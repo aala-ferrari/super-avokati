@@ -37,11 +37,17 @@ CODE_ALIASES: dict[str, str] = {
     "kpp": "kodi_proc_penale",
     "kpr.p": "kodi_proc_penale",
     "kpr p": "kodi_proc_penale",
+    "kprp": "kodi_proc_penale",       # 16 set 2026: «KPrP» / «K.Pr.P.» (senza il punto finale: \b)
+    "k.pr.p": "kodi_proc_penale",
     "kc": "kodi_civil",
     "kpc": "kodi_proc_civile",
     "kpr.c": "kodi_proc_civile",
     "kpr c": "kodi_proc_civile",
+    "kprc": "kodi_proc_civile",       # «KPrC» — la sigla più usata dai giuristi, mancava (golden [79])
+    "k.pr.c": "kodi_proc_civile",
     "kpa": "kodi_proc_admin",
+    "kpra": "kodi_proc_admin",
+    "k.pr.a": "kodi_proc_admin",
     "kf": "kodi_familjes",
     "kpu": "kodi_punes",
     "kpun": "kodi_punes",
@@ -473,6 +479,37 @@ _ALIAS_RE = re.compile(
     r"\b(" + "|".join(re.escape(a) for a in _ALIAS_PATTERNS) + r")\b",
     re.IGNORECASE,
 )
+
+# 16 set 2026 — «KP» è AMBIGUA: Kodi Penal per l'alias, ma i giuristi (e il cervello) la usano
+# anche per il Kodi i PUNËS. Prova viva: «neni 155/1 KP» (zgjidhja e pajustifikuar, Kodi i Punës)
+# usciva VERIFICATO sul Kodi Penal 155 «Shkatërrimi i rrugëve» — verde e sbagliato, la classe
+# peggiore. La sigla nuda si scioglie dal DOCUMENTO: quale dei due codici è nominato per esteso
+# nel testo; poi il contesto del retrieval; poi in quale dei due esiste il numero; se resta
+# ambigua → «kod i pa-specifikuar» con i due candidati (onesto), mai un verde a caso.
+_KP_BARE_RE = re.compile(r"(?<![\wë])k\.?\s?p\.?(?![\wë])", re.I)
+_KP_PUNES_RE = re.compile(r"kod\w*\s+(?:i\s+|e\s+|t[ëe]\s+)?pun[ëe]s", re.I)
+_KP_PENAL_RE = re.compile(r"kod\w*\s+(?:i\s+|e\s+|t[ëe]\s+)?penal", re.I)
+
+
+def _kp_bare(tail: str, code: str | None) -> bool:
+    """La citazione porta SOLO la sigla nuda «KP»/«K.P.» (nessun nome per esteso)."""
+    return (code in (None, "kodi_penal") and bool(_KP_BARE_RE.search(tail or ""))
+            and not re.search(r"penal|pun[ëe]s", tail or "", re.I))
+
+
+def _kp_resolve(number: str, text: str, retrieved_codes: set, lookup: dict) -> str | None:
+    n_punes, n_penal = len(_KP_PUNES_RE.findall(text)), len(_KP_PENAL_RE.findall(text))
+    if n_punes and not n_penal:
+        return "kodi_punes"
+    if n_penal and not n_punes:
+        return "kodi_penal"
+    ctx = [c for c in ("kodi_punes", "kodi_penal") if c in retrieved_codes]
+    if len(ctx) == 1:
+        return ctx[0]
+    has = [c for c in ("kodi_punes", "kodi_penal") if _verify_number(lookup, c, number) is not None]
+    if len(has) == 1:
+        return has[0]
+    return None
 
 
 # ── Italian citations (art. N c.c./c.p./c.p.c./c.p.p./Cost.) ─────────────────
@@ -982,16 +1019,26 @@ def verify_text(
         if len(full_raw) > 60:
             full_raw = full_raw[:60].rstrip() + "…"
         multi = len(numbers) > 1
+        kp_bare = _lang != "it" and _kp_bare(tail, code)
         for number_raw in numbers:
             number = _normalise_number(number_raw)
-            key = (number, code or "")
+            code_n = _kp_resolve(number, text, retrieved_codes, lookup) if kp_bare else code
+            key = (number, code_n or ("kp?" if kp_bare else ""))
             if key in seen:
                 continue
             seen.add(key)
             # In a list each article gets its own clean label; a lone citation
             # keeps the full matched span for context.
             raw = (_cite_prefix + number_raw) if multi else full_raw
-            _emit(number, code, raw)
+            if kp_bare and code_n is None:
+                # sigla «KP» irrisolvibile: i due candidati che hanno quel numero, mai un verde a caso
+                cands = [c for c in ("kodi_punes", "kodi_penal") if _verify_number(lookup, c, number) is not None]
+                citations.append(Citation(
+                    raw=raw, number=number, code=None, code_label=None,
+                    status="needs_code" if cands else "fake",
+                    candidates=[{"code": c, "label": CODE_LABELS.get(c, c)} for c in cands]))
+                continue
+            _emit(number, code_n, raw)
 
     for _c in citations:
         if _c.status in ("verified", "repealed") and _c.code:

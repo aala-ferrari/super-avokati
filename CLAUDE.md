@@ -3,7 +3,7 @@
 Strumento AI per avvocati (B2B), **bi-giurisdizione AL + IT**. Front-end Flask
 su porta 5050, SQLite (`data/app.db`) + Postgres `legalkb` per i casi
 giurisprudenziali. Due corpora BM25 SEPARATI:
-- **AL** (`bm25.pkl`): **9.607 nene / 54 codici** (v9.328-329: 21 codici riscritti dai consolidati QBZ 2024-2026 + 29 leggi nuove + ligji 11/2026 dhuna + VKM 651/2017 doganale consolidata 2026 748 art.; fonte = `data/processed/all_articles.jsonl`, il pickle è derivato) + `bm25_decisions.pkl` 1258 precedenti
+- **AL** (`bm25.pkl`): **9.682 nene / 54 codici, 418 abrogati** (v9.328-330: 21 codici riscritti dai consolidati QBZ 2024-2026 + 29 leggi nuove + ligji 11/2026 dhuna + VKM 651/2017 doganale consolidata 2026 748 art. + 75 stub «shfuqizuar» per le abrogazioni a gruppo; fonte = `data/processed/all_articles.jsonl`, il pickle è derivato) + `bm25_decisions.pkl` 1258 precedenti
 - **IT** (`bm25_it.pkl`): **129 atti / 22.779 articoli** (v9.326-327: +27 Normattiva wave5, +5 testi unici wave6, +21 wave7 blocco A, +12 UE (TFUE/TUE/Carta/Schengen…), +2 trattati IT-AL, CEDU + 7 protocolli, preleggi (sanzioni trib. 173/2024, riscossione 33/2025, registro 123/2025, IVA 10/2026, accertamento 141/2026) dogane/tributario/notarile/procedura/lavoro, +9 regolamenti UE da EUR-Lex: CDU, Reg. 2015/2446-2447, GDPR, Bruxelles I-bis/II-ter, Roma I/II, successioni 650/2012)
   (Kushtetuese + Gjykata e Lartë + CEDU).
 - **IT** (`bm25_it.pkl`): **15.595 articoli / 44 corpora** da Normattiva (+ D.Lgs 231/2007 antiriciclaggio)
@@ -1439,6 +1439,44 @@ rischio residuo della DPIA.
 - Super Avokati ha auth propria (login_required_api); utenti creati da admin o auto-provisionati da AALA (`/api/provision-demo`, secret-guarded).
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
+
+**v9.330 — TRE DIFETTI VERI trovati provando il corpus AL nuovo (16 set): 116 articoli vivi
+«abrogati», 75 articoli abrogati «fantasma», «KP» = Kodi Penal anche quando è il Kodi i Punës.**
+Mandato del titolare: «se vedi qualcosa che non va sei autorizzato a migliorare tu». (1) **Buchi
+del K.Pr.C.** (65: 80-89, 111-114, 163-164, 400-441, 503-509) e del ligji 8308/1998 (54-63): nel
+consolidato QBZ sono abrogazioni A GRUPPO — «(Shfuqizuar titulli IV, nenet 400 – 441, me ligjin
+nr. 122/2013)» — che NON stampano gli articoli; chi citava il neni 420 KPrC riceveva «nen fantazmë»
+(inventato) invece di «shfuqizuar». `parser._group_repeal_stubs` (chiamata in fondo a
+`split_into_articles`): ogni numero mancante coperto da un marcatore «Shfuqizuar nenet A-B / nenet
+A, B dhe C / kreu|titulli (= il buco fra l'articolo prima e quello dopo)» diventa uno stub
+`repealed=True` con la legge abrogante nel corpo; solo numeri ASSENTI e ≤ max; si legge solo ciò
+che segue «shfuqizu…» fino al «;» (un «ndryshuar nenet 5-7» non abroga). (2) **La regola
+«shfuqizuar ovunque nel testo + corpo < 400 chr = abrogato» marcava abrogati 116 articoli VIVI**
+(misurato con `scratchpad/al_repealed_audit.py`, poi `tools/recompute_repealed_al.py` a secco):
+tutti gli articoli «Shfuqizime» in coda alle leggi («Me hyrjen në fuqi… shfuqizohet ligji nr. …»
+è un VERBO), le note «(Shfuqizuar pika 3 me ligjin …)» (abrogato un pezzo, l'articolo vive), i
+marcatori a gruppo in coda all'articolo precedente, e la prosa «vendimi i shfuqizuar» — fra loro
+**Kodi Penal 29 «Dënimet kryesore», 31, 114, 135, 143/b, 164/a-b (44 articoli del c.p.), 16 del
+K.Pr.P., K.Pr.C. 79/a Avokatura e Shtetit, kushtetuta 178**: `search()` li saltava e il
+verificatore diceva «abrogato» a chi li citava. Stessa classe dei 433 italiani (v9.327). Ora
+`parser.is_repealed_stub(heading, body)`: stub SOLO se, tolte le note fra parentesi e le righe di
+capo, non resta contenuto vivo oltre la rubrica (una frase compiuta nella rubrica incollata =
+vivo) e il marcatore è «Shfuqizuar» NUDO (non «i/e/të shfuqizuar») o «Shfuqizohet.» da solo;
+le 3 leggi superate per intero restano tutte abrogate. `tools/recompute_repealed_al.py [--apply]`
+ricalcola sul jsonl senza riscaricare e ricostruisce il pickle. (3) **«KP» ambigua**: prova viva
+AL (licenziamento + leje qëndrimi, 27 min, verdetto in testa, 0 italiano, Giudice che corregge
+una citazione mal applicata) → «neni 155/1 KP» = Kodi i Punës, ma il verificatore la risolveva
+Kodi Penal e la marcava VERIFICATA su «Shkatërrimi i rrugëve» — verde e sbagliato. Ora
+`_kp_bare` + `_kp_resolve`: la sigla nuda si scioglie dal documento (quale dei due codici è
+nominato per esteso), poi dal contesto del retrieval, poi da chi ha quel numero; se resta
+ambigua → «kod i pa-specifikuar» coi 2 candidati, mai un verde a caso; «i Kodit Penal» per
+esteso intatto. `ingest_al_qbz.py apply --only a,b` (riscrive anche senza `replace`). Corpus AL
+**9.682 nene / 54 kode, 418 abrogati** (75 stub nuovi, 116 tornati vivi), buchi 93 → 18
+(c.c. 1006, konsumatoret 7 — QBZ ha solo l'atto base del 9902/2008 —, policia 108/2014 superata).
+Golden **[79]** (stub + verificatore «repealed»/«fake», [79b] 10 articoli vivi campione + 7 casi
+della regola), **[80]** (KP: 6 casi). ⚠️ Metodo: la prova sintetica del parser ha rivelato il
+difetto (2) — un test scritto per la regola nuova ha fatto cadere la regola vecchia.
+**Radar novità** installato (vedi sotto, v9.329).
 
 **v9.329 — CONTROLLO DI FRESCHEZZA delle leggi (`tools/freshness_check.py`) + ciò che ha
 trovato subito (16 set).** Per ogni atto, 1-3 richieste senza scaricare testi: **Normattiva**

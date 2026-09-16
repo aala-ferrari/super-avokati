@@ -2798,6 +2798,78 @@ def main():
     except Exception as _e78:  # noqa: BLE001
         check("corpus[78]: kontrollet u ekzekutuan", False, str(_e78))
 
+    # ── [79] ABROGAZIONI A GRUPPO (16 set): nei consolidati QBZ «(Shfuqizuar titulli IV, nenet
+    # 400–441, me ligjin nr. 122/2013)» non stampa gli articoli → prima erano BUCHI e «neni 420
+    # KPrC» usciva «fantazmë»; ora sono stub abrogati: il verificatore dice «shfuqizuar», la
+    # ricerca li salta, un numero oltre il massimo resta falso ──
+    try:
+        import re as _re79
+        import src.parser as _pr79
+        from pathlib import Path as _P79
+        _src79 = open(_pr79.__file__, encoding="utf-8").read()
+        _idx79 = ArticleIndex.load(_P79("/app/data/index/bm25.pkl"))
+        _by79 = {(a.code, a.number): a for a in _idx79.articles}
+        _stub79 = [(("kodi_proc_civile", n)) for n in ("80", "85", "112", "163", "400", "420", "441", "505")]
+        _ok_stub79 = all(k in _by79 and _by79[k].repealed and "hfuqizuar" in (_by79[k].heading + _by79[k].body)
+                         and _re79.search(r"ligjin nr\. (8812|122/2013)", _by79[k].body) for k in _stub79)
+        _tr79 = [("ligji_transportet_rrugore", str(n)) for n in range(54, 64)]
+        _ok_tr79 = all(k in _by79 and _by79[k].repealed and "118/2012" in _by79[k].body for k in _tr79)
+        _v79 = cv.verify_text("Sipas nenit 420 të Kodit të Procedurës Civile dhe nenit 85 të KPrC, si dhe nenit 999 të Kodit të Procedurës Civile.", _idx79)
+        _st79 = {c["number"]: c["status"] for c in _v79["items"]}
+        _ok_ver79 = _st79.get("420") == "repealed" and _st79.get("85") == "repealed" and _st79.get("999") == "fake"
+        _hits79 = [a.number for a, _s in _idx79.search("titulli IV shfuqizuar nenet 400 441", top_k=12) if a.code == "kodi_proc_civile" and a.repealed]
+        check("corpus[79]: abrogazioni a gruppo nei consolidati QBZ = stub «shfuqizuar» (K.Pr.C. 80-89/111-114/163-164/400-441/503-509, ligji 8308 kreu 54-63): il verificatore dice «repealed» e non «fake», oltre il massimo resta «fake», la ricerca non li restituisce, regola cablata nel parser",
+              _ok_stub79 and _ok_tr79 and _ok_ver79 and not _hits79
+              and "_group_repeal_stubs(text, items, articles, doc)" in _src79 and "_GROUP_REPEAL_RE" in _src79,
+              "stub KPrC: %s | stub 8308: %s | verificatore: %s | nella ricerca: %s" % (_ok_stub79, _ok_tr79, _st79, _hits79))
+        # gli articoli VIVI che la regola vecchia marcava abrogati: «Shfuqizime» in coda alle leggi
+        # (verbo «shfuqizohet ligji nr…»), nota «(Shfuqizuar pika 3 …)», marcatore a gruppo in coda
+        _live79 = [("ligji_dnp", "88"), ("ligji_kundervajtjet", "50"), ("ligji_ndihma_juridike", "37"), ("ligji_permbarimi_privat", "90"),
+                   ("ligji_sigurimi_mjeteve", "60"), ("ligji_tatimi_te_ardhurat", "71"), ("ligji_procedurat_tatimore", "48"),
+                   ("ligji_tvsh", "157"), ("kodi_proc_civile", "79/a"), ("kodi_proc_civile", "110"), ("kodi_penal", "29"), ("kushtetuta", "178")]
+        _bad_live79 = [f"{c} {n}" for c, n in _live79 if (c, n) not in _by79 or _by79[(c, n)].repealed]
+        # (K.Pr.C. 79 «Përgjegjësia për dëmin e shkaktuar» è DAVVERO abrogato dalla 8812/2001: corpo vuoto)
+        _bad_live79 += [f"{c} {n} (vivo?)" for c, n in (("kodi_proc_civile", "79"), ("kodi_proc_civile", "80")) if (c, n) not in _by79 or not _by79[(c, n)].repealed]
+        _ps79 = _pr79.is_repealed_stub
+        _unit79 = (_ps79("(Shfuqizuar me ligjin nr. 8812, datë 17.5.2001)", "") and _ps79("Titulli", "Shfuqizohet.")
+                   and _ps79("Mbajtja (Ndryshuar pika 1 me ligjin nr. 112/2016; shfuqizuar me ligjin nr. 83/2019)", "")
+                   and not _ps79("Shfuqizime", "Me hyrjen në fuqi të këtij ligji, shfuqizohet ligji nr. 3920, datë 21.11.1964.")
+                   and not _ps79("Dispozita kalimtare (Shfuqizuar pika 2 me ligjin nr. 85/2019)", "1. Rregullimi i zbritjes vazhdon deri në fund të vitit.")
+                   and not _ps79("Pasojat", "Vendimi i shfuqizuar nuk prodhon pasoja juridike për palët.")
+                   and not _ps79("Fusha", "Dispozitat e këtij ligji zbatohen për të gjithë.\n(Shfuqizuar nenet 3-5 me ligjin nr. 1/2000)"))
+        _srch79 = [a.number for a, _s in _idx79.search("shfuqizohet ligji për kundërvajtjet administrative 7697", top_k=12) if a.code == "ligji_kundervajtjet"]
+        check("corpus[79b]: gli articoli vivi non sono più «abrogati» (Shfuqizime in coda alle leggi, «(Shfuqizuar pika …)», marcatore a gruppo in coda): 10 articoli-campione vivi, regola is_repealed_stub sui 7 casi, l'articolo Shfuqizime esce dalla ricerca",
+              not _bad_live79 and _unit79 and "50" in _srch79 and "ligji_te_dhenat" in _rep78 and _rep78["ligji_te_dhenat"] == _cnt78["ligji_te_dhenat"],
+              "vivi marcati abrogati: %s | regola: %s | ricerca kundervajtjet: %s" % (", ".join(_bad_live79)[:200], _unit79, _srch79))
+    except Exception as _e79:  # noqa: BLE001
+        check("corpus[79]: kontrollet u ekzekutuan", False, str(_e79))
+
+    # ── [80] la sigla «KP» (Kodi Penal / Kodi i Punës) si scioglie dal documento (16 set): prova
+    # viva AL «neni 155/1 KP» = zgjidhja e pajustifikuar (Kodi i Punës) usciva VERIFICATO sul
+    # Kodi Penal 155 «Shkatërrimi i rrugëve» ──
+    try:
+        from pathlib import Path as _P80
+        _idx80 = ArticleIndex.load(_P80("/app/data/index/bm25.pkl"))
+        def _st80(text, ctx=None):
+            r = cv.verify_text(text, _idx80, retrieved_codes=ctx)
+            return {(c["number"]): (c["status"], c["code"], [d["code"] for d in c["candidates"]]) for c in r["items"]}
+        _a80 = _st80("Sipas Kodit të Punës, klientit i takon paga e njoftimit (neni 155/1 KP) dhe shpërblimi për vjetërsi (neni 152 KP).")
+        _b80 = _st80("Sipas Kodit Penal, vepra dënohet me burgim (neni 155 KP), krahas nenit 29 KP.")
+        _c80 = _st80("Klientit i takon paga e njoftimit (neni 155/1 KP).")                         # nessun nome per esteso: ambigua
+        _d80 = _st80("Klientit i takon paga e njoftimit (neni 155/1 KP).", ctx={"kodi_punes"})     # contesto del retrieval
+        _e80 = _st80("Klientit i takon shpërblimi (neni 9999 KP).")
+        _f80 = _st80("Vepra parashikohet nga neni 155 i Kodit Penal.")                              # nome per esteso: mai toccato
+        _ok80 = (_a80.get("155/1", ("",))[0:2] == ("verified", "kodi_punes") and _a80.get("152", ("",))[0:2] == ("verified", "kodi_punes")
+                 and _b80.get("155", ("",))[0:2] == ("verified", "kodi_penal") and _b80.get("29", ("",))[0:2] == ("verified", "kodi_penal")
+                 and _c80.get("155/1", ("",))[0] == "needs_code" and set(_c80["155/1"][2]) == {"kodi_punes", "kodi_penal"}
+                 and _d80.get("155/1", ("",))[0:2] == ("verified", "kodi_punes")
+                 and _e80.get("9999", ("",))[0] == "fake"
+                 and _f80.get("155", ("",))[0:2] == ("verified", "kodi_penal"))
+        check("corpus[80]: «KP» nuda si risolve dal documento (Kodi i Punës nominato → kodi_punes; Kodi Penal nominato → kodi_penal; niente → «kod i pa-specifikuar» coi 2 candidati; contesto retrieval decide; numero inesistente resta falso; nome per esteso intatto)",
+              _ok80, "a=%s b=%s c=%s d=%s e=%s f=%s" % (_a80, _b80, _c80, _d80, _e80, _f80))
+    except Exception as _e80:  # noqa: BLE001
+        check("corpus[80]: kontrollet u ekzekutuan", False, str(_e80))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

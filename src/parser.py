@@ -338,8 +338,7 @@ def split_into_articles(text: str, doc: LegalDocument) -> list[Article]:
         # Hierarchy from the text *before* this article
         pjesa, kreu, seksioni = _hierarchy_context(text[: m.start()])
 
-        repealed = any(mk in (heading + " " + body).lower() for mk in REPEALED_MARKERS) \
-                   and len(body) < 400  # short body + "shfuqizuar" → repealed stub
+        repealed = is_repealed_stub(heading, body)
 
         articles.append(
             Article(
@@ -357,7 +356,116 @@ def split_into_articles(text: str, doc: LegalDocument) -> list[Article]:
                 last_amendment_date=doc.last_amendment_date,
             )
         )
+    articles.extend(_group_repeal_stubs(text, items, articles, doc))
     return articles
+
+
+# 16 set 2026 — QUANDO un articolo è uno STUB abrogato. La regola vecchia («shfuqizuar» ovunque
+# nel testo e corpo < 400 chr) marcava abrogati ~120 articoli VIVI del corpus AL — la stessa classe
+# del difetto italiano dei 433 «abrogati»: l'articolo «Shfuqizime» in coda a ogni legge («Me
+# hyrjen në fuqi… shfuqizohet ligji nr. …», è un VERBO), gli articoli con la nota «(Shfuqizuar
+# pika 3 me ligjin …)» (abrogato un pezzo, l'articolo vive), gli articoli che hanno in coda un
+# marcatore a gruppo «(Shfuqizuar nenet 80-83 …)» riferito ad ALTRI articoli. `search()` li
+# saltava e il verificatore diceva «abrogato» a chi li citava. Ora è stub SOLO se, tolte le
+# note fra parentesi e le righe di capo/titolo, non resta contenuto vivo oltre la rubrica — e il
+# marcatore è il participio «Shfuqizuar» NUDO (non «i/e/të shfuqizuar» in prosa) o «Shfuqizohet.»
+# da solo. `tools/recompute_repealed_al.py` ricalcola il flag sul jsonl senza riscaricare.
+_STUB_MARK_RE = re.compile(r"(?<![\wë])(?<!\bi )(?<!\be )(?<!\btë )shfuqizuar\b", re.I)
+_STUB_ALONE_RE = re.compile(r"^\W*(?:i |e |të )?(?:shfuqizohe[tn]|shfuqizuar)\W*$", re.I)
+_EDIT_NOTE_RE = re.compile(r"\([^()]*\)")
+_UNIT_LINE_RE = re.compile(r"^(?:KREU|KAPITULLI|TITULLI|PJESA|SEKSIONI|NËNSEKSIONI|NENSEKSIONI)\b", re.I)
+
+
+def is_repealed_stub(heading: str, body: str) -> bool:
+    heading, body = heading or "", body or ""
+    if len(body) >= 400:
+        return False
+    txt = heading + "\n" + body
+    if (not _STUB_MARK_RE.search(txt) and not _STUB_ALONE_RE.match(txt.strip())
+            and not _STUB_ALONE_RE.match(body.strip())):    # «Titulli» + corpo «Shfuqizohet.»
+        return False
+    plain = _EDIT_NOTE_RE.sub(" ", txt)
+    lines = [ln.strip() for ln in plain.splitlines() if ln.strip()]
+    lines = [ln for ln in lines if not _UNIT_LINE_RE.match(ln) and not (ln.isupper() and len(ln) < 80)]
+    head, rest = (lines[0] if lines else ""), lines[1:]
+    m = _STUB_MARK_RE.search(head)          # «Titolo Shfuqizuar me ligjin nr. …» (rubrica incollata)
+    if m:
+        head = head[: m.start()]
+    # la rubrica incollata può contenere la PRIMA FRASE dell'articolo («Fusha e zbatimit Dispozitat
+    # e këtij ligji zbatohen … .»): una frase compiuta o un titolo lunghissimo = contenuto vivo
+    if not _STUB_ALONE_RE.match(head) and (re.search(r"[.;!?](?:\s|$)", head.strip()) or len(head) > 120):
+        return False
+    live = re.sub(r"\s+", " ", " ".join(rest)).strip()
+    m2 = _STUB_MARK_RE.search(live)
+    if m2 and m2.start() < 3:               # corpo = «Shfuqizuar me ligjin nr. …»
+        live = ""
+    if live and _STUB_ALONE_RE.match(live):  # corpo = «Shfuqizohet.»
+        live = ""
+    return not live and len(head) < 200
+
+
+# 16 set 2026 — ABROGAZIONI A GRUPPO nei consolidati QBZ. Il K.Pr.C. dice «(Shfuqizuar titulli IV,
+# nenet 400 – 441, me ligjin nr. 122/2013)» e NON stampa i 42 articoli: nel corpus restavano
+# BUCHI e chi citava il neni 420 riceveva «nen fantazmë» (inventato) invece di «shfuqizuar».
+# Qui ogni numero mancante coperto da un marcatore diventa uno stub `repealed=True` con la
+# legge abrogante nel corpo: il verificatore lo trova in `_build_lookup_all` e dice «abrogato»,
+# `search()` lo salta come gli altri abrogati. Solo numeri ASSENTI e dentro 1..max: un
+# articolo presente non viene mai toccato.
+_GROUP_REPEAL_RE = re.compile(r"\([^()]{0,60}?[Ss]hfuqizu\w*[^()]{0,240}\)")
+_REPEAL_RANGE_RE = re.compile(r"nen(?:et|i|ve|in)\s+(\d+)\s*(?:[–\-—]|deri(?:\s+(?:në|te|tek))?)\s*(\d+)", re.I)
+_REPEAL_LIST_RE = re.compile(r"nenet\s+((?:\d+\s*(?:,|dhe)\s*)+\d+)", re.I)
+_REPEAL_UNIT_RE = re.compile(r"\b(?:kreu|kapitulli|titulli|seksioni|nënseksioni|pjesa)\b", re.I)
+_REPEAL_PARTIAL_RE = re.compile(r"paragraf|pik[aëe]|fjal|shkronj|germ|togfjal|fjali", re.I)
+_REPEAL_LAW_RE = re.compile(r"me\s+(?:ligjin|vendimin|aktin|dekretin)[^;)]*", re.I)
+
+
+def _group_repeal_stubs(text: str, items: list, articles: list, doc) -> list:
+    present = {str(a.number) for a in articles}
+    ints = [int(str(a.number).split("/")[0]) for a in articles if str(a.number).split("/")[0].isdigit()]
+    if not ints:
+        return []
+    mx = max(ints)
+    pos_nums = sorted((m.start(), int(str(n).split("/")[0])) for m, n in items if str(n).split("/")[0].isdigit())
+    stubs = []
+    for mk in _GROUP_REPEAL_RE.finditer(text):
+        s = re.sub(r"\s+", " ", mk.group(0)).strip()
+        nums: set[int] = set()
+        # si guarda SOLO ciò che segue «shfuqizu…» fino al «;» (un marcatore può dire anche
+        # «ndryshuar nenet 5-7; shfuqizuar nenet 80-83»: i 5-7 non sono abrogati)
+        for seg in re.split(r"[Ss]hfuqizu\w*", s)[1:]:
+            seg = seg.split(";")[0]
+            for a, b in _REPEAL_RANGE_RE.findall(seg):
+                a, b = int(a), int(b)
+                if 0 < a <= b <= a + 200:
+                    nums.update(range(a, b + 1))
+            for lst in _REPEAL_LIST_RE.findall(seg):
+                nums.update(int(x) for x in re.findall(r"\d+", lst))
+            if not nums and _REPEAL_UNIT_RE.search(seg) and not _REPEAL_PARTIAL_RE.search(seg):
+                # «(shfuqizuar kreu me ligjin …)» senza numeri: l'unità intera è il buco fra
+                # l'articolo prima e quello dopo il marcatore (ligji 8308/1998, kreu 54-63)
+                prev = max((n for p, n in pos_nums if p < mk.start()), default=None)
+                nxt = min((n for p, n in pos_nums if p > mk.start()), default=None)
+                if prev is not None and nxt is not None and prev + 1 < nxt <= prev + 60:
+                    nums.update(range(prev + 1, nxt))
+        if not nums:
+            continue
+        law = _REPEAL_LAW_RE.search(s)
+        ref = re.sub(r"\s+", " ", law.group(0)).strip(" ;,.") if law else ""
+        pjesa, kreu, seksioni = _hierarchy_context(text[: mk.start()])
+        for n in sorted(nums):
+            if n < 1 or n > mx or str(n) in present:
+                continue
+            present.add(str(n))
+            stubs.append(Article(
+                code=doc.code, title_sq=doc.title_sq, area=doc.area, number=str(n),
+                heading="(Shfuqizuar)",
+                body=f"Shfuqizuar {ref}. Nuk figuron në tekstin e konsoliduar: {s.strip('()')}".replace("  ", " "),
+                pjesa=pjesa, kreu=kreu, seksioni=seksioni, repealed=True,
+                volatility=doc.volatility, last_amendment_date=doc.last_amendment_date))
+    if stubs:
+        log.info("parser: %s — %d nene shfuqizuar a gruppo aggiunti come stub (%s…)",
+                 doc.code, len(stubs), ", ".join(a.number for a in stubs[:6]))
+    return stubs
 
 
 # ── Orchestration ───────────────────────────────────────────────────────────
