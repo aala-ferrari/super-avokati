@@ -3484,22 +3484,39 @@ class SuperAvvocato:
                                  STUDIO_GJYQTARI_EFFORT)
             if not STUDIO_GJYQTARI_ENABLED or not (answer_text or "").strip():
                 return answer_text
+            from . import studio, trust_line
+            jur = self._current_jurisdiction()
+            lang = "it" if jur == "IT" else "sq"
+            idx = self.index_it if (self.index_it is not None and jur == "IT") else self.index
+            _codes = {a.code for a, _ in (retrieved or [])} or None
+            # v9.331 — LO SCUDO PRIMA DEL GIUDICE (roadmap v3, passo 1): articoli inesistenti/
+            # abrogati e sentenze non confermate sono misurati dal codice PRIMA del verdetto
+            # e consegnati al Giudice; prima girava tutto in web.py a verdetto già dato.
+            v1 = trust_line.verifica(answer_text, idx, jur, retrieved_codes=_codes)
             if request_senior() == "fable":
-                return answer_text
-            from . import studio
-            lang = "it" if self._current_jurisdiction() == "IT" else "sq"
+                # ⚡: il verdetto è già del senior Fable (Source Verifier suo); resta la riga
+                return trust_line.inserisci_riga(answer_text, trust_line.riga(v1, lang), "")
             vendim = studio.gjyqtari_fundit(
                 self.backend, domanda=user_message,
                 blloku_neneve=_format_articles_for_prompt(retrieved),
                 pergjigja=answer_text, dosja=dosja_txt or "", lang=lang,
                 modeli=STUDIO_GJYQTARI_MODEL, effort=STUDIO_GJYQTARI_EFFORT,
-                fazat=fazat_txt or "")
+                fazat=fazat_txt or "",
+                verifikimi=trust_line.blocco_per_gjyqtarin(v1, lang))
             if not (vendim or "").strip():
-                return answer_text
+                return trust_line.inserisci_riga(answer_text, trust_line.riga(v1, lang), "")
             vendim = _apply_corrections(_verify_citations(vendim, precedents))
             log.info("studio: gjyqtari i fundit ka dhënë vendimin (%d shkronja)", len(vendim))
-            # v9.316 — il verdetto IN TESTA (prima la decisione, poi l'analisi completa)
-            return vendim + answer_text
+            # v9.316 — il verdetto IN TESTA (prima la decisione, poi l'analisi completa);
+            # v9.331 — la TRUST LINE (categorica, ricalcolata sul testo finale) sotto il titolo
+            final = vendim + answer_text
+            v2 = trust_line.verifica(final, idx, jur, retrieved_codes=_codes)
+            final = trust_line.inserisci_riga(
+                final, trust_line.riga(v2, lang),
+                studio.TITULLI_GJYQTARI.get(lang, studio.TITULLI_GJYQTARI["sq"]))
+            log.info("trust_line: %s (nene %s, vendime %s, fakte %s)", trust_line.stato(v2),
+                     v2["nene"], v2["sentenze"]["verified"], v2["fatti_da_precisare"])
+            return final
         except Exception as exc:  # noqa: BLE001 — il verdetto non deve mai far cadere la risposta
             log.warning("studio: gjyqtari i fundit dështoi (non-fatal): %s", exc)
             return answer_text

@@ -2442,7 +2442,7 @@ def main():
               and "final_text = full" in _stream65
               and 'text = (final_text or "".join(collected)).strip()' in _cs65
               and "fazat" in _gj65 and "TITULLI_ANALIZA" in _gj65
-              and "return vendim + answer_text" in _brgj65
+              and ("return vendim + answer_text" in _brgj65 or "final = vendim + answer_text" in _brgj65)  # v9.331: + Trust Line sotto il titolo
               and "fazat_txt=_fazat_x" in _as65 and "_risposta_dalle_fasi(" in _as65
               and 'final_text = str(payload.get("text") or "")' in _as65
               and "collected = [_ft]" in _cas65
@@ -2869,6 +2869,44 @@ def main():
               _ok80, "a=%s b=%s c=%s d=%s e=%s f=%s" % (_a80, _b80, _c80, _d80, _e80, _f80))
     except Exception as _e80:  # noqa: BLE001
         check("corpus[80]: kontrollet u ekzekutuan", False, str(_e80))
+
+    # ── [81] TRUST LINE — lo scudo PRIMA del Giudice (v9.331, roadmap v3 passo 1): la verifica
+    # deterministica arriva al Giudice come blocco dedicato + regola nel prompt (sq+it); la riga
+    # di fiducia CATEGORICA (mai percentuali) sta sotto il titolo del verdetto; i documenti del
+    # fascicolo restano SFONDO (anti-iniezione) ──
+    try:
+        import re as _re81
+        from pathlib import Path as _P81
+        from src import trust_line as _tl, studio as _st81, brain as _br81, case_brief as _cb81
+        _idx81 = ArticleIndex.load(_P81("/app/data/index/bm25.pkl"))
+        _vA = _tl.verifica("Sipas nenit 420 të Kodit të Procedurës Civile dhe nenit 114 të Kodit Civil, "
+                           "si dhe nenit 9999 të Kodit Civil.", _idx81, "AL")
+        _vB = _tl.verifica("Sipas nenit 114 të Kodit Civil dhe nenit 155 të Kodit të Punës.", _idx81, "AL")
+        _vC = _tl.verifica("Sipas nenit 114 të Kodit Civil.\n\n**Për saktësi:** më dërgo datën e njoftimit.", _idx81, "AL")
+        _okA = (_vA["nene"]["repealed"] == 1 and _vA["nene"]["fake"] == 1 and _vA["nene"]["verified"] == 1
+                and _tl.stato(_vA) == "FLAGS" and "1 të shfuqizuara" in _tl.riga(_vA, "sq") and "🔴" in _tl.riga(_vA, "sq")
+                and "420" in _tl.blocco_per_gjyqtarin(_vA, "sq") and "SHFUQIZUAR" in _tl.blocco_per_gjyqtarin(_vA, "sq")
+                and "9999" in _tl.blocco_per_gjyqtarin(_vA, "it") and "NON ESISTE" in _tl.blocco_per_gjyqtarin(_vA, "it"))
+        _okB = _tl.stato(_vB) == "VERIFIED" and _vB["nene"]["verified"] == 2 and "✅" in _tl.riga(_vB, "it") and "%" not in _tl.riga(_vB, "it")
+        _okC = _tl.stato(_vC) == "RESERVATIONS" and _vC["fatti_da_precisare"] == 1 and "1 për t'u saktësuar" in _tl.riga(_vC, "sq")
+        _t81 = _st81.TITULLI_GJYQTARI["it"]
+        _ins = _tl.inserisci_riga(_t81 + "**VERDETTO** …", _tl.riga(_vB, "it"), _t81)
+        _okD = _ins.startswith(_t81 + "> 🔎 **Verifica:**") and "**VERDETTO**" in _ins
+        _srcB = open(_br81.__file__, encoding="utf-8").read()
+        _srcS = open(_st81.__file__, encoding="utf-8").read()
+        _okE = ("verifikimi=trust_line.blocco_per_gjyqtarin(v1, lang)" in _srcB
+                and "v2 = trust_line.verifica(final" in _srcB
+                and 'verifikimi: str = ""' in _srcS and "VERIFICA DETERMINISTICA DELLE CITAZIONI" in _srcS
+                and "VERIFIKIMI DETERMINIST I CITIMEVE" in _srcS
+                and "VERIFICA DETERMINISTICA (se ti viene data)" in _st81.GJYQTARI_SYSTEM["it"]
+                and "VERIFIKIMI DETERMINIST (nëse të jepet)" in _st81.GJYQTARI_SYSTEM["sq"])
+        _srcCB = open(_cb81.__file__, encoding="utf-8").read()
+        _okF = _re81.search(r"SFONDO|sfondo", _srcCB) is not None and "istruzion" in _srcCB.lower()
+        check("trust_line[81]: verifica deterministica (nene abrogati/inesistenti, sentenze, fatti) → blocco al Giudice PRIMA del verdetto + regola nel prompt sq/it + riga di fiducia categorica sotto il titolo (mai %) + fascicolo marcato sfondo (anti-iniezione)",
+              _okA and _okB and _okC and _okD and _okE and _okF,
+              "A=%s B=%s C=%s D=%s wiring=%s sfondo=%s | rigaA=%r" % (_okA, _okB, _okC, _okD, _okE, _okF, _tl.riga(_vA, "sq")[:120]))
+    except Exception as _e81:  # noqa: BLE001
+        check("trust_line[81]: kontrollet u ekzekutuan", False, str(_e81))
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

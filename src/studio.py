@@ -406,6 +406,11 @@ GJYQTARI_SYSTEM = {
         "KOHERENCËN me FILLIN e bisedës (faktet e rastit, vendimi i dhënë më parë, citimet e bollura "
         "'mos i cito' — nëse rishfaqen si të verifikuara, thuaje), faktet e rastit (p.sh. targa e huaj, "
         "kush është pronar) dhe rregullat e kapërcyera që tashmë ishin korrigjuar.\n"
+        "VERIFIKIMI DETERMINIST (nëse të jepet): është llogaritur nga kodi mbi korpusin zyrtar, "
+        "PARA teje. Nëse rendit nene që NUK EKZISTOJNË ose janë TË SHFUQIZUARA, në vendim "
+        "korrigjoji ose përjashtoji shprehimisht — kurrë mos i trajto si të vlefshme dhe mos "
+        "i heshtë; për vendimet «të pakonfirmuara» thuaj që duhen verifikuar një për një para "
+        "se të citohen, pa i shpallur të rreme.\n"
         "RREGULLA: bazohu VETËM te nenet dhe dosja e dhënë; MOS shpik nene as vendime. "
         "MOSGJETJA nuk është MUNGESË — mos thuaj 'nuk ekziston' për diçka që thjesht nuk "
         "u gjet; thuaj 'nuk u gjet në materialet që kam'. Dallo qartë 'e sigurt' nga 'për "
@@ -449,6 +454,11 @@ GJYQTARI_SYSTEM = {
         "corpus — giudica la COERENZA col FILO della conversazione (fatti del caso, verdetto già "
         "dato, citazioni bollate 'non citare' — se ricompaiono come verificate, dillo), i fatti "
         "del caso (es. targa estera, chi è proprietario) e le regole superate già corrette prima.\n"
+        "VERIFICA DETERMINISTICA (se ti viene data): è calcolata dal codice sul corpus ufficiale, "
+        "PRIMA di te. Se elenca articoli INESISTENTI o ABROGATI, nel verdetto correggili o "
+        "escludili esplicitamente — mai trattarli come validi e mai tacerli; per le sentenze "
+        "«non confermate» di' che vanno riscontrate una per una prima di citarle, senza "
+        "dichiararle false.\n"
         "REGOLE: basati SOLO sugli articoli e sul dossier forniti; NON inventare articoli "
         "né sentenze. IL NON-TROVATO non è ASSENZA — non dire 'non esiste' per qualcosa "
         "che semplicemente non hai trovato; di' 'non trovato nei materiali che ho'. "
@@ -475,7 +485,7 @@ TITULLI_ANALIZA = {
 def gjyqtari_fundit(backend, *, domanda: str, blloku_neneve: str, pergjigja: str,
                     dosja: str = "", lang: str = "sq", modeli: str = "fable",
                     effort: str = "max", case_id: str | None = None,
-                    fazat: str = "") -> str:
+                    fazat: str = "", verifikimi: str = "") -> str:
     """Il Giudice Finale: Fable 5.1 max effort riceve TUTTO (nenet verbatim, la
     risposta con attacchi e repliche = le menti degli altri agenti, il dossier dei
     raccoglitori) e dà il VERDETTO FINALE — conferma o corregge, cerca l'ago nel
@@ -488,12 +498,16 @@ def gjyqtari_fundit(backend, *, domanda: str, blloku_neneve: str, pergjigja: str
         _L = ("DOMANDA / CASO:", "ARTICOLI (testo integrale, verbatim — non toccarli):",
               "DOSSIER DEI RACCOGLITORI (web / QBZ / Gazzetta Ufficiale):",
               "RISPOSTA PREPARATA (con attacchi e repliche):",
-              "PANNELLI (analisi preparatorie visibili all'avvocato — correggili se sbagliano):")
+              "PANNELLI (analisi preparatorie visibili all'avvocato — correggili se sbagliano):",
+              "VERIFICA DETERMINISTICA DELLE CITAZIONI (fatta dal codice sul corpus ufficiale, PRIMA "
+              "del tuo verdetto — è un dato, non un'opinione):")
     else:
         _L = ("PYETJA / RASTI:", "NENET (tekst i plotë, verbatim — mos i prek):",
               "DOSJA E MBLEDHËSVE (web / QBZ / Fletorja Zyrtare):",
               "PËRGJIGJA E PËRGATITUR (me sulmet dhe kundërpërgjigjet):",
-              "PANELET (analiza përgatitore që i sheh avokati — korrigjoji nëse gabojnë):")
+              "PANELET (analiza përgatitore që i sheh avokati — korrigjoji nëse gabojnë):",
+              "VERIFIKIMI DETERMINIST I CITIMEVE (i bërë nga kodi mbi korpusin zyrtar, PARA vendimit "
+              "tënd — është e dhënë, jo mendim):")
     parti = [f"{_L[0]}\n{(domanda or '')[:3500]}",
              f"{_L[1]}\n{(blloku_neneve or '')[:60000]}"]
     if (dosja or "").strip():
@@ -503,6 +517,11 @@ def gjyqtari_fundit(backend, *, domanda: str, blloku_neneve: str, pergjigja: str
         # i pannelli (allerta, rischi, mappa prove, scadenze) girano PRIMA della
         # risposta e nessuno li correggeva: il Giudice li vede e li giudica (v9.316)
         parti.append(f"{_L[4]}\n" + fazat[:14000])
+    if (verifikimi or "").strip():
+        # v9.331 — lo scudo PRIMA del Giudice: articoli inesistenti/abrogati e sentenze non
+        # confermate sono già misurati dal codice; il Giudice decide su materiale verificato,
+        # non è più il posto in cui si scopre DOPO che una citazione era sbagliata
+        parti.append(f"{_L[5]}\n" + verifikimi[:6000])
     user = "\n\n─────\n".join(parti)
     # no_web: il Giudice valuta SOLO nenet verbatim + risposta + dossier — mai
     # navigare (misurato: 440.877 token in una chiamata quando aveva il web)
