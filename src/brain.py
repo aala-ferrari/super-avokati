@@ -3708,7 +3708,9 @@ class SuperAvvocato:
                 return trust_line.inserisci_riga(answer_text, trust_line.riga(v1, lang, tempo=_tempo, coverage=_cov) + "\n" + _nota, "")
             vendim = _apply_corrections(_verify_citations(vendim, precedents))
             log.info("studio: gjyqtari i fundit ka dhënë vendimin (%d shkronja)", len(vendim))
-            _audit_set("giudice", {"esito": "verdetto", "chr": len(vendim)})
+            _audit_set("giudice", {"esito": "verdetto", "chr": len(vendim),
+                                   "riserva": bool(getattr(self.backend, "last_model_used", "") and
+                                                   getattr(self.backend, "last_model_used", "") != STUDIO_GJYQTARI_MODEL)})
             # v9.316 — il verdetto IN TESTA (prima la decisione, poi l'analisi completa);
             # v9.331 — la TRUST LINE (categorica, ricalcolata sul testo finale) sotto il titolo
             final = vendim + answer_text
@@ -3932,8 +3934,12 @@ class SuperAvvocato:
         )
         try:
             data = _parse_json_block(raw)
-        except Exception:
-            log.warning("strategic JSON parse failed, returning empty")
+        except Exception as _exc:
+            # v9.343 — si dice PERCHÉ (senza testo del caso): lunghezza, come inizia e come finisce,
+            # errore del parser — così un JSON troncato o un modello che risponde in prosa si distingue
+            _r = (raw or "").strip()
+            log.warning("strategic JSON parse failed, returning empty — %s: %s | %d chr | inizio %r | fine %r",
+                        type(_exc).__name__, str(_exc)[:100], len(_r), _r[:60], _r[-60:])
             return StrategicAnalysis()
 
         details = []

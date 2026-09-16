@@ -14,7 +14,8 @@ import json, shutil, sys, time
 from pathlib import Path
 
 BASE = Path(sys.argv[sys.argv.index("--dir") + 1]) if "--dir" in sys.argv else Path("/var/www/apps/super-avvocato/data/processed")
-OLD, NEW = BASE / "it_acts", BASE / "it_acts_refresh"
+OLD = BASE / "it_acts"
+NEW = BASE / (sys.argv[sys.argv.index("--new") + 1] if "--new" in sys.argv else "it_acts_refresh")
 
 
 def main() -> int:

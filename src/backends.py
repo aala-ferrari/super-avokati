@@ -26,6 +26,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import re
 import os
 import shutil
 import subprocess
@@ -314,6 +315,36 @@ except OSError:  # sistema in sola lettura: si ripiega su una temporanea
 
 # ── Tetramorph (headless CLI, subscription auth) ─────────────────────────
 
+# v9.343 — LIMITE PER MODELLO (16 set 2026, misurato): la CLI risponde «You've reached your Fable
+# limit. Switch to another model to continue.» (is_error, api_error) — la quota della sottoscrizione
+# per QUEL modello è esaurita, non un sovraccarico: Opus e Sonnet rispondono. Prima: 4 tentativi
+# (3,5 min) per nulla, poi il diavolo TACEVA e il Giudice cadeva («non pronunciato»). Ora: il
+# modello finisce in pausa per MODEL_LIMIT_PAUSE_S, e la chiamata passa subito al modello di
+# default del tier (Opus max per il Giudice/diavolo/⚡): un arbitro di riserva vale più di nessun
+# arbitro. Audit: error_class «ModelLimit» sulla chiamata caduta, poi la chiamata vera sul ripiego.
+_MODEL_LIMIT_UNTIL: dict[str, float] = {}
+_MODEL_LIMIT_LOCK = threading.Lock()
+MODEL_LIMIT_PAUSE_S = int(os.environ.get("MODEL_LIMIT_PAUSE_S", "1800"))
+_MODEL_LIMIT_RE = re.compile(r"reached your [\w .-]{0,40}limit|switch to another model", re.I)
+
+
+def _model_limit_hit(stdout: str, stderr: str) -> bool:
+    return bool(_MODEL_LIMIT_RE.search((stdout or "") + " " + (stderr or "")))
+
+
+def modello_in_pausa(model: str | None) -> float:
+    """Secondi che restano della pausa (0 = libero)."""
+    if not model:
+        return 0.0
+    with _MODEL_LIMIT_LOCK:
+        return max(0.0, _MODEL_LIMIT_UNTIL.get(model, 0.0) - time.time())
+
+
+def _metti_in_pausa(model: str) -> None:
+    with _MODEL_LIMIT_LOCK:
+        _MODEL_LIMIT_UNTIL[model] = time.time() + MODEL_LIMIT_PAUSE_S
+
+
 class ClaudeCodeBackend(LLMBackend):
     """Invokes the `claude` CLI in headless `-p` mode.
 
@@ -410,6 +441,13 @@ class ClaudeCodeBackend(LLMBackend):
         # model_override lets an ADDITIVE feature pick a specific model (e.g.
         # Fable for the second-advisor pass) without touching tier routing.
         model = model_override or self._pick_model(fast, medium)
+        _fallback_model = self._pick_model(fast, medium)
+        _ripiego_fatto = False
+        if model_override and model != _fallback_model and modello_in_pausa(model_override) > 0:
+            log.info("Tetramorph: %s in pausa per limite (ancora %ds) — %s va a %s",
+                     model, int(modello_in_pausa(model_override)), callsite or "?", _fallback_model)
+            model = _fallback_model
+            _ripiego_fatto = True
         tier = _tier_label(fast, medium)
         prompt_serialized = _serialize_prompt(system, messages)
         prompt_hash = _hash16(prompt_serialized)
@@ -532,37 +570,62 @@ class ClaudeCodeBackend(LLMBackend):
         _rl_max = int(os.environ.get("TETRAMORPH_RETRY_MAX", "4"))
         _rl_base = int(os.environ.get("TETRAMORPH_RETRY_WAIT", "20"))
         proc = None
-        for _rl_try in range(_rl_max + 1):
+
+        def _esegui(_cmd):
+            """Esegue la CLI con i tentativi «i zënë»; torna (proc, limite_del_modello)."""
+            _p = None
+            for _rl_try in range(_rl_max + 1):
+                try:
+                    with self._concurrency_sem:
+                        _p = subprocess.run(
+                            _cmd,
+                            input=prompt,
+                            capture_output=True,
+                            text=True,
+                            encoding="utf-8",
+                            errors="replace",
+                            timeout=self.timeout_s,
+                            cwd=str(_CWD_CERVELLO),
+                            check=False,
+                        )
+                except subprocess.TimeoutExpired as exc:
+                    _emit_audit(outcome="error", response_text=None,
+                                error_class="TimeoutExpired")
+                    raise RuntimeError(
+                        f"Tetramorph timed out after {self.timeout_s}s"
+                    ) from exc
+                if _model_limit_hit(_p.stdout or "", _p.stderr or ""):
+                    return _p, True          # quota del modello esaurita: non si aspetta
+                _rl_blob = " ".join([str(_p.stderr or ""), str(_p.stdout or "")]).lower()
+                _rl_busy = _p.returncode != 0 and any(
+                    k in _rl_blob for k in ("usage limit", "session limit", "rate limit",
+                                            "429", "quota", "overloaded", "529", "503", "overload"))
+                if _rl_busy and _rl_try < _rl_max:
+                    _rl_wait = _rl_base * (_rl_try + 1) + (abs(hash(prompt)) % 8)
+                    log.warning("Tetramorph i zene (prova %d/%d) — pres %ds pastaj riprovoj",
+                                _rl_try + 1, _rl_max, _rl_wait)
+                    time.sleep(_rl_wait)
+                    continue
+                break
+            return _p, False
+
+        proc, _limite = _esegui(cmd)
+        if _limite and not _ripiego_fatto and model_override and model != _fallback_model:
+            # v9.343 — quota del modello scelto esaurita (Fable): pausa e ripiego sul default del tier
+            _metti_in_pausa(model_override)
+            _emit_audit(outcome="error", response_text=None, error_class="ModelLimit")
             try:
-                with self._concurrency_sem:
-                    proc = subprocess.run(
-                        cmd,
-                        input=prompt,
-                        capture_output=True,
-                        text=True,
-                        encoding="utf-8",
-                        errors="replace",
-                        timeout=self.timeout_s,
-                        cwd=str(_CWD_CERVELLO),
-                        check=False,
-                    )
-            except subprocess.TimeoutExpired as exc:
-                _emit_audit(outcome="error", response_text=None,
-                            error_class="TimeoutExpired")
-                raise RuntimeError(
-                    f"Tetramorph timed out after {self.timeout_s}s"
-                ) from exc
-            _rl_blob = " ".join([str(proc.stderr or ""), str(proc.stdout or "")]).lower()
-            _rl_busy = proc.returncode != 0 and any(
-                k in _rl_blob for k in ("usage limit", "session limit", "rate limit",
-                                        "429", "quota", "overloaded", "529", "503", "overload"))
-            if _rl_busy and _rl_try < _rl_max:
-                _rl_wait = _rl_base * (_rl_try + 1) + (abs(hash(prompt)) % 8)
-                log.warning("Tetramorph i zene (prova %d/%d) — pres %ds pastaj riprovoj",
-                            _rl_try + 1, _rl_max, _rl_wait)
-                time.sleep(_rl_wait)
-                continue
-            break
+                _msg = str((json.loads((proc.stdout or "").strip() or "{}")).get("result") or "")[:90]
+            except Exception:  # noqa: BLE001
+                _msg = (proc.stderr or proc.stdout or "")[:90].replace("\n", " ")
+            log.warning("Tetramorph: limite di %s raggiunto («%s») — %s passa a %s per %d min",
+                        model, _msg, callsite or "?", _fallback_model, MODEL_LIMIT_PAUSE_S // 60)
+            model = _fallback_model
+            _ripiego_fatto = True
+            _i = cmd.index("--model")
+            cmd[_i + 1] = _fallback_model
+            t0 = time.time()
+            proc, _limite = _esegui(cmd)
 
         # If --resume failed (session evicted / wrong id), retry fresh once
         # and flag the failure so the caller can invalidate the stale id.
@@ -626,6 +689,7 @@ class ClaudeCodeBackend(LLMBackend):
         # che e' successo alle prime 1.281 chiamate.
         _emit_audit(outcome="success", response_text=text, error_class=None,
                     uso=_uso_da_risposta(data))
+        self.last_model_used = model      # v9.343: chi ha risposto davvero (ripiego compreso)
         return text
 
     # V7.7 — streaming variant. Yields (kind, payload) events:

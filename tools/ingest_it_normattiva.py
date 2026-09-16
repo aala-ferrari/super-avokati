@@ -14,6 +14,9 @@ import json, os, sys, time
 from pathlib import Path
 sys.path.insert(0, "/tmp")
 sys.path.insert(0, "/app")
+# ⚠️ 17 set 2026: PRIMA la cartella dello script — «/tmp» davanti faceva importare una copia VECCHIA di
+# normattiva_lib (senza parse_notes) e il ri-download di 5 ore e mezza è uscito SENZA note per articolo
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from normattiva_lib import ingest_act
 
 OUT = Path(os.environ.get("IT_ACTS_DIR", "/app/data/processed/it_acts"))

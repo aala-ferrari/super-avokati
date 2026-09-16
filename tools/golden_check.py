@@ -3220,6 +3220,29 @@ def main():
     except Exception as _e92:  # noqa: BLE001
         check("claims[92]: kontrollet u ekzekutuan", False, str(_e92))
 
+    # ── [93] LIMITE PER MODELLO → RIPIEGO (v9.343): «You've reached your Fable limit» non è un
+    # sovraccarico — il diavolo taceva e il Giudice cadeva; ora pausa del modello + ripiego sul
+    # default del tier (Opus max), senza i 4 tentativi a vuoto; audit «ModelLimit» ──
+    try:
+        import inspect as _insp93
+        from src import backends as _bk93, brain as _br93
+        _okA = (_bk93._model_limit_hit("You've reached your Fable limit. Switch to another model to continue.", "")
+                and not _bk93._model_limit_hit('{"result":"ok"}', "rate limit 429")
+                and _bk93.modello_in_pausa("modello-di-prova-93") == 0.0)
+        _bk93._metti_in_pausa("modello-di-prova-93")
+        _okB = 1700 < _bk93.modello_in_pausa("modello-di-prova-93") <= _bk93.MODEL_LIMIT_PAUSE_S
+        _src93 = _insp93.getsource(_bk93.ClaudeCodeBackend.complete)
+        _okC = ("proc, _limite = _esegui(cmd)" in _src93 and "_metti_in_pausa(model_override)" in _src93
+                and 'error_class="ModelLimit"' in _src93 and "modello_in_pausa(model_override) > 0" in _src93
+                and "return _p, True          # quota del modello esaurita" in _src93
+                and "self.last_model_used = model" in _src93)
+        _okD = '"riserva": bool(getattr(self.backend, "last_model_used", "")' in _insp93.getsource(_br93.SuperAvvocato._gjyqtari_fundit)
+        _okE = "strategic JSON parse failed, returning empty — %s: %s | %d chr" in open(_br93.__file__, encoding="utf-8").read()
+        check("backend[93]: limite per modello (Fable) rilevato senza attese → pausa 30 min + ripiego sul default del tier, audit ModelLimit, chi ha risposto tracciato (Giudice di riserva nell'audit); parse fallito della fase strategica diagnosticabile",
+              _okA and _okB and _okC and _okD and _okE, "det=%s pausa=%s wiring=%s riserva=%s strategic=%s" % (_okA, _okB, _okC, _okD, _okE))
+    except Exception as _e93:  # noqa: BLE001
+        check("backend[93]: kontrollet u ekzekutuan", False, str(_e93))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
