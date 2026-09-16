@@ -6780,6 +6780,12 @@ main {
   color: #8a1018; font-weight: 600;
   border-bottom: 1px solid rgba(207,34,46,0.20);
 }
+/* v9.341 — «Perché questa risposta»: il pacchetto di audit reso a parole */
+.prov-audit { padding: 8px 12px 10px; border-top: 1px dashed var(--border); }
+.prov-audit-title { font-weight: 600; margin: 0 0 6px; color: var(--ink); }
+.prov-audit ul { margin: 0; padding-left: 16px; }
+.prov-audit li { margin: 2px 0; line-height: 1.35; }
+.prov-audit li b { color: var(--gray-700); font-weight: 600; }
 .prov-meta {
   display: grid;
   grid-template-columns: max-content 1fr;

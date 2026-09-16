@@ -411,6 +411,11 @@ def ultimo_info() -> dict | None:
     return getattr(_CTX, "info", None)
 
 
+def imposta_info(info: dict | None) -> None:
+    """Riporta nel thread della richiesta l'info calcolata in un worker (stage «skuadra_gather»)."""
+    _CTX.info = info
+
+
 def arricchisci_dosje(dosja: str, user_message: str, retrieved, jurisdiction: str, lang: str) -> str:
     """Appende al dossier il blocco temporale se la domanda porta una data del fatto."""
     _CTX.info = None

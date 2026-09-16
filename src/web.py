@@ -6817,6 +6817,7 @@ def api_ask():
         system_prompt_version=ANSWER_SYSTEM_VERSION,
         jurisdiction=getattr(case, "jurisdiction", "AL") or "AL",
         refused=refused,
+        extra={"audit": _audit_pacchetto()},     # v9.341: «perché questa risposta»
     )
     try:
         storage.save_provenance(case.id, user.id, provenance.to_dict())
@@ -7044,6 +7045,7 @@ def _ask_prepare(user, data):
                 system_prompt_version=ANSWER_SYSTEM_VERSION,
                 jurisdiction=getattr(case, "jurisdiction", "AL") or "AL",
                 refused=refused,
+                extra={"audit": _audit_pacchetto()},     # v9.341: «perché questa risposta»
             )
             try:
                 storage.save_provenance(case.id, user.id, provenance.to_dict())
@@ -8664,6 +8666,17 @@ def _index_for(user):
     except Exception:  # noqa: BLE001
         pass
     return _INDEX
+
+
+def _audit_pacchetto() -> dict | None:
+    """v9.341 (roadmap v3 P8) — il pacchetto di audit della risposta appena prodotta (stesso thread
+    del cervello): triage, recupero+copertura, Kërkuesi, raccoglitori, tempo, precedenti (grafo),
+    fasi, diavolo, Giudice, Trust Line prima/dopo, durata. Va nel provenance pack (`extra.audit`),
+    quindi nel JSON/DOCX esportabile e nel pannello. Mai sollevare."""
+    try:
+        return brain_mod.audit_info()
+    except Exception:  # noqa: BLE001
+        return None
 
 
 def _scudo_citazioni(md: str, citations: dict) -> str:

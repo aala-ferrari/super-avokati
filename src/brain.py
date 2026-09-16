@@ -472,6 +472,51 @@ def coverage_info() -> dict | None:
     return getattr(_COVERAGE, "info", None)
 
 
+# v9.341 (roadmap v3 P8) — il PACCHETTO DI AUDIT della risposta: cosa ha fatto il cervello, in
+# ordine, con numeri — triage, recupero (ancore, copertura), Kërkuesi, raccoglitori, tempo,
+# precedenti (grafo), diavolo, Giudice (riuscito/saturo), Trust Line prima e dopo, durate.
+# Thread-local come la copertura: azzerato all'inizio di ogni richiesta, consegnato dentro il
+# provenance pack (`extra.audit`) che l'avvocato apre dal pannello «Provenance».
+_AUDIT = _threading.local()
+
+
+def _audit_reset() -> None:
+    _AUDIT.data = {"passi": [], "t0": time.time()}
+
+
+def _audit_set(key: str, value) -> None:
+    """Annota un passo (fail-silent: l'audit non deve mai toccare la risposta)."""
+    try:
+        d = getattr(_AUDIT, "data", None)
+        if d is None:
+            _audit_reset(); d = _AUDIT.data
+        d[key] = value
+        d["passi"].append({"passo": key, "t": round(time.time() - d["t0"], 1)})
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _audit_precedenti(pairs) -> None:
+    try:
+        from . import case_graph as _cg
+        rows = []
+        for c, sc in (pairs or [])[:8]:
+            rows.append({"citation": getattr(c, "citation", ""), "outcome": getattr(c, "outcome", None),
+                         "score": round(float(sc), 2), "grafo": _cg.nota(getattr(c, "court_code", ""), getattr(c, "year", None), getattr(c, "case_number", ""))})
+        _audit_set("precedenti", rows)
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def audit_info() -> dict | None:
+    d = getattr(_AUDIT, "data", None)
+    if not d:
+        return None
+    out = {k: v for k, v in d.items() if k != "t0"}
+    out["durata_s"] = round(time.time() - d["t0"], 1)
+    return out
+
+
 def set_request_user(uid: int | None) -> None:
     _REQUEST_USER.uid = int(uid) if uid else None
 
@@ -2394,6 +2439,13 @@ class SuperAvvocato:
         # tutto il prodotto, ed erano quelle attribuite a nessuno.
         _stage_utente = request_user_id()
         _stage_profili = request_profile()
+        # v9.341 — anche l'AUDIT, la COPERTURA e il TEMPO vivono in thread-local: il worker
+        # «skuadra_gather» (raccoglitori + blocco temporale) scriveva su copie che il thread della
+        # richiesta non vedeva → sul percorso complesso l'asse «tempo» della Trust Line mancava.
+        # Si passa lo STESSO dizionario dell'audit e si riportano indietro le info del tempo.
+        _stage_audit = getattr(_AUDIT, "data", None)
+        _stage_cov = coverage_info()
+        _stage_tempo_box: list = []
 
         def _one(name: str, fn: Callable[[], object]) -> tuple[str, object | None, float]:
             # I worker sono thread diversi da quello della richiesta: la
@@ -2405,6 +2457,9 @@ class SuperAvvocato:
                 set_request_jurisdiction(_stage_jurisdiction)
                 set_request_user(_stage_utente)
                 set_request_profile(_stage_profili)
+                if _stage_audit is not None:
+                    _AUDIT.data = _stage_audit        # stesso dict: le annotazioni dei worker restano
+                _COVERAGE.info = _stage_cov
             except Exception:  # noqa: BLE001
                 pass
             t0 = time.monotonic()
@@ -2413,6 +2468,12 @@ class SuperAvvocato:
             except Exception as exc:
                 log.warning("%s failed (non-fatal): %s", name, exc)
                 out = None
+            if name == "skuadra_gather":
+                try:
+                    from . import temporal as _tmp
+                    _stage_tempo_box.append(_tmp.ultimo_info())
+                except Exception:  # noqa: BLE001
+                    pass
             return name, out, time.monotonic() - t0
 
         if BRAIN_PARALLEL_STAGES and len(plan) > 1:
@@ -2437,6 +2498,13 @@ class SuperAvvocato:
                 BRAIN_PARALLEL_STAGES and len(plan) > 1,
                 total, slowest[0], slowest[1], stages_str,
             )
+            _audit_set("fasi", {k: round(v, 1) for k, v in timings.items()})
+        if _stage_tempo_box:
+            try:
+                from . import temporal as _tmp
+                _tmp.imposta_info(_stage_tempo_box[-1])   # il tempo torna nel thread della richiesta
+            except Exception:  # noqa: BLE001
+                pass
         return results
 
     # ── public entrypoint ──────────────────────────────────────────────────
@@ -2469,6 +2537,7 @@ class SuperAvvocato:
         self._jurisdiction_ctx.code = (jurisdiction or "AL").upper()
         set_request_jurisdiction(jurisdiction)
         _COVERAGE.info = None          # v9.340: mai la copertura di una richiesta precedente
+        _audit_reset()                 # v9.341: pacchetto di audit nuovo per questa richiesta
         backend = self.backend
         can_stream = (
             getattr(backend, "name", "") == "claude_code"
@@ -2537,6 +2606,9 @@ class SuperAvvocato:
         # Fresh query — triage first.
         try:
             triage = self._triage(user_message, history, documents)
+            _audit_set("triage", {"summary": (triage.problem_summary or "")[:300], "areas": list(triage.areas or []),
+                                  "queries": list(triage.search_queries or [])[:8], "angles": list(triage.strategic_angles or [])[:6],
+                                  "complexity": triage.complexity, "followup": (triage.followup_question or "")[:200]})
             log.info("stream triage: complexity=%s areas=%s",
                      triage.complexity, triage.areas)
         except Exception as exc:
@@ -2624,6 +2696,7 @@ class SuperAvvocato:
         cited_pairs = [(a.code, a.number) for a, _ in retrieved]
         try:
             precedents = self._retrieve_precedents(triage, cited_pairs)
+            _audit_precedenti(precedents)
         except Exception as exc:
             log.warning("stream: precedents retrieval failed: %s", exc)
             precedents = []
@@ -2863,6 +2936,7 @@ class SuperAvvocato:
         history = history or []
         documents = documents or []
         _COVERAGE.info = None          # v9.340: mai la copertura di una richiesta precedente
+        _audit_reset()                 # v9.341: pacchetto di audit nuovo per questa richiesta
 
         # V7.5 — short follow-up fast path.
         # When the citizen is already in an active conversation (session_id
@@ -2909,6 +2983,9 @@ class SuperAvvocato:
         # grounded on their original question.
         try:
             triage = self._triage(user_message, history, documents)
+            _audit_set("triage", {"summary": (triage.problem_summary or "")[:300], "areas": list(triage.areas or []),
+                                  "queries": list(triage.search_queries or [])[:8], "angles": list(triage.strategic_angles or [])[:6],
+                                  "complexity": triage.complexity, "followup": (triage.followup_question or "")[:200]})
             log.info("triage: complexity=%s areas=%s queries=%s angles=%s followup=%s",
                      triage.complexity, triage.areas, triage.search_queries,
                      triage.strategic_angles, triage.needs_followup)
@@ -2980,6 +3057,7 @@ class SuperAvvocato:
         cited_pairs = [(a.code, a.number) for a, _ in retrieved]
 
         precedents = self._retrieve_precedents(triage, cited_pairs)
+        _audit_precedenti(precedents)
         log.info("retrieved %d precedents", len(precedents))
 
         # Adversarial retrieval: explicitly pull adverse precedents
@@ -3312,6 +3390,8 @@ class SuperAvvocato:
                 queries=list(triage.search_queries), restrict=restrict,
                 modeli=STUDIO_KERKUES_MODEL, effort=STUDIO_KERKUES_EFFORT,
                 max_nene=STUDIO_KERKUES_MAX_NENE)
+            _audit_set("kerkuesi", {"aggiunti": ["%s %s" % k for k in (esito.get("shtuar") or [])],
+                                    "mancava_norma": bool(esito.get("mungon_norma_percaktuese")), "pse": (esito.get("pse") or "")[:200]})
             if esito.get("shtuar"):
                 log.info("studio: kërkuesi shtoi %s (%s)",
                          ", ".join("%s %s" % k for k in esito["shtuar"]),
@@ -3329,10 +3409,13 @@ class SuperAvvocato:
         la domanda contiene una data di almeno un anno fa (multivigenza Normattiva per l'IT,
         atti modificativi QBZ per l'AL). Fail-silent in ogni pezzo."""
         blocco, fonti = self._mbledh_gatherers_core(user_message, triage, retrieved, precedents_block)
+        _audit_set("raccoglitori", {"fonti": [dict(f) if isinstance(f, dict) else str(f) for f in (fonti or [])][:12],
+                                    "dossier_chr": len(blocco or "")})
         try:
             from . import temporal
             lang = "it" if self._current_jurisdiction() == "IT" else "sq"
             blocco = temporal.arricchisci_dosje(blocco, user_message, retrieved, self._current_jurisdiction(), lang)
+            _audit_set("tempo", temporal.ultimo_info())
         except Exception as exc:  # noqa: BLE001 — il tempo non deve mai far cadere la risposta
             log.warning("temporal: saltato (non-fatal): %s", exc)
         return blocco, fonti
@@ -3375,6 +3458,7 @@ class SuperAvvocato:
         try:
             cited = [(a.code, a.number) for a, _ in retrieved]
             precedents = _precedente_te_lidhur(self._retrieve_precedents(triage, cited), cited)
+            _audit_precedenti(precedents)
         except Exception as exc:  # noqa: BLE001
             log.warning("studio mbledhësit: precedentë të parikuperueshëm (%s)", exc)
             precedents = []
@@ -3455,6 +3539,7 @@ class SuperAvvocato:
                 return answer_text
             sez = _apply_corrections(_verify_citations(sez, precedents))
             log.info("studio: avokati i djallit ka folur (%d shkronja)", len(sez))
+            _audit_set("diavolo", {"chr": len(sez)})
             # 2° PASSAGGIO (spec titolare): il senior RISPONDE all'attacco —
             # accolto/respinto/parziale + strategia rivista. Stessa mente del
             # senior (Opus max di default, Fable se scelto). Fail-silent.
@@ -3469,6 +3554,7 @@ class SuperAvvocato:
                 if risposta:
                     risposta = _apply_corrections(_verify_citations(risposta, precedents))
                     log.info("studio: seniori iu përgjigj sulmeve (%d shkronja)", len(risposta))
+                    _audit_set("replica_senior", {"chr": len(risposta)})
             except Exception as _exc2:  # noqa: BLE001
                 log.warning("studio: përgjigja e seniorit dështoi (non-fatal): %s", _exc2)
             # 3°-4° PASSAGGIO CONDIZIONALE (spec «War Room» 44-47): se resta un
@@ -3521,6 +3607,8 @@ class SuperAvvocato:
                 _tempo = None
             _cov = coverage_info()
             log.info("trust_line (simple): %s (nene %s, vendime %s, copertura %s)", trust_line.stato(v), v["nene"], v["sentenze"]["verified"], _cov)
+            _audit_set("verifica_finale", {"stato": trust_line.stato(v), "nene": v["nene"], "sentenze": v["sentenze"],
+                                           "fatti_da_precisare": v.get("fatti_da_precisare", 0), "copertura": _cov, "tempo": _tempo, "percorso": "semplice"})
             return trust_line.inserisci_riga(text, trust_line.riga(v, lang, tempo=_tempo, coverage=_cov), "")
         except Exception as exc:  # noqa: BLE001
             log.warning("trust_line (simple) saltata (non-fatal): %s", exc)
@@ -3548,6 +3636,8 @@ class SuperAvvocato:
             # abrogati e sentenze non confermate sono misurati dal codice PRIMA del verdetto
             # e consegnati al Giudice; prima girava tutto in web.py a verdetto già dato.
             v1 = trust_line.verifica(answer_text, idx, jur, retrieved_codes=_codes)
+            _audit_set("verifica_pre_giudice", {"stato": trust_line.stato(v1), "nene": v1["nene"], "sentenze": v1["sentenze"],
+                                                "fatti_da_precisare": v1.get("fatti_da_precisare", 0)})
             try:
                 from . import temporal as _tmp
                 _tempo = _tmp.ultimo_info()          # v9.333: l'asse «tempo» della Trust Line
@@ -3571,6 +3661,7 @@ class SuperAvvocato:
                 # l'avvocato non sapeva che l'arbitro non si era pronunciato. Ora: riga di fiducia
                 # + avviso onesto in testa, nella lingua della sessione.
                 log.warning("studio: gjyqtari i fundit dështoi (non-fatal): %s", exc)
+                _audit_set("giudice", {"esito": "fallito", "motivo": str(exc)[:160]})
                 vendim = ""
             if not (vendim or "").strip():
                 _nota = (("> ⚖️ *Il Giudice Finale non ha potuto pronunciarsi (servizio saturo): la risposta è quella del "
@@ -3583,6 +3674,7 @@ class SuperAvvocato:
                 return trust_line.inserisci_riga(answer_text, trust_line.riga(v1, lang, tempo=_tempo, coverage=_cov) + "\n" + _nota, "")
             vendim = _apply_corrections(_verify_citations(vendim, precedents))
             log.info("studio: gjyqtari i fundit ka dhënë vendimin (%d shkronja)", len(vendim))
+            _audit_set("giudice", {"esito": "verdetto", "chr": len(vendim)})
             # v9.316 — il verdetto IN TESTA (prima la decisione, poi l'analisi completa);
             # v9.331 — la TRUST LINE (categorica, ricalcolata sul testo finale) sotto il titolo
             final = vendim + answer_text
@@ -3592,6 +3684,8 @@ class SuperAvvocato:
                 studio.TITULLI_GJYQTARI.get(lang, studio.TITULLI_GJYQTARI["sq"]))
             log.info("trust_line: %s (nene %s, vendime %s, fakte %s)", trust_line.stato(v2),
                      v2["nene"], v2["sentenze"]["verified"], v2["fatti_da_precisare"])
+            _audit_set("verifica_finale", {"stato": trust_line.stato(v2), "nene": v2["nene"], "sentenze": v2["sentenze"],
+                                           "fatti_da_precisare": v2.get("fatti_da_precisare", 0), "copertura": _cov, "tempo": _tempo})
             return final
         except Exception as exc:  # noqa: BLE001 — il verdetto non deve mai far cadere la risposta
             log.warning("studio: gjyqtari i fundit dështoi (non-fatal): %s", exc)
@@ -3661,7 +3755,13 @@ class SuperAvvocato:
             pairs = _ankoro_sipas_titullit(
                 pairs, idx, (triage.problem_summary or all_queries[0]),
                 queries=all_queries, restrict=restrict)
-        return pairs[: TOP_K_ARTICLES]
+        _out = pairs[: TOP_K_ARTICLES]
+        _audit_set("recupero", {
+            "corpus": "IT" if idx is self.index_it else "AL", "codici_filtro": sorted(restrict) if restrict else None,
+            "articoli": [{"code": a.code, "number": str(a.number), "heading": (a.heading or "")[:60], "score": round(float(sc), 2),
+                          "ancora": bool(getattr(a, "_ancora", False) or getattr(a, "_ancora_titull", False))} for a, sc in _out],
+            "copertura": coverage_info()})
+        return _out
 
     # ── stage 2b: precedents (court decisions) ────────────────────────────
 

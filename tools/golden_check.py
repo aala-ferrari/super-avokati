@@ -3165,6 +3165,35 @@ def main():
     except Exception as _e90:  # noqa: BLE001
         check("copertura[90]: kontrollet u ekzekutuan", False, str(_e90))
 
+    # ── [91] AUDIT PER RISPOSTA (v9.341, roadmap v3 P8): il pacchetto di audit (triage, recupero +
+    # copertura, Kërkuesi, raccoglitori, tempo, precedenti col grafo, fasi, diavolo, Giudice, Trust
+    # Line prima/dopo, durata) viaggia nel provenance pack (extra.audit) e il pannello lo mostra
+    # bilingue; le annotazioni dei worker (raccoglitori/tempo) tornano nel thread della richiesta ──
+    try:
+        import inspect as _insp91
+        from src import brain as _br91, web as _wb91, temporal as _tp91
+        _br91._audit_reset(); _br91._audit_set("triage", {"complexity": "simple"}); _br91._audit_set("giudice", {"esito": "verdetto"})
+        _ai = _br91.audit_info()
+        _okA = _ai and _ai["triage"]["complexity"] == "simple" and [p["passo"] for p in _ai["passi"]] == ["triage", "giudice"] and "durata_s" in _ai and "t0" not in _ai
+        _srcB = open(_br91.__file__, encoding="utf-8").read()
+        _keys = ["\"triage\"", "\"recupero\"", "\"kerkuesi\"", "\"raccoglitori\"", "\"tempo\"", "\"precedenti\"", "\"fasi\"", "\"diavolo\"", "\"replica_senior\"", "\"giudice\"", "\"verifica_pre_giudice\"", "\"verifica_finale\""]
+        _okB = all(("_audit_set(%s" % k) in _srcB for k in _keys) and _srcB.count("_audit_reset()") >= 3
+        _rs = _insp91.getsource(_br91.SuperAvvocato._run_stages)
+        _okC = "_AUDIT.data = _stage_audit" in _rs and "_COVERAGE.info = _stage_cov" in _rs and "_tmp.imposta_info(_stage_tempo_box[-1])" in _rs and callable(getattr(_tp91, "imposta_info", None))
+        _srcW = open(_wb91.__file__, encoding="utf-8").read()
+        _okD = _srcW.count('extra={"audit": _audit_pacchetto()}') == 2 and "def _audit_pacchetto" in _srcW
+        _js = _io2.open(_os2.path.join(_os2.path.dirname(_os2.path.dirname(_os2.path.abspath(__file__))), "static", "app.js"), encoding="utf-8").read()
+        _okE = ("function renderAuditTrail(a)" in _js and "prov.extra && prov.extra.audit" in _js and "🧾 Perché questa risposta" in _js
+                and "🧾 Pse kjo përgjigje" in _js and "Gjyqtari i fundit" in _js and "Giudice finale" in _js
+                and not _re2.search(r"opus|fable|sonnet|anthropic", _js[_js.find("function renderAuditTrail"): _js.find("function renderAuditTrail") + 6000], _re2.I))
+        _html91 = _io2.open(_os2.path.join(_os2.path.dirname(_os2.path.dirname(_os2.path.abspath(__file__))), "templates", "index.html"), encoding="utf-8").read()
+        _okF = "app.js?v=171" in _html91 and "style.css?v=142" in _html91 and ".prov-audit" in _io2.open(_os2.path.join(_os2.path.dirname(_os2.path.dirname(_os2.path.abspath(__file__))), "static", "style.css"), encoding="utf-8").read()
+        check("audit[91]: pacchetto di audit per risposta (12 annotazioni lungo la pipeline, reset per richiesta, passi con tempi) → provenance pack extra.audit in entrambi i percorsi → pannello «Perché questa risposta / Pse kjo përgjigje» bilingue senza nomi di modello; worker delle fasi condividono audit/copertura e riportano il tempo",
+              bool(_okA) and _okB and _okC and _okD and _okE and _okF,
+              "info=%s annot=%s worker=%s web=%s js=%s asset=%s" % (bool(_okA), _okB, _okC, _okD, _okE, _okF))
+    except Exception as _e91:  # noqa: BLE001
+        check("audit[91]: kontrollet u ekzekutuan", False, str(_e91))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

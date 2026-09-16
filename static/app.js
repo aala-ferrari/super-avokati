@@ -2209,7 +2209,87 @@
         <a href="${docxUrl}" target="_blank" class="prov-link">📑 DOCX për fashikull</a>
       </div>
     `;
+    // v9.341 (roadmap v3 P8) — «Perché questa risposta»: il pacchetto di audit del cervello
+    // (extra.audit), reso a parole, nella lingua della sessione. Solo dati, mai nomi di modello.
+    try {
+      const auditEl = renderAuditTrail(prov.extra && prov.extra.audit);
+      if (auditEl) wrap.appendChild(auditEl);
+    } catch (e) { /* l'audit non deve mai rompere il pannello */ }
     return wrap;
+  }
+
+  function renderAuditTrail(a) {
+    if (!a || typeof a !== "object") return null;
+    const it = !!(document.body && document.body.dataset && document.body.dataset.lang === "it");
+    const L = it ? {
+      title: "🧾 Perché questa risposta", triage: "Triage", ricerca: "Ricerca nel corpus", kerk: "Kërkuesi (norma mancante)",
+      racc: "Raccoglitori", tempo: "Tempo", prec: "Precedenti", fasi: "Fasi della sala di guerra", diav: "Avvocato del diavolo",
+      giud: "Giudice finale", ver: "Verifica finale", durata: "Durata", si: "sì", no: "no", nessuno: "nessuno",
+      compl: {simple: "semplice", complex: "complessa"}, art: "articoli", anc: "ancore", cop: "copertura", temi: "temi",
+      senza: "senza norma", agg: "aggiunti", fonti: "fonti", fatto: "fatto del", diversi: "articoli con testo diverso allora",
+      uguali: "testo identico a oggi", ann: "annullate", verd: "verdetto emesso", fall: "non pronunciato", nonprev: "non previsto su questo percorso",
+      norme: "norme", sent: "sentenze", ver_: "verificate", abr: "abrogate", ines: "inesistenti", conf: "confermate", risc: "da riscontrare",
+      replica: "replica del senior", stato: {VERIFIED: "✅ verificata", RESERVATIONS: "🟡 con riserve", FLAGS: "🔴 con segnalazioni"},
+    } : {
+      title: "🧾 Pse kjo përgjigje", triage: "Triazhi", ricerca: "Kërkimi në korpus", kerk: "Kërkuesi (norma që mungon)",
+      racc: "Mbledhësit", tempo: "Koha", prec: "Precedentët", fasi: "Fazat e dhomës së luftës", diav: "Avokati i djallit",
+      giud: "Gjyqtari i fundit", ver: "Verifikimi përfundimtar", durata: "Kohëzgjatja", si: "po", no: "jo", nessuno: "asnjë",
+      compl: {simple: "e thjeshtë", complex: "komplekse"}, art: "nene", anc: "ankora", cop: "mbulimi", temi: "tema",
+      senza: "pa normë", agg: "të shtuara", fonti: "burime", fatto: "fakti i", diversi: "nene me tekst tjetër atëherë",
+      uguali: "tekst i njëjtë me sot", ann: "të shfuqizuara", verd: "vendim i dhënë", fall: "nuk u shpreh", nonprev: "nuk parashikohet në këtë rrugë",
+      norme: "nene", sent: "vendime", ver_: "të verifikuara", abr: "të shfuqizuara", ines: "që nuk ekzistojnë", conf: "të konfirmuara", risc: "për t'u verifikuar",
+      replica: "kundërpërgjigja e seniorit", stato: {VERIFIED: "✅ e verifikuar", RESERVATIONS: "🟡 me rezerva", FLAGS: "🔴 me sinjalizime"},
+    };
+    const rows = [];
+    const row = (k, v) => { if (v) rows.push(`<li><b>${escapeHtml(k)}:</b> ${v}</li>`); };
+    const tr = a.triage || {};
+    if (tr.complexity || (tr.areas || []).length) {
+      row(L.triage, escapeHtml((L.compl[tr.complexity] || tr.complexity || "") + ((tr.areas || []).length ? " · " + tr.areas.join(", ") : "")
+        + ((tr.queries || []).length ? ` · ${tr.queries.length} ${L.temi}` : "")));
+    }
+    const rc = a.recupero || {};
+    if (rc.articoli) {
+      const anc = rc.articoli.filter(x => x.ancora).length;
+      const cov = rc.copertura || {};
+      let txt = `${rc.articoli.length} ${L.art}` + (anc ? ` (${anc} ${L.anc})` : "");
+      if (cov.temi) txt += ` · ${L.cop} ${cov.temi - (cov.senza_norma || []).length}/${cov.temi} ${L.temi}`
+        + ((cov.senza_norma || []).length ? ` (${L.senza}: «${(cov.senza_norma[0] || "").slice(0, 50)}»)` : "");
+      row(L.ricerca, escapeHtml(txt));
+    }
+    const k = a.kerkuesi || {};
+    if (k.aggiunti && k.aggiunti.length) row(L.kerk, escapeHtml(`${k.aggiunti.length} ${L.agg}: ${k.aggiunti.slice(0, 6).join(", ")}`));
+    const r = a.raccoglitori || {};
+    if (r.fonti && r.fonti.length) row(L.racc, escapeHtml(`${r.fonti.length} ${L.fonti}`));
+    const t = a.tempo || {};
+    if (t.data) {
+      row(L.tempo, escapeHtml(`${L.fatto} ${t.data}` + (t.diversi ? ` · ${t.diversi} ${L.diversi}` : (t.uguali ? ` · ${L.uguali}` : ""))));
+    }
+    const pr = a.precedenti || [];
+    if (pr.length) {
+      const ann = pr.filter(x => (x.grafo || "").indexOf("SHFUQIZUAR") >= 0 || (x.grafo || "").indexOf("ANNULLATA") >= 0).length;
+      row(L.prec, escapeHtml(`${pr.length}` + (ann ? ` · ${ann} ${L.ann}` : "")));
+    }
+    const f = a.fasi || {};
+    const fk = Object.keys(f);
+    if (fk.length) row(L.fasi, escapeHtml(`${fk.length} · ${Math.round(Object.values(f).reduce((x, y) => x + y, 0))}s`));
+    if (a.diavolo) row(L.diav, escapeHtml(L.si + (a.replica_senior ? ` · ${L.replica}: ${L.si}` : "")));
+    const g = a.giudice;
+    if (g) row(L.giud, escapeHtml(g.esito === "verdetto" ? L.verd : `${L.fall}${g.motivo ? " (" + g.motivo.slice(0, 80) + ")" : ""}`));
+    else if (a.verifica_finale && a.verifica_finale.percorso === "semplice") row(L.giud, escapeHtml(L.nonprev));
+    const v = a.verifica_finale;
+    if (v && v.nene) {
+      const n = v.nene, s2 = v.sentenze || {};
+      let txt = (L.stato[v.stato] || v.stato || "") + ` · ${L.norme} ${n.verified} ${L.ver_}`
+        + (n.repealed ? `, ${n.repealed} ${L.abr}` : "") + (n.fake ? `, ${n.fake} ${L.ines}` : "")
+        + ` · ${L.sent} ${s2.verified || 0} ${L.conf}` + (s2.unverified ? `, ${s2.unverified} ${L.risc}` : "") + (s2.quashed ? `, ${s2.quashed} ${L.ann}` : "");
+      row(L.ver, escapeHtml(txt));
+    }
+    if (a.durata_s) row(L.durata, escapeHtml(`${Math.round(a.durata_s)}s`));
+    if (!rows.length) return null;
+    const el = document.createElement("div");
+    el.className = "prov-audit";
+    el.innerHTML = `<div class="prov-audit-title">${escapeHtml(L.title)}</div><ul>${rows.join("")}</ul>`;
+    return el;
   }
 
   // ─── render urgency radar (top-of-message emergency framing) ────
