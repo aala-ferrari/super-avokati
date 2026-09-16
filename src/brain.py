@@ -3307,6 +3307,20 @@ class SuperAvvocato:
             return retrieved
 
     def _mbledh_gatherers(self, user_message, triage, retrieved, precedents_block=""):
+        """Raccoglitori (web + QBZ + Fletorja) + il blocco TEMPORALE (v9.333): il dossier che
+        arriva al senior e al Giudice porta anche «⏳ TESTO VIGENTE AL <data del fatto>» quando
+        la domanda contiene una data di almeno un anno fa (multivigenza Normattiva per l'IT,
+        atti modificativi QBZ per l'AL). Fail-silent in ogni pezzo."""
+        blocco, fonti = self._mbledh_gatherers_core(user_message, triage, retrieved, precedents_block)
+        try:
+            from . import temporal
+            lang = "it" if self._current_jurisdiction() == "IT" else "sq"
+            blocco = temporal.arricchisci_dosje(blocco, user_message, retrieved, self._current_jurisdiction(), lang)
+        except Exception as exc:  # noqa: BLE001 — il tempo non deve mai far cadere la risposta
+            log.warning("temporal: saltato (non-fatal): %s", exc)
+        return blocco, fonti
+
+    def _mbledh_gatherers_core(self, user_message, triage, retrieved, precedents_block=""):
         """Solo i raccoglitori in parallelo (web + QBZ + Fletorja Zyrtare/Agent D),
         SENZA precedenti — così li usano sia il percorso simple sia il complex.
         Torna (dossier per il senior, fonti per l'avvocato). Fail-silent: se
@@ -3493,9 +3507,14 @@ class SuperAvvocato:
             # abrogati e sentenze non confermate sono misurati dal codice PRIMA del verdetto
             # e consegnati al Giudice; prima girava tutto in web.py a verdetto già dato.
             v1 = trust_line.verifica(answer_text, idx, jur, retrieved_codes=_codes)
+            try:
+                from . import temporal as _tmp
+                _tempo = _tmp.ultimo_info()          # v9.333: l'asse «tempo» della Trust Line
+            except Exception:  # noqa: BLE001
+                _tempo = None
             if request_senior() == "fable":
                 # ⚡: il verdetto è già del senior Fable (Source Verifier suo); resta la riga
-                return trust_line.inserisci_riga(answer_text, trust_line.riga(v1, lang), "")
+                return trust_line.inserisci_riga(answer_text, trust_line.riga(v1, lang, tempo=_tempo), "")
             vendim = studio.gjyqtari_fundit(
                 self.backend, domanda=user_message,
                 blloku_neneve=_format_articles_for_prompt(retrieved),
@@ -3504,7 +3523,7 @@ class SuperAvvocato:
                 fazat=fazat_txt or "",
                 verifikimi=trust_line.blocco_per_gjyqtarin(v1, lang))
             if not (vendim or "").strip():
-                return trust_line.inserisci_riga(answer_text, trust_line.riga(v1, lang), "")
+                return trust_line.inserisci_riga(answer_text, trust_line.riga(v1, lang, tempo=_tempo), "")
             vendim = _apply_corrections(_verify_citations(vendim, precedents))
             log.info("studio: gjyqtari i fundit ka dhënë vendimin (%d shkronja)", len(vendim))
             # v9.316 — il verdetto IN TESTA (prima la decisione, poi l'analisi completa);
@@ -3512,7 +3531,7 @@ class SuperAvvocato:
             final = vendim + answer_text
             v2 = trust_line.verifica(final, idx, jur, retrieved_codes=_codes)
             final = trust_line.inserisci_riga(
-                final, trust_line.riga(v2, lang),
+                final, trust_line.riga(v2, lang, tempo=_tempo),
                 studio.TITULLI_GJYQTARI.get(lang, studio.TITULLI_GJYQTARI["sq"]))
             log.info("trust_line: %s (nene %s, vendime %s, fakte %s)", trust_line.stato(v2),
                      v2["nene"], v2["sentenze"]["verified"], v2["fatti_da_precisare"])

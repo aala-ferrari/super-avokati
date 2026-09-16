@@ -1440,6 +1440,31 @@ rischio residuo della DPIA.
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
 
+**v9.333 — ROADMAP v3, PASSO 3: IL TEMPO — «quale versione della norma valeva alla data del fatto?»
+(`src/temporal.py`, 16 set notte).** Versione economica, senza riscrivere il corpus: **multivigenza ON
+DEMAND**. (1) `data_fatto(domanda)` legge le date esplicite (17/03/2021 · 17 marzo 2021 · më 20 shkurt
+2020 · «nel 2021»/«në vitin 2021» = solo anno, presa la metà), scarta le date di nascita («nato il»,
+«i lindur më») e quelle più recenti di un anno (il testo è quello di oggi) e prende la PIÙ VECCHIA come
+data del fatto. (2) **IT — Normattiva multivigenza VERIFICATA**: la stessa URN con «!vig=AAAA-MM-GG»
+restituisce l'atto in vigore quel giorno (L. 91/1992 art. 9-ter: «quarantotto mesi» al 2019,
+«ventiquattro… trentasei» oggi; la pagina-atto elenca anche le versioni storiche «agg.N» per articolo);
+`versione_it(code, number, data)` apre l'atto a quella data (sessione + cache 6 h per atto/data), pesca
+il link dell'articolo, lo legge con `parse_article_page` e lo confronta col nostro (≤6 articoli, ≤45 s):
+i DIVERSI entrano nel dossier con il testo integrale di allora, gli uguali sono dichiarati («testo
+identico a oggi» = certezza temporale). (3) **AL — QBZ**: nessuna multivigenza per articolo; dalla REST
+aperta (`qbz:actChanges`) la lista degli atti che hanno MODIFICATO la legge (Kodi i Punës: 10053/2008,
+136/2015, 91/2024…) → «ligji ndryshuar PAS datës së faktit nga ligji nr. X (data): verifiko versionin».
+(4) Innesto UNICO: `brain._mbledh_gatherers` (usato da simple E complex) = raccoglitori + blocco
+«⏳ TESTO VIGENTE AL … / LIGJI NË FUQI MË …» nel dossier → lo leggono il senior e il Giudice; regola
+nel `GJYQTARI_SYSTEM` sq/it (tempus regit actum, favor rei; applica il testo storico e dillo con la data;
+mai la versione di oggi a un fatto passato senza dirlo); Trust Line con l'asse «tempo: fatto del
+10/03/2019 · 1 articolo con testo diverso allora» (`trust_line.riga(tempo=)` da `temporal.ultimo_info()`).
+Fail-silent ovunque; se Normattiva/QBZ non rispondono il blocco non c'è. Golden **[83]** (date IT/SQ,
+nascita esclusa, anno approssimato, blocco con `versione_it` finto, riga, innesto, prompt). 470.
+Prossimo pezzo del tempo (P3b): «modificato da / abrogato da» PER ARTICOLO dalle note editoriali che
+oggi buttiamo (Normattiva `art_aggiornamento-akn`, QBZ «(Ndryshuar me ligjin nr. …)») e poi il
+Temporal Verifier come voce autonoma.
+
 **v9.332 — ROADMAP v3, PASSO 2: BENCHMARK LAB (`tools/benchmark_lab.py`) + ciò che ha trovato al primo giro (16 set sera).**
 Un cervello nuovo esce solo se misura meglio del precedente. **Strato 1, deterministico, senza
 modello, ~80 s**: `tools/benchmark/layer1_auto.jsonl` (649 test generati dal corpus vivo con `gen`:

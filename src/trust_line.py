@@ -108,7 +108,34 @@ _STATO = {
 }
 
 
-def riga(v: dict, lang: str = "sq") -> str:
+def _tempo(tempo: dict | None, lang: str) -> str:
+    """L'asse «tempo» (v9.333): data del fatto letta e articoli/leggi con testo diverso allora."""
+    if not tempo or not tempo.get("data"):
+        return ""
+    try:
+        from datetime import date as _d
+        dd = _d.fromisoformat(tempo["data"]).strftime("%d/%m/%Y" if lang == "it" else "%d.%m.%Y")
+    except Exception:  # noqa: BLE001
+        dd = str(tempo.get("data"))
+    diversi, uguali = int(tempo.get("diversi") or 0), int(tempo.get("uguali") or 0)
+    if lang == "it":
+        if diversi:
+            esito = f"{diversi} {'articolo' if diversi == 1 else 'articoli'} con testo diverso allora"
+        elif uguali:
+            esito = "testo identico a oggi"
+        else:
+            esito = "non verificabile"
+        return f" | tempo: fatto del {dd}{' (anno)' if tempo.get('approx') else ''} · {esito}"
+    if diversi:
+        esito = f"{diversi} {'ligj i ndryshuar' if diversi == 1 else 'ligje të ndryshuara'} pas asaj date"
+    elif uguali:
+        esito = "pa ndryshime"
+    else:
+        esito = "e paverifikueshme"
+    return f" | koha: fakti i {dd}{' (viti)' if tempo.get('approx') else ''} · {esito}"
+
+
+def riga(v: dict, lang: str = "sq", tempo: dict | None = None) -> str:
     """La riga di fiducia sotto il titolo del verdetto (markdown, una riga)."""
     n, s = v["nene"], v["sentenze"]
     f = int(v.get("fatti_da_precisare") or 0)
@@ -139,7 +166,7 @@ def riga(v: dict, lang: str = "sq") -> str:
         c = f"fakte {f} për t'u saktësuar" if f else "fakte: asnjë për t'u saktësuar"
         lab = "Verifikimi"
     st = _STATO.get(lang, _STATO["sq"])[stato(v)]
-    return f"> 🔎 **{lab}:** {' · '.join(a)} | {' · '.join(b)} | {c} — **{st}**"
+    return f"> 🔎 **{lab}:** {' · '.join(a)} | {' · '.join(b)} | {c}{_tempo(tempo, lang)} — **{st}**"
 
 
 def blocco_per_gjyqtarin(v: dict, lang: str = "sq") -> str:

@@ -2930,6 +2930,46 @@ def main():
     except Exception as _e82:  # noqa: BLE001
         check("benchmark[82]: kontrollet u ekzekutuan", False, str(_e82))
 
+    # ── [83] TEMPO (v9.333, roadmap v3 P3, versione economica): la data del fatto si legge dalla
+    # domanda; IT = multivigenza Normattiva («!vig=»), AL = atti modificativi QBZ; il blocco entra
+    # nel dossier di senior e Giudice; regola nel prompt; asse «tempo» nella Trust Line ──
+    try:
+        from datetime import date as _dt83
+        from types import SimpleNamespace as _NS83
+        from src import temporal as _tp, trust_line as _tl83, studio as _st83, brain as _br83
+        _oggi = _dt83(2026, 9, 16)
+        _a = _tp.data_fatto("Il fatto è avvenuto il 17/03/2021 e la notifica il 3 settembre 2026.", _oggi)
+        _b = _tp.data_fatto("Klienti, i lindur më 12.5.1985, u pushua nga puna më 20 shkurt 2020.", _oggi)
+        _c = _tp.data_fatto("Contratto firmato nel 2019, licenziamento del 3/9/2026.", _oggi)
+        _d = _tp.data_fatto("Licenziato con lettera del 3/9/2026.", _oggi)
+        _okA = (_a and _a[0] == _dt83(2021, 3, 17) and not _a[2]
+                and _b and _b[0] == _dt83(2020, 2, 20)
+                and _c and _c[0] == _dt83(2019, 7, 1) and _c[2]
+                and _d is None)
+        _ret83 = [(_NS83(code="cittadinanza", number="9-ter", body="1. Il termine è fissato in ventiquattro mesi.", title_sq="L. 91/1992", repealed=False), 1.0),
+                  (_NS83(code="cittadinanza", number="5", body="1. Il coniuge straniero.", title_sq="L. 91/1992", repealed=False), 0.9)]
+        _orig = _tp.versione_it
+        _tp.versione_it = lambda code, number, when: ({"number": number, "heading": "", "body": "1. Il termine è di quarantotto mesi.", "repealed": False, "vig": when.isoformat()}
+                                                     if number == "9-ter" else {"number": number, "heading": "", "body": "1. Il coniuge straniero.", "repealed": False, "vig": when.isoformat()})
+        try:
+            _blk, _info = _tp.blocco_it(_ret83, _dt83(2019, 3, 10), "10 marzo 2019", False)
+        finally:
+            _tp.versione_it = _orig
+        _okB = ("TESTO VIGENTE AL 10/03/2019" in _blk and "quarantotto" in _blk and "DIVERSO" in _blk
+                and "identico" in _blk and _info["diversi"] == 1 and _info["uguali"] == 1)
+        _r83 = _tl83.riga(_tl83.vuota(), "it", tempo=_info)
+        _okC = "tempo: fatto del 10/03/2019" in _r83 and "1 articolo con testo diverso" in _r83
+        _srcB = open(_br83.__file__, encoding="utf-8").read()
+        _okD = ("def _mbledh_gatherers_core(" in _srcB and "temporal.arricchisci_dosje(blocco, user_message, retrieved" in _srcB
+                and "trust_line.riga(v2, lang, tempo=_tempo)" in _srcB
+                and "TESTO VIGENTE ALLA DATA DEL FATTO" in _st83.GJYQTARI_SYSTEM["it"]
+                and "LIGJI NË FUQI MË DATËN E FAKTIT" in _st83.GJYQTARI_SYSTEM["sq"])
+        check("tempo[83]: data del fatto dalla domanda (IT/SQ, niente date di nascita né recenti, anno=approssimata) · blocco «⏳ TESTO VIGENTE AL» con testo storico DIVERSO/identico · asse tempo nella Trust Line · innesto nel dossier + regola del Giudice sq/it",
+              _okA and _okB and _okC and _okD,
+              "date=%s blocco=%s riga=%s wiring=%s | a=%s b=%s c=%s d=%s" % (_okA, _okB, _okC, _okD, _a, _b, _c, _d))
+    except Exception as _e83:  # noqa: BLE001
+        check("tempo[83]: kontrollet u ekzekutuan", False, str(_e83))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
