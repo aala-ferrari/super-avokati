@@ -1440,6 +1440,22 @@ rischio residuo della DPIA.
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
 
+**v9.335 — P3b-IT: le NOTE DI AGGIORNAMENTO di Normattiva per articolo (storia + disciplina
+transitoria) non si buttano più (16 set notte; ri-ingest in corso).** La pagina-articolo di Normattiva
+porta i blocchi «AGGIORNAMENTO (9) Il D.L. 4 ottobre 2018, n. 113 … ha disposto (con l'art. 14, comma 2)
+che la presente modifica si applica ai procedimenti … in corso» — cioè l'atto modificante CON URN e data,
+e la REGOLA TRANSITORIA per articolo (esattamente ciò che il blueprint v3 chiama transitional_rules).
+L'ingest li scartava (`AGG_RE.sub`). Ora `normattiva_lib.parse_notes` li conserva nel JSON
+(`notes: [{n, date, acts:[{label, urn}], text}]`, verificato dal vivo su L. 91/1992 art. 9-ter: note 9
+del 2018-10-04 e 11 del 2020-10-21; il corpo resta pulito); `build_it_index` scrive `it_notes.json` e
+`last_amendment_date` per articolo; `temporal.blocco_it` aggiunge le note posteriori alla data del
+fatto («modificato DOPO la data del fatto; note: [2018-10-04] D.L. 113/2018: … si applica ai
+procedimenti in corso»). **Il ri-download dei 101 atti Normattiva** gira sull'host in una cartella a
+parte (`IT_ACTS_DIR=…/it_acts_refresh`, log `/var/log/superavokati/it_refresh.log`, ~6 h, resume-safe:
+gli atti già scaricati nella cartella nuova si saltano); poi `tools/promote_it_refresh.py --apply`
+promuove atto per atto SOLO se non perde articoli e ha note, e `build_it_index.py` nel container
+ricostruisce l'indice. Golden **[85]** (fixture della nota vera). 472.
+
 **v9.334 — ROADMAP v3, P3b + P5: la storia PER ARTICOLO dalle note editoriali + la FORZA della fonte
 dichiarata al cervello (16 set notte).** (1) Nei consolidati QBZ ogni articolo modificato porta la nota
 «(Ndryshuar … me ligjin nr. 48/2012, datë 26.4.2012)» — 1.665 note, spesso con le parole incollate

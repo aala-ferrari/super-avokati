@@ -170,11 +170,32 @@ def versione_it(code: str, number: str, when: date) -> dict | None:
             "repealed": bool(parsed.get("repealed")), "vig": when.isoformat()}
 
 
+_IT_NOTES: dict | None = None
+
+
+def _it_notes() -> dict:
+    """code -> number -> [note] scritto da build_it_index (P3b-IT): storia + disciplina transitoria."""
+    global _IT_NOTES
+    if _IT_NOTES is None:
+        try:
+            from .config import PROCESSED_DATA_PATH
+            p = Path(PROCESSED_DATA_PATH) / "it_notes.json"
+            _IT_NOTES = json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+        except Exception:  # noqa: BLE001
+            _IT_NOTES = {}
+    return _IT_NOTES
+
+
+def note_articolo_it(code: str, number: str) -> list[dict]:
+    return list((_it_notes().get(code) or {}).get(str(number)) or [])
+
+
 def blocco_it(retrieved, quando: date, raw: str, approx: bool, lang: str = "it",
               max_art: int = 6, budget_s: float = 45.0) -> tuple[str, dict]:
-    """Confronta gli articoli recuperati con la versione alla data del fatto."""
+    """Confronta gli articoli recuperati con la versione alla data del fatto; aggiunge le note di
+    aggiornamento (atti modificanti + disciplina transitoria) posteriori al fatto, se le abbiamo."""
     t0 = time.time()
-    diversi, uguali, saltati = [], [], []
+    diversi, uguali, saltati, note = [], [], [], []
     seen = set()
     for a, _s in retrieved:
         if len(seen) >= max_art or time.time() - t0 > budget_s:
@@ -183,6 +204,9 @@ def blocco_it(retrieved, quando: date, raw: str, approx: bool, lang: str = "it",
         if k in seen or a.repealed:
             continue
         seen.add(k)
+        post = [n for n in note_articolo_it(a.code, str(a.number)) if (n.get("date") or "") > quando.isoformat()]
+        if post:
+            note.append((a, post))
         try:
             v = versione_it(a.code, str(a.number), quando)
         except Exception as exc:  # noqa: BLE001
@@ -196,16 +220,20 @@ def blocco_it(retrieved, quando: date, raw: str, approx: bool, lang: str = "it",
         else:
             diversi.append((a, v))
     info = {"data": quando.isoformat(), "raw": raw, "approx": approx, "diversi": len(diversi),
-            "uguali": len(uguali), "saltati": len(saltati)}
-    if not diversi and not uguali:
+            "uguali": len(uguali), "saltati": len(saltati), "note": len(note)}
+    if not diversi and not uguali and not note:
         return "", info
     d = quando.strftime("%d/%m/%Y")
     righe = [f"⏳ TESTO VIGENTE AL {d} — data del fatto letta dalla domanda: «{raw}»"
              + (" (solo l'anno: presa la metà dell'anno)" if approx else "")
-             + ". Regola: tempus regit actum (nel penale, favor rei). Fonte: Normattiva multivigenza."]
+             + ". Regola: tempus regit actum (nel penale, favor rei). Fonti: Normattiva multivigenza + note di aggiornamento."]
     for a, v in diversi:
         righe.append(f"\n• art. {a.number} {a.title_sq} — il testo in vigore al {d} era DIVERSO da quello di oggi:\n"
                      f"{(v['heading'] + chr(10)) if v['heading'] else ''}{v['body'][:1800]}")
+    for a, post in note:
+        righe.append(f"\n• art. {a.number} {a.title_sq} — modificato DOPO la data del fatto; note di aggiornamento (Normattiva):")
+        for n in post[:3]:
+            righe.append(f"   - [{n.get('date') or '?'}] {', '.join(n.get('acts') or [])}: {(n.get('text') or '')[:500]}")
     if uguali:
         righe.append("\n• Testo identico a quello di oggi al " + d + ": "
                      + ", ".join(f"art. {n} {c}" for c, n in uguali) + ".")

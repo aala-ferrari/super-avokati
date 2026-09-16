@@ -101,6 +101,7 @@ def main():
     ordered = [c for c in ORDER if c in acts] + [c for c in sorted(acts) if c not in ORDER]
 
     all_articles, meta = [], []
+    notes_map: dict = {}          # code -> number -> [note] (per src/temporal.py: storia + transitori)
     for cid in ordered:
         a = acts[cid]
         arts = a.get("articles") or []
@@ -109,11 +110,20 @@ def main():
             continue
         for art in arts:
             _h, _b = _pulisci(art.get("heading") or "", art.get("body") or "")
+            # P3b-IT (16 set 2026): la data dell'ultima modifica per articolo dalle note di
+            # aggiornamento Normattiva (vedi normattiva_lib.parse_notes), quando l'atto le ha
+            _notes = [n for n in (art.get("notes") or []) if isinstance(n, dict)]
+            _lad = max((n.get("date") or "" for n in _notes), default="")
+            if _notes:
+                notes_map.setdefault(cid, {})[str(art["number"])] = [
+                    {"n": n.get("n"), "date": n.get("date") or "", "acts": [x.get("label") for x in (n.get("acts") or [])][:3],
+                     "text": (n.get("text") or "")[:600]} for n in _notes[:6]]
             all_articles.append(Article(
                 code=cid, title_sq=a["title"], area=a.get("area") or "",
                 number=art["number"], heading=_h, body=_b,
                 pjesa="", kreu="", seksioni="",
-                repealed=_as_bool(art.get("repealed")), volatility="STABLE"))
+                repealed=_as_bool(art.get("repealed")), volatility="STABLE",
+                last_amendment_date=_lad))
         meta.append({"code": cid, "title": a["title"], "area": a.get("area") or "",
                      "count": len(arts)})
         print(f"  {cid:34s} {len(arts):>5} art   {a['title'][:46]}")
@@ -130,8 +140,11 @@ def main():
         for a in all_articles:
             fh.write(json.dumps(asdict(a), ensure_ascii=False) + "\n")
     CODES_META.write_text(json.dumps(meta, ensure_ascii=False, indent=1), encoding="utf-8")
+    NOTES = CODES_META.parent / "it_notes.json"
+    NOTES.write_text(json.dumps(notes_map, ensure_ascii=False), encoding="utf-8")
+    n_notes = sum(len(v) for v in notes_map.values())
     ArticleIndex.build(all_articles, lang="it").save(INDEX)
-    print(f"scritto: {JSONL.name}, {CODES_META.name}, {INDEX.name}")
+    print(f"scritto: {JSONL.name}, {CODES_META.name}, {INDEX.name}, {NOTES.name} ({n_notes} articoli con note)")
 
     # sanity: reload and spot-check
     idx = ArticleIndex.load(INDEX)

@@ -3000,6 +3000,38 @@ def main():
     except Exception as _e84:  # noqa: BLE001
         check("tempo[84]: kontrollet u ekzekutuan", False, str(_e84))
 
+    # ── [85] P3b-IT (v9.335): le note di aggiornamento Normattiva per articolo (atto modificante +
+    # data + disciplina transitoria) si conservano nel JSON, entrano in `it_notes.json` e nel
+    # blocco temporale; prima venivano scartate ──
+    try:
+        import importlib.util as _ilu85
+        _spec85 = _ilu85.spec_from_file_location("normattiva_lib", _os2.path.join(_os2.path.dirname(_os2.path.abspath(__file__)), "normattiva_lib.py"))
+        _nl = _ilu85.module_from_spec(_spec85); _spec85.loader.exec_module(_nl)
+        _fix85 = ('<div class="art_aggiornamento-akn"> <div class="art_aggiornamento_separator-akn">---------------</div> '
+                  '<div class="art_aggiornamento_title-akn">AGGIORNAMENTO (9)</div> <div class="art_aggiornamento_testo-akn"> <br> Il '
+                  '<a href="/uri-res/N2Ls?urn:nir:stato:decreto.legge:2018-10-04;113" target="_blank">D.L. 4 ottobre 2018, n. 113</a>, '
+                  'convertito con modificazioni dalla <a href="/uri-res/N2Ls?urn:nir:stato:legge:2018-12-01;132" target="_blank">L. 1 dicembre 2018, n. 132</a>, '
+                  'ha disposto (con l\'art. 14, comma 2) che la presente modifica si applica ai procedimenti in corso. </div> </div>')
+        _n85 = _nl.parse_notes(_fix85)
+        _okA = (len(_n85) == 1 and _n85[0]["n"] == 9 and _n85[0]["date"] == "2018-10-04"
+                and _n85[0]["acts"][0]["label"] == "D.L. 4 ottobre 2018, n. 113" and "procedimenti in corso" in _n85[0]["text"]
+                and "AGGIORNAMENTO" not in _n85[0]["text"])
+        _page85 = ('<div class="bodyTesto"><h2 class="article-num-akn">Art. 9-ter</h2><div class="art-commi-div-akn">'
+                   '<div class="art-comma-div-akn">1. Il termine è di ventiquattro mesi.</div></div>' + _fix85 + '</div>'
+                   '<div class="d-flex justify-content-between">')
+        _p85 = _nl.parse_article_page(_page85, fallback_number="9-ter")
+        _okB = _p85 and _p85.get("notes") and _p85["notes"][0]["date"] == "2018-10-04" and "AGGIORNAMENTO" not in _p85["body"]
+        _srcBI = open(_os2.path.join(_os2.path.dirname(_os2.path.abspath(__file__)), "build_it_index.py"), encoding="utf-8").read()
+        _okC = "it_notes.json" in _srcBI and "last_amendment_date=_lad" in _srcBI
+        from src import temporal as _tp85
+        _okD = callable(getattr(_tp85, "note_articolo_it", None)) and "note di aggiornamento (Normattiva)" in open(_tp85.__file__, encoding="utf-8").read()
+        _okE = _os2.path.exists(_os2.path.join(_os2.path.dirname(_os2.path.abspath(__file__)), "promote_it_refresh.py"))
+        check("tempo[85]: note di aggiornamento Normattiva per articolo conservate (parse_notes: n, data, atti, testo transitorio; il corpo resta pulito) → it_notes.json + last_amendment_date + blocco temporale; promozione del ri-ingest solo senza perdita di articoli",
+              _okA and bool(_okB) and _okC and _okD and _okE,
+              "parse=%s page=%s build=%s temporal=%s promote=%s | %s" % (_okA, bool(_okB), _okC, _okD, _okE, _n85[:1]))
+    except Exception as _e85:  # noqa: BLE001
+        check("tempo[85]: kontrollet u ekzekutuan", False, str(_e85))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

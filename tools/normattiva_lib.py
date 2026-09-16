@@ -161,8 +161,33 @@ def is_repealed(heading, body):
     return len(b) < 200 and bool(_ABRO_WORD.search(h + " " + b))   # moncone: solo la nota di abrogazione
 
 
+# 16 set 2026 (roadmap v3 P3b-IT) — le NOTE DI AGGIORNAMENTO per articolo («AGGIORNAMENTO (9) Il
+# D.L. 4 ottobre 2018, n. 113 … ha disposto (con l'art. 14, comma 2) che la presente modifica si
+# applica ai procedimenti in corso…») sono la storia dell'articolo E la disciplina transitoria:
+# prima venivano scartate; ora si conservano nel JSON (`notes`) — l'atto modificante con la sua URN
+# e la data, e il testo della nota. Il testo normativo resta pulito come prima.
+_NOTE_TITLE = re.compile(r"AGGIORNAMENTO\s*\((\d+)\)", re.I)
+_NOTE_ACT = re.compile(r'<a[^>]*href="/uri-res/N2Ls\?urn:nir:stato:([^"]+)"[^>]*>(.*?)</a>', re.S | re.I)
+
+
+def parse_notes(region):
+    """Le note di aggiornamento della pagina-articolo -> [{n, date, acts:[{label, urn}], text}]."""
+    out = []
+    for m in AGG_RE.finditer(region or ""):
+        block = m.group(0)
+        tm = _NOTE_TITLE.search(block)
+        acts = [{"label": " ".join(_plain(lab).split()), "urn": _html.unescape(urn)} for urn, lab in _NOTE_ACT.findall(block)]
+        text = " ".join(_plain(block).split())
+        text = re.sub(r"^-{3,}\s*", "", text)
+        text = _NOTE_TITLE.sub("", text, count=1).strip(" -")
+        dm = re.search(r":(\d{4}-\d{2}-\d{2});", acts[0]["urn"]) if acts else None
+        out.append({"n": int(tm.group(1)) if tm else 0, "date": dm.group(1) if dm else "",
+                    "acts": acts[:4], "text": text[:900]})
+    return out
+
+
 def parse_article_page(page_html, fallback_number=""):
-    """Parse one article page -> dict(number, heading, body, repealed, in_force_from).
+    """Parse one article page -> dict(number, heading, body, repealed, in_force_from, notes).
 
     Returns None when the page carries no usable article text."""
     vm = VIGENZA_RE.search(page_html)
@@ -176,7 +201,8 @@ def parse_article_page(page_html, fallback_number=""):
         region = page_html[i:j if j > i else len(page_html)]
     else:
         region = page_html
-    region = AGG_RE.sub("", region)          # drop amendment notes
+    notes = parse_notes(region)              # keep the amendment notes (history + transitional rules)
+    region = AGG_RE.sub("", region)          # drop them from the normative text
 
     number, heading, parts = "", "", []
 
@@ -218,7 +244,7 @@ def parse_article_page(page_html, fallback_number=""):
     if len(body) < 3:
         body = "[Articolo abrogato o senza testo]" if repealed else (heading or "[senza testo]")
     return {"number": number, "heading": heading, "body": body,
-            "repealed": repealed, "in_force_from": in_force}
+            "repealed": repealed, "in_force_from": in_force, "notes": notes}
 
 
 def sortkey(num):
