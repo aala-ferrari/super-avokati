@@ -371,7 +371,7 @@ def run_layer2(limit: int, only: str | None) -> dict:
             q = c.get("question") or c.get("facts") or ""
             t0 = time.time()
             job = post("/api/ask/start", {"case_id": case["id"], "message": q}).get("job_id")
-            final = ""
+            final, audit = "", {}
             with op.open(urllib.request.Request(f"{base}/api/ask/events?job={job}&from=0"), timeout=3600) as r:
                 for raw in r:
                     line = raw.decode("utf-8", "replace").strip()
@@ -383,6 +383,7 @@ def run_layer2(limit: int, only: str | None) -> dict:
                         continue
                     if evt.get("type") == "final":
                         final = evt.get("text") or ""
+                        audit = ((evt.get("provenance") or {}).get("extra") or {}).get("audit") or {}
                     elif evt.get("type") == "done":
                         break
             secs = time.time() - t0
@@ -408,7 +409,12 @@ def run_layer2(limit: int, only: str | None) -> dict:
             impur = len(re.findall(r"\b(art\.|articolo|comma|sentenza|tribunale|avvocato|verdetto)\b", final))
         score = (0.45 * (len(found) / len(exp) if exp else 1.0) + 0.25 * (len(kp_ok) / len(kps) if kps else 1.0)
                  + 0.15 * (1.0 if not viol else 0.0) + 0.10 * (1.0 if head_ok else 0.0) + 0.05 * (1.0 if impur == 0 else 0.0))
+        _cl = audit.get("claims") or {}
         row = {"id": c["id"], "juris": juris, "secs": round(secs), "chars": len(final),
+               # v9.342 — claim binding in ombra: quante proposizioni materiali senza sostegno
+               "claims": {"materiali": _cl.get("materiali", 0), "unsupported": _cl.get("unsupported", 0),
+                          "contradicted": _cl.get("contradicted", 0), "high_unsupported": _cl.get("high_unsupported", 0)} if _cl else None,
+               "giudice": (audit.get("giudice") or {}).get("esito"),
                "must_cite": f"{len(found)}/{len(exp)}", "missing": [e for e in exp if e not in found],
                "must_not_violations": viol, "key_points": f"{len(kp_ok)}/{len(kps)}", "kp_missing": [k for k in kps if k not in kp_ok],
                "verdict_head": head_ok, "trust_line": trust, "fake": r["stats"]["fake"], "repealed": r["stats"]["repealed"],

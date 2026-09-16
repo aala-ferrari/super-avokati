@@ -3614,6 +3614,23 @@ class SuperAvvocato:
             log.warning("trust_line (simple) saltata (non-fatal): %s", exc)
             return text
 
+    def _raccogli_ombra(self, ombra) -> None:
+        """v9.342 — raccoglie il claim binding in ombra (aspetta al massimo claims.JOIN_S) e lo
+        annota nell'audit + nel log. Mai tocca la risposta."""
+        if ombra is None:
+            return
+        try:
+            res = ombra.raccogli()
+            if res is None:
+                return
+            _audit_set("claims", res)
+            log.info("claims (ombra): %d proposizioni, materiali %d — supported %d, weak %d, unsupported %d, contradicted %d, HIGH senza sostegno %d%s",
+                     res.get("n", 0), res.get("materiali", 0), res.get("supported", 0), res.get("weak", 0),
+                     res.get("unsupported", 0), res.get("contradicted", 0), res.get("high_unsupported", 0),
+                     " [timeout]" if res.get("timeout") else (" [%s]" % res["error"] if res.get("error") else ""))
+        except Exception as exc:  # noqa: BLE001
+            log.warning("claims: raccolta fallita (non-fatal): %s", exc)
+
     def _gjyqtari_fundit(self, user_message, retrieved, precedents, answer_text,
                          dosja_txt="", fazat_txt=""):
         """Il Giudice Finale (Fable 5.1 max effort): riceve la risposta completa
@@ -3644,8 +3661,24 @@ class SuperAvvocato:
             except Exception:  # noqa: BLE001
                 _tempo = None
             _cov = coverage_info()                    # v9.340: temi senza norma trovata
+            # v9.342 — claim binding in OMBRA: parte ORA, in parallelo al Giudice (2-4 min), sul testo
+            # del senior + diavolo + replica; si raccoglie dopo il verdetto senza aggiungere latenza
+            _ombra = None
+            try:
+                from . import claims as _cl
+                if _cl.MODE != "off":
+                    _ombra = _cl.Ombra(self.backend, answer_text, lang, idx, jur).start()
+            except Exception as _exc_c:  # noqa: BLE001
+                log.warning("claims: ombra non avviata (non-fatal): %s", _exc_c)
             if request_senior() == "fable":
                 # ⚡: il verdetto è già del senior Fable (Source Verifier suo); resta la riga
+                if _ombra is not None:
+                    try:
+                        _r = _ombra.raccogli(timeout=0.0)
+                        if _r:
+                            _audit_set("claims", _r)
+                    except Exception:  # noqa: BLE001
+                        pass
                 return trust_line.inserisci_riga(answer_text, trust_line.riga(v1, lang, tempo=_tempo, coverage=_cov), "")
             try:
                 vendim = studio.gjyqtari_fundit(
@@ -3663,6 +3696,7 @@ class SuperAvvocato:
                 log.warning("studio: gjyqtari i fundit dështoi (non-fatal): %s", exc)
                 _audit_set("giudice", {"esito": "fallito", "motivo": str(exc)[:160]})
                 vendim = ""
+            self._raccogli_ombra(_ombra)
             if not (vendim or "").strip():
                 _nota = (("> ⚖️ *Il Giudice Finale non ha potuto pronunciarsi (servizio saturo): la risposta è quella del "
                           "senior con le repliche all'avvocato del diavolo — la verifica delle citazioni qui sopra è "

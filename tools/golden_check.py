@@ -3194,6 +3194,32 @@ def main():
     except Exception as _e91:  # noqa: BLE001
         check("audit[91]: kontrollet u ekzekutuan", False, str(_e91))
 
+    # ── [92] CLAIM BINDING IN OMBRA (v9.342, roadmap v3 P1): proposizioni atomiche → legame
+    # deterministico alle citazioni (SUPPORTED / WEAK / UNSUPPORTED / CONTRADICTED); parte in
+    # parallelo al Giudice, va nell'audit, NON tocca la risposta; misurato dal benchmark strato 2 ──
+    try:
+        import inspect as _insp92
+        from src import claims as _cl92, brain as _br92
+        _raw = ('{"claims":[{"testo":"Klientit i takon paga e afatit të njoftimit","tipo":"LEGAL","materialiteti":"HIGH","citime":["neni 155/1 i Kodit të Punës"]},'
+                '{"testo":"Afati është 180 ditë","tipo":"PROCEDURAL","materialiteti":"HIGH","citime":["neni 9999 i Kodit të Punës"]},'
+                '{"testo":"Punëdhënësi duhet të japë arsye","tipo":"LEGAL","materialiteti":"MEDIUM","citime":[]},'
+                '{"testo":"Klienti është pushuar më 3.9.2026","tipo":"FACTUAL","materialiteti":"HIGH","citime":[]},'
+                '{"testo":"Vendimi 00-2015-3057 e mbështet","tipo":"LEGAL","materialiteti":"HIGH","citime":["vendimi nr. 00-2015-3057, datë 09.12.2015"]}]}')
+        _cs = _cl92.parse("bla " + _raw + " bla")
+        _okA = len(_cs) == 5 and _cs[0]["citazioni"] == ["neni 155/1 i Kodit të Punës"] and _cs[2]["citazioni"] == []
+        _lg = _cl92.lega(_cs, ArticleIndex.load(_P81("/app/data/index/bm25.pkl")), "AL")
+        _st = [r["stato"] for r in _lg["claims"]]
+        _okB = (_st == ["SUPPORTED", "CONTRADICTED", "UNSUPPORTED", "N/A", "CONTRADICTED"]
+                and _lg["materiali"] == 4 and _lg["high_unsupported"] == 2 and _lg["unsupported"] == 1 and _lg["contradicted"] == 2)
+        _src92 = _insp92.getsource(_br92.SuperAvvocato._gjyqtari_fundit)
+        _okC = ("_cl.Ombra(self.backend, answer_text, lang, idx, jur).start()" in _src92 and "self._raccogli_ombra(_ombra)" in _src92
+                and 'if _cl.MODE != "off"' in _src92 and _cl92.MODE in ("off", "shadow", "on"))
+        _okD = "claims" in open(_os2.path.join(_os2.path.dirname(_os2.path.abspath(__file__)), "benchmark_lab.py"), encoding="utf-8").read() and "high_unsupported" in open(_os2.path.join(_os2.path.dirname(_os2.path.abspath(__file__)), "benchmark_lab.py"), encoding="utf-8").read()
+        check("claims[92]: claim binding in ombra — parse JSON, legame deterministico alle citazioni (155/1 KPunës SUPPORTED, 9999 CONTRADICTED, senza citazione UNSUPPORTED, fatto N/A, vendim annullato CONTRADICTED), avvio parallelo al Giudice, raccolta nell'audit, riportato dal benchmark strato 2",
+              _okA and _okB and _okC and _okD, "parse=%s lega=%s wiring=%s bench=%s | stati=%s" % (_okA, _okB, _okC, _okD, _st))
+    except Exception as _e92:  # noqa: BLE001
+        check("claims[92]: kontrollet u ekzekutuan", False, str(_e92))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
