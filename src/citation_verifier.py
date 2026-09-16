@@ -167,8 +167,11 @@ _AL_NEW_ALIASES: list[tuple[str, list[str]]] = [
     ("ligji_kundervajtjet", ["ligji për kundërvajtjet administrative", "ligji i kundërvajtjeve administrative"]),
     ("ligji_permbarimi_privat", ["ligji për shërbimin përmbarimor gjyqësor privat", "ligji për shërbimin përmbarimor",
                                  "ligji i përmbarimit"]),
-    ("ligji_dhuna_familje", ["ligji për masa ndaj dhunës në marrëdhëniet familjare", "ligji për dhunën në familje",
-                             "ligji i dhunës në familje", "ligji kundër dhunës në familje"]),
+    # 9669/2006 si cita col suo nome proprio; i nomi generici vanno alla legge VIGENTE 11/2026
+    ("ligji_dhuna_familje", ["ligji për masa ndaj dhunës në marrëdhëniet familjare"]),
+    ("ligji_dhuna_familje_2026", ["ligji për parandalimin dhe mbrojtjen nga dhuna ndaj grave dhe dhuna në familje",
+                                  "ligji për dhunën ndaj grave", "ligji për dhunën në familje", "ligji i dhunës në familje",
+                                  "ligji kundër dhunës në familje", "ligji i ri për dhunën në familje"]),
     ("ligji_gjendja_civile", ["ligji për gjendjen civile", "ligji i gjendjes civile"]),
     ("ligji_antimafia", ["ligji antimafia", "ligji për parandalimin dhe goditjen e krimit të organizuar"]),
     ("ligji_te_dhenat_2024", ["ligji për mbrojtjen e të dhënave personale", "ligji i mbrojtjes së të dhënave personale"]),
@@ -248,6 +251,7 @@ _LAW_NUMBER_ALIASES: dict[str, str] = {
     "9902/2008": "ligji_konsumatoret", "9901/2008": "ligji_shoqerite_tregtare", "110/2016": "ligji_falimentimi",
     "112/2025": "rregullore_policia",   # nuova Rregullore (VKM 112/2025; la 750/2015 è shfuqizuar)
     "96/2020": "kodi_ajror",
+    "11/2026": "ligji_dhuna_familje_2026",   # trovata da freshness_check: 9669/2006 shfuqizuar
 }
 # cattura anche l'anno («ligji nr. 79/2021», «ligjit nr. 111, datë 14.12.2017» → 111 + 2017)
 _LAW_NUM_RE = re.compile(r"ligj\w*\s+(?:nr\.?\s*)?(\d{2,5})(?:\s*/\s*(\d{4})|\s*,?\s*dat[ëe]\s*\d{1,2}\.\d{1,2}\.(\d{4}))?", re.IGNORECASE)
@@ -285,7 +289,8 @@ CODE_LABELS: dict[str, str] = {
     "ligji_tvsh": "Ligji TVSH 92/2014", "ligji_sigurimi_mjeteve": "Ligji Sigurimi Transport 32/2021",
     "vkm_dispozita_doganore": "VKM 651/2017 Disp. Doganore", "ligji_ndihma_juridike": "Ligji Ndihma Juridike 111/2017",
     "ligji_kundervajtjet": "Ligji Kundërvajtjet 10279/2010", "ligji_permbarimi_privat": "Ligji Përmbarimi 26/2019",
-    "ligji_dhuna_familje": "Ligji Dhuna në Familje 9669/2006", "ligji_gjendja_civile": "Ligji Gjendja Civile 10129/2009",
+    "ligji_dhuna_familje": "Ligji Dhuna në Familje 9669/2006 (shfuqizuar nga 11/2026)",
+    "ligji_dhuna_familje_2026": "Ligji Dhuna ndaj Grave dhe në Familje 11/2026", "ligji_gjendja_civile": "Ligji Gjendja Civile 10129/2009",
     "ligji_antimafia": "Ligji Antimafia 10192/2009", "ligji_te_dhenat_2024": "Ligji Të Dhënat 124/2024",
     "ligji_sigurimet_shoqerore": "Ligji Sig. Shoqërore 7703/1993", "ligji_avokatia": "Ligji Avokatia 55/2018",
     "ligji_ndermjetesimi": "Ligji Ndërmjetësimi 10385/2011", "ligji_arbitrazhi": "Ligji Arbitrazhi 52/2023",

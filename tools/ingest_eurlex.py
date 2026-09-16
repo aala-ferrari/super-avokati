@@ -287,6 +287,7 @@ def main() -> None:
         print(f"    fonte: {src} ({celex})", flush=True)
         payload = {"id": cid, "title": title, "area": area, "urn": f"eurlex:{celex}",
                    "wave": "eurlex", "source": src, "articles": arts, "failures": []}
+        payload["fetched"] = time.strftime("%Y-%m-%d")    # per tools/freshness_check.py
         dest.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
         rep = sum(1 for a in arts if a["repealed"] is True)
         print(f"  ✓ {cid}: {len(arts)} articoli ({rep} soppressi), {time.time()-t0:.0f}s -> {dest.name}", flush=True)

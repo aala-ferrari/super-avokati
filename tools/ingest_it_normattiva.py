@@ -184,6 +184,7 @@ def main():
                     ensure_ascii=False), encoding="utf-8")
                 print(f"  ✓ preleggi: {len(prel)} articoli (dal gruppo 1 del c.c.)", flush=True)
         payload = {"id": cid, "title": title, "area": area, "urn": urn, "wave": wave,
+                   "fetched": time.strftime("%Y-%m-%d"),    # per tools/freshness_check.py
                    "articles": arts, "failures": fails}
         dest.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
         print(f"  ✓ {cid}: {len(arts)} articoli, {len(fails)} falliti, "

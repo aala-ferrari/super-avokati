@@ -122,7 +122,8 @@ def main() -> int:
         if ok:
             (OUT / f"{cid}.json").write_text(json.dumps({
                 "id": cid, "title": title, "area": "Internazionale", "urn": "coe:convention_ita",
-                "wave": "wave8", "source": "pdf-coe-colonne", "articles": arts, "failures": []},
+                "wave": "wave8", "source": "pdf-coe-colonne", "fetched": time.strftime("%Y-%m-%d"),
+                "articles": arts, "failures": []},
                 ensure_ascii=False), encoding="utf-8")
     print(f"fatto in {time.time() - t0:.0f}s, atti non validi: {bad}")
     return 1 if bad else 0

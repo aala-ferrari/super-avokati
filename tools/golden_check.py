@@ -2767,10 +2767,13 @@ def main():
                    "ligji_prokurimi_publik": 130, "ligji_trajtimi_prones": 35, "ligji_proceset_kalimtare": 80,
                    # codici riscritti da QBZ (soglie prudenti)
                    "kodi_civil": 1150, "kodi_proc_civile": 600, "kodi_penal": 400, "kodi_proc_penale": 500,
-                   "kodi_zgjedhor": 170, "kodi_punes": 200, "kushtetuta": 180}
+                   "kodi_zgjedhor": 170, "kodi_punes": 200, "kushtetuta": 180,
+                   # trovati da freshness_check (16 set): legge nuova sulla violenza domestica, VKM 2026 dal docx
+                   "ligji_dhuna_familje_2026": 30, "vkm_dispozita_doganore": 700}
         _miss78 = [f"{c} ({_cnt78.get(c, 0)}<{n})" for c, n in _need78.items() if _cnt78.get(c, 0) < n]
         _lab78 = [c for c in _need78 if c not in cv.CODE_LABELS]
-        _sup78 = all(_cnt78.get(c, 0) > 0 and _rep78.get(c, 0) == _cnt78.get(c, 0) for c in ("ligji_te_dhenat", "ligji_policia"))
+        _sup78 = all(_cnt78.get(c, 0) > 0 and _rep78.get(c, 0) == _cnt78.get(c, 0)
+                     for c in ("ligji_te_dhenat", "ligji_policia", "ligji_dhuna_familje"))
         _r78 = cv._resolve_code
         _res78 = {"ligji nr. 79/2021": "ligji_te_huajt", "ligjit për të huajt": "ligji_te_huajt",
                   "ligji nr. 111/2018": "ligji_kadastra", "ligji nr. 111/2017": "ligji_ndihma_juridike",

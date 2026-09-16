@@ -32,17 +32,19 @@ JSONL = PROCESSED_DATA_PATH / "all_articles.jsonl"
 INDEX = INDEX_PATH / "bm25.pkl"
 UA = "Mozilla/5.0 (X11; Linux x86_64) SuperAvokati-corpus/1.0"
 SUPERSEDED = {"ligji_te_dhenat": "ligji_te_dhenat_2024",   # vecchio → nuovo (il vecchio resta, marcato abrogato)
-              "ligji_policia": "ligji_policia_2024"}       # 108/2014 shfuqizuar nga 82/2024
+              "ligji_policia": "ligji_policia_2024",       # 108/2014 shfuqizuar nga 82/2024
+              "ligji_dhuna_familje": "ligji_dhuna_familje_2026"}   # 9669/2006 shfuqizuar nga 11/2026 (freshness_check)
 
 
 def _download(url: str, dest: Path) -> None:
     if dest.exists() and dest.stat().st_size > 10_000:
         return
     req = urllib.request.Request(url, headers={"User-Agent": UA})
-    with urllib.request.urlopen(req, timeout=300) as r:
+    with urllib.request.urlopen(req, timeout=1500) as r:
         data = r.read()
-    if not data.startswith(b"%PDF"):
-        raise RuntimeError(f"non e' un PDF ({data[:12]!r})")
+    magic = b"PK\x03\x04" if dest.suffix == ".docx" else b"%PDF"
+    if not data.startswith(magic):
+        raise RuntimeError(f"non e' un {dest.suffix} ({data[:12]!r})")
     dest.write_bytes(data)
 
 
@@ -50,7 +52,13 @@ def _extract(pdf: Path, x_tol: float) -> str:
     """parser.extract_text_smart (una o due colonne, scelta automatica) con x_tolerance
     regolabile: il PDF QBZ della TVSH (e in parte altri) INCOLLA le parole con la tolleranza
     di default (3): «Kyligjvendostatimin» → space% 0.06, parole medie 11,9 chr; con 1.5
-    torna normale (0.14 / 5,3 chr)."""
+    torna normale (0.14 / 5,3 chr). I .docx (QBZ pubblica alcuni consolidati solo in Word:
+    VKM 651/2017 doganale 2026) passano da tools/docx_text.py (nessuna tolleranza)."""
+    if pdf.suffix == ".docx":
+        from src.parser import _clean_text
+        sys.path.insert(0, "/app/tools")
+        from docx_text import docx_to_text
+        return _clean_text(docx_to_text(pdf))
     from src.parser import extract_text_smart
     return extract_text_smart(pdf, x_tolerance=x_tol)
 
@@ -78,14 +86,15 @@ def _good(q: dict) -> bool:
 
 def probe_one(law: dict) -> tuple[dict, list]:
     code = law["code"]
-    pdf = RAW / f"{code}.pdf"
+    ext = ".docx" if law["url"].lower().endswith(".docx") or law.get("format") == "docx" else ".pdf"
+    pdf = RAW / f"{code}{ext}"
     _download(law["url"], pdf)
     # tolleranza adattiva: si provano default, 1.5 e 1.0 e vince quella con MENO parole
     # incollate (glue_ratio) tra quelle che passano la qualità; a parità la più vicina
     # alla default (per non spezzare parole). Il PDF della TVSH passa da 0.063 a 0.146 di
-    # spazi; «ligjrregullon»/«Neni1» spariscono con 1.5.
+    # spazi; «ligjrregullon»/«Neni1» spariscono con 1.5. Per i .docx una sola lettura.
     cands = []
-    for cand in (float(law.get("x_tolerance", 3)), 1.5, 1.0):
+    for cand in ((3.0,) if ext == ".docx" else (float(law.get("x_tolerance", 3)), 1.5, 1.0)):
         t = _extract(pdf, cand)
         cands.append((t, _quality(t), cand))
     good = [c for c in cands if _good(c[1])]
@@ -93,7 +102,7 @@ def probe_one(law: dict) -> tuple[dict, list]:
     chars = max(len(text), 1)
     neni = len(re.findall(r"(?m)^[ \t]*Neni[ \t]+\d+", text))
     doc = LegalDocument(code=code, title_sq=law["title_sq"], title_en=code, area=law.get("area", ""),
-                        url=law["url"], local_pdf=f"al_qbz/{code}.pdf", volatility=law.get("volatility", "MEDIUM"))
+                        url=law["url"], local_pdf=f"al_qbz/{code}{ext}", volatility=law.get("volatility", "MEDIUM"))
     arts = split_into_articles(text, doc)
     nums = [a.number for a in arts]
     first_ok = bool(nums) and str(nums[0]).split("/")[0] in ("1", "01")
