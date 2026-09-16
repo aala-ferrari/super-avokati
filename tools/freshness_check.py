@@ -21,8 +21,8 @@ import json, os, re, sys, time, urllib.parse, urllib.request
 from datetime import date, datetime
 from pathlib import Path
 
-for p in ("/app", "/app/tools", "/tmp"):
-    sys.path.insert(0, p)
+for p in ("/app", "/app/tools", "/tmp", str(Path(__file__).resolve().parent)):
+    sys.path.insert(0, p)      # normattiva_lib / ingest_al_qbz accanto a questo file (host o container)
 
 IT_ACTS = Path(os.environ.get("IT_ACTS_DIR", "/app/data/processed/it_acts"))
 AL_SRC = Path(os.environ.get("AL_SOURCES", "/app/tools/al_sources.json"))
@@ -31,6 +31,7 @@ AL_SRC = Path(os.environ.get("AL_SOURCES", "/app/tools/al_sources.json"))
 # (misurato il 16 set 2026: 202/0 byte contro 200/15 MB sullo stesso URL, a 20 s di distanza).
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
 UA_EURLEX = "Mozilla/5.0"
+_EURLEX_BLOCKED = False            # diventa True quando il WAF risponde solo pagine-sfida (vedi _get)
 QBZ = "https://qbz.gov.al/alfresco/api/-default-/public/alfresco/versions/1"
 ONLY: set[str] = set()             # --only codice,codice: ricontrolla solo questi atti
 SKIP_AL = {"ligji_konsumatoret"}   # senza consolidato QBZ (testo in corpus da altra fonte)
@@ -50,14 +51,19 @@ def _get(url: str, timeout: int = 60) -> str:
         if shutil.which("curl"):
             # il WAF passa a «sfida» per l'IP dopo una raffica di richieste (misurato: da 200/15 MB
             # a 202/0 byte in pochi minuti): 3 tentativi con pausa crescente, poi si risponde
-            # vuoto e il chiamante segna UNKNOWN (mai un OK finto)
-            for pause in (0, 30, 90):
+            # vuoto e il chiamante segna UNKNOWN (mai un OK finto). Se un giro intero fallisce,
+            # per il resto della corsa si fa UN tentativo e basta: aspettare 2 minuti per
+            # ognuno dei 21 atti UE bloccati non serve a nulla (il blocco è dell'IP).
+            global _EURLEX_BLOCKED
+            for pause in ((0,) if _EURLEX_BLOCKED else (0, 30, 90)):
                 if pause:
                     time.sleep(pause)
                 p = subprocess.run(["curl", "-sL", "-A", UA_EURLEX, "--max-time", str(max(timeout, 120)), url],
                                    capture_output=True)
                 if p.returncode == 0 and len(p.stdout) > 20_000 and b"challenge-container" not in p.stdout[:4000]:
+                    _EURLEX_BLOCKED = False
                     return p.stdout.decode("utf-8", "replace")
+            _EURLEX_BLOCKED = True
             return ""
     ua = UA_EURLEX if "eur-lex.europa.eu" in url else UA
     req = urllib.request.Request(url, headers={"User-Agent": ua, "Accept-Language": "it,sq"})
