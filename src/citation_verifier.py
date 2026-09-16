@@ -512,6 +512,17 @@ _IT_CODE_CHECKS = [
     ("dispattcpp", "disp_att_cpp"), ("normeattcpp", "disp_att_cpp"), ("normediattuazionecpp", "disp_att_cpp"),
     ("regolamentodiesecuzionedelcodicedellastrada", "regolamento_strada"), ("regolamentodiesecuzionecds", "regolamento_strada"),
     ("regesecuzionecds", "regolamento_strada"), ("regolamentocds", "regolamento_strada"), ("regolamentodelcodicedellastrada", "regolamento_strada"),
+    # audit 16 set (per titolo): codici citati col nome, senza numero/anno
+    ("codiceinmateriadiprotezionedeidatipersonali", "codice_privacy"), ("protezionedeidatipersonali", "codice_privacy"),
+    ("codicedellaprivacy", "codice_privacy"), ("codiceprivacy", "codice_privacy"),
+    ("codicedellepariopportunit", "codice_pari_opportunita"), ("pariopportunit", "codice_pari_opportunita"),
+    ("testounicodelledilizia", "tu_edilizia"), ("testounicoedilizia", "tu_edilizia"), ("tuedilizia", "tu_edilizia"),
+    ("testounicoinmateriaedilizia", "tu_edilizia"),
+    ("leggesuldivorzio", "divorzio"), ("leggedivorzio", "divorzio"), ("leggesulladozione", "adozione"), ("leggeadozione", "adozione"),
+    ("dirittodelminoreaunafamiglia", "adozione"),
+    ("testounicosicurezzasullavoro", "sicurezza_lavoro"), ("testounicosicurezzalavoro", "sicurezza_lavoro"),
+    ("testounicostupefacenti", "stupefacenti"), ("codicedellamministrazionedigitale", "codice_amministrazione_digitale"),
+    ("codicedellambiente", "codice_ambiente"), ("codiceambiente", "codice_ambiente"),
     # preleggi (disposizioni sulla legge in generale): «art. 12 preleggi», «disp. prel. c.c.»
     ("preleggi", "preleggi"), ("disposizionisullaleggeingenerale", "preleggi"),
     ("disposizionipreliminari", "preleggi"), ("dispprel", "preleggi"),
@@ -619,6 +630,11 @@ _IT_CODE_NUM_CHECKS = [
     ("692005", "mandato_arresto_europeo"), ("762016", "unioni_civili"),
     # wave8: trattati ratificati con legge
     ("1751998", "convenzione_it_al_fisco"), ("8481955", "cedu"), ("142024", "protocollo_it_al_migranti"),
+    # audit 16 set: atti di base che non si risolvevano per numero/anno
+    ("8981970", "divorzio"), ("1841983", "adozione"), ("1982006", "codice_pari_opportunita"),
+    ("3541975", "ordinamento_penitenziario"), ("1211981", "ordinamento_polizia"), ("3091990", "stupefacenti"),
+    ("1152002", "tu_spese_giustizia"), ("4452000", "tu_documentazione_amministrativa"), ("422004", "codice_beni_culturali"),
+    ("362023", "codice_contratti_pubblici"), ("3271942", "codice_navigazione"), ("822005", "codice_amministrazione_digitale"),
     ("12152012", "bruxelles_i_bis"), ("2016679", "gdpr"), ("9522013", "codice_doganale_ue"),
     ("5932008", "roma_i"), ("8642007", "roma_ii"), ("6502012", "successioni_ue"),
     ("1412024", "codice_doganale_nazionale"), ("5041995", "accise"), ("6331972", "iva"),
