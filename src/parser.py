@@ -42,12 +42,23 @@ REPEALED_MARKERS = ("shfuqizuar", "shfuqizohet")
 
 
 # Slug dei corpora italiani: servono a citare "art. N" invece di "Neni N".
-_IT_CODE_PREFIXES = ("codice_", "tu_", "disp_att_", "regolamento_")
+_IT_CODE_PREFIXES = ("codice_", "tu_", "disp_att_", "regolamento_", "reg_ue_",
+                     "legge_", "imposta_", "locazioni_", "ordinamento_", "sanzioni_",
+                     "bruxelles_", "roma_")
+# Ogni corpus italiano DEVE stare qui o sotto un prefisso: altrimenti la sua
+# citazione esce «Neni N i …» dentro la sessione italiana (visto il 16 set 2026
+# sui regolamenti UE e sull'antiriciclaggio). Guard: golden [76] controlla che
+# tutti i codici di it_codes.json siano riconosciuti.
 _IT_CODE_EXACT = frozenset({
-    "costituzione", "tulps", "tuir", "statuto_lavoratori", "sicurezza_lavoro",
-    "responsabilita_enti", "procedimento_amministrativo", "sanzioni_amministrative",
-    "ordinamento_polizia", "ordinamento_penitenziario", "stupefacenti",
-    "divorzio", "adozione", "equa_riparazione",
+    "costituzione", "tulps", "tuir", "tuel", "statuto_lavoratori", "sicurezza_lavoro",
+    "responsabilita_enti", "responsabilita_sanitaria", "procedimento_amministrativo",
+    "stupefacenti", "divorzio", "adozione", "equa_riparazione", "antiriciclaggio",
+    # wave5 (16 set 2026): tributario, notarile, procedura, lavoro + EUR-Lex
+    "accise", "iva", "giustizia_tributaria", "statuto_contribuente",
+    "accertamento_imposte", "riscossione", "reati_tributari", "condono_edilizio",
+    "immobili_da_costruire", "successioni_ue", "mediazione_civile",
+    "riti_civili_semplificati", "licenziamenti_individuali", "tutele_crescenti",
+    "processo_penale_minorile", "gdpr",
 })
 
 

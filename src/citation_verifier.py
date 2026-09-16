@@ -185,15 +185,21 @@ CODE_LABELS: dict[str, str] = {
     # ── wave5 + EUR-Lex (16 set 2026) ──
     "codice_doganale_nazionale": "D.Lgs 141/2024 (DNC dogane)",
     "accise": "TU Accise (D.Lgs 504/1995)",
-    "iva": "DPR 633/1972 (IVA)",
-    "imposta_registro": "TU Registro (DPR 131/1986)",
-    "imposta_successioni": "D.Lgs 346/1990 (successioni)",
-    "sanzioni_tributarie": "D.Lgs 472/1997",
+    "iva": "DPR 633/1972 (IVA — abrogato dal TU D.Lgs 10/2026)",
+    "imposta_registro": "DPR 131/1986 (registro — abrogato dal TU D.Lgs 123/2025)",
+    "imposta_successioni": "D.Lgs 346/1990 (successioni — abrogato dal TU D.Lgs 123/2025)",
+    "sanzioni_tributarie": "D.Lgs 472/1997 (abrogato dal TU D.Lgs 173/2024)",
     "giustizia_tributaria": "TU Giustizia trib. (D.Lgs 175/2024)",
     "statuto_contribuente": "L. 212/2000 (Statuto contrib.)",
-    "accertamento_imposte": "DPR 600/1973",
-    "riscossione": "DPR 602/1973",
-    "reati_tributari": "D.Lgs 74/2000",
+    "accertamento_imposte": "DPR 600/1973 (in gran parte abrogato dal TU D.Lgs 141/2026)",
+    "riscossione": "DPR 602/1973 (abrogato dal TU D.Lgs 33/2025)",
+    "reati_tributari": "D.Lgs 74/2000 (abrogato dal TU D.Lgs 173/2024)",
+    # ── wave6 (16 set 2026): i testi unici della riforma fiscale — la legge VIGENTE ──
+    "tu_sanzioni_tributarie": "TU Sanzioni tributarie amm. e penali (D.Lgs 173/2024)",
+    "tu_riscossione": "TU Versamenti e riscossione (D.Lgs 33/2025)",
+    "tu_registro": "TU Registro e tributi indiretti (D.Lgs 123/2025)",
+    "tu_iva": "TU IVA (D.Lgs 10/2026)",
+    "tu_accertamento": "TU Adempimenti e accertamento (D.Lgs 141/2026)",
     "legge_notarile": "L. 89/1913 (notariato)",
     "legge_52_1985": "L. 52/1985",
     "condono_edilizio": "L. 47/1985",
@@ -404,6 +410,9 @@ _IT_CODE_CHECKS = [
 # Qui si confronta il numero+anno compattato (v9.326). Ordine: il piu' lungo prima.
 _IT_CODE_NUM_CHECKS = [
     ("20152446", "reg_ue_2015_2446"), ("20152447", "reg_ue_2015_2447"), ("20191111", "bruxelles_ii_ter"),
+    # wave6: testi unici della riforma fiscale (prima dei vecchi atti che hanno abrogato)
+    ("1732024", "tu_sanzioni_tributarie"), ("1232025", "tu_registro"), ("1412026", "tu_accertamento"),
+    ("332025", "tu_riscossione"), ("102026", "tu_iva"),
     ("12152012", "bruxelles_i_bis"), ("2016679", "gdpr"), ("9522013", "codice_doganale_ue"),
     ("5932008", "roma_i"), ("8642007", "roma_ii"), ("6502012", "successioni_ue"),
     ("1412024", "codice_doganale_nazionale"), ("5041995", "accise"), ("6331972", "iva"),

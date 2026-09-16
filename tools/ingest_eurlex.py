@@ -107,7 +107,7 @@ def _mk(num: str, suffix: str, heading: str, body: str) -> dict:
     number = num + ("-" + suffix.lower() if suffix else "")
     repealed = bool(re.match(r"^\s*\(?(soppresso|abrogato)\)?\s*\.?\s*$", body, re.I)) or body == ""
     return {"number": number, "heading": heading[:300], "body": body,
-            "repealed": str(repealed), "in_force_from": ""}
+            "repealed": repealed, "in_force_from": ""}
 
 
 def parse(html_text: str) -> list[dict]:
@@ -133,6 +133,20 @@ _PDF_ART = re.compile(r"^\s*Articolo\s+(\d+)\s*(" + _SUFFIX + r"?)\s*$", re.I | 
 _PDF_NOISE = re.compile(r"^\s*(02015R2446|0201\dR\d{4}|\d{4}R\d{4})[^\n]*—\s*IT\s*—[^\n]*$|^\s*▼[A-Z]\d*\s*$|^\s*\d+\s*$", re.M)
 
 
+# riga che e' gia' testo dell'articolo: comma «1.», lettera «a)», rimando «[Articolo …]»,
+# o una frase compiuta (punto finale)
+def _is_body_start(ln: str) -> bool:
+    return bool(re.match(r"^\d+\.\s|^\(?[a-z]{1,2}\)\s|^[\[(]", ln)) or ln.endswith(".")
+
+
+# rubrica «aperta»: finisce con preposizione/articolo/congiunzione o virgola → continua
+_HEAD_OPEN = re.compile(
+    r"(?:\b(?:di|del|dello|della|dei|degli|delle|da|dal|dallo|dalla|dai|dagli|dalle|a|al|allo|alla|"
+    r"ai|agli|alle|in|nel|nello|nella|nei|negli|nelle|con|per|tra|fra|e|ed|o|od|che|la|le|il|lo|"
+    r"i|gli|un|una|uno|non|su|sul|sullo|sulla|sui|sugli|sulle)|dell[’']|all[’']|nell[’']|sull[’']|,)$",
+    re.I)
+
+
 def parse_pdf(path: Path) -> list[dict]:
     import pdfplumber  # nel container c'e' (OCR); sull'host puo' mancare
     parts: list[str] = []
@@ -151,10 +165,25 @@ def parse_pdf(path: Path) -> list[dict]:
         end = hits[i + 1].start() if i + 1 < len(hits) else len(text)
         chunk = text[start:end].strip("\n")
         lines = [ln.strip() for ln in chunk.split("\n") if ln.strip()]
-        # la rubrica: prima riga corta senza punto finale e senza numerazione di comma
-        heading = ""
-        if lines and len(lines[0]) <= 160 and not re.match(r"^\d+\.|^\(?[a-z]\)", lines[0]) and not lines[0].endswith("."):
-            heading = lines.pop(0)
+        # la rubrica puo' occupare 1-3 righe del PDF («Uso di mezzi di trasporto da parte
+        # di persone fisiche che hanno la» | «loro residenza abituale …»). Una riga in piu'
+        # si prende SOLO se (a) entro le 2 righe seguenti c'e' il rimando «[Articolo …]» /
+        # «(Articolo …)» tipico dei regolamenti UE (tutto cio' che lo precede e' rubrica) o
+        # (b) la riga precedente finisce con una parola-funzione o una virgola. Senza questi
+        # freni la prima riga del testo degli articoli senza commi numerati («Oggetto» +
+        # «Il presente regolamento stabilisce…») verrebbe presa per titolo.
+        head_lines: list[str] = []
+        if lines and len(lines[0]) <= 120 and not _is_body_start(lines[0]):
+            head_lines.append(lines.pop(0))
+            ref_at = next((k for k in range(min(2, len(lines)))
+                           if re.match(r"^\[|^\(Articol", lines[k])), None)
+            while (lines and len(head_lines) < 3 and len(lines[0]) <= 120
+                   and not _is_body_start(lines[0])):
+                cont = (ref_at is not None and len(head_lines) <= ref_at) or bool(_HEAD_OPEN.search(head_lines[-1]))
+                if not cont:
+                    break
+                head_lines.append(lines.pop(0))
+        heading = " ".join(head_lines)
         body = "\n".join(lines)
         # taglia al primo titolo di capo/sezione/allegato che segue
         cut = re.search(r"\n(CAPO|SEZIONE|TITOLO|ALLEGATO)\s+[IVXLC\d]+[^\n]*\n", "\n" + body)
@@ -197,10 +226,11 @@ def main() -> None:
                     break
                 print(f"    {cx}: HTML vuoto → provo il PDF", flush=True)
                 pdf_path = Path(f"/tmp/eurlex_{cx}.pdf")
-                req = urllib.request.Request(
-                    f"https://eur-lex.europa.eu/legal-content/IT/TXT/PDF/?uri=CELEX:{cx}", headers={"User-Agent": UA})
-                with urllib.request.urlopen(req, timeout=300) as r:
-                    pdf_path.write_bytes(r.read())
+                if not (pdf_path.exists() and pdf_path.stat().st_size > 10_000):  # gia' scaricato: si rilegge
+                    req = urllib.request.Request(
+                        f"https://eur-lex.europa.eu/legal-content/IT/TXT/PDF/?uri=CELEX:{cx}", headers={"User-Agent": UA})
+                    with urllib.request.urlopen(req, timeout=300) as r:
+                        pdf_path.write_bytes(r.read())
                 arts = parse_pdf(pdf_path)
                 if len(arts) >= 5:
                     src, celex = "pdf-consolidato", cx
@@ -223,7 +253,7 @@ def main() -> None:
         payload = {"id": cid, "title": title, "area": area, "urn": f"eurlex:{celex}",
                    "wave": "eurlex", "source": src, "articles": arts, "failures": []}
         dest.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
-        rep = sum(1 for a in arts if a["repealed"] == "True")
+        rep = sum(1 for a in arts if a["repealed"] is True)
         print(f"  ✓ {cid}: {len(arts)} articoli ({rep} soppressi), {time.time()-t0:.0f}s -> {dest.name}", flush=True)
         time.sleep(2)
 

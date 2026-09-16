@@ -2632,11 +2632,11 @@ def main():
                    ("codice_doganale_ue", "250"), ("codice_doganale_ue", "5"),
                    ("reg_ue_2015_2446", "212"), ("reg_ue_2015_2446", "215"), ("reg_ue_2015_2446", "217"),
                    ("iva", "70"), ("legge_notarile", "28"), ("legge_52_1985", "29"),
-                   ("imposta_registro", "1"), ("statuto_contribuente", "10"), ("gdpr", "6"),
+                   ("imposta_registro", "2"), ("statuto_contribuente", "10"), ("gdpr", "6"),
                    ("licenziamenti_individuali", "6"), ("tutele_crescenti", "3"), ("regolamento_immigrazione", "13")]
         _miss75 = [f"{c} {n}" for c, n in _need75 if (c, n) not in _have75]
         _lab75 = [c for c in _codes75 if c not in cv.CODE_LABELS]
-        check("corpus[75]: IT ≥ 75 atti; articoli-chiave presenti (DNC 96/118, CDU 5/250, Reg. 2015/2446 212/215/217, IVA 70, notarile 28, L.52/85 29, registro 1, Statuto 10, GDPR 6, L.604 6, D.Lgs 23 3, DPR 394 13); ogni codice ha una label",
+        check("corpus[75]: IT ≥ 75 atti; articoli-chiave presenti (DNC 96/118, CDU 5/250, Reg. 2015/2446 212/215/217, IVA 70, notarile 28, L.52/85 29, registro 2, Statuto 10, GDPR 6, L.604 6, D.Lgs 23 3, DPR 394 13); ogni codice ha una label",
               len(_codes75) >= 75 and not _miss75 and not _lab75,
               "mancano: %s | senza label: %s" % (", ".join(_miss75)[:200], ", ".join(_lab75)[:120]))
         _r75 = cv._resolve_code_it
@@ -2646,6 +2646,47 @@ def main():
               and _r75("TUEL") == "tuel" and _r75("c.c.") == "codice_civile" and _r75("D.Lgs. 231/2007") == "antiriciclaggio")
     except Exception as _e75:  # noqa: BLE001
         check("corpus[75]: kontrollet u ekzekutuan", False, str(_e75))
+
+    # ── [76] CORPUS IT: niente «Neni» e niente falsi «abrogati» (16 set) ──
+    # Due difetti visti sui regolamenti UE: (a) repealed scritto come str(False) →
+    # bool("False") è True → 1.342 articoli invisibili a search() (il BM25 grezzo li
+    # metteva primi); (b) id nuovi non riconosciuti da _is_italian_code → citazione
+    # «Neni 215 i Regolamento…» dentro la sessione italiana.
+    try:
+        import json as _j76
+        from pathlib import Path as _P76
+        from src.parser import _is_italian_code as _isit76
+        _idx76 = ArticleIndex.load(_P76("/app/data/index/bm25_it.pkl"))
+        _meta76 = _j76.loads(_P76("/app/data/processed/it_codes.json").read_text(encoding="utf-8"))
+        _neni76 = [m["code"] for m in _meta76 if not _isit76(m["code"])]
+        _tot76, _rep76, _vero76 = {}, {}, {}
+        for _a in _idx76.articles:
+            _tot76[_a.code] = _tot76.get(_a.code, 0) + 1
+            _rep76[_a.code] = _rep76.get(_a.code, 0) + (1 if _a.repealed else 0)
+            # abrogazione VERA (Normattiva scrive «ARTICOLO/PROVVEDIMENTO ABROGATO DAL …»):
+            # es. DPR 602/1973 tutto sostituito dal D.Lgs 33/2025 — legittimo, resta nel corpus
+            # perché il verificatore deve dire «superato» a chi lo cita. Il bug str(False) invece
+            # marcava abrogati articoli col testo normale.
+            if _a.repealed and "ABROGAT" in _a.body[:200].upper():
+                _vero76[_a.code] = _vero76.get(_a.code, 0) + 1
+        _allrep76 = [c for c, n in _tot76.items()
+                     if n >= 5 and _rep76.get(c, 0) == n and _vero76.get(c, 0) < n // 2]
+        # wave6: i testi unici della riforma fiscale (la legge VIGENTE al posto degli atti
+        # abrogati: DPR 602/73 → D.Lgs 33/2025, IVA 633/72 → 10/2026, registro/successioni →
+        # 123/2025, sanzioni+reati trib. → 173/2024, DPR 600/73 → 141/2026) devono esserci,
+        # con articoli in vigore (non solo la scheda), altrimenti il cervello cita legge morta.
+        _tu76 = [c for c in ("tu_sanzioni_tributarie", "tu_riscossione", "tu_registro", "tu_iva", "tu_accertamento")
+                 if _tot76.get(c, 0) - _rep76.get(c, 0) < 30]
+        _allrep76 += [f"TU mancante/vuoto: {c}" for c in _tu76]
+        _cit76 = [a.citation for a in _idx76.articles if a.code == "reg_ue_2015_2446" and str(a.number) == "215"]
+        _hit76 = [a.code for a, _ in _idx76.search("mezzi di trasporto persone fisiche residenza abituale territorio doganale", top_k=5)]
+        check("corpus[76]: ogni corpus IT è riconosciuto come italiano (mai «Neni» in sessione italiana); nessun corpus tutto «abrogato» (bug str(False)); art. 215 Reg. 2015/2446 cercabile e citato «art.»",
+              not _neni76 and not _allrep76 and _cit76 and _cit76[0].startswith("art. 215")
+              and "reg_ue_2015_2446" in _hit76,
+              "non italiani: %s | tutti abrogati: %s | cit: %s | top5: %s" % (
+                  ", ".join(_neni76)[:120], ", ".join(_allrep76)[:120], (_cit76 or ["-"])[0][:40], _hit76))
+    except Exception as _e76:  # noqa: BLE001
+        check("corpus[76]: kontrollet u ekzekutuan", False, str(_e76))
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

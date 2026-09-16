@@ -4,6 +4,7 @@ Strumento AI per avvocati (B2B), **bi-giurisdizione AL + IT**. Front-end Flask
 su porta 5050, SQLite (`data/app.db`) + Postgres `legalkb` per i casi
 giurisprudenziali. Due corpora BM25 SEPARATI:
 - **AL** (`bm25.pkl`): 6320 nene / 24 codici (+ Ligji 9917/2008 antiriciclaggio, + Ligji 111/2018 kadastra, + Ligji 110/2018 noteri) + `bm25_decisions.pkl` 1258 precedenti
+- **IT** (`bm25_it.pkl`): **85 atti / 20.254 articoli** (v9.326: +27 Normattiva wave5, +5 testi unici wave6 (sanzioni trib. 173/2024, riscossione 33/2025, registro 123/2025, IVA 10/2026, accertamento 141/2026) dogane/tributario/notarile/procedura/lavoro, +9 regolamenti UE da EUR-Lex: CDU, Reg. 2015/2446-2447, GDPR, Bruxelles I-bis/II-ter, Roma I/II, successioni 650/2012)
   (Kushtetuese + Gjykata e Lartë + CEDU).
 - **IT** (`bm25_it.pkl`): **15.595 articoli / 44 corpora** da Normattiva (+ D.Lgs 231/2007 antiriciclaggio)
   (testi vigenti ufficiali) — vedi "CORPUS ITALIANO" più sotto.
@@ -1433,6 +1434,54 @@ rischio residuo della DPIA.
 - Super Avokati ha auth propria (login_required_api); utenti creati da admin o auto-provisionati da AALA (`/api/provision-demo`, secret-guarded).
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
+
+**v9.326 — CORPUS ITALIANO 44→85 atti, 15.595→20.254 articoli: dogane, tributario (coi testi
+unici 2024-2026), notarile, procedura, lavoro + 9 regolamenti UE da EUR-Lex (16 set). Golden 462.** Richiesta del titolare: «aggiungi il
+codice doganale, e tutto quello che manca, così va a prenderlo» (il cervello navigava 1,4M token
+per l'art. 212 Reg. 2015/2446 e l'art. 118 DNC). **Normattiva, wave5 (27 atti, 0 falliti, ~1h
+sull'host)**: D.Lgs 141/2024 **DNC (122 art., Allegato parsato)**, accise 119, IVA 164, registro
+87, successioni 68, sanzioni trib. 33, TU giustizia trib. 141, Statuto contrib. 37, DPR 600 103,
+DPR 602 135, reati trib. 34, **legge notarile 217**, L. 52/1985 32, L. 47/1985 53, D.Lgs 122/2005
+19, locazioni 431/98 16 + 392/78 85, mediazione 44, D.Lgs 150/2011 39, ord. forense 69, L. 604/66
+14, tutele crescenti 12, Gelli 18, DPR 394/99 75, TUEL 294, DPR 448/88 47, nautica 97.
+**EUR-Lex (NUOVO `tools/ingest_eurlex.py`, 9 regolamenti)**: CDU 952/2013 288, **Reg. del.
+2015/2446 268 (PDF consolidato 2026-07-01)**, Reg. es. 2015/2447 356 (PDF cons. 2025-11-01),
+GDPR 99, Bruxelles I-bis 81, Roma I 29, Roma II 32, Bruxelles II-ter 105, successioni 650/2012
+84. Come funziona: versioni consolidate dalla pagina ALL (CELEX `0…-YYYYMMDD`, dalla più
+recente), per ciascuna HTML (`title-article-norm`) poi **PDF consolidato** (EUR-Lex serve una
+pagina-guscio per i testi grandi; pdfplumber c'è solo nel container → gira **dentro** il
+container) poi atto originale (`oj-ti-art` / `ti-art`); un 404 non fa saltare l'atto; PDF:
+sillabazione ricomposta, righe unite in paragrafi (a capo solo prima di commi/lettere/punti).
+Stesso JSON degli atti Normattiva → `build_it_index.py` (ORDER esteso) → `bm25_it.pkl` (volume).
+**citation_verifier**: label per i 36 codici nuovi + `_IT_CODE_NUM_CHECKS` = risoluzione per
+NUMERO/ANNO (il passaggio alfabetico scartava le cifre: «D.Lgs 141/2024» restava «codice non
+specificato») + sigle CDU/DNC/GDPR/TUEL. Golden **[75]** (articoli-chiave nel corpus: DNC 96/118,
+CDU 5/250, 2446 212/215/217, IVA 70, notarile 28, L.52 29… + risolutore). ⚠️ Normattiva ~2-4
+min/atto (delay 0,4 s/articolo): 27 atti ≈ 1h; ingest sull'host (`/tmp/ingest_it_normattiva.py
+wave5` con `IT_ACTS_DIR` sul path host), EUR-Lex nel container.
+**Due difetti trovati PROVANDO l'indice (non a occhio)**: (1) gli articoli UE non uscivano MAI da
+`search()` pur essendo primi nel BM25 grezzo (art. 215: score 47, rank 1): `ingest_eurlex` scriveva
+`"repealed": str(False)` e `bool("False")` è True → 1.342 articoli «abrogati» e saltati. Cura:
+bool vero nell'ingest, `_as_bool()` in `build_it_index.py` (una stringa vale solo se dice «true»),
+JSON già scaricati normalizzati (718 campi). (2) `parser._is_italian_code` non conosceva gli id
+nuovi (né `antiriciclaggio`) → citazione «Neni 215 i Regolamento…» nella sessione italiana:
+prefissi `reg_ue_/legge_/imposta_/locazioni_/ordinamento_/sanzioni_/bruxelles_/roma_` + set
+esatto completo (nessuna collisione con gli id albanesi, verificato). PDF: intestazioni spezzate
+(«…persone fisiche che hanno la» | «loro residenza abituale…») → `parse_pdf` unisce fino a 3
+righe di titolo; 2446/2447 ri-letti. Golden **[76]**: ogni corpus di `it_codes.json` riconosciuto
+italiano, nessun corpus tutto «abrogato», art. 215 Reg. 2446 cercabile e citato «art.».
+**Il guard [76] ha poi beccato una cosa VERA — wave6, i testi unici della riforma fiscale**: DPR
+602/1973 (riscossione) era 135/135 «PROVVEDIMENTO ABROGATO DAL D.LGS. 24 MARZO 2025, N. 33»; e
+con lui IVA 633/72 (151/164, D.Lgs **10/2026**), registro 131/86 (86/87) + successioni 346/90
+(66/68, D.Lgs **123/2025**), sanzioni 472/97 (32/33) + reati trib. 74/2000 (33/34, D.Lgs
+**173/2024**), DPR 600/73 (79/103, D.Lgs **141/2026**). Avevo preso la legge MORTA. I 5 testi
+unici entrano come `tu_sanzioni_tributarie`, `tu_riscossione`, `tu_registro`, `tu_iva`,
+`tu_accertamento` (prefisso `tu_` → italiani per il parser; label + risolutore numero/anno nel
+verificatore; gli atti vecchi restano marcati abrogati così il verificatore dice «superato» a chi
+li cita — label «abrogato dal TU …»). Regola: dopo ogni ingest, **`tools/check_it_acts.py`**
+(per atto: articoli/abrogati/testo «ABROGATO» + successore più citato; exit 1 se un atto per la
+maggioranza abrogato non ha il successore nel corpus): un atto morto va AFFIANCATO dal
+successore, mai lasciato solo. Golden [76] pretende i 5 TU con ≥30 articoli vigenti.
 
 **v9.325 — BUDGET DI RICERCA nel prompt + guardia deploy riparata + risposta ripristinata (16 set).**
 Il titolare: «per 2 domande quasi 7% dell'abbonamento, sembra troppo». Causa: l'override IT

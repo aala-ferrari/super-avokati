@@ -71,6 +71,16 @@ ACTS = [
     ("equa_riparazione", "Legge Pinto — equa riparazione (L. 89/2001)", "Procedura Civile", "legge:2001-03-24;89", "wave4"),
     # AML — per il tool antiriciclaggio del notaio (adeguata verifica, SOS a UIF)
     ("antiriciclaggio", "Antiriciclaggio (D.Lgs 231/2007)", "Antiriciclaggio", "decreto.legislativo:2007-11-21;231", "wave_aml"),
+    # ── wave6 (16 set 2026): i TESTI UNICI della riforma fiscale (delega L. 111/2023) che hanno
+    # ABROGATO gli atti della wave5 — scoperto dal golden [76]: DPR 602/1973 tutto «PROVVEDIMENTO
+    # ABROGATO», IVA 151/164, registro 86/87, sanzioni 32/33, reati trib. 33/34, DPR 600 79/103.
+    # Gli atti vecchi restano nel corpus (marcati abrogati: il verificatore segnala la citazione
+    # superata), questi danno la legge VIGENTE. Prefisso tu_ → riconosciuti da parser._is_italian_code.
+    ("tu_sanzioni_tributarie", "Testo Unico delle sanzioni tributarie amministrative e penali (D.Lgs 173/2024)", "Tributario", "decreto.legislativo:2024-11-05;173", "wave6"),
+    ("tu_riscossione", "Testo Unico versamenti e riscossione (D.Lgs 33/2025)", "Tributario", "decreto.legislativo:2025-03-24;33", "wave6"),
+    ("tu_registro", "Testo Unico imposta di registro e altri tributi indiretti — successioni, donazioni, bollo (D.Lgs 123/2025)", "Tributario", "decreto.legislativo:2025-08-01;123", "wave6"),
+    ("tu_iva", "Testo Unico IVA (D.Lgs 10/2026)", "Tributario", "decreto.legislativo:2026-01-19;10", "wave6"),
+    ("tu_accertamento", "Testo Unico adempimenti e accertamento (D.Lgs 141/2026)", "Tributario", "decreto.legislativo:2026-08-05;141", "wave6"),
     # ── wave5 (16 set 2026, richiesta del titolare: «tutto quello che manca, così va a prenderlo») ──
     # dogana / tributario
     ("codice_doganale_nazionale", "Disposizioni nazionali complementari al Codice Doganale UE (D.Lgs 141/2024)", "Doganale", "decreto.legislativo:2024-09-26;141", "wave5"),

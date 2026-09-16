@@ -38,7 +38,18 @@ ORDER = ["costituzione", "codice_civile", "disp_att_cc", "codice_procedura_civil
          "mediazione_civile", "riti_civili_semplificati", "bruxelles_i_bis", "roma_i", "roma_ii",
          "bruxelles_ii_ter", "ordinamento_forense", "licenziamenti_individuali", "tutele_crescenti",
          "responsabilita_sanitaria", "regolamento_immigrazione", "tuel", "processo_penale_minorile",
-         "codice_nautica_diporto", "gdpr"]
+         "codice_nautica_diporto", "gdpr",
+         # wave6 (16 set 2026) — testi unici della riforma fiscale (sostituiscono gli atti abrogati)
+         "tu_sanzioni_tributarie", "tu_riscossione", "tu_registro", "tu_iva", "tu_accertamento"]
+
+
+def _as_bool(v) -> bool:
+    # La prima ingestione EUR-Lex (16 set 2026) scriveva str(bool): bool("False")
+    # e' True -> 1.342 articoli UE «abrogati» e invisibili al BM25 (search() li
+    # salta). Qui una stringa vale solo se dice davvero «true».
+    if isinstance(v, str):
+        return v.strip().lower() in ("true", "1", "yes", "si", "sì")
+    return bool(v)
 
 
 def main():
@@ -67,7 +78,7 @@ def main():
                 number=art["number"], heading=art.get("heading") or "",
                 body=art.get("body") or "",
                 pjesa="", kreu="", seksioni="",
-                repealed=bool(art.get("repealed")), volatility="STABLE"))
+                repealed=_as_bool(art.get("repealed")), volatility="STABLE"))
         meta.append({"code": cid, "title": a["title"], "area": a.get("area") or "",
                      "count": len(arts)})
         print(f"  {cid:34s} {len(arts):>5} art   {a['title'][:46]}")
