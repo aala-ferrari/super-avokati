@@ -115,8 +115,10 @@ CODE_ALIASES: dict[str, str] = {
     "ligji shoqërive tregtare": "ligji_shoqerite_tregtare",
     "ligji i konsumatorëve": "ligji_konsumatoret",
     "ligji per mbrojtjen e konsumatoreve": "ligji_konsumatoret",
-    "ligji i të dhënave personale": "ligji_te_dhenat",
-    "ligji i te dhenave personale": "ligji_te_dhenat",
+    # 16 set 2026: la 9887/2008 e' SHFUQIZUAR dalla 124/2024 (ne fuqi 1.2.2025) — il nome
+    # generico va alla legge vigente; la vecchia si raggiunge solo col numero 9887
+    "ligji i të dhënave personale": "ligji_te_dhenat_2024",
+    "ligji i te dhenave personale": "ligji_te_dhenat_2024",
     "ligji i qkb": "ligji_qkb",
     "ligji per qkb": "ligji_qkb",
     "ligji i policisë së shtetit": "ligji_policia_2024",
@@ -140,6 +142,64 @@ CODE_ALIASES: dict[str, str] = {
     "ligji i policise": "ligji_policia_2024",
 }
 
+
+# ── 16 set 2026: 29 leggi albanesi da QBZ (tools/al_sources.json) ──
+# Ogni voce: codice, frasi-base (dopo «ligji për …» o nome intero). Le forme declinate
+# («ligjit për», «ligjin për») e quelle senza dieresi (ë→e, ç→c) si generano qui sotto:
+# scriverle a mano tutte era la strada degli errori.
+_AL_NEW_ALIASES: list[tuple[str, list[str]]] = [
+    ("ligji_dnp", ["ligji për të drejtën ndërkombëtare private", "ligji i të drejtës ndërkombëtare private",
+                   "e drejta ndërkombëtare private"]),
+    ("ligji_te_huajt", ["ligji për të huajt", "ligji i të huajve"]),
+    ("ligji_shtetesia", ["ligji për shtetësinë", "ligji i shtetësisë"]),
+    ("kodi_te_miturve", ["kodi i drejtësisë penale për të mitur", "kodit të drejtësisë penale për të mitur",
+                         "kodi i drejtesise penale per te mitur", "kodi për të mitur"]),
+    ("ligji_procedurat_tatimore", ["ligji për procedurat tatimore", "ligji i procedurave tatimore"]),
+    ("ligji_tatimi_te_ardhurat", ["ligji për tatimin mbi të ardhurat", "ligji i tatimit mbi të ardhurat"]),
+    ("ligji_tvsh", ["ligji për tatimin mbi vlerën e shtuar", "ligji i tvsh-së", "ligji i tvsh", "ligji për tvsh-në",
+                    "ligji për tvsh"]),
+    ("ligji_sigurimi_mjeteve", ["ligji për sigurimin e detyrueshëm në sektorin e transportit",
+                                "ligji për sigurimin e detyrueshëm"]),
+    ("vkm_dispozita_doganore", ["dispozitat zbatuese të kodit doganor", "dispozitave zbatuese të kodit doganor",
+                                "vkm 651/2017", "vkm nr. 651"]),
+    ("ligji_ndihma_juridike", ["ligji për ndihmën juridike të garantuar nga shteti", "ligji për ndihmën juridike",
+                               "ligji i ndihmës juridike"]),
+    ("ligji_kundervajtjet", ["ligji për kundërvajtjet administrative", "ligji i kundërvajtjeve administrative"]),
+    ("ligji_permbarimi_privat", ["ligji për shërbimin përmbarimor gjyqësor privat", "ligji për shërbimin përmbarimor",
+                                 "ligji i përmbarimit"]),
+    ("ligji_dhuna_familje", ["ligji për masa ndaj dhunës në marrëdhëniet familjare", "ligji për dhunën në familje",
+                             "ligji i dhunës në familje", "ligji kundër dhunës në familje"]),
+    ("ligji_gjendja_civile", ["ligji për gjendjen civile", "ligji i gjendjes civile"]),
+    ("ligji_antimafia", ["ligji antimafia", "ligji për parandalimin dhe goditjen e krimit të organizuar"]),
+    ("ligji_te_dhenat_2024", ["ligji për mbrojtjen e të dhënave personale", "ligji i mbrojtjes së të dhënave personale"]),
+    ("ligji_sigurimet_shoqerore", ["ligji për sigurimet shoqërore", "ligji i sigurimeve shoqërore"]),
+    ("ligji_avokatia", ["ligji për profesionin e avokatit", "ligji për avokatinë", "ligji i avokatisë"]),
+    ("ligji_ndermjetesimi", ["ligji për ndërmjetësimin", "ligji i ndërmjetësimit"]),
+    ("ligji_arbitrazhi", ["ligji për arbitrazhin", "ligji i arbitrazhit"]),
+    ("ligji_planifikimi_territorit", ["ligji për planifikimin dhe zhvillimin e territorit", "ligji për planifikimin e territorit",
+                                      "ligji i planifikimit të territorit"]),
+    ("ligji_te_denuarit", ["ligji për të drejtat dhe trajtimin e të dënuarve", "ligji për trajtimin e të dënuarve"]),
+    ("ligji_prokuroria", ["ligji për organizimin dhe funksionimin e prokurorisë", "ligji për prokurorinë",
+                          "ligji i prokurorisë"]),
+    ("ligji_diskriminimi", ["ligji për mbrojtjen nga diskriminimi", "ligji kundër diskriminimit"]),
+    ("ligji_armet", ["ligji për armët", "ligji i armëve"]),
+    ("ligji_transportet_rrugore", ["ligji për transportet rrugore", "ligji i transporteve rrugore"]),
+    ("ligji_prokurimi_publik", ["ligji për prokurimin publik", "ligji i prokurimit publik"]),
+    ("ligji_trajtimi_prones", ["ligji për trajtimin e pronës", "ligji i trajtimit të pronës"]),
+    ("ligji_proceset_kalimtare", ["ligji për përfundimin e proceseve kalimtare të pronësisë",
+                                  "ligji për proceset kalimtare të pronësisë"]),
+]
+_AL_TRANSLIT = str.maketrans({"ë": "e", "ç": "c", "Ë": "e", "Ç": "c"})
+for _code, _phrases in _AL_NEW_ALIASES:
+    for _p in _phrases:
+        _forms = {_p}
+        if _p.startswith("ligji "):
+            _forms.update({"ligjit " + _p[6:], "ligjin " + _p[6:]})
+        for _f in list(_forms):
+            _forms.add(_f.translate(_AL_TRANSLIT))
+        for _f in _forms:
+            CODE_ALIASES.setdefault(_f.lower(), _code)
+
 # The 5 special laws are most often cited by statute number ("ligji nr. 9901"),
 # not by name. Map the canonical numbers to the corpus keys.
 _LAW_NUMBER_ALIASES: dict[str, str] = {
@@ -151,8 +211,29 @@ _LAW_NUMBER_ALIASES: dict[str, str] = {
     "108": "ligji_policia",              # Policia e Shtetit (108/2014)
     "750": "rregullore_policia",         # Rregullore Policia (VKM 750/2015)
     "82": "ligji_policia_2024",          # Policia e Shtetit (aktual, 82/2024)
+    # ── 16 set 2026: chiavi «NUMERO/ANNO» (i numeri piccoli si ripetono ogni anno:
+    # 111/2018 kadastra ≠ 111/2017 ndihma juridike) + numeri lunghi univoci ──
+    "111/2018": "ligji_kadastra", "110/2018": "ligji_noteri", "110/2016": "ligji_falimentimi",
+    "108/2014": "ligji_policia", "82/2024": "ligji_policia_2024", "750/2015": "rregullore_policia",
+    "10428": "ligji_dnp", "10428/2011": "ligji_dnp",
+    "79/2021": "ligji_te_huajt", "113/2020": "ligji_shtetesia", "37/2017": "kodi_te_miturve",
+    "9920": "ligji_procedurat_tatimore", "9920/2008": "ligji_procedurat_tatimore",
+    "29/2023": "ligji_tatimi_te_ardhurat", "92/2014": "ligji_tvsh",
+    "32/2021": "ligji_sigurimi_mjeteve", "10076": "ligji_sigurimi_mjeteve",   # 10076/2009 shfuqizuar → 32/2021
+    "651/2017": "vkm_dispozita_doganore", "651": "vkm_dispozita_doganore",
+    "111/2017": "ligji_ndihma_juridike", "10279": "ligji_kundervajtjet", "10279/2010": "ligji_kundervajtjet",
+    "26/2019": "ligji_permbarimi_privat", "9669": "ligji_dhuna_familje", "9669/2006": "ligji_dhuna_familje",
+    "10129": "ligji_gjendja_civile", "10129/2009": "ligji_gjendja_civile",
+    "10192": "ligji_antimafia", "10192/2009": "ligji_antimafia",
+    "124/2024": "ligji_te_dhenat_2024", "7703": "ligji_sigurimet_shoqerore", "7703/1993": "ligji_sigurimet_shoqerore",
+    "55/2018": "ligji_avokatia", "10385": "ligji_ndermjetesimi", "10385/2011": "ligji_ndermjetesimi",
+    "52/2023": "ligji_arbitrazhi", "107/2014": "ligji_planifikimi_territorit", "81/2020": "ligji_te_denuarit",
+    "97/2016": "ligji_prokuroria", "10221": "ligji_diskriminimi", "10221/2010": "ligji_diskriminimi",
+    "74/2014": "ligji_armet", "8308": "ligji_transportet_rrugore", "8308/1998": "ligji_transportet_rrugore",
+    "162/2020": "ligji_prokurimi_publik", "133/2015": "ligji_trajtimi_prones", "20/2020": "ligji_proceset_kalimtare",
 }
-_LAW_NUM_RE = re.compile(r"ligj\w*\s+(?:nr\.?\s*)?(\d{2,5})", re.IGNORECASE)
+# cattura anche l'anno («ligji nr. 79/2021», «ligjit nr. 111, datë 14.12.2017» → 111 + 2017)
+_LAW_NUM_RE = re.compile(r"ligj\w*\s+(?:nr\.?\s*)?(\d{2,5})(?:\s*/\s*(\d{4})|\s*,?\s*dat[ëe]\s*\d{1,2}\.\d{1,2}\.(\d{4}))?", re.IGNORECASE)
 
 # Human-readable label per code → shown in the UI badge.
 CODE_LABELS: dict[str, str] = {
@@ -180,6 +261,22 @@ CODE_LABELS: dict[str, str] = {
     "ligji_pastrimi_parave": "Ligji Kundër Pastrimit 9917/2008",
     "ligji_kadastra": "Ligji Kadastra 111/2018",
     "ligji_noteri": "Ligji Noteria 110/2018",
+    # ── 16 set 2026: 29 leggi da QBZ ──
+    "ligji_dnp": "Ligji DNP 10428/2011", "ligji_te_huajt": "Ligji Të Huajt 79/2021",
+    "ligji_shtetesia": "Ligji Shtetësia 113/2020", "kodi_te_miturve": "K. Drejt. Penale Të Mitur 37/2017",
+    "ligji_procedurat_tatimore": "Ligji Proc. Tatimore 9920/2008", "ligji_tatimi_te_ardhurat": "Ligji Tatimi Ardhurat 29/2023",
+    "ligji_tvsh": "Ligji TVSH 92/2014", "ligji_sigurimi_mjeteve": "Ligji Sigurimi Transport 32/2021",
+    "vkm_dispozita_doganore": "VKM 651/2017 Disp. Doganore", "ligji_ndihma_juridike": "Ligji Ndihma Juridike 111/2017",
+    "ligji_kundervajtjet": "Ligji Kundërvajtjet 10279/2010", "ligji_permbarimi_privat": "Ligji Përmbarimi 26/2019",
+    "ligji_dhuna_familje": "Ligji Dhuna në Familje 9669/2006", "ligji_gjendja_civile": "Ligji Gjendja Civile 10129/2009",
+    "ligji_antimafia": "Ligji Antimafia 10192/2009", "ligji_te_dhenat_2024": "Ligji Të Dhënat 124/2024",
+    "ligji_sigurimet_shoqerore": "Ligji Sig. Shoqërore 7703/1993", "ligji_avokatia": "Ligji Avokatia 55/2018",
+    "ligji_ndermjetesimi": "Ligji Ndërmjetësimi 10385/2011", "ligji_arbitrazhi": "Ligji Arbitrazhi 52/2023",
+    "ligji_planifikimi_territorit": "Ligji Planifikimi 107/2014", "ligji_te_denuarit": "Ligji Të Dënuarit 81/2020",
+    "ligji_prokuroria": "Ligji Prokuroria 97/2016", "ligji_diskriminimi": "Ligji Diskriminimi 10221/2010",
+    "ligji_armet": "Ligji Armët 74/2014", "ligji_transportet_rrugore": "Ligji Transportet 8308/1998",
+    "ligji_prokurimi_publik": "Ligji Prokurimi 162/2020", "ligji_trajtimi_prones": "Ligji Trajtimi Pronës 133/2015",
+    "ligji_proceset_kalimtare": "Ligji Proceset Kalimtare 20/2020",
     # ── corpus italiano ──
     "antiriciclaggio": "D.Lgs 231/2007 (antiricicl.)",
     # ── wave5 + EUR-Lex (16 set 2026) ──
@@ -200,6 +297,52 @@ CODE_LABELS: dict[str, str] = {
     "tu_registro": "TU Registro e tributi indiretti (D.Lgs 123/2025)",
     "tu_iva": "TU IVA (D.Lgs 10/2026)",
     "tu_accertamento": "TU Adempimenti e accertamento (D.Lgs 141/2026)",
+    # ── wave7 «blocco A» (16 set 2026) ──
+    "diritto_internazionale_privato": "L. 218/1995 (dir. internaz. privato)",
+    "cittadinanza": "L. 91/1992 (cittadinanza)",
+    "regolamento_cittadinanza": "DPR 572/1993 (reg. cittadinanza)",
+    "cittadini_ue": "D.Lgs 30/2007 (cittadini UE e familiari)",
+    "protezione_internazionale": "D.Lgs 25/2008 (protezione internaz.)",
+    "contratti_lavoro": "D.Lgs 81/2015 (contratti di lavoro)",
+    "orario_lavoro": "D.Lgs 66/2003 (orario di lavoro)",
+    "maternita_paternita": "D.Lgs 151/2001 (maternità/paternità)",
+    "legge_biagi": "D.Lgs 276/2003 (Biagi)",
+    "pubblico_impiego": "D.Lgs 165/2001 (pubblico impiego)",
+    "negoziazione_assistita": "DL 132/2014 (negoziazione assistita)",
+    "giudice_pace_penale": "D.Lgs 274/2000 (giudice di pace penale)",
+    "mandato_arresto_europeo": "L. 69/2005 (mandato d'arresto europeo)",
+    "casellario": "DPR 313/2002 (casellario giudiziale)",
+    "unioni_civili": "L. 76/2016 (unioni civili/convivenze)",
+    "consenso_informato_dat": "L. 219/2017 (consenso informato/DAT)",
+    "regolamento_notarile": "R.D. 1326/1914 (reg. notarile)",
+    "prestazione_energetica": "D.Lgs 192/2005 (APE)",
+    "legge_urbanistica": "L. 1150/1942 (urbanistica)",
+    "armi": "L. 110/1975 (armi)",
+    "regolamento_penitenziario": "DPR 230/2000 (reg. penitenziario)",
+    "tfue": "TFUE (Trattato sul funzionamento dell'UE)",
+    "tue": "TUE (Trattato sull'Unione europea)",
+    "carta_diritti_ue": "Carta dei diritti fondamentali UE",
+    "codice_frontiere_schengen": "Reg. (UE) 2016/399 (codice frontiere Schengen)",
+    "reg_ue_2018_1806": "Reg. (UE) 2018/1806 (visti: paesi esenti)",
+    "codice_visti": "Reg. (CE) 810/2009 (codice dei visti)",
+    "roma_iii": "Reg. (UE) 1259/2010 (Roma III)",
+    "alimenti_ue": "Reg. (CE) 4/2009 (obbligazioni alimentari)",
+    "regimi_patrimoniali_ue": "Reg. (UE) 2016/1103 (regimi patrimoniali)",
+    "ingiunzione_europea": "Reg. (CE) 1896/2006 (ingiunzione europea)",
+    "small_claims_ue": "Reg. (CE) 861/2007 (modesta entità)",
+    "notifiche_ue": "Reg. (UE) 2020/1784 (notifiche UE)",
+    # ── wave8 «blocco B»: trattati (allegato della legge di ratifica) ──
+    "convenzione_it_al_fisco": "Convenzione Italia–Albania doppie imposizioni (L. 175/1998)",
+    "protocollo_it_al_migranti": "Protocollo Italia–Albania migranti (L. 14/2024)",
+    "cedu": "CEDU (Convenzione europea dei diritti dell'uomo)",
+    "preleggi": "Preleggi (disp. sulla legge in generale, R.D. 262/1942)",
+    "cedu_protocollo_1": "Prot. n. 1 CEDU (proprietà, istruzione, elezioni)",
+    "cedu_protocollo_4": "Prot. n. 4 CEDU (circolazione, espulsioni)",
+    "cedu_protocollo_6": "Prot. n. 6 CEDU (pena di morte)",
+    "cedu_protocollo_7": "Prot. n. 7 CEDU (espulsione stranieri, ne bis in idem)",
+    "cedu_protocollo_12": "Prot. n. 12 CEDU (discriminazione)",
+    "cedu_protocollo_13": "Prot. n. 13 CEDU (pena di morte)",
+    "cedu_protocollo_16": "Prot. n. 16 CEDU (pareri consultivi)",
     "legge_notarile": "L. 89/1913 (notariato)",
     "legge_52_1985": "L. 52/1985",
     "condono_edilizio": "L. 47/1985",
@@ -326,6 +469,30 @@ _IT_CODE_CHECKS = [
     ("2312007", "antiriciclaggio"),
     ("decretoantiriciclaggio", "antiriciclaggio"),
     ("antiriciclaggio", "antiriciclaggio"),
+    # ── wave7 «blocco A» (16 set 2026): nomi per esteso (prima di «romaii»: «romaiii» lo contiene) ──
+    ("romaiii", "roma_iii"),
+    ("trattatosulfunzionamento", "tfue"), ("tfue", "tfue"),
+    ("trattatosullunioneeuropea", "tue"),
+    ("cartadeidirittifondamentali", "carta_diritti_ue"), ("cdfue", "carta_diritti_ue"),
+    ("codicefrontiereschengen", "codice_frontiere_schengen"),
+    ("codicedeivisti", "codice_visti"),
+    ("dirittointernazionaleprivato", "diritto_internazionale_privato"),
+    ("leggesullacittadinanza", "cittadinanza"), ("leggecittadinanza", "cittadinanza"),
+    ("negoziazioneassistita", "negoziazione_assistita"),
+    ("mandatodarrestoeuropeo", "mandato_arresto_europeo"),
+    ("casellariogiudiziale", "casellario"),
+    ("unionicivili", "unioni_civili"),
+    ("regolamentonotarile", "regolamento_notarile"),
+    ("leggeurbanistica", "legge_urbanistica"),
+    ("testounicopubblicoimpiego", "pubblico_impiego"),
+    ("testounicomaternita", "maternita_paternita"),
+    # preleggi (disposizioni sulla legge in generale): «art. 12 preleggi», «disp. prel. c.c.»
+    ("preleggi", "preleggi"), ("disposizionisullaleggeingenerale", "preleggi"),
+    ("disposizionipreliminari", "preleggi"), ("dispprel", "preleggi"),
+    # wave8: trattati — MAI la sigla nuda «cedu» (sta dentro «procedura»)
+    ("convenzioneitaliaalbania", "convenzione_it_al_fisco"), ("convenzionetraitaliaealbania", "convenzione_it_al_fisco"),
+    ("protocolloitaliaalbania", "protocollo_it_al_migranti"),
+    ("convenzioneeuropeadeidirittidelluomo", "cedu"), ("convenzioneeuropeaperlasalvaguardia", "cedu"),
     # ── wave5 + EUR-Lex (16 set 2026): nomi per esteso / sigle ──
     ("disposizioninazionalicomplementari", "codice_doganale_nazionale"),
     ("codicedoganalenazionale", "codice_doganale_nazionale"),
@@ -413,6 +580,19 @@ _IT_CODE_NUM_CHECKS = [
     # wave6: testi unici della riforma fiscale (prima dei vecchi atti che hanno abrogato)
     ("1732024", "tu_sanzioni_tributarie"), ("1232025", "tu_registro"), ("1412026", "tu_accertamento"),
     ("332025", "tu_riscossione"), ("102026", "tu_iva"),
+    # wave7 «blocco A»: prima le chiavi lunghe (sottostringhe: «2742000» contiene «742000»)
+    ("13261914", "regolamento_notarile"), ("11501942", "legge_urbanistica"), ("20161103", "regimi_patrimoniali_ue"),
+    ("20181806", "reg_ue_2018_1806"), ("20201784", "notifiche_ue"), ("18962006", "ingiunzione_europea"),
+    ("12592010", "roma_iii"), ("2016399", "codice_frontiere_schengen"), ("8102009", "codice_visti"),
+    ("8612007", "small_claims_ue"), ("2181995", "diritto_internazionale_privato"), ("5721993", "regolamento_cittadinanza"),
+    ("1512001", "maternita_paternita"), ("2762003", "legge_biagi"), ("1652001", "pubblico_impiego"),
+    ("1322014", "negoziazione_assistita"), ("2742000", "giudice_pace_penale"), ("3132002", "casellario"),
+    ("2192017", "consenso_informato_dat"), ("1922005", "prestazione_energetica"), ("1101975", "armi"),
+    ("2302000", "regolamento_penitenziario"), ("911992", "cittadinanza"), ("302007", "cittadini_ue"),
+    ("252008", "protezione_internazionale"), ("812015", "contratti_lavoro"), ("662003", "orario_lavoro"),
+    ("692005", "mandato_arresto_europeo"), ("762016", "unioni_civili"),
+    # wave8: trattati ratificati con legge
+    ("1751998", "convenzione_it_al_fisco"), ("8481955", "cedu"), ("142024", "protocollo_it_al_migranti"),
     ("12152012", "bruxelles_i_bis"), ("2016679", "gdpr"), ("9522013", "codice_doganale_ue"),
     ("5932008", "roma_i"), ("8642007", "roma_ii"), ("6502012", "successioni_ue"),
     ("1412024", "codice_doganale_nazionale"), ("5041995", "accise"), ("6331972", "iva"),
@@ -425,15 +605,32 @@ _IT_CODE_NUM_CHECKS = [
     ("232015", "tutele_crescenti"), ("242017", "responsabilita_sanitaria"), ("3941999", "regolamento_immigrazione"),
     ("2672000", "tuel"), ("4481988", "processo_penale_minorile"), ("1712005", "codice_nautica_diporto"),
     ("2312007", "antiriciclaggio"), ("2312001", "responsabilita_enti"), ("2852001", "codice_strada"),
-    ("3801992", "tu_edilizia"), ("2861998", "tu_immigrazione"), ("1962003", "codice_privacy"),
+    ("3802001", "tu_edilizia"), ("2861998", "tu_immigrazione"), ("1962003", "codice_privacy"),
     ("1522006", "codice_ambiente"), ("2062005", "codice_consumo"), ("2092005", "codice_assicurazioni"),
     ("812008", "sicurezza_lavoro"), ("3001970", "statuto_lavoratori"), ("2411990", "procedimento_amministrativo"),
     ("6891981", "sanzioni_amministrative"), ("1592011", "codice_antimafia"), ("142019", "codice_crisi_impresa"),
+    # ultimo perche' corto: «Reg. (CE) n. 4/2009» — dopo tutte le chiavi lunghe
+    ("42009", "alimenti_ue"),
 ]
+
+
+_CEDU_PROT = ("1", "4", "6", "7", "12", "13", "16")
 
 
 def _resolve_code_it(tail: str):
     compact = re.sub(r"[^a-z]", "", (tail or "").lower())
+    # CEDU: MAI come sottostringa compattata («procedura» contiene «cedu») — parola intera
+    # nel testo grezzo; «Prot. 1 / Protocollo n. 7 / P7 CEDU» → il protocollo, altrimenti
+    # la Convenzione (art. 1-59).
+    _low = (tail or "").lower()
+    if re.search(r"(?<![a-z])c\.?e\.?d\.?u\.?(?![a-z])", _low) or (
+            "convenzione europea" in _low and "diritti dell" in _low):
+        m = re.search(r"(?:prot(?:ocollo)?\.?\s*(?:addizionale\s*)?(?:n\.?\s*)?|(?<![a-z])p\s*)(\d{1,2})(?![\d/])", _low)
+        if m and m.group(1) in _CEDU_PROT:
+            return f"cedu_protocollo_{m.group(1)}"
+        if "addizionale" in _low:
+            return "cedu_protocollo_1"
+        return "cedu"
     for pat, code in _IT_CODE_CHECKS:
         if pat in compact:
             return code
@@ -523,7 +720,10 @@ def _resolve_code(tail: str) -> str | None:
     # No named code — try a special law cited by number ("ligji nr. 9901").
     lm = _LAW_NUM_RE.search(flat)
     if lm:
-        return _LAW_NUMBER_ALIASES.get(lm.group(1))
+        num, year = lm.group(1), (lm.group(2) or lm.group(3))
+        if year and f"{num}/{year}" in _LAW_NUMBER_ALIASES:
+            return _LAW_NUMBER_ALIASES[f"{num}/{year}"]
+        return _LAW_NUMBER_ALIASES.get(num)
     return None
 
 

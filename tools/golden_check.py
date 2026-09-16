@@ -2688,6 +2688,64 @@ def main():
     except Exception as _e76:  # noqa: BLE001
         check("corpus[76]: kontrollet u ekzekutuan", False, str(_e76))
 
+    # ── [77] BLOCCO A (16 set): internazionale privato, cittadinanza, stranieri, lavoro,
+    # procedura, famiglia, notaio + trattati/Schengen/famiglia UE — gli articoli-chiave ci sono,
+    # sono in vigore, e il risolutore li riconosce per numero/anno e per nome ──
+    try:
+        from pathlib import Path as _P77
+        _it77 = ArticleIndex.load(_P77("/app/data/index/bm25_it.pkl")).articles
+        _by77 = {(a.code, str(a.number)): a for a in _it77}
+        _need77 = [("diritto_internazionale_privato", "64"), ("diritto_internazionale_privato", "16"),
+                   ("cittadinanza", "9"), ("cittadinanza", "5"), ("cittadini_ue", "10"),
+                   ("contratti_lavoro", "19"), ("negoziazione_assistita", "6"), ("unioni_civili", "1"),
+                   ("mandato_arresto_europeo", "18"), ("casellario", "24"), ("regolamento_notarile", "1"),
+                   ("codice_frontiere_schengen", "6"), ("tfue", "45"), ("tfue", "49"), ("tue", "6"),
+                   ("carta_diritti_ue", "47"), ("roma_iii", "5"), ("alimenti_ue", "3"),
+                   ("ingiunzione_europea", "7"), ("notifiche_ue", "8"),
+                   # blocco B: trattati (allegato della legge di ratifica) + CEDU dal PDF CoE
+                   ("convenzione_it_al_fisco", "4"), ("convenzione_it_al_fisco", "15"),
+                   ("protocollo_it_al_migranti", "4"), ("cedu", "6"), ("cedu", "8"), ("cedu", "41"),
+                   ("cedu_protocollo_1", "1"), ("cedu_protocollo_4", "2"), ("cedu_protocollo_7", "4"),
+                   # atti «approvati con allegato» (flagTipoArticolo): l'art. 1 deve essere quello
+                   # dell'ALLEGATO, la legge di approvazione «1-legge», le preleggi corpus a sé
+                   ("codice_civile", "1-legge"), ("tu_iva", "1-legge"), ("codice_doganale_nazionale", "1-legge"),
+                   ("codice_civile", "1"), ("codice_civile", "2"), ("codice_civile", "10"), ("codice_civile", "31"),
+                   ("preleggi", "11"), ("preleggi", "12"), ("preleggi", "14"), ("preleggi", "15"),
+                   ("codice_doganale_nazionale", "1"), ("tu_iva", "1"), ("tuir", "1"), ("tulps", "1"),
+                   ("codice_navigazione", "1"), ("disp_att_cc", "68")]   # disp. att. art. 1 è abrogato (DPR 361/2000)
+        _miss77 = [f"{c} {n}" for c, n in _need77 if (c, n) not in _by77]
+        _dead77 = [f"{c} {n}" for c, n in _need77 if (c, n) in _by77 and _by77[(c, n)].repealed]
+        _r77 = cv._resolve_code_it
+        _res77 = {"L. 218/1995": "diritto_internazionale_privato", "L. 91/1992": "cittadinanza",
+                  "D.Lgs. 30/2007": "cittadini_ue", "D.Lgs. 81/2015": "contratti_lavoro",
+                  "D.L. 132/2014": "negoziazione_assistita", "Reg. (UE) 2016/399": "codice_frontiere_schengen",
+                  "TFUE": "tfue", "Reg. (UE) 1259/2010": "roma_iii", "Reg. (CE) n. 4/2009": "alimenti_ue",
+                  "DPR 380/2001": "tu_edilizia", "D.Lgs. 274/2000": "giudice_pace_penale",
+                  "D.Lgs. 74/2000": "reati_tributari",
+                  # CEDU: parola intera (mai «procedura»→cedu), protocolli per numero
+                  "CEDU": "cedu", "Convenzione europea dei diritti dell'uomo": "cedu",
+                  "Prot. 1 CEDU": "cedu_protocollo_1", "Protocollo addizionale alla CEDU": "cedu_protocollo_1",
+                  "Protocollo n. 7 CEDU": "cedu_protocollo_7", "P7 CEDU": "cedu_protocollo_7",
+                  "c.p.c.": "codice_procedura_civile", "codice di procedura civile": "codice_procedura_civile",
+                  "L. 175/1998": "convenzione_it_al_fisco",
+                  "preleggi": "preleggi", "disp. prel. c.c.": "preleggi", "disposizioni sulla legge in generale": "preleggi"}
+        _bad77 = [f"{k}->{_r77(k)}" for k, v in _res77.items() if _r77(k) != v]
+        # atti «approvati con allegato» (16 set): l'art. 1 era quello della legge di
+        # approvazione («È approvato l'unito testo unico…») e l'art. 1 dell'allegato spariva
+        import re as _re77
+        _appr77 = _re77.compile(r"^\s*(?:1\.\s*)?(?:è|e')\s+approvat|^\s*(?:1\.\s*)?sono approvat|autorizzato a ratificare", _re77.I)
+        # (TUEL e beni culturali esclusi: hanno UN solo gruppo e Normattiva serve come art. 1 la
+        # formula di approvazione — residuo documentato in CLAUDE.md v9.327)
+        _ann77 = [c for c in ("codice_civile", "tu_iva", "tu_riscossione", "codice_doganale_nazionale",
+                              "codice_navigazione", "disp_att_cc", "tulps", "tuir", "convenzione_it_al_fisco")
+                  if (c, "1") in _by77 and _appr77.search(_by77[(c, "1")].body[:200])]
+        check("corpus[77]: blocco A+B nel corpus (L. 218/95 art. 64, cittadinanza art. 9, Schengen art. 6, TFUE 45/49, Roma III, alimenti, MAE, casellario, convenzione IT-AL, CEDU+protocolli), in vigore; art. 1 = allegato (non la legge di approvazione); risolutore per numero/anno, nome e CEDU",
+              not _miss77 and not _dead77 and not _bad77 and not _ann77,
+              "mancano: %s | abrogati: %s | risolutore: %s | art.1 = legge di approvazione: %s" % (
+                  ", ".join(_miss77)[:160], ", ".join(_dead77)[:80], ", ".join(_bad77)[:160], ", ".join(_ann77)[:100]))
+    except Exception as _e77:  # noqa: BLE001
+        check("corpus[77]: kontrollet u ekzekutuan", False, str(_e77))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

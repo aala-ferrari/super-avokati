@@ -39,6 +39,20 @@ ACTS_EU = [
     ("roma_ii", "Regolamento (CE) 864/2007 — legge applicabile alle obbligazioni extracontrattuali (Roma II)", "Civile", "32007R0864"),
     ("bruxelles_ii_ter", "Regolamento (UE) 2019/1111 — matrimonio, responsabilità genitoriale, sottrazione di minori (Bruxelles II-ter)", "Famiglia", "32019R1111"),
     ("successioni_ue", "Regolamento (UE) 650/2012 — successioni transfrontaliere e certificato successorio europeo", "Notarile", "32012R0650"),
+    # ── «blocco A» (16 set 2026): trattati, frontiere/visti, famiglia e procedura civile UE ──
+    # i trattati non hanno versioni consolidate «0…-data»: il CELEX e' gia' il testo vigente
+    ("tfue", "Trattato sul funzionamento dell'Unione europea (TFUE)", "Unione Europea", "12016E/TXT"),
+    ("tue", "Trattato sull'Unione europea (TUE)", "Unione Europea", "12016M/TXT"),
+    ("carta_diritti_ue", "Carta dei diritti fondamentali dell'Unione europea", "Unione Europea", "12016P/TXT"),
+    ("codice_frontiere_schengen", "Regolamento (UE) 2016/399 — codice frontiere Schengen (ingresso, 90 giorni su 180)", "Immigrazione", "32016R0399"),
+    ("reg_ue_2018_1806", "Regolamento (UE) 2018/1806 — paesi terzi soggetti all'obbligo del visto o esenti (Albania esente)", "Immigrazione", "32018R1806"),
+    ("codice_visti", "Regolamento (CE) 810/2009 — codice comunitario dei visti", "Immigrazione", "32009R0810"),
+    ("roma_iii", "Regolamento (UE) 1259/2010 — legge applicabile al divorzio e alla separazione (Roma III)", "Famiglia", "32010R1259"),
+    ("alimenti_ue", "Regolamento (CE) 4/2009 — obbligazioni alimentari: competenza, legge applicabile, esecuzione", "Famiglia", "32009R0004"),
+    ("regimi_patrimoniali_ue", "Regolamento (UE) 2016/1103 — regimi patrimoniali tra coniugi", "Famiglia", "32016R1103"),
+    ("ingiunzione_europea", "Regolamento (CE) 1896/2006 — procedimento europeo d'ingiunzione di pagamento", "Procedura Civile", "32006R1896"),
+    ("small_claims_ue", "Regolamento (CE) 861/2007 — procedimento europeo per le controversie di modesta entità", "Procedura Civile", "32007R0861"),
+    ("notifiche_ue", "Regolamento (UE) 2020/1784 — notificazione e comunicazione degli atti giudiziari ed extragiudiziali", "Procedura Civile", "32020R1784"),
 ]
 
 
@@ -108,6 +122,27 @@ def _mk(num: str, suffix: str, heading: str, body: str) -> dict:
     repealed = bool(re.match(r"^\s*\(?(soppresso|abrogato)\)?\s*\.?\s*$", body, re.I)) or body == ""
     return {"number": number, "heading": heading[:300], "body": body,
             "repealed": repealed, "in_force_from": ""}
+
+
+# I trattati (TFUE/TUE) su EUR-Lex sono seguiti dai PROTOCOLLI e dagli allegati, la cui
+# numerazione riparte da «Articolo 1» decine di volte (TFUE: 656 «ti-art» per 358 articoli):
+# _dedup terrebbe il protocollo piu' lungo al posto dell'articolo del trattato. Si legge
+# fino al primo riavvio della numerazione.
+_STOP_ON_RESTART = {"tfue", "tue"}
+
+
+def _cut_at_restart(html_text: str) -> str:
+    last = 0
+    for m in _ART.finditer(html_text):
+        n = int(m.group(1))
+        if n < last:
+            return html_text[:m.start()]
+        last = n
+    return html_text
+
+
+def _cut(cid: str, html_text: str) -> str:
+    return _cut_at_restart(html_text) if cid in _STOP_ON_RESTART else html_text
 
 
 def parse(html_text: str) -> list[dict]:
@@ -220,7 +255,7 @@ def main() -> None:
         #    e' isolato: un 404 non deve far saltare l'atto (roma_ii, 16 set)
         for cx in consolidated_versions(base)[:4]:
             try:
-                arts = parse(fetch(f"https://eur-lex.europa.eu/legal-content/IT/TXT/HTML/?uri=CELEX:{cx}"))
+                arts = parse(_cut(cid, fetch(f"https://eur-lex.europa.eu/legal-content/IT/TXT/HTML/?uri=CELEX:{cx}")))
                 if len(arts) >= 5:
                     src, celex = "html-consolidato", cx
                     break
@@ -241,7 +276,7 @@ def main() -> None:
         # 2) atto originale (Gazzetta ufficiale UE, senza modifiche successive)
         if len(arts) < 5:
             try:
-                arts = parse(fetch(f"https://eur-lex.europa.eu/legal-content/IT/TXT/HTML/?uri=CELEX:{base}"))
+                arts = parse(_cut(cid, fetch(f"https://eur-lex.europa.eu/legal-content/IT/TXT/HTML/?uri=CELEX:{base}")))
                 src, celex = "html-originale", base
             except Exception as exc:  # noqa: BLE001
                 print(f"  ✗ {cid} FALLITO: {type(exc).__name__}: {str(exc)[:120]}", flush=True)

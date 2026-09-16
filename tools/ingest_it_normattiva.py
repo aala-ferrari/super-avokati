@@ -71,6 +71,36 @@ ACTS = [
     ("equa_riparazione", "Legge Pinto — equa riparazione (L. 89/2001)", "Procedura Civile", "legge:2001-03-24;89", "wave4"),
     # AML — per il tool antiriciclaggio del notaio (adeguata verifica, SOS a UIF)
     ("antiriciclaggio", "Antiriciclaggio (D.Lgs 231/2007)", "Antiriciclaggio", "decreto.legislativo:2007-11-21;231", "wave_aml"),
+    # ── wave8 (16 set 2026, «blocco B»): trattati ratificati con legge — il testo sta
+    # nell'ALLEGATO della legge di ratifica (Normattiva lo dà per il DNC; qui va verificato
+    # atto per atto: se escono solo i 3-4 articoli di ratifica, il trattato NON c'è) ──
+    ("convenzione_it_al_fisco", "Convenzione Italia–Albania contro le doppie imposizioni (L. 175/1998)", "Internazionale", "legge:1998-05-21;175", "wave8"),
+    ("protocollo_it_al_migranti", "Protocollo Italia–Albania sul rafforzamento della collaborazione in materia migratoria (L. 14/2024)", "Internazionale", "legge:2024-02-21;14", "wave8"),
+    ("cedu", "Convenzione europea per la salvaguardia dei diritti dell'uomo — CEDU (L. 848/1955)", "Internazionale", "legge:1955-08-04;848", "wave8"),
+    ("apostille", "Convenzione dell'Aja sull'apostille — abolizione della legalizzazione (L. 1253/1966)", "Internazionale", "legge:1966-12-20;1253", "wave8"),
+    # ── wave7 (16 set 2026, «blocco A»): i vuoti veri — internazionale privato, cittadinanza,
+    # stranieri, lavoro, procedura, famiglia, notaio, urbanistica, armi, penitenziario ──
+    ("diritto_internazionale_privato", "Riforma del sistema italiano di diritto internazionale privato (L. 218/1995)", "Internazionale", "legge:1995-05-31;218", "wave7"),
+    ("cittadinanza", "Nuove norme sulla cittadinanza (L. 91/1992)", "Cittadinanza", "legge:1992-02-05;91", "wave7"),
+    ("regolamento_cittadinanza", "Regolamento di esecuzione della legge sulla cittadinanza (DPR 572/1993)", "Cittadinanza", "decreto.presidente.repubblica:1993-10-12;572", "wave7"),
+    ("cittadini_ue", "Diritto dei cittadini UE e dei loro familiari di circolare e soggiornare (D.Lgs 30/2007)", "Immigrazione", "decreto.legislativo:2007-02-06;30", "wave7"),
+    ("protezione_internazionale", "Procedure per il riconoscimento e la revoca della protezione internazionale (D.Lgs 25/2008)", "Immigrazione", "decreto.legislativo:2008-01-28;25", "wave7"),
+    ("contratti_lavoro", "Disciplina organica dei contratti di lavoro — a termine, somministrazione, part-time, apprendistato (D.Lgs 81/2015)", "Lavoro", "decreto.legislativo:2015-06-15;81", "wave7"),
+    ("orario_lavoro", "Organizzazione dell'orario di lavoro (D.Lgs 66/2003)", "Lavoro", "decreto.legislativo:2003-04-08;66", "wave7"),
+    ("maternita_paternita", "Testo Unico maternità e paternità (D.Lgs 151/2001)", "Lavoro", "decreto.legislativo:2001-03-26;151", "wave7"),
+    ("legge_biagi", "Mercato del lavoro — somministrazione, appalto, distacco (D.Lgs 276/2003)", "Lavoro", "decreto.legislativo:2003-09-10;276", "wave7"),
+    ("pubblico_impiego", "Testo Unico del pubblico impiego (D.Lgs 165/2001)", "Lavoro", "decreto.legislativo:2001-03-30;165", "wave7"),
+    ("negoziazione_assistita", "Negoziazione assistita, separazione e divorzio senza giudice (DL 132/2014)", "Procedura Civile", "decreto.legge:2014-09-12;132", "wave7"),
+    ("giudice_pace_penale", "Competenza penale del giudice di pace (D.Lgs 274/2000)", "Procedura Penale", "decreto.legislativo:2000-08-28;274", "wave7"),
+    ("mandato_arresto_europeo", "Mandato d'arresto europeo e procedure di consegna (L. 69/2005)", "Procedura Penale", "legge:2005-04-22;69", "wave7"),
+    ("casellario", "Testo Unico del casellario giudiziale (DPR 313/2002)", "Procedura Penale", "decreto.presidente.repubblica:2002-11-14;313", "wave7"),
+    ("unioni_civili", "Unioni civili e convivenze di fatto (L. 76/2016)", "Famiglia", "legge:2016-05-20;76", "wave7"),
+    ("consenso_informato_dat", "Consenso informato e disposizioni anticipate di trattamento (L. 219/2017)", "Notarile", "legge:2017-12-22;219", "wave7"),
+    ("regolamento_notarile", "Regolamento per l'esecuzione della legge notarile (R.D. 1326/1914)", "Notarile", "regio.decreto:1914-09-10;1326", "wave7"),
+    ("prestazione_energetica", "Rendimento energetico nell'edilizia — APE (D.Lgs 192/2005)", "Edilizia", "decreto.legislativo:2005-08-19;192", "wave7"),
+    ("legge_urbanistica", "Legge urbanistica (L. 1150/1942)", "Edilizia", "legge:1942-08-17;1150", "wave7"),
+    ("armi", "Norme integrative per il controllo delle armi (L. 110/1975)", "Sicurezza", "legge:1975-04-18;110", "wave7"),
+    ("regolamento_penitenziario", "Regolamento sull'ordinamento penitenziario (DPR 230/2000)", "Penale", "decreto.presidente.repubblica:2000-06-30;230", "wave7"),
     # ── wave6 (16 set 2026): i TESTI UNICI della riforma fiscale (delega L. 111/2023) che hanno
     # ABROGATO gli atti della wave5 — scoperto dal golden [76]: DPR 602/1973 tutto «PROVVEDIMENTO
     # ABROGATO», IVA 151/164, registro 86/87, sanzioni 32/33, reati trib. 33/34, DPR 600 79/103.
@@ -117,7 +147,8 @@ ACTS = [
 
 def main():
     want = sys.argv[1] if len(sys.argv) > 1 else None
-    todo = [a for a in ACTS if not want or a[4] == want]
+    # argomento = nome della wave («wave7») OPPURE id di un singolo atto («codice_civile»)
+    todo = [a for a in ACTS if not want or a[4] == want or a[0] == want]
     print(f"acts to process: {len(todo)}" + (f" (wave={want})" if want else ""), flush=True)
     for cid, title, area, urn, wave in todo:
         dest = OUT / f"{cid}.json"
@@ -139,6 +170,19 @@ def main():
         except Exception as e:  # noqa: BLE001
             print(f"  ✗ {cid} FALLITO: {type(e).__name__}: {str(e)[:120]}", flush=True)
             continue
+        # R.D. 262/1942: gruppo 0 = decreto («1-legge»), gruppo 1 = preleggi («N-all1»),
+        # gruppo 2 = il codice. Le preleggi diventano il corpus a sé `preleggi` (si citano
+        # «art. 12 preleggi», non «art. 12 c.c.»).
+        if cid == "codice_civile":
+            prel = [a for a in arts if a["number"].endswith("-all1")]
+            if prel:
+                arts = [a for a in arts if not a["number"].endswith("-all1")]
+                (OUT / "preleggi.json").write_text(json.dumps({
+                    "id": "preleggi", "title": "Disposizioni sulla legge in generale — preleggi al codice civile (R.D. 262/1942)",
+                    "area": "Civile", "urn": urn, "wave": wave, "source": "normattiva-allegato-1",
+                    "articles": [dict(a, number=a["number"][:-5]) for a in prel], "failures": []},
+                    ensure_ascii=False), encoding="utf-8")
+                print(f"  ✓ preleggi: {len(prel)} articoli (dal gruppo 1 del c.c.)", flush=True)
         payload = {"id": cid, "title": title, "area": area, "urn": urn, "wave": wave,
                    "articles": arts, "failures": fails}
         dest.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")

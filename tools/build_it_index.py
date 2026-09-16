@@ -16,7 +16,7 @@ CODES_META = Path("/app/data/processed/it_codes.json")
 INDEX = Path("/app/data/index/bm25_it.pkl")
 
 # display order: fundamentals first, then by area
-ORDER = ["costituzione", "codice_civile", "disp_att_cc", "codice_procedura_civile",
+ORDER = ["costituzione", "codice_civile", "preleggi", "disp_att_cc", "codice_procedura_civile",
          "codice_penale", "codice_procedura_penale", "disp_att_cpp",
          "codice_strada", "regolamento_strada", "codice_consumo", "codice_crisi_impresa",
          "ordinamento_polizia", "tulps", "statuto_lavoratori", "sicurezza_lavoro",
@@ -40,7 +40,21 @@ ORDER = ["costituzione", "codice_civile", "disp_att_cc", "codice_procedura_civil
          "responsabilita_sanitaria", "regolamento_immigrazione", "tuel", "processo_penale_minorile",
          "codice_nautica_diporto", "gdpr",
          # wave6 (16 set 2026) — testi unici della riforma fiscale (sostituiscono gli atti abrogati)
-         "tu_sanzioni_tributarie", "tu_riscossione", "tu_registro", "tu_iva", "tu_accertamento"]
+         "tu_sanzioni_tributarie", "tu_riscossione", "tu_registro", "tu_iva", "tu_accertamento",
+         # wave7 «blocco A» (16 set 2026)
+         "diritto_internazionale_privato", "cittadinanza", "regolamento_cittadinanza", "cittadini_ue",
+         "protezione_internazionale", "contratti_lavoro", "orario_lavoro", "maternita_paternita",
+         "legge_biagi", "pubblico_impiego", "negoziazione_assistita", "giudice_pace_penale",
+         "mandato_arresto_europeo", "casellario", "unioni_civili", "consenso_informato_dat",
+         "regolamento_notarile", "prestazione_energetica", "legge_urbanistica", "armi",
+         "regolamento_penitenziario",
+         "tfue", "tue", "carta_diritti_ue", "codice_frontiere_schengen", "reg_ue_2018_1806",
+         "codice_visti", "roma_iii", "alimenti_ue", "regimi_patrimoniali_ue", "ingiunzione_europea",
+         "small_claims_ue", "notifiche_ue",
+         # wave8 «blocco B»: trattati
+         "convenzione_it_al_fisco", "protocollo_it_al_migranti", "cedu", "cedu_protocollo_1",
+         "cedu_protocollo_4", "cedu_protocollo_6", "cedu_protocollo_7", "cedu_protocollo_12",
+         "cedu_protocollo_13", "cedu_protocollo_16"]
 
 
 def _as_bool(v) -> bool:

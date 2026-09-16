@@ -44,7 +44,7 @@ REPEALED_MARKERS = ("shfuqizuar", "shfuqizohet")
 # Slug dei corpora italiani: servono a citare "art. N" invece di "Neni N".
 _IT_CODE_PREFIXES = ("codice_", "tu_", "disp_att_", "regolamento_", "reg_ue_",
                      "legge_", "imposta_", "locazioni_", "ordinamento_", "sanzioni_",
-                     "bruxelles_", "roma_")
+                     "bruxelles_", "roma_", "cedu", "convenzione_", "protocollo_")
 # Ogni corpus italiano DEVE stare qui o sotto un prefisso: altrimenti la sua
 # citazione esce «Neni N i …» dentro la sessione italiana (visto il 16 set 2026
 # sui regolamenti UE e sull'antiriciclaggio). Guard: golden [76] controlla che
@@ -59,6 +59,15 @@ _IT_CODE_EXACT = frozenset({
     "immobili_da_costruire", "successioni_ue", "mediazione_civile",
     "riti_civili_semplificati", "licenziamenti_individuali", "tutele_crescenti",
     "processo_penale_minorile", "gdpr",
+    # wave7 «blocco A» (16 set 2026): internazionale, cittadinanza, stranieri, lavoro,
+    # procedura, famiglia, notaio, armi + trattati/regolamenti UE
+    "diritto_internazionale_privato", "cittadinanza", "cittadini_ue", "protezione_internazionale",
+    "contratti_lavoro", "orario_lavoro", "maternita_paternita", "pubblico_impiego",
+    "negoziazione_assistita", "giudice_pace_penale", "mandato_arresto_europeo", "casellario",
+    "unioni_civili", "consenso_informato_dat", "prestazione_energetica", "armi",
+    "tfue", "tue", "carta_diritti_ue", "alimenti_ue", "regimi_patrimoniali_ue",
+    "ingiunzione_europea", "small_claims_ue", "notifiche_ue",
+    "preleggi",   # disposizioni sulla legge in generale (allegato 1 del R.D. 262/1942)
 })
 
 

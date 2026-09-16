@@ -4,7 +4,7 @@ Strumento AI per avvocati (B2B), **bi-giurisdizione AL + IT**. Front-end Flask
 su porta 5050, SQLite (`data/app.db`) + Postgres `legalkb` per i casi
 giurisprudenziali. Due corpora BM25 SEPARATI:
 - **AL** (`bm25.pkl`): 6320 nene / 24 codici (+ Ligji 9917/2008 antiriciclaggio, + Ligji 111/2018 kadastra, + Ligji 110/2018 noteri) + `bm25_decisions.pkl` 1258 precedenti
-- **IT** (`bm25_it.pkl`): **85 atti / 20.254 articoli** (v9.326: +27 Normattiva wave5, +5 testi unici wave6 (sanzioni trib. 173/2024, riscossione 33/2025, registro 123/2025, IVA 10/2026, accertamento 141/2026) dogane/tributario/notarile/procedura/lavoro, +9 regolamenti UE da EUR-Lex: CDU, Reg. 2015/2446-2447, GDPR, Bruxelles I-bis/II-ter, Roma I/II, successioni 650/2012)
+- **IT** (`bm25_it.pkl`): **129 atti / 22.779 articoli** (v9.326-327: +27 Normattiva wave5, +5 testi unici wave6, +21 wave7 blocco A, +12 UE (TFUE/TUE/Carta/Schengen…), +2 trattati IT-AL, CEDU + 7 protocolli, preleggi (sanzioni trib. 173/2024, riscossione 33/2025, registro 123/2025, IVA 10/2026, accertamento 141/2026) dogane/tributario/notarile/procedura/lavoro, +9 regolamenti UE da EUR-Lex: CDU, Reg. 2015/2446-2447, GDPR, Bruxelles I-bis/II-ter, Roma I/II, successioni 650/2012)
   (Kushtetuese + Gjykata e Lartë + CEDU).
 - **IT** (`bm25_it.pkl`): **15.595 articoli / 44 corpora** da Normattiva (+ D.Lgs 231/2007 antiriciclaggio)
   (testi vigenti ufficiali) — vedi "CORPUS ITALIANO" più sotto.
@@ -1434,6 +1434,58 @@ rischio residuo della DPIA.
 - Super Avokati ha auth propria (login_required_api); utenti creati da admin o auto-provisionati da AALA (`/api/provision-demo`, secret-guarded).
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
+
+**v9.327 — BLOCCO A + B del corpus italiano (16 set): 85→129 atti, 20.254→22.779 articoli; la
+riparazione degli atti «approvati con allegato»; 433 articoli «abrogati» per sbaglio tornati
+vivi.** Terzo difetto trovato: `is_repealed` marcava abrogato ogni articolo con la parola
+«abrogato» nei primi 400 caratteri — e `search()` lo saltava: c.p. 17 «Pene principali», c.p.c.
+12, c.c. 27, TUF 22 articoli, tutti gli articoli «Abrogazioni» dei testi unici, art. 15 preleggi
+(433 in tutto). Ora scatta solo sulla nota editoriale MAIUSCOLA «ARTICOLO/PROVVEDIMENTO
+ABROGATO» nei primi 400 caratteri (mai «COMMA ABROGATO»), o su un moncone <200 chr;
+`tools/recompute_repealed.py` ricalcola il flag su tutti gli atti senza riscaricare. Il titolare: «vai col blocco A,
+poi l'Albania e blocco B, tutto step by step senza errori». **Wave7 Normattiva (21 atti, 1.374
+art., 0 falliti)**: L. 218/1995 dir. internaz. privato 80, cittadinanza L. 91/92 33 + DPR 572/93
+19, cittadini UE D.Lgs 30/2007 28, protezione internaz. D.Lgs 25/2008 50, contratti di lavoro
+D.Lgs 81/2015 66, orario 66/2003 20, maternità 151/2001 95, Biagi 276/2003 88, pubblico impiego
+165/2001 105, negoziazione assistita DL 132/2014 39, giudice di pace penale 274/2000 71, MAE L.
+69/2005 45, casellario DPR 313/2002 64, unioni civili L. 76/2016 1, DAT L. 219/2017 8, **regolamento
+notarile R.D. 1326/1914 306**, APE 192/2005 21, urbanistica 1150/42 52, armi 110/75 47, reg.
+penitenziario DPR 230/2000 136. **EUR-Lex (12 atti, 851 art.)**: TFUE 358 / TUE 55 / Carta 54 (le
+pagine dei trattati contengono anche i PROTOCOLLI con numerazione che riparte: `_cut_at_restart`
+taglia al primo riavvio, altrimenti `_dedup` teneva il protocollo più lungo al posto dell'articolo),
+codice frontiere Schengen 47, reg. 2018/1806 15, codice visti 55, Roma III 21, alimenti 4/2009 76,
+regimi patrimoniali 70, ingiunzione europea 33, small claims 29, notifiche 2020/1784 38. **Blocco B
+(wave8)**: convenzione Italia–Albania doppie imposizioni L. 175/1998 e protocollo migranti L.
+14/2024 — Normattiva dà l'ALLEGATO della legge di ratifica ✓; CEDU e apostille NO (solo i 2
+articoli di ratifica) → **`tools/ingest_cedu.py`**: PDF ufficiale della Corte EDU (italiano, a DUE
+COLONNE: estratto intero mischia «ARTICOLO 11 ARTICOLO 14»; letto colonna per colonna con
+`page.crop`) → `cedu` 59 art. + 7 protocolli (`cedu_protocollo_1/4/6/7/12/13/16`, 57 art.);
+apostille rimandata (nessun testo italiano ufficiale online). Verificatore: `_resolve_code_it`
+riconosce **CEDU solo come parola intera** («procedura» contiene «cedu») e i protocolli per
+numero («Prot. 1», «Protocollo n. 7», «P7»); 34 label/chiavi nuove; **bug pre-esistente**
+`("3801992","tu_edilizia")` → `3802001`. **DIFETTO GRAVE trovato leggendo la convenzione: negli
+atti «approvati con allegato» l'art. 1-3 dell'ALLEGATO sparivano** — `normattiva_lib.ingest_act`
+teneva il corpo più lungo a parità di numero, e la legge di approvazione («1. È approvato l'unito
+testo unico…») vinceva: **c.c. art. 1 (capacità giuridica) e art. 2 (maggiore età), TUEL,
+TUIR, TU IVA/registro/riscossione/sanzioni/accertamento, DNC, CPA, disp. att. c.c./c.p.p.,
+TULPS, navigazione, beni culturali, giustizia tributaria, successioni, minorile, convenzione
+IT-AL, protocollo** = 20 atti. Prima ipotesi («vince chi viene dopo») SBAGLIATA e smentita
+rileggendo 20 atti (~1h): la vera causa è in `article_links`, che deduplicava per
+`idArticolo+idSottoArticolo` mentre Normattiva distingue i gruppi con **`art.flagTipoArticolo`**
+(0 = articoli dell'atto di approvazione, 1 = allegato, 2 = altro allegato) — l'«art. 1»
+dell'allegato ha lo STESSO idArticolo dell'art. 1 del decreto e veniva buttato. Nel c.c. (R.D.
+262/1942) i gruppi sono 3: decreto (2), **preleggi (31)**, codice (2969): il corpus aveva
+decreto 1-2 + preleggi 3-31 al posto degli artt. 1-31 del codice **dalla v9.131**. Cura:
+`article_links_all` (gruppo nel link) + `assign_numbers` (gruppo più grande = testo, gruppo 0 =
+«N-legge», altro gruppo numerato = «N-allK», Tabelle/testo inglese scartati) + corpus nuovo
+**`preleggi`** (31 art., «art. 12 preleggi»); `tools/repair_annex_numbering.py` ripara SENZA
+riscaricare (riapre la pagina, riscarica solo gli id in più gruppi: c.c. 64 fetch, DNC 20, TU 2).
+Residuo accettato: **TUEL e Codice beni culturali** hanno UN solo gruppo e Normattiva serve come
+«art. 1» la formula di approvazione («È approvato l'unito testo unico…, composto di 275
+articoli») — l'art. 1 «Oggetto»/«Principi» non esiste come pagina; dall'art. 2 tutto regolare.
+`ingest_it_normattiva.py <id>` ora accetta anche il singolo atto. Golden **[77]**
+(articoli-chiave blocco A+B, in vigore, risolutore 78 casi). Corpus AL: agente in cerca dei PDF
+delle 29 leggi mancanti (⚠️ ligji 9887/2008 dati personali superato dalla 124/2024).
 
 **v9.326 — CORPUS ITALIANO 44→85 atti, 15.595→20.254 articoli: dogane, tributario (coi testi
 unici 2024-2026), notarile, procedura, lavoro + 9 regolamenti UE da EUR-Lex (16 set). Golden 462.** Richiesta del titolare: «aggiungi il

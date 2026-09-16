@@ -87,6 +87,28 @@ class Normattiva:
             out.append((_html.unescape(u), label.strip()))
         return out
 
+    @staticmethod
+    def article_links_all(act_html):
+        """Tutti i link-articolo correnti, con il GRUPPO `art.flagTipoArticolo`:
+        0 = articoli dell'atto stesso (decreto/legge di approvazione o ratifica),
+        1 = allegato, 2+ = altri allegati (c.c.: 1 = preleggi, 2 = il codice; convenzione
+        IT-AL: 2 = testo inglese; TU IVA: 2 = tabelle). La dedup di article_links
+        (chiave idArticolo+idSottoArticolo) buttava via gli allegati con gli stessi
+        numeri: c.c. artt. 1-31, DNC 1-10, l'art. 1 di ogni testo unico (16 set 2026)."""
+        out, seen = [], set()
+        for u, label in LINK_RE.findall(act_html):
+            if "imUpdate=true" in u or label.strip().lower().startswith("agg"):
+                continue
+            m = re.search(r"art\.idArticolo=(\d+)", u)
+            ms = re.search(r"art\.idSottoArticolo=(\d+)", u)
+            mf = re.search(r"flagTipoArticolo=(\d+)", u)
+            key = (m.group(1) if m else label.strip(), ms.group(1) if ms else "", mf.group(1) if mf else "0")
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append((_html.unescape(u), label.strip(), key[2]))
+        return out
+
     def fetch_article(self, href):
         time.sleep(self.delay)
         return self._get(HOST + href if href.startswith("/") else href)
@@ -113,6 +135,30 @@ CHROME_RE = re.compile(r"(?m)^\s*(Articoli|Approfondimenti e Funzioni|articolo p
                        r"articolo successivo|aggiornamenti all'articolo|Testo in vigore dal:.*|"
                        r"flagTipoArticolo:.*|descrizione.*|progressivo:.*|version:.*|"
                        r"tipoArticolo:.*|\(.*-art\.\s*[0-9]+.*\)|-->)\s*$")
+
+
+# «Abrogato» solo quando l'articolo NON C'E' PIU': Normattiva scrive in testa
+# «((ARTICOLO ABROGATO DAL …))» / «((PROVVEDIMENTO ABROGATO …))». La vecchia regola (la parola
+# «abrogato» nei primi 400 caratteri) marcava abrogati — e la ricerca saltava — gli articoli
+# che PARLANO di abrogazioni: art. 15 preleggi «Abrogazione delle leggi», gli articoli
+# «Abrogazioni» dei testi unici, TUEL 274 «Norme abrogate» (16 set 2026).
+# La nota editoriale di Normattiva sta tra doppie parentesi e dice ARTICOLO/PROVVEDIMENTO
+# (mai «COMMA ABROGATO» o «NUMERO ABROGATO», che sono abrogazioni parziali di un articolo vivo);
+# a volte è preceduta dalla rubrica o dal titolo dell'allegato → si cerca nei primi 400 caratteri.
+# MAIUSCOLO e senza re.I: la nota è «((ARTICOLO ABROGATO DAL …))», ma capita anche
+# «( ARTICOLO ABROGATO DALLA L. …» o nella rubrica senza parentesi (c.c. 2429-bis); la prosa
+# normale scrive «l'articolo abrogato» in minuscolo e non deve scattare.
+_ABRO_MARK = re.compile(r"(?:ARTICOLO|ART\.|PROVVEDIMENTO)\s+(?:ABROGAT[OAI]|SOPPRESS[OAI])")
+_ABRO_WORD = re.compile(r"\b(abrogat[oiae]|soppress[oiae])\b", re.I)
+
+
+def is_repealed(heading, body):
+    h, b = (heading or "").strip(), (body or "").strip()
+    if _ABRO_MARK.search((h + "\n" + b)[:400]):
+        return True
+    if "[Articolo abrogato o senza testo]" in b:
+        return True
+    return len(b) < 200 and bool(_ABRO_WORD.search(h + " " + b))   # moncone: solo la nota di abrogazione
 
 
 def parse_article_page(page_html, fallback_number=""):
@@ -168,8 +214,7 @@ def parse_article_page(page_html, fallback_number=""):
     body = "\n".join(p for p in parts if p).strip()
     body = CHROME_RE.sub("", body).strip()
     body = re.sub(r"\n{3,}", "\n\n", body)
-    repealed = bool(re.search(r"\b(abrogat[oiae]|soppress[oiae])\b",
-                              (heading + " " + body[:400]), re.I))
+    repealed = is_repealed(heading, body)
     if len(body) < 3:
         body = "[Articolo abrogato o senza testo]" if repealed else (heading or "[senza testo]")
     return {"number": number, "heading": heading, "body": body,
@@ -188,27 +233,63 @@ def sortkey(num):
     return (int(m.group(1)), rank)
 
 
-def ingest_act(urn, delay=0.45, progress=None, limit=None):
-    """Full act -> list of parsed article dicts."""
-    nm = Normattiva(delay=delay)
-    act = nm.open_act(urn)
-    links = nm.article_links(act)
-    if limit:
-        links = links[:limit]
-    arts, fails = [], []
-    for i, (href, label) in enumerate(links, 1):
-        try:
-            page = nm.fetch_article(href)
-            a = parse_article_page(page, fallback_number=label)
-            if a:
-                arts.append(a)
-        except Exception as e:  # noqa: BLE001
-            fails.append((label, str(e)[:70]))
-        if progress and (i % 25 == 0 or i == len(links)):
-            progress(i, len(links), len(arts), len(fails))
+def _dedup_longest(arts):
+    """Stesso numero nello stesso gruppo (indice che ripete i titoli): resta il corpo più lungo."""
     best = {}
     for a in arts:
         cur = best.get(a["number"])
         if cur is None or len(a["body"]) > len(cur["body"]):
             best[a["number"]] = a
-    return [best[k] for k in sorted(best, key=sortkey)], fails
+    return [best[k] for k in sorted(best, key=sortkey)]
+
+
+def assign_numbers(arts, sizes=None):
+    """Numerazione per GRUPPO (16 set 2026) per gli atti «approvati con allegato».
+
+    Il gruppo con più articoli è il testo principale e tiene i numeri; il gruppo 0 (l'atto
+    di approvazione/ratifica: «1. È approvato l'unito testo unico…», 1-10 articoli) diventa
+    «N-legge»; un altro gruppo numerato («art. N», es. le preleggi del c.c.) diventa
+    «N-allK» (il chiamante può poi farne un corpus a sé); i gruppi non numerati (Tabelle,
+    testo inglese della convenzione) si scartano. Prima vinceva il corpo più lungo e i TU
+    perdevano l'art. 1 dell'allegato, il c.c. gli artt. 1-31.
+    `sizes` = dimensione completa di ogni gruppo (per la riparazione parziale)."""
+    groups = {}
+    for a in arts:
+        groups.setdefault(str(a.get("group", "0")), []).append(a)
+    sizes = sizes or {g: len(v) for g, v in groups.items()}
+    if len(sizes) <= 1:
+        return _dedup_longest(arts)
+    main = max(sizes, key=lambda g: sizes[g])
+    out = []
+    for g, items in groups.items():
+        numbered = sum(1 for a in items if re.match(r"^\d", a.get("number") or ""))
+        if g == main:
+            out.extend(items)
+        elif g == "0":
+            out.extend(dict(a, number=f"{a['number']}-legge") for a in items)
+        elif numbered >= max(3, int(len(items) * 0.8)):
+            out.extend(dict(a, number=f"{a['number']}-all{g}") for a in items)
+        # altrimenti scartato (Tabelle, Convention…)
+    return _dedup_longest(out)
+
+
+def ingest_act(urn, delay=0.45, progress=None, limit=None):
+    """Full act -> list of parsed article dicts (numerati per gruppo, vedi assign_numbers)."""
+    nm = Normattiva(delay=delay)
+    act = nm.open_act(urn)
+    links = nm.article_links_all(act)
+    if limit:
+        links = links[:limit]
+    arts, fails = [], []
+    for i, (href, label, flag) in enumerate(links, 1):
+        try:
+            page = nm.fetch_article(href)
+            a = parse_article_page(page, fallback_number=label)
+            if a:
+                a["group"] = flag
+                arts.append(a)
+        except Exception as e:  # noqa: BLE001
+            fails.append((label, str(e)[:70]))
+        if progress and (i % 25 == 0 or i == len(links)):
+            progress(i, len(links), len(arts), len(fails))
+    return assign_numbers(arts), fails

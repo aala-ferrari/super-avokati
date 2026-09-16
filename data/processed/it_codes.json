@@ -9,13 +9,19 @@
   "code": "codice_civile",
   "title": "Codice Civile",
   "area": "Civile",
-  "count": 3216
+  "count": 3218
+ },
+ {
+  "code": "preleggi",
+  "title": "Disposizioni sulla legge in generale — preleggi al codice civile (R.D. 262/1942)",
+  "area": "Civile",
+  "count": 31
  },
  {
   "code": "disp_att_cc",
   "title": "Disposizioni di attuazione del Codice Civile",
   "area": "Civile",
-  "count": 314
+  "count": 315
  },
  {
   "code": "codice_procedura_civile",
@@ -39,7 +45,7 @@
   "code": "disp_att_cpp",
   "title": "Disposizioni di attuazione del Codice di Procedura Penale",
   "area": "Procedura Penale",
-  "count": 324
+  "count": 325
  },
  {
   "code": "codice_strada",
@@ -75,7 +81,7 @@
   "code": "tulps",
   "title": "Testo Unico delle Leggi di Pubblica Sicurezza (TULPS)",
   "area": "Sicurezza",
-  "count": 234
+  "count": 235
  },
  {
   "code": "statuto_lavoratori",
@@ -135,7 +141,7 @@
   "code": "codice_processo_amministrativo",
   "title": "Codice del Processo Amministrativo",
   "area": "Amministrativo",
-  "count": 142
+  "count": 167
  },
  {
   "code": "codice_amministrazione_digitale",
@@ -201,7 +207,7 @@
   "code": "tuir",
   "title": "Testo Unico delle Imposte sui Redditi",
   "area": "Tributario",
-  "count": 386
+  "count": 388
  },
  {
   "code": "codice_beni_culturali",
@@ -213,7 +219,7 @@
   "code": "codice_navigazione",
   "title": "Codice della Navigazione",
   "area": "Navigazione",
-  "count": 1362
+  "count": 1364
  },
  {
   "code": "stupefacenti",
@@ -262,5 +268,509 @@
   "title": "Antiriciclaggio (D.Lgs 231/2007)",
   "area": "Antiriciclaggio",
   "count": 88
+ },
+ {
+  "code": "codice_doganale_nazionale",
+  "title": "Disposizioni nazionali complementari al Codice Doganale UE (D.Lgs 141/2024)",
+  "area": "Doganale",
+  "count": 132
+ },
+ {
+  "code": "codice_doganale_ue",
+  "title": "Codice Doganale dell'Unione (Reg. UE 952/2013)",
+  "area": "Doganale",
+  "count": 288
+ },
+ {
+  "code": "reg_ue_2015_2446",
+  "title": "Regolamento delegato (UE) 2015/2446 — integrazione del CDU (ammissione temporanea, regimi speciali)",
+  "area": "Doganale",
+  "count": 268
+ },
+ {
+  "code": "reg_ue_2015_2447",
+  "title": "Regolamento di esecuzione (UE) 2015/2447 — modalità di applicazione del CDU",
+  "area": "Doganale",
+  "count": 356
+ },
+ {
+  "code": "accise",
+  "title": "Testo Unico delle Accise (D.Lgs 504/1995)",
+  "area": "Doganale",
+  "count": 119
+ },
+ {
+  "code": "iva",
+  "title": "Imposta sul valore aggiunto (DPR 633/1972)",
+  "area": "Tributario",
+  "count": 164
+ },
+ {
+  "code": "imposta_registro",
+  "title": "Testo Unico dell'imposta di registro (DPR 131/1986)",
+  "area": "Tributario",
+  "count": 87
+ },
+ {
+  "code": "imposta_successioni",
+  "title": "Imposta sulle successioni e donazioni (D.Lgs 346/1990)",
+  "area": "Tributario",
+  "count": 69
+ },
+ {
+  "code": "sanzioni_tributarie",
+  "title": "Sanzioni amministrative tributarie (D.Lgs 472/1997)",
+  "area": "Tributario",
+  "count": 33
+ },
+ {
+  "code": "giustizia_tributaria",
+  "title": "Testo Unico della giustizia tributaria (D.Lgs 175/2024)",
+  "area": "Tributario",
+  "count": 142
+ },
+ {
+  "code": "statuto_contribuente",
+  "title": "Statuto dei diritti del contribuente (L. 212/2000)",
+  "area": "Tributario",
+  "count": 37
+ },
+ {
+  "code": "accertamento_imposte",
+  "title": "Accertamento delle imposte sui redditi (DPR 600/1973)",
+  "area": "Tributario",
+  "count": 103
+ },
+ {
+  "code": "riscossione",
+  "title": "Riscossione delle imposte sui redditi (DPR 602/1973)",
+  "area": "Tributario",
+  "count": 135
+ },
+ {
+  "code": "reati_tributari",
+  "title": "Reati in materia di imposte (D.Lgs 74/2000)",
+  "area": "Penale",
+  "count": 34
+ },
+ {
+  "code": "legge_notarile",
+  "title": "Ordinamento del notariato e degli archivi notarili (L. 89/1913)",
+  "area": "Notarile",
+  "count": 217
+ },
+ {
+  "code": "legge_52_1985",
+  "title": "Trascrizioni immobiliari e conformità catastale (L. 52/1985)",
+  "area": "Notarile",
+  "count": 32
+ },
+ {
+  "code": "condono_edilizio",
+  "title": "Controllo dell'attività urbanistico-edilizia e sanatoria (L. 47/1985)",
+  "area": "Edilizia",
+  "count": 53
+ },
+ {
+  "code": "immobili_da_costruire",
+  "title": "Tutela degli acquirenti di immobili da costruire (D.Lgs 122/2005)",
+  "area": "Notarile",
+  "count": 19
+ },
+ {
+  "code": "successioni_ue",
+  "title": "Regolamento (UE) 650/2012 — successioni transfrontaliere e certificato successorio europeo",
+  "area": "Notarile",
+  "count": 84
+ },
+ {
+  "code": "locazioni_abitative",
+  "title": "Locazioni e rilascio di immobili ad uso abitativo (L. 431/1998)",
+  "area": "Civile",
+  "count": 16
+ },
+ {
+  "code": "locazioni_immobili_urbani",
+  "title": "Locazioni di immobili urbani (L. 392/1978)",
+  "area": "Civile",
+  "count": 85
+ },
+ {
+  "code": "mediazione_civile",
+  "title": "Mediazione civile e commerciale (D.Lgs 28/2010)",
+  "area": "Procedura Civile",
+  "count": 44
+ },
+ {
+  "code": "riti_civili_semplificati",
+  "title": "Riduzione e semplificazione dei riti civili (D.Lgs 150/2011)",
+  "area": "Procedura Civile",
+  "count": 39
+ },
+ {
+  "code": "bruxelles_i_bis",
+  "title": "Regolamento (UE) 1215/2012 — competenza giurisdizionale e riconoscimento delle decisioni civili (Bruxelles I-bis)",
+  "area": "Procedura Civile",
+  "count": 81
+ },
+ {
+  "code": "roma_i",
+  "title": "Regolamento (CE) 593/2008 — legge applicabile alle obbligazioni contrattuali (Roma I)",
+  "area": "Civile",
+  "count": 29
+ },
+ {
+  "code": "roma_ii",
+  "title": "Regolamento (CE) 864/2007 — legge applicabile alle obbligazioni extracontrattuali (Roma II)",
+  "area": "Civile",
+  "count": 32
+ },
+ {
+  "code": "bruxelles_ii_ter",
+  "title": "Regolamento (UE) 2019/1111 — matrimonio, responsabilità genitoriale, sottrazione di minori (Bruxelles II-ter)",
+  "area": "Famiglia",
+  "count": 105
+ },
+ {
+  "code": "ordinamento_forense",
+  "title": "Ordinamento della professione forense (L. 247/2012)",
+  "area": "Professioni",
+  "count": 69
+ },
+ {
+  "code": "licenziamenti_individuali",
+  "title": "Licenziamenti individuali (L. 604/1966)",
+  "area": "Lavoro",
+  "count": 14
+ },
+ {
+  "code": "tutele_crescenti",
+  "title": "Contratto a tutele crescenti (D.Lgs 23/2015)",
+  "area": "Lavoro",
+  "count": 12
+ },
+ {
+  "code": "responsabilita_sanitaria",
+  "title": "Responsabilità professionale degli esercenti le professioni sanitarie (L. 24/2017)",
+  "area": "Civile",
+  "count": 18
+ },
+ {
+  "code": "regolamento_immigrazione",
+  "title": "Regolamento di attuazione del TU Immigrazione (DPR 394/1999)",
+  "area": "Immigrazione",
+  "count": 75
+ },
+ {
+  "code": "tuel",
+  "title": "Testo Unico degli enti locali (D.Lgs 267/2000)",
+  "area": "Amministrativo",
+  "count": 294
+ },
+ {
+  "code": "processo_penale_minorile",
+  "title": "Processo penale a carico di imputati minorenni (DPR 448/1988)",
+  "area": "Procedura Penale",
+  "count": 48
+ },
+ {
+  "code": "codice_nautica_diporto",
+  "title": "Codice della nautica da diporto (D.Lgs 171/2005)",
+  "area": "Navigazione",
+  "count": 97
+ },
+ {
+  "code": "gdpr",
+  "title": "Regolamento (UE) 2016/679 — protezione dei dati personali (GDPR)",
+  "area": "Privacy",
+  "count": 99
+ },
+ {
+  "code": "tu_sanzioni_tributarie",
+  "title": "Testo Unico delle sanzioni tributarie amministrative e penali (D.Lgs 173/2024)",
+  "area": "Tributario",
+  "count": 154
+ },
+ {
+  "code": "tu_riscossione",
+  "title": "Testo Unico versamenti e riscossione (D.Lgs 33/2025)",
+  "area": "Tributario",
+  "count": 246
+ },
+ {
+  "code": "tu_registro",
+  "title": "Testo Unico imposta di registro e altri tributi indiretti — successioni, donazioni, bollo (D.Lgs 123/2025)",
+  "area": "Tributario",
+  "count": 241
+ },
+ {
+  "code": "tu_iva",
+  "title": "Testo Unico IVA (D.Lgs 10/2026)",
+  "area": "Tributario",
+  "count": 172
+ },
+ {
+  "code": "tu_accertamento",
+  "title": "Testo Unico adempimenti e accertamento (D.Lgs 141/2026)",
+  "area": "Tributario",
+  "count": 378
+ },
+ {
+  "code": "diritto_internazionale_privato",
+  "title": "Riforma del sistema italiano di diritto internazionale privato (L. 218/1995)",
+  "area": "Internazionale",
+  "count": 80
+ },
+ {
+  "code": "cittadinanza",
+  "title": "Nuove norme sulla cittadinanza (L. 91/1992)",
+  "area": "Cittadinanza",
+  "count": 33
+ },
+ {
+  "code": "regolamento_cittadinanza",
+  "title": "Regolamento di esecuzione della legge sulla cittadinanza (DPR 572/1993)",
+  "area": "Cittadinanza",
+  "count": 19
+ },
+ {
+  "code": "cittadini_ue",
+  "title": "Diritto dei cittadini UE e dei loro familiari di circolare e soggiornare (D.Lgs 30/2007)",
+  "area": "Immigrazione",
+  "count": 28
+ },
+ {
+  "code": "protezione_internazionale",
+  "title": "Procedure per il riconoscimento e la revoca della protezione internazionale (D.Lgs 25/2008)",
+  "area": "Immigrazione",
+  "count": 50
+ },
+ {
+  "code": "contratti_lavoro",
+  "title": "Disciplina organica dei contratti di lavoro — a termine, somministrazione, part-time, apprendistato (D.Lgs 81/2015)",
+  "area": "Lavoro",
+  "count": 66
+ },
+ {
+  "code": "orario_lavoro",
+  "title": "Organizzazione dell'orario di lavoro (D.Lgs 66/2003)",
+  "area": "Lavoro",
+  "count": 20
+ },
+ {
+  "code": "maternita_paternita",
+  "title": "Testo Unico maternità e paternità (D.Lgs 151/2001)",
+  "area": "Lavoro",
+  "count": 95
+ },
+ {
+  "code": "legge_biagi",
+  "title": "Mercato del lavoro — somministrazione, appalto, distacco (D.Lgs 276/2003)",
+  "area": "Lavoro",
+  "count": 88
+ },
+ {
+  "code": "pubblico_impiego",
+  "title": "Testo Unico del pubblico impiego (D.Lgs 165/2001)",
+  "area": "Lavoro",
+  "count": 105
+ },
+ {
+  "code": "negoziazione_assistita",
+  "title": "Negoziazione assistita, separazione e divorzio senza giudice (DL 132/2014)",
+  "area": "Procedura Civile",
+  "count": 39
+ },
+ {
+  "code": "giudice_pace_penale",
+  "title": "Competenza penale del giudice di pace (D.Lgs 274/2000)",
+  "area": "Procedura Penale",
+  "count": 71
+ },
+ {
+  "code": "mandato_arresto_europeo",
+  "title": "Mandato d'arresto europeo e procedure di consegna (L. 69/2005)",
+  "area": "Procedura Penale",
+  "count": 45
+ },
+ {
+  "code": "casellario",
+  "title": "Testo Unico del casellario giudiziale (DPR 313/2002)",
+  "area": "Procedura Penale",
+  "count": 64
+ },
+ {
+  "code": "unioni_civili",
+  "title": "Unioni civili e convivenze di fatto (L. 76/2016)",
+  "area": "Famiglia",
+  "count": 1
+ },
+ {
+  "code": "consenso_informato_dat",
+  "title": "Consenso informato e disposizioni anticipate di trattamento (L. 219/2017)",
+  "area": "Notarile",
+  "count": 8
+ },
+ {
+  "code": "regolamento_notarile",
+  "title": "Regolamento per l'esecuzione della legge notarile (R.D. 1326/1914)",
+  "area": "Notarile",
+  "count": 306
+ },
+ {
+  "code": "prestazione_energetica",
+  "title": "Rendimento energetico nell'edilizia — APE (D.Lgs 192/2005)",
+  "area": "Edilizia",
+  "count": 21
+ },
+ {
+  "code": "legge_urbanistica",
+  "title": "Legge urbanistica (L. 1150/1942)",
+  "area": "Edilizia",
+  "count": 52
+ },
+ {
+  "code": "armi",
+  "title": "Norme integrative per il controllo delle armi (L. 110/1975)",
+  "area": "Sicurezza",
+  "count": 47
+ },
+ {
+  "code": "regolamento_penitenziario",
+  "title": "Regolamento sull'ordinamento penitenziario (DPR 230/2000)",
+  "area": "Penale",
+  "count": 136
+ },
+ {
+  "code": "tfue",
+  "title": "Trattato sul funzionamento dell'Unione europea (TFUE)",
+  "area": "Unione Europea",
+  "count": 358
+ },
+ {
+  "code": "tue",
+  "title": "Trattato sull'Unione europea (TUE)",
+  "area": "Unione Europea",
+  "count": 55
+ },
+ {
+  "code": "carta_diritti_ue",
+  "title": "Carta dei diritti fondamentali dell'Unione europea",
+  "area": "Unione Europea",
+  "count": 54
+ },
+ {
+  "code": "codice_frontiere_schengen",
+  "title": "Regolamento (UE) 2016/399 — codice frontiere Schengen (ingresso, 90 giorni su 180)",
+  "area": "Immigrazione",
+  "count": 47
+ },
+ {
+  "code": "reg_ue_2018_1806",
+  "title": "Regolamento (UE) 2018/1806 — paesi terzi soggetti all'obbligo del visto o esenti (Albania esente)",
+  "area": "Immigrazione",
+  "count": 15
+ },
+ {
+  "code": "codice_visti",
+  "title": "Regolamento (CE) 810/2009 — codice comunitario dei visti",
+  "area": "Immigrazione",
+  "count": 55
+ },
+ {
+  "code": "roma_iii",
+  "title": "Regolamento (UE) 1259/2010 — legge applicabile al divorzio e alla separazione (Roma III)",
+  "area": "Famiglia",
+  "count": 21
+ },
+ {
+  "code": "alimenti_ue",
+  "title": "Regolamento (CE) 4/2009 — obbligazioni alimentari: competenza, legge applicabile, esecuzione",
+  "area": "Famiglia",
+  "count": 76
+ },
+ {
+  "code": "regimi_patrimoniali_ue",
+  "title": "Regolamento (UE) 2016/1103 — regimi patrimoniali tra coniugi",
+  "area": "Famiglia",
+  "count": 70
+ },
+ {
+  "code": "ingiunzione_europea",
+  "title": "Regolamento (CE) 1896/2006 — procedimento europeo d'ingiunzione di pagamento",
+  "area": "Procedura Civile",
+  "count": 33
+ },
+ {
+  "code": "small_claims_ue",
+  "title": "Regolamento (CE) 861/2007 — procedimento europeo per le controversie di modesta entità",
+  "area": "Procedura Civile",
+  "count": 29
+ },
+ {
+  "code": "notifiche_ue",
+  "title": "Regolamento (UE) 2020/1784 — notificazione e comunicazione degli atti giudiziari ed extragiudiziali",
+  "area": "Procedura Civile",
+  "count": 38
+ },
+ {
+  "code": "convenzione_it_al_fisco",
+  "title": "Convenzione Italia–Albania contro le doppie imposizioni (L. 175/1998)",
+  "area": "Internazionale",
+  "count": 35
+ },
+ {
+  "code": "protocollo_it_al_migranti",
+  "title": "Protocollo Italia–Albania sul rafforzamento della collaborazione in materia migratoria (L. 14/2024)",
+  "area": "Internazionale",
+  "count": 23
+ },
+ {
+  "code": "cedu",
+  "title": "CEDU — Convenzione europea per la salvaguardia dei diritti dell'uomo e delle libertà fondamentali (L. 848/1955)",
+  "area": "Internazionale",
+  "count": 59
+ },
+ {
+  "code": "cedu_protocollo_1",
+  "title": "Protocollo addizionale n. 1 alla CEDU — proprietà, istruzione, libere elezioni",
+  "area": "Internazionale",
+  "count": 6
+ },
+ {
+  "code": "cedu_protocollo_4",
+  "title": "Protocollo n. 4 alla CEDU — imprigionamento per debiti, libertà di circolazione, espulsioni",
+  "area": "Internazionale",
+  "count": 7
+ },
+ {
+  "code": "cedu_protocollo_6",
+  "title": "Protocollo n. 6 alla CEDU — abolizione della pena di morte",
+  "area": "Internazionale",
+  "count": 9
+ },
+ {
+  "code": "cedu_protocollo_7",
+  "title": "Protocollo n. 7 alla CEDU — espulsione di stranieri, doppio grado penale, ne bis in idem, parità dei coniugi",
+  "area": "Internazionale",
+  "count": 10
+ },
+ {
+  "code": "cedu_protocollo_12",
+  "title": "Protocollo n. 12 alla CEDU — divieto generale di discriminazione",
+  "area": "Internazionale",
+  "count": 6
+ },
+ {
+  "code": "cedu_protocollo_13",
+  "title": "Protocollo n. 13 alla CEDU — abolizione della pena di morte in ogni circostanza",
+  "area": "Internazionale",
+  "count": 8
+ },
+ {
+  "code": "cedu_protocollo_16",
+  "title": "Protocollo n. 16 alla CEDU — pareri consultivi della Corte",
+  "area": "Internazionale",
+  "count": 11
  }
 ]
