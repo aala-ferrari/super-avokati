@@ -181,7 +181,17 @@ def _tempo(tempo: dict | None, lang: str) -> str:
     return f" | koha: fakti i {dd}{' (viti)' if tempo.get('approx') else ''} · {esito}"
 
 
-def riga(v: dict, lang: str = "sq", tempo: dict | None = None) -> str:
+def _copertura(cov: dict | None, lang: str) -> str:
+    """L'asse «copertura» (v9.340): temi del triage senza alcuna norma trovata nel corpus."""
+    if not cov or not cov.get("temi"):
+        return ""
+    t, miss = int(cov["temi"]), list(cov.get("senza_norma") or [])
+    if lang == "it":
+        return f" | copertura: {t - len(miss)}/{t} temi con norma" + (f" (senza: «{miss[0][:40]}»)" if miss else "")
+    return f" | mbulimi: {t - len(miss)}/{t} tema me normë" + (f" (pa normë: «{miss[0][:40]}»)" if miss else "")
+
+
+def riga(v: dict, lang: str = "sq", tempo: dict | None = None, coverage: dict | None = None) -> str:
     """La riga di fiducia sotto il titolo del verdetto (markdown, una riga)."""
     n, s = v["nene"], v["sentenze"]
     f = int(v.get("fatti_da_precisare") or 0)
@@ -220,13 +230,20 @@ def riga(v: dict, lang: str = "sq", tempo: dict | None = None) -> str:
         c = f"fakte {f} për t'u saktësuar" if f else "fakte: asnjë për t'u saktësuar"
         lab = "Verifikimi"
     st = _STATO.get(lang, _STATO["sq"])[stato(v)]
-    return f"> 🔎 **{lab}:** {' · '.join(a)} | {' · '.join(b)} | {c}{_tempo(tempo, lang)} — **{st}**"
+    return f"> 🔎 **{lab}:** {' · '.join(a)} | {' · '.join(b)} | {c}{_tempo(tempo, lang)}{_copertura(coverage, lang)} — **{st}**"
 
 
-def blocco_per_gjyqtarin(v: dict, lang: str = "sq") -> str:
+def blocco_per_gjyqtarin(v: dict, lang: str = "sq", coverage: dict | None = None) -> str:
     """Il resoconto per il Giudice: numeri + elenco puntuale di ciò che non regge."""
     n, s = v["nene"], v["sentenze"]
     r: list[str] = []
+    if coverage and coverage.get("senza_norma"):
+        miss = "; ".join(f"«{m}»" for m in coverage["senza_norma"][:4])
+        r.append(("COPERTURA DELLA RICERCA: per questi temi il recupero NON ha trovato alcuna norma nel corpus: %s. "
+                  "Se la risposta cita una norma su questi temi, non viene dal corpus (preparazione del modello o web): trattala come da verificare."
+                  if lang == "it" else
+                  "MBULIMI I KËRKIMIT: për këto tema kërkimi NUK gjeti asnjë normë në korpus: %s. "
+                  "Nëse përgjigja citon një normë për këto tema, nuk vjen nga korpusi (përgatitja e modelit ose web): trajtoje si për t'u verifikuar.") % miss)
     _tag_it = {"repealed": "ABROGATO", "fake": "NON ESISTE nel corpus", "unconstitutional": "DICHIARATO INCOSTITUZIONALE dalla Corte costituzionale",
                "unconstitutional_partial": "IN PARTE dichiarato incostituzionale (il testo potrebbe non rifletterlo: verificare quali punti)"}
     _tag_sq = {"repealed": "I SHFUQIZUAR", "fake": "NUK EKZISTON në korpus", "unconstitutional": "I SHPALLUR ANTIKUSHTETUES nga Gjykata Kushtetuese",

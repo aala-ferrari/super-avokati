@@ -464,6 +464,12 @@ _REQUEST_JURISDICTION = _threading.local()
 # dei consumi attribuisce a nessuno il 97% delle chiamate — e con piu' studi
 # sullo stesso abbonamento e' proprio il numero che serve.
 _REQUEST_USER = _threading.local()
+# v9.340 — copertura della ricerca (temi del triage senza alcuna norma trovata), per la Trust Line
+_COVERAGE = _threading.local()
+
+
+def coverage_info() -> dict | None:
+    return getattr(_COVERAGE, "info", None)
 
 
 def set_request_user(uid: int | None) -> None:
@@ -2462,6 +2468,7 @@ class SuperAvvocato:
         # V8.13 — pin jurisdiction context for the lifetime of the stream.
         self._jurisdiction_ctx.code = (jurisdiction or "AL").upper()
         set_request_jurisdiction(jurisdiction)
+        _COVERAGE.info = None          # v9.340: mai la copertura di una richiesta precedente
         backend = self.backend
         can_stream = (
             getattr(backend, "name", "") == "claude_code"
@@ -2855,6 +2862,7 @@ class SuperAvvocato:
         """
         history = history or []
         documents = documents or []
+        _COVERAGE.info = None          # v9.340: mai la copertura di una richiesta precedente
 
         # V7.5 — short follow-up fast path.
         # When the citizen is already in an active conversation (session_id
@@ -3291,9 +3299,16 @@ class SuperAvvocato:
             restrict = self._kodet_e_fushes(triage)
             if self.index_it is not None and self._current_jurisdiction() == "IT":
                 idx, restrict = self.index_it, None
+            # v9.340 — Research Completeness: i temi del triage rimasti SENZA norma (copertura zero)
+            # entrano nel riassunto per il Kërkuesi, che li cerca nel linguaggio del codice
+            _cov = coverage_info() or {}
+            _summary = triage.problem_summary or ""
+            if _cov.get("senza_norma"):
+                _summary += ("\nTEMA PA NORMË TË GJETUR (kërkimi me fjalë nuk gjeti asgjë — kërko me termat e kodit): "
+                             + "; ".join(_cov["senza_norma"][:4]))
             nuovo, esito = studio.kerkuesi(
                 self.backend, idx, domanda=user_message,
-                summary=triage.problem_summary, retrieved=retrieved,
+                summary=_summary, retrieved=retrieved,
                 queries=list(triage.search_queries), restrict=restrict,
                 modeli=STUDIO_KERKUES_MODEL, effort=STUDIO_KERKUES_EFFORT,
                 max_nene=STUDIO_KERKUES_MAX_NENE)
@@ -3504,8 +3519,9 @@ class SuperAvvocato:
                 _tempo = _tmp.ultimo_info()
             except Exception:  # noqa: BLE001
                 _tempo = None
-            log.info("trust_line (simple): %s (nene %s, vendime %s)", trust_line.stato(v), v["nene"], v["sentenze"]["verified"])
-            return trust_line.inserisci_riga(text, trust_line.riga(v, lang, tempo=_tempo), "")
+            _cov = coverage_info()
+            log.info("trust_line (simple): %s (nene %s, vendime %s, copertura %s)", trust_line.stato(v), v["nene"], v["sentenze"]["verified"], _cov)
+            return trust_line.inserisci_riga(text, trust_line.riga(v, lang, tempo=_tempo, coverage=_cov), "")
         except Exception as exc:  # noqa: BLE001
             log.warning("trust_line (simple) saltata (non-fatal): %s", exc)
             return text
@@ -3537,9 +3553,10 @@ class SuperAvvocato:
                 _tempo = _tmp.ultimo_info()          # v9.333: l'asse «tempo» della Trust Line
             except Exception:  # noqa: BLE001
                 _tempo = None
+            _cov = coverage_info()                    # v9.340: temi senza norma trovata
             if request_senior() == "fable":
                 # ⚡: il verdetto è già del senior Fable (Source Verifier suo); resta la riga
-                return trust_line.inserisci_riga(answer_text, trust_line.riga(v1, lang, tempo=_tempo), "")
+                return trust_line.inserisci_riga(answer_text, trust_line.riga(v1, lang, tempo=_tempo, coverage=_cov), "")
             try:
                 vendim = studio.gjyqtari_fundit(
                     self.backend, domanda=user_message,
@@ -3547,7 +3564,7 @@ class SuperAvvocato:
                     pergjigja=answer_text, dosja=dosja_txt or "", lang=lang,
                     modeli=STUDIO_GJYQTARI_MODEL, effort=STUDIO_GJYQTARI_EFFORT,
                     fazat=fazat_txt or "",
-                    verifikimi=trust_line.blocco_per_gjyqtarin(v1, lang))
+                    verifikimi=trust_line.blocco_per_gjyqtarin(v1, lang, coverage=_cov))
             except Exception as exc:  # noqa: BLE001
                 # v9.336 — il Giudice può cadere per saturazione («Tetramorph i zënë», 4 tentativi,
                 # misurato il 16 set): la risposta usciva SENZA verdetto e SENZA Trust Line, e
@@ -3563,7 +3580,7 @@ class SuperAvvocato:
                          ("> ⚖️ *Gjyqtari i Fundit nuk mundi të shprehet (shërbimi i ngarkuar): përgjigja është ajo e "
                           "seniorit me kundërpërgjigjet ndaj avokatit të djallit — verifikimi i citimeve më sipër "
                           "është bërë gjithsesi.*"))
-                return trust_line.inserisci_riga(answer_text, trust_line.riga(v1, lang, tempo=_tempo) + "\n" + _nota, "")
+                return trust_line.inserisci_riga(answer_text, trust_line.riga(v1, lang, tempo=_tempo, coverage=_cov) + "\n" + _nota, "")
             vendim = _apply_corrections(_verify_citations(vendim, precedents))
             log.info("studio: gjyqtari i fundit ka dhënë vendimin (%d shkronja)", len(vendim))
             # v9.316 — il verdetto IN TESTA (prima la decisione, poi l'analisi completa);
@@ -3571,7 +3588,7 @@ class SuperAvvocato:
             final = vendim + answer_text
             v2 = trust_line.verifica(final, idx, jur, retrieved_codes=_codes)
             final = trust_line.inserisci_riga(
-                final, trust_line.riga(v2, lang, tempo=_tempo),
+                final, trust_line.riga(v2, lang, tempo=_tempo, coverage=_cov),
                 studio.TITULLI_GJYQTARI.get(lang, studio.TITULLI_GJYQTARI["sq"]))
             log.info("trust_line: %s (nene %s, vendime %s, fakte %s)", trust_line.stato(v2),
                      v2["nene"], v2["sentenze"]["verified"], v2["fatti_da_precisare"])
@@ -3611,12 +3628,27 @@ class SuperAvvocato:
             idx = self.index_it
         restrict = None if idx is self.index_it else codes
         seen: dict[tuple[str, str], float] = {}
+        # v9.340 (roadmap v3 P7, copertura della ricerca): quali temi cercati NON hanno trovato
+        # NESSUNA norma (punteggio zero su tutti i risultati = nessuna parola in comune col corpus).
+        # È il segnale «ho trovato qualcosa» ≠ «ho cercato abbastanza»: entra nella Trust Line e nel
+        # blocco del Giudice, così una norma citata su quel tema si sa che non viene dal corpus.
+        _senza_norma: list[str] = []
         for q in all_queries:
+            _hit = False
             for art, score in idx.search(q, top_k=TOP_K_ARTICLES,
                                          restrict_codes=restrict):
                 key = (art.code, art.number)
                 if score > seen.get(key, 0.0):
                     seen[key] = score
+                if score > 0:
+                    _hit = True
+            if not _hit and (q or "").strip():
+                _senza_norma.append(q.strip()[:90])
+        try:
+            _COVERAGE.info = {"temi": len([q for q in all_queries if (q or "").strip()]),
+                              "senza_norma": _senza_norma[:6]}
+        except Exception:  # noqa: BLE001
+            pass
 
         art_by_key = {(a.code, a.number): a for a in idx.articles}
         pairs = [(art_by_key[k], s) for k, s in seen.items() if k in art_by_key]

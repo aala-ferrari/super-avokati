@@ -2894,7 +2894,7 @@ def main():
         _okD = _ins.startswith(_t81 + "> 🔎 **Verifica:**") and "**VERDETTO**" in _ins
         _srcB = open(_br81.__file__, encoding="utf-8").read()
         _srcS = open(_st81.__file__, encoding="utf-8").read()
-        _okE = ("verifikimi=trust_line.blocco_per_gjyqtarin(v1, lang)" in _srcB
+        _okE = ("verifikimi=trust_line.blocco_per_gjyqtarin(v1, lang, coverage=_cov)" in _srcB
                 and "v2 = trust_line.verifica(final" in _srcB
                 and 'verifikimi: str = ""' in _srcS and "VERIFICA DETERMINISTICA DELLE CITAZIONI" in _srcS
                 and "VERIFIKIMI DETERMINIST I CITIMEVE" in _srcS
@@ -2961,7 +2961,7 @@ def main():
         _okC = "tempo: fatto del 10/03/2019" in _r83 and "1 articolo con testo diverso" in _r83
         _srcB = open(_br83.__file__, encoding="utf-8").read()
         _okD = ("def _mbledh_gatherers_core(" in _srcB and "temporal.arricchisci_dosje(blocco, user_message, retrieved" in _srcB
-                and "trust_line.riga(v2, lang, tempo=_tempo)" in _srcB
+                and "trust_line.riga(v2, lang, tempo=_tempo, coverage=_cov)" in _srcB
                 and "TESTO VIGENTE ALLA DATA DEL FATTO" in _st83.GJYQTARI_SYSTEM["it"]
                 and "LIGJI NË FUQI MË DATËN E FAKTIT" in _st83.GJYQTARI_SYSTEM["sq"])
         check("tempo[83]: data del fatto dalla domanda (IT/SQ, niente date di nascita né recenti, anno=approssimata) · blocco «⏳ TESTO VIGENTE AL» con testo storico DIVERSO/identico · asse tempo nella Trust Line · innesto nel dossier + regola del Giudice sq/it",
@@ -3043,7 +3043,7 @@ def main():
                 and _tp86._norm_body("… dai coniugi ))") == _tp86._norm_body("… dai coniugi."))
         _srcB86 = open(_br86.__file__, encoding="utf-8").read()
         _okC = ("Il Giudice Finale non ha potuto pronunciarsi" in _srcB86 and "Gjyqtari i Fundit nuk mundi të shprehet" in _srcB86
-                and 'trust_line.riga(v1, lang, tempo=_tempo) + "\\n" + _nota' in _srcB86)
+                and 'trust_line.riga(v1, lang, tempo=_tempo, coverage=_cov) + "\\n" + _nota' in _srcB86)
         _srcBI86 = open(_os2.path.join(_os2.path.dirname(_os2.path.abspath(__file__)), "build_it_index.py"), encoding="utf-8").read()
         _okD = r"\(\(\s*\d{1,3}\s*\)\)" in _srcBI86
         check("tempo[86]: logger con handler in temporal/trust_line · confronto storico senza numeri di nota · Giudice saturo → Trust Line + avviso onesto sq/it · build_it_index toglie «((N))»",
@@ -3081,7 +3081,7 @@ def main():
         _rf88 = _insp88.getsource(_br88.SuperAvvocato._riga_fiducie)
         check("trust_line[88]: _riga_fiducie sul fast-path semplice di answer_stream E di answer(), con guardia anti-doppione",
               "self._riga_fiducie(text, retrieved)" in _as88 and "self._riga_fiducie(answer_text, retrieved)" in _an88
-              and '"🔎 **" in (text or "")[:600]' in _rf88 and "trust_line.inserisci_riga(text, trust_line.riga(v, lang, tempo=_tempo)" in _rf88,
+              and '"🔎 **" in (text or "")[:600]' in _rf88 and "trust_line.inserisci_riga(text, trust_line.riga(v, lang, tempo=_tempo, coverage=_cov)" in _rf88,
               "stream=%s answer=%s guard=%s" % ("self._riga_fiducie(text, retrieved)" in _as88, "self._riga_fiducie(answer_text, retrieved)" in _an88, '"🔎 **" in' in _rf88))
     except Exception as _e88:  # noqa: BLE001
         check("trust_line[88]: kontrollet u ekzekutuan", False, str(_e88))
@@ -3138,6 +3138,32 @@ def main():
                   _okA, _okB, _okC, _okD, _okD2, _okE, _okF, _okG, _okG2, _okH, _q1, (_i3 or [{}])[0].get("articles"), (_lv1, _lv2, _lv3)))
     except Exception as _e89:  # noqa: BLE001
         check("grafo[89]: kontrollet u ekzekutuan", False, str(_e89))
+
+    # ── [90] COPERTURA DELLA RICERCA (v9.340, roadmap v3 P7): i temi del triage senza ALCUNA norma
+    # trovata (punteggio zero) entrano nella Trust Line («mbulimi: 2/3 tema me normë») e nel blocco
+    # del Giudice; azzerata a ogni richiesta ──
+    try:
+        import inspect as _insp90
+        from src import brain as _br90, trust_line as _tl90
+        from src.brain import TriageResult as _TR90
+        _sa90 = _br90.SuperAvvocato(index=ArticleIndex.load(_P81("/app/data/index/bm25.pkl")))
+        _sa90._jurisdiction_ctx.code = "AL"
+        _t90 = _TR90(problem_summary="afati i parashkrimit", areas=["Civil"],
+                     search_queries=["afati i parashkrimit të padisë", "xqzvtrp lorem ipsum zzzq"], strategic_angles=[])
+        _sa90._retrieve(_t90)
+        _c90 = _br90.coverage_info()
+        _okA = _c90 and _c90["temi"] == 2 and _c90["senza_norma"] == ["xqzvtrp lorem ipsum zzzq"]
+        _r90 = _tl90.riga(_tl90.vuota(), "sq", coverage=_c90)
+        _b90 = _tl90.blocco_per_gjyqtarin(_tl90.vuota(), "it", coverage=_c90)
+        _okB = "mbulimi: 1/2 tema me normë" in _r90 and "pa normë: «xqzvtrp" in _r90 and "COPERTURA DELLA RICERCA" in _b90 and "xqzvtrp" in _b90
+        _src90 = _insp90.getsource(_br90.SuperAvvocato.answer_stream) + _insp90.getsource(_br90.SuperAvvocato.answer)
+        _okC = (_src90.count("_COVERAGE.info = None") == 2 and "coverage=_cov" in _insp90.getsource(_br90.SuperAvvocato._gjyqtari_fundit)
+                and "coverage=_cov" in _insp90.getsource(_br90.SuperAvvocato._riga_fiducie)
+                and "TEMA PA NORMË TË GJETUR" in _insp90.getsource(_br90.SuperAvvocato._studio_kerkuesi))   # research completeness → Kërkuesi
+        check("copertura[90]: temi senza norma dal retrieval vero → Trust Line + blocco del Giudice + Kërkuesi (research completeness); azzerata a ogni richiesta; cablata nel Giudice e nel percorso semplice",
+              bool(_okA) and _okB and _okC, "cov=%s riga=%s wiring=%s" % (_c90, _okB, _okC))
+    except Exception as _e90:  # noqa: BLE001
+        check("copertura[90]: kontrollet u ekzekutuan", False, str(_e90))
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

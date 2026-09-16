@@ -29,3 +29,9 @@ data/uploads/
 *.bak*
 **/*.bak*
 src.bak-*
+
+# 16 set 2026: cartelle di lavoro sul volume che non servono nell immagine
+data/processed/it_acts_refresh/
+data/benchmark/
+data/index/*.bak-*
+data/processed/*.bak-*
