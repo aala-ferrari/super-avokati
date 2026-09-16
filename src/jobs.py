@@ -31,7 +31,8 @@ import time
 import uuid
 from dataclasses import dataclass, field
 
-log = logging.getLogger(__name__)
+from .logging_utils import get_logger  # v9.337: getLogger(__name__) non aveva handler → INFO persi
+log = get_logger(__name__)
 
 # How long a finished job stays available for a client that comes back late
 # (phone in a pocket, tab reopened tomorrow morning). Long enough to be

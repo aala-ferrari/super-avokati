@@ -15,7 +15,8 @@ import logging
 import re
 from pathlib import Path
 
-log = logging.getLogger("super-avvocato.tessera")
+from .logging_utils import get_logger  # v9.337: senza handler le righe INFO sparivano
+log = get_logger("super-avvocato.tessera")
 
 PROMPT_TESERE = (
     "Je verifikues dokumentesh për një platformë ligjore. Shiko skedarin dhe "

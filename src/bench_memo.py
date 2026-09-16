@@ -31,7 +31,8 @@ def _juris(system_prompt: str) -> str:
 
 
 
-log = logging.getLogger(__name__)
+from .logging_utils import get_logger  # v9.337: getLogger(__name__) non aveva handler → INFO persi
+log = get_logger(__name__)
 
 # ── Court calibration labels ──────────────────────────────────────────
 

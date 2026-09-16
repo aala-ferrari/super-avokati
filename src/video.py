@@ -40,7 +40,8 @@ from .config import (VIDEO_EXTENSIONS, VIDEO_MAX_FRAMES,
 from . import audio as audio_mod
 from . import forensics as forense
 
-log = logging.getLogger(__name__)
+from .logging_utils import get_logger  # v9.337: getLogger(__name__) non aveva handler → INFO persi
+log = get_logger(__name__)
 
 # ffmpeg su un file corrotto (o su un .dav che non digerisce) può restare
 # appeso: senza tetto, un caricamento sbagliato terrebbe occupato un thread

@@ -43,7 +43,8 @@ from pathlib import Path
 from .config import (AUDIO_EXTENSIONS, WHISPER_MODEL, WHISPER_THREADS,
                      WHISPER_DIR)
 
-log = logging.getLogger(__name__)
+from .logging_utils import get_logger  # v9.337: getLogger(__name__) non aveva handler → INFO persi
+log = get_logger(__name__)
 
 # Una trascrizione alla volta in tutto il sistema — vedi il perché in testa.
 _semaforo = threading.Semaphore(1)

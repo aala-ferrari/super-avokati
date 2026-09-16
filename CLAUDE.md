@@ -1440,6 +1440,8 @@ rischio residuo della DPIA.
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
 
+**v9.337 — I LOG CHE NON C'ERANO (16 set notte).** Trovato con la v9.336: in questa app solo i logger creati da `logging_utils.get_logger` scrivono (file `logs/super_avvocato.log` + stdout; `propagate=False`; il root non ha handler). **14 moduli** usavano `logging.getLogger(__name__)` o un nome proprio: genio, jobs, push, video, audio, forensics, qkb, reminders, vigilanza, corporate, bench_memo, ratio_coach, studio («super-avvocato.studio»), verifikimi_teseres — le loro righe INFO **non sono mai esistite** (solo i WARNING uscivano su stderr via lastResort). Tutti su `get_logger`; golden **[87]** scandisce `src/*.py` e boccia ogni `log = logging.getLogger(` nuovo. ⚠️ `docker logs` e `/app/logs` muoiono a ogni deploy (il log NON è nel volume): se serve la storia di un caso, la risposta è nel DB (`messages.content`), non nel log. 474.
+
 **v9.336 — PROVA VIVA SUL TEMPO (IT, domanda di cittadinanza del 10 marzo 2019) e le tre cose che ha
 mostrato (16 set notte).** Esito nel merito: **giusto** — «art. 9-ter L. 91/1992, nel testo vigente al
 10 marzo 2019: quarantotto mesi → scaduto il 10 marzo 2023; il testo odierno (24+12 mesi, D.L. 130/2020)

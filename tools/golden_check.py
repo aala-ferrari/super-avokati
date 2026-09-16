@@ -3051,6 +3051,25 @@ def main():
     except Exception as _e86:  # noqa: BLE001
         check("tempo[86]: kontrollet u ekzekutuan", False, str(_e86))
 
+    # ── [87] v9.337 — OGNI logger di src/ scrive davvero (file + stdout): 14 moduli (genio, jobs, push,
+    # video, audio, qkb, studio…) usavano logging.getLogger senza handler e le loro righe INFO non
+    # esistevano; nessun modulo nuovo può ripetere l'errore ──
+    try:
+        import glob as _g87, re as _re87
+        _bad87 = []
+        for _f in sorted(_g87.glob(_os2.path.join(_os2.path.dirname(_os2.path.dirname(_os2.path.abspath(__file__))), "src", "*.py"))):
+            _s = open(_f, encoding="utf-8").read()
+            if _os2.path.basename(_f) == "logging_utils.py":
+                continue
+            if _re87.search(r"^log\s*=\s*logging\.getLogger\(", _s, _re87.M):
+                _bad87.append(_os2.path.basename(_f))
+        from src import genio as _gn87, jobs as _jb87, studio as _st87
+        _okA = all(getattr(m.log, "handlers", None) for m in (_gn87, _jb87, _st87))
+        check("log[87]: nessun modulo di src/ con logger senza handler (get_logger ovunque); genio/jobs/studio scrivono su file",
+              not _bad87 and _okA, "senza handler: %s | handler ok: %s" % (", ".join(_bad87), _okA))
+    except Exception as _e87:  # noqa: BLE001
+        check("log[87]: kontrollet u ekzekutuan", False, str(_e87))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

@@ -22,7 +22,8 @@ import logging
 import re
 from typing import Any
 
-log = logging.getLogger("super-avvocato.studio")
+from .logging_utils import get_logger  # v9.337: senza handler le righe INFO sparivano
+log = get_logger("super-avvocato.studio")
 
 
 # ── modelet ────────────────────────────────────────────────────────────

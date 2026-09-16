@@ -17,7 +17,8 @@ from dataclasses import dataclass
 from .backends import LLMBackend
 from .genio import GENIO_JURISDICTION_GUARD
 
-log = logging.getLogger(__name__)
+from .logging_utils import get_logger  # v9.337: getLogger(__name__) non aveva handler → INFO persi
+log = get_logger(__name__)
 
 OUTCOMES = ("fituar", "humbur", "marrëveshje", "tërhequr", "i hapur")
 DEFAULT_OUTCOME = "fituar"

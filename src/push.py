@@ -17,7 +17,8 @@ import logging
 import os
 import threading
 
-log = logging.getLogger(__name__)
+from .logging_utils import get_logger  # v9.337: getLogger(__name__) non aveva handler → INFO persi
+log = get_logger(__name__)
 
 VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "")
 VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY", "")

@@ -33,7 +33,8 @@ import time
 
 import requests
 
-log = logging.getLogger(__name__)
+from .logging_utils import get_logger  # v9.337: getLogger(__name__) non aveva handler → INFO persi
+log = get_logger(__name__)
 
 SEARCH_URL = "https://format.qkb.gov.al/kerko-per-subjekt/"
 # Estratto (PDF in base64) — scoperto con cattura di rete: docType ∈ {simple,historical,rpp}

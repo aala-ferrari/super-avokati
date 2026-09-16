@@ -42,7 +42,8 @@ from .config import (
     WHATSAPP_TOKEN,
 )
 
-log = logging.getLogger(__name__)
+from .logging_utils import get_logger  # v9.337: getLogger(__name__) non aveva handler → INFO persi
+log = get_logger(__name__)
 
 POLL_SECONDS = 60
 TG_API = "https://api.telegram.org"
