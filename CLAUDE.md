@@ -3,7 +3,7 @@
 Strumento AI per avvocati (B2B), **bi-giurisdizione AL + IT**. Front-end Flask
 su porta 5050, SQLite (`data/app.db`) + Postgres `legalkb` per i casi
 giurisprudenziali. Due corpora BM25 SEPARATI:
-- **AL** (`bm25.pkl`): **9.541 nene / 53 codici** (v9.328: 21 codici riscritti dai consolidati QBZ 2024-2026 + 29 leggi nuove + VKM 651/2017 doganale 742 art.; fonte = `data/processed/all_articles.jsonl`, il pickle è derivato) + `bm25_decisions.pkl` 1258 precedenti
+- **AL** (`bm25.pkl`): **9.607 nene / 54 codici** (v9.328-329: 21 codici riscritti dai consolidati QBZ 2024-2026 + 29 leggi nuove + ligji 11/2026 dhuna + VKM 651/2017 doganale consolidata 2026 748 art.; fonte = `data/processed/all_articles.jsonl`, il pickle è derivato) + `bm25_decisions.pkl` 1258 precedenti
 - **IT** (`bm25_it.pkl`): **129 atti / 22.779 articoli** (v9.326-327: +27 Normattiva wave5, +5 testi unici wave6, +21 wave7 blocco A, +12 UE (TFUE/TUE/Carta/Schengen…), +2 trattati IT-AL, CEDU + 7 protocolli, preleggi (sanzioni trib. 173/2024, riscossione 33/2025, registro 123/2025, IVA 10/2026, accertamento 141/2026) dogane/tributario/notarile/procedura/lavoro, +9 regolamenti UE da EUR-Lex: CDU, Reg. 2015/2446-2447, GDPR, Bruxelles I-bis/II-ter, Roma I/II, successioni 650/2012)
   (Kushtetuese + Gjykata e Lartë + CEDU).
 - **IT** (`bm25_it.pkl`): **15.595 articoli / 44 corpora** da Normattiva (+ D.Lgs 231/2007 antiriciclaggio)
@@ -1474,6 +1474,20 @@ canale di quota-studi: njoftim@aala.global → info@aala.global) SOLO se 🔴 ST
 Prova a secco del 16 set 13:13: DEAD 10, OK 152, UNKNOWN 18 (i 18 = tutti gli atti EUR-Lex,
 IP ancora in «sfida» WAF dopo i test della notte: si sbloccherà da solo; il cron di lunedì lo
 rivede). `python3 /opt/freshness-cron.py --dry` = prova senza email.
+**Radar novità (`tools/radar_novita.py`, 16 set)** — la freschezza vede le modifiche alle leggi che
+ABBIAMO; il radar vede le leggi NUOVE. Fonti verificate a mano: **GU RSS Serie Generale**
+(`gazzettaufficiale.it/rss/SG`, ~46 voci, titoli «DECRETO LEGISLATIVO 9 settembre 2026, n.160» +
+link ELI, nessuna descrizione → l'oggetto si legge dalla pagina ELI, fra la riga «n. N» e il codice
+«(26G00179)»; tenuti solo legge / d.lgs. / d.l. / d.p.r. / legge cost.) e **QBZ REST search** (AFTS
+`TYPE:"qbz:act" AND qbz:actDate:[…]`, ~900 atti da giugno: `ligj` tutti, `vendim` solo «Akt bazë»
+con parole-chiave del dominio e MAI i VKM amministrativi — espropri, beni dello Stato a 1 euro,
+nomine, fondi, prestiti — che sono centinaia al mese). Ogni atto una volta sola
+(`data/radar_state.json`, 180 giorni), «rilevante» per parole-chiave. Cron sull'HOST: `collect` ogni
+giorno 07:10, `digest --email` lunedì 06:40 → email Resend (stesso canale della freschezza) con
+l'elenco **DA VALUTARE** — non ingerisce nulla da solo; `digest` senza `--email` = anteprima che non
+consuma le voci; log `/var/log/superavokati/radar.log`. Primo giro 16 set: D.Lgs 160/2026 (AI Act,
+uso dell'IA da parte della polizia) + 3 VKM (mbikëqyrja e kufirit, koncesione elettroniche,
+transport detar) — email inviata.
 
 **v9.328 — CORPUS ALBANESE RISCRITTO DA QBZ + 29 leggi nuove + audit d'integrità (16 set).**
 Mandato del titolare: «trova anche degli altri [difetti] a livello generale… codici, nene,

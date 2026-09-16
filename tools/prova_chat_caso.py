@@ -13,6 +13,10 @@ import json, os, re, sys, time, urllib.request, http.cookiejar
 
 BASE = "http://127.0.0.1:5050"
 LANG = (sys.argv[1] if len(sys.argv) > 1 else "it").strip().lower()
+# PROVA_Q="…" sostituisce la domanda (per provare il corpus nuovo con casi mirati, 16 set 2026);
+# PROVA_TAG="nome" cambia il file di uscita (/tmp/audit_it/chat_<lang>_<tag>.txt)
+_Q_ENV = os.environ.get("PROVA_Q", "").strip()
+_TAG = os.environ.get("PROVA_TAG", "").strip()
 cj = http.cookiejar.CookieJar()
 op = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
 
@@ -59,6 +63,8 @@ cid = case["id"]
 print(f"caso {cid[:8]} giurisdizione={case.get('jurisdiction')}", flush=True)
 
 t0 = time.time()
+if _Q_ENV:
+    question = _Q_ENV
 start = post("/api/ask/start", {"case_id": cid, "message": question})
 job = start.get("job_id")
 print("job:", job, flush=True)
@@ -79,7 +85,9 @@ with op.open(req, timeout=3600) as r:
             n_delta += 1
         elif t == "status":
             n_status += 1
-            print(f"   [{int(time.time()-t0):4d}s] status: {(evt.get('text_it') or evt.get('text') or '')[:90]}", flush=True)
+            # come il client (app.js): text_it SOLO in sessione IT, altrimenti text (sq)
+            _st = (evt.get("text_it") if LANG == "it" else None) or evt.get("text") or evt.get("text_it") or ""
+            print(f"   [{int(time.time()-t0):4d}s] status: {_st[:90]}", flush=True)
         elif t == "final":
             final_text = evt.get("text") or ""
         elif t == "error":
@@ -91,7 +99,7 @@ with op.open(req, timeout=3600) as r:
 dt = time.time() - t0
 
 os.makedirs("/tmp/audit_it", exist_ok=True)
-out = f"/tmp/audit_it/chat_{LANG}.txt"
+out = f"/tmp/audit_it/chat_{LANG}{('_' + _TAG) if _TAG else ''}.txt"
 with open(out, "w", encoding="utf-8") as fh:
     fh.write(final_text)
 
