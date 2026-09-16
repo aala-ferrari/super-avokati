@@ -2600,6 +2600,7 @@ class SuperAvvocato:
                     new_sid = payload.get("session_id") or session_id
                     final_txt = str(payload.get("text") or "")
             text = _apply_corrections(_verify_citations(final_txt or "".join(collected), precedents_s))
+            text = self._riga_fiducie(text, retrieved)   # v9.338: Trust Line anche sul percorso semplice
             yield ("final", LegalAnswer(
                 kind="answer", text=text, triage=triage,
                 retrieved=retrieved, precedents=precedents_s, session_id=new_sid,
@@ -2956,6 +2957,7 @@ class SuperAvvocato:
             # adds ~10s (extra model call + diff check) for a marginal polish
             # that a citizen asking "sa m2 na takon" doesn't need.
             answer_text = _apply_corrections(answer_text)
+            answer_text = self._riga_fiducie(answer_text, retrieved)   # v9.338
             new_session_id = getattr(self.backend, "last_session_id",
                                      None) or session_id
             return LegalAnswer(
@@ -3484,6 +3486,29 @@ class SuperAvvocato:
         except Exception as exc:  # noqa: BLE001
             log.warning("studio djalli fallito (non-fatal): %s", exc)
             return answer_text
+
+    def _riga_fiducie(self, text: str, retrieved) -> str:
+        """v9.338 — la Trust Line anche dove il Giudice non gira (percorso semplice, chiarimenti):
+        stessa verifica deterministica, stessa riga in testa. Fail-silent."""
+        try:
+            from . import trust_line
+            if not (text or "").strip() or "🔎 **" in (text or "")[:600]:
+                return text
+            jur = self._current_jurisdiction()
+            lang = "it" if jur == "IT" else "sq"
+            idx = self.index_it if (self.index_it is not None and jur == "IT") else self.index
+            _codes = {a.code for a, _ in (retrieved or [])} or None
+            v = trust_line.verifica(text, idx, jur, retrieved_codes=_codes)
+            try:
+                from . import temporal as _tmp
+                _tempo = _tmp.ultimo_info()
+            except Exception:  # noqa: BLE001
+                _tempo = None
+            log.info("trust_line (simple): %s (nene %s, vendime %s)", trust_line.stato(v), v["nene"], v["sentenze"]["verified"])
+            return trust_line.inserisci_riga(text, trust_line.riga(v, lang, tempo=_tempo), "")
+        except Exception as exc:  # noqa: BLE001
+            log.warning("trust_line (simple) saltata (non-fatal): %s", exc)
+            return text
 
     def _gjyqtari_fundit(self, user_message, retrieved, precedents, answer_text,
                          dosja_txt="", fazat_txt=""):

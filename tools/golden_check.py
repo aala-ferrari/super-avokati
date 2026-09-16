@@ -3070,6 +3070,22 @@ def main():
     except Exception as _e87:  # noqa: BLE001
         check("log[87]: kontrollet u ekzekutuan", False, str(_e87))
 
+    # ── [88] v9.338 — la Trust Line anche sul percorso SEMPLICE (stream e non): prima solo il
+    # percorso complesso (dove gira il Giudice) la aveva; una risposta breve cita articoli come
+    # le altre e merita la stessa riga; mai doppia ──
+    try:
+        import inspect as _insp88
+        from src import brain as _br88
+        _as88 = _insp88.getsource(_br88.SuperAvvocato.answer_stream)
+        _an88 = _insp88.getsource(_br88.SuperAvvocato.answer)
+        _rf88 = _insp88.getsource(_br88.SuperAvvocato._riga_fiducie)
+        check("trust_line[88]: _riga_fiducie sul fast-path semplice di answer_stream E di answer(), con guardia anti-doppione",
+              "self._riga_fiducie(text, retrieved)" in _as88 and "self._riga_fiducie(answer_text, retrieved)" in _an88
+              and '"🔎 **" in (text or "")[:600]' in _rf88 and "trust_line.inserisci_riga(text, trust_line.riga(v, lang, tempo=_tempo)" in _rf88,
+              "stream=%s answer=%s guard=%s" % ("self._riga_fiducie(text, retrieved)" in _as88, "self._riga_fiducie(answer_text, retrieved)" in _an88, '"🔎 **" in' in _rf88))
+    except Exception as _e88:  # noqa: BLE001
+        check("trust_line[88]: kontrollet u ekzekutuan", False, str(_e88))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
