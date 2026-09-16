@@ -1482,6 +1482,14 @@ li cita — label «abrogato dal TU …»). Regola: dopo ogni ingest, **`tools/c
 (per atto: articoli/abrogati/testo «ABROGATO» + successore più citato; exit 1 se un atto per la
 maggioranza abrogato non ha il successore nel corpus): un atto morto va AFFIANCATO dal
 successore, mai lasciato solo. Golden [76] pretende i 5 TU con ≥30 articoli vigenti.
+**Deploy: seconda trappola della guardia (02:40)**. La v9.325 NON era mai andata live: la
+produzione era ancora v9.324 e `deploy_when_idle.sh v9.325` aspettava da 1h49 («1 analisi in
+corso» a container vuoto). Causa: il conteggio gira con `python3 -c '…'` e il testo del
+programma — che contiene `/usr/bin/claude` — sta nella cmdline del processo stesso → contava
+sempre ≥1 → ogni deploy aspettava l'intera MAX_WAIT e poi «procedeva comunque» (cioè quando
+capita, non quando è libero). Cura: salta il proprio pid e l'ago non si scrive per intero
+(`"/usr/bin/" + "cla" + "ude"`). Verifica: `docker exec super-avvocato python3
+/tmp/busy_detail.py` (età dei processi del cervello) deve concordare con la guardia.
 
 **v9.325 — BUDGET DI RICERCA nel prompt + guardia deploy riparata + risposta ripristinata (16 set).**
 Il titolare: «per 2 domande quasi 7% dell'abbonamento, sembra troppo». Causa: l'override IT

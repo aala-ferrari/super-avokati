@@ -26,16 +26,25 @@ docker build -q -t "super-avvocato:$NEW" . || { echo "BUILD FALLITA"; exit 1; }
 # il riavvio partiva sempre e ha ucciso una domanda del titolare (16 set).
 # Il conteggio va passato con -c, mai via stdin. Se il conteggio fallisce,
 # si assume OCCUPATO (999), non libero.
+# ⚠️ seconda trappola (16 set, 02:40): il conteggio girava con `-c` e il testo del
+# programma — che contiene la stringa cercata — finiva nella cmdline del processo
+# stesso: contava SEMPRE almeno 1 («1 analisi in corso» a container vuoto) e ogni
+# deploy aspettava l'intera MAX_WAIT (v9.325 mai andato live: 1h49 di attesa, ucciso).
+# Cura: si salta il proprio pid e l'ago non si scrive per intero.
 _busy() {
   docker exec super-avvocato python3 -c '
-import glob
+import glob, os
+me = str(os.getpid())
+needle = "/usr/bin/" + "cla" + "ude"
 n = 0
 for f in glob.glob("/proc/[0-9]*/cmdline"):
+    if f.split("/")[2] == me:
+        continue
     try:
         c = open(f, "rb").read().replace(b"\0", b" ").decode(errors="ignore")
     except Exception:
         continue
-    if "/usr/bin/claude" in c:
+    if needle in c:
         n += 1
 print(n)
 ' 2>/dev/null || echo 999
