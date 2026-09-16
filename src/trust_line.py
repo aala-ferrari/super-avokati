@@ -20,10 +20,11 @@ il corpus è completo e «non trovato» pesa. Mai censura, mai blocco: si segnal
 """
 from __future__ import annotations
 
-import logging
 import re
 
-log = logging.getLogger(__name__)
+from .logging_utils import get_logger
+
+log = get_logger(__name__)   # con logging.getLogger le righe INFO non arrivavano al log (vedi temporal.py)
 
 _DEC_IDX = None
 _DEC_TRIED = False

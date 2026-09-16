@@ -1440,6 +1440,25 @@ rischio residuo della DPIA.
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
 
+**v9.336 — PROVA VIVA SUL TEMPO (IT, domanda di cittadinanza del 10 marzo 2019) e le tre cose che ha
+mostrato (16 set notte).** Esito nel merito: **giusto** — «art. 9-ter L. 91/1992, nel testo vigente al
+10 marzo 2019: quarantotto mesi → scaduto il 10 marzo 2023; il testo odierno (24+12 mesi, D.L. 130/2020)
+non si applica alla domanda del 2019», poi via ordinaria per l'accertamento del diritto (art. 5 =
+diritto soggettivo) invece del TAR decaduto: 26 min, 15 fonti web, 0 albanese. Ma: (1) **niente
+verdetto e niente Trust Line**: il Giudice Finale è caduto per saturazione («Tetramorph i zënë», 4
+tentativi in 3,5 min) e l'except restituiva la risposta nuda → ora la Trust Line resta (v1 già
+calcolata) e in testa compare l'avviso onesto «⚖️ Il Giudice Finale non ha potuto pronunciarsi
+(servizio saturo)…» sq/it; (2) **nessuna riga «temporal:» nel log** pur con il blocco costruito
+davvero (la risposta lo cita): `logging.getLogger(__name__)` NON ha handler in questa app — solo
+`logging_utils.get_logger` scrive su file/stdout (propagate=False sui logger noti; il root è muto).
+`temporal.py` e `trust_line.py` corretti; ⚠️ altri 13 moduli (audio, genio, jobs, push, qkb, video,
+vigilanza…) hanno lo stesso difetto: le loro righe INFO non esistono da mesi — da sistemare in un giro
+a parte; (3) **art. 5 L. 91/1992 risultava «DIVERSO» al 2019** per un «13» di troppo (numero della
+nota «((13))») e per il punto finale mancante nella resa storica («…dai coniugi ))»): `_norm_body`
+ignora numeri di nota e punteggiatura (art. 5 uguale, 6 uguale, 9-ter diverso — come deve);
+`build_it_index._pulisci` toglie «((N))» dal corpus (prima restava un «13» su una riga dentro il
+prompt). Golden **[86]**. 473.
+
 **v9.335 — P3b-IT: le NOTE DI AGGIORNAMENTO di Normattiva per articolo (storia + disciplina
 transitoria) non si buttano più (16 set notte; ri-ingest in corso).** La pagina-articolo di Normattiva
 porta i blocchi «AGGIORNAMENTO (9) Il D.L. 4 ottobre 2018, n. 113 … ha disposto (con l'art. 14, comma 2)

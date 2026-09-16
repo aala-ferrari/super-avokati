@@ -27,8 +27,12 @@ def _pulisci(heading: str, body: str) -> tuple[str, str]:
             h, b = m.group(1), b[m.end():]
     h = re.sub(r"\(\(|\)\)", " ", h)
     h = re.sub(r"\s+", " ", h).strip().strip(" ()").rstrip(".").strip(" ()")
+    # «((13))» = numero della nota di aggiornamento, non testo normativo: nel corpus restava un
+    # «13» a sé su una riga (e faceva risultare «diverso» un testo storico identico — v9.336)
+    b = re.sub(r"\(\(\s*\d{1,3}\s*\)\)", " ", b)
     b = re.sub(r"\(\(\s*", "", b)
     b = re.sub(r"\s*\)\)", "", b)
+    b = re.sub(r"\n[ \t]*\n(?:[ \t]*\n)+", "\n\n", b)
     return h, b.strip()
 
 SRC = Path("/app/data/processed/it_acts")

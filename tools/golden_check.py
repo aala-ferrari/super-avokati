@@ -3032,6 +3032,25 @@ def main():
     except Exception as _e85:  # noqa: BLE001
         check("tempo[85]: kontrollet u ekzekutuan", False, str(_e85))
 
+    # ── [86] v9.336 — tre cose viste nella prova viva sul tempo: (a) i logger nuovi devono usare
+    # logging_utils.get_logger (con getLogger(__name__) le righe INFO sparivano); (b) il confronto
+    # storico ignora i numeri di nota «((13))»; (c) se il Giudice cade per saturazione la Trust
+    # Line resta e l'avvocato legge che l'arbitro non si è pronunciato ──
+    try:
+        from src import temporal as _tp86, trust_line as _tl86, brain as _br86
+        _okA = all(getattr(m.log, "handlers", None) for m in (_tp86, _tl86)) and _tp86.log.propagate is False
+        _okB = (_tp86._norm_body("1. Il coniuge.\n\n((13))") == _tp86._norm_body("1. Il coniuge.\n\n13") == "1 il coniuge"
+                and _tp86._norm_body("… dai coniugi ))") == _tp86._norm_body("… dai coniugi."))
+        _srcB86 = open(_br86.__file__, encoding="utf-8").read()
+        _okC = ("Il Giudice Finale non ha potuto pronunciarsi" in _srcB86 and "Gjyqtari i Fundit nuk mundi të shprehet" in _srcB86
+                and 'trust_line.riga(v1, lang, tempo=_tempo) + "\\n" + _nota' in _srcB86)
+        _srcBI86 = open(_os2.path.join(_os2.path.dirname(_os2.path.abspath(__file__)), "build_it_index.py"), encoding="utf-8").read()
+        _okD = r"\(\(\s*\d{1,3}\s*\)\)" in _srcBI86
+        check("tempo[86]: logger con handler in temporal/trust_line · confronto storico senza numeri di nota · Giudice saturo → Trust Line + avviso onesto sq/it · build_it_index toglie «((N))»",
+              _okA and _okB and _okC and _okD, "logger=%s norm=%s fallback=%s build=%s" % (_okA, _okB, _okC, _okD))
+    except Exception as _e86:  # noqa: BLE001
+        check("tempo[86]: kontrollet u ekzekutuan", False, str(_e86))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

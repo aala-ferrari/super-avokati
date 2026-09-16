@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import importlib.util
 import json
-import logging
 import re
 import threading
 import time
@@ -33,7 +32,12 @@ import urllib.request
 from datetime import date, timedelta
 from pathlib import Path
 
-log = logging.getLogger(__name__)
+from .logging_utils import get_logger
+
+# ⚠️ get_logger, non logging.getLogger: solo i logger creati da logging_utils hanno gli handler
+# (file + stdout); con getLogger(__name__) le righe INFO sparivano (misurato il 16 set: nessun
+# «temporal:» nel log della prova viva, mentre il blocco era stato costruito davvero)
+log = get_logger(__name__)
 
 _MESI_IT = {"gennaio": 1, "febbraio": 2, "marzo": 3, "aprile": 4, "maggio": 5, "giugno": 6, "luglio": 7,
             "agosto": 8, "settembre": 9, "ottobre": 10, "novembre": 11, "dicembre": 12}
@@ -127,7 +131,15 @@ def _norm_num(s: str) -> str:
 
 
 def _norm_body(s: str) -> str:
-    s = re.sub(r"\(\(|\)\)", " ", s or "")
+    """Testo confrontabile: via le marcature «((…))» di Normattiva e i NUMERI DI NOTA a sé
+    («((13))» nel testo storico, «13» su una riga nel nostro corpus pulito): l'art. 5 L. 91/1992
+    risultava «DIVERSO» al 2019 per un «13» di troppo (misurato il 16 set)."""
+    s = re.sub(r"\(\(\s*\d{1,3}\s*\)\)", " ", s or "")
+    s = re.sub(r"(?m)^\s*\d{1,3}\s*$", " ", s)
+    s = re.sub(r"\(\(|\)\)", " ", s)
+    # la punteggiatura non è una modifica normativa: la versione storica arriva senza il punto
+    # finale («…dai coniugi ))» contro «…dai coniugi.») e risultava «DIVERSA»
+    s = re.sub(r"[.,;:()\[\]«»\"“”'’]", " ", s)
     return re.sub(r"\s+", " ", s).strip().lower()
 
 

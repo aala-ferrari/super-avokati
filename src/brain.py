@@ -3515,15 +3515,30 @@ class SuperAvvocato:
             if request_senior() == "fable":
                 # ⚡: il verdetto è già del senior Fable (Source Verifier suo); resta la riga
                 return trust_line.inserisci_riga(answer_text, trust_line.riga(v1, lang, tempo=_tempo), "")
-            vendim = studio.gjyqtari_fundit(
-                self.backend, domanda=user_message,
-                blloku_neneve=_format_articles_for_prompt(retrieved),
-                pergjigja=answer_text, dosja=dosja_txt or "", lang=lang,
-                modeli=STUDIO_GJYQTARI_MODEL, effort=STUDIO_GJYQTARI_EFFORT,
-                fazat=fazat_txt or "",
-                verifikimi=trust_line.blocco_per_gjyqtarin(v1, lang))
+            try:
+                vendim = studio.gjyqtari_fundit(
+                    self.backend, domanda=user_message,
+                    blloku_neneve=_format_articles_for_prompt(retrieved),
+                    pergjigja=answer_text, dosja=dosja_txt or "", lang=lang,
+                    modeli=STUDIO_GJYQTARI_MODEL, effort=STUDIO_GJYQTARI_EFFORT,
+                    fazat=fazat_txt or "",
+                    verifikimi=trust_line.blocco_per_gjyqtarin(v1, lang))
+            except Exception as exc:  # noqa: BLE001
+                # v9.336 — il Giudice può cadere per saturazione («Tetramorph i zënë», 4 tentativi,
+                # misurato il 16 set): la risposta usciva SENZA verdetto e SENZA Trust Line, e
+                # l'avvocato non sapeva che l'arbitro non si era pronunciato. Ora: riga di fiducia
+                # + avviso onesto in testa, nella lingua della sessione.
+                log.warning("studio: gjyqtari i fundit dështoi (non-fatal): %s", exc)
+                vendim = ""
             if not (vendim or "").strip():
-                return trust_line.inserisci_riga(answer_text, trust_line.riga(v1, lang, tempo=_tempo), "")
+                _nota = (("> ⚖️ *Il Giudice Finale non ha potuto pronunciarsi (servizio saturo): la risposta è quella del "
+                          "senior con le repliche all'avvocato del diavolo — la verifica delle citazioni qui sopra è "
+                          "comunque stata fatta.*")
+                         if lang == "it" else
+                         ("> ⚖️ *Gjyqtari i Fundit nuk mundi të shprehet (shërbimi i ngarkuar): përgjigja është ajo e "
+                          "seniorit me kundërpërgjigjet ndaj avokatit të djallit — verifikimi i citimeve më sipër "
+                          "është bërë gjithsesi.*"))
+                return trust_line.inserisci_riga(answer_text, trust_line.riga(v1, lang, tempo=_tempo) + "\n" + _nota, "")
             vendim = _apply_corrections(_verify_citations(vendim, precedents))
             log.info("studio: gjyqtari i fundit ka dhënë vendimin (%d shkronja)", len(vendim))
             # v9.316 — il verdetto IN TESTA (prima la decisione, poi l'analisi completa);
