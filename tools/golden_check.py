@@ -2908,6 +2908,28 @@ def main():
     except Exception as _e81:  # noqa: BLE001
         check("trust_line[81]: kontrollet u ekzekutuan", False, str(_e81))
 
+    # ── [82] BENCHMARK LAB, strato 1 (16 set, roadmap v3 P0): 850 test deterministici — recupero
+    # (una query per articolo, AL ≥93% / IT ≥85%), stati del verificatore (verificato/abrogato/
+    # inesistente = 100%), sigle (100%), REGRESSIONI (ogni errore vero trovato = un test per
+    # sempre: 100%), recupero del cervello con ancore (≥90%); e nessun calo >2 punti rispetto
+    # all'ultimo giro salvato. Un cervello nuovo esce solo se questo gate passa ──
+    try:
+        import io as _io82, contextlib as _ctx82, importlib.util as _ilu82
+        _spec82 = _ilu82.spec_from_file_location("benchmark_lab", _os2.path.join(_os2.path.dirname(_os2.path.abspath(__file__)), "benchmark_lab.py"))
+        _bl = _ilu82.module_from_spec(_spec82)
+        _spec82.loader.exec_module(_bl)
+        _buf82 = _io82.StringIO()
+        with _ctx82.redirect_stdout(_buf82):
+            _s82 = _bl.run_layer1(verbose=False)
+        _ok82, _prob82 = _bl.gate(_s82, _bl._last_history()) if _s82 else (False, ["nessun test"])
+        _n82 = int(_s82.get("n") or 0)
+        _hdr82 = [a for a in ArticleIndex.load(_P81("/app/data/index/bm25_it.pkl")).articles if (a.heading or "").lstrip().startswith("(")]
+        check("benchmark[82]: strato 1 deterministico (≥800 test: recupero AL/IT, stati, sigle, regressioni, cervello) sopra le soglie e senza regressioni; rubriche IT pulite (nessuna che inizia con «(»: «( (Maggiore età» era nel badge)",
+              _ok82 and _n82 >= 800 and not _hdr82,
+              "n=%d gate=%s %s | rates=%s | rubriche rotte=%d" % (_n82, _ok82, "; ".join(_prob82)[:200], _s82.get("rates"), len(_hdr82)))
+    except Exception as _e82:  # noqa: BLE001
+        check("benchmark[82]: kontrollet u ekzekutuan", False, str(_e82))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

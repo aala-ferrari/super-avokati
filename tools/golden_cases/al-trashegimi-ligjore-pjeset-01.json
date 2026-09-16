@@ -1,0 +1,25 @@
+{
+  "id": "al-trashegimi-ligjore-pjeset-01",
+  "jurisdiction": "AL",
+  "title": "Trashëgimi ligjore: bashkëshorte + dy fëmijë, pa testament",
+  "question": "Trashëgimlënësi vdes pa testament dhe lë bashkëshorten dhe dy fëmijë madhorë; pasuria është një apartament në Tiranë. Si ndahet trashëgimia dhe cilat nene të Kodit Civil zbatohen?",
+  "facts": "Pa testament, bashkëshorte + 2 fëmijë, një apartament.",
+  "expected_laws": [
+    {
+      "code": "kodi_civil",
+      "number": "361"
+    }
+  ],
+  "must_not_cite": [],
+  "key_points": [
+    "barabart",
+    "1/3|një e treta|nga një e treta"
+  ],
+  "verdict_expect": "pjesë të barabarta",
+  "expected_issues": [
+    "rendi i parë Neni 361: pjesë të barabarta",
+    "asnjë «riserva/legittima» italo-francese"
+  ],
+  "notes": "SEED (motore quote v9.293: Neni 361 = parti uguali, con Fraction) — da validare.",
+  "validated_by": null
+}

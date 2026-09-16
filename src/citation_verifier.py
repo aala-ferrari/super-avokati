@@ -513,11 +513,17 @@ def _kp_resolve(number: str, text: str, retrieved_codes: set, lookup: dict) -> s
 
 
 # ── Italian citations (art. N c.c./c.p./c.p.c./c.p.p./Cost.) ─────────────────
-_NUM_TOKEN_IT = r"\d+(?:[\-\s](?:bis|ter|quater|quinquies|sexies|septies|octies|novies|decies))?"
+# 16 set 2026 (benchmark lab): dopo la riforma Cartabia il c.p.c. arriva a «281-terdecies» — i suffissi
+# oltre «decies» spezzavano il numero («281» + coda «-terdecies») e la citazione restava senza codice
+_NUM_TOKEN_IT = (r"\d+(?:[\-\s](?:bis|ter|quater|quinquies|sexies|septies|octies|novies|decies|undecies|duodecies|"
+                 r"terdecies|quaterdecies|quinquiesdecies|sexiesdecies|septiesdecies|octiesdecies|noviesdecies|vicies)"
+                 r"(?![a-z]))?")
 CITATION_RE_IT = re.compile(
     r"\bart(?:t|icol[oi])?\.?\s+"
     r"(?P<nums>" + _NUM_TOKEN_IT + r"(?:\s*(?:,|;|\be\b|\bed\b)\s*" + _NUM_TOKEN_IT + r")*)"
-    r"(?P<tail>(?:\s+(?!art\b)[^\s,;:\n()]+){0,6})",
+    # 16 set 2026 (benchmark lab): «art. 215 Reg. (UE) 2015/2446» — il token «(UE)» spezzava la
+    # coda e la citazione restava «senza codice»; i soli parentetici ammessi sono le sigle UE/CE/CEE
+    r"(?P<tail>(?:\s+(?!art\b)(?:\((?:UE|CE|CEE|Euratom)\)|[^\s,;:\n()]+)){0,6})",
     re.IGNORECASE,
 )
 _NUM_RE_IT = re.compile(_NUM_TOKEN_IT)

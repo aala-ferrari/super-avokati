@@ -1440,6 +1440,35 @@ rischio residuo della DPIA.
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
 
+**v9.332 — ROADMAP v3, PASSO 2: BENCHMARK LAB (`tools/benchmark_lab.py`) + ciò che ha trovato al primo giro (16 set sera).**
+Un cervello nuovo esce solo se misura meglio del precedente. **Strato 1, deterministico, senza
+modello, ~80 s**: `tools/benchmark/layer1_auto.jsonl` (649 test generati dal corpus vivo con `gen`:
+per ogni codice articoli a passo fisso, query = rubrica se unica e non generica, altrimenti rubrica +
+prime 14 parole; l'articolo deve tornare nei primi 12; stati del verificatore per i codici con sigla
+nota: verificato/abrogato/inesistente) + `layer1_manual.jsonl` (202: 164 sigle IT+AL, **34
+REGRESSIONI = ogni errore vero già trovato è un test per sempre** — c.c. 1-31, preleggi 15, c.p. 17,
+KP/Kodi i Punës, 432/c, K.Pr.C. 420 abrogato, c.p. 29 vivo, «accise»≠c.c., «procedura»≠CEDU, 602/1973
+morto… — e 4 recuperi del cervello con ancore su triage sintetico: Neni 114, 153, art. 2946, L. 91/1992
+art. 5). Soglie: recupero AL ≥93%, IT ≥85%, stati/sigle/regressioni 100%, cervello ≥90%; **gate** =
+soglie + nessun calo >2 punti rispetto all'ultimo giro (`data/benchmark/layer1_history.jsonl`);
+golden **[82]** lo esegue. **Strato 2** = i casi in `tools/golden_cases/` (10: 3 vecchi + 7 semi dalle
+prove vive: pushim+leje, cittadinanza, auto shpk, kufizim rubrika D, licenziamento GMO, trashëgimi,
+visura ipoteca/pignoramento) col cervello vero via HTTP (`run --layer 2 --limit N`, di notte):
+must_cite / must_not_cite / key_points / verdetto in testa / lingua / Trust Line / tempo, punteggio
+e storico; README per gli avvocati che validano (`validated_by`). **Trovati dal primo giro e
+corretti**: (1) «art. 215 Reg. (UE) 2015/2446» → «senza codice»: il token «(UE)» spezzava la coda
+della citazione IT (ora ammessi «(UE)/(CE)/(CEE)/(Euratom)»); (2) «art. 281-terdecies c.p.c.» →
+i suffissi oltre «decies» non erano nel numero (Cartabia: fino a 281-terdecies; ora fino a
+«vicies»); (3) **1.700+ rubriche IT rotte** — «(Capacità giuridica).», «( (Maggiore età…» — e
+«((…))» (marcatura Normattiva del testo modificato) nei corpi; c.c. art. 1 con rubrica VUOTA e
+«CODICE CIVILE / Art. 1. / (Capacità giuridica).» dentro il corpo: `build_it_index._pulisci`
+(rubrica ripescata dal corpo, doppie parentesi via, parentesi attorno alla rubrica via) → indice IT
+ricostruito (22.779 art., 0 rubriche che iniziano con «(»); (4) la risoluzione della legge sulla
+violenza domestica per NOME va alla 11/2026 (il test seme diceva 9669: corretto il test, non il
+codice). Baseline: **851 test, GATE PASS** (AL 99,3%, IT 91,3%, stati/sigle/regressioni 100%,
+cervello 4/4). Golden **469**. ⚠️ nel container `/app/tools` non è scrivibile: `gen` scrive in
+`data/benchmark/` e `run` legge da lì se il file del repo manca; `run --version vX` per lo storico.
+
 **v9.331 — ROADMAP v3, PASSO 1: LO SCUDO PRIMA DEL GIUDICE + TRUST LINE + prova anti-iniezione (16 set sera).**
 Il titolare ha ricevuto da un consulente il «LEGAL AI Definitive Blueprint v3» (Desktop, .pages; testo
 via Pages→docx→`tools/docx_text.py`): mappa giusta costruita sulla nostra baseline; il mio ordine

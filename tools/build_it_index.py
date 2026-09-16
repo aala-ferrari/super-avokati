@@ -3,12 +3,33 @@
 Writes: all_articles_it.jsonl, it_codes.json (metadata for the UI), bm25_it.pkl.
 Keeps a timestamped backup of the previous index so a rollback is trivial.
 """
-import json, shutil, sys, time
+import json, re, shutil, sys, time
 from dataclasses import asdict
 from pathlib import Path
 sys.path.insert(0, "/app")
 from src.parser import Article
 from src.retrieval import ArticleIndex
+
+# 16 set 2026 (benchmark lab, v9.332): Normattiva marca con «((…))» il testo modificato da atti
+# successivi, e nei CODICI (markup allegato-legacy) la rubrica arriva come «(Capacità giuridica).»
+# o resta nel corpo dopo «Art. N.» (c.c. art. 1: rubrica VUOTA e corpo «CODICE CIVILE / Art. 1. /
+# (Capacità giuridica). / La capacità…»). Misurato: 1.700+ rubriche IT che cominciano con «(»,
+# 457 nel solo c.c.; «( (Maggiore età…» finiva nel badge delle citazioni e nel prompt. Qui si
+# puliscono rubrica e corpo SENZA toccare i JSON scaricati (fonte grezza).
+_RUB_IN_BODY = re.compile(r"^\s*(?:[A-ZÀ-Ü'’ ,.]{6,}\n+)?Art\.\s*[\dA-Za-z\-]+\.?\s*\n+\s*\(\(?\s*([^\n]{3,160}?)\s*\)?\)\.?\s*\n+")
+
+
+def _pulisci(heading: str, body: str) -> tuple[str, str]:
+    h, b = heading or "", body or ""
+    if not h.strip():
+        m = _RUB_IN_BODY.match(b)
+        if m:
+            h, b = m.group(1), b[m.end():]
+    h = re.sub(r"\(\(|\)\)", " ", h)
+    h = re.sub(r"\s+", " ", h).strip().strip(" ()").rstrip(".").strip(" ()")
+    b = re.sub(r"\(\(\s*", "", b)
+    b = re.sub(r"\s*\)\)", "", b)
+    return h, b.strip()
 
 SRC = Path("/app/data/processed/it_acts")
 JSONL = Path("/app/data/processed/all_articles_it.jsonl")
@@ -87,10 +108,10 @@ def main():
             print(f"  ! {cid}: 0 articoli — escluso")
             continue
         for art in arts:
+            _h, _b = _pulisci(art.get("heading") or "", art.get("body") or "")
             all_articles.append(Article(
                 code=cid, title_sq=a["title"], area=a.get("area") or "",
-                number=art["number"], heading=art.get("heading") or "",
-                body=art.get("body") or "",
+                number=art["number"], heading=_h, body=_b,
                 pjesa="", kreu="", seksioni="",
                 repealed=_as_bool(art.get("repealed")), volatility="STABLE"))
         meta.append({"code": cid, "title": a["title"], "area": a.get("area") or "",

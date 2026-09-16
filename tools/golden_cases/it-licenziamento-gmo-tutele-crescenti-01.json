@@ -1,0 +1,32 @@
+{
+  "id": "it-licenziamento-gmo-tutele-crescenti-01",
+  "jurisdiction": "IT",
+  "title": "Licenziamento per giustificato motivo oggettivo, assunzione post 7.3.2015, 30 dipendenti",
+  "question": "Dipendente assunto il 1° giugno 2018 a tempo indeterminato da un'azienda con 30 dipendenti, licenziato per giustificato motivo oggettivo con lettera PEC ricevuta il 3 settembre 2026. Quali tutele ha, entro quali termini deve impugnare e cosa può ottenere?",
+  "facts": "Assunzione 1.6.2018, 30 dipendenti, GMO, PEC 3.9.2026.",
+  "expected_laws": [
+    {
+      "code": "statuto_lavoratori",
+      "number": "18"
+    },
+    {
+      "code": "statuto_lavoratori",
+      "number": "7"
+    }
+  ],
+  "must_not_cite": [],
+  "key_points": [
+    "604/1966",
+    "23/2015",
+    "60 giorni|sessanta giorni",
+    "180 giorni|centottanta"
+  ],
+  "verdict_expect": "impugnazione entro 60 giorni",
+  "expected_issues": [
+    "termini art. 6 L. 604/1966",
+    "tutele crescenti D.Lgs 23/2015",
+    "requisito dimensionale art. 18 c. 8"
+  ],
+  "notes": "SEED dall'audit IT del 14 set 2026 (v9.314: 35 riferimenti IT, entrambi i rami ante/post 2015) — da validare.",
+  "validated_by": null
+}

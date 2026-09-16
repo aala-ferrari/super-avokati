@@ -1,0 +1,52 @@
+{
+  "id": "al-pushim-leje-qendrimi-01",
+  "jurisdiction": "AL",
+  "title": "Pushim nga puna pa paralajmërim + leje qëndrimi për punë",
+  "question": "Klienti im, shtetas i huaj me leje qëndrimi për punë në Shqipëri prej 3 vjetësh, është pushuar nga puna pa paralajmërim dhe pa dëmshpërblim. Cilat janë të drejtat e tij, afatet për të vepruar, dhe a rrezikon lejen e qëndrimit?",
+  "facts": "Shtetas i huaj, leje qëndrimi për punë, 3 vjet punë, zgjidhje e menjëhershme e kontratës pa shkak, pa afat njoftimi.",
+  "expected_laws": [
+    {
+      "code": "kodi_punes",
+      "number": "155"
+    },
+    {
+      "code": "kodi_punes",
+      "number": "152"
+    },
+    {
+      "code": "kodi_punes",
+      "number": "144"
+    },
+    {
+      "code": "kodi_punes",
+      "number": "154"
+    },
+    {
+      "code": "ligji_te_huajt",
+      "number": "72"
+    },
+    {
+      "code": "ligji_te_huajt",
+      "number": "73"
+    }
+  ],
+  "must_not_cite": [
+    {
+      "code": "kodi_penal",
+      "number": "155"
+    }
+  ],
+  "key_points": [
+    "180 dit",
+    "njoftim",
+    "vjet[ëe]rsi"
+  ],
+  "verdict_expect": "po",
+  "expected_issues": [
+    "zgjidhja e pajustifikuar e kontratës",
+    "afati 180 ditë",
+    "anulimi i lejes së qëndrimit"
+  ],
+  "notes": "SEED dalla prova viva del 16 set 2026 (27 min, verdetto corretto, Giudice ha tolto 144/6 transitorio) — da validare.",
+  "validated_by": null
+}

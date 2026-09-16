@@ -1,0 +1,31 @@
+{
+  "id": "al-prona-kufizim-rubrika-d-01",
+  "jurisdiction": "AL",
+  "title": "Shitje apartamenti të regjistruar me kufizim në rubrikën D dhe hipotekë",
+  "question": "Klienti im do të blejë një apartament të regjistruar në ASHK (kartela me numër regjistrimi). Në rubrikën D të kartelës figuron «kufizohen veprimet deri në rregullimin e marrëdhënieve me truallin» dhe një hipotekë në favor të një banke. A mund të lidhet kontrata e shitjes? Cilat nene zbatohen dhe çfarë duhet bërë para aktit noterial?",
+  "facts": "Apartament i regjistruar, kufizim në rubrikën D, hipotekë bankare.",
+  "expected_laws": [
+    {
+      "code": "kodi_civil",
+      "number": "193"
+    },
+    {
+      "code": "kodi_civil",
+      "number": "195"
+    }
+  ],
+  "must_not_cite": [],
+  "key_points": [
+    "hipotek",
+    "kufizim",
+    "regjistru"
+  ],
+  "verdict_expect": "me kushte",
+  "expected_issues": [
+    "Neni 195 nuk zbatohet mbi pasurinë e regjistruar",
+    "kufizimi i rubrikës D si pengesë reale",
+    "hipoteka kushtëzon, nuk bllokon"
+  ],
+  "notes": "SEED dal caso reale dell'11 set 2026 (v9.309: il cervello aveva applicato il 195 a un bene registrato) — da validare.",
+  "validated_by": null
+}

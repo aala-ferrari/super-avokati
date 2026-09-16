@@ -1,0 +1,34 @@
+{
+  "id": "it-auto-shpk-targa-albanese-01",
+  "jurisdiction": "IT",
+  "title": "Auto targata AL di una sh.p.k. guidata in Italia dall'amministratore con permesso di soggiorno",
+  "question": "Ho un cliente amministratore di una società albanese sh.p.k.; l'auto è targata albanese, intestata alla sh.p.k., con procura notarile per guidarla all'estero. L'amministratore è stato residente in Italia, ora vive in Albania da più di 6 mesi consecutivi ma ha ancora un permesso di soggiorno italiano valido. Può circolare in Italia con l'auto della società? Rischia fermo, sequestro o confisca?",
+  "facts": "Auto targata AL della sh.p.k., procura notarile, amministratore con permesso di soggiorno IT ma residente in AL da oltre 6 mesi.",
+  "expected_laws": [
+    {
+      "code": "reg_ue_2015_2446",
+      "number": "212"
+    },
+    {
+      "code": "reg_ue_2015_2446",
+      "number": "215"
+    },
+    {
+      "code": "reg_ue_2015_2446",
+      "number": "217"
+    }
+  ],
+  "must_not_cite": [],
+  "key_points": [
+    "residenza abituale|residente abituale|stabilit",
+    "sei mesi|6 mesi|183"
+  ],
+  "verdict_expect": "sì, con condizioni",
+  "expected_issues": [
+    "ammissione temporanea art. 212-217 Reg. 2015/2446",
+    "residenza abituale",
+    "confisca doganale"
+  ],
+  "notes": "SEED dalla prova viva del 15-16 set 2026 (caso «auto shpk», verdetto «regge con condizioni») — da validare.",
+  "validated_by": null
+}

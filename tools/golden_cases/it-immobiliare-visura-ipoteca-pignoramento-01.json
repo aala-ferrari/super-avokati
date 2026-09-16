@@ -1,0 +1,35 @@
+{
+  "id": "it-immobiliare-visura-ipoteca-pignoramento-01",
+  "jurisdiction": "IT",
+  "title": "Compravendita con ipoteca e pignoramento trascritto su quota 1/2",
+  "question": "Il mio cliente vuole acquistare un appartamento. Dalla visura ipotecaria risultano un'ipoteca volontaria a favore di una banca e un pignoramento trascritto su 1/2 dell'immobile. La vendita è possibile? Quali formalità bloccano e quali condizionano l'atto?",
+  "facts": "Ipoteca volontaria + pignoramento trascritto su quota 1/2.",
+  "expected_laws": [
+    {
+      "code": "codice_civile",
+      "number": "2808"
+    },
+    {
+      "code": "codice_civile",
+      "number": "2913"
+    },
+    {
+      "code": "codice_civile",
+      "number": "2644"
+    }
+  ],
+  "must_not_cite": [],
+  "key_points": [
+    "pignorament",
+    "ipotec",
+    "trascrizion"
+  ],
+  "verdict_expect": "condizionata",
+  "expected_issues": [
+    "ipoteca ≠ blocco (2808)",
+    "pignoramento trascritto blocca (2913)",
+    "trascrizione = opponibilità (2644)"
+  ],
+  "notes": "SEED dall'audit notarile IT del 14 set 2026 (v9.312, visura-trappola 141 rif. IT) — da validare.",
+  "validated_by": null
+}

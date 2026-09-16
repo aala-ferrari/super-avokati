@@ -1,5 +1,29 @@
 # Golden cases — valutazione dell'accuratezza legale (§37-40)
 
+> **Benchmark Lab (16 set 2026, roadmap v3 P0)** — questi casi sono lo **STRATO 2** di
+> `tools/benchmark_lab.py` (il cervello vero, via HTTP come il browser). Lo **strato 1** è
+> deterministico (`tools/benchmark/layer1_auto.jsonl` generato dal corpus + `layer1_manual.jsonl`
+> con sigle e REGRESSIONI: ogni errore vero trovato diventa un test per sempre) e gira in un
+> minuto; lo strato 3 è il `golden_check`. Baseline strato 1 del 16 set: 851 test, GATE PASS
+> (recupero AL 99,3%, IT 91,3%, stati/sigle/regressioni 100%).
+>
+> **Come scrivere un caso (per l'avvocato che valida)** — un file JSON per caso, campi in più
+> rispetto al formato originale:
+> - `question`: la domanda ESATTA come la farebbe un avvocato in chat (se manca si usa `facts`);
+> - `expected_laws`: gli articoli che DEVONO essere citati (`code` = ID dell'indice, `number`);
+> - `must_not_cite`: articoli che NON devono comparire (es. `kodi_penal 155` quando si parla di
+>   Kodi i Punës);
+> - `key_points`: espressioni regolari (case-insensitive) che la risposta deve contenere — i
+>   punti giuridici decisivi («180 dit», «B1», «60 giorni|sessanta»);
+> - `verdict_expect`: il senso del verdetto atteso (testo libero, per chi rilegge);
+> - `validated_by`: il nome dell'avvocato che ha verificato il caso (finché è `null` è un SEME).
+>
+> Lancio: `docker exec super-avvocato python3 tools/benchmark_lab.py run --layer 2 --limit 3`
+> (costa una domanda al cervello per caso, 3-30 min: di notte, mai in CI). Ogni giro salva le
+> risposte in `data/benchmark/layer2/<run>/` e il punteggio in `layer2_history.jsonl`: punteggio =
+> 45% norme attese citate + 25% punti chiave + 15% nessuna citazione vietata + 10% verdetto in
+> testa + 5% lingua pura.
+
 Questi sono i casi di riferimento con cui `tools/legal_eval.py` misura se la
 piattaforma **trova la norma giusta**. A differenza di `golden_check.py` (che
 verifica la *struttura* del codice), qui si misura l'**accuratezza legale reale**.

@@ -1,0 +1,202 @@
+{"id": "it-res-000", "lang": "it", "kind": "resolver", "label": "D.Lgs. 33/2025", "expect": "tu_riscossione"}
+{"id": "it-res-001", "lang": "it", "kind": "resolver", "label": "D.Lgs. 10/2026", "expect": "tu_iva"}
+{"id": "it-res-002", "lang": "it", "kind": "resolver", "label": "D.Lgs 173/2024", "expect": "tu_sanzioni_tributarie"}
+{"id": "it-res-003", "lang": "it", "kind": "resolver", "label": "D.Lgs. 123/2025", "expect": "tu_registro"}
+{"id": "it-res-004", "lang": "it", "kind": "resolver", "label": "D.Lgs. 141/2026", "expect": "tu_accertamento"}
+{"id": "it-res-005", "lang": "it", "kind": "resolver", "label": "D.Lgs. 141/2024", "expect": "codice_doganale_nazionale"}
+{"id": "it-res-006", "lang": "it", "kind": "resolver", "label": "DPR 602/1973", "expect": "riscossione"}
+{"id": "it-res-007", "lang": "it", "kind": "resolver", "label": "DPR 633/1972", "expect": "iva"}
+{"id": "it-res-008", "lang": "it", "kind": "resolver", "label": "D.Lgs. 472/1997", "expect": "sanzioni_tributarie"}
+{"id": "it-res-009", "lang": "it", "kind": "resolver", "label": "Reg. (UE) 2015/2446", "expect": "reg_ue_2015_2446"}
+{"id": "it-res-010", "lang": "it", "kind": "resolver", "label": "c.c.", "expect": "codice_civile"}
+{"id": "it-res-011", "lang": "it", "kind": "resolver", "label": "GDPR", "expect": "gdpr"}
+{"id": "it-res-012", "lang": "it", "kind": "resolver", "label": "L. 218/1995", "expect": "diritto_internazionale_privato"}
+{"id": "it-res-013", "lang": "it", "kind": "resolver", "label": "L. 91/1992", "expect": "cittadinanza"}
+{"id": "it-res-014", "lang": "it", "kind": "resolver", "label": "legge sulla cittadinanza", "expect": "cittadinanza"}
+{"id": "it-res-015", "lang": "it", "kind": "resolver", "label": "D.Lgs. 30/2007", "expect": "cittadini_ue"}
+{"id": "it-res-016", "lang": "it", "kind": "resolver", "label": "D.Lgs. 25/2008", "expect": "protezione_internazionale"}
+{"id": "it-res-017", "lang": "it", "kind": "resolver", "label": "D.Lgs. 81/2015", "expect": "contratti_lavoro"}
+{"id": "it-res-018", "lang": "it", "kind": "resolver", "label": "D.Lgs. 81/2008", "expect": "sicurezza_lavoro"}
+{"id": "it-res-019", "lang": "it", "kind": "resolver", "label": "D.Lgs. 66/2003", "expect": "orario_lavoro"}
+{"id": "it-res-020", "lang": "it", "kind": "resolver", "label": "D.Lgs. 151/2001", "expect": "maternita_paternita"}
+{"id": "it-res-021", "lang": "it", "kind": "resolver", "label": "D.Lgs. 276/2003", "expect": "legge_biagi"}
+{"id": "it-res-022", "lang": "it", "kind": "resolver", "label": "D.Lgs. 165/2001", "expect": "pubblico_impiego"}
+{"id": "it-res-023", "lang": "it", "kind": "resolver", "label": "D.L. 132/2014", "expect": "negoziazione_assistita"}
+{"id": "it-res-024", "lang": "it", "kind": "resolver", "label": "D.Lgs. 274/2000", "expect": "giudice_pace_penale"}
+{"id": "it-res-025", "lang": "it", "kind": "resolver", "label": "D.Lgs. 74/2000", "expect": "reati_tributari"}
+{"id": "it-res-026", "lang": "it", "kind": "resolver", "label": "L. 69/2005", "expect": "mandato_arresto_europeo"}
+{"id": "it-res-027", "lang": "it", "kind": "resolver", "label": "DPR 313/2002", "expect": "casellario"}
+{"id": "it-res-028", "lang": "it", "kind": "resolver", "label": "L. 76/2016", "expect": "unioni_civili"}
+{"id": "it-res-029", "lang": "it", "kind": "resolver", "label": "L. 219/2017", "expect": "consenso_informato_dat"}
+{"id": "it-res-030", "lang": "it", "kind": "resolver", "label": "R.D. 1326/1914", "expect": "regolamento_notarile"}
+{"id": "it-res-031", "lang": "it", "kind": "resolver", "label": "D.Lgs. 192/2005", "expect": "prestazione_energetica"}
+{"id": "it-res-032", "lang": "it", "kind": "resolver", "label": "L. 1150/1942", "expect": "legge_urbanistica"}
+{"id": "it-res-033", "lang": "it", "kind": "resolver", "label": "L. 110/1975", "expect": "armi"}
+{"id": "it-res-034", "lang": "it", "kind": "resolver", "label": "DPR 230/2000", "expect": "regolamento_penitenziario"}
+{"id": "it-res-035", "lang": "it", "kind": "resolver", "label": "DPR 380/2001", "expect": "tu_edilizia"}
+{"id": "it-res-036", "lang": "it", "kind": "resolver", "label": "TFUE", "expect": "tfue"}
+{"id": "it-res-037", "lang": "it", "kind": "resolver", "label": "Trattato sul funzionamento dell'Unione europea", "expect": "tfue"}
+{"id": "it-res-038", "lang": "it", "kind": "resolver", "label": "Trattato sull'Unione europea", "expect": "tue"}
+{"id": "it-res-039", "lang": "it", "kind": "resolver", "label": "Carta dei diritti fondamentali", "expect": "carta_diritti_ue"}
+{"id": "it-res-040", "lang": "it", "kind": "resolver", "label": "Reg. (UE) 2016/399", "expect": "codice_frontiere_schengen"}
+{"id": "it-res-041", "lang": "it", "kind": "resolver", "label": "codice frontiere Schengen", "expect": "codice_frontiere_schengen"}
+{"id": "it-res-042", "lang": "it", "kind": "resolver", "label": "Reg. (UE) 2018/1806", "expect": "reg_ue_2018_1806"}
+{"id": "it-res-043", "lang": "it", "kind": "resolver", "label": "Reg. (CE) 810/2009", "expect": "codice_visti"}
+{"id": "it-res-044", "lang": "it", "kind": "resolver", "label": "Reg. (UE) 1259/2010", "expect": "roma_iii"}
+{"id": "it-res-045", "lang": "it", "kind": "resolver", "label": "Roma III", "expect": "roma_iii"}
+{"id": "it-res-046", "lang": "it", "kind": "resolver", "label": "Roma II", "expect": "roma_ii"}
+{"id": "it-res-047", "lang": "it", "kind": "resolver", "label": "Roma I", "expect": "roma_i"}
+{"id": "it-res-048", "lang": "it", "kind": "resolver", "label": "Reg. (CE) n. 4/2009", "expect": "alimenti_ue"}
+{"id": "it-res-049", "lang": "it", "kind": "resolver", "label": "Reg. (UE) 2016/1103", "expect": "regimi_patrimoniali_ue"}
+{"id": "it-res-050", "lang": "it", "kind": "resolver", "label": "Reg. (CE) 1896/2006", "expect": "ingiunzione_europea"}
+{"id": "it-res-051", "lang": "it", "kind": "resolver", "label": "Reg. (CE) 861/2007", "expect": "small_claims_ue"}
+{"id": "it-res-052", "lang": "it", "kind": "resolver", "label": "Reg. (UE) 2020/1784", "expect": "notifiche_ue"}
+{"id": "it-res-053", "lang": "it", "kind": "resolver", "label": "Reg. (UE) 1215/2012", "expect": "bruxelles_i_bis"}
+{"id": "it-res-054", "lang": "it", "kind": "resolver", "label": "statuto dei lavoratori", "expect": "statuto_lavoratori"}
+{"id": "it-res-055", "lang": "it", "kind": "resolver", "label": "TUEL", "expect": "tuel"}
+{"id": "it-res-056", "lang": "it", "kind": "resolver", "label": "L. 175/1998", "expect": "convenzione_it_al_fisco"}
+{"id": "it-res-057", "lang": "it", "kind": "resolver", "label": "Convenzione Italia-Albania", "expect": "convenzione_it_al_fisco"}
+{"id": "it-res-058", "lang": "it", "kind": "resolver", "label": "L. 14/2024", "expect": "protocollo_it_al_migranti"}
+{"id": "it-res-059", "lang": "it", "kind": "resolver", "label": "L. 848/1955", "expect": "cedu"}
+{"id": "it-res-060", "lang": "it", "kind": "resolver", "label": "CEDU", "expect": "cedu"}
+{"id": "it-res-061", "lang": "it", "kind": "resolver", "label": "C.E.D.U.", "expect": "cedu"}
+{"id": "it-res-062", "lang": "it", "kind": "resolver", "label": "Convenzione europea dei diritti dell'uomo", "expect": "cedu"}
+{"id": "it-res-063", "lang": "it", "kind": "resolver", "label": "Convenzione europea per la salvaguardia dei diritti dell'uomo", "expect": "cedu"}
+{"id": "it-res-064", "lang": "it", "kind": "resolver", "label": "Prot. 1 CEDU", "expect": "cedu_protocollo_1"}
+{"id": "it-res-065", "lang": "it", "kind": "resolver", "label": "Protocollo addizionale alla CEDU", "expect": "cedu_protocollo_1"}
+{"id": "it-res-066", "lang": "it", "kind": "resolver", "label": "Prot. n. 1 alla CEDU", "expect": "cedu_protocollo_1"}
+{"id": "it-res-067", "lang": "it", "kind": "resolver", "label": "Protocollo n. 7 CEDU", "expect": "cedu_protocollo_7"}
+{"id": "it-res-068", "lang": "it", "kind": "resolver", "label": "P7 CEDU", "expect": "cedu_protocollo_7"}
+{"id": "it-res-069", "lang": "it", "kind": "resolver", "label": "Prot. 4 CEDU", "expect": "cedu_protocollo_4"}
+{"id": "it-res-070", "lang": "it", "kind": "resolver", "label": "Protocollo 12 CEDU", "expect": "cedu_protocollo_12"}
+{"id": "it-res-071", "lang": "it", "kind": "resolver", "label": "Prot. 16 CEDU", "expect": "cedu_protocollo_16"}
+{"id": "it-res-072", "lang": "it", "kind": "resolver", "label": "CEDU, § 1", "expect": "cedu"}
+{"id": "it-res-073", "lang": "it", "kind": "resolver", "label": "c.p.c.", "expect": "codice_procedura_civile"}
+{"id": "it-res-074", "lang": "it", "kind": "resolver", "label": "codice di procedura civile", "expect": "codice_procedura_civile"}
+{"id": "it-res-075", "lang": "it", "kind": "resolver", "label": "codice di procedura penale", "expect": "codice_procedura_penale"}
+{"id": "it-res-076", "lang": "it", "kind": "resolver", "label": "D.Lgs. 150/2011", "expect": "riti_civili_semplificati"}
+{"id": "it-res-077", "lang": "it", "kind": "resolver", "label": "D.Lgs. 346/1990 successioni", "expect": "imposta_successioni"}
+{"id": "it-res-078", "lang": "it", "kind": "resolver", "label": "TU Accise (D.Lgs 504/1995)", "expect": "accise"}
+{"id": "it-res-079", "lang": "it", "kind": "resolver", "label": "TU Adempimenti e accertamento (D.Lgs 141/2026)", "expect": "tu_accertamento"}
+{"id": "it-res-080", "lang": "it", "kind": "resolver", "label": "cod. civ.", "expect": "codice_civile"}
+{"id": "it-res-081", "lang": "it", "kind": "resolver", "label": "Cost.", "expect": "costituzione"}
+{"id": "it-res-082", "lang": "it", "kind": "resolver", "label": "cost", "expect": "costituzione"}
+{"id": "it-res-083", "lang": "it", "kind": "resolver", "label": "c.p.", "expect": "codice_penale"}
+{"id": "it-res-084", "lang": "it", "kind": "resolver", "label": "c.p.p.", "expect": "codice_procedura_penale"}
+{"id": "it-res-085", "lang": "it", "kind": "resolver", "label": "TUB", "expect": "tu_bancario"}
+{"id": "it-res-086", "lang": "it", "kind": "resolver", "label": "TUF", "expect": "tu_finanza"}
+{"id": "it-res-087", "lang": "it", "kind": "resolver", "label": "disp. att. c.c.", "expect": "disp_att_cc"}
+{"id": "it-res-088", "lang": "it", "kind": "resolver", "label": "disp. att. c.p.p.", "expect": "disp_att_cpp"}
+{"id": "it-res-089", "lang": "it", "kind": "resolver", "label": "D.Lgs 152/2006 (ambiente)", "expect": "codice_ambiente"}
+{"id": "it-res-090", "lang": "it", "kind": "resolver", "label": "Cod. Privacy (D.Lgs 196/2003)", "expect": "codice_privacy"}
+{"id": "it-res-091", "lang": "it", "kind": "resolver", "label": "codice della strada", "expect": "codice_strada"}
+{"id": "it-res-092", "lang": "it", "kind": "resolver", "label": "Reg. esecuzione CdS (DPR 495/1992)", "expect": "regolamento_strada"}
+{"id": "it-res-093", "lang": "it", "kind": "resolver", "label": "Codice in materia di protezione dei dati personali (Privacy)", "expect": "codice_privacy"}
+{"id": "it-res-094", "lang": "it", "kind": "resolver", "label": "Codice delle Pari Opportunità", "expect": "codice_pari_opportunita"}
+{"id": "it-res-095", "lang": "it", "kind": "resolver", "label": "Testo Unico dell'Edilizia", "expect": "tu_edilizia"}
+{"id": "it-res-096", "lang": "it", "kind": "resolver", "label": "Legge sul Divorzio (L. 898/1970)", "expect": "divorzio"}
+{"id": "it-res-097", "lang": "it", "kind": "resolver", "label": "L. 898/1970", "expect": "divorzio"}
+{"id": "it-res-098", "lang": "it", "kind": "resolver", "label": "Legge sull'Adozione (L. 184/1983)", "expect": "adozione"}
+{"id": "it-res-099", "lang": "it", "kind": "resolver", "label": "L. 184/1983", "expect": "adozione"}
+{"id": "it-res-100", "lang": "it", "kind": "resolver", "label": "D.Lgs. 198/2006", "expect": "codice_pari_opportunita"}
+{"id": "it-res-101", "lang": "it", "kind": "resolver", "label": "L. 354/1975", "expect": "ordinamento_penitenziario"}
+{"id": "it-res-102", "lang": "it", "kind": "resolver", "label": "L. 121/1981", "expect": "ordinamento_polizia"}
+{"id": "it-res-103", "lang": "it", "kind": "resolver", "label": "DPR 309/1990", "expect": "stupefacenti"}
+{"id": "it-res-104", "lang": "it", "kind": "resolver", "label": "DPR 115/2002", "expect": "tu_spese_giustizia"}
+{"id": "it-res-105", "lang": "it", "kind": "resolver", "label": "DPR 445/2000", "expect": "tu_documentazione_amministrativa"}
+{"id": "it-res-106", "lang": "it", "kind": "resolver", "label": "D.Lgs. 42/2004", "expect": "codice_beni_culturali"}
+{"id": "it-res-107", "lang": "it", "kind": "resolver", "label": "D.Lgs. 36/2023", "expect": "codice_contratti_pubblici"}
+{"id": "it-res-108", "lang": "it", "kind": "resolver", "label": "R.D. 327/1942", "expect": "codice_navigazione"}
+{"id": "it-res-109", "lang": "it", "kind": "resolver", "label": "D.Lgs. 82/2005", "expect": "codice_amministrazione_digitale"}
+{"id": "it-res-110", "lang": "it", "kind": "resolver", "label": "Testo Unico Sicurezza sul Lavoro", "expect": "sicurezza_lavoro"}
+{"id": "it-res-111", "lang": "it", "kind": "resolver", "label": "Codice dell'Ambiente", "expect": "codice_ambiente"}
+{"id": "it-res-112", "lang": "it", "kind": "resolver", "label": "preleggi", "expect": "preleggi"}
+{"id": "it-res-113", "lang": "it", "kind": "resolver", "label": "disposizioni sulla legge in generale", "expect": "preleggi"}
+{"id": "al-res-114", "lang": "al", "kind": "resolver", "label": "ligji nr. 79/2021", "expect": "ligji_te_huajt"}
+{"id": "al-res-115", "lang": "al", "kind": "resolver", "label": "ligjit për të huajt", "expect": "ligji_te_huajt"}
+{"id": "al-res-116", "lang": "al", "kind": "resolver", "label": "ligji per te huajt", "expect": "ligji_te_huajt"}
+{"id": "al-res-117", "lang": "al", "kind": "resolver", "label": "ligji nr. 111/2018", "expect": "ligji_kadastra"}
+{"id": "al-res-118", "lang": "al", "kind": "resolver", "label": "ligji nr. 111/2017", "expect": "ligji_ndihma_juridike"}
+{"id": "al-res-119", "lang": "al", "kind": "resolver", "label": "ligjit nr. 111, datë 14.12.2017", "expect": "ligji_ndihma_juridike"}
+{"id": "al-res-120", "lang": "al", "kind": "resolver", "label": "ligji nr. 110/2018", "expect": "ligji_noteri"}
+{"id": "al-res-121", "lang": "al", "kind": "resolver", "label": "ligji nr. 10428", "expect": "ligji_dnp"}
+{"id": "al-res-122", "lang": "al", "kind": "resolver", "label": "ligjit për të drejtën ndërkombëtare private", "expect": "ligji_dnp"}
+{"id": "al-res-123", "lang": "al", "kind": "resolver", "label": "ligji i të dhënave personale", "expect": "ligji_te_dhenat_2024"}
+{"id": "al-res-124", "lang": "al", "kind": "resolver", "label": "ligji nr. 9887", "expect": "ligji_te_dhenat"}
+{"id": "al-res-125", "lang": "al", "kind": "resolver", "label": "ligji nr. 124/2024", "expect": "ligji_te_dhenat_2024"}
+{"id": "al-res-126", "lang": "al", "kind": "resolver", "label": "ligji për mbrojtjen e të dhënave personale", "expect": "ligji_te_dhenat_2024"}
+{"id": "al-res-127", "lang": "al", "kind": "resolver", "label": "kodi i drejtësisë penale për të mitur", "expect": "kodi_te_miturve"}
+{"id": "al-res-128", "lang": "al", "kind": "resolver", "label": "kodit te drejtesise penale per te mitur", "expect": "kodi_te_miturve"}
+{"id": "al-res-129", "lang": "al", "kind": "resolver", "label": "ligji nr. 37/2017", "expect": "kodi_te_miturve"}
+{"id": "al-res-130", "lang": "al", "kind": "resolver", "label": "ligji për tvsh", "expect": "ligji_tvsh"}
+{"id": "al-res-131", "lang": "al", "kind": "resolver", "label": "ligji nr. 92/2014", "expect": "ligji_tvsh"}
+{"id": "al-res-132", "lang": "al", "kind": "resolver", "label": "ligji nr. 32/2021", "expect": "ligji_sigurimi_mjeteve"}
+{"id": "al-res-133", "lang": "al", "kind": "resolver", "label": "ligji nr. 10076", "expect": "ligji_sigurimi_mjeteve"}
+{"id": "al-res-134", "lang": "al", "kind": "resolver", "label": "vkm nr. 651", "expect": "vkm_dispozita_doganore"}
+{"id": "al-res-135", "lang": "al", "kind": "resolver", "label": "dispozitat zbatuese të kodit doganor", "expect": "vkm_dispozita_doganore"}
+{"id": "al-res-136", "lang": "al", "kind": "resolver", "label": "ligji nr. 9669", "expect": "ligji_dhuna_familje"}
+{"id": "al-res-137", "lang": "al", "kind": "resolver", "label": "ligjin për dhunën në familje", "expect": "ligji_dhuna_familje_2026"}
+{"id": "al-res-138", "lang": "al", "kind": "resolver", "label": "ligji nr. 97/2016", "expect": "ligji_prokuroria"}
+{"id": "al-res-139", "lang": "al", "kind": "resolver", "label": "ligji për prokurorinë", "expect": "ligji_prokuroria"}
+{"id": "al-res-140", "lang": "al", "kind": "resolver", "label": "ligji nr. 82/2024", "expect": "ligji_policia_2024"}
+{"id": "al-res-141", "lang": "al", "kind": "resolver", "label": "ligji nr. 82", "expect": "ligji_policia_2024"}
+{"id": "al-res-142", "lang": "al", "kind": "resolver", "label": "ligji nr. 9901", "expect": "ligji_shoqerite_tregtare"}
+{"id": "al-res-143", "lang": "al", "kind": "resolver", "label": "kodit civil", "expect": "kodi_civil"}
+{"id": "al-res-144", "lang": "al", "kind": "resolver", "label": "kodi i punës", "expect": "kodi_punes"}
+{"id": "al-res-145", "lang": "al", "kind": "resolver", "label": "ligji për armët", "expect": "ligji_armet"}
+{"id": "al-res-146", "lang": "al", "kind": "resolver", "label": "ligji nr. 74/2014", "expect": "ligji_armet"}
+{"id": "al-res-147", "lang": "al", "kind": "resolver", "label": "ligji nr. 20/2020", "expect": "ligji_proceset_kalimtare"}
+{"id": "al-res-148", "lang": "al", "kind": "resolver", "label": "ligji për shtetësinë", "expect": "ligji_shtetesia"}
+{"id": "al-res-149", "lang": "al", "kind": "resolver", "label": "ligji nr. 113/2020", "expect": "ligji_shtetesia"}
+{"id": "al-res-150", "lang": "al", "kind": "resolver", "label": "ligji nr. 9917", "expect": "ligji_pastrimi_parave"}
+{"id": "al-res-151", "lang": "al", "kind": "resolver", "label": "vkm nr. 112/2025", "expect": "rregullore_policia"}
+{"id": "al-res-152", "lang": "al", "kind": "resolver", "label": "ligji nr. 11/2026", "expect": "ligji_dhuna_familje_2026"}
+{"id": "al-res-153", "lang": "al", "kind": "resolver", "label": "KPrC", "expect": "kodi_proc_civile"}
+{"id": "al-res-154", "lang": "al", "kind": "resolver", "label": "K.Pr.C.", "expect": "kodi_proc_civile"}
+{"id": "al-res-155", "lang": "al", "kind": "resolver", "label": "KPrP", "expect": "kodi_proc_penale"}
+{"id": "al-res-156", "lang": "al", "kind": "resolver", "label": "KPC", "expect": "kodi_proc_civile"}
+{"id": "al-res-157", "lang": "al", "kind": "resolver", "label": "KPP", "expect": "kodi_proc_penale"}
+{"id": "al-res-158", "lang": "al", "kind": "resolver", "label": "KC", "expect": "kodi_civil"}
+{"id": "al-res-159", "lang": "al", "kind": "resolver", "label": "KF", "expect": "kodi_familjes"}
+{"id": "al-res-160", "lang": "al", "kind": "resolver", "label": "Kodit Rrugor", "expect": "kodi_rrugor"}
+{"id": "al-res-161", "lang": "al", "kind": "resolver", "label": "Kodit të Punës", "expect": "kodi_punes"}
+{"id": "al-res-162", "lang": "al", "kind": "resolver", "label": "Kodit Doganor", "expect": "kodi_doganor"}
+{"id": "al-res-163", "lang": "al", "kind": "resolver", "label": "Kushtetutës", "expect": "kushtetuta"}
+{"id": "al-reg-kprc-420-repealed", "lang": "al", "kind": "regression", "note": "v9.330: abrogazioni a gruppo K.Pr.C. 400-441 = stub abrogati, non «fantazmë»", "test": {"kind": "status", "text": "Sipas nenit 420 të Kodit të Procedurës Civile.", "number": "420", "expect": "repealed", "code": "kodi_proc_civile"}}
+{"id": "al-reg-kprc-85-alias", "lang": "al", "kind": "regression", "note": "v9.330: sigla KPrC riconosciuta; 80-89 abrogati dalla 8812/2001", "test": {"kind": "status", "text": "Sipas nenit 85 të KPrC.", "number": "85", "expect": "repealed", "code": "kodi_proc_civile"}}
+{"id": "al-reg-kp-punes", "lang": "al", "kind": "regression", "note": "v9.330: «KP» = Kodi i Punës quando il documento lo nomina (155/1 = zgjidhja e pajustifikuar)", "test": {"kind": "status", "text": "Sipas Kodit të Punës, klientit i takon paga e njoftimit (neni 155/1 KP).", "number": "155/1", "expect": "verified", "code": "kodi_punes"}}
+{"id": "al-reg-kp-penal", "lang": "al", "kind": "regression", "note": "v9.330: «KP» = Kodi Penal quando il documento nomina il Kodi Penal", "test": {"kind": "status", "text": "Sipas Kodit Penal, vepra dënohet (neni 155 KP).", "number": "155", "expect": "verified", "code": "kodi_penal"}}
+{"id": "al-reg-kp-ambigua", "lang": "al", "kind": "regression", "note": "v9.330: «KP» senza nome per esteso → codice non specificato, mai un verde a caso", "test": {"kind": "status", "text": "Klientit i takon paga e njoftimit (neni 155/1 KP).", "number": "155/1", "expect": "needs_code"}}
+{"id": "al-reg-432c-koma", "lang": "al", "kind": "regression", "note": "v9.189: «432/c» è un comma vero del 432 KPP, non un articolo fantasma", "test": {"kind": "status", "text": "Rekursi bazohet në nenin 432/c të Kodit të Procedurës Penale.", "number": "432/c", "expect": "verified", "code": "kodi_proc_penale"}}
+{"id": "al-reg-432z-fake", "lang": "al", "kind": "regression", "note": "v9.189: la lettera inventata «432/z» deve cadere", "test": {"kind": "status", "text": "Rekursi bazohet në nenin 432/z të Kodit të Procedurës Penale.", "number": "432/z", "expect": "fake"}}
+{"id": "al-reg-kp-29-live", "lang": "al", "kind": "regression", "note": "v9.330: Kodi Penal 29 «Dënimet kryesore» era marcato abrogato (nota «shfuqizuar paragrafi…»)", "test": {"kind": "exists", "code": "kodi_penal", "number": "29", "live": true, "heading_has": "kryesore"}}
+{"id": "al-reg-kprc-79a-live", "lang": "al", "kind": "regression", "note": "v9.330: 79/a Avokatura e Shtetit vivo; 79 abrogato dalla 8812/2001", "test": {"kind": "exists", "code": "kodi_proc_civile", "number": "79/a", "live": true}}
+{"id": "al-reg-kprc-79-dead", "lang": "al", "kind": "regression", "note": "v9.330: K.Pr.C. 79 è davvero abrogato (corpo vuoto)", "test": {"kind": "exists", "code": "kodi_proc_civile", "number": "79", "repealed": true}}
+{"id": "al-reg-dnp-88-shfuqizime", "lang": "al", "kind": "regression", "note": "v9.330: l'articolo «Shfuqizime» in coda alla legge è VIVO (verbo, non stub)", "test": {"kind": "exists", "code": "ligji_dnp", "number": "88", "live": true}}
+{"id": "al-reg-kc-587", "lang": "al", "kind": "regression", "note": "v9.328: c.c. 587 (36 caratteri) buttato dal filtro fantasma", "test": {"kind": "exists", "code": "kodi_civil", "number": "587", "live": true}}
+{"id": "al-reg-zgjedhor-3", "lang": "al", "kind": "regression", "note": "v9.328: Kodi Zgjedhor doppio strato di testo → 96 articoli su 186", "test": {"kind": "exists", "code": "kodi_zgjedhor", "number": "3", "live": true}}
+{"id": "al-reg-vkm-129", "lang": "al", "kind": "regression", "note": "v9.328: VKM 651/2017 «Neni 29» stampato per «Neni 129» → troncata a 128", "test": {"kind": "exists", "code": "vkm_dispozita_doganore", "number": "129", "live": true}}
+{"id": "al-reg-9901-neni1", "lang": "al", "kind": "regression", "note": "v9.328: ligji 9901 partiva da «Neni 11» (nota a piè di pagina incollata)", "test": {"kind": "exists", "code": "ligji_shoqerite_tregtare", "number": "1", "live": true}}
+{"id": "al-reg-kushtetuta-178", "lang": "al", "kind": "regression", "note": "v9.330: kushtetuta 178 (dispozita kalimtare) vivo", "test": {"kind": "exists", "code": "kushtetuta", "number": "178", "live": true}}
+{"id": "al-reg-153-zhurma", "lang": "al", "kind": "regression", "note": "v9.265: «kufizimi i zhurmave» (termini del codice) porta il 153 KRr", "test": {"kind": "retrieval", "query": "kufizimi i zhurmave", "expect": [["kodi_rrugor", "153"]]}}
+{"id": "al-reg-policia-superata", "lang": "al", "kind": "regression", "note": "v9.328: ligji 108/2014 resta nel corpus ma marcato superato (82/2024)", "test": {"kind": "exists", "code": "ligji_policia", "number": "1", "repealed": true}}
+{"id": "al-reg-dhuna-2026", "lang": "al", "kind": "regression", "note": "v9.329: ligji 11/2026 sostituisce la 9669/2006 (freshness)", "test": {"kind": "exists", "code": "ligji_dhuna_familje_2026", "number": "1", "live": true}}
+{"id": "it-reg-cc-1", "lang": "it", "kind": "regression", "note": "v9.327: c.c. artt. 1-31 mancavano dalla v9.131 (allegati flagTipoArticolo)", "test": {"kind": "exists", "code": "codice_civile", "number": "1", "live": true, "heading_has": "capacit"}}
+{"id": "it-reg-cc-2", "lang": "it", "kind": "regression", "note": "v9.327: c.c. art. 2 maggiore età", "test": {"kind": "exists", "code": "codice_civile", "number": "2", "live": true}}
+{"id": "it-reg-preleggi-12", "lang": "it", "kind": "regression", "note": "v9.327: preleggi corpus a sé (art. 12 interpretazione)", "test": {"kind": "exists", "code": "preleggi", "number": "12", "live": true}}
+{"id": "it-reg-preleggi-15-live", "lang": "it", "kind": "regression", "note": "v9.327: art. 15 preleggi «Abrogazione delle leggi» era marcato abrogato", "test": {"kind": "exists", "code": "preleggi", "number": "15", "live": true}}
+{"id": "it-reg-cp-17-live", "lang": "it", "kind": "regression", "note": "v9.327: c.p. art. 17 «Pene principali» era marcato abrogato", "test": {"kind": "exists", "code": "codice_penale", "number": "17", "live": true}}
+{"id": "it-reg-dnc-1", "lang": "it", "kind": "regression", "note": "v9.327: DNC art. 1 (allegato) mancava", "test": {"kind": "exists", "code": "codice_doganale_nazionale", "number": "1", "live": true}}
+{"id": "it-reg-2446-215-status", "lang": "it", "kind": "regression", "note": "v9.326: articoli UE «abrogati» per str(False) → verificato", "test": {"kind": "status", "text": "Ai sensi dell'art. 215 Reg. (UE) 2015/2446.", "number": "215", "expect": "verified", "code": "reg_ue_2015_2446"}}
+{"id": "it-reg-2446-215-retrieval", "lang": "it", "kind": "regression", "note": "v9.326: art. 215 Reg. 2446 cercabile", "test": {"kind": "retrieval", "query": "importazione temporanea mezzi di trasporto uso privato persona stabilita fuori del territorio doganale", "expect": [["reg_ue_2015_2446", "215"]]}}
+{"id": "it-reg-602-repealed", "lang": "it", "kind": "regression", "note": "v9.326: DPR 602/1973 = legge morta, resta marcato abrogato (TU riscossione)", "test": {"kind": "status", "text": "Ai sensi dell'art. 1 DPR 602/1973.", "number": "1", "expect": "repealed", "code": "riscossione"}}
+{"id": "it-reg-tu-iva-1", "lang": "it", "kind": "regression", "note": "v9.326: TU IVA D.Lgs 10/2026 presente", "test": {"kind": "exists", "code": "tu_iva", "number": "1", "live": true}}
+{"id": "it-reg-2946", "lang": "it", "kind": "regression", "note": "v9.187: prescrizione ordinaria art. 2946 esce da solo", "test": {"kind": "retrieval", "query": "prescrizione ordinaria diritti dieci anni", "expect": [["codice_civile", "2946"]]}}
+{"id": "it-reg-accise-non-cc", "lang": "it", "kind": "regression", "note": "v9.328: «accise» non è «c.c.» (sigle corte solo parola intera)", "test": {"kind": "resolver", "label": "TU Accise (D.Lgs 504/1995)", "expect": "accise"}}
+{"id": "it-reg-procedura-non-cedu", "lang": "it", "kind": "regression", "note": "v9.327: «procedura» contiene «cedu» ma non è la CEDU", "test": {"kind": "resolver", "label": "codice di procedura civile", "expect": "codice_procedura_civile"}}
+{"id": "it-reg-cedu-1", "lang": "it", "kind": "regression", "note": "v9.327: CEDU art. 6 presente (PDF Corte EDU a due colonne)", "test": {"kind": "exists", "code": "cedu", "number": "6", "live": true}}
+{"id": "it-reg-9999-fake", "lang": "it", "kind": "regression", "note": "un numero oltre il massimo resta falso", "test": {"kind": "status", "text": "Ai sensi dell'art. 9999 c.c.", "number": "9999", "expect": "fake"}}
+{"id": "al-br-114-parashkrim", "lang": "al", "kind": "brain_retrieve", "summary": "afati i parashkrimit të kërkesës për kthimin e një huaje", "areas": ["Civil"], "queries": ["afati i parashkrimit", "parashkrimi i padisë për detyrimin kontraktor"], "expect": [["kodi_civil", "114"]], "note": "v9.187: Neni 114 KC non entrava mai (BM25 zero) → ancora"}
+{"id": "al-br-153-zhurma", "lang": "al", "kind": "brain_retrieve", "summary": "zhurmë e tepërt nga marmita e automjetit, gjoba", "areas": ["Rrugor"], "queries": ["kufizimi i zhurmave të automjeteve", "gjoba për zhurmë të tepërt marmitë"], "expect": [["kodi_rrugor", "153"]], "note": "v9.265: ancore per titolo (caso Huracán)"}
+{"id": "it-br-2946", "lang": "it", "kind": "brain_retrieve", "summary": "termine di prescrizione ordinaria di un credito", "areas": [], "queries": ["prescrizione ordinaria decennale", "termine di prescrizione dei diritti"], "expect": [["codice_civile", "2946"]], "note": "riferimento del 28 ago: art. 2946 c.c."}
+{"id": "it-br-cittadinanza-5", "lang": "it", "kind": "brain_retrieve", "summary": "cittadinanza italiana per matrimonio con cittadina italiana, residenza in Italia", "areas": [], "queries": ["cittadinanza per matrimonio residenza legale due anni", "concessione della cittadinanza al coniuge straniero"], "expect": [["cittadinanza", "5"]], "note": "prova viva 16 set"}
