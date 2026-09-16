@@ -3,7 +3,7 @@
 Strumento AI per avvocati (B2B), **bi-giurisdizione AL + IT**. Front-end Flask
 su porta 5050, SQLite (`data/app.db`) + Postgres `legalkb` per i casi
 giurisprudenziali. Due corpora BM25 SEPARATI:
-- **AL** (`bm25.pkl`): 6320 nene / 24 codici (+ Ligji 9917/2008 antiriciclaggio, + Ligji 111/2018 kadastra, + Ligji 110/2018 noteri) + `bm25_decisions.pkl` 1258 precedenti
+- **AL** (`bm25.pkl`): **9.541 nene / 53 codici** (v9.328: 21 codici riscritti dai consolidati QBZ 2024-2026 + 29 leggi nuove + VKM 651/2017 doganale 742 art.; fonte = `data/processed/all_articles.jsonl`, il pickle è derivato) + `bm25_decisions.pkl` 1258 precedenti
 - **IT** (`bm25_it.pkl`): **129 atti / 22.779 articoli** (v9.326-327: +27 Normattiva wave5, +5 testi unici wave6, +21 wave7 blocco A, +12 UE (TFUE/TUE/Carta/Schengen…), +2 trattati IT-AL, CEDU + 7 protocolli, preleggi (sanzioni trib. 173/2024, riscossione 33/2025, registro 123/2025, IVA 10/2026, accertamento 141/2026) dogane/tributario/notarile/procedura/lavoro, +9 regolamenti UE da EUR-Lex: CDU, Reg. 2015/2446-2447, GDPR, Bruxelles I-bis/II-ter, Roma I/II, successioni 650/2012)
   (Kushtetuese + Gjykata e Lartë + CEDU).
 - **IT** (`bm25_it.pkl`): **15.595 articoli / 44 corpora** da Normattiva (+ D.Lgs 231/2007 antiriciclaggio)
@@ -486,7 +486,12 @@ parte dal marcatore del Kolegji · l'esito sempre dichiarato · una annullata no
 può risultare confermata).
 
 ## Fix corpus (GOTCHA importante)
-I fix agli articoli vivono nel **PICKLE `data/index/bm25.pkl`** (volume montato), NON nel sorgente. Per aggiungere/correggere articoli: script python che fa `ArticleIndex.load()` → append `Article(...)` → `ArticleIndex.build(arts).save()` → `chown 1000:1000 data/index/bm25.pkl` → `docker restart super-avvocato`. Un re-parse da zero PERDE questi fix. Article ha campi: code, title_sq, area, number, heading, body, pjesa, kreu, seksioni, repealed, volatility (STABLE/MEDIUM), last_amendment_date.
+**Dal v9.328 (16 set 2026) la FONTE del corpus AL è `data/processed/all_articles.jsonl`** (volume):
+`tools/ingest_al_qbz.py apply` lo aggiorna (append / `replace`) e ricostruisce il pickle con
+`ArticleIndex.from_jsonl()`. Ciò che sta SOLO nel pickle sparisce alla prima ricostruzione:
+ligji 108/2014 era stato messo solo nel pickle e si è perso (rimesso dal backup). Mai più
+append diretti al pickle; la regola sotto è STORIA.
+(vecchia regola) I fix agli articoli vivono nel **PICKLE `data/index/bm25.pkl`** (volume montato), NON nel sorgente. Per aggiungere/correggere articoli: script python che fa `ArticleIndex.load()` → append `Article(...)` → `ArticleIndex.build(arts).save()` → `chown 1000:1000 data/index/bm25.pkl` → `docker restart super-avvocato`. Un re-parse da zero PERDE questi fix. Article ha campi: code, title_sq, area, number, heading, body, pjesa, kreu, seksioni, repealed, volatility (STABLE/MEDIUM), last_amendment_date.
 
 ## nginx: limite di caricamento (GOTCHA GRAVE)
 
