@@ -937,6 +937,14 @@ RREGULLA:
 • Bazë vetëm mbi faktet e rastit dhe nenet e dhëna. Mos shpik.
 • KUR burden_shift=true, shpjego në notes PSE (p.sh. "Neni 75 Kodi i Punës — punëdhënësi duhet të provojë shkakun e ligjshëm").
 • Nëse nga faktet del se klienti yt e ka provën, shkruaj status="kemi" dhe shpjego. Nëse s'thuhet asgjë, shkruaj "mungon".
+• ZINXHIRI QË VENDOS KAUZËN (v9.345): çdo claim është një KUSHT LIGJOR i pretendimit ose i mbrojtjes. Në "notes" shkruaj zinxhirin
+  të plotë: «Kushti: … (neni …) → kush e provon → fakti i nevojshëm → prova → PASOJA nëse mungon: humbet pretendimi / bie mbrojtja /
+  zbatohet prezumimi ligjor / mund të sanohet brenda … / barra zhvendoset». Për çdo kusht "mungon" ose "e dobët" kontrollo shprehimisht
+  tre gjëra para se ta shpallësh të humbur: (1) a ka PREZUMIM ligjor ose faktik në favor (p.sh. prezumimi i marrëdhënies së punës, i
+  dorëzimit, i mirëbesimit); (2) a ka RRUGË ALTERNATIVE prove (regjistër publik, dëshmitar, ekspertizë, kërkesë zyrtare); (3) a është
+  e SANUESHME (afat, ratifikim, plotësim). Kontrollo kushtet edhe në pozicionin e KLIENTIT, jo vetëm të kundërshtarit: kushti që mungon
+  te klienti është ai që mund ta rrëzojë kauzën. Kur një kusht i vetëm VENDOS rezultatin (nëse bie, bie gjithçka), fillo "notes" me
+  «VENDIMTAR:» — rendite i pari.
 • Shkruaj SHQIP. Konkret, jo abstrakt."""
 
 
@@ -1174,6 +1182,14 @@ RREGULLA STRIKTE:
 • applies_to tregon KUJT I BËN MIRË: një parashkrim i kauzës aplikohet ndaj kundërshtarit (mbrojtje për klientin nga një padi e vonuar) ose ndaj klientit (humbje e së drejtës).
 • Nëse rasti nuk zbulon rreziqe konkrete procedurale, kthe findings=[] — mos i shpik.
 • action duhet të jetë i ekzekutueshëm nga avokati, jo teorik.
+• EFEKTET E KUNDËRTA TË ÇDO LEVE (v9.345): një «mundësi» procedurale është e dobishme vetëm nëse dihen edhe kushtet që e bëjnë të
+  dëmshme. Për çdo gjetje me applies_to="kundërshtari" ose "të dyja", "condition" dhe "action" duhet të mbulojnë: (1) AFATI brenda të
+  cilit duhet ngritur (ndryshe humbet); (2) PRESUPOZIMET dhe PROVAT që duhen (ndryshe gjykata e rrëzon); (3) a mund ta SANOJË pala
+  tjetër defektin (atëherë leva vetëm e vonon, nuk e fiton); (4) PAPAJTUESHMËRIA me nisma të tjera (ngritja e pavlefshmërisë mund të
+  përjashtojë një mbrojtje në themel, ose anasjelltas); (5) HEQJET DORË, PREKLUZIONET ose KOSTOT që sjell (p.sh. duke u paraqitur
+  sanon njoftimin e parregullt); (6) DOBIA REALE për objektivin e klientit (një pavlefshmëri që rikthen çështjen në shkallë të parë
+  mund të jetë humbje kohe për një klient që do para). Kur një levë mund të kthehet kundër, shkruaje HAPUR në "action": «MOS E
+  PËRDOR nëse …».
 • Shkruaj SHQIP. Gjuha teknike procedurale është e pranueshme; kuptohet nga avokatët dhe gjyqtarët."""
 
 
@@ -1250,6 +1266,11 @@ RREGULLA:
 • Mos përsërit fakte që janë tashmë në kontekst — lexo me kujdes.
 • LEXO DOKUMENTET E BASHKËNGJITURA PARA se të pyesësh: nëse përgjigjja (natyra e kufizimit, palët, datat, shumat, nr. i regjistrimit) ndodhet në dokumentin e ngarkuar, MOS pyet — nxirre prej andej. Dhe KURRË mos kërko një dokument që tashmë është bashkëngjitur në dosje ("A keni certifikatën...?" kur ajo është ngarkuar).
 • Mos e zgjat çështjen: roli yt është të hulumtosh ligjin dhe të japësh pikat — zgjidhjet, problemet, ku duhet kujdes — jo t'ia kthesh punën kolegut.
+• RENDITJA = VLERA E INFORMACIONIT (v9.345): rendit faktet nga ai që NDRYSHON MË SHUMË strategjinë (jo nga më i lehti). Për të parin
+  shkruaj "why_it_matters" që fillon me «PARË:» dhe thotë cilat skenarë konkretë varen prej tij (p.sh. «PARË: nga data e marrjes
+  së njoftimit varet nëse afati 30-ditor ka kaluar — skenari A: … / skenari B: …») dhe cila VERIFIKIM konkret duhet bërë (dokumenti,
+  regjistri, kush e ka). Pesho: efekti mbi vendimin, urgjenca (afat që rrjedh), disponueshmëria dhe kostoja e marrjes së informacionit.
+  MOS shpik probabilitete ose përqindje: thuaj ÇFARË ndryshon, jo "sa gjasa ka".
 • Përdor gjuhën e sesionit (shqip ose italisht)."""
 
 

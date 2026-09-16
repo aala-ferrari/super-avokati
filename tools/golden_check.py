@@ -3264,6 +3264,23 @@ def main():
     except Exception as _e94:  # noqa: BLE001
         check("ripiego[94]: kontrollet u ekzekutuan", False, str(_e94))
 
+    # ── [95] v9.345 — tre affinamenti delle fasi junior (dal brief del consulente, meccanismi 1/2/4),
+    # SENZA toccare gli schemi JSON: catena requisito→onere→fatto→prova→conseguenza + presunzioni/
+    # alternative/sanatoria + «VENDIMTAR:» (mappa delle prove); ordine per valore dell'informazione
+    # «PARË:» senza probabilità (fatti mancanti); i sei effetti contrari di ogni leva + «MOS E PËRDOR
+    # nëse» (radar nullità) ──
+    try:
+        _em = brain.EVIDENCE_MAP_SYSTEM; _mf = brain.MISSING_FACTS_SYSTEM; _nr = brain.NULLITY_RADAR_SYSTEM
+        _okA = ("ZINXHIRI QË VENDOS KAUZËN" in _em and "PREZUMIM" in _em and "SANUESHME" in _em and "«VENDIMTAR:»" in _em
+                and '"needed_proof"' in _em and '"burden_shift"' in _em)
+        _okB = ("RENDITJA = VLERA E INFORMACIONIT" in _mf and "«PARË:»" in _mf and "MOS shpik probabilitete" in _mf
+                and '"impact_if_yes"' in _mf and 'PARAZGJEDHJA është {"facts": []}' in _mf)
+        _okC = ("EFEKTET E KUNDËRTA TË ÇDO LEVE" in _nr and "MOS E\n  PËRDOR nëse" in _nr.replace("«MOS E\n  PËRDOR", "MOS E\n  PËRDOR") or "MOS E" in _nr and "PËRDOR nëse" in _nr) and '"deadline_hint"' in _nr and "PAPAJTUESHMËRIA" in _nr
+        check("fasi[95]: mappa delle prove con zinxhir kushti→pasoja + prezumime/alternativa/sanim + VENDIMTAR · fatti mancanti ordinati per valore dell'informazione (PARË, niente probabilità) · radar nullità con i 6 effetti contrari e «MOS E PËRDOR nëse» — schemi JSON invariati",
+              _okA and _okB and _okC, "mappa=%s fatti=%s radar=%s" % (_okA, _okB, _okC))
+    except Exception as _e95:  # noqa: BLE001
+        check("fasi[95]: kontrollet u ekzekutuan", False, str(_e95))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

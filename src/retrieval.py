@@ -54,6 +54,45 @@ def tokenize(text: str) -> list[str]:
     return [t for t in tokens if t not in STOPWORDS and len(t) > 1]
 
 
+# ── Albanian light stemming (v9.345, OPT-IN, misurato prima di accenderlo) ─────────────────────
+# BM25 senza morfologia non lega «zhurm» a «zhurmave/zhurmëshues» né «parashkrim» a «parashkruhen»:
+# il Neni 114 e il 153 entravano solo con le ancore (v9.187, v9.265). Suffissi flessivi tolti in
+# modo conservativo (uno solo, radice ≥ 4 lettere, dal più lungo al più corto). L'indice ricorda se
+# è stato costruito con lo stemming (`stem`), così la query si tokenizza allo stesso modo: mai un
+# indice e una query con regole diverse.
+_SQ_SUFFIXES_MULTI = (
+    "shmërisë", "shmëria", "shmëri", "ueshme", "ueshëm", "isht", "uese", "ues", "uar",
+    "ave", "eve", "ëve", "ësh", "ërie", "ëri", "shme", "shëm",
+    "ve", "it", "in", "ut", "un", "et", "ët", "ën", "ës", "es", "së", "at",
+)
+_SQ_SUFFIXES_MULTI = tuple(sorted(set(_SQ_SUFFIXES_MULTI), key=len, reverse=True))
+_SQ_VOCALI = ("ë", "e", "a", "i", "u")
+
+
+def stem_sq(token: str) -> str:
+    """Due passi: un suffisso flessivo (dal più lungo), poi una vocale finale. Radice ≥ 4.
+    «vendimit/vendimi/vendimeve/vendime» → «vendim»; «kontratës/kontratën/kontrata/kontratë» → «kontrat»;
+    «zhurmave/zhurma/zhurmë» → «zhurm»; «punëmarrësi/punëmarrësit» → «punëmarrës». Il derivativo «-im» resta
+    (vendim ≠ vend)."""
+    if len(token) < 4 or token.isdigit():
+        return token
+    t = token
+    for suf in _SQ_SUFFIXES_MULTI:
+        if t.endswith(suf) and len(t) - len(suf) >= 3:
+            t = t[: -len(suf)]
+            break
+    for _ in range(2):                      # «pronësia» → «pronësi» → «pronës» = «pronësisë» → «pronës»
+        for v in _SQ_VOCALI:
+            if t.endswith(v) and len(t) - 1 >= 3:
+                t = t[:-1]
+                break
+    return t
+
+
+def tokenize_sq_stem(text: str) -> list[str]:
+    return [stem_sq(t) for t in tokenize(text)]
+
+
 # ── Italian tokenizer (for the IT corpus) ────────────────────────────────────
 TOKEN_RE_IT = re.compile(r"[a-zàáèéìíòóùúü0-9]+", re.IGNORECASE)
 STOPWORDS_IT: frozenset[str] = frozenset({
@@ -79,8 +118,10 @@ def tokenize_it(text: str) -> list[str]:
     return [t for t in tokens if t not in STOPWORDS_IT and len(t) > 1]
 
 
-def tokenize_for(lang: str, text: str) -> list[str]:
-    return tokenize_it(text) if (lang or "sq") == "it" else tokenize(text)
+def tokenize_for(lang: str, text: str, stem: bool = False) -> list[str]:
+    if (lang or "sq") == "it":
+        return tokenize_it(text)
+    return tokenize_sq_stem(text) if stem else tokenize(text)
 
 
 # ── corpus italiano: priorita ai codici fondamentali ─────────────────────
@@ -101,29 +142,30 @@ IT_CORE_BOOST = 1.3
 class ArticleIndex:
     """BM25 index over every article from every code."""
 
-    def __init__(self, articles: list[Article], bm25: BM25Okapi, lang: str = "sq"):
+    def __init__(self, articles: list[Article], bm25: BM25Okapi, lang: str = "sq", stem: bool = False):
         self.articles = articles
         self.bm25 = bm25
         self.lang = lang
+        self.stem = stem          # v9.345: costruito con lo stemming albanese? (la query segue)
 
     # ── construction ────────────────────────────────────────────────────────
 
     @classmethod
-    def build(cls, articles: list[Article], lang: str = "sq") -> ArticleIndex:
-        log.info("tokenising %d articles (lang=%s) ...", len(articles), lang)
-        corpus = [tokenize_for(lang, a.searchable_text) for a in articles]
+    def build(cls, articles: list[Article], lang: str = "sq", stem: bool = False) -> ArticleIndex:
+        log.info("tokenising %d articles (lang=%s, stem=%s) ...", len(articles), lang, stem)
+        corpus = [tokenize_for(lang, a.searchable_text, stem=stem) for a in articles]
         log.info("building BM25 index ...")
         bm25 = BM25Okapi(corpus)
-        return cls(articles, bm25, lang)
+        return cls(articles, bm25, lang, stem=stem)
 
     @classmethod
-    def from_jsonl(cls, path: Path = ARTICLES_JSONL, lang: str = "sq") -> ArticleIndex:
+    def from_jsonl(cls, path: Path = ARTICLES_JSONL, lang: str = "sq", stem: bool = False) -> ArticleIndex:
         articles: list[Article] = []
         with path.open(encoding="utf-8") as fh:
             for line in fh:
                 data = json.loads(line)
                 articles.append(Article(**data))
-        return cls.build(articles, lang=lang)
+        return cls.build(articles, lang=lang, stem=stem)
 
     # ── persistence ─────────────────────────────────────────────────────────
 
@@ -132,7 +174,8 @@ class ArticleIndex:
         with path.open("wb") as fh:
             pickle.dump({"articles": [asdict(a) for a in self.articles],
                          "bm25": self.bm25,
-                         "lang": getattr(self, "lang", "sq")}, fh)
+                         "lang": getattr(self, "lang", "sq"),
+                         "stem": bool(getattr(self, "stem", False))}, fh)
         log.info("index saved to %s (%d articles)", path, len(self.articles))
 
     @classmethod
@@ -140,7 +183,7 @@ class ArticleIndex:
         with path.open("rb") as fh:
             data = pickle.load(fh)
         articles = [Article(**a) for a in data["articles"]]
-        return cls(articles, data["bm25"], data.get("lang", "sq"))
+        return cls(articles, data["bm25"], data.get("lang", "sq"), stem=bool(data.get("stem", False)))
 
     # ── querying ────────────────────────────────────────────────────────────
 
@@ -152,7 +195,7 @@ class ArticleIndex:
         restrict_codes: Iterable[str] | None = None,
     ) -> list[tuple[Article, float]]:
         """Return (article, score) pairs sorted by BM25 score descending."""
-        tokens = tokenize_for(getattr(self, "lang", "sq"), query)
+        tokens = tokenize_for(getattr(self, "lang", "sq"), query, stem=bool(getattr(self, "stem", False)))
         if not tokens:
             return []
 
