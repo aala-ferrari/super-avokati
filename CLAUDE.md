@@ -1466,7 +1466,14 @@ pochi minuti, con QUALSIASI UA). Il controllo usa curl, 6 s tra le richieste, 3 
 prima versione lo faceva: «OK» con fonte «-»). L'ingest EUR-Lex (`ingest_eurlex.py`) ha lo
 stesso rischio: se `consolidated_versions` torna vuoto o l'HTML è «vuoto» su tutto, è il WAF,
 non l'atto — aspettare e rilanciare.
-Da fare: cron settimanale del controllo con avviso (chiedere al titolare: email/Telegram).
+**Cron installato (16 set, «fai quello che serve»)**: `ops/freshness_cron.py` → `/opt/freshness-cron.py`,
+crontab root `20 6 * * 1` (lunedì 06:20), log `/var/log/superavokati/freshness-AAAAMMGG.log` +
+`/var/log/freshness-cron.log`, ultimo esito `data/freshness_last.json`. Email (Resend, stesso
+canale di quota-studi: njoftim@aala.global → info@aala.global) SOLO se 🔴 STALE/REPEALED o
+🟡 ≥8 atti non verificabili; nessuna email = tutto OK. Gira sull'HOST: non tocca il container.
+Prova a secco del 16 set 13:13: DEAD 10, OK 152, UNKNOWN 18 (i 18 = tutti gli atti EUR-Lex,
+IP ancora in «sfida» WAF dopo i test della notte: si sbloccherà da solo; il cron di lunedì lo
+rivede). `python3 /opt/freshness-cron.py --dry` = prova senza email.
 
 **v9.328 — CORPUS ALBANESE RISCRITTO DA QBZ + 29 leggi nuove + audit d'integrità (16 set).**
 Mandato del titolare: «trova anche degli altri [difetti] a livello generale… codici, nene,
