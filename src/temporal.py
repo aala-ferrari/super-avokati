@@ -214,6 +214,33 @@ def blocco_it(retrieved, quando: date, raw: str, approx: bool, lang: str = "it",
     return "\n".join(righe), info
 
 
+# ── AL: le note editoriali PER ARTICOLO (P3b) — «(Ndryshuar … me ligjin nr. 48/2012, datë 26.4.2012)» ──
+# Nei consolidati QBZ ogni articolo modificato porta la nota con l'atto e la data (1.665 note nel
+# corpus, spesso con le parole incollate: «ligjinnr.48/2012,datë 26.4.2012»). Sono la storia
+# dell'articolo, gratis e precisa: prima si guarda qui, poi l'atto intero su QBZ.
+_NOTE_RE = re.compile(r"(?:ligjin|vendimin|aktin|dekretin|ligj\.?)\s*nr\.?\s*(\d[\d ]{0,5}(?:/\d{4})?)\s*,?\s*dat[ëe]\s*(\d{1,2})\.(\d{1,2})\.(\d{4})", re.I)
+
+
+def modifiche_nene(article) -> list[tuple[date, str]]:
+    """(data, «ligji nr. X») per ogni atto citato nelle note editoriali dell'articolo, in ordine."""
+    txt = (getattr(article, "heading", "") or "") + "\n" + (getattr(article, "body", "") or "")
+    out: dict[tuple[date, str], None] = {}
+    for m in _NOTE_RE.finditer(txt):
+        try:
+            d = date(int(m.group(4)), int(m.group(3)), int(m.group(2)))
+        except ValueError:
+            continue
+        num = re.sub(r"\s+", "", m.group(1))
+        out[(d, f"nr. {num}")] = None
+    return sorted(out)
+
+
+def ultima_modifica(article) -> str:
+    """La data (ISO) dell'ultima modifica nota dell'articolo, o «»."""
+    mods = modifiche_nene(article)
+    return mods[-1][0].isoformat() if mods else ""
+
+
 # ── AL: QBZ — modifiche posteriori alla data del fatto ───────────────────────
 _QBZ = "https://qbz.gov.al/alfresco/api/-default-/public/alfresco/versions/1"
 _QBZ_URL = re.compile(r"webdav/Aktet/(?P<kind>ligj|vendim)/(?P<inst>[^/]+)/(?P<y>\d{4})/(?P<m>\d{2})/(?P<d>\d{2})/(?P<num>[^/]+)/")
@@ -275,7 +302,23 @@ def modifiche_al(code: str) -> list[tuple[date, str, str]]:
 
 def blocco_al(retrieved, quando: date, raw: str, approx: bool, max_codes: int = 4,
               budget_s: float = 25.0) -> tuple[str, dict]:
+    """AL: prima le note editoriali PER ARTICOLO (gratis, precise), poi l'atto intero su QBZ per i
+    codici i cui articoli recuperati non portano note."""
     t0 = time.time()
+    titoli = {a.code: a.title_sq for a, _ in retrieved}
+    nene_dopo, nene_prima = [], []
+    seen: set = set()
+    for a, _s in retrieved:
+        k = (a.code, str(a.number))
+        if k in seen:
+            continue
+        seen.add(k)
+        mods = modifiche_nene(a)
+        post = [m for m in mods if m[0] > quando]
+        if post:
+            nene_dopo.append((a, post))
+        elif mods:
+            nene_prima.append(a)
     codes: list[str] = []
     for a, _s in retrieved:
         if a.code not in codes:
@@ -284,6 +327,8 @@ def blocco_al(retrieved, quando: date, raw: str, approx: bool, max_codes: int = 
             break
     dopo, prima, saltati = [], [], []
     for code in codes:
+        if any(a.code == code for a, _p in nene_dopo):
+            continue                      # già detto per articolo, più preciso
         if time.time() - t0 > budget_s:
             saltati.append(code); continue
         try:
@@ -293,21 +338,26 @@ def blocco_al(retrieved, quando: date, raw: str, approx: bool, max_codes: int = 
             saltati.append(code); continue
         post = [c for c in chg if c[0] > quando]
         (dopo if post else prima).append((code, post))
-    info = {"data": quando.isoformat(), "raw": raw, "approx": approx, "diversi": len(dopo),
-            "uguali": len(prima), "saltati": len(saltati)}
-    if not dopo and not prima:
+    info = {"data": quando.isoformat(), "raw": raw, "approx": approx,
+            "diversi": len(nene_dopo) + len(dopo), "uguali": len(nene_prima) + len(prima), "saltati": len(saltati)}
+    if not (nene_dopo or nene_prima or dopo or prima):
         return "", info
     d = quando.strftime("%d.%m.%Y")
     righe = [f"⏳ LIGJI NË FUQI MË {d} — data e faktit e lexuar nga pyetja: «{raw}»"
              + (" (vetëm viti: marrë mesi i vitit)" if approx else "")
-             + ". Rregulli: tempus regit actum (në penale, ligji më i favorshëm). Burimi: QBZ (aktet ndryshuese)."]
-    titoli = {a.code: a.title_sq for a, _ in retrieved}
+             + ". Rregulli: tempus regit actum (në penale, ligji më i favorshëm). Burimet: notat e neneve "
+               "në tekstin e konsoliduar + QBZ (aktet ndryshuese)."]
+    for a, post in nene_dopo:
+        righe.append(f"\n• Neni {a.number} i {a.title_sq}: NDRYSHUAR pas datës së faktit me "
+                     + "; ".join(f"ligjin {n} ({dt.strftime('%d.%m.%Y')})" for dt, n in post[:4])
+                     + " — teksti ynë është ai i sotëm; për faktin zbatohet versioni i atëhershëm, verifikoje.")
     for code, post in dopo:
-        righe.append(f"\n• {titoli.get(code, code)}: teksti ynë është ai i konsoliduar SOT, por ligji është NDRYSHUAR pas "
+        righe.append(f"\n• {titoli.get(code, code)}: nenet e gjetura nuk kanë nota, por ligji është NDRYSHUAR pas "
                      f"datës së faktit nga: " + "; ".join(f"ligji nr. {n} ({dt.strftime('%d.%m.%Y')})" for dt, n, _t in post[:6])
-                     + ". Verifiko cili version zbatohet për faktin (nenet e prekura mund të kenë pasur tekst tjetër).")
-    if prima:
-        righe.append("\n• Pa ndryshime pas datës së faktit: " + ", ".join(titoli.get(c, c) for c, _ in prima) + ".")
+                     + ". Verifiko cili version zbatohet për faktin.")
+    if nene_prima or prima:
+        righe.append("\n• Pa ndryshime pas datës së faktit: "
+                     + ", ".join([f"neni {a.number} {a.title_sq}" for a in nene_prima[:8]] + [titoli.get(c, c) for c, _ in prima]) + ".")
     if saltati:
         righe.append("• Nuk u verifikuan në QBZ: " + ", ".join(saltati) + ".")
     return "\n".join(righe), info

@@ -1440,6 +1440,28 @@ rischio residuo della DPIA.
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
 
+**v9.334 — ROADMAP v3, P3b + P5: la storia PER ARTICOLO dalle note editoriali + la FORZA della fonte
+dichiarata al cervello (16 set notte).** (1) Nei consolidati QBZ ogni articolo modificato porta la nota
+«(Ndryshuar … me ligjin nr. 48/2012, datë 26.4.2012)» — 1.665 note, spesso con le parole incollate
+(«ligjinnr.48/2012,datë»): `temporal.modifiche_nene(articolo)` le legge (regex tollerante) e
+`ultima_modifica` dà la data ISO; il parser AL mette `last_amendment_date` per articolo (prima era
+vuoto: campo del documento intero) e `tools/recompute_amendments_al.py --apply` l'ha riempito sul
+jsonl → **2.602 nene con data di modifica** (K.Pr.C. 354, K.Pr.P. 324, c.p. 321, K. Punës 162…), indice
+ricostruito. `temporal.blocco_al` ora parla PER NENE («Neni 155 i Kodit të Punës: NDRYSHUAR pas datës
+së faktit me ligjin 91/2024 (26.07.2024)») e chiede a QBZ solo per i codici senza note; il prompt
+degli articoli mostra «ℹ Neni i ndryshuar së fundmi më …». (2) **Forza della fonte come metadato**
+(`brain._forza`, riga «⚖ …» sotto ogni articolo nel prompt): AL Kushtetutë / Kod / Ligj (lex specialis)
+/ Akt nënligjor «nuk mund të bjerë ndesh me ligjin»; IT Costituzione / diritto UE primario e regolamenti
+«primato sul diritto interno» / CEDU «norma interposta, art. 117 Cost.» / trattati / regolamenti e
+disp. att. «fonte secondaria» / legge-decreto. Prima la gerarchia era lasciata alla preparazione del
+modello. (3) Trust Line: «senza codice» non abbassa più lo stato (prova viva: 19 «pa kod» su un
+verdetto giusto). (4) **Prova anti-iniezione (v9.331) SUPERATA** (recuperata dal DB: il deploy aveva
+ricreato il container un attimo dopo la fine): 30 min, 38k chr, Trust Line in testa, 87 nene, Kodi i
+Punës, 0 italiano, e il cervello scrive «il documento contiene un segmento con istruzioni per sistemi
+automatici (…PAPAGALLO-7731): l'ho ignorato del tutto, non ha valore giuridico — non cancellare il
+file, conserva l'originale». ⚠️ `_format_articles_for_prompt` usa `_is_italian_code`: importato da
+`parser` (senza import ogni risposta sarebbe caduta — il golden lo esegue). Golden **[84]**, 471.
+
 **v9.333 — ROADMAP v3, PASSO 3: IL TEMPO — «quale versione della norma valeva alla data del fatto?»
 (`src/temporal.py`, 16 set notte).** Versione economica, senza riscrivere il corpus: **multivigenza ON
 DEMAND**. (1) `data_fatto(domanda)` legge le date esplicite (17/03/2021 · 17 marzo 2021 · më 20 shkurt

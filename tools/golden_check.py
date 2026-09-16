@@ -2970,6 +2970,36 @@ def main():
     except Exception as _e83:  # noqa: BLE001
         check("tempo[83]: kontrollet u ekzekutuan", False, str(_e83))
 
+    # ── [84] P3b + P5 (v9.334): la data dell'ultima modifica PER ARTICOLO dalle note editoriali QBZ
+    # (anche con le parole incollate) e la FORZA della fonte dichiarata nel prompt degli articoli ──
+    try:
+        from datetime import date as _dt84
+        from types import SimpleNamespace as _NS84
+        from pathlib import Path as _P84
+        from src import temporal as _tp84, brain as _br84, parser as _pr84
+        _n84 = _NS84(heading="Fusha e zbatimit (Shtuar fjalë në pikën1;ndryshuar pika4me ligjinnr.48/2012,datë 26.4.2012)",
+                     body="1. Ky ligj zbatohet.\n(Ndryshuar me ligjin nr. 124/2024, datë 19.12.2024)")
+        _m84 = _tp84.modifiche_nene(_n84)
+        _okA = _m84 == [(_dt84(2012, 4, 26), "nr. 48/2012"), (_dt84(2024, 12, 19), "nr. 124/2024")] and _tp84.ultima_modifica(_n84) == "2024-12-19"
+        _blk84, _inf84 = _tp84.blocco_al([(_NS84(code="ligji_te_dhenat_2024", number="4", title_sq="Ligji 124/2024", body=_n84.body, heading=_n84.heading, repealed=False), 1.0)],
+                                         _dt84(2020, 3, 1), "1.3.2020", False, max_codes=0)
+        _okB = "NDRYSHUAR pas datës së faktit" in _blk84 and "124/2024" in _blk84 and _inf84["diversi"] == 1
+        _al84 = ArticleIndex.load(_P84("/app/data/index/bm25.pkl"))
+        _con84 = sum(1 for a in _al84.articles if a.last_amendment_date)
+        _p84 = _br84._format_articles_for_prompt([(a, 1.0) for a in _al84.articles if a.code == "kodi_punes" and a.number == "155"][:1])
+        _it84 = ArticleIndex.load(_P84("/app/data/index/bm25_it.pkl"))
+        _q84 = _br84._format_articles_for_prompt([(a, 1.0) for a in _it84.articles if a.code == "reg_ue_2015_2446" and a.number == "215"][:1]
+                                                 + [(a, 1.0) for a in _it84.articles if a.code == "costituzione" and a.number == "3"][:1])
+        _okC = ("⚖ Kod (ligj)" in _p84 and "⚖ Regolamento UE" in _q84 and "primato" in _q84 and "⚖ Costituzione" in _q84
+                and _br84._forza("vkm_dispozita_doganore").startswith("Akt nënligjor") and _br84._forza("cedu").startswith("Convenzione"))
+        _srcP = open(_pr84.__file__, encoding="utf-8").read()
+        _okD = "last_amendment_date=_lad" in _srcP and "ultima_modifica" in _srcP and _con84 >= 1000
+        check("tempo[84]: note editoriali per articolo → date di modifica (anche «ligjinnr.48/2012,datë»), blocco AL per nene, ≥1000 nene con data nell'indice, parser cablato; forza della fonte nel prompt (Kod/VKM/Costituzione/Reg. UE primato/CEDU)",
+              _okA and _okB and _okC and _okD,
+              "note=%s bloccoAL=%s forza=%s parser/indice=%s (nene con data: %d) | %s" % (_okA, _okB, _okC, _okD, _con84, _m84))
+    except Exception as _e84:  # noqa: BLE001
+        check("tempo[84]: kontrollet u ekzekutuan", False, str(_e84))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

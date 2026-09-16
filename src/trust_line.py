@@ -97,7 +97,9 @@ def stato(v: dict) -> str:
     n, s = v["nene"], v["sentenze"]
     if n["fake"] or n["repealed"]:
         return "FLAGS"
-    if s["unverified"] or n["needs_code"] or v.get("fatti_da_precisare"):
+    # «senza codice» (neni 155 nudo, col codice nominato poco prima) non è un errore: resta nel
+    # conteggio della riga ma non abbassa lo stato (prova viva 16 set: 19 «pa kod» su un verdetto giusto)
+    if s["unverified"] or v.get("fatti_da_precisare"):
         return "RESERVATIONS"
     return "VERIFIED"
 

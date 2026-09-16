@@ -339,6 +339,14 @@ def split_into_articles(text: str, doc: LegalDocument) -> list[Article]:
         pjesa, kreu, seksioni = _hierarchy_context(text[: m.start()])
 
         repealed = is_repealed_stub(heading, body)
+        # v9.334 (roadmap v3 P3b): la data dell'ultima modifica PER ARTICOLO dalle note editoriali
+        # dei consolidati QBZ «(Ndryshuar … me ligjin nr. 48/2012, datë 26.4.2012)» — 1.665 note nel
+        # corpus; prima il campo era quello (vuoto) del documento intero
+        try:
+            from .temporal import ultima_modifica as _um
+            _lad = _um(_NoteView(heading, body)) or getattr(doc, "last_amendment_date", "")
+        except Exception:  # noqa: BLE001
+            _lad = getattr(doc, "last_amendment_date", "")
 
         articles.append(
             Article(
@@ -353,7 +361,7 @@ def split_into_articles(text: str, doc: LegalDocument) -> list[Article]:
                 seksioni=seksioni,
                 repealed=repealed,
                 volatility=doc.volatility,
-                last_amendment_date=doc.last_amendment_date,
+                last_amendment_date=_lad,
             )
         )
     articles.extend(_group_repeal_stubs(text, items, articles, doc))
@@ -374,6 +382,14 @@ _STUB_MARK_RE = re.compile(r"(?<![\wë])(?<!\bi )(?<!\be )(?<!\btë )shfuqizuar\
 _STUB_ALONE_RE = re.compile(r"^\W*(?:i |e |të )?(?:shfuqizohe[tn]|shfuqizuar)\W*$", re.I)
 _EDIT_NOTE_RE = re.compile(r"\([^()]*\)")
 _UNIT_LINE_RE = re.compile(r"^(?:KREU|KAPITULLI|TITULLI|PJESA|SEKSIONI|NËNSEKSIONI|NENSEKSIONI)\b", re.I)
+
+
+class _NoteView:
+    """Vista minima (heading/body) per leggere le note editoriali prima che l'Article esista."""
+    __slots__ = ("heading", "body")
+
+    def __init__(self, heading: str, body: str):
+        self.heading, self.body = heading or "", body or ""
 
 
 def is_repealed_stub(heading: str, body: str) -> bool:

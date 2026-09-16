@@ -63,7 +63,7 @@ from .config import (
 )
 from .documents import format_documents_for_prompt
 from .logging_utils import get_logger
-from .parser import Article
+from .parser import Article, _is_italian_code
 from .retrieval import ArticleIndex
 from .retrieval_kb import CasePrecedent, LegalKBRetriever
 
@@ -5897,6 +5897,36 @@ def _verify_citations(
     return cleaned
 
 
+# v9.334 (roadmap v3 P5) — la FORZA della fonte come metadato dichiarato al cervello, non lasciata
+# alla sua sola preparazione: una VKM non può contraddire la legge, un regolamento UE prevale sul
+# diritto interno, la Costituzione su tutto. Etichetta per riga dell'articolo nel prompt.
+_FORZA_IT = (
+    (("costituzione",), "Costituzione — fonte suprema"),
+    (("tfue", "tue", "carta_diritti_ue"), "Diritto UE primario — primato sul diritto interno"),
+    (("reg_ue_", "gdpr", "bruxelles_", "roma_", "codice_doganale_ue", "codice_frontiere_schengen", "codice_visti",
+      "alimenti_ue", "regimi_patrimoniali_ue", "ingiunzione_europea", "small_claims_ue", "notifiche_ue", "successioni_ue"),
+     "Regolamento UE — direttamente applicabile, primato sul diritto interno"),
+    (("cedu",), "Convenzione internazionale (CEDU) — norma interposta, art. 117 Cost."),
+    (("convenzione_", "protocollo_"), "Trattato internazionale ratificato con legge"),
+    (("regolamento_", "disp_att_"), "Regolamento / norme di attuazione — fonte secondaria, non può contrastare la legge"),
+)
+_FORZA_AL = (
+    (("kushtetuta",), "Kushtetutë — burimi më i lartë"),
+    (("kodi_",), "Kod (ligj) — burim parësor"),
+    (("vkm_", "rregullore_", "udhezim_"), "Akt nënligjor (VKM / rregullore) — nuk mund të bjerë ndesh me ligjin"),
+    (("ligji_",), "Ligj — burim parësor (lex specialis ndaj kodit kur rregullon të njëjtën çështje)"),
+)
+
+
+def _forza(code: str) -> str:
+    c = (code or "").lower()
+    tab = _FORZA_IT if _is_italian_code(c) else _FORZA_AL
+    for prefixes, label in tab:
+        if any(c == p or c.startswith(p) for p in prefixes):
+            return label
+    return "Legge / decreto legislativo — fonte primaria" if _is_italian_code(c) else "Ligj — burim parësor"
+
+
 def _format_articles_for_prompt(pairs: list[tuple[Article, float]]) -> str:
     if not pairs:
         return "(asnjë nen i gjetur)"
@@ -5904,11 +5934,15 @@ def _format_articles_for_prompt(pairs: list[tuple[Article, float]]) -> str:
     for a, score in pairs:
         hierarchy = " / ".join(x for x in (a.pjesa, a.kreu, a.seksioni) if x)
         hierarchy = f"  [{hierarchy}]\n" if hierarchy else ""
+        hierarchy += f"  ⚖ {_forza(a.code)}\n"
         # V7.4 — surface volatility so the model can warn the user when it
         # cites a statute that changes often (tax, consumer, bankruptcy).
         volatility = getattr(a, "volatility", "STABLE") or "STABLE"
         amended = getattr(a, "last_amendment_date", "") or ""
         vol_note = ""
+        if volatility == "STABLE" and amended and not _is_italian_code(a.code):
+            # v9.334: la data dell'ultima modifica letta dalle note dell'articolo stesso
+            vol_note = f"  ℹ Neni i ndryshuar së fundmi më {amended} (sipas notave të tekstit të konsoliduar).\n"
         if volatility == "VOLATILE":
             vol_note = (
                 f"  ⚠ VOLATILE — ligj i ndryshueshëm shpesh"
