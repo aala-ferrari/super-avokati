@@ -197,6 +197,9 @@ _AL_NEW_ALIASES: list[tuple[str, list[str]]] = [
     ("ligji_konsumatoret", ["ligji për mbrojtjen e konsumatorëve"]),
     ("ligji_kadastra", ["ligji për kadastrën", "ligji i kadastrës"]),
     ("ligji_noteri", ["ligji për noterinë", "ligji i noterisë"]),
+    ("rregullore_policia", ["vkm 112/2025", "vkm nr. 112/2025", "vkm nr. 112", "rregullorja e re e policisë",
+                            "rregullore e policisë së shtetit (vkm 112/2025)"]),
+    ("kodi_ajror", ["ligji nr. 96/2020", "kodi ajror", "kodit ajror"]),
 ]
 _AL_TRANSLIT = str.maketrans({"ë": "e", "ç": "c", "Ë": "e", "Ç": "c"})
 for _code, _phrases in _AL_NEW_ALIASES:
@@ -243,6 +246,8 @@ _LAW_NUMBER_ALIASES: dict[str, str] = {
     # audit 16 set: il corpus non riconosceva il proprio numero
     "9917": "ligji_pastrimi_parave", "9917/2008": "ligji_pastrimi_parave", "131/2015": "ligji_qkb",
     "9902/2008": "ligji_konsumatoret", "9901/2008": "ligji_shoqerite_tregtare", "110/2016": "ligji_falimentimi",
+    "112/2025": "rregullore_policia",   # nuova Rregullore (VKM 112/2025; la 750/2015 è shfuqizuar)
+    "96/2020": "kodi_ajror",
 }
 # cattura anche l'anno («ligji nr. 79/2021», «ligjit nr. 111, datë 14.12.2017» → 111 + 2017)
 _LAW_NUM_RE = re.compile(r"ligj\w*\s+(?:nr\.?\s*)?(\d{2,5})(?:\s*/\s*(\d{4})|\s*,?\s*dat[ëe]\s*\d{1,2}\.\d{1,2}\.(\d{4}))?", re.IGNORECASE)

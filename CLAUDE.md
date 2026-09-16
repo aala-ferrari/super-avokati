@@ -1435,6 +1435,42 @@ rischio residuo della DPIA.
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
 
+**v9.328 — CORPUS ALBANESE RISCRITTO DA QBZ + 29 leggi nuove + audit d'integrità (16 set).**
+Mandato del titolare: «trova anche degli altri [difetti] a livello generale… codici, nene,
+delibere, GU, QBZ, Fletorja; la correttezza è prima di tutto» ([[feedback_correttezza_prima_di_tutto]]).
+**`tools/audit_corpus.py`** (buchi di numerazione, duplicati, corpi vuoti, parole incollate,
+quota abrogati, SELF-RETRIEVAL a campione — l'articolo deve ritrovare se stesso — e
+riconoscimento del corpus dal risolutore) ha trovato: **IT** sigle corte del risolutore
+(«cc») matchate DENTRO le parole («accise», «successioni», «accertamento» → codice civile;
+ora solo parola intera con abbreviazioni ricomposte «c.p.c.»→cpc) + 3 label non risolvibili;
+**AL** i 24 codici venivano da PDF di ministeri 2014-2016 (drejtesia.gov.al oggi 404): K.Pr.C.
+2014 col testo DUE volte (prima copia senza artt. 80-89/111-114 → 23 buchi), Kodi Zgjedhor
+con doppio strato di testo (96 articoli su 186), kodi_punes/noteri/kadastra con parole
+incollate (2%), VKM 651/2017 doganale letta 128/740 per un «Neni 29» stampato al posto di
+«Neni 129» (il parser troncava al primo calo), c.c. art. 587 (36 chr) buttato dal filtro
+fantasma, ligji 9901/2008 QBZ che parte da «Neni 1¹» (nota a piè di pagina incollata →
+«Neni 11»), ligji 9917 e 131/2015 non riconosciuti per numero. **Parser AL** (`src/parser.py`):
+lettura a due colonne automatica (`extract_text_smart`, vince chi ha più intestazioni pulite),
+«Neni N Titolo» in riga con guardia indici (corpo ≥40 chr, sequenza), numero stampato male
+ricomposto se la sequenza continua, nota a piè di pagina incollata (prefisso che continua la
+sequenza), preambolo ≤3 articoli scartato, fantasma solo se fuori sequenza. **Sorgenti**: agente
+→ archivio WebDAV di QBZ (`…/Aktet/ligj/kuvendi-i-shqiperise/AAAA/MM/GG/NUM/cons-DATA/…pdf`)
++ REST Alfresco aperta (`qbz:actRepeals/actChanges`): tutti i 24 codici hanno il consolidato
+(c.c. 2026-08, c.p. 2026-02, K.Rrugor 2026-07, K.Detar 2026-08, K.Punës 2024-08, Zgjedhor
+2025-02, K.Pr.C. 2022-12, K.Pr.P. 2021-05…); VKM 750/2015 (Rregullore Policia) è shfuqizuar da
+**VKM 112/2025**; Kodi Ajror = ligji **96/2020**; 9887/2008 → 124/2024; 108/2014 → 82/2024
+(le vecchie restano marcate abrogate). `tools/ingest_al_qbz.py` (probe con gate di qualità:
+space%, parola media, parole >15/25 chr, tolleranza x adattiva 3/1.5/1; apply con `replace`
+per i codici riscritti; SUPERSEDED) + `tools/al_sources.json` (50 voci). Config
+LEGAL_DOCUMENTS 21→52 (kadastra/noteri prima non c'erano: il cervello non li vedeva).
+Verificatore AL: alias generati con declinazioni e senza dieresi (544), numero/ANNO
+(«111/2018» kadastra ≠ «111/2017» ndihma juridike). Golden **[78]**. RISULTATO: corpus AL
+**6.320→9.541 nene, 24→53 kode** (c.c. 1.175, c.p. 497, K.Pr.C. 612 — gli 80-89 sono
+abrogati nel consolidato, Kodi Zgjedhor 206, VKM doganale 742, kushtetuta 206 con 23 nene
+con suffisso); 108/2014 rimesso dal backup del pickle (stava SOLO lì, mai nel jsonl) marcato
+abrogato; golden 464/464, smoke 110, juris verde, verify_al 10/10. ⚠️ `all_articles.jsonl`
+è la fonte del pickle AL: ciò che sta solo nel pickle sparisce alla prima ricostruzione.
+
 **v9.327 — BLOCCO A + B del corpus italiano (16 set): 85→129 atti, 20.254→22.779 articoli; la
 riparazione degli atti «approvati con allegato»; 433 articoli «abrogati» per sbaglio tornati
 vivi.** Terzo difetto trovato: `is_repealed` marcava abrogato ogni articolo con la parola

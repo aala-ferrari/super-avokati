@@ -108,8 +108,14 @@ def cmd_probe(only: str | None) -> int:
     laws = json.loads(SRC.read_text(encoding="utf-8"))["laws"]
     RAW.mkdir(parents=True, exist_ok=True); OUT.mkdir(parents=True, exist_ok=True)
     bad = 0
+    force = "--force" in sys.argv
     for law in laws:
+        if "code" not in law:          # voci di commento («_refresh»)
+            continue
         if only and law["code"] != only:
+            continue
+        if not only and not force and (OUT / f"{law['code']}.json").exists():
+            print(f"  = {law['code']:28s} già misurato (usa --force per rifare)", flush=True)
             continue
         if not only and law.get("kb", 0) > 5000:
             # VKM 651/2017 = 16 MB (centinaia di pagine con allegati): 3 estrazioni durano
@@ -145,6 +151,8 @@ def cmd_apply() -> int:
     new_lines: list[str] = []
     drop_codes: set[str] = set()
     for law in laws:
+        if "code" not in law:
+            continue
         code = law["code"]
         f = OUT / f"{code}.json"
         if code in have and not law.get("replace"):
@@ -200,7 +208,8 @@ def cmd_apply() -> int:
 if __name__ == "__main__":
     mode = sys.argv[1] if len(sys.argv) > 1 else "probe"
     if mode == "probe":
-        sys.exit(cmd_probe(sys.argv[2] if len(sys.argv) > 2 else None))
+        _only = next((a for a in sys.argv[2:] if not a.startswith("--")), None)   # «--force» non e' un id
+        sys.exit(cmd_probe(_only))
     if mode == "apply":
         sys.exit(cmd_apply())
     print(__doc__); sys.exit(2)

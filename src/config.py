@@ -334,7 +334,7 @@ LEGAL_DOCUMENTS: tuple[LegalDocument, ...] = (
     ),
     LegalDocument(
         code="kodi_ajror",
-        title_sq="Kodi Ajror i Republikës së Shqipërisë",
+        title_sq="Kodi Ajror i Republikës së Shqipërisë (Ligji nr. 96/2020)",
         title_en="Air Code",
         area="Ajror",
         url="https://www.infrastruktura.gov.al/wp-content/uploads/2020/10/Kodi-Ajror_ligj-2020-07-23-96.pdf",
@@ -405,7 +405,7 @@ LEGAL_DOCUMENTS: tuple[LegalDocument, ...] = (
     ),
     LegalDocument(
         code="rregullore_policia",
-        title_sq="Rregullore e Policisë së Shtetit (VKM nr. 750/2015)",
+        title_sq="Rregullore e Policisë së Shtetit (VKM nr. 112/2025, zëvendëson VKM 750/2015)",
         title_en="State Police Regulation",
         area="Administrativ",
         url="https://www.asp.gov.al/wp-content/uploads/2022/12/Rregullore_PSH.pdf",
@@ -427,6 +427,10 @@ LEGAL_DOCUMENTS: tuple[LegalDocument, ...] = (
     # in tools/al_sources.json, ingestione con tools/ingest_al_qbz.py (probe → apply). Stanno
     # qui perché il cervello legge CODES_INDEX da questa tupla (altrimenti non sa che esistono)
     # e pro_features/web contano i codici da qui. I PDF vivono in data/raw/al_qbz/ (volume).
+    # kadastra e noteria c'erano nel corpus dal v9.30x (PDF FAOLEX/nchb.al) ma NON in questa tupla:
+    # il cervello non li vedeva nell'indice dei codici. Ora dai consolidati QBZ.
+    LegalDocument(code="ligji_kadastra", title_sq="Ligji nr. 111/2018 «Për kadastrën»", title_en="Cadastre Law", area="Prone", url="https://qbz.gov.al/alfresco/webdav/Aktet/ligj/kuvendi-i-shqiperise/2019/02/07/111/base/ligj-2019-02-07-111.pdf", local_pdf="al_qbz/ligji_kadastra.pdf", volatility="MEDIUM"),
+    LegalDocument(code="ligji_noteri", title_sq="Ligji nr. 110/2018 «Për noterinë»", title_en="Notary Law", area="Civil", url="https://qbz.gov.al/alfresco/webdav/Aktet/ligj/kuvendi-i-shqiperise/2018/12/20/110/cons-2022-02-16/ligj-2018-12-20-110.pdf", local_pdf="al_qbz/ligji_noteri.pdf", volatility="MEDIUM", last_amendment_date="2022-01-26"),
     LegalDocument(code="ligji_dnp", title_sq="Ligji nr. 10428/2011 «Për të drejtën ndërkombëtare private»", title_en="Private International Law", area="Nderkombetar", url="https://qbz.gov.al/alfresco/webdav/Aktet/ligj/kuvendi-i-shqiperise/2011/06/02/10428/base/ligj-2011-06-02-10428.pdf", local_pdf="al_qbz/ligji_dnp.pdf", volatility="STABLE"),
     LegalDocument(code="ligji_te_huajt", title_sq="Ligji nr. 79/2021 «Për të huajt»", title_en="Law on Foreigners", area="Imigracion", url="https://qbz.gov.al/alfresco/webdav/Aktet/ligj/kuvendi-i-shqiperise/2021/06/24/79/cons-2025-07-14/ligj-2021-06-24-79-perditesuar.pdf", local_pdf="al_qbz/ligji_te_huajt.pdf", volatility="MEDIUM", last_amendment_date="2025-06-26"),
     LegalDocument(code="ligji_shtetesia", title_sq="Ligji nr. 113/2020 «Për shtetësinë»", title_en="Citizenship Law", area="Shtetesi", url="https://qbz.gov.al/alfresco/webdav/Aktet/ligj/kuvendi-i-shqiperise/2020/07/29/113/cons-2026-06-08/ligj-2020-07-29-113%20-p%c3%abrdit%c3%absuar.pdf", local_pdf="al_qbz/ligji_shtetesia.pdf", volatility="MEDIUM", last_amendment_date="2026-05-08"),
@@ -443,7 +447,7 @@ LEGAL_DOCUMENTS: tuple[LegalDocument, ...] = (
     LegalDocument(code="ligji_gjendja_civile", title_sq="Ligji nr. 10129/2009 «Për gjendjen civile»", title_en="Civil Status Law", area="Civil", url="https://qbz.gov.al/alfresco/webdav/Aktet/ligj/kuvendi-i-shqiperise/2009/05/11/10129/cons-2024-07-08/ligj-2009-05-11-10129%20-i%20p%c3%abrdit%c3%absuar.pdf", local_pdf="al_qbz/ligji_gjendja_civile.pdf", volatility="MEDIUM", last_amendment_date="2024-06-06"),
     LegalDocument(code="ligji_antimafia", title_sq="Ligji nr. 10192/2009 «Për parandalimin dhe goditjen e krimit të organizuar, trafikimit, korrupsionit dhe krimeve të tjera nëpërmjet masave parandaluese kundër pasurisë»", title_en="Anti-Mafia Law", area="Penal", url="https://qbz.gov.al/alfresco/webdav/Aktet/ligj/kuvendi-i-shqiperise/2009/12/03/10192/cons-2020-08-07/ligj-2009-12-03-10192-perditesuar.pdf", local_pdf="al_qbz/ligji_antimafia.pdf", volatility="MEDIUM", last_amendment_date="2020-08-07"),
     LegalDocument(code="ligji_te_dhenat_2024", title_sq="Ligji nr. 124/2024 «Për mbrojtjen e të dhënave personale» (shfuqizon 9887/2008; në fuqi 1.2.2025)", title_en="Personal Data Protection Law 2024", area="Privatesi", url="https://qbz.gov.al/alfresco/webdav/Aktet/ligj/kuvendi-i-shqiperise/2024/12/19/124/cons-2025-06-20/ligj-2024-12-19-124-korrigjuar.pdf", local_pdf="al_qbz/ligji_te_dhenat_2024.pdf", volatility="MEDIUM", last_amendment_date="2025-06-20"),
-    LegalDocument(code="ligji_sigurimet_shoqerore", title_sq="Ligji nr. 7703/1993 «Për sigurimet shoqërore në Republikën e Shqipërisë»", title_en="Social Insurance Law", area="Pune", url="https://qbz.gov.al/alfresco/webdav/Aktet/ligj/kuvendi-i-shqiperise/1993/05/11/7703/cons-2023-08-07/LIGJ%20Nr.%207703%2c%20dat%c3%ab%2011.05.1993.pdf", local_pdf="al_qbz/ligji_sigurimet_shoqerore.pdf", volatility="VOLATILE", last_amendment_date="2023-08-07"),
+    LegalDocument(code="ligji_sigurimet_shoqerore", title_sq="Ligji nr. 7703/1993 «Për sigurimet shoqërore në Republikën e Shqipërisë»", title_en="Social Insurance Law", area="Punë", url="https://qbz.gov.al/alfresco/webdav/Aktet/ligj/kuvendi-i-shqiperise/1993/05/11/7703/cons-2023-08-07/LIGJ%20Nr.%207703%2c%20dat%c3%ab%2011.05.1993.pdf", local_pdf="al_qbz/ligji_sigurimet_shoqerore.pdf", volatility="VOLATILE", last_amendment_date="2023-08-07"),
     LegalDocument(code="ligji_avokatia", title_sq="Ligji nr. 55/2018 «Për profesionin e avokatit në Republikën e Shqipërisë»", title_en="Advocacy Law", area="Procedure", url="https://qbz.gov.al/alfresco/webdav/Aktet/ligj/kuvendi-i-shqiperise/2018/07/23/55/base/ligj-2018-07-23-55.pdf", local_pdf="al_qbz/ligji_avokatia.pdf", volatility="STABLE"),
     LegalDocument(code="ligji_ndermjetesimi", title_sq="Ligji nr. 10385/2011 «Për ndërmjetësimin në zgjidhjen e mosmarrëveshjeve»", title_en="Mediation Law", area="Procedure", url="https://qbz.gov.al/alfresco/webdav/Aktet/ligj/kuvendi-i-shqiperise/2011/02/24/10385/cons-2018-06-27/ligj-2011-02-24-10385.pdf", local_pdf="al_qbz/ligji_ndermjetesimi.pdf", volatility="MEDIUM", last_amendment_date="2018-06-27"),
     LegalDocument(code="ligji_arbitrazhi", title_sq="Ligji nr. 52/2023 «Për arbitrazhin në Republikën e Shqipërisë»", title_en="Arbitration Law", area="Procedure", url="https://qbz.gov.al/alfresco/webdav/Aktet/ligj/kuvendi-i-shqiperise/2023/07/06/52/base/ligj-2023-07-06-52.pdf", local_pdf="al_qbz/ligji_arbitrazhi.pdf", volatility="STABLE"),

@@ -222,7 +222,9 @@ def split_into_articles(text: str, doc: LegalDocument) -> list[Article]:
                 continue
             # titolo in riga: solo se continua la sequenza (last_ok+1 … last_ok+3) e ha un
             # corpo (le voci dell'INDICE sono intestazioni una dietro l'altra senza testo)
-            if inline and (not (last_ok + 1 <= n_int <= last_ok + 3) or body_len < 40):
+            # («Neni 1 Objekti…» in riga si accetta sempre: è l'inizio del testo, anche dopo
+            # un preambolo che ha già alzato last_ok — ligji 9901/2008 su QBZ)
+            if inline and ((not (last_ok + 1 <= n_int <= last_ok + 3) and n_int != 1) or body_len < 40):
                 continue
             last_ok = max(last_ok, n_int)
         elif inline:
@@ -249,13 +251,25 @@ def split_into_articles(text: str, doc: LegalDocument) -> list[Article]:
             num_int = int(num_str.split("/")[0])
         except ValueError:
             num_int = 0
+        nxt: list[int] = []
+        for k in range(i + 1, min(i + 4, len(filtered))):
+            try:
+                nxt.append(int(re.sub(r"\s+", "", filtered[k].group(1)).split("/")[0]))
+            except ValueError:
+                pass
+        # 16 set 2026 — NOTA A PIÈ DI PAGINA incollata al numero: nei consolidati QBZ le
+        # modifiche stanno in note e il richiamo si attacca al numero («Neni 1¹» → «Neni 11»,
+        # «Neni 5²» → «Neni 52»). Segnale: salto in avanti (>15) mentre i numeri seguenti
+        # continuano la sequenza vecchia; il numero vero è il prefisso che continua la
+        # sequenza (seen_max+1). Senza questa regola ligji 9901/2008 partiva da «Neni 11».
+        if ((num_int > seen_max + 15 or (not items and num_int > 1)) and "/" not in num_str
+                and nxt and seen_max + 1 <= nxt[0] <= seen_max + 3):
+            want = str(seen_max + 1)
+            if num_str.startswith(want) and len(num_str) > len(want):
+                log.info("parser: %s — Neni %s letto come %s (nota a piè di pagina incollata)",
+                         doc.code, num_str, want)
+                num_str, num_int = want, int(want)
         if i > 0 and num_int > 0 and num_int < seen_max - 5:
-            nxt: list[int] = []
-            for k in range(i + 1, min(i + 4, len(filtered))):
-                try:
-                    nxt.append(int(re.sub(r"\s+", "", filtered[k].group(1)).split("/")[0]))
-                except ValueError:
-                    pass
             if any(v > seen_max for v in nxt):
                 if nxt and nxt[0] == seen_max + 2:
                     log.info("parser: %s — Neni %s letto come %d (numero stampato male)",
@@ -264,6 +278,17 @@ def split_into_articles(text: str, doc: LegalDocument) -> list[Article]:
                     seen_max += 1
                 else:
                     log.info("parser: %s — Neni %s fuori sequenza, saltato", doc.code, num_str)
+                continue
+            # 16 set 2026: se la sequenza raccolta finora è minuscola (≤3 articoli) non è il
+            # testo ma un preambolo/atto modificante in testa al PDF (ligji 9901/2008 su QBZ
+            # apre con un «Neni 11» e poi riparte da 1: restava UN articolo su 234) →
+            # si butta il preambolo e si riparte dalla sequenza nuova
+            if len(items) <= 3:
+                log.info("parser: %s — preambolo di %d articoli scartato, si riparte da Neni %s",
+                         doc.code, len(items), num_str)
+                items = []
+                seen_max = num_int
+                items.append((m, num_str))
                 continue
             log.info(
                 "parser: truncating %s at Neni %s — counter dropped from %d",

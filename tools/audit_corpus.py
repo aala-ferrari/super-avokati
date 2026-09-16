@@ -66,12 +66,16 @@ def audit(lang: str, sample: int) -> list[str]:
                 hit += 1
         rate = f"{100 * hit / len(pick):5.0f}%" if pick else "   -"
         tot_hit += hit; tot_try += len(pick)
-        # risolutore
+        # risolutore: si cita come lo scriverebbe il cervello — «art. N <titolo dell'atto>»
+        # (il titolo dell'indice contiene numero/anno: «Codice dell'Ambiente (D.Lgs 152/2006)»);
+        # la label corta della UI non basta e non è una citazione
+        title = arts[0].title_sq
         if lang == "it":
-            label = cv.CODE_LABELS.get(code, "")
-            res = cv._resolve_code_it(label) if label else None
+            res = cv._resolve_code_it(title) if title else None
+            if res != code:   # seconda chance: la label
+                label = cv.CODE_LABELS.get(code, "")
+                res = cv._resolve_code_it(label) if label else res
         else:
-            title = arts[0].title_sq
             res = cv._resolve_code(title.lower()) if title else None
         ok_res = "ok" if res == code else ("NO" if res is None else f"→{res[:12]}")
         print(f"{code:32s} {len(arts):>5} {abr:>5.0f} {mx:>5} {len(holes):>5} {dup:>4} {empty:>5} {rub:>7} {glue:>6.2f} {rate:>6}  {ok_res}")

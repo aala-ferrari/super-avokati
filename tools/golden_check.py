@@ -2746,6 +2746,55 @@ def main():
     except Exception as _e77:  # noqa: BLE001
         check("corpus[77]: kontrollet u ekzekutuan", False, str(_e77))
 
+    # ── [78] CORPUS AL: le 29 leggi da QBZ (16 set) — presenti, con articoli, label, risolutore
+    # per nome/numero-anno; la 9887/2008 e la 108/2014 marcate superate; i codici riscritti dai
+    # consolidati QBZ con l'art. 1 pieno ──
+    try:
+        from pathlib import Path as _P78
+        _al78 = ArticleIndex.load(_P78("/app/data/index/bm25.pkl")).articles
+        _cnt78, _rep78 = {}, {}
+        for _a in _al78:
+            _cnt78[_a.code] = _cnt78.get(_a.code, 0) + 1
+            _rep78[_a.code] = _rep78.get(_a.code, 0) + (1 if _a.repealed else 0)
+        _need78 = {"ligji_dnp": 80, "ligji_te_huajt": 140, "ligji_shtetesia": 25, "kodi_te_miturve": 140,
+                   "ligji_procedurat_tatimore": 150, "ligji_tatimi_te_ardhurat": 70, "ligji_tvsh": 150,
+                   "ligji_sigurimi_mjeteve": 55, "ligji_ndihma_juridike": 35, "ligji_kundervajtjet": 45,
+                   "ligji_permbarimi_privat": 85, "ligji_dhuna_familje": 25, "ligji_gjendja_civile": 85,
+                   "ligji_antimafia": 40, "ligji_te_dhenat_2024": 95, "ligji_sigurimet_shoqerore": 100,
+                   "ligji_avokatia": 55, "ligji_ndermjetesimi": 40, "ligji_arbitrazhi": 45,
+                   "ligji_planifikimi_territorit": 70, "ligji_te_denuarit": 90, "ligji_prokuroria": 110,
+                   "ligji_diskriminimi": 40, "ligji_armet": 65, "ligji_transportet_rrugore": 85,
+                   "ligji_prokurimi_publik": 130, "ligji_trajtimi_prones": 35, "ligji_proceset_kalimtare": 80,
+                   # codici riscritti da QBZ (soglie prudenti)
+                   "kodi_civil": 1150, "kodi_proc_civile": 600, "kodi_penal": 400, "kodi_proc_penale": 500,
+                   "kodi_zgjedhor": 170, "kodi_punes": 200, "kushtetuta": 180}
+        _miss78 = [f"{c} ({_cnt78.get(c, 0)}<{n})" for c, n in _need78.items() if _cnt78.get(c, 0) < n]
+        _lab78 = [c for c in _need78 if c not in cv.CODE_LABELS]
+        _sup78 = all(_cnt78.get(c, 0) > 0 and _rep78.get(c, 0) == _cnt78.get(c, 0) for c in ("ligji_te_dhenat", "ligji_policia"))
+        _r78 = cv._resolve_code
+        _res78 = {"ligji nr. 79/2021": "ligji_te_huajt", "ligjit për të huajt": "ligji_te_huajt",
+                  "ligji nr. 111/2018": "ligji_kadastra", "ligji nr. 111/2017": "ligji_ndihma_juridike",
+                  "ligji i të dhënave personale": "ligji_te_dhenat_2024", "ligji nr. 9887": "ligji_te_dhenat",
+                  "kodi i drejtësisë penale për të mitur": "kodi_te_miturve", "ligji nr. 10428": "ligji_dnp",
+                  "dispozitat zbatuese të kodit doganor": "vkm_dispozita_doganore", "ligji nr. 32/2021": "ligji_sigurimi_mjeteve",
+                  "kodit civil": "kodi_civil", "ligji nr. 9901": "ligji_shoqerite_tregtare", "ligji nr. 9917": "ligji_pastrimi_parave",
+                  "vkm nr. 112/2025": "rregullore_policia"}
+        _bad78 = [f"{k}->{_r78(k)}" for k, v in _res78.items() if _r78(k) != v]
+        _by78 = {(a.code, a.number): a for a in _al78}
+        # (c.c. 587 «Dorëzania duhet të bëhet me shkresë.» è corto per natura: soglia 20;
+        # K.Pr.C. 80-89 sono ABROGATI nel consolidato QBZ 2022 — si controlla il 90)
+        _key78 = [("ligji_dnp", "1", 60), ("ligji_te_huajt", "1", 60), ("ligji_te_dhenat_2024", "1", 60), ("kodi_te_miturve", "1", 60),
+                  ("kodi_civil", "1", 60), ("kodi_civil", "587", 20), ("kodi_proc_civile", "90", 40), ("kodi_zgjedhor", "3", 60),
+                  ("kodi_penal", "1", 60), ("vkm_dispozita_doganore", "129", 40), ("vkm_dispozita_doganore", "700", 20),
+                  ("ligji_shoqerite_tregtare", "1", 60), ("rregullore_policia", "1", 40)]
+        _kmiss78 = [f"{c} {n}" for c, n, _m in _key78 if (c, n) not in _by78 or len(_by78[(c, n)].body) + len(_by78[(c, n)].heading) < _m]
+        check("corpus[78]: 28 leggi AL da QBZ + codici riscritti dai consolidati (c.c. 2026, c.p. 2026, K.Pr.C. 80-89, Kodi Zgjedhor 3…) nel corpus con i loro articoli, label, risolutore nome/numero-anno, 9887/2008 e 108/2014 marcate superate",
+              not _miss78 and not _lab78 and _sup78 and not _bad78 and not _kmiss78,
+              "mancano: %s | senza label: %s | superate: %s | risolutore: %s | articoli-chiave: %s" % (
+                  ", ".join(_miss78)[:200], ", ".join(_lab78)[:80], _sup78, ", ".join(_bad78)[:160], ", ".join(_kmiss78)[:120]))
+    except Exception as _e78:  # noqa: BLE001
+        check("corpus[78]: kontrollet u ekzekutuan", False, str(_e78))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
