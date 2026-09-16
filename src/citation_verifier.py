@@ -188,6 +188,15 @@ _AL_NEW_ALIASES: list[tuple[str, list[str]]] = [
     ("ligji_trajtimi_prones", ["ligji për trajtimin e pronës", "ligji i trajtimit të pronës"]),
     ("ligji_proceset_kalimtare", ["ligji për përfundimin e proceseve kalimtare të pronësisë",
                                   "ligji për proceset kalimtare të pronësisë"]),
+    # audit 16 set: leggi già in corpus che non si riconoscevano per nome
+    ("ligji_pastrimi_parave", ["ligji për parandalimin e pastrimit të parave", "ligji kundër pastrimit të parave",
+                               "ligji i pastrimit të parave", "ligji antipastrim", "parandalimin e pastrimit të parave"]),
+    ("ligji_qkb", ["ligji për qendrën kombëtare të biznesit", "qendrën kombëtare të biznesit", "qendra kombëtare e biznesit"]),
+    ("ligji_shoqerite_tregtare", ["ligji për tregtarët dhe shoqëritë tregtare", "tregtarët dhe shoqëritë tregtare"]),
+    ("ligji_falimentimi", ["ligji për falimentimin"]),
+    ("ligji_konsumatoret", ["ligji për mbrojtjen e konsumatorëve"]),
+    ("ligji_kadastra", ["ligji për kadastrën", "ligji i kadastrës"]),
+    ("ligji_noteri", ["ligji për noterinë", "ligji i noterisë"]),
 ]
 _AL_TRANSLIT = str.maketrans({"ë": "e", "ç": "c", "Ë": "e", "Ç": "c"})
 for _code, _phrases in _AL_NEW_ALIASES:
@@ -231,6 +240,9 @@ _LAW_NUMBER_ALIASES: dict[str, str] = {
     "97/2016": "ligji_prokuroria", "10221": "ligji_diskriminimi", "10221/2010": "ligji_diskriminimi",
     "74/2014": "ligji_armet", "8308": "ligji_transportet_rrugore", "8308/1998": "ligji_transportet_rrugore",
     "162/2020": "ligji_prokurimi_publik", "133/2015": "ligji_trajtimi_prones", "20/2020": "ligji_proceset_kalimtare",
+    # audit 16 set: il corpus non riconosceva il proprio numero
+    "9917": "ligji_pastrimi_parave", "9917/2008": "ligji_pastrimi_parave", "131/2015": "ligji_qkb",
+    "9902/2008": "ligji_konsumatoret", "9901/2008": "ligji_shoqerite_tregtare", "110/2016": "ligji_falimentimi",
 }
 # cattura anche l'anno («ligji nr. 79/2021», «ligjit nr. 111, datë 14.12.2017» → 111 + 2017)
 _LAW_NUM_RE = re.compile(r"ligj\w*\s+(?:nr\.?\s*)?(\d{2,5})(?:\s*/\s*(\d{4})|\s*,?\s*dat[ëe]\s*\d{1,2}\.\d{1,2}\.(\d{4}))?", re.IGNORECASE)
@@ -486,6 +498,15 @@ _IT_CODE_CHECKS = [
     ("leggeurbanistica", "legge_urbanistica"),
     ("testounicopubblicoimpiego", "pubblico_impiego"),
     ("testounicomaternita", "maternita_paternita"),
+    # audit 16 set: abbreviazioni e «disposizioni di attuazione» PRIMA delle sigle corte
+    ("codciv", "codice_civile"), ("codpen", "codice_penale"), ("codprocciv", "codice_procedura_civile"),
+    ("codprocpen", "codice_procedura_penale"),
+    ("disposizionidiattuazionedelcodicecivile", "disp_att_cc"), ("disposizionidiattuazionedelcodiceciv", "disp_att_cc"),
+    ("dispattcc", "disp_att_cc"), ("disposizionidiattuazionecc", "disp_att_cc"), ("dispattcodciv", "disp_att_cc"),
+    ("normediattuazionedelcodicediprocedurapenale", "disp_att_cpp"), ("disposizionidiattuazionedelcodicediprocedurapenale", "disp_att_cpp"),
+    ("dispattcpp", "disp_att_cpp"), ("normeattcpp", "disp_att_cpp"), ("normediattuazionecpp", "disp_att_cpp"),
+    ("regolamentodiesecuzionedelcodicedellastrada", "regolamento_strada"), ("regolamentodiesecuzionecds", "regolamento_strada"),
+    ("regesecuzionecds", "regolamento_strada"), ("regolamentocds", "regolamento_strada"), ("regolamentodelcodicedellastrada", "regolamento_strada"),
     # preleggi (disposizioni sulla legge in generale): «art. 12 preleggi», «disp. prel. c.c.»
     ("preleggi", "preleggi"), ("disposizionisullaleggeingenerale", "preleggi"),
     ("disposizionipreliminari", "preleggi"), ("dispprel", "preleggi"),
@@ -615,6 +636,8 @@ _IT_CODE_NUM_CHECKS = [
 
 
 _CEDU_PROT = ("1", "4", "6", "7", "12", "13", "16")
+# chiavi corte che devono restare sottostringhe («Roma I» → «romai» non è mai una parola)
+_SHORT_AS_SUBSTRING = frozenset({"romai"})
 
 
 def _resolve_code_it(tail: str):
@@ -631,8 +654,18 @@ def _resolve_code_it(tail: str):
         if "addizionale" in _low:
             return "cedu_protocollo_1"
         return "cedu"
+    # Sigle corte («cc», «cp», «cpc», «tub», «cost»…) SOLO come parola intera: nel testo
+    # compattato «accise», «successioni», «accertamento» contengono «cc» e finivano nel
+    # codice civile (audit_corpus, 16 set 2026). Le abbreviazioni puntate si ricompongono
+    # prima («c.p.c.» → «cpc», «Cost.» → «cost»); le chiavi lunghe restano sottostringhe.
+    _norm = re.sub(r"\b([a-z])\.\s*(?=[a-z]\.)", r"\1", _low)
+    _norm = re.sub(r"\b([a-z]{1,5})\.", r"\1", _norm)
+    _tokens = set(re.findall(r"[a-z]+", _norm))
     for pat, code in _IT_CODE_CHECKS:
-        if pat in compact:
+        if len(pat) <= 5 and pat not in _SHORT_AS_SUBSTRING:
+            if pat in _tokens:
+                return code
+        elif pat in compact:
             return code
     # secondo passaggio: numero/anno (le sigle «D.Lgs.», «DPR», «Reg.» da sole non bastano)
     with_digits = re.sub(r"[^a-z0-9]", "", (tail or "").lower())

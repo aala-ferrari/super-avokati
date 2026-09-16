@@ -32,6 +32,12 @@ log = get_logger(__name__)
 ARTICLE_RE = re.compile(
     r"(?m)^[ \t]*Neni[ \t]*(\d+(?:[ \t]*/[ \t]*[a-zçëA-ZÇË0-9]+)?)[ \t]*$"
 )
+# «Neni 3 Parime të përgjithshme» — numero e rubrica sulla stessa riga (16 set 2026). Rubrica in
+# maiuscolo, 2-90 caratteri, che NON finisce con una cifra (le voci dell'indice finiscono col
+# numero di pagina); la plausibilità di sequenza si controlla in split_into_articles.
+ARTICLE_INLINE_RE = re.compile(
+    r"(?m)^[ \t]*Neni[ \t]*(\d+(?:[ \t]*/[ \t]*[a-zçëA-ZÇË0-9]+)?)[ \t]+([A-ZÇË][^\n]{1,89}[^\d\s])[ \t]*$"
+)
 
 # Hierarchy headers (PJESA / KREU / SEKSIONI / TITULLI). Used as context.
 HIERARCHY_RE = re.compile(
@@ -115,16 +121,38 @@ class Article:
 
 # ── PDF extraction ──────────────────────────────────────────────────────────
 
-def extract_full_text(pdf_path: Path) -> str:
-    """Extract and concatenate all pages of a PDF, stripping typical footers."""
-    pages: list[str] = []
+def extract_text_smart(pdf_path: Path, x_tolerance: float = 3.0) -> str:
+    """Testo del PDF; se l'impaginazione è a DUE COLONNE (Kodi Zgjedhor, CEDU) la lettura
+    intera mescola le colonne («Neni 3 3. Ligji zgjedhor nxit…» = intestazione sinistra +
+    riga destra) e gli articoli spariscono (Kodi Zgjedhor: 96 su 186, 16 set 2026). Si
+    estrae anche colonna per colonna (crop a metà pagina) e vince la lettura con più
+    intestazioni «Neni N» pulite; a parità resta quella intera (le pagine a una colonna
+    tagliate a metà danno frammenti, non più intestazioni)."""
+    plain: list[str] = []
+    cols: list[str] = []
     with pdfplumber.open(pdf_path) as pdf:
         for page in pdf.pages:
-            txt = page.extract_text() or ""
-            pages.append(txt)
-    text = "\n".join(pages)
-    text = _clean_text(text)
-    return text
+            plain.append(page.extract_text(x_tolerance=x_tolerance) or "")
+            w, h = page.width, page.height
+            try:
+                left = page.crop((0, 0, w / 2, h)).extract_text(x_tolerance=x_tolerance) or ""
+                right = page.crop((w / 2, 0, w, h)).extract_text(x_tolerance=x_tolerance) or ""
+            except Exception:  # noqa: BLE001
+                left, right = "", ""
+            cols.append(left + "\n" + right)
+    t_plain = _clean_text("\n".join(plain))
+    t_cols = _clean_text("\n".join(cols))
+    n_plain = len(ARTICLE_RE.findall(t_plain))
+    n_cols = len(ARTICLE_RE.findall(t_cols))
+    if n_cols >= n_plain + 5 and n_cols > n_plain * 1.15:
+        log.info("parser: %s letto a due colonne (%d intestazioni contro %d)", pdf_path.name, n_cols, n_plain)
+        return t_cols
+    return t_plain
+
+
+def extract_full_text(pdf_path: Path) -> str:
+    """Extract and concatenate all pages of a PDF, stripping typical footers."""
+    return extract_text_smart(pdf_path)
 
 
 def _clean_text(text: str) -> str:
@@ -161,56 +189,102 @@ def _hierarchy_context(text_before: str) -> tuple[str, str, str]:
 def split_into_articles(text: str, doc: LegalDocument) -> list[Article]:
     """Split the full code text into Article objects."""
     raw_matches = list(ARTICLE_RE.finditer(text))
+    # 16 set 2026 — «Neni N Titolo» sulla STESSA riga: il Kodi Zgjedhor perdeva così 81
+    # articoli su 186 (audit_corpus). Si accetta solo se il titolo inizia in maiuscolo, non
+    # finisce con un numero (le voci dell'indice finiscono col numero di pagina) e — più
+    # sotto — se il numero continua la sequenza (altrimenti è prosa: «Neni 5 Kur…»).
+    seen_pos = {m.start() for m in raw_matches}
+    raw_matches = sorted(
+        raw_matches + [m for m in ARTICLE_INLINE_RE.finditer(text) if m.start() not in seen_pos],
+        key=lambda m: m.start())
 
     # V7.4 step 1 — filter out phantom matches. A "Neni 1913" produced by a
     # page-footer "13" glued to the real "Neni 19" has either no body or just
     # another "Neni X" header in its range. Drop those before any further
     # analysis so counter-restart detection isn't poisoned by fake maxima.
     filtered: list = []
+    last_ok = 0
     for i, m in enumerate(raw_matches):
         number = re.sub(r"\s+", "", m.group(1))
         num_only = number.split("/")[0]
         end = raw_matches[i + 1].start() if i + 1 < len(raw_matches) else len(text)
         body_len = len(text[m.end():end].strip())
+        inline = m.re is ARTICLE_INLINE_RE
         if num_only.isdigit():
             n_int = int(num_only)
             # Hard cap — no Albanian code exceeds ~1300 articles (Kodi Civil)
             if n_int > 2000:
                 continue
-            # Implausible + empty body → page-footer collision artifact
-            if n_int > 500 and body_len < 40:
+            # Implausible + empty body → page-footer collision artifact. 16 set 2026: SOLO se
+            # il numero è anche fuori sequenza — l'art. 587 c.c. («Dorëzania duhet të bëhet
+            # me shkresë.», 36 caratteri) è vero e in sequenza, e veniva buttato.
+            if n_int > 500 and body_len < 40 and not (last_ok + 1 <= n_int <= last_ok + 3):
                 continue
+            # titolo in riga: solo se continua la sequenza (last_ok+1 … last_ok+3) e ha un
+            # corpo (le voci dell'INDICE sono intestazioni una dietro l'altra senza testo)
+            if inline and (not (last_ok + 1 <= n_int <= last_ok + 3) or body_len < 40):
+                continue
+            last_ok = max(last_ok, n_int)
+        elif inline:
+            continue
         filtered.append(m)
 
     # V7.4 step 2 — some official PDFs (especially for ligji_*) bundle the
     # main law with implementing acts (VKM, UDHËZIM) that each start their
     # own Neni 1. Detect a counter restart (a number far below the running
     # max) and drop everything past that point.
+    # 16 set 2026: un SOLO numero stampato male non è un riavvio — la VKM 651/2017
+    # (dispozitat doganore) ha «Neni 29» al posto di «Neni 129» e perdeva 600 articoli.
+    # Se subito dopo la numerazione principale continua, il numero fuori posto si
+    # ricompone (se il successivo è seen_max+2) o si salta; si tronca solo se il
+    # riavvio è confermato dai numeri seguenti.
+    items: list = []          # (match, numero definitivo)
     seen_max = 0
-    truncate_idx = len(filtered)
+    stop = False
     for i, m in enumerate(filtered):
+        if stop:
+            break
         num_str = re.sub(r"\s+", "", m.group(1))
         try:
             num_int = int(num_str.split("/")[0])
         except ValueError:
             num_int = 0
         if i > 0 and num_int > 0 and num_int < seen_max - 5:
+            nxt: list[int] = []
+            for k in range(i + 1, min(i + 4, len(filtered))):
+                try:
+                    nxt.append(int(re.sub(r"\s+", "", filtered[k].group(1)).split("/")[0]))
+                except ValueError:
+                    pass
+            if any(v > seen_max for v in nxt):
+                if nxt and nxt[0] == seen_max + 2:
+                    log.info("parser: %s — Neni %s letto come %d (numero stampato male)",
+                             doc.code, num_str, seen_max + 1)
+                    items.append((m, str(seen_max + 1)))
+                    seen_max += 1
+                else:
+                    log.info("parser: %s — Neni %s fuori sequenza, saltato", doc.code, num_str)
+                continue
             log.info(
                 "parser: truncating %s at Neni %s — counter dropped from %d",
                 doc.code, num_str, seen_max,
             )
-            truncate_idx = i
+            stop = True
             break
         if num_int > seen_max:
             seen_max = num_int
-    matches = filtered[:truncate_idx]
+        items.append((m, num_str))
+    matches = [m for m, _ in items]
+    numbers = [n for _, n in items]
 
     articles: list[Article] = []
     for i, m in enumerate(matches):
-        number = re.sub(r"\s+", "", m.group(1))  # "83 / a" -> "83/a"
+        number = numbers[i]  # "83 / a" -> "83/a" (o il numero ricomposto)
         start = m.end()
         end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
         raw = text[start:end].strip()
+        if m.re is ARTICLE_INLINE_RE:          # la rubrica stava sulla riga di «Neni N»
+            raw = m.group(2).strip() + "\n" + raw
 
         # Heading = the FIRST COMPLETE SENTENCE after "Neni N", body = rest.
         # The Albanian PDFs hard-wrap mid-sentence ("Trashëgimlënësi edhe pa
