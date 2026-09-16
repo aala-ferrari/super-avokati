@@ -26,9 +26,13 @@ for p in ("/app", "/app/tools", "/tmp"):
 
 IT_ACTS = Path(os.environ.get("IT_ACTS_DIR", "/app/data/processed/it_acts"))
 AL_SRC = Path(os.environ.get("AL_SOURCES", "/app/tools/al_sources.json"))
-# UA da browser: con un UA «bot» EUR-Lex risponde una pagina senza le versioni consolidate
+# UA: QBZ e gli altri accettano un UA da browser; EUR-Lex (AWS WAF) al contrario risponde
+# 202-sfida (corpo vuoto) all'UA lungo di Chrome e la pagina vera all'UA corto «Mozilla/5.0»
+# (misurato il 16 set 2026: 202/0 byte contro 200/15 MB sullo stesso URL, a 20 s di distanza).
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+UA_EURLEX = "Mozilla/5.0"
 QBZ = "https://qbz.gov.al/alfresco/api/-default-/public/alfresco/versions/1"
+ONLY: set[str] = set()             # --only codice,codice: ricontrolla solo questi atti
 SKIP_AL = {"ligji_konsumatoret"}   # senza consolidato QBZ (testo in corpus da altra fonte)
 try:  # le leggi superate e marcate abrogate (ingest_al_qbz.SUPERSEDED) non vanno controllate
     from ingest_al_qbz import SUPERSEDED as _SUP
@@ -38,9 +42,39 @@ except Exception:  # noqa: BLE001
 
 
 def _get(url: str, timeout: int = 60) -> str:
-    req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept-Language": "it,sq"})
+    # EUR-Lex sta dietro AWS WAF: a urllib risponde 202 con una pagina-sfida JavaScript
+    # (impronta TLS), a curl la pagina vera. Per EUR-Lex si passa da curl (host e container
+    # lo hanno), con urllib di riserva.
+    if "eur-lex.europa.eu" in url:
+        import shutil, subprocess
+        if shutil.which("curl"):
+            # il WAF passa a «sfida» per l'IP dopo una raffica di richieste (misurato: da 200/15 MB
+            # a 202/0 byte in pochi minuti): 3 tentativi con pausa crescente, poi si risponde
+            # vuoto e il chiamante segna UNKNOWN (mai un OK finto)
+            for pause in (0, 30, 90):
+                if pause:
+                    time.sleep(pause)
+                p = subprocess.run(["curl", "-sL", "-A", UA_EURLEX, "--max-time", str(max(timeout, 120)), url],
+                                   capture_output=True)
+                if p.returncode == 0 and len(p.stdout) > 20_000 and b"challenge-container" not in p.stdout[:4000]:
+                    return p.stdout.decode("utf-8", "replace")
+            return ""
+    ua = UA_EURLEX if "eur-lex.europa.eu" in url else UA
+    req = urllib.request.Request(url, headers={"User-Agent": ua, "Accept-Language": "it,sq"})
     with urllib.request.urlopen(req, timeout=timeout) as r:
         return r.read().decode("utf-8", "replace")
+
+
+def _head_pdf(url: str) -> bool:
+    """HEAD via curl (stesso motivo del WAF): True se l'ultima risposta è 200 e PDF."""
+    import shutil, subprocess
+    if not shutil.which("curl"):
+        return False
+    p = subprocess.run(["curl", "-sIL", "-A", UA_EURLEX, "--max-time", "60", url], capture_output=True)
+    head = p.stdout.decode("latin1")
+    blocks = [b for b in re.split(r"\r?\n\r?\n", head) if b.strip()]
+    last = blocks[-1] if blocks else ""
+    return bool(re.match(r"HTTP/\S+\s+200", last)) and "application/pdf" in last.lower()
 
 
 def _qbz(path: str, **params) -> dict:
@@ -63,6 +97,8 @@ def _d(s: str) -> date | None:
 def check_it(limit: int | None) -> list[dict]:
     out: list[dict] = []
     files = sorted(IT_ACTS.glob("*.json"))
+    if ONLY:
+        files = [f for f in files if f.stem in ONLY]
     if limit:
         files = files[:limit]
     nm = None
@@ -92,29 +128,27 @@ def check_it(limit: int | None) -> list[dict]:
                     row["ours"] = "originale"; row["source"] = vers[0] if vers else "-"
                     if vers:
                         row["status"] = "INFO"; row["note"] = f"testo originale in corpus; EUR-Lex ha un consolidato {vers[0]} (spesso rettifiche)"
-                    time.sleep(0.3)
+                    time.sleep(6.0)   # EUR-Lex: con richieste fitte il WAF passa a «sfida» (202 vuoto)
                 else:
                     base = ("1" if "/TXT" in m.group(1) else "3") + m.group(1)
                     page = _get(f"https://eur-lex.europa.eu/legal-content/IT/ALL/?uri=CELEX:{base}")
                     vers = sorted(set(re.findall(r"0" + re.escape(m.group(1)) + r"-(\d{8})", page)), reverse=True)
                     row["source"] = vers[0] if vers else "-"; row["ours"] = m.group(2)
-                    if vers and vers[0] > m.group(2):
+                    if not vers:
+                        # un «OK» silenzioso è il difetto peggiore: se la pagina ALL non elenca
+                        # versioni (throttling, pagina diversa) lo si dice
+                        row["status"] = "UNKNOWN"; row["note"] = "EUR-Lex: nessuna versione letta dalla pagina ALL (throttling?) — riprovare"
+                    elif vers[0] > m.group(2):
                         # scaricabile? Per i testi grandi (Reg. 2015/2447) EUR-Lex serve l'HTML-guscio
                         # e il PDF del consolidato nuovo puo' non esistere ancora (404): si segnala
                         # come INFO, non come STALE che nessuno puo' sanare
                         newest = "0" + m.group(1) + "-" + vers[0]
-                        try:
-                            req = urllib.request.Request(f"https://eur-lex.europa.eu/legal-content/IT/TXT/PDF/?uri=CELEX:{newest}",
-                                                         headers={"User-Agent": UA}, method="HEAD")
-                            with urllib.request.urlopen(req, timeout=60) as r:
-                                ok_pdf = r.status == 200 and "pdf" in (r.headers.get("Content-Type") or "")
-                        except Exception:  # noqa: BLE001
-                            ok_pdf = False
+                        ok_pdf = _head_pdf(f"https://eur-lex.europa.eu/legal-content/IT/TXT/PDF/?uri=CELEX:{newest}")
                         if ok_pdf:
                             row["status"] = "STALE"; row["note"] = f"EUR-Lex consolidato {vers[0]} > nostro {m.group(2)} (PDF disponibile: rilanciare ingest_eurlex)"
                         else:
                             row["status"] = "INFO"; row["note"] = f"EUR-Lex consolidato {vers[0]} > nostro {m.group(2)}, ma senza PDF scaricabile (HTML-guscio): riprovare"
-                time.sleep(0.3)
+                time.sleep(6.0)   # EUR-Lex: con richieste fitte il WAF passa a «sfida» (202 vuoto)
             elif urn.startswith("coe:"):
                 row["note"] = "CEDU: testo stabile (CoE)"
             elif urn:
@@ -149,6 +183,8 @@ _QBZ_URL = re.compile(r"webdav/Aktet/(?P<kind>ligj|vendim)/(?P<inst>[^/]+)/(?P<y
 def check_al(limit: int | None) -> list[dict]:
     out: list[dict] = []
     laws = [l for l in json.loads(AL_SRC.read_text(encoding="utf-8"))["laws"] if "code" in l]
+    if ONLY:
+        laws = [l for l in laws if l["code"] in ONLY]
     if limit:
         laws = laws[:limit]
     for law in laws:
@@ -211,6 +247,8 @@ def check_al(limit: int | None) -> list[dict]:
 if __name__ == "__main__":
     langs = [a for a in sys.argv[1:] if a in ("it", "al")] or ["it", "al"]
     limit = int(sys.argv[sys.argv.index("--limit") + 1]) if "--limit" in sys.argv else None
+    if "--only" in sys.argv:
+        ONLY.update(c.strip() for c in sys.argv[sys.argv.index("--only") + 1].split(",") if c.strip())
     rows: list[dict] = []
     for lg in langs:
         print(f"\n=== {lg.upper()} ===")
