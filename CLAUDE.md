@@ -1440,6 +1440,26 @@ rischio residuo della DPIA.
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
 
+**v9.329 — CONTROLLO DI FRESCHEZZA delle leggi (`tools/freshness_check.py`) + ciò che ha
+trovato subito (16 set).** Per ogni atto, 1-3 richieste senza scaricare testi: **Normattiva**
+riga «ultimo aggiornamento all'atto: GG/MM/AAAA» vs `fetched` del JSON (nuovo campo scritto
+dagli ingest; retro-riempito: ondate ≤4 = 19 ago, resto 16 set — il mtime mente perché
+recompute/riparazioni riscrivono i file); **EUR-Lex** versioni `0…-AAAAMMGG` della pagina ALL
+vs il nostro `urn` (UA da browser: con UA «bot» la pagina arriva senza versioni; consolidato
+più nuovo ma SENZA PDF = INFO, non STALE); **QBZ REST Alfresco aperta** (`/nodes/-root-/
+children?relativePath=Aktet/ligj/…/NUM`, `…/{id}/sources?where=(assocType='qbz:actRepeals'|
+'qbz:actChanges')`): cartella `cons-…` più nuova con PDF > 10 KB = STALE, `actChanges` posteriore
+al nostro consolidato = STALE, `actRepeals` = REPEALED **solo se la data dell'abrogante è
+posteriore all'ultimo consolidato** (Kodi Rrugor ← ligji 12/2010 abroga alcuni articoli, il
+codice vive). Esce 1 se STALE/REPEALED. PRIMO GIRO: 161 OK, e tre cose vere: **ligji 11/2026
+(28.1.2026) «Për parandalimin dhe mbrojtjen nga dhuna ndaj grave dhe dhuna në familje»
+sostituisce la 9669/2006** → ingerita (60 nene), la vecchia marcata superata; **VKM 651/2017
+doganale: consolidato 2026-05-26 SOLO .docx (179 MB, PDF vuoto)** → `tools/docx_text.py`
+(zip + document.xml, senza dipendenze) → 748 nene (2019: 742 e senza le modifiche 2020-26);
+Reg. 2015/2447: EUR-Lex ha il consolidato 2026-07-01 ma il PDF è 404 (HTML-guscio) → INFO,
+riprovare. Corpus AL **9.607 nene / 54 kode**; golden 464, smoke 110, juris verde.
+Da fare: cron settimanale del controllo con avviso (chiedere al titolare: email/Telegram).
+
 **v9.328 — CORPUS ALBANESE RISCRITTO DA QBZ + 29 leggi nuove + audit d'integrità (16 set).**
 Mandato del titolare: «trova anche degli altri [difetti] a livello generale… codici, nene,
 delibere, GU, QBZ, Fletorja; la correttezza è prima di tutto» ([[feedback_correttezza_prima_di_tutto]]).
