@@ -345,6 +345,26 @@ def _metti_in_pausa(model: str) -> None:
         _MODEL_LIMIT_UNTIL[model] = time.time() + MODEL_LIMIT_PAUSE_S
 
 
+def _segna_pausa_per_avviso(model: str, msg: str) -> None:
+    """Scrive `data/model_limit.json` sul volume: il cron sull'host (`ops/model_limit_alert.py`) manda
+    l'email al titolare (il container non ha la chiave Resend). Mai sollevare."""
+    try:
+        from .config import INDEX_PATH
+        p = Path(INDEX_PATH).parent / "model_limit.json"
+        prev = {}
+        if p.exists():
+            try:
+                prev = json.loads(p.read_text(encoding="utf-8"))
+            except Exception:  # noqa: BLE001
+                prev = {}
+        ev = prev.get("eventi") or []
+        ev.append({"ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "model": model, "msg": (msg or "")[:160],
+                   "pausa_s": MODEL_LIMIT_PAUSE_S})
+        p.write_text(json.dumps({"eventi": ev[-50:]}, ensure_ascii=False, indent=1), encoding="utf-8")
+    except Exception:  # noqa: BLE001
+        log.debug("model_limit.json non scritto", exc_info=True)
+
+
 class ClaudeCodeBackend(LLMBackend):
     """Invokes the `claude` CLI in headless `-p` mode.
 
@@ -444,9 +464,10 @@ class ClaudeCodeBackend(LLMBackend):
         _fallback_model = self._pick_model(fast, medium)
         _ripiego_fatto = False
         if model_override and model != _fallback_model and modello_in_pausa(model_override) > 0:
-            log.info("Tetramorph: %s in pausa per limite (ancora %ds) — %s va a %s",
+            log.info("Tetramorph: %s in pausa per limite (ancora %ds) — %s va a %s (effort max)",
                      model, int(modello_in_pausa(model_override)), callsite or "?", _fallback_model)
             model = _fallback_model
+            effort_override = "max"          # regola del titolare (17 set): il sostituto è Opus MAX
             _ripiego_fatto = True
         tier = _tier_label(fast, medium)
         prompt_serialized = _serialize_prompt(system, messages)
@@ -624,6 +645,13 @@ class ClaudeCodeBackend(LLMBackend):
             _ripiego_fatto = True
             _i = cmd.index("--model")
             cmd[_i + 1] = _fallback_model
+            # regola del titolare (17 set): il sostituto lavora a effort MAX, qualunque cosa chiedesse
+            # la chiamata Fable — «così non si rompe il cervello e non si interrompe il lavoro»
+            if "--effort" in cmd:
+                cmd[cmd.index("--effort") + 1] = "max"
+            else:
+                cmd.extend(["--effort", "max"])
+            _segna_pausa_per_avviso(model_override, _msg)
             t0 = time.time()
             proc, _limite = _esegui(cmd)
 

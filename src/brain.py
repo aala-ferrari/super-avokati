@@ -3667,7 +3667,7 @@ class SuperAvvocato:
             try:
                 from . import claims as _cl
                 if _cl.MODE != "off":
-                    _ombra = _cl.Ombra(self.backend, answer_text, lang, idx, jur).start()
+                    _ombra = _cl.Ombra(self.backend, answer_text, lang, idx, jur, retrieved_codes=_codes).start()
             except Exception as _exc_c:  # noqa: BLE001
                 log.warning("claims: ombra non avviata (non-fatal): %s", _exc_c)
             if request_senior() == "fable":

@@ -3212,7 +3212,7 @@ def main():
         _okB = (_st == ["SUPPORTED", "CONTRADICTED", "UNSUPPORTED", "N/A", "CONTRADICTED"]
                 and _lg["materiali"] == 4 and _lg["high_unsupported"] == 2 and _lg["unsupported"] == 1 and _lg["contradicted"] == 2)
         _src92 = _insp92.getsource(_br92.SuperAvvocato._gjyqtari_fundit)
-        _okC = ("_cl.Ombra(self.backend, answer_text, lang, idx, jur).start()" in _src92 and "self._raccogli_ombra(_ombra)" in _src92
+        _okC = ("_cl.Ombra(self.backend, answer_text, lang, idx, jur, retrieved_codes=_codes).start()" in _src92 and "self._raccogli_ombra(_ombra)" in _src92
                 and 'if _cl.MODE != "off"' in _src92 and _cl92.MODE in ("off", "shadow", "on"))
         _okD = "claims" in open(_os2.path.join(_os2.path.dirname(_os2.path.abspath(__file__)), "benchmark_lab.py"), encoding="utf-8").read() and "high_unsupported" in open(_os2.path.join(_os2.path.dirname(_os2.path.abspath(__file__)), "benchmark_lab.py"), encoding="utf-8").read()
         check("claims[92]: claim binding in ombra — parse JSON, legame deterministico alle citazioni (155/1 KPunës SUPPORTED, 9999 CONTRADICTED, senza citazione UNSUPPORTED, fatto N/A, vendim annullato CONTRADICTED), avvio parallelo al Giudice, raccolta nell'audit, riportato dal benchmark strato 2",
@@ -3242,6 +3242,27 @@ def main():
               _okA and _okB and _okC and _okD and _okE, "det=%s pausa=%s wiring=%s riserva=%s strategic=%s" % (_okA, _okB, _okC, _okD, _okE))
     except Exception as _e93:  # noqa: BLE001
         check("backend[93]: kontrollet u ekzekutuan", False, str(_e93))
+
+    # ── [94] v9.344 — regola del titolare: Fable in pausa → Opus MAX (non l'effort della chiamata
+    # Fable); evento scritto sul volume per l'avviso email dal cron; log sul volume con rotazione;
+    # claim binding con i codici recuperati ──
+    try:
+        import inspect as _insp94
+        from src import backends as _bk94, claims as _cl94, logging_utils as _lu94
+        _src94 = _insp94.getsource(_bk94.ClaudeCodeBackend.complete)
+        _okA = ('effort_override = "max"          # regola del titolare' in _src94
+                and 'cmd[cmd.index("--effort") + 1] = "max"' in _src94 and "_segna_pausa_per_avviso(model_override, _msg)" in _src94)
+        _okB = callable(getattr(_bk94, "_segna_pausa_per_avviso", None)) and "model_limit.json" in _insp94.getsource(_bk94._segna_pausa_per_avviso)
+        _okC = "RotatingFileHandler" in open(_lu94.__file__, encoding="utf-8").read()
+        _okD = "retrieved_codes=retrieved_codes" in _insp94.getsource(_cl94.lega) and "retrieved_codes=_codes" in _insp94.getsource(brain.SuperAvvocato._gjyqtari_fundit)
+        _ops94 = _os2.path.join(_os2.path.dirname(_os2.path.dirname(_os2.path.abspath(__file__))), "ops", "model_limit_alert.py")
+        _run94 = _os2.path.join(_os2.path.dirname(_os2.path.dirname(_os2.path.abspath(__file__))), "run.sh")
+        _okE = (not _os2.path.exists(_ops94)) or ("model_limit.json" in open(_ops94, encoding="utf-8").read())   # ops/ non è nell'immagine
+        _okF = (not _os2.path.exists(_run94)) or ("logs:/app/logs" in open(_run94, encoding="utf-8").read())
+        check("ripiego[94]: Fable in pausa → Opus effort MAX forzato (in partenza e dopo il limite) · evento in data/model_limit.json per l'email · log con rotazione sul volume · claim binding con i codici recuperati",
+              _okA and bool(_okB) and _okC and _okD and _okE and _okF, "max=%s evento=%s rotazione=%s claims=%s ops=%s run=%s" % (_okA, bool(_okB), _okC, _okD, _okE, _okF))
+    except Exception as _e94:  # noqa: BLE001
+        check("ripiego[94]: kontrollet u ekzekutuan", False, str(_e94))
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

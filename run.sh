@@ -15,8 +15,9 @@ docker run -d --name super-avvocato --restart unless-stopped \
   -p 127.0.0.1:5050:5050 \
   --env-file /opt/super-avvocato.env \
   -v /var/www/apps/super-avvocato/data:/app/data \
+  -v /var/www/apps/super-avvocato/logs:/app/logs \
   -v /opt/claude-creds:/home/avvocato/.claude \
-  super-avvocato:v9.297
+  super-avvocato:v9.343
 # ripristina .claude.json (fuori dal mount, sparisce ai rebuild) — evita warning nel cervello
 sleep 3
 docker exec -u avvocato super-avvocato sh -c 'test -f /home/avvocato/.claude.json || cp "$(ls -t /home/avvocato/.claude/backups/.claude.json.backup.* 2>/dev/null | head -1)" /home/avvocato/.claude.json 2>/dev/null' || true

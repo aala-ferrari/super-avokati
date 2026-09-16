@@ -91,8 +91,11 @@ def estrai(backend, text: str, lang: str = "sq") -> list[dict]:
     return parse(raw)
 
 
-def lega(claims: list[dict], index, jurisdiction: str = "AL") -> dict:
-    """Deterministico: ogni citazione passa dal verificatore dei nene (e delle sentenze)."""
+def lega(claims: list[dict], index, jurisdiction: str = "AL", retrieved_codes=None) -> dict:
+    """Deterministico: ogni citazione passa dal verificatore dei nene (e delle sentenze).
+    `retrieved_codes` (v9.344): «neni 144 pika 3» senza il nome del codice si attribuisce come fa il
+    verificatore — se UN solo codice recuperato ha quel numero (misurato: 11 «deboli» su 20 erano
+    citazioni senza codice del Kodi i Punës già nel recupero)."""
     from . import citation_verifier as cv
     try:
         from . import case_citation_verifier as ccv
@@ -107,7 +110,7 @@ def lega(claims: list[dict], index, jurisdiction: str = "AL") -> dict:
         if not c["citazioni"]:
             rows.append(dict(c, stato="UNSUPPORTED")); continue
         joined = " ; ".join(c["citazioni"])
-        r = cv.verify_text(joined, index)
+        r = cv.verify_text(joined, index, retrieved_codes=retrieved_codes)
         st = [i["status"] for i in r.get("items") or []]
         if ccv is not None:
             try:
@@ -138,10 +141,10 @@ def lega(claims: list[dict], index, jurisdiction: str = "AL") -> dict:
 class Ombra:
     """Estrazione in un thread parallelo al Giudice; `raccogli()` aspetta al massimo JOIN_S."""
 
-    def __init__(self, backend, text: str, lang: str, index, jurisdiction: str):
+    def __init__(self, backend, text: str, lang: str, index, jurisdiction: str, retrieved_codes=None):
         self.result: dict | None = None
         self.error: str | None = None
-        self._t = threading.Thread(target=self._run, args=(backend, text, lang, index, jurisdiction), daemon=True)
+        self._t = threading.Thread(target=self._run, args=(backend, text, lang, index, jurisdiction, retrieved_codes), daemon=True)
 
     def start(self):
         if MODE == "off" or not (self._t):
@@ -149,10 +152,10 @@ class Ombra:
         self._t.start()
         return self
 
-    def _run(self, backend, text, lang, index, jurisdiction):
+    def _run(self, backend, text, lang, index, jurisdiction, retrieved_codes=None):
         try:
             claims = estrai(backend, text, lang)
-            self.result = lega(claims, index, jurisdiction)
+            self.result = lega(claims, index, jurisdiction, retrieved_codes)
         except Exception as exc:  # noqa: BLE001
             self.error = f"{type(exc).__name__}: {str(exc)[:120]}"
 
