@@ -1458,6 +1458,14 @@ doganale: consolidato 2026-05-26 SOLO .docx (179 MB, PDF vuoto)** → `tools/doc
 (zip + document.xml, senza dipendenze) → 748 nene (2019: 742 e senza le modifiche 2020-26);
 Reg. 2015/2447: EUR-Lex ha il consolidato 2026-07-01 ma il PDF è 404 (HTML-guscio) → INFO,
 riprovare. Corpus AL **9.607 nene / 54 kode**; golden 464, smoke 110, juris verde.
+⚠️ **EUR-Lex sta dietro AWS WAF**: a `urllib` risponde SEMPRE 202 + pagina-sfida JavaScript
+(`gokuProps`, `challenge-container`, impronta TLS); a `curl` la pagina vera — finché non
+arriva una raffica: poi 202/0 byte anche a curl per un po' (misurato: 200/15 MB → 202/0 in
+pochi minuti, con QUALSIASI UA). Il controllo usa curl, 6 s tra le richieste, 3 tentativi
+(0/30/90 s) e, se la pagina ALL non elenca versioni, segna **UNKNOWN** — mai un OK finto (la
+prima versione lo faceva: «OK» con fonte «-»). L'ingest EUR-Lex (`ingest_eurlex.py`) ha lo
+stesso rischio: se `consolidated_versions` torna vuoto o l'HTML è «vuoto» su tutto, è il WAF,
+non l'atto — aspettare e rilanciare.
 Da fare: cron settimanale del controllo con avviso (chiedere al titolare: email/Telegram).
 
 **v9.328 — CORPUS ALBANESE RISCRITTO DA QBZ + 29 leggi nuove + audit d'integrità (16 set).**
