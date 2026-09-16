@@ -8731,7 +8731,8 @@ def _verify_decisions_smart(answer_text: str, jurisdiction: str) -> tuple[str, d
         if idx is None:
             return answer_text, None
         pay = ccv_mod.verify_cases(answer_text or "", idx)
-        if (pay.get("stats") or {}).get("unverified"):
+        _st = pay.get("stats") or {}
+        if _st.get("unverified") or _st.get("quashed"):      # v9.339: anche le ANNULLATE
             answer_text = ccv_mod.annotate_unverified(answer_text, pay)
         return answer_text, pay
     except Exception:  # noqa: BLE001

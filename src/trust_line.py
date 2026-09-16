@@ -44,9 +44,24 @@ def dec_index():
     return _DEC_IDX
 
 
+_ART_MAPS: dict = {}
+
+
+def _art_map(index) -> dict:
+    """(code, number) → Article, una volta per indice (id): serve a leggere il testo dell'articolo."""
+    k = id(index)
+    m = _ART_MAPS.get(k)
+    if m is None:
+        m = {(a.code, str(a.number)): a for a in getattr(index, "articles", [])}
+        if len(_ART_MAPS) > 4:
+            _ART_MAPS.clear()
+        _ART_MAPS[k] = m
+    return m
+
+
 def vuota() -> dict:
-    return {"nene": {"verified": 0, "repealed": 0, "fake": 0, "needs_code": 0, "total": 0, "bad": []},
-            "sentenze": {"verified": 0, "unverified": 0, "total": 0, "bad": []},
+    return {"nene": {"verified": 0, "repealed": 0, "fake": 0, "needs_code": 0, "unconstitutional": 0, "total": 0, "bad": []},
+            "sentenze": {"verified": 0, "unverified": 0, "quashed": 0, "total": 0, "bad": [], "quashed_list": []},
             "fatti_da_precisare": 0}
 
 
@@ -68,6 +83,30 @@ def verifica(text: str, index, jurisdiction: str = "AL", retrieved_codes=None) -
                     "raw": (it.get("raw") or "")[:70], "number": it.get("number"),
                     "code": it.get("code_label") or it.get("code") or "",
                     "status": it.get("status"), "heading": (it.get("article_heading") or "")[:70]})
+        # v9.339 — norme DICHIARATE INCOSTITUZIONALI dalla Gjykata Kushtetuese (grafo delle sentenze):
+        # un articolo «verificato» nel corpus può essere stato annullato da un vendim GjK
+        try:
+            from . import case_graph as _cg
+            _inc = _cg.norme_incostituzionali() if (jurisdiction or "AL").upper() != "IT" else {}
+        except Exception:  # noqa: BLE001
+            _inc = {}
+        if _inc:
+            _by = _art_map(index)
+            for it in r.get("items") or []:
+                k = (it.get("code"), str(it.get("number") or "").split("/")[0])
+                if it.get("status") != "verified" or k not in _inc:
+                    continue
+                art = _by.get((it.get("code"), str(it.get("number") or ""))) or _by.get(k)
+                st = _cg.stato_incostituzionale(art) if art is not None else ("tërësisht", _inc[k]["key"])
+                if not st or st[0] == "konsoliduar":
+                    continue            # il testo che teniamo è già quello dopo la decisione: nessun allarme
+                q = st[1].split("|")
+                out["nene"]["unconstitutional"] += 1
+                out["nene"]["bad"].append({
+                    "raw": (it.get("raw") or "")[:70], "number": it.get("number"),
+                    "code": it.get("code_label") or it.get("code") or "",
+                    "status": "unconstitutional" if st[0] == "tërësisht" else "unconstitutional_partial",
+                    "heading": f"GjK vendimi nr. {q[2]}/{q[1]}"})
     except Exception:  # noqa: BLE001
         log.debug("trust_line: verifica nene fallita", exc_info=True)
     try:
@@ -80,10 +119,14 @@ def verifica(text: str, index, jurisdiction: str = "AL", retrieved_codes=None) -
         st = pay.get("stats") or {}
         out["sentenze"]["verified"] = int(st.get("verified") or 0)
         out["sentenze"]["unverified"] = int(st.get("unverified") or 0)
+        out["sentenze"]["quashed"] = int(st.get("quashed") or 0)
         out["sentenze"]["total"] = int(st.get("total") or 0)
         for it in pay.get("items") or []:
             if it.get("status") == "unverified":
                 out["sentenze"]["bad"].append((it.get("raw") or "")[:60])
+            elif it.get("status") == "quashed":
+                q = (it.get("quashed_by") or "||").split("|")
+                out["sentenze"]["quashed_list"].append(f"{(it.get('raw') or '')[:40]} ← GjK nr. {q[2] if len(q) > 2 else '?'}/{q[1] if len(q) > 1 else '?'}")
     except Exception:  # noqa: BLE001
         log.debug("trust_line: verifica sentenze fallita", exc_info=True)
     try:
@@ -96,7 +139,7 @@ def verifica(text: str, index, jurisdiction: str = "AL", retrieved_codes=None) -
 def stato(v: dict) -> str:
     """VERIFIED / RESERVATIONS / FLAGS — categorico, mai un numero."""
     n, s = v["nene"], v["sentenze"]
-    if n["fake"] or n["repealed"]:
+    if n["fake"] or n["repealed"] or n.get("unconstitutional") or s.get("quashed"):
         return "FLAGS"
     # «senza codice» (neni 155 nudo, col codice nominato poco prima) non è un errore: resta nel
     # conteggio della riga ma non abbassa lo stato (prova viva 16 set: 19 «pa kod» su un verdetto giusto)
@@ -148,9 +191,13 @@ def riga(v: dict, lang: str = "sq", tempo: dict | None = None) -> str:
             a.append(f"{n['repealed']} abrogate")
         if n["fake"]:
             a.append(f"{n['fake']} non trovate nel corpus")
+        if n.get("unconstitutional"):
+            a.append(f"{n['unconstitutional']} dichiarate incostituzionali")
         if n["needs_code"]:
             a.append(f"{n['needs_code']} senza codice")
         b = [f"sentenze {s['verified']} confermate"]
+        if s.get("quashed"):
+            b.append(f"{s['quashed']} ANNULLATE")
         if s["unverified"]:
             b.append(f"{s['unverified']} da riscontrare")
         c = f"fatti {f} da precisare" if f else "fatti: nessuno da precisare"
@@ -161,9 +208,13 @@ def riga(v: dict, lang: str = "sq", tempo: dict | None = None) -> str:
             a.append(f"{n['repealed']} të shfuqizuara")
         if n["fake"]:
             a.append(f"{n['fake']} nuk u gjetën në korpus")
+        if n.get("unconstitutional"):
+            a.append(f"{n['unconstitutional']} të shpallura antikushtetuese")
         if n["needs_code"]:
             a.append(f"{n['needs_code']} pa kod")
         b = [f"vendime {s['verified']} të konfirmuara"]
+        if s.get("quashed"):
+            b.append(f"{s['quashed']} TË SHFUQIZUARA")
         if s["unverified"]:
             b.append(f"{s['unverified']} për t'u verifikuar")
         c = f"fakte {f} për t'u saktësuar" if f else "fakte: asnjë për t'u saktësuar"
@@ -176,28 +227,38 @@ def blocco_per_gjyqtarin(v: dict, lang: str = "sq") -> str:
     """Il resoconto per il Giudice: numeri + elenco puntuale di ciò che non regge."""
     n, s = v["nene"], v["sentenze"]
     r: list[str] = []
+    _tag_it = {"repealed": "ABROGATO", "fake": "NON ESISTE nel corpus", "unconstitutional": "DICHIARATO INCOSTITUZIONALE dalla Corte costituzionale",
+               "unconstitutional_partial": "IN PARTE dichiarato incostituzionale (il testo potrebbe non rifletterlo: verificare quali punti)"}
+    _tag_sq = {"repealed": "I SHFUQIZUAR", "fake": "NUK EKZISTON në korpus", "unconstitutional": "I SHPALLUR ANTIKUSHTETUES nga Gjykata Kushtetuese",
+               "unconstitutional_partial": "PJESËRISHT i shpallur antikushtetues (teksti mund të mos e pasqyrojë: verifiko cilat pika)"}
     if lang == "it":
         r.append(f"Articoli citati nella risposta: {n['verified']} verificati nel corpus ufficiale, "
-                 f"{n['repealed']} ABROGATI, {n['fake']} INESISTENTI nel corpus, {n['needs_code']} senza codice indicato.")
+                 f"{n['repealed']} ABROGATI, {n['fake']} INESISTENTI nel corpus, {n.get('unconstitutional', 0)} dichiarati incostituzionali, "
+                 f"{n['needs_code']} senza codice indicato.")
         for b in n["bad"][:14]:
-            tag = "ABROGATO" if b["status"] == "repealed" else "NON ESISTE nel corpus"
+            tag = _tag_it.get(b["status"], b["status"])
             extra = f" ({b['code']}: {b['heading']})" if b.get("heading") else (f" ({b['code']})" if b.get("code") else "")
             r.append(f"- «{b['raw']}» → {tag}{extra}")
-        r.append(f"Sentenze citate: {s['verified']} confermate negli archivi, {s['unverified']} NON confermate "
-                 f"(archivi parziali: da riscontrare, non necessariamente false).")
+        r.append(f"Sentenze citate: {s['verified']} confermate negli archivi, {s.get('quashed', 0)} ANNULLATE dalla Corte costituzionale, "
+                 f"{s['unverified']} NON confermate (archivi parziali: da riscontrare, non necessariamente false).")
+        for b in s.get("quashed_list") or []:
+            r.append(f"- {b} → ANNULLATA: non è un precedente valido")
         for b in s["bad"][:8]:
             r.append(f"- «{b}» → non confermata")
         if v.get("fatti_da_precisare"):
             r.append(f"La risposta segnala {v['fatti_da_precisare']} fatto/i da precisare («Per precisione»).")
     else:
         r.append(f"Nenet e cituara në përgjigje: {n['verified']} të verifikuara në korpusin zyrtar, "
-                 f"{n['repealed']} TË SHFUQIZUARA, {n['fake']} NUK EKZISTOJNË në korpus, {n['needs_code']} pa kod të treguar.")
+                 f"{n['repealed']} TË SHFUQIZUARA, {n['fake']} NUK EKZISTOJNË në korpus, {n.get('unconstitutional', 0)} të shpallura antikushtetuese, "
+                 f"{n['needs_code']} pa kod të treguar.")
         for b in n["bad"][:14]:
-            tag = "I SHFUQIZUAR" if b["status"] == "repealed" else "NUK EKZISTON në korpus"
+            tag = _tag_sq.get(b["status"], b["status"])
             extra = f" ({b['code']}: {b['heading']})" if b.get("heading") else (f" ({b['code']})" if b.get("code") else "")
             r.append(f"- «{b['raw']}» → {tag}{extra}")
-        r.append(f"Vendime të cituara: {s['verified']} të konfirmuara në arkiva, {s['unverified']} TË PAKONFIRMUARA "
-                 f"(arkivat janë të pjesshme: për t'u verifikuar, jo domosdo të rreme).")
+        r.append(f"Vendime të cituara: {s['verified']} të konfirmuara në arkiva, {s.get('quashed', 0)} TË SHFUQIZUARA nga Gjykata Kushtetuese, "
+                 f"{s['unverified']} TË PAKONFIRMUARA (arkivat janë të pjesshme: për t'u verifikuar, jo domosdo të rreme).")
+        for b in s.get("quashed_list") or []:
+            r.append(f"- {b} → I SHFUQIZUAR: nuk është precedent i vlefshëm")
         for b in s["bad"][:8]:
             r.append(f"- «{b}» → e pakonfirmuar")
         if v.get("fatti_da_precisare"):

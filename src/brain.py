@@ -5975,6 +5975,28 @@ def _format_articles_for_prompt(pairs: list[tuple[Article, float]]) -> str:
         hierarchy = " / ".join(x for x in (a.pjesa, a.kreu, a.seksioni) if x)
         hierarchy = f"  [{hierarchy}]\n" if hierarchy else ""
         hierarchy += f"  ⚖ {_forza(a.code)}\n"
+        # v9.339 — grafo delle sentenze: articolo toccato da una decisione della Gjykata Kushtetuese.
+        # Tre livelli, perché «noteria 26» ha perso UNA FRASE e il testo consolidato lo dice già:
+        # gridare «antikushtetues» sull'intero articolo sarebbe il falso negativo peggiore.
+        try:
+            from . import case_graph as _cg
+            _st = _cg.stato_incostituzionale(a)
+            if _st:
+                _lvl, _qk = _st
+                _q = _qk.split("|")
+                if _lvl == "konsoliduar":
+                    hierarchy += (f"  ℹ Prekur nga vendimi i Gjykatës Kushtetuese nr. {_q[2]}/{_q[1]}: teksti i konsoliduar këtu e "
+                                  f"pasqyron tashmë (shih notën në tekst).\n")
+                elif _lvl == "pjesërisht":
+                    _disp = _cg.dispositivo_incostituzionale(a.code, a.number)
+                    hierarchy += (f"  ⚠ Një PJESË e këtij neni është shpallur antikushtetuese (GjK vendimi nr. {_q[2]}/{_q[1]}"
+                                  f"{': «' + _disp[:170] + '»' if _disp else ''}) dhe teksti këtu mund të mos e pasqyrojë: "
+                                  f"mos e zbato atë pjesë.\n")
+                else:
+                    hierarchy += (f"  ⛔ SHPALLUR ANTIKUSHTETUES nga Gjykata Kushtetuese, vendimi nr. {_q[2]}/{_q[1]} — "
+                                  f"mos e zbato si normë në fuqi.\n")
+        except Exception:  # noqa: BLE001
+            pass
         # V7.4 — surface volatility so the model can warn the user when it
         # cites a statute that changes often (tax, consumer, bankruptcy).
         volatility = getattr(a, "volatility", "STABLE") or "STABLE"
@@ -6067,6 +6089,10 @@ def _format_precedents_block(pairs: list[tuple[CasePrecedent, float]]) -> str:
     """
     if not pairs:
         return ""
+    try:
+        from . import case_graph as _cg
+    except Exception:  # noqa: BLE001
+        _cg = None
     lines = ["", "── VENDIME RELEVANTE TË GJYKATAVE (precedent nga KB) ──"]
     for c, score in pairs:
         outcome = f" — {c.outcome}" if c.outcome else ""
@@ -6074,6 +6100,17 @@ def _format_precedents_block(pairs: list[tuple[CasePrecedent, float]]) -> str:
         lines.append(
             f"  • [[case:{c.id}]] {c.citation} ({date_str}){outcome}  [score={score:.2f}]"
         )
+        # v9.339 — il grafo delle sentenze: annullata dalla Kushtetuese / unificatrice / quanto è citata
+        if _cg is not None:
+            try:
+                _n = _cg.nota(c.court_code, c.year, c.case_number)
+                if _n:
+                    lines.append(f"    Forca/trajtimi: {_n}")
+                _i = _cg.info(c.court_code, c.year, c.case_number) or {}
+                for _inv in (_i.get("invalidates") or [])[:3]:
+                    lines.append(f"    Shpall antikushtetues: ligji nr. {_inv.get('law')} nenet {', '.join(_inv.get('articles') or []) or '(shih dispozitivin)'}")
+            except Exception:  # noqa: BLE001
+                pass
         if c.summary:
             lines.append(f"    Përmbledhje: {c.summary[:260]}")
         if c.articles_cited:

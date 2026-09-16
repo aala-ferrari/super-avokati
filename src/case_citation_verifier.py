@@ -48,11 +48,16 @@ class CaseCitation:
     court: str                # "gjykata_elarte" | "kushtetuese"
     year: str
     number: str
-    status: str               # "verified" | "unverified"
+    status: str               # "verified" | "unverified" | "quashed"
     citation: str | None = None      # come la chiama l'indice
     outcome: str | None = None       # pranim / rrëzim / kthim për rishqyrtim…
     dispositif: str | None = None    # com'è finita, testuale
     objekti: str | None = None       # di cosa trattava
+    # v9.339 (grafo delle sentenze): annullata dalla Gjykata Kushtetuese («kushtetuese|2016|71»),
+    # forza (citata da N decisioni, unificatrice)
+    quashed_by: str | None = None
+    cited_by: int = 0
+    unifying: bool = False
 
 
 def _chiave(court: str, anno, numero) -> tuple[str, str, str] | None:
@@ -133,21 +138,34 @@ def verify_cases(text: str, index) -> dict:
 
     mappa = _mappa(index)
     trovate: dict[tuple, CaseCitation] = {}
+    try:
+        from . import case_graph as _cg
+        _annullati = _cg.annullati_gjl()          # «00-AAAA-N» → vendim Kushtetuese che l'ha annullato
+    except Exception:  # noqa: BLE001
+        _cg, _annullati = None, {}
 
     def aggiungi(court, anno, numero, raw):
         k = _chiave(court, anno, numero)
         if not k or k in trovate:
             return
         d = mappa.get(k)
+        # v9.339 — un vendim della Gjykata e Lartë ANNULLATO dalla Kushtetuese (dispositivo
+        # «Shfuqizimin … të vendimit nr. 00-…») si segnala anche se non è nel nostro corpus:
+        # citarlo come precedente è portare in aula una sentenza che non esiste più
+        q = _annullati.get(f"00-{k[1]}-{k[2]}") if court == "gjykata_elarte" else None
         if d is None:
-            trovate[k] = CaseCitation(raw=raw, court=court, year=k[1],
-                                      number=k[2], status="unverified")
+            trovate[k] = CaseCitation(raw=raw, court=court, year=k[1], number=k[2],
+                                      status="quashed" if q else "unverified", quashed_by=q)
             return
+        g = _cg.info(court, k[1], d.number) if _cg else None
+        if g and g.get("quashed_by"):
+            q = q or g["quashed_by"][0]
         trovate[k] = CaseCitation(
-            raw=raw, court=court, year=k[1], number=k[2], status="verified",
+            raw=raw, court=court, year=k[1], number=k[2], status="quashed" if q else "verified",
             citation=d.citation, outcome=d.outcome or None,
             dispositif=(d.dispositif or "")[:300] or None,
-            objekti=(d.objekti or "")[:200] or None)
+            objekti=(d.objekti or "")[:200] or None,
+            quashed_by=q, cited_by=int((g or {}).get("cited_by") or 0), unifying=bool((g or {}).get("unifying")))
 
     for m in _GJL.finditer(text):
         aggiungi("gjykata_elarte", m.group(1), m.group(2), m.group(0).strip())
@@ -158,8 +176,9 @@ def verify_cases(text: str, index) -> dict:
 
     items = [asdict(c) for c in trovate.values()]
     ver = sum(1 for c in items if c["status"] == "verified")
+    qua = sum(1 for c in items if c["status"] == "quashed")
     return {"items": items,
-            "stats": {"verified": ver, "unverified": len(items) - ver,
+            "stats": {"verified": ver, "unverified": len(items) - ver - qua, "quashed": qua,
                       "total": len(items)}}
 
 
@@ -189,10 +208,22 @@ def annotate_unverified(md: str, cases: dict, *, jurisdiction: str = "AL") -> st
     """
     if not md or not isinstance(cases, dict):
         return md
+    it = str(jurisdiction).upper() == "IT"
+    # v9.339 — ANNULLATE dalla Kushtetuese: avviso più forte, prima degli «unverified»
+    annullate = [c for c in (cases.get("items") or []) if c.get("status") == "quashed"]
+    if annullate:
+        righe = []
+        for c in annullate[:6]:
+            q = (c.get("quashed_by") or "||").split("|")
+            righe.append(("`%s` — annullata dalla Corte costituzionale con la decisione nr. %s/%s"
+                          if it else "`%s` — e shfuqizuar nga Gjykata Kushtetuese me vendimin nr. %s/%s") % (c["raw"], q[2] if len(q) > 2 else "?", q[1] if len(q) > 1 else "?"))
+        md += (("\n\n> ⛔ **Sentenze ANNULLATE — non citarle come precedenti validi.** " if it else
+                "\n\n> ⛔ **Vendime TË SHFUQIZUARA — mos i cito si precedentë të vlefshëm.** ")
+               + "; ".join(righe) + "\n")
     da_dire = [c for c in (cases.get("items") or [])
                if c.get("status") == "unverified"]
     if not da_dire:
         return md
     lista = ", ".join("`%s`" % c["raw"] for c in da_dire[:8])
-    nota = _NOTA_IT if str(jurisdiction).upper() == "IT" else _NOTA_SQ
+    nota = _NOTA_IT if it else _NOTA_SQ
     return md + nota.format(lista=lista)

@@ -3086,6 +3086,59 @@ def main():
     except Exception as _e88:  # noqa: BLE001
         check("trust_line[88]: kontrollet u ekzekutuan", False, str(_e88))
 
+    # ── [89] GRAFO DELLE SENTENZE (v9.339, roadmap v3 P6): citazioni fra decisioni, vendime GjL
+    # annullati dalla Kushtetuese (dal DISPOSITIVO, mai dalla richiesta), norme dichiarate
+    # incostituzionali; il verificatore dice «quashed», il blocco dei precedenti mostra forza e
+    # trattamento, la Trust Line conta annullate/incostituzionali, il Giudice ha la regola ──
+    try:
+        from src import case_graph as _cg89, case_citation_verifier as _ccv89, trust_line as _tl89, brain as _br89, studio as _st89
+        _g89 = _cg89.load()
+        _n89 = _g89.get("nodes") or {}
+        _okA = len(_n89) >= 1300 and _g89.get("edges", 0) >= 1500 and _g89.get("quashes_total", 0) >= 100 and _g89.get("invalidations", 0) >= 10
+        # dispositivo vero (K 71/2016) → annulla 00-2015-3057; «Rrëzimin e kërkesës për shfuqizimin» → niente
+        _q1, _i1 = _cg89.negativi_dal_dispositivo("Pranimin e kërkesës. Shfuqizimin si të papajtueshëm me Kushtetutën e Republikës së Shqipërisë të vendimit nr. 00-2015-3057, datë 09.12.2015 të Kolegjit Penal të Gjykatës së Lartë. Dërgimin e çështjes për rishqyrtim në Gjykatën e Lartë.")
+        _q2, _i2 = _cg89.negativi_dal_dispositivo("Rrëzimin e kërkesës për shfuqizimin e vendimit nr. 00-2015-3057, datë 09.12.2015 të Kolegjit Penal të Gjykatës së Lartë.")
+        _q3, _i3 = _cg89.negativi_dal_dispositivo("Pranimin pjesërisht të kërkesës. Shpalljen si të papajtueshëm me Kushtetutën e Republikës së Shqipërisë të kreut VI “Byroja Kombëtare e Hetimit” (nenet 27-36) të ligjit nr. 108/2014 “Për Policinë e Shtetit”. Rrëzimin e kërkesës për shfuqizimin e nenit 49 të këtij ligji.")
+        _okB = (_q1 == ["gjykata_elarte|2015|00-2015-3057"] and not _q2 and not _q1 == _q2
+                and _i3 and _i3[0]["law"] == "108/2014" and _i3[0]["articles"][:3] == ["27", "28", "29"] and len(_i3[0]["articles"]) == 10)
+        _ann = _cg89.annullati_gjl()
+        _okC = "00-2015-3057" in _ann and _ann["00-2015-3057"].startswith("kushtetuese|2016|71")
+        _inc = _cg89.norme_incostituzionali()
+        # VKM: «nenit 4 të vendimit nr. 753 … “…ligjit nr. 29/2023”» NON è l'art. 4 della legge 29/2023
+        _q4, _i4 = _cg89.negativi_dal_dispositivo("Shfuqizimin e nenit 4 të vendimit nr. 753, datë 20.12.2023 të Këshillit të Ministrave “Për dispozitat zbatuese të ligjit nr. 29/2023 “Për tatimin mbi të ardhurat””.")
+        _okD = (("ligji_policia", "30") in _inc and _inc[("ligji_policia", "30")]["partial"] is False
+                and ("ligji_noteri", "26") in _inc and _inc[("ligji_noteri", "26")]["partial"] is True
+                and ("ligji_sigurimi_mjeteve", "10") in _inc and ("ligji_tatimi_te_ardhurat", "4") not in _inc
+                and _i4 and _i4[0]["law"].startswith("vkm:"))
+        # tre livelli: nota GjK già nel testo → konsoliduar (nessun allarme); parte caduta senza nota →
+        # pjesërisht; intero nen senza nota → tërësisht
+        from types import SimpleNamespace as _NS89
+        _lv1 = _cg89.stato_incostituzionale(_NS89(code="ligji_noteri", number="26", heading="Shkeljet (shfuqizuar fjalia e fundit e pikës 1 me vendimin e Gjykatës Kushtetuese nr. 32, datë 27.10.2021)", body="1. …", repealed=False))
+        _lv2 = _cg89.stato_incostituzionale(_NS89(code="ligji_sigurimi_mjeteve", number="10", heading="Procedura", body="8. …", repealed=False))
+        _lv3 = _cg89.stato_incostituzionale(_NS89(code="ligji_policia", number="30", heading="X", body="Y", repealed=False))
+        _okD2 = _lv1 and _lv1[0] == "konsoliduar" and _lv2 and _lv2[0] == "pjesërisht" and _lv3 and _lv3[0] == "tërësisht"
+        # verificatore: un numero GjL annullato → «quashed» anche se non nel corpus; nota nel testo
+        _pay = _ccv89.verify_cases("Sipas vendimit nr. 00-2015-3057, datë 09.12.2015 të Kolegjit Penal.", _tl89.dec_index())
+        _okE = _pay["stats"].get("quashed") == 1 and _pay["items"][0]["status"] == "quashed"
+        _md = _ccv89.annotate_unverified("testo", _pay)
+        _okF = "SHFUQIZUARA" in _md and "71/2016" in _md
+        _al89 = ArticleIndex.load(_P81("/app/data/index/bm25.pkl"))
+        _v = _tl89.verifica("Sipas vendimit nr. 00-2015-3057, datë 09.12.2015 dhe nenit 10 të ligjit nr. 32/2021 dhe nenit 26 të ligjit nr. 110/2018.", _al89, "AL")
+        _okG = (_v["sentenze"]["quashed"] == 1 and _v["nene"]["unconstitutional"] == 1   # 32/2021 art. 10 sì (parte caduta, testo senza nota); noteria 26 no (konsoliduar)
+                and _tl89.stato(_v) == "FLAGS" and "1 TË SHFUQIZUARA" in _tl89.riga(_v, "sq") and "antikushtetuese" in _tl89.riga(_v, "sq")
+                and "PJESËRISHT" in _tl89.blocco_per_gjyqtarin(_v, "sq"))
+        _pb = _br89._format_articles_for_prompt([(a, 1.0) for a in _al89.articles if a.code == "ligji_sigurimi_mjeteve" and a.number == "10"][:1]
+                                                + [(a, 1.0) for a in _al89.articles if a.code == "ligji_noteri" and a.number == "26"][:1])
+        _okG2 = "⚠ Një PJESË e këtij neni" in _pb and "fjalisë së dytë" in _pb and "ℹ Prekur nga vendimi i Gjykatës Kushtetuese nr. 32/2021" in _pb and "⛔" not in _pb
+        _okH = ("Forca/trajtimi" in open(_br89.__file__, encoding="utf-8").read() and "VENDIME TË SHFUQIZUARA / NENE ANTIKUSHTETUESE" in _st89.GJYQTARI_SYSTEM["sq"]
+                and "SENTENZE ANNULLATE / NORME INCOSTITUZIONALI" in _st89.GJYQTARI_SYSTEM["it"])
+        check("grafo[89]: case_graph.json (≥1300 nodi, ≥1500 citazioni, ≥100 vendime GjL annullati, ≥10 norme incostituzionali) · dispositivo→annullamenti/incostituzionalità (rigetti esclusi, range 27-36, VKM≠legge, parziale/totale) · tre livelli konsoliduar/pjesërisht/tërësisht · verificatore «quashed» + nota · Trust Line → 🔴 · prompt articoli + precedenti + regola del Giudice",
+              _okA and _okB and _okC and _okD and _okD2 and _okE and _okF and _okG and _okG2 and _okH,
+              "graph=%s disp=%s ann=%s inc=%s livelli=%s ver=%s nota=%s trust=%s prompt=%s wiring=%s | q1=%s i3=%s lv=%s" % (
+                  _okA, _okB, _okC, _okD, _okD2, _okE, _okF, _okG, _okG2, _okH, _q1, (_i3 or [{}])[0].get("articles"), (_lv1, _lv2, _lv3)))
+    except Exception as _e89:  # noqa: BLE001
+        check("grafo[89]: kontrollet u ekzekutuan", False, str(_e89))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
