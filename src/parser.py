@@ -82,6 +82,21 @@ def _is_italian_code(code: str) -> bool:
     return c in _IT_CODE_EXACT or c.startswith(_IT_CODE_PREFIXES)
 
 
+_IT_GRUPPO_RE = re.compile(r"^(.*?)-(all\d+|legge)$")
+
+
+def numero_visibile_it(number: str) -> str:
+    """Il numero come lo legge un giurista (v9.348, 17 set 2026). Dalla v9.327 gli atti «approvati con
+    allegato» numerano PER GRUPPO: «13-ter-all3» = art. 13-ter di un ALLEGATO (c.p.a. norme di
+    attuazione, allegati del codice contratti…), «1-legge» = art. 1 dell'atto di approvazione. Il
+    suffisso serve all'indice (niente collisioni col testo principale) ma nel prompt, nella UI e
+    nelle citazioni non deve comparire: «art. 13-ter (allegato) Codice del processo amministrativo»."""
+    m = _IT_GRUPPO_RE.match(str(number or ""))
+    if not m:
+        return str(number)
+    return f"{m.group(1)} ({'allegato' if m.group(2).startswith('all') else 'atto di approvazione'})"
+
+
 @dataclass
 class Article:
     """A single article extracted from a code."""
@@ -106,7 +121,7 @@ class Article:
         I corpora italiani usano slug noti (codice_*, tu_*, disp_att_*, …):
         per quelli si cita "art. N Titolo", non "Neni N i Titolo"."""
         if _is_italian_code(self.code):
-            return f"art. {self.number} {self.title_sq}"
+            return f"art. {numero_visibile_it(self.number)} {self.title_sq}"
         return f"Neni {self.number} i {self.title_sq}"
 
     @property

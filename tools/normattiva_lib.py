@@ -295,7 +295,13 @@ def assign_numbers(arts, sizes=None):
             out.extend(dict(a, number=f"{a['number']}-legge") for a in items)
         elif numbered >= max(3, int(len(items) * 0.8)):
             out.extend(dict(a, number=f"{a['number']}-all{g}") for a in items)
-        # altrimenti scartato (Tabelle, Convention…)
+        else:
+            # 17 set 2026 — gli ALLEGATI con suffisso («Allegato I-bis» del codice ambiente, «II-octies»
+            # del codice del consumo = avviso sulla garanzia legale, «III-bis» stupefacenti) stanno in
+            # un gruppo non numerato e finivano scartati con le Tabelle: il refresh perdeva 12 allegati
+            # che il corpus aveva dal 19 ago. Si tengono col loro nome (unico, mai in collisione);
+            # il resto del gruppo (Tabelle, Convention…) resta scartato.
+            out.extend(a for a in items if str(a.get("number") or "").lower().startswith("allegato"))
     return _dedup_longest(out)
 
 

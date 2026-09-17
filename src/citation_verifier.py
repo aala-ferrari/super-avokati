@@ -469,7 +469,7 @@ _LIST_SEP = r"(?:\s*(?:,|;|\bdhe\b|\be\b)\s*)"
 # «neni 155, pika 1, ndërsa Kodi Civil…» NON attraversa (la coda resta vuota → «pa kod», come prima).
 # valori: cifre dopo «pika/paragrafi/fjalia», lettere SOLO dopo «shkronja/germa» («"d"», «dh)», «c»);
 # una lettera nuda mai seguita da un punto («, L.», «, c.c.» sono codici, non lettere) né una particella
-_SUB_NUM = r"\d{1,3}(?![\w/])"
+_SUB_NUM = r"\d{1,3}(?![\w/])\)?"
 _SUB_LET = (r"(?:[\"“«'][a-zçë]{1,2}[\"”»']|[a-zçë]{1,2}\)|"
             r"(?!(?:e|i|t[ëe]|s[ëe]|me|n[ëe]|se|ose|dhe|po|si|sa)(?![\wçë]))[a-zçë]{1,2}(?![\wçë/.]))")
 _SUB_AL = (r"(?:\s*,?\s*(?:(?:pik[aë]t?|paragraf\w{0,3}|fjali[aë]?|n[ëe]npik[aë]t?)\s+" + _SUB_NUM +
@@ -551,7 +551,7 @@ _NUM_TOKEN_IT = (r"\d+(?:[\-\s](?:bis|ter|quater|quinquies|sexies|septies|octies
 # codice», «della legge», «Cost.»…) o l'anafora «del medesimo decreto». «art. 18, comma 4, di
 # conseguenza il codice civile…» NON attraversa. ⚠️ «c.» come abbreviazione di comma NON è ammessa fra
 # i sotto-riferimenti: «art. 2, c.c.» diventerebbe «comma c».
-_SUB_NUM_IT = r"\d{1,3}(?:-(?:bis|ter|quater|quinquies|sexies|septies|octies|novies|decies))?(?![\w/])"
+_SUB_NUM_IT = r"\d{1,3}(?:-(?:bis|ter|quater|quinquies|sexies|septies|octies|novies|decies))?(?![\w/])\)?"
 _SUB_LET_IT = (r"(?:[\"“«'][a-z]{1,2}[\"”»']|[a-z]{1,2}\)|"
                r"(?!(?:e|ed|o|al|il|la|lo|le|di|in|su|se|no|un|ai|da|ne|si)(?![a-z]))[a-z]{1,2}(?![a-z/.]))")
 _SUB_IT = (r"(?:\s*,?\s*(?:(?:comm[ai]|co\.|n\.|nn\.|punt[oi]|par(?:agraf[oi])?\.?|§)\s*" + _SUB_NUM_IT +
@@ -571,7 +571,9 @@ CITATION_RE_IT = re.compile(
     r"(?:\s*,(?=\s+" + _CONN_IT + r"))?"      # la virgola sì, lo spazio resta alla coda
     # 16 set 2026 (benchmark lab): «art. 215 Reg. (UE) 2015/2446» — il token «(UE)» spezzava la
     # coda e la citazione restava «senza codice»; i soli parentetici ammessi sono le sigle UE/CE/CEE
-    r"(?P<tail>(?:\s+(?!art\b)(?:\((?:UE|CE|CEE|Euratom)\)|[^\s,;:\n()]+)){0,6})",
+    # v9.348: «art. 13-ter (allegato) Codice del processo amministrativo» — l'etichetta di gruppo
+    # che il prompt mostra per gli articoli degli allegati non deve spezzare la coda
+    r"(?P<tail>(?:\s+(?!art\b)(?:\((?:UE|CE|CEE|Euratom|allegato|atto di approvazione)\)|[^\s,;:\n()]+)){0,6})",
     re.IGNORECASE,
 )
 _NUM_RE_IT = re.compile(_NUM_TOKEN_IT)
@@ -879,6 +881,33 @@ def _resolve_code(tail: str) -> str | None:
     return None
 
 
+# 17 set 2026 (v9.348) — NUMERI DI GRUPPO del corpus IT (v9.327): «13-ter-all3» = art. 13-ter di un
+# ALLEGATO (nel lookup, normalizzato: «13/ter/all3»), «1-legge» = art. 1 dell'atto di approvazione.
+# Un giurista cita «art. 13-ter c.p.a.» (le norme di attuazione sono l'allegato 2): il lookup esatto
+# manca e la citazione usciva «inesistente». Se il numero NON esiste nel testo principale ma esiste
+# in UN solo allegato di quel codice, è quello — il testo principale vince sempre quando c'è.
+_GRUPPO_KEY_RE = re.compile(r"^(.*?)/(all\d+|legge)$")
+_GRUPPO_CACHE: dict = {}
+
+
+def _annex_maps(lookup: dict) -> tuple[dict, dict]:
+    """((code, base) → [Article], base → {code}) per i soli numeri con suffisso «/allK»; cache per lookup."""
+    key = (id(lookup), len(lookup))
+    m = _GRUPPO_CACHE.get(key)
+    if m is None:
+        per_code, per_base = {}, {}
+        for (code, num), art in lookup.items():
+            g = _GRUPPO_KEY_RE.match(num)
+            if g and g.group(2).startswith("all"):
+                per_code.setdefault((code, g.group(1)), []).append(art)
+                per_base.setdefault(g.group(1), set()).add(code)
+        m = (per_code, per_base)
+        if len(_GRUPPO_CACHE) > 8:
+            _GRUPPO_CACHE.clear()
+        _GRUPPO_CACHE[key] = m
+    return m
+
+
 def _verify_number(lookup: dict, code: str, number: str):
     """Resolve an article, tolerant of paragraph/range notation.
 
@@ -891,6 +920,9 @@ def _verify_number(lookup: dict, code: str, number: str):
     art = lookup.get((code, number))
     if art is not None:
         return art
+    hits = _annex_maps(lookup)[0].get((code, number))
+    if hits and len(hits) == 1:
+        return hits[0]           # esiste solo in un allegato di questo codice (v9.348)
     if "/" in number:
         parts = number.split("/")
         base, first = parts[0], parts[1]
@@ -961,6 +993,9 @@ def _codes_for_number(num_to_codes: dict, number: str,
     questo, «432/z» resta senza candidati e quindi falso.
     """
     codes = list(num_to_codes.get(number, []))
+    if not codes and lookup_koma is not None:
+        # v9.348: numero che esiste SOLO negli allegati («13-ter» del c.p.a. = norme di attuazione)
+        codes = sorted(_annex_maps(lookup_koma)[1].get(number, ()))
     if not codes and "/" in number:
         parts = number.split("/")
         base = parts[0]

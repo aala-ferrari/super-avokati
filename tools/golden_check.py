@@ -3344,6 +3344,47 @@ def main():
     except Exception as _e96:  # noqa: BLE001
         check("verifikuar[96]: kontrollet u ekzekutuan", False, str(_e96))
 
+    # ── [97] v9.348 — ALLEGATI E NUMERI DI GRUPPO del corpus IT. Il refresh Normattiva con le note
+    # (v9.335) numera per gruppo (v9.327): «13-ter-all3» = art. 13-ter delle norme di attuazione del
+    # c.p.a., «1-legge» = atto di approvazione. Tre cose: (1) gli allegati con suffisso (I-bis, II-octies
+    # = avviso sulla garanzia legale) NON si scartano più con le Tabelle; (2) «art. 13-ter c.p.a.» si
+    # verifica anche se vive solo in un allegato (il testo principale vince sempre quando c'è; due
+    # allegati → mai a caso); (3) il suffisso non compare mai al giurista: «art. 13-ter (allegato) …» ──
+    try:
+        import re as _re97
+        from src.parser import numero_visibile_it as _nv97, Article as _A97
+        _it97 = ArticleIndex.load(_P81("/app/data/index/bm25_it.pkl"))
+        _by97 = {(a.code, str(a.number)): a for a in _it97.articles}
+        _okA = (_nv97("13-ter-all3") == "13-ter (allegato)" and _nv97("1-legge") == "1 (atto di approvazione)" and _nv97("2946") == "2946"
+                and not any(_re97.search(r"-(all\d+|legge)(?![\w-])", a.citation) for a in _it97.articles))   # «indice-allegati» non è un suffisso
+        # allegati con suffisso presenti nel corpus (codice del consumo II-octies = garanzia legale; ambiente I-bis)
+        _okB = (("codice_consumo", "allegato-ii-octies") in _by97 and ("codice_ambiente", "allegato-i-bis") in _by97
+                and ("stupefacenti", "allegato-iii-bis") in _by97)
+        # il verificatore: numero che vive solo in un allegato
+        def _a97(code, n): return _A97(code=code, title_sq=code, area="", number=n, heading="", body="b")
+        _lk = {("x", "1"): _a97("x", "1"), ("x", "13/ter/all3"): _a97("x", "13/ter/all3"), ("x", "1/all3"): _a97("x", "1/all3"),
+               ("x", "2/all3"): _a97("x", "2/all3"), ("x", "2/all4"): _a97("x", "2/all4"), ("x", "3/legge"): _a97("x", "3/legge")}
+        _okC = (cv._verify_number(_lk, "x", "13/ter") is _lk[("x", "13/ter/all3")] and cv._verify_number(_lk, "x", "1") is _lk[("x", "1")]
+                and cv._verify_number(_lk, "x", "2") is None and cv._verify_number(_lk, "x", "3") is None
+                and cv._codes_for_number({}, "13/ter", _lk) == ["x"])
+        _r1 = cv.verify_text("art. 13-ter c.p.a. impone la sinteticità", _it97)["items"]
+        _r2 = cv.verify_text("art. 13-ter (allegato) Codice del processo amministrativo", _it97)["items"]
+        _r3 = cv.verify_text("art. 5 (allegato) Codice del processo amministrativo", _it97)["items"]
+        _okD = (_r1 and _r1[0]["status"] == "verified" and _r1[0]["code"] == "codice_processo_amministrativo"
+                and _r2 and _r2[0]["status"] == "verified" and _r3 and _r3[0]["status"] == "verified")
+        # la libreria di ingest tiene gli allegati e scarta le tabelle
+        import importlib.util as _ilu97
+        _sp = _ilu97.spec_from_file_location("_nl97", _os2.path.join(_os2.path.dirname(_os2.path.abspath(__file__)), "normattiva_lib.py"))
+        _nl = _ilu97.module_from_spec(_sp); _sp.loader.exec_module(_nl)
+        _out = _nl.assign_numbers([{"number": str(i), "body": "x" * 50, "group": "0"} for i in range(1, 60)]
+                                  + [{"number": "allegato-ii-bis", "body": "y", "group": "2"}, {"number": "tabella-a", "body": "z", "group": "3"}])
+        _nums = {a["number"] for a in _out}
+        _okE = "allegato-ii-bis" in _nums and "tabella-a" not in _nums and len(_nums) == 60
+        check("allegati[97]: numeri di gruppo mai mostrati («13-ter (allegato)») · allegati con suffisso nel corpus (consumo II-octies, ambiente I-bis, stupefacenti III-bis) · «art. 13-ter c.p.a.» verificato dall'allegato (principale vince, due allegati → mai a caso) · coda con «(allegato)» · ingest tiene gli allegati e scarta le tabelle",
+              _okA and _okB and _okC and _okD and _okE, "vis=%s corpus=%s fallback=%s testo=%s ingest=%s" % (_okA, _okB, _okC, _okD, _okE))
+    except Exception as _e97:  # noqa: BLE001
+        check("allegati[97]: kontrollet u ekzekutuan", False, str(_e97))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
