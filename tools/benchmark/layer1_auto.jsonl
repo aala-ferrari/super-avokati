@@ -405,7 +405,7 @@
 {"id": "it-ret-codice_consumo-1", "lang": "it", "kind": "retrieval", "query": "Finalità ed oggetto 1. Nel rispetto della Costituzione ed in conformità ai principi contenuti nei trattati istitutivi", "expect": [["codice_consumo", "1"]], "k": 12}
 {"id": "it-ret-codice_consumo-72-bis", "lang": "it", "kind": "retrieval", "query": "Obbligo di fideiussione per i contratti di multiproprietà", "expect": [["codice_consumo", "72-bis"]], "k": 12}
 {"id": "it-ret-codice_contratti_pubblici-1", "lang": "it", "kind": "retrieval", "query": "Principio del risultato 1. Le stazioni appaltanti e gli enti concedenti perseguono il risultato dell'affidamento del contratto", "expect": [["codice_contratti_pubblici", "1"]], "k": 12}
-{"id": "it-ret-codice_contratti_pubblici-113", "lang": "it", "kind": "retrieval", "query": "Requisiti per l'esecuzione dell'appalto", "expect": [["codice_contratti_pubblici", "113"]], "k": 12}
+{"id": "it-ret-codice_contratti_pubblici-28-all8", "lang": "it", "kind": "retrieval", "query": "Piano di sicurezza e di coordinamento. 1. Il piano di sicurezza e di coordinamento", "expect": [["codice_contratti_pubblici", "28-all8"]], "k": 12}
 {"id": "it-ret-codice_crisi_impresa-1", "lang": "it", "kind": "retrieval", "query": "Ambito di applicazione 1. Il presente codice disciplina le situazioni di crisi o insolvenza del debitore, sia", "expect": [["codice_crisi_impresa", "1"]], "k": 12}
 {"id": "it-ret-codice_crisi_impresa-182", "lang": "it", "kind": "retrieval", "query": "Associazione in partecipazione", "expect": [["codice_crisi_impresa", "182"]], "k": 12}
 {"id": "it-ret-codice_doganale_nazionale-1", "lang": "it", "kind": "retrieval", "query": "Allegato 1 (ART. 1) DISPOSIZIONI NAZIONALI COMPLEMENTARI AL CODICE DOGANALE DELL'UNIONE Art. 1. Fonti", "expect": [["codice_doganale_nazionale", "1"]], "k": 12}
@@ -420,12 +420,12 @@
 {"id": "it-ret-codice_navigazione-642", "lang": "it", "kind": "retrieval", "query": "Norme applicabili al procedimento promosso avanti il pretore Quando si tratta di navi minori o di galleggianti, spettano al pretore tutti i", "expect": [["codice_navigazione", "642"]], "k": 12}
 {"id": "it-ret-codice_pari_opportunita-1", "lang": "it", "kind": "retrieval", "query": "Divieto di discriminazione e parità di trattamento e di opportunità tra donne e uomini, nonché integrazione dell'obiettivo della parità tra", "expect": [["codice_pari_opportunita", "1"]], "k": 12}
 {"id": "it-ret-codice_pari_opportunita-40", "lang": "it", "kind": "retrieval", "query": "Onere della prova ( legge 10 aprile 1991, n. 125, articolo 4, comma 6", "expect": [["codice_pari_opportunita", "40"]], "k": 12}
-{"id": "it-ret-codice_penale-1", "lang": "it", "kind": "retrieval", "query": "Il testo definitivo del codice penale portante la data di questo giorno è approvato", "expect": [["codice_penale", "1"]], "k": 12}
-{"id": "it-ret-codice_penale-403", "lang": "it", "kind": "retrieval", "query": "Offese a una confessione religiosa mediante vilipendio di persone", "expect": [["codice_penale", "403"]], "k": 12}
+{"id": "it-ret-codice_penale-1", "lang": "it", "kind": "retrieval", "query": "Reati e pene: disposizione espressa di legge", "expect": [["codice_penale", "1"]], "k": 12}
+{"id": "it-ret-codice_penale-402", "lang": "it", "kind": "retrieval", "query": "Vilipendio della religione dello Stato", "expect": [["codice_penale", "402"]], "k": 12}
 {"id": "it-ret-codice_privacy-1", "lang": "it", "kind": "retrieval", "query": "Oggetto Il trattamento dei dati personali avviene secondo le norme del regolamento (UE) 2016/679 del", "expect": [["codice_privacy", "1"]], "k": 12}
-{"id": "it-ret-codice_privacy-113", "lang": "it", "kind": "retrieval", "query": "Raccolta di dati e pertinenza", "expect": [["codice_privacy", "113"]], "k": 12}
-{"id": "it-ret-codice_procedura_civile-1", "lang": "it", "kind": "retrieval", "query": "Il testo del Codice di procedura civile è approvato ed avrà esecuzione a cominciare", "expect": [["codice_procedura_civile", "1"]], "k": 12}
-{"id": "it-ret-codice_procedura_civile-416", "lang": "it", "kind": "retrieval", "query": "Costituzione del convenuto Il convenuto deve costituirsi almeno dieci giorni prima della udienza ... . 178 La", "expect": [["codice_procedura_civile", "416"]], "k": 12}
+{"id": "it-ret-codice_privacy-13-all2", "lang": "it", "kind": "retrieval", "query": "Violazione delle regole deontologiche", "expect": [["codice_privacy", "13-all2"]], "k": 12}
+{"id": "it-ret-codice_procedura_civile-1", "lang": "it", "kind": "retrieval", "query": "Giurisdizione dei giudici ordinari", "expect": [["codice_procedura_civile", "1"]], "k": 12}
+{"id": "it-ret-codice_procedura_civile-416", "lang": "it", "kind": "retrieval", "query": "Costituzione del convenuto Il convenuto deve costituirsi almeno dieci giorni prima della udienza ... . La costituzione", "expect": [["codice_procedura_civile", "416"]], "k": 12}
 {"id": "it-ret-codice_procedura_penale-01", "lang": "it", "kind": "retrieval", "query": "1. È approvato il testo del codice di procedura penale , allegato al presente", "expect": [["codice_procedura_penale", "01"]], "k": 12}
 {"id": "it-ret-codice_procedura_penale-377", "lang": "it", "kind": "retrieval", "query": "Citazioni di persone informate sui fatti", "expect": [["codice_procedura_penale", "377"]], "k": 12}
 {"id": "it-ret-codice_processo_amministrativo-1", "lang": "it", "kind": "retrieval", "query": "ALLEGATO 1 Codice del processo amministrativo Art. 1 Effettività 1. La giurisdizione amministrativa assicura", "expect": [["codice_processo_amministrativo", "1"]], "k": 12}
@@ -437,7 +437,7 @@
 {"id": "it-ret-codice_strada-1", "lang": "it", "kind": "retrieval", "query": "Principi generali 1. La sicurezza e la tutela della salute delle persone nonché la tutela dell'ambiente,", "expect": [["codice_strada", "1"]], "k": 12}
 {"id": "it-ret-codice_strada-124", "lang": "it", "kind": "retrieval", "query": "[Testo applicabile dal 19 gennaio 2013] Guida delle macchine agricole e delle macchine operatrici", "expect": [["codice_strada", "124"]], "k": 12}
 {"id": "it-ret-codice_terzo_settore-1", "lang": "it", "kind": "retrieval", "query": "Finalità ed oggetto 1. Al fine di sostenere l'autonoma iniziativa dei cittadini che concorrono, anche in forma", "expect": [["codice_terzo_settore", "1"]], "k": 12}
-{"id": "it-ret-codice_terzo_settore-53", "lang": "it", "kind": "retrieval", "query": "Funzionamento del Registro", "expect": [["codice_terzo_settore", "53"]], "k": 12}
+{"id": "it-ret-codice_terzo_settore-54", "lang": "it", "kind": "retrieval", "query": "Trasmigrazione dei registri esistenti", "expect": [["codice_terzo_settore", "54"]], "k": 12}
 {"id": "it-ret-codice_visti-1", "lang": "it", "kind": "retrieval", "query": "Obiettivo e ambito d’applicazione", "expect": [["codice_visti", "1"]], "k": 12}
 {"id": "it-ret-codice_visti-28", "lang": "it", "kind": "retrieval", "query": "Annullamento di un visto adesivo già compilato", "expect": [["codice_visti", "28"]], "k": 12}
 {"id": "it-ret-condono_edilizio-1", "lang": "it", "kind": "retrieval", "query": "Legge-quadro Fermo restando quanto previsto dal capo IV, le regioni emanano norme in materia di", "expect": [["condono_edilizio", "1"]], "k": 12}
@@ -480,7 +480,7 @@
 {"id": "it-ret-legge_biagi-1", "lang": "it", "kind": "retrieval", "query": "Finalità e campo di applicazione 1. Le disposizioni di cui al presente decreto legislativo, nel dare attuazione ai principi", "expect": [["legge_biagi", "1"]], "k": 12}
 {"id": "it-ret-legge_biagi-29", "lang": "it", "kind": "retrieval", "query": "Appalto 1. Ai fini della applicazione delle norme contenute nel presente titolo, il contratto di", "expect": [["legge_biagi", "29"]], "k": 12}
 {"id": "it-ret-legge_notarile-1", "lang": "it", "kind": "retrieval", "query": "I notari sono ufficiali pubblici istituiti per ricevere gli atti tra vivi e di", "expect": [["legge_notarile", "1"]], "k": 12}
-{"id": "it-ret-legge_notarile-91", "lang": "it", "kind": "retrieval", "query": "Il presidente convoca e dirige le adunanze del Consiglio. Il segretario compila i processi", "expect": [["legge_notarile", "91"]], "k": 12}
+{"id": "it-ret-legge_notarile-70", "lang": "it", "kind": "retrieval", "query": "Oltre i casi determinati da altre leggi, il notaro può rilasciare in originale alle", "expect": [["legge_notarile", "70"]], "k": 12}
 {"id": "it-ret-legge_urbanistica-1", "lang": "it", "kind": "retrieval", "query": "Disciplina dell'attività urbanistica e suoi scopi. L'assetto e l'incremento edilizio dei centri abitati e", "expect": [["legge_urbanistica", "1"]], "k": 12}
 {"id": "it-ret-legge_urbanistica-24", "lang": "it", "kind": "retrieval", "query": "Aree private destinate alla formazione di vie e piazze", "expect": [["legge_urbanistica", "24"]], "k": 12}
 {"id": "it-ret-licenziamenti_individuali-1", "lang": "it", "kind": "retrieval", "query": "Nel rapporto di lavoro a tempo indeterminato, intercedente con datori di lavoro privati o", "expect": [["licenziamenti_individuali", "1"]], "k": 12}
@@ -534,7 +534,7 @@
 {"id": "it-ret-regolamento_cittadinanza-10", "lang": "it", "kind": "retrieval", "query": "Riacquisto della cittadinanza", "expect": [["regolamento_cittadinanza", "10"]], "k": 12}
 {"id": "it-ret-regolamento_immigrazione-1", "lang": "it", "kind": "retrieval", "query": "(Accertamento della condizione di reciprocità). 1. Ai fini dell'accertamento della condizione di reciprocità, nei", "expect": [["regolamento_immigrazione", "1"]], "k": 12}
 {"id": "it-ret-regolamento_immigrazione-30-quinquies", "lang": "it", "kind": "retrieval", "query": "Verifica delle disponibilità di offerta di lavoro presso i centri per l'impiego", "expect": [["regolamento_immigrazione", "30-quinquies"]], "k": 12}
-{"id": "it-ret-regolamento_notarile-1", "lang": "it", "kind": "retrieval", "query": "Per la esecuzione della legge sull'ordinamento del notariato e degli archivi notarili 16 febbraio", "expect": [["regolamento_notarile", "1"]], "k": 12}
+{"id": "it-ret-regolamento_notarile-1", "lang": "it", "kind": "retrieval", "query": "REGOLAMENTO per l'esecuzione della legge 16 febbraio 1913, n. 89 , riguardante l'ordinamento del", "expect": [["regolamento_notarile", "1"]], "k": 12}
 {"id": "it-ret-regolamento_notarile-150", "lang": "it", "kind": "retrieval", "query": "Qualora il conservatore dell'archivio sia assente o legittimamente impedito, potrà eseguire tutte le operazioni", "expect": [["regolamento_notarile", "150"]], "k": 12}
 {"id": "it-ret-regolamento_penitenziario-1", "lang": "it", "kind": "retrieval", "query": "Interventi di trattamento", "expect": [["regolamento_penitenziario", "1"]], "k": 12}
 {"id": "it-ret-regolamento_penitenziario-69", "lang": "it", "kind": "retrieval", "query": "Informazioni sulle norme e sulle disposizioni che regolano la vita penitenziaria", "expect": [["regolamento_penitenziario", "69"]], "k": 12}
@@ -607,15 +607,15 @@
 {"id": "it-st-codice_civile-3-rep", "lang": "it", "kind": "status", "citation": "art. 3 c.c.", "expect": "repealed", "code": "codice_civile"}
 {"id": "it-st-codice_civile-12-rep", "lang": "it", "kind": "status", "citation": "art. 12 c.c.", "expect": "repealed", "code": "codice_civile"}
 {"id": "it-st-codice_civile-fake", "lang": "it", "kind": "status", "citation": "art. 3106 c.c.", "expect": "fake", "code": "codice_civile"}
-{"id": "it-st-codice_penale-275-quater", "lang": "it", "kind": "status", "citation": "art. 275-quater c.p.", "expect": "verified", "code": "codice_penale"}
-{"id": "it-st-codice_penale-513-bis", "lang": "it", "kind": "status", "citation": "art. 513-bis c.p.", "expect": "verified", "code": "codice_penale"}
+{"id": "it-st-codice_penale-275-bis", "lang": "it", "kind": "status", "citation": "art. 275-bis c.p.", "expect": "verified", "code": "codice_penale"}
+{"id": "it-st-codice_penale-513", "lang": "it", "kind": "status", "citation": "art. 513 c.p.", "expect": "verified", "code": "codice_penale"}
 {"id": "it-st-codice_penale-21-rep", "lang": "it", "kind": "status", "citation": "art. 21 c.p.", "expect": "repealed", "code": "codice_penale"}
 {"id": "it-st-codice_penale-100-rep", "lang": "it", "kind": "status", "citation": "art. 100 c.p.", "expect": "repealed", "code": "codice_penale"}
 {"id": "it-st-codice_penale-fake", "lang": "it", "kind": "status", "citation": "art. 871 c.p.", "expect": "fake", "code": "codice_penale"}
-{"id": "it-st-codice_procedura_civile-281-terdecies", "lang": "it", "kind": "status", "citation": "art. 281-terdecies c.p.c.", "expect": "verified", "code": "codice_procedura_civile"}
-{"id": "it-st-codice_procedura_civile-551", "lang": "it", "kind": "status", "citation": "art. 551 c.p.c.", "expect": "verified", "code": "codice_procedura_civile"}
-{"id": "it-st-codice_procedura_civile-4-rep", "lang": "it", "kind": "status", "citation": "art. 4 c.p.c.", "expect": "repealed", "code": "codice_procedura_civile"}
-{"id": "it-st-codice_procedura_civile-8-rep", "lang": "it", "kind": "status", "citation": "art. 8 c.p.c.", "expect": "repealed", "code": "codice_procedura_civile"}
+{"id": "it-st-codice_procedura_civile-281-ter", "lang": "it", "kind": "status", "citation": "art. 281-ter c.p.c.", "expect": "verified", "code": "codice_procedura_civile"}
+{"id": "it-st-codice_procedura_civile-550", "lang": "it", "kind": "status", "citation": "art. 550 c.p.c.", "expect": "verified", "code": "codice_procedura_civile"}
+{"id": "it-st-codice_procedura_civile-2-rep", "lang": "it", "kind": "status", "citation": "art. 2 c.p.c.", "expect": "repealed", "code": "codice_procedura_civile"}
+{"id": "it-st-codice_procedura_civile-3-rep", "lang": "it", "kind": "status", "citation": "art. 3 c.p.c.", "expect": "repealed", "code": "codice_procedura_civile"}
 {"id": "it-st-codice_procedura_civile-fake", "lang": "it", "kind": "status", "citation": "art. 977 c.p.c.", "expect": "fake", "code": "codice_procedura_civile"}
 {"id": "it-st-codice_procedura_penale-256-bis", "lang": "it", "kind": "status", "citation": "art. 256-bis c.p.p.", "expect": "verified", "code": "codice_procedura_penale"}
 {"id": "it-st-codice_procedura_penale-496", "lang": "it", "kind": "status", "citation": "art. 496 c.p.p.", "expect": "verified", "code": "codice_procedura_penale"}
