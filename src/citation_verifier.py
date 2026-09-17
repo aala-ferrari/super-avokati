@@ -459,14 +459,41 @@ _NUM_TOKEN = r"\d+(?:[/\-\u2013][a-zA-Z\u00e7\u00eb\u00c7\u00cb0-9]{1,4})*"
 # Enumerated-list separators: "nenet 134, 135 dhe 136 të Kodit Penal".
 _LIST_SEP = r"(?:\s*(?:,|;|\bdhe\b|\be\b)\s*)"
 
+# 17 set 2026 — SOTTO-RIFERIMENTI INTERPOSTI fra il numero e il codice. La coda non attraversa mai
+# le virgole (giusto: altrimenti una citazione ruba il codice della frase dopo), ma così la forma
+# PIÙ USATA dai giuristi e dal cervello — «neni 155, pika 1, i Kodit të Punës», «Neni 34, pika 1,
+# shkronja "d", e Ligjit nr. 79/2021» — usciva «pa kod» con il codice scritto lì accanto (prova
+# viva v9.345: 21 «pa kod» su 30; 140 occorrenze nelle ultime 121 risposte salvate). Regola: si può
+# attraversare UNA virgola solo dopo «pika/shkronja/paragrafi …» e solo se subito dopo viene la
+# formula di attribuzione «i/e/të/së Kodit|Ligjit|Kushtetutës…» (o l'anafora «i po këtij ligji»);
+# «neni 155, pika 1, ndërsa Kodi Civil…» NON attraversa (la coda resta vuota → «pa kod», come prima).
+# valori: cifre dopo «pika/paragrafi/fjalia», lettere SOLO dopo «shkronja/germa» («"d"», «dh)», «c»);
+# una lettera nuda mai seguita da un punto («, L.», «, c.c.» sono codici, non lettere) né una particella
+_SUB_NUM = r"\d{1,3}(?![\w/])"
+_SUB_LET = (r"(?:[\"“«'][a-zçë]{1,2}[\"”»']|[a-zçë]{1,2}\)|"
+            r"(?!(?:e|i|t[ëe]|s[ëe]|me|n[ëe]|se|ose|dhe|po|si|sa)(?![\wçë]))[a-zçë]{1,2}(?![\wçë/.]))")
+_SUB_AL = (r"(?:\s*,?\s*(?:(?:pik[aë]t?|paragraf\w{0,3}|fjali[aë]?|n[ëe]npik[aë]t?)\s+" + _SUB_NUM +
+           r"|(?:shkronj[aë]t?|g[ëe]rm[aë]t?)\s+" + _SUB_LET + r")"
+           r"(?:\s*(?:,|\bdhe\b|\be\b)\s*(?:" + _SUB_NUM + r"|" + _SUB_LET + r"))*)")
+_CONN_AL = (r"(?:i|e|t[ëe]|s[ëe]|sipas)\s+(?:po\s+)?(?:k[ëe]tij\s+(?:ligji|kodi)\b|"
+            r"kodit\b|ligjit\b|kushtetut[ëe]s\b|vkm\b|rregullores\b|dekretit\b|k\.\s?p|kp\b|kc\b|kpc\b|kpp\b|krr\b|kf\b)")
+
 CITATION_RE = re.compile(
     r"\bnen(?:i|in|it|et|eve|ve)?\b\s+"
     r"(?P<nums>" + _NUM_TOKEN + r"(?:" + _LIST_SEP + _NUM_TOKEN + r")*)"
+    r"(?P<sub>" + _SUB_AL + r"*)"
+    r"(?:\s*,(?=\s+" + _CONN_AL + r"))?"      # la virgola sì, lo spazio resta alla coda
     # Tail = up to 8 words, but never crossing "dhe" or another "nen..." —
     # otherwise one citation swallows the next and steals its code.
     r"(?P<tail>(?:\s+(?!nen(?:i|in|it|et|eve|ve)?\b)(?!dhe\b)[^\s,;:\n()]+){0,8})",
     re.IGNORECASE,
 )
+# Anafora: «neni 37, pika 1, i po këtij ligji» / «art. 4 del medesimo decreto» → il codice/legge
+# nominato per ULTIMO nel testo prima della citazione (finestra corta), mai un'ipotesi.
+_ANAFORA_AL = re.compile(r"^\s*(?:i|e|t[ëe]|s[ëe])\s+(?:po\s+)?k[ëe]tij\s+(?:ligji|kodi)\b", re.I)
+_ANAFORA_IT = re.compile(r"^\s*(?:del|della|dello|dell[’'])\s*(?:medesim[oa]|stess[oa]|citat[oa]|predett[oa]|suddett[oa])\s+"
+                         r"(?:decreto|legge|codice|regolamento|d\.?\s?lgs\.?|testo\s+unico|d\.?p\.?r\.?)", re.I)
+_ANAFORA_WINDOW = 1500
 # Pull each individual number out of a (possibly enumerated) nums block.
 _NUM_RE = re.compile(_NUM_TOKEN)
 
@@ -518,9 +545,30 @@ def _kp_resolve(number: str, text: str, retrieved_codes: set, lookup: dict) -> s
 _NUM_TOKEN_IT = (r"\d+(?:[\-\s](?:bis|ter|quater|quinquies|sexies|septies|octies|novies|decies|undecies|duodecies|"
                  r"terdecies|quaterdecies|quinquiesdecies|sexiesdecies|septiesdecies|octiesdecies|noviesdecies|vicies)"
                  r"(?![a-z]))?")
+# 17 set 2026 — «art. 18, comma 4, L. 300/1970» è LA forma canonica italiana e usciva «senza codice»
+# (117 occorrenze nelle ultime 121 risposte): stessa regola dell'albanese — dopo «comma/commi/lett./
+# n./punto …» si attraversa UNA virgola solo se segue una legge/codice («L.», «D.Lgs.», «c.c.», «del
+# codice», «della legge», «Cost.»…) o l'anafora «del medesimo decreto». «art. 18, comma 4, di
+# conseguenza il codice civile…» NON attraversa. ⚠️ «c.» come abbreviazione di comma NON è ammessa fra
+# i sotto-riferimenti: «art. 2, c.c.» diventerebbe «comma c».
+_SUB_NUM_IT = r"\d{1,3}(?:-(?:bis|ter|quater|quinquies|sexies|septies|octies|novies|decies))?(?![\w/])"
+_SUB_LET_IT = (r"(?:[\"“«'][a-z]{1,2}[\"”»']|[a-z]{1,2}\)|"
+               r"(?!(?:e|ed|o|al|il|la|lo|le|di|in|su|se|no|un|ai|da|ne|si)(?![a-z]))[a-z]{1,2}(?![a-z/.]))")
+_SUB_IT = (r"(?:\s*,?\s*(?:(?:comm[ai]|co\.|n\.|nn\.|punt[oi]|par(?:agraf[oi])?\.?|§)\s*" + _SUB_NUM_IT +
+           r"|lett(?:era|ere)?\.?\s*" + _SUB_LET_IT + r")"
+           r"(?:\s*(?:,|\be\b|\bed\b)\s*(?:" + _SUB_NUM_IT + r"|" + _SUB_LET_IT + r"))*)")
+_CONN_IT = (r"(?:(?:del|della|dello|dell[’']|dal|dalla)\s*(?:codice|cod\.|legge|l\.|d\.?\s?lgs|d\.?\s?l\b|d\.?\s?l\.|d\.?p\.?r|r\.?d\.?|"
+            r"t\.?u\.?|reg\b|reg\.|regolamento|direttiva|dir\.|statuto|costituzione|cost\.|convenzione|protocollo|trattato|carta|"
+            r"cedu|tfue|tue|gdpr|cdu|dnc|tuel|tuir|tub|tuf|cad|cpa|cpi|ccii|c\.[a-z]|medesim|stess|citat|predett|suddett)|"
+            r"l\.\s?\d|legge\b|d\.?\s?lgs|d\.?\s?l\.\s?\d|d\.?p\.?r\.?\s?\d|r\.?d\.?\s?\d|d\.?m\.?\s?\d|t\.?u\.?\b|reg\.?\s?(?:\(|\d|ue|ce)|"
+            r"regolamento|direttiva|dir\.|cod\.|codice|c\.[a-z]|cost\.?\b|statuto|carta|cedu|tfue|tue|gdpr|cdu|dnc|tuel|tuir|tub|tuf|cad|"
+            r"cpa|cpi|ccii|c\.d\.s\.|cds\b|l\.\s?fall|preleggi|disp\.|convenzione|protocollo|trattato)")
+
 CITATION_RE_IT = re.compile(
     r"\bart(?:t|icol[oi])?\.?\s+"
     r"(?P<nums>" + _NUM_TOKEN_IT + r"(?:\s*(?:,|;|\be\b|\bed\b)\s*" + _NUM_TOKEN_IT + r")*)"
+    r"(?P<sub>" + _SUB_IT + r"*)"
+    r"(?:\s*,(?=\s+" + _CONN_IT + r"))?"      # la virgola sì, lo spazio resta alla coda
     # 16 set 2026 (benchmark lab): «art. 215 Reg. (UE) 2015/2446» — il token «(UE)» spezzava la
     # coda e la citazione restava «senza codice»; i soli parentetici ammessi sono le sigle UE/CE/CEE
     r"(?P<tail>(?:\s+(?!art\b)(?:\((?:UE|CE|CEE|Euratom)\)|[^\s,;:\n()]+)){0,6})",
@@ -736,8 +784,9 @@ def _resolve_code_it(tail: str):
                 return code
         elif pat in compact:
             return code
-    # secondo passaggio: numero/anno (le sigle «D.Lgs.», «DPR», «Reg.» da sole non bastano)
-    with_digits = re.sub(r"[^a-z0-9]", "", (tail or "").lower())
+    # secondo passaggio: numero/anno (le sigle «D.Lgs.», «DPR», «Reg.» da sole non bastano);
+    # «legge n. 91 del 1992» vale come «91/1992» (17 set 2026)
+    with_digits = re.sub(r"[^a-z0-9]", "", re.sub(r"(\d+)\s+del\s+(\d{4})", r"\1/\2", (tail or "").lower()))
     if any(ch.isdigit() for ch in with_digits):
         for pat, code in _IT_CODE_NUM_CHECKS:
             if pat in with_digits:
@@ -756,6 +805,7 @@ class Citation:
     article_heading: str | None = None  # populated when verified
     volatility: str | None = None            # STABLE/MEDIUM — freshness hint
     last_amendment_date: str | None = None   # last known amendment date
+    resolved_by: str | None = None           # None (codice scritto) | retrieval | documento | anafora
 
 
 def _normalise_number(n: str) -> str:
@@ -927,11 +977,26 @@ def _codes_for_number(num_to_codes: dict, number: str,
     return codes
 
 
+def _codice_precedente(text: str, pos: int, resolve) -> str | None:
+    """Anafora («neni 37, pika 1, i po këtij ligji», «art. 4 del medesimo decreto»): la legge o il
+    codice nominato per ULTIMO nella finestra di testo PRIMA della citazione (17 set 2026). Si
+    scandisce a ritroso a blocchi di 6 parole con lo stesso risolutore delle code; nessun nome
+    nella finestra → None (la citazione resta «senza codice», mai un'ipotesi)."""
+    win = text[max(0, pos - _ANAFORA_WINDOW):pos]
+    words = win.split()
+    for i in range(len(words) - 1, -1, -1):
+        code = resolve(" ".join(words[i:i + 6]))
+        if code:
+            return code
+    return None
+
+
 def verify_text(
     text: str,
     index: ArticleIndex,
     *,
     retrieved_codes: Iterable[str] | None = None,
+    context_text: str | None = None,
 ) -> dict:
     """Scan ``text`` for ``Neni N <code>`` patterns and verify each one.
 
@@ -939,6 +1004,9 @@ def verify_text(
     for the user's query — if a "needs_code" citation has exactly one
     candidate code that's also in retrieved_codes, we promote it to "verified"
     via context (the model very likely meant that one).
+
+    ``context_text`` (17 set 2026): un testo in più da cui leggere i LEGAMI numero→codice (il
+    claim binding verifica le sole citazioni estratte, ma il codice sta nella risposta intera).
 
     Returns:
         {
@@ -957,11 +1025,36 @@ def verify_text(
     _num_re = _NUM_RE_IT if _lang == "it" else _NUM_RE
     _resolve = _resolve_code_it if _lang == "it" else _resolve_code
     _cite_prefix = "art. " if _lang == "it" else "neni "
+    _anafora_re = _ANAFORA_IT if _lang == "it" else _ANAFORA_AL
+
+    # 17 set 2026 — LEGAME A LIVELLO DI DOCUMENTO: «Neni 144 i Kodit të Punës … Pika 5 e nenit 144»,
+    # «nenit 155/4» dopo «neni 155, pika 1, i Kodit të Punës». Il numero nudo prende il codice che LO
+    # STESSO documento gli dà altrove — solo se è UNO solo e se quell'articolo esiste davvero in quel
+    # codice (può solo togliere un «pa kod», mai creare un «fantazmë»). Prima veniva prima del
+    # contesto del recupero: quello era ambiguo (anche il Kodi Civil ha un 144), il documento no.
+    legami: dict[str, set] = {}
+    for _src in (text or "", context_text or ""):
+        for _m in _cite_re.finditer(_src):
+            _code = _resolve(_m.group("tail") or "")
+            if _code:
+                for _nr in _num_re.findall(_m.group("nums")):
+                    legami.setdefault(_normalise_number(_nr).split("/")[0], set()).add(_code)
+
+    def _esiste(code: str, number: str) -> bool:
+        return (_verify_number(lookup, code, number) is not None
+                or _verify_number(lookup_all, code, number) is not None)
+
+    def _dal_documento(number: str) -> str | None:
+        b = legami.get(number.split("/")[0])
+        if b and len(b) == 1:
+            c = next(iter(b))
+            return c if _esiste(c, number) else None
+        return None
 
     seen: set[tuple[str, str]] = set()  # dedupe (number, code-or-empty)
     citations: list[Citation] = []
 
-    def _emit(number: str, code: str | None, raw: str) -> None:
+    def _emit(number: str, code: str | None, raw: str, resolved_by: str | None = None) -> None:
         """Classify one (number, code) pair and append its Citation."""
         if code:
             art = _verify_number(lookup, code, number)
@@ -971,6 +1064,7 @@ def verify_text(
                     code_label=CODE_LABELS.get(code, code),
                     status="verified", candidates=[],
                     article_heading=getattr(art, "heading", None),
+                    resolved_by=resolved_by,
                 ))
                 return
             rart = _verify_number(lookup_all, code, number)
@@ -981,6 +1075,7 @@ def verify_text(
                     code_label=CODE_LABELS.get(code, code),
                     status="repealed", candidates=[],
                     article_heading=getattr(rart, "heading", None),
+                    resolved_by=resolved_by,
                 ))
                 return
             citations.append(Citation(
@@ -1001,6 +1096,7 @@ def verify_text(
                 code_label=CODE_LABELS.get(code_resolved, code_resolved),
                 status="verified", candidates=[],
                 article_heading=getattr(art, "heading", None),
+                resolved_by="retrieval",
             ))
         elif candidate_codes:
             citations.append(Citation(
@@ -1026,9 +1122,21 @@ def verify_text(
             full_raw = full_raw[:60].rstrip() + "…"
         multi = len(numbers) > 1
         kp_bare = _lang != "it" and _kp_bare(tail, code)
+        # anafora: «i po këtij ligji» / «del medesimo decreto» → l'ultima legge nominata prima
+        anafora = None
+        if code is None and not kp_bare and _anafora_re.match(tail):
+            anafora = _codice_precedente(text, m.start(), _resolve)
         for number_raw in numbers:
             number = _normalise_number(number_raw)
             code_n = _kp_resolve(number, text, retrieved_codes, lookup) if kp_bare else code
+            via = None
+            if code_n is None and not kp_bare:
+                if anafora and _esiste(anafora, number):
+                    code_n, via = anafora, "anafora"
+                else:
+                    _d = _dal_documento(number)
+                    if _d:
+                        code_n, via = _d, "documento"
             key = (number, code_n or ("kp?" if kp_bare else ""))
             if key in seen:
                 continue
@@ -1044,7 +1152,7 @@ def verify_text(
                     status="needs_code" if cands else "fake",
                     candidates=[{"code": c, "label": CODE_LABELS.get(c, c)} for c in cands]))
                 continue
-            _emit(number, code_n, raw)
+            _emit(number, code_n, raw, via)
 
     for _c in citations:
         if _c.status in ("verified", "repealed") and _c.code:

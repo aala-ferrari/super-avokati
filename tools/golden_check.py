@@ -3281,6 +3281,65 @@ def main():
     except Exception as _e95:  # noqa: BLE001
         check("fasi[95]: kontrollet u ekzekutuan", False, str(_e95))
 
+    # ── [96] v9.346 — IL VERIFICATORE LEGGE COME SCRIVONO I GIURISTI: «neni 155, pika 1, i Kodit
+    # të Punës» / «art. 18, comma 4, L. 300/1970» (sotto-riferimenti interposti: prima «pa kod» con il
+    # codice scritto lì accanto — 21 su 30 nella prova viva v9.345); legame a livello di DOCUMENTO
+    # per i numeri nudi («Neni 144 i Kodit të Punës … Pika 5 e nenit 144»); anafora «i po këtij
+    # ligji» / «del medesimo decreto»; claim binding con la risposta come contesto. Conservativo:
+    # può solo togliere un «pa kod», mai creare un «fantazmë»; la virgola non si attraversa senza
+    # la formula di attribuzione ──
+    try:
+        _al96 = ArticleIndex.load(_P81("/app/data/index/bm25.pkl"))
+        _it96 = ArticleIndex.load(_P81("/app/data/index/bm25_it.pkl"))
+        def _v96(t, ix, **kw):
+            _r = cv.verify_text(t, ix, **kw); return _r["items"], _r["stats"]
+        def _uno(t, ix, code, **kw):
+            _i, _ = _v96(t, ix, **kw); return bool(_i) and _i[0]["status"] == "verified" and _i[0]["code"] == code
+        _okA = (_uno("neni 155, pika 1, i Kodit të Punës", _al96, "kodi_punes")
+                and _uno('Neni 34, pika 1, shkronja "d", e Ligjit nr. 79/2021', _al96, "ligji_te_huajt")
+                and _uno("Neni 146, pika 3, i Kodit të Punës thotë", _al96, "kodi_punes")
+                and _uno("art. 18, comma 4, L. 300/1970", _it96, "statuto_lavoratori")
+                and _uno("art. 3, comma 2, del D.Lgs. 23/2015", _it96, "tutele_crescenti")
+                and _uno("art. 2, comma 1, c.c.", _it96, "codice_civile")
+                and _uno("art. 5, comma 1, lettera b), L. 91/1992", _it96, "cittadinanza")
+                and _uno("ai sensi dell'art. 6, commi 1 e 2, L. 604/1966", _it96, "licenziamenti_individuali")
+                and _uno("l'art. 9-ter, comma 1, della legge n. 91 del 1992", _it96, "cittadinanza"))
+        # la virgola NON si attraversa senza la formula (nessun furto del codice dalla frase dopo)
+        _iN1, _ = _v96("neni 155, pika 1, ndërsa Kodi Civil parashikon tjetër", _al96)
+        _iN2, _ = _v96("art. 18, comma 4, di conseguenza il codice civile prevede altro", _it96)
+        _iN3, _ = _v96("art. 2, c.c. e art. 1218 c.c.", _it96)
+        _iN4, _sN4 = _v96("nenet 134, 135 dhe 136 të Kodit Penal", _al96)
+        _okB = (_iN1 and _iN1[0]["status"] == "needs_code" and _iN2 and _iN2[0]["status"] == "needs_code"
+                and any(i["number"] == "2" and i["code"] == "codice_civile" for i in _iN3) and _sN4["verified"] == 3)
+        # legame a livello di documento: nudo → il codice che il documento gli dà (uno solo, esistente)
+        _doc = ("Neni 144 i Kodit të Punës përcakton në pikën 1 se punëdhënësi duhet të njoftojë. Pika 5 e nenit 144 sanksionon. "
+                "Pikënisja e nenit 155/4 vjen pas nenit 155, pika 1, i Kodit të Punës.")
+        _iD, _sD = _v96(_doc, _al96)
+        _iD2, _ = _v96("Neni 144 i Kodit të Punës dhe neni 144 i Kodit Civil ndryshojnë. Pika 5 e nenit 144 sanksionon.", _al96)
+        _iD3, _ = _v96("Neni 144 i Kodit të Punës. Shih nenin 9999.", _al96)
+        _okC = (_sD["needs_code"] == 0 and _sD["fake"] == 0
+                and any(i["number"] == "155/4" and i["code"] == "kodi_punes" and i["resolved_by"] == "documento" for i in _iD)
+                and any(i["number"] == "144" and i["status"] == "needs_code" for i in _iD2)      # due codici → resta pa kod
+                and any(i["number"] == "9999" and i["status"] == "fake" for i in _iD3))          # mai promosso un fantasma
+        # anafora
+        _iA, _ = _v96("Sipas nenit 34, pika 1, e Ligjit nr. 79/2021 kërkesa refuzohet. Neni 37, pika 1, i po këtij ligji cakton afatin.", _al96)
+        _iA2, _ = _v96("Neni 37, pika 1, i po këtij ligji cakton afatin.", _al96)
+        _iA3, _ = _v96("Il D.Lgs. 23/2015 disciplina le tutele crescenti. L'art. 3 del medesimo decreto fissa l'indennità.", _it96)
+        _okD = (any(i["number"] == "37" and i["code"] == "ligji_te_huajt" and i["resolved_by"] == "anafora" for i in _iA)
+                and _iA2 and _iA2[0]["status"] == "needs_code"
+                and any(i["number"] == "3" and i["code"] == "tutele_crescenti" and i["resolved_by"] == "anafora" for i in _iA3))
+        # claim binding: le citazioni nude del junior si legano con la risposta come contesto
+        from src import claims as _cl96
+        import inspect as _insp96
+        _lg = _cl96.lega([{"testo": "Punëdhënësi duhet të njoftojë me shkrim", "tipo": "LEGAL", "materialita": "HIGH", "citazioni": ["neni 144, pika 1"]}],
+                         _al96, "AL", None, context_text="Neni 144 i Kodit të Punës përcakton … Kodi i Punës")
+        _okE = (_lg["supported"] == 1 and "context_text=text" in _insp96.getsource(_cl96.Ombra._run)
+                and "përfshije në citim" in _cl96.SYSTEM["sq"] and "includilo nella" in _cl96.SYSTEM["it"])
+        check("verifikuar[96]: sotto-riferimenti interposti AL/IT («neni 155, pika 1, i Kodit të Punës», «art. 18, comma 4, L. 300/1970») · nessun furto di codice oltre la virgola · legame a livello di documento (solo unico ed esistente, mai un fantasma) · anafora «i po këtij ligji»/«del medesimo decreto» · claim binding con la risposta come contesto",
+              _okA and _okB and _okC and _okD and _okE, "forme=%s virgola=%s documento=%s anafora=%s claims=%s" % (_okA, _okB, _okC, _okD, _okE))
+    except Exception as _e96:  # noqa: BLE001
+        check("verifikuar[96]: kontrollet u ekzekutuan", False, str(_e96))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
