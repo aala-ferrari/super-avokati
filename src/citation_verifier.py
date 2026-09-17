@@ -1035,10 +1035,14 @@ def verify_text(
     legami: dict[str, set] = {}
     for _src in (text or "", context_text or ""):
         for _m in _cite_re.finditer(_src):
-            _code = _resolve(_m.group("tail") or "")
-            if _code:
-                for _nr in _num_re.findall(_m.group("nums")):
-                    legami.setdefault(_normalise_number(_nr).split("/")[0], set()).add(_code)
+            _tail = _m.group("tail") or ""
+            _code = _resolve(_tail)
+            _kp = _lang != "it" and _kp_bare(_tail, _code)   # «neni 155 KP» si scioglie dal documento, non dall'alias
+            for _nr in _num_re.findall(_m.group("nums")):
+                _n = _normalise_number(_nr)
+                _c = _kp_resolve(_n, _src, retrieved_codes, lookup) if _kp else _code
+                if _c:
+                    legami.setdefault(_n.split("/")[0], set()).add(_c)
 
     def _esiste(code: str, number: str) -> bool:
         return (_verify_number(lookup, code, number) is not None

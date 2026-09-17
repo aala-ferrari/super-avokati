@@ -3317,10 +3317,14 @@ def main():
         _iD, _sD = _v96(_doc, _al96)
         _iD2, _ = _v96("Neni 144 i Kodit të Punës dhe neni 144 i Kodit Civil ndryshojnë. Pika 5 e nenit 144 sanksionon.", _al96)
         _iD3, _ = _v96("Neni 144 i Kodit të Punës. Shih nenin 9999.", _al96)
+        # «neni 155 KP» nella pre-scansione si scioglie dal documento (Kodi i Punës nominato), non dall'alias
+        # grezzo KP=Kodi Penal — altrimenti il 155 risultava legato a DUE codici e «nenit 155/4» restava pa kod
+        _iK, _sK = _v96("Kualifikimi (neni 155 KP) është i saktë. Pika 1 e nenit 155 të Kodit të Punës e thotë; pikënisja e nenit 155/4.", _al96)
         _okC = (_sD["needs_code"] == 0 and _sD["fake"] == 0
                 and any(i["number"] == "155/4" and i["code"] == "kodi_punes" and i["resolved_by"] == "documento" for i in _iD)
                 and any(i["number"] == "144" and i["status"] == "needs_code" for i in _iD2)      # due codici → resta pa kod
-                and any(i["number"] == "9999" and i["status"] == "fake" for i in _iD3))          # mai promosso un fantasma
+                and any(i["number"] == "9999" and i["status"] == "fake" for i in _iD3)           # mai promosso un fantasma
+                and _sK["needs_code"] == 0 and any(i["number"] == "155/4" and i["code"] == "kodi_punes" for i in _iK))
         # anafora
         _iA, _ = _v96("Sipas nenit 34, pika 1, e Ligjit nr. 79/2021 kërkesa refuzohet. Neni 37, pika 1, i po këtij ligji cakton afatin.", _al96)
         _iA2, _ = _v96("Neni 37, pika 1, i po këtij ligji cakton afatin.", _al96)
