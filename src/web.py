@@ -8415,7 +8415,9 @@ def api_status():
     _ensure_loaded()
     return jsonify({
         "has_brain": bool(_BRAIN),
-        "backend": _BRAIN.backend.name if _BRAIN else None,
+        # Risposta PUBBLICA (senza login): il cervello si chiama Tetramorph, mai il fornitore
+        # (audit 19 set 2026; nessun client/test leggeva il valore grezzo).
+        "backend": "tetramorph" if _BRAIN else None,
         "total_articles": len(_INDEX.articles) if _INDEX else 0,
         "num_codes": len(LEGAL_DOCUMENTS),
         "authenticated": current_user() is not None,

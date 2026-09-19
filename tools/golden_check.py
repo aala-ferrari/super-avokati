@@ -3385,6 +3385,18 @@ def main():
     except Exception as _e97:  # noqa: BLE001
         check("allegati[97]: kontrollet u ekzekutuan", False, str(_e97))
 
+    # ── [98] v9.349 — /api/status è PUBBLICA (senza login) e diceva «backend: claude_code»: il nome
+    # del fornitore in una risposta aperta a tutti. Ora dice «tetramorph» (regola: mai il modello nel
+    # testo visibile, [[feedback_errori_no_modello]]) ──
+    try:
+        import inspect as _insp98
+        from src import web as _web98
+        _src98 = _insp98.getsource(_web98.api_status)
+        check("status[98]: /api/status pubblica non nomina la tecnologia (backend = tetramorph, mai backend.name grezzo)",
+              '"backend": "tetramorph"' in _src98 and "backend.name" not in _src98, _src98[-160:].replace("\n", " "))
+    except Exception as _e98:  # noqa: BLE001
+        check("status[98]: kontrollet u ekzekutuan", False, str(_e98))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
