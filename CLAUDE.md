@@ -1298,6 +1298,14 @@ sono rotte fra gli escape e hanno prodotto un backup **in chiaro**.
 taxi, auto, crm, korauto). La riga che conta è **`connect-src 'self'`**.
 `script-src` senza `'unsafe-inline'`; `style-src` ce l'ha per i 24 `style=`
 nel markup.
+⚠️ **`add_header` NON si eredita** (audit 19 set 2026): in nginx un livello che dichiara anche UN
+solo `add_header` perde tutti quelli dei livelli sopra. La CSP messa a livello server cancellava
+HSTS / X-Frame-Options / nosniff / Referrer-Policy dello snippet `aala-security.conf` (incluso in
+`nginx.conf`) su TUTTA l'app, e la landing (`location = /`) e `/demo/` — che hanno un loro
+`Cache-Control` — perdevano perfino la CSP. Verificato con `curl -D -` per percorso, non a occhio.
+Cura: `include /etc/nginx/snippets/aala-security.conf;` ripetuto accanto alla CSP e dentro le due
+location (lì SENZA CSP: la landing ha JavaScript inline). Backup della conf in `/root/nginx-backups/`
+(mai in `sites-enabled/`). Quando si aggiunge un `add_header` in una location, ripetere lo snippet.
 
 ## 🟡 Registro accessi ai fascicoli (v9.198)
 
