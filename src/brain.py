@@ -3890,7 +3890,7 @@ class SuperAvvocato:
                 if k not in art_by_key:
                     continue
                 a = art_by_key[k]
-                if k in _dense_only:
+                if k in _dense_only and seen.get(k, 0.0) <= 0:      # solo-senso = NESSUNA query l'ha trovato per parole
                     a = _copy.copy(a); a._semantik = True
                 pairs.append((a, seen.get(k, 0.0)))
             _audit_set("recupero_ibrido", {"fusi": len(_fused), "solo_senso_nei_12": sum(1 for a, _ in pairs[:TOP_K_ARTICLES] if getattr(a, "_semantik", False))})
