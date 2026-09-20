@@ -1,0 +1,139 @@
+# -*- coding: utf-8 -*-
+"""A/B della RICERCA DENSA (embedding) contro BM25 e in ibrido (RRF), sull'indice AL VERO — roadmap v4,
+punto 4 (20 set 2026). Si misura PRIMA di accendere, come per lo stemming (v9.345).
+
+    python3 tools/emb_ab.py --model sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
+    python3 tools/emb_ab.py --model BAAI/bge-m3 --limit 2000     # prova su un sottoinsieme
+
+Metriche: recall@12 sui test del benchmark strato 1 (retrieval:al, 306 query nel linguaggio del
+codice), posizione sulle 16 query difficili dello stemming (parole dell'avvocato), le query «per
+tipo di caso» (divorci, grabitje…) e i tempi (codifica del corpus, latenza per query).
+Gli embedding si salvano in EMB_DIR (volume) per non ricodificare. Modelli via fastembed (ONNX, CPU).
+"""
+import argparse, json, os, sys, time
+sys.path.insert(0, "/app")
+from pathlib import Path
+import numpy as np
+
+EMB_DIR = Path(os.environ.get("EMB_DIR", "/app/data/models"))
+K = 12
+HARD = [
+    ("afati i parashkrimit", ("kodi_civil", "114")), ("sa është afati i parashkrimit të padisë", ("kodi_civil", "114")),
+    ("parashkrimi i përgjithshëm dhjetë vjet", ("kodi_civil", "114")),
+    ("makina bën zhurmë marmita", ("kodi_rrugor", "153")), ("zhurmë e tepërt nga automjeti gjoba", ("kodi_rrugor", "153")),
+    ("kufizimi i zhurmave", ("kodi_rrugor", "153")),
+    ("pushimi nga puna pa paralajmërim dëmshpërblimi", ("kodi_punes", "155")),
+    ("shpërblimi për vjetërsi në punë", ("kodi_punes", "152")),
+    ("anulimi i lejes së qëndrimit të huajt", ("ligji_te_huajt", "73")),
+    ("zgjidhja e menjëhershme e pajustifikuar e kontratës", ("kodi_punes", "155")),
+    ("kontrata e qirasë afati", ("kodi_civil", "801")), ("divorci me pëlqim reciprok", ("kodi_familjes", "125")),
+    ("divorci", ("kodi_familjes", "125")), ("grabitje", ("kodi_penal", "139")), ("vjedhje me dhunë", ("kodi_penal", "139")),
+    ("dhuna në familje urdhri i mbrojtjes", ("ligji_dhuna_familje_2026", "1")),
+    ("trashëgimia ligjore fëmijët", ("kodi_civil", "361")), ("rapina", ("kodi_penal", "139")),
+]
+
+HARD_IT = [
+    ("rapina", ("codice_penale", "628")), ("divorzio", ("divorzio", "1")), ("licenziamento senza giusta causa", ("licenziamenti_individuali", "3")),
+    ("prescrizione ordinaria", ("codice_civile", "2946")), ("auto targa straniera residente in italia", ("codice_strada", "93-bis")),
+    ("clausole vessatorie consumatore", ("codice_consumo", "33")), ("guida in stato di ebbrezza", ("codice_strada", "186")),
+    ("sfratto per morosità", ("codice_procedura_civile", "658")), ("cittadinanza per matrimonio", ("cittadinanza", "5")),
+    ("permesso di soggiorno rinnovo", ("tu_immigrazione", "5")),
+]
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--model", default="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
+    ap.add_argument("--limit", type=int, default=0)
+    ap.add_argument("--threads", type=int, default=4)
+    ap.add_argument("--lang", default="al", choices=["al", "it"])
+    a = ap.parse_args()
+    from fastembed import TextEmbedding
+    from src.retrieval import ArticleIndex
+    idx = ArticleIndex.load() if a.lang == "al" else ArticleIndex.load(Path("/app/data/index/bm25_it.pkl"))
+    arts = idx.articles if not a.limit else idx.articles[: a.limit]
+    live = [i for i, x in enumerate(arts) if not x.repealed]
+    tag = a.model.replace("/", "__")
+    EMB_DIR.mkdir(parents=True, exist_ok=True)
+    f = EMB_DIR / f"emb_{a.lang}_{tag}_{len(arts)}.npy"
+    t0 = time.time()
+    # onnxruntime 1.30 rifiuta i dati esterni (model.onnx_data) raggiunti via symlink della cache HF
+    # («External data path escapes model directory», visto con multilingual-e5-large): si scarica il
+    # modello in una cartella PIATTA (senza symlink) e la si passa a fastembed come percorso esplicito.
+    from huggingface_hub import snapshot_download
+    desc = next((m for m in TextEmbedding.list_supported_models() if m["model"] == a.model), None)
+    hf = ((desc or {}).get("sources") or {}).get("hf") or a.model
+    flat = EMB_DIR / ("flat_" + tag)
+    if not flat.exists() or not any(flat.rglob("*.onnx")):
+        snapshot_download(hf, local_dir=str(flat), local_dir_use_symlinks=False)
+    model = TextEmbedding(model_name=a.model, cache_dir=str(EMB_DIR), threads=a.threads, specific_model_path=str(flat))
+    print(f"modello pronto in {time.time()-t0:.0f}s: {a.model}", flush=True)
+    if f.exists():
+        E = np.load(f); print(f"embedding caricati da {f.name}: {E.shape}", flush=True)
+    else:
+        docs = [((x.heading or "") + ". " + (x.body or ""))[:1500] for x in arts]
+        t0 = time.time()
+        E = np.asarray(list(model.passage_embed(docs, batch_size=32) if hasattr(model, "passage_embed") else model.embed(docs, batch_size=32)), dtype=np.float32)
+        dt = time.time() - t0
+        E /= (np.linalg.norm(E, axis=1, keepdims=True) + 1e-9)
+        np.save(f, E)
+        print(f"codificati {len(docs)} articoli in {dt:.0f}s ({len(docs)/dt:.1f} art/s) → {f.name} {E.shape}", flush=True)
+    live_mask = np.zeros(len(arts), dtype=bool); live_mask[live] = True
+
+    def q_emb(q):
+        v = np.asarray(list(model.query_embed([q]) if hasattr(model, "query_embed") else model.embed([q])), dtype=np.float32)[0]
+        return v / (np.linalg.norm(v) + 1e-9)
+
+    def dense(q, k=K, depth=50):
+        v = q_emb(q); s = E @ v; s[~live_mask] = -9
+        order = np.argsort(-s)[:depth]
+        return [(arts[i], float(s[i])) for i in order][:k], order
+
+    def bm25(q, depth=50):
+        return idx.search(q, top_k=depth)
+
+    def hybrid(q, k=K, depth=50, kk=60):
+        b = bm25(q, depth); d, _ = dense(q, depth, depth)
+        sc = {}
+        for r, (art, _) in enumerate(b, 1):
+            sc[(art.code, str(art.number))] = sc.get((art.code, str(art.number)), 0) + 1 / (kk + r)
+        for r, (art, _) in enumerate(d, 1):
+            sc[(art.code, str(art.number))] = sc.get((art.code, str(art.number)), 0) + 1 / (kk + r)
+        by = {(x.code, str(x.number)): x for x in arts}
+        return sorted(((by[kkey], s) for kkey, s in sc.items() if kkey in by), key=lambda t: -t[1])[:k]
+
+    tests = [json.loads(l) for l in open("/app/data/benchmark/layer1_auto.jsonl", encoding="utf-8") if l.strip()]
+    tests = [t for t in tests if t["kind"] == "retrieval" and t["lang"] == a.lang]
+    if a.limit:
+        keys = {(x.code, str(x.number)) for x in arts}
+        tests = [t for t in tests if all(tuple(e) in keys for e in t["expect"])]
+
+    def rec(fn):
+        hit = 0; t0 = time.time()
+        for t in tests:
+            got = {(x.code, str(x.number)) for x, _ in fn(t["query"])}
+            hit += all(tuple(e) in got for e in t["expect"])
+        return hit, (time.time() - t0) / max(1, len(tests)) * 1000
+
+    rb, lb = rec(lambda q: bm25(q)[:K]); rd, ld = rec(lambda q: dense(q)[0]); rh, lh = rec(hybrid)
+    print(f"\nstrato 1 retrieval:al ({len(tests)} test, recall@{K}): BM25 {rb}  dense {rd}  ibrido {rh}   | latenza ms/query: {lb:.0f} / {ld:.0f} / {lh:.0f}")
+
+    def pos(fn, q, key, depth=200):
+        for i, (x, _) in enumerate(fn(q, depth), 1):
+            if (x.code, str(x.number)) == key:
+                return i
+        return None
+    print("\nquery difficili (posizione: BM25 → dense → ibrido; None = oltre 200):")
+    wins = 0
+    for q, key in (HARD if a.lang == "al" else HARD_IT):
+        pb = pos(lambda q, d: bm25(q, d), q, key); pd = pos(lambda q, d: dense(q, d, d)[0], q, key); ph = pos(lambda q, d: hybrid(q, d, d), q, key)
+        m = "  "
+        if ph is not None and (pb is None or ph < pb): m = "▲"; wins += 1
+        elif pb is not None and (ph is None or ph > pb): m = "▼"
+        print(f"  {m} {q:55s} {str(key):32s} {pb} → {pd} → {ph}")
+    print(f"ibrido meglio di BM25 su {wins}/{len(HARD)} query difficili")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

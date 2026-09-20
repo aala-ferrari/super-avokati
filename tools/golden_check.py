@@ -3485,6 +3485,54 @@ def main():
     except Exception as _e100:  # noqa: BLE001
         check("punto3[100]: kontrollet u ekzekutuan", False, str(_e100))
 
+    # ── [101] v9.352 — ROADMAP v4, punto 6: numero, data e consolidamento dell'ATTO accanto a ogni
+    # articolo nel prompt («📜 Ligji nr. 79/2021, datë 24.6.2021 — teksti i konsoliduar QBZ 2025-07-14»),
+    # dai metadati che avevamo già (URL QBZ, URN Normattiva) → data/index/acts_meta.json ──
+    try:
+        import inspect as _i101
+        from src import acts_meta as _am101, brain as _br101
+        _m = _am101.carica()
+        _al = [k for k, v in _m.items() if v.get("jur") == "AL"]; _itc = [k for k, v in _m.items() if v.get("jur") == "IT"]
+        _okA = len(_al) >= 50 and all(_m[k].get("numero") for k in _al) and len(_itc) >= 120 and sum(1 for k in _itc if _m[k].get("numero")) >= 95
+        _r1 = _am101.riga("ligji_te_huajt", "sq"); _r2 = _am101.riga("codice_strada", "it"); _r3 = _am101.riga("kodi_punes", "it")
+        _okB = (_r1.startswith("📜 Ligji nr. 79/2021, datë 24.6.2021") and "konsoliduar" in _r1
+                and _r2.startswith("📜 D.Lgs. 30 aprile 1992, n. 285") and "Normattiva" in _r2
+                and _r3.startswith("📜 Legge n. 7961/1995") and "ligji" not in _r3.split("modificato da")[-1]
+                and _am101.riga("inesistente", "sq") == "" and _am101.etichetta("cittadinanza") == "L. 91/1992")
+        _okC = "acts_meta" in _i101.getsource(_br101._format_articles_for_prompt) and "_am.riga(a.code" in _i101.getsource(_br101._format_articles_for_prompt)
+        check("atto[101]: acts_meta.json (AL ≥50 atti tutti con numero/data, IT ≥95 con numero/data) · riga nel prompt sq/it corretta (79/2021, D.Lgs. 285/1992, Kodi i Punës in italiano senza «ligji») · vuota per codice ignoto · cablata in _format_articles_for_prompt",
+              _okA and _okB and _okC, "meta=%s riga=%s hook=%s (AL=%d IT=%d)" % (_okA, _okB, _okC, len(_al), len(_itc)))
+    except Exception as _e101:  # noqa: BLE001
+        check("atto[101]: kontrollet u ekzekutuan", False, str(_e101))
+
+    # ── [102] v9.353 — ROADMAP v4, punto 4: RICERCA IBRIDA (BM25 + embedding, fusione per rango). Misurato
+    # prima di accendere (tools/emb_ab.py). Regole: la fusione è deterministica (RRF), la copertura resta
+    # BM25, l'articolo portato solo dal senso è dichiarato al cervello su una COPIA, senza modello/file
+    # tutto torna a BM25 (fail-silent), la spilla del prompt esiste ──
+    try:
+        import inspect as _i102, types as _t102
+        from src import dense as _dn102, brain as _br102
+        _A = lambda c, n: _t102.SimpleNamespace(code=c, number=n, repealed=False)
+        _f = _dn102.fondi([(_A("kc", "1"), 9.0), (_A("kc", "2"), 5.0)], [(_A("kc", "2"), 0.8), (_A("kc", "3"), 0.7)])
+        _okA = (abs(_f[("kc", "2")][0] - (1/62 + 1/61)) < 1e-9 and _f[("kc", "2")][1] == 5.0 and _f[("kc", "2")][2] == 0.8
+                and _f[("kc", "3")][1] == 0.0 and _f[("kc", "1")][2] == 0.0
+                and max(_f, key=lambda k: _f[k][0]) == ("kc", "2"))                    # chi è in entrambe vince
+        # senza embedding/modello: indice denso None, nessuna eccezione
+        _fake_idx = _t102.SimpleNamespace(articles=[_A("kc", "1")], lang="sq")
+        _okB = _dn102.DenseIndex.carica(_fake_idx, "zz") is None and _dn102.indice(_fake_idx, "zz") is None
+        _src = _i102.getsource(_br102.SuperAvvocato._retrieve)
+        _okC = ("_dn.indice(idx" in _src and "_dn.fondi(_bm, _dr)" in _src and "copy.copy(a); a._semantik = True" in _src
+                and "_senza_norma.append" in _src and 'if score > 0:' in _src)          # copertura ancora BM25
+        _okD = "GJETUR NGA KUPTIMI" in _i102.getsource(_br102._format_articles_for_prompt) and 'getattr(a, "_semantik", False)' in _i102.getsource(_br102._format_articles_for_prompt)
+        try:
+            import fastembed as _fe102; _okE = True
+        except Exception:  # noqa: BLE001
+            _okE = False
+        check("dense[102]: fusione RRF deterministica (chi è in entrambe vince, punteggi BM25/dense conservati) · senza embedding tutto torna a BM25 senza errori · cablata in _retrieve (copertura resta BM25, copia marcata «GJETUR NGA KUPTIMI») · spilla nel prompt · fastembed nell'immagine",
+              _okA and _okB and _okC and _okD and _okE, "rrf=%s fallback=%s wiring=%s prompt=%s img=%s" % (_okA, _okB, _okC, _okD, _okE))
+    except Exception as _e102:  # noqa: BLE001
+        check("dense[102]: kontrollet u ekzekutuan", False, str(_e102))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

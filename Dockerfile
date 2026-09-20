@@ -63,6 +63,9 @@ RUN apt-get update \
 
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
+# v9.353 — ricerca semantica (roadmap v4 p.4): fastembed (ONNX su CPU; onnxruntime/tokenizers/numpy
+# ci sono già per faster-whisper). Il MODELLO sta nel volume data/models/, non nell'immagine.
+RUN pip install --no-cache-dir fastembed==0.8.0
 
 # Copy source + data in the order that maximises layer reuse: code changes
 # more often than data, so we copy data first.

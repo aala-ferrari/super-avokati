@@ -3843,15 +3843,36 @@ class SuperAvvocato:
         # È il segnale «ho trovato qualcosa» ≠ «ho cercato abbastanza»: entra nella Trust Line e nel
         # blocco del Giudice, così una norma citata su quel tema si sa che non viene dal corpus.
         _senza_norma: list[str] = []
+        # v9.353 — RICERCA IBRIDA (roadmap v4, punto 4): per ogni query BM25 (come sempre: è il segnale
+        # di copertura) + ricerca densa, fuse per rango (RRF). `seen` tiene il punteggio BM25 vero (per
+        # il prompt), `_fused` l'ordine; un articolo portato SOLO dal senso si marca (copia) e si dichiara.
+        try:
+            from . import dense as _dn
+            _dense = _dn.indice(idx, "it" if idx is self.index_it else "sq")
+        except Exception:  # noqa: BLE001
+            _dense = None
+        _fused: dict[tuple[str, str], float] = {}
+        _dense_only: set = set()
         for q in all_queries:
             _hit = False
-            for art, score in idx.search(q, top_k=TOP_K_ARTICLES,
-                                         restrict_codes=restrict):
+            _bm = idx.search(q, top_k=(_dn.DEPTH if _dense is not None else TOP_K_ARTICLES), restrict_codes=restrict)
+            for art, score in _bm[:TOP_K_ARTICLES]:
                 key = (art.code, art.number)
                 if score > seen.get(key, 0.0):
                     seen[key] = score
                 if score > 0:
                     _hit = True
+            if _dense is not None:
+                try:
+                    _dr = _dense.search(q, restrict_codes=restrict)
+                    for key, (f, b, d) in _dn.fondi(_bm, _dr).items():
+                        _fused[key] = _fused.get(key, 0.0) + f
+                        if b <= 0:
+                            _dense_only.add(key)
+                        elif key in _dense_only:
+                            _dense_only.discard(key)
+                except Exception as _exc_d:  # noqa: BLE001
+                    log.warning("dense: ricerca fallita per una query (non-fatal): %s", _exc_d)
             if not _hit and (q or "").strip():
                 _senza_norma.append(q.strip()[:90])
         try:
@@ -3861,8 +3882,21 @@ class SuperAvvocato:
             pass
 
         art_by_key = {(a.code, a.number): a for a in idx.articles}
-        pairs = [(art_by_key[k], s) for k, s in seen.items() if k in art_by_key]
-        pairs.sort(key=lambda x: x[1], reverse=True)
+        if _fused:
+            # ordine per fusione; punteggio mostrato = BM25 vero (0 se solo dal senso, marcato)
+            _keys = sorted(_fused, key=lambda k: -_fused[k])
+            pairs = []
+            for k in _keys:
+                if k not in art_by_key:
+                    continue
+                a = art_by_key[k]
+                if k in _dense_only:
+                    a = copy.copy(a); a._semantik = True
+                pairs.append((a, seen.get(k, 0.0)))
+            _audit_set("recupero_ibrido", {"fusi": len(_fused), "solo_senso_nei_12": sum(1 for a, _ in pairs[:TOP_K_ARTICLES] if getattr(a, "_semantik", False))})
+        else:
+            pairs = [(art_by_key[k], s) for k, s in seen.items() if k in art_by_key]
+            pairs.sort(key=lambda x: x[1], reverse=True)
         # Le ancore entrano PRIMA del taglio, altrimenti sarebbero proprio loro
         # a cadere: sono in fondo per punteggio, e' il motivo per cui esistono.
         # Solo sul corpus albanese — sull'italiano non c'e' niente da riparare.
@@ -6253,6 +6287,13 @@ def _format_articles_for_prompt(pairs: list[tuple[Article, float]]) -> str:
         hierarchy = " / ".join(x for x in (a.pjesa, a.kreu, a.seksioni) if x)
         hierarchy = f"  [{hierarchy}]\n" if hierarchy else ""
         hierarchy += f"  ⚖ {_forza(a.code)}\n"
+        try:                                   # v9.352: numero/data/consolidamento dell'atto (punto 6)
+            from . import acts_meta as _am
+            _rm = _am.riga(a.code, "it" if _is_italian_code(a.code) else "sq")
+            if _rm:
+                hierarchy += f"  {_rm}\n"
+        except Exception:  # noqa: BLE001
+            pass
         # v9.339 — grafo delle sentenze: articolo toccato da una decisione della Gjykata Kushtetuese.
         # Tre livelli, perché «noteria 26» ha perso UNA FRASE e il testo consolidato lo dice già:
         # gridare «antikushtetues» sull'intero articolo sarebbe il falso negativo peggiore.
@@ -6310,6 +6351,13 @@ def _format_articles_for_prompt(pairs: list[tuple[Article, float]]) -> str:
                 f"── {a.citation}  ⚑ GJETUR NGA KËRKUESI\n"
                 f"  (juristi i ri i studios e gjeti si normën që PËRCAKTON "
                 f"institutin/kundërvajtjen — lexoje i pari, tekst i plotë)\n"
+            )
+        elif getattr(a, "_semantik", False):
+            intestazione = (
+                f"── {a.citation}  ⚑ GJETUR NGA KUPTIMI\n"
+                f"  (asnjë fjalë e përbashkët me pyetjen: e gjeti kërkimi semantik "
+                f"sepse flet për të njëjtën gjë me fjalë të tjera — kontrollo nëse "
+                f"është norma që zbatohet)\n"
             )
         elif getattr(a, "_ancora_titull", False):
             intestazione = (
