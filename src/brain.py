@@ -3891,7 +3891,7 @@ class SuperAvvocato:
                     continue
                 a = art_by_key[k]
                 if k in _dense_only:
-                    a = copy.copy(a); a._semantik = True
+                    a = _copy.copy(a); a._semantik = True
                 pairs.append((a, seen.get(k, 0.0)))
             _audit_set("recupero_ibrido", {"fusi": len(_fused), "solo_senso_nei_12": sum(1 for a, _ in pairs[:TOP_K_ARTICLES] if getattr(a, "_semantik", False))})
         else:
@@ -3953,6 +3953,8 @@ class SuperAvvocato:
         for angle in triage.strategic_angles:
             if angle and angle not in queries:
                 queries.append(angle)
+        if (triage.problem_summary or "").strip():      # v9.353: i FATTI del caso come query (per senso)
+            queries.append(triage.problem_summary.strip()[:600])
 
         # Map the human-facing "area" labels from triage onto Case.type
         # values in the KB. When triage settles on a single area, we use
@@ -6279,6 +6281,72 @@ def _forza(code: str) -> str:
     return "Legge / decreto legislativo — fonte primaria" if _is_italian_code(c) else "Ligj — burim parësor"
 
 
+def _indice_kreut(pairs) -> str:
+    """v9.353 — L'INDICE DEL CAPITOLO (osservazione del titolare, 20 set: «divorci» portava 129-132, ma il
+    capitolo va dal 125 al 162). La ricerca prende i 12 articoli più simili alla domanda, non il capitolo;
+    quando ≥3 dei recuperati cadono nello STESSO Kreu dello stesso codice, il cervello riceve anche
+    l'elenco (numero + rubrica) di tutto quel Kreu: sa che esistono, può citarli (esistono → si
+    verificano) e il Kërkuesi può portarli per intero. Solo titoli, ≤60 nene, deterministico."""
+    try:
+        from collections import Counter
+        from . import citation_verifier as _cvr
+        cnt = Counter((a.code, (a.kreu or "").strip()) for a, _ in (pairs or []) if (a.kreu or "").strip())
+        if not cnt:
+            return ""
+        (code, kreu), n = cnt.most_common(1)[0]
+        if n < 3:
+            return ""
+        idx = _cvr.INDICI.get("it" if _is_italian_code(code) else "sq")
+        if idx is None:
+            return ""
+        def _n(x):
+            b = str(x.number).split("/")[0]
+            return int(b) if b.isdigit() else 10**6
+        tutti = sorted([x for x in idx.articles if x.code == code and not x.repealed], key=_n)
+        # i Kreu in ordine di numerazione; il parser non tiene il TITULLI, quindi i capitoli
+        # «fratelli» si riconoscono dal titolo: adiacenti e con ≥2 parole significative in comune
+        # («RASTET E ZGJIDHJES SË MARTESËS» + «PASOJAT E ZGJIDHJES SË MARTESËS» = 125-162)
+        gruppi: list[tuple[str, list]] = []
+        for x in tutti:
+            k = (x.kreu or "").strip()
+            if gruppi and gruppi[-1][0] == k:
+                gruppi[-1][1].append(x)
+            else:
+                gruppi.append((k, [x]))
+        pos = next((i for i, (k, _) in enumerate(gruppi) if k == kreu), None)
+        if pos is None:
+            return ""
+        def _parole(k):
+            return {w for w in re.findall(r"[A-ZÇË]{5,}", k.upper()) if w not in ("KREU", "TITULLI", "SEKSIONI", "PJESA")}
+        base_w = _parole(kreu)
+        sel = [pos]
+        if pos + 1 < len(gruppi) and len(_parole(gruppi[pos + 1][0]) & base_w) >= 2:
+            sel.append(pos + 1)
+        if pos - 1 >= 0 and len(_parole(gruppi[pos - 1][0]) & base_w) >= 2:
+            sel.insert(0, pos - 1)
+        arts = [x for i in sel for x in gruppi[i][1]]
+        if len(arts) < 4 or len(arts) > 60:
+            arts = gruppi[pos][1]; sel = [pos]
+            if len(arts) < 4 or len(arts) > 60:
+                return ""
+        gia = {(a.code, str(a.number)) for a, _ in pairs}
+        parti = []
+        for i in sel:
+            k, items = gruppi[i]
+            parti.append((f"‖ {k}: " if len(sel) > 1 else "") + " · ".join(
+                f"{x.number}{'*' if (x.code, str(x.number)) in gia else ''} {(x.heading or '').strip()[:42]}" for x in items))
+        voci = "\n  ".join(parti)
+        kreu = " + ".join(gruppi[i][0] for i in sel) if len(sel) > 1 else kreu
+        titolo = (arts[0].title_sq or code)
+        if _is_italian_code(code):
+            return (f"\n── 📚 IL CAPITOLO INTERO — {kreu} ({titolo}, artt. {arts[0].number}-{arts[-1].number}; * = già sopra per esteso)\n"
+                    f"  {voci}\n  (solo le rubriche: se un altro articolo di questo capitolo serve al caso, citalo per numero — esiste nel corpus e viene verificato — o chiedilo per esteso)\n")
+        return (f"\n── 📚 KREU I PLOTË — {kreu} ({titolo}, nenet {arts[0].number}-{arts[-1].number}; * = më sipër me tekst të plotë)\n"
+                f"  {voci}\n  (vetëm titujt: nëse një nen tjetër i këtij kreu i duhet rastit, citoje me numër — ekziston në korpus dhe verifikohet — ose kërkoje me tekst të plotë)\n")
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 def _format_articles_for_prompt(pairs: list[tuple[Article, float]]) -> str:
     if not pairs:
         return "(asnjë nen i gjetur)"
@@ -6375,7 +6443,7 @@ def _format_articles_for_prompt(pairs: list[tuple[Article, float]]) -> str:
             f"{vol_note}"
             f"  {a.body}"
         )
-    return "\n\n".join(blocks)
+    return "\n\n".join(blocks) + _indice_kreut(pairs)
 
 
 def _precedente_te_lidhur(pairs, cited, sa: int = 3):

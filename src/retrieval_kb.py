@@ -26,6 +26,7 @@ when the corpus grows (same pattern as the articles BM25 index).
 """
 from __future__ import annotations
 
+import os
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import date
@@ -46,6 +47,7 @@ log = get_logger(__name__)
 # case number, parties, and the "OBJEKTI" section — high-signal for
 # matching. Loading the whole body would 10× RAM for marginal recall.
 BM25_BODY_CHARS = 1200
+DENSE_MIN_COS = float(os.environ.get("DENSE_MIN_COS", "0.5"))   # v9.353: soglia per un precedente portato solo dal senso
 
 # Characters of summary / full_text shown to the answer model per
 # precedent. Enough for the reasoning but not enough to dominate the
@@ -203,11 +205,35 @@ class LegalKBRetriever:
                     best[i] = float(s)
 
         candidates = sorted(best.items(), key=lambda kv: kv[1], reverse=True)
+        # v9.353 (roadmap v4, punto 5) — il caso più simile per SENSO: fusione per rango (RRF) fra il
+        # BM25 di sopra e la ricerca densa sui precedenti; un caso portato SOLO dal senso entra se la
+        # somiglianza è alta (DENSE_MIN_COS). Senza embedding: tutto come prima (fail-silent).
+        _fused: dict[int, float] = {}
+        _dense_cos: dict[int, float] = {}
+        try:
+            from . import dense as _dn
+            _dd = _dn.precedenti(self)
+            if _dd is not None:
+                _bm_rank = [i for i, s in candidates if s >= min_score][:_dn.DEPTH]
+                for q in queries:
+                    _dr = _dd.search(q)
+                    for r, i in enumerate(_bm_rank, 1):
+                        _fused[i] = _fused.get(i, 0.0) + 1.0 / (_dn.RRF_K + r)
+                    for r, (i, cos) in enumerate(_dr, 1):
+                        _fused[i] = _fused.get(i, 0.0) + 1.0 / (_dn.RRF_K + r)
+                        _dense_cos[i] = max(_dense_cos.get(i, 0.0), cos)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("dense: precedenti — ricerca fallita (non-fatal): %s", exc)
+        if _fused:
+            candidates = [(i, best.get(i, 0.0)) for i in sorted(_fused, key=lambda i: -_fused[i])]
 
         out: list[tuple[CasePrecedent, float]] = []
         for idx, score in candidates:
             if score < min_score:
-                break
+                if not _fused:
+                    break                   # BM25 puro: ordinati per punteggio, sotto la soglia non c'è altro
+                if _dense_cos.get(idx, 0.0) < DENSE_MIN_COS:
+                    continue
             c = self.cases[idx]
             if type and c.type != type:
                 continue
@@ -232,7 +258,8 @@ class LegalKBRetriever:
             )
             out.append((c, enriched_score))
 
-        out.sort(key=lambda pair: (-pair[1], -(pair[0].year or 0), pair[0].citation))
+        if not _fused:
+            out.sort(key=lambda pair: (-pair[1], -(pair[0].year or 0), pair[0].citation))
         return out[:top_k]
 
     # ── direct lookup (for citation pin-back) ──────────────────────────

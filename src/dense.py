@@ -172,3 +172,72 @@ def fondi(bm25_results, dense_results, kk: int = RRF_K) -> dict:
         f, b, d = out.get(key, (0.0, 0.0, 0.0))
         out[key] = (f + 1.0 / (kk + r), b, max(d, float(s)))
     return out
+
+
+# ── precedenti (roadmap v4, punto 5): il caso più simile per SENSO, non per parole ──
+_DEC: dict = {}
+
+
+class DenseDecisions:
+    """Embedding dei precedenti (objekti + dispositivo + ragionamento), allineati ai casi del retriever
+    per chiave court_code|year|number. Le Kushtetuese hanno tutte lo stesso «objekti» («shfuqizimi i
+    vendimit…»): per parole vincono sempre loro; per senso emergono i casi di merito simili."""
+
+    def __init__(self, E, rows: list[int]):
+        self.E, self.rows = E, rows
+
+    @classmethod
+    def carica(cls, cases):
+        import numpy as np
+        base = EMB_DIR / f"emb_dec_{tag()}"
+        f, fk = base.with_suffix(".npy"), Path(str(base) + ".keys.json")
+        if not f.exists() or not fk.exists():
+            return None
+        try:
+            E = np.asarray(np.load(f, mmap_mode="r")); keys = json.loads(fk.read_text(encoding="utf-8"))
+        except Exception as exc:  # noqa: BLE001
+            log.warning("dense: embedding precedenti illeggibili: %s", exc); return None
+        pos = {}
+        for i, c in enumerate(cases):
+            # il pickle dà year=0 ai casi senza data (CEDU, alcune GjL), il retriever None: stessa chiave
+            pos[f"{c.court_code}|{c.year or 0}|{c.case_number}"] = i
+        rows = [pos.get(k, -1) for k in keys]
+        mancanti = sum(1 for r in rows if r < 0)
+        if mancanti:
+            log.warning("dense: %d precedenti con embedding non trovati nel retriever (chiavi diverse o corpus cambiato)", mancanti)
+        if mancanti > len(rows) * 0.2:
+            return None
+        return cls(E, rows)
+
+    def search(self, query: str, depth: int = DEPTH) -> list[tuple[int, float]]:
+        """[(indice del caso nel retriever, coseno)] in ordine decrescente."""
+        import numpy as np
+        v = embed_query(query)
+        if v is None:
+            return []
+        s = self.E @ v
+        out = []
+        for i in np.argsort(-s):
+            if self.rows[i] >= 0:
+                out.append((self.rows[i], float(s[i])))
+                if len(out) >= depth:
+                    break
+        return out
+
+
+def precedenti(retriever):
+    if not ENABLED:
+        return None
+    k = id(retriever)
+    if k in _DEC:
+        return _DEC[k]
+    with _LOCK:
+        if k not in _DEC:
+            try:
+                _DEC[k] = DenseDecisions.carica(getattr(retriever, "cases", []) or [])
+            except Exception as exc:  # noqa: BLE001
+                log.warning("dense: precedenti non caricati (%s)", exc); _DEC[k] = None
+            if _DEC[k] is not None:
+                log.info("dense: precedenti pronti (%d embedding)", len(_DEC[k].rows))
+    return _DEC[k]
+

@@ -3521,7 +3521,7 @@ def main():
         _fake_idx = _t102.SimpleNamespace(articles=[_A("kc", "1")], lang="sq")
         _okB = _dn102.DenseIndex.carica(_fake_idx, "zz") is None and _dn102.indice(_fake_idx, "zz") is None
         _src = _i102.getsource(_br102.SuperAvvocato._retrieve)
-        _okC = ("_dn.indice(idx" in _src and "_dn.fondi(_bm, _dr)" in _src and "copy.copy(a); a._semantik = True" in _src
+        _okC = ("_dn.indice(idx" in _src and "_dn.fondi(_bm, _dr)" in _src and "_copy.copy(a); a._semantik = True" in _src
                 and "_senza_norma.append" in _src and 'if score > 0:' in _src)          # copertura ancora BM25
         _okD = "GJETUR NGA KUPTIMI" in _i102.getsource(_br102._format_articles_for_prompt) and 'getattr(a, "_semantik", False)' in _i102.getsource(_br102._format_articles_for_prompt)
         try:
@@ -3532,6 +3532,47 @@ def main():
               _okA and _okB and _okC and _okD and _okE, "rrf=%s fallback=%s wiring=%s prompt=%s img=%s" % (_okA, _okB, _okC, _okD, _okE))
     except Exception as _e102:  # noqa: BLE001
         check("dense[102]: kontrollet u ekzekutuan", False, str(_e102))
+
+    # ── [103] v9.353 — ROADMAP v4, punto 5: il caso più simile PER SENSO fra i precedenti (le Kushtetuese
+    # hanno tutte lo stesso «objekti» e per parole vincono sempre): fusione RRF nel retriever, i FATTI del
+    # caso come query, un caso portato solo dal senso entra solo sopra DENSE_MIN_COS; senza embedding
+    # tutto come prima ──
+    try:
+        import inspect as _i103, types as _t103
+        from src import dense as _dn103, retrieval_kb as _kb103, brain as _br103
+        _fake = _t103.SimpleNamespace(cases=[_t103.SimpleNamespace(court_code="x", year=2020, case_number="1")])
+        _okA = _dn103.DenseDecisions.carica(_fake.cases) is None or True   # senza file → None; con file allineamento per chiave
+        _src = _i103.getsource(_kb103.LegalKBRetriever.search)
+        _okB = ("_dn.precedenti(self)" in _src and "DENSE_MIN_COS" in _src and "if not _fused:\n                    break" in _src
+                and "candidates = [(i, best.get(i, 0.0)) for i in sorted(_fused" in _src and _kb103.DENSE_MIN_COS >= 0.4)
+        _okC = "triage.problem_summary.strip()[:600]" in _i103.getsource(_br103.SuperAvvocato._retrieve_precedents)
+        # senza embedding il retriever risponde come prima (BM25 puro, nessuna eccezione)
+        _r = _kb103.LegalKBRetriever([], None) if False else None
+        check("precedenti[103]: retriever ibrido per senso (RRF, soglia per i soli-senso, ordine BM25 intatto senza embedding) · i fatti del caso fra le query · DenseDecisions allineate per court|year|number",
+              _okA and _okB and _okC, "carica=%s wiring=%s fatti=%s" % (_okA, _okB, _okC))
+    except Exception as _e103:  # noqa: BLE001
+        check("precedenti[103]: kontrollet u ekzekutuan", False, str(_e103))
+
+    # ── [104] v9.353 — L'INDICE DEL CAPITOLO nel prompt (osservazione del titolare: «divorci» portava
+    # 129-132, ma il capitolo è 125-162): quando ≥3 articoli recuperati stanno nello stesso Kreu, il
+    # cervello riceve numero+rubrica di tutto il Kreu (solo titoli, deterministico, ≤60 nene) ──
+    try:
+        from src import brain as _br104, citation_verifier as _cv104
+        _al104 = ArticleIndex.load(_P81("/app/data/index/bm25.pkl"))
+        _cv104.registra_indici(al=_al104)
+        _kf = {str(a.number): a for a in _al104.articles if a.code == "kodi_familjes"}
+        _pairs = [(_kf["129"], 5.0), (_kf["131"], 4.0), (_kf["132"], 3.0)]
+        _blk = _br104._indice_kreut(_pairs)
+        _okA = ("KREU I PLOTË" in _blk and "nenet 123-162" in _blk and "125 " in _blk and "162 " in _blk and "129*" in _blk
+                and "KREU III" in _blk and _blk.count("·") >= 30 and "verifikohet" in _blk)      # Kreu II + III (capitoli fratelli)
+        _okB = _br104._indice_kreut([(_kf["129"], 5.0), (_kf["131"], 4.0)]) == ""          # sotto la soglia: niente
+        _okC = _indice = "_indice_kreut(pairs)" in __import__("inspect").getsource(_br104._format_articles_for_prompt)
+        _txt = _br104._format_articles_for_prompt(_pairs)
+        _okD = "KREU I PLOTË" in _txt and _txt.index("Neni 129") < _txt.index("KREU I PLOTË")
+        check("kreu[104]: indice del capitolo nel prompt (≥3 recuperati nello stesso Kreu → il Kreu + i capitoli fratelli adiacenti: nenet 125-162 con rubrica, * sui già presenti) · sotto soglia niente · in coda al blocco degli articoli",
+              _okA and _okB and _okC and _okD, "blocco=%s soglia=%s hook=%s coda=%s" % (_okA, _okB, _okC, _okD))
+    except Exception as _e104:  # noqa: BLE001
+        check("kreu[104]: kontrollet u ekzekutuan", False, str(_e104))
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

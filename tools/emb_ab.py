@@ -27,7 +27,8 @@ HARD = [
     ("anulimi i lejes së qëndrimit të huajt", ("ligji_te_huajt", "73")),
     ("zgjidhja e menjëhershme e pajustifikuar e kontratës", ("kodi_punes", "155")),
     ("kontrata e qirasë afati", ("kodi_civil", "801")), ("divorci me pëlqim reciprok", ("kodi_familjes", "125")),
-    ("divorci", ("kodi_familjes", "125")), ("grabitje", ("kodi_penal", "139")), ("vjedhje me dhunë", ("kodi_penal", "139")),
+    # «divorci»: il capitolo dello scioglimento (Kreu II 125-144 + Kreu III pasojat 145-162, verificato sul corpus 20 set)
+    ("divorci", ("kodi_familjes", "125-162")), ("grabitje", ("kodi_penal", "139")), ("vjedhje me dhunë", ("kodi_penal", "139")),
     ("dhuna në familje urdhri i mbrojtjes", ("ligji_dhuna_familje_2026", "1")),
     ("trashëgimia ligjore fëmijët", ("kodi_civil", "361")), ("rapina", ("kodi_penal", "139")),
 ]
@@ -68,7 +69,22 @@ def main() -> int:
         snapshot_download(hf, local_dir=str(flat), local_dir_use_symlinks=False)
     model = TextEmbedding(model_name=a.model, cache_dir=str(EMB_DIR), threads=a.threads, specific_model_path=str(flat))
     print(f"modello pronto in {time.time()-t0:.0f}s: {a.model}", flush=True)
-    if f.exists():
+    # riusa gli embedding di produzione (tools/build_dense.py) se esistono per questo modello
+    prod = EMB_DIR / f"emb_{'sq' if a.lang == 'al' else 'it'}_{tag}"
+    if not f.exists() and prod.with_suffix(".npy").exists() and Path(str(prod) + ".keys.json").exists() and not a.limit:
+        keys = json.loads(Path(str(prod) + ".keys.json").read_text(encoding="utf-8"))
+        Ep = np.load(prod.with_suffix(".npy"))
+        pos = {tuple(k): i for i, k in enumerate(map(lambda k: (k[0], str(k[1])), keys))}
+        rows = [pos.get((x.code, str(x.number)), -1) for x in arts]
+        if all(r >= 0 for r in rows):
+            E = Ep[rows]; print(f"embedding di produzione riusati: {prod.name}.npy → {E.shape}", flush=True)
+        else:
+            E = None
+    else:
+        E = None
+    if E is not None:
+        pass
+    elif f.exists():
         E = np.load(f); print(f"embedding caricati da {f.name}: {E.shape}", flush=True)
     else:
         docs = [((x.heading or "") + ". " + (x.body or ""))[:1500] for x in arts]
@@ -118,9 +134,18 @@ def main() -> int:
     rb, lb = rec(lambda q: bm25(q)[:K]); rd, ld = rec(lambda q: dense(q)[0]); rh, lh = rec(hybrid)
     print(f"\nstrato 1 retrieval:al ({len(tests)} test, recall@{K}): BM25 {rb}  dense {rd}  ibrido {rh}   | latenza ms/query: {lb:.0f} / {ld:.0f} / {lh:.0f}")
 
+    def _match(x, key):
+        if x.code != key[0]:
+            return False
+        if "-" in key[1] and key[1].replace("-", "").isdigit():
+            lo, hi = (int(v) for v in key[1].split("-"))
+            base = str(x.number).split("/")[0]
+            return base.isdigit() and lo <= int(base) <= hi
+        return str(x.number) == key[1]
+
     def pos(fn, q, key, depth=200):
         for i, (x, _) in enumerate(fn(q, depth), 1):
-            if (x.code, str(x.number)) == key:
+            if _match(x, key):
                 return i
         return None
     print("\nquery difficili (posizione: BM25 → dense → ibrido; None = oltre 200):")
