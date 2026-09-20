@@ -110,6 +110,13 @@ def verifica(text: str, index, jurisdiction: str = "AL", retrieved_codes=None, f
                 if not st or st[0] == "konsoliduar":
                     continue            # il testo che teniamo è già quello dopo la decisione: nessun allarme
                 q = st[1].split("|")
+                # v9.351 — se la risposta NOMINA la decisione della GjK (numero/anno), la citazione è
+                # consapevole («vendimi 37/2022 shfuqizoi fjalinë e dytë të pikës 8 të nenit 10»): non
+                # è un allarme, è la ragione per cui la norma viene citata (prova viva del 19 set)
+                if len(q) > 2 and re.search(r"\b%s\s*/\s*%s\b" % (re.escape(q[2]), re.escape(q[1])), text):
+                    out["nene"].setdefault("unconstitutional_noted", 0)
+                    out["nene"]["unconstitutional_noted"] += 1
+                    continue
                 out["nene"]["unconstitutional"] += 1
                 out["nene"]["bad"].append({
                     "raw": (it.get("raw") or "")[:70], "number": it.get("number"),

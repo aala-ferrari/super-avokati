@@ -3441,6 +3441,50 @@ def main():
     except Exception as _e99:  # noqa: BLE001
         check("cancello[99]: kontrollet u ekzekutuan", False, str(_e99))
 
+    # ── [100] v9.351 — ROADMAP v4, punto 3 (le tre correzioni dal test del titolare, 19 set):
+    # (a) l'incostituzionalità PARZIALE citata consapevolmente (il testo nomina il vendim GjK numero/anno)
+    # non è un allarme rosso; (b) un afato «KRITIK» resta tale solo se una norma recuperata dice quei
+    # giorni (i «20 ditë» erano il piano di viaggio del cliente); (c) il filo della chat porta al turno
+    # dopo anche le obiezioni del diavolo (sezione ⚔️), non solo la testa del verdetto ──
+    try:
+        import re as _re100
+        from src import trust_line as _tl100, brain as _br100, case_graph as _cg100
+        _al100 = ArticleIndex.load(_P81("/app/data/index/bm25.pkl"))
+        _inc = _cg100.norme_incostituzionali()
+        # un articolo VIVO con parte annullata non riflessa nel testo (v9.339: ligji 32/2021 art. 10 ← GjK 37/2022)
+        _k = next((k for k, v in _inc.items() if k[0] == "ligji_sigurimi_transport" or "32" in str(v.get("key"))), None)
+        _tgt = next(((k, v) for k, v in _inc.items() if k == ("ligji_sigurimi_detyrueshem", "10") or (k[1] == "10" and "37" in v["key"])), None)
+        _code10, _key10 = (_tgt[0][0], _tgt[1]["key"]) if _tgt else (None, None)
+        _q = (_key10 or "||").split("|")
+        _lab = {a.code: a.title_sq for a in _al100.articles}.get(_code10, "")
+        _t_ign = f"Sipas nenit 10 të {_lab} pala e dëmtuar paguan mbrojtësin."
+        _t_not = f"Vendimi nr. {_q[2]}/{_q[1]} i Gjykatës Kushtetuese shfuqizoi fjalinë e dytë të pikës 8 të nenit 10 të {_lab}."
+        _vI = _tl100.verifica(_t_ign, _al100, "AL"); _vN = _tl100.verifica(_t_not, _al100, "AL")
+        _okA = bool(_code10) and _vI["nene"]["unconstitutional"] == 1 and _tl100.stato(_vI) == "FLAGS" \
+            and _vN["nene"]["unconstitutional"] == 0 and _vN["nene"].get("unconstitutional_noted") == 1 and _tl100.stato(_vN) == "VERIFIED"
+        # (b) afato
+        _S = _br100.UrgencySignal
+        _art = next(a for a in _al100.articles if a.code == "kodi_civil" and str(a.number) == "114")   # «dhjetë vjet» a parole: non contiene «20 ditë»
+        _s1 = _br100._conferma_afati_con_norma(_S(kind="customs", label="Afat doganor", reason="x", severity="critical", deadline="brenda 20 ditëve"), [(_art, 1.0)], "AL")
+        _s2 = _br100._conferma_afati_con_norma(_S(kind="deadline", label="Ankim", reason="x", severity="critical", deadline="2026-10-02"), [(_art, 1.0)], "AL")
+        _art15 = next(a for a in _al100.articles if a.code == "kodi_proc_civile" and "15" in (a.body or "") and "ditë" in (a.body or "") and _re100.search(r"\b15\s*dit", a.body or ""))
+        _s3 = _br100._conforma_afati_con_norma if False else _br100._conferma_afati_con_norma(_S(kind="deadline", label="Ankim brenda 15 ditësh", reason="x", severity="critical", deadline="15 ditë"), [(_art15, 1.0)], "AL")
+        _s4 = _br100._conferma_afati_con_norma(_S(kind="arrest", label="Arrest", reason="x", severity="critical", deadline="brenda 20 ditëve"), [], "AL")
+        _okB = (_s1.severity == "elevated" and "verifikoje" in _s1.reason and _s2.severity == "critical" and _s3.severity == "critical"
+                and _s4.severity == "critical")
+        import inspect as _i100
+        _okB2 = _i100.getsource(_br100.SuperAvvocato._scan_urgency).count("_conferma_afati_con_norma") == 1 \
+            and _i100.getsource(_br100.SuperAvvocato.answer_stream).count("_scan_urgency(") >= 1 and "retrieved=retrieved" in _i100.getsource(_br100.SuperAvvocato.answer_stream)
+        # (c) filo
+        _ans = "### ⚖️ Vendimi\nteksti i verdiktit " + ("x" * 3000) + "\n\n---\n\n### ⚔️ Avokati i djallit — kundërargumentet\n\nRreziku i vërtetë është titulli doganor (ammissione temporanea).\n\n---\n\n### 🛡️ Përgjigje\nok"
+        _h = _br100._history_for_prompt([{"role": "user", "content": "pyetja"}, {"role": "assistant", "content": _ans}])
+        _okC = ("titulli doganor" in _h[1]["content"] and "[⚔️ obiezioni" in _h[1]["content"] and len(_h[1]["content"]) < 5000
+                and _br100._estratto_obiezioni("pa seksion") == "")
+        check("punto3[100]: incostituzionalità citata consapevolmente (vendim GjK nominato) = nessun allarme · afato KRITIK solo se una norma recuperata dice quei giorni (ISO e non-afati intatti) · il filo porta le obiezioni del diavolo",
+              _okA and _okB and _okB2 and _okC, "inc=%s afato=%s wiring=%s filo=%s (art10=%s)" % (_okA, _okB, _okB2, _okC, _code10))
+    except Exception as _e100:  # noqa: BLE001
+        check("punto3[100]: kontrollet u ekzekutuan", False, str(_e100))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

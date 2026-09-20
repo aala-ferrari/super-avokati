@@ -1898,6 +1898,37 @@ UrgencyKind = Literal[
 ]
 
 
+_AFATO_KINDS = ("deadline", "customs", "enforcement")
+_AFATO_NUM_RE = re.compile(r"\b(\d{1,3})\s*(?:-?\s*(?:ditë|dit[eë]?sh|ditor|ditëve|muaj|muajsh|vjet|vjeç|orë|giorn[oi]|mes[ei]|ann[oi]|ore))", re.I)
+_ISO_RE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
+_NOTA_AFATO = {"sq": " (afati nuk del nga asnjë normë e gjetur — verifikoje para se ta trajtosh si afat ligjor)",
+               "it": " (il termine non risulta da alcuna norma trovata — da verificare prima di trattarlo come termine di legge)"}
+
+
+def _conferma_afati_con_norma(sig, retrieved, jur: str):
+    """v9.351 — un segnale «critical» di tipo afato resta tale solo se il numero di giorni/mesi
+    che dichiara compare in una delle norme recuperate; altrimenti scende a «elevated» con la nota.
+    Date ISO (dai fatti) e segnali senza numero non si toccano. Mai solleva."""
+    try:
+        if getattr(sig, "severity", "") != "critical" or getattr(sig, "kind", "") not in _AFATO_KINDS:
+            return sig
+        testo = f"{sig.deadline or ''} {sig.label or ''}"
+        if _ISO_RE.search(testo):
+            return sig
+        nums = {m.group(1) for m in _AFATO_NUM_RE.finditer(testo)}
+        if not nums:
+            return sig
+        corpi = " ".join((getattr(a, "body", "") or "") + " " + (getattr(a, "heading", "") or "") for a, _ in (retrieved or []))
+        for n in nums:
+            if re.search(r"\b%s\s*(?:-?\s*(?:ditë|dit|muaj|vjet|orë|giorn|mes[ei]|ann[oi]|ore)|\s*\(|\s*\))" % re.escape(n), corpi, re.I):
+                return sig
+        sig.severity = "elevated"
+        sig.reason = (sig.reason or "") + _NOTA_AFATO.get("it" if jur == "IT" else "sq", _NOTA_AFATO["sq"])
+        return sig
+    except Exception:  # noqa: BLE001
+        return sig
+
+
 @dataclass
 class UrgencySignal:
     kind: UrgencyKind
@@ -2782,7 +2813,7 @@ class SuperAvvocato:
         urgency_radar: UrgencyRadar | None = None
         try:
             urgency_radar = self._scan_urgency(
-                user_message, triage, timeline, nullity_radar, documents)
+                user_message, triage, timeline, nullity_radar, documents, retrieved=retrieved)
         except Exception as exc:
             log.warning("stream urgency_radar failed: %s", exc)
 
@@ -3194,7 +3225,7 @@ class SuperAvvocato:
         urgency_radar: UrgencyRadar | None = None
         try:
             urgency_radar = self._scan_urgency(
-                user_message, triage, timeline, nullity_radar, documents
+                user_message, triage, timeline, nullity_radar, documents, retrieved=retrieved
             )
             if urgency_radar and not urgency_radar.is_empty():
                 log.info("urgency_radar: level=%s, %d signals",
@@ -4516,6 +4547,7 @@ class SuperAvvocato:
         timeline: TimelineAnalysis | None,
         nullity_radar: NullityRadar | None,
         documents: list[dict] | None,
+        retrieved: list | None = None,
     ) -> UrgencyRadar:
         """Aggregate emergency signals + run a dedicated personal-emergency scan.
 
@@ -4627,6 +4659,13 @@ class SuperAvvocato:
             ))
             if len(signals) >= 6:
                 break
+
+        # v9.351 — «KRITIK» per un AFATO solo se una norma recuperata dice quei giorni. Prova viva del
+        # 19 set: «Afat doganor — kthimi brenda 20 ditëve» in rosso, e i 20 giorni erano il piano di
+        # viaggio del cliente, non un termine di legge (il testo stesso ammetteva «neni 239 nuk
+        # përcakton asnjë afat 20-ditor»). Una data ISO viene dai fatti e resta; un numero di
+        # giorni/mesi senza norma che lo contenga scende a «elevated» con la nota, mai sparisce.
+        signals = [_conferma_afati_con_norma(sig, retrieved, self._current_jurisdiction()) for sig in signals]
 
         # Final level is the highest severity present across all sources
         # (rollup + LLM). The LLM's reported level is used as a hint but
@@ -5822,6 +5861,21 @@ _HIST_ASSISTANT_CHARS = 2500
 _HIST_BUDGET = 16000
 
 
+_HIST_OBIEZIONI_CHARS = 1800
+_OBIEZIONI_RE = re.compile(r"###\s*⚔️[^\n]*\n(.*?)(?=\n---\n|\n###\s|\Z)", re.S)
+
+
+def _estratto_obiezioni(txt: str) -> str:
+    """v9.351 — le obiezioni dell'avvocato del diavolo della risposta precedente (la sezione «⚔️ …»
+    in coda): il turno dopo le riceve, così ciò che il diavolo ha trovato (prova viva del 19 set:
+    l'ammissione temporanea doganale) non si perde quando il filo tiene solo la testa del verdetto."""
+    m = _OBIEZIONI_RE.search(txt or "")
+    if not m:
+        return ""
+    body = (m.group(1) or "").strip()
+    return body[:_HIST_OBIEZIONI_CHARS].rstrip() + ("\n[…]" if len(body) > _HIST_OBIEZIONI_CHARS else "")
+
+
 def _history_for_prompt(history) -> list[dict[str, str]]:
     """Gli ultimi turni della conversazione, potati per non affogare il compose."""
     out: list[dict[str, str]] = []
@@ -5830,8 +5884,11 @@ def _history_for_prompt(history) -> list[dict[str, str]]:
         role = str(m.get("role") or "user")
         txt = str(m.get("content") or "")
         cap = _HIST_ASSISTANT_CHARS if role == "assistant" else _HIST_USER_CHARS
+        obiezioni = _estratto_obiezioni(txt) if role == "assistant" else ""
         if len(txt) > cap:
             txt = txt[:cap].rstrip() + "\n[…]"
+        if obiezioni and obiezioni[:200] not in txt:
+            txt += "\n\n[⚔️ obiezioni dell'avvocato del diavolo su questa risposta]\n" + obiezioni
         if total + len(txt) > _HIST_BUDGET:
             break
         total += len(txt)
