@@ -60,24 +60,33 @@ def _art_map(index) -> dict:
 
 
 def vuota() -> dict:
-    return {"nene": {"verified": 0, "repealed": 0, "fake": 0, "needs_code": 0, "unconstitutional": 0, "total": 0, "bad": []},
+    return {"nene": {"verified": 0, "repealed": 0, "fake": 0, "needs_code": 0, "unconstitutional": 0, "total": 0, "bad": [],
+                     "foreign_verified": 0, "foreign_unverified": 0, "foreign": []},
             "sentenze": {"verified": 0, "unverified": 0, "quashed": 0, "total": 0, "bad": [], "quashed_list": []},
             "fatti_da_precisare": 0}
 
 
-def verifica(text: str, index, jurisdiction: str = "AL", retrieved_codes=None) -> dict:
-    """Calcolo puro sul testo già prodotto: non chiama mai il modello, non solleva mai."""
+def verifica(text: str, index, jurisdiction: str = "AL", retrieved_codes=None, foreign_index=None) -> dict:
+    """Calcolo puro sul testo già prodotto: non chiama mai il modello, non solleva mai.
+    `foreign_index` (v9.350): il corpus dell'altra giurisdizione per le citazioni di diritto straniero
+    dichiarato (se None, il verificatore usa il registro `citation_verifier.INDICI`)."""
     out = vuota()
     text = text or ""
     if not text.strip() or index is None:
         return out
     try:
         from . import citation_verifier as cv
-        r = cv.verify_text(text, index, retrieved_codes=retrieved_codes)
+        r = cv.verify_text(text, index, retrieved_codes=retrieved_codes, foreign_index=foreign_index)
         st = r.get("stats") or {}
         for k in ("verified", "repealed", "fake", "needs_code", "total"):
             out["nene"][k] = int(st.get(k) or 0)
+        out["nene"]["foreign_verified"] = int(st.get("foreign_verified") or 0)
+        out["nene"]["foreign_unverified"] = int(st.get("foreign_unverified") or 0) + int(st.get("foreign_repealed") or 0)
         for it in r.get("items") or []:
+            if str(it.get("status") or "").startswith("foreign_"):
+                out["nene"]["foreign"].append({"raw": (it.get("raw") or "")[:70], "code": it.get("code_label") or it.get("code") or "",
+                                               "status": it.get("status"), "heading": (it.get("article_heading") or "")[:70]})
+                continue
             if it.get("status") in ("fake", "repealed"):
                 out["nene"]["bad"].append({
                     "raw": (it.get("raw") or "")[:70], "number": it.get("number"),
@@ -143,7 +152,7 @@ def stato(v: dict) -> str:
         return "FLAGS"
     # «senza codice» (neni 155 nudo, col codice nominato poco prima) non è un errore: resta nel
     # conteggio della riga ma non abbassa lo stato (prova viva 16 set: 19 «pa kod» su un verdetto giusto)
-    if s["unverified"] or v.get("fatti_da_precisare"):
+    if s["unverified"] or v.get("fatti_da_precisare") or n.get("foreign_unverified"):
         return "RESERVATIONS"
     return "VERIFIED"
 
@@ -211,6 +220,10 @@ def riga(v: dict, lang: str = "sq", tempo: dict | None = None, coverage: dict | 
         if s["unverified"]:
             b.append(f"{s['unverified']} da riscontrare")
         c = f"fatti {f} da precisare" if f else "fatti: nessuno da precisare"
+        if n.get("foreign_verified") or n.get("foreign_unverified"):
+            c += f" | diritto straniero/internazionale {n.get('foreign_verified', 0)} verificato"
+            if n.get("foreign_unverified"):
+                c += f" · {n['foreign_unverified']} non verificato"
         lab = "Verifica"
     else:
         a = [f"nene {n['verified']} të verifikuara"]
@@ -228,6 +241,10 @@ def riga(v: dict, lang: str = "sq", tempo: dict | None = None, coverage: dict | 
         if s["unverified"]:
             b.append(f"{s['unverified']} për t'u verifikuar")
         c = f"fakte {f} për t'u saktësuar" if f else "fakte: asnjë për t'u saktësuar"
+        if n.get("foreign_verified") or n.get("foreign_unverified"):
+            c += f" | e drejtë e huaj/ndërkombëtare {n.get('foreign_verified', 0)} e verifikuar"
+            if n.get("foreign_unverified"):
+                c += f" · {n['foreign_unverified']} e paverifikuar"
         lab = "Verifikimi"
     st = _STATO.get(lang, _STATO["sq"])[stato(v)]
     return f"> 🔎 **{lab}:** {' · '.join(a)} | {' · '.join(b)} | {c}{_tempo(tempo, lang)}{_copertura(coverage, lang)} — **{st}**"
@@ -264,6 +281,12 @@ def blocco_per_gjyqtarin(v: dict, lang: str = "sq", coverage: dict | None = None
             r.append(f"- «{b}» → non confermata")
         if v.get("fatti_da_precisare"):
             r.append(f"La risposta segnala {v['fatti_da_precisare']} fatto/i da precisare («Per precisione»).")
+        if n.get("foreign"):
+            r.append(f"Citazioni di DIRITTO STRANIERO dichiarato: {n.get('foreign_verified', 0)} verificate nel corpus dell'altra giurisdizione, "
+                     f"{n.get('foreign_unverified', 0)} non verificate — fonte straniera, mai base della decisione in questa giurisdizione.")
+            for b in n["foreign"][:8]:
+                r.append(f"- «{b['raw']}» → {'verificata' if b['status'] == 'foreign_verified' else ('ABROGATA nel suo corpus' if b['status'] == 'foreign_repealed' else 'NON verificata')}"
+                         + (f" ({b['code']}: {b['heading']})" if b.get("heading") else ""))
     else:
         r.append(f"Nenet e cituara në përgjigje: {n['verified']} të verifikuara në korpusin zyrtar, "
                  f"{n['repealed']} TË SHFUQIZUARA, {n['fake']} NUK EKZISTOJNË në korpus, {n.get('unconstitutional', 0)} të shpallura antikushtetuese, "
@@ -280,6 +303,12 @@ def blocco_per_gjyqtarin(v: dict, lang: str = "sq", coverage: dict | None = None
             r.append(f"- «{b}» → e pakonfirmuar")
         if v.get("fatti_da_precisare"):
             r.append(f"Përgjigja sinjalizon {v['fatti_da_precisare']} fakt(e) për t'u saktësuar («Për saktësi»).")
+        if n.get("foreign"):
+            r.append(f"Citime nga E DREJTA E HUAJ e deklaruar: {n.get('foreign_verified', 0)} të verifikuara në korpusin e juridiksionit tjetër, "
+                     f"{n.get('foreign_unverified', 0)} të paverifikuara — burim i huaj, kurrë bazë vendimi në këtë juridiksion.")
+            for b in n["foreign"][:8]:
+                r.append(f"- «{b['raw']}» → {'e verifikuar' if b['status'] == 'foreign_verified' else ('E SHFUQIZUAR në korpusin e vet' if b['status'] == 'foreign_repealed' else 'E PAVERIFIKUAR')}"
+                         + (f" ({b['code']}: {b['heading']})" if b.get("heading") else ""))
     return "\n".join(r)
 
 

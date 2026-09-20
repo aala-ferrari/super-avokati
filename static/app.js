@@ -1710,7 +1710,7 @@
   function buildCitStatusMap(citations) {
     const map = new Map();
     if (!citations || !Array.isArray(citations.items)) return map;
-    const rank = { fake: 4, repealed: 3, needs_code: 2, verified: 1 };
+    const rank = { fake: 4, repealed: 3, needs_code: 2, foreign_unverified: 2, foreign_repealed: 2, verified: 1, foreign_verified: 1 };
     const numRe = /Neni\s*(\d+(?:[\/-][a-zçëA-ZÇË0-9]+)?)/;
     for (const c of citations.items) {
       const m = numRe.exec(c.raw || "");
@@ -1739,6 +1739,9 @@
       fake: "neni-cite-fake",
       repealed: "neni-cite-warn",
       needs_code: "neni-cite-warn",
+      foreign_verified: "neni-cite-ok",
+      foreign_repealed: "neni-cite-warn",
+      foreign_unverified: "neni-cite-warn",
     };
     for (const n of toReplace) {
       const frag = document.createDocumentFragment();
@@ -1756,6 +1759,8 @@
         if (status === "fake") span.title = "⚠ Citim që nuk u gjet në korpus";
         if (status === "repealed") span.title = "⚠ Neni ekziston por është shfuqizuar";
         if (status === "needs_code") span.title = "ℹ Kod i pa-specifikuar — verifiko";
+        if (status === "foreign_verified") span.title = _CAL_IT ? "Diritto straniero — verificato nel suo corpus" : "E drejtë e huaj — e verifikuar në korpusin e vet";
+        if (status === "foreign_unverified" || status === "foreign_repealed") span.title = _CAL_IT ? "⚠ Diritto straniero — non verificato" : "⚠ E drejtë e huaj — e paverifikuar";
         span.textContent = m[0];
         frag.appendChild(span);
         last = m.index + m[0].length;
@@ -2086,6 +2091,8 @@
     const needs = stats.needs_code || 0;
     const repealed = stats.repealed || 0;
     const stale = stats.stale || 0;
+    const fVer = stats.foreign_verified || 0;
+    const fUnv = (stats.foreign_unverified || 0) + (stats.foreign_repealed || 0);
     const dStats = (decPayload && decPayload.stats) || {};
     const dItems = (decPayload && decPayload.items) || [];
     const dVer = dStats.verified || 0;
@@ -2099,7 +2106,7 @@
     if (fake > 0) {
       level = "danger"; icon = "⚠";
       label = base + " · " + fake + (_CAL_IT ? (fake === 1 ? " articolo inesistente" : " articoli inesistenti") : (fake === 1 ? " nen fantazmë" : " nene fantazmë"));
-    } else if (repealed > 0 || needs > 0 || dUnv > 0) {
+    } else if (repealed > 0 || needs > 0 || dUnv > 0 || fUnv > 0) {
       level = "partial"; icon = "🛡";
       label = (_CAL_IT ? "Verificato: " : "Verifikuar: ") + base +
         (repealed ? " · " + repealed + (_CAL_IT ? " articoli abrogati" : " nene të shfuqizuara") : "") +
@@ -2111,6 +2118,9 @@
     }
 
     if (stale > 0 && level !== "danger") { label += " · ⏳ " + stale + " për t\u2019u rifreskuar"; }
+    if (fVer + fUnv > 0) {
+      label += " · " + (_CAL_IT ? "diritto straniero " : "e drejtë e huaj ") + fVer + " ✓" + (fUnv ? " · " + fUnv + " ?" : "");
+    }
     const decHtml = dItems.length ? ('<div class="cit-dechead">Vendime të cituara</div><ul class="cit-list">' +
       dItems.map(function (dc) {
         var ok = dc.status === "verified";

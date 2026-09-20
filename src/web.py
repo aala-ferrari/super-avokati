@@ -156,6 +156,11 @@ def _ensure_loaded() -> None:
                 log.info("IT index loaded: %d articles", len(_INDEX_IT.articles))
         except Exception as exc:  # noqa: BLE001
             log.warning("IT index not loaded: %s", exc)
+        try:                       # v9.350: diritto straniero dichiarato → verificato sull'altro corpus
+            from . import citation_verifier as _cvr
+            _cvr.registra_indici(al=_INDEX, it=_INDEX_IT)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("registro indici del verificatore: %s", exc)
     if _BRAIN is None and detect_available_backend():
         try:
             _BRAIN = SuperAvvocato(index=_INDEX, index_it=_INDEX_IT)

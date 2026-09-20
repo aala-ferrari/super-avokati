@@ -332,17 +332,28 @@ def _model_limit_hit(stdout: str, stderr: str) -> bool:
     return bool(_MODEL_LIMIT_RE.search((stdout or "") + " " + (stderr or "")))
 
 
+# 20 set 2026 — la pausa si contava DUE volte: «fable» (alias usato da Genio/secondo parere/drafter) e
+# «claude-fable-5-1» (studio) sono lo stesso modello, ma la mappa li teneva separati → una chiamata a
+# vuoto in più per ogni alias (visto nel log del 19 set: 23:10 e 23:11). Nome canonico per entrambi.
+_MODEL_CANON = {"fable": "claude-fable-5-1", "opus": "claude-opus-5", "sonnet": "claude-sonnet-5"}
+
+
+def _canon(model: str | None) -> str:
+    m = (model or "").strip()
+    return _MODEL_CANON.get(m.lower(), m)
+
+
 def modello_in_pausa(model: str | None) -> float:
     """Secondi che restano della pausa (0 = libero)."""
     if not model:
         return 0.0
     with _MODEL_LIMIT_LOCK:
-        return max(0.0, _MODEL_LIMIT_UNTIL.get(model, 0.0) - time.time())
+        return max(0.0, _MODEL_LIMIT_UNTIL.get(_canon(model), 0.0) - time.time())
 
 
 def _metti_in_pausa(model: str) -> None:
     with _MODEL_LIMIT_LOCK:
-        _MODEL_LIMIT_UNTIL[model] = time.time() + MODEL_LIMIT_PAUSE_S
+        _MODEL_LIMIT_UNTIL[_canon(model)] = time.time() + MODEL_LIMIT_PAUSE_S
 
 
 def _segna_pausa_per_avviso(model: str, msg: str) -> None:

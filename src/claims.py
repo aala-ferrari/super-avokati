@@ -124,7 +124,7 @@ def lega(claims: list[dict], index, jurisdiction: str = "AL", retrieved_codes=No
                 pass
         if any(s in ("fake", "repealed") for s in st):
             stato = "CONTRADICTED"
-        elif "verified" in st:
+        elif "verified" in st or "foreign_verified" in st:
             stato = "SUPPORTED"
         elif st:
             stato = "WEAK"

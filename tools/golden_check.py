@@ -1408,8 +1408,8 @@ def main():
         check("studio[29]: alias modelesh — sonnet=fast pa effort, opus=senior, id=override",
               _kw == {"fast": True} and _kw2 == {"effort_override": "medium"}
               and _kw3 == {"model_override": "claude-fable-5-1", "effort_override": "max"})
-        check("studio[29]: config-i i roleve ekziston me default (kërkues sonnet, djalli max)",
-              _cfgs.STUDIO_KERKUES_MODEL and _cfgs.STUDIO_DJALLI_EFFORT == "max" and _cfgs.STUDIO_DJALLI_MODEL == "claude-fable-5-1"
+        check("studio[29]: config-i i roleve ekziston me default (kërkues sonnet, djalli high — scelta del titolare 20 set)",
+              _cfgs.STUDIO_KERKUES_MODEL and _cfgs.STUDIO_DJALLI_EFFORT == "high" and _cfgs.STUDIO_DJALLI_MODEL == "claude-fable-5-1"
               and isinstance(_cfgs.STUDIO_KERKUES_MAX_NENE, int))
         check("studio[29]: truri thërret kërkuesin pas retrieval dhe e paraqet nenin si GJETUR NGA KËRKUESI",
               hasattr(brain.SuperAvvocato, "_studio_kerkuesi")
@@ -2895,7 +2895,7 @@ def main():
         _srcB = open(_br81.__file__, encoding="utf-8").read()
         _srcS = open(_st81.__file__, encoding="utf-8").read()
         _okE = ("verifikimi=trust_line.blocco_per_gjyqtarin(v1, lang, coverage=_cov)" in _srcB
-                and "v2 = trust_line.verifica(final" in _srcB
+                and "final, v2 = self._cancello(final" in _srcB
                 and 'verifikimi: str = ""' in _srcS and "VERIFICA DETERMINISTICA DELLE CITAZIONI" in _srcS
                 and "VERIFIKIMI DETERMINIST I CITIMEVE" in _srcS
                 and "VERIFICA DETERMINISTICA (se ti viene data)" in _st81.GJYQTARI_SYSTEM["it"]
@@ -3187,7 +3187,8 @@ def main():
                 and "🧾 Pse kjo përgjigje" in _js and "Gjyqtari i fundit" in _js and "Giudice finale" in _js
                 and not _re2.search(r"opus|fable|sonnet|anthropic", _js[_js.find("function renderAuditTrail"): _js.find("function renderAuditTrail") + 6000], _re2.I))
         _html91 = _io2.open(_os2.path.join(_os2.path.dirname(_os2.path.dirname(_os2.path.abspath(__file__))), "templates", "index.html"), encoding="utf-8").read()
-        _okF = "app.js?v=171" in _html91 and "style.css?v=142" in _html91 and ".prov-audit" in _io2.open(_os2.path.join(_os2.path.dirname(_os2.path.dirname(_os2.path.abspath(__file__))), "static", "style.css"), encoding="utf-8").read()
+        import re as _re91
+        _okF = _re91.search(r"app\.js\?v=\d+", _html91) is not None and _re91.search(r"style\.css\?v=\d+", _html91) is not None and ".prov-audit" in _io2.open(_os2.path.join(_os2.path.dirname(_os2.path.dirname(_os2.path.abspath(__file__))), "static", "style.css"), encoding="utf-8").read()
         check("audit[91]: pacchetto di audit per risposta (12 annotazioni lungo la pipeline, reset per richiesta, passi con tempi) → provenance pack extra.audit in entrambi i percorsi → pannello «Perché questa risposta / Pse kjo përgjigje» bilingue senza nomi di modello; worker delle fasi condividono audit/copertura e riportano il tempo",
               bool(_okA) and _okB and _okC and _okD and _okE and _okF,
               "info=%s annot=%s worker=%s web=%s js=%s asset=%s" % (bool(_okA), _okB, _okC, _okD, _okE, _okF))
@@ -3396,6 +3397,49 @@ def main():
               '"backend": "tetramorph"' in _src98 and "backend.name" not in _src98, _src98[-160:].replace("\n", " "))
     except Exception as _e98:  # noqa: BLE001
         check("status[98]: kontrollet u ekzekutuan", False, str(_e98))
+
+    # ── [99] v9.350 — ROADMAP v4, punti 1+2: IL CANCELLO («niente di non verificato arriva all'avvocato»)
+    # + DIRITTO STRANIERO DICHIARATO. (a) una citazione italiana in un testo albanese si verifica sul
+    # corpus italiano ed esce foreign_verified/unverified, mai «fake» (falso rosso della prova viva del
+    # 19 set: art. 93-bis CdS); (b) sul testo finale ciò che il corpus boccia viene corretto o BARRATO in
+    # modo deterministico (senza modello): «nenit ~~9999~~ … [⛔ citim i hequr]», e il verificatore non lo
+    # rilegge; abrogato etichettato solo se la riga non lo dice già; (c) cablato in TUTTI i percorsi
+    # (Giudice, ⚡, Giudice caduto, semplice) PRIMA della Trust Line; (d) diavolo a HIGH, Giudice a MAX ──
+    try:
+        import inspect as _insp99
+        from src import citation_verifier as _cv99, trust_line as _tl99, cancello as _cn99, brain as _br99, config as _cfg99
+        _al99 = ArticleIndex.load(_P81("/app/data/index/bm25.pkl"))
+        _it99 = ArticleIndex.load(_P81("/app/data/index/bm25_it.pkl"))
+        _t = ("Sipas nenit 93-bis i Codice della Strada duhet dokument; neni 132 i Codice della Strada lejon një vit. "
+              "Art. 132 CdS e konfirmon. Art. 9999 c.c. nuk ekziston. Neni 114 i Kodit Civil është shqiptar.")
+        _r = _cv99.verify_text(_t, _al99, foreign_index=_it99); _st = _r["stats"]; _it = _r["items"]
+        _okA = (_st["fake"] == 0 and _st["foreign_verified"] == 2 and _st["foreign_unverified"] == 1 and _st["total"] == 1
+                and any(i["status"] == "verified" and i["code"] == "kodi_civil" for i in _it)
+                and any(i["status"] == "foreign_verified" and i["code"] == "codice_strada" and i["resolved_by"] == "straniero" for i in _it))
+        _r2 = _cv99.verify_text("Il neni 114 i Kodit Civil shqiptar prevede dieci anni; art. 2946 c.c. in Italia.", _it99, foreign_index=_al99)
+        _okA2 = any(i["status"] == "foreign_verified" and i["code"] == "kodi_civil" for i in _r2["items"]) and _r2["stats"]["verified"] == 1
+        _v = _tl99.verifica(_t, _al99, "AL", foreign_index=_it99)
+        _okB = (_v["nene"]["fake"] == 0 and _v["nene"]["foreign_verified"] == 2 and _tl99.stato(_v) == "RESERVATIONS"
+                and "huaj" in _tl99.riga(_v, "sq") and "E DREJTA E HUAJ" in _tl99.blocco_per_gjyqtarin(_v, "sq")
+                and "straniero" in _tl99.riga(_v, "it"))
+        _t2 = ("Sipas nenit 114 të Kodit Civil parashkrimi është dhjetë vjet.\nSipas nenit 9999 të Kodit Civil ka rregull.\n"
+               "Neni 420 i Kodit të Procedurës Civile parashikon ankimin.\nNeni 79 i K.Pr.C. është shfuqizuar me ligjin 122/2013.\n")
+        _out, _rap, _v3 = _cn99.applica(_t2, _al99, "AL", "sq", backend=None)
+        _okC = ("nenit ~~9999~~" in _out and "citim i hequr" in _out and _out.count("[⚠ nen i shfuqizuar]") == 1
+                and "Neni 79 i K.Pr.C. është shfuqizuar me ligjin 122/2013." in _out and "nenit 114 të Kodit Civil parashkrimi" in _out
+                and _v3["nene"]["fake"] == 0 and _rap["prima"] == 3 and _rap["rimossi"] == 1 and _rap["dopo"] == 0)
+        _okC2 = _cn99.applica("Sipas nenit 114 të Kodit Civil.", _al99, "AL", "sq", backend=None)[0] == "Sipas nenit 114 të Kodit Civil."
+        _okC3 = _cn99.applica("Secondo l'art. 9999 c.c. vale.", _it99, "IT", "it", backend=None)[0].startswith("Secondo l'art. ~~9999~~ c.c. vale. [⛔ citazione rimossa")
+        _src = _insp99.getsource(_br99.SuperAvvocato._gjyqtari_fundit); _src2 = _insp99.getsource(_br99.SuperAvvocato._riga_fiducie)
+        _okD = (_src.count("self._cancello(") == 3 and "self._cancello(" in _src2
+                and _src.index("self._cancello(final") < _src.index("trust_line.riga(v2")
+                and "registra_indici" in _insp99.getsource(_br99.SuperAvvocato.__init__))
+        _okE = _cfg99.STUDIO_DJALLI_EFFORT == "high" and _cfg99.STUDIO_GJYQTARI_EFFORT == "max"
+        check("cancello[99]: diritto straniero dichiarato verificato sull'altro corpus (mai «fake», AL↔IT) · Trust Line/blocco al Giudice lo dicono · cancello deterministico barra il fantasma, etichetta l'abrogato una volta sola, lascia intatto il verificato · cablato in tutti i percorsi prima della riga · diavolo HIGH, Giudice MAX",
+              _okA and _okA2 and _okB and _okC and _okC2 and _okC3 and _okD and _okE,
+              "straniero=%s/%s trust=%s cancello=%s/%s/%s wiring=%s effort=%s" % (_okA, _okA2, _okB, _okC, _okC2, _okC3, _okD, _okE))
+    except Exception as _e99:  # noqa: BLE001
+        check("cancello[99]: kontrollet u ekzekutuan", False, str(_e99))
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

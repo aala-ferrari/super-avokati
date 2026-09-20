@@ -469,7 +469,8 @@ _LIST_SEP = r"(?:\s*(?:,|;|\bdhe\b|\be\b)\s*)"
 # «neni 155, pika 1, ndërsa Kodi Civil…» NON attraversa (la coda resta vuota → «pa kod», come prima).
 # valori: cifre dopo «pika/paragrafi/fjalia», lettere SOLO dopo «shkronja/germa» («"d"», «dh)», «c»);
 # una lettera nuda mai seguita da un punto («, L.», «, c.c.» sono codici, non lettere) né una particella
-_SUB_NUM = r"\d{1,3}(?![\w/])\)?"
+# «pika 1-bis» (sotto-riferimento di stile italiano dentro una citazione albanese di diritto straniero)
+_SUB_NUM = r"\d{1,3}(?:-(?:bis|ter|quater|quinquies|sexies|septies|octies|novies|decies))?(?![\w/])\)?"
 _SUB_LET = (r"(?:[\"“«'][a-zçë]{1,2}[\"”»']|[a-zçë]{1,2}\)|"
             r"(?!(?:e|i|t[ëe]|s[ëe]|me|n[ëe]|se|ose|dhe|po|si|sa)(?![\wçë]))[a-zçë]{1,2}(?![\wçë/.]))")
 _SUB_AL = (r"(?:\s*,?\s*(?:(?:pik[aë]t?|paragraf\w{0,3}|fjali[aë]?|n[ëe]npik[aë]t?)\s+" + _SUB_NUM +
@@ -1012,6 +1013,29 @@ def _codes_for_number(num_to_codes: dict, number: str,
     return codes
 
 
+# 20 set 2026 (v9.350) — DIRITTO STRANIERO DICHIARATO. In sessione albanese il cervello cita a volte una
+# norma italiana («neni 93-bis i Codice della Strada», «art. 132 CdS»): cercata nel corpus albanese usciva
+# «nen fantazmë» e la Trust Line diventava rossa su una risposta giusta (prova viva del 19 set). Ora la
+# citazione si riconosce come STRANIERA (il codice si risolve con gli alias dell'altra giurisdizione) e si
+# verifica sul corpus dell'altra giurisdizione: «foreign_verified» / «foreign_repealed» /
+# «foreign_unverified» — mai «fake». Gli indici si registrano una volta (web._ensure_loaded, brain);
+# `verify_text(foreign_index=…)` li scavalca. La regola LINGUA = SESSIONE non cambia: cambia solo la verifica.
+INDICI: dict = {"sq": None, "it": None}
+
+
+def registra_indici(al=None, it=None) -> None:
+    if al is not None:
+        INDICI["sq"] = al
+    if it is not None:
+        INDICI["it"] = it
+
+
+def _indice_straniero(index, foreign_index):
+    if foreign_index is not None:
+        return foreign_index
+    return INDICI.get("it" if getattr(index, "lang", "sq") != "it" else "sq")
+
+
 def _codice_precedente(text: str, pos: int, resolve) -> str | None:
     """Anafora («neni 37, pika 1, i po këtij ligji», «art. 4 del medesimo decreto»): la legge o il
     codice nominato per ULTIMO nella finestra di testo PRIMA della citazione (17 set 2026). Si
@@ -1032,6 +1056,7 @@ def verify_text(
     *,
     retrieved_codes: Iterable[str] | None = None,
     context_text: str | None = None,
+    foreign_index=None,
 ) -> dict:
     """Scan ``text`` for ``Neni N <code>`` patterns and verify each one.
 
@@ -1061,6 +1086,12 @@ def verify_text(
     _resolve = _resolve_code_it if _lang == "it" else _resolve_code
     _cite_prefix = "art. " if _lang == "it" else "neni "
     _anafora_re = _ANAFORA_IT if _lang == "it" else _ANAFORA_AL
+    _resolve_foreign = _resolve_code if _lang == "it" else _resolve_code_it
+    _cite_re_foreign = CITATION_RE if _lang == "it" else CITATION_RE_IT
+    _num_re_foreign = _NUM_RE if _lang == "it" else _NUM_RE_IT
+    _findex = _indice_straniero(index, foreign_index)
+    _flk = _build_lookup(_findex) if _findex is not None else None
+    _flk_all = _build_lookup_all(_findex) if _findex is not None else None
 
     # 17 set 2026 — LEGAME A LIVELLO DI DOCUMENTO: «Neni 144 i Kodit të Punës … Pika 5 e nenit 144»,
     # «nenit 155/4» dopo «neni 155, pika 1, i Kodit të Punës». Il numero nudo prende il codice che LO
@@ -1092,6 +1123,25 @@ def verify_text(
 
     seen: set[tuple[str, str]] = set()  # dedupe (number, code-or-empty)
     citations: list[Citation] = []
+
+    def _emit_foreign(number: str, fcode: str, raw: str) -> None:
+        """Citazione dell'altra giurisdizione: verificata sul SUO corpus, mai «fake» (v9.350)."""
+        key = (number, "F:" + fcode)
+        if key in seen:
+            return
+        seen.add(key)
+        st, heading = "foreign_unverified", None
+        if _flk is not None:
+            art = _verify_number(_flk, fcode, number)
+            if art is not None:
+                st, heading = "foreign_verified", getattr(art, "heading", None)
+            else:
+                rart = _verify_number(_flk_all, fcode, number)
+                if rart is not None:
+                    st, heading = "foreign_repealed", getattr(rart, "heading", None)
+        citations.append(Citation(
+            raw=raw, number=number, code=fcode, code_label=CODE_LABELS.get(fcode, fcode),
+            status=st, candidates=[], article_heading=heading, resolved_by="straniero"))
 
     def _emit(number: str, code: str | None, raw: str, resolved_by: str | None = None) -> None:
         """Classify one (number, code) pair and append its Citation."""
@@ -1161,6 +1211,13 @@ def verify_text(
             full_raw = full_raw[:60].rstrip() + "…"
         multi = len(numbers) > 1
         kp_bare = _lang != "it" and _kp_bare(tail, code)
+        if code is None and not kp_bare:
+            _fcode = _resolve_foreign(tail)
+            if _fcode:
+                for number_raw in numbers:
+                    _emit_foreign(_normalise_number(number_raw), _fcode,
+                                  (_cite_prefix + number_raw) if multi else full_raw)
+                continue
         # anafora: «i po këtij ligji» / «del medesimo decreto» → l'ultima legge nominata prima
         anafora = None
         if code is None and not kp_bare and _anafora_re.match(tail):
@@ -1193,6 +1250,18 @@ def verify_text(
                 continue
             _emit(number, code_n, raw, via)
 
+    for m in _cite_re_foreign.finditer(text):
+        _fcode = _resolve_foreign(m.group("tail") or "")
+        if not _fcode:
+            continue            # «art. 5» senza codice in un testo albanese: non è una citazione verificabile
+        _nums = _num_re_foreign.findall(m.group("nums"))
+        _raw = text[m.start():m.end()].strip()
+        if len(_raw) > 60:
+            _raw = _raw[:60].rstrip() + "…"
+        for number_raw in _nums:
+            _emit_foreign(_normalise_number(number_raw), _fcode,
+                          (("art. " if _lang != "it" else "neni ") + number_raw) if len(_nums) > 1 else _raw)
+
     for _c in citations:
         if _c.status in ("verified", "repealed") and _c.code:
             _a = (_verify_number(lookup, _c.code, _c.number)
@@ -1207,7 +1276,11 @@ def verify_text(
         "needs_code": sum(1 for c in citations if c.status == "needs_code"),
         "stale": sum(1 for c in citations if c.status == "verified"
                      and (c.volatility or "").upper() == "MEDIUM"),
-        "total": len(citations),
+        "foreign_verified": sum(1 for c in citations if c.status == "foreign_verified"),
+        "foreign_repealed": sum(1 for c in citations if c.status == "foreign_repealed"),
+        "foreign_unverified": sum(1 for c in citations if c.status == "foreign_unverified"),
+        # il totale resta NATIVO: la spilla mostra «verificati/totale» della giurisdizione della sessione
+        "total": sum(1 for c in citations if not c.status.startswith("foreign_")),
     }
     return {
         "items": [asdict(c) for c in citations],

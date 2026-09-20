@@ -2372,6 +2372,11 @@ class SuperAvvocato:
         self._jurisdiction_ctx = _threading.local()
         self.index = index or ArticleIndex.load()
         self.index_it = index_it  # V-IT: optional Italian corpus
+        try:                       # v9.350: il verificatore conosce ENTRAMBI i corpora (diritto straniero dichiarato)
+            from . import citation_verifier as _cvr
+            _cvr.registra_indici(al=index, it=index_it)
+        except Exception:  # noqa: BLE001
+            pass
         # Legal KB (Postgres) is optional — if the DB is unreachable the
         # brain still works on articles alone. We don't want an outage of
         # the precedent store to take down the citizen-facing answer flow.
@@ -3609,6 +3614,26 @@ class SuperAvvocato:
             log.warning("studio djalli fallito (non-fatal): %s", exc)
             return answer_text
 
+    def _cancello(self, text: str, retrieved, lang: str, jur: str):
+        """v9.350 — IL CANCELLO (roadmap v4, punto 1): sul testo finale, prima della Trust Line, nulla di
+        bocciato dal corpus arriva all'avvocato — correzione mirata col modello del Giudice, poi
+        rimozione deterministica di ciò che resta. Torna (testo, verifica_finale). Fail-safe."""
+        from . import cancello as _cn, trust_line
+        try:
+            from .config import STUDIO_GJYQTARI_MODEL
+            idx = self.index_it if (self.index_it is not None and jur == "IT") else self.index
+            fidx = self.index if (self.index_it is not None and jur == "IT") else self.index_it
+            _codes = {a.code for a, _ in (retrieved or [])} or None
+            out, rap, v = _cn.applica(text, idx, jur, lang, backend=self.backend, retrieved_codes=_codes,
+                                      modeli=STUDIO_GJYQTARI_MODEL, effort="high", foreign_index=fidx)
+            if rap.get("prima"):
+                _audit_set("cancello", rap)
+            return out, v
+        except Exception as exc:  # noqa: BLE001
+            log.warning("cancello: saltato (non-fatal): %s", exc)
+            idx = self.index_it if (self.index_it is not None and jur == "IT") else self.index
+            return text, trust_line.verifica(text, idx, jur)
+
     def _riga_fiducie(self, text: str, retrieved) -> str:
         """v9.338 — la Trust Line anche dove il Giudice non gira (percorso semplice, chiarimenti):
         stessa verifica deterministica, stessa riga in testa. Fail-silent."""
@@ -3619,8 +3644,7 @@ class SuperAvvocato:
             jur = self._current_jurisdiction()
             lang = "it" if jur == "IT" else "sq"
             idx = self.index_it if (self.index_it is not None and jur == "IT") else self.index
-            _codes = {a.code for a, _ in (retrieved or [])} or None
-            v = trust_line.verifica(text, idx, jur, retrieved_codes=_codes)
+            text, v = self._cancello(text, retrieved, lang, jur)     # v9.350: niente di bocciato passa
             try:
                 from . import temporal as _tmp
                 _tempo = _tmp.ultimo_info()
@@ -3700,6 +3724,7 @@ class SuperAvvocato:
                             _audit_set("claims", _r)
                     except Exception:  # noqa: BLE001
                         pass
+                answer_text, v1 = self._cancello(answer_text, retrieved, lang, jur)     # v9.350
                 return trust_line.inserisci_riga(answer_text, trust_line.riga(v1, lang, tempo=_tempo, coverage=_cov), "")
             try:
                 vendim = studio.gjyqtari_fundit(
@@ -3726,6 +3751,7 @@ class SuperAvvocato:
                          ("> ⚖️ *Gjyqtari i Fundit nuk mundi të shprehet (shërbimi i ngarkuar): përgjigja është ajo e "
                           "seniorit me kundërpërgjigjet ndaj avokatit të djallit — verifikimi i citimeve më sipër "
                           "është bërë gjithsesi.*"))
+                answer_text, v1 = self._cancello(answer_text, retrieved, lang, jur)     # v9.350
                 return trust_line.inserisci_riga(answer_text, trust_line.riga(v1, lang, tempo=_tempo, coverage=_cov) + "\n" + _nota, "")
             vendim = _apply_corrections(_verify_citations(vendim, precedents))
             log.info("studio: gjyqtari i fundit ka dhënë vendimin (%d shkronja)", len(vendim))
@@ -3735,7 +3761,9 @@ class SuperAvvocato:
             # v9.316 — il verdetto IN TESTA (prima la decisione, poi l'analisi completa);
             # v9.331 — la TRUST LINE (categorica, ricalcolata sul testo finale) sotto il titolo
             final = vendim + answer_text
-            v2 = trust_line.verifica(final, idx, jur, retrieved_codes=_codes)
+            # v9.350 — IL CANCELLO: il Giudice scrive il verdetto ma non riscrive il corpo; ciò che il corpus
+            # boccia nel testo finale viene corretto (modello) o barrato (deterministico) PRIMA della riga
+            final, v2 = self._cancello(final, retrieved, lang, jur)
             final = trust_line.inserisci_riga(
                 final, trust_line.riga(v2, lang, tempo=_tempo, coverage=_cov),
                 studio.TITULLI_GJYQTARI.get(lang, studio.TITULLI_GJYQTARI["sq"]))

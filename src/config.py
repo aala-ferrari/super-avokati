@@ -542,7 +542,9 @@ STUDIO_DJALLI_ENABLED = os.getenv("STUDIO_DJALLI_ENABLED", "1") == "1"
 STUDIO_RED2_ENABLED = os.getenv("STUDIO_RED2_ENABLED", "1") == "1"  # 2° round avversarial condizionale
 WAR_ROOM_LOOP_ENABLED = os.getenv("WAR_ROOM_LOOP_ENABLED", "1") == "1"  # research loop (max-mode)
 STUDIO_DJALLI_MODEL = os.getenv("STUDIO_DJALLI_MODEL", "claude-fable-5-1")  # esplicito: CLI >= 2.1.251
-STUDIO_DJALLI_EFFORT = os.getenv("STUDIO_DJALLI_EFFORT", "max")
+# 20 set 2026 — scelta del titolare: il diavolo a HIGH (misurato: 11 min a max + 3 del secondo giro;
+# «pensando più del dovuto rompe le idee»). Il Giudice resta a MAX (ultimo arbitro, ~2 min).
+STUDIO_DJALLI_EFFORT = os.getenv("STUDIO_DJALLI_EFFORT", "high")
 
 # ── Il Giudice Finale (Gjyqtari i Fundit) — arbitro finale (v9.309) ──────
 # Spec del titolare (11 set 2026): tutti gli agenti (Opus senior, i raccoglitori
