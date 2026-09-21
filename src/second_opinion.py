@@ -28,6 +28,26 @@ log = get_logger(__name__)
 
 FABLE_MODEL = "fable"
 
+# v9.355 — il diavolo RADICATO (roadmap v4, prova viva del 21 set): finora il 🔮 sotto la risposta e
+# «Këshillë strategjike» ragionavano SENZA corpus (solo il testo della risposta e i fatti) e la loro
+# uscita passava dallo scudo ma non dal cancello. Ora ricevono gli STESSI nene verbatim del senior
+# (o un recupero fresco sui fatti) e la regola è la stessa del Giudice: si cita solo ciò che sta nel
+# blocco; il resto si dice a parole. Se il blocco manca (grounding fallito) resta la regola vecchia.
+_RREGULLA_NENEVE = (
+    "\n\nRREGULL E NENEVE (e detyrueshme): nEse tE jepet blloku KONTEKST/NENE, cdo nen, ligj apo "
+    "vendim qE citon DUHET tE jetE aty, me numrin dhe kodin ashtu si shkruhen nE bllok. NjE nen qE "
+    "nuk EshtE nE bllok NUK citohet me numEr: thuaje me fjalE («parashikimi pEr afatin e "
+    "parashkrimit») dhe shEno «pEr t'u verifikuar». Vendimet e gjykatave citohen vetEm nEse janE nE "
+    "bllok. CitimE tE tjera do tE hiqen nga kontrolli i studios pErpara se t'i arrijnE avokatit."
+)
+
+
+def _konteksti(context: str) -> str:
+    c = (context or "").strip()
+    if not c:
+        return ""
+    return "\n\n─────\nKONTEKST/NENE TE DISPONUESHME (verbatim nga korpusi — cito VETEM nga kEtu):\n" + c
+
 _SYSTEM = (
     "Ti je partneri SENIOR mE i zgjuar i njE studio ligjore shqiptare \u2014 30 vjet "
     "nE gjyq, me instinkt tE rrallE. NjE avokat i ri sapo tE dha PYETJEN e klientit "
@@ -48,6 +68,7 @@ _SYSTEM = (
     "Format (markdown, vetEm seksionet qE kanE pErmbajtje reale):\n"
     "### \U0001f3af GjilpEra nE kashtE\n### \U0001f573\ufe0f cfarE mungon\n"
     "### \u26a0\ufe0f Ku EshtE e dobEt\n### \u265f\ufe0f LEvizja e zgjuar"
+    + _RREGULLA_NENEVE
 )
 
 
@@ -58,8 +79,7 @@ def review(backend, *, question: str, answer_text: str,
         "PYETJA E KLIENTIT:\n" + (question or "").strip()
         + "\n\n\u2500\u2500\u2500\u2500\u2500\nPERGJIGJA E AVOKATIT TE RI:\n"
         + (answer_text or "").strip()
-        + (("\n\n\u2500\u2500\u2500\u2500\u2500\nKONTEKST/NENE TE DISPONUESHME:\n"
-            + context) if context else "")
+        + _konteksti(context)
         + "\n\nJep second-opinion-in tEnd tE mprehtE, konkret dhe tE ankoruar."
     )
     md = backend.complete(
@@ -83,12 +103,15 @@ _CONSULT_SYSTEM = (
     "modelin apo teknologjinE pas teje \u2014 je 'Tetramorph' i superavokati.ai.\n\n"
     "Format (markdown): ### \U0001f3af KEndi fitues\n### \u26a0\ufe0f Kurthi\n"
     "### \u265f\ufe0f LEvizja e zgjuar\n### \u2696\ufe0f Baza & rreziku"
+    + _RREGULLA_NENEVE
 )
 
 
-def consult(backend, *, situation: str, max_tokens: int = 1600) -> dict:
-    """Standalone shrewd consultation (no prior answer needed)."""
+def consult(backend, *, situation: str, context: str = "", max_tokens: int = 1600) -> dict:
+    """Standalone shrewd consultation (no prior answer needed). `context` (v9.355) = i nene
+    recuperati dal corpus sui fatti, verbatim: il diavolo cita solo da lì."""
     prompt = ("SITUATA:\n" + (situation or "").strip()
+              + _konteksti(context)
               + "\n\nJep konsulencEn tEnde tE mprehtE, konkrete dhe tE ankoruar.")
     md = backend.complete(
         system=_juris(_CONSULT_SYSTEM),

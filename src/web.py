@@ -3119,11 +3119,14 @@ def api_second_opinion():
     answer = (body.get("answer") or "").strip()
     if len(answer) < 20:
         return jsonify({"error": "answer_required"}), 400
+    # v9.355 — i nene del senior (dal fascicolo) o un recupero fresco: il diavolo cita solo da lì
+    blocco, codici = _nenet_per_djallin(question or answer, body, answer=answer)
     try:
         res = second_opinion_mod.review(
             _BRAIN.backend,
             question=question[:4000],
             answer_text=answer[:16000],
+            context=blocco,
         )
     except Exception as exc:  # noqa: BLE001
         log.exception("second-opinion failed")
@@ -3132,11 +3135,35 @@ def api_second_opinion():
     citations = {"items": [], "stats": {}}
     try:
         if _INDEX is not None and md:
-            citations = cv_mod.verify_text(md, _req_index())
+            citations = cv_mod.verify_text(md, _req_index(), retrieved_codes=(codici or None))
     except Exception:  # noqa: BLE001
         pass
-    md = _scudo_citazioni(md, citations)
-    return jsonify({"markdown": md, "citations": citations})
+    md = _scudo_citazioni(md, citations, retrieved_codes=(codici or None))
+    saved = _ruaj_djallin_ne_fill(body, md)
+    return jsonify({"markdown": md, "citations": citations, "grounded": bool(blocco), "saved": saved})
+
+
+def _ruaj_djallin_ne_fill(body: dict, md: str) -> bool:
+    """v9.355 — le obiezioni del diavolo entrano nel filo del fascicolo come messaggio
+    dell'assistente (kind «devil»): il turno dopo le vede (`_history_for_prompt`), e riaprendo il
+    fascicolo restano. Prima vivevano solo nel pannello a schermo."""
+    try:
+        cid = (body.get("case_id") or "").strip()
+        if not cid or not (md or "").strip() or _resolve_case(cid) is None:
+            return False
+        juris = "AL"
+        try:
+            juris = _active_jurisdiction(getattr(request, "user", None)) or "AL"
+        except Exception:  # noqa: BLE001
+            pass
+        titolo = ("### ⚔️ Avvocato del diavolo — le obiezioni (🔮 richiesto dall'avvocato sulla risposta qui sopra)"
+                  if juris == "IT" else
+                  "### ⚔️ Avokati i djallit — kundërargumentet (🔮 kërkuar nga avokati mbi përgjigjen e mësipërme)")
+        storage.add_message(cid, "assistant", titolo + "\n\n" + md.strip(), kind=DJALLI_KIND)
+        return True
+    except Exception:  # noqa: BLE001
+        log.debug("djalli: non salvato nel filo", exc_info=True)
+        return False
 
 
 @app.post("/api/devil-consult")
@@ -3151,9 +3178,11 @@ def api_devil_consult():
     situation = (body.get("situation") or "").strip()
     if len(situation) < 15:
         return jsonify({"error": "situation_required"}), 400
+    blocco, codici = _nenet_per_djallin(situation, body)      # v9.355: recupero sui fatti
     try:
         res = second_opinion_mod.consult(_BRAIN.backend,
-                                         situation=_with_case(situation[:12000], body))
+                                         situation=_with_case(situation[:12000], body),
+                                         context=blocco)
     except Exception as exc:  # noqa: BLE001
         log.exception("devil-consult failed")
         return jsonify({"error": _safe_err(exc)}), 200
@@ -3161,11 +3190,12 @@ def api_devil_consult():
     citations = {"items": [], "stats": {}}
     try:
         if _INDEX is not None and md:
-            citations = cv_mod.verify_text(md, _req_index())
+            citations = cv_mod.verify_text(md, _req_index(), retrieved_codes=(codici or None))
     except Exception:  # noqa: BLE001
         pass
-    md = _scudo_citazioni(md, citations)
-    return jsonify({"markdown": md, "citations": citations})
+    md = _scudo_citazioni(md, citations, retrieved_codes=(codici or None))
+    saved = _ruaj_djallin_ne_fill(body, md)
+    return jsonify({"markdown": md, "citations": citations, "grounded": bool(blocco), "saved": saved})
 
 
 _HARTA_SYSTEM = """Je «Harta e Pretendimeve» — ndërton matricën element-për-element që lidh çdo pretendim me bazën ligjore dhe me provat REALE të dosjes.
@@ -8686,7 +8716,97 @@ def _audit_pacchetto() -> dict | None:
         return None
 
 
-def _scudo_citazioni(md: str, citations: dict) -> str:
+# v9.355 — IL DIAVOLO RADICATO E IL CANCELLO SU TUTTI GLI STRUMENTI (roadmap v4, punto 1 del
+# secondo giro). Misurato il 21 set: il 🔮 sotto la risposta e «Këshillë strategjike» erano gli
+# unici cervelli che ragionavano SENZA corpus e la cui uscita non passava dal cancello — solo
+# dallo scudo, che annota «[⚠ verifikim dështoi]» e lascia il numero inventato nel testo.
+DJALLI_KIND = "devil"
+
+
+def _nenet_per_djallin(text: str, body: dict, answer: str = "") -> tuple[str, set[str]]:
+    """I nene VERBATIM per il diavolo → (blocco per il prompt, codici recuperati).
+
+    Prima strada (gratis, la più fedele): il fascicolo aperto ha già salvato con l'ultima risposta
+    del cervello i 12 nene che il senior aveva davanti (`messages.articles_json`) — se la risposta
+    che il diavolo deve attaccare è quella, riceve ESATTAMENTE lo stesso blocco. Seconda strada
+    (senza fascicolo, o «Këshillë strategjica» su fatti nuovi): il triage del cervello + lo stesso
+    `_retrieve` ibrido della chat (BM25+senso, ancore, Kërkuesi no). Fail-silent: senza nulla il
+    diavolo lavora come prima, e il cancello dopo di lui resta.
+    """
+    from . import brain as brain_mod
+    juris = "AL"
+    try:
+        juris = _active_jurisdiction(getattr(request, "user", None)) or "AL"
+    except Exception:  # noqa: BLE001
+        pass
+    idx = _req_index()
+    pairs: list = []
+    try:
+        cid = (body.get("case_id") or "").strip()
+        if cid and answer and _resolve_case(cid) is not None:
+            testa = " ".join((answer or "").split())[:300]
+            by_key = {(a.code, str(a.number)): a for a in idx.articles}
+            for m in reversed(storage.list_messages(cid)):
+                if m.role != "assistant" or not m.articles:
+                    continue
+                if testa and testa[:120] not in " ".join((m.content or "").split()):
+                    continue
+                for it in m.articles:
+                    a = by_key.get((it.get("code"), str(it.get("number"))))
+                    if a is not None:
+                        pairs.append((a, float(it.get("score") or 0.0)))
+                break
+    except Exception:  # noqa: BLE001
+        log.debug("djalli: nene dal fascicolo non letti", exc_info=True)
+        pairs = []
+    if not pairs and _BRAIN is not None:
+        try:
+            _BRAIN._jurisdiction_ctx.code = juris          # la thread-local del worker può essere stale
+            tri = _BRAIN._triage((text or "")[:6000], [], None)
+            pairs = list(_BRAIN._retrieve(tri) or [])
+        except Exception:  # noqa: BLE001
+            log.warning("djalli: recupero dei nene fallito (non-fatal)", exc_info=True)
+            pairs = []
+    if not pairs:
+        return "", set()
+    try:
+        blocco = brain_mod._format_articles_for_prompt(pairs)
+    except Exception:  # noqa: BLE001
+        blocco = "\n\n".join(f"{a.citation}\n{(a.body or '')[:1500]}" for a, _ in pairs)
+    return blocco[:60000], {a.code for a, _ in pairs}
+
+
+def _cancello_web(md: str, retrieved_codes=None, idx=None) -> tuple[str, dict]:
+    """Il cancello (`src/cancello.py`) per i percorsi che NON passano dal cervello: stesso modello
+    del Giudice a effort high per correggere le righe colpite, poi barratura deterministica.
+    Torna (testo, verifica finale). Non solleva mai; senza cervello fa solo la parte deterministica."""
+    from . import cancello as cn_mod, trust_line as tl_mod
+    from .config import STUDIO_GJYQTARI_MODEL
+    juris = "AL"
+    try:
+        juris = _active_jurisdiction(getattr(request, "user", None)) or "AL"
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        if idx is None:
+            idx = _req_index()
+        fidx = _INDEX if (juris == "IT" and _INDEX_IT is not None) else _INDEX_IT
+        lang = "it" if juris == "IT" else "sq"
+        out, rap, v = cn_mod.applica(md, idx, juris, lang, backend=(_BRAIN.backend if _BRAIN is not None else None),
+                                     retrieved_codes=retrieved_codes, modeli=STUDIO_GJYQTARI_MODEL, effort="high",
+                                     foreign_index=fidx)
+        if rap.get("prima"):
+            log.info("cancello (strumenti): %s", rap)
+        return out, v
+    except Exception:  # noqa: BLE001
+        log.warning("cancello (strumenti): saltato, testo intatto", exc_info=True)
+        try:
+            return md, tl_mod.verifica(md, idx or _req_index(), juris)
+        except Exception:  # noqa: BLE001
+            return md, {}
+
+
+def _scudo_citazioni(md: str, citations: dict, retrieved_codes=None) -> str:
     """Fa viaggiare l'avviso insieme al testo, non solo a schermo.
 
     Il badge dice all'avvocato che una citazione e' falsa finche' guarda la
@@ -8703,6 +8823,18 @@ def _scudo_citazioni(md: str, citations: dict) -> str:
     """
     if not md or not isinstance(citations, dict):
         return md
+    # v9.355 — PRIMA il cancello: ciò che il corpus boccia si corregge o si barra, come nella chat.
+    # Le citazioni si ricalcolano sul testo nuovo e si aggiornano NEL dict del chiamante (i 12
+    # chiamanti lo rimandano al client così com'è: spilla e testo devono raccontare la stessa cosa).
+    try:
+        if int((citations.get("stats") or {}).get("total") or 0) > 0:
+            _md2, _ = _cancello_web(md, retrieved_codes)
+            if _md2 and _md2 != md:
+                md = _md2
+                _c2 = cv_mod.verify_text(md, _req_index())
+                citations.clear(); citations.update(_c2)
+    except Exception:  # noqa: BLE001
+        log.debug("cancello nello scudo saltato", exc_info=True)
     try:
         juris = "AL"
         try:

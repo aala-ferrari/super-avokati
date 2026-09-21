@@ -1324,7 +1324,7 @@
     try {
       const r = await fetch("/api/second-opinion", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: question || "", answer: answer || "" }),
+        body: JSON.stringify({ question: question || "", answer: answer || "", case_id: activeCaseId || null }),
       });
       const d = await r.json();
       if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
@@ -1338,6 +1338,7 @@
         panel.insertBefore(renderCitationsBadge(d.citations, null), bodyEl);
       }
       _addSaveToCase(panel, "devil", "Avokati i Djallit", d.markdown || "");
+      if (d.saved) { var _sn = document.createElement("div"); _sn.className = "so-note"; _sn.textContent = _CAL_IT ? "\ud83d\udccc Salvato nel filo del fascicolo: la prossima domanda lo vede." : "\ud83d\udccc U ruajt n\u00eb fillin e fashikullit: pyetja tjet\u00ebr e sheh."; panel.appendChild(_sn); }
     } catch (e) {
       panel.innerHTML = '<div class="so-err">' + (_CAL_IT ? 'Errore: ' : 'Gabim: ') + escapeHtml(e.message) + '</div>';
       btn.disabled = false;
@@ -1466,7 +1467,7 @@
     const citStatusMap = buildCitStatusMap(data.citations);
     highlightNeni(body, citStatusMap);
     linkCaseMarkers(body, data.precedents || []);
-    if (data.kind !== "error") _attachSecondOpinion(msgEl, _lastQuestion, data.text || "");
+    if (data.kind !== "error" && data.kind !== "devil") _attachSecondOpinion(msgEl, _lastQuestion, data.text || "");
     if (data.kind !== "error") _addSaveToCase(msgEl, "answer", _lastQuestion || "Përgjigje", data.text || "");
     if (data.kind === "answer" && _isSimpleAnswer(data)) _attachDeepButton(msgEl, _lastQuestion);
 

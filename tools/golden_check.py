@@ -3574,6 +3574,46 @@ def main():
     except Exception as _e104:  # noqa: BLE001
         check("kreu[104]: kontrollet u ekzekutuan", False, str(_e104))
 
+    # ── [105] v9.355 — IL DIAVOLO RADICATO + IL CANCELLO SU TUTTI GLI STRUMENTI (roadmap v4, secondo giro,
+    # 21 set): il 🔮 sotto la risposta (/api/second-opinion) e «Këshillë strategjike» (/api/devil-consult)
+    # ricevono i nene verbatim (dal fascicolo o da triage+_retrieve), la regola «cita solo dal blocco»,
+    # passano dal cancello (che ora vive DENTRO `_scudo_citazioni`, quindi vale per i 19 strumenti) e le
+    # obiezioni entrano nel filo come messaggio «devil» ──
+    try:
+        import inspect as _insp105
+        from src import web as _web105, second_opinion as _so105, citation_verifier as _cv105
+        _al105 = ArticleIndex.load(_P81("/app/data/index/bm25.pkl"))
+        _okA = ("context" in _insp105.signature(_so105.consult).parameters and "context" in _insp105.signature(_so105.review).parameters
+                and _so105._RREGULLA_NENEVE in _so105._SYSTEM and _so105._RREGULLA_NENEVE in _so105._CONSULT_SYSTEM
+                and "KONTEKST/NENE" in _so105._konteksti("Neni 1") and _so105._konteksti("  ") == "")
+        _s1 = _insp105.getsource(_web105.api_second_opinion); _s2 = _insp105.getsource(_web105.api_devil_consult)
+        _okB = all(k in _s1 for k in ("_nenet_per_djallin(", "context=blocco", "_ruaj_djallin_ne_fill(", "retrieved_codes=")) and \
+               all(k in _s2 for k in ("_nenet_per_djallin(", "context=blocco", "_ruaj_djallin_ne_fill("))
+        _s3 = _insp105.getsource(_web105._scudo_citazioni)
+        _okC = "_cancello_web(" in _s3 and _s3.index("_cancello_web(") < _s3.index("should_refuse(") and "citations.clear(); citations.update(" in _s3
+        _s4 = _insp105.getsource(_web105._ruaj_djallin_ne_fill); _s5 = _insp105.getsource(_web105._nenet_per_djallin)
+        _okD = "kind=DJALLI_KIND" in _s4 and _web105.DJALLI_KIND == "devil" and "⚔️" in _s4 and \
+               all(k in _s5 for k in ("articles_json", "_BRAIN._triage(", "_BRAIN._retrieve(", "_format_articles_for_prompt("))
+        # eseguito: il cancello deterministico dentro lo scudo (senza cervello) barra il fantasma e aggiorna la spilla
+        _txt = "Sipas nenit 9999 të Kodit Civil dhe nenit 114 të Kodit Civil, afati është dhjetë vjet."
+        _old_idx = _web105._INDEX; _web105._INDEX = _al105
+        try:
+            with _web105.app.test_request_context("/"):
+                _cits = _cv105.verify_text(_txt, _al105)
+                _fake0 = int(_cits["stats"].get("fake") or 0)
+                _out = _web105._scudo_citazioni(_txt, _cits)
+        finally:
+            _web105._INDEX = _old_idx
+        _okE = (_fake0 == 1 and "~~9999~~" in _out and "citim i hequr" in _out and "nenit 114" in _out
+                and int(_cits["stats"].get("fake") or 0) == 0 and int(_cits["stats"].get("verified") or 0) >= 1)
+        _js = open("/app/static/app.js", encoding="utf-8").read()
+        _okF = "case_id: activeCaseId || null" in _js and 'data.kind !== "devil"' in _js and "so-note" in _js
+        check("djalli[105]: 🔮 e «Këshillë strategjike» radicati (nene verbatim dal fascicolo o da triage+_retrieve, regola «cita solo dal blocco» nei due prompt) · cancello DENTRO lo scudo dei 19 strumenti (eseguito: 9999 barrato, 114 intatto, spilla aggiornata in place) · obiezioni salvate nel filo (kind devil) · client manda case_id e non rimette il 🔮 sul messaggio del diavolo",
+              _okA and _okB and _okC and _okD and _okE and _okF,
+              "prompt=%s endpoint=%s scudo=%s salva=%s eseguito=%s js=%s" % (_okA, _okB, _okC, _okD, _okE, _okF))
+    except Exception as _e105:  # noqa: BLE001
+        check("djalli[105]: kontrollet u ekzekutuan", False, str(_e105))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

@@ -7504,6 +7504,7 @@ main {
 .so-btn:hover { filter: brightness(.97); }
 .so-btn:disabled { opacity: .55; cursor: default; }
 .so-btn em { font-style: normal; font-weight: 500; color: #7a7fb0; font-size: .85rem; }
+.so-note { font-size: .82rem; opacity: .75; margin: .4rem 0 0; }
 .so-panel {
   margin-top: 12px; border: 1px solid #d3d7f2; border-left: 4px solid #5b60c4;
   border-radius: 12px; background: #fbfbfe; padding: 14px 18px;
