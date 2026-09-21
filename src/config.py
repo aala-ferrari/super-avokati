@@ -556,6 +556,11 @@ STUDIO_DJALLI_EFFORT = os.getenv("STUDIO_DJALLI_EFFORT", "high")
 STUDIO_GJYQTARI_ENABLED = os.getenv("STUDIO_GJYQTARI_ENABLED", "1") == "1"
 STUDIO_GJYQTARI_MODEL = os.getenv("STUDIO_GJYQTARI_MODEL", "claude-fable-5-1")
 STUDIO_GJYQTARI_EFFORT = os.getenv("STUDIO_GJYQTARI_EFFORT", "max")
+# v9.356 — sul percorso ⚡ (senior Fable max) il Giudice NON si salta più: senior e diavolo sono la
+# stessa mente, quindi l'arbitro deve essere un'ALTRA — «opus» = il modello del senior di default
+# (Opus 5) a effort max, con gli stessi nene verbatim del corpus. «off» = comportamento vecchio
+# (nessun Giudice in ⚡). Env E fallback.
+STUDIO_GJYQTARI_SKUADRA_MODEL = os.getenv("STUDIO_GJYQTARI_SKUADRA_MODEL", "opus")
 
 # ── Mbledhësit (raccoglitori) del percorso simple — gradino B (v9.271) ──
 # «sonnet» = Sonnet sul tier medium (HA il web); effort basso di proposito:

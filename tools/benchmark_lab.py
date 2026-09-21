@@ -325,7 +325,7 @@ def _versione() -> str:
 
 
 # ── run: strato 2 (cervello vero, via HTTP come il browser) ─────────────────
-def run_layer2(limit: int, only: str | None) -> dict:
+def run_layer2(limit: int, only: str | None, mode: str = "normal", ids: list[str] | None = None) -> dict:
     import http.cookiejar
     import urllib.request
     from src import citation_verifier as cv
@@ -336,12 +336,18 @@ def run_layer2(limit: int, only: str | None) -> dict:
             c = json.load(open(p, encoding="utf-8"))
             if only and only not in c.get("id", ""):
                 continue
+            if ids and c.get("id") not in ids:
+                continue
             cases.append(c)
         except Exception as e:  # noqa: BLE001
             print(f"[warn] caso illeggibile {p}: {e}")
     cases = cases[:limit] if limit else cases
     al, it = _idx()
-    run_id = datetime.now().strftime("%Y%m%d-%H%M%S")
+    # v9.356 — «mode»: normal = il triage decide; deep = 🔬 Analizë e thellë (force_complex);
+    # fable = ⚡ Skuadra maksimale (senior Fable max + deep). Per misurare i due pulsanti profondi.
+    mode = (mode or "normal").strip().lower()
+    payload_extra = {"deep": True} if mode == "deep" else ({"deep": True, "mendja": "fable"} if mode == "fable" else {})
+    run_id = datetime.now().strftime("%Y%m%d-%H%M%S") + ("-" + mode if mode != "normal" else "")
     out_dir = DATA_DIR / "layer2" / run_id
     out_dir.mkdir(parents=True, exist_ok=True)
     results = []
@@ -370,7 +376,7 @@ def run_layer2(limit: int, only: str | None) -> dict:
             case = post("/api/cases", {"title": f"Benchmark {c['id']}", "jurisdiction": juris})
             q = c.get("question") or c.get("facts") or ""
             t0 = time.time()
-            job = post("/api/ask/start", {"case_id": case["id"], "message": q}).get("job_id")
+            job = post("/api/ask/start", {"case_id": case["id"], "message": q, **payload_extra}).get("job_id")
             final, audit = "", {}
             with op.open(urllib.request.Request(f"{base}/api/ask/events?job={job}&from=0"), timeout=3600) as r:
                 for raw in r:
@@ -414,7 +420,8 @@ def run_layer2(limit: int, only: str | None) -> dict:
                # v9.342 — claim binding in ombra: quante proposizioni materiali senza sostegno
                "claims": {"materiali": _cl.get("materiali", 0), "unsupported": _cl.get("unsupported", 0),
                           "contradicted": _cl.get("contradicted", 0), "high_unsupported": _cl.get("high_unsupported", 0)} if _cl else None,
-               "giudice": (audit.get("giudice") or {}).get("esito"),
+               "giudice": (audit.get("giudice") or {}).get("esito"), "giudice_mendja": (audit.get("giudice") or {}).get("mendja"),
+               "cancello": audit.get("cancello"), "mode": mode,
                "must_cite": f"{len(found)}/{len(exp)}", "missing": [e for e in exp if e not in found],
                "must_not_violations": viol, "key_points": f"{len(kp_ok)}/{len(kps)}", "kp_missing": [k for k in kps if k not in kp_ok],
                "verdict_head": head_ok, "trust_line": trust, "fake": r["stats"]["fake"], "repealed": r["stats"]["repealed"],
@@ -424,7 +431,8 @@ def run_layer2(limit: int, only: str | None) -> dict:
               f"vietate {len(viol)} · fake {row['fake']} · {secs:.0f}s")
     if results:
         scored = [x["score"] for x in results if "score" in x]
-        agg = {"run": run_id, "n": len(results), "mean_score": round(sum(scored) / len(scored), 3) if scored else 0,
+        agg = {"run": run_id, "mode": mode, "n": len(results), "mean_score": round(sum(scored) / len(scored), 3) if scored else 0,
+               "mean_secs": round(sum(x.get("secs", 0) for x in results if "secs" in x) / max(1, len([x for x in results if "secs" in x]))),
                "errors": sum(1 for x in results if "error" in x), "version": _versione()}
         (out_dir / "summary.json").write_text(json.dumps({"agg": agg, "results": results}, ensure_ascii=False, indent=1), encoding="utf-8")
         with (DATA_DIR / "layer2_history.jsonl").open("a", encoding="utf-8") as fh:
@@ -448,7 +456,9 @@ def main(argv: list[str]) -> int:
         if layer == 2:
             limit = int(argv[argv.index("--limit") + 1]) if "--limit" in argv else 3
             only = argv[argv.index("--only") + 1] if "--only" in argv else None
-            run_layer2(limit, only)
+            mode = argv[argv.index("--mode") + 1] if "--mode" in argv else "normal"
+            ids = [x.strip() for x in argv[argv.index("--ids") + 1].split(",") if x.strip()] if "--ids" in argv else None
+            run_layer2(limit, only, mode, ids)
             return 0
         summary = run_layer1()
         if not summary:

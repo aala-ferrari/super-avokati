@@ -3565,6 +3565,14 @@ class SuperAvvocato:
                             g["pershkrim"], getattr(art, "number", ""),
                             getattr(art, "title_sq", None) or getattr(art, "code", ""),
                             getattr(art, "body", "") or ""))
+                        # v9.356 — il nene trovato entra anche nei RECUPERATI: così diavolo, Giudice,
+                        # cancello e verificatore lo vedono come nene del corpus (col suo BM25 vero),
+                        # non solo come testo appeso alla risposta
+                        try:
+                            if isinstance(retrieved, list):
+                                retrieved.append((art, float(_s)))
+                        except Exception:  # noqa: BLE001
+                            pass
                         break  # un nene per gap
                 except Exception:  # noqa: BLE001
                     continue
@@ -3713,8 +3721,8 @@ class SuperAvvocato:
         (con gli attacchi del diavolo e le repliche = le menti degli altri agenti)
         + i nenet VERBATIM + il dossier dei raccoglitori (web/QBZ/Fletorja) e appende
         il VERDETTO FINALE — conferma o corregge, cerca l'ago nel pagliaio. Gira sul
-        percorso complesso; saltato quando il senior è già Fable (⚡: il verdetto è
-        già suo, non si raddoppia). Additivo, fail-silent."""
+        percorso complesso; in ⚡ (senior Fable) l'arbitro è un'ALTRA mente (v9.356:
+        STUDIO_GJYQTARI_SKUADRA_MODEL, Opus 5 max). Additivo, fail-silent."""
         try:
             from .config import (STUDIO_GJYQTARI_ENABLED, STUDIO_GJYQTARI_MODEL,
                                  STUDIO_GJYQTARI_EFFORT)
@@ -3746,8 +3754,15 @@ class SuperAvvocato:
                     _ombra = _cl.Ombra(self.backend, answer_text, lang, idx, jur, retrieved_codes=_codes).start()
             except Exception as _exc_c:  # noqa: BLE001
                 log.warning("claims: ombra non avviata (non-fatal): %s", _exc_c)
-            if request_senior() == "fable":
-                # ⚡: il verdetto è già del senior Fable (Source Verifier suo); resta la riga
+            # v9.356 — in ⚡ il senior E il diavolo sono Fable: l'arbitro deve essere un'altra mente
+            # (STUDIO_GJYQTARI_SKUADRA_MODEL, «opus» = Opus 5 max), con gli stessi nene verbatim.
+            # «off» = comportamento vecchio (nessun Giudice in ⚡, resta la riga).
+            _modeli_gj, _skuadra = STUDIO_GJYQTARI_MODEL, request_senior() == "fable"
+            if _skuadra:
+                from .config import STUDIO_GJYQTARI_SKUADRA_MODEL as _sk
+                _modeli_gj = (_sk or "").strip().lower()
+            if _skuadra and _modeli_gj in ("", "off", "0"):
+                # ⚡ senza arbitro (kill-switch): il verdetto è del senior Fable; resta la riga
                 if _ombra is not None:
                     try:
                         _r = _ombra.raccogli(timeout=0.0)
@@ -3762,7 +3777,7 @@ class SuperAvvocato:
                     self.backend, domanda=user_message,
                     blloku_neneve=_format_articles_for_prompt(retrieved),
                     pergjigja=answer_text, dosja=dosja_txt or "", lang=lang,
-                    modeli=STUDIO_GJYQTARI_MODEL, effort=STUDIO_GJYQTARI_EFFORT,
+                    modeli=_modeli_gj, effort=STUDIO_GJYQTARI_EFFORT,
                     fazat=fazat_txt or "",
                     verifikimi=trust_line.blocco_per_gjyqtarin(v1, lang, coverage=_cov))
             except Exception as exc:  # noqa: BLE001
@@ -3786,8 +3801,8 @@ class SuperAvvocato:
                 return trust_line.inserisci_riga(answer_text, trust_line.riga(v1, lang, tempo=_tempo, coverage=_cov) + "\n" + _nota, "")
             vendim = _apply_corrections(_verify_citations(vendim, precedents))
             log.info("studio: gjyqtari i fundit ka dhënë vendimin (%d shkronja)", len(vendim))
-            _audit_set("giudice", {"esito": "verdetto", "chr": len(vendim),
-                                   "riserva": bool(getattr(self.backend, "last_model_used", "") and
+            _audit_set("giudice", {"esito": "verdetto", "chr": len(vendim), "mendja": _modeli_gj,
+                                   "riserva": bool(getattr(self.backend, "last_model_used", "") and not _skuadra and
                                                    getattr(self.backend, "last_model_used", "") != STUDIO_GJYQTARI_MODEL)})
             # v9.316 — il verdetto IN TESTA (prima la decisione, poi l'analisi completa);
             # v9.331 — la TRUST LINE (categorica, ricalcolata sul testo finale) sotto il titolo

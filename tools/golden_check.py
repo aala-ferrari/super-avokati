@@ -3614,6 +3614,25 @@ def main():
     except Exception as _e105:  # noqa: BLE001
         check("djalli[105]: kontrollet u ekzekutuan", False, str(_e105))
 
+    # ── [106] v9.356 — IL GIUDICE ANCHE IN ⚡ (un'ALTRA mente: senior e diavolo sono Fable, l'arbitro è Opus max)
+    # + il research loop mette i nene trovati nei RECUPERATI (diavolo/Giudice/cancello li vedono come corpus)
+    # + benchmark strato 2 con --mode deep|fable per misurare i due pulsanti profondi ──
+    try:
+        import inspect as _insp106
+        from src import brain as _br106, studio as _st106, config as _cf106
+        _g = _insp106.getsource(_br106.SuperAvvocato._gjyqtari_fundit)
+        _okA = ("STUDIO_GJYQTARI_SKUADRA_MODEL" in _g and 'in ("", "off", "0")' in _g and "modeli=_modeli_gj" in _g
+                and _g.count("self._cancello(") == 3 and _cf106.STUDIO_GJYQTARI_SKUADRA_MODEL == "opus")
+        _okB = _st106._kwargs_modeli("opus", "max") == {"effort_override": "max"}      # «opus» = modello del senior, effort max
+        _r = _insp106.getsource(_br106.SuperAvvocato._research_loop)
+        _okC = "retrieved.append((art, float(_s)))" in _r
+        _bl = open("/app/tools/benchmark_lab.py", encoding="utf-8").read()
+        _okD = '"--mode"' in _bl and '"mendja": "fable"' in _bl and '**payload_extra' in _bl and '"--ids"' in _bl
+        check("gjyqtari[106]: Giudice anche in ⚡ con un'altra mente (opus max, kill-switch «off», 3 agganci del cancello intatti) · research loop → recuperati · benchmark --mode deep|fable/--ids",
+              _okA and _okB and _okC and _okD, "giudice=%s opus=%s loop=%s bench=%s" % (_okA, _okB, _okC, _okD))
+    except Exception as _e106:  # noqa: BLE001
+        check("gjyqtari[106]: kontrollet u ekzekutuan", False, str(_e106))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
