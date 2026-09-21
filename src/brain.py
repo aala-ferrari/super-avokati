@@ -2627,6 +2627,14 @@ class SuperAvvocato:
             # v9.324 — chiarimento breve: niente web, niente 5 sezioni, niente Giudice
             _sqarim = _eshte_sqarim(user_message)
             _msg_f = user_message
+            # v9.359 — anche nel follow-up: «neni 88?» riceve il testo del nene dal corpus, non la memoria
+            _cit_f = self._ankoro_citimet(user_message, [])
+            if _cit_f:
+                _lang_c = "it" if self._current_jurisdiction() == "IT" else "sq"
+                _msg_f = (user_message + "\n\n" + ("━━━ ARTICOLI CHIESTI ESPLICITAMENTE (testo integrale dal corpus — cita da qui, parola per parola) ━━━\n"
+                                                   if _lang_c == "it" else
+                                                   "━━━ NENET E KËRKUARA SHPREHIMISHT (tekst i plotë nga korpusi — cito prej këtu, fjalë për fjalë) ━━━\n")
+                          + _format_articles_for_prompt(_cit_f))
             if _sqarim:
                 _msg_f = user_message + _SQARIM_HINT["it" if self._current_jurisdiction() == "IT" else "sq"]
                 log.info("stream: followup = chiarimento → senza web")
@@ -2661,7 +2669,7 @@ class SuperAvvocato:
                     _lbl_f = ("FILO DELLA CONVERSAZIONE (turni precedenti, potati — qui sta il verdetto già dato):\n"
                               if _lang_f == "it" else
                               "FILLI I BISEDËS (kthesat e mëparshme, të shkurtuara — këtu është vendimi i dhënë më parë):\n")
-                    text = self._gjyqtari_fundit(user_message, [], [], text, dosja_txt=_lbl_f + _filo)
+                    text = self._gjyqtari_fundit(user_message, _cit_f, [], text, dosja_txt=_lbl_f + _filo)
                 except Exception as _exc_f:  # noqa: BLE001 — il verdetto non deve mai far cadere la risposta
                     log.warning("studio: gjyqtari (follow-up) dështoi (non-fatal): %s", _exc_f)
             yield ("final", LegalAnswer(
@@ -2699,6 +2707,7 @@ class SuperAvvocato:
             log.info("analizë e thellë kërkuar: complexity simple → complex")
             triage.complexity = "complex"
         retrieved = self._retrieve(triage)
+        retrieved = self._ankoro_citimet(user_message, retrieved)   # v9.359: il nene chiesto per numero, per primo
         retrieved = self._studio_kerkuesi(user_message, triage, retrieved)
 
         # Simple fast-path streaming.
@@ -3077,6 +3086,7 @@ class SuperAvvocato:
             log.info("analizë e thellë kërkuar: complexity simple → complex")
             triage.complexity = "complex"
         retrieved = self._retrieve(triage)
+        retrieved = self._ankoro_citimet(user_message, retrieved)   # v9.359: il nene chiesto per numero, per primo
         retrieved = self._studio_kerkuesi(user_message, triage, retrieved)
         log.info("retrieved %d articles", len(retrieved))
 
@@ -3857,6 +3867,50 @@ class SuperAvvocato:
             return answer_text
 
     # ── stage 2: retrieval ─────────────────────────────────────────────────
+
+    def _ankoro_citimet(self, user_message: str, retrieved):
+        """v9.359 — IL NENE CHIESTO PER NUMERO ENTRA SEMPRE, PER PRIMO. Caso vero (21 set): «neni 88 i
+        kodit penal?» → il recupero (parole + senso) portava 75, 76, 78/a, 67 e il cervello rispondeva
+        «neni 88 nuk është në bllokun që kam… sipas asaj që mbaj mend» — a memoria, l'opposto del
+        prodotto. Una citazione ESPLICITA dell'avvocato (numero + codice, riconosciuta dallo stesso
+        verificatore che legge le risposte: «neni 88 i Kodit Penal», «art. 2946 c.c.») è un'ancora
+        deterministica: l'articolo del corpus (anche se abrogato: va DETTO) si mette in testa, marcato
+        «⚑ NENI I KËRKUAR SHPREHIMISHT». Copia, mai l'oggetto dell'indice. Max 4. Fail-silent."""
+        try:
+            from . import citation_verifier as _cvq
+            jur = self._current_jurisdiction()
+            idx = self.index_it if (self.index_it is not None and jur == "IT") else self.index
+            if idx is None or not (user_message or "").strip():
+                return retrieved
+            r = _cvq.verify_text((user_message or "")[:4000], idx)
+            chiavi = []
+            for it in r.get("items") or []:
+                if it.get("status") in ("verified", "repealed", "stale") and it.get("code"):
+                    k = (it["code"], str(it["number"]))
+                    if k not in chiavi:
+                        chiavi.append(k)
+            if not chiavi:
+                return retrieved
+            by_key = {(a.code, str(a.number)): a for a in idx.articles}
+            out = list(retrieved or [])
+            presenti = {(a.code, str(a.number)) for a, _ in out}
+            top = max([float(sc) for _, sc in out] or [1.0]) + 0.01
+            testa = []
+            for k in chiavi[:4]:
+                a = by_key.get(k)
+                if a is None:
+                    continue
+                if k in presenti:
+                    out = [(x, sc) for x, sc in out if (x.code, str(x.number)) != k]
+                c = _copy.copy(a); c._cituar = True
+                testa.append((c, top))
+            if testa:
+                log.info("retrieval: nene të kërkuara shprehimisht nga avokati %s", [f"{a.code} {a.number}" for a, _ in testa])
+                _audit_set("citime_te_pyetjes", [f"{a.code} {a.number}" for a, _ in testa])
+            return testa + out
+        except Exception as exc:  # noqa: BLE001
+            log.warning("ankoro_citimet: saltato (non-fatal): %s", exc)
+            return retrieved
 
     def _retrieve(self, triage: TriageResult) -> list[tuple[Article, float]]:
         # Restrict to relevant codes when we have clear areas; otherwise search all.
@@ -6457,7 +6511,13 @@ def _format_articles_for_prompt(pairs: list[tuple[Article, float]]) -> str:
         # il Neni 114 non condivide NESSUNA parola con «afati i parashkrimit»).
         # Presentarlo come uno zero secco lo farebbe scartare: va detto perche'
         # sta li'.
-        if getattr(a, "_ancora", False):
+        if getattr(a, "_cituar", False):
+            intestazione = (
+                f"── {a.citation}  ⚑ NENI I KËRKUAR SHPREHIMISHT NGA AVOKATI\n"
+                f"  (avokati e kërkoi me numër: përgjigju SË PARI për këtë nen, citoje fjalë për fjalë "
+                f"nga teksti më poshtë{' — KUJDES: është i shfuqizuar, thuaje' if getattr(a, 'repealed', False) else ''})\n"
+            )
+        elif getattr(a, "_ancora", False):
             intestazione = (
                 f"── {a.citation}  ⚑ RREGULL E PËRGJITHSHME\n"
                 f"  (nuk u gjet nga kërkimi me fjalë — u shtua sepse është "

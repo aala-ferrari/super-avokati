@@ -2569,7 +2569,7 @@ def main():
         _i71 = _as71.find("stream: followup fast-path")
         _seg71 = _as71[_i71:_i71 + 4000]
         check("giudice[71]: followup fast-path → _gjyqtari_fundit se ≥4000 chr, con il filo della conversazione; prompt del Giudice sa giudicare senza corpus (sq+it)",
-              "if len(text) >= 4000 and not _sqarim:" in _seg71 and "self._gjyqtari_fundit(user_message, [], [], text, dosja_txt=_lbl_f + _filo)" in _seg71
+              "if len(text) >= 4000 and not _sqarim:" in _seg71 and "self._gjyqtari_fundit(user_message, _cit_f, [], text, dosja_txt=_lbl_f + _filo)" in _seg71
               and "NËSE NUK KA NENE nga korpusi" in _st71.GJYQTARI_SYSTEM["sq"]
               and "SE NON CI SONO ARTICOLI dal corpus" in _st71.GJYQTARI_SYSTEM["it"])
     except Exception as _e71:  # noqa: BLE001
@@ -3673,6 +3673,35 @@ def main():
               _okA and _okB, "riserva=%s percorsi=%s" % (_okA, _okB))
     except Exception as _e108:  # noqa: BLE001
         check("gjyqtari suprem[108]: kontrollet u ekzekutuan", False, str(_e108))
+
+    # ── [109] v9.359 — IL NENE CHIESTO PER NUMERO ENTRA SEMPRE, PER PRIMO (caso vero: «neni 88 i kodit
+    # penal?» → 75, 76, 78/a nel blocco e risposta «a memoria»). Eseguito sugli indici veri, AL e IT ──
+    try:
+        import inspect as _insp109
+        from src import brain as _br109
+        _al109 = ArticleIndex.load(_P81("/app/data/index/bm25.pkl")); _it109 = ArticleIndex.load(_P81("/app/data/index/bm25_it.pkl"))
+        _sa = _br109.SuperAvvocato.__new__(_br109.SuperAvvocato)
+        _sa.index, _sa.index_it = _al109, _it109
+        import threading as _th109
+        _sa._jurisdiction_ctx = _th109.local(); _sa._jurisdiction_ctx.code = "AL"
+        _kp = {str(a.number): a for a in _al109.articles if a.code == "kodi_penal"}
+        _r1 = _sa._ankoro_citimet("neni 88 i kodit penal?", [(_kp["75"], 9.0), (_kp["76"], 8.0)])
+        _okA = (_r1[0][0].code, str(_r1[0][0].number)) == ("kodi_penal", "88") and getattr(_r1[0][0], "_cituar", False) and _r1[0][1] > 9.0 and len(_r1) == 3
+        _r2 = _sa._ankoro_citimet("neni 88 i kodit penal?", [(_kp["88"], 3.0), (_kp["75"], 9.0)])
+        _okB = (_r2[0][0].code, str(_r2[0][0].number)) == ("kodi_penal", "88") and len(_r2) == 2 and not getattr(_kp["88"], "_cituar", False)   # copia, mai l'oggetto
+        _okC = _sa._ankoro_citimet("sa është afati i parashkrimit?", [(_kp["75"], 9.0)]) == [(_kp["75"], 9.0)]     # nessun numero → intatto
+        _sa._jurisdiction_ctx.code = "IT"
+        _r3 = _sa._ankoro_citimet("cosa dice l'art. 2946 c.c.?", [])
+        _okD = bool(_r3) and (_r3[0][0].code, str(_r3[0][0].number)) == ("codice_civile", "2946")
+        _txt = _br109._format_articles_for_prompt(_r1[:1])
+        _okE = "NENI I KËRKUAR SHPREHIMISHT" in _txt and "Plagosja" in _txt
+        _src = _insp109.getsource(_br109)
+        _okF = _src.count("retrieved = self._ankoro_citimet(user_message, retrieved)") == 2 and "_cit_f = self._ankoro_citimet(user_message, [])" in _src \
+               and "self._gjyqtari_fundit(user_message, _cit_f, [], text" in _src
+        check("citimet[109]: il nene chiesto per numero entra per primo (AL 88 KP con e senza presenza, IT art. 2946 c.c.) · copia marcata «⚑ NENI I KËRKUAR SHPREHIMISHT» · niente numero = niente · cablato nei 2 percorsi + follow-up (testo nel messaggio, nene al Giudice)",
+              _okA and _okB and _okC and _okD and _okE and _okF, "A=%s B=%s C=%s D=%s E=%s F=%s" % (_okA, _okB, _okC, _okD, _okE, _okF))
+    except Exception as _e109:  # noqa: BLE001
+        check("citimet[109]: kontrollet u ekzekutuan", False, str(_e109))
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
