@@ -43,14 +43,17 @@ ARTICLE_INLINE_RE = re.compile(
 # il Kodi Civil, che non ha rubriche; nei 40+ atti CON rubrica inghiottiva il primo paragrafo (misurato:
 # 8.301 «rubriche» su 9.682 oltre 120 caratteri, corpo VUOTO negli articoli di una frase). Una riga è una
 # rubrica se è corta (≤90), senza punteggiatura finale, non comincia con una cifra e non contiene un verbo
-# finito; le note «(Shtuar/Ndryshuar …)» — anche sulla riga dopo, anche spezzate su due righe — vanno in
-# `note`. Il MODO si decide per documento: rubrica se ≥ 50 % degli articoli la passano (KP 97 %, KPP 97 %,
-# leggi ~100 %; Kodi Civil 7 %, Kushtetuta 4 % → prima frase, invariato).
+# finito; le note «(Shtuar/Ndryshuar …)» — prima della rubrica, sulla stessa riga, sulla riga dopo, anche
+# spezzate su due righe — vanno in `note`. La decisione è PER ARTICOLO (Kodi i Familjes e K.Pr.C. sono misti:
+# i primi articoli senza rubrica, gli altri con) e il segnale che un frammento di frase spezzata non ha è la
+# RIGA DOPO: dopo una rubrica comincia con maiuscola/cifra/parentesi («Furnizimi…», «1.», «(Ndryshuar…»), dopo
+# un frammento comincia in minuscolo («…në testament» / «mund të përjashtojë…»). Misurato il 21 set: KP 97 %,
+# KPP 97 %, leggi ~100 %, Kodi Civil e Kushtetuta ≈ 0 (restano alla prima frase).
 _RUBRIKA_NOTE_RX = re.compile(r"\((?:Shtuar|Ndryshuar|Shfuqizuar|Riformuluar|Hequr|Zëvendësuar|Ndryshohet|Shtohet)[^)]*\)?", re.I)
 _RUBRIKA_VERB_RX = re.compile(
     r"\b(dënohet|dënohen|përbën|përbëjnë|konsiderohet|konsiderohen|zbatohet|zbatohen|është|janë|nuk|mund|duhet|do të|"
     r"kanë|quhet|quhen|kryhet|kryhen|lejohet|ndalohet|ka të drejtë|bëhet|bëhen|merret|merren|caktohet|caktohen|vendos|"
-    r"përcakton|përcaktohet|kupton|kuptohet|njihet|detyrohet|detyrohen|paguhet|paguan|gëzon|gëzojnë|humbet|fillon|mbaron)\b", re.I)
+    r"përcakton|përcaktohet|kupton|kuptohet|njihet|detyrohet|detyrohen|paguhet|paguan|gëzon|gëzojnë|humbet|fillon|mbaron|ka|kanë)\b", re.I)
 _PARAGRAF_NUM_RX = re.compile(r"^\s*(\d{1,3})[.)]\s+\S")
 
 
@@ -68,22 +71,39 @@ def _nota_ne_krye(lines: list[str]) -> tuple[str, list[str]]:
 
 
 def _kandidat_rubrike(lines: list[str]):
-    """(rubrica, note, righe_del_corpo) se la prima riga è una rubrica plausibile, altrimenti None."""
+    """(rubrica, note, righe_del_corpo) se la prima riga (dopo le note in testa) è una rubrica plausibile, altrimenti None."""
     if not lines:
         return None
-    rest = list(lines)
+    note0, rest = _nota_ne_krye(lines)
+    if not rest:
+        return None
     buf, i = rest[0], 1
     # la nota può stare sulla stessa riga (anche spezzata: «…me ligjin nr.» / «9686, datë 26.2.2007)») o sulla riga dopo
-    while i < len(rest) and i < 6 and (buf.count("(") > buf.count(")") or rest[i].lstrip().startswith("(")):
+    # rubrica spezzata su DUE righe («Konfiskimi i mjeteve të kryerjes së veprës penale» / «dhe produkteve të
+    # veprës penale»): la continuazione è corta, minuscola, e la riga dopo di lei apre un paragrafo o una nota
+    if (i < len(rest) and "(" not in buf and rest[i][:1].islower() and len(rest[i]) <= 60 and len(buf) + len(rest[i]) <= 110
+            and (i + 1 >= len(rest) or rest[i + 1].lstrip()[:1].isupper() or rest[i + 1].lstrip()[:1].isdigit() or rest[i + 1].lstrip().startswith("("))
+            and not rest[i].rstrip().endswith((".", ";", "!", "?"))):
+        buf = buf + " " + rest[i]; i += 1
+    # le note possono essere lunghe (KP 7: cinque righe di «ndryshuar shkronja …»): si incolla finché le parentesi non chiudono
+    while i < len(rest) and i < 14 and (buf.count("(") > buf.count(")") or rest[i].lstrip().startswith("(")):
         buf = buf + " " + rest[i]; i += 1
         if buf.count("(") <= buf.count(")") and not (i < len(rest) and rest[i].lstrip().startswith("(")):
             break
-    note = " ".join(" ".join(m.group(0).split()) for m in _RUBRIKA_NOTE_RX.finditer(buf)).strip()
+    note = " ".join(x for x in [note0, " ".join(" ".join(m.group(0).split()) for m in _RUBRIKA_NOTE_RX.finditer(buf))] if x).strip()
     rub = " ".join(_RUBRIKA_NOTE_RX.sub("", buf).split()).strip(" -–—:;,")
-    ok = 2 <= len(rub) <= 90 and rub[-1] not in ".;!?" and not re.match(r"^\d+[.)]", rub) and not _RUBRIKA_VERB_RX.search(rub)
+    corpo = rest[i:]
+    dopo = corpo[0].lstrip() if corpo else ""
+    # la riga dopo: maiuscola / cifra / parentesi / virgolette = comincia un paragrafo; minuscola = la frase continua
+    segue_bene = (not dopo) or dopo[0].isupper() or dopo[0].isdigit() or dopo[0] in "(«\"“"
+    # frase introduttiva di un elenco («Janë të hipotekueshme» / «1. Sendet…», «Detyrimet kryesore të shitësit janë»):
+    # ha un verbo E la riga dopo è una voce d'elenco → non è una rubrica
+    _lista = bool(re.match(r"^(?:\d{1,3}[.)]|[a-zçë]{1,2}[).]|[-–•])\s", dopo))
+    ok = (2 <= len(rub) <= 90 and rub[-1] not in ".;!?" and not re.match(r"^\d+[.)]", rub) and not rub.startswith("(")
+          and segue_bene and not (_RUBRIKA_VERB_RX.search(rub) and (_lista or not corpo)))
     if not ok:
         return None
-    return rub, note, rest[i:]
+    return rub, note, corpo
 
 
 def _paragrafet(body: str) -> list[str]:
@@ -391,21 +411,8 @@ def split_into_articles(text: str, doc: LegalDocument) -> list[Article]:
     numbers = [n for _, n in items]
 
     articles: list[Article] = []
-    # v9.362 — il MODO rubrica si decide per documento (≥ 50 % degli articoli con una rubrica plausibile);
-    # `doc.rubrika_mode` («po»/«jo») lo forza
-    _forza = getattr(doc, "rubrika_mode", "") or ""
-    if _forza in ("po", "jo"):
-        rubrika_mode = _forza == "po"
-    else:
-        _kand = 0
-        for i, m in enumerate(matches):
-            _raw = text[m.end():(matches[i + 1].start() if i + 1 < len(matches) else len(text))].strip()
-            if m.re is ARTICLE_INLINE_RE:
-                _raw = m.group(2).strip() + "\n" + _raw
-            _ls = [ln.strip() for ln in _raw.splitlines() if ln.strip()]
-            if _ls and _kandidat_rubrike(_ls):
-                _kand += 1
-        rubrika_mode = bool(matches) and _kand / max(1, len(matches)) >= 0.5
+    # v9.362 — la rubrica si decide PER ARTICOLO (`doc.rubrika_mode = "jo"` la spegne per un documento)
+    rubrika_mode = (getattr(doc, "rubrika_mode", "") or "") != "jo"
     for i, m in enumerate(matches):
         number = numbers[i]  # "83 / a" -> "83/a" (o il numero ricomposto)
         start = m.end()
@@ -443,12 +450,6 @@ def split_into_articles(text: str, doc: LegalDocument) -> list[Article]:
         note, paragrafet, heading_kind = "", [], "fjali"
         if lines:
             cand = _kandidat_rubrike(lines) if rubrika_mode else None
-            if cand is None and rubrika_mode:
-                # nel modo rubrica una riga corta senza punteggiatura è la rubrica anche con un verbo dentro
-                l0 = lines[0]
-                if 2 <= len(l0) <= 90 and l0[-1] not in ".;!?" and not re.match(r"^\d+[.)]", l0) and not l0.startswith("("):
-                    _n0, _r0 = _nota_ne_krye(lines[1:])
-                    cand = (l0, _n0, _r0)
             if cand is not None:
                 heading, note, _rest = cand
                 body = "\n".join(_rest).strip()

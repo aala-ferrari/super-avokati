@@ -182,7 +182,10 @@ class ArticleIndex:
     def load(cls, path: Path = INDEX_FILE) -> ArticleIndex:
         with path.open("rb") as fh:
             data = pickle.load(fh)
-        articles = [Article(**a) for a in data["articles"]]
+        # v9.362 — tollerante ai campi che questa versione non conosce (un pickle scritto da un'immagine più
+        # nuova non deve far cadere l'app: `Article(**a)` esplodeva su una chiave ignota)
+        _campi = {f.name for f in __import__("dataclasses").fields(Article)}
+        articles = [Article(**{k: v for k, v in a.items() if k in _campi}) for a in data["articles"]]
         return cls(articles, data["bm25"], data.get("lang", "sq"), stem=bool(data.get("stem", False)))
 
     # ── querying ────────────────────────────────────────────────────────────
