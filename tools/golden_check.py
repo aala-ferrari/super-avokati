@@ -3764,6 +3764,50 @@ def main():
     except Exception as _e111:  # noqa: BLE001
         check("rigore[111]: kontrollet u ekzekutuan", False, str(_e111))
 
+    # ── [112] v9.362 — STRUTTURA DEL NENE (rubrica · note · paragrafi) + EMBEDDING A SEGMENTI: la regola V9.1
+    # «incolla righe finché finisce una frase» inghiottiva il primo paragrafo in 8.301 nene su 9.682; MiniLM
+    # legge 128 token e il 61 % dei nene è più lungo (il 3° paragrafo del 302 non era mai stato codificato) ──
+    try:
+        import inspect as _insp112, types as _t112
+        import numpy as _np112
+        from src import parser as _pr112, dense as _dn112, brain as _br112
+        _doc = _t112.SimpleNamespace(code="prova_kp", title_sq="Kodi i Provës", area="Penal", volatility="STABLE", last_amendment_date="")
+        _txt = ("Neni 1\nPërkrahja e autorit të krimit (Shtuar paragrafi i dytë me ligjin nr. 9275, datë 16.9.2004; shtuar me ligjin nr.\n"
+                "9686, datë 26.2.2007)\nFurnizimi i autorit të një krimi me ushqime dënohet me gjobë ose me burgim gjer në pesë vjet.\n"
+                "Përjashtohen nga përgjegjësia penale të paralindurit dhe të paslindurit.\n"
+                "Neni 2\nMoskallëzimi i krimit\nMoskallëzimi në organet e ndjekjes penale dënohet me gjobë.\n"
+                "Neni 3\nObjekti\nQëllimi i këtij ligji është mbrojtja e konsumatorëve.\n")
+        _arts = {str(a.number): a for a in _pr112.split_into_articles(_txt, _doc)}
+        _a1, _a2, _a3 = _arts["1"], _arts["2"], _arts["3"]
+        _okA = (_a1.heading == "Përkrahja e autorit të krimit" and _a1.heading_kind == "rubrike"
+                and "9275" in _a1.note and "26.2.2007" in _a1.note and _a1.body.startswith("Furnizimi") and "Përjashtohen" in _a1.body
+                and len(_a1.paragrafet) == 2 and not _a1.repealed and _a1.last_amendment_date == "2007-02-26")
+        _okB = _a2.heading == "Moskallëzimi i krimit" and _a2.body.startswith("Moskallëzimi në organet") and _a3.heading == "Objekti" and _a3.body.startswith("Qëllimi")
+        # codice SENZA rubrica (stile Kodi Civil): resta la prima frase (tests/test_parser_headings)
+        _txt2 = "Neni 1\nTrashëgimlënësi edhe pa caktuar trashëgimtarë në testament\nmund të përjashtojë nga trashëgimia ligjore.\nNeni 2\nTrashëgimia kalon me ligj ose me testament.\nNeni 3\n(Ndryshuar me ligjin nr. 17/2012, datë 16.2.2012)\nAfati i parashkrimit është dhjetë vjet.\n"
+        _b = {str(a.number): a for a in _pr112.split_into_articles(_txt2, _t112.SimpleNamespace(code="prova_kc", title_sq="Kodi i Provës Civile", area="Civil", volatility="STABLE", last_amendment_date=""))}
+        _okC = (_b["1"].heading.startswith("Trashëgimlënësi") and _b["1"].heading.rstrip().endswith(".") and _b["1"].heading_kind == "fjali"
+                and "17/2012" in _b["3"].note and _b["3"].heading.startswith("Afati i parashkrimit") and _b["3"].last_amendment_date == "2012-02-16")
+        # segmenti: articolo lungo → più segmenti con la rubrica in testa e l'ultima parola coperta; corto → 1
+        _segs = _dn112.chunk_text("Rubrika", " ".join(f"fjala{i}" for i in range(700)))
+        _okD = len(_segs) >= 3 and all(sg.startswith("Rubrika. ") for sg in _segs) and "fjala699" in _segs[-1] and _dn112.chunk_text("R", "tekst i shkurtër") == ["R. tekst i shkurtër"]
+        # indice a segmenti: 3 vettori per 2 articoli → l'articolo vale il MASSIMO, una volta sola
+        _arts_l = [_t112.SimpleNamespace(code="c", number="1", repealed=False), _t112.SimpleNamespace(code="c", number="2", repealed=False)]
+        _E = _np112.array([[1.0, 0.0], [0.0, 1.0], [0.7, 0.7]], dtype=_np112.float32)
+        _di = _dn112.DenseIndex(_E, [0, 0, 1], _arts_l)
+        _old_eq = _dn112.embed_query; _dn112.embed_query = lambda q: _np112.array([0.0, 1.0], dtype=_np112.float32)
+        try:
+            _res = _di.search("x", depth=5)
+        finally:
+            _dn112.embed_query = _old_eq
+        _okE = [(a.number, round(sc, 2)) for a, sc in _res] == [("1", 1.0), ("2", 0.7)]
+        _bl = open("/app/tools/build_dense.py", encoding="utf-8").read()
+        _okF = "dense.chunk_text(" in _bl and '"--flat"' in _bl and "Shënim redaksional" in _insp112.getsource(_br112._format_articles_for_prompt)
+        check("struttura[112]: rubrica vera + note separate (anche spezzate su due righe) + paragrafi · codice senza rubrica invariato (prima frase) · abrogazione/date invarianti · segmenti con rubrica in testa · indice a segmenti = massimo per articolo · nota nel prompt",
+              _okA and _okB and _okC and _okD and _okE and _okF, "A=%s B=%s C=%s D=%s E=%s F=%s" % (_okA, _okB, _okC, _okD, _okE, _okF))
+    except Exception as _e112:  # noqa: BLE001
+        check("struttura[112]: kontrollet u ekzekutuan", False, str(_e112))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

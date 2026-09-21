@@ -185,6 +185,7 @@ class Article:
     # Nei codici senza rubrica (Kodi Civil, Kushtetuta) `heading` resta la prima frase, come prima.
     note: str = ""
     paragrafet: list = field(default_factory=list)
+    heading_kind: str = "fjali"           # «rubrike» = rubrica vera · «fjali» = prima frase (codici senza rubrica)
 
     @property
     def citation(self) -> str:
@@ -439,7 +440,7 @@ def split_into_articles(text: str, doc: LegalDocument) -> list[Article]:
         # v9.362 — la «prima frase» (heading_v/body_v) resta il metro per abrogazione e date (invariante
         # rispetto a v9.330); i campi mostrati e cercati diventano rubrica / note / corpo intero
         heading_v, body_v = heading, body
-        note, paragrafet = "", []
+        note, paragrafet, heading_kind = "", [], "fjali"
         if lines:
             cand = _kandidat_rubrike(lines) if rubrika_mode else None
             if cand is None and rubrika_mode:
@@ -451,6 +452,7 @@ def split_into_articles(text: str, doc: LegalDocument) -> list[Article]:
             if cand is not None:
                 heading, note, _rest = cand
                 body = "\n".join(_rest).strip()
+                heading_kind = "rubrike"
             else:
                 note, _rest = _nota_ne_krye(lines)
                 if note and _rest:
@@ -489,6 +491,7 @@ def split_into_articles(text: str, doc: LegalDocument) -> list[Article]:
                 last_amendment_date=_lad,
                 note=note,
                 paragrafet=paragrafet,
+                heading_kind=heading_kind,
             )
         )
     articles.extend(_group_repeal_stubs(text, items, articles, doc))

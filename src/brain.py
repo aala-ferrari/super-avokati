@@ -3619,7 +3619,7 @@ class SuperAvvocato:
                             continue
                         # v9.360 — niente rumore: solo un nene con testo vero e di un codice già nel dossier
                         # (il 21 set entrava «Neni 107 Kodi Civil — «»» in una domanda di Kodi Penal)
-                        if len((getattr(art, "body", "") or "").strip()) < 40 or str(getattr(art, "code", "")) not in {c for c, _ in have_keys}:
+                        if len(((getattr(art, "heading", "") or "") + (getattr(art, "body", "") or "")).strip()) < 40 or str(getattr(art, "code", "")) not in {c for c, _ in have_keys}:
                             continue
                         key = (str(getattr(art, "code", "")), str(getattr(art, "number", "")))
                         if key in have_keys:
@@ -6673,11 +6673,15 @@ def _format_articles_for_prompt(pairs: list[tuple[Article, float]]) -> str:
                 f"\n  […{_mancano} caratteri omessi dal prompt: articolo molto lungo — per il testo integrale chiedilo per numero]"
                 if _is_italian_code(a.code) else
                 f"\n  […{_mancano} karaktere të hequra nga prompti: nen shumë i gjatë — për tekstin e plotë kërkoje me numër]")
+        # v9.362 — la nota editoriale separata dal testo (rubrica pulita) resta visibile al cervello
+        _nota = getattr(a, "note", "") or ""
+        _nota_line = f"  ℹ Shënim redaksional: {_nota}\n" if _nota else ""
         blocks.append(
             f"{intestazione}"
             f"  Titulli: {a.heading}\n"
             f"{hierarchy}"
             f"{vol_note}"
+            f"{_nota_line}"
             f"  {_body}"
         )
     out = "\n\n".join(blocks) + _indice_kreut(pairs)

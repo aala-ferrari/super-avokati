@@ -105,7 +105,7 @@ def main() -> int:
         new = nuovi_per_code.get(r["code"])
         if new and str(r["number"]) in new:
             x = new[str(r["number"])]
-            r = dict(r); r["heading"], r["body"], r["note"], r["paragrafet"] = x.heading, x.body, x.note, list(x.paragrafet)
+            r = dict(r); r["heading"], r["body"], r["note"], r["paragrafet"], r["heading_kind"] = x.heading, x.body, x.note, list(x.paragrafet), x.heading_kind
         out_lines.append(json.dumps(r, ensure_ascii=False))
     JSONL.write_text("\n".join(out_lines) + "\n", encoding="utf-8")
     print(f"\njsonl riscritto ({len(out_lines)} righe) · backup {bak.name}")
