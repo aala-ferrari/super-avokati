@@ -104,7 +104,7 @@ def _tokenizer():
 
 def n_token(text: str) -> int:
     t = _tokenizer()
-    return len(t.encode(text or "").ids) if t else max(1, len(text or "") // 4)
+    return len(t.encode(text or "", add_special_tokens=False).ids) if t else max(1, len(text or "") // 4)
 
 
 def chunk_text(heading: str, body: str, max_tokens: int = CHUNK_TOKENS, overlap: int = CHUNK_OVERLAP, max_chunks: int = CHUNK_MAX) -> list[str]:
@@ -119,7 +119,7 @@ def chunk_text(heading: str, body: str, max_tokens: int = CHUNK_TOKENS, overlap:
         per = 4
         wl = [max(1, len(w) // per + 1) for w in words]
     else:
-        enc = t.encode_batch(words)
+        enc = t.encode_batch(words, add_special_tokens=False)     # senza [CLS]/[SEP] per parola: conta i token veri
         wl = [max(1, len(e.ids)) for e in enc]
     rub_t = n_token(rub) if rub else 0
     budget = max(24, max_tokens - rub_t - 2)
