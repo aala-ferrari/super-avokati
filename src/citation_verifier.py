@@ -552,10 +552,10 @@ _NUM_TOKEN_IT = (r"\d+(?:[\-\s](?:bis|ter|quater|quinquies|sexies|septies|octies
 # codice», «della legge», «Cost.»…) o l'anafora «del medesimo decreto». «art. 18, comma 4, di
 # conseguenza il codice civile…» NON attraversa. ⚠️ «c.» come abbreviazione di comma NON è ammessa fra
 # i sotto-riferimenti: «art. 2, c.c.» diventerebbe «comma c».
-_SUB_NUM_IT = r"\d{1,3}(?:-(?:bis|ter|quater|quinquies|sexies|septies|octies|novies|decies))?(?![\w/])\)?"
+_SUB_NUM_IT = r"\d{1,3}(?:-(?:bis|ter|quater|quinquies|sexies|septies|octies|novies|decies|\d{1,3}))?(?![\w/])\)?"   # v9.357: anche «c. 8-9»
 _SUB_LET_IT = (r"(?:[\"“«'][a-z]{1,2}[\"”»']|[a-z]{1,2}\)|"
                r"(?!(?:e|ed|o|al|il|la|lo|le|di|in|su|se|no|un|ai|da|ne|si)(?![a-z]))[a-z]{1,2}(?![a-z/.]))")
-_SUB_IT = (r"(?:\s*,?\s*(?:(?:comm[ai]|co\.|n\.|nn\.|punt[oi]|par(?:agraf[oi])?\.?|§)\s*" + _SUB_NUM_IT +
+_SUB_IT = (r"(?:\s*,?\s*(?:(?:comm[ai]|co\.|c\.(?=\s*\d)|n\.|nn\.|punt[oi]|par(?:agraf[oi])?\.?|§)\s*" + _SUB_NUM_IT +
            r"|lett(?:era|ere)?\.?\s*" + _SUB_LET_IT + r")"
            r"(?:\s*(?:,|\be\b|\bed\b)\s*(?:" + _SUB_NUM_IT + r"|" + _SUB_LET_IT + r"))*)")
 _CONN_IT = (r"(?:(?:del|della|dello|dell[’']|dal|dalla)\s*(?:codice|cod\.|legge|l\.|d\.?\s?lgs|d\.?\s?l\b|d\.?\s?l\.|d\.?p\.?r|r\.?d\.?|"
@@ -563,7 +563,7 @@ _CONN_IT = (r"(?:(?:del|della|dello|dell[’']|dal|dalla)\s*(?:codice|cod\.|legg
             r"cedu|tfue|tue|gdpr|cdu|dnc|tuel|tuir|tub|tuf|cad|cpa|cpi|ccii|c\.[a-z]|medesim|stess|citat|predett|suddett)|"
             r"l\.\s?\d|legge\b|d\.?\s?lgs|d\.?\s?l\.\s?\d|d\.?p\.?r\.?\s?\d|r\.?d\.?\s?\d|d\.?m\.?\s?\d|t\.?u\.?\b|reg\.?\s?(?:\(|\d|ue|ce)|"
             r"regolamento|direttiva|dir\.|cod\.|codice|c\.[a-z]|cost\.?\b|statuto|carta|cedu|tfue|tue|gdpr|cdu|dnc|tuel|tuir|tub|tuf|cad|"
-            r"cpa|cpi|ccii|c\.d\.s\.|cds\b|l\.\s?fall|preleggi|disp\.|convenzione|protocollo|trattato)")
+            r"cpa|cpi|ccii|c\.d\.s\.|cds\b|l\.\s?fall|preleggi|disp\.|convenzione|protocollo|trattato|st(?:at)?\.?\s?lav\b)")
 
 CITATION_RE_IT = re.compile(
     r"\bart(?:t|icol[oi])?\.?\s+"
@@ -781,6 +781,11 @@ def _resolve_code_it(tail: str):
     _norm = re.sub(r"\b([a-z])\.\s*(?=[a-z]\.)", r"\1", _low)
     _norm = re.sub(r"\b([a-z]{1,5})\.", r"\1", _norm)
     _tokens = set(re.findall(r"[a-z]+", _norm))
+    # v9.357 (benchmark ⚡/🔬 del 21 set): «art. 18 St. Lav.» / «Stat. Lav.» — l'abbreviazione più
+    # usata dello Statuto dei lavoratori usciva «senza codice» (il tokenizer dava «st»+«lav», nessuna
+    # chiave). Parola intera, mai sottostringa («testo lavoro» non deve diventare lo Statuto).
+    if re.search(r"(?<![a-z])st(?:at)?\.?\s?lav(?:\.|(?![a-z]))", _low):
+        return "statuto_lavoratori"
     for pat, code in _IT_CODE_CHECKS:
         if len(pat) <= 5 and pat not in _SHORT_AS_SUBSTRING:
             if pat in _tokens:

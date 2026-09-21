@@ -398,7 +398,10 @@ def run_layer2(limit: int, only: str | None, mode: str = "normal", ids: list[str
             print(f"✗ {c['id']}: ERRORE {exc}")
             continue
         (out_dir / f"{c['id']}.md").write_text(final, encoding="utf-8")
-        r = cv.verify_text(final, idx)
+        # v9.357 — come in produzione: i codici RECUPERATI (dall'audit) sciolgono i numeri nudi
+        # («neni 152» in un caso di lavoro); senza, il benchmark contava «senza codice» = mancante
+        _rc = {a.get("code") for a in ((audit.get("recupero") or {}).get("articoli") or []) if a.get("code")} or None
+        r = cv.verify_text(final, idx, retrieved_codes=_rc)
         cited_ok = {(i["code"], i["number"]) for i in r["items"] if i["status"] == "verified"}
         cited_any = {(i.get("code"), i["number"]) for i in r["items"]}
         exp = [(e["code"], str(e["number"])) for e in (c.get("expected_laws") or [])]

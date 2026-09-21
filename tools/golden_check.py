@@ -3633,6 +3633,28 @@ def main():
     except Exception as _e106:  # noqa: BLE001
         check("gjyqtari[106]: kontrollet u ekzekutuan", False, str(_e106))
 
+    # ── [107] v9.357 — «St. Lav.» = Statuto dei lavoratori (dal benchmark ⚡/🔬 del 21 set: «art. 18 St. Lav.»
+    # e «art. 7 Stat. Lav.» uscivano «senza codice» → il caso GMO segnava 0/2 norme pur citandole); «c. 8-9»
+    # come sotto-riferimento; il benchmark strato 2 passa i codici recuperati al verificatore come in produzione ──
+    try:
+        from src import citation_verifier as _cv107
+        _it107 = ArticleIndex.load(_P81("/app/data/index/bm25_it.pkl"))
+        def _st107(t):
+            it_ = (_cv107.verify_text(t, _it107).get("items") or [{}])[0]
+            return (it_.get("code"), it_.get("status"))
+        _okA = (_cv107._resolve_code_it("St. Lav.") == "statuto_lavoratori" and _cv107._resolve_code_it("Stat. Lav.") == "statuto_lavoratori"
+                and _cv107._resolve_code_it("testo lavoro") is None)
+        _okB = (_st107("si applica l'art. 18 St. Lav. al caso") == ("statuto_lavoratori", "verified")
+                and _st107("l'art. 18, c. 8-9, St. Lav.: soglia") == ("statuto_lavoratori", "verified")
+                and _st107("segue l'art. 7 Stat. Lav. e basta") == ("statuto_lavoratori", "verified")
+                and _st107("l'art. 2118 c.c. e il testo lavoro") == ("codice_civile", "verified"))
+        _bl = open("/app/tools/benchmark_lab.py", encoding="utf-8").read()
+        _okC = "retrieved_codes=_rc" in _bl and '"recupero"' in _bl
+        check("verificatore[107]: «St. Lav.»/«Stat. Lav.» = Statuto dei lavoratori (parola intera: «testo lavoro» no) · «c. 8-9» attraversato · benchmark strato 2 con i codici recuperati",
+              _okA and _okB and _okC, "resolver=%s testi=%s bench=%s" % (_okA, _okB, _okC))
+    except Exception as _e107:  # noqa: BLE001
+        check("verificatore[107]: kontrollet u ekzekutuan", False, str(_e107))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
