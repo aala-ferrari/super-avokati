@@ -2769,8 +2769,15 @@ class SuperAvvocato:
         yield ("status", self._status("complex_retrieving"))
 
         cited_pairs = [(a.code, a.number) for a, _ in retrieved]
+        _norme = _eshte_pyetje_norme(user_message)      # v9.360: pyetje norme → niente fasi sui fatti
+        if _norme:
+            log.info("pyetje norme: fazat mbi fakte, radar, plani dhe precedentët e palidhur anashkalohen")
+            _audit_set("pyetje_norme", True)
+        _cituar_pairs = [(a.code, a.number) for a, _ in retrieved if getattr(a, "_cituar", False)] or cited_pairs
         try:
             precedents = self._retrieve_precedents(triage, cited_pairs)
+            if _norme:
+                precedents = _precedente_te_lidhur(precedents, _cituar_pairs)
             _audit_precedenti(precedents)
         except Exception as exc:
             log.warning("stream: precedents retrieval failed: %s", exc)
@@ -2779,7 +2786,7 @@ class SuperAvvocato:
 
         yield ("status", self._status("complex_precedents"))
         try:
-            adverse_precedents = self._retrieve_adverse_precedents(
+            adverse_precedents = [] if _norme else self._retrieve_adverse_precedents(
                 triage, cited_pairs)
         except Exception as exc:
             log.warning("stream: adverse retrieval failed: %s", exc)
@@ -2803,7 +2810,9 @@ class SuperAvvocato:
             "nullity_radar":   lambda: self._scan_nullities(user_message, triage, retrieved, documents),
             "contradictions":  lambda: self._detect_contradictions(documents),
         }
-        adversary_present = _has_adversary(user_message, triage, documents)
+        if _norme:
+            stage_plan = {"skuadra_gather": stage_plan["skuadra_gather"]}
+        adversary_present = False if _norme else _has_adversary(user_message, triage, documents)
         if adversary_present:
             stage_plan["opponent"] = lambda: self._simulate_opponent(
                 user_message, triage, retrieved, precedents, documents)
@@ -2830,14 +2839,14 @@ class SuperAvvocato:
         yield ("status", self._status("complex_urgency"))
         urgency_radar: UrgencyRadar | None = None
         try:
-            urgency_radar = self._scan_urgency(
+            urgency_radar = None if _norme else self._scan_urgency(
                 user_message, triage, timeline, nullity_radar, documents, retrieved=retrieved)
         except Exception as exc:
             log.warning("stream urgency_radar failed: %s", exc)
 
         action_plan: ActionPlan | None = None
         try:
-            action_plan = self._build_action_plan(
+            action_plan = None if _norme else self._build_action_plan(
                 triage, urgency_radar, nullity_radar,
                 evidence_map, comparison, premortem,
                 contradictions=contradictions,
@@ -2852,8 +2861,9 @@ class SuperAvvocato:
         new_sid = session_id
         final_text = ""   # v9.316: il testo finale pulito del compose (con i tool, i delta hanno anche i turni intermedi)
         try:
+            _msg_c = user_message + (_NORME_HINT["it" if self._current_jurisdiction() == "IT" else "sq"] if _norme else "")
             for kind, payload in self._compose_answer_stream(
-                user_message, history, triage, retrieved, precedents,
+                _msg_c, history, triage, retrieved, precedents,
                 strategic=strategic, timeline=timeline, comparison=comparison,
                 premortem=premortem, distinguishing=distinguishing,
                 evidence_map=evidence_map, nullity_radar=nullity_radar,
@@ -2896,7 +2906,7 @@ class SuperAvvocato:
             testo = ""
             try:
                 testo = self._compose_answer(
-                    user_message, history, triage, retrieved, precedents,
+                    _msg_c, history, triage, retrieved, precedents,
                     session_id=session_id, documents=None, no_web=True, **_fasi,
                 )
             except Exception as exc2:  # noqa: BLE001
@@ -3131,8 +3141,15 @@ class SuperAvvocato:
         # precedent retriever can score article-overlap bonuses —
         # without this hint the overlap bonus in retrieval_kb is dead code.
         cited_pairs = [(a.code, a.number) for a, _ in retrieved]
+        _norme = _eshte_pyetje_norme(user_message)      # v9.360: pyetje norme → niente fasi sui fatti
+        if _norme:
+            log.info("pyetje norme: fazat mbi fakte, radar, plani dhe precedentët e palidhur anashkalohen")
+            _audit_set("pyetje_norme", True)
+        _cituar_pairs = [(a.code, a.number) for a, _ in retrieved if getattr(a, "_cituar", False)] or cited_pairs
 
         precedents = self._retrieve_precedents(triage, cited_pairs)
+        if _norme:
+            precedents = _precedente_te_lidhur(precedents, _cituar_pairs)
         _audit_precedenti(precedents)
         log.info("retrieved %d precedents", len(precedents))
 
@@ -3141,7 +3158,7 @@ class SuperAvvocato:
         # miss them when the top BM25 hits happen to all be wins. A
         # great lawyer studies the cases that went AGAINST them harder
         # than the ones that favour them — and so does this brain.
-        adverse_precedents = self._retrieve_adverse_precedents(triage, cited_pairs)
+        adverse_precedents = [] if _norme else self._retrieve_adverse_precedents(triage, cited_pairs)
         # Merge the adverse hits that weren't already in the mixed list
         # so the UI/prompt see the full picture.
         seen_ids = {c.id for c, _ in precedents}
@@ -3176,7 +3193,9 @@ class SuperAvvocato:
         # case actually has one. Informative "how does X work?" questions
         # that still crossed the complexity gate (long but non-adversarial)
         # burn ~60-120s here producing empty JSON that gets dropped.
-        adversary_present = _has_adversary(user_message, triage, documents)
+        if _norme:
+            stage_plan = {"skuadra_gather": stage_plan["skuadra_gather"]}
+        adversary_present = False if _norme else _has_adversary(user_message, triage, documents)
         if adversary_present:
             stage_plan["opponent"] = lambda: self._simulate_opponent(
                 user_message, triage, retrieved, precedents, documents)
@@ -3243,7 +3262,7 @@ class SuperAvvocato:
         # compose prompt so critical cases get an action-first framing.
         urgency_radar: UrgencyRadar | None = None
         try:
-            urgency_radar = self._scan_urgency(
+            urgency_radar = None if _norme else self._scan_urgency(
                 user_message, triage, timeline, nullity_radar, documents, retrieved=retrieved
             )
             if urgency_radar and not urgency_radar.is_empty():
@@ -3264,7 +3283,7 @@ class SuperAvvocato:
         # raises them instead of letting them sit in a panel.
         action_plan: ActionPlan | None = None
         try:
-            action_plan = self._build_action_plan(
+            action_plan = None if _norme else self._build_action_plan(
                 triage, urgency_radar, nullity_radar,
                 evidence_map, comparison, premortem,
                 contradictions=contradictions,
@@ -3274,8 +3293,9 @@ class SuperAvvocato:
         except Exception as exc:
             log.warning("action_plan failed (non-fatal): %s", exc)
 
+        _msg_c = user_message + (_NORME_HINT["it" if self._current_jurisdiction() == "IT" else "sq"] if _norme else "")
         answer_text = self._compose_answer(
-            user_message, history, triage, retrieved, precedents, strategic, timeline, comparison,
+            _msg_c, history, triage, retrieved, precedents, strategic, timeline, comparison,
             premortem=premortem, distinguishing=distinguishing,
             evidence_map=evidence_map, nullity_radar=nullity_radar,
             urgency_radar=urgency_radar, action_plan=action_plan,
@@ -3587,6 +3607,10 @@ class SuperAvvocato:
                 try:
                     for art, _s in idx.search(g["kerkim"], top_k=8):
                         if getattr(art, "repealed", False):
+                            continue
+                        # v9.360 — niente rumore: solo un nene con testo vero e di un codice già nel dossier
+                        # (il 21 set entrava «Neni 107 Kodi Civil — «»» in una domanda di Kodi Penal)
+                        if len((getattr(art, "body", "") or "").strip()) < 40 or str(getattr(art, "code", "")) not in {c for c, _ in have_keys}:
                             continue
                         key = (str(getattr(art, "code", "")), str(getattr(art, "number", "")))
                         if key in have_keys:
@@ -6047,6 +6071,42 @@ _CHIARIMENTO_RX = re.compile(
 _RICERCA_RX = re.compile(
     r"(cerca|verifica|trova|controlla|aggiorna|novit|sentenz|cassazion|precedent|giurisprudenz|"
     r"kërko|verifiko|gjej|kontrollo|vendim|jurisprudenc)", re.I)
+
+
+# v9.360 — PYETJE NORME («neni 88 i kodit penal?», «cosa dice l'art. 2946 c.c.?»): breve, cita un
+# articolo, NESSUN fatto. Il 21 set il Gjyqtari Suprem su quella domanda ha costruito un fascicolo dal
+# nulla («i pandehuri», «nuk ka pasur mbrojtës», ALLARME rosso, piano SOT/JAVË/MUAJ, tre omicidi come
+# precedenti) e il Giudice ha dovuto buttare tutto. Le fasi che presuppongono un cliente non partono.
+_FAKTE_RX = re.compile(
+    r"(klient\w*|cliente|\bim\b|\bime\b|\bmio\b|\bmia\b|\bmiei\b|u pushua|ka ndodhur|kam marr|më kanë|mi hanno|"
+    r"ho ricevuto|abbiamo|\bkemi\b|denunc|\bpadi\w*|gjyq\w*|process\w*|kontrat\w*|contratt\w*|\bkontest|\bsot\b|\bdje\b|"
+    r"\bieri\b|\boggi\b|\d{1,2}[./]\d{1,2}[./]\d{2,4}|\d+\s*(?:€|euro|lek))", re.I)
+_NORME_CUE_RX = re.compile(r"(çfarë thotë|cfare thote|teksti i nenit|tekstin e nenit|cosa dice|cosa prevede|testo dell'art|che dice l'art)", re.I)
+
+
+def _eshte_pyetje_norme(user_message: str) -> bool:
+    """Vero se la domanda chiede solo cosa dice una norma (breve, con citazione esplicita, senza fatti)."""
+    s_ = (user_message or "").strip()
+    if not s_ or len(s_) > 300 or _FAKTE_RX.search(s_):
+        return False
+    try:
+        from .citation_verifier import CITATION_RE, CITATION_RE_IT
+        ka_citim = bool(CITATION_RE.search(s_) or CITATION_RE_IT.search(s_))
+    except Exception:  # noqa: BLE001
+        ka_citim = False
+    return ka_citim or bool(_NORME_CUE_RX.search(s_))
+
+
+_NORME_HINT = {
+    "sq": ("\n\n[PYETJE NORME — pa fakte: jep SË PARI tekstin e plotë, fjalë për fjalë, të nenit/neneve të kërkuar nga blloku "
+           "(me kufijtë e dënimit/afatet dhe shënimin e ndryshimeve), pastaj nenet fqinje dhe dallimet mes tyre në një tabelë "
+           "të shkurtër; ASNJË strategji, afat, plan veprimi apo precedent mbi fakte që nuk t'u dhanë — mos sajo klient, "
+           "të pandehur apo dosje; mbyll me një rresht: cilat fakte do të duheshin për një këshillë konkrete.]"),
+    "it": ("\n\n[DOMANDA DI NORMA — senza fatti: dai PRIMA il testo integrale, parola per parola, dell'articolo/i chiesto/i dal "
+           "blocco (con limiti di pena/termini e la nota delle modifiche), poi gli articoli vicini e le differenze in una breve "
+           "tabella; NESSUNA strategia, termine, piano d'azione o precedente su fatti che non ti sono stati dati — non inventare "
+           "un cliente, un imputato o un fascicolo; chiudi con una riga: quali fatti servirebbero per un consiglio concreto.]"),
+}
 
 
 def _eshte_sqarim(user_message: str) -> bool:

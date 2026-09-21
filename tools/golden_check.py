@@ -3703,6 +3703,30 @@ def main():
     except Exception as _e109:  # noqa: BLE001
         check("citimet[109]: kontrollet u ekzekutuan", False, str(_e109))
 
+    # ── [110] v9.360 — PYETJE NORME: una domanda che chiede solo cosa dice un articolo non accende le fasi
+    # sui fatti (il Gjyqtari Suprem su «neni 88?» aveva inventato imputato, allarme, piano e precedenti) ──
+    try:
+        import inspect as _insp110
+        from src import brain as _br110
+        _f = _br110._eshte_pyetje_norme
+        _okA = (_f("neni 88 i kodit penal?") and _f("cosa dice l'art. 2946 c.c.?") and _f("Çfarë thotë neni 114 i Kodit Civil?")
+                and not _f("klienti im u pushua nga puna pa paralajmërim, neni 155 i kodit të punës") and not _f("sa është afati i parashkrimit?")
+                and not _f("art. 18 St. Lav.: il mio cliente ha 30 dipendenti, licenziato ieri") and not _f("x" * 301))
+        _src = _insp110.getsource(_br110)
+        _okB = (_src.count('stage_plan = {"skuadra_gather": stage_plan["skuadra_gather"]}') == 2
+                and _src.count("precedents = _precedente_te_lidhur(precedents, _cituar_pairs)") == 2
+                and _src.count("urgency_radar = None if _norme else self._scan_urgency(") == 2
+                and _src.count("action_plan = None if _norme else self._build_action_plan(") == 2
+                and _src.count("[] if _norme else self._retrieve_adverse_precedents(") == 2
+                and _src.count("_NORME_HINT[") == 2 and "_msg_c, history, triage, retrieved, precedents" in _src)
+        _r = _insp110.getsource(_br110.SuperAvvocato._research_loop)
+        _okC = "not in {c for c, _ in have_keys}" in _r and "< 40" in _r
+        _okD = "PYETJE NORME" in _br110._NORME_HINT["sq"] and "DOMANDA DI NORMA" in _br110._NORME_HINT["it"] and "mos sajo" in _br110._NORME_HINT["sq"]
+        check("pyetje norme[110]: rilevatore (cita+breve+senza fatti; i fatti la spengono) · fasi/radar/piano/avversi saltati e precedenti legati ai nene chiesti nei 2 percorsi · hint al senior sq/it · research loop senza rumore",
+              _okA and _okB and _okC and _okD, "rilev=%s percorsi=%s loop=%s hint=%s" % (_okA, _okB, _okC, _okD))
+    except Exception as _e110:  # noqa: BLE001
+        check("pyetje norme[110]: kontrollet u ekzekutuan", False, str(_e110))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

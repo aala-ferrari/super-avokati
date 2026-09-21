@@ -65,7 +65,7 @@ print(f"caso {cid[:8]} giurisdizione={case.get('jurisdiction')}", flush=True)
 t0 = time.time()
 if _Q_ENV:
     question = _Q_ENV
-start = post("/api/ask/start", {"case_id": cid, "message": question})
+start = post("/api/ask/start", {"case_id": cid, "message": question, "deep": os.environ.get("PROVA_DEEP", "") == "1"})   # PROVA_DEEP=1 = Gjyqtari Suprem
 job = start.get("job_id")
 print("job:", job, flush=True)
 
