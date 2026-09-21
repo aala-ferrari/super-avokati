@@ -33,6 +33,16 @@ MODEL = os.environ.get("DENSE_MODEL", "sentence-transformers/paraphrase-multilin
 EMB_DIR = Path(os.environ.get("EMB_DIR", str(INDEX_PATH.parent / "models")))
 DEPTH = int(os.environ.get("DENSE_DEPTH", "50"))
 RRF_K = 60
+# v9.362 — SEGMENTI: MiniLM legge 128 token e il 61 % AL / 62 % IT dei nene sono più lunghi (misurato 21 set:
+# il 3° paragrafo del 302 — l'esclusione dei familiari — cominciava al token 206 e non era MAI stato
+# codificato). Ogni articolo diventa 1..N segmenti da ~CHUNK_TOKENS token con sovrapposizione, ognuno
+# preceduto dalla rubrica; alla ricerca l'articolo prende il MASSIMO dei suoi segmenti. `EMB_SUFFIX`
+# permette di tenere due codifiche affiancate per la misura A/B (es. «_ck»).
+CHUNK_TOKENS = int(os.environ.get("DENSE_CHUNK_TOKENS", "110"))
+CHUNK_OVERLAP = int(os.environ.get("DENSE_CHUNK_OVERLAP", "25"))
+CHUNK_MAX = int(os.environ.get("DENSE_CHUNK_MAX", "40"))
+EMB_SUFFIX = os.environ.get("EMB_SUFFIX", "")
+_TOK = None
 _LOCK = threading.Lock()
 _MODEL = None
 _MODEL_FAILED = False
@@ -77,6 +87,61 @@ def embed_query(text: str):
     return v / (np.linalg.norm(v) + 1e-9)
 
 
+def _tokenizer():
+    """Un tokenizer SEPARATO (senza troncatura) solo per contare e spezzare: quello del modello resta
+    com'è (tronca a 128, come deve). None se manca → si ripiega sui caratteri (~4 per token)."""
+    global _TOK
+    if _TOK is not None:
+        return _TOK or None
+    try:
+        from tokenizers import Tokenizer
+        f = flat_dir() / "tokenizer.json"
+        t = Tokenizer.from_file(str(f)); t.no_truncation(); _TOK = t
+    except Exception:  # noqa: BLE001
+        _TOK = False
+    return _TOK or None
+
+
+def n_token(text: str) -> int:
+    t = _tokenizer()
+    return len(t.encode(text or "").ids) if t else max(1, len(text or "") // 4)
+
+
+def chunk_text(heading: str, body: str, max_tokens: int = CHUNK_TOKENS, overlap: int = CHUNK_OVERLAP, max_chunks: int = CHUNK_MAX) -> list[str]:
+    """Segmenti di ~max_tokens token (sovrapposizione `overlap`), ognuno preceduto dalla rubrica.
+    Si spezza su parole, mai a metà parola; un articolo corto = 1 segmento (identico a prima)."""
+    rub = " ".join((heading or "").split())[:120]
+    words = (body or "").split()
+    if not words:
+        return [rub] if rub else []
+    t = _tokenizer()
+    if t is None:
+        per = 4
+        wl = [max(1, len(w) // per + 1) for w in words]
+    else:
+        enc = t.encode_batch(words)
+        wl = [max(1, len(e.ids)) for e in enc]
+    rub_t = n_token(rub) if rub else 0
+    budget = max(24, max_tokens - rub_t - 2)
+    out, i = [], 0
+    while i < len(words) and len(out) < max_chunks:
+        j, tot = i, 0
+        while j < len(words) and tot + wl[j] <= budget:
+            tot += wl[j]; j += 1
+        if j == i:
+            j = i + 1
+        seg = " ".join(words[i:j])
+        out.append((rub + ". " + seg) if rub else seg)
+        if j >= len(words):
+            break
+        # sovrapposizione: torna indietro di ~overlap token
+        back, k = 0, j
+        while k > i + 1 and back < overlap:
+            k -= 1; back += wl[k]
+        i = max(k, i + 1)
+    return out
+
+
 def embed_passages(texts: list[str], batch_size: int = 32):
     m = _carica_modello()
     if m is None:
@@ -98,7 +163,7 @@ class DenseIndex:
     def carica(cls, index, lang: str):
         """Legge emb_<lang>_<tag>.npy + .keys.json e li allinea all'indice vivo. None se manca o non combacia."""
         import numpy as np
-        base = EMB_DIR / f"emb_{lang}_{tag()}"
+        base = EMB_DIR / f"emb_{lang}_{tag()}{EMB_SUFFIX}"
         f, fk = base.with_suffix(".npy"), Path(str(base) + ".keys.json")
         if not f.exists() or not fk.exists():
             return None
@@ -108,9 +173,10 @@ class DenseIndex:
         except Exception as exc:  # noqa: BLE001
             log.warning("dense: embedding %s illeggibili: %s", f.name, exc); return None
         pos = {(a.code, str(a.number)): i for i, a in enumerate(index.articles)}
-        rows = [pos.get((k[0], str(k[1])), -1) for k in keys]
+        rows = [pos.get((k[0], str(k[1])), -1) for k in keys]      # chiavi [code, number] o [code, number, segmento]
         mancanti = sum(1 for r in rows if r < 0)
-        nuovi = len(index.articles) - (len(rows) - mancanti)
+        coperti = len({r for r in rows if r >= 0})
+        nuovi = len(index.articles) - coperti
         if mancanti or nuovi:
             log.warning("dense: embedding %s non allineati all'indice (%d spariti, %d articoli nuovi senza embedding): rilanciare tools/build_dense.py",
                         f.name, mancanti, nuovi)
@@ -127,10 +193,12 @@ class DenseIndex:
         order = np.argsort(-s)
         out = []
         restrict = set(restrict_codes) if restrict_codes else None
+        visti: set = set()
         for i in order:
             r = self.rows[i]
-            if r < 0:
+            if r < 0 or r in visti:
                 continue
+            visti.add(r)                     # più segmenti per articolo: vale il MASSIMO (il primo in ordine)
             a = self.articles[r]
             if not include_repealed and a.repealed:
                 continue
@@ -156,7 +224,8 @@ def indice(index, lang: str):
             except Exception as exc:  # noqa: BLE001
                 log.warning("dense: caricamento fallito (%s)", exc); _INDICI[k] = None
             if _INDICI[k] is not None:
-                log.info("dense: indice %s pronto (%d embedding)", lang, len(_INDICI[k].rows))
+                log.info("dense: indice %s pronto (%d embedding, %d articoli%s)", lang, len(_INDICI[k].rows),
+                         len({r for r in _INDICI[k].rows if r >= 0}), f", suffisso {EMB_SUFFIX}" if EMB_SUFFIX else "")
     return _INDICI[k]
 
 

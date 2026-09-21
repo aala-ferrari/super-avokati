@@ -78,3 +78,28 @@ def diff(old: dict, new: dict) -> dict:
         "removed": sorted(removed),
         "unchanged": unchanged,
     }
+
+
+# v9.361 — la REVISIONE del corpus per ogni risposta (riproducibilità): impronta corta di jsonl,
+# indici BM25, chiavi degli embedding e metadati atto (mtime+size, non il contenuto: costo zero a
+# richiesta). Cambia quando cambia un dato; finisce nell'audit di ogni risposta.
+_REV_CACHE: dict = {}
+
+
+def revision() -> dict:
+    import hashlib, os
+    from pathlib import Path
+    from .config import INDEX_PATH
+    base = Path(INDEX_PATH).parent
+    files = [base.parent / "processed" / "all_articles.jsonl", base / "bm25.pkl", base / "bm25_it.pkl",
+             base / "acts_meta.json", base / "case_graph.json"] + sorted((base.parent / "models").glob("emb_*.keys.json"))
+    parts = []
+    for f in files:
+        try:
+            st = os.stat(f); parts.append(f"{f.name}:{int(st.st_mtime)}:{st.st_size}")
+        except OSError:
+            parts.append(f"{f.name}:-")
+    key = "|".join(parts)
+    if _REV_CACHE.get("key") != key:
+        _REV_CACHE.update({"key": key, "rev": hashlib.sha1(key.encode()).hexdigest()[:12], "files": parts})
+    return {"rev": _REV_CACHE["rev"], "files": _REV_CACHE["files"]}

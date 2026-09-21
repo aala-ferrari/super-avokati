@@ -566,6 +566,10 @@ STUDIO_GJYQTARI_SKUADRA_MODEL = os.getenv("STUDIO_GJYQTARI_SKUADRA_MODEL", "opus
 # + diavolo Fable (2 round) + Giudice Fable max con RISERVA dell'altra mente (Opus max) anche quando è
 # «impegnato», non solo sul limite. «0» = comportamento v9.357 (loop/raport solo in ⚡, nessuna riserva).
 GJYQTARI_SUPREM_ENABLED = os.getenv("GJYQTARI_SUPREM_ENABLED", "1") == "1"
+# v9.361 — tetto al corpo di UN articolo nel prompt (34 «articoli» IT oltre 30.000 chr: leggi di
+# approvazione e allegati incollati; uno da 211.000). Il taglio è DICHIARATO nel blocco («… karaktere të
+# hequra»), mai silenzioso, e non vale MAI per il nene chiesto per numero dall'avvocato.
+PROMPT_BODY_MAX_CHARS = int(os.getenv("PROMPT_BODY_MAX_CHARS", "12000"))
 
 # ── Mbledhësit (raccoglitori) del percorso simple — gradino B (v9.271) ──
 # «sonnet» = Sonnet sul tier medium (HA il web); effort basso di proposito:

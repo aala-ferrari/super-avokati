@@ -482,6 +482,11 @@ _AUDIT = _threading.local()
 
 def _audit_reset() -> None:
     _AUDIT.data = {"passi": [], "t0": time.time()}
+    try:                                            # v9.361: la revisione del corpus in ogni audit
+        from .corpus_hash import revision as _rev
+        _AUDIT.data["corpus_revision"] = _rev()["rev"]
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def _audit_set(key: str, value) -> None:
@@ -2947,7 +2952,9 @@ class SuperAvvocato:
                     answer_text = answer_text + _extra_rl
             except Exception as _exc_rl:  # noqa: BLE001
                 log.warning("war_room research loop wiring dështoi (non-fatal): %s", _exc_rl)
+        retrieved = self._mbyll_dosjen_me_citime(answer_text, retrieved, "seniori")     # v9.361
         answer_text = self._studio_djalli(user_message, retrieved, precedents, answer_text)
+        retrieved = self._mbyll_dosjen_me_citime(answer_text, retrieved, "djalli")      # v9.361
         # Source Verifier: il RAPPORTO di verifica per qualità sul dossier canonico —
         # verificate vs da-verificare. v9.358: su ogni percorso profondo. Fail-silent.
         if request_senior() == "fable" or _gjyqtari_suprem():
@@ -3336,7 +3343,9 @@ class SuperAvvocato:
                     answer_text = answer_text + _rap_n
             except Exception as _exc_n:  # noqa: BLE001
                 log.warning("gjyqtari suprem (non-stream) loop/raport dështoi (non-fatal): %s", _exc_n)
+        retrieved = self._mbyll_dosjen_me_citime(answer_text, retrieved, "seniori")     # v9.361
         answer_text = self._studio_djalli(user_message, retrieved, precedents, answer_text)
+        retrieved = self._mbyll_dosjen_me_citime(answer_text, retrieved, "djalli")      # v9.361
         # ⚖️ Il Giudice Finale (Fable 5.1 max): verdetto finale sul percorso non-stream.
         _fazat_n = ""
         try:
@@ -3891,6 +3900,46 @@ class SuperAvvocato:
             return answer_text
 
     # ── stage 2: retrieval ─────────────────────────────────────────────────
+
+    def _mbyll_dosjen_me_citime(self, text: str, retrieved, burim: str, limit: int = 6):
+        """v9.361 — IL DOSSIER SI CHIUDE SOTTO CITAZIONE: i nene che il senior o l'avvocato del diavolo citano
+        senza averli nel blocco vengono presi dal corpus (deterministico: lo stesso verificatore) e messi in
+        CODA ai recuperati, marcati «⚑ CITUAR NGA …», prima del Giudice. Stanotte il Giudice ha dovuto scrivere
+        «neni 128 KPP, i përmendur nga avokati i djallit: për t'u verifikuar» — col testo in mano decide.
+        Solo citazioni native verificate (o abrogate, dette); mai il diritto straniero. Fail-silent."""
+        try:
+            from . import citation_verifier as _cvq
+            jur = self._current_jurisdiction()
+            idx = self.index_it if (self.index_it is not None and jur == "IT") else self.index
+            if idx is None or not (text or "").strip():
+                return retrieved
+            out = list(retrieved or [])
+            presenti = {(a.code, str(a.number)) for a, _ in out}
+            r = _cvq.verify_text((text or "")[:60000], idx, retrieved_codes={a.code for a, _ in out} or None)
+            by_key = None
+            aggiunti = []
+            for it in r.get("items") or []:
+                if it.get("status") not in ("verified", "repealed", "stale") or not it.get("code"):
+                    continue
+                k = (it["code"], str(it["number"]))
+                if k in presenti:
+                    continue
+                if by_key is None:
+                    by_key = {(a.code, str(a.number)): a for a in idx.articles}
+                a = by_key.get(k)
+                if a is None:
+                    continue
+                c = _copy.copy(a); c._cituar_nga = burim
+                out.append((c, 0.0)); presenti.add(k); aggiunti.append(f"{a.code} {a.number}")
+                if len(aggiunti) >= limit:
+                    break
+            if aggiunti:
+                log.info("dosja: nene të cituara nga %s hyjnë në dosje %s", burim, aggiunti)
+                _audit_set(f"dosja_mbyllur_{burim}", aggiunti)
+            return out
+        except Exception as exc:  # noqa: BLE001
+            log.warning("mbyll_dosjen: saltato (non-fatal): %s", exc)
+            return retrieved
 
     def _ankoro_citimet(self, user_message: str, retrieved):
         """v9.359 — IL NENE CHIESTO PER NUMERO ENTRA SEMPRE, PER PRIMO. Caso vero (21 set): «neni 88 i
@@ -6603,16 +6652,60 @@ def _format_articles_for_prompt(pairs: list[tuple[Article, float]]) -> str:
                 f"nëse është norma që e PËRCAKTON vetë shkeljen/masën, para se "
                 f"të ndërtosh mbrojtjen mbi nene periferike)\n"
             )
+        elif getattr(a, "_cituar_nga", ""):
+            _kush = {"seniori": "SENIORI", "djalli": "AVOKATI I DJALLIT"}.get(getattr(a, "_cituar_nga", ""), "NJË AGJENT")
+            intestazione = (
+                f"── {a.citation}  ⚑ CITUAR NGA {_kush} (nuk ishte në dosjen fillestare)\n"
+                f"  (u citua në analizë pa qenë në bllok: teksti i plotë hyn që Gjyqtari ta kontrollojë "
+                f"pretendimin mbi tekstin, jo mbi kujtesën{' — KUJDES: është i shfuqizuar' if getattr(a, 'repealed', False) else ''})\n"
+            )
         else:
             intestazione = f"── {a.citation} (score={score:.2f})\n"
+        # v9.361 — tetto DICHIARATO al corpo (34 «articoli» IT oltre 30.000 chr); mai sul nene chiesto per numero
+        _body = a.body or ""
+        try:
+            from .config import PROMPT_BODY_MAX_CHARS as _cap
+        except Exception:  # noqa: BLE001
+            _cap = 12000
+        if len(_body) > _cap and not getattr(a, "_cituar", False):
+            _mancano = len(_body) - _cap
+            _body = _body[:_cap].rstrip() + (
+                f"\n  […{_mancano} caratteri omessi dal prompt: articolo molto lungo — per il testo integrale chiedilo per numero]"
+                if _is_italian_code(a.code) else
+                f"\n  […{_mancano} karaktere të hequra nga prompti: nen shumë i gjatë — për tekstin e plotë kërkoje me numër]")
         blocks.append(
             f"{intestazione}"
             f"  Titulli: {a.heading}\n"
             f"{hierarchy}"
             f"{vol_note}"
-            f"  {a.body}"
+            f"  {_body}"
         )
-    return "\n\n".join(blocks) + _indice_kreut(pairs)
+    out = "\n\n".join(blocks) + _indice_kreut(pairs)
+    _kontroll_payload(pairs, out)
+    return out
+
+
+def _kontroll_payload(pairs, text: str) -> dict:
+    """v9.361 — CONTROLLO DEL PAYLOAD (D14/G5 del documento del titolare): il nene chiesto per numero deve
+    stare INTEGRALE nel blocco che va al modello — niente tetto, niente taglio. Deterministico, nell'audit."""
+    esito = {"kerkuar": 0, "te_plote": 0, "mungojne": []}
+    try:
+        for a, _ in pairs or []:
+            if not getattr(a, "_cituar", False):
+                continue
+            esito["kerkuar"] += 1
+            corpo = (a.body or "").strip()
+            if (not corpo) or corpo in text:
+                esito["te_plote"] += 1
+            else:
+                esito["mungojne"].append(f"{a.code} {a.number}")
+        if esito["kerkuar"]:
+            _audit_set("payload_nene_kerkuara", esito)
+            if esito["mungojne"]:
+                log.warning("payload: nene të kërkuara shprehimisht JO të plota në prompt: %s", esito["mungojne"])
+    except Exception:  # noqa: BLE001
+        pass
+    return esito
 
 
 def _precedente_te_lidhur(pairs, cited, sa: int = 3):

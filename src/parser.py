@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import json
 import re
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 import pdfplumber
@@ -38,6 +38,71 @@ ARTICLE_RE = re.compile(
 ARTICLE_INLINE_RE = re.compile(
     r"(?m)^[ \t]*Neni[ \t]*(\d+(?:[ \t]*/[ \t]*[a-zçëA-ZÇË0-9]+)?)[ \t]+([A-ZÇË][^\n]{1,89}[^\d\s])[ \t]*$"
 )
+
+# v9.362 — RUBRICA vs PRIMA FRASE. La regola V9.1 («incolla righe finché finisce una frase») era pensata per
+# il Kodi Civil, che non ha rubriche; nei 40+ atti CON rubrica inghiottiva il primo paragrafo (misurato:
+# 8.301 «rubriche» su 9.682 oltre 120 caratteri, corpo VUOTO negli articoli di una frase). Una riga è una
+# rubrica se è corta (≤90), senza punteggiatura finale, non comincia con una cifra e non contiene un verbo
+# finito; le note «(Shtuar/Ndryshuar …)» — anche sulla riga dopo, anche spezzate su due righe — vanno in
+# `note`. Il MODO si decide per documento: rubrica se ≥ 50 % degli articoli la passano (KP 97 %, KPP 97 %,
+# leggi ~100 %; Kodi Civil 7 %, Kushtetuta 4 % → prima frase, invariato).
+_RUBRIKA_NOTE_RX = re.compile(r"\((?:Shtuar|Ndryshuar|Shfuqizuar|Riformuluar|Hequr|Zëvendësuar|Ndryshohet|Shtohet)[^)]*\)?", re.I)
+_RUBRIKA_VERB_RX = re.compile(
+    r"\b(dënohet|dënohen|përbën|përbëjnë|konsiderohet|konsiderohen|zbatohet|zbatohen|është|janë|nuk|mund|duhet|do të|"
+    r"kanë|quhet|quhen|kryhet|kryhen|lejohet|ndalohet|ka të drejtë|bëhet|bëhen|merret|merren|caktohet|caktohen|vendos|"
+    r"përcakton|përcaktohet|kupton|kuptohet|njihet|detyrohet|detyrohen|paguhet|paguan|gëzon|gëzojnë|humbet|fillon|mbaron)\b", re.I)
+_PARAGRAF_NUM_RX = re.compile(r"^\s*(\d{1,3})[.)]\s+\S")
+
+
+def _nota_ne_krye(lines: list[str]) -> tuple[str, list[str]]:
+    """Le note editoriali in testa all'articolo («(Ndryshuar me ligjin…)»), anche su più righe → (note, resto)."""
+    rest = list(lines)
+    buf, i = "", 0
+    while i < len(rest) and i < 5 and (rest[i].lstrip().startswith("(") or (buf and buf.count("(") > buf.count(")"))):
+        buf = (buf + " " + rest[i]).strip(); i += 1
+        if buf.count("(") <= buf.count(")") and not (i < len(rest) and rest[i].lstrip().startswith("(")):
+            break
+    if buf and _RUBRIKA_NOTE_RX.search(buf):
+        return " ".join(buf.split()), rest[i:]
+    return "", list(lines)
+
+
+def _kandidat_rubrike(lines: list[str]):
+    """(rubrica, note, righe_del_corpo) se la prima riga è una rubrica plausibile, altrimenti None."""
+    if not lines:
+        return None
+    rest = list(lines)
+    buf, i = rest[0], 1
+    # la nota può stare sulla stessa riga (anche spezzata: «…me ligjin nr.» / «9686, datë 26.2.2007)») o sulla riga dopo
+    while i < len(rest) and i < 6 and (buf.count("(") > buf.count(")") or rest[i].lstrip().startswith("(")):
+        buf = buf + " " + rest[i]; i += 1
+        if buf.count("(") <= buf.count(")") and not (i < len(rest) and rest[i].lstrip().startswith("(")):
+            break
+    note = " ".join(" ".join(m.group(0).split()) for m in _RUBRIKA_NOTE_RX.finditer(buf)).strip()
+    rub = " ".join(_RUBRIKA_NOTE_RX.sub("", buf).split()).strip(" -–—:;,")
+    ok = 2 <= len(rub) <= 90 and rub[-1] not in ".;!?" and not re.match(r"^\d+[.)]", rub) and not _RUBRIKA_VERB_RX.search(rub)
+    if not ok:
+        return None
+    return rub, note, rest[i:]
+
+
+def _paragrafet(body: str) -> list[str]:
+    """I paragrafi del corpo: nuovo paragrafo a un numero in testa («1.», «2)») o dopo una riga che chiude
+    una frase quando la successiva comincia con maiuscola. Interno (verifica, segmenti): mai numeri inventati."""
+    out: list[list[str]] = []
+    prev = ""
+    for ln in (body or "").splitlines():
+        ln = ln.strip()
+        if not ln:
+            continue
+        nuovo = (not out) or bool(_PARAGRAF_NUM_RX.match(ln)) or (prev[-1:] in ".;:" and ln[:1].isupper())
+        if nuovo:
+            out.append([ln])
+        else:
+            out[-1].append(ln)
+        prev = ln
+    return [" ".join(p) for p in out]
+
 
 # Hierarchy headers (PJESA / KREU / SEKSIONI / TITULLI). Used as context.
 HIERARCHY_RE = re.compile(
@@ -113,6 +178,13 @@ class Article:
     repealed: bool = False
     volatility: str = "STABLE"            # V7.4 — inherited from LegalDocument
     last_amendment_date: str = ""          # V7.4 — ISO date of last indexed amendment
+    # v9.362 — STRUTTURA DEL NENE (21 set 2026): `heading` = la RUBRICA vera nei codici che ce l'hanno
+    # («Përkrahja e autorit të krimit»), non più «rubrica + prima frase»; `note` = le note editoriali
+    # «(Shtuar/Ndryshuar … me ligjin nr. …)» separate dal testo; `paragrafet` = i paragrafi del corpo
+    # (numerati se lo sono nella fonte, altrimenti per ordine — MAI numeri inventati nel prompt).
+    # Nei codici senza rubrica (Kodi Civil, Kushtetuta) `heading` resta la prima frase, come prima.
+    note: str = ""
+    paragrafet: list = field(default_factory=list)
 
     @property
     def citation(self) -> str:
@@ -318,6 +390,21 @@ def split_into_articles(text: str, doc: LegalDocument) -> list[Article]:
     numbers = [n for _, n in items]
 
     articles: list[Article] = []
+    # v9.362 — il MODO rubrica si decide per documento (≥ 50 % degli articoli con una rubrica plausibile);
+    # `doc.rubrika_mode` («po»/«jo») lo forza
+    _forza = getattr(doc, "rubrika_mode", "") or ""
+    if _forza in ("po", "jo"):
+        rubrika_mode = _forza == "po"
+    else:
+        _kand = 0
+        for i, m in enumerate(matches):
+            _raw = text[m.end():(matches[i + 1].start() if i + 1 < len(matches) else len(text))].strip()
+            if m.re is ARTICLE_INLINE_RE:
+                _raw = m.group(2).strip() + "\n" + _raw
+            _ls = [ln.strip() for ln in _raw.splitlines() if ln.strip()]
+            if _ls and _kandidat_rubrike(_ls):
+                _kand += 1
+        rubrika_mode = bool(matches) and _kand / max(1, len(matches)) >= 0.5
     for i, m in enumerate(matches):
         number = numbers[i]  # "83 / a" -> "83/a" (o il numero ricomposto)
         start = m.end()
@@ -349,17 +436,40 @@ def split_into_articles(text: str, doc: LegalDocument) -> list[Article]:
                 consumed += 1
             heading = buf
             body = "\n".join(lines[consumed:]).strip()
+        # v9.362 — la «prima frase» (heading_v/body_v) resta il metro per abrogazione e date (invariante
+        # rispetto a v9.330); i campi mostrati e cercati diventano rubrica / note / corpo intero
+        heading_v, body_v = heading, body
+        note, paragrafet = "", []
+        if lines:
+            cand = _kandidat_rubrike(lines) if rubrika_mode else None
+            if cand is None and rubrika_mode:
+                # nel modo rubrica una riga corta senza punteggiatura è la rubrica anche con un verbo dentro
+                l0 = lines[0]
+                if 2 <= len(l0) <= 90 and l0[-1] not in ".;!?" and not re.match(r"^\d+[.)]", l0) and not l0.startswith("("):
+                    _n0, _r0 = _nota_ne_krye(lines[1:])
+                    cand = (l0, _n0, _r0)
+            if cand is not None:
+                heading, note, _rest = cand
+                body = "\n".join(_rest).strip()
+            else:
+                note, _rest = _nota_ne_krye(lines)
+                if note and _rest:
+                    buf2, consumed2 = _rest[0], 1
+                    while consumed2 < len(_rest) and consumed2 < 8 and not _is_complete(buf2):
+                        buf2 = buf2 + " " + _rest[consumed2]; consumed2 += 1
+                    heading, body = buf2, "\n".join(_rest[consumed2:]).strip()
+            paragrafet = _paragrafet(body if body else heading)
 
         # Hierarchy from the text *before* this article
         pjesa, kreu, seksioni = _hierarchy_context(text[: m.start()])
 
-        repealed = is_repealed_stub(heading, body)
+        repealed = is_repealed_stub(heading_v, body_v)
         # v9.334 (roadmap v3 P3b): la data dell'ultima modifica PER ARTICOLO dalle note editoriali
         # dei consolidati QBZ «(Ndryshuar … me ligjin nr. 48/2012, datë 26.4.2012)» — 1.665 note nel
         # corpus; prima il campo era quello (vuoto) del documento intero
         try:
             from .temporal import ultima_modifica as _um
-            _lad = _um(_NoteView(heading, body)) or getattr(doc, "last_amendment_date", "")
+            _lad = _um(_NoteView(heading_v, body_v)) or getattr(doc, "last_amendment_date", "")
         except Exception:  # noqa: BLE001
             _lad = getattr(doc, "last_amendment_date", "")
 
@@ -377,6 +487,8 @@ def split_into_articles(text: str, doc: LegalDocument) -> list[Article]:
                 repealed=repealed,
                 volatility=doc.volatility,
                 last_amendment_date=_lad,
+                note=note,
+                paragrafet=paragrafet,
             )
         )
     articles.extend(_group_repeal_stubs(text, items, articles, doc))

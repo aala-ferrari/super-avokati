@@ -45,6 +45,8 @@ def main() -> int:
     ap.add_argument("--only", choices=["al", "it", "dec"], default=None)
     ap.add_argument("--download", action="store_true")
     ap.add_argument("--force", action="store_true")
+    ap.add_argument("--flat", action="store_true", help="un vettore per articolo (testo troncato a 128 token: comportamento v9.353)")
+    ap.add_argument("--suffix", default=os.environ.get("EMB_SUFFIX", ""), help="suffisso dei file (es. _ck) per una codifica affiancata")
     a = ap.parse_args()
     import numpy as np
     from src import dense
@@ -58,14 +60,23 @@ def main() -> int:
         if what in ("al", "it"):
             lang = "sq" if what == "al" else "it"
             idx = ArticleIndex.load() if what == "al" else ArticleIndex.load(Path("/app/data/index/bm25_it.pkl"))
-            base = dense.EMB_DIR / f"emb_{lang}_{dense.tag()}"
+            base = dense.EMB_DIR / f"emb_{lang}_{dense.tag()}{a.suffix}"
             if base.with_suffix(".npy").exists() and not a.force:
                 print(f"{what}: {base.name}.npy esiste (usa --force per rifare)"); continue
             arts = idx.articles
-            print(f"{what}: {len(arts)} articoli", flush=True)
-            E = _encode([((x.heading or "") + ". " + (x.body or ""))[:1500] for x in arts])
+            if a.flat:
+                texts = [((x.heading or "") + ". " + (x.body or ""))[:1500] for x in arts]
+                keys = [[x.code, str(x.number)] for x in arts]
+            else:
+                # v9.362 — SEGMENTI: ogni articolo → 1..N testi (rubrica + ~110 token), chiave [code, number, i]
+                texts, keys = [], []
+                for x in arts:
+                    for i, seg in enumerate(dense.chunk_text(x.heading or "", x.body or "")):
+                        texts.append(seg); keys.append([x.code, str(x.number), i])
+            print(f"{what}: {len(arts)} articoli → {len(texts)} {'testi' if a.flat else 'segmenti'}", flush=True)
+            E = _encode(texts)
             np.save(base.with_suffix(".npy"), E)
-            Path(str(base) + ".keys.json").write_text(json.dumps([[x.code, str(x.number)] for x in arts], ensure_ascii=False), encoding="utf-8")
+            Path(str(base) + ".keys.json").write_text(json.dumps(keys, ensure_ascii=False), encoding="utf-8")
             print(f"  → {base.name}.npy {E.shape}", flush=True)
         else:
             didx = DecisionIndex.load()

@@ -157,6 +157,10 @@ def stato(v: dict) -> str:
     n, s = v["nene"], v["sentenze"]
     if n["fake"] or n["repealed"] or n.get("unconstitutional") or s.get("quashed"):
         return "FLAGS"
+    # v9.361 — nessuna citazione = niente da verificare: dire «✅ e verifikuar» sarebbe una vula falsa
+    # (misurato il 21 set su una risposta senza nene: usciva verde)
+    if not n.get("total") and not s.get("total") and not n.get("foreign_verified") and not n.get("foreign_unverified"):
+        return "EMPTY"
     # «senza codice» (neni 155 nudo, col codice nominato poco prima) non è un errore: resta nel
     # conteggio della riga ma non abbassa lo stato (prova viva 16 set: 19 «pa kod» su un verdetto giusto)
     if s["unverified"] or v.get("fatti_da_precisare") or n.get("foreign_unverified"):
@@ -165,8 +169,8 @@ def stato(v: dict) -> str:
 
 
 _STATO = {
-    "it": {"VERIFIED": "✅ verificata", "RESERVATIONS": "🟡 con riserve", "FLAGS": "🔴 con segnalazioni"},
-    "sq": {"VERIFIED": "✅ e verifikuar", "RESERVATIONS": "🟡 me rezerva", "FLAGS": "🔴 me sinjalizime"},
+    "it": {"VERIFIED": "✅ verificata", "RESERVATIONS": "🟡 con riserve", "FLAGS": "🔴 con segnalazioni", "EMPTY": "⚪ senza citazioni da verificare"},
+    "sq": {"VERIFIED": "✅ e verifikuar", "RESERVATIONS": "🟡 me rezerva", "FLAGS": "🔴 me sinjalizime", "EMPTY": "⚪ pa citime për t'u verifikuar"},
 }
 
 

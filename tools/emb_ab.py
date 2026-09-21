@@ -31,6 +31,10 @@ HARD = [
     ("divorci", ("kodi_familjes", "125-162")), ("grabitje", ("kodi_penal", "139")), ("vjedhje me dhunë", ("kodi_penal", "139")),
     ("dhuna në familje urdhri i mbrojtjes", ("ligji_dhuna_familje_2026", "1")),
     ("trashëgimia ligjore fëmijët", ("kodi_civil", "361")), ("rapina", ("kodi_penal", "139")),
+    # v9.362 — query «di coda»: la risposta sta nell'ULTIMO paragrafo, oltre i 128 token (misurato 21 set)
+    ("përjashtohen nga përgjegjësia penale të afërmit që ndihmojnë autorin e krimit", ("kodi_penal", "302")),
+    ("strehova vëllain tim që ishte i kërkuar nga policia", ("kodi_penal", "302")),
+    ("plagosje e rëndë kundër bashkëshortit ose ish-bashkëjetuesit dënimi", ("kodi_penal", "88")),
 ]
 
 HARD_IT = [
@@ -48,6 +52,7 @@ def main() -> int:
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--threads", type=int, default=4)
     ap.add_argument("--lang", default="al", choices=["al", "it"])
+    ap.add_argument("--suffix", default="", help="codifica di produzione da misurare (es. _ck = segmenti)")
     a = ap.parse_args()
     from fastembed import TextEmbedding
     from src.retrieval import ArticleIndex
@@ -70,16 +75,17 @@ def main() -> int:
     model = TextEmbedding(model_name=a.model, cache_dir=str(EMB_DIR), threads=a.threads, specific_model_path=str(flat))
     print(f"modello pronto in {time.time()-t0:.0f}s: {a.model}", flush=True)
     # riusa gli embedding di produzione (tools/build_dense.py) se esistono per questo modello
-    prod = EMB_DIR / f"emb_{'sq' if a.lang == 'al' else 'it'}_{tag}"
-    if not f.exists() and prod.with_suffix(".npy").exists() and Path(str(prod) + ".keys.json").exists() and not a.limit:
+    prod = EMB_DIR / f"emb_{'sq' if a.lang == 'al' else 'it'}_{tag}{a.suffix}"
+    ROWS = None          # v9.362: con i segmenti E ha più righe per articolo; ROWS[i] = indice dell'articolo
+    if (a.suffix or not f.exists()) and prod.with_suffix(".npy").exists() and Path(str(prod) + ".keys.json").exists() and not a.limit:
         keys = json.loads(Path(str(prod) + ".keys.json").read_text(encoding="utf-8"))
         Ep = np.load(prod.with_suffix(".npy"))
-        pos = {tuple(k): i for i, k in enumerate(map(lambda k: (k[0], str(k[1])), keys))}
-        rows = [pos.get((x.code, str(x.number)), -1) for x in arts]
-        if all(r >= 0 for r in rows):
-            E = Ep[rows]; print(f"embedding di produzione riusati: {prod.name}.npy → {E.shape}", flush=True)
+        apos = {(x.code, str(x.number)): i for i, x in enumerate(arts)}
+        ROWS = np.array([apos.get((k[0], str(k[1])), -1) for k in keys])
+        if (ROWS >= 0).sum() == 0:
+            E = None; ROWS = None
         else:
-            E = None
+            E = Ep; print(f"embedding di produzione riusati: {prod.name}.npy → {E.shape} ({len(set(ROWS[ROWS>=0]))} articoli)", flush=True)
     else:
         E = None
     if E is not None:
@@ -101,7 +107,13 @@ def main() -> int:
         return v / (np.linalg.norm(v) + 1e-9)
 
     def dense(q, k=K, depth=50):
-        v = q_emb(q); s = E @ v; s[~live_mask] = -9
+        v = q_emb(q); s = E @ v
+        if ROWS is not None:                       # segmenti → massimo per articolo
+            sa = np.full(len(arts), -9.0, dtype=np.float32)
+            ok = ROWS >= 0
+            np.maximum.at(sa, ROWS[ok], s[ok])
+            s = sa
+        s[~live_mask] = -9
         order = np.argsort(-s)[:depth]
         return [(arts[i], float(s[i])) for i in order][:k], order
 

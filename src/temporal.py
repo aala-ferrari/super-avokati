@@ -263,7 +263,7 @@ _NOTE_RE = re.compile(r"(?:ligjin|vendimin|aktin|dekretin|ligj\.?)\s*nr\.?\s*(\d
 
 def modifiche_nene(article) -> list[tuple[date, str]]:
     """(data, «ligji nr. X») per ogni atto citato nelle note editoriali dell'articolo, in ordine."""
-    txt = (getattr(article, "heading", "") or "") + "\n" + (getattr(article, "body", "") or "")
+    txt = (getattr(article, "heading", "") or "") + "\n" + (getattr(article, "note", "") or "") + "\n" + (getattr(article, "body", "") or "")
     out: dict[tuple[date, str], None] = {}
     for m in _NOTE_RE.finditer(txt):
         try:

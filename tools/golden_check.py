@@ -3727,6 +3727,43 @@ def main():
     except Exception as _e110:  # noqa: BLE001
         check("pyetje norme[110]: kontrollet u ekzekutuan", False, str(_e110))
 
+    # ── [111] v9.361 — dal documento «Verifica rigorosa» del titolare, SOLO ciò che è vero da noi: Trust Line
+    # «⚪ pa citime» (mai ✅ su zero citazioni) · tetto DICHIARATO agli articoli giganti nel prompt, mai sul nene
+    # chiesto per numero · controllo del payload · dossier chiuso sotto citazione (senior/diavolo) · revisione del
+    # corpus nell'audit · 319/ç e 319/dh · abrogato chiesto per numero detto «shfuqizuar» · 3° paragrafo del 302 ──
+    try:
+        import inspect as _insp111, re as _re111, threading as _th111, types as _types111
+        from src import brain as _br111, trust_line as _tl111, corpus_hash as _ch111, citation_verifier as _cv111
+        _al111 = ArticleIndex.load(_P81("/app/data/index/bm25.pkl"))
+        _v0 = _tl111.vuota()
+        _okA = _tl111.stato(_v0) == "EMPTY" and "⚪" in _tl111.riga(_v0, "sq") and "⚪" in _tl111.riga(_v0, "it")
+        _kp = {str(a.number): a for a in _al111.articles if a.code == "kodi_penal"}
+        import copy as _cp111
+        _big = _cp111.copy(_kp["75"]); _big.body = "x" * 40000
+        _txt = _br111._format_articles_for_prompt([(_big, 1.0)])
+        _okB = "karaktere të hequra" in _txt and len(_txt) < 20000
+        _c302 = _cp111.copy(_kp["302"]); _c302._cituar = True; _c302.body = (_kp["302"].body or "") + "\n" + ("y" * 20000)
+        _txt2 = _br111._format_articles_for_prompt([(_c302, 9.9)])
+        _okC = "Përjashtohen nga përgjegjësia penale" in _txt2 and "karaktere të hequra" not in _txt2 \
+               and _br111._kontroll_payload([(_c302, 9.9)], _txt2)["te_plote"] == 1 and _br111._kontroll_payload([(_c302, 9.9)], _txt2[:500])["mungojne"] == ["kodi_penal 302"]
+        _sa = _br111.SuperAvvocato.__new__(_br111.SuperAvvocato); _sa.index, _sa.index_it = _al111, None
+        _sa._jurisdiction_ctx = _th111.local(); _sa._jurisdiction_ctx.code = "AL"
+        _r1 = _sa._mbyll_dosjen_me_citime("Sipas nenit 128 të Kodit të Procedurës Penale dhe nenit 75 të Kodit Penal, si dhe art. 2946 c.c.", [(_kp["75"], 9.0)], "djalli")
+        _okD = (len(_r1) == 2 and (_r1[1][0].code, str(_r1[1][0].number)) == ("kodi_proc_penale", "128") and getattr(_r1[1][0], "_cituar_nga", "") == "djalli"
+                and "CITUAR NGA AVOKATI I DJALLIT" in _br111._format_articles_for_prompt(_r1[1:]) and not getattr(_kp["75"], "_cituar_nga", ""))
+        _okE = _re111.fullmatch(r"[0-9a-f]{12}", _ch111.revision()["rev"]) is not None
+        _br111._audit_reset(); _okF = _re111.fullmatch(r"[0-9a-f]{12}", str(_br111._AUDIT.data.get("corpus_revision", ""))) is not None
+        _okG = [(i.get("code"), i["number"], i["status"]) for i in _cv111.verify_text("neni 319/ç i Kodit Penal dhe neni 319/dh i Kodit Penal", _al111)["items"]] == [("kodi_penal", "319/ç", "verified"), ("kodi_penal", "319/dh", "verified")]
+        _r2 = _sa._ankoro_citimet("neni 420 i Kodit të Procedurës Civile?", [])
+        _okH = bool(_r2) and getattr(_r2[0][0], "repealed", False) and "KUJDES: është i shfuqizuar" in _br111._format_articles_for_prompt(_r2)
+        _src = _insp111.getsource(_br111)
+        _okI = _src.count('self._mbyll_dosjen_me_citime(answer_text, retrieved, "seniori")') == 2 and _src.count('self._mbyll_dosjen_me_citime(answer_text, retrieved, "djalli")') == 2
+        check("rigore[111]: Trust Line ⚪ senza citazioni · tetto dichiarato nel prompt (mai sul nene chiesto) · controllo del payload · dossier chiuso sotto citazione (senior+diavolo, 2+2 hook) · corpus_revision nell'audit · 319/ç-dh · abrogato chiesto per numero · 302 p3 integrale",
+              _okA and _okB and _okC and _okD and _okE and _okF and _okG and _okH and _okI,
+              "A=%s B=%s C=%s D=%s E=%s F=%s G=%s H=%s I=%s" % (_okA, _okB, _okC, _okD, _okE, _okF, _okG, _okH, _okI))
+    except Exception as _e111:  # noqa: BLE001
+        check("rigore[111]: kontrollet u ekzekutuan", False, str(_e111))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
