@@ -1361,9 +1361,11 @@
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "so-btn deep-btn";
+    // v9.358 — «Gjyqtari Suprem»: UN solo percorso profondo (scelta del titolare). Il vecchio ⚡
+    // (senior Fable) resta raggiungibile solo via API (mendja), non più come pulsante.
     btn.innerHTML = _CAL_IT
-      ? '\ud83d\udd2c Analisi approfondita <em>sala di guerra completa, 10-15 min</em>'
-      : '\ud83d\udd2c Analiz\u00eb e thell\u00eb <em>salla e luft\u00ebs e plot\u00eb, 10-15 min</em>';
+      ? '\u2696\ufe0f Giudice Supremo <em>sala di guerra completa: senior, avvocato del diavolo, giudice \u2014 15-25 min</em>'
+      : '\u2696\ufe0f Gjyqtari Suprem <em>salla e luft\u00ebs e plot\u00eb: seniori, avokati i djallit, gjyqtari \u2014 15-25 min</em>';
     btn.addEventListener("click", function () {
       if (!activeCaseId) return;
       _deepNext = true;
@@ -1373,21 +1375,6 @@
       form.requestSubmit();
     });
     wrap.appendChild(btn);
-    var _btnF = document.createElement("button");
-    _btnF.type = "button";
-    _btnF.className = "so-btn deep-btn deep-btn-max";
-    _btnF.innerHTML = _CAL_IT
-      ? "⚡ Squadra massima <em>la mente più forte, casi molto difficili</em>"
-      : "⚡ Skuadra maksimale <em>mendja më e fortë, raste shumë të vështira</em>";
-    _btnF.addEventListener("click", function () {
-      if (!activeCaseId) return;
-      _deepNext = true;
-      _seniorNext = "fable";
-      input.value = question;
-      _btnF.disabled = true;
-      form.requestSubmit();
-    });
-    wrap.appendChild(_btnF);
     msgEl.appendChild(wrap);
   }
 

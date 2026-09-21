@@ -561,6 +561,11 @@ STUDIO_GJYQTARI_EFFORT = os.getenv("STUDIO_GJYQTARI_EFFORT", "max")
 # (Opus 5) a effort max, con gli stessi nene verbatim del corpus. «off» = comportamento vecchio
 # (nessun Giudice in ⚡). Env E fallback.
 STUDIO_GJYQTARI_SKUADRA_MODEL = os.getenv("STUDIO_GJYQTARI_SKUADRA_MODEL", "opus")
+# v9.358 — «GJYQTARI SUPREM» (scelta del titolare, 21 set: «meglio uno fatto bene, esatto, che combina le
+# menti»): UN solo percorso profondo = senior Opus max + research loop e Source Verifier (prima solo in ⚡)
+# + diavolo Fable (2 round) + Giudice Fable max con RISERVA dell'altra mente (Opus max) anche quando è
+# «impegnato», non solo sul limite. «0» = comportamento v9.357 (loop/raport solo in ⚡, nessuna riserva).
+GJYQTARI_SUPREM_ENABLED = os.getenv("GJYQTARI_SUPREM_ENABLED", "1") == "1"
 
 # ── Mbledhësit (raccoglitori) del percorso simple — gradino B (v9.271) ──
 # «sonnet» = Sonnet sul tier medium (HA il web); effort basso di proposito:

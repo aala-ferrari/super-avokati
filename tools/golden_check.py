@@ -1719,8 +1719,8 @@ def main():
               _brain37._senior_override("fable") == {"model_override": "fable", "effort_override": "max"}
               and _brain37._senior_override("") == {} and _brain37._senior_override("opus") == {})
         _js37 = _io37.open(_os37.path.join(_rr37, "static", "app.js"), encoding="utf-8").read()
-        check("skuadra[37]: UI — pulsante «Skuadra maksimale» (senza nome modello) invia mendja al percorso deep",
-              "_seniorNext" in _js37 and "mendja: _seniorNext" in _js37 and "deep-btn-max" in _js37)
+        check("skuadra[37]: UI — v9.358: UN solo pulsante profondo «Gjyqtari Suprem» (senza nome modello); mendja resta solo via API, il pulsante ⚡ non c'è più",
+              "_seniorNext" in _js37 and "mendja: _seniorNext" in _js37 and "deep-btn-max" not in _js37 and "Gjyqtari Suprem" in _js37 and "Giudice Supremo" in _js37)
         check("skuadra[37]: le FONTI escono dal brain come evento (sintesi_burimet → skuadra → web)",
               "def sintesi_burimet(" in _st37 and 'yield ("skuadra"' in _br37 and '"type": "skuadra"' in _wb37)
         check("skuadra[37]: UI — pannello «Burimet e Skuadrës» reso (il «perché lo dico»)",
@@ -1825,7 +1825,7 @@ def main():
               "RAPORT VERIFIKIMI" in _rap40 and "TË VËRTETUARA" in _rap40 and "PËR VERIFIKIM" in _rap40
               and "[WEB-001] VKM (secondary)" in _rap40
               and "_wr.raport_verifikimi(retrieved, burimet_x, precedents" in _br40
-              and 'if request_senior() == "fable"' in _br40)
+              and 'if request_senior() == "fable" or _gjyqtari_suprem()' in _br40)
         check("war[40]: RESEARCH LOOP (spec 35) — gap-detector + ricerca reale sull'indice, cablato su max-mode",
               hasattr(_wr40, "parse_gaps") and hasattr(_wr40, "format_research_loop")
               and _wr40.parse_gaps('{"boshlleqe":[{"pershkrim":"x","kerkim":"mbrojtja e konsumatorit"}]}')[0]["kerkim"] == "mbrojtja e konsumatorit"
@@ -3654,6 +3654,25 @@ def main():
               _okA and _okB and _okC, "resolver=%s testi=%s bench=%s" % (_okA, _okB, _okC))
     except Exception as _e107:  # noqa: BLE001
         check("verificatore[107]: kontrollet u ekzekutuan", False, str(_e107))
+
+    # ── [108] v9.358 — «GJYQTARI SUPREM»: un solo percorso profondo fatto bene (scelta del titolare dopo la
+    # misura ⚡ 0,85 vs 🔬 0,825): research loop + Source Verifier su ogni percorso profondo (stream E non-stream),
+    # Giudice con RISERVA dell'altra mente anche su saturazione, un solo pulsante nella UI ──
+    try:
+        import inspect as _insp108
+        from src import brain as _br108, config as _cf108
+        _g = _insp108.getsource(_br108.SuperAvvocato._gjyqtari_fundit)
+        _okA = ('_riserva_gj = "opus" if _modeli_gj != "opus" else STUDIO_GJYQTARI_MODEL' in _g and "gjyqtari i rezervës" in _g
+                and 'modeli=_riserva_gj, effort="max"' in _g and '"mendja": _usato_gj' in _g and _g.count("self._cancello(") == 3)
+        _src = _insp108.getsource(_br108)
+        _okB = (_src.count('if request_senior() == "fable" or _gjyqtari_suprem():') == 2
+                and "_wr_n.raport_verifikimi(retrieved, [], precedents, _lang_n)" in _src
+                and "self._research_loop(user_message, answer_text, retrieved, _lang_n)" in _src
+                and _cf108.GJYQTARI_SUPREM_ENABLED is True and _br108._gjyqtari_suprem() is True)
+        check("gjyqtari suprem[108]: loop + raport su ogni percorso profondo (stream e non-stream) · Giudice con riserva dell'altra mente («impegnato» compreso) · flag GJYQTARI_SUPREM_ENABLED · 3 agganci del cancello intatti",
+              _okA and _okB, "riserva=%s percorsi=%s" % (_okA, _okB))
+    except Exception as _e108:  # noqa: BLE001
+        check("gjyqtari suprem[108]: kontrollet u ekzekutuan", False, str(_e108))
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

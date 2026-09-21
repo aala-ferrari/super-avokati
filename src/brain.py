@@ -550,6 +550,15 @@ def request_senior() -> str:
     return getattr(_REQUEST_SENIOR, "mendja", "") or ""
 
 
+def _gjyqtari_suprem() -> bool:
+    """v9.358 — un solo percorso profondo «fatto bene»: loop + raport + riserva del Giudice ovunque."""
+    try:
+        from .config import GJYQTARI_SUPREM_ENABLED
+        return bool(GJYQTARI_SUPREM_ENABLED)
+    except Exception:  # noqa: BLE001
+        return True
+
+
 def _senior_override(mendja: str) -> dict:
     """kwargs per il backend: Fable 5.1 max SOLO se «fable». Vuoto = Opus 5 max."""
     if (mendja or "").strip().lower() == "fable":
@@ -2908,9 +2917,10 @@ class SuperAvvocato:
             except Exception as exc:
                 log.warning("stream albanian_editor failed (non-fatal): %s", exc)
         answer_text = _apply_corrections(answer_text)
-        # War Room MAX-MODE research loop (⚡): il senior ha ragionato — c'è un buco?
-        # Il nene trovato entra PRIMA del Diavolo, così la catena avversariale lo testa.
-        if request_senior() == "fable":
+        # Research loop: il senior ha ragionato — c'è un buco? Il nene trovato entra PRIMA del
+        # Diavolo, così la catena avversariale lo testa. v9.358 (Gjyqtari Suprem): su OGNI percorso
+        # profondo, non più solo in ⚡.
+        if request_senior() == "fable" or _gjyqtari_suprem():
             try:
                 _lang_rl = "it" if self._current_jurisdiction() == "IT" else "sq"
                 _extra_rl = self._research_loop(user_message, answer_text, retrieved, _lang_rl)
@@ -2919,10 +2929,9 @@ class SuperAvvocato:
             except Exception as _exc_rl:  # noqa: BLE001
                 log.warning("war_room research loop wiring dështoi (non-fatal): %s", _exc_rl)
         answer_text = self._studio_djalli(user_message, retrieved, precedents, answer_text)
-        # War Room MAX-MODE (⚡ Fable): appende il RAPPORTO di verifica per qualità
-        # (Source Verifier sul dossier canonico) — verificate vs da-verificare.
-        # Solo sul percorso massimo; i percorsi normali non cambiano. Fail-silent.
-        if request_senior() == "fable":
+        # Source Verifier: il RAPPORTO di verifica per qualità sul dossier canonico —
+        # verificate vs da-verificare. v9.358: su ogni percorso profondo. Fail-silent.
+        if request_senior() == "fable" or _gjyqtari_suprem():
             try:
                 from . import war_room as _wr
                 _lang_wr = "it" if self._current_jurisdiction() == "IT" else "sq"
@@ -3285,6 +3294,18 @@ class SuperAvvocato:
         # (case:ID, numbers, dates, article refs) are preserved
         # verbatim — see _apply_corrections for the protection list.
         answer_text = _apply_corrections(answer_text)
+        if _gjyqtari_suprem():          # v9.358: anche il percorso non-stream ha loop + raport
+            try:
+                _lang_n = "it" if self._current_jurisdiction() == "IT" else "sq"
+                _extra_n = self._research_loop(user_message, answer_text, retrieved, _lang_n)
+                if _extra_n:
+                    answer_text = answer_text + _extra_n
+                from . import war_room as _wr_n
+                _rap_n = _wr_n.raport_verifikimi(retrieved, [], precedents, _lang_n)
+                if _rap_n:
+                    answer_text = answer_text + _rap_n
+            except Exception as _exc_n:  # noqa: BLE001
+                log.warning("gjyqtari suprem (non-stream) loop/raport dështoi (non-fatal): %s", _exc_n)
         answer_text = self._studio_djalli(user_message, retrieved, precedents, answer_text)
         # ⚖️ Il Giudice Finale (Fable 5.1 max): verdetto finale sul percorso non-stream.
         _fazat_n = ""
@@ -3772,14 +3793,12 @@ class SuperAvvocato:
                         pass
                 answer_text, v1 = self._cancello(answer_text, retrieved, lang, jur)     # v9.350
                 return trust_line.inserisci_riga(answer_text, trust_line.riga(v1, lang, tempo=_tempo, coverage=_cov), "")
+            _kw_gj = dict(domanda=user_message, blloku_neneve=_format_articles_for_prompt(retrieved),
+                          pergjigja=answer_text, dosja=dosja_txt or "", lang=lang, fazat=fazat_txt or "",
+                          verifikimi=trust_line.blocco_per_gjyqtarin(v1, lang, coverage=_cov))
+            _usato_gj = _modeli_gj
             try:
-                vendim = studio.gjyqtari_fundit(
-                    self.backend, domanda=user_message,
-                    blloku_neneve=_format_articles_for_prompt(retrieved),
-                    pergjigja=answer_text, dosja=dosja_txt or "", lang=lang,
-                    modeli=_modeli_gj, effort=STUDIO_GJYQTARI_EFFORT,
-                    fazat=fazat_txt or "",
-                    verifikimi=trust_line.blocco_per_gjyqtarin(v1, lang, coverage=_cov))
+                vendim = studio.gjyqtari_fundit(self.backend, modeli=_modeli_gj, effort=STUDIO_GJYQTARI_EFFORT, **_kw_gj)
             except Exception as exc:  # noqa: BLE001
                 # v9.336 — il Giudice può cadere per saturazione («Tetramorph i zënë», 4 tentativi,
                 # misurato il 16 set): la risposta usciva SENZA verdetto e SENZA Trust Line, e
@@ -3788,6 +3807,21 @@ class SuperAvvocato:
                 log.warning("studio: gjyqtari i fundit dështoi (non-fatal): %s", exc)
                 _audit_set("giudice", {"esito": "fallito", "motivo": str(exc)[:160]})
                 vendim = ""
+            if not (vendim or "").strip() and _gjyqtari_suprem():
+                # v9.358 — L'ARBITRO DI RISERVA: misurato il 21 set (benchmark 🔬, caso GMO): il Giudice
+                # Fable cade per saturazione («impegnato», 4 tentativi) e la risposta esce senza verdetto.
+                # Regola del titolare (v9.343): «un arbitro di riserva vale più di nessun arbitro» — qui
+                # vale anche per la saturazione, con l'ALTRA mente (Opus max; in ⚡ torna a Fable).
+                _riserva_gj = "opus" if _modeli_gj != "opus" else STUDIO_GJYQTARI_MODEL
+                try:
+                    log.info("studio: gjyqtari i rezervës (%s) pas dështimit të %s", _riserva_gj, _modeli_gj)
+                    vendim = studio.gjyqtari_fundit(self.backend, modeli=_riserva_gj, effort="max", **_kw_gj)
+                    if (vendim or "").strip():
+                        _usato_gj = _riserva_gj
+                except Exception as exc2:  # noqa: BLE001
+                    log.warning("studio: gjyqtari i rezervës dështoi (non-fatal): %s", exc2)
+                    _audit_set("giudice", {"esito": "fallito", "motivo": str(exc2)[:160], "riserva_provata": _riserva_gj})
+                    vendim = ""
             self._raccogli_ombra(_ombra)
             if not (vendim or "").strip():
                 _nota = (("> ⚖️ *Il Giudice Finale non ha potuto pronunciarsi (servizio saturo): la risposta è quella del "
@@ -3801,9 +3835,9 @@ class SuperAvvocato:
                 return trust_line.inserisci_riga(answer_text, trust_line.riga(v1, lang, tempo=_tempo, coverage=_cov) + "\n" + _nota, "")
             vendim = _apply_corrections(_verify_citations(vendim, precedents))
             log.info("studio: gjyqtari i fundit ka dhënë vendimin (%d shkronja)", len(vendim))
-            _audit_set("giudice", {"esito": "verdetto", "chr": len(vendim), "mendja": _modeli_gj,
+            _audit_set("giudice", {"esito": "verdetto", "chr": len(vendim), "mendja": _usato_gj,
                                    "riserva": bool(getattr(self.backend, "last_model_used", "") and not _skuadra and
-                                                   getattr(self.backend, "last_model_used", "") != STUDIO_GJYQTARI_MODEL)})
+                                                   getattr(self.backend, "last_model_used", "") != STUDIO_GJYQTARI_MODEL) or _usato_gj != _modeli_gj})
             # v9.316 — il verdetto IN TESTA (prima la decisione, poi l'analisi completa);
             # v9.331 — la TRUST LINE (categorica, ricalcolata sul testo finale) sotto il titolo
             final = vendim + answer_text
