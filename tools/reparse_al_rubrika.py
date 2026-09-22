@@ -74,7 +74,13 @@ def main() -> int:
         if not f.exists():
             f = RAW / f"{code}.docx"
         if not f.exists():
-            tot["saltati"].append(f"{code} (nessun file in raw/al_qbz)"); continue
+            # v9.365 — le leggi ingerite prima dell'archivio QBZ (konsumatoret, te_dhenat) stanno in data/raw/:
+            # si usano SOLO se il codice non ha un file QBZ (i kodi_*.pdf lì sono le vecchie edizioni ministeriali)
+            for alt in (RAW.parent / f"{code}.pdf", RAW.parent / f"{code}.docx"):
+                if alt.exists():
+                    f = alt; break
+        if not f.exists():
+            tot["saltati"].append(f"{code} (nessun file in raw/al_qbz né in raw/)"); continue
         tot["codici"] += 1
         try:
             text = _extract(ing, f)
