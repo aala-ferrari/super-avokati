@@ -29,7 +29,21 @@ def _ingest():
     m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m); return m
 
 
+CACHE = PROCESSED_DATA_PATH / "al_text_cache"
+
+
 def _extract(ing, f: Path) -> str:
+    """Testo estratto (con la tolleranza adattiva dell'ingest), in CACHE: la prima volta ~1 min per PDF, poi 0."""
+    CACHE.mkdir(parents=True, exist_ok=True)
+    c = CACHE / (f.stem + ".txt")
+    if c.exists() and c.stat().st_mtime >= f.stat().st_mtime:
+        return c.read_text(encoding="utf-8")
+    text = _extract_raw(ing, f)
+    c.write_text(text, encoding="utf-8")
+    return text
+
+
+def _extract_raw(ing, f: Path) -> str:
     cands = []
     for cand in ((3.0,) if f.suffix == ".docx" else (3.0, 1.5, 1.0)):
         t = ing._extract(f, cand); cands.append((t, ing._quality(t), cand))
@@ -40,7 +54,8 @@ def _extract(ing, f: Path) -> str:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--apply", action="store_true")
+    ap.add_argument("--apply", action="store_true", help="riscrive jsonl + bm25.pkl di PRODUZIONE (con backup)")
+    ap.add_argument("--out-dir", default="", help="scrive jsonl + bm25.pkl QUI (prova senza toccare la produzione)")
     ap.add_argument("--only", default="")
     a = ap.parse_args()
     ing = _ingest()
@@ -95,11 +110,9 @@ def main() -> int:
     print("\n=== ESEMPI (prima → rubrica | note | corpo | n. paragrafi) ===")
     for c, n, prima, rub, note, corpo, npar in esempi:
         print(f"\n[{c} {n}]\n  PRIMA  : {prima}\n  RUBRIKA: {rub}\n  NOTE   : {note or '—'}\n  CORPO  : {corpo}\n  PARAGR.: {npar}")
-    if not a.apply:
+    if not a.apply and not a.out_dir:
         return 0
-    # ── APPLY: jsonl (solo i campi di struttura) + bm25.pkl, con backup ──
     stamp = time.strftime("%Y%m%d-%H%M%S")
-    bak = JSONL.with_suffix(f".jsonl.bak-{stamp}"); shutil.copy2(JSONL, bak)
     out_lines = []
     for r in rows:
         new = nuovi_per_code.get(r["code"])
@@ -107,6 +120,16 @@ def main() -> int:
             x = new[str(r["number"])]
             r = dict(r); r["heading"], r["body"], r["note"], r["paragrafet"], r["heading_kind"] = x.heading, x.body, x.note, list(x.paragrafet), x.heading_kind
         out_lines.append(json.dumps(r, ensure_ascii=False))
+    if a.out_dir:
+        od = Path(a.out_dir); od.mkdir(parents=True, exist_ok=True)
+        jl, pk = od / "all_articles.jsonl", od / "bm25.pkl"
+        jl.write_text("\n".join(out_lines) + "\n", encoding="utf-8")
+        ArticleIndex.from_jsonl(jl, lang="sq").save(pk)
+        idx2 = ArticleIndex.load(pk)
+        print(f"\nPROVA in {od}: jsonl {len(out_lines)} righe · indice {len(idx2.articles)} nene / {len({x.code for x in idx2.articles})} kode · abrogati {sum(1 for x in idx2.articles if x.repealed)} (produzione intatta)")
+        return 0
+    # ── APPLY: jsonl (solo i campi di struttura) + bm25.pkl, con backup ──
+    bak = JSONL.with_suffix(f".jsonl.bak-{stamp}"); shutil.copy2(JSONL, bak)
     JSONL.write_text("\n".join(out_lines) + "\n", encoding="utf-8")
     print(f"\njsonl riscritto ({len(out_lines)} righe) · backup {bak.name}")
     if INDEX_FILE.exists():

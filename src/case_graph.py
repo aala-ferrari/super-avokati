@@ -192,7 +192,7 @@ def stato_incostituzionale(article) -> tuple[str, str] | None:
     hit = norme_incostituzionali().get((getattr(article, "code", ""), str(getattr(article, "number", "")).split("/")[0]))
     if not hit:
         return None
-    txt = (getattr(article, "heading", "") or "") + " " + (getattr(article, "body", "") or "")
+    txt = (getattr(article, "heading", "") or "") + " " + (getattr(article, "note", "") or "") + " " + (getattr(article, "body", "") or "")   # v9.362: la nota GjK sta nel campo `note`
     if _RX_NOTE_GJK.search(txt) or getattr(article, "repealed", False):
         return "konsoliduar", hit["key"]
     return ("pjesërisht" if hit["partial"] else "tërësisht"), hit["key"]

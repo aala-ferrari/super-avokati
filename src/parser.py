@@ -223,6 +223,8 @@ class Article:
         parts = [self.citation]
         if self.heading:
             parts.append(self.heading)
+        if getattr(self, "note", ""):          # v9.362: la nota editoriale resta cercabile
+            parts.append(self.note)
         parts.append(self.body)
         return "\n".join(parts)
 
