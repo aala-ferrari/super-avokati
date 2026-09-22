@@ -54,7 +54,8 @@ def main() -> int:
     ap.add_argument("--lang", default="al", choices=["al", "it"])
     ap.add_argument("--suffix", default="", help="codifica di produzione da misurare (es. _ck = segmenti)")
     ap.add_argument("--suffix2", default="", help="SECONDA codifica da fondere con la prima (es. --suffix _flat2 --suffix2 _ck)")
-    ap.add_argument("--fuse", default="rrf3", choices=["rrf3", "max"], help="rrf3 = tre liste (BM25+senso1+senso2); max = UNA lista densa col massimo dei due coseni")
+    ap.add_argument("--fuse", default="rrf3", choices=["rrf3", "max", "avg", "maxlog", "top2"],
+                    help="rrf3 = tre liste RRF; max = massimo dei due coseni; avg = media articolo-intero/segmenti; maxlog = segmenti scontati di 0,02·ln(n segmenti); top2 = media dei 2 segmenti migliori, poi max con l'articolo intero")
     a = ap.parse_args()
     from fastembed import TextEmbedding
     from src.retrieval import ArticleIndex
@@ -126,10 +127,36 @@ def main() -> int:
         s = s.copy(); s[~live_mask] = -9
         return s
 
+    NSEG = None
+    if E2 is not None and ROWS2 is not None:
+        NSEG = np.bincount(ROWS2[ROWS2 >= 0], minlength=len(arts)).astype(np.float32)
+
+    def _top2(Emat, rows, v):
+        """media dei due segmenti migliori per articolo (un solo segmento → il suo coseno)."""
+        s = Emat @ v
+        best = np.full(len(arts), -9.0, dtype=np.float32); second = np.full(len(arts), -9.0, dtype=np.float32)
+        order = np.argsort(-s)
+        for i in order:
+            r = rows[i]
+            if r < 0: continue
+            if best[r] <= -9.0: best[r] = s[i]
+            elif second[r] <= -9.0: second[r] = s[i]
+        out = np.where(second > -9.0, (best + second) / 2.0, best)
+        out[~live_mask] = -9
+        return out
+
     def dense(q, k=K, depth=50):
         v = q_emb(q); s = _scores(E, ROWS, v)
-        if E2 is not None and a.fuse == "max":     # una sola lista densa: il massimo fra articolo intero e segmenti
-            s = np.maximum(s, _scores(E2, ROWS2, v))
+        if E2 is not None and a.fuse != "rrf3":
+            s2 = _scores(E2, ROWS2, v)
+            if a.fuse == "max":
+                s = np.maximum(s, s2)
+            elif a.fuse == "avg":
+                s = (s + s2) / 2.0
+            elif a.fuse == "maxlog":
+                s = np.maximum(s, s2 - 0.02 * np.log(np.maximum(NSEG, 1.0)))
+            elif a.fuse == "top2":
+                s = np.maximum(s, _top2(E2, ROWS2, v))
         order = np.argsort(-s)[:depth]
         return [(arts[i], float(s[i])) for i in order][:k], order
 

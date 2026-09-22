@@ -3808,6 +3808,32 @@ def main():
     except Exception as _e112:  # noqa: BLE001
         check("struttura[112]: kontrollet u ekzekutuan", False, str(_e112))
 
+    # ── [113] v9.363 — i tre punti aperti del 22 set: ALLEGATI EUR-Lex separati dagli articoli (9 atti: bruxelles_ii_ter
+    # 105 era 88.924 chr con i moduli dentro) · replica del senior a 3000 token («e prerë në mes» nella prova viva) ──
+    try:
+        import importlib.util as _ilu113, inspect as _insp113, re as _re113
+        _spec = _ilu113.spec_from_file_location("split_it_annexes", "/app/tools/split_it_annexes.py"); _sa = _ilu113.module_from_spec(_spec); _spec.loader.exec_module(_sa)
+        _coda = "\n".join(["Il presente regolamento è obbligatorio in tutti i suoi elementi."] * 6)
+        _arts = [{"number": "105", "heading": "Entrata in vigore", "body": _coda + "\nALLEGATO I\nCERTIFICATO RELATIVO ALLE DECISIONI IN MATERIA MATRIMONIALE\n" + "campo del modulo " * 12 + "\nALLEGATO II\nATTESTATO RELATIVO AGLI ACCORDI\n" + "riga dell'attestato " * 12, "repealed": False, "in_force_from": ""},
+                 {"number": "allegato-iii", "heading": "ALLEGATO III", "body": "ALLEGATO III\n" + "x " * 40, "repealed": False, "in_force_from": ""}]
+        _new, _note = _sa.split_annexes(_arts)
+        _nums = [x["number"] for x in _new]
+        _okA = (_nums == ["105", "allegato-i", "allegato-ii", "allegato-iii"] and _new[0]["body"].endswith("elementi.") and "ALLEGATO" not in _new[0]["body"]
+                and _new[1]["body"].startswith("ALLEGATO I") and "CERTIFICATO" in _new[1]["heading"] and _new[2]["body"].startswith("ALLEGATO II"))
+        _okB = _sa.split_annexes([{"number": "1", "heading": "", "body": "ALLEGATO I\n" + "y " * 30, "repealed": False, "in_force_from": ""}])[0][0]["body"].startswith("ALLEGATO I")   # intestazione in testa = è l'unità stessa
+        _it113 = ArticleIndex.load(_P81("/app/data/index/bm25_it.pkl"))
+        _glued = [(a.code, str(a.number)) for a in _it113.articles if not str(a.number).lower().startswith(("allegato", "annex", "tabell"))
+                  and any(m.start() > 200 for m in _sa._HEAD.finditer(a.body or ""))]
+        _okC = not _glued and any(a.code == "bruxelles_ii_ter" and str(a.number) == "allegato-i" for a in _it113.articles) \
+               and next(len(a.body or "") for a in _it113.articles if a.code == "bruxelles_ii_ter" and str(a.number) == "105") < 2000
+        _okD = "from split_it_annexes import split_annexes" in open("/app/tools/ingest_eurlex.py", encoding="utf-8").read()
+        from src import studio as _st113
+        _okE = "max_tokens=3000" in _insp113.getsource(_st113.senior_pergjigjja)
+        check("allegati[113]: allegati EUR-Lex separati (unit test + nessun articolo IT con «ALLEGATO N» incollato dopo il testo + bruxelles_ii_ter 105 corto e allegato-i presente) · hook nell'ingest · replica del senior 3000 token",
+              _okA and _okB and _okC and _okD and _okE, "A=%s B=%s C=%s (incollati=%s) D=%s E=%s" % (_okA, _okB, _okC, _glued[:5], _okD, _okE))
+    except Exception as _e113:  # noqa: BLE001
+        check("allegati[113]: kontrollet u ekzekutuan", False, str(_e113))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

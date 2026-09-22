@@ -304,9 +304,9 @@ def senior_pergjigjja(backend, *, domanda, blloku_neneve, pergjigja, sulmi,
                 (domanda or "")[:2500], (blloku_neneve or "")[:40000],
                 (pergjigja or "")[:16000], (sulmi or "")[:8000]))
     raw = _chiama(backend, system=PERGJIGJE_SYSTEM.get(lang, PERGJIGJE_SYSTEM["sq"]),
-                  # 1100 → 1800 (v9.322): la replica si interrompeva a meta' frase e il
-                  # Giudice doveva completarla («la replica del senior si interrompe»)
-                  user=user, modeli=modeli, effort=effort, max_tokens=1800,
+                  # 1100 → 1800 (v9.322) → 3000 (v9.363): il Giudice della prova viva del 22 set
+                  # («strehova vëllain») ha trovato la replica «e prerë në mes» anche a 1800
+                  user=user, modeli=modeli, effort=effort, max_tokens=3000,
                   callsite="studio:senior_pergjigje", case_id=case_id)
     raw = (raw or "").strip()
     if len(raw) < 30:

@@ -160,7 +160,16 @@ def parse(html_text: str) -> list[dict]:
         if hm:
             chunk = chunk[hm.end():]
         arts.append(_mk(m.group(1), m.group(2), heading, _text(chunk)))
-    return _dedup(arts)
+    arts = _dedup(arts)
+    # v9.363 — gli allegati (moduli, certificati, elenchi) NON restano dentro l'ultimo articolo:
+    # unità «allegato-<n>» a sé (tools/split_it_annexes.py, stessa regola della riparazione)
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from split_it_annexes import split_annexes as _split_annexes
+        arts, _ = _split_annexes(arts)
+    except Exception as exc:  # noqa: BLE001
+        print(f"[warn] split_annexes non applicato: {exc}")
+    return arts
 
 
 # ── ripiego: PDF consolidato (EUR-Lex non serve l'HTML dei testi molto grandi) ──
