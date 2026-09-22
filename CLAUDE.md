@@ -1448,6 +1448,50 @@ rischio residuo della DPIA.
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
 
+**v9.366 — I PRECEDENTI ALBANESI RIFATTI DOCUMENTO PER DOCUMENTO (22 set, pomeriggio-sera).** Il titolare:
+«le sentenze caricate sono parsate male, i formati cambiano caso per caso: OGNI documento albanese va preso,
+parsato, verificato e caricato nel database uno per uno». **Audit prima** (1.268 grezzi riletti tutti +
+confronto col pickle; script e cache dei testi in `/root/audit_vendime/`): il male non erano i formati (i grezzi
+sono a template, quasi identici fra le due corti) ma le TRE pipeline: GjL vecchie (388 `.doc`, Postgres/LLM)
+con `reasoning` = primi 8.000 chr del documento (intestazione + gradi inferiori: 227 avevano «Kolegji vlerëson»
+nel grezzo e non nel salvato), dispositivo vuoto in 383, **225 inammissibilità (mospranim) etichettate
+rrëzim/pushim**; le 149 del 29 ago con dispositivo mozzato a 400 chr, objekti con l'intestazione dentro, file
+sorgente spariti, 7 coppie duplicate; Kushtetuese buona ma con **18 dispositivi e 7 esiti sbagliati** perché
+`jurisprudence_parser` cerca le ancore con IGNORECASE (un «për këto arsye» minuscolo nel testo sposta l'ancora e
+un «vendosi» narrativo diventa il dispositivo: 60/2016 rrëzim→pranim, il caso già notato in case_graph) e le
+intestazioni di pagina dei PDF («Vendim i Gjykatës Kushtetuese / Kërkues: … Faqe 2») dentro il ragionamento;
+CEDU tutta in inglese e per 224/424 non decisioni (comunicazioni, risoluzioni CM, Information Note) — lasciata
+com'è, il titolare vuole prima l'albanese. ⚠️ Il mio PRIMO audit contava «Kërkuesja/Subjekti» narrativi come
+intestazione (137 falsi positivi): ancore SENSIBILI alle maiuscole, sempre. **Cura: `tools/reparse_vendime.py`**
+— un solo parser a template per GjK+GjL (etichette a inizio riga anche in Title case e con prefissi: «ME
+OBJEKT:», «OBJEKTI I PADISË:», «Ndaj Shtetasit:», «KËRKUESE (ANKUESE):», «PERSONA TË TRETË» senza due punti;
+«V Ë R E N (S E)», «PËR KËTO/KËTË ARSYE», «VENDOSI/VENDOSËN/VENDOSA» anche a fine riga), ragionamento GjL dal
+marcatore del Kolegji (heading «Vlerësimi i Kolegjit…» o frase «Kolegji … vlerëson/çmon/konstaton»),
+dispositivo = dopo l'ULTIMO «PËR KËTO ARSYE» maiuscolo, esito dal PRIMO verbo operativo (GjL con etichetta
+letterale `[prishje + kthim]`…, `KB-anno-n` per i vendimi unificanti dei Kolegjet e Bashkuara), data della
+DECISIONE (calce «Tiranë, më» dopo il dispositivo o frase della seduta; fra le due vince quella che concorda con
+l'anno del numero: i refusi esistono), nene citati col codice via `citation_verifier.verify_text` (lo stesso
+della produzione), righe spezzate dei PDF ricucite, intestazioni di pagina tolte; **esclusioni deterministiche**
+(mospranim, kthim i rekursit del relatore, errata «Saktësimin/Ndreqjen», moskalim, duplicati per chiave —
+con l'eccezione del refuso d'intestazione: 2021/00-2021-18 porta «Nr. 00-2020-18» ma è un'altra decisione);
+**verifica campo per campo** (numero/data/anno, objekti, parti, dispositivo con verbo, ragionamento ≥500 chr e
+senza intestazione né dispositivo dentro, giudici, mospranim non filtrato, confronto col record vecchio) →
+OK/EXCLUDE/FAIL; modalità `probe` (nulla scritto), `run` (uno per uno: riga nel JSONL
+`data/processed/al_decisions_v2.jsonl` = FONTE DI VERITÀ, poi pickle ricostruito; ripartibile), `one <rel>`,
+`report`. 146+3 sentenze GjL senza file **riscaricate dall'archivio Strapi** (`panel.gjykataelarte.gov.al/graphql`,
+query `files`, S3); l'unico `.doc` che antiword rifiuta (00-2026-680, «not a Word Document») convertito col Mac
+(`textutil -convert txt`). **Risultato: 744 AL (Kushtetuese 441 + Gjykata e Lartë 303) + 424 CEDU invariate =
+1.168**; esclusi 236 (226 mospranim, 4 kthim i rekursit, 5 errata — fra cui vend_0028_2023 E vend_0039_2023 che
+sono entrambe l'errata del 28/2023: la decisione vera 28/2023 va riscaricata —, 1 duplicato); 0 falliti; verifica
+sull'insieme (`verify_v2.py`) tutta verde. **Codice**: `retrieval_kb._pickle_to_precedent` mappa i
+`cited_articles` «code:number» in `articles_cited` (prima `[]`: il filtro «precedente solo se cita un nene
+recuperato» non poteva mai combaciare e il filtro per nene dell'Inspector dava zero);
+`brain._WINNING/_LOSING_OUTCOMES` conoscono il vocabolario shqip (prima l'adverse retrieval era SEMPRE vuoto:
+filtrava «rejected» su esiti «rrëzim»); `DecisionIndex.load` tollera campi ignoti; golden [6] riscritto sul
+corpus nuovo (≥1150, GjL tutte con dispositivo, niente errata). Dopo lo swap del pickle: `build_case_graph.py` +
+`build_dense.py --only dec --force`. ⚠️ Non toccare `jurisprudence_parser.py`/`all_decisions.jsonl` (storia):
+il corpus AL dei precedenti si aggiorna SOLO con `reparse_vendime.py run` (append) — mai `build_and_save_decisions`.
+
 **v9.364 — LA FUSIONE MEDIA: articolo intero + segmenti nel denso (22 set, mattina).** Le cinque varianti misurate con `emb_ab.py --suffix _flat2 --suffix2 _ck --fuse …` (ibrido recall@12 AL/IT · difficili AL/IT · posizione di c.c. 2946): piatti 305/238 · 12/6 · 5; segmenti 305/243 · 12/4 · **22**; RRF a tre liste 297/239 (due liste dense superano in voto il BM25); massimo dei coseni = segmenti; `maxlog` (segmenti − 0,02·ln n) 305/243 · 12/3 · 13; `top2` 305/243 · 12/4 · 14 (e 500 ms); **`avg` (media fra coseno dell'articolo intero e massimo dei segmenti) 305/241 · 13/5 · 8** — l'unica che tiene 2946 nei 12, migliora l'IT (+3), l'AL difficili (13/21) e il senso da solo (AL 290, IT 213), con «permesso di soggiorno rinnovo» 8→3 e «guida in stato di ebbrezza» 3→2. In produzione: `EMB_SUFFIX2=_ck` (env) → `DenseIndex.carica` carica anche `emb_<lang>_<tag>_ck` (mmap: 411 MB IT restano su disco), `search` → `_fondi_segmenti` = media per articolo (chi non ha segmenti tiene l'intero); vuoto = comportamento v9.353. Log: «dense: segmenti …: 93578 vettori per 9682 articoli (fusione media)». Golden **[114]** (eseguito: 0.5/0.5/0.8; senza segmenti identico), 501. Deploy 06:23 UTC; prova breve AL 123 s, 6 verificati. I segmenti IT vengono ricodificati sul corpus con gli allegati separati (2 h) e ricaricati con un riavvio guardato. ⚠️ i segmenti «strehova vëllain tim…» → 302 restano irraggiungibili per senso (MiniLM non collega «strehova/kërkuar nga policia» a «furnizimi… banese… kapjes»): ci arriva il triage, che riscrive nel linguaggio del codice (prova viva del 22 set: risposta giusta su 302/3).
 
 **v9.363 — GLI ALLEGATI EUR-Lex SEPARATI dagli articoli + replica del senior 3000 token (22 set, alba).** Dei 34 «articoli» IT oltre 30.000 chr: 10 sono allegati veri come unità (codice_ambiente, TUIR allegato-B…), 6 sono articoli della legge di approvazione (`N-legge`, elenchi di modifiche: lunghi per natura), 15 sono articoli lunghi legittimi (definizioni TUF/assicurazioni, abrogazioni) — e **9 articoli EUR-Lex avevano gli allegati incollati dopo il testo** (bruxelles_ii_ter 105 = 88.924 chr con i certificati dentro; schengen 45 = 71.991; alimenti_ue 76; codice_visti 9 e 58; notifiche_ue 37; reg_ue_2018_1806 15; bruxelles_i_bis 81; small_claims 29). `tools/split_it_annexes.py` (rapporto/`--apply` con backup dei JSON): l'articolo si ferma alla prima intestazione «ALLEGATO N» a sé stante oltre i 200 chr, il resto diventa unità `allegato-<n>` (una per intestazione, come gli allegati Normattiva v9.348, saltate le unità <40 chr e i doppioni) → 8 atti, **+49 unità**, bruxelles_ii_ter 105 → 410 chr; stessa regola nell'ingest (`ingest_eurlex.parse` → `split_annexes`) così un re-ingest non re-incolla. `build_it_index` → **23.291 articoli / 129 atti**, note intatte; embedding piatti IT ricodificati (23.291). **Replica del senior** (`senior_pergjigjja`) 1800 → 3000 token (il Giudice l'aveva trovata «e prerë në mes» nella prova viva del 302); golden [70] aggiornato. Golden **[113]** (unit test + nessun articolo IT con «ALLEGATO N» incollato + hook + 3000), 500. Strato 1 GATE PASS invariato (AL 99,3 %, IT 92,1 %).

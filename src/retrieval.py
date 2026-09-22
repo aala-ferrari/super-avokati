@@ -304,9 +304,11 @@ class DecisionIndex:
         with path.open("rb") as fh:
             data = pickle.load(fh)
         decisions = []
+        import dataclasses as _dc
+        known = {f.name for f in _dc.fields(Decision)}   # v9.366: i campi ignoti non fanno esplodere il carico
         for d in data["decisions"]:
             d.pop("kind", None)
-            decisions.append(Decision(**d))
+            decisions.append(Decision(**{k: v for k, v in d.items() if k in known}))
         return cls(decisions, data["bm25"])
 
     # ── querying ────────────────────────────────────────────────────────────

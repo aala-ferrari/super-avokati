@@ -301,6 +301,15 @@ def _pickle_to_precedent(d: dict, idx: int) -> CasePrecedent:
     level = {"kushtetuese": "kushtetues", "gjykata_elarte": "larte",
              "ecthr_albania": "cedu"}.get(court_code, court_code)
     excerpt = (d.get("reasoning") or d.get("dispositif") or "")[:PROMPT_SUMMARY_CHARS].strip()
+    # v9.366 — i nene citati con il codice («kodi_proc_penale:432») diventano coppie (code, art): prima
+    # venivano buttati (articles_cited=[]), e il filtro «precedente solo se cita un nene recuperato»
+    # non poteva mai combaciare. I numeri nudi («432») restano fuori: senza codice non si legano.
+    arts: list[tuple[str, str]] = []
+    for s in (d.get("cited_articles") or []):
+        if isinstance(s, str) and ":" in s:
+            code, art = s.split(":", 1)
+            if code.strip() and art.strip() and (code.strip(), art.strip()) not in arts:
+                arts.append((code.strip(), art.strip()))
     return CasePrecedent(
         id=idx + 1,
         court_code=court_code,
@@ -315,7 +324,7 @@ def _pickle_to_precedent(d: dict, idx: int) -> CasePrecedent:
         excerpt=excerpt,
         judges=[j for j in (d.get("judges") or []) if isinstance(j, str)],
         lawyers=[], prosecutors=[],
-        articles_cited=[],
+        articles_cited=arts,
         source_url=d.get("source_url") or None,
         source_file=_pickle_norm_file(d.get("source_file") or ""),
     )

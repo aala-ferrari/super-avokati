@@ -9383,7 +9383,8 @@ def _inspect_law_record(idx, code: str, number: str) -> dict | None:
     a = next((x for x in idx.articles if x.code == code and str(x.number) == str(number)), None)
     if a is None:
         return None
-    lang = "it" if _is_italian_code(a.code) else "sq"
+    from .parser import _is_italian_code as _is_it
+    lang = "it" if _is_it(a.code) else "sq"
     out = {"record": asdict(a), "citation": a.citation, "problemi": _inspect_problemi(a)}
     try:
         from . import acts_meta as _am

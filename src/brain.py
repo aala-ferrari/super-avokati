@@ -1695,8 +1695,11 @@ def _urgency_from_days(days_remaining: int | None) -> UrgencyLevel:
 # Winners / losers from the claimant's perspective. ECtHR and constitutional
 # cases lean "accepted = pro-rights", so they get mapped the same way.
 # "unknown/other/settled" stay out of the comparison — too noisy.
-_WINNING_OUTCOMES = {"accepted", "partially_accepted", "acquitted", "modified"}
-_LOSING_OUTCOMES = {"rejected", "dismissed", "convicted"}
+# v9.366 — il pickle dei precedenti parla shqip (pranim/rrëzim/…): con il solo vocabolario inglese di
+# Postgres nessun precedente risultava mai «vincente» o «avverso» (misurato: adverse sempre vuoto).
+_WINNING_OUTCOMES = {"accepted", "partially_accepted", "acquitted", "modified",
+                     "pranim", "pjesërisht", "ndryshim", "kthim për rishqyrtim", "pafajësim"}
+_LOSING_OUTCOMES = {"rejected", "dismissed", "convicted", "rrëzim", "pushim", "mospranim", "fajësim"}
 
 
 CitizenStatus = Literal["ka", "mungon", "e paqartë"]
