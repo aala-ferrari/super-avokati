@@ -3,7 +3,7 @@
 Strumento AI per avvocati (B2B), **bi-giurisdizione AL + IT**. Front-end Flask
 su porta 5050, SQLite (`data/app.db`) + Postgres `legalkb` per i casi
 giurisprudenziali. Due corpora BM25 SEPARATI:
-- **AL** (`bm25.pkl`): **9.682 nene / 54 codici, 418 abrogati** (v9.328-330: 21 codici riscritti dai consolidati QBZ 2024-2026 + 29 leggi nuove + ligji 11/2026 dhuna + VKM 651/2017 doganale consolidata 2026 748 art. + 75 stub «shfuqizuar» per le abrogazioni a gruppo; fonte = `data/processed/all_articles.jsonl`, il pickle è derivato) + `bm25_decisions.pkl` 1258 precedenti
+- **AL** (`bm25.pkl`): **9.682 nene / 54 codici, 418 abrogati** (v9.328-330: 21 codici riscritti dai consolidati QBZ 2024-2026 + 29 leggi nuove + ligji 11/2026 dhuna + VKM 651/2017 doganale consolidata 2026 748 art. + 75 stub «shfuqizuar» per le abrogazioni a gruppo; fonte = `data/processed/all_articles.jsonl`, il pickle è derivato) + `bm25_decisions.pkl` **1.168 precedenti** (v9.366: Kushtetuese 441 + Gjykata e Lartë 303 rifatte documento per documento, fonte `data/processed/al_decisions_v2.jsonl` + `tools/reparse_vendime.py`; CEDU 424 invariate)
 - **IT** (`bm25_it.pkl`): **129 atti / 22.779 articoli** (v9.326-327: +27 Normattiva wave5, +5 testi unici wave6, +21 wave7 blocco A, +12 UE (TFUE/TUE/Carta/Schengen…), +2 trattati IT-AL, CEDU + 7 protocolli, preleggi (sanzioni trib. 173/2024, riscossione 33/2025, registro 123/2025, IVA 10/2026, accertamento 141/2026) dogane/tributario/notarile/procedura/lavoro, +9 regolamenti UE da EUR-Lex: CDU, Reg. 2015/2446-2447, GDPR, Bruxelles I-bis/II-ter, Roma I/II, successioni 650/2012)
   (Kushtetuese + Gjykata e Lartë + CEDU).
 - **IT** (`bm25_it.pkl`): **15.595 articoli / 44 corpora** da Normattiva (+ D.Lgs 231/2007 antiriciclaggio)
@@ -375,7 +375,10 @@ Dockerfile COPY: `data/ src/ static/ templates/ scripts/ tools/`. Dopo un cambio
 
 ## Precedenti — cosa entra e cosa NON deve entrare (29 ago 2026)
 
-**1.258 → 1.407** (Kushtetuese 445 · **Gjykata e Lartë 538** · CEDU 424).
+**1.258 → 1.407** (Kushtetuese 445 · **Gjykata e Lartë 538** · CEDU 424). **→ 1.168 dal v9.366 (22 set)**: le
+sentenze albanesi sono state RIFATTE documento per documento con `tools/reparse_vendime.py` (441 + 303; 236
+escluse: 226 mospranim, 4 kthim i rekursit del relatore, 5 errata, 1 duplicato) — vedi la voce v9.366 nella
+storia versioni; ciò che segue in questa sezione è la storia del 29 ago (regole ancora valide, numeri superati).
 Aggiunte 149 decisioni della Gjykata e Lartë scaricate dall'archivio ufficiale
 (`panel.gjykataelarte.gov.al/graphql`, Strapi pubblico, campo `files`).
 
@@ -580,7 +583,7 @@ errori, non che le risposte sono ancora giuste. Riferimento verificato il
 12 articoli recuperati per ciascuna.
 
 ```bash
-docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63], triage-trim+giudice-no-web [64], chat-web+verdetto-in-testa+pannelli-IT [65], codice-nominato→area [66], timeout-45min+ripiego-no-web [67], fasi-bilingue+giudice-no-web+duello-a-scomparsa [68], etichette-composte-bilingui [69]). Baseline **501/501** (22 set; era 98 il 31 ago).
+docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63], triage-trim+giudice-no-web [64], chat-web+verdetto-in-testa+pannelli-IT [65], codice-nominato→area [66], timeout-45min+ripiego-no-web [67], fasi-bilingue+giudice-no-web+duello-a-scomparsa [68], etichette-composte-bilingui [69]). Baseline **508/508** (22 set sera, v9.366; era 98 il 31 ago).
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 bash /root/prova_sse.sh                                    # SULL'HOST (legge il secret da /opt/super-avvocato.env; copia in tools/prova_sse.sh): account di prova → login → fascicolo → 1 domanda VERA → stream /api/ask/events attraverso waitress. Deve dire «HTTP 200 … done: 1» (~50s, costa 1 chiamata al cervello) e cancella l'account. Dopo OGNI build che tocca web.py o le rotte SSE.
