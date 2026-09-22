@@ -3834,6 +3834,37 @@ def main():
     except Exception as _e113:  # noqa: BLE001
         check("allegati[113]: kontrollet u ekzekutuan", False, str(_e113))
 
+    # ── [114] v9.364 — FUSIONE MEDIA articolo-intero/segmenti nel denso (misurata: la sola variante che tiene c.c. 2946
+    # nei 12 e migliora IT 238→241, AL difficili 12→13); EMB_SUFFIX2 la accende, vuota = come prima ──
+    try:
+        import numpy as _np114, types as _t114, inspect as _insp114
+        from src import dense as _dn114
+        _arts = [_t114.SimpleNamespace(code="c", number="1", repealed=False), _t114.SimpleNamespace(code="c", number="2", repealed=False), _t114.SimpleNamespace(code="c", number="3", repealed=False)]
+        _E = _np114.array([[1.0, 0.0], [0.0, 1.0], [0.6, 0.8]], dtype=_np114.float32)                 # intero: art1 · art2 · art3
+        _E2 = _np114.array([[0.0, 1.0], [0.0, 1.0], [1.0, 0.0]], dtype=_np114.float32); _r2 = _np114.array([0, 0, 1])   # segmenti: 2 di art1, 1 di art2, nessuno di art3
+        _di = _dn114.DenseIndex(_E, [0, 1, 2], _arts, E2=_E2, rows2=_r2)
+        _old = _dn114.embed_query; _dn114.embed_query = lambda q: _np114.array([0.0, 1.0], dtype=_np114.float32)
+        try:
+            _res = {a.number: round(sc, 2) for a, sc in _di.search("x", depth=5)}
+        finally:
+            _dn114.embed_query = _old
+        # art1: intero 0 + max segmenti 1 → 0.5 · art2: intero 1 + segmento 0 → 0.5 · art3: senza segmenti → intero 0.8
+        _okA = _res == {"3": 0.8, "1": 0.5, "2": 0.5}
+        _di0 = _dn114.DenseIndex(_E, [0, 1, 2], _arts)
+        _dn114.embed_query = lambda q: _np114.array([0.0, 1.0], dtype=_np114.float32)
+        try:
+            _res0 = {a.number: round(sc, 2) for a, sc in _di0.search("x", depth=5)}
+        finally:
+            _dn114.embed_query = _old
+        _okB = _res0 == {"2": 1.0, "3": 0.8, "1": 0.0}                       # senza segmenti = comportamento v9.353
+        _src = _insp114.getsource(_dn114.DenseIndex.carica)
+        _okC = "EMB_SUFFIX2" in _src and 'mmap_mode="r"' in _src and "fusione media" in _src
+        _okD = '"avg"' in open("/app/tools/emb_ab.py", encoding="utf-8").read()
+        check("fusione[114]: media articolo-intero/segmenti nel denso (eseguito: 0.5/0.5/0.8) · senza segmenti identico a prima · segmenti su disco (mmap) via EMB_SUFFIX2 · A/B --fuse avg",
+              _okA and _okB and _okC and _okD, "A=%s (%s) B=%s C=%s D=%s" % (_okA, _res, _okB, _okC, _okD))
+    except Exception as _e114:  # noqa: BLE001
+        check("fusione[114]: kontrollet u ekzekutuan", False, str(_e114))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

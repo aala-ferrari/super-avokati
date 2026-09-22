@@ -42,6 +42,11 @@ CHUNK_TOKENS = int(os.environ.get("DENSE_CHUNK_TOKENS", "110"))
 CHUNK_OVERLAP = int(os.environ.get("DENSE_CHUNK_OVERLAP", "25"))
 CHUNK_MAX = int(os.environ.get("DENSE_CHUNK_MAX", "40"))
 EMB_SUFFIX = os.environ.get("EMB_SUFFIX", "")
+# v9.364 — FUSIONE «MEDIA» (misurata il 22 set su AL/IT: flat 305/238, segmenti 305/243 ma 2946 fuori dai 12,
+# media 305/241 con 2946 all'8° e 13/21 difficili AL): il punteggio denso di un articolo = media fra il coseno
+# dell'articolo intero (EMB_SUFFIX) e il MASSIMO dei suoi segmenti (EMB_SUFFIX2, es. «_ck»); chi non ha
+# segmenti (unità nuove) tiene il coseno intero. Vuoto = solo articolo intero (v9.353-363).
+EMB_SUFFIX2 = os.environ.get("EMB_SUFFIX2", "")
 _TOK = None
 _LOCK = threading.Lock()
 _MODEL = None
@@ -154,10 +159,11 @@ def embed_passages(texts: list[str], batch_size: int = 32):
 class DenseIndex:
     """Embedding degli articoli di UN ArticleIndex, allineati per chiave (code, number)."""
 
-    def __init__(self, E, rows: list[int], articles):
+    def __init__(self, E, rows: list[int], articles, E2=None, rows2=None):
         self.E = E                  # (n_emb, dim)
         self.rows = rows            # posizione dell'articolo nell'ArticleIndex per ogni riga di E (-1 = sparito)
         self.articles = articles
+        self.E2, self.rows2 = E2, rows2      # v9.364: segmenti (più righe per articolo), fusi in media col massimo
 
     @classmethod
     def carica(cls, index, lang: str):
@@ -182,7 +188,21 @@ class DenseIndex:
                         f.name, mancanti, nuovi)
             if nuovi > len(index.articles) * 0.05:
                 return None         # troppo disallineato: meglio solo BM25 che un indice a metà
-        return cls(np.asarray(E), rows, index.articles)
+        E2 = rows2 = None
+        if EMB_SUFFIX2:
+            base2 = EMB_DIR / f"emb_{lang}_{tag()}{EMB_SUFFIX2}"
+            f2, fk2 = base2.with_suffix(".npy"), Path(str(base2) + ".keys.json")
+            try:
+                if f2.exists() and fk2.exists():
+                    E2 = np.load(f2, mmap_mode="r")          # 268k×384 per l'IT: resta su disco (page cache)
+                    keys2 = json.loads(fk2.read_text(encoding="utf-8"))
+                    rows2 = np.array([pos.get((k[0], str(k[1])), -1) for k in keys2], dtype=np.int64)
+                    log.info("dense: segmenti %s: %d vettori per %d articoli (fusione media)", f2.name, len(rows2), len({int(r) for r in rows2 if r >= 0}))
+                else:
+                    log.warning("dense: EMB_SUFFIX2=%s ma %s manca: solo articolo intero", EMB_SUFFIX2, f2.name)
+            except Exception as exc:  # noqa: BLE001
+                log.warning("dense: segmenti non caricati (%s): solo articolo intero", exc); E2 = rows2 = None
+        return cls(np.asarray(E), rows, index.articles, E2=E2, rows2=rows2)
 
     def search(self, query: str, depth: int = DEPTH, include_repealed: bool = False, restrict_codes=None):
         import numpy as np
@@ -190,6 +210,9 @@ class DenseIndex:
         if v is None:
             return []
         s = self.E @ v
+        if self.E2 is not None and self.rows2 is not None:
+            # v9.364 — media fra articolo intero e massimo dei segmenti (per articolo); senza segmenti resta l'intero
+            s = self._fondi_segmenti(s, v)
         order = np.argsort(-s)
         out = []
         restrict = set(restrict_codes) if restrict_codes else None
@@ -207,6 +230,20 @@ class DenseIndex:
             out.append((a, float(s[i])))
             if len(out) >= depth:
                 break
+        return out
+
+
+    def _fondi_segmenti(self, s, v):
+        import numpy as np
+        n_art = len(self.articles)
+        s2 = np.asarray(self.E2 @ v, dtype=np.float32)
+        best = np.full(n_art, -9.0, dtype=np.float32)
+        ok = self.rows2 >= 0
+        np.maximum.at(best, self.rows2[ok], s2[ok])
+        out = np.array(s, dtype=np.float32, copy=True)
+        for i, r in enumerate(self.rows):        # una riga «intera» per articolo
+            if r >= 0 and best[r] > -9.0:
+                out[i] = (out[i] + best[r]) / 2.0
         return out
 
 
