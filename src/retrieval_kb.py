@@ -90,8 +90,10 @@ class CasePrecedent:
     @property
     def citation(self) -> str:
         """Short human-readable citation for logs & quick rendering."""
-        yr = f"/{self.year}" if self.year else ""
-        return f"{self.court_name}, nr. {self.case_number}{yr}"
+        n = str(self.case_number or "")
+        # v9.367: «00-2023-1078/2023» ripeteva l'anno già dentro il numero della Gjykata e Lartë
+        yr = "" if (not self.year or f"-{self.year}-" in n or n.endswith(f"/{self.year}")) else f"/{self.year}"
+        return f"{self.court_name}, nr. {n}{yr}"
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -147,7 +149,7 @@ class LegalKBRetriever:
         if not precedents:
             log.warning("legalkb retriever: no complete cases found — returning empty index")
             return cls([], BM25Okapi([["placeholder"]]))  # empty-but-valid BM25
-        corpus = [tokenize(_searchable_text(p)) for p in precedents]
+        corpus = [tokenize(_searchable_text(p), fold=True) for p in precedents]   # v9.367: senza dieresi, come la query
         bm25 = BM25Okapi(corpus)
         log.info("legalkb retriever: indexed %d cases", len(precedents))
         return cls(precedents, bm25)
@@ -196,7 +198,7 @@ class LegalKBRetriever:
         # problem?"
         best: dict[int, float] = {}
         for q in queries:
-            tokens = tokenize(q)
+            tokens = tokenize(q, fold=True)
             if not tokens:
                 continue
             scores = self.bm25.get_scores(tokens)
@@ -310,7 +312,11 @@ def _pickle_to_precedent(d: dict, idx: int) -> CasePrecedent:
             code, art = s.split(":", 1)
             if code.strip() and art.strip() and (code.strip(), art.strip()) not in arts:
                 arts.append((code.strip(), art.strip()))
-    return CasePrecedent(
+    # v9.367: l'esito letterale della Gjykata e Lartë («[prishje + lënia në fuqi]») viaggia come `subtype`, così la
+    # scheda e il prompt non mostrano un nudo «pranim» che l'avvocato può leggere al contrario
+    _disp = d.get("dispositif") or ""
+    _label = _disp[1:_disp.find("]")].strip() if _disp.startswith("[") and "]" in _disp else None
+    p = CasePrecedent(
         id=idx + 1,
         court_code=court_code,
         court_name=d.get("court_short_sq") or d.get("court_title_sq") or "",
@@ -318,7 +324,7 @@ def _pickle_to_precedent(d: dict, idx: int) -> CasePrecedent:
         case_number=str(d.get("number") or ""),
         decision_date=dt,
         type=str(d.get("kind") or ""),
-        subtype=None,
+        subtype=_label or None,
         outcome=d.get("outcome") or None,
         summary=(d.get("objekti") or "").strip(),
         excerpt=excerpt,
@@ -328,6 +334,9 @@ def _pickle_to_precedent(d: dict, idx: int) -> CasePrecedent:
         source_url=d.get("source_url") or None,
         source_file=_pickle_norm_file(d.get("source_file") or ""),
     )
+    # v9.367: il BM25 dei precedenti legge il ragionamento VERO (dal Kolegji) e il dispositivo, non 500 chr di testa
+    p._bm25_text = " ".join(x for x in ((d.get("objekti") or ""), _disp, (d.get("reasoning") or "")[:3000]) if x)
+    return p
 
 
 def _load_precedents_from_pickle() -> list[CasePrecedent]:
@@ -411,7 +420,7 @@ def _searchable_text(p: CasePrecedent) -> str:
         " ".join(p.judges),
         " ".join(p.lawyers),
         " ".join(f"{code} {art}" for code, art in p.articles_cited),
-        p.excerpt,
+        getattr(p, "_bm25_text", None) or p.excerpt,
     ]
     return "\n".join(x for x in parts if x)
 

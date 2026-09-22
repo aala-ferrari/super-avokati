@@ -3708,10 +3708,18 @@ def main():
         _txt = _br109._format_articles_for_prompt(_r1[:1])
         _okE = "NENI I KËRKUAR SHPREHIMISHT" in _txt and "Plagosja" in _txt
         _src = _insp109.getsource(_br109)
-        _okF = _src.count("retrieved = self._ankoro_citimet(user_message, retrieved)") == 2 and "_cit_f = self._ankoro_citimet(user_message, [])" in _src \
+        # v9.367: i due percorsi passano anche le aree del triage (areas=…) — si conta il prefisso della riga
+        _okF = _src.count("retrieved = self._ankoro_citimet(user_message, retrieved") == 2 and "_cit_f = self._ankoro_citimet(user_message, [])" in _src \
                and "self._gjyqtari_fundit(user_message, _cit_f, [], text" in _src
-        check("citimet[109]: il nene chiesto per numero entra per primo (AL 88 KP con e senza presenza, IT art. 2946 c.c.) · copia marcata «⚑ NENI I KËRKUAR SHPREHIMISHT» · niente numero = niente · cablato nei 2 percorsi + follow-up (testo nel messaggio, nene al Giudice)",
-              _okA and _okB and _okC and _okD and _okE and _okF, "A=%s B=%s C=%s D=%s E=%s F=%s" % (_okA, _okB, _okC, _okD, _okE, _okF))
+        # v9.367: il caso del titolare — «cili esht neni 350 i procedures penale?» senza «Kodit» e senza dieresi:
+        # il codice si scioglie dalle parole dopo il numero e il K.Pr.P. 350 entra per primo; «neni 350 kpp» idem
+        _sa._jurisdiction_ctx.code = "AL"
+        _r4 = _sa._ankoro_citimet("cili esht neni 350 i procedures penale?", [(_kp["75"], 9.0)])
+        _r5 = _sa._ankoro_citimet("neni 350 kpp", [])
+        _okG = bool(_r4) and (_r4[0][0].code, str(_r4[0][0].number)) == ("kodi_proc_penale", "350") and getattr(_r4[0][0], "_cituar", False) \
+               and bool(_r5) and (_r5[0][0].code, str(_r5[0][0].number)) == ("kodi_proc_penale", "350")
+        check("citimet[109]: il nene chiesto per numero entra per primo (AL 88 KP con e senza presenza, IT art. 2946 c.c.) · copia marcata «⚑ NENI I KËRKUAR SHPREHIMISHT» · niente numero = niente · cablato nei 2 percorsi + follow-up (testo nel messaggio, nene al Giudice) · «neni 350 i procedures penale» senza dieresi → K.Pr.P. 350",
+              _okA and _okB and _okC and _okD and _okE and _okF and _okG, "A=%s B=%s C=%s D=%s E=%s F=%s G=%s" % (_okA, _okB, _okC, _okD, _okE, _okF, _okG))
     except Exception as _e109:  # noqa: BLE001
         check("citimet[109]: kontrollet u ekzekutuan", False, str(_e109))
 

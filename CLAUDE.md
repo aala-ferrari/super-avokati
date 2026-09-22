@@ -1451,6 +1451,31 @@ rischio residuo della DPIA.
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
 
+**v9.367 — «cili esht neni 350 i procedures penale?»: il nene c'era, a sbagliare era chi lo cercava (22 set, sera).**
+Il titolare ha mostrato la risposta («teksti i plotë i nenit 350 … nuk është në bllokun tim») e, dall'Inspector, il
+record del K.Pr.P. 350 pulito. Riprodotto: la domanda è senza «Kodit» e senza dieresi → il verificatore dava
+«kod i pa-specifikuar» (5 candidati) e l'ancora v9.359 non scattava; il BM25 tokenizzava «procedures» ≠
+«procedurës» e portava il 350 del K.Pr.C. primo (K.Pr.P. ottavo); `_KODE_NE_PYETJE` non vedeva l'area senza
+«kodit». **Tre cure, tutte misurate**: (1) `brain._kod_nga_fraza` — il codice si scioglie dalle parole DOPO il
+numero, piegate («procedur»+«penal» → K.Pr.P.; «kodit te punes»; «kpp/k.pr.p/kpc/kpa»; IT «procedura penale»,
+«codice civile»…; solo codici esistenti nell'indice) e `_ankoro_citimet(…, areas=)` ancora anche un numero NUDO
+con i candidati dell'area del triage (≤3); (2) **piegatura dei diacritici nel BM25 albanese** (`retrieval.fold_sq`,
+`tokenize(fold=)`, il pickle ricorda `fold` come `stem`; `ArticleIndex.build` la accende da sola per `sq`,
+mai per `it`; `DecisionIndex` e `LegalKBRetriever` idem): indice AL ricostruito dagli STESSI 9.682 articoli in
+`data/index_new` e misurato con lo strato 1 PRIMA di metterlo in posto — AL 304/306, IT 232/252, GATE PASS
+identico, e «mungesa e mbrojtesit ne seance» ora dà il 350 primo come con le dieresi; (3) `_areas_from_code_names`
+legge anche «procedures penale/civile/administrative» senza «kodit» (testo piegato). **Precedenti**: i nene citati
+ricalcolati per tutti i 744 record anche dall'OBJEKTI (nei penali è lì l'accusa: 00-2023-1078 ora lega
+`kodi_penal:291`, non solo i 432/435 del rekurs — la scheda che il titolare ha mostrato), i «code:number» prima dei
+numeri nudi; `CasePrecedent.citation` non ripete l'anno («00-2023-1078/2023»); l'esito letterale della GjL
+(«prishje + lënia në fuqi») viaggia come `subtype`/`label` nel prompt (`_format_precedents_block`) e nella scheda
+(`_precedent_payload`, app.js?v=175) accanto al nudo «pranim»; il BM25 dei precedenti legge objekti + dispositivo +
+3.000 chr del ragionamento VERO (`_bm25_text`) invece dei 500 chr di testa. `reparse_vendime.py` ha `recite`
+(ricalcola i nene citati e riscrive il JSONL con backup) e `rebuild` (JSONL → pickle). Golden [109] esteso (350
+senza dieresi + «neni 350 kpp»; ⚠️ la sezione porta il contesto a IT per il c.c.: rimetterlo ad AL prima dei
+controlli albanesi), 508. ⚠️ Un indice AL vecchio (senza `fold`) resta interrogato senza piegatura: un rebuild
+del pickle con l'immagine nuova è piegato da solo; dopo `ingest_al_qbz.py apply` idem.
+
 **v9.366 — I PRECEDENTI ALBANESI RIFATTI DOCUMENTO PER DOCUMENTO (22 set, pomeriggio-sera).** Il titolare:
 «le sentenze caricate sono parsate male, i formati cambiano caso per caso: OGNI documento albanese va preso,
 parsato, verificato e caricato nel database uno per uno». **Audit prima** (1.268 grezzi riletti tutti +

@@ -9810,6 +9810,7 @@ def _precedent_payload(c, score: float) -> dict:
         "date": c.decision_date.isoformat() if c.decision_date else None,
         "type": c.type,
         "outcome": c.outcome,
+        "label": getattr(c, "subtype", None) or None,   # v9.367: esito letterale GjL («prishje + lënia në fuqi»)
         "summary": c.summary,
         "judges": c.judges[:3],
         "articles_cited": [

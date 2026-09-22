@@ -44,12 +44,28 @@ STOPWORDS: frozenset[str] = frozenset({
     "ky", "kjo", "këto", "këta", "këtij", "kësaj", "asaj", "atij", "aty",
     "këtu", "atje", "po", "jo", "pa", "deri", "qysh", "çdo",
 })
+STOPWORDS_FOLD: frozenset[str] = frozenset(
+    w.translate(str.maketrans({"ë": "e", "ç": "c", "ï": "i"})) for w in STOPWORDS)   # v9.367: le stesse, senza dieresi
 
 TOKEN_RE = re.compile(r"[a-zçëï0-9]+", re.IGNORECASE)
 
+# v9.367 — piegatura dei segni diacritici (ë→e, ç→c, ï→i). Gli avvocati scrivono spesso senza dieresi
+# («cili esht neni 350 i procedures penale?»): «procedures» e «procedurës» erano due parole diverse e il
+# BM25 non legava il numero al codice (K.Pr.C. 350 primo, K.Pr.P. 350 ottavo). La piegatura vale per
+# INDICE e QUERY insieme — il pickle ricorda `fold` come ricorda `stem`, mai regole diverse ai due lati.
+# Solo albanese: l'italiano ha i suoi accenti e non si tocca.
+_FOLD_SQ = str.maketrans({"ë": "e", "Ë": "E", "ç": "c", "Ç": "C", "ï": "i", "Ï": "I"})
 
-def tokenize(text: str) -> list[str]:
-    """Tokenize Albanian text — lowercase, keep ç/ë/ï, drop stopwords."""
+
+def fold_sq(text: str) -> str:
+    return (text or "").translate(_FOLD_SQ)
+
+
+def tokenize(text: str, fold: bool = False) -> list[str]:
+    """Tokenize Albanian text — lowercase, keep ç/ë/ï (or fold them), drop stopwords."""
+    if fold:
+        tokens = TOKEN_RE.findall(fold_sq(text).lower())
+        return [t for t in tokens if t not in STOPWORDS_FOLD and len(t) > 1]
     tokens = TOKEN_RE.findall(text.lower())
     return [t for t in tokens if t not in STOPWORDS and len(t) > 1]
 
@@ -89,8 +105,8 @@ def stem_sq(token: str) -> str:
     return t
 
 
-def tokenize_sq_stem(text: str) -> list[str]:
-    return [stem_sq(t) for t in tokenize(text)]
+def tokenize_sq_stem(text: str, fold: bool = False) -> list[str]:
+    return [stem_sq(t) for t in tokenize(text, fold=fold)]
 
 
 # ── Italian tokenizer (for the IT corpus) ────────────────────────────────────
@@ -118,10 +134,10 @@ def tokenize_it(text: str) -> list[str]:
     return [t for t in tokens if t not in STOPWORDS_IT and len(t) > 1]
 
 
-def tokenize_for(lang: str, text: str, stem: bool = False) -> list[str]:
+def tokenize_for(lang: str, text: str, stem: bool = False, fold: bool = False) -> list[str]:
     if (lang or "sq") == "it":
         return tokenize_it(text)
-    return tokenize_sq_stem(text) if stem else tokenize(text)
+    return tokenize_sq_stem(text, fold=fold) if stem else tokenize(text, fold=fold)
 
 
 # ── corpus italiano: priorita ai codici fondamentali ─────────────────────
@@ -151,21 +167,26 @@ class ArticleIndex:
     # ── construction ────────────────────────────────────────────────────────
 
     @classmethod
-    def build(cls, articles: list[Article], lang: str = "sq", stem: bool = False) -> ArticleIndex:
-        log.info("tokenising %d articles (lang=%s, stem=%s) ...", len(articles), lang, stem)
-        corpus = [tokenize_for(lang, a.searchable_text, stem=stem) for a in articles]
+    def build(cls, articles: list[Article], lang: str = "sq", stem: bool = False, fold: bool | None = None) -> ArticleIndex:
+        # v9.367: gli indici albanesi nuovi nascono con la piegatura dei diacritici (fold); l'italiano mai
+        if fold is None:
+            fold = (lang or "sq") != "it"
+        log.info("tokenising %d articles (lang=%s, stem=%s, fold=%s) ...", len(articles), lang, stem, fold)
+        corpus = [tokenize_for(lang, a.searchable_text, stem=stem, fold=fold) for a in articles]
         log.info("building BM25 index ...")
         bm25 = BM25Okapi(corpus)
-        return cls(articles, bm25, lang, stem=stem)
+        idx = cls(articles, bm25, lang, stem=stem)
+        idx.fold = bool(fold)
+        return idx
 
     @classmethod
-    def from_jsonl(cls, path: Path = ARTICLES_JSONL, lang: str = "sq", stem: bool = False) -> ArticleIndex:
+    def from_jsonl(cls, path: Path = ARTICLES_JSONL, lang: str = "sq", stem: bool = False, fold: bool | None = None) -> ArticleIndex:
         articles: list[Article] = []
         with path.open(encoding="utf-8") as fh:
             for line in fh:
                 data = json.loads(line)
                 articles.append(Article(**data))
-        return cls.build(articles, lang=lang, stem=stem)
+        return cls.build(articles, lang=lang, stem=stem, fold=fold)
 
     # ── persistence ─────────────────────────────────────────────────────────
 
@@ -175,8 +196,9 @@ class ArticleIndex:
             pickle.dump({"articles": [asdict(a) for a in self.articles],
                          "bm25": self.bm25,
                          "lang": getattr(self, "lang", "sq"),
-                         "stem": bool(getattr(self, "stem", False))}, fh)
-        log.info("index saved to %s (%d articles)", path, len(self.articles))
+                         "stem": bool(getattr(self, "stem", False)),
+                         "fold": bool(getattr(self, "fold", False))}, fh)
+        log.info("index saved to %s (%d articles, fold=%s)", path, len(self.articles), bool(getattr(self, "fold", False)))
 
     @classmethod
     def load(cls, path: Path = INDEX_FILE) -> ArticleIndex:
@@ -186,7 +208,9 @@ class ArticleIndex:
         # nuova non deve far cadere l'app: `Article(**a)` esplodeva su una chiave ignota)
         _campi = {f.name for f in __import__("dataclasses").fields(Article)}
         articles = [Article(**{k: v for k, v in a.items() if k in _campi}) for a in data["articles"]]
-        return cls(articles, data["bm25"], data.get("lang", "sq"), stem=bool(data.get("stem", False)))
+        idx = cls(articles, data["bm25"], data.get("lang", "sq"), stem=bool(data.get("stem", False)))
+        idx.fold = bool(data.get("fold", False))   # un pickle vecchio (senza piegatura) resta interrogato senza piegatura
+        return idx
 
     # ── querying ────────────────────────────────────────────────────────────
 
@@ -198,7 +222,7 @@ class ArticleIndex:
         restrict_codes: Iterable[str] | None = None,
     ) -> list[tuple[Article, float]]:
         """Return (article, score) pairs sorted by BM25 score descending."""
-        tokens = tokenize_for(getattr(self, "lang", "sq"), query, stem=bool(getattr(self, "stem", False)))
+        tokens = tokenize_for(getattr(self, "lang", "sq"), query, stem=bool(getattr(self, "stem", False)), fold=bool(getattr(self, "fold", False)))
         if not tokens:
             return []
 
@@ -242,12 +266,14 @@ class DecisionIndex:
     # ── construction ────────────────────────────────────────────────────────
 
     @classmethod
-    def build(cls, decisions: list[Decision]) -> DecisionIndex:
-        log.info("tokenising %d decisions ...", len(decisions))
-        corpus = [tokenize(d.searchable_text) for d in decisions]
+    def build(cls, decisions: list[Decision], fold: bool = True) -> DecisionIndex:
+        log.info("tokenising %d decisions (fold=%s) ...", len(decisions), fold)
+        corpus = [tokenize(d.searchable_text, fold=fold) for d in decisions]
         log.info("building BM25 decisions index ...")
         bm25 = BM25Okapi(corpus) if corpus else None
-        return cls(decisions, bm25)
+        idx = cls(decisions, bm25)
+        idx.fold = bool(fold)
+        return idx
 
     @classmethod
     def from_jsonl(cls, path: Path = DECISIONS_JSONL) -> DecisionIndex:
@@ -294,6 +320,7 @@ class DecisionIndex:
             pickle.dump({
                 "decisions": [asdict(d) for d in self.decisions],
                 "bm25": self.bm25,
+                "fold": bool(getattr(self, "fold", False)),
             }, fh)
         log.info("decisions index saved to %s (%d decisions)", path, len(self.decisions))
 
@@ -309,7 +336,9 @@ class DecisionIndex:
         for d in data["decisions"]:
             d.pop("kind", None)
             decisions.append(Decision(**{k: v for k, v in d.items() if k in known}))
-        return cls(decisions, data["bm25"])
+        idx = cls(decisions, data["bm25"])
+        idx.fold = bool(data.get("fold", False))
+        return idx
 
     # ── querying ────────────────────────────────────────────────────────────
 
@@ -329,7 +358,7 @@ class DecisionIndex:
         """
         if not self.decisions or self.bm25 is None:
             return []
-        tokens = tokenize_for(getattr(self, "lang", "sq"), query)
+        tokens = tokenize_for(getattr(self, "lang", "sq"), query, fold=bool(getattr(self, "fold", False)))
         if not tokens:
             return []
 

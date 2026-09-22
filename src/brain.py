@@ -2715,7 +2715,7 @@ class SuperAvvocato:
             log.info("analizë e thellë kërkuar: complexity simple → complex")
             triage.complexity = "complex"
         retrieved = self._retrieve(triage)
-        retrieved = self._ankoro_citimet(user_message, retrieved)   # v9.359: il nene chiesto per numero, per primo
+        retrieved = self._ankoro_citimet(user_message, retrieved, areas=getattr(triage, "areas", None))   # v9.359: il nene chiesto per numero, per primo
         retrieved = self._studio_kerkuesi(user_message, triage, retrieved)
 
         # Simple fast-path streaming.
@@ -3106,7 +3106,7 @@ class SuperAvvocato:
             log.info("analizë e thellë kërkuar: complexity simple → complex")
             triage.complexity = "complex"
         retrieved = self._retrieve(triage)
-        retrieved = self._ankoro_citimet(user_message, retrieved)   # v9.359: il nene chiesto per numero, per primo
+        retrieved = self._ankoro_citimet(user_message, retrieved, areas=getattr(triage, "areas", None))   # v9.359: il nene chiesto per numero, per primo
         retrieved = self._studio_kerkuesi(user_message, triage, retrieved)
         log.info("retrieved %d articles", len(retrieved))
 
@@ -3944,7 +3944,7 @@ class SuperAvvocato:
             log.warning("mbyll_dosjen: saltato (non-fatal): %s", exc)
             return retrieved
 
-    def _ankoro_citimet(self, user_message: str, retrieved):
+    def _ankoro_citimet(self, user_message: str, retrieved, areas=None):
         """v9.359 — IL NENE CHIESTO PER NUMERO ENTRA SEMPRE, PER PRIMO. Caso vero (21 set): «neni 88 i
         kodit penal?» → il recupero (parole + senso) portava 75, 76, 78/a, 67 e il cervello rispondeva
         «neni 88 nuk është në bllokun që kam… sipas asaj që mbaj mend» — a memoria, l'opposto del
@@ -3963,6 +3963,31 @@ class SuperAvvocato:
             for it in r.get("items") or []:
                 if it.get("status") in ("verified", "repealed", "stale") and it.get("code"):
                     k = (it["code"], str(it["number"]))
+                    if k not in chiavi:
+                        chiavi.append(k)
+            # v9.367 — «cili esht neni 350 i procedures penale?» (senza «Kodit», senza dieresi): il verificatore dava
+            # «kod i pa-specifikuar» e l'ancora non scattava; il BM25 portava il 350 del K.Pr.C. e il cervello
+            # rispondeva «nuk është në bllokun tim». Il codice si scioglie dalle parole DOPO il numero, piegate
+            # (procedur+penal → K.Pr.P.); un numero nudo entra con i candidati dell'AREA del triage (≤3).
+            _codes_idx = {a.code for a in idx.articles}
+            for it in r.get("items") or []:
+                if it.get("status") != "needs_code" or not it.get("number"):
+                    continue
+                num = str(it["number"])
+                code = _kod_nga_fraza(user_message or "", num, jur, _codes_idx)
+                cands = [code] if code else []
+                if not cands:
+                    cands = [c.get("code") for c in (it.get("candidates") or []) if isinstance(c, dict) and c.get("code")]
+                    if areas:
+                        _ac = {d.code for d in LEGAL_DOCUMENTS if d.area in set(areas)}
+                        for _a in areas:
+                            _ac |= set(PROCEDURAL_MAPPING.get(_a, ()))
+                        _f = [c for c in cands if c in _ac]
+                        cands = _f or cands
+                    if len(cands) > 3:
+                        cands = []
+                for c in cands:
+                    k = (c, num)
                     if k not in chiavi:
                         chiavi.append(k)
             if not chiavi:
@@ -6048,17 +6073,61 @@ _KODE_NE_PYETJE = (
     (re.compile(r"\bkod(?:i|it|in)\s+(?:t[ëe]\s+)?procedur[ëa]s?\s+administrative\b", re.I), "Administrativ"),
     (re.compile(r"\bkod(?:i|it|in)\s+(?:t[ëe]\s+)?procedur[ëa]s?\s+civile\b", re.I), "Civil"),
     (re.compile(r"\bkod(?:i|it|in)\s+(?:t[ëe]\s+)?procedur[ëa]s?\s+penale\b", re.I), "Penal"),
+    # v9.367: anche senza «kodit» e senza dieresi («neni 350 i procedures penale», «procedura civile»)
+    (re.compile(r"\bprocedur\w*\s+penale?\b", re.I), "Penal"),
+    (re.compile(r"\bprocedur\w*\s+civile?\b", re.I), "Civil"),
+    (re.compile(r"\bprocedur\w*\s+administrativ\w*", re.I), "Administrativ"),
+    (re.compile(r"\bkod(?:i|it|in)\s+(?:t[ëe]\s+)?pun[ëe]s\b", re.I), "Punë"),
+    (re.compile(r"\bkod(?:i|it|in)\s+(?:t[ëe]\s+)?familjes\b", re.I), "Familje"),
 )
 
 
 def _areas_from_code_names(user_message: str) -> list[str]:
-    """Le aree dei codici NOMINATI nella domanda (AL), nell'ordine in cui compaiono."""
+    """Le aree dei codici NOMINATI nella domanda (AL), nell'ordine in cui compaiono — anche scritti senza dieresi."""
+    from .retrieval import fold_sq as _fold
     s = user_message or ""
     out: list[str] = []
     for rx, area in _KODE_NE_PYETJE:
-        if rx.search(s) and area not in out:
+        if (rx.search(s) or rx.search(_fold(s))) and area not in out:
             out.append(area)
     return out
+
+
+# v9.367 — il codice dalle parole dopo il numero («i procedures penale», «te punes», «c.p.p.»), piegate e senza
+# «Kodit»: serve quando il verificatore non ha riconosciuto una sigla. Ritorna un codice ESISTENTE nell'indice o None.
+_KOD_FRAZA_AL = (
+    (("procedur", "penal"), "kodi_proc_penale"), (("procedur", "civil"), "kodi_proc_civile"),
+    (("procedur", "administrativ"), "kodi_proc_admin"),
+    (("pr.penal",), "kodi_proc_penale"), (("pr. penal",), "kodi_proc_penale"), (("kpp",), "kodi_proc_penale"), (("kprp",), "kodi_proc_penale"),
+    (("pr.civ",), "kodi_proc_civile"), (("pr. civ",), "kodi_proc_civile"), (("kpc",), "kodi_proc_civile"), (("kprc",), "kodi_proc_civile"),
+    (("kpa",), "kodi_proc_admin"), (("penal",), "kodi_penal"), (("civil",), "kodi_civil"),
+    (("pune",), "kodi_punes"), (("punes",), "kodi_punes"), (("familj",), "kodi_familjes"), (("rrugor",), "kodi_rrugor"),
+    (("dogan",), "kodi_doganor"), (("detar",), "kodi_detar"), (("ajror",), "kodi_ajror"), (("zgjedhor",), "kodi_zgjedhor"),
+    (("kushtetut",), "kushtetuta"), (("falimentim",), "ligji_falimentimi"), (("tregtare",), "ligji_shoqerite_tregtare"),
+    (("noter",), "ligji_noteri"), (("kadastr",), "ligji_kadastra"), (("miturve",), "kodi_te_miturve"), (("huaj",), "ligji_te_huajt"),
+)
+_KOD_FRAZA_IT = (
+    (("procedura", "penale"), "codice_procedura_penale"), (("procedura", "civile"), "codice_procedura_civile"),
+    (("penale",), "codice_penale"), (("civile",), "codice_civile"), (("strada",), "codice_strada"),
+    (("consumo",), "codice_consumo"), (("costituzione",), "costituzione"), (("lavoratori",), "statuto_lavoratori"),
+    (("immigrazione",), "tu_immigrazione"), (("crisi",), "codice_crisi_impresa"), (("privacy",), "privacy"),
+)
+
+
+def _kod_nga_fraza(msg: str, num: str, jur: str, codes: set) -> str | None:
+    try:
+        from .retrieval import fold_sq as _fold
+        m = re.search(r"\b(?:nen\w*|art\w*\.?|articolo)\s*" + re.escape(num) + r"\b(.{0,70})", msg, re.I)
+        if not m:
+            return None
+        t = _fold(m.group(1)).lower()
+        t = re.split(r"[.;?!]\s", t)[0]                     # non oltre la fine della frase
+        for keys, code in (_KOD_FRAZA_IT if jur == "IT" else _KOD_FRAZA_AL):
+            if all(k in t for k in keys) and code in codes:
+                return code
+    except Exception:  # noqa: BLE001
+        return None
+    return None
 
 
 # v9.322 — LA MEMORIA DEL FILO. `--resume` e' disabilitato nel backend (le sessioni
@@ -6759,6 +6828,8 @@ def _format_precedents_block(pairs: list[tuple[CasePrecedent, float]]) -> str:
     lines = ["", "── VENDIME RELEVANTE TË GJYKATAVE (precedent nga KB) ──"]
     for c, score in pairs:
         outcome = f" — {c.outcome}" if c.outcome else ""
+        if getattr(c, "subtype", None):
+            outcome += f" ({c.subtype})"        # v9.367: l'esito letterale della GjL («prishje + lënia në fuqi»)
         date_str = c.decision_date.isoformat() if c.decision_date else "?"
         lines.append(
             f"  • [[case:{c.id}]] {c.citation} ({date_str}){outcome}  [score={score:.2f}]"

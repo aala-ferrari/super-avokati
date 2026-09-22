@@ -415,6 +415,35 @@ def gjl_number_date(text: str, rel: str, old: dict | None, disp_end: int | None 
     return number, date, year, "", warn
 
 
+# ── nene citati ────────────────────────────────────────────────────────────
+
+def cited_articles_for(objekti: str, baza: str, reasoning: str, dispositif: str, article_index) -> tuple[list[str], str]:
+    """«code:number» via citation_verifier (verificati/abrogati), poi i numeri nudi; max 60. Ritorna (lista, avviso)."""
+    cited: list[str] = []; warn = ""
+    if article_index is not None and (objekti or baza or reasoning):
+        try:
+            from src.citation_verifier import verify_text
+            res = verify_text((objekti + "\n" + baza + "\n" + reasoning + "\n" + dispositif)[:120_000], article_index)
+            seen = set()
+            for ct in (res.get("citations") or res.get("items") or []):
+                code = getattr(ct, "code", None) if not isinstance(ct, dict) else ct.get("code")
+                num = getattr(ct, "number", None) if not isinstance(ct, dict) else ct.get("number")
+                st = getattr(ct, "status", "") if not isinstance(ct, dict) else ct.get("status", "")
+                if not num: continue
+                key = f"{code}:{num}" if code and st in ("verified", "repealed", "stale", "verified_stale") else str(num)
+                if key not in seen:
+                    seen.add(key); cited.append(key)
+        except Exception as exc:  # noqa: BLE001
+            warn = f"citazioni: verificatore non disponibile ({exc})"
+    if not cited:
+        for m in re.finditer(r"\bnen(?:i|it|in|e|eve|et)?\s+(\d+(?:\s*/\s*[a-zçë0-9]+)?)", objekti + " " + baza + " " + reasoning, re.I):
+            k = re.sub(r"\s+", "", m.group(1))
+            if k not in cited: cited.append(k)
+    # i «code:number» prima: sono quelli che legano il vendim ai nene recuperati
+    cited = sorted(cited[:80], key=lambda s: 0 if ":" in s else 1)[:60]
+    return cited, warn
+
+
 # ── parser ─────────────────────────────────────────────────────────────────
 
 def parse(court: str, rel: str, text: str, old: dict | None, article_index=None) -> tuple[dict | None, dict]:
@@ -564,28 +593,10 @@ def parse(court: str, rel: str, text: str, old: dict | None, article_index=None)
         if old.get("outcome") and outcome and old["outcome"] != outcome: v["checks"]["old_outcome"] = old["outcome"]
         if old.get("date") and date and norm_date(old["date"]) != date: v["warnings"].append(f"data diversa dal record precedente ({old['date']} → {date})")
 
-    # citazioni con codice (stesso verificatore della produzione)
-    cited: list[str] = []
-    if article_index is not None and (baza or reasoning):
-        try:
-            from src.citation_verifier import verify_text
-            res = verify_text((baza + "\n" + reasoning + "\n" + dispositif)[:120_000], article_index)
-            seen = set()
-            for ct in (res.get("citations") or res.get("items") or []):
-                code = getattr(ct, "code", None) if not isinstance(ct, dict) else ct.get("code")
-                num = getattr(ct, "number", None) if not isinstance(ct, dict) else ct.get("number")
-                st = getattr(ct, "status", "") if not isinstance(ct, dict) else ct.get("status", "")
-                if not num: continue
-                key = f"{code}:{num}" if code and st in ("verified", "repealed", "stale", "verified_stale") else str(num)
-                if key not in seen:
-                    seen.add(key); cited.append(key)
-        except Exception as exc:  # noqa: BLE001
-            v["warnings"].append(f"citazioni: verificatore non disponibile ({exc})")
-    if not cited:
-        for m in re.finditer(r"\bnen(?:i|it|in|e|eve|et)?\s+(\d+(?:\s*/\s*[a-zçë0-9]+)?)", baza + " " + reasoning, re.I):
-            k = re.sub(r"\s+", "", m.group(1))
-            if k not in cited: cited.append(k)
-    cited = cited[:60]
+    # citazioni con codice (stesso verificatore della produzione) — anche dall'OBJEKTI: nei penali è lì l'accusa
+    # («neni 291 i Kodit Penal»), il legame più utile fra un vendim e un nene
+    cited, cw = cited_articles_for(objekti, baza, reasoning, dispositif, article_index)
+    if cw: v["warnings"].append(cw)
 
     title, short = COURT_NAMES[court]
     if old and old.get("court_title_sq"): title = old["court_title_sq"]
@@ -777,6 +788,43 @@ def cmd_run():
     print(f"\nfatto in {int(time.time() - t0)} s: OK {n_ok}, esclusi {n_ex}, falliti {n_fail}; totale nel database: {len(loaded)} AL + {len(echr)} CEDU = {len(decisions)}")
 
 
+def _decisions_from_store():
+    """CEDU dal pickle vivo (vivono solo lì) + i record AL del JSONL → lista di Decision."""
+    from src.jurisprudence_parser import Decision
+    _, echr = old_records()
+    rows = [json.loads(l) for l in OUT_JSONL.open(encoding="utf-8")] if OUT_JSONL.exists() else []
+    decisions = [Decision(**{k: d.get(k) for k in FIELDS if k != "kind"}) for d in echr]
+    decisions += [Decision(**{k: d[k] for k in FIELDS if k != "kind"}) for d in rows]
+    return decisions, rows
+
+
+def cmd_rebuild():
+    """Ricostruisce il pickle v2 dal JSONL (+ CEDU conservata): dopo un `recite`, o dopo un cambio del tokenizer."""
+    from src.retrieval import DecisionIndex
+    decisions, rows = _decisions_from_store()
+    DecisionIndex.build(decisions).save(OUT_PKL)
+    print(f"pickle ricostruito: {len(rows)} AL + {len(decisions) - len(rows)} CEDU = {len(decisions)} → {OUT_PKL}")
+
+
+def cmd_recite():
+    """Ricalcola i nene citati di OGNI record AL (objekti + baza + ragionamento + dispositivo) e riscrive il JSONL
+    (backup accanto), poi ricostruisce il pickle."""
+    aidx = _article_index()
+    rows = [json.loads(l) for l in OUT_JSONL.open(encoding="utf-8")]
+    bak = OUT_JSONL.with_suffix(OUT_JSONL.suffix + ".bak-recite-" + time.strftime("%Y%m%d-%H%M%S"))
+    bak.write_text(OUT_JSONL.read_text(encoding="utf-8"), encoding="utf-8")
+    changed = 0
+    for r in rows:
+        new, _w = cited_articles_for(r.get("objekti") or "", r.get("baza_ligjore") or "", r.get("reasoning") or "", r.get("dispositif") or "", aidx)
+        if new != r.get("cited_articles"):
+            changed += 1; r["cited_articles"] = new
+    with OUT_JSONL.open("w", encoding="utf-8") as fh:
+        for r in rows:
+            fh.write(json.dumps(r, ensure_ascii=False) + "\n")
+    print(f"nene citati ricalcolati: {changed}/{len(rows)} record cambiati (backup {bak.name})")
+    cmd_rebuild()
+
+
 def cmd_report():
     rows = [json.loads(l) for l in VERDICTS.open(encoding="utf-8")] if VERDICTS.exists() else []
     st = collections.Counter((r["court"], r["status"]) for r in rows)
@@ -793,4 +841,6 @@ if __name__ == "__main__":
     elif cmd == "run": cmd_run()
     elif cmd == "one": cmd_one(sys.argv[2])
     elif cmd == "report": cmd_report()
+    elif cmd == "rebuild": cmd_rebuild()
+    elif cmd == "recite": cmd_recite()
     else: raise SystemExit(__doc__)

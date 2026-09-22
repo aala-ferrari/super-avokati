@@ -1613,7 +1613,7 @@
           <div class="prec-cite">
             <a class="prec-caseid" href="/case-precedent/${d.id}" target="_blank" rel="noopener" title="Hap fashikullin e plotë">${escapeHtml(d.citation)}</a>
             <span class="prec-date">${escapeHtml(d.date || "")}</span>
-            ${outcomeTag(d.outcome)}
+            ${outcomeTag(d.outcome)}${d.label ? `<span class="prec-date">(${escapeHtml(d.label)})</span>` : ""}
           </div>
           ${d.summary ? `<div class="prec-objekti">${escapeHtml(d.summary)}</div>` : ""}
           ${d.articles_cited && d.articles_cited.length ? `<div class="prec-articles">${articlesBadges(d.articles_cited)}</div>` : ""}
