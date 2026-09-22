@@ -2547,11 +2547,11 @@ def main():
         _sp70 = _insp70.getsource(_st70.senior_pergjigjja)
         _js70 = _io2.open(_os2.path.join(_os2.path.dirname(_os2.path.dirname(_os2.path.abspath(__file__))), "static", "app.js"), encoding="utf-8").read()
         _gab = [L for L in _js70.split("\n") if "Gabim: " in L and "_CAL_IT" not in L and "TT(" not in L and "T_IT" not in L]
-        check("memoria[70]: _history_for_prompt in 4 punti (nessun «if session_id → solo prompt»), potatura 3500/2500, errori CLI per lingua, replica senior 1800 tok, avviso «Pannelli da correggere» + nessun «Gabim:» fisso nel client",
+        check("memoria[70]: _history_for_prompt in 4 punti (nessun «if session_id → solo prompt»), potatura 3500/2500, errori CLI per lingua, replica senior 3000 tok (v9.363), avviso «Pannelli da correggere» + nessun «Gabim:» fisso nel client",
               _uses >= 4 and not _drop
               and len(_h) == 3 and len(_h[0]["content"]) <= 3510 and len(_h[1]["content"]) <= 2510
               and "Tetramorph è impegnato" in _hf70 and "request_jurisdiction" in _hf70
-              and "max_tokens=1800" in _sp70
+              and "max_tokens=3000" in _sp70
               and 'className = "panels-notice"' in _js70 and "Pannelli da correggere:|Panele" in _js70
               and not _gab, "Gabim fissi: %d" % len(_gab))
     except Exception as _e70:  # noqa: BLE001
