@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Inspector · Super Avokati</title>
+<style>
+  :root{--bg:#f4f6f8;--paper:#fff;--ink:#1b2430;--muted:#5b6b7c;--line:#d9e0e6;--accent:#0f766e;--accent-bg:#e6f4f2;--warn:#b45309;--warn-bg:#fdf3e4;--bad:#b91c1c;--bad-bg:#fee2e2;--code:#eef2f5}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font:14.5px/1.5 -apple-system,"Segoe UI",Roboto,sans-serif}
+  header{display:flex;align-items:baseline;gap:14px;padding:12px 20px;border-bottom:1px solid var(--line);background:var(--paper)}
+  header h1{font-size:1.05rem;margin:0} header .rev{color:var(--muted);font-size:.8rem;margin-left:auto;font-family:ui-monospace,monospace}
+  header a{color:var(--accent);text-decoration:none;font-size:.85rem}
+  .tabs{display:flex;gap:4px;padding:10px 20px 0} .tabs button{border:1px solid var(--line);border-bottom:none;background:var(--bg);padding:8px 16px;border-radius:8px 8px 0 0;cursor:pointer;font:inherit;color:var(--muted)}
+  .tabs button.on{background:var(--paper);color:var(--ink);font-weight:600}
+  main{display:grid;grid-template-columns:minmax(360px,44%) 1fr;gap:0;min-height:calc(100vh - 100px)}
+  .pane{background:var(--paper);border-top:1px solid var(--line);padding:14px 16px;overflow:auto}
+  .pane.detail{border-left:1px solid var(--line);background:#fbfcfd}
+  form.filters{display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;margin-bottom:10px}
+  form.filters label{display:flex;flex-direction:column;font-size:.74rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);gap:3px}
+  form.filters input,form.filters select{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink)}
+  form.filters .wide{grid-column:1/-1} form.filters .row{display:flex;gap:10px;align-items:center;grid-column:1/-1}
+  button.go{font:inherit;font-weight:600;background:var(--accent);color:#fff;border:none;border-radius:6px;padding:8px 14px;cursor:pointer}
+  button.ghost{font:inherit;background:#fff;border:1px solid var(--line);border-radius:6px;padding:6px 10px;cursor:pointer;color:var(--ink)}
+  .status{color:var(--muted);font-size:.85rem;margin:6px 0}
+  .gaps{background:var(--warn-bg);border-left:4px solid var(--warn);padding:8px 10px;margin:8px 0;font-size:.85rem}
+  ul.results{list-style:none;padding:0;margin:0} ul.results li{border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin:6px 0;cursor:pointer;background:#fff}
+  ul.results li:hover,ul.results li.sel{border-color:var(--accent);background:var(--accent-bg)}
+  ul.results .t{font-weight:600} ul.results .m{color:var(--muted);font-size:.8rem;margin-top:2px;display:flex;gap:8px;flex-wrap:wrap}
+  .badge{display:inline-block;font-size:.72rem;padding:1px 7px;border-radius:999px;background:var(--code);color:var(--ink)}
+  .badge.bad{background:var(--bad-bg);color:var(--bad)} .badge.warn{background:var(--warn-bg);color:var(--warn)} .badge.ok{background:var(--accent-bg);color:var(--accent)}
+  .pager{display:flex;gap:8px;align-items:center;justify-content:space-between;margin:10px 0;font-size:.85rem;color:var(--muted)}
+  h2{font-size:1.1rem;margin:0 0 6px} h3{font-size:.8rem;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:18px 0 6px}
+  table.rec{border-collapse:collapse;width:100%} table.rec th{text-align:left;vertical-align:top;width:170px;padding:5px 8px;font-family:ui-monospace,monospace;font-size:.78rem;color:var(--muted);border-bottom:1px solid var(--line)}
+  table.rec td{padding:5px 8px;border-bottom:1px solid var(--line);white-space:pre-wrap;word-break:break-word}
+  pre{background:var(--code);border:1px solid var(--line);padding:10px 12px;overflow:auto;white-space:pre-wrap;font:.82rem/1.45 ui-monospace,monospace;max-height:520px;margin:0}
+  details summary{cursor:pointer;color:var(--accent);font-size:.85rem;margin:8px 0}
+  .empty{color:var(--muted);padding:30px 0;text-align:center}
+  @media (max-width:900px){main{grid-template-columns:1fr} .pane.detail{border-left:none}}
+</style>
+</head>
+<body>
+<header><h1>🔬 Inspector — fonte di verità</h1><a href="/">← app</a><span class="rev" id="rev"></span></header>
+<div class="tabs"><button class="on" data-tab="laws">📜 Leggi · nene / articoli</button><button data-tab="cases">⚖ Sentenze · vendime</button></div>
+<main>
+  <section class="pane">
+    <div id="tab-laws">
+      <form class="filters" id="f-laws">
+        <label>Corpus<select name="lang"><option value="al">🇦🇱 Albania</option><option value="it">🇮🇹 Italia</option></select></label>
+        <label>Codice / atto<select name="code"><option value="">— tutti —</option></select></label>
+        <label class="wide">Ricerca (testo, oppure «neni 88 i Kodit Penal», «art. 2946 c.c.»)<input name="q" placeholder="es. plagosje e rëndë · divorci · prescrizione ordinaria"></label>
+        <label>Numero esatto<input name="number" placeholder="88 · 88/a · 2946"></label>
+        <label>Abrogati<select name="repealed"><option value="1">inclusi</option><option value="0">esclusi</option></select></label>
+        <div class="row"><button class="go" type="submit">Cerca</button><button class="ghost" type="button" id="browse">Sfoglia il codice in ordine</button><span class="status" id="s-laws"></span></div>
+      </form>
+      <div id="gaps-laws" class="gaps" hidden></div>
+      <ul class="results" id="r-laws"></ul>
+      <div class="pager" id="p-laws" hidden><button class="ghost" data-dir="-1">‹ prec.</button><span></span><button class="ghost" data-dir="1">succ. ›</button></div>
+    </div>
+    <div id="tab-cases" hidden>
+      <form class="filters" id="f-cases">
+        <label>Fonte<select name="src"><option value="al">🇦🇱 Kushtetuese · Gjykata e Lartë · CEDU</option><option value="it">🇮🇹 Consulta · CdS · TAR</option></select></label>
+        <label>Corte<select name="court"><option value="">— tutte —</option></select></label>
+        <label class="wide">Ricerca nel testo (es. «zgjidhja e martesës», «divorc», «kujdestari»)<input name="q" placeholder="parole della decisione"></label>
+        <label>Anno da<input name="year_from" placeholder="2015"></label><label>Anno a<input name="year_to" placeholder="2026"></label>
+        <label>Esito<select name="outcome"><option value="">— tutti —</option></select></label>
+        <label>Tipo<select name="type"><option value="">— tutti —</option></select></label>
+        <label>Cita il codice<input name="cited_code" placeholder="kodi_familjes"></label><label>Cita il nene<input name="cited_number" placeholder="125"></label>
+        <div class="row"><button class="go" type="submit">Cerca</button><span class="status" id="s-cases"></span></div>
+      </form>
+      <ul class="results" id="r-cases"></ul>
+      <div class="pager" id="p-cases" hidden><button class="ghost" data-dir="-1">‹ prec.</button><span></span><button class="ghost" data-dir="1">succ. ›</button></div>
+    </div>
+  </section>
+  <section class="pane detail" id="detail"><div class="empty">Scegli un risultato: qui vedi il record esattamente com'è salvato, il blocco come lo legge il cervello e il JSON grezzo.</div></section>
+</main>
+<script src="/static/inspect.js?v=1" defer></script>
+</body>
+</html>

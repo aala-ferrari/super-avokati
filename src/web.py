@@ -28,7 +28,7 @@ from . import jobs as jobs_mod
 from . import push as push_mod
 import time
 from dataclasses import asdict
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 from flask import (
@@ -9303,6 +9303,364 @@ def api_admin_users_delete(user_id):
         return jsonify({"error": motivo or "errore eliminazione"}), 409
     log.info("admin %s deleted user %s", user.username, target.username)
     return jsonify({"ok": True})
+
+
+# ══ INSPECTOR (v9.365, 22 set 2026) — pagina admin di SOLA LETTURA su ciò che c'è DAVVERO nel corpus e nei
+# precedenti: il titolare la usa per verificare la fonte di verità e scovare problemi di parsing (rubrica incollata,
+# corpo vuoto, numeri mancanti, note, segmenti). Due schede: leggi (AL/IT, ricerca o sfoglia per codice, paginato)
+# e vendime (AL dal pickle + retriever, IT dall'FTS5). Nessuna scrittura, nessun modello: legge gli stessi oggetti
+# che usa il cervello, più il record grezzo e il blocco esattamente come entra nel prompt. ══
+_INSPECT_CACHE: dict = {}
+
+
+def _inspect_admin():
+    user = getattr(request, "user", None) or current_user()
+    return user if (user is not None and user.is_admin) else None
+
+
+def _inspect_idx(lang: str):
+    return _INDEX_IT if (lang == "it" and _INDEX_IT is not None) else _INDEX
+
+
+def _inspect_numkey(n) -> tuple:
+    """Ordinamento naturale dei numeri di articolo: 88 < 88/a < 88/b < 89; «allegato-3» in coda."""
+    s_ = str(n)
+    m = re.match(r"^(\d+)(.*)$", s_)
+    return (0, int(m.group(1)), m.group(2)) if m else (1, 0, s_)
+
+
+def _inspect_segmenti(lang: str) -> dict:
+    """{(code, number): n segmenti} dai vettori densi caricati (fusione media)."""
+    key = ("seg", lang)
+    if key in _INSPECT_CACHE:
+        return _INSPECT_CACHE[key]
+    out: dict = {}
+    try:
+        from . import dense as _dn
+        idx = _inspect_idx(lang)
+        di = _dn.indice(idx, "it" if lang == "it" else "sq")
+        if di is not None:
+            arts = di.articles
+            for r in (di.rows or []):
+                if r >= 0:
+                    a = arts[r]; out[(a.code, str(a.number))] = out.get((a.code, str(a.number)), 0)
+            if getattr(di, "rows2", None) is not None:
+                for r in di.rows2:
+                    if r >= 0:
+                        a = arts[int(r)]; out[(a.code, str(a.number))] = out.get((a.code, str(a.number)), 0) + 1
+    except Exception:  # noqa: BLE001
+        pass
+    _INSPECT_CACHE[key] = out
+    return out
+
+
+def _inspect_problemi(a) -> list[str]:
+    p = []
+    if not (a.body or "").strip() and not getattr(a, "repealed", False):
+        p.append("corpo vuoto")
+    if len(a.heading or "") > 120:
+        p.append("rubrica lunga")
+    if not (a.heading or "").strip():
+        p.append("senza rubrica")
+    if re.search(r"\((?:Shtuar|Ndryshuar|Shfuqizuar)", a.heading or "", re.I):
+        p.append("nota nella rubrica")
+    if re.search(r"\n\s*\d{1,3}\s*\n", a.body or ""):
+        p.append("numero isolato nel corpo")
+    return p
+
+
+def _inspect_law_item(a, score=None, seg=None) -> dict:
+    return {"code": a.code, "title_sq": a.title_sq, "area": a.area, "number": str(a.number), "citation": a.citation,
+            "heading": a.heading or "", "heading_kind": getattr(a, "heading_kind", ""), "note": (getattr(a, "note", "") or "")[:200],
+            "repealed": bool(a.repealed), "body_len": len(a.body or ""), "n_paragrafet": len(getattr(a, "paragrafet", []) or []),
+            "last_amendment_date": a.last_amendment_date or "", "volatility": a.volatility, "kreu": a.kreu, "pjesa": a.pjesa,
+            "score": (round(float(score), 2) if score is not None else None),
+            "segmenti": (seg or {}).get((a.code, str(a.number))), "problemi": _inspect_problemi(a)}
+
+
+def _inspect_law_record(idx, code: str, number: str) -> dict | None:
+    """Il record COMPLETO com'è salvato + come entra nel prompt + cosa ne dicono verificatore e grafo."""
+    a = next((x for x in idx.articles if x.code == code and str(x.number) == str(number)), None)
+    if a is None:
+        return None
+    lang = "it" if _is_italian_code(a.code) else "sq"
+    out = {"record": asdict(a), "citation": a.citation, "problemi": _inspect_problemi(a)}
+    try:
+        from . import acts_meta as _am
+        out["acts_meta"] = _am.riga(a.code, lang)
+    except Exception:  # noqa: BLE001
+        out["acts_meta"] = ""
+    try:
+        from . import brain as _bm
+        out["prompt_block"] = _bm._format_articles_for_prompt([(a, 1.0)])
+    except Exception as exc:  # noqa: BLE001
+        out["prompt_block"] = f"(errore: {exc})"
+    try:
+        out["searchable_text"] = a.searchable_text[:3000]
+    except Exception:  # noqa: BLE001
+        out["searchable_text"] = ""
+    try:
+        from . import case_graph as _cg
+        st = _cg.stato_incostituzionale(a)
+        out["incostituzionalita"] = {"stato": st[0], "vendimi": st[1]} if st else None
+    except Exception:  # noqa: BLE001
+        out["incostituzionalita"] = None
+    try:
+        v = cv_mod.verify_text(a.citation, idx)
+        out["verificatore"] = [(i.get("code"), i["number"], i["status"]) for i in v["items"]]
+    except Exception:  # noqa: BLE001
+        out["verificatore"] = []
+    seg = _inspect_segmenti(lang if lang == "it" else "al")
+    out["segmenti"] = seg.get((a.code, str(a.number)))
+    return out
+
+
+@app.get("/inspect")
+@login_required_page
+def inspect_page():
+    user = current_user()
+    if not user.is_admin:
+        return ("Forbidden — admin access required.", 403)
+    return render_template("inspect.html")
+
+
+@app.get("/api/inspect/meta")
+@login_required_api
+def api_inspect_meta():
+    if _inspect_admin() is None:
+        return jsonify({"error": "forbidden"}), 403
+    _ensure_loaded()
+    try:
+        from .corpus_hash import revision as _rev
+        rev = _rev()["rev"]
+    except Exception:  # noqa: BLE001
+        rev = ""
+    key = ("meta", rev)
+    if key in _INSPECT_CACHE:
+        return jsonify(_INSPECT_CACHE[key])
+    def _codes(idx):
+        out: dict = {}
+        for a in (idx.articles if idx else []):
+            c = out.setdefault(a.code, {"code": a.code, "title": a.title_sq, "area": a.area, "n": 0, "abrogati": 0, "corpo_vuoto": 0,
+                                         "rubrica_lunga": 0, "note": 0, "min": None, "max": None})
+            c["n"] += 1
+            if a.repealed: c["abrogati"] += 1
+            if not (a.body or "").strip() and not a.repealed: c["corpo_vuoto"] += 1
+            if len(a.heading or "") > 120: c["rubrica_lunga"] += 1
+            if getattr(a, "note", ""): c["note"] += 1
+            k = _inspect_numkey(a.number)
+            if k[0] == 0:
+                c["min"] = k[1] if c["min"] is None else min(c["min"], k[1]); c["max"] = k[1] if c["max"] is None else max(c["max"], k[1])
+        return sorted(out.values(), key=lambda c: c["code"])
+    meta = {"revision": rev, "al_codes": _codes(_INDEX), "it_codes": _codes(_INDEX_IT),
+            "al_courts": [], "al_years": [None, None], "al_outcomes": {}, "al_types": {}, "it_courts": [], "it_years": [None, None]}
+    try:
+        cases = _BRAIN.kb.cases if _BRAIN is not None else []
+        courts: dict = {}; years = []; outs: dict = {}; types: dict = {}
+        for c in cases:
+            courts.setdefault(c.court_code, {"code": c.court_code, "name": c.court_name, "n": 0})["n"] += 1
+            if c.year: years.append(c.year)
+            outs[c.outcome or "—"] = outs.get(c.outcome or "—", 0) + 1
+            types[c.type or "—"] = types.get(c.type or "—", 0) + 1
+        meta["al_courts"] = sorted(courts.values(), key=lambda x: -x["n"]); meta["al_years"] = [min(years), max(years)] if years else [None, None]
+        meta["al_outcomes"] = dict(sorted(outs.items(), key=lambda kv: -kv[1])); meta["al_types"] = dict(sorted(types.items(), key=lambda kv: -kv[1]))
+        meta["al_total"] = len(cases)
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        import sqlite3 as _sq
+        from . import it_precedent_fts as _fts
+        con = _sq.connect(f"file:{_fts.DB}?mode=ro", uri=True)
+        rows = con.execute("SELECT court, COUNT(*), MIN(year), MAX(year) FROM dec GROUP BY court").fetchall(); con.close()
+        meta["it_courts"] = [{"code": r[0], "name": _fts._COURT_NAME.get(r[0], r[0]), "n": r[1]} for r in rows]
+        ys = [int(r[2]) for r in rows if r[2]] + [int(r[3]) for r in rows if r[3]]
+        meta["it_years"] = [min(ys), max(ys)] if ys else [None, None]; meta["it_total"] = sum(r[1] for r in rows)
+    except Exception:  # noqa: BLE001
+        pass
+    _INSPECT_CACHE[key] = meta
+    return jsonify(meta)
+
+
+@app.get("/api/inspect/laws")
+@login_required_api
+def api_inspect_laws():
+    if _inspect_admin() is None:
+        return jsonify({"error": "forbidden"}), 403
+    _ensure_loaded()
+    lang = "it" if (request.args.get("lang") or "al").lower() == "it" else "al"
+    idx = _inspect_idx(lang)
+    if idx is None:
+        return jsonify({"error": "index_unavailable"}), 503
+    q = (request.args.get("q") or "").strip(); code = (request.args.get("code") or "").strip(); number = (request.args.get("number") or "").strip()
+    inc_rep = (request.args.get("repealed") or "1") == "1"
+    page = max(1, int(request.args.get("page") or 1)); per = min(100, max(5, int(request.args.get("per_page") or 25)))
+    seg = _inspect_segmenti(lang)
+    hits: list = []; mode = "search"; gaps: list = []
+    if number or (q and not code and cv_mod.verify_text(q[:300], idx).get("items")):
+        # riferimento esplicito: «neni 88 i Kodit Penal» / «art. 2946 c.c.» oppure numero + codice
+        if q and not number:
+            for it in cv_mod.verify_text(q[:300], idx).get("items") or []:
+                if it.get("code"):
+                    hits += [(a, None) for a in idx.articles if a.code == it["code"] and str(a.number) == str(it["number"])]
+        else:
+            hits = [(a, None) for a in idx.articles if str(a.number) == number and (not code or a.code == code)]
+        mode = "exact"
+    elif q:
+        try:
+            res = idx.search(q, top_k=300, include_repealed=inc_rep, restrict_codes={code} if code else None)
+        except TypeError:
+            res = idx.search(q, top_k=300)
+        hits = [(a, sc) for a, sc in res if (inc_rep or not a.repealed) and (not code or a.code == code)]
+    elif code:
+        mode = "browse"
+        arts = sorted([a for a in idx.articles if a.code == code and (inc_rep or not a.repealed)], key=lambda a: _inspect_numkey(a.number))
+        hits = [(a, None) for a in arts]
+        nums = sorted({_inspect_numkey(a.number)[1] for a in idx.articles if a.code == code and _inspect_numkey(a.number)[0] == 0})
+        if nums:
+            have = set(nums); gaps = [n for n in range(nums[0], nums[-1] + 1) if n not in have][:80]
+    total = len(hits)
+    pagina = hits[(page - 1) * per: page * per]
+    return jsonify({"mode": mode, "lang": lang, "total": total, "page": page, "per_page": per, "gaps": gaps,
+                    "items": [_inspect_law_item(a, sc, seg) for a, sc in pagina]})
+
+
+@app.get("/api/inspect/law/<lang>/<code>/<path:number>")
+@login_required_api
+def api_inspect_law(lang: str, code: str, number: str):
+    if _inspect_admin() is None:
+        return jsonify({"error": "forbidden"}), 403
+    _ensure_loaded()
+    idx = _inspect_idx("it" if lang == "it" else "al")
+    rec = _inspect_law_record(idx, code, number) if idx is not None else None
+    if rec is None:
+        return jsonify({"error": "not_found"}), 404
+    return jsonify(rec)
+
+
+def _inspect_dec_raw() -> dict:
+    """I record GREZZI del pickle delle decisioni (objekti, dispositif, reasoning…), per chiave (corte, numero, anno)."""
+    key = ("dec_raw",)
+    if key in _INSPECT_CACHE:
+        return _INSPECT_CACHE[key]
+    out: dict = {}
+    try:
+        from .retrieval import DecisionIndex
+        for d in DecisionIndex.load().decisions:
+            out[(d.court_code, str(d.number), int(d.year or 0))] = d
+            out.setdefault((d.court_code, str(d.number), None), d)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("inspect: pickle decisioni non letto: %s", exc)
+    _INSPECT_CACHE[key] = out
+    return out
+
+
+def _inspect_case_item(c, score=None) -> dict:
+    raw = _inspect_dec_raw()
+    d = raw.get((c.court_code, str(c.case_number), int(c.year or 0))) or raw.get((c.court_code, str(c.case_number), None))
+    return {"id": c.id, "court_code": c.court_code, "court": c.court_name, "number": c.case_number, "year": c.year,
+            "date": c.decision_date.isoformat() if c.decision_date else None, "type": c.type, "subtype": c.subtype, "outcome": c.outcome,
+            "summary": (c.summary or "")[:320], "objekti": ((getattr(d, "objekti", "") or "")[:320] if d else ""),
+            "n_articles": len(c.articles_cited or []), "raw": d is not None, "score": (round(float(score), 2) if score is not None else None)}
+
+
+@app.get("/api/inspect/cases")
+@login_required_api
+def api_inspect_cases():
+    if _inspect_admin() is None:
+        return jsonify({"error": "forbidden"}), 403
+    _ensure_loaded()
+    src = "it" if (request.args.get("src") or "al").lower() == "it" else "al"
+    q = (request.args.get("q") or "").strip()
+    page = max(1, int(request.args.get("page") or 1)); per = min(100, max(5, int(request.args.get("per_page") or 25)))
+    court = (request.args.get("court") or "").strip() or None
+    yf = request.args.get("year_from"); yt = request.args.get("year_to")
+    yf = int(yf) if (yf or "").isdigit() else None; yt = int(yt) if (yt or "").isdigit() else None
+    if src == "al":
+        if _BRAIN is None or not _BRAIN.kb.cases:
+            return jsonify({"error": "unavailable"}), 503
+        outcome = (request.args.get("outcome") or "").strip() or None; tipo = (request.args.get("type") or "").strip() or None
+        cc = (request.args.get("cited_code") or "").strip(); cn = (request.args.get("cited_number") or "").strip()
+        if q:
+            res = _BRAIN.kb.search([q], top_k=400, type=tipo, outcome=outcome, court_code=court, year_from=yf, year_to=yt,
+                                   cited_articles=[(cc, cn)] if (cc and cn) else None, min_score=0.0)
+        else:
+            def ok(c):
+                if court and c.court_code != court: return False
+                if tipo and (c.type or "") != tipo: return False
+                if outcome and (c.outcome or "") != outcome: return False
+                if yf and (not c.year or c.year < yf): return False
+                if yt and (not c.year or c.year > yt): return False
+                if cc and cn and (cc, cn) not in {(a, str(n)) for a, n in (c.articles_cited or [])}: return False
+                if cn and not cc and cn not in {str(n) for _, n in (c.articles_cited or [])}: return False
+                return True
+            res = [(c, None) for c in sorted((c for c in _BRAIN.kb.cases if ok(c)), key=lambda c: (c.decision_date or date.min), reverse=True)]
+        total = len(res)
+        return jsonify({"src": "al", "total": total, "page": page, "per_page": per,
+                        "items": [_inspect_case_item(c, sc) for c, sc in res[(page - 1) * per: page * per]]})
+    # ── IT: FTS5 ──
+    import sqlite3 as _sq
+    from . import it_precedent_fts as _fts
+    try:
+        con = _sq.connect(f"file:{_fts.DB}?mode=ro", uri=True)
+        where, args = [], []
+        if court: where.append("court = ?"); args.append(court)
+        if yf: where.append("CAST(year AS INTEGER) >= ?"); args.append(yf)
+        if yt: where.append("CAST(year AS INTEGER) <= ?"); args.append(yt)
+        if q:
+            qq = _fts._query_fts([q]) if hasattr(_fts, "_query_fts") else '"' + q.replace('"', " ") + '"'
+            where.insert(0, "dec MATCH ?"); args.insert(0, qq)
+            sql_w = " WHERE " + " AND ".join(where)
+            total = con.execute("SELECT COUNT(*) FROM dec" + sql_w, args).fetchone()[0]
+            rows = con.execute("SELECT rowid, court, tipo, number, year, data, url, snippet(dec, 0, '«', '»', ' … ', 24) FROM dec" + sql_w +
+                               " ORDER BY rank LIMIT ? OFFSET ?", args + [per, (page - 1) * per]).fetchall()
+        else:
+            sql_w = (" WHERE " + " AND ".join(where)) if where else ""
+            total = con.execute("SELECT COUNT(*) FROM dec" + sql_w, args).fetchone()[0]
+            rows = con.execute("SELECT rowid, court, tipo, number, year, data, url, substr(text, 1, 300) FROM dec" + sql_w +
+                               " ORDER BY data DESC LIMIT ? OFFSET ?", args + [per, (page - 1) * per]).fetchall()
+        con.close()
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({"error": f"fts: {exc}"[:200]}), 500
+    return jsonify({"src": "it", "total": total, "page": page, "per_page": per,
+                    "items": [{"id": r[0], "court_code": r[1], "court": _fts._COURT_NAME.get(r[1], r[1]), "type": r[2], "number": r[3], "year": r[4],
+                               "date": r[5], "url": r[6], "summary": r[7] or ""} for r in rows]})
+
+
+@app.get("/api/inspect/case/<src>/<int:cid>")
+@login_required_api
+def api_inspect_case(src: str, cid: int):
+    if _inspect_admin() is None:
+        return jsonify({"error": "forbidden"}), 403
+    _ensure_loaded()
+    if src == "al":
+        if _BRAIN is None or not _BRAIN.kb.cases:
+            return jsonify({"error": "unavailable"}), 503
+        c = _BRAIN.kb.get(cid)
+        if c is None:
+            return jsonify({"error": "not_found"}), 404
+        raw = _inspect_dec_raw()
+        d = raw.get((c.court_code, str(c.case_number), int(c.year or 0))) or raw.get((c.court_code, str(c.case_number), None))
+        out = {"precedent": _precedent_payload(c, 0.0), "excerpt": c.excerpt, "summary": c.summary, "judges": c.judges,
+               "articles_cited": [[a, n] for a, n in (c.articles_cited or [])], "source_url": c.source_url, "source_file": c.source_file,
+               "raw": asdict(d) if d is not None else None}
+        try:
+            from . import case_graph as _cg
+            k = f"{c.court_code}|{c.year or 0}|{c.case_number}"
+            out["annullata_da"] = _cg.annullati_gjl().get(k)
+        except Exception:  # noqa: BLE001
+            out["annullata_da"] = None
+        return jsonify(out)
+    import sqlite3 as _sq
+    from . import it_precedent_fts as _fts
+    try:
+        con = _sq.connect(f"file:{_fts.DB}?mode=ro", uri=True)
+        r = con.execute("SELECT rowid, court, tipo, number, year, data, url, text FROM dec WHERE rowid = ?", (cid,)).fetchone(); con.close()
+    except Exception as exc:  # noqa: BLE001
+        return jsonify({"error": f"fts: {exc}"[:200]}), 500
+    if not r:
+        return jsonify({"error": "not_found"}), 404
+    return jsonify({"raw": {"rowid": r[0], "court": r[1], "court_name": _fts._COURT_NAME.get(r[1], r[1]), "tipo": r[2], "number": r[3],
+                            "year": r[4], "data": r[5], "url": r[6], "text": r[7] or "", "text_len": len(r[7] or "")}})
 
 
 # ── helpers ────────────────────────────────────────────────────────────────

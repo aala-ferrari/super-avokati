@@ -3865,6 +3865,30 @@ def main():
     except Exception as _e114:  # noqa: BLE001
         check("fusione[114]: kontrollet u ekzekutuan", False, str(_e114))
 
+    # ── [115] v9.365 — INSPECTOR: pagina admin di sola lettura (/inspect) per verificare la fonte di verità (leggi AL/IT
+    # con ricerca/sfoglia/paginazione/numeri mancanti; vendime AL dal pickle+retriever e IT dall'FTS5) ──
+    try:
+        import inspect as _insp115, re as _re115
+        from src import web as _web115
+        _al115 = ArticleIndex.load(_P81("/app/data/index/bm25.pkl"))
+        _rec = _web115._inspect_law_record(_al115, "kodi_penal", "302")
+        _okA = (_rec is not None and _rec["record"]["heading"] == "Përkrahja e autorit të krimit" and "Përjashtohen" in _rec["record"]["body"]
+                and "NENI 302" not in _rec["prompt_block"] and "Neni 302" in _rec["prompt_block"] and _rec["acts_meta"].startswith("📜")
+                and _rec["verificatore"] == [("kodi_penal", "302", "verified")] and isinstance(_rec["problemi"], list))
+        _okB = _web115._inspect_law_record(_al115, "kodi_penal", "999999") is None
+        _k = _web115._inspect_numkey
+        _okC = sorted(["89", "88/b", "88", "allegato-3", "88/a", "100"], key=_k) == ["88", "88/a", "88/b", "89", "100", "allegato-3"]
+        _src = _insp115.getsource(_web115)
+        _okD = all(f"def {n}" in _src for n in ("inspect_page", "api_inspect_meta", "api_inspect_laws", "api_inspect_law", "api_inspect_cases", "api_inspect_case"))
+        _okE = _src.count("if _inspect_admin() is None:") >= 5 and 'if not user.is_admin:\n        return ("Forbidden — admin access required.", 403)\n    return render_template("inspect.html")' in _src
+        _js = open("/app/static/inspect.js", encoding="utf-8").read(); _html = open("/app/templates/inspect.html", encoding="utf-8").read()
+        _okF = "/api/inspect/meta" in _js and "/api/inspect/laws" in _js and "/api/inspect/case/" in _js and 'src="/static/inspect.js' in _html \
+               and not _re115.search(r"opus|fable|sonnet|claude|anthropic", _js + _html, _re115.I) and "<script>" not in _html
+        check("inspector[115]: record del 302 (rubrica pulita, corpo con p3, blocco prompt, acts_meta, verificatore) · 404 su numero inesistente · ordine naturale dei numeri · 6 rotte admin-only · pagina e JS senza nomi di modello e senza script inline",
+              _okA and _okB and _okC and _okD and _okE and _okF, "A=%s B=%s C=%s D=%s E=%s F=%s" % (_okA, _okB, _okC, _okD, _okE, _okF))
+    except Exception as _e115:  # noqa: BLE001
+        check("inspector[115]: kontrollet u ekzekutuan", False, str(_e115))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
