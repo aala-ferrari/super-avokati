@@ -53,6 +53,8 @@ def main() -> int:
     ap.add_argument("--threads", type=int, default=4)
     ap.add_argument("--lang", default="al", choices=["al", "it"])
     ap.add_argument("--suffix", default="", help="codifica di produzione da misurare (es. _ck = segmenti)")
+    ap.add_argument("--suffix2", default="", help="SECONDA codifica da fondere con la prima (es. --suffix _flat2 --suffix2 _ck)")
+    ap.add_argument("--fuse", default="rrf3", choices=["rrf3", "max"], help="rrf3 = tre liste (BM25+senso1+senso2); max = UNA lista densa col massimo dei due coseni")
     a = ap.parse_args()
     from fastembed import TextEmbedding
     from src.retrieval import ArticleIndex
@@ -100,20 +102,39 @@ def main() -> int:
         E /= (np.linalg.norm(E, axis=1, keepdims=True) + 1e-9)
         np.save(f, E)
         print(f"codificati {len(docs)} articoli in {dt:.0f}s ({len(docs)/dt:.1f} art/s) → {f.name} {E.shape}", flush=True)
+    E2 = ROWS2 = None
+    if a.suffix2:
+        prod2 = EMB_DIR / f"emb_{'sq' if a.lang == 'al' else 'it'}_{tag}{a.suffix2}"
+        keys2 = json.loads(Path(str(prod2) + ".keys.json").read_text(encoding="utf-8"))
+        E2 = np.load(prod2.with_suffix(".npy"))
+        apos2 = {(x.code, str(x.number)): i for i, x in enumerate(arts)}
+        ROWS2 = np.array([apos2.get((k[0], str(k[1])), -1) for k in keys2])
+        print(f"seconda codifica: {prod2.name}.npy → {E2.shape}", flush=True)
     live_mask = np.zeros(len(arts), dtype=bool); live_mask[live] = True
 
     def q_emb(q):
         v = np.asarray(list(model.query_embed([q]) if hasattr(model, "query_embed") else model.embed([q])), dtype=np.float32)[0]
         return v / (np.linalg.norm(v) + 1e-9)
 
-    def dense(q, k=K, depth=50):
-        v = q_emb(q); s = E @ v
-        if ROWS is not None:                       # segmenti → massimo per articolo
+    def _scores(Emat, rows, v):
+        s = Emat @ v
+        if rows is not None:                       # segmenti → massimo per articolo
             sa = np.full(len(arts), -9.0, dtype=np.float32)
-            ok = ROWS >= 0
-            np.maximum.at(sa, ROWS[ok], s[ok])
+            ok = rows >= 0
+            np.maximum.at(sa, rows[ok], s[ok])
             s = sa
-        s[~live_mask] = -9
+        s = s.copy(); s[~live_mask] = -9
+        return s
+
+    def dense(q, k=K, depth=50):
+        v = q_emb(q); s = _scores(E, ROWS, v)
+        if E2 is not None and a.fuse == "max":     # una sola lista densa: il massimo fra articolo intero e segmenti
+            s = np.maximum(s, _scores(E2, ROWS2, v))
+        order = np.argsort(-s)[:depth]
+        return [(arts[i], float(s[i])) for i in order][:k], order
+
+    def dense2(q, k=K, depth=50):
+        v = q_emb(q); s = _scores(E2, ROWS2, v)
         order = np.argsort(-s)[:depth]
         return [(arts[i], float(s[i])) for i in order][:k], order
 
@@ -127,6 +148,10 @@ def main() -> int:
             sc[(art.code, str(art.number))] = sc.get((art.code, str(art.number)), 0) + 1 / (kk + r)
         for r, (art, _) in enumerate(d, 1):
             sc[(art.code, str(art.number))] = sc.get((art.code, str(art.number)), 0) + 1 / (kk + r)
+        if E2 is not None and a.fuse == "rrf3":     # terza lista: la seconda codifica (RRF a tre)
+            d2, _ = dense2(q, depth, depth)
+            for r, (art, _) in enumerate(d2, 1):
+                sc[(art.code, str(art.number))] = sc.get((art.code, str(art.number)), 0) + 1 / (kk + r)
         by = {(x.code, str(x.number)): x for x in arts}
         return sorted(((by[kkey], s) for kkey, s in sc.items() if kkey in by), key=lambda t: -t[1])[:k]
 
