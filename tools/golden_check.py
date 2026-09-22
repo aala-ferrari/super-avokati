@@ -146,10 +146,18 @@ def main():
     #    kontejneri nuk përgjigjet — do t\'i zhdukte 813 pa asnjë gabim
     # v9.366 (22 set): re-parse dei precedenti albanesi documento per documento — 226 inammissibilità, 4 kthim i
     # rekursit del relatore e 5 errata sono USCITE di proposito (non decidono il merito): 1.407 → ~1.170.
-    check("≥1150 precedentë", len(dec) >= 1150, "gjetur %d" % len(dec))
-    check("Kushtetuese ≥ 430 dhe Gjykata e Lartë ≥ 290 (re-parse v9.366)",
-          sum(1 for d in dec if d.court_code == "kushtetuese") >= 430 and len(gjl) >= 290,
-          "K %d · GjL %d" % (sum(1 for d in dec if d.court_code == "kushtetuese"), len(gjl)))
+    # v9.368 (23 set): anche la CEDU rifatta documento per documento — 103 comunicazioni, 37 risoluzioni CM e 13
+    # Information Note sono USCITE (non sono decisioni): 424 → ~278 (105 sentenze + 173 decisioni).
+    check("≥1000 precedentë", len(dec) >= 1000, "gjetur %d" % len(dec))
+    _ec = [d for d in dec if d.court_code == "ecthr_albania"]
+    check("Kushtetuese ≥ 430 · Gjykata e Lartë ≥ 290 · CEDU ≥ 250 (re-parse v9.366-368)",
+          sum(1 for d in dec if d.court_code == "kushtetuese") >= 430 and len(gjl) >= 290 and len(_ec) >= 250,
+          "K %d · GjL %d · CEDU %d" % (sum(1 for d in dec if d.court_code == "kushtetuese"), len(gjl), len(_ec)))
+    # v9.368: nessuna comunicazione/risoluzione/nota fra i precedenti CEDU; ogni CEDU ha operativo, esito e numero di ricorso
+    check("CEDU: solo sentenze e decisioni (niente comunicazioni, risoluzioni CM, Information Note)",
+          not [d for d in _ec if re.search(r"QUESTIONS? TO THE PARTIES|Resolution CM/ResDH|Information Note on the Court", (d.reasoning or "")[:3000])])
+    check("CEDU: operativo con etichetta, esito e numero di ricorso per ogni record",
+          all((d.dispositif or "").startswith("[") and d.outcome and re.search(r"\d+/\d\d", d.number or "") for d in _ec))
     # v9.366: OGNI vendim i Gjykatës së Lartë ka dispozitivin e vet (jo vetëm 149 të rinjtë) dhe asnjë «ndreqje»
     check("çdo vendim GjL ka dispozitiv", all(len(d.dispositif or "") >= 10 for d in gjl))
     check("asnjë errata (Saktësimin/Ndreqjen) te precedentët",
@@ -3106,7 +3114,7 @@ def main():
         from src import case_graph as _cg89, case_citation_verifier as _ccv89, trust_line as _tl89, brain as _br89, studio as _st89
         _g89 = _cg89.load()
         _n89 = _g89.get("nodes") or {}
-        _okA = len(_n89) >= 1100 and _g89.get("edges", 0) >= 1500 and _g89.get("quashes_total", 0) >= 100 and _g89.get("invalidations", 0) >= 10   # v9.366: 1.168 nodi (re-parse), 2.158 citazioni
+        _okA = len(_n89) >= 1000 and _g89.get("edges", 0) >= 1500 and _g89.get("quashes_total", 0) >= 100 and _g89.get("invalidations", 0) >= 10   # v9.366: 1.168 nodi (re-parse), 2.158 citazioni
         # dispositivo vero (K 71/2016) → annulla 00-2015-3057; «Rrëzimin e kërkesës për shfuqizimin» → niente
         _q1, _i1 = _cg89.negativi_dal_dispositivo("Pranimin e kërkesës. Shfuqizimin si të papajtueshëm me Kushtetutën e Republikës së Shqipërisë të vendimit nr. 00-2015-3057, datë 09.12.2015 të Kolegjit Penal të Gjykatës së Lartë. Dërgimin e çështjes për rishqyrtim në Gjykatën e Lartë.")
         _q2, _i2 = _cg89.negativi_dal_dispositivo("Rrëzimin e kërkesës për shfuqizimin e vendimit nr. 00-2015-3057, datë 09.12.2015 të Kolegjit Penal të Gjykatës së Lartë.")
@@ -3144,7 +3152,7 @@ def main():
         _okG2 = "⚠ Një PJESË e këtij neni" in _pb and "fjalisë së dytë" in _pb and "ℹ Prekur nga vendimi i Gjykatës Kushtetuese nr. 32/2021" in _pb and "⛔" not in _pb
         _okH = ("Forca/trajtimi" in open(_br89.__file__, encoding="utf-8").read() and "VENDIME TË SHFUQIZUARA / NENE ANTIKUSHTETUESE" in _st89.GJYQTARI_SYSTEM["sq"]
                 and "SENTENZE ANNULLATE / NORME INCOSTITUZIONALI" in _st89.GJYQTARI_SYSTEM["it"])
-        check("grafo[89]: case_graph.json (≥1100 nodi, ≥1500 citazioni, ≥100 vendime GjL annullati, ≥10 norme incostituzionali) · dispositivo→annullamenti/incostituzionalità (rigetti esclusi, range 27-36, VKM≠legge, parziale/totale) · tre livelli konsoliduar/pjesërisht/tërësisht · verificatore «quashed» + nota · Trust Line → 🔴 · prompt articoli + precedenti + regola del Giudice",
+        check("grafo[89]: case_graph.json (≥1000 nodi, ≥1500 citazioni, ≥100 vendime GjL annullati, ≥10 norme incostituzionali) · dispositivo→annullamenti/incostituzionalità (rigetti esclusi, range 27-36, VKM≠legge, parziale/totale) · tre livelli konsoliduar/pjesërisht/tërësisht · verificatore «quashed» + nota · Trust Line → 🔴 · prompt articoli + precedenti + regola del Giudice",
               _okA and _okB and _okC and _okD and _okD2 and _okE and _okF and _okG and _okG2 and _okH,
               "graph=%s disp=%s ann=%s inc=%s livelli=%s ver=%s nota=%s trust=%s prompt=%s wiring=%s | q1=%s i3=%s lv=%s" % (
                   _okA, _okB, _okC, _okD, _okD2, _okE, _okF, _okG, _okG2, _okH, _q1, (_i3 or [{}])[0].get("articles"), (_lv1, _lv2, _lv3)))

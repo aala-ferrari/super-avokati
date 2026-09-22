@@ -1451,6 +1451,37 @@ rischio residuo della DPIA.
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
 
+**v9.368 — LA CEDU RIFATTA DOCUMENTO PER DOCUMENTO, con i metadati ufficiali di HUDOC (23 set).** Il titolare: «adesso
+facciamo anche le CEDU una per una». Ciò che c'era: 424 record = primi 8.000 chr della pagina HUDOC in inglese, operativo
+fuori in 410, 224 non-decisioni, 150 senza data. **Fonte di verità**: l'API pubblica di HUDOC
+(`hudoc.echr.coe.int/app/query/results?query=itemid:…&select=appno,kpdate,docname,doctype,documentcollectionid2,conclusion,
+article,violation,nonviolation,ecli…`) — esito, articoli violati/non violati, data e tipo NON si parsano più dal testo.
+⚠️ Dal CONTAINER HUDOC risponde **403** (WAF: stesso IP pubblico, client diverso), dall'host no: `tools/hudoc_fetch.py`
+(stdlib, si lancia SULL'HOST) riempie la cache `ecthr_albania/_meta/<itemid>.json` + `_meta/alb_<appno>.json` +
+`alb/<itemid>.html`, e `tools/reparse_cedu.py` gira nel container con `HUDOC_OFFLINE=1` (cache vuota = FAIL dichiarato). **Lingua albanese**: il codice HUDOC è
+`languageisocode:ALB` (non SQI): 827 documenti in albanese, contro l'Albania 65 sentenze e 4 decisioni tradotte; per ogni
+caso si prende la traduzione INTEGRALE (mai le «[Albanian Translation] summary», che sono riassunti) e si usa se ha la
+struttura (PROCEDURA/FAKTET/LIGJI o «I. KUNDËRSHTIMI PARAPRAK…»/«SHKELJA E PRETENDUAR…», operativo «PËR KËTO ARSYE» a
+inizio riga — anche il refuso «PËRK KËTO ARSYE» di Luli); altrimenti l'originale inglese/francese, dichiarato
+nell'etichetta («· teksti në anglisht»). Traduzioni da PDF con le lettere spaziate (Qerimi) restano fuori da sole.
+**Parser** (`tools/reparse_cedu.py`, probe/run/one/report/rebuild): tipo dai metadati — entrano SOLO JUDGMENTS e DECISIONS,
+escluse comunicazioni (103), risoluzioni CM (37), Information Note (13); ragionamento = sezione «THE LAW» / «AS TO THE LAW»
+/ «THE COURT'S ASSESSMENT» / «EN DROIT» / «LIGJI»… fino all'operativo (le decisioni di comitato senza intestazioni: dalla
+composizione all'operativo, dichiarato); operativo a INIZIO RIGA («FOR THESE REASONS» / «For these reasons» — un «Për
+këto arsye, Gjykata hedh poshtë…» dentro un paragrafo NON lo è); esito dai metadati (shkelje → pranim, pa shkelje →
+rrëzim, entrambi → pjesërisht, inadmissible → **papranueshme** (nuovo valore, aggiunto a `_LOSING_OUTCOMES`), struck out →
+pushim, friendly settlement → marrëveshje, just satisfaction → pranim «shpërblim i drejtë»), e quando HUDOC ha la
+«conclusion» vuota (succede) dall'operativo, dichiarandolo; etichetta letterale in shqip fra parentesi quadre («[shkelje:
+neni 6 § 1, neni 1 i Protokollit 1 · teksti në anglisht]»); nene: `convention:6-1`, `convention:P1-1` dai metadati +
+nene interni («Article 192 of the Civil Code» → `kodi_civil:192`, verificati nell'indice; in shqip via `verify_text`);
+objekti = riassunto albanese già esistente + nome del caso + conclusione ufficiale; giudici dalla composizione; citation
+«Nome kundër Shqipërisë, GJEDNJ, kërkesa nr. N, data»; `short_id` = itemid (+ `|alb:itemid` se in albanese). **Risultato:
+278 CEDU (105 sentenze + 173 decisioni: 93 papranueshme, 78 hequr nga lista, 86 shkelje, 11 pjesërisht, 6 pa shkelje…),
+35 in albanese, 153 escluse, 0 fallite → precedenti 744 AL + 278 CEDU = 1.022** (fonte CEDU
+`data/processed/cedu_decisions_v2.jsonl`; `reparse_vendime.py rebuild` la legge). Golden [6] su 1.000/250. **Fuori dal
+corpus e ritrovabili su HUDOC**: contro l'Albania esistono 157 sentenze e 202 decisioni in inglese — ne abbiamo 105 e 173;
+il fetcher sa scaricarle (`documentcollectionid2:JUDGMENTS AND respondent:ALB`).
+
 **v9.367 — «cili esht neni 350 i procedures penale?»: il nene c'era, a sbagliare era chi lo cercava (22 set, sera).**
 Il titolare ha mostrato la risposta («teksti i plotë i nenit 350 … nuk është në bllokun tim») e, dall'Inspector, il
 record del K.Pr.P. 350 pulito. Riprodotto: la domanda è senza «Kodit» e senza dieresi → il verificatore dava

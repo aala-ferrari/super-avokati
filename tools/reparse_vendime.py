@@ -788,11 +788,17 @@ def cmd_run():
     print(f"\nfatto in {int(time.time() - t0)} s: OK {n_ok}, esclusi {n_ex}, falliti {n_fail}; totale nel database: {len(loaded)} AL + {len(echr)} CEDU = {len(decisions)}")
 
 
+CEDU_JSONL = Path(os.environ.get("CEDU_JSONL", "/app/data/processed/cedu_decisions_v2.jsonl"))
+
+
 def _decisions_from_store():
-    """CEDU dal pickle vivo (vivono solo lì) + i record AL del JSONL → lista di Decision."""
+    """I record AL del JSONL + la CEDU: dal suo JSONL (reparse_cedu.py, dal 23 set) se esiste, altrimenti dal pickle vivo."""
     from src.jurisprudence_parser import Decision
-    _, echr = old_records()
     rows = [json.loads(l) for l in OUT_JSONL.open(encoding="utf-8")] if OUT_JSONL.exists() else []
+    if CEDU_JSONL.exists():
+        echr = [json.loads(l) for l in CEDU_JSONL.open(encoding="utf-8")]
+    else:
+        _, echr = old_records()
     decisions = [Decision(**{k: d.get(k) for k in FIELDS if k != "kind"}) for d in echr]
     decisions += [Decision(**{k: d[k] for k in FIELDS if k != "kind"}) for d in rows]
     return decisions, rows

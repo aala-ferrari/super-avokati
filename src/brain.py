@@ -1699,7 +1699,7 @@ def _urgency_from_days(days_remaining: int | None) -> UrgencyLevel:
 # Postgres nessun precedente risultava mai «vincente» o «avverso» (misurato: adverse sempre vuoto).
 _WINNING_OUTCOMES = {"accepted", "partially_accepted", "acquitted", "modified",
                      "pranim", "pjesërisht", "ndryshim", "kthim për rishqyrtim", "pafajësim"}
-_LOSING_OUTCOMES = {"rejected", "dismissed", "convicted", "rrëzim", "pushim", "mospranim", "fajësim"}
+_LOSING_OUTCOMES = {"rejected", "dismissed", "convicted", "rrëzim", "pushim", "mospranim", "fajësim", "papranueshme"}   # papranueshme = CEDU «inadmissible» (v9.368)
 
 
 CitizenStatus = Literal["ka", "mungon", "e paqartë"]
