@@ -167,12 +167,14 @@ def main():
           {"kushtetuese", "gjykata_elarte", "ecthr_albania"} <= korte,
           "gjetur %s" % sorted(korte))
     # 2. asnjë mospranim: nuk vendos mbi themelin
-    mosk = [d for d in gjl if "mospranim" in (d.dispositif or "").lower()]
+    # v9.369: conta l'ESITO (etichetta + inizio del dispositivo): un «Mospranimin e ankimit për pjesën…» dopo un
+    # «Ndryshimin» è un vendim di merito parziale, non un'inammissibilità
+    mosk = [d for d in gjl if "mospranim" in (d.dispositif or "")[:60].lower()]
     check("asnjë vendim mospranimi te precedentët e rinj", not mosk,
           "gjetur %d" % len(mosk))
     # 3. vetëm arsyetimi i Kolegjit — jo i shkallëve që u prishën
     # v9.366: il ragionamento parte dal marcatore del Kolegji — heading «Vlerësimi i Kolegjit…» o la frase «Kolegji … vlerëson/çmon/konstaton/thekson»
-    marker = ("vlerëson", "vlereson", "çmon", "cmon", "arsyeton", "VLERËSIMI", "Vlerësimi", "konstaton", "thekson", "gjykon", "Kolegji")
+    marker = ("vlerëson", "vlereson", "çmon", "cmon", "arsyeton", "VLERËSIMI", "Vlerësimi", "konstaton", "thekson", "gjykon", "Kolegj")   # «Kolegjet e Bashkuara konstatojne» (senza dieresi) è il Kolegji
     te_reja = [d for d in gjl if d.dispositif.startswith("[")]
     keq = [d for d in te_reja
            if not any(m in (d.reasoning or "")[:400] for m in marker)]
@@ -262,17 +264,17 @@ def main():
     check("njeh një vendim që e kemi vërtet",
           r1["stats"]["verified"] >= 1, str(r1["stats"]))
     # il numero che aveva scatenato tutto
-    r2 = ccv.verify_cases("shih vendimin nr. 00-2025-1760 të Gjykatës së Lartë", idxd2)
-    check("nuk konfirmon një numër që s\'e kemi (00-2025-1760)",
+    r2 = ccv.verify_cases("shih vendimin nr. 00-2025-99876 të Gjykatës së Lartë", idxd2)
+    check("nuk konfirmon një numër që s\'e kemi (00-2025-99876)",
           r2["stats"]["unverified"] == 1, str(r2["stats"]))
     # ⚠ e non lo chiama MAI falso: baza jonë nuk i ka të gjitha
     check("nuk e quan KURRË 'fake' — vetëm 'i paverifikuar'",
           all(i["status"] in ("verified", "unverified") for i in r2["items"]),
           str([i["status"] for i in r2["items"]]))
     # l'avviso viaggia col testo, non solo sullo schermo
-    md = ccv.annotate_unverified("Përgjigje me vendimin nr. 00-2025-1760.", r2)
+    md = ccv.annotate_unverified("Përgjigje me vendimin nr. 00-2025-99876.", r2)
     check("paralajmërimi ngjitet te teksti (jo vetëm badge)",
-          "00-2025-1760" in md and ("Kujdes" in md or "verifikuar" in md))
+          "00-2025-99876" in md and ("Kujdes" in md or "verifikuar" in md))
     check("thotë qartë se MOSGJETJA nuk do të thotë e rreme",
           "nuk" in md.lower() and "pavërteta" in md.lower(), md[-160:])
     # se tutto è confermato, non aggiunge rumore
@@ -3916,6 +3918,30 @@ def main():
               _okA and _okB and _okC and _okD and _okE and _okF, "A=%s B=%s C=%s D=%s E=%s F=%s" % (_okA, _okB, _okC, _okD, _okE, _okF))
     except Exception as _e115:  # noqa: BLE001
         check("inspector[115]: kontrollet u ekzekutuan", False, str(_e115))
+
+    # [116] v9.369 — giurisprudenza italiana: il testo della decisione, non la pagina del sito; e il cron che
+    # ricostruisce l'indice nel container (sull'host mancava python-dotenv)
+    try:
+        from src import it_precedent_fts as _f116
+        _t = ("Iscriviti alle notifiche email\nHOME\nEVENTI\nSentenza n. 1 del 2006\nCONSULTA ONLINE SENTENZA N. 1 "
+              "REPUBBLICA ITALIANA IN NOME DEL POPOLO ITALIANO LA CORTE COSTITUZIONALE composta " + "motivi " * 200 +
+              "\nDepositata in Cancelleria il 13 gennaio 2006.\nCONSULTA ONLINE dal 1995 - Note legali\nCookie Consent")
+        _c = _f116.testo_decisione(_t, "CCost")
+        _okA = _c.startswith("REPUBBLICA ITALIANA") and _c.endswith("13 gennaio 2006.") and "Cookie" not in _c
+        _g = "urn:nir:tar.lazio 1.xml U:\\DocumentiGA\\Roma\\ mario rossi 02/09/2026 Il Tribunale Amministrativo Regionale per il Lazio ha pronunciato"
+        _okB = _f116.testo_decisione(_g, "TAR Roma").startswith("Il Tribunale Amministrativo Regionale") and \
+               _f116.testo_decisione("urn:nir:consiglio 1.xml U:\\DocumentiGA\\Magistrati\\ N N Falso Il CONSIGLIO DI GIUSTIZIA AMMINISTRATIVA PER LA REGIONE SICILIANA ha pronunciato", "CGARS").startswith("Il CONSIGLIO DI GIUSTIZIA")
+        _okC = _f116.testo_decisione("testo senza marcatori", "CCost") == "testo senza marcatori" and \
+               _f116.testo_decisione("Iscriviti alle notifiche email\nHOME\nREPUBBLICA\nITALIANA\nIN NOME DEL POPOLO ITALIANO …", "CCost").startswith("REPUBBLICA")   # a capo fra le parole
+        _okD = "testo_decisione(d.get(\"text\")" in __import__("inspect").getsource(_f116.rebuild_indeksi)
+        _cr = "/app/ops/it-giurcost-cron.sh"
+        _okE = True
+        if __import__("os").path.exists(_cr):
+            _okE = "docker exec super-avvocato python3" in open(_cr, encoding="utf-8").read()
+        check("it-fts[116]: la Consulta senza menu/cookie e il TAR senza URN/percorsi interni · nessun marcatore = testo intatto · pulizia nel rebuild · rebuild del cron nel container",
+              _okA and _okB and _okC and _okD and _okE, "A=%s B=%s C=%s D=%s E=%s" % (_okA, _okB, _okC, _okD, _okE))
+    except Exception as _e116:  # noqa: BLE001
+        check("it-fts[116]: kontrollet u ekzekutuan", False, str(_e116))
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

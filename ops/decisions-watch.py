@@ -127,9 +127,72 @@ def main() -> None:
           f"email {'✅' if ok else '❌'}")
 
 
-# TODO Gjykata e Lartë: app.gjykataelarte.gov.al è una SPA Angular; le rotte
-# /api/vendime e simili rispondono 404 con la shell (misurato 3 set 2026).
-# Serve sniffing del bundle JS per l'endpoint reale — candidato v2.
+# v9.369 — IL CONTROLLO DEI BUCHI. La pagina «njoftime» non basta: il 22 set mancavano 238 sentenze finali della
+# Kushtetuese (77-79/2026 comprese, con questo watcher che diceva «asnjë vendim i ri») e 7.250 vendime della
+# Gjykata e Lartë presenti nel suo archivio pubblico (Strapi GraphQL, campo `files`). Qui si confronta, per
+# l'anno in corso e il precedente, l'ELENCO UFFICIALE con i file che abbiamo; i buchi finiscono nell'email.
+# Nessun download, nessun ingest: si scaricano con tools/… e passano da reparse_vendime.py (verifica 1×1).
+RAW = "/var/www/apps/super-avvocato/data/raw/jurisprudence"
+
+
+def buchi_gjk(anni) -> list[str]:
+    out = []
+    for y in anni:
+        t = fetch(f"https://www.gjykatakushtetuese.gov.al/vendime-perfundimtare-{y}/")
+        if not t:
+            continue
+        sito = set()
+        for m in re.finditer(r'(?is)<a[^>]+href="[^"]+uploads[^"]+"[^>]*>(.*?)</a>', t):
+            lab = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", m.group(1)))
+            mm = re.search(r"Nr\.?\s*:?\s*(\d{1,3})\b.*?Dat", lab, re.I)
+            if mm:
+                sito.add(int(mm.group(1)))
+        d = os.path.join(RAW, "kushtetuese", str(y))
+        noi = {int(x.group(1)) for f in (os.listdir(d) if os.path.isdir(d) else []) for x in [re.match(r"vend_0*(\d+)_", f)] if x}
+        manca = sorted(sito - noi)
+        if manca:
+            out.append(f"GJK {y}: mungojnë {len(manca)} vendime përfundimtare: {manca[:30]}")
+    return out
+
+
+def buchi_gjl(anni) -> list[str]:
+    try:
+        q = json.dumps({"query": '{ files(limit: -1) { name ext } }'}).encode()
+        req = urllib.request.Request("https://panel.gjykataelarte.gov.al/graphql", data=q,
+                                     headers={"User-Agent": UA, "Content-Type": "application/json"})
+        files = json.load(urllib.request.urlopen(req, timeout=180))["data"]["files"]
+    except Exception as exc:  # noqa: BLE001
+        return [f"GjL: arkivi nuk u lexua ({exc})"]
+    num = re.compile(r"00\s*[-–_]\s*(20\d\d)\s*[-–_]\s*(\d{1,5})")
+    noi = set()
+    for root, _dirs, fs in os.walk(os.path.join(RAW, "gjykata_elarte")):
+        for f in fs:
+            for y, n in num.findall(f):
+                noi.add(f"00-{y}-{int(n)}")
+    arch = {f"00-{y}-{int(n)}" for f in files if (f.get("ext") or "").lower() in (".doc", ".docx", ".pdf")
+            for y, n in num.findall(f.get("name") or "") if int(y) in anni}
+    manca = sorted(arch - noi)
+    return [f"GjL {min(anni)}-{max(anni)}: {len(manca)} vendime në arkiv që nuk i kemi (p.sh. {manca[:10]})"] if manca else []
+
+
+def controllo_buchi() -> None:
+    y = datetime.now().year
+    righe = buchi_gjk([y - 1, y]) + buchi_gjl([y - 1, y])
+    if not righe:
+        print(f"{ora()} buchi: asnjë — GJK dhe GjL të plota për {y - 1}-{y}")
+        return
+    for r in righe:
+        print(f"{ora()} buchi: {r}")
+    ok = manda(f"🏛️ Precedentë që mungojnë ({len(righe)} burime) — për kurim",
+               "<p>Këto vendime janë publikuar zyrtarisht dhe <b>nuk janë në korpusin tonë</b>. Asgjë nuk "
+               "hyn vetë: shkarkohen dhe kalojnë nga verifikimi një nga një (reparse_vendime.py).</p><ul>"
+               + "".join(f"<li>{r}</li>" for r in righe) + "</ul>")
+    print(f"{ora()} buchi: email {'✅' if ok else '❌'}")
+
 
 if __name__ == "__main__":
     main()
+    try:
+        controllo_buchi()
+    except Exception as exc:  # noqa: BLE001
+        print(f"{ora()} ⚠️ controllo buchi fallito: {exc}")

@@ -1,13 +1,20 @@
 # Super Avvocato — istruzioni di progetto
 
-Strumento AI per avvocati (B2B), **bi-giurisdizione AL + IT**. Front-end Flask
-su porta 5050, SQLite (`data/app.db`) + Postgres `legalkb` per i casi
-giurisprudenziali. Due corpora BM25 SEPARATI:
-- **AL** (`bm25.pkl`): **9.682 nene / 54 codici, 418 abrogati** (v9.328-330: 21 codici riscritti dai consolidati QBZ 2024-2026 + 29 leggi nuove + ligji 11/2026 dhuna + VKM 651/2017 doganale consolidata 2026 748 art. + 75 stub «shfuqizuar» per le abrogazioni a gruppo; fonte = `data/processed/all_articles.jsonl`, il pickle è derivato) + `bm25_decisions.pkl` **1.168 precedenti** (v9.366: Kushtetuese 441 + Gjykata e Lartë 303 rifatte documento per documento, fonte `data/processed/al_decisions_v2.jsonl` + `tools/reparse_vendime.py`; CEDU 424 invariate)
-- **IT** (`bm25_it.pkl`): **129 atti / 22.779 articoli** (v9.326-327: +27 Normattiva wave5, +5 testi unici wave6, +21 wave7 blocco A, +12 UE (TFUE/TUE/Carta/Schengen…), +2 trattati IT-AL, CEDU + 7 protocolli, preleggi (sanzioni trib. 173/2024, riscossione 33/2025, registro 123/2025, IVA 10/2026, accertamento 141/2026) dogane/tributario/notarile/procedura/lavoro, +9 regolamenti UE da EUR-Lex: CDU, Reg. 2015/2446-2447, GDPR, Bruxelles I-bis/II-ter, Roma I/II, successioni 650/2012)
-  (Kushtetuese + Gjykata e Lartë + CEDU).
-- **IT** (`bm25_it.pkl`): **15.595 articoli / 44 corpora** da Normattiva (+ D.Lgs 231/2007 antiriciclaggio)
-  (testi vigenti ufficiali) — vedi "CORPUS ITALIANO" più sotto.
+Strumento AI per avvocati (B2B), **bi-giurisdizione AL + IT**. Front-end Flask (waitress, UN processo) su porta
+5050, SQLite (`data/app.db`). Postgres `legalkb` NON è raggiungibile dal container: i precedenti vivono nel pickle.
+**Stato al 23 set 2026 (v9.371)** — i numeri qui sono quelli veri; più sotto, nelle sezioni datate, c'è la storia:
+- **AL leggi** (`bm25.pkl`, BM25 con diacritici piegati dal v9.367): **9.682 nene / 54 codici, 418 abrogati**; fonte
+  `data/processed/all_articles.jsonl` (il pickle è derivato).
+- **Precedenti** (`bm25_decisions.pkl`): **3.996** = Kushtetuese **672** + Gjykata e Lartë **2.960** + CEDU **364**
+  (157 sentenze + 207 decisioni, 46 nella traduzione albanese ufficiale). Fonti di verità: `data/processed/al_decisions_v2.jsonl`
+  (`tools/reparse_vendime.py`) e `data/processed/cedu_decisions_v2.jsonl` (`tools/reparse_cedu.py`); il pickle si
+  riassembla con `reparse_vendime.py rebuild`. Tutte parsate e verificate UNA PER UNA dai documenti ufficiali;
+  escluse per regola: inammissibilità (mospranim, «deklarim si të papranueshme»), «refuzim» senza maggioranza (GjK
+  2015-16), kthim i rekursit del relatore, errata, decisioni procedurali (kalim në seancë / për njësim), comunicazioni
+  CEDU, risoluzioni CM, Information Note. Dopo ogni aggiornamento: `build_case_graph.py` + `build_dense.py --only dec --force`.
+- **IT leggi** (`bm25_it.pkl`): **129 atti / 23.291 articoli** (Normattiva + EUR-Lex + CEDU); **IT giurisprudenza**
+  (FTS5 `it_decisions_fts.db`): **8.055** decisioni (Consulta dal 2005 + CdS/CGARS/TAR), testo della decisione ripulito
+  dal sito (`it_precedent_fts.testo_decisione`, v9.369).
 
 ## Regola #1 — Scope: UNA SOLA GIURISDIZIONE PER SESSIONE
 
@@ -18,10 +25,8 @@ della sessione, e retrieval + preambolo + UI seguono quella. In sessione AL
 vale tutto quanto scritto qui sotto; in sessione IT vale il diritto italiano
 con il corpus italiano.
 
-**In sessione AL** il corpus è albanese: 21 fonti normative (Kushtetuta +
-codici + 5 ligji settoriali = 5615 nene), 282 vendime Gjykata Kushtetuese
-(2015-2024), ~813 casi in Postgres `legalkb` (Gjykata e Lartë + ECHR
-limitatamente ai casi Albania).
+**In sessione AL** il corpus è albanese: le leggi e i precedenti descritti in testa a questo file (54 codici,
+Kushtetuese + Gjykata e Lartë + CEDU contro l'Albania).
 
 Il modello deve operare e ragionare SOLO dentro questo perimetro:
 
@@ -335,7 +340,7 @@ client nuovo nasce bilingue (`_CAL_IT`).
 
 # PRODUZIONE — VPS, DEPLOY, BUILD  (aggiornato 7 ago 2026, v9.82)
 
-Numeri attuali: **6061 nene · 21 codici · 1402 precedenti** (pickle vivo). Corpus cresciuto da 5615 (18 codici) aggiungendo: Kodi Civil +2, Familjes +4, Konsumatorët +3, Ligji Policia 108/2014 (135), Rregullore Policia VKM 750/2015 (255), Ligj Policia 82/2024 (143, ATTUALE). Dedup Zgjedhor -96.
+Numeri di agosto (storia — i numeri veri sono in testa al file): **6061 nene · 21 codici · 1402 precedenti**. Corpus cresciuto da 5615 (18 codici) aggiungendo: Kodi Civil +2, Familjes +4, Konsumatorët +3, Ligji Policia 108/2014 (135), Rregullore Policia VKM 750/2015 (255), Ligj Policia 82/2024 (143, ATTUALE). Dedup Zgjedhor -96.
 
 ## Dove gira
 - **VPS**: `root@31.220.90.246` (SSH dal Mac senza password). App in `/var/www/apps/super-avvocato`.
@@ -583,7 +588,7 @@ errori, non che le risposte sono ancora giuste. Riferimento verificato il
 12 articoli recuperati per ciascuna.
 
 ```bash
-docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63], triage-trim+giudice-no-web [64], chat-web+verdetto-in-testa+pannelli-IT [65], codice-nominato→area [66], timeout-45min+ripiego-no-web [67], fasi-bilingue+giudice-no-web+duello-a-scomparsa [68], etichette-composte-bilingui [69]). Baseline **508/508** (22 set sera, v9.366; era 98 il 31 ago).
+docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63], triage-trim+giudice-no-web [64], chat-web+verdetto-in-testa+pannelli-IT [65], codice-nominato→area [66], timeout-45min+ripiego-no-web [67], fasi-bilingue+giudice-no-web+duello-a-scomparsa [68], etichette-composte-bilingui [69]). Baseline **511/511** (23 set, v9.371; era 98 il 31 ago).
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 bash /root/prova_sse.sh                                    # SULL'HOST (legge il secret da /opt/super-avvocato.env; copia in tools/prova_sse.sh): account di prova → login → fascicolo → 1 domanda VERA → stream /api/ask/events attraverso waitress. Deve dire «HTTP 200 … done: 1» (~50s, costa 1 chiamata al cervello) e cancella l'account. Dopo OGNI build che tocca web.py o le rotte SSE.
@@ -1450,6 +1455,43 @@ rischio residuo della DPIA.
 - Super Avokati ha auth propria (login_required_api); utenti creati da admin o auto-provisionati da AALA (`/api/provision-demo`, secret-guarded).
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
+
+**v9.369-371 — AUDIT GENERALE «cosa manca» e i buchi del corpus (23 set, notte).** Il titolare: «rileggi CLAUDE.md e
+memory, guarda il VPS e i lavori fatti, vedi cosa manca». Trovato e corretto, in ordine d'importanza:
+(1) **238 sentenze finali della Kushtetuese pubblicate e mai scaricate** (2015: 3 su 83, 2016: 16 su 89, 2017: 21 su 89,
+2018, 2022, 1/2023, 77-79/2026 — il watcher diceva «asnjë vendim i ri» perché guardava solo la pagina «njoftime»):
+confronto anno per anno con `vendime-perfundimtare-{anno}` → scaricate → stesso parser con verifica → **+231** (6
+«Refuzimin e kërkesës» ESCLUSE: nel 2015-16 voleva dire che la Corte NON aveva raggiunto la maggioranza, neni 74 ligji
+8577/2000, la kërkesa si ripresenta — nessuna ratio; 1/2015 è un'«interpretim» di una sentenza e resta). Il 28/2023:
+il sito della Corte collega per quel numero lo STESSO file dell'errata (errore di caricamento loro).
+(2) **L'archivio della Gjykata e Lartë ha 7.665 vendime, noi 528**: ieri contavo 700 perché nei nomi S3 i separatori
+sono «_» e non «-». Scaricati tutti (7.250, 0 falliti, ~9 GB) → parser → **+2.657 di merito**; 4.811 escluse (4.726
+mospranim = 61 %: la Cassazione albanese dichiara inammissibile la maggior parte dei ricorsi), 13 fallite (dichiarate,
+fuori dal corpus), 20 doppioni veri dell'archivio. Nuove regole del parser (misurate sui fallimenti, mai a occhio):
+refusi del verbo («Mopranimin», «Mopsranimin», «Mosparanimin», «Lënen në fuqi», «Kthimin e rekursittë»), decisioni
+procedurali escluse, «OBJEKTI» senza due punti, l'accusa sotto «TË GJYKUAR : Nën akuzën…» come objekti, ragionamento
+minimo 250 chr per pushim/kompetencë, «mospranim» come ESITO solo se in testa al dispositivo (un «Ndryshimin… Mospranimin
+e ankimit për pjesën arsyetuese» è merito parziale; golden [6] allineato), indice BM25 ricostruito ogni `REBUILD_EVERY`
+documenti (il JSONL resta aggiornato a ogni riga). ⚠️ Il vendim **00-2025-1760**, che il golden [7] usava come «numero
+che non abbiamo» (il cervello l'aveva citato ed era sembrato inventato), ESISTE ed è ora nel corpus: il verificatore
+aveva fatto bene a dire «da riscontrare» e non «falso». Il golden usa ora 00-2025-99876.
+(3) **CEDU completata con HUDOC** (`tools/hudoc_list.py`, sull'host: elenco completo JUDGMENTS/DECISIONS contro ALB,
+inglese e francese solo se manca l'inglese) → +86 documenti → 364. Due errori miei trovati prima del rilascio: il
+«duplicato» per numero di ricorso buttava 10 decisioni vere (stesso ricorso = ammissibilità + sentenza, merito + equa
+soddisfazione: la chiave è ricorso + data + tipo) e 5 record usavano la traduzione albanese di un ALTRO documento dello
+stesso ricorso (la traduzione deve avere stesso tipo e stessa data, altrimenti si resta sull'originale).
+(4) **Giurisprudenza italiana**: le 5.687 decisioni della Consulta avevano dentro menu, iscrizione alle notifiche, note
+di dottrina e banner dei cookie; i TAR/CdS/CGARS l'URN e i percorsi interni («U:\\DocumentiGA\\…», nomi del personale)
+→ `testo_decisione` taglia al primo marcatore della decisione (CGARS in maiuscolo: re.I) e prima delle note del sito, e se
+non trova il marcatore lascia il testo intero; si applica nel rebuild, quindi vale anche per l'archivio. **Il cron giurcost
+ricostruiva l'indice con il Python dell'host, che non ha python-dotenv: dal 21 set cadeva** (il primo avvocato pagava il
+rebuild nella sua ricerca) → il passo gira ora nel container (`ops/it-giurcost-cron.sh`).
+(5) **Igiene**: 19 account di prova (`…@superavokati.test`) lasciati dagli script Python di QA — cancellati (copia del DB
+prima) e gli script ora si cancellano l'account all'uscita (`atexit`); il digest settimanale non scrive più ad account
+`.test` né alle demo scadute; il watcher (`ops/decisions-watch.py`) confronta ogni mattina gli elenchi UFFICIALI (GjK
+per anno, archivio GjL) con i nostri file e manda l'email dei buchi (nessun download né ingest automatico); gli
+embedding dei precedenti si allineano anche per corte+numero (2 GjL con anno della data ≠ anno del numero restavano senza).
+Golden **[116]** (anche «REPUBBLICA» e «ITALIANA» su due righe: v9.371), 511. Restano all'utente: chiave per il backup offsite, l'account «avv@mail.com» (reale o di prova?).
 
 **v9.368 — LA CEDU RIFATTA DOCUMENTO PER DOCUMENTO, con i metadati ufficiali di HUDOC (23 set).** Il titolare: «adesso
 facciamo anche le CEDU una per una». Ciò che c'era: 424 record = primi 8.000 chr della pagina HUDOC in inglese, operativo

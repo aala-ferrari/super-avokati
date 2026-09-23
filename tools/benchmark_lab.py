@@ -370,6 +370,8 @@ def run_layer2(limit: int, only: str | None, mode: str = "normal", ids: list[str
             else:
                 ts = int(time.time())
                 email, code = f"bench-{ts}@superavokati.test", f"Bench-{ts}"
+                # v9.369: l'account di prova si cancella SEMPRE all'uscita (anche su errore): ne erano rimasti 19 e il digest ci scriveva
+                __import__('atexit').register(lambda _e=email: (__import__('sys').path.insert(0, '/app'), __import__('src.storage', fromlist=['delete_user']).delete_user(_e)))
                 post("/api/provision-demo", {"email": email, "code": code, "hours": 6},
                      headers={"X-Provision-Secret": os.environ.get("DEMO_PROVISION_SECRET", "")})
                 post("/api/login", {"username": email, "password": code, "lang": "sq"})

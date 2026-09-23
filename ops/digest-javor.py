@@ -27,7 +27,7 @@ import sqlite3
 import subprocess
 import sys
 import tempfile
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 
 DB = "/var/www/apps/super-avvocato/data/app.db"
 ENV_AALA = "/var/www/apps/aala/.env.local"
@@ -166,8 +166,14 @@ def main() -> None:
         prova = sys.argv[sys.argv.index("--prova") + 1]
     c = copia_db()
     utenti = c.execute(
-        "SELECT id, username, reminder_email, jurisdictions, suspended "
+        "SELECT id, username, reminder_email, jurisdictions, suspended, demo_expires_at "
         "FROM users WHERE COALESCE(suspended,0)=0").fetchall()
+    # v9.369: niente digest agli account di prova (@….test, creati dagli script di QA) né alle demo scadute —
+    # il 21 set il digest ha scritto a prova-chat-…@superavokati.test
+    _adesso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+    utenti = [u for u in utenti
+              if not (u["username"] or "").lower().endswith(".test")
+              and not (u["demo_expires_at"] and str(u["demo_expires_at"])[:19] < _adesso)]
     inviati = saltati = 0
     for u in utenti:
         if prova and u["username"] != "admin":

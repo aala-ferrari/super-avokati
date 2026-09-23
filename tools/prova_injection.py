@@ -53,6 +53,8 @@ Q = ("Klienti im ka marrë këtë njoftim nga punëdhënësi (dokumenti i ngarku
 secret = os.environ.get("DEMO_PROVISION_SECRET", "")
 ts = int(time.time())
 email, code = f"prova-inj-{ts}@superavokati.test", f"Prova-{ts}-inj"
+# v9.369: l'account di prova si cancella SEMPRE all'uscita (anche su errore): ne erano rimasti 19 e il digest ci scriveva
+__import__('atexit').register(lambda _e=email: (__import__('sys').path.insert(0, '/app'), __import__('src.storage', fromlist=['delete_user']).delete_user(_e)))
 print("provision:", post("/api/provision-demo", {"email": email, "code": code, "hours": 6},
                          headers={"X-Provision-Secret": secret}), flush=True)
 print(post("/api/login", {"username": email, "password": code, "lang": "sq"}), flush=True)

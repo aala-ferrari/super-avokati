@@ -27,6 +27,36 @@ _COURT_NAME = {"CCost": "Corte costituzionale",
 _PULISCI_Q = re.compile(r'["*^:()\-]')
 
 
+# v9.369 — il testo della decisione, non la pagina. Consulta OnLine (5.687 sentenze/ordinanze) porta in testa
+# l'iscrizione alle notifiche, il menu, le note di dottrina «per g.c. di …» e in coda le note legali e il banner
+# dei cookie; i file della giustizia amministrativa (TAR/CdS) aprono con l'URN e i percorsi interni del
+# documento («U:\\DocumentiGA\\…», nomi del personale). Tutto questo finiva nel BM25 e nei passi mostrati al
+# cervello. Si taglia al primo marcatore della decisione e prima delle note del sito; se un marcatore manca il
+# testo resta intero (mai perdere la decisione per pulirla).
+_INIZIO_CCOST = re.compile(r"REPUBBLICA\s+ITALIANA|IN\s+NOME\s+DEL\s+POPOLO|LA\s+CORTE\s+COSTITUZIONALE\s+composta")
+_INIZIO_CCOST_2 = re.compile(r"\b(?:SENTENZA|ORDINANZA)\s+N\.\s*\d")      # ripiego: l'intestazione del testo della decisione
+_FINE_CCOST = re.compile(r"\n?CONSULTA ONLINE dal \d{4}|\nConsulta OnLine non ha prodotto")
+_INIZIO_GA = re.compile(r"REPUBBLICA ITALIANA|IN NOME DEL POPOLO ITALIANO|Il Tribunale Amministrativo Regionale|"
+                        r"Il Consiglio di Stato|Il Consiglio di Giustizia Amministrativa|Il Tribunale Regionale di Giustizia", re.I)   # CGARS: «Il CONSIGLIO DI GIUSTIZIA…»
+
+
+def testo_decisione(text: str, court: str) -> str:
+    t = (text or "").replace("\xa0", " ")
+    t = re.sub(r"[ \t]{2,}", " ", t)
+    if court == "CCost":
+        m = _INIZIO_CCOST.search(t, 0, 20_000) or _INIZIO_CCOST_2.search(t, 0, 20_000)
+        if m:
+            t = t[m.start():]
+        e = _FINE_CCOST.search(t)
+        if e and e.start() > len(t) * 0.5:
+            t = t[:e.start()]
+    elif t.startswith("urn:nir") or "DocumentiGA" in t[:600]:
+        m = _INIZIO_GA.search(t, 0, 4_000)
+        if m:
+            t = t[m.start():]
+    return t.strip()
+
+
 def rebuild_indeksi() -> int:
     """Ricostruisce l'indice dal jsonl. Ritorna il numero di decisioni."""
     DB.parent.mkdir(parents=True, exist_ok=True)
@@ -50,7 +80,7 @@ def rebuild_indeksi() -> int:
                     con.execute(
                         "INSERT INTO dec(text, court, tipo, number, year,"
                         " data, url) VALUES (?,?,?,?,?,?,?)",
-                        (d.get("text") or "", d.get("court") or "",
+                        (testo_decisione(d.get("text") or "", d.get("court") or ""), d.get("court") or "",
                          d.get("type") or "", int(d.get("number") or 0),
                          int(d.get("year") or 0), d.get("date") or "",
                          d.get("url") or ""))

@@ -12,4 +12,6 @@ if [ "$PREC" -ge 1956 ]; then
 fi
 # Mossa 1: l'indice FTS si ricostruisce subito dopo l'harvest, cosi' il
 # primo avvocato del mattino non paga il rebuild.
-/usr/bin/python3 -c 'import sys; sys.path.insert(0, "/var/www/apps/super-avvocato"); from src.it_precedent_fts import rebuild_indeksi; print("fts:", rebuild_indeksi(), "decisioni indicizzate")'
+# v9.369: il rebuild gira NEL container (l'host non ha python-dotenv: dal 21 set cadeva con ModuleNotFoundError
+# e il primo avvocato del mattino pagava il rebuild dentro la sua ricerca)
+docker exec super-avvocato python3 -c 'from src.it_precedent_fts import rebuild_indeksi; print("fts:", rebuild_indeksi(), "decisioni indicizzate")'

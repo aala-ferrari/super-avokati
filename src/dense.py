@@ -304,10 +304,14 @@ class DenseDecisions:
         except Exception as exc:  # noqa: BLE001
             log.warning("dense: embedding precedenti illeggibili: %s", exc); return None
         pos = {}
+        pos_num = {}
         for i, c in enumerate(cases):
             # il pickle dà year=0 ai casi senza data (CEDU, alcune GjL), il retriever None: stessa chiave
             pos[f"{c.court_code}|{c.year or 0}|{c.case_number}"] = i
-        rows = [pos.get(k, -1) for k in keys]
+            pos_num.setdefault(f"{c.court_code}|{c.case_number}", i)
+        # v9.369: nel pickle `year` = anno del NUMERO (00-2022-3054), nel retriever = anno della DATA (2023): per la
+        # Gjykata e Lartë e la CEDU il numero da solo è unico nella corte — ripiego su corte|numero
+        rows = [pos.get(k, pos_num.get(k.split("|")[0] + "|" + k.split("|", 2)[-1], -1)) for k in keys]
         mancanti = sum(1 for r in rows if r < 0)
         if mancanti:
             log.warning("dense: %d precedenti con embedding non trovati nel retriever (chiavi diverse o corpus cambiato)", mancanti)

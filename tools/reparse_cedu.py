@@ -418,6 +418,15 @@ def parse_one(itemid: str, rel: str, text_en: str, meta: dict, old: dict | None,
     except Exception as exc:  # noqa: BLE001
         v["warnings"].append(f"HUDOC ALB non interrogabile ({exc})")
     text, lang, src_used = text_en, detect_lang(text_en), rel
+    # v9.369: la traduzione deve essere DELLO STESSO documento — stessa collezione (sentenza/decisione) e stessa data.
+    # Cercandola per numero di ricorso, 5 record avevano preso il testo albanese di un'altra decisione sullo stesso
+    # ricorso (merito ↔ equa soddisfazione, ammissibilità ↔ sentenza)
+    if alb and alb.get("file"):
+        _same_coll = ("JUDGMENTS" in (alb.get("documentcollectionid2") or "")) == (kind == "judgment")
+        _same_date = (alb.get("kpdate") or "")[:10] == (meta.get("kpdate") or "")[:10]
+        if not (_same_coll and _same_date):
+            v["warnings"].append(f"traduzione shqip {alb.get('itemid')} di un altro documento dello stesso ricorso ({(alb.get('kpdate') or '')[:10]}): usato l'originale")
+            alb = None
     if alb and alb.get("file"):
         t_alb = html_to_text((RAW.parent / alb["file"]).read_text(encoding="utf-8"))
         reas_alb, how = law_section(t_alb, "sq")
@@ -593,7 +602,7 @@ def cmd_run():
     keys = set()
     if OUT_JSONL.exists():
         for line in OUT_JSONL.open(encoding="utf-8"):
-            d = json.loads(line); keys.add(d["number"])
+            d = json.loads(line); keys.add((d["number"], d["date"], d["_meta"]["kind"]))
     docs = documents(); t0 = time.time(); n_ok = n_ex = n_fail = 0
     vlog = VERDICTS.open("a", encoding="utf-8")
     print(f"ripresa: {len(loaded)} già caricati")
@@ -601,8 +610,10 @@ def cmd_run():
         if iid in loaded: continue
         meta = meta_for(iid) or {}
         rec, v = parse_one(iid, rel, _text_en(rel), meta, old.get(iid), aidx)
-        if v["status"] == "OK" and rec["number"] in keys:
-            v["status"] = "EXCLUDE"; v["reasons"].append(f"duplicato del ricorso {rec['number']} già caricato")
+        # v9.369: lo stesso ricorso ha spesso DUE decisioni vere (ammissibilità e poi sentenza; merito e poi equa
+        # soddisfazione ex art. 41): il duplicato è solo stesso ricorso + stessa data + stesso tipo
+        if v["status"] == "OK" and (rec["number"], rec["date"], v["kind"]) in keys:
+            v["status"] = "EXCLUDE"; v["reasons"].append(f"duplicato del ricorso {rec['number']} ({rec['date']}) già caricato")
         vlog.write(json.dumps({"itemid": iid, "kind": v.get("kind"), "status": v["status"], "reasons": v["reasons"], "warnings": v["warnings"], "lang": v["lang"], "alb": v["alb"], "ts": time.strftime("%H:%M:%S")}, ensure_ascii=False) + "\n"); vlog.flush()
         if v["status"] != "OK":
             if v["status"] == "EXCLUDE": n_ex += 1
@@ -612,7 +623,7 @@ def cmd_run():
         line = dict(rec); line["_meta"] = {"warnings": v["warnings"], "checks": v["checks"], "lang": v["lang"], "alb": v["alb"], "kind": v["kind"], "ts": time.strftime("%Y-%m-%dT%H:%M:%S")}
         with OUT_JSONL.open("a", encoding="utf-8") as fh:
             fh.write(json.dumps(line, ensure_ascii=False) + "\n")
-        loaded.add(iid); keys.add(rec["number"])
+        loaded.add(iid); keys.add((rec["number"], rec["date"], v["kind"]))
         a, c = rebuild_pickle(); n_ok += 1
         print(f"[{n}/{len(docs)}] OK      {iid} {v.get('kind')} {v['lang']}{' (shqip)' if v['alb'] else ''} → {rec['citation'][:70]} | {rec['outcome']} | ragionamento {len(rec['reasoning'])} chr, giudici {len(rec['judges'])}, nene {len(rec['cited_articles'])} | db: {a} AL + {c} CEDU"
               + (f" | avvisi: {'; '.join(v['warnings'])[:100]}" if v["warnings"] else ""), flush=True)

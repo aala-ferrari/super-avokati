@@ -174,7 +174,7 @@ RECITAL_START = re.compile(r"^[ ]*(?:\d+\.\s|[IVX]+\.\s|Gjykata e (?:Rrethit|Ape
 # Etichette a inizio riga: una frase breve che finisce con «:» («PADITËS:», «Paditës:», «ME OBJEKT:», «OBJEKTI I
 # PADISË:», «KËRKUESE (ANKUESE):», «Ndaj Shtetasit:», «KUNDËR SUBJEKTIT:»); è etichetta solo se contiene una delle
 # parole chiave (norm_label → None altrimenti). «PERSONA TË TRETË» compare anche senza i due punti.
-LABEL_RX = re.compile(r"^[ ]*([A-ZËÇ][^\n:]{0,60}?)\s*:(?!\d)|^[ ]*(PERSON(?:A|I)?\s+(?:I|T[ËE])\s+TRET[ËEA]T?)\b(?=\s+[A-ZËÇ“\"])", re.M)
+LABEL_RX = re.compile(r"^[ ]*([A-ZËÇ][^\n:]{0,60}?)\s*:(?!\d)|^[ ]*(PERSON(?:A|I)?\s+(?:I|T[ËE])\s+TRET[ËEA]T?|OBJEKTI(?:\s+I\s+[A-ZËÇ]+)?)\b(?=[ \t]+[A-ZËÇ“\"])", re.M)
 _LABEL_KEYS = (
     ("KERKUES", "KERKUES"), ("PADITES", "PADITES"), ("PADITUR", "PADITUR"), ("TRET", "TRETE"), ("ANKUES", "ANKUES"),
     ("REKURSUES", "REKURSUES"), ("KALLEZUES", "KALLEZUES"), ("PANDEHUR", "PANDEHUR"), ("AKUZUAR", "AKUZUAR"),
@@ -260,21 +260,24 @@ GJK_VERBS = [
     ("moskompetencë", re.compile(r"moskompetenc", re.I)),
     ("shfuqizim", re.compile(r"\bshfuqizimin?\b", re.I)),
     ("deklarim", re.compile(r"\bdeklarimin?\b|\bkonstatimin?\b|\bt[ëe]\s+deklaroj[ëe]\b|\bdeklaron\b|\bt[ëe]\s+konstatoj[ëe]\b", re.I)),
-    ("interpretim", re.compile(r"\binterpretimin?\b", re.I)),
+    ("interpretim", re.compile(r"\binterpretimin?\b|\binterpretohet\b", re.I)),
+    ("REFUZIM", re.compile(r"\brefuzimin?\b", re.I)),
     ("pezullim", re.compile(r"\bpezullimin?\b", re.I)),
     ("ERRATA", re.compile(r"\bsakt[ëe]simin?\b|\bndreqjen?\b|\bkorrigjimin?\b", re.I)),
     ("MOSKALIM", re.compile(r"\bmoskalimin?\b", re.I)),
 ]
 GJL_VERBS = [
-    ("mospranim", re.compile(r"\bmospranimin?\b", re.I)),
-    ("kthim i rekursit", re.compile(r"\bkthimin?\s+e\s+rekursit\b", re.I)),
+    # anche i refusi «Mopranimin», «Mospranimine», «Mopsranimin», «Mosparanimin» e «Deklarimin si të papranueshme»
+    ("mospranim", re.compile(r"\bmo(?:sp|ps|s|p)?a?ranimin?e?\b|\bdeklarimin?\s+si\s+t[ëe]\s+papranueshm", re.I)),
+    ("kthim i rekursit", re.compile(r"\bkthimin?\s+e\s+(?:rekursi\w*|kërkesës)", re.I)),
+    ("PROCEDURAL", re.compile(r"^\s*(?:[IVX0-9]+\s*[.\-)]\s*)?(?:Kalimin\b|T[ëe]\s+caktoj|T[ëe]\s+shtroj|Se\s+çështjet\s+që\s+duhet|Nisjen\s+e\s+procedur|Çështja\s+nr\.[^\n]{0,120}?të\s+kalojë)", re.I)),
     ("ERRATA", re.compile(r"\bndreqjen?\b|\bsakt[ëe]simin?\b|\bkorrigjimin?\b", re.I)),
     ("prishje", re.compile(r"\bprishjen?\b", re.I)),
-    ("lënia në fuqi", re.compile(r"\bl[ëe]nien?\s+n[ëe]\s+fuqi\b", re.I)),
+    ("lënia në fuqi", re.compile(r"\bl[ëe]ne?[nr]?\s+n[ëe]\s+fuqi\b|\bl[ëe]nien?\s+n[ëe]\s+fuqi\b", re.I)),
     ("ndryshim", re.compile(r"\bndryshimin?\b", re.I)),
     ("pushim", re.compile(r"\bpushimin?\b", re.I)),
     ("moskompetencë", re.compile(r"nxjerrjen?\s+jasht[ëe]\s+juridiksionit|\bmoskompetenc", re.I)),
-    ("kompetencë", re.compile(r"mosmarr[ëe]veshjes?\s+(?:p[ëe]r|t[ëe]|s[ëe])\s+kompetenc|gjykat[ëe]n?\s+kompetente|p[ëe]r\s+kompetenc[ëe]|konfliktin?\s+(?:e|p[ëe]r)\s+kompetenc", re.I)),
+    ("kompetencë", re.compile(r"mosmarr[ëe]veshjes?\s+(?:p[ëe]r|t[ëe]|s[ëe])\s+kompetenc|gjykat[ëe]n?\s+kompetente|p[ëe]r\s+kompetenc[ëe]|konflikti[nt]?\s+(?:e|t[ëe]|p[ëe]r)\s+kompetenc", re.I)),
     ("pranim", re.compile(r"\bpranimin?\b", re.I)),
     ("rrëzim", re.compile(r"\brr[ëe]zimin?\b", re.I)),
     ("pezullim", re.compile(r"\bpezullimin?\b", re.I)),
@@ -298,6 +301,9 @@ def classify_gjk(disp: str) -> tuple[str, str]:
     lab, _ = first_verb(disp, GJK_VERBS)
     if lab == "ERRATA": return "", "errata (saktësim/ndreqje e një vendimi të mëparshëm)"
     if lab == "MOSKALIM": return "", "moskalim (vendim i Kolegjit, jo i seancës plenare)"
+    # 2015-2016: «Refuzimin e kërkesës» = la Corte NON ha raggiunto la maggioranza (neni 74 ligji 8577/2000), la
+    # kërkesa si può ripresentare: nessuna ratio decidendi, non è un precedente
+    if lab == "REFUZIM": return "", "refuzim: nuk u arrit shumica e votave (neni 74 i ligjit 8577/2000) — nuk është precedent"
     if lab == "shfuqizim": return "pranim", ""          # «Shfuqizimin e nenit…» senza «Pranimin»: la kërkesa è accolta
     return lab, ""
 
@@ -309,6 +315,7 @@ def classify_gjl(disp: str) -> tuple[str, str, str]:
     if lab == "mospranim": return "", "mospranim", "mospranim (nuk vendos mbi themelin)"
     if lab == "kthim i rekursit": return "", "kthim i rekursit", "kthim i rekursit nga relatori (nuk është vendim i Kolegjit)"
     if lab == "ERRATA": return "", "ndreqje", "errata (ndreqje/saktësim i një vendimi të mëparshëm)"
+    if lab == "PROCEDURAL": return "", "procedural", "vendim procedural (kalim në seancë / për njësim / caktim date) — nuk vendos mbi themelin"
     if lab == "prishje":
         rest = low[pos:pos + 500]
         if re.search(r"\bkthimin?\b|\bd[ëe]rgimin?\b|rigjykim|rishqyrtim", rest): return "kthim për rishqyrtim", "prishje + kthim", ""
@@ -335,7 +342,7 @@ def classify_gjl(disp: str) -> tuple[str, str, str]:
 # ── numero / data ──────────────────────────────────────────────────────────
 
 def norm_date(s: str) -> str:
-    m = re.match(r"^\s*(\d{1,2})\.\s?(\d{1,2})\.\s?(\d{4})\s*$", s or "")
+    m = re.match(r"^\s*(\d{1,2})\s?\.\s?(\d{1,2})\s?\.\s?(\d{4})\s*$", s or "")
     if not m: return ""
     d, mo, y = int(m.group(1)), int(m.group(2)), int(m.group(3))
     if not (1 <= d <= 31 and 1 <= mo <= 12 and 1990 <= y <= 2030): return ""
@@ -345,7 +352,7 @@ def norm_date(s: str) -> str:
 def gjk_number_date(text: str, rel: str, old: dict | None):
     warn = []
     head = text[:1500]
-    m = re.search(r"Vendim\s+nr\.?\s*(\d{1,3})\s*,?\s*dat[ëe]\s*(\d{1,2}\.\s?\d{1,2}\.\s?\d{4})", head)
+    m = re.search(r"Vendim\s+nr\.?\s*(\d{1,3})\s*,?\s*dat[ëe]\s*(\d{1,2}\s?\.\s?\d{1,2}\s?\.\s?\d{4})", head)
     sid = re.search(r"\(\s*V\s*-\s*(\d+)\s*/\s*(\d{2,4})\s*\)", head)
     fn = re.search(r"vend_0*(\d+)_(\d{4})", rel)
     number = m.group(1) if m else (fn.group(1) if fn else (old or {}).get("number", ""))
@@ -522,6 +529,10 @@ def parse(court: str, rel: str, text: str, old: dict | None, article_index=None)
         if cut: v["warnings"].append(f"{name} tagliato")
         if name not in fields and val: fields[name] = val
     objekti = fields.get("OBJEKTI", "") or (("Akuzuar: " + fields["AKUZUAR"]) if fields.get("AKUZUAR") else "")
+    if not objekti:
+        for _k, _v in fields.items():
+            if re.search(r"akuz|vepr\w*\s+penal|për\s+kryerjen", _v, re.I):
+                objekti = "Akuzuar: " + _v; break
     baza = fields.get("BAZA", "")
     kerkues = ""
     for k in PARTY_FIRST:
@@ -572,7 +583,7 @@ def parse(court: str, rel: str, text: str, old: dict | None, article_index=None)
     c = v["checks"]
     c["objekti"] = len(objekti) >= 8
     c["dispositif"] = len(dispositif) >= 10
-    c["reasoning"] = len(reasoning) >= 500
+    c["reasoning"] = len(reasoning) >= (250 if outcome in ("pushim", "kompetencë", "moskompetencë") else 500)
     c["parties"] = bool(kerkues or subjekte)
     c["judges"] = len(judges) >= (5 if court == "kushtetuese" else 3)
     c["baza"] = bool(baza)
@@ -581,7 +592,7 @@ def parse(court: str, rel: str, text: str, old: dict | None, article_index=None)
     c["objekti_no_header"] = not re.search(r"BAZA LIGJORE|KËRKUES|SUBJEKT|KOLEGJI|pasi dëgjoi", objekti)
     c["reasoning_no_dispositif"] = not (INLINE_VENDOSI.search(reasoning) and INLINE_PER_KETO.search(reasoning))
     c["reasoning_not_header"] = not any(norm_label(m.group(1) or m.group(2) or "") in ("KERKUES", "OBJEKTI", "BAZA", "PADITES") for m in LABEL_RX.finditer(reasoning[:600]))
-    c["mospranim_leak"] = ("mospranim" not in dispositif.lower()) or (court == "kushtetuese")
+    c["mospranim_leak"] = ("mospranim" not in dispositif[:40].lower()) or (court == "kushtetuese")
     if v["status"] == "OK":
         for key, ok in c.items():
             if ok is True or ok in ("heading", "sentence"): continue
@@ -780,11 +791,16 @@ def cmd_run():
             fh.write(json.dumps(line, ensure_ascii=False) + "\n")
         loaded[rel] = rec; keys.add(norm_key(rec["court_code"], rec["year"], rec["number"])); by_key[norm_key(rec["court_code"], rec["year"], rec["number"])] = rec
         decisions.append(Decision(**{k: rec[k] for k in FIELDS if k != "kind"}))
-        DecisionIndex.build(decisions).save(OUT_PKL)
         n_ok += 1
+        # il JSONL (fonte di verità) si aggiorna a ogni documento; l'indice BM25 ogni REBUILD_EVERY (default 1) e alla fine:
+        # con migliaia di vendime la ricostruzione a ogni riga sarebbe quadratica
+        if n_ok % max(1, int(os.environ.get("REBUILD_EVERY", "1") or 1)) == 0:
+            DecisionIndex.build(decisions).save(OUT_PKL)
         print(f"[{n}/{len(docs)}] OK      {rel} → nr {rec['number']} ({rec['date']}) {rec['outcome']}; giudici {len(rec['judges'])}, nene {len(rec['cited_articles'])}, ragionamento {len(rec['reasoning'])} chr"
               + (f"; avvisi: {'; '.join(v['warnings'])[:120]}" if v["warnings"] else ""), flush=True)
     vlog.close()
+    if n_ok:
+        DecisionIndex.build(decisions).save(OUT_PKL)
     print(f"\nfatto in {int(time.time() - t0)} s: OK {n_ok}, esclusi {n_ex}, falliti {n_fail}; totale nel database: {len(loaded)} AL + {len(echr)} CEDU = {len(decisions)}")
 
 
