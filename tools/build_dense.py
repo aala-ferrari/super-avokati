@@ -45,6 +45,7 @@ def main() -> int:
     ap.add_argument("--only", choices=["al", "it", "dec"], default=None)
     ap.add_argument("--download", action="store_true")
     ap.add_argument("--force", action="store_true")
+    ap.add_argument("--incremental", action="store_true", help="v9.373: codifica SOLO gli articoli senza embedding e li accoda ai file esistenti")
     ap.add_argument("--flat", action="store_true", help="un vettore per articolo (testo troncato a 128 token: comportamento v9.353)")
     ap.add_argument("--suffix", default=os.environ.get("EMB_SUFFIX", ""), help="suffisso dei file (es. _ck) per una codifica affiancata")
     a = ap.parse_args()
@@ -61,9 +62,18 @@ def main() -> int:
             lang = "sq" if what == "al" else "it"
             idx = ArticleIndex.load() if what == "al" else ArticleIndex.load(Path("/app/data/index/bm25_it.pkl"))
             base = dense.EMB_DIR / f"emb_{lang}_{dense.tag()}{a.suffix}"
-            if base.with_suffix(".npy").exists() and not a.force:
-                print(f"{what}: {base.name}.npy esiste (usa --force per rifare)"); continue
+            _old_E, _old_keys = None, None
+            if base.with_suffix(".npy").exists() and a.incremental:
+                _old_E = np.load(base.with_suffix(".npy"))
+                _old_keys = json.loads(Path(str(base) + ".keys.json").read_text(encoding="utf-8"))
+            elif base.with_suffix(".npy").exists() and not a.force:
+                print(f"{what}: {base.name}.npy esiste (usa --force per rifare, --incremental per i soli nuovi)"); continue
             arts = idx.articles
+            if _old_keys is not None:
+                _have = {(k[0], k[1]) for k in _old_keys}
+                arts = [x for x in arts if (x.code, str(x.number)) not in _have]
+                if not arts:
+                    print(f"{what}: nessun articolo nuovo"); continue
             if a.flat:
                 texts = [((x.heading or "") + ". " + (x.body or ""))[:1500] for x in arts]
                 keys = [[x.code, str(x.number)] for x in arts]
@@ -75,7 +85,10 @@ def main() -> int:
                         texts.append(seg); keys.append([x.code, str(x.number), i])
             print(f"{what}: {len(arts)} articoli → {len(texts)} {'testi' if a.flat else 'segmenti'}", flush=True)
             E = _encode(texts)
-            np.save(base.with_suffix(".npy"), E)
+            if _old_E is not None:
+                E = np.concatenate([_old_E, np.asarray(E, dtype=_old_E.dtype)], axis=0); keys = _old_keys + keys
+            _tmp = base.with_name(base.name + ".tmp.npy")
+            np.save(_tmp, E); os.replace(_tmp, base.with_suffix(".npy"))
             Path(str(base) + ".keys.json").write_text(json.dumps(keys, ensure_ascii=False), encoding="utf-8")
             print(f"  → {base.name}.npy {E.shape}", flush=True)
         else:

@@ -38,7 +38,14 @@ from sqlalchemy.orm import selectinload
 from src.config import TOP_K_DECISIONS
 from src.db import Case, Participation, session_scope
 from src.logging_utils import get_logger
-from src.retrieval import tokenize  # reuse Albanian tokenizer
+from src.retrieval import tokenize, tokenize_sq_stem  # reuse Albanian tokenizer
+
+# v9.373: stemming leggero dei precedenti (misurato con tools/eval_precedenti.py prima di accenderlo)
+PREC_STEM = os.environ.get("PREC_STEM", "1") == "1"
+
+
+def _tok(text: str) -> list[str]:
+    return tokenize_sq_stem(text, fold=True) if PREC_STEM else tokenize(text, fold=True)
 
 log = get_logger(__name__)
 
@@ -119,8 +126,10 @@ class LegalKBRetriever:
         self._cited_codes_per_case = [
             {code for code, _art in c.articles_cited} for c in cases
         ]
+        # v9.373: «450/1/a» (neni 450, pika 1, shkronja a) vale anche per il nene 450 che il recupero porta: il
+        # confronto esatto non legava quasi mai (la sentenza cita il paragrafo, il recupero l'articolo)
         self._cited_articles_per_case = [
-            {_article_key(code, art) for code, art in c.articles_cited}
+            {k for code, art in c.articles_cited for k in _article_keys_with_base(code, art)}
             for c in cases
         ]
 
@@ -158,7 +167,7 @@ class LegalKBRetriever:
         if not precedents:
             log.warning("legalkb retriever: no complete cases found — returning empty index")
             return cls([], BM25Okapi([["placeholder"]]))  # empty-but-valid BM25
-        corpus = [tokenize(_searchable_text(p), fold=True) for p in precedents]   # v9.367: senza dieresi, come la query
+        corpus = [_tok(_searchable_text(p)) for p in precedents]   # v9.367: senza dieresi, come la query
         bm25 = BM25Okapi(corpus)
         log.info("legalkb retriever: indexed %d cases", len(precedents))
         return cls(precedents, bm25)
@@ -207,7 +216,7 @@ class LegalKBRetriever:
         # problem?"
         best: dict[int, float] = {}
         for q in queries:
-            tokens = tokenize(q, fold=True)
+            tokens = _tok(q)
             if not tokens:
                 continue
             scores = self.bm25.get_scores(tokens)
@@ -496,6 +505,13 @@ def _searchable_text(p: CasePrecedent) -> str:
 
 def _article_key(code: str, article: str) -> tuple[str, str]:
     return (code.strip(), _normalise_article(article))
+
+
+def _article_keys_with_base(code: str, article: str) -> set[tuple[str, str]]:
+    """La chiave intera più quelle dei livelli superiori: 450/1/a → 450/1/a, 450/1, 450."""
+    n = _normalise_article(article)
+    parts = n.split("/")
+    return {(code.strip(), "/".join(parts[:i])) for i in range(1, len(parts) + 1) if parts[0]}
 
 
 def _normalise_article(article: str) -> str:

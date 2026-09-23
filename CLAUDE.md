@@ -2,8 +2,8 @@
 
 Strumento AI per avvocati (B2B), **bi-giurisdizione AL + IT**. Front-end Flask (waitress, UN processo) su porta
 5050, SQLite (`data/app.db`). Postgres `legalkb` NON è raggiungibile dal container: i precedenti vivono nel pickle.
-**Stato al 23 set 2026 (v9.372)** — i numeri qui sono quelli veri; più sotto, nelle sezioni datate, c'è la storia:
-- **AL leggi** (`bm25.pkl`, BM25 con diacritici piegati dal v9.367): **9.682 nene / 54 codici, 418 abrogati**; fonte
+**Stato al 23 set 2026 (v9.373)** — i numeri qui sono quelli veri; più sotto, nelle sezioni datate, c'è la storia:
+- **AL leggi** (`bm25.pkl`, BM25 con diacritici piegati dal v9.367, titolo del capitolo cercabile dal v9.373): **10.129 nene / 60 codici**; fonte
   `data/processed/all_articles.jsonl` (il pickle è derivato).
 - **Precedenti** (`bm25_decisions.pkl`): **3.996** = Kushtetuese **672** + Gjykata e Lartë **2.960** + CEDU **364**
   (157 sentenze + 207 decisioni, 46 nella traduzione albanese ufficiale). Fonti di verità: `data/processed/al_decisions_v2.jsonl`
@@ -588,7 +588,7 @@ errori, non che le risposte sono ancora giuste. Riferimento verificato il
 12 articoli recuperati per ciascuna.
 
 ```bash
-docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63], triage-trim+giudice-no-web [64], chat-web+verdetto-in-testa+pannelli-IT [65], codice-nominato→area [66], timeout-45min+ripiego-no-web [67], fasi-bilingue+giudice-no-web+duello-a-scomparsa [68], etichette-composte-bilingui [69]). Baseline **512/512** (23 set, v9.372; era 98 il 31 ago).
+docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63], triage-trim+giudice-no-web [64], chat-web+verdetto-in-testa+pannelli-IT [65], codice-nominato→area [66], timeout-45min+ripiego-no-web [67], fasi-bilingue+giudice-no-web+duello-a-scomparsa [68], etichette-composte-bilingui [69]). Baseline **513/513** (23 set, v9.373; era 98 il 31 ago).
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 bash /root/prova_sse.sh                                    # SULL'HOST (legge il secret da /opt/super-avvocato.env; copia in tools/prova_sse.sh): account di prova → login → fascicolo → 1 domanda VERA → stream /api/ask/events attraverso waitress. Deve dire «HTTP 200 … done: 1» (~50s, costa 1 chiamata al cervello) e cancella l'account. Dopo OGNI build che tocca web.py o le rotte SSE.
@@ -1455,6 +1455,33 @@ rischio residuo della DPIA.
 - Super Avokati ha auth propria (login_required_api); utenti creati da admin o auto-provisionati da AALA (`/api/provision-demo`, secret-guarded).
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
+
+**v9.373 — DOGANA, BURGIM I PADREJTË e i difetti dello stesso tipo (23 set, alba).** Il titolare: «sistema anche
+dogana e burgim i padrejtë, e controlla se ci sono altri errori di questo tipo o generici». Trovato e corretto, misurato:
+(1) **il titolo del CAPITOLO non era cercabile**: `Article.searchable_text` = citazione + rubrica + nota + corpo; il
+K.Pr.P. 268 si chiama «Kushtet e zbatimit» e che parli del risarcimento per detenzione ingiusta lo dice solo «KREU V —
+KOMPENSIMI PËR BURGIM TË PADREJTË» → una domanda sul tema non lo trovava MAI (oltre il 200° posto). Ora kreu+seksioni
+(senza «KREU V —») entrano nel testo BM25 (`parser.SEARCH_CHAPTERS`, env): 36 domande da avvocato 11 meglio / 5 peggio
+di poco («kompensimi për paraburgim të padrejtë» mai → 5°, «trashëgimia ligjore fëmijët» 28 → 7, «pavlefshmëria
+absolute» 10 → 3, «dëmi jashtëkontraktor» 6 → 1, «kontrabanda… doganore» 7 → 2), strato 1 identico (304/306). Solo AL
+(gli articoli IT non hanno `kreu`). Gli embedding restano heading+corpo (da misurare a parte). (2) **I titoli dei capitoli
+erano TRONCATI alla prima riga** del PDF («KREU X — KËQYRJA E PERSONAVE, SENDEVE DHE», «… GJYKIMI I MOSMARRËVESHJEVE»
+senza «ADMINISTRATIVE»): `parser._titolo_con_intestazione` continua sulle righe in MAIUSCOLO (max 3; mai dentro un
+articolo, una nota «(Shfuqizuar…)», un'altra intestazione o il sotto-titolo «DISPOZITA TË PËRGJITHSHME»);
+`tools/repair_kreu.py` li ha riparati sul corpus dai testi in cache (1.373 articoli, solo dove il vecchio porta a UN solo
+nuovo). (3) **Sei leggi citate dalle corti e ASSENTI dal corpus** (conteggio sui 3.632 precedenti AL): **49/2012
+gjykatat administrative (citata in 1.536 decisioni — la procedura di OGNI causa amministrativa)**, 8577/2000 Gjykata
+Kushtetuese (541), 8510/1999 përgjegjësia jashtëkontraktore e administratës, 10193/2009 marrëdhëniet juridiksionale
+(penale con l'estero), 8561/1999 shpronësimet, 139/2015 vetëqeverisja vendore → consolidati QBZ, `ingest_al_qbz.py`
+probe (tutte nel gate) + apply: **+447 nene, 10.129 / 60 codici**; sigle nel verificatore (anche «LGJA»), config,
+`acts_meta` (186 atti), embedding dei soli nuovi (`build_dense.py --incremental`, 40 s + 2 min invece di un'ora).
+Mancano ancora, e non si trovano per numero nella ricerca QBZ: 98/2016 (pushteti gjyqësor), 152/2013 (nëpunësi civil).
+(4) **Nene citati dai precedenti ricalcolati** (`reparse_vendime.py recite`): 1.907 record; +3.888 legami a 49/2012 e
++1.861 a 8577/2000 che prima erano numeri nudi. (5) **La sentenza cita il paragrafo, il recupero l'articolo**:
+«kodi_proc_penale:450/1/a» non si legava mai al nene 450 → `_article_keys_with_base` (450/1/a vale anche 450/1 e 450).
+(6) **Stemming leggero sui precedenti** (`PREC_STEM`, `tokenize_sq_stem`): «doganore» ≠ «doganor» ≠ «doganave»
+nascondeva le sentenze doganali. **Precedenti pertinenti nei primi 5: 87,3 % → 93,6 %** (dogana 2 → 5, detenzione
+ingiusta 2 → 3, tortura 3 → 4, grabitje 4 → 3), primo pertinente 21/22. Golden **[118]**, benchmark +2 regressioni (51).
 
 **v9.372 — LA RICERCA DEI PRECEDENTI MISURATA E RIPARATA (23 set).** Il titolare: «gli embedder e il BM25 adesso trovano
 bene le leggi e le cause?». **Leggi**: sì — strato 1 GATE PASS (AL 304/306 = 99,3 %, IT 232/252 = 92,1 %, regressioni

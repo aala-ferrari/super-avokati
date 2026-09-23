@@ -3971,6 +3971,28 @@ def main():
     except Exception as _e117:  # noqa: BLE001
         check("precedenti[117]: kontrollet u ekzekutuan", False, str(_e117))
 
+    # [118] v9.373 — il titolo del capitolo è cercabile (KPP 268 «Kushtet e zbatimit» = risarcimento per detenzione
+    # ingiusta: lo dice solo il Kreu), i titoli non sono più troncati alla prima riga, e i precedenti hanno lo stemming
+    # (dogana: «doganore» ≠ «doganor» ≠ «doganave» nascondeva le sentenze doganali)
+    try:
+        import re as _re118
+        from src import parser as _p118, retrieval_kb as _k118
+        from src.retrieval import ArticleIndex as _AI118
+        _ix = _AI118.load()
+        _a = next(a for a in _ix.articles if a.code == "kodi_proc_penale" and a.number == "268")
+        _okA = _p118.SEARCH_CHAPTERS and "KOMPENSIMI PËR BURGIM" in _a.searchable_text and "KREU V —" not in _a.searchable_text
+        _okB = ("kodi_proc_penale", "268") in {(x.code, x.number) for x, _s in _ix.search("kompensimi për paraburgim të padrejtë", top_k=12)}
+        _tr = {a.kreu for a in _ix.articles if a.kreu and _re118.search(r"\b(DHE|E|TË|I|NË|PËR|OSE|SË)$", a.kreu)}
+        _okC = len(_tr) <= 5 and _p118._titolo_con_intestazione("KREU X", "KËQYRJA E PERSONAVE\nDHE SENDEVE\nNeni 286\n") == "KREU X — KËQYRJA E PERSONAVE DHE SENDEVE" \
+               and _p118._titolo_con_intestazione("TITULLI IV", "(Shfuqizuar titulli IV)\nPJESA E TRETË\n") == "TITULLI IV — (Shfuqizuar titulli IV)"
+        _kb = _k118.LegalKBRetriever.load()
+        _hd = _kb.search(["gjobë doganore kontrabandë mallrash", "Dogana vendosi gjobë dhe konfiskim të mallrave"], top_k=5, type="doganor")
+        _okD = _k118.PREC_STEM and sum(1 for c, _s in _hd if _re118.search(r"dogan|kontraband", (c.summary + c.excerpt).lower())) >= 3
+        check("kreu[118]: titolo del capitolo cercabile (KPP 268 per «kompensimi për paraburgim të padrejtë») · titoli non troncati · precedenti con stemming (dogana ≥3/5)",
+              _okA and _okB and _okC and _okD, "A=%s B=%s C=%s(%d) D=%s" % (_okA, _okB, _okC, len(_tr), _okD))
+    except Exception as _e118:  # noqa: BLE001
+        check("kreu[118]: kontrollet u ekzekutuan", False, str(_e118))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

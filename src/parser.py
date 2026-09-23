@@ -13,6 +13,7 @@ Output: one JSON file per code in PROCESSED_DATA_PATH, plus a combined
 from __future__ import annotations
 
 import json
+import os
 import re
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -182,6 +183,11 @@ def numero_visibile_it(number: str) -> str:
     return f"{m.group(1)} ({'allegato' if m.group(2).startswith('all') else 'atto di approvazione'})"
 
 
+SEARCH_CHAPTERS = os.environ.get("SEARCH_CHAPTERS", "1") == "1"
+_CAP_PREFIX = re.compile(r"^\s*(?:KREU|KAPITULLI|SEKSIONI|TITULLI|PJESA|NËNSEKSIONI|CAPO|TITOLO|SEZIONE|LIBRO|PARTE)"
+                         r"\s+[IVXLCDM0-9]+(?:[-\s]*(?:bis|ter|quater|A|B))?\s*[—–\-.:]*\s*", re.I)
+
+
 @dataclass
 class Article:
     """A single article extracted from a code."""
@@ -225,6 +231,14 @@ class Article:
             parts.append(self.heading)
         if getattr(self, "note", ""):          # v9.362: la nota editoriale resta cercabile
             parts.append(self.note)
+        # v9.373: il TITOLO DEL CAPITOLO è cercabile. Il K.Pr.P. 268 si chiama «Kushtetet e zbatimit»: che parli del
+        # risarcimento per detenzione ingiusta lo dice solo «KREU V — KOMPENSIMI PËR BURGIM TË PADREJTË». Senza, una
+        # domanda su quel tema non lo trovava mai. Solo il titolo, senza «KREU V —».
+        if SEARCH_CHAPTERS:
+            for cap in (getattr(self, "kreu", ""), getattr(self, "seksioni", "")):
+                t = _CAP_PREFIX.sub("", cap or "").strip()
+                if t:
+                    parts.append(t)
         parts.append(self.body)
         return "\n".join(parts)
 
@@ -275,16 +289,30 @@ def _clean_text(text: str) -> str:
 
 # ── Article splitting ───────────────────────────────────────────────────────
 
+def _titolo_con_intestazione(line: str, tail: str) -> str:
+    """«KREU X» + il titolo che segue. v9.373: il titolo va a capo nei PDF («KREU X / KËQYRJA E PERSONAVE, SENDEVE
+    DHE / …») e prima se ne prendeva solo la prima riga (35 capitoli troncati a «… DHE», «… PËR TË»): si continua
+    finché le righe sono in MAIUSCOLO (il titolo), mai oltre 3 righe né dentro un articolo o una nota «(Shtuar …)»."""
+    righe = [ln.strip() for ln in tail.splitlines() if ln.strip()]
+    if not righe or HIERARCHY_RE.match(righe[0]) or ARTICLE_RE.match(righe[0]):
+        return line
+    titolo = [righe[0]]
+    for ln in righe[1:3] if not re.search(r"[a-zëç]", righe[0]) else ():   # una nota «(Shfuqizuar …)» non continua
+        if HIERARCHY_RE.match(ln) or ARTICLE_RE.match(ln) or not re.search(r"[A-ZËÇ]", ln) or re.search(r"[a-zëç]", ln) \
+                or re.match(r"(?:PJESA|KREU|SEKSIONI|TITULLI|KAPITULLI|NËNSEKSIONI)\b", ln) \
+                or re.fullmatch(r"DISPOZITA\s+T[ËE]\s+P[ËE]RGJITHSHME", ln):             # sotto-titolo, non titolo
+            break
+        titolo.append(ln)
+    return f"{line} — {' '.join(titolo)}"[:240]
+
+
 def _hierarchy_context(text_before: str) -> tuple[str, str, str]:
     """Return the most recent (pjesa, kreu, seksioni) mentioned before this pos."""
     pjesa = kreu = seksioni = ""
     for match in HIERARCHY_RE.finditer(text_before):
         label = match.group(1).upper()
         line = match.group(0).strip()
-        # Try to include the next line as the title of the section
-        tail = text_before[match.end() : match.end() + 200]
-        next_line = next((ln.strip() for ln in tail.splitlines() if ln.strip()), "")
-        full = f"{line} — {next_line}" if next_line and not HIERARCHY_RE.match(next_line) else line
+        full = _titolo_con_intestazione(line, text_before[match.end() : match.end() + 500])
         if label == "PJESA":
             pjesa = full
             kreu = seksioni = ""
