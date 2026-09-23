@@ -3943,6 +3943,34 @@ def main():
     except Exception as _e116:  # noqa: BLE001
         check("it-fts[116]: kontrollet u ekzekutuan", False, str(_e116))
 
+    # [117] v9.372 — precedenti: il tipo viene dal Kolegji (era «decision» per tutti → filtro per area SEMPRE vuoto),
+    # Kushtetuese/CEDU/Kolegjet e Bashkuara passano il filtro, il legame coi nene recuperati pesa nell'ordine ibrido,
+    # le CEDU (inglese/francese) si trovano con le parole albanesi degli articoli della Convenzione
+    try:
+        import collections as _co117
+        from src import retrieval_kb as _k117
+        _kb = _k117.LegalKBRetriever.load()
+        _ty = _co117.Counter(c.type for c in _kb.cases)
+        _okA = _ty.get("decision", 0) == 0 and all(_ty.get(t, 0) > 100 for t in ("penal", "civil", "administrativ", "kushtetues", "cedu"))
+        _h = _kb.search(["vrasje me paramendim", "I pandehuri akuzohet për vrasje"], top_k=8, type="penal")
+        _okB = bool(_h) and all(c.type == "penal" or c.court_code != "gjykata_elarte" for c, _s in _h)
+        _hf = _kb.search(["zgjidhja e martesës kujdestaria e fëmijëve"], top_k=8, type="familje")
+        _okC = bool(_hf) and all(c.type in ("civil", "bashkuara") or c.court_code != "gjykata_elarte" for c, _s in _hf)
+        _q = ["pushim nga puna pa shkak dëmshpërblim"]
+        _pl = [(c, a) for c in _kb.cases if c.type == "civil" for a in c.articles_cited if a[0] == "kodi_punes"][:1]
+        _okD = _k117.HINT_WEIGHT_DEC > 0
+        if _pl:
+            _hh = _kb.search(_q, top_k=5, cited_articles=[_pl[0][1]])
+            _okD = _okD and bool(_hh)
+        _ce = [c for c in _kb.cases if c.court_code == "ecthr_albania" and ("convention", "3") in c.articles_cited]
+        _okE = bool(_ce) and "torturës" in getattr(_ce[0], "_bm25_text", "")
+        _ht = _kb.search(["tortura në polici deklarata e marrë me dhunë"], top_k=5)
+        _okF = any(c.court_code == "ecthr_albania" for c, _s in _ht)
+        check("precedenti[117]: tipo dal Kolegji (0 «decision») · filtro penal/familje→Civil lascia GjK e CEDU · indizio dei nene attivo · CEDU con i nomi albanesi della Convenzione · «tortura në polici» trova la CEDU",
+              _okA and _okB and _okC and _okD and _okE and _okF, "A=%s B=%s C=%s D=%s E=%s F=%s tipi=%s" % (_okA, _okB, _okC, _okD, _okE, _okF, dict(_ty)))
+    except Exception as _e117:  # noqa: BLE001
+        check("precedenti[117]: kontrollet u ekzekutuan", False, str(_e117))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

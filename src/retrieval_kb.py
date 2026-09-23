@@ -27,6 +27,7 @@ when the corpus grows (same pattern as the articles BM25 index).
 from __future__ import annotations
 
 import os
+import re
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import date
@@ -48,6 +49,14 @@ log = get_logger(__name__)
 # matching. Loading the whole body would 10× RAM for marginal recall.
 BM25_BODY_CHARS = 1200
 DENSE_MIN_COS = float(os.environ.get("DENSE_MIN_COS", "0.5"))   # v9.353: soglia per un precedente portato solo dal senso
+# v9.372 — misurati sul set di 22 temi (tools/eval_precedenti.py): peso della lista densa nella fusione e peso del
+# legame «il precedente cita i nene recuperati» (prima calcolato ma IGNORATO nell'ordine ibrido)
+DENSE_WEIGHT_DEC = float(os.environ.get("DENSE_WEIGHT_DEC", "1.0"))
+HINT_WEIGHT_DEC = float(os.environ.get("HINT_WEIGHT_DEC", "0.01"))
+# l'area del triage → il Kolegji della Gjykata e Lartë che la giudica (familja, puna, detari → Civil; dogana,
+# zgjedhjet, qarkullimi → Administrativ). Kushtetuese, CEDU e Kolegjet e Bashkuara passano sempre il filtro.
+_KOLEGJI_PER_TYPE = {"familje": "civil", "pune": "civil", "detar": "civil", "ajror": "civil",
+                     "doganor": "administrativ", "zgjedhor": "administrativ", "rrugor": "administrativ"}
 
 # Characters of summary / full_text shown to the answer model per
 # precedent. Enough for the reasoning but not enough to dominate the
@@ -222,7 +231,7 @@ class LegalKBRetriever:
                     for r, i in enumerate(_bm_rank, 1):
                         _fused[i] = _fused.get(i, 0.0) + 1.0 / (_dn.RRF_K + r)
                     for r, (i, cos) in enumerate(_dr, 1):
-                        _fused[i] = _fused.get(i, 0.0) + 1.0 / (_dn.RRF_K + r)
+                        _fused[i] = _fused.get(i, 0.0) + DENSE_WEIGHT_DEC / (_dn.RRF_K + r)
                         _dense_cos[i] = max(_dense_cos.get(i, 0.0), cos)
         except Exception as exc:  # noqa: BLE001
             log.warning("dense: precedenti — ricerca fallita (non-fatal): %s", exc)
@@ -237,7 +246,10 @@ class LegalKBRetriever:
                 if _dense_cos.get(idx, 0.0) < DENSE_MIN_COS:
                     continue
             c = self.cases[idx]
-            if type and c.type != type:
+            # v9.372: il tipo è il Kolegji della Gjykata e Lartë (penal/civil/administrativ); Kushtetuese e CEDU valgono
+            # per ogni materia e non si filtrano mai via
+            if type and c.court_code == "gjykata_elarte" and c.type != "bashkuara" \
+                    and c.type != _KOLEGJI_PER_TYPE.get(type, type):
                 continue
             if outcome and c.outcome != outcome:
                 continue
@@ -262,6 +274,13 @@ class LegalKBRetriever:
 
         if not _fused:
             out.sort(key=lambda pair: (-pair[1], -(pair[0].year or 0), pair[0].citation))
+        elif HINT_WEIGHT_DEC and article_hint_set:
+            _pos = {id(c): i for i, c in enumerate(self.cases)}
+            def _k(pair):
+                i = _pos[id(pair[0])]
+                ov = len(self._cited_articles_per_case[i] & article_hint_set)
+                return -(_fused.get(i, 0.0) + HINT_WEIGHT_DEC * min(3, ov))
+            out.sort(key=_k)
         return out[:top_k]
 
     # ── direct lookup (for citation pin-back) ──────────────────────────
@@ -316,6 +335,23 @@ def _pickle_to_precedent(d: dict, idx: int) -> CasePrecedent:
     # scheda e il prompt non mostrano un nudo «pranim» che l'avvocato può leggere al contrario
     _disp = d.get("dispositif") or ""
     _label = _disp[1:_disp.find("]")].strip() if _disp.startswith("[") and "]" in _disp else None
+    # v9.372: `type` era «decision» per tutti i 3.996 → il filtro per area del cervello tornava SEMPRE vuoto
+    # (la citazione della GjL porta sempre il Kolegji: «… i Gjykatës së Lartë (Kolegji Civil)»)
+    _cit = d.get("citation") or ""
+    if court_code == "kushtetuese":
+        _type = "kushtetues"
+    elif court_code == "ecthr_albania":
+        _type = "cedu"
+    elif "Bashkuara" in _cit:
+        _type = "bashkuara"
+    elif "Kolegji Penal" in _cit:
+        _type = "penal"
+    elif "Kolegji Administrativ" in _cit:
+        _type = "administrativ"
+    elif "Kolegji Civil" in _cit:
+        _type = "civil"
+    else:
+        _type = "decision"
     p = CasePrecedent(
         id=idx + 1,
         court_code=court_code,
@@ -323,7 +359,7 @@ def _pickle_to_precedent(d: dict, idx: int) -> CasePrecedent:
         court_level=level,
         case_number=str(d.get("number") or ""),
         decision_date=dt,
-        type=str(d.get("kind") or ""),
+        type=_type,
         subtype=_label or None,
         outcome=d.get("outcome") or None,
         summary=(d.get("objekti") or "").strip(),
@@ -336,7 +372,40 @@ def _pickle_to_precedent(d: dict, idx: int) -> CasePrecedent:
     )
     # v9.367: il BM25 dei precedenti legge il ragionamento VERO (dal Kolegji) e il dispositivo, non 500 chr di testa
     p._bm25_text = " ".join(x for x in ((d.get("objekti") or ""), _disp, (d.get("reasoning") or "")[:3000]) if x)
+    # v9.372: le CEDU sono in inglese/francese e l'avvocato cerca in shqip («tortura në polici») → per le parole si
+    # aggiunge il NOME albanese degli articoli della Convenzione che la decisione cita (dai metadati HUDOC). Solo
+    # per la ricerca: nulla di questo si mostra.
+    if court_code == "ecthr_albania":
+        _gl = []
+        for code, art in arts:
+            if code == "convention":
+                _k = "-".join(art.split("-")[:2]) if art.startswith("P") else art.split("-")[0]
+                if _k in _KONVENTA_SQ and _KONVENTA_SQ[_k] not in _gl:
+                    _gl.append(_KONVENTA_SQ[_k])
+        if _gl:
+            p._bm25_text += " " + " ".join(_gl)
     return p
+
+
+_KONVENTA_SQ = {
+    "2": "e drejta për jetën vrasje vdekje",
+    "3": "ndalimi i torturës tortura trajtim çnjerëzor poshtërues keqtrajtim dhunë",
+    "4": "ndalimi i skllavërisë dhe punës së detyruar",
+    "5": "e drejta e lirisë dhe e sigurisë arrest paraburgim ndalim burgim i padrejtë",
+    "6": "e drejta për një proces të rregullt gjykatë e paanshme afat i arsyeshëm zgjatja e procesit ekzekutimi i vendimit gjyqësor të formës së prerë arsyetimi i vendimit",
+    "7": "asnjë dënim pa ligj",
+    "8": "e drejta e respektimit të jetës private dhe familjare banesa korrespondenca",
+    "9": "liria e mendimit ndërgjegjes dhe fesë",
+    "10": "liria e shprehjes",
+    "11": "liria e tubimit dhe e organizimit",
+    "13": "e drejta për një mjet efektiv ankimi",
+    "14": "ndalimi i diskriminimit",
+    "P1-1": "mbrojtja e pronës shpronësim kompensimi i pronarëve kthimi i pronës",
+    "P1-3": "e drejta për zgjedhje të lira",
+    "P4-2": "liria e lëvizjes",
+    "P7-4": "e drejta për të mos u gjykuar ose dënuar dy herë",
+    "35": "kushtet e pranueshmërisë shterimi i mjeteve të brendshme",
+}
 
 
 def _load_precedents_from_pickle() -> list[CasePrecedent]:

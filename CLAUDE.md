@@ -2,7 +2,7 @@
 
 Strumento AI per avvocati (B2B), **bi-giurisdizione AL + IT**. Front-end Flask (waitress, UN processo) su porta
 5050, SQLite (`data/app.db`). Postgres `legalkb` NON è raggiungibile dal container: i precedenti vivono nel pickle.
-**Stato al 23 set 2026 (v9.371)** — i numeri qui sono quelli veri; più sotto, nelle sezioni datate, c'è la storia:
+**Stato al 23 set 2026 (v9.372)** — i numeri qui sono quelli veri; più sotto, nelle sezioni datate, c'è la storia:
 - **AL leggi** (`bm25.pkl`, BM25 con diacritici piegati dal v9.367): **9.682 nene / 54 codici, 418 abrogati**; fonte
   `data/processed/all_articles.jsonl` (il pickle è derivato).
 - **Precedenti** (`bm25_decisions.pkl`): **3.996** = Kushtetuese **672** + Gjykata e Lartë **2.960** + CEDU **364**
@@ -588,7 +588,7 @@ errori, non che le risposte sono ancora giuste. Riferimento verificato il
 12 articoli recuperati per ciascuna.
 
 ```bash
-docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63], triage-trim+giudice-no-web [64], chat-web+verdetto-in-testa+pannelli-IT [65], codice-nominato→area [66], timeout-45min+ripiego-no-web [67], fasi-bilingue+giudice-no-web+duello-a-scomparsa [68], etichette-composte-bilingui [69]). Baseline **511/511** (23 set, v9.371; era 98 il 31 ago).
+docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63], triage-trim+giudice-no-web [64], chat-web+verdetto-in-testa+pannelli-IT [65], codice-nominato→area [66], timeout-45min+ripiego-no-web [67], fasi-bilingue+giudice-no-web+duello-a-scomparsa [68], etichette-composte-bilingui [69]). Baseline **512/512** (23 set, v9.372; era 98 il 31 ago).
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 bash /root/prova_sse.sh                                    # SULL'HOST (legge il secret da /opt/super-avvocato.env; copia in tools/prova_sse.sh): account di prova → login → fascicolo → 1 domanda VERA → stream /api/ask/events attraverso waitress. Deve dire «HTTP 200 … done: 1» (~50s, costa 1 chiamata al cervello) e cancella l'account. Dopo OGNI build che tocca web.py o le rotte SSE.
@@ -1455,6 +1455,26 @@ rischio residuo della DPIA.
 - Super Avokati ha auth propria (login_required_api); utenti creati da admin o auto-provisionati da AALA (`/api/provision-demo`, secret-guarded).
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
+
+**v9.372 — LA RICERCA DEI PRECEDENTI MISURATA E RIPARATA (23 set).** Il titolare: «gli embedder e il BM25 adesso trovano
+bene le leggi e le cause?». **Leggi**: sì — strato 1 GATE PASS (AL 304/306 = 99,3 %, IT 232/252 = 92,1 %, regressioni
+49/49). **Sentenze**: misurate con `tools/eval_precedenti.py` (22 temi da avvocato, due query come il cervello — domanda
++ fatti —, filtro per area, nene recuperati come indizio; pertinente = il precedente parla del tema nel contenuto o cita
+il nene atteso) → **79,1 % pertinenti nei primi 5**, e tre difetti veri: (1) `_pickle_to_precedent` metteva
+`type = kind` = «decision» per TUTTI i 3.996 → il primo passaggio filtrato per area di `_retrieve_precedents` /
+`_retrieve_adverse_precedents` tornava SEMPRE vuoto e ripiegava senza filtro (una domanda penale riceveva civili); ora il
+tipo è il Kolegji scritto nella citazione della GjL (penal 595 / civil 1.116 / administrativ 1.246 / bashkuara 3),
+kushtetues 672, cedu 364; l'area del triage va al suo Kolegji (Familje/Punë/Detar/Ajror → Civil; Doganor/Zgjedhor/Rrugor
+→ Administrativ) e Kushtetuese, CEDU e Kolegjet e Bashkuara passano sempre; (2) il legame «il precedente cita i nene
+recuperati» (`_precedent_match_bonus`) si sommava al punteggio mostrato ma NON entrava nell'ordine ibrido (RRF) — «senza
+nene-indizio» dava esattamente lo stesso risultato: ora `HINT_WEIGHT_DEC` (0,01 per nene in comune, max 3; env) entra
+nella fusione; (3) le CEDU sono in inglese/francese e una domanda in shqip non le raggiungeva per parole («tortura në
+polici» → rapine penali in testa): al testo di ricerca si aggiunge il nome ALBANESE degli articoli della Convenzione che
+citano (dai metadati HUDOC, `_KONVENTA_SQ`, non mostrato). Varianti misurate e NON adottate: peso della lista densa 0,5
+/ 0,3 (84,5 / 83,6 % da sole, 87,3 % combinate = pari), coseno solo-senso 0,6 / 0,7 (nessun effetto), solo BM25 (85,5 %).
+Risultato **87,3 %** (96/110), primo pertinente 19/22, ~110 ms/ricerca. Restano deboli la dogana (2/5: le sentenze
+citano articoli del vecchio Kodi Doganor, i nene recuperati quelli del nuovo) e la «burgim i padrejtë» (2-3/5).
+Golden **[117]**, 512.
 
 **v9.369-371 — AUDIT GENERALE «cosa manca» e i buchi del corpus (23 set, notte).** Il titolare: «rileggi CLAUDE.md e
 memory, guarda il VPS e i lavori fatti, vedi cosa manca». Trovato e corretto, in ordine d'importanza:
