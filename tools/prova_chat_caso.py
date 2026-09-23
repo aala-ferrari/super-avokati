@@ -64,42 +64,58 @@ case = post("/api/cases", {"title": "Prova chat — auto shpk (%s)" % juris, "ju
 cid = case["id"]
 print(f"caso {cid[:8]} giurisdizione={case.get('jurisdiction')}", flush=True)
 
-t0 = time.time()
 if _Q_ENV:
     question = _Q_ENV
-start = post("/api/ask/start", {"case_id": cid, "message": question, "deep": os.environ.get("PROVA_DEEP", "") == "1"})   # PROVA_DEEP=1 = Gjyqtari Suprem
-job = start.get("job_id")
-print("job:", job, flush=True)
 
-final_text, n_delta, n_status, n_err, done = "", 0, 0, 0, False
-req = urllib.request.Request(f"{BASE}/api/ask/events?job={job}&from=0")
-with op.open(req, timeout=3600) as r:
-    for raw in r:
-        line = raw.decode("utf-8", "replace").strip()
-        if not line.startswith("data:"):
-            continue
-        try:
-            evt = json.loads(line[5:].strip())
-        except Exception:  # noqa: BLE001
-            continue
-        t = evt.get("type")
-        if t == "delta":
-            n_delta += 1
-        elif t == "status":
-            n_status += 1
-            # come il client (app.js): text_it SOLO in sessione IT, altrimenti text (sq)
-            _st = (evt.get("text_it") if LANG == "it" else None) or evt.get("text") or evt.get("text_it") or ""
-            print(f"   [{int(time.time()-t0):4d}s] status: {_st[:90]}", flush=True)
-        elif t == "final":
-            final_text = evt.get("text") or ""
-        elif t == "error":
-            n_err += 1
-            print("   ERROR:", str(evt)[:200], flush=True)
-        elif t == "done":
-            done = True
-            break
-dt = time.time() - t0
 
+def chiedi(question):
+    """Una domanda nel fascicolo `cid`, seguita come il browser (job + SSE)."""
+    t0 = time.time()
+    start = post("/api/ask/start", {"case_id": cid, "message": question, "deep": os.environ.get("PROVA_DEEP", "") == "1"})   # PROVA_DEEP=1 = Gjyqtari Suprem
+    job = start.get("job_id")
+    print("job:", job, flush=True)
+    final_text, n_delta, n_status, n_err, done = "", 0, 0, 0, False
+    req = urllib.request.Request(f"{BASE}/api/ask/events?job={job}&from=0")
+    with op.open(req, timeout=3600) as r:
+        for raw in r:
+            line = raw.decode("utf-8", "replace").strip()
+            if not line.startswith("data:"):
+                continue
+            try:
+                evt = json.loads(line[5:].strip())
+            except Exception:  # noqa: BLE001
+                continue
+            t = evt.get("type")
+            if t == "delta":
+                n_delta += 1
+            elif t == "status":
+                n_status += 1
+                # come il client (app.js): text_it SOLO in sessione IT, altrimenti text (sq)
+                _st = (evt.get("text_it") if LANG == "it" else None) or evt.get("text") or evt.get("text_it") or ""
+                print(f"   [{int(time.time()-t0):4d}s] status: {_st[:90]}", flush=True)
+            elif t == "final":
+                final_text = evt.get("text") or ""
+            elif t == "error":
+                n_err += 1
+                print("   ERROR:", str(evt)[:200], flush=True)
+            elif t == "done":
+                done = True
+                break
+    return final_text, n_delta, n_status, n_err, done, time.time() - t0
+
+
+final_text, n_delta, n_status, n_err, done, dt = chiedi(question)
+# v9.375 — PROVA_Q2="…": una SECONDA domanda nello STESSO fascicolo (il follow-up col filo: è lì che il modello aveva
+# copiato la riga di verifica dalla risposta precedente). Esce in /tmp/audit_it/chat_<lang>_<tag>_2.txt
+_Q2 = os.environ.get("PROVA_Q2", "").strip()
+if _Q2:
+    t2, d2, s2, e2, dn2, dt2 = chiedi(_Q2)
+    os.makedirs("/tmp/audit_it", exist_ok=True)
+    out2 = f"/tmp/audit_it/chat_{LANG}{('_' + _TAG) if _TAG else ''}_2.txt"
+    open(out2, "w", encoding="utf-8").write(t2)
+    _righe = [ln for ln in t2.splitlines() if "🔎 **" in ln]
+    print(f"SECONDA domanda: {dt2:.0f}s · error={e2} done={dn2} · {len(t2)} caratteri → {out2}")
+    print("   righe di verifica:", len(_righe), "·", (_righe[0][:150] if _righe else "-"))
 os.makedirs("/tmp/audit_it", exist_ok=True)
 out = f"/tmp/audit_it/chat_{LANG}{('_' + _TAG) if _TAG else ''}.txt"
 with open(out, "w", encoding="utf-8") as fh:

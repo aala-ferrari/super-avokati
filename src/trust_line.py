@@ -323,10 +323,26 @@ def blocco_per_gjyqtarin(v: dict, lang: str = "sq", coverage: dict | None = None
     return "\n".join(r)
 
 
+# v9.375 — LA RIGA LA SCRIVE SOLO IL CODICE. Caso vero (23 set, follow-up «po neni 302 i kodit penal?»): il modello
+# ha COPIATO dal filo il formato della riga e ne ha scritta una sua («1 nen i verifikuar (teksti i plotë) | mbulimi: i
+# plotë për pyetjen — ✅») — un formato che il codice non produce; e `_riga_fiducie`, vedendo «🔎 **» in testa, saltava
+# sia la verifica vera sia il cancello. 2 risposte su 26 dal 16 set. Ogni riga così nel testo del modello si toglie
+# prima di mettere quella calcolata.
+_RIGA_MODELLO_RX = re.compile(r"(?m)^[ \t]*(?:>[ \t]*)?🔎[ \t]*\*\*[ \t]*(?:Verifikimi|Verifica)[ \t]*:?[ \t]*\*\*.*(?:\n[ \t]*(?=\n)|)\n?")
+
+
+def togli_righe(text: str) -> str:
+    """Toglie dal testo ogni riga «🔎 **Verifikimi/Verifica:**» (del modello o di un giro precedente)."""
+    return _RIGA_MODELLO_RX.sub("", text or "")
+
+
 def inserisci_riga(text: str, line: str, titolo: str) -> str:
-    """Mette la riga subito sotto il titolo del verdetto se c'è, altrimenti in testa."""
+    """Mette la riga subito sotto il titolo del verdetto se c'è, altrimenti in testa. Prima toglie ogni riga di
+    verifica già nel testo: quella vera è una sola, ed è questa."""
     if not line:
         return text
+    text = togli_righe(text)
     if titolo and (text or "").startswith(titolo):
-        return titolo + line + "\n\n" + text[len(titolo):]
-    return line + "\n\n" + (text or "")
+        return titolo + line + "\n\n" + text[len(titolo):].lstrip("\n")
+    return line + "\n\n" + (text or "").lstrip("\n")
+

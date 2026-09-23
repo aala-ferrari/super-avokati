@@ -3784,7 +3784,7 @@ class SuperAvvocato:
             if not righe:
                 return text
             log.info("binjak: %s", righe)
-            return text.rstrip() + "\n\n" + "\n".join(righe)
+            return _BINJAK_RX.sub("", text).rstrip() + "\n\n" + "\n".join(righe)   # la riga è del codice, mai del modello
         except Exception as exc:  # noqa: BLE001
             log.warning("shenim binjak saltato (non-fatal): %s", exc)
             return text
@@ -3794,7 +3794,9 @@ class SuperAvvocato:
         stessa verifica deterministica, stessa riga in testa. Fail-silent."""
         try:
             from . import trust_line
-            if not (text or "").strip() or "🔎 **" in (text or "")[:600]:
+            # v9.375: niente più «c'è già una riga 🔎 → salto»: quella riga poteva essere scritta dal MODELLO (copiata dal
+            # filo) e si saltavano verifica e cancello; `inserisci_riga` toglie ogni riga di verifica e mette la vera
+            if not (text or "").strip():
                 return text
             jur = self._current_jurisdiction()
             lang = "it" if jur == "IT" else "sq"
@@ -6222,6 +6224,9 @@ def _estratto_obiezioni(txt: str) -> str:
     return body[:_HIST_OBIEZIONI_CHARS].rstrip() + ("\n[…]" if len(body) > _HIST_OBIEZIONI_CHARS else "")
 
 
+_BINJAK_RX = re.compile(r"(?m)^[ \t]*>?[ \t]*ℹ️[ \t]*(?:Mos e ngatërro|Da non confondere):.*(?:\n|$)")
+
+
 def _history_for_prompt(history) -> list[dict[str, str]]:
     """Gli ultimi turni della conversazione, potati per non affogare il compose."""
     out: list[dict[str, str]] = []
@@ -6229,6 +6234,11 @@ def _history_for_prompt(history) -> list[dict[str, str]]:
     for m in list(history or [])[-_HIST_TURNS:]:
         role = str(m.get("role") or "user")
         txt = str(m.get("content") or "")
+        if role == "assistant":
+            # v9.375: le righe che scrive il CODICE (verifica 🔎, codici gemelli ℹ️) non vanno nel filo: il modello le
+            # imitava in testa alla risposta dopo, con un formato suo e un «✅» non calcolato
+            from .trust_line import togli_righe as _togli_righe
+            txt = _BINJAK_RX.sub("", _togli_righe(txt)).strip()
         cap = _HIST_ASSISTANT_CHARS if role == "assistant" else _HIST_USER_CHARS
         obiezioni = _estratto_obiezioni(txt) if role == "assistant" else ""
         if len(txt) > cap:

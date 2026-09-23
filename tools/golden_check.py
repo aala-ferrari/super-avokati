@@ -3103,7 +3103,10 @@ def main():
         _rf88 = _insp88.getsource(_br88.SuperAvvocato._riga_fiducie)
         check("trust_line[88]: _riga_fiducie sul fast-path semplice di answer_stream E di answer(), con guardia anti-doppione",
               "self._riga_fiducie(text, retrieved)" in _as88 and "self._riga_fiducie(answer_text, retrieved)" in _an88
-              and '"🔎 **" in (text or "")[:600]' in _rf88 and "trust_line.inserisci_riga(text, trust_line.riga(v, lang, tempo=_tempo, coverage=_cov)" in _rf88,
+              # v9.375: l'anti-doppione non è più «c'è già 🔎 → salta» (così passava la riga FALSA del modello e si
+              # saltavano verifica e cancello) ma `inserisci_riga`, che toglie ogni riga di verifica e mette la vera
+              and '"🔎 **" in (text or "")[:600]' not in _rf88 and "togli_righe(text)" in _insp88.getsource(__import__("src.trust_line", fromlist=["x"]).inserisci_riga)
+              and "trust_line.inserisci_riga(text, trust_line.riga(v, lang, tempo=_tempo, coverage=_cov)" in _rf88,
               "stream=%s answer=%s guard=%s" % ("self._riga_fiducie(text, retrieved)" in _as88, "self._riga_fiducie(answer_text, retrieved)" in _an88, '"🔎 **" in' in _rf88))
     except Exception as _e88:  # noqa: BLE001
         check("trust_line[88]: kontrollet u ekzekutuan", False, str(_e88))
@@ -4027,6 +4030,33 @@ def main():
               _okA and _okB and _okC and _okD and _okE and _okF and _okG, "A=%s B=%s C=%s D=%s E=%s F=%s G=%s" % (_okA, _okB, _okC, _okD, _okE, _okF, _okG))
     except Exception as _e119:  # noqa: BLE001
         check("pyetje-norme[119]: kontrollet u ekzekutuan", False, str(_e119))
+
+    # [120] v9.375 — LA RIGA DI VERIFICA LA SCRIVE SOLO IL CODICE (caso vero 23 set: nel follow-up «po neni 302 i kodit
+    # penal?» il modello aveva copiato dal filo una riga sua «1 nen i verifikuar (teksti i plotë) … ✅» e il codice, vedendo
+    # «🔎 **», saltava verifica e cancello)
+    try:
+        import threading as _th120
+        from src import brain as _br120, trust_line as _tl120
+        _sa = _br120.SuperAvvocato.__new__(_br120.SuperAvvocato)
+        _sa.index = ArticleIndex.load(_P81("/app/data/index/bm25.pkl")); _sa.index_it = None
+        _sa._jurisdiction_ctx = _th120.local(); _sa._jurisdiction_ctx.code = "AL"
+        _falsa = "> 🔎 **Verifikimi:** 1 nen i verifikuar (teksti i plotë) | vendime 0 | mbulimi: i plotë për pyetjen — **✅ e verifikuar**"
+        _t = _sa._riga_fiducie(_falsa + "\n\n**Neni 302 i Kodit Penal** — «Përkrahja e autorit të krimit».", [])
+        _righe = [ln for ln in _t.splitlines() if "🔎 **" in ln]
+        _okA = len(_righe) == 1 and "teksti i plotë" not in _t and "nene 1 të verifikuara" in _righe[0]
+        _h = _br120._history_for_prompt([{"role": "user", "content": "neni 350 kpp?"},
+                                          {"role": "assistant", "content": _falsa + "\n\nTeksti.\n\n> ℹ️ Mos e ngatërro: edhe **Kodi X** ka një **nen 350** — «Y»."}])
+        _okB = "🔎" not in _h[1]["content"] and "Mos e ngatërro" not in _h[1]["content"] and "Teksti." in _h[1]["content"]
+        _t2 = _tl120.inserisci_riga("### ⚖️ Vendimi\n\n" + _falsa + "\nverdetto", "> 🔎 **Verifikimi:** nene 2 të verifikuara | x — **✅ e verifikuar**", "### ⚖️ Vendimi")
+        _okC = _t2.count("🔎 **") == 1 and "teksti i plotë" not in _t2 and _t2.startswith("### ⚖️ Vendimi> 🔎 **Verifikimi:** nene 2")
+        _kpp = {str(a.number): a for a in _sa.index.articles if a.code == "kodi_proc_penale"}
+        _c = __import__("copy").copy(_kpp["350"]); _c._cituar = True
+        _t3 = _sa._shenim_binjak("cili esht neni 350 i procedures penale?", [(_c, 10.0)], "Teksti.\n\n> ℹ️ Mos e ngatërro: edhe **Kodi i Procedurës Civile** ka një **nen 350** — «e sajuar».")
+        _okD = _t3.count("Mos e ngatërro") == 1 and "Kompetenca tokësore" in _t3 and "e sajuar" not in _t3
+        check("verifica[120]: la riga «🔎» del modello si toglie e resta solo quella calcolata (percorso semplice e verdetto) · nel filo non entrano righe di verifica né dei gemelli · la riga dei gemelli è una sola, dal corpus",
+              _okA and _okB and _okC and _okD, "A=%s B=%s C=%s D=%s" % (_okA, _okB, _okC, _okD))
+    except Exception as _e120:  # noqa: BLE001
+        check("verifica[120]: kontrollet u ekzekutuan", False, str(_e120))
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
