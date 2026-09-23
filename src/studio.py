@@ -489,6 +489,21 @@ GJYQTARI_SYSTEM = {
     ),
 }
 
+# v9.376 — FORMA BREVE (titolare, 24 set: «il senso, la soluzione e come si vince»): il verdetto, che l'avvocato legge per
+# primo, chiude SEMPRE con le tre righe — anche quando conferma. Dietro FORMATI_I_SHKURTER, come il prompt del senior.
+import os as _os_fs
+if _os_fs.environ.get("FORMATI_I_SHKURTER", "0") == "1":
+    GJYQTARI_SYSTEM = {
+        "sq": GJYQTARI_SYSTEM["sq"] + (
+            "\nMBYLLJA E VENDIMIT (GJITHMONË, edhe kur konfirmon): tri rreshta, secili 1-2 fjali, me nenin vendimtar —\n"
+            "**Në thelb:** si qëndron klienti sipas ligjit.\n**Zgjidhja:** çfarë bën avokati tani, konkretisht (dhe afati kritik).\n"
+            "**Si fitohet:** leva që e vendos rastin dhe rreziku që duhet shmangur.\nAsgjë tjetër pas tyre."),
+        "it": GJYQTARI_SYSTEM["it"] + (
+            "\nCHIUSURA DEL VERDETTO (SEMPRE, anche quando confermi): tre righe, ciascuna 1-2 frasi, con l'articolo decisivo —\n"
+            "**In sintesi:** come sta il cliente secondo la legge.\n**Soluzione:** cosa fa l'avvocato adesso, concretamente (e il termine critico).\n"
+            "**Come si vince:** la leva che decide il caso e il rischio da evitare.\nNient'altro dopo."),
+    }
+
 # v9.316 — il verdetto va IN TESTA (BLUF: prima la decisione, poi l'analisi);
 # l'analisi completa (senior · diavolo · replica) segue sotto un suo titolo.
 TITULLI_GJYQTARI = {

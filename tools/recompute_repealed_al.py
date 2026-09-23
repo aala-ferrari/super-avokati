@@ -33,7 +33,12 @@ def main() -> int:
         if d["code"] in WHOLE_LAW_REPEALED:
             new = True
         else:
-            new = is_repealed_stub(d.get("heading", ""), d.get("body", ""))
+            # v9.376: dal v9.362 la nota «(Shfuqizuar me ligjin …)» sta nel campo `note`, non più nella rubrica: senza
+            # leggerla, 118 articoli abrogati risultavano «vivi» (e un --apply li avrebbe riaccesi tutti)
+            _h = d.get("heading", "") or ""
+            if d.get("note"):
+                _h = f"{_h} {d['note']}".strip()
+            new = is_repealed_stub(_h, d.get("body", ""))
         if new != old:
             (to_live if old else to_dead)[d["code"]] += 1
             (ex_live if old else ex_dead).append((d["code"], d["number"], (d.get("heading", "") + " | " + d.get("body", ""))[:110].replace("\n", " ")))

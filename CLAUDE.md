@@ -2,8 +2,8 @@
 
 Strumento AI per avvocati (B2B), **bi-giurisdizione AL + IT**. Front-end Flask (waitress, UN processo) su porta
 5050, SQLite (`data/app.db`). Postgres `legalkb` NON è raggiungibile dal container: i precedenti vivono nel pickle.
-**Stato al 23 set 2026 (v9.375)** — i numeri qui sono quelli veri; più sotto, nelle sezioni datate, c'è la storia:
-- **AL leggi** (`bm25.pkl`, BM25 con diacritici piegati dal v9.367, titolo del capitolo cercabile dal v9.373): **10.129 nene / 60 codici**; fonte
+**Stato al 24 set 2026 (v9.377)** — i numeri qui sono quelli veri; più sotto, nelle sezioni datate, c'è la storia:
+- **AL leggi** (`bm25.pkl`, BM25 con diacritici piegati dal v9.367, titolo del capitolo cercabile dal v9.373): **10.298 nene / 62 codici, 447 abrogati**; embedding AL `_flat3`/`_ck3` (capitoli + corpo intero, `EMB_SUFFIX_SQ`/`EMB_SUFFIX2_SQ`), IT `_flat2`/`_ck`; fonte
   `data/processed/all_articles.jsonl` (il pickle è derivato).
 - **Precedenti** (`bm25_decisions.pkl`): **3.996** = Kushtetuese **672** + Gjykata e Lartë **2.960** + CEDU **364**
   (157 sentenze + 207 decisioni, 46 nella traduzione albanese ufficiale). Fonti di verità: `data/processed/al_decisions_v2.jsonl`
@@ -588,7 +588,7 @@ errori, non che le risposte sono ancora giuste. Riferimento verificato il
 12 articoli recuperati per ciascuna.
 
 ```bash
-docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63], triage-trim+giudice-no-web [64], chat-web+verdetto-in-testa+pannelli-IT [65], codice-nominato→area [66], timeout-45min+ripiego-no-web [67], fasi-bilingue+giudice-no-web+duello-a-scomparsa [68], etichette-composte-bilingui [69]). Baseline **515/515** (23 set, v9.375; era 98 il 31 ago).
+docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63], triage-trim+giudice-no-web [64], chat-web+verdetto-in-testa+pannelli-IT [65], codice-nominato→area [66], timeout-45min+ripiego-no-web [67], fasi-bilingue+giudice-no-web+duello-a-scomparsa [68], etichette-composte-bilingui [69]). Baseline **518/518** (24 set, v9.377; era 98 il 31 ago).
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 bash /root/prova_sse.sh                                    # SULL'HOST (legge il secret da /opt/super-avvocato.env; copia in tools/prova_sse.sh): account di prova → login → fascicolo → 1 domanda VERA → stream /api/ask/events attraverso waitress. Deve dire «HTTP 200 … done: 1» (~50s, costa 1 chiamata al cervello) e cancella l'account. Dopo OGNI build che tocca web.py o le rotte SSE.
@@ -1455,6 +1455,39 @@ rischio residuo della DPIA.
 - Super Avokati ha auth propria (login_required_api); utenti creati da admin o auto-provisionati da AALA (`/api/provision-demo`, secret-guarded).
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
+
+**v9.376-377 — EMBEDDING COI CAPITOLI, i confini degli articoli, le decisioni annullate, Opus 5.5 in misura (23-24 set,
+notte).** Il titolare: «fai gli embedding coi titoli dei capitoli e le altre cose che mancano; SQLite→Postgres o l'Italia su
+un altro VPS migliorano?». Misurato prima di rispondere: SQLite 16 MB, elenco fascicoli 0,1 ms, messaggi 0,2 ms; ricerca
+leggi AL 0,4-0,5 s, precedenti AL 0,26 s; il modello 336 s (mediana del compose) → il DB pesa < 1/1000 e AL/IT sono già
+indici separati in memoria: **niente Postgres, niente secondo VPS** (lo scaling vero sarebbe spostare gli altri siti). Trovato
+e corretto: (1) **la prima domanda italiana del giorno aspettava 56 s**: il cron TAR/CdS delle 03:45 cambiava l'archivio
+senza ricostruire l'FTS e `kerko()` ricostruiva DENTRO la domanda (con DROP TABLE: per ~1 min indice vuoto per tutti) →
+`/opt/it-ga-cron.sh` (`ops/`) ricostruisce subito dopo nel container; `rebuild_indeksi` scrive un file temporaneo +
+`os.replace`; indice vecchio → si risponde con quello che c'è e la ricostruzione va in sottofondo. (2) **leggi 98/2016
+(pushteti gjyqësor) e 152/2013 (nëpunësi civil)**: su QBZ la cartella è «NUM-ANNO» (`98-2016`), per questo la ricerca per
+numero non le trovava → corpus **10.298 / 62**. (3) **l'intestazione del capitolo SEGUENTE finiva nel corpo dell'ultimo
+articolo** (976 articoli: «KREU VI / MASAT E SIGURIMIT PASUROR…» in coda al K.Pr.P. 269) → `parser.taglia_coda_gerarchia`
+nel parser + `tools/repair_coda_capitoli.py` (971 riparati, backup). (4) **abrogati dalla nota a piè di pagina**: «Neni
+19¹³» letto «Neni 1913» e saltato → buco e «fantazmë» invece di «shfuqizuar» → `tools/repair_footnote_stubs.py` crea lo
+stub SOLO se la nota dice «Shfuqizuar …» (konsumatoret 19/20/21/23 ← ligji 10444/2011; 45/57/59 restano buchi: nessuna
+nota). (5) **«Titolo (Shfuqizuar me ligjin …).» senza corpo** non era riconosciuto (il punto finale sembrava una frase)
+→ regola `_STUB_TITOLO_NOTA_RE`, solo per l'articolo INTERO («Shfuqizuar fjalë/pika…» resta vivo: KC 398); e **lo strumento
+di ricalcolo non leggeva il campo `note`** (dal v9.362): un `--apply` avrebbe riacceso 118 abrogati → corretto, +4 abrogati
+veri (GjK 8577 neni 79 ecc.). (6) **embedding**: articoli senza corpo (testo tutto nella rubrica) codificati per intero, non i
+primi 120 caratteri; titolo del capitolo nella testata (`build_dense.py --kreu`, `--rifai` per ricodificare solo i cambiati,
+`--incremental`); misurato con `tools/emb_ab.py` (39 domande da avvocato): primo posto **9 → 14**, primi 3 22 → 23, MRR
+**0,412 → 0,494**, strato 1 invariato (305/306) → `EMB_SUFFIX_SQ=_flat3`, `EMB_SUFFIX2_SQ=_ck3` (suffissi PER LINGUA: il
+comune avrebbe spento l'IT, che non ha quei file). (7) il **golden** caricava ArticleIndex 31 volte (~7 GB, ucciso due volte
+dall'OOM con la codifica in corso) → un indice per file; nei test di prova si usa `docker run --memory=4500m`. (8) fallback
+dei modelli nel codice ancora **claude-opus-4-8 / sonnet-4-6** → opus-5 / sonnet-5. (9) **v9.377: 29 decisioni della Gjykata
+e Lartë nel corpus sono ANNULLATE dalla Kushtetuese** (dal dispositivo della Kushtetuese, `case_graph.annullati_gjl`, emerse
+col grafo ricostruito dopo il completamento dell'archivio) → fuori dalla ricerca dei precedenti (3.967), il verificatore le
+segnala ancora «quashed» se citate. **Opus 5.5**: il CLI 2.1.265 non lo riconosce (`unrecognized_model`), il 2.1.281 sì
+(⚠️ lì l'alias «opus» = opus-5-5); misura strato 2 (4 casi, percorso profondo) Opus 5 vs 5.5 in due container di prova
+(`sa-bench`, `sa-bench2`: canali promemoria spenti, `oom_score_adj=900`). **Forma breve** (senso · soluzione · come si
+vince: `ANSWER_SYSTEM_SHKURTER` 4 sezioni, verdetto chiuso da 3 righe) dietro `FORMATI_I_SHKURTER` = spenta finché non è
+misurata; l'«Analisi completa» sotto il verdetto è chiusa in UI (`collapseAnaliza`, app.js?v=176). Golden [121][122][123], 518.
 
 **v9.375 — LA RIGA DI VERIFICA LA SCRIVE SOLO IL CODICE (23 set, sera).** Il titolare ha provato dal vivo KPP 350 e,
 nello stesso fascicolo, «po neni 302 i kodit penal?»: contenuto giusto, ma la riga in testa alla seconda risposta

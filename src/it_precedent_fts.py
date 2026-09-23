@@ -58,9 +58,15 @@ def testo_decisione(text: str, court: str) -> str:
 
 
 def rebuild_indeksi() -> int:
-    """Ricostruisce l'indice dal jsonl. Ritorna il numero di decisioni."""
+    """Ricostruisce l'indice dal jsonl. Ritorna il numero di decisioni.
+
+    v9.376: si costruisce in un file TEMPORANEO e lo si sostituisce in un colpo solo (os.replace). Prima faceva
+    DROP TABLE sull'indice in uso: per ~1 minuto le ricerche italiane trovavano l'indice vuoto o aspettavano."""
     DB.parent.mkdir(parents=True, exist_ok=True)
-    con = sqlite3.connect(DB)
+    tmp = DB.with_name(DB.name + ".tmp")
+    if tmp.exists():
+        tmp.unlink()
+    con = sqlite3.connect(tmp)
     try:
         con.executescript(
             "DROP TABLE IF EXISTS dec;"
@@ -89,9 +95,31 @@ def rebuild_indeksi() -> int:
             con.execute(
                 "INSERT OR REPLACE INTO meta(k, v) VALUES ('jsonl_mtime', ?)",
                 (str(os.path.getmtime(JSONL)) if JSONL.exists() else "0",))
-        return n
     finally:
         con.close()
+    os.replace(tmp, DB)
+    return n
+
+
+_ricostruendo = threading.Event()
+
+
+def _ricostruisci_in_sottofondo() -> None:
+    """v9.376 — l'indice vecchio NON si ricostruisce dentro la domanda di un avvocato: misurato il 23 set, il cron
+    TAR/CdS delle 03:45 aggiungeva sentenze senza ricostruire e la prima domanda italiana del giorno pagava 56 s.
+    Si risponde con l'indice che c'è e la ricostruzione gira in un thread (una sola alla volta)."""
+    if _ricostruendo.is_set():
+        return
+    _ricostruendo.set()
+
+    def _lavoro():
+        try:
+            rebuild_indeksi()
+        except Exception:  # noqa: BLE001
+            pass
+        finally:
+            _ricostruendo.clear()
+    threading.Thread(target=_lavoro, name="it-fts-rebuild", daemon=True).start()
 
 
 def _fresco(con: sqlite3.Connection) -> bool:
@@ -129,13 +157,11 @@ def kerko(pyetjet: list[str], top_k: int = 5) -> list[dict]:
     with _lock:
         try:
             if not DB.exists():
-                rebuild_indeksi()
+                rebuild_indeksi()          # la prima volta in assoluto non c'è alternativa
             con = sqlite3.connect(DB)
             try:
                 if not _fresco(con):
-                    con.close()
-                    rebuild_indeksi()
-                    con = sqlite3.connect(DB)
+                    _ricostruisci_in_sottofondo()     # v9.376: si risponde con l'indice che c'è
                 match = _query_fts(pyetjet)
                 if not match:
                     return []

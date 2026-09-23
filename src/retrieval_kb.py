@@ -164,6 +164,22 @@ class LegalKBRetriever:
             # Production path: no Postgres. Load the live decisions corpus
             # (bm25_decisions.pkl) so inline precedents work in every answer.
             precedents = _load_precedents_from_pickle()
+        # v9.376 — REGOLA PERMANENTE («escludere sempre le decisioni annullate»): con l'archivio della Gjykata e Lartë
+        # completato, 29 sue decisioni nel corpus risultano ANNULLATE dalla Kushtetuese (letto dal DISPOSITIVO della
+        # Kushtetuese, `case_graph.annullati_gjl`). Il loro ragionamento non è autorità: fuori dalla ricerca dei
+        # precedenti. Il verificatore delle sentenze continua a riconoscerle e ad avvisare «SHFUQIZUAR» se citate.
+        try:
+            from src.case_graph import annullati_gjl
+            _ann = annullati_gjl()
+            if _ann:
+                _prima = len(precedents)
+                precedents = [p for p in precedents
+                              if not (p.court_code == "gjykata_elarte" and str(p.case_number).strip() in _ann)]
+                if len(precedents) != _prima:
+                    log.info("legalkb: %d vendime të Gjykatës së Lartë të shfuqizuara nga Kushtetuesja — jashtë kërkimit",
+                             _prima - len(precedents))
+        except Exception as exc:  # noqa: BLE001
+            log.warning("legalkb: filtro annullate saltato (non-fatal): %s", exc)
         if not precedents:
             log.warning("legalkb retriever: no complete cases found — returning empty index")
             return cls([], BM25Okapi([["placeholder"]]))  # empty-but-valid BM25

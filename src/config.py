@@ -46,8 +46,8 @@ CLAUDE_MODEL = os.getenv("CLAUDE_MODEL",
 # modelli "piccoli". Solo Opus (risposta legale) + Sonnet (tutto il
 # resto: medium E fast — intake, Q&A udienza, jargon→qytetar, wizard,
 # scaffolding/parse JSON/BM25 lookup).
-CLAUDE_MEDIUM_MODEL = os.getenv("CLAUDE_MEDIUM_MODEL", "claude-sonnet-4-6")
-CLAUDE_FAST_MODEL = os.getenv("CLAUDE_FAST_MODEL", "claude-sonnet-4-6")
+CLAUDE_MEDIUM_MODEL = os.getenv("CLAUDE_MEDIUM_MODEL", "claude-sonnet-5")
+CLAUDE_FAST_MODEL = os.getenv("CLAUDE_FAST_MODEL", "claude-sonnet-5")
 # Extended thinking budget (tokens) for the main model on hard legal
 # reasoning — pavlefshmëria, parashkrimi, konflikte ndërmjet neneve.
 # Applies only to the final answer stage; triage/strategic stay fast.
@@ -56,14 +56,15 @@ CLAUDE_FAST_MODEL = os.getenv("CLAUDE_FAST_MODEL", "claude-sonnet-4-6")
 CLAUDE_THINKING_BUDGET = int(os.getenv("CLAUDE_THINKING_BUDGET", "16000"))
 # Claude Code CLI accepts full model IDs or aliases.
 # We pin the full ID so we're GUARANTEED to run the smartest model
-# available — Opus 4.8 (current flagship). Aliases like
+# available (v9.376: il fallback era ancora «claude-opus-4-8» mentre l'env diceva opus-5 — perso l'env, il cervello
+# sarebbe tornato indietro in silenzio; ora il fallback è il modello in produzione). Aliases like
 # "opus" auto-resolve to the latest, but pinning makes the choice
 # explicit and survives CLI alias remapping. This assistant gives
 # legal advice to people who cannot afford a lawyer: accuracy and
 # strategic depth beat latency every time.
-CLAUDE_CODE_MODEL = os.getenv("CLAUDE_CODE_MODEL", "claude-opus-4-8")
-CLAUDE_CODE_MEDIUM_MODEL = os.getenv("CLAUDE_CODE_MEDIUM_MODEL", "claude-sonnet-4-6")
-CLAUDE_CODE_FAST_MODEL = os.getenv("CLAUDE_CODE_FAST_MODEL", "claude-sonnet-4-6")
+CLAUDE_CODE_MODEL = os.getenv("CLAUDE_CODE_MODEL", "claude-opus-5")
+CLAUDE_CODE_MEDIUM_MODEL = os.getenv("CLAUDE_CODE_MEDIUM_MODEL", "claude-sonnet-5")
+CLAUDE_CODE_FAST_MODEL = os.getenv("CLAUDE_CODE_FAST_MODEL", "claude-sonnet-5")
 # Effort level for the main answer stage: low / medium / high / xhigh /
 # max. Default "max" — we want the lawyer's edge, not a quick reply.
 # Ignored on fast-model calls (triage/strategic stay fast).
@@ -453,6 +454,9 @@ LEGAL_DOCUMENTS: tuple[LegalDocument, ...] = (
     LegalDocument(code="ligji_ndermjetesimi", title_sq="Ligji nr. 10385/2011 «Për ndërmjetësimin në zgjidhjen e mosmarrëveshjeve»", title_en="Mediation Law", area="Procedure", url="https://qbz.gov.al/alfresco/webdav/Aktet/ligj/kuvendi-i-shqiperise/2011/02/24/10385/cons-2018-06-27/ligj-2011-02-24-10385.pdf", local_pdf="al_qbz/ligji_ndermjetesimi.pdf", volatility="MEDIUM", last_amendment_date="2018-06-27"),
     LegalDocument(code="ligji_arbitrazhi", title_sq="Ligji nr. 52/2023 «Për arbitrazhin në Republikën e Shqipërisë»", title_en="Arbitration Law", area="Procedure", url="https://qbz.gov.al/alfresco/webdav/Aktet/ligj/kuvendi-i-shqiperise/2023/07/06/52/base/ligj-2023-07-06-52.pdf", local_pdf="al_qbz/ligji_arbitrazhi.pdf", volatility="STABLE"),
     # v9.373 — leggi citate dalle corti e mancanti (49/2012 da sola: 1.536 decisioni)
+    # v9.376 — 98/2016 e 152/2013: su QBZ la cartella è «NUM-ANNO», la ricerca per numero non le trovava
+    LegalDocument(code="ligji_pushteti_gjyqesor", title_sq="Ligji nr. 98/2016 «Për organizimin e pushtetit gjyqësor në Republikën e Shqipërisë»", title_en="Judicial Power Organisation Law", area="Procedure", url="https://qbz.gov.al/alfresco/webdav/Aktet/ligj/kuvendi-i-shqiperise/2016/10/06/98-2016/cons-2021-05-17/ligj-2016-10-06-98-2016.pdf", local_pdf="al_qbz/ligji_pushteti_gjyqesor.pdf", volatility="MEDIUM"),
+    LegalDocument(code="ligji_nepunesi_civil", title_sq="Ligji nr. 152/2013 «Për nëpunësin civil»", title_en="Civil Servant Law", area="Administrativ", url="https://qbz.gov.al/alfresco/webdav/Aktet/ligj/kuvendi-i-shqiperise/2013/05/30/152-2013/cons-2017-05-06/ligj-2013-05-30-152-2013.pdf", local_pdf="al_qbz/ligji_nepunesi_civil.pdf", volatility="MEDIUM"),
     # v9.373 — la 9917/2008 era nel corpus (v9.305) ma NON in questo elenco: con un'area dal triage non veniva mai cercata
     LegalDocument(code="ligji_pastrimi_parave", title_sq="Ligji nr. 9917/2008 «Për parandalimin e pastrimit të parave dhe financimit të terrorizmit»", title_en="Anti-Money Laundering Law", area="Penal", url="https://fiu.gov.al", local_pdf="al_qbz/ligji_pastrimi_parave.pdf", volatility="MEDIUM"),
     LegalDocument(code="ligji_gjykatat_administrative", title_sq="Ligji nr. 49/2012 «Për organizimin dhe funksionimin e gjykatave administrative dhe gjykimin e mosmarrëveshjeve administrative»", title_en="Administrative Courts Law", area="Administrativ", url="https://qbz.gov.al/alfresco/webdav/Aktet/ligj/kuvendi-i-shqiperise/2012/05/03/49/cons-2021-05-17/Ligj_49_03052012_perditesuar_2018.pdf", local_pdf="al_qbz/ligji_gjykatat_administrative.pdf", volatility="MEDIUM"),

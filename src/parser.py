@@ -289,6 +289,35 @@ def _clean_text(text: str) -> str:
 
 # ── Article splitting ───────────────────────────────────────────────────────
 
+_NOTA_INTEST_RE = re.compile(r"^\((?:Ndryshuar|Shtuar|Shfuqizuar)\b", re.I)
+_SOTTOTITOLO_RE = re.compile(r"^[A-ZÇË]\.\s+[A-ZÇË]")
+
+
+def _riga_titolo(t: str) -> bool:
+    """Una riga di titolo: nessuna minuscola, almeno una maiuscola, non lunghissima."""
+    return bool(t) and len(t) <= 160 and re.search(r"[A-ZÇË]", t) is not None and re.search(r"[a-zëç]", t) is None
+
+
+def taglia_coda_gerarchia(raw: str) -> tuple[str, str]:
+    """v9.376 — Il corpo di un articolo arriva fino al «Neni» successivo, quindi l'intestazione del CAPITOLO seguente
+    («KREU VI / MASAT E SIGURIMIT PASUROR / SEKSIONI I / SEKUESTROJA KONSERVATIVE» in coda al K.Pr.P. 269) finiva
+    dentro l'ultimo articolo del capitolo precedente: 976 articoli. Ritorna (corpo senza la coda, coda tolta).
+    Si taglia SOLO se la coda contiene un'intestazione vera (KREU/SEKSIONI/TITULLI/PJESA/KAPITULLI N) o un
+    sotto-titolo «A. TITOLO»; il resto della coda può essere solo righe di titolo o note «(Ndryshuar …)»."""
+    lines = (raw or "").split("\n")
+    k = len(lines)
+    while k > 0:
+        t = lines[k - 1].strip()
+        if not t or HIERARCHY_RE.match(t) or _riga_titolo(t) or _NOTA_INTEST_RE.match(t):
+            k -= 1
+            continue
+        break
+    coda = [ln.strip() for ln in lines[k:] if ln.strip()]
+    if k == 0 or not coda or not any(HIERARCHY_RE.match(c) or _SOTTOTITOLO_RE.match(c) for c in coda):
+        return raw, ""
+    return "\n".join(lines[:k]).rstrip(), "\n".join(coda)
+
+
 def _titolo_con_intestazione(line: str, tail: str) -> str:
     """«KREU X» + il titolo che segue. v9.373: il titolo va a capo nei PDF («KREU X / KËQYRJA E PERSONAVE, SENDEVE
     DHE / …») e prima se ne prendeva solo la prima riga (35 capitoli troncati a «… DHE», «… PËR TË»): si continua
@@ -448,6 +477,7 @@ def split_into_articles(text: str, doc: LegalDocument) -> list[Article]:
         start = m.end()
         end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
         raw = text[start:end].strip()
+        raw, _coda = taglia_coda_gerarchia(raw)      # v9.376: l'intestazione del capitolo SEGUENTE non è dell'articolo
         if m.re is ARTICLE_INLINE_RE:          # la rubrica stava sulla riga di «Neni N»
             raw = m.group(2).strip() + "\n" + raw
 
@@ -553,10 +583,18 @@ class _NoteView:
         self.heading, self.body = heading or "", body or ""
 
 
+# solo l'articolo INTERO: «(Shfuqizuar me ligjin …)», mai «(Shfuqizuar fjalë/pika/shkronja … me ligjin …)» (una parte)
+_STUB_TITOLO_NOTA_RE = re.compile(r"^[^().;]{3,100}\(\s*Shfuqizuar\s+(?:me|nga)\s+(?:ligjin|vendimin|VKM)\b[^)]*\)\s*[.;]?\s*$", re.I)
+
+
 def is_repealed_stub(heading: str, body: str) -> bool:
     heading, body = heading or "", body or ""
     if len(body) >= 400:
         return False
+    # v9.376 — «Vendimi interpretues (Shfuqizuar me ligjin nr. 99/2016, datë 6.10.2016).» senza corpo (GjK 8577/2000
+    # neni 79): il punto dopo la nota lo faceva passare per una frase viva. Solo titolo + nota di abrogazione = stub.
+    if not body.strip() and _STUB_TITOLO_NOTA_RE.match(" ".join(heading.split())):
+        return True
     txt = heading + "\n" + body
     if (not _STUB_MARK_RE.search(txt) and not _STUB_ALONE_RE.match(txt.strip())
             and not _STUB_ALONE_RE.match(body.strip())):    # «Titulli» + corpo «Shfuqizohet.»

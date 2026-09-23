@@ -2855,7 +2855,7 @@
       out.push(`<p>${inline(l)}</p>`);
     }
     closeList();
-    return collapseSparring(out.join("\n").replace(/(<\/p>\s*){2,}/g, "</p>"));
+    return collapseAnaliza(collapseSparring(out.join("\n").replace(/(<\/p>\s*){2,}/g, "</p>")));
 
     function openList(kind) {
       if (inList === kind) return;
@@ -2886,6 +2886,17 @@
   // interno resta a un click (il titolare: «troppo lunga e confusa»). I titoli
   // «### …» del markdown escono come <h4>; una sezione si chiude al titolo
   // successivo che non è un duello. Fallisce in silenzio: torna l'HTML intatto.
+  // v9.376 — il titolare: «il senso, la soluzione e come si vince, non troppo lungo». Nel percorso profondo il VERDETTO
+  // (in testa) basta per agire; l'«Analisi completa» (senior · diavolo · replica) resta a un click, chiusa.
+  function collapseAnaliza(html) {
+    try {
+      const m = html.match(/<h[2-4]>(📚[^<]*)<\/h[2-4]>/);
+      if (!m) return html;
+      const i = html.indexOf(m[0]);
+      return html.slice(0, i) + '<details class="analiza"><summary>' + m[1] + "</summary>" + html.slice(i + m[0].length) + "</details>";
+    } catch (e) { return html; }
+  }
+
   function collapseSparring(html) {
     try {
       if (!/<h4>(⚔️|🛡️)/.test(html)) return html;

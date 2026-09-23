@@ -29,6 +29,26 @@ def _download(model: str, flat: Path) -> None:
     print("modello presente:", flat, flush=True)
 
 
+def _capitolo(x) -> str:
+    """Il titolo del capitolo (kreu + seksioni) senza «KREU V —»: dice il TEMA quando la rubrica è generica."""
+    from src.parser import _CAP_PREFIX
+    parti = [_CAP_PREFIX.sub("", c or "").strip() for c in (getattr(x, "kreu", ""), getattr(x, "seksioni", ""))]
+    return " · ".join(p for p in parti if p)
+
+
+def _testata(x) -> str:
+    """v9.376 — testata del segmento: rubrica (se l'articolo ha un corpo) + titolo del capitolo."""
+    cap = _capitolo(x)
+    rub = (x.heading or "") if (x.body or "").strip() else ""
+    return " — ".join(p for p in (rub.strip(), cap.lower() if cap.isupper() else cap) if p)
+
+
+def _corpo(x) -> str:
+    """Il testo da codificare: il corpo; se è vuoto (articoli senza rubrica, testo tutto nella «rubrica») la rubrica
+    intera — prima se ne codificavano solo i primi 120 caratteri."""
+    return (x.body or "").strip() or (x.heading or "")
+
+
 def _encode(texts: list[str], batch: int = 32):
     from src import dense
     t0 = time.time()
@@ -46,6 +66,10 @@ def main() -> int:
     ap.add_argument("--download", action="store_true")
     ap.add_argument("--force", action="store_true")
     ap.add_argument("--incremental", action="store_true", help="v9.373: codifica SOLO gli articoli senza embedding e li accoda ai file esistenti")
+    ap.add_argument("--rifai", default="", help="v9.376: file JSON con le chiavi [code, number] da RIcodificare (testo cambiato): "
+                    "le loro righe si tolgono e si rifanno, il resto resta com'è")
+    ap.add_argument("--kreu", action="store_true", help="v9.376: il titolo del CAPITOLO entra nel testo codificato, e gli articoli "
+                    "senza corpo (testo tutto nella «rubrica») si codificano per intero invece dei primi 120 caratteri")
     ap.add_argument("--flat", action="store_true", help="un vettore per articolo (testo troncato a 128 token: comportamento v9.353)")
     ap.add_argument("--suffix", default=os.environ.get("EMB_SUFFIX", ""), help="suffisso dei file (es. _ck) per una codifica affiancata")
     a = ap.parse_args()
@@ -63,9 +87,13 @@ def main() -> int:
             idx = ArticleIndex.load() if what == "al" else ArticleIndex.load(Path("/app/data/index/bm25_it.pkl"))
             base = dense.EMB_DIR / f"emb_{lang}_{dense.tag()}{a.suffix}"
             _old_E, _old_keys = None, None
-            if base.with_suffix(".npy").exists() and a.incremental:
+            _rif = {(k[0], str(k[1])) for k in json.loads(Path(a.rifai).read_text(encoding="utf-8"))} if a.rifai else set()
+            if base.with_suffix(".npy").exists() and (a.incremental or _rif):
                 _old_E = np.load(base.with_suffix(".npy"))
                 _old_keys = json.loads(Path(str(base) + ".keys.json").read_text(encoding="utf-8"))
+                if _rif:            # le righe degli articoli da rifare si tolgono (flat: una; segmenti: tutte)
+                    _tieni = [i for i, k in enumerate(_old_keys) if (k[0], str(k[1])) not in _rif]
+                    _old_E = _old_E[_tieni]; _old_keys = [_old_keys[i] for i in _tieni]
             elif base.with_suffix(".npy").exists() and not a.force:
                 print(f"{what}: {base.name}.npy esiste (usa --force per rifare, --incremental per i soli nuovi)"); continue
             arts = idx.articles
@@ -75,13 +103,18 @@ def main() -> int:
                 if not arts:
                     print(f"{what}: nessun articolo nuovo"); continue
             if a.flat:
-                texts = [((x.heading or "") + ". " + (x.body or ""))[:1500] for x in arts]
+                if a.kreu:
+                    texts = [((_testata(x) + ". " + _corpo(x)) if _testata(x) else _corpo(x))[:1500] for x in arts]
+                else:
+                    texts = [((x.heading or "") + ". " + (x.body or ""))[:1500] for x in arts]
                 keys = [[x.code, str(x.number)] for x in arts]
             else:
                 # v9.362 — SEGMENTI: ogni articolo → 1..N testi (rubrica + ~110 token), chiave [code, number, i]
                 texts, keys = [], []
                 for x in arts:
-                    for i, seg in enumerate(dense.chunk_text(x.heading or "", x.body or "")):
+                    _segs = (dense.chunk_text(_testata(x), _corpo(x), rub_max=200) if a.kreu
+                             else dense.chunk_text(x.heading or "", x.body or ""))
+                    for i, seg in enumerate(_segs):
                         texts.append(seg); keys.append([x.code, str(x.number), i])
             print(f"{what}: {len(arts)} articoli → {len(texts)} {'testi' if a.flat else 'segmenti'}", flush=True)
             E = _encode(texts)

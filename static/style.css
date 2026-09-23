@@ -8105,6 +8105,10 @@ details.sparring{margin:14px 0;padding:8px 12px;border:1px dashed var(--line,#d9
 details.sparring>summary{cursor:pointer;font-weight:600;list-style:none;padding:2px 0}
 details.sparring>summary::before{content:"\25B8  ";font-size:12px;opacity:.7}
 details.sparring[open]>summary::before{content:"\25BE  "}
+details.analiza{margin:16px 0 4px;padding:8px 12px;border:1px solid var(--line,#d9cfc0);border-radius:8px}
+details.analiza>summary{cursor:pointer;font-weight:600;list-style:none;padding:2px 0}
+details.analiza>summary::before{content:"\25B8  ";font-size:12px;opacity:.7}
+details.analiza[open]>summary::before{content:"\25BE  "}
 
 /* v9.322 - avviso: il Giudice Finale ha corretto dei pannelli */
 .panels-notice{margin:10px 0 12px;padding:9px 12px;border-left:4px solid #c9a227;background:rgba(201,162,39,.10);border-radius:6px;font-size:13px;font-weight:600}

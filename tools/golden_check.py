@@ -74,6 +74,23 @@ def ancorato(idx, query, aree, chiave):
     return chiave in {(a.code, a.number) for a, _ in finali}
 
 
+# v9.376 — un indice per file, non 31: il golden caricava ArticleIndex 31 volte e ogni copia restava viva fino alla
+# fine (~7 GB): con un'altra operazione pesante sulla macchina l'OOM killer l'ha ucciso due volte (23 set). Nel golden
+# gli indici si leggono soltanto (le modifiche avvengono su copie), quindi condividerli non cambia nessun controllo.
+_AI_CACHE: dict = {}
+_AI_LOAD = ArticleIndex.load.__func__
+
+
+def _ai_load_once(cls, path=INDEX_FILE):
+    k = str(path)
+    if k not in _AI_CACHE:
+        _AI_CACHE[k] = _AI_LOAD(cls, path)
+    return _AI_CACHE[k]
+
+
+ArticleIndex.load = classmethod(_ai_load_once)
+
+
 def main():
     print("== Set aureo — golden regression ==")
     idx = ArticleIndex.load()
@@ -1810,8 +1827,9 @@ def main():
         _rr40 = _os40.path.dirname(_os40.path.dirname(_os40.path.abspath(__file__)))
         _br40 = _io40.open(_os40.path.join(_rr40, "src", "brain.py"), encoding="utf-8").read()
         from src import studio as _s40
-        check("war[40]: #A «MOSGJETJA NUK ËSHTË MUNGESË» nei due prompt del senior (complex+simple)",
-              _br40.count("MOSGJETJA NUK ËSHTË MUNGESË") == 2)
+        # v9.376: la regola sta in OGNI prompt del senior (complex, simple e il complex in forma breve)
+        check("war[40]: #A «MOSGJETJA NUK ËSHTË MUNGESË» nei prompt del senior (complex+simple+forma breve)",
+              all("MOSGJETJA NUK ËSHTË MUNGESË" in _p for _p in (brain.ANSWER_SYSTEM, brain.ANSWER_SIMPLE_SYSTEM, brain.ANSWER_SYSTEM_SHKURTER)))
         _txt40 = _s40.formato_dosjen(
             {"web": {"akte_nenligjore": [{"titulli": "X", "citim": "tekst i gjate sa duhet", "url": "https://x", "data": "2024"}], "burime": []},
              "qbz": [{"neni": "1", "statusi": "E PAQARTË"}], "fletorja": [],
@@ -2524,7 +2542,7 @@ def main():
               "La sintesi finale non è stata prodotta" in _it_txt and "Sinteza përfundimuese" in _al_txt
               and "intro: bool = True" in _rf68 and "_ETICHETTA_BUCKET_IT" in _rf68
               and "SENZA WEB, PER SCELTA" in _gs68["it"] and "PA WEB, ME QËLLIM" in _gs68["sq"]
-              and "function collapseSparring(html)" in _js68 and "return collapseSparring(" in _js68
+              and "function collapseSparring(html)" in _js68 and "collapseSparring(out.join(" in _js68
               and _re2.search(r"app\.js\?v=\d+", _html68) is not None)
     except Exception as _e68:  # noqa: BLE001
         check("fasi[68]: kontrollet u ekzekutuan", False, str(_e68))
@@ -4057,6 +4075,79 @@ def main():
               _okA and _okB and _okC and _okD, "A=%s B=%s C=%s D=%s" % (_okA, _okB, _okC, _okD))
     except Exception as _e120:  # noqa: BLE001
         check("verifica[120]: kontrollet u ekzekutuan", False, str(_e120))
+
+    # [121] v9.376 — (1) l'indice FTS italiano non si ricostruisce più DENTRO la domanda (56 s misurati: il cron TAR/CdS
+    # delle 03:45 cambiava l'archivio senza ricostruire) e si ricostruisce in un file temporaneo sostituito in un colpo;
+    # (2) 98/2016 e 152/2013 nel corpus; (3) abrogazioni «titolo (Shfuqizuar me ligjin …).» riconosciute, mai quelle di
+    # una parte; lo strumento di ricalcolo legge la nota (senza, 118 abrogati tornavano «vivi»); (4) embedding: articoli
+    # senza corpo codificati per intero, titolo del capitolo nella testata
+    try:
+        import inspect as _in121, os as _os121
+        from src import it_precedent_fts as _f121, parser as _p121, dense as _d121
+        _k = _in121.getsource(_f121.kerko); _r = _in121.getsource(_f121.rebuild_indeksi)
+        _okA = "_ricostruisci_in_sottofondo()" in _k and "rebuild_indeksi()" in _k.split("_ricostruisci_in_sottofondo()")[0] \
+               and 'DB.name + ".tmp"' in _r and "os.replace(tmp, DB)" in _r
+        _cr = "/app/ops/it-ga-cron.sh"
+        _okA = _okA and (not _os121.path.exists(_cr) or "rebuild_indeksi" in open(_cr, encoding="utf-8").read())
+        _ix = ArticleIndex.load(_P81("/app/data/index/bm25.pkl"))
+        _cnt = __import__("collections").Counter(a.code for a in _ix.articles)
+        _okB = _cnt.get("ligji_pushteti_gjyqesor", 0) >= 80 and _cnt.get("ligji_nepunesi_civil", 0) >= 60
+        _by = {(a.code, a.number): a for a in _ix.articles}
+        _okC = _by[("ligji_gjykata_kushtetuese", "79")].repealed and not _by[("kodi_civil", "398")].repealed \
+               and _p121.is_repealed_stub("Vendimi interpretues (Shfuqizuar me ligjin nr. 99/2016, datë 6.10.2016).", "") \
+               and not _p121.is_repealed_stub("Në vendet ku nuk ka noter, testamenti mund të vërtetohet. (Shfuqizuar fjalë me ligjin nr. 8781)", "")
+        _rt = "/app/tools/recompute_repealed_al.py"
+        _okC = _okC and (not _os121.path.exists(_rt) or 'd.get("note")' in open(_rt, encoding="utf-8").read())
+        _bd = open("/app/tools/build_dense.py", encoding="utf-8").read() if _os121.path.exists("/app/tools/build_dense.py") else ""
+        _okD = "rub_max" in _in121.signature(_d121.chunk_text).parameters and (not _bd or ("--kreu" in _bd and "def _corpo" in _bd))
+        check("fts+corpus[121]: indice IT mai ricostruito dentro la domanda (sottofondo + file temporaneo) e dal cron TAR/CdS · 98/2016 e 152/2013 nel corpus · «titolo (Shfuqizuar me ligjin …).» abrogato, «Shfuqizuar fjalë» no, ricalcolo con la nota · embedding con capitoli e corpo intero",
+              _okA and _okB and _okC and _okD, "A=%s B=%s C=%s D=%s" % (_okA, _okB, _okC, _okD))
+    except Exception as _e121:  # noqa: BLE001
+        check("fts+corpus[121]: kontrollet u ekzekutuan", False, str(_e121))
+
+    # [122] v9.376 — FORMA BREVE (senso · soluzione · come si vince) dietro FORMATI_I_SHKURTER: spenta = prompt identico a
+    # prima; accesa = quattro sezioni dense che conservano TUTTE le regole di esattezza; l'analisi completa chiusa nella UI
+    try:
+        import subprocess as _sp122, os as _os122
+        from src import brain as _br122
+        _okA = _br122.FORMATI_I_SHKURTER or ("PESË seksione FIKSE" in _br122.ANSWER_SYSTEM and "PESË seksione në shqip" in _br122._ISTRUZIONE_FORMATI)
+        _sh = _br122.ANSWER_SYSTEM_SHKURTER
+        _okB = all(k in _sh for k in ("## 1. 🎯 Në thelb", "## 2. 🛠️ Zgjidhja", "## 3. ⚔️ Si fitohet", "## 4. ⏰ Afatet",
+                                       "MOSGJETJA NUK ËSHTË MUNGESË", "BUXHETI I KËRKIMIT", "[[case:", "Mos shpik numra nenesh",
+                                       "Shkurtësia nuk justifikon asnjëherë një pasaktësi"))
+        _env = dict(_os122.environ, FORMATI_I_SHKURTER="1")
+        _r = _sp122.run([sys.executable, "-c", "import sys; sys.path.insert(0,'/app'); from src import brain as b, studio as s; "
+                         "print(b.ANSWER_SYSTEM.startswith(b.ANSWER_SYSTEM_SHKURTER[:60]), b.SECTION_REF['strategic'], "
+                         "'Si fitohet:' in s.GJYQTARI_SYSTEM['sq'], 'Come si vince:' in s.GJYQTARI_SYSTEM['it'], 'KATËR' in b._ISTRUZIONE_FORMATI)"],
+                        capture_output=True, text=True, env=_env, timeout=240)
+        _last = (_r.stdout.strip().splitlines() or [""])[-1]
+        _okC = _last == "True seksioni 3 'Si fitohet' True True True"
+        _js = open("/app/static/app.js", encoding="utf-8").read()
+        _okD = "function collapseAnaliza(html)" in _js and "collapseAnaliza(collapseSparring(" in _js
+        check("forma[122]: interruttore spento = prompt identico · forma breve con tutte le regole di esattezza · accesa: senior 4 sezioni, riferimenti coerenti, verdetto chiuso da senso/soluzione/come si vince (sq+it) · analisi completa chiusa nella UI",
+              _okA and _okB and _okC and _okD, "A=%s B=%s C=%s(%s) D=%s" % (_okA, _okB, _okC, _last[:80], _okD))
+    except Exception as _e122:  # noqa: BLE001
+        check("forma[122]: kontrollet u ekzekutuan", False, str(_e122))
+
+    # [123] v9.376 — le decisioni della Gjykata e Lartë ANNULLATE dalla Kushtetuese (dal dispositivo della Kushtetuese)
+    # non entrano nella ricerca dei precedenti, ma il verificatore le riconosce ancora come «quashed»; e il corpo di un
+    # articolo non porta più l'intestazione del capitolo seguente (976 articoli)
+    try:
+        from src import retrieval_kb as _k123, case_graph as _cg123, parser as _p123
+        _ann = _cg123.annullati_gjl()
+        _kb = _k123.LegalKBRetriever.load()
+        _in = {c.case_number for c in _kb.cases if c.court_code == "gjykata_elarte"}
+        _okA = bool(_ann) and not (_in & set(_ann))
+        _okB = _p123.taglia_coda_gerarchia("Teksti.\nKREU VI\nMASAT E SIGURIMIT PASUROR")[0] == "Teksti." \
+               and _p123.taglia_coda_gerarchia("Teksti.\n(Ndryshuar me ligjin nr. 35/2017)")[1] == ""
+        _ix = ArticleIndex.load(_P81("/app/data/index/bm25.pkl"))
+        _k269 = next(a for a in _ix.articles if a.code == "kodi_proc_penale" and a.number == "269")
+        _okC = "KREU VI" not in _k269.body and "ligj të veçantë" in _k269.body
+        _okD = any(a.code == "ligji_konsumatoret" and a.number == "20" and a.repealed for a in _ix.articles)
+        check("vendime+nene[123]: GjL annullate dalla Kushtetuese fuori dalla ricerca · coda del capitolo seguente tolta dal corpo (KPP 269) · abrogati dalla nota a piè di pagina (konsumatoret 20)",
+              _okA and _okB and _okC and _okD, "A=%s(%d annullate) B=%s C=%s D=%s" % (_okA, len(_ann), _okB, _okC, _okD))
+    except Exception as _e123:  # noqa: BLE001
+        check("vendime+nene[123]: kontrollet u ekzekutuan", False, str(_e123))
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

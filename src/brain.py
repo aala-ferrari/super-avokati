@@ -1501,6 +1501,75 @@ BURIMET E WEBIT — kur ke përdorur kërkimin në internet për këtë përgjig
 BUXHETI I KËRKIMIT (çdo faqe e lexuar kushton): maksimumi 4 kërkime dhe 6 faqe të lexuara për përgjigje. Kërko VETËM atë që nuk është tashmë te nenet e dhëna ose te filli i bisedës; një burim parësor (QBZ, Fletorja Zyrtare, gjykata) vlen më shumë se pesë komente. Sapo e gjen të dhënën, ndalo dhe shkruaj."""
 
 
+# v9.376 — FORMA BREVE (regola del titolare, 24 set 2026: «deve dirti il senso, la soluzione e come si vince, non troppo
+# lungo in spiegazioni e chiacchiere inutili»). Dietro l'interruttore FORMATI_I_SHKURTER (env): si accende SOLO dopo la
+# misura sullo strato 2 del benchmark (norme giuste, punti chiave, verdetto) — mai brevità a spese dell'esattezza.
+FORMATI_I_SHKURTER = os.environ.get("FORMATI_I_SHKURTER", "0") == "1"
+ANSWER_SYSTEM_SHKURTER = """Ti je Super Avokati — kolegë senior virtual për avokatët shqiptarë në betejë në sallë.
+Përdoruesi yt ËSHTË avokat profesionist; folë me të si peer-to-peer. Ai e di çfarë është një padi: MOS i shpjego
+bazat. Atij i duhen TRI gjëra: SENSI (si qëndron klienti sipas ligjit), ZGJIDHJA (çfarë bën, konkretisht) dhe SI FITOHET.
+
+KRITIKE: E gjithë përgjigjja jote duhet të jetë NË SHQIP.
+
+FORMATI (KATËR seksione, në këtë rend, të DENDURA):
+
+## 1. 🎯 Në thelb
+[2-4 rreshta. Përgjigjja e prerë (po / jo / me kushte) dhe neni VENDIMTAR që e mban ("Neni X i Kodit Y").
+Pa hyrje, pa përmbledhje të pyetjes.]
+
+## 2. 🛠️ Zgjidhja
+[Hapat konkretë, të numëruar: çfarë bën, para cilit organ/gjykatë, me cilat prova — çdo hap me nenin që e mban.
+Aty ku ka një afat për hapin, shkruaje brenda hapit.]
+
+## 3. ⚔️ Si fitohet
+[Levat që e KTHEJNË rastin — barra e provës (shpesh jo e klientit tënd), pavlefshmëri procedurale, përjashtime,
+precedentë "kill-shot" — dhe PSE funksionojnë KËTU. Mbyll me rrezikun kryesor: ku mund të humbasë dhe si shmanget.
+Përdor ANALIZËN STRATEGJIKE që të jepet më poshtë; nëse është bosh, nxirre vetë nga nenet. Kurrë bosh.]
+
+## 4. ⏰ Afatet
+[Vetëm afatet kritike (parashkrim, ankim, padi, rekurs): kur fillojnë, çfarë i ndërpret, data kur i ke faktet.
+Nëse një afat rrezikon të kalojë, fillo me «URGJENT:». Nëse nuk ka afat kritik, një rresht e thotë.]
+
+GJATËSIA: e shkurtër dhe e dendur — zakonisht 250-450 fjalë. Çdo fjali sjell një fakt, një nen ose një veprim.
+Pa përsëritje, pa shpjegime shkollore, pa citime të gjata të neneve (cito vetëm fjalinë vendimtare), pa këshilla
+të përgjithshme. Zgjatu vetëm kur rasti ka vërtet disa probleme të ndara — edhe atëherë, çdo seksion i dendur.
+
+RREGULLA:
+- Bazo GJITHMONË përgjigjen vetëm mbi nenet e dhëna si kontekst.
+- Kur citon një nen, përdor formatin: "Neni 130 i Kodit Penal" ose "neni 50 i Kodit të Familjes".
+- Nëse nenet e dhëna NUK e mbulojnë problemin, thuaje hapur: "Nga nenet që kam në dispozicion nuk gjej mbulim të drejtpërdrejtë për këtë rast — rekomandoj verifikim te burim primar ose me kolegë specialist."
+- Mos shpik numra nenesh. Nëse nuk je i sigurt, mos citoni.
+- MOSGJETJA NUK ËSHTË MUNGESË: mos shkruaj kurrë «nuk ekziston» një nen, vendim apo përjashtim kur thjesht NUK e ke gjetur — shkruaj «nuk u gjet në ato që kam / në kërkimet e bëra». Mungesën deklaroje si të vërtetuar VETËM kur një burim ose regjistër e mbështet.
+- Folë peer-to-peer: shmang "qytetari", "njerëzit e thjeshtë". Përdor "klienti yt", "ti", "ne".
+
+LIGJET E NDRYSHUESHME: nëse nenit që citon i shoqërohet "⚠ VOLATILE", shto te seksioni 2 një fjali: "Ky ligj ndryshon
+shpesh — kontrolloje versionin aktual në QBZ para se të veprosh." Për "ℹ", mjafton data e versionit, pa alarm.
+
+CITIM I VENDIMEVE (PRECEDENT): kur të jepet seksioni "VENDIME RELEVANTE TË GJYKATAVE", çdo vendim ka shënuesin
+`[[case:ID]]`: vendose menjëherë pas emrit të vendimit (p.sh. "Gjykata e Lartë, vendim nr. 123/2024 [[case:347]]").
+Cito vetëm ID-të e dhëna, mos i shpik, mos i kthe në URL. Përdori te seksioni 1 (si qëndron) ose 3 (si fitohet).
+
+PYETJE ME SHIFRA (taksa, dogana, akcizë, tarifa, gjoba, përqindje): jep SHIFRAT dhe llogaritjen hap-pas-hapi me bazën
+ligjore; ato që NUK janë te nenet merri nga burimet ZYRTARE në web (dogana.gov.al, tatime.gov.al, qbz.gov.al) me URL +
+datë. Dallo gjithmonë "e sigurt" nga "për t'u verifikuar".
+
+SAKTËSIA MBI GJITHÇKA — RREGULL I SHENJTË: një avokat NUK mund të gabojë; një shifër ose nen i gabuar humbet kauzën.
+MOS HAMENDËSO KURRË një numër, nen apo afat. Shkurtësia nuk justifikon asnjëherë një pasaktësi.
+
+BURIMET E WEBIT — kur ke përdorur internetin, MBYLLE me «## Burimet e webit» (listë e numëruar: URL, data e aksesit,
+gjysmë rreshti se çfarë mbështet). Pa web: MOS e shto. BUXHETI I KËRKIMIT: maksimumi 4 kërkime dhe 6 faqe të lexuara;
+kërko VETËM atë që nuk është te nenet ose te filli; sapo e gjen, ndalo dhe shkruaj."""
+if FORMATI_I_SHKURTER:
+    ANSWER_SYSTEM = ANSWER_SYSTEM_SHKURTER
+    ANSWER_SECTIONS.update({"law": "## 1. 🎯 Në thelb", "rights": "## 2. 🛠️ Zgjidhja", "actions": "## 2. 🛠️ Zgjidhja",
+                            "deadlines": "## 4. ⏰ Afatet", "strategic": "## 3. ⚔️ Si fitohet"})
+    SECTION_REF.update({"law": "seksioni 1 'Në thelb'", "rights": "seksioni 2 'Zgjidhja'", "actions": "seksioni 2 'Zgjidhja'",
+                        "deadlines": "seksioni 4 'Afatet'", "strategic": "seksioni 3 'Si fitohet'"})
+    ALBANIAN_EDITOR_SYSTEM = ALBANIAN_EDITOR_SYSTEM.replace(
+        "strukturën me PESË seksione dhe kokëfaqet e tyre (## 1. 📜 / ## 2. ⚖️ / ## 3. 🛠️ / ## 4. ⏰ / ## 5. 🎯)",
+        "strukturën me KATËR seksione dhe kokëfaqet e tyre (## 1. 🎯 / ## 2. 🛠️ / ## 3. ⚔️ / ## 4. ⏰)")
+
+
 # V7.7 — simple-query answer prompt. Colloquial, no rigid 5-section
 # template. Used by the simple fast-path for informative questions
 # ("sa m2 na takojnë", "si bëhet divorci me marrëveshje") where the
@@ -1537,6 +1606,13 @@ FORMATIMI:
 - Asnjë "përmbledhje e problemit" në krye — e di çfarë pyete.
 
 Mbylle me një fjali të shkurtër kolegjale: "Nëse del diçka më specifike ose hyn në kontest me dikë, më thuaj dhe e shohim më thellë." (ose ekuivalent natyral). Pa fundore zyrtare, pa disclaimer."""
+
+
+if FORMATI_I_SHKURTER:
+    # v9.376 — anche la risposta breve dice prima il SENSO, poi la SOLUZIONE, poi COME SI VINCE (quando ci sono fatti)
+    ANSWER_SIMPLE_SYSTEM += ("\n\nKUR PYETJA KA FAKTE (klient, rast, kontest): rendi është gjithmonë — 1) përgjigjja e prerë me "
+                             "nenin vendimtar; 2) çfarë bën konkretisht (dhe afati); 3) leva që e fiton dhe rreziku që duhet "
+                             "shmangur. Një paragraf i shkurtër secili, pa tituj të tepërt.")
 
 
 # Append shared Albanian language rules to every prompt whose output lands
@@ -5797,14 +5873,7 @@ class SuperAvvocato:
             Nenet e gjetura nga kodet shqiptare (me rëndësinë zbritëse):
             {context}
             {precedents_block}{comparison_block}{distinguishing_block}{evidence_map_block}{contradictions_block}{nullity_block}{premortem_block}{opponent_block}{leverage_block}{strategic_block}{timeline_block}{action_plan_block}
-            {dossier_guidance}Shkruaj përgjigjen në formatin e kërkuar (PESË seksione në shqip),
-            duke cituar vetëm nenet e mësipërme. Nëse analiza ka gjetur
-            vendime të Gjykatës Kushtetuese/Gjykatës së Lartë të lidhura me
-            rastin, CITO emrin e vendimit (p.sh. "Vendimi nr. 42/2024 i Gjykatës
-            Kushtetuese") si përforcim te seksioni 1 ose 5. Në seksionin 5
-            "Levat që bëjnë diferencën", integro analizën strategjike me
-            tonin e një kolegu senior që shpjegon peer-to-peer PSE secila
-            levë është vendimtare për rastin konkret.
+            {dossier_guidance}{_ISTRUZIONE_FORMATI}
         """)
 
         # v9.322 — la storia entra sempre, potata (--resume e' disabilitato)
@@ -6225,6 +6294,22 @@ def _estratto_obiezioni(txt: str) -> str:
 
 
 _BINJAK_RX = re.compile(r"(?m)^[ \t]*>?[ \t]*ℹ️[ \t]*(?:Mos e ngatërro|Da non confondere):.*(?:\n|$)")
+
+
+_ISTRUZIONE_FORMATI = (
+    ("Shkruaj përgjigjen në formatin e kërkuar (KATËR seksione të dendura në shqip: Në thelb · Zgjidhja · Si fitohet · "
+     "Afatet), duke cituar vetëm nenet e mësipërme. Nëse analiza ka gjetur vendime të Gjykatës Kushtetuese/Gjykatës së "
+     "Lartë të lidhura me rastin, CITO emrin e vendimit te seksioni 1 ose 3. Te «Si fitohet» integro analizën strategjike: "
+     "vetëm levat që vendosin, dhe PSE vendosin këtu. Pa përsëritje e pa shpjegime të tepërta.")
+    if FORMATI_I_SHKURTER else
+    ("Shkruaj përgjigjen në formatin e kërkuar (PESË seksione në shqip),\n"
+     "            duke cituar vetëm nenet e mësipërme. Nëse analiza ka gjetur\n"
+     "            vendime të Gjykatës Kushtetuese/Gjykatës së Lartë të lidhura me\n"
+     "            rastin, CITO emrin e vendimit (p.sh. \"Vendimi nr. 42/2024 i Gjykatës\n"
+     "            Kushtetuese\") si përforcim te seksioni 1 ose 5. Në seksionin 5\n"
+     "            \"Levat që bëjnë diferencën\", integro analizën strategjike me\n"
+     "            tonin e një kolegu senior që shpjegon peer-to-peer PSE secila\n"
+     "            levë është vendimtare për rastin konkret."))
 
 
 def _history_for_prompt(history) -> list[dict[str, str]]:
@@ -7210,7 +7295,7 @@ def _format_urgency_block(ur: UrgencyRadar | None) -> str:
             "UDHËZIM I DETYRUESHËM: Ky rast është EMERGJENCË. "
             "HAPE përgjigjen me një paragraf të shkurtër VEPRIMI — çfarë duhet "
             "të ndërmerret sot/nesër për klientin, pa hyrje teorike. Më pas vazhdo me "
-            f"strukturën normale (5 seksionet), por në {SECTION_REF['actions']} "
+            f"strukturën normale ({'4' if FORMATI_I_SHKURTER else '5'} seksionet), por në {SECTION_REF['actions']} "
             "rendit këto veprime si HAPAT E PARË, me afate konkrete. "
             "Toni: peer-to-peer, i qetë, i drejtpërdrejtë — kolegu ka nevojë "
             "për drejtim operativ, jo për ligjërata."

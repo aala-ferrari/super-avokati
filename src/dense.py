@@ -47,6 +47,14 @@ EMB_SUFFIX = os.environ.get("EMB_SUFFIX", "")
 # dell'articolo intero (EMB_SUFFIX) e il MASSIMO dei suoi segmenti (EMB_SUFFIX2, es. «_ck»); chi non ha
 # segmenti (unità nuove) tiene il coseno intero. Vuoto = solo articolo intero (v9.353-363).
 EMB_SUFFIX2 = os.environ.get("EMB_SUFFIX2", "")
+
+
+def _suffissi(lang: str) -> tuple[str, str]:
+    """v9.376 — suffissi PER LINGUA (EMB_SUFFIX_SQ / EMB_SUFFIX2_SQ, EMB_SUFFIX_IT / …), altrimenti quelli comuni.
+    Serve perché le codifiche nuove dell'albanese (titolo del capitolo, «_flat3/_ck3») non esistono per l'italiano:
+    cambiare il suffisso comune avrebbe spento in silenzio la ricerca per senso italiana."""
+    L = (lang or "").upper()
+    return (os.environ.get(f"EMB_SUFFIX_{L}", EMB_SUFFIX), os.environ.get(f"EMB_SUFFIX2_{L}", EMB_SUFFIX2))
 _TOK = None
 _LOCK = threading.Lock()
 _MODEL = None
@@ -112,10 +120,12 @@ def n_token(text: str) -> int:
     return len(t.encode(text or "", add_special_tokens=False).ids) if t else max(1, len(text or "") // 4)
 
 
-def chunk_text(heading: str, body: str, max_tokens: int = CHUNK_TOKENS, overlap: int = CHUNK_OVERLAP, max_chunks: int = CHUNK_MAX) -> list[str]:
+def chunk_text(heading: str, body: str, max_tokens: int = CHUNK_TOKENS, overlap: int = CHUNK_OVERLAP, max_chunks: int = CHUNK_MAX,
+               rub_max: int = 120) -> list[str]:
     """Segmenti di ~max_tokens token (sovrapposizione `overlap`), ognuno preceduto dalla rubrica.
-    Si spezza su parole, mai a metà parola; un articolo corto = 1 segmento (identico a prima)."""
-    rub = " ".join((heading or "").split())[:120]
+    Si spezza su parole, mai a metà parola; un articolo corto = 1 segmento (identico a prima).
+    `rub_max` (v9.376): quanta testata tenere (rubrica + titolo del capitolo)."""
+    rub = " ".join((heading or "").split())[:rub_max]
     words = (body or "").split()
     if not words:
         return [rub] if rub else []
@@ -169,7 +179,8 @@ class DenseIndex:
     def carica(cls, index, lang: str):
         """Legge emb_<lang>_<tag>.npy + .keys.json e li allinea all'indice vivo. None se manca o non combacia."""
         import numpy as np
-        base = EMB_DIR / f"emb_{lang}_{tag()}{EMB_SUFFIX}"
+        _s1, _s2 = _suffissi(lang)
+        base = EMB_DIR / f"emb_{lang}_{tag()}{_s1}"
         f, fk = base.with_suffix(".npy"), Path(str(base) + ".keys.json")
         if not f.exists() or not fk.exists():
             return None
@@ -189,8 +200,8 @@ class DenseIndex:
             if nuovi > len(index.articles) * 0.05:
                 return None         # troppo disallineato: meglio solo BM25 che un indice a metà
         E2 = rows2 = None
-        if EMB_SUFFIX2:
-            base2 = EMB_DIR / f"emb_{lang}_{tag()}{EMB_SUFFIX2}"
+        if _s2:
+            base2 = EMB_DIR / f"emb_{lang}_{tag()}{_s2}"
             f2, fk2 = base2.with_suffix(".npy"), Path(str(base2) + ".keys.json")
             try:
                 if f2.exists() and fk2.exists():
@@ -199,7 +210,7 @@ class DenseIndex:
                     rows2 = np.array([pos.get((k[0], str(k[1])), -1) for k in keys2], dtype=np.int64)
                     log.info("dense: segmenti %s: %d vettori per %d articoli (fusione media)", f2.name, len(rows2), len({int(r) for r in rows2 if r >= 0}))
                 else:
-                    log.warning("dense: EMB_SUFFIX2=%s ma %s manca: solo articolo intero", EMB_SUFFIX2, f2.name)
+                    log.warning("dense: EMB_SUFFIX2=%s ma %s manca: solo articolo intero", _s2, f2.name)
             except Exception as exc:  # noqa: BLE001
                 log.warning("dense: segmenti non caricati (%s): solo articolo intero", exc); E2 = rows2 = None
         return cls(np.asarray(E), rows, index.articles, E2=E2, rows2=rows2)
@@ -262,7 +273,7 @@ def indice(index, lang: str):
                 log.warning("dense: caricamento fallito (%s)", exc); _INDICI[k] = None
             if _INDICI[k] is not None:
                 log.info("dense: indice %s pronto (%d embedding, %d articoli%s)", lang, len(_INDICI[k].rows),
-                         len({r for r in _INDICI[k].rows if r >= 0}), f", suffisso {EMB_SUFFIX}" if EMB_SUFFIX else "")
+                         len({r for r in _INDICI[k].rows if r >= 0}), ", suffissi %s %s" % _suffissi(lang) if any(_suffissi(lang)) else "")
     return _INDICI[k]
 
 

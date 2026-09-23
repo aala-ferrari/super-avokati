@@ -35,6 +35,24 @@ HARD = [
     ("përjashtohen nga përgjegjësia penale të afërmit që ndihmojnë autorin e krimit", ("kodi_penal", "302")),
     ("strehova vëllain tim që ishte i kërkuar nga policia", ("kodi_penal", "302")),
     ("plagosje e rëndë kundër bashkëshortit ose ish-bashkëjetuesit dënimi", ("kodi_penal", "88")),
+    # v9.376 — domande da avvocato dove il TEMA sta nel titolo del capitolo (misurate con il BM25 il 23 set)
+    ("dëmshpërblim nga burgimi i padrejtë", ("kodi_proc_penale", "268")), ("kompensimi për paraburgim të padrejtë", ("kodi_proc_penale", "268")),
+    ("afati i kërkesës për kompensim të burgimit", ("kodi_proc_penale", "269")),
+    ("rivendosja në afat e ankimit", ("kodi_proc_penale", "147")), ("sekuestro konservative sigurimi i padisë", ("kodi_proc_civile", "202-210")),
+    ("zgjidhja e martesës me kërkesën e njërit bashkëshort", ("kodi_familjes", "125-144")),
+    ("masat e sigurimit personal arrest në burg", ("kodi_proc_penale", "228-262")),
+    ("kundërshtimi i veprimeve të përmbaruesit", ("kodi_proc_civile", "609-611")),
+    ("pavlefshmëria absolute e veprimit juridik", ("kodi_civil", "92-99")),
+    ("fitimi i pronësisë me parashkrim", ("kodi_civil", "168-169")),
+    ("kontrabanda me mallra gjoba doganore", ("kodi_doganor", "262-282")),
+    ("shpërblimi i dëmit jashtëkontraktor", ("kodi_civil", "608-646")),
+    ("e drejta e trashëgimisë së fëmijëve jashtë martese", ("kodi_civil", "361-362")),
+    ("zgjidhja e kontratës së punës me afat të pacaktuar", ("kodi_punes", "140-155")),
+    ("përgjegjësia e prindërve për dëmin e shkaktuar nga i mituri", ("kodi_civil", "612-613")),
+    # v9.376 — le leggi nuove (49/2012, 8577/2000, 152/2013)
+    ("afati për të paditur aktin administrativ në gjykatë", ("ligji_gjykatat_administrative", "18")),
+    ("kërkesa individuale në gjykatën kushtetuese afati katër muaj", ("ligji_gjykata_kushtetuese", "71/a")),
+    ("largimi nga shërbimi civil i nëpunësit", ("ligji_nepunesi_civil", "59-64")),
 ]
 
 HARD_IT = [
