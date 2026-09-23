@@ -4149,6 +4149,29 @@ def main():
     except Exception as _e123:  # noqa: BLE001
         check("vendime+nene[123]: kontrollet u ekzekutuan", False, str(_e123))
 
+    # [124] v9.377 — ancora italiana del VEICOLO EXTRA-UE (benchmark strato 2: l'ammissione temporanea non entrava con le
+    # parole dell'avvocato): scatta con targa albanese, NON con targa UE né fuori tema; si aggiunge ai 12, non li sostituisce
+    try:
+        import threading as _th124
+        from src import brain as _br124
+        _sa = _br124.SuperAvvocato.__new__(_br124.SuperAvvocato)
+        _sa.index = ArticleIndex.load(_P81("/app/data/index/bm25.pkl")); _sa.index_it = ArticleIndex.load(_P81("/app/data/index/bm25_it.pkl"))
+        _sa._jurisdiction_ctx = _th124.local(); _sa._jurisdiction_ctx.code = "IT"
+        def _r124(summ, qs):
+            return _sa._retrieve(_br124.TriageResult(problem_summary=summ, areas=[], search_queries=qs, strategic_angles=[]))
+        _a = _r124("Auto targata albanese di una sh.p.k. usata in Italia dall'amministratore residente in Italia",
+                   ["circolazione veicolo con targa estera residente in Italia"])
+        _k = {(x.code, str(x.number)) for x, _s in _a}
+        _okA = ("reg_ue_2015_2446", "215") in _k and ("codice_doganale_ue", "250") in _k and len(_a) > 12
+        _b = _r124("Auto con targa tedesca usata in Italia da un residente", ["circolazione veicolo con targa estera residente in Italia"])
+        _c = _r124("Licenziamento per giustificato motivo oggettivo", ["licenziamento giustificato motivo oggettivo"])
+        _okB = not any(getattr(x, "_ancora_it", False) for x, _s in _b + _c)
+        _okC = "VEICOLO EXTRA-UE — REGIME DOGANALE" in _br124._format_articles_for_prompt([x for x in _a if getattr(x[0], "_ancora_it", False)][:1])
+        check("ancora-IT[124]: veicolo extra-UE → ammissione temporanea (Reg. 2446 art. 215, CDU 250) in aggiunta ai 12 · niente con targa UE né fuori tema · dichiarata nel blocco",
+              _okA and _okB and _okC, "A=%s B=%s C=%s" % (_okA, _okB, _okC))
+    except Exception as _e124:  # noqa: BLE001
+        check("ancora-IT[124]: kontrollet u ekzekutuan", False, str(_e124))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

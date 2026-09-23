@@ -156,6 +156,44 @@ def _applica_ancore(pairs, idx, queries: list[str], aree: list[str]):
     return aggiunte + pairs
 
 
+# ── v9.377 — ANCORA ITALIANA: veicolo con targa EXTRA-UE ─────────────────
+# Misurato (benchmark strato 2, 24 set, caso «auto targata albanese dell'amministratore di una sh.p.k. residente in
+# Italia»): con le parole dell'avvocato l'art. 215 del Reg. delegato (UE) 2015/2446 non entra nei primi 200 risultati
+# (esce solo se la domanda dice già «ammissione temporanea») e il senior scriveva, onestamente, «i numeri di articolo non
+# sono tra quelli acquisiti… non li invento». Un veicolo extra-UE usato in Italia da chi vi risiede è anzitutto una
+# questione DOGANALE (ammissione temporanea: CDU 250; Reg. 2446 artt. 212, 214, 215, 217) oltre che di circolazione
+# (C.d.S. 93-bis). Scatta SOLO con un veicolo E un segnale extra-UE esplicito; entra dichiarata come ancora.
+ANCORE_IT_VEICOLO_EXTRA_UE = (("codice_strada", "93-bis"), ("codice_doganale_ue", "250"), ("reg_ue_2015_2446", "212"),
+                              ("reg_ue_2015_2446", "214"), ("reg_ue_2015_2446", "215"), ("reg_ue_2015_2446", "217"))
+_VEICOLO_RX = re.compile(r"\b(?:auto(?:mobil\w*|vettur\w*|veicol\w*)?|veicol\w*|macchin\w*|targ\w*|immatricol\w*|motoveicol\w*|"
+                         r"furgon\w*|camion\w*|moto)\b", re.I)
+_EXTRA_UE_RX = re.compile(r"\b(?:albanes\w*|albania|extra[- ]?ue|extra[- ]?comunitar\w*|extracomunitar\w*|non[- ]ue|svizzer\w*|"
+                          r"serb\w*|kosov\w*|macedon\w*|montenegr\w*|turc\w*|ucrain\w*|moldav\w*|marocchin\w*|tunisin\w*|"
+                          r"britannic\w*|regno unito|russ[oaie]\b|cines\w*|sh\.?p\.?k\.?)\b", re.I)
+
+
+def _ancore_it_veicolo(pairs, idx, testo: str):
+    """Aggiunge (copie marcate `_ancora_it`) le norme del regime doganale del veicolo extra-UE, se il tema c'è."""
+    try:
+        if not (_VEICOLO_RX.search(testo or "") and _EXTRA_UE_RX.search(testo or "")):
+            return pairs
+        presenti = {(a.code, str(a.number)) for a, _ in pairs}
+        per_chiave = {(a.code, str(a.number)): a for a in idx.articles}
+        aggiunte = []
+        for k in ANCORE_IT_VEICOLO_EXTRA_UE:
+            if k in presenti or k not in per_chiave:
+                continue
+            c = _copy.copy(per_chiave[k]); c._ancora_it = True  # type: ignore[attr-defined]
+            aggiunte.append((c, _punteggio_reale(idx, [testo[:300]], k)))
+        if not aggiunte:
+            return pairs
+        log.info("retrieval: ancorati (veicolo extra-UE) %s", ", ".join(f"{a.code} {a.number}" for a, _ in aggiunte))
+        return aggiunte + pairs
+    except Exception as exc:  # noqa: BLE001
+        log.warning("ancore IT saltate (non-fatal): %s", exc)
+        return pairs
+
+
 # ── Ancora per titolo: il legislatore ha già classificato il tema ──────
 #
 # Misurato (caso Huracán, 5-6 set 2026): «makina bën zhurmë — cfar neni e
@@ -4140,7 +4178,7 @@ class SuperAvvocato:
                 # chiede SOLO cosa dice un articolo, senza fatti, sono rumore accanto al testo chiesto → fuori.
                 if _eshte_pyetje_norme(user_message):
                     _prima = len(out)
-                    out = [(x, sc) for x, sc in out if not (getattr(x, "_ancora", False) or getattr(x, "_ancora_titull", False))]
+                    out = [(x, sc) for x, sc in out if not (getattr(x, "_ancora", False) or getattr(x, "_ancora_titull", False) or getattr(x, "_ancora_it", False))]
                     # e lo STESSO NUMERO di un ALTRO codice non resta accanto a quello chiesto: «neni 350 i procedures
                     # penale» non deve avere il 350 del K.Pr.C. nel blocco (la confusione del 22 set)
                     _chiesti = {(a.code, str(a.number)) for a, _ in testa}
@@ -4249,11 +4287,14 @@ class SuperAvvocato:
             pairs = _ankoro_sipas_titullit(
                 pairs, idx, (triage.problem_summary or all_queries[0]),
                 queries=all_queries, restrict=restrict)
-        _out = pairs[: TOP_K_ARTICLES]
+        elif idx is self.index_it:
+            pairs = _ancore_it_veicolo(pairs, idx, " ".join([triage.problem_summary or ""] + list(all_queries)))
+        # v9.377: le ancore del veicolo extra-UE si AGGIUNGONO ai 12 (non devono spingere fuori il C.d.S. trovato dalla ricerca)
+        _out = pairs[: TOP_K_ARTICLES + sum(1 for a, _ in pairs if getattr(a, "_ancora_it", False))]
         _audit_set("recupero", {
             "corpus": "IT" if idx is self.index_it else "AL", "codici_filtro": sorted(restrict) if restrict else None,
             "articoli": [{"code": a.code, "number": str(a.number), "heading": (a.heading or "")[:60], "score": round(float(sc), 2),
-                          "ancora": bool(getattr(a, "_ancora", False) or getattr(a, "_ancora_titull", False))} for a, sc in _out],
+                          "ancora": bool(getattr(a, "_ancora", False) or getattr(a, "_ancora_titull", False) or getattr(a, "_ancora_it", False))} for a, sc in _out],
             "copertura": coverage_info()})
         return _out
 
@@ -6860,6 +6901,12 @@ def _format_articles_for_prompt(pairs: list[tuple[Article, float]]) -> str:
                 f"── {a.citation}  ⚑ RREGULL E PËRGJITHSHME\n"
                 f"  (nuk u gjet nga kërkimi me fjalë — u shtua sepse është "
                 f"rregulli bazë i kësaj teme; lexoje si bazë, jo si përjashtim)\n"
+            )
+        elif getattr(a, "_ancora_it", False):
+            intestazione = (
+                f"── {a.citation}  ⚑ VEICOLO EXTRA-UE — REGIME DOGANALE / CIRCOLAZIONE\n"
+                f"  (aggiunto perché la domanda riguarda un veicolo con targa extra-UE usato in Italia: ammissione "
+                f"temporanea e requisiti di circolazione — verifica se e come si applica al caso, non darlo per scontato)\n"
             )
         elif getattr(a, "_kerkues", False):
             intestazione = (
