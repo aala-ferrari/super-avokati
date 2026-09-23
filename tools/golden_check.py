@@ -3993,6 +3993,41 @@ def main():
     except Exception as _e118:  # noqa: BLE001
         check("kreu[118]: kontrollet u ekzekutuan", False, str(_e118))
 
+    # [119] v9.374 — la domanda «cosa dice il neni N»: il blocco non porta ancore automatiche né lo stesso numero di un
+    # altro codice (KPC 350 ≠ KPP 350), la risposta segnala il codice gemello con la rubrica vera; l'antiriciclaggio è
+    # nell'elenco dei documenti (prima invisibile col filtro per area); dogana/tributario → ligji 49/2012
+    try:
+        import threading as _th119
+        from src import brain as _br119
+        _al119 = ArticleIndex.load(_P81("/app/data/index/bm25.pkl")); _it119 = ArticleIndex.load(_P81("/app/data/index/bm25_it.pkl"))
+        _sa = _br119.SuperAvvocato.__new__(_br119.SuperAvvocato); _sa.index, _sa.index_it = _al119, _it119
+        _sa._jurisdiction_ctx = _th119.local(); _sa._jurisdiction_ctx.code = "AL"
+        _kc = {str(a.number): a for a in _al119.articles if a.code == "kodi_civil"}
+        _kpc = {str(a.number): a for a in _al119.articles if a.code == "kodi_proc_civile"}
+        _anc = __import__("copy").copy(_kc["114"]); _anc._ancora = True
+        _r = _sa._ankoro_citimet("cfar thot neni 350 i procedures civile?", [(_anc, 0.0), (_kc["131"], 5.0)])
+        _okA = (_r[0][0].code, str(_r[0][0].number)) == ("kodi_proc_civile", "350") and not any(getattr(a, "_ancora", False) for a, _s in _r)
+        _kpp = {str(a.number): a for a in _al119.articles if a.code == "kodi_proc_penale"}
+        _r2 = _sa._ankoro_citimet("cili esht neni 350 i procedures penale?", [(_kpc["350"], 9.0), (_kpp["49"], 8.0)])
+        _okB = [(a.code, str(a.number)) for a, _s in _r2] == [("kodi_proc_penale", "350"), ("kodi_proc_penale", "49")]
+        _t = _sa._shenim_binjak("cfar thot neni 350 i procedures civile?", _r, "X")
+        _okC = "Kodi i Procedurës Penale" in _t and "Mungesa e të pandehurit" in _t and "neni 350 KPP" in _t
+        _okD = _sa._shenim_binjak("Klienti im u pushua më 3 mars; sipas nenit 155 të Kodit të Punës çfarë i takon?",
+                                  _sa._ankoro_citimet("Klienti im u pushua më 3 mars; sipas nenit 155 të Kodit të Punës çfarë i takon?", []), "X") == "X"
+        _anc2 = __import__("copy").copy(_kc["131"]); _anc2._ancora = True
+        _q3 = "Klienti im ka një borxh; sipas nenit 114 të Kodit Civil a ka rënë në parashkrim?"
+        _r3 = _sa._ankoro_citimet(_q3, [(_anc2, 0.0)])
+        _okE = not _br119._eshte_pyetje_norme(_q3) and any(getattr(a, "_ancora", False) for a, _s in _r3)   # con i fatti le ancore restano
+        _okF = "ligji_pastrimi_parave" in {d.code for d in _br119.LEGAL_DOCUMENTS} \
+               and "ligji_gjykatat_administrative" in _br119.PROCEDURAL_MAPPING["Doganor"] \
+               and "ligji_gjykata_kushtetuese" in _br119.PROCEDURAL_MAPPING["Kushtetues"]
+        _src119 = __import__("inspect").getsource(_br119)
+        _okG = _src119.count("self._shenim_binjak(user_message, retrieved,") == 2
+        check("pyetje-norme[119]: niente ancore né stesso numero di un altro codice nel blocco · riga «mos e ngatërro» col gemello (KPC 350 → KPP 350) · non sulle domande con fatti · ancore intatte coi fatti · antiriciclaggio nell'elenco · dogana→49/2012, Kushtetues→8577/2000 · cablato nei 2 percorsi semplici",
+              _okA and _okB and _okC and _okD and _okE and _okF and _okG, "A=%s B=%s C=%s D=%s E=%s F=%s G=%s" % (_okA, _okB, _okC, _okD, _okE, _okF, _okG))
+    except Exception as _e119:  # noqa: BLE001
+        check("pyetje-norme[119]: kontrollet u ekzekutuan", False, str(_e119))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

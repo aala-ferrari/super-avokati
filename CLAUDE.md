@@ -2,7 +2,7 @@
 
 Strumento AI per avvocati (B2B), **bi-giurisdizione AL + IT**. Front-end Flask (waitress, UN processo) su porta
 5050, SQLite (`data/app.db`). Postgres `legalkb` NON è raggiungibile dal container: i precedenti vivono nel pickle.
-**Stato al 23 set 2026 (v9.373)** — i numeri qui sono quelli veri; più sotto, nelle sezioni datate, c'è la storia:
+**Stato al 23 set 2026 (v9.374)** — i numeri qui sono quelli veri; più sotto, nelle sezioni datate, c'è la storia:
 - **AL leggi** (`bm25.pkl`, BM25 con diacritici piegati dal v9.367, titolo del capitolo cercabile dal v9.373): **10.129 nene / 60 codici**; fonte
   `data/processed/all_articles.jsonl` (il pickle è derivato).
 - **Precedenti** (`bm25_decisions.pkl`): **3.996** = Kushtetuese **672** + Gjykata e Lartë **2.960** + CEDU **364**
@@ -588,7 +588,7 @@ errori, non che le risposte sono ancora giuste. Riferimento verificato il
 12 articoli recuperati per ciascuna.
 
 ```bash
-docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63], triage-trim+giudice-no-web [64], chat-web+verdetto-in-testa+pannelli-IT [65], codice-nominato→area [66], timeout-45min+ripiego-no-web [67], fasi-bilingue+giudice-no-web+duello-a-scomparsa [68], etichette-composte-bilingui [69]). Baseline **513/513** (23 set, v9.373; era 98 il 31 ago).
+docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63], triage-trim+giudice-no-web [64], chat-web+verdetto-in-testa+pannelli-IT [65], codice-nominato→area [66], timeout-45min+ripiego-no-web [67], fasi-bilingue+giudice-no-web+duello-a-scomparsa [68], etichette-composte-bilingui [69]). Baseline **514/514** (23 set, v9.374; era 98 il 31 ago).
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 bash /root/prova_sse.sh                                    # SULL'HOST (legge il secret da /opt/super-avvocato.env; copia in tools/prova_sse.sh): account di prova → login → fascicolo → 1 domanda VERA → stream /api/ask/events attraverso waitress. Deve dire «HTTP 200 … done: 1» (~50s, costa 1 chiamata al cervello) e cancella l'account. Dopo OGNI build che tocca web.py o le rotte SSE.
@@ -1455,6 +1455,22 @@ rischio residuo della DPIA.
 - Super Avokati ha auth propria (login_required_api); utenti creati da admin o auto-provisionati da AALA (`/api/provision-demo`, secret-guarded).
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
+
+**v9.374 — «cosa dice il neni 350»: KPC ≠ KPP, e niente rumore nel blocco (23 set, mattina).** Il titolare ha
+incollato la risposta sul penale «nuk është në bllokun tim» come se fosse di oggi: dal DB era delle **16:38 UTC del
+22 set**, prima della v9.367 (in produzione dalle **17:18 UTC**); da allora nessuna domanda penale sul 350 dal suo
+account, e rifatta dal vivo su v9.373 risponde giusto in 70 s (i 6 paragrafi del KPP 350). La domanda di oggi era
+«cfar thot neni 350 i procedures **civile**?» → KPC 350 «Kompetenca tokësore», **verificato sul PDF QBZ (pag. 77/138)**;
+il testo che un altro assistente dava per quella domanda era il KPP 350 (lo stesso numero, l'altra procedura). Cure:
+(1) **pyetje norme** (`_eshte_pyetje_norme`: breve, citazione esplicita, nessun fatto) → in `_ankoro_citimet` escono
+dal blocco le ancore automatiche (Neni 114 KC acceso dagli angoli del triage, ancore per titolo) e lo STESSO NUMERO di
+un ALTRO codice; con i fatti le ancore restano; (2) **i codici gemelli** (`_shenim_binjak`, `_BINJAKET`: KPC↔KPP,
+KC↔KP, c.p.c.↔c.p.p., c.c.↔c.p.) → una riga deterministica in coda, con la rubrica vera dal corpus: «ℹ️ Mos e
+ngatërro: edhe Kodi i Procedurës Penale ka një nen 350 — «Mungesa e të pandehurit ose e mbrojtësit». Nëse ke parasysh
+atë, shkruaj «neni 350 KPP»» (per KC/KP la forma per esteso: «KP» è ambiguo con il Kodi i Punës); cablata nei due
+percorsi semplici; (3) **la 9917/2008 antiriciclaggio era nel corpus ma NON in `LEGAL_DOCUMENTS`** → col filtro per
+area del triage non veniva mai cercata: aggiunta (Penal); (4) `PROCEDURAL_MAPPING`: Doganor e Tatimor → anche ligji
+49/2012 (la causa contro l'atto va al giudice amministrativo), Kushtetues → ligji 8577/2000. Golden **[119]**, 514.
 
 **v9.373 — DOGANA, BURGIM I PADREJTË e i difetti dello stesso tipo (23 set, alba).** Il titolare: «sistema anche
 dogana e burgim i padrejtë, e controlla se ci sono altri errori di questo tipo o generici». Trovato e corretto, misurato:

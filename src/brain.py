@@ -263,10 +263,14 @@ PROCEDURAL_MAPPING: dict[str, tuple[str, ...]] = {
     "Familje":       ("kodi_proc_civile",),   # family suits are tried in civil courts
     "Punë":          ("kodi_proc_civile",),   # labor disputes go to civil courts
     "Administrativ": ("kodi_proc_admin",),
-    "Doganor":       ("kodi_proc_admin",),
+    "Doganor":       ("kodi_proc_admin", "ligji_gjykatat_administrative"),
     "Rrugor":        ("kodi_proc_admin",),
     "Zgjedhor":      ("kodi_proc_admin",),
-    # Kushtetues, Detar, Ajror: no direct procedural mapping.
+    # v9.373: la causa contro un atto doganale o tributario si fa davanti al giudice amministrativo (ligji 49/2012);
+    # il ricorso individuale alla Kushtetuese segue la legge organica 8577/2000 (termini, ammissibilità)
+    "Tatimor":       ("kodi_proc_admin", "ligji_gjykatat_administrative"),
+    "Kushtetues":    ("ligji_gjykata_kushtetuese",),
+    # Detar, Ajror: no direct procedural mapping.
 }
 
 
@@ -2763,6 +2767,7 @@ class SuperAvvocato:
                     final_txt = str(payload.get("text") or "")
             text = _apply_corrections(_verify_citations(final_txt or "".join(collected), precedents_s))
             text = self._riga_fiducie(text, retrieved)   # v9.338: Trust Line anche sul percorso semplice
+            text = self._shenim_binjak(user_message, retrieved, text)   # v9.374: KPC 350 ≠ KPP 350
             yield ("final", LegalAnswer(
                 kind="answer", text=text, triage=triage,
                 retrieved=retrieved, precedents=precedents_s, session_id=new_sid,
@@ -3139,6 +3144,7 @@ class SuperAvvocato:
             # that a citizen asking "sa m2 na takon" doesn't need.
             answer_text = _apply_corrections(answer_text)
             answer_text = self._riga_fiducie(answer_text, retrieved)   # v9.338
+            answer_text = self._shenim_binjak(user_message, retrieved, answer_text)   # v9.374
             new_session_id = getattr(self.backend, "last_session_id",
                                      None) or session_id
             return LegalAnswer(
@@ -3740,6 +3746,49 @@ class SuperAvvocato:
             idx = self.index_it if (self.index_it is not None and jur == "IT") else self.index
             return text, trust_line.verifica(text, idx, jur)
 
+    # v9.374 — i CODICI GEMELLI: lo stesso numero esiste nella procedura civile e in quella penale (e nel codice civile
+    # e in quello penale). Caso vero (23 set): «cfar thot neni 350 i procedures civile?» → risposta giusta (KPC 350
+    # «Kompetenca tokësore», verificata sul PDF QBZ), ma l'avvocato cercava il KPP 350 «Mungesa e të pandehurit ose e
+    # mbrojtësit» — e un altro assistente, sulla stessa domanda, aveva dato il penale. Sulle domande «cosa dice il neni
+    # N» si aggiunge UNA riga deterministica con la rubrica vera del gemello, dal corpus: niente modello, niente ipotesi.
+    _BINJAKET = {"kodi_proc_civile": ("kodi_proc_penale", "KPP"), "kodi_proc_penale": ("kodi_proc_civile", "KPC"),
+                 "kodi_civil": ("kodi_penal", "i Kodit Penal"), "kodi_penal": ("kodi_civil", "i Kodit Civil"),   # «KP» è ambiguo (Punës)
+                 "codice_procedura_civile": ("codice_procedura_penale", "c.p.p."), "codice_procedura_penale": ("codice_procedura_civile", "c.p.c."),
+                 "codice_civile": ("codice_penale", "c.p."), "codice_penale": ("codice_civile", "c.c.")}
+
+    def _shenim_binjak(self, user_message: str, retrieved, text: str) -> str:
+        try:
+            if not (text or "").strip() or not _eshte_pyetje_norme(user_message):
+                return text
+            cit = [(a.code, str(a.number)) for a, _ in (retrieved or []) if getattr(a, "_cituar", False)]
+            if not cit or len(cit) > 2:
+                return text
+            jur = self._current_jurisdiction()
+            idx = self.index_it if (self.index_it is not None and jur == "IT") else self.index
+            by = {(a.code, str(a.number)): a for a in idx.articles}
+            righe = []
+            for code, num in cit:
+                tw = self._BINJAKET.get(code)
+                if not tw or (tw[0], num) in cit or (tw[0], num) not in by:
+                    continue
+                g = by[(tw[0], num)]
+                rub = " ".join(((g.heading or "") if getattr(g, "heading_kind", "") == "rubrike" else (g.heading or g.body or "")).split())
+                rub = (rub[:110] + "…") if len(rub) > 110 else rub
+                titulli = re.sub(r"\s+i Republikës së Shqipërisë$", "", g.title_sq or tw[0])
+                if jur == "IT":
+                    righe.append(f"> ℹ️ Da non confondere: anche il **{titulli}** ha un **art. {num}** — «{rub}»"
+                                 f"{' (abrogato)' if g.repealed else ''}. Se intendi quello, scrivi «art. {num} {tw[1]}».")
+                else:
+                    righe.append(f"> ℹ️ Mos e ngatërro: edhe **{titulli}** ka një **nen {num}** — «{rub}»"
+                                 f"{' (i shfuqizuar)' if g.repealed else ''}. Nëse ke parasysh atë, shkruaj «neni {num} {tw[1]}».")
+            if not righe:
+                return text
+            log.info("binjak: %s", righe)
+            return text.rstrip() + "\n\n" + "\n".join(righe)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("shenim binjak saltato (non-fatal): %s", exc)
+            return text
+
     def _riga_fiducie(self, text: str, retrieved) -> str:
         """v9.338 — la Trust Line anche dove il Giudice non gira (percorso semplice, chiarimenti):
         stessa verifica deterministica, stessa riga in testa. Fail-silent."""
@@ -4008,6 +4057,19 @@ class SuperAvvocato:
             if testa:
                 log.info("retrieval: nene të kërkuara shprehimisht nga avokati %s", [f"{a.code} {a.number}" for a, _ in testa])
                 _audit_set("citime_te_pyetjes", [f"{a.code} {a.number}" for a, _ in testa])
+                # v9.374 — «cfar thot neni 350 i procedures civile?» portava nel blocco anche il Neni 114 KC (ancora della
+                # prescrizione accesa dagli angoli del triage) e ancore per titolo di altri codici: su una domanda che
+                # chiede SOLO cosa dice un articolo, senza fatti, sono rumore accanto al testo chiesto → fuori.
+                if _eshte_pyetje_norme(user_message):
+                    _prima = len(out)
+                    out = [(x, sc) for x, sc in out if not (getattr(x, "_ancora", False) or getattr(x, "_ancora_titull", False))]
+                    # e lo STESSO NUMERO di un ALTRO codice non resta accanto a quello chiesto: «neni 350 i procedures
+                    # penale» non deve avere il 350 del K.Pr.C. nel blocco (la confusione del 22 set)
+                    _chiesti = {(a.code, str(a.number)) for a, _ in testa}
+                    _num_chiesti = {n for _c, n in _chiesti}
+                    out = [(x, sc) for x, sc in out if not (str(x.number) in _num_chiesti and (x.code, str(x.number)) not in _chiesti)]
+                    if len(out) != _prima:
+                        log.info("retrieval: pyetje norme — %d articoli tolti dal blocco (ancore automatiche / stesso numero di un altro codice)", _prima - len(out))
             return testa + out
         except Exception as exc:  # noqa: BLE001
             log.warning("ankoro_citimet: saltato (non-fatal): %s", exc)
