@@ -4232,6 +4232,24 @@ def main():
     except Exception as _e127:  # noqa: BLE001
         check("ancore[127]: kontrollet u ekzekutuan", False, str(_e127))
 
+    # [128] v9.381 — compravendita di immobile registrato → KC 193 e 195 nel blocco (la trappola del caso «kufizim»: il 195 non
+    # arrivava MAI); e «parashkrimi fitues» (usucapione) non accende più il KC 114 (prescrizione estintiva)
+    try:
+        from src import brain as _br128
+        _ix = ArticleIndex.load(_P81("/app/data/index/bm25.pkl"))
+        _base = [(a, 1.0) for a in _ix.articles if a.code == "ligji_kadastra"][:6]
+        _r = _br128._applica_ancore(_base, _ix, ["shitja e apartamentit të regjistruar në ASHK me kufizim në kartelë"], ["Prone", "Civil"])
+        _k = {(a.code, a.number) for a, _s in _r[:12]}
+        _okA = {("kodi_civil", "193"), ("kodi_civil", "195")} <= _k
+        _r2 = _br128._applica_ancore(_base, _ix, ["fitimi i pronësisë me parashkrim fitues të truallit"], ["Prone", "Civil"])
+        _okB = ("kodi_civil", "114") not in {(a.code, a.number) for a, _s in _r2[:12]}
+        _r3 = _br128._applica_ancore(_base, _ix, ["afati i parashkrimit të padisë për detyrimin"], ["Civil"])
+        _okC = ("kodi_civil", "114") in {(a.code, a.number) for a, _s in _r3[:12]}
+        check("ancore[128]: immobile registrato → KC 193 + 195 · usucapione («parashkrimi fitues») non accende il KC 114 · la prescrizione estintiva sì",
+              _okA and _okB and _okC, "A=%s B=%s C=%s" % (_okA, _okB, _okC))
+    except Exception as _e128:  # noqa: BLE001
+        check("ancore[128]: kontrollet u ekzekutuan", False, str(_e128))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

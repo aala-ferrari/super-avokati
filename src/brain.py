@@ -98,8 +98,9 @@ log = get_logger(__name__)
 # posto a un risultato vero.
 import copy as _copy
 
-ANCORE_AL: tuple[tuple[tuple[str, ...], tuple[str, ...], tuple[tuple[str, str], ...]], ...] = (
-    (("parashkrim", "parashkru"), ("Penal",), (("kodi_civil", "114"),)),
+ANCORE_AL: tuple = (
+    # v9.381: «parashkrimi fitues» (usucapione, KC 168 e ss.) NON è la prescrizione estintiva: non accende il 114
+    (("parashkrim", "parashkru"), ("Penal",), (("kodi_civil", "114"),), r"parashkrim\w*\s+fitu\w*|fitim\w*\s+(?:\w+\s+){0,3}me\s+parashkrim\w*"),
     # v9.380 — misurato con il triage vero (tools/eval_triage_ricerca.py): «Qiramarrësi nuk paguan qiranë prej 5 muajsh — si
     # ta nxjerr?» portava 11 nene del capitolo della qira ma NON il KC 698 (zgjidhja e kontratës për mospërmbushje), la regola
     # generale che vale anche per la qira. Non nel penale né nel lavoro (lì decide il Kodi i Punës).
@@ -116,10 +117,15 @@ ANCORE_AL: tuple[tuple[tuple[str, ...], tuple[str, ...], tuple[tuple[str, str], 
     # l'inammissibilità) era sul filo del taglio (5°, 7°, 12°, fuori — quattro giri del triage vero)
     (("ankim kushtetues", "ankimi kushtetues", "ankimit kushtetues", ("individual", "kushtetu")), (),
      (("ligji_gjykata_kushtetuese", "71/a"),)),
+    # v9.381 — la compravendita / il gravame di un immobile (ASHK, kartela, rubrika): KC 193 (cosa si trascrive) e KC 195 (il
+    # NON registrato non si aliena né si grava — la trappola del caso «kufizim» del benchmark: nel blocco 1 volta su 3 il 193,
+    # MAI il 195, e il punteggio del caso oscillava 0,55-1,00 fra un giro e l'altro qualunque fosse la variante)
+    (("kartel", ("ashk", "shit"), ("ashk", "blej"), ("ashk", "tjetërsim"), ("rubrik", "kufizim"), ("regjistr", "pasuri", "shit"),
+      ("hipotek", "shit")), ("Penal",), (("kodi_civil", "193"), ("kodi_civil", "195"))),
 )
 # v9.380 — ancore italiane di REGOLA GENERALE (stesso metro): «il credito risale al 2013 — è prescritto?» → il triage cerca
 # ordinaria + interruzione + sospensione e il 2946 c.c. «Prescrizione ordinaria» finiva oltre il 12° (2945, 2935, 2964 sopra).
-ANCORE_IT: tuple[tuple[tuple[str, ...], tuple[str, ...], tuple[tuple[str, str], ...]], ...] = (
+ANCORE_IT: tuple = (
     (("prescri",), ("Penale", "Penal"), (("codice_civile", "2946"),)),
 )
 
@@ -157,10 +163,13 @@ def _applica_ancore(pairs, idx, queries: list[str], aree: list[str], ancore=None
     presenti = {(a.code, a.number) for a, _ in pairs[:TOP_K_ARTICLES]}
     per_chiave = {(a.code, a.number): a for a in idx.articles}
     aggiunte = []
-    for parole, aree_spente, articoli in (ANCORE_AL if ancore is None else ancore):
+    for voce in (ANCORE_AL if ancore is None else ancore):
+        parole, aree_spente, articoli = voce[0], voce[1], voce[2]
+        # v9.381: un quarto elemento (regex) toglie le frasi che NON contano prima di cercare le parole
+        _t = re.sub(voce[3], " ", testo) if len(voce) > 3 and voce[3] else testo
         # v9.380: una voce può essere una frase («pa testament») o una TUPLA di radici che devono esserci TUTTE
         # («individual» + «kushtetu»): il triage riscrive a ogni giro con parole diverse, le radici restano
-        if not any((all(x in testo for x in p) if isinstance(p, tuple) else p in testo) for p in parole):
+        if not any((all(x in _t for x in p) if isinstance(p, tuple) else p in _t) for p in parole):
             continue
         if any(x in aree for x in aree_spente):
             continue
