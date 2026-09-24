@@ -91,7 +91,9 @@ def main() -> int:
         print(f"   {r['status']:8s} {r['lang']}:{r['code']:30s} {r.get('note', '')[:100]}")
     # leggi da aggiornare / sostituite: l'avvocato non deve citare legge morta
     if bad:
-        righe = "".join(f"<li><b>{r['lang']}:{r['code']}</b> — {r['status']}: {r.get('note', '')}</li>" for r in bad)
+        # v9.390 — il d.P.R. 309/1990 porta con sé le TABELLE delle sostanze (dizionario a parte): vanno rilette anche loro
+        _extra = {"stupefacenti": " — rileggere anche le tabelle delle sostanze: <code>tools/ingest_tabelle_stupefacenti.py</code>"}
+        righe = "".join(f"<li><b>{r['lang']}:{r['code']}</b> — {r['status']}: {r.get('note', '')}{_extra.get(r['code'], '')}</li>" for r in bad)
         corpo = (f"<p>Controllo di freschezza del corpus ({ora()}): <b>{len(bad)} atti da aggiornare o sostituiti</b>.</p><ul>{righe}</ul>"
                  f"<p>Riepilogo: {riep}. Log: {log}<br>Rimedio: rilanciare l'ingest dell'atto (Normattiva: <code>tools/ingest_it_normattiva.py &lt;id&gt;</code>; "
                  f"EUR-Lex: <code>tools/ingest_eurlex.py &lt;id&gt;</code>; QBZ: aggiornare tools/al_sources.json e <code>tools/ingest_al_qbz.py probe/apply</code>), "
