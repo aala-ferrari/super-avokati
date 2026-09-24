@@ -353,8 +353,14 @@ def _hierarchy_context(text_before: str) -> tuple[str, str, str]:
     return pjesa, kreu, seksioni
 
 
+_SEGNO_NOTA_RE = re.compile(r"(?m)^([ \t]*Neni[ \t]*\d+(?:[ \t]*/[ \t]*[a-zçëA-ZÇË0-9]+)?)[ \t]*[†‡*¹²³⁴⁵⁶⁷⁸⁹⁰]+[ \t]*$")
+
+
 def split_into_articles(text: str, doc: LegalDocument) -> list[Article]:
     """Split the full code text into Article objects."""
+    # v9.379 — un SEGNO di nota dopo il numero («Neni 70†», «Neni 12*», «Neni 5¹») rendeva l'intestazione irriconoscibile:
+    # l'articolo spariva dentro il precedente (152/2013 neni 70 «Shfuqizimi» dentro il 69). Il segno si toglie.
+    text = _SEGNO_NOTA_RE.sub(r"\1", text or "")
     raw_matches = list(ARTICLE_RE.finditer(text))
     # 16 set 2026 — «Neni N Titolo» sulla STESSA riga: il Kodi Zgjedhor perdeva così 81
     # articoli su 186 (audit_corpus). Si accetta solo se il titolo inizia in maiuscolo, non

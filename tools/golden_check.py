@@ -4115,7 +4115,7 @@ def main():
         _okB = all(k in _sh for k in ("## 1. 🎯 Në thelb", "## 2. 🛠️ Zgjidhja", "## 3. ⚔️ Si fitohet", "## 4. ⏰ Afatet",
                                        "MOSGJETJA NUK ËSHTË MUNGESË", "BUXHETI I KËRKIMIT", "[[case:", "Mos shpik numra nenesh",
                                        "Shkurtësia nuk justifikon asnjëherë një pasaktësi"))
-        _env = dict(_os122.environ, FORMATI_I_SHKURTER="1")
+        _env = dict(_os122.environ, FORMATI_I_SHKURTER="1", GJYQTARI_TRE_RRESHTA="1")
         _r = _sp122.run([sys.executable, "-c", "import sys; sys.path.insert(0,'/app'); from src import brain as b, studio as s; "
                          "print(b.ANSWER_SYSTEM.startswith(b.ANSWER_SYSTEM_SHKURTER[:60]), b.SECTION_REF['strategic'], "
                          "'Si fitohet:' in s.GJYQTARI_SYSTEM['sq'], 'Come si vince:' in s.GJYQTARI_SYSTEM['it'], 'KATËR' in b._ISTRUZIONE_FORMATI)"],
@@ -4184,6 +4184,53 @@ def main():
               _okA and _okB and _okC, "A=%s B=%s C=%s" % (_okA, _okB, _okC))
     except Exception as _e125:  # noqa: BLE001
         check("konsumatoret[125]: kontrollet u ekzekutuan", False, str(_e125))
+
+    # [126] v9.379 — segni di nota dopo il numero («Neni 70†»: il 70 «Shfuqizimi» della 152/2013 finiva nel 69) e sotto-articoli
+    # con la nota attaccata («77/11», «77/22» = 77/1, 77/2 della legge sui trasporti, aggiunti dalla 10/2016)
+    try:
+        from src import parser as _p126
+        _okA = _p126._SEGNO_NOTA_RE.sub(r"\1", "Neni 70†\nShfuqizimi") == "Neni 70\nShfuqizimi" and _p126._SEGNO_NOTA_RE.sub(r"\1", "Neni 1913") == "Neni 1913"
+        _ix = ArticleIndex.load(_P81("/app/data/index/bm25.pkl"))
+        _by = {(a.code, a.number): a for a in _ix.articles}
+        _okB = ("ligji_nepunesi_civil", "70") in _by and "8549" in (_by[("ligji_nepunesi_civil", "70")].body or "") \
+               and "Shfuqizimi" not in (_by[("ligji_nepunesi_civil", "69")].body or "")
+        _okC = ("ligji_transportet_rrugore", "77/1") in _by and ("ligji_transportet_rrugore", "77/2") in _by \
+               and ("ligji_transportet_rrugore", "77/11") not in _by and ("ligji_transportet_rrugore", "77/22") not in _by
+        check("nene[126]: segno di nota dopo il numero tolto (152/2013 neni 70 torna suo) · 77/1 e 77/2 dei trasporti invece di 77/11 e 77/22",
+              _okA and _okB and _okC, "A=%s B=%s C=%s" % (_okA, _okB, _okC))
+    except Exception as _e126:  # noqa: BLE001
+        check("nene[126]: kontrollet u ekzekutuan", False, str(_e126))
+
+    # [127] v9.380 — ancore misurate col triage VERO (tools/eval_triage_ricerca.py, 10/14 → 13-14/14): «già presente» vuol dire
+    # dentro i 12 (dalla ricerca ibrida un articolo al 40° posto contava come trovato e il taglio lo buttava); KC 698 sulla
+    # qira non pagata (non nel lavoro), KC 360-361 sulla successione legittima, 8577/2000 art. 71/a sul ricorso individuale
+    # (anche con radici sparse), art. 2946 c.c. sulla prescrizione (non nel penale)
+    try:
+        from src import brain as _br127
+        _ix = ArticleIndex.load(_P81("/app/data/index/bm25.pkl")); _it = ArticleIndex.load(_P81("/app/data/index/bm25_it.pkl"))
+        _al = [a for a in _ix.articles if a.code == "kodi_civil"][:30]
+        _k698 = next(a for a in _ix.articles if a.code == "kodi_civil" and a.number == "698")
+        _p = [(a, 1.0) for a in _al[:20]] + [(_k698, 0.5)]              # il 698 c'è, ma al 21° posto
+        _r = _br127._applica_ancore(_p, _ix, ["zgjidhja e kontratës së qirasë për mospagim"], ["Civil"])
+        _okA = [(a.code, a.number) for a, _s in _r[:12]].count(("kodi_civil", "698")) == 1
+        _okB = not any(getattr(a, "_ancora", False) and a.number == "698" for a, _s in
+                       _br127._applica_ancore([(a, 1.0) for a in _al[:5]], _ix, ["zgjidhja e kontratës së punës për mospagim e pagës"], ["Punë"]))
+        _r3 = _br127._applica_ancore([(a, 1.0) for a in _al[:5]], _ix, ["ndarja e pasurisë së babait midis bashkëshortes dhe fëmijëve"], ["Civil"])
+        _okC = {("kodi_civil", "360"), ("kodi_civil", "361")} <= {(a.code, a.number) for a, _s in _r3[:12]} or \
+               "trashëgim" not in "ndarja e pasurisë së babait midis bashkëshortes dhe fëmijëve"
+        _r3b = _br127._applica_ancore([(a, 1.0) for a in _al[:5]], _ix, ["trashëgimia e bashkëshortit dhe fëmijëve pa testament"], ["Civil"])
+        _okC = {("kodi_civil", "360"), ("kodi_civil", "361")} <= {(a.code, a.number) for a, _s in _r3b[:12]}
+        _r4 = _br127._applica_ancore([(a, 1.0) for a in _al[:5]], _ix, ["ankim individual në gjykatën kushtetuese afati"], ["Kushtetues"])
+        _okD = ("ligji_gjykata_kushtetuese", "71/a") in {(a.code, a.number) for a, _s in _r4[:12]}
+        _itc = [a for a in _it.articles if a.code == "codice_civile"][:5]
+        _r5 = _br127._applica_ancore([(a, 1.0) for a in _itc], _it, ["interruzione della prescrizione del credito"], ["Civile"], ancore=_br127.ANCORE_IT)
+        _r6 = _br127._applica_ancore([(a, 1.0) for a in _itc], _it, ["prescrizione del reato"], ["Penale"], ancore=_br127.ANCORE_IT)
+        _okE = ("codice_civile", "2946") in {(a.code, a.number) for a, _s in _r5[:12]} and \
+               ("codice_civile", "2946") not in {(a.code, a.number) for a, _s in _r6[:12]}
+        check("ancore[127]: presente = dentro i 12 (il 698 al 21° posto sale) · KC 698 qira sì, lavoro no · KC 360-361 successione · 71/a ricorso individuale (radici) · 2946 c.c. civile sì, penale no",
+              _okA and _okB and _okC and _okD and _okE, "A=%s B=%s C=%s D=%s E=%s" % (_okA, _okB, _okC, _okD, _okE))
+    except Exception as _e127:  # noqa: BLE001
+        check("ancore[127]: kontrollet u ekzekutuan", False, str(_e127))
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

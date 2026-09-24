@@ -2,8 +2,8 @@
 
 Strumento AI per avvocati (B2B), **bi-giurisdizione AL + IT**. Front-end Flask (waitress, UN processo) su porta
 5050, SQLite (`data/app.db`). Postgres `legalkb` NON è raggiungibile dal container: i precedenti vivono nel pickle.
-**Stato al 24 set 2026 (v9.379)** — i numeri qui sono quelli veri; più sotto, nelle sezioni datate, c'è la storia:
-- **AL leggi** (`bm25.pkl`, BM25 con diacritici piegati dal v9.367, titolo del capitolo cercabile dal v9.373): **10.303 nene / 62 codici**; embedding AL `_flat3`/`_ck3` (capitoli + corpo intero, `EMB_SUFFIX_SQ`/`EMB_SUFFIX2_SQ`), IT `_flat2`/`_ck`; fonte
+**Stato al 24 set 2026 (v9.381)** — i numeri qui sono quelli veri; più sotto, nelle sezioni datate, c'è la storia:
+- **AL leggi** (`bm25.pkl`, BM25 con diacritici piegati dal v9.367, titolo del capitolo cercabile dal v9.373): **10.305 nene / 62 codici**; embedding AL `_flat3`/`_ck3` (capitoli + corpo intero, `EMB_SUFFIX_SQ`/`EMB_SUFFIX2_SQ`), IT `_flat2`/`_ck`; fonte
   `data/processed/all_articles.jsonl` (il pickle è derivato).
 - **Precedenti** (`bm25_decisions.pkl`): **3.996** = Kushtetuese **672** + Gjykata e Lartë **2.960** + CEDU **364**
   (157 sentenze + 207 decisioni, 46 nella traduzione albanese ufficiale). Fonti di verità: `data/processed/al_decisions_v2.jsonl`
@@ -588,7 +588,7 @@ errori, non che le risposte sono ancora giuste. Riferimento verificato il
 12 articoli recuperati per ciascuna.
 
 ```bash
-docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63], triage-trim+giudice-no-web [64], chat-web+verdetto-in-testa+pannelli-IT [65], codice-nominato→area [66], timeout-45min+ripiego-no-web [67], fasi-bilingue+giudice-no-web+duello-a-scomparsa [68], etichette-composte-bilingui [69]). Baseline **520/520** (24 set, v9.379; era 98 il 31 ago).
+docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63], triage-trim+giudice-no-web [64], chat-web+verdetto-in-testa+pannelli-IT [65], codice-nominato→area [66], timeout-45min+ripiego-no-web [67], fasi-bilingue+giudice-no-web+duello-a-scomparsa [68], etichette-composte-bilingui [69]). Baseline **522/522** (24 set, v9.381; era 98 il 31 ago).
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 bash /root/prova_sse.sh                                    # SULL'HOST (legge il secret da /opt/super-avvocato.env; copia in tools/prova_sse.sh): account di prova → login → fascicolo → 1 domanda VERA → stream /api/ask/events attraverso waitress. Deve dire «HTTP 200 … done: 1» (~50s, costa 1 chiamata al cervello) e cancella l'account. Dopo OGNI build che tocca web.py o le rotte SSE.
@@ -1455,6 +1455,31 @@ rischio residuo della DPIA.
 - Super Avokati ha auth propria (login_required_api); utenti creati da admin o auto-provisionati da AALA (`/api/provision-demo`, secret-guarded).
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
+
+**v9.381 — LA PROVA DALL'INIZIO ALLA FINE: il blocco che il senior legge DAVVERO (24 set, notte).** `tools/eval_triage_ricerca.py`:
+14 domande scritte come le scrive un avvocato (11 AL + 3 IT) → triage VERO → `_retrieve` + ancore + nene chiesti (+ Kërkuesi con
+`--kerkuesi`) → l'articolo decisivo è nel blocco? Prima **10/14**. Trovato: (1) **«già presente» contava su TUTTI i candidati
+fusi**, non sui 12 (dalla ricerca ibrida v9.353 `pairs` porta ~150 candidati): un articolo al 40° posto «c'era già», l'ancora
+non scattava e il taglio lo buttava → presenza = dentro i 12 (`_applica_ancore`, `_ancore_it_veicolo`; l'ancora per titolo lo
+faceva già); (2) **ancore di regola generale misurate**: KC 698 (risoluzione per inadempimento) sulla qira non pagata (non nel
+penale né nel lavoro), KC 360-361 (eredi legittimi, primo grado in parti uguali) sulla successione senza testamento, ligji
+8577/2000 art. 71/a (criteri + termine di 4 MESI) sul ricorso individuale alla Kushtetuese, e per l'ITALIA l'art. 2946 c.c.
+(«il credito del 2013 è prescritto?» lo lasciava oltre il 12°: il triage cerca ordinaria + interruzione + sospensione) —
+`ANCORE_IT`, non nel penale; (3) le ancore leggono anche il **riassunto del caso** del triage e accettano **tuple di radici**
+(«individual» + «kushtetu»), perché il triage riscrive con parole diverse a ogni giro. Dopo: **12, 14, 13 su 14** (tre giri),
+**13 e 14 su 14 col Kërkuesi** (96 %). **Benchmark strato 2 sul codice nuovo (Opus 5)**: 0,725 (v9.376) → **0,875** (kufizim
+1,00, pushim 0,78, auto 0,55 → **0,85** grazie all'ancora doganale). **Forma breve del senior MISURATA E BOCCIATA**: 0,683 — perde
+le norme decisive (kufizim 2/2 → 0/2, pushim 3/6 → 2/6): resta spenta; la brevità viene dal verdetto in testa + analisi chiusa
+in UI. La chiusura del verdetto in tre righe ha ora un interruttore suo (`GJYQTARI_TRE_RRESHTA`) ed è in misura, insieme a
+Opus 5.5 come Giudice. Golden **[127]**, 522.
+
+**v9.380 — segni di nota e sotto-articoli con la nota attaccata (24 set, notte).** Audit della numerazione su tutti i codici AL
+dopo la 9902/2008: (1) **152/2013 neni 70 «Shfuqizimi»** (abroga la 8549/1999) spariva DENTRO il 69: nel PDF «Neni 70†» — il
+segno † rendeva l'intestazione irriconoscibile → `parser._SEGNO_NOTA_RE` toglie †‡* e gli apici dopo «Neni N» (vale per
+ogni ingest), legge riletta (73 articoli); (2) **ligji 8308/1998 (trasporti) «77/11» e «77/22»** = 77/1 e 77/2 (aggiunti
+dalla 10/2016) col numero della nota attaccato: rinominati dopo verifica del testo (unico caso nel corpus: nessun altro
+sotto-articolo parte da ≥10 senza /1). Restano buchi veri o spiegati: KC 1006 (assente nel consolidato), ligji 108/2014
+27-36 (legge superata; articoli dichiarati incostituzionali, GjK 43/2015). Corpus **10.305 / 62**. Golden **[126]**, 521.
 
 **v9.379 — LA LEGGE SUI CONSUMATORI (9902/2008) CON LE NOTE ATTACCATE AI NUMERI (24 set, notte).** Unico consolidato disponibile
 è quello di erru.al (2018) CON le note a piè di pagina (QBZ ha solo l'atto base): «Neni 6³» letto «63», «Neni 45²⁵» → «4525»,

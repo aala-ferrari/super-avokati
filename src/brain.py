@@ -100,6 +100,27 @@ import copy as _copy
 
 ANCORE_AL: tuple[tuple[tuple[str, ...], tuple[str, ...], tuple[tuple[str, str], ...]], ...] = (
     (("parashkrim", "parashkru"), ("Penal",), (("kodi_civil", "114"),)),
+    # v9.380 — misurato con il triage vero (tools/eval_triage_ricerca.py): «Qiramarrësi nuk paguan qiranë prej 5 muajsh — si
+    # ta nxjerr?» portava 11 nene del capitolo della qira ma NON il KC 698 (zgjidhja e kontratës për mospërmbushje), la regola
+    # generale che vale anche per la qira. Non nel penale né nel lavoro (lì decide il Kodi i Punës).
+    (("mospagim", "nuk paguan", "nuk ka paguar", "mospërmbush", "nuk përmbush", "mosekzekutim i kontrat", ("qira", "pagu"),
+      ("qira", "zgjidh")), ("Penal", "Punë"), (("kodi_civil", "698"),)),
+    # v9.380 — «vdiq pa testament, la moglie e tre figli: come si divide?» non portava il KC 361 (radha e parë: fëmijët dhe
+    # bashkëshorti në pjesë të barabarta) né il 360 (chi sono gli eredi legittimi): il triage scrive «trashëgimia ligjore», il
+    # codice «trashëgimia me ligj» / «në radhë të parë thirren»
+    (("trashëgimi ligjor", "trashëgimia ligjore", "trashëgimtar ligjor", "trashëgimtarët ligjor", "trashëgimia me ligj",
+      "pa testament", "radha e parë", "radhës së parë", "kuota trashëgimore", "pjesët trashëgimore", "pjesa trashëgimore",
+      ("trashëgim", "fëmij"), ("trashëgim", "bashkëshort")),
+     ("Penal",), (("kodi_civil", "360"), ("kodi_civil", "361"))),
+    # v9.380 — il ricorso individuale alla Kushtetuese: il 71/a della 8577/2000 (criteri + termine di 4 MESI, pena
+    # l'inammissibilità) era sul filo del taglio (5°, 7°, 12°, fuori — quattro giri del triage vero)
+    (("ankim kushtetues", "ankimi kushtetues", "ankimit kushtetues", ("individual", "kushtetu")), (),
+     (("ligji_gjykata_kushtetuese", "71/a"),)),
+)
+# v9.380 — ancore italiane di REGOLA GENERALE (stesso metro): «il credito risale al 2013 — è prescritto?» → il triage cerca
+# ordinaria + interruzione + sospensione e il 2946 c.c. «Prescrizione ordinaria» finiva oltre il 12° (2945, 2935, 2964 sopra).
+ANCORE_IT: tuple[tuple[tuple[str, ...], tuple[str, ...], tuple[tuple[str, str], ...]], ...] = (
+    (("prescri",), ("Penale", "Penal"), (("codice_civile", "2946"),)),
 )
 
 
@@ -122,7 +143,7 @@ def _punteggio_reale(idx, queries: list[str], chiave: tuple[str, str],
     return migliore
 
 
-def _applica_ancore(pairs, idx, queries: list[str], aree: list[str]):
+def _applica_ancore(pairs, idx, queries: list[str], aree: list[str], ancore=None):
     """Mette in testa le regole generali che la ricerca lessicale si perde.
 
     Torna la lista invariata se non c'e' niente da ancorare o se l'articolo
@@ -130,11 +151,16 @@ def _applica_ancore(pairs, idx, queries: list[str], aree: list[str]):
     non un errore.
     """
     testo = " ".join(queries).lower()
-    presenti = {(a.code, a.number) for a, _ in pairs}
+    # v9.380 — «già presente» vuol dire DENTRO i dodici: dalla ricerca ibrida (v9.353) `pairs` porta TUTTI i candidati fusi, e
+    # un articolo al 40° posto contava come trovato — l'ancora non scattava e il taglio lo buttava (KC 698 sulla qira, art. 2946
+    # c.c. sulla prescrizione: misurati col triage vero il 24 set)
+    presenti = {(a.code, a.number) for a, _ in pairs[:TOP_K_ARTICLES]}
     per_chiave = {(a.code, a.number): a for a in idx.articles}
     aggiunte = []
-    for parole, aree_spente, articoli in ANCORE_AL:
-        if not any(p in testo for p in parole):
+    for parole, aree_spente, articoli in (ANCORE_AL if ancore is None else ancore):
+        # v9.380: una voce può essere una frase («pa testament») o una TUPLA di radici che devono esserci TUTTE
+        # («individual» + «kushtetu»): il triage riscrive a ogni giro con parole diverse, le radici restano
+        if not any((all(x in testo for x in p) if isinstance(p, tuple) else p in testo) for p in parole):
             continue
         if any(x in aree for x in aree_spente):
             continue
@@ -177,7 +203,7 @@ def _ancore_it_veicolo(pairs, idx, testo: str):
     try:
         if not (_VEICOLO_RX.search(testo or "") and _EXTRA_UE_RX.search(testo or "")):
             return pairs
-        presenti = {(a.code, str(a.number)) for a, _ in pairs}
+        presenti = {(a.code, str(a.number)) for a, _ in pairs[:TOP_K_ARTICLES]}      # dentro i dodici (v9.380)
         per_chiave = {(a.code, str(a.number)): a for a in idx.articles}
         aggiunte = []
         for k in ANCORE_IT_VEICOLO_EXTRA_UE:
@@ -4282,12 +4308,14 @@ class SuperAvvocato:
         # Le ancore entrano PRIMA del taglio, altrimenti sarebbero proprio loro
         # a cadere: sono in fondo per punteggio, e' il motivo per cui esistono.
         # Solo sul corpus albanese — sull'italiano non c'e' niente da riparare.
+        _testo_anc = list(all_queries) + [triage.problem_summary or ""]    # v9.380: anche il riassunto del caso (più stabile)
         if idx is self.index:
-            pairs = _applica_ancore(pairs, idx, all_queries, triage.areas)
+            pairs = _applica_ancore(pairs, idx, _testo_anc, triage.areas)
             pairs = _ankoro_sipas_titullit(
                 pairs, idx, (triage.problem_summary or all_queries[0]),
                 queries=all_queries, restrict=restrict)
         elif idx is self.index_it:
+            pairs = _applica_ancore(pairs, idx, _testo_anc, triage.areas, ancore=ANCORE_IT)
             pairs = _ancore_it_veicolo(pairs, idx, " ".join([triage.problem_summary or ""] + list(all_queries)))
         # v9.377: le ancore del veicolo extra-UE si AGGIUNGONO ai 12 (non devono spingere fuori il C.d.S. trovato dalla ricerca)
         _out = pairs[: TOP_K_ARTICLES + sum(1 for a, _ in pairs if getattr(a, "_ancora_it", False))]

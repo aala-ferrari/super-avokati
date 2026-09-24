@@ -490,9 +490,10 @@ GJYQTARI_SYSTEM = {
 }
 
 # v9.376 — FORMA BREVE (titolare, 24 set: «il senso, la soluzione e come si vince»): il verdetto, che l'avvocato legge per
-# primo, chiude SEMPRE con le tre righe — anche quando conferma. Dietro FORMATI_I_SHKURTER, come il prompt del senior.
+# primo, chiude SEMPRE con le tre righe — anche quando conferma. v9.380: interruttore PROPRIO (GJYQTARI_TRE_RRESHTA): la
+# forma breve del SENIOR è stata misurata e bocciata (norme decisive perse: kufizim 2/2 → 0/2), questa si aggiunge soltanto.
 import os as _os_fs
-if _os_fs.environ.get("FORMATI_I_SHKURTER", "0") == "1":
+if _os_fs.environ.get("GJYQTARI_TRE_RRESHTA", "0") == "1":
     GJYQTARI_SYSTEM = {
         "sq": GJYQTARI_SYSTEM["sq"] + (
             "\nMBYLLJA E VENDIMIT (GJITHMONË, edhe kur konfirmon): tri rreshta, secili 1-2 fjali, me nenin vendimtar —\n"
