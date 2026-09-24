@@ -119,7 +119,7 @@ def lega(claims: list[dict], index, jurisdiction: str = "AL", retrieved_codes=No
         if ccv is not None:
             try:
                 pay = ccv.verify_cases_it(joined) if (jurisdiction or "AL").upper() == "IT" else (ccv.verify_cases(joined, dec) if dec is not None else {"items": []})
-                st += [("fake" if i["status"] == "quashed" else ("verified" if i["status"] == "verified" else "needs_code")) for i in pay.get("items") or []]
+                st += [("fake" if i["status"] == "quashed" else ("verified" if i["status"] in ("verified", "archive") else "needs_code")) for i in pay.get("items") or []]
             except Exception:  # noqa: BLE001
                 pass
         if any(s in ("fake", "repealed") for s in st):

@@ -2,7 +2,7 @@
 
 Strumento AI per avvocati (B2B), **bi-giurisdizione AL + IT**. Front-end Flask (waitress, UN processo) su porta
 5050, SQLite (`data/app.db`). Postgres `legalkb` NON è raggiungibile dal container: i precedenti vivono nel pickle.
-**Stato al 24 set 2026 (v9.387)** — i numeri qui sono quelli veri; più sotto, nelle sezioni datate, c'è la storia:
+**Stato al 25 set 2026 (v9.388)** — i numeri qui sono quelli veri; più sotto, nelle sezioni datate, c'è la storia:
 - **AL leggi** (`bm25.pkl`, BM25 con diacritici piegati dal v9.367, titolo del capitolo cercabile dal v9.373): **10.305 nene / 62 codici**; embedding AL `_flat3`/`_ck3` (capitoli + corpo intero, `EMB_SUFFIX_SQ`/`EMB_SUFFIX2_SQ`), IT `_flat4`/`_ck4` dal v9.384 (`EMB_SUFFIX_IT`/`EMB_SUFFIX2_IT`); fonte
   `data/processed/all_articles.jsonl` (il pickle è derivato).
 - **Precedenti** (`bm25_decisions.pkl`): **3.996** = Kushtetuese **672** + Gjykata e Lartë **2.960** + CEDU **364**
@@ -624,7 +624,7 @@ errori, non che le risposte sono ancora giuste. Riferimento verificato il
 12 articoli recuperati per ciascuna.
 
 ```bash
-docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63], triage-trim+giudice-no-web [64], chat-web+verdetto-in-testa+pannelli-IT [65], codice-nominato→area [66], timeout-45min+ripiego-no-web [67], fasi-bilingue+giudice-no-web+duello-a-scomparsa [68], etichette-composte-bilingui [69]). Baseline **531/531** (24 set, v9.386: + [134] precedenti di Cassazione per la domanda + etichette del prompt nella lingua della sessione; v9.385: + [133] Cassazione sull'archivio ufficiale — con un controllo dal vivo che si SALTA se l'archivio non risponde; v9.384: + [129] capitoli IT, [130] articoli puntati, [131] rubriche IT, [132] UE/CEDU; era 98 il 31 ago).
+docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63], triage-trim+giudice-no-web [64], chat-web+verdetto-in-testa+pannelli-IT [65], codice-nominato→area [66], timeout-45min+ripiego-no-web [67], fasi-bilingue+giudice-no-web+duello-a-scomparsa [68], etichette-composte-bilingui [69]). Baseline **532/532** (25 set, v9.388: + [135] sentenze albanesi «non confermate» = inammissibilità dell'archivio o decisioni di altri organi; v9.386: + [134] precedenti di Cassazione per la domanda + etichette del prompt nella lingua della sessione; v9.385: + [133] Cassazione sull'archivio ufficiale — con un controllo dal vivo che si SALTA se l'archivio non risponde; v9.384: + [129] capitoli IT, [130] articoli puntati, [131] rubriche IT, [132] UE/CEDU; era 98 il 31 ago).
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 bash /root/prova_sse.sh                                    # SULL'HOST (legge il secret da /opt/super-avvocato.env; copia in tools/prova_sse.sh): account di prova → login → fascicolo → 1 domanda VERA → stream /api/ask/events attraverso waitress. Deve dire «HTTP 200 … done: 1» (~50s, costa 1 chiamata al cervello) e cancella l'account. Dopo OGNI build che tocca web.py o le rotte SSE.
@@ -1491,6 +1491,23 @@ rischio residuo della DPIA.
 - Super Avokati ha auth propria (login_required_api); utenti creati da admin o auto-provisionati da AALA (`/api/provision-demo`, secret-guarded).
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
+
+**v9.388 — LE SENTENZE ALBANESI «NON CONFERMATE» ERANO QUASI TUTTE ALTRO (25 set, notte).** Stessa misura della Cassazione
+sul lato albanese (risposte AL salvate, `verify_cases`): delle **6** Gjykata e Lartë «të pakonfirmuara», **5 ESISTONO**
+nell'archivio ufficiale già scaricato (`data/raw/jurisprudence/gjykata_elarte/<anno>/00-<anno>-<n>.doc|docx|pdf`, 7.763 file) —
+00-2020-146, 00-2021-1059, 00-2021-756 = **mospranim**, 00-2022-4428 e 4458 = **kthim i rekursit** del relatore: il cervello
+le aveva citate come PRECEDENTI. Delle **10** «Kushtetuese non confermate» nessuna era della Kushtetuese nel periodo coperto:
+«Vendimi nr. 1842, datë 18.02.2026 i Gjykatës së Rrethit», «vendimit nr. 39 … të Gjykatës së Apelit Vlorë», VKM 1143/2020,
+registro OJF 837/2013, GjK 55/2012 (prima del 2015: fuori copertura); e 2 «confermate» erano FALSE conferme (10/2023 = Appello
+di Scutari, che per numero combaciava con una Kushtetuese). **Cure**: `src/arkiva_gjl.py` (indice dei file, riletto quando la
+cartella cambia; classificazione dal DISPOSITIVO dopo l'ultimo «PËR KËTO ARSYE» maiuscolo con le stesse esclusioni di
+`reparse_vendime.py`: mospranim, kthim i rekursit, errata, procedurali; cache `data/cache/gjl_arkiva.json`) → nuovo esito
+**excluded** («ekziston në arkivin zyrtar, por NUK është precedent» con il motivo; nota nel testo idempotente, riga «N pa
+vlerë precedenti», stato 🟡, blocco al Giudice, pannello) e **archive** (di merito ma fuori dalla nostra base = confermata);
+solo in positivo: un numero che l'archivio non ha resta «da verificare» (dal 2023 l'archivio online è parziale). Il
+«vendim nr. N, datë …» vale come Kushtetuese solo con numero ≤ 150, anno coperto dall'indice e SENZA un altro organo nel
+genitivo che segue («të Gjykatës së Apelit…», «i Gjykatës së Rrethit», VKM, Kuvendi, registri). Dopo: GjL non confermate
+6 → 1, Kushtetuese non confermate 10 → 0, false conferme 2 → 0. Golden **[135]**, 532.
 
 **v9.386 — I PRECEDENTI DI CASSAZIONE PER LA DOMANDA, e il prompt italiano senza etichette albanesi (24 set, notte).**
 Dalla prova viva della v9.385 (auto targata Albania, 1370 s): il Giudice ha usato il riscontro ufficiale — data della

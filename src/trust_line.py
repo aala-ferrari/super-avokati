@@ -62,7 +62,8 @@ def _art_map(index) -> dict:
 def vuota() -> dict:
     return {"nene": {"verified": 0, "repealed": 0, "fake": 0, "needs_code": 0, "unconstitutional": 0, "total": 0, "bad": [],
                      "foreign_verified": 0, "foreign_unverified": 0, "foreign": []},
-            "sentenze": {"verified": 0, "unverified": 0, "quashed": 0, "mismatch": 0, "total": 0, "bad": [], "quashed_list": []},
+            "sentenze": {"verified": 0, "unverified": 0, "quashed": 0, "mismatch": 0, "excluded": 0, "total": 0, "bad": [],
+                         "quashed_list": [], "excluded_list": []},
             "fatti_da_precisare": 0}
 
 
@@ -137,6 +138,7 @@ def verifica(text: str, index, jurisdiction: str = "AL", retrieved_codes=None, f
         out["sentenze"]["unverified"] = int(st.get("unverified") or 0)
         out["sentenze"]["quashed"] = int(st.get("quashed") or 0)
         out["sentenze"]["mismatch"] = int(st.get("mismatch") or 0)
+        out["sentenze"]["excluded"] = int(st.get("excluded") or 0)
         out["sentenze"]["total"] = int(st.get("total") or 0)
         # v9.385 — la Cassazione ha un resoconto suo per il Giudice (estremi ufficiali, esito, passo del testo):
         # qui si tengono gli item e il testo, fuori dall'audit (solo i conteggi vanno nel pacchetto)
@@ -148,6 +150,8 @@ def verifica(text: str, index, jurisdiction: str = "AL", retrieved_codes=None, f
                 continue
             if it.get("status") == "unverified":
                 out["sentenze"]["bad"].append((it.get("raw") or "")[:60])
+            elif it.get("status") == "excluded":
+                out["sentenze"]["excluded_list"].append(f"{(it.get('raw') or '')[:40]} — {it.get('objekti') or it.get('outcome') or ''}")
             elif it.get("status") == "quashed":
                 q = (it.get("quashed_by") or "||").split("|")
                 out["sentenze"]["quashed_list"].append(f"{(it.get('raw') or '')[:40]} ← GjK nr. {q[2] if len(q) > 2 else '?'}/{q[1] if len(q) > 1 else '?'}")
@@ -171,7 +175,7 @@ def stato(v: dict) -> str:
         return "EMPTY"
     # «senza codice» (neni 155 nudo, col codice nominato poco prima) non è un errore: resta nel
     # conteggio della riga ma non abbassa lo stato (prova viva 16 set: 19 «pa kod» su un verdetto giusto)
-    if s["unverified"] or v.get("fatti_da_precisare") or n.get("foreign_unverified"):
+    if s["unverified"] or s.get("excluded") or v.get("fatti_da_precisare") or n.get("foreign_unverified"):
         return "RESERVATIONS"
     return "VERIFIED"
 
@@ -241,6 +245,8 @@ def riga(v: dict, lang: str = "sq", tempo: dict | None = None, coverage: dict | 
             b.append(f"{s['unverified'] - _mis} da riscontrare")
         if _mis:
             b.append(f"{_mis} con estremi diversi")
+        if s.get("excluded"):
+            b.append(f"{s['excluded']} senza valore di precedente")
         c = f"fatti {f} da precisare" if f else "fatti: nessuno da precisare"
         if n.get("foreign_verified") or n.get("foreign_unverified"):
             c += f" | diritto straniero/internazionale {n.get('foreign_verified', 0)} verificato"
@@ -262,6 +268,8 @@ def riga(v: dict, lang: str = "sq", tempo: dict | None = None, coverage: dict | 
             b.append(f"{s['quashed']} TË SHFUQIZUARA")
         if s["unverified"]:
             b.append(f"{s['unverified']} për t'u verifikuar")
+        if s.get("excluded"):
+            b.append(f"{s['excluded']} pa vlerë precedenti")
         c = f"fakte {f} për t'u saktësuar" if f else "fakte: asnjë për t'u saktësuar"
         if n.get("foreign_verified") or n.get("foreign_unverified"):
             c += f" | e drejtë e huaj/ndërkombëtare {n.get('foreign_verified', 0)} e verifikuar"
@@ -331,6 +339,9 @@ def blocco_per_gjyqtarin(v: dict, lang: str = "sq", coverage: dict | None = None
             r.append(f"- {b} → I SHFUQIZUAR: nuk është precedent i vlefshëm")
         for b in s["bad"][:8]:
             r.append(f"- «{b}» → e pakonfirmuar")
+        for b in s.get("excluded_list") or []:
+            r.append(f"- «{b}» → EKZISTON në arkivin zyrtar, por NUK është precedent (nuk vendos mbi themelin): "
+                     f"mos e përdor si autoritet; nëse duhet, gjej një vendim mbi themelin")
         if v.get("fatti_da_precisare"):
             r.append(f"Përgjigja sinjalizon {v['fatti_da_precisare']} fakt(e) për t'u saktësuar («Për saktësi»).")
         if n.get("foreign"):

@@ -2136,6 +2136,14 @@
           return '<li class="cit-row ' + (ok && !(dc.correzioni && dc.correzioni.length) ? "cit-row-ok" : "cit-row-warn") + '"><span class="cit-status">' +
             (ok ? "✓" : (dc.status === "mismatch" ? "≠" : "?")) + '</span><code>' + escapeHtml(dc.raw) + '</code><span class="cit-meta">' + meta + "</span></li>";
         }
+        // v9.388 — esiste nell'archivio ufficiale della Gjykata e Lartë: come precedente (merito) o NO (mospranim…)
+        if (dc.status === "excluded" || dc.status === "archive") {
+          var ex = dc.status === "excluded";
+          return '<li class="cit-row ' + (ex ? "cit-row-warn" : "cit-row-ok") + '"><span class="cit-status">' + (ex ? "⚠" : "✓") +
+            '</span><code>' + escapeHtml(dc.raw) + '</code><span class="cit-meta">' +
+            (ex ? (_CAL_IT ? "esiste nell'archivio ufficiale ma NON è un precedente: " : "ekziston në arkivin zyrtar, por NUK është precedent: ") + escapeHtml(dc.objekti || dc.outcome || "")
+                : (_CAL_IT ? "trovata nell'archivio ufficiale (fuori dalla nostra base)" : "u gjet në arkivin zyrtar (jashtë bazës sonë)")) + "</span></li>";
+        }
         return '<li class="cit-row ' + (ok ? "cit-row-ok" : "cit-row-warn") + '"><span class="cit-status">' +
           (ok ? "✓" : "?") + '</span><code>' + escapeHtml(dc.raw) + '</code><span class="cit-meta">' +
           (ok ? (_CAL_IT ? "trovata nella nostra base" : "e gjetur në bazën tonë") : (_CAL_IT ? "non confermata — controlla" : "s’u konfirmua në bazë — kontrollo")) + "</span></li>";

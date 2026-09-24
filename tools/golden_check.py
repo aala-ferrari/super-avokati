@@ -4574,6 +4574,40 @@ def main():
     except Exception as _e134:  # noqa: BLE001
         check("Cassazione[134]: kontrollet u ekzekutuan", False, str(_e134))
 
+    # [135] v9.388 — LE SENTENZE ALBANESI «NON CONFERMATE» ERANO QUASI TUTTE ALTRO. Misurato sulle risposte AL salvate: delle 6
+    # Gjykata e Lartë «të pakonfirmuara» 5 ESISTONO nell'archivio ufficiale già scaricato ed erano mospranim / kthim i rekursit
+    # (citate come precedenti!); delle 10 «Kushtetuese non confermate» nessuna era della Kushtetuese nel periodo coperto (Appello,
+    # Tribunale, VKM, registro OJF, o 2012 fuori copertura) e 2 «confermate» erano sentenze d'APPELLO (10/2023, «të Gjykatës së
+    # Apelit Shkodër»). Ora: esiste ma non è precedente → «excluded» con il motivo dal dispositivo; altro organo → nessun esito.
+    try:
+        from src import arkiva_gjl as _ag135, trust_line as _tl135
+        _c1 = _ag135.classifica("… PËR KËTO ARSYE, Kolegji Administrativ … V E N D O S I: Mospranimin e rekursit të paraqitur nga pala paditëse")
+        _c2 = _ag135.classifica("PËR KËTO ARSYE … V E N D O S A: - Kthimin e rekursit të paraqitur nga pala paditëse")
+        _c3 = _ag135.classifica("për këto arsye mospranimi i apelit … PËR KËTO ARSYE Kolegji Civil V E N D O S I: Prishjen e vendimit nr. 64 dhe dërgimin e çështjes për rishqyrtim")
+        _okA = (_c1["esclusa"] and _c1["esito"] == "mospranim" and _c2["esclusa"] and _c2["esito"] == "kthim i rekursit"
+                and not _c3["esclusa"] and _c3["esito"] == "merito" and _c3["kolegji"].lower().startswith("kolegji civil"))
+        _dec135 = _tl135.dec_index()
+        _t = ("Gjykata e Lartë ka vendosur me vendimin 00-2021-756 dhe me vendimin nr. 10, datë 26.01.2023, të Gjykatës së Apelit "
+              "Shkodër; Vendimi nr. 1842, datë 18.02.2026 i Gjykatës së Rrethit; vendimi nr. 55, datë 18.12.2012 i Gjykatës Kushtetuese.")
+        _p = ccv.verify_cases(_t, _dec135)
+        _st = {(i["court"], i["number"]): i["status"] for i in _p["items"]}
+        _arch = _ag135.info("2021", "756") is not None
+        _okB = (("kushtetuese", "10") not in _st and ("kushtetuese", "1842") not in _st and ("kushtetuese", "55") not in _st
+                and (_st.get(("gjykata_elarte", "756")) == "excluded" if _arch else _st.get(("gjykata_elarte", "756")) == "unverified"))
+        _md = ccv.annotate_unverified(_t, _p)
+        _okC = (not _arch) or ("NUK janë precedent" in _md and _md.count("NUK janë precedent") == 1
+                                and ccv.annotate_unverified(_md, ccv.verify_cases(_md, _dec135)).count("NUK janë precedent") == 1)
+        _v135 = _tl135.vuota(); _v135["sentenze"].update(total=1, excluded=1)
+        _okD = ("pa vlerë precedenti" in _tl135.riga(_v135, "sq") and _tl135.stato(_v135) == "RESERVATIONS"
+                and '_st.get("excluded")' in open("/app/src/web.py", encoding="utf-8").read()
+                and 'dc.status === "excluded"' in open("/app/static/app.js", encoding="utf-8").read())
+        check("vendime AL[135]: esistono nell'archivio ufficiale ma NON sono precedenti (mospranim / kthim i rekursit dal dispositivo) "
+              "→ «excluded» con l'avviso · «vendim nr. …» di Appello/Tribunale/VKM o fuori copertura non è della Kushtetuese · riga, "
+              "stato 🟡, nota idempotente, pannello",
+              _okA and _okB and _okC and _okD, "A=%s B=%s C=%s D=%s arch=%s st=%s" % (_okA, _okB, _okC, _okD, _arch, _st))
+    except Exception as _e135:  # noqa: BLE001
+        check("vendime AL[135]: kontrollet u ekzekutuan", False, str(_e135))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

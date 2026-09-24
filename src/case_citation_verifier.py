@@ -42,6 +42,14 @@ _KUSH = re.compile(
     r"\d{1,2}[./]\d{1,2}[./](20\d{2}))", re.I)
 
 
+# v9.388 — un «vendim nr. N, datë …» di un ALTRO organo (appello, tribunale, Consiglio dei ministri, registri) non è
+# della Kushtetuese: misurato sulle risposte salvate, 1842/2026 (Tribunale di Tirana), 39/2019 e 10/2023 (Appello),
+# 1143/2020 (VKM), 837/2013 (registro delle OJF)
+_ALTRA_CORTE = re.compile(r"Gjykat(?:a|ës|ën)\s+(?:e|së)\s+(?:Apelit|Rrethit|Shkallës|Posaçme|Lartë)|Gjykat(?:a|ës|ën)\s+Administrative|"
+                          r"\bApelit\b|\bRrethit\b|\bVKM\b|Këshillit\s+të\s+Ministrave|\bKLGJ\b|\bKPA\b|\bKPK\b|\bKQZ\b|"
+                          r"regjistr|Kuvendit|Prokuroris", re.I)
+
+
 @dataclass
 class CaseCitation:
     raw: str                  # il testo trovato, es. "00-2025-68"
@@ -164,6 +172,23 @@ def verify_cases(text: str, index) -> dict:
         # citarlo come precedente è portare in aula una sentenza che non esiste più
         q = _annullati.get(f"00-{k[1]}-{k[2]}") if court == "gjykata_elarte" else None
         if d is None:
+            # v9.388 — non è nel corpus dei precedenti, ma può ESISTERE nell'archivio ufficiale della Gjykata e Lartë
+            # (le esclusioni per regola: mospranim, kthim i rekursit, errata, procedurali). Misurato: 5 «non confermate»
+            # su 6 esistevano — 00-2021-756 è un mospranim citato come precedente. Solo in positivo: se l'archivio non
+            # l'ha, resta «unverified» come prima.
+            arch = None
+            if court == "gjykata_elarte" and not q:
+                try:
+                    from . import arkiva_gjl as _ag
+                    arch = _ag.info(k[1], k[2])
+                except Exception:  # noqa: BLE001
+                    arch = None
+            if arch:
+                trovate[k] = CaseCitation(raw=raw, court=court, year=k[1], number=k[2],
+                                          status="excluded" if arch.get("esclusa") else "archive",
+                                          outcome=arch.get("esito") or None, dispositif=(arch.get("dispositivo") or "")[:300] or None,
+                                          objekti=arch.get("motivo") or arch.get("kolegji") or None)
+                return
             trovate[k] = CaseCitation(raw=raw, court=court, year=k[1], number=k[2],
                                       status="quashed" if q else "unverified", quashed_by=q)
             return
@@ -179,16 +204,28 @@ def verify_cases(text: str, index) -> dict:
 
     for m in _GJL.finditer(text):
         aggiungi("gjykata_elarte", m.group(1), m.group(2), m.group(0).strip())
+    # v9.388 — «Vendimi nr. N, datë …» NON è per forza della Kushtetuese: 3 delle 5 «Kushtetuese non confermate»
+    # erano 837/2013, 1143/2020, 1842/2026 — numeri che la Corte non raggiunge (≤ 89 decisioni finali l'anno): decisioni
+    # di altri organi citate nei fatti. Si giudica solo con la Corte nominata vicino, un numero plausibile e un anno che
+    # l'indice copre (fuori copertura: nessun esito, come per la Consulta).
+    anni_gjk = {str(d.year)[:4] for d in getattr(index, "decisions", []) or [] if d.court_code == "kushtetuese"}
     for m in _KUSH.finditer(text):
         anno = m.group(2) or m.group(3)
-        if anno:
-            aggiungi("kushtetuese", anno, m.group(1), m.group(0).strip())
+        if not anno or int(m.group(1)) > 150 or (anni_gjk and anno not in anni_gjk):
+            continue
+        # il genitivo albanese viene DOPO: «vendimit nr. 39, datë 10.07.2019, të Gjykatës së Apelit Vlorë» è dell'Appello
+        # (prima era «verificato» come Kushtetuese 10/2023, 39/2019…); con la Kushtetuese nominata lì accanto vale sempre
+        dopo = text[m.end(): m.end() + 90]
+        if _ALTRA_CORTE.search(dopo) and not _re.search(r"[Kk]ushtetues|\bGjK\b", dopo):
+            continue
+        aggiungi("kushtetuese", anno, m.group(1), m.group(0).strip())
 
     items = [asdict(c) for c in trovate.values()]
-    ver = sum(1 for c in items if c["status"] == "verified")
+    ver = sum(1 for c in items if c["status"] in ("verified", "archive"))
     qua = sum(1 for c in items if c["status"] == "quashed")
+    esc = sum(1 for c in items if c["status"] == "excluded")
     return {"items": items,
-            "stats": {"verified": ver, "unverified": len(items) - ver - qua, "quashed": qua,
+            "stats": {"verified": ver, "unverified": len(items) - ver - qua - esc, "quashed": qua, "excluded": esc,
                       "total": len(items)}}
 
 
@@ -232,6 +269,11 @@ def annotate_unverified(md: str, cases: dict, *, jurisdiction: str = "AL") -> st
                + "; ".join(righe) + "\n")
     if it:
         md = _note_cassazione(md, cases)
+    # v9.388 — esistono nell'archivio ufficiale ma NON sono precedenti (mospranim, kthim i rekursit…)
+    escluse = [c for c in (cases.get("items") or []) if c.get("status") == "excluded"]
+    if escluse and _TESTA_ESCLUSE_SQ not in md and _TESTA_ESCLUSE_IT not in md:
+        righe = "; ".join("`%s` — %s" % (c["raw"], c.get("objekti") or c.get("outcome") or "") for c in escluse[:6])
+        md += "\n\n" + (_TESTA_ESCLUSE_IT if it else _TESTA_ESCLUSE_SQ) + " " + righe + "\n"
     da_dire = [c for c in (cases.get("items") or [])
                if c.get("status") == "unverified" and c.get("court") != "Cass"]
     if not da_dire:
@@ -239,6 +281,12 @@ def annotate_unverified(md: str, cases: dict, *, jurisdiction: str = "AL") -> st
     lista = ", ".join("`%s`" % c["raw"] for c in da_dire[:8])
     nota = _NOTA_IT if it else _NOTA_SQ
     return md + nota.format(lista=lista)
+
+
+_TESTA_ESCLUSE_SQ = ("> ⚠️ **Vendime që ekzistojnë në arkivin zyrtar të Gjykatës së Lartë, por NUK janë precedent** (nuk vendosin "
+                     "mbi themelin — mos i cito si autoritet):")
+_TESTA_ESCLUSE_IT = ("> ⚠️ **Decisioni che esistono nell'archivio ufficiale della Gjykata e Lartë ma NON sono precedenti** (non "
+                     "decidono il merito — non citarle come autorità):")
 
 
 # v9.385 — CASSAZIONE: l'archivio ufficiale è COMPLETO dal 2009 (metadati), quindi il linguaggio è diverso da quello
