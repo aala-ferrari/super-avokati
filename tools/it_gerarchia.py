@@ -23,7 +23,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 DATA = Path(os.environ.get("SA_DATA", "/var/www/apps/super-avvocato/data"))
 ACTS = DATA / "processed" / "it_acts"
-OUT = DATA / "processed" / "it_gerarchia"
+OUT = Path(os.environ.get("IT_GER_OUT", str(DATA / "processed" / "it_gerarchia")))   # IT_GER_OUT: prova senza toccare le mappe
 
 # ⚠️ l'etichetta può contenere dei tag: le intestazioni del testo MODIFICATO sono «<em><strong>((TITOLO IV</a>…» — il primo
 # regex ([^<]+) le saltava in silenzio (288 intestazioni su 3.235, fra cui il Titolo IV «controversie di lavoro» e il
@@ -33,7 +33,8 @@ _LNK = re.compile(r"showArticle\('([^']+)',\s*this\);\"[^>]*class=\"numero_artic
 
 # livelli: ALLEGATO (-1) sopra tutto · PARTE 0 · ancora senza parola di livello 0.5 · LIBRO 1 · TITOLO 2 · CAPO 3 ·
 # SEZIONE 4 · § 5 · lettera «D) Segnali di indicazione» 6
-_LIV = {"PARTE": 0, "LIBRO": 1, "TITOLO": 2, "CAPO": 3, "SEZIONE": 4, "SEZ.": 4, "SEZ": 4, "§": 5, "PARAGRAFO": 5, "PAR.": 5}
+_LIV = {"PARTE": 0, "LIBRO": 1, "TITOLO": 2, "CAPO": 3, "SEZIONE": 4, "SEZ.": 4, "SEZ": 4, "SOTTOSEZIONE": 4.5,
+        "§": 5, "PARAGRAFO": 5, "PAR.": 5}
 _ROM = r"(?=[IVXL])(?:XC|XL|L?X{0,3})(?:IX|IV|V?I{0,3})"          # 1-89: «DI», «CIVILE», «MI» NON sono numeri romani
 _SUFF = (r"(?:BIS|TER|QUATER|QUINQUIES|SEXIES|SEPTIES|OCTIES|NOVIES|DECIES|UNDECIES|DUODECIES|TERDECIES|QUATERDECIES|"
          r"QUINQUIESDECIES|SEXIESDECIES|SEPTIESDECIES|OCTIESDECIES|NOVIESDECIES|VICIES)")
@@ -41,7 +42,7 @@ _PAROLA_ORD = (r"(?:UNIC[OA]|PRIM[OA]|SECOND[OA]|TERZ[OA]|QUART[OA]|QUINT[OA]|SE
                r"(?:UN|DUO)?DECIM[OA]|[A-Z]{3,}ESIM[OA]|PRELIMINARE|GENERALE|SPECIALE)")
 _ORD = (r"(?:" + _ROM + r"(?:\.\d+)?|\d+\." + _ROM + r"|\d+(?:\.\d+)*(?:-" + _ROM + r")?|" + _PAROLA_ORD + r")"
         r"(?:\s*-\s*" + _SUFF + r"|\s+" + _SUFF + r"|(?<=\d)[A-Zªº°]|-[A-Z])?(?![A-Z0-9])")   # «Sezione 1ª», «1a»
-_LW = r"(§|PARTE|LIBRO|TITOLO|CAPO|SEZIONE|SEZ\.|PARAGRAFO|PAR\.)"          # «Par. 1» del c.p.c. (rito del lavoro)
+_LW = r"(§|PARTE|LIBRO|TITOLO|CAPO|SOTTOSEZIONE|SEZIONE|SEZ\.|PARAGRAFO|PAR\.)"   # «Par. 1» c.p.c.; «Sottosezione 2» UE
 _TESTA_RX = re.compile(r"^\s*" + _LW + r"\s*(" + _ORD + r")", re.I)      # la parola di livello + l'ordinale, a inizio riga
 _ALL_ID = r"(?:[IVXL]+|\d+|[A-Z])(?:[.\-](?:[IVXL]+|\d+|[A-Z]|BIS|TER|QUATER|QUINQUIES|SEXIES|SEPTIES|OCTIES))*(?![A-Z0-9])"
 _ALLEGATO_RX = re.compile(r"^\s*ALLEGATO\b\s*(" + _ALL_ID + r")?\s*[.:\-–—]?\s*(.*)$", re.I)
@@ -212,6 +213,31 @@ def _voce_da_pila(pila: list) -> tuple[str, str, str]:
     return " · ".join(pj), " · ".join(kr), " · ".join(sk)
 
 
+def applica_righe(pila: list, righe: list[str], blocco: int) -> list:
+    """Le righe di UN blocco di intestazioni («TITOLO V», «DELLA PRESCRIZIONE…», «CAPO I», …) nella pila dei livelli."""
+    i, primo = 0, True
+    while i < len(righe):
+        lv = _livello(righe[i])
+        if lv is None:
+            if i > 0 or not re.search(r"[A-Za-zÀ-ÿ]", righe[i]):   # riga orfana o senza lettere: non è un capitolo
+                i += 1; continue
+            lv = {"liv": 0.5, "tipo": "ANCORA", "stile": "M", "etichetta": "", "titolo": righe[0]}
+        i += 1
+        parti = [lv["titolo"]] if lv["titolo"] else []
+        while i < len(righe) and _livello(righe[i]) is None:
+            r = righe[i]
+            parti.append(f"({r})" if _ABROGATO_RX.match(r) else r)   # «(CAPO ABROGATO DALLA L. …)»
+            i += 1
+        titolo = re.sub(r"(?<=[a-zà-ÿ]{2})\.$", "", " ".join(parti), flags=re.I)   # «Le Camere.» → «Le Camere»
+        # «… dei figli naturali SEZIONE ABROGATA DALLA L. 10 DICEMBRE 2012, N. 219» → «… (SEZIONE ABROGATA …)»
+        titolo = re.sub(r"(?<=\S)\s+((?:PARTE|LIBRO|TITOLO|CAPO|SEZIONE|PARAGRAFO)\s+ABROGAT[OA]\b[^()]*)$", r" (\1)", titolo)
+        e = dict(lv, blocco=blocco, titolo_proprio=bool(titolo),
+                 testo=" — ".join(x for x in (lv["etichetta"], titolo) if x)[:220])
+        pila = _applica(pila, e, primo)
+        primo = False
+    return pila
+
+
 def albero(page: str, titolo_atto: str = "") -> tuple[dict, dict]:
     """Ritorna ({(gruppo, numero): (pjesa, kreu, seksioni)}, statistiche).
     pjesa = ALLEGATO · PARTE · ancora · LIBRO (e una SEZIONE che sta sopra i titoli); kreu = TITOLO · CAPO;
@@ -228,27 +254,7 @@ def albero(page: str, titolo_atto: str = "") -> tuple[dict, dict]:
         if kind == "H":
             n_hdr += 1
             intestazione_dopo = True
-            righe = _righe_blocco(a, b, titolo_atto)
-            i, primo = 0, True
-            while i < len(righe):
-                lv = _livello(righe[i])
-                if lv is None:
-                    if i > 0 or not re.search(r"[A-Za-zÀ-ÿ]", righe[i]):   # riga orfana o senza lettere: non è un capitolo
-                        i += 1; continue
-                    lv = {"liv": 0.5, "tipo": "ANCORA", "stile": "M", "etichetta": "", "titolo": righe[0]}
-                i += 1
-                parti = [lv["titolo"]] if lv["titolo"] else []
-                while i < len(righe) and _livello(righe[i]) is None:
-                    r = righe[i]
-                    parti.append(f"({r})" if _ABROGATO_RX.match(r) else r)   # «(CAPO ABROGATO DALLA L. …)»
-                    i += 1
-                titolo = re.sub(r"(?<=[a-zà-ÿ]{2})\.$", "", " ".join(parti), flags=re.I)   # «Le Camere.» → «Le Camere»
-                # «… dei figli naturali SEZIONE ABROGATA DALLA L. 10 DICEMBRE 2012, N. 219» → «… (SEZIONE ABROGATA …)»
-                titolo = re.sub(r"(?<=\S)\s+((?:PARTE|LIBRO|TITOLO|CAPO|SEZIONE|PARAGRAFO)\s+ABROGAT[OA]\b[^()]*)$", r" (\1)", titolo)
-                e = dict(lv, blocco=n_hdr, titolo_proprio=bool(titolo),
-                         testo=" — ".join(x for x in (lv["etichetta"], titolo) if x)[:220])
-                pila = _applica(pila, e, primo)
-                primo = False
+            pila = applica_righe(pila, _righe_blocco(a, b, titolo_atto), n_hdr)
         else:
             mf = re.search(r"flagTipoArticolo=(\d+)", b)
             flag = mf.group(1) if mf else "0"          # come l'ingest (article_links_all): senza flag = gruppo 0

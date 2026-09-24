@@ -77,6 +77,19 @@ HARD_IT = [
     ("collazione delle donazioni tra coeredi", ("codice_civile", "737")),
     ("misure cautelari personali condizioni di applicabilità", ("codice_procedura_penale", "273")),
     ("termini per impugnare la sentenza penale", ("codice_procedura_penale", "585")),
+    # v9.384 — diritto UE e CEDU: il tema lo dice il capitolo (Bruxelles I-bis non ha rubriche; CDU 250 «Ambito di applicazione»)
+    ("ammissione temporanea di merci e veicoli", ("codice_doganale_ue", "250")),
+    ("ammissione temporanea auto uso privato residente fuori dall'Unione", ("reg_ue_2015_2446", "215")),
+    ("competenza giurisdizionale nei contratti conclusi dai consumatori", ("bruxelles_i_bis", "17")),
+    ("competenza esclusiva diritti reali su immobili", ("bruxelles_i_bis", "24")),
+    ("proroga di competenza clausola di scelta del foro", ("bruxelles_i_bis", "25")),
+    ("riconoscimento della decisione di un altro Stato membro", ("bruxelles_i_bis", "36")),
+    ("legge applicabile ai contratti conclusi dai consumatori", ("roma_i", "6")),
+    ("legge applicabile al contratto in mancanza di scelta", ("roma_i", "4")),
+    ("rinvio pregiudiziale alla Corte di giustizia", ("tfue", "267")),
+    ("legge applicabile alla successione ultima residenza abituale", ("successioni_ue", "21")),
+    ("competenza sulla responsabilità genitoriale residenza abituale del minore", ("bruxelles_ii_ter", "7")),
+    ("diritto a un equo processo in tempo ragionevole", ("cedu", "6")),
 ]
 
 

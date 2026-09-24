@@ -279,13 +279,13 @@
   "code": "codice_doganale_ue",
   "title": "Codice Doganale dell'Unione (Reg. UE 952/2013)",
   "area": "Doganale",
-  "count": 288
+  "count": 290
  },
  {
   "code": "reg_ue_2015_2446",
   "title": "Regolamento delegato (UE) 2015/2446 — integrazione del CDU (ammissione temporanea, regimi speciali)",
   "area": "Doganale",
-  "count": 268
+  "count": 270
  },
  {
   "code": "reg_ue_2015_2447",
@@ -411,7 +411,7 @@
   "code": "bruxelles_i_bis",
   "title": "Regolamento (UE) 1215/2012 — competenza giurisdizionale e riconoscimento delle decisioni civili (Bruxelles I-bis)",
   "area": "Procedura Civile",
-  "count": 82
+  "count": 86
  },
  {
   "code": "roma_i",
@@ -663,13 +663,13 @@
   "code": "codice_frontiere_schengen",
   "title": "Regolamento (UE) 2016/399 — codice frontiere Schengen (ingresso, 90 giorni su 180)",
   "area": "Immigrazione",
-  "count": 57
+  "count": 68
  },
  {
   "code": "reg_ue_2018_1806",
   "title": "Regolamento (UE) 2018/1806 — paesi terzi soggetti all'obbligo del visto o esenti (Albania esente)",
   "area": "Immigrazione",
-  "count": 19
+  "count": 25
  },
  {
   "code": "codice_visti",
@@ -705,7 +705,7 @@
   "code": "small_claims_ue",
   "title": "Regolamento (CE) 861/2007 — procedimento europeo per le controversie di modesta entità",
   "area": "Procedura Civile",
-  "count": 30
+  "count": 33
  },
  {
   "code": "notifiche_ue",

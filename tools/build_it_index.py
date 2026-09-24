@@ -38,17 +38,41 @@ _RUB_STOP = {"il", "lo", "la", "i", "gli", "le", "l", "un", "uno", "una", "chi",
 _RUB_VERBI = re.compile(r"\b(?:è|sono|può|possono|deve|devono|ha|hanno|non|si|viene|vengono|era|erano|sia|siano|fosse|sarà|saranno|"
                         r"spetta|spettano|costituisce|costituiscono|comporta|provvede|provvedono|dispone|stabilisce|prevede|applica|"
                         r"applicano|determina|entra|cessa|decorre|appartiene|appartengono|abbia|abbiano|occorre|basta|vale|valgono)\b", re.I)
+# non sono rubriche (misurato sul campione del v9.384): il nome di un allegato o di una tabella, il titolo dell'atto,
+# una nota redazionale («COMMA ABROGATO DALLA L. COSTITUZIONALE 18 OTTOBRE 2001, N. 3»)
+_RUB_NON_RUBRICA = re.compile(r"^(?:ALLEGAT|Allegat|TABELL|Tabell|TESTO UNICO|Testo unico|CONVENZIONE|CODICE|REGOLAMENTO|DECRETO|"
+                              r"LEGGE|TARIFFA|PROSPETTO)|ABROGAT|SOPPRESS")
 _RUB_FONTE = re.compile(r"^(.*?\S)\s*(\(\s*(?:articol[oi]|art\.|legge|decreto|d\.\s?lgs|regio)\b[^()]*\))\s*$", re.I)
+
+
+# v9.384 — le altre forme della rubrica rimasta nel corpo (misurate: Roma I 29 su 29, c.c. 263, 330, 332, 337-ter, 2250…):
+#   B «Libertà di scelta» + a capo + «1.  Il contratto…»        (regolamenti UE consolidati: il comma numerato sotto)
+#   C «Decadenza dalla responsabilità genitoriale» + «sui figli.»  (rubrica su DUE righe, la seconda minuscola col punto)
+#   D «Provvedimenti riguardo ai figli» + riga vuota + «Il figlio…» (senza punto; sotto comincia il testo, maiuscolo)
+# Stessi filtri della forma A: ≤100 chr, parola piena in testa, nessun verbo finito, niente «:».
+_RUB_RIGA_COMMA = re.compile(r"^\s*([^\n]{3,100}?)[ \t\xa0]*\n(?=[ \t\xa0]*(?:1\.|1\)|\(1\))[\s\xa0])")
+_RUB_DUE_RIGHE = re.compile(r"^\s*([^\n]{3,90}?)[ \t\xa0]*\n[ \t\xa0]*([a-zà-ü][^\n]{0,60}?\.)[ \t\xa0]*\n\s*\n+(?=\s*[A-ZÀ-Ü0-9(«\"])")
+_RUB_NUDA = re.compile(r"^\s*([^\n]{3,100}?)[ \t\xa0]*\n(?:[ \t\xa0]*\n)*(?=[ \t\xa0]*[A-ZÀ-Ü«\"])")
 
 
 def _rubrica_prima_riga(body: str):
     """(rubrica, corpo) se la prima riga del corpo è la rubrica dell'articolo, altrimenti None."""
-    m = _RUB_PRIMA_RIGA.match(body or "")
+    body = body or ""
+    m = _RUB_PRIMA_RIGA.match(body)
+    if m:
+        riga = m.group(1).strip()
+        punto_sotto = bool(re.match(r"\s*\n\s*[.;]", body[m.end(1):]))     # «Reintegrazione …\n.\n\n» (c.c. 332)
+        if not (riga.endswith((".", ")")) or riga.endswith("...") or punto_sotto):
+            m = None
     if not m:
-        return None
-    riga = m.group(1).strip()
-    if not (riga.endswith((".", ")")) or riga.endswith("...")):
-        return None
+        m = _RUB_DUE_RIGHE.match(body)
+        if m:
+            riga = (m.group(1).strip() + " " + m.group(2).strip())
+    if not m:
+        m = _RUB_RIGA_COMMA.match(body) or _RUB_NUDA.match(body)
+        if not m or re.search(r"[.;:,]$", m.group(1).strip()):
+            return None
+        riga = m.group(1).strip()
     fonte = ""
     f = _RUB_FONTE.match(riga)                          # «Prova del pagamento delle imposte ( articolo 14 d.lgs. 347/1990 )»
     if f and not f.group(1).startswith("("):
@@ -60,10 +84,10 @@ def _rubrica_prima_riga(body: str):
     if not r or len(r) > 100 or ":" in r or r.count(",") > 3 or not re.match(r"^[A-ZÀ-Ü]", r):
         return None
     w = re.sub(r"[^\wÀ-ÿ']", " ", r.split()[0]).strip().lower().rstrip("'")
-    if w in _RUB_STOP or _RUB_VERBI.search(r):
+    if w in _RUB_STOP or _RUB_VERBI.search(r) or _RUB_NON_RUBRICA.search(r):
         return None
     resto = body[m.end():]
-    return r, ((fonte + "\n\n") if fonte else "") + resto
+    return r, ((fonte + "\n\n") if fonte else "") + resto.lstrip("\n")
 
 
 def _pulisci(heading: str, body: str) -> tuple[str, str]:
@@ -74,12 +98,19 @@ def _pulisci(heading: str, body: str) -> tuple[str, str]:
             h, b = m.group(1), b[m.end():]
     h = re.sub(r"\(\(|\)\)", " ", h)
     h = re.sub(r"\s+", " ", h).strip().strip(" ()").rstrip(".").strip(" ()")
+    # v9.384 — TFUE/TUE: la «rubrica» è la nota di corrispondenza «(ex articolo 234 del TCE)», non un titolo: va in testa al
+    # testo (ai giuristi serve la vecchia numerazione) e la rubrica resta vuota, come nel trattato
+    if re.fullmatch(r"ex\s+articol[oi]\b.*", h, re.I):
+        b, h = "(" + h + ")\n" + b, ""
     # «((13))» = numero della nota di aggiornamento, non testo normativo: nel corpus restava un
     # «13» a sé su una riga (e faceva risultare «diverso» un testo storico identico — v9.336)
     b = re.sub(r"\(\(\s*\d{1,3}\s*\)\)", " ", b)
     b = re.sub(r"\(\(\s*", "", b)
     b = re.sub(r"\s*\)\)", "", b)
     b = re.sub(r"\n[ \t]*\n(?:[ \t]*\n)+", "\n\n", b)
+    # v9.384 — «… della presente Convenzione. TITOLO I DIRITTI E LIBERTÀ»: l'intestazione del titolo SEGUENTE incollata in
+    # coda all'articolo (CEDU artt. 1, 18, 51; nel corpus IT non succede altrove — misurato): non è testo dell'articolo
+    b = re.sub(r"(?<=[.;:])\s+(?:PARTE|TITOLO|CAPO|SEZIONE|SOTTOSEZIONE)\s+(?:[IVXLC]+|\d+)\b(?:\s+[A-ZÀ-Ü’'«»,\-]+)+\s*$", "", b)
     if not h.strip():                                   # dopo la pulizia dei «((…))»: «(( (Competenza …).» c.p.p. 11
         rp = _rubrica_prima_riga(b.strip())
         if rp:

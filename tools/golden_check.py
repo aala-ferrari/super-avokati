@@ -4370,12 +4370,59 @@ def main():
                 and _by131[("codice_penale", "635")].heading == "Danneggiamento"
                 and _by131[("codice_procedura_penale", "11")].heading == "Competenza per i procedimenti riguardanti i magistrati"
                 and _by131[("codice_civile", "147")].heading == ""
-                and sum(1 for a in _it131.articles if not a.repealed and not (a.heading or "").strip()) <= 3800)
+                # i trattati (TFUE/TUE) non hanno rubriche: dal v9.384 la nota «(ex articolo … del TCE)» non fa più da rubrica
+                and sum(1 for a in _it131.articles if not a.repealed and not (a.heading or "").strip()
+                        and a.code not in ("tfue", "tue")) <= 3700)
         check("rubriche IT[131]: la rubrica rimasta nel corpo torna rubrica (anche dopo «(( (…).», con la fonte «( articolo … )» lasciata nel "
-              "corpo) · mai da una frase normativa · indice vero (c.c. 316, c.p. 635, c.p.p. 11 sì; c.c. 147 no; senza rubrica ≤ 3.800)",
+              "corpo) · mai da una frase normativa · indice vero (c.c. 316, c.p. 635, c.p.p. 11 sì; c.c. 147 no; senza rubrica ≤ 3.700 fuori dai trattati)",
               _okA and _okB, "A=%s B=%s" % (_okA, _okB))
     except Exception as _e131:  # noqa: BLE001
         check("rubriche IT[131]: kontrollet u ekzekutuan", False, str(_e131))
+
+    # [132] v9.384 — IL DIRITTO UE E LA CEDU: capitoli (tools/eu_gerarchia.py, testo CELLAR dell'Ufficio delle pubblicazioni)
+    # e testo riletto dalla stessa fonte strutturata (tools/reparse_eu_xhtml.py): prima il codice visti aveva negli artt.
+    # 2/4/6/9 il testo dell'ALLEGATO sui Giochi olimpici, il Reg. 2446 all'art. 163 pezzi di una tabella e all'art. 4 un
+    # altro articolo, e mancavano 28 articoli «bis» (Schengen 8-bis…, Reg. visti 8-bis…, Bruxelles I-bis 71-bis…) finiti
+    # dentro l'articolo precedente; Roma I con le rubriche nel testo; TFUE con la nota «(ex articolo … del TCE)» come rubrica
+    try:
+        import importlib.util as _ilu132, os as _os132
+        from pathlib import Path as _P132
+        _sp132 = _ilu132.spec_from_file_location("_eug132", _os132.path.join(_os132.path.dirname(_os132.path.abspath(__file__)), "eu_gerarchia.py"))
+        _EU = _ilu132.module_from_spec(_sp132); _sp132.loader.exec_module(_EU)
+        _x = ('<p class="title-division-1">TITOLO VII</p><p class="title-division-2">REGIMI SPECIALI</p>'
+              '<p class="title-division-1">CAPO 4</p><p class="title-division-2">Uso particolare</p>'
+              '<p class="title-division-1">Sezione 1</p><p class="title-division-2">Ammissione temporanea</p>'
+              '<p class="title-article-norm">Articolo 250</p><p class="norm">x</p>'
+              '<p class="title-division-1">Sottosezione 2</p><p class="title-division-2">Mezzi di trasporto</p>'
+              '<p class="title-article-norm">▼M5 Articolo 250 bis</p>'
+              '<p class="title-division-1">CAPO 5</p><p class="title-division-2">Perfezionamento</p><p class="title-article-norm">Articolo 256</p>'
+              '<p class="title-annex-1">ALLEGATO</p><p class="title-article-norm">Articolo 1</p>')
+        _m132, _st132 = _EU.albero_ue(_x)
+        _okA = (_m132[("0", "250")] == ("", "TITOLO VII — REGIMI SPECIALI · CAPO 4 — Uso particolare", "Sezione 1 — Ammissione temporanea")
+                and "Sottosezione 2 — Mezzi di trasporto" in _m132[("0", "250-bis")][2]
+                and _m132[("0", "256")][1].endswith("CAPO 5 — Perfezionamento") and _m132[("0", "256")][2] == ""
+                and ("0", "1") not in _m132)                                # l'«Articolo 1» dell'allegato: ci si ferma al riavvio
+        _it132 = ArticleIndex.load(_P132("/app/data/index/bm25_it.pkl"))
+        _k132 = {(a.code, str(a.number)): a for a in _it132.articles}
+        _okB = ("Ammissione temporanea" in _k132[("codice_doganale_ue", "250")].seksioni
+                and "Mezzi di trasporto" in _k132[("reg_ue_2015_2446", "215")].seksioni
+                and "contratti conclusi da consumatori" in _k132[("bruxelles_i_bis", "17")].seksioni
+                and "DIRITTI E LIBERTÀ" in _k132[("cedu", "6")].kreu
+                and "TITOLO I" not in _k132[("cedu", "1")].body[-40:])
+        _okC = (_k132[("codice_visti", "6")].heading == "Competenza territoriale consolare"
+                and "olimpic" not in _k132[("codice_visti", "6")].body.lower()
+                and _k132[("reg_ue_2015_2446", "163")].heading == "Domanda di autorizzazione sulla base di una dichiarazione in dogana"
+                and _k132[("reg_ue_2015_2446", "4")].heading == "Presentazione delle indicazioni per la registrazione EORI"
+                and all((c, n) in _k132 for c, n in (("codice_frontiere_schengen", "8-bis"), ("reg_ue_2018_1806", "8-bis"),
+                                                     ("bruxelles_i_bis", "71-bis"), ("codice_doganale_ue", "260-bis")))
+                and _k132[("roma_i", "3")].heading == "Libertà di scelta"
+                and _k132[("tfue", "45")].heading == "" and _k132[("tfue", "45")].body.startswith("(ex articolo 39 del TCE)"))
+        check("UE/CEDU[132]: capitoli dall'albero CELLAR (pila, Sottosezione, riavvio agli allegati) · indice vero (CDU 250 ammissione "
+              "temporanea, 2446 215 mezzi di trasporto, Bruxelles I-bis 17 consumatori, CEDU 6) · testo riletto (visti 6 senza Giochi "
+              "olimpici, 2446 artt. 4/163, articoli «bis» presenti, Roma I rubriche, TFUE «ex articolo» nel testo)",
+              _okA and _okB and _okC, "A=%s B=%s C=%s" % (_okA, _okB, _okC))
+    except Exception as _e132:  # noqa: BLE001
+        check("UE/CEDU[132]: kontrollet u ekzekutuan", False, str(_e132))
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

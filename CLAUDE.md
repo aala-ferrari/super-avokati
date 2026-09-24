@@ -2,8 +2,8 @@
 
 Strumento AI per avvocati (B2B), **bi-giurisdizione AL + IT**. Front-end Flask (waitress, UN processo) su porta
 5050, SQLite (`data/app.db`). Postgres `legalkb` NON è raggiungibile dal container: i precedenti vivono nel pickle.
-**Stato al 24 set 2026 (v9.383)** — i numeri qui sono quelli veri; più sotto, nelle sezioni datate, c'è la storia:
-- **AL leggi** (`bm25.pkl`, BM25 con diacritici piegati dal v9.367, titolo del capitolo cercabile dal v9.373): **10.305 nene / 62 codici**; embedding AL `_flat3`/`_ck3` (capitoli + corpo intero, `EMB_SUFFIX_SQ`/`EMB_SUFFIX2_SQ`), IT `_flat3`/`_ck3` dal v9.383 (`EMB_SUFFIX_IT`/`EMB_SUFFIX2_IT`); fonte
+**Stato al 24 set 2026 (v9.384)** — i numeri qui sono quelli veri; più sotto, nelle sezioni datate, c'è la storia:
+- **AL leggi** (`bm25.pkl`, BM25 con diacritici piegati dal v9.367, titolo del capitolo cercabile dal v9.373): **10.305 nene / 62 codici**; embedding AL `_flat3`/`_ck3` (capitoli + corpo intero, `EMB_SUFFIX_SQ`/`EMB_SUFFIX2_SQ`), IT `_flat4`/`_ck4` dal v9.384 (`EMB_SUFFIX_IT`/`EMB_SUFFIX2_IT`); fonte
   `data/processed/all_articles.jsonl` (il pickle è derivato).
 - **Precedenti** (`bm25_decisions.pkl`): **3.996** = Kushtetuese **672** + Gjykata e Lartë **2.960** + CEDU **364**
   (157 sentenze + 207 decisioni, 46 nella traduzione albanese ufficiale). Fonti di verità: `data/processed/al_decisions_v2.jsonl`
@@ -12,8 +12,8 @@ Strumento AI per avvocati (B2B), **bi-giurisdizione AL + IT**. Front-end Flask (
   escluse per regola: inammissibilità (mospranim, «deklarim si të papranueshme»), «refuzim» senza maggioranza (GjK
   2015-16), kthim i rekursit del relatore, errata, decisioni procedurali (kalim në seancë / për njësim), comunicazioni
   CEDU, risoluzioni CM, Information Note. Dopo ogni aggiornamento: `build_case_graph.py` + `build_dense.py --only dec --force`.
-- **IT leggi** (`bm25_it.pkl`): **129 atti / 23.554 articoli** (Normattiva + EUR-Lex + CEDU), con **Libro / Titolo / Capo /
-  Sezione** per articolo dal v9.383 (dall'albero di Normattiva: `tools/it_gerarchia.py` → `data/processed/it_gerarchia/`,
+- **IT leggi** (`bm25_it.pkl`): **129 atti / 23.582 articoli** (Normattiva + UE dal testo CELLAR + CEDU), con **Libro / Titolo / Capo /
+  Sezione** per articolo dal v9.383 (UE e CEDU dal v9.384: `tools/eu_gerarchia.py`) (dall'albero di Normattiva: `tools/it_gerarchia.py` → `data/processed/it_gerarchia/`,
   unito da `build_it_index.py`; il titolo del capitolo è cercabile come in AL); **IT giurisprudenza**
   (FTS5 `it_decisions_fts.db`): **8.055** decisioni (Consulta dal 2005 + CdS/CGARS/TAR), testo della decisione ripulito
   dal sito (`it_precedent_fts.testo_decisione`, v9.369).
@@ -118,6 +118,14 @@ Pipeline in `tools/`: `normattiva_lib.py` (sessione + parsing) ·
   gli artt. 84-123 sarebbero finiti sotto la A); (6) un articolo senza gruppo si assegna al gruppo dal numero
   («N-legge» = 0, «N-allK» = K, senza suffisso = il testo principale), il solo numero vale SOLO se il gruppo manca
   dall'albero. Copertura: 21.105 / 21.196 articoli Normattiva (gli altri: allegati interi e «art. 01» doppi).
+- **Atti UE: la fonte è CELLAR, non EUR-Lex** (v9.384). EUR-Lex dal server dà la sfida AWS WAF (202 + JavaScript) anche a
+  curl; `publications.europa.eu/resource/celex/<CELEX>` con `Accept: application/xhtml+xml` e `Accept-Language: ita` dà lo
+  stesso testo consolidato, strutturato (`eli-subdivision`, rubrica in `eli-title`), senza sfida. Tre trappole dell'ingest
+  EUR-Lex, tutte misurate: (1) il marcatore di modifica «▼M5» dentro il titolo «Articolo 8 bis» faceva fallire il
+  riconoscimento e l'articolo finiva dentro il precedente (28 articoli «bis» spariti); (2) gli allegati con numerazione
+  propria («Articolo 1…9» dei visti per i Giochi olimpici) vincevano la dedup sul testo vero; (3) dal PDF (testi grandi)
+  escono articoli col testo di un altro articolo o di una tabella. Dopo ogni ingest UE: `eu_gerarchia.py fetch/run` e
+  `reparse_eu_xhtml.py report` (deve dire 0 differenze) prima del `build_it_index`.
 
 **Per aggiungere altri codici**: una riga nella lista `ACTS` di
 `tools/ingest_it_normattiva.py` (id, titolo, area, URN NIR, wave), poi
@@ -614,7 +622,7 @@ errori, non che le risposte sono ancora giuste. Riferimento verificato il
 12 articoli recuperati per ciascuna.
 
 ```bash
-docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63], triage-trim+giudice-no-web [64], chat-web+verdetto-in-testa+pannelli-IT [65], codice-nominato→area [66], timeout-45min+ripiego-no-web [67], fasi-bilingue+giudice-no-web+duello-a-scomparsa [68], etichette-composte-bilingui [69]). Baseline **526/526** (24 set, v9.383: + [129] capitoli IT, [130] articoli puntati, [131] rubriche IT; era 98 il 31 ago).
+docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63], triage-trim+giudice-no-web [64], chat-web+verdetto-in-testa+pannelli-IT [65], codice-nominato→area [66], timeout-45min+ripiego-no-web [67], fasi-bilingue+giudice-no-web+duello-a-scomparsa [68], etichette-composte-bilingui [69]). Baseline **527/527** (24 set, v9.384: + [129] capitoli IT, [130] articoli puntati, [131] rubriche IT, [132] UE/CEDU; era 98 il 31 ago).
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 bash /root/prova_sse.sh                                    # SULL'HOST (legge il secret da /opt/super-avvocato.env; copia in tools/prova_sse.sh): account di prova → login → fascicolo → 1 domanda VERA → stream /api/ask/events attraverso waitress. Deve dire «HTTP 200 … done: 1» (~50s, costa 1 chiamata al cervello) e cancella l'account. Dopo OGNI build che tocca web.py o le rotte SSE.
@@ -1481,6 +1489,35 @@ rischio residuo della DPIA.
 - Super Avokati ha auth propria (login_required_api); utenti creati da admin o auto-provisionati da AALA (`/api/provision-demo`, secret-guarded).
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
+
+**v9.384 — IL DIRITTO UE E LA CEDU: capitoli, e testo riletto dalla fonte strutturata (24 set, sera).** Seguito del v9.383
+(«parti dalla 1, capitoli per i regolamenti UE, e poi tutto step by step»). (1) **Capitoli UE** (`tools/eu_gerarchia.py`):
+EUR-Lex dal server risponde con la sfida anti-robot (AWS WAF, 202 + JavaScript) anche a curl; lo STESSO testo, nella
+stessa versione (il CELEX nel campo `urn`), lo dà l'archivio dell'Ufficio delle pubblicazioni UE (**CELLAR**,
+`publications.europa.eu/resource/celex/<CELEX>`, Accept: application/xhtml+xml, Accept-Language: ita), senza sfida;
+cache in `/root/eu_ger_cache`. Stessa macchina dell'albero di Normattiva (`it_gerarchia.applica_righe`, + «Sottosezione»),
+ci si ferma al riavvio della numerazione (protocolli, allegati). CEDU: i tre «TITOLO …» erano incollati in coda agli
+artt. 1, 18, 51 → mappa da lì e `build_it_index` li toglie dal testo. CDU 250 → Titolo VII · Capo 4 · Sezione 1
+«Ammissione temporanea»; Reg. 2446 215 → Sottosezione 2 «Mezzi di trasporto»; Bruxelles I-bis 17 → Sezione 4
+«consumatori» (il regolamento non ha rubriche). Copertura 2.280/2.329 (il resto: allegati). (2) **Il testo UE riletto
+dalla stessa fonte** (`tools/reparse_eu_xhtml.py`, report/apply, backup): il confronto articolo per articolo ha trovato
+che il **codice visti aveva negli artt. 2, 4, 6, 9 il testo dell'ALLEGATO sui Giochi olimpici** (numerazione propria, la
+dedup teneva il più lungo), il **Reg. 2446 (letto dal PDF) all'art. 163 pezzi di una tabella e all'art. 4 un altro
+articolo**, 116 testi diversi nei tre regolamenti letti dal PDF (2446, 2447, 1896/2006: rubriche spezzate, sillabazione), e
+**28 articoli «bis» mancanti** (Schengen 6-bis, 8-bis…8-quinquies, 12-bis; Reg. visti 2018/1806 8-bis…8-septies;
+Bruxelles I-bis 71-bis…quinquies; CDU 260-bis, 278-bis; Reg. 2446 128-bis/quinquies; small claims 15/21/23-bis): i
+marcatori di modifica «▼M5» nel titolo dell'articolo facevano fallire il riconoscimento e il testo finiva dentro
+l'articolo precedente. Ora i 21 atti UE vengono dal testo CELLAR (rubrica dal blocco `eli-title`, la base giuridica
+«(Articolo …)» in testa al testo). (3) **Rubriche**: Roma I 29 su 29 (erano la prima riga del testo), e il secondo
+passaggio (rubrica su due righe, senza punto, seguita dal comma «1.»; esclusi nomi di allegati, titoli di atti e note
+«COMMA ABROGATO …»): +51 lette una per una; TFUE/TUE: la nota «(ex articolo 234 del TCE)» non fa più da rubrica, va in
+testa al testo. Corpus IT **23.582**. **Misure** (37 domande difficili, 25 IT + 12 UE; ibrido = quello del cervello):
+MRR **0,388 → 0,449**, primo posto 7 → 10, primi 3 20 → 22, primi 12 30 = 30 (Reg. 2446 215 2° → 1°, Bruxelles I-bis 17
+2° → 3°, 25 4° → 3°, 36 → 2°, Roma I 4 → 1°, successioni 21 → 1°); strato 1 IT 232/252 invariato, regressioni 63/63 (+4).
+Embedding IT ricodificati per i 2.371 articoli cambiati in `_flat4`/`_ck4` (copie: i `_flat3/_ck3` restano per il
+ritorno indietro) → `EMB_SUFFIX_IT=_flat4`, `EMB_SUFFIX2_IT=_ck4`. Prova viva (consumatore di Milano contro venditore
+tedesco): 195 s, 14 norme verificate, Bruxelles I-bis 18 + Roma I 6 + cod. consumo 66-bis/33/36/128 ss. Golden **[132]**,
+527.
 
 **v9.383 — I TITOLI DEI CAPITOLI PER L'ITALIANO, e tre difetti del corpus IT trovati facendoli (24 set, mattina).** Il
 titolare: «fai anche i titoli dei capitoli per l'italiano, con calma, senza errori». (1) **Capitoli**: `tools/it_gerarchia.py`
