@@ -4424,6 +4424,93 @@ def main():
     except Exception as _e132:  # noqa: BLE001
         check("UE/CEDU[132]: kontrollet u ekzekutuan", False, str(_e132))
 
+    # [133] v9.385 — LA CASSAZIONE SULL'ARCHIVIO UFFICIALE (src/cassazione.py). Misurato sulle 44 risposte italiane
+    # salvate: 246 citazioni di Cassazione, 38 decisioni distinte dal 2009 — TUTTE vere (una data e una sezione
+    # sbagliate), ma il verificatore conosceva solo la Consulta e senior/diavolo/Giudice le facevano espungere («non
+    # compare negli archivi della verifica deterministica»: la Cass. 10383/2026, il caso identico dell'auto targata
+    # Albania, «Non la citi»). Qui: la lettura delle forme vere (e di quelle che NON sono citazioni), il ramo dei record,
+    # il confronto degli estremi, gli agganci; il controllo vivo solo se l'archivio risponde (mai un falso rosso).
+    try:
+        from src import cassazione as _C133
+        _tr = lambda t: [(c["numero"], c["anno"], c["ramo"], c["sezione"], c["tipo"]) for c in _C133.trova(t)]
+        _casi133 = [
+            ("Cass. civ., Sez. V, ord. n. 10383/2026", [(10383, 2026, "civ", "5", "O")]),
+            ("Cass. civ., Sez. VI-3, ord. 5 gennaio 2023, n. 194** e **Cass. civ., Sez. III, 11 giugno 2024, n. 16160**",
+             [(194, 2023, "civ", "6", "O"), (16160, 2024, "civ", "3", "")]),
+            ("Cass. SS.UU. nn. 18284 e 18286 del 4 luglio 2024; Cass. Sez. V n. 6614/2025 su Porsche",
+             [(18284, 2024, None, "U", ""), (18286, 2024, None, "U", ""), (6614, 2025, None, "5", "")]),
+            ("Cass. pen., Sez. III, sent. 29 luglio 2026, n. 28668** (yacht NEW VOGUE, su ordinanza del Tribunale di Imperia 24 febbraio 2026)",
+             [(28668, 2026, "pen", "3", "S")]),
+            ("Cass. civ., Sez. Lav., ord. n. 28927 dell'11 novembre 2024", [(28927, 2024, "civ", "L", "O")]),
+            ("Cassazione civile, sez. lavoro, sentenza n. 1234 del 2023", [(1234, 2023, "civ", "L", "S")]),
+            ("Cass. pen. Sez. 6, n. 12345 del 15/12/2023 (dep. 2024), Rv. 286123-01", [(12345, 2024, "pen", "6", "")]),
+            ("*Cass. ord. n. 26035/2025* e *n. 30079/2024*", [(26035, 2025, None, "", "O"), (30079, 2024, None, "", "O")]),
+            ("SS.UU. 141/2006 chiude il punto", [(141, 2006, None, "U", "")]),
+            ("Cass., Sez. Un. civ., ord. 4 luglio 2024, r.o. n. 167/2024", []),                 # r.o. = registro della Consulta
+            ("CTR Emilia-Romagna n. 1516/4/2020 e CTP Brescia n. 221/3/2020", []),
+            ("la Cassazione ha ripetutamente affermato che il deposito", []),
+            ("[Cass. Sez. Lav. n. 4879/2020](https://x.it/cassazione-sentenza-n-9999-2021)", [(4879, 2020, "civ", "L", "")]),
+            ("S.U.A.P. n. 123/2024", []),
+        ]
+        _bad133 = [(t, _tr(t), e) for t, e in _casi133 if _tr(t) != e]
+        _d1 = _C133.trova("Cass. civ., Sez. V, ord. n. 10383/2026, dep. 27 aprile 2026")[0]["date"]
+        _d2 = _C133.trova("Cass. civ., Sez. V, n. 15208/2024 (consultata il 15/09/2026)")[0]["date"]
+        _okA = not _bad133 and _d1 == [("2026-04-27", "dep")] and _d2 == []
+        _rs = _C133._record({"id": "sic2026510383O021202", "kind": "sic", "sic-datdep": "20/04/2026", "sic-data_ud": ["25/02/2026"],
+                             "sic-materia": ["TRIBUTI E DAZI DOGANALI"], "sic-ricorrente": ["AGENZIA DELLE DOGANE"]})
+        _rp = _C133._record({"id": "sic2026710383O038340", "kind": "sic", "sic-datdep": "18/03/2026"})
+        _rn = _C133._record({"id": "snciv2026510383O", "kind": "snciv", "datdep": ["20260420"], "datdec": "20260225",
+                             "filename": ["./20260420/snciv@s50@a2026@n10383@tO.pdf"], "ocrdis": ["P.Q.M. La Corte accoglie il ricorso, cassa e rinvia"]})
+        _okB = (_rs["ramo"] == "civ" and _rs["sezione"] == "5" and _rs["numero"] == 10383 and _rs["datdep"] == "2026-04-20"
+                and _rp["ramo"] == "pen" and _rn["url"].endswith("snciv@s50@a2026@n10383@tO.clean.pdf")
+                and _rn["url"].startswith("https://www.italgiure.giustizia.it/") and _rn["esito"].startswith("accoglie")
+                and _C133._esito("P.Q.M. Dichiara inammissibile il ricorso") == "ricorso inammissibile"
+                and _C133._esito("P.Q.M. visto l'art. 267 TFUE chiede alla Corte di giustizia dell'Unione europea di pronunciarsi").startswith("rinvio"))
+        _recs = _C133._unisci([_rs, _rn, _rp])
+        _m1 = _C133.trova("Cass. civ., Sez. V, ord. n. 10383/2026, dep. 27 aprile 2026")
+        _v1 = _C133.valuta(_m1, _recs)
+        _m2 = _C133.trova("Cass. civ., Sez. VI, ord. n. 10383/2026")
+        _v2 = _C133.valuta(_m2, _recs)
+        _v3 = _C133.valuta(_C133.trova("Cass. n. 10383/2026"), _recs, "civ")
+        _v4 = _C133.valuta(_C133.trova("Cass. n. 10383/2026"), [])
+        _okC = (_v1["status"] == "verified" and any("20/04/2026" in c and "27/04/2026" in c for c in _v1["correzioni"])
+                and _v2["status"] == "mismatch" and _v2.get("motivo") == "sezione"
+                and _v3["status"] == "verified" and _v3.get("dedotto") and _v3["record"]["ramo"] == "civ"
+                and _v4["status"] == "unverified")
+        import inspect as _in133
+        from src import trust_line as _tl133, studio as _st133
+        _js133 = open("/app/static/app.js", encoding="utf-8").read()
+        _br133 = open("/app/src/brain.py", encoding="utf-8").read()
+        _okD = ("cassazione as _cass" in _in133.getsource(ccv.verify_cases_it)
+                and "_note_cassazione" in _in133.getsource(ccv.annotate_unverified)
+                and "_cass" in _in133.getsource(_tl133.verifica) and "cassazione" in _in133.getsource(_tl133.blocco_per_gjyqtarin)
+                and "con estremi diversi" in _in133.getsource(_tl133.riga)
+                and "blocco_dossier" in _br133 and "CASSAZIONE (se la verifica" in _in133.getsource(_st133)
+                and "_cassDesc" in _js133 and "https://www.italgiure.giustizia.it/" in _js133 and "testo ufficiale" in _js133)
+        # TLS: l'intermedio incorporato si carica e non è scaduto (scade il 29/07/2029: prima di allora va rinnovato)
+        import ssl as _ssl133, tempfile as _tf133, datetime as _dt133
+        _C133._ctx = None
+        _C133._ssl_ctx()
+        with _tf133.NamedTemporaryFile("w", suffix=".pem", delete=False) as _fh133:
+            _fh133.write(_C133._INTERMEDIO)
+        _na = _ssl133._ssl._test_decode_cert(_fh133.name)["notAfter"]
+        _okE = _dt133.datetime.strptime(_na, "%b %d %H:%M:%S %Y %Z") > _dt133.datetime.utcnow() + _dt133.timedelta(days=60)
+        check("Cassazione[133]: lettura delle forme vere (sezioni, SS.UU., liste «nn. … e …», date, «dep.», r.o./CTR/URL/prosa esclusi) · "
+              "ramo dei record (sic civ/pen, testo integrale, link ufficiale .clean.pdf) · esito dal P.Q.M. · confronto (data corretta, "
+              "sezione diversa = mismatch, ramo dedotto, non trovata) · agganci (verificatore IT, nota, Trust Line, Giudice, dossier, "
+              "pannello) · intermedio TLS valido",
+              _okA and _okB and _okC and _okD and _okE,
+              "A=%s B=%s C=%s D=%s E=%s %s" % (_okA, _okB, _okC, _okD, _okE, _bad133[:2]))
+        _live, _off = _C133.cerca([(10383, 2026)])
+        if _off or (10383, 2026) not in _live:
+            print("  · Cassazione[133]: archivio non raggiungibile ora — controllo vivo saltato (nessun esito: fail-silent)")
+        else:
+            _v = _C133.valuta(_C133.trova("Cass. civ., Sez. V, ord. n. 10383/2026"), _live[(10383, 2026)])
+            check("Cassazione[133]: dal vivo la Cass. civ. Sez. V ord. 10383/2026 (auto targata Albania) è CONFERMATA, dep. 20/04/2026",
+                  _v["status"] == "verified" and (_v["record"] or {}).get("datdep") == "2026-04-20", str(_v)[:200])
+    except Exception as _e133:  # noqa: BLE001
+        check("Cassazione[133]: kontrollet u ekzekutuan", False, str(_e133))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

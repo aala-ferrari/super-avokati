@@ -101,8 +101,9 @@ def verify_cases_it(text: str) -> dict:
     ⚠️ LA REGOLA DI COPERTURA: si giudica solo un (corte, anno) che
     l'harvester ha CHIUSO. Anno non coperto → la citazione non entra
     nemmeno negli items: «non lo trovo ≠ è falso», e un buco nostro non
-    deve mai sporcare un estremo vero. Cassazione: v1 non coperta,
-    intoccata per costruzione (nessun pattern attivo).
+    deve mai sporcare un estremo vero. Cassazione (v9.385): archivio
+    ufficiale via `cassazione.verifica`, coperta dal 2009 — prima del 2009
+    o archivio muto → intoccata, come prima.
     """
     from .it_case_index import anno_coperto, esiste
     items, visti = [], set()
@@ -120,10 +121,19 @@ def verify_cases_it(text: str) -> dict:
             "status": "verified" if esiste("CCost", numero, anno)
                       else "unverified",
         })
+    # v9.385 — la CASSAZIONE sull'archivio UFFICIALE della Corte (src/cassazione.py): metadati di tutti i
+    # provvedimenti dal 2009, testo integrale degli ultimi 5 anni. Esiti verified / mismatch (estremi diversi) /
+    # unverified; fuori copertura o archivio che non risponde → nessun esito (stessa regola della Consulta).
+    try:
+        from . import cassazione as _cass
+        items += _cass.verifica(text or "").get("items") or []
+    except Exception:  # noqa: BLE001
+        pass
     ver = sum(1 for i in items if i["status"] == "verified")
+    mis = sum(1 for i in items if i["status"] == "mismatch")
     return {"items": items,
             "stats": {"total": len(items), "verified": ver,
-                      "unverified": len(items) - ver}}
+                      "unverified": len(items) - ver, "mismatch": mis}}
 
 
 def verify_cases(text: str, index) -> dict:
@@ -220,10 +230,47 @@ def annotate_unverified(md: str, cases: dict, *, jurisdiction: str = "AL") -> st
         md += (("\n\n> ⛔ **Sentenze ANNULLATE — non citarle come precedenti validi.** " if it else
                 "\n\n> ⛔ **Vendime TË SHFUQIZUARA — mos i cito si precedentë të vlefshëm.** ")
                + "; ".join(righe) + "\n")
+    if it:
+        md = _note_cassazione(md, cases)
     da_dire = [c for c in (cases.get("items") or [])
-               if c.get("status") == "unverified"]
+               if c.get("status") == "unverified" and c.get("court") != "Cass"]
     if not da_dire:
         return md
     lista = ", ".join("`%s`" % c["raw"] for c in da_dire[:8])
     nota = _NOTA_IT if it else _NOTA_SQ
     return md + nota.format(lista=lista)
+
+
+# v9.385 — CASSAZIONE: l'archivio ufficiale è COMPLETO dal 2009 (metadati), quindi il linguaggio è diverso da quello
+# della Consulta/AL («la nostra base non contiene tutte le decisioni»): qui un numero che non c'è ha numero o anno da
+# riscontrare, e gli estremi che non tornano (sezione, data, tipo) si correggono con quelli ufficiali.
+_TESTA_CASS_CORR = "> ⚠️ **Cassazione — estremi da correggere** (riscontro sull'archivio ufficiale della Corte):"
+_TESTA_CASS_NF = "> ⚠️ **Cassazione — non trovate nell'archivio ufficiale** (Italgiure, completo dal 2009):"
+
+
+def _note_cassazione(md: str, cases: dict) -> str:
+    try:
+        from . import cassazione as _cass
+    except Exception:  # noqa: BLE001
+        return md
+    items = [c for c in (cases.get("items") or []) if c.get("court") == "Cass"]
+    corr = []
+    for c in items:
+        rec = c.get("record") or {}
+        if c.get("status") == "mismatch":
+            alt = "; ".join(c.get("alternative") or [])
+            if c.get("motivo") == "sezione":
+                corr.append("`%s` → la n. %s/%s non è della %s: %s" % (
+                    c["raw"][:90], c["number"], c["year"],
+                    ", ".join(_cass.sezione_label(x, "") for x in c.get("dichiarata") or []), alt or "—"))
+            else:
+                corr.append("`%s` → nel ramo indicato non c'è: %s" % (c["raw"][:90], alt or "—"))
+        elif c.get("status") == "verified" and c.get("correzioni"):
+            corr.append("`%s` → %s (%s)" % (c["raw"][:90], "; ".join(c["correzioni"]), _cass.descrivi(rec) if rec else ""))
+    nf = [c for c in items if c.get("status") == "unverified"]
+    if corr and _TESTA_CASS_CORR not in md:
+        md += "\n\n" + _TESTA_CASS_CORR + " " + " · ".join(corr[:6]) + "\n"
+    if nf and _TESTA_CASS_NF not in md:
+        md += ("\n\n" + _TESTA_CASS_NF + " " + ", ".join("`%s`" % c["raw"][:90] for c in nf[:6])
+               + ". Numero o anno da riscontrare prima di citarle in un atto.\n")
+    return md

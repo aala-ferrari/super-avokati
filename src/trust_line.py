@@ -62,7 +62,7 @@ def _art_map(index) -> dict:
 def vuota() -> dict:
     return {"nene": {"verified": 0, "repealed": 0, "fake": 0, "needs_code": 0, "unconstitutional": 0, "total": 0, "bad": [],
                      "foreign_verified": 0, "foreign_unverified": 0, "foreign": []},
-            "sentenze": {"verified": 0, "unverified": 0, "quashed": 0, "total": 0, "bad": [], "quashed_list": []},
+            "sentenze": {"verified": 0, "unverified": 0, "quashed": 0, "mismatch": 0, "total": 0, "bad": [], "quashed_list": []},
             "fatti_da_precisare": 0}
 
 
@@ -136,8 +136,16 @@ def verifica(text: str, index, jurisdiction: str = "AL", retrieved_codes=None, f
         out["sentenze"]["verified"] = int(st.get("verified") or 0)
         out["sentenze"]["unverified"] = int(st.get("unverified") or 0)
         out["sentenze"]["quashed"] = int(st.get("quashed") or 0)
+        out["sentenze"]["mismatch"] = int(st.get("mismatch") or 0)
         out["sentenze"]["total"] = int(st.get("total") or 0)
+        # v9.385 — la Cassazione ha un resoconto suo per il Giudice (estremi ufficiali, esito, passo del testo):
+        # qui si tengono gli item e il testo, fuori dall'audit (solo i conteggi vanno nel pacchetto)
+        _cz = [it for it in pay.get("items") or [] if it.get("court") == "Cass"]
+        if _cz:
+            out["_cass"] = {"items": _cz, "text": text}
         for it in pay.get("items") or []:
+            if it.get("court") == "Cass":
+                continue
             if it.get("status") == "unverified":
                 out["sentenze"]["bad"].append((it.get("raw") or "")[:60])
             elif it.get("status") == "quashed":
@@ -228,8 +236,11 @@ def riga(v: dict, lang: str = "sq", tempo: dict | None = None, coverage: dict | 
         b = [f"sentenze {s['verified']} confermate"]
         if s.get("quashed"):
             b.append(f"{s['quashed']} ANNULLATE")
-        if s["unverified"]:
-            b.append(f"{s['unverified']} da riscontrare")
+        _mis = int(s.get("mismatch") or 0)
+        if s["unverified"] - _mis > 0:
+            b.append(f"{s['unverified'] - _mis} da riscontrare")
+        if _mis:
+            b.append(f"{_mis} con estremi diversi")
         c = f"fatti {f} da precisare" if f else "fatti: nessuno da precisare"
         if n.get("foreign_verified") or n.get("foreign_unverified"):
             c += f" | diritto straniero/internazionale {n.get('foreign_verified', 0)} verificato"
@@ -290,6 +301,14 @@ def blocco_per_gjyqtarin(v: dict, lang: str = "sq", coverage: dict | None = None
             r.append(f"- {b} → ANNULLATA: non è un precedente valido")
         for b in s["bad"][:8]:
             r.append(f"- «{b}» → non confermata")
+        if v.get("_cass"):
+            try:
+                from . import cassazione as _cass
+                _bc = _cass.blocco(v["_cass"]["items"], v["_cass"]["text"], "it")
+                if _bc:
+                    r.append(_bc)
+            except Exception:  # noqa: BLE001
+                log.debug("trust_line: blocco Cassazione non costruito", exc_info=True)
         if v.get("fatti_da_precisare"):
             r.append(f"La risposta segnala {v['fatti_da_precisare']} fatto/i da precisare («Per precisione»).")
         if n.get("foreign"):

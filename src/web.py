@@ -8875,7 +8875,9 @@ def _verify_decisions_smart(answer_text: str, jurisdiction: str) -> tuple[str, d
     try:
         if (jurisdiction or "AL").upper() == "IT":
             pay = ccv_mod.verify_cases_it(answer_text or "")
-            if (pay.get("stats") or {}).get("unverified"):
+            # v9.385 — anche una Cassazione CONFERMATA può avere estremi da correggere (data, tipo): la nota
+            # la decide `annotate_unverified`, che non scrive nulla se non c'è niente da dire
+            if (pay.get("stats") or {}).get("total"):
                 answer_text = ccv_mod.annotate_unverified(
                     answer_text, pay, jurisdiction="IT")
             return answer_text, pay if (pay.get("stats") or {}).get("total") else None

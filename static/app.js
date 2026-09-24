@@ -2109,12 +2109,36 @@
     if (fVer + fUnv > 0) {
       label += " · " + (_CAL_IT ? "diritto straniero " : "e drejtë e huaj ") + fVer + " ✓" + (fUnv ? " · " + fUnv + " ?" : "");
     }
-    const decHtml = dItems.length ? ('<div class="cit-dechead">Vendime të cituara</div><ul class="cit-list">' +
+    // v9.385 — la Cassazione riscontrata sull'archivio ufficiale: estremi veri, materia, link al testo ufficiale
+    function _cassDesc(r) {
+      if (!r) return "";
+      var rom = { "1": "I", "2": "II", "3": "III", "4": "IV", "5": "V", "6": "VI", "7": "VII" };
+      var sez = r.sezione === "U" ? "Sez. Unite" : (r.sezione === "L" ? "Sez. Lavoro" : (r.sezione === "F" ? "Sez. feriale" : "Sez. " + (rom[r.sezione] || r.sezione)));
+      var tipo = { S: "sentenza", O: "ordinanza", I: "ord. interlocutoria", D: "decreto" }[r.tipo] || "";
+      var gma = function (iso) { return iso && iso.length === 10 ? iso.slice(8, 10) + "/" + iso.slice(5, 7) + "/" + iso.slice(0, 4) : ""; };
+      var s = (r.ramo === "pen" ? "pen." : "civ.") + ", " + sez + (tipo ? ", " + tipo : "") + (r.datdep ? ", dep. " + gma(r.datdep) : "");
+      if (r.materia) s += " — " + r.materia.charAt(0) + r.materia.slice(1).toLowerCase();
+      if (r.esito) s += " · " + r.esito;
+      return s;
+    }
+    const decHtml = dItems.length ? ('<div class="cit-dechead">' + (_CAL_IT ? "Sentenze citate" : "Vendime të cituara") + '</div><ul class="cit-list">' +
       dItems.map(function (dc) {
         var ok = dc.status === "verified";
+        if (dc.court === "Cass") {
+          var r = dc.record || null;
+          var link = (r && r.url && r.url.indexOf("https://www.italgiure.giustizia.it/") === 0)
+            ? ' · <a href="' + escapeHtml(r.url) + '" target="_blank" rel="noopener">testo ufficiale</a>' : "";
+          var meta = ok ? ("archivio ufficiale: " + escapeHtml(_cassDesc(r)) + link +
+                           ((dc.correzioni && dc.correzioni.length) ? ' <span class="cit-warn">⚠ ' + escapeHtml(dc.correzioni.join("; ")) + "</span>" : ""))
+            : (dc.status === "mismatch"
+              ? ("estremi diversi — nell'archivio: " + escapeHtml((dc.alternative || []).slice(0, 2).join("; ") || "—"))
+              : "non trovata nell'archivio ufficiale (dal 2009): numero o anno da riscontrare");
+          return '<li class="cit-row ' + (ok && !(dc.correzioni && dc.correzioni.length) ? "cit-row-ok" : "cit-row-warn") + '"><span class="cit-status">' +
+            (ok ? "✓" : (dc.status === "mismatch" ? "≠" : "?")) + '</span><code>' + escapeHtml(dc.raw) + '</code><span class="cit-meta">' + meta + "</span></li>";
+        }
         return '<li class="cit-row ' + (ok ? "cit-row-ok" : "cit-row-warn") + '"><span class="cit-status">' +
           (ok ? "✓" : "?") + '</span><code>' + escapeHtml(dc.raw) + '</code><span class="cit-meta">' +
-          (ok ? "e gjetur në bazën tonë" : "s’u konfirmua në bazë — kontrollo") + "</span></li>";
+          (ok ? (_CAL_IT ? "trovata nella nostra base" : "e gjetur në bazën tonë") : (_CAL_IT ? "non confermata — controlla" : "s’u konfirmua në bazë — kontrollo")) + "</span></li>";
       }).join("") + "</ul>") : "";
     const wrap = document.createElement("details");
     wrap.className = `citations-badge cit-${level}`;

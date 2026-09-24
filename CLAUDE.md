@@ -2,7 +2,7 @@
 
 Strumento AI per avvocati (B2B), **bi-giurisdizione AL + IT**. Front-end Flask (waitress, UN processo) su porta
 5050, SQLite (`data/app.db`). Postgres `legalkb` NON è raggiungibile dal container: i precedenti vivono nel pickle.
-**Stato al 24 set 2026 (v9.384)** — i numeri qui sono quelli veri; più sotto, nelle sezioni datate, c'è la storia:
+**Stato al 24 set 2026 (v9.385)** — i numeri qui sono quelli veri; più sotto, nelle sezioni datate, c'è la storia:
 - **AL leggi** (`bm25.pkl`, BM25 con diacritici piegati dal v9.367, titolo del capitolo cercabile dal v9.373): **10.305 nene / 62 codici**; embedding AL `_flat3`/`_ck3` (capitoli + corpo intero, `EMB_SUFFIX_SQ`/`EMB_SUFFIX2_SQ`), IT `_flat4`/`_ck4` dal v9.384 (`EMB_SUFFIX_IT`/`EMB_SUFFIX2_IT`); fonte
   `data/processed/all_articles.jsonl` (il pickle è derivato).
 - **Precedenti** (`bm25_decisions.pkl`): **3.996** = Kushtetuese **672** + Gjykata e Lartë **2.960** + CEDU **364**
@@ -16,7 +16,8 @@ Strumento AI per avvocati (B2B), **bi-giurisdizione AL + IT**. Front-end Flask (
   Sezione** per articolo dal v9.383 (UE e CEDU dal v9.384: `tools/eu_gerarchia.py`) (dall'albero di Normattiva: `tools/it_gerarchia.py` → `data/processed/it_gerarchia/`,
   unito da `build_it_index.py`; il titolo del capitolo è cercabile come in AL); **IT giurisprudenza**
   (FTS5 `it_decisions_fts.db`): **8.055** decisioni (Consulta dal 2005 + CdS/CGARS/TAR), testo della decisione ripulito
-  dal sito (`it_precedent_fts.testo_decisione`, v9.369).
+  dal sito (`it_precedent_fts.testo_decisione`, v9.369). **Cassazione**: le citazioni si riscontrano sull'ARCHIVIO UFFICIALE
+  della Corte (SentenzeWeb: metadati di tutti i provvedimenti dal 2009, testo integrale ultimi 5 anni) — `src/cassazione.py`, v9.385.
 
 ## Regola #1 — Scope: UNA SOLA GIURISDIZIONE PER SESSIONE
 
@@ -622,7 +623,7 @@ errori, non che le risposte sono ancora giuste. Riferimento verificato il
 12 articoli recuperati per ciascuna.
 
 ```bash
-docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63], triage-trim+giudice-no-web [64], chat-web+verdetto-in-testa+pannelli-IT [65], codice-nominato→area [66], timeout-45min+ripiego-no-web [67], fasi-bilingue+giudice-no-web+duello-a-scomparsa [68], etichette-composte-bilingui [69]). Baseline **527/527** (24 set, v9.384: + [129] capitoli IT, [130] articoli puntati, [131] rubriche IT, [132] UE/CEDU; era 98 il 31 ago).
+docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63], triage-trim+giudice-no-web [64], chat-web+verdetto-in-testa+pannelli-IT [65], codice-nominato→area [66], timeout-45min+ripiego-no-web [67], fasi-bilingue+giudice-no-web+duello-a-scomparsa [68], etichette-composte-bilingui [69]). Baseline **529/529** (24 set, v9.385: + [133] Cassazione sull'archivio ufficiale — con un controllo dal vivo che si SALTA se l'archivio non risponde; v9.384: + [129] capitoli IT, [130] articoli puntati, [131] rubriche IT, [132] UE/CEDU; era 98 il 31 ago).
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 bash /root/prova_sse.sh                                    # SULL'HOST (legge il secret da /opt/super-avvocato.env; copia in tools/prova_sse.sh): account di prova → login → fascicolo → 1 domanda VERA → stream /api/ask/events attraverso waitress. Deve dire «HTTP 200 … done: 1» (~50s, costa 1 chiamata al cervello) e cancella l'account. Dopo OGNI build che tocca web.py o le rotte SSE.
@@ -1489,6 +1490,41 @@ rischio residuo della DPIA.
 - Super Avokati ha auth propria (login_required_api); utenti creati da admin o auto-provisionati da AALA (`/api/provision-demo`, secret-guarded).
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
+
+**v9.385 — LA CASSAZIONE SULL'ARCHIVIO UFFICIALE DELLA CORTE (24 set, notte).** Passo 3 del piano («fai tutto step by
+step»). Misurato prima: nelle 44 risposte italiane salvate **246 citazioni di Cassazione** (38 decisioni distinte dal 2009) e
+il verificatore IT ne conosceva ZERO (solo la Consulta): senior, diavolo e Giudice, non trovandole «negli archivi della
+verifica deterministica», le marcavano «da riscontrare» e più volte le facevano ESPUNGERE — la **Cass. civ. Sez. V ord.
+10383/2026** (il caso identico: auto targata Albania dell'amministratore di una shpk) «Non la citi», la 28668/2026 pen., la
+2812/2026, la 19542/2026. Riscontrate sull'archivio: **tutte vere**; sbagliate solo una data (10383 «27 aprile» → dep.
+20/04/2026) e una sezione (30148/2024 «Sez. VI» → Sez. II). Un precedente vero buttato è un danno quanto uno inventato.
+**Fonte**: il motore pubblico di SentenzeWeb (`italgiure.giustizia.it/sncass/isapi/hc.dll/sn.solr/sn-collection/select?app.query`,
+POST, `wt=json`, senza login), tre raccolte: `sic` = metadati di TUTTI i provvedimenti civili e penali dal 2009 (id = sic +
+anno + sezione + numero a 5 cifre + tipo + n.r.g.), `snciv`/`snpen` = testo integrale degli ultimi ~5 anni (materia, date,
+P.Q.M., PDF ufficiale `xway/application/nif/clean/hc.dll?verbo=attach&db=snciv&id=….clean.pdf`). ⚠️ **TLS**: il server non
+manda l'intermedio «TI Trust Technologies OV CA» (curl e Python falliscono) → verifica vera con l'intermedio pubblico
+incorporato in `src/cassazione.py` (scade il 29/07/2029: il golden avvisa 60 giorni prima), mai verify=False. ⚠️ **I numeri
+sono DENSI**: ogni «n. X/Y» sotto ~30.000 esiste, e in DUE serie (civile e penale hanno numerazioni separate): «esiste» da
+solo non prova niente → il riscontro è sugli ESTREMI dichiarati (ramo, sezione, data, tipo) + materia ed esito del P.Q.M., e
+(dal 2021) il PASSO del testo più vicino all'uso che la risposta ne fa (evidenziazione Solr), che va al Giudice. Ramo di un
+record `sic` (misurato su 6.026 record con la verità di snciv/snpen: 6.026/6.026): Sez. 4/7/F → penale, L → civile, con
+materia/ricorrente/contro/intimato → civile, altrimenti penale. **`src/cassazione.py`**: `trova` (le forme vere: «Cass. civ.,
+Sez. VI-3, ord. 5 gennaio 2023, n. 194», «SS.UU. nn. 18284 e 18286 del 4 luglio 2024», «n. 1234 del 2023», «(dep. 2024)»,
+«(cam. cons. …)»; ESCLUSI «r.o. n. 167/2024» (registro della Consulta), CTR «1516/4/2020», i link, la prosa senza numero, una
+data dentro una parentesi che non parla del provvedimento — «(yacht …, su ordinanza del Tribunale 24 febbraio 2026)» —,
+«(consultata il …)»), `cerca` (UNA richiesta in OR per tutti i numeri della risposta, cache SQLite `data/cache/cassazione.sqlite`
+180 giorni / 1 giorno per il «non trovata», tetto 5 s; archivio muto → 5 minuti di pausa e NESSUN esito: mai una citazione
+marcata per un guasto), `valuta` → **verified** (+ correzioni di data/tipo) / **mismatch** (sezione o ramo dichiarati diversi:
+«estremi diversi») / **unverified** (anno coperto, nessun provvedimento); prima del 2009 → nessun esito (la regola della
+Consulta). Con la data di UDIENZA (penale di dicembre) si prova anche l'anno dopo e vince quello con QUELLA data. **Agganci**:
+`verify_cases_it` (quindi chat, 19 strumenti, claims), `annotate_unverified` (nota «Cassazione — estremi da correggere» con gli
+estremi ufficiali / «non trovate nell'archivio ufficiale», idempotente), Trust Line («N confermate · 1 con estremi diversi»),
+blocco al Giudice (estremi ufficiali + esito + passo del testo) con la regola «una CONFERMATA non si espunge» nel
+`GJYQTARI_SYSTEM`, **dossier dei raccoglitori** (le sentenze che il web porta si riscontrano PRIMA che il senior scriva:
+`cassazione.blocco_dossier`), pannello delle citazioni (estremi, materia, esito, «testo ufficiale» — link solo verso
+italgiure —, app.js?v=177, style.css?v=145; e l'intestazione «Vendime të cituara» / «e gjetur në bazën tonë» che uscivano in
+albanese anche in sessione IT). Misura sulle 44 risposte: 67 menzioni-per-risposta verificate + 1 mismatch vero, 3,4 s la
+prima volta, 0,35 s dalla cache. `CASS_VERIFY=0` spegne tutto. Golden **[133]**, 529; strato 1 invariato (GATE PASS).
 
 **v9.384 — IL DIRITTO UE E LA CEDU: capitoli, e testo riletto dalla fonte strutturata (24 set, sera).** Seguito del v9.383
 («parti dalla 1, capitoli per i regolamenti UE, e poi tutto step by step»). (1) **Capitoli UE** (`tools/eu_gerarchia.py`):

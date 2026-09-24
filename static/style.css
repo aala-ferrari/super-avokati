@@ -4205,6 +4205,8 @@ main {
   text-decoration: line-through;
 }
 .cit-meta { color: var(--gray-700); font-size: 11.5px; }
+.cit-meta a { color: inherit; text-decoration: underline; }
+.cit-warn { color: #855e00; font-weight: 600; }
 
 /* ═══ PHONE ≤480px ════════════════════════════════════════════════ */
 @media (max-width: 480px) {

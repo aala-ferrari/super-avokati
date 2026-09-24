@@ -3693,6 +3693,18 @@ class SuperAvvocato:
             _audit_set("tempo", temporal.ultimo_info())
         except Exception as exc:  # noqa: BLE001 — il tempo non deve mai far cadere la risposta
             log.warning("temporal: saltato (non-fatal): %s", exc)
+        # v9.385 — le sentenze di CASSAZIONE che i raccoglitori portano dal web si riscontrano sull'archivio ufficiale
+        # PRIMA che il senior scriva: misurato sulle risposte salvate, senior/diavolo/Giudice facevano espungere
+        # precedenti veri («non compare negli archivi della verifica deterministica») — la Cass. 10383/2026 compresa
+        if blocco and self._current_jurisdiction() == "IT":
+            try:
+                from . import cassazione
+                _bc = cassazione.blocco_dossier(blocco)
+                if _bc:
+                    blocco = blocco.rstrip() + "\n\n" + _bc + "\n"
+                    _audit_set("cassazione_dossier", {"righe": _bc.count("\n- ")})
+            except Exception as exc:  # noqa: BLE001
+                log.warning("cassazione: riscontro del dossier saltato (non-fatal): %s", exc)
         return blocco, fonti
 
     def _mbledh_gatherers_core(self, user_message, triage, retrieved, precedents_block=""):
