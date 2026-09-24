@@ -4172,6 +4172,19 @@ def main():
     except Exception as _e124:  # noqa: BLE001
         check("ancora-IT[124]: kontrollet u ekzekutuan", False, str(_e124))
 
+    # [125] v9.378 — Ligji 9902/2008 (konsumatorët): i numeri delle note attaccati ai numeri degli articoli («Neni 45²⁵» →
+    # «4525») facevano sparire 45/57/59 dentro l'articolo precedente e davano numeri falsi (52/128, 56/132)
+    try:
+        _ix = ArticleIndex.load(_P81("/app/data/index/bm25.pkl"))
+        _kn = {a.number: a for a in _ix.articles if a.code == "ligji_konsumatoret"}
+        _okA = all(n in _kn and len(_kn[n].body or _kn[n].heading or "") > 80 for n in ("45", "57", "59", "56/1", "52/1"))
+        _okB = not any(n in _kn for n in ("52/128", "52/229", "56/132", "58/136")) and all(_kn[n].repealed for n in ("19", "20", "21", "23"))
+        _okC = len(_kn["44"].body or "") < 4000 and "Detyrime të tjera" not in (_kn["44"].body or "")
+        check("konsumatoret[125]: 45/57/59/56/1/52/1 col loro testo · nessun numero falso (52/128…) · 19-21, 23 abrogati dalla nota · il 44 senza il testo del 45",
+              _okA and _okB and _okC, "A=%s B=%s C=%s" % (_okA, _okB, _okC))
+    except Exception as _e125:  # noqa: BLE001
+        check("konsumatoret[125]: kontrollet u ekzekutuan", False, str(_e125))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

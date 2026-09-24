@@ -2,8 +2,8 @@
 
 Strumento AI per avvocati (B2B), **bi-giurisdizione AL + IT**. Front-end Flask (waitress, UN processo) su porta
 5050, SQLite (`data/app.db`). Postgres `legalkb` NON è raggiungibile dal container: i precedenti vivono nel pickle.
-**Stato al 24 set 2026 (v9.378)** — i numeri qui sono quelli veri; più sotto, nelle sezioni datate, c'è la storia:
-- **AL leggi** (`bm25.pkl`, BM25 con diacritici piegati dal v9.367, titolo del capitolo cercabile dal v9.373): **10.298 nene / 62 codici, 447 abrogati**; embedding AL `_flat3`/`_ck3` (capitoli + corpo intero, `EMB_SUFFIX_SQ`/`EMB_SUFFIX2_SQ`), IT `_flat2`/`_ck`; fonte
+**Stato al 24 set 2026 (v9.379)** — i numeri qui sono quelli veri; più sotto, nelle sezioni datate, c'è la storia:
+- **AL leggi** (`bm25.pkl`, BM25 con diacritici piegati dal v9.367, titolo del capitolo cercabile dal v9.373): **10.303 nene / 62 codici**; embedding AL `_flat3`/`_ck3` (capitoli + corpo intero, `EMB_SUFFIX_SQ`/`EMB_SUFFIX2_SQ`), IT `_flat2`/`_ck`; fonte
   `data/processed/all_articles.jsonl` (il pickle è derivato).
 - **Precedenti** (`bm25_decisions.pkl`): **3.996** = Kushtetuese **672** + Gjykata e Lartë **2.960** + CEDU **364**
   (157 sentenze + 207 decisioni, 46 nella traduzione albanese ufficiale). Fonti di verità: `data/processed/al_decisions_v2.jsonl`
@@ -588,7 +588,7 @@ errori, non che le risposte sono ancora giuste. Riferimento verificato il
 12 articoli recuperati per ciascuna.
 
 ```bash
-docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63], triage-trim+giudice-no-web [64], chat-web+verdetto-in-testa+pannelli-IT [65], codice-nominato→area [66], timeout-45min+ripiego-no-web [67], fasi-bilingue+giudice-no-web+duello-a-scomparsa [68], etichette-composte-bilingui [69]). Baseline **519/519** (24 set, v9.378; era 98 il 31 ago).
+docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63], triage-trim+giudice-no-web [64], chat-web+verdetto-in-testa+pannelli-IT [65], codice-nominato→area [66], timeout-45min+ripiego-no-web [67], fasi-bilingue+giudice-no-web+duello-a-scomparsa [68], etichette-composte-bilingui [69]). Baseline **520/520** (24 set, v9.379; era 98 il 31 ago).
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 bash /root/prova_sse.sh                                    # SULL'HOST (legge il secret da /opt/super-avvocato.env; copia in tools/prova_sse.sh): account di prova → login → fascicolo → 1 domanda VERA → stream /api/ask/events attraverso waitress. Deve dire «HTTP 200 … done: 1» (~50s, costa 1 chiamata al cervello) e cancella l'account. Dopo OGNI build che tocca web.py o le rotte SSE.
@@ -1455,6 +1455,19 @@ rischio residuo della DPIA.
 - Super Avokati ha auth propria (login_required_api); utenti creati da admin o auto-provisionati da AALA (`/api/provision-demo`, secret-guarded).
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
+
+**v9.379 — LA LEGGE SUI CONSUMATORI (9902/2008) CON LE NOTE ATTACCATE AI NUMERI (24 set, notte).** Unico consolidato disponibile
+è quello di erru.al (2018) CON le note a piè di pagina (QBZ ha solo l'atto base): «Neni 6³» letto «63», «Neni 45²⁵» → «4525»,
+«Neni 56/1³²» → «56/132». Risultato nel corpus: 45, 57 e 59 SPARITI (il testo del 45 dentro il 44: 7.049 chr invece di
+2.773), numeri falsi 52/128, 52/229, 56/132, 58/136, e 19/20/21/23 (abrogati dalla 10444/2011) come buchi. Non era mai stata
+riletta col parser nuovo (unica senza PDF in `al_qbz/`). `tools/reparse_konsumatoret.py`: si leggono le note vere a fondo
+pagina (38); un'intestazione fuori sequenza si separa in (articolo, nota) SOLO se la nota esiste e l'articolo è l'atteso; i
+sotto-articoli seguono la LORO sequenza (37/11-37/15 sono veri, non «37/1 + nota»); un «articolo» fatto solo dell'intestazione
+del capitolo seguente è vuoto; testo vuoto + nota «Shfuqizuar» = abrogato con la fonte. 93 articoli, nessun buco; embedding
+dei 12 cambiati rifatti (`--rifai`). Golden **[125]**, 520. **MISURA Opus 5 vs Opus 5.5 come senior** (strato 2, 3 casi,
+percorso profondo, CLI 2.1.281, stesso codice): kufizim 0,78 → **1,00**, pushim **0,85** → 0,78, auto **0,55** → 0,50; media
+0,725 → 0,758 (+0,03, dentro la variabilità di un giro), tempo **20 → 44 min** a risposta, 0 fantasmi entrambi → **il senior
+resta Opus 5**; si misurano ora forma breve on/off (stesso modello) e poi Opus 5.5 come GIUDICE.
 
 **v9.378 — ANCORA ITALIANA: il veicolo con targa EXTRA-UE è anzitutto una questione doganale (24 set, notte).** Trovata dal
 benchmark strato 2 (caso «auto targata albanese dell'amministratore di una sh.p.k. residente in Italia», norme 0/3 con Opus 5):
