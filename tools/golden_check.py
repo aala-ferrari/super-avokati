@@ -4473,10 +4473,13 @@ def main():
         _v2 = _C133.valuta(_m2, _recs)
         _v3 = _C133.valuta(_C133.trova("Cass. n. 10383/2026"), _recs, "civ")
         _v4 = _C133.valuta(_C133.trova("Cass. n. 10383/2026"), [])
+        # sezione sbagliata MA data giusta = lo stesso provvedimento (la «sesta-3» citata «Sez. III», Cass. 3882/2015)
+        _v5 = _C133.valuta(_C133.trova("Cass. civ., Sez. III, ord. n. 10383 del 20 aprile 2026"), _recs)
         _okC = (_v1["status"] == "verified" and any("20/04/2026" in c and "27/04/2026" in c for c in _v1["correzioni"])
                 and _v2["status"] == "mismatch" and _v2.get("motivo") == "sezione"
                 and _v3["status"] == "verified" and _v3.get("dedotto") and _v3["record"]["ramo"] == "civ"
-                and _v4["status"] == "unverified")
+                and _v4["status"] == "unverified"
+                and _v5["status"] == "verified" and any(c.startswith("sezione: Sez. V") for c in _v5["correzioni"]))
         import inspect as _in133
         from src import trust_line as _tl133, studio as _st133
         _js133 = open("/app/static/app.js", encoding="utf-8").read()
@@ -4510,6 +4513,66 @@ def main():
                   _v["status"] == "verified" and (_v["record"] or {}).get("datdep") == "2026-04-20", str(_v)[:200])
     except Exception as _e133:  # noqa: BLE001
         check("Cassazione[133]: kontrollet u ekzekutuan", False, str(_e133))
+
+    # [134] v9.386 — I PRECEDENTI DI CASSAZIONE PER LA DOMANDA (ricerca viva sul testo integrale della Corte) + le etichette
+    # del prompt nella lingua della sessione. Misurato (tools/eval_cassazione_precedenti.py, 10 domande IT salvate): cercando
+    # coi FATTI (riassunto + domanda) con il consenso di due ricerche, la decisione che il cervello aveva poi citato è in
+    # testa in 5 su 10 (l'auto targata Albania → Cass. 10383/2026 in tutte e tre le varianti), rumore ~1 su 7; con le query
+    # per le norme 1 su 10; i precedenti di oggi (Consulta/TAR/CdS) 0. Prova viva v9.385: «Neni 216 Regolamento…» nel
+    # testo italiano (il blocco del research loop scriveva «Neni» in ogni lingua).
+    try:
+        import inspect as _in134, threading as _th134, copy as _cp134
+        from src import brain as _br134, cassazione as _C134, war_room as _wr134
+        _src134 = _in134.getsource(_br134)
+        _okA = ("_precedenti_cassazione(triage, domande)" in _in134.getsource(_br134._precedenti_it)
+                and "consenso=2" in _in134.getsource(_br134._precedenti_cassazione)
+                and "k=2" in _in134.getsource(_br134._precedenti_cassazione)
+                and 'getattr(p[0], "court_code", "") == "Cass"' in _in134.getsource(_br134.SuperAvvocato._studio_mbledhesit)
+                and "domanda=user_message" in _in134.getsource(_br134.SuperAvvocato._triage)
+                and _src134.count("domanda=user_message") >= 3
+                and "domanda" in {f.name for f in __import__("dataclasses").fields(_br134.TriageResult)})
+        _srcC = _in134.getsource(_C134.cerca_precedenti)
+        _okB = ('-tipoprov:Decreto' in _srcC and '"Ordinanza Interlocutoria"' in _srcC and "-ocrdis:inammissibil*" in _srcC
+                and "voti.get(i, 0) >= consenso" in _srcC
+                and _C134._termini_query("Il ricorrente propone ricorso in Cassazione contro la sentenza della Corte d'appello sul deposito cauzionale")
+                == ["propone", "contro", "deposito", "cauzionale"])
+        # le etichette nella lingua dell'articolo: in sessione IT niente «Neni/Titulli/GJETUR NGA/Shënim»
+        _it134 = ArticleIndex.load(Path("/app/data/index/bm25_it.pkl")) if "Path" in globals() else None
+        from pathlib import Path as _P134
+        _it134 = _it134 or ArticleIndex.load(_P134("/app/data/index/bm25_it.pkl"))
+        _a134 = next(a for a in _it134.articles if a.code == "codice_civile" and str(a.number) == "2946")
+        _k134 = _cp134.copy(_a134); _k134._kerkues = True
+        _t134 = _br134._format_articles_for_prompt([(_k134, 3.0)])
+        _okC = ("Rubrica:" in _t134 and "Titulli:" not in _t134 and "TROVATO DAL RICERCATORE" in _t134 and "GJETUR" not in _t134
+                and "Art. 216" in _wr134.format_research_loop([("x", "216", "Esenzione", "testo")], "it")
+                and "Neni" not in _wr134.format_research_loop([("x", "216", "Esenzione", "testo")], "it")
+                and "Neni 216" in _wr134.format_research_loop([("x", "216", "Esenzione", "testo")], "sq"))
+        # il blocco dei precedenti in sessione IT: etichette italiane, e il passo della Cassazione non tagliato a 260
+        from src.retrieval_kb import CasePrecedent as _CP134
+        import datetime as _d134
+        _br134.set_request_jurisdiction("IT")
+        _pc = _CP134(id=0, court_code="Cass", court_name="Cass. civ., Sez. V, ordinanza", court_level="cassazione", case_number="10383",
+                     decision_date=_d134.date(2026, 4, 20), type="civil", subtype="accoglie", outcome=None,
+                     summary="X" * 600, excerpt="", source_url="https://www.italgiure.giustizia.it/x")
+        _bp = _br134._format_precedents_block([(_pc, 1.0)])
+        _br134.set_request_jurisdiction("AL")
+        _okD = ("DECISIONI RILEVANTI" in _bp and "Sintesi:" in _bp and "Përmbledhje" not in _bp and "X" * 600 in _bp
+                and "Cass. civ., Sez. V, ordinanza, nr. 10383/2026" in _bp)
+        check("Cassazione[134]: precedenti di Cassazione per la domanda (fatti + consenso di 2 ricerche, k=2, solo merito: niente decreti, "
+              "interlocutorie, inammissibili) prima di Consulta/TAR/CdS, anche nel percorso semplice · la domanda viaggia nel triage · "
+              "etichette del prompt e del research loop nella lingua della sessione («Rubrica», «Art.», niente «Neni» in IT)",
+              _okA and _okB and _okC and _okD, "A=%s B=%s C=%s D=%s" % (_okA, _okB, _okC, _okD))
+        _vivi = _C134.cerca_precedenti(["amministratore unico di una società albanese guida in Italia l'auto della società targata Albania, "
+                                        "è residente in Italia: esenzione dall'ammissione temporanea e confisca",
+                                        "auto targata albanese della società albanese guidata dall'amministratore residente in Italia"],
+                                       k=2, termini=14, consenso=2)
+        if not _vivi:
+            print("  · Cassazione[134]: archivio non raggiungibile ora (o nessun consenso) — controllo vivo saltato")
+        else:
+            check("Cassazione[134]: dal vivo la ricerca coi fatti porta solo decisioni di merito (niente decreti/interlocutorie), al massimo 2",
+                  len(_vivi) <= 2 and all(r["tipo"] in ("S", "O") for r in _vivi), str([(_C134.descrivi(r)[:60]) for r in _vivi]))
+    except Exception as _e134:  # noqa: BLE001
+        check("Cassazione[134]: kontrollet u ekzekutuan", False, str(_e134))
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

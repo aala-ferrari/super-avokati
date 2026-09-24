@@ -1770,6 +1770,9 @@ class TriageResult:
     # deadline, nullità, strategia contro controparte. Default "complex"
     # (fail-safe: se triage fallisce o dimentica il campo, pipeline pieno).
     complexity: Literal["simple", "complex"] = "complex"
+    # v9.386 — la domanda dell'avvocato così com'è: i precedenti di Cassazione si cercano coi FATTI (riassunto +
+    # domanda), non con le query sulle norme (misurato: 5/10 contro 1/10 decisioni decisive trovate)
+    domanda: str = ""
 
 
 @dataclass
@@ -2851,7 +2854,7 @@ class SuperAvvocato:
             triage = TriageResult(
                 problem_summary=user_message, areas=[],
                 search_queries=[user_message], strategic_angles=[],
-                needs_followup=False, followup_question="",
+                needs_followup=False, followup_question="", domanda=user_message,
             )
 
         if triage.needs_followup and triage.followup_question:
@@ -3247,6 +3250,7 @@ class SuperAvvocato:
                 strategic_angles=[],
                 needs_followup=False,
                 followup_question="",
+                domanda=user_message,
             )
 
         if triage.needs_followup and triage.followup_question:
@@ -3623,6 +3627,7 @@ class SuperAvvocato:
             needs_followup=bool(data.get("needs_followup", False)),
             followup_question=str(data.get("followup_question", "")).strip(),
             complexity=complexity,
+            domanda=user_message,
         )
 
     # ── lo studio: juristët e rinj (v9.267) ────────────────────────────────
@@ -3744,7 +3749,11 @@ class SuperAvvocato:
         precedents: list = []
         try:
             cited = [(a.code, a.number) for a, _ in retrieved]
-            precedents = _precedente_te_lidhur(self._retrieve_precedents(triage, cited), cited)
+            _tutti = self._retrieve_precedents(triage, cited)
+            # v9.386 — i precedenti di Cassazione vengono dalla ricerca coi fatti sul testo integrale (con il consenso di
+            # due ricerche): non portano i nene citati, quindi il filtro «cita un nene recuperato» li butterebbe tutti
+            precedents = ([p for p in _tutti if getattr(p[0], "court_code", "") == "Cass"][:2]
+                          + _precedente_te_lidhur([p for p in _tutti if getattr(p[0], "court_code", "") != "Cass"], cited))
             _audit_precedenti(precedents)
         except Exception as exc:  # noqa: BLE001
             log.warning("studio mbledhësit: precedentë të parikuperueshëm (%s)", exc)
@@ -6918,9 +6927,15 @@ def _indice_kreut(pairs) -> str:
 
 def _format_articles_for_prompt(pairs: list[tuple[Article, float]]) -> str:
     if not pairs:
-        return "(asnjë nen i gjetur)"
+        try:
+            return "(nessun articolo trovato)" if (request_jurisdiction() or "AL").upper() == "IT" else "(asnjë nen i gjetur)"
+        except Exception:  # noqa: BLE001
+            return "(asnjë nen i gjetur)"
     blocks: list[str] = []
     for a, score in pairs:
+        # v9.386 — le etichette del blocco nella lingua dell'articolo (= della sessione): in sessione italiana «Neni»,
+        # «Titulli», «GJETUR NGA KËRKUESI» finivano copiati nella risposta (prova viva del 24 set: «Neni 216 Regolamento…»)
+        _it = _is_italian_code(a.code)
         hierarchy = " / ".join(x for x in (a.pjesa, a.kreu, a.seksioni) if x)
         hierarchy = f"  [{hierarchy}]\n" if hierarchy else ""
         hierarchy += f"  ⚖ {_forza(a.code)}\n"
@@ -6962,22 +6977,33 @@ def _format_articles_for_prompt(pairs: list[tuple[Article, float]]) -> str:
             # v9.334: la data dell'ultima modifica letta dalle note dell'articolo stesso
             vol_note = f"  ℹ Neni i ndryshuar së fundmi më {amended} (sipas notave të tekstit të konsoliduar).\n"
         if volatility == "VOLATILE":
-            vol_note = (
+            vol_note = ((
+                f"  ⚠ VOLATILE — legge modificata spesso"
+                f"{f' (versione indicizzata: {amended})' if amended else ''}. "
+                f"Verifica su Normattiva la versione vigente prima di agire.\n") if _it else (
                 f"  ⚠ VOLATILE — ligj i ndryshueshëm shpesh"
                 f"{f' (versioni i indeksuar: {amended})' if amended else ''}. "
-                f"Kontrollo QBZ për versionin aktual para se të veprosh.\n"
+                f"Kontrollo QBZ për versionin aktual para se të veprosh.\n")
             )
         elif volatility == "MEDIUM":
-            vol_note = (
+            vol_note = ((
+                f"  ℹ Legge modificata periodicamente"
+                f"{f' (versione indicizzata: {amended})' if amended else ''}.\n") if _it else (
                 f"  ℹ Ligj i ndryshuar periodikisht"
-                f"{f' (versioni i indeksuar: {amended})' if amended else ''}.\n"
+                f"{f' (versioni i indeksuar: {amended})' if amended else ''}.\n")
             )
         # Un'ancora entra per ragione giuridica, non perche' somiglia alle
         # parole della domanda — il suo punteggio puo' essere zero (misurato:
         # il Neni 114 non condivide NESSUNA parola con «afati i parashkrimit»).
         # Presentarlo come uno zero secco lo farebbe scartare: va detto perche'
         # sta li'.
-        if getattr(a, "_cituar", False):
+        if getattr(a, "_cituar", False) and _it:
+            intestazione = (
+                f"── {a.citation}  ⚑ ARTICOLO CHIESTO ESPRESSAMENTE DALL'AVVOCATO\n"
+                f"  (l'avvocato l'ha chiesto per numero: rispondi PRIMA su questo articolo, citalo parola per parola "
+                f"dal testo qui sotto{' — ATTENZIONE: è abrogato, dillo' if getattr(a, 'repealed', False) else ''})\n"
+            )
+        elif getattr(a, "_cituar", False):
             intestazione = (
                 f"── {a.citation}  ⚑ NENI I KËRKUAR SHPREHIMISHT NGA AVOKATI\n"
                 f"  (avokati e kërkoi me numër: përgjigju SË PARI për këtë nen, citoje fjalë për fjalë "
@@ -6996,32 +7022,49 @@ def _format_articles_for_prompt(pairs: list[tuple[Article, float]]) -> str:
                 f"temporanea e requisiti di circolazione — verifica se e come si applica al caso, non darlo per scontato)\n"
             )
         elif getattr(a, "_kerkues", False):
-            intestazione = (
+            intestazione = ((
+                f"── {a.citation}  ⚑ TROVATO DAL RICERCATORE\n"
+                f"  (il giurista junior dello studio l'ha trovato come la norma che DEFINISCE "
+                f"l'istituto/l'infrazione — leggilo per primo, testo integrale)\n") if _it else (
                 f"── {a.citation}  ⚑ GJETUR NGA KËRKUESI\n"
                 f"  (juristi i ri i studios e gjeti si normën që PËRCAKTON "
-                f"institutin/kundërvajtjen — lexoje i pari, tekst i plotë)\n"
+                f"institutin/kundërvajtjen — lexoje i pari, tekst i plotë)\n")
             )
         elif getattr(a, "_semantik", False):
-            intestazione = (
+            intestazione = ((
+                f"── {a.citation}  ⚑ TROVATO PER SIGNIFICATO\n"
+                f"  (nessuna parola in comune con la domanda: l'ha trovato la ricerca semantica perché parla della "
+                f"stessa cosa con altre parole — controlla se è la norma che si applica)\n") if _it else (
                 f"── {a.citation}  ⚑ GJETUR NGA KUPTIMI\n"
                 f"  (asnjë fjalë e përbashkët me pyetjen: e gjeti kërkimi semantik "
                 f"sepse flet për të njëjtën gjë me fjalë të tjera — kontrollo nëse "
-                f"është norma që zbatohet)\n"
+                f"është norma që zbatohet)\n")
             )
         elif getattr(a, "_ancora_titull", False):
-            intestazione = (
+            intestazione = ((
+                f"── {a.citation}  ⚑ ARTICOLO SU QUESTO TEMA\n"
+                f"  (la rubrica contiene il tema della domanda — controlla per primo se è la norma che DEFINISCE la "
+                f"violazione/la misura, prima di costruire la difesa su articoli periferici)\n") if _it else (
                 f"── {a.citation}  ⚑ NENI PËR KËTË TEMË\n"
                 f"  (titulli i nenit përmban temën e pyetjes — kontrollo i pari "
                 f"nëse është norma që e PËRCAKTON vetë shkeljen/masën, para se "
-                f"të ndërtosh mbrojtjen mbi nene periferike)\n"
+                f"të ndërtosh mbrojtjen mbi nene periferike)\n")
             )
         elif getattr(a, "_cituar_nga", ""):
-            _kush = {"seniori": "SENIORI", "djalli": "AVOKATI I DJALLIT"}.get(getattr(a, "_cituar_nga", ""), "NJË AGJENT")
-            intestazione = (
-                f"── {a.citation}  ⚑ CITUAR NGA {_kush} (nuk ishte në dosjen fillestare)\n"
-                f"  (u citua në analizë pa qenë në bllok: teksti i plotë hyn që Gjyqtari ta kontrollojë "
-                f"pretendimin mbi tekstin, jo mbi kujtesën{' — KUJDES: është i shfuqizuar' if getattr(a, 'repealed', False) else ''})\n"
-            )
+            if _it:
+                _kush = {"seniori": "SENIOR", "djalli": "AVVOCATO DEL DIAVOLO"}.get(getattr(a, "_cituar_nga", ""), "UN AGENTE")
+                intestazione = (
+                    f"── {a.citation}  ⚑ CITATO DAL {_kush} (non era nel dossier iniziale)\n"
+                    f"  (citato nell'analisi senza essere nel blocco: il testo integrale entra perché il Giudice controlli "
+                    f"l'affermazione sul testo, non sulla memoria{' — ATTENZIONE: è abrogato' if getattr(a, 'repealed', False) else ''})\n"
+                )
+            else:
+                _kush = {"seniori": "SENIORI", "djalli": "AVOKATI I DJALLIT"}.get(getattr(a, "_cituar_nga", ""), "NJË AGJENT")
+                intestazione = (
+                    f"── {a.citation}  ⚑ CITUAR NGA {_kush} (nuk ishte në dosjen fillestare)\n"
+                    f"  (u citua në analizë pa qenë në bllok: teksti i plotë hyn që Gjyqtari ta kontrollojë "
+                    f"pretendimin mbi tekstin, jo mbi kujtesën{' — KUJDES: është i shfuqizuar' if getattr(a, 'repealed', False) else ''})\n"
+                )
         else:
             intestazione = f"── {a.citation} (score={score:.2f})\n"
         # v9.361 — tetto DICHIARATO al corpo (34 «articoli» IT oltre 30.000 chr); mai sul nene chiesto per numero
@@ -7038,10 +7081,10 @@ def _format_articles_for_prompt(pairs: list[tuple[Article, float]]) -> str:
                 f"\n  […{_mancano} karaktere të hequra nga prompti: nen shumë i gjatë — për tekstin e plotë kërkoje me numër]")
         # v9.362 — la nota editoriale separata dal testo (rubrica pulita) resta visibile al cervello
         _nota = getattr(a, "note", "") or ""
-        _nota_line = f"  ℹ Shënim redaksional: {_nota}\n" if _nota else ""
+        _nota_line = (f"  ℹ {'Nota redazionale' if _it else 'Shënim redaksional'}: {_nota}\n") if _nota else ""
         blocks.append(
             f"{intestazione}"
-            f"  Titulli: {a.heading}\n"
+            f"  {'Rubrica' if _it else 'Titulli'}: {a.heading}\n"
             f"{hierarchy}"
             f"{vol_note}"
             f"{_nota_line}"
@@ -7116,7 +7159,17 @@ def _format_precedents_block(pairs: list[tuple[CasePrecedent, float]]) -> str:
         from . import case_graph as _cg
     except Exception:  # noqa: BLE001
         _cg = None
-    lines = ["", "── VENDIME RELEVANTE TË GJYKATAVE (precedent nga KB) ──"]
+    try:
+        _it = (request_jurisdiction() or "AL").upper() == "IT"
+    except Exception:  # noqa: BLE001
+        _it = False
+    _L = ({"testa": "── DECISIONI RILEVANTI (precedenti: Cassazione dall'archivio ufficiale — candidati da leggere, citali solo se "
+                    "il passo sostiene il punto —, Corte costituzionale, TAR/CdS) ──",
+           "forza": "Forza/trattamento", "sintesi": "Sintesi", "articoli": "Articoli citati", "collegio": "Collegio"}
+          if _it else
+          {"testa": "── VENDIME RELEVANTE TË GJYKATAVE (precedent nga KB) ──", "forza": "Forca/trajtimi",
+           "sintesi": "Përmbledhje", "articoli": "Nenet e cituara", "collegio": "Trupi gjykues"})
+    lines = ["", _L["testa"]]
     for c, score in pairs:
         outcome = f" — {c.outcome}" if c.outcome else ""
         if getattr(c, "subtype", None):
@@ -7130,19 +7183,20 @@ def _format_precedents_block(pairs: list[tuple[CasePrecedent, float]]) -> str:
             try:
                 _n = _cg.nota(c.court_code, c.year, c.case_number)
                 if _n:
-                    lines.append(f"    Forca/trajtimi: {_n}")
+                    lines.append(f"    {_L['forza']}: {_n}")
                 _i = _cg.info(c.court_code, c.year, c.case_number) or {}
                 for _inv in (_i.get("invalidates") or [])[:3]:
                     lines.append(f"    Shpall antikushtetues: ligji nr. {_inv.get('law')} nenet {', '.join(_inv.get('articles') or []) or '(shih dispozitivin)'}")
             except Exception:  # noqa: BLE001
                 pass
         if c.summary:
-            lines.append(f"    Përmbledhje: {c.summary[:260]}")
+            # la Cassazione porta il PASSO del testo integrale: deve arrivare intero al senior (non tagliato a 260)
+            lines.append(f"    {_L['sintesi']}: {c.summary[:900 if c.court_code == 'Cass' else 260]}")
         if c.articles_cited:
-            arts = ", ".join(f"{code} neni {art}" for code, art in c.articles_cited[:6])
-            lines.append(f"    Nenet e cituara: {arts}")
+            arts = ", ".join(f"{code} {'art.' if _it else 'neni'} {art}" for code, art in c.articles_cited[:6])
+            lines.append(f"    {_L['articoli']}: {arts}")
         if c.judges:
-            lines.append(f"    Trupi gjykues: {', '.join(c.judges[:3])}")
+            lines.append(f"    {_L['collegio']}: {', '.join(c.judges[:3])}")
     lines.append("")
     return "\n".join(lines) + "\n"
 
@@ -7170,6 +7224,59 @@ def _tipo_per_corte(court: str) -> str:
     return "kushtetuese" if court == "CCost" else "administrativ"
 
 
+def _precedenti_cassazione(triage, domande: list) -> list:
+    """v9.386 — i precedenti di CASSAZIONE per la domanda, dal testo integrale dell'archivio ufficiale (ultimi ~5 anni).
+
+    Misurato sulle 10 domande italiane salvate con Cassazione confermate: cercando coi FATTI (riassunto del triage +
+    domanda) e tenendo solo ciò che due ricerche indipendenti mettono entrambe fra i primi 5, la decisione che il
+    cervello aveva poi citato è in testa in 5 casi su 10 (le tre varianti dell'auto targata Albania → Cass. 10383/2026)
+    e il rumore scende a ~1 su 7 candidati; con le query del triage (scritte per le norme) 1 su 10; i precedenti di oggi
+    (Consulta/TAR/CdS in FTS) 0 su quelle domande. Solo decisioni di merito (niente inammissibili, interlocutorie,
+    decreti), al massimo 2, con il passo del testo. Mai solleva."""
+    try:
+        from datetime import date as _date
+
+        from . import cassazione as _cass
+        from .retrieval_kb import CasePrecedent
+        fatti = [x for x in ((getattr(triage, "problem_summary", "") or "").strip(),
+                             (getattr(triage, "domanda", "") or "").strip()[:600]) if x]
+        if len(fatti) < 2:                       # senza la domanda il consenso non ha senso: una sola ricerca
+            fatti = fatti + [d for d in (domande or [])[:1] if d]
+        if len(fatti) < 2:
+            return []
+        aree = " ".join(getattr(triage, "areas", []) or []).lower()
+        ramo = "pen" if (re.search(r"pen", aree) and not re.search(r"civ|lav|trib|ammin|famig", aree)) else "civ"
+        out = []
+        for i, r in enumerate(_cass.cerca_precedenti(fatti, ramo=ramo, k=2, termini=14, consenso=2)):
+            try:
+                dd = _date.fromisoformat(r["datdep"]) if r.get("datdep") else None
+            except Exception:  # noqa: BLE001
+                dd = None
+            testa = _cass.descrivi(r)
+            out.append((CasePrecedent(
+                id=0,
+                court_code="Cass",
+                court_name=("Cass. " + ("civ." if r["ramo"] == "civ" else "pen.") + ", "
+                            + _cass.sezione_label(r["sezione"], "") + ", " + _cass._TIPO_IT.get(r["tipo"], "provvedimento")),
+                court_level="cassazione",
+                case_number=str(r["numero"]),
+                decision_date=dd,
+                type="civil" if r["ramo"] == "civ" else "penal",
+                subtype=r.get("esito") or None,
+                outcome=None,
+                summary=(testa + ((" — passo: «" + r["passo"] + "»") if r.get("passo") else ""))[:900],
+                excerpt=r.get("passo") or "",
+                source_url=r.get("url"),
+                source_file=r.get("sn_id") or "",          # l'id dell'archivio (snciv2026510383O): per audit e misure
+            ), max(0.3, 1.1 - i * 0.1)))
+        if out:
+            log.info("precedenti Cassazione (archivio ufficiale): %s", [p.citation for p, _ in out])
+        return out
+    except Exception as exc:  # noqa: BLE001
+        log.warning("precedenti Cassazione saltati (non-fatal): %s", exc)
+        return []
+
+
 def _precedenti_it(triage) -> list:
     """Precedenti italiani via FTS5, gia' in forma CasePrecedent.
 
@@ -7193,7 +7300,7 @@ def _precedenti_it(triage) -> list:
                  "maggio": 5, "giugno": 6, "luglio": 7, "agosto": 8,
                  "settembre": 9, "ottobre": 10, "novembre": 11,
                  "dicembre": 12}
-        out = []
+        out = _precedenti_cassazione(triage, domande)
         for i, r in enumerate(kerko(domande, top_k=5)):
             dd = None
             try:

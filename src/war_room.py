@@ -285,10 +285,12 @@ _LOOP = {
     "sq": {
         "kreu": "━━━ 🔁 KËRKIM SHTESË (research loop) — norma që analiza kërkoi, por s'ishte në dosjen fillestare ━━━",
         "nota": "⚠ Këto nene u gjetën PAS përgjigjes; kontrollo a e ndryshojnë analizën (posaçërisht si normë speciale ose përjashtim).",
+        "art": "Neni",
     },
     "it": {
         "kreu": "━━━ 🔁 RICERCA AGGIUNTIVA (research loop) — norma che l'analisi richiedeva ma non era nel dossier iniziale ━━━",
         "nota": "⚠ Questi articoli sono stati trovati DOPO la risposta; controlla se cambiano l'analisi (specie come norma speciale o eccezione).",
+        "art": "Art.",      # v9.386: prima «Neni» anche in sessione italiana (prova viva del 24 set: finiva nel testo)
     },
 }
 
@@ -301,8 +303,8 @@ def format_research_loop(trovati, lang="sq") -> str:
     T = _LOOP.get(lang, _LOOP["sq"])
     rr = ["", T["kreu"]]
     for pershkrim, numri, titulli, teksti in trovati:
-        rr.append("  • (%s) Neni %s %s — «%s»" % (
-            (pershkrim or "")[:70], numri, titulli, (teksti or "").replace("\n", " ")[:450]))
+        rr.append("  • (%s) %s %s %s — «%s»" % (
+            (pershkrim or "")[:70], T["art"], numri, titulli, (teksti or "").replace("\n", " ")[:450]))
     rr.append(T["nota"])
     rr.append("")
     return "\n".join(rr)

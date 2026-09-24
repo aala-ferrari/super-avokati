@@ -315,7 +315,7 @@ def _ssl_ctx() -> ssl.SSLContext:
 
 
 def _solr(params: dict, timeout: float = TIMEOUT_S) -> dict:
-    body = urllib.parse.urlencode(dict({"wt": "json", "start": 0}, **params)).encode()
+    body = urllib.parse.urlencode(dict({"wt": "json", "start": 0}, **params), doseq=True).encode()
     req = urllib.request.Request(SOLR, data=body, headers={
         "User-Agent": "Mozilla/5.0 (compatible; SuperAvokati-verifica/1.0)",
         "Referer": "https://www.italgiure.giustizia.it/sncass/",
@@ -566,6 +566,7 @@ def valuta(menzioni: list[dict], recs: list[dict], ramo_testo: str = "civ") -> d
     if not cand:
         return {"status": "mismatch", "ramo": ramo, "record": None, "correzioni": [], "dedotto": dedotto,
                 "motivo": "ramo", "alternative": [descrivi(r) for r in altre[:3]]}
+    corr_sez = ""
     if sezioni:
         ok = [r for r in cand if r["sezione"] in sezioni]
         if not ok:
@@ -574,6 +575,14 @@ def valuta(menzioni: list[dict], recs: list[dict], ramo_testo: str = "civ") -> d
                 if ok2:                                  # il ramo era solo dedotto: la sezione decide
                     cand, altre, ramo = ok2, cand, ok2[0]["ramo"]
                     ok = ok2
+            if not ok and date:
+                # la DATA dichiarata coincide: è lo stesso provvedimento con la sezione sbagliata (tipico: un'ordinanza
+                # della «sesta-3» citata «Sez. III» — prova viva del 24 set, Cass. 3882/2015) → correzione, non «togli»
+                per_data = [r for r in cand if any(_data_ok(d, k, r) for d, k in date)]
+                if per_data:
+                    ok = per_data
+                    corr_sez = (f"sezione: {sezione_label(per_data[0]['sezione'], '')}, non "
+                                + ", ".join(sezione_label(x, "") for x in sorted(sezioni)))
             if not ok:
                 # ramo dichiarato («Cass. civ.») → si mostrano solo i provvedimenti di quel ramo: il penale con lo
                 # stesso numero è un'altra serie e non aiuta a correggere
@@ -582,7 +591,7 @@ def valuta(menzioni: list[dict], recs: list[dict], ramo_testo: str = "civ") -> d
                         "alternative": [descrivi(r) for r in ((cand + altre) if dedotto else cand)[:3]]}
         cand = ok
     best = sorted(cand, key=lambda r: (not _date_ok(date, r), not r.get("sn_id"), r["tipo"] != "S"))[0]
-    corr = []
+    corr = [corr_sez] if corr_sez else []
     sbagliate = [d for d, k in date if not _data_ok(d, k, best)]
     if sbagliate and (best.get("datdep") or best.get("datdec")):
         corr.append(f"data: depositata il {_gma(best.get('datdep') or '')}"
@@ -790,3 +799,119 @@ def blocco(items: list[dict], text: str, lang: str = "it", con_passi: bool = Tru
             r.append(f"- NON TROVATA «{it['raw'][:90]}» → nessun provvedimento n. {it['number']}/{it['year']} nell'archivio "
                      f"ufficiale (anno coperto): da riscontrare — non presentarla come certa.")
     return "\n".join(r)
+
+
+# ══════════════════════════════════════════════════════════════════════════════════════════════════════════
+# 5. I PRECEDENTI DI CASSAZIONE PER LA DOMANDA (ricerca viva sul testo integrale, come un avvocato su SentenzeWeb)
+# ══════════════════════════════════════════════════════════════════════════════════════════════════════════
+# Misurato il 24 set: sul caso dell'auto targata Albania i precedenti italiani (Consulta/TAR/CdS in FTS locale) davano
+# ZERO decisioni, mentre la ricerca per parole sul testo integrale della Cassazione («ammissione temporanea veicolo
+# residente legale rappresentante») mette in testa la 15208/2024 e la 10383/2026 — le due decisioni sul caso.
+# NON è un archivio copiato: una richiesta per domanda, i record non si conservano (solo la cache degli estremi).
+# Entrano solo decisioni sul merito: fuori inammissibilità, ordinanze interlocutorie e decreti (regola del titolare:
+# «entra solo ciò che migliora»).
+_GENERICHE = set("""ricorso ricorsi ricorrente ricorrenti controricorrente controricorrenti intimato intimata corte cassazione
+sentenza sentenze ordinanza ordinanze decreto decreti giudice giudici giudizio giudizi appello tribunale motivo motivi articolo
+articoli comma commi legge leggi norma norme codice civile penale procedura diritto diritti caso casi questione questioni parte
+parti italia italiano italiana quale quali come dove quando perché anche solo sempre ogni tutti tutte essere avere fare stato
+stata stati state cliente clienti avvocato mio mia suoi sue loro altro altra altri nuovo nuova prima dopo senza entro circa
+cosa cose rischio rischi possibile possibilità vale valgono serve servono deve devono può possono""".split())
+
+
+def _termini_query(q: str, massimo: int = 8) -> list[str]:
+    out = []
+    for w in re.findall(r"[A-Za-zÀ-ÿ]{4,}", q or ""):
+        w = w.lower()
+        if w in _GENERICHE or w in _STOP or w in out:
+            continue
+        out.append(w)
+    return out[:massimo]
+
+
+# la MATERIA del provvedimento deve toccare il caso (domanda, riassunto, codici recuperati): misurato sulle 10 domande
+# salvate, via così «Fallimento» su una locazione, «Successioni» su una separazione, «Irpeg» su un consumatore; resta
+# «Tributi e dazi doganali» sull'auto targata Albania (il codice doganale è fra i recuperati). Senza materia (penale):
+# il passo evidenziato deve contenere almeno 2 parole della ricerca.
+_RADICI_VUOTE = {"altro", "altri", "altre", "gener", "diver", "legge", "civil", "priva", "pubbl", "rappo", "tutti", "codic",
+                 "norme", "dirit", "senza", "della", "delle", "nella", "sulla", "ipote"}
+
+
+def _radici(t: str) -> set[str]:
+    return {w[:5] for w in re.findall(r"[a-zà-ÿ]{5,}", (t or "").lower())} - _RADICI_VUOTE
+
+
+def _tocca_il_caso(r: dict, passo: str, termini: list[str], ctx_radici: set) -> bool:
+    mat = _radici(r.get("materia") or "")
+    if mat:
+        return bool(mat & ctx_radici)
+    p = (passo or "").lower()
+    return sum(1 for t in termini if t in p) >= 2
+
+
+def cerca_precedenti(domande: list[str], ramo: str = "civ", k: int = 3, tetto_s: float = 6.0, termini: int = 8,
+                     contesto: str | None = None, consenso: int = 1) -> list[dict]:
+    """Le decisioni di merito più vicine alla domanda nel testo integrale (ultimi ~5 anni), fuse fra le query del
+    triage (RRF). Ogni voce: il record uniforme + «passo» (il testo evidenziato) + «termini». Mai solleva; archivio
+    muto → []."""
+    global _down_until
+    if not ENABLED or time.time() < _down_until or not domande:
+        return []
+    kind = "snpen" if ramo == "pen" else "snciv"
+    fq = ['-tipoprov:Decreto', '-tipoprov:"Ordinanza Interlocutoria"', '-ocrdis:inammissibil*']
+    t0 = time.time()
+    punti: dict = {}
+    voti: dict = {}                 # in quante ricerche il provvedimento è fra i primi 5
+    docs: dict = {}
+    tutti_termini: list[str] = []
+    for dq in [d for d in domande if d][:3]:
+        parole = _termini_query(dq, termini)
+        if len(parole) < 2:
+            continue
+        tutti_termini += [t for t in parole if t not in tutti_termini]
+        resto = max(1.0, tetto_s - (time.time() - t0))
+        try:
+            d = _solr({"q": f"kind:{kind} AND ocr:(" + " OR ".join(parole) + ")", "rows": 8, "sort": "score desc",
+                       "fl": _FL + ",score", "fq": fq}, timeout=min(TIMEOUT_S, resto))
+        except Exception as exc:  # noqa: BLE001
+            _down_until = time.time() + 300
+            log.warning("cassazione: ricerca dei precedenti non riuscita (%s)", str(exc)[:120])
+            return []
+        for r, doc in enumerate((d.get("response") or {}).get("docs") or []):
+            i = doc.get("id")
+            if not i:
+                continue
+            docs[i] = doc
+            punti[i] = punti.get(i, 0.0) + 1.0 / (60 + r)
+            if r < 5:
+                voti[i] = voti.get(i, 0) + 1
+        if time.time() - t0 > tetto_s:
+            break
+    if not punti:
+        return []
+    migliori = [i for i in sorted(punti, key=lambda i: -punti[i]) if voti.get(i, 0) >= consenso][:max(k * 3, 6)]
+    if not migliori:
+        return []
+    passi: dict = {}
+    try:
+        d = _solr({"q": "id:(" + " OR ".join(migliori) + ")", "rows": len(migliori), "fl": "id", "hl": "true", "hl.fl": "ocr",
+                   "hl.q": "ocr:(" + " OR ".join(tutti_termini[:16]) + ")", "hl.snippets": 2, "hl.fragsize": 320},
+                  timeout=min(TIMEOUT_S, max(1.0, tetto_s - (time.time() - t0))))
+        for i, v in (d.get("highlighting") or {}).items():
+            passi[i] = " […] ".join(_pulisci_hl(f) for f in (v.get("ocr") or [])[:2])[:700]
+    except Exception:  # noqa: BLE001
+        log.debug("cassazione: passi dei precedenti non disponibili", exc_info=True)
+    ctx = _radici(contesto) if contesto is not None else None
+    out = []
+    for i in migliori:
+        r = _record(docs[i])
+        if not r:
+            continue
+        r["passo"] = passi.get(i, "")
+        r["termini"] = tutti_termini[:16]
+        if ctx is not None and not _tocca_il_caso(r, r["passo"], tutti_termini, ctx):
+            continue
+        out.append(r)
+        if len(out) >= k:
+            break
+    return out
+

@@ -2,7 +2,7 @@
 
 Strumento AI per avvocati (B2B), **bi-giurisdizione AL + IT**. Front-end Flask (waitress, UN processo) su porta
 5050, SQLite (`data/app.db`). Postgres `legalkb` NON è raggiungibile dal container: i precedenti vivono nel pickle.
-**Stato al 24 set 2026 (v9.385)** — i numeri qui sono quelli veri; più sotto, nelle sezioni datate, c'è la storia:
+**Stato al 24 set 2026 (v9.387)** — i numeri qui sono quelli veri; più sotto, nelle sezioni datate, c'è la storia:
 - **AL leggi** (`bm25.pkl`, BM25 con diacritici piegati dal v9.367, titolo del capitolo cercabile dal v9.373): **10.305 nene / 62 codici**; embedding AL `_flat3`/`_ck3` (capitoli + corpo intero, `EMB_SUFFIX_SQ`/`EMB_SUFFIX2_SQ`), IT `_flat4`/`_ck4` dal v9.384 (`EMB_SUFFIX_IT`/`EMB_SUFFIX2_IT`); fonte
   `data/processed/all_articles.jsonl` (il pickle è derivato).
 - **Precedenti** (`bm25_decisions.pkl`): **3.996** = Kushtetuese **672** + Gjykata e Lartë **2.960** + CEDU **364**
@@ -17,7 +17,8 @@ Strumento AI per avvocati (B2B), **bi-giurisdizione AL + IT**. Front-end Flask (
   unito da `build_it_index.py`; il titolo del capitolo è cercabile come in AL); **IT giurisprudenza**
   (FTS5 `it_decisions_fts.db`): **8.055** decisioni (Consulta dal 2005 + CdS/CGARS/TAR), testo della decisione ripulito
   dal sito (`it_precedent_fts.testo_decisione`, v9.369). **Cassazione**: le citazioni si riscontrano sull'ARCHIVIO UFFICIALE
-  della Corte (SentenzeWeb: metadati di tutti i provvedimenti dal 2009, testo integrale ultimi 5 anni) — `src/cassazione.py`, v9.385.
+  della Corte (SentenzeWeb: metadati di tutti i provvedimenti dal 2009, testo integrale ultimi 5 anni) — `src/cassazione.py`, v9.385;
+  dal v9.386 anche i PRECEDENTI di Cassazione per la domanda (ricerca viva coi fatti sul testo integrale, 2 al massimo).
 
 ## Regola #1 — Scope: UNA SOLA GIURISDIZIONE PER SESSIONE
 
@@ -623,7 +624,7 @@ errori, non che le risposte sono ancora giuste. Riferimento verificato il
 12 articoli recuperati per ciascuna.
 
 ```bash
-docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63], triage-trim+giudice-no-web [64], chat-web+verdetto-in-testa+pannelli-IT [65], codice-nominato→area [66], timeout-45min+ripiego-no-web [67], fasi-bilingue+giudice-no-web+duello-a-scomparsa [68], etichette-composte-bilingui [69]). Baseline **529/529** (24 set, v9.385: + [133] Cassazione sull'archivio ufficiale — con un controllo dal vivo che si SALTA se l'archivio non risponde; v9.384: + [129] capitoli IT, [130] articoli puntati, [131] rubriche IT, [132] UE/CEDU; era 98 il 31 ago).
+docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63], triage-trim+giudice-no-web [64], chat-web+verdetto-in-testa+pannelli-IT [65], codice-nominato→area [66], timeout-45min+ripiego-no-web [67], fasi-bilingue+giudice-no-web+duello-a-scomparsa [68], etichette-composte-bilingui [69]). Baseline **531/531** (24 set, v9.386: + [134] precedenti di Cassazione per la domanda + etichette del prompt nella lingua della sessione; v9.385: + [133] Cassazione sull'archivio ufficiale — con un controllo dal vivo che si SALTA se l'archivio non risponde; v9.384: + [129] capitoli IT, [130] articoli puntati, [131] rubriche IT, [132] UE/CEDU; era 98 il 31 ago).
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 bash /root/prova_sse.sh                                    # SULL'HOST (legge il secret da /opt/super-avvocato.env; copia in tools/prova_sse.sh): account di prova → login → fascicolo → 1 domanda VERA → stream /api/ask/events attraverso waitress. Deve dire «HTTP 200 … done: 1» (~50s, costa 1 chiamata al cervello) e cancella l'account. Dopo OGNI build che tocca web.py o le rotte SSE.
@@ -1490,6 +1491,29 @@ rischio residuo della DPIA.
 - Super Avokati ha auth propria (login_required_api); utenti creati da admin o auto-provisionati da AALA (`/api/provision-demo`, secret-guarded).
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
+
+**v9.386 — I PRECEDENTI DI CASSAZIONE PER LA DOMANDA, e il prompt italiano senza etichette albanesi (24 set, notte).**
+Dalla prova viva della v9.385 (auto targata Albania, 1370 s): il Giudice ha usato il riscontro ufficiale — data della
+10383/2026 corretta, esito vero «accoglie, cassa con rinvio» (quindi la confisca NON era definitivamente «legittima», la
+causa è tornata al rinvio: sfumatura che prima mancava), SS.UU. 18286/2024 confermata — ma la ricerca dei precedenti
+italiani aveva dato **0 decisioni** (Consulta/TAR/CdS in FTS non hanno la Cassazione). **Ricerca viva sul testo integrale**
+(`cassazione.cerca_precedenti`, `brain._precedenti_cassazione`), misurata con `tools/eval_cassazione_precedenti.py` sulle 10
+domande IT salvate che hanno Cassazione confermate (pertinente = la decisione che il cervello aveva poi citato): con le query
+del triage (scritte per le norme) **1/10**; coi FATTI (riassunto del triage + domanda) **5/10**; col vaglio della materia 3/10
+(buttava la 10383: il codice doganale non sempre è fra i recuperati) → scartato; **coi fatti + consenso** (il provvedimento deve
+essere fra i primi 5 di ENTRAMBE le ricerche) **5/10 con il rumore a ~1 su 4** (le tre varianti dell'auto → 10383/2026 in testa,
+da sola). Solo decisioni di merito (fuori decreti, ordinanze interlocutorie, «inammissibile» nel P.Q.M. — regola «entra solo
+ciò che migliora»), al massimo 2, con il PASSO del testo (evidenziazione Solr) nel blocco; entrano PRIMA di Consulta/TAR/CdS
+e, nel percorso semplice, anche senza citare un nene recuperato (i precedenti IT non portano i nene: il filtro li buttava tutti).
+Non è un archivio copiato: una richiesta per domanda, niente di conservato (diritto sui generis sulle banche dati). La domanda
+viaggia nel triage (`TriageResult.domanda`). **Etichette del prompt**: il research loop scriveva «Neni 216 …» anche in italiano
+e il modello l'ha copiato nella risposta → `war_room.format_research_loop` per lingua, e `_format_articles_for_prompt` /
+`_format_precedents_block` con le etichette italiane per gli articoli italiani («Rubrica», «TROVATO DAL RICERCATORE», «ARTICOLO
+CHIESTO ESPRESSAMENTE DALL'AVVOCATO», «Nota redazionale», «DECISIONI RILEVANTI … Sintesi»; il passo della Cassazione non si
+taglia a 260 chr). Golden **[134]**, 531; strato 1 invariato. **v9.387** (dalla prova viva sul percorso semplice, deposito
+cauzionale, 245 s, tutto in italiano: il precedente fuori tema proposto — un fallimento — il senior l'ha ignorato): la «Cass. civ.,
+Sez. III, ord. n. 3882 del 25 febbraio 2015» è della SESTA (6-3) — con la sezione sbagliata ma la DATA giusta è lo stesso
+provvedimento → «verified» con la correzione «sezione: Sez. VI, non Sez. III», non più «estremi diversi… correggi o togli».
 
 **v9.385 — LA CASSAZIONE SULL'ARCHIVIO UFFICIALE DELLA CORTE (24 set, notte).** Passo 3 del piano («fai tutto step by
 step»). Misurato prima: nelle 44 risposte italiane salvate **246 citazioni di Cassazione** (38 decisioni distinte dal 2009) e
