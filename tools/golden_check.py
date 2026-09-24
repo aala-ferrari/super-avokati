@@ -4608,6 +4608,41 @@ def main():
     except Exception as _e135:  # noqa: BLE001
         check("vendime AL[135]: kontrollet u ekzekutuan", False, str(_e135))
 
+    # [136] v9.389 — LA CORTE DI GIUSTIZIA UE sull'archivio ufficiale (CELLAR). Misurato sulle 44 risposte IT: 61 citazioni di
+    # cause CGUE (10 distinte) mai riscontrate — la C-274/20 citata 31 volte con «estremi da confermare». Riscontrate: 8 esistono
+    # con intestazione e oggetto ufficiali, 2 sono cause RIUNITE (la sentenza sta sotto il primo numero: C-717/22 e C-372/23).
+    try:
+        from src import cgue as _G136
+        _tr136 = {(c["lettera"], c["numero"]): c for c in _G136.trova(
+            "CGUE, 19 dicembre 2024, cause riunite C-717/22 e C-372/23, SISTEM LUX; sentenza del 16 dicembre 2021 (causa C‑274/20); "
+            "Fonti consultate il 21/09/2026: [CGUE C-182/12](https://curia.europa.eu/x?num=C-999/12); T-123/19")}
+        _okA = (set(_tr136) == {("C", 717), ("C", 372), ("C", 274), ("C", 182), ("T", 123)}
+                and _tr136[("C", 372)].get("riunita_con") == "C-717/22" and not _tr136[("C", 274)].get("riunita_con")
+                and _tr136[("C", 274)]["date"] == ["2021-12-16"] and _tr136[("C", 182)]["date"] == []
+                and _G136._celex("C", 274, "20", "J") == "62020CJ0274" and _G136._celex("C", 262, "99", "J") == "61999CJ0262"
+                and _G136._celex("T", 123, "19", "O") == "62019TO0123")
+        _h = _G136._intestazione("<p>SENTENZA DELLA CORTE (Sesta Sezione)</p><p>16 dicembre 2021 ( *1 )</p><p>«Rinvio pregiudiziale – "
+                                 "Articolo 63 TFUE – Veicolo immatricolato in un altro Stato membro»</p>")
+        _okB = (_h["data"] == "2021-12-16" and _h["intestazione"].startswith("SENTENZA DELLA CORTE (Sesta Sezione)")
+                and _h["oggetto"].startswith("Rinvio pregiudiziale"))
+        import inspect as _in136
+        from src import trust_line as _tl136
+        _okC = ("cgue as _cgue" in _in136.getsource(ccv.verify_cases_it) and "_note_cgue" in _in136.getsource(ccv.annotate_unverified)
+                and "_cgue" in _in136.getsource(_tl136.verifica) and "_cgue.blocco" in _in136.getsource(_tl136.blocco_per_gjyqtarin)
+                and 'dc.court === "CGUE"' in open("/app/static/app.js", encoding="utf-8").read())
+        check("CGUE[136]: cause lette (anche «C‑274/20», le riunite ereditano dal primo numero, mai la data di consultazione) · CELEX "
+              "(CJ/CO, TJ/TO, anno del ruolo) · intestazione e oggetto ufficiali · agganci (verificatore IT, nota, Giudice, pannello)",
+              _okA and _okB and _okC, "A=%s B=%s C=%s" % (_okA, _okB, _okC))
+        _v136 = _G136.verifica("la sentenza della Corte di giustizia del 16 dicembre 2021 (causa C-274/20)")
+        if not _v136["items"]:
+            print("  · CGUE[136]: archivio UE non raggiungibile ora — controllo vivo saltato")
+        else:
+            _r136 = _v136["items"][0]
+            check("CGUE[136]: dal vivo la C-274/20 è CONFERMATA (sentenza del 16/12/2021), senza correzioni di data",
+                  _r136["status"] == "verified" and _r136["record"].get("data") == "2021-12-16" and not _r136["correzioni"], str(_r136)[:200])
+    except Exception as _e136:  # noqa: BLE001
+        check("CGUE[136]: kontrollet u ekzekutuan", False, str(_e136))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

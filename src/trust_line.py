@@ -145,8 +145,11 @@ def verifica(text: str, index, jurisdiction: str = "AL", retrieved_codes=None, f
         _cz = [it for it in pay.get("items") or [] if it.get("court") == "Cass"]
         if _cz:
             out["_cass"] = {"items": _cz, "text": text}
+        _cg = [it for it in pay.get("items") or [] if it.get("court") == "CGUE"]      # v9.389
+        if _cg:
+            out["_cgue"] = _cg
         for it in pay.get("items") or []:
-            if it.get("court") == "Cass":
+            if it.get("court") in ("Cass", "CGUE"):
                 continue
             if it.get("status") == "unverified":
                 out["sentenze"]["bad"].append((it.get("raw") or "")[:60])
@@ -317,6 +320,14 @@ def blocco_per_gjyqtarin(v: dict, lang: str = "sq", coverage: dict | None = None
                     r.append(_bc)
             except Exception:  # noqa: BLE001
                 log.debug("trust_line: blocco Cassazione non costruito", exc_info=True)
+        if v.get("_cgue"):
+            try:
+                from . import cgue as _cgue
+                _bg = _cgue.blocco(v["_cgue"])
+                if _bg:
+                    r.append(_bg)
+            except Exception:  # noqa: BLE001
+                log.debug("trust_line: blocco CGUE non costruito", exc_info=True)
         if v.get("fatti_da_precisare"):
             r.append(f"La risposta segnala {v['fatti_da_precisare']} fatto/i da precisare («Per precisione»).")
         if n.get("foreign"):

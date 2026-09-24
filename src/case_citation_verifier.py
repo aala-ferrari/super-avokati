@@ -137,6 +137,12 @@ def verify_cases_it(text: str) -> dict:
         items += _cass.verifica(text or "").get("items") or []
     except Exception:  # noqa: BLE001
         pass
+    # v9.389 — la CORTE DI GIUSTIZIA UE sull'archivio ufficiale dell'Ufficio delle pubblicazioni (src/cgue.py)
+    try:
+        from . import cgue as _cgue
+        items += _cgue.verifica(text or "").get("items") or []
+    except Exception:  # noqa: BLE001
+        pass
     ver = sum(1 for i in items if i["status"] == "verified")
     mis = sum(1 for i in items if i["status"] == "mismatch")
     return {"items": items,
@@ -269,13 +275,14 @@ def annotate_unverified(md: str, cases: dict, *, jurisdiction: str = "AL") -> st
                + "; ".join(righe) + "\n")
     if it:
         md = _note_cassazione(md, cases)
+        md = _note_cgue(md, cases)
     # v9.388 — esistono nell'archivio ufficiale ma NON sono precedenti (mospranim, kthim i rekursit…)
     escluse = [c for c in (cases.get("items") or []) if c.get("status") == "excluded"]
     if escluse and _TESTA_ESCLUSE_SQ not in md and _TESTA_ESCLUSE_IT not in md:
         righe = "; ".join("`%s` — %s" % (c["raw"], c.get("objekti") or c.get("outcome") or "") for c in escluse[:6])
         md += "\n\n" + (_TESTA_ESCLUSE_IT if it else _TESTA_ESCLUSE_SQ) + " " + righe + "\n"
     da_dire = [c for c in (cases.get("items") or [])
-               if c.get("status") == "unverified" and c.get("court") != "Cass"]
+               if c.get("status") == "unverified" and c.get("court") not in ("Cass", "CGUE")]
     if not da_dire:
         return md
     lista = ", ".join("`%s`" % c["raw"] for c in da_dire[:8])
@@ -294,6 +301,23 @@ _TESTA_ESCLUSE_IT = ("> ⚠️ **Decisioni che esistono nell'archivio ufficiale 
 # riscontrare, e gli estremi che non tornano (sezione, data, tipo) si correggono con quelli ufficiali.
 _TESTA_CASS_CORR = "> ⚠️ **Cassazione — estremi da correggere** (riscontro sull'archivio ufficiale della Corte):"
 _TESTA_CASS_NF = "> ⚠️ **Cassazione — non trovate nell'archivio ufficiale** (Italgiure, completo dal 2009):"
+
+
+_TESTA_CGUE_CORR = "> ⚠️ **Corte di giustizia UE — estremi da correggere** (archivio ufficiale dell'Ufficio delle pubblicazioni UE):"
+_TESTA_CGUE_NF = "> ⚠️ **Corte di giustizia UE — cause non trovate nell'archivio ufficiale** (EUR-Lex / CELLAR):"
+
+
+def _note_cgue(md: str, cases: dict) -> str:
+    items = [c for c in (cases.get("items") or []) if c.get("court") == "CGUE"]
+    corr = ["`%s` → %s (%s)" % (c["raw"], "; ".join(c["correzioni"]), (c.get("record") or {}).get("intestazione") or "")
+            for c in items if c.get("status") == "verified" and c.get("correzioni")]
+    nf = [c for c in items if c.get("status") == "unverified"]
+    if corr and _TESTA_CGUE_CORR not in md:
+        md += "\n\n" + _TESTA_CGUE_CORR + " " + " · ".join(corr[:6]) + "\n"
+    if nf and _TESTA_CGUE_NF not in md:
+        md += ("\n\n" + _TESTA_CGUE_NF + " " + ", ".join("`%s`" % c["raw"] for c in nf[:6])
+               + ". Numero di causa da riscontrare su curia.europa.eu prima di citarle in un atto.\n")
+    return md
 
 
 def _note_cassazione(md: str, cases: dict) -> str:

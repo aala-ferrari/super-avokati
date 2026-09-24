@@ -2,7 +2,7 @@
 
 Strumento AI per avvocati (B2B), **bi-giurisdizione AL + IT**. Front-end Flask (waitress, UN processo) su porta
 5050, SQLite (`data/app.db`). Postgres `legalkb` NON è raggiungibile dal container: i precedenti vivono nel pickle.
-**Stato al 25 set 2026 (v9.388)** — i numeri qui sono quelli veri; più sotto, nelle sezioni datate, c'è la storia:
+**Stato al 25 set 2026 (v9.389)** — i numeri qui sono quelli veri; più sotto, nelle sezioni datate, c'è la storia:
 - **AL leggi** (`bm25.pkl`, BM25 con diacritici piegati dal v9.367, titolo del capitolo cercabile dal v9.373): **10.305 nene / 62 codici**; embedding AL `_flat3`/`_ck3` (capitoli + corpo intero, `EMB_SUFFIX_SQ`/`EMB_SUFFIX2_SQ`), IT `_flat4`/`_ck4` dal v9.384 (`EMB_SUFFIX_IT`/`EMB_SUFFIX2_IT`); fonte
   `data/processed/all_articles.jsonl` (il pickle è derivato).
 - **Precedenti** (`bm25_decisions.pkl`): **3.996** = Kushtetuese **672** + Gjykata e Lartë **2.960** + CEDU **364**
@@ -18,7 +18,8 @@ Strumento AI per avvocati (B2B), **bi-giurisdizione AL + IT**. Front-end Flask (
   (FTS5 `it_decisions_fts.db`): **8.055** decisioni (Consulta dal 2005 + CdS/CGARS/TAR), testo della decisione ripulito
   dal sito (`it_precedent_fts.testo_decisione`, v9.369). **Cassazione**: le citazioni si riscontrano sull'ARCHIVIO UFFICIALE
   della Corte (SentenzeWeb: metadati di tutti i provvedimenti dal 2009, testo integrale ultimi 5 anni) — `src/cassazione.py`, v9.385;
-  dal v9.386 anche i PRECEDENTI di Cassazione per la domanda (ricerca viva coi fatti sul testo integrale, 2 al massimo).
+  dal v9.386 anche i PRECEDENTI di Cassazione per la domanda (ricerca viva coi fatti sul testo integrale, 2 al massimo);
+  dal v9.389 anche le cause della **Corte di giustizia UE** («C-274/20») sull'archivio CELLAR (`src/cgue.py`).
 
 ## Regola #1 — Scope: UNA SOLA GIURISDIZIONE PER SESSIONE
 
@@ -624,7 +625,7 @@ errori, non che le risposte sono ancora giuste. Riferimento verificato il
 12 articoli recuperati per ciascuna.
 
 ```bash
-docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63], triage-trim+giudice-no-web [64], chat-web+verdetto-in-testa+pannelli-IT [65], codice-nominato→area [66], timeout-45min+ripiego-no-web [67], fasi-bilingue+giudice-no-web+duello-a-scomparsa [68], etichette-composte-bilingui [69]). Baseline **532/532** (25 set, v9.388: + [135] sentenze albanesi «non confermate» = inammissibilità dell'archivio o decisioni di altri organi; v9.386: + [134] precedenti di Cassazione per la domanda + etichette del prompt nella lingua della sessione; v9.385: + [133] Cassazione sull'archivio ufficiale — con un controllo dal vivo che si SALTA se l'archivio non risponde; v9.384: + [129] capitoli IT, [130] articoli puntati, [131] rubriche IT, [132] UE/CEDU; era 98 il 31 ago).
+docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63], triage-trim+giudice-no-web [64], chat-web+verdetto-in-testa+pannelli-IT [65], codice-nominato→area [66], timeout-45min+ripiego-no-web [67], fasi-bilingue+giudice-no-web+duello-a-scomparsa [68], etichette-composte-bilingui [69]). Baseline **534/534** (25 set, v9.389: + [136] Corte di giustizia UE sull'archivio CELLAR; v9.388: + [135] sentenze albanesi «non confermate» = inammissibilità dell'archivio o decisioni di altri organi; v9.386: + [134] precedenti di Cassazione per la domanda + etichette del prompt nella lingua della sessione; v9.385: + [133] Cassazione sull'archivio ufficiale — con un controllo dal vivo che si SALTA se l'archivio non risponde; v9.384: + [129] capitoli IT, [130] articoli puntati, [131] rubriche IT, [132] UE/CEDU; era 98 il 31 ago).
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 bash /root/prova_sse.sh                                    # SULL'HOST (legge il secret da /opt/super-avvocato.env; copia in tools/prova_sse.sh): account di prova → login → fascicolo → 1 domanda VERA → stream /api/ask/events attraverso waitress. Deve dire «HTTP 200 … done: 1» (~50s, costa 1 chiamata al cervello) e cancella l'account. Dopo OGNI build che tocca web.py o le rotte SSE.
@@ -1491,6 +1492,21 @@ rischio residuo della DPIA.
 - Super Avokati ha auth propria (login_required_api); utenti creati da admin o auto-provisionati da AALA (`/api/provision-demo`, secret-guarded).
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
+
+**v9.389 — LA CORTE DI GIUSTIZIA UE SULL'ARCHIVIO UFFICIALE (25 set, notte).** Nelle 44 risposte italiane salvate **61
+citazioni di cause CGUE** (10 distinte) e nessun riscontro: la **C-274/20** (Prefettura di Massa Carrara) citata 31 volte, quasi
+sempre «estremi da confermare su curia.europa.eu». `src/cgue.py`: la causa C-NNN/AA → CELEX 6 + anno del ruolo + CJ (sentenza)
+/ CO (ordinanza) / TJ-TO (Tribunale) → `publications.europa.eu/resource/celex/<CELEX>` (Accept xhtml, Accept-Language ita,
+~0,3 s, la fonte dei regolamenti del v9.384): 200 → intestazione («SENTENZA DELLA CORTE (Sesta Sezione) 16 dicembre 2021») e
+OGGETTO ufficiale (le parole chiave fra «»: vanno al Giudice per vedere se la causa regge l'uso che se ne fa); 404 «does not hold
+a content datastream» → la causa ESISTE ma senza testo italiano in quel formato (C-262/99, C-156/04); 404 «not found» → si prova
+l'ordinanza, poi «da riscontrare». Trappole misurate: le **cause riunite** («cause riunite C-717/22 e C-372/23», «C-578/10–
+C-580/10») hanno la sentenza sotto il PRIMO numero (2 false «non trovate» → il secondo eredita); l'oggetto può superare i 600
+caratteri e contenere il nome della causa fra «» («SISTEM LUX» usciva come oggetto); la data vale solo la più vicina al numero e
+mai una «consultata il …». Esiti verified (+ correzione della data) / unverified, cache `data/cache/cgue.sqlite`, fail-silent,
+`CGUE_VERIFY=0` spegne. Agganci come la Cassazione (verificatore IT, nota «estremi da correggere» / «non trovate», blocco al
+Giudice, pannello con link EUR-Lex; app.js?v=179). Sulle 44 risposte: 10/10 riscontrate (8 con testo, 2 riunite). Golden
+**[136]**, 534.
 
 **v9.388 — LE SENTENZE ALBANESI «NON CONFERMATE» ERANO QUASI TUTTE ALTRO (25 set, notte).** Stessa misura della Cassazione
 sul lato albanese (risposte AL salvate, `verify_cases`): delle **6** Gjykata e Lartë «të pakonfirmuara», **5 ESISTONO**

@@ -2136,6 +2136,17 @@
           return '<li class="cit-row ' + (ok && !(dc.correzioni && dc.correzioni.length) ? "cit-row-ok" : "cit-row-warn") + '"><span class="cit-status">' +
             (ok ? "✓" : (dc.status === "mismatch" ? "≠" : "?")) + '</span><code>' + escapeHtml(dc.raw) + '</code><span class="cit-meta">' + meta + "</span></li>";
         }
+        // v9.389 — Corte di giustizia UE riscontrata su CELLAR: intestazione e oggetto ufficiali, link EUR-Lex
+        if (dc.court === "CGUE") {
+          var rg = dc.record || {};
+          var lg = (rg.url && rg.url.indexOf("https://eur-lex.europa.eu/") === 0) ? ' · <a href="' + escapeHtml(rg.url) + '" target="_blank" rel="noopener">EUR-Lex</a>' : "";
+          var mg = ok ? ("archivio ufficiale UE: " + escapeHtml(rg.intestazione || rg.tipo || "causa esistente") +
+                         (rg.oggetto ? " — «" + escapeHtml(rg.oggetto.slice(0, 160)) + (rg.oggetto.length > 160 ? "…" : "") + "»" : "") + lg +
+                         ((dc.correzioni && dc.correzioni.length) ? ' <span class="cit-warn">⚠ ' + escapeHtml(dc.correzioni.join("; ")) + "</span>" : ""))
+            : "non trovata nell'archivio ufficiale UE: numero di causa da riscontrare";
+          return '<li class="cit-row ' + (ok && !(dc.correzioni && dc.correzioni.length) ? "cit-row-ok" : "cit-row-warn") + '"><span class="cit-status">' +
+            (ok ? "✓" : "?") + '</span><code>' + escapeHtml(dc.raw) + '</code><span class="cit-meta">' + mg + "</span></li>";
+        }
         // v9.388 — esiste nell'archivio ufficiale della Gjykata e Lartë: come precedente (merito) o NO (mospranim…)
         if (dc.status === "excluded" || dc.status === "archive") {
           var ex = dc.status === "excluded";
