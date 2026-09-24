@@ -148,6 +148,13 @@ def verifica(text: str, index, jurisdiction: str = "AL", retrieved_codes=None, f
         _cg = [it for it in pay.get("items") or [] if it.get("court") == "CGUE"]      # v9.389
         if _cg:
             out["_cgue"] = _cg
+        try:                                                                          # v9.390
+            from . import stupefacenti as _stp
+            _es = _stp.verifica(text)
+            if _es:
+                out["_stup"] = _es
+        except Exception:  # noqa: BLE001
+            pass
         for it in pay.get("items") or []:
             if it.get("court") in ("Cass", "CGUE"):
                 continue
@@ -328,6 +335,11 @@ def blocco_per_gjyqtarin(v: dict, lang: str = "sq", coverage: dict | None = None
                     r.append(_bg)
             except Exception:  # noqa: BLE001
                 log.debug("trust_line: blocco CGUE non costruito", exc_info=True)
+        if v.get("_stup"):
+            r.append("TABELLE DEGLI STUPEFACENTI (d.P.R. 309/1990, testo vigente) — la risposta mette queste sostanze nella tabella "
+                     "SBAGLIATA: correggi (la tabella decide il comma dell'art. 73):")
+            for e in v["_stup"][:6]:
+                r.append(f"- «{e['sostanza']}» è in {e['vera']}, non nella Tabella {e['detta']}")
         if v.get("fatti_da_precisare"):
             r.append(f"La risposta segnala {v['fatti_da_precisare']} fatto/i da precisare («Per precisione»).")
         if n.get("foreign"):

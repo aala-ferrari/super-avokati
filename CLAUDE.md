@@ -2,7 +2,7 @@
 
 Strumento AI per avvocati (B2B), **bi-giurisdizione AL + IT**. Front-end Flask (waitress, UN processo) su porta
 5050, SQLite (`data/app.db`). Postgres `legalkb` NON è raggiungibile dal container: i precedenti vivono nel pickle.
-**Stato al 25 set 2026 (v9.389)** — i numeri qui sono quelli veri; più sotto, nelle sezioni datate, c'è la storia:
+**Stato al 25 set 2026 (v9.390)** — i numeri qui sono quelli veri; più sotto, nelle sezioni datate, c'è la storia:
 - **AL leggi** (`bm25.pkl`, BM25 con diacritici piegati dal v9.367, titolo del capitolo cercabile dal v9.373): **10.305 nene / 62 codici**; embedding AL `_flat3`/`_ck3` (capitoli + corpo intero, `EMB_SUFFIX_SQ`/`EMB_SUFFIX2_SQ`), IT `_flat4`/`_ck4` dal v9.384 (`EMB_SUFFIX_IT`/`EMB_SUFFIX2_IT`); fonte
   `data/processed/all_articles.jsonl` (il pickle è derivato).
 - **Precedenti** (`bm25_decisions.pkl`): **3.996** = Kushtetuese **672** + Gjykata e Lartë **2.960** + CEDU **364**
@@ -20,6 +20,7 @@ Strumento AI per avvocati (B2B), **bi-giurisdizione AL + IT**. Front-end Flask (
   della Corte (SentenzeWeb: metadati di tutti i provvedimenti dal 2009, testo integrale ultimi 5 anni) — `src/cassazione.py`, v9.385;
   dal v9.386 anche i PRECEDENTI di Cassazione per la domanda (ricerca viva coi fatti sul testo integrale, 2 al massimo);
   dal v9.389 anche le cause della **Corte di giustizia UE** («C-274/20») sull'archivio CELLAR (`src/cgue.py`).
+  **Tabelle degli stupefacenti** (d.P.R. 309/1990, testo vigente, 982 sostanze) dal v9.390: `src/stupefacenti.py`.
 
 ## Regola #1 — Scope: UNA SOLA GIURISDIZIONE PER SESSIONE
 
@@ -129,6 +130,12 @@ Pipeline in `tools/`: `normattiva_lib.py` (sessione + parsing) ·
   propria («Articolo 1…9» dei visti per i Giochi olimpici) vincevano la dedup sul testo vero; (3) dal PDF (testi grandi)
   escono articoli col testo di un altro articolo o di una tabella. Dopo ogni ingest UE: `eu_gerarchia.py fetch/run` e
   `reparse_eu_xhtml.py report` (deve dire 0 differenze) prima del `build_it_index`.
+- **Le TABELLE degli stupefacenti** (v9.390): su Normattiva sono l'allegato del d.P.R. 309/1990 «Tabelle (parte 1/2/3)»
+  (gruppo `flagTipoArticolo=4`, le parti distinte SOLO da `art.progressivo`) in TABELLE HTML (`<span class="table-akn">`)
+  che `parse_article_page` scarta (legge gli `attachment-just-text`: restava «TABELLA I / SOSTANZE»). Il sito del Ministero
+  della Salute ai programmi risponde con la verifica anti-robot Gcore. Si leggono con `tools/ingest_tabelle_stupefacenti.py`
+  (sull'host) → `data/processed/it_tabelle_stupefacenti.json`: **da rilanciare ogni volta che la freschezza segnala il
+  d.P.R. 309/1990 aggiornato** (i decreti ministeriali cambiano le tabelle più volte l'anno: 78 aggiornamenti).
 
 **Per aggiungere altri codici**: una riga nella lista `ACTS` di
 `tools/ingest_it_normattiva.py` (id, titolo, area, URN NIR, wave), poi
@@ -625,7 +632,7 @@ errori, non che le risposte sono ancora giuste. Riferimento verificato il
 12 articoli recuperati per ciascuna.
 
 ```bash
-docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63], triage-trim+giudice-no-web [64], chat-web+verdetto-in-testa+pannelli-IT [65], codice-nominato→area [66], timeout-45min+ripiego-no-web [67], fasi-bilingue+giudice-no-web+duello-a-scomparsa [68], etichette-composte-bilingui [69]). Baseline **534/534** (25 set, v9.389: + [136] Corte di giustizia UE sull'archivio CELLAR; v9.388: + [135] sentenze albanesi «non confermate» = inammissibilità dell'archivio o decisioni di altri organi; v9.386: + [134] precedenti di Cassazione per la domanda + etichette del prompt nella lingua della sessione; v9.385: + [133] Cassazione sull'archivio ufficiale — con un controllo dal vivo che si SALTA se l'archivio non risponde; v9.384: + [129] capitoli IT, [130] articoli puntati, [131] rubriche IT, [132] UE/CEDU; era 98 il 31 ago).
+docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63], triage-trim+giudice-no-web [64], chat-web+verdetto-in-testa+pannelli-IT [65], codice-nominato→area [66], timeout-45min+ripiego-no-web [67], fasi-bilingue+giudice-no-web+duello-a-scomparsa [68], etichette-composte-bilingui [69]). Baseline **535/535** (25 set, v9.390: + [137] tabelle degli stupefacenti; v9.389: + [136] Corte di giustizia UE sull'archivio CELLAR; v9.388: + [135] sentenze albanesi «non confermate» = inammissibilità dell'archivio o decisioni di altri organi; v9.386: + [134] precedenti di Cassazione per la domanda + etichette del prompt nella lingua della sessione; v9.385: + [133] Cassazione sull'archivio ufficiale — con un controllo dal vivo che si SALTA se l'archivio non risponde; v9.384: + [129] capitoli IT, [130] articoli puntati, [131] rubriche IT, [132] UE/CEDU; era 98 il 31 ago).
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 bash /root/prova_sse.sh                                    # SULL'HOST (legge il secret da /opt/super-avvocato.env; copia in tools/prova_sse.sh): account di prova → login → fascicolo → 1 domanda VERA → stream /api/ask/events attraverso waitress. Deve dire «HTTP 200 … done: 1» (~50s, costa 1 chiamata al cervello) e cancella l'account. Dopo OGNI build che tocca web.py o le rotte SSE.
@@ -1492,6 +1499,19 @@ rischio residuo della DPIA.
 - Super Avokati ha auth propria (login_required_api); utenti creati da admin o auto-provisionati da AALA (`/api/provision-demo`, secret-guarded).
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
+
+**v9.390 — LE TABELLE DEGLI STUPEFACENTI (25 set, notte).** Il titolare: «caricale solo se serve davvero». Misurato prima:
+30 sostanze chieste al cervello senza web e confrontate con le tabelle ufficiali → **6 tabelle penali sbagliate**: ketamina
+(è nella I, diceva medicinali B), GHB (IV, diceva I), buprenorfina (IV, diceva I), metaqualone (III, diceva I), **tramadolo**
+(I, diceva «non inclusa»), 1cP-LSD (I, diceva «non inclusa») — e la tabella decide l'art. 73 (I e III → comma 1, II e IV →
+comma 4) o se il fatto è reato. Serve. Fonte: Normattiva (le tabelle HTML dell'allegato «Tabelle», vedi il GOTCHA del corpus
+italiano), **982 sostanze** (I 688 · II 3 · III 8 · IV 119 · medicinali A-E 164) con le note delle tabelle (sali, preparazioni,
+esclusioni). **Un dizionario, non 1.000 «articoli»**: `src/stupefacenti.py` trova le sostanze nominate (nome ufficiale, nomi
+fra parentesi e «altra denominazione», più i nomi di strada univoci — hashish, marijuana, ecstasy, crack, fentanyl, kratom,
+shaboo…; le sigle brevi solo se scritte come sigle, e mai DOC/DET/AMT e simili) → (1) **blocco nel dossier** del senior e del
+Giudice (`_mbledh_gatherers`, sessione IT): «ketamina → Tabella I + Tabella dei medicinali, sezione A», con la regola I-III /
+II-IV dell'art. 73; (2) **verifica** della risposta: «<sostanza> … Tabella R» contro il testo vigente → al Giudice e nota
+«Tabelle degli stupefacenti — da correggere» nel testo (idempotente). Golden **[137]**, 535.
 
 **v9.389 — LA CORTE DI GIUSTIZIA UE SULL'ARCHIVIO UFFICIALE (25 set, notte).** Nelle 44 risposte italiane salvate **61
 citazioni di cause CGUE** (10 distinte) e nessun riscontro: la **C-274/20** (Prefettura di Massa Carrara) citata 31 volte, quasi

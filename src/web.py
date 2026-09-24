@@ -8880,6 +8880,12 @@ def _verify_decisions_smart(answer_text: str, jurisdiction: str) -> tuple[str, d
             if (pay.get("stats") or {}).get("total"):
                 answer_text = ccv_mod.annotate_unverified(
                     answer_text, pay, jurisdiction="IT")
+            # v9.390 — una sostanza messa nella tabella sbagliata (d.P.R. 309/1990, testo vigente): la correzione viaggia col testo
+            try:
+                from . import stupefacenti as _stp
+                answer_text = (answer_text or "") + _stp.nota(answer_text or "")
+            except Exception:  # noqa: BLE001
+                log.debug("stupefacenti: nota saltata", exc_info=True)
             return answer_text, pay if (pay.get("stats") or {}).get("total") else None
         idx = _decisions_index()
         if idx is None:

@@ -3701,6 +3701,17 @@ class SuperAvvocato:
         # v9.385 — le sentenze di CASSAZIONE che i raccoglitori portano dal web si riscontrano sull'archivio ufficiale
         # PRIMA che il senior scriva: misurato sulle risposte salvate, senior/diavolo/Giudice facevano espungere
         # precedenti veri («non compare negli archivi della verifica deterministica») — la Cass. 10383/2026 compresa
+        # v9.390 — le TABELLE degli stupefacenti (testo vigente): la sostanza nominata nella domanda → la sua tabella, dal
+        # dato ufficiale (a memoria il cervello sbagliava 6 sostanze su 30: ketamina, GHB, buprenorfina, tramadolo…)
+        if self._current_jurisdiction() == "IT":
+            try:
+                from . import stupefacenti
+                _bs = stupefacenti.blocco((user_message or "") + "\n" + (getattr(triage, "problem_summary", "") or ""))
+                if _bs:
+                    blocco = ((blocco or "").rstrip() + "\n\n" + _bs + "\n").lstrip()
+                    _audit_set("tabelle_stupefacenti", {"righe": _bs.count("\n- ")})
+            except Exception as exc:  # noqa: BLE001
+                log.warning("stupefacenti: blocco delle tabelle saltato (non-fatal): %s", exc)
         if blocco and self._current_jurisdiction() == "IT":
             try:
                 from . import cassazione

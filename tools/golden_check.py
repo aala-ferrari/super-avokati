@@ -4643,6 +4643,50 @@ def main():
     except Exception as _e136:  # noqa: BLE001
         check("CGUE[136]: kontrollet u ekzekutuan", False, str(_e136))
 
+    # [137] v9.390 — LE TABELLE DEGLI STUPEFACENTI (d.P.R. 309/1990, testo vigente da Normattiva). Misurato: a memoria il cervello
+    # sbagliava la tabella di 6 sostanze su 30 (ketamina, GHB, buprenorfina, metaqualone, tramadolo «non inclusa», 1cP-LSD) e la
+    # tabella decide il comma dell'art. 73. Le tabelle stanno su Normattiva in TABELLE HTML che il lettore degli articoli scartava.
+    try:
+        import importlib.util as _ilu137, os as _os137
+        from src import stupefacenti as _S137, trust_line as _tl137
+        _sp137 = _ilu137.spec_from_file_location("_its137", _os137.path.join(_os137.path.dirname(_os137.path.abspath(__file__)), "ingest_tabelle_stupefacenti.py"))
+        _I137 = _ilu137.module_from_spec(_sp137); _sp137.loader.exec_module(_I137)
+        _pg = ('<div class="bodyTesto"><span class="attachment-just-text"><br> TABELLA I <br> SOSTANZE <br></span>'
+               '<span class="table-akn"><table><tr><td>DENOMINAZIONE COMUNE</td><td>DENOMINAZIONE CHIMICA</td><td>ALTRA</td></tr>'
+               '<tr><td>Ketamina</td><td>(±)-2-(2-clorofenil)</td><td></td></tr></table></span>'
+               '<span class="attachment-just-text"> TABELLA MEDICINALI SEZIONE B </span><span class="table-akn"><table>'
+               '<tr><td>Acido gamma-idrossibutirrico (GHB)</td><td></td><td>oxibato</td></tr><tr><td>I sali delle sostanze</td></tr>'
+               '</table></span></div>')
+        _r137, _n137 = _I137.parse([_pg])
+        _okA = ([(r["tabella"], r["sezione"], r["nome"]) for r in _r137] == [("I", "", "Ketamina"), ("MED", "B", "Acido gamma-idrossibutirrico (GHB)")]
+                and "MED-B" in _n137)
+        _d137 = _S137._dati()
+        _cnt = {}
+        for r in (_d137 or {}).get("righe") or []:
+            _cnt[r["tabella"]] = _cnt.get(r["tabella"], 0) + 1
+        _dove = {x["testo"]: _S137._dove(x["voci"]) for x in _S137.trova(
+            "20 grammi di hashish, cocaina, GHB, ketamina, tramadolo, buprenorfina, pasticche di ecstasy e un DOC dell'AMT")}
+        _okB = (_d137 is not None and _cnt.get("I", 0) >= 600 and _cnt.get("II") == 3 and _cnt.get("IV", 0) >= 100
+                and _dove.get("hashish") == "Tabella II" and _dove.get("cocaina") == "Tabella I"
+                and _dove.get("ghb", "").startswith("Tabella IV") and _dove.get("ketamina", "").startswith("Tabella I +")
+                and _dove.get("tramadolo", "").startswith("Tabella I") and _dove.get("buprenorfina", "").startswith("Tabella IV")
+                and _dove.get("ecstasy") == "Tabella I" and "doc" not in _dove and "amt" not in _dove)
+        _e137 = _S137.verifica("il GHB, inserito nella Tabella I, rientra nel comma 1; la cocaina (Tabella I) e l'hashish (Tabella II); le Tabelle I e III")
+        _okC = (len(_e137) == 1 and _e137[0]["sostanza"] == "GHB" and _e137[0]["detta"] == "I"
+                and _S137.nota("il GHB, inserito nella Tabella I").count("da correggere") == 1
+                and _S137.nota("il GHB, inserito nella Tabella I" + _S137.nota("il GHB, inserito nella Tabella I")) == "")
+        import inspect as _in137
+        from src import brain as _br137
+        _okD = ("stupefacenti.blocco(" in _in137.getsource(_br137.SuperAvvocato._mbledh_gatherers)
+                and "_stup" in _in137.getsource(_tl137.verifica) and "TABELLE DEGLI STUPEFACENTI" in _in137.getsource(_tl137.blocco_per_gjyqtarin)
+                and "_stp.nota(" in open("/app/src/web.py", encoding="utf-8").read())
+        check("stupefacenti[137]: tabelle dal testo vigente di Normattiva (le tabelle HTML dell'allegato) · sostanze e nomi di strada "
+              "(hashish II, cocaina I, GHB IV, ketamina I, tramadolo I, buprenorfina IV, ecstasy I; niente DOC/AMT) · tabella sbagliata "
+              "nella risposta → correzione idempotente · agganci (dossier, Giudice, scudo)",
+              _okA and _okB and _okC and _okD, "A=%s B=%s C=%s D=%s cnt=%s dove=%s" % (_okA, _okB, _okC, _okD, _cnt, _dove))
+    except Exception as _e137x:  # noqa: BLE001
+        check("stupefacenti[137]: kontrollet u ekzekutuan", False, str(_e137x))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
