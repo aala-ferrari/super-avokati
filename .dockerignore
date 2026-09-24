@@ -38,3 +38,7 @@ data/processed/*.bak-*
 
 # v9.353: modelli di embedding e vettori vivono sul VOLUME data/models (4,8 GB): mai nell immagine
 data/models/
+
+# v9.383: indici di PROVA sul volume (data/index_test): mai nell immagine
+data/index_test/
+data/index_new/

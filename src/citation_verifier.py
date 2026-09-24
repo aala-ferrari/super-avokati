@@ -555,9 +555,12 @@ def _kp_resolve(number: str, text: str, retrieved_codes: set, lookup: dict) -> s
 # ── Italian citations (art. N c.c./c.p./c.p.c./c.p.p./Cost.) ─────────────────
 # 16 set 2026 (benchmark lab): dopo la riforma Cartabia il c.p.c. arriva a «281-terdecies» — i suffissi
 # oltre «decies» spezzavano il numero («281» + coda «-terdecies») e la citazione restava senza codice
+# v9.383 — e i numeri «puntati» del c.p.c. Cartabia e dei testi unici: «art. 473-bis.12 c.p.c.», «art. 2506.1 c.c.»,
+# «art. 270-bis.1 c.p.». Un «.N» che nel codice NON è un articolo («art. 6.1 CEDU» = par. 1) torna all'articolo base
+# in _verify_number, ma solo se quel codice non ha articoli puntati su quella base (altrimenti «473-bis.99» è falso).
 _NUM_TOKEN_IT = (r"\d+(?:[\-\s](?:bis|ter|quater|quinquies|sexies|septies|octies|novies|decies|undecies|duodecies|"
                  r"terdecies|quaterdecies|quinquiesdecies|sexiesdecies|septiesdecies|octiesdecies|noviesdecies|vicies)"
-                 r"(?![a-z]))?")
+                 r"(?![a-z]))?(?:\.\d{1,3}(?![\d]))?")
 # 17 set 2026 — «art. 18, comma 4, L. 300/1970» è LA forma canonica italiana e usciva «senza codice»
 # (117 occorrenze nelle ultime 121 risposte): stessa regola dell'albanese — dopo «comma/commi/lett./
 # n./punto …» si attraversa UNA virgola solo se segue una legge/codice («L.», «D.Lgs.», «c.c.», «del
@@ -829,8 +832,12 @@ class Citation:
 
 
 def _normalise_number(n: str) -> str:
-    """Normalise '132/A' / '132-a' / '132 / a' → '132/a' (lowercase)."""
-    s = n.strip().lower().replace(" ", "")
+    """Normalise '132/A' / '132-a' / '132 / a' → '132/a' (lowercase).
+    v9.383: «art. 473 bis c.p.c.» (lo SPAZIO al posto del trattino, frequentissimo) diventava «473bis» e usciva
+    «inesistente» su un articolo vero: lo spazio fra il numero e il suffisso vale come il trattino."""
+    s = re.sub(r"\s*/\s*", "/", n.strip().lower())
+    s = re.sub(r"(?<=[0-9a-z])\s+(?=[a-z])", "/", s)
+    s = s.replace(" ", "")
     s = s.replace("-", "/").replace("\u2013", "/")
     return s
 
@@ -941,6 +948,14 @@ def _verify_number(lookup: dict, code: str, number: str):
     hits = _annex_maps(lookup)[0].get((code, number))
     if hits and len(hits) == 1:
         return hits[0]           # esiste solo in un allegato di questo codice (v9.348)
+    m_dot = re.match(r"^(.+)\.(\d{1,3})$", number)
+    if m_dot:
+        # v9.383: «6.1» in un codice senza articoli puntati su quella base = paragrafo 1 dell'art. 6; se invece il codice
+        # HA articoli puntati su quella base («473/bis.1…71» del c.p.c.), un «.N» che non c'è resta inesistente
+        base = m_dot.group(1)
+        if (code, base) in _dotted_bases(lookup):
+            return None
+        return _verify_number(lookup, code, base)
     if "/" in number:
         parts = number.split("/")
         base, first = parts[0], parts[1]
@@ -979,6 +994,25 @@ def _verify_number(lookup: dict, code: str, number: str):
     return None
 
 
+_DOTTED_CACHE: dict = {}
+
+
+def _dotted_bases(lookup: dict) -> set:
+    """{(code, base)} dei codici che hanno articoli «puntati» su quella base («473/bis» → 473-bis.1…71). Cache per lookup."""
+    key = (id(lookup), len(lookup))
+    m = _DOTTED_CACHE.get(key)
+    if m is None:
+        m = set()
+        for (code, num) in lookup:
+            d = re.match(r"^(.+)\.\d{1,3}$", num)
+            if d:
+                m.add((code, d.group(1)))
+        if len(_DOTTED_CACHE) > 8:
+            _DOTTED_CACHE.clear()
+        _DOTTED_CACHE[key] = m
+    return m
+
+
 def _lettera_e_un_koma(article, lettera: str) -> bool:
     """La lettera e' davvero un comma scritto dentro questo articolo?
 
@@ -1014,6 +1048,12 @@ def _codes_for_number(num_to_codes: dict, number: str,
     if not codes and lookup_koma is not None:
         # v9.348: numero che esiste SOLO negli allegati («13-ter» del c.p.a. = norme di attuazione)
         codes = sorted(_annex_maps(lookup_koma)[1].get(number, ()))
+    m_dot = re.match(r"^(.+)\.(\d{1,3})$", number)
+    if not codes and m_dot:
+        # v9.383: «6.1» = paragrafo dell'art. 6 nei codici che non hanno articoli puntati su quella base
+        base = m_dot.group(1)
+        dotted = _dotted_bases(lookup_koma) if lookup_koma is not None else set()
+        codes = [c for c in num_to_codes.get(base, []) if (c, base) not in dotted]
     if not codes and "/" in number:
         parts = number.split("/")
         base = parts[0]

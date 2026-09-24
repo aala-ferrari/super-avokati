@@ -101,12 +101,17 @@ class Normattiva:
                 continue
             m = re.search(r"art\.idArticolo=(\d+)", u)
             ms = re.search(r"art\.idSottoArticolo=(\d+)", u)
+            ms1 = re.search(r"art\.idSottoArticolo1=(\d+)", u)
             mf = re.search(r"flagTipoArticolo=(\d+)", u)
-            key = (m.group(1) if m else label.strip(), ms.group(1) if ms else "", mf.group(1) if mf else "0")
+            # v9.383 — anche idSottoArticolo1: «473-bis.2» ha gli STESSI idArticolo/idSottoArticolo del «473-bis» e si
+            # distingue solo lì (10, 20, 30…). Senza, la dedup buttava 286 articoli: gli artt. 473-bis.1-71 c.p.c.
+            # (rito famiglia), 380-bis.1 c.p.c., 270-bis.1 c.p., 2506.1 c.c., 9.1 L. 91/1992, 25-octies.1 d.lgs. 231…
+            key = (m.group(1) if m else label.strip(), ms.group(1) if ms else "", ms1.group(1) if ms1 else "",
+                   mf.group(1) if mf else "0")
             if key in seen:
                 continue
             seen.add(key)
-            out.append((_html.unescape(u), label.strip(), key[2]))
+            out.append((_html.unescape(u), label.strip(), key[3]))
         return out
 
     def fetch_article(self, href):
@@ -130,7 +135,7 @@ AGG_RE = re.compile(r'<div[^>]*class="art_aggiornamento-akn"[^>]*>.*?(?=<div[^>]
 JUST_RE = re.compile(r'<span[^>]*class="art-just-text-akn"[^>]*>(.*?)</span>', re.S | re.I)
 ATTACH_RE = re.compile(r'<span[^>]*class="attachment-just-text"[^>]*>(.*?)</span>', re.S | re.I)
 COMMA_ONE = re.compile(r'<div[^>]*class="art-comma-div-akn"[^>]*>(.*?)</div>\s*(?=<div[^>]*class="art-comma-div-akn"|</div>|$)', re.S | re.I)
-LEGACY_HEAD = re.compile(r"^\s*Art(?:icolo)?\.?\s*([0-9]+(?:[\-\s]?[a-z]+)*)\.?\s*(?:\(([^)]{0,200})\)\.?)?", re.I)
+LEGACY_HEAD = re.compile(r"^\s*Art(?:icolo)?\.?\s*([0-9]+(?:[\-\s]?[a-z]+)*(?:\.[0-9]+)?)\.?\s*(?:\(([^)]{0,200})\)\.?)?", re.I)
 CHROME_RE = re.compile(r"(?m)^\s*(Articoli|Approfondimenti e Funzioni|articolo precedente|"
                        r"articolo successivo|aggiornamenti all'articolo|Testo in vigore dal:.*|"
                        r"flagTipoArticolo:.*|descrizione.*|progressivo:.*|version:.*|"
@@ -209,7 +214,7 @@ def parse_article_page(page_html, fallback_number=""):
     num_m = NUM_RE.search(region)
     if num_m:                                 # ── formats A / B ──
         raw_num = _plain(num_m.group(1))
-        nm = re.search(r"Art(?:icolo)?\.?\s*([0-9]+(?:[\-\s]?[a-z]+)*)", raw_num, re.I)
+        nm = re.search(r"Art(?:icolo)?\.?\s*([0-9]+(?:[\-\s]?[a-z]+)*(?:\.[0-9]+)?)", raw_num, re.I)   # «Art. 473-bis.2»
         number = (nm.group(1) if nm else "").strip()
         tail = region[num_m.end():]
         hm = HEAD_RE.search(tail)
@@ -247,16 +252,29 @@ def parse_article_page(page_html, fallback_number=""):
             "repealed": repealed, "in_force_from": in_force, "notes": notes}
 
 
+_RANK = {"bis": 2, "ter": 3, "quater": 4, "quinquies": 5, "sexies": 6, "septies": 7, "octies": 8, "novies": 9, "nonies": 9,
+         "decies": 10, "undecies": 11, "duodecies": 12, "terdecies": 13, "tredecies": 13, "quaterdecies": 14,
+         "quinquiesdecies": 15, "quindecies": 15, "sexiesdecies": 16, "sexdecies": 16, "sedecies": 16, "septiesdecies": 17,
+         "octiesdecies": 18, "duodevicies": 18, "noviesdecies": 19, "undevicies": 19, "vicies": 20, "viciessemel": 21,
+         "unvicies": 21, "viciesbis": 22, "duovicies": 22, "viciester": 23, "viciesquater": 24, "tricies": 30}
+_RANK_KEYS = sorted(_RANK, key=len, reverse=True)
+
+
 def sortkey(num):
-    m = re.match(r"^(\d+)(?:-(.*))?$", num or "")
+    """518, 518.1, 518.2, 518-bis, 518-ter … 473-bis, 473-bis.1, 473-bis.2 … (v9.383: i numeri «puntati»; il suffisso
+    latino si confronta per la parola più lunga — «octiesdecies» non è «octies»)."""
+    m = re.match(r"^(\d+)(?:\.(\d+))?(?:-(.+))?$", num or "")
     if not m:
-        return (10 ** 9, 0)
-    suf, rank = m.group(2) or "", 0
-    for i, o in enumerate(ORD, start=1):
-        if suf.startswith(o):
-            rank = i
-            break
-    return (int(m.group(1)), rank)
+        return (10 ** 9, 0, 0, num or "")
+    rest = m.group(3) or ""
+    rank, sub = 0, 0
+    if rest:
+        r = rest.replace("-", "")                      # «vicies-semel»
+        k = next((k for k in _RANK_KEYS if r.startswith(k)), None)
+        rank = _RANK[k] if k else 99                   # «1-legge», «5-all2»: dopo i suffissi latini
+        if k and r[len(k):].startswith("."):
+            sub = int(re.match(r"\.(\d+)", r[len(k):]).group(1)) if re.match(r"\.(\d+)", r[len(k):]) else 0
+    return (int(m.group(1)), rank, int(m.group(2) or 0) + sub, rest)
 
 
 def _dedup_longest(arts):

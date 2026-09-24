@@ -127,7 +127,8 @@ def _urn_map() -> dict[str, str]:
 
 
 def _norm_num(s: str) -> str:
-    return re.sub(r"[\s\-\.]", "", (s or "").lower())
+    # v9.383: il punto dei numeri «puntati» resta («473-bis.2» ≠ «473-bis2»; «9.1» ≠ «91»), via solo quello finale
+    return re.sub(r"[\s\-]", "", (s or "").lower()).strip(".")
 
 
 def _norm_body(s: str) -> str:

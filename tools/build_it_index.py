@@ -3,7 +3,8 @@
 Writes: all_articles_it.jsonl, it_codes.json (metadata for the UI), bm25_it.pkl.
 Keeps a timestamped backup of the previous index so a rollback is trivial.
 """
-import json, re, shutil, sys, time
+import json
+import os, re, shutil, sys, time
 from dataclasses import asdict
 from pathlib import Path
 sys.path.insert(0, "/app")
@@ -16,7 +17,53 @@ from src.retrieval import ArticleIndex
 # (Capacità giuridica). / La capacità…»). Misurato: 1.700+ rubriche IT che cominciano con «(»,
 # 457 nel solo c.c.; «( (Maggiore età…» finiva nel badge delle citazioni e nel prompt. Qui si
 # puliscono rubrica e corpo SENZA toccare i JSON scaricati (fonte grezza).
-_RUB_IN_BODY = re.compile(r"^\s*(?:[A-ZÀ-Ü'’ ,.]{6,}\n+)?Art\.\s*[\dA-Za-z\-]+\.?\s*\n+\s*\(\(?\s*([^\n]{3,160}?)\s*\)?\)\.?\s*\n+")
+_RUB_IN_BODY = re.compile(r"^\s*(?:[A-ZÀ-Ü'’ ,.]{6,}\n+)?Art\.\s*[\dA-Za-z\-]+(?:\.\d+)?\.?\s*\n+\s*\(\(?\s*([^\n]{3,160}?)\s*\)?\)\.?\s*\n+")
+
+
+# v9.383 — LA RUBRICA RIMASTA NEL CORPO. 4.848 articoli IT vivi (22 %) senza rubrica, fra cui c.c. 45, 89, 128, 158, 230-bis,
+# 316 «Responsabilità genitoriale», 536 «Legittimari», 565, 581, 583, 737, c.p. 280, 635 «Danneggiamento», c.p.p. 11, 33-bis…:
+# negli articoli SOSTITUITI da leggi successive Normattiva stampa la rubrica senza parentesi («Domicilio dei coniugi…».) come
+# prima riga del testo, e nei decreti AKN «(Rubrica)» resta nel corpo quando manca il div della rubrica. Si sposta nella
+# rubrica SOLO una prima riga corta (≤100 chr), che finisce con «.» o «)», seguita da una riga vuota e dal testo, che comincia
+# con una parola piena (mai «Il/La/Chi/Se/Nei…», mai un verbo finito: una frase normativa breve resta nel corpo — c.c. 147
+# non ha rubrica su Normattiva e non gliene si inventa una). Misurato su 1.078 candidate, 115 lette a mano: tutte rubriche.
+_RUB_PRIMA_RIGA = re.compile(r"^\s*([^\n]{3,140}?)\s*(?:\n\s*[.;]\s*)?\n\s*\n+(?=\s*[A-ZÀ-Ü0-9(«\"])")
+_RUB_STOP = {"il", "lo", "la", "i", "gli", "le", "l", "un", "uno", "una", "chi", "quando", "se", "qualora", "nei", "nel", "nella",
+             "nelle", "negli", "nello", "per", "salvo", "ai", "al", "alla", "alle", "agli", "allo", "dal", "dalla", "dai", "dalle",
+             "in", "con", "tra", "fra", "ogni", "ciascun", "ciascuno", "ciascuna", "è", "sono", "non", "oltre", "fuori", "fermo",
+             "ferma", "restano", "resta", "sulla", "sul", "sui", "sulle", "presso", "entro", "anche", "tutti", "tutte", "nessuno",
+             "questo", "questa", "tale", "tali", "detto", "detta", "a", "e", "o", "ove", "dove", "chiunque", "coloro", "colui",
+             "nessun", "qualunque", "qualsiasi", "ad", "ed", "od", "sino", "fino", "dopo", "prima", "durante", "mediante",
+             "decorso", "trascorso", "all", "dell", "nell", "sull", "dall"}
+_RUB_VERBI = re.compile(r"\b(?:è|sono|può|possono|deve|devono|ha|hanno|non|si|viene|vengono|era|erano|sia|siano|fosse|sarà|saranno|"
+                        r"spetta|spettano|costituisce|costituiscono|comporta|provvede|provvedono|dispone|stabilisce|prevede|applica|"
+                        r"applicano|determina|entra|cessa|decorre|appartiene|appartengono|abbia|abbiano|occorre|basta|vale|valgono)\b", re.I)
+_RUB_FONTE = re.compile(r"^(.*?\S)\s*(\(\s*(?:articol[oi]|art\.|legge|decreto|d\.\s?lgs|regio)\b[^()]*\))\s*$", re.I)
+
+
+def _rubrica_prima_riga(body: str):
+    """(rubrica, corpo) se la prima riga del corpo è la rubrica dell'articolo, altrimenti None."""
+    m = _RUB_PRIMA_RIGA.match(body or "")
+    if not m:
+        return None
+    riga = m.group(1).strip()
+    if not (riga.endswith((".", ")")) or riga.endswith("...")):
+        return None
+    fonte = ""
+    f = _RUB_FONTE.match(riga)                          # «Prova del pagamento delle imposte ( articolo 14 d.lgs. 347/1990 )»
+    if f and not f.group(1).startswith("("):
+        riga, fonte = f.group(1), f.group(2)
+    r = riga.rstrip(" .").strip()
+    if r.startswith("(") and r.endswith(")") and r.count("(") == 1:
+        r = r[1:-1].strip()
+    r = re.sub(r"(?:\s*\(\d{1,4}\))+$", "", r).rstrip(" .").strip()   # «Legittimazione ad agire (321)(322)»: note
+    if not r or len(r) > 100 or ":" in r or r.count(",") > 3 or not re.match(r"^[A-ZÀ-Ü]", r):
+        return None
+    w = re.sub(r"[^\wÀ-ÿ']", " ", r.split()[0]).strip().lower().rstrip("'")
+    if w in _RUB_STOP or _RUB_VERBI.search(r):
+        return None
+    resto = body[m.end():]
+    return r, ((fonte + "\n\n") if fonte else "") + resto
 
 
 def _pulisci(heading: str, body: str) -> tuple[str, str]:
@@ -33,6 +80,10 @@ def _pulisci(heading: str, body: str) -> tuple[str, str]:
     b = re.sub(r"\(\(\s*", "", b)
     b = re.sub(r"\s*\)\)", "", b)
     b = re.sub(r"\n[ \t]*\n(?:[ \t]*\n)+", "\n\n", b)
+    if not h.strip():                                   # dopo la pulizia dei «((…))»: «(( (Competenza …).» c.p.p. 11
+        rp = _rubrica_prima_riga(b.strip())
+        if rp:
+            h, b = rp
     return h, b.strip()
 
 SRC = Path("/app/data/processed/it_acts")
@@ -91,6 +142,24 @@ def _as_bool(v) -> bool:
     return bool(v)
 
 
+GER = Path("/app/data/processed/it_gerarchia")
+
+
+def _gerarchia(cid: str):
+    """v9.383 — Libro / Titolo / Capo / Sezione di ogni articolo, raccolti dall'albero di Normattiva da tools/it_gerarchia.py
+    (una mappa per atto). Ritorna l'indice pronto per `it_gerarchia.voce` (stessa regola del controllo di copertura), o None."""
+    f = GER / f"{cid}.json"
+    if not f.exists():
+        return None
+    try:
+        m = json.loads(f.read_text(encoding="utf-8")).get("map") or {}
+    except Exception:  # noqa: BLE001
+        return None
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from it_gerarchia import prepara
+    return prepara({tuple(k.split("|", 1)): v for k, v in m.items()})
+
+
 def main():
     files = sorted(SRC.glob("*.json"))
     if not files:
@@ -106,9 +175,11 @@ def main():
 
     all_articles, meta = [], []
     notes_map: dict = {}          # code -> number -> [note] (per src/temporal.py: storia + transitori)
+    ger_ok = ger_tot = 0
     for cid in ordered:
         a = acts[cid]
         arts = a.get("articles") or []
+        _ger = _gerarchia(cid)
         if not arts:
             print(f"  ! {cid}: 0 articoli — escluso")
             continue
@@ -122,17 +193,28 @@ def main():
                 notes_map.setdefault(cid, {})[str(art["number"])] = [
                     {"n": n.get("n"), "date": n.get("date") or "", "acts": [x.get("label") for x in (n.get("acts") or [])][:3],
                      "text": (n.get("text") or "")[:600]} for n in _notes[:6]]
+            _gv = ["", "", ""]
+            if _ger is not None:
+                from it_gerarchia import voce as _ger_voce
+                _gv = _ger_voce(_ger, art["number"], art.get("group")) or ["", "", ""]
+            ger_tot += 1; ger_ok += 1 if any(_gv) else 0
             all_articles.append(Article(
                 code=cid, title_sq=a["title"], area=a.get("area") or "",
                 number=art["number"], heading=_h, body=_b,
-                pjesa="", kreu="", seksioni="",
+                pjesa=_gv[0], kreu=_gv[1], seksioni=_gv[2],
                 repealed=_as_bool(art.get("repealed")), volatility="STABLE",
                 last_amendment_date=_lad))
         meta.append({"code": cid, "title": a["title"], "area": a.get("area") or "",
                      "count": len(arts)})
         print(f"  {cid:34s} {len(arts):>5} art   {a['title'][:46]}")
 
-    print(f"\nTOTALE: {len(all_articles)} articoli su {len(meta)} corpora")
+    print(f"\nTOTALE: {len(all_articles)} articoli su {len(meta)} corpora · con capitolo (Titolo/Capo/Sezione): {ger_ok}/{ger_tot}")
+    # v9.383 — indice di PROVA: IT_INDEX_OUT=/percorso scrive SOLO il pickle lì (niente jsonl, meta, note: la produzione non si tocca)
+    _test_out = os.environ.get("IT_INDEX_OUT", "").strip()
+    if _test_out:
+        ArticleIndex.build(all_articles, lang="it").save(Path(_test_out))
+        print(f"indice di PROVA scritto in {_test_out} (produzione intatta)")
+        return 0
 
     # backup previous index before overwriting
     if INDEX.exists():

@@ -184,8 +184,38 @@ def numero_visibile_it(number: str) -> str:
 
 
 SEARCH_CHAPTERS = os.environ.get("SEARCH_CHAPTERS", "1") == "1"
-_CAP_PREFIX = re.compile(r"^\s*(?:KREU|KAPITULLI|SEKSIONI|TITULLI|PJESA|NËNSEKSIONI|CAPO|TITOLO|SEZIONE|LIBRO|PARTE)"
-                         r"\s+[IVXLCDM0-9]+(?:[-\s]*(?:bis|ter|quater|A|B))?\s*[—–\-.:]*\s*", re.I)
+_CAP_PREFIX = re.compile(r"^\s*(?:(?:KREU|KAPITULLI|SEKSIONI|TITULLI|PJESA|NËNSEKSIONI|CAPO|TITOLO|SEZIONE|LIBRO|PARTE|PARAGRAFO)\s+|§\s*)"
+                         r"[IVXLCDM0-9]+(?:[-\s]*(?:bis|ter|quater|A|B))?\s*[—–\-.:]*\s*", re.I)
+
+
+# v9.383 — le voci italiane (tools/it_gerarchia.py) sono SEMPRE «etichetta — titolo» o l'etichetta da sola: «TITOLO
+# DODICESIMO — …», «Sezione 1ª — …», «Capo 0.I», «Par. 1 — …», «ALLEGATO I.7 — …». L'etichetta è ciò che precede « — ».
+_ETICHETTA_IT = re.compile(r"^\s*(?:§|Par\.|(?:PARTE|LIBRO|TITOLO|CAPO|SEZIONE|PARAGRAFO|ALLEGATO)\b)\s*[A-Z0-9ªº°.\-]{0,20}"
+                           r"(?:\s+(?:bis|ter|quater|quinquies|sexies|septies|octies|novies|decies))?"      # «Titolo VI bis»
+                           r"(?:\s+—\s+|\s*$)", re.I)
+_LIVELLO_IT = re.compile(r"^\s*(?:§|Par\.|(?:PARTE|LIBRO|TITOLO|CAPO|SEZIONE|PARAGRAFO|ALLEGATO)\b)", re.I)
+# nel testo cercabile non servono le note di abrogazione del capitolo né i rimandi «(Artt. 1-3 Codice della Strada)»
+_NOTA_CAPITOLO = re.compile(r"\s*\((?:(?:PARTE|LIBRO|TITOLO|CAPO|SEZIONE|PARAGRAFO)\s+ABROGAT|Artt?\.\s)[^()]*\)", re.I)
+
+
+def titoli_capitolo(*campi: str) -> list[str]:
+    """v9.383 — i titoli di capitolo senza le etichette, parte per parte: «TITOLO V — DELLA PRESCRIZIONE… · CAPO I — Della
+    prescrizione» → ["DELLA PRESCRIZIONE…", "Della prescrizione"] (i campi italiani uniscono più livelli con « · »);
+    un'etichetta senza titolo («PARTE PRIMA», «Capo II») non è un titolo e non entra."""
+    out = []
+    for c in campi:
+        for parte in (c or "").split(" · "):
+            m = _ETICHETTA_IT.match(parte)
+            if m:
+                t = parte[m.end():]
+            elif _LIVELLO_IT.match(parte):
+                t = parte                  # «Capo dello Stato…»: una parola di livello ma nessuna etichetta — è un titolo
+            else:
+                t = _CAP_PREFIX.sub("", parte)
+            t = _NOTA_CAPITOLO.sub("", t).strip()
+            if t and t not in out:
+                out.append(t)
+    return out
 
 
 @dataclass
@@ -235,10 +265,7 @@ class Article:
         # risarcimento per detenzione ingiusta lo dice solo «KREU V — KOMPENSIMI PËR BURGIM TË PADREJTË». Senza, una
         # domanda su quel tema non lo trovava mai. Solo il titolo, senza «KREU V —».
         if SEARCH_CHAPTERS:
-            for cap in (getattr(self, "kreu", ""), getattr(self, "seksioni", "")):
-                t = _CAP_PREFIX.sub("", cap or "").strip()
-                if t:
-                    parts.append(t)
+            parts.extend(titoli_capitolo(getattr(self, "kreu", ""), getattr(self, "seksioni", "")))
         parts.append(self.body)
         return "\n".join(parts)
 

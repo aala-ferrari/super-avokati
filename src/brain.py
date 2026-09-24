@@ -6800,6 +6800,41 @@ def _forza(code: str) -> str:
     return "Legge / decreto legislativo — fonte primaria" if _is_italian_code(c) else "Ligj — burim parësor"
 
 
+# v9.383 — i capitoli italiani («TITOLO V — DELLA PRESCRIZIONE… · CAPO I — …»): le etichette e le parole vuote non fanno
+# di due capitoli dei «fratelli» (prima «TITOLO» + «DELLA» bastavano a unire la tutela dei diritti e la prescrizione)
+_PAROLE_VUOTE_KREU = {"KREU", "TITULLI", "SEKSIONI", "PJESA", "TITOLO", "SEZIONE", "LIBRO", "PARTE", "DELLA", "DELLE", "DEGLI",
+                      "DELLO", "NELLA", "NELLE", "NEGLI", "SULLA", "SULLE", "DALLA", "DALLE", "ALTRE", "ALTRI", "DISPOSIZIONI",
+                      "GENERALI", "COMUNI", "FINALI", "TRANSITORIE", "SPECIALI", "NORME", "ABROGATO", "ABROGATA"}
+_LAT_ORD = {"bis": 2, "ter": 3, "quater": 4, "quinquies": 5, "sexies": 6, "septies": 7, "octies": 8, "novies": 9, "nonies": 9,
+            "decies": 10, "undecies": 11, "duodecies": 12, "terdecies": 13, "quaterdecies": 14, "quinquiesdecies": 15,
+            "quindecies": 15, "sexiesdecies": 16, "sexdecies": 16, "septiesdecies": 17, "octiesdecies": 18, "duodevicies": 18,
+            "noviesdecies": 19, "undevicies": 19, "vicies": 20}
+_LAT_KEYS = sorted(_LAT_ORD, key=len, reverse=True)
+
+
+def _ordine_nene(number) -> tuple:
+    """L'ordine vero degli articoli, per le due giurisdizioni: 88, 88/a, 88/b · 518, 518.1, 518-bis, 518-ter · 473-bis,
+    473-bis.1 … 473-bis.71 · 2545-quinquiesdecies dopo 2545-quaterdecies. Prima ogni numero non puramente numerico finiva
+    in fondo (10**6) e i capitoli italiani si spezzavano."""
+    n = str(number or "").lower()
+    m = re.match(r"^(\d+)(?:\.(\d+))?(?:[-/](.+))?$", n)
+    if not m:
+        return (10 ** 6, 0, 0, n)
+    rest = (m.group(3) or "").replace("-", "")
+    rank, sub = 0, int(m.group(2) or 0)
+    if rest:
+        k = next((k for k in _LAT_KEYS if rest.startswith(k)), None)
+        if k:
+            rank = _LAT_ORD[k]
+            mm = re.match(r"\.(\d+)", rest[len(k):])
+            sub = int(mm.group(1)) if mm else sub
+        elif rest[0].isalpha():
+            rank = ord(rest[0]) - 96                   # «88/a», «88/b» (AL)
+        else:
+            rank = 99
+    return (int(m.group(1)), rank, sub, rest)
+
+
 def _indice_kreut(pairs) -> str:
     """v9.353 — L'INDICE DEL CAPITOLO (osservazione del titolare, 20 set: «divorci» portava 129-132, ma il
     capitolo va dal 125 al 162). La ricerca prende i 12 articoli più simili alla domanda, non il capitolo;
@@ -6818,10 +6853,7 @@ def _indice_kreut(pairs) -> str:
         idx = _cvr.INDICI.get("it" if _is_italian_code(code) else "sq")
         if idx is None:
             return ""
-        def _n(x):
-            b = str(x.number).split("/")[0]
-            return int(b) if b.isdigit() else 10**6
-        tutti = sorted([x for x in idx.articles if x.code == code and not x.repealed], key=_n)
+        tutti = sorted([x for x in idx.articles if x.code == code and not x.repealed], key=lambda x: _ordine_nene(x.number))
         # i Kreu in ordine di numerazione; il parser non tiene il TITULLI, quindi i capitoli
         # «fratelli» si riconoscono dal titolo: adiacenti e con ≥2 parole significative in comune
         # («RASTET E ZGJIDHJES SË MARTESËS» + «PASOJAT E ZGJIDHJES SË MARTESËS» = 125-162)
@@ -6836,12 +6868,18 @@ def _indice_kreut(pairs) -> str:
         if pos is None:
             return ""
         def _parole(k):
-            return {w for w in re.findall(r"[A-ZÇË]{5,}", k.upper()) if w not in ("KREU", "TITULLI", "SEKSIONI", "PJESA")}
+            return {w for w in re.findall(r"[A-ZÇË]{5,}", k.upper()) if w not in _PAROLE_VUOTE_KREU}
         base_w = _parole(kreu)
+        _it_code = _is_italian_code(code)
+
+        def _fratello(k2: str) -> bool:
+            if _it_code:            # v9.383: in italiano il fratello è il CAPO dello stesso TITOLO («TITOLO V · CAPO I/II»)
+                return " · " in kreu and " · " in k2 and kreu.split(" · ")[0] == k2.split(" · ")[0]
+            return len(_parole(k2) & base_w) >= 2
         sel = [pos]
-        if pos + 1 < len(gruppi) and len(_parole(gruppi[pos + 1][0]) & base_w) >= 2:
+        if pos + 1 < len(gruppi) and _fratello(gruppi[pos + 1][0]):
             sel.append(pos + 1)
-        if pos - 1 >= 0 and len(_parole(gruppi[pos - 1][0]) & base_w) >= 2:
+        if pos - 1 >= 0 and _fratello(gruppi[pos - 1][0]):
             sel.insert(0, pos - 1)
         arts = [x for i in sel for x in gruppi[i][1]]
         if len(arts) < 4 or len(arts) > 60:

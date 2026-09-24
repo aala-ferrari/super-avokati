@@ -4250,6 +4250,133 @@ def main():
     except Exception as _e128:  # noqa: BLE001
         check("ancore[128]: kontrollet u ekzekutuan", False, str(_e128))
 
+    # [129] v9.383 — I TITOLI DEI CAPITOLI ITALIANI (Libro / Titolo / Capo / Sezione), letti dall'albero di Normattiva da
+    # tools/it_gerarchia.py con le regole trovate MISURANDO: l'etichetta del testo modificato «<em><strong>((TITOLO IV» (il
+    # primo regex la saltava: 288 intestazioni perse, fra cui il rito del lavoro del c.p.c.), «TITOLO DODICESIMO», «Par. 2»,
+    # la SEZIONE sopra i TITOLI (cod. ambiente), il capo abrogato, il gruppo decreto/allegato; poi il testo cercabile (etichette
+    # tolte, note di abrogazione fuori) e l'indice vero (c.p.c. 414 = rito del lavoro, c.p.p. 314 = ingiusta detenzione)
+    try:
+        import importlib.util as _ilu129, os as _os129
+        from pathlib import Path as _P129
+        _sp129 = _ilu129.spec_from_file_location("_ger129", _os129.path.join(_os129.path.dirname(_os129.path.abspath(__file__)), "it_gerarchia.py"))
+        _G = _ilu129.module_from_spec(_sp129); _sp129.loader.exec_module(_G)
+
+        def _h129(lab, corpo, n):
+            return (f'<div class="collapse-header"><a class="" data-toggle="collapse" data-target="#coll_{n}" aria-expanded="true">{lab}</a>'
+                    f'</div><span class="snippets"><div id="coll_{n}" class="collapse show">{corpo}</div></span>')
+
+        def _a129(num, flag="1", s1="10"):
+            return (f'<a href="" onclick="return showArticle(\'/atto/caricaArticolo?art.flagTipoArticolo={flag}&art.idArticolo={num}'
+                    f'&art.idSottoArticolo=1&art.idSottoArticolo1={s1}\', this);" class="numero_articolo">art. {num}</a>')
+        _pg = (_h129("LIBRO SECONDO", "DEL PROCESSO<br/>TITOLO III<br/>DELLE IMPUGNAZIONI<br/>CAPO V<br/>Dell'opposizione di terzo", 1) + _a129(404) +
+               _h129("<em><strong>((TITOLO IV", "NORME PER LE CONTROVERSIE IN MATERIA DI LAVORO<br/>CAPO I<br/>Delle controversie individuali"
+                     "<br/>Sezione II<br/>Del procedimento<br/>Par. 1<br/>Del primo grado))</strong></em><br/>", 2) + _a129(414) +
+               _h129("Par. 2", "Delle impugnazioni", 3) + _a129(433) +
+               _h129("PARTE TERZA", "NORME AMBIENTALI<br/>SEZIONE II<br/>TUTELA DELLE ACQUE<br/>TITOLO I<br/>PRINCIPI", 4) + _a129(73) +
+               _h129("TITOLO II", "OBIETTIVI", 5) + _a129(76) + _h129("SEZIONE III", "RISORSE IDRICHE<br/>TITOLO I<br/>PRINCIPI", 6) + _a129(141) +
+               _h129("TITOLO DODICESIMO", "DEI DELITTI CONTRO LA PERSONA<br/>CAPO I<br/>Dei delitti contro la vita", 7) + _a129(575) +
+               _h129("CAPO II", "Dei delitti ((CAPO ABROGATO DALLA L. 1 GENNAIO 2000, N. 1))", 8) + _a129(580) + _a129(1, flag="0"))
+        _m, _st = _G.albero(_pg, "")
+        _v = lambda n, g="1": " | ".join(_m.get((g, n), ("", "", "")))
+        _okA = (_st["intestazioni"] == 8 and "CAPO V — Dell'opposizione di terzo" in _v("404")
+                and "TITOLO IV — NORME PER LE CONTROVERSIE IN MATERIA DI LAVORO" in _v("414") and "Par. 1 — Del primo grado" in _v("414")
+                and "Par. 2 — Delle impugnazioni" in _v("433") and "TITOLO IV — NORME PER LE CONTROVERSIE" in _v("433"))
+        _okB = ("SEZIONE II — TUTELA DELLE ACQUE" in _m[("1", "73")][0] and _m[("1", "73")][1] == "TITOLO I — PRINCIPI"
+                and "SEZIONE II" in _m[("1", "76")][0] and _m[("1", "76")][1] == "TITOLO II — OBIETTIVI"
+                and "SEZIONE III — RISORSE IDRICHE" in _m[("1", "141")][0])
+        _okC = ("TITOLO DODICESIMO — DEI DELITTI CONTRO LA PERSONA · CAPO I — Dei delitti contro la vita" in _v("575")
+                and "(CAPO ABROGATO DALLA L. 1 GENNAIO 2000, N. 1)" in _v("580") and _m.get(("0", "1")) == ("", "", ""))
+        _okD = (_G._livello("Capo dello Stato") is None and _G._livello("PARTE CIVILE, RESPONSABILE CIVILE") is None
+                and _G._livello("Sez. III - DOCUMENTI")["etichetta"] == "Sezione III" and _G._livello("Sezione 1ª")["etichetta"] == "Sezione 1ª"
+                and _G._spezza("MODIFICHE AL TITOLO VIII") == ["MODIFICHE AL TITOLO VIII"]
+                and _G._spezza("DOCUMENTAZIONE AMMINISTRATIVA SEZIONE I") == ["DOCUMENTAZIONE AMMINISTRATIVA", "SEZIONE I"])
+        from src.parser import titoli_capitolo as _tc129
+        _okE = (_tc129("TITOLO V — DELLA PRESCRIZIONE · CAPO I — Della prescrizione", "§ 1 — Della prescrizione ordinaria")
+                == ["DELLA PRESCRIZIONE", "Della prescrizione", "Della prescrizione ordinaria"]
+                and _tc129("TITOLO NONO — X · CAPO I — Dei delitti (CAPO ABROGATO DALLA L. 15 FEBBRAIO 1996, N. 66)") == ["X", "Dei delitti"]
+                and _tc129("PARTE PRIMA · Capo II") == [] and _tc129("Capo dello Stato e poteri") == ["Capo dello Stato e poteri"]
+                and _tc129("KREU V — KOMPENSIMI PËR BURGIM") == ["KOMPENSIMI PËR BURGIM"])
+        _it129 = ArticleIndex.load(_P129("/app/data/index/bm25_it.pkl"))
+        _by = {(a.code, str(a.number)): a for a in _it129.articles}
+        _okF = ("CONTROVERSIE IN MATERIA DI LAVORO" in _by[("codice_procedura_civile", "414")].kreu
+                and "DEI DELITTI CONTRO LA PERSONA" in _by[("codice_penale", "575")].kreu
+                and "Della prescrizione ordinaria" in _by[("codice_civile", "2946")].seksioni
+                and "RIPARAZIONE PER L'INGIUSTA DETENZIONE" in _by[("codice_procedura_penale", "314")].searchable_text
+                and sum(1 for a in _it129.articles if a.kreu or a.seksioni or a.pjesa) >= 0.8 * len(_it129.articles))
+        _okG = (("codice_procedura_penale", "314") in {(a.code, str(a.number)) for a, _s in _it129.search("riparazione per ingiusta detenzione", top_k=12)}
+                and ("codice_procedura_civile", "665") in {(a.code, str(a.number)) for a, _s in _it129.search("opposizione alla convalida di sfratto", top_k=12)})
+        check("capitoli IT[129]: albero (etichetta del testo modificato, Par., SEZIONE sopra i TITOLI, TITOLO DODICESIMO, capo abrogato, gruppo) · "
+              "testo cercabile · indice vero (414 lavoro, 575 persona, 2946 §1, 314 ingiusta detenzione) · ricerca 314/665 nei 12",
+              _okA and _okB and _okC and _okD and _okE and _okF and _okG,
+              "A=%s B=%s C=%s D=%s E=%s F=%s G=%s" % (_okA, _okB, _okC, _okD, _okE, _okF, _okG))
+    except Exception as _e129:  # noqa: BLE001
+        check("capitoli IT[129]: kontrollet u ekzekutuan", False, str(_e129))
+
+    # [130] v9.383 — GLI ARTICOLI «PUNTATI» (473-bis.1-71 c.p.c., 270-bis.1 c.p., 9.1 L. 91/1992…): la dedup dell'ingest non
+    # guardava idSottoArticolo1 e ne buttava 263; il numero «Art. 473-bis.2» si leggeva «473-bis». Qui: la dedup nuova, il
+    # numero, l'ordine, il corpus, e il verificatore («473-bis.12 c.p.c.» vero, «473-bis.99» falso, «6.1 CEDU» = par. 1)
+    try:
+        import importlib.util as _ilu130, os as _os130
+        from pathlib import Path as _P130
+        _sp130 = _ilu130.spec_from_file_location("_nl130", _os130.path.join(_os130.path.dirname(_os130.path.abspath(__file__)), "normattiva_lib.py"))
+        _NL = _ilu130.module_from_spec(_sp130); _sp130.loader.exec_module(_NL)
+        _l = ('<a onclick="return showArticle(\'/atto/caricaArticolo?art.flagTipoArticolo=1&art.idArticolo=473&art.idSottoArticolo=2'
+              '&art.idSottoArticolo1=%s\', this);" class="numero_articolo">art. %s</a>')
+        _html130 = (_l % ("10", "473 bis")) + (_l % ("20", "473 bis.1")) + (_l % ("30", "473 bis.2"))
+        _okA = len(_NL.Normattiva.article_links_all(_html130)) == 3
+        _okB = (_NL.LEGACY_HEAD.match("Art. 473-bis.2\n\n(Poteri del giudice).").groups() == ("473-bis.2", "Poteri del giudice")
+                and sorted(["518-bis", "518.1", "518", "473-bis.10", "473-bis.2", "473-bis"], key=_NL.sortkey)
+                == ["473-bis", "473-bis.2", "473-bis.10", "518", "518.1", "518-bis"])
+        _it130 = ArticleIndex.load(_P130("/app/data/index/bm25_it.pkl"))
+        _k130 = {(a.code, str(a.number)): a for a in _it130.articles}
+        _okC = (all((("codice_procedura_civile", n) in _k130) for n in ("473-bis.1", "473-bis.12", "473-bis.71", "380-bis.1"))
+                and ("codice_penale", "270-bis.1") in _k130 and ("cittadinanza", "9.1") in _k130
+                and "Poteri del giudice" in (_k130[("codice_procedura_civile", "473-bis.2")].heading or ""))
+        _st130 = lambda t: cv.verify_text(t, _it130)["items"][0]["status"] if cv.verify_text(t, _it130)["items"] else "none"
+        _okD = (_st130("art. 473-bis.12 c.p.c.") == "verified" and _st130("art. 473-bis.99 c.p.c.") == "fake"
+                and _st130("art. 270-bis.1 c.p.") == "verified" and _st130("art. 6.1 CEDU") == "verified"
+                # lo spazio al posto del trattino («art. 473 bis c.p.c.») era un «inesistente» su un articolo vero
+                and _st130("art. 473 bis c.p.c.") == "verified" and _st130("art. 473 bis.12 c.p.c.") == "verified"
+                and _st130("art. 186 bis c.d.s.") in ("verified", "repealed") and _st130("art. 999 bis c.p.c.") == "fake")
+        from src import temporal as _tm130
+        _okE = _tm130._norm_num("473-bis.2") == "473bis.2" and _tm130._norm_num("9.1") != _tm130._norm_num("91")
+        check("puntati IT[130]: dedup con idSottoArticolo1 · «Art. 473-bis.2» letto intero · ordine 518/518.1/518-bis · corpus "
+              "(473-bis.1-71, 380-bis.1, 270-bis.1, 9.1) · verificatore (vero/falso/paragrafo) · temporal",
+              _okA and _okB and _okC and _okD and _okE, "A=%s B=%s C=%s D=%s E=%s" % (_okA, _okB, _okC, _okD, _okE))
+    except Exception as _e130:  # noqa: BLE001
+        check("puntati IT[130]: kontrollet u ekzekutuan", False, str(_e130))
+
+    # [131] v9.383 — LA RUBRICA RIMASTA NEL CORPO: 4.848 articoli IT vivi senza rubrica (c.c. 316 «Responsabilità
+    # genitoriale», 536 «Legittimari», c.p. 635 «Danneggiamento», c.p.p. 11…) → build_it_index la prende dalla prima riga SOLO
+    # se è una rubrica (corta, «.»/«)», riga vuota dopo, parola piena, nessun verbo finito); una frase normativa breve resta
+    # nel corpo e non si inventa niente (c.c. 147 non ha rubrica su Normattiva)
+    try:
+        import importlib.util as _ilu131, os as _os131
+        from pathlib import Path as _P131
+        _sp131 = _ilu131.spec_from_file_location("_bii131", _os131.path.join(_os131.path.dirname(_os131.path.abspath(__file__)), "build_it_index.py"))
+        _B = _ilu131.module_from_spec(_sp131); _sp131.loader.exec_module(_B)
+        _okA = (_B._pulisci("", "Domicilio dei coniugi, del minore e dell'interdetto.\n\nCiascuno dei coniugi ha il proprio domicilio.")[0]
+                == "Domicilio dei coniugi, del minore e dell'interdetto"
+                and _B._pulisci("", "(( (Competenza per i procedimenti riguardanti i magistrati).\n\n1. I procedimenti")[0]
+                == "Competenza per i procedimenti riguardanti i magistrati"
+                and _B._pulisci("", "Prova del pagamento ( articolo 14 decreto legislativo 31 ottobre 1990, n. 347 )\n\n1. La prova")
+                == ("Prova del pagamento", "( articolo 14 decreto legislativo 31 ottobre 1990, n. 347 )\n\n1. La prova")
+                and _B._pulisci("", "Il matrimonio impone ai coniugi l'obbligo di mantenere i figli.\n\nAltro.")[0] == ""
+                and _B._pulisci("", "I beni pubblici appartengono allo Stato.\n\nAltro.")[0] == ""
+                and _B._pulisci("Rubrica vera", "Testo.\n\nAltro.")[0] == "Rubrica vera")
+        _it131 = ArticleIndex.load(_P131("/app/data/index/bm25_it.pkl"))
+        _by131 = {(a.code, str(a.number)): a for a in _it131.articles}
+        _okB = (_by131[("codice_civile", "316")].heading == "Responsabilità genitoriale"
+                and _by131[("codice_penale", "635")].heading == "Danneggiamento"
+                and _by131[("codice_procedura_penale", "11")].heading == "Competenza per i procedimenti riguardanti i magistrati"
+                and _by131[("codice_civile", "147")].heading == ""
+                and sum(1 for a in _it131.articles if not a.repealed and not (a.heading or "").strip()) <= 3800)
+        check("rubriche IT[131]: la rubrica rimasta nel corpo torna rubrica (anche dopo «(( (…).», con la fonte «( articolo … )» lasciata nel "
+              "corpo) · mai da una frase normativa · indice vero (c.c. 316, c.p. 635, c.p.p. 11 sì; c.c. 147 no; senza rubrica ≤ 3.800)",
+              _okA and _okB, "A=%s B=%s" % (_okA, _okB))
+    except Exception as _e131:  # noqa: BLE001
+        check("rubriche IT[131]: kontrollet u ekzekutuan", False, str(_e131))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

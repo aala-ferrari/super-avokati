@@ -83,7 +83,9 @@ def _carica_modello():
             fd = flat_dir()
             if not any(fd.rglob("*.onnx")):
                 raise FileNotFoundError(f"modello non presente in {fd}")
-            _MODEL = TextEmbedding(model_name=MODEL, cache_dir=str(EMB_DIR), threads=2, specific_model_path=str(fd))
+            # v9.383: DENSE_THREADS per le codifiche lunghe fuori dal container vivo (default 2: sopra girano altri siti)
+            _MODEL = TextEmbedding(model_name=MODEL, cache_dir=str(EMB_DIR), threads=int(os.environ.get("DENSE_THREADS", "2")),
+                                   specific_model_path=str(fd))
             log.info("dense: modello pronto (%s)", MODEL)
         except Exception as exc:  # noqa: BLE001
             _MODEL_FAILED = True

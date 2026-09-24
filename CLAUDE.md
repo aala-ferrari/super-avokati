@@ -2,8 +2,8 @@
 
 Strumento AI per avvocati (B2B), **bi-giurisdizione AL + IT**. Front-end Flask (waitress, UN processo) su porta
 5050, SQLite (`data/app.db`). Postgres `legalkb` NON è raggiungibile dal container: i precedenti vivono nel pickle.
-**Stato al 24 set 2026 (v9.382)** — i numeri qui sono quelli veri; più sotto, nelle sezioni datate, c'è la storia:
-- **AL leggi** (`bm25.pkl`, BM25 con diacritici piegati dal v9.367, titolo del capitolo cercabile dal v9.373): **10.305 nene / 62 codici**; embedding AL `_flat3`/`_ck3` (capitoli + corpo intero, `EMB_SUFFIX_SQ`/`EMB_SUFFIX2_SQ`), IT `_flat2`/`_ck`; fonte
+**Stato al 24 set 2026 (v9.383)** — i numeri qui sono quelli veri; più sotto, nelle sezioni datate, c'è la storia:
+- **AL leggi** (`bm25.pkl`, BM25 con diacritici piegati dal v9.367, titolo del capitolo cercabile dal v9.373): **10.305 nene / 62 codici**; embedding AL `_flat3`/`_ck3` (capitoli + corpo intero, `EMB_SUFFIX_SQ`/`EMB_SUFFIX2_SQ`), IT `_flat3`/`_ck3` dal v9.383 (`EMB_SUFFIX_IT`/`EMB_SUFFIX2_IT`); fonte
   `data/processed/all_articles.jsonl` (il pickle è derivato).
 - **Precedenti** (`bm25_decisions.pkl`): **3.996** = Kushtetuese **672** + Gjykata e Lartë **2.960** + CEDU **364**
   (157 sentenze + 207 decisioni, 46 nella traduzione albanese ufficiale). Fonti di verità: `data/processed/al_decisions_v2.jsonl`
@@ -12,7 +12,9 @@ Strumento AI per avvocati (B2B), **bi-giurisdizione AL + IT**. Front-end Flask (
   escluse per regola: inammissibilità (mospranim, «deklarim si të papranueshme»), «refuzim» senza maggioranza (GjK
   2015-16), kthim i rekursit del relatore, errata, decisioni procedurali (kalim në seancë / për njësim), comunicazioni
   CEDU, risoluzioni CM, Information Note. Dopo ogni aggiornamento: `build_case_graph.py` + `build_dense.py --only dec --force`.
-- **IT leggi** (`bm25_it.pkl`): **129 atti / 23.291 articoli** (Normattiva + EUR-Lex + CEDU); **IT giurisprudenza**
+- **IT leggi** (`bm25_it.pkl`): **129 atti / 23.554 articoli** (Normattiva + EUR-Lex + CEDU), con **Libro / Titolo / Capo /
+  Sezione** per articolo dal v9.383 (dall'albero di Normattiva: `tools/it_gerarchia.py` → `data/processed/it_gerarchia/`,
+  unito da `build_it_index.py`; il titolo del capitolo è cercabile come in AL); **IT giurisprudenza**
   (FTS5 `it_decisions_fts.db`): **8.055** decisioni (Consulta dal 2005 + CdS/CGARS/TAR), testo della decisione ripulito
   dal sito (`it_precedent_fts.testo_decisione`, v9.369).
 
@@ -92,10 +94,34 @@ Pipeline in `tools/`: `normattiva_lib.py` (sessione + parsing) ·
   (è successo col TUIR: DPR 917/1986 → D.Lgs 117/2026).
 - Nel QA, "articolo precedente" nel testo è **linguaggio normativo
   legittimo**, non navigazione: falso positivo.
+- **Articoli «puntati»** (v9.383): «473-bis», «473-bis.1» … «473-bis.71» hanno gli STESSI `idArticolo` e
+  `idSottoArticolo` e si distinguono SOLO per `art.idSottoArticolo1` (10, 20, 30…). La dedup dei link senza quel
+  campo aveva buttato **263 articoli** (tutto il rito famiglia 473-bis.1-71 e il 380-bis.1 c.p.c., 270-bis.1 c.p.,
+  2506.1 c.c., 9.1 L. 91/1992, 25-octies.1 d.lgs. 231/2001, 35-bis.1-3 d.lgs. 25/2008, 42 del TUB, 60 del TUF…), e
+  la pagina «Art. 473-bis.2» si leggeva «473-bis». Riparati con `tools/repair_dotted_it.py` (report/apply: scarica
+  SOLO i link persi, mai sovrascrive un numero presente); `normattiva_lib` corretto (chiave, numero `(?:\.\d+)?`,
+  `sortkey` 518 → 518.1 → 518-bis). Il verificatore legge «art. 473-bis.12 c.p.c.»; un «.N» che nel codice non
+  esiste torna all'articolo base SOLO se il codice non ha articoli puntati su quella base («art. 6.1 CEDU» = par. 1,
+  «art. 473-bis.99» resta falso).
+- **Capitoli (Libro/Titolo/Capo/Sezione)** (v9.383): dall'albero della pagina dell'atto. Sull'host:
+  `tools/it_gerarchia.py run --cache /root/it_ger_html` (le pagine si salvano in gzip: rifare l'albero senza
+  riscaricare), poi `tools/it_gerarchia_qa.py` (contigui · buchi · risposte note) e `build_it_index.py` nel container.
+  **Dopo ogni ingest**: `it_gerarchia.py run --only <id>` prima del `build_it_index`. Trappole trovate misurando:
+  (1) l'etichetta del testo MODIFICATO porta i tag (`<em><strong>((TITOLO IV</a>`): un regex `[^<]+` ne perdeva 288
+  su 3.235 senza un errore — il controllo vero è «collapse − 4 = intestazioni lette» (la pagina ha sempre 4 pannelli
+  che non sono capitoli), e l'harvester stampa `PERSE N`; (2) la gerarchia NON è fissa: nel codice dell'ambiente la
+  «SEZIONE II» sta SOPRA i «TITOLO» → pila dei livelli aperti (stesso tipo+stile si sostituisce; un'intestazione senza
+  ancora articoli è genitore della successiva); (3) «TITOLO DODICESIMO», «Sezione 1ª», «Capo 0.I», «Sez. III -», «§2 -»,
+  «Par. 1» (c.p.c.), intestazioni fuse nel titolo precedente («… E CONTABILE TITOLO I …», ma MAI dopo una preposizione:
+  «MODIFICHE AL TITOLO VIII»), «... ... CAPO IV», «((CAPO ABROGATO …))»; (4) il numero romano limitato a 1-89 («DI»,
+  «CIVILE» non sono ordinali); (5) le lettere «A) … D)» del reg. CdS NON si scrivono (nell'albero mancano B e C:
+  gli artt. 84-123 sarebbero finiti sotto la A); (6) un articolo senza gruppo si assegna al gruppo dal numero
+  («N-legge» = 0, «N-allK» = K, senza suffisso = il testo principale), il solo numero vale SOLO se il gruppo manca
+  dall'albero. Copertura: 21.105 / 21.196 articoli Normattiva (gli altri: allegati interi e «art. 01» doppi).
 
 **Per aggiungere altri codici**: una riga nella lista `ACTS` di
 `tools/ingest_it_normattiva.py` (id, titolo, area, URN NIR, wave), poi
-`ingest` → `build_it_index` → deploy. Le sigle per il verificatore di
+`ingest` → `it_gerarchia.py run --only <id>` (capitoli) → `build_it_index` → deploy. Le sigle per il verificatore di
 citazioni si aggiungono in `_IT_CODE_CHECKS` (`src/citation_verifier.py`,
 ordine longest-first: `ccii` prima di `cc`, `cpa`/`cpi` prima di `cp`) e
 l'etichetta badge in `CODE_LABELS`.
@@ -588,7 +614,7 @@ errori, non che le risposte sono ancora giuste. Riferimento verificato il
 12 articoli recuperati per ciascuna.
 
 ```bash
-docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63], triage-trim+giudice-no-web [64], chat-web+verdetto-in-testa+pannelli-IT [65], codice-nominato→area [66], timeout-45min+ripiego-no-web [67], fasi-bilingue+giudice-no-web+duello-a-scomparsa [68], etichette-composte-bilingui [69]). Baseline **523/523** (24 set, v9.382; era 98 il 31 ago).
+docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63], triage-trim+giudice-no-web [64], chat-web+verdetto-in-testa+pannelli-IT [65], codice-nominato→area [66], timeout-45min+ripiego-no-web [67], fasi-bilingue+giudice-no-web+duello-a-scomparsa [68], etichette-composte-bilingui [69]). Baseline **526/526** (24 set, v9.383: + [129] capitoli IT, [130] articoli puntati, [131] rubriche IT; era 98 il 31 ago).
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 bash /root/prova_sse.sh                                    # SULL'HOST (legge il secret da /opt/super-avvocato.env; copia in tools/prova_sse.sh): account di prova → login → fascicolo → 1 domanda VERA → stream /api/ask/events attraverso waitress. Deve dire «HTTP 200 … done: 1» (~50s, costa 1 chiamata al cervello) e cancella l'account. Dopo OGNI build che tocca web.py o le rotte SSE.
@@ -1455,6 +1481,36 @@ rischio residuo della DPIA.
 - Super Avokati ha auth propria (login_required_api); utenti creati da admin o auto-provisionati da AALA (`/api/provision-demo`, secret-guarded).
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
+
+**v9.383 — I TITOLI DEI CAPITOLI PER L'ITALIANO, e tre difetti del corpus IT trovati facendoli (24 set, mattina).** Il
+titolare: «fai anche i titoli dei capitoli per l'italiano, con calma, senza errori». (1) **Capitoli**: `tools/it_gerarchia.py`
+legge l'ALBERO della pagina di ogni atto Normattiva (una richiesta per atto, in sequenza, pagine salvate in gzip in
+`/root/it_ger_html` sull'host → l'albero si rifà senza riscaricare) → `data/processed/it_gerarchia/<id>.json` (chiave =
+gruppo + numero) → `build_it_index.py` unisce pjesa (Allegato · Parte · Libro) · kreu (Titolo · Capo) · seksioni
+(Sezione · §): il titolo del capitolo entra nel BM25 e nel prompt come in AL, e `_indice_kreut` («IL CAPITOLO INTERO»)
+ora funziona anche in italiano (fratelli = capi dello STESSO titolo; ordine vero 518 → 518.1 → 518-bis). ⚠️ La prima
+versione, «verificata» su due pagine, **perdeva 288 intestazioni su 3.235**: l'etichetta del testo modificato è
+`<em><strong>((TITOLO IV</a>` e il regex `[^<]+` la saltava in silenzio — gli artt. 409-473-bis c.p.c. finivano sotto
+«Dell'opposizione di terzo». L'ha trovata **contare la struttura della fonte** (`data-toggle="collapse"` − 4 = intestazioni)
+contro quelle lette: un controllo di contiguità non vede un'intestazione che manca. Poi, misurando: la gerarchia NON è fissa
+(nel codice dell'ambiente la SEZIONE sta sopra i TITOLI → pila dei livelli aperti), «TITOLO DODICESIMO», «Par. 1», «Sezione
+1ª», «Capo 0.I», «Sez. III -», «§2 -», intestazioni fuse (mai dopo una preposizione), «... ... CAPO IV», «(CAPO ABROGATO …)»,
+romani 1-89, le lettere A)…D) del reg. CdS non scritte (B e C mancano nell'albero). Copertura 21.105/21.196 articoli
+Normattiva; `tools/it_gerarchia_qa.py` (contigui 2 spiegati · buchi 7 veri · **25/25 risposte note**). (2) **263 articoli
+«puntati» mancavano da sempre** (473-bis.1-71 c.p.c. = tutto il rito famiglia, 380-bis.1 c.p.c., 270-bis.1 c.p., 2506.1 c.c.,
+9.1 L. 91/1992, 25-octies.1 d.lgs. 231/2001, 35-bis.1-3 d.lgs. 25/2008, 42 TUB, 60 TUF…): Normattiva li distingue solo per
+`idSottoArticolo1` e la dedup dell'ingest non lo guardava → `tools/repair_dotted_it.py` (0 falliti), `normattiva_lib`
+corretto (chiave, numero «473-bis.2», `sortkey`); il verificatore li legge e «art. 6.1 CEDU» resta il paragrafo 1 (il «.N»
+torna all'articolo base solo se il codice non ha articoli puntati su quella base). (3) **«art. 473 bis c.p.c.» con lo spazio
+usciva «inesistente»** (normalizzato «473bis»): lo spazio fra numero e suffisso vale il trattino. (4) **1.165 rubriche
+rimaste nel corpo** (su 4.848 articoli vivi senza rubrica: c.c. 316 «Responsabilità genitoriale», 536 «Legittimari», 565,
+581, 583, c.p. 635 «Danneggiamento», c.p.p. 11, 33-bis…): negli articoli sostituiti Normattiva stampa la rubrica senza
+parentesi come prima riga → `build_it_index._rubrica_prima_riga` la sposta SOLO se è una rubrica (corta, «.»/«)», riga
+vuota, parola piena, nessun verbo finito; 115 lette a mano, tutte giuste; c.c. 147 resta senza: su Normattiva non c'è).
+Corpus IT **23.554** articoli. **Misure**: BM25 su 25 domande in cui il tema lo dice il capitolo MRR **0,333 → 0,410**
+(primi 12: 16 → 19; c.p.c. 665 opposizione allo sfratto 167° → 8°, c.p.p. 314 ingiusta detenzione 20° → 4°, c.p.c. 414 rito
+del lavoro 6° → 2°); strato 1 IT 232/252 = invariato, regressioni 59/59 (+8 nuove). **Embedding IT coi capitoli** (`build_dense.py --kreu`, `_flat3` 29 min + `_ck3` 320k segmenti 2 h, poi `--rifai` dei 1.166 articoli con la rubrica spostata): ibrido sulle 25 domande difficili primi 12 **15 → 20**, primi 3 10 → 13, MRR 0,371 → 0,385 (prescrizione presuntiva 20° → 2°, opposizione allo sfratto 25° → 2°, pignoramento presso terzi 20° → 3°, misure cautelari 19° → 3°, rito del lavoro 5° → 1°; perdono qualche primo posto restando nei 12: comunione legale 1° → 6°), strato 1 ibrido 239 → 242 → `EMB_SUFFIX_IT=_flat3`, `EMB_SUFFIX2_IT=_ck3` nell'env. `DENSE_THREADS` (default 2) per le codifiche lunghe fuori dal container vivo; ⚠️ in un container di prova con `sleep` come PID 1 un processo orfano resta ZOMBIE: un `while [ -e /proc/PID ]` non finisce mai. Golden **[129]
+[130] [131]**, 526.
 
 **v9.382 — la trappola della kartela nel blocco, e le due varianti del cervello misurate e respinte (24 set, alba).** (1) Il caso
 «kufizim» del benchmark (compravendita di un immobile REGISTRATO con vincolo in rubrica D) oscillava 0,55-1,00 fra un giro e

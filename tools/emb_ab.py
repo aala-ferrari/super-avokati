@@ -61,6 +61,22 @@ HARD_IT = [
     ("clausole vessatorie consumatore", ("codice_consumo", "33")), ("guida in stato di ebbrezza", ("codice_strada", "186")),
     ("sfratto per morosità", ("codice_procedura_civile", "658")), ("cittadinanza per matrimonio", ("cittadinanza", "5")),
     ("permesso di soggiorno rinnovo", ("tu_immigrazione", "5")),
+    # v9.383 — domande in cui la RUBRICA è generica e il tema lo dice solo il CAPITOLO (Titolo/Capo/Sezione)
+    ("riparazione per ingiusta detenzione", ("codice_procedura_penale", "314")),
+    ("prescrizione presuntiva di un anno", ("codice_civile", "2955")),
+    ("ricorso nel rito del lavoro forma della domanda", ("codice_procedura_civile", "414")),
+    ("opposizione a decreto ingiuntivo", ("codice_procedura_civile", "645")),
+    ("ricorso per cassazione penale motivi", ("codice_procedura_penale", "606")),
+    ("opposizione al decreto penale di condanna", ("codice_procedura_penale", "461")),
+    ("opposizione alla convalida di sfratto", ("codice_procedura_civile", "665")),
+    ("pignoramento presso terzi dichiarazione del terzo", ("codice_procedura_civile", "547")),
+    ("ipoteca giudiziale sentenza di condanna", ("codice_civile", "2818")),
+    ("comunione legale dei beni tra coniugi oggetto", ("codice_civile", "177")),
+    ("eredità giacente nomina del curatore", ("codice_civile", "528")),
+    ("rinuncia all'eredità", ("codice_civile", "519")),
+    ("collazione delle donazioni tra coeredi", ("codice_civile", "737")),
+    ("misure cautelari personali condizioni di applicabilità", ("codice_procedura_penale", "273")),
+    ("termini per impugnare la sentenza penale", ("codice_procedura_penale", "585")),
 ]
 
 
@@ -70,6 +86,7 @@ def main() -> int:
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--threads", type=int, default=4)
     ap.add_argument("--lang", default="al", choices=["al", "it"])
+    ap.add_argument("--it-index", default="/app/data/index/bm25_it.pkl", help="v9.383: indice BM25 italiano da misurare (di prova)")
     ap.add_argument("--suffix", default="", help="codifica di produzione da misurare (es. _ck = segmenti)")
     ap.add_argument("--suffix2", default="", help="SECONDA codifica da fondere con la prima (es. --suffix _flat2 --suffix2 _ck)")
     ap.add_argument("--fuse", default="rrf3", choices=["rrf3", "max", "avg", "maxlog", "top2"],
@@ -77,7 +94,7 @@ def main() -> int:
     a = ap.parse_args()
     from fastembed import TextEmbedding
     from src.retrieval import ArticleIndex
-    idx = ArticleIndex.load() if a.lang == "al" else ArticleIndex.load(Path("/app/data/index/bm25_it.pkl"))
+    idx = ArticleIndex.load() if a.lang == "al" else ArticleIndex.load(Path(a.it_index))
     arts = idx.articles if not a.limit else idx.articles[: a.limit]
     live = [i for i, x in enumerate(arts) if not x.repealed]
     tag = a.model.replace("/", "__")
@@ -232,13 +249,19 @@ def main() -> int:
         return None
     print("\nquery difficili (posizione: BM25 → dense → ibrido; None = oltre 200):")
     wins = 0
-    for q, key in (HARD if a.lang == "al" else HARD_IT):
+    lista = HARD if a.lang == "al" else HARD_IT
+    posiz = {"bm25": [], "dense": [], "ibrido": []}
+    for q, key in lista:
         pb = pos(lambda q, d: bm25(q, d), q, key); pd = pos(lambda q, d: dense(q, d, d)[0], q, key); ph = pos(lambda q, d: hybrid(q, d, d), q, key)
+        posiz["bm25"].append(pb); posiz["dense"].append(pd); posiz["ibrido"].append(ph)
         m = "  "
         if ph is not None and (pb is None or ph < pb): m = "▲"; wins += 1
         elif pb is not None and (ph is None or ph > pb): m = "▼"
         print(f"  {m} {q:55s} {str(key):32s} {pb} → {pd} → {ph}")
-    print(f"ibrido meglio di BM25 su {wins}/{len(HARD)} query difficili")
+    print(f"ibrido meglio di BM25 su {wins}/{len(lista)} query difficili")
+    for nome, ps in posiz.items():        # v9.383: il riassunto che serve per decidere (primo posto, primi 3, primi 12, MRR)
+        print(f"  {nome:7s}: 1° {sum(1 for p in ps if p == 1):2d} · primi 3 {sum(1 for p in ps if p and p <= 3):2d} · "
+              f"primi 12 {sum(1 for p in ps if p and p <= 12):2d} · MRR {sum(1 / p for p in ps if p) / max(1, len(ps)):.3f}  (su {len(ps)})")
     return 0
 
 

@@ -30,17 +30,18 @@ def _download(model: str, flat: Path) -> None:
 
 
 def _capitolo(x) -> str:
-    """Il titolo del capitolo (kreu + seksioni) senza «KREU V —»: dice il TEMA quando la rubrica è generica."""
-    from src.parser import _CAP_PREFIX
-    parti = [_CAP_PREFIX.sub("", c or "").strip() for c in (getattr(x, "kreu", ""), getattr(x, "seksioni", ""))]
-    return " · ".join(p for p in parti if p)
+    """Il titolo del capitolo (kreu + seksioni) senza «KREU V —»: dice il TEMA quando la rubrica è generica.
+    v9.383: parte per parte (i campi italiani uniscono Titolo · Capo e Sezione · §), in minuscolo se è tutto maiuscolo."""
+    from src.parser import titoli_capitolo
+    parti = [p.lower() if p.isupper() else p for p in titoli_capitolo(getattr(x, "kreu", ""), getattr(x, "seksioni", ""))]
+    return " · ".join(parti)
 
 
 def _testata(x) -> str:
     """v9.376 — testata del segmento: rubrica (se l'articolo ha un corpo) + titolo del capitolo."""
     cap = _capitolo(x)
     rub = (x.heading or "") if (x.body or "").strip() else ""
-    return " — ".join(p for p in (rub.strip(), cap.lower() if cap.isupper() else cap) if p)
+    return " — ".join(p for p in (rub.strip(), cap) if p)
 
 
 def _corpo(x) -> str:
@@ -72,6 +73,7 @@ def main() -> int:
                     "senza corpo (testo tutto nella «rubrica») si codificano per intero invece dei primi 120 caratteri")
     ap.add_argument("--flat", action="store_true", help="un vettore per articolo (testo troncato a 128 token: comportamento v9.353)")
     ap.add_argument("--suffix", default=os.environ.get("EMB_SUFFIX", ""), help="suffisso dei file (es. _ck) per una codifica affiancata")
+    ap.add_argument("--it-index", default="/app/data/index/bm25_it.pkl", help="v9.383: l'indice italiano da codificare (anche di prova)")
     a = ap.parse_args()
     import numpy as np
     from src import dense
@@ -84,7 +86,7 @@ def main() -> int:
     for what in todo:
         if what in ("al", "it"):
             lang = "sq" if what == "al" else "it"
-            idx = ArticleIndex.load() if what == "al" else ArticleIndex.load(Path("/app/data/index/bm25_it.pkl"))
+            idx = ArticleIndex.load() if what == "al" else ArticleIndex.load(Path(a.it_index))
             base = dense.EMB_DIR / f"emb_{lang}_{dense.tag()}{a.suffix}"
             _old_E, _old_keys = None, None
             _rif = {(k[0], str(k[1])) for k in json.loads(Path(a.rifai).read_text(encoding="utf-8"))} if a.rifai else set()
