@@ -3712,6 +3712,17 @@ class SuperAvvocato:
                     _audit_set("tabelle_stupefacenti", {"righe": _bs.count("\n- ")})
             except Exception as exc:  # noqa: BLE001
                 log.warning("stupefacenti: blocco delle tabelle saltato (non-fatal): %s", exc)
+        # v9.392 — le LISTE ALBANESI delle sostanze (ligji 7975/1995, allegato): lista, gruppo, Lista A, aggiunte del 2026.
+        # Misurato: a memoria il gruppo è sbagliato 12 volte su 35 e ketamina/N2O/GBL/HHC/carisoprodol risultano «non controllate»
+        else:
+            try:
+                from . import narkotike_al
+                _bn = narkotike_al.blocco((user_message or "") + "\n" + (getattr(triage, "problem_summary", "") or ""))
+                if _bn:
+                    blocco = ((blocco or "").rstrip() + "\n\n" + _bn + "\n").lstrip()
+                    _audit_set("listat_narkotike", {"rreshta": _bn.count("\n- ")})
+            except Exception as exc:  # noqa: BLE001
+                log.warning("narkotike_al: blloku i listave u anashkalua (non-fatal): %s", exc)
         if blocco and self._current_jurisdiction() == "IT":
             try:
                 from . import cassazione

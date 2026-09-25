@@ -4687,6 +4687,99 @@ def main():
     except Exception as _e137x:  # noqa: BLE001
         check("stupefacenti[137]: kontrollet u ekzekutuan", False, str(_e137x))
 
+    # [138] v9.391 — LE LEGGI ALBANESI SUGLI STUPEFACENTI. Il KP 283-284/c punisce ciò che è «në kundërshtim me ligjin» /
+    # «pa leje dhe autorizim sipas ligjit», ma quella legge (7975/1995: gruppi, liste delle Convenzioni, lëndë të kontrolluara
+    # = Lista A con ketamina/GBL/N2O, ricette, sanzioni) NON era nel corpus, e nemmeno la 61/2023 sulla cannabis medica. Il
+    # .docx di QBZ ha tre difetti riparati da tools/repair_lendet_narkotike.py: titoli di capo in coda agli articoli, allegato
+    # dentro il neni 105, e il neni 9 (divieto di OGNI coltivazione) senza il rimando alla 61/2023 che lo abroga in parte.
+    try:
+        _n138 = [a for a in idx.articles if a.code == "ligji_lendet_narkotike"]
+        _k138 = [a for a in idx.articles if a.code == "ligji_kanabisi_mjekesor"]
+        _by138 = {str(a.number): a for a in _n138}
+        _docs138 = {d.code: d.area for d in brain.LEGAL_DOCUMENTS}
+        _okA = (len(_n138) >= 100 and len(_k138) >= 40 and _docs138.get("ligji_lendet_narkotike") == "Penal"
+                and _docs138.get("ligji_kanabisi_mjekesor") == "Penal")
+        _sh = _by138.get("shtojca")
+        _okB = (_sh is not None and "Ketamine" in _sh.body and "Hexahydrocannabinol (HHC)" in _sh.body and "17/2026" in _sh.body
+                and "KLASIFIKIMI" not in (_by138["105"].body if "105" in _by138 else "KLASIFIKIMI")
+                and not any(re.search(r"\bKREU\s+[IVXLC]+\s+\S+[^.]{0,200}$", (a.body or "")[-260:]) for a in _n138)
+                and "dhe lëndëve të kontrolluara" in (_by138["3"].kreu if "3" in _by138 else "")
+                and "61/2023" in (_by138["9"].note if "9" in _by138 else "") and "Neni 44" in _by138["9"].note)
+        def _st138(t):
+            it = (cv.verify_text(t, idx) or {}).get("items") or []
+            return [(x["code"], x["number"], x["status"]) for x in it]
+        _okC = (_st138("Sipas nenit 9 të ligjit nr. 7975/1995 kultivimi ndalohet.") == [("ligji_lendet_narkotike", "9", "verified")]
+                and _st138("Neni 14 i ligjit nr. 61/2023 parashikon licencën.") == [("ligji_kanabisi_mjekesor", "14", "verified")]
+                and _st138("neni 101 i ligjit për barnat narkotike dhe lëndët psikotrope") == [("ligji_lendet_narkotike", "101", "verified")]
+                and _st138("Neni 999 i ligjit nr. 7975/1995") == [("ligji_lendet_narkotike", "999", "fake")])
+        _pen138 = {d.code for d in brain.LEGAL_DOCUMENTS if d.area == "Penal"} | {"kodi_proc_penale"}
+        def _top138(q):
+            return [(a.code, str(a.number)) for a, _ in idx.search(q, top_k=12, restrict_codes=_pen138)]
+        _okD = (("ligji_kanabisi_mjekesor", "14") in _top138("licenca për kultivimin e cannabis-it për qëllime mjekësore")
+                and ("ligji_lendet_narkotike", "2") in _top138("lëndë të kontrolluara që nuk janë narkotike dhe psikotrope")
+                and ("ligji_lendet_narkotike", "shtojca") in _top138("ketamine GBL nitrous oxide lista A"))
+        from src import acts_meta as _am138
+        import glob as _gl138, json as _js138
+        _kf = sorted(_gl138.glob("/app/data/models/emb_sq_*_flat3.keys.json"))
+        _emb = {tuple(k[:2]) for k in _js138.load(open(_kf[0], encoding="utf-8"))} if _kf else set()
+        _okE = ("7975/1995" in (_am138.riga("ligji_lendet_narkotike") or "") and "2026-02-20" in _am138.riga("ligji_lendet_narkotike")
+                and ("ligji_lendet_narkotike", "9") in _emb and ("ligji_kanabisi_mjekesor", "14") in _emb)
+        check("narkotike[138]: ligji 7975/1995 + 61/2023 nel corpus (area Penal) · capi e allegato riparati, rimando 61/2023 sul neni 9 "
+              "· verificatore (numero, nome vecchio e nuovo, inesistente) · ricerca (licenza cannabis, lëndë të kontrolluara, Lista A) "
+              "· metadati dell'atto e ricerca per significato", _okA and _okB and _okC and _okD and _okE,
+              "A=%s B=%s C=%s D=%s E=%s" % (_okA, _okB, _okC, _okD, _okE))
+    except Exception as _e138:  # noqa: BLE001
+        check("narkotike[138]: kontrollet u ekzekutuan", False, str(_e138))
+
+    # [139] v9.392 — LE LISTE ALBANESI DELLE SOSTANZE (ligji 7975/1995, allegato). Misurato (tools/eval_narkotike_al.py, 35
+    # sostanze, senza web): a memoria il GRUPPO era sbagliato 12 volte (cocaina, cannabis, morfina, fentanil nel gruppo I: lo
+    # schema li mette nel II) e ketamina/N2O/GBL (Lista A) e HHC/carisoprodol (ligji 17/2026) risultavano «non controllate».
+    # Le liste sono figure dell'allegato, lette una per una con la cifra di controllo dei CAS (tools/ingest_liste_narkotike_al.py).
+    try:
+        import importlib.util as _ilu139, os as _os139
+        from src import narkotike_al as _N139
+        _sp139 = _ilu139.spec_from_file_location("_iln139", _os139.path.join(_os139.path.dirname(_os139.path.abspath(__file__)), "ingest_liste_narkotike_al.py"))
+        _I139 = _ilu139.module_from_spec(_sp139); _sp139.loader.exec_module(_I139)
+        _okA = (_I139.cas_ok("50-36-2") and _I139.cas_ok("6740-88-1") and not _I139.cas_ok("50-36-3")
+                and _I139.chiave_lista("Lista I e Konventës Unike për Lëndët Narkotike e vitit 1961") == "1961-I"
+                and _I139.chiave_lista("LISTA IV E KONVENTËS PËR LËNDËT PSIKOTROPE E VITIT 1971") == "1971-IV"
+                and _I139.chiave_lista("LISTA A") == "A" and _I139.chiave_lista("Skema e klasifikimit") is None)
+        _d139 = _N139._dati() or {}
+        _per139 = {}
+        for r in _d139.get("righe") or []:
+            _per139[r["lista"]] = _per139.get(r["lista"], 0) + 1
+        _t = {x["chiave"]: x for x in _N139.trova("kokainë, heroinë, kanabis, ketaminë, HHC, GBL, tramadol dhe morfinë")}
+        _okB = (len(_d139.get("righe") or []) >= 350 and _per139.get("1961-I", 0) >= 120 and _per139.get("1971-II", 0) >= 50
+                and _per139.get("1971-IV", 0) >= 50 and _per139.get("A") == 3
+                and _N139.gruppo(_t["cocaine"]["voci"]) == "II" and _N139.gruppo(_t["heroin"]["voci"]) == "I"
+                and _N139.gruppo(_t["cannabis"]["voci"]) == "II" and "1961-IV" not in _N139._liste(_t["cannabis"]["voci"])
+                and _N139.categoria(_t["ketamine"]["voci"]) == "e kontrolluar" and _N139.gruppo(_t["morphine"]["voci"]) == "II"
+                and _N139._liste(_t["hexahydrocannabinol"]["voci"]) == ["1971-II"] and "17/2026" in _N139._dove(_t["hexahydrocannabinol"])
+                and _N139.categoria(_t["gamma-butyrolactone"]["voci"]) == "e kontrolluar" and _t["tramadol"]["jo"])
+        _A139 = ("Kokaina bën pjesë në Grupin I. Heroina është në Grupin I. HHC nuk figuron në Konventat 1961/1971 (shih Neni 7). "
+                 "Ketamina nuk është nën kontroll ndërkombëtar. Ketamina nuk është lëndë narkotike as psikotrope. "
+                 "Tramadoli është lëndë psikotrope sipas ligjit.")
+        _e139 = {(e["sostanza"], e["lloji"]) for e in _N139.verifica(_A139)}
+        _okC = (_e139 == {("Kokaina", "grupi"), ("HHC", "jo"), ("Tramadoli", "jo_ne_liste")}
+                and _N139.nota(_A139).count("për t'u korrigjuar") == 1 and _N139.nota(_A139 + _N139.nota(_A139)) == ""
+                and _N139.blocco("Qiramarrësi nuk paguan qiranë.") == "" and "Grupi II" in _N139.blocco("u kap me kokainë")
+                and [s["testo"] for s in _N139.trova("ghb dhe thc me shkronja të vogla")] == [])
+        import inspect as _in139
+        from src import brain as _br139, trust_line as _tl139
+        _okD = ("narkotike_al.blocco(" in _in139.getsource(_br139.SuperAvvocato._mbledh_gatherers)
+                and "_nark" in _in139.getsource(_tl139.verifica) and "LISTAT E LËNDËVE" in _in139.getsource(_tl139.blocco_per_gjyqtarin)
+                and "_nk.nota(" in open("/app/src/web.py", encoding="utf-8").read())
+        _sk139 = next((a for a in idx.articles if a.code == "ligji_lendet_narkotike" and str(a.number) == "skema"), None)
+        _okE = (_sk139 is not None and "Nëngrupi A: barna që mund të përshkruhen për jo më shumë se 7 ditë" in _sk139.body
+                and "përveç rastit të përdorimit vetjak" in (_sk139.note or ""))
+        check("narkotike[139]: liste dell'allegato lette dalle figure (CAS con cifra di controllo) · gruppi dello schema (cocaina/cannabis/"
+              "morfina II, eroina I), Lista A (ketamina, GBL), aggiunte 17/2026 (HHC), tramadol in nessuna lista · verifica che corregge "
+              "gruppo/«non controllata» e lascia le frasi vere · agganci (dossier, Giudice, nota) · schema dei gruppi nel corpus",
+              _okA and _okB and _okC and _okD and _okE,
+              "A=%s B=%s C=%s D=%s E=%s per=%s err=%s" % (_okA, _okB, _okC, _okD, _okE, _per139, _e139))
+    except Exception as _e139x:  # noqa: BLE001
+        check("narkotike[139]: kontrollet u ekzekutuan", False, str(_e139x))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

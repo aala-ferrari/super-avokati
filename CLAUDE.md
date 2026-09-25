@@ -2,8 +2,8 @@
 
 Strumento AI per avvocati (B2B), **bi-giurisdizione AL + IT**. Front-end Flask (waitress, UN processo) su porta
 5050, SQLite (`data/app.db`). Postgres `legalkb` NON è raggiungibile dal container: i precedenti vivono nel pickle.
-**Stato al 25 set 2026 (v9.390)** — i numeri qui sono quelli veri; più sotto, nelle sezioni datate, c'è la storia:
-- **AL leggi** (`bm25.pkl`, BM25 con diacritici piegati dal v9.367, titolo del capitolo cercabile dal v9.373): **10.305 nene / 62 codici**; embedding AL `_flat3`/`_ck3` (capitoli + corpo intero, `EMB_SUFFIX_SQ`/`EMB_SUFFIX2_SQ`), IT `_flat4`/`_ck4` dal v9.384 (`EMB_SUFFIX_IT`/`EMB_SUFFIX2_IT`); fonte
+**Stato al 25 set 2026 (v9.392)** — i numeri qui sono quelli veri; più sotto, nelle sezioni datate, c'è la storia:
+- **AL leggi** (`bm25.pkl`, BM25 con diacritici piegati dal v9.367, titolo del capitolo cercabile dal v9.373): **10.460 unità / 64 codici** (dal v9.391 anche la ligji 7975/1995 sugli stupefacenti e la 61/2023 sulla cannabis medica); embedding AL `_flat3`/`_ck3` (capitoli + corpo intero, `EMB_SUFFIX_SQ`/`EMB_SUFFIX2_SQ`), IT `_flat4`/`_ck4` dal v9.384 (`EMB_SUFFIX_IT`/`EMB_SUFFIX2_IT`); fonte
   `data/processed/all_articles.jsonl` (il pickle è derivato).
 - **Precedenti** (`bm25_decisions.pkl`): **3.996** = Kushtetuese **672** + Gjykata e Lartë **2.960** + CEDU **364**
   (157 sentenze + 207 decisioni, 46 nella traduzione albanese ufficiale). Fonti di verità: `data/processed/al_decisions_v2.jsonl`
@@ -21,6 +21,8 @@ Strumento AI per avvocati (B2B), **bi-giurisdizione AL + IT**. Front-end Flask (
   dal v9.386 anche i PRECEDENTI di Cassazione per la domanda (ricerca viva coi fatti sul testo integrale, 2 al massimo);
   dal v9.389 anche le cause della **Corte di giustizia UE** («C-274/20») sull'archivio CELLAR (`src/cgue.py`).
   **Tabelle degli stupefacenti** (d.P.R. 309/1990, testo vigente, 982 sostanze) dal v9.390: `src/stupefacenti.py`.
+  **Liste albanesi delle sostanze** (ligji 7975/1995: liste delle Convenzioni 1961/1971 lette dalle FIGURE dell'allegato,
+  Lista A, aggiunte 17/2026, schema dei gruppi I-III; 388 voci) dal v9.392: `src/narkotike_al.py`.
 
 ## Regola #1 — Scope: UNA SOLA GIURISDIZIONE PER SESSIONE
 
@@ -632,7 +634,7 @@ errori, non che le risposte sono ancora giuste. Riferimento verificato il
 12 articoli recuperati per ciascuna.
 
 ```bash
-docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63], triage-trim+giudice-no-web [64], chat-web+verdetto-in-testa+pannelli-IT [65], codice-nominato→area [66], timeout-45min+ripiego-no-web [67], fasi-bilingue+giudice-no-web+duello-a-scomparsa [68], etichette-composte-bilingui [69]). Baseline **535/535** (25 set, v9.390: + [137] tabelle degli stupefacenti; v9.389: + [136] Corte di giustizia UE sull'archivio CELLAR; v9.388: + [135] sentenze albanesi «non confermate» = inammissibilità dell'archivio o decisioni di altri organi; v9.386: + [134] precedenti di Cassazione per la domanda + etichette del prompt nella lingua della sessione; v9.385: + [133] Cassazione sull'archivio ufficiale — con un controllo dal vivo che si SALTA se l'archivio non risponde; v9.384: + [129] capitoli IT, [130] articoli puntati, [131] rubriche IT, [132] UE/CEDU; era 98 il 31 ago).
+docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63], triage-trim+giudice-no-web [64], chat-web+verdetto-in-testa+pannelli-IT [65], codice-nominato→area [66], timeout-45min+ripiego-no-web [67], fasi-bilingue+giudice-no-web+duello-a-scomparsa [68], etichette-composte-bilingui [69]). Baseline **537/537** (25 set, v9.392: + [139] liste albanesi delle sostanze; v9.391: + [138] leggi albanesi sugli stupefacenti nel corpus; v9.390: + [137] tabelle degli stupefacenti; v9.389: + [136] Corte di giustizia UE sull'archivio CELLAR; v9.388: + [135] sentenze albanesi «non confermate» = inammissibilità dell'archivio o decisioni di altri organi; v9.386: + [134] precedenti di Cassazione per la domanda + etichette del prompt nella lingua della sessione; v9.385: + [133] Cassazione sull'archivio ufficiale — con un controllo dal vivo che si SALTA se l'archivio non risponde; v9.384: + [129] capitoli IT, [130] articoli puntati, [131] rubriche IT, [132] UE/CEDU; era 98 il 31 ago).
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 bash /root/prova_sse.sh                                    # SULL'HOST (legge il secret da /opt/super-avvocato.env; copia in tools/prova_sse.sh): account di prova → login → fascicolo → 1 domanda VERA → stream /api/ask/events attraverso waitress. Deve dire «HTTP 200 … done: 1» (~50s, costa 1 chiamata al cervello) e cancella l'account. Dopo OGNI build che tocca web.py o le rotte SSE.
@@ -1499,6 +1501,54 @@ rischio residuo della DPIA.
 - Super Avokati ha auth propria (login_required_api); utenti creati da admin o auto-provisionati da AALA (`/api/provision-demo`, secret-guarded).
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
+
+**v9.392 — LE LISTE ALBANESI DELLE SOSTANZE (25 set, sera).** Il titolare: «questa esiste anche per il superavokati
+albanese?» e poi «ok se veramente possono migliorare procedi». Misurato prima (`tools/eval_narkotike_al.py`: 35 sostanze, il modello del senior senza web, sessione
+AL): le liste ONU le conosce (liste diverse solo 5/35, tutte albanesi), ma **gruppo della 7975 sbagliato 12/35** (cocaina,
+cannabis, hashish, morfina, fentanil, metadone, ossicodone nel gruppo I: lo schema li mette nel II) e **categoria sbagliata
+5/35**: ketamina, N2O, GBL «jo» (sono lëndë të kontrolluara: Lista A, regime del gruppo III/b per il neni 4, e per il neni 2
+NON narcotici né psicotropi — conta per il KP 283, che parla di «substanca narkotike dhe psikotrope»), HHC e carisoprodol
+«jo» (aggiunti dalla ligji 17/2026, datë 3.2.2026). La prova viva su v9.391 (2 g di ketamina + HHC) l'ha mostrato dal vero:
+«HHC nuk figuron në Konventat 1961/1971» e una difesa *nullum crimen* costruita sopra. **Fonte**: nel .docx consolidato di
+QBZ le liste sono **16 IMMAGINI** (le liste ONU con Kodi IDS · CAS · nome · altri nomi · nome chimico, aggiornate fino al 2024:
+brorfina, butonitazene; la cannabis NON è più in Lista IV 1961, come all'ONU dal 2020) + la pagina dello SCHEMA dei gruppi.
+`tools/ingest_liste_narkotike_al.py`: immagini nell'ordine del documento → lettore di immagini del prodotto (`backend.ocr_image`,
+righe TITLE/ROW, SENZA il nome chimico: non serve a riconoscere una sostanza ed è dove si sbaglia) → la lista passa da una
+pagina all'altra finché un titolo non la cambia → **cifra di controllo dei CAS** (305 letti, 2 refusi di una cifra) → + la
+parte in testo dello «shtojca» (Lista A, aggiunte 17/2026 con la data) → `data/processed/al_lista_narkotike.json`, **388 voci**
+(1961: I 167 · II 10 · III 14 preparati · IV 18; 1971: I 33 · II 65 · III 9 · IV 69; Lista A 3), letture in cache, cancello
+(≥4 liste, ≥200 voci, CAS sbagliati < 3 %). ⚠️ La Lista III del 1961 elenca PREPARATI a basso dosaggio (codeina ≤100 mg per dose,
+cocaina ≤0,1 %), non la sostanza: marcati `preparat`. **`src/narkotike_al.py`** (solo AL, etichette albanesi): `trova` (forme
+flesse — kokainë/kokaina/kokainës, hashish, ekstazi, shabu, «gaz gazmor» —, nomi ufficiali e altri nomi; sigle corte solo se
+scritte come sigle; ⚠️ **mai «hashash»**: nel neni 9 è Papaver somniferum, non l'hashish; ⚠️ «THC» nudo = delta-9, Lista II (fra
+gli «altri nomi» degli isomeri della Lista I c'è anche «THC»); tramadol, pregabalin, gabapentin, kratom, destrometorfano = in
+NESSUNA lista, verificato sull'allegato), `blocco` nel dossier del senior e del Giudice (`_mbledh_gatherers`, sessione AL: lista →
+gruppo, Lista A = III/b e non narcotica, «shtuar me ligjin nr. 17/2026 … per fatti anteriori verifica», cannabis → 61/2023),
+`verifica` (gruppo o lista sbagliati; «non controllata / in nessuna lista / non nelle Convenzioni» detto di una sostanza che c'è —
+⚠️ ma per una sostanza della SOLA Lista A «non è nelle Convenzioni / sotto controllo internazionale» è VERO e non si corregge;
+tramadolo chiamato psicotropo) → nota breve «Listat e lëndëve narkotike — për t'u korrigjuar» (idempotente, `web._verify_decisions_smart`)
++ blocco al Giudice (`trust_line`). **Lo schema dei gruppi entra nel corpus**: unità `skema` della 7975 (trascrizione della
+figura: gruppi I-III, sottogruppi A/B — ricetta per 7 o 60 giorni, ripetibilità della ricetta —, con la nota che il KP 283
+vigente punisce la detenzione «përveç rastit të përdorimit vetjak dhe në doza të vogla», mentre lo schema scrive «Ndiqet
+penalisht mbajtja për konsum vetjak»). Dopo: **0/35 errori col dossier davanti** (era 12 gruppi + 5 categorie); sulla risposta
+reale del v9.391 la verifica scatta UNA volta, sull'HHC. Golden **[139]**, 537; regressione nel banco di prova (lo schema).
+Freschezza: un consolidato nuovo della 7975 → `repair_lendet_narkotike.py --apply` + `ingest_liste_narkotike_al.py` (il promemoria
+è nell'email del controllo settimanale).
+
+**v9.391 — LE LEGGI ALBANESI SUGLI STUPEFACENTI NEL CORPUS (25 set, sera).** Il KP 283-284/c punisce ciò che è «në kundërshtim
+me ligjin» / «pa leje dhe autorizim sipas ligjit», ma quella legge non c'era: **ligji 7975/1995** «Për lëndët narkotike,
+psikotrope dhe të kontrolluara» (consolidato QBZ 2026-02-20, .docx; modificata da 99/2023, 128/2024, 17/2026: gruppi, lëndë të
+kontrolluara, autorizzazioni, ricette, sanzioni amministrative del neni 101) e **ligji 61/2023** (cannabis per uso medico con
+licenza, industriale ≤0,8 % THC con permesso; vendita e consumo in Albania vietati, neni 5/d; il neni 44 abroga le norme
+contrarie della 7975) → `ingest_al_qbz.py apply --only ligji_lendet_narkotike,ligji_kanabisi_mjekesor` (+154 unità). Tre
+difetti del .docx riparati da `tools/repair_lendet_narkotike.py` (solo su quest'atto, idempotente, backup): titoli di capo in
+maiuscole miste («KLASIFIKIMI I lëndëve NARKOTIKE…») rimasti in CODA a 6 articoli e troncati nel campo `kreu`; l'allegato nel
+corpo del neni 105 → unità `shtojca`; il neni 9 (divieto di OGNI coltivazione di cannabis) senza il rimando alla 61/2023 che lo
+abroga in parte (abrogazione implicita: il consolidato non lo dice) → nota di collegamento nel campo `note`, dichiarata come
+nostra. Config (area Penal), verificatore (numero, titolo nuovo e titolo VECCHIO «Për barnat narkotike dhe lëndët psikotrope» —
+quello che cita la 61/2023), etichette, `acts_meta` (190 atti), embedding incrementali `_flat3`/`_ck3`. Misura col triage vero
+(`eval_triage_ricerca.py`, 6 domande nuove: cocaina in tasca, cannabis medica, ketamina, tramadolo in farmacia, HHC, 200 piante):
+**6/6** con la norma decisiva nel blocco. Golden **[138]**, 536; 3 regressioni nuove nel banco di prova (66/66).
 
 **v9.390 — LE TABELLE DEGLI STUPEFACENTI (25 set, notte).** Il titolare: «caricale solo se serve davvero». Misurato prima:
 30 sostanze chieste al cervello senza web e confrontate con le tabelle ufficiali → **6 tabelle penali sbagliate**: ketamina

@@ -8887,6 +8887,12 @@ def _verify_decisions_smart(answer_text: str, jurisdiction: str) -> tuple[str, d
             except Exception:  # noqa: BLE001
                 log.debug("stupefacenti: nota saltata", exc_info=True)
             return answer_text, pay if (pay.get("stats") or {}).get("total") else None
+        # v9.392 — una sostanza nel gruppo/lista sbagliati o detta «non controllata» (ligji 7975/1995, allegato)
+        try:
+            from . import narkotike_al as _nk
+            answer_text = (answer_text or "") + _nk.nota(answer_text or "")
+        except Exception:  # noqa: BLE001
+            log.debug("narkotike_al: nota saltata", exc_info=True)
         idx = _decisions_index()
         if idx is None:
             return answer_text, None

@@ -217,6 +217,13 @@ _AL_NEW_ALIASES: list[tuple[str, list[str]]] = [
     ("rregullore_policia", ["vkm 112/2025", "vkm nr. 112/2025", "vkm nr. 112", "rregullorja e re e policisë",
                             "rregullore e policisë së shtetit (vkm 112/2025)"]),
     ("kodi_ajror", ["ligji nr. 96/2020", "kodi ajror", "kodit ajror"]),
+    # v9.391 — le due leggi sugli stupefacenti (il titolo vecchio della 7975 è quello che cita la 61/2023 al neni 44)
+    ("ligji_lendet_narkotike", ["ligji për lëndët narkotike, psikotrope dhe të kontrolluara", "ligji për lëndët narkotike dhe psikotrope",
+                                "ligji për lëndët narkotike", "ligji për barnat narkotike dhe lëndët psikotrope",
+                                "ligji për barnat narkotike", "ligji i lëndëve narkotike"]),
+    ("ligji_kanabisi_mjekesor", ["ligji për kontrollin e kultivimit dhe përpunimit të bimës së cannabis-it",
+                                 "ligji për kanabisin mjekësor", "ligji për cannabis-in mjekësor", "ligji i kanabisit mjekësor",
+                                 "ligji për kanabisin"]),
 ]
 _AL_TRANSLIT = str.maketrans({"ë": "e", "ç": "c", "Ë": "e", "Ç": "c"})
 for _code, _phrases in _AL_NEW_ALIASES:
@@ -268,6 +275,7 @@ _LAW_NUMBER_ALIASES: dict[str, str] = {
     "112/2025": "rregullore_policia",   # nuova Rregullore (VKM 112/2025; la 750/2015 è shfuqizuar)
     "96/2020": "kodi_ajror",
     "11/2026": "ligji_dhuna_familje_2026",   # trovata da freshness_check: 9669/2006 shfuqizuar
+    "7975": "ligji_lendet_narkotike", "7975/1995": "ligji_lendet_narkotike", "61/2023": "ligji_kanabisi_mjekesor",   # v9.391
 }
 # cattura anche l'anno («ligji nr. 79/2021», «ligjit nr. 111, datë 14.12.2017» → 111 + 2017)
 _LAW_NUM_RE = re.compile(r"ligj\w*\s+(?:nr\.?\s*)?(\d{2,5})(?:\s*/\s*(\d{4})|\s*,?\s*dat[ëe]\s*\d{1,2}\.\d{1,2}\.(\d{4}))?", re.IGNORECASE)
@@ -317,6 +325,7 @@ CODE_LABELS: dict[str, str] = {
     "ligji_armet": "Ligji Armët 74/2014", "ligji_transportet_rrugore": "Ligji Transportet 8308/1998",
     "ligji_prokurimi_publik": "Ligji Prokurimi 162/2020", "ligji_trajtimi_prones": "Ligji Trajtimi Pronës 133/2015",
     "ligji_proceset_kalimtare": "Ligji Proceset Kalimtare 20/2020",
+    "ligji_lendet_narkotike": "Ligji Lëndët Narkotike 7975/1995", "ligji_kanabisi_mjekesor": "Ligji Kanabisi Mjekësor 61/2023",
     # ── corpus italiano ──
     "antiriciclaggio": "D.Lgs 231/2007 (antiricicl.)",
     # ── wave5 + EUR-Lex (16 set 2026) ──

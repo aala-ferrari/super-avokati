@@ -92,7 +92,11 @@ def main() -> int:
     # leggi da aggiornare / sostituite: l'avvocato non deve citare legge morta
     if bad:
         # v9.390 — il d.P.R. 309/1990 porta con sé le TABELLE delle sostanze (dizionario a parte): vanno rilette anche loro
-        _extra = {"stupefacenti": " — rileggere anche le tabelle delle sostanze: <code>tools/ingest_tabelle_stupefacenti.py</code>"}
+        _extra = {"stupefacenti": " — rileggere anche le tabelle delle sostanze: <code>tools/ingest_tabelle_stupefacenti.py</code>",
+                  # v9.392 — la 7975/1995 porta le LISTE delle sostanze in figure e lo schema dei gruppi: dopo l'ingest, riparazione
+                  # dell'atto (capi, allegato, schema, rimando 61/2023) e rilettura delle figure
+                  "ligji_lendet_narkotike": " — poi <code>tools/repair_lendet_narkotike.py --apply</code> e rileggere le liste delle "
+                                            "sostanze: <code>tools/ingest_liste_narkotike_al.py</code>"}
         righe = "".join(f"<li><b>{r['lang']}:{r['code']}</b> — {r['status']}: {r.get('note', '')}{_extra.get(r['code'], '')}</li>" for r in bad)
         corpo = (f"<p>Controllo di freschezza del corpus ({ora()}): <b>{len(bad)} atti da aggiornare o sostituiti</b>.</p><ul>{righe}</ul>"
                  f"<p>Riepilogo: {riep}. Log: {log}<br>Rimedio: rilanciare l'ingest dell'atto (Normattiva: <code>tools/ingest_it_normattiva.py &lt;id&gt;</code>; "

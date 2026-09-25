@@ -148,11 +148,17 @@ def verifica(text: str, index, jurisdiction: str = "AL", retrieved_codes=None, f
         _cg = [it for it in pay.get("items") or [] if it.get("court") == "CGUE"]      # v9.389
         if _cg:
             out["_cgue"] = _cg
-        try:                                                                          # v9.390
-            from . import stupefacenti as _stp
-            _es = _stp.verifica(text)
-            if _es:
-                out["_stup"] = _es
+        try:                                                                          # v9.390 / v9.392
+            if (jurisdiction or "AL").upper() == "IT":
+                from . import stupefacenti as _stp
+                _es = _stp.verifica(text)
+                if _es:
+                    out["_stup"] = _es
+            else:
+                from . import narkotike_al as _nk
+                _en = _nk.verifica(text)
+                if _en:
+                    out["_nark"] = _en
         except Exception:  # noqa: BLE001
             pass
         for it in pay.get("items") or []:
@@ -340,6 +346,12 @@ def blocco_per_gjyqtarin(v: dict, lang: str = "sq", coverage: dict | None = None
                      "SBAGLIATA: correggi (la tabella decide il comma dell'art. 73):")
             for e in v["_stup"][:6]:
                 r.append(f"- «{e['sostanza']}» è in {e['vera']}, non nella Tabella {e['detta']}")
+        if v.get("_nark"):                                                            # v9.392
+            r.append("LISTAT E LËNDËVE (ligji nr. 7975/1995, shtojca: listat e Konventave 1961/1971, Lista A, shtesat e ligjit "
+                     "17/2026) — përgjigjja i vendos këto lëndë GABIM: korrigjo (lista vendos nëse zbatohen nenet 283-284/c të KP; "
+                     "grupi vendos regjimin e recetës dhe të kontrollit):")
+            for e in v["_nark"][:6]:
+                r.append(f"- «{e['sostanza']}»: {e['vera']} (përgjigjja: «{e['detta']}»)")
         if v.get("fatti_da_precisare"):
             r.append(f"La risposta segnala {v['fatti_da_precisare']} fatto/i da precisare («Per precisione»).")
         if n.get("foreign"):

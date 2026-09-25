@@ -14,6 +14,13 @@ CASI = [  # (giurisdizione, domanda dell'avvocato, articoli di cui almeno uno DE
     ("AL", "Klienti u mbajt 8 muaj në paraburgim dhe u pafajësua me vendim të formës së prerë. Çfarë kompensimi i takon dhe brenda çfarë afati?", [("kodi_proc_penale", "268"), ("kodi_proc_penale", "269")]),
     ("AL", "Punëdhënësi e pushoi klientin pas 8 vitesh pa asnjë paralajmërim. Çfarë i takon?", [("kodi_punes", "155"), ("kodi_punes", "146")]),
     ("AL", "Qiramarrësi nuk paguan qiranë prej 5 muajsh. Si ta nxjerr nga banesa?", [("kodi_civil", "801"), ("kodi_civil", "698"), ("kodi_civil", "703")]),
+    # v9.391 — stupefacenti (ligji 7975/1995 e 61/2023 nel corpus)
+    ("AL", "Klienti u kap nga policia me 3 gram kokainë në xhep. Çfarë rrezikon dhe a mund të mbrohemi me përdorimin vetjak?", [("kodi_penal", "283")]),
+    ("AL", "A lejohet në Shqipëri kultivimi i kanabisit për qëllime mjekësore dhe çfarë licence duhet?", [("ligji_kanabisi_mjekesor", "14"), ("ligji_kanabisi_mjekesor", "15"), ("ligji_kanabisi_mjekesor", "4"), ("ligji_kanabisi_mjekesor", "5"), ("ligji_kanabisi_mjekesor", "1")]),
+    ("AL", "Ketamina konsiderohet lëndë narkotike sipas ligjit shqiptar apo është lëndë e kontrolluar?", [("ligji_lendet_narkotike", "2"), ("ligji_lendet_narkotike", "shtojca"), ("ligji_lendet_narkotike", "3")]),
+    ("AL", "Farmacia e klientit shiste tramadol pa recetë mjekësore. Çfarë sanksionesh rrezikon?", [("ligji_lendet_narkotike", "101"), ("ligji_lendet_narkotike", "72"), ("ligji_lendet_narkotike", "65"), ("ligji_lendet_narkotike", "64")]),
+    ("AL", "Klienti u kap në mars 2026 me disa gram HHC të blera në internet. A është vepër penale?", [("ligji_lendet_narkotike", "shtojca"), ("kodi_penal", "283")]),
+    ("AL", "Një fermer kishte mbjellë 200 bimë kanabisi në tokën e tij. Çfarë dënimi rrezikon?", [("kodi_penal", "284")]),
     ("AL", "Klienti ka një borxh nga viti 2012 dhe kreditori tani e padit. A ka rënë në parashkrim?", [("kodi_civil", "114"), ("kodi_civil", "115")]),
     ("AL", "Dogana i sekuestroi klientit makinën për kontrabandë. Si ta kundërshtojmë?", [("kodi_doganor", "272"), ("kodi_doganor", "274"), ("ligji_gjykatat_administrative", "18")]),
     ("AL", "Bashkia i refuzoi klientit lejen e ndërtimit. Brenda sa ditësh e padisim në gjykatën administrative?", [("ligji_gjykatat_administrative", "18")]),
