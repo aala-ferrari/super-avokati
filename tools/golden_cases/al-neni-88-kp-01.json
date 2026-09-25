@@ -1,0 +1,20 @@
+{
+ "id": "al-neni-88-kp-01",
+ "jurisdiction": "AL",
+ "title": "Çfarë thotë neni 88 i Kodit Penal",
+ "facts": "Çfarë parashikon neni 88 i Kodit Penal?",
+ "kind": "simple",
+ "expected_laws": [
+  {
+   "code": "kodi_penal",
+   "number": "88"
+  }
+ ],
+ "key_points": [
+  "plagos",
+  "tre (gjer|deri) n[ëe] dhjet[ëe]|\\b3\\b.{0,12}\\b10\\b"
+ ],
+ "must_not_cite": [],
+ "notes": "SEED v9.393 (Romeo) — domanda SEMPLICE per misurare il percorso breve (precisione + secondi); articolo e fatti verificati sul corpus il 25 set 2026; da validare da avvocato.",
+ "validated_by": null
+}

@@ -75,6 +75,12 @@ CLAUDE_CODE_EFFORT = os.getenv("CLAUDE_CODE_EFFORT", "max")
 # la stessa sostanza, a «medium» la qualità cala. Il senior (Opus, tier
 # default) resta a CLAUDE_CODE_EFFORT. Vuoto = come il senior.
 CLAUDE_CODE_MEDIUM_EFFORT = os.getenv("CLAUDE_CODE_MEDIUM_EFFORT", "high")
+# v9.393 — lo SFORZO anche per il tier veloce (triage, Kërkuesi, OCR, classificazioni): «» = nessun flag (Sonnet 5 come
+# sempre). Serve se il tier veloce passa a Opus 5.5 (proposta del titolare, 25 set: «un buon inizio cambia il finale»).
+CLAUDE_CODE_FAST_EFFORT = os.getenv("CLAUDE_CODE_FAST_EFFORT", "")
+# v9.393 — la RETE DI SICUREZZA dei tier veloce/junior: se il loro modello raggiunge il limite della sottoscrizione (Opus
+# 5.5 al posto di Sonnet = centinaia di chiamate in più al giorno), la chiamata passa a questo modello invece di fallire.
+CLAUDE_CODE_LIMIT_FALLBACK_MODEL = os.getenv("CLAUDE_CODE_LIMIT_FALLBACK_MODEL", "claude-sonnet-5")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-pro")
 GEMINI_FAST_MODEL = os.getenv("GEMINI_FAST_MODEL", "gemini-2.5-flash")
 
@@ -585,6 +591,19 @@ STUDIO_GJYQTARI_SKUADRA_MODEL = os.getenv("STUDIO_GJYQTARI_SKUADRA_MODEL", "opus
 # + diavolo Fable (2 round) + Giudice Fable max con RISERVA dell'altra mente (Opus max) anche quando è
 # «impegnato», non solo sul limite. «0» = comportamento v9.357 (loop/raport solo in ⚡, nessuna riserva).
 GJYQTARI_SUPREM_ENABLED = os.getenv("GJYQTARI_SUPREM_ENABLED", "1") == "1"
+# v9.393 — IL COMPITO SCEGLIE IL MODELLO ANCHE PER IL SENIOR (richiesta del titolare, 25 set: «precisi e veloci nei casi
+# semplici, precisi quando serve ragionare nei casi difficili», con Opus 5.5 disponibile nel CLI). Modello ed effort per
+# percorso; «» = CLAUDE_CODE_MODEL / CLAUDE_CODE_EFFORT (Opus 5 max: il comportamento misurato finora). Si cambiano
+# nell'env SOLO dopo la misura del banco di prova (tools/benchmark_lab.py strato 2): mai a occhio.
+SENIOR_SIMPLE_MODEL = os.getenv("SENIOR_SIMPLE_MODEL", "")     # risposta breve (percorso semplice e follow-up)
+SENIOR_SIMPLE_EFFORT = os.getenv("SENIOR_SIMPLE_EFFORT", "")
+SENIOR_DEEP_MODEL = os.getenv("SENIOR_DEEP_MODEL", "")         # sala di guerra (composizione + replica al diavolo)
+SENIOR_DEEP_EFFORT = os.getenv("SENIOR_DEEP_EFFORT", "")
+# la RISERVA del Giudice è l'ALTRA mente: «» = Fable 5.1 se il Giudice non è Fable, altrimenti il senior (Opus)
+STUDIO_GJYQTARI_RISERVA = os.getenv("STUDIO_GJYQTARI_RISERVA", "")
+# nome ESPLICITO di Fable per Genio / secondo parere / avversario / drafter / Vault: gli alias del CLI cambiano fra versioni
+# (sul 2.1.282 «opus» = opus-5-5): un modello non deve cambiare in silenzio con un aggiornamento del CLI
+FABLE_MODEL_ID = os.getenv("FABLE_MODEL_ID", "claude-fable-5-1")
 # v9.361 — tetto al corpo di UN articolo nel prompt (34 «articoli» IT oltre 30.000 chr: leggi di
 # approvazione e allegati incollati; uno da 211.000). Il taglio è DICHIARATO nel blocco («… karaktere të
 # hequra»), mai silenzioso, e non vale MAI per il nene chiesto per numero dall'avvocato.

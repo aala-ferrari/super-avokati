@@ -21,7 +21,7 @@ def _juris(system_prompt: str) -> str:
 
 log = get_logger(__name__)
 
-FABLE_MODEL = "fable"
+from .config import FABLE_MODEL_ID as FABLE_MODEL  # v9.393: nome esplicito (l'alias «fable» dipende dalla versione del CLI)
 
 _SYSTEM = (
     "Ti je AVOKATI I PALES KUNDERSHTARE \u2014 i ftohtE, i pamEshirshEm, gjenial. "

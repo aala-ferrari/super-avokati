@@ -1,0 +1,20 @@
+{
+ "id": "al-divorci-pelqim-01",
+ "jurisdiction": "AL",
+ "title": "Zgjidhja e martesës me pëlqim reciprok",
+ "facts": "Si zgjidhet martesa me pëlqimin e të dy bashkëshortëve? Çfarë duhet t'i paraqesin gjykatës?",
+ "kind": "simple",
+ "expected_laws": [
+  {
+   "code": "kodi_familjes",
+   "number": "125"
+  }
+ ],
+ "key_points": [
+  "projektmarr[ëe]veshj",
+  "p[ëe]lqim"
+ ],
+ "must_not_cite": [],
+ "notes": "SEED v9.393 (Romeo) — domanda SEMPLICE per misurare il percorso breve (precisione + secondi); articolo e fatti verificati sul corpus il 25 set 2026; da validare da avvocato.",
+ "validated_by": null
+}

@@ -1,0 +1,20 @@
+{
+ "id": "it-art-2043-01",
+ "jurisdiction": "IT",
+ "title": "Cosa dice l'art. 2043 c.c.",
+ "facts": "Cosa dice l'art. 2043 del codice civile?",
+ "kind": "simple",
+ "expected_laws": [
+  {
+   "code": "codice_civile",
+   "number": "2043"
+  }
+ ],
+ "key_points": [
+  "danno ingiusto",
+  "doloso o colposo"
+ ],
+ "must_not_cite": [],
+ "notes": "SEED v9.393 (Romeo) — domanda SEMPLICE per misurare il percorso breve (precisione + secondi); articolo e fatti verificati sul corpus il 25 set 2026; da validare da avvocato.",
+ "validated_by": null
+}

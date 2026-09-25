@@ -1572,9 +1572,9 @@ def main():
         import io as _io33, os as _os33
         _rr33 = _os33.path.dirname(_os33.path.dirname(_os33.path.abspath(__file__)))
         _bs33 = _io33.open(_os33.path.join(_rr33, "src", "backends.py"), encoding="utf-8").read()
-        check("effort[33]: complete() passa da _pick_effort e lo stream (senior) resta a self.effort",
+        check("effort[33]: complete() passa da _pick_effort e lo stream (senior) resta a self.effort salvo scelta del percorso (v9.393)",
               "_eff = self._pick_effort(fast, medium, effort_override)" in _bs33
-              and _bs33.count('cmd.extend(["--effort", self.effort])') == 1)
+              and "_eff_s = effort_override or self.effort" in _bs33)
     except Exception as _e:  # noqa: BLE001
         check("effort[33]: kontrollet u ekzekutuan", False, str(_e))
 
@@ -1746,8 +1746,9 @@ def main():
         check("skuadra[37]: senior selector — thread-local + helper Opus/Fable",
               "_REQUEST_SENIOR" in _br37 and "def set_request_senior(" in _br37
               and "def _senior_override(" in _br37)
-        check("skuadra[37]: senior — override applicato in ENTRAMBI i compose complessi",
-              _br37.count("**_senior_override(request_senior())") == 2
+        # v9.393: il senior della sala di guerra passa da _senior_kw("deep") (⚡ Fable compreso) in TUTTI e tre i compose
+        check("skuadra[37]: senior — override applicato in TUTTI i compose complessi (_senior_kw, ⚡ compreso)",
+              _br37.count('**_senior_kw("deep")') == 3 and 'return _senior_override("fable")' in _br37
               and 'request_senior() != "fable"' in _br37)
         check("skuadra[37]: web — mendja letta, armata nel job, e «fable» ⇒ approfondito",
               'data.get("mendja")' in _wb37 and "brain_mod.set_request_senior(mendja)" in _wb37
@@ -1755,7 +1756,7 @@ def main():
         # SACRO — ESEGUITO: senza «fable» il cervello resta Opus (nessun override)
         from src import brain as _brain37
         check("skuadra[37]: SACRO — «fable» → Fable max; vuoto/«opus» → nessun override (Opus default)",
-              _brain37._senior_override("fable") == {"model_override": "fable", "effort_override": "max"}
+              _brain37._senior_override("fable") == {"model_override": "claude-fable-5-1", "effort_override": "max"}
               and _brain37._senior_override("") == {} and _brain37._senior_override("opus") == {})
         _js37 = _io37.open(_os37.path.join(_rr37, "static", "app.js"), encoding="utf-8").read()
         check("skuadra[37]: UI — v9.358: UN solo pulsante profondo «Gjyqtari Suprem» (senza nome modello); mendja resta solo via API, il pulsante ⚡ non c'è più",
@@ -3705,7 +3706,8 @@ def main():
         import inspect as _insp108
         from src import brain as _br108, config as _cf108
         _g = _insp108.getsource(_br108.SuperAvvocato._gjyqtari_fundit)
-        _okA = ('_riserva_gj = "opus" if _modeli_gj != "opus" else STUDIO_GJYQTARI_MODEL' in _g and "gjyqtari i rezervës" in _g
+        _okA = ('_riserva_gj = _riserva_giudice(_modeli_gj)' in _g and "gjyqtari i rezervës" in _g
+                and _br108._riserva_giudice("claude-fable-5-1") == "opus" and _br108._riserva_giudice("opus") == "claude-fable-5-1"
                 and 'modeli=_riserva_gj, effort="max"' in _g and '"mendja": _usato_gj' in _g and _g.count("self._cancello(") == 3)
         _src = _insp108.getsource(_br108)
         _okB = (_src.count('if request_senior() == "fable" or _gjyqtari_suprem():') == 2
@@ -4779,6 +4781,58 @@ def main():
               "A=%s B=%s C=%s D=%s E=%s per=%s err=%s" % (_okA, _okB, _okC, _okD, _okE, _per139, _e139))
     except Exception as _e139x:  # noqa: BLE001
         check("narkotike[139]: kontrollet u ekzekutuan", False, str(_e139x))
+
+    # [140] v9.393 — IL COMPITO SCEGLIE IL MODELLO ANCHE PER IL SENIOR (richiesta del titolare, 25 set): Opus 5.5 nel CLI
+    # (2.1.265 lo rifiutava: «unrecognized_model»), modello ed effort per PERCORSO (semplice / sala di guerra) dall'env, la
+    # riserva del Giudice = l'ALTRA mente, Fable per nome esplicito (sul 2.1.282 l'alias «opus» = opus-5-5: un aggiornamento
+    # del CLI non deve cambiare un modello in silenzio), e il ripiego per limite anche nello streaming.
+    try:
+        import inspect as _in140, subprocess as _sp140
+        from src import brain as _br140, config as _cf140, backends as _bk140
+        from src import second_opinion as _so140, genio as _ge140, adversary as _ad140, fable_drafter as _fd140, vault as _va140
+        _v = (_sp140.run(["claude", "--version"], capture_output=True, text=True, timeout=30).stdout or "").split()[0:1]
+        _ver = tuple(int(x) for x in (_v[0] if _v else "0.0.0").split(".")[:3])
+        _okA = _ver >= (2, 1, 281)
+        _par = _in140.signature(_bk140.ClaudeCodeBackend.complete_stream).parameters
+        _cs = _in140.getsource(_bk140.ClaudeCodeBackend.complete_stream)
+        _okB = ("model_override" in _par and "effort_override" in _par and "_limite_stream" in _cs
+                and _cs.count('error_class="ModelLimit"') == 2 and 'effort_override="max"' in _cs)
+        # la proposta del titolare («togliere Sonnet: un buon inizio cambia il finale»): lo sforzo del tier veloce e la rete
+        # di sicurezza dei tier veloce/junior quando Opus 5.5 è al limite — eseguiti, non letti
+        import shutil as _sh140
+        _b140 = _bk140.ClaudeCodeBackend(cli_path=_sh140.which("claude") or "/usr/bin/claude", effort="max", medium_effort="high",
+                                         fast_effort="medium", limit_fallback_model="claude-sonnet-5")
+        _cc = _in140.getsource(_bk140.ClaudeCodeBackend.complete) + _in140.getsource(_bk140.ClaudeCodeBackend.ocr_image)
+        _okB = (_okB and _b140._pick_effort(True, False) == "medium" and _b140._pick_effort(False, True) == "high"
+                and "elif _limite and _rete and model != _rete:" in _cc and "_rete_ocr" in _cc
+                and isinstance(_cf140.CLAUDE_CODE_LIMIT_FALLBACK_MODEL, str) and hasattr(_cf140, "CLAUDE_CODE_FAST_EFFORT"))
+        _salva = {k: getattr(_cf140, k) for k in ("SENIOR_SIMPLE_MODEL", "SENIOR_SIMPLE_EFFORT", "SENIOR_DEEP_MODEL", "SENIOR_DEEP_EFFORT")}
+        try:
+            for k in _salva:
+                setattr(_cf140, k, "")
+            _vuoto = _br140._senior_kw("simple") == {} and _br140._senior_kw("deep") == {}
+            _cf140.SENIOR_SIMPLE_MODEL, _cf140.SENIOR_SIMPLE_EFFORT = "claude-opus-5-5", "high"
+            _cf140.SENIOR_DEEP_MODEL, _cf140.SENIOR_DEEP_EFFORT = "claude-opus-5-5", "max"
+            _pieno = (_br140._senior_kw("simple") == {"model_override": "claude-opus-5-5", "effort_override": "high"}
+                      and _br140._senior_kw("deep") == {"model_override": "claude-opus-5-5", "effort_override": "max"})
+            _br140.set_request_senior("fable")
+            _fab = _br140._senior_kw("deep") == {"model_override": "claude-fable-5-1", "effort_override": "max"}
+        finally:
+            _br140.set_request_senior("")
+            for k, v in _salva.items():
+                setattr(_cf140, k, v)
+        _src140 = _in140.getsource(_br140)
+        _okC = (_vuoto and _pieno and _fab and _src140.count('**_senior_kw("simple")') == 4 and _src140.count('**_senior_kw("deep")') == 3
+                and "_eff_rep = " in _src140 and _br140._riserva_giudice("claude-opus-5-5") == "claude-fable-5-1"
+                and _br140._riserva_giudice("claude-fable-5-1") == "opus")
+        _okD = (_so140.FABLE_MODEL == _ge140.FABLE_MODEL == _ad140.FABLE_MODEL == _fd140.FABLE_MODEL == "claude-fable-5-1"
+                and "model_override=FABLE_MODEL_ID" in _in140.getsource(_va140))
+        check("modelli[140]: Opus 5.5 nel CLI (≥ 2.1.281) · streaming con modello/effort scelti e ripiego per limite · senior per "
+              "percorso (vuoto = Opus 5 max; ⚡ Fable vince) in 4 punti semplici e 3 profondi · replica al diavolo · riserva del "
+              "Giudice = l'altra mente · Fable per nome esplicito", _okA and _okB and _okC and _okD,
+              "cli=%s A=%s B=%s C=%s D=%s" % (_ver, _okA, _okB, _okC, _okD))
+    except Exception as _e140:  # noqa: BLE001
+        check("modelli[140]: kontrollet u ekzekutuan", False, str(_e140))
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

@@ -8,6 +8,7 @@ is the subscription CLI, nothing leaves the server.
 from __future__ import annotations
 
 from . import storage
+from .config import FABLE_MODEL_ID
 from .logging_utils import get_logger
 
 def _juris(system_prompt: str) -> str:
@@ -111,7 +112,7 @@ def find_needle(backend, case_id: str, max_tokens: int = 1600) -> dict:
         system=_juris(_NEEDLE_SYSTEM),
         messages=[{"role": "user", "content": prompt}],
         max_tokens=max_tokens,
-        model_override="fable",
+        model_override=FABLE_MODEL_ID,  # v9.393: nome esplicito, non l'alias del CLI
         callsite="needle",
     )
     return {"markdown": (md or "").strip(), "n_docs": len(used)}

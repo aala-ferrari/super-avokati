@@ -1,0 +1,20 @@
+{
+ "id": "al-mosha-pergjegjesise-penale-01",
+ "jurisdiction": "AL",
+ "title": "Mosha e përgjegjësisë penale",
+ "facts": "Nga ç'moshë ka përgjegjësi penale një i mitur në Shqipëri, për një krim dhe për një kundërvajtje penale?",
+ "kind": "simple",
+ "expected_laws": [
+  {
+   "code": "kodi_penal",
+   "number": "12"
+  }
+ ],
+ "key_points": [
+  "kat[ëe]rmb[ëe]dhjet[ëe]|\\b14\\b",
+  "gjasht[ëe]mb[ëe]dhjet[ëe]|\\b16\\b"
+ ],
+ "must_not_cite": [],
+ "notes": "SEED v9.393 (Romeo) — domanda SEMPLICE per misurare il percorso breve (precisione + secondi); articolo e fatti verificati sul corpus il 25 set 2026; da validare da avvocato.",
+ "validated_by": null
+}

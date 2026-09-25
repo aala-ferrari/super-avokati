@@ -454,7 +454,7 @@ def run_perspective(p: Perspective, *,
 from .logging_utils import get_logger  # v9.337: getLogger(__name__) non aveva handler → INFO persi
 log = get_logger(__name__)
 
-FABLE_MODEL = "fable"
+from .config import FABLE_MODEL_ID as FABLE_MODEL  # v9.393: nome esplicito (l'alias «fable» dipende dalla versione del CLI)
 
 # Le lenti che devono TROVARE qualcosa. Le altre tre — l'albero delle
 # decisioni, la verita' scomoda, la voce — producono comunque un contenuto

@@ -409,6 +409,8 @@ class ClaudeCodeBackend(LLMBackend):
         timeout_s: int = int(os.environ.get("TETRAMORPH_TIMEOUT_S", "2700")),
         effort: str | None = "max",
         medium_effort: str | None = None,
+        fast_effort: str | None = None,
+        limit_fallback_model: str | None = None,
     ):
         self.cli = cli_path or shutil.which("claude")
         if not self.cli:
@@ -427,13 +429,17 @@ class ClaudeCodeBackend(LLMBackend):
         # Misurato: Sonnet 5 a max = 7-13 min a fase, a high = 1-2 min,
         # stessa sostanza (config.CLAUDE_CODE_MEDIUM_EFFORT).
         self.medium_effort = medium_effort
+        # v9.393 — sforzo del tier veloce (None = nessun flag, Sonnet come sempre) e rete di sicurezza dei tier
+        # veloce/junior quando il loro modello è al limite della sottoscrizione (None = nessun ripiego)
+        self.fast_effort = fast_effort
+        self.limit_fallback_model = limit_fallback_model
 
     def _pick_effort(self, fast: bool, medium: bool,
                      effort_override: str | None = None) -> str | None:
         """Il compito sceglie l'effort: fast → nessuno; esplicito → quello;
         junior (medium) → medium_effort se impostato; senior → effort."""
         if fast:
-            return None
+            return self.fast_effort or None
         if effort_override:
             return effort_override
         if medium and self.medium_effort:
@@ -474,6 +480,13 @@ class ClaudeCodeBackend(LLMBackend):
         model = model_override or self._pick_model(fast, medium)
         _fallback_model = self._pick_model(fast, medium)
         _ripiego_fatto = False
+        # v9.393 — la rete di sicurezza dei tier veloce/junior (Opus 5.5 al posto di Sonnet): modello del tier in pausa per
+        # limite → si va subito sulla rete (Sonnet 5); se cade per limite adesso, idem più sotto
+        _rete = self.limit_fallback_model if (fast or medium) and not model_override else None
+        if _rete and model != _rete and modello_in_pausa(model) > 0:
+            log.info("Tetramorph: %s (tier %s) in pausa per limite — %s va sulla rete di sicurezza %s",
+                     model, "fast" if fast else "medium", callsite or "?", _rete)
+            model = _rete
         if model_override and model != _fallback_model and modello_in_pausa(model_override) > 0:
             log.info("Tetramorph: %s in pausa per limite (ancora %ds) — %s va a %s (effort max)",
                      model, int(modello_in_pausa(model_override)), callsite or "?", _fallback_model)
@@ -527,7 +540,7 @@ class ClaudeCodeBackend(LLMBackend):
         # la condizione `not model_override` li escludeva, quindi rispondevano
         # senza ragionamento esteso. Il percorso veloce resta senza effort.
         _eff = self._pick_effort(fast, medium, effort_override)
-        if not fast and _eff:
+        if _eff:                             # v9.393: il tier veloce ne ha uno solo se configurato (Opus 5.5)
             cmd.extend(["--effort", _eff])
 
         # --resume DISABILITATO: in headless -p le sessioni non persistono
@@ -665,6 +678,18 @@ class ClaudeCodeBackend(LLMBackend):
             _segna_pausa_per_avviso(model_override, _msg)
             t0 = time.time()
             proc, _limite = _esegui(cmd)
+        elif _limite and _rete and model != _rete:
+            # v9.393 — il modello del tier veloce/junior è al limite: pausa, avviso al titolare, la chiamata passa alla rete
+            _emit_audit(outcome="error", response_text=None, error_class="ModelLimit")
+            _tier_m = model
+            _metti_in_pausa(_tier_m)
+            _segna_pausa_per_avviso(_tier_m, (proc.stderr or proc.stdout or "")[:90].replace("\n", " "))
+            log.warning("Tetramorph: limite di %s raggiunto — %s passa alla rete di sicurezza %s per %d min",
+                        _tier_m, callsite or "?", _rete, MODEL_LIMIT_PAUSE_S // 60)
+            model = _rete
+            cmd[cmd.index("--model") + 1] = _rete
+            t0 = time.time()
+            proc, _limite = _esegui(cmd)
 
         # If --resume failed (session evicted / wrong id), retry fresh once
         # and flag the failure so the caller can invalidate the stale id.
@@ -749,12 +774,22 @@ class ClaudeCodeBackend(LLMBackend):
         user_id: int | None = None,
         case_id: str | None = None,
         no_web: bool = False,
+        model_override: str | None = None,
+        effort_override: str | None = None,
     ) -> Iterator[tuple[str, object]]:
         system = _apply_juris(system)  # giurisdizione della sessione
         system = _shto_profilin(system, fast)  # regole della casa
 
         self.last_resume_failed = False
-        model = self._pick_model(fast, medium)
+        # v9.393 — modello ed effort PER PERCORSO anche in streaming (il senior della chat): chi chiama sceglie (Opus 5.5
+        # high/max o il default). Un modello scelto in pausa per limite → subito il default del tier a effort MAX (regola
+        # del 17 set, come in complete()); se cade per limite PRIMA di scrivere, idem (più sotto). Senza override: come prima.
+        _default_model = self._pick_model(fast, medium)
+        model = model_override or _default_model
+        if model_override and model != _default_model and modello_in_pausa(model_override) > 0:
+            log.info("Tetramorph stream: %s in pausa per limite (ancora %ds) — %s va a %s (effort max)",
+                     model, int(modello_in_pausa(model_override)), callsite or "?", _default_model)
+            model, model_override, effort_override = _default_model, None, "max"
         tier = _tier_label(fast, medium)
         prompt_serialized = _serialize_prompt(system, messages)
         prompt_hash = _hash16(prompt_serialized)
@@ -790,8 +825,9 @@ class ClaudeCodeBackend(LLMBackend):
             "--verbose",
             "--model", model,
         ]
-        if not fast and self.effort:
-            cmd.extend(["--effort", self.effort])
+        _eff_s = effort_override or self.effort
+        if not fast and _eff_s:
+            cmd.extend(["--effort", _eff_s])
         # --resume DISABILITATO: in headless -p le sessioni non persistono
         # ("No conversation found"). Sempre system-prompt + history completa,
         # cosi i follow-up mantengono il contesto e non ripetono/errorano.
@@ -811,6 +847,7 @@ class ClaudeCodeBackend(LLMBackend):
         collected: list[str] = []
         new_session_id: str | None = None
         final_text: str = ""   # il testo finale del CLI (evento result), v9.316
+        _limite_stream = ""    # v9.393: quota del modello scelto esaurita prima di scrivere → ripiego
 
         # Same semaphore as the blocking path — streaming still holds a
         # CLI slot for its duration, so concurrent streams must queue.
@@ -881,6 +918,10 @@ class ClaudeCodeBackend(LLMBackend):
                         _uso_finale.update(_uso_da_risposta(evt))
                         if evt.get("is_error"):
                             err = str(evt.get("result", ""))[:500]
+                            if model_override and not collected and _model_limit_hit(err, ""):
+                                _limite_stream = err[:90].replace("\n", " ")
+                                _emit_audit(outcome="error", response_text=None, error_class="ModelLimit")
+                                break
                             _emit_audit(outcome="error", response_text=None,
                                         error_class="ClaudeCliError")
                             raise RuntimeError(_humanize_cli_failure(stderr=err))
@@ -902,7 +943,11 @@ class ClaudeCodeBackend(LLMBackend):
 
                 rc = proc.wait(timeout=self.timeout_s)
                 _st.join(timeout=2)
-                if rc != 0:
+                if rc != 0 and not _limite_stream and model_override and not collected \
+                        and _model_limit_hit("", "".join(_stderr_buf)):
+                    _limite_stream = "".join(_stderr_buf)[:90].replace("\n", " ")
+                    _emit_audit(outcome="error", response_text=None, error_class="ModelLimit")
+                if rc != 0 and not _limite_stream:
                     stderr = ("".join(_stderr_buf))[:500]
                     resume_failed = bool(session_id)
                     if resume_failed:
@@ -924,6 +969,18 @@ class ClaudeCodeBackend(LLMBackend):
                     proc.wait(timeout=5)  # reap, avoid zombies
                 except Exception:  # noqa: BLE001
                     pass
+
+        if _limite_stream:
+            # v9.393 — il modello scelto è al limite (pausa + email al titolare): la stessa domanda va al default a MAX
+            _metti_in_pausa(model_override)
+            _segna_pausa_per_avviso(model_override, _limite_stream)
+            log.warning("Tetramorph stream: limite di %s raggiunto («%s») — %s passa a %s per %d min",
+                        model, _limite_stream, callsite or "?", _default_model, MODEL_LIMIT_PAUSE_S // 60)
+            yield from self.complete_stream(
+                system=system, messages=messages, fast=fast, medium=medium, session_id=None,
+                callsite=callsite, user_id=user_id, case_id=case_id, no_web=no_web, effort_override="max",
+            )
+            return
 
         # V7.9 — if --resume failed, retry fresh (same logic as complete()).
         # We do it after releasing the semaphore to avoid deadlocking when
@@ -990,6 +1047,11 @@ class ClaudeCodeBackend(LLMBackend):
             "--allowedTools", f"Read({extra_dir}/**)",
             "--add-dir", extra_dir,
         ]
+        if self.fast_effort:                 # v9.393: Opus 5.5 come tier veloce
+            cmd.extend(["--effort", self.fast_effort])
+        _rete_ocr = self.limit_fallback_model
+        if _rete_ocr and self.fast_model != _rete_ocr and modello_in_pausa(self.fast_model) > 0:
+            cmd[cmd.index("--model") + 1] = _rete_ocr
         try:
             with self._concurrency_sem:
                 proc = subprocess.run(
@@ -1000,6 +1062,13 @@ class ClaudeCodeBackend(LLMBackend):
             raise RuntimeError(
                 f"Tetramorph OCR timed out after {self.timeout_s}s"
             ) from exc
+        if _rete_ocr and cmd[cmd.index("--model") + 1] != _rete_ocr and _model_limit_hit(proc.stdout or "", proc.stderr or ""):
+            # v9.393 — il modello veloce è al limite: lo stesso documento si legge con la rete di sicurezza
+            _metti_in_pausa(self.fast_model)
+            cmd[cmd.index("--model") + 1] = _rete_ocr
+            with self._concurrency_sem:
+                proc = subprocess.run(cmd, input=full_prompt, capture_output=True, text=True,
+                                      timeout=self.timeout_s, cwd=str(_CWD_CERVELLO), check=False)
         if proc.returncode != 0:
             raise RuntimeError(
                 f"Tetramorph OCR failed (rc={proc.returncode}): "
@@ -1314,6 +1383,8 @@ def build_backend() -> LLMBackend:
         CLAUDE_CODE_EFFORT,
         CLAUDE_CODE_FAST_MODEL,
         CLAUDE_CODE_MEDIUM_EFFORT,
+        CLAUDE_CODE_FAST_EFFORT,
+        CLAUDE_CODE_LIMIT_FALLBACK_MODEL,
         CLAUDE_CODE_MEDIUM_MODEL,
         CLAUDE_CODE_MODEL,
         CLAUDE_FAST_MODEL,
@@ -1359,6 +1430,8 @@ def build_backend() -> LLMBackend:
             fast_model=CLAUDE_CODE_FAST_MODEL,
             effort=CLAUDE_CODE_EFFORT or None,
             medium_effort=CLAUDE_CODE_MEDIUM_EFFORT or None,
+            fast_effort=CLAUDE_CODE_FAST_EFFORT or None,                     # v9.393
+            limit_fallback_model=CLAUDE_CODE_LIMIT_FALLBACK_MODEL or None,   # v9.393
         )
 
     if choice == "gemini":

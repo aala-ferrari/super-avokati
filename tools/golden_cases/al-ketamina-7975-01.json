@@ -1,0 +1,20 @@
+{
+ "id": "al-ketamina-7975-01",
+ "jurisdiction": "AL",
+ "title": "Ketamina sipas ligjit 7975/1995",
+ "facts": "Ketamina konsiderohet lëndë narkotike sipas ligjit shqiptar?",
+ "kind": "simple",
+ "expected_laws": [
+  {
+   "code": "ligji_lendet_narkotike",
+   "number": "2"
+  }
+ ],
+ "key_points": [
+  "e kontrolluar",
+  "Lista A|List[ëe]n A"
+ ],
+ "must_not_cite": [],
+ "notes": "SEED v9.393 (Romeo) — domanda SEMPLICE per misurare il percorso breve (precisione + secondi); articolo e fatti verificati sul corpus il 25 set 2026; da validare da avvocato.",
+ "validated_by": null
+}

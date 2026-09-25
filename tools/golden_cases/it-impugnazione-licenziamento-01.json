@@ -1,0 +1,20 @@
+{
+ "id": "it-impugnazione-licenziamento-01",
+ "jurisdiction": "IT",
+ "title": "Termine per impugnare il licenziamento",
+ "facts": "Entro quale termine il lavoratore deve impugnare il licenziamento, e cosa deve fare dopo?",
+ "kind": "simple",
+ "expected_laws": [
+  {
+   "code": "licenziamenti_individuali",
+   "number": "6"
+  }
+ ],
+ "key_points": [
+  "sessanta giorni|\\b60 giorni",
+  "centottanta giorni|\\b180 giorni"
+ ],
+ "must_not_cite": [],
+ "notes": "SEED v9.393 (Romeo) — domanda SEMPLICE per misurare il percorso breve (precisione + secondi); articolo e fatti verificati sul corpus il 25 set 2026; da validare da avvocato.",
+ "validated_by": null
+}

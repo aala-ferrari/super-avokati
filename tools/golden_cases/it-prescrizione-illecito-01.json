@@ -1,0 +1,20 @@
+{
+ "id": "it-prescrizione-illecito-01",
+ "jurisdiction": "IT",
+ "title": "Prescrizione del risarcimento da fatto illecito",
+ "facts": "Entro quanto tempo si prescrive il diritto al risarcimento del danno da fatto illecito? E se il danno deriva da un incidente stradale?",
+ "kind": "simple",
+ "expected_laws": [
+  {
+   "code": "codice_civile",
+   "number": "2947"
+  }
+ ],
+ "key_points": [
+  "cinque anni|\\b5 anni",
+  "due anni|\\b2 anni"
+ ],
+ "must_not_cite": [],
+ "notes": "SEED v9.393 (Romeo) — domanda SEMPLICE per misurare il percorso breve (precisione + secondi); articolo e fatti verificati sul corpus il 25 set 2026; da validare da avvocato.",
+ "validated_by": null
+}

@@ -26,7 +26,7 @@ def _juris(system_prompt: str) -> str:
 
 log = get_logger(__name__)
 
-FABLE_MODEL = "fable"
+from .config import FABLE_MODEL_ID as FABLE_MODEL  # v9.393: nome esplicito (l'alias «fable» dipende dalla versione del CLI)
 
 # v9.355 — il diavolo RADICATO (roadmap v4, prova viva del 21 set): finora il 🔮 sotto la risposta e
 # «Këshillë strategjike» ragionavano SENZA corpus (solo il testo della risposta e i fatti) e la loro

@@ -24,7 +24,7 @@ def _juris(system_prompt: str) -> str:
 
 log = get_logger(__name__)
 
-FABLE_MODEL = "fable"
+from .config import FABLE_MODEL_ID as FABLE_MODEL  # v9.393: nome esplicito (l'alias «fable» dipende dalla versione del CLI)
 
 KINDS = {
     "contract": "nj\u00eb KONTRAT\u00cb e plot\u00eb dhe mbrojt\u00ebse (qiraje, shitjeje, sh\u00ebrbimi, pune, etj.)",

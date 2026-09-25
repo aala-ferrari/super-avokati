@@ -1,0 +1,19 @@
+{
+ "id": "al-afati-ankimit-civil-01",
+ "jurisdiction": "AL",
+ "title": "Afati i ankimit në apel në procesin civil",
+ "facts": "Brenda sa ditësh bëhet ankimi në gjykatën e apelit kundër vendimit përfundimtar të gjykatës së shkallës së parë në një proces civil?",
+ "kind": "simple",
+ "expected_laws": [
+  {
+   "code": "kodi_proc_civile",
+   "number": "443"
+  }
+ ],
+ "key_points": [
+  "15 dit|pes[ëe]mb[ëe]dhjet[ëe] dit"
+ ],
+ "must_not_cite": [],
+ "notes": "SEED v9.393 (Romeo) — domanda SEMPLICE per misurare il percorso breve (precisione + secondi); articolo e fatti verificati sul corpus il 25 set 2026; da validare da avvocato.",
+ "validated_by": null
+}

@@ -644,8 +644,34 @@ def _gjyqtari_suprem() -> bool:
 def _senior_override(mendja: str) -> dict:
     """kwargs per il backend: Fable 5.1 max SOLO se «fable». Vuoto = Opus 5 max."""
     if (mendja or "").strip().lower() == "fable":
-        return {"model_override": "fable", "effort_override": "max"}
+        from .config import FABLE_MODEL_ID
+        return {"model_override": FABLE_MODEL_ID, "effort_override": "max"}
     return {}
+
+
+def _senior_kw(percorso: str) -> dict:
+    """v9.393 — modello ed effort del SENIOR per percorso («simple» = risposta breve e follow-up, «deep» = sala di
+    guerra) dall'env SENIOR_<PERCORSO>_MODEL / _EFFORT; vuoto = default del backend (Opus 5 max, il comportamento
+    misurato). ⚡ (Fable scelto dall'avvocato) vince sempre: è una scelta esplicita. Mai solleva."""
+    if request_senior() == "fable":
+        return _senior_override("fable")
+    try:
+        from . import config as _c
+        m = (getattr(_c, f"SENIOR_{percorso.upper()}_MODEL", "") or "").strip()
+        e = (getattr(_c, f"SENIOR_{percorso.upper()}_EFFORT", "") or "").strip()
+    except Exception:  # noqa: BLE001
+        return {}
+    return {**({"model_override": m} if m else {}), **({"effort_override": e} if e else {})}
+
+
+def _riserva_giudice(modeli_gj: str) -> str:
+    """v9.393 — la RISERVA del Giudice è l'ALTRA mente (regola del titolare: «un arbitro di riserva vale più di nessun
+    arbitro»): env STUDIO_GJYQTARI_RISERVA, altrimenti Fable 5.1 quando il Giudice non è Fable (Opus 5.5, o «opus» in ⚡)
+    e il senior (Opus, «opus») quando il Giudice è Fable."""
+    from .config import FABLE_MODEL_ID, STUDIO_GJYQTARI_RISERVA
+    if (STUDIO_GJYQTARI_RISERVA or "").strip():
+        return STUDIO_GJYQTARI_RISERVA.strip()
+    return "opus" if "fable" in (modeli_gj or "").lower() else FABLE_MODEL_ID
 
 
 # Cache breve del profilo per studio: una SELECT per richiesta sarebbe
@@ -2809,6 +2835,7 @@ class SuperAvvocato:
                 fast=False,
                 session_id=session_id,
                 no_web=_sqarim,
+                **_senior_kw("simple"),          # v9.393
             ):
                 if kind == "delta":
                     collected.append(str(payload))
@@ -2909,6 +2936,7 @@ class SuperAvvocato:
                 messages=msgs,
                 fast=False,
                 session_id=session_id,
+                **_senior_kw("simple"),          # v9.393
             ):
                 if kind == "delta":
                     collected.append(str(payload))
@@ -3215,6 +3243,7 @@ class SuperAvvocato:
                 max_tokens=2500,
                 fast=False,
                 session_id=session_id,
+                **_senior_kw("simple"),          # v9.393
             )
             if ALBANIAN_EDITOR_ENABLED:
                 try:
@@ -3873,14 +3902,16 @@ class SuperAvvocato:
             # 2° PASSAGGIO (spec titolare): il senior RISPONDE all'attacco —
             # accolto/respinto/parziale + strategia rivista. Stessa mente del
             # senior (Opus max di default, Fable se scelto). Fail-silent.
-            _mendja = "fable" if request_senior() == "fable" else "opus"
+            from .config import SENIOR_DEEP_MODEL as _sdm, SENIOR_DEEP_EFFORT as _sde, FABLE_MODEL_ID as _fid
+            _mendja = _fid if request_senior() == "fable" else ((_sdm or "").strip() or "opus")     # v9.393
+            _eff_rep = "max" if request_senior() == "fable" else ((_sde or "").strip() or "max")
             risposta = ""
             try:
                 risposta = studio.senior_pergjigjja(
                     self.backend, domanda=user_message,
                     blloku_neneve=_format_articles_for_prompt(retrieved),
                     pergjigja=answer_text, sulmi=sez, lang=lang,
-                    modeli=_mendja, effort="max")
+                    modeli=_mendja, effort=_eff_rep)
                 if risposta:
                     risposta = _apply_corrections(_verify_citations(risposta, precedents))
                     log.info("studio: seniori iu përgjigj sulmeve (%d shkronja)", len(risposta))
@@ -3906,7 +3937,7 @@ class SuperAvvocato:
                             self.backend, domanda=user_message,
                             blloku_neneve=_format_articles_for_prompt(retrieved),
                             pergjigja=answer_text, sulmi=_s2, lang=lang,
-                            modeli=_mendja, effort="max", finale=True)
+                            modeli=_mendja, effort=_eff_rep, finale=True)
                         if _fin:
                             _fin = _apply_corrections(_verify_citations(_fin, precedents))
                             raund2 = _s2 + _fin
@@ -4101,7 +4132,7 @@ class SuperAvvocato:
                 # Fable cade per saturazione («impegnato», 4 tentativi) e la risposta esce senza verdetto.
                 # Regola del titolare (v9.343): «un arbitro di riserva vale più di nessun arbitro» — qui
                 # vale anche per la saturazione, con l'ALTRA mente (Opus max; in ⚡ torna a Fable).
-                _riserva_gj = "opus" if _modeli_gj != "opus" else STUDIO_GJYQTARI_MODEL
+                _riserva_gj = _riserva_giudice(_modeli_gj)          # v9.393: l'ALTRA mente
                 try:
                     log.info("studio: gjyqtari i rezervës (%s) pas dështimit të %s", _riserva_gj, _modeli_gj)
                     vendim = studio.gjyqtari_fundit(self.backend, modeli=_riserva_gj, effort="max", **_kw_gj)
@@ -5897,6 +5928,7 @@ class SuperAvvocato:
             max_tokens=1500,
             fast=False,
             session_id=session_id,
+            **_senior_kw("simple"),          # v9.393
         )
 
     def _build_compose_messages(
@@ -6039,7 +6071,7 @@ class SuperAvvocato:
             fast=False,
             session_id=session_id,
             attachments=attachment_paths or None,
-            **_senior_override(request_senior()),
+            **_senior_kw("deep"),          # v9.393 (⚡ Fable compreso)
             # v9.318 — il ripiego dopo un compose scaduto gira SENZA web: deve finire
             **({"no_web": True} if no_web else {}),
         )
@@ -6096,7 +6128,7 @@ class SuperAvvocato:
                 fast=False,
                 session_id=session_id,
                 attachments=attachment_paths or None,
-                **_senior_override(request_senior()),
+                **_senior_kw("deep"),          # v9.393 (⚡ Fable compreso)
             )
             new_sid = getattr(backend, "last_session_id", None) or session_id
             # Emit as a single delta so the UI can still render progress.
@@ -6111,6 +6143,7 @@ class SuperAvvocato:
             messages=messages,
             fast=False,
             session_id=session_id,
+            **_senior_kw("deep"),          # v9.393
         ):
             if kind == "delta":
                 collected.append(str(payload))
