@@ -14,6 +14,9 @@ CASI = [  # (giurisdizione, domanda dell'avvocato, articoli di cui almeno uno DE
     ("AL", "Klienti u mbajt 8 muaj në paraburgim dhe u pafajësua me vendim të formës së prerë. Çfarë kompensimi i takon dhe brenda çfarë afati?", [("kodi_proc_penale", "268"), ("kodi_proc_penale", "269")]),
     ("AL", "Punëdhënësi e pushoi klientin pas 8 vitesh pa asnjë paralajmërim. Çfarë i takon?", [("kodi_punes", "155"), ("kodi_punes", "146")]),
     ("AL", "Qiramarrësi nuk paguan qiranë prej 5 muajsh. Si ta nxjerr nga banesa?", [("kodi_civil", "801"), ("kodi_civil", "698"), ("kodi_civil", "703")]),
+    # v9.394 — il caso del banco di prova che NESSUNA variante risolve (26 set: legge sugli stranieri 72-73 e premio di anzianità
+    # mancati 6 giri su 6): licenziamento di un lavoratore straniero con permesso unico
+    ("AL", "Shtetas i huaj, leje qëndrimi për punë, 3 vjet punë, zgjidhje e menjëhershme e kontratës pa shkak, pa afat njoftimi.", [("ligji_te_huajt", "72"), ("kodi_punes", "152")]),
     # v9.391 — stupefacenti (ligji 7975/1995 e 61/2023 nel corpus)
     ("AL", "Klienti u kap nga policia me 3 gram kokainë në xhep. Çfarë rrezikon dhe a mund të mbrohemi me përdorimin vetjak?", [("kodi_penal", "283")]),
     ("AL", "A lejohet në Shqipëri kultivimi i kanabisit për qëllime mjekësore dhe çfarë licence duhet?", [("ligji_kanabisi_mjekesor", "14"), ("ligji_kanabisi_mjekesor", "15"), ("ligji_kanabisi_mjekesor", "4"), ("ligji_kanabisi_mjekesor", "5"), ("ligji_kanabisi_mjekesor", "1")]),

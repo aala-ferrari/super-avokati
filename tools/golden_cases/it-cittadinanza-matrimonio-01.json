@@ -1,45 +1,45 @@
 {
-  "id": "it-cittadinanza-matrimonio-01",
-  "jurisdiction": "IT",
-  "title": "Cittadinanza per matrimonio vs residenza, condanna per guida in stato di ebbrezza",
-  "question": "Il mio cliente, cittadino albanese, vive in Italia da 11 anni con permesso di soggiorno UE per soggiornanti di lungo periodo; è sposato con una cittadina italiana da 3 anni e hanno un figlio nato in Italia. Vuole la cittadinanza italiana: quale via conviene (matrimonio o residenza), quali requisiti e documenti servono, quanto dura la procedura e cosa succede se nel frattempo riceve una condanna per guida in stato di ebbrezza?",
-  "facts": "Albanese, 11 anni di residenza, permesso UE lungo periodo, matrimonio con italiana da 3 anni, figlio nato in Italia, possibile condanna art. 186 C.d.S.",
-  "expected_laws": [
-    {
-      "code": "cittadinanza",
-      "number": "5"
-    },
-    {
-      "code": "cittadinanza",
-      "number": "6"
-    },
-    {
-      "code": "cittadinanza",
-      "number": "9"
-    },
-    {
-      "code": "codice_strada",
-      "number": "186"
-    },
-    {
-      "code": "immigrazione",
-      "number": "9"
-    }
-  ],
-  "must_not_cite": [],
-  "key_points": [
-    "B1",
-    "24 mesi|ventiquattro mesi",
-    "giuramento",
-    "contravvenzion"
-  ],
-  "verdict_expect": "matrimonio",
-  "expected_issues": [
-    "art. 5 L. 91/1992 via matrimonio",
-    "cause ostative art. 6",
-    "durata 24+12 mesi",
-    "B1"
-  ],
-  "notes": "SEED dalla prova viva del 16 set 2026 (26 min, corretta) — da validare.",
-  "validated_by": null
+ "id": "it-cittadinanza-matrimonio-01",
+ "jurisdiction": "IT",
+ "title": "Cittadinanza per matrimonio vs residenza, condanna per guida in stato di ebbrezza",
+ "question": "Il mio cliente, cittadino albanese, vive in Italia da 11 anni con permesso di soggiorno UE per soggiornanti di lungo periodo; è sposato con una cittadina italiana da 3 anni e hanno un figlio nato in Italia. Vuole la cittadinanza italiana: quale via conviene (matrimonio o residenza), quali requisiti e documenti servono, quanto dura la procedura e cosa succede se nel frattempo riceve una condanna per guida in stato di ebbrezza?",
+ "facts": "Albanese, 11 anni di residenza, permesso UE lungo periodo, matrimonio con italiana da 3 anni, figlio nato in Italia, possibile condanna art. 186 C.d.S.",
+ "expected_laws": [
+  {
+   "code": "cittadinanza",
+   "number": "5"
+  },
+  {
+   "code": "cittadinanza",
+   "number": "6"
+  },
+  {
+   "code": "cittadinanza",
+   "number": "9"
+  },
+  {
+   "code": "codice_strada",
+   "number": "186"
+  },
+  {
+   "code": "tu_immigrazione",
+   "number": "9"
+  }
+ ],
+ "must_not_cite": [],
+ "key_points": [
+  "B1",
+  "24 mesi|ventiquattro mesi",
+  "giuramento",
+  "contravvenzion"
+ ],
+ "verdict_expect": "matrimonio",
+ "expected_issues": [
+  "art. 5 L. 91/1992 via matrimonio",
+  "cause ostative art. 6",
+  "durata 24+12 mesi",
+  "B1"
+ ],
+ "notes": "SEED dalla prova viva del 16 set 2026 (26 min, corretta) — da validare. — 26 set 2026: codice corretto «immigrazione» → «tu_immigrazione» (il codice «immigrazione» non esiste nel corpus: la norma risultava mancata 6 volte su 6 per un errore del caso, non del cervello).",
+ "validated_by": null
 }

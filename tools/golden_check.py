@@ -4834,6 +4834,39 @@ def main():
     except Exception as _e140:  # noqa: BLE001
         check("modelli[140]: kontrollet u ekzekutuan", False, str(_e140))
 
+    # [141] v9.394 — LE NORME CHE NESSUN MODELLO CITAVA (misura dei modelli, 26 set: 6 giri su 6, qualunque configurazione):
+    # nel licenziamento dello straniero la ligji 79/2021 art. 72-73 (il licenziamento da solo non annulla il permesso unico) e il
+    # premio di anzianità (KP 152, dopo 3 anni). La ricerca non le portava al senior → ancore di ragione giuridica, a FRASE INTERA
+    # («qëndrim» è anche «posizione», «pushime» le ferie); e un'ancora già fra i 12 sale in testa, perché ciò che entra dopo
+    # (ancore per titolo, nene chiesti, Kërkuesi) la spingeva oltre il taglio.
+    try:
+        import inspect as _in141
+        from src import brain as _br141
+        _pp141 = [(a, 1.0) for a in idx.articles if a.code == "kodi_punes"][:12]
+        def _anc141(t, aree=("Punë", "Civil")):
+            out = _br141._applica_ancore(list(_pp141), idx, [t], list(aree))
+            return {(a.code, a.number) for a, _ in out[:6]}
+        _a = _anc141("Shtetas i huaj me leje qëndrimi për punë, zgjidhje e menjëhershme e kontratës pas 3 vjet punë")
+        _okA = (("ligji_te_huajt", "72") in _a and ("ligji_te_huajt", "73") in _a and ("kodi_punes", "152") in _a
+                and ("kodi_punes", "152") in _anc141("Punëdhënësi e pushoi klientin pas 8 vitesh pa asnjë paralajmërim"))
+        _t1 = _anc141("qëndrimi i gjykatës për zgjidhjen e mosmarrëveshjes për lejen e ndërtimit")
+        _t2 = _anc141("sa ditë pushime vjetore më takojnë pas 5 vitesh punë?")
+        _t3 = _anc141("i huaji u dënua për vjedhje, leje qëndrimi e anuluar, zgjidhja e çështjes", ("Penal",))
+        _okB = (not any(k[0] == "ligji_te_huajt" for k in _t1 | _t2 | _t3) and ("kodi_punes", "152") not in (_t1 | _t2 | _t3))
+        _k152 = next(a for a in idx.articles if a.code == "kodi_punes" and str(a.number) == "152")
+        _pp = [(a, 1.0) for a in idx.articles if a.code == "kodi_punes" and str(a.number) != "152"][:8] + [(_k152, 0.5)] + \
+              [(a, 0.4) for a in idx.articles if a.code == "kodi_punes"][20:23]
+        _out = _br141._applica_ancore(_pp, idx, ["Klienti është pushuar nga puna pas 8 vitesh punë"], ["Punë"])
+        _pos = [(a.code, a.number) for a, _ in _out].index(("kodi_punes", "152"))
+        _okC = (_pos < 3 and not getattr(_out[_pos][0], "_ancora", False) and len(_out) == len(_pp)
+                and '(getattr(triage, "domanda", "") or "")[:600]' in _in141.getsource(_br141.SuperAvvocato._retrieve))
+        check("ancore[141]: straniero licenziato → ligji 79/2021 art. 72-73 · licenziamento dopo anni → KP 152 · niente sulla "
+              "«posizione» della corte, sulle ferie, nel penale · un'ancora già fra i 12 sale in testa (originale, non copia) · "
+              "le ancore leggono anche la domanda", _okA and _okB and _okC,
+              "A=%s B=%s C=%s pos152=%s" % (_okA, _okB, _okC, _pos))
+    except Exception as _e141:  # noqa: BLE001
+        check("ancore[141]: kontrollet u ekzekutuan", False, str(_e141))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

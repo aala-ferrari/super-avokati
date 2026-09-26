@@ -2,7 +2,7 @@
 
 Strumento AI per avvocati (B2B), **bi-giurisdizione AL + IT**. Front-end Flask (waitress, UN processo) su porta
 5050, SQLite (`data/app.db`). Postgres `legalkb` NON è raggiungibile dal container: i precedenti vivono nel pickle.
-**Stato al 25 set 2026 (v9.393)** — i numeri qui sono quelli veri; più sotto, nelle sezioni datate, c'è la storia:
+**Stato al 26 set 2026 (v9.394)** — i numeri qui sono quelli veri; più sotto, nelle sezioni datate, c'è la storia:
 - **AL leggi** (`bm25.pkl`, BM25 con diacritici piegati dal v9.367, titolo del capitolo cercabile dal v9.373): **10.460 unità / 64 codici** (dal v9.391 anche la ligji 7975/1995 sugli stupefacenti e la 61/2023 sulla cannabis medica); embedding AL `_flat3`/`_ck3` (capitoli + corpo intero, `EMB_SUFFIX_SQ`/`EMB_SUFFIX2_SQ`), IT `_flat4`/`_ck4` dal v9.384 (`EMB_SUFFIX_IT`/`EMB_SUFFIX2_IT`); fonte
   `data/processed/all_articles.jsonl` (il pickle è derivato).
 - **Precedenti** (`bm25_decisions.pkl`): **3.996** = Kushtetuese **672** + Gjykata e Lartë **2.960** + CEDU **364**
@@ -645,7 +645,7 @@ errori, non che le risposte sono ancora giuste. Riferimento verificato il
 12 articoli recuperati per ciascuna.
 
 ```bash
-docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63], triage-trim+giudice-no-web [64], chat-web+verdetto-in-testa+pannelli-IT [65], codice-nominato→area [66], timeout-45min+ripiego-no-web [67], fasi-bilingue+giudice-no-web+duello-a-scomparsa [68], etichette-composte-bilingui [69]). Baseline **538/538** (25 set, v9.393: + [140] Opus 5.5 nel CLI e modelli per percorso; v9.392: + [139] liste albanesi delle sostanze; v9.391: + [138] leggi albanesi sugli stupefacenti nel corpus; v9.390: + [137] tabelle degli stupefacenti; v9.389: + [136] Corte di giustizia UE sull'archivio CELLAR; v9.388: + [135] sentenze albanesi «non confermate» = inammissibilità dell'archivio o decisioni di altri organi; v9.386: + [134] precedenti di Cassazione per la domanda + etichette del prompt nella lingua della sessione; v9.385: + [133] Cassazione sull'archivio ufficiale — con un controllo dal vivo che si SALTA se l'archivio non risponde; v9.384: + [129] capitoli IT, [130] articoli puntati, [131] rubriche IT, [132] UE/CEDU; era 98 il 31 ago).
+docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63], triage-trim+giudice-no-web [64], chat-web+verdetto-in-testa+pannelli-IT [65], codice-nominato→area [66], timeout-45min+ripiego-no-web [67], fasi-bilingue+giudice-no-web+duello-a-scomparsa [68], etichette-composte-bilingui [69]). Baseline **539/539** (26 set, v9.394: + [141] ancore dello straniero licenziato e del premio di anzianità; v9.393: + [140] Opus 5.5 nel CLI e modelli per percorso; v9.392: + [139] liste albanesi delle sostanze; v9.391: + [138] leggi albanesi sugli stupefacenti nel corpus; v9.390: + [137] tabelle degli stupefacenti; v9.389: + [136] Corte di giustizia UE sull'archivio CELLAR; v9.388: + [135] sentenze albanesi «non confermate» = inammissibilità dell'archivio o decisioni di altri organi; v9.386: + [134] precedenti di Cassazione per la domanda + etichette del prompt nella lingua della sessione; v9.385: + [133] Cassazione sull'archivio ufficiale — con un controllo dal vivo che si SALTA se l'archivio non risponde; v9.384: + [129] capitoli IT, [130] articoli puntati, [131] rubriche IT, [132] UE/CEDU; era 98 il 31 ago).
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 bash /root/prova_sse.sh                                    # SULL'HOST (legge il secret da /opt/super-avvocato.env; copia in tools/prova_sse.sh): account di prova → login → fascicolo → 1 domanda VERA → stream /api/ask/events attraverso waitress. Deve dire «HTTP 200 … done: 1» (~50s, costa 1 chiamata al cervello) e cancella l'account. Dopo OGNI build che tocca web.py o le rotte SSE.
@@ -1512,6 +1512,22 @@ rischio residuo della DPIA.
 - Super Avokati ha auth propria (login_required_api); utenti creati da admin o auto-provisionati da AALA (`/api/provision-demo`, secret-guarded).
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
+
+**v9.394 — LE NORME CHE NESSUN MODELLO CITAVA (26 set, mattina).** Dalla misura dei modelli: alcune norme attese mancavano in
+TUTTI i giri, con qualunque configurazione. Due erano errori del banco di prova: cittadinanza per matrimonio con il codice
+«immigrazione» (inesistente: è `tu_immigrazione`) e il licenziamento GMO di un assunto nel 2018 con attese St. Lav. 18 e 7 (il
+regime è il d.lgs. 23/2015 art. 3, che al comma 3 esclude l'art. 7 L. 604/1966; l'art. 7 St. Lav. è il procedimento disciplinare)
+— corretti e ricalcolati tutti i giri (`tools/rescore_l2.py`): oggi **0,921**, Giudice 5.5 0,906, inizio 5.5 medium 0,900, tutto
+5.5 0,897, senior+Giudice 5.5 0,881, inizio 5.5 high 0,854 → nessuna variante sopra la configurazione di oggi, niente acceso. Due
+erano difetti VERI del cervello: nel licenziamento dello straniero con permesso per lavoro né la **ligji 79/2021 art. 72** (1/e:
+il rapporto interrotto, con l'avviso del datore entro 2 settimane; p. 2: «Papunësia nuk përbën arsye të mjaftueshme për anulimin
+e lejes unike») e **73** (il ricorso contro l'annullamento), né il **premio di anzianità KP 152** (dopo 3 anni) entravano nel blocco
+del senior: il triage cerca solo il licenziamento. Cure: due ancore di ragione giuridica (`ANCORE_AL`) a FRASE INTERA (⚠️
+«qëndrim» vuol dire anche «posizione» — «qëndrimi i gjykatës» —, «pushime» sono le ferie; «e pushoi / pushuar / pushim nga puna»
+sì), spente nel penale; le ancore leggono anche la DOMANDA dell'avvocato (600 chr); e un'ancora GIÀ fra i 12 ora **sale in
+testa** (l'articolo com'è, non una copia): i passi dopo — ancore per titolo, nene chiesti, Kërkuesi — inseriscono in testa e il
+taglio a 12 la buttava fuori (misurato col triage vero: KP 152 fuori proprio nel giro in cui il triage cercava «shpërblim për
+vjetërsi»). Il banco di prova cancella i fascicoli di prova IT a fine caso. Golden **[141]**, 539; brain_retrieve 7/7 (+2).
 
 **v9.393 — OPUS 5.5 NEL CLI, MODELLO E SFORZO PER PERCORSO (25 set, notte).** Il titolare: «giudice 5.5 max nelle
 combinazioni… precisi quando serve ragionare nei casi difficili, precisi e veloci nei semplici… inserisci nel cli headless

@@ -98,6 +98,13 @@ log = get_logger(__name__)
 # posto a un risultato vero.
 import copy as _copy
 
+# v9.394 — le frasi del permesso dello straniero e del licenziamento (per l'ancora della ligji 79/2021 art. 72-73)
+_LEJE_AL = ("leje qëndrim", "lejes së qëndrim", "lejen e qëndrim", "leja e qëndrim", "leje të qëndrim", "lejet e qëndrim",
+            "leje qendrim", "lejes se qendrim", "lejen e qendrim", "leja e qendrim", "leje unik", "lejes unik", "lejen unik",
+            "leja unik", "shtetas i huaj", "shtetasi i huaj", "shtetas të huaj", "punëmarrës i huaj", "punëmarrësi i huaj",
+            "punemarres i huaj")
+_PUSHIM_AL = ("zgjidh", "pushu", "pushoi", "pushon", "pushim nga", "largu", "ndërpre", "nderpre")
+
 ANCORE_AL: tuple = (
     # v9.381: «parashkrimi fitues» (usucapione, KC 168 e ss.) NON è la prescrizione estintiva: non accende il 114
     (("parashkrim", "parashkru"), ("Penal",), (("kodi_civil", "114"),), r"parashkrim\w*\s+fitu\w*|fitim\w*\s+(?:\w+\s+){0,3}me\s+parashkrim\w*"),
@@ -122,6 +129,17 @@ ANCORE_AL: tuple = (
     # MAI il 195, e il punteggio del caso oscillava 0,55-1,00 fra un giro e l'altro qualunque fosse la variante)
     (("kartel", ("ashk", "shit"), ("ashk", "blej"), ("ashk", "tjetërsim"), ("rubrik", "kufizim"), ("regjistr", "pasuri", "shit"),
       ("hipotek", "shit")), ("Penal",), (("kodi_civil", "193"), ("kodi_civil", "195"))),
+    # v9.394 — misurato dalla misura dei modelli (26 set): nel caso «straniero con permesso per lavoro licenziato» NESSUNA
+    # delle 6 varianti (qualunque modello) citava la ligji 79/2021 art. 72 (i motivi di annullamento del permesso unico: il
+    # rapporto interrotto 1/e con l'obbligo del datore di avvisare entro 2 settimane, e al p. 2 «Papunësia nuk përbën arsye të
+    # mjaftueshme për anulimin e lejes unike») né il 73 (il ricorso contro l'annullamento): il triage cerca solo il licenziamento.
+    # ⚠️ frasi INTERE: «qëndrim» da solo è anche «posizione» («qëndrimi i gjykatës»), «push» anche le ferie («pushime vjetore»)
+    (tuple((l, p) for l in _LEJE_AL for p in _PUSHIM_AL), ("Penal",), (("ligji_te_huajt", "72"), ("ligji_te_huajt", "73"))),
+    # v9.394 — stesso caso: il premio di anzianità (KP 152: «marrëdhëniet e punës që kanë zgjatur jo më pak se tre vjet») mancato
+    # 5 volte su 6 in un licenziamento dopo 3 anni — soldi del cliente che la risposta non chiedeva
+    ((("zgjidh", "kontrat", "pun", "vjet"), ("zgjidh", "kontrat", "pun", "vite"), ("pushu", "pun", "vjet"), ("pushu", "pun", "vite"),
+      ("pushim nga pun", "vjet"), ("pushim nga pun", "vite"), ("pushoi", "vjet"), ("pushoi", "vit"), "vjetërsi"),
+     ("Penal",), (("kodi_punes", "152"),)),
 )
 # v9.380 — ancore italiane di REGOLA GENERALE (stesso metro): «il credito risale al 2013 — è prescritto?» → il triage cerca
 # ordinaria + interruzione + sospensione e il 2946 c.c. «Prescrizione ordinaria» finiva oltre il 12° (2945, 2935, 2964 sopra).
@@ -163,6 +181,7 @@ def _applica_ancore(pairs, idx, queries: list[str], aree: list[str], ancore=None
     presenti = {(a.code, a.number) for a, _ in pairs[:TOP_K_ARTICLES]}
     per_chiave = {(a.code, a.number): a for a in idx.articles}
     aggiunte = []
+    promossi: list = []
     for voce in (ANCORE_AL if ancore is None else ancore):
         parole, aree_spente, articoli = voce[0], voce[1], voce[2]
         # v9.381: un quarto elemento (regex) toglie le frasi che NON contano prima di cercare le parole
@@ -174,7 +193,17 @@ def _applica_ancore(pairs, idx, queries: list[str], aree: list[str], ancore=None
         if any(x in aree for x in aree_spente):
             continue
         for chiave in articoli:
-            if chiave in presenti or chiave not in per_chiave:
+            if chiave not in per_chiave:
+                continue
+            if chiave in presenti:
+                # v9.394 — già fra i 12, ma ciò che entra DOPO in testa (ancore per titolo, nene chiesti per numero,
+                # Kërkuesi) può spingerlo oltre il taglio: misurato il 26 set col triage vero, il KP 152 di «licenziato dopo 8
+                # anni» usciva dal blocco proprio nel giro in cui il triage cercava «shpërblim për vjetërsi». Si porta in testa
+                # l'articolo com'è (non una copia marcata: la ricerca l'aveva trovato), col suo punteggio vero.
+                if chiave not in {(a.code, a.number) for a, _ in pairs[:3]} and chiave not in {(a.code, a.number) for a, _ in promossi}:
+                    _j = next((k for k, (a, _) in enumerate(pairs) if (a.code, a.number) == chiave), None)
+                    if _j is not None:
+                        promossi.append(pairs[_j])
                 continue
             # Copia, non l'originale: gli articoli stanno in un indice
             # condiviso e sei richieste girano insieme. Marcare l'oggetto
@@ -184,11 +213,16 @@ def _applica_ancore(pairs, idx, queries: list[str], aree: list[str], ancore=None
             marcato._ancora = True  # type: ignore[attr-defined]
             aggiunte.append((marcato, _punteggio_reale(idx, queries, chiave)))
             presenti.add(chiave)
-    if not aggiunte:
+    if not aggiunte and not promossi:
         return pairs
-    log.info("retrieval: ancorati %s",
-             ", ".join("%s %s" % (a.code, a.number) for a, _ in aggiunte))
-    return aggiunte + pairs
+    if aggiunte:
+        log.info("retrieval: ancorati %s",
+                 ", ".join("%s %s" % (a.code, a.number) for a, _ in aggiunte))
+    if promossi:
+        log.info("retrieval: ancore già trovate portate in testa: %s",
+                 ", ".join("%s %s" % (a.code, a.number) for a, _ in promossi))
+    _via = {id(x[0]) for x in promossi}
+    return aggiunte + promossi + [x for x in pairs if id(x[0]) not in _via]
 
 
 # ── v9.377 — ANCORA ITALIANA: veicolo con targa EXTRA-UE ─────────────────
@@ -4392,6 +4426,9 @@ class SuperAvvocato:
         # a cadere: sono in fondo per punteggio, e' il motivo per cui esistono.
         # Solo sul corpus albanese — sull'italiano non c'e' niente da riparare.
         _testo_anc = list(all_queries) + [triage.problem_summary or ""]    # v9.380: anche il riassunto del caso (più stabile)
+        # v9.394 — e le parole dell'avvocato (la testa della domanda): il triage riscrive («shtetas i huaj me leje qëndrimi» può
+        # sparire dal riassunto), la domanda resta
+        _testo_anc.append((getattr(triage, "domanda", "") or "")[:600])
         if idx is self.index:
             pairs = _applica_ancore(pairs, idx, _testo_anc, triage.areas)
             pairs = _ankoro_sipas_titullit(
