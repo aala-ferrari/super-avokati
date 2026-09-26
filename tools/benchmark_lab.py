@@ -432,6 +432,13 @@ def run_layer2(limit: int, only: str | None, mode: str = "normal", ids: list[str
                "verdict_head": head_ok, "trust_line": trust, "fake": r["stats"]["fake"], "repealed": r["stats"]["repealed"],
                "lang_impurity": impur, "score": round(score, 3), "validated_by": c.get("validated_by")}
         results.append(row)
+        if juris == "IT":
+            # v9.393 — il fascicolo di prova nell'account italiano (admin.it) si cancella a fine caso: dal 21 set se ne erano
+            # accumulati 47 «Benchmark …» nell'elenco del titolare (l'account albanese di prova si cancella già all'uscita)
+            try:
+                op.open(urllib.request.Request(f"{base}/api/cases/{case['id']}", method="DELETE"), timeout=30).read()
+            except Exception:  # noqa: BLE001
+                pass
         print(f"{'✓' if score >= 0.8 else '~' if score >= 0.6 else '✗'} {c['id']}: score {score:.2f} · norme {row['must_cite']} · punti {row['key_points']} · "
               f"vietate {len(viol)} · fake {row['fake']} · {secs:.0f}s")
     if results:

@@ -30,33 +30,32 @@ run_variant() {   # container, nome, modo, ids, env...
     sleep 5
   done
   echo "$(date -u +%FT%TZ) START $NAME ($MODE) env: $*" >> "$L/timeline.txt"
-  docker exec "$C" python3 tools/benchmark_lab.py run --layer 2 --mode "$MODE" --ids "$IDS" > "$L/$NAME.log" 2>&1
+  # --limit 0 = TUTTI i casi (il predefinito dello strato 2 è 3: il primo giro del 25 set ne ha misurati 3 per variante)
+  docker exec "$C" python3 tools/benchmark_lab.py run --layer 2 --limit 0 --mode "$MODE" --ids "$IDS" > "$L/$NAME.log" 2>&1
   echo "$(date -u +%FT%TZ) END   $NAME: $(grep -o "strato 2: .*" "$L/$NAME.log" | head -c 300)" >> "$L/timeline.txt"
   docker rm -f "$C" >/dev/null 2>&1
 }
 
-binario_S() {
-  run_variant sa-bench-s S0 normal "$SIMPLE"
-  run_variant sa-bench-s S1 normal "$SIMPLE" -e SENIOR_SIMPLE_MODEL=claude-opus-5-5 -e SENIOR_SIMPLE_EFFORT=high
-  run_variant sa-bench-s S3 normal "$SIMPLE" -e CLAUDE_CODE_FAST_MODEL=claude-opus-5-5 -e CLAUDE_CODE_FAST_EFFORT=medium -e CLAUDE_CODE_MEDIUM_MODEL=claude-opus-5-5 -e CLAUDE_CODE_MEDIUM_EFFORT=medium
-  run_variant sa-bench-s S4 normal "$SIMPLE" -e CLAUDE_CODE_FAST_MODEL=claude-opus-5-5 -e CLAUDE_CODE_FAST_EFFORT=medium -e CLAUDE_CODE_MEDIUM_MODEL=claude-opus-5-5 -e CLAUDE_CODE_MEDIUM_EFFORT=medium -e SENIOR_SIMPLE_MODEL=claude-opus-5-5 -e SENIOR_SIMPLE_EFFORT=high
-  run_variant sa-bench-s S2 normal "$SIMPLE" -e SENIOR_SIMPLE_MODEL=claude-opus-5-5 -e SENIOR_SIMPLE_EFFORT=max
+# DUE binari, non tre: tre container di misura + la produzione hanno esaurito gli 11 GB (OOM del 25 set, 21:39: il kernel ha
+# ucciso il container della D3 — marcato oom-score-adj 900 apposta — e la produzione è rimasta intatta)
+binario_A() {
+  run_variant sa-bench-a S0 normal "$SIMPLE"
+  run_variant sa-bench-a S1 normal "$SIMPLE" -e SENIOR_SIMPLE_MODEL=claude-opus-5-5 -e SENIOR_SIMPLE_EFFORT=high
+  run_variant sa-bench-a S3 normal "$SIMPLE" -e CLAUDE_CODE_FAST_MODEL=claude-opus-5-5 -e CLAUDE_CODE_FAST_EFFORT=medium -e CLAUDE_CODE_MEDIUM_MODEL=claude-opus-5-5 -e CLAUDE_CODE_MEDIUM_EFFORT=medium
+  run_variant sa-bench-a S4 normal "$SIMPLE" -e CLAUDE_CODE_FAST_MODEL=claude-opus-5-5 -e CLAUDE_CODE_FAST_EFFORT=medium -e CLAUDE_CODE_MEDIUM_MODEL=claude-opus-5-5 -e CLAUDE_CODE_MEDIUM_EFFORT=medium -e SENIOR_SIMPLE_MODEL=claude-opus-5-5 -e SENIOR_SIMPLE_EFFORT=high
+  run_variant sa-bench-a S2 normal "$SIMPLE" -e SENIOR_SIMPLE_MODEL=claude-opus-5-5 -e SENIOR_SIMPLE_EFFORT=max
   echo S_DONE >> "$L/timeline.txt"
+  run_variant sa-bench-a D2 deep "$DEEP" -e SENIOR_DEEP_MODEL=claude-opus-5-5 -e SENIOR_DEEP_EFFORT=high -e STUDIO_GJYQTARI_MODEL=claude-opus-5-5
+  echo A_DONE >> "$L/timeline.txt"
 }
-binario_Da() {
-  run_variant sa-bench-da D0 deep "$DEEP"
-  run_variant sa-bench-da D1 deep "$DEEP" -e STUDIO_GJYQTARI_MODEL=claude-opus-5-5
-  echo DA_DONE >> "$L/timeline.txt"
+binario_B() {
+  run_variant sa-bench-b D0 deep "$DEEP"
+  run_variant sa-bench-b D1 deep "$DEEP" -e STUDIO_GJYQTARI_MODEL=claude-opus-5-5
+  run_variant sa-bench-b D3 deep "$DEEP" -e CLAUDE_CODE_FAST_MODEL=claude-opus-5-5 -e CLAUDE_CODE_FAST_EFFORT=medium -e CLAUDE_CODE_MEDIUM_MODEL=claude-opus-5-5 -e CLAUDE_CODE_MEDIUM_EFFORT=medium -e SENIOR_DEEP_MODEL=claude-opus-5-5 -e SENIOR_DEEP_EFFORT=high -e STUDIO_GJYQTARI_MODEL=claude-opus-5-5
+  echo B_DONE >> "$L/timeline.txt"
 }
-binario_Db() {
-  run_variant sa-bench-db D3 deep "$DEEP" -e CLAUDE_CODE_FAST_MODEL=claude-opus-5-5 -e CLAUDE_CODE_FAST_EFFORT=medium -e CLAUDE_CODE_MEDIUM_MODEL=claude-opus-5-5 -e CLAUDE_CODE_MEDIUM_EFFORT=medium -e SENIOR_DEEP_MODEL=claude-opus-5-5 -e SENIOR_DEEP_EFFORT=high -e STUDIO_GJYQTARI_MODEL=claude-opus-5-5
-  run_variant sa-bench-db D2 deep "$DEEP" -e SENIOR_DEEP_MODEL=claude-opus-5-5 -e SENIOR_DEEP_EFFORT=high -e STUDIO_GJYQTARI_MODEL=claude-opus-5-5
-  echo DB_DONE >> "$L/timeline.txt"
-}
-binario_S &
-sleep 90
-binario_Da &
-sleep 90
-binario_Db &
+binario_A &
+sleep 120
+binario_B &
 wait
 echo BENCH_DONE >> "$L/timeline.txt"

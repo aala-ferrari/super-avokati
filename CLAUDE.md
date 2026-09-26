@@ -2,7 +2,7 @@
 
 Strumento AI per avvocati (B2B), **bi-giurisdizione AL + IT**. Front-end Flask (waitress, UN processo) su porta
 5050, SQLite (`data/app.db`). Postgres `legalkb` NON è raggiungibile dal container: i precedenti vivono nel pickle.
-**Stato al 25 set 2026 (v9.392)** — i numeri qui sono quelli veri; più sotto, nelle sezioni datate, c'è la storia:
+**Stato al 25 set 2026 (v9.393)** — i numeri qui sono quelli veri; più sotto, nelle sezioni datate, c'è la storia:
 - **AL leggi** (`bm25.pkl`, BM25 con diacritici piegati dal v9.367, titolo del capitolo cercabile dal v9.373): **10.460 unità / 64 codici** (dal v9.391 anche la ligji 7975/1995 sugli stupefacenti e la 61/2023 sulla cannabis medica); embedding AL `_flat3`/`_ck3` (capitoli + corpo intero, `EMB_SUFFIX_SQ`/`EMB_SUFFIX2_SQ`), IT `_flat4`/`_ck4` dal v9.384 (`EMB_SUFFIX_IT`/`EMB_SUFFIX2_IT`); fonte
   `data/processed/all_articles.jsonl` (il pickle è derivato).
 - **Precedenti** (`bm25_decisions.pkl`): **3.996** = Kushtetuese **672** + Gjykata e Lartë **2.960** + CEDU **364**
@@ -246,7 +246,18 @@ da 1/14 strumenti corretti a **14/14**.
 ./scripts/snapshot.py list
 ```
 
-## Modelli — cosa gira davvero (verificato 30 ago 2026)
+## Modelli — cosa gira davvero (verificato 30 ago 2026; CLI e percorsi aggiornati al 25 set, v9.393)
+
+⚠️ **Dal v9.393 il CLI è 2.1.282** (Dockerfile): conosce `claude-opus-5-5` (il 2.1.265 lo rifiutava con `unrecognized_model`),
+ma su questa versione **l'alias «opus» = opus-5-5** → nel codice i modelli si scrivono per NOME ESPLICITO (Fable =
+`FABLE_MODEL_ID`, senior = `CLAUDE_CODE_MODEL`). Modello e sforzo si scelgono **per percorso, solo da env** (vuoto = il
+comportamento misurato: senior Opus 5 max, inizio e fasi junior Sonnet 5, Giudice Fable 5.1 max): `SENIOR_SIMPLE_MODEL/EFFORT`
+(risposta breve e follow-up), `SENIOR_DEEP_MODEL/EFFORT` (sala di guerra + replica al diavolo), `STUDIO_GJYQTARI_MODEL/EFFORT`
+(+ `STUDIO_GJYQTARI_RISERVA`, vuota = l'ALTRA mente), `CLAUDE_CODE_FAST_EFFORT` (sforzo del tier veloce, se diventa Opus 5.5),
+`CLAUDE_CODE_LIMIT_FALLBACK_MODEL` (rete di sicurezza Sonnet 5 per i tier veloce/junior al limite della sottoscrizione).
+Si cambiano SOLO dopo `ops/bench_modelli.sh` (strato 2, domande semplici + sala di guerra, varianti in container di prova).
+⚠️ Prove del CLI: sempre `--env-file` (il token sta nell'env: senza, «OAuth session expired») e una COPIA della cartella
+credenziali (il CLI nuovo riscrive `.credentials.json`).
 
 Sorgente di verità: `/opt/super-avvocato.env`, letto da `config.py`.
 - **`CLAUDE_CODE_MODEL=claude-opus-5`** + **`CLAUDE_CODE_EFFORT=max`** — il cervello;
@@ -634,7 +645,7 @@ errori, non che le risposte sono ancora giuste. Riferimento verificato il
 12 articoli recuperati per ciascuna.
 
 ```bash
-docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63], triage-trim+giudice-no-web [64], chat-web+verdetto-in-testa+pannelli-IT [65], codice-nominato→area [66], timeout-45min+ripiego-no-web [67], fasi-bilingue+giudice-no-web+duello-a-scomparsa [68], etichette-composte-bilingui [69]). Baseline **537/537** (25 set, v9.392: + [139] liste albanesi delle sostanze; v9.391: + [138] leggi albanesi sugli stupefacenti nel corpus; v9.390: + [137] tabelle degli stupefacenti; v9.389: + [136] Corte di giustizia UE sull'archivio CELLAR; v9.388: + [135] sentenze albanesi «non confermate» = inammissibilità dell'archivio o decisioni di altri organi; v9.386: + [134] precedenti di Cassazione per la domanda + etichette del prompt nella lingua della sessione; v9.385: + [133] Cassazione sull'archivio ufficiale — con un controllo dal vivo che si SALTA se l'archivio non risponde; v9.384: + [129] capitoli IT, [130] articoli puntati, [131] rubriche IT, [132] UE/CEDU; era 98 il 31 ago).
+docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63], triage-trim+giudice-no-web [64], chat-web+verdetto-in-testa+pannelli-IT [65], codice-nominato→area [66], timeout-45min+ripiego-no-web [67], fasi-bilingue+giudice-no-web+duello-a-scomparsa [68], etichette-composte-bilingui [69]). Baseline **538/538** (25 set, v9.393: + [140] Opus 5.5 nel CLI e modelli per percorso; v9.392: + [139] liste albanesi delle sostanze; v9.391: + [138] leggi albanesi sugli stupefacenti nel corpus; v9.390: + [137] tabelle degli stupefacenti; v9.389: + [136] Corte di giustizia UE sull'archivio CELLAR; v9.388: + [135] sentenze albanesi «non confermate» = inammissibilità dell'archivio o decisioni di altri organi; v9.386: + [134] precedenti di Cassazione per la domanda + etichette del prompt nella lingua della sessione; v9.385: + [133] Cassazione sull'archivio ufficiale — con un controllo dal vivo che si SALTA se l'archivio non risponde; v9.384: + [129] capitoli IT, [130] articoli puntati, [131] rubriche IT, [132] UE/CEDU; era 98 il 31 ago).
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 bash /root/prova_sse.sh                                    # SULL'HOST (legge il secret da /opt/super-avvocato.env; copia in tools/prova_sse.sh): account di prova → login → fascicolo → 1 domanda VERA → stream /api/ask/events attraverso waitress. Deve dire «HTTP 200 … done: 1» (~50s, costa 1 chiamata al cervello) e cancella l'account. Dopo OGNI build che tocca web.py o le rotte SSE.
@@ -1501,6 +1512,30 @@ rischio residuo della DPIA.
 - Super Avokati ha auth propria (login_required_api); utenti creati da admin o auto-provisionati da AALA (`/api/provision-demo`, secret-guarded).
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
+
+**v9.393 — OPUS 5.5 NEL CLI, MODELLO E SFORZO PER PERCORSO (25 set, notte).** Il titolare: «giudice 5.5 max nelle
+combinazioni… precisi quando serve ragionare nei casi difficili, precisi e veloci nei semplici… inserisci nel cli headless
+anche opus 5.5» e poi «il sonnet 5 lo dobbiamo togliere, al posto suo opus 5.5 medium o high: un buon inizio cambia il
+finale». Fatto (predefiniti INVARIATI finché la misura non decide): CLI **2.1.282** (provati opus-5-5, opus-5, fable-5-1,
+sonnet-5, JSON e stream); Fable per nome esplicito in Genio / secondo parere / avversario / drafter / Vault (l'alias «opus»
+del CLI nuovo = opus-5-5); `_senior_kw(percorso)` in 4 punti del percorso semplice e 3 compose della sala di guerra (⚡ Fable
+vince sempre) + replica al diavolo; streaming con modello/effort scelti e **ripiego per limite prima di scrivere** (default a
+max); **riserva del Giudice = l'altra mente** (`_riserva_giudice`: Fable se il Giudice è Opus 5.5); **sforzo del tier veloce**
+e **rete di sicurezza** Sonnet 5 per i tier veloce/junior (anche l'OCR) se Opus 5.5 è al limite. 8 domande SEMPLICI nuove nel
+banco di prova (età della responsabilità penale, appello civile, neni 88 KP, divorzio consensuale, ketamina, prescrizione
+dell'illecito, impugnazione del licenziamento, art. 2043 c.c.; articoli verificati sul corpus). Misura notturna
+`ops/bench_modelli.sh`: S0 oggi · S1 senior Opus 5.5 high · S2 senior Opus 5.5 max · S3 inizio Opus 5.5 medium · S4 inizio
+Opus 5.5 medium + senior high; D0 oggi · D1 Giudice Opus 5.5 max · D2 senior 5.5 high + Giudice 5.5 max · D3 tutto Opus 5.5.
+⚠️ Trappola pagata: un container di prova avviato SENZA `--env-file` non si autentica (il token è nell'env) e il CLI nuovo
+riscrive `.credentials.json` nella cartella montata → le prove usano una copia (`/tmp/creds-test`). Golden **[140]**, 538.
+**MISURA (26 set, 11 h, `data/benchmark/misura_modelli_20260926.txt`): VINCE LA CONFIGURAZIONE DI OGGI, niente acceso.**
+Semplici (12, tetto 0,90): oggi 0,900/139 s · senior 5.5 high 0,890/108 s · senior 5.5 max 0,900/412 s · inizio 5.5 medium
+0,900/125 s · inizio medium + senior high 0,862/95 s · inizio 5.5 high 0,900/143 s. Sala di guerra (6): **oggi 0,906/23 min**
+· Giudice 5.5 max 0,868/25 · senior 5.5 high + Giudice 5.5 0,866/23 · tutto 5.5 0,860/16 · oggi + inizio 5.5 medium 0,848/17 ·
+oggi + inizio 5.5 high 0,802/20. Il Giudice Opus 5.5 perde in due misure indipendenti (24 e 26 set); togliere Sonnet fa
+perdere norme decisive in sala di guerra (auto targa albanese, licenziamento GMO). ⚠️ Trappole della misura: lo strato 2 senza
+`--limit 0` fa SOLO 3 casi; 3 container di misura + produzione = OOM (11 GB, max 2); il banco di prova ora cancella i
+fascicoli di prova IT. L'impianto resta: una misura futura (modello nuovo) si fa cambiando solo l'env dei container di prova.
 
 **v9.392 — LE LISTE ALBANESI DELLE SOSTANZE (25 set, sera).** Il titolare: «questa esiste anche per il superavokati
 albanese?» e poi «ok se veramente possono migliorare procedi». Misurato prima (`tools/eval_narkotike_al.py`: 35 sostanze, il modello del senior senza web, sessione
