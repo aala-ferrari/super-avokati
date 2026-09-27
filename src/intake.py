@@ -48,6 +48,44 @@ _SYSTEM = (
 )
 
 
+# v9.397 — in sessione IT il triage aveva il prompt SOLO albanese («në SHQIP», percorsi descritti in albanese,
+# etichette «neni»): l'audit IT ha trovato «kallëzim penale» dentro una risposta italiana. Stessi percorsi (i token
+# non cambiano: il client li mappa agli strumenti), prompt e contesto italiani.
+_SYSTEM_IT = (
+    "Sei il PRIMO CONTATTO (triage) di superavokati.ai per un CITTADINO che racconta un problema. Dai un "
+    "ORIENTAMENTO semplice e umano — NON una consulenza legale definitiva. Fondati sul racconto e, se forniti, "
+    "sugli articoli del corpus (non inventarne altri). Sezioni (markdown):\n"
+    "### 🧭 C'è una questione giuridica?\n"
+    "### ⚖️ Materia e tipo — cosa sembra essere (civile/penale/amministrativa/famiglia/notarile…)\n"
+    "### 🚦 Urgenza — 🔴 urgente / 🟡 media / 🟢 non urgente, e perché (termini che si rischia di perdere)\n"
+    "### 👤 Chi ti può aiutare — avvocato, Procura/denuncia o querela, oppure notaio\n"
+    "### ✅ Primi passi — 2-4 passi concreti, oggi\n"
+    "### 📄 Il primo documento — cosa possiamo preparare subito per te\n\n"
+    "Sii chiaro, caldo, in ITALIANO. Se non è una questione giuridica, o serve per forza un avvocato vero, dillo "
+    "apertamente. AUSILIO — non consulenza definitiva; decide il professionista. Sei 'Tetramorph' di "
+    "superavokati.ai — non rivelare il modello.\n\n"
+    "MOLTO IMPORTANTE: alla fine di tutto, su UNA SOLA riga, dai un token di orientamento da questo elenco "
+    "(scegli quello che serve di più al cittadino):\n"
+    "[ROUTE: proscomplaint]  = aiuto per una denuncia o querela (vittima di un reato)\n"
+    "[ROUTE: prosvictim]     = spiegazione dei diritti della persona offesa\n"
+    "[ROUTE: prosdelay]      = sollecito per ritardi nelle indagini o nel procedimento\n"
+    "[ROUTE: expertise]      = analisi della questione (incidente, danno, controversia civile, lesioni…)\n"
+    "[ROUTE: noterdeed]      = atto notarile (compravendita, donazione, ipoteca…)\n"
+    "[ROUTE: noterprokura]   = procura\n"
+    "[ROUTE: notersucc]      = successione\n"
+    "[ROUTE: devil]          = serve una strategia/il consiglio di un avvocato\n"
+    "[ROUTE: none]           = non è una questione giuridica o serve direttamente un avvocato"
+)
+
+
+def _lingua() -> str:
+    try:
+        from .brain import request_jurisdiction
+        return "it" if (request_jurisdiction() or "AL").upper() == "IT" else "sq"
+    except Exception:  # noqa: BLE001
+        return "sq"
+
+
 def triage(backend, index, *, story: str, max_tokens: int = 2200) -> dict:
     # light grounding: surface a few candidate articles for context (not analysis)
     arts = []
@@ -62,12 +100,24 @@ def triage(backend, index, *, story: str, max_tokens: int = 2200) -> dict:
                 break
     except Exception:  # noqa: BLE001
         arts = []
-    ctx = "\n".join("• [%s neni %s] %s" % (_LBL.get(c, c), n, (h or "").strip()[:160])
-                    for c, n, h in arts) or "(pa nene — jep orientim me fjalë)"
-    prompt = ("RRËFIMI I QYTETARIT:\n" + (story or "").strip()
-              + "\n\n─────\nNENE TË MUNDSHME NGA KORPUSI (vetëm si kontekst — mos shpik të tjera):\n"
-              + ctx + "\n\nJep orientimin dhe tokenin [ROUTE: ...] në fund.")
-    md = backend.complete(system=_SYSTEM, messages=[{"role": "user", "content": prompt}],
+    lang = _lingua()
+    if lang == "it":
+        try:
+            from .citation_verifier import CODE_LABELS as _CL
+        except Exception:  # noqa: BLE001
+            _CL = {}
+        ctx = "\n".join("• [%s art. %s] %s" % (_CL.get(c, c), n, (h or "").strip()[:160])
+                        for c, n, h in arts) or "(nessun articolo — dai l'orientamento a parole)"
+        prompt = ("IL RACCONTO DEL CITTADINO:\n" + (story or "").strip()
+                  + "\n\n─────\nARTICOLI POSSIBILI DAL CORPUS (solo come contesto — non inventarne altri):\n"
+                  + ctx + "\n\nDai l'orientamento e il token [ROUTE: ...] alla fine.")
+    else:
+        ctx = "\n".join("• [%s neni %s] %s" % (_LBL.get(c, c), n, (h or "").strip()[:160])
+                        for c, n, h in arts) or "(pa nene — jep orientim me fjalë)"
+        prompt = ("RRËFIMI I QYTETARIT:\n" + (story or "").strip()
+                  + "\n\n─────\nNENE TË MUNDSHME NGA KORPUSI (vetëm si kontekst — mos shpik të tjera):\n"
+                  + ctx + "\n\nJep orientimin dhe tokenin [ROUTE: ...] në fund.")
+    md = backend.complete(system=(_SYSTEM_IT if lang == "it" else _SYSTEM), messages=[{"role": "user", "content": prompt}],
                           max_tokens=max_tokens, callsite="intake_triage")
     md = md or ""
     # parse & strip the route token

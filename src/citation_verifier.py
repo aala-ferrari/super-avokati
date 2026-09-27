@@ -589,19 +589,37 @@ _CONN_IT = (r"(?:(?:del|della|dello|dell[’']|dal|dalla)\s*(?:codice|cod\.|legg
             r"regolamento|direttiva|dir\.|cod\.|codice|c\.[a-z]|cost\.?\b|statuto|carta|cedu|tfue|tue|gdpr|cdu|dnc|tuel|tuir|tub|tuf|cad|"
             r"cpa|cpi|ccii|c\.d\.s\.|cds\b|l\.\s?fall|preleggi|disp\.|convenzione|protocollo|trattato|st(?:at)?\.?\s?lav\b)")
 
+# 16 set 2026 (benchmark lab): «art. 215 Reg. (UE) 2015/2446» — il token «(UE)» spezzava la coda e la citazione
+# restava «senza codice»; i soli parentetici ammessi sono le sigle UE/CE/CEE. v9.348: «art. 13-ter (allegato) Codice
+# del processo amministrativo» — l'etichetta di gruppo che il prompt mostra per gli allegati non spezza la coda.
+# v9.397: la coda si FERMA prima di «e/ed + numero» — in «artt. 335 c.p.p. e 107 disp. att. c.p.p.» attraversava fino
+# alle disp. att., prendeva il codice più lungo e il 335 usciva «inesistente» (una norma vera marcata falsa).
+_TAIL_IT = (r"(?:\s+(?!art\b)(?!(?:e|ed)\s+\d)"
+            r"(?:\((?:UE|CE|CEE|Euratom|allegato|atto di approvazione)\)|[^\s,;:\n()]+)){0,6}")
 CITATION_RE_IT = re.compile(
     r"\bart(?:t|icol[oi])?\.?\s+"
     r"(?P<nums>" + _NUM_TOKEN_IT + r"(?:\s*(?:,|;|\be\b|\bed\b)\s*" + _NUM_TOKEN_IT + r")*)"
     r"(?P<sub>" + _SUB_IT + r"*)"
+    # v9.397: «artt. 408, comma 2, e 410 c.p.p.» — dopo un sotto-riferimento, «, e N» è un ALTRO articolo dell'elenco
+    # (prima il 410 spariva e il 408 restava «senza codice»)
+    r"(?P<more>(?:\s*,\s*(?:e|ed)\s+" + _NUM_TOKEN_IT + r"(?:" + _SUB_IT + r")*)*)"
     r"(?:\s*,(?=\s+" + _CONN_IT + r"))?"      # la virgola sì, lo spazio resta alla coda
-    # 16 set 2026 (benchmark lab): «art. 215 Reg. (UE) 2015/2446» — il token «(UE)» spezzava la
-    # coda e la citazione restava «senza codice»; i soli parentetici ammessi sono le sigle UE/CE/CEE
-    # v9.348: «art. 13-ter (allegato) Codice del processo amministrativo» — l'etichetta di gruppo
-    # che il prompt mostra per gli articoli degli allegati non deve spezzare la coda
-    r"(?P<tail>(?:\s+(?!art\b)(?:\((?:UE|CE|CEE|Euratom|allegato|atto di approvazione)\)|[^\s,;:\n()]+)){0,6})",
+    r"(?P<tail>" + _TAIL_IT + r")",
     re.IGNORECASE,
 )
 _NUM_RE_IT = re.compile(_NUM_TOKEN_IT)
+# i numeri dell'elenco dopo i sotto-riferimenti: solo quelli subito dopo «e/ed» (mai i numeri dei commi)
+_MORE_NUM_IT = re.compile(r"(?:\be\b|\bed\b)\s+(" + _NUM_TOKEN_IT + r")", re.IGNORECASE)
+# v9.397 — la CONTINUAZIONE con un codice suo: «… c.p.p. e 107 disp. att. c.p.p.», «… c.c., e 2059 c.c.».
+# Si legge solo se la sua coda porta un codice (mai un numero nudo che eredita a caso).
+_CONT_IT = re.compile(
+    r"\s*(?:,\s*)?(?:e|ed)\s+"
+    r"(?P<nums>" + _NUM_TOKEN_IT + r"(?:\s*(?:,|;|\be\b|\bed\b)\s*" + _NUM_TOKEN_IT + r")*)"
+    r"(?P<sub>" + _SUB_IT + r"*)"
+    r"(?:\s*,(?=\s+" + _CONN_IT + r"))?"
+    r"(?P<tail>" + _TAIL_IT + r")",
+    re.IGNORECASE,
+)
 # Ordered longest/most-specific first so cpc/cpp beat cp, codice* beats abbrevs.
 _IT_CODE_CHECKS = [
     # ── full names first (most specific wins) ──
@@ -1116,6 +1134,15 @@ def _codice_precedente(text: str, pos: int, resolve) -> str | None:
     return None
 
 
+def _numeri_in_piu(m) -> list:
+    """I numeri dell'elenco scritti DOPO un sotto-riferimento («artt. 408, comma 2, e 410 c.p.p.»): solo italiano."""
+    try:
+        more = m.group("more") or ""
+    except (IndexError, KeyError):
+        return []
+    return _MORE_NUM_IT.findall(more) if more else []
+
+
 def verify_text(
     text: str,
     index: ArticleIndex,
@@ -1170,7 +1197,7 @@ def verify_text(
             _tail = _m.group("tail") or ""
             _code = _resolve(_tail)
             _kp = _lang != "it" and _kp_bare(_tail, _code)   # «neni 155 KP» si scioglie dal documento, non dall'alias
-            for _nr in _num_re.findall(_m.group("nums")):
+            for _nr in _num_re.findall(_m.group("nums")) + _numeri_in_piu(_m):
                 _n = _normalise_number(_nr)
                 _c = _kp_resolve(_n, _src, retrieved_codes, lookup) if _kp else _code
                 if _c:
@@ -1271,7 +1298,7 @@ def verify_text(
         nums_block = m.group("nums")
         tail = m.group("tail") or ""
         code = _resolve(tail)              # one shared code for the list
-        numbers = _num_re.findall(nums_block)
+        numbers = _num_re.findall(nums_block) + _numeri_in_piu(m)
         full_raw = text[m.start():m.end()].strip()
         if len(full_raw) > 60:
             full_raw = full_raw[:60].rstrip() + "…"
@@ -1315,6 +1342,25 @@ def verify_text(
                     candidates=[{"code": c, "label": CODE_LABELS.get(c, c)} for c in cands]))
                 continue
             _emit(number, code_n, raw, via)
+
+    if _lang == "it":
+        # v9.397 — le continuazioni con un codice proprio («… c.p.p. e 107 disp. att. c.p.p.»)
+        for m in _cite_re.finditer(text):
+            pos = m.end()
+            for _giro in range(4):                     # catene corte: «e 107 disp. att. e 110 disp. att.»
+                c = _CONT_IT.match(text, pos)
+                if not c:
+                    break
+                ccode = _resolve(c.group("tail") or "")
+                if not ccode:
+                    break                              # numero senza codice suo: non si attribuisce a caso
+                for number_raw in _num_re.findall(c.group("nums")):
+                    number = _normalise_number(number_raw)
+                    if (number, ccode) in seen:
+                        continue
+                    seen.add((number, ccode))
+                    _emit(number, ccode, _cite_prefix + number_raw + " " + CODE_LABELS.get(ccode, ccode), "elenco")
+                pos = c.end()
 
     for m in _cite_re_foreign.finditer(text):
         _fcode = _resolve_foreign(m.group("tail") or "")

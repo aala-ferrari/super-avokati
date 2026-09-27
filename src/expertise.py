@@ -265,18 +265,69 @@ def _heading_scan(index, term, limit=5):
     return out[:limit]
 
 
-def _expand_terms(backend, facts):
+# v9.397 — l'estrazione dei termini nella lingua dell'INDICE. Prima il prompt era solo albanese e in sessione
+# italiana il vincolo di giurisdizione sopra gli imponeva la ricerca della Cassazione: tornava un paragrafo («Nota
+# preliminare: in questa sessione non mi è stato concesso l'accesso…») al posto dei nomi dei reati, e la ricerca per
+# titolo girava su parole vuote — per perizie, notaio, scadenze, prescrizione, lettere e procuratore. È una lista di
+# parole: niente preambolo (raw_system), e le righe che non sono un termine si scartano.
+_ESPANDI = {
+    "sq": ("Nga faktet e një çështjeje, listo 2-6 EMRA veprash penale ose koncepte ligjore shqip me terminologjinë "
+           "FORMALE të Kodit (p.sh. 'vjedhje', 'vjedhje me dhunë', 'plagosje e rëndë', 'mashtrim', 'dhunë në familje', "
+           "'korrupsion pasiv', 'drejtim i automjetit'), një për rresht, pa numra nenesh, pa asnjë tekst tjetër."),
+    "it": ("Dai fatti di una questione elenca 2-6 NOMI di reati o istituti giuridici in italiano, con la terminologia "
+           "FORMALE del codice (per esempio 'furto', 'rapina', 'lesioni personali', 'truffa', 'maltrattamenti contro "
+           "familiari e conviventi', 'concussione', 'risoluzione del contratto'), uno per riga, senza numeri di "
+           "articolo e senza nessun altro testo."),
+}
+
+
+def _pulisci_termini(raw: str) -> list:
+    out = []
+    for l in (raw or "").splitlines():
+        l = l.strip().strip("-*•·0123456789.) \t").strip().strip("'\"«»").strip()
+        if not l or len(l) > 70 or l.endswith(":") or "**" in l or l.count(" ") > 8:
+            continue
+        out.append(l)
+    return out[:6]
+
+
+def _expand_terms(backend, facts, lang: str = "sq"):
     try:
         raw = backend.complete(
-            system=("Nga faktet e një çështjeje, listo 2-6 EMRA veprash penale ose "
-                    "koncepte ligjore shqip me terminologjinë FORMALE të Kodit (p.sh. "
-                    "'vjedhje', 'vjedhje me dhunë', 'plagosje e rëndë', 'mashtrim', "
-                    "'drejtim i automjetit'), një për rresht, pa numra nenesh."),
+            system=_ESPANDI.get(lang, _ESPANDI["sq"]),
             messages=[{"role": "user", "content": (facts or "")[:2000]}],
-            max_tokens=100, fast=True, callsite="expand_terms")
-        return [l.strip("-*• 	").strip() for l in (raw or "").splitlines() if l.strip()][:6]
+            max_tokens=100, fast=True, callsite="expand_terms", raw_system=True)
+        return _pulisci_termini(raw)
     except Exception:  # noqa: BLE001
         return []
+
+
+def _radice(w: str) -> str:
+    """Radice per il confronto dei titoli: 4 lettere per le parole brevi («dhuna»/«dhunë»), 5 per le altre."""
+    return w[:4] if len(w) <= 6 else w[:5]
+
+
+def _heading_scan_rank(index, term, limit=3):
+    """v9.397 — ricerca per titolo ORDINATA per quante parole del termine compaiono nel titolo (non solo la prima,
+    e non in ordine di codice: «Prodhimi…» prendeva i primi 5 titoli del codice e il KP 283 restava fuori; la rubrica
+    dell'art. 73 d.P.R. 309/1990 comincia con «Legge 26 giugno 1990…»). Salta gli abrogati."""
+    words = _fold(term).split()
+    ks = {_radice(w) for w in words if len(w) >= 5}
+    if not ks or not words:
+        return []
+    scored = []
+    for a in getattr(index, "articles", []):
+        if getattr(a, "repealed", False):
+            continue
+        hw = _fold(getattr(a, "heading", "") or "").split()
+        if not hw:
+            continue
+        ov = len(ks & {_radice(w) for w in hw if len(w) >= 4})
+        first = len(words[0]) >= 5 and hw[0].startswith(_radice(words[0]))
+        if first or ov >= max(1, min(2, len(ks))):
+            scored.append((ov + (0.5 if first else 0.0), a))
+    scored.sort(key=lambda x: -x[0])
+    return [(a.code, a.number, _full(a)) for _s, a in scored[:limit]]
 
 
 def retrieve_grounded(backend, index, facts, seed_pairs=None, max_arts=16):
@@ -290,23 +341,31 @@ def retrieve_grounded(backend, index, facts, seed_pairs=None, max_arts=16):
         t = _article_text(index, code, num)
         if t:
             add(code, num, t)
-    terms = _expand_terms(backend, facts)
+    lang = "it" if getattr(index, "lang", "sq") == "it" else "sq"
+    terms = _expand_terms(backend, facts, lang)
+    query = (facts or "") + " " + " ".join(terms)
+    # v9.397 — misurato su 12 casi penali tipici (6 AL, 6 IT: la norma del reato fra gli articoli dati al modello):
+    # 5/12 → 11/12. Quattro posti alla ricerca per CONTENUTO prima dei titoli (prima i titoli li finivano tutti),
+    # poi la ricerca per titolo ordinata, 3 per termine così ogni termine ha il suo turno.
+    try:
+        for a, _s in index.search(query, top_k=4):
+            add(a.code, a.number, _full(a))
+    except Exception:  # noqa: BLE001
+        pass
     for term in terms:
-        for c, n, h in _heading_scan(index, term):
+        for c, n, h in _heading_scan_rank(index, term):
             add(c, n, h)
-            if len(arts) >= max_arts:
-                break
         if len(arts) >= max_arts:
             break
     if len(arts) < max_arts:
         try:
-            for a, _s in index.search((facts or "") + " " + " ".join(terms), top_k=10):
+            for a, _s in index.search(query, top_k=10):
                 add(a.code, a.number, _full(a))
                 if len(arts) >= max_arts:
                     break
         except Exception:  # noqa: BLE001
             pass
-    return arts
+    return arts[:max_arts]
 
 
 def _grounded_articles(index, tpl, facts):

@@ -5903,7 +5903,9 @@ def api_prosecutor_indictment():
     if len(facts) < 15:
         return jsonify({"error": "facts_required"}), 400
     try:
-        res = prosecutor_mod.draft_indictment(_BRAIN.backend, _req_index(), facts=facts[:14000])
+        # v9.397 — anche l'atto d'accusa riceve la memoria del fascicolo (gli altri 9 strumenti
+        # del procuratore la ricevevano già da _pros_facts; questi due la saltavano)
+        res = prosecutor_mod.draft_indictment(_BRAIN.backend, _req_index(), facts=_with_case(facts[:14000], body))
     except Exception as exc:  # noqa: BLE001
         log.exception("indictment failed")
         return jsonify({"error": _safe_err(exc)}), 200
@@ -6121,7 +6123,7 @@ def api_prosecutor_analyze():
     if len(facts) < 15:
         return jsonify({"error": "facts_required"}), 400
     try:
-        res = prosecutor_mod.analyze(_BRAIN.backend, _req_index(), facts=facts[:14000])
+        res = prosecutor_mod.analyze(_BRAIN.backend, _req_index(), facts=_with_case(facts[:14000], body))  # v9.397: + fascicolo
     except Exception as exc:  # noqa: BLE001
         log.exception("prosecutor failed")
         return jsonify({"error": _safe_err(exc)}), 200

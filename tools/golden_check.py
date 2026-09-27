@@ -4979,6 +4979,117 @@ def main():
     except Exception as _e143:  # noqa: BLE001
         check("sessione[143]: kontrollet u ekzekutuan", False, str(_e143))
 
+    # [144] v9.397 — IL PROCURATORE IN DUE GIURISDIZIONI: era scritto solo per l'Albania (prompt, SPAK, Avokati i
+    # Popullit, semi del KPP; «neni 291/329 KPP» dentro un parere italiano), il testo degli articoli arrivava tagliato a
+    # 900 caratteri (art. 275 c.p.p.: 7.516) e analisi/atto d'accusa non ricevevano il fascicolo. Con un cervello FINTO
+    # che registra i prompt: in IT ogni strumento parla italiano, con articoli italiani e l'etichetta «art.»; in AL resta
+    # tutto come prima.
+    try:
+        import re as _re144, inspect as _in144
+        from src import prosecutor as _pr144, brain as _br144, web as _we144
+        _idx_it144 = idx_it if "idx_it" in dir() else ArticleIndex.load(INDEX_FILE.parent / "bm25_it.pkl")
+        class _F144:
+            def __init__(self): self.c = []
+            def complete(self, system=None, messages=None, **kw):
+                self.c.append((system or "", messages[0]["content"] if messages else "", kw.get("fast")))
+                if kw.get("fast"):          # l'espansione dei termini, nella lingua della sessione
+                    return "furto\nrapina" if _br144.request_jurisdiction() == "IT" else "vjedhje\nplagosje"
+                return "## ok"
+        _ALB144 = _re144.compile(r"[ëçË]|\bneni\b|\bKPP\b|\bSPAK\b|Avokati i Popullit", _re144.I)
+        _tools = [("analyze", {"facts": "x"}), ("draft_indictment", {"facts": "x"}), ("investigation_plan", {"facts": "x"}),
+                  ("investigative_act", {"kind": "pergjim", "facts": "x"}), ("coercive_measure", {"facts": "x"}),
+                  ("dismissal_request", {"facts": "x"}), ("stress_test", {"text": "x"}), ("citizen_complaint", {"facts": "x"}),
+                  ("victim_rights", {"facts": "x"}), ("dismissal_appeal", {"facts": "x"}), ("delay_complaint", {"facts": "x"})]
+        _bad = []
+        for _lg, _ix in (("IT", _idx_it144), ("AL", idx)):
+            _br144.set_request_jurisdiction(_lg)
+            for _nm, _kw in _tools:
+                _f = _F144()
+                _res = getattr(_pr144, _nm)(_f, _ix, **_kw)
+                _sys, _pr = [x for x in _f.c if not x[2]][-1][:2]
+                _arts = _res.get("articles") or []
+                if _lg == "IT":
+                    _corpo = _sys.split("━━━")[-1]
+                    if (_ALB144.search(_corpo + _pr) or "art. " not in _pr or "neni " in _pr or not _arts
+                            or any(a["code"].startswith(("kodi_", "ligji_")) for a in _arts)):
+                        _bad.append("IT:" + _nm)
+                else:
+                    if "neni " not in _pr or not _arts or any(a["code"].startswith(("codice_", "costituzione")) for a in _arts):
+                        _bad.append("AL:" + _nm)
+        _br144.set_request_jurisdiction("IT")
+        _kinds_it = [k["label"] for k in _pr144.list_act_kinds()]
+        _br144.set_request_jurisdiction("AL")
+        _a275 = next(a for a in _idx_it144.articles if a.code == "codice_procedura_penale" and a.number == "275")
+        _b275 = _pr144._blocco([(_a275.code, _a275.number, (_a275.heading or "") + " " + _a275.body)], "it")
+        _src_an = _in144.getsource(_we144.api_prosecutor_analyze) + _in144.getsource(_we144.api_prosecutor_indictment)
+        _okB = ("Decreto di perquisizione (personale/locale)" in _kinds_it and len(_b275) > 3400
+                and "testo tagliato" in _b275 and _src_an.count("_with_case(facts[:14000], body)") == 2)
+        check("procuratore[144]: 11 strumenti in sessione IT in italiano con articoli italiani («art.», niente KPP/SPAK) e in "
+              "AL invariati · atti d'indagine con le etichette del c.p.p. · testo degli articoli fino a 3.500 caratteri con "
+              "l'avviso del taglio · analisi e atto d'accusa ricevono il fascicolo", not _bad and _okB,
+              "bad=%s okB=%s" % (_bad, _okB))
+    except Exception as _e144:  # noqa: BLE001
+        check("procuratore[144]: kontrollet u ekzekutuan", False, str(_e144))
+
+    # [145] v9.397 — (1) IL VERIFICATORE SUGLI ELENCHI ITALIANI: «artt. 335 c.p.p. e 107 disp. att. c.p.p.» dava il 335
+    # «inesistente» (la coda arrivava alle disp. att. e prendeva il codice più lungo) e perdeva il 107; «artt. 408, comma 2,
+    # e 410 c.p.p.» lasciava il 408 «senza codice» e perdeva il 410. (2) IL RECUPERO CONDIVISO (perizie, notaio, scadenze,
+    # prescrizione, lettere, procuratore): in sessione IT l'estrazione dei termini tornava un paragrafo invece dei nomi
+    # dei reati (prompt albanese + vincolo italiano); e la ricerca per titolo prendeva i primi titoli in ordine di codice.
+    # Misurato su 12 casi penali tipici: la norma del reato fra gli articoli dati al modello 5/12 → 11/12.
+    try:
+        import inspect as _in145
+        from src import expertise as _ex145
+        _it145 = idx_it if "idx_it" in dir() else ArticleIndex.load(INDEX_FILE.parent / "bm25_it.pkl")
+        def _st145(t):
+            return {(x.get("code"), str(x.get("number"))): x.get("status") for x in cv.verify_text(t, _it145)["items"]}
+        _a = _st145("artt. 335 c.p.p. e 107 disp. att. c.p.p.")
+        _b = _st145("artt. 408, comma 2, e 410 c.p.p.")
+        _c = _st145("art. 335 c.p.p. e 9999 disp. att. c.p.p.")
+        _d = _st145("art. 18, comma 4 e 5, L. 300/1970")
+        _okA = (_a.get(("codice_procedura_penale", "335")) == "verified" and _a.get(("disp_att_cpp", "107")) == "verified"
+                and ("disp_att_cpp", "335") not in _a
+                and _b.get(("codice_procedura_penale", "408")) == "verified" and _b.get(("codice_procedura_penale", "410")) == "verified"
+                and _c.get(("disp_att_cpp", "9999")) == "fake"                 # il numero inventato resta inventato
+                and _d.get(("statuto_lavoratori", "18")) == "verified" and len(_d) == 1)
+        _okB = ("raw_system=True" in _in145.getsource(_ex145._expand_terms) and set(_ex145._ESPANDI) == {"sq", "it"}
+                and _ex145._pulisci_termini("Nota preliminare:** in questa sessione non mi è stato concesso l'accesso allo strumento di ricerca web, quindi non posso\nTruffa\n- Appropriazione indebita") == ["Truffa", "Appropriazione indebita"])
+        _okC = (("kodi_penal", "130/a") in {(c, n) for c, n, _ in _ex145._heading_scan_rank(idx, "dhunë në familje")}
+                and "_heading_scan_rank" in _in145.getsource(_ex145.retrieve_grounded)
+                and "index.search(query, top_k=4)" in _in145.getsource(_ex145.retrieve_grounded)
+                and ("kodi_penal", "134") in scanned(idx, "vjedhje"))            # la ricerca per titolo di prima resta
+        check("recupero[145]: elenchi «artt.» del verificatore (335 c.p.p. + 107 disp. att.; 408, comma 2, e 410) senza "
+              "falsi «inesistente» né articoli persi, il numero inventato resta inventato · estrazione dei termini nella "
+              "lingua dell'indice, senza preambolo, righe pulite · ricerca per titolo ordinata e posti alla ricerca per "
+              "contenuto", _okA and _okB and _okC, "A=%s B=%s C=%s %s %s" % (_okA, _okB, _okC, _a, _b))
+    except Exception as _e145:  # noqa: BLE001
+        check("recupero[145]: kontrollet u ekzekutuan", False, str(_e145))
+
+    # [146] v9.398 — IL PRIMO CONTATTO in sessione IT: prompt solo albanese («në SHQIP», percorsi in albanese, «neni»)
+    # e l'audit IT ha trovato «kallëzim penale» in una risposta italiana. Con un cervello finto: in IT prompt e contesto
+    # italiani, stessi token di instradamento; in AL invariato.
+    try:
+        import re as _re146
+        from src import intake as _ik146, brain as _br146
+        _it146 = idx_it if "idx_it" in dir() else ArticleIndex.load(INDEX_FILE.parent / "bm25_it.pkl")
+        class _F146:
+            def __init__(self): self.c = []
+            def complete(self, system=None, messages=None, **kw):
+                self.c.append((system or "", messages[0]["content"])); return "ok\n[ROUTE: proscomplaint]"
+        _br146.set_request_jurisdiction("IT"); _f1 = _F146()
+        _r1 = _ik146.triage(_f1, _it146, story="Mi hanno rubato l'auto sotto casa")
+        _br146.set_request_jurisdiction("AL"); _f2 = _F146()
+        _r2 = _ik146.triage(_f2, idx, story="Më vodhën makinën poshtë pallatit")
+        _tok = lambda t: sorted(set(_re146.findall(r"\[ROUTE: ([a-z]+)\]", t)))
+        _okA = (not _re146.search(r"[ëçË]|\bneni\b|SHQIP|kallëzim", _f1.c[0][0] + _f1.c[0][1])
+                and "art. " in _f1.c[0][1] and _tok(_f1.c[0][0]) == _tok(_f2.c[0][0])
+                and "SHQIP" in _f2.c[0][0] and "neni " in _f2.c[0][1]
+                and _r1.get("route") == "proscomplaint" == _r2.get("route"))
+        check("primo_contatto[146]: in sessione IT prompt e contesto italiani (niente «kallëzim», «neni», «SHQIP»), stessi "
+              "token di instradamento; in AL invariato", _okA, "okA=%s" % _okA)
+    except Exception as _e146:  # noqa: BLE001
+        check("primo_contatto[146]: kontrollet u ekzekutuan", False, str(_e146))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
