@@ -25,6 +25,9 @@ def post(path, payload, timeout=900):
 post("/api/login", {"username": "admin.it", "password": "AdminIT2026!", "lang": "it"})
 case = post("/api/cases", {"title": "Audit strumenti IT v2"})
 CID = case["id"]
+# v9.395 — il fascicolo del collaudo (nell'account admin.it del titolare) si cancella all'uscita
+import atexit as _ax
+_ax.register(lambda: op.open(urllib.request.Request(BASE + f"/api/cases/{CID}", method="DELETE"), timeout=30).read())
 print(f"caso {CID[:8]} giurisdizione={case.get('jurisdiction')}\n", flush=True)
 
 AL_LANG = re.compile(r"[ëç]|\b(nuk|është|janë|duhet|sipas|nenit|neni|rastin|"

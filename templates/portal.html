@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="sq">
+<html lang="{{ lang }}">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="theme-color" content="#0a0a0a" />
 <meta name="robots" content="noindex,nofollow" />
-<title>Rasti im — {{ case.title }}</title>
+<title>{{ L.title }} — {{ case.title }}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet" />
@@ -17,12 +17,11 @@
 <header class="portal-hero">
   <div class="portal-hero-inner">
     <div class="portal-brand">
-      {% if firm_name %}{{ firm_name }}{% else %}Studio Ligjore{% endif %}
+      {% if firm_name %}{{ firm_name }}{% else %}{{ L.studio }}{% endif %}
     </div>
     <h1 class="portal-title">{{ case.title }}</h1>
     <p class="portal-greeting">
-      Mirë se erdhët, <strong>{{ client.name }}</strong>. Kjo është faqja juaj
-      private për të ndjekur ecurinë e rastit tuaj. Vetëm ju keni linkun.
+      {{ L.greet_a }} <strong>{{ client.name }}</strong>. {{ L.greet_b }}
     </p>
   </div>
 </header>
@@ -30,7 +29,7 @@
 <main class="portal-main">
 
   <section class="portal-section">
-    <h2 class="portal-h2">📍 Ku jemi tani</h2>
+    <h2 class="portal-h2">{{ L.where }}</h2>
     <ol class="portal-stages">
       {% for s in stage_steps %}
       <li class="portal-stage portal-stage-{{ s.state }}">
@@ -40,12 +39,12 @@
       {% endfor %}
     </ol>
     <p class="portal-stage-current">
-      Faza aktuale: <strong>{{ stage_label }}</strong>
+      {{ L.current }} <strong>{{ stage_label }}</strong>
     </p>
   </section>
 
   <section class="portal-section">
-    <h2 class="portal-h2">📅 Çfarë vjen më pas</h2>
+    <h2 class="portal-h2">{{ L.next }}</h2>
     {% if upcoming_events %}
     <ul class="portal-events">
       {% for e in upcoming_events %}
@@ -54,7 +53,7 @@
         <div class="portal-event-body">
           <div class="portal-event-title">{{ e.title }}</div>
           <div class="portal-event-meta">
-            <span class="portal-event-kind">{{ e.kind }}</span>
+            <span class="portal-event-kind">{{ kind_label(e.kind) }}</span>
             {% if e.location %}<span class="portal-event-loc">📍 {{ e.location }}</span>{% endif %}
           </div>
           {% if e.description %}<div class="portal-event-desc">{{ e.description }}</div>{% endif %}
@@ -63,12 +62,12 @@
       {% endfor %}
     </ul>
     {% else %}
-    <p class="portal-empty">Nuk ka takime ose afate të planifikuara në këtë moment.</p>
+    <p class="portal-empty">{{ L.no_next }}</p>
     {% endif %}
   </section>
 
   <section class="portal-section">
-    <h2 class="portal-h2">📝 Lajme nga avokati</h2>
+    <h2 class="portal-h2">{{ L.news }}</h2>
     {% if updates %}
     <ul class="portal-updates">
       {% for u in updates %}
@@ -82,20 +81,20 @@
       {% endfor %}
     </ul>
     {% else %}
-    <p class="portal-empty">Ende nuk ka komunikata. Avokati juaj do t'ju njoftojë sapo të ketë risi.</p>
+    <p class="portal-empty">{{ L.no_news }}</p>
     {% endif %}
   </section>
 
   {% if past_events %}
   <section class="portal-section portal-archive">
-    <h2 class="portal-h2">📚 Çka ka ndodhur</h2>
+    <h2 class="portal-h2">{{ L.past }}</h2>
     <ul class="portal-events">
       {% for e in past_events %}
       <li class="portal-event portal-event-past">
         <div class="portal-event-when">{{ e.starts_at[:10] }}</div>
         <div class="portal-event-body">
           <div class="portal-event-title">{{ e.title }}</div>
-          <div class="portal-event-meta"><span class="portal-event-kind">{{ e.kind }}</span></div>
+          <div class="portal-event-meta"><span class="portal-event-kind">{{ kind_label(e.kind) }}</span></div>
         </div>
       </li>
       {% endfor %}
@@ -104,23 +103,18 @@
   {% endif %}
 
   <section class="portal-section portal-disclosure">
-    <h2 class="portal-h2">🤖 Trasparenca për AI</h2>
+    <h2 class="portal-h2">{{ L.ai_h }}</h2>
     <p>
-      Studio jonë përdor mjete inteligjence artificiale për kërkim dhe
-      redaktim. <strong>Çdo akt, mendim ose strategji rishikohet nga
-      avokati i autorizuar para se të dorëzohet.</strong> AI-ja nuk
-      përfaqëson dhe nuk merr vendime në vend të avokatit.
+      {{ L.ai_a }} <strong>{{ L.ai_b }}</strong> {{ L.ai_c }}
     </p>
   </section>
 
   <footer class="portal-footer">
     <p>
-      Kjo faqe është private dhe e mbrojtur me një link unik për ju.
-      Mos e ndani me persona të tjerë. Për pyetje, kontaktoni drejtpërdrejt
-      avokatin tuaj.
+      {{ L.foot }}
     </p>
     {% if client.last_viewed_at %}
-    <p class="portal-meta">Hyrja juaj e fundit: {{ client.last_viewed_at[:16].replace('T', ' ') }} UTC</p>
+    <p class="portal-meta">{{ L.last }} {{ client.last_viewed_at[:16].replace('T', ' ') }} UTC</p>
     {% endif %}
   </footer>
 

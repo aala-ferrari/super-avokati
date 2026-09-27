@@ -1314,8 +1314,42 @@ def build_strategy_compass(
 
 # ── V8.11 Citation Shield V2 — provenance docx export ────────────────────
 
+# v9.395 — il documento era SOLO in albanese e dichiarava l'identificativo tecnico del modello:
+# in un fascicolo italiano entrava un documento albanese con «claude-opus-5» dentro. Ora parla la
+# lingua del FASCICOLO e il motore si chiama come nel prodotto (Tetramorph); il pacchetto salvato
+# nel DB resta intatto (lì il modello vero serve all'audit interno).
+_PROV_T = {
+    "sq": {
+        "id": "ID", "refusal": "⚠ REFUSAL — citimet nuk u verifikuan. Përgjigjja ruhet si e pasigurt.",
+        "cfg": "Konfigurimi", "motore": "Motori", "prompt": "Versioni i system prompt", "kb": "Versioni i bazës (KB)",
+        "hin": "Hash kërkese (input)", "hout": "Hash përgjigjeje (output)", "conf": "Besimi (confidence)",
+        "cit": "Citime dhe verifikim", "c_raw": "Citimi", "c_code": "Kodi", "c_st": "Statusi",
+        "st": {"verified": "✓ verifikuar", "fake": "✗ fantazmë", "needs_code": "? pa kod", "repealed": "⚠ i shfuqizuar",
+               "stale": "⚠ për t'u rifreskuar", "foreign_verified": "✓ e drejtë e huaj", "foreign_unverified": "? e drejtë e huaj",
+               "foreign_repealed": "⚠ e drejtë e huaj, e shfuqizuar"},
+        "ret": "Burime të marra (korpusi)", "art": "Neni",
+        "lvl": {"I lartë": "I lartë", "Mesatar": "Mesatar", "I ulët": "I ulët"},
+        "foot": "Ky dokument provenance gjenerohet automatikisht nga Super Avokati për qëllime auditimi "
+                "(EU AI Act art. 12-13, llogaridhënia e sistemeve me rrezik të lartë).",
+    },
+    "it": {
+        "id": "ID", "refusal": "⚠ RIFIUTO — le citazioni non sono state verificate. La risposta è registrata come incerta.",
+        "cfg": "Configurazione", "motore": "Motore", "prompt": "Versione del system prompt", "kb": "Versione della base (KB)",
+        "hin": "Hash della richiesta (input)", "hout": "Hash della risposta (output)", "conf": "Affidabilità (confidence)",
+        "cit": "Citazioni e verifica", "c_raw": "Citazione", "c_code": "Codice", "c_st": "Stato",
+        "st": {"verified": "✓ verificata", "fake": "✗ inesistente", "needs_code": "? senza codice", "repealed": "⚠ abrogata",
+               "stale": "⚠ da aggiornare", "foreign_verified": "✓ diritto straniero", "foreign_unverified": "? diritto straniero",
+               "foreign_repealed": "⚠ diritto straniero, abrogata"},
+        "ret": "Fonti recuperate (corpus)", "art": "Art.",
+        "lvl": {"I lartë": "Alto", "Mesatar": "Medio", "I ulët": "Basso"},
+        "foot": "Questo documento di provenienza è generato automaticamente da Super Avokati a fini di audit "
+                "(EU AI Act artt. 12-13, responsabilità dei sistemi ad alto rischio).",
+    },
+}
+
+
 def provenance_docx(pack: dict) -> bytes:
-    """Render a ProvenancePack as a .docx audit document.
+    """Render a ProvenancePack as a .docx audit document (nella lingua del fascicolo).
 
     The output is suitable for filing in the case dossier: a one-page
     record of WHO produced WHAT WHEN against WHICH KB version, plus the
@@ -1327,6 +1361,8 @@ def provenance_docx(pack: dict) -> bytes:
     from docx import Document
     from docx.shared import Pt
 
+    juris = (pack.get("jurisdiction") or "AL").upper()
+    L = _PROV_T["it" if juris == "IT" else "sq"]
     doc = Document()
 
     title = doc.add_heading("PROVENANCE PACK", level=0)
@@ -1334,28 +1370,24 @@ def provenance_docx(pack: dict) -> bytes:
 
     pid = pack.get("response_id") or "—"
     ts = pack.get("timestamp_iso") or "—"
-    juris = pack.get("jurisdiction") or "AL"
     p = doc.add_paragraph()
-    r = p.add_run(f"ID: {pid}    ·    {ts}    ·    {juris}")
+    r = p.add_run(f"{L['id']}: {pid}    ·    {ts}    ·    {juris}")
     r.font.size = Pt(9)
 
     if pack.get("refused"):
         warning = doc.add_paragraph()
-        wr = warning.add_run(
-            "⚠ REFUSAL — citimet nuk u verifikuan. "
-            "Përgjigjja ruhet si e pasigurt."
-        )
+        wr = warning.add_run(L["refusal"])
         wr.bold = True
 
-    doc.add_heading("Konfigurim modeli", level=2)
+    doc.add_heading(L["cfg"], level=2)
+    _lvl = pack.get("confidence_label") or "—"
     cfg_rows = [
-        ("Modeli", pack.get("model") or "—"),
-        ("Versioni i system prompt", pack.get("system_prompt_version") or "—"),
-        ("Versioni i bazës (KB)", pack.get("kb_version") or "—"),
-        ("Hash kërkese (input)", pack.get("prompt_hash") or "—"),
-        ("Hash përgjigjeje (output)", pack.get("response_hash") or "—"),
-        ("Besimi (confidence)",
-         f"{pack.get('confidence', 0)} · {pack.get('confidence_label') or '—'}"),
+        (L["motore"], "Tetramorph"),
+        (L["prompt"], pack.get("system_prompt_version") or "—"),
+        (L["kb"], pack.get("kb_version") or "—"),
+        (L["hin"], pack.get("prompt_hash") or "—"),
+        (L["hout"], pack.get("response_hash") or "—"),
+        (L["conf"], f"{pack.get('confidence', 0)} · {L['lvl'].get(_lvl, _lvl)}"),
     ]
     table = doc.add_table(rows=len(cfg_rows), cols=2)
     table.style = "Light Grid Accent 1"
@@ -1367,30 +1399,26 @@ def provenance_docx(pack: dict) -> bytes:
     citations = pack.get("citations") or {}
     items = citations.get("items") or []
     if items:
-        doc.add_heading("Citime dhe verifikim", level=2)
+        doc.add_heading(L["cit"], level=2)
         cit_table = doc.add_table(rows=1, cols=3)
         cit_table.style = "Light Grid Accent 1"
         hdr = cit_table.rows[0].cells
-        hdr[0].text = "Citimi"
-        hdr[1].text = "Kodi"
-        hdr[2].text = "Statusi"
+        hdr[0].text = L["c_raw"]
+        hdr[1].text = L["c_code"]
+        hdr[2].text = L["c_st"]
         for it in items:
             row = cit_table.add_row().cells
             row[0].text = str(it.get("raw") or "")
             row[1].text = str(it.get("code_label") or "—")
             status = str(it.get("status") or "")
-            row[2].text = {
-                "verified": "✓ verifikuar",
-                "fake": "✗ fantazmë",
-                "needs_code": "? pa kod",
-            }.get(status, status)
+            row[2].text = L["st"].get(status, status)
 
     retrieved = pack.get("retrieved_articles") or []
     if retrieved:
-        doc.add_heading("Burime të marra (BM25)", level=2)
+        doc.add_heading(L["ret"], level=2)
         for art in retrieved[:20]:
             line = (
-                f"Neni {art.get('number') or '?'} ({art.get('code') or '—'})"
+                f"{L['art']} {art.get('number') or '?'} ({art.get('code') or '—'})"
                 f" — {(art.get('heading') or '')[:80]}"
             )
             score = art.get("score")
@@ -1400,11 +1428,7 @@ def provenance_docx(pack: dict) -> bytes:
 
     doc.add_paragraph()
     foot = doc.add_paragraph()
-    fr = foot.add_run(
-        "Ky dokument provenance gjenerohet automatikisht nga Super Avvocato "
-        "për qëllime auditimi (EU AI Act art. 12-13, llogaridhënia e "
-        "sistemeve me rrezik të lartë)."
-    )
+    fr = foot.add_run(L["foot"])
     fr.italic = True
     fr.font.size = Pt(8)
 

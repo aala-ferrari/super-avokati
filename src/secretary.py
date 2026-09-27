@@ -82,6 +82,13 @@ def build_agenda_snapshot(user_id: int, days_ahead: int = 45) -> str:
     end = (now + timedelta(days=days_ahead)).astimezone(UTC).strftime(
         "%Y-%m-%dT%H:%M:%SZ")
     events = storage.list_events(user_id, start=start, end=end)
+    # v9.395 — la segretaria vede solo l'agenda della sessione (Regola #1):
+    # in sessione IT leggeva e citava gli appuntamenti dei fascicoli albanesi.
+    try:
+        from . import brain as _brain
+        events = storage.eventi_della_giurisdizione(events, _brain.request_jurisdiction())
+    except Exception:  # noqa: BLE001
+        pass
     if not events:
         return "(Asnjë ngjarje e planifikuar në 45 ditët e ardhshme.)"
     lines = []

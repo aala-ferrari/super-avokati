@@ -4867,6 +4867,118 @@ def main():
     except Exception as _e141:  # noqa: BLE001
         check("ancore[141]: kontrollet u ekzekutuan", False, str(_e141))
 
+    # [142] v9.395 — LA SESSIONE IT MOSTRAVA DATI E TESTI ALBANESI (verifica pre-lancio dal browser, 27 set): il briefing del
+    # giorno elencava i fascicoli albanesi, calendario/banner delle scadenze/segretaria gli eventi dei fascicoli albanesi e quelli
+    # senza fascicolo nati in sessione AL, la fase del caso arrivava sempre in albanese («Përgatitje»), il portale del cliente era
+    # SOLO in albanese, il marchio «SUPER AVOKATI» diventava «SUPER AVVOCATO» (voce del dizionario) e il titolo della scheda restava
+    # «asistent ligjor falas». Regola #1: in una sessione l'altra giurisdizione NON esiste — neanche nell'agenda.
+    try:
+        import inspect as _in142
+        _rr142 = _os2.path.dirname(_os2.path.dirname(_os2.path.abspath(__file__)))
+        from types import SimpleNamespace as _NS142
+        from src import storage as _st142, web as _we142, secretary as _se142
+        _E = lambda cid, j: _NS142(case_id=cid, jurisdiction=j, title="x")
+        _mappa = {"c_it": "IT", "c_al": "AL"}
+        _okA = (_st142.giurisdizione_evento(_E("c_it", "AL"), _mappa) == "IT"          # il fascicolo fa fede
+                and _st142.giurisdizione_evento(_E(None, "IT"), _mappa) == "IT"
+                and _st142.giurisdizione_evento(_E(None, None), _mappa) == "AL"         # eredità: nati in sessione AL
+                and _st142.stage_label("preparation", "IT") == "Preparazione"
+                and _st142.stage_label("hearing", "AL") == "Seancë" and _st142.stage_label("xyz", "IT") == "xyz")
+        _srcs = {n: _in142.getsource(f) for n, f in (("events", _we142.api_list_events), ("agenda", _we142.api_agenda_upcoming),
+                                                     ("brief", _we142.api_daily_brief), ("seg", _se142.build_agenda_snapshot))}
+        _okB = (all("eventi_della_giurisdizione" in v for v in _srcs.values())
+                and "_active_jurisdiction(user)" in _srcs["brief"] and "CASE_STAGE_LABELS_SQ" not in _in142.getsource(_we142.api_list_cases)
+                and "CASE_STAGE_LABELS_SQ" not in _srcs["brief"])
+        _pt = _io2.open(_os2.path.join(_rr142, "templates", "portal.html"), encoding="utf-8").read()
+        import jinja2 as _j142
+        _html = _j142.Environment().from_string(_pt).render(
+            L=_we142._PORTAL_T["it"], lang="it", kind_label=lambda k: _we142._PORTAL_KIND["it"].get(k, k),
+            case=_NS142(title="Caso"), client=_NS142(name="Mario", last_viewed_at=None), firm_name=None,
+            stage_steps=[{"key": "intake", "label": "Intake / accoglienza", "state": "current"}], stage_label="Preparazione",
+            upcoming_events=[{"starts_at": "2026-10-01T09:00:00Z", "title": "t", "kind": "seance", "location": None, "description": None}],
+            past_events=[], updates=[])
+        _okC = (not re.search(r"[ëçËÇ]", _pt) and "Benvenuto," in _html and "Udienza" in _html
+                and not re.search(r"[ëçËÇ]|Mirë|Faza aktuale|Lajme nga", _html)
+                and set(_we142._PORTAL_T["it"]) == set(_we142._PORTAL_T["sq"]))
+        _ix = _io2.open(_os2.path.join(_rr142, "templates", "index.html"), encoding="utf-8").read()
+        _js = _io2.open(_os2.path.join(_rr142, "static", "app.js"), encoding="utf-8").read()
+        _okD = ('<h1 translate="no">' in _ix and "Super Avvocato" not in _ix and "shkruaj në albanian" not in _ix
+                and '"AVOKATI": "AVVOCATO"' not in _js and "[translate=no]" in _js
+                and "document.title = T_IT[document.title]" in _js)
+        check("sessione[142]: eventi/briefing/segretaria solo della giurisdizione della sessione (il fascicolo fa fede, senza "
+              "fascicolo quella di nascita, eredità = AL) · fase del caso nella lingua · portale del cliente nella lingua del "
+              "fascicolo · marchio mai tradotto · titolo della scheda in italiano", _okA and _okB and _okC and _okD,
+              "A=%s B=%s C=%s D=%s" % (_okA, _okB, _okC, _okD))
+    except Exception as _e142:  # noqa: BLE001
+        check("sessione[142]: kontrollet u ekzekutuan", False, str(_e142))
+
+    # [143] v9.395 — IL SECONDO GIRO DELLA VERIFICA PRE-LANCIO (27 set): (1) `porta_utente` portava nei thread l'utente e
+    # il profilo ma NON la giurisdizione → l'analizzatore dei precedenti (in sottofondo) girava come sessione AL anche per un
+    # avvocato italiano; (2) e cercava SEMPRE nell'archivio albanese (Kushtetuese/GjL/CEDU-Albania): in sessione IT ora
+    # l'archivio italiano (Consulta, CdS, TAR + Cassazione) con prompt italiani; (3) il pannello e il DOCX «Provenance» erano
+    # solo albanesi e mostravano l'identificativo del modello: motore = Tetramorph, lingua del fascicolo; (4) pannelli dei
+    # precedenti e dei contratti con etichette fisse albanesi; (5) il traduttore del DOM saltava gli attributi dell'elemento
+    # aggiunto direttamente («Mbyll»).
+    try:
+        import threading as _th143, inspect as _in143, re as _re143
+        from types import SimpleNamespace as _NS143
+        from src import brain as _br143, precedent as _pr143, pro_features as _pf143, web as _we143
+        _rr143 = _os2.path.dirname(_os2.path.dirname(_os2.path.abspath(__file__)))
+        _vista = {}
+        _br143.set_request_jurisdiction("IT")
+        _f = _br143.porta_utente(1, lambda: _vista.setdefault("j", _br143.request_jurisdiction()))
+        _t = _th143.Thread(target=_f); _t.start(); _t.join(5)
+        _br143.set_request_jurisdiction("AL")
+        _okA = _vista.get("j") == "IT"
+        _ref = _pr143.PrecedentRef(citation="Cons. Stato, n. 1/2026", court_code="CdS", outcome="", objekti="passo",
+                                   source_url="", bm25_score=1.0)
+        _blk = _ref.to_block("it")
+        _okB = (hasattr(_pr143, "gather_precedents_it") and "PASSO DELLA DECISIONE" in _blk
+                and not _re143.search(r"GJYKATA|REZULTATI|OBJEKTI", _blk)
+                and "niente diritto" in _pr143.PRECEDENT_SYSTEM_IT and "jurisdiction=_juris_prec" in _in143.getsource(_we143.api_precedent_run)
+                and 'lang="it"' in _in143.getsource(_pr143.analyze))
+        import io as _io143
+        from docx import Document as _Doc143
+        _pk = {"jurisdiction": "IT", "response_id": "r1", "timestamp_iso": "2026-09-27", "model": "claude-opus-5",
+               "confidence": 1.0, "confidence_label": "I lartë", "citations": {"items": [{"raw": "art. 641 c.p.c.", "code_label": "c.p.c.", "status": "verified"}]},
+               "retrieved_articles": [{"number": "641", "code": "codice_procedura_civile", "heading": "Accoglimento della domanda", "score": 3.1}]}
+        _dt = "\n".join(p.text for p in _Doc143(_io143.BytesIO(_pf143.provenance_docx(_pk))).paragraphs)
+        _dt += "\n".join(c.text for t in _Doc143(_io143.BytesIO(_pf143.provenance_docx(_pk))).tables for r in t.rows for c in r.cells)
+        _okC = ("Tetramorph" in _dt and not _re143.search(r"claude|opus|sonnet|fable|anthropic", _dt, _re143.I)
+                and not _re143.search(r"[ëçË]", _dt) and "Configurazione" in _dt and "Art. 641" in _dt
+                and 'pack["model"] = "Tetramorph"' in _in143.getsource(_we143.api_provenance_json))
+        _js = _io2.open(_os2.path.join(_rr143, "static", "app.js"), encoding="utf-8").read()
+        _okD = ("<dt>${PL.motore}</dt><dd><code>Tetramorph</code></dd>" in _js and "prov.model ||" not in _js
+                and '_CAL_IT ? "✓ Mosse da imitare"' in _js and '_CAL_IT ? "Parte" : "Pala"' in _js
+                and "if (root.matches && root.matches(_SEL)) els.unshift(root);" in _js
+                and 'kerk: "Ricercatore (norma mancante)"' in _js and "GDPR-AL flags\"" not in _js.split('"Semafor 🟢🟡🔴 për çdo klauzolë + GDPR-AL flags": ')[1][:80])
+        from src import reminders as _rm143
+        _R = _NS143(offset_minutes=1440)
+        _okE = (_rm143._fmt_ahead(_R, "it") == "1 giorno prima" and _rm143._fmt_ahead(_R) == "1 ditë para"
+                and "giurisdizione_evento" in _in143.getsource(_rm143._lingua)
+                and '"La risposta è pronta" if _it_push' in _in143.getsource(_we143)
+                and '"Genio Legale è pronto" if _it_push' in _in143.getsource(_we143)
+                and '"Rasti u fshi.": "Caso eliminato."' in _js and '"Po kërkoj…": "Sto cercando…"' in _js
+                and ".calendar-toggle[hidden] { display: none; }" in _io2.open(_os2.path.join(_rr143, "static", "style.css"), encoding="utf-8").read()
+                and ".deadline-banner[hidden], .clients-count[hidden], .dossier-count[hidden] { display: none; }"
+                in _io2.open(_os2.path.join(_rr143, "static", "style.css"), encoding="utf-8").read())
+        from src import succession_engine as _se143
+        _q_ok = _se143.check("PJESA | M | 1/3\nPJESA | A | 2/9\nPJESA | B | 2/9\nPJESA | C | 2/9\n"
+                             "STRUKTURA | bashkeshort=1 | femije=3 | rend=1\n", "it")
+        _q_al = _se143.check("PJESA | M | 1/4\nPJESA | A | 1/4\nPJESA | B | 1/4\nPJESA | C | 1/4\n"
+                             "STRUKTURA | bashkeshort=1 | femije=3 | rend=1\n", "it")
+        _okF = ("art. 581 c.c." in _q_ok and "⚠" not in _q_ok and "Neni 361" not in _q_ok and "⚠" in _q_al
+                and _se143.first_order_shares(True, 0) is None and _se143.quote_certe_it(True, 0) is None
+                and "Neni 361" not in _se143.check("PJESA | G | 1/1\nSTRUKTURA | bashkeshort=1 | femije=0 | rend=1\n", "sq"))
+        _okE = _okE and _okF
+        check("sessione[143]: la giurisdizione viaggia nei thread · precedenti italiani in sessione IT · provenienza nella "
+              "lingua del fascicolo e motore Tetramorph (mai il nome del modello) · pannelli precedenti/contratti bilingui · "
+              "attributi dell'elemento aggiunto tradotti · notifiche push e promemoria nella lingua giusta · il pulsante "
+              "sospeso resta nascosto · quote successorie italiane (artt. 566/581 c.c.), mai il KC 361 in IT", _okA and _okB and _okC and _okD and _okE,
+              "A=%s B=%s C=%s D=%s E=%s" % (_okA, _okB, _okC, _okD, _okE))
+    except Exception as _e143:  # noqa: BLE001
+        check("sessione[143]: kontrollet u ekzekutuan", False, str(_e143))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

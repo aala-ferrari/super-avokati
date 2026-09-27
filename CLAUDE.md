@@ -2,7 +2,7 @@
 
 Strumento AI per avvocati (B2B), **bi-giurisdizione AL + IT**. Front-end Flask (waitress, UN processo) su porta
 5050, SQLite (`data/app.db`). Postgres `legalkb` NON è raggiungibile dal container: i precedenti vivono nel pickle.
-**Stato al 26 set 2026 (v9.394)** — i numeri qui sono quelli veri; più sotto, nelle sezioni datate, c'è la storia:
+**Stato al 27 set 2026 (v9.396)** — i numeri qui sono quelli veri; più sotto, nelle sezioni datate, c'è la storia:
 - **AL leggi** (`bm25.pkl`, BM25 con diacritici piegati dal v9.367, titolo del capitolo cercabile dal v9.373): **10.460 unità / 64 codici** (dal v9.391 anche la ligji 7975/1995 sugli stupefacenti e la 61/2023 sulla cannabis medica); embedding AL `_flat3`/`_ck3` (capitoli + corpo intero, `EMB_SUFFIX_SQ`/`EMB_SUFFIX2_SQ`), IT `_flat4`/`_ck4` dal v9.384 (`EMB_SUFFIX_IT`/`EMB_SUFFIX2_IT`); fonte
   `data/processed/all_articles.jsonl` (il pickle è derivato).
 - **Precedenti** (`bm25_decisions.pkl`): **3.996** = Kushtetuese **672** + Gjykata e Lartë **2.960** + CEDU **364**
@@ -645,7 +645,7 @@ errori, non che le risposte sono ancora giuste. Riferimento verificato il
 12 articoli recuperati per ciascuna.
 
 ```bash
-docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63], triage-trim+giudice-no-web [64], chat-web+verdetto-in-testa+pannelli-IT [65], codice-nominato→area [66], timeout-45min+ripiego-no-web [67], fasi-bilingue+giudice-no-web+duello-a-scomparsa [68], etichette-composte-bilingui [69]). Baseline **539/539** (26 set, v9.394: + [141] ancore dello straniero licenziato e del premio di anzianità; v9.393: + [140] Opus 5.5 nel CLI e modelli per percorso; v9.392: + [139] liste albanesi delle sostanze; v9.391: + [138] leggi albanesi sugli stupefacenti nel corpus; v9.390: + [137] tabelle degli stupefacenti; v9.389: + [136] Corte di giustizia UE sull'archivio CELLAR; v9.388: + [135] sentenze albanesi «non confermate» = inammissibilità dell'archivio o decisioni di altri organi; v9.386: + [134] precedenti di Cassazione per la domanda + etichette del prompt nella lingua della sessione; v9.385: + [133] Cassazione sull'archivio ufficiale — con un controllo dal vivo che si SALTA se l'archivio non risponde; v9.384: + [129] capitoli IT, [130] articoli puntati, [131] rubriche IT, [132] UE/CEDU; era 98 il 31 ago).
+docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63], triage-trim+giudice-no-web [64], chat-web+verdetto-in-testa+pannelli-IT [65], codice-nominato→area [66], timeout-45min+ripiego-no-web [67], fasi-bilingue+giudice-no-web+duello-a-scomparsa [68], etichette-composte-bilingui [69]). Baseline **541/541** (27 set, v9.395: + [142] agenda/briefing/segretaria/portale nella giurisdizione della sessione, [143] giurisdizione nei thread + precedenti italiani + provenienza «Tetramorph» + quote successorie italiane; 26 set, v9.394: + [141] ancore dello straniero licenziato e del premio di anzianità; v9.393: + [140] Opus 5.5 nel CLI e modelli per percorso; v9.392: + [139] liste albanesi delle sostanze; v9.391: + [138] leggi albanesi sugli stupefacenti nel corpus; v9.390: + [137] tabelle degli stupefacenti; v9.389: + [136] Corte di giustizia UE sull'archivio CELLAR; v9.388: + [135] sentenze albanesi «non confermate» = inammissibilità dell'archivio o decisioni di altri organi; v9.386: + [134] precedenti di Cassazione per la domanda + etichette del prompt nella lingua della sessione; v9.385: + [133] Cassazione sull'archivio ufficiale — con un controllo dal vivo che si SALTA se l'archivio non risponde; v9.384: + [129] capitoli IT, [130] articoli puntati, [131] rubriche IT, [132] UE/CEDU; era 98 il 31 ago).
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 bash /root/prova_sse.sh                                    # SULL'HOST (legge il secret da /opt/super-avvocato.env; copia in tools/prova_sse.sh): account di prova → login → fascicolo → 1 domanda VERA → stream /api/ask/events attraverso waitress. Deve dire «HTTP 200 … done: 1» (~50s, costa 1 chiamata al cervello) e cancella l'account. Dopo OGNI build che tocca web.py o le rotte SSE.
@@ -1512,6 +1512,49 @@ rischio residuo della DPIA.
 - Super Avokati ha auth propria (login_required_api); utenti creati da admin o auto-provisionati da AALA (`/api/provision-demo`, secret-guarded).
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
+
+**v9.395-396 — VERIFICA PRE-LANCIO AL+IT «come un avvocato» (27 set).** Il titolare: «voglio essere pronto fra pochi giorni
+per lanciarlo sul mercato albanese e italiano… che non ci siano misti tra albanese e italiano… zero problemi… verifica sia dal VPS
+sia dal browser facendo come se fossi tu un avvocato, e migliora tutto». Prove da avvocato vere: AL «appello civile, notificato ieri»
+→ KPC 443 (15 giorni) + 444 (dal giorno dopo) + 446 (si deposita al tribunale che ha deciso), scadenza di domenica spostata al lunedì,
+trappola dei 3 giorni dell'art. 310 — tutto riscontrato sul corpus, 3 min; IT «decreto ingiuntivo da 18.000 €, merce difettosa» →
+art. 641 (40 giorni: 5 novembre), 645 (atto introduttivo, Tribunale che ha emesso), 647, 648-649, 1495 c.c., mediazione per la
+somministrazione — e il seguito «consegna di 14 mesi fa» nel filo del caso. Il cervello è giusto; i difetti erano ATTORNO, e quasi
+tutti di lingua/giurisdizione, trovati aprendo i pannelli in sessione IT e con due controlli costruiti per l'occasione
+(`scratchpad/t_missing.js`: chiavi VERE di `T_IT` — i 16 blocchi valutati con Node — contro i letterali di `t()`/`TT()`;
+`cfg_missing.js`: i valori albanesi delle configurazioni degli strumenti che passano da `t(cfg.x)`; più la scansione del DOM vivo):
+(1) **Regola #1 anche per l'agenda**: il briefing del giorno elencava i fascicoli albanesi in sessione IT; calendario, banner delle
+scadenze e Segretaria mostravano gli eventi dei fascicoli albanesi e quelli senza fascicolo nati in sessione AL → colonna
+`events.jurisdiction` (quella del fascicolo fa fede; senza fascicolo quella della sessione di nascita; NULL = eredità = AL, misurato:
+i 12 eventi senza fascicolo erano tutti albanesi), `storage.eventi_della_giurisdizione` in `/api/events`, `/api/agenda/upcoming`,
+`/api/firm/today`, `secretary.build_agenda_snapshot` (il feed iCal resta intero: è il calendario dell'utente). (2) la **fase del
+caso** arrivava sempre albanese («Përgatitje») → `storage.stage_label(stage, giurisdizione)`. (3) il **portale del cliente** era SOLO
+albanese → nella lingua del fascicolo (`_PORTAL_T`, tipi di evento tradotti; link non valido in entrambe). (4) il **marchio**
+«SUPER AVOKATI» diventava «SUPER AVVOCATO» (voce `"AVOKATI": "AVVOCATO"` del dizionario: regressione contro la regola) →
+`<h1 translate="no">` + `[translate=no]` escluso dal traduttore; guida rapida col marchio giusto, «shkruaj **shqip**» (era
+«albanian») e numeri dal sistema; il titolo della scheda non veniva mai tradotto. (5) **Provenance**: pannello e DOCX solo albanesi e,
+aperti, mostravano «claude-opus-5» → nella lingua del fascicolo, motore «Tetramorph» (anche nel JSON esportato; il pacchetto nel DB
+resta intatto per l'audit interno). (6) **`porta_utente` non portava la giurisdizione** nei thread in sottofondo → l'analizzatore
+dei precedenti girava come sessione AL (preambolo e «VETËM SHQIP») E cercava SEMPRE nell'archivio albanese → ora porta la
+giurisdizione, e in sessione IT `precedent.gather_precedents_it` usa l'archivio italiano (`brain._precedenti_it`: Consulta/CdS/TAR in
+FTS + Cassazione sull'archivio ufficiale) con prompt italiani; provato: 2 Cassazione civili pertinenti, 0 albanesi, sintesi italiana.
+(7) **Quote successorie** (errore GIURIDICO del codice deterministico): in sessione IT il controllo applicava il KC 361 (coniuge e
+figli in parti uguali) → in Italia artt. 566/581 c.c. (coniuge 1/2 con un figlio, 1/3 con più figli: con coniuge + 3 figli le quote
+giuste 1/3 e 2/9 risultavano «sbagliate»); e il solo coniuge senza figli non è più un caso «certo» nemmeno in AL (KC 361: 1/2,
+il resto agli ordini successivi). Trovato dall'audit IT (`audit_tools_it.py`, «albanese=1»). (8) pannelli con etichette fisse
+albanesi: risultato dei precedenti e di «Rivedi contratto» (+ «GDPR-AL» → «GDPR» in IT), calendario («Pamja mujore · Java»,
+«Gjithë ditën», agenda vuota, «ngjarje», scorciatoie «Sot»/«E re», «Calendario &amp; Agenda» con l'entità HTML scritta a schermo), Archivio, Mappa delle pretese,
+Studio (placeholder), tour («21 codici albanesi, 43 italiani» → corpus della sessione); il traduttore del DOM saltava gli attributi
+dell'ELEMENTO aggiunto (solo i discendenti: «Mbyll» restava). (9) **notifiche push** e **promemoria** email/Telegram solo albanesi →
+lingua della sessione / dell'evento. (10) il pulsante **Vigilanza** (sospesa di proposito) era visibile e non apriva nulla, e —
+v9.396 — la striscia vuota del banner e i distintivi «0» accanto a 👤/📎: stesso difetto, `display:flex/inline-block` batte
+l'attributo `hidden` → regole `[hidden]` mirate (misurato nel DOM: erano gli unici 4). (11) **landing** ferma al 3 set («21 kode, 43,
+2.000 sentenze») → 64 / 129 / oltre 13.000 (3.996 AL + 9.527 IT, contati dal vivo); due copie orfane di settembre nella cartella
+del build (`src/golden_check.py`, `static/index.html` — quest'ultima era pubblica) → `/root/stray-backup-20260927/`. Golden
+**[142] [143]**, 541; smoke 110, giurisdizione verde, banco di prova GATE PASS; prove vive dopo il deploy: SSE 200, lingua A/B/C,
+scansione del DOM in sessione IT: 0 testi albanesi (erano 9 sulla sola pagina principale). ⚠️ Trappole: `docker exec` senza `-i` non
+passa lo stdin (script via file); il ridimensionamento della finestra e l'iframe non servono per la prova mobile (la CSP blocca il
+riquadro: giusto); un audit fermato con SIGTERM non esegue `atexit` (il fascicolo di prova resta: cancellarlo a mano).
 
 **v9.394 — LE NORME CHE NESSUN MODELLO CITAVA (26 set, mattina).** Dalla misura dei modelli: alcune norme attese mancavano in
 TUTTI i giri, con qualunque configurazione. Due erano errori del banco di prova: cittadinanza per matrimonio con il codice

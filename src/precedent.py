@@ -147,6 +147,72 @@ Kthe VETËM JSON të pastër me skemën:
 }}"""
 
 
+
+PRECEDENT_SYSTEM_IT = (
+    "Sei un socio senior di uno studio legale italiano con 25 anni di contenzioso. Missione: da un "
+    "gruppo di decisioni passate su questioni simili, ESTRAI gli schemi che hanno deciso la vittoria o "
+    "la sconfitta e trasferiscili nella questione attuale dell'avvocato. Fondati SOLO sulle decisioni "
+    "che ti vengono date — non inventare fatti, non importare dottrina straniera, niente diritto "
+    "albanese. Ogni raccomandazione deve essere ancorata a una decisione specifica con la sua "
+    "citazione. Output SOLO JSON secondo lo schema."
+)
+
+
+PRECEDENT_USER_TEMPLATE_IT = """LA QUESTIONE ATTUALE DELL'AVVOCATO:
+{case_description}
+
+LE DECISIONI SIMILI (in ordine di pertinenza):
+{precedents_block}
+
+COMPITO: sintetizza da queste decisioni tre elenchi concreti per l'avvocato:
+
+1. **moves_to_imitate** — le mosse che hanno vinto questioni simili. Per ciascuna: cita la decisione
+specifica (dall'elenco sopra), spiega la MOSSA concreta (non astratta) e perché ha possibilità di
+applicarsi anche qui.
+
+2. **traps_to_avoid** — gli errori che hanno perso questioni simili. Per ciascuno: cita la decisione
+specifica, descrivi l'ERRORE concreto e il segnale che lo rende rilevante per la questione attuale.
+
+3. **kill_shot** — se esiste una singola mossa ad alta leva che può chiudere la questione (per es. un
+principio consolidato, un'eccezione procedurale vincente, una prova che manca alla controparte),
+individuala. Vuoto se non c'è.
+
+4. **per_precedent** — per ogni decisione data, una frase (≤ 120 caratteri) che spiega perché è
+rilevante per la questione attuale.
+
+5. **divergence_warning** — se le decisioni simili danno segnali misti, descrivi la variabile che
+sembra separare gli esiti. Vuoto se lo schema è chiaro.
+
+Scrivi tutto in italiano. Restituisci SOLO JSON pulito con lo schema:
+{{
+  "moves_to_imitate": [
+    {{
+      "cite": "Corte, n. X/AAAA",
+      "move": "1-2 frasi concrete",
+      "why_applicable": "1 frase"
+    }}
+  ],
+  "traps_to_avoid": [
+    {{
+      "cite": "Corte, n. X/AAAA",
+      "mistake": "1-2 frasi concrete",
+      "warning_signal": "1 frase — quando scatta questa trappola"
+    }}
+  ],
+  "kill_shot": {{
+    "exists": true | false,
+    "move": "1-3 frasi (vuoto se exists=false)",
+    "based_on": ["Corte, n. X/AAAA", ...]
+  }},
+  "per_precedent": [
+    {{
+      "cite": "Corte, n. X/AAAA",
+      "relevance": "≤ 120 caratteri"
+    }}
+  ],
+  "divergence_warning": "stringa o vuoto"
+}}"""
+
 @dataclass
 class PrecedentRef:
     """A retrieved decision + its (optional) extracted ratio."""
@@ -164,9 +230,14 @@ class PrecedentRef:
     transferable_lesson: str | None = None
     source_file: str = ""
 
-    def to_block(self) -> str:
-        """Render the precedent as a prompt-ready block."""
+    def to_block(self, lang: str = "sq") -> str:
+        """Render the precedent as a prompt-ready block (etichette nella lingua della sessione)."""
         lines = [f"### {self.citation}"]
+        if lang == "it":
+            lines.append(f"CORTE: {self.court_code}  |  ESITO: {self.outcome or 'non indicato'}")
+            if self.objekti:
+                lines.append(f"PASSO DELLA DECISIONE: {self.objekti[:700]}")
+            return "\n".join(lines)
         lines.append(f"GJYKATA: {self.court_code}  |  REZULTATI: {self.outcome or 'i panjohur'}")
         if self.objekti:
             lines.append(f"OBJEKTI: {self.objekti[:400]}")
@@ -338,7 +409,7 @@ def gather_precedents(case_description: str, *, top_k: int = 5,
 
 
 def synthesize(case_description: str, refs: list[PrecedentRef], *,
-               backend, case_id: str | None = None) -> dict[str, Any]:
+               backend, case_id: str | None = None, lang: str = "sq") -> dict[str, Any]:
     """Call Opus with the precedents block; return parsed JSON or text fallback.
 
     Returns:
@@ -362,8 +433,8 @@ def synthesize(case_description: str, refs: list[PrecedentRef], *,
             "_parse_error": "no precedents found in BM25 index",
         }
 
-    precedents_block = "\n\n".join(r.to_block() for r in refs)
-    prompt = PRECEDENT_USER_TEMPLATE.format(
+    precedents_block = "\n\n".join(r.to_block(lang) for r in refs)
+    prompt = (PRECEDENT_USER_TEMPLATE_IT if lang == "it" else PRECEDENT_USER_TEMPLATE).format(
         case_description=case_description.strip(),
         precedents_block=precedents_block,
     )
@@ -371,7 +442,7 @@ def synthesize(case_description: str, refs: list[PrecedentRef], *,
     t0 = time.monotonic()
     try:
         text = backend.complete(
-            system=_juris(PRECEDENT_SYSTEM),
+            system=_juris(PRECEDENT_SYSTEM_IT if lang == "it" else PRECEDENT_SYSTEM),
             messages=[{"role": "user", "content": prompt}],
             max_tokens=3500,
             callsite="precedent_analyzer",
@@ -407,12 +478,74 @@ def synthesize(case_description: str, refs: list[PrecedentRef], *,
     return parsed
 
 
+def _giurisdizione_corrente() -> str:
+    try:
+        from .brain import request_jurisdiction
+        return (request_jurisdiction() or "AL").upper()
+    except Exception:  # noqa: BLE001
+        return "AL"
+
+
+_EXPAND_SYSTEM_IT = (
+    "Sei un giurista italiano esperto. Dalla DESCRIZIONE del caso estrai le parole chiave e i "
+    "concetti giuridici per cercare precedenti: istituti, sinonimi, termini tecnici e gli articoli "
+    "probabili (c.c., c.p.c., c.p., c.p.p., Costituzione, leggi speciali). Restituisci SOLO un breve "
+    "elenco di parole/espressioni separate da virgole, in italiano — niente frasi, niente spiegazioni."
+)
+
+
+def gather_precedents_it(case_description: str, *, top_k: int = 5, backend=None) -> list[PrecedentRef]:
+    """v9.395 — in sessione IT i precedenti vengono dall'archivio ITALIANO (Consulta, Consiglio di
+    Stato, CGARS, TAR — indice FTS) e dalla Cassazione sull'archivio ufficiale: lo stesso ramo che usa
+    il cervello (`brain._precedenti_it`). Prima lo strumento cercava SEMPRE nell'archivio albanese.
+    Mai solleva: nessun precedente è una risposta valida."""
+    from types import SimpleNamespace
+    try:
+        from .brain import _precedenti_it
+    except Exception:  # noqa: BLE001
+        return []
+    espansi = ""
+    if backend is not None:
+        try:
+            espansi = (backend.complete(
+                system=_juris(_EXPAND_SYSTEM_IT),
+                messages=[{"role": "user", "content": case_description.strip()[:2000]}],
+                max_tokens=250, fast=True, callsite="precedent_expand",
+            ) or "").strip().replace("\n", " ")
+        except Exception as exc:  # noqa: BLE001
+            log.warning("precedent IT: espansione fallita (%s)", exc)
+    domande = [q for q in (espansi[:400], case_description.strip()[:400]) if q]
+    tr = SimpleNamespace(search_queries=domande, strategic_angles=[], areas=[],
+                         problem_summary=case_description.strip()[:400],
+                         domanda=case_description.strip()[:600])
+    refs: list[PrecedentRef] = []
+    for cp, sc in (_precedenti_it(tr) or [])[:max(top_k, 3) + 2]:
+        try:
+            anno = cp.decision_date.year if getattr(cp, "decision_date", None) else None
+            num = str(cp.case_number or "")
+            cit = f"{cp.court_name}, n. {num}" + (f"/{anno}" if anno and not num.endswith(f"/{anno}") else "")
+            refs.append(PrecedentRef(
+                citation=cit, court_code=cp.court_code, outcome=(cp.subtype or ""),
+                objekti=(cp.summary or cp.excerpt or "")[:900], source_url=cp.source_url or "",
+                bm25_score=float(sc or 0.0),
+            ))
+        except Exception:  # noqa: BLE001
+            continue
+    return refs[:max(top_k, 3) + 2]
+
+
 def analyze(case_description: str, *, backend, top_k: int = 5,
             case_id: str | None = None,
-            decision_index: DecisionIndex | None = None) -> dict[str, Any]:
-    """Convenience: gather + synthesize. Returns the brief dict."""
-    refs = gather_precedents(case_description, top_k=top_k, decision_index=decision_index, backend=backend)
-    brief = synthesize(case_description, refs, backend=backend, case_id=case_id)
+            decision_index: DecisionIndex | None = None,
+            jurisdiction: str | None = None) -> dict[str, Any]:
+    """Convenience: gather + synthesize. Returns the brief dict (nella giurisdizione della sessione)."""
+    _j = (jurisdiction or _giurisdizione_corrente()).upper()
+    if _j == "IT":
+        refs = gather_precedents_it(case_description, top_k=top_k, backend=backend)
+        brief = synthesize(case_description, refs, backend=backend, case_id=case_id, lang="it")
+    else:
+        refs = gather_precedents(case_description, top_k=top_k, decision_index=decision_index, backend=backend)
+        brief = synthesize(case_description, refs, backend=backend, case_id=case_id)
     brief["precedents"] = [
         {
             "citation": r.citation,

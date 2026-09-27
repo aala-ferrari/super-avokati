@@ -83,8 +83,32 @@ def _fmt_when(event) -> str:
     return when
 
 
-def _fmt_ahead(reminder) -> str:
+def _lingua(event) -> str:
+    """v9.395 — il promemoria parla la lingua della giurisdizione dell'EVENTO (quella del suo
+    fascicolo): prima era sempre albanese, anche per gli avvocati italiani."""
+    try:
+        from . import storage as _st
+        return "it" if _st.giurisdizione_evento(event) == "IT" else "sq"
+    except Exception:  # noqa: BLE001
+        return "sq"
+
+
+_T_PROMEMORIA = {
+    "sq": {"kujtese": "Kujtesë", "auto": "Super Avokati · kujtesë automatike e agjendës"},
+    "it": {"kujtese": "Promemoria", "auto": "Super Avokati · promemoria automatico dell'agenda"},
+}
+
+
+def _fmt_ahead(reminder, lang: str = "sq") -> str:
     off = reminder.offset_minutes
+    if lang == "it":
+        if off >= 1440:
+            days = off // 1440
+            return f"{days} giorni prima" if days > 1 else "1 giorno prima"
+        if off >= 60:
+            hours = off // 60
+            return f"{hours} ore prima" if hours > 1 else "1 ora prima"
+        return f"{off} minuti prima"
     if off >= 1440:
         days = off // 1440
         return f"{days} ditë para" if days > 1 else "1 ditë para"
@@ -101,8 +125,9 @@ def _md_escape(s: str) -> str:
 def _format_message(event, reminder) -> str:
     """Telegram Markdown message."""
     emoji = _KIND_EMOJI.get(event.kind, "📌")
+    _lg = _lingua(event)
     lines = [
-        f"{emoji} *Kujtesë* ({_fmt_ahead(reminder)})",
+        f"{emoji} *{_T_PROMEMORIA[_lg]['kujtese']}* ({_fmt_ahead(reminder, _lg)})",
         f"*{_md_escape(event.title)}*",
         f"🗓 {_md_escape(_fmt_when(event))}",
     ]
@@ -193,24 +218,26 @@ def _send_email(to_email: str, event, reminder) -> str | None:
     to = (to_email or "").strip()
     if "@" not in to:
         return "invalid email"
-    ahead = _fmt_ahead(reminder)
+    _lg = _lingua(event)
+    _TP = _T_PROMEMORIA[_lg]
+    ahead = _fmt_ahead(reminder, _lg)
     when = _fmt_when(event)
-    title = event.title or "Kujtesë"
+    title = event.title or _TP["kujtese"]
     kind = _KIND_EMOJI.get(event.kind, "📌")
     desc = ""
     if event.description:
         snippet = event.description.strip().splitlines()[0][:300]
         desc = f'<p style="color:#555;margin:10px 0 0">{_html_escape(snippet)}</p>'
-    subject = f"⏰ Kujtesë ({ahead}): {title}"
+    subject = f"⏰ {_TP['kujtese']} ({ahead}): {title}"
     html = (
         '<div style="font-family:Georgia,serif;max-width:520px;margin:0 auto;color:#1a1a1a">'
         '<div style="background:#0f2540;color:#f3e6c4;padding:14px 18px;border-radius:12px 12px 0 0">'
-        f'<b>{kind} Kujtesë</b> · {_html_escape(ahead)}</div>'
+        f'<b>{kind} {_TP["kujtese"]}</b> · {_html_escape(ahead)}</div>'
         '<div style="border:1px solid #e3d3a5;border-top:none;border-radius:0 0 12px 12px;padding:16px 18px">'
         f'<h2 style="margin:0 0 6px;color:#0f2540">{_html_escape(title)}</h2>'
         f'<p style="margin:0;color:#6b5836">🗓 {_html_escape(when)}</p>'
         f'{desc}'
-        '<p style="margin:16px 0 0;font-size:12px;color:#999">Super Avokati · kujtesë automatike e agjendës</p>'
+        f'<p style="margin:16px 0 0;font-size:12px;color:#999">{_TP["auto"]}</p>'
         '</div></div>'
     )
     payload = json.dumps({

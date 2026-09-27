@@ -740,11 +740,16 @@ def porta_utente(uid: int | None, fn):
     # armato), non dentro `_dentro` (dove non c'e' piu'). Cosi' i quattro
     # chiamanti non cambiano di una virgola.
     _profili = request_profile()
+    # v9.395 — e la GIURISDIZIONE della sessione: senza, ogni lavoro in sottofondo che non
+    # la reimpostava da sé (l'analizzatore dei precedenti) girava come sessione AL —
+    # preambolo albanese e «VETËM SHQIP» anche per un avvocato italiano.
+    _giuris = request_jurisdiction()
 
     def _dentro(*a, **k):
         try:
             set_request_user(uid)
             set_request_profile(_profili)
+            set_request_jurisdiction(_giuris)
         except Exception:  # noqa: BLE001
             pass
         return fn(*a, **k)

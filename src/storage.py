@@ -1088,6 +1088,10 @@ def init_db(db_path: Path = APP_DB_PATH) -> None:
         conn.execute("UPDATE users SET modules = profession WHERE modules IS NULL OR modules = ''")
         _add_column_if_missing(conn, "users", "jurisdictions", "TEXT")
         conn.execute("UPDATE users SET jurisdictions = 'AL' WHERE jurisdictions IS NULL OR jurisdictions = ''")
+        # v9.395 — un evento appartiene alla giurisdizione del SUO fascicolo; uno
+        # senza fascicolo a quella della sessione in cui e' nato (NULL = prima
+        # del v9.395: tutti creati in sessione AL, misurato il 27 set).
+        _add_column_if_missing(conn, "events", "jurisdiction", "TEXT")
         conn.commit()
     log.info("app db ready at %s", db_path)
 
@@ -1371,6 +1375,19 @@ CASE_STAGE_LABELS_SQ: dict[str, str] = {
     "decision": "Vendim",
     "execution": "Ekzekutim",
 }
+CASE_STAGE_LABELS_IT: dict[str, str] = {
+    "intake": "Intake / accoglienza",
+    "preparation": "Preparazione",
+    "hearing": "Udienza",
+    "decision": "Decisione",
+    "execution": "Esecuzione",
+}
+
+
+def stage_label(stage: str, jurisdiction: str | None = "AL") -> str:
+    """L'etichetta della fase nella lingua della sessione (LINGUA = SESSIONE)."""
+    tab = CASE_STAGE_LABELS_IT if (jurisdiction or "").upper() == "IT" else CASE_STAGE_LABELS_SQ
+    return tab.get(stage, stage)
 
 
 @dataclass
@@ -2319,6 +2336,7 @@ class Event:
     done: bool
     created_at: str
     updated_at: str
+    jurisdiction: str | None = None
 
 
 @dataclass
@@ -2342,6 +2360,7 @@ def _event_from_row(r: sqlite3.Row) -> Event:
         source=r["source"], source_ref=r["source_ref"],
         done=bool(r["done"]),
         created_at=r["created_at"], updated_at=r["updated_at"],
+        jurisdiction=(r["jurisdiction"] if "jurisdiction" in r.keys() else None),
     )
 
 
@@ -2383,6 +2402,7 @@ def create_event(
     source: str = "manual",
     source_ref: str | None = None,
     reminders: list[int] | None = None,
+    jurisdiction: str | None = None,
 ) -> Event:
     """Create an event and its attached reminders in a single transaction.
 
@@ -2395,15 +2415,16 @@ def create_event(
     title = (title or "").strip() or "Ngjarje pa titull"
     event_id = uuid.uuid4().hex
     now = _utcnow()
+    jurisdiction = _giurisdizione_nuovo_evento(case_id, jurisdiction)
     with db() as conn:
         conn.execute(
             "INSERT INTO events (id, user_id, case_id, title, description, "
             "kind, starts_at, ends_at, all_day, location, color, source, "
-            "source_ref, created_at, updated_at) VALUES "
-            "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "source_ref, created_at, updated_at, jurisdiction) VALUES "
+            "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (event_id, user_id, case_id, title, description, kind,
              starts_at, ends_at, int(all_day), location, color,
-             source, source_ref, now, now),
+             source, source_ref, now, now, jurisdiction),
         )
         for off in (reminders or []):
             try:
@@ -2423,8 +2444,69 @@ def create_event(
         description=description, kind=kind, starts_at=starts_at,
         ends_at=ends_at, all_day=all_day, location=location, color=color,
         source=source, source_ref=source_ref, done=False,
-        created_at=now, updated_at=now,
+        created_at=now, updated_at=now, jurisdiction=jurisdiction,
     )
+
+
+def _giurisdizione_nuovo_evento(case_id: str | None, esplicita: str | None) -> str | None:
+    """Quella del fascicolo se c'e' (fa fede), altrimenti quella dichiarata,
+    altrimenti quella della richiesta in corso (la sessione). Mai solleva."""
+    try:
+        if case_id:
+            with db() as conn:
+                row = conn.execute("SELECT jurisdiction FROM cases WHERE id = ?",
+                                   (case_id,)).fetchone()
+            if row and row["jurisdiction"]:
+                return str(row["jurisdiction"]).upper()
+        if esplicita:
+            return esplicita.upper()
+        from . import brain as _brain          # gia' caricato nel processo web
+        return _brain.request_jurisdiction()
+    except Exception:  # noqa: BLE001 - la creazione di un evento non deve mai cadere per questo
+        return (esplicita or "").upper() or None
+
+
+def case_jurisdictions(case_ids) -> dict[str, str]:
+    """{case_id: giurisdizione} in UNA query (il calendario ne chiede decine)."""
+    ids = [c for c in {c for c in (case_ids or []) if c}]
+    if not ids:
+        return {}
+    out: dict[str, str] = {}
+    with db() as conn:
+        for i in range(0, len(ids), 500):
+            parte = ids[i:i + 500]
+            q = "SELECT id, jurisdiction FROM cases WHERE id IN (%s)" % ",".join("?" * len(parte))
+            for r in conn.execute(q, parte).fetchall():
+                out[r["id"]] = (r["jurisdiction"] or "AL").upper()
+    return out
+
+
+def giurisdizione_evento(e: "Event", mappa: dict[str, str] | None = None) -> str:
+    """La giurisdizione di un evento: quella del fascicolo (fa fede), poi quella
+    scritta alla nascita, poi AL (gli eventi senza fascicolo di prima del v9.395
+    sono nati tutti in sessione AL)."""
+    if e.case_id:
+        if mappa is not None and e.case_id in mappa:
+            return mappa[e.case_id]
+        if mappa is None:
+            m = case_jurisdictions([e.case_id])
+            if e.case_id in m:
+                return m[e.case_id]
+    return (getattr(e, "jurisdiction", None) or "AL").upper()
+
+
+def eventi_della_giurisdizione(events: list, jurisdiction: str | None) -> list:
+    """Regola #1 anche per il calendario: in una sessione gli eventi dell'altra
+    giurisdizione NON esistono (come i fascicoli). Se qualcosa va storto si
+    restituisce l'elenco intero: il calendario non deve mai svuotarsi per un
+    errore del filtro."""
+    try:
+        att = (jurisdiction or "AL").upper()
+        mappa = case_jurisdictions([e.case_id for e in events if e.case_id])
+        return [e for e in events if giurisdizione_evento(e, mappa) == att]
+    except Exception:  # noqa: BLE001
+        log.warning("filtro eventi per giurisdizione fallito: elenco intero")
+        return list(events)
 
 
 def get_event(event_id: str, user_id: int) -> Event | None:

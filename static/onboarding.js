@@ -17,7 +17,7 @@
       hapa: [
         ["new-case-btn", "Rastet", "Këtu hap një rast të ri: çdo bisedë, dokument dhe kërkim jeton brenda rastit të vet."],
         ["mode-bar", "Mënyrat e punës", "Zgjidh si punon truri: pyetje-përgjigje, analizë e thellë, hartim aktesh…"],
-        ["ask-input", "Pyetja", "Shkruaj si njeriu, jo si makina. Tetramorph arsyeton mbi 21 kode shqiptare, 43 italiane dhe mijëra vendime gjyqësore."],
+        ["ask-input", "Pyetja", "Shkruaj si njeriu, jo si makina. Tetramorph arsyeton mbi 64 kode e ligje shqiptare dhe mijëra vendime të Kushtetueses, Gjykatës së Lartë dhe GjEDNj."],
         ["composer-attach", "Dokumentet", "Bashkangjit PDF, foto, Word — analizohen brenda rastit, me citime të verifikuara."],
         ["dosja-btn", "Dosja", "Gjithçka e ruajtur dhe e ngarkuar, nga të gjitha rastet — në një vend."],
         ["calendar-btn", "Kalendari & Sekretarja", "Afatet procedurale futen vetë në kalendar; Sekretarja virtuale mban takimet — edhe me zë."],
@@ -33,7 +33,7 @@
       hapa: [
         ["new-case-btn", "I casi", "Qui apri un caso nuovo: ogni conversazione, documento e ricerca vive dentro il suo caso."],
         ["mode-bar", "Le modalità", "Scegli come lavora il cervello: domanda-risposta, analisi profonda, redazione atti…"],
-        ["ask-input", "La domanda", "Scrivi da persona, non da macchina. Tetramorph ragiona su 21 codici albanesi, 43 italiani e migliaia di sentenze."],
+        ["ask-input", "La domanda", "Scrivi da persona, non da macchina. Tetramorph ragiona su 129 codici e leggi italiane ed europee e su migliaia di decisioni (Consulta, Consiglio di Stato, TAR, Cassazione)."],
         ["composer-attach", "I documenti", "Allega PDF, foto, Word — vengono analizzati dentro il caso, con citazioni verificate."],
         ["dosja-btn", "Il dossier", "Tutto ciò che hai salvato e caricato, da tutti i casi — in un posto solo."],
         ["calendar-btn", "Calendario & Segretaria", "I termini processuali entrano da soli in calendario; la Segretaria virtuale tiene gli appuntamenti — anche a voce."],

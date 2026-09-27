@@ -14,9 +14,10 @@ fa, lo fa con `fractions.Fraction` (esatto, niente errori di virgola):
      UGUALI, il coniuge eredita come un figlio), calcola le frazioni e le
      confronta con quelle proposte.
 
-KUFI JURIDIKSIONAL: divisione per STRUTTURA secondo il KC albanese — MAI quote
-trapiantate (riserva 50%/75% italo-francese). La riserva ligjore (Neni 393) è
-materia del notaio, non la calcola questo modulo.
+KUFI JURIDIKSIONAL: divisione per STRUTTURA secondo la legge della SESSIONE — in AL il KC
+albanese (Neni 361), MAI quote trapiantate (riserva 50%/75% italo-francese); in IT il codice civile
+italiano (artt. 566, 581), mai la regola albanese (v9.395). La riserva (Neni 393 KC / artt. 536 ss.
+c.c.) è materia del notaio, non la calcola questo modulo.
 """
 from __future__ import annotations
 
@@ -72,7 +73,11 @@ def parse_structure(text: str):
 def first_order_shares(spouse: bool, children: int):
     """Caso CERTO (Neni 361 KC): 1° ordine = coniuge + figli in parti UGUALI
     (il coniuge eredita come un figlio). children-only → 1/N ciascuno.
-    None se la struttura non è calcolabile con certezza."""
+    None se la struttura non è calcolabile con certezza.
+    v9.395: senza figli NON è un caso certo — il KC 361 chiama gli ordini successivi e al coniuge
+    spetta 1/2 (tutto solo se non c'è nessun altro erede): lo decide il notaio, non l'aritmetica."""
+    if int(children) < 1:
+        return None
     n = int(children) + (1 if spouse else 0)
     if n <= 0:
         return None
@@ -83,6 +88,24 @@ def first_order_shares(spouse: bool, children: int):
     for i in range(int(children)):
         out["Fëmija %d" % (i + 1)] = each
     return out
+
+
+def quote_certe_it(spouse: bool, children: int):
+    """Quote di legge CERTE nel diritto italiano per coniuge e/o figli (successione legittima, senza
+    testamento né rappresentazione): art. 566 c.c. (solo figli: parti uguali), art. 581 c.c. (coniuge
+    con un figlio: 1/2 ciascuno; con più figli: coniuge 1/3, figli 2/3 in parti uguali).
+    Senza figli (coniuge con ascendenti/fratelli, art. 582-583) non è un caso certo → None."""
+    ch = int(children)
+    if ch < 1:
+        return None
+    if not spouse:
+        f = Fraction(1, ch)
+        return ("art. 566 c.c.", [f] * ch, "i figli succedono in parti uguali → **%s** ciascuno" % f)
+    if ch == 1:
+        return ("art. 581 c.c.", [Fraction(1, 2), Fraction(1, 2)], "coniuge **1/2**, figlio **1/2**")
+    c = Fraction(2, 3) / ch
+    return ("art. 581 c.c.", [Fraction(1, 3)] + [c] * ch,
+            "coniuge **1/3**, i %d figli si dividono 2/3 → **%s** ciascuno" % (ch, c))
 
 
 def check(text: str, lang: str = "sq") -> str:
@@ -103,23 +126,29 @@ def check(text: str, lang: str = "sq") -> str:
             rows.append((("⛔ La somma delle quote = %s ≠ 1 — ERRORE da correggere." % total) if it
                          else ("⛔ Shuma e pjesëve = %s ≠ 1 — GABIM për t'u korrigjuar." % total)))
     # caso certo di 1° ordine
-    if struct and struct.get("rend") in ("1", "pare", "parë", "primo", "i_pare"):
+    if it and struct and struct.get("rend") in ("1", "pare", "parë", "primo", "i_pare"):
+        # v9.395 — in sessione IT valeva la regola ALBANESE (coniuge e figli in parti uguali, Neni 361 KC):
+        # in Italia il coniuge ha 1/2 con un figlio e 1/3 con più figli (art. 581 c.c.), e con coniuge e
+        # 3 figli il controllo dava per sbagliate le quote italiane giuste (1/3 e 2/9).
+        q = quote_certe_it(struct["spouse"], struct["children"])
+        if q:
+            norma, attese, descr = q
+            ok_q = bool(shares) and sorted(f for _, f in shares) == sorted(attese)
+            rows.append("Successione legittima (%s): %s." % (norma, descr))
+            if shares and not ok_q:
+                rows.append("⚠ Le quote proposte NON corrispondono a quelle di legge (%s): verifica."
+                            % ", ".join(str(f) for f in sorted(attese, reverse=True)))
+    elif struct and struct.get("rend") in ("1", "pare", "parë", "primo", "i_pare"):
         det = first_order_shares(struct["spouse"], struct["children"])
         if det:
             proposed = {h: f for h, f in shares}
             vals_ok = shares and all(f == next(iter(det.values())) for _, f in shares) \
                 and len(shares) == len(det)
             each = next(iter(det.values()))
-            if it:
-                rows.append("Caso 1° ordine (Neni 361 KC): %d eredi in parti uguali → **%s** ciascuno."
-                            % (len(det), each))
-                if shares and not vals_ok:
-                    rows.append("⚠ Le quote proposte NON sono tutte uguali a %s: verifica (1° ordine = parti uguali)." % each)
-            else:
-                rows.append("Rasti i radhës së parë (Neni 361 KC): %d trashëgimtarë në pjesë të barabarta → **%s** secili."
-                            % (len(det), each))
-                if shares and not vals_ok:
-                    rows.append("⚠ Pjesët e propozuara NUK janë të gjitha %s: verifiko (radha e parë = pjesë të barabarta)." % each)
+            rows.append("Rasti i radhës së parë (Neni 361 KC): %d trashëgimtarë në pjesë të barabarta → **%s** secili."
+                        % (len(det), each))
+            if shares and not vals_ok:
+                rows.append("⚠ Pjesët e propozuara NUK janë të gjitha %s: verifiko (radha e parë = pjesë të barabarta)." % each)
     if not rows:
         return ""
     head = ("\n\n### 🧮 Controllo aritmetico delle quote (deterministico)\n" if it

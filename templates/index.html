@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="/static/style.css?v=145" />
+<link rel="stylesheet" href="/static/style.css?v=147" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%230a0a0a'/%3E%3Cpath d='M32 14v36M14 22h36M8 22l-4 10h8zM56 22l-4 10h8zM26 50h12v4H26z' stroke='%23e41e26' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='32' cy='14' r='3' fill='%23c9a24d'/%3E%3C/svg%3E" />
 <link rel="manifest" href="/manifest.webmanifest" />
 <link rel="apple-touch-icon" href="/static/apple-touch-icon.png" />
@@ -51,7 +51,7 @@
       <div class="logo-glow" aria-hidden="true"></div>
     </div>
     <div class="brand-text">
-      <h1><span class="brand-word">SUPER</span> <span class="brand-word">AVOKATI</span></h1>
+      <h1 translate="no"><span class="brand-word">SUPER</span> <span class="brand-word">AVOKATI</span></h1>
       <p class="tagline" data-i18n="tagline">Beteja fitohet para se të nisë.</p>
     </div>
   </div>
@@ -223,7 +223,7 @@
             </button>
             <button type="button" class="pro-menu-item pro-menu-new" data-pro="precedent" role="menuitem">
               <span class="pro-menu-ico">📚</span>
-              <div><strong>Pattern e precedentëve</strong><em data-i18n="it_01">BM25 mbi 1.258 vendime + ratio AI → lëvizjet që fituan, kurthet që humbën, kill-shot</em></div>
+              <div><strong>Pattern e precedentëve</strong><em data-i18n="it_01">Vendimet e Kushtetueses, Gjykatës së Lartë dhe GjEDNj + ratio AI → lëvizjet që fituan, kurthet që humbën, kill-shot</em></div>
             </button>
             <div class="pro-menu-divider" aria-hidden="true" data-i18n="grp_fashikull">— FASHIKULLI —</div>
             <button type="button" class="pro-menu-item pro-menu-new" data-pro="dosja" role="menuitem">
@@ -421,7 +421,7 @@
 
         <details id="welcome-tour" class="welcome-tour">
           {% if ui_lang == 'it' %}
-          <summary>📖 Guida rapida — come funziona Super Avvocato</summary>
+          <summary>📖 Guida rapida — come funziona Super Avokati</summary>
           <ol class="tour-steps">
             <li><strong>Apri un caso</strong> — clicca "＋ Nuovo caso" a sinistra. Ogni caso ha la propria memoria, i propri documenti e le analisi Pro collegate.</li>
             <li><strong>Parla come con un collega senior</strong> — scrivi in italiano, senza formule. Ogni "art. X" nella risposta viene verificato contro il corpus ({{ '{:,}'.format(total_articles).replace(',', '.') }} articoli in {{ num_codes }} codici).</li>
@@ -429,10 +429,10 @@
             <li><strong>Comandi rapidi in chat</strong> — scrivi <code>/afatet</code> per calcolare le scadenze procedurali (c.p.c./c.p.p.) a partire da un evento.</li>
           </ol>
           {% else %}
-          <summary>📖 Tour i shpejtë — si funksionon Super Avvocato</summary>
+          <summary>📖 Tour i shpejtë — si funksionon Super Avokati</summary>
           <ol class="tour-steps">
             <li><strong>Hap një rast</strong> — kliko "＋ Rast i ri" majtas. Çdo rast ka kujtesë të vetën, dokumentet e veta dhe analizat Pro të lidhura.</li>
-            <li><strong>Bisedo si me një kolegë senior</strong> — shkruaj në albanian; pa formule. Çdo "Neni X" në përgjigje verifikohet kundër korpusit (5615 nene + 1.258 vendime).</li>
+            <li><strong>Bisedo si me një kolegë senior</strong> — shkruaj shqip, pa formula. Çdo "Neni X" në përgjigje verifikohet kundër korpusit ({{ '{:,}'.format(total_articles).replace(',', '.') }} nene në {{ num_codes }} kode).</li>
             <li><strong>Mjete Pro</strong> ⭐ — pasi rasti është i hapur, mund të lëshosh: 🧠 <em>Genio Legale</em> (6 perspektiva paralele), ⚖️ <em>Bench Memo</em> (si do mendojë gjyqtari), ⚔️ <em>Red Team</em> (stres-test i tezës), 📚 <em>Pattern e precedentëve</em>, 📝 <em>Ratio Coach</em> (post-mortem + mësime).</li>
             <li><strong>Komanda të shpejta në bisedë</strong> — shkruaj <code>/afatet</code> për të llogaritur afatet procedurale KPC/KPP nga një ngjarje.</li>
           </ol>
@@ -1306,7 +1306,7 @@
       <h4 class="studio-section-title">⚠️ Kontroll konflikti interesi</h4>
       <p data-i18n="it_51" class="pro-modal-sub" style="margin: 0 0 8px;">Para se të pranosh një klient të ri, kërko emrin e palës (klient ose kundërshtar) në historikun e studios.</p>
       <div class="studio-invite-row">
-        <input type="text" id="conflict-query" placeholder="P.sh. 'Albert Krasniqi' ose 'Compania ABC'" autocomplete="off" />
+        <input type="text" id="conflict-query" placeholder="P.sh. 'Albert Krasniqi' ose 'Compania ABC'" data-i18n-ph="conflict_ph" autocomplete="off" />
         <button type="button" id="conflict-check-btn" class="primary">🔍 Kontrollo</button>
       </div>
       <div id="conflict-results" class="conflict-results" hidden></div>
@@ -1377,7 +1377,7 @@
     <header class="pro-modal-head">
       <div>
         <h3 id="precedent-modal-title">📚 Pattern e precedentëve</h3>
-        <p data-i18n="it_52" class="pro-modal-sub">BM25 mbi 1.258 vendime (Kushtetuese · Gjykata e Lartë · GjEDNj-Albania) + ratio AI → lëvizjet që fituan, kurthet që humbën, kill-shot.</p>
+        <p data-i18n="it_52" class="pro-modal-sub">Vendimet e gjykatave (Kushtetuese · Gjykata e Lartë · GjEDNj-Shqipëri) + ratio AI → lëvizjet që fituan, kurthet që humbën, kill-shot.</p>
       </div>
       <button type="button" class="pro-modal-close" data-close aria-label="Mbyll">&times;</button>
     </header>
@@ -1391,7 +1391,7 @@
             <option value="7">7</option>
             <option value="10">10</option>
           </select></label>
-          <button type="button" id="precedent-run" class="primary">🔎 Lësho analizën (~2-4 min)</button>
+          <button type="button" id="precedent-run" class="primary">🔎 Lësho analizën (~5-10 min)</button>
           <span id="precedent-status" class="pro-status"></span>
         </div>
         <div class="precedent-history-row">
@@ -1566,7 +1566,7 @@
   <div class="pro-modal-card pro-modal-wide">
     <header class="pro-modal-head">
       <h3 id="corporate-modal-title">🏢 Corporate Intelligence</h3>
-      <p data-i18n="it_67" class="pro-modal-sub">Ngarko dokumentin e shoqërisë → AI ekstrakton soci, CDA, prokurorë, scadenze. Kontrollo firmatarin para nënshkrimit. Gjenero checklist KYC/AML (Ligji 9917/2008).</p>
+      <p data-i18n="it_67" class="pro-modal-sub">Ngarko dokumentin e shoqërisë → AI nxjerr ortakët, administratorët, të autorizuarit me prokurë dhe afatet. Kontrollo nënshkruesin para nënshkrimit. Gjenero listën e kontrollit KYC/AML (Ligji 9917/2008).</p>
       <button type="button" class="pro-modal-close" data-close aria-label="Mbyll">&times;</button>
     </header>
     <div class="pro-modal-body">
@@ -1592,7 +1592,7 @@
           </select>
           <input id="corp-doc-name" class="pro-input" type="text" placeholder="Emri dokumentit (p.sh. Ekstrakt QKB 2025-05)">
         </div>
-        <textarea id="corp-doc-text" class="pro-textarea" rows="6" placeholder="Ngjit tekstin e dokumentit të shoqërisë këtu (visura, statut, prokurë, bilanci…)"></textarea>
+        <textarea id="corp-doc-text" class="pro-textarea" rows="6" placeholder="Ngjit tekstin e dokumentit të shoqërisë këtu (ekstrakti i QKB-së, statuti, prokura, bilanci…)"></textarea>
         <div class="corp-actions-row">
           <button id="corp-extract-btn" class="pro-run-btn">Ekstrakto me AI</button>
           <span id="corp-extract-status" class="pro-status"></span>
@@ -1711,9 +1711,9 @@
   </div>
 </template>
 
-<script src="/static/app.js?v=179"></script>
+<script src="/static/app.js?v=181"></script>
 <script src="/static/secretary.js?v=1"></script>
-<script src="/static/onboarding.js?v=1" defer></script>
+<script src="/static/onboarding.js?v=2" defer></script>
   <script src="/static/sw-register.js?v=1" defer></script>
 </body>
 </html>

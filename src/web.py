@@ -251,9 +251,11 @@ def api_push_unsubscribe():
 def api_push_test():
     """Manda una notifica di prova a chi la chiede: senza, l'utente non ha
     modo di sapere se ha davvero attivato qualcosa."""
+    _it_push = _active_jurisdiction(request.user) == "IT"  # type: ignore[attr-defined]
     push_mod.avvisa(storage, request.user.id,  # type: ignore[attr-defined]
                     "Super Avokati",
-                    "Njoftimet janë aktive. Do të të lajmërojmë kur analiza të jetë gati.",
+                    ("Notifiche attive. Ti avviseremo quando l'analisi sarà pronta." if _it_push else
+                     "Njoftimet janë aktive. Do të të lajmërojmë kur analiza të jetë gati."),
                     url="/", tag="test")
     return jsonify({"ok": True, "enabled": push_mod.configurato()})
 
@@ -863,14 +865,19 @@ def api_daily_brief():
         my_cases = storage.list_cases(user.id)
     else:
         my_cases = storage.list_cases_for_member(user.id, firm.id)
+    # v9.395 — Regola #1 anche qui: in sessione IT il briefing elencava i
+    # fascicoli albanesi (titoli in albanese) e viceversa.
+    _att = _active_jurisdiction(user)
+    my_cases = [c for c in my_cases
+                if (getattr(c, "jurisdiction", None) or "AL").upper() == _att]
 
     # Events in next 7 days, scoped to my visible cases
     visible_ids = {c.id for c in my_cases}
-    events = storage.list_events(
+    events = storage.eventi_della_giurisdizione(storage.list_events(
         user.id,
         start=today_start.isoformat(),
         end=horizon.isoformat(),
-    )
+    ), _att)
     upcoming_events = [
         {"id": e.id, "case_id": e.case_id, "title": e.title,
          "kind": e.kind, "starts_at": e.starts_at,
@@ -909,7 +916,7 @@ def api_daily_brief():
         if last < stale_threshold and c.stage not in ("execution",):
             stale.append({"id": c.id, "title": c.title,
                           "stage": c.stage,
-                          "stage_label": storage.CASE_STAGE_LABELS_SQ.get(c.stage, c.stage),
+                          "stage_label": storage.stage_label(c.stage, _att),
                           "updated_at": c.updated_at,
                           "days_silent": (now - last).days})
     stale.sort(key=lambda x: -x["days_silent"])
@@ -1308,7 +1315,7 @@ def api_list_cases():
          "creator_id": c.user_id,
          "is_mine": c.user_id == user.id,
          "stage": c.stage,
-         "stage_label": storage.CASE_STAGE_LABELS_SQ.get(c.stage, c.stage)}
+         "stage_label": storage.stage_label(c.stage, attiva)}
         for c in visibili
     ], "jurisdiction": attiva, "hidden_other": len(cases) - len(visibili)})
 
@@ -1377,7 +1384,7 @@ def api_get_case(case_id: str):
         "id": case.id,
         "title": case.title,
         "stage": case.stage,
-        "stage_label": storage.CASE_STAGE_LABELS_SQ.get(case.stage, case.stage),
+        "stage_label": storage.stage_label(case.stage, getattr(case, "jurisdiction", None)),
         "created_at": case.created_at,
         "updated_at": case.updated_at,
         "messages": [
@@ -1436,7 +1443,7 @@ def api_set_case_stage(case_id: str):
     if not storage.set_case_stage(case_id, stage):
         return jsonify({"error": "update failed"}), 500
     return jsonify({"ok": True, "stage": stage,
-                    "stage_label": storage.CASE_STAGE_LABELS_SQ.get(stage, stage)})
+                    "stage_label": storage.stage_label(stage, getattr(case, "jurisdiction", None))})
 
 
 # ── V8.3 client portal (magic-link, read-only) ─────────────────────────────
@@ -3010,6 +3017,7 @@ def api_genio_start():
     user = request.user  # type: ignore[attr-defined]
     job_id = jobs_mod.create(user.id, case_id)
     _uid, _cid = user.id, case_id
+    _it_push = _active_jurisdiction(user) == "IT"    # v9.395: la notifica nella lingua della sessione
 
     def _run():
         try:
@@ -3025,8 +3033,9 @@ def api_genio_start():
             try:
                 push_mod.avvisa(
                     storage, _uid,
-                    "Gjenio Legale është gati",
-                    "Analiza e thellë e rastit ka përfunduar. Hape për ta lexuar.",
+                    "Genio Legale è pronto" if _it_push else "Gjenio Legale është gati",
+                    ("L'analisi approfondita del caso è terminata. Aprila per leggerla." if _it_push else
+                     "Analiza e thellë e rastit ka përfunduar. Hape për ta lexuar."),
                     url="/", tag="genio-%s" % _cid[:8],
                 )
             except Exception:  # noqa: BLE001
@@ -3502,6 +3511,7 @@ def api_precedent_run():
     # background thread that persists the brief, and return immediately; the
     # frontend polls GET /api/precedent/<id> for the result.
     brain = _BRAIN
+    _juris_prec = _active_jurisdiction(user)
 
     def _run_precedent_analysis():
         t0 = time.monotonic()
@@ -3509,6 +3519,7 @@ def api_precedent_run():
         try:
             b = precedent_mod.analyze(
                 enriched, backend=brain.backend, top_k=top_k, case_id=case_id,
+                jurisdiction=_juris_prec,
             )
         except Exception as exc:  # noqa: BLE001
             log.exception("precedent analyzer failed: %s", exc)
@@ -4955,15 +4966,18 @@ def client_portal(token: str):
     _ensure_loaded()
     cc = storage.get_client_by_token(token)
     if cc is None:
+        # Senza un fascicolo non si sa la lingua: si dice in tutte e due.
         return render_template_string(
-            "<h1>Linku nuk është i vlefshëm</h1>"
+            "<h1>Linku nuk është i vlefshëm · Il link non è valido</h1>"
             "<p>Lidhja juaj me studion mund të jetë rifreskuar. "
             "Ju lutem kontaktoni avokatin tuaj për një link të ri.</p>"
+            "<p>Il collegamento con lo studio potrebbe essere stato rinnovato. "
+            "Contatti il suo avvocato per ricevere un nuovo link.</p>"
         ), 404
     case = storage.get_case_unscoped(cc.case_id)
     if case is None:
         return render_template_string(
-            "<h1>Rasti nuk u gjet</h1>"
+            "<h1>Rasti nuk u gjet · Caso non trovato</h1>"
         ), 404
     storage.mark_portal_viewed(token)
 
@@ -5007,18 +5021,62 @@ def client_portal(token: str):
             "state": state,
         })
 
+    _jp = (getattr(case, "jurisdiction", None) or "AL").upper()
+    for st in stage_steps:
+        st["label"] = storage.stage_label(st["key"], _jp)
     return render_template(
         "portal.html",
         client=cc,
         case=case,
         firm_name=firm_name,
-        stage_label=storage.CASE_STAGE_LABELS_SQ.get(case.stage, case.stage),
+        stage_label=storage.stage_label(case.stage, _jp),
         stage=case.stage,
         stage_steps=stage_steps,
         upcoming_events=upcoming,
         past_events=past,
         updates=updates,
+        L=_PORTAL_T["it" if _jp == "IT" else "sq"],
+        lang="it" if _jp == "IT" else "sq",
+        kind_label=lambda k: _PORTAL_KIND["it" if _jp == "IT" else "sq"].get(k, k),
     )
+
+
+# v9.395 — il portale era SOLO in albanese: il cliente di un avvocato italiano
+# riceveva «Mirë se erdhët…». Due lingue, scelte dal fascicolo.
+_PORTAL_T = {
+    "sq": {
+        "title": "Rasti im", "studio": "Studio Ligjore",
+        "greet_a": "Mirë se erdhët,", "greet_b": "Kjo është faqja juaj private për të ndjekur ecurinë e rastit tuaj. Vetëm ju keni linkun.",
+        "where": "📍 Ku jemi tani", "current": "Faza aktuale:",
+        "next": "📅 Çfarë vjen më pas", "no_next": "Nuk ka takime ose afate të planifikuara në këtë moment.",
+        "news": "📝 Lajme nga avokati", "no_news": "Ende nuk ka komunikata. Avokati juaj do t'ju njoftojë sapo të ketë risi.",
+        "past": "📚 Çka ka ndodhur",
+        "ai_h": "🤖 Trasparenca për AI",
+        "ai_a": "Studio jonë përdor mjete inteligjence artificiale për kërkim dhe redaktim.",
+        "ai_b": "Çdo akt, mendim ose strategji rishikohet nga avokati i autorizuar para se të dorëzohet.",
+        "ai_c": "AI-ja nuk përfaqëson dhe nuk merr vendime në vend të avokatit.",
+        "foot": "Kjo faqe është private dhe e mbrojtur me një link unik për ju. Mos e ndani me persona të tjerë. Për pyetje, kontaktoni drejtpërdrejt avokatin tuaj.",
+        "last": "Hyrja juaj e fundit:",
+    },
+    "it": {
+        "title": "Il mio caso", "studio": "Studio legale",
+        "greet_a": "Benvenuto,", "greet_b": "Questa è la sua pagina riservata per seguire l'andamento del suo caso. Solo lei ha il link.",
+        "where": "📍 A che punto siamo", "current": "Fase attuale:",
+        "next": "📅 Prossimi passi", "no_next": "Al momento non ci sono appuntamenti o scadenze in programma.",
+        "news": "📝 Notizie dall'avvocato", "no_news": "Non ci sono ancora comunicazioni. Il suo avvocato la avviserà appena ci saranno novità.",
+        "past": "📚 Cosa è successo",
+        "ai_h": "🤖 Trasparenza sull'IA",
+        "ai_a": "Il nostro studio usa strumenti di intelligenza artificiale per la ricerca e la redazione.",
+        "ai_b": "Ogni atto, parere o strategia viene rivisto dall'avvocato abilitato prima di essere depositato.",
+        "ai_c": "L'IA non rappresenta il cliente e non prende decisioni al posto dell'avvocato.",
+        "foot": "Questa pagina è riservata e protetta da un link unico per lei. Non la condivida con altre persone. Per domande, contatti direttamente il suo avvocato.",
+        "last": "Il suo ultimo accesso:",
+    },
+}
+_PORTAL_KIND = {
+    "sq": {"takim": "Takim", "seance": "Seancë", "afat": "Afat", "dorëzim": "Dorëzim", "tjetër": "Tjetër"},
+    "it": {"takim": "Appuntamento", "seance": "Udienza", "afat": "Scadenza", "dorëzim": "Deposito", "tjetër": "Altro"},
+}
 
 
 # ── case sharing (firm assignments) ────────────────────────────────────────
@@ -7181,6 +7239,7 @@ def api_ask_start():
     job_id = jobs_mod.create(user.id, (data.get("case_id") or "").strip())
     _uid = user.id                                   # catturati qui: dentro
     _cid = (data.get("case_id") or "").strip()       # il thread non c'e' request
+    _it_push = _active_jurisdiction(user) == "IT"    # v9.395: la notifica nella lingua della sessione
 
     def _run():
         try:
@@ -7199,8 +7258,9 @@ def api_ask_start():
             try:
                 push_mod.avvisa(
                     storage, _uid,
-                    "Përgjigjja është gati",
-                    "Analiza jote ka përfunduar. Hape për ta lexuar.",
+                    "La risposta è pronta" if _it_push else "Përgjigjja është gati",
+                    ("La tua analisi è terminata. Aprila per leggerla." if _it_push else
+                     "Analiza jote ka përfunduar. Hape për ta lexuar."),
                     url="/", tag="ask-%s" % _cid[:8],
                 )
             except Exception:  # noqa: BLE001
@@ -7506,7 +7566,9 @@ def api_list_events():
     start = request.args.get("start") or None
     end = request.args.get("end") or None
     case_id = request.args.get("case_id") or None
-    events = storage.list_events(user.id, start=start, end=end, case_id=case_id)
+    events = storage.eventi_della_giurisdizione(
+        storage.list_events(user.id, start=start, end=end, case_id=case_id),
+        _active_jurisdiction(user))
     # Batch-fetch case titles so a month view with 30 events doesn't do 30
     # separate lookups.
     case_ids = {e.case_id for e in events if e.case_id}
@@ -7540,7 +7602,9 @@ def api_agenda_upcoming():
     now = datetime.now(UTC)
     back = (now - timedelta(days=30)).isoformat().replace("+00:00", "Z")
     ahead = (now + timedelta(days=days)).isoformat().replace("+00:00", "Z")
-    events = storage.list_events(user.id, start=back, end=ahead)
+    events = storage.eventi_della_giurisdizione(
+        storage.list_events(user.id, start=back, end=ahead),
+        _active_jurisdiction(user))
 
     def _parse(v):
         try:
@@ -8468,6 +8532,11 @@ def api_provenance_json(response_id: str):
     pack = storage.get_provenance(response_id, user.id)
     if not pack:
         return jsonify({"error": "not_found"}), 404
+    # v9.395 — nel file che esce il motore si chiama come nel prodotto (mai il nome del
+    # modello: regola del titolare); il pacchetto nel DB resta intatto per l'audit interno.
+    pack = dict(pack)
+    if pack.get("model"):
+        pack["model"] = "Tetramorph"
     response = jsonify(pack)
     response.headers["Content-Disposition"] = (
         f'attachment; filename="provenance_{response_id}.json"'

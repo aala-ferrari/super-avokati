@@ -1976,6 +1976,10 @@ main {
   animation: calBadgePulse 1.8s infinite;
 }
 .calendar-badge[hidden] { display: none; }
+/* v9.395 — il pulsante «Vigilanza» è sospeso (attributo hidden), ma display:inline-flex lo mostrava: un pulsante che non apre nulla */
+.calendar-toggle[hidden] { display: none; }
+/* v9.395 — stessa classe di difetto: striscia vuota delle scadenze e distintivi «0» (il rosso sembrava un allarme) */
+.deadline-banner[hidden], .clients-count[hidden], .dossier-count[hidden] { display: none; }
 @keyframes calBadgePulse {
   0%, 100% { box-shadow: 0 0 0 2px #0a0a0a, 0 0 0 0 rgba(228,30,38,0.55); }
   50%      { box-shadow: 0 0 0 2px #0a0a0a, 0 0 0 6px rgba(228,30,38,0); }
