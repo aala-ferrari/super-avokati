@@ -1864,7 +1864,7 @@ def main():
             [], "sq")
         check("war[40]: Source Verifier — raporto verificate/da-verificare per qualità (ESEGUITO) + wired su max-mode ⚡",
               "RAPORT VERIFIKIMI" in _rap40 and "TË VËRTETUARA" in _rap40 and "PËR VERIFIKIM" in _rap40
-              and "[WEB-001] VKM (secondary)" in _rap40
+              and "[WEB-001] VKM (burim dytësor)" in _rap40      # v9.399: la qualità a parole, in shqip
               and "_wr.raport_verifikimi(retrieved, burimet_x, precedents" in _br40
               and 'if request_senior() == "fable" or _gjyqtari_suprem()' in _br40)
         check("war[40]: RESEARCH LOOP (spec 35) — gap-detector + ricerca reale sull'indice, cablato su max-mode",
@@ -4848,14 +4848,15 @@ def main():
             return {(a.code, a.number) for a, _ in out[:6]}
         _a = _anc141("Shtetas i huaj me leje qëndrimi për punë, zgjidhje e menjëhershme e kontratës pas 3 vjet punë")
         _okA = (("ligji_te_huajt", "72") in _a and ("ligji_te_huajt", "73") in _a and ("kodi_punes", "152") in _a
-                and ("kodi_punes", "152") in _anc141("Punëdhënësi e pushoi klientin pas 8 vitesh pa asnjë paralajmërim"))
+                and {("kodi_punes", "145"), ("kodi_punes", "152")} <= _anc141("Punëdhënësi e pushoi klientin pas 8 vitesh pa asnjë paralajmërim"))
         _t1 = _anc141("qëndrimi i gjykatës për zgjidhjen e mosmarrëveshjes për lejen e ndërtimit")
         _t2 = _anc141("sa ditë pushime vjetore më takojnë pas 5 vitesh punë?")
         _t3 = _anc141("i huaji u dënua për vjedhje, leje qëndrimi e anuluar, zgjidhja e çështjes", ("Penal",))
         _okB = (not any(k[0] == "ligji_te_huajt" for k in _t1 | _t2 | _t3) and ("kodi_punes", "152") not in (_t1 | _t2 | _t3))
         _k152 = next(a for a in idx.articles if a.code == "kodi_punes" and str(a.number) == "152")
-        _pp = [(a, 1.0) for a in idx.articles if a.code == "kodi_punes" and str(a.number) != "152"][:8] + [(_k152, 0.5)] + \
-              [(a, 0.4) for a in idx.articles if a.code == "kodi_punes"][20:23]
+        _k145 = next(a for a in idx.articles if a.code == "kodi_punes" and str(a.number) == "145")   # v9.399: la base
+        _pp = [(a, 1.0) for a in idx.articles if a.code == "kodi_punes" and str(a.number) not in ("145", "152")][:8] + \
+              [(_k152, 0.5), (_k145, 0.45)] + [(a, 0.4) for a in idx.articles if a.code == "kodi_punes"][20:23]
         _out = _br141._applica_ancore(_pp, idx, ["Klienti është pushuar nga puna pas 8 vitesh punë"], ["Punë"])
         _pos = [(a.code, a.number) for a, _ in _out].index(("kodi_punes", "152"))
         _okC = (_pos < 3 and not getattr(_out[_pos][0], "_ancora", False) and len(_out) == len(_pp)
@@ -5089,6 +5090,496 @@ def main():
               "token di instradamento; in AL invariato", _okA, "okA=%s" % _okA)
     except Exception as _e146:  # noqa: BLE001
         check("primo_contatto[146]: kontrollet u ekzekutuan", False, str(_e146))
+
+    # [147] v9.399 — L'AVVOCATO DEL DIAVOLO IN ITALIANO: in sessione IT il prompt del diavolo era SOLO albanese e
+    # il modello copiava alla lettera «[LARTË]» e «PIKA KU DO TË SULMOJA I PARI» (audit v9.397, pipeline immobiliare:
+    # 8 volte). Con un cervello finto: in IT prompt, etichette del messaggio e cancello del 2° round italiani
+    # ([CRITICA]); in AL identico a prima. Stessa cosa per il 🔮 secondo parere e «Consiglio strategico».
+    try:
+        import re as _re147
+        from src import studio as _st147, second_opinion as _so147, brain as _br147
+        class _F147:
+            def __init__(self): self.c = []
+            def complete(self, system=None, messages=None, **kw):
+                self.c.append((system or "", messages[0]["content"])); return "- [CRITICA] x " * 3
+        _alb147 = _re147.compile(r"[ëçË]|\bPYETJA\b|\bNENET\b|SULMI|PIKA KU|\[LARTË\]|\[KRITIKE\]|\[MESATARE\]")
+        _fi, _fs = _F147(), _F147()
+        _st147.avokati_i_djallit(_fi, domanda="D", blloku_neneve="art. 1", pergjigja="R", lang="it")
+        _st147.avokati_i_djallit(_fs, domanda="D", blloku_neneve="neni 1", pergjigja="R", lang="sq")
+        _st147.sulmi_i_dyte(_fi, domanda="D", blloku_neneve="art. 1", pergjigja_v2="R2", lang="it")
+        _st147.sulmi_i_dyte(_fs, domanda="D", blloku_neneve="neni 1", pergjigja_v2="R2", lang="sq")
+        _st147.senior_pergjigjja(_fi, domanda="D", blloku_neneve="art. 1", pergjigja="R", sulmi="S", lang="it")
+        _st147.senior_pergjigjja(_fs, domanda="D", blloku_neneve="neni 1", pergjigja="R", sulmi="S", lang="sq")
+        _okA = (len(_fi.c) == 3 and not any(_alb147.search(a + b) for a, b in _fi.c)
+                and "[CRITICA]" in _fi.c[0][0] and "PUNTO DA CUI ATTACCHEREI PER PRIMO" in _fi.c[0][0]
+                and _fi.c[0][1].startswith("DOMANDA:") and "[CRITICA]" in _fi.c[1][0]
+                and "ATTACCO DELL'AVVOCATO DEL DIAVOLO:" in _fi.c[2][1])
+        _okB = (_fs.c[0][0] == _st147.DJALLI_SYSTEM and _fs.c[1][0] == _st147.DJALLI_2_SYSTEM
+                and _fs.c[0][1] == "PYETJA:\nD\n\nNENET (tekst i plotë):\nneni 1\n\nPËRGJIGJA E PROPOZUAR:\nR"
+                and _fs.c[2][1] == "PYETJA:\nD\n\nNENET (tekst i plotë):\nneni 1\n\nPËRGJIGJA IME:\nR"
+                                   "\n\nSULMI I AVOKATIT TË DJALLIT:\nS")
+        _okC = (_st147.duhet_raund2("- [CRITICA] x", "[RESPINTO]") is True
+                and _st147.duhet_raund2("- [ALTA] x", "[RESPINTO]") is False
+                and _st147.duhet_raund2("- [CRITICA] x", "[ACCOLTO]") is False
+                and _st147.duhet_raund2("- [KRITIKE] x", "[REFUZOHET]") is True
+                and _st147.duhet_raund2("- [MEDIA] x", "[PARZIALE]") is False)
+        _gi, _gs = _F147(), _F147()
+        _br147.set_request_jurisdiction("IT")
+        _so147.review(_gi, question="Q", answer_text="A", context="art. 1 c.c.")
+        _so147.consult(_gi, situation="S", context="art. 1 c.c.")
+        _br147.set_request_jurisdiction("AL")
+        _so147.review(_gs, question="Q", answer_text="A", context="neni 1")
+        _so147.consult(_gs, situation="S", context="neni 1")
+        _okD = (_so147._SYSTEM_IT in _gi.c[0][0] and _so147._CONSULT_SYSTEM_IT in _gi.c[1][0]
+                and not any(_re147.search(r"[ëçË]|KONTEKST|PYETJA|SITUATA|Gjilp|Shqip", b) for _, b in _gi.c)
+                and "CONTESTO/ARTICOLI" in _gi.c[0][1] and not _re147.search(r"[ëçË]|Gjilp|Shqip\.", _so147._SYSTEM_IT + _so147._CONSULT_SYSTEM_IT)
+                and _so147._SYSTEM in _gs.c[0][0] and _so147._CONSULT_SYSTEM in _gs.c[1][0]
+                and "KONTEKST/NENE" in _gs.c[0][1] and _gs.c[1][1].startswith("SITUATA:"))
+        check("diavolo[147]: in sessione IT l'avvocato del diavolo (1° e 2° round), la replica del senior, il secondo "
+              "parere e il consiglio strategico hanno prompt ed etichette italiani ([CRITICA]/[ALTA]/[MEDIA], «PUNTO DA "
+              "CUI ATTACCHEREI»), il cancello del 2° round legge [CRITICA]; in AL tutto identico",
+              _okA and _okB and _okC and _okD, "A=%s B=%s C=%s D=%s" % (_okA, _okB, _okC, _okD))
+    except Exception as _e147:  # noqa: BLE001
+        check("diavolo[147]: kontrollet u ekzekutuan", False, str(_e147))
+    finally:
+        try:
+            _br147.set_request_jurisdiction("AL")
+        except Exception:  # noqa: BLE001
+            pass
+
+    # [148] v9.399 — GLI STRUMENTI DI CONTORNO nella lingua e nel diritto della sessione: revisione contratto (AL: la
+    # legge privacy è la 124/2024, non la 9887/2008 abrogata; il neni 911 KC è il comodato, non una nullità — IT: prompt
+    # italiano con 1341-1342, 1229, 33-36 cod. consumo), gergo e notizia di stato per il cliente, simulazione dell'accordo
+    # con i precedenti ITALIANI in sessione IT, raccoglitori con etichette italiane, qualità delle fonti a parole.
+    try:
+        import inspect as _in148
+        from src import web as _w148, war_room as _wr148, studio as _st148, settlement as _se148, storage as _sg148
+        _cr_al, _cr_it = _w148.CONTRACT_REVIEW_SYSTEM, _w148.CONTRACT_REVIEW_SYSTEM_IT
+        _okA = ("124/2024" in _cr_al and "92/686/911" not in _cr_al and "neni 686 KC" in _cr_al
+                and all(k in _cr_it for k in ("1341", "1342", "1229", "33-36", "806-808", "2016/679"))
+                and "CONTRACT_REVIEW_SYSTEM_IT if _active_jurisdiction(user) == \"IT\"" in _in148.getsource(_w148.api_contract_review))
+        _okB = ('"plain_sq"' in _w148.JARGON_TRANSLATE_SYSTEM_IT and '"body_sq"' in _w148.AUTO_STATUS_SYSTEM_IT
+                and "JARGON_TRANSLATE_SYSTEM_IT" in _in148.getsource(_w148.api_translate_jargon)
+                and "AUTO_STATUS_SYSTEM_IT" in _in148.getsource(_w148.api_auto_status)
+                and "storage.stage_label(case.stage, 'IT')" in _in148.getsource(_w148.api_auto_status)
+                and not __import__("re").search(r"[ëçË]", _w148.JARGON_TRANSLATE_SYSTEM_IT + _w148.AUTO_STATUS_SYSTEM_IT
+                                                 + _cr_it))
+        _src_set = _in148.getsource(_w148.api_settlement_simulate)
+        _dist = {"mean_eur": 20000.0, "p10_eur": 5000.0, "p25_eur": 10000.0, "p50_eur": 18000.0,
+                 "p75_eur": 28000.0, "p90_eur": 40000.0}
+        _r_it = _se148.recommendation(_dist, current_offer_eur=None, plaintiff=True, lang="it")["summary"]
+        _r_sq = _se148.recommendation(_dist, current_offer_eur=15000.0, plaintiff=True)["summary"]
+        _okC = ("gather_precedents_it(" in _src_set and "None if _it_set else" in _src_set
+                and "SCENARIO_SCHEMA_HINT_IT" in _src_set and "Nessuna offerta concreta" in _r_it
+                and "Oferta 15000 EUR" in _r_sq and '"name": "settle_normal"' in _se148.SCENARIO_SCHEMA_HINT_IT)
+        class _F148:
+            def __init__(self): self.c = []
+            def complete(self, system=None, messages=None, **kw):
+                self.c.append(messages[0]["content"]); return "{}"
+        class _A148:
+            code, number, title_sq, heading, body = "codice_civile", "2946", "Codice civile", "Prescrizione ordinaria", "x"
+        _fi, _fs = _F148(), _F148()
+        _st148.mbledhesi_web(_fi, domanda="D", summary="S", retrieved=[(_A148(), 1.0)], lang="it")
+        _st148.mbledhesi_qbz(_fi, retrieved=[(_A148(), 1.0)], lang="it")
+        _st148.mbledhesi_web(_fs, domanda="D", summary="S", retrieved=[(_A148(), 1.0)], lang="sq")
+        _okD = (_fi.c[0].startswith("DOMANDA:") and "ARTICOLI NEL CORPUS:" in _fi.c[0]
+                and _fi.c[1].startswith("ARTICOLI DA CONTROLLARE:")
+                and _fs.c[0].startswith("PYETJA:") and "NENET NË KORPUS:" in _fs.c[0]
+                and _st148._blocco_nenesh([], lang="it") == "(nessuno)" and _st148._blocco_nenesh([]) == "(asnjë)")
+        _rap_it = _wr148.raport_verifikimi([], [{"agjenti": "web", "titulli": "Circolare", "citim": "testo ufficiale abbastanza",
+                                                "url": "https://blog.example/x"}], [], "it")
+        _okE = ("(fonte secondaria)" in _rap_it and "secondary" not in _rap_it
+                and _sg148.AUTO_LETTER_LABELS_IT.keys() == _sg148.AUTO_LETTER_LABELS_SQ.keys()
+                and _sg148.AGENT_SUGGESTION_LABELS_IT.keys() == _sg148.AGENT_SUGGESTION_LABELS_SQ.keys())
+        check("contorno[148]: revisione contratto (AL 124/2024 + KC 686/688, IT artt. 1341-1342/1229/33-36), gergo e "
+              "notizia per il cliente, accordo con precedenti italiani, raccoglitori ed etichette nella lingua della "
+              "sessione; AL invariato", _okA and _okB and _okC and _okD and _okE,
+              "A=%s B=%s C=%s D=%s E=%s" % (_okA, _okB, _okC, _okD, _okE))
+    except Exception as _e148:  # noqa: BLE001
+        check("contorno[148]: kontrollet u ekzekutuan", False, str(_e148))
+
+    # [149] v9.399 — PRESCRIZIONE: in AL i semi civili saltavano la regola generale (KC 114, dieci anni) e i termini
+    # brevi (115) e il prompt mandava al «124 e vijues»; in IT stesso prompt albanese (KP 66) con semi inesistenti
+    # nell'indice italiano. E due esempi sbagliati nei prompt del cervello (KP 75 = pronto soccorso, non l'onere della
+    # prova; «48-51» comprendeva le aggravanti e i minori).
+    try:
+        import re as _re149
+        from src import deadlines as _dl149, brain as _br149
+        _it149 = idx_it if "idx_it" in dir() else ArticleIndex.load(INDEX_FILE.parent / "bm25_it.pkl")
+        _ba = {(a.code, a.number) for a in idx.articles}
+        _bi = {(a.code, a.number) for a in _it149.articles}
+        _okA = (("kodi_civil", "114") in _dl149._SEED and ("kodi_civil", "115") in _dl149._SEED
+                and ("kodi_civil", "124") not in _dl149._SEED and all(k in _ba for k in _dl149._SEED)
+                and all(k in _bi for k in _dl149._SEED_IT)
+                and ("codice_penale", "157") in _dl149._SEED_IT and ("codice_civile", "2946") in _dl149._SEED_IT)
+        class _F149:
+            def __init__(self): self.c = []
+            def complete(self, system=None, messages=None, callsite=None, **kw):
+                if callsite == "prescription":
+                    self.c.append((system or "", messages[0]["content"]))
+                return ""
+        _fi, _fs = _F149(), _F149()
+        _dl149.prescription(_fi, _it149, facts="Prestito di 20.000 euro del marzo 2014, mai sollecitato.", jurisdiction="IT")
+        _dl149.prescription(_fs, idx, facts="Hua prej 20.000 eurosh në mars 2014, kurrë e kërkuar.", jurisdiction="AL")
+        _si, _ui = _fi.c[0]
+        _ss, _us = _fs.c[0]
+        _okB = (not _re149.search(r"[ëçË]|\bneni\b|\bNENET\b", _si + _ui) and "art. 2946" in _si
+                and _ui.startswith("FATTI / REATO / DATA:") and "art. 2946]" in _ui
+                and "PARASHKRIM | trigger=" in _si)
+        _okC = ("neni 114 (rregulli i përgjithshëm" in _ss and "nenin 124 e" not in _ss
+                and _us.startswith("FAKTET / VEPRA / DATA:") and "neni 114]" in _us)
+        _src149 = open(_br149.__file__, encoding="utf-8").read()
+        _okD = ("Neni 75 Kodi i Punës" not in _src149 and "neni 144, pika 5/1, i Kodit të Punës" in _src149
+                and "Neni 48-51 Kodi Penal" not in _src149)
+        check("prescrizione[149]: semi AL con KC 114/115 (non 124/128) e in IT semi italiani esistenti, prompt e articoli "
+              "nella lingua della sessione, riga macchina invariata; esempi del cervello corretti (KP 144/5-1, KP 9, "
+              "48-49 lehtësuese)", _okA and _okB and _okC and _okD, "A=%s B=%s C=%s D=%s" % (_okA, _okB, _okC, _okD))
+    except Exception as _e149:  # noqa: BLE001
+        check("prescrizione[149]: kontrollet u ekzekutuan", False, str(_e149))
+
+    # [150] v9.399 — IL VERIFICATORE E LE CITAZIONI VICINE (misurato su 204 risposte vere: +23 verificate, 0 falsi nuovi):
+    # la coda di una citazione attraversava la successiva — con l'apostrofo («l'art. 1218 c.c. e l'art. 2043 c.c.»: il 2043
+    # spariva; «l'art. 157 c.p. e l'art. 344-bis c.p.p.»: il 157 verificato sul c.p.p.), le virgolette, la barra e il
+    # grassetto («"art. 2043 c.c." / "art. 81 c.p."»: il 2043 «inesistente» nel codice penale); l'elenco con «art.» ripetuto
+    # condivide il codice solo come INFERENZA (mai un «falso»); disp. att. c.p.c. (fuori corpus) mai confuse col c.p.c.;
+    # leggi citate per numero a confine di cifra.
+    try:
+        from src import citation_verifier as _cv150
+        _it150 = idx_it if "idx_it" in dir() else ArticleIndex.load(INDEX_FILE.parent / "bm25_it.pkl")
+        def _v150(t, ix):
+            return [(c["number"], c["code"], c["status"]) for c in _cv150.verify_text(t, ix)["items"]]
+        _casi = [
+            ("l'art. 1218 c.c. e l'art. 2043 c.c.", [("1218", "codice_civile", "verified"), ("2043", "codice_civile", "verified")]),
+            ("l'art. 157 c.p. e l'art. 344-bis c.p.p.", [("157", "codice_penale", "verified"),
+                                                          ("344/bis", "codice_procedura_penale", "verified")]),
+            ('"art. 2043 c.c." / "art. 81 c.p."', [("2043", "codice_civile", "verified"), ("81", "codice_penale", "verified")]),
+            ("«art. 81 c.p.» e «art. 414 c.p.c.»", [("81", "codice_penale", "verified"),
+                                                   ("414", "codice_procedura_civile", "verified")]),
+            ("alle abilitazioni ex art. 116 e all'art. 126 C.d.S.", [("116", "codice_strada", "verified"),
+                                                                    ("126", "codice_strada", "verified")]),
+            ("ex art. 22 L. 241/1990.  ---  ## 3.", [("22", "procedimento_amministrativo", "verified")]),
+            ("art. 21 D.Lgs. 58/1998", [("21", "tu_finanza", "verified")]),
+            ("art. 33 Cod. Consumo", [("33", "codice_consumo", "verified")]),
+            ("**Art. 212, par. 3, Reg. delegato (UE) 2015/2446**", [("212", "reg_ue_2015_2446", "verified")]),
+            ("dell'art. 214 Reg. delegato. - **Art. 215 Reg. delegato 2015/2446**", None),
+            ("artt. 1341 e 9999 c.c.", [("1341", "codice_civile", "verified"), ("9999", "codice_civile", "fake")]),
+        ]
+        _bad = []
+        for _t, _exp in _casi:
+            _got = _v150(_t, _it150)
+            if _exp is not None and _got != _exp:
+                _bad.append((_t, _got))
+        # mai «falso» per un'inferenza o un atto fuori corpus
+        for _t in ("(art. 93-bis e art. 215 Reg. (UE) 2015/2446)", "art. 186, co. 9-bis, e art. 1 L. 91/1992",
+                   "l'art. 557 c.p.c. e l'art. 164-ter disp. att. c.p.c.", "art. 2 D.Lgs. 158/1998"):
+            _g = _v150(_t, _it150)
+            if any(st == "fake" for _n, _c, st in _g) or any(c == "tu_finanza" for _n, c, _s in _g):
+                _bad.append((_t, _g))
+        _g = _v150("dell'art. 214 Reg. delegato. - **Art. 215 Reg. delegato 2015/2446**", _it150)
+        if ("215", "reg_ue_2015_2446", "verified") not in _g:
+            _bad.append(("**Art. 215**", _g))
+        for _t, _exp in (('"neni 114 KC" / "neni 443 KPC"', [("114", "kodi_civil", "verified"), ("443", "kodi_proc_civile", "verified")]),
+                         ("neni 114 dhe neni 115 i Kodit Civil", [("114", "kodi_civil", "verified"), ("115", "kodi_civil", "verified")])):
+            _got = _v150(_t, idx)
+            if _got != _exp:
+                _bad.append((_t, _got))
+        check("verificatore[150]: citazioni vicine lette una per una (apostrofo, virgolette, barra, grassetto), elenco con "
+              "«art.» ripetuto = inferenza mai «falsa», disp. att. c.p.c. fuori corpus mai «inesistenti», leggi per numero "
+              "a confine di cifra, «Cod. Consumo»/«Reg. delegato»; l'elenco esplicito «artt. 1341 e 9999 c.c.» resta falso",
+              not _bad, "; ".join("%s → %s" % b for b in _bad)[:600])
+    except Exception as _e150:  # noqa: BLE001
+        check("verificatore[150]: kontrollet u ekzekutuan", False, str(_e150))
+
+    # [151] v9.399 — MOTORE DELLE SCADENZE: in AL mancavano gli articoli dei termini che contano (KPP 415 «Afatet e
+    # ankimit», 435 ricorso, 263 durata della custodia, KPC 444-445, KC 114/115/117); in IT semi albanesi inesistenti
+    # nell'indice italiano e prompt «procedura shqiptare». Con un cervello finto: semi esistenti, prompt e articoli
+    # nella lingua della sessione.
+    try:
+        import re as _re151
+        from src import afati as _af151
+        _it151 = idx_it if "idx_it" in dir() else ArticleIndex.load(INDEX_FILE.parent / "bm25_it.pkl")
+        _ba151 = {(a.code, a.number) for a in idx.articles}
+        _bi151 = {(a.code, a.number) for a in _it151.articles}
+        _seed = lambda t, k: [tuple(x) for x in t[k]["seed"]]
+        _okA = (("kodi_proc_penale", "415") in _seed(_af151.TRIGGERS, "vendim_penal")
+                and ("kodi_proc_penale", "435") in _seed(_af151.TRIGGERS, "vendim_penal")
+                and ("kodi_proc_penale", "263") in _seed(_af151.TRIGGERS, "mase_sigurimi")
+                and ("kodi_civil", "114") in _seed(_af151.TRIGGERS, "kontrate")
+                and all(x in _ba151 for v in _af151.TRIGGERS.values() for x in v["seed"])
+                and set(_af151.TRIGGERS_IT) == set(_af151.TRIGGERS)
+                and all(tuple(x) in _bi151 for v in _af151.TRIGGERS_IT.values() for x in v["seed"]))
+        class _F151:
+            def __init__(self): self.c = []
+            def complete(self, system=None, messages=None, callsite=None, **kw):
+                if callsite == "afati":
+                    self.c.append((system or "", messages[0]["content"]))
+                return ""
+        _fi, _fs = _F151(), _F151()
+        _af151.compute(_fi, _it151, trigger="vendim_civil", event_date="2026-09-10",
+                       facts="Sentenza del Tribunale di Milano notificata il 10 settembre 2026.", jurisdiction="IT")
+        _af151.compute(_fs, idx, trigger="vendim_civil", event_date="2026-09-10",
+                       facts="Vendimi i Gjykatës së Tiranës u njoftua më 10 shtator 2026.", jurisdiction="AL")
+        _si, _ui = _fi.c[0]; _ss, _us = _fs.c[0]
+        _okB = (_si == _af151._SYSTEM_IT and _ui.startswith("EVENTO INIZIALE: Notificazione della sentenza civile")
+                and "art. 325]" in _ui and not _re151.search(r"[ëçË]|\bneni\b|NENET", _si + _ui)
+                and "AFAT | <titolo breve>" in _si)
+        _okC = (_ss.startswith("Ti je ekspert i procedurës shqiptare") and _us.startswith("NGJARJA-NISËSE:")
+                and "neni 443]" in _us and "neni 444]" in _us)
+        check("scadenze[151]: semi AL con i termini veri (KPP 415/435, 263, KPC 444-445, KC 114), semi IT esistenti, "
+              "prompt ed etichette nella lingua della sessione, riga macchina invariata",
+              _okA and _okB and _okC, "A=%s B=%s C=%s" % (_okA, _okB, _okC))
+    except Exception as _e151:  # noqa: BLE001
+        check("scadenze[151]: kontrollet u ekzekutuan", False, str(_e151))
+
+    # [152] v9.399 — SESSIONE AL, dall'audit «da avvocato» del 28 set: (a) il premio di anzianità entra col KP 145 (la regola
+    # di base del contratto a tempo indeterminato) — l'ancora v9.394 portava solo il 152 (contratti a termine); (b) la
+    # richiesta di intercettazione riceve il KPP 222 (la decisione che autorizza); (c) niente falsi titoli di capitolo
+    # («KREU XIV — Neni 140», «— (Ndryshuar titulli …)»: 202 nel corpus) e il parser salta le note di modifica.
+    try:
+        import re as _re152
+        from src import brain as _br152, prosecutor as _pr152, parser as _pa152
+        _anc = [a for a in _br152.ANCORE_AL if ("kodi_punes", "152") in tuple(a[2])]
+        _okA = bool(_anc) and ("kodi_punes", "145") in tuple(_anc[0][2]) and tuple(_anc[0][2])[0] == ("kodi_punes", "145")
+        _okB = ("kodi_proc_penale", "222") in [tuple(x) for x in _pr152._ACT_KINDS["pergjim"]["seed"]]
+        _falsi = [(a.code, a.number, getattr(a, "kreu", "")) for a in idx.articles
+                  if _re152.search(r"—\s*(?:Neni\s+\d|\(\s*(?:Ndryshuar|Shtuar)\b)", (getattr(a, "kreu", "") or "") + " "
+                                   + (getattr(a, "pjesa", "") or "") + " " + (getattr(a, "seksioni", "") or ""))]
+        _okC = (not _falsi
+                and _pa152._titolo_con_intestazione("KREU XIV", "\nNeni 140\nKohëzgjatja e kontratës") == "KREU XIV"
+                and _pa152._titolo_con_intestazione("KREU XVII", "\n(Ndryshuar titulli me ligjin nr. 9125)\nNeni 188") == "KREU XVII"
+                and _pa152._titolo_con_intestazione("KREU II", "\nFUSHA E ZBATIMIT\nNeni 3") == "KREU II — FUSHA E ZBATIMIT")
+        check("al[152]: premio di anzianità col KP 145 (152 solo a termine), intercettazione col KPP 222, niente falsi titoli "
+              "di capitolo nel corpus AL e il parser salta le note di modifica", _okA and _okB and _okC,
+              "A=%s B=%s C=%s falsi=%s" % (_okA, _okB, _okC, _falsi[:3]))
+    except Exception as _e152:  # noqa: BLE001
+        check("al[152]: kontrollet u ekzekutuan", False, str(_e152))
+
+    # [153] v9.399 — RECUPERO CONDIVISO DEGLI STRUMENTI PRO: (a) la «testa di sezione» — il primo articolo della sezione il
+    # cui titolo contiene il termine è la figura generale del reato (KP 143 truffa: 11/12 → 12/12 sui casi penali della
+    # v9.397); (b) i rinvii interni degli articoli dati («sipas paragrafit 6, të nenit 327, të këtij Kodi»; «ai sensi degli
+    # articoli 406 e 407»): il procuratore scriveva «il neni 327 / 75/a / l'art. 406 non è nel corpus».
+    try:
+        from src import expertise as _ex153
+        _it153 = idx_it if "idx_it" in dir() else ArticleIndex.load(INDEX_FILE.parent / "bm25_it.pkl")
+        _art153 = lambda ix, c, n: (c, n, _ex153._article_text(ix, c, n))
+        _okA = ("kodi_penal", "143") in [(c, n) for c, n, _ in _ex153._teste_di_sezione(idx, "mashtrim")]
+        _r1 = [(c, n) for c, n, _ in _ex153._rinvii_interni(idx, [_art153(idx, "kodi_proc_penale", "323")], "sq")]
+        _r2 = [(c, n) for c, n, _ in _ex153._rinvii_interni(_it153, [_art153(_it153, "codice_procedura_penale", "405")], "it")]
+        _r3 = [(c, n) for c, n, _ in _ex153._rinvii_interni(_it153, [_art153(_it153, "codice_procedura_civile", "7")], "it")]
+        _okB = (("kodi_proc_penale", "327") in _r1 and ("kodi_proc_penale", "75/a") in _r1
+                and ("codice_procedura_penale", "406") in _r2 and ("codice_procedura_penale", "407") in _r2
+                and ("codice_procedura_civile", "71") not in _r3 and len(_r1) <= 4)
+        class _F153:
+            def complete(self, system=None, messages=None, **kw):
+                return "mashtrim\nfalsifikim dokumentesh"
+        _g = [(c, n) for c, n, _ in _ex153.retrieve_grounded(_F153(), idx, "Viktima pagoi 5.000 euro për një investim "
+                                                                 "që nuk ekzistonte, e mashtruar me dokumente të rreme.")]
+        _okC = ("kodi_penal", "143") in _g
+        # sostanze stupefacenti nei fatti → le norme penali sugli stupefacenti entrano sempre (KP 283 / art. 73 d.P.R. 309/1990)
+        class _F153b:
+            def complete(self, system=None, messages=None, **kw):
+                return ""
+        _gk = [(c, n) for c, n, _ in _ex153.retrieve_grounded(_F153b(), idx, "U kap duke shitur 50 gram kokainë në rrugë.")]
+        _gt = [(c, n) for c, n, _ in _ex153.retrieve_grounded(_F153b(), idx, "I gjetën 30 tableta tramadol në makinë.")]
+        _gi = [(c, n) for c, n, _ in _ex153.retrieve_grounded(_F153b(), _it153, "Arrestato mentre cedeva 200 grammi di cocaina.")]
+        _okD = (("kodi_penal", "283") in _gk[:4] and ("kodi_penal", "283/a") in _gk[:4]
+                and ("kodi_penal", "283") not in _gt[:2] and ("stupefacenti", "73") in _gi[:3])
+        check("recupero[153]: testa di sezione (KP 143 per «mashtrim»), rinvii interni espliciti/impliciti (KPP 323 → 327, "
+              "75/a; c.p.p. 405 → 406, 407; mai «art. 71» per «71-quater delle disp. att.»), sostanze nei fatti → KP 283/283-a "
+              "o art. 73 d.P.R. 309/1990 (non il tramadolo, che non è in nessuna lista)", _okA and _okB and _okC and _okD,
+              "A=%s B=%s C=%s D=%s r1=%s r2=%s r3=%s" % (_okA, _okB, _okC, _okD, _r1, _r2, _r3))
+    except Exception as _e153:  # noqa: BLE001
+        check("recupero[153]: kontrollet u ekzekutuan", False, str(_e153))
+
+    # [154] v9.399 — IL TESTO DEGLI ARTICOLI NEGLI STRUMENTI DEL NOTAIO, DELLE LETTERE E DELLE PERIZIE: tagliato a 900 caratteri
+    # (l'audit AL: la successione scriveva «il neni 361 è troncato: "Në çdo rast bashkëshorti merr 1/2 pjesë të tra…"»). Ora
+    # fino a 3.500 con l'avviso del taglio, «art.» in italiano — stesso blocco condiviso per i tre moduli.
+    try:
+        import inspect as _in154
+        from src import expertise as _ex154, notary as _no154, letters as _le154
+        _it154 = idx_it if "idx_it" in dir() else ArticleIndex.load(INDEX_FILE.parent / "bm25_it.pkl")
+        _t361 = _ex154._article_text(idx, "kodi_civil", "361") or ""
+        _b = _ex154.blocco_articoli([("kodi_civil", "361", _t361)], "sq")
+        _bi = _ex154.blocco_articoli([("codice_civile", "2946", _ex154._article_text(_it154, "codice_civile", "2946"))], "it")
+        _lungo = _ex154.blocco_articoli([("kodi_civil", "1", "x" * 5000)], "sq")
+        _okA = (len(_t361) > 900 and "1/2" in _b and "neni 361]" in _b and "art. 2946]" in _bi and "neni" not in _bi
+                and "teksti u shkurtua" in _lungo and len(_lungo) < 3700)
+        _okB = all("blocco_articoli(" in _in154.getsource(f) for f in (_no154._art_block, _le154._art_block, _ex154.analyze))
+        # mai l'identificativo interno nel blocco (finiva NELL'ATTO: «[ligji_kadastra neni 14]»)
+        _bk = _ex154.blocco_articoli([("ligji_kadastra", "14", "Zona kadastrale është njësia bazë.")], "sq")
+        _okB = _okB and "ligji_kadastra" not in _bk and "Kadastra" in _bk and _ex154.etichetta_al("kodi_civil") == "Kodi Civil"
+        check("blocco[154]: notaio, lettere e perizie ricevono il testo intero fino a 3.500 caratteri (KC 361 con la quota del "
+              "coniuge), l'avviso del taglio e «art.» in sessione IT", _okA and _okB, "A=%s B=%s" % (_okA, _okB))
+    except Exception as _e154:  # noqa: BLE001
+        check("blocco[154]: kontrollet u ekzekutuan", False, str(_e154))
+
+    # [155] v9.399 — LA PROCURA: in IT il prompt era albanese (KC 64-78, Ligji 110/2018) e la procura generale portava la guida
+    # del KC 71/72; senza poteri scelti il testo predefinito era sempre «ordinaria amministrazione — procura generale», anche per
+    # una procura SPECIALE (e per l'Albania è la dottrina italiana: il KC 71 dice la totalità dei diritti).
+    try:
+        import re as _re155
+        from src import notary as _no155
+        _it155 = idx_it if "idx_it" in dir() else ArticleIndex.load(INDEX_FILE.parent / "bm25_it.pkl")
+        class _F155:
+            def __init__(self): self.c = []
+            def complete(self, system=None, messages=None, callsite=None, **kw):
+                if callsite == "notary_prokura":
+                    self.c.append((system or "", messages[0]["content"]))
+                return ""
+        _f = _F155()
+        _no155.draft_prokura(_f, _it155, form="e_pergjithshme", details="Procura generale per gestire gli affari del mandante.")
+        _no155.draft_prokura(_f, _it155, form="e_posacme", details="Procura speciale per vendere un immobile a Roma.")
+        _no155.draft_prokura(_f, idx, form="e_posacme", details="Prokurë e posaçme për shitjen e apartamentit.")
+        _no155.draft_prokura(_f, idx, form="e_pergjithshme", details="Prokurë e përgjithshme për punët e të përfaqësuarit.")
+        (_s1, _u1), (_s2, _u2), (_s3, _u3), (_s4, _u4) = _f.c
+        _okA = (_s1.startswith("Sei un NOTAIO italiano") and "art. 1708" in _u1 and "art. 1392]" in _u1
+                and not _re155.search(r"\bKC\b|\bneni\b|[ëçË]", _s1 + _u1))
+        _okB = ("solo gli atti indicati espressamente" in _u2 and "ordinaria amministrazione — procura generale" not in _u2)
+        _okC = ("administrimit të zakonshëm" not in _u3 and "vetëm veprimet e përcaktuara shprehimisht" in _u3
+                and "neni 71 KC" in _u4 and _s3.startswith("Ti je NOTER shqiptar"))
+        check("procura[155]: in IT prompt, forme, guida (art. 1708 c.c.) e semi italiani, niente KC; poteri predefiniti coerenti "
+              "con la forma (speciale ≠ «ordinaria amministrazione»; generale AL = KC 71)", _okA and _okB and _okC,
+              "A=%s B=%s C=%s" % (_okA, _okB, _okC))
+    except Exception as _e155:  # noqa: BLE001
+        check("procura[155]: kontrollet u ekzekutuan", False, str(_e155))
+
+    # [156] v9.399 — LE ETICHETTE LETTERALI DELLE FASI in sessione IT: il radar di nullità ha scritto «AFATI: il termine…»
+    # dentro una scheda italiana (audit IT del 28 set). Le parole che i prompt albanesi chiedono di copiare tali e quali
+    # («MOS E PËRDOR nëse …», «VENDIMTAR:», «PARË:», la catena «Kushti → … → PASOJA») in IT arrivano già italiane; in AL il
+    # prompt resta identico. Ogni chiave deve esistere nel suo prompt: se qualcuno riscrive il prompt, la mappa va aggiornata.
+    try:
+        from src import brain as _b156
+        _prompts156 = {"EVIDENCE_MAP_SYSTEM": _b156.EVIDENCE_MAP_SYSTEM, "NULLITY_RADAR_SYSTEM": _b156.NULLITY_RADAR_SYSTEM,
+                       "MISSING_FACTS_SYSTEM": _b156.MISSING_FACTS_SYSTEM}
+        _mancanti156 = [sq[:30] for sq, _it in _b156._ETICHETTE_IT
+                        if not any(sq in p for p in _prompts156.values())]
+        _it156 = {k: _b156.apply_jurisdiction(v, "IT") for k, v in _prompts156.items()}
+        _al156 = {k: _b156.apply_jurisdiction(v, "AL") for k, v in _prompts156.items()}
+        _okIT = ("«NON USARLA se …»" in _it156["NULLITY_RADAR_SYSTEM"] and "MOS E\n  PËRDOR" not in _it156["NULLITY_RADAR_SYSTEM"]
+                 and "(1) TERMINE" in _it156["NULLITY_RADAR_SYSTEM"] and "(1) AFATI" not in _it156["NULLITY_RADAR_SYSTEM"]
+                 and "«DECISIVO:»" in _it156["EVIDENCE_MAP_SYSTEM"] and "«Requisito:" in _it156["EVIDENCE_MAP_SYSTEM"]
+                 and "«PRIORITARIO:»" in _it156["MISSING_FACTS_SYSTEM"] and "«PARË" not in _it156["MISSING_FACTS_SYSTEM"])
+        _okAL = all(_prompts156[k] in _al156[k] for k in _prompts156) and "(1) AFATI" in _al156["NULLITY_RADAR_SYSTEM"]
+        _okIdem = _b156.apply_jurisdiction(_it156["NULLITY_RADAR_SYSTEM"], "IT") == _it156["NULLITY_RADAR_SYSTEM"]
+        check("fasi[156]: in IT le etichette da copiare sono italiane (TERMINE, NON USARLA, DECISIVO, PRIORITARIO, Requisito→…); "
+              "in AL il prompt è identico; ogni chiave esiste nel suo prompt; idempotente",
+              not _mancanti156 and _okIT and _okAL and _okIdem,
+              "mancanti=%s IT=%s AL=%s idem=%s" % (_mancanti156, _okIT, _okAL, _okIdem))
+    except Exception as _e156:  # noqa: BLE001
+        check("fasi[156]: kontrollet u ekzekutuan", False, str(_e156))
+
+    # [157] v9.399 — (a) SOSPENSIONE FERIALE NEI TERMINI A MESI/ANNI: il motore la IGNORAVA («termini sostanziali») anche
+    # quando la regola la chiedeva → il termine lungo (art. 327 c.p.c., sei mesi) di una sentenza pubblicata a giugno usciva
+    # scaduto 31 giorni prima del vero. Ora i giorni di agosto nel decorso si aggiungono; decorso che inizia in agosto →
+    # differito alla fine del periodo; AL mai. (b) ASSISTENTE D'UDIENZA: prompt nativo italiano, prima frase non fraintendibile,
+    # premessa sbagliata corretta, articoli del fascicolo dal corpus (nell'audit AL rispondeva «Jo —» senza i 180 giorni).
+    # (c) SIMULAZIONE DELL'ACCORDO: gli articoli del caso nel prompt e niente termini inventati (uno scenario si reggeva su un
+    # «reclamo scritto entro 30 giorni» che il Kodi i Punës non prevede).
+    try:
+        from src import deadline_engine as _de157
+        _c157 = lambda *a, **k: _de157.compute_deadline(*a, **k).deadline.isoformat()
+        _okA = (_c157("2026-06-15", 6, "months", jurisdiction="IT", feriale=True) == "2027-01-15"
+                and _c157("2026-09-10", 6, "months", jurisdiction="IT", feriale=True) == "2027-03-10"
+                and _c157("2026-08-10", 6, "months", jurisdiction="IT", feriale=True) == "2027-03-01"
+                and _c157("2026-07-01", 1, "years", jurisdiction="IT", feriale=True) == "2027-09-01"
+                and _c157("2026-06-15", 6, "months", jurisdiction="IT", feriale=False) == "2026-12-15"
+                and _c157("2026-06-15", 6, "months", jurisdiction="AL", feriale=True) == "2026-12-15"
+                and _c157("2024-07-20", 30, "days", jurisdiction="IT", feriale=True) == "2024-09-19")
+        _web157 = open("/app/src/web.py", encoding="utf-8").read()
+        _i157 = _web157.find("def api_hearing_quick(")
+        _hq157 = _web157[_i157:_i157 + 3500]
+        _s157 = _web157.find("def api_settlement_simulate(")
+        _st157 = _web157[_s157:_s157 + 9000]
+        _okB = ("HEARING_QUICK_SYSTEM_IT = " in _web157 and "Non cominciare con un «Sì» o «No» isolato" in _web157
+                and "Mos fillo me një «Po» ose «Jo» të vetëm" in _web157 and "comincia dalla correzione" in _web157
+                and "fillo me korrigjimin" in _web157 and "«Jo, nuk ankimohet" not in _web157
+                and "HEARING_QUICK_SYSTEM_IT if _it else" in _hq157
+                and "_nenet_e_rastit(" in _hq157 and "## Domanda ORA in udienza" in _hq157)
+        _okC = ("_nenet_e_rastit(case_id, description" in _st157 and "Kurrë mos parashiko pagesa të padeklaruara" in _st157
+                and "Mai ipotizzare pagamenti non dichiarati" in _st157)
+        check("feriale+udienza[157]: sospensione feriale nei termini a mesi/anni (giugno → +31, inizio in agosto differito, "
+              "anni, AL mai); assistente d'udienza nativo IT e radicato; simulazione dell'accordo con gli articoli del caso",
+              _okA and _okB and _okC, "A=%s B=%s C=%s" % (_okA, _okB, _okC))
+    except Exception as _e157:  # noqa: BLE001
+        check("feriale+udienza[157]: kontrollet u ekzekutuan", False, str(_e157))
+
+    # [158] v9.399 — LE LEGGI ALBANESI ABROGATE FUORI CORPUS: il notaio ha citato «Ligji 8438, neni 11» (imposte 1998, abrogata
+    # dalla 29/2023) e usciva «senza codice». Il registro si legge dal corpus stesso (frasi «Ligji nr. X … shfuqizohet» degli
+    # articoli vigenti): la citazione esce «abrogata» con la legge di oggi; «shfuqizuar me ligjin nr. X» (abrogato DA X) non conta;
+    # una legge vigente che non abbiamo resta «senza codice»; nessuna legge nostra entra nel registro.
+    try:
+        from src import citation_verifier as _cv158
+        _reg158 = _cv158._ligje_te_shfuqizuara(idx)
+        def _st158(t):
+            r = _cv158.verify_text(t, idx)
+            return [(i["status"], i.get("code"), i.get("article_heading") or "") for i in r["items"]]
+        _a = _st158("Sipas nenit 11 të ligjit nr. 8438/1998 «Për tatimin mbi të ardhurat», tatimi paguhet.")
+        _b = _st158("neni 25 i ligjit nr. 7829, datë 1.6.1994 «Për noterinë»")
+        _c = _st158("neni 5 i ligjit nr. 175/2014")
+        _d = _st158("neni 3 i Ligjit nr. 119/2014 për të drejtën e informimit")
+        _e = _st158("neni 5 i ligjit nr. 124/2024")
+        _okR = (len(_reg158) >= 20 and {"8438/1998", "7829/1994", "9109/2003", "33/2012", "108/2013"} <= set(_reg158)
+                and "175/2014" not in _reg158 and "124/2024" not in _reg158 and "111/2018" not in _reg158)
+        _okV = (_a and _a[0][0] == "repealed" and "29/2023" in _a[0][2] and _b and _b[0][0] == "repealed" and "110/2018" in _b[0][2]
+                and _c and _c[0][0] == "needs_code" and _d and _d[0][0] == "needs_code" and _e and _e[0][0] == "verified")
+        check("ligje[158]: le leggi albanesi abrogate fuori corpus escono «abrogate» con la legge di oggi (8438/1998 → 29/2023, "
+              "7829/1994 → 110/2018); registro dal corpus, senza le leggi nostre né «shfuqizuar me ligjin»",
+              _okR and _okV, "R=%s V=%s reg=%d %s %s" % (_okR, _okV, len(_reg158), _a, _c))
+    except Exception as _e158:  # noqa: BLE001
+        check("ligje[158]: kontrollet u ekzekutuan", False, str(_e158))
+
+    # [159] v9.399 — LA CHECKLIST DEL FASCICOLO NOTARILE era senza articoli (citava a memoria: «Ligji 8438, neni 11», abrogata):
+    # ora riceve i semi dell'atto del catalogo (compravendita: KC 750/751 + registrazione kadastra 24 + imposta 29/2023 neni 17
+    # + comunione dei coniugi KF 76/77), con le etichette leggibili e la regola «solo dal blocco»; la lista dei documenti idem.
+    try:
+        from src import notary as _no159
+        class _F159:
+            def __init__(self): self.c = []
+            def complete(self, system=None, messages=None, callsite=None, **kw):
+                self.c.append((callsite, system or "", messages[0]["content"]))
+                return "PLOTESIA: 40" if callsite == "notary_checklist" else ""
+        _f = _F159()
+        _r159 = _no159.dossier_checklist(_f, idx, act="shitje pasurie e paluajtshme",
+                                         documents_text="Certifikata e pronësisë nga ASHK dhe kartat e identitetit të palëve.")
+        _cl = [c for c in _f.c if c[0] == "notary_checklist"][0]
+        _keys = {(a["code"], a["number"]) for a in _r159["articles"]}
+        _ok159 = ({("kodi_civil", "750"), ("ligji_kadastra", "24"), ("ligji_tatimi_te_ardhurat", "17"), ("kodi_familjes", "76")} <= _keys
+                  and "NENET NGA KORPUSI" in _cl[2] and "ligji_tatimi_te_ardhurat" not in _cl[2] and "29/2023" in _cl[2]
+                  and "mos cito ligje të vjetra nga kujtesa" in _cl[1] and _no159._seed_per_akt("vërtetim nënshkrimi") is None)
+        check("noter[159]: la checklist del fascicolo e la lista documenti ricevono gli articoli dell'atto (compravendita: KC 750, "
+              "kadastra 24, imposta 29/2023 neni 17, KF 76/77), etichette leggibili, niente leggi a memoria", _ok159,
+              "keys=%s" % sorted(_keys)[:8])
+    except Exception as _e159:  # noqa: BLE001
+        check("noter[159]: kontrollet u ekzekutuan", False, str(_e159))
+
+    # [160] v9.399 — LIGJ I GJALLË / LEGGE VIVA: (a) la verifica delle affermazioni riceveva il testo reale TAGLIATO a 1.100
+    # caratteri (un'affermazione giusta sul KP 146/3 sarebbe uscita «non sostenuta»): ora l'articolo intero fino a 6.000;
+    # (b) in sessione IT prompt nativi (verifica: diritto italiano; legge viva: Normattiva/GU/EUR-Lex, non QBZ); (c) etichette
+    # leggibili anche nel primo contatto del cittadino (prima «[ligji_konsumatoret neni 30]»).
+    try:
+        from src import living_law as _ll160, intake as _in160
+        _it160 = idx_it if "idx_it" in dir() else ArticleIndex.load(INDEX_FILE.parent / "bm25_it.pkl")
+        class _F160:
+            def __init__(self): self.c = []
+            def complete(self, system=None, messages=None, callsite=None, **kw):
+                self.c.append((callsite, system or "", messages[0]["content"])); return "ok"
+        _f = _F160()
+        _ll160.verify_claims(_f, idx, text="Sipas nenit 146 të Kodit të Punës, zgjidhja pa shkaqe të arsyeshme është e pavlefshme.")
+        _ll160.verify_claims(_f, _it160, text="L'art. 2946 c.c. prevede la prescrizione ordinaria decennale.")
+        _ll160.check_law_live(_f, _it160, query="art. 18 L. 300/1970")
+        _in160.triage(_f, idx, story="Bleva një makinë nga një tregtar dhe pas dy javësh motori u prish; tregtari nuk përgjigjet.")
+        _vc = [c for c in _f.c if c[0] == "deep_verify"]
+        _lv = [c for c in _f.c if c[0] == "law_live"]
+        _tr = [c for c in _f.c if c[0] not in ("deep_verify", "law_live", "expand_terms")]
+        _okA = len(_vc) == 2 and "punëdhënësi është i detyruar të zbatojë këtë vendim" in _vc[0][2]
+        _okB = (_vc[1][1].startswith("Sei un VERIFICATORE") and "art. 2946" in _vc[1][2] and "neni" not in _vc[1][2]
+                and _lv and "normattiva.it" in _lv[0][1] and "qbz" not in _lv[0][1].lower())
+        _okC = bool(_tr) and not re.search(r"\[(ligji|kodi)_[a-z_]+ neni", _tr[-1][2])
+        check("ligj-i-gjallë[160]: verifica delle affermazioni con l'articolo intero (KP 146/3), prompt nativi IT (verifica e "
+              "legge viva su Normattiva), etichette leggibili nel primo contatto", _okA and _okB and _okC,
+              "A=%s B=%s C=%s" % (_okA, _okB, _okC))
+    except Exception as _e160:  # noqa: BLE001
+        check("ligj-i-gjallë[160]: kontrollet u ekzekutuan", False, str(_e160))
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

@@ -502,12 +502,15 @@ _CONN_AL = (r"(?:i|e|t[ëe]|s[ëe]|sipas)\s+(?:po\s+)?(?:k[ëe]tij\s+(?:ligji|ko
 
 CITATION_RE = re.compile(
     r"\bnen(?:i|in|it|et|eve|ve)?\b\s+"
-    r"(?P<nums>" + _NUM_TOKEN + r"(?:" + _LIST_SEP + _NUM_TOKEN + r")*)"
+    # v9.399: «neni 114 dhe neni 115 i Kodit Civil» = un elenco con il codice in comune (come «nenet 114 dhe 115»)
+    r"(?P<nums>" + _NUM_TOKEN + r"(?:" + _LIST_SEP + r"(?:nen(?:i|in|it|et)?\s+)?" + _NUM_TOKEN + r")*)"
     r"(?P<sub>" + _SUB_AL + r"*)"
     r"(?:\s*,(?=\s+" + _CONN_AL + r"))?"      # la virgola sì, lo spazio resta alla coda
     # Tail = up to 8 words, but never crossing "dhe" or another "nen..." —
     # otherwise one citation swallows the next and steals its code.
-    r"(?P<tail>(?:\s+(?!nen(?:i|in|it|et|eve|ve)?\b)(?!dhe\b)[^\s,;:\n()]+){0,8})",
+    # v9.399: … né davanti a un «neni» preceduto da virgolette o barra ("neni 114 KC" / "neni 443 KPC")
+    r"(?P<tail>(?:\s+(?!nen(?:i|in|it|et|eve|ve)?\b)(?![«\"“”„'/*_\[]*nen(?:i|in|it|et|eve|ve)?\b)(?!dhe\b)"
+    r"(?:(?!/\s*[«\"“*_\[]*nen(?:i|in|it|et|eve|ve)?\b)[^\s,;:\n()])+){0,8})",
     re.IGNORECASE,
 )
 # Anafora: «neni 37, pika 1, i po këtij ligji» / «art. 4 del medesimo decreto» → il codice/legge
@@ -585,7 +588,7 @@ _SUB_IT = (r"(?:\s*,?\s*(?:(?:comm[ai]|co\.|c\.(?=\s*\d)|n\.|nn\.|punt[oi]|par(?
 _CONN_IT = (r"(?:(?:del|della|dello|dell[’']|dal|dalla)\s*(?:codice|cod\.|legge|l\.|d\.?\s?lgs|d\.?\s?l\b|d\.?\s?l\.|d\.?p\.?r|r\.?d\.?|"
             r"t\.?u\.?|reg\b|reg\.|regolamento|direttiva|dir\.|statuto|costituzione|cost\.|convenzione|protocollo|trattato|carta|"
             r"cedu|tfue|tue|gdpr|cdu|dnc|tuel|tuir|tub|tuf|cad|cpa|cpi|ccii|c\.[a-z]|medesim|stess|citat|predett|suddett)|"
-            r"l\.\s?\d|legge\b|d\.?\s?lgs|d\.?\s?l\.\s?\d|d\.?p\.?r\.?\s?\d|r\.?d\.?\s?\d|d\.?m\.?\s?\d|t\.?u\.?\b|reg\.?\s?(?:\(|\d|ue|ce)|"
+            r"l\.\s?\d|legge\b|d\.?\s?lgs|d\.?\s?l\.\s?\d|d\.?p\.?r\.?\s?\d|r\.?d\.?\s?\d|d\.?m\.?\s?\d|t\.?u\.?\b|reg\.?\s?(?:\(|\d|ue|ce|delegat|di\s+esec|esec)|"
             r"regolamento|direttiva|dir\.|cod\.|codice|c\.[a-z]|cost\.?\b|statuto|carta|cedu|tfue|tue|gdpr|cdu|dnc|tuel|tuir|tub|tuf|cad|"
             r"cpa|cpi|ccii|c\.d\.s\.|cds\b|l\.\s?fall|preleggi|disp\.|convenzione|protocollo|trattato|st(?:at)?\.?\s?lav\b)")
 
@@ -594,22 +597,32 @@ _CONN_IT = (r"(?:(?:del|della|dello|dell[’']|dal|dalla)\s*(?:codice|cod\.|legg
 # del processo amministrativo» — l'etichetta di gruppo che il prompt mostra per gli allegati non spezza la coda.
 # v9.397: la coda si FERMA prima di «e/ed + numero» — in «artt. 335 c.p.p. e 107 disp. att. c.p.p.» attraversava fino
 # alle disp. att., prendeva il codice più lungo e il 335 usciva «inesistente» (una norma vera marcata falsa).
-_TAIL_IT = (r"(?:\s+(?!art\b)(?!(?:e|ed)\s+\d)"
-            r"(?:\((?:UE|CE|CEE|Euratom|allegato|atto di approvazione)\)|[^\s,;:\n()]+)){0,6}")
+# v9.399: la coda si ferma anche davanti a un «art.» preceduto da virgolette o barra («art. 81 c.p.» e «art. 414
+# c.p.c.», "art. 2043 c.c." / "art. 81 c.p.", art. 81 c.p./art. 414 c.p.c.): prima attraversava la citazione dopo,
+# le rubava il codice (il 2043 verificato sul codice PENALE = «inesistente») e la perdeva
+# … e davanti a «l'art.», «dell'art.», «all'art.», «dall'art.», «nell'art.» (la forma più comune: «l'art. 1218 c.c.
+# e l'art. 2043 c.c.» perdeva il 2043; «l'art. 157 c.p. e l'art. 344-bis c.p.p.» verificava il 157 sul c.p.p.)
+_Q_ART_IT = r"[«\"“”„'/*_\[]*(?:[a-zà-ù]{1,5}['’])?art(?:t|icol[oi])?\b"      # anche il grassetto «**Art.»
+_ART_RIP_IT = r"(?:(?:[a-zà-ù]{1,5}['’]\s*)?art(?:t|icol[oi])?\.?\s+)?"      # «e l'art. N», «e dell'art. N», «e art. N»
+_TAIL_IT = (r"(?:\s+(?!art\b)(?!" + _Q_ART_IT + r")(?!(?:e|ed)\s+\d)"
+            r"(?:\((?:UE|CE|CEE|Euratom|allegato|atto di approvazione)\)|"
+            r"(?:(?!/\s*[«\"“*_\[]*art(?:t|icol[oi])?\b)[^\s,;:\n()])+)){0,6}")
 CITATION_RE_IT = re.compile(
     r"\bart(?:t|icol[oi])?\.?\s+"
-    r"(?P<nums>" + _NUM_TOKEN_IT + r"(?:\s*(?:,|;|\be\b|\bed\b)\s*" + _NUM_TOKEN_IT + r")*)"
+    # v9.399: «l'art. 116 e l'art. 126 C.d.S.» / «art. 5 e art. 6 L. 91/1992» = UN elenco con il codice in comune (la
+    # convenzione dei giuristi): prima la coda del primo attraversava il secondo (il 126 si perdeva)
+    r"(?P<nums>" + _NUM_TOKEN_IT + r"(?:\s*(?:,|;|\be\b|\bed\b)\s*" + _ART_RIP_IT + _NUM_TOKEN_IT + r")*)"
     r"(?P<sub>" + _SUB_IT + r"*)"
     # v9.397: «artt. 408, comma 2, e 410 c.p.p.» — dopo un sotto-riferimento, «, e N» è un ALTRO articolo dell'elenco
     # (prima il 410 spariva e il 408 restava «senza codice»)
-    r"(?P<more>(?:\s*,\s*(?:e|ed)\s+" + _NUM_TOKEN_IT + r"(?:" + _SUB_IT + r")*)*)"
+    r"(?P<more>(?:\s*,\s*(?:e|ed)\s+" + _ART_RIP_IT + _NUM_TOKEN_IT + r"(?:" + _SUB_IT + r")*)*)"
     r"(?:\s*,(?=\s+" + _CONN_IT + r"))?"      # la virgola sì, lo spazio resta alla coda
     r"(?P<tail>" + _TAIL_IT + r")",
     re.IGNORECASE,
 )
 _NUM_RE_IT = re.compile(_NUM_TOKEN_IT)
 # i numeri dell'elenco dopo i sotto-riferimenti: solo quelli subito dopo «e/ed» (mai i numeri dei commi)
-_MORE_NUM_IT = re.compile(r"(?:\be\b|\bed\b)\s+(" + _NUM_TOKEN_IT + r")", re.IGNORECASE)
+_MORE_NUM_IT = re.compile(r"(?:\be\b|\bed\b)\s+" + _ART_RIP_IT + r"(" + _NUM_TOKEN_IT + r")", re.IGNORECASE)
 # v9.397 — la CONTINUAZIONE con un codice suo: «… c.p.p. e 107 disp. att. c.p.p.», «… c.c., e 2059 c.c.».
 # Si legge solo se la sua coda porta un codice (mai un numero nudo che eredita a caso).
 _CONT_IT = re.compile(
@@ -726,6 +739,10 @@ _IT_CODE_CHECKS = [
     ("codicedellastrada", "codice_strada"),
     ("codiceantimafia", "codice_antimafia"),
     ("codicedelconsumo", "codice_consumo"),
+    # v9.399: «art. 33 Cod. Consumo» (l'etichetta del NOSTRO badge), «cod. cons.», «cod. strada» uscivano «senza codice»
+    ("codconsumo", "codice_consumo"),
+    ("codcons", "codice_consumo"),
+    ("codstrada", "codice_strada"),
     ("codiceambiente", "codice_ambiente"),
     ("codiceprivacy", "codice_privacy"),
     ("codicecivile", "codice_civile"),
@@ -754,6 +771,13 @@ _IT_CODE_CHECKS = [
 # il passaggio alfabetico sopra scarta le cifre, quindi «dlgs» da solo non dice nulla.
 # Qui si confronta il numero+anno compattato (v9.326). Ordine: il piu' lungo prima.
 _IT_CODE_NUM_CHECKS = [
+    # v9.399: codici e testi unici che i giuristi citano anche per numero (prima «senza codice»)
+    ("2851992", "codice_strada"), ("4951992", "regolamento_strada"), ("3851993", "tu_bancario"),
+    ("581998", "tu_finanza"), ("892001", "equa_riparazione"), ("4471988", "codice_procedura_penale"),
+    ("1042010", "codice_processo_amministrativo"), ("302005", "codice_proprieta_industriale"),
+    ("12018", "codice_protezione_civile"), ("1172017", "codice_terzo_settore"), ("7731931", "tulps"),
+    ("2711989", "disp_att_cpp"), ("3181942", "disp_att_cc"), ("13981930", "codice_penale"),
+    ("14431940", "codice_procedura_civile"), ("1172026", "tuir"),
     ("20152446", "reg_ue_2015_2446"), ("20152447", "reg_ue_2015_2447"), ("20191111", "bruxelles_ii_ter"),
     # wave6: testi unici della riforma fiscale (prima dei vecchi atti che hanno abrogato)
     ("1732024", "tu_sanzioni_tributarie"), ("1232025", "tu_registro"), ("1412026", "tu_accertamento"),
@@ -802,6 +826,11 @@ _CEDU_PROT = ("1", "4", "6", "7", "12", "13", "16")
 _SHORT_AS_SUBSTRING = frozenset({"romai"})
 
 
+# v9.399 — un atto NOMINATO ma assente dal corpus (oggi: le disposizioni di attuazione del c.p.c.): la citazione
+# resta «da chiarire» (needs_code, resolved_by="fuori_corpus"), MAI «falsa» — «non lo trovo» ≠ «è inventato».
+FUORI_CORPUS = "__fuori_corpus__"
+
+
 def _resolve_code_it(tail: str):
     compact = re.sub(r"[^a-z]", "", (tail or "").lower())
     # CEDU: MAI come sottostringa compattata («procedura» contiene «cedu») — parola intera
@@ -816,6 +845,11 @@ def _resolve_code_it(tail: str):
         if "addizionale" in _low:
             return "cedu_protocollo_1"
         return "cedu"
+    # v9.399: le DISPOSIZIONI DI ATTUAZIONE del c.p.c. non sono nel corpus: mai confonderle col c.p.c. («art. 164-ter
+    # disp. att. c.p.c.», vero, usciva «inesistente» nel c.p.c.). Nessun codice = «da chiarire», mai «falso».
+    if re.search(r"(?:disp(?:osizioni)?|norme)\.?\s*(?:di\s+|per\s+l['’]\s*)?att(?:uazione)?\.?\s*(?:del\s+)?"
+                 r"(?:c\.?\s?p\.?\s?c\.?|cod(?:ice)?\.?\s*(?:di\s+)?proc(?:edura)?\.?\s*civ)", _low):
+        return FUORI_CORPUS
     # Sigle corte («cc», «cp», «cpc», «tub», «cost»…) SOLO come parola intera: nel testo
     # compattato «accise», «successioni», «accertamento» contengono «cc» e finivano nel
     # codice civile (audit_corpus, 16 set 2026). Le abbreviazioni puntate si ricompongono
@@ -837,9 +871,14 @@ def _resolve_code_it(tail: str):
     # secondo passaggio: numero/anno (le sigle «D.Lgs.», «DPR», «Reg.» da sole non bastano);
     # «legge n. 91 del 1992» vale come «91/1992» (17 set 2026)
     with_digits = re.sub(r"[^a-z0-9]", "", re.sub(r"(\d+)\s+del\s+(\d{4})", r"\1/\2", (tail or "").lower()))
+    # v9.399: il confronto è a CONFINE DI CIFRA — «158/1998» non è il TUF (58/1998), «191/1992» non è la L. 91/1992 —
+    # su un testo in cui le parole restano separate (la «/» fra cifre si toglie, il resto diventa spazio): compattando
+    # tutto, «L. 241/1990.  ---  ## 3.» diventava «l24119903» e il numero non combaciava più
+    _sep = re.sub(r"[^a-z0-9]+", " ", re.sub(r"(?<=\d)/(?=\d)", "",
+                                           re.sub(r"(\d+)\s+del\s+(\d{4})", r"\1/\2", (tail or "").lower())))
     if any(ch.isdigit() for ch in with_digits):
         for pat, code in _IT_CODE_NUM_CHECKS:
-            if pat in with_digits:
+            if re.search(r"(?<!\d)" + pat + r"(?!\d)", _sep):
                 return code
     return None
 
@@ -910,6 +949,77 @@ def _build_number_to_codes(index: ArticleIndex) -> dict[str, list[str]]:
     table = {k: list(dict.fromkeys(v)) for k, v in table.items()}
     index._citation_num_index = table
     return table
+
+
+# v9.399 — LE LEGGI ALBANESI ABROGATE CHE NON SONO NEL CORPUS: il notaio (audit del 28 set) ha citato «Ligji 8438, neni 11»
+# per l'imposta sul trasferimento — la legge sulle imposte del 1998, abrogata dalla 29/2023 (neni 71) — e il verificatore la
+# lasciava «senza codice». Il registro si legge dal CORPUS STESSO: le frasi degli articoli vigenti in cui la legge nuova dice
+# «Ligji nr. X, datë … / X/AAAA …, shfuqizohet(n)» (nominativo: «shfuqizuar me ligjin nr. X» = abrogato DA X, e non conta).
+# Mai una legge che abbiamo come codice nostro. 26 leggi al 28 set (8438/1998, 7829/1994 notariato, 9109/2003 avvocatura,
+# 33/2012 registrazione degli immobili, 108/2013 stranieri, 7928/1995 IVA…).
+_SHFUQ_LIGJ_RE = re.compile(r"\b[Ll]igji\s+nr\.?\s*(\d{2,5})\s*(?:,\s*dat[ëe]\s*\d{1,2}\s*\.\s*\d{1,2}\s*\.\s*((?:19|20)\d\d)"
+                            r"|/\s*((?:19|20)\d\d))")
+
+
+def _ligje_te_shfuqizuara(index) -> dict:
+    """«NUM/ANNO» → titolo della legge che la abroga (dal corpus AL; cache sull'indice)."""
+    cached = getattr(index, "_citation_shfuqizuara", None)
+    if cached is not None:
+        return cached
+    out: dict[str, str] = {}
+    try:
+        titoli: dict[str, str] = {}
+        for a in index.articles:
+            titoli.setdefault(a.code, getattr(a, "title_sq", "") or "")
+        propri = {f"{m.group(1)}/{m.group(2)}" for t in titoli.values()
+                  for m in re.finditer(r"(\d{2,5})\s*/\s*((?:19|20)\d\d)", t)}
+        propri |= {k for k in _LAW_NUMBER_ALIASES if "/" in k}
+        for a in index.articles:
+            if a.repealed or "shfuqizoh" not in (a.body or "").lower():
+                continue
+            flat = re.sub(r"\s+", " ", a.body)
+            for m in _SHFUQ_LIGJ_RE.finditer(flat):
+                s0 = max(flat.rfind(". ", 0, m.start()), flat.rfind(";", 0, m.start()))
+                e0 = flat.find(". ", m.end())
+                e0 = len(flat) if e0 < 0 else e0
+                e1 = flat.find(";", m.end())
+                e0 = min(e0, e1) if e1 >= 0 else e0
+                frase = flat[s0 + 1:e0]
+                if not (re.search(r"shfuqizohe[tn]", frase, re.I)
+                        or re.search(r"shfuqizohe[tn]\s*:[^.]*$", flat[max(0, m.start() - 400):m.start()], re.I)):
+                    continue
+                if re.search(r"(ndryshuar|ndryshohet|ndryshime|shtuar)\b", flat[max(0, m.start() - 40):m.start()], re.I):
+                    continue
+                k = f"{m.group(1)}/{m.group(2) or m.group(3)}"
+                if k not in propri:
+                    out.setdefault(k, titoli.get(a.code) or CODE_LABELS.get(a.code, a.code))
+    except Exception:  # noqa: BLE001
+        out = {}
+    try:
+        index._citation_shfuqizuara = out
+    except Exception:  # noqa: BLE001
+        pass
+    return out
+
+
+def _ligj_i_shfuqizuar(tail: str, index) -> tuple[str, str] | None:
+    """La coda della citazione nomina una legge abrogata del registro? → («NUM/ANNO», titolo di chi la abroga).
+    Senza l'anno solo i numeri della vecchia numerazione continua (≥ 1000: unici); «33» da solo non basta."""
+    if not tail:
+        return None
+    lm = _LAW_NUM_RE.search(re.sub(r"\s+", " ", tail.lower()))
+    if not lm:
+        return None
+    num, year = lm.group(1), (lm.group(2) or lm.group(3))
+    reg = _ligje_te_shfuqizuara(index)
+    if year:
+        k = f"{num}/{year}"
+        return (k, reg[k]) if k in reg else None
+    if int(num) >= 1000:
+        hit = [k for k in reg if k.split("/")[0] == num]
+        if len(hit) == 1:
+            return hit[0], reg[hit[0]]
+    return None
 
 
 def _resolve_code(tail: str) -> str | None:
@@ -1134,6 +1244,16 @@ def _codice_precedente(text: str, pos: int, resolve) -> str | None:
     return None
 
 
+def _e_elenco_ripetuto(m) -> bool:
+    """v9.399: l'elenco ripete «art./neni» («art. 93-bis e art. 215 Reg.», «art. 186, co. 9-bis, e art. 1 L. 91/1992»):
+    il codice in comune è un'inferenza, non una scrittura esplicita come «artt. 1341 e 1342 c.c.»."""
+    try:
+        more = m.group("more") or ""
+    except (IndexError, KeyError):
+        more = ""
+    return re.search(r"art|nen", (m.group("nums") or "") + more, re.I) is not None
+
+
 def _numeri_in_piu(m) -> list:
     """I numeri dell'elenco scritti DOPO un sotto-riferimento («artt. 408, comma 2, e 410 c.p.p.»): solo italiano."""
     try:
@@ -1196,10 +1316,17 @@ def verify_text(
         for _m in _cite_re.finditer(_src):
             _tail = _m.group("tail") or ""
             _code = _resolve(_tail)
+            if _code == FUORI_CORPUS:
+                continue
             _kp = _lang != "it" and _kp_bare(_tail, _code)   # «neni 155 KP» si scioglie dal documento, non dall'alias
-            for _nr in _num_re.findall(_m.group("nums")) + _numeri_in_piu(_m):
+            _tutti = _num_re.findall(_m.group("nums")) + _numeri_in_piu(_m)
+            _rip_l = bool(_code) and len(_tutti) > 1 and _e_elenco_ripetuto(_m)
+            for _i, _nr in enumerate(_tutti):
                 _n = _normalise_number(_nr)
                 _c = _kp_resolve(_n, _src, retrieved_codes, lookup) if _kp else _code
+                if (_c and _rip_l and _i < len(_tutti) - 1 and _verify_number(lookup, _c, _n) is None
+                        and _verify_number(lookup_all, _c, _n) is None):
+                    continue                     # inferenza smentita: non lega (v9.399)
                 if _c:
                     legami.setdefault(_n.split("/")[0], set()).add(_c)
 
@@ -1232,6 +1359,11 @@ def verify_text(
                 rart = _verify_number(_flk_all, fcode, number)
                 if rart is not None:
                     st, heading = "foreign_repealed", getattr(rart, "heading", None)
+        if fcode == FUORI_CORPUS:              # v9.399: atto italiano assente dal corpus → mai un'etichetta interna
+            citations.append(Citation(
+                raw=raw, number=number, code=None, code_label="disp. att. c.p.c.",
+                status="foreign_unverified", candidates=[], resolved_by="fuori_corpus"))
+            return
         citations.append(Citation(
             raw=raw, number=number, code=fcode, code_label=CODE_LABELS.get(fcode, fcode),
             status=st, candidates=[], article_heading=heading, resolved_by="straniero"))
@@ -1303,7 +1435,30 @@ def verify_text(
         if len(full_raw) > 60:
             full_raw = full_raw[:60].rstrip() + "…"
         multi = len(numbers) > 1
+        if code == FUORI_CORPUS:
+            for number_raw in numbers:
+                number = _normalise_number(number_raw)
+                if (number, FUORI_CORPUS) in seen:
+                    continue
+                seen.add((number, FUORI_CORPUS))
+                citations.append(Citation(
+                    raw=(_cite_prefix + number_raw) if multi else full_raw, number=number, code=None,
+                    code_label=None, status="needs_code", candidates=[], resolved_by="fuori_corpus"))
+            continue
         kp_bare = _lang != "it" and _kp_bare(tail, code)
+        if code is None and not kp_bare and _lang != "it":
+            _sh = _ligj_i_shfuqizuar(tail, index)      # v9.399: legge abrogata fuori corpus → «abrogata», non «senza codice»
+            if _sh:
+                for number_raw in numbers:
+                    number = _normalise_number(number_raw)
+                    if (number, "SH:" + _sh[0]) in seen:
+                        continue
+                    seen.add((number, "SH:" + _sh[0]))
+                    citations.append(Citation(
+                        raw=(_cite_prefix + number_raw) if multi else full_raw, number=number, code=None,
+                        code_label=f"Ligji nr. {_sh[0]}", status="repealed", candidates=[],
+                        article_heading=f"ligj i shfuqizuar — sot: {_sh[1]}", resolved_by="ligj_i_shfuqizuar"))
+                continue
         if code is None and not kp_bare:
             _fcode = _resolve_foreign(tail)
             if _fcode:
@@ -1315,9 +1470,15 @@ def verify_text(
         anafora = None
         if code is None and not kp_bare and _anafora_re.match(tail):
             anafora = _codice_precedente(text, m.start(), _resolve)
-        for number_raw in numbers:
+        # v9.399: «art. 93-bis e art. 215 Reg. 2015/2446» — il codice condiviso dell'elenco con «art.» ripetuto è
+        # un'INFERENZA: vale per gli articoli prima dell'ultimo solo se in quel codice esistono; altrimenti restano
+        # senza codice (documento / «da chiarire»), mai «inesistenti»
+        _rip = bool(code) and len(numbers) > 1 and _e_elenco_ripetuto(m)
+        for _i, number_raw in enumerate(numbers):
             number = _normalise_number(number_raw)
             code_n = _kp_resolve(number, text, retrieved_codes, lookup) if kp_bare else code
+            if _rip and _i < len(numbers) - 1 and code_n and not _esiste(code_n, number):
+                code_n = None
             via = None
             if code_n is None and not kp_bare:
                 if anafora and _esiste(anafora, number):
@@ -1352,7 +1513,7 @@ def verify_text(
                 if not c:
                     break
                 ccode = _resolve(c.group("tail") or "")
-                if not ccode:
+                if not ccode or ccode == FUORI_CORPUS:
                     break                              # numero senza codice suo: non si attribuisce a caso
                 for number_raw in _num_re.findall(c.group("nums")):
                     number = _normalise_number(number_raw)

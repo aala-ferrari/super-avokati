@@ -53,6 +53,30 @@ Probabilitetet duhet të mblidhen ≈ 1.0 (toleruar 0.95–1.05).
 3-5 skenarë janë optimal. Min ≤ mode ≤ max në secilin skenar.
 """.strip()
 
+# v9.399 — lo stesso schema in italiano (sessione IT): i nomi dei campi e degli scenari restano quelli del parser
+SCENARIO_SCHEMA_HINT_IT = """
+Restituisci solo JSON, senza preambolo. Schema:
+{
+  "currency": "EUR",
+  "scenarios": [
+    {
+      "name": "settle_normal" | "settle_high" | "trial_win" | "trial_loss" | "dismissed" | "withdraw" | "tjetër",
+      "label": "Descrizione breve (≤ 8 parole, in italiano)",
+      "probability": 0.0–1.0,
+      "min_value_eur":  0,
+      "mode_value_eur": 0,
+      "max_value_eur":  0,
+      "rationale": "1-2 frasi sul perché di questa scala di valori"
+    }
+  ],
+  "key_drivers": ["fattori chiave (≤ 5 punti)"],
+  "key_risks":   ["rischi principali (≤ 5 punti)"],
+  "comparable_anchor": "1 frase su quali precedenti sono più vicini"
+}
+Le probabilità devono sommare ≈ 1.0 (tollerato 0.95–1.05).
+3-5 scenari sono l'ideale. Min ≤ moda ≤ max in ciascuno scenario.
+""".strip()
+
 
 @dataclass
 class Scenario:
@@ -194,7 +218,7 @@ def percentile_of(value_eur: float, scenarios: list[Scenario], *,
 
 def recommendation(distribution: dict, *,
                    current_offer_eur: float | None,
-                   plaintiff: bool = True) -> dict:
+                   plaintiff: bool = True, lang: str = "sq") -> dict:
     """Translate distribution + current offer into actionable advice.
 
     `plaintiff=True` means we are the *receiving* side (we want HIGHER
@@ -231,9 +255,12 @@ def recommendation(distribution: dict, *,
             "walk_away_eur": round(walk_away, 2),
             "expected_value_eur": ev,
             "delta_vs_ev_eur": None,
-            "summary": (f"EV ≈ {ev:.0f} EUR. Pa ofertë konkrete, target i "
-                        f"sugjeruar {suggested_counter:.0f} EUR, "
-                        f"walk-away {walk_away:.0f} EUR."),
+            "summary": ((f"EV ≈ {ev:.0f} EUR. Nessuna offerta concreta: obiettivo "
+                         f"suggerito {suggested_counter:.0f} EUR, "
+                         f"soglia di rinuncia {walk_away:.0f} EUR.") if lang == "it" else
+                        (f"EV ≈ {ev:.0f} EUR. Pa ofertë konkrete, target i "
+                         f"sugjeruar {suggested_counter:.0f} EUR, "
+                         f"walk-away {walk_away:.0f} EUR.")),
         }
 
     # estimate offer's percentile by interpolating from p10..p90
@@ -267,6 +294,11 @@ def recommendation(distribution: dict, *,
         f"~{pct*100:.0f}% të shpërndarjes. EV = {ev:.0f}, "
         f"target i sugjeruar = {suggested_counter:.0f}, "
         f"walk-away = {walk_away:.0f}. Verdikti: {verdict}."
+    ) if lang != "it" else (
+        f"L'offerta di {current_offer_eur:.0f} EUR è al percentile "
+        f"~{pct*100:.0f}% della distribuzione. EV = {ev:.0f}, "
+        f"obiettivo suggerito = {suggested_counter:.0f}, "
+        f"soglia di rinuncia = {walk_away:.0f}. Verdetto: {verdict}."
     )
     return {
         "verdict": verdict,

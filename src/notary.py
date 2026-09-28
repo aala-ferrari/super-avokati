@@ -11,6 +11,8 @@ ASSISTIVE ONLY (the notary validates and signs — a defective deed is void):
 """
 from __future__ import annotations
 
+import re
+
 from . import expertise as _expertise
 from . import succession_engine as _se
 from .logging_utils import get_logger
@@ -102,9 +104,39 @@ def list_deed_types() -> list[dict]:
 
 def _art_block(backend, index, text, seed):
     arts = _expertise.retrieve_grounded(backend, index, text, seed_pairs=seed)
-    return "\n".join("• [%s neni %s] %s" % (
-        _expertise._LABEL.get(c, c), n, (t or "").strip()[:900]) for c, n, t in arts) \
-        or "(asnjë nen i gjetur — përshkruaj me fjalë, mos shpik)", arts
+    # v9.399: il testo fino a 3.500 caratteri (prima 900: il KC 361 arrivava senza la quota del coniuge) e «art.» in IT
+    return _expertise.blocco_articoli(arts, _expertise._lang_indice(index)), arts
+
+
+# v9.399 — per la lista dei documenti di una COMPRAVENDITA: la registrazione obbligatoria, l'imposta sul trasferimento (29/2023:
+# la base è il più alto fra prezzo e prezzo di riferimento) e la comunione fra coniugi (il consenso). Nell'audit del 28 set la
+# checklist, senza articoli, citava a memoria la legge sulle imposte del 1998, abrogata.
+_SEED_SHITJE_DOKUMENTE = [("ligji_kadastra", "24"), ("ligji_tatimi_te_ardhurat", "17"),
+                          ("kodi_familjes", "76"), ("kodi_familjes", "77"), ("kodi_familjes", "90"),
+                          ("kodi_familjes", "94")]   # comunione presunta · beni personali (donazione) · atti oltre l'ordinaria
+                                                     # amministrazione = entrambi i coniugi · annullamento entro 1 anno
+
+
+def _radici_akt(t: str) -> set:
+    t = _expertise._fold(t or "")
+    return {w[:5] for w in re.findall(r"[a-z]{4,}", t)}
+
+
+def _seed_per_akt(act: str):
+    """I semi dell'atto del catalogo che somiglia di più alla descrizione («shitje pasurie e paluajtshme» → la compravendita):
+    almeno due radici in comune, altrimenti nessuno (resta il recupero per termini). Solo per il corpus albanese."""
+    fa = _radici_akt(act)
+    best, key, score = None, None, 0
+    for k, v in DEED_TYPES.items():
+        sc = len(fa & _radici_akt((v.get("label") or "") + " " + k.replace("_", " ")))
+        if sc > score:
+            best, key, score = v, k, sc
+    if score < 2 or not best:
+        return None
+    seed = list(best.get("seed") or [])
+    if key == "shitje_pasurie":
+        seed += _SEED_SHITJE_DOKUMENTE
+    return seed or None
 
 
 def draft_deed(backend, index, *, deed_type: str, details: str, clauses_text: str = "", max_tokens: int = 3600) -> dict:
@@ -133,7 +165,10 @@ def draft_deed(backend, index, *, deed_type: str, details: str, clauses_text: st
 
 
 def check_deed(backend, index, *, text: str, max_tokens: int = 2400) -> dict:
-    art_block, arts = _art_block(backend, index, text, None)
+    # v9.399: i semi del tipo di atto riconosciuto dalla testa del testo (nell'audit del 28 set il controllo di una compravendita
+    # non aveva le norme sulla vendita immobiliare né sul consenso del coniuge e lo dichiarava «non dato nel corpus»)
+    art_block, arts = _art_block(backend, index, text,
+                                 None if _expertise._lang_indice(index) == "it" else _seed_per_akt((text or "")[:600]))
     system = (
         "Ti je NOTER-redaktor i rreptë. Kontrollo AKTIN NOTARIAL të dhënë për VLEFSHMËRI "
         "FORMALE dhe KOHERENCË, sipas së drejtës shqiptare. Bazohu te teksti dhe te nenet e "
@@ -335,7 +370,8 @@ PROKURA_SCOPES = {
         "powers": ["të shesë ose blejë pasuri të paluajtshme", "të caktojë çmimin dhe kushtet",
                    "të arkëtojë ose paguajë shumën", "të nënshkruajë kontratën noteriale",
                    "të regjistrojë kalimin e pronësisë në ASHK"],
-        "seed": [("kodi_civil", "750"), ("kodi_civil", "751"), ("kodi_civil", "705")]},
+        "seed": [("kodi_civil", "750"), ("kodi_civil", "751"), ("kodi_civil", "705"),
+                 ("kodi_familjes", "90")]},   # v9.399: la vendita del bene in comunione spetta a entrambi i coniugi
     "shitje_automjeti": {"label": "Shitje/blerje automjeti",
         "powers": ["të shesë ose blejë automjetin", "të nënshkruajë aktin e shitjes",
                    "të çregjistrojë/regjistrojë automjetin në DPSHTRR", "të dorëzojë dokumentet dhe çelësat"],
@@ -438,6 +474,38 @@ def list_prokura_scopes() -> dict:
                         "powers": PROKURA_SCOPES[k]["powers"]} for k in _PROKURA_ORDER]}
 
 
+# v9.399 — la procura in sessione IT: prompt, forme, guida e semi italiani (prima: «NOTER shqiptar… KC 64-78, Ligji 110/2018»
+# e, per la procura generale, la guida sul KC 71/72 dentro una procura italiana); e il testo predefinito dei poteri, quando non
+# se ne sceglie nessuno, dipende dalla FORMA (prima diceva sempre «tutti gli atti di ordinaria amministrazione — procura
+# generale», anche per una procura SPECIALE — il modello lo segnalava come «incongruenza nelle istruzioni» — e per l'Albania
+# era la dottrina italiana corretta nella v9.300: il KC 71 dice «la totalità dei diritti salvo le esclusioni espresse»).
+_PROKURA_BASE_IT = [("codice_civile", n) for n in ("1387", "1388", "1392", "1393", "1394", "1395", "1396", "1398",
+                                                   "1399", "1708", "1722", "1723")]
+PROKURA_FORMS_IT = {
+    "e_pergjithshme": "Procura generale (atti di ordinaria amministrazione; quelli che la eccedono solo se indicati "
+                      "espressamente — art. 1708 c.c.)",
+    "e_posacme": "Procura speciale (solo gli atti indicati — necessaria per gli atti di disposizione)",
+}
+GENERAL_POA_GUIDE_IT = (
+    "QUESTA È UNA PROCURA GENERALE. Aggiungi una sezione '### Cosa copre (e i limiti)' che chiarisca CONCRETAMENTE per il "
+    "caso descritto: la procura generale abilita agli atti di ORDINARIA amministrazione del patrimonio del rappresentato; "
+    "gli atti che la eccedono — in particolare gli ATTI DI DISPOSIZIONE (vendita, ipoteca, donazione di immobili, cessione "
+    "di quote) — richiedono che il potere sia indicato ESPRESSAMENTE (art. 1708, secondo comma, c.c.) e la procura deve "
+    "avere la forma prescritta per il contratto da concludere (art. 1392 c.c.). Se dai dati risulta che serve un atto di "
+    "disposizione, AVVERTI chiaramente che occorre un potere espresso o una procura speciale."
+)
+_PROKURA_SYSTEM_IT = (
+    "Sei un NOTAIO italiano che redige PROCURE secondo il codice civile (rappresentanza, artt. 1387-1400; mandato, artt. "
+    "1703 ss.) e la legge notarile. Redigi la procura COMPLETA, pronta per la stipula, con: l'identità completa del "
+    "RAPPRESENTATO e del RAPPRESENTANTE, i POTERI esatti (solo quelli richiesti — non ampliarli), la durata, la facoltà di "
+    "sostituzione e le formalità (data, lettura, sottoscrizione, sigillo). ATTENZIONE: la procura ha la FORMA prescritta per "
+    "il contratto da concludere (art. 1392 c.c.: per la vendita di un immobile atto pubblico o scrittura privata "
+    "autenticata) e gli atti che eccedono l'ordinaria amministrazione richiedono poteri ESPRESSI (art. 1708 c.c.) — non "
+    "presumerli. Dove manca un dato, lascia [___]. Basati SOLO sugli articoli dati — non inventare articoli. Aggiungi in "
+    "fondo '### ✅ Requisiti formali'. SOLO in italiano. "
+)
+
+
 def draft_prokura(backend, index, *, form: str, scope_keys=None, details: str = "",
                   duration: str = "", subdelegation: bool = False, clauses_text: str = "",
                   max_tokens: int = 3200) -> dict:
@@ -454,8 +522,21 @@ def draft_prokura(backend, index, *, form: str, scope_keys=None, details: str = 
     for c, n in seed:
         if (c, n) not in seen:
             seen.add((c, n)); dedup.append((c, n))
-    art_block, arts = _art_block(backend, index, (details or "") + " prokurë përfaqësim tagra", dedup)
-    scope_txt = "\n".join(scope_lines) or "(të gjitha veprimet e administrimit të zakonshëm — prokurë e përgjithshme)"
+    _it = _expertise._lang_indice(index) == "it"
+    if _it:
+        dedup = list(_PROKURA_BASE_IT)
+    art_block, arts = _art_block(backend, index, (details or "") + (" procura rappresentanza poteri" if _it
+                                                                     else " prokurë përfaqësim tagra"), dedup)
+    if _it:
+        scope_txt = "\n".join(scope_lines) or (
+            "(procura generale — atti di ordinaria amministrazione; quelli di straordinaria amministrazione solo se "
+            "indicati espressamente)" if form == "e_pergjithshme" else
+            "(i poteri li descrive il notaio nei dati qui sotto — solo gli atti indicati espressamente, nessun altro)")
+    else:
+        scope_txt = "\n".join(scope_lines) or (
+            "(prokurë e përgjithshme — tërësia e të drejtave të të përfaqësuarit, përveç atyre të përjashtuara "
+            "shprehimisht: neni 71 KC; disponimet vetëm me tager të shprehur: neni 72 KC)" if form == "e_pergjithshme" else
+            "(tagrat i përshkruan noteri te të dhënat më poshtë — vetëm veprimet e përcaktuara shprehimisht, asnjë tjetër)")
     system = (
         "Ti je NOTER shqiptar që harton PROKURA sipas Kodit Civil (përfaqësimi, nenet 64–78) dhe "
         "Ligjit nr. 110/2018 'Për noterinë'. Harto prokurën TË PLOTË, gati për noterizim, me: "
@@ -475,6 +556,18 @@ def draft_prokura(backend, index, *, form: str, scope_keys=None, details: str = 
               + "\n\n─────\nNENET NGA KORPUSI (cito vetëm këto):\n" + art_block
               + (("\n\n─────\nKLAUZOLAT E PREFERUARA TË STUDIOS (përdori kur përshtaten):\n" + clauses_text) if clauses_text else "")
               + "\n\nHarto prokurën e plotë në markdown.")
+    if _it:
+        system = _PROKURA_SYSTEM_IT + _NOTARY_ID_IT
+        prompt = ("TIPO: " + PROKURA_FORMS_IT[form]
+                  + (("\n\n─────\n" + GENERAL_POA_GUIDE_IT) if form == "e_pergjithshme" else "")
+                  + "\n\nPOTERI RICHIESTI (finalità scelte nello strumento — rendile in italiano):\n" + scope_txt
+                  + "\n\nDURATA: " + (duration or "[___] (senza termine se non indicato)")
+                  + "\nSOSTITUZIONE: " + ("consentita" if subdelegation else "non consentita")
+                  + "\n\nDATI DEL NOTAIO:\n" + (details or "").strip()
+                  + "\n\n─────\nARTICOLI DAL CORPUS (cita solo questi):\n" + art_block
+                  + (("\n\n─────\nCLAUSOLE PREFERITE DELLO STUDIO (usale quando sono adatte):\n" + clauses_text)
+                     if clauses_text else "")
+                  + "\n\nRedigi la procura completa in markdown.")
     md = backend.complete(system=system, messages=[{"role": "user", "content": prompt}],
                           max_tokens=max_tokens, callsite="notary_prokura")
     return {"markdown": (md or "").strip(),
@@ -543,7 +636,8 @@ def draft_declaration(backend, index, *, decl_type: str, details: str = "", max_
 
 # ---- Checklist dokumentesh (party-document checklist) ----
 def documents_needed(backend, index, *, act: str, max_tokens: int = 1800) -> dict:
-    art_block, arts = _art_block(backend, index, act, None)
+    art_block, arts = _art_block(backend, index, act,
+                                 None if _expertise._lang_indice(index) == "it" else _seed_per_akt(act))
     system = (
         "Ti je NOTER shqiptar me përvojë. Për aktin/shërbimin noterial të përshkruar, listo TË "
         "GJITHA dokumentet që duhet të sjellë klienti/palët për ta përgatitur aktin sipas praktikës "
@@ -737,6 +831,12 @@ _PLOT_RE = _re_ck.compile(r"PLOTESIA:\s*(\d{1,3})", _re_ck.IGNORECASE)
 
 
 def dossier_checklist(backend, index, *, act, documents_text, max_tokens=2400):
+    # v9.399 — radicata: prima il modello citava le leggi a memoria (nell'audit AL «Ligji 8438, neni 11», abrogata nel 2023)
+    try:
+        art_block, arts = _art_block(backend, index, (act or "") + " " + (documents_text or "")[:1500],
+                                     None if _expertise._lang_indice(index) == "it" else _seed_per_akt(act))
+    except Exception:  # noqa: BLE001
+        art_block, arts = "", []
     system = (
         "Ti je asistent juridik qe kontrollon FASHIKULLIN e nje çështjeje ose akti. Te jepet "
         "LLOJI I AKTIT dhe teksti i DOKUMENTEVE te ngarkuara. Detyra: (1) percakto dokumentet e "
@@ -744,7 +844,9 @@ def dossier_checklist(backend, index, *, act, documents_text, max_tokens=2400):
         "cilat jane TE PRANISHME ne dokumentet e dhena; (3) cilat MUNGOJNE; (4) sinjalizo cdo "
         "dokument te SKADUAR ose te vjetruar (afati i vlefshmerise se ID-se, mosha e certifikates/"
         "vizures) dhe mospaperputhjet. Bazohu VETEM te dokumentet e dhena — mos supozo se nje "
-        "dokument ekziston nese s'e sheh. Jep (markdown):\n"
+        "dokument ekziston nese s'e sheh. Nenet dhe ligjet: cito VETËM ata të bllokut NENET NGA KORPUSI; nëse një "
+        "detyrim nuk ka nenin aty, përshkruaje pa numër neni dhe pa numër ligji (mos cito ligje të vjetra nga kujtesa). "
+        "Jep (markdown):\n"
         "### \U0001f4cb Dokumentet e kerkuara per kete akt\n"
         "### ✅ Te pranishme (gjetur ne fashikull)\n"
         "### ❌ Mungojne\n"
@@ -757,6 +859,7 @@ def dossier_checklist(backend, index, *, act, documents_text, max_tokens=2400):
     )
     prompt = ("LLOJI I AKTIT: " + (act or "").strip()
               + "\n\nDOKUMENTET E NGARKUARA (teksti):\n" + (documents_text or "").strip()[:14000]
+              + ("\n\n─────\nNENET NGA KORPUSI:\n" + art_block if art_block else "")
               + "\n\nBej checklist-in dhe rreshtin PLOTESIA ne fund.")
     md = backend.complete(system=system, messages=[{"role": "user", "content": prompt}],
                           max_tokens=max_tokens, callsite="notary_checklist")
@@ -772,7 +875,7 @@ def dossier_checklist(backend, index, *, act, documents_text, max_tokens=2400):
             comp = None
     md_clean = _PLOT_RE.sub("", md).strip()
     md_clean = _re_ck.sub(r"\n{3,}", "\n\n", md_clean).strip()
-    return {"markdown": md_clean, "completeness": comp, "articles": []}
+    return {"markdown": md_clean, "completeness": comp, "articles": [{"code": c, "number": n} for c, n, _t in arts]}
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -1133,9 +1236,14 @@ def verify_subject(backend, index, *, subject_text: str, context: str = "",
 # ⚠️ NON fa screening LIVE liste PEP/sanzioni (serve DB a pagamento): dà il quadro,
 # i red-flag e il draft di segnalazione; il professionista verifica le liste e riporta.
 _AML_SEED_AL = [("ligji_pastrimi_parave", "4"), ("ligji_pastrimi_parave", "4/1"),
-                ("ligji_pastrimi_parave", "8"), ("ligji_pastrimi_parave", "2")]
+                ("ligji_pastrimi_parave", "8"), ("ligji_pastrimi_parave", "2"),
+                # v9.399: + 7 (vigjilenca e zgjeruar), 12 (raportimi te AIF), 15 (mosdeklarimi = tipping-off) — nell'audit del
+                # 28 set il modello li diceva «non nel corpus» e rimandava a verificare l'obbligo e il divieto più importanti
+                ("ligji_pastrimi_parave", "7"), ("ligji_pastrimi_parave", "12"), ("ligji_pastrimi_parave", "15")]
 _AML_SEED_IT = [("antiriciclaggio", "17"), ("antiriciclaggio", "18"),
-                ("antiriciclaggio", "35"), ("antiriciclaggio", "3")]
+                ("antiriciclaggio", "35"), ("antiriciclaggio", "3"),
+                # v9.399: + 24 (adeguata verifica rafforzata), 39 (divieto di comunicazione), 49 (limiti all'uso del contante)
+                ("antiriciclaggio", "24"), ("antiriciclaggio", "39"), ("antiriciclaggio", "49")]
 _AML_Q_AL = (" pastrim parash vigjilenca e duhur identifikim pronar përfitues raportim "
              "transaksion i dyshimtë person i eksponuar politikisht ruajtja e të dhënave")
 _AML_Q_IT = (" riciclaggio adeguata verifica identificazione titolare effettivo segnalazione "

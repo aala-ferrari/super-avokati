@@ -28,7 +28,7 @@ t = " " + fin.lower() + " "
 sq = sum(t.count(" %s " % w) for w in ("është", "nuk", "dhe", "për", "sipas", "neni", "kodi", "afati", "vjet", "që"))
 it = sum(t.count(" %s " % w) for w in ("è", "non", "della", "il", "per", "art.", "codice", "termine", "anni", "che"))
 print("   caratteri=%d  spie-albanesi=%d  spie-italiane=%d  | 114 KC: %s | 2946: %s" % (
-    len(fin), sq, it, "neni 114" in t, "2946" in t))
+    len(fin), sq, it, bool(re.search(r"nen(?:i|it|in)\s+114\b", t)), "2946" in t))   # v9.399: anche «Nenit 114» (genitivo)
 print("   inizio:", fin[:220].replace("\n", " "))
 PY
 }

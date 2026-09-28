@@ -2,7 +2,7 @@
 
 Strumento AI per avvocati (B2B), **bi-giurisdizione AL + IT**. Front-end Flask (waitress, UN processo) su porta
 5050, SQLite (`data/app.db`). Postgres `legalkb` NON è raggiungibile dal container: i precedenti vivono nel pickle.
-**Stato al 28 set 2026 (v9.398)** — i numeri qui sono quelli veri; più sotto, nelle sezioni datate, c'è la storia:
+**Stato al 28 set 2026 (v9.399)** — i numeri qui sono quelli veri; più sotto, nelle sezioni datate, c'è la storia:
 - **AL leggi** (`bm25.pkl`, BM25 con diacritici piegati dal v9.367, titolo del capitolo cercabile dal v9.373): **10.460 unità / 64 codici** (dal v9.391 anche la ligji 7975/1995 sugli stupefacenti e la 61/2023 sulla cannabis medica); embedding AL `_flat3`/`_ck3` (capitoli + corpo intero, `EMB_SUFFIX_SQ`/`EMB_SUFFIX2_SQ`), IT `_flat4`/`_ck4` dal v9.384 (`EMB_SUFFIX_IT`/`EMB_SUFFIX2_IT`); fonte
   `data/processed/all_articles.jsonl` (il pickle è derivato).
 - **Precedenti** (`bm25_decisions.pkl`): **3.996** = Kushtetuese **672** + Gjykata e Lartë **2.960** + CEDU **364**
@@ -645,7 +645,7 @@ errori, non che le risposte sono ancora giuste. Riferimento verificato il
 12 articoli recuperati per ciascuna.
 
 ```bash
-docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63], triage-trim+giudice-no-web [64], chat-web+verdetto-in-testa+pannelli-IT [65], codice-nominato→area [66], timeout-45min+ripiego-no-web [67], fasi-bilingue+giudice-no-web+duello-a-scomparsa [68], etichette-composte-bilingui [69]). Baseline **544/544** (28 set, v9.397-398: + [144] procuratore in due giurisdizioni, [145] elenchi «artt.» del verificatore + recupero condiviso, [146] primo contatto italiano; 27 set, v9.395: + [142] agenda/briefing/segretaria/portale nella giurisdizione della sessione, [143] giurisdizione nei thread + precedenti italiani + provenienza «Tetramorph» + quote successorie italiane; 26 set, v9.394: + [141] ancore dello straniero licenziato e del premio di anzianità; v9.393: + [140] Opus 5.5 nel CLI e modelli per percorso; v9.392: + [139] liste albanesi delle sostanze; v9.391: + [138] leggi albanesi sugli stupefacenti nel corpus; v9.390: + [137] tabelle degli stupefacenti; v9.389: + [136] Corte di giustizia UE sull'archivio CELLAR; v9.388: + [135] sentenze albanesi «non confermate» = inammissibilità dell'archivio o decisioni di altri organi; v9.386: + [134] precedenti di Cassazione per la domanda + etichette del prompt nella lingua della sessione; v9.385: + [133] Cassazione sull'archivio ufficiale — con un controllo dal vivo che si SALTA se l'archivio non risponde; v9.384: + [129] capitoli IT, [130] articoli puntati, [131] rubriche IT, [132] UE/CEDU; era 98 il 31 ago).
+docker exec super-avvocato python3 tools/golden_check.py   # check deterministici: corpus + Verifikuar + heading-scan + ancore + precedenti + vendime + shkronja + documenti legali + Skuadra/War Room + audit Fase 0 (§13 afati [41], §18 settlement [42], §5 stati-fonte [43], §37-40 eval [44], §1-2 content-hash [45], notaio quote [46], privacy-UI [47], Po/Jo+specifica [48], busy-guard [49], streaming-chiaro [50], domande=solo-fatti [51], prokura-uso+generale-KC71/72 [46], verifica-proprietà-notaio [52], adempimenti-post-atto [53], verifica-subjekti-QKB [54], qkb-ricerca-live [55], antiriciclaggio+leggi-AML-nel-corpus [56], export-HTML-mobile-safe [57], kadastra+noteri-nel-corpus [58], blindatura-proprietà-kartela [59], giudice-finale-Fable [60], domande-leggono-i-documenti [61], sessione-IT-solo-italiano [62], decisivo-niente-followup [63], triage-trim+giudice-no-web [64], chat-web+verdetto-in-testa+pannelli-IT [65], codice-nominato→area [66], timeout-45min+ripiego-no-web [67], fasi-bilingue+giudice-no-web+duello-a-scomparsa [68], etichette-composte-bilingui [69]). Baseline **558/558** (28 set, v9.399: + [156] etichette letterali delle fasi in italiano, [157] sospensione feriale nei termini a mesi + assistente d'udienza + accordo radicati, [158] leggi albanesi abrogate fuori corpus, [159] checklist del notaio radicata, [160] legge viva bilingue e verifica delle affermazioni sull'articolo intero; [147] diavolo/secondo parere italiani, [148] strumenti di contorno nella lingua della sessione, [149] prescrizione, [150] verificatore e citazioni vicine, [151] motore delle scadenze, [152] correzioni AL (KP 145, KPP 222, falsi titoli di capitolo), [153] recupero PRO (testa di sezione, rinvii interni, stupefacenti), [154] testo degli articoli fino a 3.500 caratteri, [155] procura; 28 set, v9.397-398: + [144] procuratore in due giurisdizioni, [145] elenchi «artt.» del verificatore + recupero condiviso, [146] primo contatto italiano; 27 set, v9.395: + [142] agenda/briefing/segretaria/portale nella giurisdizione della sessione, [143] giurisdizione nei thread + precedenti italiani + provenienza «Tetramorph» + quote successorie italiane; 26 set, v9.394: + [141] ancore dello straniero licenziato e del premio di anzianità; v9.393: + [140] Opus 5.5 nel CLI e modelli per percorso; v9.392: + [139] liste albanesi delle sostanze; v9.391: + [138] leggi albanesi sugli stupefacenti nel corpus; v9.390: + [137] tabelle degli stupefacenti; v9.389: + [136] Corte di giustizia UE sull'archivio CELLAR; v9.388: + [135] sentenze albanesi «non confermate» = inammissibilità dell'archivio o decisioni di altri organi; v9.386: + [134] precedenti di Cassazione per la domanda + etichette del prompt nella lingua della sessione; v9.385: + [133] Cassazione sull'archivio ufficiale — con un controllo dal vivo che si SALTA se l'archivio non risponde; v9.384: + [129] capitoli IT, [130] articoli puntati, [131] rubriche IT, [132] UE/CEDU; era 98 il 31 ago).
 docker exec super-avvocato python3 tools/smoke_test.py     # 103 tool chiamati con cervello STUBBATO (no LLM): firma/parsing/logica. Baseline 103/103.
 docker exec super-avvocato python3 tools/juris_guard.py    # 16 check strutturali sulla giurisdizione. Baseline 16/16.
 bash /root/prova_sse.sh                                    # SULL'HOST (legge il secret da /opt/super-avvocato.env; copia in tools/prova_sse.sh): account di prova → login → fascicolo → 1 domanda VERA → stream /api/ask/events attraverso waitress. Deve dire «HTTP 200 … done: 1» (~50s, costa 1 chiamata al cervello) e cancella l'account. Dopo OGNI build che tocca web.py o le rotte SSE.
@@ -1512,6 +1512,83 @@ rischio residuo della DPIA.
 - Super Avokati ha auth propria (login_required_api); utenti creati da admin o auto-provisionati da AALA (`/api/provision-demo`, secret-guarded).
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
+
+**v9.399 — LINGUA = SESSIONE ANCHE NEGLI ANGOLI, e il controllo «da avvocato» della sessione albanese (28 set).** Il
+titolare: «continua» e poi «controlla di nuovo tutta la sessione albanese per avvocato, procuratore e notaio: bug, errori, problemi di
+ragionamento — sistemali, step by step». Trovato e corretto, misurato: (1) **l'Avvocato del diavolo aveva solo il prompt albanese**:
+nelle 96 risposte italiane salvate le etichette «[KRITIKE]» ×14, «[LARTË]» ×23, «[MESATARE]» ×28 e la riga «PIKA KU DO TË SULMOJA I
+PARI» ×13 erano l'UNICA perdita sistematica (scansione del DB) → prompt italiani del 1° e 2° round ([CRITICA]/[ALTA]/[MEDIA], «PUNTO DA
+CUI ATTACCHEREI PER PRIMO»), etichette del messaggio per lingua anche nella replica del senior e nei raccoglitori (i titoli delle fonti web
+uscivano in albanese: «[WEB-001] … sekuestro dhe konfiskim»), il cancello del 2° round legge [CRITICA]; 🔮 secondo parere e «Consiglio
+strategico» con prompt italiani; la qualità delle fonti nel rapporto di verifica a parole («fonte secondaria», «burim dytësor» — prima
+«(secondary)» in inglese nelle due lingue). (2) **Strumenti di contorno** (`tools/audit_lingua_extra.py`, 25 strumenti mai provati in IT:
+lettere, gergo e notizia per il cliente, revisione contratto, agente, udienza, prove d'udienza, mappa, accordo, prescrizione, notaio,
+bench memo, corporate): la maggior parte già italiana grazie al vincolo al collo di bottiglia; corretti i veri difetti: **revisione
+contratto** (AL: la legge privacy indicata era la 9887/2008, ABROGATA dal 1.2.2025 → 124/2024; fra le nullità il neni 911 KC — è il
+comodato! → 92, 686, 688; IT: prompt italiano con 1341-1342, 1229, 1382-1384, 1418-1419 c.c., 33-36 cod. consumo, 28-29/806-808 c.p.c.,
+GDPR), **simulazione dell'accordo** (in IT i «precedenti simili» venivano dall'archivio ALBANESE → `precedent.gather_precedents_it`, prompt
+e schema italiani), gergo e notizia per il cliente con prompt italiani, ricostruzione del tempo, etichette dell'agente. (3) **Prescrizione**
+(errore giuridico): in AL i semi civili saltavano la regola generale (KC 114, dieci anni) e il prompt diceva «zbato nenin 124 e vijues» →
+nenet 112-136 (114, 115, 117-123, 129-130, 131-135, 136); in IT stesso prompt albanese (KP 66, KC 124) con semi inesistenti nell'indice →
+prompt e semi italiani (157-161-bis c.p., 2935-2948 c.c.). **Motore delle scadenze**: mancavano gli articoli dei termini (KPP 415 «Afatet e
+ankimit» e 435 ricorso, 263 durata della custodia, KPC 444-445, KC 114-118) + ramo IT (c.p.p. 390-391, 309, 303, 405-407, 408-411, 585; c.p.c.
+325-327). (4) **Verificatore, citazioni vicine** (misurato su 204 risposte vere: **+23 verificate, 0 falsi nuovi, −10 «senza codice»**): la
+coda attraversava la citazione dopo con l'apostrofo («l'art. 1218 c.c. e l'art. 2043 c.c.»: il 2043 spariva; «l'art. 157 c.p. e l'art.
+344-bis c.p.p.»: il 157 verificato sul c.p.p.), le virgolette, la barra e il grassetto («"art. 2043 c.c." / "art. 81 c.p."»: il 2043
+«inesistente» nel codice penale) → si ferma lì; «art. X e art. Y codice» / «neni X dhe neni Y i Kodit» = elenco col codice in comune come
+INFERENZA (mai «falso»: «art. 93-bis e art. 215 Reg.» non rende falso il 93-bis); **disp. att. c.p.c. fuori corpus** → «da chiarire»
+(`FUORI_CORPUS`), mai il c.p.c.; leggi per numero a confine di cifra («158/1998» non è il TUF) + C.d.S., TUB, TUF, Pinto, c.p.p., c.p.a., CPI,
+CTS, TULPS per numero; «Cod. Consumo» (l'etichetta del NOSTRO badge!), «cod. strada», «Reg. delegato». 10 regressioni nel banco di prova.
+(5) **Sessione AL «da avvocato»** (audit con tutti i moduli: `audit_tools_al.py` ora provisiona avokat+prokuror+noter — prima il procuratore
+e il notaio davano 403 e non erano provati): risposte solide (licenziamento: il Giudice corregge 4 punti; successione giusta; il notaio
+coglie il divieto di contanti oltre 100.000 lekë), e i difetti erano NOSTRI: l'ancora v9.394 del premio di anzianità portava il **KP 152**
+(contratto a termine) — la base è il **KP 145** (indeterminato) → ancora (145, 152); la richiesta di intercettazione senza il **KPP 222**
+(la decisione che autorizza); **202 falsi titoli di capitolo** nel corpus AL («KREU XIV — Neni 140» ×144 nel Codice del lavoro, il cui
+consolidato QBZ non ha i titoli; «PJESA IV — Neni 19» ×51; note «(Ndryshuar titulli…)» prese per titolo) → `tools/repair_kreu_titolo_falso.py`
+(backup + pickle + embedding dei 202 articoli), parser che salta le note; il testo degli articoli agli strumenti del **notaio, delle lettere
+e delle perizie tagliato a 900 caratteri** (la successione: «il KC 361 è troncato» — la frase sul coniuge cadeva al carattere 854) →
+`expertise.blocco_articoli` (3.500 + avviso, «art.» in IT); esempi sbagliati nei prompt del cervello (onere della prova «Neni 75 Kodi i
+Punës» = pronto soccorso → KP 144/5-1 e KP 9; «48-51» → 48-49/50/51); **procura** (senza poteri scelti diceva sempre «ordinaria
+amministrazione — procura generale», anche per la SPECIALE e contro il KC 71; in IT prompt albanese e guida del KC 71/72 → prompt, forme,
+guida art. 1708 c.c. e semi italiani). (6) **Recupero degli strumenti PRO** (`expertise.retrieve_grounded`): la **testa di sezione** (il
+primo articolo della sezione il cui titolo contiene il termine = la figura generale: «mashtrim» → «SEKSIONI II — MASHTRIMET» → KP 143, il
+caso mancato della v9.397: **12/12** sui casi penali), i **rinvii interni** espliciti/impliciti degli articoli dati (KPP 323 → 327 e 75/a;
+c.p.p. 405 → 406-407: il procuratore scriveva «non è nel corpus»), e le **sostanze nei fatti** → KP 283/283-a (+284 coltivazione) / art. 73
+d.P.R. 309/1990 (la misura cautelare per 50 g di cocaina non aveva il KP 283 e ripiegava sul traffico). (7) **Secondo giro sulla
+sessione albanese** (letti uno per uno i 27 output dell'audit AL + i 24 strumenti di contorno AL/IT, 12/12 e 12/12 nella lingua della
+sessione; poi un grep dei punti in cui il modello stesso scrive «non è nel corpus» = i buchi del recupero): **ERRORE GIURIDICO nel motore
+DETERMINISTICO delle scadenze** — nei termini a mesi/anni la sospensione feriale veniva IGNORATA («termini sostanziali») anche quando la
+regola la chiedeva: il termine lungo (art. 327 c.p.c.) di una sentenza pubblicata il 15 giugno usciva il 15 dicembre invece del 15 gennaio
+(31 giorni prima del vero: un appello ancora possibile dato per perso) → i giorni di agosto nel decorso si aggiungono, decorso che inizia in
+agosto differito alla fine del periodo (calcolo prudente dal 31 agosto), AL mai; **registro delle leggi albanesi ABROGATE fuori corpus**
+(26, letto dal corpus stesso: frasi «Ligji nr. X … shfuqizohet» degli articoli vigenti, mai il «shfuqizuar me ligjin nr. X» che indica chi
+abroga): «nenit 11 të ligjit nr. 8438/1998» (imposte, abrogata dalla 29/2023) usciva «senza codice», ora «abrogata — oggi: Ligji nr.
+29/2023» (sulle 108 risposte AL vere: statistiche identiche, 0 regressioni); **la checklist del fascicolo notarile non riceveva NESSUN
+articolo** (citava a memoria la 8438/1998) → semi dell'atto riconosciuto (compravendita: KC 750-751 + kadastra 24 + imposta 29/2023 neni 17
++ KF 76, 77, 90 — gli atti oltre l'ordinaria amministrazione spettano a entrambi i coniugi —, 94), anche per la lista documenti e il
+controllo dell'atto, KF 90 nella procura di vendita; **antiriciclaggio** senza gli articoli su segnalazione, divieto di informare il cliente
+e verifica rafforzata (9917: 7, 12, 15; D.Lgs. 231/2007: 24, 39, 49); **motore delle scadenze civile AL** senza KPC 148 (calcolo e giorno
+festivo), 151 (rimessione nel termine), 496 (revisione: 30 giorni dalla conoscenza); **perizia per incidente stradale** senza KC 622
+(attività pericolosa = veicoli), KC 115/dh (tre anni per il danno extracontrattuale), 625, 640-641 e la richiesta all'assicuratore (ligji
+10076 neni 9); **analisi del procuratore AL** senza la parte generale (KP 47, 48, 50, 66; KPP 323-324) — rimisurato: la norma del reato
+entra ancora 6/6; **«Ligj i gjallë — verifica delle affermazioni»** riceveva il testo reale TAGLIATO a 1.100 caratteri (un'affermazione
+giusta sul KP 146/3 sarebbe uscita «non sostenuta») → articolo intero fino a 6.000, e in IT prompt nativi (verifica sul diritto italiano;
+legge viva su Normattiva/GU/EUR-Lex, non QBZ); **assistente d'udienza** (pagina `/case/<id>/in-hearing`, oggi NON collegata
+nell'interfaccia): in AL rispondeva «Jo —» alla domanda del giudice sul licenziamento orale «dopo 30 giorni» senza il termine di 180 giorni
+(KP 146/2, 155/4) → articoli del fascicolo o triage+recupero (10), prima frase = la conclusione col verbo della domanda e, se la
+premessa è sbagliata, PRIMA la correzione («Il termine non è 30 giorni ma 180 — KP 155/4; i 30 giorni solo se il motivo si scopre dopo»),
+scudo deterministico (nene inesistenti + riscontro delle sentenze, niente cancello: in udienza costerebbe minuti), prompt nativo IT;
+⚠️ la seconda versione del prompt aveva l'esempio «Jo, nuk ankimohet, sepse …» e il modello l'ha COPIATO («Jo, nuk ankimohet pas 30
+ditëve — afati bazë është 180 ditë», contraddittorio): negli esempi dei prompt mai verbi o numeri concreti;
+**simulazione dell'accordo** con gli articoli del caso (uno scenario si reggeva su un «reclamo scritto entro 30 giorni» che il Kodi i Punës
+non prevede, e un altro ipotizzava pagamenti «pa TVSH/tatim të deklaruar» → vietato); **etichette interne visibili** («[ligji_dnp neni
+24]», «[ligji_konsumatoret neni 30]» negli atti del notaio e nel primo contatto del cittadino) → `expertise.etichetta_al` ovunque; in sessione
+IT le **etichette letterali dei prompt albanesi delle fasi** (v9.345) venivano copiate («AFATI: il termine…» nel radar di nullità) →
+`brain._ETICHETTE_IT` in `apply_jurisdiction` (TERMINE, NON USARLA, DECISIVO, PRIORITARIO, «Requisito → … → CONSEGUENZA»). Golden
+**[147]-[160]**, 558; banco di prova 80/80 regressioni. ⚠️ `notary.py` non importava `re` (solo alias `_re`, `_re_ck` più in basso): la
+prima versione di `_seed_per_akt` sarebbe caduta a runtime — trovato eseguendo il modulo, non leggendolo. ⚠️ Trappole: il filtro dell'audit IT è una SOTTOSTRINGA («procura» prende anche «Procuratore»); `| grep`
+in coda a un processo lungo trattiene l'output fino alla fine (leggere i file dei risultati nel container); due audit in parallelo + build
+= attese oltre i 15 minuti lato client (non errori del prodotto: la risposta si parcheggia).
 
 **v9.397-398 — IL PROCURATORE IN DUE GIURISDIZIONI, il recupero condiviso e il verificatore degli elenchi (28 set,
 notte).** Il titolare: «per il procuratore sistemalo, guarda cervello e tutto, se c'è da mettere Opus 5.5». Trovato e corretto:

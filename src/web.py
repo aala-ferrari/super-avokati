@@ -1597,6 +1597,27 @@ JARGON_TRANSLATE_SYSTEM = (
 )
 
 
+JARGON_TRANSLATE_SYSTEM_IT = (
+    "Sei un assistente che traduce il LINGUAGGIO GIURIDICO TECNICO in linguaggio "
+    "semplice, comprensibile a un cittadino senza formazione giuridica. Il lettore "
+    "è il cliente dell'avvocato — vuole sapere cosa succede con la sua pratica, "
+    "senza terminologia giuridica, senza latinismi, senza articoli citati.\n\n"
+    "REGOLE:\n"
+    "- SOLO in italiano corrente.\n"
+    "- Non aggiungere NUOVI CONSIGLI LEGALI — solo RIFORMULARE il testo esistente "
+    "in linguaggio semplice.\n"
+    "- Non aggiungere parti che non sono nel testo originale.\n"
+    "- 1-3 paragrafi brevi, frasi chiare.\n"
+    "- Usa 'noi' / 'il Suo avvocato' / 'Lei' quando ti rivolgi al cliente.\n"
+    "- Evita parole come: ricorso, sentenza, esecuzione, giurisdizione, competenza "
+    "per materia, art. X del codice Y. Traducile in linguaggio semplice ('una "
+    "richiesta al tribunale', 'la decisione del giudice', ecc.).\n\n"
+    "RISPONDI SOLO CON JSON valido:\n"
+    '{"plain_sq": "testo semplificato in italiano", '
+    '"jargon_terms": ["parola tecnica che hai tradotto", ...]}'
+)
+
+
 @app.post("/api/cases/<case_id>/translate-jargon")
 @login_required_api
 def api_translate_jargon(case_id: str):
@@ -1615,7 +1636,9 @@ def api_translate_jargon(case_id: str):
     try:
         # V8.10: traduzione registro popolare → Sonnet (qualità albanese)
         raw = _BRAIN.backend.complete(
-            system=JARGON_TRANSLATE_SYSTEM,
+            # v9.399: il testo va al cliente — nella lingua della sessione (prima «jo italisht» anche in IT)
+            system=(JARGON_TRANSLATE_SYSTEM_IT if _active_jurisdiction(request.user) == "IT"  # type: ignore[attr-defined]
+                    else JARGON_TRANSLATE_SYSTEM),
             messages=[{"role": "user", "content": source_text}],
             max_tokens=900,
             medium=True,
@@ -1658,6 +1681,28 @@ AUTO_STATUS_SYSTEM = (
 )
 
 
+AUTO_STATUS_SYSTEM_IT = (
+    "Sei un assistente che scrive una BREVE NOTIZIA per il cliente di uno studio "
+    "legale. Il cliente vuole sapere cosa succede con la sua pratica — senza "
+    "terminologia giuridica.\n\n"
+    "Ti viene dato il contesto della pratica (titolo, fase, ultimo messaggio "
+    "dell'assistente all'avvocato, prossimi eventi). Produci UNA SOLA notizia, "
+    "semplice, 2-4 frasi, in italiano, che descriva: a che punto sono le cose "
+    "ora, cosa viene dopo, e se al cliente è richiesto qualcosa.\n\n"
+    "REGOLE:\n"
+    "- SOLO italiano corrente.\n"
+    "- Non citare articoli né terminologia.\n"
+    "- Non promettere risultati concreti ('vincerete', 'sicuramente').\n"
+    "- Tono: cortese, professionale, sincero.\n"
+    "- Se non ci sono novità reali da riferire, lascia `body_sq` vuoto e metti "
+    "`kind` = 'status' con un messaggio generale come 'Stiamo proseguendo il "
+    "lavoro, La informeremo appena ci saranno sviluppi.'\n\n"
+    "RISPONDI SOLO CON JSON:\n"
+    '{"body_sq": "la notizia in italiano", '
+    '"kind": "status|milestone|document_request"}'
+)
+
+
 # ── V8.4 contract review (semaforo + obligations + GDPR) ───────────────────
 
 CONTRACT_REVIEW_SYSTEM = (
@@ -1674,9 +1719,14 @@ CONTRACT_REVIEW_SYSTEM = (
     "    negocim/heqje ose mungon një mbrojtje thelbësore.\n"
     "- Kontrolloji shqip për: penalitete asimetrike, detyrime pa afat, "
     "  klauzola arbitrazhi të padrejtë, transferim të dhënash personale "
-    "  pa bazë (GDPR-AL = Ligji 9887/2008 për mbrojtjen e të dhënave), "
-    "  pavlefshmëri për shkak të nenit 92/686/911 KC, mungesë force "
-    "  madhore, klauzola jurisdiksioni jashtë RSH pa qëllim të qartë.\n"
+    "  pa bazë (ligji nr. 124/2024 «Për mbrojtjen e të dhënave personale», "
+    "  në fuqi nga 1.2.2025 — shfuqizoi ligjin 9887/2008), pavlefshmëri "
+    "  (neni 92 KC), kushte të përgjithshme që kufizojnë përgjegjësinë, "
+    "  tërheqjen, afatet e dekadencës, arbitrazhin ose kompetencën e "
+    "  gjykatës pa u miratuar veçmas me shkrim (neni 686 KC; kushti i "
+    "  dyshimtë interpretohet në dobi të palës tjetër, neni 688 KC), "
+    "  mungesë force madhore, klauzola jurisdiksioni jashtë RSH pa qëllim "
+    "  të qartë.\n"
     "- Identifiko dhe LIST KLAUZOLAT QË MUNGOJNË por janë standarde për "
     "  llojin e kontratës (p.sh. zgjidhje për shkak të mungesës së pagesës "
     "  në një kontratë qiraje, ose afat-prove në një kontratë pune).\n\n"
@@ -1710,6 +1760,65 @@ CONTRACT_REVIEW_SYSTEM = (
     "}\n\n"
     "risk_score: 0 = standardë, 30 = i pranueshëm me 1-2 vërejtje, "
     "60 = i rrezikshëm pa modifikime, 90+ = i pa-nënshkruajshëm."
+)
+
+
+CONTRACT_REVIEW_SYSTEM_IT = (
+    "Sei un avvocato che rivede contratti in Italia. Ti viene dato il testo di un "
+    "contratto. Compito: produrre un'ANALISI STRUTTURATA che aiuti l'avvocato a "
+    "individuare subito il rischio, gli obblighi e i termini.\n\n"
+    "REGOLE IMPORTANTI:\n"
+    "- SOLO in italiano per tutti i valori testuali.\n"
+    "- Leggi ogni clausola e valutala con UN semaforo:\n"
+    "  • 'ok' (🟢) — clausola standard, ragionevole, regolare;\n"
+    "  • 'watch' (🟡) — clausola insolita ma accettabile — segnala il rischio "
+    "    anche se firmabile;\n"
+    "  • 'risk' (🔴) — clausola con rischio reale o abusiva — va negoziata o "
+    "    eliminata, oppure manca una tutela essenziale.\n"
+    "- Controlla in particolare: penali asimmetriche o eccessive (artt. 1382 e "
+    "  1384 c.c.), obblighi senza termine, esonero da responsabilità per dolo o "
+    "  colpa grave (art. 1229 c.c.), clausole vessatorie nelle condizioni generali "
+    "  o nei moduli senza approvazione specifica per iscritto (artt. 1341 e 1342 "
+    "  c.c.) e, se una parte è un consumatore, le clausole vessatorie del Codice "
+    "  del consumo (artt. 33-36: nullità di protezione), deroga del foro e "
+    "  clausola compromissoria (artt. 28, 29 e 806-808 c.p.c.), trattamento o "
+    "  cessione di dati personali senza base giuridica (Reg. UE 2016/679 — GDPR, "
+    "  artt. 6, 28 e 44-46; d.lgs. 196/2003), nullità (artt. 1418 e 1419 c.c.), "
+    "  assenza di una clausola su forza maggiore o eccessiva onerosità (artt. 1256 "
+    "  e 1467 c.c.), legge applicabile o foro estero senza una ragione chiara.\n"
+    "- Individua ed ELENCA LE CLAUSOLE CHE MANCANO ma sono standard per il tipo "
+    "  di contratto (es. risoluzione per mancato pagamento in una locazione, "
+    "  patto di prova in un contratto di lavoro).\n\n"
+    "RISPONDI SOLO CON JSON valido con questo schema:\n"
+    "{\n"
+    '  "summary": "1-2 frasi di sintesi del contratto (in italiano)",\n'
+    '  "contract_kind": "locazione|lavoro|compravendita|servizi|comodato|commerciale|...",\n'
+    '  "parties": ["Parte A", "Parte B"],\n'
+    '  "clauses": [\n'
+    '    {"n": 1, "title": "Titolo della clausola", '
+    '"excerpt": "breve estratto (max 120 caratteri)", '
+    '"level": "ok|watch|risk", '
+    '"issue": "breve spiegazione del perché (in italiano)", '
+    '"suggestion": "cosa fare (o null se ok)"}\n'
+    '  ],\n'
+    '  "obligations": [\n'
+    '    {"party": "Parte", "duty": "cosa deve fare", '
+    '"deadline": "quando (o null)"}\n'
+    '  ],\n'
+    '  "deadlines": [\n'
+    '    {"what": "cosa", "when": "data o periodo", '
+    '"who": "chi è obbligato"}\n'
+    '  ],\n'
+    '  "gdpr_flags": [\n'
+    '    {"flag": "es. cessione a terzi senza base giuridica", '
+    '"location": "clausola N o null", '
+    '"severity": "low|medium|high"}\n'
+    '  ],\n'
+    '  "missing_clauses": ["Clausole che mancano ma servono", ...],\n'
+    '  "risk_score": 0-100\n'
+    "}\n\n"
+    "risk_score: 0 = standard, 30 = accettabile con 1-2 osservazioni, "
+    "60 = rischioso senza modifiche, 90+ = non firmabile."
 )
 
 
@@ -1755,7 +1864,9 @@ def api_contract_review(case_id: str):
         source_text = source_text[:60000]
     try:
         raw = _BRAIN.backend.complete(
-            system=CONTRACT_REVIEW_SYSTEM,
+            # v9.399: in sessione IT il prompt italiano (prima: diritto albanese da ignorare)
+            system=(CONTRACT_REVIEW_SYSTEM_IT if _active_jurisdiction(user) == "IT"
+                    else CONTRACT_REVIEW_SYSTEM),
             messages=[{"role": "user", "content": source_text}],
             max_tokens=6000,
             fast=False,  # full Opus — high-stakes
@@ -2337,6 +2448,7 @@ def api_time_reconstruction():
     if request.args.get("label", "0") == "1" and result["blocks"]:
         _ensure_loaded()
         if _BRAIN is not None:
+            _it_tb = _active_jurisdiction(user) == "IT"   # v9.399: la descrizione nella lingua della sessione
             for b in result["blocks"]:
                 if b["confidence"] == "low":
                     continue
@@ -2347,10 +2459,17 @@ def api_time_reconstruction():
                     "Shkruaj NJË përshkrim të shkurtër (≤ 14 fjalë, shqip) që "
                     "do të hyjë në timesheet të avokatit. Pa preambël, pa "
                     "thonjëza, vetëm fraza."
+                ) if not _it_tb else (
+                    f"Pratica: {b['case_title']}\n"
+                    f"Segnali della giornata ({b['started_at']}-{b['ended_at']}): {ev}\n\n"
+                    "Scrivi UNA descrizione breve (≤ 14 parole, in italiano) da inserire "
+                    "nel timesheet dell'avvocato. Senza preambolo, senza virgolette, "
+                    "solo la frase."
                 )
                 try:
                     text = _BRAIN.backend.complete(
-                        system="Ti je asistent fakturimi për avokat shqiptar. Shkurt, faktik.",
+                        system=("Sei l'assistente di fatturazione di un avvocato. Breve, fattuale."
+                                if _it_tb else "Ti je asistent fakturimi për avokat shqiptar. Shkurt, faktik."),
                         messages=[{"role": "user", "content": prompt}],
                         max_tokens=80,
                         fast=True,  # Sonnet — etichettatura banale
@@ -2439,8 +2558,21 @@ def api_settlement_simulate(case_id: str):
 
     # Light precedent retrieval — best-effort, no failure if KB absent
     precedent_snippets: list[dict] = []
+    _it_set = (jur or "").upper() == "IT"
+    if _it_set:
+        # v9.399 — Regola #1: in sessione IT i precedenti vengono dall'archivio ITALIANO (prima: albanese)
+        try:
+            from . import precedent as _prec_it
+            for r_ in _prec_it.gather_precedents_it(description, top_k=5)[:5]:
+                precedent_snippets.append({
+                    "id": None, "citation": r_.citation, "outcome": r_.outcome,
+                    "summary": (r_.objekti or "")[:280],
+                    "score": round(float(r_.bm25_score or 0.0), 2),
+                })
+        except Exception as e:  # noqa: BLE001
+            log.warning("settlement: precedenti IT saltati: %s", e)
     try:
-        retr = getattr(_BRAIN, "_legalkb_retriever", None) or getattr(_BRAIN, "legalkb", None)
+        retr = None if _it_set else (getattr(_BRAIN, "_legalkb_retriever", None) or getattr(_BRAIN, "legalkb", None))
         if retr is not None and hasattr(retr, "search"):
             hits = retr.search([description], top_k=8)
             for c, score in hits[:5]:
@@ -2473,10 +2605,16 @@ def api_settlement_simulate(case_id: str):
     role_line = "\n\nRoli ynë: paditës (kërkojmë vlerë sa më të lartë)." if plaintiff else \
                 "\n\nRoli ynë: i paditur (duam vlerë sa më të ulët)."
 
+    # v9.399 — gli articoli del fascicolo (o del recupero sulla descrizione): nell'audit AL del 28 set uno scenario si reggeva su
+    # un «mancato reclamo scritto entro 30 giorni» che il Kodi i Punës non prevede (KP 146/2 e 155/4: 180 giorni).
+    _nenet_set = _nenet_e_rastit(case_id, description, _it_set)
+    nenet_block = ("\n\nNENET E RASTIT (teksti nga korpusi — afatet dhe kushtet procedurale VETËM prej këtu):\n" + _nenet_set
+                   if _nenet_set else "")
     user_prompt = (
         f"Juridiksioni: {jur}\n\n"
         f"Përshkrimi i çështjes:\n{description}"
         f"{valore_line}{offer_line}{role_line}"
+        f"{nenet_block}"
         f"{precedent_block}\n\n"
         "Si avokat me eksperiencë negocimi dhe gjyqi, ndërto një model "
         "probabilistik të rezultatit financiar të kësaj çështjeje. "
@@ -2486,9 +2624,38 @@ def api_settlement_simulate(case_id: str):
         + settle_mod.SCENARIO_SCHEMA_HINT
     )
 
+    if _it_set:
+        # v9.399: prompt, etichette e schema italiani (in sessione IT)
+        precedent_block = ("\n\nPrecedenti simili (archivio italiano):\n" + "\n".join(
+            f"- [{p.get('outcome') or '?'}] {p.get('citation') or '#'}: {p.get('summary')}"
+            for p in precedent_snippets) if precedent_snippets else "")
+        user_prompt = (
+            f"Giurisdizione: {jur}\n\n"
+            f"Descrizione della controversia:\n{description}"
+            + (f"\n\nValore della causa: {valore_eur} EUR" if valore_eur is not None else "")
+            + (f"\n\nOfferta attuale della controparte: {current_offer_eur} EUR"
+               if current_offer_eur is not None else "")
+            + ("\n\nIl nostro ruolo: attore (chiediamo il valore più alto possibile)." if plaintiff else
+               "\n\nIl nostro ruolo: convenuto (vogliamo il valore più basso possibile).")
+            + ("\n\nARTICOLI DEL CASO (testo dal corpus — termini e condizioni procedurali SOLO da qui):\n" + _nenet_set
+               if _nenet_set else "")
+            + f"{precedent_block}\n\n"
+            "Da avvocato esperto di negoziazione e contenzioso, costruisci un modello "
+            "probabilistico dell'esito economico di questa controversia. Ragiona per "
+            "scenari (accordo, sentenza favorevole, sentenza sfavorevole, rinuncia, ecc.) "
+            "— per ciascuno: la probabilità, l'intervallo min/moda/max in EUR e la "
+            "ragione.\n\n"
+            + settle_mod.SCENARIO_SCHEMA_HINT_IT
+        )
     text = _BRAIN.backend.complete(
-        system=("Ti je avokat strateg me 15+ vite eksperiencë në negocim "
-                "dhe gjyqësor. Mendoj në numra reala, jo fjalë të mëdha."),
+        system=(("Sei un avvocato stratega con oltre 15 anni di esperienza in negoziazione "
+                 "e contenzioso. Ragioni con numeri reali, non con parole grosse. Termini, articoli e "
+                 "condizioni procedurali li prendi SOLO dagli articoli del caso: se non ci sono, non li inventi. "
+                 "Mai ipotizzare pagamenti non dichiarati o elusione fiscale.") if _it_set else
+                ("Ti je avokat strateg me 15+ vite eksperiencë në negocim "
+                 "dhe gjyqësor. Mendoj në numra reala, jo fjalë të mëdha. Afatet, nenet dhe kushtet "
+                 "procedurale i merr VETËM nga nenet e rastit: nëse s'janë aty, nuk i shpik. "
+                 "Kurrë mos parashiko pagesa të padeklaruara ose shmangie tatimi.")),
         messages=[{"role": "user", "content": user_prompt}],
         max_tokens=2000,
         # Opus — strategic financial reasoning, exactly the use case
@@ -2508,7 +2675,7 @@ def api_settlement_simulate(case_id: str):
     rec = settle_mod.recommendation(
         distribution,
         current_offer_eur=float(current_offer_eur) if current_offer_eur is not None else None,
-        plaintiff=plaintiff,
+        plaintiff=plaintiff, lang=("it" if _it_set else "sq"),
     )
     if current_offer_eur is not None:
         rec["current_offer_percentile"] = settle_mod.percentile_of(
@@ -4289,10 +4456,19 @@ def api_agent_scan(case_id: str):
     }), 201
 
 
+def _sessione_it() -> bool:
+    """True in sessione italiana (per le etichette che il server manda già scritte)."""
+    try:
+        return _active_jurisdiction(request.user) == "IT"  # type: ignore[attr-defined]
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def _serialize_suggestion(s: storage.AgentSuggestion) -> dict:
     return {
         "id": s.id, "kind": s.kind,
-        "kind_label": storage.AGENT_SUGGESTION_LABELS_SQ.get(s.kind, s.kind),
+        "kind_label": (storage.AGENT_SUGGESTION_LABELS_IT if _sessione_it() else
+                       storage.AGENT_SUGGESTION_LABELS_SQ).get(s.kind, s.kind),
         "title": s.title, "rationale": s.rationale,
         "payload": s.payload, "status": s.status,
         "executed_letter_id": s.executed_letter_id,
@@ -4408,7 +4584,8 @@ def api_create_letter(case_id: str):
 def _serialize_letter(l: storage.AutoLetter) -> dict:
     return {
         "id": l.id, "kind": l.kind,
-        "kind_label": storage.AUTO_LETTER_LABELS_SQ.get(l.kind, l.kind),
+        "kind_label": (storage.AUTO_LETTER_LABELS_IT if _sessione_it() else
+                       storage.AUTO_LETTER_LABELS_SQ).get(l.kind, l.kind),
         "recipient": l.recipient, "subject": l.subject,
         "body_md": l.body_md, "notes": l.notes,
         "status": l.status,
@@ -4483,8 +4660,74 @@ RREGULLA TË FORTA:
 3) Nëse pyetja kërkon kërkim ose nuk ke informacion, thuaj qartë: "Nuk e di me siguri këtë moment" ose "Më duhet kontekst më shumë" — kurrë mos shpik.
 4) Përgjigje veprimore: çfarë DUHET të bëjë avokati TANI, jo histori abstrakte.
 5) MOS jep këshillë procedurale që të dëmtojë klientin (p.sh. "pranoje" pa kontekst).
+6) FJALIA E PARË është ajo që avokati i thotë gjyqtarit. Së pari vendos me vete çfarë pyet SAKTËSISHT gjyqtari dhe cila
+   është përgjigjja e saktë sipas neneve; pastaj shkruaje si përfundim të plotë, me foljen e vetë pyetjes, pa mohim të
+   dyfishtë. Mos fillo me një «Po» ose «Jo» të vetëm (lexohet së prapthi në seancë).
+7) Nëse pyetja mbështetet në një premisë të gabuar — një afat, një nen, një fakt që nuk qëndron — fillo me korrigjimin
+   (afati ose neni i saktë, me burimin) dhe vetëm pastaj jep përfundimin.
+8) Nenet: kur ka bllokun NENET E RASTIT, cito VETËM prej tij; nëse norma nuk është aty, mos jep numër neni — shkruaj
+   «verifikoje në kod».
 
 Stili: i shkurtër, i drejtpërdrejtë, profesional. Pa fjalë boshe."""
+
+# v9.399 — in sessione IT il prompt era albanese (con le frasi da copiare «Nuk e di me siguri këtë moment»): prompt nativo.
+HEARING_QUICK_SYSTEM_IT = """Sei «Super Avvocato» — accanto all'avvocato IN UDIENZA.
+
+CONTESTO: l'avvocato parla o chiede con il telefono o il portatile sotto mano. La risposta deve arrivare subito.
+
+REGOLE FERREE:
+1) AL MASSIMO 2-3 frasi. Se serve, un riferimento (art. X c.p.c./c.p.p./c.c.), senza spiegazioni lunghe.
+2) SOLO ITALIANO, diritto italiano.
+3) Se la domanda richiede una ricerca o non hai l'informazione, dillo chiaramente: «Non lo so con certezza in questo
+   momento» oppure «Mi serve più contesto» — mai inventare.
+4) Risposta operativa: cosa DEVE fare l'avvocato ADESSO, non teoria.
+5) MAI un consiglio procedurale che danneggi il cliente (per esempio «accetta» senza contesto).
+6) La PRIMA FRASE è quella che l'avvocato dice al giudice. Prima decidi fra te cosa chiede ESATTAMENTE il giudice e qual è
+   la risposta giusta secondo gli articoli; poi scrivila come conclusione completa, con il verbo della domanda stessa, senza
+   doppie negazioni. Non cominciare con un «Sì» o «No» isolato (in udienza si legge al contrario).
+7) Se la domanda (del giudice o della controparte) poggia su una premessa sbagliata — un termine, un articolo, un fatto che
+   non regge — comincia dalla correzione (il termine o l'articolo giusto, con la fonte) e solo dopo dai la conclusione.
+8) Articoli: quando c'è il blocco ARTICOLI DEL CASO, cita SOLO da lì; se la norma non è lì, non dare il numero — scrivi
+   «da verificare nel codice».
+
+Stile: breve, diretto, professionale. Niente parole vuote."""
+
+
+def _nenet_e_rastit(case_id: str, question: str, it: bool) -> str:
+    """I nene del fascicolo per gli strumenti brevi senza recupero proprio — risposta in udienza, simulazione dell'accordo (v9.399): prima quelli che il cervello ha usato per l'ultima analisi del
+    fascicolo (gratis e fedeli al caso); se il fascicolo non ne ha, il triage + lo stesso recupero ibrido della chat
+    sulla domanda. Blocco compatto (10 articoli, testo fino a 1.500 caratteri). Fail-silent: vuoto = come prima.
+    Misurato sull'audit del 28 set: senza articoli la risposta albanese sul licenziamento orale diceva «Jo —» e non
+    nominava il termine dei 180 giorni (KP 146/2, 155/4)."""
+    idx = _req_index()
+    pairs: list = []
+    try:
+        by_key = {(a.code, str(a.number)): a for a in idx.articles}
+        for m in reversed(storage.list_messages(case_id)):
+            if m.role != "assistant" or not m.articles:
+                continue
+            for x in m.articles:
+                a = by_key.get((x.get("code"), str(x.get("number"))))
+                if a is not None:
+                    pairs.append((a, float(x.get("score") or 0.0)))
+            break
+    except Exception:  # noqa: BLE001
+        pairs = []
+    if not pairs and _BRAIN is not None:
+        try:
+            _BRAIN._jurisdiction_ctx.code = "IT" if it else "AL"   # la thread-local del worker può essere stale
+            tri = _BRAIN._triage((question or "")[:3000], [], None)
+            pairs = list(_BRAIN._retrieve(tri) or [])
+        except Exception:  # noqa: BLE001
+            log.warning("hearing quick: recupero dei nene fallito (non-fatal)", exc_info=True)
+            pairs = []
+    righe = []
+    for a, _s in pairs[:10]:
+        corpo = " ".join((a.body or "").split())
+        if len(corpo) > 1500:
+            corpo = corpo[:1500] + " […]"
+        righe.append(f"{a.citation} — {a.heading or ''}\n{corpo}")
+    return "\n\n".join(righe)
 
 
 @app.get("/case/<case_id>/in-hearing")
@@ -4569,21 +4812,27 @@ def api_hearing_quick(case_id: str):
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
 
-    # Build minimal context: case title + last 3 messages (compact)
-    ctx_lines = [f"Rasti: {case.title}"]
+    # Build minimal context: case title + last 3 messages (compact) — etichette nella lingua della sessione
+    _it = _active_jurisdiction(user) == "IT"
+    ctx_lines = [f"{'Caso' if _it else 'Rasti'}: {case.title}"]
     msgs = storage.list_messages(case_id)
     for m in msgs[-3:]:
-        who = "AVOKATI" if m.role == "user" else "AI"
+        who = ("AVVOCATO" if _it else "AVOKATI") if m.role == "user" else "AI"
         ctx_lines.append(f"[{who}] {(m.content or '')[:300]}")
 
-    user_msg = "## Konteksti i shkurtër\n" + "\n".join(ctx_lines)
-    user_msg += f"\n\n## Pyetja TANI në seancë\n{question}"
+    user_msg = ("## Contesto breve\n" if _it else "## Konteksti i shkurtër\n") + "\n".join(ctx_lines)
+    _nenet = _nenet_e_rastit(case_id, (case.title or "") + "\n" + question, _it)
+    if _nenet:
+        user_msg += ("\n\n## ARTICOLI DEL CASO (testo dal corpus)\n" if _it
+                     else "\n\n## NENET E RASTIT (teksti nga korpusi)\n") + _nenet
+    user_msg += (f"\n\n## Domanda ORA in udienza\n{question}" if _it
+                 else f"\n\n## Pyetja TANI në seancë\n{question}")
 
     try:
         # Avvocato in udienza merita risposta intelligente: Sonnet bilancia
         # qualità e latenza (~3-5s, accettabile in court).
         reply = _BRAIN.backend.complete(
-            system=HEARING_QUICK_SYSTEM,
+            system=HEARING_QUICK_SYSTEM_IT if _it else HEARING_QUICK_SYSTEM,
             messages=[{"role": "user", "content": user_msg}],
             max_tokens=400,
             medium=True,
@@ -4596,6 +4845,16 @@ def api_hearing_quick(case_id: str):
     reply = (reply or "").strip()
     if not reply:
         return jsonify({"error": "empty reply"}), 502
+    # v9.399 — lo scudo DETERMINISTICO anche qui (senza il cancello, che chiama il modello e in udienza costa minuti): un nene
+    # inesistente si annota, una sentenza si riscontra (in IT la Cassazione sull'archivio ufficiale: la risposta di prova citava
+    # «Cass. SS.UU. n. 4913/2016» presa dal web)
+    try:
+        _cits = cv_mod.verify_text(reply, _req_index())
+        if int((_cits.get("stats") or {}).get("fake") or 0) > 0:
+            reply = cs_mod.annotate_fake_citations(reply, _cits)
+        reply, _ = _verify_decisions_smart(reply, "IT" if _it else "AL")
+    except Exception:  # noqa: BLE001
+        log.debug("hearing quick: scudo saltato", exc_info=True)
 
     a_note = storage.create_hearing_note(
         case_id, user.id, body_sq=reply, kind="ai_reply", parent_id=q_note.id)
@@ -4936,11 +5195,23 @@ def api_auto_status(case_id: str):
         f"MESAZHI I FUNDIT I ASISTENTIT (vetëm për kontekst, mos e cito):\n"
         f"{last_msg or '(asnjë)'}"
     )
+    _it_st = _active_jurisdiction(request.user) == "IT"  # type: ignore[attr-defined]
+    if _it_st:
+        # v9.399: la notizia va al cliente italiano — contesto, fase e tipi di evento in italiano
+        _upc_it = [f"- {e.starts_at[:10]} {_PORTAL_KIND['it'].get(e.kind, e.kind)}: {e.title}"
+                   for e in storage.list_events(user_id) if e.case_id == case_id and not e.done]
+        ctx = (
+            f"TITOLO: {case.title}\n"
+            f"FASE: {storage.stage_label(case.stage, 'IT')}\n\n"
+            f"PROSSIMI EVENTI:\n{chr(10).join(_upc_it[:5]) or '(nessuno in programma)'}\n\n"
+            f"ULTIMO MESSAGGIO DELL'ASSISTENTE (solo per contesto, non citarlo):\n"
+            f"{last_msg or '(nessuno)'}"
+        )
     try:
         # V8.10: status update è firmato dall'avvocato e inviato al cittadino →
         # Opus default, comunicazione professionale full quality
         raw = _BRAIN.backend.complete(
-            system=AUTO_STATUS_SYSTEM,
+            system=(AUTO_STATUS_SYSTEM_IT if _it_st else AUTO_STATUS_SYSTEM),
             messages=[{"role": "user", "content": ctx}],
             max_tokens=500,
         )

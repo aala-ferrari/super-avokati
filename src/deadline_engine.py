@@ -20,14 +20,21 @@ LINGUA = SESSIONE (regola ferrea). La matematica è identica nelle due lingue.
 
 Regole implementate (comuni a procedura AL e IT, salvo dove annotato):
   - `dies a quo non computatur`: nei termini a GIORNI il giorno iniziale non si
-    conta — si parte dal giorno dopo (art. 155 c.p.c. IT; Neni 147 KPC AL).
+    conta — si parte dal giorno dopo (art. 155 c.p.c. IT; Neni 148 KPC AL — il 147 è la proroga del giudice).
   - termini a MESI/ANNI: scadono nel giorno CORRISPONDENTE del mese finale; se
     quel giorno non esiste (es. 31 gen + 1 mese) → ultimo giorno del mese.
   - `proroga`: se la scadenza cade di sabato/domenica/festivo → primo giorno
-    lavorativo successivo (art. 155 c.4 c.p.c. IT; prassi AL).
+    lavorativo successivo (art. 155 c.4 c.p.c. IT; Neni 148, ultimo comma, KPC AL).
   - SOSPENSIONE FERIALE ITALIANA (L. 742/1969): termini PROCESSUALI sospesi dal
-    1° al 31 agosto → quei giorni non si contano. **Solo IT**; l'Albania non ha
-    un equivalente → per AL il flag resta False.
+    1° al 31 agosto → nei termini a giorni quei giorni non si contano; nei termini a
+    MESI/ANNI (es. termine lungo dell'art. 327 c.p.c.) i giorni di agosto compresi nel
+    decorso si AGGIUNGONO in coda; se il decorso comincia in agosto, l'inizio è differito
+    alla fine del periodo (art. 1, secondo periodo). Il flag lo sceglie la regola: un
+    termine sostanziale (prescrizione, decadenza sostanziale) ha feriale=0. **Solo IT**;
+    l'Albania non ha un equivalente → per AL il flag resta False.
+    ⚠️ v9.399: fino a qui i termini a mesi/anni IGNORAVANO la sospensione anche quando la
+    regola la chiedeva («termini sostanziali»): una sentenza pubblicata a giugno dava il
+    termine lungo scaduto 31 giorni prima del vero.
 
 Festività: fisse nazionali + Pasqua CATTOLICA (gregoriana) e, per l'Albania,
 anche Pasqua ORTODOSSA (giuliana→gregoriana, calcolata). Limite dichiarato
@@ -161,7 +168,8 @@ _MSG = {
         "proroga": "Shtyrje: {raw} ({wd}{fest}) nuk është ditë pune → afati shtyhet në {final} ({wdf}).",
         "fest": " /festë",
         "w_feriale_nonit": "Pezullimi feriale u kërkua por juridiksioni nuk është IT: u shpërfill (Shqipëria nuk ka një pezullim feriale ekuivalent).",
-        "w_feriale_monthyear": "Pezullimi feriale NUK zbatohet te afatet në muaj/vjet (afate materiale): u shpërfill.",
+        "feriale_start": "Pezullimi feriale IT: rrjedha e afatit do të niste gjatë 1–31 gushtit → fillimi shtyhet në fund të periudhës, llogaritet nga {d} (L. 742/1969, neni 1; llogaritje e kujdesshme — disa vendime numërojnë nga 1 shtatori: verifiko).",
+        "feriale_add": "Pezullimi feriale IT (L. 742/1969): {n} ditë gushti brenda rrjedhës së afatit nuk numërohen → i shtohen afatit: {raw}.",
         "w_al_mobile": "AL: festat ISLAME të lëvizshme (Fitër Bajrami, Kurban Bajrami) s'janë në tabelë — data shpallet sipas hënës; verifiko nëse bien brenda periudhës (Pashkët katolike+ortodokse llogariten tashmë).",
         "w_det": "Motor determinist: avokati konfirmon RREGULLIN e zbatuar (ngjarja, afati, feriale). Llogaritja e datës verifikohet nga hapat më sipër.",
     },
@@ -178,7 +186,8 @@ _MSG = {
         "proroga": "Proroga: {raw} ({wd}{fest}) non è lavorativo → scadenza prorogata al {final} ({wdf}).",
         "fest": " /festivo",
         "w_feriale_nonit": "Sospensione feriale richiesta ma la giurisdizione non è IT: ignorata (l'Albania non ha una sospensione feriale equivalente).",
-        "w_feriale_monthyear": "La sospensione feriale NON si applica ai termini a mesi/anni (termini sostanziali): ignorata.",
+        "feriale_start": "Sospensione feriale IT: il decorso inizierebbe nel periodo 1–31 agosto → l'inizio è differito alla fine del periodo, si computa dal {d} (L. 742/1969, art. 1; calcolo prudente — alcune pronunce contano dal 1° settembre: verifica).",
+        "feriale_add": "Sospensione feriale IT (L. 742/1969): {n} giorni di agosto compresi nel decorso non si computano → si aggiungono al termine: {raw}.",
         "w_al_mobile": "AL: le festività ISLAMICHE mobili (Fitër/Kurban Bajram) non sono in tabella — la data è annunciata secondo la luna; verifica se cadono nel periodo (Pasqua cattolica+ortodossa già calcolate).",
         "w_det": "Motore deterministico: l'avvocato conferma la REGOLA applicata (trigger, durata, feriale). Il calcolo della data è verificabile dai passi qui sopra.",
     },
@@ -252,12 +261,28 @@ def compute_deadline(
     steps.append(M["event"].format(d=td.isoformat(), wd=_wd(td, lang)))
 
     if unit in ("months", "years"):
-        raw = add_months(td, duration if unit == "months" else duration * 12)
+        start = td
+        if feriale_effective and td.month == 8:
+            # L. 742/1969, art. 1, secondo periodo: se il decorso ha inizio durante il periodo feriale, l'inizio è
+            # differito alla fine di detto periodo (calcolo prudente: dal 31 agosto — la data più vicina)
+            start = _dt.date(td.year, 8, 31)
+            steps.append(M["feriale_start"].format(d=start.isoformat()))
+        raw = add_months(start, duration if unit == "months" else duration * 12)
         uw = _UNITWORD[lang]["months" if unit == "months" else "years"]
         steps.append(M["monthyear"].format(uw=uw, n=duration, raw=raw.isoformat()))
         if feriale_effective:
-            warnings.append(M["w_feriale_monthyear"])
-            feriale_effective = False
+            # i giorni di agosto compresi nel decorso non si computano: si aggiungono in coda, e se l'aggiunta cade in
+            # un altro agosto si aggiungono anche quelli (termine lungo di sei mesi da giugno: +31 giorni)
+            added, lo, hi = 0, start, raw
+            while True:
+                n_aug = sum(1 for k in range((hi - lo).days) if (lo + ONE_DAY * (k + 1)).month == 8)
+                if not n_aug:
+                    break
+                added += n_aug
+                lo, hi = hi, hi + ONE_DAY * n_aug
+            if added:
+                steps.append(M["feriale_add"].format(n=added, raw=hi.isoformat()))
+            raw = hi
     else:
         business = unit == "business_days"
         remaining = duration

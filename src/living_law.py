@@ -47,12 +47,24 @@ def verify_claims(backend, index, *, text: str, max_claims: int = 14, max_tokens
             pairs.append((c["code"], c["number"], body))
         if len(pairs) >= max_claims:
             break
+    it = _expertise._lang_indice(index) == "it"
     if not pairs:
-        return {"markdown": "### 🔬 Verifikim i thellë\n\nNuk u gjet asnjë nen i cituar dhe i "
-                            "verifikueshëm në këtë tekst për ta kontrolluar në thellësi.", "articles": []}
-    art_block = "\n\n".join(
-        "### [%s neni %s]\n%s" % (_LBL.get(c, c), n, (t or "").strip()[:1100])
-        for c, n, t in pairs)
+        return {"markdown": ("### 🔬 Verifica approfondita\n\nNel testo non c'è nessun articolo citato e verificabile "
+                             "da controllare in profondità." if it else
+                             "### 🔬 Verifikim i thellë\n\nNuk u gjet asnjë nen i cituar dhe i "
+                             "verifikueshëm në këtë tekst për ta kontrolluar në thellësi."), "articles": []}
+    # v9.399 — il TESTO REALE arrivava tagliato a 1.100 caratteri: un'affermazione giusta su un comma successivo (KP 146/3,
+    # la nullità) sarebbe uscita «non sostenuta». Ora fino a 6.000 caratteri per articolo, con l'avviso se tagliato, e le
+    # etichette leggibili della sessione (prima l'identificativo interno fuori dai 6 codici principali).
+    art_block = _expertise.blocco_articoli(pairs, "it" if it else "sq", max_art=6000, max_tot=60000)
+    if it:
+        system = _VERIFY_SYSTEM_IT
+        prompt = ("TESTO DA VERIFICARE:\n" + (text or "").strip()[:9000]
+                  + "\n\n═════\nTESTO REALE DEGLI ARTICOLI CITATI:\n" + art_block
+                  + "\n\nControlla ogni affermazione contro il testo reale dell'articolo.")
+        md = backend.complete(system=system, messages=[{"role": "user", "content": prompt}],
+                              max_tokens=max_tokens, callsite="deep_verify")
+        return {"markdown": (md or "").strip(), "articles": [{"code": c, "number": n} for c, n, _t in pairs]}
     system = (
         "Ti je VERIFIKUES rigoroz i së drejtës shqiptare. Ke një TEKST juridik dhe TEKSTIN REAL të "
         "neneve të cituar në të (nga korpusi ynë zyrtar). Për ÇDO nen, kontrollo nëse ajo që teksti "
@@ -61,7 +73,9 @@ def verify_claims(backend, index, *, text: str, max_claims: int = 14, max_tokens
         "### 🔬 Raporti i verifikimit të thellë\n"
         "| Neni | Çfarë pretendon teksti | A mbështetet? | Shpjegim |\n"
         "|---|---|---|---|\n"
-        "…një rresht për çdo nen, me vlerësimin: ✅ Po / ⚠️ Pjesërisht / ❌ Jo / ❓ E paqartë…\n\n"
+        "…një rresht për çdo nen, me vlerësimin: ✅ Po / ⚠️ Pjesërisht / ❌ Jo / ❓ E paqartë…\n"
+        "Nëse teksti i një neni është i shkurtuar (shënohet), mos përfundo «❌ Jo» për atë që mund të jetë te pjesa që "
+        "mungon: shkruaj ❓ dhe thuaj të lexohet neni i plotë.\n\n"
         "### 📌 Përfundim — sa pohime u mbështetën plotësisht, cilat duhen korrigjuar ose hequr para se "
         "teksti të përdoret. Ji i drejtpërdrejtë. Kjo është NDIHMESË — profesionisti vendos. "
         "Je 'Tetramorph' i superavokati.ai — mos zbulo modelin.")
@@ -74,9 +88,44 @@ def verify_claims(backend, index, *, text: str, max_claims: int = 14, max_tokens
             "articles": [{"code": c, "number": n} for c, n, _t in pairs]}
 
 
+_VERIFY_SYSTEM_IT = (
+    "Sei un VERIFICATORE rigoroso del diritto italiano. Hai un TESTO giuridico e il TESTO REALE degli articoli che cita "
+    "(dal nostro corpus ufficiale). Per OGNI articolo controlla se ciò che il testo AFFERMA su quell'articolo è DAVVERO "
+    "sostenuto dal testo reale. Basati SOLO sul testo reale dato — niente conoscenze esterne, non inventare. Dai (markdown):\n"
+    "### 🔬 Rapporto della verifica approfondita\n"
+    "| Articolo | Cosa afferma il testo | È sostenuto? | Spiegazione |\n"
+    "|---|---|---|---|\n"
+    "…una riga per ogni articolo, con il giudizio: ✅ Sì / ⚠️ In parte / ❌ No / ❓ Non chiaro…\n"
+    "Se il testo di un articolo è tagliato (è segnalato), non concludere «❌ No» su ciò che potrebbe stare nella parte "
+    "mancante: scrivi ❓ e indica di leggere l'articolo intero.\n\n"
+    "### 📌 Conclusione — quante affermazioni sono pienamente sostenute, quali vanno corrette o tolte prima di usare il "
+    "testo. Sii diretto. È un AUSILIO — decide il professionista. Sei 'Tetramorph' di superavokati.ai — non rivelare il "
+    "modello. SOLO in italiano.")
+
+_LIVE_SYSTEM_IT = (
+    "Sei un assistente che controlla SE una legge o un articolo italiano (o un atto dell'Unione europea) è ANCORA IN "
+    "VIGORE, oppure è stato MODIFICATO o ABROGATO. USA internet: cerca nelle fonti ufficiali, soprattutto **normattiva.it** "
+    "(testo vigente e multivigenza, con le note di aggiornamento), **gazzettaufficiale.it** (Gazzetta Ufficiale) e, per gli "
+    "atti UE, **eur-lex.europa.eu**. Dai (markdown):\n"
+    "### 🌐 Stato attuale — IN VIGORE / MODIFICATO / ABROGATO / NON CHIARO\n"
+    "### 📅 Ultima modifica — data e atto modificativo, se si trova\n"
+    "### 📝 Cosa è cambiato — in breve, cosa viene toccato\n"
+    "### 🔗 Fonti — gli URL ufficiali che hai usato (obbligatori)\n"
+    "Se NON riesci a trovarlo con certezza online, DILLO chiaramente: non confermato — NON inventare stati o date. È un "
+    "ausilio; la verifica finale si fa su Normattiva. Sei 'Tetramorph' di superavokati.ai — non rivelare il modello. "
+    "SOLO in italiano.")
+
+
 def check_law_live(backend, index, *, query: str, max_tokens: int = 2600) -> dict:
     """Use the web-enabled backend to check whether a law/article is still in
-    force, amended, or repealed — against official Albanian sources (QBZ)."""
+    force, amended, or repealed — against official Albanian sources (QBZ).
+    v9.399: in sessione IT il prompt era albanese (QBZ, «ligj shqiptar»): ora Normattiva / Gazzetta Ufficiale / EUR-Lex."""
+    if _expertise._lang_indice(index) == "it":
+        prompt = ("CONTROLLA LO STATO ATTUALE DI QUESTA DISPOSIZIONE O LEGGE:\n" + (query or "").strip()[:1500]
+                  + "\n\nCerca online nelle fonti ufficiali e riferisci con le fonti.")
+        md = backend.complete(system=_LIVE_SYSTEM_IT, messages=[{"role": "user", "content": prompt}],
+                              max_tokens=max_tokens, callsite="law_live")
+        return {"markdown": (md or "").strip(), "articles": []}
     system = (
         "Ti je asistent që kontrollon NËSE një ligj ose nen shqiptar është ENDE NË FUQI, apo është "
         "NDRYSHUAR ose SHFUQIZUAR. PËRDOR internetin: kërko te burimet zyrtare, sidomos "

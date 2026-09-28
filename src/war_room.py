@@ -145,10 +145,12 @@ def format_canonical(items: list[DossierItem], lang="sq") -> str:
         return ""
     rr = ["", _KREU.get(lang, _KREU["sq"])]
     for it in items:
-        q = it.cilesia.replace("_", " ").lower()
-        burim = it.burimi if it.burimi in ("korpus", "arkiv") else (it.burimi[:70] or "—")
+        q = _cilesia_fjale(it.cilesia, lang)                       # v9.399: a parole, nella lingua della sessione
+        v = _VERIF.get(lang, _VERIF["sq"]).get(it.verifikimi, it.verifikimi.lower())
+        burim = (_BURIM.get(lang, {}).get(it.burimi, it.burimi) if it.burimi in ("korpus", "arkiv")
+                 else (it.burimi[:70] or "—"))
         rr.append("  [%s] %s — %s · %s · %s%s" % (
-            it.id, it.titulli, q, it.verifikimi.lower(), burim,
+            it.id, it.titulli, q, v, burim,
             (" (%s)" % it.data) if it.data else ""))
         if it.teksti:
             rr.append("     «%s»" % it.teksti[:400])
@@ -203,6 +205,25 @@ _RAPORT = {
 }
 
 
+# v9.399: la qualità della fonte a parole, nella lingua della sessione (prima «(secondary)», «(primary
+# official)» in inglese dentro risposte albanesi e italiane)
+_CILESIA = {
+    "sq": {"PRIMARY_OFFICIAL": "burim zyrtar", "AUTHORITATIVE_DATABASE": "bazë autoritative",
+           "SECONDARY": "burim dytësor", "UNVERIFIED": "burim i paverifikuar"},
+    "it": {"PRIMARY_OFFICIAL": "fonte ufficiale", "AUTHORITATIVE_DATABASE": "banca dati autorevole",
+           "SECONDARY": "fonte secondaria", "UNVERIFIED": "fonte non verificata"},
+}
+
+
+_VERIF = {"sq": {"VERIFIED": "i vërtetuar", "PARTIAL": "për verifikim"},
+          "it": {"VERIFIED": "verificato", "PARTIAL": "da verificare"}}
+_BURIM = {"it": {"korpus": "corpus", "arkiv": "archivio"}}
+
+
+def _cilesia_fjale(cilesia: str, lang: str) -> str:
+    return _CILESIA.get(lang, _CILESIA["sq"]).get(cilesia, cilesia.replace("_", " ").lower())
+
+
 def raport_verifikimi(retrieved, sources, precedents, lang="sq") -> str:
     """Il RAPPORTO del Source Verifier: cosa è verificato (corpus/archivio,
     autorità primaria) e cosa è da verificare (web, per qualità). Trasparenza
@@ -217,12 +238,12 @@ def raport_verifikimi(retrieved, sources, precedents, lang="sq") -> str:
     if verif:
         rr.append(T["verif"])
         for i in verif[:14]:
-            rr.append("  • [%s] %s (%s)" % (i.id, i.titulli, i.cilesia.replace("_", " ").lower()))
+            rr.append("  • [%s] %s (%s)" % (i.id, i.titulli, _cilesia_fjale(i.cilesia, lang)))
     if partial:
         rr.append(T["pjes"])
         for i in partial[:10]:
-            burim = i.burimi[:55] if i.burimi not in ("korpus", "arkiv") else i.burimi
-            rr.append("  • [%s] %s (%s) — %s" % (i.id, i.titulli, i.cilesia.replace("_", " ").lower(), burim))
+            burim = i.burimi[:55] if i.burimi not in ("korpus", "arkiv") else _BURIM.get(lang, {}).get(i.burimi, i.burimi)
+            rr.append("  • [%s] %s (%s) — %s" % (i.id, i.titulli, _cilesia_fjale(i.cilesia, lang), burim))
     rr.append(T["nota"])
     rr.append("")
     return "\n".join(rr)

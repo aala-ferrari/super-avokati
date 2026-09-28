@@ -4963,6 +4963,14 @@ AGENT_SUGGESTION_LABELS_SQ: dict[str, str] = {
     "deadline_reminder": "Kujto afatin",
 }
 
+AGENT_SUGGESTION_LABELS_IT: dict[str, str] = {        # v9.399: sessione IT
+    "followup_client": "Contatta il cliente",
+    "draft_letter": "Redigi una lettera",
+    "request_docs": "Chiedi documenti",
+    "precedent_alert": "Nuovo precedente",
+    "deadline_reminder": "Ricorda la scadenza",
+}
+
 AUTO_LETTER_KINDS = (
     "client_followup", "payment_reminder",
     "court_followup", "opponent_response", "document_request",
@@ -4973,6 +4981,13 @@ AUTO_LETTER_LABELS_SQ: dict[str, str] = {
     "court_followup": "Ndjekje gjyqësore",
     "opponent_response": "Përgjigje për kundërshtarin",
     "document_request": "Kërkesë për dokumente",
+}
+AUTO_LETTER_LABELS_IT: dict[str, str] = {             # v9.399: sessione IT
+    "client_followup": "Aggiornamento al cliente",
+    "payment_reminder": "Sollecito di pagamento",
+    "court_followup": "Istanza all'ufficio giudiziario",
+    "opponent_response": "Risposta alla controparte",
+    "document_request": "Richiesta di documenti",
 }
 
 

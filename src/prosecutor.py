@@ -60,7 +60,7 @@ _MAX_TOT = 42000
 
 
 def _lbl(c):
-    return _expertise._LABEL.get(c) or _LABEL.get(c) or c
+    return _expertise._LABEL.get(c) or _LABEL.get(c) or _expertise.etichetta_al(c)   # v9.399: mai l'id interno
 
 
 def _lbl_it(c):
@@ -196,7 +196,12 @@ _P = {
 def analyze(backend, index, *, facts: str, max_tokens: int = 3000) -> dict:
     lang = _lingua()
     P = _P[lang]
-    seeds = (_cpp("358", "405", "408") if lang == "it" else None)
+    # v9.399 — AL: la parte generale che serve a OGNI analisi del pubblico ministero (commisurazione, attenuanti e aggravanti
+    # generali, prescrizione dell'azione, termini delle indagini): nell'audit del 28 set l'analisi li dava «non nel corpus» e,
+    # onestamente, non ne citava i numeri. Il reato lo porta il recupero per termini.
+    seeds = (_cpp("358", "405", "408") if lang == "it" else
+             [("kodi_penal", "47"), ("kodi_penal", "48"), ("kodi_penal", "50"), ("kodi_penal", "66"),
+              ("kodi_proc_penale", "323"), ("kodi_proc_penale", "324")])
     arts = _expertise.retrieve_grounded(backend, index, facts, seed_pairs=seeds)
     prompt = (
         P["fatti"] + "\n" + (facts or "").strip()
@@ -300,7 +305,9 @@ _ACT_KINDS = {
                            ("kodi_proc_penale", "183"), ("kodi_proc_penale", "185")],
                   "q": "ekspertim ekspert detyra pyetjet"},
     "pergjim": {"label": "Kërkesë për përgjim",
-                "seed": [("kodi_proc_penale", "221"), ("kodi_proc_penale", "224"), ("kodi_proc_penale", "225")],
+                # v9.399: + 222 (la decisione che autorizza: il cuore dell'atto), 223 (esecuzione), 226 (inutilizzabilità)
+                "seed": [("kodi_proc_penale", "221"), ("kodi_proc_penale", "222"), ("kodi_proc_penale", "223"),
+                         ("kodi_proc_penale", "226")],
                 "q": "përgjim kufijtë lejimi"},
 }
 

@@ -9,6 +9,8 @@ draft, the professional decides.
 """
 from __future__ import annotations
 
+import re
+
 from .logging_utils import get_logger
 
 def _juris(system_prompt: str) -> str:
@@ -41,7 +43,12 @@ TEMPLATES = {
         "emoji": "\U0001f697",
         "domain": "civil",
         "primary_articles": [("kodi_civil", "608"), ("kodi_civil", "609"),
-                             ("kodi_penal", "290"), ("kodi_penal", "291")],
+                             ("kodi_penal", "290"), ("kodi_penal", "291"),
+                             # v9.399: la responsabilità per il veicolo (attività pericolosa, KC 622), la prescrizione del danno
+                             # extracontrattuale (KC 115/dh: tre anni), il danno non patrimoniale e patrimoniale (625, 640, 641) e
+                             # la richiesta all'assicuratore del responsabile — nell'audit del 28 set la perizia li dava «non nel corpus»
+                             ("kodi_civil", "622"), ("kodi_civil", "115"), ("kodi_civil", "625"),
+                             ("kodi_civil", "640"), ("kodi_civil", "641"), ("ligji_sigurimi_mjeteve", "9")],
         "elements": ["Veprimi/pakujdesia (shkelje e kodit rrugor)", "Faji",
                      "Lidhja shkakësore me dëmin", "Dëmi konkret (pasuror + jopasuror)"],
         "evidence": ["Raport i policisë rrugore / procesverbal", "Dëshmitarë okularë",
@@ -330,6 +337,80 @@ def _heading_scan_rank(index, term, limit=3):
     return [(a.code, a.number, _full(a)) for _s, a in scored[:limit]]
 
 
+_TESTE_CACHE: dict = {}
+
+
+def _teste_di_sezione(index, term, limit=1):
+    """v9.399 — il PRIMO articolo della sezione (o del capitolo) il cui TITOLO contiene il termine: la figura generale del
+    reato. «mashtrim» → «SEKSIONI II — MASHTRIMET» → KP 143: la ricerca per titolo dava le truffe speciali (143/b
+    informatica, 144 sovvenzioni… cominciano con «Mashtrimi») e la figura generale, che nel consolidato non ha rubrica,
+    restava fuori (il caso mancato della misura v9.397). Il codice mette la figura generale in testa alla sezione."""
+    ks = {_radice(w) for w in _fold(term).split() if len(w) >= 5}
+    if not ks:
+        return []
+    key = id(index)
+    teste = _TESTE_CACHE.get(key)
+    if teste is None:
+        teste = {}
+        for a in getattr(index, "articles", []):
+            if getattr(a, "repealed", False):
+                continue
+            for lvl in ("seksioni", "kreu"):
+                t = (getattr(a, lvl, "") or "").strip()
+                if t and (a.code, lvl, t) not in teste:
+                    teste[(a.code, lvl, t)] = a
+        _TESTE_CACHE[key] = teste
+    trovate = []
+    for (code, lvl, t), a in teste.items():
+        titolo = re.sub(r"^\S+\s+[IVXLCDM\d]+[A-Z]?\s*(?:—|-)?\s*", "", t)       # «SEKSIONI II — MASHTRIMET» → «MASHTRIMET»
+        tw = {_radice(w) for w in _fold(titolo).split() if len(w) >= 4}
+        if tw and ks <= tw:              # TUTTE le parole del termine nel titolo: «shitje narkotikësh» ≠ la sezione civile «SHITJA»
+            trovate.append((0 if lvl == "seksioni" else 1, len(titolo), a))
+    trovate.sort(key=lambda x: (x[0], x[1]))
+    return [(a.code, a.number, _full(a)) for _l, _n, a in trovate[:limit]]
+
+
+# v9.399 — i RINVII INTERNI espliciti degli articoli dati («prokurori vendos sipas paragrafit 6, të nenit 327, të këtij
+# Kodi», «dall'art. 309 del presente codice»): nell'audit AL del 28 set il procuratore scriveva tre volte «il neni 327 / 75/a
+# non è nel corpus» — c'erano, ma nessuno li portava. Solo il rinvio ESPLICITO allo stesso atto, solo articoli esistenti e
+# in vigore, al massimo 4, in coda al blocco.
+_RINVIO_AL = re.compile(r"\bnen(?:it|in|i)\s+(\d+(?:/[a-zçë]{1,2})?)\s*,?\s*(?:t[ëe]|i|e)\s+k[ëe]tij\s+(?:Kodi|ligji)\b", re.I)
+_RINVIO_IT = re.compile(r"\bart(?:icol[oi]|\.)\s*(\d+(?:-(?:bis|ter|quater|quinquies|sexies|septies|octies|novies|decies))?)"
+                        r"(?:\s*,\s*comm[ai]\s*\d+(?:-bis)?)?\s*,?\s*(?:del|dello|della)\s+presente\s+"
+                        r"(?:codice|decreto|testo\s+unico|legge|regolamento)\b", re.I)
+# i codici italiani rinviano a sé stessi SENZA nominarsi («dall'articolo 408», «ai sensi degli articoli 406 e 407»): vale il
+# rinvio non seguito dal nome di un ALTRO atto (misurato: 23 su 24 esatti su un campione di c.c./c.p.c./c.p./c.p.p.; il numero
+# non si taglia a metà: «articolo 71-quater delle disposizioni di attuazione» NON è l'art. 71)
+_RINVIO_IT_IMPL = re.compile(
+    r"\b(?:(?:dall|dell|all|nell|sull|coll|l)['’])?articol[oi]\s+(\d+(?:-(?:bis|ter|quater|quinquies|sexies|septies|octies|"
+    r"novies|decies))?)(?![\w-])(?:\s*,\s*comm[ai]\s*\d+(?:-bis)?(?:\s*(?:,|e)\s*\d+)*)?"
+    r"(?!\s*,?\s*(?:del|della|dello|dei|delle|degli|di\s+cui|n\.|legge|decreto|d\.\s*lgs|d\.p\.r|regolamento|codice|testo|"
+    r"tuf|tub|tuir|c\.\s*c|c\.\s*p)\b)", re.I)
+_OBJ_CACHE: dict = {}
+
+
+def _rinvii_interni(index, arts, lang, max_add=4, gia=None):
+    key = id(index)
+    obj = _OBJ_CACHE.get(key)
+    if obj is None:
+        obj = {(a.code, str(a.number)): a for a in getattr(index, "articles", [])}
+        _OBJ_CACHE[key] = obj
+    rxs = (_RINVIO_IT, _RINVIO_IT_IMPL) if lang == "it" else (_RINVIO_AL,)
+    seen = set(gia or ()) | {(c, str(n)) for c, n, _t in arts}
+    out = []
+    for c, n, t in arts[:10]:
+        for m in (mm for rx in rxs for mm in rx.finditer(t or "")):
+            k = (c, m.group(1).replace(" ", "").lower() if lang != "it" else m.group(1).lower())
+            a = obj.get(k)
+            if a is None or getattr(a, "repealed", False) or k in seen:
+                continue
+            seen.add(k)
+            out.append((a.code, a.number, _full(a)))
+            if len(out) >= max_add:
+                return out
+    return out
+
+
 def retrieve_grounded(backend, index, facts, seed_pairs=None, max_arts=16):
     """Robust grounded retrieval: curated seeds + heading-scan on model-extracted
     offense terms (reliable anchor) + BM25 context fill. Never invents."""
@@ -342,6 +423,30 @@ def retrieve_grounded(backend, index, facts, seed_pairs=None, max_arts=16):
         if t:
             add(code, num, t)
     lang = "it" if getattr(index, "lang", "sq") == "it" else "sq"
+    # v9.399 — SOSTANZE STUPEFACENTI nominate nei fatti (lo stesso riconoscimento del cervello: le liste della 7975/1995 e le
+    # tabelle del d.P.R. 309/1990): entrano le norme penali sugli stupefacenti. Nell'audit AL del 28 set la misura cautelare
+    # per la vendita di 50 g di cocaina non aveva il KP 283 («Prodhimi dhe shitja e narkotikëve»: il recupero lo portava fra
+    # l'8° e l'11° posto, a seconda dei termini) e il modello, onestamente, ripiegava sul 283/a (traffico).
+    try:
+        if lang == "it":
+            from . import stupefacenti as _stp
+            if _stp.trova(facts or ""):
+                for code, num in (("stupefacenti", "73"),):
+                    t = _article_text(index, code, num)
+                    if t:
+                        add(code, num, t)
+        else:
+            from . import narkotike_al as _nk
+            if any(not x.get("jo") for x in _nk.trova(facts or "")):
+                _semi_nk = [("kodi_penal", "283"), ("kodi_penal", "283/a")]
+                if re.search(r"kultiv|mbjell|bim[ëe]t?\b|fidan", _fold(facts or "")):
+                    _semi_nk.append(("kodi_penal", "284"))
+                for code, num in _semi_nk:
+                    t = _article_text(index, code, num)
+                    if t:
+                        add(code, num, t)
+    except Exception:  # noqa: BLE001
+        pass
     terms = _expand_terms(backend, facts, lang)
     query = (facts or "") + " " + " ".join(terms)
     # v9.397 — misurato su 12 casi penali tipici (6 AL, 6 IT: la norma del reato fra gli articoli dati al modello):
@@ -355,6 +460,8 @@ def retrieve_grounded(backend, index, facts, seed_pairs=None, max_arts=16):
     for term in terms:
         for c, n, h in _heading_scan_rank(index, term):
             add(c, n, h)
+        for c, n, h in _teste_di_sezione(index, term):       # v9.399: la figura generale in testa alla sezione
+            add(c, n, h)
         if len(arts) >= max_arts:
             break
     if len(arts) < max_arts:
@@ -365,7 +472,12 @@ def retrieve_grounded(backend, index, facts, seed_pairs=None, max_arts=16):
                     break
         except Exception:  # noqa: BLE001
             pass
-    return arts[:max_arts]
+    arts = arts[:max_arts]
+    try:
+        arts = arts + _rinvii_interni(index, arts, lang)          # v9.399: i rinvii espliciti allo stesso atto
+    except Exception:  # noqa: BLE001
+        pass
+    return arts
 
 
 def _grounded_articles(index, tpl, facts):
@@ -420,15 +532,68 @@ def _system(tpl) -> str:
     )
 
 
+_MAX_ART_BLOCCO = 3500
+_MAX_TOT_BLOCCO = 42000
+
+
+def _lbl_it(c):
+    try:
+        from .citation_verifier import CODE_LABELS
+        if CODE_LABELS.get(c):
+            return CODE_LABELS[c]
+    except Exception:  # noqa: BLE001
+        pass
+    return c.replace("_", " ")
+
+
+def etichetta_al(c) -> str:
+    """v9.399 — l'etichetta leggibile del codice albanese nel blocco: prima, fuori dai 6 codici di `_LABEL`, passava
+    l'identificativo interno e il modello lo copiava NELL'ATTO («[ligji_kadastra neni 14]», «[ligji_procedurat_tatimore
+    neni 59]» in una compravendita notarile). Riserva: le etichette del verificatore («Ligji Kadastra 111/2018»)."""
+    if _LABEL.get(c):
+        return _LABEL[c]
+    try:
+        from .citation_verifier import CODE_LABELS
+        if CODE_LABELS.get(c):
+            return CODE_LABELS[c]
+    except Exception:  # noqa: BLE001
+        pass
+    return c.replace("_", " ")
+
+
+def blocco_articoli(arts, lang: str = "sq", vuoto: str = "", max_art: int | None = None, max_tot: int | None = None) -> str:
+    """v9.399 — il blocco degli articoli per i prompt degli strumenti PRO (notaio, lettere, perizie): il testo arriva fino a
+    3.500 caratteri (prima 900: al notaio il KC 361 arrivava senza la frase sul coniuge «Në çdo rast bashkëshorti merr 1/2…» e
+    la successione doveva scrivere «il testo è troncato, verificalo») con l'avviso del taglio, e le etichette della sessione
+    («art.» in italiano, «neni» in albanese). Stessa regola del procuratore (v9.397)."""
+    out, tot = [], 0
+    _cap, _tot_max = (max_art or _MAX_ART_BLOCCO), (max_tot or _MAX_TOT_BLOCCO)
+    for c, n, t in arts:
+        t = (t or "").strip()
+        cap = _cap if tot < _tot_max else 400
+        testo = t[:cap]
+        if len(t) > cap:
+            testo += ((" […testo tagliato qui: altri %d caratteri — non completarlo a memoria]" if lang == "it"
+                       else " […teksti u shkurtua këtu: edhe %d karaktere — mos e plotëso nga kujtesa]") % (len(t) - cap))
+        tot += len(testo)
+        out.append(("• [%s art. %s] %s" % (_lbl_it(c), n, testo)) if lang == "it"
+                   else ("• [%s neni %s] %s" % (etichetta_al(c), n, testo)))
+    if out:
+        return "\n".join(out)
+    return vuoto or ("(nessun articolo trovato — descrivi a parole, non inventare)" if lang == "it"
+                     else "(asnjë nen i gjetur — përshkruaj me fjalë, mos shpik)")
+
+
+def _lang_indice(index) -> str:
+    return "it" if getattr(index, "lang", "sq") == "it" else "sq"
+
+
 def analyze(backend, index, *, case_type: str, facts: str, max_tokens: int = 2800) -> dict:
     tpl = TEMPLATES.get(case_type)
     if tpl is None:
         raise ValueError("unknown case_type")
     arts = retrieve_grounded(backend, index, facts, seed_pairs=tpl.get("primary_articles"))
-    art_block = "\n".join(
-        "\u2022 [%s neni %s] %s" % (_LABEL.get(c, c), n, (t or "").strip()[:900])
-        for c, n, t in arts
-    ) or "(asnjë nen i gjetur — përshkruaj me fjalë, mos shpik)"
+    art_block = blocco_articoli(arts, _lang_indice(index))      # v9.399: 3.500 caratteri, etichette della sessione
     scaffold = (
         "STRUKTURA E PRITSHME:\n"
         "- Elementet tipike: " + "; ".join(tpl["elements"]) + "\n"

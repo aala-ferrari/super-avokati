@@ -350,6 +350,11 @@ def _titolo_con_intestazione(line: str, tail: str) -> str:
     DHE / …») e prima se ne prendeva solo la prima riga (35 capitoli troncati a «… DHE», «… PËR TË»): si continua
     finché le righe sono in MAIUSCOLO (il titolo), mai oltre 3 righe né dentro un articolo o una nota «(Shtuar …)»."""
     righe = [ln.strip() for ln in tail.splitlines() if ln.strip()]
+    # v9.399: una nota di modifica subito dopo l'intestazione («KREU XVII / (Ndryshuar titulli me ligjin nr. 9125 …)») NON è
+    # il titolo: si salta (resta «(Shfuqizuar …)», che dice qualcosa del capitolo). Nel consolidato del Codice del lavoro i
+    # titoli dei capitoli mancano del tutto: «KREU XIV / Neni 140» → «KREU XIV», mai «— Neni 140».
+    while righe and re.match(r"\((?:Ndryshuar|Shtuar|Hequr)\b", righe[0], re.I):
+        righe = righe[1:]
     if not righe or HIERARCHY_RE.match(righe[0]) or ARTICLE_RE.match(righe[0]):
         return line
     titolo = [righe[0]]

@@ -139,7 +139,10 @@ ANCORE_AL: tuple = (
     # 5 volte su 6 in un licenziamento dopo 3 anni — soldi del cliente che la risposta non chiedeva
     ((("zgjidh", "kontrat", "pun", "vjet"), ("zgjidh", "kontrat", "pun", "vite"), ("pushu", "pun", "vjet"), ("pushu", "pun", "vite"),
       ("pushim nga pun", "vjet"), ("pushim nga pun", "vite"), ("pushoi", "vjet"), ("pushoi", "vit"), "vjetërsi"),
-     ("Penal",), (("kodi_punes", "152"),)),
+     # v9.399: la regola di BASE è il KP 145 (contratto a tempo indeterminato risolto dal datore: dopo 3 anni, 15 giorni
+     # di paga per anno); il 152 sta nella sezione dei contratti A TERMINE e rinvia al 145 — prima entrava solo il 152
+     # (trovato dal Giudice nell'audit AL del 28 set: «vjetërsia: baza është neni 145, jo 152»)
+     ("Penal",), (("kodi_punes", "145"), ("kodi_punes", "152"))),
 )
 # v9.380 — ancore italiane di REGOLA GENERALE (stesso metro): «il credito risale al 2013 — è prescritto?» → il triage cerca
 # ordinaria + interruzione + sospensione e il 2946 c.c. «Prescrizione ordinaria» finiva oltre il 12° (2945, 2935, 2964 sopra).
@@ -769,6 +772,41 @@ def apply_current(system_prompt: str) -> str:
     return apply_jurisdiction(system_prompt, request_jurisdiction())
 
 
+# Etichette LETTERALI dei prompt albanesi delle fasi (v9.345) che il modello
+# COPIA nel testo: in sessione IT il radar di nullità ha scritto «AFATI: il
+# termine…» dentro una scheda italiana (audit v9.399). Le parole che il prompt
+# chiede di scrivere tali e quali si danno già in italiano; il resto del prompt
+# resta com'è. Ogni chiave deve esistere nel suo prompt (golden [156]).
+_ETICHETTE_IT = (
+    # EVIDENCE_MAP_SYSTEM — la catena scritta nelle "notes"
+    ("«Kushti: … (neni …) → kush e provon → fakti i nevojshëm → prova → PASOJA nëse mungon: humbet pretendimi / bie mbrojtja /\n"
+     "  zbatohet prezumimi ligjor / mund të sanohet brenda … / barra zhvendoset»",
+     "«Requisito: … (art. …) → chi lo prova → fatto necessario → prova → CONSEGUENZA se manca: cade la domanda / cade la difesa /\n"
+     "  si applica la presunzione legale / sanabile entro … / l'onere si sposta»"),
+    ("«VENDIMTAR:»", "«DECISIVO:»"),
+    # NULLITY_RADAR_SYSTEM — i sei effetti contrari di ogni leva
+    ("(1) AFATI brenda", "(1) TERMINE — afati brenda"),
+    ("(2) PRESUPOZIMET dhe PROVAT që duhen", "(2) PRESUPPOSTI E PROVE — presupozimet dhe provat që duhen"),
+    ("(3) a mund ta SANOJË pala", "(3) SANABILITÀ — a mund ta sanojë pala"),
+    ("(4) PAPAJTUESHMËRIA me", "(4) INCOMPATIBILITÀ — papajtueshmëria me"),
+    ("(5) HEQJET DORË, PREKLUZIONET ose KOSTOT që sjell",
+     "(5) RINUNCE, PRECLUSIONI O COSTI — heqjet dorë, prekluzionet ose kostot që sjell"),
+    ("(6) DOBIA REALE për", "(6) UTILITÀ REALE — dobia reale për"),
+    ("«MOS E\n  PËRDOR nëse …»", "«NON USARLA se …»"),
+    # MISSING_FACTS_SYSTEM — il fatto che cambia di più la strategia
+    ("«PARË:» dhe thotë", "«PRIORITARIO:» dhe thotë"),
+    ("«PARË: nga data e marrjes\n  së njoftimit varet nëse afati 30-ditor ka kaluar — skenari A: … / skenari B: …»",
+     "«PRIORITARIO: dalla data di ricezione\n  della notifica dipende se il termine di 30 giorni è decorso — scenario A: … / scenario B: …»"),
+)
+
+
+def _etichette_it(system_prompt: str) -> str:
+    for sq, it in _ETICHETTE_IT:
+        if sq in system_prompt:
+            system_prompt = system_prompt.replace(sq, it)
+    return system_prompt
+
+
 def apply_jurisdiction(system_prompt: str, jurisdiction: str | None) -> str:
     """Wrap a system prompt with the jurisdiction context.
 
@@ -785,7 +823,7 @@ def apply_jurisdiction(system_prompt: str, jurisdiction: str | None) -> str:
     if j == "IT":
         if JURISDICTION_OVERRIDE_IT in system_prompt:
             return system_prompt
-        return pre + system_prompt + JURISDICTION_OVERRIDE_IT
+        return pre + _etichette_it(system_prompt) + JURISDICTION_OVERRIDE_IT
     if j == "EU":
         if JURISDICTION_OVERRIDE_EU in system_prompt:
             return system_prompt
@@ -937,7 +975,8 @@ KONTROLLO çdo nen të dhënë për këto tetë kënde strategjike:
    shpesh barrën mbi palën e fortë (punëdhënësi, kompania). Kjo ndryshon gjithçka.
 
 5. RRETHANA RËNDUESE / LEHTËSUESE (raste penale) — këto mund të ulin dënimin
-   me vite ose ta mbyllin çështjen pa dënim (p.sh. Neni 48-51 Kodi Penal).
+   me vite ose ta mbyllin çështjen pa dënim (p.sh. nenet 48-49 të Kodit Penal — rrethanat
+   lehtësuese; neni 50 — ato rënduese; neni 51 — dënimi për të miturit).
 
 6. LIDHJE CROSS-CODE — a ka nen tjetër nga kod tjetër (sidomos procedural) që
    aplikohet në të njëjtin fakt dhe ndryshon rezultatin?
@@ -1091,7 +1130,7 @@ FORMATI — VETËM JSON, në shqip:
 RREGULLA:
 • MINIMUM 2, MAKSIMUM 6 kërkesa (claims). Renditi nga më thelbësorja.
 • Bazë vetëm mbi faktet e rastit dhe nenet e dhëna. Mos shpik.
-• KUR burden_shift=true, shpjego në notes PSE (p.sh. "Neni 75 Kodi i Punës — punëdhënësi duhet të provojë shkakun e ligjshëm").
+• KUR burden_shift=true, shpjego në notes PSE (p.sh. "neni 144, pika 5/1, i Kodit të Punës — punëdhënësi duhet të provojë respektimin e procedurës së zgjidhjes"; "neni 9 i Kodit të Punës — në diskriminim, i padituri provon se nuk e ka shkelur trajtimin e barabartë").
 • Nëse nga faktet del se klienti yt e ka provën, shkruaj status="kemi" dhe shpjego. Nëse s'thuhet asgjë, shkruaj "mungon".
 • ZINXHIRI QË VENDOS KAUZËN (v9.345): çdo claim është një KUSHT LIGJOR i pretendimit ose i mbrojtjes. Në "notes" shkruaj zinxhirin
   të plotë: «Kushti: … (neni …) → kush e provon → fakti i nevojshëm → prova → PASOJA nëse mungon: humbet pretendimi / bie mbrojtja /

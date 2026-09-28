@@ -540,9 +540,8 @@ def list_kinds(jurisdiction: str | None = None) -> list[dict]:
 
 def _art_block(backend, index, text, seeds):
     arts = _expertise.retrieve_grounded(backend, index, text, seed_pairs=seeds)
-    block = "\n".join("• [%s neni %s] %s" % (
-        _expertise._LABEL.get(c, c), n, (t or "").strip()[:900]) for c, n, t in arts)
-    return block or "(asnjë nen i gjetur — përshkruaj me fjalë, mos shpik)", arts
+    # v9.399: il testo fino a 3.500 caratteri (prima 900) e le etichette della sessione («art.» in IT)
+    return _expertise.blocco_articoli(arts, _expertise._lang_indice(index)), arts
 
 
 _FORMS = {

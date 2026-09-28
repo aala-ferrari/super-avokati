@@ -26,7 +26,8 @@ def post(path, payload, timeout=900, headers=None):
 _ts = int(time.time())
 EMAIL, CODE = f"audit-al-{_ts}@superavokati.test", f"Audit-{_ts}"
 atexit.register(lambda: __import__("src.storage", fromlist=["delete_user"]).delete_user(EMAIL))
-post("/api/provision-demo", {"email": EMAIL, "code": CODE, "hours": 6},
+post("/api/provision-demo", {"email": EMAIL, "code": CODE, "hours": 6,
+                            "modules": ["avokat", "prokuror", "noter"]},
      headers={"X-Provision-Secret": os.environ.get("DEMO_PROVISION_SECRET", "")})
 post("/api/login", {"username": EMAIL, "password": CODE, "lang": "sq"})
 case = post("/api/cases", {"title": "Kontroll i veglave AL"})

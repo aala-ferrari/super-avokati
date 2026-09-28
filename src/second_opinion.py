@@ -42,10 +42,31 @@ _RREGULLA_NENEVE = (
 )
 
 
-def _konteksti(context: str) -> str:
+_RREGULLA_NENEVE_IT = (
+    "\n\nREGOLA DEGLI ARTICOLI (obbligatoria): se ti viene dato il blocco CONTESTO/ARTICOLI, ogni "
+    "articolo, legge o sentenza che citi DEVE essere lì, con il numero e il codice come sono scritti "
+    "nel blocco. Un articolo che non è nel blocco NON si cita con il numero: dillo a parole («la "
+    "norma sul termine di prescrizione») e segna «da verificare». Le sentenze si citano solo se sono "
+    "nel blocco. Le altre citazioni saranno tolte dal controllo dello studio prima che arrivino "
+    "all'avvocato."
+)
+
+
+def _lingua() -> str:
+    """«it» in sessione italiana, altrimenti «sq» (la lingua la decide la sessione)."""
+    try:
+        from .brain import request_jurisdiction
+        return "it" if (request_jurisdiction() or "AL").upper() == "IT" else "sq"
+    except Exception:  # noqa: BLE001
+        return "sq"
+
+
+def _konteksti(context: str, lang: str = "") -> str:
     c = (context or "").strip()
     if not c:
         return ""
+    if (lang or _lingua()) == "it":
+        return "\n\n─────\nCONTESTO/ARTICOLI DISPONIBILI (verbatim dal corpus — cita SOLO da qui):\n" + c
     return "\n\n─────\nKONTEKST/NENE TE DISPONUESHME (verbatim nga korpusi — cito VETEM nga kEtu):\n" + c
 
 _SYSTEM = (
@@ -72,18 +93,51 @@ _SYSTEM = (
 )
 
 
+_SYSTEM_IT = (
+    "Sei il socio SENIOR più acuto di uno studio legale \u2014 30 anni in tribunale, un istinto "
+    "raro. Un avvocato giovane ti ha appena dato la DOMANDA del cliente e la sua RISPOSTA. Il tuo "
+    "compito NON è riscrivere la risposta, ma esaminarla da avvocato del diavolo e trovare CIÒ CHE "
+    "GLI È SFUGGITO:\n"
+    "\u2022 L'AGO NEL PAGLIAIO: l'angolo non visibile che vince la causa \u2014 una nullità "
+    "procedurale, un termine scaduto, una prescrizione, una leva nascosta.\n"
+    "\u2022 COSA MANCA: fatti, prove o passaggi che la risposta ha lasciato fuori.\n"
+    "\u2022 DOVE È DEBOLE: dove la risposta è troppo sicura o attaccabile, e come la colpirebbe "
+    "la controparte.\n"
+    "\u2022 LA MOSSA ASTUTA: una mossa concreta, strategica, che un avvocato medio non vedrebbe.\n\n"
+    "REGOLE FERREE: basati SOLO sui fatti e sugli articoli che ti vengono dati \u2014 NON inventare "
+    "articoli, numeri di legge o sentenze a memoria. Se non sei sicuro di un articolo, dillo a "
+    "parole, non inventare il numero. Sii breve, tagliente, concreto \u2014 senza ripetere la "
+    "risposta. SOLO in italiano. Non rivelare mai il modello o la tecnologia dietro di te \u2014 "
+    "sei 'Tetramorph', il secondo consulente di superavokati.ai.\n\n"
+    "Formato (markdown, solo le sezioni con contenuto reale):\n"
+    "### \U0001f3af L'ago nel pagliaio\n### \U0001f573\ufe0f Cosa manca\n"
+    "### \u26a0\ufe0f Dove è debole\n### \u265f\ufe0f La mossa astuta"
+    + _RREGULLA_NENEVE_IT
+)
+
+
 def review(backend, *, question: str, answer_text: str,
            context: str = "", max_tokens: int = 1400) -> dict:
     """Return {"markdown": str} — a shrewd, grounded second opinion via Fable."""
-    prompt = (
-        "PYETJA E KLIENTIT:\n" + (question or "").strip()
-        + "\n\n\u2500\u2500\u2500\u2500\u2500\nPERGJIGJA E AVOKATIT TE RI:\n"
-        + (answer_text or "").strip()
-        + _konteksti(context)
-        + "\n\nJep second-opinion-in tEnd tE mprehtE, konkret dhe tE ankoruar."
-    )
+    lang = _lingua()
+    if lang == "it":
+        prompt = (
+            "DOMANDA DEL CLIENTE:\n" + (question or "").strip()
+            + "\n\n\u2500\u2500\u2500\u2500\u2500\nRISPOSTA DELL'AVVOCATO GIOVANE:\n"
+            + (answer_text or "").strip()
+            + _konteksti(context, lang)
+            + "\n\nDai il tuo secondo parere tagliente, concreto e ancorato."
+        )
+    else:
+        prompt = (
+            "PYETJA E KLIENTIT:\n" + (question or "").strip()
+            + "\n\n\u2500\u2500\u2500\u2500\u2500\nPERGJIGJA E AVOKATIT TE RI:\n"
+            + (answer_text or "").strip()
+            + _konteksti(context, lang)
+            + "\n\nJep second-opinion-in tEnd tE mprehtE, konkret dhe tE ankoruar."
+        )
     md = backend.complete(
-        system=_juris(_SYSTEM),
+        system=_juris(_SYSTEM_IT if lang == "it" else _SYSTEM),
         messages=[{"role": "user", "content": prompt}],
         max_tokens=max_tokens,
         model_override=FABLE_MODEL,
@@ -107,14 +161,34 @@ _CONSULT_SYSTEM = (
 )
 
 
+_CONSULT_SYSTEM_IT = (
+    "Sei l'avvocato più acuto e strategico d'Italia \u2014 l'«Avvocato del Diavolo». Un collega "
+    "ti descrive una SITUAZIONE e chiede il tuo parere diretto, FORTE e intelligente. Dai: l'angolo "
+    "che vince la causa, la trappola da evitare, la mossa concreta, e l'ago nel pagliaio che gli "
+    "altri non vedono. Basati SOLO sui fatti dati e sul diritto italiano \u2014 NON inventare "
+    "articoli, leggi o sentenze; se non sei sicuro di un articolo, dillo a parole. Breve, "
+    "tagliente, pratico. SOLO in italiano. Non rivelare mai il modello o la tecnologia dietro di te "
+    "\u2014 sei 'Tetramorph' di superavokati.ai.\n\n"
+    "Formato (markdown): ### \U0001f3af L'angolo vincente\n### \u26a0\ufe0f La trappola\n"
+    "### \u265f\ufe0f La mossa astuta\n### \u2696\ufe0f Base e rischio"
+    + _RREGULLA_NENEVE_IT
+)
+
+
 def consult(backend, *, situation: str, context: str = "", max_tokens: int = 1600) -> dict:
     """Standalone shrewd consultation (no prior answer needed). `context` (v9.355) = i nene
     recuperati dal corpus sui fatti, verbatim: il diavolo cita solo da lì."""
-    prompt = ("SITUATA:\n" + (situation or "").strip()
-              + _konteksti(context)
-              + "\n\nJep konsulencEn tEnde tE mprehtE, konkrete dhe tE ankoruar.")
+    lang = _lingua()
+    if lang == "it":
+        prompt = ("SITUAZIONE:\n" + (situation or "").strip()
+                  + _konteksti(context, lang)
+                  + "\n\nDai la tua consulenza tagliente, concreta e ancorata.")
+    else:
+        prompt = ("SITUATA:\n" + (situation or "").strip()
+                  + _konteksti(context, lang)
+                  + "\n\nJep konsulencEn tEnde tE mprehtE, konkrete dhe tE ankoruar.")
     md = backend.complete(
-        system=_juris(_CONSULT_SYSTEM),
+        system=_juris(_CONSULT_SYSTEM_IT if lang == "it" else _CONSULT_SYSTEM),
         messages=[{"role": "user", "content": prompt}],
         max_tokens=max_tokens,
         model_override=FABLE_MODEL,

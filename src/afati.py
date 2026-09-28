@@ -27,7 +27,7 @@ TRIGGERS = {
         "q": "arrest ndalim vleftësim marrje në pyetje afat masë sigurimi"},
     "mase_sigurimi": {
         "label": "Caktim i masës së sigurimit",
-        "seed": [(K, "249"), (K, "262"), (K, "246"), (K, "250")],
+        "seed": [(K, "249"), (K, "263"), (K, "262"), (K, "246"), (K, "250")],   # v9.399: + 263 (durata)
         "q": "masë sigurimi ankim afat rivlerësim"},
     "fillim_hetimi": {
         "label": "Fillim i hetimit paraprak",
@@ -39,21 +39,80 @@ TRIGGERS = {
         "q": "ankim kundër pushimit afat i dëmtuari"},
     "vendim_penal": {
         "label": "Njoftim i vendimit penal (gjykata)",
-        "seed": [(K, "410"), (K, "147")],
+        "seed": [(K, "415"), (K, "435"), (K, "410"), (K, "147")],   # v9.399: + 415 (15 ditë) e 435 (rekurs 45 ditë)
         "q": "afati i ankimit apel rekurs vendim penal rivendosje në afat"},
     "vendim_civil": {
         "label": "Njoftim i vendimit civil (gjykata)",
-        "seed": [("kodi_proc_civile", "443"), ("kodi_proc_civile", "451")],
+        "seed": [("kodi_proc_civile", "443"), ("kodi_proc_civile", "444"), ("kodi_proc_civile", "445"),
+                 ("kodi_proc_civile", "451"), ("kodi_proc_civile", "148"), ("kodi_proc_civile", "151"),
+                 ("kodi_proc_civile", "496")],
+        # v9.399: + 444 (dal giorno dopo) e 445; + 148 (calcolo e giorno festivo), 151 (rimessione nel termine), 496
+        # (revisione: 30 giorni dalla conoscenza del motivo) — l'audit del 28 set li diceva «non nel corpus» perché non
+        # arrivavano al modello
         "q": "afati i ankimit apel rekurs vendim civil"},
     "kontrate": {
         "label": "Kontratë / detyrim (parashkrim civil)",
-        "seed": [(KC, "124"), (KC, "128"), (KC, "129"), (KC, "131")],
+        "seed": [(KC, "114"), (KC, "115"), (KC, "117"), (KC, "118"), (KC, "129"), (KC, "131")],  # v9.399: la regola generale
         "q": "parashkrim afat civil detyrimi"},
     "tjeter": {
         "label": "Tjetër (përshkruaje ngjarjen)",
         "seed": [],
         "q": "afat procedural"},
 }
+
+# v9.399 — sessione IT: semi, termini di ricerca ed etichette italiane per gli stessi eventi (verificati sul corpus)
+_CPP, _CPC, _CC = "codice_procedura_penale", "codice_procedura_civile", "codice_civile"
+TRIGGERS_IT = {
+    "arrestim": {"label": "Arresto o fermo della persona",
+                 "seed": [(_CPP, "386"), (_CPP, "390"), (_CPP, "391"), ("costituzione", "13")],
+                 "q": "convalida arresto fermo quarantotto ore udienza di convalida"},
+    "mase_sigurimi": {"label": "Applicazione di una misura cautelare",
+                      "seed": [(_CPP, "294"), (_CPP, "303"), (_CPP, "309"), (_CPP, "310"), (_CPP, "311")],
+                      "q": "misura cautelare riesame appello termini di durata massima custodia interrogatorio"},
+    "fillim_hetimi": {"label": "Inizio delle indagini preliminari",
+                      "seed": [(_CPP, "405"), (_CPP, "406"), (_CPP, "407"), (_CPP, "415-bis")],
+                      "q": "termini indagini preliminari proroga durata massima avviso di conclusione"},
+    "vendim_pushimi": {"label": "Richiesta o decreto di archiviazione",
+                       "seed": [(_CPP, "408"), (_CPP, "409"), (_CPP, "410"), (_CPP, "411")],
+                       "q": "archiviazione opposizione persona offesa termine avviso"},
+    "vendim_penal": {"label": "Notificazione della sentenza penale",
+                     "seed": [(_CPP, "585"), (_CPP, "593"), (_CPP, "606"), (_CPP, "175")],
+                     "q": "termini per l'impugnazione appello ricorso per cassazione restituzione nel termine"},
+    "vendim_civil": {"label": "Notificazione della sentenza civile",
+                     "seed": [(_CPC, "325"), (_CPC, "326"), (_CPC, "327"), (_CPC, "339"), (_CPC, "360")],
+                     "q": "termini per le impugnazioni appello ricorso per cassazione notificazione termine lungo"},
+    "kontrate": {"label": "Contratto / obbligazione (prescrizione civile)",
+                 "seed": [(_CC, "2935"), (_CC, "2943"), (_CC, "2945"), (_CC, "2946"), (_CC, "2947"), (_CC, "2948")],
+                 "q": "prescrizione decorrenza interruzione sospensione"},
+    "tjeter": {"label": "Altro (descrivi l'evento)", "seed": [], "q": "termine processuale"},
+}
+
+_SYSTEM_IT = (
+    "Sei un esperto di procedura italiana che costruisce l'ELENCO COMPLETO DEI TERMINI che nascono da "
+    "un evento iniziale. Basati SOLO sulla data dell'evento, sulla data di oggi e sugli ARTICOLI del "
+    "corpus (testo vigente). REGOLA D'ORO: il numero di giorni/mesi PRENDILO dal testo REALE "
+    "dell'articolo; se il termine non risulta chiaramente dagli articoli dati, SCRIVI 'verifica il "
+    "termine all'art. X' e NON inventarlo. NON calcolare TU la data di scadenza: dai la REGOLA (da-data "
+    "+ quanti giorni/mesi/anni), la data la calcola la macchina in modo DETERMINISTICO. Dai (markdown):\n"
+    "### 📅 Termini che nascono da questo evento\n"
+    "| Termine | Base giuridica (articolo) | Da quale data | Giorni/mesi | Data di scadenza | Azione |\n"
+    "|---|---|---|---|---|---|\n"
+    "…una riga per ogni termine; in 'Data di scadenza' scrivi '→ vedi il Calcolo verificato', NON "
+    "mettere una data calcolata da te…\n\n"
+    "### ⚠️ Attenzione — sospensioni, restituzione nel termine e cosa verificare\n\n"
+    "POI, in fondo, per OGNI termine dai UNA SOLA riga leggibile dalla macchina (nient'altro nella "
+    "riga). Dai la REGOLA, non la data di scadenza. Formato esatto (le parole-chiave della riga "
+    "restano queste):\n"
+    "AFAT | <titolo breve> | trigger=<YYYY-MM-DD> | durata=<numero> | njesi=<giorni|giorni_lavorativi|mesi|anni> | feriale=<0|1> | baza=<articolo>\n"
+    "  · trigger = la data da cui decorre il termine (data dell'evento o della notificazione)\n"
+    "  · durata+njesi PRENDILI dal testo REALE dell'articolo (es. '30 giorni' → durata=30 njesi=giorni)\n"
+    "  · feriale=1 per i termini processuali soggetti alla sospensione feriale (1-31 agosto, L. "
+    "742/1969); feriale=0 per quelli che non lo sono (per esempio i procedimenti cautelari, i termini "
+    "con persone detenute, le cause di lavoro — verifica) e per i termini sostanziali\n"
+    "  · se la data del trigger è sconosciuta, NON dare la riga AFAT (descrivila solo nella tabella)\n\n"
+    "AUSILIO — il professionista verifica e conferma ogni termine prima di salvarlo. SOLO in "
+    "italiano. Sei 'Tetramorph' di superavokati.ai; non rivelare il modello."
+)
 
 # formato VECCHIO (fallback / retro-compatibilità): AFAT | titolo | YYYY-MM-DD
 _AFAT_RE = re.compile(r"^\s*AFAT\s*\|\s*(.+?)\s*\|\s*(\d{4}-\d{2}-\d{2})\s*$", re.MULTILINE)
@@ -84,12 +143,13 @@ def _today() -> str:
 
 def compute(backend, index, *, trigger: str, event_date: str = "", facts: str = "",
             jurisdiction: str = "AL", max_tokens: int = 2600) -> dict:
-    cfg = TRIGGERS.get(trigger) or TRIGGERS["tjeter"]
+    _lang = "it" if (jurisdiction or "AL").upper() == "IT" else "sq"
+    _tab = TRIGGERS_IT if _lang == "it" else TRIGGERS
+    cfg = _tab.get(trigger) or _tab["tjeter"]
     query = (facts or "") + " " + cfg["label"] + " " + cfg["q"]
     arts = _expertise.retrieve_grounded(backend, index, query, seed_pairs=cfg["seed"])
-    art_block = "\n".join("• [%s neni %s] %s" % (
-        _expertise._LABEL.get(c, c), n, (t or "").strip()[:900]) for c, n, t in arts) \
-        or "(asnjë nen i gjetur — mos shpik afate)"
+    from .deadlines import _blocco     # stesso blocco della prescrizione: etichette della sessione, 3.500 caratteri
+    art_block = _blocco(arts, _lang)
     system = (
         "Ti je ekspert i procedurës shqiptare që ndërton LISTËN E PLOTË TË AFATEVE procedurale që "
         "lindin nga një ngjarje-nisëse. Bazohu VETËM te data e ngjarjes, te data e sotme dhe te NENET "
@@ -119,10 +179,17 @@ def compute(backend, index, *, trigger: str, event_date: str = "", facts: str = 
               + ("\n\nDETAJE: " + facts.strip() if (facts or "").strip() else "")
               + "\n\n─────\nNENET NGA KORPUSI (cito vetëm këto):\n" + art_block
               + "\n\nNdërto listën e plotë të afateve dhe rreshtat AFAT | … | … në fund.")
+    if _lang == "it":
+        system = _SYSTEM_IT
+        prompt = ("EVENTO INIZIALE: " + cfg["label"]
+                  + "\nDATA DELL'EVENTO: " + (event_date or "[sconosciuta — usa [___]]")
+                  + "\nDATA DI OGGI: " + _today()
+                  + ("\n\nDETTAGLI: " + facts.strip() if (facts or "").strip() else "")
+                  + "\n\n─────\nARTICOLI DAL CORPUS (cita solo questi):\n" + art_block
+                  + "\n\nCostruisci l'elenco completo dei termini e le righe AFAT | … | … in fondo.")
     md = backend.complete(system=system, messages=[{"role": "user", "content": prompt}],
                           max_tokens=max_tokens, callsite="afati")
     md = md or ""
-    _lang = "it" if (jurisdiction or "AL").upper() == "IT" else "sq"
     afatet: list[dict] = []
     calc: list[str] = []
     # 1) rreshtat me RREGULL → il motore DETERMINISTICO calcola la data

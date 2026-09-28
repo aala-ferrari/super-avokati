@@ -112,7 +112,9 @@ def triage(backend, index, *, story: str, max_tokens: int = 2200) -> dict:
                   + "\n\n─────\nARTICOLI POSSIBILI DAL CORPUS (solo come contesto — non inventarne altri):\n"
                   + ctx + "\n\nDai l'orientamento e il token [ROUTE: ...] alla fine.")
     else:
-        ctx = "\n".join("• [%s neni %s] %s" % (_LBL.get(c, c), n, (h or "").strip()[:160])
+        # v9.399: l'etichetta leggibile per TUTTI i codici (prima, fuori dai 6 di `_LABEL`, passava l'identificativo interno
+        # e il cittadino leggeva «[ligji_konsumatoret neni 30]»)
+        ctx = "\n".join("• [%s neni %s] %s" % (_expertise.etichetta_al(c), n, (h or "").strip()[:160])
                         for c, n, h in arts) or "(pa nene — jep orientim me fjalë)"
         prompt = ("RRËFIMI I QYTETARIT:\n" + (story or "").strip()
                   + "\n\n─────\nNENE TË MUNDSHME NGA KORPUSI (vetëm si kontekst — mos shpik të tjera):\n"
