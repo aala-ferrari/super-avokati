@@ -1,11 +1,12 @@
 <!DOCTYPE html>
-<html lang="sq">
+{% set IT = (lang == "it") %}
+<html lang="{{ 'it' if IT else 'sq' }}">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="theme-color" content="#0a0a0a" />
 <meta name="robots" content="noindex,nofollow" />
-<title>Kërkesë për konsultë — {{ firm.name }}</title>
+<title>{{ "Richiesta di consulenza" if IT else "Kërkesë për konsultë" }} — {{ firm.name }}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet" />
@@ -209,39 +210,41 @@
   .hidden { display: none; }
 </style>
 </head>
-<body data-firm-slug="{{ firm_slug }}">
+<body data-firm-slug="{{ firm_slug }}" data-lang="{{ 'it' if IT else 'sq' }}">
 
 <header class="intake-hero">
-  <div class="intake-brand">Studio Ligjore</div>
+  <div class="intake-brand">{{ "Studio legale" if IT else "Studio Ligjore" }}</div>
   <h1 class="intake-title">{{ firm.name }}</h1>
   <p class="intake-sub">
-    Përshkruani problemin tuaj me fjalët tuaja. Avokati do t'ju kontaktojë sa
-    më shpejt të jetë e mundur. Të gjitha të dhënat trajtohen me konfidencialitet.
+    {% if IT %}Descriva il suo problema con parole sue. L'avvocato la contatterà il prima possibile. I dati sono trattati
+    con riservatezza.{% else %}Përshkruani problemin tuaj me fjalët tuaja. Avokati do t'ju kontaktojë sa
+    më shpejt të jetë e mundur. Të gjitha të dhënat trajtohen me konfidencialitet.{% endif %}
   </p>
 </header>
 
 <main class="intake-main">
 
   <div id="intake-form-card" class="intake-card">
-    <div class="intake-step">📝 Kërkesa juaj</div>
-    <h2 class="intake-h2">Më tregoni se çfarë po ndodh</h2>
+    <div class="intake-step">📝 {{ "La sua richiesta" if IT else "Kërkesa juaj" }}</div>
+    <h2 class="intake-h2">{{ "Ci racconti che cosa sta succedendo" if IT else "Më tregoni se çfarë po ndodh" }}</h2>
     <p class="intake-help">
-      Sa më shumë detaje të jepni (data, palët, dokumentet që keni), aq më mirë
-      do të mund t'ju ndihmojë avokati që në kontakt të parë.
+      {% if IT %}Più dettagli fornisce (date, persone coinvolte, documenti che ha), meglio l'avvocato potrà aiutarla già dal
+      primo contatto.{% else %}Sa më shumë detaje të jepni (data, palët, dokumentet që keni), aq më mirë
+      do të mund t'ju ndihmojë avokati që në kontakt të parë.{% endif %}
     </p>
 
     <div id="intake-error" class="intake-error hidden"></div>
 
     <form id="intake-form" novalidate>
       <div class="intake-field">
-        <label for="contact_name">Emri dhe mbiemri <span class="req">*</span></label>
+        <label for="contact_name">{{ "Nome e cognome" if IT else "Emri dhe mbiemri" }} <span class="req">*</span></label>
         <input id="contact_name" name="contact_name" type="text" autocomplete="name" maxlength="120" required />
       </div>
 
       <div class="intake-row">
         <div class="intake-field">
-          <label for="contact_phone">Telefon</label>
-          <input id="contact_phone" name="contact_phone" type="tel" autocomplete="tel" placeholder="+355 …" maxlength="40" />
+          <label for="contact_phone">{{ "Telefono" if IT else "Telefon" }}</label>
+          <input id="contact_phone" name="contact_phone" type="tel" autocomplete="tel" placeholder="{{ '+39 …' if IT else '+355 …' }}" maxlength="40" />
         </div>
         <div class="intake-field">
           <label for="contact_email">Email</label>
@@ -250,29 +253,32 @@
       </div>
 
       <div class="intake-field">
-        <label for="problem_text">Përshkrimi i problemit <span class="req">*</span></label>
-        <textarea id="problem_text" name="problem_text" required minlength="20" maxlength="6000" placeholder="P.sh. 'Më 12 mars punëdhënësi më pushoi pa preavis. Kam kontratë të rregullt që nga 2022…'"></textarea>
-        <div class="intake-counter"><span id="char-count">0</span> / 6000 karaktere</div>
+        <label for="problem_text">{{ "Descrizione del problema" if IT else "Përshkrimi i problemit" }} <span class="req">*</span></label>
+        <textarea id="problem_text" name="problem_text" required minlength="20" maxlength="6000" placeholder="{{ 'Es. «Il 12 marzo il datore di lavoro mi ha licenziato senza preavviso. Ho un contratto regolare dal 2022…»' if IT else 'P.sh. «Më 12 mars punëdhënësi më pushoi pa paralajmërim. Kam kontratë të rregullt që nga 2022…»' }}"></textarea>
+        <div class="intake-counter"><span id="char-count">0</span> / 6000 {{ "caratteri" if IT else "karaktere" }}</div>
       </div>
 
       <button id="intake-submit" type="submit" class="intake-submit">
-        Dërgo kërkesën →
+        {{ "Invia la richiesta →" if IT else "Dërgo kërkesën →" }}
       </button>
 
       <p class="intake-privacy">
-        Duke dërguar këtë formë, ju lejoni studion {{ firm.name }} të ruajë të
-        dhënat tuaja për qëllime kontakti dhe konsulence ligjore. Nuk i ndajmë
-        me asnjë palë të tretë.
+        {% if IT %}Inviando questo modulo autorizza lo studio {{ firm.name }} a conservare i suoi dati per contattarla e per la
+        consulenza legale. Il testo è analizzato automaticamente dalla piattaforma per preparare il primo contatto; i dati non
+        sono venduti né ceduti a terzi per altri scopi.{% else %}Duke dërguar këtë formë, ju lejoni studion {{ firm.name }} të
+        ruajë të dhënat tuaja për qëllime kontakti dhe konsulence ligjore. Teksti analizohet automatikisht nga platforma për
+        të përgatitur kontaktin e parë; të dhënat nuk u shiten dhe nuk u jepen të tretëve për qëllime të tjera.{% endif %}
       </p>
     </form>
   </div>
 
   <div id="intake-success-card" class="intake-card intake-success-card hidden">
     <div class="intake-success-icon">✅</div>
-    <h2 class="intake-success-title">Kërkesa u dërgua!</h2>
+    <h2 class="intake-success-title">{{ "Richiesta inviata!" if IT else "Kërkesa u dërgua!" }}</h2>
     <p class="intake-success-msg">
-      Faleminderit. Avokati do t'ju kontaktojë në numrin ose email-in që keni
-      lënë. Ruajeni këtë faqe për referencë.
+      {% if IT %}Grazie. L'avvocato la contatterà al numero o all'email che ha lasciato. Conservi questa pagina come
+      riferimento.{% else %}Faleminderit. Avokati do t'ju kontaktojë në numrin ose email-in që keni
+      lënë. Ruajeni këtë faqe për referencë.{% endif %}
     </p>
     <div id="intake-summary" class="intake-help" style="margin-top:18px"></div>
     <div id="intake-tags"></div>
@@ -281,10 +287,11 @@
 </main>
 
 <div class="intake-foot">
-  Powered by <a href="https://github.com/" rel="noopener">Super Avvocato</a> ·
-  Të gjitha të dhënat tuaja janë të enkriptuara dhe vetëm avokati i caktuar mund t'i lexojë.
+  <a href="https://superavokati.ai" rel="noopener">Super Avokati</a> ·
+  {% if IT %}I dati viaggiano cifrati (HTTPS) e li vede solo lo studio a cui li invia.{% else %}Të dhënat udhëtojnë të
+  enkriptuara (HTTPS) dhe i sheh vetëm studio të cilës ia dërgoni.{% endif %}
 </div>
 
-  <script src="/static/intake.js?v=1" defer></script>
+  <script src="/static/intake.js?v=2" defer></script>
 </body>
 </html>

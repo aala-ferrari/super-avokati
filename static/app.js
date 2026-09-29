@@ -704,7 +704,7 @@
   function _vaultFmt(t) {
     return escapeHtml(t || "")
       .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-      .replace(/\[Dok (\d+)\]/g, '<span class="vault-cite">[Dok $1]</span>')
+      .replace(/\[(Do[kc]) (\d+)\]/g, '<span class="vault-cite">[$1 $2]</span>')
       .replace(/\n/g, "<br>");
   }
   async function askVault() {
@@ -721,7 +721,7 @@
       var data = await r.json();
       if (!r.ok) throw new Error(data.error || ("HTTP " + r.status));
       var cites = (data.docs_used || []).map(function (d) {
-        return "[Dok " + d.n + "] " + escapeHtml(d.filename);
+        return (_CAL_IT ? "[Doc " : "[Dok ") + d.n + "] " + escapeHtml(d.filename);
       }).join(" \u00b7 ");
       vaultAnswer.innerHTML = '<div class="vault-ans-text">' + _vaultFmt(data.answer) + "</div>" +
         (cites ? '<div class="vault-cites">\ud83d\udcce ' + cites + "</div>" : "");
@@ -918,10 +918,12 @@
       if (!argstr) {
         try {
           const r = await fetch("/api/cascade/event-types");
-          const { items } = await r.json();
+          const ev = await r.json();
+          if (ev.note) { appendInfoBot(ev.note); return true; }   // v9.400: sessione IT → motore delle scadenze
+          const items = ev.items || [];
           const lines = items.map(t => `• \`${t.key}\` — ${t.label}`).join("\n");
           appendInfoBot(`**${_CAL_IT ? 'Tipi di eventi procedurali' : 'Llojet e ngjarjeve procedurale'}**\n\n${lines}\n\n${_CAL_IT ? 'Usa' : 'Përdor'}: \`/afatet <lloji> [data YYYY-MM-DD]\``);
-        } catch { appendError("Gabim ngarkimi i llojeve."); }
+        } catch { appendError(_CAL_IT ? "Errore nel caricamento dei tipi." : "Gabim ngarkimi i llojeve."); }
         return true;
       }
       const parts = argstr.split(/\s+/);
@@ -938,8 +940,11 @@
         const data = await r.json();
         if (!r.ok) { appendError(data.error || "Gabim"); return true; }
         const head = `**⏳ ${_CAL_IT ? 'Termini procedurali' : 'Afatet procedurale'}** ${_CAL_IT ? 'per' : 'për'} *${escapeHtml(data.event_label || eventType)}* ${_CAL_IT ? 'dal' : 'nga'} **${eventDate}**\n\n`;
-        const rows = (data.deadlines || []).map(d =>
-          `• **${d.label}** — ${_CAL_IT ? 'termine' : 'afati'}: **${d.deadline_date}** (${d.days_from_event} ${_CAL_IT ? 'giorni' : 'ditë'}) · ${d.legal_basis || ""}`
+        // v9.400: l'API restituisce `derived_deadlines` (due_date, days, citation, notes): prima si leggevano campi che
+        // non esistono e il comando rispondeva sempre «Asnjë afat»
+        const rows = (data.derived_deadlines || []).map(d =>
+          `• **${d.label}** — ${_CAL_IT ? 'termine' : 'afati'}: **${d.due_date}** (${d.days} ${_CAL_IT ? 'giorni' : 'ditë'}) · ${d.citation || ""}` +
+          (d.notes ? `\n  _${d.notes}_` : "")
         ).join("\n");
         appendInfoBot(head + (rows || "Asnjë afat."));
       } catch (err) {
@@ -5887,7 +5892,7 @@
       out.innerHTML = renderMarkdown(md || "");
       if (res && res.citations) { highlightNeni(out, buildCitStatusMap(res.citations));
         if (res.citations.stats && res.citations.stats.total > 0) box.insertBefore(renderCitationsBadge(res.citations, null), out); }
-      _addSaveToCase(box, "research", "Fashikull", md || "");
+      _addSaveToCase(box, "research", _CAL_IT ? "Fascicolo" : "Fashikull", md || "");
     }
     // Kronologjia — try cached, then build on click
     var tlBtn = ov.querySelector(".fk-tl-btn"), tlSt = ov.querySelector(".fk-tl-st"), tlRes = ov.querySelector(".fk-tl-res");
@@ -5923,7 +5928,7 @@
       try {
         var r = await fetch("/api/cases/" + activeCaseId + "/vault", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ question: q }) });
         var d = await r.json(); if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
-        askSt.textContent = d.truncated ? ("shfrytëzuar " + d.n_docs + " dok") : "";
+        askSt.textContent = d.truncated ? (_CAL_IT ? ("usati " + d.n_docs + " doc") : ("shfrytëzuar " + d.n_docs + " dok")) : "";
         _render(d, askRes, d.answer);
       } catch (e) { askSt.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; } finally { askBtn.disabled = false; }
     };
@@ -10663,12 +10668,17 @@
   let inboxCurrentTab = "new";
   let inboxLeads = [];
 
+  const _INBOX_IT = !!(document.body && document.body.dataset && document.body.dataset.lang === "it");   // v9.400: locale, non dipende dall'ordine
   const URGENCY_BADGE = {
-    high: { label: "🔴 Urgjente", cls: "u-high" },
-    medium: { label: "🟡 E zakonshme", cls: "u-medium" },
-    low: { label: "🟢 Jo urgjente", cls: "u-low" },
+    high: { label: _INBOX_IT ? "🔴 Urgente" : "🔴 Urgjente", cls: "u-high" },
+    medium: { label: _INBOX_IT ? "🟡 Ordinaria" : "🟡 E zakonshme", cls: "u-medium" },
+    low: { label: _INBOX_IT ? "🟢 Non urgente" : "🟢 Jo urgjente", cls: "u-low" },
   };
-  const SOURCE_BADGE = { web: "🌐 Web", telegram: "✈️ Telegram", manual: "✍️ Manual" };
+  const SOURCE_BADGE = { web: "🌐 Web", telegram: "✈️ Telegram", manual: _INBOX_IT ? "✍️ Manuale" : "✍️ Manual" };
+  // v9.400: l'area del lead è una chiave interna (albanese): si mostra nella lingua della sessione
+  const LEAD_AREA_IT = { familjare: "famiglia", pune: "lavoro", penale: "penale", civile: "civile", tregtare: "commerciale",
+    administrative: "amministrativo", "trashëgimi": "successioni", banimore: "casa e locazioni", konsumatore: "consumatori" };
+  function _leadArea(a) { return _INBOX_IT ? (LEAD_AREA_IT[a] || a) : a; }
 
   function setInboxStatus(msg, kind) {
     if (!inboxStatus) return;
@@ -10731,7 +10741,7 @@
         <div class="inbox-row-head">
           <span class="inbox-urgency ${urg.cls}">${urg.label}</span>
           <span class="inbox-source">${SOURCE_BADGE[l.source] || l.source}</span>
-          ${l.ai_area && l.ai_area !== "tjeter" ? `<span class="inbox-area">${l.ai_area}</span>` : ""}
+          ${l.ai_area && l.ai_area !== "tjeter" ? `<span class="inbox-area">${escapeHtml(_leadArea(l.ai_area))}</span>` : ""}
           <span class="inbox-when">${when}</span>
         </div>
         <div class="inbox-row-name"><strong>${escapeHtml(l.contact_name)}</strong>${contact ? ` <em>· ${escapeHtml(contact)}</em>` : ""}</div>
@@ -10757,7 +10767,7 @@
         <div class="inbox-detail-meta">
           <span class="inbox-urgency ${urg.cls}">${urg.label}</span>
           <span class="inbox-source">${SOURCE_BADGE[lead.source] || lead.source}</span>
-          ${lead.ai_area && lead.ai_area !== "tjeter" ? `<span class="inbox-area">${escapeHtml(lead.ai_area)}</span>` : ""}
+          ${lead.ai_area && lead.ai_area !== "tjeter" ? `<span class="inbox-area">${escapeHtml(_leadArea(lead.ai_area))}</span>` : ""}
           <span class="inbox-when">${(lead.created_at || "").slice(0, 16).replace("T", " ")}</span>
         </div>
       </div>
@@ -10856,15 +10866,16 @@
   inboxShareLinkBtn?.addEventListener("click", async () => {
     try {
       const r = await fetch("/api/firm/list", { credentials: "same-origin" });
-      if (!r.ok) { setInboxStatus("S'gjeta studion.", "error"); return; }
+      if (!r.ok) { setInboxStatus(_INBOX_IT ? "Studio non trovato." : "S'gjeta studion.", "error"); return; }
       const data = await r.json();
       const active = (data.firms || []).find(f => f.id === data.active_firm_id) || (data.firms || [])[0];
-      if (!active || !active.slug) { setInboxStatus("Studio pa slug.", "error"); return; }
-      const url = `${location.origin}/intake/${active.slug}`;
-      try { await navigator.clipboard.writeText(url); setInboxStatus("Linku u kopjua: " + url, "ok"); }
+      if (!active || !active.slug) { setInboxStatus(_INBOX_IT ? "Lo studio non ha un indirizzo pubblico." : "Studio pa slug.", "error"); return; }
+      // v9.400: in sessione IT il modulo pubblico si apre in italiano
+      const url = `${location.origin}/intake/${active.slug}` + (_INBOX_IT ? "?lang=it" : "");
+      try { await navigator.clipboard.writeText(url); setInboxStatus((_INBOX_IT ? "Link copiato: " : "Linku u kopjua: ") + url, "ok"); }
       catch { setInboxStatus(url, "ok"); }
     } catch (e) {
-      setInboxStatus("Gabim lidhjeje.", "error");
+      setInboxStatus(_INBOX_IT ? "Errore di connessione." : "Gabim lidhjeje.", "error");
     }
   });
 

@@ -356,7 +356,7 @@ def require_module(*mods):
             if u is None:
                 return jsonify({"error": "unauthorized"}), 401
             if not (set(mods) & storage.user_modules(u)):
-                return jsonify({"error": "Ky mjet nuk përfshihet në abonimin tuaj.",
+                return jsonify({"error": _t_err("Ky mjet nuk përfshihet në abonimin tuaj.", "Questo strumento non è compreso nel suo abbonamento."),
                                 "need_module": list(mods)}), 403
             return fn(*args, **kwargs)
         return _wrapper
@@ -687,7 +687,7 @@ def api_firm_profile_get():
     firm = getattr(request, "firm", None)
     fid = getattr(firm, "id", None) or getattr(user, "active_firm_id", None)
     if not fid:
-        return jsonify({"error": "asnjë studio aktive"}), 404
+        return jsonify({"error": _t_err("asnjë studio aktive", "nessuno studio attivo")}), 404
     ruolo = getattr(request, "role", None)
     if not (user.is_admin or ruolo == "owner"):
         return jsonify({"error": "forbidden"}), 403
@@ -705,7 +705,7 @@ def api_firm_profile_put():
     firm = getattr(request, "firm", None)
     fid = getattr(firm, "id", None) or getattr(user, "active_firm_id", None)
     if not fid:
-        return jsonify({"error": "asnjë studio aktive"}), 404
+        return jsonify({"error": _t_err("asnjë studio aktive", "nessuno studio attivo")}), 404
     ruolo = getattr(request, "role", None)
     if not (user.is_admin or ruolo == "owner"):
         return jsonify({"error": "forbidden"}), 403
@@ -1341,7 +1341,7 @@ def api_create_case():
     if jurisdiction != attiva:
         # Un fascicolo nasce SEMPRE nella giurisdizione della sessione: un
         # fascicolo IT creato da una sessione AL sarebbe invisibile subito dopo.
-        return jsonify({"error": "juridiksioni i fashikullit duhet të jetë ai i sesionit",
+        return jsonify({"error": _t_err("juridiksioni i fashikullit duhet të jetë ai i sesionit", "la giurisdizione del fascicolo deve essere quella della sessione"),
                         "session": attiva, "requested": jurisdiction}), 409
     firm_id = firm.id if firm else None
     case = storage.create_case(user.id, title, firm_id=firm_id,
@@ -2084,6 +2084,7 @@ def api_create_invoice(case_id: str):
             client_name=client_name, client_address=client_address,
             vat_rate=vat_rate, notes=notes, due_date=due_date,
             firm_id=firm.id if firm else None,
+            lang="it" if (getattr(case, "jurisdiction", "") or "").upper() == "IT" else "sq",   # v9.400
         )
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
@@ -3501,7 +3502,7 @@ def api_case_needle(case_id: str):
     except Exception as exc:  # noqa: BLE001
         log.exception("needle failed")
         return jsonify({"error": _safe_err(exc)}), 200
-    md = res.get("markdown") or ""
+    md = _scudo_deterministico(res.get("markdown") or "")   # v9.400: sentenze riscontrate, nene inesistenti annotati
     citations = {"items": [], "stats": {}}
     try:
         if _INDEX is not None and md:
@@ -3761,7 +3762,7 @@ def api_corporate_extract(case_id: str):
     user = request.user  # type: ignore[attr-defined]
     case = storage.get_case(case_id, user.id)
     if not case:
-        return jsonify({"error": "Rasti nuk u gjet"}), 404
+        return jsonify({"error": _t_err("Rasti nuk u gjet", "Caso non trovato")}), 404
 
     body = request.get_json(silent=True) or {}
     doc_text = (body.get("doc_text") or "").strip()
@@ -3769,10 +3770,10 @@ def api_corporate_extract(case_id: str):
     doc_type = (body.get("doc_type") or "i panjohur").strip()
 
     if not doc_text:
-        return jsonify({"error": "doc_text mungon"}), 400
+        return jsonify({"error": _t_err("doc_text mungon", "manca doc_text")}), 400
 
     if _BRAIN is None:
-        return jsonify({"error": "Backend jo i disponueshëm"}), 503
+        return jsonify({"error": _t_err("Backend jo i disponueshëm", "Il motore non è disponibile")}), 503
 
     t0 = time.monotonic()
     extracted = corp_mod.extract_corporate(doc_text, doc_type, backend=_BRAIN.backend)
@@ -3805,22 +3806,22 @@ def api_corporate_gatekeeper(case_id: str):
     user = request.user  # type: ignore[attr-defined]
     case = storage.get_case(case_id, user.id)
     if not case:
-        return jsonify({"error": "Rasti nuk u gjet"}), 404
+        return jsonify({"error": _t_err("Rasti nuk u gjet", "Caso non trovato")}), 404
 
     body = request.get_json(silent=True) or {}
     signatory_name = (body.get("signatory_name") or "").strip()
     if not signatory_name:
-        return jsonify({"error": "signatory_name mungon"}), 400
+        return jsonify({"error": _t_err("signatory_name mungon", "manca signatory_name")}), 400
 
     value_all = float(body.get("value_all") or 0)
     contract_type = (body.get("contract_type") or "kontratë tregtare").strip()
 
     rows = storage.list_corporate_extractions(case_id)
     if not rows:
-        return jsonify({"error": "Nuk ka dokumente korporative të ngarkuara për këtë rast"}), 400
+        return jsonify({"error": _t_err("Nuk ka dokumente korporative të ngarkuara për këtë rast", "Non ci sono documenti societari caricati per questo caso")}), 400
 
     if _BRAIN is None:
-        return jsonify({"error": "Backend jo i disponueshëm"}), 503
+        return jsonify({"error": _t_err("Backend jo i disponueshëm", "Il motore non è disponibile")}), 503
 
     t0 = time.monotonic()
     result = corp_mod.check_signatory(
@@ -3839,7 +3840,7 @@ def api_corporate_kyc(case_id: str):
     user = request.user  # type: ignore[attr-defined]
     case = storage.get_case(case_id, user.id)
     if not case:
-        return jsonify({"error": "Rasti nuk u gjet"}), 404
+        return jsonify({"error": _t_err("Rasti nuk u gjet", "Caso non trovato")}), 404
 
     rows = storage.list_corporate_extractions(case_id)
     uploaded_types = [r["doc_type"] for r in rows]
@@ -3856,7 +3857,7 @@ def api_corporate_list(case_id: str):
     user = request.user  # type: ignore[attr-defined]
     case = storage.get_case(case_id, user.id)
     if not case:
-        return jsonify({"error": "Rasti nuk u gjet"}), 404
+        return jsonify({"error": _t_err("Rasti nuk u gjet", "Caso non trovato")}), 404
 
     rows = storage.list_corporate_extractions(case_id)
     return jsonify({"items": rows})
@@ -3868,11 +3869,11 @@ def api_corporate_delete(case_id: str, extraction_id: int):
     user = request.user  # type: ignore[attr-defined]
     case = storage.get_case(case_id, user.id)
     if not case:
-        return jsonify({"error": "Rasti nuk u gjet"}), 404
+        return jsonify({"error": _t_err("Rasti nuk u gjet", "Caso non trovato")}), 404
 
     deleted = storage.delete_corporate_extraction(extraction_id, case_id)
     if not deleted:
-        return jsonify({"error": "Nuk u gjet"}), 404
+        return jsonify({"error": _t_err("Nuk u gjet", "Non trovato")}), 404
     return jsonify({"ok": True})
 
 
@@ -3929,9 +3930,9 @@ def api_bench_memo_run(case_id: str):
     user = request.user  # type: ignore[attr-defined]
     case = storage.get_case(case_id, user.id)
     if not case:
-        return jsonify({"error": "Rasti nuk u gjet"}), 404
+        return jsonify({"error": _t_err("Rasti nuk u gjet", "Caso non trovato")}), 404
     if _BRAIN is None or _INDEX is None:
-        return jsonify({"error": "Backend ose KB jo i disponueshëm"}), 503
+        return jsonify({"error": _t_err("Backend ose KB jo i disponueshëm", "Il motore o la base normativa non sono disponibili")}), 503
 
     body = request.get_json(silent=True) or {}
     description_hint = (body.get("description") or "").strip()
@@ -3942,7 +3943,7 @@ def api_bench_memo_run(case_id: str):
         case_id, description_hint
     )
     if not case_description:
-        return jsonify({"error": "Përshkrimi i çështjes mungon"}), 400
+        return jsonify({"error": _t_err("Përshkrimi i çështjes mungon", "Manca la descrizione del caso")}), 400
 
     memo_id = storage.create_bench_memo(
         case_id=case_id, user_id=user.id,
@@ -3980,7 +3981,7 @@ def api_bench_memo_get(memo_id: int):
     user = request.user  # type: ignore[attr-defined]
     row = storage.get_bench_memo(memo_id)
     if not row:
-        return jsonify({"error": "Bench memo nuk u gjet"}), 404
+        return jsonify({"error": _t_err("Bench memo nuk u gjet", "Bench memo non trovato")}), 404
     case = storage.get_case(row["case_id"], user.id) if row["case_id"] else None
     if not case:
         return jsonify({"error": "Nuk autorizuar"}), 403
@@ -3993,7 +3994,7 @@ def api_bench_memo_list(case_id: str):
     user = request.user  # type: ignore[attr-defined]
     case = storage.get_case(case_id, user.id)
     if not case:
-        return jsonify({"error": "Rasti nuk u gjet"}), 404
+        return jsonify({"error": _t_err("Rasti nuk u gjet", "Caso non trovato")}), 404
     return jsonify({"items": storage.list_bench_memos(case_id)})
 
 
@@ -4023,12 +4024,12 @@ def api_vigilanza_manual():
     """
     user = request.user  # type: ignore[attr-defined]
     if _BRAIN is None:
-        return jsonify({"error": "Backend jo i disponueshëm"}), 503
+        return jsonify({"error": _t_err("Backend jo i disponueshëm", "Il motore non è disponibile")}), 503
 
     body = request.get_json(silent=True) or {}
     content = (body.get("content") or "").strip()
     if not content or len(content) < 50:
-        return jsonify({"error": "Përmbajtja mungon ose është shumë e shkurtër"}), 400
+        return jsonify({"error": _t_err("Përmbajtja mungon ose është shumë e shkurtër", "Il contenuto manca o è troppo breve")}), 400
 
     title_hint = (body.get("title") or "").strip()
     source = (body.get("source") or "manual").strip()
@@ -4101,7 +4102,7 @@ def api_vigilanza_dismiss(alert_id: int):
     user = request.user  # type: ignore[attr-defined]
     ok = storage.dismiss_alert(alert_id, user.id)
     if not ok:
-        return jsonify({"error": "Alert nuk u gjet"}), 404
+        return jsonify({"error": _t_err("Alert nuk u gjet", "Avviso non trovato")}), 404
     return jsonify({"ok": True})
 
 
@@ -4117,7 +4118,7 @@ def api_vigilanza_updates():
 def api_vigilanza_update_get(update_id: int):
     upd = storage.get_legal_update(update_id)
     if not upd:
-        return jsonify({"error": "Update nuk u gjet"}), 404
+        return jsonify({"error": _t_err("Update nuk u gjet", "Aggiornamento non trovato")}), 404
     return jsonify(upd)
 
 
@@ -4158,9 +4159,9 @@ def api_postmortem_run(case_id: str):
     user = request.user  # type: ignore[attr-defined]
     case = storage.get_case(case_id, user.id)
     if not case:
-        return jsonify({"error": "Rasti nuk u gjet"}), 404
+        return jsonify({"error": _t_err("Rasti nuk u gjet", "Caso non trovato")}), 404
     if _BRAIN is None:
-        return jsonify({"error": "Backend jo i disponueshëm"}), 503
+        return jsonify({"error": _t_err("Backend jo i disponueshëm", "Il motore non è disponibile")}), 503
 
     body = request.get_json(silent=True) or {}
     outcome = (body.get("outcome") or coach_mod.DEFAULT_OUTCOME).strip()
@@ -4198,7 +4199,7 @@ def api_case_lesson_get(case_id: str):
     user = request.user  # type: ignore[attr-defined]
     case = storage.get_case(case_id, user.id)
     if not case:
-        return jsonify({"error": "Rasti nuk u gjet"}), 404
+        return jsonify({"error": _t_err("Rasti nuk u gjet", "Caso non trovato")}), 404
     lesson = storage.get_case_lesson(case_id)
     if not lesson:
         return jsonify({"lesson": None})
@@ -4211,7 +4212,7 @@ def api_case_lesson_delete(case_id: str):
     user = request.user  # type: ignore[attr-defined]
     case = storage.get_case(case_id, user.id)
     if not case:
-        return jsonify({"error": "Rasti nuk u gjet"}), 404
+        return jsonify({"error": _t_err("Rasti nuk u gjet", "Caso non trovato")}), 404
     deleted = storage.delete_case_lesson(case_id, user.id)
     return jsonify({"ok": deleted})
 
@@ -4243,7 +4244,7 @@ def api_lessons_relevant():
         # build description from case content
         case = storage.get_case(case_id, user.id)
         if not case:
-            return jsonify({"error": "Rasti nuk u gjet"}), 404
+            return jsonify({"error": _t_err("Rasti nuk u gjet", "Caso non trovato")}), 404
         title, convo, docs = _build_postmortem_context(case_id)
         description = "\n".join([title, convo, docs])
 
@@ -4693,34 +4694,61 @@ REGOLE FERREE:
 Stile: breve, diretto, professionale. Niente parole vuote."""
 
 
-def _nenet_e_rastit(case_id: str, question: str, it: bool) -> str:
-    """I nene del fascicolo per gli strumenti brevi senza recupero proprio — risposta in udienza, simulazione dell'accordo (v9.399): prima quelli che il cervello ha usato per l'ultima analisi del
-    fascicolo (gratis e fedeli al caso); se il fascicolo non ne ha, il triage + lo stesso recupero ibrido della chat
-    sulla domanda. Blocco compatto (10 articoli, testo fino a 1.500 caratteri). Fail-silent: vuoto = come prima.
-    Misurato sull'audit del 28 set: senza articoli la risposta albanese sul licenziamento orale diceva «Jo —» e non
-    nominava il termine dei 180 giorni (KP 146/2, 155/4)."""
+def _coppie_e_rastit(case_id: str | None, question: str, it: bool) -> list:
+    """Le coppie (articolo, punteggio) per gli strumenti che non hanno un recupero proprio (v9.400): prima quelle che il
+    cervello ha usato per l'ultima analisi del fascicolo (gratis e fedeli al caso); se il fascicolo non ne ha, il triage +
+    lo stesso recupero ibrido della chat sulla domanda. Fail-silent: lista vuota = lo strumento fa da sé.
+    Misurato (28 set, licenziamento orale): la sola ricerca per parole portava 1/3 delle norme decisive in AL e in IT
+    (in IT mancavano gli artt. 2 e 6 L. 604/1966), il recupero del cervello 2/3 e 3/3."""
     idx = _req_index()
     pairs: list = []
-    try:
-        by_key = {(a.code, str(a.number)): a for a in idx.articles}
-        for m in reversed(storage.list_messages(case_id)):
-            if m.role != "assistant" or not m.articles:
-                continue
-            for x in m.articles:
-                a = by_key.get((x.get("code"), str(x.get("number"))))
-                if a is not None:
-                    pairs.append((a, float(x.get("score") or 0.0)))
-            break
-    except Exception:  # noqa: BLE001
-        pairs = []
+    if case_id:
+        try:
+            by_key = {(a.code, str(a.number)): a for a in idx.articles}
+            for m in reversed(storage.list_messages(case_id)):
+                if m.role != "assistant" or not m.articles:
+                    continue
+                for x in m.articles:
+                    a = by_key.get((x.get("code"), str(x.get("number"))))
+                    if a is not None:
+                        pairs.append((a, float(x.get("score") or 0.0)))
+                break
+        except Exception:  # noqa: BLE001
+            pairs = []
     if not pairs and _BRAIN is not None:
         try:
             _BRAIN._jurisdiction_ctx.code = "IT" if it else "AL"   # la thread-local del worker può essere stale
             tri = _BRAIN._triage((question or "")[:3000], [], None)
             pairs = list(_BRAIN._retrieve(tri) or [])
         except Exception:  # noqa: BLE001
-            log.warning("hearing quick: recupero dei nene fallito (non-fatal)", exc_info=True)
+            log.warning("recupero per lo strumento fallito (non-fatal)", exc_info=True)
             pairs = []
+    return pairs
+
+
+def _coppie_per_pro(case_id: str | None, text: str) -> list:
+    """Per gli strumenti PRO (Red Team, bozza d'atto, duello, bussola): le coppie del fascicolo o del cervello + le prime
+    della ricerca per parole sul testo stesso (che portano i termini letterali della richiesta), al massimo 16."""
+    it = _active_jurisdiction(getattr(request, "user", None)) == "IT"
+    pairs = _coppie_e_rastit(case_id, text, it)
+    try:
+        seen = {(a.code, str(a.number)) for a, _ in pairs}
+        for a, sc in _req_index().search((text or "")[:3000], top_k=8):
+            if len(pairs) >= 16:
+                break
+            if (a.code, str(a.number)) not in seen:
+                pairs.append((a, sc)); seen.add((a.code, str(a.number)))
+    except Exception:  # noqa: BLE001
+        pass
+    return pairs[:16] or None
+
+
+def _nenet_e_rastit(case_id: str, question: str, it: bool) -> str:
+    """I nene del fascicolo per gli strumenti brevi senza recupero proprio — risposta in udienza, simulazione dell'accordo
+    (v9.399). Blocco compatto (10 articoli, testo fino a 1.500 caratteri). Fail-silent: vuoto = come prima.
+    Misurato sull'audit del 28 set: senza articoli la risposta albanese sul licenziamento orale diceva «Jo —» e non
+    nominava il termine dei 180 giorni (KP 146/2, 155/4)."""
+    pairs = _coppie_e_rastit(case_id, question, it)
     righe = []
     for a, _s in pairs[:10]:
         corpo = " ".join((a.body or "").split())
@@ -4848,13 +4876,7 @@ def api_hearing_quick(case_id: str):
     # v9.399 — lo scudo DETERMINISTICO anche qui (senza il cancello, che chiama il modello e in udienza costa minuti): un nene
     # inesistente si annota, una sentenza si riscontra (in IT la Cassazione sull'archivio ufficiale: la risposta di prova citava
     # «Cass. SS.UU. n. 4913/2016» presa dal web)
-    try:
-        _cits = cv_mod.verify_text(reply, _req_index())
-        if int((_cits.get("stats") or {}).get("fake") or 0) > 0:
-            reply = cs_mod.annotate_fake_citations(reply, _cits)
-        reply, _ = _verify_decisions_smart(reply, "IT" if _it else "AL")
-    except Exception:  # noqa: BLE001
-        log.debug("hearing quick: scudo saltato", exc_info=True)
+    reply = _scudo_deterministico(reply, "IT" if _it else "AL")
 
     a_note = storage.create_hearing_note(
         case_id, user.id, body_sq=reply, kind="ai_reply", parent_id=q_note.id)
@@ -4970,7 +4992,29 @@ Kthe vetëm JSON me skemë:
 Mos shto fjalë të tjera jashtë JSON-it."""
 
 
-def _classify_lead_problem(problem_text: str) -> dict:
+# v9.400 — il modulo pubblico di uno studio ITALIANO: riassunto e domande mancanti in italiano per l'avvocato; i valori di
+# `area` e `urgency` restano le chiavi interne (l'interfaccia le traduce)
+LEAD_INTAKE_SYSTEM_IT = """Sei «Super Avvocato», il servizio che riceve le richieste dei cittadini per uno studio legale italiano.
+
+Hai ricevuto il primo messaggio di un cittadino che descrive un problema legale. Compito:
+1) Scrivi un RIASSUNTO di 1-2 frasi del problema (chiaro, neutrale), in italiano.
+2) Classifica l'AREA giuridica (`area`) con una di queste chiavi: familjare | pune | penale | civile | tregtare | administrative | trashëgimi | banimore | konsumatore | tjeter
+   (famiglia | lavoro | penale | civile | commerciale | amministrativo | successioni | casa e locazioni | consumatori | altro).
+3) Stabilisci l'URGENZA (`urgency`): high (termine entro 7 giorni, arresto, violenza), medium (situazione problematica ma non acuta), low (richiesta di informazioni generali).
+4) Individua 2-4 DOMANDE IMPORTANTI che mancano (data dei fatti, parti coinvolte, documenti esistenti, ecc.), in italiano, per rendere il caso lavorabile.
+
+Restituisci solo JSON con questo schema:
+{
+  "summary": "≤200 caratteri — descrizione neutrale del problema",
+  "area": "una delle chiavi sopra",
+  "urgency": "low|medium|high",
+  "missing_questions": ["Domanda 1", "Domanda 2", "Domanda 3"]
+}
+
+Nient'altro fuori dal JSON."""
+
+
+def _classify_lead_problem(problem_text: str, lang: str = "sq") -> dict:
     """AI-classify a lead's problem. Returns {} if anything fails."""
     if _BRAIN is None:
         return {}
@@ -4978,7 +5022,7 @@ def _classify_lead_problem(problem_text: str) -> dict:
         # V8.10: il summary è letto dall'avvocato → Sonnet (qualità albanese
         # del riassunto + classificazione area conta più della latenza).
         raw = _BRAIN.backend.complete(
-            system=LEAD_INTAKE_SYSTEM,
+            system=LEAD_INTAKE_SYSTEM_IT if lang == "it" else LEAD_INTAKE_SYSTEM,
             messages=[{"role": "user", "content": problem_text[:4000]}],
             max_tokens=600,
             medium=True,
@@ -5012,13 +5056,16 @@ def api_lead_intake():
         problem_text = problem_text[:6000]
 
     firm_id = None
+    lang = "it" if (data.get("lang") or "").strip().lower() == "it" else "sq"
     if firm_slug:
         firm = storage.find_firm_by_slug(firm_slug)
         if firm is None:
             return jsonify({"error": "unknown firm"}), 404
         firm_id = firm.id
+        if not data.get("lang"):
+            lang = _lingua_studio(firm)
 
-    classification = _classify_lead_problem(problem_text)
+    classification = _classify_lead_problem(problem_text, lang)
     summary = (classification.get("summary") or "")[:300] or None
     area = (classification.get("area") or "tjeter")[:40]
     urgency = (classification.get("urgency") or "medium")
@@ -5049,13 +5096,28 @@ def api_lead_intake():
     }), 201
 
 
+def _lingua_studio(firm) -> str:
+    """La lingua del modulo pubblico di uno studio senza parametro: italiano se il titolare lavora SOLO in Italia."""
+    try:
+        owner = storage.get_user_by_id(firm.owner_id)
+        if owner is not None and storage.user_jurisdictions(owner) == {"IT"}:
+            return "it"
+    except Exception:  # noqa: BLE001
+        pass
+    return "sq"
+
+
 @app.get("/intake/<firm_slug>")
 def public_intake_page(firm_slug: str):
-    """Public form a citizen can land on (no login). Branded to the firm."""
+    """Public form a citizen can land on (no login). Branded to the firm.
+    v9.400: nella lingua dello studio — `?lang=it` (il link condiviso dalla posta in arrivo in sessione IT) oppure,
+    senza parametro, dal titolare; prima era solo albanese anche per uno studio italiano."""
+    q = (request.args.get("lang") or "").strip().lower()
     firm = storage.find_firm_by_slug(firm_slug)
     if firm is None:
-        return "Studio nuk u gjet.", 404
-    return render_template("intake.html", firm=firm, firm_slug=firm_slug)
+        return ("Studio non trovato." if q == "it" else "Studio nuk u gjet."), 404
+    lang = q if q in ("it", "sq") else _lingua_studio(firm)
+    return render_template("intake.html", firm=firm, firm_slug=firm_slug, lang=lang)
 
 
 def _serialize_lead(l: storage.Lead) -> dict:
@@ -6648,10 +6710,12 @@ def api_vault_ask(case_id: str):
     result = vault_mod.ask(_BRAIN, case_id, q)
     if result.get("empty"):
         return jsonify({
-            "answer": "Nuk ka dokumente të gatshme në këtë dosje. "
-                      "Ngarko dokumente më parë (📎).",
+            "answer": _t_err("Nuk ka dokumente të gatshme në këtë dosje. Ngarko dokumente më parë (📎).",
+                             "Nel fascicolo non ci sono documenti pronti. Carica prima i documenti (📎)."),
             "docs_used": [], "n_docs": 0,
         })
+    if result.get("answer"):
+        result["answer"] = _scudo_deterministico(result["answer"])   # v9.400
     return jsonify(result)
 
 
@@ -6670,9 +6734,11 @@ def api_who_said(case_id: str):
         log.exception("who-said failed")
         return jsonify({"error": _safe_err(exc)}), 200
     if res.get("empty"):
-        return jsonify({"markdown": "Nuk ka dokumente të gatshme në këtë dosje. "
-                                    "Ngarko dokumente më parë (📎).", "n_docs": 0})
-    md = res.get("markdown") or ""
+        return jsonify({"markdown": _t_err("Nuk ka dokumente të gatshme në këtë dosje. Ngarko dokumente më parë (📎).",
+                                           "Nel fascicolo non ci sono documenti pronti. Carica prima i documenti (📎)."),
+                        "n_docs": 0})
+    md = _scudo_deterministico(res.get("markdown") or "")   # v9.400
+    res["markdown"] = md
     cits = {"items": [], "stats": {}}
     try:
         if md and _INDEX is not None:
@@ -6832,13 +6898,13 @@ def api_case_table(case_id: str):
     if case is None:
         return jsonify({"error": "case not found"}), 404
     if not _BRAIN:
-        return jsonify({"error": "Motori AI nuk është i disponueshëm."}), 503
+        return jsonify({"error": _t_err("Motori AI nuk është i disponueshëm.", "Il motore non è disponibile.")}), 503
 
     from . import tabela as tb_mod
     data = request.get_json(force=True, silent=True) or {}
     pyetjet = tb_mod.pastro_pyetjet(data.get("questions"))
     if not pyetjet:
-        return jsonify({"error": "asnjë pyetje"}), 400
+        return jsonify({"error": _t_err("asnjë pyetje", "nessuna domanda")}), 400
     kerkuar = set(str(x) for x in (data.get("docs") or []))
 
     docs, pa_tekst = [], []
@@ -6851,7 +6917,8 @@ def api_case_table(case_id: str):
             pa_tekst.append(d.filename)
     docs = docs[:tb_mod.MAX_DOKUMENTE]
     if not docs:
-        return jsonify({"error": "asnjë dokument me tekst"}), 400
+        return jsonify({"error": ("nessun documento con testo" if _active_jurisdiction(user) == "IT"
+                                  else "asnjë dokument me tekst")}), 400
 
     def _nje(d):
         try:
@@ -7287,7 +7354,7 @@ def _ask_prepare(user, data):
     if not _BRAIN:
         def nobrain():
             yield _sse_event({"type": "error",
-                              "message": "Asnjë backend LLM nuk është i disponueshëm."})
+                              "message": _t_err("Motori nuk është i disponueshëm.", "Il motore non è disponibile.")})
             yield _sse_event({"type": "done"})
         return nobrain, None
 
@@ -8058,7 +8125,7 @@ def api_settings_telegram_set():
     data = request.get_json(silent=True) or {}
     raw = (data.get("chat_id") or "").strip()
     if raw and not re.fullmatch(r"-?\d{1,20}", raw):
-        return jsonify({"error": "chat_id duhet të jetë numër"}), 400
+        return jsonify({"error": _t_err("chat_id duhet të jetë numër", "chat_id deve essere un numero")}), 400
     storage.set_user_telegram_chat(user.id, raw or None)
     return jsonify({"linked": bool(raw)})
 
@@ -8236,6 +8303,7 @@ def api_stress_test_create(case_id: str):
         result = pro_mod.stress_test_hearing(
             _BRAIN.backend, _req_index(), hypothesis,
             case_docs=_load_case_docs(case.id),
+            retrieved=_coppie_per_pro(case.id, hypothesis),   # v9.400: il recupero del cervello, non BM25 grezzo
         )
     except Exception as exc:
         log.exception("stress-test failure")
@@ -8381,6 +8449,7 @@ def api_draft_act_create():
         draft = pro_mod.draft_act(
             _BRAIN.backend, _req_index(),
             act_type=act_type, brief=brief, case_docs=case_docs,
+            retrieved=_coppie_per_pro(case_id, brief),   # v9.400
         )
     except Exception as exc:
         log.exception("draft act failure")
@@ -8485,7 +8554,15 @@ def api_drafted_acts_list():
 @app.get("/api/cascade/event-types")
 @login_required_api
 def api_cascade_event_types():
+    if _active_jurisdiction(getattr(request, "user", None)) == "IT":
+        return jsonify({"items": [], "note": _CASCADE_IT_MSG})
     return jsonify({"items": pro_mod.cascade_event_types()})
+
+
+# v9.400 — la cascata ha regole del diritto ALBANESE: in sessione IT non si danno (Regola #1)
+_CASCADE_IT_MSG = ("La cascata dei termini è costruita sul diritto processuale albanese. Per i termini italiani usa lo "
+                   "strumento «Scadenze» (motore dei termini): li ricava dagli articoli del c.p.c. e del c.p.p. e calcola "
+                   "le date in modo deterministico, con la sospensione feriale.")
 
 
 @app.post("/api/cascade/compute")
@@ -8494,6 +8571,8 @@ def api_cascade_compute():
     data = request.get_json(force=True, silent=True) or {}
     event_type = (data.get("event_type") or "").strip()
     event_date = (data.get("event_date") or "").strip()
+    if _active_jurisdiction(getattr(request, "user", None)) == "IT":
+        return jsonify({"error": _CASCADE_IT_MSG}), 400
     if not event_type or not event_date:
         return jsonify({"error": "event_type and event_date required"}), 400
     try:
@@ -8512,6 +8591,8 @@ def api_cascade_schedule():
     event_type = (data.get("event_type") or "").strip()
     event_date = (data.get("event_date") or "").strip()
     case_id = (data.get("case_id") or "").strip() or None
+    if _active_jurisdiction(user) == "IT":
+        return jsonify({"error": _CASCADE_IT_MSG}), 400
     if case_id and not _resolve_case(case_id):
         return jsonify({"error": "case not found"}), 404
     try:
@@ -8585,12 +8666,18 @@ def api_timeline_build(case_id: str):
         return jsonify({"error": "case has no narrative or documents to analyse"}), 400
 
     docs = _load_case_docs(case_id)
+    _it_tl = _active_jurisdiction(getattr(request, "user", None)) == "IT"
+    try:                                   # v9.400: gli articoli del caso — i termini e i requisiti si citano solo da lì
+        _art_tl = _nenet_e_rastit(case_id, summary or extra_summary, _it_tl)
+    except Exception:  # noqa: BLE001
+        _art_tl = ""
     try:
         result = pro_mod.build_case_timeline(
             backend=_BRAIN.backend,
             case_summary=summary or extra_summary,
-            case_title=case.title or "rast pa titull",
+            case_title=case.title or ("caso senza titolo" if _it_tl else "rast pa titull"),
             case_docs=docs,
+            articles_block=_art_tl,
         )
     except Exception as exc:
         log.exception("timeline build failed for case %s", case_id)
@@ -8663,9 +8750,9 @@ def api_adversarial_run(case_id: str):
     docs = _load_case_docs(case_id)
     try:
         result = pro_mod.adversarial_loop(
-            backend=_BRAIN.backend, index=_INDEX,
+            backend=_BRAIN.backend, index=_req_index(),   # v9.400: era sempre l'indice ALBANESE, anche in sessione IT
             hypothesis=hypothesis, max_rounds=max_rounds,
-            case_docs=docs,
+            case_docs=docs, retrieved=_coppie_per_pro(case_id, hypothesis),   # v9.400
         )
     except Exception as exc:
         log.exception("adversarial loop failed for case %s", case_id)
@@ -8732,9 +8819,10 @@ def api_strategy_build(case_id: str):
     docs = _load_case_docs(case_id)
     try:
         result = pro_mod.build_strategy_compass(
-            backend=_BRAIN.backend, index=_INDEX,
+            backend=_BRAIN.backend, index=_req_index(),   # v9.400: era sempre l'indice ALBANESE, anche in sessione IT
             objective=objective, case_summary=case_summary,
             case_title=case.title, case_docs=docs,
+            retrieved=_coppie_per_pro(case_id, f"{objective}\n\n{case_summary}"),   # v9.400
         )
     except Exception as exc:
         log.exception("strategy compass failed for case %s", case_id)
@@ -9024,6 +9112,17 @@ def _arm_jurisdiction():
         pass
 
 
+def _t_err(sq: str, it: str) -> str:
+    """v9.400 — un messaggio d'errore nella lingua della SESSIONE: l'interfaccia mostra `error` così com'è, e 23 messaggi
+    erano solo albanesi (anche «Ky mjet nuk përfshihet në abonimin tuaj» a un avvocato italiano senza quel modulo)."""
+    try:
+        if _active_jurisdiction(getattr(request, "user", None)) == "IT":
+            return it
+    except Exception:  # noqa: BLE001
+        pass
+    return sq
+
+
 def _active_jurisdiction(user):
     """The jurisdiction locked for THIS session — one of the user's entitled
     countries. The brain loads only this law + language (no mixing). Defaults
@@ -9116,6 +9215,29 @@ def _nenet_per_djallin(text: str, body: dict, answer: str = "") -> tuple[str, se
     except Exception:  # noqa: BLE001
         blocco = "\n\n".join(f"{a.citation}\n{(a.body or '')[:1500]}" for a, _ in pairs)
     return blocco[:60000], {a.code for a, _ in pairs}
+
+
+def _scudo_deterministico(md: str, juris: str | None = None) -> str:
+    """v9.400 — lo scudo SENZA il cancello (che chiama il modello e costa minuti): un nene inesistente si annota nel testo e
+    le sentenze si riscontrano (in IT la Cassazione e la CGUE sugli archivi ufficiali). Per gli strumenti brevi o che
+    leggono solo i documenti del fascicolo (udienza, Vault, l'ago, chi ha detto cosa). Non solleva mai."""
+    if not md:
+        return md
+    try:
+        juris = juris or _active_jurisdiction(getattr(request, "user", None)) or "AL"
+    except Exception:  # noqa: BLE001
+        juris = juris or "AL"
+    try:
+        cits = cv_mod.verify_text(md, _req_index())
+        if int((cits.get("stats") or {}).get("fake") or 0) > 0:
+            md = cs_mod.annotate_fake_citations(md, cits)
+    except Exception:  # noqa: BLE001
+        log.debug("scudo deterministico: articoli saltati", exc_info=True)
+    try:
+        md, _ = _verify_decisions_smart(md, juris)
+    except Exception:  # noqa: BLE001
+        log.debug("scudo deterministico: sentenze saltate", exc_info=True)
+    return md
 
 
 def _cancello_web(md: str, retrieved_codes=None, idx=None) -> tuple[str, dict]:
@@ -9343,8 +9465,8 @@ def api_admin_users_create():
     # dominio bastano; il resto lo decide il mondo reale.
     email = (data.get("email") or "").strip().lower()
     if "@" not in email or "." not in email.split("@")[-1]:
-        return jsonify({"error": "email e pavlefshme — duhet për njoftimet "
-                                 "dhe rikuperimin e fjalëkalimit"}), 400
+        return jsonify({"error": _t_err("email e pavlefshme — duhet për njoftimet dhe rikuperimin e fjalëkalimit",
+                                        "email non valida — serve per le notifiche e il recupero della password")}), 400
     new_user = storage.create_user(
         username=username,
         password_hash=hash_password(password),
@@ -9375,7 +9497,7 @@ def api_admin_create_firm():
     name = (data.get("name") or "").strip()
     owner_username = (data.get("owner_username") or "").strip().lower()
     if not name:
-        return jsonify({"error": "emri i studios mungon"}), 400
+        return jsonify({"error": _t_err("emri i studios mungon", "manca il nome dello studio")}), 400
     if owner_username:
         owner = storage.get_user_by_username(owner_username)
         if owner is None:
@@ -9399,7 +9521,7 @@ def api_admin_set_profession(user_id):
         return jsonify({"error": "forbidden"}), 403
     prof = ((request.get_json(silent=True) or {}).get("profession") or "").strip()
     if not storage.set_user_profession(user_id, prof):
-        return jsonify({"error": "profesion i pavlefshëm"}), 400
+        return jsonify({"error": _t_err("profesion i pavlefshëm", "professione non valida")}), 400
     return jsonify({"ok": True, "profession": prof})
 
 
@@ -9411,9 +9533,9 @@ def api_admin_set_modules(user_id):
         return jsonify({"error": "forbidden"}), 403
     mods = (request.get_json(silent=True) or {}).get("modules")
     if not isinstance(mods, list) or not any(m in storage.VALID_MODULES for m in mods):
-        return jsonify({"error": "të paktën një modul i vlefshëm"}), 400
+        return jsonify({"error": _t_err("të paktën një modul i vlefshëm", "almeno un modulo valido")}), 400
     if not storage.set_user_modules(user_id, mods):
-        return jsonify({"error": "dështoi"}), 400
+        return jsonify({"error": _t_err("dështoi", "non riuscito")}), 400
     return jsonify(_user_payload(storage.get_user_by_id(user_id)))
 
 
@@ -9441,7 +9563,7 @@ def api_admin_set_plan(user_id):
         try:
             months = int(data["months"])
         except (TypeError, ValueError):
-            return jsonify({"error": "muaj i pavlefshëm"}), 400
+            return jsonify({"error": _t_err("muaj i pavlefshëm", "mese non valido")}), 400
         now = datetime.now(UTC)
         base = now
         cur = getattr(target, "plan_expires_at", None)
@@ -9490,9 +9612,9 @@ def api_admin_set_jurisdictions(user_id):
         return jsonify({"error": "forbidden"}), 403
     js = (request.get_json(silent=True) or {}).get("jurisdictions")
     if not isinstance(js, list) or not any(str(x).strip().upper() in storage.VALID_JURISDICTIONS for x in js):
-        return jsonify({"error": "të paktën një juridiksion i vlefshëm"}), 400
+        return jsonify({"error": _t_err("të paktën një juridiksion i vlefshëm", "almeno una giurisdizione valida")}), 400
     if not storage.set_user_jurisdictions(user_id, js):
-        return jsonify({"error": "dështoi"}), 400
+        return jsonify({"error": _t_err("dështoi", "non riuscito")}), 400
     return jsonify(_user_payload(storage.get_user_by_id(user_id)))
 
 
@@ -9502,7 +9624,7 @@ def api_me_set_profession():
     user = request.user  # type: ignore[attr-defined]
     prof = ((request.get_json(silent=True) or {}).get("profession") or "").strip()
     if not storage.set_user_profession(user.id, prof):
-        return jsonify({"error": "profesion i pavlefshëm"}), 400
+        return jsonify({"error": _t_err("profesion i pavlefshëm", "professione non valida")}), 400
     return jsonify({"ok": True, "profession": prof})
 
 

@@ -145,6 +145,10 @@ ACTS = [
     ("tuel", "Testo Unico degli enti locali (D.Lgs 267/2000)", "Amministrativo", "decreto.legislativo:2000-08-18;267", "wave5"),
     ("processo_penale_minorile", "Processo penale a carico di imputati minorenni (DPR 448/1988)", "Procedura Penale", "decreto.presidente.repubblica:1988-09-22;448", "wave5"),
     ("codice_nautica_diporto", "Codice della nautica da diporto (D.Lgs 171/2005)", "Navigazione", "decreto.legislativo:2005-07-18;171", "wave5"),
+    # ── wave9 (29 set 2026): la SOSPENSIONE FERIALE — la bozza di un ricorso di lavoro la invocava per salvare il termine di
+    # 180 giorni (art. 6 L. 604/1966), ma l'art. 3 la esclude per le controversie di lavoro; la legge non era nel corpus e le
+    # risposte restavano incerte («non ti darei una risposta secca senza verifica»)
+    ("legge_sospensione_feriale", "Sospensione dei termini processuali nel periodo feriale (L. 742/1969)", "Procedura Civile", "legge:1969-10-07;742", "wave9"),
 ]
 
 

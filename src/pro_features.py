@@ -61,20 +61,38 @@ def _parse_json_block(raw: str) -> dict:
     return json.loads(blob)
 
 
-def _format_articles_compact(pairs: list[tuple[Article, float]]) -> str:
-    """Short article block for Opus — citation + first 300 chars of body.
+def _sessione_it() -> bool:
+    try:
+        from .brain import request_jurisdiction
+        return (request_jurisdiction() or "AL").upper() == "IT"
+    except Exception:  # noqa: BLE001
+        return False
 
-    The full analytical prompt in ``brain.py`` uses the richer formatter;
-    the pro features work on narrower inputs so we keep the prompt tight.
+
+def _format_articles_compact(pairs: list[tuple[Article, float]], max_body: int = 1500) -> str:
+    """Article block for the PRO tools — citation + body.
+
+    v9.400: il testo arrivava TAGLIATO a 300 caratteri (il modello ragionava su un moncone e completava a memoria): ora
+    fino a 1.500, con l'avviso del taglio nella lingua della sessione; blocco vuoto dichiarato nella lingua della sessione.
     """
+    it = _sessione_it()
     if not pairs:
-        return "(asnjë nen i gjetur)"
+        return "(nessun articolo trovato)" if it else "(asnjë nen i gjetur)"
     chunks: list[str] = []
     for a, _ in pairs:
         body = (a.body or "").strip().replace("\n", " ")
-        if len(body) > 300:
-            body = body[:297] + "..."
-        chunks.append(f"• {a.citation} — {a.heading}\n  {body}")
+        if len(body) > max_body:
+            body = body[:max_body].rstrip() + (" […testo tagliato: non completarlo a memoria]" if it
+                                              else " […teksti u shkurtua: mos e plotëso nga kujtesa]")
+        if it:
+            etichetta = a.citation
+        else:
+            try:                                   # «[Kodi i Punës neni 155]», non «Neni 155 i Kodi i Punës i Republikës…»
+                from .expertise import etichetta_al as _eal
+                etichetta = f"[{_eal(a.code)} neni {a.number}]"
+            except Exception:  # noqa: BLE001
+                etichetta = a.citation
+        chunks.append(f"• {etichetta} — {a.heading}\n  {body}")
     return "\n".join(chunks)
 
 
@@ -134,6 +152,7 @@ def stress_test_hearing(
     hypothesis: str,
     *,
     case_docs: list[dict] | None = None,
+    retrieved: list | None = None,
 ) -> dict:
     """Run a single-pass red-team simulation on ``hypothesis``.
 
@@ -141,7 +160,7 @@ def stress_test_hearing(
     counsel persona cites real law, then asks Opus for the structured
     JSON red-team. Returns the parsed dict; raises on malformed output.
     """
-    retrieved = index.search(hypothesis, top_k=12)
+    retrieved = retrieved or index.search(hypothesis, top_k=12)   # v9.400: l'endpoint passa il recupero del cervello
     articles_block = _format_articles_compact(retrieved)
     docs_block = ""
     if case_docs:
@@ -460,11 +479,12 @@ def draft_act(
     act_type: str,
     brief: str,
     case_docs: list[dict] | None = None,
+    retrieved: list | None = None,
 ) -> dict:
     """Generate a filing-ready procedural act from a free-text brief."""
     if act_type not in ACT_TYPES:
         raise ValueError(f"unknown act_type: {act_type!r}")
-    retrieved = index.search(brief, top_k=15)
+    retrieved = retrieved or index.search(brief, top_k=15)
     articles_block = _format_articles_compact(retrieved)
     docs_block = ""
     attachments: list[Path] = []
@@ -612,93 +632,105 @@ def render_act_docx(draft: dict, out_path: Path) -> Path:
 # article directly from the linked panel.
 
 DEADLINE_RULES: dict[str, list[dict]] = {
+    # v9.400 — regole RIVERIFICATE sul corpus (28 set 2026): il ricorso penale era 30 giorni (è 45: KPP 435/1), la risposta
+    # alla domanda citava il KPC 163 (abrogato nel 2001: oggi KPC 158/1), e i termini citavano l'articolo dei motivi o del
+    # diritto invece di quello del termine (472→443, 494→496, 410→415, KPA 135→132). Golden [162] verifica che ogni articolo
+    # esista e sia vigente.
     # Civil — sentenza di primo grado notificata
     "njoftim_vendimi_civil_shkalle_pare": [
         {"key": "ankim_civil", "label": "Afati për ankim (apel)",
          "code": "kodi_proc_civile", "article": "443",
          "days": 15, "counting": "calendar",
          "urgency": "high",
-         "notes": "Ankimi paraqitet në gjykatën që ka dhënë vendimin. "
-                  "Tejkalimi i afatit e bën vendimin të formës së prerë."},
-        {"key": "kerkese_ekzekutimi", "label": "Mund të kërkohet ekzekutimi",
+         "notes": "15 ditë nga e nesërmja e njoftimit të vendimit të arsyetuar (nenet 443 dhe 444 KPC); ankimi "
+                  "paraqitet në gjykatën që ka dhënë vendimin. Afati është i prerë: tejkalimi e bën vendimin të "
+                  "formës së prerë."},
+        {"key": "kerkese_ekzekutimi", "label": "Vendimi mund të bëhet titull ekzekutiv",
          "code": "kodi_proc_civile", "article": "510",
          "days": 15, "counting": "calendar",
          "urgency": "medium",
-         "notes": "Pas kalimit të afatit të ankimit, vendimi bëhet titull "
-                  "ekzekutiv (po qe se ligji e lejon ekzekutimin para "
-                  "formës së prerë, shih nenet përkatëse)."},
+         "notes": "Pa ankim brenda afatit, vendimi merr formë të prerë dhe bëhet titull ekzekutiv (neni 510/a "
+                  "KPC), përveç rasteve të ekzekutimit të përkohshëm."},
     ],
     # Civil — sentenza d'appello notificata
     "njoftim_vendimi_apeli": [
         {"key": "rekurs_gjykata_larte", "label": "Afati për rekurs në Gjykatën e Lartë",
-         "code": "kodi_proc_civile", "article": "472",
+         "code": "kodi_proc_civile", "article": "443",
          "days": 30, "counting": "calendar",
          "urgency": "high",
-         "notes": "Rekursi depozitohet në Gjykatën e Apelit që ka dhënë "
-                  "vendimin. Duhet baza ligjore për çdo shkak rekursi."},
+         "notes": "30 ditë nga e nesërmja e njoftimit (nenet 443/2 dhe 444 KPC). Rekursi lejohet vetëm për "
+                  "shkaqet e nenit 472 KPC dhe nënshkruhet nga avokati (neni 474)."},
     ],
     # Civil — sentenza definitiva (forma e prerë)
     "njoftim_vendimi_prere_civil": [
-        {"key": "rishikim_neni_494", "label": "Afati për rishikim",
-         "code": "kodi_proc_civile", "article": "494",
+        {"key": "rishikim", "label": "Afati për rishikim",
+         "code": "kodi_proc_civile", "article": "496",
          "days": 30, "counting": "calendar",
          "urgency": "medium",
-         "notes": "Rishikimi kërkohet brenda 30 ditëve nga data që pala "
-                  "ka marrë dijeni për shkaqet e rishikimit."},
+         "notes": "30 ditë nga dita që pala provon se ka marrë dijeni për shkakun e rishikimit (neni 496 KPC); "
+                  "për shkaqet b), c) dhe ç) të nenit 494, nga dita që vendimi penal ka marrë formë të prerë "
+                  "(neni 495). Data llogaritet nga data e dhënë: vendos si datë ngjarjeje datën e marrjes dijeni."},
     ],
-    # Civil — notifica di un atto di esecuzione
+    # Civil — atti dell'ufficiale giudiziario (esecuzione)
     "njoftim_urdher_ekzekutimi": [
-        {"key": "kundershtim_ekzekutimi", "label": "Kundërshtim ndaj ekzekutimit",
+        {"key": "ankim_veprimet_permbaruesit", "label": "Ankim kundër veprimeve të përmbaruesit",
          "code": "kodi_proc_civile", "article": "610",
          "days": 5, "counting": "calendar",
          "urgency": "critical",
-         "notes": "Afat jashtëzakonisht i shkurtër: paraqitet në gjykatën e "
-                  "vendit të ekzekutimit. Humbja = rrezikon ekzekutimin."},
+         "notes": "5 ditë nga kryerja e veprimit kur pala ka qenë e pranishme ose e thirrur, përndryshe nga "
+                  "njoftimi ose marrja dijeni (neni 610 KPC); ankimi paraqitet në gjykatën që ekzekuton vendimin."},
     ],
     # Penale — sentenza di primo grado (KPP)
     "njoftim_vendimi_penal_shkalle_pare": [
-        {"key": "ankim_penal", "label": "Afati për ankim (KPP)",
-         "code": "kodi_proc_penale", "article": "410",
+        {"key": "ankim_penal", "label": "Afati për ankim (apel penal)",
+         "code": "kodi_proc_penale", "article": "415",
          "days": 15, "counting": "calendar",
          "urgency": "high",
-         "notes": "Ankimi depozitohet në gjykatën që ka dhënë vendimin. "
-                  "Afati fillon nga dita e njoftimit ose e shpalljes."},
+         "notes": "15 ditë nga e nesërmja e njoftimit të vendimit (neni 415/1 KPP), përveç rasteve të "
+                  "parashikuara ndryshe; afati nuk zgjatet (415/3). Ankimi depozitohet në gjykatën që ka dhënë "
+                  "vendimin."},
     ],
     # Penale — sentenza d'appello penale
     "njoftim_vendimi_apel_penal": [
-        {"key": "rekurs_penal_gjykata_larte", "label": "Afati për rekurs në Gjykatën e Lartë (penale)",
-         "code": "kodi_proc_penale", "article": "432",
-         "days": 30, "counting": "calendar",
+        {"key": "rekurs_penal_gjykata_larte", "label": "Afati për rekurs në Gjykatën e Lartë (penal)",
+         "code": "kodi_proc_penale", "article": "435",
+         "days": 45, "counting": "calendar",
          "urgency": "high",
-         "notes": "Shkaqet e rekursit janë të kufizuara me ligj. Verifiko "
-                  "nenin 432 të KPP-së."},
+         "notes": "45 ditë nga e nesërmja e njoftimit të vendimit të apelit (neni 435/1 KPP); 20 ditë kur apeli "
+                  "ka vendosur prishjen e vendimit dhe kthimin e akteve në shkallë të parë. Shkaqet: neni 432; "
+                  "akti nënshkruhet nga mbrojtësi."},
     ],
-    # Penale — masa parasegura / arrestimi
+    # Penale — misura cautelare
     "zbatim_mase_sigurie": [
         {"key": "ankim_mase_sigurie", "label": "Ankim ndaj masës së sigurimit",
          "code": "kodi_proc_penale", "article": "249",
          "days": 5, "counting": "calendar",
          "urgency": "critical",
-         "notes": "Afat shumë i shkurtër — prek lirinë personale."},
+         "notes": "5 ditë nga njoftimi i vendimit të gjykatës (neni 249/1 KPP), edhe për vazhdimin, revokimin "
+                  "ose zëvendësimin e masës (249/1/1). Prek lirinë personale."},
     ],
-    # Civile — thirrje në gjyq (prima udienza)
+    # Civile — notifica della domanda al convenuto
     "thirrje_seance": [
-        {"key": "parashtrim_mbrojtjes", "label": "Paraqitja e mbrojtjes",
-         "code": "kodi_proc_civile", "article": "163",
-         "days": 0, "counting": "calendar",
+        {"key": "deklarata_mbrojtjes", "label": "Deklarata e mbrojtjes (përgjigja e padisë)",
+         "code": "kodi_proc_civile", "article": "158",
+         "days": 30, "counting": "calendar",
          "urgency": "high",
-         "notes": "Mbrojtja paraqitet deri në ditën e parë të gjykimit; "
-                  "aq sa më herët, aq më mirë — afati tregohet vetëm "
-                  "me datën e seancës."},
+         "notes": "Jo më vonë se 30 ditë nga njoftimi i kërkesëpadisë (neni 158/1 KPC); gjykata informon të "
+                  "paditurin për përmbajtjen e deklaratës dhe pasojat e moslëshimit."},
     ],
     # Amministrativo — atto impugnabile
     "njoftim_akti_administrativ": [
         {"key": "ankim_administrativ", "label": "Ankim administrativ",
-         "code": "kodi_proc_admin", "article": "135",
+         "code": "kodi_proc_admin", "article": "132",
          "days": 30, "counting": "calendar",
          "urgency": "medium",
-         "notes": "Ankimi drejtuar organit epror ose Gjykatës "
-                  "Administrative të Shkallës së Parë, sipas llojit të aktit."},
+         "notes": "30 ditë nga njoftimi i nxjerrjes ose i refuzimit të nxjerrjes së aktit (neni 132/1 KPA)."},
+        {"key": "padi_gjykata_administrative", "label": "Padi në gjykatën administrative",
+         "code": "ligji_gjykatat_administrative", "article": "18",
+         "days": 45, "counting": "calendar",
+         "urgency": "high",
+         "notes": "45 ditë (neni 18 i ligjit nr. 49/2012): nga njoftimi i aktit të organit epror që shqyrtoi "
+                  "ankimin, ose nga njoftimi i aktit kur ankimohet drejtpërdrejt në gjykatë."},
     ],
 }
 
@@ -706,12 +738,12 @@ DEADLINE_RULES: dict[str, list[dict]] = {
 EVENT_TYPE_LABELS_SQ: dict[str, str] = {
     "njoftim_vendimi_civil_shkalle_pare": "Njoftim i vendimit civil — shkalla e parë",
     "njoftim_vendimi_apeli": "Njoftim i vendimit të apelit (civil)",
-    "njoftim_vendimi_prere_civil": "Vendim civil i formës së prerë",
-    "njoftim_urdher_ekzekutimi": "Njoftim i urdhrit të ekzekutimit",
+    "njoftim_vendimi_prere_civil": "Vendim civil i formës së prerë / marrje dijeni për shkakun e rishikimit",
+    "njoftim_urdher_ekzekutimi": "Veprim ose njoftim i përmbaruesit",
     "njoftim_vendimi_penal_shkalle_pare": "Njoftim i vendimit penal — shkalla e parë",
     "njoftim_vendimi_apel_penal": "Njoftim i vendimit të apelit (penal)",
-    "zbatim_mase_sigurie": "Zbatim i masës së sigurimit",
-    "thirrje_seance": "Thirrje në seancë gjyqësore",
+    "zbatim_mase_sigurie": "Njoftim i vendimit për masën e sigurimit",
+    "thirrje_seance": "Njoftim i kërkesëpadisë (i padituri)",
     "njoftim_akti_administrativ": "Njoftim i aktit administrativ",
 }
 
@@ -729,12 +761,17 @@ def _add_days(base: date, days: int, counting: str) -> date:
 
 
 def compute_deadline_cascade(
-    event_type: str, event_date: str,
+    event_type: str, event_date: str, jurisdiction: str = "AL",
 ) -> dict:
     """Given a procedural event type + ISO date, return the cascade.
 
     Pure rules engine: no LLM, no I/O. Output is stable and auditable.
+    v9.400: le regole sono del diritto ALBANESE (KPC/KPP/KPA): in sessione IT non si calcolano (Regola #1 — i termini
+    italiani li dà il motore delle scadenze radicato sul c.p.c./c.p.p.). La data si calcola col motore deterministico
+    (`deadline_engine`): proroga al primo giorno lavorativo se la scadenza cade di sabato, domenica o festivo (KPC 148).
     """
+    if (jurisdiction or "AL").upper() == "IT":
+        raise ValueError("cascade_it_unavailable")
     if event_type not in DEADLINE_RULES:
         raise ValueError(f"unknown event_type: {event_type!r}")
     try:
@@ -745,7 +782,16 @@ def compute_deadline_cascade(
     today = date.today()
     derived: list[dict] = []
     for rule in DEADLINE_RULES[event_type]:
-        due = _add_days(base, rule["days"], rule["counting"])
+        rolled_note = ""
+        if rule["counting"] == "calendar":
+            from .deadline_engine import compute_deadline as _cd
+            _r = _cd(base, int(rule["days"]), "days", jurisdiction="AL", lang="sq")
+            due = _r.deadline
+            if _r.rolled:
+                rolled_note = (f" Dita e fundit ({_r.raw_deadline.isoformat()}) nuk është ditë pune: afati mbaron "
+                               f"më {due.isoformat()} (neni 148 KPC).")
+        else:
+            due = _add_days(base, rule["days"], rule["counting"])
         days_left = (due - today).days
         if days_left < 0:
             status = "expired"
@@ -762,8 +808,7 @@ def compute_deadline_cascade(
             "label": rule["label"],
             "code": rule["code"],
             "article": rule["article"],
-            "citation": f"Neni {rule['article']} i "
-                        f"{_code_title_sq(rule['code'])}",
+            "citation": f"Neni {rule['article']}, {_code_title_sq(rule['code'])}",   # v9.400: era «Neni 443 i Kodi i …»
             "days": rule["days"],
             "counting": rule["counting"],
             "base_date": event_date,
@@ -771,7 +816,7 @@ def compute_deadline_cascade(
             "days_left": days_left,
             "status": status,
             "urgency": rule["urgency"],
-            "notes": rule.get("notes", ""),
+            "notes": rule.get("notes", "") + rolled_note,
         })
     derived.sort(key=lambda d: d["due_date"])
     return {
@@ -829,9 +874,13 @@ TIMELINE_SYSTEM = textwrap.dedent("""\
        pagesa, mesazhe, takime, seanca, dëmtime, vërejtje, etj.
     3) Identifiko KONTRADIKTAT — kur dy burime japin data të ndryshme për
        të njëjtën ngjarje, ose kur faktet bien në kundërshtim.
-    4) Identifiko BOSHLLËQET — periudha të gjata pa veprim ku ligji do të
-       priste një reagim (p.sh. 30 ditë heshtje pas një njoftimi formal).
+    4) Identifiko BOSHLLËQET — periudha të gjata pa veprim pas një ngjarjeje
+       që kërkon reagim (një njoftim formal, një vendim, një afat).
     5) Cito vetëm dokumentet që janë dhënë; mos shpik prova.
+    6) AFATET DHE KUSHTET LIGJORE: përmendi VETËM kur i gjen në NENET E RASTIT
+       që të jepen më poshtë, duke cituar nenin; nëse nuk janë aty, mos shkruaj
+       asnjë afat, kusht apo detyrim ligjor — përshkruaj vetëm vlerën provuese
+       të faktit. Një afat i shpikur në kronologji bëhet «fakt» për avokatin.
 
     Përgjigja DUHET të jetë vetëm një objekt JSON i vlefshëm, pa tekst
     shtesë jashtë tij, që ndjek këtë skemë:
@@ -844,7 +893,7 @@ TIMELINE_SYSTEM = textwrap.dedent("""\
           "time": "HH:MM" | null,
           "type": "njoftim" | "kontrate" | "pushim" | "pagese" |
                   "mesazh" | "seance" | "demti" | "vendim" | "tjeter",
-          "summary": "përshkrim i shkurtër në shqip (1-2 fjali)",
+          "summary": "përshkrim i shkurtër në gjuhën e sesionit (1-2 fjali)",
           "parties": ["pala 1", "pala 2"],
           "source_doc": "filename ose 'description' nëse vjen nga teksti",
           "source_excerpt": "citim i drejtpërdrejtë nga burimi (max 200 char)",
@@ -870,7 +919,7 @@ TIMELINE_SYSTEM = textwrap.dedent("""\
           "concern": "pse ky boshllëk është i dyshimtë juridikisht"
         }
       ],
-      "summary": "një paragraf përmbledhës i kronologjisë në shqip"
+      "summary": "një paragraf përmbledhës i kronologjisë në gjuhën e sesionit"
     }
 
     Renditi events sipas datës rritëse. Datat duhet të jenë në format
@@ -881,17 +930,94 @@ TIMELINE_SYSTEM = textwrap.dedent("""\
 """)
 
 
+# v9.401 — la cronologia in sessione IT ha un prompt ITALIANO nativo: con quello albanese il modello copiava le etichette
+# («Boshllëku più grave: oltre sei mesi di inerzia…» in una cronologia italiana, prova viva del 29 set). Stessa scheda JSON,
+# stessi valori-codice di «type» (li legge l'interfaccia).
+TIMELINE_SYSTEM_IT = textwrap.dedent("""\
+    Sei un giurista analista che ricostruisce la cronologia completa di un caso
+    di diritto italiano, estraendo ogni evento datato dai documenti del
+    fascicolo e dalla descrizione dell'avvocato.
+
+    Compiti:
+    1) Leggi con attenzione la descrizione del caso e i documenti allegati.
+    2) Estrai OGNI evento con una data: firma di contratti, comunicazioni,
+       licenziamenti, pagamenti, messaggi, incontri, udienze, danni, contestazioni.
+    3) Individua le CONTRADDIZIONI — quando due fonti danno date diverse per lo
+       stesso evento, o quando i fatti non tornano fra loro.
+    4) Individua i VUOTI — lunghi periodi senza attività dopo un evento che
+       richiede una reazione (una comunicazione formale, un provvedimento, un termine).
+    5) Cita solo i documenti forniti; non inventare prove.
+    6) TERMINI E REQUISITI DI LEGGE: nominali SOLO se li trovi negli ARTICOLI DEL
+       CASO forniti più sotto, citando l'articolo; se non ci sono, non scrivere
+       alcun termine, requisito o obbligo di legge — descrivi solo il valore
+       probatorio del fatto. Un termine inventato in una cronologia diventa un
+       «fatto» per l'avvocato.
+    Scrivi tutto in italiano: nessuna parola di un'altra lingua nei testi.
+
+    La risposta DEVE essere solo un oggetto JSON valido, senza testo fuori,
+    secondo questo schema:
+
+    {
+      "events": [
+        {
+          "date": "YYYY-MM-DD",
+          "date_confidence": "exact" | "approximate" | "inferred",
+          "time": "HH:MM" | null,
+          "type": "njoftim" | "kontrate" | "pushim" | "pagese" |
+                  "mesazh" | "seance" | "demti" | "vendim" | "tjeter",
+          "summary": "descrizione breve in italiano (1-2 frasi)",
+          "parties": ["parte 1", "parte 2"],
+          "source_doc": "nome del file oppure 'description' se viene dal testo",
+          "source_excerpt": "citazione letterale dalla fonte (max 200 caratteri)",
+          "legal_significance": "perché l'evento conta sul piano giuridico (1 frase)"
+        }
+      ],
+      "contradictions": [
+        {
+          "issue": "che cosa non torna",
+          "claims": [
+            {"value": "valore sostenuto", "source": "documento-X.pdf"},
+            {"value": "altro valore", "source": "documento-Y.pdf"}
+          ],
+          "severity": "high" | "medium" | "low",
+          "tactical_note": "come usarla o neutralizzarla"
+        }
+      ],
+      "gaps": [
+        {
+          "from": "YYYY-MM-DD",
+          "to": "YYYY-MM-DD",
+          "duration_days": 0,
+          "concern": "perché questo vuoto è rilevante sul piano giuridico"
+        }
+      ],
+      "summary": "un paragrafo di sintesi della cronologia, in italiano"
+    }
+
+    Ordina gli eventi per data crescente, in formato ISO (YYYY-MM-DD). Se una
+    data è approssimativa (per esempio solo il mese), usa il primo giorno del
+    mese e indica date_confidence: "approximate". «type» è un codice interno:
+    usa esattamente uno dei valori elencati. Se non trovi eventi, restituisci
+    events: [] con un summary che lo spiega.
+""")
+
+
 def build_case_timeline(
     backend: LLMBackend,
     case_summary: str,
     case_title: str,
     case_docs: list[dict] | None = None,
+    articles_block: str = "",
 ) -> dict:
     """Reconstruct the chronological timeline of a case.
 
     ``case_summary`` is typically the first user message of the case (the
     lawyer's narrative); ``case_docs`` are the dossier attachments. We send
     every dossier file to the backend so Opus can read them directly.
+    ``articles_block`` (v9.400): gli articoli del caso — la «rilevanza giuridica» di un evento e i «vuoti» possono
+    nominare un termine o un requisito SOLO da lì. Misurato (28 set, licenziamento orale): senza articoli e con
+    l'esempio «30 ditë heshtje» nel prompt, la cronologia scriveva «plotëson kushtin e kundërshtimit me shkrim brenda
+    30 ditëve» — un requisito che il Codice del lavoro vigente non prevede.
     """
     docs_block = ""
     attachments: list[Path] = []
@@ -903,20 +1029,38 @@ def build_case_timeline(
             sp = d.get("storage_path")
             if sp and Path(sp).exists():
                 attachments.append(Path(sp))
-        docs_block = "\nDOKUMENTET E DOSJES (bashkëngjitur):\n" + "\n".join(names) + "\n"
+        docs_block = (("\nDOCUMENTI DEL FASCICOLO (allegati):\n" if _sessione_it() else "\nDOKUMENTET E DOSJES (bashkëngjitur):\n")
+                      + "\n".join(names) + "\n")
 
-    prompt = textwrap.dedent(f"""\
-        EMRI I RASTIT: {case_title}
+    _it = _sessione_it()
+    art_block = ""
+    if (articles_block or "").strip():
+        art_block = (("\nARTICOLI DEL CASO (dal corpus — i soli da cui citare un termine o un requisito):\n" if _it else
+                      "\nNENET E RASTIT (nga korpusi — të vetmet prej nga citohet një afat apo kusht):\n")
+                     + articles_block.strip() + "\n")
+    if _it:                                # v9.401: le etichette nella lingua della sessione (il modello le copia)
+        prompt = textwrap.dedent(f"""\
+            NOME DEL CASO: {case_title}
 
-        PËRSHKRIMI / NARRATIVA E AVOKATIT:
-        \"\"\"{case_summary}\"\"\"
-        {docs_block}
-        Ndërto kronologjinë sipas skemës JSON të sistemit. Përgjigja vetëm
-        si objekt JSON, asgjë tjetër.
-    """)
+            DESCRIZIONE / RACCONTO DELL'AVVOCATO:
+            \"\"\"{case_summary}\"\"\"
+            {docs_block}
+            Costruisci la cronologia secondo lo schema JSON del sistema. Rispondi solo
+            con l'oggetto JSON, nient'altro.
+        """) + art_block
+    else:
+        prompt = textwrap.dedent(f"""\
+            EMRI I RASTIT: {case_title}
+
+            PËRSHKRIMI / NARRATIVA E AVOKATIT:
+            \"\"\"{case_summary}\"\"\"
+            {docs_block}
+            Ndërto kronologjinë sipas skemës JSON të sistemit. Përgjigja vetëm
+            si objekt JSON, asgjë tjetër.
+        """) + art_block
 
     raw = backend.complete(
-        system=_juris(TIMELINE_SYSTEM),
+        system=_juris(TIMELINE_SYSTEM_IT if _it else TIMELINE_SYSTEM),
         messages=[{"role": "user", "content": prompt}],
         max_tokens=6000,
         fast=False,
@@ -1030,6 +1174,7 @@ def adversarial_loop(
     max_rounds: int = 5,
     *,
     case_docs: list[dict] | None = None,
+    retrieved: list | None = None,
 ) -> dict:
     """Run an iterative attacker/defender loop on ``hypothesis``.
 
@@ -1037,7 +1182,7 @@ def adversarial_loop(
     attacker outputs ``attack_thesis: "konvergjuar"`` or after ``max_rounds``.
     A final summary call distils everything into the strategist's plan.
     """
-    retrieved = index.search(hypothesis, top_k=10)
+    retrieved = retrieved or index.search(hypothesis, top_k=10)
     articles_block = _format_articles_compact(retrieved)
     docs_block = ""
     if case_docs:
@@ -1085,7 +1230,7 @@ def adversarial_loop(
             break
         attack["round"] = r
         thesis = (attack.get("attack_thesis") or "").strip().lower()
-        if "konvergj" in thesis or attack.get("risk_to_lawyer") == "low" and r > 1:
+        if "konvergj" in thesis or "converg" in thesis or attack.get("risk_to_lawyer") == "low" and r > 1:   # v9.400: anche in IT
             rounds.append({"round": r, "attack": attack, "defense": None,
                            "converged": True})
             log.info("adversarial: converged at round %d", r)
@@ -1229,6 +1374,11 @@ STRATEGY_COMPASS_SYSTEM = textwrap.dedent("""\
     - Recommended_path = sekuenca optimale e id-ve nga root tek gjethja
       më e mirë; recommended branches duhet të kenë "is_recommended": true.
     - dead_end = true për degët që duhen shmangur (kosto/risk i lartë).
+    - legal_basis: VETËM nene që janë në bllokun e neneve të dhënë më poshtë, me
+      numrin e tyre. Për një institut që nuk është aty, shkruaj emrin e institutit
+      PA numër neni, me shënimin «neni për t'u verifikuar». Mos jep kurrë numra
+      nenesh nga kujtesa: një nen që ekziston por flet për tjetër gjë e çon avokatin
+      në gabim.
 """)
 
 
@@ -1240,13 +1390,14 @@ def build_strategy_compass(
     *,
     case_title: str | None = None,
     case_docs: list[dict] | None = None,
+    retrieved: list | None = None,
 ) -> dict:
     """Generate a decision-tree compass for ``objective`` given the case state.
 
     Returns a dict with the JSON shape declared in ``STRATEGY_COMPASS_SYSTEM``,
     plus ``meta`` (node_count, depth, generated_at, retrieved_articles).
     """
-    retrieved = index.search(f"{objective}\n\n{case_summary}", top_k=10)
+    retrieved = retrieved or index.search(f"{objective}\n\n{case_summary}", top_k=10)
     articles_block = _format_articles_compact(retrieved)
 
     docs_block = ""
@@ -1268,7 +1419,7 @@ def build_strategy_compass(
         {case_summary}
         {docs_block}
 
-        Nenet relevante nga KP/KPC/KPP/Kushtetuta:
+        {"Articoli pertinenti (dal corpus — i soli da citare con il numero):" if _sessione_it() else "Nenet relevante (nga korpusi — të vetmet që citohen me numër):"}
         {articles_block}
 
         Ndërto pemën e vendimarrjes. JSON only.

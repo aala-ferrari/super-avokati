@@ -99,6 +99,10 @@ def holidays(year: int, jurisdiction: str) -> set[_dt.date]:
     j = (jurisdiction or "AL").upper()
     fixed = _IT_FIXED if j == "IT" else _AL_FIXED
     out = {_dt.date(year, m, d) for (m, d) in fixed}
+    if j == "IT" and year >= 2026:
+        # v9.400 — L. 8 ottobre 2025, n. 151 (GU n. 236 del 10.10.2025, modifica la L. 260/1949): il 4 OTTOBRE (San
+        # Francesco d'Assisi) è festa nazionale dal 2026; una scadenza che vi cade si proroga (art. 155 c.p.c.)
+        out.add(_dt.date(year, 10, 4))
     out.add(easter_sunday(year) + ONE_DAY)  # Lunedì dell'Angelo (Pasqua cattolica)
     if j == "AL":
         # Albania osserva ANCHE la Pasqua ORTODOSSA (calendario giuliano).

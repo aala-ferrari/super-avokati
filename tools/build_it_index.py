@@ -234,7 +234,10 @@ def main():
                 number=art["number"], heading=_h, body=_b,
                 pjesa=_gv[0], kreu=_gv[1], seksioni=_gv[2],
                 repealed=_as_bool(art.get("repealed")), volatility="STABLE",
-                last_amendment_date=_lad))
+                last_amendment_date=_lad,
+                # v9.401: una nota di collegamento NOSTRA (dichiarata come tale) viaggia col testo ufficiale — es. l'art. 3
+                # L. 742/1969 richiama gli artt. 429 e 459 c.p.c. nella numerazione anteriore al 1973
+                note=(art.get("note") or "")))
         meta.append({"code": cid, "title": a["title"], "area": a.get("area") or "",
                      "count": len(arts)})
         print(f"  {cid:34s} {len(arts):>5} art   {a['title'][:46]}")

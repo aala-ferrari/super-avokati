@@ -4441,6 +4441,14 @@ ACTIVITY_KIND_LABELS_SQ: dict[str, str] = {
     "research": "Kërkim juridik",
     "drafting": "Hartim akti",
 }
+ACTIVITY_KIND_LABELS_IT: dict[str, str] = {           # v9.400: la fattura di un fascicolo italiano
+    "work": "Attività generale",
+    "hearing": "Udienza",
+    "meeting": "Incontro con il cliente",
+    "travel": "Trasferta",
+    "research": "Ricerca giuridica",
+    "drafting": "Redazione di atti",
+}
 
 
 @dataclass
@@ -4615,6 +4623,7 @@ def create_invoice_from_unbilled(
     notes: str | None = None,
     due_date: str | None = None,
     firm_id: int | None = None,
+    lang: str = "sq",
 ) -> Invoice:
     client_name = (client_name or "").strip()
     if not client_name:
@@ -4632,7 +4641,7 @@ def create_invoice_from_unbilled(
             "entry_id": e.id,
             "date": e.entry_date,
             "kind": e.activity_kind,
-            "kind_label": ACTIVITY_KIND_LABELS_SQ.get(e.activity_kind, e.activity_kind),
+            "kind_label": (ACTIVITY_KIND_LABELS_IT if lang == "it" else ACTIVITY_KIND_LABELS_SQ).get(e.activity_kind, e.activity_kind),
             "description": e.description,
             "minutes": e.minutes,
             "hours": round(e.minutes / 60.0, 2),
@@ -4649,7 +4658,7 @@ def create_invoice_from_unbilled(
         client_name=client_name, client_address=client_address,
         currency=currency, line_items=line_items,
         subtotal_cents=subtotal, vat_rate=vat_rate, vat_cents=vat_cents,
-        total_cents=total, notes=notes,
+        total_cents=total, notes=notes, lang=lang,
     )
     with db() as conn:
         cur = conn.execute(
@@ -4914,20 +4923,35 @@ def _render_invoice_markdown(
     client_name: str, client_address: str | None,
     currency: str, line_items: list,
     subtotal_cents: int, vat_rate: int, vat_cents: int,
-    total_cents: int, notes: str | None,
+    total_cents: int, notes: str | None, lang: str = "sq",
 ) -> str:
-    lines = [f"# Faturë {invoice_no}", ""]
-    lines.append(f"**Data e lëshimit:** {issue_date}")
+    """La fattura (bozza) dalle ore registrate. v9.400: nella lingua del fascicolo — prima solo albanese, con «TVSH» e il
+    riferimento alla Dhoma Kombëtare e Avokatisë anche per un avvocato italiano; e la nota dice la verità sul documento
+    (la fattura fiscale si emette dal sistema pubblico: fiscalizzazione in Albania, SdI in Italia)."""
+    it = lang == "it"
+    L = ({"title": "Fattura", "issued": "Data di emissione", "due": "Scadenza del pagamento", "client": "Cliente",
+          "address": "Indirizzo", "services": "Prestazioni", "cols": "| Data | Attività | Descrizione | Ore | Tariffa | Importo |",
+          "subtotal": "Imponibile", "vat": "IVA", "total": "TOTALE", "notes": "Note",
+          "foot": "_Importi calcolati sulle ore registrate nel fascicolo. Documento di cortesia: la fattura elettronica si "
+                  "emette tramite il Sistema di Interscambio (SdI), con gli eventuali contributo integrativo e ritenuta "
+                  "d'acconto previsti._"} if it else
+         {"title": "Faturë", "issued": "Data e lëshimit", "due": "Afati i pagesës", "client": "Klienti",
+          "address": "Adresa", "services": "Shërbime", "cols": "| Data | Aktivitet | Përshkrim | Orë | Tarifa | Shumë |",
+          "subtotal": "Nën-totali", "vat": "TVSH", "total": "TOTALI", "notes": "Shënime",
+          "foot": "_Tarifa e referuar nga Dhoma Kombëtare e Avokatisë (orientuese). Pagesa në llogarinë bankare të studios. "
+                  "Dokument informues: fatura tatimore lëshohet e fiskalizuar (ligji nr. 87/2019)._"})
+    lines = [f"# {L['title']} {invoice_no}", ""]
+    lines.append(f"**{L['issued']}:** {issue_date}")
     if due_date:
-        lines.append(f"**Afati i pagesës:** {due_date}")
+        lines.append(f"**{L['due']}:** {due_date}")
     lines.append("")
-    lines.append(f"**Klienti:** {client_name}")
+    lines.append(f"**{L['client']}:** {client_name}")
     if client_address:
-        lines.append(f"**Adresa:** {client_address}")
+        lines.append(f"**{L['address']}:** {client_address}")
     lines.append("")
-    lines.append("## Shërbime")
+    lines.append(f"## {L['services']}")
     lines.append("")
-    lines.append("| Data | Aktivitet | Përshkrim | Orë | Tarifa | Shumë |")
+    lines.append(L["cols"])
     lines.append("|---|---|---|---:|---:|---:|")
     for li in line_items:
         rate = _fmt_money(li["rate_cents"], currency)
@@ -4935,17 +4959,17 @@ def _render_invoice_markdown(
         desc = (li["description"] or "").replace("|", "\\|").replace("\n", " ")
         lines.append(f"| {li['date']} | {li.get('kind_label') or li['kind']} | {desc} | {li['hours']:.2f} | {rate} | {amt} |")
     lines.append("")
-    lines.append(f"**Nën-totali:** {_fmt_money(subtotal_cents, currency)}  ")
+    lines.append(f"**{L['subtotal']}:** {_fmt_money(subtotal_cents, currency)}  ")
     if vat_rate:
-        lines.append(f"**TVSH ({vat_rate}%):** {_fmt_money(vat_cents, currency)}  ")
-    lines.append(f"**TOTALI:** **{_fmt_money(total_cents, currency)}**")
+        lines.append(f"**{L['vat']} ({vat_rate}%):** {_fmt_money(vat_cents, currency)}  ")
+    lines.append(f"**{L['total']}:** **{_fmt_money(total_cents, currency)}**")
     if notes:
         lines.append("")
-        lines.append("## Shënime")
+        lines.append(f"## {L['notes']}")
         lines.append(notes)
     lines.append("")
     lines.append("---")
-    lines.append("_Tarifa e referuar nga Dhoma Kombëtare e Avokatisë (orientuese). Pagesa në llogarinë bankare të studios._")
+    lines.append(L["foot"])
     return "\n".join(lines)
 
 

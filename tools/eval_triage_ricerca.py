@@ -13,6 +13,8 @@ CASI = [  # (giurisdizione, domanda dell'avvocato, articoli di cui almeno uno DE
     ("AL", "Vëllai i klientit kërkohej nga policia për vjedhje dhe klienti e mbajti dy ditë në shtëpi. A rrezikon përgjegjësi penale?", [("kodi_penal", "302")]),
     ("AL", "Klienti u mbajt 8 muaj në paraburgim dhe u pafajësua me vendim të formës së prerë. Çfarë kompensimi i takon dhe brenda çfarë afati?", [("kodi_proc_penale", "268"), ("kodi_proc_penale", "269")]),
     ("AL", "Punëdhënësi e pushoi klientin pas 8 vitesh pa asnjë paralajmërim. Çfarë i takon?", [("kodi_punes", "155"), ("kodi_punes", "146")]),
+    # v9.400 — il preavviso (KP 143) decide paga dovuta e inizio dei 180 giorni: non entrava in nessun licenziamento misurato
+    ("AL", "Klienti u pushua me gojë pas 7 vitesh pune; punëdhënësi thotë se ai dha dorëheqjen. Çfarë i takon dhe brenda sa kohe duhet padia?", [("kodi_punes", "143")]),
     ("AL", "Qiramarrësi nuk paguan qiranë prej 5 muajsh. Si ta nxjerr nga banesa?", [("kodi_civil", "801"), ("kodi_civil", "698"), ("kodi_civil", "703")]),
     # v9.394 — il caso del banco di prova che NESSUNA variante risolve (26 set: legge sugli stranieri 72-73 e premio di anzianità
     # mancati 6 giri su 6): licenziamento di un lavoratore straniero con permesso unico

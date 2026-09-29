@@ -143,11 +143,31 @@ ANCORE_AL: tuple = (
      # di paga per anno); il 152 sta nella sezione dei contratti A TERMINE e rinvia al 145 — prima entrava solo il 152
      # (trovato dal Giudice nell'audit AL del 28 set: «vjetërsia: baza është neni 145, jo 152»)
      ("Penal",), (("kodi_punes", "145"), ("kodi_punes", "152"))),
+    # v9.400 — il licenziamento da parte del datore: il PREAVVISO (KP 143) decide la paga dovuta (155/1), il giorno da cui
+    # corrono i 180 giorni della causa (146/2) e, se non è stato dato, fa della risoluzione una risoluzione con effetto
+    # immediato (143/4 → 155); l'anzianità (KP 145) sono soldi del cliente dopo 3 anni. Misurato (28 set, prove vive degli
+    # strumenti PRO sul licenziamento orale): la padia scriveva «neni 143 … NUK është midis neneve të ofruara» e «neni 145 …
+    # verifikoji»; col triage vero il 143 non entrava in NESSUNO dei 4 licenziamenti misurati (23/24 attesi con l'ancora,
+    # 22/24 senza). Solo con l'area Punë nel triage (quinto elemento): «pushua» vale anche per un procedimento sospeso.
+    ((("pushu", "pun"), ("pushoi", "pun"), ("pushim nga pun",), ("pushimi nga pun",), ("zgjidh", "kontrat", "pun"),
+      ("largu", "nga pun"), ("largoi", "pun"), ("pushoj", "pun")),
+     ("Penal",), (("kodi_punes", "143"), ("kodi_punes", "145")), None, ("Punë",)),
 )
 # v9.380 — ancore italiane di REGOLA GENERALE (stesso metro): «il credito risale al 2013 — è prescritto?» → il triage cerca
 # ordinaria + interruzione + sospensione e il 2946 c.c. «Prescrizione ordinaria» finiva oltre il 12° (2945, 2935, 2964 sopra).
 ANCORE_IT: tuple = (
     (("prescri",), ("Penale", "Penal"), (("codice_civile", "2946"),)),
+    # v9.401 — la SOSPENSIONE FERIALE (L. 742/1969): l'art. 3 la esclude per le controversie di lavoro e previdenza (gli artt.
+    # 429 e 459 c.p.c. che richiama sono quelli anteriori al 1973: oggi 409 e 442). Misurato (28 set, prove vive v9.400): la
+    # bozza di un ricorso per licenziamento salvava il termine di 180 giorni dell'art. 6 L. 604/1966 «in ragione della
+    # sospensione feriale» — sbagliato due volte; nelle risposte della chat il punto restava «da verificare». La legge non era
+    # nel corpus. Nel lavoro con un termine in gioco, e ovunque si parli di sospensione feriale (fuori dal penale).
+    (("sospensione feriale", "periodo feriale", "feriale dei termini", ("licenzi", "termin"), ("licenzi", "decadenz"),
+      ("licenzi", "impugna"), ("rapporto di lavoro", "termin"), ("controversi", "lavoro", "termin")),
+     ("Penale", "Penal"), (("legge_sospensione_feriale", "1"), ("legge_sospensione_feriale", "3"))),
+    # …e nel penale l'art. 2 (custodia cautelare, criminalità organizzata, prescrizione vicina)
+    (("sospensione feriale", "periodo feriale", "feriale dei termini"), (),
+     (("legge_sospensione_feriale", "1"), ("legge_sospensione_feriale", "2")), None, ("Penale", "Penal")),
 )
 
 
@@ -194,6 +214,9 @@ def _applica_ancore(pairs, idx, queries: list[str], aree: list[str], ancore=None
         if not any((all(x in _t for x in p) if isinstance(p, tuple) else p in _t) for p in parole):
             continue
         if any(x in aree for x in aree_spente):
+            continue
+        # v9.400: un quinto elemento = aree di cui almeno una deve esserci (l'ancora del licenziamento vale solo nel lavoro)
+        if len(voce) > 4 and voce[4] and not any(x in (aree or []) for x in voce[4]):
             continue
         for chiave in articoli:
             if chiave not in per_chiave:
@@ -334,6 +357,14 @@ def _ankoro_sipas_titullit(pairs, idx, testo: str, queries: list[str] | None = N
         # selettività misurata DENTRO i codici dell'area, come il flusso vero
         if not (0 < len(hits) <= _TITUJ_MAX):
             continue
+        # v9.400 — si ancora solo un TITOLO vero (heading_kind «rubrike»), mai la PRIMA FRASE di un articolo senza rubrica
+        # (3.281 nel corpus AL, quasi tutto il Kodi Civil): «pushuar» (licenziato) accendeva KC 907 «…huamarrësi të ketë
+        # pushuar së përdoruri sendin» e KC 1121 «…ka pushuar së qeni» IN TESTA al blocco di un licenziamento. Misurato col
+        # triage vero su 24 domande (stesso triage per le varianti): 13 ancore su prime frasi, quasi tutte fuori tema; tolte,
+        # i risultati attesi restano 22/24 e al loro posto entrano articoli pertinenti (KP 144, 147, 156). La selettività
+        # resta contata su TUTTI i titoli: contarla sulle sole rubriche rende «selettive» radici che non lo sono e fa entrare
+        # ancore nuove fuori tema (misurato: 18/24, la legge sugli appalti nel caso del tramadolo).
+        hits = [a for a in hits if getattr(a, "heading_kind", "rubrike") != "fjali"]
         # per radice al massimo _TITUJ_MAX_PER_RADICE: il più corto e' il
         # più definitorio (il 153 sono cinque righe; il 78 è un elenco)
         hits.sort(key=lambda a: len(a.body or ""))
@@ -919,7 +950,7 @@ KUFI JURIDIKSIONAL — KRITIK PËR AVOKATIN
 TRIAGE_SYSTEM = f"""Ti je asistent i një avokati strateg shqiptar. Përdoruesi yt ËSHTË avokat profesionist që po përgatit një rast për klientin e tij.
 Detyra jote është VETËM triazhi: përgatit kërkesën, nuk përgjigjesh ligjërisht.
 
-Kodet në dispozicion (13 gjithsej + Kushtetuta):
+Kodet dhe ligjet në dispozicion ({len(LEGAL_DOCUMENTS)} akte, bashkë me Kushtetutën):
 {CODES_INDEX}
 
 RREGULL KRITIK për 'areas': kur rasti prek një kod material, përfshi GJITHMONË edhe kodin përkatës procedural:
@@ -2182,6 +2213,19 @@ _NOTA_AFATO = {"sq": " (afati nuk del nga asnjë normë e gjetur — verifikoje 
                "it": " (il termine non risulta da alcuna norma trovata — da verificare prima di trattarlo come termine di legge)"}
 
 
+# v9.401 — le leggi scrivono spesso il numero in LETTERE («entro il successivo termine di centottanta giorni», art. 6 L. 604/1966;
+# «pesëmbëdhjetë ditë», KPP 415): cercando solo le cifre, la nota «il termine non risulta da alcuna norma trovata» usciva FALSA
+# (prova viva del 29 set: 180 giorni dell'art. 6, co. 2, L. 604/1966 — il Giudice: «falso, è testuale»)
+_NUM_PAROLE = {
+    2: ("due", "dy"), 3: ("tre",), 5: ("cinque", "pesë"), 6: ("sei", "gjashtë"), 7: ("sette", "shtatë"), 8: ("otto", "tetë"),
+    10: ("dieci", "dhjetë"), 12: ("dodici", "dymbëdhjetë"), 15: ("quindici", "pesëmbëdhjetë"), 20: ("venti", "njëzet"),
+    24: ("ventiquattro",), 30: ("trenta", "tridhjetë"), 36: ("trentasei",), 40: ("quaranta", "dyzet"),
+    45: ("quarantacinque", "dyzet e pesë"), 48: ("quarantotto",), 60: ("sessanta", "gjashtëdhjetë"),
+    90: ("novanta", "nëntëdhjetë"), 120: ("centoventi", "njëqind e njëzet"), 150: ("centocinquanta",),
+    180: ("centottanta", "njëqind e tetëdhjetë"), 365: ("trecentosessantacinque",),
+}
+
+
 def _conferma_afati_con_norma(sig, retrieved, jur: str):
     """v9.351 — un segnale «critical» di tipo afato resta tale solo se il numero di giorni/mesi
     che dichiara compare in una delle norme recuperate; altrimenti scende a «elevated» con la nota.
@@ -2199,6 +2243,9 @@ def _conferma_afati_con_norma(sig, retrieved, jur: str):
         for n in nums:
             if re.search(r"\b%s\s*(?:-?\s*(?:ditë|dit|muaj|vjet|orë|giorn|mes[ei]|ann[oi]|ore)|\s*\(|\s*\))" % re.escape(n), corpi, re.I):
                 return sig
+            for _w in _NUM_PAROLE.get(int(n), ()):
+                if re.search(r"(?<![a-zëç])%s\s+(?:ditë|dit|muaj|vjet|orë|giorn|mes[ei]|ann[oi]|ore)" % re.escape(_w), corpi, re.I):
+                    return sig
         sig.severity = "elevated"
         sig.reason = (sig.reason or "") + _NOTA_AFATO.get("it" if jur == "IT" else "sq", _NOTA_AFATO["sq"])
         return sig
@@ -4482,7 +4529,12 @@ class SuperAvvocato:
             pairs = _applica_ancore(pairs, idx, _testo_anc, triage.areas, ancore=ANCORE_IT)
             pairs = _ancore_it_veicolo(pairs, idx, " ".join([triage.problem_summary or ""] + list(all_queries)))
         # v9.377: le ancore del veicolo extra-UE si AGGIUNGONO ai 12 (non devono spingere fuori il C.d.S. trovato dalla ricerca)
-        _out = pairs[: TOP_K_ARTICLES + sum(1 for a, _ in pairs if getattr(a, "_ancora_it", False))]
+        _extra = sum(1 for a, _ in pairs if getattr(a, "_ancora_it", False))
+        # v9.400 — anche le ancore albanesi di REGOLA GENERALE (copie `_ancora`) si AGGIUNGONO ai 12 invece di spingere fuori la
+        # coda: misurato col triage vero, l'ancora del preavviso buttava fuori KP 144 (procedura), 147 e 156 — articoli pertinenti
+        # trovati dalla ricerca. Al massimo 4 in più.
+        _extra += min(4, sum(1 for a, _ in pairs if getattr(a, "_ancora", False)))
+        _out = pairs[: TOP_K_ARTICLES + _extra]
         _audit_set("recupero", {
             "corpus": "IT" if idx is self.index_it else "AL", "codici_filtro": sorted(restrict) if restrict else None,
             "articoli": [{"code": a.code, "number": str(a.number), "heading": (a.heading or "")[:60], "score": round(float(sc), 2),
@@ -5173,23 +5225,37 @@ class SuperAvvocato:
         a deadline but demand action-first framing.
         """
         signals: list[UrgencySignal] = []
+        # v9.401 — i testi deterministici nella lingua della sessione: in sessione IT il Giudice segnalava «Due voci «Afat
+        # ligjor kritik» in albanese» fra i pannelli (prova viva del 29 set)
+        _it_u = (self._current_jurisdiction() or "AL").upper() == "IT"
 
         # Deterministic rollup from timeline.
+        # v9.401 — si leggevano campi che TimelineDeadline NON ha (label, description, date, target_date): ogni voce usciva
+        # con l'etichetta generica «Afat ligjor kritik» e SENZA la data di scadenza, in tutte e due le lingue. I campi veri:
+        # action (cosa fare), due_date (ISO), article_ref, anchor_event.
         if timeline and timeline.deadlines:
             for d in timeline.deadlines:
                 urg = (getattr(d, "urgency", None) or "").lower()
                 if urg not in {"expired", "critical"}:
                     continue
-                label = (getattr(d, "label", None)
+                label = (getattr(d, "action", None) or getattr(d, "label", None)
                          or getattr(d, "description", None)
-                         or "Afat ligjor kritik")
+                         or ("Termine di legge critico" if _it_u else "Afat ligjor kritik"))
+                _ref = str(getattr(d, "article_ref", "") or "").strip()
+                _ev = str(getattr(d, "anchor_event", "") or "").strip()
+                if _it_u:
+                    _reason = ("Termine già scaduto" if urg == "expired" else "Termine imminente") + " secondo la cronologia"
+                else:
+                    _reason = "Sipas kronologjisë afati " + ("ka kaluar" if urg == "expired" else "është shumë afër")
+                _reason += (f" ({_ref})" if _ref else "") + (f" — {_ev[:120]}" if _ev else "") + "."
                 signals.append(UrgencySignal(
                     kind="deadline",
                     label=str(label)[:80],
-                    reason=f"Afati është '{urg}' sipas analizës së timeline-it.",
+                    reason=_reason,
                     severity="critical",
-                    deadline=str(getattr(d, "date", "") or getattr(d, "target_date", "") or ""),
-                    action="Kontrollo afatin dhe ngri veprimin e kërkuar sa më shpejt.",
+                    deadline=str(getattr(d, "due_date", "") or getattr(d, "date", "") or getattr(d, "target_date", "") or ""),
+                    action=("Controlla il termine e compi l'atto richiesto al più presto." if _it_u
+                            else "Kontrollo afatin dhe ngri veprimin e kërkuar sa më shpejt."),
                 ))
 
         # Rollup from nullity radar — applicable findings with a deadline
@@ -5201,20 +5267,25 @@ class SuperAvvocato:
                 # Heuristic severity: absolute nullity or explicit "ditë"
                 # wording in the hint signals tight timing.
                 hint_lower = f.deadline_hint.lower()
+                # v9.401: anche «giorni/ore» — in sessione IT il suggerimento è in italiano e «ditë/orë» non c'erano mai
                 is_critical = (
                     f.kind == "nullity_absolute"
                     or "ditë" in hint_lower
                     or "orë" in hint_lower
+                    or "giorn" in hint_lower
+                    or bool(re.search(r"\bore\b", hint_lower))
                 )
                 signals.append(UrgencySignal(
                     kind="deadline",
                     label=f.name[:80],
                     reason=(f.condition or f.consequence or
-                            "Afat procedural që rrezikon humbjen e së drejtës."),
+                            ("Termine processuale che rischia di far perdere il diritto." if _it_u else
+                             "Afat procedural që rrezikon humbjen e së drejtës.")),
                     severity="critical" if is_critical else "elevated",
                     deadline=f.deadline_hint,
                     action=(f.action or
-                            "Ngri pretendimin brenda afatit, me nenin përkatës."),
+                            ("Fai valere la pretesa entro il termine, con l'articolo pertinente." if _it_u else
+                             "Ngri pretendimin brenda afatit, me nenin përkatës.")),
                 ))
 
         # LLM pass for personal-emergency markers the rollup can't see.

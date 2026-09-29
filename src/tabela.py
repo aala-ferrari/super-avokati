@@ -20,7 +20,8 @@ SISTEMI = (
     "   MOS hamendeso kurre — nje qelize bosh vlen, nje e shpikur demton.\n"
     "3. quote = citim TEKSTUAL nga dokumenti (max 200 karaktere) qe e\n"
     "   mbeshtet pergjigjen; bosh kur found=false.\n"
-    "4. Pergjigju ne gjuhen e PYETJES.\n"
+    "4. Gjuha e pergjigjes: ajo qe kerkon rreshti i fundit i mesazhit (gjuha e sesionit), edhe kur\n"
+    "   pyetja eshte shkruar ne nje gjuhe tjeter.\n"
     "5. Kthe VETEM JSON: nje liste me nje objekt per pyetje, ne te njejtin\n"
     "   rend: [{\"answer\": \"...\", \"quote\": \"...\", \"found\": true}]"
 )

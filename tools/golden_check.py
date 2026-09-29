@@ -4859,7 +4859,12 @@ def main():
               [(_k152, 0.5), (_k145, 0.45)] + [(a, 0.4) for a in idx.articles if a.code == "kodi_punes"][20:23]
         _out = _br141._applica_ancore(_pp, idx, ["Klienti është pushuar nga puna pas 8 vitesh punë"], ["Punë"])
         _pos = [(a.code, a.number) for a, _ in _out].index(("kodi_punes", "152"))
-        _okC = (_pos < 3 and not getattr(_out[_pos][0], "_ancora", False) and len(_out) == len(_pp)
+        # v9.400: sullo stesso testo entra ora anche il preavviso (KP 143, ancora del licenziamento) → si accettano SOLO
+        # aggiunte di ancore dichiarate, e nessun doppione di ciò che è stato promosso
+        _chiavi141 = [(a.code, str(a.number)) for a, _ in _out]
+        _okC = (_pos < 3 and not getattr(_out[_pos][0], "_ancora", False)
+                and len(_out) == len(_pp) + sum(1 for a, _ in _out if getattr(a, "_ancora", False))
+                and _chiavi141.count(("kodi_punes", "152")) == 1 and _chiavi141.count(("kodi_punes", "145")) == 1
                 and '(getattr(triage, "domanda", "") or "")[:600]' in _in141.getsource(_br141.SuperAvvocato._retrieve))
         check("ancore[141]: straniero licenziato → ligji 79/2021 art. 72-73 · licenziamento dopo anni → KP 152 · niente sulla "
               "«posizione» della corte, sulle ferie, nel penale · un'ancora già fra i 12 sale in testa (originale, non copia) · "
@@ -5580,6 +5585,355 @@ def main():
               "A=%s B=%s C=%s" % (_okA, _okB, _okC))
     except Exception as _e160:  # noqa: BLE001
         check("ligj-i-gjallë[160]: kontrollet u ekzekutuan", False, str(_e160))
+
+    # [161] v9.400 — IL VAULT DEL FASCICOLO («Pyet dokumentet», l'ago, chi ha detto cosa): in sessione IT il prompt era albanese,
+    # con la frase da copiare «Nuk gjendet në dokumentet e ngarkuara»; il prompt albanese dell'ago era scritto con «E» al posto di
+    # «ë» («GjilpEra», «Pse ka rEndEsi» finivano nei titoli). Ora prompt nativi IT, marcatore [Doc N] in italiano ([Dok N] in
+    # albanese) nel contesto e nelle istruzioni, l'interfaccia li legge tutti e due.
+    try:
+        from types import SimpleNamespace as _NS161
+        from src import vault as _v161, brain as _b161
+        _orig161 = _v161.storage.list_documents
+        _v161.storage.list_documents = lambda cid: [_NS161(status="ready", extracted_text="Contratto del 10 marzo 2026.",
+                                                           filename="contratto.pdf", doc_type="contratto")]
+        class _F161:
+            def __init__(self): self.c = []
+            def complete(self, system=None, messages=None, callsite=None, **kw):
+                self.c.append((callsite, system or "", messages[0]["content"])); return "ok"
+        _f = _F161()
+        _br = _NS161(backend=_f)
+        try:
+            _b161.set_request_jurisdiction("IT")
+            _v161.ask(_br, "c1", "Quando è stato firmato?"); _v161.find_needle(_f, "c1"); _v161.who_said_what(_f, "c1")
+            _b161.set_request_jurisdiction("AL")
+            _v161.ask(_br, "c1", "Kur u nënshkrua?"); _v161.find_needle(_f, "c1")
+        finally:
+            _v161.storage.list_documents = _orig161
+            _b161.set_request_jurisdiction("AL")
+        _it_c, _al_c = _f.c[:3], _f.c[3:]
+        _okIT = all("[Doc 1: contratto.pdf" in u and "[Dok" not in u and "Sei " in sy and "Nuk gjendet" not in sy
+                    for _cs, sy, u in _it_c)
+        _okAL = all("[Dok 1: contratto.pdf" in u for _cs, sy, u in _al_c) and "Gjilpëra" in _al_c[1][1] and "GjilpEra" not in _al_c[1][1]
+        _js161 = (SRC_STATIC / "app.js").read_text(encoding="utf-8") if "SRC_STATIC" in dir() else open("/app/static/app.js", encoding="utf-8").read()
+        _okUI = "/\\[(Do[kc]) (\\d+)\\]/g" in _js161 and '(_CAL_IT ? "[Doc " : "[Dok ")' in _js161 and '("usati " + d.n_docs + " doc")' in _js161
+        check("vault[161]: Pyet dokumentet / l'ago / chi ha detto cosa con prompt nativi IT e [Doc N]; albanese con i diacritici "
+              "giusti e [Dok N]; l'interfaccia legge le due forme", _okIT and _okAL and _okUI,
+              "IT=%s AL=%s UI=%s" % (_okIT, _okAL, _okUI))
+    except Exception as _e161:  # noqa: BLE001
+        check("vault[161]: kontrollet u ekzekutuan", False, str(_e161))
+
+    # [162] v9.400 — LA CASCATA DEI TERMINI (`/afatet`, regole scritte nel codice): il ricorso penale era 30 giorni (KPP 435/1:
+    # 45), la risposta alla domanda citava il KPC 163 ABROGATO nel 2001 (oggi 158/1), i termini citavano l'articolo dei motivi
+    # (472, 494, 410, KPA 135); la scadenza di domenica non slittava (KPC 148); il comando in chat leggeva campi inesistenti e
+    # rispondeva sempre «Asnjë afat»; in sessione IT dava termini albanesi.
+    try:
+        from src import pro_features as _pf162
+        _by162 = {(a.code, str(a.number)): a for a in idx.articles}
+        _bad162 = [(k, r["code"], r["article"]) for k, rs in _pf162.DEADLINE_RULES.items() for r in rs
+                   if (r["code"], r["article"]) not in _by162 or _by162[(r["code"], r["article"])].repealed]
+        _pen = _pf162.compute_deadline_cascade("njoftim_vendimi_apel_penal", "2026-09-10")["derived_deadlines"][0]
+        _civ = _pf162.compute_deadline_cascade("njoftim_vendimi_civil_shkalle_pare", "2026-08-01")["derived_deadlines"][0]
+        try:
+            _pf162.compute_deadline_cascade("njoftim_vendimi_apel_penal", "2026-09-10", jurisdiction="IT"); _okIT = False
+        except ValueError:
+            _okIT = True
+        _js162 = open("/app/static/app.js", encoding="utf-8").read()
+        _okUI = "(data.derived_deadlines || [])" in _js162 and "d.deadline_date" not in _js162 and "if (ev.note)" in _js162
+        _ok162 = (not _bad162 and _pen["days"] == 45 and _pen["article"] == "435" and _pen["due_date"] == "2026-10-26"
+                  and _civ["due_date"] == "2026-08-17" and "neni 148 KPC" in _civ["notes"] and _okIT and _okUI)
+        check("afatet[162]: cascata dei termini con articoli esistenti e vigenti, ricorso penale 45 giorni (KPP 435), proroga del "
+              "festivo (KPC 148), niente termini albanesi in IT, `/afatet` sui campi veri", _ok162,
+              "bad=%s pen=%s/%s/%s civ=%s IT=%s UI=%s" % (_bad162, _pen["days"], _pen["article"], _pen["due_date"],
+                                                          _civ["due_date"], _okIT, _okUI))
+    except Exception as _e162:  # noqa: BLE001
+        check("afatet[162]: kontrollet u ekzekutuan", False, str(_e162))
+
+    # [163] v9.400 — GLI STRUMENTI PRO DEL FASCICOLO (Red Team, bozza d'atto, duello avversariale, bussola strategica): il
+    # testo degli articoli arrivava TAGLIATO a 300 caratteri; il recupero era la sola ricerca per parole (licenziamento orale:
+    # 1/3 delle norme decisive, in IT senza gli artt. 2 e 6 L. 604/1966, contro 3/3 del recupero del cervello); duello e
+    # bussola usavano sempre l'indice ALBANESE anche in sessione IT; la convergenza del duello si riconosceva solo in albanese.
+    try:
+        from src import pro_features as _pf163, brain as _b163
+        _art163 = next(a for a in idx.articles if a.code == "kodi_punes" and str(a.number) == "146")
+        _blk = _pf163._format_articles_compact([(_art163, 1.0)])
+        _okA = (len(_art163.body or "") > 1100 and "e pavlefshme" in _blk and "(asnjë nen i gjetur)" == _pf163._format_articles_compact([])
+                and "neni 146]" in _blk and "Neni 146 i Kodi" not in _blk)
+        _b163.set_request_jurisdiction("IT")
+        try:
+            _okIT = _pf163._format_articles_compact([]) == "(nessun articolo trovato)"
+        finally:
+            _b163.set_request_jurisdiction("AL")
+        _web163 = open("/app/src/web.py", encoding="utf-8").read()
+        _pfs163 = open("/app/src/pro_features.py", encoding="utf-8").read()
+        _okB = (_web163.count("retrieved=_coppie_per_pro(") == 4 and "backend=_BRAIN.backend, index=_INDEX" not in _web163
+                and '"converg" in thesis' in _pfs163 and "retrieved = retrieved or index.search(" in _pfs163)
+        check("pro[163]: strumenti PRO con l'articolo fino a 1.500 caratteri (KP 146 intero), recupero del cervello, indice "
+              "della sessione (niente indice albanese in IT), convergenza del duello anche in italiano", _okA and _okIT and _okB,
+              "A=%s IT=%s B=%s" % (_okA, _okIT, _okB))
+    except Exception as _e163:  # noqa: BLE001
+        check("pro[163]: kontrollet u ekzekutuan", False, str(_e163))
+
+    # [164] v9.400 — IL MODULO PUBBLICO DEL PRIMO CONTATTO (`/intake/<studio>`, lo compila il cittadino): era solo albanese anche
+    # per uno studio italiano (e il link condiviso dalla posta in arrivo era lo stesso in sessione IT); il piè di pagina
+    # affermava il falso («tutti i dati sono cifrati e solo l'avvocato assegnato li legge»: a riposo non sono cifrati, le
+    # richieste le vede lo studio) con un link «Super Avvocato» a github.com; «non li condividiamo con nessun terzo» taceva
+    # l'analisi del motore. Ora: pagina nella lingua dello studio, frasi vere, riassunto per l'avvocato nella stessa lingua.
+    try:
+        from types import SimpleNamespace as _NS164
+        import flask as _fl164
+        from src import web as _w164
+        with _w164.app.test_request_context("/intake/x?lang=it"):
+            _h_it = _fl164.render_template("intake.html", firm=_NS164(name="Studio Rossi"), firm_slug="x", lang="it")
+            _h_sq = _fl164.render_template("intake.html", firm=_NS164(name="Studio Hoxha"), firm_slug="x", lang="sq")
+        _okIT = ('<html lang="it">' in _h_it and "Invia la richiesta" in _h_it and "Nome e cognome" in _h_it
+                 and 'data-lang="it"' in _h_it and not re.search(r"[ëç]|\bnuk\b|Dërgo", _h_it.split("<body", 1)[1]))
+        _okSQ = ('<html lang="sq">' in _h_sq and "Dërgo kërkesën" in _h_sq and "Invia la richiesta" not in _h_sq)
+        _okVero = all("github.com" not in h and "të enkriptuara dhe vetëm avokati" not in h and "Nuk i ndajmë" not in h
+                      and "superavokati.ai" in h for h in (_h_it, _h_sq))
+        _js164 = open("/app/static/intake.js", encoding="utf-8").read()
+        _app164 = open("/app/static/app.js", encoding="utf-8").read()
+        _okFlusso = ("lang: IT ? 'it' : 'sq'" in _js164 and "LEAD_INTAKE_SYSTEM_IT" in open("/app/src/web.py", encoding="utf-8").read()
+                     and '(_INBOX_IT ? "?lang=it" : "")' in _app164)
+        check("intake[164]: modulo pubblico nella lingua dello studio (IT reso senza albanese), affermazioni vere sulla "
+              "riservatezza (niente «tutto cifrato», niente github), lingua inviata al server e link italiano dalla posta",
+              _okIT and _okSQ and _okVero and _okFlusso,
+              "IT=%s SQ=%s vero=%s flusso=%s" % (_okIT, _okSQ, _okVero, _okFlusso))
+    except Exception as _e164:  # noqa: BLE001
+        check("intake[164]: kontrollet u ekzekutuan", False, str(_e164))
+
+    # [165] v9.400 — I MESSAGGI D'ERRORE DEL SERVER nella lingua della sessione: l'interfaccia mostra `error` così com'è e 42
+    # messaggi erano solo albanesi («Ky mjet nuk përfshihet në abonimin tuaj», «Rasti nuk u gjet»…); la Tabela e Dosjes diceva
+    # al modello di rispondere «nella lingua della DOMANDA» (contro la regola: decide la sessione).
+    try:
+        _w165 = open("/app/src/web.py", encoding="utf-8").read()
+        _residui = re.findall(r'jsonify\(\{"error": "([^"]*[ëçË][^"]*|[^"]*\b(?:nuk u gjet|mungon)\b[^"]*)"', _w165)
+        from src import web as _web165, tabela as _tb165
+        with _web165.app.test_request_context("/"):
+            _okF = _web165._t_err("sq", "it") == "sq"      # senza sessione IT resta albanese
+        _okTb = "gjuhen e PYETJES" not in _tb165.SISTEMI and "gjuha e sesionit" in _tb165.SISTEMI
+        check("errori[165]: nessun messaggio d'errore solo albanese nel server (tutti via `_t_err`), la tabella dei documenti "
+              "risponde nella lingua della sessione", not _residui and _okF and _okTb, "residui=%s" % _residui[:5])
+    except Exception as _e165:  # noqa: BLE001
+        check("errori[165]: kontrollet u ekzekutuan", False, str(_e165))
+
+    # [166] v9.400 — LE LETTERE in sessione IT: il prompt era albanese e il modello copiava i titoli delle sezioni («### 📎 Si
+    # dërgohet», «### ⚠️ Përpara se ta dërgosh» in una diffida italiana — audit notaio IT del 28 set). Ora ramo italiano nativo
+    # (prompt, forme, etichette, titoli); l'albanese resta identico.
+    try:
+        from src import letters as _lt166
+        _it166 = idx_it if "idx_it" in dir() else ArticleIndex.load(INDEX_FILE.parent / "bm25_it.pkl")
+        class _F166:
+            def __init__(self): self.c = []
+            def complete(self, system=None, messages=None, callsite=None, **kw):
+                if callsite == "letters_draft":
+                    self.c.append((system or "", messages[0]["content"]))
+                return "### ✉️ Documento\nTesto.\n### 📎 Come si invia\nPEC."
+        _f = _F166()
+        _k_it = next(iter(_lt166.catalogue("IT"))); _k_al = next(iter(_lt166.catalogue("AL")))
+        _r166 = _lt166.draft(_f, _it166, kind=_k_it, facts="Il conduttore non paga il canone da tre mesi.", jurisdiction="IT")
+        _lt166.draft(_f, idx, kind=_k_al, facts="Qiramarrësi nuk e paguan qiranë prej tre muajsh.", jurisdiction="AL")
+        (_s_it, _u_it), (_s_al, _u_al) = _f.c
+        _okIT = (_s_it.startswith(("Sei un avvocato SENIOR",)) or "Sei un avvocato SENIOR" in _s_it) and "### 📎 Come si invia" in _s_it \
+            and "Si dërgohet" not in _s_it and "TIPO DI ATTO:" in _u_it and "LLOJI I SHKRESËS" not in _u_it \
+            and _r166.get("document", "").strip() == "Testo."
+        _okAL = "Ti je avokat SENIOR" in _s_al and "### 📎 Si dërgohet" in _s_al and "LLOJI I SHKRESËS" in _u_al
+        check("lettere[166]: in IT prompt, etichette e titoli italiani (niente «Si dërgohet»), il documento esportato è la "
+              "prima sezione; in AL invariato", _okIT and _okAL, "IT=%s AL=%s" % (_okIT, _okAL))
+    except Exception as _e166:  # noqa: BLE001
+        check("lettere[166]: kontrollet u ekzekutuan", False, str(_e166))
+
+    # [167] v9.400 — FESTIVITÀ ITALIANE: la L. 8 ottobre 2025, n. 151 (GU n. 236 del 10.10.2025) ha reso il 4 OTTOBRE festa
+    # nazionale dal 2026; il motore non lo sapeva e una scadenza di lunedì 4 ottobre 2027 non si prorogava. AL invariata
+    # (5 settembre = Dita e Shenjtërimit të Nënë Terezës dal 2017, non più il 19 ottobre).
+    try:
+        import datetime as _dt167
+        from src import deadline_engine as _de167
+        _r167 = _de167.compute_deadline("2027-09-04", 30, "days", jurisdiction="IT", feriale=False, lang="it")
+        _ok167 = (_de167.is_holiday(_dt167.date(2027, 10, 4), "IT") and not _de167.is_holiday(_dt167.date(2025, 10, 4), "IT")
+                  and not _de167.is_holiday(_dt167.date(2027, 10, 4), "AL") and _r167.deadline.isoformat() == "2027-10-05"
+                  and _de167.is_holiday(_dt167.date(2026, 9, 5), "AL") and not _de167.is_holiday(_dt167.date(2026, 10, 19), "AL"))
+        check("feste[167]: 4 ottobre festivo in Italia dal 2026 (L. 151/2025) e proroga della scadenza; Albania con il 5 "
+              "settembre", _ok167, "scadenza=%s" % _r167.deadline)
+    except Exception as _e167:  # noqa: BLE001
+        check("feste[167]: kontrollet u ekzekutuan", False, str(_e167))
+
+    # [168] v9.400 — LA FATTURA DELLO STUDIO (dalle ore registrate): era solo albanese («Faturë», «TVSH», il rimando alla Dhoma
+    # Kombëtare e Avokatisë) anche per un fascicolo italiano. Ora nella lingua del fascicolo, e la nota dice cos'è il documento
+    # (la fattura fiscale passa dal SdI in Italia, dalla fiscalizzazione in Albania).
+    try:
+        from src import storage as _st168
+        _kw168 = dict(invoice_no="F-0001", issue_date="2026-09-29", due_date=None, client_name="Rossi", client_address=None,
+                      currency="EUR", line_items=[{"date": "2026-09-01", "kind": "hearing", "kind_label": "Udienza",
+                                                   "description": "x", "hours": 1.0, "rate_cents": 10000, "amount_cents": 10000}],
+                      subtotal_cents=10000, vat_rate=22, vat_cents=2200, total_cents=12200, notes=None)
+        _it168 = _st168._render_invoice_markdown(lang="it", **_kw168)
+        _sq168 = _st168._render_invoice_markdown(**_kw168)
+        _ok168 = ("# Fattura F-0001" in _it168 and "**IVA (22%):**" in _it168 and "SdI" in _it168 and "TVSH" not in _it168
+                  and "Dhoma" not in _it168 and "# Faturë F-0001" in _sq168 and "**TVSH (22%):**" in _sq168
+                  and _st168.ACTIVITY_KIND_LABELS_IT.get("hearing") == "Udienza"
+                  and 'lang="it" if (getattr(case, "jurisdiction"' in open("/app/src/web.py", encoding="utf-8").read())
+        check("fattura[168]: nella lingua del fascicolo (IT: «Fattura», «IVA», nota sul SdI; AL invariata con la "
+              "fiscalizzazione)", _ok168)
+    except Exception as _e168:  # noqa: BLE001
+        check("fattura[168]: kontrollet u ekzekutuan", False, str(_e168))
+
+    # [169] v9.400 — LO SCUDO DETERMINISTICO sugli strumenti che non passavano da nessuno scudo (assistente d'udienza, Vault,
+    # l'ago, chi ha detto cosa): nella prova viva l'ago citava sentenze di Cassazione prese dal web senza riscontro.
+    try:
+        from src import web as _w169
+        _src169 = open("/app/src/web.py", encoding="utf-8").read()
+        _prev169 = _w169._INDEX
+        if _w169._INDEX is None:
+            _w169._INDEX = idx                     # l'indice AL del golden (senza caricare tutto il web)
+        try:
+            with _w169.app.test_request_context("/"):
+                _out169 = _w169._scudo_deterministico("Sipas nenit 9999 të Kodit Penal, vepra dënohet.", "IT")   # IT: niente indice vendime
+        finally:
+            _w169._INDEX = _prev169
+        _ok169 = ("⚠" in _out169 and _out169 != "Sipas nenit 9999 të Kodit Penal, vepra dënohet."
+                  and _src169.count("_scudo_deterministico(") >= 5)
+        check("scudo[169]: udienza, Vault, ago e «chi ha detto cosa» con lo scudo deterministico (nene inesistente annotato, "
+              "sentenze riscontrate)", _ok169, "out=%r" % _out169[:120])
+    except Exception as _e169:  # noqa: BLE001
+        check("scudo[169]: kontrollet u ekzekutuan", False, str(_e169))
+
+    # [170] v9.400 — ANCORE: l'ancora per titolo guarda solo i TITOLI veri (mai la prima frase di un articolo senza rubrica:
+    # KC 907/1121 entravano in testa a un licenziamento per la parola «pushuar»), l'ancora del licenziamento (KP 143 preavviso
+    # + KP 145 anzianità, solo nell'area Punë), le ancore di regola generale si AGGIUNGONO ai 12; la cronologia radicata sugli
+    # articoli del caso e senza l'esempio «30 ditë» che il modello copiava; il triage senza il «13 codici» fermo da mesi.
+    try:
+        _sum170 = ("Punëmarrës i pushuar nga puna me gojë, pa njoftim me shkrim dhe pa arsye, ka kundërshtuar me shkrim "
+                   "brenda afatit, ndërsa punëdhënësi pretendon dorëheqje; kërkohet padi për pavlefshmërinë e pushimit.")
+        _rr170 = ({d.code for d in brain.LEGAL_DOCUMENTS if d.area in ("Punë", "Civil")}
+                  | set(brain.PROCEDURAL_MAPPING["Punë"]) | set(brain.PROCEDURAL_MAPPING["Civil"]))
+        _qs170 = ["zgjidhja e kontratës së punës pa afat nga punëdhënësi", "dorëheqja e punëmarrësit formë provë"]
+        _seen170 = {}
+        for _q in _qs170:
+            for _a, _sc in idx.search(_q, top_k=12):
+                _k = (_a.code, _a.number)
+                if _sc > _seen170.get(_k, 0.0):
+                    _seen170[_k] = _sc
+        _per170 = {(a.code, a.number): a for a in idx.articles}
+        _p170 = sorted([(_per170[k], v) for k, v in _seen170.items() if k in _per170], key=lambda x: x[1], reverse=True)
+        _t170 = brain._ankoro_sipas_titullit(list(_p170), idx, _sum170, queries=_qs170, restrict=_rr170)
+        _tit170 = [a for a, _ in _t170 if getattr(a, "_ancora_titull", False)]
+        _okT = (all(getattr(a, "heading_kind", "rubrike") != "fjali" for a in _tit170)
+                and not any((a.code, str(a.number)) in {("kodi_civil", "907"), ("kodi_civil", "1121")} for a, _ in _t170[:3]))
+        # l'ancora del licenziamento (senza 143/145 già fra i trovati, così deve entrare come ancora dichiarata)
+        _x170 = [(a, sc) for a, sc in _p170 if (a.code, str(a.number)) not in {("kodi_punes", "143"), ("kodi_punes", "145")}]
+        _anc170 = lambda lst: {(a.code, str(a.number)) for a, _ in lst if getattr(a, "_ancora", False)}
+        _lav170 = _anc170(brain._applica_ancore(list(_x170), idx, _qs170 + [_sum170], ["Punë", "Civil"]))
+        _pen170 = _anc170(brain._applica_ancore(list(_x170), idx, _qs170 + [_sum170], ["Punë", "Penal"]))
+        _civ170 = _anc170(brain._applica_ancore(list(_x170), idx, _qs170 + [_sum170], ["Civil"]))
+        _okA = ({("kodi_punes", "143"), ("kodi_punes", "145")} <= _lav170
+                and ("kodi_punes", "143") not in _pen170 and ("kodi_punes", "143") not in _civ170)
+        _srcb170 = open("/app/src/brain.py", encoding="utf-8").read()
+        _okC = ('_extra += min(4, sum(1 for a, _ in pairs if getattr(a, "_ancora", False)))' in _srcb170
+                and "(13 gjithsej" not in _srcb170)
+        from src import pro_features as _pf170
+        _srcp170 = open("/app/src/pro_features.py", encoding="utf-8").read()
+        _srcw170 = open("/app/src/web.py", encoding="utf-8").read()
+        _okL = ("30 ditë heshtje" not in _pf170.TIMELINE_SYSTEM and "AFATET DHE KUSHTET LIGJORE" in _pf170.TIMELINE_SYSTEM
+                and "articles_block: str" in _srcp170 and "articles_block=_art_tl" in _srcw170)
+        check("ancore[170]: l'ancora per titolo non prende mai la PRIMA FRASE di un articolo senza rubrica (KC 907/1121 fuori)",
+              _okT, str([f"{a.code}:{a.number}" for a in _tit170]))
+        check("ancore[170]: licenziamento → KP 143 (preavviso) + KP 145 (anzianità) solo con l'area lavoro, mai nel penale",
+              _okA, "lavoro=%s penale=%s civile=%s" % (sorted(_lav170), sorted(_pen170), sorted(_civ170)))
+        check("ancore[170]: le ancore di regola generale si aggiungono ai 12 · il triage non dice più «13 codici»", _okC)
+        check("cronologia[170]: radicata sugli articoli del caso, senza l'esempio numerico che il modello copiava", _okL)
+    except Exception as _e170:  # noqa: BLE001
+        check("ancore[170]: kontrollet u ekzekutuan", False, str(_e170))
+
+    # [171] v9.401 — LA SOSPENSIONE FERIALE NEL CORPUS: la bozza di un ricorso di lavoro salvava il termine di 180 giorni
+    # (art. 6 L. 604/1966) «in ragione della sospensione feriale», ma l'art. 3 L. 742/1969 la esclude per le controversie di
+    # lavoro e previdenza; la legge mancava e la chat diceva «da verificare». Legge + nota di collegamento sull'art. 3 (gli artt.
+    # 429 e 459 c.p.c. richiamati sono quelli anteriori al 1973), verificatore per numero, ancore (lavoro+termine, penale).
+    try:
+        from pathlib import Path as _P171
+        from src import citation_verifier as _cv171
+        from src.parser import _is_italian_code as _itc171
+        _ix171 = ArticleIndex.load(_P171("/app/data/index/bm25_it.pkl"))
+        _by171 = {(a.code, str(a.number)): a for a in _ix171.articles}
+        _a3 = _by171.get(("legge_sospensione_feriale", "3"))
+        _a1 = _by171.get(("legge_sospensione_feriale", "1"))
+        _okK = (_a1 is not None and _a3 is not None and "non si applica" in (_a3.body or "")
+                and "1º al 31 agosto" in (_a1.body or "").replace("1° ", "1º ") and "409" in (getattr(_a3, "note", "") or "")
+                and _itc171("legge_sospensione_feriale"))
+        _v171 = _cv171.verify_text("Il termine non è sospeso: art. 3 L. 742/1969.", _ix171).get("items") or []
+        _okV = any(c.get("status") == "verified" and c.get("code") == "legge_sospensione_feriale" for c in _v171)
+        _pp171 = [(a, 1.0) for a in _ix171.articles if a.code == "licenziamenti_individuali"][:12]
+        _anc171 = lambda q, aree: {(a.code, str(a.number)) for a, _ in brain._applica_ancore(list(_pp171), _ix171, [q], list(aree),
+                                                                                        ancore=brain.ANCORE_IT)
+                                   if getattr(a, "_ancora", False)}
+        _lav171 = _anc171("termine di impugnazione del licenziamento orale e decadenza", ["Lavoro", "Civile"])
+        _pen171 = _anc171("sospensione feriale dei termini nelle indagini preliminari", ["Penale"])
+        _civ171 = _anc171("risoluzione del contratto di locazione per morosità", ["Civile"])
+        _okA = ({("legge_sospensione_feriale", "1"), ("legge_sospensione_feriale", "3")} <= _lav171
+                and ("legge_sospensione_feriale", "2") in _pen171 and ("legge_sospensione_feriale", "3") not in _pen171
+                and not any(k[0] == "legge_sospensione_feriale" for k in _civ171))
+        check("feriale[171]: L. 742/1969 nel corpus (art. 1 sospensione, art. 3 esclusioni con la nota: lavoro e previdenza = "
+              "artt. 409 e 442 c.p.c.) e riconosciuta dal verificatore per numero", _okK and _okV,
+              "corpus=%s verificatore=%s" % (_okK, _okV))
+        check("feriale[171]: ancore — lavoro con termine → artt. 1 e 3; penale → artt. 1 e 2; civile senza lavoro né feriale → nulla",
+              _okA, "lavoro=%s penale=%s civile=%s" % (sorted(_lav171), sorted(_pen171), sorted(_civ171)))
+    except Exception as _e171:  # noqa: BLE001
+        check("feriale[171]: kontrollet u ekzekutuan", False, str(_e171))
+
+    # [172] v9.401 — RADAR D'URGENZA: le voci dedotte dalla cronologia leggevano campi che TimelineDeadline NON ha (label,
+    # description, date) → sempre «Afat ligjor kritik» e nessuna data, anche in sessione IT (il Giudice: «Due voci «Afat ligjor
+    # kritik» in albanese»); e un termine «entro 15 giorni» non era mai «critico» (si cercavano «ditë/orë»).
+    try:
+        from types import SimpleNamespace as _NS172
+        _td172 = brain.TimelineDeadline(action="Depositare il ricorso", anchor_event="Notifica della sentenza",
+                                        anchor_date="2026-09-20", days_after=15, due_date="2026-10-05",
+                                        article_ref="art. 325 c.p.c.", urgency="critical", days_remaining=5)
+        _nr172 = brain.NullityRadar(findings=[brain.NullityFinding(kind="procedural_defect", name="Vizio di notifica",
+                                                                   citizen_applicable="po", deadline_hint="entro 15 giorni")])
+
+        class _BK172:
+            def complete(self, **kw):
+                return '{"level": "none", "signals": []}'
+
+        class _F172:
+            backend = _BK172()
+
+            def __init__(self, j):
+                self._j = j
+
+            def _system_for(self, x):
+                return x
+
+            def _current_jurisdiction(self):
+                return self._j
+
+        _out172 = {}
+        for _j in ("AL", "IT"):
+            _r = brain.SuperAvvocato._scan_urgency(_F172(_j), "domanda", _NS172(problem_summary="x"),
+                                                   brain.TimelineAnalysis(anchors=[], deadlines=[_td172]), _nr172, [],
+                                                   retrieved=[(_NS172(body="Il ricorso si propone entro 15 giorni dalla "
+                                                                           "notifica.", heading=""), 1.0)])
+            _out172[_j] = _r
+        _s_it = _out172["IT"].signals
+        _s_al = _out172["AL"].signals
+        _testo_it = " ".join(f"{x.label} {x.reason} {x.action}" for x in _s_it)
+        _ok172 = (_s_it and _s_it[0].label == "Depositare il ricorso" and _s_it[0].deadline == "2026-10-05"
+                  and "art. 325 c.p.c." in _s_it[0].reason and "Afat" not in _testo_it and "Kontrollo" not in _testo_it
+                  and any(x.label == "Vizio di notifica" and x.severity == "critical" for x in _s_it)
+                  and _s_al and _s_al[0].deadline == "2026-10-05" and "kronologjisë" in _s_al[0].reason
+                  and "'critical'" not in _s_al[0].reason)
+        # il numero scritto in LETTERE nella norma («centottanta giorni») conferma il termine; senza la norma resta la nota
+        _sig_a = brain.UrgencySignal(kind="deadline", label="Termine di decadenza di 180 giorni", reason="", severity="critical")
+        _sig_b = brain.UrgencySignal(kind="deadline", label="Termine di decadenza di 180 giorni", reason="", severity="critical")
+        _art6 = [(_NS172(body="Il licenziamento deve essere impugnato a pena di decadenza entro sessanta giorni… inefficace se "
+                              "non è seguita, entro il successivo termine di centottanta giorni, dal deposito del ricorso.",
+                         heading=""), 1.0)]
+        _ok172 = _ok172 and (brain._conferma_afati_con_norma(_sig_a, _art6, "IT").severity == "critical"
+                             and brain._conferma_afati_con_norma(_sig_b, [], "IT").severity == "elevated")
+        check("urgenza[172]: le voci dalla cronologia portano azione, scadenza e articolo veri, nella lingua della sessione; "
+              "«entro 15 giorni» è critico anche in italiano; «centottanta giorni» nella norma conferma i 180", bool(_ok172),
+              "IT=%s | AL=%s" % ([(x.label, x.deadline, x.severity) for x in _s_it], [(x.label, x.deadline) for x in _s_al]))
+    except Exception as _e172:  # noqa: BLE001
+        check("urgenza[172]: kontrollet u ekzekutuan", False, str(_e172))
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
