@@ -333,7 +333,8 @@ def _extract_json(text: str) -> dict:
     if not m:
         raise ValueError("no_json_object")
     blob = re.sub(r",(\s*[}\]])", r"\1", m.group(0))  # tolerate trailing commas
-    return json.loads(blob)
+    from .json_tollerante import carica as _carica       # v9.402: virgolette interne / a capo crudi
+    return _carica(blob)
 
 
 # ── Voice samples gathering ────────────────────────────────────────────

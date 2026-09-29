@@ -499,7 +499,8 @@ def _parse_json_loose(raw: str) -> dict:
     if start == -1 or end == -1:
         return {}
     try:
-        return json.loads(s[start : end + 1])
+        from .json_tollerante import carica as _carica   # v9.402: lettura tollerante prima di arrendersi
+        return _carica(s[start : end + 1])
     except Exception:
         return {}
 

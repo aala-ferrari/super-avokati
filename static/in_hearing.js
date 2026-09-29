@@ -6,6 +6,21 @@
 
 (function () {
   const CASE_ID = document.body.dataset.caseId || '';
+  // v9.402: bilingue — la lingua arriva da `data-lang` (quella del fascicolo); il marchio «SUPER AVOKATI» non si traduce
+  const IT = (document.body.dataset.lang || '') === 'it';
+  const M = IT ? {
+    empty: 'Nessuna nota. Detta o fai una domanda.', loadErr: 'Errore di caricamento.', delQ: 'Eliminare questa voce?',
+    del: 'Elimina', writeSth: 'Scrivi qualcosa.', saved: 'Nota salvata', saveErr: 'Salvataggio non riuscito',
+    writeQ: 'Scrivi la domanda.', asking: 'Sto chiedendo…', noAnswer: 'Nessuna risposta', answer: '✓ Risposta',
+    noSpeech: 'Il browser non supporta la dettatura.', mic: 'Microfono: ', listening: 'In ascolto…',
+    micErr: 'Microfono non avviato', stopped: 'Fermato', q: '❓ DOMANDA', note: '📝 NOTA',
+  } : {
+    empty: 'Asnjë shënim ende. Dikto ose pyet.', loadErr: 'Gabim në ngarkim.', delQ: 'Heq këtë?',
+    del: 'Fshi', writeSth: 'Shkruaj diçka.', saved: 'Shënimi u ruajt', saveErr: 'Ruajtja dështoi',
+    writeQ: 'Shkruaj pyetjen.', asking: 'Po pyes…', noAnswer: "S'erdhi përgjigje", answer: '✓ Përgjigja',
+    noSpeech: 'Shfletuesi yt nuk e mbështet diktimin.', mic: 'Mikrofon: ', listening: 'Po dëgjoj…',
+    micErr: "S'fillova mikrofonin", stopped: 'U ndal', q: '❓ PYETJE', note: '📝 SHËNIM',
+  };
   const feed = document.getElementById("hh-feed");
   const input = document.getElementById("hh-input");
   const mic = document.getElementById("hh-mic");
@@ -31,21 +46,21 @@
 
   function renderNotes(notes) {
     if (!notes.length) {
-      feed.innerHTML = '<p class="hh-empty">Asnjë shënim ende. Dikto ose pyet AI-n.</p>';
+      feed.innerHTML = '<p class="hh-empty">' + M.empty + '</p>';
       return;
     }
     feed.innerHTML = notes.map(n => {
       const klass = n.kind === "question" ? "hh-question"
                   : n.kind === "ai_reply" ? "hh-ai"
                   : "hh-note";
-      const label = n.kind === "question" ? "❓ PYETJE"
-                  : n.kind === "ai_reply" ? "🤖 SUPER AVVOCATO"
-                  : "📝 SHËNIM";
+      const label = n.kind === "question" ? M.q
+                  : n.kind === "ai_reply" ? "🤖 SUPER AVOKATI"
+                  : M.note;
       return `
         <div class="hh-bubble ${klass}" data-id="${n.id}">
           <div class="hh-meta">
             <span>${label}</span>
-            <span>${fmtTime(n.created_at)} <button type="button" class="hh-del" data-del="${n.id}" title="Fshi">✕</button></span>
+            <span>${fmtTime(n.created_at)} <button type="button" class="hh-del" data-del="${n.id}" title="${M.del}">✕</button></span>
           </div>
           <div>${escapeHtml(n.body_sq).replace(/\n/g, "<br>")}</div>
         </div>`;
@@ -60,7 +75,7 @@
       const data = await r.json();
       renderNotes(data.notes || []);
     } catch {
-      feed.innerHTML = '<p class="hh-empty">Gabim në ngarkim.</p>';
+      feed.innerHTML = '<p class="hh-empty">' + M.loadErr + '</p>';
     }
   }
 
@@ -68,7 +83,7 @@
     const del = e.target.closest("[data-del]");
     if (!del) return;
     const id = del.getAttribute("data-del");
-    if (!confirm("Heq këtë?")) return;
+    if (!confirm(M.delQ)) return;
     const r = await fetch(`/api/cases/${CASE_ID}/hearing/notes/${id}`, { method: "DELETE" });
     if (r.ok) await loadNotes();
   });
@@ -81,7 +96,7 @@
 
   btnNote.addEventListener("click", async () => {
     const body = input.value.trim();
-    if (!body) { setStatus("Shkruaj diçka."); return; }
+    if (!body) { setStatus(M.writeSth); return; }
     btnNote.disabled = true;
     try {
       const r = await fetch(`/api/cases/${CASE_ID}/hearing/notes`, {
@@ -91,10 +106,10 @@
       });
       if (!r.ok) throw new Error();
       input.value = ""; autoresize();
-      setStatus("Shënim u ruajt", "ok");
+      setStatus(M.saved, "ok");
       await loadNotes();
     } catch {
-      setStatus("Ruajtja dështoi", "error");
+      setStatus(M.saveErr, "error");
     } finally {
       btnNote.disabled = false;
     }
@@ -102,9 +117,9 @@
 
   btnAsk.addEventListener("click", async () => {
     const q = input.value.trim();
-    if (!q) { setStatus("Shkruaj pyetjen."); return; }
+    if (!q) { setStatus(M.writeQ); return; }
     btnAsk.disabled = true;
-    setStatus("Po pyes…");
+    setStatus(M.asking);
     try {
       const r = await fetch(`/api/cases/${CASE_ID}/hearing/quick`, {
         method: "POST",
@@ -113,10 +128,10 @@
       });
       if (!r.ok) {
         const err = await r.json();
-        throw new Error(err.error || "AI s'u përgjigj");
+        throw new Error(err.error || M.noAnswer);
       }
       input.value = ""; autoresize();
-      setStatus("✓ Përgjigja", "ok");
+      setStatus(M.answer, "ok");
       await loadNotes();
     } catch (err) {
       setStatus(err.message, "error");
@@ -131,14 +146,14 @@
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) {
     mic.disabled = true;
-    mic.title = "Shfletuesi yt nuk e mbështet diktimin.";
+    mic.title = M.noSpeech;
   } else {
     let rec = null;
     let listening = false;
 
     function startRec() {
       rec = new SR();
-      rec.lang = "sq-AL";
+      rec.lang = IT ? "it-IT" : "sq-AL";
       rec.interimResults = true;
       rec.continuous = true;
       let baseline = input.value;
@@ -158,7 +173,7 @@
         autoresize();
       };
       rec.onerror = (e) => {
-        setStatus("Mikrofon: " + e.error, "error");
+        setStatus(M.mic + e.error, "error");
         stopRec();
       };
       rec.onend = () => {
@@ -171,9 +186,9 @@
         rec.start();
         listening = true;
         mic.classList.add("listening");
-        setStatus("Po dëgjoj…", "ok");
+        setStatus(M.listening, "ok");
       } catch (err) {
-        setStatus("S'fillova mikrofonin", "error");
+        setStatus(M.micErr, "error");
       }
     }
     function stopRec() {
@@ -182,7 +197,7 @@
       mic.classList.remove("listening");
     }
     mic.addEventListener("click", () => {
-      if (listening) { stopRec(); setStatus("U ndal", ""); }
+      if (listening) { stopRec(); setStatus(M.stopped, ""); }
       else { startRec(); }
     });
   }

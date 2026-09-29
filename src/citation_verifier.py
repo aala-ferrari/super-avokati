@@ -510,7 +510,9 @@ CITATION_RE = re.compile(
     # Tail = up to 8 words, but never crossing "dhe" or another "nen..." —
     # otherwise one citation swallows the next and steals its code.
     # v9.399: … né davanti a un «neni» preceduto da virgolette o barra ("neni 114 KC" / "neni 443 KPC")
-    r"(?P<tail>(?:\s+(?!nen(?:i|in|it|et|eve|ve)?\b)(?![«\"“”„'/*_\[]*nen(?:i|in|it|et|eve|ve)?\b)(?!dhe\b)"
+    # v9.402: la coda NON scavalca l'a capo — il codice di una citazione sta sulla sua riga; attraversando il capoverso
+    # la citazione si portava dietro il paragrafo seguente (61 risposte su 204) e poteva prenderne il codice
+    r"(?P<tail>(?:[^\S\n]+(?!nen(?:i|in|it|et|eve|ve)?\b)(?![«\"“”„'/*_\[]*nen(?:i|in|it|et|eve|ve)?\b)(?!dhe\b)"
     r"(?:(?!/\s*[«\"“*_\[]*nen(?:i|in|it|et|eve|ve)?\b)[^\s,;:\n()])+){0,8})",
     re.IGNORECASE,
 )
@@ -605,14 +607,20 @@ _CONN_IT = (r"(?:(?:del|della|dello|dell[’']|dal|dalla)\s*(?:codice|cod\.|legg
 # e l'art. 2043 c.c.» perdeva il 2043; «l'art. 157 c.p. e l'art. 344-bis c.p.p.» verificava il 157 sul c.p.p.)
 _Q_ART_IT = r"[«\"“”„'/*_\[]*(?:[a-zà-ù]{1,5}['’])?art(?:t|icol[oi])?\b"      # anche il grassetto «**Art.»
 _ART_RIP_IT = r"(?:(?:[a-zà-ù]{1,5}['’]\s*)?art(?:t|icol[oi])?\.?\s+)?"      # «e l'art. N», «e dell'art. N», «e art. N»
-_TAIL_IT = (r"(?:\s+(?!art\b)(?!" + _Q_ART_IT + r")(?!(?:e|ed)\s+\d)"
+# v9.402: la coda non scavalca l'a capo (come in albanese)
+_TAIL_IT = (r"(?:[^\S\n]+(?!art\b)(?!" + _Q_ART_IT + r")(?!(?:e|ed)\s+\d)"
             r"(?:\((?:UE|CE|CEE|Euratom|allegato|atto di approvazione)\)|"
             r"(?:(?!/\s*[«\"“*_\[]*art(?:t|icol[oi])?\b)[^\s,;:\n()])+)){0,6}")
+# v9.402 — l'estremo destro di un intervallo «1218-1223»: solo cifre (un «-bis» resta suffisso del primo numero)
+_RANGE_IT = r"(?:\s*[\-\u2013]\s*(?=\d)" + _NUM_TOKEN_IT + r")?"
 CITATION_RE_IT = re.compile(
     r"\bart(?:t|icol[oi])?\.?\s+"
     # v9.399: «l'art. 116 e l'art. 126 C.d.S.» / «art. 5 e art. 6 L. 91/1992» = UN elenco con il codice in comune (la
     # convenzione dei giuristi): prima la coda del primo attraversava il secondo (il 126 si perdeva)
-    r"(?P<nums>" + _NUM_TOKEN_IT + r"(?:\s*(?:,|;|\be\b|\bed\b)\s*" + _ART_RIP_IT + _NUM_TOKEN_IT + r")*)"
+    # v9.402: e l'INTERVALLO «artt. 1218-1223 c.c.» / «1218–1223» — prima il 1218 usciva «senza codice» e il 1223 spariva
+    # (l'intervallo solo sul primo numero e dopo «e/ed»: dopo una virgola nuda «l'art. 3, 3-27 per l'art. 6» sono mensilità)
+    r"(?P<nums>" + _NUM_TOKEN_IT + _RANGE_IT + r"(?:\s*(?:,|;)\s*" + _ART_RIP_IT + _NUM_TOKEN_IT +
+    r"|\s*(?:\be\b|\bed\b)\s*" + _ART_RIP_IT + _NUM_TOKEN_IT + _RANGE_IT + r")*)"
     r"(?P<sub>" + _SUB_IT + r"*)"
     # v9.397: «artt. 408, comma 2, e 410 c.p.p.» — dopo un sotto-riferimento, «, e N» è un ALTRO articolo dell'elenco
     # (prima il 410 spariva e il 408 restava «senza codice»)
@@ -1071,6 +1079,21 @@ def _annex_maps(lookup: dict) -> tuple[dict, dict]:
     return m
 
 
+def _espandi_intervalli(numbers: list[str]) -> list[str]:
+    """v9.402 — «nenet 601–602», «neni 5-7»: un INTERVALLO è fatto di due articoli, e si verificano tutti e due. Prima
+    il trattino diventava «/» (come il paragrafo «134/1») e si controllava solo il primo: «Nenet 150–9999 të Kodit Civil»
+    usciva VERIFICATA. Solo trattino fra due numeri CRESCENTI; la barra («134/1» = paragrafo, «149/a» = articolo inserito)
+    e un trattino decrescente («144-5») restano come prima."""
+    out: list[str] = []
+    for n in numbers:
+        m = re.fullmatch(r"\s*(\d+)\s*[\-\u2013]\s*(\d+)\s*", n or "")
+        if m and int(m.group(2)) > int(m.group(1)):
+            out.extend([m.group(1), m.group(2)])
+        else:
+            out.append(n)
+    return out
+
+
 def _verify_number(lookup: dict, code: str, number: str):
     """Resolve an article, tolerant of paragraph/range notation.
 
@@ -1431,7 +1454,7 @@ def verify_text(
         nums_block = m.group("nums")
         tail = m.group("tail") or ""
         code = _resolve(tail)              # one shared code for the list
-        numbers = _num_re.findall(nums_block) + _numeri_in_piu(m)
+        numbers = _espandi_intervalli(_num_re.findall(nums_block) + _numeri_in_piu(m))
         full_raw = text[m.start():m.end()].strip()
         if len(full_raw) > 60:
             full_raw = full_raw[:60].rstrip() + "…"

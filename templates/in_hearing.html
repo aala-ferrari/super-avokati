@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="sq">
+<html lang="{{ 'it' if lang == 'it' else 'sq' }}">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
 <meta name="theme-color" content="#0a0a0a" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<title>Në seancë — {{ case.title }}</title>
+<title>{{ 'In udienza' if lang == 'it' else 'Në seancë' }} — {{ case.title }}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700&display=swap" rel="stylesheet" />
 <style>
@@ -174,29 +174,29 @@
   }
 </style>
 </head>
-<body data-case-id="{{ case.id }}">
+<body data-case-id="{{ case.id }}" data-lang="{{ lang }}">
 
 <header class="hh-header">
   <h1>⚖️ {{ case.title }}</h1>
-  <a href="/" class="hh-close">✕ Dil</a>
+  <a href="/" class="hh-close">{{ '✕ Esci' if lang == 'it' else '✕ Dil' }}</a>
 </header>
 
 <main id="hh-feed" class="hh-feed" aria-live="polite">
-  <p class="hh-empty">Duke ngarkuar…</p>
+  <p class="hh-empty">{{ 'Caricamento…' if lang == 'it' else 'Duke ngarkuar…' }}</p>
 </main>
 
 <div class="hh-bar">
   <div class="hh-input-row">
-    <textarea id="hh-input" class="hh-input" rows="1" placeholder="Shkruaj ose dikto…" enterkeyhint="send"></textarea>
-    <button type="button" id="hh-mic" class="hh-mic" title="Mikrofon (sq-AL)">🎤</button>
+    <textarea id="hh-input" class="hh-input" rows="1" placeholder="{{ 'Scrivi o detta…' if lang == 'it' else 'Shkruaj ose dikto…' }}" enterkeyhint="send"></textarea>
+    <button type="button" id="hh-mic" class="hh-mic" title="{{ 'Microfono (it-IT)' if lang == 'it' else 'Mikrofon (sq-AL)' }}">🎤</button>
   </div>
   <div class="hh-actions">
-    <button type="button" id="hh-note">📝 Shëno</button>
-    <button type="button" id="hh-ask" class="hh-btn-ask">⚡ Pyet AI</button>
-    <button type="button" id="hh-clear">🧹 Pastro</button>
+    <button type="button" id="hh-note">{{ '📝 Annota' if lang == 'it' else '📝 Shëno' }}</button>
+    <button type="button" id="hh-ask" class="hh-btn-ask">{{ '⚡ Chiedi' if lang == 'it' else '⚡ Pyet' }}</button>
+    <button type="button" id="hh-clear">{{ '🧹 Pulisci' if lang == 'it' else '🧹 Pastro' }}</button>
   </div>
   <div id="hh-status" class="hh-status"></div>
 </div>
-  <script src="/static/in_hearing.js?v=1" defer></script>
+  <script src="/static/in_hearing.js?v=2" defer></script>
 </body>
 </html>

@@ -4765,7 +4765,8 @@ def in_hearing_page(case_id: str):
     case = _resolve_case(case_id)
     if case is None:
         return redirect(url_for("index"))
-    return render_template("in_hearing.html", case=case)
+    return render_template("in_hearing.html", case=case,          # v9.402: nella lingua del fascicolo
+                           lang="it" if (getattr(case, "jurisdiction", "") or "").upper() == "IT" else "sq")
 
 
 @app.post("/api/cases/<case_id>/hearing/notes")

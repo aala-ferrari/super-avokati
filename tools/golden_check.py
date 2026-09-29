@@ -5935,6 +5935,126 @@ def main():
     except Exception as _e172:  # noqa: BLE001
         check("urgenza[172]: kontrollet u ekzekutuan", False, str(_e172))
 
+    # [173] v9.402 — LETTORE JSON TOLLERANTE: la bozza d'atto italiana dava 500 dopo 9 minuti per virgolette non protette nel
+    # testo dell'atto; la fase «strategic» si era persa per una virgola finale. Solo quando la lettura normale fallisce.
+    try:
+        from src import json_tollerante as _jt173
+        _ok173 = (_jt173.carica('{"a": "x"}') == {"a": "x"}
+                  and _jt173.carica('{"body": "sostiene "si sia dimesso", poi", "x": 1}')["body"] == 'sostiene "si sia dimesso", poi'
+                  and _jt173.carica('{"a": [1, 2,], "b": {"c": 3,},}') == {"a": [1, 2], "b": {"c": 3}}
+                  and _jt173.carica('{"a": "uno, } due", "b": 2}') == {"a": "uno, } due", "b": 2}
+                  and _jt173.carica('{"t": "riga uno\nriga due"}')["t"] == "riga uno\nriga due")
+        try:
+            _jt173.carica('{"a": "tronc')
+            _ok173 = False
+        except Exception:  # noqa: BLE001
+            pass
+        _src173 = "".join(open(f"/app/src/{m}.py", encoding="utf-8").read() for m in ("brain", "pro_features", "genio", "documents"))
+        _ok173 = _ok173 and _src173.count("json_tollerante import carica") >= 4 and "_corpo_da_uscita_rotta(raw)" in _src173
+        check("json[173]: lettura tollerante (virgolette interne, virgole finali, a capo crudi) nei 4 lettori; la bozza d'atto "
+              "consegna il testo invece di un errore 500", _ok173)
+    except Exception as _e173:  # noqa: BLE001
+        check("json[173]: kontrollet u ekzekutuan", False, str(_e173))
+
+    # [174] v9.402 — ARTICOLI DI PROCEDURA DELLA BOZZA D'ATTO: la padia scriveva «dispozitat përkatëse procedurale» e «të
+    # verifikohet kompetenca tokësore» senza numero. Contenuto (KPC 154), allegati (156), competenza (42, 43 società, 47 lavoro).
+    try:
+        from src import pro_features as _pf174
+        from pathlib import Path as _P174
+        _ixit174 = ArticleIndex.load(_P174("/app/data/index/bm25_it.pkl"))
+        brain.set_request_jurisdiction("AL")
+        _k = lambda r: {(a.code, str(a.number)) for a, _ in r}
+        _al_lav = _k(_pf174._con_semi_dell_atto([], idx, "padi", "Punëdhënësi ALFA shpk e pushoi punëmarrësin me gojë."))
+        _al_civ = _k(_pf174._con_semi_dell_atto([], idx, "padi", "Fqinji nuk e liron pasurinë."))
+        _al_pen = _k(_pf174._con_semi_dell_atto([], idx, "ankim", "Vendimi i dënimit për të pandehurin."))
+        brain.set_request_jurisdiction("IT")
+        _it_lav = _k(_pf174._con_semi_dell_atto([], _ixit174, "padi", "Il lavoratore è stato licenziato a voce."))
+        _it_civ = _k(_pf174._con_semi_dell_atto([], _ixit174, "padi", "Il vicino non restituisce l'immobile."))
+        brain.set_request_jurisdiction("AL")
+        _ok174 = ({("kodi_proc_civile", n) for n in ("154", "156", "42", "43", "47")} <= _al_lav
+                  and ("kodi_proc_civile", "47") not in _al_civ and ("kodi_proc_civile", "43") not in _al_civ
+                  and {("kodi_proc_penale", "410"), ("kodi_proc_penale", "415")} <= _al_pen
+                  and ("kodi_proc_civile", "443") not in _al_pen
+                  and {("codice_procedura_civile", n) for n in ("409", "413", "414")} <= _it_lav
+                  and ("codice_procedura_civile", "163") not in _it_lav and ("codice_procedura_civile", "163") in _it_civ)
+        check("atto[174]: la bozza riceve gli articoli di procedura del tipo d'atto (padia: KPC 154/156/42, 43 se società, 47 se "
+              "lavoro; appello penale KPP 410/415; ricorso di lavoro IT 409/413/414, citazione 163)", _ok174,
+              "AL lavoro=%s civile=%s penale=%s | IT lavoro=%s civile=%s" % (sorted(_al_lav), sorted(_al_civ), sorted(_al_pen),
+                                                                              sorted(_it_lav), sorted(_it_civ)))
+    except Exception as _e174:  # noqa: BLE001
+        check("atto[174]: kontrollet u ekzekutuan", False, str(_e174))
+
+    # [175] v9.402 — INTERVALLI nel verificatore: «Nenet 150–9999 të Kodit Civil» usciva VERIFICATA (art. 150 par. 9999);
+    # «artt. 1218-1223 c.c.» dava il 1218 senza codice e perdeva il 1223. Misurato su 204 risposte: IT +38 verificate,
+    # −14 senza codice, 0 falsi nuovi.
+    try:
+        from src import citation_verifier as _cv175
+        from pathlib import Path as _P175
+        _ixit175 = ArticleIndex.load(_P175("/app/data/index/bm25_it.pkl"))
+        _i = lambda t, ix: {c["number"]: c for c in (_cv175.verify_text(t, ix).get("items") or [])}
+        _a = _i("Nenet 150–9999 të Kodit Civil janë të zbatueshme.", idx)
+        _b = _i("Sipas neneve 601–602 të Kodit Civil, kapari humbet.", idx)
+        _c = _i("Si applicano gli artt. 1218-1223 c.c.", _ixit175)
+        _d = _i("Il D.L. 87/2018 porta a 6-36 per l'art. 3, 3-27 per l'art. 6 del D.Lgs. 23/2015.", _ixit175)
+        _e = _i("neni 134/1 i Kodit Civil", idx)
+        _ok175 = (_a.get("9999", {}).get("status") == "fake" and _a.get("150", {}).get("status") == "verified"
+                  and _b.get("601", {}).get("status") == "verified" and _b.get("602", {}).get("status") == "verified"
+                  and _c.get("1218", {}).get("code") == "codice_civile" and _c.get("1223", {}).get("status") == "verified"
+                  and "27" not in _d and _e.get("134/1", {}).get("status") == "verified")
+        check("verificatore[175]: gli intervalli sono due articoli (AL «601–602», IT «1218-1223»); «134/1» resta paragrafo; "
+              "«3-27» mensilità non è un articolo", _ok175,
+              "AL=%s %s IT=%s %s" % (sorted(_a), sorted(_b), sorted(_c), sorted(_d)))
+    except Exception as _e175:  # noqa: BLE001
+        check("verificatore[175]: kontrollet u ekzekutuan", False, str(_e175))
+
+    # [176] v9.402 — STUPEFACENTI nella chat AL: una sostanza delle liste della 7975/1995 in una domanda penale porta il KP 283
+    # (e 283/a; 284 se si coltiva), come negli strumenti PRO dal v9.399; mai fuori dal penale né per una sostanza non in lista.
+    try:
+        _base176 = [(a, 1.0) for a in idx.articles if a.code == "kodi_penal" and str(a.number) in ("140", "141")]
+        _anc176 = lambda t, aree: {(a.code, str(a.number)) for a, _ in brain._ancore_narkotike_al(list(_base176), idx, [t], aree)
+                                   if getattr(a, "_ancora", False)}
+        _h = _anc176("Klienti u kap me disa gram HHC të blera në internet.", ["Penal"])
+        _k176 = _anc176("Fermeri kishte mbjellë 200 bimë kanabisi.", ["Penal"])
+        _adm = _anc176("Klienti u kap me disa gram HHC.", ["Administrativ"])
+        _tram = _anc176("Farmacia shiste tramadol pa recetë.", ["Penal"])
+        _ok176 = ({("kodi_penal", "283"), ("kodi_penal", "283/a")} <= _h and ("kodi_penal", "284") in _k176
+                  and not _adm and ("kodi_penal", "283") not in _tram)
+        check("narkotike[176]: sostanza delle liste in una domanda penale → KP 283 (+284 se coltivazione); mai fuori dal penale "
+              "né per il tramadolo (in nessuna lista)", _ok176, "HHC=%s kanabis=%s adm=%s tramadol=%s" % (sorted(_h), sorted(_k176),
+                                                                                                          sorted(_adm), sorted(_tram)))
+    except Exception as _e176:  # noqa: BLE001
+        check("narkotike[176]: kontrollet u ekzekutuan", False, str(_e176))
+
+    # [177] v9.402 — PAGINA D'UDIENZA bilingue: era solo albanese (anche per un fascicolo italiano), dettava sempre in sq-AL e
+    # mostrava il marchio sbagliato «SUPER AVVOCATO».
+    try:
+        from types import SimpleNamespace as _NS177
+        from src import web as _w177
+        _js177 = open("/app/static/in_hearing.js", encoding="utf-8").read()
+        with _w177.app.test_request_context("/"):
+            _it177 = _w177.render_template("in_hearing.html", case=_NS177(id="x", title="Caso"), lang="it")
+            _sq177 = _w177.render_template("in_hearing.html", case=_NS177(id="x", title="Rast"), lang="sq")
+        _ok177 = ('data-lang="it"' in _it177 and "In udienza" in _it177 and "Annota" in _it177 and "Shëno" not in _it177
+                  and 'data-lang="sq"' in _sq177 and "Në seancë" in _sq177 and "Shëno" in _sq177
+                  and 'rec.lang = IT ? "it-IT" : "sq-AL"' in _js177 and "SUPER AVOKATI" in _js177
+                  and "SUPER AVVOCATO" not in _js177 and "<script>" not in _it177)
+        check("udienza[177]: pagina «in udienza» nella lingua del fascicolo, dettatura it-IT/sq-AL, marchio «SUPER AVOKATI»",
+              _ok177)
+    except Exception as _e177:  # noqa: BLE001
+        check("udienza[177]: kontrollet u ekzekutuan", False, str(_e177))
+
+    # [178] v9.402 — la PRESCRIZIONE CIVILE (KC 114) solo nelle materie civilistiche: in una domanda amministrativa (permesso
+    # di costruire rifiutato: 45 giorni della 49/2012, prescrizione degli illeciti amministrativi) entrava 3 volte su 3.
+    try:
+        _b178 = [(a, 1.0) for a in idx.articles if a.code == "kodi_proc_admin" and str(a.number) in ("132", "135")]
+        _k178 = lambda aree: ("kodi_civil", "114") in {(a.code, str(a.number)) for a, _ in
+                                                       brain._applica_ancore(list(_b178), idx, ["afati i parashkrimit të së drejtës"], aree)}
+        _ok178 = (not _k178(["Administrativ"]) and not _k178(["Administrativ", "Ndertim"]) and _k178(["Civil"])
+                  and _k178(["Administrativ", "Civil"]) and _k178([]) and not _k178(["Penal", "Civil"]))
+        check("ancore[178]: KC 114 nelle materie civilistiche e senza aree, mai nel solo amministrativo né nel penale", _ok178)
+    except Exception as _e178:  # noqa: BLE001
+        check("ancore[178]: kontrollet u ekzekutuan", False, str(_e178))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

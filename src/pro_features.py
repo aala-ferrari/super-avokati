@@ -58,7 +58,9 @@ def _parse_json_block(raw: str) -> dict:
     if start == -1 or end == -1:
         raise ValueError(f"no JSON object in output: {raw[:200]}")
     blob = re.sub(r",(\s*[}\]])", r"\1", s[start : end + 1])  # tolerate trailing commas
-    return json.loads(blob)
+    # v9.402: e le virgolette interne non protette / gli a capo crudi (la bozza d'atto dava 500 dopo 9 minuti)
+    from .json_tollerante import carica as _carica
+    return _carica(blob)
 
 
 def _sessione_it() -> bool:
@@ -455,7 +457,7 @@ DRAFT_SYSTEM = textwrap.dedent("""\
         "defendant": "string (emërtimi i palës tjetër, nëse ka)"
       },
       "subject_matter": "string",
-      "body_markdown": "string (TEKSTI I PLOTË I AKTIT në shqip, gati
+      "body_markdown": "string (TEKSTI I PLOTË I AKTIT në gjuhën e sesionit, gati
         për printim; përdor headings, lista, paragrafë të numëruar)",
       "petitum": ["string", "string", ...],
       "cited_articles": [
@@ -472,6 +474,80 @@ DRAFT_SYSTEM = textwrap.dedent("""\
 """)
 
 
+# v9.402 — gli articoli di PROCEDURA che reggono la forma dell'atto (contenuto, allegati, competenza, termini): il recupero
+# parte dai fatti e porta il diritto sostanziale, e la bozza scriveva «dispozitat përkatëse procedurale» e «të verifikohet
+# kompetenca tokësore» senza un numero (prova viva del 29 set sulla padia per licenziamento). Tutti verificati sul corpus.
+# Voce = (codice, numero[, condizione]); condizione «PENALE»/«CIVILE» (dal racconto) o una regex che deve comparire.
+_RX_LAVORO = r"\bpun[ëe]\b|punëmarrës|punëdhënës|pushim nga puna|kontrat\w* (?:e|të) punës|lavor|licenzi"
+_RX_PENALE = (r"penal|i pandehur|të pandehur|dënim|prokurori|vepër penale|veprës penale|imputat|reato|pubblico ministero|"
+              r"sentenza di condanna|\bpm\b")
+_SEMI_ATTO: dict = {
+    "AL": {
+        "padi": [("kodi_proc_civile", "154"), ("kodi_proc_civile", "156"), ("kodi_proc_civile", "42"),
+                 ("kodi_proc_civile", "43", r"sh\.?\s?p\.?\s?k|\bsha\b|shoqëri|person juridik"),
+                 ("kodi_proc_civile", "47", _RX_LAVORO)],
+        "ankim": [("kodi_proc_civile", "443", "CIVILE"), ("kodi_proc_civile", "444", "CIVILE"),
+                  ("kodi_proc_civile", "446", "CIVILE"),
+                  ("kodi_proc_penale", "410", "PENALE"), ("kodi_proc_penale", "415", "PENALE")],
+        "rekurs": [("kodi_proc_civile", "472", "CIVILE"), ("kodi_proc_civile", "475", "CIVILE"),
+                   ("kodi_proc_civile", "443", "CIVILE"),
+                   ("kodi_proc_penale", "432", "PENALE"), ("kodi_proc_penale", "435", "PENALE")],
+        "kundershtim": [("kodi_proc_civile", "609"), ("kodi_proc_civile", "610")],
+    },
+    "IT": {
+        "padi": [("codice_procedura_civile", "163", r"^(?!.*(?:lavor|licenzi))"),
+                 ("codice_procedura_civile", "409", r"lavor|licenzi"), ("codice_procedura_civile", "413", r"lavor|licenzi"),
+                 ("codice_procedura_civile", "414", r"lavor|licenzi")],
+        "ankim": [("codice_procedura_civile", "342", "CIVILE"), ("codice_procedura_civile", "325", "CIVILE"),
+                  ("codice_procedura_civile", "327", "CIVILE"),
+                  ("codice_procedura_penale", "593", "PENALE"), ("codice_procedura_penale", "585", "PENALE")],
+        "rekurs": [("codice_procedura_civile", "360", "CIVILE"), ("codice_procedura_civile", "366", "CIVILE"),
+                   ("codice_procedura_civile", "325", "CIVILE")],
+        "kundershtim": [("codice_procedura_civile", "615"), ("codice_procedura_civile", "617")],
+    },
+}
+
+
+def _con_semi_dell_atto(retrieved, index, act_type: str, brief: str):
+    """Aggiunge in coda gli articoli di procedura del tipo d'atto (se non ci sono già e se sono in vigore). Mai solleva."""
+    try:
+        jur = "IT" if _sessione_it() else "AL"
+        semi = (_SEMI_ATTO.get(jur) or {}).get(act_type) or []
+        if not semi:
+            return retrieved
+        testo = brief or ""
+        penale = bool(re.search(_RX_PENALE, testo, re.I))
+        by = {(a.code, str(a.number)): a for a in index.articles}
+        out = list(retrieved or [])
+        presenti = {(a.code, str(a.number)) for a, _ in out}
+        for voce in semi:
+            code, num = voce[0], voce[1]
+            cond = voce[2] if len(voce) > 2 else None
+            if cond == "PENALE" and not penale:
+                continue
+            if cond == "CIVILE" and penale:
+                continue
+            if cond and cond not in ("PENALE", "CIVILE") and not re.search(cond, testo, re.I | re.S):
+                continue
+            a = by.get((code, num))
+            if a is None or getattr(a, "repealed", False) or (code, num) in presenti:
+                continue
+            out.append((a, 0.0))
+            presenti.add((code, num))
+        return out
+    except Exception:  # noqa: BLE001
+        return retrieved
+
+
+def _corpo_da_uscita_rotta(raw: str) -> str:
+    """v9.402 — dal JSON illeggibile, il valore di «body_markdown» (fino alla chiave seguente), con gli a capo ripristinati;
+    se non c'è, il testo intero senza la cornice JSON. Mai inventa: prende solo ciò che il modello ha scritto."""
+    s = raw or ""
+    m = re.search(r'"body_markdown"\s*:\s*"(.*?)"\s*,\s*"(?:petitum|cited_articles|warnings)"\s*:', s, re.S)
+    corpo = m.group(1) if m else s.strip().strip("`").strip()
+    return corpo.replace("\\n", "\n").replace('\\"', '"').replace("\\t", "\t").strip()
+
+
 def draft_act(
     backend: LLMBackend,
     index: ArticleIndex,
@@ -485,6 +561,7 @@ def draft_act(
     if act_type not in ACT_TYPES:
         raise ValueError(f"unknown act_type: {act_type!r}")
     retrieved = retrieved or index.search(brief, top_k=15)
+    retrieved = _con_semi_dell_atto(retrieved, index, act_type, brief)      # v9.402: la procedura dell'atto
     articles_block = _format_articles_compact(retrieved)
     docs_block = ""
     attachments: list[Path] = []
@@ -497,17 +574,33 @@ def draft_act(
             if sp and Path(sp).exists():
                 attachments.append(Path(sp))
     act_label = ACT_TYPES[act_type]
-    prompt = textwrap.dedent(f"""\
-        Lloji i aktit që duhet të hartohet: {act_label}
+    _it = _sessione_it()
+    if _it:                            # v9.402: le etichette nella lingua della sessione («kodet shqiptare» in una bozza italiana)
+        if docs_block:
+            docs_block = docs_block.replace("DOKUMENTET E DOSJES (lexoji):", "DOCUMENTI DEL FASCICOLO (leggili):")
+        prompt = textwrap.dedent(f"""\
+            Tipo di atto da redigere: {act_label}
 
-        Përshkrimi i rastit nga avokati:
-        \"\"\"{brief}\"\"\"
-        {docs_block}
-        Nene relevante nga kodet shqiptare (përdor vetëm këto):
-        {articles_block}
+            Descrizione del caso fatta dall'avvocato:
+            \"\"\"{brief}\"\"\"
+            {docs_block}
+            Articoli pertinenti dal corpus (usa solo questi):
+            {articles_block}
 
-        Harto aktin duke respektuar strukturën e skemës JSON.
-    """)
+            Redigi l'atto rispettando la struttura dello schema JSON.
+        """)
+    else:
+        prompt = textwrap.dedent(f"""\
+            Lloji i aktit që duhet të hartohet: {act_label}
+
+            Përshkrimi i rastit nga avokati:
+            \"\"\"{brief}\"\"\"
+            {docs_block}
+            Nene relevante nga kodet shqiptare (përdor vetëm këto):
+            {articles_block}
+
+            Harto aktin duke respektuar strukturën e skemës JSON.
+        """)
     raw = backend.complete(
         system=_juris(DRAFT_SYSTEM),
         messages=[{"role": "user", "content": prompt}],
@@ -516,7 +609,16 @@ def draft_act(
         session_id=None,
         attachments=attachments or None,
     )
-    data = _parse_json_block(raw)
+    try:
+        data = _parse_json_block(raw)
+    except (ValueError, json.JSONDecodeError) as exc:
+        # v9.402 — il testo dell'atto c'è: meglio consegnarlo con l'avviso che un errore 500 dopo minuti di attesa
+        log.warning("draft act: JSON illeggibile anche dopo la riparazione (%s) — consegno il testo non strutturato", exc)
+        data = {"title": "", "body_markdown": _corpo_da_uscita_rotta(raw), "petitum": [], "cited_articles": [],
+                "warnings": [("⚠ Il formato strutturato della bozza non è arrivato integro: titolo, parti e conclusioni vanno "
+                              "ricontrollati nel testo.") if _it else
+                             ("⚠ Formati i strukturuar i draftit nuk erdhi i plotë: titulli, palët dhe kërkimet duhen "
+                              "rikontrolluar në tekst.")]}
     data.setdefault("petitum", [])
     data.setdefault("cited_articles", [])
     data.setdefault("warnings", [])

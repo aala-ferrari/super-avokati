@@ -280,6 +280,8 @@ def _regression(c: dict, idx, cv) -> bool:
         r = cv.verify_text(t["text"], idx, retrieved_codes=set(t.get("ctx") or []) or None)
         by = {i["number"]: i for i in r.get("items") or []}
         i = by.get(t["number"])
+        if t["expect"] == "absent":            # v9.402: quel numero NON è una citazione (es. «3-27» mensilità)
+            return i is None
         return i is not None and i["status"] == t["expect"] and (not t.get("code") or i.get("code") == t["code"])
     if t.get("kind") == "resolver":
         got = cv._resolve_code_it(t["label"]) if c.get("lang") == "it" else cv._resolve_code(t["label"])

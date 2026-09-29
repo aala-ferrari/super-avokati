@@ -107,7 +107,11 @@ _PUSHIM_AL = ("zgjidh", "pushu", "pushoi", "pushon", "pushim nga", "largu", "nd�
 
 ANCORE_AL: tuple = (
     # v9.381: «parashkrimi fitues» (usucapione, KC 168 e ss.) NON è la prescrizione estintiva: non accende il 114
-    (("parashkrim", "parashkru"), ("Penal",), (("kodi_civil", "114"),), r"parashkrim\w*\s+fitu\w*|fitim\w*\s+(?:\w+\s+){0,3}me\s+parashkrim\w*"),
+    # v9.402: e solo nelle materie civilistiche (se il triage le dice) — in una domanda AMMINISTRATIVA («Bashkia i refuzoi lejen
+    # e ndërtimit: brenda sa ditësh e padisim?») entrava 3 volte su 3 accanto ai 45 giorni della 49/2012 e alla prescrizione
+    # degli illeciti amministrativi (ligji 10279/2010): lì la prescrizione civile di dieci anni è la regola sbagliata
+    (("parashkrim", "parashkru"), ("Penal",), (("kodi_civil", "114"),), r"parashkrim\w*\s+fitu\w*|fitim\w*\s+(?:\w+\s+){0,3}me\s+parashkrim\w*",
+     ("Civil", "Punë", "Familje", "Tregtare", "Konsumator", "Prone", "Sigurime", "Detar", "Ajror", "Nderkombetar")),
     # v9.380 — misurato con il triage vero (tools/eval_triage_ricerca.py): «Qiramarrësi nuk paguan qiranë prej 5 muajsh — si
     # ta nxjerr?» portava 11 nene del capitolo della qira ma NON il KC 698 (zgjidhja e kontratës për mospërmbushje), la regola
     # generale che vale anche per la qira. Non nel penale né nel lavoro (lì decide il Kodi i Punës).
@@ -171,6 +175,26 @@ ANCORE_IT: tuple = (
 )
 
 
+def _ancore_narkotike_al(pairs, idx, testi: list[str], aree: list[str]):
+    """v9.402 — SOSTANZE stupefacenti nominate in una domanda PENALE (sessione AL, liste della ligji 7975/1995): KP 283
+    («Prodhimi dhe shitja e narkotikëve») e 283/a entrano come ancore dichiarate, il 284 se si parla di coltivazione. Stessa
+    regola degli strumenti PRO (v9.399). Misurato col triage vero (eval_triage_ricerca): il caso «disa gram HHC» a volte non
+    portava né il 283 né l'allegato delle liste. Solo con l'area Penal (escludere conta più che includere). Mai solleva."""
+    try:
+        if "Penal" not in (aree or []):
+            return pairs
+        from . import narkotike_al as _nk
+        testo = " ".join(t for t in (testi or []) if t)
+        if not any(not x.get("jo") for x in _nk.trova(testo)):
+            return pairs
+        chiavi = [("kodi_penal", "283"), ("kodi_penal", "283/a")]
+        if re.search(r"kultiv|mbjell|bim[e]t?\b|fidan", _norm(testo)):
+            chiavi.append(("kodi_penal", "284"))
+        return _applica_ancore(pairs, idx, testi, aree, ancore=((("",), (), tuple(chiavi)),))
+    except Exception:  # noqa: BLE001
+        return pairs
+
+
 def _punteggio_reale(idx, queries: list[str], chiave: tuple[str, str],
                      profondita: int = 400) -> float:
     """Il punteggio BM25 vero dell'articolo, non uno inventato.
@@ -216,7 +240,8 @@ def _applica_ancore(pairs, idx, queries: list[str], aree: list[str], ancore=None
         if any(x in aree for x in aree_spente):
             continue
         # v9.400: un quinto elemento = aree di cui almeno una deve esserci (l'ancora del licenziamento vale solo nel lavoro)
-        if len(voce) > 4 and voce[4] and not any(x in (aree or []) for x in voce[4]):
+        # (con le aree note: se il triage non ne dà, l'ancora scatta come sempre — golden [4] «scatta senza areas»)
+        if len(voce) > 4 and voce[4] and aree and not any(x in aree for x in voce[4]):
             continue
         for chiave in articoli:
             if chiave not in per_chiave:
@@ -4522,6 +4547,7 @@ class SuperAvvocato:
         _testo_anc.append((getattr(triage, "domanda", "") or "")[:600])
         if idx is self.index:
             pairs = _applica_ancore(pairs, idx, _testo_anc, triage.areas)
+            pairs = _ancore_narkotike_al(pairs, idx, _testo_anc, triage.areas)      # v9.402
             pairs = _ankoro_sipas_titullit(
                 pairs, idx, (triage.problem_summary or all_queries[0]),
                 queries=all_queries, restrict=restrict)
@@ -6744,7 +6770,10 @@ def _parse_json_block(raw: str) -> dict:
     end = s.rfind("}")
     if start == -1 or end == -1:
         raise ValueError(f"No JSON object in model output: {raw[:200]}")
-    return json.loads(s[start : end + 1])
+    # v9.402: lettura tollerante (virgole finali, virgolette interne, a capo crudi) SOLO se la normale fallisce — nei
+    # log di produzione la fase «strategic» si era persa per una virgola finale
+    from .json_tollerante import carica as _carica
+    return _carica(s[start : end + 1])
 
 
 def _validate_doc_refs(refs_raw: list, valid_filenames: set[str]) -> list[str]:
