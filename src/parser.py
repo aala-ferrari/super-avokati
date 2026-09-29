@@ -191,14 +191,25 @@ _LAT_IT = r"(?:bis|ter|quater|quinquies|sexies|septies|octies|novies|decies)"
 
 def unita_nominata_it(number) -> str:
     s = str(number or "").lower()
-    m = re.match(r"^(tabella|tabelle|tariffa|prospetto|allegato)(?:-(.*))?$", s)
+    m = re.match(r"^(tabella|tabelle|tariffa|prospetto|allegato|allegati)(?:-(.*))?$", s)
     if not m:
         return ""
     head, rest = m.group(1), m.group(2) or ""
+    if head == "allegati":
+        return ("Allegati " + rest.replace("-", " ")).strip()
     if head == "allegato":
-        mm = re.match(r"^([0-9ivxlc]+)((?:-" + _LAT_IT + r")?)$", rest)
+        # «allegato-ii.2-bis-art-1» (codice dei contratti) → «Allegato II.2-bis, art. 1»; «allegato-iv-2» (un blocco) → «Allegato
+        # IV (2)»; «allegato-3a» → «Allegato 3A»
+        mm = re.match(r"^(?P<n>[0-9ivxlc]+(?:\.\d+)*|[a-z])(?P<let>[a-z])?(?P<lat>-" + _LAT_IT + r")?"
+                      r"(?:-art-(?P<art>\d+(?:-" + _LAT_IT + r")?))?(?:-(?P<blk>\d+))?$", rest)
         if mm:
-            return "Allegato " + (mm.group(1) if mm.group(1).isdigit() else mm.group(1).upper()) + mm.group(2)
+            n_ = mm.group("n")
+            out = "Allegato " + (n_ if n_[0].isdigit() else n_.upper()) + ((mm.group("let") or "").upper()) + (mm.group("lat") or "")
+            if mm.group("art"):
+                out += ", art. " + mm.group("art")
+            if mm.group("blk"):
+                out += f" ({mm.group('blk')})"
+            return out
         return ("Allegato " + rest.replace("-", " ")).strip()
     if head == "prospetto":
         return ("Prospetto " + rest.replace("-", " ")).strip()

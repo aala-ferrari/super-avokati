@@ -51,13 +51,13 @@
   "code": "codice_strada",
   "title": "Codice della Strada",
   "area": "Strada",
-  "count": 266
+  "count": 267
  },
  {
   "code": "regolamento_strada",
   "title": "Regolamento di esecuzione del Codice della Strada",
   "area": "Strada",
-  "count": 409
+  "count": 410
  },
  {
   "code": "codice_consumo",
@@ -75,7 +75,7 @@
   "code": "ordinamento_polizia",
   "title": "Ordinamento dell'Amministrazione della Pubblica Sicurezza",
   "area": "Sicurezza",
-  "count": 118
+  "count": 119
  },
  {
   "code": "tulps",
@@ -93,19 +93,19 @@
   "code": "sicurezza_lavoro",
   "title": "Testo Unico Sicurezza sul Lavoro",
   "area": "Lavoro",
-  "count": 321
+  "count": 393
  },
  {
   "code": "tu_bancario",
   "title": "Testo Unico Bancario",
   "area": "Bancario",
-  "count": 388
+  "count": 389
  },
  {
   "code": "tu_finanza",
   "title": "Testo Unico della Finanza",
   "area": "Finanza",
-  "count": 572
+  "count": 573
  },
  {
   "code": "codice_proprieta_industriale",
@@ -159,7 +159,7 @@
   "code": "codice_contratti_pubblici",
   "title": "Codice dei Contratti Pubblici",
   "area": "Amministrativo",
-  "count": 515
+  "count": 561
  },
  {
   "code": "sanzioni_amministrative",
@@ -171,7 +171,7 @@
   "code": "tu_spese_giustizia",
   "title": "Testo Unico Spese di Giustizia",
   "area": "Procedura Civile",
-  "count": 316
+  "count": 319
  },
  {
   "code": "codice_privacy",
@@ -183,7 +183,7 @@
   "code": "codice_ambiente",
   "title": "Codice dell'Ambiente",
   "area": "Ambiente",
-  "count": 476
+  "count": 482
  },
  {
   "code": "tu_edilizia",
@@ -213,7 +213,7 @@
   "code": "codice_beni_culturali",
   "title": "Codice dei Beni Culturali e del Paesaggio",
   "area": "Beni Culturali",
-  "count": 195
+  "count": 197
  },
  {
   "code": "codice_navigazione",
@@ -297,7 +297,7 @@
   "code": "accise",
   "title": "Testo Unico delle Accise (D.Lgs 504/1995)",
   "area": "Doganale",
-  "count": 122
+  "count": 123
  },
  {
   "code": "iva",
@@ -561,7 +561,7 @@
   "code": "maternita_paternita",
   "title": "Testo Unico maternità e paternità (D.Lgs 151/2001)",
   "area": "Lavoro",
-  "count": 95
+  "count": 99
  },
  {
   "code": "legge_biagi",
@@ -573,7 +573,7 @@
   "code": "pubblico_impiego",
   "title": "Testo Unico del pubblico impiego (D.Lgs 165/2001)",
   "area": "Lavoro",
-  "count": 106
+  "count": 112
  },
  {
   "code": "negoziazione_assistita",
@@ -597,7 +597,7 @@
   "code": "casellario",
   "title": "Testo Unico del casellario giudiziale (DPR 313/2002)",
   "area": "Procedura Penale",
-  "count": 64
+  "count": 65
  },
  {
   "code": "unioni_civili",

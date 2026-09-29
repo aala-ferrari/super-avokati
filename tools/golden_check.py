@@ -6463,6 +6463,39 @@ def main():
     except Exception as _e187:  # noqa: BLE001
         check("tariffe-it[187]: kontrollet u ekzekutuan", False, str(_e187))
 
+    # [188] v9.408 — gli ALLEGATI mai entrati (misura del 29 set: 241 in 31 atti; d.lgs. 81/2008 0 su 55): le violazioni gravi che
+    # fanno sospendere l'attività (Allegato I), i requisiti dei luoghi di lavoro (IV, in blocchi), i contenuti del PSC (XV), i lavori
+    # vietati alle lavoratrici madri (maternità, Allegato A), la tabella dei punti della patente (C.d.S.), gli allegati del codice dei
+    # contratti (revisione prezzi); le pagine lunghe in blocchi, nomi leggibili, recupero
+    try:
+        from pathlib import Path as _P188
+        from src import parser as _ps188
+        _it188 = ArticleIndex.load(_P188("/app/data/index/bm25_it.pkl"))
+        _by188 = {(a.code, str(a.number)): a for a in _it188.articles}
+        _a1 = _by188.get(("sicurezza_lavoro", "allegato-i"))
+        _iv = [a for (c, n), a in _by188.items() if c == "sicurezza_lavoro" and n.startswith("allegato-iv-")]
+        _mat = _by188.get(("maternita_paternita", "allegato-a"))
+        _pat = _by188.get(("codice_strada", "tabella"))
+        _cp = [a for (c, n), a in _by188.items() if c == "codice_contratti_pubblici" and n.startswith("allegato-ii.2-bis")]
+        _ok_c = bool(_a1 is not None and "articolo 14" in (_a1.heading + " " + _a1.body).lower()     # art. 14 = la sospensione
+                     and len(_iv) >= 5 and all(len(a.body) < 12000 for a in _iv) and "Requisiti dei luoghi di lavoro" in _iv[0].heading
+                     and _mat is not None and "insalubri" in (_mat.heading or "").lower()
+                     and _pat is not None and "126-bis" in (_pat.heading + _pat.body)
+                     and len(_cp) >= 10)
+        _nomi188 = (_ps188.numero_visibile_it("allegato-ii.2-bis-art-1") == "Allegato II.2-bis, art. 1"
+                    and _ps188.numero_visibile_it("allegato-iv-2") == "Allegato IV (2)"
+                    and _ps188.numero_visibile_it("allegato-a") == "Allegato A"
+                    and (_a1 is None or _a1.citation.startswith("Allegato I ")))
+        _hits188 = [(a.code, str(a.number)) for a, _ in _it188.search(
+            "lavori vietati alle lavoratrici in gravidanza lavori faticosi pericolosi insalubri", top_k=12)]
+        _ric188 = ("maternita_paternita", "allegato-a") in _hits188
+        _ok188 = _ok_c and _nomi188 and _ric188
+        check("allegati-it[188]: gli allegati mai entrati (d.lgs. 81/2008, maternità, C.d.S., contratti pubblici), in blocchi, "
+              "con nomi leggibili e trovati dalla ricerca", _ok188,
+              "contenuti=%s nomi=%s ricerca=%s | iv=%d cp=%d" % (_ok_c, _nomi188, _ric188, len(_iv), len(_cp)))
+    except Exception as _e188:  # noqa: BLE001
+        check("allegati-it[188]: kontrollet u ekzekutuan", False, str(_e188))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
