@@ -143,6 +143,8 @@ _IT_CODE_PREFIXES = ("codice_", "tu_", "disp_att_", "regolamento_", "reg_ue_",
 # tutti i codici di it_codes.json siano riconosciuti.
 _IT_CODE_EXACT = frozenset({
     "costituzione", "tulps", "tuir", "tuel", "statuto_lavoratori", "sicurezza_lavoro",
+    # v9.409: i vecchi atti fiscali vigenti fino al 31/12/2026 (le altre due sigle nuove hanno già il prefisso «imposta_»/«sanzioni_»)
+    "tuir_1986", "processo_tributario", "adempimento_unico",
     "responsabilita_enti", "responsabilita_sanitaria", "procedimento_amministrativo",
     "stupefacenti", "divorzio", "adozione", "equa_riparazione", "antiriciclaggio",
     # wave5 (16 set 2026): tributario, notarile, procedura, lavoro + EUR-Lex

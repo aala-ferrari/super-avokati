@@ -57,7 +57,11 @@ def _blocchi(body: str) -> list[str]:
         cur.append(r)
         lung += len(r) + 1
     if cur and "\n".join(cur).strip():
-        out.append("\n".join(cur).strip())
+        coda = "\n".join(cur).strip()
+        if out and len(re.sub(r"[()\s.\-=_]", "", coda)) < 150:
+            out[-1] = out[-1] + "\n" + coda              # v9.409: l'avanzo «))» dell'Allegato VI diventava un blocco a sé
+        else:
+            out.append(coda)
     return [b for b in out if b]
 
 

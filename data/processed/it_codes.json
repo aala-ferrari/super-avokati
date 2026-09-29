@@ -93,7 +93,7 @@
   "code": "sicurezza_lavoro",
   "title": "Testo Unico Sicurezza sul Lavoro",
   "area": "Lavoro",
-  "count": 393
+  "count": 392
  },
  {
   "code": "tu_bancario",
@@ -774,9 +774,45 @@
   "count": 11
  },
  {
+  "code": "adempimento_unico",
+  "title": "Adempimento unico telematico (d.lgs. 463/1997)",
+  "area": "Tributario",
+  "count": 8
+ },
+ {
+  "code": "imposta_bollo",
+  "title": "Imposta di bollo (d.P.R. 642/1972)",
+  "area": "Tributario",
+  "count": 131
+ },
+ {
+  "code": "imposta_ipotecaria_catastale",
+  "title": "Imposte ipotecaria e catastale (d.lgs. 347/1990)",
+  "area": "Tributario",
+  "count": 24
+ },
+ {
   "code": "legge_sospensione_feriale",
   "title": "Sospensione dei termini processuali nel periodo feriale (L. 742/1969)",
   "area": "Procedura Civile",
   "count": 7
+ },
+ {
+  "code": "processo_tributario",
+  "title": "Processo tributario (d.lgs. 546/1992)",
+  "area": "Tributario",
+  "count": 94
+ },
+ {
+  "code": "sanzioni_tributarie_amministrative",
+  "title": "Sanzioni tributarie non penali (d.lgs. 471/1997)",
+  "area": "Tributario",
+  "count": 17
+ },
+ {
+  "code": "tuir_1986",
+  "title": "Testo unico delle imposte sui redditi — d.P.R. 917/1986 (vigente fino al 31/12/2026)",
+  "area": "Tributario",
+  "count": 235
  }
 ]

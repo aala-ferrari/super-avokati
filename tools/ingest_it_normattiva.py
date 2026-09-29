@@ -149,7 +149,20 @@ ACTS = [
     # 180 giorni (art. 6 L. 604/1966), ma l'art. 3 la esclude per le controversie di lavoro; la legge non era nel corpus e le
     # risposte restavano incerte («non ti darei una risposta secca senza verifica»)
     ("legge_sospensione_feriale", "Sospensione dei termini processuali nel periodo feriale (L. 742/1969)", "Procedura Civile", "legge:1969-10-07;742", "wave9"),
+    # ── wave10 (29 set 2026): i vecchi atti fiscali VIGENTI FINO AL 31/12/2026 che i testi unici sostituiscono dal 2027 e che nel
+    # corpus non c'erano — il TUIR del 1986 era stato tolto ad agosto perché Normattiva SENZA data lo mostrava «PROVVEDIMENTO
+    # ABROGATO» (la versione futura); si scaricano con «!vig=» di oggi (VIGENTE_AL) e il riallineamento mette la versione dal 2027
+    # in `futuro`
+    ("tuir_1986", "Testo unico delle imposte sui redditi — d.P.R. 917/1986 (vigente fino al 31/12/2026)", "Tributario", "decreto.presidente.repubblica:1986-12-22;917", "wave10"),
+    ("processo_tributario", "Processo tributario (d.lgs. 546/1992)", "Tributario", "decreto.legislativo:1992-12-31;546", "wave10"),
+    ("sanzioni_tributarie_amministrative", "Sanzioni tributarie non penali (d.lgs. 471/1997)", "Tributario", "decreto.legislativo:1997-12-18;471", "wave10"),
+    ("imposta_ipotecaria_catastale", "Imposte ipotecaria e catastale (d.lgs. 347/1990)", "Tributario", "decreto.legislativo:1990-10-31;347", "wave10"),
+    ("imposta_bollo", "Imposta di bollo (d.P.R. 642/1972)", "Tributario", "decreto.presidente.repubblica:1972-10-26;642", "wave10"),
+    ("adempimento_unico", "Adempimento unico telematico (d.lgs. 463/1997)", "Tributario", "decreto.legislativo:1997-12-18;463", "wave10"),
 ]
+# atti da scaricare al testo in vigore OGGI («!vig=»): senza data Normattiva dà la versione futura (qui: tutto «ABROGATO» dal 2027)
+VIGENTE_AL = {"tuir_1986", "processo_tributario", "sanzioni_tributarie_amministrative", "imposta_ipotecaria_catastale",
+              "imposta_bollo", "adempimento_unico"}
 
 
 def main():
@@ -173,7 +186,8 @@ def main():
             print(f"    {_c}: {i}/{tot} ok={ok} fail={bad}", flush=True)
 
         try:
-            arts, fails = ingest_act(urn, delay=0.4, progress=prog)
+            _urn_in = urn + ("!vig=" + time.strftime("%Y-%m-%d") if cid in VIGENTE_AL else "")
+            arts, fails = ingest_act(_urn_in, delay=0.4, progress=prog)
         except Exception as e:  # noqa: BLE001
             print(f"  ✗ {cid} FALLITO: {type(e).__name__}: {str(e)[:120]}", flush=True)
             continue
@@ -192,6 +206,7 @@ def main():
                 print(f"  ✓ preleggi: {len(prel)} articoli (dal gruppo 1 del c.c.)", flush=True)
         payload = {"id": cid, "title": title, "area": area, "urn": urn, "wave": wave,
                    "fetched": time.strftime("%Y-%m-%d"),    # per tools/freshness_check.py
+                   **({"vigente_al": time.strftime("%Y-%m-%d")} if cid in VIGENTE_AL else {}),
                    "articles": arts, "failures": fails}
         dest.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
         print(f"  ✓ {cid}: {len(arts)} articoli, {len(fails)} falliti, "

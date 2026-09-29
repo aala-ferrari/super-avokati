@@ -30,7 +30,11 @@ CODICI_TU = ("tuir", "tu_iva", "tu_accertamento", "tu_riscossione", "tu_registro
 # 31/12/2026 e, in `futuro`, la nota «ARTICOLO ABROGATO…»): codice → chiave
 CODICE_VECCHIO = {"reati_tributari": "dlgs:74:2000", "iva": "dpr:633:1972", "accertamento_imposte": "dpr:600:1973",
                   "riscossione": "dpr:602:1973", "imposta_registro": "dpr:131:1986", "imposta_successioni": "dlgs:346:1990",
-                  "sanzioni_tributarie": "dlgs:472:1997"}
+                  "sanzioni_tributarie": "dlgs:472:1997",
+                  # v9.409 — i vecchi atti vigenti fino al 31/12/2026 che prima erano fuori corpus («trasfuso»)
+                  "tuir_1986": "dpr:917:1986", "processo_tributario": "dlgs:546:1992",
+                  "sanzioni_tributarie_amministrative": "dlgs:471:1997", "imposta_ipotecaria_catastale": "dlgs:347:1990",
+                  "imposta_bollo": "dpr:642:1972", "adempimento_unico": "dlgs:463:1997"}
 
 # Un testo unico citato col NOME che portava anche il vecchio atto («TUIR» era il d.P.R. 917/1986; «testo unico dell'imposta
 # di registro» il d.P.R. 131/1986): se la vecchia numerazione porta a un ALTRO articolo, lo si dice

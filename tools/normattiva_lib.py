@@ -214,7 +214,87 @@ def tabelle_in_testo(page_html):
     def _sub(m):
         rows = [r for r in (_riga(tr) for tr in _TR_RE.findall(m.group(1))) if r]
         return '<span class="attachment-just-text">' + "<br>".join(_html.escape(r) for r in rows) + "<br></span>"
-    return _TABLE_AKN.sub(_sub, page_html or "")
+
+    def _sub_ascii(m):
+        righe = [_html.unescape(re.sub(r"<[^>]+>", "", x)) for x in _KEEP80_RE.findall(m.group("c"))]
+        rows = _ascii_righe(righe)
+        if not rows:
+            return m.group(0)
+        return '<span class="attachment-just-text">' + "<br>".join(_html.escape(r) for r in rows) + "<br></span>"
+    out = _TABLE_AKN.sub(_sub, page_html or "")
+    return _TABLE_ASCII.sub(_sub_ascii, out)
+
+
+# v9.409 — la stessa tabella a caratteri anche FUORI da `table-akn` (la «Tabella delle tasse per i servizi ipotecari e
+# catastali» del d.lgs. 347/1990: righe `keep80` dentro il testo modificato «((…))»). Solo dove serve, come `tabelle_in_testo`.
+_KEEP80_RUN = re.compile(r'(?:<span[^>]*class="keep80"[^>]*>(?:(?!</span>).)*</span>\s*(?:<br\s*/?>\s*)*){3,}', re.S | re.I)
+
+
+def tabelle_keep80_in_testo(page_html):
+    def _sub(m):
+        righe = [_html.unescape(re.sub(r"<[^>]+>", "", x)) for x in _KEEP80_RE.findall(m.group(0))]
+        if sum("|" in r for r in righe) < max(3, len(righe) // 2):
+            return m.group(0)                                  # non è una tabella: testo impaginato
+        rows = _ascii_righe(righe)
+        return ("<br>".join(_html.escape(r) for r in rows) + "<br>") if rows else m.group(0)
+    out = _KEEP80_RUN.sub(_sub, tabelle_in_testo(page_html))
+    return _KEEP80_RE.sub(lambda m: m.group(1), out)          # un keep80 isolato chiuderebbe lo span dell'allegato
+
+
+# v9.409 — le tabelle DISEGNATE A CARATTERI (`<span class="table-akn">` con righe `<span class="keep80">` e colonne separate da «|»:
+# la Tariffa dell'imposta di bollo, d.P.R. 642/1972): si ricompongono le colonne di ogni riga (le righe si separano sui trattini, e
+# una voce numerata «2.» nella prima colonna apre una riga nuova), le parole spezzate a fine riga («auten-» | «ticati») si uniscono
+_TABLE_ASCII = re.compile(r'<span[^>]*class="table-akn"[^>]*>(?P<c>(?:(?!<table)(?!<span[^>]*class="attachment-just-text").)*?)'
+                          r'(?=<span[^>]*class="attachment-just-text"|</div>)', re.S | re.I)
+_KEEP80_RE = re.compile(r'<span[^>]*class="keep80"[^>]*>(.*?)</span>', re.S | re.I)
+
+
+def _ascii_righe(righe):
+    rows, cur = [], None
+
+    def _chiudi():
+        if cur:
+            rows.append(cur)
+
+    for ln in righe:
+        s_ = ln.rstrip()
+        _sep = re.sub(r"[\s|+]", "", s_)
+        if not _sep or (len(_sep) >= 5 and not re.sub(r"[-=_]", "", _sep)):   # «-----», «+=====+=====+», «|------|»
+            _chiudi(); cur = None
+            continue
+        if s_.startswith("|"):                               # bordo esterno («|1. Fatture, …|»); «   |» = prima colonna vuota
+            s_ = s_[1:]
+            if s_.endswith("|"):
+                s_ = s_[:-1]
+        cells = s_.split("|")
+        if cur is not None and len(cells) and re.match(r"^\s*\d+(?:-\w+)?\.\s", cells[0]) and any(any(x for x in col) for col in cur):
+            _chiudi(); cur = None                            # una voce numerata nuova nella prima colonna
+        if cur is None:
+            cur = [[] for _ in cells]
+        if len(cells) < len(cur):
+            cells += [""] * (len(cur) - len(cells))
+        elif len(cells) > len(cur):
+            cells = cells[:len(cur) - 1] + [" ".join(cells[len(cur) - 1:])]
+        for i, c in enumerate(cells):
+            cur[i].append(c.strip())
+    _chiudi()
+    out = []
+    for r in rows:
+        cols = []
+        for parts in r:
+            t = ""
+            for p_ in parts:
+                if not p_:
+                    continue
+                if t.endswith("-") and p_[:1].islower():
+                    t = t[:-1] + p_
+                else:
+                    t = (t + " " + p_).strip()
+            cols.append(re.sub(r"\s+", " ", t))
+        riga = " — ".join(c for c in cols if c)
+        if riga:
+            out.append(riga)
+    return out
 
 
 def parse_article_page(page_html, fallback_number=""):

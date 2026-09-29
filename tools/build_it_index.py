@@ -244,6 +244,17 @@ def _pulisci(heading: str, body: str) -> tuple[str, str]:
     if mf and len(mf.group("r").strip()) >= 3 and _rubrica_ok(mf.group("r").strip(" ."), filtri_verbi=False):
         b = "(" + mf.group("f").strip() + ")\n\n" + b.strip()
         h = mf.group("r").strip(" .")
+    # v9.409 — il testo MODIFICATO per intero comincia con «((»: il riconoscimento della rubrica fra parentesi del formato
+    # «allegato» (c.c., disp. att., C.N.) prendeva TUTTO il testo come rubrica e il corpo restava «)» (c.c. 148 «I coniugi devono
+    # adempiere…», disp. att. c.c. 32, 33, 60-bis, 60-ter). Corpo senza testo + rubrica lunga che non è il nome di un allegato →
+    # il testo torna nel corpo; «Rubrica). 1. Testo…» si divide. Solo se nel corpo non resta NESSUNA lettera: un corpo corto
+    # vero («1. L'Agenzia…») sotto una rubrica lunga resta com'è.
+    if len(re.sub(r"[^A-Za-zÀ-ÿ]", "", b)) < 3 and len(h) > 60 and not re.match(r"(?i)(allegat|tabell|tariff|prospett)", h):
+        mm = re.match(r"^(?P<r>[^()]{3,120}?)\)\.?\s+(?P<t>(?:\d+\.\s+)?[A-ZÀ-Ü].+)$", h, re.S)
+        if mm and _rubrica_ok(mm.group("r").strip(" ."), filtri_verbi=False):
+            h, b = mm.group("r").strip(" ."), mm.group("t").strip()
+        else:
+            h, b = "", h.rstrip(" .") + "."
     return h, b.strip()
 
 SRC = Path("/app/data/processed/it_acts")
@@ -337,6 +348,7 @@ def main():
     vigenze: dict = {}            # v9.405: code -> number -> {fino, dal, futuro_abrogato, futuro_rubrica, futuro_testo, non_in_vigore_dal}
     notes_map: dict = {}          # code -> number -> [note] (per src/temporal.py: storia + transitori)
     ger_ok = ger_tot = 0
+    senza_testo = 0
     for cid in ordered:
         a = acts[cid]
         arts = a.get("articles") or []
@@ -364,6 +376,12 @@ def main():
                     "futuro_testo": ("" if (_fu or {}).get("repealed") else _bf[:600]),
                     "non_in_vigore_dal": _nv if (_nv and _nv > _oggi_iso) else ""}
             _h, _b = _pulisci(art.get("heading") or "", art.get("body") or "")
+            # v9.409 — pagine che sono solo un'etichetta («Tabella 1», «Allegato III-bis», «[senza testo]»: il contenuto è
+            # un'immagine): nell'indice rispondevano alle ricerche su «tabella/allegato» senza dire niente
+            if not _as_bool(art.get("repealed")) and re.fullmatch(
+                    r"(?i)\[senza testo\]|(?:tabella|allegato|tariffa|prospetto)(?:\s+[\w.\-]{1,12})?\.?", _b.strip()):
+                senza_testo += 1
+                continue
             # P3b-IT (16 set 2026): la data dell'ultima modifica per articolo dalle note di
             # aggiornamento Normattiva (vedi normattiva_lib.parse_notes), quando l'atto le ha
             _notes = [n for n in (art.get("notes") or []) if isinstance(n, dict)]
@@ -390,7 +408,8 @@ def main():
                      "count": len(arts)})
         print(f"  {cid:34s} {len(arts):>5} art   {a['title'][:46]}")
 
-    print(f"\nTOTALE: {len(all_articles)} articoli su {len(meta)} corpora · con capitolo (Titolo/Capo/Sezione): {ger_ok}/{ger_tot}")
+    print(f"\nTOTALE: {len(all_articles)} articoli su {len(meta)} corpora · con capitolo (Titolo/Capo/Sezione): {ger_ok}/{ger_tot}"
+          f" · pagine senza testo escluse: {senza_testo}")
     # v9.403 — le CORRISPONDENZE vecchio articolo → articolo del testo unico, dalle righe di fonte dei testi unici fiscali
     # («( articolo 8 del decreto legislativo n. 74 del 2000 )»): il verificatore dice dove sta oggi una norma abrogata
     from src import corrispondenze_tu as _ctu

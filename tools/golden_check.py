@@ -6130,7 +6130,7 @@ def main():
             _vv = _tl180.verifica("Rischia per l'art. 8 d.lgs. 74/2000 e per l'art. 73, comma 3, TUIR.", _it180, "IT")
             _prima = (_a.get("status") == "verified" and _s(_a) == [("tu_sanzioni_tributarie", "79")]
                       and "in vigore fino al 31/12/2026" in (_a.get("article_heading") or "")
-                      and _b.get("status") == "verified" and _b.get("resolved_by") == "trasfuso" and ("tuir", "82") in _s(_b)
+                      and _b.get("status") == "verified" and _b.get("resolved_by") in ("trasfuso", "vigente") and ("tuir", "82") in _s(_b)
                       and _c.get("status") == "verified" and ("tuir", "82") in _s(_c)
                       and _v("Il ricorso va proposto ai sensi dell'art. 21 d.lgs. 546/1992.").get("status") == "verified"
                       and _f.get("status") == "verified" and "art. 8 d.lgs. 74/2000" in (_f.get("avviso") or "")
@@ -6144,7 +6144,8 @@ def main():
             _d2 = _v("La residenza si determina ai sensi dell'art. 2 TUIR.")
             _dopo = (_a2.get("status") == "repealed" and "oggi art. 79" in (_a2.get("article_heading") or "")
                      and _b2.get("status") == "verified" and "82" in (_b2.get("avviso") or "")
-                     and _c2.get("status") == "needs_code" and _c2.get("resolved_by") == "trasfuso"
+                     and ((_c2.get("status") == "needs_code" and _c2.get("resolved_by") == "trasfuso")      # v9.404: fuori corpus
+                          or (_c2.get("status") == "repealed" and ("tuir", "82") in _s(_c2)))          # v9.409: nel corpus
                      and _d2.get("status") == "verified" and not _d2.get("avviso")
                      and _ctu180.nota_decorrenza("tu_sanzioni_tributarie") == "")
         finally:
@@ -6495,6 +6496,85 @@ def main():
               "contenuti=%s nomi=%s ricerca=%s | iv=%d cp=%d" % (_ok_c, _nomi188, _ric188, len(_iv), len(_cp)))
     except Exception as _e188:  # noqa: BLE001
         check("allegati-it[188]: kontrollet u ekzekutuan", False, str(_e188))
+
+    # [189] v9.409 — i VECCHI ATTI FISCALI VIGENTI FINO AL 31/12/2026 che mancavano: il TUIR del 1986 (tolto ad agosto perché
+    # Normattiva senza data lo mostrava «PROVVEDIMENTO ABROGATO»: la versione futura), il processo tributario (d.lgs. 546/1992), le
+    # sanzioni non penali (471/1997), ipotecaria e catastale (347/1990), bollo (642/1972), adempimento unico (463/1997). Scaricati al
+    # testo di oggi; il verificatore li verifica sul loro testo col numero del 2027; «art. N TUIR» col nome va al TUIR vigente
+    try:
+        from datetime import date as _d189
+        from pathlib import Path as _P189
+        from src import corrispondenze_tu as _ctu189, citation_verifier as _cv189
+        _it189 = ArticleIndex.load(_P189("/app/data/index/bm25_it.pkl"))
+        _by189 = {(a.code, str(a.number)): a for a in _it189.articles}
+        _t73 = _by189.get(("tuir_1986", "73"))
+        _p21 = _by189.get(("processo_tributario", "21"))
+        _nel = bool(_t73 is not None and not _t73.repealed and _p21 is not None and not _p21.repealed
+                    and ("imposta_bollo", "13") in _by189 and ("imposta_ipotecaria_catastale", "1") in _by189)
+        _v189 = lambda t: (_cv189.verify_text(t, _it189).get("items") or [{}])[0]
+        _sv = lambda it: [(x.get("code"), x.get("number")) for x in (it.get("successori") or [])]
+        try:
+            _ctu189._OGGI_FORZATO = _d189(2026, 9, 29)
+            _a = _v189("Si apre il fronte dell'esterovestizione (art. 73, comma 3, TUIR).")
+            _b = _v189("art. 73 del d.P.R. 22 dicembre 1986, n. 917")
+            _c = _v189("Il ricorso va proposto entro sessanta giorni ai sensi dell'art. 21 d.lgs. 546/1992.")
+            _prima = (_a.get("code") == "tuir_1986" and _a.get("status") == "verified" and ("tuir", "82") in _sv(_a)
+                      and _b.get("code") == "tuir_1986" and _b.get("status") == "verified"
+                      and "in vigore fino al 31/12/2026" in (_b.get("article_heading") or "")
+                      and _c.get("code") == "processo_tributario" and _c.get("status") == "verified"
+                      and ("tuir_1986", "73") in _ctu189.previgenti("tuir", "82"))
+            _ctu189._OGGI_FORZATO = _d189(2027, 2, 1)
+            _b2 = _v189("art. 73 del d.P.R. 22 dicembre 1986, n. 917")
+            _a2 = _v189("Si apre il fronte dell'esterovestizione (art. 73, comma 3, TUIR).")
+            _dopo = (_b2.get("status") == "repealed" and ("tuir", "82") in _sv(_b2) and _a2.get("code") == "tuir")
+        finally:
+            _ctu189._OGGI_FORZATO = None
+        _ok189 = _nel and _prima and _dopo
+        check("fiscali-vigenti-it[189]: TUIR 1986, processo tributario, sanzioni, ipocatastali, bollo, adempimento unico nel corpus "
+              "col testo vigente; verificati sul loro testo fino al 2026, abrogati dal 2027", _ok189,
+              "nel_corpus=%s prima=%s dopo=%s | a=%s b=%s c=%s" % (_nel, locals().get("_prima"), locals().get("_dopo"),
+                                                                  (locals().get("_a") or {}).get("code"), (locals().get("_b") or {}).get("status"),
+                                                                  (locals().get("_c") or {}).get("code")))
+    except Exception as _e189:  # noqa: BLE001
+        check("fiscali-vigenti-it[189]: kontrollet u ekzekutuan", False, str(_e189))
+
+    # [190] v9.409 — le TABELLE A CARATTERI di Normattiva (Tariffa del bollo, Tariffa e Tabella delle imposte ipotecarie e
+    # catastali): le voci separate (fatture ≠ estratti conto), il decreto del bollo coi SUOI numeri e la Tariffa come «N-all1»,
+    # le cifre in lire accompagnate dalla misura di oggi (2 %, 16 e 2 euro, 200 euro), il testo modificato «((…))» non più
+    # perso nella rubrica, le pagine-etichetta fuori dall'indice; il verificatore legge «art. 13 della Tariffa allegata al d.P.R.
+    # 642/1972» sulla voce e non sull'art. 13 del decreto
+    try:
+        import re as _re190
+        from pathlib import Path as _P190
+        from src import citation_verifier as _cv190
+        _it190 = ArticleIndex.load(_P190("/app/data/index/bm25_it.pkl"))
+        _by190 = {(a.code, str(a.number)): a for a in _it190.articles}
+        _t13 = _by190.get(("imposta_bollo", "13-all1"))
+        _d13 = _by190.get(("imposta_bollo", "13"))
+        _tar = _by190.get(("imposta_ipotecaria_catastale", "tariffa"))
+        _tab = _by190.get(("imposta_ipotecaria_catastale", "tabella"))
+        _b16 = _by190.get(("imposta_bollo", "16-all2"))
+        _voci = bool(_t13 and _re190.search(r"(?m)^1\. Fatture", _t13.body) and _re190.search(r"(?m)^2-bis\. Estratti conto", _t13.body)
+                     and "16,00" in (_t13.note or "") and _d13 is not None and "all1" not in _d13.number)
+        _ipo = bool(_tar and "2 per cento" in _tar.body and "euro 200" in (_tar.note or "")
+                    and _tab and "35,00" in _tab.body)
+        _rub = bool(_b16 and "amministrazioni dello Stato" in _b16.body
+                    and "amministrazioni" not in (_b16.heading or "").split("art. 16")[-1])
+        _cc148 = _by190.get(("codice_civile", "148"))
+        _rub = _rub and bool(_cc148 and "I coniugi devono adempiere" in _cc148.body)
+        _vuote = not any(_re190.fullmatch(r"(?i)\[senza testo\]|(?:tabella|allegato|tariffa|prospetto)(?:\s+[\w.\-]{1,12})?\.?",
+                                          (a.body or "").strip()) for a in _it190.articles if not a.repealed)
+        _v190 = lambda t: (_cv190.verify_text(t, _it190).get("items") or [{}])[0]
+        _x = _v190("Sulle fatture si applica l'art. 13 della Tariffa allegata al d.P.R. 642/1972.")
+        _y = _v190("L'imposta di bollo si applica ai sensi dell'art. 13 d.P.R. 642/1972.")
+        _ver = (_x.get("code") == "imposta_bollo" and str(_x.get("number")).replace("/", "-") == "13-all1" and _x.get("status") == "verified"
+                and _y.get("code") == "imposta_bollo" and str(_y.get("number")) == "13")
+        check("tabelle-a-caratteri-it[190]: bollo e imposte ipotecarie con le voci, le misure di oggi e il verificatore sulla voce",
+              _voci and _ipo and _rub and _vuote and _ver,
+              "voci=%s ipo=%s rubrica=%s vuote=%s verificatore=%s (%s %s)" % (
+                  _voci, _ipo, _rub, _vuote, _ver, _x.get("number"), _y.get("number")))
+    except Exception as _e190:  # noqa: BLE001
+        check("tabelle-a-caratteri-it[190]: kontrollet u ekzekutuan", False, str(_e190))
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

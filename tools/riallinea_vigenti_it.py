@@ -60,7 +60,7 @@ def _num_lab(lab: str) -> str:
     return re.sub(r"\s+", "-", re.sub(r"^\s*art(?:icolo)?\.?\s*", "", (lab or "").lower()).strip().rstrip("."))
 
 
-def _numero_nel_json(num_lab: str, gruppo: str, sizes: dict, etichette: dict) -> str | None:
+def _numero_nel_json(num_lab: str, gruppo: str, sizes: dict, etichette: dict, main: str | None = None) -> str | None:
     """Il numero che l'ingest ha dato a quell'articolo (`normattiva_lib.assign_numbers`): il gruppo più grande della pagina
     tiene i numeri, il gruppo 0 diventa «N-legge», un altro gruppo numerato «N-allK», i gruppi non numerati (Tabelle,
     Prospetto) si scartano salvo gli «Allegato …». Prima si cercava solo per numero e, nell'imposta di registro, l'art. 5
@@ -69,7 +69,8 @@ def _numero_nel_json(num_lab: str, gruppo: str, sizes: dict, etichette: dict) ->
         return None
     if len(sizes) <= 1:
         return num_lab
-    main = max(sizes, key=lambda g: sizes[g])
+    # `main` dal JSON («main_group»): il bollo ha il decreto nel gruppo 0 e la Tariffa, più lunga, nel gruppo 1 (v9.409)
+    main = main if main is not None else max(sizes, key=lambda g: sizes[g])
     if gruppo == main:
         return num_lab
     if gruppo == "0":
@@ -122,7 +123,7 @@ def main():
             fh = fut.get(k)
             if not fh or _versione(fh[0]) == _versione(h_oggi):
                 continue
-            target = _numero_nel_json(_num_lab(lab), k[0], sizes, etichette)
+            target = _numero_nel_json(_num_lab(lab), k[0], sizes, etichette, j.get("main_group"))
             if target is None:
                 print(f"    - {cid} {lab} (gruppo {k[0]}): gruppo non numerato, fuori dal corpus", flush=True)
                 continue
@@ -150,11 +151,14 @@ def main():
                 if not a.get("futuro"):
                     a["futuro"] = {"dal": dal_fut, "heading": a_fut.get("heading") or "", "body": a_fut.get("body") or "",
                                    "repealed": nl.is_repealed(a_fut.get("heading"), a_fut.get("body"))}
-                a["heading"] = a_oggi.get("heading") or ""
-                a["body"] = a_oggi.get("body") or ""
-                a["repealed"] = nl.is_repealed(a["heading"], a["body"])
-                if a_oggi.get("notes"):
-                    a["notes"] = a_oggi["notes"]
+                # v9.409 — un atto scaricato GIÀ al testo vigente (`vigente_al`, i vecchi atti fiscali del wave10) ha il testo di
+                # oggi, e magari tariffe e tabelle rilette apposta (bollo, imposte ipotecarie): si aggiunge solo la versione futura
+                if not j.get("vigente_al"):
+                    a["heading"] = a_oggi.get("heading") or ""
+                    a["body"] = a_oggi.get("body") or ""
+                    a["repealed"] = nl.is_repealed(a["heading"], a["body"])
+                    if a_oggi.get("notes"):
+                        a["notes"] = a_oggi["notes"]
                 a["vigente_fino"] = al_oggi
                 a["riallineato"] = oggi
                 ok += 1
@@ -172,7 +176,7 @@ def main():
                 for kk, (_h, ll) in fut.items():
                     sizes_f[kk[0]] = sizes_f.get(kk[0], 0) + 1
                     etich_f.setdefault(kk[0], []).append(ll)
-                target = _numero_nel_json(_num_lab(lab), k[0], sizes_f, etich_f)
+                target = _numero_nel_json(_num_lab(lab), k[0], sizes_f, etich_f, j.get("main_group"))
                 a = _trova(arts, target, k[0]) if target else None
                 if a is None:
                     print(f"    ? {cid} {lab}: articolo solo futuro non trovato nel JSON", flush=True)

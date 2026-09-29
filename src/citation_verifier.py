@@ -331,16 +331,23 @@ CODE_LABELS: dict[str, str] = {
     # ── wave5 + EUR-Lex (16 set 2026) ──
     "codice_doganale_nazionale": "D.Lgs 141/2024 (DNC dogane)",
     "accise": "TU Accise (D.Lgs 504/1995)",
-    "iva": "DPR 633/1972 (IVA — abrogato dal TU D.Lgs 10/2026)",
-    "imposta_registro": "DPR 131/1986 (registro — abrogato dal TU D.Lgs 123/2025)",
-    "imposta_successioni": "D.Lgs 346/1990 (successioni — abrogato dal TU D.Lgs 123/2025)",
-    "sanzioni_tributarie": "D.Lgs 472/1997 (abrogato dal TU D.Lgs 173/2024)",
+    "iva": "DPR 633/1972 (IVA — fino al 31/12/2026, poi TU D.Lgs 10/2026)",
+    "imposta_registro": "DPR 131/1986 (registro — fino al 31/12/2026, poi TU D.Lgs 123/2025)",
+    "imposta_successioni": "D.Lgs 346/1990 (successioni — fino al 31/12/2026, poi TU D.Lgs 123/2025)",
+    "sanzioni_tributarie": "D.Lgs 472/1997 (fino al 31/12/2026, poi TU D.Lgs 173/2024)",
     "giustizia_tributaria": "TU Giustizia trib. (D.Lgs 175/2024)",
     "statuto_contribuente": "L. 212/2000 (Statuto contrib.)",
-    "accertamento_imposte": "DPR 600/1973 (in gran parte abrogato dal TU D.Lgs 141/2026)",
-    "riscossione": "DPR 602/1973 (abrogato dal TU D.Lgs 33/2025)",
-    "reati_tributari": "D.Lgs 74/2000 (abrogato dal TU D.Lgs 173/2024)",
-    # ── wave6 (16 set 2026): i testi unici della riforma fiscale — la legge VIGENTE ──
+    "accertamento_imposte": "DPR 600/1973 (fino al 31/12/2026, poi TU D.Lgs 141/2026)",
+    "riscossione": "DPR 602/1973 (fino al 31/12/2026, poi TU D.Lgs 33/2025)",
+    "reati_tributari": "D.Lgs 74/2000 (fino al 31/12/2026, poi TU D.Lgs 173/2024)",
+    # v9.409 — i vecchi atti fiscali vigenti fino al 31/12/2026 che mancavano (il TUIR del 1986 era stato tolto ad agosto)
+    "tuir_1986": "TUIR — DPR 917/1986 (fino al 31/12/2026, poi TUIR D.Lgs 117/2026)",
+    "processo_tributario": "D.Lgs 546/1992 (processo tributario — fino al 31/12/2026, poi TU D.Lgs 175/2024)",
+    "sanzioni_tributarie_amministrative": "D.Lgs 471/1997 (sanzioni tributarie — fino al 31/12/2026, poi TU D.Lgs 173/2024)",
+    "imposta_ipotecaria_catastale": "D.Lgs 347/1990 (ipotecaria e catastale — fino al 31/12/2026, poi TU D.Lgs 123/2025)",
+    "imposta_bollo": "DPR 642/1972 (bollo — fino al 31/12/2026, poi TU D.Lgs 123/2025)",
+    "adempimento_unico": "D.Lgs 463/1997 (adempimento unico)",
+    # ── wave6 (16 set 2026): i testi unici della riforma fiscale — si applicano dal 1° gennaio 2027 (v9.404) ──
     "tu_sanzioni_tributarie": "TU Sanzioni tributarie amm. e penali (D.Lgs 173/2024)",
     "tu_riscossione": "TU Versamenti e riscossione (D.Lgs 33/2025)",
     "tu_registro": "TU Registro e tributi indiretti (D.Lgs 123/2025)",
@@ -451,7 +458,7 @@ CODE_LABELS: dict[str, str] = {
     "tu_edilizia": "TU Edilizia",
     "tu_immigrazione": "TU Immigrazione",
     "codice_antimafia": "Cod. Antimafia",
-    "tuir": "TUIR",
+    "tuir": "TUIR (D.Lgs 117/2026, dal 1° gennaio 2027)",
     "codice_beni_culturali": "Cod. Beni Cult.",
     "codice_navigazione": "Cod. Nav.",
     "stupefacenti": "DPR 309/1990",
@@ -719,6 +726,8 @@ _IT_CODE_CHECKS = [
     # indiretti» c'è solo nel titolo del testo unico nuovo: prima del vecchio nome, che è un suo prefisso
     ("altritributiindiretti", "tu_registro"),
     ("testounicodellimpostadiregistro", "imposta_registro"), ("testounicoimpostadiregistro", "imposta_registro"),
+    ("decretosullimpostadibollo", "imposta_bollo"), ("disciplinadellimpostadibollo", "imposta_bollo"),
+    ("impostaipotecariaecatastale", "imposta_ipotecaria_catastale"), ("imposteipotecariaecatastale", "imposta_ipotecaria_catastale"),
     ("testounicoentilocali", "tuel"),
     ("testounicoaccise", "accise"),
     ("testounicodelleaccise", "accise"),
@@ -809,6 +818,9 @@ _IT_CODE_NUM_CHECKS = [
     ("20152446", "reg_ue_2015_2446"), ("20152447", "reg_ue_2015_2447"), ("20191111", "bruxelles_ii_ter"),
     # wave6: testi unici della riforma fiscale (prima dei vecchi atti che hanno abrogato)
     ("1732024", "tu_sanzioni_tributarie"), ("1232025", "tu_registro"), ("1412026", "tu_accertamento"),
+    # v9.409: i vecchi atti fiscali vigenti fino al 31/12/2026 (prima fuori corpus: «trasfuso»)
+    ("9171986", "tuir_1986"), ("5461992", "processo_tributario"), ("4711997", "sanzioni_tributarie_amministrative"),
+    ("3471990", "imposta_ipotecaria_catastale"), ("6421972", "imposta_bollo"), ("4631997", "adempimento_unico"),
     ("332025", "tu_riscossione"), ("102026", "tu_iva"),
     # wave7 «blocco A»: prima le chiavi lunghe (sottostringhe: «2742000» contiene «742000»)
     ("13261914", "regolamento_notarile"), ("11501942", "legge_urbanistica"), ("20161103", "regimi_patrimoniali_ue"),
@@ -1486,7 +1498,18 @@ def _corrispondenze_finali(citations: list, lookup: dict, lookup_all: dict | Non
             succ = _successori_art(vecchio, c.number, lookup)
             fut = _ctu.futuro(c.code)
             if fut and modo in ("vecchio", "nome"):
-                # il TUIR vigente è il d.P.R. 917/1986: l'articolo si verifica sulla corrispondenza (il testo unico lo trasfonde)
+                # v9.409 — il TUIR vigente è il d.P.R. 917/1986 e dal v9.409 è nel corpus (`tuir_1986`): l'articolo si verifica sul
+                # suo testo, col numero che avrà dal 2027; senza (corpus vecchio) sulla corrispondenza come prima
+                _vc = next((k for k, v in _ctu.CODICE_VECCHIO.items() if v == vecchio), None)
+                _av = lookup.get((_vc, _normalise_number(c.number))) if _vc else None
+                if _av is not None:
+                    c.code, c.code_label, c.status, c.resolved_by = _vc, CODE_LABELS.get(_vc, _vc), "verified", "vigente"
+                    c.successori = succ or None
+                    c.article_heading = ((getattr(_av, "heading", "") or "") +
+                                         (" — " + _testo_successori(succ, "vigente", _ctu.fino_al(fut)) if succ else
+                                          f" — in vigore fino al {_ctu.fino_al(fut)}"))
+                    c.avviso = None
+                    continue
                 c.code_label = f"{_ctu.etichetta_atto(vecchio)} (TUIR vigente)"
                 c.code = None
                 c.resolved_by = "trasfuso"
@@ -1527,7 +1550,11 @@ _TARIFFA_CODA = re.compile(
     r"^\s*,?\s*(?:(?:comma|nota|lett(?:era)?\.?|n\.)\s*[\w-]+\)?\s*,?\s*)*(?:del(?:la)?|dell['’]|alla|nella)\s+(?P<k>tariffa|tabella)\b"
     r"(?:\s*,?\s*(?:parte\s+)?(?P<p>I{1,2}\b|prima\b|seconda\b))?(?P<rest>(?:[^.;\n]|\.(?!\s+[A-ZÀ-Ü])){0,140})", re.I)
 _ATTI_TARIFFA = {"imposta_registro": {"tariffa-1": "{n}-all1", "tariffa-2": "{n}-all2", "tabella": "{n}-all3"},
-                 "tu_registro": {"tariffa-1": "tariffa-i-{n}", "tariffa-2": "tariffa-ii-{n}", "tabella": "tabella-{n}"}}
+                 "tu_registro": {"tariffa-1": "tariffa-i-{n}", "tariffa-2": "tariffa-ii-{n}", "tabella": "tabella-{n}"},
+                 # v9.409 — bollo: la Tariffa (Allegato A) non ha parti, la Tabella (Allegato B) = atti esenti; imposte ipotecaria
+                 # e catastale: la Tariffa e la Tabella delle tasse sono UNA unità ciascuna (la voce si verifica sull'unità)
+                 "imposta_bollo": {"tariffa-1": "{n}-all1", "tariffa-2": "{n}-all1", "tabella": "{n}-all2"},
+                 "imposta_ipotecaria_catastale": {"tariffa-1": "tariffa", "tariffa-2": "tariffa", "tabella": "tabella"}}
 
 
 def _voce_di_tariffa(number: str, dopo: str, resolve, lookup: dict):
@@ -1549,8 +1576,8 @@ def _voce_di_tariffa(number: str, dopo: str, resolve, lookup: dict):
         chiavi = ["tariffa-2"]
     else:
         chiavi = ["tariffa-1", "tariffa-2"]          # «della Tariffa» senza la parte: vale solo se la voce è in una parte sola
-    trovati = [_ATTI_TARIFFA[code][c].format(n=n) for c in chiavi
-               if (code, _normalise_number(_ATTI_TARIFFA[code][c].format(n=n))) in lookup]
+    trovati = list(dict.fromkeys(_ATTI_TARIFFA[code][c].format(n=n) for c in chiavi
+                                 if (code, _normalise_number(_ATTI_TARIFFA[code][c].format(n=n))) in lookup))
     if len(trovati) == 1:
         return code, trovati[0]
     if len(chiavi) == 1:
