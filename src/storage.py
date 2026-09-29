@@ -1885,6 +1885,8 @@ def delete_user(username: str) -> tuple[bool, str | None]:
         # bug. ⚠️ NON ai_audit_log/case_access_log/legal_acceptances: quelli
         # restano (obbligo AI Act art. 12 + tracce di consenso/accesso); l'audit
         # log ha user_id nullable e la FK «SET NULL» lo mette a NULL da sé.
+        # v9.412: i codici Telegram non usati (tabella senza FK: la ricerca qui sotto non la vedrebbe)
+        conn.execute("DELETE FROM telegram_link WHERE user_id = ?", (uid,))
         _tieni = ("ai_audit_log", "case_access_log", "legal_acceptances")
         for _t in [r["name"] for r in conn.execute(
                 "SELECT name FROM sqlite_master WHERE type='table'").fetchall()]:
