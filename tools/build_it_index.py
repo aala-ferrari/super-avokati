@@ -90,6 +90,101 @@ def _rubrica_prima_riga(body: str):
     return r, ((fonte + "\n\n") if fonte else "") + resto.lstrip("\n")
 
 
+# v9.403 — LE RUBRICHE CHE LE FORME DEL v9.383-384 NON VEDEVANO (misurato: 5.313 articoli IT senza rubrica, ~1.800 con la
+# rubrica nella prima riga del testo). Tre forme nuove, provate SOLO quando le altre non trovano nulla:
+#   E  i TESTI UNICI della riforma fiscale 2024-2026 (TUIR, accertamento, riscossione, IVA, registro, sanzioni tributarie,
+#      giustizia tributaria: ~1.290 articoli): «Dichiarazione fraudolenta mediante uso di fatture…» + riga vuota + la FONTE
+#      «( articolo 2 del decreto legislativo n. 74 del 2000 )» (a volte sulla stessa riga, a volte spezzata). La riga della
+#      fonte è testo ufficiale del testo unico e resta nel corpo (dice all'avvocato da quale articolo abrogato viene);
+#   F  rubrica + riga vuota + comma «1.» (c.p.a., codice doganale nazionale, processo minorile, convenzione Italia-Albania,
+#      allegati del codice dei contratti) — la forma «nuda» c'era, ma voleva la maiuscola, non la cifra del comma;
+#      anche su DUE righe separate da una riga vuota, la seconda minuscola («Espropriazione od occupazione temporanea» /
+#      «di locali per la tutela degli interessi doganali»);
+#   H  rubrica FRA PARENTESI spezzata su più righe (regolamento del C.d.S., spese di giustizia): «(Verifiche e prove» /
+#      «per l'omologazione delle macchine agricole)».
+# In E e H la fonte fra parentesi e le parentesi stesse sono il segnale forte: non si applica il filtro dei verbi («Casi di
+# non punibilità» è una rubrica). In F valgono tutti i filtri della forma A.
+_RUB_TU_FONTE = re.compile(r"\(\s*(?:articol[oi]|art\.)\s", re.I)
+_RUB_COMMA_DOPO_VUOTA = re.compile(r"^\s*([^\n]{3,140}?)[ \t\xa0]*\n(?:[ \t\xa0]*\n)+(?=[ \t\xa0]*(?:1\.|1\)|\(1\))[\s\xa0])")
+_RUB_DUE_RIGHE_VUOTA = re.compile(r"^\s*([^\n]{3,110}?)[ \t\xa0]*\n(?:[ \t\xa0]*\n)+[ \t\xa0]*([a-zà-ü][^\n]{0,110}?)[ \t\xa0]*\n"
+                                  r"(?:[ \t\xa0]*\n)+(?=[ \t\xa0]*(?:1\.|1\)|\(1\))[\s\xa0])")
+_RUB_PAREN_RIGHE = re.compile(r"^\s*\(\s*([^()]{3,260}?)\s*\)[ \t\xa0]*\.?[ \t\xa0]*\n(?:[ \t\xa0]*\n)*"
+                              r"(?=[ \t\xa0]*(?:1\.|1\)|\(1\)|[A-ZÀ-Ü«\"]))")
+
+
+# una FONTE fra parentesi in testa al testo non è una rubrica («(Legge 26 giugno 1990, n. 162, artt. 5…)» nel d.P.R. 309/1990)
+_RUB_FONTE_NON_RUBRICA = re.compile(r"(?:Legge|Decreto|Regio\s+decreto|D\.\s?[Ll]gs|D\.\s?L\.|d\.\s?l\.|R\.\s?D\.|D\.P\.R|d\.P\.R|"
+                                    r"Articol[oi]|Artt?\.|Circolare|Nota|Vedi)\b|[LR](?:\s|$)")   # «(L comma 3 e 4 - R …)» del TU edilizia
+
+
+_RUB_FONTE_DAVANTI = re.compile(r"^\(?\s*(?P<f>(?:Legge|L\.|D\.\s?L\.|d\.l\.|Decreto|D\.\s?Lgs|d\.lgs|D\.P\.R|d\.P\.R|R\.\s?D|Regio|"
+                                r"Artt?\.|articol[oi])\b[^)]{3,300})\)\s*(?P<r>\S.*)$", re.I)
+
+
+def _prima_parola(r: str) -> str:
+    return re.sub(r"[^\wÀ-ÿ']", " ", (r or " ").split()[0] if (r or "").split() else "").strip().lower().rstrip("'")
+
+
+def _rubrica_ok(r: str, filtri_verbi: bool = True) -> bool:
+    if not r or len(r) > 260 or ":" in r or not re.match(r"^[A-ZÀ-Ü]", r):
+        return False
+    if _RUB_NON_RUBRICA.search(r) or _RUB_FONTE_NON_RUBRICA.match(r):
+        return False
+    if filtri_verbi:
+        w = re.sub(r"[^\wÀ-ÿ']", " ", r.split()[0]).strip().lower().rstrip("'")
+        if w in _RUB_STOP or _RUB_VERBI.search(r) or len(r) > 140:
+            return False
+    return True
+
+
+def _rubrica_forme_nuove(body: str):
+    """(rubrica, corpo) per le forme E, F, H del v9.403, altrimenti None. Si chiama solo se `_rubrica_prima_riga` fallisce."""
+    b = (body or "").lstrip()
+    righe = b.split("\n")
+    # E — testi unici: la fonte «( articolo … )» sulla riga dopo la rubrica (dopo eventuali righe vuote) o sulla stessa riga
+    if righe:
+        r1 = righe[0].strip()
+        j = 1
+        while j < len(righe) and not righe[j].strip():
+            j += 1
+        r2 = righe[j].strip() if j < len(righe) else ""
+        # la riga della fonte è SOLO la parentesi (chiusa lì o sulla riga dopo): «(art. 106, n. 8 della legge), è eseguito…» del
+        # regolamento notarile è il seguito di una frase, non una fonte
+        chiusa = r2.endswith(")") or (j + 1 < len(righe) and righe[j + 1].strip() == ")")
+        if r1 and not r1.startswith("(") and _RUB_TU_FONTE.match(r2) and chiusa:
+            r = r1.rstrip(" .").strip()
+            if _rubrica_ok(r, filtri_verbi=False) and _prima_parola(r) not in _RUB_STOP:
+                return r, "\n".join(righe[j:]).strip()
+        m = re.match(r"^([^()\n]{3,260}?)\s*(\(\s*(?:articol[oi]|art\.)\s.*)$", r1, re.I)
+        if (m and _rubrica_ok(m.group(1).rstrip(" .").strip(), filtri_verbi=False)
+                and _prima_parola(m.group(1)) not in _RUB_STOP
+                and (m.group(2).rstrip().endswith(")") or (len(righe) > 1 and righe[1].strip().endswith(")")))):
+            fonte = m.group(2)
+            k = 1
+            if ")" not in fonte and len(righe) > 1 and righe[1].strip().endswith(")") and len(righe[1].strip()) <= 60:
+                fonte, k = fonte + " " + righe[1].strip(), 2       # «… n. 131 …» / «)» (fonte spezzata, tu_registro 50)
+            return m.group(1).rstrip(" .").strip(), (fonte + "\n\n" + "\n".join(righe[k:]).lstrip("\n")).strip()
+    # H — rubrica fra parentesi su più righe
+    m = _RUB_PAREN_RIGHE.match(b)      # (anche su una riga oltre i 140 caratteri: spese di giustizia 115-bis)
+    if m:
+        r = " ".join(m.group(1).split()).rstrip(" .")
+        if _rubrica_ok(r, filtri_verbi=False):
+            return r, b[m.end():].strip()
+    # F — rubrica su due righe separate da una riga vuota, poi il comma «1.»
+    m = _RUB_DUE_RIGHE_VUOTA.match(b)
+    if m and not re.search(r"[.;:,]$", m.group(1).strip()):
+        r = (m.group(1).strip() + " " + m.group(2).strip()).rstrip(" .")
+        if _rubrica_ok(r):
+            return r, b[m.end():].strip()
+    # F — rubrica su una riga, riga vuota, comma «1.»
+    m = _RUB_COMMA_DOPO_VUOTA.match(b)
+    if m and not re.search(r"[.;:,]$", m.group(1).strip()):
+        r = m.group(1).strip()
+        if _rubrica_ok(r):
+            return r, b[m.end():].strip()
+    return None
+
+
 def _pulisci(heading: str, body: str) -> tuple[str, str]:
     h, b = heading or "", body or ""
     if not h.strip():
@@ -112,9 +207,19 @@ def _pulisci(heading: str, body: str) -> tuple[str, str]:
     # coda all'articolo (CEDU artt. 1, 18, 51; nel corpus IT non succede altrove — misurato): non è testo dell'articolo
     b = re.sub(r"(?<=[.;:])\s+(?:PARTE|TITOLO|CAPO|SEZIONE|SOTTOSEZIONE)\s+(?:[IVXLC]+|\d+)\b(?:\s+[A-ZÀ-Ü’'«»,\-]+)+\s*$", "", b)
     if not h.strip():                                   # dopo la pulizia dei «((…))»: «(( (Competenza …).» c.p.p. 11
-        rp = _rubrica_prima_riga(b.strip())
+        rp = _rubrica_prima_riga(b.strip()) or _rubrica_forme_nuove(b.strip())
         if rp:
             h, b = rp
+    # v9.404 — nel testo unico degli stupefacenti (d.P.R. 309/1990) la rubrica porta DAVANTI la fonte: «Legge 26 giugno 1990,
+    # n. 162 , articoli 14, comma 1, e 38, comma 2) Associazione finalizzata al traffico illecito…» (107 articoli): la rubrica è
+    # dopo la parentesi, la fonte va in testa al testo come nei testi unici fiscali
+    # v9.404 — i marcatori «(L)»/«(R)» (norma di legge / di regolamento) dei testi unici del 2000-2002 finivano in testa alla
+    # rubrica: «L) Condizioni per l'ammissione» (spese di giustizia 76)
+    h = re.sub(r"^\(?[LR]\)\s+(?=[A-ZÀ-Ü])", "", h)
+    mf = _RUB_FONTE_DAVANTI.match(h)
+    if mf and len(mf.group("r").strip()) >= 3 and _rubrica_ok(mf.group("r").strip(" ."), filtri_verbi=False):
+        b = "(" + mf.group("f").strip() + ")\n\n" + b.strip()
+        h = mf.group("r").strip(" .")
     return h, b.strip()
 
 SRC = Path("/app/data/processed/it_acts")
@@ -243,11 +348,22 @@ def main():
         print(f"  {cid:34s} {len(arts):>5} art   {a['title'][:46]}")
 
     print(f"\nTOTALE: {len(all_articles)} articoli su {len(meta)} corpora · con capitolo (Titolo/Capo/Sezione): {ger_ok}/{ger_tot}")
+    # v9.403 — le CORRISPONDENZE vecchio articolo → articolo del testo unico, dalle righe di fonte dei testi unici fiscali
+    # («( articolo 8 del decreto legislativo n. 74 del 2000 )»): il verificatore dice dove sta oggi una norma abrogata
+    from src import corrispondenze_tu as _ctu
+    _corr = _ctu.costruisci(all_articles, urns={cid: (acts[cid].get("urn") or "") for cid in acts})
+    _atti_corr = {k: v for k, v in _corr.items() if not k.startswith("_")}
+    _n_corr = sum(len(v) for v in _atti_corr.values())
+    print(f"corrispondenze dei testi unici: {len(_atti_corr)} atti di origine, {_n_corr} articoli vecchi → "
+          + ", ".join(f"{_ctu.etichetta_atto(k)} {len(v)}" for k, v in sorted(_atti_corr.items(), key=lambda kv: -len(kv[1]))[:8]))
+    print(f"decorrenza dei testi unici: {_corr.get('_decorrenza')} · atti: {_corr.get('_atto_tu')}")
     # v9.383 — indice di PROVA: IT_INDEX_OUT=/percorso scrive SOLO il pickle lì (niente jsonl, meta, note: la produzione non si tocca)
     _test_out = os.environ.get("IT_INDEX_OUT", "").strip()
     if _test_out:
         ArticleIndex.build(all_articles, lang="it").save(Path(_test_out))
-        print(f"indice di PROVA scritto in {_test_out} (produzione intatta)")
+        _co = Path(_test_out).with_name("it_corrispondenze.json")
+        _co.write_text(json.dumps(_corr, ensure_ascii=False), encoding="utf-8")
+        print(f"indice di PROVA scritto in {_test_out} (+ {_co.name}; produzione intatta)")
         return 0
 
     # backup previous index before overwriting
@@ -260,6 +376,7 @@ def main():
         for a in all_articles:
             fh.write(json.dumps(asdict(a), ensure_ascii=False) + "\n")
     CODES_META.write_text(json.dumps(meta, ensure_ascii=False, indent=1), encoding="utf-8")
+    _ctu.FILE.write_text(json.dumps(_corr, ensure_ascii=False), encoding="utf-8")
     NOTES = CODES_META.parent / "it_notes.json"
     NOTES.write_text(json.dumps(notes_map, ensure_ascii=False), encoding="utf-8")
     n_notes = sum(len(v) for v in notes_map.values())

@@ -700,6 +700,22 @@ _IT_CODE_CHECKS = [
     ("statutodeidirittidelcontribuente", "statuto_contribuente"),
     ("statutodelcontribuente", "statuto_contribuente"),
     ("testounicodellegiustiziatributaria", "giustizia_tributaria"),
+    # v9.403 — i testi unici fiscali 2024-2026 per NOME («art. 79 del testo unico sanzioni tributarie» usciva «senza codice»);
+    # il nome del NUOVO testo unico del registro prima di quello del vecchio d.P.R. 131/1986 («testo unico dell'imposta di
+    # registro», abrogato: il verificatore dice dove sta oggi l'articolo)
+    ("testounicodellagiustiziatributaria", "giustizia_tributaria"), ("testounicogiustiziatributaria", "giustizia_tributaria"),
+    ("testounicodellesanzionitributarie", "tu_sanzioni_tributarie"), ("testounicosanzionitributarie", "tu_sanzioni_tributarie"),
+    ("tusanzionitributarie", "tu_sanzioni_tributarie"),
+    ("testounicodellimpostasulvaloreaggiunto", "tu_iva"), ("testounicoimpostasulvaloreaggiunto", "tu_iva"),
+    ("testounicodelliva", "tu_iva"), ("testounicoiva", "tu_iva"),
+    ("testounicodeiversamentiedellariscossione", "tu_riscossione"), ("testounicoversamentieriscossione", "tu_riscossione"),
+    ("testounicodellariscossione", "tu_riscossione"), ("testounicoriscossione", "tu_riscossione"),
+    ("testounicodegliadempimentiedellaccertamento", "tu_accertamento"), ("testounicoadempimentieaccertamento", "tu_accertamento"),
+    ("testounicodellaccertamento", "tu_accertamento"), ("testounicoaccertamento", "tu_accertamento"),
+    ("testounicodellimpostadiregistroedeglialtritributiindiretti", "tu_registro"),
+    ("testounicoregistroealtritributiindiretti", "tu_registro"), ("testounicodeitributiindiretti", "tu_registro"),
+    ("testounicotributiindiretti", "tu_registro"),
+    ("testounicodellimpostadiregistro", "imposta_registro"), ("testounicoimpostadiregistro", "imposta_registro"),
     ("testounicoentilocali", "tuel"),
     ("testounicoaccise", "accise"),
     ("testounicodelleaccise", "accise"),
@@ -904,6 +920,10 @@ class Citation:
     volatility: str | None = None            # STABLE/MEDIUM — freshness hint
     last_amendment_date: str | None = None   # last known amendment date
     resolved_by: str | None = None           # None (codice scritto) | retrieval | documento | anafora
+    # v9.403 — dove sta OGGI un articolo abrogato o trasfuso in un testo unico ([{code, number, label, heading}])
+    successori: list | None = None
+    # v9.403 — un avviso su una citazione verificata («art. 73 TUIR»: nella numerazione del vecchio d.P.R. 917/1986 è altro)
+    avviso: str | None = None
 
 
 def _normalise_number(n: str) -> str:
@@ -1287,6 +1307,152 @@ def _numeri_in_piu(m) -> list:
     return _MORE_NUM_IT.findall(more) if more else []
 
 
+# ── v9.403: vecchi articoli fiscali → articoli dei testi unici (src/corrispondenze_tu.py) ─────────────────────────────
+_TU_AMBIGUI_V = ("tuir",)
+
+
+def _futuro_tu(code: str):
+    from . import corrispondenze_tu as _ctu
+    return _ctu.futuro(code)
+
+
+def _fino_al_tu(d) -> str:
+    from . import corrispondenze_tu as _ctu
+    return _ctu.fino_al(d)
+
+
+def _ctu_label(chiave: str) -> str:
+    from . import corrispondenze_tu as _ctu
+    return _ctu.etichetta_atto(chiave)
+
+
+def _chiave_trasfuso(tail: str) -> str | None:
+    """Un vecchio atto FUORI corpus, decreto legislativo o d.P.R., trasfuso in un testo unico (mai le leggi omnibus:
+    «art. 1 l. 190/2014» ha centinaia di commi su temi diversi, la corrispondenza per articolo non vuol dire nulla)."""
+    from . import corrispondenze_tu as _ctu
+    k = _ctu.chiave_da_coda(tail)
+    if not k or k.split(":")[0] not in ("dpr", "dlgs") or k in _ctu.CODICE_VECCHIO.values():
+        return None
+    return k
+
+
+def _successori_art(chiave: str, number: str, lookup: dict) -> list:
+    from . import corrispondenze_tu as _ctu
+    out = []
+    for c, n in _ctu.successori(chiave, number):
+        a = lookup.get((c, _normalise_number(n)))
+        if a is None:
+            continue
+        out.append({"code": c, "number": str(n), "label": CODE_LABELS.get(c, c),
+                    "heading": (getattr(a, "heading", "") or "")[:120]})
+    return out
+
+
+def _testo_successori(succ: list, modo: str, dal: str = "") -> str:
+    if not succ:
+        return ""
+    s0 = succ[0]
+    altri = "".join(f", art. {x['number']}" for x in succ[1:3])
+    if modo == "vigente":             # v9.404: il testo unico non si applica ancora
+        testa = f"in vigore fino al {dal} — poi"
+    else:
+        testa = "abrogato — oggi" if modo == "abrogato" else "trasfuso nel testo unico — oggi"
+    return f"{testa} art. {s0['number']}{altri} {s0['label']}" + (f": «{s0['heading']}»" if s0.get("heading") else "")
+
+
+def _come_nominato_tu(code: str, tail: str) -> str:
+    t = (tail or "").lower()
+    if code == "tuir":
+        if re.search(r"917\s*(?:/|del\s+)\s*1986|22\s+dicembre\s+1986", t):
+            return "vecchio"
+        if re.search(r"117\s*(?:/|del\s+)\s*2026", t):
+            return "nuovo"
+    return "nome"
+
+
+def _fonte_articolo(code: str, number: str, lookup: dict) -> str:
+    """«art. 8 d.lgs. 74/2000»: la norma previgente che l'articolo del testo unico trasfonde (dalla sua riga della fonte)."""
+    from . import corrispondenze_tu as _ctu
+    a = lookup.get((code, _normalise_number(number)))
+    if a is None:
+        return ""
+    ff = _ctu.leggi_fonte(getattr(a, "body", "") or "")
+    if not ff:
+        return ""
+    k, nums = ff[0]
+    return f"art. {nums[0].replace('/', '-')} {_ctu.etichetta_atto(k)}" if nums else _ctu.etichetta_atto(k)
+
+
+def _corrispondenze_finali(citations: list, lookup: dict, lookup_all: dict | None = None) -> None:
+    """v9.403-404 — le citazioni fiscali fra vecchi atti e testi unici 2024-2026, con la DATA (i testi unici si applicano dal
+    1° gennaio 2027; fino al giorno prima i vecchi articoli sono VIGENTI, anche se Normattiva senza data li mostra «abrogati»):
+    (a) articolo di un vecchio atto del corpus «ABROGATO DAL <testo unico>»: prima della decorrenza → VIGENTE (verificato, con
+        il numero che avrà dal 2027); dopo → abrogato, con dove sta oggi;
+    (b) «art. N d.P.R. 917/1986»: prima della decorrenza è il TUIR vigente (verificato sulla corrispondenza); dopo → trasfuso;
+    (c) «art. N TUIR» col solo nome: prima della decorrenza vale la numerazione del d.P.R. 917/1986 (il nome indica il testo
+        vigente) → verificato come tale, col numero del nuovo; dopo → verificato sul nuovo, e se la vecchia numerazione porta a
+        un altro articolo lo si dice;
+    (d) un articolo di testo unico citato prima della decorrenza → verificato, con l'avviso «si applica dal …: fino ad allora
+        art. X (norma previgente)»."""
+    from . import corrispondenze_tu as _ctu
+    for c in citations:
+        modo = getattr(c, "_coda_tu", None)
+        # (a)
+        if c.status == "repealed" and c.code:
+            arts = lookup_all or {}
+            stub = arts.get((c.code, _normalise_number(c.number)))
+            diff = _ctu.abrogazione_differita(getattr(stub, "body", "") or "") if stub is not None else None
+            chiave = _ctu.CODICE_VECCHIO.get(c.code)
+            succ = _successori_art(chiave, c.number, lookup) if chiave else []
+            if diff:
+                c.status = "verified"
+                c.successori = succ or None
+                c.article_heading = (_testo_successori(succ, "vigente", _ctu.fino_al(diff[1])) if succ else
+                                     f"in vigore fino al {_ctu.fino_al(diff[1])} (abrogazione dal {diff[1]:%d/%m/%Y})")
+            elif succ:
+                c.successori = succ
+                c.article_heading = _testo_successori(succ, "abrogato")
+            continue
+        # (b), (c)
+        if modo and c.code in _ctu.TU_AMBIGUI:
+            vecchio = _ctu.TU_AMBIGUI[c.code]
+            succ = _successori_art(vecchio, c.number, lookup)
+            fut = _ctu.futuro(c.code)
+            if fut and modo in ("vecchio", "nome"):
+                # il TUIR vigente è il d.P.R. 917/1986: l'articolo si verifica sulla corrispondenza (il testo unico lo trasfonde)
+                c.code_label = f"{_ctu.etichetta_atto(vecchio)} (TUIR vigente)"
+                c.code = None
+                c.resolved_by = "trasfuso"
+                c.successori = succ or None
+                if succ:
+                    c.status = "verified"
+                    c.article_heading = _testo_successori(succ, "vigente", _ctu.fino_al(fut))
+                else:
+                    c.status = "needs_code"
+                    c.article_heading = None
+                continue
+            if modo == "vecchio":
+                c.status, c.code_label, c.resolved_by = "needs_code", _ctu.etichetta_atto(vecchio), "trasfuso"
+                c.code = None
+                c.successori = succ or None
+                c.article_heading = _testo_successori(succ, "trasfuso") if succ else None
+                continue
+            if modo == "nome" and c.status == "verified" and succ and all(
+                    _normalise_number(x["number"]) != _normalise_number(c.number) for x in succ):
+                c.successori = succ
+                c.avviso = (f"numerazione da controllare: nel {CODE_LABELS.get(c.code, c.code)} l'art. {c.number} è "
+                            f"«{(c.article_heading or '')[:90]}»; nel vecchio {_ctu.etichetta_atto(vecchio)} l'art. {c.number} "
+                            f"è oggi l'art. {succ[0]['number']}" + (f" («{succ[0]['heading'][:80]}»)" if succ[0].get("heading") else ""))
+            continue
+        # (d)
+        if c.status == "verified" and c.code in _ctu.CODICI_TU:
+            fut = _ctu.futuro(c.code)
+            if fut:
+                fonte = _fonte_articolo(c.code, c.number, lookup)
+                c.avviso = (f"testo unico applicabile dal {fut:%d/%m/%Y}: fino al {_ctu.fino_al(fut)} si applica "
+                            + (fonte or "la norma previgente") + " — cita quella per fatti e atti di oggi")
+
+
 def verify_text(
     text: str,
     index: ArticleIndex,
@@ -1483,6 +1649,25 @@ def verify_text(
                         code_label=f"Ligji nr. {_sh[0]}", status="repealed", candidates=[],
                         article_heading=f"ligj i shfuqizuar — sot: {_sh[1]}", resolved_by="ligj_i_shfuqizuar"))
                 continue
+        if code is None and _lang == "it":
+            # la coda si ferma alla virgola: «art. 73 del d.P.R. 22 dicembre 1986, n. 917» → si guarda anche poco oltre
+            _tk = _chiave_trasfuso(tail + " " + text[m.end():m.end() + 40])
+            if _tk:
+                for number_raw in numbers:
+                    number = _normalise_number(number_raw)
+                    if (number, "TU:" + _tk) in seen:
+                        continue
+                    seen.add((number, "TU:" + _tk))
+                    _succ = _successori_art(_tk, number, lookup)
+                    # v9.404: prima che il testo unico si applichi, il vecchio atto è VIGENTE (d.lgs. 546/1992, d.P.R. 917/1986…)
+                    _fut = _futuro_tu(_succ[0]["code"]) if _succ else None
+                    citations.append(Citation(
+                        raw=(_cite_prefix + number_raw) if multi else full_raw, number=number, code=None,
+                        code_label=_ctu_label(_tk), status="verified" if _fut else "needs_code", candidates=[],
+                        article_heading=((_testo_successori(_succ, "vigente", _fino_al_tu(_fut)) if _fut else
+                                          _testo_successori(_succ, "trasfuso")) if _succ else None),
+                        resolved_by="trasfuso" if _succ else "fuori_corpus", successori=_succ or None))
+                continue
         if code is None and not kp_bare:
             _fcode = _resolve_foreign(tail)
             if _fcode:
@@ -1527,6 +1712,8 @@ def verify_text(
                     candidates=[{"code": c, "label": CODE_LABELS.get(c, c)} for c in cands]))
                 continue
             _emit(number, code_n, raw, via)
+            if _lang == "it" and code_n in _TU_AMBIGUI_V and citations:
+                citations[-1]._coda_tu = _come_nominato_tu(code_n, tail)
 
     if _lang == "it":
         # v9.397 — le continuazioni con un codice proprio («… c.p.p. e 107 disp. att. c.p.p.»)
@@ -1559,6 +1746,11 @@ def verify_text(
             _emit_foreign(_normalise_number(number_raw), _fcode,
                           (("art. " if _lang != "it" else "neni ") + number_raw) if len(_nums) > 1 else _raw)
 
+    if _lang == "it":
+        try:
+            _corrispondenze_finali(citations, lookup, lookup_all)
+        except Exception:  # noqa: BLE001 - un aiuto in più, mai un guasto del verificatore
+            pass
     for _c in citations:
         if _c.status in ("verified", "repealed") and _c.code:
             _a = (_verify_number(lookup, _c.code, _c.number)

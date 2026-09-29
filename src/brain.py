@@ -4360,6 +4360,21 @@ class SuperAvvocato:
                 out.append((c, 0.0)); presenti.add(k); aggiunti.append(f"{a.code} {a.number}")
                 if len(aggiunti) >= limit:
                     break
+            # v9.403 — il SUCCESSORE (testo unico vigente) di un articolo fiscale abrogato/trasfuso/rinumerato citato
+            for it in r.get("items") or []:
+                if len(aggiunti) >= limit:
+                    break
+                for sx in (it.get("successori") or [])[:1]:
+                    k = (sx.get("code"), str(sx.get("number")))
+                    if not k[0] or k in presenti:
+                        continue
+                    if by_key is None:
+                        by_key = {(a.code, str(a.number)): a for a in idx.articles}
+                    a = by_key.get(k)
+                    if a is None or getattr(a, "repealed", False):
+                        continue
+                    c = _copy.copy(a); c._sostituisce = (it.get("raw") or "").strip()[:80]
+                    out.append((c, 0.0)); presenti.add(k); aggiunti.append(f"{a.code} {a.number}")
             if aggiunti:
                 log.info("dosja: nene të cituara nga %s hyjnë në dosje %s", burim, aggiunti)
                 _audit_set(f"dosja_mbyllur_{burim}", aggiunti)
@@ -4414,7 +4429,16 @@ class SuperAvvocato:
                     k = (c, num)
                     if k not in chiavi:
                         chiavi.append(k)
-            if not chiavi:
+            # v9.403 — la norma chiesta con la numerazione di un atto fiscale ABROGATO o trasfuso in un testo unico
+            # («art. 8 d.lgs. 74/2000», «art. 73 TUIR» nel senso del vecchio d.P.R. 917/1986): entra anche l'articolo che
+            # oggi la contiene, marcato, così il cervello risponde sul testo vigente e lo dice
+            sostituti = []
+            for it in r.get("items") or []:
+                for sx in (it.get("successori") or [])[:2]:
+                    k = (sx.get("code"), str(sx.get("number")))
+                    if k[0] and k not in [x[0] for x in sostituti] and k not in chiavi:
+                        sostituti.append((k, (it.get("raw") or "").strip()))
+            if not chiavi and not sostituti:
                 return retrieved
             by_key = {(a.code, str(a.number)): a for a in idx.articles}
             out = list(retrieved or [])
@@ -4428,6 +4452,14 @@ class SuperAvvocato:
                 if k in presenti:
                     out = [(x, sc) for x, sc in out if (x.code, str(x.number)) != k]
                 c = _copy.copy(a); c._cituar = True
+                testa.append((c, top))
+            for k, cit in sostituti[:2]:
+                a = by_key.get(k)
+                if a is None or getattr(a, "repealed", False):
+                    continue
+                if k in presenti:
+                    out = [(x, sc) for x, sc in out if (x.code, str(x.number)) != k]
+                c = _copy.copy(a); c._sostituisce = cit[:80]
                 testa.append((c, top))
             if testa:
                 log.info("retrieval: nene të kërkuara shprehimisht nga avokati %s", [f"{a.code} {a.number}" for a, _ in testa])
@@ -7204,6 +7236,24 @@ def _format_articles_for_prompt(pairs: list[tuple[Article, float]]) -> str:
                                   f"mos e zbato si normë në fuqi.\n")
         except Exception:  # noqa: BLE001
             pass
+        # v9.404 — i TESTI UNICI fiscali si applicano dal 1° gennaio 2027: fino ad allora vale la norma previgente indicata
+        # nella riga della fonte; e un articolo vecchio «ABROGATO DAL <testo unico>» è ancora VIGENTE (Normattiva senza data
+        # mostra la versione futura)
+        _abr_diff = None
+        if _it:
+            try:
+                from . import corrispondenze_tu as _ctu
+                _nd = _ctu.nota_decorrenza(a.code)
+                if _nd:
+                    hierarchy += f"  {_nd}\n"
+                if getattr(a, "repealed", False):
+                    _abr_diff = _ctu.abrogazione_differita(a.body or "")
+                    if _abr_diff:
+                        hierarchy += (f"  ⚠ ABROGAZIONE NON ANCORA EFFICACE: questo articolo è IN VIGORE fino al "
+                                      f"{_ctu.fino_al(_abr_diff[1])} (il testo sotto è la nota di Normattiva sulla versione "
+                                      f"futura); dal {_abr_diff[1]:%d/%m/%Y} lo sostituisce il testo unico\n")
+            except Exception:  # noqa: BLE001
+                pass
         # V7.4 — surface volatility so the model can warn the user when it
         # cites a statute that changes often (tax, consumer, bankruptcy).
         volatility = getattr(a, "volatility", "STABLE") or "STABLE"
@@ -7237,13 +7287,39 @@ def _format_articles_for_prompt(pairs: list[tuple[Article, float]]) -> str:
             intestazione = (
                 f"── {a.citation}  ⚑ ARTICOLO CHIESTO ESPRESSAMENTE DALL'AVVOCATO\n"
                 f"  (l'avvocato l'ha chiesto per numero: rispondi PRIMA su questo articolo, citalo parola per parola "
-                f"dal testo qui sotto{' — ATTENZIONE: è abrogato, dillo' if getattr(a, 'repealed', False) else ''})\n"
+                f"dal testo qui sotto{' — ATTENZIONE: è abrogato, dillo' if getattr(a, 'repealed', False) and not _abr_diff else ''})\n"
             )
         elif getattr(a, "_cituar", False):
             intestazione = (
                 f"── {a.citation}  ⚑ NENI I KËRKUAR SHPREHIMISHT NGA AVOKATI\n"
                 f"  (avokati e kërkoi me numër: përgjigju SË PARI për këtë nen, citoje fjalë për fjalë "
                 f"nga teksti më poshtë{' — KUJDES: është i shfuqizuar, thuaje' if getattr(a, 'repealed', False) else ''})\n"
+            )
+        elif getattr(a, "_sostituisce", "") and _it:
+            _fut_s = None
+            try:
+                from . import corrispondenze_tu as _ctu
+                _fut_s = _ctu.futuro(a.code)
+            except Exception:  # noqa: BLE001
+                pass
+            if _fut_s:
+                intestazione = (
+                    f"── {a.citation}  ⚑ TRASFONDE «{getattr(a, '_sostituisce', '')}» (dal {_fut_s:%d/%m/%Y})\n"
+                    f"  (la norma citata è ancora IN VIGORE fino al {_ctu.fino_al(_fut_s)}: questo è il testo del testo unico che "
+                    f"la sostituirà, con lo stesso contenuto salvo diversa indicazione — cita la norma vigente e, se serve, il "
+                    f"numero nuovo «dal {_fut_s:%d/%m/%Y}»)\n"
+                )
+            else:
+                intestazione = (
+                    f"── {a.citation}  ⚑ OGGI CORRISPONDE A «{getattr(a, '_sostituisce', '')}»\n"
+                    f"  (la norma citata con quel numero è stata abrogata o rinumerata nel testo unico vigente: questo è il "
+                    f"testo IN VIGORE che la contiene — rispondi su questo, citalo col numero nuovo e dillo)\n"
+                )
+        elif getattr(a, "_sostituisce", ""):
+            intestazione = (
+                f"── {a.citation}  ⚑ SOT I PËRGJIGJET «{getattr(a, '_sostituisce', '')}»\n"
+                f"  (neni i cituar me atë numër është shfuqizuar ose rinumëruar: ky është teksti NË FUQI — "
+                f"përgjigju mbi këtë dhe thuaje)\n"
             )
         elif getattr(a, "_ancora", False):
             intestazione = (

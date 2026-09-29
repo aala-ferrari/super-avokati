@@ -4754,6 +4754,12 @@ def _nenet_e_rastit(case_id: str, question: str, it: bool) -> str:
         corpo = " ".join((a.body or "").split())
         if len(corpo) > 1500:
             corpo = corpo[:1500] + " […]"
+        if it:                                   # v9.404: testo unico non ancora applicabile / abrogazione non ancora efficace
+            try:
+                from . import expertise as _ex_nt
+                corpo = _ex_nt._nota_tu(a.code, a.body or "") + corpo
+            except Exception:  # noqa: BLE001
+                pass
         righe.append(f"{a.citation} — {a.heading or ''}\n{corpo}")
     return "\n\n".join(righe)
 

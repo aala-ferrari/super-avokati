@@ -64,6 +64,10 @@ for _ in range(60):
 print("documenti:", [(d.get("filename"), d.get("status")) for d in docs])
 
 AL_LANG = re.compile(r"[ëç]|\b(nuk|është|janë|duhet|sipas|dokumentet|punëdhënësi|punëmarrësi|gjilpëra|pse)\b", re.I)
+# v9.402: le massime LATINE («non bis in idem», «a non domino»…) non sono italiano (falsi allarmi nelle sessioni AL)
+_LATINO = re.compile(r"\b(?:ne|non)\s+bis\s+in\s+idem\b|\ba\s+non\s+domino\b|\bin\s+dubio\s+pro\s+reo\b|\bpacta\s+sunt\s+servanda\b|"
+                     r"\bnon\s+liquet\b|\bnullum\s+crimen\b|\bnulla\s+poena\b|\b(?:non\s+)?reformatio\s+in\s+peius\b|\bex\s+(?:tunc|nunc)\b|"
+                     r"\berga\s+omnes\b|\btempus\s+regit\s+actum\b|\bcondicio\s+sine\s+qua\s+non\b|\bsine\s+qua\s+non\b", re.I)
 IT_LANG = re.compile(r"\b(il|della|delle|nella|che|non|sono|documenti|datore|lavoratore|perché)\b", re.I)
 esiti = []
 for nome, path, payload, chiave in (("vault", f"/api/cases/{CID}/vault", {"question": Q}, "answer"),
@@ -76,7 +80,7 @@ for nome, path, payload, chiave in (("vault", f"/api/cases/{CID}/vault", {"quest
         err = r.get("error")
     except Exception as exc:  # noqa: BLE001
         txt, err = "", str(exc)[:160]
-    spie = (AL_LANG if IT else IT_LANG).findall(txt)
+    spie = (AL_LANG if IT else IT_LANG).findall(txt if IT else _LATINO.sub(" ", txt))
     tag_ok = bool(re.search(r"\[Doc \d+\]", txt)) if IT else bool(re.search(r"\[Dok \d+\]", txt))
     tag_bad = bool(re.search(r"\[Dok \d+\]", txt)) if IT else bool(re.search(r"\[Doc \d+\]", txt))
     ok = bool(txt.strip()) and not err and not spie and tag_ok and not tag_bad

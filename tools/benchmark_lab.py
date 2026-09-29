@@ -215,9 +215,10 @@ def run_layer1(verbose: bool = True) -> dict:
                 r = cv.verify_text(c["citation"], idx)
                 items = r.get("items") or []
                 st = items[0]["status"] if items else "none"
-                ok = st == c["expect"] and (not c.get("code") or st == "fake" or items[0].get("code") == c["code"])
+                _exp = _atteso_alla_data(c)
+                ok = st == _exp and (not c.get("code") or st == "fake" or items[0].get("code") == c["code"])
                 if not ok:
-                    fails.append(f"{c['id']}: atteso {c['expect']} ({c.get('code')}), avuto {st} ({items[0].get('code') if items else '-'})")
+                    fails.append(f"{c['id']}: atteso {_exp} ({c.get('code')}), avuto {st} ({items[0].get('code') if items else '-'})")
             elif kind == "resolver":
                 got = cv._resolve_code_it(c["label"]) if lang == "it" else cv._resolve_code(c["label"])
                 ok = got == c["expect"]
@@ -261,6 +262,20 @@ def run_layer1(verbose: bool = True) -> dict:
     return summary
 
 
+def _atteso_alla_data(t: dict) -> str:
+    """v9.404 — lo stato atteso può dipendere dalla DATA: «expect» fino al giorno prima di «dal», «expect_dal» da quel giorno
+    (i vecchi articoli fiscali abrogati dai testi unici sono vigenti fino al 31/12/2026)."""
+    if t.get("dal") and t.get("expect_dal"):
+        try:
+            from src import corrispondenze_tu as _ctu
+            from datetime import date as _d
+            if _ctu.oggi() >= _d.fromisoformat(t["dal"]):
+                return t["expect_dal"]
+        except Exception:  # noqa: BLE001
+            pass
+    return t["expect"]
+
+
 def _regression(c: dict, idx, cv) -> bool:
     """Un errore vero già trovato = un test per sempre. Forme: status / resolver / retrieval / exists."""
     t = c.get("test", {})
@@ -282,7 +297,7 @@ def _regression(c: dict, idx, cv) -> bool:
         i = by.get(t["number"])
         if t["expect"] == "absent":            # v9.402: quel numero NON è una citazione (es. «3-27» mensilità)
             return i is None
-        return i is not None and i["status"] == t["expect"] and (not t.get("code") or i.get("code") == t["code"])
+        return i is not None and i["status"] == _atteso_alla_data(t) and (not t.get("code") or i.get("code") == t["code"])
     if t.get("kind") == "resolver":
         got = cv._resolve_code_it(t["label"]) if c.get("lang") == "it" else cv._resolve_code(t["label"])
         return got == t["expect"]

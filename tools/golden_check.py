@@ -91,6 +91,12 @@ def _ai_load_once(cls, path=INDEX_FILE):
 ArticleIndex.load = classmethod(_ai_load_once)
 
 
+def _cv_esiste(index, code, number) -> bool:
+    """v9.403: l'articolo esiste nel corpus ed è in vigore (per le sezioni che controllano i semi)."""
+    n = str(number)
+    return any(a.code == code and str(a.number) == n and not getattr(a, "repealed", False) for a in index.articles)
+
+
 def main():
     print("== Set aureo — golden regression ==")
     idx = ArticleIndex.load()
@@ -3471,7 +3477,9 @@ def main():
         _out, _rap, _v3 = _cn99.applica(_t2, _al99, "AL", "sq", backend=None)
         _okC = ("nenit ~~9999~~" in _out and "citim i hequr" in _out and _out.count("[⚠ nen i shfuqizuar]") == 1
                 and "Neni 79 i K.Pr.C. është shfuqizuar me ligjin 122/2013." in _out and "nenit 114 të Kodit Civil parashkrimi" in _out
-                and _v3["nene"]["fake"] == 0 and _rap["prima"] == 3 and _rap["rimossi"] == 1 and _rap["dopo"] == 0)
+                # v9.404: l'abrogato che la riga DICHIARA («Neni 79 … është shfuqizuar me ligjin 122/2013») non è più bocciato
+                # (trust_line._abrogazione_dichiarata): i bocciati sono il fantasma 9999 e il 420 citato come vigente
+                and _v3["nene"]["fake"] == 0 and _rap["prima"] == 2 and _rap["rimossi"] == 1 and _rap["dopo"] == 0)
         _okC2 = _cn99.applica("Sipas nenit 114 të Kodit Civil.", _al99, "AL", "sq", backend=None)[0] == "Sipas nenit 114 të Kodit Civil."
         _okC3 = _cn99.applica("Secondo l'art. 9999 c.c. vale.", _it99, "IT", "it", backend=None)[0].startswith("Secondo l'art. ~~9999~~ c.c. vale. [⛔ citazione rimossa")
         _src = _insp99.getsource(_br99.SuperAvvocato._gjyqtari_fundit); _src2 = _insp99.getsource(_br99.SuperAvvocato._riga_fiducie)
@@ -6054,6 +6062,229 @@ def main():
         check("ancore[178]: KC 114 nelle materie civilistiche e senza aree, mai nel solo amministrativo né nel penale", _ok178)
     except Exception as _e178:  # noqa: BLE001
         check("ancore[178]: kontrollet u ekzekutuan", False, str(_e178))
+
+    # [179] v9.403 — LE RUBRICHE ITALIANE RIMASTE NEL TESTO: ~1.940 articoli (testi unici fiscali 2024-2026 con la riga della
+    # fonte «( articolo 2 del decreto legislativo n. 74 del 2000 )», c.p.a., codice doganale nazionale, processo minorile,
+    # convenzione Italia-Albania, regolamento del C.d.S.) senza rubrica: invisibili alla ricerca per titolo e senza titolo nel
+    # prompt. Tre forme nuove in `build_it_index` (E fonte, F comma dopo la riga vuota, H parentesi su più righe), mai una
+    # rubrica già presente cambiata, mai testo perso; «(L comma 3 e 4 - R …)» del TU edilizia e il seguito di frase del
+    # regolamento notarile NON sono rubriche.
+    try:
+        import importlib.util as _ilu179
+        _sp179 = _ilu179.spec_from_file_location("bi179", "/app/tools/build_it_index.py")
+        _bi179 = _ilu179.module_from_spec(_sp179); _sp179.loader.exec_module(_bi179)
+        _p = lambda b: _bi179._pulisci("", b)
+        _e1 = _p("Emissione di fatture o altri documenti per operazioni inesistenti\n\n( articolo 8 del decreto legislativo n. 74 del 2000 )\n\n1. È punito")
+        _e2 = _p("Atti sottoposti a condizione sospensiva, approvazione od omologazione ( articolo 27 decreto del Presidente della Repubblica 26 aprile 1986, n. 131 )\n\n1. Gli atti")
+        _f1 = _p("Regolamento preventivo di giurisdizione\n\n1. Nel giudizio davanti ai tribunali")
+        _f2 = _p("Espropriazione od occupazione temporanea\n\ndi locali per la tutela degli interessi doganali\n\n1. L'Agenzia")
+        _h1 = _p("(Verifiche e prove\n\nper l'omologazione delle macchine agricole)\n\n1. Le verifiche")
+        _n1 = _p("(L comma 3 e 4 - R comma 1, 2, 5, 6 e 7)\n\nInterventi subordinati a segnalazione")
+        _n2 = _p("Il deposito delle copie autentiche, che i conservatori delle ipoteche debbono trasmettere\n\n(art. 106, n. 8 della legge), è eseguito di anno in anno")
+        _n3 = _p("Sono abrogati i seguenti atti\n\n1) regio decreto 17 agosto 1907, n. 638")
+        from pathlib import Path as _P179
+        _ixit179 = ArticleIndex.load(_P179("/app/data/index/bm25_it.pkl"))
+        _by179 = {(a.code, str(a.number)): a for a in _ixit179.articles}
+        _h = lambda c, n: (getattr(_by179.get((c, n)), "heading", "") or "")
+        _ok179 = (_e1[0] == "Emissione di fatture o altri documenti per operazioni inesistenti" and _e1[1].startswith("( articolo 8")
+                  and _e2[0].startswith("Atti sottoposti a condizione sospensiva") and _e2[1].startswith("( articolo 27")
+                  and _f1[0] == "Regolamento preventivo di giurisdizione" and _f1[1].startswith("1. Nel giudizio")
+                  and _f2[0] == "Espropriazione od occupazione temporanea di locali per la tutela degli interessi doganali"
+                  and _h1[0] == "Verifiche e prove per l'omologazione delle macchine agricole"
+                  and _n1[0] == "" and _n2[0] == "" and _n3[0] == ""
+                  and _h("tu_sanzioni_tributarie", "79").startswith("Emissione di fatture")
+                  and _h("codice_processo_amministrativo", "10") == "Regolamento preventivo di giurisdizione"
+                  and _h("convenzione_it_al_fisco", "15") == "LAVORO SUBORDINATO" and _h("tu_edilizia", "23") == "")
+        check("corpus-it[179]: le rubriche rimaste nel testo (testi unici con la fonte, comma dopo la riga vuota, parentesi su più "
+              "righe) diventano rubriche; «(L comma…)», i seguiti di frase e le frasi normative restano testo", _ok179,
+              "E=%r F=%r H=%r no=%r | indice: 79=%r cpa10=%r" % (_e1[0], _f2[0], _h1[0], (_n1[0], _n2[0], _n3[0]),
+                                                                 _h("tu_sanzioni_tributarie", "79"), _h("codice_processo_amministrativo", "10")))
+    except Exception as _e179:  # noqa: BLE001
+        check("corpus-it[179]: kontrollet u ekzekutuan", False, str(_e179))
+
+    # [180] v9.403-404 — VECCHI ARTICOLI FISCALI ↔ TESTI UNICI (src/corrispondenze_tu.py, dalle righe della fonte), CON LA DATA:
+    # i testi unici si applicano dal 1° gennaio 2027 e le abrogazioni dei vecchi atti decorrono da lì (Normattiva senza data
+    # mostra la versione futura: verificato con «!vig=» di oggi). Prima: «art. 8 d.lgs. 74/2000» VIGENTE (col numero del 2027),
+    # «art. 73 TUIR» = il d.P.R. 917/1986 (vigente), un articolo di testo unico → avviso «si applica dal 2027: fino ad allora …».
+    # Dopo: abrogato → dove sta oggi; «art. 73 TUIR» sul nuovo con l'avviso della numerazione vecchia.
+    try:
+        from datetime import date as _d180
+        from src import corrispondenze_tu as _ctu180, citation_verifier as _cv180, trust_line as _tl180
+        _lf = _ctu180.leggi_fonte
+        _okf = (_lf("( articolo 2 decreto del Presidente della Repubblica 22 dicembre 1986, n. 917 )\n\n1. x") == [("dpr:917:1986", ["2"])]
+                and _lf("( articolo 10-bis del decreto legislativo n. 74 del 2000 )\n\n1. x") == [("dlgs:74:2000", ["10/bis"])]
+                and _lf("(articoli 5, 6, comma 1, 7 decreto-legge 30 settembre 1983, n. 512 , convertito)\n\n1.") == [("dl:512:1983", ["5", "6"])]
+                and _lf("1. Nessuna fonte") == [])
+        from pathlib import Path as _P180
+        _it180 = ArticleIndex.load(_P180("/app/data/index/bm25_it.pkl"))
+        _v = lambda t: (_cv180.verify_text(t, _it180).get("items") or [{}])[0]
+        _s = lambda it: [(x.get("code"), x.get("number")) for x in (it.get("successori") or [])]
+        _dec = _ctu180.decorrenza("tu_sanzioni_tributarie")
+        try:
+            _ctu180._OGGI_FORZATO = _d180(2026, 9, 29)             # PRIMA della decorrenza
+            _a = _v("Il reato è quello dell'art. 8 d.lgs. 74/2000.")
+            _b = _v("Si apre il fronte dell'esterovestizione (art. 73, comma 3, TUIR).")
+            _c = _v("art. 73 del d.P.R. 22 dicembre 1986, n. 917")
+            _f = _v("L'art. 79 del testo unico sanzioni tributarie punisce l'emissione di fatture false.")
+            _g = _v("art. 20 del testo unico dell'imposta di registro")
+            _vv = _tl180.verifica("Rischia per l'art. 8 d.lgs. 74/2000 e per l'art. 73, comma 3, TUIR.", _it180, "IT")
+            _prima = (_a.get("status") == "verified" and _s(_a) == [("tu_sanzioni_tributarie", "79")]
+                      and "in vigore fino al 31/12/2026" in (_a.get("article_heading") or "")
+                      and _b.get("status") == "verified" and _b.get("resolved_by") == "trasfuso" and ("tuir", "82") in _s(_b)
+                      and _c.get("status") == "verified" and ("tuir", "82") in _s(_c)
+                      and _v("Il ricorso va proposto ai sensi dell'art. 21 d.lgs. 546/1992.").get("status") == "verified"
+                      and _f.get("status") == "verified" and "art. 8 d.lgs. 74/2000" in (_f.get("avviso") or "")
+                      and _g.get("status") == "verified" and ("tu_registro", "24") in _s(_g)
+                      and _tl180.stato(_vv) != "FLAGS"
+                      and "TESTO UNICO APPLICABILE DAL 01/01/2027" in _ctu180.nota_decorrenza("tu_sanzioni_tributarie"))
+            _ctu180._OGGI_FORZATO = _d180(2027, 2, 1)              # DOPO
+            _a2 = _v("Il reato è quello dell'art. 8 d.lgs. 74/2000.")
+            _b2 = _v("Si apre il fronte dell'esterovestizione (art. 73, comma 3, TUIR).")
+            _c2 = _v("art. 73 del d.P.R. 22 dicembre 1986, n. 917")
+            _d2 = _v("La residenza si determina ai sensi dell'art. 2 TUIR.")
+            _dopo = (_a2.get("status") == "repealed" and "oggi art. 79" in (_a2.get("article_heading") or "")
+                     and _b2.get("status") == "verified" and "82" in (_b2.get("avviso") or "")
+                     and _c2.get("status") == "needs_code" and _c2.get("resolved_by") == "trasfuso"
+                     and _d2.get("status") == "verified" and not _d2.get("avviso")
+                     and _ctu180.nota_decorrenza("tu_sanzioni_tributarie") == "")
+        finally:
+            _ctu180._OGGI_FORZATO = None
+        _e = _v("Regime forfettario: art. 1, comma 54, l. 190/2014.")
+        _src180 = open("/app/src/brain.py", encoding="utf-8").read()
+        _ok180 = (_okf and str(_dec) == "2027-01-01" and _ctu180.successori("dlgs:74:2000", "8") == [("tu_sanzioni_tributarie", "79")]
+                  and _prima and _dopo and _e.get("resolved_by") != "trasfuso"
+                  and _src180.count("_sostituisce") >= 5 and "ABROGAZIONE NON ANCORA EFFICACE" in _src180)
+        check("tu[180]: vecchi articoli fiscali ↔ testi unici CON LA DATA (fino al 31/12/2026 la norma vecchia è vigente; dal 2027 "
+              "il testo unico) — verificatore, Trust Line, nota nel blocco", _ok180,
+              "decorrenza=%s prima=%s dopo=%s a=%s %s b=%s c=%s f=%r" % (_dec, locals().get("_prima"), locals().get("_dopo"),
+                                                                         _a.get("status"), _s(_a), _b.get("status"), _c.get("status"),
+                                                                         (_f.get("avviso") or "")[:70]))
+    except Exception as _e180:  # noqa: BLE001
+        check("tu[180]: kontrollet u ekzekutuan", False, str(_e180))
+
+    # [181] v9.403 — IL RECUPERO DEL PROCURATORE: semi di situazione (fatture false → KP 180; sequestro della polizia → KPP 300/301;
+    # riciclaggio → KP 287; «shpërdorim» → KP 248/135), semi mancanti degli strumenti (analisi e piano: KPP 284; piano: 202, 208,
+    # 178, 221, 274; vittima: 291), radici delle parole flesse e preferenza al codice penale nella ricerca per titolo. Misurato
+    # (tools/misura_semi_pro, 20 casi × 3 campioni dei termini): la norma decisiva nel blocco 21/40 → 32/40 → vedi CLAUDE.md.
+    try:
+        from src import prosecutor as _pr181, expertise as _ex181
+        _ss = _pr181._semi_situazione_al
+        _k = lambda t: set(_ss(t))
+        _fisc = _k("Një biznesmen ka lëshuar fatura fiktive për 20 milionë lekë; policia ka sekuestruar dokumentacionin kontabël.")
+        _pas = _k("Transferoi paratë e trafikut në llogaritë e vëllait për t'ua fshehur origjinën.")
+        _brib = _k("Inspektori i tatimeve mori 1.000 euro për të mos vendosur gjobë.")
+        _sr = _ex181._stessa_radice
+        _hs = _ex181._heading_scan_rank(idx, "ndërtim pa leje", preferiti=("kodi_penal",))
+        _src181 = open("/app/src/prosecutor.py", encoding="utf-8").read()
+        _esistono = all(_cv_esiste(idx, c, n) for c, n in [("kodi_penal", "180"), ("kodi_penal", "287"), ("kodi_proc_penale", "301"),
+                                                               ("kodi_proc_penale", "300"), ("kodi_proc_penale", "284"),
+                                                               ("kodi_proc_penale", "291"), ("kodi_proc_penale", "274"),
+                                                               ("kodi_penal", "248"), ("kodi_penal", "135"), ("kodi_penal", "199/a")])
+        _ok181 = ({("kodi_penal", "180"), ("kodi_proc_penale", "301"), ("kodi_proc_penale", "300")} <= _fisc
+                  and ("kodi_penal", "287") in _pas and not _brib
+                  and _sr("detyre", "detyres") and _sr("dhuna", "dhune") and not _sr("parave", "paraqitja") and not _sr("para", "paraqitje")
+                  and ("kodi_penal", "199/a") in {(c, str(n)) for c, n, _t in _hs}
+                  and _src181.count("_semi_al(") >= 4 and '("kodi_proc_penale", "291")' in _src181
+                  and "preferiti=_PREF_AL" in _src181 and _esistono)
+        check("procuratore[181]: semi di situazione (fiscale, sequestro della polizia, riciclaggio, shpërdorim), semi mancanti "
+              "(284, 202/208/178/221/274, 291), radici flesse e codice penale preferito nella ricerca per titolo", _ok181,
+              "fisc=%s pas=%s brib=%s titoli=%s" % (sorted(_fisc), sorted(_pas), sorted(_brib), [(c, n) for c, n, _t in _hs]))
+    except Exception as _e181:  # noqa: BLE001
+        check("procuratore[181]: kontrollet u ekzekutuan", False, str(_e181))
+
+    # [182] v9.403 — IL NOTAIO: il controllo dell'atto riceve la forma dell'atto notarile (ligji 110/2018 101, 105, 137) e, coi
+    # contanti, il divieto oltre 100.000 lekë (9920/2008 neni 59) e l'adeguata verifica (9917/2008 neni 4, 12); la successione col
+    # coniuge la comunione (KF 74, 76, 96, 103). Nell'audit del 29 set erano «fuori dal corpus».
+    try:
+        from src import notary as _no182
+        _sc = set(_no182._seed_controllo("KONTRATË SHITJEJE. Z. Hoxha i shet apartamentin me çmim 80.000 euro. Pagesa bëhet në para në dorë."))
+        _sc2 = set(_no182._seed_controllo("KONTRATË QIRAJE për një dyqan."))
+        _ok182 = ({("ligji_noteri", "105"), ("ligji_noteri", "101"), ("ligji_noteri", "137"), ("ligji_procedurat_tatimore", "59"),
+                   ("ligji_pastrimi_parave", "4"), ("ligji_pastrimi_parave", "12")} <= _sc
+                  and ("ligji_procedurat_tatimore", "59") not in _sc2 and ("ligji_noteri", "105") in _sc2
+                  and all(_cv_esiste(idx, c, n) for c, n in list(_sc) + list(_no182._SEED_KOMUNITET))
+                  and "_SEED_KOMUNITET" in open("/app/src/notary.py", encoding="utf-8").read())
+        check("notaio[182]: forma dell'atto notarile, contanti e antiriciclaggio nel controllo; comunione del coniuge nella "
+              "successione — tutti articoli del corpus", _ok182, "vendita=%s qira=%s" % (sorted(_sc), sorted(_sc2)))
+    except Exception as _e182:  # noqa: BLE001
+        check("notaio[182]: kontrollet u ekzekutuan", False, str(_e182))
+
+    # [183] v9.404 — IL PROCURATORE IN SESSIONE IT: parte generale (continuazione, prescrizione) nell'analisi e nell'archiviazione,
+    # semi di situazione (reati tributari → testo unico delle sanzioni artt. 73, 86-97 e, con le fatture false, 74/79/80; sequestro
+    # della polizia giudiziaria → c.p.p. 253, 354, 355; riciclaggio → c.p. 648-bis ss.), atti d'indagine nel piano (247, 253, 266,
+    # 359, 360, 321). Misurato: 15/27 → 27/27. Il tetto del blocco a 60.000 caratteri (i semi fiscali sono ~29.000).
+    try:
+        from src import prosecutor as _pr183
+        from pathlib import Path as _P183
+        _it183 = ArticleIndex.load(_P183("/app/data/index/bm25_it.pkl"))
+        _s = lambda t: {(c, n) for c, n in _pr183._semi_situazione_it(t)}
+        _f = _s("Un imprenditore ha emesso fatture per operazioni inesistenti per 200.000 euro; la Guardia di Finanza ha sequestrato la documentazione.")
+        _iva = _s("L'amministratore della srl non ha versato l'IVA dovuta per 400.000 euro.")
+        _ric = _s("Ha trasferito su conti esteri i proventi di una truffa per ostacolarne l'identificazione della provenienza.")
+        _furto = _s("Furto in appartamento: entrato forzando la finestra, ha sottratto gioielli.")
+        _src183 = open("/app/src/prosecutor.py", encoding="utf-8").read()
+        _tutti = list(_f) + list(_ric) + _pr183._CP_GENERALE_IT + _pr183._cpp("247", "253", "266", "359", "360", "321")
+        _ok183 = ({("tu_sanzioni_tributarie", "79"), ("tu_sanzioni_tributarie", "87"), ("tu_sanzioni_tributarie", "89"),
+                   ("codice_procedura_penale", "354"), ("codice_procedura_penale", "355")} <= _f
+                  and ("tu_sanzioni_tributarie", "89") in _iva and ("tu_sanzioni_tributarie", "79") not in _iva
+                  and ("codice_penale", "648-bis") in _ric and not _furto
+                  and _pr183._MAX_TOT >= 60000 and _src183.count("_semi_it(") >= 4
+                  and 'semi_in_piu_it=_cpp("247", "253", "266", "359", "360", "321")' in _src183
+                  and '("kodi_penal", "55")' in _src183
+                  and all(_cv_esiste(_it183, c, n) for c, n in _tutti))
+        check("procuratore-it[183]: semi dei reati tributari (testo unico delle sanzioni), del sequestro della p.g. e del "
+              "riciclaggio, parte generale e atti d'indagine — tutti articoli vigenti del corpus IT", _ok183,
+              "fiscale=%s iva=%s ric=%s" % (sorted(_f), sorted(_iva), sorted(_ric)))
+    except Exception as _e183:  # noqa: BLE001
+        check("procuratore-it[183]: kontrollet u ekzekutuan", False, str(_e183))
+
+    # [184] v9.404 — la FONTE incollata davanti alla rubrica nel testo unico degli stupefacenti («Legge 26 giugno 1990, n. 162,
+    # … ) Associazione finalizzata al traffico…», 107 articoli) va in testa al testo; e il procuratore IT riceve l'art. 74 d.P.R.
+    # 309/1990 quando i fatti parlano di un'organizzazione (l'audit IT: «richiamato dall'art. 51 c.p.p. ma non fornito»).
+    try:
+        import importlib.util as _ilu184
+        _sp184 = _ilu184.spec_from_file_location("bi184", "/app/tools/build_it_index.py")
+        _bi184 = _ilu184.module_from_spec(_sp184); _sp184.loader.exec_module(_bi184)
+        _h184, _b184 = _bi184._pulisci("Legge 26 giugno 1990, n. 162 , articoli 14, comma 1, e 38, comma 2) Associazione finalizzata "
+                                       "al traffico illecito di sostanze stupefacenti o psicotrope", "1. Quando tre o più persone")
+        _n184 = _bi184._pulisci("Responsabilità genitoriale", "La responsabilità genitoriale")
+        from src import expertise as _ex184
+        from pathlib import Path as _P184
+        _it184 = ArticleIndex.load(_P184("/app/data/index/bm25_it.pkl"))
+        brain.set_request_jurisdiction("IT")
+        _org = {(c, str(n)) for c, n, _t in _ex184.retrieve_grounded(None, _it184, "Gruppo organizzato che traffica cocaina nel quartiere.",
+                                                                    seed_pairs=[], max_arts=6)}
+        _sol = {(c, str(n)) for c, n, _t in _ex184.retrieve_grounded(None, _it184, "Ha ceduto 20 grammi di cocaina a un acquirente.",
+                                                                    seed_pairs=[], max_arts=6)}
+        brain.set_request_jurisdiction("AL")
+        _ok184 = (_h184.startswith("Associazione finalizzata") and _b184.startswith("(Legge 26 giugno 1990")
+                  and _n184 == ("Responsabilità genitoriale", "La responsabilità genitoriale")
+                  and ("stupefacenti", "74") in _org and ("stupefacenti", "73") in _org and ("stupefacenti", "73") in _sol)
+        check("stupefacenti-it[184]: la fonte davanti alla rubrica va nel testo; l'associazione (art. 74) entra con l'organizzazione",
+              _ok184, "h=%r org=%s sol=%s" % (_h184[:40], sorted(_org), sorted(_sol)))
+    except Exception as _e184:  # noqa: BLE001
+        check("stupefacenti-it[184]: kontrollet u ekzekutuan", False, str(_e184))
+
+    # [185] v9.404 — l'ABROGATO DICHIARATO non è un errore: «art. 79 TU (già art. 8 d.lgs. 74/2000, oggi abrogato)» o «nel testo
+    # previgente» è diritto intertemporale detto bene (prova viva del 29 set: 10 citazioni così accendevano la riga in rosso su
+    # un'analisi giusta del pubblico ministero); l'abrogato citato come vigente resta una segnalazione.
+    try:
+        from src import trust_line as _tl185, cancello as _cn185
+        from pathlib import Path as _P185
+        _it185 = ArticleIndex.load(_P185("/app/data/index/bm25_it.pkl"))
+        # (un articolo abrogato DAVVERO: il d.P.R. 633/1972 art. 31, abrogato dalla L. 413/1991 — i vecchi articoli fiscali abrogati
+        # dai testi unici sono ancora vigenti fino al 2027, sezione [180])
+        _v1 = _tl185.verifica("L'art. 31 del d.P.R. 633/1972, oggi abrogato, prevedeva una disciplina diversa.", _it185, "IT")
+        _v2 = _tl185.verifica("Si applica l'art. 31 del d.P.R. 633/1972.", _it185, "IT")
+        _ok185 = (_v1["nene"].get("repealed_noted", 0) >= 1 and _v1["nene"]["repealed"] == 0 and _tl185.stato(_v1) != "FLAGS"
+                  and "dichiarate tali" in _tl185.riga(_v1, "it")
+                  and _v2["nene"]["repealed"] == 1 and _tl185.stato(_v2) == "FLAGS"
+                  and bool(_cn185._GIA_DETTO_RE.search("L'art. 79, comma 2, TU (già art. 8, comma 2, D.Lgs 74/2000) stabilisce"))
+                  and not _cn185._GIA_DETTO_RE.search("Si applica l'art. 31 del d.P.R. 633/1972."))
+        check("trust[185]: l'abrogato dichiarato nella frase (già/oggi/previgente) non accende il rosso; l'abrogato citato come "
+              "vigente sì", _ok185, "v1=%s v2=%s" % (_v1["nene"], _v2["nene"]))
+    except Exception as _e185:  # noqa: BLE001
+        check("trust[185]: kontrollet u ekzekutuan", False, str(_e185))
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

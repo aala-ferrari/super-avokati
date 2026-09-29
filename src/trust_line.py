@@ -60,11 +60,31 @@ def _art_map(index) -> dict:
 
 
 def vuota() -> dict:
-    return {"nene": {"verified": 0, "repealed": 0, "fake": 0, "needs_code": 0, "unconstitutional": 0, "total": 0, "bad": [],
-                     "foreign_verified": 0, "foreign_unverified": 0, "foreign": []},
+    return {"nene": {"verified": 0, "repealed": 0, "repealed_noted": 0, "fake": 0, "needs_code": 0, "unconstitutional": 0, "total": 0, "bad": [],
+                     "foreign_verified": 0, "foreign_unverified": 0, "foreign": [], "avvisi": [], "trasfusi": []},
             "sentenze": {"verified": 0, "unverified": 0, "quashed": 0, "mismatch": 0, "excluded": 0, "total": 0, "bad": [],
                          "quashed_list": [], "excluded_list": []},
             "fatti_da_precisare": 0}
+
+
+_DICHIARATA_RE = re.compile(r"abrogat|shfuqizu|previgente|ratione\s+temporis|tempus\s+regit|\bgià\s+(?:l['’]\s*)?art|\bex\s+art|"
+                            r"\boggi\s+(?:l['’]\s*)?art|trasfus|ish-?nen|në\s+fuqi\s+në\s+kohën", re.I)
+
+
+def _abrogazione_dichiarata(text: str, raw: str) -> bool:
+    """La riga della citazione dice già che la norma è abrogata / previgente / trasfusa (mai un'eccezione)."""
+    try:
+        r = (raw or "").rstrip("…").strip()
+        if len(r) < 5:
+            return False
+        i = (text or "").find(r)
+        if i < 0:
+            return False
+        a = text.rfind("\n", 0, i) + 1
+        b = text.find("\n", i + len(r))
+        return bool(_DICHIARATA_RE.search(text[a:b if b >= 0 else len(text)]))
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def verifica(text: str, index, jurisdiction: str = "AL", retrieved_codes=None, foreign_index=None) -> dict:
@@ -88,11 +108,28 @@ def verifica(text: str, index, jurisdiction: str = "AL", retrieved_codes=None, f
                 out["nene"]["foreign"].append({"raw": (it.get("raw") or "")[:70], "code": it.get("code_label") or it.get("code") or "",
                                                "status": it.get("status"), "heading": (it.get("article_heading") or "")[:70]})
                 continue
+            # v9.404 — l'articolo ABROGATO che la frase DICHIARA tale («art. 79 TU, già art. 8 d.lgs. 74/2000, oggi abrogato»,
+            # «nel testo previgente», «ratione temporis»): è diritto intertemporale detto bene, non un errore — prova viva del 29 set:
+            # 10 citazioni così (fatti anteriori al 2026) accendevano la riga in rosso su un'analisi giusta
+            if it.get("status") == "repealed" and _abrogazione_dichiarata(text, it.get("raw") or ""):
+                out["nene"]["repealed"] = max(0, out["nene"]["repealed"] - 1)
+                out["nene"]["repealed_noted"] += 1
+                continue
             if it.get("status") in ("fake", "repealed"):
                 out["nene"]["bad"].append({
                     "raw": (it.get("raw") or "")[:70], "number": it.get("number"),
                     "code": it.get("code_label") or it.get("code") or "",
-                    "status": it.get("status"), "heading": (it.get("article_heading") or "")[:70]})
+                    "status": it.get("status"),
+                    # v9.403: per l'abrogato con il successore («abrogato — oggi art. 79 TU …: «…»») serve più spazio
+                    "heading": (it.get("article_heading") or "")[:160 if it.get("successori") else 70],
+                    "successori": it.get("successori") or []})
+            # v9.403 — «art. 73 TUIR» verificato sul TUIR vigente ma, nella numerazione del vecchio d.P.R. 917/1986, un
+            # altro articolo; «art. 12 d.lgs. 546/1992» trasfuso in un testo unico: il Giudice deve saperlo
+            if it.get("avviso"):
+                out["nene"]["avvisi"].append({"raw": (it.get("raw") or "")[:70], "avviso": (it.get("avviso") or "")[:300]})
+            elif it.get("resolved_by") == "trasfuso" and it.get("successori"):
+                out["nene"]["trasfusi"].append({"raw": (it.get("raw") or "")[:70], "code": it.get("code_label") or "",
+                                                "heading": (it.get("article_heading") or "")[:160]})
         # v9.339 — norme DICHIARATE INCOSTITUZIONALI dalla Gjykata Kushtetuese (grafo delle sentenze):
         # un articolo «verificato» nel corpus può essere stato annullato da un vendim GjK
         try:
@@ -191,7 +228,8 @@ def stato(v: dict) -> str:
         return "EMPTY"
     # «senza codice» (neni 155 nudo, col codice nominato poco prima) non è un errore: resta nel
     # conteggio della riga ma non abbassa lo stato (prova viva 16 set: 19 «pa kod» su un verdetto giusto)
-    if s["unverified"] or s.get("excluded") or v.get("fatti_da_precisare") or n.get("foreign_unverified"):
+    if (s["unverified"] or s.get("excluded") or v.get("fatti_da_precisare") or n.get("foreign_unverified")
+            or n.get("avvisi")):
         return "RESERVATIONS"
     return "VERIFIED"
 
@@ -247,12 +285,16 @@ def riga(v: dict, lang: str = "sq", tempo: dict | None = None, coverage: dict | 
         a = [f"norme {n['verified']} verificate"]
         if n["repealed"]:
             a.append(f"{n['repealed']} abrogate")
+        if n.get("repealed_noted"):
+            a.append(f"{n['repealed_noted']} abrogate e dichiarate tali")
         if n["fake"]:
             a.append(f"{n['fake']} non trovate nel corpus")
         if n.get("unconstitutional"):
             a.append(f"{n['unconstitutional']} dichiarate incostituzionali")
         if n["needs_code"]:
             a.append(f"{n['needs_code']} senza codice")
+        if n.get("avvisi"):
+            a.append(f"{len(n['avvisi'])} da controllare (numerazione o decorrenza)")
         b = [f"sentenze {s['verified']} confermate"]
         if s.get("quashed"):
             b.append(f"{s['quashed']} ANNULLATE")
@@ -273,6 +315,8 @@ def riga(v: dict, lang: str = "sq", tempo: dict | None = None, coverage: dict | 
         a = [f"nene {n['verified']} të verifikuara"]
         if n["repealed"]:
             a.append(f"{n['repealed']} të shfuqizuara")
+        if n.get("repealed_noted"):
+            a.append(f"{n['repealed_noted']} të shfuqizuara të deklaruara si të tilla")
         if n["fake"]:
             a.append(f"{n['fake']} nuk u gjetën në korpus")
         if n.get("unconstitutional"):
@@ -318,7 +362,14 @@ def blocco_per_gjyqtarin(v: dict, lang: str = "sq", coverage: dict | None = None
         for b in n["bad"][:14]:
             tag = _tag_it.get(b["status"], b["status"])
             extra = f" ({b['code']}: {b['heading']})" if b.get("heading") else (f" ({b['code']})" if b.get("code") else "")
-            r.append(f"- «{b['raw']}» → {tag}{extra}")
+            r.append(f"- «{b['raw']}» → {tag}{extra}"
+                     + (" — cita il testo unico vigente, non l'articolo abrogato" if b.get("successori") else ""))
+        # v9.403 — la numerazione dei testi unici fiscali 2024-2026 (il modello conosce quella vecchia)
+        for b in (n.get("avvisi") or [])[:6]:
+            r.append(f"- «{b['raw']}» → verificato, ma {b['avviso']}: controlla quale norma intende la risposta e se è quella "
+                     f"applicabile alla data dei fatti; correggi il numero se serve")
+        for b in (n.get("trasfusi") or [])[:6]:
+            r.append(f"- «{b['raw']}» → {b['code']} {b['heading']} — cita l'articolo vigente del testo unico")
         r.append(f"Sentenze citate: {s['verified']} confermate negli archivi, {s.get('quashed', 0)} ANNULLATE dalla Corte costituzionale, "
                  f"{s['unverified']} NON confermate (archivi parziali: da riscontrare, non necessariamente false).")
         for b in s.get("quashed_list") or []:

@@ -64,7 +64,9 @@ _NOTA_STATO = {
            "unconstitutional_partial": " [⚠ in parte incostituzionale — verificare quali punti]"},
 }
 # la frase lo dice già? allora niente etichetta doppia
-_GIA_DETTO_RE = re.compile(r"shfuqizu|abrogat|antikushtetues|incostituzional|anullu|annullat|GjK|Gjykat[ëa] Kushtetuese|Corte cost", re.I)
+_GIA_DETTO_RE = re.compile(r"shfuqizu|abrogat|antikushtetues|incostituzional|anullu|annullat|GjK|Gjykat[ëa] Kushtetuese|Corte cost|"
+                           # v9.404: «art. 79 TU (già art. 8 d.lgs. 74/2000)», «nel testo previgente», «ratione temporis»
+                           r"\bgià\s+(?:l['’]\s*)?art|\bex\s+art|\boggi\s+(?:l['’]\s*)?art|previgente|ratione\s+temporis|trasfus", re.I)
 
 
 def _bocciati(v: dict) -> list[dict]:
@@ -169,7 +171,12 @@ def _barra(text: str, index, lang: str, retrieved_codes=None) -> tuple[str, int,
             out.append(text[last:a] + "~~" + text[a:b] + "~~" + text[b:m.end()] + nota_r); last = m.end(); rimossi += 1
         elif stati & {"repealed", "unconstitutional"} and not _GIA_DETTO_RE.search(riga):
             st = "repealed" if "repealed" in stati else "unconstitutional"
-            out.append(text[last:m.end()] + note_s[st]); last = m.end(); etichettati += 1
+            nota = note_s[st]
+            # v9.403: l'articolo fiscale abrogato che oggi sta in un testo unico — l'etichetta dice DOVE
+            _succ = next((i.get("successori") for i in items if i.get("status") == "repealed" and i.get("successori")), None)
+            if st == "repealed" and _succ and lang == "it":
+                nota = f" [⚠ articolo abrogato — oggi art. {_succ[0]['number']} {_succ[0]['label']}]"
+            out.append(text[last:m.end()] + nota); last = m.end(); etichettati += 1
     out.append(text[last:])
     return "".join(out), rimossi, etichettati
 

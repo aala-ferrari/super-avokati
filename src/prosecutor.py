@@ -21,6 +21,8 @@ c.p.p. ne ha 7.516, il KPP 58 2.483 — si perdevano proprio i commi decisivi), 
 """
 from __future__ import annotations
 
+import re as _re
+
 from . import expertise as _expertise
 from .logging_utils import get_logger
 
@@ -56,7 +58,9 @@ _LABEL = {
 
 # Testo dell'articolo nel prompt: intero fino a questo punto (per articolo) e in tutto.
 _MAX_ART = 3500
-_MAX_TOT = 42000
+# v9.404: 60.000 (era 42.000) — coi semi dei reati tributari italiani (testo unico delle sanzioni, prescrizione, sequestro) il
+# blocco arriva a 30-39 articoli e gli ultimi, quelli trovati dalla ricerca sul reato, restavano a 400 caratteri
+_MAX_TOT = 60000
 
 
 def _lbl(c):
@@ -84,7 +88,7 @@ def _blocco(arts, lang: str) -> str:
             testo += ((" […testo tagliato qui: altri %d caratteri — non completarlo a memoria]" if lang == "it"
                        else " […teksti u shkurtua këtu: edhe %d karaktere — mos e plotëso nga kujtesa]") % (len(t) - cap))
         if lang == "it":
-            out.append("• [%s art. %s] %s" % (_lbl_it(c), n, testo))
+            out.append("• [%s art. %s] %s" % (_lbl_it(c), n, _expertise._nota_tu(c, t) + testo))   # v9.404: la decorrenza
         else:
             out.append("• [%s neni %s] %s" % (_lbl(c), n, testo))
         tot += len(testo)
@@ -96,6 +100,98 @@ def _blocco(arts, lang: str) -> str:
 
 def _cpp(*nums):
     return [("codice_procedura_penale", n) for n in nums]
+
+
+# v9.403 — SEMI DI SITUAZIONE (sessione AL). Misurato sui casi dell'audit del 29 set, dove il modello aveva scritto «il corpus
+# non contiene…» (tools/misura_semi_pro: la norma decisiva fra gli articoli dati, 2 campioni dei termini per caso): oggi 21/40,
+# con questi semi 32/40. Le fatture false portavano il falso documentale (KP 186) ma non l'occultamento dei redditi (KP 180,
+# con le soglie di 5 e 10 milioni di lekë) — l'estrazione dei termini scriveva «evazion fiskal», che nessun titolo contiene;
+# il sequestro fatto dalla polizia non portava la CONVALIDA del pubblico ministero entro 48 ore (KPP 301, e 300 per il
+# sequestro d'urgenza); il riciclaggio portava gli articoli della legge ANTIRICICLAGGIO (preventiva) al posto del KP 287.
+# Solo articoli verificati sul corpus; sono materiale, la qualificazione resta al procuratore.
+_RX_FISCALE = _re.compile(
+    r"fatur\w*\s+(fiktiv|false|t[e]\s+rreme)|evazion|fsheh\w*\s+(\w+\s+){0,3}ardhur|"
+    r"(mos|pa|nuk)\s*(ka\s+)?deklar\w*\s+(\w+\s+){0,2}(tvsh|tatim|ardhur|qarkullim)|\btvsh|detyrim\w*\s+tatimor|"
+    r"shmang\w*\s+(nga\s+)?(pagim|tatim|detyrim)")
+_RX_ARKA = _re.compile(r"\barka\b|arkat?\s+fiskal|aparat\w*\s+mat|kupon")
+_RX_MOSPAGIM = _re.compile(r"(mos\s*|nuk\s+(ka\s+|i\s+)?)pag\w*\s+(\w+\s+){0,2}(tatim|taks|detyrim)|papagu")
+_RX_PASTRIM = _re.compile(
+    r"pastrim|pastr\w+\s+(\w+\s+){0,2}(parave|produkt)|shpelarj|shperlarj|legaliz\w*\s+(\w+\s+){0,2}(parave|ardhura)|"
+    r"origjin\w*\s+(\w+\s+){0,2}paligjshme|(fsheh|mbul)\w*\s+(\w+\s+){0,3}origjin")
+
+
+def _semi_situazione_al(facts: str) -> list:
+    f = _expertise._fold(facts or "")
+    out = []
+    if _RX_FISCALE.search(f):
+        out.append(("kodi_penal", "180"))
+        if _RX_ARKA.search(f):
+            out.append(("kodi_penal", "182"))
+        if _RX_MOSPAGIM.search(f):
+            out.append(("kodi_penal", "181"))
+    if _RX_PASTRIM.search(f):
+        out.append(("kodi_penal", "287"))
+    if "sekuestr" in f:
+        out.append(("kodi_proc_penale", "208"))
+        if _re.search(r"\bpolic", f):
+            out += [("kodi_proc_penale", "300"), ("kodi_proc_penale", "301")]
+    if "shperdor" in f:
+        out += [("kodi_penal", "248"), ("kodi_penal", "135")]
+    return out
+
+
+def _semi_al(seeds, facts: str, extra=()) -> tuple[list, int]:
+    """(semi dello strumento + semi mancanti misurati + semi di situazione, quanti in più): i posti in più si AGGIUNGONO ai
+    16 del recupero, non li tolgono alla ricerca del reato."""
+    base = list(seeds or [])
+    add = [x for x in list(extra) + _semi_situazione_al(facts) if x not in base]
+    add = list(dict.fromkeys(add))
+    return base + add, len(add)
+
+
+# v9.404 — SEMI DI SITUAZIONE in sessione IT (stessa misura, 9 casi × 3 campioni dei termini, indice IT con le rubriche v9.403):
+# 15/27 → 27/27. Nell'audit IT del 29 set il pubblico ministero, sulle fatture per operazioni inesistenti, trovava l'art. 79 del
+# testo unico delle sanzioni tributarie ma scriveva «non figurano tra gli articoli forniti» per confisca, non punibilità per
+# pagamento, prescrizione e rapporti col processo tributario (artt. 86-97 del testo unico) e per la prescrizione del codice penale
+# (157-161); il sequestro fatto dalla polizia giudiziaria senza la convalida (c.p.p. 354-355); il riciclaggio (648-bis ss.).
+_CP_GENERALE_IT = [("codice_penale", n) for n in ("81", "157", "158", "160", "161")]
+_TU_FISCALE_IT = [("tu_sanzioni_tributarie", n) for n in ("73", "86", "87", "88", "89", "90", "93", "96", "97")]
+_RX_FISC_IT = _re.compile(
+    r"fattur\w*\s+(?:per\s+)?operazion\w*\s+inesistent|operazioni\s+inesistenti|evasion\w*\s+(?:fiscal|dell|d'imposta|di\s+imposta)|"
+    r"dichiarazion\w*\s+(?:fraudolent|infedel|omess|dei\s+redditi)|omess\w*\s+(?:dichiarazion|versament)|"
+    r"non\s+ha\s+versat\w*\s+(?:l'|lo\s+|la\s+|le\s+|i\s+|gli\s+)?(?:iva|imposta|ritenut)|indebit\w*\s+compensazion|"
+    r"sottrazion\w*\s+fraudolent|\bsocietà\s+cartier|fatture\s+false|costi\s+fittizi", _re.I)
+_RX_INESISTENTI_IT = _re.compile(r"inesistent|fatture\s+false|cartier|fittizi", _re.I)
+_RX_RICICL_IT = _re.compile(r"ricicl|reimpieg|autoricicl|provenienza\s+(?:illecita|delittuosa)|ostacol\w*\s+(?:l['’])?identificazion",
+                            _re.I)
+_RX_PG_IT = _re.compile(r"guardia\s+di\s+finanza|polizia|carabinier|finanzier|\bp\.?\s?g\.?\b|agenti|militari", _re.I)
+
+
+def _semi_situazione_it(facts: str) -> list:
+    f = facts or ""
+    out = []
+    if _RX_FISC_IT.search(f):
+        out += _TU_FISCALE_IT + [("codice_procedura_penale", "321")]     # + il sequestro preventivo (per equivalente)
+        if _RX_INESISTENTI_IT.search(f):
+            out += [("tu_sanzioni_tributarie", n) for n in ("74", "79", "80")]
+    if _RX_RICICL_IT.search(f):
+        out += [("codice_penale", n) for n in ("648-bis", "648-ter", "648-ter.1")]
+    if _re.search(r"sequestr", f, _re.I):
+        out.append(("codice_procedura_penale", "253"))
+        if _RX_PG_IT.search(f):
+            out += [("codice_procedura_penale", "354"), ("codice_procedura_penale", "355")]
+    return out
+
+
+def _semi_it(seeds, facts: str, extra=()) -> tuple[list, int]:
+    base = list(seeds or [])
+    add = [x for x in list(dict.fromkeys(list(extra) + _semi_situazione_it(facts))) if x not in base]
+    return base + add, len(add)
+
+
+# per il procuratore, a parità di parole nel titolo vince il codice penale (misurato: «ndërtim pa leje» → titoli della legge
+# urbanistica al posto del KP 199/a; «pastrim parash» → legge antiriciclaggio al posto del KP 287)
+_PREF_AL = ("kodi_penal",)
 
 
 def _cp(*nums):
@@ -199,10 +295,17 @@ def analyze(backend, index, *, facts: str, max_tokens: int = 3000) -> dict:
     # v9.399 — AL: la parte generale che serve a OGNI analisi del pubblico ministero (commisurazione, attenuanti e aggravanti
     # generali, prescrizione dell'azione, termini delle indagini): nell'audit del 28 set l'analisi li dava «non nel corpus» e,
     # onestamente, non ne citava i numeri. Il reato lo porta il recupero per termini.
-    seeds = (_cpp("358", "405", "408") if lang == "it" else
-             [("kodi_penal", "47"), ("kodi_penal", "48"), ("kodi_penal", "50"), ("kodi_penal", "66"),
-              ("kodi_proc_penale", "323"), ("kodi_proc_penale", "324")])
-    arts = _expertise.retrieve_grounded(backend, index, facts, seed_pairs=seeds)
+    if lang == "it":
+        # v9.404: + la parte generale che l'analisi chiede sempre (continuazione, prescrizione) e i semi di situazione
+        seeds, n_add = _semi_it(_cpp("358", "405", "408"), facts, extra=_CP_GENERALE_IT)
+        arts = _expertise.retrieve_grounded(backend, index, facts, seed_pairs=seeds, max_arts=16 + n_add)
+    else:
+        # v9.403: + KPP 284 (i reati perseguibili solo a querela della vittima: la procedibilità) e i semi di situazione;
+        # v9.404: + KP 55 (più reati: l'audit IT e AL scriveva «il concorso di reati non è nel corpus»)
+        seeds, n_add = _semi_al([("kodi_penal", "47"), ("kodi_penal", "48"), ("kodi_penal", "50"), ("kodi_penal", "66"),
+                                 ("kodi_proc_penale", "323"), ("kodi_proc_penale", "324")], facts,
+                                extra=[("kodi_proc_penale", "284"), ("kodi_penal", "55")])
+        arts = _expertise.retrieve_grounded(backend, index, facts, seed_pairs=seeds, max_arts=16 + n_add, preferiti=_PREF_AL)
     prompt = (
         P["fatti"] + "\n" + (facts or "").strip()
         + "\n\n─────\n" + P["norme"] + "\n" + _blocco(arts, lang)
@@ -220,8 +323,15 @@ def analyze(backend, index, *, facts: str, max_tokens: int = 3000) -> dict:
 def draft_indictment(backend, index, *, facts, max_tokens=3200):
     lang = _lingua()
     P = _P[lang]
-    seeds = (_cpp("415-bis", "416", "417", "550", "552") if lang == "it" else None)
-    arts = _expertise.retrieve_grounded(backend, index, facts, seed_pairs=seeds)
+    if lang == "it":
+        # v9.404: + 33-bis/33-ter (tribunale collegiale o monocratico: lo decide l'atto) e 407 (durata massima delle indagini) —
+        # nell'audit IT del 29 set l'atto d'accusa li dava «norma non fornita»
+        seeds, n_add = _semi_it(_cpp("415-bis", "416", "417", "550", "552", "33-bis", "33-ter", "407"), facts)
+        arts = _expertise.retrieve_grounded(backend, index, facts, seed_pairs=seeds, max_arts=16 + n_add)
+    else:
+        seeds, n_add = _semi_al(None, facts)
+        arts = _expertise.retrieve_grounded(backend, index, facts, seed_pairs=seeds or None, max_arts=16 + n_add,
+                                            preferiti=_PREF_AL)
     prompt = (P["fatti_ind"] + "\n" + (facts or "").strip()
               + "\n\n─────\n" + P["norme"] + "\n" + _blocco(arts, lang)
               + "\n\n" + P["fine_ind"])
@@ -242,10 +352,17 @@ def draft_indictment(backend, index, *, facts, max_tokens=3200):
 
 
 def _gen(backend, index, *, facts, system, callsite, seeds=None, extra="",
-         intro=None, max_tokens=2800):
+         intro=None, max_tokens=2800, semi_in_piu_al=(), semi_in_piu_it=()):
     lang = _lingua()
     P = _P[lang]
-    arts = _expertise.retrieve_grounded(backend, index, (facts or "") + " " + extra, seed_pairs=seeds)
+    if lang == "it":
+        sd, n_add = _semi_it(seeds, facts, extra=semi_in_piu_it)
+        arts = _expertise.retrieve_grounded(backend, index, (facts or "") + " " + extra, seed_pairs=sd or None,
+                                            max_arts=16 + n_add)
+    else:
+        sd, n_add = _semi_al(seeds, facts, extra=semi_in_piu_al)
+        arts = _expertise.retrieve_grounded(backend, index, (facts or "") + " " + extra, seed_pairs=sd or None,
+                                            max_arts=16 + n_add, preferiti=_PREF_AL)
     prompt = ((intro or P["dati"]) + "\n" + (facts or "").strip()
               + "\n\n─────\n" + P["norme"] + "\n" + _blocco(arts, lang)
               + "\n\n" + P["fine"])
@@ -272,9 +389,12 @@ def investigation_plan(backend, index, *, facts, max_tokens=2800):
             "### ⏰ Termini — durata delle indagini preliminari e proroghe (verifica sulle norme, non inventare numeri)\n"
             "### ⚖️ Obiettività — anche gli elementi A FAVORE dell'indagato da cercare (art. 358 c.p.p.)\n"
             + _TETRA_IT)
+        # v9.404: il piano chiede perquisizioni, sequestri, accertamenti tecnici, intercettazioni: le loro basi nel c.p.p.
+        # (247, 253, 266, 359, 360, 321) — misurato: 0/3 → 3/3 col caso della truffa
         return _gen(backend, index, facts=facts, system=system, callsite="pros_plan",
                     seeds=_cpp("326", "327", "358", "335", "405", "406", "407"),
-                    extra="piano delle indagini atti di indagine termini", max_tokens=max_tokens)
+                    extra="piano delle indagini atti di indagine termini", max_tokens=max_tokens,
+                    semi_in_piu_it=_cpp("247", "253", "266", "359", "360", "321"))
     system = (
         "Ti je ndihmës i një PROKURORI në Shqipëri. Nga kallëzimi/faktet, harto një PLAN HETIMI "
         "profesional, TË BAZUAR VETËM te faktet dhe te nenet e dhëna. MOS shpik nene. Jep (markdown):\n"
@@ -286,11 +406,16 @@ def investigation_plan(backend, index, *, facts, max_tokens=2800):
         "### ⏰ Afatet — afati i hetimit paraprak dhe zgjatja (verifiko me dispozitat, mos shpik numra)\n"
         "### ⚖️ Objektiviteti — edhe provat SHFAJËSUESE që duhen kërkuar (detyra e objektivitetit)\n"
         + _TETRA)
+    # v9.403: il piano chiede «kontroll, sekuestrim, ekspertim, përgjim» e le misure patrimoniali — le loro basi nel KPP
+    # (202 condizioni della perquisizione, 208 sequestro, 178 perizia, 221 limiti delle intercettazioni, 274 sequestro
+    # preventivo) e la procedibilità (284): nell'audit del 29 set il piano le dava tutte «fuori dal corpus»
     return _gen(backend, index, facts=facts, system=system, callsite="pros_plan",
                 seeds=[("kodi_proc_penale", "24"), ("kodi_proc_penale", "287"),
                        ("kodi_proc_penale", "323"), ("kodi_proc_penale", "324"),
                        ("kodi_proc_penale", "283")],
-                extra="plan hetimi veprime hetimore afati", max_tokens=max_tokens)
+                extra="plan hetimi veprime hetimore afati", max_tokens=max_tokens,
+                semi_in_piu_al=[("kodi_proc_penale", "284"), ("kodi_proc_penale", "202"), ("kodi_proc_penale", "208"),
+                                ("kodi_proc_penale", "178"), ("kodi_proc_penale", "221"), ("kodi_proc_penale", "274")])
 
 
 _ACT_KINDS = {
@@ -323,7 +448,9 @@ _ACT_KINDS_IT = {
                   "seed": _cpp("359", "360", "191"),
                   "q": "consulente tecnico accertamento tecnico non ripetibile avviso difensore"},
     "pergjim": {"label": "Richiesta di autorizzazione alle intercettazioni",
-                "seed": _cpp("266", "267", "268", "271"),
+                # v9.404: + art. 15 Cost. (riserva di legge e di giurisdizione), c.p.p. 103 (le comunicazioni del difensore) e
+                # codice privacy 132 (i tabulati: atto distinto) — nell'audit IT «non compresi fra gli articoli recuperati»
+                "seed": _cpp("266", "267", "268", "271", "103") + [("costituzione", "15"), ("codice_privacy", "132")],
                 "q": "intercettazioni gravi indizi assolutamente indispensabili decreto autorizzazione"},
 }
 
@@ -416,6 +543,9 @@ def dismissal_request(backend, index, *, facts, max_tokens=2600):
             + _TETRA_IT)
         return _gen(backend, index, facts=facts, system=system, callsite="pros_dismiss",
                     seeds=_cpp("408", "409", "410", "411", "415") + _cp("131-bis"),
+                    # v9.404: il reato estinto per prescrizione, la querela mancante o tardiva (c.p. 120, 124) e il dovere di
+                    # cercare anche gli elementi a favore (c.p.p. 358) — nell'audit IT del 29 set «non compresi fra gli articoli»
+                    semi_in_piu_it=_cp("157", "158", "160", "161", "120", "124") + _cpp("358"),
                     extra="richiesta di archiviazione infondatezza notizia di reato", max_tokens=max_tokens)
     system = (
         "Ti je ndihmës i një PROKURORI. Harto një KËRKESË/PROJEKT-VENDIM për PUSHIM ose MOSFILLIM të "
@@ -446,7 +576,7 @@ def stress_test(backend, index, *, text, max_tokens=2600):
             "### ✅ Come rafforzare l'atto — cosa completare prima del deposito\n"
             + _TETRA_IT)
         return _gen(backend, index, facts=text, system=system, callsite="pros_stress",
-                    seeds=_cpp("178", "180", "181", "191", "407"), intro=_P["it"]["stress"],
+                    seeds=_cpp("178", "180", "181", "191", "407", "405", "415-bis"), intro=_P["it"]["stress"],   # v9.404: + 405, 415-bis
                     extra="nullità inutilizzabilità prova termini", max_tokens=max_tokens)
     system = (
         "Ti je AVOKATI MBROJTËS më i zoti, që lexon një AKT TË PROKURORISË (aktakuzë, kërkesë mase, "
@@ -478,7 +608,9 @@ def citizen_complaint(backend, index, *, facts, max_tokens=2800):
             "### ⚖️ I tuoi diritti come persona offesa — in breve: informazioni, difensore, costituzione di parte civile, opposizione all'archiviazione\n"
             + _TETRA_IT)
         return _gen(backend, index, facts=facts, system=system, callsite="pros_complaint",
-                    seeds=_cpp("333", "336", "337", "90", "90-bis", "101", "408") + _cp("124"),
+                    # v9.404: + simulazione di reato e calunnia (c.p. 367, 368: la dichiarazione di chi denuncia) e la restituzione
+                    # delle cose sequestrate (c.p.p. 262, 263)
+                    seeds=_cpp("333", "336", "337", "90", "90-bis", "101", "408", "262", "263") + _cp("124", "367", "368"),
                     intro=_P["it"]["citt"], extra="denuncia querela persona offesa diritti", max_tokens=max_tokens)
     system = (
         "Ti je ndihmës që e ndihmon një QYTETAR të përgatisë një KALLËZIM PENAL të saktë (ndihmesë, jo "
@@ -511,7 +643,9 @@ def victim_rights(backend, index, *, facts, max_tokens=2400):
             "### ✅ I tuoi prossimi passi — concreti\n"
             + _TETRA_IT)
         return _gen(backend, index, facts=facts, system=system, callsite="pros_victim",
-                    seeds=_cpp("90", "90-bis", "90-ter", "101", "74", "408", "410", "335"),
+                    # v9.404: + il patrocinio a spese dello Stato (d.P.R. 115/2002 art. 76, anche in deroga ai limiti di reddito)
+                    # e il deposito telematico (c.p.p. 111-bis)
+                    seeds=_cpp("90", "90-bis", "90-ter", "101", "74", "408", "410", "335", "111-bis") + [("tu_spese_giustizia", "76")],
                     intro=_P["it"]["vitt"], extra="persona offesa diritti informazioni fasi termini", max_tokens=max_tokens)
     system = (
         "Ti je ndihmës që i shpjegon një QYTETARI TË DËMTUAR të drejtat dhe fazat e procesit penal, "
@@ -526,6 +660,9 @@ def victim_rights(backend, index, *, facts, max_tokens=2400):
     return _gen(backend, index, facts=facts, system=system, callsite="pros_victim",
                 seeds=[("kodi_proc_penale", "58"), ("kodi_proc_penale", "292"),
                        ("kodi_proc_penale", "329"), ("kodi_proc_penale", "323")],
+                # v9.403: KPP 291 — il ricorso contro il decreto di non avvio del procedimento (10 giorni dalla notifica):
+                # nell'audit del 29 set il termine era «non dato nei testi»
+                semi_in_piu_al=[("kodi_proc_penale", "291")],
                 intro=_P["sq"]["vitt"], extra="të drejtat i dëmtuar faza afati",
                 max_tokens=max_tokens)
 

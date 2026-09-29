@@ -637,8 +637,8 @@
 {"id": "it-st-cittadinanza-18-rep", "lang": "it", "kind": "status", "citation": "art. 18 L. 91/1992", "expect": "repealed", "code": "cittadinanza"}
 {"id": "it-st-cittadinanza-24-rep", "lang": "it", "kind": "status", "citation": "art. 24 L. 91/1992", "expect": "repealed", "code": "cittadinanza"}
 {"id": "it-st-cittadinanza-fake", "lang": "it", "kind": "status", "citation": "art. 164 L. 91/1992", "expect": "fake", "code": "cittadinanza"}
-{"id": "it-st-riscossione-1-rep", "lang": "it", "kind": "status", "citation": "art. 1 DPR 602/1973", "expect": "repealed", "code": "riscossione"}
-{"id": "it-st-riscossione-2-rep", "lang": "it", "kind": "status", "citation": "art. 2 DPR 602/1973", "expect": "repealed", "code": "riscossione"}
+{"id": "it-st-riscossione-1-rep", "lang": "it", "kind": "status", "citation": "art. 1 DPR 602/1973", "expect": "verified", "code": "riscossione", "dal": "2027-01-01", "expect_dal": "repealed"}
+{"id": "it-st-riscossione-2-rep", "lang": "it", "kind": "status", "citation": "art. 2 DPR 602/1973", "expect": "verified", "code": "riscossione", "dal": "2027-01-01", "expect_dal": "repealed"}
 {"id": "it-st-riscossione-fake", "lang": "it", "kind": "status", "citation": "art. 242 DPR 602/1973", "expect": "fake", "code": "riscossione"}
 {"id": "it-st-tu_iva-57", "lang": "it", "kind": "status", "citation": "art. 57 D.Lgs. 10/2026", "expect": "verified", "code": "tu_iva"}
 {"id": "it-st-tu_iva-115", "lang": "it", "kind": "status", "citation": "art. 115 D.Lgs. 10/2026", "expect": "verified", "code": "tu_iva"}

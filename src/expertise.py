@@ -48,7 +48,10 @@ TEMPLATES = {
                              # extracontrattuale (KC 115/dh: tre anni), il danno non patrimoniale e patrimoniale (625, 640, 641) e
                              # la richiesta all'assicuratore del responsabile — nell'audit del 28 set la perizia li dava «non nel corpus»
                              ("kodi_civil", "622"), ("kodi_civil", "115"), ("kodi_civil", "625"),
-                             ("kodi_civil", "640"), ("kodi_civil", "641"), ("ligji_sigurimi_mjeteve", "9")],
+                             ("kodi_civil", "640"), ("kodi_civil", "641"), ("ligji_sigurimi_mjeteve", "9"),
+                             # v9.403: la responsabilità SOLIDALE di più danneggianti (tamponamento a catena): nell'audit del
+                             # 29 set «il numero dell'articolo sulla solidarietà non è fra quelli dati»
+                             ("kodi_civil", "626")],
         "elements": ["Veprimi/pakujdesia (shkelje e kodit rrugor)", "Faji",
                      "Lidhja shkakësore me dëmin", "Dëmi konkret (pasuror + jopasuror)"],
         "evidence": ["Raport i policisë rrugore / procesverbal", "Dëshmitarë okularë",
@@ -314,14 +317,35 @@ def _radice(w: str) -> str:
     return w[:4] if len(w) <= 6 else w[:5]
 
 
-def _heading_scan_rank(index, term, limit=3):
+def _stessa_radice(a: str, b: str) -> bool:
+    """v9.403 — due parole (già piegate) hanno la stessa radice? Le prime 5 lettere uguali («detyre» / «detyrës»: prima la
+    radice di 6 lettere era «dety» e quella di 7 «detyr», e non combaciavano), oppure le prime 4 se la parola più corta
+    dopo la 4ª lettera ha solo vocali e la più lunga ne è una flessione («dhuna» / «dhunë», «armë» / «armëve»).
+    «parave» / «paraqitja», «para» / «paraqitje» NO."""
+    if len(a) >= 5 and len(b) >= 5 and a[:5] == b[:5]:
+        return True
+    if a[:4] != b[:4] or len(a) < 4 or len(b) < 4:
+        return False
+    corta, lunga = (a, b) if len(a) <= len(b) else (b, a)
+    # e la più lunga è una FLESSIONE della corta (al massimo 3 lettere in più): «para» ≠ «paraqitje»
+    return len(corta) <= 6 and all(ch in "aeiouy" for ch in corta[4:]) and len(lunga) - len(corta) <= 3
+
+
+def _heading_scan_rank(index, term, limit=3, preferiti=None):
     """v9.397 — ricerca per titolo ORDINATA per quante parole del termine compaiono nel titolo (non solo la prima,
     e non in ordine di codice: «Prodhimi…» prendeva i primi 5 titoli del codice e il KP 283 restava fuori; la rubrica
-    dell'art. 73 d.P.R. 309/1990 comincia con «Legge 26 giugno 1990…»). Salta gli abrogati."""
+    dell'art. 73 d.P.R. 309/1990 comincia con «Legge 26 giugno 1990…»). Salta gli abrogati.
+    v9.403 — (1) la radice si confronta come PREFISSO nei due sensi: «shpërdorim detyre» non trovava «Shpërdorimi i
+    detyrës» (radice di 6 lettere «dety» contro quella di 7 «detyr»: misurato, il KP 248 mai nel blocco del procuratore);
+    (2) `preferiti`: i codici del mestiere (per il procuratore il codice penale) vincono a parità di parole — «ndërtim pa
+    leje» dava i titoli della legge urbanistica e il KP 199/a «Ndërtimi i paligjshëm» restava fuori, «pastrim parash» gli
+    articoli della legge antiriciclaggio al posto del KP 287."""
     words = _fold(term).split()
     ks = {_radice(w) for w in words if len(w) >= 5}
     if not ks or not words:
         return []
+    tws = list(dict.fromkeys(w for w in words if len(w) >= 5))
+    pref = set(preferiti or ())
     scored = []
     for a in getattr(index, "articles", []):
         if getattr(a, "repealed", False):
@@ -329,10 +353,11 @@ def _heading_scan_rank(index, term, limit=3):
         hw = _fold(getattr(a, "heading", "") or "").split()
         if not hw:
             continue
-        ov = len(ks & {_radice(w) for w in hw if len(w) >= 4})
+        hr = [w for w in hw if len(w) >= 4]
+        ov = sum(1 for tw in tws if any(_stessa_radice(tw, w) for w in hr))
         first = len(words[0]) >= 5 and hw[0].startswith(_radice(words[0]))
         if first or ov >= max(1, min(2, len(ks))):
-            scored.append((ov + (0.5 if first else 0.0), a))
+            scored.append((ov + (0.5 if first else 0.0) + (1.1 if a.code in pref else 0.0), a))
     scored.sort(key=lambda x: -x[0])
     return [(a.code, a.number, _full(a)) for _s, a in scored[:limit]]
 
@@ -411,7 +436,55 @@ def _rinvii_interni(index, arts, lang, max_add=4, gia=None):
     return out
 
 
-def retrieve_grounded(backend, index, facts, seed_pairs=None, max_arts=16):
+_ORD_CACHE: dict = {}
+
+
+def _forme_qualificate(index, arts, facts, codici=("kodi_penal",), max_add=2):
+    """v9.403 — la FORMA AGGRAVATA vicina del reato trovato, se i fatti ne nominano l'elemento: «Dy persona me armë hynë në
+    një dyqan…» portava il KP 139 «Vjedhja me dhunë» (i termini del modello dicevano «vjedhje me dhunë») e mai il KP 140
+    «Vjedhja me armë» (misurato: 0 su 3 campioni). Solo nel codice penale, solo i due articoli prima e dopo nello stesso
+    codice, con la stessa prima parola nel titolo («Vjedhja…») e una parola del titolo NUOVA che compare nei fatti («armë»)."""
+    key = id(index)
+    ordine = _ORD_CACHE.get(key)
+    if ordine is None:
+        ordine = {}
+        for a in getattr(index, "articles", []):
+            if a.code in codici:
+                ordine.setdefault(a.code, []).append(a)
+        _ORD_CACHE[key] = ordine
+    fw = [w for w in _fold(facts or "").split() if len(w) >= 4]
+    presenti = {(c, str(n)) for c, n, _t in arts}
+    out = []
+    for c, n, _t in arts:
+        lst = ordine.get(c)
+        if not lst:
+            continue
+        pos = next((i for i, a in enumerate(lst) if str(a.number) == str(n)), None)
+        if pos is None:
+            continue
+        h0 = _fold(getattr(lst[pos], "heading", "") or "").split()
+        if not h0:
+            continue
+        for j in (pos + 1, pos - 1, pos + 2, pos - 2):
+            if not 0 <= j < len(lst):
+                continue
+            b = lst[j]
+            k = (b.code, str(b.number))
+            if k in presenti or getattr(b, "repealed", False):
+                continue
+            hb = _fold(getattr(b, "heading", "") or "").split()
+            if not hb or len(hb[0]) < 5 or not _stessa_radice(hb[0], h0[0]):
+                continue
+            nuove = [w for w in hb[1:] if len(w) >= 4 and not any(_stessa_radice(w, x) for x in h0)]
+            if any(_stessa_radice(w, f) for w in nuove for f in fw):
+                out.append((b.code, b.number, _full(b)))
+                presenti.add(k)
+                if len(out) >= max_add:
+                    return out
+    return out
+
+
+def retrieve_grounded(backend, index, facts, seed_pairs=None, max_arts=16, preferiti=None):
     """Robust grounded retrieval: curated seeds + heading-scan on model-extracted
     offense terms (reliable anchor) + BM25 context fill. Never invents."""
     arts, seen = [], set()
@@ -431,7 +504,12 @@ def retrieve_grounded(backend, index, facts, seed_pairs=None, max_arts=16):
         if lang == "it":
             from . import stupefacenti as _stp
             if _stp.trova(facts or ""):
-                for code, num in (("stupefacenti", "73"),):
+                # v9.404: con un'organizzazione anche l'associazione finalizzata al traffico (art. 74 d.P.R. 309/1990: nell'audit
+                # IT «richiamato dall'art. 51 c.p.p. ma non fra gli articoli forniti»)
+                _sem_st = [("stupefacenti", "73")]
+                if re.search(r"associa|organizzat|sodalizi|\bgrupp|\bclan\b|\brete\b", facts or "", re.I):
+                    _sem_st.append(("stupefacenti", "74"))
+                for code, num in _sem_st:
                     t = _article_text(index, code, num)
                     if t:
                         add(code, num, t)
@@ -458,7 +536,7 @@ def retrieve_grounded(backend, index, facts, seed_pairs=None, max_arts=16):
     except Exception:  # noqa: BLE001
         pass
     for term in terms:
-        for c, n, h in _heading_scan_rank(index, term):
+        for c, n, h in _heading_scan_rank(index, term, preferiti=preferiti):
             add(c, n, h)
         for c, n, h in _teste_di_sezione(index, term):       # v9.399: la figura generale in testa alla sezione
             add(c, n, h)
@@ -473,6 +551,11 @@ def retrieve_grounded(backend, index, facts, seed_pairs=None, max_arts=16):
         except Exception:  # noqa: BLE001
             pass
     arts = arts[:max_arts]
+    if preferiti:
+        try:
+            arts = arts + _forme_qualificate(index, arts, facts, codici=tuple(preferiti))   # v9.403: la forma aggravata vicina
+        except Exception:  # noqa: BLE001
+            pass
     try:
         arts = arts + _rinvii_interni(index, arts, lang)          # v9.399: i rinvii espliciti allo stesso atto
     except Exception:  # noqa: BLE001
@@ -561,6 +644,22 @@ def etichetta_al(c) -> str:
     return c.replace("_", " ")
 
 
+def _nota_tu(code: str, testo: str) -> str:
+    """v9.404 — la riga di decorrenza per un articolo italiano nel blocco degli strumenti PRO (vuota se non serve)."""
+    try:
+        from . import corrispondenze_tu as _ctu
+        nd = _ctu.nota_decorrenza(code)
+        if nd:
+            return nd + " — "
+        diff = _ctu.abrogazione_differita(testo or "")
+        if diff:
+            return (f"⚠ ABROGAZIONE NON ANCORA EFFICACE: articolo IN VIGORE fino al {_ctu.fino_al(diff[1])} (la nota sotto è la "
+                    f"versione futura di Normattiva) — ")
+    except Exception:  # noqa: BLE001
+        pass
+    return ""
+
+
 def blocco_articoli(arts, lang: str = "sq", vuoto: str = "", max_art: int | None = None, max_tot: int | None = None) -> str:
     """v9.399 — il blocco degli articoli per i prompt degli strumenti PRO (notaio, lettere, perizie): il testo arriva fino a
     3.500 caratteri (prima 900: al notaio il KC 361 arrivava senza la frase sul coniuge «Në çdo rast bashkëshorti merr 1/2…» e
@@ -576,6 +675,8 @@ def blocco_articoli(arts, lang: str = "sq", vuoto: str = "", max_art: int | None
             testo += ((" […testo tagliato qui: altri %d caratteri — non completarlo a memoria]" if lang == "it"
                        else " […teksti u shkurtua këtu: edhe %d karaktere — mos e plotëso nga kujtesa]") % (len(t) - cap))
         tot += len(testo)
+        if lang == "it":
+            testo = _nota_tu(c, t) + testo          # v9.404: testo unico non ancora applicabile / abrogazione non ancora efficace
         out.append(("• [%s art. %s] %s" % (_lbl_it(c), n, testo)) if lang == "it"
                    else ("• [%s neni %s] %s" % (etichetta_al(c), n, testo)))
     if out:

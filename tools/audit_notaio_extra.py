@@ -49,6 +49,10 @@ AL_LANG = re.compile(r"[ëç]|\b(nuk|është|janë|duhet|sipas|nenit|neni|rastin
                      r"kërkesë|vendim|shqip|mbështetur|pjesërisht|kontestuar|mungon|klienti|noteri|"
                      r"avokati|letër|pagesë|prokurë|deklaratë)\b", re.I)
 AL_LAW = re.compile(r"\bKodi\b|\bKodit\b|\bKPC\b|\bKPP\b|\bKC\b|\bKF\b|shqiptar|Shqipëri|110/2018|111/2018|ASHK|QKB", re.I)
+# v9.402: le massime LATINE («non bis in idem», «a non domino»…) non sono italiano (falsi allarmi nelle sessioni AL)
+_LATINO = re.compile(r"\b(?:ne|non)\s+bis\s+in\s+idem\b|\ba\s+non\s+domino\b|\bin\s+dubio\s+pro\s+reo\b|\bpacta\s+sunt\s+servanda\b|"
+                     r"\bnon\s+liquet\b|\bnullum\s+crimen\b|\bnulla\s+poena\b|\b(?:non\s+)?reformatio\s+in\s+peius\b|\bex\s+(?:tunc|nunc)\b|"
+                     r"\berga\s+omnes\b|\btempus\s+regit\s+actum\b|\bcondicio\s+sine\s+qua\s+non\b|\bsine\s+qua\s+non\b", re.I)
 IT_LANG = re.compile(r"\b(il|della|delle|degli|dello|nella|nel|che|non|sono|essere|articolo|comma|"
                      r"sentenza|tribunale|avvocato|pertanto|quindi|anche|termine|ricorso|cliente|"
                      r"diritto|udienza|lettera|notaio|procura)\b", re.I)
@@ -137,7 +141,7 @@ for nome, fare, testo in TESTS:
         txt, err = "", str(exc)[:160]
     dt = time.time() - t0
     open(f"{OUT}/{SESS}_{nome}.txt", "w", encoding="utf-8").write(txt)
-    spie = (AL_LANG if IT else IT_LANG).findall(txt)
+    spie = (AL_LANG if IT else IT_LANG).findall(txt if IT else _LATINO.sub(" ", txt))
     legge = (AL_LAW if IT else IT_LAW).findall(txt)
     ok = bool(txt.strip()) and not err and not spie and not legge
     esiti.append(ok)

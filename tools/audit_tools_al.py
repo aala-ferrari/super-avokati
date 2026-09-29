@@ -37,6 +37,11 @@ print(f"rasti {CID[:8]} juridiksioni={case.get('jurisdiction')}\n", flush=True)
 # parole italiane che in un testo albanese non hanno ragione di esserci (mai termini tecnici condivisi come «euro»)
 IT_LANG = re.compile(r"\b(il|della|delle|degli|dello|nella|nel|che|non|sono|essere|articolo|comma|sentenza|tribunale|"
                      r"avvocato|pertanto|quindi|anche|termine|ricorso|cliente|diritto)\b", re.I)
+# v9.402: le massime LATINE («non bis in idem», «a non domino», «in dubio pro reo»…) non sono italiano — contate come tali
+# davano «ITALIANO» su risposte albanesi corrette (audit AL del 29 set, analisi del procuratore)
+_LATINO = re.compile(r"\b(?:ne|non)\s+bis\s+in\s+idem\b|\ba\s+non\s+domino\b|\bin\s+dubio\s+pro\s+reo\b|\bpacta\s+sunt\s+servanda\b|"
+                     r"\bnon\s+liquet\b|\bnullum\s+crimen\b|\bnulla\s+poena\b|\b(?:non\s+)?reformatio\s+in\s+peius\b|\bex\s+(?:tunc|nunc)\b|"
+                     r"\berga\s+omnes\b|\btempus\s+regit\s+actum\b|\bcondicio\s+sine\s+qua\s+non\b|\bsine\s+qua\s+non\b", re.I)
 IT_LAW = re.compile(r"\bc\.c\.|\bc\.p\.c\.|\bc\.p\.p\.|\bC\.d\.S\.|codice civile|codice penale|d\.lgs|\bd\.P\.R\.", re.I)
 AL_LAW = re.compile(r"\bneni\b|\bnenit\b|\bKodi\b|\bKodit\b|\bligji\b|\bligjit\b", re.I)
 
@@ -174,13 +179,14 @@ for name, path, payload, keys in TESTS:
             continue
         with open(os.path.join(OUT_DIR, re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_") + ".txt"), "w", encoding="utf-8") as fh:
             fh.write(blob)
-        it_l, it_w, al_w = len(IT_LANG.findall(blob)), len(IT_LAW.findall(blob)), len(AL_LAW.findall(blob))
+        _blob_l = _LATINO.sub(" ", blob)
+        it_l, it_w, al_w = len(IT_LANG.findall(_blob_l)), len(IT_LAW.findall(blob)), len(AL_LAW.findall(blob))
         verdict = "OK" if (it_l <= 2 and it_w == 0) else ("DIRITTO IT!" if it_w else "ITALIANO")
         rows.append((name, verdict))
         _tok = ""
         if it_l:
-            _tok = "  «" + "» · «".join(blob[max(0, m.start() - 14):m.end() + 14].replace("\n", " ")
-                                        for m in list(IT_LANG.finditer(blob))[:4]) + "»"
+            _tok = "  «" + "» · «".join(_blob_l[max(0, m.start() - 14):m.end() + 14].replace("\n", " ")
+                                        for m in list(IT_LANG.finditer(_blob_l))[:4]) + "»"
         print(f"  {name:38s} {verdict:12s} italiano={it_l:>3} dirittoIT={it_w:>2} dirittoAL={al_w:>3}  ({time.time()-t0:.0f}s){_tok}", flush=True)
     except Exception as e:  # noqa: BLE001
         rows.append((name, "GABIM"))

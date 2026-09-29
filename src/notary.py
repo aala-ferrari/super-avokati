@@ -164,11 +164,30 @@ def draft_deed(backend, index, *, deed_type: str, details: str, clauses_text: st
             "articles": [{"code": c, "number": n} for c, n, _t in arts]}
 
 
+# v9.403 — il CONTROLLO dell'atto riceve le norme della FORMA dell'atto notarile (ligji 110/2018 «Për noterinë»: 101
+# identificazione delle parti, 105 contenuto obbligatorio dell'atto, 137 atti nulli) e, se il prezzo passa in contanti, il
+# divieto di pagamento in contanti oltre 100.000 lekë (ligji 9920/2008 neni 59) e l'adeguata verifica antiriciclaggio (ligji
+# 9917/2008 neni 4 e 12); in una vendita sempre il neni 4. Nell'audit del 29 set la verifica dichiarava la legge sul notariato e
+# quella antiriciclaggio «fuori dal corpus» (ci sono dal v9.305-308). Misurato: tools/misura_semi_pro, caso «check».
+_SEED_FORMA_AKTI = [("ligji_noteri", "101"), ("ligji_noteri", "105"), ("ligji_noteri", "137")]
+
+
+def _seed_controllo(text: str):
+    seed = list(_seed_per_akt((text or "")[:600]) or [])
+    f = _expertise._fold(text or "")
+    add = list(_SEED_FORMA_AKTI)
+    if re.search(r"para\s+(ne\s+)?dor|\bcash\b|\bkesh\b|kontant", f):
+        add += [("ligji_procedurat_tatimore", "59"), ("ligji_pastrimi_parave", "4"), ("ligji_pastrimi_parave", "12")]
+    elif re.search(r"shitj|\bshet\b|shes", f):
+        add += [("ligji_pastrimi_parave", "4")]
+    return seed + [x for x in add if x not in seed]
+
+
 def check_deed(backend, index, *, text: str, max_tokens: int = 2400) -> dict:
     # v9.399: i semi del tipo di atto riconosciuto dalla testa del testo (nell'audit del 28 set il controllo di una compravendita
     # non aveva le norme sulla vendita immobiliare né sul consenso del coniuge e lo dichiarava «non dato nel corpus»)
     art_block, arts = _art_block(backend, index, text,
-                                 None if _expertise._lang_indice(index) == "it" else _seed_per_akt((text or "")[:600]))
+                                 None if _expertise._lang_indice(index) == "it" else _seed_controllo(text))
     system = (
         "Ti je NOTER-redaktor i rreptë. Kontrollo AKTIN NOTARIAL të dhënë për VLEFSHMËRI "
         "FORMALE dhe KOHERENCË, sipas së drejtës shqiptare. Bazohu te teksti dhe te nenet e "
@@ -186,10 +205,17 @@ def check_deed(backend, index, *, text: str, max_tokens: int = 2400) -> dict:
             "articles": [{"code": c, "number": n} for c, n, _t in arts]}
 
 
+# v9.403 — col CONIUGE superstite la successione comincia dalla comunione: metà dei beni comuni è sua come comproprietario
+# (KF 96: la comunione finisce con la morte; 74 cosa ne fa parte, 76 presunzione, 103 divisione in parti uguali) e solo
+# l'altra metà entra nell'eredità. Nell'audit del 29 set il notaio lo diceva giusto ma «fuori dal corpus».
+_SEED_KOMUNITET = [("kodi_familjes", "74"), ("kodi_familjes", "76"), ("kodi_familjes", "96"), ("kodi_familjes", "103")]
+
+
 def succession(backend, index, *, situation: str, jurisdiction: str = "AL", max_tokens: int = 2400) -> dict:
-    art_block, arts = _art_block(backend, index, situation + " trashëgimi trashëgimtar pjesë takuese",
-                                 [("kodi_civil", "316"), ("kodi_civil", "317"),
-                                  ("kodi_civil", "361"), ("kodi_civil", "363")])
+    _semi = [("kodi_civil", "316"), ("kodi_civil", "317"), ("kodi_civil", "361"), ("kodi_civil", "363")]
+    if re.search(r"bashkeshort|\bgrua|\bburr|e shoqj|i shoqi|vejush", _expertise._fold(situation or "")):
+        _semi += _SEED_KOMUNITET
+    art_block, arts = _art_block(backend, index, situation + " trashëgimi trashëgimtar pjesë takuese", _semi)
     system = (
         "Ti je NOTER ekspert i së drejtës së trashëgimisë shqiptare. Nga gjendja familjare e "
         "dhënë, përcakto TRASHËGIMTARËT dhe PJESËT takuese, sipas trashëgimisë me ligj (ose me "
@@ -1239,7 +1265,10 @@ _AML_SEED_AL = [("ligji_pastrimi_parave", "4"), ("ligji_pastrimi_parave", "4/1")
                 ("ligji_pastrimi_parave", "8"), ("ligji_pastrimi_parave", "2"),
                 # v9.399: + 7 (vigjilenca e zgjeruar), 12 (raportimi te AIF), 15 (mosdeklarimi = tipping-off) — nell'audit del
                 # 28 set il modello li diceva «non nel corpus» e rimandava a verificare l'obbligo e il divieto più importanti
-                ("ligji_pastrimi_parave", "7"), ("ligji_pastrimi_parave", "12"), ("ligji_pastrimi_parave", "15")]
+                ("ligji_pastrimi_parave", "7"), ("ligji_pastrimi_parave", "12"), ("ligji_pastrimi_parave", "15"),
+                # v9.403: + 11 (le misure preventive interne del soggetto obbligato) e 16 (conservazione dei dati): nell'audit
+                # del 29 set «il testo di quell'articolo non si trova nel corpus»
+                ("ligji_pastrimi_parave", "11"), ("ligji_pastrimi_parave", "16")]
 _AML_SEED_IT = [("antiriciclaggio", "17"), ("antiriciclaggio", "18"),
                 ("antiriciclaggio", "35"), ("antiriciclaggio", "3"),
                 # v9.399: + 24 (adeguata verifica rafforzata), 39 (divieto di comunicazione), 49 (limiti all'uso del contante)
