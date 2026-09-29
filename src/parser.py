@@ -179,8 +179,47 @@ def numero_visibile_it(number: str) -> str:
     nelle citazioni non deve comparire: «art. 13-ter (allegato) Codice del processo amministrativo»."""
     m = _IT_GRUPPO_RE.match(str(number or ""))
     if not m:
-        return str(number)
+        u = unita_nominata_it(number)
+        return u or str(number)
     return f"{m.group(1)} ({'allegato' if m.group(2).startswith('all') else 'atto di approvazione'})"
+
+
+# v9.406 — le parti di tariffe e tabelle entrate come unità a sé («tabella-a-parte-iii», «tariffa-i-1», «prospetto»): si leggono
+# come le legge un giurista («Tabella A, parte III», «Tariffa, parte I, art. 1») e la citazione non comincia con «art.»
+_LAT_IT = r"(?:bis|ter|quater|quinquies|sexies|septies|octies|novies|decies)"
+
+
+def unita_nominata_it(number) -> str:
+    s = str(number or "").lower()
+    m = re.match(r"^(tabella|tabelle|tariffa|prospetto|allegato)(?:-(.*))?$", s)
+    if not m:
+        return ""
+    head, rest = m.group(1), m.group(2) or ""
+    if head == "allegato":
+        mm = re.match(r"^([0-9ivxlc]+)((?:-" + _LAT_IT + r")?)$", rest)
+        if mm:
+            return "Allegato " + (mm.group(1) if mm.group(1).isdigit() else mm.group(1).upper()) + mm.group(2)
+        return ("Allegato " + rest.replace("-", " ")).strip()
+    if head == "prospetto":
+        return ("Prospetto " + rest.replace("-", " ")).strip()
+    out = {"tabella": "Tabella", "tabelle": "Tabelle", "tariffa": "Tariffa"}[head]
+    lett = re.match(r"^([a-z])(?:-|$)(.*)$", rest)
+    if head == "tabella" and lett:
+        out += " " + lett.group(1).upper()
+        rest = lett.group(2)
+    pm = re.match(r"^(?:parte-)?([ivx]+)((?:-" + _LAT_IT + r")?)(?:-|$)(.*)$", rest)
+    if pm and (head == "tariffa" or rest.startswith("parte-")):
+        out += ", parte " + pm.group(1).upper() + pm.group(2)
+        rest = pm.group(3)
+    am = re.match(r"^(\d+(?:-" + _LAT_IT + r")?)$", rest)
+    nn = re.match(r"^nn-(\d+(?:-[a-z]+)*)-(\d+(?:-[a-z]+)*)$", rest)   # un blocco di voci: «nn. 41–80», «nn. 127-duodecies–127-undevicies»
+    if am:
+        out += ", art. " + am.group(1)
+    elif nn:
+        out += f", nn. {nn.group(1)}–{nn.group(2)}"
+    elif rest:
+        out += " " + rest.replace("-", " ")
+    return out
 
 
 SEARCH_CHAPTERS = os.environ.get("SEARCH_CHAPTERS", "1") == "1"
@@ -250,6 +289,9 @@ class Article:
         I corpora italiani usano slug noti (codice_*, tu_*, disp_att_*, …):
         per quelli si cita "art. N Titolo", non "Neni N i Titolo"."""
         if _is_italian_code(self.code):
+            _u = unita_nominata_it(self.number)
+            if _u:
+                return f"{_u} {self.title_sq}"
             return f"art. {numero_visibile_it(self.number)} {self.title_sq}"
         return f"Neni {self.number} i {self.title_sq}"
 

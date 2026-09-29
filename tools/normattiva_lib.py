@@ -196,6 +196,27 @@ def parse_notes(region):
     return out
 
 
+_TABLE_AKN = re.compile(r'<span[^>]*class="table-akn"[^>]*>(.*?)</table>\s*</span>', re.S | re.I)
+_TR_RE = re.compile(r"<tr[^>]*>(.*?)</tr>", re.S | re.I)
+_TD_RE = re.compile(r"<t[dh][^>]*>(.*?)</t[dh]>", re.S | re.I)
+
+
+def tabelle_in_testo(page_html):
+    """v9.406 — le TABELLE HTML della pagina (`<span class="table-akn"><table …>`) diventano righe di testo AL LORO POSTO
+    («1. Atti traslativi a titolo oneroso della proprietà di beni immobili in genere … — 9 per cento»), dentro uno span
+    `attachment-just-text` che `parse_article_page` legge in ordine con il resto. Senza, il parser le scartava: nella Tariffa
+    dell'imposta di registro restavano le note e sparivano le aliquote. Da usare solo dove serve (tariffe e tabelle): cambiare il
+    parser per tutti cambierebbe migliaia di articoli senza una misura."""
+    def _riga(tr):
+        cells = [re.sub(r"\s+", " ", _plain(td)).strip() for td in _TD_RE.findall(tr)]
+        return " — ".join(c for c in cells if c)
+
+    def _sub(m):
+        rows = [r for r in (_riga(tr) for tr in _TR_RE.findall(m.group(1))) if r]
+        return '<span class="attachment-just-text">' + "<br>".join(_html.escape(r) for r in rows) + "<br></span>"
+    return _TABLE_AKN.sub(_sub, page_html or "")
+
+
 def parse_article_page(page_html, fallback_number=""):
     """Parse one article page -> dict(number, heading, body, repealed, in_force_from, notes).
 

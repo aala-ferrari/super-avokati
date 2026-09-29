@@ -6407,6 +6407,49 @@ def main():
     except Exception as _e186:  # noqa: BLE001
         check("vigenti-it[186]: kontrollet u ekzekutuan", False, str(_e186))
 
+    # [187] v9.406 — TARIFFE e TABELLE degli atti fiscali nel corpus: la Tariffa del d.P.R. 131/1986 (le aliquote stanno in tabelle
+    # HTML che il parser scartava: `normattiva_lib.tabelle_in_testo`), le Tabelle IVA divise per parti e in blocchi di voci, la
+    # Tariffa del testo unico del registro; nomi leggibili («Tabella A, parte III, nn. 37–80», «Tariffa, parte I, art. 1»).
+    try:
+        import importlib.util as _ilu187
+        from pathlib import Path as _P187
+        from src import parser as _ps187, corrispondenze_tu as _ctu187
+        _it187 = ArticleIndex.load(_P187("/app/data/index/bm25_it.pkl"))
+        _by187 = {(a.code, str(a.number)): a for a in _it187.articles}
+        _t1 = _by187.get(("imposta_registro", "1-all1"))
+        _tar = bool(_t1 is not None and not _t1.repealed and "9 per cento" in _t1.body and "2 per cento" in _t1.body
+                    and "II-bis" in _t1.body and "Tariffa, parte I" in (_t1.heading or ""))
+        _spur = ("imposta_registro", "2-bis") not in _by187 and ("imposta_registro", "2-bis-all2") in _by187
+        _iva = [a for (c, n), a in _by187.items() if c == "iva" and n.startswith("tabella-a-parte-iii")]
+        _iva_ok = (len(_iva) >= 3 and any("127-quaterdicies" in a.body for a in _iva)       # (così nel testo ufficiale, «-dicies»)
+                   and all(len(a.body) < 9000 for a in _iva))
+        _tu = _by187.get(("tu_registro", "tariffa-i-1"))
+        _tu_ok = bool(_tu is not None and "2 per cento" in _tu.body)
+        _sp187 = _ilu187.spec_from_file_location("nl187", "/app/tools/normattiva_lib.py")
+        _nl187 = _ilu187.module_from_spec(_sp187); _sp187.loader.exec_module(_nl187)
+        _html187 = ('<div class="bodyTesto"><span class="attachment-just-text">TARIFFA<br>Art. 1.<br></span><span class="table-akn">'
+                    '<table class="table-formatted-akn"><tr><td>1. Atti traslativi a titolo oneroso</td><td> 9 per cento </td></tr>'
+                    '</table> </span><span class="attachment-just-text">Note: II-bis) prima casa<br></span></div>'
+                    '<div class="d-flex justify-content-between">')
+        _pa187 = _nl187.parse_article_page(_nl187.tabelle_in_testo(_html187), fallback_number="1") or {}
+        _tab_ok = ("Atti traslativi a titolo oneroso — 9 per cento" in (_pa187.get("body") or "")
+                   and (_pa187.get("body") or "").index("9 per cento") < (_pa187.get("body") or "").index("II-bis"))
+        _nomi = (_ps187.numero_visibile_it("tabella-a-parte-iii-nn-37-80") == "Tabella A, parte III, nn. 37–80"
+                 and _ps187.numero_visibile_it("tariffa-i-1") == "Tariffa, parte I, art. 1"
+                 and _ps187.numero_visibile_it("allegato-ii-octies") == "Allegato II-octies"
+                 and _ps187.numero_visibile_it("13-ter-all3") == "13-ter (allegato)"
+                 and (_t1 is None or not _iva or _iva[0].citation.startswith("Tabella A, parte III")))
+        _hits = [(a.code, str(a.number)) for a, _ in _it187.search("aliquota del 2 per cento prima casa imposta di registro trasferimento", top_k=12)]
+        _ric = ("imposta_registro", "1-all1") in _hits
+        _vg187 = bool(_ctu187.vigenza("imposta_registro", "1-all1"))
+        _ok187 = _tar and _spur and _iva_ok and _tu_ok and _tab_ok and _nomi and _ric and _vg187
+        check("tariffe-it[187]: la Tariffa del registro con le aliquote, le Tabelle IVA in parti e blocchi, la Tariffa del testo unico, "
+              "nomi leggibili, recupero e vigenza", _ok187,
+              "tariffa=%s spurio=%s iva=%s(%d) tu=%s tabelle=%s nomi=%s ricerca=%s vigenza=%s" % (
+                  _tar, _spur, _iva_ok, len(_iva), _tu_ok, _tab_ok, _nomi, _ric, _vg187))
+    except Exception as _e187:  # noqa: BLE001
+        check("tariffe-it[187]: kontrollet u ekzekutuan", False, str(_e187))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

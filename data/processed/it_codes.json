@@ -303,13 +303,13 @@
   "code": "iva",
   "title": "Imposta sul valore aggiunto (DPR 633/1972)",
   "area": "Tributario",
-  "count": 172
+  "count": 183
  },
  {
   "code": "imposta_registro",
   "title": "Testo Unico dell'imposta di registro (DPR 131/1986)",
   "area": "Tributario",
-  "count": 88
+  "count": 127
  },
  {
   "code": "imposta_successioni",
@@ -501,13 +501,13 @@
   "code": "tu_registro",
   "title": "Testo Unico imposta di registro e altri tributi indiretti — successioni, donazioni, bollo (D.Lgs 123/2025)",
   "area": "Tributario",
-  "count": 241
+  "count": 282
  },
  {
   "code": "tu_iva",
   "title": "Testo Unico IVA (D.Lgs 10/2026)",
   "area": "Tributario",
-  "count": 172
+  "count": 184
  },
  {
   "code": "tu_accertamento",
