@@ -8149,6 +8149,7 @@ details.analiza[open]>summary::before{content:"\25BE  "}
 .scad-det p{margin:4px 0 0;font-size:12px;color:#3a3226;line-height:1.45;overflow-wrap:anywhere}
 .scad-actions{display:flex;align-items:center;gap:10px;margin-top:9px;flex-wrap:wrap}
 .scad-msg{font-size:12px;color:#9a5b00}
+.scad-studio{display:flex;align-items:center;gap:6px;margin-top:7px;font-size:12.5px;color:#22314f}
 .scad-fatte{margin-top:8px}
 .scad-all{max-height:62vh;overflow-y:auto}
 .scad-caso{border:1px solid #e6dcc6;border-radius:10px;padding:8px 10px;margin:8px 0;background:#fdfaf2}
@@ -8158,3 +8159,4 @@ details.analiza[open]>summary::before{content:"\25BE  "}
 .scad-apri{margin-left:auto;border:1px solid #c9a24d;border-radius:8px;background:#fff;color:#8a6a1d;font-weight:700;font-size:12px;padding:3px 9px;cursor:pointer}
 .tg-manuale{margin-top:8px}
 .tg-manuale summary{cursor:pointer;font-size:12px;color:#8a7a4e}
+.reminders-field .rem-studio{flex-basis:100%;margin-top:4px;font-weight:600}

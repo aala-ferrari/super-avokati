@@ -1124,6 +1124,8 @@ def init_db(db_path: Path = APP_DB_PATH) -> None:
         # custom workflow definitions, attached to cases.
         conn.executescript(SCHEMA_WORKFLOWS)
         conn.executescript(SCHEMA_SCADENZE)
+        # v9.412 — «avvisa anche i colleghi dello studio» per evento (0 = solo chi l'ha messo in calendario)
+        _add_column_if_missing(conn, "events", "notify_team", "INTEGER NOT NULL DEFAULT 0")
         # V9.2 — last_active timestamp per user, updated on every authenticated
         # request. Powers the "online users" display in the admin panel.
         _add_column_if_missing(conn, "users", "last_active", "TEXT")
@@ -2390,6 +2392,7 @@ class Event:
     created_at: str
     updated_at: str
     jurisdiction: str | None = None
+    notify_team: bool = False
 
 
 @dataclass
@@ -2414,6 +2417,7 @@ def _event_from_row(r: sqlite3.Row) -> Event:
         done=bool(r["done"]),
         created_at=r["created_at"], updated_at=r["updated_at"],
         jurisdiction=(r["jurisdiction"] if "jurisdiction" in r.keys() else None),
+        notify_team=bool(r["notify_team"]) if "notify_team" in r.keys() else False,
     )
 
 
@@ -2456,6 +2460,7 @@ def create_event(
     source_ref: str | None = None,
     reminders: list[int] | None = None,
     jurisdiction: str | None = None,
+    notify_team: bool = False,
 ) -> Event:
     """Create an event and its attached reminders in a single transaction.
 
@@ -2473,11 +2478,11 @@ def create_event(
         conn.execute(
             "INSERT INTO events (id, user_id, case_id, title, description, "
             "kind, starts_at, ends_at, all_day, location, color, source, "
-            "source_ref, created_at, updated_at, jurisdiction) VALUES "
-            "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "source_ref, created_at, updated_at, jurisdiction, notify_team) VALUES "
+            "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (event_id, user_id, case_id, title, description, kind,
              starts_at, ends_at, int(all_day), location, color,
-             source, source_ref, now, now, jurisdiction),
+             source, source_ref, now, now, jurisdiction, int(bool(notify_team and case_id))),
         )
         for off in (reminders or []):
             try:
@@ -2498,6 +2503,7 @@ def create_event(
         ends_at=ends_at, all_day=all_day, location=location, color=color,
         source=source, source_ref=source_ref, done=False,
         created_at=now, updated_at=now, jurisdiction=jurisdiction,
+        notify_team=bool(notify_team and case_id),
     )
 
 
@@ -2612,7 +2618,7 @@ def update_event(
     """Update whitelisted columns on an event. Recomputes fire_at for all
     pending reminders when starts_at changes."""
     allowed = {"title", "description", "kind", "starts_at", "ends_at",
-               "all_day", "location", "color", "done", "case_id"}
+               "all_day", "location", "color", "done", "case_id", "notify_team"}
     patch = {k: v for k, v in fields.items() if k in allowed}
     if not patch:
         return get_event(event_id, user_id)
@@ -2622,6 +2628,8 @@ def update_event(
         patch["all_day"] = int(bool(patch["all_day"]))
     if "done" in patch:
         patch["done"] = int(bool(patch["done"]))
+    if "notify_team" in patch:
+        patch["notify_team"] = int(bool(patch["notify_team"]))
     sets = ", ".join(f"{k} = ?" for k in patch)
     params = list(patch.values()) + [_utcnow(), event_id, user_id]
     with db() as conn:
@@ -2703,6 +2711,8 @@ def list_pending_reminders(now_iso: str) -> list[tuple[Reminder, Event]]:
             color=r["color"], source=r["source"], source_ref=r["source_ref"],
             done=bool(r["done"]),
             created_at=r["created_at"], updated_at=r["updated_at"],
+            jurisdiction=(r["jurisdiction"] if "jurisdiction" in r.keys() else None),
+            notify_team=bool(r["notify_team"]) if "notify_team" in r.keys() else False,
         )
         out.append((rem, ev))
     return out
@@ -7001,4 +7011,33 @@ def utente_da_chat_telegram(chat_id: str) -> int | None:
     with db() as conn:
         r = conn.execute("SELECT id FROM users WHERE telegram_chat_id = ?", (str(chat_id),)).fetchone()
     return int(r["id"]) if r else None
+
+
+# ── v9.412 — avvisi ai colleghi dello studio ───────────────────────────────
+
+def colleghi_del_fascicolo(case_id: str | None, escludi_user_id: int | None = None) -> list[int]:
+    """Chi, nello studio del fascicolo, riceve gli avvisi dei suoi eventi oltre a chi li ha messi in calendario: chi ha creato
+    il fascicolo e i membri ATTIVI assegnati a quel fascicolo — solo se POSSONO vederlo (`get_case_for_member`: un assistente
+    tolto dal fascicolo non riceve più niente). Mai tutto lo studio: gli avvisi portano titolo e dettagli del fascicolo."""
+    if not case_id:
+        return []
+    with db() as conn:
+        c = conn.execute("SELECT user_id, firm_id FROM cases WHERE id = ?", (case_id,)).fetchone()
+        if not c or not c["firm_id"]:
+            return []
+        firm_id = int(c["firm_id"])
+        uids = {int(c["user_id"])} if c["user_id"] is not None else set()
+        for r in conn.execute(
+                "SELECT fm.user_id FROM case_assignments ca JOIN firm_members fm ON fm.id = ca.member_id "
+                "WHERE ca.case_id = ? AND fm.firm_id = ? AND fm.status = 'active'", (case_id, firm_id)).fetchall():
+            uids.add(int(r["user_id"]))
+    uids.discard(escludi_user_id)
+    return sorted(u for u in uids if get_case_for_member(case_id, u, firm_id) is not None)
+
+
+def conta_colleghi_del_fascicolo(case_id: str | None, user_id: int) -> int:
+    try:
+        return len(colleghi_del_fascicolo(case_id, user_id))
+    except Exception:  # noqa: BLE001
+        return 0
 

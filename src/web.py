@@ -7770,6 +7770,7 @@ def _event_payload(ev, case_title: str | None = None,
         "source": ev.source,
         "source_ref": ev.source_ref,
         "done": ev.done,
+        "notify_team": bool(getattr(ev, "notify_team", False)),
         "reminders": [
             {"id": r.id, "offset_minutes": r.offset_minutes,
              "channel": r.channel, "fire_at": r.fire_at,
@@ -8057,6 +8058,7 @@ def api_create_event():
             location=(data.get("location") or None),
             color=(data.get("color") or None),
             reminders=_parse_reminders(data.get("reminders")),
+            notify_team=bool(data.get("notify_team")),
         )
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
@@ -8077,7 +8079,7 @@ def api_update_event(event_id: str):
     data = request.get_json(force=True, silent=True) or {}
     patch = {k: v for k, v in data.items() if k in {
         "title", "description", "kind", "starts_at", "ends_at",
-        "all_day", "location", "color", "done", "case_id",
+        "all_day", "location", "color", "done", "case_id", "notify_team",
     }}
     if "case_id" in patch and patch["case_id"]:
         if not _resolve_case(patch["case_id"]):
@@ -8884,6 +8886,7 @@ def api_scadenze_lista(case_id: str):
                      if p["stato"] in ("proposta", "confermata")],
         "analisi": {k: {"stato": v["stato"], "n": v["n"], "documento": nomi.get(k, "")} for k, v in analisi.items()},
         "da_analizzare": sum(1 for d in pronti if (analisi.get(d.id) or {}).get("stato") != "fatta"),
+        "colleghi": storage.conta_colleghi_del_fascicolo(case_id, request.user.id),  # type: ignore[attr-defined]
         "documenti_pronti": len(pronti),
         "in_corso": case_id in _SCAD_IN_CORSO,
     })
@@ -8940,12 +8943,30 @@ def api_scadenze_conferma(pid: str):
         ev = storage.create_event(user.id, titolo, p["kind"] if p["kind"] in storage.EVENT_KINDS else "afat", starts,
                                   case_id=p["case_id"], description=descr, all_day=all_day, location=p.get("luogo") or None,
                                   source="scadenziario", source_ref="scad:" + pid, reminders=avvisi,
-                                  jurisdiction=p.get("jurisdiction"))
+                                  jurisdiction=p.get("jurisdiction"),
+                                  # v9.412: anche i colleghi dello studio che seguono il fascicolo (predefinito: sì, se ce ne sono)
+                                  notify_team=bool(data.get("avvisa_studio", True)))
     except Exception as exc:  # noqa: BLE001
         log.warning("scadenziario: evento non creato (%s): %s", pid, exc)
         return jsonify({"error": _t_err("Ngjarja nuk u krijua", "Evento non creato")}), 400
     storage.aggiorna_scadenza_proposta(pid, stato="confermata", event_id=ev.id, data=giorno, titolo=titolo)
     return jsonify({"ok": True, "event_id": ev.id, "data": giorno})
+
+
+@app.get("/api/cases/<case_id>/colleghi")
+@login_required_api
+def api_case_colleghi(case_id: str):
+    """v9.412 — quanti colleghi dello studio riceverebbero gli avvisi di questo fascicolo (per l'opzione nel modulo)."""
+    if not _resolve_case(case_id):
+        return jsonify({"error": _t_err("Rasti nuk u gjet", "Fascicolo non trovato")}), 404
+    user = request.user  # type: ignore[attr-defined]
+    uids = storage.colleghi_del_fascicolo(case_id, user.id)
+    nomi = []
+    for u in uids[:12]:
+        x = storage.get_user_by_id(u)
+        if x:
+            nomi.append(x.username)
+    return jsonify({"n": len(uids), "nomi": nomi})
 
 
 @app.post("/api/scadenze/<pid>/scarta")

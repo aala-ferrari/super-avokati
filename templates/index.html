@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="/static/style.css?v=149" />
+<link rel="stylesheet" href="/static/style.css?v=150" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%230a0a0a'/%3E%3Cpath d='M32 14v36M14 22h36M8 22l-4 10h8zM56 22l-4 10h8zM26 50h12v4H26z' stroke='%23e41e26' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='32' cy='14' r='3' fill='%23c9a24d'/%3E%3C/svg%3E" />
 <link rel="manifest" href="/manifest.webmanifest" />
 <link rel="apple-touch-icon" href="/static/apple-touch-icon.png" />
@@ -757,12 +757,13 @@
         <div id="substitutes-list" class="substitutes-list"></div>
       </div>
       <fieldset class="field reminders-field">
-        <legend data-i18n="ev_reminders">Kujtesa me Telegram</legend>
+        <legend data-i18n="ev_reminders">Kujtesat (email dhe Telegram)</legend>
         <label><input type="checkbox" name="rem" value="10080" /> <span data-i18n="ev_r_1w">1 javë para</span></label>
         <label><input type="checkbox" name="rem" value="2880" /> <span data-i18n="ev_r_2d">2 ditë para</span></label>
         <label><input type="checkbox" name="rem" value="1440" checked /> <span data-i18n="ev_r_1d">1 ditë para</span></label>
         <label><input type="checkbox" name="rem" value="180" /> <span data-i18n="ev_r_3h">3 orë para</span></label>
         <label><input type="checkbox" name="rem" value="60" /> <span data-i18n="ev_r_1h">1 orë para</span></label>
+        <label class="rem-studio"><input type="checkbox" name="notify_team" value="1" /> <span data-i18n="ev_team">Njofto edhe kolegët e studios që ndjekin dosjen</span></label>
       </fieldset>
     </div>
     <footer class="event-modal-foot">
@@ -1716,7 +1717,7 @@
   </div>
 </template>
 
-<script src="/static/app.js?v=185"></script>
+<script src="/static/app.js?v=186"></script>
 <script src="/static/secretary.js?v=1"></script>
 <script src="/static/onboarding.js?v=2" defer></script>
   <script src="/static/sw-register.js?v=1" defer></script>

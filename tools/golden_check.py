@@ -6606,7 +6606,7 @@ def main():
         _calc = _sc191.calcola_regola({"durata": 20, "unita": "days", "processuale": True}, "2026-07-25", "IT", "it")["data"]
         _calc_al = _sc191.calcola_regola({"durata": 20, "unita": "days", "processuale": True}, "2026-07-25", "AL", "sq")["data"]
         _det = _det and _calc == "2026-09-14" and _calc_al == "2026-08-14"
-        _srcr = _in191.getsource(_rm191._deliver)
+        _srcr = _in191.getsource(_rm191._deliver) + _in191.getsource(_rm191._consegna)   # v9.412: i canali in _consegna
         _canali = ("esiti.append((\"telegram\"" in _srcr and "esiti.append((\"email\"" in _srcr
                    and "if pref == \"telegram\" and tg_chat" not in _srcr)
         _rotte = {str(r) for r in _w191.app.url_map.iter_rules()}
@@ -6628,6 +6628,25 @@ def main():
                   _det, _calc, _calc_al, _canali, _rt, _firma, _solo_conf, _ui, _tok))
     except Exception as _e191:  # noqa: BLE001
         check("scadenziario[191]: kontrollet u ekzekutuan", False, str(_e191))
+
+    # [192] v9.412 — «avvisa anche i colleghi dello studio»: gli avvisi di un evento del fascicolo vanno anche a chi ha creato il
+    # fascicolo e ai membri ATTIVI assegnati, ricalcolati al momento dell'avviso con le regole di visibilità (mai tutto lo studio:
+    # un avvocato non assegnato non deve ricevere titolo e dettagli di un fascicolo che non vede)
+    try:
+        import inspect as _in192
+        from src import storage as _st192, reminders as _rm192, web as _w192
+        _col = _in192.getsource(_st192.colleghi_del_fascicolo)
+        _dl = _in192.getsource(_rm192._deliver)
+        _ok192 = ("case_assignments" in _col and "fm.status = 'active'" in _col and "get_case_for_member" in _col
+                  and "notify_team" in _dl and "colleghi_del_fascicolo" in _dl
+                  and "notify_team" in _in192.signature(_st192.create_event).parameters
+                  and "notify_team" in _in192.getsource(_w192.api_create_event)
+                  and "avvisa_studio" in _in192.getsource(_w192.api_scadenze_conferma))
+        _js192 = open("/app/static/app.js", encoding="utf-8").read()
+        _ok192 = _ok192 and "avvisa_studio" in _js192 and "notify_team: !!fd.get(\"notify_team\")" in _js192
+        check("colleghi-studio[192]: avvisi anche ai colleghi assegnati al fascicolo, con le regole di visibilità", _ok192)
+    except Exception as _e192:  # noqa: BLE001
+        check("colleghi-studio[192]: kontrollet u ekzekutuan", False, str(_e192))
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

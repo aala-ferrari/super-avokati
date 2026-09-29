@@ -271,25 +271,48 @@ def _send_email(to_email: str, event, reminder) -> str | None:
 
 # ── channel selection ─────────────────────────────────────────────────────
 
-def _deliver(event, reminder) -> str | None:
-    wa_phone = storage.get_user_whatsapp(event.user_id) if _wa_configured() else None
-    tg_chat = storage.get_user_telegram_chat(event.user_id)
-    email = storage.get_user_reminder_email(event.user_id) if _email_configured() else None
-    pref = (getattr(reminder, "channel", "") or "").strip().lower()
-    if pref == "whatsapp" and wa_phone:
-        return _send_whatsapp(wa_phone, event, reminder)
-    # «telegram» è il canale scritto di default su OGNI promemoria (storage.create_event): non è una scelta, si va su tutti
-    if pref == "email" and email:
-        return _send_email(email, event, reminder)
-    # v9.410 — su TUTTI i canali collegati, non sul primo: un avviso doppio costa poco, una scadenza persa costa la causa
-    # (e un canale può cadere in silenzio: un bot bloccato, una casella piena). Riuscito = almeno uno è arrivato.
+def _consegna(uid: int, event, reminder, *, da_chi: str = "") -> list[tuple[str, str | None]]:
+    """I canali collegati di UN utente: [(canale, errore o None)]. `da_chi` = il collega che ha messo l'evento in calendario
+    (per chi riceve l'avviso come collega dello studio)."""
+    wa_phone = storage.get_user_whatsapp(uid) if _wa_configured() else None
+    tg_chat = storage.get_user_telegram_chat(uid)
+    email = storage.get_user_reminder_email(uid) if _email_configured() else None
     esiti = []
     if wa_phone:
         esiti.append(("whatsapp", _send_whatsapp(wa_phone, event, reminder)))
     if tg_chat:
-        esiti.append(("telegram", _send_telegram(tg_chat, _format_message(event, reminder))))
+        testo = _format_message(event, reminder)
+        if da_chi:
+            testo = ("👥 _" + _md_escape(("Fascicolo dello studio · in calendario per " if _lingua(event) == "it"
+                                          else "Dosje e studios · në kalendar nga ") + da_chi) + "_\n") + testo
+        esiti.append(("telegram", _send_telegram(tg_chat, testo)))
     if email:
         esiti.append(("email", _send_email(email, event, reminder)))
+    return esiti
+
+
+def _deliver(event, reminder) -> str | None:
+    pref = (getattr(reminder, "channel", "") or "").strip().lower()
+    if pref == "whatsapp" and _wa_configured() and storage.get_user_whatsapp(event.user_id):
+        return _send_whatsapp(storage.get_user_whatsapp(event.user_id), event, reminder)
+    # «telegram» è il canale scritto di default su OGNI promemoria (storage.create_event): non è una scelta, si va su tutti
+    if pref == "email" and _email_configured() and storage.get_user_reminder_email(event.user_id):
+        return _send_email(storage.get_user_reminder_email(event.user_id), event, reminder)
+    # v9.410 — su TUTTI i canali collegati, non sul primo: un avviso doppio costa poco, una scadenza persa costa la causa
+    # (e un canale può cadere in silenzio: un bot bloccato, una casella piena). Riuscito = almeno uno è arrivato.
+    esiti = _consegna(event.user_id, event, reminder)
+    # v9.412 — «avvisa anche i colleghi dello studio»: chi ha creato il fascicolo e gli assegnati, ricalcolati ADESSO con le
+    # regole di visibilità (chi è stato tolto dal fascicolo non riceve più niente). Un collega senza canali non è un errore.
+    if getattr(event, "notify_team", False) and event.case_id:
+        try:
+            colleghi = storage.colleghi_del_fascicolo(event.case_id, event.user_id)
+            if colleghi:
+                u = storage.get_user_by_id(event.user_id)
+                da_chi = (getattr(u, "display_name", "") or getattr(u, "username", "") or "").strip()
+                for cu in colleghi:
+                    esiti += [(f"{c}@{cu}", e) for c, e in _consegna(cu, event, reminder, da_chi=da_chi)]
+        except Exception as exc:  # noqa: BLE001
+            log.warning("reminder %s: avvisi ai colleghi non partiti: %s", getattr(reminder, "id", "?"), exc)
     if not esiti:
         return "no channel linked (whatsapp/telegram/email)"
     if any(e is None for _, e in esiti):
