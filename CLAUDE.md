@@ -2,7 +2,7 @@
 
 Strumento AI per avvocati (B2B), **bi-giurisdizione AL + IT**. Front-end Flask (waitress, UN processo) su porta
 5050, SQLite (`data/app.db`). Postgres `legalkb` NON è raggiungibile dal container: i precedenti vivono nel pickle.
-**Stato al 29 set 2026 (v9.406)** — i numeri qui sono quelli veri; più sotto, nelle sezioni datate, c'è la storia:
+**Stato al 29 set 2026 (v9.407)** — i numeri qui sono quelli veri; più sotto, nelle sezioni datate, c'è la storia:
 - **AL leggi** (`bm25.pkl`, BM25 con diacritici piegati dal v9.367, titolo del capitolo cercabile dal v9.373): **10.460 unità / 64 codici** (dal v9.391 anche la ligji 7975/1995 sugli stupefacenti e la 61/2023 sulla cannabis medica); embedding AL `_flat3`/`_ck3` (capitoli + corpo intero, `EMB_SUFFIX_SQ`/`EMB_SUFFIX2_SQ`), IT `_flat4`/`_ck4` dal v9.384 (`EMB_SUFFIX_IT`/`EMB_SUFFIX2_IT`); fonte
   `data/processed/all_articles.jsonl` (il pickle è derivato).
 - **Precedenti** (`bm25_decisions.pkl`): **3.996** = Kushtetuese **672** + Gjykata e Lartë **2.960** + CEDU **364**
@@ -1543,6 +1543,23 @@ rischio residuo della DPIA.
 - Super Avokati ha auth propria (login_required_api); utenti creati da admin o auto-provisionati da AALA (`/api/provision-demo`, secret-guarded).
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
+
+**v9.407 — IL VERIFICATORE LEGGE LE VOCI DI TARIFFA E LA DATA PER ESTESO (29 set, sera).** Dopo la v9.406 la Tariffa c'era nel
+corpus ma il verificatore non la vedeva: «art. 1 della Tariffa, parte I, allegata al d.P.R. 131/1986» restava SENZA CODICE e
+«art. 2 della Tabella allegata al d.P.R. 131/1986» risultava VERIFICATO sull'art. 2 del testo unico, che parla d'altro. Ora
+(`citation_verifier._voce_di_tariffa`): «della Tariffa, parte I/prima | II/seconda» e «della Tabella» dopo il numero → la voce
+(`N-all1/2/3` del d.P.R. 131/1986, `tariffa-i-N`/`tabella-N` del TU registro); la parte non detta e la voce in tutte e due →
+senza codice coi DUE candidati, mai l'articolo del testo; una voce che non c'è → inesistente. La voce di una tabella IVA («n.
+127-duodecies della Tabella A, parte III, allegata al d.P.R. 633/1972») si verifica sul blocco che la contiene (se non si trova,
+nessun esito). E un difetto GENERALE trovato lungo la strada: **la data per esteso** — «art. 8 del d.lgs. 10 marzo 2000, n. 74», «art.
+28 L. 24 novembre 1981, n. 689», «art. 186 del d.lgs. 30 aprile 1992, n. 285», la forma formale, in una risposta italiana su dieci —
+usciva SEMPRE senza codice (la coda si ferma alla virgola prima di «n. 74» e il risolutore non conosceva le date): `_DATA_ATTO_RE`
+nel risolutore + la coda estesa di 40 caratteri se lì comincia una data. Il nome ufficiale del TU registro («… imposta di registro e
+di altri tributi indiretti») finiva sul d.P.R. 131/1986 (il nome vecchio è un suo prefisso) → «altri tributi indiretti» prima.
+Misurato sulle 96 risposte IT salvate: verificate 1.851 → 1.856, senza codice 318 → 312, **0 inesistenti nuovi**. 6 regressioni nuove
+nel banco di prova (100). Misurato e NON cambiato: le tabelle HTML dentro gli articoli NORMALI (campione di 60 articoli per atto:
+TUIR, spese di giustizia, codice della strada e regolamento, IVA, TU IVA → 0 perdite; le sole erano le tariffe) — il parser resta
+com'è.
 
 **v9.406 — LE TARIFFE E LE TABELLE FISCALI (29 set, sera).** Il prossimo miglioramento scelto dopo la v9.405: nel corpus non
 erano MAI entrate le fonti che un notaio consulta ogni giorno. Censimento dei gruppi Normattiva: d.P.R. 131/1986 gruppo 1 = Tariffa,

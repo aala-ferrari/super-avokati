@@ -715,6 +715,9 @@ _IT_CODE_CHECKS = [
     ("testounicodellimpostadiregistroedeglialtritributiindiretti", "tu_registro"),
     ("testounicoregistroealtritributiindiretti", "tu_registro"), ("testounicodeitributiindiretti", "tu_registro"),
     ("testounicotributiindiretti", "tu_registro"),
+    # v9.406: «Testo unico … in materia di imposta di registro e di altri tributi indiretti» (d.lgs. 123/2025) — «altri tributi
+    # indiretti» c'è solo nel titolo del testo unico nuovo: prima del vecchio nome, che è un suo prefisso
+    ("altritributiindiretti", "tu_registro"),
     ("testounicodellimpostadiregistro", "imposta_registro"), ("testounicoimpostadiregistro", "imposta_registro"),
     ("testounicoentilocali", "tuel"),
     ("testounicoaccise", "accise"),
@@ -856,6 +859,10 @@ _SHORT_AS_SUBSTRING = frozenset({"romai"})
 FUORI_CORPUS = "__fuori_corpus__"
 
 
+_DATA_ATTO_RE = re.compile(r"\d{1,2}°?\s+(?:gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|"
+                           r"dicembre)\s+(\d{4})\s*,?\s*n\.?\s*(\d{1,5})(?!\d)", re.I)
+
+
 def _resolve_code_it(tail: str):
     compact = re.sub(r"[^a-z]", "", (tail or "").lower())
     # CEDU: MAI come sottostringa compattata («procedura» contiene «cedu») — parola intera
@@ -895,6 +902,9 @@ def _resolve_code_it(tail: str):
             return code
     # secondo passaggio: numero/anno (le sigle «D.Lgs.», «DPR», «Reg.» da sole non bastano);
     # «legge n. 91 del 1992» vale come «91/1992» (17 set 2026)
+    # v9.406 — la DATA PER ESTESO («d.lgs. 10 marzo 2000, n. 74», «L. 24 novembre 1981, n. 689»: la forma formale, in una risposta
+    # italiana su dieci) vale come «74/2000»: prima usciva sempre «senza codice»
+    tail = _DATA_ATTO_RE.sub(lambda m_: f"{m_.group(2)}/{m_.group(1)}", tail or "")
     with_digits = re.sub(r"[^a-z0-9]", "", re.sub(r"(\d+)\s+del\s+(\d{4})", r"\1/\2", (tail or "").lower()))
     # v9.399: il confronto è a CONFINE DI CIFRA — «158/1998» non è il TUF (58/1998), «191/1992» non è la L. 91/1992 —
     # su un testo in cui le parole restano separate (la «/» fra cifre si toglie, il resto diventa spazio): compattando
@@ -1510,6 +1520,52 @@ def _corrispondenze_finali(citations: list, lookup: dict, lookup_all: dict | Non
                             + (fonte or "la norma previgente") + " — cita quella per fatti e atti di oggi")
 
 
+# v9.406 — «art. 1 della Tariffa, parte I, allegata al d.P.R. 131/1986», «art. 2 della Tabella allegata al d.P.R. 131/1986»: la voce
+# della TARIFFA (entrata nel corpus col v9.406) e non l'articolo del testo — prima «art. 2 della Tabella…» risultava VERIFICATO
+# sull'art. 2 del testo unico, che parla d'altro, e «art. 1 della Tariffa, parte I…» restava senza codice
+_TARIFFA_CODA = re.compile(
+    r"^\s*,?\s*(?:(?:comma|nota|lett(?:era)?\.?|n\.)\s*[\w-]+\)?\s*,?\s*)*(?:del(?:la)?|dell['’]|alla|nella)\s+(?P<k>tariffa|tabella)\b"
+    r"(?:\s*,?\s*(?:parte\s+)?(?P<p>I{1,2}\b|prima\b|seconda\b))?(?P<rest>(?:[^.;\n]|\.(?!\s+[A-ZÀ-Ü])){0,140})", re.I)
+_ATTI_TARIFFA = {"imposta_registro": {"tariffa-1": "{n}-all1", "tariffa-2": "{n}-all2", "tabella": "{n}-all3"},
+                 "tu_registro": {"tariffa-1": "tariffa-i-{n}", "tariffa-2": "tariffa-ii-{n}", "tabella": "tabella-{n}"}}
+
+
+def _voce_di_tariffa(number: str, dopo: str, resolve, lookup: dict):
+    """(codice, numero della voce) se la citazione parla della Tariffa/Tabella di un atto che la ha nel corpus, altrimenti None."""
+    m = _TARIFFA_CODA.match(dopo or "")
+    if not m:
+        return None
+    code = resolve(m.group("rest") or "")
+    if code not in _ATTI_TARIFFA:
+        return None
+    k = m.group("k").lower()
+    p = (m.group("p") or "").lower()
+    n = number.replace("/", "-")
+    if k == "tabella":
+        chiavi = ["tabella"]
+    elif p in ("i", "prima"):
+        chiavi = ["tariffa-1"]
+    elif p in ("ii", "seconda"):
+        chiavi = ["tariffa-2"]
+    else:
+        chiavi = ["tariffa-1", "tariffa-2"]          # «della Tariffa» senza la parte: vale solo se la voce è in una parte sola
+    trovati = [_ATTI_TARIFFA[code][c].format(n=n) for c in chiavi
+               if (code, _normalise_number(_ATTI_TARIFFA[code][c].format(n=n))) in lookup]
+    if len(trovati) == 1:
+        return code, trovati[0]
+    if len(chiavi) == 1:
+        return code, _ATTI_TARIFFA[code][chiavi[0]].format(n=n)    # la parte è detta: se la voce non c'è, è inesistente
+    if len(trovati) > 1:
+        return code, None, trovati                                  # la voce c'è in tutte e due le parti: quale?
+    return None
+
+
+# «n. 127-duodecies della Tabella A, parte III, allegata al d.P.R. 633/1972»: la voce di una tabella IVA (blocchi del v9.406)
+_VOCE_TABELLA_IVA = re.compile(
+    r"\b(?:n\.|numero|nn\.)\s*(?P<v>\d+(?:-[a-z]+)?)\)?\s*,?\s*(?:della|dell['’])\s+Tabella\s+(?P<t>[A-D])\b"
+    r"(?:\s*,?\s*parte\s+(?P<p>[IVX]+(?:\s*-?\s*bis)?))?(?P<rest>(?:[^.;\n]|\.(?!\s+[A-ZÀ-Ü])){0,120})", re.I)
+
+
 def verify_text(
     text: str,
     index: ArticleIndex,
@@ -1677,11 +1733,35 @@ def verify_text(
         nums_block = m.group("nums")
         tail = m.group("tail") or ""
         code = _resolve(tail)              # one shared code for the list
+        if code is None and _lang == "it":
+            # v9.406 — la coda si ferma alla virgola prima di «n. 74»: se lì comincia una data per esteso, la si legge intera
+            _ext = tail + text[m.end():m.end() + 40]
+            _md = _DATA_ATTO_RE.search(_ext)
+            if _md and _md.start() <= len(tail) + 2 and re.search(r"(?:d\.?\s?lgs|d\.?\s?p\.?\s?r|d\.?\s?l\b|decreto|legge|\bl\.)",
+                                                                    _ext[:_md.start()], re.I):
+                code = _resolve(_ext[:_md.end()])
         numbers = _espandi_intervalli(_num_re.findall(nums_block) + _numeri_in_piu(m))
         full_raw = text[m.start():m.end()].strip()
         if len(full_raw) > 60:
             full_raw = full_raw[:60].rstrip() + "…"
         multi = len(numbers) > 1
+        if _lang == "it" and len(numbers) == 1:
+            _vt = _voce_di_tariffa(_normalise_number(numbers[0]), (tail or "") + " " + text[m.end():m.end() + 180], _resolve, lookup_all)
+            if _vt and _vt[1] is None:
+                _key_t = ("?" + numbers[0], _vt[0])
+                if _key_t not in seen:
+                    seen.add(_key_t)
+                    citations.append(Citation(
+                        raw=full_raw, number=_normalise_number(numbers[0]), code=None, code_label=None, status="needs_code",
+                        candidates=[{"code": _vt[0], "label": f"{CODE_LABELS.get(_vt[0], _vt[0])} — {x}"} for x in _vt[2]],
+                        resolved_by="tariffa"))
+                continue
+            if _vt:
+                _key_t = (_vt[1], _vt[0])
+                if _key_t not in seen:
+                    seen.add(_key_t)
+                    _emit(_normalise_number(_vt[1]), _vt[0], full_raw, "tariffa")
+                continue
         if code == FUORI_CORPUS:
             for number_raw in numbers:
                 number = _normalise_number(number_raw)
@@ -1804,6 +1884,33 @@ def verify_text(
                           (("art. " if _lang != "it" else "neni ") + number_raw) if len(_nums) > 1 else _raw)
 
     if _lang == "it":
+        # v9.406 — la VOCE di una tabella IVA («n. 127-duodecies della Tabella A, parte III, allegata al d.P.R. 633/1972»): si
+        # verifica sul blocco della tabella che la contiene; se la voce non si trova non si dice nulla (la divisione in voci è
+        # nuova: meglio nessun esito che un «inesistente» sbagliato)
+        try:
+            for mv in _VOCE_TABELLA_IVA.finditer(text):
+                _cv = _resolve_code_it(mv.group("rest") or "")
+                if _cv not in ("iva", "tu_iva"):
+                    continue
+                _pref = "tabella-" + mv.group("t").lower()
+                if mv.group("p"):
+                    _pref += "-parte-" + re.sub(r"\s*-?\s*bis", "-bis", mv.group("p").lower())
+                _voce = mv.group("v").lower()
+                _rx_v = re.compile(r"(?:^|\s)" + re.escape(_voce) + r"\)")
+                for (c_, n_), a_ in lookup.items():
+                    if c_ != _cv or not (n_ == _pref.replace("-", "/") or n_.startswith(_pref.replace("-", "/") + "/")):
+                        continue
+                    if _rx_v.search(getattr(a_, "body", "") or ""):
+                        _k = (str(a_.number), _cv, _voce)
+                        if _k not in seen:
+                            seen.add(_k)
+                            citations.append(Citation(
+                                raw=text[mv.start():min(mv.end(), mv.start() + 60)].strip(), number=str(a_.number), code=_cv,
+                                code_label=CODE_LABELS.get(_cv, _cv), status="verified", candidates=[],
+                                article_heading=f"{getattr(a_, 'heading', '')} — n. {_voce}", resolved_by="tabella"))
+                        break
+        except Exception:  # noqa: BLE001
+            pass
         try:
             _corrispondenze_finali(citations, lookup, lookup_all, text)
         except Exception:  # noqa: BLE001 - un aiuto in più, mai un guasto del verificatore

@@ -6442,11 +6442,24 @@ def main():
         _hits = [(a.code, str(a.number)) for a, _ in _it187.search("aliquota del 2 per cento prima casa imposta di registro trasferimento", top_k=12)]
         _ric = ("imposta_registro", "1-all1") in _hits
         _vg187 = bool(_ctu187.vigenza("imposta_registro", "1-all1"))
-        _ok187 = _tar and _spur and _iva_ok and _tu_ok and _tab_ok and _nomi and _ric and _vg187
+        # il verificatore: la voce della Tariffa/Tabella (non l'articolo del testo), la voce IVA sul suo blocco, la data per esteso
+        from src import citation_verifier as _cv187
+        _v187 = lambda t: [(x["code"], x["number"], x["status"]) for x in (_cv187.verify_text(t, _it187).get("items") or [])]
+        _ver = (("imposta_registro", "1/all1", "verified") in _v187("Si applica l'art. 1 della Tariffa, parte I, allegata al d.P.R. 131/1986.")
+                and ("imposta_registro", "2/all3", "verified") in _v187("art. 2 della Tabella allegata al d.P.R. 131/1986")
+                and ("imposta_registro", "99/all1", "fake") in _v187("art. 99 della Tariffa, parte I, allegata al d.P.R. 131/1986")
+                and any(c == "iva" and st == "verified" and n.startswith("tabella-a-parte-iii") for c, n, st in
+                        _v187("aliquota del 10% (n. 127-duodecies della Tabella A, parte III, allegata al d.P.R. 633/1972)"))
+                and ("reati_tributari", "8", "verified") in _v187("Il reato è previsto dall'art. 8 del d.lgs. 10 marzo 2000, n. 74.")
+                and ("sanzioni_amministrative", "28", "verified") in _v187("art. 28 L. 24 novembre 1981, n. 689")
+                and [x[2] for x in _v187("art. 2 della Tariffa del d.P.R. 131/1986")] == ["needs_code"]
+                and ("tu_registro", "tariffa/i/1", "verified") in _v187(
+                    "art. 1 della Tariffa, parte I, allegata al testo unico dell'imposta di registro e altri tributi indiretti"))
+        _ok187 = _tar and _spur and _iva_ok and _tu_ok and _tab_ok and _nomi and _ric and _vg187 and _ver
         check("tariffe-it[187]: la Tariffa del registro con le aliquote, le Tabelle IVA in parti e blocchi, la Tariffa del testo unico, "
               "nomi leggibili, recupero e vigenza", _ok187,
-              "tariffa=%s spurio=%s iva=%s(%d) tu=%s tabelle=%s nomi=%s ricerca=%s vigenza=%s" % (
-                  _tar, _spur, _iva_ok, len(_iva), _tu_ok, _tab_ok, _nomi, _ric, _vg187))
+              "tariffa=%s spurio=%s iva=%s(%d) tu=%s tabelle=%s nomi=%s ricerca=%s vigenza=%s verificatore=%s" % (
+                  _tar, _spur, _iva_ok, len(_iva), _tu_ok, _tab_ok, _nomi, _ric, _vg187, locals().get("_ver")))
     except Exception as _e187:  # noqa: BLE001
         check("tariffe-it[187]: kontrollet u ekzekutuan", False, str(_e187))
 
