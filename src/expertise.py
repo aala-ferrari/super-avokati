@@ -560,6 +560,11 @@ def retrieve_grounded(backend, index, facts, seed_pairs=None, max_arts=16, prefe
         arts = arts + _rinvii_interni(index, arts, lang)          # v9.399: i rinvii espliciti allo stesso atto
     except Exception:  # noqa: BLE001
         pass
+    if lang == "it":
+        try:
+            arts = _con_previgenti(index, arts)                   # v9.405: la norma che vige oggi SUBITO DOPO il testo unico
+        except Exception:  # noqa: BLE001
+            pass
     return arts
 
 
@@ -644,13 +649,70 @@ def etichetta_al(c) -> str:
     return c.replace("_", " ")
 
 
-def _nota_tu(code: str, testo: str) -> str:
+def _previgenti(index, arts, max_add: int = 8):
+    """v9.405 — un articolo di TESTO UNICO fiscale che non si applica ancora (decorrenza 1° gennaio 2027) porta con sé l'articolo
+    del vecchio atto che trasfonde e che OGGI è la norma vigente (dal v9.405 il corpus ne ha il testo: prima c'era solo la
+    nota «ARTICOLO ABROGATO» della versione futura). Il procuratore sulle fatture false riceveva l'art. 79 del testo unico
+    delle sanzioni e non l'art. 8 d.lgs. 74/2000, che è quello da applicare a un fatto del 2025."""
+    from . import corrispondenze_tu as _ctu
+    out, seen = [], {(c, str(n)) for c, n, _t in arts}
+    for c, n, _t in list(arts):
+        if c not in _ctu.CODICI_TU or not _ctu.futuro(c):
+            continue
+        for oc, on in _ctu.previgenti(c, str(n))[:2]:
+            if (oc, on) in seen:
+                continue
+            t = _article_text(index, oc, on)
+            if t and "ARTICOLO ABROGATO" not in t[:300].upper():     # un indice di prima del v9.405 ha ancora la nota
+                seen.add((oc, on)); out.append((oc, on, t))
+            if len(out) >= max_add:
+                return out
+    return out
+
+
+def _con_previgenti(index, arts):
+    """`arts` con ogni articolo previgente messo SUBITO DOPO il suo articolo di testo unico (in fondo al blocco il tetto dei
+    caratteri lo avrebbe tagliato: la norma che si applica oggi tagliata e quella del 2027 per intero)."""
+    agg = _previgenti(index, arts)
+    if not agg:
+        return arts
+    from . import corrispondenze_tu as _ctu
+    resto = {(c, n): (c, n, t) for c, n, t in agg}
+    out = []
+    for c, n, t in arts:
+        out.append((c, n, t))
+        if c in _ctu.CODICI_TU:
+            for oc, on in _ctu.previgenti(c, str(n))[:2]:
+                x = resto.pop((oc, on), None)
+                if x:
+                    out.append(x)
+    return out + list(resto.values())
+
+
+def tu_da_abbreviare(code: str, numero: str, chiavi: set) -> bool:
+    """v9.405 — un articolo di testo unico non ancora applicabile la cui norma previgente è nello stesso blocco: basta un estratto
+    (il testo che si applica oggi è quello previgente, subito sotto)."""
+    try:
+        from . import corrispondenze_tu as _ctu
+        return (code in _ctu.CODICI_TU and bool(_ctu.futuro(code))
+                and any(k in chiavi for k in _ctu.previgenti(code, str(numero))))
+    except Exception:  # noqa: BLE001
+        return False
+
+
+_CAP_TU_ABBREVIATO = 700
+
+
+def _nota_tu(code: str, testo: str, numero: str = "") -> str:
     """v9.404 — la riga di decorrenza per un articolo italiano nel blocco degli strumenti PRO (vuota se non serve)."""
     try:
         from . import corrispondenze_tu as _ctu
         nd = _ctu.nota_decorrenza(code)
         if nd:
             return nd + " — "
+        nv = _ctu.nota_vigenza(code, numero) if numero else ""
+        if nv:
+            return nv + " — "
         diff = _ctu.abrogazione_differita(testo or "")
         if diff:
             return (f"⚠ ABROGAZIONE NON ANCORA EFFICACE: articolo IN VIGORE fino al {_ctu.fino_al(diff[1])} (la nota sotto è la "
@@ -667,16 +729,22 @@ def blocco_articoli(arts, lang: str = "sq", vuoto: str = "", max_art: int | None
     («art.» in italiano, «neni» in albanese). Stessa regola del procuratore (v9.397)."""
     out, tot = [], 0
     _cap, _tot_max = (max_art or _MAX_ART_BLOCCO), (max_tot or _MAX_TOT_BLOCCO)
+    _chiavi = {(c, str(n)) for c, n, _t in arts}
     for c, n, t in arts:
         t = (t or "").strip()
         cap = _cap if tot < _tot_max else 400
+        _abbr = lang == "it" and tu_da_abbreviare(c, n, _chiavi)
+        if _abbr:
+            cap = min(cap, _CAP_TU_ABBREVIATO)
         testo = t[:cap]
         if len(t) > cap:
-            testo += ((" […testo tagliato qui: altri %d caratteri — non completarlo a memoria]" if lang == "it"
-                       else " […teksti u shkurtua këtu: edhe %d karaktere — mos e plotëso nga kujtesa]") % (len(t) - cap))
+            testo += ((" […testo unico abbreviato: fino al 31/12/2026 si applica l'articolo previgente riportato subito sotto]"
+                       if _abbr else " […testo tagliato qui: altri %d caratteri — non completarlo a memoria]" % (len(t) - cap))
+                      if lang == "it" else
+                      " […teksti u shkurtua këtu: edhe %d karaktere — mos e plotëso nga kujtesa]" % (len(t) - cap))
         tot += len(testo)
         if lang == "it":
-            testo = _nota_tu(c, t) + testo          # v9.404: testo unico non ancora applicabile / abrogazione non ancora efficace
+            testo = _nota_tu(c, t, str(n)) + testo  # v9.404-405: testo unico non ancora applicabile / vigenza dell'articolo
         out.append(("• [%s art. %s] %s" % (_lbl_it(c), n, testo)) if lang == "it"
                    else ("• [%s neni %s] %s" % (etichetta_al(c), n, testo)))
     if out:

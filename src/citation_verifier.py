@@ -1383,7 +1383,24 @@ def _fonte_articolo(code: str, number: str, lookup: dict) -> str:
     return f"art. {nums[0].replace('/', '-')} {_ctu.etichetta_atto(k)}" if nums else _ctu.etichetta_atto(k)
 
 
-def _corrispondenze_finali(citations: list, lookup: dict, lookup_all: dict | None = None) -> None:
+# v9.405 — la risposta che DICE già la decorrenza accanto all'articolo del testo unico («art. 79 TU, applicabile dal 1° gennaio
+# 2027», «nel regime previgente») non ha bisogno dell'avviso: nell'audit IT del 29 set le righe 🟡 «da controllare (decorrenza)»
+# comparivano su citazioni che la data la dicevano già
+_DECORRENZA_DICHIARATA = re.compile(r"(?:1°?|primo)\s+gennaio\s+2027|01[./]01[./]2027|\bdal\s+2027\b|"
+                                    r"\b2027\b.{0,40}(?:applic|vigor|efficac)|(?:applic|vigor|efficac)\w*.{0,40}\b2027\b|"
+                                    r"non\s+(?:ancora\s+)?(?:applicabil|in\s+vigore)|previgente|ratione\s+temporis", re.I | re.S)
+
+
+def _dichiara_decorrenza(text: str, raw: str) -> bool:
+    if not text or not raw:
+        return False
+    i = text.find(raw)
+    if i < 0:
+        return False
+    return bool(_DECORRENZA_DICHIARATA.search(text[max(0, i - 250): i + len(raw) + 250]))
+
+
+def _corrispondenze_finali(citations: list, lookup: dict, lookup_all: dict | None = None, text: str = "") -> None:
     """v9.403-404 — le citazioni fiscali fra vecchi atti e testi unici 2024-2026, con la DATA (i testi unici si applicano dal
     1° gennaio 2027; fino al giorno prima i vecchi articoli sono VIGENTI, anche se Normattiva senza data li mostra «abrogati»):
     (a) articolo di un vecchio atto del corpus «ABROGATO DAL <testo unico>»: prima della decorrenza → VIGENTE (verificato, con
@@ -1397,6 +1414,46 @@ def _corrispondenze_finali(citations: list, lookup: dict, lookup_all: dict | Non
     from . import corrispondenze_tu as _ctu
     for c in citations:
         modo = getattr(c, "_coda_tu", None)
+        # (v) v9.405 — la VIGENZA dell'articolo citato (corpus riallineato al testo di oggi): non ancora in vigore → avviso;
+        # abrogato più avanti → la data e, per i vecchi atti fiscali, dove andrà; modificato più avanti → la data nel titolo
+        if c.status == "verified" and c.code:
+            _art_vg = lookup.get((c.code, _normalise_number(c.number)))       # il numero come lo scrive l'indice
+            _num_vg = str(getattr(_art_vg, "number", "") or c.number.replace("/", "-"))
+            _vs = _ctu.vigenza_scaduta(c.code, _num_vg)
+            if _vs:
+                # l'indice è di prima della data: il testo verificato non è più quello vigente
+                if _vs.get("futuro_abrogato"):
+                    chiave = _ctu.CODICE_VECCHIO.get(c.code)
+                    succ = _successori_art(chiave, c.number, lookup) if chiave else []
+                    c.status = "repealed"
+                    if succ:
+                        c.successori = succ
+                    _oggi_succ = _testo_successori(succ, "abrogato").replace("abrogato — ", "", 1) if succ else ""
+                    c.article_heading = ((c.article_heading or "") + f" — abrogato dal {_ctu._gg(_vs['dal'])}" +
+                                         (f" — {_oggi_succ}" if _oggi_succ else ""))
+                else:
+                    c.avviso = (f"testo cambiato dal {_ctu._gg(_vs['dal'])}: il corpus ha ancora il testo anteriore — "
+                                f"verifica la versione vigente")
+                continue
+            _vg = _ctu.vigenza(c.code, _num_vg)
+            if _vg:
+                if _vg.get("non_in_vigore_dal"):
+                    c.avviso = (f"articolo NON ANCORA IN VIGORE: si applica dal {_ctu._gg(_vg['non_in_vigore_dal'])} — "
+                                f"non va citato come norma vigente")
+                elif _vg.get("futuro_abrogato"):
+                    chiave = _ctu.CODICE_VECCHIO.get(c.code)
+                    succ = _successori_art(chiave, c.number, lookup) if chiave else []
+                    fino = _ctu._gg(_vg["fino"]) if _vg.get("fino") else ""
+                    if succ:
+                        c.successori = succ
+                        c.article_heading = ((c.article_heading or "") + " — " +
+                                             _testo_successori(succ, "vigente", fino or _ctu._gg(_vg["dal"])))
+                    else:
+                        c.article_heading = ((c.article_heading or "") + f" — in vigore fino al {fino}, abrogato dal "
+                                             f"{_ctu._gg(_vg['dal'])}")
+                else:
+                    c.article_heading = ((c.article_heading or "") + f" — testo vigente; dal {_ctu._gg(_vg['dal'])} cambia")
+                continue
         # (a)
         if c.status == "repealed" and c.code:
             arts = lookup_all or {}
@@ -1447,7 +1504,7 @@ def _corrispondenze_finali(citations: list, lookup: dict, lookup_all: dict | Non
         # (d)
         if c.status == "verified" and c.code in _ctu.CODICI_TU:
             fut = _ctu.futuro(c.code)
-            if fut:
+            if fut and not _dichiara_decorrenza(text, c.raw):
                 fonte = _fonte_articolo(c.code, c.number, lookup)
                 c.avviso = (f"testo unico applicabile dal {fut:%d/%m/%Y}: fino al {_ctu.fino_al(fut)} si applica "
                             + (fonte or "la norma previgente") + " — cita quella per fatti e atti di oggi")
@@ -1748,7 +1805,7 @@ def verify_text(
 
     if _lang == "it":
         try:
-            _corrispondenze_finali(citations, lookup, lookup_all)
+            _corrispondenze_finali(citations, lookup, lookup_all, text)
         except Exception:  # noqa: BLE001 - un aiuto in più, mai un guasto del verificatore
             pass
     for _c in citations:

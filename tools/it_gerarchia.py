@@ -256,7 +256,7 @@ def albero(page: str, titolo_atto: str = "") -> tuple[dict, dict]:
             intestazione_dopo = True
             pila = applica_righe(pila, _righe_blocco(a, b, titolo_atto), n_hdr)
         else:
-            mf = re.search(r"flagTipoArticolo=(\d+)", b)
+            mf = re.search(r"flagTipoArticolo=(-?\d+)", b)   # v9.405: «-1» = il decreto che approva (Art. 01), gruppo a sé
             flag = mf.group(1) if mf else "0"          # come l'ingest (article_links_all): senza flag = gruppo 0
             num = _norm_num(a)
             if not num or not re.match(r"^\d", num):

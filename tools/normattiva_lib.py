@@ -102,7 +102,10 @@ class Normattiva:
             m = re.search(r"art\.idArticolo=(\d+)", u)
             ms = re.search(r"art\.idSottoArticolo=(\d+)", u)
             ms1 = re.search(r"art\.idSottoArticolo1=(\d+)", u)
-            mf = re.search(r"flagTipoArticolo=(\d+)", u)
+            # v9.405 — «-1» è il decreto che APPROVA il codice/testo unico («Art. 01 — È approvato…»): senza il segno meno il
+            # suo link aveva la stessa chiave dell'art. 1 vero e l'art. 1 veniva scartato (c.p.p. «Giurisdizione penale», d.P.R.
+            # 309/1990, accise, imposta di registro, TUEL, beni culturali)
+            mf = re.search(r"flagTipoArticolo=(-?\d+)", u)
             # v9.383 — anche idSottoArticolo1: «473-bis.2» ha gli STESSI idArticolo/idSottoArticolo del «473-bis» e si
             # distingue solo lì (10, 20, 30…). Senza, la dedup buttava 286 articoli: gli artt. 473-bis.1-71 c.p.c.
             # (rito famiglia), 380-bis.1 c.p.c., 270-bis.1 c.p., 2506.1 c.c., 9.1 L. 91/1992, 25-octies.1 d.lgs. 231…
@@ -153,7 +156,9 @@ CHROME_RE = re.compile(r"(?m)^\s*(Articoli|Approfondimenti e Funzioni|articolo p
 # MAIUSCOLO e senza re.I: la nota è «((ARTICOLO ABROGATO DAL …))», ma capita anche
 # «( ARTICOLO ABROGATO DALLA L. …» o nella rubrica senza parentesi (c.c. 2429-bis); la prosa
 # normale scrive «l'articolo abrogato» in minuscolo e non deve scattare.
-_ABRO_MARK = re.compile(r"(?:ARTICOLO|ART\.|PROVVEDIMENTO)\s+(?:ABROGAT[OAI]|SOPPRESS[OAI])")
+# v9.405 — «IL D.LGS. 5 NOVEMBRE 2024, N. 173 … HA CONFERMATO L'ABROGAZIONE DEL PRESENTE ARTICOLO» (la versione dal 2027 di articoli
+# abrogati da anni: d.lgs. 74/2000 art. 7, d.P.R. 633/1972 art. 47…) non era riconosciuta: nel corpus quegli articoli erano VIVI
+_ABRO_MARK = re.compile(r"(?:ARTICOLO|ART\.|PROVVEDIMENTO)\s+(?:ABROGAT[OAI]|SOPPRESS[OAI])|CONFERMATO\s+L['’]\s*ABROGAZIONE\s+DEL\s+PRESENTE\s+ARTICOLO")
 _ABRO_WORD = re.compile(r"\b(abrogat[oiae]|soppress[oiae])\b", re.I)
 
 

@@ -26,7 +26,8 @@ FILE = Path(os.environ.get("IT_CORR_PATH") or "/app/data/processed/it_corrispond
 CODICI_TU = ("tuir", "tu_iva", "tu_accertamento", "tu_riscossione", "tu_registro", "tu_sanzioni_tributarie",
              "giustizia_tributaria")
 
-# I vecchi atti ABROGATI che sono nel corpus (i loro articoli sono «ARTICOLO ABROGATO…»): codice → chiave
+# I vecchi atti che i testi unici ABROGANO dal 1° gennaio 2027 (dal v9.405 il corpus ha il loro testo vigente fino al
+# 31/12/2026 e, in `futuro`, la nota «ARTICOLO ABROGATO…»): codice → chiave
 CODICE_VECCHIO = {"reati_tributari": "dlgs:74:2000", "iva": "dpr:633:1972", "accertamento_imposte": "dpr:600:1973",
                   "riscossione": "dpr:602:1973", "imposta_registro": "dpr:131:1986", "imposta_successioni": "dlgs:346:1990",
                   "sanzioni_tributarie": "dlgs:472:1997"}
@@ -247,6 +248,90 @@ def nota_decorrenza(code: str, lang: str = "it") -> str:
     return (f"⚠ TESTO UNICO APPLICABILE DAL {d:%d/%m/%Y}: per fatti, atti e dichiarazioni fino al {fino_al(d)} si applica la norma "
             f"previgente indicata fra parentesi sotto la rubrica (questo testo la trasfonde): cita quella, e il numero nuovo solo "
             f"come «dal {d:%d/%m/%Y}»")
+
+
+def vigenza(code: str, numero: str) -> dict | None:
+    """v9.405 — la vigenza di un articolo il cui testo cambia (o che si abroga, o che non c'è ancora) più avanti:
+    {"fino", "dal", "futuro_abrogato", "futuro_rubrica", "futuro_testo", "non_in_vigore_dal"} se la data è ancora da venire,
+    altrimenti None (il build successivo avrà già il testo giusto)."""
+    try:
+        v = ((carica().get("_vigenze") or {}).get(code) or {}).get(str(numero))
+        if not v:
+            return None
+        oggi_iso = oggi().isoformat()
+        if v.get("non_in_vigore_dal") and v["non_in_vigore_dal"] > oggi_iso:
+            return v
+        if v.get("dal") and v["dal"] > oggi_iso:
+            return v
+        return None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def vigenza_scaduta(code: str, numero: str) -> dict | None:
+    """v9.405 — l'indice è stato costruito PRIMA della data da cui l'articolo cambia (o si abroga), e quella data è passata:
+    il testo nell'indice non è più quello vigente. Le voci di `_vigenze` si scrivono solo per date future al momento del
+    build, quindi una voce con la data già passata = indice da ricostruire (il cron del 1° gennaio lo fa; questa è la rete)."""
+    try:
+        v = ((carica().get("_vigenze") or {}).get(code) or {}).get(str(numero))
+        if not v or v.get("non_in_vigore_dal") or not v.get("dal"):
+            return None
+        return v if v["dal"] <= oggi().isoformat() else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _gg(iso: str) -> str:
+    try:
+        return _date.fromisoformat(iso).strftime("%d/%m/%Y")
+    except Exception:  # noqa: BLE001
+        return iso or ""
+
+
+def nota_vigenza(code: str, numero: str) -> str:
+    """La riga per il blocco degli articoli: testo vigente fino a …, poi abrogato / modificato / non ancora in vigore."""
+    v = vigenza(code, numero)
+    if not v:
+        vs = vigenza_scaduta(code, numero)
+        if not vs:
+            return ""
+        if vs.get("futuro_abrogato"):
+            return (f"⚠ ARTICOLO ABROGATO DAL {_gg(vs['dal'])}: il testo qui sotto era vigente fino ad allora — si applica "
+                    f"solo a fatti e atti anteriori")
+        return (f"⚠ TESTO CAMBIATO DAL {_gg(vs['dal'])}: il testo qui sotto è quello anteriore — oggi vige: "
+                f"«{(vs.get('futuro_testo') or '')[:400]}…»")
+    if v.get("non_in_vigore_dal"):
+        return f"⚠ ARTICOLO NON ANCORA IN VIGORE: si applica dal {_gg(v['non_in_vigore_dal'])} — non citarlo come norma vigente"
+    fino = f"fino al {_gg(v['fino'])}" if v.get("fino") else f"fino al giorno prima del {_gg(v['dal'])}"
+    if v.get("futuro_abrogato"):
+        return (f"ℹ TESTO VIGENTE {fino.upper()}: dal {_gg(v['dal'])} l'articolo è ABROGATO — per fatti e atti fino ad allora "
+                f"si applica questo testo")
+    return (f"ℹ TESTO VIGENTE {fino.upper()}: dal {_gg(v['dal'])} cambia" +
+            (f" («{v['futuro_rubrica']}»)" if v.get("futuro_rubrica") else "") +
+            (f": «{v['futuro_testo'][:300]}…»" if v.get("futuro_testo") else ""))
+
+
+_INV: dict = {"mtime": None, "mappa": {}}
+
+
+def previgenti(code: str, numero: str) -> list[tuple[str, str]]:
+    """v9.405 — l'inverso di `successori`: l'articolo del testo unico → gli articoli dei vecchi atti DEL CORPUS che trasfonde
+    («art. 79 TU sanzioni tributarie» → («reati_tributari», "8")). Prima del 1° gennaio 2027 sono quelli che si applicano."""
+    try:
+        m = carica()
+        if _INV["mtime"] is not _CACHE.get("mtime") or not _INV["mappa"]:
+            inv: dict = {}
+            vecchio_per_chiave = {v: k for k, v in CODICE_VECCHIO.items()}
+            for chiave, arts in m.items():
+                if chiave.startswith("_") or chiave not in vecchio_per_chiave or not isinstance(arts, dict):
+                    continue
+                for num, lst in arts.items():
+                    for c, n in (lst or []):
+                        inv.setdefault((c, str(n)), []).append((vecchio_per_chiave[chiave], str(num)))
+            _INV["mappa"], _INV["mtime"] = inv, _CACHE.get("mtime")
+        return list(dict.fromkeys(_INV["mappa"].get((code, str(numero)), [])))
+    except Exception:  # noqa: BLE001
+        return []
 
 
 def successori(chiave: str, numero: str) -> list[tuple[str, str]]:

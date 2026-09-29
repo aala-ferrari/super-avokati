@@ -80,15 +80,22 @@ def _lbl_it(c):
 def _blocco(arts, lang: str) -> str:
     """Il blocco degli articoli per il prompt, con le etichette della sessione («art.» / «neni»)."""
     out, tot = [], 0
+    _chiavi = {(c, str(n)) for c, n, _t in arts}
     for c, n, t in arts:
         t = (t or "").strip()
         cap = _MAX_ART if tot < _MAX_TOT else 400
+        # v9.405: il testo unico non ancora applicabile con la sua norma previgente subito sotto → un estratto
+        _abbr = lang == "it" and _expertise.tu_da_abbreviare(c, n, _chiavi)
+        if _abbr:
+            cap = min(cap, _expertise._CAP_TU_ABBREVIATO)
         testo = t[:cap]
         if len(t) > cap:
-            testo += ((" […testo tagliato qui: altri %d caratteri — non completarlo a memoria]" if lang == "it"
-                       else " […teksti u shkurtua këtu: edhe %d karaktere — mos e plotëso nga kujtesa]") % (len(t) - cap))
+            testo += ((" […testo unico abbreviato: fino al 31/12/2026 si applica l'articolo previgente riportato subito sotto]"
+                       if _abbr else " […testo tagliato qui: altri %d caratteri — non completarlo a memoria]" % (len(t) - cap))
+                      if lang == "it" else
+                      " […teksti u shkurtua këtu: edhe %d karaktere — mos e plotëso nga kujtesa]" % (len(t) - cap))
         if lang == "it":
-            out.append("• [%s art. %s] %s" % (_lbl_it(c), n, _expertise._nota_tu(c, t) + testo))   # v9.404: la decorrenza
+            out.append("• [%s art. %s] %s" % (_lbl_it(c), n, _expertise._nota_tu(c, t, str(n)) + testo))   # v9.404-405: la decorrenza
         else:
             out.append("• [%s neni %s] %s" % (_lbl(c), n, testo))
         tot += len(testo)
@@ -137,6 +144,10 @@ def _semi_situazione_al(facts: str) -> list:
             out += [("kodi_proc_penale", "300"), ("kodi_proc_penale", "301")]
     if "shperdor" in f:
         out += [("kodi_penal", "248"), ("kodi_penal", "135")]
+    # v9.405 — il fatto TENTATO (KP 22 «Kuptimi i tentativës», 23 «Përgjegjësia për tentativën»): nell'audit AL del 29 set
+    # l'analisi di un tentativo lo qualificava senza gli articoli sulla tentativa
+    if _re.search(r"tentativ|tentoi|tenton|u perpoq|perpiqej|perpjek|nuk arriti|pa arritur|u pengua|u ndalua para", f):
+        out += [("kodi_penal", "22"), ("kodi_penal", "23")]
     return out
 
 
@@ -174,12 +185,22 @@ def _semi_situazione_it(facts: str) -> list:
         out += _TU_FISCALE_IT + [("codice_procedura_penale", "321")]     # + il sequestro preventivo (per equivalente)
         if _RX_INESISTENTI_IT.search(f):
             out += [("tu_sanzioni_tributarie", n) for n in ("74", "79", "80")]
+        # v9.405 — prova viva sulle fatture false: il pubblico ministero scriveva «non figura fra gli articoli forniti» per il
+        # passaggio dalla verifica fiscale all'indagine penale (art. 220 disp. att. c.p.p.: emersi indizi di reato, le garanzie
+        # del codice), per la consulenza tecnica contabile (art. 359 c.p.p.) e, con una società, per la responsabilità dell'ente
+        # (d.lgs. 231/2001 artt. 5, 10 e 25-quinquiesdecies «Reati tributari»)
+        out += [("disp_att_cpp", "220"), ("codice_procedura_penale", "359")]
+        if _re.search(r"\bs\.?r\.?l\b|\bs\.?p\.?a\b|societ|\bente\b|impresa", f, _re.I):
+            out += [("responsabilita_enti", "5"), ("responsabilita_enti", "10"), ("responsabilita_enti", "25-quinquiesdecies")]
     if _RX_RICICL_IT.search(f):
         out += [("codice_penale", n) for n in ("648-bis", "648-ter", "648-ter.1")]
     if _re.search(r"sequestr", f, _re.I):
         out.append(("codice_procedura_penale", "253"))
         if _RX_PG_IT.search(f):
             out += [("codice_procedura_penale", "354"), ("codice_procedura_penale", "355")]
+    # v9.405 — il delitto TENTATO (c.p. 56)
+    if _re.search(r"tentat|\btentò|cercato di|cercava di|non (?:è )?riuscit|senza riuscir|fu fermat|è stato fermat", f, _re.I):
+        out.append(("codice_penale", "56"))
     return out
 
 

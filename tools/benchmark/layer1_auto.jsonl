@@ -350,9 +350,7 @@
 {"id": "al-st-ligji_tvsh-110", "lang": "al", "kind": "status", "citation": "neni 110 i ligjit nr. 92/2014", "expect": "verified", "code": "ligji_tvsh"}
 {"id": "al-st-ligji_tvsh-102-rep", "lang": "al", "kind": "status", "citation": "neni 102 i ligjit nr. 92/2014", "expect": "repealed", "code": "ligji_tvsh"}
 {"id": "al-st-ligji_tvsh-fake", "lang": "al", "kind": "status", "citation": "neni 298 i ligjit nr. 92/2014", "expect": "fake", "code": "ligji_tvsh"}
-{"id": "it-ret-accertamento_imposte-7", "lang": "it", "kind": "retrieval", "query": "IL D.LGS. 5 AGOSTO 2026, N. 141 HA CONFERMATO L'ABROGAZIONE DEL PRESENTE ARTICOLO", "expect": [["accertamento_imposte", "7"]], "k": 12}
-{"id": "it-ret-accertamento_imposte-51", "lang": "it", "kind": "retrieval", "query": "IL D.LGS. 5 NOVEMBRE 2024, N. 173 , COME MODIFICATO DAL D.L. 31 DICEMBRE", "expect": [["accertamento_imposte", "51"]], "k": 12}
-{"id": "it-ret-accise-01", "lang": "it", "kind": "retrieval", "query": "1. È approvato l'unito testo unico delle disposizioni legislative concernenti le imposte sulla produzione", "expect": [["accise", "01"]], "k": 12}
+{"id": "it-ret-accise-1", "lang": "it", "kind": "retrieval", "query": "Ambito applicativo e definizioni 1. Il presente testo unico disciplina l'imposizione indiretta sulla produzione e sui consumi. 2.", "expect": [["accise", "1"]], "k": 12}
 {"id": "it-ret-accise-37", "lang": "it", "kind": "retrieval", "query": "Disposizioni particolari per il vino 1. I produttori di vino che producono in media meno di 1.000 ettolitri di", "expect": [["accise", "37"]], "k": 12}
 {"id": "it-ret-adozione-1", "lang": "it", "kind": "retrieval", "query": "1. Il minore ha diritto di crescere ed essere educato nell'ambito della propria famiglia.", "expect": [["adozione", "1"]], "k": 12}
 {"id": "it-ret-adozione-39-ter", "lang": "it", "kind": "retrieval", "query": "1. Al fine di ottenere l'autorizzazione prevista dall'articolo 39, comma 1, lettera c), e", "expect": [["adozione", "39-ter"]], "k": 12}
@@ -398,7 +396,7 @@
 {"id": "it-ret-codice_antimafia-60", "lang": "it", "kind": "retrieval", "query": "Liquidazione dei beni", "expect": [["codice_antimafia", "60"]], "k": 12}
 {"id": "it-ret-codice_assicurazioni-1", "lang": "it", "kind": "retrieval", "query": "Definizioni 1. Agli effetti del codice delle assicurazioni private si intendono per: a) assicurazione contro", "expect": [["codice_assicurazioni", "1"]], "k": 12}
 {"id": "it-ret-codice_assicurazioni-166", "lang": "it", "kind": "retrieval", "query": "Criteri di redazione", "expect": [["codice_assicurazioni", "166"]], "k": 12}
-{"id": "it-ret-codice_beni_culturali-1", "lang": "it", "kind": "retrieval", "query": "1. È approvato l'unito codice dei beni culturali e del paesaggio , composto di", "expect": [["codice_beni_culturali", "1"]], "k": 12}
+{"id": "it-ret-codice_beni_culturali-1", "lang": "it", "kind": "retrieval", "query": "Principi 1. In attuazione dell' articolo 9 della Costituzione , la Repubblica tutela e valorizza", "expect": [["codice_beni_culturali", "1"]], "k": 12}
 {"id": "it-ret-codice_beni_culturali-88", "lang": "it", "kind": "retrieval", "query": "Attività di ricerca", "expect": [["codice_beni_culturali", "88"]], "k": 12}
 {"id": "it-ret-codice_civile-1", "lang": "it", "kind": "retrieval", "query": "Capacità giuridica La capacità giuridica si acquista dal momento della nascita. I diritti che la legge", "expect": [["codice_civile", "1"]], "k": 12}
 {"id": "it-ret-codice_civile-1599", "lang": "it", "kind": "retrieval", "query": "Trasferimento a titolo particolare della cosa locata", "expect": [["codice_civile", "1599"]], "k": 12}
@@ -426,7 +424,7 @@
 {"id": "it-ret-codice_privacy-13-all2", "lang": "it", "kind": "retrieval", "query": "Violazione delle regole deontologiche", "expect": [["codice_privacy", "13-all2"]], "k": 12}
 {"id": "it-ret-codice_procedura_civile-1", "lang": "it", "kind": "retrieval", "query": "Giurisdizione dei giudici ordinari", "expect": [["codice_procedura_civile", "1"]], "k": 12}
 {"id": "it-ret-codice_procedura_civile-416", "lang": "it", "kind": "retrieval", "query": "Costituzione del convenuto Il convenuto deve costituirsi almeno dieci giorni prima della udienza ... . La costituzione", "expect": [["codice_procedura_civile", "416"]], "k": 12}
-{"id": "it-ret-codice_procedura_penale-01", "lang": "it", "kind": "retrieval", "query": "1. È approvato il testo del codice di procedura penale , allegato al presente", "expect": [["codice_procedura_penale", "01"]], "k": 12}
+{"id": "it-ret-codice_procedura_penale-1", "lang": "it", "kind": "retrieval", "query": "Giurisdizione penale 1. La giurisdizione penale è esercitata dai giudici previsti dalle leggi di ordinamento giudiziario", "expect": [["codice_procedura_penale", "1"]], "k": 12}
 {"id": "it-ret-codice_procedura_penale-377", "lang": "it", "kind": "retrieval", "query": "Citazioni di persone informate sui fatti", "expect": [["codice_procedura_penale", "377"]], "k": 12}
 {"id": "it-ret-codice_processo_amministrativo-1", "lang": "it", "kind": "retrieval", "query": "ALLEGATO 1 Codice del processo amministrativo Art. 1 Effettività 1. La giurisdizione amministrativa assicura", "expect": [["codice_processo_amministrativo", "1"]], "k": 12}
 {"id": "it-ret-codice_processo_amministrativo-56", "lang": "it", "kind": "retrieval", "query": "Misure cautelari monocratiche 1. Prima della trattazione della domanda cautelare da parte del collegio,", "expect": [["codice_processo_amministrativo", "56"]], "k": 12}
@@ -468,13 +466,12 @@
 {"id": "it-ret-giustizia_tributaria-61", "lang": "it", "kind": "retrieval", "query": "Comunicazioni, notificazioni e depositi telematici ( articolo 16-bis del decreto legislativo n. 546 del", "expect": [["giustizia_tributaria", "61"]], "k": 12}
 {"id": "it-ret-immobili_da_costruire-1", "lang": "it", "kind": "retrieval", "query": "Definizioni 1. Ai fini del presente decreto devono intendersi: a) per «acquirente»: la persona fisica", "expect": [["immobili_da_costruire", "1"]], "k": 12}
 {"id": "it-ret-immobili_da_costruire-10", "lang": "it", "kind": "retrieval", "query": "Esenzioni e limiti alla esperibilità dell'azione revocatoria fallimentare", "expect": [["immobili_da_costruire", "10"]], "k": 12}
-{"id": "it-ret-imposta_registro-01", "lang": "it", "kind": "retrieval", "query": "1. È approvato l'unito testo unico delle disposizioni concernenti l'imposta di registro, vistato dal", "expect": [["imposta_registro", "01"]], "k": 12}
+{"id": "it-ret-imposta_registro-1", "lang": "it", "kind": "retrieval", "query": "Oggetto dell'imposta 1. L'imposta di registro si applica, nella misura indicata nella tariffa allegata al presente", "expect": [["imposta_registro", "1"]], "k": 12}
 {"id": "it-ret-imposta_successioni-1-legge", "lang": "it", "kind": "retrieval", "query": "1. È approvato l'unito testo unico delle disposizioni concernenti l'imposta sulle successioni e donazioni,", "expect": [["imposta_successioni", "1-legge"]], "k": 12}
 {"id": "it-ret-imposta_successioni-63", "lang": "it", "kind": "retrieval", "query": "Entrata in vigore 1. Il presente testo unico entra in vigore il 1' gennaio", "expect": [["imposta_successioni", "63"]], "k": 12}
 {"id": "it-ret-ingiunzione_europea-1", "lang": "it", "kind": "retrieval", "query": "Oggetto 1. Il presente regolamento intende a) semplificare, accelerare e ridurre i costi dei procedimenti", "expect": [["ingiunzione_europea", "1"]], "k": 12}
 {"id": "it-ret-ingiunzione_europea-17", "lang": "it", "kind": "retrieval", "query": "Effetti della presentazione di un'opposizione", "expect": [["ingiunzione_europea", "17"]], "k": 12}
 {"id": "it-ret-iva-17-bis", "lang": "it", "kind": "retrieval", "query": "Acquisto di pubblicità on line", "expect": [["iva", "17-bis"]], "k": 12}
-{"id": "it-ret-iva-47", "lang": "it", "kind": "retrieval", "query": "IL D.LGS. 5 NOVEMBRE 2024, N. 173 , COME MODIFICATO DAL D.L. 31 DICEMBRE", "expect": [["iva", "47"]], "k": 12}
 {"id": "it-ret-legge_52_1985-1", "lang": "it", "kind": "retrieval", "query": "L' articolo 2659 del codice civile è sostituito dal seguente: \"Art. 2659. - (Nota", "expect": [["legge_52_1985", "1"]], "k": 12}
 {"id": "it-ret-legge_52_1985-17", "lang": "it", "kind": "retrieval", "query": "Le note di trascrizione o iscrizione di cui agli articoli 2659 , 2660 e", "expect": [["legge_52_1985", "17"]], "k": 12}
 {"id": "it-ret-legge_biagi-1", "lang": "it", "kind": "retrieval", "query": "Finalità e campo di applicazione 1. Le disposizioni di cui al presente decreto legislativo, nel dare attuazione ai principi", "expect": [["legge_biagi", "1"]], "k": 12}
@@ -521,7 +518,6 @@
 {"id": "it-ret-protocollo_it_al_migranti-6", "lang": "it", "kind": "retrieval", "query": "1. Le competenti autorità delle Parti collaborano ai fini del mantenimento della sicurezza delle", "expect": [["protocollo_it_al_migranti", "6"]], "k": 12}
 {"id": "it-ret-pubblico_impiego-1", "lang": "it", "kind": "retrieval", "query": "Finalità ed ambito di applicazione ( Art. 1 del d.lgs. n. 29 del 1993 , come modificato dall' art. 1 del d.lgs. n. 80 del 1998 1. Le disposizioni del presente decreto disciplinano l'organizzazione degli uffici e i rapporti di", "expect": [["pubblico_impiego", "1"]], "k": 12}
 {"id": "it-ret-pubblico_impiego-39-bis", "lang": "it", "kind": "retrieval", "query": "Consulta nazionale per l'integrazione in ambiente di lavoro delle persone con disabilità", "expect": [["pubblico_impiego", "39-bis"]], "k": 12}
-{"id": "it-ret-reati_tributari-7", "lang": "it", "kind": "retrieval", "query": "IL D.LGS. 5 NOVEMBRE 2024, N. 173 , COME MODIFICATO DAL D.L. 31 DICEMBRE", "expect": [["reati_tributari", "7"]], "k": 12}
 {"id": "it-ret-reg_ue_2015_2446-1", "lang": "it", "kind": "retrieval", "query": "Definizioni Ai fini del presente regolamento si intende per: 1. «misura di politica agricola»: le", "expect": [["reg_ue_2015_2446", "1"]], "k": 12}
 {"id": "it-ret-reg_ue_2015_2446-128-quater", "lang": "it", "kind": "retrieval", "query": "Autorizzazione a redigere il manifesto della compagnia di navigazione dopo la partenza", "expect": [["reg_ue_2015_2446", "128-quater"]], "k": 12}
 {"id": "it-ret-reg_ue_2015_2447-1", "lang": "it", "kind": "retrieval", "query": "Definizioni (1) Ai fini del presente regolamento si applica l’articolo 1 del regolamento delegato (UE)", "expect": [["reg_ue_2015_2447", "1"]], "k": 12}
@@ -563,7 +559,7 @@
 {"id": "it-ret-statuto_contribuente-10-bis", "lang": "it", "kind": "retrieval", "query": "Disciplina dell'abuso del diritto o elusione fiscale", "expect": [["statuto_contribuente", "10-bis"]], "k": 12}
 {"id": "it-ret-statuto_lavoratori-1", "lang": "it", "kind": "retrieval", "query": "Libertà di opinione", "expect": [["statuto_lavoratori", "1"]], "k": 12}
 {"id": "it-ret-statuto_lavoratori-20", "lang": "it", "kind": "retrieval", "query": "Assemblea I lavoratori hanno diritto di riunirsi, nella unità produttiva in cui prestano la loro", "expect": [["statuto_lavoratori", "20"]], "k": 12}
-{"id": "it-ret-stupefacenti-01", "lang": "it", "kind": "retrieval", "query": "1. È approvato l'unito testo unico delle leggi in materia di disciplina degli stupefacenti", "expect": [["stupefacenti", "01"]], "k": 12}
+{"id": "it-ret-stupefacenti-1", "lang": "it", "kind": "retrieval", "query": "Comitato nazionale di coordinamento per l'azione antidroga. Assistenza ai Paesi in via di sviluppo produttori di sostanze stupefacenti", "expect": [["stupefacenti", "1"]], "k": 12}
 {"id": "it-ret-stupefacenti-67", "lang": "it", "kind": "retrieval", "query": "Legge 22 dicembre 1975, n. 685 , art. 67) Perdita, smarrimento o sottrazione", "expect": [["stupefacenti", "67"]], "k": 12}
 {"id": "it-ret-successioni_ue-1", "lang": "it", "kind": "retrieval", "query": "Ambito di applicazione 1. Il presente regolamento si applica alle successioni a causa di morte. Esso non", "expect": [["successioni_ue", "1"]], "k": 12}
 {"id": "it-ret-successioni_ue-43", "lang": "it", "kind": "retrieval", "query": "Esecutività Le decisioni emesse in uno Stato membro e ivi esecutive sono eseguite in un", "expect": [["successioni_ue", "43"]], "k": 12}
@@ -593,7 +589,7 @@
 {"id": "it-ret-tu_spese_giustizia-150", "lang": "it", "kind": "retrieval", "query": "(Restituzione di beni sequestrati). 1. La restituzione dei beni sequestrati è disposta dal magistrato", "expect": [["tu_spese_giustizia", "150"]], "k": 12}
 {"id": "it-ret-tue-1", "lang": "it", "kind": "retrieval", "query": "ex articolo 1 del TUE) ( 2", "expect": [["tue", "1"]], "k": 12}
 {"id": "it-ret-tue-28", "lang": "it", "kind": "retrieval", "query": "ex articolo 14 del TUE", "expect": [["tue", "28"]], "k": 12}
-{"id": "it-ret-tuel-1", "lang": "it", "kind": "retrieval", "query": "1. È approvato l'unito testo unico delle leggi sull'ordinamento degli enti locali, composto di", "expect": [["tuel", "1"]], "k": 12}
+{"id": "it-ret-tuel-1", "lang": "it", "kind": "retrieval", "query": "oggetto 1. Il presente testo unico contiene i principi e le disposizioni in materia di", "expect": [["tuel", "1"]], "k": 12}
 {"id": "it-ret-tuel-147-quater", "lang": "it", "kind": "retrieval", "query": "Controlli sulle società partecipate non quotate", "expect": [["tuel", "147-quater"]], "k": 12}
 {"id": "it-ret-tuir-1", "lang": "it", "kind": "retrieval", "query": "TESTO UNICO DELLE IMPOSTE SUI REDDITI ART. 1 Presupposto dell'imposta ( articolo 1 decreto", "expect": [["tuir", "1"]], "k": 12}
 {"id": "it-ret-tuir-189", "lang": "it", "kind": "retrieval", "query": "Regime di neutralità fiscale ( articolo 179 decreto del Presidente della Repubblica 22 dicembre", "expect": [["tuir", "189"]], "k": 12}

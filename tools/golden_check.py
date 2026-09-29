@@ -6286,6 +6286,127 @@ def main():
     except Exception as _e185:  # noqa: BLE001
         check("trust[185]: kontrollet u ekzekutuan", False, str(_e185))
 
+    # [186] v9.405 — IL CORPUS ITALIANO AL TESTO VIGENTE OGGI. Normattiva aperta senza data mostra la versione FUTURA (656 articoli
+    # di 20 atti: i vecchi atti fiscali «ARTICOLO ABROGATO» dal 2027, articoli con modifiche future, 3 che esistono solo dal
+    # futuro): tools/riallinea_vigenti_it.py mette nel JSON il testo di oggi e conserva la versione futura con la data; il build
+    # usa quella giusta per la sua data e scrive `_vigenze`; verificatore, blocco degli articoli e strumenti PRO le leggono.
+    # Il primo giro dello script abbinava per NUMERO e nell'imposta di registro l'art. 5 della Tabella finiva sull'art. 5 del
+    # testo unico: ora per gruppo, come l'ingest.
+    try:
+        from datetime import date as _d186
+        from src import corrispondenze_tu as _ctu186, citation_verifier as _cv186, expertise as _ex186
+        from pathlib import Path as _P186
+        import importlib.util as _ilu186
+        _it186 = ArticleIndex.load(_P186("/app/data/index/bm25_it.pkl"))
+        _by186 = {(a.code, str(a.number)): a for a in _it186.articles}
+        _a8 = _by186.get(("reati_tributari", "8"))
+        _n_vg = sum(len(v) for v in ((_ctu186.carica().get("_vigenze") or {}).values()))
+        _testo_ok = bool(_a8 is not None and not _a8.repealed
+                         and "operazioni inesistenti" in ((_a8.heading or "") + " " + (_a8.body or "")).lower()
+                         and "ARTICOLO ABROGATO" not in (_a8.body or "")[:300].upper())
+        _r5 = _by186.get(("imposta_registro", "5"))
+        _r5_ok = bool(_r5 is not None and "Atti e documenti formati per l'applicazione" not in (_r5.body or ""))
+        _s2 = _by186.get(("imposta_successioni", "2"))
+        _s2_ok = bool(_s2 is not None and "territorialit" in (_s2.heading or "").lower() and "637/1972" in (_s2.body or "")[:200])
+        _v186 = lambda t: (_cv186.verify_text(t, _it186).get("items") or [{}])[0]
+        try:
+            _ctu186._OGGI_FORZATO = _d186(2026, 9, 29)
+            _nv = _ctu186.nota_vigenza("reati_tributari", "8")
+            _i8 = _v186("Il reato è quello dell'art. 8 d.lgs. 74/2000.")
+            _bl = _ex186._previgenti(_it186, [("tu_sanzioni_tributarie", "79", "x")])
+            _cp = _ex186._con_previgenti(_it186, [("tu_sanzioni_tributarie", "79", "x" * 3000), ("codice_penale", "56", "y")])
+            _blk = _ex186.blocco_articoli(_cp, "it")
+            _dd1 = _v186("Si applica l'art. 79 del testo unico sanzioni tributarie.")
+            _dd2 = _v186("L'art. 79 del testo unico sanzioni tributarie, applicabile dal 1° gennaio 2027, sostituirà l'art. 8.")
+            _prima = (bool(_dd1.get("avviso")) and not _dd2.get("avviso")
+                      and "VIGENTE FINO AL 31/12/2026" in _nv and "ABROGATO" in _nv
+                      and _i8.get("status") == "verified" and "in vigore fino al 31/12/2026" in (_i8.get("article_heading") or "")
+                      and ("reati_tributari", "8") in _ctu186.previgenti("tu_sanzioni_tributarie", "79")
+                      and any(c == "reati_tributari" and n == "8" for c, n, _t in _bl)
+                      and [(c, n) for c, n, _t in _cp][:2] == [("tu_sanzioni_tributarie", "79"), ("reati_tributari", "8")]
+                      and "testo unico abbreviato" in _blk
+                      and _blk.index("%s art. 79]" % _ex186._lbl_it("tu_sanzioni_tributarie")) < _blk.index(
+                          "%s art. 8]" % _ex186._lbl_it("reati_tributari")))
+            _ctu186._OGGI_FORZATO = _d186(2027, 2, 1)
+            _i8b = _v186("Il reato è quello dell'art. 8 d.lgs. 74/2000.")
+            _dopo = (_ctu186.nota_vigenza("reati_tributari", "8").startswith("⚠ ARTICOLO ABROGATO DAL 01/01/2027")
+                     and _i8b.get("status") == "repealed" and "oggi art. 79" in (_i8b.get("article_heading") or "")
+                     and _ex186._previgenti(_it186, [("tu_sanzioni_tributarie", "79", "x")]) == [])
+        finally:
+            _ctu186._OGGI_FORZATO = None
+        # le altre due forme con una mappa finta: articolo che CAMBIA più avanti, articolo NON ANCORA IN VIGORE
+        _orig186 = _ctu186.carica
+        try:
+            _ctu186.carica = lambda: {"_vigenze": {"x_atto": {
+                "7": {"fino": "2027-02-28", "dal": "2027-03-01", "futuro_abrogato": False, "futuro_rubrica": "Nuova rubrica",
+                      "futuro_testo": "1. Testo nuovo.", "non_in_vigore_dal": ""},
+                "9-bis": {"fino": "", "dal": "", "futuro_abrogato": False, "futuro_rubrica": "", "futuro_testo": "",
+                          "non_in_vigore_dal": "2027-06-01"}}}}
+            _ctu186._OGGI_FORZATO = _d186(2026, 10, 1)
+            _f1 = _ctu186.nota_vigenza("x_atto", "7")
+            _f2 = _ctu186.nota_vigenza("x_atto", "9-bis")
+            _ctu186._OGGI_FORZATO = _d186(2027, 7, 1)
+            _f3 = _ctu186.nota_vigenza("x_atto", "7")
+            _f4 = _ctu186.nota_vigenza("x_atto", "9-bis")
+            _finte = (_f1.startswith("ℹ TESTO VIGENTE FINO AL 28/02/2027") and "dal 01/03/2027 cambia" in _f1
+                      and _f2.startswith("⚠ ARTICOLO NON ANCORA IN VIGORE: si applica dal 01/06/2027")
+                      and _f3.startswith("⚠ TESTO CAMBIATO DAL 01/03/2027") and _f4 == "")
+        finally:
+            _ctu186.carica = _orig186
+            _ctu186._OGGI_FORZATO = None
+        # lo script abbina per GRUPPO come l'ingest (normattiva_lib.assign_numbers)
+        _sp = _ilu186.spec_from_file_location("riall186", "/app/tools/riallinea_vigenti_it.py")
+        _rm = _ilu186.module_from_spec(_sp)
+        sys.path.insert(0, "/app/tools")
+        _sp.loader.exec_module(_rm)
+        _sz = {"0": 80, "1": 14, "2": 12, "3": 13, "4": 1}
+        _et = {"1": ["art. %d" % i for i in range(1, 15)], "2": ["art. %d" % i for i in range(1, 13)],
+               "3": ["art. %d" % i for i in range(1, 14)], "4": ["Prospetto"]}
+        _gr = (_rm._numero_nel_json("5", "0", _sz, _et) == "5" and _rm._numero_nel_json("5", "3", _sz, _et) == "5-all3"
+               and _rm._numero_nel_json("prospetto", "4", _sz, _et) is None
+               and _rm._numero_nel_json("1", "0", {"0": 1, "1": 62}, {}) == "1-legge"
+               and _rm._numero_nel_json("2", "1", {"0": 1, "1": 62}, {}) == "2"
+               and _rm._numero_nel_json("8", "0", {"0": 34}, {}) == "8"
+               and _rm._trova([{"number": "5"}, {"number": "5-all3"}], "5-all3", "3") == {"number": "5-all3"}
+               and _rm._trova([{"number": "5", "group": "0"}], "5", "3") is None)
+        _src_n = open("/app/src/notary.py", encoding="utf-8").read()
+        _src_b = open("/app/src/brain.py", encoding="utf-8").read()
+        # la chat: accanto all'articolo di testo unico non ancora applicabile entra la norma vigente (copia marcata)
+        _chat_prev = False
+        try:
+            from src.brain import SuperAvvocato as _SA186, set_request_jurisdiction as _srj186
+            _sa186 = _SA186.__new__(_SA186)
+            _sa186.index_it = _it186
+            _sa186._current_jurisdiction = lambda: "IT"
+            _ctu186._OGGI_FORZATO = _d186(2026, 9, 29)
+            _r = _sa186._aggiungi_previgenti([(_by186[("tu_sanzioni_tributarie", "79")], 1.0)])
+            _chat_prev = ([(a.code, str(a.number)) for a, _ in _r] == [("tu_sanzioni_tributarie", "79"), ("reati_tributari", "8")]
+                          and bool(getattr(_r[1][0], "_previgente_di", "")) and not hasattr(_by186[("reati_tributari", "8")], "_previgente_di")
+                          and _src_b.count("self._aggiungi_previgenti(retrieved)") == 2)
+        except Exception as _e_cp:  # noqa: BLE001
+            print("   chat previgenti:", _e_cp)
+        finally:
+            _ctu186._OGGI_FORZATO = None
+        from src import notary as _nt186, prosecutor as _pr186
+        _semi = (("codice_civile", "568") in _nt186._semi_successione_it("Il de cuius lascia la madre e un fratello.")
+                 and ("legge_52_1985", "29") in _nt186._seed_controllo_it("Compravendita di un appartamento in Milano")
+                 and ("antiriciclaggio", "49") in _nt186._seed_controllo_it("prezzo pagato in contanti")
+                 and "_CHECK_SYSTEM_IT" in _src_n and "_SUCC_SYSTEM_IT" in _src_n and '"2657", "2671")' in _src_n
+                 and '("codice_procedura_civile", "441-bis")' in _src_b
+                 and ("kodi_penal", "22") in _pr186._semi_situazione_al("u përpoq të vidhte makinën por nuk arriti")
+                 and ("codice_penale", "56") in _pr186._semi_situazione_it("ha tentato di rubare l'auto")
+                 and {("disp_att_cpp", "220"), ("responsabilita_enti", "25-quinquiesdecies")} <= set(_pr186._semi_situazione_it(
+                     "L'amministratore della srl ha emesso fatture per operazioni inesistenti")))
+        _ok186 = (_n_vg >= 400 and _testo_ok and _r5_ok and _s2_ok and _prima and _dopo and _finte and _gr and _semi and _chat_prev)
+        check("vigenti-it[186]: il corpus italiano ha il testo in vigore oggi, le date di vigenza (fino a / dal / non ancora) nel "
+              "verificatore e nel blocco, la norma previgente accanto al testo unico, l'abbinamento per gruppo, il notaio italiano",
+              _ok186, "vigenze=%s testo=%s reg5=%s succ2=%s prima=%s dopo=%s finte=%s gruppi=%s semi=%s chat=%s | i8=%s %r" % (
+                  _n_vg, _testo_ok, _r5_ok, _s2_ok, locals().get("_prima"), locals().get("_dopo"), locals().get("_finte"),
+                  locals().get("_gr"), locals().get("_semi"), locals().get("_chat_prev"), (locals().get("_i8") or {}).get("status"),
+                  ((locals().get("_i8") or {}).get("article_heading") or "")[:120]))
+    except Exception as _e186:  # noqa: BLE001
+        check("vigenti-it[186]: kontrollet u ekzekutuan", False, str(_e186))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

@@ -102,8 +102,8 @@ def list_deed_types() -> list[dict]:
              "must": DEED_TYPES[k]["must"]} for k in _ORDER]
 
 
-def _art_block(backend, index, text, seed):
-    arts = _expertise.retrieve_grounded(backend, index, text, seed_pairs=seed)
+def _art_block(backend, index, text, seed, extra: int = 0):
+    arts = _expertise.retrieve_grounded(backend, index, text, seed_pairs=seed, max_arts=16 + max(0, int(extra or 0)))
     # v9.399: il testo fino a 3.500 caratteri (prima 900: il KC 361 arrivava senza la quota del coniuge) e «art.» in IT
     return _expertise.blocco_articoli(arts, _expertise._lang_indice(index)), arts
 
@@ -183,11 +183,59 @@ def _seed_controllo(text: str):
     return seed + [x for x in add if x not in seed]
 
 
+# v9.405 — IL NOTAIO ITALIANO riceveva i semi e le parole di ricerca ALBANESI (kodi_civil 316, «trashëgimi trashëgimtar»,
+# «regjistrim kalim pronësie»): sull'indice italiano i semi non esistono e le parole non si trovano. Audit IT del 29 set (v9.402):
+# «l'art. 2671 c.c. non è fra gli articoli recuperati» (adempimenti dopo l'atto), «art. 568 c.c. non figura» (successione con i
+# genitori), «art. 2657 c.c. non figura» (procura per vendere un immobile), legge notarile «articoli non compresi». Articoli
+# verificati sul corpus. I posti dei semi si AGGIUNGONO ai 16 (come nel procuratore).
+_RX_IMMOBILE_IT = re.compile(r"immobil|appartament|\bcasa\b|terren|fabbricat|villett|\bbox\b|garage|negozi|capannon|"
+                             r"catast|compravendit|\bvend|\bacquist|donazion", re.I)
+_SEMI_FORMA_ATTO_IT = [("legge_notarile", n) for n in ("28", "47", "48", "49", "51", "54", "58")]
+
+
+def _seed_controllo_it(text: str):
+    t = text or ""
+    seed = list(_SEMI_FORMA_ATTO_IT)
+    if _RX_IMMOBILE_IT.search(t):
+        # + l'APE da allegare (d.lgs. 192/2005 art. 6) e la rettifica notarile (legge notarile 59-bis): la prova viva del controllo
+        # di una compravendita le citava «non comprese tra gli articoli forniti»; il certificato di destinazione urbanistica
+        # (TU edilizia art. 30) coi terreni
+        seed += [("legge_52_1985", "29"), ("tu_edilizia", "46"), ("codice_civile", "2643"), ("codice_civile", "2657"),
+                 ("prestazione_energetica", "6"), ("legge_notarile", "59-bis")]
+        if re.search(r"terren|fondo rustic|agricol|lott", t, re.I):
+            seed += [("tu_edilizia", "30")]
+    if re.search(r"contant|\bcash\b|in denaro|banconot", t, re.I):
+        seed += [("antiriciclaggio", "49"), ("antiriciclaggio", "51")]
+    if re.search(r"coniug|moglie|marito|comunione", t, re.I):
+        seed += [("codice_civile", "177"), ("codice_civile", "179"), ("codice_civile", "184")]
+    return list(dict.fromkeys(seed))
+
+
+_CHECK_SYSTEM_IT = (
+    "Sei un NOTAIO revisore rigoroso. Controlla l'ATTO NOTARILE dato per VALIDITÀ FORMALE e COERENZA, secondo il diritto "
+    "italiano (legge notarile 16 febbraio 1913, n. 89 e codice civile). Basati sul testo e sugli articoli dati — non inventare "
+    "articoli. Dai (markdown):\n"
+    "### \U0001f6a8 Mancanze formali — clausole/formalità obbligatorie che MANCANO (identità e certezza dell'identità delle "
+    "parti, presenza, testimoni se necessari, oggetto, prezzo e modalità di pagamento, dichiarazioni urbanistiche e catastali "
+    "per gli immobili, data, lettura, sottoscrizioni)\n"
+    "### ⚠️ Incongruenze — dati sbagliati, nomi/importi/dati catastali che non coincidono dentro l'atto\n"
+    "### \U0001f4dc Articoli citati — esistono e sono vigenti? (se ce ne sono)\n"
+    "### ✅ Conclusione — l'atto è pronto per la stipula o cosa va corretto prima (rischio di nullità, art. 58 legge notarile; "
+    "per gli immobili art. 29 L. 52/1985 e art. 46 d.P.R. 380/2001 se tra gli articoli dati).\n"
+    + _NOTARY_ID_IT)
+
+
 def check_deed(backend, index, *, text: str, max_tokens: int = 2400) -> dict:
     # v9.399: i semi del tipo di atto riconosciuto dalla testa del testo (nell'audit del 28 set il controllo di una compravendita
     # non aveva le norme sulla vendita immobiliare né sul consenso del coniuge e lo dichiarava «non dato nel corpus»)
-    art_block, arts = _art_block(backend, index, text,
-                                 None if _expertise._lang_indice(index) == "it" else _seed_controllo(text))
+    if _expertise._lang_indice(index) == "it":
+        _sem = _seed_controllo_it(text)
+        art_block, arts = _art_block(backend, index, text, _sem, extra=len(_sem))
+        md = backend.complete(system=_CHECK_SYSTEM_IT, messages=[{"role": "user", "content": (
+            "ATTO DA CONTROLLARE:\n" + (text or "").strip() + "\n\n─────\nARTICOLI DEL CORPUS:\n" + art_block +
+            "\n\nControlla l'atto.")}], max_tokens=max_tokens, callsite="notary_check")
+        return {"markdown": (md or "").strip(), "articles": [{"code": c, "number": n} for c, n, _t in arts]}
+    art_block, arts = _art_block(backend, index, text, _seed_controllo(text))
     system = (
         "Ti je NOTER-redaktor i rreptë. Kontrollo AKTIN NOTARIAL të dhënë për VLEFSHMËRI "
         "FORMALE dhe KOHERENCË, sipas së drejtës shqiptare. Bazohu te teksti dhe te nenet e "
@@ -211,12 +259,65 @@ def check_deed(backend, index, *, text: str, max_tokens: int = 2400) -> dict:
 _SEED_KOMUNITET = [("kodi_familjes", "74"), ("kodi_familjes", "76"), ("kodi_familjes", "96"), ("kodi_familjes", "103")]
 
 
+_SEMI_SUCC_IT = [("codice_civile", n) for n in ("565", "566", "581", "582", "583", "536", "537", "540", "542", "467", "468")]
+
+
+def _semi_successione_it(situation: str):
+    f = _expertise._fold(situation or "")
+    s = list(_SEMI_SUCC_IT)
+    if re.search(r"coniug|moglie|marito|vedov", f):
+        s += [("codice_civile", "177"), ("codice_civile", "179")]      # la comunione legale: metà dei beni comuni è sua
+    if re.search(r"fratell|sorell|genitor|\bpadre|\bmadre|nonn|ascendent", f):
+        s += [("codice_civile", "568"), ("codice_civile", "570"), ("codice_civile", "571"), ("codice_civile", "538")]
+    # prova viva v9.405 (coniuge + due figli + genitori + conto cointestato): «non compresi fra gli articoli recuperati» il conto
+    # cointestato (c.c. 1854, 1298 comma 2), la rinuncia (519, 521), il coniuge separato (548, 585), la divisione (713, 720)
+    if re.search(r"\bcont[oi]\b|cointestat|deposit|libretto", f):
+        s += [("codice_civile", "1854"), ("codice_civile", "1298")]
+    if re.search(r"rinunc|rinunz", f):
+        s += [("codice_civile", "519"), ("codice_civile", "521")]
+    if re.search(r"separat|addebit", f):
+        s += [("codice_civile", "548"), ("codice_civile", "585")]
+    if re.search(r"divi[sd]|immobil", f):
+        s += [("codice_civile", "713"), ("codice_civile", "720")]
+    if re.search(r"minor|minorenn|interdett|incapac", f):
+        s += [("codice_civile", "470"), ("codice_civile", "471")]
+    if re.search(r"debit|mutuo|finanziament|passivit|creditor", f):
+        s += [("codice_civile", "470"), ("codice_civile", "752"), ("codice_civile", "754")]
+    return list(dict.fromkeys(s))
+
+
+_SUCC_SYSTEM_IT = (
+    "Sei un NOTAIO esperto di diritto successorio italiano. Dalla situazione familiare data, determina gli EREDI e le QUOTE "
+    "secondo la successione legittima (o testamentaria, se è indicato un testamento), con la quota di riserva dei legittimari "
+    "se rileva. Basati SOLO sui fatti e sugli articoli dati — NON inventare articoli né percentuali senza fondamento. Col "
+    "coniuge in comunione legale: prima si scioglie la comunione (la metà dei beni comuni è sua come comproprietario), solo "
+    "l'altra metà entra nell'eredità. Dai (markdown):\n"
+    "### \U0001f465 Eredi — chi eredita e perché (ordine dei successibili)\n"
+    "### \U0001f4ca Quote — la quota di ciascuno (e la quota di riserva, se rileva)\n"
+    "### ⚠️ Attenzione — cosa va verificato (testamento, rinunce, rappresentazione, minori, debiti ereditari)\n"
+    "### \U0001f4dc Base normativa — gli articoli applicati\n\n"
+    "POI, in fondo, righe leggibili dalla macchina (nient'altro su quelle righe), scritte ESATTAMENTE in questa forma, per il "
+    "CONTROLLO aritmetico delle quote:\n"
+    "PJESA | <nome dell'erede> | <frazione, es. 1/3>\n"
+    "...una riga PJESA per ciascun erede...\n"
+    "STRUKTURA | bashkeshort=<0|1> | femije=<numero dei figli> | rend=<1|tjeter>\n"
+    "  · rend=1 solo se è successione legittima fra coniuge e figli, senza rappresentazione né testamento; altrimenti "
+    "rend=tjeter.\n"
+    + _NOTARY_ID_IT)
+
+
 def succession(backend, index, *, situation: str, jurisdiction: str = "AL", max_tokens: int = 2400) -> dict:
     _semi = [("kodi_civil", "316"), ("kodi_civil", "317"), ("kodi_civil", "361"), ("kodi_civil", "363")]
     if re.search(r"bashkeshort|\bgrua|\bburr|e shoqj|i shoqi|vejush", _expertise._fold(situation or "")):
         _semi += _SEED_KOMUNITET
-    art_block, arts = _art_block(backend, index, situation + " trashëgimi trashëgimtar pjesë takuese", _semi)
-    system = (
+    _it_idx = _expertise._lang_indice(index) == "it"
+    if _it_idx:
+        _semi = _semi_successione_it(situation)
+        art_block, arts = _art_block(backend, index, (situation or "") + " successione legittima eredi quote coniuge figli",
+                                     _semi, extra=len(_semi))
+    else:
+        art_block, arts = _art_block(backend, index, situation + " trashëgimi trashëgimtar pjesë takuese", _semi)
+    system = _SUCC_SYSTEM_IT if _it_idx else (
         "Ti je NOTER ekspert i së drejtës së trashëgimisë shqiptare. Nga gjendja familjare e "
         "dhënë, përcakto TRASHËGIMTARËT dhe PJESËT takuese, sipas trashëgimisë me ligj (ose me "
         "testament nëse jepet). Bazohu VETËM te faktet dhe te nenet e dhëna — MOS shpik nene apo "
@@ -233,8 +334,10 @@ def succession(backend, index, *, situation: str, jurisdiction: str = "AL", max_
         "  · rend=1 vetëm nëse është trashëgimi me ligj e radhës së parë (fëmijë/bashkëshort), pa "
         "përfaqësim e pa testament; përndryshe rend=tjeter.\n"
         + _NOTARY_ID)
-    prompt = ("GJENDJA FAMILJARE:\n" + (situation or "").strip()
-              + "\n\n─────\nNENET NGA KORPUSI:\n" + art_block + "\n\nPërcakto trashëgimtarët dhe pjesët.")
+    prompt = (("SITUAZIONE FAMILIARE:\n" + (situation or "").strip() + "\n\n─────\nARTICOLI DEL CORPUS:\n" + art_block +
+               "\n\nDetermina gli eredi e le quote.") if _it_idx else
+              ("GJENDJA FAMILJARE:\n" + (situation or "").strip()
+               + "\n\n─────\nNENET NGA KORPUSI:\n" + art_block + "\n\nPërcakto trashëgimtarët dhe pjesët."))
     md = backend.complete(system=system, messages=[{"role": "user", "content": prompt}],
                           max_tokens=max_tokens, callsite="notary_succession") or ""
     # §(notaio #2) — controllo aritmetico deterministico delle quote + strip righe macchina
@@ -551,8 +654,13 @@ def draft_prokura(backend, index, *, form: str, scope_keys=None, details: str = 
     _it = _expertise._lang_indice(index) == "it"
     if _it:
         dedup = list(_PROKURA_BASE_IT)
+        # v9.405 — una procura per un IMMOBILE: la forma dell'atto (art. 1350 c.c.) e il titolo per la trascrizione (art. 2657
+        # c.c.). Audit IT del 29 set: «l'art. 2657 c.c. non figura tra gli articoli forniti»
+        if _RX_IMMOBILE_IT.search((details or "") + " " + " ".join(scope_keys)) or any("pasuri" in k for k in scope_keys):
+            dedup += [("codice_civile", "1350"), ("codice_civile", "2657")]
     art_block, arts = _art_block(backend, index, (details or "") + (" procura rappresentanza poteri" if _it
-                                                                     else " prokurë përfaqësim tagra"), dedup)
+                                                                     else " prokurë përfaqësim tagra"), dedup,
+                                 extra=(4 if _it else 0))
     if _it:
         scope_txt = "\n".join(scope_lines) or (
             "(procura generale — atti di ordinaria amministrazione; quelli di straordinaria amministrazione solo se "
@@ -1173,6 +1281,32 @@ def post_deed_plan(backend, index, *, act: str, jurisdiction: str = "AL",
                 "pasurisë së paluajtshme dhe i barrëve); QKB (regjistrim/ndryshim i shoqërisë); "
                 "DPSHTRR (kalimi i automjetit); Drejtoria e Tatimeve (taksat/tatimet, p.sh. taksa e "
                 "kalimit të pronësisë); gjendja civile kur duhet.")
+    if juris == "IT" and _expertise._lang_indice(index) == "it":
+        _sem = [("codice_civile", n) for n in ("2643", "2644", "2645-bis", "2657", "2671")] + \
+               [("legge_notarile", "61"), ("legge_notarile", "62"), ("imposta_registro", "13"), ("imposta_registro", "57"),
+                ("antiriciclaggio", "31")]           # + i soggetti obbligati all'imposta (il notaio), la conservazione AML
+        if re.search(r"societ|\bimpresa|costrutt|\bs\.?r\.?l|\bs\.?p\.?a|\biva\b", low):
+            _sem += [("iva", "10")]                   # cessione da impresa: esenzione o imponibilità IVA (n. 8-bis)
+        if re.search(r"societ|\bs\.?r\.?l|\bs\.?p\.?a|statut|costitu|quot[ae]\b|cession\w* di quot", low):
+            _sem += [("codice_civile", "2330"), ("codice_civile", "2436"), ("codice_civile", "2470")]
+        art_block, arts = _art_block(backend, index, (act or "") + " trascrizione registrazione voltura termine notaio "
+                                     "adempimento", _sem, extra=len(_sem))
+        system = (
+            "Sei un NOTAIO esperto. L'atto È GIÀ STATO STIPULATO — il tuo compito è elencare i PASSI DOPO L'ATTO perché "
+            "produca tutti i suoi effetti (registrazione, trascrizione, voltura, iscrizioni, pagamento delle imposte). Per "
+            "OGNI passo: **DOVE** (autorità) · **COSA** si fa · **TERMINE** · **TARIFFA/IMPOSTA** (indicativa). " + auth + "\n"
+            "REGOLE FERME: come data concreta usa SOLO la scadenza calcolata data (se c'è); per gli altri termini e per le "
+            "tariffe scrivi 'verificare il termine/la tariffa ufficiale attuale — possono variare' — NON inventare giorni o "
+            "importi. Cita solo gli articoli dati (i testi unici fiscali del 2024-2026 si applicano dal 1° gennaio 2027: fino "
+            "ad allora vale la norma previgente indicata). Chiudi con '### ✅ Lista di controllo' con caselle [ ]. Sii concreto "
+            "e pratico. " + _NOTARY_ID_IT)
+        prompt = ("ATTO STIPULATO:\n" + (act or "").strip()[:3000] + "\nGIURISDIZIONE: IT" +
+                  (("\nDATA DELL'ATTO: " + act_date) if act_date else "") + afat_block +
+                  "\n\n─────\nARTICOLI DEL CORPUS (cita solo questi):\n" + art_block +
+                  "\n\nElenca i passi dopo l'atto con DOVE/COSA/TERMINE/TARIFFA + la lista di controllo.")
+        md = (backend.complete(system=system, messages=[{"role": "user", "content": prompt}],
+                               max_tokens=max_tokens, callsite="notary_post_deed") or "").strip()
+        return _post_deed_footer(md, _dres, _de, juris, act_date, _basis, arts)
     system = (
         "Ti je NOTER me përvojë. Akti ËSHTË NËNSHKRUAR tashmë — detyra jote është të listosh HAPAT "
         "PAS AKTIT që akti të prodhojë efektet e plota (regjistrim, transkriptim, kalim, pagesë "
@@ -1190,6 +1324,10 @@ def post_deed_plan(backend, index, *, act: str, jurisdiction: str = "AL",
               + "\n\nListo hapat pas aktit me KU/ÇFARË/AFATI/TARIFA + listën e kontrollit.")
     md = (backend.complete(system=system, messages=[{"role": "user", "content": prompt}],
                            max_tokens=max_tokens, callsite="notary_post_deed") or "").strip()
+    return _post_deed_footer(md, _dres, _de, juris, act_date, _basis, arts)
+
+
+def _post_deed_footer(md, _dres, _de, juris, act_date, _basis, arts) -> dict:
     # footer DETERMINISTICO garantito: la data esatta, verbatim, indipendente dal modello
     if _dres is not None and _de is not None:
         fmt = "%d/%m/%Y" if juris == "IT" else "%d.%m.%Y"

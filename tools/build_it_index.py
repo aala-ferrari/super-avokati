@@ -185,8 +185,32 @@ def _rubrica_forme_nuove(body: str):
     return None
 
 
+# v9.405 — nel testo unico delle successioni (d.lgs. 346/1990) ogni articolo porta SOPRA la rubrica la sua fonte nel vecchio
+# d.P.R. 637/1972 («Art. 2 D.P.R. n. 637/1972», «Artt. 13, commi 1 e 2, e 14 D.P.R. n. 637/1972 - Art. 7 legge n. 880/1986»,
+# «Disposizione nuova»), e l'ingest la leggeva come rubrica: la vera rubrica («Territorialità dell'imposta») restava prima riga
+# del testo. Col testo vigente riallineato (fino a v9.404 c'era solo la nota «ARTICOLO ABROGATO…») il caso è comparso.
+_FONTE_SOPRA = re.compile(r"^(?:Artt?\.\s*\d.*?(?:D\.\s?P\.\s?R\.|[Ll]egge|D\.\s?L\.|D\.\s?[Ll]gs\.?)\s*(?:n\.\s*)?\d+\s*/\s*\d{2,4}\b.*"
+                          r"|Disposizione nuova\.?)$")
+
+
 def _pulisci(heading: str, body: str) -> tuple[str, str]:
     h, b = heading or "", body or ""
+    _hs = re.sub(r"\s+", " ", re.sub(r"\(\(|\)\)", " ", h)).strip()
+    _fonte_fatta = False
+    if _hs and _FONTE_SOPRA.match(_hs):
+        _fonte_fatta = True             # la fonte messa in testa al testo non va poi riletta come rubrica fra parentesi
+        # nel testo unico delle accise (d.lgs. 504/1995) la rubrica sta nella stessa riga DOPO la fonte: «Artt. 22 e 23 D.L. n.
+        # 271/1957 ) Obbligazione civile dell'esercente…» → la rubrica è dopo l'ultima parentesi chiusa
+        _mr = re.match(r"^(?P<f>.+\d)\s*\)\s*\.?\s*(?P<r>[A-ZÀ-Ü][^()]{2,})$", _hs)
+        if _mr and _rubrica_ok(_mr.group("r").strip(" ."), filtri_verbi=False):
+            h, b = _mr.group("r").strip(" ."), "(" + _mr.group("f").strip(" (") + ")\n\n" + b
+        else:
+            _b2 = re.sub(r"\(\(|\)\)", "", b).strip()
+            rp = _rubrica_prima_riga(_b2) or _rubrica_forme_nuove(_b2)
+            if rp and not _FONTE_SOPRA.match(rp[0].strip()):
+                h, b = rp[0], "(" + _hs + ")\n\n" + rp[1]
+            else:
+                h, b = "", "(" + _hs + ")\n\n" + b
     if not h.strip():
         m = _RUB_IN_BODY.match(b)
         if m:
@@ -206,7 +230,7 @@ def _pulisci(heading: str, body: str) -> tuple[str, str]:
     # v9.384 — «… della presente Convenzione. TITOLO I DIRITTI E LIBERTÀ»: l'intestazione del titolo SEGUENTE incollata in
     # coda all'articolo (CEDU artt. 1, 18, 51; nel corpus IT non succede altrove — misurato): non è testo dell'articolo
     b = re.sub(r"(?<=[.;:])\s+(?:PARTE|TITOLO|CAPO|SEZIONE|SOTTOSEZIONE)\s+(?:[IVXLC]+|\d+)\b(?:\s+[A-ZÀ-Ü’'«»,\-]+)+\s*$", "", b)
-    if not h.strip():                                   # dopo la pulizia dei «((…))»: «(( (Competenza …).» c.p.p. 11
+    if not h.strip() and not _fonte_fatta:              # dopo la pulizia dei «((…))»: «(( (Competenza …).» c.p.p. 11
         rp = _rubrica_prima_riga(b.strip()) or _rubrica_forme_nuove(b.strip())
         if rp:
             h, b = rp
@@ -310,6 +334,7 @@ def main():
     ordered = [c for c in ORDER if c in acts] + [c for c in sorted(acts) if c not in ORDER]
 
     all_articles, meta = [], []
+    vigenze: dict = {}            # v9.405: code -> number -> {fino, dal, futuro_abrogato, futuro_rubrica, futuro_testo, non_in_vigore_dal}
     notes_map: dict = {}          # code -> number -> [note] (per src/temporal.py: storia + transitori)
     ger_ok = ger_tot = 0
     for cid in ordered:
@@ -320,6 +345,24 @@ def main():
             print(f"  ! {cid}: 0 articoli — escluso")
             continue
         for art in arts:
+            # v9.405 — VIGENZA: il JSON riallineato (tools/riallinea_vigenti_it.py) porta il testo di OGGI e, in `futuro`, la
+            # versione che entra in vigore più avanti con la sua data. Al build si usa quella giusta per la data di oggi; le date
+            # vanno nella mappa (`_vigenze`) perché verificatore e blocco degli articoli ragionino anche prima di un nuovo build.
+            _fu = art.get("futuro") if isinstance(art.get("futuro"), dict) else None
+            _oggi_iso = time.strftime("%Y-%m-%d")
+            if _fu and (_fu.get("dal") or "9999") <= _oggi_iso:
+                art = dict(art, heading=_fu.get("heading") or "", body=_fu.get("body") or "", repealed=_fu.get("repealed"))
+                _fu = None
+            _nv = art.get("non_in_vigore_dal")
+            if _fu and _as_bool(art.get("repealed")) and _as_bool(_fu.get("repealed")):
+                _fu = None          # abrogato oggi e abrogato dopo (d.lgs. 74/2000 art. 7, dal 2015): nessuna vigenza da dire
+            if _fu or (_nv and _nv > _oggi_iso):
+                _hf, _bf = _pulisci((_fu or {}).get("heading") or "", (_fu or {}).get("body") or "")
+                vigenze.setdefault(cid, {})[str(art["number"])] = {
+                    "fino": art.get("vigente_fino") or "", "dal": (_fu or {}).get("dal") or "",
+                    "futuro_abrogato": bool((_fu or {}).get("repealed")), "futuro_rubrica": _hf[:120],
+                    "futuro_testo": ("" if (_fu or {}).get("repealed") else _bf[:600]),
+                    "non_in_vigore_dal": _nv if (_nv and _nv > _oggi_iso) else ""}
             _h, _b = _pulisci(art.get("heading") or "", art.get("body") or "")
             # P3b-IT (16 set 2026): la data dell'ultima modifica per articolo dalle note di
             # aggiornamento Normattiva (vedi normattiva_lib.parse_notes), quando l'atto le ha
@@ -352,6 +395,8 @@ def main():
     # («( articolo 8 del decreto legislativo n. 74 del 2000 )»): il verificatore dice dove sta oggi una norma abrogata
     from src import corrispondenze_tu as _ctu
     _corr = _ctu.costruisci(all_articles, urns={cid: (acts[cid].get("urn") or "") for cid in acts})
+    _corr["_vigenze"] = vigenze
+    print(f"vigenze (testo che cambia o si abroga più avanti): {sum(len(v) for v in vigenze.values())} articoli in {len(vigenze)} atti")
     _atti_corr = {k: v for k, v in _corr.items() if not k.startswith("_")}
     _n_corr = sum(len(v) for v in _atti_corr.values())
     print(f"corrispondenze dei testi unici: {len(_atti_corr)} atti di origine, {_n_corr} articoli vecchi → "

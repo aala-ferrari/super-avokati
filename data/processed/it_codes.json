@@ -33,13 +33,13 @@
   "code": "codice_penale",
   "title": "Codice Penale",
   "area": "Penale",
-  "count": 999
+  "count": 1000
  },
  {
   "code": "codice_procedura_penale",
   "title": "Codice di Procedura Penale",
   "area": "Procedura Penale",
-  "count": 905
+  "count": 907
  },
  {
   "code": "disp_att_cpp",
@@ -129,7 +129,7 @@
   "code": "responsabilita_enti",
   "title": "Responsabilità amministrativa degli enti (D.Lgs 231/2001)",
   "area": "Impresa",
-  "count": 109
+  "count": 110
  },
  {
   "code": "procedimento_amministrativo",
@@ -213,7 +213,7 @@
   "code": "codice_beni_culturali",
   "title": "Codice dei Beni Culturali e del Paesaggio",
   "area": "Beni Culturali",
-  "count": 194
+  "count": 195
  },
  {
   "code": "codice_navigazione",
@@ -225,7 +225,7 @@
   "code": "stupefacenti",
   "title": "Testo Unico Stupefacenti",
   "area": "Penale",
-  "count": 148
+  "count": 149
  },
  {
   "code": "ordinamento_penitenziario",
@@ -297,7 +297,7 @@
   "code": "accise",
   "title": "Testo Unico delle Accise (D.Lgs 504/1995)",
   "area": "Doganale",
-  "count": 121
+  "count": 122
  },
  {
   "code": "iva",
@@ -309,7 +309,7 @@
   "code": "imposta_registro",
   "title": "Testo Unico dell'imposta di registro (DPR 131/1986)",
   "area": "Tributario",
-  "count": 87
+  "count": 88
  },
  {
   "code": "imposta_successioni",
@@ -465,7 +465,7 @@
   "code": "tuel",
   "title": "Testo Unico degli enti locali (D.Lgs 267/2000)",
   "area": "Amministrativo",
-  "count": 294
+  "count": 295
  },
  {
   "code": "processo_penale_minorile",

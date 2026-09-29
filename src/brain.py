@@ -172,6 +172,12 @@ ANCORE_IT: tuple = (
     # …e nel penale l'art. 2 (custodia cautelare, criminalità organizzata, prescrizione vicina)
     (("sospensione feriale", "periodo feriale", "feriale dei termini"), (),
      (("legge_sospensione_feriale", "1"), ("legge_sospensione_feriale", "2")), None, ("Penale", "Penal")),
+    # v9.405 — l'IMPUGNAZIONE del licenziamento in giudizio: il rito (c.p.c. 441-bis, trattazione prioritaria — dopo la riforma
+    # Cartabia che ha abrogato il rito Fornero). Audit IT del 29 set (v9.402): la risposta principale lo citava giusto ma «non è
+    # tra gli articoli che ho in corpus: conferma su Normattiva». Fuori dal penale.
+    ((("licenzi", "impugna"), ("licenzi", "ricorso"), ("licenzi", "giudizi"), ("licenzi", "tribunal"), ("licenzi", "reintegr"),
+      ("licenzi", "giudice")),
+     ("Penale", "Penal"), (("codice_procedura_civile", "441-bis"),)),
 )
 
 
@@ -3049,6 +3055,7 @@ class SuperAvvocato:
             triage.complexity = "complex"
         retrieved = self._retrieve(triage)
         retrieved = self._ankoro_citimet(user_message, retrieved, areas=getattr(triage, "areas", None))   # v9.359: il nene chiesto per numero, per primo
+        retrieved = self._aggiungi_previgenti(retrieved)      # v9.405: accanto al testo unico non ancora applicabile, la norma vigente
         retrieved = self._studio_kerkuesi(user_message, triage, retrieved)
 
         # Simple fast-path streaming.
@@ -3444,6 +3451,7 @@ class SuperAvvocato:
             triage.complexity = "complex"
         retrieved = self._retrieve(triage)
         retrieved = self._ankoro_citimet(user_message, retrieved, areas=getattr(triage, "areas", None))   # v9.359: il nene chiesto per numero, per primo
+        retrieved = self._aggiungi_previgenti(retrieved)      # v9.405: accanto al testo unico non ancora applicabile, la norma vigente
         retrieved = self._studio_kerkuesi(user_message, triage, retrieved)
         log.info("retrieved %d articles", len(retrieved))
 
@@ -4381,6 +4389,40 @@ class SuperAvvocato:
             return out
         except Exception as exc:  # noqa: BLE001
             log.warning("mbyll_dosjen: saltato (non-fatal): %s", exc)
+            return retrieved
+
+    def _aggiungi_previgenti(self, retrieved, limit: int = 3):
+        """v9.405 — sessione IT: un articolo di TESTO UNICO fiscale fra i recuperati che non si applica ancora (decorrenza 1°
+        gennaio 2027) porta SUBITO DOPO l'articolo del vecchio atto che trasfonde, che è la norma vigente oggi (dal v9.405 il
+        corpus ne ha il testo). Stessa regola degli strumenti PRO (`expertise._con_previgenti`). Copia marcata, mai l'oggetto
+        dell'indice; si aggiunge ai 12. Fail-silent."""
+        try:
+            if self._current_jurisdiction() != "IT" or self.index_it is None or not retrieved:
+                return retrieved
+            from . import corrispondenze_tu as _ctu
+            presenti = {(a.code, str(a.number)) for a, _ in retrieved}
+            by_key = None
+            out, aggiunti = [], []
+            for a, sc in retrieved:
+                out.append((a, sc))
+                if len(aggiunti) >= limit or a.code not in _ctu.CODICI_TU or not _ctu.futuro(a.code):
+                    continue
+                for oc, on in _ctu.previgenti(a.code, str(a.number))[:1]:
+                    if (oc, on) in presenti:
+                        continue
+                    if by_key is None:
+                        by_key = {(x.code, str(x.number)): x for x in self.index_it.articles}
+                    v = by_key.get((oc, on))
+                    if v is None or getattr(v, "repealed", False):
+                        continue
+                    c = _copy.copy(v); c._previgente_di = getattr(a, "citation", f"{a.code} {a.number}")
+                    out.append((c, sc)); presenti.add((oc, on)); aggiunti.append(f"{oc} {on}")
+            if aggiunti:
+                log.info("retrieval: norme vigenti accanto ai testi unici non ancora applicabili %s", aggiunti)
+                _audit_set("previgenti", aggiunti)
+            return out
+        except Exception as exc:  # noqa: BLE001
+            log.warning("aggiungi_previgenti: saltato (non-fatal): %s", exc)
             return retrieved
 
     def _ankoro_citimet(self, user_message: str, retrieved, areas=None):
@@ -7246,6 +7288,9 @@ def _format_articles_for_prompt(pairs: list[tuple[Article, float]]) -> str:
                 _nd = _ctu.nota_decorrenza(a.code)
                 if _nd:
                     hierarchy += f"  {_nd}\n"
+                _nvg = _ctu.nota_vigenza(a.code, a.number)          # v9.405: testo che cambia / si abroga / non ancora in vigore
+                if _nvg:
+                    hierarchy += f"  {_nvg}\n"
                 if getattr(a, "repealed", False):
                     _abr_diff = _ctu.abrogazione_differita(a.body or "")
                     if _abr_diff:
@@ -7294,6 +7339,13 @@ def _format_articles_for_prompt(pairs: list[tuple[Article, float]]) -> str:
                 f"── {a.citation}  ⚑ NENI I KËRKUAR SHPREHIMISHT NGA AVOKATI\n"
                 f"  (avokati e kërkoi me numër: përgjigju SË PARI për këtë nen, citoje fjalë për fjalë "
                 f"nga teksti më poshtë{' — KUJDES: është i shfuqizuar, thuaje' if getattr(a, 'repealed', False) else ''})\n"
+            )
+        elif getattr(a, "_previgente_di", "") and _it:
+            # v9.405 — la norma VIGENTE entrata accanto all'articolo di testo unico non ancora applicabile
+            intestazione = (
+                f"── {a.citation}  ⚑ NORMA VIGENTE — la sostituirà «{getattr(a, '_previgente_di', '')}»\n"
+                f"  (per fatti e atti fino al 31/12/2026 si applica QUESTO testo: citalo come norma vigente; il testo unico vale "
+                f"dal 01/01/2027)\n"
             )
         elif getattr(a, "_sostituisce", "") and _it:
             _fut_s = None
