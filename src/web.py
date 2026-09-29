@@ -169,6 +169,11 @@ def _ensure_loaded() -> None:
             _BRAIN = None
     storage.init_db()
     reminders_mod.start_background()
+    try:                                        # v9.410: il bot Telegram (spento se manca TELEGRAM_BOT_TOKEN)
+        from . import telegram_bot as _tg
+        _tg.registra_webhook()
+    except Exception as exc:  # noqa: BLE001
+        log.warning("telegram: %s", exc)
 
 
 # ── pages ──────────────────────────────────────────────────────────────────
@@ -8112,7 +8117,10 @@ def api_ical_url():
     user = request.user  # type: ignore[attr-defined]
     token = storage.ensure_ical_token(user.id)
     return jsonify({
-        "url": url_for("api_ical_feed", token=token, _external=True),
+        # v9.410: dietro nginx la richiesta arriva in http e il link usciva «http://superavokati.ai/…» (Google Calendar e Apple
+        # lo seguono male o lo rifiutano): fuori da localhost il link pubblico è sempre https
+        "url": url_for("api_ical_feed", token=token, _external=True,
+                       _scheme=("http" if request.host.split(":")[0] in ("127.0.0.1", "localhost") else "https")),
         "token": token,
     })
 
@@ -8135,6 +8143,34 @@ def api_settings_telegram_set():
         return jsonify({"error": _t_err("chat_id duhet të jetë numër", "chat_id deve essere un numero")}), 400
     storage.set_user_telegram_chat(user.id, raw or None)
     return jsonify({"linked": bool(raw)})
+
+
+@app.get("/api/settings/telegram/link")
+@login_required_api
+def api_settings_telegram_link():
+    """v9.410 — collegamento a un tocco: il link t.me col codice personale (monouso, 2 giorni)."""
+    from . import telegram_bot as _tg
+    user = request.user  # type: ignore[attr-defined]
+    if not _tg.attivo():
+        return jsonify({"ready": False, "linked": bool(storage.get_user_telegram_chat(user.id))})
+    url = _tg.link_collegamento(user.id)
+    return jsonify({"ready": bool(url), "url": url, "bot": _tg.nome_bot(),
+                    "linked": bool(storage.get_user_telegram_chat(user.id))})
+
+
+@app.post("/telegram/webhook/<segreto>")
+def telegram_webhook(segreto: str):
+    """Chiamato SOLO da Telegram: rotta segreta + firma nell'intestazione. Risponde sempre 200 (Telegram ritenta i non-200)."""
+    from . import telegram_bot as _tg
+    import hmac as _hmac
+    if not _tg.attivo():
+        return ("", 404)
+    atteso = _tg.segreto()
+    firma = request.headers.get("X-Telegram-Bot-Api-Secret-Token", "")
+    if not (_hmac.compare_digest(segreto, atteso) and _hmac.compare_digest(firma, atteso)):
+        return ("", 404)
+    _tg.gestisci_update(request.get_json(silent=True) or {})
+    return jsonify({"ok": True})
 
 
 @app.get("/api/settings/whatsapp")
@@ -8730,6 +8766,248 @@ def api_timeline_delete(case_id: str):
     if not ok:
         return jsonify({"error": "no timeline"}), 404
     return jsonify({"deleted": True})
+
+
+# ── v9.410 — SCADENZIARIO DEL FASCICOLO ─────────────────────────────────────
+# Dal PDF del cliente le udienze, i termini, i documenti da mandare entro una data: PROPOSTI (src/scadenziario.py), confermati
+# dall'avvocato con un clic → eventi del calendario del fascicolo con gli avvisi (email / Telegram). Un documento alla volta,
+# un fascicolo alla volta; un'analisi in corso per fascicolo.
+_SCAD_IN_CORSO: set[str] = set()
+_SCAD_LOCK = threading.Lock()
+_SCAD_AVVISI = [10080, 4320, 1440]            # 7 giorni, 3 giorni, 1 giorno prima (alle 9 del mattino del giorno dell'evento)
+
+
+def _scad_payload(p: dict, nomi: dict) -> dict:
+    out = {k: p.get(k) for k in ("id", "document_id", "tipo", "kind", "titolo", "data", "ora", "luogo", "cosa_fare",
+                                 "origine", "citazione", "base", "nota", "stato", "event_id")}
+    out["verificato"] = bool(p.get("verificato"))
+    out["documento"] = nomi.get(p.get("document_id") or "", "")
+    try:
+        out["regola"] = json.loads(p.get("regola_json") or "null")
+    except Exception:  # noqa: BLE001
+        out["regola"] = None
+    return out
+
+
+def _scad_index(juris: str):
+    return _INDEX_IT if (juris == "IT" and _INDEX_IT is not None) else _INDEX
+
+
+def _scad_salva(proposte, inneschi, *, case_id, uid, doc_id, juris) -> int:
+    n = 0
+    for pr in proposte:
+        n += storage.aggiungi_scadenza_proposta(dict(pr, case_id=case_id, user_id=uid, document_id=doc_id,
+                                                     jurisdiction=juris))
+    for inn in inneschi:
+        if inn.get("calcolato"):
+            continue
+        it = juris == "IT"
+        n += storage.aggiungi_scadenza_proposta({
+            "case_id": case_id, "user_id": uid, "document_id": doc_id, "tipo": "innesco", "kind": "afat",
+            "titolo": (("Termini di legge da: " if it else "Afatet ligjore nga: ") + inn["descrizione"])[:200],
+            "data": inn.get("data") or "", "origine": "legge", "citazione": inn.get("citazione") or "",
+            "regola_json": json.dumps({"trigger": inn["trigger"], "descrizione": inn["descrizione"]}, ensure_ascii=False),
+            "verificato": inn.get("verificato"), "chiave": inn["chiave"], "jurisdiction": juris,
+            "nota": ((("i termini decorrono dalla NOTIFICA: indica la data in cui l'atto è stato notificato"
+                       + (" (l'atto è del " + inn["data_atto"] + ")" if inn.get("data_atto") else ""))
+                      if inn.get("trigger") in ("vendim_civil", "vendim_penal") else
+                      "indica la data dell'evento e calcolo i termini di legge") if it else
+                     (("afatet nisin nga NJOFTIMI: jep datën kur u njoftua akti"
+                       + (" (akti është i datës " + inn["data_atto"] + ")" if inn.get("data_atto") else ""))
+                      if inn.get("trigger") in ("vendim_civil", "vendim_penal") else
+                      "jep datën e ngjarjes dhe llogaris afatet ligjore"))})
+    return n
+
+
+@app.post("/api/cases/<case_id>/scadenze/analizza")
+@login_required_api
+def api_scadenze_analizza(case_id: str):
+    user = request.user  # type: ignore[attr-defined]
+    if _BRAIN is None:
+        return jsonify({"error": _t_err("Truri nuk është gati", "Il motore non è pronto")}), 503
+    case = _resolve_case(case_id)
+    if not case:
+        return jsonify({"error": _t_err("Rasti nuk u gjet", "Fascicolo non trovato")}), 404
+    data = request.get_json(silent=True) or {}
+    forza = bool(data.get("forza"))
+    scelti = {str(x) for x in (data.get("document_ids") or []) if x}
+    fatti = storage.analisi_scadenze_del_caso(case_id)
+    docs = [d for d in storage.list_documents(case_id)
+            if d.status == "ready" and (d.extracted_text or "").strip()
+            and (not scelti or d.id in scelti)
+            and (forza or scelti or (fatti.get(d.id) or {}).get("stato") != "fatta")]
+    if not docs:
+        return jsonify({"avviati": 0, "in_corso": case_id in _SCAD_IN_CORSO})
+    with _SCAD_LOCK:
+        if case_id in _SCAD_IN_CORSO:
+            return jsonify({"avviati": 0, "in_corso": True})
+        _SCAD_IN_CORSO.add(case_id)
+    juris = _active_jurisdiction(user)
+    uid, backend, index = user.id, _BRAIN.backend, _scad_index(juris)
+    for d in docs:
+        storage.segna_analisi_scadenze(d.id, case_id, uid, "in_corso")
+    ids = [d.id for d in docs]
+
+    def _run() -> None:
+        from . import scadenziario as scad_mod
+        try:
+            for did in ids:                         # UN documento alla volta
+                doc = storage.get_document(did, case_id)
+                if doc is None:
+                    continue
+                try:
+                    proposte, inneschi = scad_mod.analizza_documento(backend, index, doc, jurisdiction=juris)
+                    n = _scad_salva(proposte, inneschi, case_id=case_id, uid=uid, doc_id=did, juris=juris)
+                    storage.segna_analisi_scadenze(did, case_id, uid, "fatta", n=n)
+                except Exception as exc:  # noqa: BLE001
+                    log.exception("scadenziario: documento %s", did)
+                    storage.segna_analisi_scadenze(did, case_id, uid, "errore", errore=f"{type(exc).__name__}")
+        finally:
+            with _SCAD_LOCK:
+                _SCAD_IN_CORSO.discard(case_id)
+
+    threading.Thread(target=brain_mod.porta_utente(uid, _run), name=f"scad-{case_id[:8]}", daemon=True).start()
+    return jsonify({"avviati": len(ids), "in_corso": True}), 202
+
+
+@app.get("/api/cases/<case_id>/scadenze")
+@login_required_api
+def api_scadenze_lista(case_id: str):
+    if not _resolve_case(case_id):
+        return jsonify({"error": _t_err("Rasti nuk u gjet", "Fascicolo non trovato")}), 404
+    docs = storage.list_documents(case_id)
+    nomi = {d.id: d.filename for d in docs}
+    analisi = storage.analisi_scadenze_del_caso(case_id)
+    pronti = [d for d in docs if d.status == "ready" and (d.extracted_text or "").strip()]
+    return jsonify({
+        "proposte": [_scad_payload(p, nomi) for p in storage.lista_scadenze_proposte(case_id=case_id)
+                     if p["stato"] in ("proposta", "confermata")],
+        "analisi": {k: {"stato": v["stato"], "n": v["n"], "documento": nomi.get(k, "")} for k, v in analisi.items()},
+        "da_analizzare": sum(1 for d in pronti if (analisi.get(d.id) or {}).get("stato") != "fatta"),
+        "documenti_pronti": len(pronti),
+        "in_corso": case_id in _SCAD_IN_CORSO,
+    })
+
+
+def _scad_propria(pid: str):
+    """La proposta, solo se il suo fascicolo è raggiungibile da chi chiede (giurisdizione e studio: `_resolve_case`)."""
+    p = storage.get_scadenza_proposta(pid)
+    if not p or not _resolve_case(p["case_id"]):
+        return None
+    return p
+
+
+@app.post("/api/scadenze/<pid>/conferma")
+@login_required_api
+def api_scadenze_conferma(pid: str):
+    user = request.user  # type: ignore[attr-defined]
+    p = _scad_propria(pid)
+    if not p:
+        return jsonify({"error": _t_err("Nuk u gjet", "Non trovata")}), 404
+    if p["stato"] == "confermata" and p.get("event_id"):
+        return jsonify({"ok": True, "event_id": p["event_id"], "gia": True})
+    data = request.get_json(silent=True) or {}
+    it = (p.get("jurisdiction") or "") == "IT"
+    giorno = (data.get("data") or p.get("data") or "").strip()[:10]
+    if p["tipo"] == "regola" and data.get("data_partenza"):
+        from . import scadenziario as scad_mod
+        try:
+            calc = scad_mod.calcola_regola(json.loads(p["regola_json"]), data["data_partenza"], (p["jurisdiction"] or "AL"),
+                                           "it" if it else "sq")
+        except Exception:  # noqa: BLE001
+            return jsonify({"error": _t_err("Data e nisjes nuk është e vlefshme", "Data di partenza non valida")}), 400
+        giorno = calc["data"]
+        storage.aggiorna_scadenza_proposta(pid, data=giorno, nota=" · ".join(calc["passi"]))
+    try:
+        from datetime import date as _date
+        _date.fromisoformat(giorno)
+    except ValueError:
+        return jsonify({"error": _t_err("Mungon data", "Manca la data")}), 400
+    ora = (data.get("ora") or p.get("ora") or "").strip()
+    titolo = (data.get("titolo") or p["titolo"]).strip()[:200]
+    descr = "\n".join(x for x in [
+        p.get("cosa_fare") or "",
+        ((("Dal documento: " if it else "Nga dokumenti: ") + "«" + p["citazione"] + "»") if p.get("citazione") else ""),
+        ((("Base: " if it else "Baza: ") + p["base"]) if p.get("base") else ""),
+        (p.get("nota") or "")] if x)[:3000]
+    if ora and re.fullmatch(r"\d{2}:\d{2}", ora):
+        starts, all_day = f"{giorno}T{ora}:00", False
+    else:
+        starts, all_day = f"{giorno}T09:00:00", True
+    avvisi = data.get("avvisi")
+    avvisi = [int(x) for x in avvisi if str(x).isdigit()][:6] if isinstance(avvisi, list) else _SCAD_AVVISI
+    try:
+        ev = storage.create_event(user.id, titolo, p["kind"] if p["kind"] in storage.EVENT_KINDS else "afat", starts,
+                                  case_id=p["case_id"], description=descr, all_day=all_day, location=p.get("luogo") or None,
+                                  source="scadenziario", source_ref="scad:" + pid, reminders=avvisi,
+                                  jurisdiction=p.get("jurisdiction"))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("scadenziario: evento non creato (%s): %s", pid, exc)
+        return jsonify({"error": _t_err("Ngjarja nuk u krijua", "Evento non creato")}), 400
+    storage.aggiorna_scadenza_proposta(pid, stato="confermata", event_id=ev.id, data=giorno, titolo=titolo)
+    return jsonify({"ok": True, "event_id": ev.id, "data": giorno})
+
+
+@app.post("/api/scadenze/<pid>/scarta")
+@login_required_api
+def api_scadenze_scarta(pid: str):
+    if not _scad_propria(pid):
+        return jsonify({"error": _t_err("Nuk u gjet", "Non trovata")}), 404
+    storage.aggiorna_scadenza_proposta(pid, stato="scartata")
+    return jsonify({"ok": True})
+
+
+@app.post("/api/scadenze/<pid>/calcola")
+@login_required_api
+def api_scadenze_calcola(pid: str):
+    """Un evento del documento che fa partire termini DI LEGGE + la data che dà l'avvocato → i termini (motore esistente)."""
+    user = request.user  # type: ignore[attr-defined]
+    p = _scad_propria(pid)
+    if not p or p["tipo"] != "innesco":
+        return jsonify({"error": _t_err("Nuk u gjet", "Non trovata")}), 404
+    if _BRAIN is None:
+        return jsonify({"error": _t_err("Truri nuk është gati", "Il motore non è pronto")}), 503
+    data = (request.get_json(silent=True) or {}).get("data") or p.get("data") or ""
+    try:
+        from datetime import date as _date
+        _date.fromisoformat(str(data)[:10])
+    except ValueError:
+        return jsonify({"error": _t_err("Mungon data", "Manca la data")}), 400
+    from . import scadenziario as scad_mod
+    juris = p.get("jurisdiction") or _active_jurisdiction(user)
+    inn = json.loads(p["regola_json"] or "{}")
+    try:
+        nuove = scad_mod.termini_di_legge(_BRAIN.backend, _scad_index(juris), inn, jurisdiction=juris,
+                                          lang="it" if juris == "IT" else "sq", data=str(data)[:10])
+    except Exception:  # noqa: BLE001
+        log.exception("scadenziario: calcolo dei termini di legge (%s)", pid)
+        return jsonify({"error": _t_err("Llogaritja dështoi", "Calcolo non riuscito")}), 500
+    n = _scad_salva(nuove, [], case_id=p["case_id"], uid=p["user_id"], doc_id=p.get("document_id"), juris=juris)
+    storage.aggiorna_scadenza_proposta(pid, stato="calcolata", data=str(data)[:10])
+    return jsonify({"ok": True, "nuove": n})
+
+
+@app.get("/api/scadenze")
+@login_required_api
+def api_scadenze_tutte():
+    """Tutti i fascicoli dell'avvocato, nella giurisdizione della sessione: da confermare e confermate in arrivo."""
+    user = request.user  # type: ignore[attr-defined]
+    juris = _active_jurisdiction(user)
+    titoli, out = {}, []
+    for p in storage.lista_scadenze_proposte(user_id=user.id, stati=("proposta", "confermata")):
+        if (p.get("jurisdiction") or "AL") != juris:
+            continue
+        if p["case_id"] not in titoli:
+            c = _resolve_case(p["case_id"])
+            titoli[p["case_id"]] = (c.title or "") if c else None
+        if titoli[p["case_id"]] is None:
+            continue
+        if p["stato"] == "confermata" and (p.get("data") or "") < datetime.now(UTC).date().isoformat():
+            continue
+        d = _scad_payload(p, {})
+        d["case_id"], d["caso"] = p["case_id"], titoli[p["case_id"]]
+        out.append(d)
+    return jsonify({"scadenze": out})
 
 
 # ── ⑥ V7.12 — ADVERSARIAL LOOP ─────────────────────────────────────────────

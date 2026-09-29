@@ -107,6 +107,11 @@ run("living.check_law_live", lambda: living.check_law_live(be, idx, query="neni 
 run("intake.triage", lambda: intake.triage(be, idx, story=F))
 for tk in afati.TRIGGERS:
     run("afati.compute:" + tk, lambda tk=tk: afati.compute(be, idx, trigger=tk, event_date="2026-08-01", facts=F))
+from types import SimpleNamespace as _SN
+from src import scadenziario as _scad
+run("scadenziario.analizza_documento", lambda: {"empty": True, "proposte": _scad.analizza_documento(
+    be, idx, _SN(extracted_text="Il Giudice rinvia la causa all'udienza del 15.01.2027 ore 9.30. " * 3, filename="v.pdf"),
+    jurisdiction="AL")[0]})
 run("vault.who_said_what(no docs)", lambda: vault.who_said_what(be, "nonexistent-case-id"))
 run("vault.find_needle(no docs)", lambda: vault.find_needle(be, "nonexistent-case-id"))
 run("registry.search_acts", lambda: registry.search_acts(be, "test", [{"id":1,"title":"x","content":"y","client_name":"z"}]))

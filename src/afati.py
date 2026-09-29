@@ -81,6 +81,11 @@ TRIGGERS_IT = {
     "vendim_civil": {"label": "Notificazione della sentenza civile",
                      "seed": [(_CPC, "325"), (_CPC, "326"), (_CPC, "327"), (_CPC, "339"), (_CPC, "360")],
                      "q": "termini per le impugnazioni appello ricorso per cassazione notificazione termine lungo"},
+    # v9.410 — il decreto ingiuntivo (il documento più frequente nei fascicoli civili): notifica entro 60 giorni dalla
+    # pronuncia (644), opposizione nel termine del decreto dalla NOTIFICA (641, 645), esecutorietà (647), opposizione tardiva (650)
+    "decreto_ingiuntivo": {"label": "Decreto ingiuntivo (pronuncia o notificazione)",
+                           "seed": [(_CPC, "641"), (_CPC, "644"), (_CPC, "645"), (_CPC, "647"), (_CPC, "650")],
+                           "q": "decreto ingiuntivo opposizione termine notificazione inefficacia esecutorietà"},
     "kontrate": {"label": "Contratto / obbligazione (prescrizione civile)",
                  "seed": [(_CC, "2935"), (_CC, "2943"), (_CC, "2945"), (_CC, "2946"), (_CC, "2947"), (_CC, "2948")],
                  "q": "prescrizione decorrenza interruzione sospensione"},
@@ -207,8 +212,10 @@ def compute(backend, index, *, trigger: str, event_date: str = "", facts: str = 
         except Exception as exc:  # noqa: BLE001
             log.warning("deadline_engine dështoi për '%s': %s", title, exc)
             continue
-        afatet.append({"title": title, "date": r.deadline.isoformat()})
         lines = ["  - " + s for s in r.steps] + ["  - ⚠ " + w for w in r.warnings]
+        # v9.410: base legale e passi del calcolo anche per riga (lo scadenziario del fascicolo li mostra accanto alla data)
+        afatet.append({"title": title, "date": r.deadline.isoformat(), "baza": (m.group("baza") or "").strip(),
+                       "passi": [s.strip() for s in lines]})
         calc.append("**%s → %s**\n%s" % (title, r.deadline.isoformat(), "\n".join(lines)))
     # 2) fallback retro-compatibile: vecchio formato AFAT | titolo | YYYY-MM-DD (senza motore)
     for m in _AFAT_RE.finditer(md):

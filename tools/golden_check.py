@@ -5319,7 +5319,7 @@ def main():
                 and ("kodi_proc_penale", "263") in _seed(_af151.TRIGGERS, "mase_sigurimi")
                 and ("kodi_civil", "114") in _seed(_af151.TRIGGERS, "kontrate")
                 and all(x in _ba151 for v in _af151.TRIGGERS.values() for x in v["seed"])
-                and set(_af151.TRIGGERS_IT) == set(_af151.TRIGGERS)
+                and set(_af151.TRIGGERS) <= set(_af151.TRIGGERS_IT)   # v9.410: + decreto_ingiuntivo, solo IT
                 and all(tuple(x) in _bi151 for v in _af151.TRIGGERS_IT.values() for x in v["seed"]))
         class _F151:
             def __init__(self): self.c = []
@@ -6575,6 +6575,59 @@ def main():
                   _voci, _ipo, _rub, _vuote, _ver, _x.get("number"), _y.get("number")))
     except Exception as _e190:  # noqa: BLE001
         check("tabelle-a-caratteri-it[190]: kontrollet u ekzekutuan", False, str(_e190))
+
+    # [191] v9.410 — SCADENZIARIO DEL FASCICOLO (chiesto da un avvocato albanese): dai PDF del cliente udienze, termini e
+    # documenti da mandare, PROPOSTI e confermati dall'avvocato; la frase e la data si ritrovano nel testo (un'invenzione esce
+    # «da verificare»), il termine relativo lo calcola il motore; gli avvisi vanno su TUTTI i canali collegati (email e
+    # Telegram), il bot si collega con un codice monouso e il webhook risponde solo con la firma giusta
+    try:
+        import inspect as _in191
+        from src import scadenziario as _sc191, reminders as _rm191, web as _w191, storage as _st191
+        _doc = ("Il Giudice rinvia la causa all'udienza del 15.01.2027 ore 9.30 per la precisazione delle conclusioni, "
+                "assegnando alle parti termine di venti giorni dalla comunicazione del presente verbale per il deposito di memorie. "
+                "Gjykata cakton seancën më 20 tetor 2026.")
+        _est = {"date": [{"tipo": "udienza", "titolo": "Udienza", "data": "2027-01-15", "ora": "9.30",
+                          "citazione": "rinvia la causa all'udienza del 15.01.2027 ore 9.30 per la precisazione delle conclusioni"},
+                         {"tipo": "udienza", "titolo": "Inventata", "data": "2027-02-20", "citazione": "udienza del 20 febbraio 2027"}],
+                "termini": [{"titolo": "Memorie", "durata": 20, "unita": "giorni", "decorrenza": "dalla comunicazione",
+                             "processuale": True, "citazione": "termine di venti giorni dalla comunicazione del presente verbale"}],
+                "inneschi": [{"trigger": "nessuna-chiave", "descrizione": "Verbale", "citazione": "rinvia la causa all'udienza"}]}
+        _pr, _inn = _sc191.proposte_da_estrazione(_est, _doc, lang="it", jurisdiction="IT", oggi="2026-09-29")
+        _v = {p["titolo"]: p for p in _pr}
+        _det = (_v["Udienza"]["verificato"] and _v["Udienza"]["ora"] == "09:30" and _v["Udienza"]["kind"] == "seance"
+                and not _v["Inventata"]["verificato"] and _v["Memorie"]["tipo"] == "regola" and _v["Memorie"]["verificato"]
+                and _inn and _inn[0]["trigger"] == "tjeter"
+                and _sc191.data_nel_testo("2026-10-20", _doc) and not _sc191.data_nel_testo("2026-10-21", _doc))
+        _, _inn2 = _sc191.proposte_da_estrazione(
+            {"inneschi": [{"trigger": "vendim_civil", "data": "2026-10-20", "data_atto": "2026-10-20",
+                           "descrizione": "Vendim", "citazione": "Gjykata cakton seancën"}]}, _doc, lang="sq", jurisdiction="AL",
+            oggi="2026-09-29")
+        _det = _det and _inn2 and _inn2[0]["data"] == "" and _inn2[0]["data_atto"] == "2026-10-20"   # atto ≠ notifica
+        _calc = _sc191.calcola_regola({"durata": 20, "unita": "days", "processuale": True}, "2026-07-25", "IT", "it")["data"]
+        _calc_al = _sc191.calcola_regola({"durata": 20, "unita": "days", "processuale": True}, "2026-07-25", "AL", "sq")["data"]
+        _det = _det and _calc == "2026-09-14" and _calc_al == "2026-08-14"
+        _srcr = _in191.getsource(_rm191._deliver)
+        _canali = ("esiti.append((\"telegram\"" in _srcr and "esiti.append((\"email\"" in _srcr
+                   and "if pref == \"telegram\" and tg_chat" not in _srcr)
+        _rotte = {str(r) for r in _w191.app.url_map.iter_rules()}
+        _rt = all(x in _rotte for x in ("/api/cases/<case_id>/scadenze/analizza", "/api/cases/<case_id>/scadenze",
+                                        "/api/scadenze/<pid>/conferma", "/api/scadenze/<pid>/calcola", "/api/scadenze",
+                                        "/api/settings/telegram/link", "/telegram/webhook/<segreto>"))
+        _wh = _in191.getsource(_w191.telegram_webhook)
+        _firma = "X-Telegram-Bot-Api-Secret-Token" in _wh and "compare_digest" in _wh
+        _conf = _in191.getsource(_w191.api_scadenze_conferma)
+        _solo_conf = "create_event" in _conf and "create_event" not in _in191.getsource(_w191.api_scadenze_analizza)
+        _js = open("/app/static/app.js", encoding="utf-8").read()
+        _ui = ("_scadDopoDocumenti(documents)" in _js and "openScadenziario" in _js and "/api/settings/telegram/link" in _js
+               and "Scadenze dai documenti" in _js and "Afatet nga dokumentet" in _js)
+        _ui = _ui and "_scheme=" in _in191.getsource(_w191.api_ical_url)     # il link del calendario pubblico in https
+        _tok = "usa_token_telegram" in _in191.getsource(_st191) and "DELETE FROM telegram_link WHERE token" in _in191.getsource(_st191.usa_token_telegram)
+        check("scadenziario[191]: date e termini dai documenti verificati sul testo, conferma dell'avvocato, avvisi su tutti i "
+              "canali, Telegram con codice monouso e webhook firmato", _det and _canali and _rt and _firma and _solo_conf and _ui and _tok,
+              "det=%s calc=%s/%s canali=%s rotte=%s firma=%s solo_conferma=%s ui=%s token=%s" % (
+                  _det, _calc, _calc_al, _canali, _rt, _firma, _solo_conf, _ui, _tok))
+    except Exception as _e191:  # noqa: BLE001
+        check("scadenziario[191]: kontrollet u ekzekutuan", False, str(_e191))
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

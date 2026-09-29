@@ -278,18 +278,26 @@ def _deliver(event, reminder) -> str | None:
     pref = (getattr(reminder, "channel", "") or "").strip().lower()
     if pref == "whatsapp" and wa_phone:
         return _send_whatsapp(wa_phone, event, reminder)
-    if pref == "telegram" and tg_chat:
-        return _send_telegram(tg_chat, _format_message(event, reminder))
+    # «telegram» è il canale scritto di default su OGNI promemoria (storage.create_event): non è una scelta, si va su tutti
     if pref == "email" and email:
         return _send_email(email, event, reminder)
-    # auto priority: WhatsApp (read most) > Telegram > Email (fallback)
+    # v9.410 — su TUTTI i canali collegati, non sul primo: un avviso doppio costa poco, una scadenza persa costa la causa
+    # (e un canale può cadere in silenzio: un bot bloccato, una casella piena). Riuscito = almeno uno è arrivato.
+    esiti = []
     if wa_phone:
-        return _send_whatsapp(wa_phone, event, reminder)
+        esiti.append(("whatsapp", _send_whatsapp(wa_phone, event, reminder)))
     if tg_chat:
-        return _send_telegram(tg_chat, _format_message(event, reminder))
+        esiti.append(("telegram", _send_telegram(tg_chat, _format_message(event, reminder))))
     if email:
-        return _send_email(email, event, reminder)
-    return "no channel linked (whatsapp/telegram/email)"
+        esiti.append(("email", _send_email(email, event, reminder)))
+    if not esiti:
+        return "no channel linked (whatsapp/telegram/email)"
+    if any(e is None for _, e in esiti):
+        falliti = [f"{c}: {e}" for c, e in esiti if e]
+        if falliti:
+            log.warning("reminder %s: consegnato, ma non su %s", getattr(reminder, "id", "?"), "; ".join(falliti))
+        return None
+    return " | ".join(f"{c}: {e}" for c, e in esiti)
 
 
 def _tick() -> int:

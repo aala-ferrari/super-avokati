@@ -8118,3 +8118,43 @@ details.analiza[open]>summary::before{content:"\25BE  "}
 
 /* v9.322 - avviso: il Giudice Finale ha corretto dei pannelli */
 .panels-notice{margin:10px 0 12px;padding:9px 12px;border-left:4px solid #c9a227;background:rgba(201,162,39,.10);border-radius:6px;font-size:13px;font-weight:600}
+
+/* v9.410 — Scadenziario del fascicolo (stessa famiglia del Vault: crema, oro, blu notte) */
+.scad-box{margin:8px 12px 12px;padding:10px 11px;border:1px solid #e3d7bb;border-radius:12px;background:#fdfaf2}
+.scad-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.scad-head strong{font-size:13px;color:#0f1b33}
+.scad-run{border:none;border-radius:9px;padding:6px 12px;background:linear-gradient(135deg,#c9a24d,#a9842f);color:#fff;font-weight:700;cursor:pointer;font-size:12.5px}
+.scad-run:disabled{opacity:.6;cursor:default}
+.scad-conf{border:none;border-radius:9px;padding:7px 14px;background:#0f1b33;color:#fdfaf2;font-weight:700;cursor:pointer;font-size:13px}
+.scad-conf:disabled{opacity:.6;cursor:default}
+.scad-help{margin:6px 0 4px;font-size:12px;line-height:1.45;color:#6b5f45}
+.scad-stato{font-size:12px;color:#8a6a1d;min-height:1em;display:flex;align-items:center;gap:6px}
+.scad-list{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:7px}
+.scad-item{border:1px solid #e6dcc6;border-radius:10px;background:#fff;padding:8px 10px}
+.scad-item.is-past{opacity:.72}
+.scad-item.is-conf{background:#f6f9f3;border-color:#cfe0c2}
+.scad-top{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap}
+.scad-tit{font-size:13.5px;color:#0f1b33}
+.scad-luogo{font-size:12px;color:#6b5f45}
+.scad-ctrl{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px}
+.scad-ctrl input[type=date],.scad-ctrl input[type=time]{border:1px solid #dcd0b4;border-radius:8px;padding:4px 6px;font-size:12.5px;background:#fff;color:#22314f}
+.scad-lab{font-size:12px;color:#6b5f45;display:flex;align-items:center;gap:5px}
+.scad-calc{border:1px solid #c9a24d;border-radius:8px;background:#fff;color:#8a6a1d;font-weight:700;font-size:12px;padding:4px 9px;cursor:pointer}
+.scad-no{border:none;background:none;color:#b0a48c;font-size:15px;cursor:pointer;margin-left:auto}
+.scad-ok{font-size:12px;color:#3f6b2a;font-weight:700}
+.scad-fonte{margin-top:5px;font-size:11.5px;color:#8a7a4e}
+.scad-cit{margin-top:3px;font-size:12px;color:#3a3226;font-style:italic;line-height:1.4;overflow-wrap:anywhere}
+.scad-warn{margin-top:4px;font-size:12px;color:#9a5b00;background:#fff4de;border-radius:7px;padding:3px 7px}
+.scad-det summary,.scad-fatte summary{cursor:pointer;font-size:12px;color:#8a6a1d;margin-top:4px}
+.scad-det p{margin:4px 0 0;font-size:12px;color:#3a3226;line-height:1.45;overflow-wrap:anywhere}
+.scad-actions{display:flex;align-items:center;gap:10px;margin-top:9px;flex-wrap:wrap}
+.scad-msg{font-size:12px;color:#9a5b00}
+.scad-fatte{margin-top:8px}
+.scad-all{max-height:62vh;overflow-y:auto}
+.scad-caso{border:1px solid #e6dcc6;border-radius:10px;padding:8px 10px;margin:8px 0;background:#fdfaf2}
+.scad-caso-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.scad-caso ul{margin:6px 0 0;padding-left:18px;font-size:13px;color:#22314f}
+.scad-badge{font-size:11.5px;background:#fff4de;color:#9a5b00;border-radius:999px;padding:1px 8px;font-weight:700}
+.scad-apri{margin-left:auto;border:1px solid #c9a24d;border-radius:8px;background:#fff;color:#8a6a1d;font-weight:700;font-size:12px;padding:3px 9px;cursor:pointer}
+.tg-manuale{margin-top:8px}
+.tg-manuale summary{cursor:pointer;font-size:12px;color:#8a7a4e}

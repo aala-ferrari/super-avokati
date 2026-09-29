@@ -670,6 +670,56 @@ CREATE INDEX IF NOT EXISTS idx_audit_callsite ON ai_audit_log(callsite, timestam
 CREATE INDEX IF NOT EXISTS idx_audit_outcome ON ai_audit_log(outcome);
 """
 
+# v9.410 — SCADENZIARIO DEL FASCICOLO: dai documenti caricati (PDF del cliente) le date e i termini PROPOSTI all'avvocato, che li
+# conferma uno per uno (solo allora diventano eventi del calendario con gli avvisi). Le proposte restano: un'analisi di minuti
+# sopravvive alla pagina chiusa, e riaprendo il fascicolo si vede cosa è già confermato.
+SCHEMA_SCADENZE = """
+CREATE TABLE IF NOT EXISTS scadenze_proposte (
+    id           TEXT PRIMARY KEY,
+    case_id      TEXT NOT NULL,
+    user_id      INTEGER NOT NULL,
+    document_id  TEXT,
+    tipo         TEXT NOT NULL,              -- 'data' (scritta nel documento) | 'regola' (serve la data di partenza) | 'innesco'
+    kind         TEXT NOT NULL,              -- uno di EVENT_KINDS
+    titolo       TEXT NOT NULL,
+    data         TEXT,                       -- AAAA-MM-GG
+    ora          TEXT,                       -- HH:MM
+    luogo        TEXT,
+    cosa_fare    TEXT,
+    origine      TEXT NOT NULL,              -- 'documento' | 'legge'
+    citazione    TEXT,                       -- la frase del documento (o l'articolo, per i termini di legge)
+    base         TEXT,
+    regola_json  TEXT,                       -- durata/unità/decorrenza (tipo 'regola') o trigger (tipo 'innesco')
+    verificato   INTEGER NOT NULL DEFAULT 0, -- citazione E data ritrovate nel testo del documento
+    nota         TEXT,
+    stato        TEXT NOT NULL DEFAULT 'proposta',   -- 'proposta' | 'confermata' | 'scartata' | 'calcolata'
+    event_id     TEXT,
+    chiave       TEXT NOT NULL,
+    jurisdiction TEXT,
+    created_at   TEXT NOT NULL,
+    FOREIGN KEY (case_id) REFERENCES cases(id) ON DELETE CASCADE
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_scad_chiave ON scadenze_proposte(case_id, chiave);
+CREATE INDEX IF NOT EXISTS idx_scad_user ON scadenze_proposte(user_id, stato);
+
+CREATE TABLE IF NOT EXISTS scadenze_analisi (
+    document_id  TEXT PRIMARY KEY,
+    case_id      TEXT NOT NULL,
+    user_id      INTEGER NOT NULL,
+    stato        TEXT NOT NULL,              -- 'in_corso' | 'fatta' | 'errore'
+    n            INTEGER NOT NULL DEFAULT 0,
+    errore       TEXT,
+    updated_at   TEXT NOT NULL,
+    FOREIGN KEY (case_id) REFERENCES cases(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS telegram_link (
+    token        TEXT PRIMARY KEY,
+    user_id      INTEGER NOT NULL,
+    created_at   TEXT NOT NULL
+);
+"""
+
 # V8.15 — workflow runtime state. Definitions live in src/workflows.py
 # (predefined library) or in `definition_json` (custom per-firm).
 SCHEMA_WORKFLOWS = """
@@ -1073,6 +1123,7 @@ def init_db(db_path: Path = APP_DB_PATH) -> None:
         # V8.15 workflow library — runtime instances of predefined or
         # custom workflow definitions, attached to cases.
         conn.executescript(SCHEMA_WORKFLOWS)
+        conn.executescript(SCHEMA_SCADENZE)
         # V9.2 — last_active timestamp per user, updated on every authenticated
         # request. Powers the "online users" display in the admin panel.
         _add_column_if_missing(conn, "users", "last_active", "TEXT")
@@ -6855,4 +6906,97 @@ def list_push_subscriptions(user_id: int) -> list[dict]:
 def delete_push_subscription(endpoint: str) -> None:
     with _connect() as conn:
         conn.execute("DELETE FROM push_subscriptions WHERE endpoint = ?", (endpoint,))
+
+
+# ── v9.410 — scadenziario del fascicolo ────────────────────────────────────
+
+_SCAD_CAMPI = ("id", "case_id", "user_id", "document_id", "tipo", "kind", "titolo", "data", "ora", "luogo", "cosa_fare",
+               "origine", "citazione", "base", "regola_json", "verificato", "nota", "stato", "event_id", "chiave",
+               "jurisdiction", "created_at")
+
+
+def aggiungi_scadenza_proposta(p: dict) -> bool:
+    """Inserisce una proposta; False se la stessa (stessa chiave nel fascicolo) c'è già — non si propone due volte."""
+    row = {k: p.get(k) for k in _SCAD_CAMPI}
+    row["id"] = row["id"] or uuid.uuid4().hex
+    row["created_at"] = row["created_at"] or _utcnow()
+    row["stato"] = row["stato"] or "proposta"
+    row["verificato"] = int(bool(row["verificato"]))
+    with db() as conn:
+        cur = conn.execute(
+            "INSERT OR IGNORE INTO scadenze_proposte (" + ", ".join(_SCAD_CAMPI) + ") VALUES ("
+            + ", ".join("?" for _ in _SCAD_CAMPI) + ")", tuple(row[k] for k in _SCAD_CAMPI))
+    return cur.rowcount > 0
+
+
+def lista_scadenze_proposte(*, case_id: str | None = None, user_id: int | None = None,
+                            stati: tuple[str, ...] | None = None) -> list[dict]:
+    q, a = "SELECT * FROM scadenze_proposte WHERE 1=1", []
+    if case_id:
+        q += " AND case_id = ?"; a.append(case_id)
+    if user_id is not None:
+        q += " AND user_id = ?"; a.append(user_id)
+    if stati:
+        q += " AND stato IN (" + ",".join("?" for _ in stati) + ")"; a.extend(stati)
+    q += " ORDER BY COALESCE(data, '9999-12-31'), created_at"
+    with db() as conn:
+        return [dict(r) for r in conn.execute(q, a).fetchall()]
+
+
+def get_scadenza_proposta(pid: str) -> dict | None:
+    with db() as conn:
+        r = conn.execute("SELECT * FROM scadenze_proposte WHERE id = ?", (pid,)).fetchone()
+    return dict(r) if r else None
+
+
+def aggiorna_scadenza_proposta(pid: str, **campi) -> None:
+    campi = {k: v for k, v in campi.items() if k in _SCAD_CAMPI and k not in ("id", "case_id", "user_id")}
+    if not campi:
+        return
+    with db() as conn:
+        conn.execute("UPDATE scadenze_proposte SET " + ", ".join(f"{k} = ?" for k in campi) + " WHERE id = ?",
+                     (*campi.values(), pid))
+
+
+def segna_analisi_scadenze(document_id: str, case_id: str, user_id: int, stato: str, n: int = 0,
+                           errore: str | None = None) -> None:
+    with db() as conn:
+        conn.execute(
+            "INSERT INTO scadenze_analisi (document_id, case_id, user_id, stato, n, errore, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(document_id) DO UPDATE SET stato=excluded.stato, n=excluded.n, "
+            "errore=excluded.errore, updated_at=excluded.updated_at, user_id=excluded.user_id",
+            (document_id, case_id, user_id, stato, int(n), errore, _utcnow()))
+
+
+def analisi_scadenze_del_caso(case_id: str) -> dict[str, dict]:
+    with db() as conn:
+        return {r["document_id"]: dict(r) for r in
+                conn.execute("SELECT * FROM scadenze_analisi WHERE case_id = ?", (case_id,)).fetchall()}
+
+
+def crea_token_telegram(user_id: int) -> str:
+    import secrets as _secrets
+    tok = _secrets.token_urlsafe(18).replace("-", "").replace("_", "")[:24]
+    with db() as conn:
+        conn.execute("DELETE FROM telegram_link WHERE user_id = ? OR created_at < ?",
+                     (user_id, (datetime.now(UTC) - timedelta(days=2)).strftime("%Y-%m-%dT%H:%M:%SZ")))
+        conn.execute("INSERT INTO telegram_link (token, user_id, created_at) VALUES (?, ?, ?)", (tok, user_id, _utcnow()))
+    return tok
+
+
+def usa_token_telegram(token: str) -> int | None:
+    """Il token vale UNA volta e per 2 giorni: restituisce l'utente e lo cancella."""
+    limite = (datetime.now(UTC) - timedelta(days=2)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    with db() as conn:
+        r = conn.execute("SELECT user_id, created_at FROM telegram_link WHERE token = ?", (token,)).fetchone()
+        if not r:
+            return None
+        conn.execute("DELETE FROM telegram_link WHERE token = ?", (token,))
+    return int(r["user_id"]) if r["created_at"] >= limite else None
+
+
+def utente_da_chat_telegram(chat_id: str) -> int | None:
+    with db() as conn:
+        r = conn.execute("SELECT id FROM users WHERE telegram_chat_id = ?", (str(chat_id),)).fetchone()
+    return int(r["id"]) if r else None
 
