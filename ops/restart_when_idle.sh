@@ -46,7 +46,13 @@ while :; do
   sleep 30; waited=$((waited + 30))
 done
 
-docker restart super-avvocato >/dev/null || { echo "RESTART FALLITO"; exit 1; }
+# v9.411: RECREATE=1 ricrea il container con run.sh (stessa immagine): `docker restart` NON rilegge /opt/super-avvocato.env,
+# quindi un token o una variabile nuova resterebbero invisibili all'app
+if [ "${RECREATE:-0}" = "1" ]; then
+  (cd /var/www/apps/super-avvocato && ./run.sh >/dev/null) || { echo "RECREATE FALLITO"; exit 1; }
+else
+  docker restart super-avvocato >/dev/null || { echo "RESTART FALLITO"; exit 1; }
+fi
 docker cp /root/completa_brief.py super-avvocato:/tmp/completa_brief.py 2>/dev/null || true
 for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
   st=$(docker inspect -f '{{.State.Health.Status}}' super-avvocato 2>/dev/null)
