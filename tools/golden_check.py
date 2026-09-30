@@ -6648,6 +6648,27 @@ def main():
     except Exception as _e192:  # noqa: BLE001
         check("colleghi-studio[192]: kontrollet u ekzekutuan", False, str(_e192))
 
+    # [193] v9.413 — IMPORTI IN LIRE nel testo vigente: la nota (nostra, dichiarata) con gli importi convertiti dal CODICE al tasso
+    # di 1.936,27 (art. 14 Reg. 974/98; sanzioni: art. 51 d.lgs. 213/1998, senza decimali); «L. 1150/1942» è una legge, non un importo
+    try:
+        import importlib.util as _ilu193
+        from pathlib import Path as _P193
+        _sp193 = _ilu193.spec_from_file_location("bi193", "/app/tools/build_it_index.py")
+        _bi193 = _ilu193.module_from_spec(_sp193); _sp193.loader.exec_module(_bi193)
+        _n1 = _bi193._nota_lire("è punito con la multa da lire cinquemila a ventimila")          # pena: MAI convertita diretta
+        _n2 = _bi193._nota_lire("ai sensi della L. 1150/1942 e della L. 47/1985")
+        _n3 = _bi193._nota_lire("Se il prezzo è superiore alle lire trentamila, la riserva della proprietà")
+        _det193 = ("NON si convertono direttamente" in _n1 and "art. 113 L. 24 novembre 1981, n. 689" in _n1 and "euro 2,58" not in _n1
+                   and "euro 50" in _n1 and "1.936,27" in _n1 and "redazionale" in _n1 and _n2 == ""
+                   and "lire 30.000 = euro 15,49" in _n3 and _bi193.numero_in_lettere("duecentocinquantamila") == 250000)
+        _it193 = ArticleIndex.load(_P193("/app/data/index/bm25_it.pkl"))
+        _con = [a for a in _it193.articles if not a.repealed and "1 euro = 1.936,27 lire" in (a.note or "")]
+        _idx193 = len(_con) >= 250 and all(("lire" in (a.body or "").lower() or "L." in (a.body or "")) for a in _con[:50])
+        check("lire-in-euro[193]: importi in lire convertiti, pene e sanzioni con gli aumenti di legge (mai la conversione diretta), mai sulle leggi", _det193 and _idx193,
+              "det=%s articoli con nota=%d" % (_det193, len(_con)))
+    except Exception as _e193:  # noqa: BLE001
+        check("lire-in-euro[193]: kontrollet u ekzekutuan", False, str(_e193))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

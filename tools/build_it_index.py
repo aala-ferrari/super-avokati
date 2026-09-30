@@ -257,6 +257,122 @@ def _pulisci(heading: str, body: str) -> tuple[str, str]:
             h, b = "", h.rstrip(" .") + "."
     return h, b.strip()
 
+# v9.413 — IMPORTI IN LIRE ancora nel testo vigente (339 articoli di 48 atti: c.p. 103, codice della navigazione 62, L. 689/1981 19,
+# armi, TULPS, imposta di registro…): Normattiva lascia la cifra originaria. Valgono in euro al tasso fisso (verificati sulle fonti
+# ufficiali il 30 set 2026: 1 euro = 1.936,27 lire, Reg. (CE) 2866/98; art. 14 Reg. (CE) 974/98 per ogni riferimento alla lira;
+# art. 51 d.lgs. 213/1998 per le sanzioni penali e amministrative, dal 1° gennaio 2002, «eliminando i decimali»). La nota la scrive il
+# CODICE con gli importi convertiti, dichiarata come nostra: il modello non converte a memoria e non cita «lire» come se valessero.
+_LIRE_RX = re.compile(r"(?i)\blire\s+(\d{1,3}(?:\.\d{3})+|\d{4,})(?![,.]\d|\s*/)"
+                      r"|\bL\.\s*(\d{1,3}(?:\.\d{3})+)(?![,.]?\d|\s*/)"
+                      r"|\b(\d{1,3}(?:\.\d{3})+)\s+lire\b"
+                      r"|\blire\s+([a-zàèéìòù]*(?:mila|mille|cento|milioni|milione)[a-zàèéìòù]*)\b")
+_TASSO_LIRA = 1936.27
+# una PENA o una SANZIONE in lire non si converte direttamente (art. 113-114 L. 689/1981, artt. 24 e 26 c.p.): lo si riconosce dalle
+# parole vicine all'importo
+_FINE_FRASE_RX = re.compile(r"[.;:]\s+(?=[A-ZÀ-Ü0-9(«\"])|\n")
+_SANZIONE_RX = re.compile(r"(?i)multa|ammenda|pena pecuniaria|pene pecuniarie|sanzion|punit|oblazione|cauzione|somma di denaro")
+_UNITA_IT = {"zero": 0, "un": 1, "uno": 1, "una": 1, "due": 2, "tre": 3, "quattro": 4, "cinque": 5, "sei": 6, "sette": 7, "otto": 8,
+             "nove": 9, "dieci": 10, "undici": 11, "dodici": 12, "tredici": 13, "quattordici": 14, "quindici": 15, "sedici": 16,
+             "diciassette": 17, "diciotto": 18, "diciannove": 19, "venti": 20, "trenta": 30, "quaranta": 40, "cinquanta": 50,
+             "sessanta": 60, "settanta": 70, "ottanta": 80, "novanta": 90}
+_DECINE_IT = {k: v for k, v in _UNITA_IT.items() if v >= 20}
+
+
+def _sotto_mille(t: str):
+    if not t:
+        return 0
+    n = 0
+    if "cento" in t:
+        a, _, t = t.partition("cento")
+        c = _UNITA_IT.get(a, None) if a else 1
+        if c is None or c > 9:
+            return None
+        n += c * 100
+    if not t:
+        return n
+    if t in _UNITA_IT:
+        return n + _UNITA_IT[t]
+    for d in sorted(_DECINE_IT, key=len, reverse=True):
+        for rad in (d, d[:-1]):                      # «ventuno», «trentotto»: la vocale cade
+            if t.startswith(rad) and (t[len(rad):] in _UNITA_IT and _UNITA_IT[t[len(rad):]] < 10):
+                return n + _DECINE_IT[d] + _UNITA_IT[t[len(rad):]]
+    return None
+
+
+def numero_in_lettere(t: str):
+    """«trentamila» → 30000, «duecentocinquantamila» → 250000, «un milione» → None (parole separate: si lascia)."""
+    t = (t or "").lower().strip()
+    n = 0
+    for sep, mult in (("milioni", 10 ** 6), ("milione", 10 ** 6)):
+        if sep in t:
+            a, _, t = t.partition(sep)
+            v = _sotto_mille(a) if a not in ("un", "") else 1
+            if v is None:
+                return None
+            n += v * mult
+    if "mila" in t:
+        a, _, t = t.partition("mila")
+        v = _sotto_mille(a)
+        if v is None:
+            return None
+        n += v * 1000
+    elif t.startswith("mille"):
+        n += 1000
+        t = t[5:]
+    v = _sotto_mille(t)
+    return None if v is None else n + v
+
+
+def _euro(v: float) -> str:
+    s = f"{v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    return s[:-3] if s.endswith(",00") else s
+
+
+def _nota_lire(body: str) -> str:
+    importi, sanzioni = [], False
+    for m in _LIRE_RX.finditer(body or ""):
+        raw = m.group(1) or m.group(2) or m.group(3)
+        n = int(raw.replace(".", "")) if raw and raw.replace(".", "").isdigit() else numero_in_lettere(m.group(4) or "")
+        if not n or n < 100:
+            continue
+        # la FRASE che contiene l'importo: «è punito con l'ammenda da lire …» → sanzione. Il punto delle migliaia («300.000»)
+        # non chiude la frase: solo «. Maiuscola», «;» o l'a capo
+        _b = body or ""
+        inizio = max([x.end() for x in _FINE_FRASE_RX.finditer(_b, 0, m.start())] or [0])
+        fine_m = _FINE_FRASE_RX.search(_b, m.end())
+        fine = fine_m.start() if fine_m else len(_b)
+        if _SANZIONE_RX.search(_b[max(inizio, m.start() - 220):min(fine, m.end() + 60)]):
+            sanzioni = True
+            continue
+        if n not in [x for x, _ in importi]:
+            importi.append((n, n / _TASSO_LIRA))
+    parti = []
+    if sanzioni:
+        parti.append("le PENE e le SANZIONI pecuniarie in lire di questo articolo NON si convertono direttamente: prima si applicano "
+                     "gli aumenti dell'art. 113 L. 24 novembre 1981, n. 689 (per il codice penale e le leggi speciali: per cinque gli "
+                     "importi già aumentati dalla L. 12 luglio 1961, n. 603 e quelli delle leggi 1947-1961, per tre 1961-1970, per due "
+                     "1971-1975; per le sanzioni amministrative art. 114) e i minimi (multa non inferiore a euro 50 e ammenda a euro 20, "
+                     "artt. 24 e 26 c.p.), poi la conversione al tasso di 1 euro = 1.936,27 lire eliminando i decimali (art. 51 d.lgs. "
+                     "24 giugno 1998, n. 213). Calcola l'importo vigente con queste norme; verifica se una legge successiva lo ha fissato "
+                     "in euro")
+    if importi:
+        righe = "; ".join(f"lire {n:,}".replace(",", ".") + f" = euro {_euro(e)}" for n, e in importi[:8])
+        parti.append(("gli altri importi" if sanzioni else "gli importi") + " in lire valgono in euro al tasso fisso di 1 euro = 1.936,27 lire (art. 14 Reg. (CE) n. "
+                     "974/1998): " + righe + ". Verifica che una legge successiva non li abbia aggiornati o fissati in euro")
+    if not parti:
+        return ""
+    return "Nota di collegamento (redazionale, non del testo ufficiale): " + ". Inoltre, ".join(parti) + "."
+
+
+def _nota_con_lire(nota: str, body: str, abrogato: bool) -> str:
+    """La nota dell'atto (se c'è) e, per un articolo vigente con importi in lire, la conversione. Una nota che già parla della
+    conversione (tariffe del bollo e delle imposte ipotecarie, v9.409) resta sola."""
+    if abrogato or re.search(r"(?i)1\.936,27|euro\s+(?:2,00|16,00|200)\b", nota or ""):
+        return nota
+    nl_ = _nota_lire(body)
+    return (nota + "\n" + nl_).strip() if nl_ else nota
+
+
 SRC = Path("/app/data/processed/it_acts")
 JSONL = Path("/app/data/processed/all_articles_it.jsonl")
 CODES_META = Path("/app/data/processed/it_codes.json")
@@ -403,7 +519,7 @@ def main():
                 last_amendment_date=_lad,
                 # v9.401: una nota di collegamento NOSTRA (dichiarata come tale) viaggia col testo ufficiale — es. l'art. 3
                 # L. 742/1969 richiama gli artt. 429 e 459 c.p.c. nella numerazione anteriore al 1973
-                note=(art.get("note") or "")))
+                note=_nota_con_lire(art.get("note") or "", _b, _as_bool(art.get("repealed")))))
         meta.append({"code": cid, "title": a["title"], "area": a.get("area") or "",
                      "count": len(arts)})
         print(f"  {cid:34s} {len(arts):>5} art   {a['title'][:46]}")
