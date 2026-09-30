@@ -171,6 +171,7 @@ def _ensure_loaded() -> None:
     reminders_mod.start_background()
     try:                                        # v9.410: il bot Telegram (spento se manca TELEGRAM_BOT_TOKEN)
         from . import telegram_bot as _tg
+        _tg.imposta_cervello(lambda: _BRAIN)      # v9.420: la Segretaria risponde anche su Telegram
         _tg.registra_webhook()
     except Exception as exc:  # noqa: BLE001
         log.warning("telegram: %s", exc)

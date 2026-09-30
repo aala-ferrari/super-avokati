@@ -6736,6 +6736,22 @@ def main():
     except Exception as _e197:  # noqa: BLE001
         check("calendario-scadenze[197]: kontrollet u ekzekutuan", False, str(_e197))
 
+    # [198] v9.420 — la SEGRETARIA su Telegram: testo libero o vocale (trascritto in locale) → secretary.handle_message; una
+    # scrittura si esegue SOLO col pulsante ✅ (callback, stesso utente e stessa chat), tetto di messaggi all'ora
+    try:
+        import inspect as _in198
+        from src import telegram_bot as _tg198
+        _cb = _in198.getsource(_tg198._gestisci_callback)
+        _sg = _in198.getsource(_tg198._segretaria)
+        _gu = _in198.getsource(_tg198.gestisci_update)
+        _ok198 = ('az["uid"] != uid or az["chat"] != chat_id' in _cb and 'if scelta != "ok"' in _cb and "execute_action" in _cb
+                  and "execute_action" not in _sg and "handle_message" in _sg and "_tastiera(tok, lang)" in _sg
+                  and "_limite_ok(uid)" in _gu and "callback_query" in _gu and "_audio.trascrivi" in _in198.getsource(_tg198._vocale_in_testo)
+                  and '"callback_query"]' in _in198.getsource(_tg198.registra_webhook))
+        check("segretaria-telegram[198]: agenda a parole e vocali, ogni scrittura solo con ✅", _ok198)
+    except Exception as _e198:  # noqa: BLE001
+        check("segretaria-telegram[198]: kontrollet u ekzekutuan", False, str(_e198))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
