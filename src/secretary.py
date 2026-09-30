@@ -118,6 +118,65 @@ def build_agenda_snapshot(user_id: int, days_ahead: int = 45) -> str:
     return out
 
 
+def casi_visibili(user_id: int, limite: int = 80) -> list:
+    """v9.421 — i fascicoli che l'avvocato può aprire (i suoi + quelli dello studio che vede), nella giurisdizione della sessione:
+    la Segretaria li riceve per COLLEGARE l'evento al fascicolo nominato («udienza per Rossi»), e l'esecuzione accetta SOLO questi."""
+    visti, out = set(), []
+    try:
+        from . import brain as _brain
+        giur = (_brain.request_jurisdiction() or "AL").upper()
+    except Exception:  # noqa: BLE001
+        giur = "AL"
+    gruppi = [storage.list_cases(user_id)]
+    try:
+        for f in storage.list_firms_for_user(user_id):
+            gruppi.append(storage.list_cases_for_member(user_id, f.id))
+    except Exception:  # noqa: BLE001
+        pass
+    for g in gruppi:
+        for c in g:
+            if c.id in visti or (getattr(c, "jurisdiction", None) or "AL").upper() != giur:
+                continue
+            visti.add(c.id)
+            out.append(c)
+    out.sort(key=lambda c: c.updated_at or "", reverse=True)
+    return out[:limite]
+
+
+def _it() -> bool:
+    try:
+        from . import brain as _brain
+        return (_brain.request_jurisdiction() or "AL").upper() == "IT"
+    except Exception:  # noqa: BLE001
+        return False
+
+
+# nella lingua della SESSIONE: col prompt tutto albanese, in italiano la conferma diceva «per la dosje Kola»
+def _intestazione_casi() -> str:
+    return ("FASCICOLI DELL'AVVOCATO (clienti/cause; usa case_id per collegarli):" if _it() else
+            "DOSJET E AVOKATIT (klientët/çështjet; përdor case_id për t'i lidhur):")
+
+
+def _regola_casi() -> str:
+    if _it():
+        return ("- COLLEGAMENTO AL FASCICOLO: se la richiesta nomina un cliente, una parte o una causa («per Rossi», «nel fascicolo "
+                "Kola»), metti il \"case_id\" del fascicolo corrispondente dell'elenco FASCICOLI. Se ne corrispondono più d'uno, NON "
+                "mettere action: chiedi quale (con i nomi). Se non ne corrisponde nessuno, crea senza case_id e dillo nel \"reply\" "
+                "(«non ho trovato un fascicolo con questo nome»). Mai inventare un case_id. Nel \"confirm\" scrivi anche il nome del "
+                "fascicolo. Usa sempre la parola «fascicolo».")
+    return ("- LIDHJA ME DOSJEN: kur kërkesa përmend një klient, palë ose çështje («për Rossin», «te dosja Kola»), vendos \"case_id\" "
+            "e dosjes që përputhet nga lista DOSJET. Nëse përputhen më shumë se një, MOS vendos action: pyet cilën (me emrat). Nëse "
+            "nuk përputhet asnjë, krijo pa case_id dhe thuaje në \"reply\" («nuk gjeta dosje me këtë emër»). Mos shpik kurrë një "
+            "case_id. Te \"confirm\" shkruaj edhe emrin e dosjes.")
+
+
+def _blocco_casi(user_id: int) -> str:
+    casi = casi_visibili(user_id)
+    if not casi:
+        return "(Asnjë dosje.)"
+    return "\n".join(f"- case_id={c.id} | {(c.title or '').strip()[:90]}" for c in casi)
+
+
 def _system_prompt(user_id: int) -> str:
     now = _now_tirane()
     days = ["e hënë", "e martë", "e mërkurë", "e enjte", "e premte",
@@ -139,6 +198,9 @@ Sot është {today} (ora e Shqipërisë).
 Agjenda aktuale e avokatit:
 {snapshot}
 
+{_intestazione_casi()}
+{_blocco_casi(user_id)}
+
 GJUHA: përgjigju në të njëjtën gjuhë që shkruan përdoruesi (parazgjedhje: shqip).
 Ji i shkurtër, praktik, profesional — si një sekretar i zoti.
 
@@ -159,13 +221,14 @@ RREGULLA:
 - Për KËRKESA me shtim/ndryshim/fshirje ngjarjeje: vendos action-in e strukturuar,
   jep një "confirm" të qartë, dhe te "reply" kërko konfirmimin.
 - Mos shpik ngjarje që nuk ekzistojnë. Për ndryshim/fshirje përdor event_id nga agjenda.
+{_regola_casi()}
 
 PARAMETRAT:
-create_event: {{ "title", "kind" (një nga: takim|seance|afat|dorëzim|tjetër),
+create_event: {{ "title", "kind" (një nga: takim|seance|afat|dorëzim|tjetër), "case_id" (opsionale, nga DOSJET),
   "starts_at_local" ("VVVV-MM-DD OO:MM", ora e Shqipërisë; përdor 09:00 nëse
   nuk jepet ora), "all_day" (true/false), "location" (opsionale),
   "description" (opsionale), "reminders" (listë minutash-para, parazgjedhje [1440]) }}
-update_event: {{ "event_id", plus fushat për të ndryshuar (p.sh. starts_at_local, title) }}
+update_event: {{ "event_id", plus fushat për të ndryshuar (p.sh. starts_at_local, title, case_id) }}
 delete_event: {{ "event_id" }}
 """
 
@@ -203,10 +266,22 @@ def handle_message(brain, user_id: int, messages: list[dict]) -> dict:
     return {"reply": reply or "Në rregull.", "action": action}
 
 
+def _caso_valido(user_id: int, case_id):
+    """Il case_id proposto dal modello vale SOLO se è fra i fascicoli che l'avvocato vede (mai uno inventato o di altri)."""
+    if not case_id:
+        return None
+    return next((c for c in casi_visibili(user_id, limite=10_000) if c.id == str(case_id)), None)
+
+
+def _L(sq: str, it: str) -> str:
+    """Il testo nella lingua della SESSIONE (v9.421: gli esiti erano solo albanesi anche per l'avvocato italiano)."""
+    return it if _it() else sq
+
+
 def execute_action(user_id: int, action: dict) -> dict:
     """Execute a confirmed write action. Returns {ok, reply}."""
     if not isinstance(action, dict):
-        return {"ok": False, "reply": "Veprim i pavlefshëm."}
+        return {"ok": False, "reply": _L("Veprim i pavlefshëm.", "Azione non valida.")}
     atype = action.get("type")
     p = action.get("params") or {}
     try:
@@ -218,22 +293,24 @@ def execute_action(user_id: int, action: dict) -> dict:
             rem = p.get("reminders")
             if not isinstance(rem, list):
                 rem = [1440]
+            caso = _caso_valido(user_id, p.get("case_id"))
             ev = storage.create_event(
                 user_id, title=(p.get("title") or "Ngjarje").strip(),
-                kind=kind, starts_at=starts,
+                kind=kind, starts_at=starts, case_id=(caso.id if caso else None),
                 description=p.get("description") or None,
                 all_day=bool(p.get("all_day")),
                 location=p.get("location") or None,
                 reminders=[int(x) for x in rem if str(x).lstrip("-").isdigit()],
             )
             return {"ok": True,
-                    "reply": f"✅ U regjistrua: {KIND_LABELS.get(ev.kind, ev.kind)} "
-                             f"«{ev.title}» më {_fmt_local(ev.starts_at)}.",
-                    "event_id": ev.id}
+                    "reply": (_L(f"✅ U regjistrua: {KIND_LABELS.get(ev.kind, ev.kind)} «{ev.title}» më {_fmt_local(ev.starts_at)}",
+                                 f"✅ Registrato: «{ev.title}» — {storage.ora_locale(ev.starts_at, 'IT')}")
+                              + (_L(f" — dosja «{caso.title}».", f" — fascicolo «{caso.title}».") if caso else ".")),
+                    "event_id": ev.id, "case_title": caso.title if caso else None}
         if atype == "update_event":
             eid = p.get("event_id")
             if not eid:
-                return {"ok": False, "reply": "Mungon event_id."}
+                return {"ok": False, "reply": _L("Mungon event_id.", "Manca event_id.")}
             fields = {}
             if p.get("title"):
                 fields["title"] = p["title"].strip()
@@ -243,27 +320,32 @@ def execute_action(user_id: int, action: dict) -> dict:
                 fields["starts_at"] = local_to_utc(p["starts_at_local"])
             if "location" in p:
                 fields["location"] = p.get("location") or None
+            if p.get("case_id"):
+                caso = _caso_valido(user_id, p.get("case_id"))
+                if caso:
+                    fields["case_id"] = caso.id
             if not fields:
-                return {"ok": False, "reply": "Asgjë për të ndryshuar."}
+                return {"ok": False, "reply": _L("Asgjë për të ndryshuar.", "Niente da modificare.")}
             ok = storage.update_event(eid, user_id, **fields)
             if not ok:
-                return {"ok": False, "reply": "Ngjarja nuk u gjet."}
+                return {"ok": False, "reply": _L("Ngjarja nuk u gjet.", "Evento non trovato.")}
             ev = storage.get_event(eid, user_id)
             return {"ok": True,
-                    "reply": f"✅ U përditësua: «{ev.title}» — {_fmt_local(ev.starts_at)}."}
+                    "reply": _L(f"✅ U përditësua: «{ev.title}» — {_fmt_local(ev.starts_at)}.",
+                                f"✅ Aggiornato: «{ev.title}» — {storage.ora_locale(ev.starts_at, 'IT')}.")}
         if atype == "delete_event":
             eid = p.get("event_id")
             if not eid:
-                return {"ok": False, "reply": "Mungon event_id."}
+                return {"ok": False, "reply": _L("Mungon event_id.", "Manca event_id.")}
             ev = storage.get_event(eid, user_id)
             ok = storage.delete_event(eid, user_id)
             if not ok:
-                return {"ok": False, "reply": "Ngjarja nuk u gjet."}
+                return {"ok": False, "reply": _L("Ngjarja nuk u gjet.", "Evento non trovato.")}
             return {"ok": True,
-                    "reply": f"🗑 U fshi: «{ev.title if ev else eid}»."}
+                    "reply": _L(f"🗑 U fshi: «{ev.title if ev else eid}».", f"🗑 Eliminato: «{ev.title if ev else eid}».")}
     except ValueError as exc:
-        return {"ok": False, "reply": f"Gabim: {exc}"}
+        return {"ok": False, "reply": _L(f"Gabim: {exc}", f"Errore: {exc}")}
     except Exception as exc:  # noqa: BLE001
         log.warning("secretary execute failed: %s", exc)
-        return {"ok": False, "reply": "Ndodhi një gabim gjatë ekzekutimit."}
-    return {"ok": False, "reply": "Lloj veprimi i panjohur."}
+        return {"ok": False, "reply": _L("Ndodhi një gabim gjatë ekzekutimit.", "Si è verificato un errore durante l'esecuzione.")}
+    return {"ok": False, "reply": _L("Lloj veprimi i panjohur.", "Tipo di azione sconosciuto.")}

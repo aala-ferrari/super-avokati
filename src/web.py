@@ -6771,6 +6771,49 @@ def api_list_documents(case_id: str):
                                    for d in storage.list_documents(case_id)]})
 
 
+def avvia_elaborazione_documento(doc, case_id: str, uid: int, juris: str, storage_path, fname: str) -> None:
+    """Estrazione (OCR) + riassunto + scadenziario automatico di un documento appena salvato, IN SOTTOFONDO. v9.422: una funzione
+    sola per il caricamento dal portale e per i documenti mandati al bot Telegram (prima stava dentro la rotta del caricamento).
+    La giurisdizione vive in una threading.local: va passata a mano, o il thread classifica in albanese un documento italiano."""
+    backend = _BRAIN.backend if _BRAIN else None
+    doc_id, ext, mime = doc.id, doc.ext, doc.mimetype
+
+    def _process() -> None:
+        try:
+            brain_mod.set_request_jurisdiction(juris)
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            text, _ocr = docs_mod.extract_text(storage_path, ext, mime,
+                                               backend=backend,
+                                               original_filename=fname)
+        except Exception as exc:  # noqa: BLE001
+            log.exception("extraction failed for %s", fname)
+            storage.mark_document_error(doc_id, f"{type(exc).__name__}: {exc}")
+            return
+        analysis = {"doc_type": None, "summary": None, "key_facts": []}
+        if text and backend is not None:
+            try:
+                analysis = docs_mod.summarize_document(text, fname, backend)
+            except Exception as exc:  # noqa: BLE001
+                log.warning("analysis failed for %s: %s", fname, exc)
+        try:
+            storage.update_document_analysis(
+                doc_id,
+                extracted_text=text or None,
+                doc_type=analysis.get("doc_type"),
+                summary=analysis.get("summary"),
+                key_facts=analysis.get("key_facts") or [],
+            )
+            storage.touch_case(case_id, uid)
+        except Exception:  # noqa: BLE001
+            log.exception("could not store analysis for %s", fname)
+        _scad_auto_dopo_caricamento(case_id, uid, juris, doc_id, ext, text or "")
+
+    threading.Thread(target=brain_mod.porta_utente(uid, _process),
+                 name=f"doc-{doc_id[:8]}", daemon=True).start()
+
+
 @app.post("/api/cases/<case_id>/documents")
 @login_required_api
 def api_upload_document(case_id: str):
@@ -6846,54 +6889,11 @@ def api_upload_document(case_id: str):
         storage_path=str(storage_path),
     )
 
-    # Estrazione + analisi girano IN SOTTOFONDO: tenere aperta la richiesta
-    # costava 30-65 secondi per file (OCR delle foto + classificazione), e
-    # l'avvocato concludeva che il caricamento non funzionasse. La riga
-    # esiste gia' con stato 'pending', quindi il documento compare subito e
-    # passa da solo a 'e analizuar'.
-    backend = _BRAIN.backend if _BRAIN else None
-    doc_id, fname, ext, mime = doc.id, f.filename, v.ext, v.mimetype
-    # la giurisdizione vive in una threading.local: va passata a mano, o il
-    # thread ricade su AL e classifica in albanese un documento italiano
-    juris = _active_jurisdiction(user)
-    uid = user.id
+    # Estrazione + analisi girano IN SOTTOFONDO (avvia_elaborazione_documento): tenere aperta la richiesta costava 30-65 secondi
+    # per file (OCR delle foto + classificazione). La riga esiste già con stato 'pending': il documento compare subito.
+    avvia_elaborazione_documento(doc, case_id, user.id, _active_jurisdiction(user), storage_path, f.filename)
 
-    def _process() -> None:
-        try:
-            brain_mod.set_request_jurisdiction(juris)
-        except Exception:  # noqa: BLE001
-            pass
-        try:
-            text, _ocr = docs_mod.extract_text(storage_path, ext, mime,
-                                               backend=backend,
-                                               original_filename=fname)
-        except Exception as exc:  # noqa: BLE001
-            log.exception("extraction failed for %s", fname)
-            storage.mark_document_error(doc_id, f"{type(exc).__name__}: {exc}")
-            return
-        analysis = {"doc_type": None, "summary": None, "key_facts": []}
-        if text and backend is not None:
-            try:
-                analysis = docs_mod.summarize_document(text, fname, backend)
-            except Exception as exc:  # noqa: BLE001
-                log.warning("analysis failed for %s: %s", fname, exc)
-        try:
-            storage.update_document_analysis(
-                doc_id,
-                extracted_text=text or None,
-                doc_type=analysis.get("doc_type"),
-                summary=analysis.get("summary"),
-                key_facts=analysis.get("key_facts") or [],
-            )
-            storage.touch_case(case_id, uid)
-        except Exception:  # noqa: BLE001
-            log.exception("could not store analysis for %s", fname)
-        _scad_auto_dopo_caricamento(case_id, uid, juris, doc_id, ext, text or "")
-
-    threading.Thread(target=brain_mod.porta_utente(uid, _process),
-                 name=f"doc-{doc_id[:8]}", daemon=True).start()
-
-    payload = _document_payload(storage.get_document(doc_id, case_id))
+    payload = _document_payload(storage.get_document(doc.id, case_id))
     payload["processing"] = True
     return jsonify(payload), 201
 

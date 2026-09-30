@@ -6695,7 +6695,7 @@ def main():
         _rx = _w195._DATA_NEL_TESTO_RX
         _date_ok = all(_rx.search(x) for x in ("seanca më 20.10.2026", "udienza del 15 gennaio 2027", "il 2026-11-30", "më 3 tetor 2026"))
         _no = not _rx.search("ai sensi della L. 689/1981 e del d.lgs. 213/1998, art. 10.2")
-        _up = _in195.getsource(_w195.api_upload_document)
+        _up = _in195.getsource(_w195.avvia_elaborazione_documento)   # v9.422: il caricamento passa da qui (portale e Telegram)
         _auto = _in195.getsource(_w195._scad_auto_dopo_caricamento)
         _lan = _in195.getsource(_w195._scad_lancia)
         _ok195 = (_date_ok and _no and "_scad_auto_dopo_caricamento(case_id, uid, juris, doc_id, ext" in _up
@@ -6751,6 +6751,40 @@ def main():
         check("segretaria-telegram[198]: agenda a parole e vocali, ogni scrittura solo con ✅", _ok198)
     except Exception as _e198:  # noqa: BLE001
         check("segretaria-telegram[198]: kontrollet u ekzekutuan", False, str(_e198))
+
+    # [199] v9.421 — la Segretaria COLLEGA l'evento al fascicolo nominato: riceve i fascicoli visibili (suoi e dello studio, nella
+    # giurisdizione della sessione), l'esecuzione accetta solo un case_id fra quelli (mai inventato né di altri), nome ambiguo → chiede;
+    # esiti e regola nella lingua della sessione («fascicolo», non «dosje»)
+    try:
+        import inspect as _in199
+        from src import secretary as _se199
+        _ex = _in199.getsource(_se199.execute_action)
+        _ok199 = ("_caso_valido(user_id, p.get(\"case_id\"))" in _ex and "case_id=(caso.id if caso else None)" in _ex
+                  and "casi_visibili(user_id, limite=10_000)" in _in199.getsource(_se199._caso_valido)
+                  and "list_cases_for_member" in _in199.getsource(_se199.casi_visibili)
+                  and "_blocco_casi(user_id)" in _in199.getsource(_se199._system_prompt)
+                  and "«fascicolo»" in _in199.getsource(_se199._regola_casi) and "Registrato" in _ex)
+        check("segretaria-fascicolo[199]: evento collegato al fascicolo nominato, solo fra quelli visibili, esiti nella lingua della sessione", _ok199)
+    except Exception as _e199:  # noqa: BLE001
+        check("segretaria-fascicolo[199]: kontrollet u ekzekutuan", False, str(_e199))
+
+    # [200] v9.422 — DOCUMENTI MANDATI AL BOT: PDF/foto → pulsanti per scegliere il fascicolo (didascalia che corrisponde, anche con
+    # le forme flesse albanesi), allegato solo al clic dello stesso utente e solo a un fascicolo visibile, poi lo stesso percorso del
+    # portale (avvia_elaborazione_documento: OCR, riassunto, scadenziario automatico con avviso)
+    try:
+        import inspect as _in200
+        from src import telegram_bot as _tg200, web as _w200
+        _al = _in200.getsource(_tg200._allega_documento)
+        _ok200 = (_tg200._stessa_radice("kolës", "kola") and _tg200._stessa_radice("hoxhës", "hoxha")
+                  and not _tg200._stessa_radice("udienza", "delta")
+                  and 'att["uid"] != uid or att["chat"] != cb_chat' in _al and "_caso_valido(uid, cid)" in _al
+                  and "avvia_elaborazione_documento(doc, cid" in _al
+                  and "avvia_elaborazione_documento(doc, case_id, user.id" in _in200.getsource(_w200.api_upload_document)
+                  and "_scad_auto_dopo_caricamento" in _in200.getsource(_w200.avvia_elaborazione_documento)
+                  and 'msg.get("document") or msg.get("photo")' in _in200.getsource(_tg200.gestisci_update))
+        check("telegram-documenti[200]: PDF e foto al bot → scelta del fascicolo, stesso percorso del portale con lo scadenziario", _ok200)
+    except Exception as _e200:  # noqa: BLE001
+        check("telegram-documenti[200]: kontrollet u ekzekutuan", False, str(_e200))
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

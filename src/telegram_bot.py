@@ -298,16 +298,171 @@ def _segretaria(uid: int, chat_id: str, testo: str, voice: dict | None) -> None:
         log.warning("telegram: conferma non inviata: %s", exc)
 
 
+# v9.422 — DOCUMENTI MANDATI AL BOT (PDF, foto, Word): l'avvocato fotografa la notifica e la manda; il bot chiede con i pulsanti a
+# quale fascicolo allegarla (prima quelli che corrispondono alla didascalia, poi i recenti, e «➕ Nuovo fascicolo» col nome della
+# didascalia); dopo il clic il documento entra nel fascicolo come dal portale (`web.avvia_elaborazione_documento`: OCR, riassunto,
+# scadenziario automatico, che avvisa qui con le scadenze trovate). Il file resta sul server in attesa della scelta (30 minuti).
+_DOC_ATTESA: dict = {}              # token -> {uid, chat, path, nome, casi:[(id, titolo)], nuovo, ts}
+_MAX_DOC_MB = 20                    # limite dei bot Telegram per scaricare un file
+
+
+def _parole(t: str) -> set:
+    import re as _re
+    return {w for w in _re.findall(r"[a-zà-ÿëç]{3,}", (t or "").lower())} - {"per", "del", "della", "dei", "con", "për", "nga", "dhe"}
+
+
+def _stessa_radice(a: str, b: str) -> bool:
+    """«kolës» ~ «kola», «hoxhës» ~ «hoxha»: dieresi piegate, radice comune di almeno 3 lettere e fino alla penultima lettera
+    della parola più corta (le desinenze albanesi cambiano la coda)."""
+    f = lambda w: w.replace("ë", "e").replace("ç", "c")
+    a, b = f(a), f(b)
+    if a == b:
+        return True
+    corta = min(len(a), len(b))
+    comune = 0
+    while comune < corta and a[comune] == b[comune]:
+        comune += 1
+    return comune >= 3 and comune >= corta - 1
+
+
+def _documento(uid: int, chat_id: str, msg: dict) -> None:
+    import secrets as _secrets
+    import tempfile
+    from pathlib import Path as _P
+    from . import brain as _brain, secretary as _sec, documents as _docs
+    lang = _lingua_utente(uid)
+    it = lang == "it"
+    try:
+        _brain.set_request_user(uid)
+        _brain.set_request_jurisdiction("IT" if it else "AL")
+    except Exception:  # noqa: BLE001
+        pass
+    if msg.get("photo"):
+        info_f = max(msg["photo"], key=lambda x: int(x.get("file_size") or 0))
+        nome = "foto_" + time.strftime("%Y%m%d_%H%M%S") + ".jpg"
+    else:
+        info_f = msg.get("document") or {}
+        nome = (info_f.get("file_name") or "documento").strip()[:120]
+    if int(info_f.get("file_size") or 0) > _MAX_DOC_MB * 1024 * 1024:
+        invia(chat_id, f"Il file supera i {_MAX_DOC_MB} MB che Telegram permette ai bot: caricalo dal portale." if it else
+              f"Skedari kalon {_MAX_DOC_MB} MB që Telegram lejon për bot-et: ngarkoje nga portali.")
+        return
+    v = _docs.validate_upload(nome, int(info_f.get("file_size") or 1))
+    if not v.ok:
+        invia(chat_id, ("Questo tipo di file non si può allegare: " if it else "Ky lloj skedari nuk mund të bashkëngjitet: ") + str(v.error))
+        return
+    try:
+        fp = (_api("getFile", file_id=info_f.get("file_id") or "").get("result") or {}).get("file_path") or ""
+        d = _P(tempfile.mkdtemp(prefix="tgdoc-"))
+        dest = d / ("file" + v.ext)
+        with urllib.request.urlopen(f"{TG_API}/file/bot{TELEGRAM_BOT_TOKEN}/{fp}", timeout=60) as r:
+            dest.write_bytes(r.read())
+    except Exception as exc:  # noqa: BLE001
+        log.warning("telegram: documento non scaricato: %s", exc)
+        invia(chat_id, "Non sono riuscita a scaricare il file: riprova." if it else "Nuk arrita ta shkarkoj skedarin: provo sërish.")
+        return
+    didascalia = (msg.get("caption") or "").strip()
+    casi = _sec.casi_visibili(uid)
+    p_dida = _parole(didascalia)
+
+    def punteggio(c) -> int:
+        # le forme flesse albanesi («Kolës», «Kolën» per «Kola»; «Hoxhës» per «Hoxha»): conta la RADICE di 4 lettere
+        pt = _parole(c.title or "")
+        return sum(1 for a in p_dida if any(_stessa_radice(a, b) for b in pt))
+    corrispondenti = sorted([c for c in casi if p_dida and punteggio(c) > 0], key=punteggio, reverse=True)
+    scelti = (corrispondenti + [c for c in casi if c not in corrispondenti])[:6]
+    tok = _secrets.token_urlsafe(6)
+    for k in [k for k, x in _DOC_ATTESA.items() if time.time() - x["ts"] > 1800]:
+        vecchio = _DOC_ATTESA.pop(k, None)
+        try:
+            _P(vecchio["path"]).unlink(missing_ok=True)
+        except Exception:  # noqa: BLE001
+            pass
+    nuovo = didascalia[:80] if (didascalia and not corrispondenti) else ""
+    _DOC_ATTESA[tok] = {"uid": uid, "chat": chat_id, "path": str(dest), "nome": nome, "ts": time.time(),
+                        "casi": [(c.id, c.title or "—") for c in scelti], "nuovo": nuovo, "lang": lang}
+    righe = [[{"text": "📁 " + (t[:40] or "—"), "callback_data": f"d:{tok}:{i}"}] for i, (_cid, t) in enumerate(_DOC_ATTESA[tok]["casi"])]
+    if nuovo:
+        righe.append([{"text": "➕ " + ("Nuovo fascicolo: " if it else "Dosje e re: ") + nuovo[:30], "callback_data": f"d:{tok}:n"}])
+    righe.append([{"text": "❌ " + ("Annulla" if it else "Anulo"), "callback_data": f"d:{tok}:x"}])
+    testo = ((f"📎 «{nome}» — a quale fascicolo lo allego? Poi lo leggo e ti scrivo qui le scadenze che trovo."
+              + ("" if didascalia else "\nSuggerimento: scrivi il nome del cliente nella didascalia della foto.")) if it else
+             (f"📎 «{nome}» — në cilën dosje ta bashkëngjit? Pastaj e lexoj dhe të shkruaj këtu afatet që gjej."
+              + ("" if didascalia else "\nKëshillë: shkruaj emrin e klientit te përshkrimi i fotos.")))
+    if not casi and not nuovo:
+        testo += ("\n\nNon hai ancora fascicoli: rimanda il file scrivendo il nome del cliente nella didascalia." if it else
+                  "\n\nNuk ke ende dosje: ridërgoje skedarin me emrin e klientit te përshkrimi.")
+    try:
+        _api("sendMessage", chat_id=chat_id, text=testo, reply_markup={"inline_keyboard": righe})
+    except Exception as exc:  # noqa: BLE001
+        log.warning("telegram: scelta del fascicolo non inviata: %s", exc)
+
+
+def _allega_documento(cb_chat: str, tok: str, scelta: str, uid: int | None) -> None:
+    import shutil as _sh
+    from pathlib import Path as _P
+    from . import storage, brain as _brain, documents as _docs, web as _web
+    att = _DOC_ATTESA.pop(tok, None)
+    if not att or not uid or att["uid"] != uid or att["chat"] != cb_chat:
+        invia(cb_chat, "Richiesta scaduta: rimanda il file." if _lingua_utente(uid) == "it" else "Kërkesa ka skaduar: ridërgoje skedarin.")
+        return
+    it = att["lang"] == "it"
+    src = _P(att["path"])
+    try:
+        if scelta == "x":
+            invia(cb_chat, "Annullato: il file non è stato allegato." if it else "U anulua: skedari nuk u bashkëngjit.")
+            return
+        _brain.set_request_user(uid)
+        _brain.set_request_jurisdiction("IT" if it else "AL")
+        if scelta == "n" and att.get("nuovo"):
+            caso = storage.create_case(uid, att["nuovo"], jurisdiction="IT" if it else "AL")
+            cid, titolo = caso.id, caso.title
+        else:
+            try:
+                cid, titolo = att["casi"][int(scelta)]
+            except (ValueError, IndexError):
+                return
+            from . import secretary as _sec
+            if not _sec._caso_valido(uid, cid):         # il fascicolo deve essere ancora visibile a chi allega
+                invia(cb_chat, "Fascicolo non trovato." if it else "Dosja nuk u gjet.")
+                return
+        if storage.count_documents(cid) >= _web.MAX_DOCUMENTS_PER_CASE:
+            invia(cb_chat, "Il fascicolo ha già il numero massimo di documenti." if it else "Dosja ka numrin maksimal të dokumenteve.")
+            return
+        v = _docs.validate_upload(att["nome"], src.stat().st_size)
+        dest = _docs.storage_path_for(cid, v.ext)
+        _sh.move(str(src), str(dest))
+        doc = storage.create_document(case_id=cid, filename=att["nome"], ext=v.ext, mimetype=v.mimetype,
+                                      size_bytes=dest.stat().st_size, storage_path=str(dest))
+        _web.avvia_elaborazione_documento(doc, cid, uid, "IT" if it else "AL", dest, att["nome"])
+        invia(cb_chat, (f"✅ Allegato al fascicolo «{titolo}». Lo sto leggendo: se trovo scadenze te le scrivo qui "
+                        "(da confermare nel portale o con /scadenze).") if it else
+              (f"✅ U bashkëngjit te dosja «{titolo}». Po e lexoj: nëse gjej afate t'i shkruaj këtu "
+               "(për t'u konfirmuar në portal ose me /afatet)."))
+    except Exception as exc:  # noqa: BLE001
+        log.exception("telegram: documento non allegato")
+        invia(cb_chat, ("Non sono riuscita ad allegare il file: caricalo dal portale (" if it else
+                        "Nuk arrita ta bashkëngjit skedarin: ngarkoje nga portali (") + type(exc).__name__ + ").")
+    finally:
+        try:
+            if src.exists():
+                src.unlink()
+            src.parent.rmdir()
+        except Exception:  # noqa: BLE001
+            pass
+
+
 def _esito_in_lingua(uid: int, azione: dict, res: dict, lang: str) -> str:
     """Il testo dell'esito nella lingua dell'avvocato (quello di `secretary.execute_action` è solo albanese)."""
     from . import storage
-    if lang != "it" or not res.get("ok"):
+    if lang != "it" or not res.get("ok") or (res.get("reply") or "").startswith(("✅ Registrato", "✅ Aggiornato", "🗑 Eliminato")):
         return res.get("reply") or ""
     t = azione.get("type")
     if t == "create_event" and res.get("event_id"):
         ev = storage.get_event(res["event_id"], uid)
         if ev:
-            return f"✅ Registrato: «{ev.title}» — {storage.ora_locale(ev.starts_at, storage.giurisdizione_evento(ev))}."
+            return (f"✅ Registrato: «{ev.title}» — {storage.ora_locale(ev.starts_at, storage.giurisdizione_evento(ev))}"
+                    + (f" — fascicolo «{res['case_title']}»." if res.get("case_title") else "."))
     if t == "update_event":
         return "✅ Aggiornato."
     if t == "delete_event":
@@ -324,9 +479,18 @@ def _gestisci_callback(cb: dict) -> None:
         _api("answerCallbackQuery", callback_query_id=cb.get("id") or "")
     except Exception:  # noqa: BLE001
         pass
+    uid = storage.utente_da_chat_telegram(chat_id) if chat_id else None
+    if dati.startswith("d:"):                         # v9.422: scelta del fascicolo per un documento mandato al bot
+        _p, tok_d, sc = (dati.split(":") + ["", ""])[:3]
+        try:
+            if msg_id:
+                _api("editMessageReplyMarkup", chat_id=chat_id, message_id=msg_id, reply_markup={"inline_keyboard": []})
+        except Exception:  # noqa: BLE001
+            pass
+        _allega_documento(chat_id, tok_d, sc, uid)
+        return
     scelta, _, tok = dati.partition(":")
     az = _AZIONI.pop(tok, None)
-    uid = storage.utente_da_chat_telegram(chat_id) if chat_id else None
     try:
         if msg_id:
             _api("editMessageReplyMarkup", chat_id=chat_id, message_id=msg_id, reply_markup={"inline_keyboard": []})
@@ -362,6 +526,15 @@ def gestisci_update(upd: dict) -> None:
         chat_id = str(chat.get("id") or "")
         testo = (msg.get("text") or "").strip()
         voice = msg.get("voice") or msg.get("audio")
+        if chat_id and (msg.get("document") or msg.get("photo")):
+            uid_d = storage.utente_da_chat_telegram(chat_id)
+            if not uid_d:
+                invia(chat_id, _T["info"]["sq"])
+                return
+            if not _limite_ok(uid_d):
+                return
+            threading.Thread(target=_documento, args=(uid_d, chat_id, msg), name="tg-doc", daemon=True).start()
+            return
         if not chat_id or not (testo or voice):
             return
         if testo.startswith("/start"):
