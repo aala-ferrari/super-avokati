@@ -1126,6 +1126,18 @@ def init_db(db_path: Path = APP_DB_PATH) -> None:
         conn.executescript(SCHEMA_SCADENZE)
         # v9.412 — «avvisa anche i colleghi dello studio» per evento (0 = solo chi l'ha messo in calendario)
         _add_column_if_missing(conn, "events", "notify_team", "INTEGER NOT NULL DEFAULT 0")
+        # v9.414: gli eventi salvati con l'ora locale senza fuso passano a UTC (una volta: dopo finiscono in «Z»), e i loro
+        # promemoria non ancora inviati si ricalcolano
+        _gcol = "jurisdiction" if any(c[1] == "jurisdiction" for c in conn.execute("PRAGMA table_info(events)")) else "NULL"
+        for _r in conn.execute(f"SELECT id, starts_at, ends_at, {_gcol} AS jurisdiction FROM events WHERE starts_at NOT LIKE '%Z' "
+                               "AND starts_at NOT LIKE '%+__:__' AND starts_at NOT LIKE '%-__:__'").fetchall():
+            _s, _e = a_utc(_r["starts_at"], _r["jurisdiction"]), a_utc(_r["ends_at"], _r["jurisdiction"])
+            if _s and _s != _r["starts_at"]:
+                conn.execute("UPDATE events SET starts_at = ?, ends_at = ? WHERE id = ?", (_s, _e, _r["id"]))
+                for _rm in conn.execute("SELECT id, offset_minutes FROM reminders WHERE event_id = ? AND sent_at IS NULL",
+                                        (_r["id"],)).fetchall():
+                    conn.execute("UPDATE reminders SET fire_at = ? WHERE id = ?",
+                                 (_compute_fire_at(_s, int(_rm["offset_minutes"])), _rm["id"]))
         # V9.2 — last_active timestamp per user, updated on every authenticated
         # request. Powers the "online users" display in the admin panel.
         _add_column_if_missing(conn, "users", "last_active", "TEXT")
@@ -2430,6 +2442,41 @@ def _reminder_from_row(r: sqlite3.Row) -> Reminder:
     )
 
 
+# v9.414 — FUSO ORARIO degli eventi. Il calendario salva in UTC («…Z», dal browser), lo scadenziario e il motore dei termini
+# salvavano l'ora LOCALE senza fuso («2026-10-20T11:00:00»): il feed per Google/Apple la esportava come UTC (l'udienza delle 11
+# compariva alle 13) e l'avviso scattava 2 ore dopo. Ora un orario senza fuso vale come ora locale della giurisdizione e si salva in
+# UTC; nei messaggi si stampa in ora locale (`ora_locale`).
+FUSO_GIURISDIZIONE = {"AL": "Europe/Tirane", "IT": "Europe/Rome", "EU": "Europe/Brussels"}
+
+
+def fuso_di(giurisdizione: str | None):
+    from zoneinfo import ZoneInfo
+    return ZoneInfo(FUSO_GIURISDIZIONE.get((giurisdizione or "AL").upper(), "Europe/Tirane"))
+
+
+def a_utc(ts: str | None, giurisdizione: str | None) -> str | None:
+    """«2026-10-20T11:00:00» (ora locale, senza fuso) → «2026-10-20T09:00:00Z»; un orario con fuso resta lo stesso istante."""
+    if not ts:
+        return ts
+    try:
+        d = datetime.fromisoformat(ts.strip().replace("Z", "+00:00"))
+    except ValueError:
+        return ts
+    if d.tzinfo is None:
+        d = d.replace(tzinfo=fuso_di(giurisdizione))
+    return d.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def ora_locale(ts: str | None, giurisdizione: str | None, fmt: str = "%d/%m/%Y %H:%M") -> str:
+    try:
+        d = datetime.fromisoformat((ts or "").replace("Z", "+00:00"))
+    except ValueError:
+        return ts or ""
+    if d.tzinfo is None:
+        d = d.replace(tzinfo=fuso_di(giurisdizione))       # vecchi eventi senza fuso: erano già ora locale
+    return d.astimezone(fuso_di(giurisdizione)).strftime(fmt)
+
+
 def _compute_fire_at(starts_at: str, offset_minutes: int) -> str:
     """starts_at − offset_minutes, as UTC ISO string. starts_at must be
     an ISO-8601 string with a 'Z' or +hh:mm suffix; we parse via fromisoformat
@@ -2474,6 +2521,7 @@ def create_event(
     event_id = uuid.uuid4().hex
     now = _utcnow()
     jurisdiction = _giurisdizione_nuovo_evento(case_id, jurisdiction)
+    starts_at, ends_at = a_utc(starts_at, jurisdiction), a_utc(ends_at, jurisdiction)   # v9.414: sempre UTC
     with db() as conn:
         conn.execute(
             "INSERT INTO events (id, user_id, case_id, title, description, "
@@ -2630,6 +2678,12 @@ def update_event(
         patch["done"] = int(bool(patch["done"]))
     if "notify_team" in patch:
         patch["notify_team"] = int(bool(patch["notify_team"]))
+    if patch.get("starts_at") or patch.get("ends_at"):
+        _ev0 = get_event(event_id, user_id)
+        _g0 = getattr(_ev0, "jurisdiction", None) if _ev0 else None
+        for _k in ("starts_at", "ends_at"):
+            if patch.get(_k):
+                patch[_k] = a_utc(patch[_k], _g0)
     sets = ", ".join(f"{k} = ?" for k in patch)
     params = list(patch.values()) + [_utcnow(), event_id, user_id]
     with db() as conn:

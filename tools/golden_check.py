@@ -6669,6 +6669,23 @@ def main():
     except Exception as _e193:  # noqa: BLE001
         check("lire-in-euro[193]: kontrollet u ekzekutuan", False, str(_e193))
 
+    # [194] v9.414 — FUSO ORARIO degli eventi: un orario senza fuso (scadenziario, motore dei termini) vale come ora locale della
+    # giurisdizione e si salva in UTC; l'avviso lo stampa in ora locale (il container è in UTC: un'udienza delle 10 usciva «08:00»),
+    # con l'ora legale e quella solare
+    try:
+        import inspect as _in194
+        from src import storage as _st194, reminders as _rm194
+        _ok194 = (_st194.a_utc("2026-10-20T11:00:00", "AL") == "2026-10-20T09:00:00Z"
+                  and _st194.a_utc("2026-12-16T10:00:00", "IT") == "2026-12-16T09:00:00Z"
+                  and _st194.a_utc("2026-12-15T09:30:00.000Z", "IT") == "2026-12-15T09:30:00Z"
+                  and _st194.ora_locale("2026-12-15T09:30:00Z", "IT") == "15/12/2026 10:30"
+                  and _st194.ora_locale("2026-10-20T09:00:00Z", "AL") == "20/10/2026 11:00"
+                  and "ora_locale" in _in194.getsource(_rm194._fmt_when) and "dt.astimezone()" not in _in194.getsource(_rm194._fmt_when)
+                  and "a_utc(starts_at, jurisdiction)" in _in194.getsource(_st194.create_event))
+        check("fuso-orario[194]: eventi in UTC, avvisi in ora locale di Tirana/Roma (ora legale e solare)", _ok194)
+    except Exception as _e194:  # noqa: BLE001
+        check("fuso-orario[194]: kontrollet u ekzekutuan", False, str(_e194))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

@@ -73,11 +73,14 @@ def _email_configured() -> bool:
 # ── formatting helpers (shared by both channels) ──────────────────────────
 
 def _fmt_when(event) -> str:
+    # v9.414: in ORA LOCALE della giurisdizione (Tirana / Roma, con l'ora legale). Prima `astimezone()` usava il fuso del
+    # container, che è UTC: un'udienza delle 10:00 arrivava nell'avviso come «08:00»
     try:
-        dt = datetime.fromisoformat(event.starts_at.replace("Z", "+00:00"))
-        when = dt.astimezone().strftime("%d/%m/%Y %H:%M")
+        g = storage.giurisdizione_evento(event)
     except Exception:  # noqa: BLE001
-        when = event.starts_at
+        g = getattr(event, "jurisdiction", None)
+    fmt = "%d/%m/%Y" if getattr(event, "all_day", False) else "%d/%m/%Y %H:%M"
+    when = storage.ora_locale(event.starts_at, g, fmt)
     if event.location:
         when = f"{when} · {event.location}"
     return when
