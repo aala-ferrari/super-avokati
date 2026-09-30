@@ -396,6 +396,11 @@ def _loop() -> None:
             _tick()
         except Exception as exc:  # noqa: BLE001
             log.exception("reminder tick crashed: %s", exc)
+        try:                                    # v9.423: il promemoria del mattino su Telegram (dalle 7:30 locali)
+            from . import telegram_bot as _tg
+            _tg.briefing_tick()
+        except Exception as exc:  # noqa: BLE001
+            log.warning("briefing tick: %s", exc)
         _stop.wait(POLL_SECONDS)
     log.info("reminder scheduler stopped")
 

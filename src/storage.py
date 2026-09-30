@@ -1126,6 +1126,10 @@ def init_db(db_path: Path = APP_DB_PATH) -> None:
         conn.executescript(SCHEMA_SCADENZE)
         # v9.412 — «avvisa anche i colleghi dello studio» per evento (0 = solo chi l'ha messo in calendario)
         _add_column_if_missing(conn, "events", "notify_team", "INTEGER NOT NULL DEFAULT 0")
+        # v9.423 — il promemoria del mattino su Telegram: acceso di norma (0 = spento con /briefing), e il GIORNO locale
+        # dell'ultimo invio, così un riavvio non lo manda due volte
+        _add_column_if_missing(conn, "users", "telegram_briefing", "INTEGER NOT NULL DEFAULT 1")
+        _add_column_if_missing(conn, "users", "telegram_briefing_last", "TEXT")
         # v9.414: gli eventi salvati con l'ora locale senza fuso passano a UTC (una volta: dopo finiscono in «Z»), e i loro
         # promemoria non ancora inviati si ricalcolano
         _gcol = "jurisdiction" if any(c[1] == "jurisdiction" for c in conn.execute("PRAGMA table_info(events)")) else "NULL"
@@ -7094,4 +7098,31 @@ def conta_colleghi_del_fascicolo(case_id: str | None, user_id: int) -> int:
         return len(colleghi_del_fascicolo(case_id, user_id))
     except Exception:  # noqa: BLE001
         return 0
+
+
+# ── v9.423 — promemoria del mattino su Telegram ─────────────────────────────
+
+def utenti_per_briefing() -> list[dict]:
+    """Chi ha Telegram collegato e il promemoria del mattino acceso: [{id, chat, last}]."""
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT id, telegram_chat_id, telegram_briefing_last FROM users WHERE telegram_chat_id IS NOT NULL "
+            "AND telegram_chat_id != '' AND COALESCE(telegram_briefing, 1) = 1 AND COALESCE(suspended, 0) = 0").fetchall()
+    return [{"id": int(r["id"]), "chat": str(r["telegram_chat_id"]), "last": r["telegram_briefing_last"] or ""} for r in rows]
+
+
+def segna_briefing(user_id: int, giorno: str) -> None:
+    with db() as conn:
+        conn.execute("UPDATE users SET telegram_briefing_last = ? WHERE id = ?", (giorno, user_id))
+
+
+def imposta_briefing(user_id: int, acceso: bool) -> None:
+    with db() as conn:
+        conn.execute("UPDATE users SET telegram_briefing = ? WHERE id = ?", (1 if acceso else 0, user_id))
+
+
+def briefing_acceso(user_id: int) -> bool:
+    with db() as conn:
+        r = conn.execute("SELECT COALESCE(telegram_briefing, 1) AS b FROM users WHERE id = ?", (user_id,)).fetchone()
+    return bool(r and r["b"])
 

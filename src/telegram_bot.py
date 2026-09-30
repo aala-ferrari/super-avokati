@@ -106,10 +106,10 @@ _T = {
     "stop": {"sq": "U shkëpute. Nuk do të marrësh më kujtesa këtu.",
              "it": "Scollegato. Non riceverai più avvisi qui."},
     "comandi": {"sq": "Komandat: /sot — seancat dhe afatet e sotme dhe të nesërme · /java — 7 ditët e ardhshme · "
-                      "/afatet — afatet nga dokumentet për t'u konfirmuar · /stop — shkëput. Ose më shkruaj (ose më dërgo një mesazh zanor): "
+                      "/afatet — afatet nga dokumentet për t'u konfirmuar · /briefing — kujtesa e mëngjesit · /stop — shkëput. Ose më shkruaj (ose më dërgo një mesazh zanor): "
                       "«çfarë kam javën tjetër?», «regjistro seancë më 4 nëntor ora 10 për Kolën»",
                 "it": "Comandi: /oggi — udienze e scadenze di oggi e domani · /settimana — i prossimi 7 giorni · "
-                      "/scadenze — scadenze dai documenti da confermare · /stop — scollega. Oppure scrivimi (o mandami un vocale): "
+                      "/scadenze — scadenze dai documenti da confermare · /briefing — promemoria del mattino · /stop — scollega. Oppure scrivimi (o mandami un vocale): "
                       "«cosa ho la settimana prossima?», «registra udienza il 4 novembre alle 10 per Rossi»"},
 }
 
@@ -160,6 +160,89 @@ def agenda(uid: int, giorni: int, lang: str) -> str:
         testo += (f"\n\n🟡 {n} scadenz{'a' if n == 1 else 'e'} dai documenti da confermare: /scadenze" if it else
                   f"\n\n🟡 {n} afat{'' if n == 1 else 'e'} nga dokumentet për t'u konfirmuar: /afatet")
     return testo
+
+
+# v9.423 — il PROMEMORIA DEL MATTINO: dalle 7:30 locali, una volta al giorno (il giorno dell'ultimo invio sta nel database: un
+# riavvio non lo ripete), per chi ha Telegram collegato e non l'ha spento (/briefing). Oggi, domani, le scadenze e i depositi entro
+# 3 giorni, le proposte dei documenti da confermare. Niente da dire → niente messaggio. Nessuna chiamata al modello.
+ORA_BRIEFING = (7, 30)
+
+
+def briefing_testo(uid: int, lang: str, adesso=None) -> str:
+    from datetime import datetime, timedelta, timezone
+    from . import storage
+    it = lang == "it"
+    fuso = storage.fuso_di("IT" if it else "AL")
+    ora = (adesso or datetime.now(timezone.utc)).astimezone(fuso)
+    oggi0 = ora.replace(hour=0, minute=0, second=0, microsecond=0)
+    utc = lambda d: d.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    eventi = [e for e in storage.list_events(uid, start=utc(oggi0), end=utc(oggi0 + timedelta(days=4))) if not e.done]
+    titoli = _titoli_casi(e.case_id for e in eventi)
+
+    def riga(e):
+        g = storage.giurisdizione_evento(e)
+        orario = "" if e.all_day else storage.ora_locale(e.starts_at, g, "%H:%M") + " "
+        caso = titoli.get(e.case_id or "", "")
+        return (f"{_ICONA.get(e.kind, '📌')} {orario}{e.title}" + (f" — «{caso}»" if caso else "")
+                + (f" · {e.location}" if e.location else ""))
+
+    def giorno_di(e):
+        return storage.ora_locale(e.starts_at, storage.giurisdizione_evento(e), "%Y-%m-%d")
+
+    d0 = oggi0.strftime("%Y-%m-%d")
+    d1 = (oggi0 + timedelta(days=1)).strftime("%Y-%m-%d")
+    di_oggi = [e for e in eventi if giorno_di(e) == d0]
+    di_domani = [e for e in eventi if giorno_di(e) == d1]
+    prossime = [e for e in eventi if giorno_di(e) > d1 and e.kind in ("afat", "dorëzim")]
+    n_conf = len(storage.lista_scadenze_proposte(user_id=uid, stati=("proposta",)))
+    if not (di_oggi or di_domani or prossime or n_conf):
+        return ""
+    parti = ["☀️ " + ("Buongiorno. " if it else "Mirëmëngjes. ") + (ora.strftime("%d/%m/%Y"))]
+    if di_oggi:
+        parti.append(("OGGI:" if it else "SOT:") + "\n" + "\n".join(riga(e) for e in di_oggi[:12]))
+    else:
+        parti.append("Oggi nessun impegno in agenda." if it else "Sot asnjë angazhim në agjendë.")
+    if di_domani:
+        parti.append(("DOMANI:" if it else "NESËR:") + "\n" + "\n".join(riga(e) for e in di_domani[:12]))
+    if prossime:
+        parti.append(("SCADENZE ENTRO 3 GIORNI:" if it else "AFATE BRENDA 3 DITËVE:") + "\n" + "\n".join(
+            storage.ora_locale(e.starts_at, storage.giurisdizione_evento(e), "%d/%m") + " · " + riga(e) for e in prossime[:10]))
+    if n_conf:
+        parti.append((f"🟡 {n_conf} scadenz{'a' if n_conf == 1 else 'e'} dai documenti da confermare: /scadenze" if it else
+                      f"🟡 {n_conf} afat{'' if n_conf == 1 else 'e'} nga dokumentet për t'u konfirmuar: /afatet"))
+    parti.append("Per non ricevere più questo messaggio: /briefing" if it else "Për të mos e marrë më këtë mesazh: /briefing")
+    return "\n\n".join(parti)
+
+
+def briefing_tick(adesso=None) -> int:
+    """Chiamato dal ciclo dei promemoria (ogni minuto). Restituisce quanti promemoria del mattino ha mandato."""
+    from datetime import datetime, timezone
+    from . import storage
+    if not attivo():
+        return 0
+    adesso = adesso or datetime.now(timezone.utc)
+    inviati = 0
+    for u in storage.utenti_per_briefing():
+        try:
+            lang = _lingua_utente(u["id"])
+            loc = adesso.astimezone(storage.fuso_di("IT" if lang == "it" else "AL"))
+            giorno = loc.strftime("%Y-%m-%d")
+            if u["last"] == giorno or (loc.hour, loc.minute) < ORA_BRIEFING:
+                continue
+            ut = storage.get_user_by_id(u["id"])
+            scad = [getattr(ut, "plan_expires_at", None), getattr(ut, "demo_expires_at", None)]
+            if ut is None or any(x and x < adesso.strftime("%Y-%m-%dT%H:%M:%SZ") for x in scad if x):
+                storage.segna_briefing(u["id"], giorno)      # abbonamento o prova scaduti: niente, e non si riprova oggi
+                continue
+            testo = briefing_testo(u["id"], lang, adesso)
+            storage.segna_briefing(u["id"], giorno)          # PRIMA dell'invio: un errore di rete non lo fa ripetere ogni minuto
+            if testo and invia(u["chat"], testo):
+                inviati += 1
+        except Exception as exc:  # noqa: BLE001
+            log.warning("briefing %s: %s", u.get("id"), exc)
+    if inviati:
+        log.info("briefing del mattino inviato a %d avvocati", inviati)
+    return inviati
 
 
 def da_confermare(uid: int, lang: str) -> str:
@@ -558,6 +641,15 @@ def gestisci_update(upd: dict) -> None:
             return
         uid = storage.utente_da_chat_telegram(chat_id)
         comando = testo.split()[0].split("@")[0].lower() if testo else ""
+        if uid and comando == "/briefing":
+            acceso = not storage.briefing_acceso(uid)
+            storage.imposta_briefing(uid, acceso)
+            it_ = _lingua_utente(uid) == "it"
+            invia(chat_id, (("☀️ Promemoria del mattino ACCESO: ogni giorno alle 7:30 ti scrivo cosa hai." if acceso else
+                             "Promemoria del mattino spento. Per riaccenderlo: /briefing") if it_ else
+                            ("☀️ Kujtesa e mëngjesit u NDEZ: çdo ditë në 7:30 të shkruaj çfarë ke." if acceso else
+                             "Kujtesa e mëngjesit u fik. Për ta ndezur sërish: /briefing")))
+            return
         if uid and comando in _CMD_OGGI | _CMD_SETT | _CMD_SCAD:
             lg = _lingua_utente(uid)
             if comando in _CMD_SCAD:
@@ -594,11 +686,13 @@ def registra_webhook() -> None:
                     {"command": "sot", "description": "Agjenda e sotme dhe e nesërme"},
                     {"command": "java", "description": "7 ditët e ardhshme"},
                     {"command": "afatet", "description": "Afatet për t'u konfirmuar"},
+                    {"command": "briefing", "description": "Kujtesa e mëngjesit (ndez/fik)"},
                     {"command": "stop", "description": "Shkëput"}])
                 _api("setMyCommands", language_code="it", commands=[
                     {"command": "oggi", "description": "Agenda di oggi e domani"},
                     {"command": "settimana", "description": "I prossimi 7 giorni"},
                     {"command": "scadenze", "description": "Scadenze da confermare"},
+                    {"command": "briefing", "description": "Promemoria del mattino (acceso/spento)"},
                     {"command": "stop", "description": "Scollega"}])
             except Exception:  # noqa: BLE001
                 pass

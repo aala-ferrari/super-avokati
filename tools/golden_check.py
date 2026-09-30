@@ -6786,6 +6786,21 @@ def main():
     except Exception as _e200:  # noqa: BLE001
         check("telegram-documenti[200]: kontrollet u ekzekutuan", False, str(_e200))
 
+    # [201] v9.423 — PROMEMORIA DEL MATTINO su Telegram: dalle 7:30 locali, una volta al giorno (giorno dell'ultimo invio nel
+    # database, segnato PRIMA dell'invio), niente messaggio se non c'è niente, spegnibile con /briefing, mai ad account scaduti
+    try:
+        import inspect as _in201
+        from src import telegram_bot as _tg201, reminders as _rm201
+        _bt = _in201.getsource(_tg201.briefing_tick)
+        _ok201 = (_tg201.ORA_BRIEFING == (7, 30) and 'u["last"] == giorno' in _bt and "(loc.hour, loc.minute) < ORA_BRIEFING" in _bt
+                  and _bt.index("storage.segna_briefing(u[\"id\"], giorno)          # PRIMA") < _bt.index("invia(u[\"chat\"], testo)")
+                  and "plan_expires_at" in _bt and 'return ""' in _in201.getsource(_tg201.briefing_testo)
+                  and "briefing_tick()" in _in201.getsource(_rm201._loop)
+                  and '"/briefing"' in _in201.getsource(_tg201.gestisci_update))
+        check("briefing-mattino[201]: promemoria del mattino su Telegram, una volta al giorno, solo se c'è qualcosa, spegnibile", _ok201)
+    except Exception as _e201:  # noqa: BLE001
+        check("briefing-mattino[201]: kontrollet u ekzekutuan", False, str(_e201))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
