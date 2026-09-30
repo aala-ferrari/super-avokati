@@ -706,6 +706,8 @@
   var _SCAD_ICONA = { seance: "⚖️", afat: "⏰", "dorëzim": "📤", takim: "🤝", "tjetër": "📌" };
   function _scadEsc(s) { var d = document.createElement("div"); d.textContent = s == null ? "" : String(s); return d.innerHTML; }
 
+  function activeCaseIdGlobale() { return activeCaseId; }
+
   function _scadBox() {
     var box = document.getElementById("scad-box");
     if (box) return box;
@@ -723,22 +725,28 @@
     if (!box) return;
     var pronti = (documents || []).filter(function (d) { return d && d.status === "ready"; });
     box.hidden = !pronti.length;
-    if (pronti.length) _scadCarica();
+    box.dataset.case = activeCaseId || "";
+    if (pronti.length) _scadCarica(box);
   }
 
-  async function _scadCarica() {
-    var box = _scadBox();
-    if (!box || !activeCaseId) return;
-    var cid = activeCaseId, d;
+  // v9.417: ogni riquadro sa di QUALE fascicolo è (data-case): lo stesso riquadro vive nel pannello del fascicolo e nella
+  // finestra «Afate nga dosja» del calendario
+  async function _scadCarica(boxArg) {
+    var box = boxArg || _scadBox();
+    if (!box) return;
+    var cid = box.dataset.case || activeCaseId, d;
+    if (!cid) return;
     try {
       var r = await fetch("/api/cases/" + cid + "/scadenze");
       if (!r.ok) return;
       d = await r.json();
     } catch (e) { return; }
-    if (cid !== activeCaseId) return;
+    if ((box.dataset.case || activeCaseId) !== cid) return;
     _scadDisegna(box, d);
-    if (_scadTimer) { clearTimeout(_scadTimer); _scadTimer = null; }
-    if (d.in_corso) _scadTimer = setTimeout(_scadCarica, 6000);
+    if (box._scadTimer) { clearTimeout(box._scadTimer); box._scadTimer = null; }
+    if ((d.in_corso || d.documenti_in_lettura) && document.body.contains(box)) {
+      box._scadTimer = setTimeout(function () { _scadCarica(box); }, 6000);
+    }
   }
 
   function _scadRiga(p) {
@@ -785,7 +793,7 @@
     var prop = (d.proposte || []).filter(function (p) { return p.stato !== "confermata"; });
     var conf = (d.proposte || []).filter(function (p) { return p.stato === "confermata"; });
     var nuovi = d.da_analizzare || 0;
-    var stato = d.in_corso
+    var stato = (d.in_corso || d.documenti_in_lettura)
       ? '<span class="spinner"></span> ' + _sT("Po lexoj dokumentet një nga një… (disa minuta; mund ta mbyllësh faqen)",
                                            "Sto leggendo i documenti uno per uno… (qualche minuto; puoi chiudere la pagina)")
       : (nuovi ? _sT(nuovi + " dokument(e) ende pa u analizuar për afatet", nuovi + " documento/i non ancora analizzato/i per le scadenze")
@@ -817,24 +825,25 @@
   async function _scadClick(ev) {
     var el = ev.target;
     if (!(el instanceof HTMLElement)) return;
-    var box = _scadBox();
+    var box = ev.currentTarget || _scadBox();
+    var activeCaseId = box.dataset.case || activeCaseIdGlobale();
     if (el.classList.contains("scad-run")) {
       el.disabled = true;
       try {
         var nuovi = /Rianalizza|Rianalizo/.test(el.textContent);
         await _scadPost("/api/cases/" + activeCaseId + "/scadenze/analizza", nuovi ? { forza: true } : {});
       } catch (e) { toast(e.message || _sT("Gabim", "Errore"), "error"); }
-      _scadCarica();
+      _scadCarica(box);
     } else if (el.classList.contains("scad-no")) {
       try { await _scadPost("/api/scadenze/" + el.dataset.id + "/scarta"); } catch (e) { toast(e.message, "error"); }
-      _scadCarica();
+      _scadCarica(box);
     } else if (el.classList.contains("scad-calc")) {
       var li = el.closest(".scad-item"), dd = li && li.querySelector(".scad-data");
       if (!dd || !dd.value) { toast(_sT("Jep datën e ngjarjes", "Indica la data dell'evento"), "error"); return; }
       el.disabled = true; el.textContent = _sT("Po llogaris…", "Sto calcolando…");
       try { await _scadPost("/api/scadenze/" + el.dataset.id + "/calcola", { data: dd.value }); }
       catch (e) { toast(e.message, "error"); }
-      _scadCarica();
+      _scadCarica(box);
     } else if (el.classList.contains("scad-conf")) {
       var cbs = box.querySelectorAll(".scad-cb:checked"), ok = 0, tot = cbs.length, msg = box.querySelector(".scad-msg");
       var stCb = box.querySelector(".scad-studio-cb"), avvisaStudio = stCb ? stCb.checked : true;
@@ -849,48 +858,212 @@
         try { await _scadPost("/api/scadenze/" + cbs[i].dataset.id + "/conferma", body); ok++; } catch (e) {}
       }
       toast(_sT("✓ U shtuan në kalendar: ", "✓ Aggiunte al calendario: ") + ok + "/" + tot);
-      _scadCarica();
+      try { loadEvents().then(function () { renderCalendar(); }); } catch (e) {}   // il calendario aperto le mostra subito
+      _scadCarica(box);
     }
   }
 
-  // Vista di TUTTI i clienti (menu): da confermare e confermate in arrivo, fascicolo per fascicolo
-  async function openScadenziario() {
+  // v9.418 — SCADENZIARIO CLIENTI: una pagina sola, tipo CRM, che fa solo questo (richiesta del titolare dopo l'avvocato
+  // albanese): a sinistra i clienti (un fascicolo per cliente) con ricerca per nome, scadenze da confermare e prossima data; a
+  // destra il cliente scelto — carica PDF/foto (anche trascinando), le proposte dello scadenziario da confermare, le prossime
+  // già in calendario —; in alto lo stato degli AVVISI (email e Telegram) con i pulsanti per collegarli. Ci si arriva dal
+  // calendario («📥 Afate nga dosja») e dal menu («📅 Afatet e klientëve»). Stesso riquadro (data-case) del fascicolo.
+  function openScadDaCalendario() { return openScadenziario({ caso: activeCaseId }); }
+
+  async function openScadenziario(opts) {
+    opts = opts || {};
     var ov = document.getElementById("scad-ov");
     if (ov) ov.remove();
     ov = document.createElement("div");
     ov.id = "scad-ov"; ov.className = "ac-overlay";
-    ov.innerHTML = '<div class="ac-modal"><div class="ac-head"><span>📅 ' + _sT("Afatet e klientëve", "Scadenze dei clienti") +
+    ov.innerHTML = '<div class="ac-modal scadcrm"><div class="ac-head"><span>📅 ' + _sT("Afatet e klientëve", "Scadenziario clienti") +
       '</span><button class="ac-x" type="button" aria-label="' + _sT("Mbyll", "Chiudi") + '">×</button></div>' +
-      '<div class="ac-sub">' + _sT("Të gjitha dosjet: afatet që presin konfirmimin tënd dhe ato që vijnë. Hap dosjen për t'i konfirmuar ose për të ngarkuar dokumente të reja.",
-                                  "Tutti i fascicoli: le scadenze che aspettano la tua conferma e quelle in arrivo. Apri il fascicolo per confermarle o caricare documenti nuovi.") + "</div>" +
-      '<div class="scad-all"><span class="spinner"></span></div></div>';
+      '<div class="scadcrm-avvisi"></div>' +
+      '<div class="scadcrm-grid"><aside class="scadcrm-side">' +
+        '<input type="search" class="scadcrm-cerca" placeholder="🔍 ' + _sT("Kërko klientin…", "Cerca il cliente…") + '">' +
+        '<div class="scadcrm-nuovo-row"><input type="text" class="scadcrm-nuovo" maxlength="120" placeholder="' +
+          _sT("Klient i ri: emri…", "Nuovo cliente: nome…") + '"><button type="button" class="scadcrm-add">＋</button></div>' +
+        '<ul class="scadcrm-lista"><li class="scadcrm-vuoto"><span class="spinner"></span></li></ul>' +
+      '</aside><section class="scadcrm-main"><p class="scadcrm-hint">' +
+        _sT("Zgjidh një klient në të majtë ose krijo një të ri.", "Scegli un cliente a sinistra o creane uno nuovo.") + "</p></section></div></div>";
     document.body.appendChild(ov);
-    ov.querySelector(".ac-x").onclick = function () { ov.remove(); };
-    ov.addEventListener("click", function (e) { if (e.target === ov) ov.remove(); });
-    var cont = ov.querySelector(".scad-all"), d;
-    try { var r = await fetch("/api/scadenze"); d = await r.json(); } catch (e) { cont.textContent = _sT("Gabim rrjeti", "Errore di rete"); return; }
-    var lista = d.scadenze || [];
-    if (!lista.length) { cont.innerHTML = "<p>" + _sT("Asnjë afat ende. Ngarko dokumentet e klientit në dosjen e rastit dhe shtyp «Analizo dokumentet».",
-                                                      "Nessuna scadenza ancora. Carica i documenti del cliente nel fascicolo e premi «Analizza i documenti».") + "</p>"; return; }
-    var perCaso = {};
-    lista.forEach(function (p) { (perCaso[p.case_id] = perCaso[p.case_id] || { titolo: p.caso, righe: [] }).righe.push(p); });
-    cont.innerHTML = Object.keys(perCaso).map(function (cid) {
-      var c = perCaso[cid], daConf = c.righe.filter(function (p) { return p.stato !== "confermata"; }).length;
-      return '<div class="scad-caso"><div class="scad-caso-h"><strong>' + _scadEsc(c.titolo || "—") + "</strong>" +
-        (daConf ? ' <span class="scad-badge">' + daConf + " " + _sT("për t'u konfirmuar", "da confermare") + "</span>" : "") +
-        ' <button type="button" class="scad-apri" data-case="' + cid + '">' + _sT("Hap dosjen", "Apri il fascicolo") + "</button></div>" +
-        "<ul>" + c.righe.map(function (p) {
-          return "<li>" + (_SCAD_ICONA[p.kind] || "📌") + " <b>" + _scadEsc(p.data || _sT("pa datë", "senza data")) + "</b> — " + _scadEsc(p.titolo) +
-            (p.stato === "confermata" ? " ✓" : "") + "</li>";
-        }).join("") + "</ul></div>";
-    }).join("");
-    cont.addEventListener("click", async function (e) {
-      var b = e.target.closest && e.target.closest(".scad-apri");
-      if (!b) return;
-      ov.remove();
-      await selectCase(b.dataset.case);
-      try { document.getElementById("dossier-btn").click(); } catch (err) {}
+    var main = ov.querySelector(".scadcrm-main"), lista = ov.querySelector(".scadcrm-lista"), cerca = ov.querySelector(".scadcrm-cerca");
+    var chiudi = function () { ov.querySelectorAll(".scad-box").forEach(function (b) { if (b._scadTimer) clearTimeout(b._scadTimer); }); ov.remove(); };
+    ov.querySelector(".ac-x").onclick = chiudi;
+    ov.addEventListener("click", function (e) { if (e.target === ov) chiudi(); });
+    var stato = { casi: [], proposte: [], eventi: [], scelto: opts.caso || null };
+
+    // ── avvisi: email + Telegram
+    async function disegnaAvvisi() {
+      var bar = ov.querySelector(".scadcrm-avvisi"), tg = {}, em = {};
+      try { tg = await (await fetch("/api/settings/telegram")).json(); } catch (e) {}
+      try { em = await (await fetch("/api/settings/reminder-email")).json(); } catch (e) {}
+      bar.innerHTML = '<span class="scadcrm-av-t">' + _sT("Kujtesat vijnë te:", "Gli avvisi arrivano su:") + "</span>" +
+        (em.linked ? '<span class="scadcrm-ok">📨 ' + _scadEsc(em.email) + " ✓</span>"
+                   : '<span class="scadcrm-no">📨 <input type="email" class="scadcrm-email" placeholder="' + _scadEsc(em.suggestion || "email@…") +
+                     '" value="' + _scadEsc(em.suggestion || "") + '"><button type="button" class="scadcrm-email-ok">' + _sT("Ruaj", "Salva") + "</button></span>") +
+        (tg.linked ? '<span class="scadcrm-ok">✈️ Telegram ✓</span>'
+                   : '<button type="button" class="scadcrm-tg">✈️ ' + _sT("Lidh Telegram", "Collega Telegram") + "</button>");
+      var be = bar.querySelector(".scadcrm-email-ok");
+      if (be) be.onclick = async function () {
+        var v = (bar.querySelector(".scadcrm-email").value || "").trim();
+        try { await _scadPost("/api/settings/reminder-email", { email: v }); toast("✓"); disegnaAvvisi(); }
+        catch (e) { toast(e.message || _sT("Email e pavlefshme", "Email non valida"), "error"); }
+      };
+      var bt = bar.querySelector(".scadcrm-tg");
+      if (bt) bt.onclick = async function () {
+        var w = window.open("", "_blank");
+        try {
+          var d = await (await fetch("/api/settings/telegram/link")).json();
+          if (!d.ready || !d.url) { if (w) w.close(); toast(_sT("Bot-i nuk është aktiv", "Il bot non è attivo"), "error"); return; }
+          if (w) w.location.href = d.url; else window.location.href = d.url;
+          toast(_sT("Shtyp «Start» te bot-i", "Premi «Avvia» nel bot"));
+          setTimeout(disegnaAvvisi, 15000);
+        } catch (e) { if (w) w.close(); }
+      };
+    }
+
+    // ── dati: fascicoli, proposte, eventi
+    async function carica() {
+      var oggi = new Date(), fra = new Date(Date.now() + 400 * 864e5);
+      var r = await Promise.all([
+        fetch("/api/cases").then(function (x) { return x.json(); }).catch(function () { return {}; }),
+        fetch("/api/scadenze").then(function (x) { return x.json(); }).catch(function () { return {}; }),
+        fetch("/api/events?from=" + oggi.toISOString() + "&to=" + fra.toISOString()).then(function (x) { return x.json(); }).catch(function () { return {}; })
+      ]);
+      stato.casi = (r[0].cases || []).filter(function (c) { return c && c.id; });
+      stato.proposte = r[1].scadenze || [];
+      stato.eventi = (r[2].events || []).filter(function (e) { return e && e.case_id && !e.done; });
+      disegnaLista();
+    }
+
+    function riepilogo(cid) {
+      var da = stato.proposte.filter(function (p) { return p.case_id === cid && p.stato !== "confermata"; }).length;
+      var ev = stato.eventi.filter(function (e) { return e.case_id === cid; })
+        .sort(function (a, b) { return a.starts_at < b.starts_at ? -1 : 1; })[0];
+      return { da: da, prossimo: ev || null };
+    }
+
+    function dataBreve(iso) {
+      try { var d = new Date(iso); return d.toLocaleDateString(_scadIT() ? "it-IT" : "sq-AL", { day: "2-digit", month: "2-digit" }); }
+      catch (e) { return (iso || "").slice(0, 10); }
+    }
+
+    function disegnaLista() {
+      var q = (cerca.value || "").trim().toLowerCase();
+      var casi = stato.casi.filter(function (c) { return !q || (c.title || "").toLowerCase().indexOf(q) >= 0; })
+        .map(function (c) { return { c: c, r: riepilogo(c.id) }; })
+        .sort(function (a, b) {
+          if ((b.r.da > 0) !== (a.r.da > 0)) return b.r.da - a.r.da;
+          var pa = a.r.prossimo ? a.r.prossimo.starts_at : "9", pb = b.r.prossimo ? b.r.prossimo.starts_at : "9";
+          if (pa !== pb) return pa < pb ? -1 : 1;
+          return (b.c.updated_at || "") > (a.c.updated_at || "") ? 1 : -1;
+        });
+      if (!casi.length) {
+        lista.innerHTML = '<li class="scadcrm-vuoto">' + (q ? _sT("Asnjë klient me këtë emër.", "Nessun cliente con questo nome.")
+                                                          : _sT("Ende asnjë klient: krijo të parin më lart.", "Ancora nessun cliente: crea il primo qui sopra.")) + "</li>";
+        return;
+      }
+      lista.innerHTML = casi.map(function (x) {
+        return '<li class="scadcrm-item' + (x.c.id === stato.scelto ? " is-sel" : "") + '" data-case="' + _scadEsc(x.c.id) + '">' +
+          '<span class="scadcrm-nome">' + _scadEsc(x.c.title || "—") + "</span>" +
+          '<span class="scadcrm-badges">' +
+            (x.r.da ? '<span class="scad-badge">🟡 ' + x.r.da + "</span>" : "") +
+            (x.r.prossimo ? '<span class="scadcrm-next">⏰ ' + _scadEsc(dataBreve(x.r.prossimo.starts_at)) + "</span>" : "") +
+          "</span></li>";
+      }).join("");
+    }
+
+    function disegnaCliente(cid) {
+      stato.scelto = cid;
+      disegnaLista();
+      var c = stato.casi.find(function (x) { return x.id === cid; });
+      if (!c) { main.innerHTML = '<p class="scadcrm-hint">' + _sT("Zgjidh një klient.", "Scegli un cliente.") + "</p>"; return; }
+      var prossimi = stato.eventi.filter(function (e) { return e.case_id === cid; })
+        .sort(function (a, b) { return a.starts_at < b.starts_at ? -1 : 1; }).slice(0, 8);
+      main.innerHTML = '<div class="scadcrm-h"><strong class="scadcrm-titolo">' + _scadEsc(c.title || "—") + '</strong>' +
+          '<button type="button" class="scadcrm-rin" title="' + _sT("Riemërto klientin", "Rinomina il cliente") + '">✏️</button>' +
+          '<button type="button" class="scadcrm-apri">' + _sT("Hap dosjen", "Apri il fascicolo") + "</button></div>" +
+        '<label class="scadcal-file scadcrm-drop"><input type="file" class="scadcal-input" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.heif,.tif,.tiff,.docx,.doc,.txt,.rtf,image/*">' +
+          "<span>📎 " + _sT("Tërhiq këtu PDF ose foto të dosjes, ose kliko (edhe disa njëherësh)", "Trascina qui PDF o foto del fascicolo, o clicca (anche più insieme)") + "</span></label>" +
+        '<span class="scad-msg scadcrm-msg"></span>' +
+        '<div class="scad-box scadcrm-box" data-case="' + _scadEsc(cid) + '"></div>' +
+        (prossimi.length ? '<div class="scadcrm-cal"><div class="scadcrm-cal-t">🗓 ' + _sT("Në kalendar", "Già in calendario") + "</div><ul>" +
+          prossimi.map(function (e) { return "<li>" + (_SCAD_ICONA[e.kind] || "📌") + " <b>" + _scadEsc(dataBreve(e.starts_at)) + "</b> · " + _scadEsc(e.title) + "</li>"; }).join("") +
+          "</ul></div>" : "");
+      var box = main.querySelector(".scadcrm-box"), inp = main.querySelector(".scadcal-input"), drop = main.querySelector(".scadcrm-drop");
+      var msg = main.querySelector(".scadcrm-msg");
+      box.addEventListener("click", function (ev) {
+        _scadClick(ev);
+        if (ev.target.closest && ev.target.closest(".scad-conf, .scad-no, .scad-calc")) setTimeout(carica, 2500);   // contatori a sinistra
+      });
+      _scadCarica(box);
+      // v9.418: il nome del CLIENTE (tanti fascicoli si chiamano come la prima domanda): si rinomina qui, nel campo
+      main.querySelector(".scadcrm-rin").onclick = function () {
+        var h = main.querySelector(".scadcrm-titolo");
+        if (!h || h.querySelector("input")) return;
+        var vecchio = c.title || "";
+        h.innerHTML = '<input type="text" class="scadcrm-nuovo scadcrm-rin-in" maxlength="120">';
+        var ii = h.querySelector("input"); ii.value = vecchio; ii.focus(); ii.select();
+        var fatto = false;
+        var salva = async function () {
+          if (fatto) return;
+          fatto = true;                                    // Invio e poi la perdita del fuoco: una sola volta
+          var nuovoT = (ii.value || "").trim();
+          if (!nuovoT || nuovoT === vecchio) { h.textContent = vecchio; return; }
+          try {
+            var rr = await fetch("/api/cases/" + cid, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: nuovoT }) });
+            if (!rr.ok) throw new Error();
+            c.title = nuovoT; h.textContent = nuovoT; disegnaLista();
+            try { renderCaseList(); } catch (e) {}
+          } catch (e) { h.textContent = vecchio; toast(_sT("Nuk u ruajt", "Non salvato"), "error"); }
+        };
+        ii.addEventListener("keydown", function (e) { if (e.key === "Enter") salva(); if (e.key === "Escape") { fatto = true; h.textContent = vecchio; } });
+        ii.addEventListener("blur", salva);
+      };
+      main.querySelector(".scadcrm-apri").onclick = async function () { chiudi(); await selectCase(cid); try { document.getElementById("dossier-btn").click(); } catch (e) {} };
+      async function carica_file(files) {
+        if (!files || !files.length) return;
+        var ok = 0;
+        for (var i = 0; i < files.length; i++) {
+          msg.textContent = _sT("Po ngarkoj ", "Carico ") + (i + 1) + "/" + files.length + "…";
+          var fd = new FormData(); fd.append("file", files[i]);
+          try { var ru = await fetch("/api/cases/" + cid + "/documents", { method: "POST", body: fd }); if (ru.ok) ok++; } catch (e) {}
+        }
+        msg.textContent = "✓ " + _sT("U ngarkuan ", "Caricati ") + ok + "/" + files.length +
+          _sT(" — po lexohen dhe analizohen (disa minuta; mund ta mbyllësh: të njoftojmë në Telegram dhe email).",
+              " — li sto leggendo e analizzando (qualche minuto; puoi chiudere: ti avvisiamo su Telegram e per email).");
+        _scadCarica(box);
+      }
+      inp.addEventListener("change", function () { carica_file(inp.files); });
+      drop.addEventListener("dragover", function (e) { e.preventDefault(); drop.classList.add("is-over"); });
+      drop.addEventListener("dragleave", function () { drop.classList.remove("is-over"); });
+      drop.addEventListener("drop", function (e) { e.preventDefault(); drop.classList.remove("is-over"); carica_file(e.dataTransfer && e.dataTransfer.files); });
+    }
+
+    lista.addEventListener("click", function (e) {
+      var li = e.target.closest && e.target.closest(".scadcrm-item");
+      if (li) disegnaCliente(li.dataset.case);
     });
+    cerca.addEventListener("input", disegnaLista);
+    async function nuovoCliente() {
+      var inp = ov.querySelector(".scadcrm-nuovo"), titolo = (inp.value || "").trim();
+      if (!titolo) { inp.focus(); return; }
+      try {
+        var rn = await fetch("/api/cases", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: titolo }) });
+        var dn = await rn.json();
+        if (!rn.ok || !dn.id) throw new Error(dn.error || _sT("Dosja nuk u krijua", "Fascicolo non creato"));
+        inp.value = "";
+        try { renderCaseList(); } catch (e) {}
+        await carica(); disegnaCliente(dn.id);
+      } catch (e) { toast(e.message, "error"); }
+    }
+    ov.querySelector(".scadcrm-add").onclick = nuovoCliente;
+    ov.querySelector(".scadcrm-nuovo").addEventListener("keydown", function (e) { if (e.key === "Enter") nuovoCliente(); });
+
+    disegnaAvvisi();
+    await carica();
+    if (stato.scelto && stato.casi.some(function (c) { return c.id === stato.scelto; })) disegnaCliente(stato.scelto);
   }
 
   // ─── Vault: pyet dokumentet e dosjes (Harvey-style) ────────────────
@@ -4244,6 +4417,7 @@
   calendarBtn?.addEventListener("click", openCalendar);
   calCloseBtn?.addEventListener("click", closeCalendar);
   calNewBtn?.addEventListener("click", () => openEventModal());
+  document.getElementById("cal-scad-btn")?.addEventListener("click", () => openScadDaCalendario());
   calIcalBtn?.addEventListener("click", openIcalModal);
   calTodayIcon?.addEventListener("click", async () => {
     calCursor = _todayMidnight();
@@ -7225,7 +7399,7 @@
     it_69: "Caricamento…",
     it_70: "Caricamento…",
     it_71: "Caricamento…",
-    it_72: "Caricamento…", sidebar_aria: "I casi e i codici", modebar_aria: "Modalità professionale", open_menu: "Apri il menu", open_calendar: "Apri il calendario", open_vigilanza: "Apri la vigilanza", open_studio: "Apri lo studio", calendar_title: "Calendario dell'agenda", vigilanza_title: "Vigilanza Normativa — avvisi per i tuoi fascicoli", studio_title: "Studio (membri, ruoli, ripartizione dei casi)", dossier_title: "Il fascicolo del caso", dl_md: "Scarica come Markdown", dl_pdf: "Scarica il documento (leggibile, PDF)", upload_docs: "Carica documenti", cal_eyebrow: "Calendario & Agenda", conflict_ph: "Es. 'Mario Rossi' o 'Società ABC S.r.l.'", cal_today: "Oggi", cal_jumpto: "Vai a", cal_month: "Mese", cal_week: "Settimana", cal_day: "Giorno", cal_agenda: "Agenda", cal_mine: "Mio", cal_firm: "Studio", cal_sync: "Sincro", cal_newevent: "Nuovo evento", cal_p_seance: "udienze", cal_p_afat: "scadenze", cal_p_takim: "appuntamenti", cal_p_dorez: "depositi", cal_p_other: "altri", cal_stats: "Statistiche", cal_inview: "in questa vista", cal_next48: "prossime 48 ore", cal_overdue: "in ritardo", cal_filter: "Filtra", cal_clear: "Pulisci", cal_all: "Tutte", cal_f_seance: "⚖️ Udienze", cal_f_afat: "🔴 Scadenze", cal_f_takim: "👤 Appuntamenti", cal_f_dorez: "📨 Depositi", cal_f_other: "📌 Altro", cal_upcoming: "In arrivo", cal_noevents: "Nessun evento in programma.", cal_legend: "Legenda", cal_l_seance: "Udienza", cal_l_afat: "Scadenza legale", cal_l_takim: "Appuntamento col cliente", cal_l_dorez: "Deposito atto", cal_l_other: "Altro", cal_autohint: "Gli eventi creati automaticamente dalle scadenze dei casi sono contrassegnati con l'icona", ev_title: "Titolo", ev_title_ph: "Es. Udienza Cani vs ALUIZNI", ev_kind: "Tipo", ev_k_takim: "👤 Appuntamento col cliente", ev_k_seance: "⚖️ Udienza", ev_k_afat: "🔴 Scadenza legale", ev_k_dorez: "📨 Deposito atto", ev_k_other: "📌 Altro", ev_case: "Caso", ev_datetime: "Data e ora", ev_ends: "Fine (facoltativa)", ev_allday: "Evento per tutto il giorno", ev_place: "Luogo", ev_place_ph: "Es. Tribunale di Tirana, aula 5", ev_notes: "Note", ev_notes_ph: "Dettagli, le parti, il numero della causa…", ev_subs: "🔁 Sostituti suggeriti per questa udienza", ev_reminders: "Promemoria (email e Telegram)", ev_team: "Avvisa anche i colleghi dello studio che seguono il fascicolo", ev_r_1w: "1 settimana prima", ev_r_2d: "2 giorni prima", ev_r_1d: "1 giorno prima", ev_r_3h: "3 ore prima", ev_r_1h: "1 ora prima", ev_delete: "🗑️ Elimina", ev_cancel: "Annulla", ev_save: "Salva", ic_title: "Sincronizza con Google / Apple Calendar", ic_copy: "Copia", ic_tg: "Promemoria con Telegram", tg_manuale: "Collegamento manuale (chat ID)", intake_title: "🎙️ Primo contatto — racconta il problema", intake_sub: "Racconta con parole tue cosa ti è successo (a voce o per iscritto). Ti diciamo se c'è un caso, quanto è urgente, chi ti aiuta — e ti prepariamo il primo documento. Orientamento, non consulenza definitiva.", intake_ph: "Es. Un vicino mi ha aggredito 3 giorni fa, ho lividi e un testimone…", intake_go: "Orientami →", fk_title: "🗂️ Fascicolo intelligente", fk_sub: "Intelligenza sui documenti del caso: cronologia, chi ha detto cosa, interroga i documenti, l'ago — tutto basato SOLO sui documenti caricati [Doc N].", fk_s_tl: "📅 Cronologia (eventi · contraddizioni · lacune)", fk_s_who: "🗣️ Chi ha detto cosa (versioni & contrasti)", fk_s_ask: "🔍 Interroga i documenti", fk_s_nd: "💉 L'ago nel pagliaio (il dettaglio trascurato)", fk_s_rg: "🔎 Registro (cerca atti — semantico)", fk_s_isp: "🕵️ Ispettore dell'atto (revisore senior)", fk_s_ext: "📸 Leggi & compila (estrai i dati)", fk_s_wi: "🔮 E se… (simulatore)", fk_s_cl: "📚 Clausole dello studio", fk_b_tl: "Costruisci/aggiorna la cronologia →", fk_b_who: "Costruisci la mappa →", fk_b_ask: "Chiedi →", fk_b_nd: "Trova l'ago →", fk_b_rg: "Cerca →", fk_b_isp: "Ispeziona →", fk_b_ext: "Estrai i dati →", fk_b_wi: "Simula →", fk_b_cl: "📚 Gestisci / aggiungi clausole", fk_ph_ask: "Es. Qual è la data della notifica e chi l'ha firmata?", fk_ph_rg: "🔎 Es. donazioni con usufrutto, dove compare 7/512…", fk_ph_isp: "Incolla l'atto da ispezionare (contratto, atto notarile, citazione, atto d'accusa…)…", fk_ph_ext: "Oppure incolla il testo del documento…", fk_ph_wi_act: "Atto attuale (incolla il testo o i parametri)…", fk_ph_wi_change: "La modifica che stai pensando — es. E se aggiungo un usufrutto?", fk_onlycase: "Solo questo caso (disattiva per tutto lo studio)", fk_fromcase: "Dai documenti del caso", fk_attach: "📎 Allega",
+    it_72: "Caricamento…", sidebar_aria: "I casi e i codici", modebar_aria: "Modalità professionale", open_menu: "Apri il menu", open_calendar: "Apri il calendario", open_vigilanza: "Apri la vigilanza", open_studio: "Apri lo studio", calendar_title: "Calendario dell'agenda", vigilanza_title: "Vigilanza Normativa — avvisi per i tuoi fascicoli", studio_title: "Studio (membri, ruoli, ripartizione dei casi)", dossier_title: "Il fascicolo del caso", dl_md: "Scarica come Markdown", dl_pdf: "Scarica il documento (leggibile, PDF)", upload_docs: "Carica documenti", cal_eyebrow: "Calendario & Agenda", conflict_ph: "Es. 'Mario Rossi' o 'Società ABC S.r.l.'", cal_today: "Oggi", cal_jumpto: "Vai a", cal_month: "Mese", cal_week: "Settimana", cal_day: "Giorno", cal_agenda: "Agenda", cal_mine: "Mio", cal_firm: "Studio", cal_sync: "Sincro", cal_newevent: "Nuovo evento", cal_p_seance: "udienze", cal_p_afat: "scadenze", cal_p_takim: "appuntamenti", cal_p_dorez: "depositi", cal_p_other: "altri", cal_stats: "Statistiche", cal_inview: "in questa vista", cal_next48: "prossime 48 ore", cal_overdue: "in ritardo", cal_filter: "Filtra", cal_clear: "Pulisci", cal_all: "Tutte", cal_f_seance: "⚖️ Udienze", cal_f_afat: "🔴 Scadenze", cal_f_takim: "👤 Appuntamenti", cal_f_dorez: "📨 Depositi", cal_f_other: "📌 Altro", cal_upcoming: "In arrivo", cal_noevents: "Nessun evento in programma.", cal_legend: "Legenda", cal_l_seance: "Udienza", cal_l_afat: "Scadenza legale", cal_l_takim: "Appuntamento col cliente", cal_l_dorez: "Deposito atto", cal_l_other: "Altro", cal_autohint: "Gli eventi creati automaticamente dalle scadenze dei casi sono contrassegnati con l'icona", ev_title: "Titolo", ev_title_ph: "Es. Udienza Cani vs ALUIZNI", ev_kind: "Tipo", ev_k_takim: "👤 Appuntamento col cliente", ev_k_seance: "⚖️ Udienza", ev_k_afat: "🔴 Scadenza legale", ev_k_dorez: "📨 Deposito atto", ev_k_other: "📌 Altro", ev_case: "Caso", ev_datetime: "Data e ora", ev_ends: "Fine (facoltativa)", ev_allday: "Evento per tutto il giorno", ev_place: "Luogo", ev_place_ph: "Es. Tribunale di Tirana, aula 5", ev_notes: "Note", ev_notes_ph: "Dettagli, le parti, il numero della causa…", ev_subs: "🔁 Sostituti suggeriti per questa udienza", ev_reminders: "Promemoria (email e Telegram)", ev_team: "Avvisa anche i colleghi dello studio che seguono il fascicolo", ev_r_1w: "1 settimana prima", ev_r_2d: "2 giorni prima", ev_r_1d: "1 giorno prima", ev_r_3h: "3 ore prima", ev_r_1h: "1 ora prima", ev_delete: "🗑️ Elimina", ev_cancel: "Annulla", ev_save: "Salva", ic_title: "Sincronizza con Google / Apple Calendar", ic_copy: "Copia", ic_tg: "Promemoria con Telegram", cal_scad: "Scadenze dal fascicolo", cal_scad_title: "Carica i documenti del cliente: le scadenze si calcolano da sole", tg_manuale: "Collegamento manuale (chat ID)", intake_title: "🎙️ Primo contatto — racconta il problema", intake_sub: "Racconta con parole tue cosa ti è successo (a voce o per iscritto). Ti diciamo se c'è un caso, quanto è urgente, chi ti aiuta — e ti prepariamo il primo documento. Orientamento, non consulenza definitiva.", intake_ph: "Es. Un vicino mi ha aggredito 3 giorni fa, ho lividi e un testimone…", intake_go: "Orientami →", fk_title: "🗂️ Fascicolo intelligente", fk_sub: "Intelligenza sui documenti del caso: cronologia, chi ha detto cosa, interroga i documenti, l'ago — tutto basato SOLO sui documenti caricati [Doc N].", fk_s_tl: "📅 Cronologia (eventi · contraddizioni · lacune)", fk_s_who: "🗣️ Chi ha detto cosa (versioni & contrasti)", fk_s_ask: "🔍 Interroga i documenti", fk_s_nd: "💉 L'ago nel pagliaio (il dettaglio trascurato)", fk_s_rg: "🔎 Registro (cerca atti — semantico)", fk_s_isp: "🕵️ Ispettore dell'atto (revisore senior)", fk_s_ext: "📸 Leggi & compila (estrai i dati)", fk_s_wi: "🔮 E se… (simulatore)", fk_s_cl: "📚 Clausole dello studio", fk_b_tl: "Costruisci/aggiorna la cronologia →", fk_b_who: "Costruisci la mappa →", fk_b_ask: "Chiedi →", fk_b_nd: "Trova l'ago →", fk_b_rg: "Cerca →", fk_b_isp: "Ispeziona →", fk_b_ext: "Estrai i dati →", fk_b_wi: "Simula →", fk_b_cl: "📚 Gestisci / aggiungi clausole", fk_ph_ask: "Es. Qual è la data della notifica e chi l'ha firmata?", fk_ph_rg: "🔎 Es. donazioni con usufrutto, dove compare 7/512…", fk_ph_isp: "Incolla l'atto da ispezionare (contratto, atto notarile, citazione, atto d'accusa…)…", fk_ph_ext: "Oppure incolla il testo del documento…", fk_ph_wi_act: "Atto attuale (incolla il testo o i parametri)…", fk_ph_wi_change: "La modifica che stai pensando — es. E se aggiungo un usufrutto?", fk_onlycase: "Solo questo caso (disattiva per tutto lo studio)", fk_fromcase: "Dai documenti del caso", fk_attach: "📎 Allega",
     tagline: "La battaglia si vince prima che inizi.",
     codes: "codici", articles: "articoli", calendar: "Calendario",
     my_cases: "I miei casi", new_case: "Nuovo caso",

@@ -6722,6 +6722,20 @@ def main():
     except Exception as _e196:  # noqa: BLE001
         check("telegram-comandi[196]: kontrollet u ekzekutuan", False, str(_e196))
 
+    # [197] v9.417 — «Afate nga dosja» DAL CALENDARIO: scegli o crea il cliente, carica PDF/foto, proposte nella stessa finestra
+    # (riquadro legato al suo fascicolo con data-case), il calendario aperto si aggiorna alla conferma
+    try:
+        _h197 = open("/app/templates/index.html", encoding="utf-8").read()
+        _j197 = open("/app/static/app.js", encoding="utf-8").read()
+        _w197 = open("/app/src/web.py", encoding="utf-8").read()
+        _ok197 = ('id="cal-scad-btn"' in _h197 and "openScadDaCalendario" in _j197 and 'class="scad-box scadcrm-box" data-case="' in _j197
+                  and "/api/settings/reminder-email" in _j197 and "scadcrm-tg" in _j197 and "scadcrm-cerca" in _j197 and "scadcrm-rin" in _j197
+                  and "var box = ev.currentTarget || _scadBox();" in _j197 and "loadEvents().then(function () { renderCalendar(); })" in _j197
+                  and '"documenti_in_lettura"' in _w197 and 'cal_scad: "Scadenze dal fascicolo"' in _j197)
+        check("scadenziario-clienti[197]: pagina clienti (ricerca, contatori), caricamento e conferma, avvisi email+Telegram collegabili lì", _ok197)
+    except Exception as _e197:  # noqa: BLE001
+        check("calendario-scadenze[197]: kontrollet u ekzekutuan", False, str(_e197))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

@@ -8968,6 +8968,7 @@ def api_scadenze_lista(case_id: str):
         "da_analizzare": sum(1 for d in pronti if (analisi.get(d.id) or {}).get("stato") != "fatta"),
         "colleghi": storage.conta_colleghi_del_fascicolo(case_id, request.user.id),  # type: ignore[attr-defined]
         "documenti_pronti": len(pronti),
+        "documenti_in_lettura": sum(1 for d in docs if d.status == "pending"),   # v9.417: OCR e riassunto ancora in corso
         "in_corso": case_id in _SCAD_IN_CORSO,
     })
 

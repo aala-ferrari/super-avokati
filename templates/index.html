@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="/static/style.css?v=150" />
+<link rel="stylesheet" href="/static/style.css?v=153" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%230a0a0a'/%3E%3Cpath d='M32 14v36M14 22h36M8 22l-4 10h8zM56 22l-4 10h8zM26 50h12v4H26z' stroke='%23e41e26' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='32' cy='14' r='3' fill='%23c9a24d'/%3E%3C/svg%3E" />
 <link rel="manifest" href="/manifest.webmanifest" />
 <link rel="apple-touch-icon" href="/static/apple-touch-icon.png" />
@@ -600,6 +600,10 @@
           </svg>
           <span class="cal-icon-btn-label" data-i18n="cal_sync">Sinkro</span>
           <span id="ical-status-dot" class="cal-status-dot" aria-hidden="true" title="Jo i lidhur"></span>
+        </button>
+        <button type="button" id="cal-scad-btn" class="cal-icon-btn" title="Ngarko dokumentet e klientit: afatet llogariten vetë" data-i18n-title="cal_scad_title">
+          <span aria-hidden="true">📥</span>
+          <span class="cal-icon-btn-label" data-i18n="cal_scad">Afate nga dosja</span>
         </button>
         <button type="button" id="cal-new-btn" class="cal-primary-btn" title="Shto ngjarje të re (N)">
           <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><line x1="5" y1="12" x2="19" y2="12" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>
@@ -1717,7 +1721,7 @@
   </div>
 </template>
 
-<script src="/static/app.js?v=187"></script>
+<script src="/static/app.js?v=190"></script>
 <script src="/static/secretary.js?v=1"></script>
 <script src="/static/onboarding.js?v=2" defer></script>
   <script src="/static/sw-register.js?v=1" defer></script>
