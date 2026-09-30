@@ -6707,6 +6707,21 @@ def main():
     except Exception as _e195:  # noqa: BLE001
         check("scadenziario-auto[195]: kontrollet u ekzekutuan", False, str(_e195))
 
+    # [196] v9.416 — comandi del bot Telegram (/oggi /settimana /scadenze e /sot /java /afatet): solo per il Telegram COLLEGATO a un
+    # account (a chi non è collegato nessun dato), agenda in ora locale, scadenze da confermare per fascicolo
+    try:
+        import inspect as _in196
+        from src import telegram_bot as _tg196
+        _g = _in196.getsource(_tg196.gestisci_update)
+        _ok196 = ({"/oggi", "/sot"} == _tg196._CMD_OGGI and {"/settimana", "/java"} == _tg196._CMD_SETT
+                  and {"/scadenze", "/afatet"} == _tg196._CMD_SCAD
+                  and "if uid and comando in" in _g and 'chat.get("type") != "private"' in _g
+                  and "ora_locale" in _in196.getsource(_tg196.agenda)
+                  and 'stati=("proposta",)' in _in196.getsource(_tg196.da_confermare))
+        check("telegram-comandi[196]: agenda e scadenze da confermare dal bot, solo al Telegram collegato", _ok196)
+    except Exception as _e196:  # noqa: BLE001
+        check("telegram-comandi[196]: kontrollet u ekzekutuan", False, str(_e196))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

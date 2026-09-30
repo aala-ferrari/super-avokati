@@ -94,9 +94,9 @@ def _lingua_utente(user_id: int | None) -> str:
 
 _T = {
     "ok": {"sq": "✅ U lidh me Super Avokati. Këtu do të marrësh kujtesat e seancave dhe të afateve të dosjeve.\n"
-                 "Për ta shkëputur: /stop",
+                 "/sot — agjenda e sotme · /java — 7 ditët · /afatet — për t'u konfirmuar · /stop — shkëput",
            "it": "✅ Collegato a Super Avokati. Qui riceverai gli avvisi di udienze e scadenze dei fascicoli.\n"
-                 "Per scollegare: /stop"},
+                 "/oggi — agenda di oggi · /settimana — 7 giorni · /scadenze — da confermare · /stop — scollega"},
     "ko": {"sq": "⚠️ Kodi nuk vlen ose ka skaduar. Hap Super Avokati → Kalendari → «Lidh Telegram» dhe provo sërish.\n"
                  "⚠️ Codice non valido o scaduto: apri Super Avokati → Calendario → «Collega Telegram» e riprova.",
            "it": "⚠️ Codice non valido o scaduto: apri Super Avokati → Calendario → «Collega Telegram» e riprova."},
@@ -105,7 +105,79 @@ _T = {
              "it": "Questo è il bot di Super Avokati: collegati dall'app → Calendario → «Collega Telegram»."},
     "stop": {"sq": "U shkëpute. Nuk do të marrësh më kujtesa këtu.",
              "it": "Scollegato. Non riceverai più avvisi qui."},
+    "comandi": {"sq": "Komandat: /sot — seancat dhe afatet e sotme dhe të nesërme · /java — 7 ditët e ardhshme · "
+                      "/afatet — afatet nga dokumentet për t'u konfirmuar · /stop — shkëput",
+                "it": "Comandi: /oggi — udienze e scadenze di oggi e domani · /settimana — i prossimi 7 giorni · "
+                      "/scadenze — scadenze dai documenti da confermare · /stop — scollega"},
 }
+
+
+# v9.416 — COMANDI dell'avvocato collegato: l'agenda e le scadenze da confermare, nella sua lingua e in ORA LOCALE (Tirana/Roma).
+# Solo in chat privata e solo per il Telegram collegato a un account (`utente_da_chat_telegram`): nessun dato a chi non è collegato.
+_ICONA = {"seance": "⚖️", "afat": "⏰", "dorëzim": "📤", "takim": "🤝", "tjetër": "📌"}
+_CMD_OGGI, _CMD_SETT, _CMD_SCAD = {"/oggi", "/sot"}, {"/settimana", "/java"}, {"/scadenze", "/afatet"}
+
+
+def _titoli_casi(case_ids) -> dict:
+    from . import storage
+    ids = [c for c in set(case_ids) if c]
+    if not ids:
+        return {}
+    with storage.db() as conn:
+        rows = conn.execute("SELECT id, title FROM cases WHERE id IN (" + ",".join("?" * len(ids)) + ")", ids).fetchall()
+    return {r["id"]: (r["title"] or "").strip()[:60] for r in rows}
+
+
+def agenda(uid: int, giorni: int, lang: str) -> str:
+    from datetime import datetime, timedelta, timezone
+    from . import storage
+    it = lang == "it"
+    fuso = storage.fuso_di("IT" if it else "AL")
+    inizio_loc = datetime.now(fuso).replace(hour=0, minute=0, second=0, microsecond=0)
+    da = inizio_loc.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    a = (inizio_loc + timedelta(days=giorni)).astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    eventi = [e for e in storage.list_events(uid, start=da, end=a) if not e.done]
+    titoli = _titoli_casi(e.case_id for e in eventi)
+    quando = (("oggi e domani" if giorni == 2 else f"i prossimi {giorni} giorni") if it else
+              ("sot dhe nesër" if giorni == 2 else f"{giorni} ditët e ardhshme"))
+    if not eventi:
+        testo = (f"Nessuna udienza o scadenza per {quando}." if it else f"Asnjë seancë apo afat për {quando}.")
+    else:
+        righe = []
+        for e in eventi[:25]:
+            g = storage.giurisdizione_evento(e)
+            fmt = "%d/%m" if e.all_day else "%d/%m %H:%M"
+            caso = titoli.get(e.case_id or "", "")
+            righe.append(f"{_ICONA.get(e.kind, '📌')} {storage.ora_locale(e.starts_at, g, fmt)} · {e.title}"
+                         + (f" — «{caso}»" if caso else "") + (f" · {e.location}" if e.location else ""))
+        testo = (f"📅 Agenda — {quando} ({len(eventi)}):\n" if it else f"📅 Agjenda — {quando} ({len(eventi)}):\n") + "\n".join(righe)
+        if len(eventi) > 25:
+            testo += f"\n… +{len(eventi) - 25}"
+    n = len(storage.lista_scadenze_proposte(user_id=uid, stati=("proposta",)))
+    if n:
+        testo += (f"\n\n🟡 {n} scadenz{'a' if n == 1 else 'e'} dai documenti da confermare: /scadenze" if it else
+                  f"\n\n🟡 {n} afat{'' if n == 1 else 'e'} nga dokumentet për t'u konfirmuar: /afatet")
+    return testo
+
+
+def da_confermare(uid: int, lang: str) -> str:
+    from . import storage
+    it = lang == "it"
+    pr = storage.lista_scadenze_proposte(user_id=uid, stati=("proposta",))
+    if not pr:
+        return ("Nessuna scadenza da confermare." if it else "Asnjë afat për t'u konfirmuar.")
+    titoli = _titoli_casi(p["case_id"] for p in pr)
+    per_caso: dict = {}
+    for p in pr:
+        per_caso.setdefault(p["case_id"], []).append(p)
+    righe = []
+    for cid, lista in list(per_caso.items())[:8]:
+        righe.append(f"\n📁 {titoli.get(cid) or '—'}")
+        for p in lista[:6]:
+            d = "/".join(reversed(p["data"].split("-"))) if p.get("data") else ("senza data" if it else "pa datë")
+            righe.append(f"  {_ICONA.get(p['kind'], '📌')} {d} · {p['titolo'][:90]}" + ("" if p.get("verificato") else " ⚠️"))
+    return ((f"🟡 Da confermare ({len(pr)}) — aprili nel fascicolo su superavokati.ai:" if it else
+             f"🟡 Për t'u konfirmuar ({len(pr)}) — hapi në dosje te superavokati.ai:") + "\n".join(righe))
 
 
 def gestisci_update(upd: dict) -> None:
@@ -140,7 +212,15 @@ def gestisci_update(upd: dict) -> None:
             invia(chat_id, _T["stop"][_lingua_utente(uid)])
             return
         uid = storage.utente_da_chat_telegram(chat_id)
-        invia(chat_id, _T["info"][_lingua_utente(uid)])
+        comando = testo.split()[0].split("@")[0].lower()
+        if uid and comando in _CMD_OGGI | _CMD_SETT | _CMD_SCAD:
+            lg = _lingua_utente(uid)
+            if comando in _CMD_SCAD:
+                invia(chat_id, da_confermare(uid, lg))
+            else:
+                invia(chat_id, agenda(uid, 2 if comando in _CMD_OGGI else 7, lg))
+            return
+        invia(chat_id, (_T["comandi"][_lingua_utente(uid)] if uid else _T["info"]["sq"]))
     except Exception:  # noqa: BLE001
         log.exception("telegram: update non gestito")
 
@@ -158,8 +238,16 @@ def registra_webhook() -> None:
                      drop_pending_updates="true")
             log.info("telegram setWebhook: %s", "ok" if r.get("ok") else r.get("description"))
             try:
-                _api("setMyCommands", commands=[{"command": "start", "description": "Lidh / Collega"},
-                                                {"command": "stop", "description": "Shkëput / Scollega"}])
+                _api("setMyCommands", commands=[
+                    {"command": "sot", "description": "Agjenda e sotme dhe e nesërme"},
+                    {"command": "java", "description": "7 ditët e ardhshme"},
+                    {"command": "afatet", "description": "Afatet për t'u konfirmuar"},
+                    {"command": "stop", "description": "Shkëput"}])
+                _api("setMyCommands", language_code="it", commands=[
+                    {"command": "oggi", "description": "Agenda di oggi e domani"},
+                    {"command": "settimana", "description": "I prossimi 7 giorni"},
+                    {"command": "scadenze", "description": "Scadenze da confermare"},
+                    {"command": "stop", "description": "Scollega"}])
             except Exception:  # noqa: BLE001
                 pass
         except Exception as exc:  # noqa: BLE001
