@@ -1130,6 +1130,8 @@ def init_db(db_path: Path = APP_DB_PATH) -> None:
         # dell'ultimo invio, così un riavvio non lo manda due volte
         _add_column_if_missing(conn, "users", "telegram_briefing", "INTEGER NOT NULL DEFAULT 1")
         _add_column_if_missing(conn, "users", "telegram_briefing_last", "TEXT")
+        # v9.425 — quando è partito il SOLLECITO di una proposta non ancora confermata (una volta sola per proposta)
+        _add_column_if_missing(conn, "scadenze_proposte", "sollecito_at", "TEXT")
         # v9.414: gli eventi salvati con l'ora locale senza fuso passano a UTC (una volta: dopo finiscono in «Z»), e i loro
         # promemoria non ancora inviati si ricalcolano
         _gcol = "jurisdiction" if any(c[1] == "jurisdiction" for c in conn.execute("PRAGMA table_info(events)")) else "NULL"
@@ -6982,7 +6984,7 @@ def delete_push_subscription(endpoint: str) -> None:
 
 _SCAD_CAMPI = ("id", "case_id", "user_id", "document_id", "tipo", "kind", "titolo", "data", "ora", "luogo", "cosa_fare",
                "origine", "citazione", "base", "regola_json", "verificato", "nota", "stato", "event_id", "chiave",
-               "jurisdiction", "created_at")
+               "jurisdiction", "created_at", "sollecito_at")
 
 
 def aggiungi_scadenza_proposta(p: dict) -> bool:
@@ -7101,6 +7103,25 @@ def conta_colleghi_del_fascicolo(case_id: str | None, user_id: int) -> int:
 
 
 # ── v9.423 — promemoria del mattino su Telegram ─────────────────────────────
+
+def proposte_da_sollecitare(creata_prima: str) -> list[dict]:
+    """v9.425 — le proposte ancora da confermare, mai sollecitate, nate prima di `creata_prima` (ISO UTC: il primo avviso è già
+    partito). Chi chiama sceglie quali sollecitare (data vicina, o senza data da troppo tempo)."""
+    with db() as conn:
+        return [dict(r) for r in conn.execute(
+            "SELECT * FROM scadenze_proposte WHERE stato = 'proposta' AND sollecito_at IS NULL AND created_at < ? "
+            "AND (data IS NULL OR data = '' OR data >= ? OR tipo = 'innesco') "   # date passate no (i termini di legge sì)
+            "ORDER BY user_id, COALESCE(NULLIF(data, ''), '9999-12-31')",
+            (creata_prima, creata_prima[:10])).fetchall()]
+
+
+def segna_sollecito(ids: list[str], quando: str) -> None:
+    if not ids:
+        return
+    with db() as conn:
+        conn.execute("UPDATE scadenze_proposte SET sollecito_at = ? WHERE id IN (" + ",".join("?" for _ in ids) + ")",
+                     (quando, *ids))
+
 
 def utenti_per_briefing() -> list[dict]:
     """Chi ha Telegram collegato e il promemoria del mattino acceso: [{id, chat, last}]."""

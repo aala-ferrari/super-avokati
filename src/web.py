@@ -347,6 +347,41 @@ def login_page() -> str:
     return render_template("login.html")
 
 
+_LINK_CASO_RX = re.compile(r"[0-9a-f-]{8,64}")
+
+
+def link_scadenziario(case_id: str | None = None) -> str:
+    """v9.426 — il link degli avvisi (Telegram, email): apre lo Scadenziario clienti SUL fascicolo, non la pagina iniziale."""
+    return "https://superavokati.ai/s" + (("/" + case_id) if case_id and _LINK_CASO_RX.fullmatch(case_id) else "")
+
+
+@app.get("/s")
+@app.get("/s/<case_id>")
+def link_scadenze(case_id: str | None = None):
+    """v9.426 — «superavokati.ai/s/<fascicolo>» dagli avvisi: senza sessione passa dal login e ci torna (`next`, solo /s/…);
+    con la sessione apre lo Scadenziario sul fascicolo. Se il fascicolo è dell'ALTRA giurisdizione a cui l'avvocato è
+    abilitato, la sessione passa a quella (una giurisdizione per sessione: il fascicolo si apre dove esiste). Un fascicolo
+    che non vede → solo l'elenco dei suoi clienti, senza dire se esiste."""
+    from flask import session
+    from .auth import current_firm
+    if case_id is not None and not _LINK_CASO_RX.fullmatch(case_id):
+        case_id = None
+    user = current_user()
+    if user is None:
+        return redirect(url_for("login_page", next="/s" + (("/" + case_id) if case_id else "")))
+    dest = "/#scadenze"
+    if case_id:
+        firm = current_firm()
+        caso = (storage.get_case_for_member(case_id, user.id, firm.id) if firm is not None
+                else storage.get_case(case_id, user.id))
+        if caso is not None:
+            g = (getattr(caso, "jurisdiction", None) or "AL").upper()
+            if g in storage.user_jurisdictions(user):
+                session["jurisdiction"] = g
+                dest = "/#scadenze=" + case_id
+    return redirect(dest)
+
+
 # ── auth API ───────────────────────────────────────────────────────────────
 
 def require_module(*mods):
@@ -8781,6 +8816,13 @@ _SCAD_LOCK = threading.Lock()
 _SCAD_AVVISI = [10080, 4320, 1440]            # 7 giorni, 3 giorni, 1 giorno prima (alle 9 del mattino del giorno dell'evento)
 
 
+def _avvisi_predefiniti(all_day: bool) -> list[int]:
+    """v9.429 — più il GIORNO STESSO: una scadenza senza ora alle 9 del mattino («OGGI»), un'udienza con l'ora 2 ore prima.
+    Prima l'ultimo avviso era il giorno prima: chi non usa Telegram (niente promemoria del mattino) il giorno del deposito non
+    riceveva niente."""
+    return _SCAD_AVVISI + ([0] if all_day else [120])
+
+
 def _scad_payload(p: dict, nomi: dict) -> dict:
     out = {k: p.get(k) for k in ("id", "document_id", "tipo", "kind", "titolo", "data", "ora", "luogo", "cosa_fare",
                                  "origine", "citazione", "base", "nota", "stato", "event_id")}
@@ -8901,9 +8943,17 @@ def _scad_avvisa_nuove(case_id: str, uid: int, juris: str, nuove: list[dict]) ->
     righe = [_riga(p) for p in utili[:6]] + ([f"… +{len(utili) - 6}"] if len(utili) > 6 else [])
     tit = ((f"📅 {len(utili)} scadenz{'a' if len(utili) == 1 else 'e'} da confermare" + (f" — «{titolo_caso}»" if titolo_caso else ""))
            if it else (f"📅 {len(utili)} afat{'' if len(utili) == 1 else 'e'} për t'u konfirmuar" + (f" — «{titolo_caso}»" if titolo_caso else "")))
-    righe.append("Apri il fascicolo su Super Avokati per confermarle: nulla entra in calendario senza la tua conferma." if it else
-                 "Hap dosjen në Super Avokati për t'i konfirmuar: asgjë nuk hyn në kalendar pa konfirmimin tënd.")
-    esiti = _rm.avvisa_utente(uid, tit, righe, lang="it" if it else "sq", link="https://superavokati.ai/")
+    coda = ("Apri il fascicolo su Super Avokati per confermarle: nulla entra in calendario senza la tua conferma." if it else
+            "Hap dosjen në Super Avokati për t'i konfirmuar: asgjë nuk hyn në kalendar pa konfirmimin tënd.")
+    # v9.424: su Telegram le proposte VERIFICATE con una data si confermano col pulsante ✅ sotto l'avviso
+    from . import telegram_bot as _tg
+    tastiera = _tg.tastiera_proposte(utili, "it" if it else "sq", oggi) if _tg.attivo() else None
+    coda_tastiera = ("Conferma qui sotto con ✅ quelle verificate (🗑 per scartare); quelle da verificare o senza data aprile nel "
+                     "fascicolo: nulla entra in calendario senza la tua conferma." if it else
+                     "Konfirmo më poshtë me ✅ ato të verifikuara (🗑 për t'i hedhur poshtë); ato për t'u verifikuar ose pa datë "
+                     "hapi në dosje: asgjë nuk hyn në kalendar pa konfirmimin tënd.")
+    esiti = _rm.avvisa_utente(uid, tit, righe, lang="it" if it else "sq", link=link_scadenziario(case_id),
+                              coda=coda, tastiera=tastiera, coda_tastiera=coda_tastiera)
     log.info("scadenziario: avviso di %d scadenze nuove (%s) → %s", len(utili), case_id[:8], [(c_, e is None) for c_, e in esiti])
 
 
@@ -8982,17 +9032,15 @@ def _scad_propria(pid: str):
     return p
 
 
-@app.post("/api/scadenze/<pid>/conferma")
-@login_required_api
-def api_scadenze_conferma(pid: str):
-    user = request.user  # type: ignore[attr-defined]
-    p = _scad_propria(pid)
-    if not p:
-        return jsonify({"error": _t_err("Nuk u gjet", "Non trovata")}), 404
+def conferma_proposta(p: dict, uid: int, dati: dict | None = None) -> dict:
+    """v9.424 — la conferma di una proposta dello scadenziario, UNA sola strada per il portale e per il pulsante ✅ di Telegram:
+    l'evento nasce in calendario con gli avvisi 7/3/1 giorni prima. `p` = la proposta già controllata da chi chiama (fascicolo
+    visibile). Ritorna {"ok", "event_id", "data", ["gia"]} oppure {"errore": (sq, it), "status"}."""
+    data = dati or {}
     if p["stato"] == "confermata" and p.get("event_id"):
-        return jsonify({"ok": True, "event_id": p["event_id"], "gia": True})
-    data = request.get_json(silent=True) or {}
+        return {"ok": True, "event_id": p["event_id"], "data": p.get("data"), "gia": True}
     it = (p.get("jurisdiction") or "") == "IT"
+    pid = p["id"]
     giorno = (data.get("data") or p.get("data") or "").strip()[:10]
     if p["tipo"] == "regola" and data.get("data_partenza"):
         from . import scadenziario as scad_mod
@@ -9000,14 +9048,14 @@ def api_scadenze_conferma(pid: str):
             calc = scad_mod.calcola_regola(json.loads(p["regola_json"]), data["data_partenza"], (p["jurisdiction"] or "AL"),
                                            "it" if it else "sq")
         except Exception:  # noqa: BLE001
-            return jsonify({"error": _t_err("Data e nisjes nuk është e vlefshme", "Data di partenza non valida")}), 400
+            return {"errore": ("Data e nisjes nuk është e vlefshme", "Data di partenza non valida"), "status": 400}
         giorno = calc["data"]
         storage.aggiorna_scadenza_proposta(pid, data=giorno, nota=" · ".join(calc["passi"]))
     try:
         from datetime import date as _date
         _date.fromisoformat(giorno)
     except ValueError:
-        return jsonify({"error": _t_err("Mungon data", "Manca la data")}), 400
+        return {"errore": ("Mungon data", "Manca la data"), "status": 400}
     ora = (data.get("ora") or p.get("ora") or "").strip()
     titolo = (data.get("titolo") or p["titolo"]).strip()[:200]
     descr = "\n".join(x for x in [
@@ -9020,9 +9068,9 @@ def api_scadenze_conferma(pid: str):
     else:
         starts, all_day = f"{giorno}T09:00:00", True
     avvisi = data.get("avvisi")
-    avvisi = [int(x) for x in avvisi if str(x).isdigit()][:6] if isinstance(avvisi, list) else _SCAD_AVVISI
+    avvisi = [int(x) for x in avvisi if str(x).isdigit()][:6] if isinstance(avvisi, list) else _avvisi_predefiniti(all_day)
     try:
-        ev = storage.create_event(user.id, titolo, p["kind"] if p["kind"] in storage.EVENT_KINDS else "afat", starts,
+        ev = storage.create_event(uid, titolo, p["kind"] if p["kind"] in storage.EVENT_KINDS else "afat", starts,
                                   case_id=p["case_id"], description=descr, all_day=all_day, location=p.get("luogo") or None,
                                   source="scadenziario", source_ref="scad:" + pid, reminders=avvisi,
                                   jurisdiction=p.get("jurisdiction"),
@@ -9030,9 +9078,23 @@ def api_scadenze_conferma(pid: str):
                                   notify_team=bool(data.get("avvisa_studio", True)))
     except Exception as exc:  # noqa: BLE001
         log.warning("scadenziario: evento non creato (%s): %s", pid, exc)
-        return jsonify({"error": _t_err("Ngjarja nuk u krijua", "Evento non creato")}), 400
+        return {"errore": ("Ngjarja nuk u krijua", "Evento non creato"), "status": 400}
     storage.aggiorna_scadenza_proposta(pid, stato="confermata", event_id=ev.id, data=giorno, titolo=titolo)
-    return jsonify({"ok": True, "event_id": ev.id, "data": giorno})
+    return {"ok": True, "event_id": ev.id, "data": giorno, "ora": ora if not all_day else "", "titolo": titolo,
+            "avvisi": avvisi}
+
+
+@app.post("/api/scadenze/<pid>/conferma")
+@login_required_api
+def api_scadenze_conferma(pid: str):
+    user = request.user  # type: ignore[attr-defined]
+    p = _scad_propria(pid)
+    if not p:
+        return jsonify({"error": _t_err("Nuk u gjet", "Non trovata")}), 404
+    r = conferma_proposta(p, user.id, request.get_json(silent=True) or {})
+    if r.get("errore"):
+        return jsonify({"error": _t_err(*r["errore"])}), r.get("status", 400)
+    return jsonify({k: r[k] for k in ("ok", "event_id", "data", "gia") if k in r})
 
 
 @app.get("/api/cases/<case_id>/colleghi")

@@ -32,7 +32,12 @@ from .logging_utils import get_logger
 
 log = get_logger(__name__)
 
-TESTO_MAX = 60_000                 # caratteri del documento dati al modello (un fascicolo di ~40 pagine)
+TESTO_MAX = 60_000                 # caratteri per chiamata al modello (~40 pagine)
+# v9.427: un fascicolo più lungo si legge A PEZZI (prima si tagliava a 60.000 caratteri e i termini delle pagine in fondo
+# — gli atti più recenti — non esistevano): pezzi sovrapposti, tagliati a un cambio pagina o paragrafo, al massimo PEZZI_MAX
+# chiamate; oltre, il resto non letto si dice nel log e nell'analisi.
+PEZZI_MAX = 6
+SOVRAPPOSIZIONE = 1_500
 MAX_INNESCHI = 3                   # termini di legge calcolati in automatico per documento (ognuno è una chiamata)
 
 _MESI = {
@@ -74,6 +79,56 @@ def citazione_nel_testo(citazione: str, testo: str) -> bool:
     return sum(p in t for p in pezzi) >= max(1, round(len(pezzi) * 0.8))
 
 
+def _numero_it(n: int) -> list[str]:
+    """1-99 in lettere (italiano), con le forme accettate: «ventitré»/«ventitre», «ventuno», «ventotto»."""
+    u = ["", "uno", "due", "tre", "quattro", "cinque", "sei", "sette", "otto", "nove"]
+    teen = ["dieci", "undici", "dodici", "tredici", "quattordici", "quindici", "sedici", "diciassette", "diciotto", "diciannove"]
+    dec = ["", "", "venti", "trenta", "quaranta", "cinquanta", "sessanta", "settanta", "ottanta", "novanta"]
+    if n < 10:
+        return [u[n]]
+    if n < 20:
+        return [teen[n - 10]]
+    t, k = divmod(n, 10)
+    if k == 0:
+        return [dec[t]]
+    base = dec[t][:-1] if k in (1, 8) else dec[t]
+    return [base + "tré", base + "tre"] if k == 3 else [base + u[k]]
+
+
+def _numero_sq(n: int) -> list[str]:
+    u = ["", "një", "dy", "tre", "katër", "pesë", "gjashtë", "shtatë", "tetë", "nëntë"]
+    if n < 10:
+        return [u[n]]
+    if n == 10:
+        return ["dhjetë"]
+    if n < 20:
+        return [u[n - 10] + "mbëdhjetë"]
+    t, k = divmod(n, 10)
+    dec = {2: "njëzet", 3: "tridhjetë", 4: "dyzet", 5: "pesëdhjetë", 6: "gjashtëdhjetë", 7: "shtatëdhjetë", 8: "tetëdhjetë",
+           9: "nëntëdhjetë"}[t]
+    return [dec] if k == 0 else [f"{dec} e {u[k]}"]
+
+
+def _date_in_lettere(d: date) -> set[str]:
+    """v9.431 — «venti novembre duemilaventisei», «primo dicembre 2026», «njëzet nëntor dy mijë e njëzet e gjashtë»: le
+    ordinanze scrivono spesso la data in lettere, e senza questo la data giusta restava «da verificare»."""
+    out: set[str] = set()
+    anno = d.year % 100
+    it_gg = (["primo"] if d.day == 1 else []) + _numero_it(d.day)
+    it_aa = ["duemila" + x for x in (_numero_it(anno) if anno else [""])] + [str(d.year)]
+    sq_gg = _numero_sq(d.day)
+    sq_aa = [f"dy mijë e {x}" for x in _numero_sq(anno)] + ([f"dymijë e {x}" for x in _numero_sq(anno)]) + [str(d.year)]
+    for g in it_gg:
+        for a in it_aa:
+            out.add(f"{g} {_MESI['it'][d.month - 1]} {a}")
+    for a in it_aa[:-1]:
+        out.add(f"{d.day} {_MESI['it'][d.month - 1]} {a}")
+    for g in sq_gg:
+        for a in sq_aa:
+            out.add(f"{g} {_MESI['sq'][d.month - 1]} {a}")
+    return out
+
+
 def _varianti_data(d: date) -> list[str]:
     g, m, a = d.day, d.month, d.year
     out = {f"{g:02d}.{m:02d}.{a}", f"{g}.{m}.{a}", f"{g:02d}/{m:02d}/{a}", f"{g}/{m}/{a}", f"{g:02d}-{m:02d}-{a}",
@@ -82,7 +137,8 @@ def _varianti_data(d: date) -> list[str]:
         nome = mesi[m - 1]
         out |= {f"{g} {nome} {a}", f"{g:02d} {nome} {a}", f"{g}° {nome} {a}", f"{g} {nome}"}
         if nome.endswith(("r", "t", "l", "j", "s")):      # albanese determinato: «15 shtatorit 2026»
-            out.add(f"{g} {nome}it {a}")
+            out |= {f"{g} {nome}it {a}", f"{g} {nome}it"}
+    out |= _date_in_lettere(d)
     return sorted(out, key=len, reverse=True)
 
 
@@ -93,7 +149,14 @@ def data_nel_testo(iso: str, testo: str) -> bool:
         return False
     t = _norm(testo)
     t = re.sub(r"(\d)\s*([./-])\s*(\d)", r"\1\2\3", t)   # «15 . 09 . 2026» dell'OCR
-    return any(re.search(r"(?<!\d)" + re.escape(v) + r"(?!\d)", t) for v in _varianti_data(d))
+    # v9.431: confini di PAROLA per le forme con le lettere («sei novembre» sta dentro «ventisei novembre», «duemilaventi»
+    # dentro «duemilaventisei»): un giorno sbagliato non deve risultare verificato
+    def _rx(v: str) -> str:
+        pre = r"(?<!\w)" if v[0].isalpha() else r"(?<!\d)"
+        # «20 novembre» senza anno vale solo se DOPO non c'è un anno («20 novembre 2027» non verifica il 2026)
+        post = r"(?!\w)(?!\s*(?:\d{4}|duemila|dy mijë|dymijë))" if v[-1].isalpha() else r"(?!\d)"
+        return pre + re.escape(v) + post
+    return any(re.search(_rx(v), t) for v in _varianti_data(d))
 
 
 def _chiave(*parti) -> str:
@@ -117,7 +180,7 @@ TUTTO ciò che ha una data o un termine per l'avvocato. Rispondi con UN SOLO ogg
  "termini": [{"titolo": "…", "durata": 20, "unita": "giorni|giorni_lavorativi|mesi|anni",
               "decorrenza": "da cosa decorre, con le parole del documento (es. «dalla notificazione del presente decreto»)",
               "data_decorrenza": "AAAA-MM-GG se il documento la dice, altrimenti vuoto",
-              "processuale": true, "lavoro_o_urgente": false,
+              "processuale": true, "lavoro_o_urgente": false, "a_ritroso": false,
               "cosa_fare": "…", "citazione": "la frase ESATTA del documento"}],
  "inneschi": [{"trigger": "una delle chiavi qui sotto",
                "data": "AAAA-MM-GG della NOTIFICA / comunicazione dell'atto se il documento la dice, altrimenti vuoto",
@@ -130,6 +193,8 @@ REGOLE:
   "date". La data va riportata come AAAA-MM-GG ma deve essere quella scritta.
 - "date" = date già scritte (udienza fissata, rinvio al giorno …, deposito entro il giorno …, appuntamento, pagamento entro il …).
 - "termini" = durate stabilite DAL DOCUMENTO (dal giudice, dalla controparte, dal contratto, dall'ufficio).
+  "a_ritroso": true quando il termine si conta ALL'INDIETRO da una data («almeno N giorni prima dell'udienza», «N giorni prima
+  della scadenza del contratto»): allora "data_decorrenza" è la data di RIFERIMENTO (l'udienza, la scadenza) se è scritta.
 - "inneschi" = il documento è esso stesso un evento che fa partire termini DI LEGGE (sentenza, decreto ingiuntivo, atto di
   citazione ricevuto, licenziamento, avviso di accertamento, verbale di contestazione, ordinanza, misura cautelare…). Chiavi:
 {TRIGGER}
@@ -147,7 +212,7 @@ REGOLE:
  "termini": [{"titolo": "…", "durata": 15, "unita": "dite|dite_pune|muaj|vite",
               "decorrenza": "nga çfarë nis, me fjalët e dokumentit (p.sh. «nga dita e njoftimit të vendimit»)",
               "data_decorrenza": "VVVV-MM-DD nëse dokumenti e thotë, përndryshe bosh",
-              "processuale": true, "lavoro_o_urgente": false,
+              "processuale": true, "lavoro_o_urgente": false, "a_ritroso": false,
               "cosa_fare": "…", "citazione": "fjalia E SAKTË e dokumentit"}],
  "inneschi": [{"trigger": "një nga çelësat më poshtë",
                "data": "VVVV-MM-DD e NJOFTIMIT të aktit nëse dokumenti e thotë, përndryshe bosh",
@@ -160,6 +225,8 @@ RREGULLA:
   "termini", jo te "date". Data shkruhet VVVV-MM-DD, por duhet të jetë ajo e shkruara.
 - "date" = data tashmë të shkruara (seancë e caktuar, shtyrje në datën …, dorëzim deri më …, takim, pagesë deri më …).
 - "termini" = afate të caktuara NGA DOKUMENTI (nga gjykata, pala tjetër, kontrata, zyra).
+  "a_ritroso": true kur afati llogaritet PRAPA nga një datë («të paktën N ditë para seancës», «N ditë para përfundimit të
+  kontratës»): atëherë "data_decorrenza" është data e REFERIMIT (seanca, përfundimi) nëse është e shkruar.
 - "inneschi" = vetë dokumenti është ngjarje që nis afate LIGJORE (vendim, urdhër, padi e marrë, pushim nga puna, njoftim
   vlerësimi tatimor, procesverbal kundërvajtjeje, masë sigurimi…). Çelësat:
 {TRIGGER}
@@ -197,6 +264,53 @@ def estrai(backend, testo: str, nome_file: str, lang: str, oggi: str) -> dict:
     return _json(raw)
 
 
+def pezzi_del_testo(testo: str, massimo: int = TESTO_MAX, sovrapp: int = SOVRAPPOSIZIONE,
+                    limite: int = PEZZI_MAX) -> tuple[list[str], int]:
+    """(pezzi, caratteri NON letti). Ogni taglio cade sull'ultimo cambio di pagina («── Faqja/Pagina N»), altrimenti
+    sull'ultimo paragrafo, nella seconda metà del pezzo; il pezzo dopo riparte `sovrapp` caratteri prima (una scadenza a
+    cavallo del taglio resta intera in uno dei due)."""
+    t = testo or ""
+    pezzi, i = [], 0
+    while i < len(t) and len(pezzi) < limite:
+        fine = min(len(t), i + massimo)
+        if fine < len(t):
+            finestra = t[i + massimo // 2:fine]
+            m = [x.start() for x in re.finditer(r"\n── (?:Faqja|Pagina) \d+", finestra)]
+            k = m[-1] if m else finestra.rfind("\n\n")
+            if k > 0:
+                fine = i + massimo // 2 + k
+        pezzi.append(t[i:fine])
+        if fine >= len(t):
+            return pezzi, 0
+        i = max(fine - sovrapp, i + 1)
+    return pezzi, max(0, len(t) - i)
+
+
+def estrai_tutto(backend, testo: str, nome_file: str, lang: str, oggi: str) -> dict:
+    """L'estrazione su TUTTO il documento, a pezzi; le liste unite (i doppioni fra pezzi sovrapposti li toglie la chiave
+    della proposta, e prima ancora qui per data+frase)."""
+    pezzi, resto = pezzi_del_testo(testo)
+    if len(pezzi) <= 1 and not resto:
+        return estrai(backend, testo, nome_file, lang, oggi)
+    unito: dict = {"date": [], "termini": [], "inneschi": []}
+    visti: set = set()
+    for n, p in enumerate(pezzi, 1):
+        est = estrai(backend, p, f"{nome_file} ({n}/{len(pezzi)})", lang, oggi)
+        for k in unito:
+            for it in (est.get(k) or []):
+                if not isinstance(it, dict):
+                    continue
+                firma = (k, str(it.get("data") or ""), _norm(str(it.get("citazione") or ""))[:80])
+                if firma in visti:
+                    continue
+                visti.add(firma)
+                unito[k].append(it)
+    if resto:
+        log.warning("scadenziario: %s letto in %d pezzi, %d caratteri finali NON letti", nome_file, len(pezzi), resto)
+    unito["non_letti"] = resto
+    return unito
+
+
 # ── dal JSON alle proposte (verificate) ─────────────────────────────────────
 
 def _iso(s) -> str:
@@ -212,8 +326,80 @@ def _ora(s) -> str:
     return f"{int(m.group(1)):02d}:{m.group(2)}" if m and int(m.group(1)) < 24 else ""
 
 
+_RITROSO = {
+    "it": re.compile(r"(?:\d+|[a-zà-ù]+)\s+(?:giorni|giorno|mesi|mese|anni|anno)\s+(?:liberi\s+|lavorativi\s+|interi\s+)?"
+                     r"(?:prima|antecedent\w*|anterior\w*)\b"),
+    "sq": re.compile(r"(?:\d+|[a-zëç]+)\s+(?:ditë|dite|muaj|vjet|vite)(?:\s+pune)?\s+(?:para|përpara|perpara)\b"),
+}
+
+
+def a_ritroso_nel_testo(cit: str) -> bool | None:
+    """v9.431 — la frase dice «N giorni PRIMA di …» / «N ditë PARA …»? True/False se la frase contiene la durata con un verso
+    riconoscibile, None se non lo dice. «prima udienza» (= la prima) non conta: serve la forma «numero + unità + prima»."""
+    c = _norm(cit)
+    if not c:
+        return None
+    if any(rx.search(c) for rx in _RITROSO.values()):
+        return True
+    if re.search(r"\b(?:dalla|dal|dall'|decorrent\w*|successiv\w*|dopo)\b|\bnga (?:dita|data|njoftimi|marrja|e nesërmja)\b"
+                 r"|\bpas\b", c):
+        return False
+    return None
+
+
+def _calcola_a_ritroso(regola: dict, riferimento: str, jurisdiction: str, lang: str) -> dict:
+    """«Almeno N giorni PRIMA dell'udienza del …»: la data di riferimento meno N; se cade di sabato, domenica o festivo si
+    ANTICIPA al giorno lavorativo precedente (un giorno prima è sempre in tempo: la scelta prudente); in Italia, per un termine
+    processuale non escluso, i giorni di agosto nel mezzo non si contano (sospensione feriale anche a ritroso) — anticipando."""
+    from datetime import timedelta
+    it = lang == "it"
+    j = (jurisdiction or "AL").upper()
+    ref = date.fromisoformat(riferimento)
+    n, u = int(regola["durata"]), regola["unita"]
+    if u == "days":
+        d = ref - timedelta(days=n)
+    elif u == "months":
+        d = _de.add_months(ref, -n)
+    elif u == "years":
+        d = _de.add_months(ref, -12 * n)
+    else:                                          # giorni lavorativi, all'indietro
+        d, k = ref, 0
+        while k < n:
+            d -= timedelta(days=1)
+            if _de.is_business_day(d, j):
+                k += 1
+    wd = lambda x: _de._wd(x, lang)
+    parola = {"days": ("giorni", "ditë"), "business_days": ("giorni lavorativi", "ditë pune"), "months": ("mesi", "muaj"),
+              "years": ("anni", "vjet")}[u][0 if it else 1]
+    passi = [(f"termine A RITROSO: {n} {parola} PRIMA del {ref.isoformat()} ({wd(ref)}) → {d.isoformat()} ({wd(d)})" if it else
+              f"afat PRAPA: {n} {parola} PARA datës {ref.isoformat()} ({wd(ref)}) → {d.isoformat()} ({wd(d)})")]
+    feriale = (j == "IT" and bool(regola.get("processuale")) and not bool(regola.get("lavoro_o_urgente")) and u == "days")
+    if feriale:
+        contati: set = set()
+        while True:
+            agosto = {x for x in (d + timedelta(days=i) for i in range((ref - d).days)) if x.month == 8} - contati
+            if not agosto:
+                break
+            contati |= agosto
+            d -= timedelta(days=len(agosto))
+        if contati:
+            passi.append(f"sospensione feriale: {len(contati)} giorni di agosto nel mezzo non si contano → anticipato al "
+                         f"{d.isoformat()} ({wd(d)})")
+    while not _de.is_business_day(d, j):
+        d -= timedelta(days=1)
+        passi.append((f"cade in un giorno non lavorativo: anticipato al {d.isoformat()} ({wd(d)}) — la scelta prudente" if it else
+                      f"bie në ditë jo pune: sillet përpara në {d.isoformat()} ({wd(d)}) — zgjedhja e kujdesshme"))
+    passi.append(("⚠ computo a ritroso: verifica se il termine è a giorni «liberi» (escluso anche il giorno di riferimento); la data "
+                  "indicata è quella prudente" if it else
+                  "⚠ llogaritje prapa: verifiko nëse afati është me ditë «të lira»; data e dhënë është ajo e kujdesshme"))
+    return {"data": d.isoformat(), "passi": passi}
+
+
 def calcola_regola(regola: dict, data_partenza: str, jurisdiction: str, lang: str) -> dict:
-    """Termine dato dal documento («entro 20 giorni dalla notifica») + la data di partenza → data (motore deterministico)."""
+    """Termine dato dal documento («entro 20 giorni dalla notifica») + la data di partenza → data (motore deterministico).
+    v9.431: con `a_ritroso` la data di partenza è quella di RIFERIMENTO e il termine si conta all'indietro."""
+    if regola.get("a_ritroso"):
+        return _calcola_a_ritroso(regola, data_partenza, jurisdiction, lang)
     feriale = (jurisdiction == "IT" and bool(regola.get("processuale")) and not bool(regola.get("lavoro_o_urgente")))
     r = _de.compute_deadline(data_partenza, int(regola["durata"]), regola["unita"], jurisdiction=jurisdiction,
                              feriale=feriale, legal_basis=str(regola.get("decorrenza") or ""), lang=lang)
@@ -229,7 +415,7 @@ def proposte_da_estrazione(est: dict, testo: str, *, lang: str, jurisdiction: st
     """(proposte pronte, inneschi da calcolare) — tutto verificato sul testo del documento."""
     out, inneschi = [], []
     L = lang
-    for it in (est.get("date") or [])[:40]:
+    for it in (est.get("date") or [])[:120]:
         if not isinstance(it, dict):
             continue
         d, cit = _iso(it.get("data")), str(it.get("citazione") or "")[:400]
@@ -250,7 +436,7 @@ def proposte_da_estrazione(est: dict, testo: str, *, lang: str, jurisdiction: st
                     "cosa_fare": str(it.get("cosa_fare") or "")[:400], "origine": "documento", "citazione": cit,
                     "verificato": c_ok and d_ok, "nota": " · ".join(note),
                     "chiave": _chiave("data", d, titolo)})
-    for it in (est.get("termini") or [])[:20]:
+    for it in (est.get("termini") or [])[:60]:
         if not isinstance(it, dict):
             continue
         try:
@@ -262,10 +448,16 @@ def proposte_da_estrazione(est: dict, testo: str, *, lang: str, jurisdiction: st
         cit = str(it.get("citazione") or "")[:400]
         if not unita or not titolo or not (0 < durata <= 3650):
             continue
+        # v9.431: il VERSO del termine si controlla sul testo («N giorni PRIMA dell'udienza» si conta all'indietro): la frase
+        # vince sul modello; se la frase non dice niente vale il modello, ma la proposta resta da verificare
+        indietro_testo = a_ritroso_nel_testo(cit)
+        indietro = indietro_testo if indietro_testo is not None else bool(it.get("a_ritroso"))
+        verso_ok = indietro_testo is not None or not bool(it.get("a_ritroso"))
         regola = {"durata": durata, "unita": unita, "decorrenza": str(it.get("decorrenza") or "")[:200],
-                  "processuale": bool(it.get("processuale")), "lavoro_o_urgente": bool(it.get("lavoro_o_urgente"))}
+                  "processuale": bool(it.get("processuale")), "lavoro_o_urgente": bool(it.get("lavoro_o_urgente")),
+                  "a_ritroso": indietro}
         c_ok = citazione_nel_testo(cit, testo)
-        durata_ok = bool(re.search(r"(?<!\d)" + str(durata) + r"(?!\d)", _norm(cit))) or _durata_in_lettere(durata, cit)
+        durata_ok = (bool(re.search(r"(?<!\d)" + str(durata) + r"(?!\d)", _norm(cit))) or _durata_in_lettere(durata, cit)) and verso_ok
         dp = _iso(it.get("data_decorrenza"))
         note = []
         if not c_ok:
@@ -290,7 +482,7 @@ def proposte_da_estrazione(est: dict, testo: str, *, lang: str, jurisdiction: st
         out.append(dict(base, tipo="regola", data="", verificato=c_ok and durata_ok, base=regola["decorrenza"],
                         nota=" · ".join(note), chiave=_chiave("regola", titolo, durata, regola["decorrenza"])))
     tab = _afati.TRIGGERS_IT if L == "it" else _afati.TRIGGERS
-    for it in (est.get("inneschi") or [])[:6]:
+    for it in (est.get("inneschi") or [])[:12]:
         if not isinstance(it, dict):
             continue
         trig = str(it.get("trigger") or "").strip()
@@ -374,7 +566,7 @@ def analizza_documento(backend, index, doc, *, jurisdiction: str) -> tuple[list[
     if len(testo.strip()) < 40:
         return [], []
     oggi = oggi_iso()
-    est = estrai(backend, testo, getattr(doc, "filename", "") or "documento", lang, oggi)
+    est = estrai_tutto(backend, testo, getattr(doc, "filename", "") or "documento", lang, oggi)
     proposte, inneschi = proposte_da_estrazione(est, testo, lang=lang, jurisdiction=(jurisdiction or "AL").upper(), oggi=oggi)
     calcolati = 0
     for inn in inneschi:

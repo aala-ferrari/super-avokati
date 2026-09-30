@@ -1,0 +1,22 @@
+{
+ "id": "it_decreto_ingiuntivo",
+ "lang": "it",
+ "jurisdiction": "IT",
+ "oggi": "2026-10-01",
+ "testo": "TRIBUNALE ORDINARIO DI MILANO\nSezione VI civile\nDECRETO INGIUNTIVO N. 8812/2026 — R.G. 23019/2026\n\nIl Giudice, letto il ricorso depositato il 03.08.2026 da Forniture Lombarde S.r.l.,\nINGIUNGE\na Bianchi Costruzioni S.r.l. di pagare alla ricorrente, entro quaranta giorni dalla notifica del presente decreto, la somma di euro 18.450,00 oltre interessi e spese, con l'avvertimento che nello stesso termine può essere proposta opposizione e che, in mancanza, si procederà a esecuzione forzata.\nMilano, 10 settembre 2026\nIl Giudice — dott.ssa Laura Ferri\n\nRELATA DI NOTIFICA\nNotificato a mezzo PEC all'indirizzo bianchicostruzioni@pec.it in data 15 settembre 2026, con ricevuta di avvenuta consegna delle ore 11:42.",
+ "attese": [],
+ "termini_attesi": [
+  {
+   "durata": 40,
+   "unita": "giorni",
+   "data": "2026-10-26"
+  }
+ ],
+ "inneschi_attesi": [
+  {
+   "trigger": "decreto_ingiuntivo",
+   "data": "2026-09-15"
+  }
+ ],
+ "vietate": []
+}

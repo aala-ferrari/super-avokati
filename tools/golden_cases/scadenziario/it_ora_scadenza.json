@@ -1,0 +1,18 @@
+{
+ "id": "it_ora_scadenza",
+ "lang": "it",
+ "jurisdiction": "IT",
+ "oggi": "2026-10-01",
+ "testo": "COMUNE DI BERGAMO — Settore Lavori Pubblici\nAvviso di gara — procedura aperta per l'affidamento dei lavori di manutenzione straordinaria della scuola primaria «Rodari».\nLe offerte dovranno pervenire, a pena di esclusione, entro e non oltre le ore 12:00 del 15 dicembre 2026 tramite la piattaforma telematica Sintel.\nLa prima seduta pubblica di apertura delle buste si terrà il 17 dicembre 2026 alle ore 10:00.",
+ "attese": [
+  {
+   "data": "2026-12-15",
+   "ora": "12:00"
+  },
+  {
+   "data": "2026-12-17",
+   "ora": "10:00"
+  }
+ ],
+ "vietate": []
+}

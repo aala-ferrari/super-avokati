@@ -227,7 +227,8 @@ PARAMETRAT:
 create_event: {{ "title", "kind" (një nga: takim|seance|afat|dorëzim|tjetër), "case_id" (opsionale, nga DOSJET),
   "starts_at_local" ("VVVV-MM-DD OO:MM", ora e Shqipërisë; përdor 09:00 nëse
   nuk jepet ora), "all_day" (true/false), "location" (opsionale),
-  "description" (opsionale), "reminders" (listë minutash-para, parazgjedhje [1440]) }}
+  "description" (opsionale), "reminders" (VETËM nëse avokati kërkon kujtesa të caktuara: listë minutash-para;
+  përndryshe MOS e vendos — sistemi vë vetë kujtesat standarde) }}
 update_event: {{ "event_id", plus fushat për të ndryshuar (p.sh. starts_at_local, title, case_id) }}
 delete_event: {{ "event_id" }}
 """
@@ -273,6 +274,14 @@ def _caso_valido(user_id: int, case_id):
     return next((c for c in casi_visibili(user_id, limite=10_000) if c.id == str(case_id)), None)
 
 
+def avvisi_standard(kind: str, all_day: bool) -> list[int]:
+    """v9.430 — gli avvisi di norma di un evento: udienze, scadenze e depositi 7/3/1 giorni prima + il giorno stesso (alle 9 se
+    senza ora, 2 ore prima se con l'ora); un appuntamento il giorno prima + 2 ore prima."""
+    if kind in ("seance", "afat", "dorëzim"):
+        return [10080, 4320, 1440] + ([0] if all_day else [120])
+    return [1440] + ([] if all_day else [120])
+
+
 def _L(sq: str, it: str) -> str:
     """Il testo nella lingua della SESSIONE (v9.421: gli esiti erano solo albanesi anche per l'avvocato italiano)."""
     return it if _it() else sq
@@ -291,8 +300,11 @@ def execute_action(user_id: int, action: dict) -> dict:
                 kind = "takim"
             starts = local_to_utc(p.get("starts_at_local") or "")
             rem = p.get("reminders")
-            if not isinstance(rem, list):
-                rem = [1440]
+            # v9.430: le stesse avvertenze dello scadenziario (7/3/1 giorni + il giorno stesso alle 9 o 2 ore prima), non
+            # un solo avviso il giorno prima — salvo che l'avvocato ne chieda di sue
+            _tutto_il_giorno = bool(p.get("all_day"))
+            rem = ([int(x) for x in rem if str(x).lstrip("-").isdigit()] if isinstance(rem, list) and rem
+                   else avvisi_standard(kind, _tutto_il_giorno))
             caso = _caso_valido(user_id, p.get("case_id"))
             ev = storage.create_event(
                 user_id, title=(p.get("title") or "Ngjarje").strip(),
@@ -300,7 +312,10 @@ def execute_action(user_id: int, action: dict) -> dict:
                 description=p.get("description") or None,
                 all_day=bool(p.get("all_day")),
                 location=p.get("location") or None,
-                reminders=[int(x) for x in rem if str(x).lstrip("-").isdigit()],
+                reminders=rem,
+                # v9.430: un evento collegato al fascicolo avvisa anche i colleghi che lo seguono (come nel calendario e nello
+                # scadenziario, dove la casella è spuntata di norma)
+                notify_team=bool(caso),
             )
             return {"ok": True,
                     "reply": (_L(f"✅ U regjistrua: {KIND_LABELS.get(ev.kind, ev.kind)} «{ev.title}» më {_fmt_local(ev.starts_at)}",

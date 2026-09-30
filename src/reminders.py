@@ -104,6 +104,8 @@ _T_PROMEMORIA = {
 
 def _fmt_ahead(reminder, lang: str = "sq") -> str:
     off = reminder.offset_minutes
+    if off <= 0:                                   # v9.429: il promemoria del giorno stesso (alle 9, per le scadenze senza ora)
+        return "OGGI" if lang == "it" else "SOT"
     if lang == "it":
         if off >= 1440:
             days = off // 1440
@@ -125,33 +127,58 @@ def _md_escape(s: str) -> str:
     return s.replace("_", r"\_").replace("*", r"\*").replace("[", r"\[").replace("`", r"\`")
 
 
+def _caso_di(event) -> tuple[str, str]:
+    """v9.429 — (titolo del fascicolo, link che lo apre) per un evento: il promemoria diceva «Udienza — 04/11 10:00» e un
+    avvocato con trenta clienti non sapeva di chi fosse."""
+    cid = getattr(event, "case_id", None)
+    if not cid:
+        return "", ""
+    try:
+        with storage.db() as conn:
+            r = conn.execute("SELECT title FROM cases WHERE id = ?", (cid,)).fetchone()
+        titolo = ((r["title"] if r else "") or "").strip()[:80]
+    except Exception:  # noqa: BLE001
+        titolo = ""
+    return titolo, "https://superavokati.ai/s/" + cid
+
+
 def _format_message(event, reminder) -> str:
     """Telegram Markdown message."""
     emoji = _KIND_EMOJI.get(event.kind, "📌")
     _lg = _lingua(event)
+    caso, link = _caso_di(event)
     lines = [
         f"{emoji} *{_T_PROMEMORIA[_lg]['kujtese']}* ({_fmt_ahead(reminder, _lg)})",
         f"*{_md_escape(event.title)}*",
         f"🗓 {_md_escape(_fmt_when(event))}",
     ]
+    if caso:
+        lines.append(f"📁 {_md_escape(caso)}")
+    if getattr(event, "location", None):
+        lines.append(f"📍 {_md_escape(event.location)}")
     if event.description:
         snippet = event.description.strip().splitlines()[0][:200]
         lines.append(f"\n{_md_escape(snippet)}")
+    if link:
+        lines.append(f"\n{_md_escape(link)}")
     return "\n".join(lines)
 
 
 # ── Telegram channel ──────────────────────────────────────────────────────
 
-def _send_telegram(chat_id: str, text: str) -> str | None:
+def _send_telegram(chat_id: str, text: str, tastiera: dict | None = None) -> str | None:
     if not TELEGRAM_BOT_TOKEN:
         return "TELEGRAM_BOT_TOKEN not set"
     url = f"{TG_API}/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    payload = urllib.parse.urlencode({
+    campi = {
         "chat_id": chat_id,
         "text": text,
         "parse_mode": "Markdown",
         "disable_web_page_preview": "true",
-    }).encode("utf-8")
+    }
+    if tastiera:                                   # v9.424: i pulsanti ✅ sotto l'avviso delle scadenze da confermare
+        campi["reply_markup"] = json.dumps(tastiera)
+    payload = urllib.parse.urlencode(campi).encode("utf-8")
     req = urllib.request.Request(url, data=payload, method="POST")
     try:
         with urllib.request.urlopen(req, timeout=15) as resp:
@@ -227,11 +254,12 @@ def _send_email(to_email: str, event, reminder) -> str | None:
     when = _fmt_when(event)
     title = event.title or _TP["kujtese"]
     kind = _KIND_EMOJI.get(event.kind, "📌")
+    caso, link = _caso_di(event)
     desc = ""
     if event.description:
         snippet = event.description.strip().splitlines()[0][:300]
         desc = f'<p style="color:#555;margin:10px 0 0">{_html_escape(snippet)}</p>'
-    subject = f"⏰ {_TP['kujtese']} ({ahead}): {title}"
+    subject = f"⏰ {_TP['kujtese']} ({ahead}): {title}" + (f" — {caso}" if caso else "")
     html = (
         '<div style="font-family:Georgia,serif;max-width:520px;margin:0 auto;color:#1a1a1a">'
         '<div style="background:#0f2540;color:#f3e6c4;padding:14px 18px;border-radius:12px 12px 0 0">'
@@ -239,8 +267,11 @@ def _send_email(to_email: str, event, reminder) -> str | None:
         '<div style="border:1px solid #e3d3a5;border-top:none;border-radius:0 0 12px 12px;padding:16px 18px">'
         f'<h2 style="margin:0 0 6px;color:#0f2540">{_html_escape(title)}</h2>'
         f'<p style="margin:0;color:#6b5836">🗓 {_html_escape(when)}</p>'
-        f'{desc}'
-        f'<p style="margin:16px 0 0;font-size:12px;color:#999">{_TP["auto"]}</p>'
+        + (f'<p style="margin:6px 0 0;color:#0f2540">📁 {_html_escape(caso)}</p>' if caso else "")
+        + (f'<p style="margin:6px 0 0;color:#6b5836">📍 {_html_escape(event.location)}</p>' if getattr(event, "location", None) else "")
+        + f'{desc}'
+        + (f'<p style="margin:14px 0 0"><a href="{_html_escape(link)}">{_html_escape(link)}</a></p>' if link else "")
+        +         f'<p style="margin:16px 0 0;font-size:12px;color:#999">{_TP["auto"]}</p>'
         '</div></div>'
     )
     payload = json.dumps({
@@ -274,17 +305,21 @@ def _send_email(to_email: str, event, reminder) -> str | None:
 
 # ── channel selection ─────────────────────────────────────────────────────
 
-def avvisa_utente(uid: int, titolo: str, righe: list[str], *, lang: str = "sq", link: str = "") -> list[tuple[str, str | None]]:
+def avvisa_utente(uid: int, titolo: str, righe: list[str], *, lang: str = "sq", link: str = "",
+                  coda: str = "", tastiera: dict | None = None, coda_tastiera: str = "") -> list[tuple[str, str | None]]:
     """v9.415 — un avviso che NON è un promemoria di un evento (lo scadenziario ha trovato scadenze da confermare): stessi canali
-    collegati dell'utente, Telegram ed email. Mai solleva."""
+    collegati dell'utente, Telegram ed email. Mai solleva. v9.424: `coda` = l'ultima riga (email, e Telegram senza pulsanti);
+    su Telegram con `tastiera` l'ultima riga è `coda_tastiera` (i pulsanti ✅ per confermare lì)."""
     esiti: list[tuple[str, str | None]] = []
     try:
         tg_chat = storage.get_user_telegram_chat(uid)
         if tg_chat:
-            testo = "*" + _md_escape(titolo) + "*\n" + "\n".join("• " + _md_escape(r) for r in righe)
+            ultima = (coda_tastiera or coda) if tastiera else coda
+            testo = ("*" + _md_escape(titolo) + "*\n" + "\n".join("• " + _md_escape(r) for r in righe)
+                     + (("\n\n" + _md_escape(ultima)) if ultima else ""))
             if link:
                 testo += "\n\n" + _md_escape(link)
-            esiti.append(("telegram", _send_telegram(tg_chat, testo)))
+            esiti.append(("telegram", _send_telegram(tg_chat, testo, tastiera)))
         email = storage.get_user_reminder_email(uid) if _email_configured() else None
         if email and "@" in email and not email.strip().lower().endswith(".test"):   # account di prova: mai email vere
             corpo = "".join(f'<li style="margin:4px 0">{_html_escape(r)}</li>' for r in righe)
@@ -293,6 +328,7 @@ def avvisa_utente(uid: int, titolo: str, righe: list[str], *, lang: str = "sq", 
                     + _html_escape(titolo) + '</b></div>'
                     '<div style="border:1px solid #e3d3a5;border-top:none;border-radius:0 0 12px 12px;padding:16px 18px">'
                     f'<ul style="padding-left:18px;margin:0">{corpo}</ul>'
+                    + (f'<p style="margin:12px 0 0">{_html_escape(coda)}</p>' if coda else "")
                     + (f'<p style="margin:14px 0 0"><a href="{_html_escape(link)}">{_html_escape(link)}</a></p>' if link else "")
                     + f'<p style="margin:16px 0 0;font-size:12px;color:#999">{_T_PROMEMORIA.get(lang, _T_PROMEMORIA["sq"])["auto"]}</p>'
                     '</div></div>')
@@ -310,6 +346,105 @@ def avvisa_utente(uid: int, titolo: str, righe: list[str], *, lang: str = "sq", 
     except Exception as exc:  # noqa: BLE001
         log.warning("avvisa_utente %s: %s", uid, exc)
     return esiti
+
+
+# v9.425 — IL SOLLECITO delle scadenze non confermate. Una proposta dello scadenziario entra in calendario (e riceve i promemoria)
+# SOLO dopo il clic dell'avvocato: se il clic non arriva, la scadenza passa in silenzio. Una volta sola per proposta (colonna
+# `sollecito_at`, segnata PRIMA dell'invio), in orario d'ufficio locale, su tutti i canali (Telegram coi pulsanti ✅, email):
+#   · una proposta CON data che cade entro 7 giorni (mai una data passata);
+#   · una proposta SENZA data (manca la notifica della sentenza o la data da cui decorre) ferma da 2 giorni — i termini per
+#     impugnare possono già correre.
+ORA_SOLLECITO = (8, 0)
+FINE_SOLLECITO = (20, 0)
+GIORNI_SOLLECITO = 7
+
+
+def _scelte_sollecito(proposte: list[dict], oggi: str, fino: str, due_giorni_fa: str) -> list[dict]:
+    out = []
+    for p in proposte:
+        if p.get("data") and p.get("tipo") != "innesco":
+            if oggi <= p["data"] <= fino:
+                out.append(p)
+        elif (p.get("created_at") or "") < due_giorni_fa:
+            # senza data, o termini di legge mai calcolati (la data di un «innesco» è quella dell'atto, sempre passata:
+            # proprio lì i termini per impugnare possono già correre)
+            out.append(p)
+    return out
+
+
+def _riga_sollecito(p: dict, oggi: str, it: bool) -> str:
+    from datetime import date as _d
+    if p.get("data") and p.get("tipo") != "innesco":
+        gg = (_d.fromisoformat(p["data"]) - _d.fromisoformat(oggi)).days
+        quando = (("OGGI" if gg == 0 else "domani" if gg == 1 else f"fra {gg} giorni") if it else
+                  ("SOT" if gg == 0 else "nesër" if gg == 1 else f"pas {gg} ditësh"))
+        d = "/".join(reversed(p["data"].split("-")))
+        return (f"{d}{(' ' + p['ora']) if p.get('ora') else ''} · {p['titolo']} — {quando}"
+                + ("" if p.get("verificato") else (" (da verificare)" if it else " (për t'u verifikuar)")))
+    if p.get("tipo") == "innesco":
+        if p.get("data"):
+            return p["titolo"] + ((" — termini di legge non ancora calcolati: potrebbero già decorrere" if it else
+                                   " — afatet ligjore ende pa u llogaritur: mund të kenë nisur tashmë"))
+        return p["titolo"] + ((" — manca la data di notifica: i termini per impugnare potrebbero già decorrere" if it else
+                               " — mungon data e njoftimit: afatet e ankimit mund të kenë nisur tashmë"))
+    return p["titolo"] + (" — manca la data da cui decorre il termine" if it else " — mungon data nga e cila nis afati")
+
+
+def sollecita_scadenze(adesso: datetime | None = None) -> int:
+    """Chiamato dal ciclo dei promemoria (ogni minuto). Restituisce a quanti avvocati è partito un sollecito."""
+    from datetime import timedelta
+    from . import telegram_bot as _tg
+    adesso = adesso or datetime.now(UTC)
+    z = lambda d: d.strftime("%Y-%m-%dT%H:%M:%SZ")
+    gruppi: dict = {}
+    for p in storage.proposte_da_sollecitare(z(adesso - timedelta(days=1))):
+        gruppi.setdefault((p["user_id"], (p.get("jurisdiction") or "AL").upper()), []).append(p)
+    inviati = 0
+    for (uid, giur), lista in gruppi.items():
+        try:
+            loc = adesso.astimezone(storage.fuso_di(giur))
+            if not (ORA_SOLLECITO <= (loc.hour, loc.minute) < FINE_SOLLECITO):
+                continue
+            oggi = loc.strftime("%Y-%m-%d")
+            scelte = _scelte_sollecito(lista, oggi, (loc + timedelta(days=GIORNI_SOLLECITO)).strftime("%Y-%m-%d"),
+                                       z(adesso - timedelta(days=2)))
+            if not scelte:
+                continue
+            ut = storage.get_user_by_id(uid)
+            scad = [getattr(ut, "plan_expires_at", None), getattr(ut, "demo_expires_at", None)] if ut else []
+            if ut is None or getattr(ut, "suspended", False) or any(x and x < z(adesso) for x in scad):
+                continue                                  # account sospeso o scaduto: nessun avviso (e resta da fare)
+            storage.segna_sollecito([p["id"] for p in scelte], z(adesso))     # PRIMA dell'invio: mai due volte
+            it = giur == "IT"
+            titoli: dict = {}
+            with storage.db() as conn:
+                for cid in {p["case_id"] for p in scelte}:
+                    r = conn.execute("SELECT title FROM cases WHERE id = ?", (cid,)).fetchone()
+                    titoli[cid] = ((r["title"] if r else "") or "—").strip()[:60]
+            righe = []
+            for cid in dict.fromkeys(p["case_id"] for p in scelte):
+                for p in [q for q in scelte if q["case_id"] == cid][:6]:
+                    righe.append(f"«{titoli[cid]}»: " + _riga_sollecito(p, oggi, it))
+            n = len(scelte)
+            tit = ((f"⚠️ {n} scadenz{'a' if n == 1 else 'e'} dai documenti NON ancora in calendario") if it else
+                   (f"⚠️ {n} afat{'' if n == 1 else 'e'} nga dokumentet ENDE jo në kalendar"))
+            coda = ("Finché non le confermi non ricevi i promemoria: aprile nel fascicolo su Super Avokati." if it else
+                    "Derisa t'i konfirmosh nuk merr kujtesat: hapi në dosje te Super Avokati.")
+            tastiera = _tg.tastiera_proposte(scelte, "it" if it else "sq", oggi) if _tg.attivo() else None
+            coda_t = ("Conferma qui sotto con ✅ quelle verificate (🗑 per scartare); le altre nel fascicolo. Finché non le "
+                      "confermi non ricevi i promemoria." if it else
+                      "Konfirmo më poshtë me ✅ ato të verifikuara (🗑 për t'i hedhur poshtë); të tjerat në dosje. Derisa t'i "
+                      "konfirmosh nuk merr kujtesat.")
+            _casi_s = list(dict.fromkeys(p["case_id"] for p in scelte))
+            link = "https://superavokati.ai/s" + (("/" + _casi_s[0]) if len(_casi_s) == 1 else "")   # v9.426: dritto al cliente
+            esiti = avvisa_utente(uid, tit, righe, lang="it" if it else "sq", link=link,
+                                  coda=coda, tastiera=tastiera, coda_tastiera=coda_t)
+            if any(e is None for _c, e in esiti):
+                inviati += 1
+            log.info("sollecito scadenze non confermate: utente %s, %d proposte → %s", uid, n, [(c, e is None) for c, e in esiti])
+        except Exception as exc:  # noqa: BLE001
+            log.warning("sollecito %s: %s", uid, exc)
+    return inviati
 
 
 def _consegna(uid: int, event, reminder, *, da_chi: str = "") -> list[tuple[str, str | None]]:
@@ -401,6 +536,10 @@ def _loop() -> None:
             _tg.briefing_tick()
         except Exception as exc:  # noqa: BLE001
             log.warning("briefing tick: %s", exc)
+        try:                                    # v9.425: il sollecito delle scadenze dai documenti non ancora confermate
+            sollecita_scadenze()
+        except Exception as exc:  # noqa: BLE001
+            log.warning("sollecito tick: %s", exc)
         _stop.wait(POLL_SECONDS)
     log.info("reminder scheduler stopped")
 

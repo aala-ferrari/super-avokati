@@ -1,0 +1,26 @@
+{
+ "id": "it_verbale_udienza",
+ "lang": "it",
+ "jurisdiction": "IT",
+ "oggi": "2026-10-01",
+ "testo": "TRIBUNALE DI ROMA — SEZIONE LAVORO\nVerbale dell'udienza del 24 settembre 2026 — causa n. 4410/2026 R.G.\nRossi Mario c/ Alfa Logistica S.p.A.\n\nSono comparsi l'avv. Giulia Neri per il ricorrente e l'avv. Paolo Conti per la resistente.\nIl Giudice, sentite le parti, ammette la prova per testi articolata dal ricorrente ai capitoli 1-6 e fissa per l'escussione dei testi l'udienza del 21 gennaio 2027 ore 9:30.\nAssegna alle parti termine fino al 10 dicembre 2026 per il deposito di note illustrative.\nIl ricorrente dovrà intimare i testi almeno 7 giorni prima dell'udienza.\nIl Giudice — dott. Marco Sala",
+ "attese": [
+  {
+   "data": "2027-01-21",
+   "ora": "09:30"
+  },
+  {
+   "data": "2026-12-10"
+  }
+ ],
+ "termini_attesi": [
+  {
+   "durata": 7,
+   "unita": "giorni",
+   "data": "2027-01-14"
+  }
+ ],
+ "vietate": [
+  "2027-01-28"
+ ]
+}

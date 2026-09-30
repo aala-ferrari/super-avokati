@@ -62,11 +62,22 @@ from .config import AUDIO_EXTENSIONS, MAX_AUDIO_SIZE_MB  # noqa: E402
 # the PDF is a scanned image and attempt OCR page by page.
 SCANNED_PDF_THRESHOLD = 200
 
-# Hard cap on vision OCR — we don't want to spend 40 API calls on a 200-page
-# PDF. For longer scans, the first N pages usually contain the operative
-# part (cover, parties, dispositif); the lawyer can still upload the rest
-# as separate files.
-MAX_OCR_PAGES = 10
+# Tetto dell'OCR per PDF (una chiamata di visione per pagina, in sottofondo). v9.427: era 10 — ma l'avvocato carica il
+# FASCICOLO del cliente, spesso scansionato e lungo, e gli atti più recenti (l'ultima ordinanza, la relata di notifica)
+# stanno di solito IN FONDO: con 10 pagine sparivano proprio loro, e lo scadenziario non li vedeva. Oltre il tetto il
+# documento DICE quali pagine non sono state lette. `OCR_MAX_PAGES` nell'env.
+import os as _os  # noqa: E402
+MAX_OCR_PAGES = max(1, int(_os.environ.get("OCR_MAX_PAGES", "60") or 60))
+# Una pagina con meno di tanti caratteri di testo e con un'immagine è una pagina SCANSIONATA dentro un PDF misto.
+PAGINA_SENZA_TESTO = 40
+
+
+def _lingua_sessione() -> str:
+    try:
+        from .brain import request_jurisdiction
+        return "it" if str(request_jurisdiction()).upper() == "IT" else "sq"
+    except Exception:  # noqa: BLE001
+        return "sq"
 
 
 @dataclass(frozen=True)
@@ -242,29 +253,56 @@ def extract_text(
 
 
 def _extract_pdf(path: Path, backend) -> tuple[str, bool]:
-    """Try pdfplumber's text layer; fall back to vision OCR if it's too sparse."""
+    """Il testo del PDF PAGINA PER PAGINA: lo strato di testo dove c'è; l'OCR sulle pagine scansionate — anche in un PDF MISTO
+    (v9.427: prima, se le pagine digitali avevano abbastanza testo, quelle scansionate non si leggevano mai), fino a
+    MAX_OCR_PAGES, al loro posto nell'ordine del documento."""
     import pdfplumber  # lazy import — pdfplumber is heavy to load
 
-    text_chunks: list[str] = []
+    pagine: list[str] = []
+    immagini: list[bool] = []
     try:
         with pdfplumber.open(path) as pdf:
             for page in pdf.pages:
-                t = (page.extract_text() or "").strip()
-                if t:
-                    text_chunks.append(t)
+                pagine.append((page.extract_text() or "").strip())
+                try:
+                    immagini.append(bool(page.images))
+                except Exception:  # noqa: BLE001
+                    immagini.append(True)
     except Exception as exc:
         log.warning("pdfplumber failed on %s (%s) — trying OCR", path.name, exc)
-        text_chunks = []
+        pagine, immagini = [], []
 
-    joined = "\n\n".join(text_chunks).strip()
-    if len(joined) >= SCANNED_PDF_THRESHOLD:
-        return joined, False
+    joined = "\n\n".join(t for t in pagine if t).strip()
+    if pagine and len(joined) >= SCANNED_PDF_THRESHOLD:
+        da_ocr = [i for i, t in enumerate(pagine) if len(t) < PAGINA_SENZA_TESTO and immagini[i]]
+        if not da_ocr or backend is None:
+            return joined, False
+        log.info("PDF %s misto: %d pagine scansionate su %d — OCR", path.name, len(da_ocr), len(pagine))
+        try:
+            letti, saltate = _vision_ocr_pdf_pages(path, backend, da_ocr)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("OCR delle pagine scansionate fallito su %s (%s): tengo il testo delle altre", path.name, exc)
+            return joined + _nota_pagine_non_lette([i + 1 for i in da_ocr], len(pagine)), False
+        it = _lingua_sessione() == "it"
+        parti = []
+        for i, t in enumerate(pagine):
+            if i in letti:
+                parti.append(f"── {'Pagina' if it else 'Faqja'} {i + 1}/{len(pagine)} (OCR) ──\n{letti[i].strip()}")
+            elif t:
+                parti.append(t)
+        return "\n\n".join(parti).strip() + _nota_pagine_non_lette([i + 1 for i in saltate], len(pagine)), True
 
     # Text layer too thin — likely a scan. Rasterize each page and OCR it.
-    log.info("PDF %s looks scanned (%d chars) — running vision OCR",
-             path.name, len(joined))
+    log.info("PDF %s looks scanned (%d chars) — running vision OCR", path.name, len(joined))
     try:
-        return _vision_ocr_pdf_pages(path, backend), True
+        if backend is None:
+            raise RuntimeError("no backend available for vision OCR")
+        with pdfplumber.open(path) as pdf:
+            totale = len(pdf.pages)
+        letti, saltate = _vision_ocr_pdf_pages(path, backend, list(range(totale)))
+        it = _lingua_sessione() == "it"
+        testo = "\n\n".join(f"── {'Pagina' if it else 'Faqja'} {i + 1}/{totale} ──\n{letti[i].strip()}" for i in sorted(letti))
+        return testo + _nota_pagine_non_lette([i + 1 for i in saltate], totale), True
     except Exception as exc:
         # If pdfplumber already pulled *some* text, keep it rather than
         # erroring — partial content is better than none.
@@ -278,6 +316,30 @@ def _extract_pdf(path: Path, backend) -> tuple[str, bool]:
         raise RuntimeError(
             f"PDF i skanuar dhe OCR nuk funksionoi: {exc}"
         ) from exc
+
+
+def _intervalli(numeri: list[int]) -> str:
+    """[3, 4, 5, 9] → «3–5, 9»."""
+    out, i = [], 0
+    while i < len(numeri):
+        j = i
+        while j + 1 < len(numeri) and numeri[j + 1] == numeri[j] + 1:
+            j += 1
+        out.append(str(numeri[i]) if i == j else f"{numeri[i]}–{numeri[j]}")
+        i = j + 1
+    return ", ".join(out)
+
+
+def _nota_pagine_non_lette(numeri: list[int], totale: int) -> str:
+    """Le pagine rimaste fuori dall'OCR, DETTE nel testo del documento: lo leggono l'avvocato, il riassunto e lo scadenziario
+    (un termine su una pagina non letta non esiste per nessuno)."""
+    if not numeri:
+        return ""
+    if _lingua_sessione() == "it":
+        return (f"\n\n[⚠ PAGINE NON LETTE: {_intervalli(numeri)} su {totale} (scansionate, oltre il limite di {MAX_OCR_PAGES} "
+                f"pagine lette in automatico). Se contengono atti o termini, carica quelle pagine come documento a parte.]")
+    return (f"\n\n[⚠ FAQE TË PALEXUARA: {_intervalli(numeri)} nga {totale} (të skanuara, përtej kufirit prej {MAX_OCR_PAGES} "
+            f"faqesh që lexohen automatikisht). Nëse kanë akte ose afate, ngarko ato faqe si dokument më vete.]")
 
 
 def _extract_svg(path: Path) -> str:
@@ -308,6 +370,15 @@ VISION_PROMPT = (
     "përmbledhje apo shpjegim. Nëse ka vula, nënshkrime ose stampa, "
     "shënoji në kllapa katrore (p.sh. [VULA: Gjykata e Rrethit Tiranë]). "
     "Nëse imazhi është i paqartë ose bosh, kthe vetëm '[IMAZH I PAQARTË]'."
+)
+# v9.427: in sessione italiana i segni (timbri, firme, pagina illeggibile) nella lingua della sessione; il testo si trascrive
+# sempre com'è, nella sua lingua. Nessun nome concreto nell'esempio: il modello copia gli esempi.
+VISION_PROMPT_IT = (
+    "Sei un OCR professionale per documenti legali. "
+    "Restituisci SOLO il testo completo visibile nell'immagine, trascritto nella sua lingua originale, conservando "
+    "l'ordine delle righe e i paragrafi. Nessun commento, riassunto o spiegazione. Timbri, firme e sigilli vanno "
+    "indicati fra parentesi quadre (per esempio [TIMBRO: <testo del timbro>], [FIRMA]). "
+    "Se l'immagine è illeggibile o vuota, restituisci solo '[IMMAGINE ILLEGGIBILE]'."
 )
 
 
@@ -349,37 +420,31 @@ def _vision_ocr_image(path: Path, mimetype: str, backend) -> str:
         raise RuntimeError(
             "Asnjë backend LLM nuk është i disponueshëm për OCR."
         )
-    return backend.ocr_image(path, mimetype, VISION_PROMPT)
+    return backend.ocr_image(path, mimetype, VISION_PROMPT_IT if _lingua_sessione() == "it" else VISION_PROMPT)
 
 
-def _vision_ocr_pdf_pages(path: Path, backend) -> str:
-    """Render each page to a temp PNG on disk and OCR it via the backend."""
+def _vision_ocr_pdf_pages(path: Path, backend, indici: list[int]) -> tuple[dict[int, str], list[int]]:
+    """OCR delle pagine `indici` (da 0), al massimo MAX_OCR_PAGES: ({indice: testo}, [indici rimasti fuori]). Le immagini
+    delle pagine vanno in una cartella accanto al PDF (il backend CLI le legge con --add-dir) e si cancellano."""
     import pdfplumber
 
     if backend is None:
         raise RuntimeError("no backend available for vision OCR")
-
-    # Write page images to a temp dir inside the PDF's parent so every
-    # backend (including Claude Code CLI with --add-dir) can read them.
+    scelti, saltati = indici[:MAX_OCR_PAGES], indici[MAX_OCR_PAGES:]
+    prompt = VISION_PROMPT_IT if _lingua_sessione() == "it" else VISION_PROMPT
     tmp_dir = Path(tempfile.mkdtemp(prefix="ocr_", dir=str(path.parent)))
-    pages_text: list[str] = []
+    letti: dict[int, str] = {}
     try:
         with pdfplumber.open(path) as pdf:
-            total = len(pdf.pages)
-            for i, page in enumerate(pdf.pages[:MAX_OCR_PAGES], start=1):
-                img = page.to_image(resolution=150)
-                page_path = tmp_dir / f"page_{i}.png"
+            for i in scelti:
+                img = pdf.pages[i].to_image(resolution=150)
+                page_path = tmp_dir / f"page_{i + 1}.png"
                 img.save(str(page_path), format="PNG")
-                page_text = backend.ocr_image(
-                    page_path, "image/png", VISION_PROMPT,
-                )
-                pages_text.append(f"── Faqja {i}/{total} ──\n{page_text.strip()}")
-        if total > MAX_OCR_PAGES:
-            pages_text.append(
-                f"\n(Vetëm {MAX_OCR_PAGES} faqet e para u skanuan "
-                f"automatikisht — totali: {total}. Ngarko faqet e mbetura "
-                f"veçmas nëse janë të nevojshme.)"
-            )
+                letti[i] = backend.ocr_image(page_path, "image/png", prompt) or ""
+                try:
+                    page_path.unlink()
+                except OSError:
+                    pass
     finally:
         # Best-effort cleanup; missing files are fine.
         for f in tmp_dir.glob("*"):
@@ -387,7 +452,7 @@ def _vision_ocr_pdf_pages(path: Path, backend) -> str:
             except OSError: pass
         try: tmp_dir.rmdir()
         except OSError: pass
-    return "\n\n".join(pages_text)
+    return letti, saltati
 
 
 # ── AI analysis (classify + summarize + extract facts) ────────────────────

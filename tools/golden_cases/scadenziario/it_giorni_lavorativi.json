@@ -1,0 +1,16 @@
+{
+ "id": "it_giorni_lavorativi",
+ "lang": "it",
+ "jurisdiction": "IT",
+ "oggi": "2026-10-01",
+ "testo": "AVV. STEFANO GALLI — Studio Legale\nSpett.le Rossi Impianti S.r.l.\nOggetto: diffida ad adempiere.\nIn nome e per conto della mia assistita, Vi invito a restituire i macchinari concessi in comodato entro 10 giorni lavorativi dal ricevimento della presente, avvertendoVi che in difetto si procederà in via giudiziale.\nLa presente è stata consegnata a mezzo PEC il 28/09/2026.",
+ "attese": [],
+ "termini_attesi": [
+  {
+   "durata": 10,
+   "unita": "giorni_lavorativi",
+   "data": "2026-10-12"
+  }
+ ],
+ "vietate": []
+}

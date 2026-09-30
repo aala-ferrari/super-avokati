@@ -42,7 +42,10 @@
         passwordEl.focus();
         return;
       }
-      window.location.href = "/";
+      // v9.426: dal link di un avviso («/s/<fascicolo>») si torna lì dopo il login — solo quel percorso, mai altri indirizzi
+      var nxt = "";
+      try { nxt = new URLSearchParams(window.location.search).get("next") || ""; } catch (e2) {}
+      window.location.href = /^\/s(\/[0-9a-f-]{8,64})?$/.test(nxt) ? nxt : "/";
     } catch (err) {
       errEl.textContent = "⚠️ Gabim rrjeti: " + err.message;
       errEl.hidden = false;

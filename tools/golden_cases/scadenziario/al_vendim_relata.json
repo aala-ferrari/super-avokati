@@ -1,0 +1,17 @@
+{
+ "id": "al_vendim_relata",
+ "lang": "sq",
+ "jurisdiction": "AL",
+ "oggi": "2026-10-01",
+ "testo": "GJYKATA E SHKALLËS SË PARË E JURIDIKSIONIT TË PËRGJITHSHËM DURRËS\nVENDIM\nNr. 1203, datë 10.09.2026\n\nGjykata, pasi shqyrtoi kërkesëpadinë e paditësit Ilir Shehu kundër të paditurës shoqëria \"Adria Build\" sh.p.k., me objekt shpërblimin e dëmit,\n\nV E N D O S I:\n1. Pranimin pjesërisht të kërkesëpadisë.\n2. Detyrimin e të paditurës t'i paguajë paditësit shumën 640.000 lekë.\n3. Shpenzimet gjyqësore në ngarkim të palës së paditur.\n\nKundër këtij vendimi mund të bëhet ankim në Gjykatën e Apelit Durrës brenda 15 ditëve nga e nesërmja e njoftimit.\n\nGjyqtar: Mirela Duka\n\n---\nFLETË NJOFTIMI\nSot më datë 18.09.2026 iu dorëzua vendimi nr. 1203, datë 10.09.2026 av. Arben Kola, mbrojtës i të paditurës.\nMarrësi: A. Kola (firma)",
+ "attese": [],
+ "inneschi_attesi": [
+  {
+   "trigger": "vendim_civil",
+   "data": "2026-09-18"
+  }
+ ],
+ "vietate": [
+  "2026-09-25"
+ ]
+}

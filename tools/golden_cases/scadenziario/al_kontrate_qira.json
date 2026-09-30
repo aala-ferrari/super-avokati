@@ -1,0 +1,20 @@
+{
+ "id": "al_kontrate_qira",
+ "lang": "sq",
+ "jurisdiction": "AL",
+ "oggi": "2026-10-01",
+ "testo": "KONTRATË QIRAJE\nLidhur sot më 01.03.2025 në Tiranë ndërmjet qiradhënësit Petrit Gjoka dhe qiramarrësit shoqëria \"Luma Consulting\" sh.p.k.\n\nNeni 3 — Kohëzgjatja\nKontrata lidhet për një afat deri më 31.12.2026. Nëse asnjëra palë nuk e njofton tjetrën me shkrim për mosrinovimin të paktën 60 ditë para përfundimit të afatit, kontrata rinovohet automatikisht për një vit.\n\nNeni 5 — Qiraja\nQiraja mujore prej 120.000 lekësh paguhet deri më datë 5 të çdo muaji.\n\nQiradhënësi                                Qiramarrësi",
+ "attese": [
+  {
+   "data": "2026-12-31"
+  }
+ ],
+ "termini_attesi": [
+  {
+   "durata": 60,
+   "unita": "dite",
+   "data": "2026-10-30"
+  }
+ ],
+ "vietate": []
+}

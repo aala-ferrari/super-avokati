@@ -73,9 +73,10 @@ def link_collegamento(user_id: int) -> str:
     return f"https://t.me/{bot}?start={storage.crea_token_telegram(user_id)}"
 
 
-def invia(chat_id: str, testo: str) -> bool:
+def invia(chat_id: str, testo: str, tastiera: dict | None = None) -> bool:
     try:
-        return bool(_api("sendMessage", chat_id=chat_id, text=testo, disable_web_page_preview="true").get("ok"))
+        extra = {"reply_markup": tastiera} if tastiera else {}
+        return bool(_api("sendMessage", chat_id=chat_id, text=testo, disable_web_page_preview="true", **extra).get("ok"))
     except Exception as exc:  # noqa: BLE001
         log.warning("telegram sendMessage: %s", exc)
         return False
@@ -194,7 +195,9 @@ def briefing_testo(uid: int, lang: str, adesso=None) -> str:
     di_oggi = [e for e in eventi if giorno_di(e) == d0]
     di_domani = [e for e in eventi if giorno_di(e) == d1]
     prossime = [e for e in eventi if giorno_di(e) > d1 and e.kind in ("afat", "dorëzim")]
-    n_conf = len(storage.lista_scadenze_proposte(user_id=uid, stati=("proposta",)))
+    pendenti = [p for p in storage.lista_scadenze_proposte(user_id=uid, stati=("proposta",)) if not _passata(p, d0)]
+    n_conf = len(pendenti)
+    vicine = _pendenti_vicine(pendenti, d0, (oggi0 + timedelta(days=7)).strftime("%Y-%m-%d"))
     if not (di_oggi or di_domani or prossime or n_conf):
         return ""
     parti = ["☀️ " + ("Buongiorno. " if it else "Mirëmëngjes. ") + (ora.strftime("%d/%m/%Y"))]
@@ -207,11 +210,46 @@ def briefing_testo(uid: int, lang: str, adesso=None) -> str:
     if prossime:
         parti.append(("SCADENZE ENTRO 3 GIORNI:" if it else "AFATE BRENDA 3 DITËVE:") + "\n" + "\n".join(
             storage.ora_locale(e.starts_at, storage.giurisdizione_evento(e), "%d/%m") + " · " + riga(e) for e in prossime[:10]))
-    if n_conf:
-        parti.append((f"🟡 {n_conf} scadenz{'a' if n_conf == 1 else 'e'} dai documenti da confermare: /scadenze" if it else
-                      f"🟡 {n_conf} afat{'' if n_conf == 1 else 'e'} nga dokumentet për t'u konfirmuar: /afatet"))
+    if vicine:                                        # v9.425: per nome, perché NON sono in calendario e non avranno promemoria
+        tc = _titoli_casi(p["case_id"] for p in vicine)
+        righe_v = []
+        for p in vicine[:8]:
+            d = ("/".join(reversed(p["data"].split("-")))[:5] if p.get("data") and p.get("tipo") != "innesco"
+                 else ("termini da calcolare" if it and p.get("tipo") == "innesco" else "afate për t'u llogaritur"
+                       if p.get("tipo") == "innesco" else ("senza data" if it else "pa datë")))
+            righe_v.append(f"⚠️ {d} · {p['titolo'][:90]}" + (f" — «{tc.get(p['case_id'], '')}»" if tc.get(p["case_id"]) else ""))
+        parti.append(("NON ANCORA IN CALENDARIO (dai documenti, da confermare):" if it else
+                      "ENDE JO NË KALENDAR (nga dokumentet, për t'u konfirmuar):") + "\n" + "\n".join(righe_v))
+    if n_conf > len(vicine[:8]):
+        altre = n_conf - len(vicine[:8])
+        parti.append((f"🟡 {'altre ' if vicine else ''}{altre} scadenz{'a' if altre == 1 else 'e'} dai documenti da confermare: /scadenze"
+                      if it else
+                      f"🟡 {'edhe ' if vicine else ''}{altre} afat{'' if altre == 1 else 'e'} nga dokumentet për t'u konfirmuar: /afatet"))
     parti.append("Per non ricevere più questo messaggio: /briefing" if it else "Për të mos e marrë më këtë mesazh: /briefing")
     return "\n\n".join(parti)
+
+
+def _pendenti_vicine(pendenti: list, oggi: str, fino: str) -> list:
+    """Le proposte da confermare che contano stamattina: con la data entro 7 giorni, o senza data (manca la notifica / la data
+    da cui decorre il termine: i termini possono già correre)."""
+    return [p for p in pendenti if (p.get("data") and p.get("tipo") != "innesco" and oggi <= p["data"] <= fino)
+            or not p.get("data") or p.get("tipo") == "innesco"]
+
+
+def _passata(p: dict, oggi: str) -> bool:
+    """v9.428: una data del documento già passata = storia del fascicolo (un'udienza già tenuta). MAI un «innesco»: la sua data
+    è quella dell'atto, e i termini che fa partire possono essere ancora aperti."""
+    return bool(p.get("data")) and p.get("tipo") != "innesco" and p["data"] < oggi
+
+
+def briefing_tastiera(uid: int, lang: str, adesso=None) -> dict | None:
+    from datetime import datetime, timedelta, timezone
+    from . import storage
+    loc = (adesso or datetime.now(timezone.utc)).astimezone(storage.fuso_di("IT" if lang == "it" else "AL"))
+    oggi = loc.strftime("%Y-%m-%d")
+    vicine = _pendenti_vicine(storage.lista_scadenze_proposte(user_id=uid, stati=("proposta",)), oggi,
+                              (loc + timedelta(days=7)).strftime("%Y-%m-%d"))
+    return tastiera_proposte(vicine, lang, oggi)
 
 
 def briefing_tick(adesso=None) -> int:
@@ -236,7 +274,7 @@ def briefing_tick(adesso=None) -> int:
                 continue
             testo = briefing_testo(u["id"], lang, adesso)
             storage.segna_briefing(u["id"], giorno)          # PRIMA dell'invio: un errore di rete non lo fa ripetere ogni minuto
-            if testo and invia(u["chat"], testo):
+            if testo and invia(u["chat"], testo, briefing_tastiera(u["id"], lang, adesso)):
                 inviati += 1
         except Exception as exc:  # noqa: BLE001
             log.warning("briefing %s: %s", u.get("id"), exc)
@@ -248,9 +286,14 @@ def briefing_tick(adesso=None) -> int:
 def da_confermare(uid: int, lang: str) -> str:
     from . import storage
     it = lang == "it"
-    pr = storage.lista_scadenze_proposte(user_id=uid, stati=("proposta",))
+    from datetime import date as _d
+    tutte = storage.lista_scadenze_proposte(user_id=uid, stati=("proposta",))
+    pr = [p for p in tutte if not _passata(p, _d.today().isoformat())]     # v9.428: le date passate sono storia
+    n_pass = len(tutte) - len(pr)
+    coda_pass = ((f"\n\n({n_pass} date già passate dei documenti: nel fascicolo, fra la storia)" if it else
+                  f"\n\n({n_pass} data të kaluara nga dokumentet: në dosje, te historia)") if n_pass else "")
     if not pr:
-        return ("Nessuna scadenza da confermare." if it else "Asnjë afat për t'u konfirmuar.")
+        return ("Nessuna scadenza da confermare." if it else "Asnjë afat për t'u konfirmuar.") + coda_pass
     titoli = _titoli_casi(p["case_id"] for p in pr)
     per_caso: dict = {}
     for p in pr:
@@ -261,8 +304,105 @@ def da_confermare(uid: int, lang: str) -> str:
         for p in lista[:6]:
             d = "/".join(reversed(p["data"].split("-"))) if p.get("data") else ("senza data" if it else "pa datë")
             righe.append(f"  {_ICONA.get(p['kind'], '📌')} {d} · {p['titolo'][:90]}" + ("" if p.get("verificato") else " ⚠️"))
-    return ((f"🟡 Da confermare ({len(pr)}) — aprili nel fascicolo su superavokati.ai:" if it else
-             f"🟡 Për t'u konfirmuar ({len(pr)}) — hapi në dosje te superavokati.ai:") + "\n".join(righe))
+    return ((f"🟡 Da confermare ({len(pr)}) — ✅ qui sotto quelle verificate, le altre (⚠️ o senza data) nel fascicolo su superavokati.ai:"
+             if it else
+             f"🟡 Për t'u konfirmuar ({len(pr)}) — ✅ më poshtë ato të verifikuara, të tjerat (⚠️ ose pa datë) në dosje te superavokati.ai:")
+            + "\n".join(righe) + coda_pass)
+
+
+# v9.424 — CONFERMARE UNA SCADENZA DA TELEGRAM (il titolare aveva scelto «conferma con un clic»: ora il clic si fa anche lì,
+# sotto l'avviso «📅 N scadenze da confermare» e sotto /scadenze). Un pulsante SOLO per le proposte che il codice ha VERIFICATO sul
+# documento (frase e data ritrovate), con una data non passata e senza calcoli da fare: quelle «da verificare», senza data o che
+# aspettano la data di notifica si guardano nel portale, dove si vede la frase del documento. La conferma è la stessa del portale
+# (`web.conferma_proposta`): evento in calendario con gli avvisi 7/3/1 giorni prima, anche ai colleghi del fascicolo.
+MAX_PULSANTI = 8
+
+
+def confermabile(p: dict, oggi: str | None = None) -> bool:
+    from datetime import date as _d
+    oggi = oggi or _d.today().isoformat()
+    return (p.get("stato") == "proposta" and p.get("tipo") != "innesco" and bool(p.get("verificato"))
+            and bool(p.get("data")) and p["data"] >= oggi and bool(p.get("id")))
+
+
+def tastiera_proposte(proposte: list, lang: str, oggi: str | None = None) -> dict | None:
+    """Una riga per proposta confermabile: [✅ 20/10 09:30 · titolo] [🗑]. None se nessuna (niente pulsanti vuoti)."""
+    it = lang == "it"
+    righe = []
+    for p in proposte:
+        if not confermabile(p, oggi):
+            continue
+        d = "/".join(reversed(p["data"].split("-")))[:5]
+        etichetta = f"✅ {d}{(' ' + p['ora']) if p.get('ora') else ''} · {p['titolo']}"
+        righe.append([{"text": etichetta[:60], "callback_data": "s:ok:" + p["id"]},
+                      {"text": "🗑", "callback_data": "s:no:" + p["id"]}])
+        if len(righe) >= MAX_PULSANTI:
+            break
+    return {"inline_keyboard": righe} if righe else None
+
+
+def _conferma_da_telegram(chat_id: str, msg: dict, dati: str, uid: int | None) -> None:
+    """Il clic su ✅ / 🗑 di una proposta: SOLO la proposta dell'avvocato di questa chat, e SOLO se il fascicolo è ancora suo."""
+    from . import storage, brain as _brain, secretary as _sec, web as _web
+    _p, scelta, pid = (dati.split(":", 2) + ["", ""])[:3]
+    p = storage.get_scadenza_proposta(pid) if pid else None
+    it = ((p or {}).get("jurisdiction") or ("IT" if _lingua_utente(uid) == "it" else "AL")) == "IT"
+    if not uid or not p or p.get("user_id") != uid:
+        invia(chat_id, "Scadenza non trovata." if it else "Afati nuk u gjet.")
+        return
+    try:
+        _brain.set_request_user(uid)
+        _brain.set_request_jurisdiction("IT" if it else "AL")
+    except Exception:  # noqa: BLE001
+        pass
+    if not _sec._caso_valido(uid, p["case_id"]):
+        invia(chat_id, "Fascicolo non trovato." if it else "Dosja nuk u gjet.")
+        return
+    _togli_pulsante(chat_id, msg, pid)
+    if p["stato"] == "confermata":
+        invia(chat_id, "È già in calendario." if it else "Është tashmë në kalendar.")
+        return
+    if p["stato"] != "proposta":
+        invia(chat_id, "Questa proposta non è più aperta: guardala nel portale." if it else
+              "Ky propozim nuk është më i hapur: shikoje në portal.")
+        return
+    if scelta == "no":
+        storage.aggiorna_scadenza_proposta(pid, stato="scartata")
+        invia(chat_id, f"🗑 Scartata: «{p['titolo'][:90]}»." if it else f"🗑 U hodh poshtë: «{p['titolo'][:90]}».")
+        return
+    if not confermabile(p):
+        invia(chat_id, "Questa va controllata nel portale (data da verificare o passata)." if it else
+              "Kjo duhet kontrolluar në portal (data për t'u verifikuar ose e kaluar).")
+        return
+    r = _web.conferma_proposta(p, uid, {})
+    if r.get("errore"):
+        invia(chat_id, ("Non confermata: " + r["errore"][1]) if it else ("Nuk u konfirmua: " + r["errore"][0]))
+        return
+    d = "/".join(reversed((r.get("data") or "").split("-")))
+    n_coll = storage.conta_colleghi_del_fascicolo(p["case_id"], uid)
+    av = [int(m) for m in (r.get("avvisi") or [])]
+    giorni = ", ".join(str(m // 1440) for m in av if m > 0 and m % 1440 == 0)
+    stesso = (" e il giorno stesso" if it else " dhe ditën e afatit") if 0 in av else (
+        (" e 2 ore prima" if it else " dhe 2 orë para") if 120 in av else "")
+    invia(chat_id, ((f"✅ In calendario: «{r.get('titolo') or p['titolo']}» — {d}{(' ' + r['ora']) if r.get('ora') else ''}."
+                     + (f" Ti avviso {giorni} giorni prima{stesso}." if giorni else "")
+                     + (f" Avvisati anche {n_coll} colleghi del fascicolo." if n_coll else "")) if it else
+                    (f"✅ Në kalendar: «{r.get('titolo') or p['titolo']}» — {d}{(' ' + r['ora']) if r.get('ora') else ''}."
+                     + (f" Të njoftoj {giorni} ditë përpara{stesso}." if giorni else "")
+                     + (f" Njoftohen edhe {n_coll} kolegë të dosjes." if n_coll else ""))))
+    log.info("telegram: scadenza %s confermata da %s", pid[:8], uid)
+
+
+def _togli_pulsante(chat_id: str, msg: dict, pid: str) -> None:
+    """Toglie dalla tastiera del messaggio la riga di QUESTA proposta (le altre restano cliccabili)."""
+    try:
+        righe = ((msg.get("reply_markup") or {}).get("inline_keyboard")) or []
+        resto = [r for r in righe if not any(pid in (b.get("callback_data") or "") for b in r)]
+        if msg.get("message_id") and len(resto) != len(righe):
+            _api("editMessageReplyMarkup", chat_id=chat_id, message_id=msg["message_id"],
+                 reply_markup={"inline_keyboard": resto})
+    except Exception:  # noqa: BLE001
+        pass
 
 
 # v9.420 — la SEGRETARIA TETRAMORPH su Telegram (richiesta del titolare: «stesso lavoro che fa dal portale»): testo libero o
@@ -563,6 +703,9 @@ def _gestisci_callback(cb: dict) -> None:
     except Exception:  # noqa: BLE001
         pass
     uid = storage.utente_da_chat_telegram(chat_id) if chat_id else None
+    if dati.startswith("s:"):                         # v9.424: ✅ / 🗑 di una scadenza proposta dai documenti
+        _conferma_da_telegram(chat_id, cb.get("message") or {}, dati, uid)
+        return
     if dati.startswith("d:"):                         # v9.422: scelta del fascicolo per un documento mandato al bot
         _p, tok_d, sc = (dati.split(":") + ["", ""])[:3]
         try:
@@ -653,7 +796,8 @@ def gestisci_update(upd: dict) -> None:
         if uid and comando in _CMD_OGGI | _CMD_SETT | _CMD_SCAD:
             lg = _lingua_utente(uid)
             if comando in _CMD_SCAD:
-                invia(chat_id, da_confermare(uid, lg))
+                invia(chat_id, da_confermare(uid, lg),
+                      tastiera_proposte(storage.lista_scadenze_proposte(user_id=uid, stati=("proposta",)), lg))
             else:
                 invia(chat_id, agenda(uid, 2 if comando in _CMD_OGGI else 7, lg))
             return

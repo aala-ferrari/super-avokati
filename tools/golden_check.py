@@ -6615,7 +6615,9 @@ def main():
                                         "/api/settings/telegram/link", "/telegram/webhook/<segreto>"))
         _wh = _in191.getsource(_w191.telegram_webhook)
         _firma = "X-Telegram-Bot-Api-Secret-Token" in _wh and "compare_digest" in _wh
-        _conf = _in191.getsource(_w191.api_scadenze_conferma)
+        # v9.424: la conferma vive in `conferma_proposta` (una strada per portale e Telegram); la rotta la chiama
+        _conf = _in191.getsource(_w191.api_scadenze_conferma) + _in191.getsource(_w191.conferma_proposta)
+        _conf = _conf if "conferma_proposta(p, user.id" in _in191.getsource(_w191.api_scadenze_conferma) else ""
         _solo_conf = "create_event" in _conf and "create_event" not in _in191.getsource(_w191.api_scadenze_analizza)
         _js = open("/app/static/app.js", encoding="utf-8").read()
         _ui = ("_scadDopoDocumenti(documents)" in _js and "openScadenziario" in _js and "/api/settings/telegram/link" in _js
@@ -6641,7 +6643,8 @@ def main():
                   and "notify_team" in _dl and "colleghi_del_fascicolo" in _dl
                   and "notify_team" in _in192.signature(_st192.create_event).parameters
                   and "notify_team" in _in192.getsource(_w192.api_create_event)
-                  and "avvisa_studio" in _in192.getsource(_w192.api_scadenze_conferma))
+                  and "avvisa_studio" in _in192.getsource(_w192.conferma_proposta)
+                  and "conferma_proposta(p, user.id" in _in192.getsource(_w192.api_scadenze_conferma))
         _js192 = open("/app/static/app.js", encoding="utf-8").read()
         _ok192 = _ok192 and "avvisa_studio" in _js192 and "notify_team: !!fd.get(\"notify_team\")" in _js192
         check("colleghi-studio[192]: avvisi anche ai colleghi assegnati al fascicolo, con le regole di visibilità", _ok192)
@@ -6793,13 +6796,206 @@ def main():
         from src import telegram_bot as _tg201, reminders as _rm201
         _bt = _in201.getsource(_tg201.briefing_tick)
         _ok201 = (_tg201.ORA_BRIEFING == (7, 30) and 'u["last"] == giorno' in _bt and "(loc.hour, loc.minute) < ORA_BRIEFING" in _bt
-                  and _bt.index("storage.segna_briefing(u[\"id\"], giorno)          # PRIMA") < _bt.index("invia(u[\"chat\"], testo)")
+                  and _bt.index("storage.segna_briefing(u[\"id\"], giorno)          # PRIMA") < _bt.index("invia(u[\"chat\"], testo, briefing_tastiera(")
                   and "plan_expires_at" in _bt and 'return ""' in _in201.getsource(_tg201.briefing_testo)
                   and "briefing_tick()" in _in201.getsource(_rm201._loop)
                   and '"/briefing"' in _in201.getsource(_tg201.gestisci_update))
         check("briefing-mattino[201]: promemoria del mattino su Telegram, una volta al giorno, solo se c'è qualcosa, spegnibile", _ok201)
     except Exception as _e201:  # noqa: BLE001
         check("briefing-mattino[201]: kontrollet u ekzekutuan", False, str(_e201))
+
+    # [202] v9.424 — CONFERMA DA TELEGRAM: il pulsante ✅ c'è SOLO per le proposte verificate con una data non passata (mai
+    # «da verificare», mai senza data, mai i termini di legge da calcolare), callback ≤ 64 byte; il clic controlla che la proposta
+    # sia dell'avvocato di QUELLA chat e che il fascicolo sia ancora suo; portale e bot confermano con la STESSA funzione
+    try:
+        import inspect as _in202
+        from src import telegram_bot as _tg202, web as _web202
+        _base = {"stato": "proposta", "tipo": "data", "verificato": 1, "data": "2099-10-20", "ora": "09:30",
+                 "titolo": "Udienza di prima comparizione davanti al Tribunale", "id": "a" * 32}
+        _casi = [_base, dict(_base, id="b" * 32, verificato=0), dict(_base, id="c" * 32, data=""),
+                 dict(_base, id="d" * 32, tipo="innesco"), dict(_base, id="e" * 32, data="2001-01-01"),
+                 dict(_base, id="f" * 32, stato="confermata")]
+        _k = _tg202.tastiera_proposte(_casi, "it", "2026-09-30") or {}
+        _righe = _k.get("inline_keyboard") or []
+        _cb = [b["callback_data"] for r in _righe for b in r]
+        _src_cb = _in202.getsource(_tg202._conferma_da_telegram)
+        _ok202 = (len(_righe) == 1 and _cb == ["s:ok:" + "a" * 32, "s:no:" + "a" * 32]
+                  and all(len(c.encode()) <= 64 for c in _cb) and _righe[0][0]["text"].startswith("✅ 20/10 09:30 · ")
+                  and _tg202.tastiera_proposte(_casi[1:], "sq", "2026-09-30") is None
+                  and 'p.get("user_id") != uid' in _src_cb and "_sec._caso_valido(uid, p[\"case_id\"])" in _src_cb
+                  and "_web.conferma_proposta(p, uid" in _src_cb
+                  and "conferma_proposta(p, user.id" in _in202.getsource(_web202.api_scadenze_conferma)
+                  and 'dati.startswith("s:")' in _in202.getsource(_tg202._gestisci_callback)
+                  and "tastiera_proposte(" in _in202.getsource(_web202._scad_avvisa_nuove))
+        check("conferma-telegram[202]: ✅ solo sulle proposte verificate e datate, controllo di chat e fascicolo, stessa conferma del portale", _ok202,
+              str(_righe)[:300])
+    except Exception as _e202:  # noqa: BLE001
+        check("conferma-telegram[202]: kontrollet u ekzekutuan", False, str(_e202))
+
+    # [203] v9.425 — IL SOLLECITO delle scadenze non confermate: una proposta mai confermata non ha promemoria, quindi UNA volta
+    # (segnata prima dell'invio) si sollecita: data entro 7 giorni (mai passata), oppure senza data da 2 giorni; solo in orario
+    # d'ufficio locale; e il promemoria del mattino le elenca PER NOME coi pulsanti ✅
+    try:
+        import inspect as _in203
+        from src import reminders as _rm203, telegram_bot as _tg203
+        _l = [{"id": "1", "data": "2026-10-03", "tipo": "data", "created_at": "2026-09-20T08:00:00Z"},
+              {"id": "2", "data": "2026-10-20", "tipo": "data", "created_at": "2026-09-20T08:00:00Z"},
+              {"id": "3", "data": "2026-09-29", "tipo": "data", "created_at": "2026-09-20T08:00:00Z"},
+              {"id": "4", "data": "", "tipo": "innesco", "created_at": "2026-09-27T08:00:00Z"},
+              {"id": "5", "data": "", "tipo": "innesco", "created_at": "2026-09-29T20:00:00Z"}]
+        _sc = [p["id"] for p in _rm203._scelte_sollecito(_l, "2026-09-30", "2026-10-07", "2026-09-28T08:00:00Z")]
+        _ss = _in203.getsource(_rm203.sollecita_scadenze)
+        _r1 = _rm203._riga_sollecito({"data": "2026-10-03", "ora": "10:00", "titolo": "Udienza", "verificato": 0}, "2026-09-30", True)
+        _r2 = _rm203._riga_sollecito({"data": "", "tipo": "innesco", "titolo": "Afatet ligjore nga: vendimi"}, "2026-09-30", False)
+        _ok203 = (_sc == ["1", "4"] and _ss.index("storage.segna_sollecito(") < _ss.index("avvisa_utente(")
+                  and "ORA_SOLLECITO <= (loc.hour, loc.minute) < FINE_SOLLECITO" in _ss and "tastiera_proposte(" in _ss
+                  and "sollecita_scadenze()" in _in203.getsource(_rm203._loop)
+                  and _r1 == "03/10/2026 10:00 · Udienza — fra 3 giorni (da verificare)" and "mund të kenë nisur" in _r2
+                  and "NON ANCORA IN CALENDARIO" in _in203.getsource(_tg203.briefing_testo))
+        check("sollecito-scadenze[203]: una volta sola, data entro 7 giorni o senza data da 2 giorni, orario d'ufficio, per nome nel mattino", _ok203,
+              "%s | %s | %s" % (_sc, _r1, _r2))
+    except Exception as _e203:  # noqa: BLE001
+        check("sollecito-scadenze[203]: kontrollet u ekzekutuan", False, str(_e203))
+
+    # [204] v9.426 — IL LINK DEGLI AVVISI apre lo Scadenziario SUL cliente («superavokati.ai/s/<fascicolo>»): senza sessione passa
+    # dal login e ci torna (solo percorsi /s/…, mai un indirizzo qualsiasi); negli avvisi e nei solleciti al posto della home
+    try:
+        import inspect as _in204
+        from src import web as _w204, reminders as _rm204
+        _c204 = _w204.app.test_client()
+        _r204 = _c204.get("/s/0123456789abcdef")
+        from urllib.parse import unquote as _uq204
+        _loc = _uq204(_r204.headers.get("Location", ""))
+        _lj = open("/app/static/login.js", encoding="utf-8").read()
+        _aj = open("/app/static/app.js", encoding="utf-8").read()
+        _ok204 = (_r204.status_code == 302 and _loc.endswith("/login?next=/s/0123456789abcdef")
+                  and _w204.link_scadenziario("0123456789abcdef") == "https://superavokati.ai/s/0123456789abcdef"
+                  and _w204.link_scadenziario("../x") == "https://superavokati.ai/s"
+                  and "link_scadenziario(case_id)" in _in204.getsource(_w204._scad_avvisa_nuove)
+                  and "https://superavokati.ai/s" in _in204.getsource(_rm204.sollecita_scadenze)
+                  and "^\\/s(\\/[0-9a-f-]{8,64})?$" in _lj and "#scadenze(?:=" in _aj
+                  and 'session["jurisdiction"] = g' in _in204.getsource(_w204.link_scadenze)
+                  and "user_jurisdictions(user)" in _in204.getsource(_w204.link_scadenze))
+        check("link-avvisi[204]: gli avvisi aprono lo scadenziario sul cliente, login con ritorno sicuro, giurisdizione del fascicolo", _ok204,
+              "%s %s" % (_r204.status_code, _loc))
+    except Exception as _e204:  # noqa: BLE001
+        check("link-avvisi[204]: kontrollet u ekzekutuan", False, str(_e204))
+
+    # [205] v9.427 — IL FASCICOLO LETTO PER INTERO: PDF misto (le pagine scansionate si leggono anche se le digitali hanno testo),
+    # tetto dell'OCR 60 pagine (era 10) con le pagine non lette DETTE nel testo, e lo scadenziario che legge a pezzi
+    try:
+        import inspect as _in205
+        from src import documents as _d205, scadenziario as _s205
+        _ep = _in205.getsource(_d205._extract_pdf)
+        _lung = "".join(f"\n── Pagina {i}/90 ──\n" + ("testo " * 300) + f"\nudienza del {i:02d}" for i in range(1, 91))
+        _pz, _rs = _s205.pezzi_del_testo(_lung)
+        _ok205 = (_d205.MAX_OCR_PAGES >= 60 and "da_ocr" in _ep and "immagini[i]" in _ep and "_nota_pagine_non_lette" in _ep
+                  and _d205._intervalli([3, 4, 5, 9]) == "3–5, 9"
+                  and "PAGINE NON LETTE" in _in205.getsource(_d205._nota_pagine_non_lette)
+                  and "FAQE TË PALEXUARA" in _in205.getsource(_d205._nota_pagine_non_lette)
+                  and _rs == 0 and len(_pz) >= 2 and all(any(f"udienza del {i:02d}" in p for p in _pz) for i in range(1, 91))
+                  and "estrai_tutto(backend, testo" in _in205.getsource(_s205.analizza_documento)
+                  and hasattr(_d205, "VISION_PROMPT_IT"))
+        check("fascicolo-lungo[205]: pagine scansionate anche nei PDF misti, 60 pagine, pagine non lette dette, scadenziario a pezzi", _ok205,
+              "%s %s %s" % (_d205.MAX_OCR_PAGES, [len(p) for p in _pz], _rs))
+    except Exception as _e205:  # noqa: BLE001
+        check("fascicolo-lungo[205]: kontrollet u ekzekutuan", False, str(_e205))
+
+    # [206] v9.428 — LE DATE PASSATE SONO STORIA: nel riquadro in fondo e chiuse, fuori dai contatori, dal /scadenze e dal mattino;
+    # MAI un «innesco» (la sua data è quella dell'atto: i termini di legge possono essere aperti), che anzi si sollecita
+    try:
+        import inspect as _in206
+        from src import telegram_bot as _tg206, reminders as _rm206
+        _aj206 = open("/app/static/app.js", encoding="utf-8").read()
+        _sc206 = [p["id"] for p in _rm206._scelte_sollecito(
+            [{"id": "a", "data": "2026-09-10", "tipo": "innesco", "created_at": "2026-09-20T08:00:00Z"},
+             {"id": "b", "data": "2026-09-10", "tipo": "data", "created_at": "2026-09-20T08:00:00Z"}],
+            "2026-09-30", "2026-10-07", "2026-09-28T08:00:00Z")]
+        _ok206 = (_tg206._passata({"data": "2026-09-01", "tipo": "data"}, "2026-09-30")
+                  and not _tg206._passata({"data": "2026-09-01", "tipo": "innesco"}, "2026-09-30")
+                  and not _tg206._passata({"data": "2026-10-01", "tipo": "data"}, "2026-09-30")
+                  and _sc206 == ["a"] and "Date già passate — storia del fascicolo" in _aj206
+                  and 'p.tipo !== "innesco"' in _aj206 and "!_scadPassata(p)" in _aj206
+                  and "_passata(p" in _in206.getsource(_tg206.da_confermare)
+                  and "_passata(p, d0)" in _in206.getsource(_tg206.briefing_testo))
+        check("date-passate[206]: storia del fascicolo in fondo e fuori dai conti, mai i termini di legge (che si sollecitano)", _ok206,
+              str(_sc206))
+    except Exception as _e206:  # noqa: BLE001
+        check("date-passate[206]: kontrollet u ekzekutuan", False, str(_e206))
+
+    # [207] v9.429 — IL PROMEMORIA DICE IL CLIENTE e arriva anche IL GIORNO STESSO: fascicolo e link al cliente in Telegram ed
+    # email; deposito senza ora alle 9 del giorno («OGGI»), udienza con l'ora 2 ore prima
+    try:
+        import inspect as _in207
+        from src import reminders as _rm207, web as _w207
+        _R0 = type("R", (), {"offset_minutes": 0})()
+        _ok207 = (_w207._avvisi_predefiniti(True) == [10080, 4320, 1440, 0]
+                  and _w207._avvisi_predefiniti(False) == [10080, 4320, 1440, 120]
+                  and "_avvisi_predefiniti(all_day)" in _in207.getsource(_w207.conferma_proposta)
+                  and _rm207._fmt_ahead(_R0, "it") == "OGGI" and _rm207._fmt_ahead(_R0, "sq") == "SOT"
+                  and "_caso_di(event)" in _in207.getsource(_rm207._format_message)
+                  and "_caso_di(event)" in _in207.getsource(_rm207._send_email)
+                  and "superavokati.ai/s/" in _in207.getsource(_rm207._caso_di))
+        check("promemoria[207]: il cliente e il link in ogni promemoria, e il giorno stesso (OGGI alle 9 / 2 ore prima)", _ok207)
+    except Exception as _e207:  # noqa: BLE001
+        check("promemoria[207]: kontrollet u ekzekutuan", False, str(_e207))
+
+    # [208] v9.430 — la SEGRETARIA crea gli eventi con gli stessi avvisi dello scadenziario (prima: uno solo, il giorno prima, e il
+    # prompt suggeriva «[1440]» che il modello copiava) e un evento del fascicolo avvisa i colleghi che lo seguono
+    try:
+        import inspect as _in208
+        from src import secretary as _sec208, web as _w208
+        _src208 = open("/app/src/secretary.py", encoding="utf-8").read()
+        _ea = _in208.getsource(_sec208.execute_action)
+        _ok208 = (_sec208.avvisi_standard("seance", False) == [10080, 4320, 1440, 120]
+                  and _sec208.avvisi_standard("afat", True) == [10080, 4320, 1440, 0]
+                  and _sec208.avvisi_standard("takim", False) == [1440, 120]
+                  and _sec208.avvisi_standard("seance", False) == _w208._avvisi_predefiniti(False)
+                  and "parazgjedhje [1440]" not in _src208 and "notify_team=bool(caso)" in _ea
+                  and "avvisi_standard(kind, _tutto_il_giorno)" in _ea)
+        check("segretaria-avvisi[208]: stessi avvisi dello scadenziario, colleghi del fascicolo avvisati, prompt senza «[1440]»", _ok208)
+    except Exception as _e208:  # noqa: BLE001
+        check("segretaria-avvisi[208]: kontrollet u ekzekutuan", False, str(_e208))
+
+    # [209] v9.431 — I TERMINI A RITROSO: «almeno 7 giorni PRIMA dell'udienza» si conta all'indietro (la misura dello
+    # scadenziario lo dava 7 giorni DOPO: 28/01 invece del 14/01); festivo → si ANTICIPA; «dalla prima udienza» resta in avanti
+    try:
+        from src import scadenziario as _s209
+        _ar = _s209.a_ritroso_nel_testo
+        _c = lambda reg, ref, g="IT", l="it": _s209.calcola_regola(reg, ref, g, l)["data"]
+        _ok209 = (_ar("Il ricorrente dovrà intimare i testi almeno 7 giorni prima dell'udienza.") is True
+                  and _ar("termine di sessanta giorni prima di tale udienza") is True
+                  and _ar("të paktën 60 ditë para përfundimit të afatit") is True
+                  and _ar("entro 20 giorni dalla prima udienza") is False
+                  and _ar("brenda 15 ditëve nga e nesërmja e njoftimit") is False
+                  and _ar("") is None
+                  and _c({"durata": 7, "unita": "days", "a_ritroso": True, "processuale": True, "lavoro_o_urgente": True},
+                         "2027-01-21") == "2027-01-14"
+                  and _c({"durata": 60, "unita": "days", "a_ritroso": True}, "2027-02-18") == "2026-12-18"
+                  and _c({"durata": 60, "unita": "days", "a_ritroso": True}, "2026-12-31", "AL", "sq") == "2026-10-30"
+                  and _c({"durata": 20, "unita": "days", "a_ritroso": True, "processuale": True}, "2026-09-10") == "2026-07-21"
+                  and _c({"durata": 40, "unita": "days"}, "2026-09-15") == "2026-10-26")
+        check("ritroso[209]: termini «N giorni prima di» contati all'indietro, festivo anticipato, feriale a ritroso, «dalla prima udienza» in avanti", _ok209)
+    except Exception as _e209:  # noqa: BLE001
+        check("ritroso[209]: kontrollet u ekzekutuan", False, str(_e209))
+
+    # [210] v9.432 — LE DATE IN LETTERE si riconoscono nel documento («venti novembre duemilaventisei»), a confini di PAROLA
+    # («sei novembre» dentro «ventisei novembre» non verifica il 6), e una data senza anno non verifica un anno diverso
+    try:
+        from src import scadenziario as _s210
+        _dt210 = _s210.data_nel_testo
+        _T1 = "rinvia la causa all'udienza del giorno venti novembre duemilaventisei, ore dieci"
+        _ok210 = (_dt210("2026-11-20", _T1) and not _dt210("2026-11-06", "all'udienza del ventisei novembre duemilaventisei")
+                  and _dt210("2026-11-26", "all'udienza del ventisei novembre duemilaventisei")
+                  and not _dt210("2020-11-20", _T1)
+                  and not _dt210("2026-11-20", "fissata al 20 novembre 2027")
+                  and _dt210("2026-12-01", "entro il primo dicembre 2026") and _dt210("2027-03-23", "il ventitré marzo duemilaventisette")
+                  and _dt210("2026-11-21", "më njëzet e një nëntor dy mijë e njëzet e gjashtë")
+                  and _dt210("2026-09-15", "më 15.09.2026") and _dt210("2026-09-15", "datë 15 shtatorit 2026")
+                  and _dt210("2026-09-15", "më 15 shtatorit, palët"))
+        check("date-in-lettere[210]: date scritte in lettere riconosciute, confini di parola, anno diverso non verifica", _ok210)
+    except Exception as _e210:  # noqa: BLE001
+        check("date-in-lettere[210]: kontrollet u ekzekutuan", False, str(_e210))
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

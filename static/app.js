@@ -382,6 +382,13 @@
   // Un lavoro rimasto in sospeso quando la pagina e' morta (telefono che
   // libera memoria): la risposta e' parcheggiata sul server, si recupera.
   setTimeout(function () { _recuperaLavoroInSospeso(); }, 1500);
+  // v9.426: il link di un avviso («superavokati.ai/s/<fascicolo>» → «/#scadenze=<fascicolo>») apre lo Scadenziario sul cliente
+  (function () {
+    var m = /^#scadenze(?:=([0-9a-f-]{8,64}))?$/.exec(window.location.hash || "");
+    if (!m) return;
+    try { history.replaceState(null, "", window.location.pathname + window.location.search); } catch (e) {}
+    setTimeout(function () { openScadenziario(m[1] ? { caso: m[1] } : {}); }, 700);
+  })();
   // E un modo per RILEGGERLI dopo: senza questo l'informativa si vede una
   // volta sola e poi sparisce, che non e' «accessibile».
   document.getElementById("legal-menu")?.addEventListener("click", async () => {
@@ -762,8 +769,7 @@
       ? '<details class="scad-det"><summary>' + _sT("Detaje", "Dettagli") + "</summary>" +
         (p.cosa_fare ? "<p>▶ " + _scadEsc(p.cosa_fare) + "</p>" : "") +
         (p.nota ? "<p>" + _scadEsc(p.nota).split(" · ").join("<br>") + "</p>" : "") + "</details>" : "";
-    var oggi = new Date().toISOString().slice(0, 10);
-    var passata = p.data && p.data < oggi;
+    var passata = _scadPassata(p);
     var controlli;
     if (conf) {
       controlli = '<span class="scad-ok">✓ ' + _sT("Në kalendar", "In calendario") + " · " + _scadEsc(p.data || "") + "</span>";
@@ -774,7 +780,9 @@
         '<button type="button" class="scad-no" data-id="' + p.id + '" title="' + _sT("Hiqe", "Scarta") + '">✕</button>';
     } else if (p.tipo === "regola") {
       controlli = '<input type="checkbox" class="scad-cb" data-id="' + p.id + '">' +
-        '<label class="scad-lab">' + _sT("Nga data", "Dalla data") + ' <input type="date" class="scad-partenza"></label>' +
+        '<label class="scad-lab">' + ((p.regola && p.regola.a_ritroso)       // v9.431: termine a ritroso («N giorni PRIMA di …»)
+          ? _sT("Data e referimit (seanca, përfundimi)", "Data di riferimento (udienza, scadenza)")
+          : _sT("Nga data", "Dalla data")) + ' <input type="date" class="scad-partenza"></label>' +
         '<button type="button" class="scad-no" data-id="' + p.id + '" title="' + _sT("Hiqe", "Scarta") + '">✕</button>';
     } else {
       controlli = '<input type="checkbox" class="scad-cb" data-id="' + p.id + '"' + ((p.verificato && !passata) ? " checked" : "") + ">" +
@@ -789,21 +797,33 @@
       '<div class="scad-fonte">' + fonte + "</div>" + cit + avviso + dett + "</li>";
   }
 
+  // v9.428: una data del documento già passata è STORIA del fascicolo (un'udienza già tenuta): va in fondo, chiusa, e non conta
+  // fra quelle da confermare. Mai un «innesco» (termini di legge): la sua data è quella dell'atto e i termini possono essere aperti.
+  function _scadOggi() {
+    var d = new Date();
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
+  function _scadPassata(p) { return !!(p && p.data && p.tipo !== "innesco" && p.stato !== "confermata" && p.data < _scadOggi()); }
+
   function _scadDisegna(box, d) {
-    var prop = (d.proposte || []).filter(function (p) { return p.stato !== "confermata"; });
+    var tutte = (d.proposte || []).filter(function (p) { return p.stato !== "confermata"; });
+    var prop = tutte.filter(function (p) { return !_scadPassata(p); });
+    var passate = tutte.filter(_scadPassata);
     var conf = (d.proposte || []).filter(function (p) { return p.stato === "confermata"; });
     var nuovi = d.da_analizzare || 0;
     var stato = (d.in_corso || d.documenti_in_lettura)
       ? '<span class="spinner"></span> ' + _sT("Po lexoj dokumentet një nga një… (disa minuta; mund ta mbyllësh faqen)",
                                            "Sto leggendo i documenti uno per uno… (qualche minuto; puoi chiudere la pagina)")
       : (nuovi ? _sT(nuovi + " dokument(e) ende pa u analizuar për afatet", nuovi + " documento/i non ancora analizzato/i per le scadenze")
-               : (prop.length || conf.length ? "" : _sT("Asnjë afat i gjetur ende.", "Nessuna scadenza trovata finora.")));
+               : (prop.length || conf.length ? "" : (passate.length
+                   ? _sT("Asnjë afat që vjen: në dokumente ka vetëm data të kaluara.", "Nessuna scadenza in arrivo: nei documenti ci sono solo date già passate.")
+                   : _sT("Asnjë afat i gjetur ende.", "Nessuna scadenza trovata finora."))));
     box.innerHTML =
       '<div class="scad-head"><strong>📅 ' + _sT("Afatet nga dokumentet", "Scadenze dai documenti") + "</strong>" +
       '<button type="button" class="scad-run"' + (d.in_corso ? " disabled" : "") + ">" +
       (nuovi ? _sT("Analizo dokumentet", "Analizza i documenti") : _sT("Rianalizo", "Rianalizza")) + "</button></div>" +
-      '<p class="scad-help">' + _sT("Seancat, afatet e dokumentet që duhen dërguar deri në një datë, nga çdo dokument i dosjes: analiza nis vetë kur ngarkon një dokument me data, dhe të njofton me Telegram dhe email. Asgjë nuk hyn në kalendar pa konfirmimin tënd; kujtesat vijnë 7, 3 dhe 1 ditë para.",
-                                   "Udienze, termini e documenti da mandare entro una data, da ogni documento del fascicolo: l'analisi parte da sola quando carichi un documento con delle date, e ti avvisa su Telegram e per email. Nulla entra in calendario senza la tua conferma; gli avvisi arrivano 7, 3 e 1 giorno prima.") + "</p>" +
+      '<p class="scad-help">' + _sT("Seancat, afatet e dokumentet që duhen dërguar deri në një datë, nga çdo dokument i dosjes: analiza nis vetë kur ngarkon një dokument me data, dhe të njofton me Telegram dhe email. Asgjë nuk hyn në kalendar pa konfirmimin tënd; kujtesat vijnë 7, 3 dhe 1 ditë para, dhe ditën e afatit.",
+                                   "Udienze, termini e documenti da mandare entro una data, da ogni documento del fascicolo: l'analisi parte da sola quando carichi un documento con delle date, e ti avvisa su Telegram e per email. Nulla entra in calendario senza la tua conferma; gli avvisi arrivano 7, 3 e 1 giorno prima, e il giorno stesso.") + "</p>" +
       '<div class="scad-stato">' + stato + "</div>" +
       (prop.length ? '<ul class="scad-list">' + prop.map(_scadRiga).join("") + "</ul>" +
         '<div class="scad-actions"><button type="button" class="scad-conf">✓ ' + _sT("Konfirmo të zgjedhurat", "Conferma le selezionate") +
@@ -812,7 +832,10 @@
           _sT("Njofto edhe kolegët e studios që ndjekin dosjen (" + d.colleghi + ")",
               "Avvisa anche i colleghi dello studio che seguono il fascicolo (" + d.colleghi + ")") + "</label>" : "") : "") +
       (conf.length ? '<details class="scad-fatte"><summary>' + _sT("Në kalendar", "Già in calendario") + " (" + conf.length + ")</summary>" +
-        '<ul class="scad-list">' + conf.map(_scadRiga).join("") + "</ul></details>" : "");
+        '<ul class="scad-list">' + conf.map(_scadRiga).join("") + "</ul></details>" : "") +
+      (passate.length ? '<details class="scad-fatte scad-passate"><summary>' + _sT("Data të kaluara — historia e dosjes",
+        "Date già passate — storia del fascicolo") + " (" + passate.length + ")</summary>" +
+        '<ul class="scad-list">' + passate.map(_scadRiga).join("") + "</ul></details>" : "");
   }
 
   async function _scadPost(url, body) {
@@ -938,7 +961,7 @@
     }
 
     function riepilogo(cid) {
-      var da = stato.proposte.filter(function (p) { return p.case_id === cid && p.stato !== "confermata"; }).length;
+      var da = stato.proposte.filter(function (p) { return p.case_id === cid && p.stato !== "confermata" && !_scadPassata(p); }).length;
       var ev = stato.eventi.filter(function (e) { return e.case_id === cid; })
         .sort(function (a, b) { return a.starts_at < b.starts_at ? -1 : 1; })[0];
       return { da: da, prossimo: ev || null };
