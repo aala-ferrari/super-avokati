@@ -6686,6 +6686,27 @@ def main():
     except Exception as _e194:  # noqa: BLE001
         check("fuso-orario[194]: kontrollet u ekzekutuan", False, str(_e194))
 
+    # [195] v9.415 — lo scadenziario PARTE DA SOLO dopo il caricamento se il documento ha delle date (mai video/audio, spegnibile),
+    # i documenti caricati insieme vanno in UNA coda per fascicolo, e alla fine UN avviso (Telegram + email) con le scadenze nuove
+    # da confermare; mai email agli account di prova .test
+    try:
+        import inspect as _in195
+        from src import web as _w195, reminders as _rm195
+        _rx = _w195._DATA_NEL_TESTO_RX
+        _date_ok = all(_rx.search(x) for x in ("seanca më 20.10.2026", "udienza del 15 gennaio 2027", "il 2026-11-30", "më 3 tetor 2026"))
+        _no = not _rx.search("ai sensi della L. 689/1981 e del d.lgs. 213/1998, art. 10.2")
+        _up = _in195.getsource(_w195.api_upload_document)
+        _auto = _in195.getsource(_w195._scad_auto_dopo_caricamento)
+        _lan = _in195.getsource(_w195._scad_lancia)
+        _ok195 = (_date_ok and _no and "_scad_auto_dopo_caricamento(case_id, uid, juris, doc_id, ext" in _up
+                  and "SCADENZIARIO_AUTO" in _auto and "VIDEO_EXTENSIONS" in _auto and "avvisa=True" in _auto
+                  and "_SCAD_CODA" in _lan and "_scad_avvisa_nuove" in _lan
+                  and ".test" in _in195.getsource(_rm195.avvisa_utente) and ".test" in _in195.getsource(_rm195._consegna))
+        check("scadenziario-auto[195]: analisi da sola al caricamento se ci sono date, coda per fascicolo, un avviso con le scadenze nuove",
+              _ok195, "date=%s no_leggi=%s" % (_date_ok, _no))
+    except Exception as _e195:  # noqa: BLE001
+        check("scadenziario-auto[195]: kontrollet u ekzekutuan", False, str(_e195))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

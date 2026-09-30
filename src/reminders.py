@@ -274,12 +274,52 @@ def _send_email(to_email: str, event, reminder) -> str | None:
 
 # ── channel selection ─────────────────────────────────────────────────────
 
+def avvisa_utente(uid: int, titolo: str, righe: list[str], *, lang: str = "sq", link: str = "") -> list[tuple[str, str | None]]:
+    """v9.415 — un avviso che NON è un promemoria di un evento (lo scadenziario ha trovato scadenze da confermare): stessi canali
+    collegati dell'utente, Telegram ed email. Mai solleva."""
+    esiti: list[tuple[str, str | None]] = []
+    try:
+        tg_chat = storage.get_user_telegram_chat(uid)
+        if tg_chat:
+            testo = "*" + _md_escape(titolo) + "*\n" + "\n".join("• " + _md_escape(r) for r in righe)
+            if link:
+                testo += "\n\n" + _md_escape(link)
+            esiti.append(("telegram", _send_telegram(tg_chat, testo)))
+        email = storage.get_user_reminder_email(uid) if _email_configured() else None
+        if email and "@" in email and not email.strip().lower().endswith(".test"):   # account di prova: mai email vere
+            corpo = "".join(f'<li style="margin:4px 0">{_html_escape(r)}</li>' for r in righe)
+            html = ('<div style="font-family:Georgia,serif;max-width:560px;margin:0 auto;color:#1a1a1a">'
+                    '<div style="background:#0f2540;color:#f3e6c4;padding:14px 18px;border-radius:12px 12px 0 0"><b>'
+                    + _html_escape(titolo) + '</b></div>'
+                    '<div style="border:1px solid #e3d3a5;border-top:none;border-radius:0 0 12px 12px;padding:16px 18px">'
+                    f'<ul style="padding-left:18px;margin:0">{corpo}</ul>'
+                    + (f'<p style="margin:14px 0 0"><a href="{_html_escape(link)}">{_html_escape(link)}</a></p>' if link else "")
+                    + f'<p style="margin:16px 0 0;font-size:12px;color:#999">{_T_PROMEMORIA.get(lang, _T_PROMEMORIA["sq"])["auto"]}</p>'
+                    '</div></div>')
+            payload = json.dumps({"from": REMINDER_EMAIL_FROM, "to": [email.strip()], "subject": titolo, "html": html}).encode("utf-8")
+            req = urllib.request.Request(RESEND_API, data=payload, method="POST",
+                                         headers={"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json",
+                                                  "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+                                                                "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"})
+            try:
+                with urllib.request.urlopen(req, timeout=15) as resp:
+                    ok = bool(json.loads(resp.read().decode("utf-8", errors="ignore")).get("id"))
+                esiti.append(("email", None if ok else "resend: nessun id"))
+            except Exception as exc:  # noqa: BLE001
+                esiti.append(("email", f"{type(exc).__name__}: {str(exc)[:150]}"))
+    except Exception as exc:  # noqa: BLE001
+        log.warning("avvisa_utente %s: %s", uid, exc)
+    return esiti
+
+
 def _consegna(uid: int, event, reminder, *, da_chi: str = "") -> list[tuple[str, str | None]]:
     """I canali collegati di UN utente: [(canale, errore o None)]. `da_chi` = il collega che ha messo l'evento in calendario
     (per chi riceve l'avviso come collega dello studio)."""
     wa_phone = storage.get_user_whatsapp(uid) if _wa_configured() else None
     tg_chat = storage.get_user_telegram_chat(uid)
     email = storage.get_user_reminder_email(uid) if _email_configured() else None
+    if email and email.strip().lower().endswith(".test"):
+        email = None                                  # account di prova (…@superavokati.test): mai email vere
     esiti = []
     if wa_phone:
         esiti.append(("whatsapp", _send_whatsapp(wa_phone, event, reminder)))

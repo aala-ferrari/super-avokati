@@ -6887,6 +6887,7 @@ def api_upload_document(case_id: str):
             storage.touch_case(case_id, uid)
         except Exception:  # noqa: BLE001
             log.exception("could not store analysis for %s", fname)
+        _scad_auto_dopo_caricamento(case_id, uid, juris, doc_id, ext, text or "")
 
     threading.Thread(target=brain_mod.porta_utente(uid, _process),
                  name=f"doc-{doc_id[:8]}", daemon=True).start()
@@ -8821,6 +8822,112 @@ def _scad_salva(proposte, inneschi, *, case_id, uid, doc_id, juris) -> int:
     return n
 
 
+_SCAD_CODA: dict[str, list[str]] = {}          # documenti in attesa nel fascicolo mentre un'analisi è già in corso
+
+
+def _scad_lancia(case_id: str, uid: int, juris: str, ids: list[str], *, avvisa: bool) -> int:
+    """Mette i documenti in coda per il fascicolo e, se nessuno lo sta già analizzando, avvia il lavoro (un documento alla
+    volta). `avvisa`: a fine lavoro un solo avviso (Telegram + email) con le scadenze NUOVE da confermare — per le analisi partite
+    da sole al caricamento; chi preme il pulsante le vede già a schermo."""
+    if not ids or _BRAIN is None:
+        return 0
+    for did in ids:
+        storage.segna_analisi_scadenze(did, case_id, uid, "in_corso")
+    with _SCAD_LOCK:
+        coda = _SCAD_CODA.setdefault(case_id, [])
+        coda.extend(d for d in ids if d not in coda)
+        if case_id in _SCAD_IN_CORSO:
+            return len(ids)                      # il lavoro in corso li prende dalla coda
+        _SCAD_IN_CORSO.add(case_id)
+    backend, index = _BRAIN.backend, _scad_index(juris)
+    avvisi = {"on": avvisa}
+
+    def _run() -> None:
+        from . import scadenziario as scad_mod
+        nuove: list[dict] = []
+        try:
+            while True:
+                with _SCAD_LOCK:
+                    coda = _SCAD_CODA.get(case_id) or []
+                    if not coda:
+                        _SCAD_CODA.pop(case_id, None)
+                        _SCAD_IN_CORSO.discard(case_id)
+                        break
+                    did = coda.pop(0)
+                doc = storage.get_document(did, case_id)
+                if doc is None:
+                    continue
+                try:
+                    proposte, inneschi = scad_mod.analizza_documento(backend, index, doc, jurisdiction=juris)
+                    prima = {p["id"] for p in storage.lista_scadenze_proposte(case_id=case_id)}
+                    n = _scad_salva(proposte, inneschi, case_id=case_id, uid=uid, doc_id=did, juris=juris)
+                    storage.segna_analisi_scadenze(did, case_id, uid, "fatta", n=n)
+                    nuove += [dict(p, documento=doc.filename) for p in storage.lista_scadenze_proposte(case_id=case_id)
+                              if p["id"] not in prima and p["stato"] == "proposta"]
+                except Exception as exc:  # noqa: BLE001
+                    log.exception("scadenziario: documento %s", did)
+                    storage.segna_analisi_scadenze(did, case_id, uid, "errore", errore=f"{type(exc).__name__}")
+        finally:
+            with _SCAD_LOCK:
+                _SCAD_IN_CORSO.discard(case_id)
+        if avvisi["on"] and nuove:
+            try:
+                _scad_avvisa_nuove(case_id, uid, juris, nuove)
+            except Exception:  # noqa: BLE001
+                log.exception("scadenziario: avviso non partito (%s)", case_id)
+
+    threading.Thread(target=brain_mod.porta_utente(uid, _run), name=f"scad-{case_id[:8]}", daemon=True).start()
+    return len(ids)
+
+
+def _scad_avvisa_nuove(case_id: str, uid: int, juris: str, nuove: list[dict]) -> None:
+    """«📅 3 scadenze da confermare nel fascicolo X»: le prime 6, con la data (o cosa manca), sui canali collegati."""
+    from . import reminders as _rm
+    it = juris == "IT"
+    with storage.db() as _conn:
+        _r = _conn.execute("SELECT title FROM cases WHERE id = ?", (case_id,)).fetchone()
+    titolo_caso = ((_r["title"] if _r else "") or "").strip()[:80]
+    oggi = datetime.now(UTC).date().isoformat()
+    utili = [p for p in nuove if not (p.get("data") and p["data"] < oggi)]
+    if not utili:
+        return
+    def _riga(p):
+        if p.get("data"):
+            d = "/".join(reversed(p["data"].split("-")))
+            return f"{d}{(' ' + p['ora']) if p.get('ora') else ''} · {p['titolo']}" + ("" if p.get("verificato") else
+                                                                                       (" (da verificare)" if it else " (për t'u verifikuar)"))
+        return p["titolo"] + (" — serve la data di notifica" if it else " — duhet data e njoftimit")
+    righe = [_riga(p) for p in utili[:6]] + ([f"… +{len(utili) - 6}"] if len(utili) > 6 else [])
+    tit = ((f"📅 {len(utili)} scadenz{'a' if len(utili) == 1 else 'e'} da confermare" + (f" — «{titolo_caso}»" if titolo_caso else ""))
+           if it else (f"📅 {len(utili)} afat{'' if len(utili) == 1 else 'e'} për t'u konfirmuar" + (f" — «{titolo_caso}»" if titolo_caso else "")))
+    righe.append("Apri il fascicolo su Super Avokati per confermarle: nulla entra in calendario senza la tua conferma." if it else
+                 "Hap dosjen në Super Avokati për t'i konfirmuar: asgjë nuk hyn në kalendar pa konfirmimin tënd.")
+    esiti = _rm.avvisa_utente(uid, tit, righe, lang="it" if it else "sq", link="https://superavokati.ai/")
+    log.info("scadenziario: avviso di %d scadenze nuove (%s) → %s", len(utili), case_id[:8], [(c_, e is None) for c_, e in esiti])
+
+
+# v9.415 — lo scadenziario parte DA SOLO quando un documento caricato ha delle date (le vede già il riassunto automatico): è
+# la richiesta dell'avvocato («inserisco il PDF e il cervello analizza»). Mai su video/audio; `SCADENZIARIO_AUTO=0` spegne.
+_DATA_NEL_TESTO_RX = re.compile(
+    r"(?<!\d)\d{1,2}[./-]\d{1,2}[./-](?:19|20)\d{2}(?!\d)|(?<!\d)(?:19|20)\d{2}-\d{2}-\d{2}(?!\d)"
+    r"|(?i:\b\d{1,2}\s+(?:gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre|"
+    r"janar|shkurt|mars|prill|maj|qershor|korrik|gusht|shtator|tetor|nëntor|dhjetor)\w*\s+(?:19|20)\d{2}\b)")
+
+
+def _scad_auto_dopo_caricamento(case_id: str, uid: int, juris: str, doc_id: str, ext: str, testo: str) -> None:
+    try:
+        if os.environ.get("SCADENZIARIO_AUTO", "1") == "0":
+            return
+        from .config import VIDEO_EXTENSIONS as _VX, AUDIO_EXTENSIONS as _AX
+        if (ext or "").lower() in _VX | _AX:
+            return
+        if len((testo or "").strip()) < 200 or not _DATA_NEL_TESTO_RX.search(testo or ""):
+            return
+        _scad_lancia(case_id, uid, juris, [doc_id], avvisa=True)
+    except Exception:  # noqa: BLE001
+        log.exception("scadenziario automatico: %s", doc_id)
+
+
 @app.post("/api/cases/<case_id>/scadenze/analizza")
 @login_required_api
 def api_scadenze_analizza(case_id: str):
@@ -8840,36 +8947,9 @@ def api_scadenze_analizza(case_id: str):
             and (forza or scelti or (fatti.get(d.id) or {}).get("stato") != "fatta")]
     if not docs:
         return jsonify({"avviati": 0, "in_corso": case_id in _SCAD_IN_CORSO})
-    with _SCAD_LOCK:
-        if case_id in _SCAD_IN_CORSO:
-            return jsonify({"avviati": 0, "in_corso": True})
-        _SCAD_IN_CORSO.add(case_id)
     juris = _active_jurisdiction(user)
-    uid, backend, index = user.id, _BRAIN.backend, _scad_index(juris)
-    for d in docs:
-        storage.segna_analisi_scadenze(d.id, case_id, uid, "in_corso")
-    ids = [d.id for d in docs]
-
-    def _run() -> None:
-        from . import scadenziario as scad_mod
-        try:
-            for did in ids:                         # UN documento alla volta
-                doc = storage.get_document(did, case_id)
-                if doc is None:
-                    continue
-                try:
-                    proposte, inneschi = scad_mod.analizza_documento(backend, index, doc, jurisdiction=juris)
-                    n = _scad_salva(proposte, inneschi, case_id=case_id, uid=uid, doc_id=did, juris=juris)
-                    storage.segna_analisi_scadenze(did, case_id, uid, "fatta", n=n)
-                except Exception as exc:  # noqa: BLE001
-                    log.exception("scadenziario: documento %s", did)
-                    storage.segna_analisi_scadenze(did, case_id, uid, "errore", errore=f"{type(exc).__name__}")
-        finally:
-            with _SCAD_LOCK:
-                _SCAD_IN_CORSO.discard(case_id)
-
-    threading.Thread(target=brain_mod.porta_utente(uid, _run), name=f"scad-{case_id[:8]}", daemon=True).start()
-    return jsonify({"avviati": len(ids), "in_corso": True}), 202
+    n = _scad_lancia(case_id, user.id, juris, [d.id for d in docs], avvisa=False)
+    return jsonify({"avviati": n, "in_corso": True}), 202
 
 
 @app.get("/api/cases/<case_id>/scadenze")

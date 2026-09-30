@@ -794,8 +794,8 @@
       '<div class="scad-head"><strong>📅 ' + _sT("Afatet nga dokumentet", "Scadenze dai documenti") + "</strong>" +
       '<button type="button" class="scad-run"' + (d.in_corso ? " disabled" : "") + ">" +
       (nuovi ? _sT("Analizo dokumentet", "Analizza i documenti") : _sT("Rianalizo", "Rianalizza")) + "</button></div>" +
-      '<p class="scad-help">' + _sT("Seancat, afatet e dokumentet që duhen dërguar deri në një datë, nga çdo dokument i dosjes. Asgjë nuk hyn në kalendar pa konfirmimin tënd; kujtesat vijnë me email dhe Telegram 7, 3 dhe 1 ditë para.",
-                                   "Udienze, termini e documenti da mandare entro una data, da ogni documento del fascicolo. Nulla entra in calendario senza la tua conferma; gli avvisi arrivano per email e Telegram 7, 3 e 1 giorno prima.") + "</p>" +
+      '<p class="scad-help">' + _sT("Seancat, afatet e dokumentet që duhen dërguar deri në një datë, nga çdo dokument i dosjes: analiza nis vetë kur ngarkon një dokument me data, dhe të njofton me Telegram dhe email. Asgjë nuk hyn në kalendar pa konfirmimin tënd; kujtesat vijnë 7, 3 dhe 1 ditë para.",
+                                   "Udienze, termini e documenti da mandare entro una data, da ogni documento del fascicolo: l'analisi parte da sola quando carichi un documento con delle date, e ti avvisa su Telegram e per email. Nulla entra in calendario senza la tua conferma; gli avvisi arrivano 7, 3 e 1 giorno prima.") + "</p>" +
       '<div class="scad-stato">' + stato + "</div>" +
       (prop.length ? '<ul class="scad-list">' + prop.map(_scadRiga).join("") + "</ul>" +
         '<div class="scad-actions"><button type="button" class="scad-conf">✓ ' + _sT("Konfirmo të zgjedhurat", "Conferma le selezionate") +
