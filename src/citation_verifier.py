@@ -857,7 +857,7 @@ _IT_CODE_NUM_CHECKS = [
     ("1502011", "riti_civili_semplificati"), ("2472012", "ordinamento_forense"), ("6041966", "licenziamenti_individuali"), ("7421969", "legge_sospensione_feriale"),
     ("232015", "tutele_crescenti"), ("242017", "responsabilita_sanitaria"), ("3941999", "regolamento_immigrazione"),
     ("2672000", "tuel"), ("4481988", "processo_penale_minorile"), ("1712005", "codice_nautica_diporto"),
-    ("2312007", "antiriciclaggio"), ("2312001", "responsabilita_enti"), ("2852001", "codice_strada"),
+    ("2312007", "antiriciclaggio"), ("2312001", "responsabilita_enti"),   # v9.471: tolto «2852001» → codice_strada (il C.d.S. è il d.lgs. 285/1992: un «285/2001» inesistente risultava verificato)
     ("3802001", "tu_edilizia"), ("2861998", "tu_immigrazione"), ("1962003", "codice_privacy"),
     ("1522006", "codice_ambiente"), ("2062005", "codice_consumo"), ("2092005", "codice_assicurazioni"),
     ("812008", "sicurezza_lavoro"), ("3001970", "statuto_lavoratori"), ("2411990", "procedimento_amministrativo"),

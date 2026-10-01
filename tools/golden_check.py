@@ -7585,6 +7585,10 @@ def main():
                                    _i241)
         _st241 = [(x["code"], x["status"]) for x in _r241["items"]]
         _ok241 = _st241 == [("tu_immigrazione", "verified"), ("codice_assicurazioni", "verified"), ("contratti_lavoro", "verified")]
+        # v9.471: un numero/anno che non è il C.d.S. («d.lgs. 285/2001») non si verifica sul C.d.S.
+        _x241 = [(x["code"], x["status"]) for x in _cv241.verify_text("art. 142 del d.lgs. 285/2001", _i241)["items"]]
+        _y241 = [(x["code"], x["status"]) for x in _cv241.verify_text("art. 142 del d.lgs. 285/1992", _i241)["items"]]
+        _ok241 = _ok241 and ("codice_strada", "verified") not in _x241 and ("codice_strada", "verified") in _y241
         check("alias-it[241]: TU Immigrazione, Cod. Ass., Disciplina organica dei contratti di lavoro", _ok241, str(_st241))
     except Exception as _e241:  # noqa: BLE001
         check("alias-it[241]: kontrollet u ekzekutuan", False, str(_e241))

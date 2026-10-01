@@ -2,7 +2,7 @@
 
 Strumento AI per avvocati (B2B), **bi-giurisdizione AL + IT**. Front-end Flask (waitress, UN processo) su porta
 5050, SQLite (`data/app.db`). Postgres `legalkb` NON è raggiungibile dal container: i precedenti vivono nel pickle.
-**Stato al 1 ott 2026 (v9.470)** — i numeri qui sono quelli veri; più sotto, nelle sezioni datate, c'è la storia:
+**Stato al 2 ott 2026 (v9.471)** — i numeri qui sono quelli veri; più sotto, nelle sezioni datate, c'è la storia:
 - **AL leggi** (`bm25.pkl`, BM25 con diacritici piegati dal v9.367, titolo del capitolo cercabile dal v9.373): **10.461 unità / 64 codici** (dal v9.391 anche la ligji 7975/1995 sugli stupefacenti e la 61/2023 sulla cannabis medica); embedding AL `_flat3`/`_ck3` (capitoli + corpo intero, `EMB_SUFFIX_SQ`/`EMB_SUFFIX2_SQ`), IT `_flat4`/`_ck4` dal v9.384 (`EMB_SUFFIX_IT`/`EMB_SUFFIX2_IT`); fonte
   `data/processed/all_articles.jsonl` (il pickle è derivato).
 - **Precedenti** (`bm25_decisions.pkl`): **3.996** = Kushtetuese **672** + Gjykata e Lartë **2.960** + CEDU **364**
@@ -1557,6 +1557,8 @@ rischio residuo della DPIA.
 - Super Avokati ha auth propria (login_required_api); utenti creati da admin o auto-provisionati da AALA (`/api/provision-demo`, secret-guarded).
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
+
+**v9.471 — UN ALIAS NUMERICO SBAGLIATO DEL C.D.S. (2 ott).** Stesso controllo sul lato italiano (ogni chiave numero/anno di `_IT_CODE_NUM_CHECKS` contro il numero dell'atto a cui punta, da `acts_meta.json`): l'unico errore era «2852001» → `codice_strada` (il C.d.S. è il d.lgs. 285/1992; un «d.lgs. 285/2001» inesistente risultava VERIFICATO). Tolto. Golden [241] esteso.
 
 **v9.470 — LA LEGGE VECCHIA NON SI VERIFICA SUL TESTO DELLA NUOVA (1 ott).** Dalla scansione delle citazioni: «nenit 43 të ligjit nr. 9723» usciva INESISTENTE perché `_LAW_NUMBER_ALIASES` mandava il numero 9723 sulla ligji 131/2015 del QKB. Riletto l'elenco: QUATTRO numeri di leggi vecchie puntavano al codice della legge NUOVA che le sostituisce, così un articolo della vecchia si verificava (o risultava falso) sul testo nuovo, che ha un altro contenuto — «8901» (falimentimi 2002 → 110/2016), «10076» (sigurimi i mjeteve 2009 → 32/2021), «750» e «750/2015» (Rregullore e Policisë → VKM 112/2025, che oggi sta nel codice `rregullore_policia`), e «9723», che non è abrogata ma è un'ALTRA legge (la 131/2015 la modifica). Ora: 9723 → fuori corpus («senza codice», mai verificata sulla 131/2015); le altre tre → «abrogata — oggi …» dal registro delle leggi abrogate (`_SHFUQ_MANUALE` accanto a quelle lette dal corpus; e il registro ora legge anche «Ligji nr.,8901» con la virgola del consolidato). Il test del banco di prova che fissava il vecchio comportamento («ligji nr. 10076» → la legge nuova) ora prova la 32/2021. Golden **[242]**, 644; banco di prova verde.
 
