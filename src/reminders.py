@@ -312,6 +312,16 @@ def _send_email(to_email: str, event, reminder) -> str | None:
 
 # ── channel selection ─────────────────────────────────────────────────────
 
+# v9.466 — su 17 account uno solo ha collegato il bot (l'amministratore): chi riceve gli avvisi solo per email non sa che su Telegram
+# arrivano coi pulsanti ✅ per confermare — una riga in fondo all'email, solo a chi non l'ha collegato e solo se il bot è attivo
+_SPINTA_TELEGRAM = {
+    "it": "📱 Questi avvisi possono arrivarti anche su Telegram, con la conferma delle scadenze in un clic: apri superavokati.ai/s e "
+          "premi «Collega Telegram».",
+    "sq": "📱 Këto njoftime mund të të vijnë edhe në Telegram, me konfirmimin e afateve me një klik: hap superavokati.ai/s dhe shtyp "
+          "«Lidh Telegram».",
+}
+
+
 def avvisa_utente(uid: int, titolo: str, righe: list[str], *, lang: str = "sq", link: str = "",
                   coda: str = "", tastiera: dict | None = None, coda_tastiera: str = "") -> list[tuple[str, str | None]]:
     """v9.415 — un avviso che NON è un promemoria di un evento (lo scadenziario ha trovato scadenze da confermare): stessi canali
@@ -338,6 +348,8 @@ def avvisa_utente(uid: int, titolo: str, righe: list[str], *, lang: str = "sq", 
                     f'<ul style="padding-left:18px;margin:0">{corpo}</ul>'
                     + (f'<p style="margin:12px 0 0">{_html_escape(coda)}</p>' if coda else "")
                     + (f'<p style="margin:14px 0 0"><a href="{_html_escape(link)}">{_html_escape(link)}</a></p>' if link else "")
+                    + (f'<p style="margin:14px 0 0;font-size:13px">{_html_escape(_SPINTA_TELEGRAM.get(lang, _SPINTA_TELEGRAM["sq"]))}</p>'
+                       if (not tg_chat and TELEGRAM_BOT_TOKEN) else "")
                     + f'<p style="margin:16px 0 0;font-size:12px;color:#999">{_T_PROMEMORIA.get(lang, _T_PROMEMORIA["sq"])["auto"]}</p>'
                     '</div></div>')
             payload = json.dumps({"from": REMINDER_EMAIL_FROM, "to": [email.strip()], "subject": titolo, "html": html}).encode("utf-8")

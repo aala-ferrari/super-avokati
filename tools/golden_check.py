@@ -7516,6 +7516,45 @@ def main():
     except Exception as _e238:  # noqa: BLE001
         check("consulta-giudice[238]: kontrollet u ekzekutuan", False, str(_e238))
 
+    # [239] v9.466 — nell'email degli avvisi la riga per collegare Telegram: solo a chi non l'ha collegato e solo col bot attivo
+    try:
+        from src import reminders as _r239
+        _mandate = []
+
+        class _Resp239:
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+            def read(self): return b'{"id": "x"}'
+
+        def _open239(req, timeout=15):
+            _mandate.append(req.data.decode("utf-8"))
+            return _Resp239()
+        _orig = (_r239.urllib.request.urlopen, _r239._email_configured, _r239.storage.get_user_telegram_chat,
+                 _r239.storage.get_user_reminder_email, _r239.TELEGRAM_BOT_TOKEN, _r239._push, _r239._send_telegram)
+        try:
+            _r239.urllib.request.urlopen = _open239
+            _r239._email_configured = lambda: True
+            _r239.storage.get_user_reminder_email = lambda uid: "avvocato@example.com"
+            _r239._push = lambda *a, **k: None
+            _r239._send_telegram = lambda *a, **k: None
+            _r239.TELEGRAM_BOT_TOKEN = "prova"
+            _r239.storage.get_user_telegram_chat = lambda uid: None
+            _r239.avvisa_utente(1, "Scadenze", ["una"], lang="it")
+            _r239.storage.get_user_telegram_chat = lambda uid: "123"
+            _r239.avvisa_utente(1, "Scadenze", ["una"], lang="it")
+            _r239.TELEGRAM_BOT_TOKEN = ""
+            _r239.storage.get_user_telegram_chat = lambda uid: None
+            _r239.avvisa_utente(1, "Scadenze", ["una"], lang="sq")
+        finally:
+            (_r239.urllib.request.urlopen, _r239._email_configured, _r239.storage.get_user_telegram_chat,
+             _r239.storage.get_user_reminder_email, _r239.TELEGRAM_BOT_TOKEN, _r239._push, _r239._send_telegram) = _orig
+        _ok239 = (len(_mandate) == 3 and "Collega Telegram" in _mandate[0] and "Collega Telegram" not in _mandate[1]
+                  and "Lidh Telegram" not in _mandate[2])
+        check("spinta-telegram[239]: l'email degli avvisi invita a collegare Telegram solo chi non l'ha fatto", _ok239,
+              str([("Collega" in m, "Lidh" in m) for m in _mandate]))
+    except Exception as _e239:  # noqa: BLE001
+        check("spinta-telegram[239]: kontrollet u ekzekutuan", False, str(_e239))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
