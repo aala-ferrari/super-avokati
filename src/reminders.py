@@ -318,6 +318,7 @@ def avvisa_utente(uid: int, titolo: str, righe: list[str], *, lang: str = "sq", 
     collegati dell'utente, Telegram ed email. Mai solleva. v9.424: `coda` = l'ultima riga (email, e Telegram senza pulsanti);
     su Telegram con `tastiera` l'ultima riga è `coda_tastiera` (i pulsanti ✅ per confermare lì)."""
     esiti: list[tuple[str, str | None]] = []
+    _push(uid, titolo, " · ".join(righe[:2]), link, "scad")      # v9.443: anche la notifica sul telefono (app installata)
     try:
         tg_chat = storage.get_user_telegram_chat(uid)
         if tg_chat:
@@ -466,6 +467,17 @@ def sollecita_scadenze(adesso: datetime | None = None) -> int:
     return inviati
 
 
+def _push(uid: int, titolo: str, corpo: str, link: str = "", tag: str = "sa") -> None:
+    """v9.443 — la notifica dell'app installata sul telefono (PWA), ACCANTO a Telegram ed email: chi non usa Telegram la vedeva
+    solo per «l'analisi è pronta». Mai solleva; il servizio non la mostra se l'app è già aperta davanti all'avvocato."""
+    try:
+        from . import push as _p
+        url = (link or "/").replace("https://superavokati.ai", "") or "/"
+        _p.avvisa(storage, uid, titolo[:120], corpo[:240], url=url, tag=tag)
+    except Exception as exc:  # noqa: BLE001
+        log.debug("push %s: %s", uid, exc)
+
+
 def _consegna(uid: int, event, reminder, *, da_chi: str = "") -> list[tuple[str, str | None]]:
     """I canali collegati di UN utente: [(canale, errore o None)]. `da_chi` = il collega che ha messo l'evento in calendario
     (per chi riceve l'avviso come collega dello studio)."""
@@ -475,6 +487,13 @@ def _consegna(uid: int, event, reminder, *, da_chi: str = "") -> list[tuple[str,
     if email and email.strip().lower().endswith(".test"):
         email = None                                  # account di prova (…@superavokati.test): mai email vere
     esiti = []
+    try:                                              # v9.443: anche la notifica sul telefono
+        _lg = _lingua(event)
+        caso, link = _caso_di(event)
+        _push(uid, f"⏰ {_T_PROMEMORIA[_lg]['kujtese']} ({_fmt_ahead(reminder, _lg)}): {event.title or ''}",
+              " · ".join(x for x in (_fmt_when(event), caso) if x), link, f"ev-{getattr(event, 'id', '')}")
+    except Exception:  # noqa: BLE001
+        pass
     if wa_phone:
         esiti.append(("whatsapp", _send_whatsapp(wa_phone, event, reminder)))
     if tg_chat:

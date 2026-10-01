@@ -5742,7 +5742,7 @@ def api_letters_draft():
     case_context = ""
     if case_id and _resolve_case(case_id) is not None:
         try:
-            ctx, used, _n = vault_mod.build_context(case_id)
+            ctx, used, _n = vault_mod.build_context(case_id, facts)       # v9.444: i passi pertinenti ai fatti della lettera
             if used:
                 case_context = ctx
         except Exception:  # noqa: BLE001
@@ -7059,7 +7059,8 @@ def api_video_compare(case_id: str):
             if not voluti or d.id in voluti:
                 testi_video.append(f"### {d.filename}\n\n{testo}")
         else:
-            altri.append(f"### {d.filename}\n\n{testo[:6000]}")
+            # v9.446: il verbale (spesso lungo) entrava coi primi 6.000 caratteri: inizio E fine, 20.000
+            altri.append(f"### {d.filename}\n\n{docs_mod._budget_clip(testo, 20000)}")
 
     if not testi_video:
         return jsonify({
@@ -8320,6 +8321,10 @@ def _render_ical(cal_name: str, events: list) -> str:
         if ev.location:
             lines.append(f"LOCATION:{_esc(ev.location)}")
         lines.append(f"CATEGORIES:{_esc(ev.kind)}")
+        # v9.442: l'udienza RINVIATA (chiusa dalla v9.440) esce annullata, e Google/Apple la tolgono: altrimenti restava nel
+        # calendario del telefono alla data vecchia
+        if getattr(ev, "done", False) and (ev.title or "").startswith(("RINVIATA al ", "SHTYRË për ")):
+            lines.append("STATUS:CANCELLED")
         lines.append("END:VEVENT")
     lines.append("END:VCALENDAR")
     # Per RFC 5545 lines shouldn't exceed 75 octets; most clients tolerate
@@ -8330,12 +8335,17 @@ def _render_ical(cal_name: str, events: list) -> str:
         if len(b) <= 75:
             folded.append(ln)
             continue
-        # Naive fold on 70-byte chunks with CRLF + space continuation.
-        i = 0
-        while i < len(b):
-            chunk = b[i:i + 70].decode("utf-8", errors="ignore")
-            folded.append(chunk if i == 0 else " " + chunk)
-            i += 70
+        # v9.442: piegatura a CARATTERI interi (≤ 75 byte la prima riga, ≤ 74 + lo spazio le altre). Prima si tagliava a 70
+        # byte e si decodificava «ignorando gli errori»: la metà di una «ë» o di una «à» spariva, e nel calendario del telefono
+        # restava «Prmbledhje» per «Përmbledhje».
+        cur, lim = "", 75
+        for ch in ln:
+            if len((cur + ch).encode("utf-8")) > lim:
+                folded.append(cur if lim == 75 else " " + cur)
+                cur, lim = ch, 74
+            else:
+                cur += ch
+        folded.append(cur if lim == 75 else " " + cur)
     return "\r\n".join(folded) + "\r\n"
 
 
@@ -10979,8 +10989,58 @@ _CASE_PRECEDENT_MISSING = """<!DOCTYPE html>
 
 # ── entrypoint ─────────────────────────────────────────────────────────────
 
+def _riprendi_lavori_interrotti(attesa_s: float = 60.0) -> dict:
+    """v9.441 — all'avvio del SERVER (mai nei processi di prova: si chiama solo da `main`) i lavori lasciati a metà da un riavvio
+    ripartono da soli, uno alla volta: i documenti rimasti «in lettura» (OCR/riassunto: prima restavano «pending» per sempre e il
+    portale mostrava «sto leggendo i documenti…» senza fine) e le analisi delle scadenze «in corso» (l'avviso non sarebbe mai
+    arrivato). Un file sparito → il documento passa in errore con il motivo. `RIPRESA_LAVORI=0` spegne."""
+    esito = {"documenti": 0, "analisi": 0, "persi": 0}
+    if os.environ.get("RIPRESA_LAVORI", "1") == "0" or _BRAIN is None:
+        return esito
+    time.sleep(attesa_s)                       # il server prima risponde, poi si recupera
+    try:
+        docs, anal = storage.lavori_interrotti()
+    except Exception as exc:  # noqa: BLE001
+        log.warning("ripresa lavori: lettura fallita: %s", exc)
+        return esito
+    ripresi = set()
+    for d in docs[:30]:
+        from pathlib import Path as _P
+        p = _P(d["storage_path"] or "")
+        if not p.exists():
+            storage.mark_document_error(d["id"], ("Elaborazione interrotta e file non più disponibile: ricarica il documento"
+                                                  if d["jurisdiction"] == "IT" else
+                                                  "Përpunimi u ndërpre dhe skedari nuk është më: ngarkoje sërish dokumentin"))
+            esito["persi"] += 1
+            continue
+        doc = storage.get_document(d["id"], d["case_id"])
+        if doc is None:
+            continue
+        log.info("ripresa lavori: documento %s («%s») interrotto da un riavvio — lo rileggo", d["id"][:8], d["filename"])
+        avvia_elaborazione_documento(doc, d["case_id"], int(d["user_id"]), d["jurisdiction"], p, d["filename"])
+        ripresi.add(d["id"])
+        esito["documenti"] += 1
+        for _ in range(180):                       # uno alla volta: fino a 30 minuti a documento (OCR di un fascicolo lungo)
+            time.sleep(10)
+            g = storage.get_document(d["id"], d["case_id"])
+            if g is None or g.status != "pending":
+                break
+    per_caso: dict = {}
+    for a in anal:
+        if a["document_id"] in ripresi:            # il documento riletto fa ripartire da solo il suo scadenziario
+            continue
+        per_caso.setdefault((a["case_id"], int(a["user_id"]), a["jurisdiction"]), []).append(a["document_id"])
+    for (cid, uid, giur), ids in per_caso.items():
+        log.info("ripresa lavori: scadenziario di %s (%d documenti) interrotto da un riavvio — riparte", cid[:8], len(ids))
+        esito["analisi"] += _scad_lancia(cid, uid, giur, ids, avvisa=True)
+    if any(esito.values()):
+        log.info("ripresa lavori dopo il riavvio: %s", esito)
+    return esito
+
+
 def main() -> None:
     _ensure_loaded()
+    threading.Thread(target=_riprendi_lavori_interrotti, name="ripresa-lavori", daemon=True).start()   # v9.441
     port = int(os.environ.get("PORT", "5050"))
     host = os.environ.get("HOST", "127.0.0.1")
     log.info("starting Super Avvocato web UI at http://%s:%d", host, port)

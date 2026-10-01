@@ -497,9 +497,9 @@ def summarize_document(extracted_text: str, filename: str, backend) -> dict:
 
     # Cap the text we send to the fast tier (Sonnet/Flash) — most
     # documents fit, but a scanned 40-page file would blow the budget.
-    clipped = text[:12000]
-    if len(text) > 12000:
-        clipped += "\n\n[… teksti i mëtejshëm u shkurtua për analizë …]"
+    # v9.445: inizio E fine (24.000 caratteri) — il riassunto di un fascicolo di 60 pagine descriveva solo le prime 8, e gli atti
+    # più recenti (in fondo) non comparivano né nel riassunto né nei fatti principali
+    clipped = _budget_clip(text, 24000)
 
     # La lingua va detta QUI, nel messaggio, non solo nel preambolo di
     # giurisdizione: il tier veloce non ragiona a lungo e su un compito
@@ -575,7 +575,7 @@ def _parse_json_loose(raw: str) -> dict:
 
 def format_documents_for_prompt(
     documents: list[dict], *, compact: bool = False,
-    char_budget: int | None = None,
+    char_budget: int | None = None, domanda: str = "",
 ) -> str:
     """Turn a list of analysed docs into the 'DOKUMENTET E DOSJES' block
     that the brain injects into triage + answer prompts.
@@ -594,50 +594,108 @@ def format_documents_for_prompt(
     if not documents:
         return ""
 
+    # v9.445: le etichette del blocco nella lingua della SESSIONE (il modello copia le etichette dei prompt nelle risposte)
+    it = _lingua_sessione() == "it"
+    L = (lambda sq, itx: itx) if it else (lambda sq, itx: sq)
     parts: list[str] = [
         "",
-        "── DOKUMENTET E DOSJES (referencë, jo pyetje) ──",
-        "Më poshtë është një përmbledhje e dokumenteve që janë "
-        "bashkangjitur në këtë rast. Përdori vetëm si "
-        "kontekst — pyetja e vërtetë vjen PAS bllokut 'FUND I DOKUMENTEVE'.",
+        L("── DOKUMENTET E DOSJES (referencë, jo pyetje) ──", "── DOCUMENTI DEL FASCICOLO (riferimento, non domanda) ──"),
+        L("Më poshtë është një përmbledhje e dokumenteve që janë bashkangjitur në këtë rast. Përdori vetëm si kontekst — "
+          "pyetja e vërtetë vjen PAS bllokut 'FUND I DOKUMENTEVE'.",
+          "Qui sotto i documenti allegati a questo fascicolo. Usali solo come contesto — la domanda vera viene DOPO il blocco "
+          "'FINE DEI DOCUMENTI'."),
         "",
     ]
     for i, d in enumerate(documents, 1):
-        header = f"[{i}] {d.get('filename', 'dokument')}"
+        header = f"[{i}] {d.get('filename', L('dokument', 'documento'))}"
         if d.get("doc_type"):
             header += f" — {d['doc_type']}"
         parts.append(header)
         if d.get("summary"):
-            parts.append(f"  Përmbledhje: {d['summary']}")
+            parts.append(f"  {L('Përmbledhje', 'Riassunto')}: {d['summary']}")
         facts = d.get("key_facts") or []
         if facts:
-            parts.append("  Faktet kryesore:")
+            parts.append("  " + L("Faktet kryesore:", "Fatti principali:"))
             for f in facts:
                 parts.append(f"    • {f}")
         if not compact:
             text = (d.get("extracted_text") or "").strip()
             if text:
-                clipped = _budget_clip(text, char_budget or DOC_CONTEXT_CHAR_BUDGET)
-                parts.append("  Përmbajtja tekstuale (për citim):")
+                clipped = _budget_clip(text, char_budget or DOC_CONTEXT_CHAR_BUDGET, domanda)
+                parts.append("  " + L("Përmbajtja tekstuale (për citim):", "Testo (per citare):"))
                 for line in clipped.splitlines():
                     parts.append(f"    {line}")
         parts.append("")
-    parts.append("── FUND I DOKUMENTEVE ──")
+    parts.append(L("── FUND I DOKUMENTEVE ──", "── FINE DEI DOCUMENTI ──"))
     parts.append("")
     return "\n".join(parts)
 
 
-def _budget_clip(text: str, budget: int) -> str:
-    """Keep a document within `budget` chars. For long docs we take the
-    first 70% + last 30% of the budget, so the cover page (parties, date,
-    object) AND the dispositif/signature both survive."""
+_PEZZO = 2000
+
+
+def _pezzi(testo: str) -> list[str]:
+    """Il documento in pezzi ~2.000 caratteri, tagliati ai cambi pagina o ai paragrafi."""
+    blocchi = re.split(r"(?=\n── (?:Pagina|Faqja) \d+)", testo)
+    out: list[str] = []
+    for b in blocchi:
+        while len(b) > _PEZZO:
+            k = b.rfind("\n\n", _PEZZO // 2, _PEZZO)
+            k = k if k > 0 else b.rfind(". ", _PEZZO // 2, _PEZZO) + 1 or _PEZZO
+            out.append(b[:k])
+            b = b[k:]
+        if b.strip():
+            out.append(b)
+    return out
+
+
+def _parole(t: str) -> set:
+    return {w[:6] for w in re.findall(r"[a-zà-ÿëç0-9]{4,}", (t or "").lower())}
+
+
+def estratto_pertinente(full: str, budget: int, domanda: str = "", it: bool | None = None) -> str:
+    """v9.444-445 — un documento più lungo del budget: l'INIZIO (chi, cosa, quale causa) e poi i pezzi più pertinenti alla
+    DOMANDA — senza domanda la FINE (gli atti più recenti stanno in fondo al fascicolo) —, in ordine di posizione, con «[…]» dove
+    si salta. Usato dal Vault e dalla chat: prima ognuno prendeva i primi N caratteri, e una domanda sulla pagina 55 riceveva
+    «non si trova nei documenti»."""
+    if it is None:
+        it = _lingua_sessione() == "it"
+    pezzi = _pezzi(full)
+    if not pezzi:
+        return ""
+    scelti = {0}
+    usato = len(pezzi[0])
+    if (domanda or "").strip():
+        q = _parole(domanda)
+        punti = sorted(((len(q & _parole(p)), -i, i) for i, p in enumerate(pezzi) if i), reverse=True)
+        ordine = [i for s_, _m, i in punti if s_ > 0] + [i for s_, _m, i in punti if s_ == 0][::-1]
+    else:
+        ordine = list(range(len(pezzi) - 1, 0, -1))
+    for i in ordine:
+        if usato + len(pezzi[i]) > budget:
+            continue
+        scelti.add(i)
+        usato += len(pezzi[i])
+    salto = "\n[… parte del documento non inclusa …]\n" if it else "\n[… pjesë e dokumentit e papërfshirë …]\n"
+    out, prec = [], -1
+    for i in sorted(scelti):
+        if prec >= 0 and i != prec + 1:
+            out.append(salto)
+        out.append(pezzi[i])
+        prec = i
+    return "".join(out)
+
+
+def _budget_clip(text: str, budget: int, domanda: str = "") -> str:
+    """Keep a document within `budget` chars. Senza domanda: 70% inizio + 30% fine (frontespizio E dispositivo/firma); con la
+    domanda (v9.445): l'inizio e i passi pertinenti (`estratto_pertinente`). Il segno del taglio nella lingua della sessione."""
     text = re.sub(r"[ \t]+", " ", text).strip()
     if len(text) <= budget:
         return text
+    if (domanda or "").strip():
+        return estratto_pertinente(text, budget, domanda)
     head_n = int(budget * 0.7)
     tail_n = budget - head_n - 40  # 40 chars for the ellipsis marker
-    return (
-        text[:head_n].rstrip()
-        + "\n\n[… përmbajtja ndërmjet u shkurtua …]\n\n"
-        + text[-tail_n:].lstrip()
-    )
+    segno = ("\n\n[… parte centrale omessa …]\n\n" if _lingua_sessione() == "it"
+             else "\n\n[… përmbajtja ndërmjet u shkurtua …]\n\n")
+    return text[:head_n].rstrip() + segno + text[-tail_n:].lstrip()

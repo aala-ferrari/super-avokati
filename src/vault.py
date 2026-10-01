@@ -36,9 +36,13 @@ def _it() -> bool:
         return False
 
 
-_MAX_PER_DOC = 9000     # chars of each document fed to the brain
-_MAX_TOTAL = 70000      # overall context cap (~17k tokens)
-
+# v9.444: erano 9.000 caratteri per documento (~6 pagine) e 70.000 in tutto. Con il fascicolo letto per intero (v9.427, 60
+# pagine) la domanda sulla pagina 55 riceveva «non si trova nei documenti» CON SICUREZZA (misurato: tools/eval_vault.py). Ora fino a
+# ~40 pagine per documento e, oltre, i PASSI pertinenti alla domanda (o inizio + fine senza domanda); e chi resta fuori si dice.
+import os as _os  # noqa: E402
+import re as _re  # noqa: E402
+_MAX_PER_DOC = int(_os.environ.get("VAULT_MAX_PER_DOC", "60000"))
+_MAX_TOTAL = int(_os.environ.get("VAULT_MAX_TOTAL", "180000"))
 _SYSTEM = (
     "Ti je Tetramorph, asistenti ligjor i superavokati.ai. Përgjigju PYETJES së "
     "avokatit duke u bazuar VETËM te dokumentet e dosjes më poshtë. Cito gjithmonë "
@@ -61,20 +65,28 @@ _SYSTEM_IT = (
 )
 
 
-def build_context(case_id: str):
-    """Return (context_text, docs_used, n_ready)."""
+def _estratto(full: str, budget: int, domanda: str = "", it: bool = False) -> str:
+    """v9.444 — vedi `documents.estratto_pertinente` (una funzione sola per il Vault e per la chat)."""
+    from .documents import estratto_pertinente
+    return estratto_pertinente(full, budget, domanda, it)
+
+
+def build_context(case_id: str, domanda: str = ""):
+    """Return (context_text, docs_used, n_ready). v9.444: con la domanda, dei documenti lunghi entrano i passi pertinenti."""
     docs = storage.list_documents(case_id)
     ready = [d for d in docs
              if getattr(d, "status", "") == "ready" and getattr(d, "extracted_text", None)]
     parts, used, total = [], [], 0
+    esclusi: list[str] = []
     it = _it()
     for i, d in enumerate(ready, 1):
         full = d.extracted_text or ""
-        txt = full[:_MAX_PER_DOC]
+        txt = full if len(full) <= _MAX_PER_DOC else _estratto(full, _MAX_PER_DOC, domanda, it)
         if len(full) > _MAX_PER_DOC:
-            txt += ("\n…[documento tagliato — continua, il resto non è stato incluso]" if it
-                    else "\n…[dokument i shkurtuar — vazhdon, pjesa tjetër nuk u përfshi]")
+            txt += ("\n…[documento lungo: incluse le parti più pertinenti — il resto non è stato letto per questa domanda]" if it
+                    else "\n…[dokument i gjatë: u përfshinë pjesët më të rëndësishme — pjesa tjetër nuk u lexua për këtë pyetje]")
         if total + len(txt) > _MAX_TOTAL:
+            esclusi.append(d.filename)
             continue  # skip this one but let smaller later docs still fit
         total += len(txt)
         head = ("[Doc %d: %s%s]" if it else "[Dok %d: %s%s]") % (
@@ -84,11 +96,15 @@ def build_context(case_id: str):
         parts.append(head + "\n" + txt)
         used.append({"n": i, "filename": d.filename,
                      "doc_type": getattr(d, "doc_type", None)})
+    if esclusi:                                 # v9.444: chi resta fuori si DICE (mai «non si trova» su un documento non letto)
+        parts.append(("[NON LETTI per lo spazio: " if it else "[TË PALEXUARA për mungesë hapësire: ") + ", ".join(esclusi)
+                     + ("] — se la risposta potrebbe essere lì, dillo invece di «non si trova»." if it else
+                        "] — nëse përgjigjja mund të jetë aty, thuaje në vend të «nuk gjendet».") )
     return "\n\n".join(parts), used, len(ready)
 
 
 def ask(brain, case_id: str, question: str) -> dict:
-    ctx, used, n_ready = build_context(case_id)
+    ctx, used, n_ready = build_context(case_id, question or "")
     if not used:
         return {"answer": "", "docs_used": [], "n_docs": 0, "empty": True}
     it = _it()

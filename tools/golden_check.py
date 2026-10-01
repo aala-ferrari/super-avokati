@@ -7116,6 +7116,115 @@ def main():
     except Exception as _e217:  # noqa: BLE001
         check("rinvio[217]: kontrollet u ekzekutuan", False, str(_e217))
 
+    # [218] v9.441 — i lavori lasciati a metà da un RIAVVIO ripartono da soli: documenti «pending» (prima per sempre «sto
+    # leggendo…»), analisi delle scadenze «in_corso» (l'avviso non arrivava); SOLO nel processo del server (main), mai nelle prove
+    try:
+        import inspect as _in218
+        from src import web as _w218
+        _rl = _in218.getsource(_w218._riprendi_lavori_interrotti)
+        _ok218 = ("_riprendi_lavori_interrotti" in _in218.getsource(_w218.main)
+                  and "_riprendi_lavori_interrotti" not in _in218.getsource(_w218._ensure_loaded)
+                  and "lavori_interrotti()" in _rl and 'RIPRESA_LAVORI' in _rl and "avvisa=True" in _rl
+                  and "ngarkoje sërish dokumentin" in _rl and "ricarica il documento" in _rl)
+        check("ripresa-lavori[218]: dopo un riavvio documenti e scadenze interrotti ripartono, solo nel server", _ok218)
+    except Exception as _e218:  # noqa: BLE001
+        check("ripresa-lavori[218]: kontrollet u ekzekutuan", False, str(_e218))
+
+    # [219] v9.442 — il FEED iCal (Google/Apple Calendar): righe piegate a caratteri interi (prima la metà di una «ë» spariva:
+    # «Prmbledhje»), e l'udienza RINVIATA esce annullata (STATUS:CANCELLED) invece di restare alla data vecchia
+    try:
+        from types import SimpleNamespace as _NS219
+        from src import web as _w219
+        _testo = "Përmbledhje e çështjes së dëshmitarëve — udienza già fissata, perché " * 5
+        _ev = [_NS219(id="a", updated_at="2026-10-01T08:00:00Z", all_day=False, starts_at="2099-02-18T09:00:00Z", ends_at=None,
+                      title="RINVIATA al 15/03/2099 — Udienza", description=_testo, location=None, kind="seance", done=True),
+               _NS219(id="b", updated_at="2026-10-01T08:00:00Z", all_day=True, starts_at="2099-03-15T08:00:00Z", ends_at=None,
+                      title="Udienza", description=None, location=None, kind="seance", done=False)]
+        _ics = _w219._render_ical("prova", _ev)
+        _righe = _ics.split("\r\n")
+        _unito = _ics.replace("\r\n ", "")
+        _ok219 = (all(len(r.encode("utf-8")) <= 75 for r in _righe) and ("DESCRIPTION:" + _testo.replace(",", "\\,")) in _unito
+                  and _unito.count("STATUS:CANCELLED") == 1
+                  and _unito.index("STATUS:CANCELLED") < _unito.index("UID:b@"))
+        check("ical[219]: righe piegate senza perdere lettere, udienza rinviata annullata nel calendario del telefono", _ok219)
+    except Exception as _e219:  # noqa: BLE001
+        check("ical[219]: kontrollet u ekzekutuan", False, str(_e219))
+
+    # [220] v9.443 — avvisi delle scadenze e promemoria degli eventi anche come NOTIFICA dell'app installata (accanto a Telegram ed
+    # email), col link al cliente; mai solleva
+    try:
+        import inspect as _in220
+        from src import reminders as _rm220
+        _ok220 = ("_push(uid, titolo" in _in220.getsource(_rm220.avvisa_utente)
+                  and "_push(uid, f\"⏰" in _in220.getsource(_rm220._consegna)
+                  and "except Exception" in _in220.getsource(_rm220._push))
+        check("push[220]: notifica sul telefono per scadenze e promemoria, col link al cliente", _ok220)
+    except Exception as _e220:  # noqa: BLE001
+        check("push[220]: kontrollet u ekzekutuan", False, str(_e220))
+
+    # [221] v9.444 — il VAULT su un fascicolo lungo: prima i primi 9.000 caratteri per documento e «non si trova nei documenti»
+    # detto con sicurezza sulla pagina 55; ora ~40 pagine per documento e, oltre, i passi PERTINENTI alla domanda (senza domanda
+    # inizio + fine); un documento rimasto fuori per lo spazio si DICE
+    try:
+        import inspect as _in221
+        from src import vault as _v221
+        _pag = [f"── Pagina {i}/90 ──\n" + ("testo del fascicolo senza interesse " * 60)
+                + ("\nIl Giudice nomina CTU l'ing. Marco Bellini, giuramento il 9 dicembre 2026." if i == 85 else "")
+                for i in range(1, 91)]
+        _full = "\n\n".join(_pag)
+        _con = _v221._estratto(_full, 20000, "Chi è il consulente tecnico nominato e quando giura il CTU?", True)
+        _senza = _v221._estratto(_full, 20000, "", True)
+        _ok221 = (_v221._MAX_PER_DOC >= 60000 and _v221._MAX_TOTAL >= 180000
+                  and "Bellini" in _con and len(_con) <= 20000 + 200 and "Pagina 1/90" in _con
+                  and "Pagina 90/90" in _senza and "Pagina 1/90" in _senza
+                  and "build_context(case_id, question" in _in221.getsource(_v221.ask)
+                  and "NON LETTI per lo spazio" in _in221.getsource(_v221.build_context))
+        check("vault[221]: documenti lunghi letti per i passi pertinenti (pagina 85 trovata), inizio+fine senza domanda", _ok221,
+              str(len(_con)))
+    except Exception as _e221:  # noqa: BLE001
+        check("vault[221]: kontrollet u ekzekutuan", False, str(_e221))
+
+    # [222] v9.445 — la CHAT legge i documenti lunghi per i passi pertinenti alla domanda (prima: 12.000 caratteri inizio+fine),
+    # il riassunto del documento legge inizio E fine (prima i primi 12.000), etichette del blocco nella lingua della sessione
+    try:
+        import inspect as _in222
+        from src import documents as _d222, brain as _b222
+        _pg = [f"── Pagina {i}/60 ──\n" + ("testo senza interesse per la domanda " * 60)
+               + ("\nIl Giudice nomina CTU l'ing. Marco Bellini, giuramento il 9 dicembre 2026." if i == 55 else "")
+               for i in range(1, 61)]
+        _doc = [{"filename": "fascicolo.pdf", "extracted_text": "\n\n".join(_pg), "summary": "s"}]
+        _b222.set_request_jurisdiction("IT")
+        try:
+            _blk = _d222.format_documents_for_prompt(_doc, char_budget=12000, domanda="Chi è il CTU nominato e quando giura?")
+            _blk0 = _d222.format_documents_for_prompt(_doc, char_budget=12000)
+        finally:
+            _b222.set_request_jurisdiction("AL")
+        _ok222 = ("Bellini" in _blk and "Bellini" not in _blk0 and "DOCUMENTI DEL FASCICOLO" in _blk and "Riassunto:" in _blk
+                  and "Përmbledhje" not in _blk and "_budget_clip(text, 24000)" in _in222.getsource(_d222.summarize_document)
+                  and "domanda=user_message" in _in222.getsource(_b222.SuperAvvocato._build_compose_messages))
+        check("chat-documenti[222]: passi pertinenti alla domanda nei documenti lunghi, riassunto inizio+fine, etichette della sessione", _ok222)
+    except Exception as _e222:  # noqa: BLE001
+        check("chat-documenti[222]: kontrollet u ekzekutuan", False, str(_e222))
+
+    # [223] v9.446 — il GENIO divide lo spazio fra i documenti (prima il primo prendeva tutto e i successivi niente) e del documento
+    # lungo legge inizio E fine (gli atti recenti stanno in fondo); etichette nella lingua della sessione
+    try:
+        from src import genio as _g223, brain as _b223
+        _q = _g223._quote_documenti([100000, 3000, 5000], 48000)
+        _docs = [{"filename": "lungo.pdf", "extracted_text": "INIZIO " + ("x" * 90000) + " FINE-DEL-FASCICOLO"},
+                 {"filename": "breve.pdf", "extracted_text": "documento breve interamente letto"}]
+        _b223.set_request_jurisdiction("IT")
+        try:
+            _blk = "\n".join(_g223._blocco_documenti(_docs))
+        finally:
+            _b223.set_request_jurisdiction("AL")
+        _ok223 = (_q == [40000, 3000, 5000] and _g223.BUDGET_DOCUMENTI >= 48000 and "INIZIO" in _blk
+                  and "FINE-DEL-FASCICOLO" in _blk and "documento breve interamente letto" in _blk
+                  and "DOCUMENTI DEL FASCICOLO" in _blk and "Përmbajtja" not in _blk)
+        check("genio-documenti[223]: spazio diviso fra i documenti, inizio e fine del lungo, etichette della sessione", _ok223, str(_q))
+    except Exception as _e223:  # noqa: BLE001
+        check("genio-documenti[223]: kontrollet u ekzekutuan", False, str(_e223))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

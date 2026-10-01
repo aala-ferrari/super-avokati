@@ -7065,6 +7065,21 @@ def segna_analisi_scadenze(document_id: str, case_id: str, user_id: int, stato: 
             (document_id, case_id, user_id, stato, int(n), errore, _utcnow()))
 
 
+def lavori_interrotti() -> tuple[list[dict], list[dict]]:
+    """v9.441 — (documenti ancora «pending», analisi delle scadenze «in_corso») con il fascicolo, il suo avvocato e la sua
+    giurisdizione. All'avvio del server sono per forza ORFANI: l'app è un processo solo, i thread che li lavoravano sono morti col
+    riavvio (un deploy fra un documento e l'altro)."""
+    with db() as conn:
+        docs = [dict(r) for r in conn.execute(
+            "SELECT d.id, d.case_id, d.filename, d.ext, d.mimetype, d.storage_path, c.user_id, "
+            "COALESCE(c.jurisdiction, 'AL') AS jurisdiction FROM documents d JOIN cases c ON c.id = d.case_id "
+            "WHERE d.status = 'pending' ORDER BY d.created_at").fetchall()]
+        anal = [dict(r) for r in conn.execute(
+            "SELECT a.document_id, a.case_id, a.user_id, COALESCE(c.jurisdiction, 'AL') AS jurisdiction "
+            "FROM scadenze_analisi a JOIN cases c ON c.id = a.case_id WHERE a.stato = 'in_corso'").fetchall()]
+    return docs, anal
+
+
 def analisi_scadenze_del_caso(case_id: str) -> dict[str, dict]:
     with db() as conn:
         return {r["document_id"]: dict(r) for r in

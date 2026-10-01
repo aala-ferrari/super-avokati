@@ -168,7 +168,7 @@ def stress_test_hearing(
     if case_docs:
         names = "\n".join(f"  • {d.get('filename', '?')}"
                           for d in case_docs)
-        docs_block = f"\nDOKUMENTET E DOSJES:\n{names}\n"
+        docs_block = (f"\nDOCUMENTI DEL FASCICOLO:\n{names}\n" if _sessione_it() else f"\nDOKUMENTET E DOSJES:\n{names}\n")
     prompt = textwrap.dedent(f"""\
         Rasti i avokatit:
         \"\"\"{hypothesis}\"\"\"
@@ -1289,7 +1289,7 @@ def adversarial_loop(
     docs_block = ""
     if case_docs:
         names = "\n".join(f"  • {d.get('filename', '?')}" for d in case_docs)
-        docs_block = f"\nDOKUMENTET E DOSJES:\n{names}\n"
+        docs_block = (f"\nDOCUMENTI DEL FASCICOLO:\n{names}\n" if _sessione_it() else f"\nDOKUMENTET E DOSJES:\n{names}\n")
     attachments: list[Path] = []
     for d in (case_docs or []):
         sp = d.get("storage_path")

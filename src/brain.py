@@ -6241,7 +6241,7 @@ class SuperAvvocato:
         attachment_paths = [Path(d["storage_path"]) for d in _da_leggere]
 
         dossier_block = format_documents_for_prompt(
-            _inline, char_budget=COMPOSE_DOC_CHAR_BUDGET)
+            _inline, char_budget=COMPOSE_DOC_CHAR_BUDGET, domanda=user_message)   # v9.445: i passi pertinenti alla domanda
         if attachment_paths:
             filenames = "\n".join(
                 f"  • {d.get('filename', '?')}" for d in _da_leggere

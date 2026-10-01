@@ -591,7 +591,18 @@ class ClaudeCodeBackend(LLMBackend):
         if attachments:
             for d in sorted(seen_dirs):
                 cmd.extend(["--add-dir", d])
-            prompt = (
+            try:                                   # v9.445: nella lingua della SESSIONE
+                from .brain import request_jurisdiction as _rj
+                _it_att = (_rj() or "AL").upper() == "IT"
+            except Exception:  # noqa: BLE001
+                _it_att = False
+            prompt = ((
+                "DOCUMENTI DEL FASCICOLO (leggili prima di rispondere):\n"
+                + "\n".join(file_list_lines)
+                + "\n\nPER OGNI file qui sopra: usa lo strumento Read per aprirlo DIRETTAMENTE con il percorso completo. Non "
+                "fidarti dei riassunti; leggili tu e ricava i fatti che servono (date, parti, importi, dispositivo, termini). "
+                "Dopo averli letti, torna alla domanda qui sotto e scrivi la risposta.\n\n"
+                "━━━ RICHIESTA ━━━\n") if _it_att else (
                 "DOKUMENTET E DOSJES (lexoji para se të përgjigjesh):\n"
                 + "\n".join(file_list_lines)
                 + "\n\nPËR SECILIN skedar më sipër: përdor toolin Read për "
@@ -599,9 +610,7 @@ class ClaudeCodeBackend(LLMBackend):
                 "përmbledhje; lexoji vetë dhe nxirr faktet e duhura (data, "
                 "palët, shuma, dispozitivi, afate). Pasi t'i kesh lexuar, "
                 "kthehu te pyetja më poshtë dhe shkruaj përgjigjen.\n\n"
-                "━━━ KËRKESA ━━━\n"
-                + prompt
-            )
+                "━━━ KËRKESA ━━━\n")) + prompt
 
         log.debug("claude cmd: %s (prompt=%d chars)", cmd, len(prompt))
 

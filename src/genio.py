@@ -670,36 +670,59 @@ def _run_brief(*, backend, case_block: str, voice_samples_block: str,
 # Quanto testo di documenti entra nel contesto, in tutto. È un tetto
 # complessivo e non per file di proposito: un contratto da quarantamila
 # caratteri, con un tetto per file, si mangerebbe lo spazio degli altri sette.
-BUDGET_DOCUMENTI = 24_000
+# v9.446: era 24.000 e il PRIMO documento se lo prendeva tutto (dall'inizio): le sei menti vedevano le prime ~16 pagine del
+# fascicolo e mai gli atti più recenti (in fondo), e i documenti dopo il primo nessun testo. Ora il posto si divide fra i documenti
+# (i corti interi, ai lunghi il resto in parti uguali) e del documento lungo entrano inizio E fine. `GENIO_BUDGET_DOCUMENTI`.
+import os as _os_g  # noqa: E402
+BUDGET_DOCUMENTI = int(_os_g.environ.get("GENIO_BUDGET_DOCUMENTI", "48000"))
+
+
+def _quote_documenti(lunghezze: list[int], budget: int) -> list[int]:
+    """Il budget diviso «ad acqua»: chi ha meno della sua parte prende tutto, il resto si ridivide fra gli altri."""
+    quote = [0] * len(lunghezze)
+    restanti = [i for i, n in enumerate(lunghezze) if n > 0]
+    rimasto = budget
+    while restanti and rimasto > 0:
+        parte = rimasto // len(restanti)
+        piccoli = [i for i in restanti if lunghezze[i] - quote[i] <= parte]
+        if not piccoli:
+            for i in restanti:
+                quote[i] += parte
+            break
+        for i in piccoli:
+            rimasto -= lunghezze[i] - quote[i]
+            quote[i] = lunghezze[i]
+        restanti = [i for i in restanti if i not in piccoli]
+    return quote
 
 
 def _blocco_documenti(documents: list[dict]) -> list[str]:
-    """I documenti come li leggerebbe un socio anziano: per intero, finché c'è
-    spazio, e in ordine — il primo caricato è di solito quello che conta.
+    """I documenti come li leggerebbe un socio anziano: per intero finché c'è spazio; i lunghi con inizio e fine (v9.446).
 
     Prima qui arrivavano duecento caratteri di riassunto per file. Sei menti
     che ragionano sette minuti ciascuna su due righe di sommario sono sei menti
     sprecate.
     """
-    fuori: list[str] = ["\nDOKUMENTET E FASHIKULLIT:"]
-    rimasto = BUDGET_DOCUMENTI
-    for d in documents:
+    from .documents import _budget_clip, _lingua_sessione
+    it = _lingua_sessione() == "it"
+    fuori: list[str] = ["\nDOCUMENTI DEL FASCICOLO:" if it else "\nDOKUMENTET E FASHIKULLIT:"]
+    testi = [(d.get("extracted_text") or "").strip() for d in documents]
+    quote = _quote_documenti([len(t) for t in testi], BUDGET_DOCUMENTI)
+    for d, testo, quota in zip(documents, testi, quote):
         nome = d.get("filename") or "?"
         fuori.append(f"\n── {nome} [{d.get('doc_type') or '?'}] ──")
         sunto = (d.get("summary") or "").strip()
         if sunto:
-            fuori.append(f"Përmbledhje: {sunto[:400]}")
-        testo = (d.get("extracted_text") or "").strip()
-        if testo and rimasto > 500:
-            quota = min(len(testo), rimasto)
-            fuori.append("Përmbajtja:\n" + testo[:quota]
-                         + ("\n[…i shkurtuar]" if quota < len(testo) else ""))
-            rimasto -= quota
+            fuori.append(("Riassunto: " if it else "Përmbledhje: ") + sunto[:400])
+        # un documento che sta nella sua quota entra INTERO (anche di poche righe: la prova [223] ha trovato un avviso di una riga
+        # lasciato fuori); uno più lungo con inizio e fine, se la quota è ragionevole
+        if testo and (quota >= len(testo) or quota > 300):
+            fuori.append(("Testo:\n" if it else "Përmbajtja:\n") + (testo if quota >= len(testo) else _budget_clip(testo, quota)))
         elif d.get("allegato"):
             # niente testo estratto: il file viaggia come allegato vero
-            fuori.append("(skedar i bashkangjitur — shihe drejtpërdrejt)")
+            fuori.append("(file allegato — guardalo direttamente)" if it else "(skedar i bashkangjitur — shihe drejtpërdrejt)")
         elif not sunto:
-            fuori.append("(pa tekst të nxjerrë)")
+            fuori.append("(nessun testo estratto)" if it else "(pa tekst të nxjerrë)")
     return fuori
 
 
