@@ -6997,6 +6997,125 @@ def main():
     except Exception as _e210:  # noqa: BLE001
         check("date-in-lettere[210]: kontrollet u ekzekutuan", False, str(_e210))
 
+    # [211] v9.433 — l'analisi automatica PARTE anche con la data in lettere e con un termine senza data (prima: solo date in cifre)
+    try:
+        from src import web as _w211
+        _rx = _w211._DATA_NEL_TESTO_RX
+        _ok211 = (bool(_rx.search("rinvia all'udienza del giorno venti novembre duemilaventisei"))
+                  and bool(_rx.search("può essere proposta opposizione entro quaranta giorni dalla notifica"))
+                  and bool(_rx.search("Brenda afatit 30-ditor nga data e marrjes"))
+                  and bool(_rx.search("brenda 15 ditëve nga e nesërmja e njoftimit"))
+                  and bool(_rx.search("seanca më 12.11.2026")) and bool(_rx.search("il 3 tetor 2026"))
+                  and not _rx.search("Gjykata vendos shtyrjen e seancës për një datë që do t'u njoftohet palëve"))
+        check("auto-analisi[211]: parte con date in lettere e termini senza data, non su un testo senza date né termini", _ok211)
+    except Exception as _e211:  # noqa: BLE001
+        check("auto-analisi[211]: kontrollet u ekzekutuan", False, str(_e211))
+
+    # [212] v9.434 — un termine di legge la cui data NON viene dal motore deterministico (riga vecchia «AFAT | titolo | data»,
+    # aritmetica del modello) non esce mai «verificato» e lo dice
+    try:
+        import inspect as _in212
+        from src import scadenziario as _s212
+        _tl = _in212.getsource(_s212.termini_di_legge)
+        _ok212 = ('bool(a.get("passi"))' in _tl and "NON calcolata dal motore deterministico" in _tl
+                  and "PA llogaritur nga motori determinist" in _tl)
+        check("afati-motore[212]: la data di legge non calcolata dal motore resta da verificare, e lo dice", _ok212)
+    except Exception as _e212:  # noqa: BLE001
+        check("afati-motore[212]: kontrollet u ekzekutuan", False, str(_e212))
+
+    # [213] v9.435 — la SEGRETARIA risponde nella lingua della SESSIONE (il prompt diceva «nella lingua che scrive l'utente»,
+    # contro la regola: la rete al collo di bottiglia la correggeva, ma il prompt non deve dire il contrario)
+    try:
+        import os as _os213
+        _src213 = open("/app/src/secretary.py", encoding="utf-8").read()
+        _ok213 = ("gjuhën e SESIONIT" in _src213 and "të njëjtën gjuhë që shkruan përdoruesi" not in _src213
+                  and _os213.path.exists("/app/tools/eval_segretaria.py"))
+        check("segretaria-lingua[213]: lingua della sessione nel prompt, misura della Segretaria presente", _ok213)
+    except Exception as _e213:  # noqa: BLE001
+        check("segretaria-lingua[213]: kontrollet u ekzekutuan", False, str(_e213))
+
+    # [214] v9.436 — i messaggi Telegram oltre 4096 caratteri si DIVIDONO (Telegram li rifiuta: /scadenze con 8 fascicoli ≈ 5.600
+    # caratteri non arrivava), agli a capo, senza perdere niente, i pulsanti sull'ultimo pezzo; lo stesso per i promemoria
+    try:
+        import inspect as _in214
+        from src import telegram_bot as _tg214, reminders as _rm214
+        _lungo = "\n".join(f"riga {i} " + "x" * 90 for i in range(120))
+        _pz = _tg214.dividi_testo(_lungo)
+        _uno = _tg214.dividi_testo("breve")
+        _enorme = _tg214.dividi_testo("y" * 9000)
+        _chiamate = []
+        _vecchia = _tg214._api
+        _tg214._api = lambda m, **p: _chiamate.append((m, "reply_markup" in p)) or {"ok": True}
+        try:
+            _inv = _tg214.invia("1", _lungo, {"inline_keyboard": [[{"text": "✅", "callback_data": "s:ok:x"}]]})
+        finally:
+            _tg214._api = _vecchia
+        _ok214 = (len(_pz) >= 3 and all(len(p) <= _tg214.LIMITE_MESSAGGIO for p in _pz) and "\n".join(_pz) == _lungo
+                  and _uno == ["breve"] and len(_enorme) == 3 and "".join(_enorme) == "y" * 9000
+                  and _inv and len(_chiamate) == len(_pz) and [k for _m, k in _chiamate] == [False] * (len(_pz) - 1) + [True]
+                  and "dividi_testo" in _in214.getsource(_rm214._send_telegram))
+        check("telegram-lunghi[214]: messaggi oltre il limite divisi agli a capo, niente perso, pulsanti sull'ultimo pezzo", _ok214,
+              str([len(p) for p in _pz]))
+    except Exception as _e214:  # noqa: BLE001
+        check("telegram-lunghi[214]: kontrollet u ekzekutuan", False, str(_e214))
+
+    # [215] v9.437 — in uno STUDIO l'avviso delle scadenze da confermare (e il sollecito) va anche ai colleghi che seguono il
+    # fascicolo (creatore + assegnati attivi: le regole degli avvisi degli eventi), e possono confermare dal bot; mai tutto lo studio
+    try:
+        import inspect as _in215
+        from src import web as _w215, telegram_bot as _tg215, reminders as _rm215
+        _ok215 = ("colleghi_del_fascicolo(case_id, uid)" in _in215.getsource(_w215._scad_avvisa_nuove)
+                  and "colleghi_del_fascicolo(p[\"case_id\"], p[\"user_id\"])" in _in215.getsource(_tg215._conferma_da_telegram)
+                  and "colleghi_del_fascicolo(cid, uid)" in _in215.getsource(_rm215.sollecita_scadenze)
+                  and "_caso_valido(uid, p[\"case_id\"])" in _in215.getsource(_tg215._conferma_da_telegram)
+                  # v9.438: elenchi, mattino, contatori leggono le proposte VISIBILI (le mie + dei fascicoli che seguo)
+                  and "lista_scadenze_proposte(user_id=uid" not in _in215.getsource(_tg215)
+                  and "proposte_visibili(user.id" in _in215.getsource(_w215.api_scadenze_tutte))
+        check("scadenze-studio[215]: avviso, sollecito e conferma anche ai colleghi del fascicolo, con la visibilità del fascicolo", _ok215)
+    except Exception as _e215:  # noqa: BLE001
+        check("scadenze-studio[215]: kontrollet u ekzekutuan", False, str(_e215))
+
+    # [216] v9.439 — DOPPIONI fra documenti: la stessa udienza (giorno + ora) da più documenti non si ripropone; termini e depositi
+    # lo stesso giorno restano DISTINTI salvo due parole specifiche in comune; già in calendario → proposta non spuntata con la nota
+    try:
+        import inspect as _in216
+        from src import scadenziario as _s216, web as _w216
+        _se = _s216.stesso_evento
+        _ok216 = (_se({"data": "2099-02-18", "kind": "seance", "ora": ""}, {"data": "2099-02-18", "kind": "seance", "ora": "11:00"})
+                  and not _se({"data": "2099-02-18", "kind": "seance", "ora": "09:00"},
+                              {"data": "2099-02-18", "kind": "seance", "ora": "11:00"})
+                  and not _se({"data": "2099-03-10", "kind": "dorëzim", "titolo": "Deposito delle memorie istruttorie"},
+                              {"data": "2099-03-10", "kind": "dorëzim", "titolo": "Deposito delle note di trattazione"})
+                  and not _se({"data": "2099-10-26", "kind": "afat", "titolo": "Termine per il pagamento della somma ingiunta"},
+                              {"data": "2099-10-26", "kind": "afat", "titolo": "Termine per proporre opposizione al decreto ingiuntivo"})
+                  and _se({"data": "2099-04-01", "kind": "afat", "titolo": "Termine per l'opposizione al decreto"},
+                          {"data": "2099-04-01", "kind": "afat", "titolo": "Opposizione a decreto ingiuntivo"})
+                  and "forse già in calendario" in _in216.getsource(_w216._scad_salva))
+        check("doppioni[216]: la stessa udienza da più documenti una volta sola, scadenze diverse dello stesso giorno distinte", _ok216)
+    except Exception as _e216:  # noqa: BLE001
+        check("doppioni[216]: kontrollet u ekzekutuan", False, str(_e216))
+
+    # [217] v9.440 — il RINVIO d'udienza: la nuova sostituisce quella in calendario, che alla conferma si CHIUDE («RINVIATA al …»,
+    # mai cancellata); il rinvio vale solo se la data vecchia è scritta nel documento ed è prima della nuova
+    try:
+        import inspect as _in217
+        from src import scadenziario as _s217, web as _w217
+        _t217 = "Il giudice rinvia l'udienza del 18 febbraio 2099 al 15 marzo 2099 ore 10:00."
+        _pp, _ = _s217.proposte_da_estrazione({"date": [
+            {"tipo": "udienza", "titolo": "Udienza", "data": "2099-03-15", "ora": "10:00", "citazione": _t217, "rinvio_da": "2099-02-18"},
+            {"tipo": "udienza", "titolo": "Altra", "data": "2099-03-15", "citazione": _t217, "rinvio_da": "2099-01-01"},
+            {"tipo": "udienza", "titolo": "Al contrario", "data": "2099-02-18", "citazione": _t217, "rinvio_da": "2099-03-15"}]},
+            _t217, lang="it", jurisdiction="IT", oggi="2026-10-01")
+        _ok217 = ([p.get("rinvio_da") for p in _pp] == ["2099-02-18", "", ""]
+                  and "sostituisce_event_id" in _in217.getsource(_w217._scad_salva)
+                  and "done=True" in _in217.getsource(_w217.conferma_proposta)
+                  and "RINVIATA al" in _in217.getsource(_w217.conferma_proposta)
+                  and '"rinvio_da"' in _in217.getsource(_s217) and "rinvio_da" in _in217.getsource(_w217._scad_payload))
+        check("rinvio[217]: la nuova udienza sostituisce quella in calendario (chiusa, non cancellata), rinvio verificato sul testo", _ok217,
+              str([p.get("rinvio_da") for p in _pp]))
+    except Exception as _e217:  # noqa: BLE001
+        check("rinvio[217]: kontrollet u ekzekutuan", False, str(_e217))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

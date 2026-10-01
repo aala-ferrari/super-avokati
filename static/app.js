@@ -792,7 +792,10 @@
     }
     return '<li class="scad-item' + (conf ? " is-conf" : "") + (passata && !conf ? " is-past" : "") + '" data-id="' + p.id + '">' +
       '<div class="scad-top"><span class="scad-ico">' + ico + '</span><strong class="scad-tit">' + _scadEsc(p.titolo) + "</strong>" +
-      (p.luogo ? '<span class="scad-luogo">· ' + _scadEsc(p.luogo) + "</span>" : "") + "</div>" +
+      (p.luogo ? '<span class="scad-luogo">· ' + _scadEsc(p.luogo) + "</span>" : "") +
+      (p.rinvio_da ? '<span class="scad-luogo">↪ ' + _sT("shtyrje e seancës së ", "rinvio dell'udienza del ") +   // v9.440
+        _scadEsc(p.rinvio_da.split("-").reverse().join("/")) + (p.sostituisce_event_id
+          ? _sT(" (në kalendar: mbyllet me konfirmimin)", " (in calendario: si chiude alla conferma)") : "") + "</span>" : "") + "</div>" +
       '<div class="scad-ctrl">' + controlli + "</div>" +
       '<div class="scad-fonte">' + fonte + "</div>" + cit + avviso + dett + "</li>";
   }

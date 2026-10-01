@@ -1,0 +1,20 @@
+{
+ "id": "al_shtyrje",
+ "lang": "sq",
+ "jurisdiction": "AL",
+ "oggi": "2026-10-01",
+ "testo": "GJYKATA E APELIT DURRËS\nProcesverbal i seancës gjyqësore, datë 29.09.2026\nPër shkak të mungesës së dëshmitarit, seanca gjyqësore e datës 12.11.2026 shtyhet për datën 03.12.2026, ora 11:00.\nSekretarja gjyqësore",
+ "attese": [
+  {
+   "data": "2026-12-03",
+   "ora": "11:00"
+  }
+ ],
+ "rinvii_attesi": [
+  {
+   "data": "2026-12-03",
+   "da": "2026-11-12"
+  }
+ ],
+ "vietate": []
+}

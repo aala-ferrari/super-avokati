@@ -169,6 +169,13 @@ def _format_message(event, reminder) -> str:
 def _send_telegram(chat_id: str, text: str, tastiera: dict | None = None) -> str | None:
     if not TELEGRAM_BOT_TOKEN:
         return "TELEGRAM_BOT_TOKEN not set"
+    # v9.436: oltre 4096 caratteri Telegram rifiuta il messaggio — in pezzi agli a capo, i pulsanti sull'ultimo
+    from .telegram_bot import dividi_testo
+    pezzi = dividi_testo(text)
+    if len(pezzi) > 1:
+        errori = [e for e in (_send_telegram(chat_id, p, tastiera if i == len(pezzi) - 1 else None)
+                              for i, p in enumerate(pezzi)) if e]
+        return errori[0] if errori else None
     url = f"{TG_API}/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     campi = {
         "chat_id": chat_id,
@@ -439,6 +446,18 @@ def sollecita_scadenze(adesso: datetime | None = None) -> int:
             link = "https://superavokati.ai/s" + (("/" + _casi_s[0]) if len(_casi_s) == 1 else "")   # v9.426: dritto al cliente
             esiti = avvisa_utente(uid, tit, righe, lang="it" if it else "sq", link=link,
                                   coda=coda, tastiera=tastiera, coda_tastiera=coda_t)
+            # v9.437: anche ai colleghi che seguono i fascicoli (le stesse regole degli avvisi degli eventi)
+            for cid in _casi_s:
+                for cu in storage.colleghi_del_fascicolo(cid, uid):
+                    _cu = storage.get_user_by_id(cu)
+                    if _cu is None or getattr(_cu, "suspended", False):
+                        continue
+                    sue = [p for p in scelte if p["case_id"] == cid]
+                    esiti += [(f"{c}@{cu}", e) for c, e in avvisa_utente(
+                        cu, tit, [f"«{titoli[cid]}»: " + _riga_sollecito(p, oggi, it) for p in sue[:6]],
+                        lang="it" if it else "sq", link="https://superavokati.ai/s/" + cid, coda=coda,
+                        tastiera=_tg.tastiera_proposte(sue, "it" if it else "sq", oggi) if _tg.attivo() else None,
+                        coda_tastiera=coda_t)]
             if any(e is None for _c, e in esiti):
                 inviati += 1
             log.info("sollecito scadenze non confermate: utente %s, %d proposte → %s", uid, n, [(c, e is None) for c, e in esiti])

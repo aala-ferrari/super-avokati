@@ -1,0 +1,20 @@
+{
+ "id": "it_rinvio",
+ "lang": "it",
+ "jurisdiction": "IT",
+ "oggi": "2026-10-01",
+ "testo": "TRIBUNALE DI TORINO — Prima Sezione Civile\nVerbale dell'udienza del 30 settembre 2026 — causa n. 7781/2025 R.G.\nIl Giudice, preso atto dell'impedimento del difensore di parte convenuta, rinvia l'udienza di discussione fissata per il 18 febbraio 2027 al 15 marzo 2027 ore 10:00.\nIl Giudice — dott.ssa Anna Riva",
+ "attese": [
+  {
+   "data": "2027-03-15",
+   "ora": "10:00"
+  }
+ ],
+ "rinvii_attesi": [
+  {
+   "data": "2027-03-15",
+   "da": "2027-02-18"
+  }
+ ],
+ "vietate": []
+}

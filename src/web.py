@@ -8825,7 +8825,8 @@ def _avvisi_predefiniti(all_day: bool) -> list[int]:
 
 def _scad_payload(p: dict, nomi: dict) -> dict:
     out = {k: p.get(k) for k in ("id", "document_id", "tipo", "kind", "titolo", "data", "ora", "luogo", "cosa_fare",
-                                 "origine", "citazione", "base", "nota", "stato", "event_id")}
+                                 "origine", "citazione", "base", "nota", "stato", "event_id", "rinvio_da",
+                                 "sostituisce_event_id")}
     out["verificato"] = bool(p.get("verificato"))
     out["documento"] = nomi.get(p.get("document_id") or "", "")
     try:
@@ -8840,10 +8841,53 @@ def _scad_index(juris: str):
 
 
 def _scad_salva(proposte, inneschi, *, case_id, uid, doc_id, juris) -> int:
+    from . import scadenziario as _sz
     n = 0
+    # v9.439: la stessa udienza scritta in più documenti del fascicolo non si propone due volte; se è già in calendario (messa a
+    # mano) si propone, ma non spuntata e con la nota (mai nascondere: potrebbe essere un'altra)
+    esistenti = [p for p in storage.lista_scadenze_proposte(case_id=case_id) if p.get("stato") != "scartata"]
+    try:
+        with storage.db() as _c:
+            eventi = [{"data": storage.ora_locale(r["starts_at"], juris, "%Y-%m-%d"), "kind": r["kind"], "id": r["id"],
+                       "ora": "" if r["all_day"] else storage.ora_locale(r["starts_at"], juris, "%H:%M"), "titolo": r["title"]}
+                      for r in _c.execute("SELECT id, title, kind, starts_at, all_day FROM events WHERE case_id = ? AND done = 0",
+                                          (case_id,)).fetchall()]
+    except Exception:  # noqa: BLE001
+        eventi = []
+    it = juris == "IT"
     for pr in proposte:
+        if pr.get("tipo") == "data" and any(_sz.stesso_evento(pr, e) for e in esistenti):
+            gia = next(e for e in esistenti if _sz.stesso_evento(pr, e))
+            if gia.get("stato") == "proposta" and pr.get("ora") and not gia.get("ora"):
+                storage.aggiorna_scadenza_proposta(gia["id"], ora=pr["ora"])      # l'altro documento dice anche l'ora
+            log.info("scadenziario: doppione non riproposto (%s, %s)", pr.get("data"), (pr.get("titolo") or "")[:40])
+            continue
+        if pr.get("tipo") == "data" and pr.get("rinvio_da"):
+            # v9.440 — RINVIO: l'udienza vecchia in calendario si chiude alla conferma; una proposta vecchia non confermata
+            # resta, ma non spuntata e con la nota (mai cancellata da sola)
+            dvec = "/".join(reversed(pr["rinvio_da"].split("-")))
+            vecchio = next((e for e in eventi if e["data"] == pr["rinvio_da"] and e["kind"] == pr.get("kind")), None)
+            if vecchio:
+                pr = dict(pr, sostituisce_event_id=vecchio["id"], nota=" · ".join(x for x in [
+                    (f"rinvio dell'udienza del {dvec} già in calendario («{(vecchio['titolo'] or '')[:60]}»): confermando, quella "
+                     "si chiude" if it else f"shtyrje e seancës së datës {dvec} që është në kalendar («{(vecchio['titolo'] or '')[:60]}»): "
+                     "me konfirmimin, ajo mbyllet"), pr.get("nota") or ""] if x))
+            for vp in [e for e in esistenti if e.get("data") == pr["rinvio_da"] and e.get("kind") == pr.get("kind")
+                       and e.get("stato") == "proposta" and e.get("id")]:
+                storage.aggiorna_scadenza_proposta(vp["id"], verificato=0, nota=" · ".join(x for x in [
+                    (f"⚠ RINVIATA al {'/'.join(reversed(pr['data'].split('-')))} (da un altro documento): non confermarla" if it
+                     else f"⚠ SHTYRË për {'/'.join(reversed(pr['data'].split('-')))} (nga një dokument tjetër): mos e konfirmo"),
+                    vp.get("nota") or ""] if x))
+        if pr.get("tipo") == "data":
+            cal = next((e for e in eventi if _sz.stesso_evento(pr, e)), None)
+            if cal:
+                pr = dict(pr, verificato=False, nota=" · ".join(x for x in [
+                    (("forse già in calendario: «" if it else "ndoshta tashmë në kalendar: «") + (cal["titolo"] or "")[:80] + "»"),
+                    pr.get("nota") or ""] if x))
         n += storage.aggiungi_scadenza_proposta(dict(pr, case_id=case_id, user_id=uid, document_id=doc_id,
                                                      jurisdiction=juris))
+        if pr.get("tipo") == "data":
+            esistenti.append(dict(pr, stato="proposta"))
     for inn in inneschi:
         if inn.get("calcolato"):
             continue
@@ -8954,6 +8998,21 @@ def _scad_avvisa_nuove(case_id: str, uid: int, juris: str, nuove: list[dict]) ->
                      "hapi në dosje: asgjë nuk hyn në kalendar pa konfirmimin tënd.")
     esiti = _rm.avvisa_utente(uid, tit, righe, lang="it" if it else "sq", link=link_scadenziario(case_id),
                               coda=coda, tastiera=tastiera, coda_tastiera=coda_tastiera)
+    # v9.437: anche i colleghi che seguono il fascicolo (chi l'ha creato e gli assegnati attivi, le regole degli avvisi degli
+    # eventi): in uno studio i documenti li carica spesso l'assistente, e l'avvocato del fascicolo non sapeva niente
+    try:
+        _u = storage.get_user_by_id(uid)
+        _chi = (getattr(_u, "display_name", "") or getattr(_u, "username", "") or "").strip()
+        for cu in storage.colleghi_del_fascicolo(case_id, uid):
+            _cu = storage.get_user_by_id(cu)
+            if _cu is None or getattr(_cu, "suspended", False):
+                continue
+            esiti += [(f"{c}@{cu}", e) for c, e in _rm.avvisa_utente(
+                cu, tit, [("👥 Documento caricato da " if it else "👥 Dokument i ngarkuar nga ") + _chi] + righe,
+                lang="it" if it else "sq", link=link_scadenziario(case_id), coda=coda, tastiera=tastiera,
+                coda_tastiera=coda_tastiera)]
+    except Exception as exc:  # noqa: BLE001
+        log.warning("scadenziario: avviso ai colleghi non partito (%s): %s", case_id[:8], exc)
     log.info("scadenziario: avviso di %d scadenze nuove (%s) → %s", len(utili), case_id[:8], [(c_, e is None) for c_, e in esiti])
 
 
@@ -8962,7 +9021,15 @@ def _scad_avvisa_nuove(case_id: str, uid: int, juris: str, nuove: list[dict]) ->
 _DATA_NEL_TESTO_RX = re.compile(
     r"(?<!\d)\d{1,2}[./-]\d{1,2}[./-](?:19|20)\d{2}(?!\d)|(?<!\d)(?:19|20)\d{2}-\d{2}-\d{2}(?!\d)"
     r"|(?i:\b\d{1,2}\s+(?:gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre|"
-    r"janar|shkurt|mars|prill|maj|qershor|korrik|gusht|shtator|tetor|nëntor|dhjetor)\w*\s+(?:19|20)\d{2}\b)")
+    r"janar|shkurt|mars|prill|maj|qershor|korrik|gusht|shtator|tetor|nëntor|dhjetor)\w*\s+(?:19|20)\d{2}\b)"
+    # v9.433: anche la data IN LETTERE («venti novembre duemilaventisei», «… nëntor dy mijë e …») e un TERMINE senza data
+    # («entro quaranta giorni dalla notifica», «afati 30-ditor», «brenda 15 ditëve»): senza, un atto scritto così non faceva
+    # partire l'analisi e l'avvocato non riceveva nessun avviso
+    r"|(?i:\b(?:gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre|janar|shkurt|"
+    r"mars|prill|maj|qershor|korrik|gusht|shtator|tetor|nëntor|dhjetor)\w*\s+(?:duemila|dy\s?mijë)\w*)"
+    r"|(?i:\b(?:\d{1,4}|cinque|dieci|quindici|venti|trenta|quaranta|sessanta|novanta|centoventi|centottanta|pesë|dhjetë|"
+    r"pesëmbëdhjetë|njëzet|tridhjetë|gjashtëdhjetë|nëntëdhjetë)\s*-?\s*(?:giorni|mesi|ditë|dite|ditëve|diteve|ditor|ditore|"
+    r"muaj|muajve)\b)")
 
 
 def _scad_auto_dopo_caricamento(case_id: str, uid: int, juris: str, doc_id: str, ext: str, testo: str) -> None:
@@ -9080,8 +9147,22 @@ def conferma_proposta(p: dict, uid: int, dati: dict | None = None) -> dict:
         log.warning("scadenziario: evento non creato (%s): %s", pid, exc)
         return {"errore": ("Ngjarja nuk u krijua", "Evento non creato"), "status": 400}
     storage.aggiorna_scadenza_proposta(pid, stato="confermata", event_id=ev.id, data=giorno, titolo=titolo)
+    chiusa = None
+    if p.get("sostituisce_event_id"):                # v9.440: il RINVIO chiude l'udienza vecchia (non la cancella)
+        try:
+            with storage.db() as _c:
+                r = _c.execute("SELECT id, user_id, case_id, title, done FROM events WHERE id = ?",
+                               (p["sostituisce_event_id"],)).fetchone()
+            if r and r["case_id"] == p["case_id"] and not r["done"]:
+                dn = "/".join(reversed(giorno.split("-")))
+                pref = (f"RINVIATA al {dn} — " if it else f"SHTYRË për {dn} — ")
+                storage.update_event(r["id"], int(r["user_id"]), done=True,
+                                     title=(pref + (r["title"] or "")) if not (r["title"] or "").startswith(pref) else r["title"])
+                chiusa = {"id": r["id"], "titolo": r["title"], "data": p.get("rinvio_da")}
+        except Exception as exc:  # noqa: BLE001
+            log.warning("scadenziario: l'udienza rinviata non è stata chiusa (%s): %s", pid, exc)
     return {"ok": True, "event_id": ev.id, "data": giorno, "ora": ora if not all_day else "", "titolo": titolo,
-            "avvisi": avvisi}
+            "avvisi": avvisi, "chiusa": chiusa}
 
 
 @app.post("/api/scadenze/<pid>/conferma")
@@ -9094,7 +9175,7 @@ def api_scadenze_conferma(pid: str):
     r = conferma_proposta(p, user.id, request.get_json(silent=True) or {})
     if r.get("errore"):
         return jsonify({"error": _t_err(*r["errore"])}), r.get("status", 400)
-    return jsonify({k: r[k] for k in ("ok", "event_id", "data", "gia") if k in r})
+    return jsonify({k: r[k] for k in ("ok", "event_id", "data", "gia", "chiusa") if k in r})
 
 
 @app.get("/api/cases/<case_id>/colleghi")
@@ -9159,7 +9240,7 @@ def api_scadenze_tutte():
     user = request.user  # type: ignore[attr-defined]
     juris = _active_jurisdiction(user)
     titoli, out = {}, []
-    for p in storage.lista_scadenze_proposte(user_id=user.id, stati=("proposta", "confermata")):
+    for p in storage.proposte_visibili(user.id, stati=("proposta", "confermata")):     # v9.438: anche dei colleghi
         if (p.get("jurisdiction") or "AL") != juris:
             continue
         if p["case_id"] not in titoli:

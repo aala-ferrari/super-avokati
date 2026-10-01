@@ -1132,6 +1132,9 @@ def init_db(db_path: Path = APP_DB_PATH) -> None:
         _add_column_if_missing(conn, "users", "telegram_briefing_last", "TEXT")
         # v9.425 — quando è partito il SOLLECITO di una proposta non ancora confermata (una volta sola per proposta)
         _add_column_if_missing(conn, "scadenze_proposte", "sollecito_at", "TEXT")
+        # v9.440 — il RINVIO: la data dell'udienza sostituita e l'evento in calendario da chiudere alla conferma
+        _add_column_if_missing(conn, "scadenze_proposte", "rinvio_da", "TEXT")
+        _add_column_if_missing(conn, "scadenze_proposte", "sostituisce_event_id", "TEXT")
         # v9.414: gli eventi salvati con l'ora locale senza fuso passano a UTC (una volta: dopo finiscono in «Z»), e i loro
         # promemoria non ancora inviati si ricalcolano
         _gcol = "jurisdiction" if any(c[1] == "jurisdiction" for c in conn.execute("PRAGMA table_info(events)")) else "NULL"
@@ -6984,7 +6987,7 @@ def delete_push_subscription(endpoint: str) -> None:
 
 _SCAD_CAMPI = ("id", "case_id", "user_id", "document_id", "tipo", "kind", "titolo", "data", "ora", "luogo", "cosa_fare",
                "origine", "citazione", "base", "regola_json", "verificato", "nota", "stato", "event_id", "chiave",
-               "jurisdiction", "created_at", "sollecito_at")
+               "jurisdiction", "created_at", "sollecito_at", "rinvio_da", "sostituisce_event_id")
 
 
 def aggiungi_scadenza_proposta(p: dict) -> bool:
@@ -7013,6 +7016,28 @@ def lista_scadenze_proposte(*, case_id: str | None = None, user_id: int | None =
     q += " ORDER BY COALESCE(data, '9999-12-31'), created_at"
     with db() as conn:
         return [dict(r) for r in conn.execute(q, a).fetchall()]
+
+
+def proposte_visibili(user_id: int, stati: tuple[str, ...] | None = None) -> list[dict]:
+    """v9.438 — le proposte che riguardano l'avvocato: le sue E quelle dei fascicoli che segue come collega (creatore o assegnato
+    attivo, `colleghi_del_fascicolo`: le stesse regole degli avvisi). Prima elenchi, mattino e contatori leggevano solo «le mie»:
+    il documento caricato dall'assistente non compariva all'avvocato del fascicolo."""
+    tutte = lista_scadenze_proposte(stati=stati)
+    cache: dict = {}
+    out = []
+    for p in tutte:
+        if p.get("user_id") == user_id:
+            out.append(p)
+            continue
+        k = (p["case_id"], p.get("user_id"))
+        if k not in cache:
+            try:
+                cache[k] = user_id in colleghi_del_fascicolo(p["case_id"], p.get("user_id"))
+            except Exception:  # noqa: BLE001
+                cache[k] = False
+        if cache[k]:
+            out.append(p)
+    return out
 
 
 def get_scadenza_proposta(pid: str) -> dict | None:

@@ -73,10 +73,41 @@ def link_collegamento(user_id: int) -> str:
     return f"https://t.me/{bot}?start={storage.crea_token_telegram(user_id)}"
 
 
+LIMITE_MESSAGGIO = 3900              # Telegram rifiuta oltre 4096 caratteri: il messaggio NON arriva, senza che nessuno lo sappia
+
+
+def dividi_testo(testo: str, limite: int = LIMITE_MESSAGGIO) -> list[str]:
+    """v9.436 — un testo lungo in pezzi ≤ limite, tagliati agli a capo (una riga più lunga del limite si taglia a metà)."""
+    testo = testo or ""
+    if len(testo) <= limite:
+        return [testo]
+    pezzi, cur = [], ""
+    for riga in testo.split("\n"):
+        while len(riga) > limite:
+            if cur:
+                pezzi.append(cur)
+                cur = ""
+            pezzi.append(riga[:limite])
+            riga = riga[limite:]
+        if cur and len(cur) + 1 + len(riga) > limite:
+            pezzi.append(cur)
+            cur = riga
+        else:
+            cur = (cur + "\n" + riga) if cur else riga
+    if cur:
+        pezzi.append(cur)
+    return pezzi
+
+
 def invia(chat_id: str, testo: str, tastiera: dict | None = None) -> bool:
     try:
-        extra = {"reply_markup": tastiera} if tastiera else {}
-        return bool(_api("sendMessage", chat_id=chat_id, text=testo, disable_web_page_preview="true", **extra).get("ok"))
+        pezzi = dividi_testo(testo)
+        esito = True
+        for i, pezzo in enumerate(pezzi):                # i pulsanti sull'ULTIMO pezzo
+            extra = {"reply_markup": tastiera} if (tastiera and i == len(pezzi) - 1) else {}
+            esito = bool(_api("sendMessage", chat_id=chat_id, text=pezzo, disable_web_page_preview="true",
+                              **extra).get("ok")) and esito
+        return esito
     except Exception as exc:  # noqa: BLE001
         log.warning("telegram sendMessage: %s", exc)
         return False
@@ -156,7 +187,7 @@ def agenda(uid: int, giorni: int, lang: str) -> str:
         testo = (f"📅 Agenda — {quando} ({len(eventi)}):\n" if it else f"📅 Agjenda — {quando} ({len(eventi)}):\n") + "\n".join(righe)
         if len(eventi) > 25:
             testo += f"\n… +{len(eventi) - 25}"
-    n = len(storage.lista_scadenze_proposte(user_id=uid, stati=("proposta",)))
+    n = len(storage.proposte_visibili(uid, stati=("proposta",)))
     if n:
         testo += (f"\n\n🟡 {n} scadenz{'a' if n == 1 else 'e'} dai documenti da confermare: /scadenze" if it else
                   f"\n\n🟡 {n} afat{'' if n == 1 else 'e'} nga dokumentet për t'u konfirmuar: /afatet")
@@ -195,7 +226,7 @@ def briefing_testo(uid: int, lang: str, adesso=None) -> str:
     di_oggi = [e for e in eventi if giorno_di(e) == d0]
     di_domani = [e for e in eventi if giorno_di(e) == d1]
     prossime = [e for e in eventi if giorno_di(e) > d1 and e.kind in ("afat", "dorëzim")]
-    pendenti = [p for p in storage.lista_scadenze_proposte(user_id=uid, stati=("proposta",)) if not _passata(p, d0)]
+    pendenti = [p for p in storage.proposte_visibili(uid, stati=("proposta",)) if not _passata(p, d0)]
     n_conf = len(pendenti)
     vicine = _pendenti_vicine(pendenti, d0, (oggi0 + timedelta(days=7)).strftime("%Y-%m-%d"))
     if not (di_oggi or di_domani or prossime or n_conf):
@@ -247,7 +278,7 @@ def briefing_tastiera(uid: int, lang: str, adesso=None) -> dict | None:
     from . import storage
     loc = (adesso or datetime.now(timezone.utc)).astimezone(storage.fuso_di("IT" if lang == "it" else "AL"))
     oggi = loc.strftime("%Y-%m-%d")
-    vicine = _pendenti_vicine(storage.lista_scadenze_proposte(user_id=uid, stati=("proposta",)), oggi,
+    vicine = _pendenti_vicine(storage.proposte_visibili(uid, stati=("proposta",)), oggi,
                               (loc + timedelta(days=7)).strftime("%Y-%m-%d"))
     return tastiera_proposte(vicine, lang, oggi)
 
@@ -287,7 +318,7 @@ def da_confermare(uid: int, lang: str) -> str:
     from . import storage
     it = lang == "it"
     from datetime import date as _d
-    tutte = storage.lista_scadenze_proposte(user_id=uid, stati=("proposta",))
+    tutte = storage.proposte_visibili(uid, stati=("proposta",))
     pr = [p for p in tutte if not _passata(p, _d.today().isoformat())]     # v9.428: le date passate sono storia
     n_pass = len(tutte) - len(pr)
     coda_pass = ((f"\n\n({n_pass} date già passate dei documenti: nel fascicolo, fra la storia)" if it else
@@ -347,7 +378,8 @@ def _conferma_da_telegram(chat_id: str, msg: dict, dati: str, uid: int | None) -
     _p, scelta, pid = (dati.split(":", 2) + ["", ""])[:3]
     p = storage.get_scadenza_proposta(pid) if pid else None
     it = ((p or {}).get("jurisdiction") or ("IT" if _lingua_utente(uid) == "it" else "AL")) == "IT"
-    if not uid or not p or p.get("user_id") != uid:
+    # v9.437: chi ha caricato il documento, o un collega che segue il fascicolo (creatore e assegnati attivi)
+    if not uid or not p or (p.get("user_id") != uid and uid not in storage.colleghi_del_fascicolo(p["case_id"], p["user_id"])):
         invia(chat_id, "Scadenza non trovata." if it else "Afati nuk u gjet.")
         return
     try:
@@ -389,7 +421,10 @@ def _conferma_da_telegram(chat_id: str, msg: dict, dati: str, uid: int | None) -
                      + (f" Avvisati anche {n_coll} colleghi del fascicolo." if n_coll else "")) if it else
                     (f"✅ Në kalendar: «{r.get('titolo') or p['titolo']}» — {d}{(' ' + r['ora']) if r.get('ora') else ''}."
                      + (f" Të njoftoj {giorni} ditë përpara{stesso}." if giorni else "")
-                     + (f" Njoftohen edhe {n_coll} kolegë të dosjes." if n_coll else ""))))
+                     + (f" Njoftohen edhe {n_coll} kolegë të dosjes." if n_coll else "")))
+         + ((("\n↪ L'udienza rinviata del " if it else "\n↪ Seanca e shtyrë e datës ")
+             + "/".join(reversed((r["chiusa"].get("data") or "").split("-")))
+             + (" è stata chiusa in calendario." if it else " u mbyll në kalendar.")) if r.get("chiusa") else ""))
     log.info("telegram: scadenza %s confermata da %s", pid[:8], uid)
 
 
@@ -797,7 +832,7 @@ def gestisci_update(upd: dict) -> None:
             lg = _lingua_utente(uid)
             if comando in _CMD_SCAD:
                 invia(chat_id, da_confermare(uid, lg),
-                      tastiera_proposte(storage.lista_scadenze_proposte(user_id=uid, stati=("proposta",)), lg))
+                      tastiera_proposte(storage.proposte_visibili(uid, stati=("proposta",)), lg))
             else:
                 invia(chat_id, agenda(uid, 2 if comando in _CMD_OGGI else 7, lg))
             return

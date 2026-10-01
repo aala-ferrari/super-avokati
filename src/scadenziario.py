@@ -159,6 +159,39 @@ def data_nel_testo(iso: str, testo: str) -> bool:
     return any(re.search(_rx(v), t) for v in _varianti_data(d))
 
 
+# parole che stanno in quasi ogni titolo di scadenza: non dicono QUALE scadenza è («termine per memorie» ≠ «termine per note»)
+_PAROLE_GENERICHE = {"termin", "scaden", "deposi", "udienz", "giorni", "contro", "presso", "tribun", "giudic", "causa",
+                     "afati", "afatit", "afate", "seanca", "seancë", "seance", "gjykat", "dorëzi", "depozi", "kundër", "ditëve",
+                     "dosjes", "vendim", "vendimi",
+                     # articoli e preposizioni (la prova dei doppioni: «Deposito DELLE memorie» ≠ «Deposito DELLE note»)
+                     "delle", "della", "dello", "degli", "dalla", "dalle", "dallo", "dagli", "nella", "nelle", "nello",
+                     "negli", "sulla", "sulle", "sullo", "sugli", "entro", "prima", "presso", "verso", "oltre", "quale",
+                     "quali", "quest", "sensi", "ovvero", "oppure", "ësht", "është", "sipas", "lidhur", "brenda", "përpar",
+                     "pranë", "palës", "datës", "ditën", "lidhj"}
+
+
+def _parole_titolo(t: str) -> set:
+    return {w[:6] for w in re.findall(r"[a-zà-ÿëç]{5,}", _norm(t))} - _PAROLE_GENERICHE
+
+
+def stesso_evento(a: dict, b: dict) -> bool:
+    """v9.439 — due proposte (o una proposta e un evento) parlano della STESSA scadenza? Lo stesso fascicolo porta la stessa
+    udienza in più documenti (citazione, ordinanza, verbale) con titoli diversi. Prudenza: un doppione mostrato costa un clic,
+    una scadenza diversa nascosta costa la causa — per le udienze bastano giorno e ora (o l'ora mancante in una delle due); per
+    termini e depositi lo stesso giorno NON basta: servono DUE parole specifiche in comune nel titolo («opposizione» + «decreto»),
+    fuori da quelle che stanno in ogni titolo («termine», «afati», «deposito») e dagli articoli — «pagare la somma ingiunta» e
+    «opporsi al decreto ingiuntivo» cadono lo stesso giorno e sono due azioni: restano due."""
+    if not a.get("data") or a.get("data") != b.get("data") or a.get("kind") != b.get("kind"):
+        return False
+    oa, ob = (a.get("ora") or "")[:5], (b.get("ora") or "")[:5]
+    if oa and ob and oa != ob:
+        return False
+    if a.get("kind") == "seance":
+        return True
+    ta, tb = _norm(a.get("titolo") or ""), _norm(b.get("titolo") or "")
+    return ta == tb or len(_parole_titolo(ta) & _parole_titolo(tb)) >= 2
+
+
 def _chiave(*parti) -> str:
     return hashlib.sha1("|".join(_norm(str(p or ""))[:80] for p in parti).encode("utf-8")).hexdigest()[:20]
 
@@ -176,7 +209,8 @@ TUTTO ciò che ha una data o un termine per l'avvocato. Rispondi con UN SOLO ogg
 
 {"date": [{"tipo": "udienza|termine|invio|pagamento|appuntamento|altro", "titolo": "breve, in italiano",
            "data": "AAAA-MM-GG", "ora": "HH:MM o vuoto", "luogo": "ufficio/aula/autorità o vuoto",
-           "cosa_fare": "l'azione concreta per l'avvocato", "citazione": "la frase ESATTA del documento con la data"}],
+           "cosa_fare": "l'azione concreta per l'avvocato", "citazione": "la frase ESATTA del documento con la data",
+           "rinvio_da": "AAAA-MM-GG dell'udienza che questa SOSTITUISCE (rinvio), se il documento la dice, altrimenti vuoto"}],
  "termini": [{"titolo": "…", "durata": 20, "unita": "giorni|giorni_lavorativi|mesi|anni",
               "decorrenza": "da cosa decorre, con le parole del documento (es. «dalla notificazione del presente decreto»)",
               "data_decorrenza": "AAAA-MM-GG se il documento la dice, altrimenti vuoto",
@@ -192,6 +226,9 @@ REGOLE:
 - SOLO ciò che è scritto nel documento. Mai una data calcolata da te: «entro 20 giorni dalla notifica» va in "termini", non in
   "date". La data va riportata come AAAA-MM-GG ma deve essere quella scritta.
 - "date" = date già scritte (udienza fissata, rinvio al giorno …, deposito entro il giorno …, appuntamento, pagamento entro il …).
+  Se l'udienza è un RINVIO di un'udienza precedente («rinvia l'udienza del … al …»), la data vecchia va in "rinvio_da".
+  Anche la SCADENZA o la fine di un contratto, di una garanzia, di un permesso, di un mandato («fino al …», «con scadenza il …»):
+  è una data per l'avvocato (rinnovo, disdetta, restituzione).
 - "termini" = durate stabilite DAL DOCUMENTO (dal giudice, dalla controparte, dal contratto, dall'ufficio).
   "a_ritroso": true quando il termine si conta ALL'INDIETRO da una data («almeno N giorni prima dell'udienza», «N giorni prima
   della scadenza del contratto»): allora "data_decorrenza" è la data di RIFERIMENTO (l'udienza, la scadenza) se è scritta.
@@ -208,7 +245,8 @@ REGOLE:
 
 {"date": [{"tipo": "udienza|termine|invio|pagamento|appuntamento|altro", "titolo": "i shkurtër, në shqip",
            "data": "VVVV-MM-DD", "ora": "OO:MM ose bosh", "luogo": "zyra/salla/autoriteti ose bosh",
-           "cosa_fare": "veprimi konkret për avokatin", "citazione": "fjalia E SAKTË e dokumentit me datën"}],
+           "cosa_fare": "veprimi konkret për avokatin", "citazione": "fjalia E SAKTË e dokumentit me datën",
+           "rinvio_da": "VVVV-MM-DD e seancës që kjo ZËVENDËSON (shtyrje), nëse dokumenti e thotë, përndryshe bosh"}],
  "termini": [{"titolo": "…", "durata": 15, "unita": "dite|dite_pune|muaj|vite",
               "decorrenza": "nga çfarë nis, me fjalët e dokumentit (p.sh. «nga dita e njoftimit të vendimit»)",
               "data_decorrenza": "VVVV-MM-DD nëse dokumenti e thotë, përndryshe bosh",
@@ -224,6 +262,9 @@ RREGULLA:
 - VETËM ajo që është shkruar në dokument. Asnjëherë një datë e llogaritur nga ti: «brenda 15 ditëve nga njoftimi» shkon te
   "termini", jo te "date". Data shkruhet VVVV-MM-DD, por duhet të jetë ajo e shkruara.
 - "date" = data tashmë të shkruara (seancë e caktuar, shtyrje në datën …, dorëzim deri më …, takim, pagesë deri më …).
+  Nëse seanca është SHTYRJE e një seance të mëparshme («seanca e datës … shtyhet për datën …»), data e vjetër shkon te "rinvio_da".
+  Edhe PËRFUNDIMI ose skadimi i një kontrate, garancie, leje, mandati («deri më …», «me afat deri më …»): është një datë për
+  avokatin (rinovim, njoftim për mosrinovim, kthim).
 - "termini" = afate të caktuara NGA DOKUMENTI (nga gjykata, pala tjetër, kontrata, zyra).
   "a_ritroso": true kur afati llogaritet PRAPA nga një datë («të paktën N ditë para seancës», «N ditë para përfundimit të
   kontratës»): atëherë "data_decorrenza" është data e REFERIMIT (seanca, përfundimi) nëse është e shkruar.
@@ -431,10 +472,13 @@ def proposte_da_estrazione(est: dict, testo: str, *, lang: str, jurisdiction: st
                         else "data nuk u gjet kështu në dokument: verifikoje")
         if d < oggi:
             note.append("data già passata" if L == "it" else "data ka kaluar")
+        # v9.440: un RINVIO vale solo se la data vecchia è scritta nel documento e viene prima della nuova
+        rd = _iso(it.get("rinvio_da"))
+        rd = rd if (rd and rd != d and rd < d and data_nel_testo(rd, testo)) else ""
         out.append({"tipo": "data", "kind": _KIND.get(str(it.get("tipo") or "").lower(), "tjetër"), "titolo": titolo,
                     "data": d, "ora": _ora(it.get("ora")), "luogo": str(it.get("luogo") or "")[:160],
                     "cosa_fare": str(it.get("cosa_fare") or "")[:400], "origine": "documento", "citazione": cit,
-                    "verificato": c_ok and d_ok, "nota": " · ".join(note),
+                    "verificato": c_ok and d_ok, "nota": " · ".join(note), "rinvio_da": rd,
                     "chiave": _chiave("data", d, titolo)})
     for it in (est.get("termini") or [])[:60]:
         if not isinstance(it, dict):
@@ -538,9 +582,13 @@ def termini_di_legge(backend, index, innesco: dict, *, jurisdiction: str, lang: 
         if not d:
             continue
         passi = a.get("passi") or []
+        if not passi:                                   # v9.434: la riga vecchia «AFAT | titolo | data» = data del modello
+            passi = [("data NON calcolata dal motore deterministico: verificala" if lang == "it" else
+                      "data e PA llogaritur nga motori determinist: verifikoje")]
         out.append({"tipo": "data", "kind": "afat", "titolo": str(a.get("title") or "")[:160], "data": d,
                     "origine": "legge", "citazione": innesco.get("descrizione") or "", "base": a.get("baza") or "",
-                    "cosa_fare": "", "verificato": bool(a.get("baza")) and not _BASE_INCERTA.search(a.get("baza") or ""),
+                    "cosa_fare": "", "verificato": (bool(a.get("baza")) and bool(a.get("passi"))
+                                                    and not _BASE_INCERTA.search(a.get("baza") or "")),
                     "nota": " · ".join(passi)[:1500],
                     "chiave": _chiave("legge", d, a.get("title"))})
     return out

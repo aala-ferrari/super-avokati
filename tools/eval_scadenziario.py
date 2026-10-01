@@ -65,6 +65,8 @@ def valuta(caso: dict, backend) -> dict:
     for i in caso.get("inneschi_attesi") or []:
         if any(x.get("trigger") == i["trigger"] and (x.get("data") or "") == i["data"] for x in inneschi):
             inn_ok += 1
+    rinvii = sum(1 for r in caso.get("rinvii_attesi") or []
+                 if any(p["data"] == r["data"] and p.get("rinvio_da") == r["da"] for p in date))
     vietate = [p["data"] for p in date if p["data"] in (caso.get("vietate") or [])]
     if caso.get("max_proposte") is not None and len(proposte) > caso["max_proposte"]:
         vietate += [f"{len(proposte)} proposte (max {caso['max_proposte']})"]
@@ -74,6 +76,7 @@ def valuta(caso: dict, backend) -> dict:
             "date": f"{trovate}/{len(caso.get('attese') or [])}",
             "termini": f"{termini}/{len(caso.get('termini_attesi') or [])}",
             "inneschi": f"{inn_ok}/{len(caso.get('inneschi_attesi') or [])}",
+            "rinvii": f"{rinvii}/{len(caso.get('rinvii_attesi') or [])}",
             "vietate": vietate, "inventate": inventate,
             "proposte": len(proposte), "verificate": sum(1 for p in proposte if p.get("verificato")),
             "_punti": (trovate, len(caso.get("attese") or []), termini, len(caso.get("termini_attesi") or []),
@@ -102,7 +105,7 @@ def main() -> int:
             continue
         tot = [x + y for x, y in zip(tot, r["_punti"])]
         print(f"{'✓' if not r['vietate'] and not r['inventate'] and r['_punti'][0] == r['_punti'][1] else '·'} {r['id']:<24} "
-              f"date {r['date']}  termini {r['termini']}  inneschi {r['inneschi']}  vietate {r['vietate'] or '-'}  "
+              f"date {r['date']}  termini {r['termini']}  inneschi {r['inneschi']}  rinvii {r['rinvii']}  vietate {r['vietate'] or '-'}  "
               f"inventate {r['inventate'] or '-'}  proposte {r['proposte']} (verificate {r['verificate']})  {r['secondi']} s")
         if a.dettaglio:
             for d in r["dettaglio"]:

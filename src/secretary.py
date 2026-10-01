@@ -201,7 +201,8 @@ Agjenda aktuale e avokatit:
 {_intestazione_casi()}
 {_blocco_casi(user_id)}
 
-GJUHA: përgjigju në të njëjtën gjuhë që shkruan përdoruesi (parazgjedhje: shqip).
+GJUHA: përgjigju GJITHMONË në gjuhën e SESIONIT (e thotë rreshti i gjuhës në fund të mesazhit), edhe kur avokati
+shkruan në një gjuhë tjetër.
 Ji i shkurtër, praktik, profesional — si një sekretar i zoti.
 
 FORMATI I PËRGJIGJES: kthe VETËM JSON të pastër (pa markdown, pa tekst jashtë),
