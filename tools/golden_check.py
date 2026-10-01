@@ -7415,6 +7415,7 @@ def main():
                   and "padi_e_marre" in _a233.TRIGGERS and "padi_e_marre" in _a233.TRIGGERS_IT
                   and ("kodi_proc_civile", "158") in _a233.TRIGGERS["padi_e_marre"]["seed"]
                   and ("codice_procedura_civile", "166") in _a233.TRIGGERS_IT["padi_e_marre"]["seed"]
+                  and ("codice_procedura_civile", "416") in _a233.TRIGGERS_IT["padi_e_marre"]["seed"]   # v9.460: rito del lavoro
                   and "altre_date" in _s233.termini_di_legge.__code__.co_varnames)
         from src.retrieval import ArticleIndex as _AI233
         from pathlib import Path as _P233

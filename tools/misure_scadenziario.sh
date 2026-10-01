@@ -2,8 +2,8 @@
 # v9.437 — LE TRE MISURE dello scadenziario in un comando (SULL'HOST): estrazione dai documenti (eval_scadenziario), termini di
 # legge (eval_afati), Segretaria (eval_segretaria). Copia del DB e delle credenziali (mai i dati veri: il cervello, caricandosi,
 # scrive nel DB), immagine in produzione, pulizia alla fine. Costa ~20 chiamate al cervello (~15 minuti). Da lanciare dopo ogni
-# modifica a scadenziario, afati, deadline_engine o secretary. Riferimento (1 ott 2026, 20 documenti): date 12/12 · termini 8/8 · inneschi 8/8 · rinvii 3/3 ·
-# 0 vietate · 0 inventate | termini di legge 17/17 (v9.458) | Segretaria 8/8.
+# modifica a scadenziario, afati, deadline_engine o secretary. Riferimento (1 ott 2026, 21 documenti): date 13/13 · termini 9/9 · inneschi 9/9 · rinvii 3/3 ·
+# 0 vietate · 0 inventate | termini di legge 18/18 (v9.460) | Segretaria 8/8.
 set -u
 APP=/var/www/apps/super-avvocato
 T=$(mktemp -d /tmp/misure.XXXX)

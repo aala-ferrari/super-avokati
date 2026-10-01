@@ -81,6 +81,11 @@ CASI = [
      "fatti": "Atto di citazione per risarcimento del danno (inadempimento contrattuale) davanti al Tribunale di Milano, notificato "
               "al convenuto il 24.09.2026, con udienza di comparizione fissata al 2 febbraio 2027.",
      "attesa": ("2026-11-24", r"\b166\b"), "anche": [("2026-12-24", r"171")]},
+    {"id": "it_ricorso_lavoro", "g": "IT", "trigger": "padi_e_marre", "data": "24.09.2026",
+     "fatti": "Ricorso ex art. 414 c.p.c. del lavoratore per differenze retributive, depositato al Tribunale di Roma in funzione di "
+              "giudice del lavoro, notificato al datore di lavoro convenuto il 24.09.2026 con il decreto che fissa l'udienza di "
+              "discussione al 15 dicembre 2026.",
+     "attesa": ("2026-12-04", r"\b416\b"), "mai": ["2026-10-06"]},
     {"id": "it_sentenza_appello", "g": "IT", "trigger": "vendim_civil", "data": "15.07.2026",
      "fatti": "Sentenza civile di primo grado del Tribunale di Roma (materia contrattuale, non lavoro), notificata su istanza della "
               "controparte il 15.07.2026.",

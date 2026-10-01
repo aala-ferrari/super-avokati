@@ -175,10 +175,14 @@ TRIGGERS_IT = {
     # v9.458 — l'atto di citazione RICEVUTO: i termini corrono A RITROSO dall'udienza di comparizione (166: costituzione 70 giorni
     # prima; 171-ter: memorie 40/20/10 giorni prima; 167 e 38: domande riconvenzionali, chiamata del terzo, incompetenza nella
     # comparsa); 163-bis per controllare il termine a comparire (120 giorni liberi)
-    "padi_e_marre": {"label": "Atto di citazione notificato al convenuto",
+    # v9.460: anche il RICORSO — rito del lavoro (416: costituzione almeno 10 giorni prima dell'udienza; 415: notifica e termine a
+    # comparire) e semplificato (281-undecies: entro il termine del decreto, non oltre 10 giorni prima) — senza questi semi un ricorso
+    # di lavoro prendeva i 70 giorni della citazione
+    "padi_e_marre": {"label": "Atto di citazione o ricorso notificato al convenuto (anche rito del lavoro o semplificato)",
                      "seed": [(_CPC, "166"), (_CPC, "167"), (_CPC, "171-ter"), (_CPC, "163-bis"), (_CPC, "38"),
-                              (_CPC, "269"), (_CPC, "155")],
-                     "q": "costituzione convenuto comparsa di risposta termine prima dell'udienza memorie integrative"},
+                              (_CPC, "269"), (_CPC, "155"), (_CPC, "416"), (_CPC, "415"), (_CPC, "281-undecies")],
+                     "q": "costituzione convenuto comparsa di risposta termine prima dell'udienza memorie integrative ricorso rito del "
+                          "lavoro dieci giorni"},
     "kontrate": {"label": "Contratto / obbligazione (prescrizione civile)",
                  "seed": [(_CC, "2935"), (_CC, "2943"), (_CC, "2945"), (_CC, "2946"), (_CC, "2947"), (_CC, "2948")],
                  "q": "prescrizione decorrenza interruzione sospensione"},
