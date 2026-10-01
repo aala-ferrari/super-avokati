@@ -42,6 +42,16 @@ CASI = [
      "fatti": "Njoftim vlerësimi tatimor dhe kërkesë për pagesë për TVSH të papaguar, 1.800.000 lekë, marrë nga shoqëria më "
               "21.09.2026.",
      "attesa": ("2026-10-21", r"\b106\b|\b69\b")},
+    # v9.458 — la domanda ricevuta: AL termine FISSATO DALLA GJYKATA (KPC 158: al massimo 30 giorni) — col termine scritto si usa
+    # quello, senza nessuna riga di 30 giorni; IT citazione: i termini del convenuto A RITROSO dall'udienza di comparizione
+    {"id": "al_padi_afat", "g": "AL", "trigger": "padi_e_marre", "data": "23.09.2026",
+     "fatti": "Kërkesëpadi për detyrim kontraktor, njoftuar të paditurit më 23.09.2026 bashkë me njoftimin e gjykatës që i kërkon "
+              "të paraqesë deklaratën e mbrojtjes brenda 20 ditëve nga njoftimi.",
+     "attesa": ("2026-10-13", r"\b158\b"), "mai": ["2026-10-23"]},
+    {"id": "al_padi_pa_afat", "g": "AL", "trigger": "padi_e_marre", "data": "23.09.2026",
+     "fatti": "Kërkesëpadi për detyrim kontraktor, njoftuar të paditurit më 23.09.2026; gjykata nuk ka caktuar ende afatin për "
+              "deklaratën e mbrojtjes.",
+     "attesa": None, "mai": ["2026-10-23"]},
     {"id": "it_decreto_ingiuntivo", "g": "IT", "trigger": "decreto_ingiuntivo", "data": "15.09.2026",
      "fatti": "Decreto ingiuntivo n. 8812/2026 del Tribunale di Milano, notificato a mezzo PEC il 15.09.2026.",
      "attesa": ("2026-10-26", r"\b641\b")},
@@ -67,6 +77,10 @@ CASI = [
      "fatti": "Avviso di accertamento IRPEF per l'anno 2021, notificato al contribuente il 21.09.2026; nessuna istanza di "
               "accertamento con adesione presentata.",
      "attesa": ("2026-11-20", r"\b21\b")},
+    {"id": "it_citazione", "g": "IT", "trigger": "padi_e_marre", "data": "24.09.2026",
+     "fatti": "Atto di citazione per risarcimento del danno (inadempimento contrattuale) davanti al Tribunale di Milano, notificato "
+              "al convenuto il 24.09.2026, con udienza di comparizione fissata al 2 febbraio 2027.",
+     "attesa": ("2026-11-24", r"\b166\b"), "anche": [("2026-12-24", r"171")]},
     {"id": "it_sentenza_appello", "g": "IT", "trigger": "vendim_civil", "data": "15.07.2026",
      "fatti": "Sentenza civile di primo grado del Tribunale di Roma (materia contrattuale, non lavoro), notificata su istanza della "
               "controparte il 15.07.2026.",
@@ -90,17 +104,19 @@ def main() -> int:
         except Exception as exc:  # noqa: BLE001
             print(f"✗ {c['id']}: {type(exc).__name__}: {exc}")
             continue
-        data, rx = c["attesa"]
+        data, rx = c["attesa"] or (None, None)
         righe = r.get("afatet") or []
         trovata = [a for a in righe if a.get("date") == data]
-        base_ok = any(re.search(rx, a.get("baza") or "") for a in trovata)
+        base_ok = data is None or any(re.search(rx, a.get("baza") or "") for a in trovata)
         senza_motore = [a for a in righe if not a.get("passi")]
-        ok = bool(trovata) and base_ok
+        ok = (data is None or bool(trovata)) and base_ok
+        vietate = [a.get("date") for a in righe if a.get("date") in (c.get("mai") or [])]   # v9.458: date che NON devono uscire
+        ok = ok and not vietate
         for d2, rx2 in c.get("anche") or []:             # termini in più che devono esserci (con la loro base)
             ok = ok and any(a.get("date") == d2 and re.search(rx2, a.get("baza") or "") for a in righe)
         ok_tot += ok
         print(f"{'✓' if ok else '✗'} {c['id']:<22} attesa {data} ({rx}) · trovata {bool(trovata)} base {base_ok} · "
-              f"righe {len(righe)} · senza motore {len(senza_motore)} · {time.time() - t0:.0f} s")
+              f"righe {len(righe)} · senza motore {len(senza_motore)} · vietate {vietate or '-'} · {time.time() - t0:.0f} s")
         for a in righe:
             print(f"      {a.get('date')}  {a.get('baza') or '-':<28} {a.get('title', '')[:70]}")
     print(f"\nTOTALE: {ok_tot}/{len(casi)}")

@@ -7397,6 +7397,51 @@ def main():
     except Exception as _e232:  # noqa: BLE001
         check("basi-termini[232]: kontrollet u ekzekutuan", False, str(_e232))
 
+    # [233] v9.458 — i termini A RITROSO nel motore dei termini di legge (righe «verso=prima»): costituzione del convenuto 70 giorni
+    # prima dell'udienza del 2/2/2027 → 24/11/2026; un giorno non lavorativo si ANTICIPA; senza «verso» il calcolo resta in avanti;
+    # la domanda ricevuta ha il suo trigger in AL e IT
+    try:
+        from src import afati as _a233, scadenziario as _s233
+        _md = ("x\nAFAT | Costituzione | trigger=2027-02-02 | durata=70 | njesi=giorni | feriale=1 | verso=prima | baza=art. 166 c.p.c.\n"
+               "AFAT | Memoria 3 | trigger=2027-02-02 | durata=10 | njesi=giorni | feriale=1 | verso=prima | baza=art. 171-ter c.p.c.\n"
+               "AFAT | Appello | trigger=2026-09-15 | durata=30 | njesi=giorni | feriale=1 | baza=art. 325 c.p.c.\n"
+               "AFAT | Avanti | trigger=2026-09-15 | durata=30 | njesi=giorni | feriale=1 | verso=dopo | baza=art. 325 c.p.c.\n")
+        _af, _txt = _a233.righe_afat(_md, jurisdiction="IT", lang="it")
+        _d = {a["title"]: a for a in _af}
+        _ok233 = (_d["Costituzione"]["date"] == "2026-11-24" and _d["Costituzione"]["a_ritroso"]
+                  and _d["Memoria 3"]["date"] == "2027-01-22"            # 23/1/2027 è sabato → anticipato al venerdì
+                  and _d["Appello"]["date"] == "2026-10-15" and not _d["Appello"]["a_ritroso"]
+                  and _d["Avanti"]["date"] == "2026-10-15" and "AFAT |" not in _txt and "RITROSO" in _txt
+                  and "padi_e_marre" in _a233.TRIGGERS and "padi_e_marre" in _a233.TRIGGERS_IT
+                  and ("kodi_proc_civile", "158") in _a233.TRIGGERS["padi_e_marre"]["seed"]
+                  and ("codice_procedura_civile", "166") in _a233.TRIGGERS_IT["padi_e_marre"]["seed"]
+                  and "altre_date" in _s233.termini_di_legge.__code__.co_varnames)
+        from src.retrieval import ArticleIndex as _AI233
+        from pathlib import Path as _P233
+        _va = {(a.code, a.number) for a in _AI233.load().articles if not a.repealed}
+        _vi = {(a.code, a.number) for a in _AI233.load(_P233("/app/data/index/bm25_it.pkl")).articles if not a.repealed}
+        _m233 = [x for x in _a233.TRIGGERS["padi_e_marre"]["seed"] if x not in _va] + \
+                [x for x in _a233.TRIGGERS_IT["padi_e_marre"]["seed"] if x not in _vi]
+        _ok233 = _ok233 and not _m233
+        check("ritroso[233]: termini di legge a ritroso dall'udienza (citazione ricevuta), anticipo del giorno non lavorativo",
+              _ok233, str({k: v.get("date") for k, v in _d.items()}) + " manca " + str(_m233))
+    except Exception as _e233:  # noqa: BLE001
+        check("ritroso[233]: kontrollet u ekzekutuan", False, str(_e233))
+
+    # [234] v9.458 — durate in lettere qualsiasi (1-999, IT e SQ) a confini di parola: «settanta giorni» della citazione restava
+    # «durata non ritrovata»; e «venti» dentro «ventisei» non deve contare
+    try:
+        from src import scadenziario as _s234
+        _dl = _s234._durata_in_lettere
+        _ok234 = (_dl(70, "nel termine di settanta giorni prima") and _dl(365, "entro trecentosessantacinque giorni")
+                  and not _dl(60, "entro trecentosessantacinque giorni") and _dl(180, "entro centottanta giorni")
+                  and _dl(108, "centotto giorni") and not _dl(20, "ventisei giorni") and _dl(26, "ventisei giorni")
+                  and _dl(180, "brenda njëqind e tetëdhjetë ditëve") and _dl(70, "shtatëdhjetë ditë")
+                  and not _dl(5, "brenda pesëmbëdhjetë ditëve") and _dl(15, "brenda pesëmbëdhjetë ditëve"))
+        check("durata-lettere[234]: durate in lettere 1-999 a confini di parola", _ok234)
+    except Exception as _e234:  # noqa: BLE001
+        check("durata-lettere[234]: kontrollet u ekzekutuan", False, str(_e234))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

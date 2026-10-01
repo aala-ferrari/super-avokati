@@ -573,9 +573,30 @@ _NUMERI_PAROLE = {"it": {5: "cinque", 10: "dieci", 15: "quindici", 20: "venti", 
                          60: "gjashtëdhjetë", 90: "nëntëdhjetë", 180: "njëqind e tetëdhjetë"}}
 
 
+def _parole_numero(n: int) -> set[str]:
+    """v9.458 — una durata in lettere, 1-999, italiano e albanese: «settanta giorni» (art. 166 c.p.c. scritto nella citazione) non
+    era nella tabella fissa e il termine del documento restava «durata non ritrovata nella frase». «centottanta», «centotto»
+    (cento + otto con l'elisione), «trecentosessantacinque»; «njëqind e tetëdhjetë», «dyqind»."""
+    out: set[str] = set(v[n] for v in _NUMERI_PAROLE.values() if n in v)
+    if 1 <= n < 100:
+        out |= set(_numero_it(n)) | set(_numero_sq(n))
+    elif 100 <= n < 1000:
+        h, r = divmod(n, 100)
+        it_h = "cento" if h == 1 else _numero_it(h)[0] + "cento"
+        sq_h = "njëqind" if h == 1 else _numero_sq(h)[0] + "qind"
+        if r == 0:
+            out |= {it_h, sq_h}
+        else:
+            for w in _numero_it(r):
+                out.add(it_h[:-1] + w if w.startswith("o") else it_h + w)
+            for w in _numero_sq(r):
+                out.add(f"{sq_h} e {w}")
+    return out
+
+
 def _durata_in_lettere(n: int, cit: str) -> bool:
     c = _norm(cit)
-    return any(v.get(n) and v[n] in c for v in _NUMERI_PAROLE.values())
+    return any(re.search(r"(?<![a-zà-üë])" + re.escape(w) + r"(?![a-zà-üë])", c) for w in _parole_numero(n))
 
 
 def _basi_dubbie(afatet: list[dict], index) -> dict[str, str]:
@@ -604,9 +625,17 @@ def _basi_dubbie(afatet: list[dict], index) -> dict[str, str]:
     return out
 
 
-def termini_di_legge(backend, index, innesco: dict, *, jurisdiction: str, lang: str, data: str) -> list[dict]:
-    """L'evento del documento + la sua data → i termini DI LEGGE dal motore esistente (articoli del corpus, data dal codice)."""
+def termini_di_legge(backend, index, innesco: dict, *, jurisdiction: str, lang: str, data: str,
+                     altre_date: list[dict] | None = None) -> list[dict]:
+    """L'evento del documento + la sua data → i termini DI LEGGE dal motore esistente (articoli del corpus, data dal codice).
+    v9.458: con le DATE scritte nello stesso documento (l'udienza di comparizione di una citazione: i termini del convenuto corrono
+    a ritroso da lì)."""
     fatti = innesco.get("descrizione") or ""
+    vicine = [f"{p.get('titolo') or ''}: {_data_umana(p['data'], lang)}" for p in (altre_date or [])
+              if p.get("tipo") == "data" and p.get("data") and p.get("origine") != "legge"][:10]
+    if vicine:
+        fatti += ("\nDate scritte nello stesso documento: " if lang == "it" else "\nData të shkruara në të njëjtin dokument: ") \
+            + "; ".join(vicine)
     if innesco.get("notifica_ignota"):
         fatti += ("\nData della NOTIFICA: sconosciuta — per i termini che decorrono dalla notifica NON dare la riga AFAT "
                   "(descrivili solo nella tabella)." if lang == "it" else
@@ -665,7 +694,7 @@ def analizza_documento(backend, index, doc, *, jurisdiction: str) -> tuple[list[
         if inn["data"] and calcolati < MAX_INNESCHI:
             try:
                 proposte += termini_di_legge(backend, index, inn, jurisdiction=(jurisdiction or "AL").upper(), lang=lang,
-                                             data=inn["data"])
+                                             data=inn["data"], altre_date=proposte)
                 inn["calcolato"] = True
                 calcolati += 1
             except Exception as exc:  # noqa: BLE001

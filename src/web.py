@@ -9240,9 +9240,15 @@ def api_scadenze_calcola(pid: str):
     from . import scadenziario as scad_mod
     juris = p.get("jurisdiction") or _active_jurisdiction(user)
     inn = json.loads(p["regola_json"] or "{}")
+    # v9.458: le date proposte dallo STESSO documento (l'udienza della citazione) — i termini del convenuto corrono a ritroso da lì
+    try:
+        vicine = [x for x in storage.lista_scadenze_proposte(case_id=p["case_id"])
+                  if x.get("document_id") == p.get("document_id") and x.get("tipo") == "data" and x.get("stato") != "scartata"]
+    except Exception:  # noqa: BLE001
+        vicine = []
     try:
         nuove = scad_mod.termini_di_legge(_BRAIN.backend, _scad_index(juris), inn, jurisdiction=juris,
-                                          lang="it" if juris == "IT" else "sq", data=str(data)[:10])
+                                          lang="it" if juris == "IT" else "sq", data=str(data)[:10], altre_date=vicine)
     except Exception:  # noqa: BLE001
         log.exception("scadenziario: calcolo dei termini di legge (%s)", pid)
         return jsonify({"error": _t_err("Llogaritja dështoi", "Calcolo non riuscito")}), 500

@@ -1,0 +1,27 @@
+{
+ "id": "it_citazione",
+ "lang": "it",
+ "jurisdiction": "IT",
+ "oggi": "2026-09-26",
+ "testo": "TRIBUNALE DI MILANO\nATTO DI CITAZIONE\nLa Beta Forniture S.r.l., con l'avv. Paolo Neri,\nCITA\nla Gamma Impianti S.p.A. a comparire all'udienza del 2 febbraio 2027, ore 9:30, davanti al Tribunale di Milano, giudice designando, con l'invito a costituirsi nel termine di settanta giorni prima dell'udienza indicata ai sensi e nelle forme dell'art. 166 c.p.c., con l'avvertimento che la costituzione oltre il termine implica le decadenze di cui agli artt. 38 e 167 c.p.c.\nPer ottenere la condanna al pagamento di euro 48.000 per inadempimento.\nMilano, 15 settembre 2026 — avv. Paolo Neri\n\nRELATA DI NOTIFICA: notificato a mezzo PEC alla Gamma Impianti S.p.A. il 24 settembre 2026.",
+ "attese": [
+  {
+   "data": "2027-02-02",
+   "ora": "09:30"
+  }
+ ],
+ "termini_attesi": [
+  {
+   "durata": 70,
+   "unita": "giorni",
+   "data": "2026-11-24"
+  }
+ ],
+ "inneschi_attesi": [
+  {
+   "trigger": "padi_e_marre",
+   "data": "2026-09-24"
+  }
+ ],
+ "vietate": []
+}

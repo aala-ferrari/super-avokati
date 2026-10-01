@@ -81,6 +81,14 @@ TRIGGERS = {
                  ("ligji_procedurat_tatimore", "107"), ("ligji_procedurat_tatimore", "108"),
                  ("ligji_procedurat_tatimore", "109")],
         "q": "ankim administrativ tatimor drejtoria e apelimit afat gjykatë vlerësim tatimor"},
+    # v9.458 — la domanda giudiziale RICEVUTA: KPC 158 (deklarata e mbrojtjes nel termine che fissa la gjykata, al massimo 30
+    # giorni dalla notifica), 160 (kundërpadia fino all'urdhër del 158/c), 158/a-c
+    "padi_e_marre": {
+        "label": "Kërkesëpadi e njoftuar të paditurit",
+        "seed": [("kodi_proc_civile", "158"), ("kodi_proc_civile", "158/a"), ("kodi_proc_civile", "158/b"),
+                 ("kodi_proc_civile", "158/c"), ("kodi_proc_civile", "160"), ("kodi_proc_civile", "154"),
+                 ("kodi_proc_civile", "148")],
+        "q": "deklarata e mbrojtjes afat i padituri kundërpadi njoftim kërkesëpadi"},
     "vendim_civil": {
         "label": "Njoftim i vendimit civil (gjykata)",
         "seed": [("kodi_proc_civile", "443"), ("kodi_proc_civile", "444"), ("kodi_proc_civile", "445"),
@@ -164,6 +172,13 @@ TRIGGERS_IT = {
                                   ("giustizia_tributaria", "67"), ("giustizia_tributaria", "68"),
                                   ("giustizia_tributaria", "65")],
                          "q": "ricorso tributario termine sessanta giorni notificazione atto impugnabile costituzione in giudizio"},
+    # v9.458 — l'atto di citazione RICEVUTO: i termini corrono A RITROSO dall'udienza di comparizione (166: costituzione 70 giorni
+    # prima; 171-ter: memorie 40/20/10 giorni prima; 167 e 38: domande riconvenzionali, chiamata del terzo, incompetenza nella
+    # comparsa); 163-bis per controllare il termine a comparire (120 giorni liberi)
+    "padi_e_marre": {"label": "Atto di citazione notificato al convenuto",
+                     "seed": [(_CPC, "166"), (_CPC, "167"), (_CPC, "171-ter"), (_CPC, "163-bis"), (_CPC, "38"),
+                              (_CPC, "269"), (_CPC, "155")],
+                     "q": "costituzione convenuto comparsa di risposta termine prima dell'udienza memorie integrative"},
     "kontrate": {"label": "Contratto / obbligazione (prescrizione civile)",
                  "seed": [(_CC, "2935"), (_CC, "2943"), (_CC, "2945"), (_CC, "2946"), (_CC, "2947"), (_CC, "2948")],
                  "q": "prescrizione decorrenza interruzione sospensione"},
@@ -186,8 +201,13 @@ _SYSTEM_IT = (
     "POI, in fondo, per OGNI termine dai UNA SOLA riga leggibile dalla macchina (nient'altro nella "
     "riga). Dai la REGOLA, non la data di scadenza. Formato esatto (le parole-chiave della riga "
     "restano queste):\n"
-    "AFAT | <titolo breve> | trigger=<YYYY-MM-DD> | durata=<numero> | njesi=<giorni|giorni_lavorativi|mesi|anni> | feriale=<0|1> | baza=<articolo>\n"
+    "AFAT | <titolo breve> | trigger=<YYYY-MM-DD> | durata=<numero> | njesi=<giorni|giorni_lavorativi|mesi|anni> | feriale=<0|1> | verso=<dopo|prima> | baza=<articolo>\n"
     "  · trigger = la data da cui decorre il termine (data dell'evento o della notificazione)\n"
+    "  · verso=prima per i termini A RITROSO («almeno N giorni PRIMA dell'udienza»): allora trigger = la data dell'UDIENZA (o "
+    "dell'altra data di riferimento) scritta nei dettagli; altrimenti verso=dopo\n"
+    "  · se l'articolo dà solo un limite MASSIMO che fissa il giudice («entro un termine non superiore a N giorni»), usa il "
+    "termine scritto nell'atto del giudice se è nei dettagli; se non c'è, NON dare la riga AFAT (scrivi nella tabella «termine "
+    "fissato dal giudice, al massimo N giorni»)\n"
     "  · durata+njesi PRENDILI dal testo REALE dell'articolo (es. '30 giorni' → durata=30 njesi=giorni)\n"
     "  · feriale=1 per i termini processuali soggetti alla sospensione feriale (1-31 agosto, L. "
     "742/1969); feriale=0 per quelli che non lo sono (per esempio i procedimenti cautelari, i termini "
@@ -210,7 +230,8 @@ _AFAT_RE = re.compile(r"^\s*AFAT\s*\|\s*(.+?)\s*\|\s*(\d{4}-\d{2}-\d{2})\s*$", r
 _AFAT_RULE_RE = re.compile(
     r"^\s*AFAT\s*\|\s*(?P<title>.+?)\s*\|\s*trigger\s*=\s*(?P<trig>\d{4}-\d{2}-\d{2})\s*\|"
     r"\s*durata\s*=\s*(?P<dur>\d{1,6})\s*\|\s*njesi\s*=\s*(?P<unit>[A-Za-zëËçÇ_]+)\s*\|"
-    r"\s*feriale\s*=\s*(?P<fer>[01])\s*(?:\|\s*baza\s*=\s*(?P<baza>.+?))?\s*$",
+    r"\s*feriale\s*=\s*(?P<fer>[01])\s*(?:\|\s*verso\s*=\s*(?P<verso>[A-Za-zëË]+)\s*)?"
+    r"(?:\|\s*baza\s*=\s*(?P<baza>.+?))?\s*$",
     re.MULTILINE)
 # sinonimi unità → unità del motore (accetta sq e it, robusto)
 _NJESI = {
@@ -257,8 +278,13 @@ def compute(backend, index, *, trigger: str, event_date: str = "", facts: str = 
         "### ⚠️ Kujdes — pezullime/rivendosje në afat dhe çfarë duhet verifikuar\n\n"
         "PASTAJ, në fund, për ÇDO afat jep një rresht të VETËM të lexueshëm nga makina (asgjë tjetër "
         "në rresht). Jep RREGULLIN, jo datën e skadimit. Formati i saktë:\n"
-        "AFAT | <titulli i shkurtër> | trigger=<YYYY-MM-DD> | durata=<numër> | njesi=<dite|dite_pune|muaj|vite> | feriale=<0|1> | baza=<neni>\n"
+        "AFAT | <titulli i shkurtër> | trigger=<YYYY-MM-DD> | durata=<numër> | njesi=<dite|dite_pune|muaj|vite> | feriale=<0|1> | verso=<pas|para> | baza=<neni>\n"
         "  · trigger = data nga e cila nis afati (data e ngjarjes/njoftimit)\n"
+        "  · verso=para për afatet PRAPA («të paktën N ditë PARA seancës»): atëherë trigger = data e SEANCËS (ose e datës tjetër "
+        "të referimit) e shkruar te detajet; përndryshe verso=pas\n"
+        "  · kur neni jep vetëm një kufi MAKSIMAL që e cakton gjykata («jo më vonë se N ditë»), përdor afatin e shkruar në "
+        "njoftimin e gjykatës nëse është te detajet; nëse nuk është, MOS jep rresht AFAT (shkruaj në tabelë «afati që cakton "
+        "gjykata, maksimumi N ditë»)\n"
         "  · durata+njesi MERRI nga teksti REAL i nenit (p.sh. '10 ditë' → durata=10 njesi=dite)\n"
         "  · feriale=1 VETËM për afate procedurale ITALIANE (pezullimi 1–31 gusht); për Shqipërinë feriale=0\n"
         "  · nëse data e trigger-it është e panjohur, MOS e jep rreshtin AFAT (përshkruaje vetëm në tabelë)\n"
@@ -288,6 +314,20 @@ def compute(backend, index, *, trigger: str, event_date: str = "", facts: str = 
     md = backend.complete(system=system, messages=[{"role": "user", "content": prompt}],
                           max_tokens=max_tokens, callsite="afati")
     md = md or ""
+    afatet, md_clean = righe_afat(md, jurisdiction=jurisdiction, lang=_lang)
+    return {"markdown": md_clean, "afatet": afatet,
+            "articles": [{"code": c, "number": n} for c, n, _t in arts]}
+
+
+_INDIETRO = {"prima", "para", "prapa", "indietro"}
+
+
+def righe_afat(md: str, *, jurisdiction: str = "AL", lang: str = "sq") -> tuple[list[dict], str]:
+    """Le righe macchina AFAT del modello → date dal motore DETERMINISTICO + il testo pulito con il calcolo verificato.
+    v9.458: «verso=prima» = termine A RITROSO dalla data di riferimento (costituzione del convenuto 70 giorni PRIMA dell'udienza,
+    memorie dell'art. 171-ter): stesso calcolo dello scadenziario (giorno non lavorativo anticipato, agosto non contato nei termini
+    processuali italiani)."""
+    _lang = lang
     afatet: list[dict] = []
     calc: list[str] = []
     # 1) rreshtat me RREGULL → il motore DETERMINISTICO calcola la data
@@ -297,19 +337,28 @@ def compute(backend, index, *, trigger: str, event_date: str = "", facts: str = 
         if not unit:
             log.warning("afati: njësi e panjohur '%s' — anashkaloj", m.group("unit"))
             continue
+        indietro = (m.group("verso") or "").strip().lower() in _INDIETRO
         try:
-            r = _de.compute_deadline(
-                m.group("trig"), int(m.group("dur")), unit,
-                jurisdiction=jurisdiction, feriale=(m.group("fer") == "1"),
-                legal_basis=(m.group("baza") or "").strip(), lang=_lang)
+            if indietro:
+                from .scadenziario import _calcola_a_ritroso
+                rr = _calcola_a_ritroso({"durata": int(m.group("dur")), "unita": unit,
+                                         "processuale": m.group("fer") == "1", "lavoro_o_urgente": False},
+                                        m.group("trig"), jurisdiction, _lang)
+                scad, steps, warns = rr["data"], rr["passi"], []
+            else:
+                r = _de.compute_deadline(
+                    m.group("trig"), int(m.group("dur")), unit,
+                    jurisdiction=jurisdiction, feriale=(m.group("fer") == "1"),
+                    legal_basis=(m.group("baza") or "").strip(), lang=_lang)
+                scad, steps, warns = r.deadline.isoformat(), r.steps, r.warnings
         except Exception as exc:  # noqa: BLE001
             log.warning("deadline_engine dështoi për '%s': %s", title, exc)
             continue
-        lines = ["  - " + s for s in r.steps] + ["  - ⚠ " + w for w in r.warnings]
+        lines = ["  - " + s for s in steps] + ["  - ⚠ " + w for w in warns]
         # v9.410: base legale e passi del calcolo anche per riga (lo scadenziario del fascicolo li mostra accanto alla data)
-        afatet.append({"title": title, "date": r.deadline.isoformat(), "baza": (m.group("baza") or "").strip(),
-                       "passi": [s.strip() for s in lines]})
-        calc.append("**%s → %s**\n%s" % (title, r.deadline.isoformat(), "\n".join(lines)))
+        afatet.append({"title": title, "date": scad, "baza": (m.group("baza") or "").strip(),
+                       "passi": [s.strip() for s in lines], "a_ritroso": indietro})
+        calc.append("**%s → %s**\n%s" % (title, scad, "\n".join(lines)))
     # 2) fallback retro-compatibile: vecchio formato AFAT | titolo | YYYY-MM-DD (senza motore)
     for m in _AFAT_RE.finditer(md):
         afatet.append({"title": m.group(1).strip(), "date": m.group(2)})
@@ -323,5 +372,4 @@ def compute(backend, index, *, trigger: str, event_date: str = "", facts: str = 
                 if _lang == "sq" else
                 "\n\n### 🧮 Calcolo verificato (motore deterministico)\n")
         md_clean = (md_clean + head + "\n\n".join(calc)).strip()
-    return {"markdown": md_clean, "afatet": afatet,
-            "articles": [{"code": c, "number": n} for c, n, _t in arts]}
+    return afatet, md_clean
