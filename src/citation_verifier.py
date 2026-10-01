@@ -1676,6 +1676,30 @@ def verify_text(
                 if _c:
                     legami.setdefault(_n.split("/")[0], set()).add(_c)
 
+    # v9.472 — lo stesso legame per il DIRITTO STRANIERO dichiarato: «nenit 93-bis të Codice della Strada … pikat 1 e 3 të nenit
+    # 93-bis»: la ripetizione nuda usciva «nen fantazmë» (nessun codice albanese ha un 93-bis) e la riga di fiducia diventava rossa su
+    # una risposta giusta. Vale solo per un numero che nel corpus della sessione non esiste da nessuna parte (era un «falso» sicuro)
+    legami_esteri: dict[str, set] = {}
+    for _m in _cite_re.finditer(text or ""):
+        _tail = _m.group("tail") or ""
+        if _resolve(_tail) is not None:
+            continue
+        _fc = _resolve_foreign(_tail)
+        if _fc and _fc != FUORI_CORPUS:
+            for _nr in _num_re.findall(_m.group("nums")):
+                legami_esteri.setdefault(_normalise_number(_nr).split("/")[0], set()).add(_fc)
+    for _m in _cite_re_foreign.finditer(text or ""):
+        _fc = _resolve_foreign(_m.group("tail") or "")
+        if _fc and _fc != FUORI_CORPUS:
+            for _nr in _num_re_foreign.findall(_m.group("nums")):
+                legami_esteri.setdefault(_normalise_number(_nr).split("/")[0], set()).add(_fc)
+
+    def _estero_dal_documento(number: str) -> str | None:
+        b = legami_esteri.get(number.split("/")[0])
+        if b and len(b) == 1 and not _codes_for_number(num_to_codes, number, lookup_all):
+            return next(iter(b))
+        return None
+
     def _esiste(code: str, number: str) -> bool:
         return (_verify_number(lookup, code, number) is not None
                 or _verify_number(lookup_all, code, number) is not None)
@@ -1876,6 +1900,11 @@ def verify_text(
                     _d = _dal_documento(number)
                     if _d:
                         code_n, via = _d, "documento"
+                    else:
+                        _fd = _estero_dal_documento(number)
+                        if _fd:
+                            _emit_foreign(number, _fd, (_cite_prefix + number_raw) if multi else full_raw)
+                            continue
             key = (number, code_n or ("kp?" if kp_bare else ""))
             if key in seen:
                 continue

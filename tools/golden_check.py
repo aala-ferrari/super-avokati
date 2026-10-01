@@ -7613,6 +7613,24 @@ def main():
     except Exception as _e242:  # noqa: BLE001
         check("ligj-vjeter[242]: kontrollet u ekzekutuan", False, str(_e242))
 
+    # [243] v9.472 — la ripetizione nuda di un articolo STRANIERO già citato col suo codice non è un «nen fantazmë»
+    try:
+        from src import citation_verifier as _cv243
+        from src.retrieval import ArticleIndex as _AI243
+        from pathlib import Path as _P243
+        _al243 = _AI243.load(); _it243 = _AI243.load(_P243("/app/data/index/bm25_it.pkl"))
+        _r = _cv243.verify_text("Sipas nenit 93-bis të Codice della Strada italian, pikat 1 e 3 të nenit 93-bis parashikojnë gjobë.",
+                                _al243, foreign_index=_it243)
+        _s = [x["status"] for x in _r["items"]]
+        _r2 = _cv243.verify_text("Pikat 1 e 3 të nenit 93-bis parashikojnë gjobë.", _al243, foreign_index=_it243)
+        _r3 = _cv243.verify_text("Neni 9999 i Kodit Penal dhe neni 93-bis i Codice della Strada.", _al243, foreign_index=_it243)
+        _ok243 = ("fake" not in _s and _s.count("foreign_verified") >= 1 and [x["status"] for x in _r2["items"]] == ["fake"]
+                  and "fake" in [x["status"] for x in _r3["items"]])
+        check("estero-documento[243]: articolo straniero ripetuto senza codice non è un fantasma", _ok243,
+              f"{_s} | {[x['status'] for x in _r2['items']]} | {[x['status'] for x in _r3['items']]}")
+    except Exception as _e243:  # noqa: BLE001
+        check("estero-documento[243]: kontrollet u ekzekutuan", False, str(_e243))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
