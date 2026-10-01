@@ -203,6 +203,30 @@ def note_articolo_it(code: str, number: str) -> list[dict]:
     return list((_it_notes().get(code) or {}).get(str(number)) or [])
 
 
+_ILLEGITTIMITA = re.compile(r"(?i)illegittimit[àa]\s+costituzionale")
+
+
+def dichiarazioni_consulta(code: str, number: str, massimo: int = 3, tetto: int = 600) -> list[str]:
+    """v9.463 — le DICHIARAZIONI DI ILLEGITTIMITÀ COSTITUZIONALE scritte da Normattiva nelle note dell'articolo (592 articoli del
+    corpus, 836 note: c.c. 116 — il permesso di soggiorno per sposarsi, sent. 245/2011 —, art. 3 d.lgs. 23/2015 — 194/2018, 128/2024…).
+    Normattiva lascia nel testo le parole dichiarate illegittime e mette la sentenza in una nota: senza, il modello leggeva come vigente
+    una parte caduta. Il testo della nota, tagliato a parola intera."""
+    out = []
+    for nota in note_articolo_it(code, number):
+        t = " ".join((nota.get("text") or "").split())
+        if not _ILLEGITTIMITA.search(t):
+            continue
+        # via i titoli lunghi degli atti fra parentesi e la Gazzetta: resta la parte che conta («nella parte in cui …»)
+        t = re.sub(r"\s*\(in G\.\s*U\.[^()]*\)", "", t)
+        t = re.sub(r"\s*\([^()]{40,}\)", "", t)
+        if len(t) > tetto:
+            t = t[:tetto].rsplit(" ", 1)[0] + " …"
+        out.append(t)
+    if len(out) > massimo:
+        out = out[:massimo] + [f"(+{len(out) - massimo} altre dichiarazioni nelle note ufficiali dell'articolo)"]
+    return out
+
+
 def blocco_it(retrieved, quando: date, raw: str, approx: bool, lang: str = "it",
               max_art: int = 6, budget_s: float = 45.0) -> tuple[str, dict]:
     """Confronta gli articoli recuperati con la versione alla data del fatto; aggiunge le note di

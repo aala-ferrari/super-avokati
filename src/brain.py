@@ -7446,12 +7446,24 @@ def _format_articles_for_prompt(pairs: list[tuple[Article, float]]) -> str:
         # v9.362 — la nota editoriale separata dal testo (rubrica pulita) resta visibile al cervello
         _nota = getattr(a, "note", "") or ""
         _nota_line = (f"  ℹ {'Nota redazionale' if _it else 'Shënim redaksional'}: {_nota}\n") if _nota else ""
+        # v9.463 — la Corte costituzionale nelle note ufficiali di Normattiva: il testo qui sotto può contenere parole CADUTE
+        _cc_line = ""
+        if _is_italian_code(a.code):
+            try:
+                from . import temporal as _tmp_cc
+                _dc = _tmp_cc.dichiarazioni_consulta(a.code, str(a.number))
+                if _dc:
+                    _cc_line = ("  ⚖ CORTE COSTITUZIONALE (note ufficiali dell'articolo — una parte del testo qui sotto può NON essere "
+                                "più applicabile: tienine conto e citala):\n" + "".join(f"    · {x}\n" for x in _dc))
+            except Exception:  # noqa: BLE001
+                _cc_line = ""
         blocks.append(
             f"{intestazione}"
             f"  {'Rubrica' if _it else 'Titulli'}: {a.heading}\n"
             f"{hierarchy}"
             f"{vol_note}"
             f"{_nota_line}"
+            f"{_cc_line}"
             f"  {_body}"
         )
     out = "\n\n".join(blocks) + _indice_kreut(pairs)

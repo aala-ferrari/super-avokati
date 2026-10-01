@@ -7479,6 +7479,24 @@ def main():
     except Exception as _e236:  # noqa: BLE001
         check("dispositivo-it[236]: kontrollet u ekzekutuan", False, str(_e236))
 
+    # [237] v9.463 — le dichiarazioni di illegittimità della Consulta (note ufficiali di Normattiva) accanto all'articolo italiano
+    try:
+        from src import temporal as _t237, brain as _b237
+        from src.retrieval import ArticleIndex as _AI237
+        from pathlib import Path as _P237
+        _d116 = _t237.dichiarazioni_consulta("codice_civile", "116")
+        _d3 = _t237.dichiarazioni_consulta("tutele_crescenti", "3")
+        _iit237 = _AI237.load(_P237("/app/data/index/bm25_it.pkl"))
+        _a116 = next(a for a in _iit237.articles if a.code == "codice_civile" and a.number == "116")
+        _blk = _b237._format_articles_for_prompt([(_a116, 1.0)])
+        _ok237 = (any("245" in x for x in _d116) and any("194" in x for x in _d3) and any("128" in x for x in _d3)
+                  and "CORTE COSTITUZIONALE" in _blk and "245" in _blk
+                  and _t237.dichiarazioni_consulta("codice_civile", "2043") == [])
+        check("consulta-note[237]: dichiarazioni della Consulta accanto all'articolo italiano (c.c. 116, d.lgs. 23/2015 art. 3)",
+              _ok237, f"{_d116[:1]} | {len(_d3)}")
+    except Exception as _e237:  # noqa: BLE001
+        check("consulta-note[237]: kontrollet u ekzekutuan", False, str(_e237))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
