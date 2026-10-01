@@ -2,7 +2,7 @@
 
 Strumento AI per avvocati (B2B), **bi-giurisdizione AL + IT**. Front-end Flask (waitress, UN processo) su porta
 5050, SQLite (`data/app.db`). Postgres `legalkb` NON è raggiungibile dal container: i precedenti vivono nel pickle.
-**Stato al 1 ott 2026 (v9.460)** — i numeri qui sono quelli veri; più sotto, nelle sezioni datate, c'è la storia:
+**Stato al 1 ott 2026 (v9.461)** — i numeri qui sono quelli veri; più sotto, nelle sezioni datate, c'è la storia:
 - **AL leggi** (`bm25.pkl`, BM25 con diacritici piegati dal v9.367, titolo del capitolo cercabile dal v9.373): **10.460 unità / 64 codici** (dal v9.391 anche la ligji 7975/1995 sugli stupefacenti e la 61/2023 sulla cannabis medica); embedding AL `_flat3`/`_ck3` (capitoli + corpo intero, `EMB_SUFFIX_SQ`/`EMB_SUFFIX2_SQ`), IT `_flat4`/`_ck4` dal v9.384 (`EMB_SUFFIX_IT`/`EMB_SUFFIX2_IT`); fonte
   `data/processed/all_articles.jsonl` (il pickle è derivato).
 - **Precedenti** (`bm25_decisions.pkl`): **3.996** = Kushtetuese **672** + Gjykata e Lartë **2.960** + CEDU **364**
@@ -1557,6 +1557,8 @@ rischio residuo della DPIA.
 - Super Avokati ha auth propria (login_required_api); utenti creati da admin o auto-provisionati da AALA (`/api/provision-demo`, secret-guarded).
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
+
+**v9.461 — IL MOTORE DEI TERMINI SENZA WEB (1 ott).** `afati.compute` scrive i termini SOLO dagli articoli del corpus che riceve e la data la fa il codice, ma girava con WebSearch/WebFetch aperti: minuti in più e un caso misurato a 22 minuti. Ora `no_web=True` (ripiego senza l'opzione per i backend che non la conoscono). Misura sui 18 casi: **18/18**, media 186 s a caso contro 225 s col web, il più lento 281 s (col web 1.362 s).
 
 **v9.460 — IL RICORSO RICEVUTO, ANCHE DI LAVORO (1 ott).** Il trigger della domanda ricevuta (v9.458) conosceva solo la citazione: un ricorso ex art. 414 notificato al datore di lavoro avrebbe preso i 70 giorni dell'art. 166 invece dei 10 dell'art. 416. Ora l'evento è «atto di citazione o ricorso notificato al convenuto (anche rito del lavoro o semplificato)» con i semi c.p.c. 416, 415 e 281-undecies. Misura: ricorso di lavoro con udienza di discussione al 15/12/2026 → costituzione il **04/12** (10 giorni prima = sabato 05/12, anticipato), nessuna riga al 06/10 (i 70 giorni della citazione); la citazione resta giusta (24/11, 24/12, 13/01, 22/01). Legge **18/18**. (Resta una riga in più della controparte, la costituzione dell'attore art. 165: la regola «solo i termini del cliente» la fa sparire quasi sempre, non sempre.)
 

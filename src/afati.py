@@ -315,8 +315,13 @@ def compute(backend, index, *, trigger: str, event_date: str = "", facts: str = 
                   + ("\n\nDETTAGLI: " + facts.strip() if (facts or "").strip() else "")
                   + "\n\n─────\nARTICOLI DAL CORPUS (cita solo questi):\n" + art_block
                   + "\n\nCostruisci l'elenco completo dei termini e le righe AFAT | … | … in fondo.")
-    md = backend.complete(system=system, messages=[{"role": "user", "content": prompt}],
-                          max_tokens=max_tokens, callsite="afati")
+    # v9.461: SENZA web — il motore scrive i termini SOLO dagli articoli del corpus che riceve (regola del prompt) e la data la fa il
+    # codice: la ricerca sul web non entra nella risposta e costava minuti (misurato: fino a 22 minuti per un caso)
+    _msgs = [{"role": "user", "content": prompt}]
+    try:
+        md = backend.complete(system=system, messages=_msgs, max_tokens=max_tokens, callsite="afati", no_web=True)
+    except TypeError:                                    # backend senza l'opzione (API diretta): come prima
+        md = backend.complete(system=system, messages=_msgs, max_tokens=max_tokens, callsite="afati")
     md = md or ""
     afatet, md_clean = righe_afat(md, jurisdiction=jurisdiction, lang=_lang)
     return {"markdown": md_clean, "afatet": afatet,
