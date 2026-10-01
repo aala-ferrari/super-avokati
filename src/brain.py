@@ -7451,6 +7451,7 @@ def _format_articles_for_prompt(pairs: list[tuple[Article, float]]) -> str:
         if _is_italian_code(a.code):
             try:
                 from . import temporal as _tmp_cc
+                _body = _tmp_cc.marca_parole_cadute(_body, a.code, str(a.number))      # v9.467
                 _dc = _tmp_cc.dichiarazioni_consulta(a.code, str(a.number))
                 if _dc:
                     _cc_line = ("  ⚖ CORTE COSTITUZIONALE (note ufficiali dell'articolo — una parte del testo qui sotto può NON essere "

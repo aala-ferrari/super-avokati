@@ -2,7 +2,7 @@
 
 Strumento AI per avvocati (B2B), **bi-giurisdizione AL + IT**. Front-end Flask (waitress, UN processo) su porta
 5050, SQLite (`data/app.db`). Postgres `legalkb` NON è raggiungibile dal container: i precedenti vivono nel pickle.
-**Stato al 1 ott 2026 (v9.466)** — i numeri qui sono quelli veri; più sotto, nelle sezioni datate, c'è la storia:
+**Stato al 1 ott 2026 (v9.467)** — i numeri qui sono quelli veri; più sotto, nelle sezioni datate, c'è la storia:
 - **AL leggi** (`bm25.pkl`, BM25 con diacritici piegati dal v9.367, titolo del capitolo cercabile dal v9.373): **10.460 unità / 64 codici** (dal v9.391 anche la ligji 7975/1995 sugli stupefacenti e la 61/2023 sulla cannabis medica); embedding AL `_flat3`/`_ck3` (capitoli + corpo intero, `EMB_SUFFIX_SQ`/`EMB_SUFFIX2_SQ`), IT `_flat4`/`_ck4` dal v9.384 (`EMB_SUFFIX_IT`/`EMB_SUFFIX2_IT`); fonte
   `data/processed/all_articles.jsonl` (il pickle è derivato).
 - **Precedenti** (`bm25_decisions.pkl`): **3.996** = Kushtetuese **672** + Gjykata e Lartë **2.960** + CEDU **364**
@@ -1557,6 +1557,8 @@ rischio residuo della DPIA.
 - Super Avokati ha auth propria (login_required_api); utenti creati da admin o auto-provisionati da AALA (`/api/provision-demo`, secret-guarded).
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
+
+**v9.467 — LE PAROLE ANNULLATE DALLA CONSULTA SEGNATE NEL TESTO (1 ott).** Prova viva dopo le v9.463-465 (sessione IT, giusta causa per un fatto che il CCNL punisce con la sospensione): ora la risposta applica la Corte cost. 129/2024 («non fondata» con interpretazione adeguatrice → reintegrazione ex art. 3, comma 2, d.lgs. 23/2015) — prima diceva che nelle tutele crescenti quella leva «non basta». Lo stesso giro: 34 dichiarazioni «limitatamente alle parole «…»» nelle note, **21 con le parole ancora scritte nel testo** (c.c. 116 «nonché un documento attestante la regolarità del soggiorno…» — 245/2011; c.p. 99 «è obbligatorio e,» — 185/2015; c.p.c. 238 la formula religiosa del giuramento; c.p.c. 287; c.p. 586-bis…) → `temporal.marca_parole_cadute` le segna DENTRO il testo che va al modello («⟦…⟧[⛔ parole dichiarate illegittime: Corte cost. n. 245/2011]»), una volta sola; il corpus non si tocca. Golden [237] esteso, 641.
 
 **v9.466 — L'EMAIL DEGLI AVVISI INVITA A COLLEGARE TELEGRAM (1 ott).** Mandando il benvenuto nuovo del bot (ok del titolare) è emerso che su 17 account UNO SOLO ha collegato Telegram (l'amministratore): gli altri ricevono gli avvisi dello scadenziario solo per email, senza sapere che sul bot arrivano coi pulsanti ✅ per confermare. Ora in fondo all'email di `reminders.avvisa_utente` una riga («📱 Questi avvisi possono arrivarti anche su Telegram… apri superavokati.ai/s e premi «Collega Telegram»», SQ «Lidh Telegram»: le etichette vere del pulsante), SOLO a chi non l'ha collegato e SOLO se il bot è attivo. Golden **[239]** (email simulata nei tre casi), 641. Il benvenuto: `tools/benvenuto_broadcast.py`-tipo una tantum, segnato in `data/telegram_benvenuto_inviato.json` (mai due volte).
 

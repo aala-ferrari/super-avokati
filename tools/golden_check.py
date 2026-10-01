@@ -7492,6 +7492,9 @@ def main():
         _ok237 = (any("245" in x for x in _d116) and any("194" in x for x in _d3) and any("128" in x for x in _d3)
                   and "CORTE COSTITUZIONALE" in _blk and "245" in _blk
                   and _t237.dichiarazioni_consulta("codice_civile", "2043") == [])
+        _m116 = _t237.marca_parole_cadute(_a116.body, "codice_civile", "116")
+        _ok237 = _ok237 and "⟦nonché un documento attestante" in _m116 and "245/2011" in _m116 and "⟦" in _blk \
+            and _t237.marca_parole_cadute(_m116, "codice_civile", "116") == _m116          # v9.467: parole cadute segnate, una volta
         check("consulta-note[237]: dichiarazioni della Consulta accanto all'articolo italiano (c.c. 116, d.lgs. 23/2015 art. 3)",
               _ok237, f"{_d116[:1]} | {len(_d3)}")
     except Exception as _e237:  # noqa: BLE001

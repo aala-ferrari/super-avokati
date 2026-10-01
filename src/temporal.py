@@ -206,6 +206,31 @@ def note_articolo_it(code: str, number: str) -> list[dict]:
 _ILLEGITTIMITA = re.compile(r"(?i)illegittimit[àa]\s+costituzionale")
 
 
+_PAROLE_CADUTE = re.compile(r"limitatamente alle parole\s*[«\"“]([^»\"”]{4,300})[»\"”]")
+_SENT_NUM = re.compile(r"sentenza[^.]*?(\d{4}),?\s*n\.\s*(\d+)")
+
+
+def marca_parole_cadute(body: str, code: str, number: str) -> str:
+    """v9.467 — le PAROLE dichiarate illegittime («limitatamente alle parole «…»», 34 dichiarazioni nelle note di Normattiva, 21 con
+    le parole ancora scritte nel testo: c.c. 116 «nonché un documento attestante la regolarità del soggiorno…», c.p. 99 «è
+    obbligatorio e,», c.p.c. 238…) si segnano DENTRO il testo che va al modello: ⟦…⟧ [⛔ …]. Il corpus non si tocca."""
+    if not body:
+        return body
+    for nota in note_articolo_it(code, number):
+        t = " ".join((nota.get("text") or "").split())
+        if not _ILLEGITTIMITA.search(t):
+            continue
+        ms = _SENT_NUM.search(t)
+        sent = f"Corte cost. n. {ms.group(2)}/{ms.group(1)}" if ms else "Corte costituzionale"
+        for m in _PAROLE_CADUTE.finditer(t):
+            parole = m.group(1).strip()
+            rx = re.compile(r"\s+".join(re.escape(w) for w in parole.split()))
+            if "⟦" + parole in body:
+                continue
+            body = rx.sub(lambda x: f"⟦{x.group(0)}⟧[⛔ parole dichiarate illegittime: {sent}]", body, count=1)
+    return body
+
+
 def dichiarazioni_consulta(code: str, number: str, massimo: int = 3, tetto: int = 600) -> list[str]:
     """v9.463 — le DICHIARAZIONI DI ILLEGITTIMITÀ COSTITUZIONALE scritte da Normattiva nelle note dell'articolo (592 articoli del
     corpus, 836 note: c.c. 116 — il permesso di soggiorno per sposarsi, sent. 245/2011 —, art. 3 d.lgs. 23/2015 — 194/2018, 128/2024…).
