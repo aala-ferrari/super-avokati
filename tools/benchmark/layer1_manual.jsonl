@@ -131,7 +131,7 @@
 {"id": "al-res-130", "lang": "al", "kind": "resolver", "label": "ligji për tvsh", "expect": "ligji_tvsh"}
 {"id": "al-res-131", "lang": "al", "kind": "resolver", "label": "ligji nr. 92/2014", "expect": "ligji_tvsh"}
 {"id": "al-res-132", "lang": "al", "kind": "resolver", "label": "ligji nr. 32/2021", "expect": "ligji_sigurimi_mjeteve"}
-{"id": "al-res-133", "lang": "al", "kind": "resolver", "label": "ligji nr. 10076", "expect": "ligji_sigurimi_mjeteve"}
+{"id": "al-res-133", "lang": "al", "kind": "resolver", "label": "ligji nr. 32/2021", "expect": "ligji_sigurimi_mjeteve"}
 {"id": "al-res-134", "lang": "al", "kind": "resolver", "label": "vkm nr. 651", "expect": "vkm_dispozita_doganore"}
 {"id": "al-res-135", "lang": "al", "kind": "resolver", "label": "dispozitat zbatuese të kodit doganor", "expect": "vkm_dispozita_doganore"}
 {"id": "al-res-136", "lang": "al", "kind": "resolver", "label": "ligji nr. 9669", "expect": "ligji_dhuna_familje"}

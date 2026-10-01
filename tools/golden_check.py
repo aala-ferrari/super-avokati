@@ -7589,6 +7589,26 @@ def main():
     except Exception as _e241:  # noqa: BLE001
         check("alias-it[241]: kontrollet u ekzekutuan", False, str(_e241))
 
+    # [242] v9.470 — una legge VECCHIA citata per numero non si verifica sul testo della legge NUOVA che la sostituisce
+    try:
+        from src import citation_verifier as _cv242
+        from src.retrieval import ArticleIndex as _AI242
+        _al242 = _AI242.load()
+        def _st242(t):
+            return [(x["status"], x.get("code"), x.get("resolved_by")) for x in _cv242.verify_text(t, _al242)["items"]]
+        _a = _st242("Sipas nenit 12 të ligjit nr. 8901, datë 23.5.2002 «Për falimentimin»")
+        _b = _st242("Sipas nenit 43 të ligjit nr. 9723, datë 3.5.2007")
+        _c = _st242("Sipas nenit 20 të VKM nr. 750/2015")
+        _d = _st242("Sipas nenit 12 të ligjit nr. 10076, datë 12.2.2009")
+        _e = _st242("Sipas nenit 12 të ligjit nr. 110/2016 «Për falimentimin»")
+        _ok242 = (_a and _a[0][0] == "repealed" and _b and _b[0][0] == "needs_code" and _b[0][2] == "fuori_corpus"
+                  and _d and _d[0][0] == "repealed" and _e and _e[0][0] == "verified"
+                  and not any(x[0] == "verified" and x[1] == "rregullore_policia" for x in _c))
+        check("ligj-vjeter[242]: legge vecchia citata per numero mai verificata sulla legge nuova", _ok242,
+              f"{_a} | {_b} | {_c} | {_d} | {_e}")
+    except Exception as _e242:  # noqa: BLE001
+        check("ligj-vjeter[242]: kontrollet u ekzekutuan", False, str(_e242))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

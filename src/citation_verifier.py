@@ -240,22 +240,24 @@ for _code, _phrases in _AL_NEW_ALIASES:
 # not by name. Map the canonical numbers to the corpus keys.
 _LAW_NUMBER_ALIASES: dict[str, str] = {
     "9901": "ligji_shoqerite_tregtare",   # shoqëritë tregtare
-    "8901": "ligji_falimentimi",          # falimentimi (klasik)
+    # v9.470: «8901» (falimentimi 2002) NON è la 110/2016 che lo abroga — un articolo della legge vecchia si verificava sul testo
+    # nuovo (altro contenuto): ora esce «abrogata — oggi ligji 110/2016» dal registro delle leggi abrogate
     "9887": "ligji_te_dhenat",            # mbrojtja e të dhënave personale
     "9902": "ligji_konsumatoret",         # mbrojtja e konsumatorëve
-    "9723": "ligji_qkb",                  # QKB
+    # v9.470: la 9723/2007 (registrazione del business) è un'ALTRA legge dalla 131/2015 sul QKB, che la modifica e ne cambia il
+    # titolo: non è nel corpus → «senza codice», mai verificata sulla 131/2015
+    "9723": "__fuori_corpus__",
     "108": "ligji_policia",              # Policia e Shtetit (108/2014)
-    "750": "rregullore_policia",         # Rregullore Policia (VKM 750/2015)
     "82": "ligji_policia_2024",          # Policia e Shtetit (aktual, 82/2024)
     # ── 16 set 2026: chiavi «NUMERO/ANNO» (i numeri piccoli si ripetono ogni anno:
     # 111/2018 kadastra ≠ 111/2017 ndihma juridike) + numeri lunghi univoci ──
     "111/2018": "ligji_kadastra", "110/2018": "ligji_noteri", "110/2016": "ligji_falimentimi",
-    "108/2014": "ligji_policia", "82/2024": "ligji_policia_2024", "750/2015": "rregullore_policia",
+    "108/2014": "ligji_policia", "82/2024": "ligji_policia_2024",   # v9.470: 750/2015 → abrogata (il codice ora è la VKM 112/2025)
     "10428": "ligji_dnp", "10428/2011": "ligji_dnp",
     "79/2021": "ligji_te_huajt", "113/2020": "ligji_shtetesia", "37/2017": "kodi_te_miturve",
     "9920": "ligji_procedurat_tatimore", "9920/2008": "ligji_procedurat_tatimore",
     "29/2023": "ligji_tatimi_te_ardhurat", "92/2014": "ligji_tvsh",
-    "32/2021": "ligji_sigurimi_mjeteve", "10076": "ligji_sigurimi_mjeteve",   # 10076/2009 shfuqizuar → 32/2021
+    "32/2021": "ligji_sigurimi_mjeteve",   # v9.470: la 10076/2009 (abrogata dalla 32/2021) esce «abrogata», non verificata sulla nuova
     "651/2017": "vkm_dispozita_doganore", "651": "vkm_dispozita_doganore",
     "111/2017": "ligji_ndihma_juridike", "10279": "ligji_kundervajtjet", "10279/2010": "ligji_kundervajtjet",
     "26/2019": "ligji_permbarimi_privat", "9669": "ligji_dhuna_familje", "9669/2006": "ligji_dhuna_familje",
@@ -1012,8 +1014,15 @@ def _build_number_to_codes(index: ArticleIndex) -> dict[str, list[str]]:
 # «Ligji nr. X, datë … / X/AAAA …, shfuqizohet(n)» (nominativo: «shfuqizuar me ligjin nr. X» = abrogato DA X, e non conta).
 # Mai una legge che abbiamo come codice nostro. 26 leggi al 28 set (8438/1998, 7829/1994 notariato, 9109/2003 avvocatura,
 # 33/2012 registrazione degli immobili, 108/2013 stranieri, 7928/1995 IVA…).
-_SHFUQ_LIGJ_RE = re.compile(r"\b[Ll]igji\s+nr\.?\s*(\d{2,5})\s*(?:,\s*dat[ëe]\s*\d{1,2}\s*\.\s*\d{1,2}\s*\.\s*((?:19|20)\d\d)"
+_SHFUQ_LIGJ_RE = re.compile(r"\b[Ll]igji\s+nr\.?\s*,?\s*(\d{2,5})\s*(?:,\s*dat[ëe]\s*\d{1,2}\s*\.\s*\d{1,2}\s*\.\s*((?:19|20)\d\d)"
                             r"|/\s*((?:19|20)\d\d))")
+
+
+_SHFUQ_MANUALE = {
+    "750/2015": "Rregullore e Policisë së Shtetit (VKM nr. 112/2025, zëvendëson VKM 750/2015)",
+    "10076/2009": "Ligji nr. 32/2021 «Për sigurimin e detyrueshëm në sektorin e transportit»",
+    "8901/2002": "Ligji nr. 110/2016 «Për falimentimin»",
+}
 
 
 def _ligje_te_shfuqizuara(index) -> dict:
@@ -1050,6 +1059,9 @@ def _ligje_te_shfuqizuara(index) -> dict:
                     out.setdefault(k, titoli.get(a.code) or CODE_LABELS.get(a.code, a.code))
     except Exception:  # noqa: BLE001
         out = {}
+    # v9.470 — le leggi vecchie che il corpus sostituisce senza una frase «… shfuqizohet» leggibile (il codice tiene il testo NUOVO)
+    for _k, _t in _SHFUQ_MANUALE.items():
+        out.setdefault(_k, _t)
     try:
         index._citation_shfuqizuara = out
     except Exception:  # noqa: BLE001
