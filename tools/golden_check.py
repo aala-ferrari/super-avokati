@@ -5319,7 +5319,8 @@ def main():
                 and ("kodi_proc_penale", "263") in _seed(_af151.TRIGGERS, "mase_sigurimi")
                 and ("kodi_civil", "114") in _seed(_af151.TRIGGERS, "kontrate")
                 and all(x in _ba151 for v in _af151.TRIGGERS.values() for x in v["seed"])
-                and set(_af151.TRIGGERS) <= set(_af151.TRIGGERS_IT)   # v9.410: + decreto_ingiuntivo, solo IT
+                # v9.410: + decreto_ingiuntivo, solo IT; v9.454: ekzekutim solo AL (in Albania non c'è un decreto ingiuntivo)
+                and set(_af151.TRIGGERS) - {"ekzekutim"} <= set(_af151.TRIGGERS_IT)
                 and all(tuple(x) in _bi151 for v in _af151.TRIGGERS_IT.values() for x in v["seed"]))
         class _F151:
             def __init__(self): self.c = []
@@ -7281,10 +7282,120 @@ def main():
                   and "_CMD_CHIEDI" in _gu and "_limite_ok(uid)" in _gu
                   and 'dati.startswith("q:")' in _cb and "_caso_valido(uid, cid)" in _cb
                   and "_vault.ask(" in _in227.getsource(_tg227._rispondi_dal_fascicolo)
-                  and "casi_visibili(uid)" in _in227.getsource(_tg227._chiedi))
+                  and "casi_visibili(uid)" in _in227.getsource(_tg227._chiedi)
+                  # v9.452: «chiedi …» / «pyet …» scritto o a voce alla Segretaria → i documenti del fascicolo
+                  and '_primo in ("chiedi", "pyet")' in _in227.getsource(_tg227._segretaria))
         check("chiedi-bot[227]: domanda ai documenti del fascicolo dal bot, solo fascicoli visibili, tetto orario", _ok227)
     except Exception as _e227:  # noqa: BLE001
         check("chiedi-bot[227]: kontrollet u ekzekutuan", False, str(_e227))
+
+    # [228] v9.451 — il benvenuto del bot (al collegamento) elenca TUTTO quello che sa fare: segretaria, vocali, documenti, /chiedi,
+    # promemoria del mattino — in italiano e in albanese
+    try:
+        from src import telegram_bot as _tg228
+        _w = _tg228._T["ok"]
+        _ok228 = (all(x in _w["it"] for x in ("vocale", "PDF", "/chiedi", "7:30", "/briefing", "✅"))
+                  and all(x in _w["sq"] for x in ("zanor", "PDF", "/pyet", "7:30", "/briefing", "✅")))
+        check("benvenuto-bot[228]: il benvenuto dice cosa sa fare il bot, IT e SQ", _ok228)
+    except Exception as _e228:  # noqa: BLE001
+        check("benvenuto-bot[228]: kontrollet u ekzekutuan", False, str(_e228))
+
+    # [229] v9.454 — AL: il «lajmërim për ekzekutim vullnetar» del përmbarues è un evento che fa correre termini DI LEGGE (non
+    # c'è un decreto ingiuntivo albanese: verificato sul K.Pr.C.): 517 (5/10 giorni), 609 (30 giorni), 610 (5 giorni), dal ricevimento
+    try:
+        from src import afati as _a229, scadenziario as _s229
+        from src.retrieval import ArticleIndex as _AI229
+        _t = _a229.TRIGGERS.get("ekzekutim") or {}
+        _seed = {n for c, n in _t.get("seed", []) if c == "kodi_proc_civile"}
+        _idx229 = _AI229.load()
+        _vivi = {a.number for a in _idx229.articles if a.code == "kodi_proc_civile" and not a.repealed}
+        # v9.455: e per l'Italia l'ATTO DI PRECETTO (480, 481, 615, 617 vivi nel corpus italiano)
+        from pathlib import Path as _P229
+        _idx229it = _AI229.load(_P229("/app/data/index/bm25_it.pkl"))
+        _vivi_it = {a.number for a in _idx229it.articles if a.code == "codice_procedura_civile" and not a.repealed}
+        _seed_it = {n for c, n in (_a229.TRIGGERS_IT.get("precetto") or {}).get("seed", []) if c == "codice_procedura_civile"}
+        _ok229 = ({"517", "609", "610"} <= _seed and _seed <= _vivi and "ekzekutim" in _s229._TRIGGER_DA_NOTIFICA
+                  and "ekzekutim" not in _a229.TRIGGERS_IT
+                  and {"480", "481", "615", "617"} <= _seed_it and _seed_it <= _vivi_it and "precetto" in _s229._TRIGGER_DA_NOTIFICA)
+        check("ekzekutim[229]: avviso di esecuzione volontaria AL con KPC 517/609/610 vivi nel corpus, dal ricevimento", _ok229,
+              str(sorted(_seed - _vivi)))
+    except Exception as _e229:  # noqa: BLE001
+        check("ekzekutim[229]: kontrollet u ekzekutuan", False, str(_e229))
+
+    # [230] v9.456 — licenziamento e atto amministrativo: i due eventi più frequenti nel fascicolo di un cliente cadevano in «tjeter»
+    # (nessun articolo). Semi VIVI nei due corpus, decorrenza giusta (IT: dalla ricezione; AL: dalla risoluzione, non dalla notifica),
+    # e il motore dei termini del portale offre l'elenco della SESSIONE (in IT c'erano le chiavi albanesi)
+    try:
+        from src import afati as _a230, scadenziario as _s230
+        from src.retrieval import ArticleIndex as _AI230
+        from pathlib import Path as _P230
+        _vivi_al = {(a.code, a.number) for a in _AI230.load().articles if not a.repealed}
+        _vivi_it = {(a.code, a.number) for a in _AI230.load(_P230("/app/data/index/bm25_it.pkl")).articles if not a.repealed}
+        _manca = []
+        for _tab, _vivi, _g in ((_a230.TRIGGERS, _vivi_al, "AL"), (_a230.TRIGGERS_IT, _vivi_it, "IT")):
+            for _k in ("pushim_nga_puna", "akt_administrativ"):
+                _manca += [f"{_g}:{c}:{n}" for c, n in (_tab.get(_k) or {}).get("seed", []) if (c, n) not in _vivi] or \
+                          ([] if _tab.get(_k, {}).get("seed") else [f"{_g}:{_k}:vuoto"])
+        _ok230 = (not _manca
+                  and ("kodi_punes", "146") in _a230.TRIGGERS["pushim_nga_puna"]["seed"]
+                  and ("kodi_punes", "155") in _a230.TRIGGERS["pushim_nga_puna"]["seed"]
+                  and ("licenziamenti_individuali", "6") in _a230.TRIGGERS_IT["pushim_nga_puna"]["seed"]
+                  and ("ligji_gjykatat_administrative", "18") in _a230.TRIGGERS["akt_administrativ"]["seed"]
+                  and ("codice_processo_amministrativo", "29") in _a230.TRIGGERS_IT["akt_administrativ"]["seed"]
+                  and _s230.da_notifica("pushim_nga_puna", "it") and not _s230.da_notifica("pushim_nga_puna", "sq")
+                  and _s230.da_notifica("akt_administrativ", "sq") and _s230.da_notifica("akt_administrativ", "it")
+                  and {t["key"] for t in _a230.list_triggers("IT")} == set(_a230.TRIGGERS_IT)
+                  and {t["key"] for t in _a230.list_triggers("AL")} == set(_a230.TRIGGERS)
+                  and "precetto" in {t["key"] for t in _a230.list_triggers("IT")})
+        check("pushim-akt[230]: licenziamento e atto amministrativo con semi vivi, decorrenza giusta, elenco della sessione",
+              _ok230, str(_manca))
+    except Exception as _e230:  # noqa: BLE001
+        check("pushim-akt[230]: kontrollet u ekzekutuan", False, str(_e230))
+
+    # [231] v9.457 — la multa e l'accertamento fiscale: semi VIVI nei due corpus, l'accertamento dalla notifica, la multa no (un verbale
+    # contestato sul posto ha la stessa data dell'atto)
+    try:
+        from src import afati as _a231, scadenziario as _s231
+        from src.retrieval import ArticleIndex as _AI231
+        from pathlib import Path as _P231
+        _v_al = {(a.code, a.number) for a in _AI231.load().articles if not a.repealed}
+        _v_it = {(a.code, a.number) for a in _AI231.load(_P231("/app/data/index/bm25_it.pkl")).articles if not a.repealed}
+        _manca231 = [f"{g}:{c}:{n}" for tab, v, g in ((_a231.TRIGGERS, _v_al, "AL"), (_a231.TRIGGERS_IT, _v_it, "IT"))
+                     for k in ("kundervajtje", "vleresim_tatimor") for c, n in (tab.get(k) or {}).get("seed", [("-", k)])
+                     if (c, n) not in v and c != "processo_tributario"]   # il d.lgs. 546/1992 muore il 1/1/2027: c'è il TU
+        _manca231 += [] if {("processo_tributario", "21"), ("giustizia_tributaria", "67")} & _v_it else ["IT: ricorso tributario"]
+        _ok231 = (not _manca231 and ("kodi_rrugor", "203") in _a231.TRIGGERS["kundervajtje"]["seed"]
+                  and ("ligji_procedurat_tatimore", "106") in _a231.TRIGGERS["vleresim_tatimor"]["seed"]
+                  and ("riti_civili_semplificati", "7") in _a231.TRIGGERS_IT["kundervajtje"]["seed"]
+                  and ("processo_tributario", "21") in _a231.TRIGGERS_IT["vleresim_tatimor"]["seed"]
+                  and _s231.da_notifica("vleresim_tatimor", "sq") and _s231.da_notifica("vleresim_tatimor", "it")
+                  and not _s231.da_notifica("kundervajtje", "it") and not _s231.da_notifica("kundervajtje", "sq"))
+        check("gjobe-tatim[231]: multa e accertamento fiscale con semi vivi, decorrenza giusta", _ok231, str(_manca231))
+    except Exception as _e231:  # noqa: BLE001
+        check("gjobe-tatim[231]: kontrollet u ekzekutuan", False, str(_e231))
+
+    # [232] v9.457 — la BASE dei termini di legge passa dal verificatore: inesistente, abrogata o testo unico non ancora applicabile
+    # → niente spunta «verificato», con il motivo; una base senza codice riconoscibile non toglie niente
+    try:
+        from src import scadenziario as _s232
+        from src.retrieval import ArticleIndex as _AI232
+        from pathlib import Path as _P232
+        from datetime import date as _d232
+        _iit = _AI232.load(_P232("/app/data/index/bm25_it.pkl"))
+        _ial = _AI232.load()
+        _b = ["art. 21, comma 1, d.lgs. 546/1992", "art. 351, comma 2, d.lgs. 141/2026", "art. 9999 c.p.c."]
+        _r = _s232._basi_dubbie([{"baza": x} for x in _b], _iit)
+        _ra = _s232._basi_dubbie([{"baza": "Kodi i Punës neni 155 pika 4"}, {"baza": "neni 9999 i Kodit të Punës"},
+                                  {"baza": "neni 155, pika 4, i Kodit të Punës"}], _ial)
+        _prima2027 = _d232.today() < _d232(2027, 1, 1)
+        _ok232 = ("art. 9999 c.p.c." in _r and "inesistente" in _r["art. 9999 c.p.c."]
+                  and (not _prima2027 or (_b[0] not in _r and _b[1] in _r and "2027" in _r[_b[1]]))
+                  and "neni 9999 i Kodit të Punës" in _ra and "Kodi i Punës neni 155 pika 4" not in _ra
+                  and "neni 155, pika 4, i Kodit të Punës" not in _ra and _s232._basi_dubbie([], _iit) == {})
+        check("basi-termini[232]: la base dei termini di legge verificata (inesistente, abrogata, testo unico futuro)", _ok232,
+              str(_r) + " | " + str(_ra))
+    except Exception as _e232:  # noqa: BLE001
+        check("basi-termini[232]: kontrollet u ekzekutuan", False, str(_e232))
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

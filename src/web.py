@@ -6434,7 +6434,7 @@ def api_intake_triage():
 @app.get("/api/afati/triggers")
 @login_required_api
 def api_afati_triggers():
-    return jsonify({"triggers": afati_mod.list_triggers()})
+    return jsonify({"triggers": afati_mod.list_triggers(_active_jurisdiction(getattr(request, "user", None)) or "AL")})
 
 
 @app.post("/api/afati/compute")
@@ -8325,7 +8325,8 @@ def _render_ical(cal_name: str, events: list) -> str:
         lines.append(f"CATEGORIES:{_esc(ev.kind)}")
         # v9.442: l'udienza RINVIATA (chiusa dalla v9.440) esce annullata, e Google/Apple la tolgono: altrimenti restava nel
         # calendario del telefono alla data vecchia
-        if getattr(ev, "done", False) and (ev.title or "").startswith(("RINVIATA al ", "SHTYRË për ")):
+        if getattr(ev, "done", False) and (ev.title or "").startswith(("RINVIATA al ", "SHTYRË për ", "PROROGATO al ",
+                                                                         "ZGJATUR deri më ")):
             lines.append("STATUS:CANCELLED")
         lines.append("END:VEVENT")
     lines.append("END:VCALENDAR")
@@ -8878,13 +8879,16 @@ def _scad_salva(proposte, inneschi, *, case_id, uid, doc_id, juris) -> int:
             # v9.440 — RINVIO: l'udienza vecchia in calendario si chiude alla conferma; una proposta vecchia non confermata
             # resta, ma non spuntata e con la nota (mai cancellata da sola)
             dvec = "/".join(reversed(pr["rinvio_da"].split("-")))
-            vecchio = next((e for e in eventi if e["data"] == pr["rinvio_da"] and e["kind"] == pr.get("kind")), None)
+            # v9.453: anche la PROROGA di un termine; termine e deposito sono la stessa famiglia (il vecchio può essere stato
+            # salvato come «afat» e la proroga letta come «dorëzim»), l'udienza resta a sé
+            fam = (lambda k: "termine" if k in ("afat", "dorëzim") else k)
+            vecchio = next((e for e in eventi if e["data"] == pr["rinvio_da"] and fam(e["kind"]) == fam(pr.get("kind"))), None)
             if vecchio:
                 pr = dict(pr, sostituisce_event_id=vecchio["id"], nota=" · ".join(x for x in [
                     (f"rinvio dell'udienza del {dvec} già in calendario («{(vecchio['titolo'] or '')[:60]}»): confermando, quella "
                      "si chiude" if it else f"shtyrje e seancës së datës {dvec} që është në kalendar («{(vecchio['titolo'] or '')[:60]}»): "
                      "me konfirmimin, ajo mbyllet"), pr.get("nota") or ""] if x))
-            for vp in [e for e in esistenti if e.get("data") == pr["rinvio_da"] and e.get("kind") == pr.get("kind")
+            for vp in [e for e in esistenti if e.get("data") == pr["rinvio_da"] and fam(e.get("kind")) == fam(pr.get("kind"))
                        and e.get("stato") == "proposta" and e.get("id")]:
                 storage.aggiorna_scadenza_proposta(vp["id"], verificato=0, nota=" · ".join(x for x in [
                     (f"⚠ RINVIATA al {'/'.join(reversed(pr['data'].split('-')))} (da un altro documento): non confermarla" if it
@@ -9163,11 +9167,13 @@ def conferma_proposta(p: dict, uid: int, dati: dict | None = None) -> dict:
     if p.get("sostituisce_event_id"):                # v9.440: il RINVIO chiude l'udienza vecchia (non la cancella)
         try:
             with storage.db() as _c:
-                r = _c.execute("SELECT id, user_id, case_id, title, done FROM events WHERE id = ?",
+                r = _c.execute("SELECT id, user_id, case_id, title, done, kind FROM events WHERE id = ?",
                                (p["sostituisce_event_id"],)).fetchone()
             if r and r["case_id"] == p["case_id"] and not r["done"]:
                 dn = "/".join(reversed(giorno.split("-")))
-                pref = (f"RINVIATA al {dn} — " if it else f"SHTYRË për {dn} — ")
+                udienza = r["kind"] in ("seance", "takim")          # v9.453: l'udienza si RINVIA, il termine si PROROGA
+                pref = ((f"RINVIATA al {dn} — " if udienza else f"PROROGATO al {dn} — ") if it else
+                        (f"SHTYRË për {dn} — " if udienza else f"ZGJATUR deri më {dn} — "))
                 storage.update_event(r["id"], int(r["user_id"]), done=True,
                                      title=(pref + (r["title"] or "")) if not (r["title"] or "").startswith(pref) else r["title"])
                 chiusa = {"id": r["id"], "titolo": r["title"], "data": p.get("rinvio_da")}

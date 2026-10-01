@@ -1,0 +1,18 @@
+{
+ "id": "al_akt_administrativ",
+ "lang": "sq",
+ "jurisdiction": "AL",
+ "oggi": "2026-09-25",
+ "testo": "INSPEKTORATI SHTETËROR I PUNËS DHE SHËRBIMEVE SHOQËRORE\nVENDIM Nr. 214, datë 15.09.2026\n\nPër dënimin me gjobë të subjektit «Beta Ndërtim» sh.p.k.\n\nPasi u konstatua mosregjistrimi i 6 punëmarrësve në sigurimet shoqërore, Inspektorati vendosi: dënimin e subjektit me gjobë në masën 500.000 lekë.\nKundër këtij vendimi mund të bëhet ankim administrativ pranë Kryeinspektorit.\n\nFLETË NJOFTIMI: vendimi iu dorëzua administratorit të shoqërisë më 21.09.2026.",
+ "attese": [],
+ "termini_attesi": [],
+ "inneschi_attesi": [
+  {
+   "trigger": "akt_administrativ",
+   "data": "2026-09-21"
+  }
+ ],
+ "vietate": [
+  "2026-10-15"
+ ]
+}

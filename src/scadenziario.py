@@ -210,7 +210,7 @@ TUTTO ciò che ha una data o un termine per l'avvocato. Rispondi con UN SOLO ogg
 {"date": [{"tipo": "udienza|termine|invio|pagamento|appuntamento|altro", "titolo": "breve, in italiano",
            "data": "AAAA-MM-GG", "ora": "HH:MM o vuoto", "luogo": "ufficio/aula/autorità o vuoto",
            "cosa_fare": "l'azione concreta per l'avvocato", "citazione": "la frase ESATTA del documento con la data",
-           "rinvio_da": "AAAA-MM-GG dell'udienza che questa SOSTITUISCE (rinvio), se il documento la dice, altrimenti vuoto"}],
+           "rinvio_da": "AAAA-MM-GG dell'udienza o del termine che questa data SOSTITUISCE (rinvio, proroga), se il documento la dice, altrimenti vuoto"}],
  "termini": [{"titolo": "…", "durata": 20, "unita": "giorni|giorni_lavorativi|mesi|anni",
               "decorrenza": "da cosa decorre, con le parole del documento (es. «dalla notificazione del presente decreto»)",
               "data_decorrenza": "AAAA-MM-GG se il documento la dice, altrimenti vuoto",
@@ -226,7 +226,8 @@ REGOLE:
 - SOLO ciò che è scritto nel documento. Mai una data calcolata da te: «entro 20 giorni dalla notifica» va in "termini", non in
   "date". La data va riportata come AAAA-MM-GG ma deve essere quella scritta.
 - "date" = date già scritte (udienza fissata, rinvio al giorno …, deposito entro il giorno …, appuntamento, pagamento entro il …).
-  Se l'udienza è un RINVIO di un'udienza precedente («rinvia l'udienza del … al …»), la data vecchia va in "rinvio_da".
+  Se l'udienza è un RINVIO di un'udienza precedente («rinvia l'udienza del … al …»), la data vecchia va in "rinvio_da"; lo stesso
+  per un TERMINE PROROGATO («il termine del … è prorogato al …»): la data nuova in "data", quella vecchia in "rinvio_da".
   Anche la SCADENZA o la fine di un contratto, di una garanzia, di un permesso, di un mandato («fino al …», «con scadenza il …»):
   è una data per l'avvocato (rinnovo, disdetta, restituzione).
 - "termini" = durate stabilite DAL DOCUMENTO (dal giudice, dalla controparte, dal contratto, dall'ufficio).
@@ -246,7 +247,7 @@ REGOLE:
 {"date": [{"tipo": "udienza|termine|invio|pagamento|appuntamento|altro", "titolo": "i shkurtër, në shqip",
            "data": "VVVV-MM-DD", "ora": "OO:MM ose bosh", "luogo": "zyra/salla/autoriteti ose bosh",
            "cosa_fare": "veprimi konkret për avokatin", "citazione": "fjalia E SAKTË e dokumentit me datën",
-           "rinvio_da": "VVVV-MM-DD e seancës që kjo ZËVENDËSON (shtyrje), nëse dokumenti e thotë, përndryshe bosh"}],
+           "rinvio_da": "VVVV-MM-DD e seancës ose e afatit që kjo datë ZËVENDËSON (shtyrje), nëse dokumenti e thotë, përndryshe bosh"}],
  "termini": [{"titolo": "…", "durata": 15, "unita": "dite|dite_pune|muaj|vite",
               "decorrenza": "nga çfarë nis, me fjalët e dokumentit (p.sh. «nga dita e njoftimit të vendimit»)",
               "data_decorrenza": "VVVV-MM-DD nëse dokumenti e thotë, përndryshe bosh",
@@ -262,7 +263,8 @@ RREGULLA:
 - VETËM ajo që është shkruar në dokument. Asnjëherë një datë e llogaritur nga ti: «brenda 15 ditëve nga njoftimi» shkon te
   "termini", jo te "date". Data shkruhet VVVV-MM-DD, por duhet të jetë ajo e shkruara.
 - "date" = data tashmë të shkruara (seancë e caktuar, shtyrje në datën …, dorëzim deri më …, takim, pagesë deri më …).
-  Nëse seanca është SHTYRJE e një seance të mëparshme («seanca e datës … shtyhet për datën …»), data e vjetër shkon te "rinvio_da".
+  Nëse seanca është SHTYRJE e një seance të mëparshme («seanca e datës … shtyhet për datën …»), data e vjetër shkon te "rinvio_da";
+  njësoj për një AFAT TË ZGJATUR («afati i datës … zgjatet deri më …»): data e re te "data", e vjetra te "rinvio_da".
   Edhe PËRFUNDIMI ose skadimi i një kontrate, garancie, leje, mandati («deri më …», «me afat deri më …»): është një datë për
   avokatin (rinovim, njoftim për mosrinovim, kthim).
 - "termini" = afate të caktuara NGA DOKUMENTI (nga gjykata, pala tjetër, kontrata, zyra).
@@ -538,7 +540,7 @@ def proposte_da_estrazione(est: dict, testo: str, *, lang: str, jurisdiction: st
         d = d if (d and data_nel_testo(d, testo)) else ""
         # la data dell'atto passata per «notifica» è l'errore da non fare (sentenza del 10/9 → «appello entro il 25/9»): per i
         # trigger che decorrono dalla NOTIFICA una data uguale a quella dell'atto non basta, serve quella della notifica
-        if trig in _TRIGGER_DA_NOTIFICA and d and d == da:
+        if da_notifica(trig, L) and d and d == da:
             d = ""
         desc = str(it.get("descrizione") or "").strip()[:300] or tab[trig]["label"]
         if da:
@@ -553,7 +555,17 @@ def proposte_da_estrazione(est: dict, testo: str, *, lang: str, jurisdiction: st
 _BASE_INCERTA = re.compile(r"(?i)non tra gli articoli|da confermar|da verificar|nuk (?:është|eshte) (?:midis|ndër)|për t'u verifikuar|verifiko")
 
 # i trigger il cui nome dice «notifica» (afati.TRIGGERS / TRIGGERS_IT): la data giusta è quella in cui l'atto arriva
-_TRIGGER_DA_NOTIFICA = {"vendim_penal", "vendim_civil"}
+_TRIGGER_DA_NOTIFICA = {"vendim_penal", "vendim_civil", "ekzekutim", "precetto"}   # v9.454: il lajmërim decorre dal RICEVIMENTO
+# v9.456: l'atto amministrativo decorre dalla notifica in tutte e due; il licenziamento SOLO in Italia (60 giorni dalla RICEZIONE
+# della comunicazione, art. 6 L. 604/1966) — in Albania i 180 giorni corrono dalla fine del preavviso o dal giorno della
+# risoluzione (KP 146/2, 155/4), che sono date scritte nella lettera
+_TRIGGER_DA_NOTIFICA = _TRIGGER_DA_NOTIFICA | {"akt_administrativ", "vleresim_tatimor"}
+# (v9.457: la multa NO — un verbale contestato sul posto ha la stessa data dell'atto e della contestazione, ed è giusta)
+_TRIGGER_DA_NOTIFICA_IT = {"pushim_nga_puna"}
+
+
+def da_notifica(trigger: str, lang: str) -> bool:
+    return trigger in _TRIGGER_DA_NOTIFICA or (lang == "it" and trigger in _TRIGGER_DA_NOTIFICA_IT)
 
 _NUMERI_PAROLE = {"it": {5: "cinque", 10: "dieci", 15: "quindici", 20: "venti", 30: "trenta", 40: "quaranta",
                          45: "quarantacinque", 60: "sessanta", 90: "novanta", 120: "centoventi", 180: "centottanta"},
@@ -564,6 +576,32 @@ _NUMERI_PAROLE = {"it": {5: "cinque", 10: "dieci", 15: "quindici", 20: "venti", 
 def _durata_in_lettere(n: int, cit: str) -> bool:
     c = _norm(cit)
     return any(v.get(n) and v[n] in c for v in _NUMERI_PAROLE.values())
+
+
+def _basi_dubbie(afatet: list[dict], index) -> dict[str, str]:
+    """v9.457 — la BASE di ogni riga passa dal verificatore delle citazioni (lo stesso delle risposte): un articolo inesistente o
+    abrogato, o un testo unico che si applica solo dal 1° gennaio 2027 (l'accertamento con adesione citato sull'art. 351 del TU
+    accertamento per un avviso del 2026), toglie la spunta «verificato» e la riga dice perché. Un numero senza codice riconoscibile
+    («Kodi i Punës neni 155») non toglie niente: la riga ha già la base scritta. Mai solleva."""
+    basi = [b for b in {(a.get("baza") or "").strip() for a in afatet} if b]
+    if not basi or index is None:
+        return {}
+    try:
+        from . import citation_verifier as _cv
+        items = (_cv.verify_text("\n".join(basi), index) or {}).get("items") or []
+    except Exception as exc:  # noqa: BLE001
+        log.warning("scadenziario: verifica delle basi fallita: %s", exc)
+        return {}
+    out: dict[str, str] = {}
+    for it in items:
+        st, avv, raw = it.get("status"), it.get("avviso"), (it.get("raw") or "").strip()
+        if st not in ("fake", "repealed") and not avv:
+            continue
+        motivo = avv or ("articolo inesistente nel corpus" if st == "fake" else "articolo abrogato")
+        for b in basi:
+            if raw and raw in b and b not in out:
+                out[b] = "⚠ base da verificare: " + motivo
+    return out
 
 
 def termini_di_legge(backend, index, innesco: dict, *, jurisdiction: str, lang: str, data: str) -> list[dict]:
@@ -577,6 +615,7 @@ def termini_di_legge(backend, index, innesco: dict, *, jurisdiction: str, lang: 
     r = _afati.compute(backend, index, trigger=innesco["trigger"], event_date=_data_umana(data, lang),
                        facts=fatti, jurisdiction=jurisdiction)
     out = []
+    dubbi = _basi_dubbie(r.get("afatet") or [], index)
     for a in (r.get("afatet") or []):
         d = _iso(a.get("date"))
         if not d:
@@ -585,9 +624,12 @@ def termini_di_legge(backend, index, innesco: dict, *, jurisdiction: str, lang: 
         if not passi:                                   # v9.434: la riga vecchia «AFAT | titolo | data» = data del modello
             passi = [("data NON calcolata dal motore deterministico: verificala" if lang == "it" else
                       "data e PA llogaritur nga motori determinist: verifikoje")]
+        dubbio = dubbi.get(a.get("baza") or "")
+        if dubbio:                                      # v9.457: la base che il verificatore non conferma alla data di oggi
+            passi = [dubbio] + list(passi)
         out.append({"tipo": "data", "kind": "afat", "titolo": str(a.get("title") or "")[:160], "data": d,
                     "origine": "legge", "citazione": innesco.get("descrizione") or "", "base": a.get("baza") or "",
-                    "cosa_fare": "", "verificato": (bool(a.get("baza")) and bool(a.get("passi"))
+                    "cosa_fare": "", "verificato": (bool(a.get("baza")) and bool(a.get("passi")) and not dubbio
                                                     and not _BASE_INCERTA.search(a.get("baza") or "")),
                     "nota": " · ".join(passi)[:1500],
                     "chiave": _chiave("legge", d, a.get("title"))})
@@ -618,7 +660,7 @@ def analizza_documento(backend, index, doc, *, jurisdiction: str) -> tuple[list[
     proposte, inneschi = proposte_da_estrazione(est, testo, lang=lang, jurisdiction=(jurisdiction or "AL").upper(), oggi=oggi)
     calcolati = 0
     for inn in inneschi:
-        if not inn["data"] and inn.get("data_atto") and inn["trigger"] not in _TRIGGER_DA_NOTIFICA:
+        if not inn["data"] and inn.get("data_atto") and not da_notifica(inn["trigger"], lang):
             inn["data"], inn["notifica_ignota"] = inn["data_atto"], True     # arresto, contratto, decreto dalla pronuncia…
         if inn["data"] and calcolati < MAX_INNESCHI:
             try:

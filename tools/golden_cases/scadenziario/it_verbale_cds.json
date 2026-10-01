@@ -1,0 +1,18 @@
+{
+ "id": "it_verbale_cds",
+ "lang": "it",
+ "jurisdiction": "IT",
+ "oggi": "2026-09-25",
+ "testo": "COMUNE DI BOLOGNA — Polizia Locale\nVERBALE DI ACCERTAMENTO n. 2026/887123 — art. 142, comma 8, C.d.S.\n\nIn data 3 settembre 2026 alle ore 14:12, sulla via Emilia Levante, il veicolo targato GH123KL transitava a 76 km/h (limite 50 km/h), accertamento con apparecchiatura autovelox omologata; contestazione immediata non effettuata per la velocità del veicolo.\nSanzione: euro 173,00. Pagamento in misura ridotta nei termini di legge.\n\nNotificato al proprietario del veicolo a mezzo posta il 22 settembre 2026.",
+ "attese": [],
+ "termini_attesi": [],
+ "inneschi_attesi": [
+  {
+   "trigger": "kundervajtje",
+   "data": "2026-09-22"
+  }
+ ],
+ "vietate": [
+  "2026-10-03"
+ ]
+}

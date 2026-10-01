@@ -1,0 +1,18 @@
+{
+ "id": "it_licenziamento",
+ "lang": "it",
+ "jurisdiction": "IT",
+ "oggi": "2026-09-20",
+ "testo": "Alfa Logistica S.r.l.\nMilano, 15 settembre 2026\n\nAl sig. Marco Rinaldi\n\nOggetto: licenziamento per giustificato motivo oggettivo\n\nA seguito della soppressione della posizione di magazziniere notturno, Le comunichiamo il licenziamento per giustificato motivo oggettivo ai sensi dell'art. 3 della legge n. 604 del 1966, con esonero dal preavviso, che Le verrà corrisposto con le competenze di fine rapporto.\n\nDistinti saluti — Alfa Logistica S.r.l., l'amministratore\n\nPer ricevuta, consegnata a mani il 17 settembre 2026 — firma del lavoratore",
+ "attese": [],
+ "termini_attesi": [],
+ "inneschi_attesi": [
+  {
+   "trigger": "pushim_nga_puna",
+   "data": "2026-09-17"
+  }
+ ],
+ "vietate": [
+  "2026-11-14"
+ ]
+}

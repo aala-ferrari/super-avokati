@@ -1,0 +1,21 @@
+{
+ "id": "it_proroga",
+ "lang": "it",
+ "jurisdiction": "IT",
+ "oggi": "2026-10-01",
+ "testo": "TRIBUNALE DI BOLOGNA — Seconda Sezione Civile\nOrdinanza del 28 settembre 2026 — causa n. 3302/2025 R.G.\nIl Giudice, vista l'istanza congiunta delle parti, proroga il termine per il deposito delle memorie istruttorie, già fissato al 10 dicembre 2026, al 20 dicembre 2026.\nIl Giudice — dott. Luca Neri",
+ "attese": [
+  {
+   "data": "2026-12-20"
+  }
+ ],
+ "rinvii_attesi": [
+  {
+   "data": "2026-12-20",
+   "da": "2026-12-10"
+  }
+ ],
+ "vietate": [
+  "2026-12-10"
+ ]
+}

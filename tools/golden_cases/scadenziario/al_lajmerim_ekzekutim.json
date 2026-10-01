@@ -1,0 +1,22 @@
+{
+ "id": "al_lajmerim_ekzekutim",
+ "lang": "sq",
+ "jurisdiction": "AL",
+ "oggi": "2026-10-01",
+ "testo": "ZYRA PËRMBARIMORE \"LEX EXECUTIO\" SH.P.K.\nPërmbaruesi gjyqësor privat Artan Basha\nNr. 778 Prot., datë 22.09.2026\n\nLAJMËRIM PËR EKZEKUTIM VULLNETAR\nDrejtuar: Ilir Shehu (debitor)\n\nNë zbatim të urdhrit të ekzekutimit nr. 512, datë 15.08.2026, të Gjykatës së Rrethit Gjyqësor Tiranë, ju lajmërojmë të ekzekutoni vullnetarisht detyrimin prej 1.250.000 lekësh ndaj kreditorit \"Adria Leasing\" sh.a., brenda 10 ditëve nga marrja e këtij lajmërimi. Në të kundërt do të fillojë ekzekutimi i detyrueshëm.\n\nLajmërimi iu dorëzua debitorit personalisht më 25.09.2026 (nënshkrimi).",
+ "attese": [],
+ "termini_attesi": [
+  {
+   "durata": 10,
+   "unita": "dite",
+   "data": "2026-10-05"
+  }
+ ],
+ "inneschi_attesi": [
+  {
+   "trigger": "ekzekutim",
+   "data": "2026-09-25"
+  }
+ ],
+ "vietate": []
+}

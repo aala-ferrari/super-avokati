@@ -90,7 +90,7 @@ Il backup è delle 04:00 → nel caso peggiore si perde la giornata in corso.
 
 ## Misure dello scadenziario (dopo ogni modifica a scadenze, termini di legge, Segretaria)
 `bash /root/misure_scadenziario.sh` — ~15 minuti, lavora su copie (DB e credenziali), non tocca la produzione.
-Riferimento 1 ott 2026: date 11/11 · termini 6/6 · inneschi 2/2 · rinvii 2/2 · 0 vietate · 0 inventate | termini di legge 4/4 | Segretaria 8/8.
+Riferimento 1 ott 2026: date 12/12 · termini 6/6 · inneschi 2/2 · rinvii 3/3 · 0 vietate · 0 inventate | termini di legge 5/5 | Segretaria 8/8.
 Un numero più basso = una scadenza che l'avvocato perderebbe: non rilasciare.
 
 ## Rilascio di una versione

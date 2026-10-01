@@ -51,6 +51,20 @@ try:
     ok("… e quella vecchia CHIUSA (non cancellata), col titolo «RINVIATA al 15/03/2099»",
        ev_v is not None and ev_v.done and ev_v.title.startswith("RINVIATA al 15/03/2099"), str(ev_v and (ev_v.done, ev_v.title)))
     ok("l'esito lo riporta", (r.get("chiusa") or {}).get("id") == vecchio.id)
+    # v9.453: la PROROGA di un termine salvato come «afat», letta come «dorëzim» → collegata e chiusa
+    t_vecchio = storage.create_event(u.id, "Deposito memorie", "afat", "2099-12-10T09:00:00", case_id=c.id, jurisdiction="IT",
+                                     all_day=True)
+    tp = "proroga il termine per il deposito delle memorie, già fissato al 10 dicembre 2099, al 20 dicembre 2099."
+    pp, _i = sz.proposte_da_estrazione({"date": [{"tipo": "deposito", "titolo": "Deposito memorie (prorogato)", "data": "2099-12-20",
+                                                  "citazione": tp, "rinvio_da": "2099-12-10"}]}, tp, lang="it", jurisdiction="IT",
+                                       oggi="2026-10-01")
+    web._scad_salva(pp, [], case_id=c.id, uid=u.id, doc_id=None, juris="IT")
+    pr2 = next(p for p in storage.lista_scadenze_proposte(case_id=c.id) if p["data"] == "2099-12-20")
+    ok("v9.453: la proroga di un termine è collegata al vecchio anche se letto come deposito",
+       pr2.get("sostituisce_event_id") == t_vecchio.id, str(pr2)[:200])
+    web.conferma_proposta(pr2, u.id, {})
+    tv = storage.get_event(t_vecchio.id, u.id)
+    ok("… e alla conferma il termine vecchio si chiude", tv.done and tv.title.startswith("PROROGATO al 20/12/2099"), str((tv.done, tv.title)))
 finally:
     try:
         storage.delete_user(u.username)

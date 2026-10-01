@@ -41,6 +41,46 @@ TRIGGERS = {
         "label": "Njoftim i vendimit penal (gjykata)",
         "seed": [(K, "415"), (K, "435"), (K, "410"), (K, "147")],   # v9.399: + 415 (15 ditë) e 435 (rekurs 45 ditë)
         "q": "afati i ankimit apel rekurs vendim penal rivendosje në afat"},
+    # v9.454 — il debitore riceve dal PËRMBARUESI il «lajmërim për ekzekutim vullnetar»: in Albania non c'è un decreto
+    # ingiuntivo (verificato sul K.Pr.C. del corpus), è QUESTO l'evento che fa correre i termini: pagare (517: 5 giorni se paga o
+    # alimenti, 10 negli altri casi), opporsi al titolo (609: 30 giorni dalla conoscenza dell'esecuzione), ricorrere contro gli
+    # atti del përmbarues (610: 5 giorni)
+    "ekzekutim": {
+        "label": "Lajmërim për ekzekutim vullnetar (përmbaruesi gjyqësor)",
+        "seed": [("kodi_proc_civile", "510"), ("kodi_proc_civile", "517"), ("kodi_proc_civile", "518"),
+                 ("kodi_proc_civile", "609"), ("kodi_proc_civile", "610"), ("kodi_proc_civile", "148")],
+        "q": "lajmërim ekzekutim vullnetar përmbarues kundërshtim titull ekzekutiv"},
+    # v9.456 — i due eventi più frequenti nel fascicolo di un cliente, che finora cadevano in «tjeter» (nessun articolo): la
+    # lettera di licenziamento (KP 146/2: 180 giorni dalla fine del preavviso; 155/4: 180 dal giorno della risoluzione immediata;
+    # 30 dalla scoperta del motivo) e l'atto amministrativo (KPA 132: ricorso amministrativo 30 giorni; ligji 49/2012 neni 18:
+    # causa 45 giorni dalla notifica dell'atto o della decisione sul ricorso)
+    "pushim_nga_puna": {
+        "label": "Njoftim i zgjidhjes së kontratës së punës (pushim nga puna)",
+        "seed": [("kodi_punes", "143"), ("kodi_punes", "144"), ("kodi_punes", "146"), ("kodi_punes", "153"),
+                 ("kodi_punes", "155"), ("kodi_punes", "145")],
+        "q": "zgjidhje kontrate pune padi afat ditë njoftim pushim pa shkaqe të arsyeshme"},
+    "akt_administrativ": {
+        "label": "Njoftim i aktit administrativ (organ publik)",
+        "seed": [("kodi_proc_admin", "132"), ("kodi_proc_admin", "133"), ("kodi_proc_admin", "140"),
+                 ("ligji_gjykatat_administrative", "18"), ("ligji_gjykatat_administrative", "15"),
+                 ("ligji_gjykatat_administrative", "17")],
+        "q": "ankim administrativ afat padi gjykata administrative akt administrativ njoftim"},
+    # v9.457 — la multa (procesverbal; KRr 202: 5 giorni dalla decisione dell'organo, 203: pagare entro 15 giorni col 50 % di
+    # sconto; ligji 10279/2010 neni 26 e 29: 30 giorni in tribunale, 30: 10 giorni per pagare) e l'avviso di accertamento fiscale
+    # (ligji 9920/2008 neni 106: ricorso alla direzione degli appelli 30 giorni dal ricevimento, 107: pagare o garantire, 109: 30
+    # giorni in tribunale dalla decisione, o se la direzione tace 60 giorni)
+    "kundervajtje": {
+        "label": "Procesverbal / vendim për kundërvajtje administrative me gjobë (rrugore ose tjetër)",
+        "seed": [("kodi_rrugor", "199"), ("kodi_rrugor", "201"), ("kodi_rrugor", "202"), ("kodi_rrugor", "203"),
+                 ("ligji_kundervajtjet", "17"), ("ligji_kundervajtjet", "26"), ("ligji_kundervajtjet", "29"),
+                 ("ligji_kundervajtjet", "30")],
+        "q": "ankim gjykatë gjobë kundërvajtje administrative afat pagesa procesverbal"},
+    "vleresim_tatimor": {
+        "label": "Njoftim i vlerësimit tatimor / vendim i administratës tatimore",
+        "seed": [("ligji_procedurat_tatimore", "69"), ("ligji_procedurat_tatimore", "106"),
+                 ("ligji_procedurat_tatimore", "107"), ("ligji_procedurat_tatimore", "108"),
+                 ("ligji_procedurat_tatimore", "109")],
+        "q": "ankim administrativ tatimor drejtoria e apelimit afat gjykatë vlerësim tatimor"},
     "vendim_civil": {
         "label": "Njoftim i vendimit civil (gjykata)",
         "seed": [("kodi_proc_civile", "443"), ("kodi_proc_civile", "444"), ("kodi_proc_civile", "445"),
@@ -86,6 +126,44 @@ TRIGGERS_IT = {
     "decreto_ingiuntivo": {"label": "Decreto ingiuntivo (pronuncia o notificazione)",
                            "seed": [(_CPC, "641"), (_CPC, "644"), (_CPC, "645"), (_CPC, "647"), (_CPC, "650")],
                            "q": "decreto ingiuntivo opposizione termine notificazione inefficacia esecutorietà"},
+    # v9.455 — l'ATTO DI PRECETTO notificato al debitore (verificato sul c.p.c. del corpus): pagare entro il termine intimato (480:
+    # non minore di dieci giorni), il precetto perde efficacia se entro 90 giorni non inizia l'esecuzione (481), opposizione al
+    # precetto prima dell'esecuzione (615), opposizione formale entro 20 giorni dalla notificazione (617); computo (155)
+    "precetto": {"label": "Notificazione dell'atto di precetto",
+                 "seed": [(_CPC, "474"), (_CPC, "479"), (_CPC, "480"), (_CPC, "481"), (_CPC, "615"), (_CPC, "617"),
+                          (_CPC, "155")],
+                 "q": "precetto opposizione atti esecutivi termine inefficacia esecuzione forzata"},
+    # v9.456 — licenziamento (L. 604/1966 art. 6: impugnazione 60 giorni dalla RICEZIONE, deposito o conciliazione nei 180
+    # successivi; St. Lav. 7, 18; d.lgs. 23/2015 3, 6) e provvedimento amministrativo (c.p.a. 29: 60 giorni; 41: dalla
+    # notificazione o piena conoscenza; 45: deposito 30 giorni; 30 e 31; 119-120: appalti 30 giorni)
+    "pushim_nga_puna": {"label": "Comunicazione scritta del licenziamento",
+                        "seed": [("licenziamenti_individuali", "6"), ("licenziamenti_individuali", "2"),
+                                 ("licenziamenti_individuali", "5"), ("statuto_lavoratori", "7"), ("statuto_lavoratori", "18"),
+                                 ("tutele_crescenti", "3"), ("tutele_crescenti", "6")],
+                        "q": "impugnazione licenziamento decadenza sessanta giorni centottanta deposito ricorso"},
+    "akt_administrativ": {"label": "Notificazione o comunicazione di un provvedimento amministrativo",
+                          "seed": [("codice_processo_amministrativo", "29"), ("codice_processo_amministrativo", "41"),
+                                   ("codice_processo_amministrativo", "45"), ("codice_processo_amministrativo", "30"),
+                                   ("codice_processo_amministrativo", "31"), ("codice_processo_amministrativo", "119"),
+                                   ("codice_processo_amministrativo", "120")],
+                          "q": "ricorso tribunale amministrativo annullamento termine decadenza sessanta giorni notificazione deposito"},
+    # v9.457 — verbale e ordinanza-ingiunzione (C.d.S. 202: pagamento ridotto 60 giorni, -30 % entro 5; 203: prefetto 60; 204-bis
+    # e d.lgs. 150/2011 art. 7: giudice di pace 30; L. 689/1981 14, 16, 18, 22 e d.lgs. 150/2011 art. 6) e avviso di accertamento
+    # (d.lgs. 546/1992 art. 21: ricorso 60 giorni dalla notificazione; 22: costituzione 30; vigente fino al 31/12/2026)
+    "kundervajtje": {"label": "Verbale di contestazione o ordinanza-ingiunzione (sanzione amministrativa, anche Codice della strada)",
+                     "seed": [("codice_strada", "202"), ("codice_strada", "203"), ("codice_strada", "204-bis"),
+                              ("riti_civili_semplificati", "7"), ("riti_civili_semplificati", "6"),
+                              ("sanzioni_amministrative", "14"), ("sanzioni_amministrative", "16"),
+                              ("sanzioni_amministrative", "18"), ("sanzioni_amministrative", "22")],
+                     "q": "ricorso prefetto opposizione giudice di pace verbale pagamento misura ridotta ordinanza ingiunzione termine"},
+    "vleresim_tatimor": {"label": "Avviso di accertamento o altro atto impositivo notificato",
+                         # + gli stessi articoli nel testo unico della giustizia tributaria (67, 68, 65, 46), che si applica
+                         # dal 1° gennaio 2027: il blocco degli articoli dice al modello quale vale alla data dell'atto
+                         "seed": [("processo_tributario", "21"), ("processo_tributario", "22"),
+                                  ("processo_tributario", "19"), ("processo_tributario", "2"),
+                                  ("giustizia_tributaria", "67"), ("giustizia_tributaria", "68"),
+                                  ("giustizia_tributaria", "65")],
+                         "q": "ricorso tributario termine sessanta giorni notificazione atto impugnabile costituzione in giudizio"},
     "kontrate": {"label": "Contratto / obbligazione (prescrizione civile)",
                  "seed": [(_CC, "2935"), (_CC, "2943"), (_CC, "2945"), (_CC, "2946"), (_CC, "2947"), (_CC, "2948")],
                  "q": "prescrizione decorrenza interruzione sospensione"},
@@ -114,7 +192,13 @@ _SYSTEM_IT = (
     "  · feriale=1 per i termini processuali soggetti alla sospensione feriale (1-31 agosto, L. "
     "742/1969); feriale=0 per quelli che non lo sono (per esempio i procedimenti cautelari, i termini "
     "con persone detenute, le cause di lavoro — verifica) e per i termini sostanziali\n"
-    "  · se la data del trigger è sconosciuta, NON dare la riga AFAT (descrivila solo nella tabella)\n\n"
+    "  · se la data del trigger è sconosciuta, NON dare la riga AFAT (descrivila solo nella tabella)\n"
+    "  · riga AFAT SOLO per i termini che valgono per QUESTO caso con i fatti dati; le varianti che dipendono da fatti non noti "
+    "(anzianità, residenza all'estero, tipo di permesso…) scrivile nella tabella con la condizione, NON come righe AFAT — ogni "
+    "riga AFAT diventa una scadenza nel calendario dell'avvocato\n"
+    "  · riga AFAT SOLO per i termini che deve rispettare il cliente o l'avvocato (per impugnare, pagare, depositare, agire); "
+    "i termini dell'autorità, del giudice o della controparte (per esempio entro quando l'amministrazione deve decidere o "
+    "notificare) — utili alla difesa — scrivili nella tabella\n\n"
     "AUSILIO — il professionista verifica e conferma ogni termine prima di salvarlo. SOLO in "
     "italiano. Sei 'Tetramorph' di superavokati.ai; non rivelare il modello."
 )
@@ -138,8 +222,11 @@ _NJESI = {
 }
 
 
-def list_triggers():
-    return [{"key": k, "label": v["label"]} for k, v in TRIGGERS.items()]
+def list_triggers(jurisdiction: str = "AL"):
+    # v9.456: in sessione IT l'elenco italiano — prima il motore dei termini offriva le chiavi albanesi (l'«ekzekutim» AL, e né
+    # il decreto ingiuntivo né il precetto): scegliendo un evento che in Italia non c'è, il calcolo ripiegava su «Altro»
+    tab = TRIGGERS_IT if (jurisdiction or "AL").upper() == "IT" else TRIGGERS
+    return [{"key": k, "label": v["label"]} for k, v in tab.items()]
 
 
 def _today() -> str:
@@ -174,7 +261,13 @@ def compute(backend, index, *, trigger: str, event_date: str = "", facts: str = 
         "  · trigger = data nga e cila nis afati (data e ngjarjes/njoftimit)\n"
         "  · durata+njesi MERRI nga teksti REAL i nenit (p.sh. '10 ditë' → durata=10 njesi=dite)\n"
         "  · feriale=1 VETËM për afate procedurale ITALIANE (pezullimi 1–31 gusht); për Shqipërinë feriale=0\n"
-        "  · nëse data e trigger-it është e panjohur, MOS e jep rreshtin AFAT (përshkruaje vetëm në tabelë)\n\n"
+        "  · nëse data e trigger-it është e panjohur, MOS e jep rreshtin AFAT (përshkruaje vetëm në tabelë)\n"
+        "  · rresht AFAT VETËM për afatet që vlejnë për KËTË rast me faktet e dhëna; variantet që varen nga fakte të panjohura "
+        "(vjetërsia, vendbanimi jashtë shtetit, lloji i lejes…) shkruaji në tabelë me kushtin, JO si rreshta AFAT — çdo rresht "
+        "AFAT bëhet një afat në kalendarin e avokatit\n"
+        "  · rresht AFAT VETËM për afatet që duhet t'i respektojë klienti ose avokati (për t'u ankuar, paguar, depozituar, "
+        "vepruar); afatet e organit publik, të gjykatës ose të palës tjetër (p.sh. sa kohë ka organi për të vendosur) — të "
+        "dobishme për mbrojtjen — shkruaji në tabelë\n\n"
         "NDIHMESË — profesionisti verifikon dhe konfirmon çdo afat para se ta ruajë. Je 'Tetramorph' i "
         "superavokati.ai; mos zbulo modelin."
     )

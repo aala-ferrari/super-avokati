@@ -62,6 +62,10 @@ try:
        and CHIESTE[-1][0] in (rossi.id, bianchi.id) and CHIESTE[-1][1] == "quando scade il termine?", str(CHIESTE[-1:]))
     tg._gestisci_callback({"id": "y", "data": dati, "message": {"chat": {"id": 1}, "message_id": 5}})
     ok("il pulsante vale una volta sola", len(CHIESTE) == n + 1 and "scaduta" in (testi()[-1] if testi() else ""))
+    n2 = len(CHIESTE)
+    tg._segretaria(it_u.id, "1", "Chiedi al fascicolo Rossi chi è il consulente tecnico", None)
+    ok("v9.452: «chiedi …» scritto o a voce va ai documenti del fascicolo, non all'agenda",
+       len(CHIESTE) == n2 + 1 and CHIESTE[-1][0] == rossi.id, str(CHIESTE[-1:]))
     tg._chiedi(it_u.id, "1", "/chiedi")
     ok("senza domanda: spiega come si usa", "/chiedi Rossi:" in testi()[-1])
 finally:

@@ -1,0 +1,22 @@
+{
+ "id": "it_precetto",
+ "lang": "it",
+ "jurisdiction": "IT",
+ "oggi": "2026-09-20",
+ "testo": "ATTO DI PRECETTO\nL'avv. Carla Fontana, per conto di Edilnord S.r.l., in forza della sentenza n. 1123/2026 del Tribunale di Milano, munita di formula esecutiva,\nINTIMA\na Gamma Costruzioni S.r.l. di pagare entro dieci giorni dalla notifica del presente atto la somma di euro 23.400,00 oltre interessi e spese, con l'avvertimento che, in mancanza, si procederà a esecuzione forzata.\nMilano, 10 settembre 2026 — avv. Carla Fontana\n\nRELATA DI NOTIFICA: notificato a mezzo PEC il 15 settembre 2026.",
+ "attese": [],
+ "termini_attesi": [
+  {
+   "durata": 10,
+   "unita": "giorni",
+   "data": "2026-09-25"
+  }
+ ],
+ "inneschi_attesi": [
+  {
+   "trigger": "precetto",
+   "data": "2026-09-15"
+  }
+ ],
+ "vietate": []
+}

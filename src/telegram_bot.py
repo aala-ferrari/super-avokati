@@ -615,6 +615,12 @@ def _segretaria(uid: int, chat_id: str, testo: str, voice: dict | None) -> None:
                   "Nuk e kuptova mesazhin zanor (maksimumi 2 minuta): provo sërish ose shkruaj.")
             return
         invia(chat_id, "🎙️ «" + testo[:300] + "»")
+    # v9.452: «chiedi al fascicolo Rossi chi è il CTU» / «pyet dosjen e Kolës…» (anche a voce, in udienza) → i documenti del
+    # fascicolo, come /chiedi; il resto alla Segretaria
+    _primo = (testo.strip().split(maxsplit=1) or [""])[0].lower().strip(",.:;!?")
+    if _primo in ("chiedi", "pyet") and len(testo.strip().split(maxsplit=1)) > 1:
+        _chiedi(uid, chat_id, "/chiedi " + testo.strip().split(maxsplit=1)[1])
+        return
     cervello = _CERVELLO["get"]() if _CERVELLO["get"] else None
     if cervello is None:
         invia(chat_id, "Il servizio è momentaneamente occupato: riprova tra poco." if it else

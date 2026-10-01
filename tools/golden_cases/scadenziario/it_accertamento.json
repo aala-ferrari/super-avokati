@@ -1,0 +1,18 @@
+{
+ "id": "it_accertamento",
+ "lang": "it",
+ "jurisdiction": "IT",
+ "oggi": "2026-09-25",
+ "testo": "AGENZIA DELLE ENTRATE — Direzione Provinciale di Torino\nAVVISO DI ACCERTAMENTO n. T9X01A200345/2026\nTorino, 10 settembre 2026\n\nContribuente: Rossi Mario. Imposta: IRPEF, periodo d'imposta 2021. Maggiore imposta accertata: euro 14.320,00, oltre sanzioni e interessi.\nAvverso il presente atto può essere proposto ricorso alla Corte di giustizia tributaria di primo grado di Torino nei termini di legge.\n\nRELATA DI NOTIFICA: atto notificato a mezzo PEC al contribuente il 21 settembre 2026.",
+ "attese": [],
+ "termini_attesi": [],
+ "inneschi_attesi": [
+  {
+   "trigger": "vleresim_tatimor",
+   "data": "2026-09-21"
+  }
+ ],
+ "vietate": [
+  "2026-11-09"
+ ]
+}
