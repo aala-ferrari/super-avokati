@@ -7558,6 +7558,37 @@ def main():
     except Exception as _e239:  # noqa: BLE001
         check("spinta-telegram[239]: kontrollet u ekzekutuan", False, str(_e239))
 
+    # [240] v9.468 — K.Pr.C. 511 «Urdhri i ekzekutimit» nel corpus (era dentro il 510: «Neni 5111» = numero + nota incollati) e
+    # nessuna rubrica albanese col numero della nota attaccato in coda
+    try:
+        import re as _re240
+        from src.retrieval import ArticleIndex as _AI240
+        _al240 = _AI240.load()
+        _by240 = {(a.code, a.number): a for a in _al240.articles}
+        _a511 = _by240.get(("kodi_proc_civile", "511"))
+        _a510 = _by240.get(("kodi_proc_civile", "510"))
+        _rub240 = [f"{a.code} {a.number}" for a in _al240.articles if _re240.search(r"(?<=[a-zçë»”)])\d{1,2}$", a.heading or "")]
+        _ok240 = (bool(_a511) and _a511.heading == "Urdhri i ekzekutimit" and not _a511.repealed
+                  and "Titulli ekzekutiv vihet në ekzekutim" in _a511.body and "Neni 5111" not in (_a510.body if _a510 else "x")
+                  and "Gjykatës Kushtetuese nr. 30" in (_a511.note or "") and not _rub240)
+        check("kpc511[240]: Neni 511 K.Pr.C. nel corpus, nessuna rubrica col numero della nota incollato", _ok240, str(_rub240[:5]))
+    except Exception as _e240:  # noqa: BLE001
+        check("kpc511[240]: kontrollet u ekzekutuan", False, str(_e240))
+
+    # [241] v9.469 — «art. 41 TU Immigrazione», «art. 125 Cod. Ass.», «Art. 36 Disciplina organica dei contratti di lavoro» verificati
+    try:
+        from src import citation_verifier as _cv241
+        from src.retrieval import ArticleIndex as _AI241
+        from pathlib import Path as _P241
+        _i241 = _AI241.load(_P241("/app/data/index/bm25_it.pkl"))
+        _r241 = _cv241.verify_text("Vale l'art. 5 TU Immigrazione, l'art. 125 Cod. Ass. e l'Art. 19 Disciplina organica dei contratti di lavoro.",
+                                   _i241)
+        _st241 = [(x["code"], x["status"]) for x in _r241["items"]]
+        _ok241 = _st241 == [("tu_immigrazione", "verified"), ("codice_assicurazioni", "verified"), ("contratti_lavoro", "verified")]
+        check("alias-it[241]: TU Immigrazione, Cod. Ass., Disciplina organica dei contratti di lavoro", _ok241, str(_st241))
+    except Exception as _e241:  # noqa: BLE001
+        check("alias-it[241]: kontrollet u ekzekutuan", False, str(_e241))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

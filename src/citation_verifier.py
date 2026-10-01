@@ -656,6 +656,10 @@ _IT_CODE_CHECKS = [
     ("2312007", "antiriciclaggio"),
     ("decretoantiriciclaggio", "antiriciclaggio"),
     ("antiriciclaggio", "antiriciclaggio"),
+    # v9.469 — forme usate nelle risposte vere e uscite «senza codice» (scansione di 85 risposte IT, 1 ott 2026)
+    ("tuimmigrazione", "tu_immigrazione"),
+    ("codass", "codice_assicurazioni"),
+    ("disciplinaorganicadeicontratti", "contratti_lavoro"),
     # ── wave7 «blocco A» (16 set 2026): nomi per esteso (prima di «romaii»: «romaiii» lo contiene) ──
     ("romaiii", "roma_iii"),
     ("trattatosulfunzionamento", "tfue"), ("tfue", "tfue"),
