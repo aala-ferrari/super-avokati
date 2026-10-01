@@ -57,6 +57,34 @@ def testo_decisione(text: str, court: str) -> str:
     return t.strip()
 
 
+# v9.463 — il DISPOSITIVO (ciò che la Corte ha deciso) arriva al modello accanto al passo: prima per le decisioni italiane l'esito
+# non c'era mai (outcome=None) e per 646 decisioni lunghe il testo stesso finiva prima del dispositivo (tetto dell'harvester)
+SCHEMA = "2"
+_PQM_CCOST = re.compile(r"(?i)per\s+questi\s+motivi")
+_PQM_GA = re.compile(r"P\.\s*Q\.\s*M\.|(?i:per\s+questi\s+motivi)")
+_FINE_DISP = re.compile(r"(?i)cos[iì]\s+deciso|depositata\s+in\s+cancelleria|F\.to")
+
+
+def dispositivo_decisione(text: str, court: str, tetto: int = 1200) -> str:
+    """Il dispositivo: dall'ULTIMO «Per questi motivi» / «P.Q.M.» a «Così deciso». Vuoto se non c'è (testo incompleto)."""
+    t = (text or "").replace("\xa0", " ")
+    rx = _PQM_CCOST if court == "CCost" else _PQM_GA
+    ms = list(rx.finditer(t))
+    if not ms:
+        return ""
+    d = t[ms[-1].end():]
+    e = _FINE_DISP.search(d)
+    if e:
+        d = d[:e.start()]
+    # solo l'intestazione della Consulta su una riga a sé: nei TAR/CdS «Il Consiglio di Stato …, definitivamente pronunciando…,
+    # lo dichiara inammissibile» è sulla STESSA riga della decisione e va tenuto
+    d = re.sub(r"^\s*LA CORTE COSTITUZIONALE\s*\n", "", d.strip() + "\n", flags=re.I)
+    d = re.sub(r"\s+", " ", d).strip(" ,;")
+    if len(d) > tetto:
+        d = d[:tetto].rsplit(" ", 1)[0] + " …"
+    return d
+
+
 def rebuild_indeksi() -> int:
     """Ricostruisce l'indice dal jsonl. Ritorna il numero di decisioni.
 
@@ -72,7 +100,7 @@ def rebuild_indeksi() -> int:
             "DROP TABLE IF EXISTS dec;"
             "CREATE VIRTUAL TABLE dec USING fts5("
             "  text, court UNINDEXED, tipo UNINDEXED, number UNINDEXED,"
-            "  year UNINDEXED, data UNINDEXED, url UNINDEXED,"
+            "  year UNINDEXED, data UNINDEXED, url UNINDEXED, dispositivo UNINDEXED,"
             "  tokenize='unicode61 remove_diacritics 2');"
             "CREATE TABLE IF NOT EXISTS meta(k TEXT PRIMARY KEY, v TEXT);")
         n = 0
@@ -85,16 +113,17 @@ def rebuild_indeksi() -> int:
                         continue
                     con.execute(
                         "INSERT INTO dec(text, court, tipo, number, year,"
-                        " data, url) VALUES (?,?,?,?,?,?,?)",
+                        " data, url, dispositivo) VALUES (?,?,?,?,?,?,?,?)",
                         (testo_decisione(d.get("text") or "", d.get("court") or ""), d.get("court") or "",
                          d.get("type") or "", int(d.get("number") or 0),
                          int(d.get("year") or 0), d.get("date") or "",
-                         d.get("url") or ""))
+                         d.get("url") or "", dispositivo_decisione(d.get("text") or "", d.get("court") or "")))
                     n += 1
         with con:
             con.execute(
                 "INSERT OR REPLACE INTO meta(k, v) VALUES ('jsonl_mtime', ?)",
                 (str(os.path.getmtime(JSONL)) if JSONL.exists() else "0",))
+            con.execute("INSERT OR REPLACE INTO meta(k, v) VALUES ('schema', ?)", (SCHEMA,))
     finally:
         con.close()
     os.replace(tmp, DB)
@@ -125,8 +154,9 @@ def _ricostruisci_in_sottofondo() -> None:
 def _fresco(con: sqlite3.Connection) -> bool:
     try:
         r = con.execute("SELECT v FROM meta WHERE k='jsonl_mtime'").fetchone()
+        sc = con.execute("SELECT v FROM meta WHERE k='schema'").fetchone()
         att = str(os.path.getmtime(JSONL)) if JSONL.exists() else "0"
-        return bool(r) and r[0] == att
+        return bool(r) and r[0] == att and bool(sc) and sc[0] == SCHEMA     # v9.463: un indice vecchio si ricostruisce
     except Exception:  # noqa: BLE001
         return False
 
@@ -165,10 +195,11 @@ def kerko(pyetjet: list[str], top_k: int = 5) -> list[dict]:
                 match = _query_fts(pyetjet)
                 if not match:
                     return []
+                _disp = "dispositivo" if "dispositivo" in {c[1] for c in con.execute("PRAGMA table_info(dec)")} else "''"
                 righe = con.execute(
                     "SELECT court, tipo, number, year, data, url,"
                     " snippet(dec, 0, '«', '»', ' … ', 16) AS passo,"
-                    " snippet(dec, 0, '«', '»', ' … ', 42) AS brano"
+                    " snippet(dec, 0, '«', '»', ' … ', 42) AS brano, " + _disp +
                     " FROM dec WHERE dec MATCH ? ORDER BY rank LIMIT ?",
                     (match, top_k)).fetchall()
             finally:
@@ -176,12 +207,13 @@ def kerko(pyetjet: list[str], top_k: int = 5) -> list[dict]:
         except Exception:  # noqa: BLE001
             return []
     out = []
-    for court, tipo, number, year, data, url, passo, brano in righe:
+    for court, tipo, number, year, data, url, passo, brano, disp in righe:
         out.append({
             "court": court, "court_name": _COURT_NAME.get(court, court),
             "tipo": tipo, "number": number, "year": year,
             "date": data or "", "url": url,
             "passo": (passo or "").strip(),
             "brano": (brano or "").strip(),
+            "dispositivo": (disp or "").strip(),
         })
     return out

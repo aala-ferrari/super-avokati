@@ -7556,6 +7556,10 @@ def _format_precedents_block(pairs: list[tuple[CasePrecedent, float]]) -> str:
         if c.summary:
             # la Cassazione porta il PASSO del testo integrale: deve arrivare intero al senior (non tagliato a 260)
             lines.append(f"    {_L['sintesi']}: {c.summary[:900 if c.court_code == 'Cass' else 260]}")
+        if getattr(c, "dispositivo", ""):
+            # v9.463: ciò che la Corte ha DECISO (accoglie, non fondata «nei sensi di cui in motivazione», inammissibile…): senza,
+            # il modello leggeva solo un passo della motivazione e non sapeva come era finita
+            lines.append(f"    Dispositivo: {c.dispositivo[:900]}")
         if c.articles_cited:
             arts = ", ".join(f"{code} {'art.' if _it else 'neni'} {art}" for code, art in c.articles_cited[:6])
             lines.append(f"    {_L['articoli']}: {arts}")
@@ -7685,6 +7689,7 @@ def _precedenti_it(triage) -> list:
                 summary=r.get("passo") or "",
                 excerpt=r.get("brano") or "",
                 source_url=r.get("url"),
+                dispositivo=r.get("dispositivo") or "",
             ), max(0.1, 1.0 - i * 0.15)))
         return out
     except Exception:  # noqa: BLE001

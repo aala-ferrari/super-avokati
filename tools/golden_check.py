@@ -7443,6 +7443,42 @@ def main():
     except Exception as _e234:  # noqa: BLE001
         check("durata-lettere[234]: kontrollet u ekzekutuan", False, str(_e234))
 
+    # [235] v9.462 — il diavolo riceve la verifica deterministica delle citazioni della risposta (non può più dire «la sentenza non
+    # c'è» di una sentenza confermata)
+    try:
+        import inspect as _in235
+        from src import web as _w235
+        _src235 = _in235.getsource(_w235.api_second_opinion)
+        _ok235 = ("_verifica_per_djallin(answer" in _src235 and "blocco_per_gjyqtarin" in _in235.getsource(_w235._verifica_per_djallin))
+        check("djalli-verifica[235]: il diavolo riceve la verifica delle citazioni della risposta", _ok235)
+    except Exception as _e235:  # noqa: BLE001
+        check("djalli-verifica[235]: kontrollet u ekzekutuan", False, str(_e235))
+
+    # [236] v9.463 — il DISPOSITIVO delle decisioni italiane: estratto dal «Per questi motivi» / «P.Q.M.» a «Così deciso», nel blocco
+    # dei precedenti; e nessuna decisione col testo tagliato a 60.000 caratteri (il dispositivo, in fondo, si perdeva)
+    try:
+        from src import it_precedent_fts as _f236
+        _t1 = ("Considerato in diritto ... motivazione lunga ...\nPer Questi Motivi\nLA CORTE COSTITUZIONALE\n1) \xa0dichiara \xa0non "
+               "fondate le questioni di legittimità costituzionale dell'art. 3, comma 2, del d.lgs. n. 23 del 2015, nei sensi di cui in "
+               "motivazione.\nCosì deciso in Roma, il 4 giugno 2024.\nF.to:")
+        _t2 = "FATTO e DIRITTO ... P.Q.M. Il Tribunale Amministrativo Regionale accoglie il ricorso e annulla il provvedimento. Così deciso in Milano"
+        _d1 = _f236.dispositivo_decisione(_t1, "CCost")
+        _d2 = _f236.dispositivo_decisione(_t2, "TAR Milano")
+        _ok236 = (_d1.startswith("1) dichiara non fondate") and "Così deciso" not in _d1 and "CORTE" not in _d1
+                  and "accoglie il ricorso" in _d2 and _f236.dispositivo_decisione("senza dispositivo", "CCost") == ""
+                  and _f236.SCHEMA == "2")
+        import json as _j236
+        _lunghe = sum(1 for _l in open(_f236.JSONL, encoding="utf-8") if len(_j236.loads(_l).get("text") or "") == 60_000)
+        _ok236 = _ok236 and _lunghe == 0
+        import inspect as _in236
+        from src import brain as _b236
+        _ok236 = _ok236 and "Dispositivo:" in _in236.getsource(_b236._format_precedents_block) \
+            and 'dispositivo=r.get("dispositivo")' in _in236.getsource(_b236._precedenti_it)
+        check("dispositivo-it[236]: dispositivo delle decisioni italiane nel blocco, nessun testo tagliato a 60.000", _ok236,
+              f"{_d1[:60]!r} | {_d2[:60]!r} | tagliate {_lunghe}")
+    except Exception as _e236:  # noqa: BLE001
+        check("dispositivo-it[236]: kontrollet u ekzekutuan", False, str(_e236))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

@@ -40,6 +40,8 @@ UA = ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/126.0 Safari/537.36")
 FROM_HDR = "info@aala.global"
 PAUSA = 0.7
+# v9.463: prima 60.000 caratteri — 646 decisioni lunghe (622 della Consulta) perdevano il DISPOSITIVO, che sta in fondo
+TETTO_TESTO = 600_000
 
 _ECLI = re.compile(r"ECLI:IT:([A-Z0-9]+):(\d{4}):(\d{1,6})[A-Z]*")
 _FILE = re.compile(
@@ -57,7 +59,7 @@ def pulisci(raw: str) -> str:
     t = _TAGS.sub(" ", _TAG.sub(" ", raw))
     t = _html.unescape(t)
     t = re.sub(r"[ \t\r\f\v]+", " ", t)
-    return "\n".join(r.strip() for r in t.split("\n") if r.strip())[:60_000]
+    return "\n".join(r.strip() for r in t.split("\n") if r.strip())[:TETTO_TESTO]
 
 
 def corte_di(sede: str) -> str:

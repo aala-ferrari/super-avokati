@@ -40,6 +40,8 @@ META = "/var/www/apps/super-avvocato/data/processed/it_decisions_meta.json"
 UA = ("SuperAvokati-ingest/1.0 (archivio verificazione citazioni; "
       "contatto: info@aala.global)")
 MAX_MISS = 15
+# v9.463: prima 60.000 caratteri — 646 decisioni lunghe (622 della Consulta) perdevano il DISPOSITIVO, che sta in fondo
+TETTO_TESTO = 600_000
 PAUSA = 0.6
 
 _TIPI_RE = {"sentenza": "SENTENZA", "ordinanza": "ORDINANZA"}
@@ -86,7 +88,7 @@ def pulisci(raw: str) -> str:
     t = _html.unescape(t)
     t = _SPAZI.sub(" ", t)
     righe = [r.strip() for r in t.split("\n")]
-    return "\n".join(r for r in righe if r)[:60_000]
+    return "\n".join(r for r in righe if r)[:TETTO_TESTO]
 
 
 def carica_visti() -> set:

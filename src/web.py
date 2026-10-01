@@ -3339,6 +3339,7 @@ def api_second_opinion():
         return jsonify({"error": "answer_required"}), 400
     # v9.355 — i nene del senior (dal fascicolo) o un recupero fresco: il diavolo cita solo da lì
     blocco, codici = _nenet_per_djallin(question or answer, body, answer=answer)
+    blocco = (blocco or "") + _verifica_per_djallin(answer, codici)
     try:
         res = second_opinion_mod.review(
             _BRAIN.backend,
@@ -9717,6 +9718,31 @@ def _audit_pacchetto() -> dict | None:
 # unici cervelli che ragionavano SENZA corpus e la cui uscita non passava dal cancello — solo
 # dallo scudo, che annota «[⚠ verifikim dështoi]» e lascia il numero inventato nel testo.
 DJALLI_KIND = "devil"
+
+
+def _verifica_per_djallin(answer: str, codici: set[str] | None = None) -> str:
+    """v9.462 — al diavolo anche la VERIFICA DETERMINISTICA delle citazioni della risposta che attacca (la stessa che riceve il
+    Giudice): senza, scriveva che una sentenza «non è nel blocco» e che la riga di verifica era sbagliata — falso (caso del coltello,
+    1 ott: la 00-2024-1129 della Gjykata e Lartë c'è ed è proprio su 278/3, 279/1 e 280). Fail-silent: senza, il diavolo lavora come
+    prima."""
+    try:
+        from . import trust_line as _tl
+        juris = _active_jurisdiction(getattr(request, "user", None)) or "AL"
+        lang = "it" if juris == "IT" else "sq"
+        v = _tl.verifica(answer or "", _req_index(), juris, retrieved_codes=(codici or None))
+        b = _tl.blocco_per_gjyqtarin(v, lang)
+        if not b:
+            return ""
+        testa = ("VERIFICA DETERMINISTICA DELLE CITAZIONI DELLA RISPOSTA (calcolata dal codice sugli archivi ufficiali: una sentenza "
+                 "«confermata» è stata ritrovata nell'archivio anche se non è fra gli articoli qui sopra — non dire che manca o che la "
+                 "verifica è sbagliata; attacca semmai l'USO che la risposta ne fa):\n" if lang == "it" else
+                 "VERIFIKIMI DETERMINIST I CITIMEVE TË PËRGJIGJES (i llogaritur nga kodi mbi arkivat zyrtare: një vendim «i konfirmuar» "
+                 "është gjetur në arkiv edhe nëse nuk është ndër nenet më sipër — mos thuaj se mungon apo se verifikimi është i gabuar; "
+                 "sulmo nëse duhet MËNYRËN si e përdor përgjigja):\n")
+        return "\n\n" + testa + b
+    except Exception:  # noqa: BLE001
+        log.debug("djalli: verifica delle citazioni non costruita", exc_info=True)
+        return ""
 
 
 def _nenet_per_djallin(text: str, body: dict, answer: str = "") -> tuple[str, set[str]]:

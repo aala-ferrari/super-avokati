@@ -98,6 +98,7 @@ class CasePrecedent:
     # [(code, article)] — e.g. [("kodi_penal", "76"), ("kushtetuta", "42")]
     source_url: str | None = None
     source_file: str = ""
+    dispositivo: str = ""                # v9.463: il dispositivo delle decisioni italiane (Consulta, TAR, CdS)
 
     @property
     def year(self) -> int | None:
