@@ -87,6 +87,16 @@ def _abrogazione_dichiarata(text: str, raw: str) -> bool:
         return False
 
 
+def _sentenza_nominata(nota: str, text: str) -> bool:
+    """La nota della Consulta («… con sentenza 26 settembre - 8 novembre 2018 n. 194 …») e la risposta la nomina già («sent. 194/2018»,
+    «n. 194 del 2018»)? Allora la citazione è consapevole e non si ripete al Giudice."""
+    m = re.search(r"sentenza[^.]*?(\d{4}),?\s*n\.\s*(\d+)", nota or "")
+    if not m:
+        return False
+    y, n = m.group(1), m.group(2)
+    return re.search(r"\b%s\s*/\s*%s\b|\b%s\s+del\s+%s\b" % (n, y, n, y), text or "") is not None
+
+
 def verifica(text: str, index, jurisdiction: str = "AL", retrieved_codes=None, foreign_index=None) -> dict:
     """Calcolo puro sul testo già prodotto: non chiama mai il modello, non solleva mai.
     `foreign_index` (v9.350): il corpus dell'altra giurisdizione per le citazioni di diritto straniero
@@ -161,6 +171,25 @@ def verifica(text: str, index, jurisdiction: str = "AL", retrieved_codes=None, f
                     "code": it.get("code_label") or it.get("code") or "",
                     "status": "unconstitutional" if st[0] == "tërësisht" else "unconstitutional_partial",
                     "heading": f"GjK vendimi nr. {q[2]}/{q[1]}"})
+        # v9.465 — ITALIA: l'articolo citato (verificato) che ha dichiarazioni di illegittimità della Consulta nelle note ufficiali
+        # (v9.464): il Giudice controlla che la risposta non si fondi sulla parte caduta. Informazione, non allarme: la riga resta
+        # com'è; se la risposta nomina già la sentenza («sent. 194/2018») non si ripete
+        if (jurisdiction or "AL").upper() == "IT":
+            try:
+                from . import temporal as _tmp
+                visti = set()
+                for it in r.get("items") or []:
+                    k = (it.get("code"), str(it.get("number") or ""))
+                    if it.get("status") != "verified" or not k[0] or k in visti:
+                        continue
+                    visti.add(k)
+                    dich = [d for d in _tmp.dichiarazioni_consulta(k[0], k[1]) if not _sentenza_nominata(d, text)]
+                    if dich:
+                        out["nene"].setdefault("consulta", []).append({"raw": (it.get("raw") or "")[:70], "dich": dich[:3]})
+                    if len(out["nene"].get("consulta") or []) >= 6:
+                        break
+            except Exception:  # noqa: BLE001
+                log.debug("trust_line: dichiarazioni della Consulta non lette", exc_info=True)
     except Exception:  # noqa: BLE001
         log.debug("trust_line: verifica nene fallita", exc_info=True)
     try:
@@ -370,6 +399,10 @@ def blocco_per_gjyqtarin(v: dict, lang: str = "sq", coverage: dict | None = None
                      f"applicabile alla data dei fatti; correggi il numero se serve")
         for b in (n.get("trasfusi") or [])[:6]:
             r.append(f"- «{b['raw']}» → {b['code']} {b['heading']} — cita l'articolo vigente del testo unico")
+        # v9.465 — le dichiarazioni della Consulta sugli articoli citati (dalle note ufficiali di Normattiva)
+        for b in (n.get("consulta") or [])[:6]:
+            r.append(f"- «{b['raw']}» → la Corte costituzionale ne ha dichiarato in parte l'illegittimità: "
+                     + " | ".join(b["dich"]) + " — controlla che la risposta NON si fondi sulla parte caduta")
         r.append(f"Sentenze citate: {s['verified']} confermate negli archivi, {s.get('quashed', 0)} ANNULLATE dalla Corte costituzionale, "
                  f"{s['unverified']} NON confermate (archivi parziali: da riscontrare, non necessariamente false).")
         for b in s.get("quashed_list") or []:

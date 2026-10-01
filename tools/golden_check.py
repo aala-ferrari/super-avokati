@@ -7497,6 +7497,25 @@ def main():
     except Exception as _e237:  # noqa: BLE001
         check("consulta-note[237]: kontrollet u ekzekutuan", False, str(_e237))
 
+    # [238] v9.465 — il Giudice sa quali articoli italiani citati hanno dichiarazioni della Consulta (e non glielo si ripete se la
+    # risposta nomina già la sentenza)
+    try:
+        from src import trust_line as _tl238
+        from src.retrieval import ArticleIndex as _AI238
+        from pathlib import Path as _P238
+        _i238 = _AI238.load(_P238("/app/data/index/bm25_it.pkl"))
+        _v1 = _tl238.verifica("Per sposarsi in Italia vale l'art. 116 c.c. e l'art. 2043 c.c.", _i238, "IT")
+        _v2 = _tl238.verifica("L'art. 116 c.c., dopo la sentenza n. 245/2011 della Consulta, non richiede più il permesso.", _i238, "IT")
+        _b1 = _tl238.blocco_per_gjyqtarin(_v1, "it")
+        _c1 = _v1["nene"].get("consulta") or []
+        _ok238 = (len(_c1) == 1 and "116" in _c1[0]["raw"] and "245" in _b1 and "parte caduta" in _b1
+                  and not (_v2["nene"].get("consulta") or [])
+                  and _tl238._sentenza_nominata("con sentenza 26 settembre - 8 novembre 2018 n. 194, ha dichiarato", "sent. 194/2018")
+                  and not _tl238._sentenza_nominata("con sentenza 26 settembre - 8 novembre 2018 n. 194, ha dichiarato", "art. 194"))
+        check("consulta-giudice[238]: il Giudice vede le dichiarazioni della Consulta sugli articoli citati", _ok238, str(_c1)[:200])
+    except Exception as _e238:  # noqa: BLE001
+        check("consulta-giudice[238]: kontrollet u ekzekutuan", False, str(_e238))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
