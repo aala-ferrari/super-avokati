@@ -167,7 +167,7 @@ def storage_path_for(case_id: str, ext: str) -> Path:
 
 def extract_text(
     path: Path, ext: str, mimetype: str, backend=None,
-    original_filename: str = "",
+    original_filename: str = "", progresso=None,
 ) -> tuple[str, bool]:
     """Return (text, used_vision_ocr) for a file we just saved to disk.
 
@@ -218,7 +218,7 @@ def extract_text(
         return audio_mod.analizza(path, original_filename or path.name, lingua), True
 
     if ext == ".pdf":
-        text, used_ocr = _extract_pdf(path, backend)
+        text, used_ocr = _extract_pdf(path, backend, progresso)
         return text, used_ocr
     if ext == ".svg":
         return _extract_svg(path), False
@@ -252,7 +252,7 @@ def extract_text(
     return "", False
 
 
-def _extract_pdf(path: Path, backend) -> tuple[str, bool]:
+def _extract_pdf(path: Path, backend, progresso=None) -> tuple[str, bool]:
     """Il testo del PDF PAGINA PER PAGINA: lo strato di testo dove c'è; l'OCR sulle pagine scansionate — anche in un PDF MISTO
     (v9.427: prima, se le pagine digitali avevano abbastanza testo, quelle scansionate non si leggevano mai), fino a
     MAX_OCR_PAGES, al loro posto nell'ordine del documento."""
@@ -279,7 +279,7 @@ def _extract_pdf(path: Path, backend) -> tuple[str, bool]:
             return joined, False
         log.info("PDF %s misto: %d pagine scansionate su %d — OCR", path.name, len(da_ocr), len(pagine))
         try:
-            letti, saltate = _vision_ocr_pdf_pages(path, backend, da_ocr)
+            letti, saltate = _vision_ocr_pdf_pages(path, backend, da_ocr, progresso)
         except Exception as exc:  # noqa: BLE001
             log.warning("OCR delle pagine scansionate fallito su %s (%s): tengo il testo delle altre", path.name, exc)
             return joined + _nota_pagine_non_lette([i + 1 for i in da_ocr], len(pagine)), False
@@ -290,7 +290,8 @@ def _extract_pdf(path: Path, backend) -> tuple[str, bool]:
                 parti.append(f"── {'Pagina' if it else 'Faqja'} {i + 1}/{len(pagine)} (OCR) ──\n{letti[i].strip()}")
             elif t:
                 parti.append(t)
-        return "\n\n".join(parti).strip() + _nota_pagine_non_lette([i + 1 for i in saltate], len(pagine)), True
+        return ("\n\n".join(parti).strip() + _nota_pagine_non_lette([i + 1 for i in saltate], len(pagine))
+                + _nota_pagine_illeggibili(_pagine_illeggibili(letti), len(pagine))), True
 
     # Text layer too thin — likely a scan. Rasterize each page and OCR it.
     log.info("PDF %s looks scanned (%d chars) — running vision OCR", path.name, len(joined))
@@ -299,10 +300,11 @@ def _extract_pdf(path: Path, backend) -> tuple[str, bool]:
             raise RuntimeError("no backend available for vision OCR")
         with pdfplumber.open(path) as pdf:
             totale = len(pdf.pages)
-        letti, saltate = _vision_ocr_pdf_pages(path, backend, list(range(totale)))
+        letti, saltate = _vision_ocr_pdf_pages(path, backend, list(range(totale)), progresso)
         it = _lingua_sessione() == "it"
         testo = "\n\n".join(f"── {'Pagina' if it else 'Faqja'} {i + 1}/{totale} ──\n{letti[i].strip()}" for i in sorted(letti))
-        return testo + _nota_pagine_non_lette([i + 1 for i in saltate], totale), True
+        return (testo + _nota_pagine_non_lette([i + 1 for i in saltate], totale)
+                + _nota_pagine_illeggibili(_pagine_illeggibili(letti), totale)), True
     except Exception as exc:
         # If pdfplumber already pulled *some* text, keep it rather than
         # erroring — partial content is better than none.
@@ -316,6 +318,26 @@ def _extract_pdf(path: Path, backend) -> tuple[str, bool]:
         raise RuntimeError(
             f"PDF i skanuar dhe OCR nuk funksionoi: {exc}"
         ) from exc
+
+
+_ILLEGGIBILE_RX = re.compile(r"\[\s*(?:IMMAGINE ILLEGGIBILE|IMAZH I PAQARTË|IMAZH I PAQARTE)\s*\]", re.I)
+
+
+def _pagine_illeggibili(letti: dict[int, str]) -> list[int]:
+    """v9.448 — le pagine che l'OCR non è riuscito a leggere (il segno del prompt, o quasi niente testo): numeri da 1."""
+    return sorted(i + 1 for i, t in letti.items()
+                  if _ILLEGGIBILE_RX.search(t or "") or len(re.sub(r"\W", "", t or "")) < 15)
+
+
+def _nota_pagine_illeggibili(numeri: list[int], totale: int) -> str:
+    """Le pagine scansionate ILLEGGIBILI dette nel testo: un termine su una pagina illeggibile non esiste per nessuno."""
+    if not numeri:
+        return ""
+    if _lingua_sessione() == "it":
+        return (f"\n\n[⚠ PAGINE ILLEGGIBILI: {_intervalli(numeri)} su {totale}. Se contengono atti, date o termini, ricaricale "
+                "con una scansione o una foto più nitida.]")
+    return (f"\n\n[⚠ FAQE TË PALEXUESHME: {_intervalli(numeri)} nga {totale}. Nëse kanë akte, data ose afate, ngarkoji "
+            "sërish me një skanim ose foto më të qartë.]")
 
 
 def _intervalli(numeri: list[int]) -> str:
@@ -423,7 +445,7 @@ def _vision_ocr_image(path: Path, mimetype: str, backend) -> str:
     return backend.ocr_image(path, mimetype, VISION_PROMPT_IT if _lingua_sessione() == "it" else VISION_PROMPT)
 
 
-def _vision_ocr_pdf_pages(path: Path, backend, indici: list[int]) -> tuple[dict[int, str], list[int]]:
+def _vision_ocr_pdf_pages(path: Path, backend, indici: list[int], progresso=None) -> tuple[dict[int, str], list[int]]:
     """OCR delle pagine `indici` (da 0), al massimo MAX_OCR_PAGES: ({indice: testo}, [indici rimasti fuori]). Le immagini
     delle pagine vanno in una cartella accanto al PDF (il backend CLI le legge con --add-dir) e si cancellano."""
     import pdfplumber
@@ -436,7 +458,12 @@ def _vision_ocr_pdf_pages(path: Path, backend, indici: list[int]) -> tuple[dict[
     letti: dict[int, str] = {}
     try:
         with pdfplumber.open(path) as pdf:
-            for i in scelti:
+            for n_fatti, i in enumerate(scelti):
+                if progresso:                      # v9.449: «Lettura pagina 23 di 60» nel portale
+                    try:
+                        progresso(n_fatti + 1, len(scelti))
+                    except Exception:  # noqa: BLE001
+                        pass
                 img = pdf.pages[i].to_image(resolution=150)
                 page_path = tmp_dir / f"page_{i + 1}.png"
                 img.save(str(page_path), format="PNG")

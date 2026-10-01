@@ -7225,6 +7225,67 @@ def main():
     except Exception as _e223:  # noqa: BLE001
         check("genio-documenti[223]: kontrollet u ekzekutuan", False, str(_e223))
 
+    # [224] v9.447 — la TABELLA DEL FASCICOLO (una domanda per colonna, una risposta per documento): il documento lungo entra coi
+    # passi pertinenti alle domande (prima i primi 14.000 caratteri: la risposta più in là diventava «—»), etichette della sessione
+    try:
+        from src import tabela as _t224, brain as _b224
+        _lungo224 = "\n\n".join(f"── Pagina {i}/50 ──\n" + ("clausola senza interesse " * 90)
+                                  + ("\nIl canone mensile è di euro 1.850, da pagare entro il giorno 5." if i == 44 else "")
+                                  for i in range(1, 51))
+        _b224.set_request_jurisdiction("IT")
+        try:
+            _p224 = _t224.pergatit_prompt("contratto.pdf", "Contratto", "", _lungo224, ["Qual è il canone mensile?"])
+        finally:
+            _b224.set_request_jurisdiction("AL")
+        _ok224 = ("1.850" in _p224 and "TESTO DEL DOCUMENTO" in _p224 and "TEKSTI I DOKUMENTIT" not in _p224
+                  and len(_p224) < _t224.TEKST_MAX + 2000)
+        check("tabella[224]: documenti lunghi coi passi pertinenti alle colonne, etichette della sessione", _ok224, str(len(_p224)))
+    except Exception as _e224:  # noqa: BLE001
+        check("tabella[224]: kontrollet u ekzekutuan", False, str(_e224))
+
+    # [225] v9.448 — le pagine scansionate ILLEGGIBILI si dicono nel testo del documento (prima l'OCR rispondeva
+    # «[IMMAGINE ILLEGGIBILE]» e il testo andava avanti: un termine su quella pagina non esisteva per nessuno)
+    try:
+        import inspect as _in225
+        from src import documents as _d225
+        _il = _d225._pagine_illeggibili({0: "Testo pieno di una pagina letta bene.", 1: "[IMMAGINE ILLEGGIBILE]",
+                                         2: "[IMAZH I PAQARTË]", 3: "  .. ", 4: "Altra pagina leggibile con parole."})
+        _ok225 = (_il == [2, 3, 4] and "_nota_pagine_illeggibili" in _in225.getsource(_d225._extract_pdf)
+                  and _d225._pagine_illeggibili({0: "Pagina normale con testo sufficiente."}) == [])
+        check("ocr-illeggibili[225]: pagine illeggibili dette nel testo col numero, nessun falso allarme", _ok225, str(_il))
+    except Exception as _e225:  # noqa: BLE001
+        check("ocr-illeggibili[225]: kontrollet u ekzekutuan", False, str(_e225))
+
+    # [226] v9.449 — mentre l'OCR legge un fascicolo scansionato (10-20 minuti), il portale dice «Lettura pagina 23/60» invece di
+    # un'attesa senza fine visibile
+    try:
+        import inspect as _in226
+        from src import documents as _d226, web as _w226
+        _aj226 = open("/app/static/app.js", encoding="utf-8").read()
+        _ok226 = ("progresso(n_fatti + 1, len(scelti))" in _in226.getsource(_d226._vision_ocr_pdf_pages)
+                  and "_PROGRESSO_DOC" in _in226.getsource(_w226.avvia_elaborazione_documento)
+                  and '"progresso"' in _in226.getsource(_w226._document_payload)
+                  and 'TT("Po lexoj faqen")' in _aj226 and '"Po lexoj faqen": "Lettura pagina"' in _aj226)
+        check("ocr-avanzamento[226]: la pagina che l'OCR sta leggendo arriva al portale, nella lingua della sessione", _ok226)
+    except Exception as _e226:  # noqa: BLE001
+        check("ocr-avanzamento[226]: kontrollet u ekzekutuan", False, str(_e226))
+
+    # [227] v9.450 — «/chiedi Rossi: …» / «/pyet Kola: …» sul bot: la risposta del Vault dai documenti del fascicolo, dal telefono;
+    # fascicolo dal nome (forme flesse), pulsanti se manca, solo i fascicoli visibili, tetto orario del bot
+    try:
+        import inspect as _in227
+        from src import telegram_bot as _tg227
+        _gu = _in227.getsource(_tg227.gestisci_update)
+        _cb = _in227.getsource(_tg227._gestisci_callback)
+        _ok227 = ("/chiedi" in _tg227._CMD_CHIEDI and "/pyet" in _tg227._CMD_CHIEDI
+                  and "_CMD_CHIEDI" in _gu and "_limite_ok(uid)" in _gu
+                  and 'dati.startswith("q:")' in _cb and "_caso_valido(uid, cid)" in _cb
+                  and "_vault.ask(" in _in227.getsource(_tg227._rispondi_dal_fascicolo)
+                  and "casi_visibili(uid)" in _in227.getsource(_tg227._chiedi))
+        check("chiedi-bot[227]: domanda ai documenti del fascicolo dal bot, solo fascicoli visibili, tetto orario", _ok227)
+    except Exception as _e227:  # noqa: BLE001
+        check("chiedi-bot[227]: kontrollet u ekzekutuan", False, str(_e227))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

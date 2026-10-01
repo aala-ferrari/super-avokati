@@ -1248,7 +1248,8 @@
     if (d.status === "error") {
       status.textContent = "⚠ " + (d.error || "gabim");
     } else if (d.status === "pending") {
-      status.innerHTML = '<span class="spinner"></span> ' + TT("Po e analizojmë…");
+      status.innerHTML = '<span class="spinner"></span> ' + (d.progresso       // v9.449: la pagina che l'OCR sta leggendo
+        ? escHtml(TT("Po lexoj faqen") + " " + d.progresso) : TT("Po e analizojmë…"));
     } else if (d.has_text || d.summary) {
       status.textContent = "✓ e analizuar";
       status.classList.add("ok");
@@ -7511,6 +7512,7 @@
   Object.assign(T_IT, { "Skedar shumë i madh për serverin.": "File troppo grande per il server.", "Serveri ktheu një përgjigje të papritur (HTTP ": "Il server ha risposto in modo inatteso (HTTP " });
   Object.assign(T_IT, { "Nuk u lexua asnjë skedar. Provo ta zgjedhësh me butonin.": "Nessun file letto. Prova a sceglierlo con il pulsante.", "Asnjë skedar i zgjedhur. Formatet e pranuara: PDF, Word, foto (JPG, PNG, HEIC).": "Nessun file selezionato. Formati accettati: PDF, Word, foto (JPG, PNG, HEIC).", "Skedar shumë i madh (max 25 MB): ": "File troppo grande (max 25 MB): " });
   Object.assign(T_IT, { "Po e analizojmë…": "Analisi in corso…" });
+  Object.assign(T_IT, { "Po lexoj faqen": "Lettura pagina" });          // v9.449: «Lettura pagina 23/60»
   Object.assign(T_IT, { "Tërhiqi këtu ose kliko për të zgjedhur · PDF, Word, foto · max 25 MB/skedar": "Trascina qui o clicca per scegliere · PDF, Word, foto · max 25 MB per file" });
   Object.assign(T_IT, { "dokumente u lexuan": "documenti letti" });
   Object.assign(T_IT, {

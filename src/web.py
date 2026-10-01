@@ -6821,7 +6821,8 @@ def avvia_elaborazione_documento(doc, case_id: str, uid: int, juris: str, storag
         try:
             text, _ocr = docs_mod.extract_text(storage_path, ext, mime,
                                                backend=backend,
-                                               original_filename=fname)
+                                               original_filename=fname,
+                                               progresso=lambda f, t: _PROGRESSO_DOC.__setitem__(doc_id, f"{f}/{t}"))
         except Exception as exc:  # noqa: BLE001
             log.exception("extraction failed for %s", fname)
             storage.mark_document_error(doc_id, f"{type(exc).__name__}: {exc}")
@@ -6843,6 +6844,7 @@ def avvia_elaborazione_documento(doc, case_id: str, uid: int, juris: str, storag
             storage.touch_case(case_id, uid)
         except Exception:  # noqa: BLE001
             log.exception("could not store analysis for %s", fname)
+        _PROGRESSO_DOC.pop(doc_id, None)
         _scad_auto_dopo_caricamento(case_id, uid, juris, doc_id, ext, text or "")
 
     threading.Thread(target=brain_mod.porta_utente(uid, _process),
@@ -10699,11 +10701,15 @@ def _article_payload(a, score: float) -> dict:
     }
 
 
+_PROGRESSO_DOC: dict[str, str] = {}      # v9.449: «23/60» mentre l'OCR legge le pagine (in memoria: un processo solo)
+
+
 def _document_payload(d) -> dict:
     """Serialise a Document for the UI. Never exposes the on-disk path."""
     if d is None:
         return {}
     return {
+        "progresso": _PROGRESSO_DOC.get(d.id) if d.status == "pending" else None,
         "id": d.id,
         "filename": d.filename,
         "ext": d.ext,

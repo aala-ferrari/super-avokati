@@ -92,3 +92,8 @@ Il backup è delle 04:00 → nel caso peggiore si perde la giornata in corso.
 `bash /root/misure_scadenziario.sh` — ~15 minuti, lavora su copie (DB e credenziali), non tocca la produzione.
 Riferimento 1 ott 2026: date 11/11 · termini 6/6 · inneschi 2/2 · rinvii 2/2 · 0 vietate · 0 inventate | termini di legge 4/4 | Segretaria 8/8.
 Un numero più basso = una scadenza che l'avvocato perderebbe: non rilasciare.
+
+## Rilascio di una versione
+Sul server, nella cartella dell'app: `nohup setsid bash ops/rilascio.sh v9.X > /dev/null 2>&1 < /dev/null &`
+(build → controlli su una copia → deploy solo se tutto verde e nessun avvocato al lavoro → controlli in produzione).
+Esito: `cat /tmp/qa-v9.X.out` (finisce con `QA_FINITA`; «QA NON VERDE: niente deploy» = la produzione non è stata toccata).

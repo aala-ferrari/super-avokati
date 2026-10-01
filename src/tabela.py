@@ -10,7 +10,7 @@ import re
 
 MAX_DOKUMENTE = 30       # righe: oltre, la tabella non si legge piu'
 MAX_PYETJE = 8           # colonne: oltre, ogni cella diventa un francobollo
-TEKST_MAX = 14_000       # caratteri di documento per chiamata (Sonnet, veloce)
+TEKST_MAX = 30_000       # caratteri di documento per chiamata (v9.447: erano 14.000, dall'inizio: la risposta a pagina 30 → «—»)
 
 SISTEMI = (
     "Je nje nxjerres faktesh nga NJE dokument i vetem.\n"
@@ -44,20 +44,28 @@ def pastro_pyetjet(grezze) -> list[str]:
 
 
 def pergatit_prompt(filename, doc_type, summary, text, pyetjet) -> str:
-    kreu = ["DOKUMENTI: " + str(filename or "?")]
+    # v9.447: un documento lungo entra coi passi PERTINENTI alle domande delle colonne (prima: i primi 14.000 caratteri, e la
+    # risposta più in là diventava «—»); etichette nella lingua della sessione
+    from .documents import estratto_pertinente, _lingua_sessione
+    it = _lingua_sessione() == "it"
+    t = (text or "").strip()
+    if len(t) > TEKST_MAX:
+        t = estratto_pertinente(t, TEKST_MAX, "\n".join(pyetjet), it)
+    kreu = [("DOCUMENTO: " if it else "DOKUMENTI: ") + str(filename or "?")]
     if doc_type:
-        kreu.append(f"Lloji: {doc_type}")
+        kreu.append(("Tipo: " if it else "Lloji: ") + str(doc_type))
     if summary:
-        kreu.append(f"Permbledhja: {summary}")
+        kreu.append(("Riassunto: " if it else "Permbledhja: ") + str(summary))
     kreu.append("")
-    kreu.append("TEKSTI I DOKUMENTIT:")
-    kreu.append((text or "").strip()[:TEKST_MAX])
+    kreu.append("TESTO DEL DOCUMENTO:" if it else "TEKSTI I DOKUMENTIT:")
+    kreu.append(t)
     kreu.append("")
-    kreu.append(f"PYETJET ({len(pyetjet)}):")
+    kreu.append((f"DOMANDE ({len(pyetjet)}):" if it else f"PYETJET ({len(pyetjet)}):"))
     for i, q in enumerate(pyetjet, 1):
         kreu.append(f"{i}. {q}")
     kreu.append("")
-    kreu.append("Kthe VETEM listen JSON, nje objekt per pyetje, ne rend.")
+    kreu.append("Restituisci SOLO la lista JSON, un oggetto per domanda, in ordine." if it else
+                "Kthe VETEM listen JSON, nje objekt per pyetje, ne rend.")
     return "\n".join(kreu)
 
 

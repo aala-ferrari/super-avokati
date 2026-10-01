@@ -125,10 +125,20 @@ def _lingua_utente(user_id: int | None) -> str:
 
 
 _T = {
-    "ok": {"sq": "✅ U lidh me Super Avokati. Këtu do të marrësh kujtesat e seancave dhe të afateve të dosjeve.\n"
-                 "/sot — agjenda e sotme · /java — 7 ditët · /afatet — për t'u konfirmuar · /stop — shkëput",
-           "it": "✅ Collegato a Super Avokati. Qui riceverai gli avvisi di udienze e scadenze dei fascicoli.\n"
-                 "/oggi — agenda di oggi · /settimana — 7 giorni · /scadenze — da confermare · /stop — scollega"},
+    # v9.451: il benvenuto dice TUTTO quello che il bot sa fare (prima solo tre comandi: segretaria, documenti, mattino e
+    # domande al fascicolo non si scoprivano)
+    "ok": {"sq": "✅ U lidh me Super Avokati. Këtu merr kujtesat e seancave dhe të afateve (7, 3, 1 ditë para dhe ditën e afatit) "
+                 "dhe çdo mëngjes në 7:30 çfarë ke.\n\n"
+                 "• Më shkruaj ose më dërgo një mesazh zanor: «çfarë kam nesër?», «regjistro seancë më 4 nëntor ora 10 për Kolën»\n"
+                 "• Më dërgo një PDF ose foto të një akti: e bashkëngjit te dosja dhe të shkruaj afatet që gjej, t'i konfirmosh me ✅\n"
+                 "• /pyet Kola: kush është eksperti? — përgjigjja nga dokumentet e dosjes\n"
+                 "• /sot · /java · /afatet · /briefing (kujtesa e mëngjesit) · /stop",
+           "it": "✅ Collegato a Super Avokati. Qui ricevi gli avvisi di udienze e scadenze (7, 3, 1 giorno prima e il giorno "
+                 "stesso) e ogni mattina alle 7:30 cosa hai.\n\n"
+                 "• Scrivimi o mandami un vocale: «cosa ho domani?», «registra udienza il 4 novembre alle 10 per Rossi»\n"
+                 "• Mandami un PDF o una foto di un atto: lo allego al fascicolo e ti scrivo le scadenze che trovo, da confermare con ✅\n"
+                 "• /chiedi Rossi: chi è il consulente tecnico? — la risposta dai documenti del fascicolo\n"
+                 "• /oggi · /settimana · /scadenze · /briefing (promemoria del mattino) · /stop"},
     "ko": {"sq": "⚠️ Kodi nuk vlen ose ka skaduar. Hap Super Avokati → Kalendari → «Lidh Telegram» dhe provo sërish.\n"
                  "⚠️ Codice non valido o scaduto: apri Super Avokati → Calendario → «Collega Telegram» e riprova.",
            "it": "⚠️ Codice non valido o scaduto: apri Super Avokati → Calendario → «Collega Telegram» e riprova."},
@@ -138,10 +148,10 @@ _T = {
     "stop": {"sq": "U shkëpute. Nuk do të marrësh më kujtesa këtu.",
              "it": "Scollegato. Non riceverai più avvisi qui."},
     "comandi": {"sq": "Komandat: /sot — seancat dhe afatet e sotme dhe të nesërme · /java — 7 ditët e ardhshme · "
-                      "/afatet — afatet nga dokumentet për t'u konfirmuar · /briefing — kujtesa e mëngjesit · /stop — shkëput. Ose më shkruaj (ose më dërgo një mesazh zanor): "
+                      "/afatet — afatet nga dokumentet për t'u konfirmuar · /pyet Kola: … — pyet dokumentet e dosjes · /briefing — kujtesa e mëngjesit · /stop — shkëput. Ose më shkruaj (ose më dërgo një mesazh zanor): "
                       "«çfarë kam javën tjetër?», «regjistro seancë më 4 nëntor ora 10 për Kolën»",
                 "it": "Comandi: /oggi — udienze e scadenze di oggi e domani · /settimana — i prossimi 7 giorni · "
-                      "/scadenze — scadenze dai documenti da confermare · /briefing — promemoria del mattino · /stop — scollega. Oppure scrivimi (o mandami un vocale): "
+                      "/scadenze — scadenze dai documenti da confermare · /chiedi Rossi: … — chiedi ai documenti del fascicolo · /briefing — promemoria del mattino · /stop — scollega. Oppure scrivimi (o mandami un vocale): "
                       "«cosa ho la settimana prossima?», «registra udienza il 4 novembre alle 10 per Rossi»"},
 }
 
@@ -150,6 +160,7 @@ _T = {
 # Solo in chat privata e solo per il Telegram collegato a un account (`utente_da_chat_telegram`): nessun dato a chi non è collegato.
 _ICONA = {"seance": "⚖️", "afat": "⏰", "dorëzim": "📤", "takim": "🤝", "tjetër": "📌"}
 _CMD_OGGI, _CMD_SETT, _CMD_SCAD = {"/oggi", "/sot"}, {"/settimana", "/java"}, {"/scadenze", "/afatet"}
+_CMD_CHIEDI = {"/chiedi", "/pyet"}          # v9.450: domanda ai documenti del fascicolo, dal telefono
 
 
 def _titoli_casi(case_ids) -> dict:
@@ -438,6 +449,87 @@ def _togli_pulsante(chat_id: str, msg: dict, pid: str) -> None:
                  reply_markup={"inline_keyboard": resto})
     except Exception:  # noqa: BLE001
         pass
+
+
+# v9.450 — «/chiedi Rossi: chi è il CTU?» / «/pyet Kola: kush është eksperti?»: la stessa risposta del Vault del portale
+# («Chiedi ai documenti»: solo dai documenti del fascicolo, con le fonti), dal telefono — in udienza, in macchina. Il fascicolo si
+# riconosce dal nome (forme flesse albanesi comprese); se manca o è ambiguo, i pulsanti per sceglierlo. Solo i fascicoli che
+# l'avvocato vede; il tetto di messaggi all'ora del bot vale anche qui.
+_DOMANDE_ATTESA: dict = {}                 # token -> {uid, chat, domanda, casi, lang, ts}
+
+
+def _chiedi(uid: int, chat_id: str, testo: str) -> None:
+    import secrets as _secrets
+    from . import brain as _brain, secretary as _sec
+    lang = _lingua_utente(uid)
+    it = lang == "it"
+    try:
+        _brain.set_request_user(uid)
+        _brain.set_request_jurisdiction("IT" if it else "AL")
+    except Exception:  # noqa: BLE001
+        pass
+    corpo = testo.split(maxsplit=1)[1].strip() if len(testo.split(maxsplit=1)) > 1 else ""
+    if len(corpo) < 4:
+        invia(chat_id, "Scrivi il fascicolo e la domanda, per esempio: /chiedi Rossi: chi è il consulente tecnico?" if it else
+              "Shkruaj dosjen dhe pyetjen, p.sh.: /pyet Kola: kush është eksperti?")
+        return
+    nome, sep, domanda = corpo.partition(":")
+    if not sep or not domanda.strip():
+        nome, domanda = "", corpo
+    domanda = domanda.strip()[:500]
+    casi = _sec.casi_visibili(uid)
+    if not casi:
+        invia(chat_id, "Non hai ancora fascicoli." if it else "Nuk ke ende dosje.")
+        return
+    chiave = _parole(nome or domanda)
+
+    def punteggio(c) -> int:
+        pt = _parole(c.title or "")
+        return sum(1 for a in chiave if any(_stessa_radice(a, b) for b in pt))
+    ordinati = sorted(casi, key=punteggio, reverse=True)
+    top = [c for c in ordinati if punteggio(c) > 0]
+    if top and (len(top) == 1 or punteggio(top[0]) > punteggio(top[1])):
+        _rispondi_dal_fascicolo(uid, chat_id, top[0], domanda, lang)
+        return
+    scelti = (top + [c for c in casi if c not in top])[:6]
+    tok = _secrets.token_urlsafe(6)
+    for k in [k for k, x in _DOMANDE_ATTESA.items() if time.time() - x["ts"] > 1800]:
+        _DOMANDE_ATTESA.pop(k, None)
+    _DOMANDE_ATTESA[tok] = {"uid": uid, "chat": chat_id, "domanda": domanda, "lang": lang, "ts": time.time(),
+                            "casi": [c.id for c in scelti]}
+    righe = [[{"text": "📁 " + ((c.title or "—")[:40]), "callback_data": f"q:{tok}:{i}"}] for i, c in enumerate(scelti)]
+    invia(chat_id, "A quale fascicolo lo chiedo?" if it else "Në cilën dosje ta pyes?", {"inline_keyboard": righe})
+
+
+def _rispondi_dal_fascicolo(uid: int, chat_id: str, caso, domanda: str, lang: str) -> None:
+    from types import SimpleNamespace as _NS
+    from . import vault as _vault, brain as _brain
+    it = lang == "it"
+    try:
+        _brain.set_request_jurisdiction((getattr(caso, "jurisdiction", None) or ("IT" if it else "AL")).upper())
+    except Exception:  # noqa: BLE001
+        pass
+    cervello = _CERVELLO["get"]() if _CERVELLO.get("get") else None
+    if cervello is None:
+        invia(chat_id, "Il motore non è pronto: riprova fra poco." if it else "Truri nuk është gati: provo pas pak.")
+        return
+    invia(chat_id, (f"🔎 Cerco nei documenti di «{caso.title}»…" if it else f"🔎 Po kërkoj në dokumentet e «{caso.title}»…"))
+    try:
+        r = _vault.ask(_NS(backend=cervello.backend), caso.id, domanda)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("telegram /chiedi: %s", exc)
+        r = {"error": str(exc)}
+    if r.get("empty"):
+        invia(chat_id, "In questo fascicolo non ci sono ancora documenti letti: caricali dal portale o mandameli qui." if it else
+              "Në këtë dosje nuk ka ende dokumente të lexuara: ngarkoji nga portali ose dërgomi këtu.")
+        return
+    risposta = (r.get("answer") or "").replace("**", "").strip()
+    if not risposta:
+        invia(chat_id, "Non sono riuscita a rispondere: riprova o chiedilo dal portale." if it else
+              "Nuk arrita të përgjigjem: provo sërish ose pyet nga portali.")
+        return
+    invia(chat_id, f"📁 «{caso.title}»\n\n{risposta}\n\n" + ("Documenti letti: " if it else "Dokumente të lexuara: ")
+          + str(r.get("n_docs") or len(r.get("docs_used") or [])) + "\nhttps://superavokati.ai/s/" + caso.id)
 
 
 # v9.420 — la SEGRETARIA TETRAMORPH su Telegram (richiesta del titolare: «stesso lavoro che fa dal portale»): testo libero o
@@ -738,6 +830,33 @@ def _gestisci_callback(cb: dict) -> None:
     except Exception:  # noqa: BLE001
         pass
     uid = storage.utente_da_chat_telegram(chat_id) if chat_id else None
+    if dati.startswith("q:"):                         # v9.450: il fascicolo scelto per /chiedi
+        _p, tok_q, idx = (dati.split(":") + ["", ""])[:3]
+        att = _DOMANDE_ATTESA.pop(tok_q, None)
+        try:
+            if msg_id:
+                _api("editMessageReplyMarkup", chat_id=chat_id, message_id=msg_id, reply_markup={"inline_keyboard": []})
+        except Exception:  # noqa: BLE001
+            pass
+        if not att or not uid or att["uid"] != uid or att["chat"] != chat_id:
+            invia(chat_id, "Richiesta scaduta: riscrivila." if _lingua_utente(uid) == "it" else "Kërkesa ka skaduar: rishkruaje.")
+            return
+        from . import secretary as _sec_q, brain as _brain_q
+        try:
+            _brain_q.set_request_user(uid)
+            _brain_q.set_request_jurisdiction("IT" if att["lang"] == "it" else "AL")   # i fascicoli visibili della sessione
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            cid = att["casi"][int(idx)]
+        except (ValueError, IndexError):
+            return
+        caso_q = _sec_q._caso_valido(uid, cid)             # ancora visibile a chi chiede
+        if caso_q is None:
+            invia(chat_id, "Fascicolo non trovato." if att["lang"] == "it" else "Dosja nuk u gjet.")
+            return
+        _rispondi_dal_fascicolo(uid, chat_id, caso_q, att["domanda"], att["lang"])
+        return
     if dati.startswith("s:"):                         # v9.424: ✅ / 🗑 di una scadenza proposta dai documenti
         _conferma_da_telegram(chat_id, cb.get("message") or {}, dati, uid)
         return
@@ -828,6 +947,13 @@ def gestisci_update(upd: dict) -> None:
                             ("☀️ Kujtesa e mëngjesit u NDEZ: çdo ditë në 7:30 të shkruaj çfarë ke." if acceso else
                              "Kujtesa e mëngjesit u fik. Për ta ndezur sërish: /briefing")))
             return
+        if uid and comando in _CMD_CHIEDI:
+            if not _limite_ok(uid):
+                invia(chat_id, "Troppi messaggi nell'ultima ora: riprova più tardi." if _lingua_utente(uid) == "it" else
+                      "Shumë mesazhe në orën e fundit: provo më vonë.")
+                return
+            threading.Thread(target=_chiedi, args=(uid, chat_id, testo), name="tg-chiedi", daemon=True).start()
+            return
         if uid and comando in _CMD_OGGI | _CMD_SETT | _CMD_SCAD:
             lg = _lingua_utente(uid)
             if comando in _CMD_SCAD:
@@ -865,12 +991,14 @@ def registra_webhook() -> None:
                     {"command": "sot", "description": "Agjenda e sotme dhe e nesërme"},
                     {"command": "java", "description": "7 ditët e ardhshme"},
                     {"command": "afatet", "description": "Afatet për t'u konfirmuar"},
+                    {"command": "pyet", "description": "Pyet dokumentet e dosjes (/pyet Kola: …)"},
                     {"command": "briefing", "description": "Kujtesa e mëngjesit (ndez/fik)"},
                     {"command": "stop", "description": "Shkëput"}])
                 _api("setMyCommands", language_code="it", commands=[
                     {"command": "oggi", "description": "Agenda di oggi e domani"},
                     {"command": "settimana", "description": "I prossimi 7 giorni"},
                     {"command": "scadenze", "description": "Scadenze da confermare"},
+                    {"command": "chiedi", "description": "Chiedi ai documenti del fascicolo (/chiedi Rossi: …)"},
                     {"command": "briefing", "description": "Promemoria del mattino (acceso/spento)"},
                     {"command": "stop", "description": "Scollega"}])
             except Exception:  # noqa: BLE001

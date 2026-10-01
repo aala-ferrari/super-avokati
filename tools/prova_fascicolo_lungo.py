@@ -100,6 +100,22 @@ testo2, usato2 = docs._extract_pdf(pdf_scan, ocr2)
 ok("PDF scansionato di 14 pagine: tutte lette (prima solo 10)", usato2 and len(ocr2.chiamate) == 14 and "Pagina 14/14" in testo2,
    str(ocr2.chiamate))
 
+# 2a) v9.449: l'avanzamento pagina per pagina («Lettura pagina 23/60» nel portale)
+passi_prog = []
+docs._extract_pdf(pdf_misto, OcrFinto(), lambda f, t: passi_prog.append((f, t)))
+ok("v9.449: l'avanzamento arriva pagina per pagina", passi_prog[:1] == [(1, 12)] and passi_prog[-1:] == [(12, 12)]
+   and len(passi_prog) == 12, str(passi_prog[:3]))
+
+# 2b) v9.448: una pagina ILLEGGIBILE si dice nel testo
+class OcrConIlleggibile(OcrFinto):
+    def ocr_image(self, path, mimetype, prompt):
+        return "[IMMAGINE ILLEGGIBILE]" if "page_7." in str(path) else super().ocr_image(path, mimetype, prompt)
+
+
+testo_i, _u = docs._extract_pdf(pdf_scan, OcrConIlleggibile())
+ok("v9.448: la pagina illeggibile è detta nel testo col numero", "PAGINE ILLEGGIBILI: 7 su 14" in testo_i, testo_i[-250:])
+ok("v9.448: … e nessun falso allarme se si leggono tutte", "ILLEGGIBILI" not in testo2)
+
 # 3) il tetto si DICE: con 5 pagine massime, quali restano fuori
 vecchio = docs.MAX_OCR_PAGES
 docs.MAX_OCR_PAGES = 5
