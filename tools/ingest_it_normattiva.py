@@ -159,6 +159,17 @@ ACTS = [
     ("imposta_ipotecaria_catastale", "Imposte ipotecaria e catastale (d.lgs. 347/1990)", "Tributario", "decreto.legislativo:1990-10-31;347", "wave10"),
     ("imposta_bollo", "Imposta di bollo (d.P.R. 642/1972)", "Tributario", "decreto.presidente.repubblica:1972-10-26;642", "wave10"),
     ("adempimento_unico", "Adempimento unico telematico (d.lgs. 463/1997)", "Tributario", "decreto.legislativo:1997-12-18;463", "wave10"),
+    # ── wave11 (3 ott 2026): gli atti che le risposte vere citano di più e che NON erano nel corpus (scansione di 45 giorni di
+    # risposte: d.P.R. 223/1989 ×25, d.lgs. 22/2015 ×20, d.lgs. 231/2002 ×20, d.P.R. 362/1994 ×16, L. 183/2010 ×13, L. 223/1991 ×10,
+    # L. 470/1988 ×7) — residenza e AIRE, NASpI, interessi di mora, procedimento di cittadinanza, decadenze del collegato lavoro,
+    # licenziamenti collettivi
+    ("regolamento_anagrafico", "Regolamento anagrafico della popolazione residente (d.P.R. 223/1989)", "Cittadinanza", "decreto.presidente.repubblica:1989-05-30;223", "wave11"),
+    ("aire", "Anagrafe e censimento degli italiani all'estero — AIRE (L. 470/1988)", "Cittadinanza", "legge:1988-10-27;470", "wave11"),
+    ("procedimenti_cittadinanza", "Regolamento sui procedimenti di acquisto della cittadinanza (d.P.R. 362/1994)", "Cittadinanza", "decreto.presidente.repubblica:1994-04-18;362", "wave11"),
+    ("naspi", "Ammortizzatori sociali: NASpI e DIS-COLL (d.lgs. 22/2015)", "Lavoro", "decreto.legislativo:2015-03-04;22", "wave11"),
+    ("ritardi_pagamento", "Lotta contro i ritardi di pagamento nelle transazioni commerciali (d.lgs. 231/2002)", "Civile", "decreto.legislativo:2002-10-09;231", "wave11"),
+    ("collegato_lavoro", "Collegato lavoro — decadenze e controversie di lavoro (L. 183/2010)", "Lavoro", "legge:2010-11-04;183", "wave11"),
+    ("licenziamenti_collettivi", "Licenziamenti collettivi, mobilità e integrazione salariale (L. 223/1991)", "Lavoro", "legge:1991-07-23;223", "wave11"),
 ]
 # atti da scaricare al testo in vigore OGGI («!vig=»): senza data Normattiva dà la versione futura (qui: tutto «ABROGATO» dal 2027)
 VIGENTE_AL = {"tuir_1986", "processo_tributario", "sanzioni_tributarie_amministrative", "imposta_ipotecaria_catastale",

@@ -279,6 +279,14 @@ _LAW_NUMBER_ALIASES: dict[str, str] = {
     "96/2020": "kodi_ajror",
     "11/2026": "ligji_dhuna_familje_2026",   # trovata da freshness_check: 9669/2006 shfuqizuar
     "7975": "ligji_lendet_narkotike", "7975/1995": "ligji_lendet_narkotike", "61/2023": "ligji_kanabisi_mjekesor",   # v9.391
+    # v9.478 — i CODICI stessi citati per numero di legge («ligji nr. 7961, datë 12.7.1995», «ligji nr. 8116/1996»): il
+    # verificatore non li riconosceva (acts_meta li ha, l'elenco no) e la citazione usciva «senza codice»
+    "7850": "kodi_civil", "7850/1994": "kodi_civil", "9251": "kodi_detar", "9251/2004": "kodi_detar",
+    "102/2014": "kodi_doganor", "9062": "kodi_familjes", "9062/2003": "kodi_familjes", "7895": "kodi_penal",
+    "7895/1995": "kodi_penal", "44/2015": "kodi_proc_admin", "8116": "kodi_proc_civile", "8116/1996": "kodi_proc_civile",
+    "7905": "kodi_proc_penale", "7905/1995": "kodi_proc_penale", "7961": "kodi_punes", "7961/1995": "kodi_punes",
+    "8378": "kodi_rrugor", "8378/1998": "kodi_rrugor", "10019": "kodi_zgjedhor", "10019/2008": "kodi_zgjedhor",
+    "8417": "kushtetuta", "8417/1998": "kushtetuta",
 }
 # cattura anche l'anno («ligji nr. 79/2021», «ligjit nr. 111, datë 14.12.2017» → 111 + 2017)
 _LAW_NUM_RE = re.compile(r"ligj\w*\s+(?:nr\.?\s*)?(\d{2,5})(?:\s*/\s*(\d{4})|\s*,?\s*dat[ëe]\s*\d{1,2}\.\d{1,2}\.(\d{4}))?", re.IGNORECASE)

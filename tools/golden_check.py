@@ -7688,6 +7688,25 @@ def main():
     except Exception as _e246:  # noqa: BLE001
         check("informimi[246]: kontrollet u ekzekutuan", False, str(_e246))
 
+    # [247] v9.478 — i codici albanesi citati per NUMERO di legge si riconoscono (prima «senza codice»)
+    try:
+        from src import citation_verifier as _cv247
+        from src.retrieval import ArticleIndex as _AI247
+        _al247 = _AI247.load()
+        _casi247 = {"Sipas nenit 155 të ligjit nr. 7961, datë 12.7.1995": "kodi_punes",
+                    "neni 443 i ligjit nr. 8116/1996": "kodi_proc_civile",
+                    "neni 132 i ligjit nr. 44/2015": "kodi_proc_admin",
+                    "neni 114 i ligjit nr. 7850, datë 29.7.1994": "kodi_civil",
+                    "neni 42 i ligjit nr. 8417, datë 21.10.1998": "kushtetuta"}
+        _bad247 = []
+        for _t, _c in _casi247.items():
+            _it = _cv247.verify_text(_t, _al247)["items"]
+            if not (_it and _it[0]["status"] == "verified" and _it[0]["code"] == _c):
+                _bad247.append((_t, [(x["status"], x["code"]) for x in _it]))
+        check("kode-numer[247]: i codici albanesi citati per numero di legge", not _bad247, str(_bad247))
+    except Exception as _e247:  # noqa: BLE001
+        check("kode-numer[247]: kontrollet u ekzekutuan", False, str(_e247))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
