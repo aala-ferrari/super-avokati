@@ -186,7 +186,10 @@ def main():
             print(f"    {_c}: {i}/{tot} ok={ok} fail={bad}", flush=True)
 
         try:
-            _urn_in = urn + ("!vig=" + time.strftime("%Y-%m-%d") if cid in VIGENTE_AL else "")
+            # v9.474: VIGENTE_OGGI=1 → il testo in vigore OGGI per qualunque atto (aggiornamento di atti già nel corpus: senza data
+            # Normattiva darebbe le versioni future, che il riallineamento ha messo a parte nel campo `futuro`)
+            _vig = cid in VIGENTE_AL or os.environ.get("VIGENTE_OGGI") == "1"
+            _urn_in = urn + ("!vig=" + time.strftime("%Y-%m-%d") if _vig else "")
             arts, fails = ingest_act(_urn_in, delay=0.4, progress=prog)
         except Exception as e:  # noqa: BLE001
             print(f"  ✗ {cid} FALLITO: {type(e).__name__}: {str(e)[:120]}", flush=True)
@@ -206,7 +209,7 @@ def main():
                 print(f"  ✓ preleggi: {len(prel)} articoli (dal gruppo 1 del c.c.)", flush=True)
         payload = {"id": cid, "title": title, "area": area, "urn": urn, "wave": wave,
                    "fetched": time.strftime("%Y-%m-%d"),    # per tools/freshness_check.py
-                   **({"vigente_al": time.strftime("%Y-%m-%d")} if cid in VIGENTE_AL else {}),
+                   **({"vigente_al": time.strftime("%Y-%m-%d")} if _vig else {}),
                    "articles": arts, "failures": fails}
         dest.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
         print(f"  ✓ {cid}: {len(arts)} articoli, {len(fails)} falliti, "
