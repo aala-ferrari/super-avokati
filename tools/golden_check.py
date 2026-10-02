@@ -5535,7 +5535,9 @@ def main():
         _okR = (len(_reg158) >= 20 and {"8438/1998", "7829/1994", "9109/2003", "33/2012", "108/2013"} <= set(_reg158)
                 and "175/2014" not in _reg158 and "124/2024" not in _reg158 and "111/2018" not in _reg158)
         _okV = (_a and _a[0][0] == "repealed" and "29/2023" in _a[0][2] and _b and _b[0][0] == "repealed" and "110/2018" in _b[0][2]
-                and _c and _c[0][0] == "needs_code" and _d and _d[0][0] == "needs_code" and _e and _e[0][0] == "verified")
+                and _c and _c[0][0] == "needs_code" and _e and _e[0][0] == "verified"
+                # v9.477: la 119/2014 ora è nel corpus (era l'esempio di legge vigente che non abbiamo)
+                and _d and _d[0][0] == "verified" and _d[0][1] == "ligji_informimi")
         check("ligje[158]: le leggi albanesi abrogate fuori corpus escono «abrogate» con la legge di oggi (8438/1998 → 29/2023, "
               "7829/1994 → 110/2018); registro dal corpus, senza le leggi nostre né «shfuqizuar me ligjin»",
               _okR and _okV, "R=%s V=%s reg=%d %s %s" % (_okR, _okV, len(_reg158), _a, _c))
@@ -7670,6 +7672,21 @@ def main():
               f"{_k(_x1)} | {_k(_x2)} | {_k(_x3)}")
     except Exception as _e245:  # noqa: BLE001
         check("rinvii-chat[245]: kontrollet u ekzekutuan", False, str(_e245))
+
+    # [246] v9.477 — la ligji 119/2014 «Për të drejtën e informimit» nel corpus (le risposte la dicevano «non nel blocco»), citabile
+    # per numero e per nome, recuperabile per l'accesso agli atti pubblici
+    try:
+        from src import citation_verifier as _cv246
+        from src.retrieval import ArticleIndex as _AI246
+        _al246 = _AI246.load()
+        _n246 = sum(1 for a in _al246.articles if a.code == "ligji_informimi")
+        _r = _cv246.verify_text("Sipas nenit 15 të ligjit nr. 119/2014 dhe nenit 1 të ligjit për të drejtën e informimit", _al246)
+        _hits = [a.code for a, _ in _al246.search("kërkesë për informacion organi publik afati i përgjigjes ankesë Komisioneri", top_k=8)]
+        _ok246 = (_n246 >= 25 and [x["status"] for x in _r["items"]] == ["verified", "verified"]
+                  and all(x["code"] == "ligji_informimi" for x in _r["items"]) and "ligji_informimi" in _hits)
+        check("informimi[246]: ligji 119/2014 nel corpus, citabile e recuperabile", _ok246, f"{_n246} | {_r['items']} | {_hits[:4]}")
+    except Exception as _e246:  # noqa: BLE001
+        check("informimi[246]: kontrollet u ekzekutuan", False, str(_e246))
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
