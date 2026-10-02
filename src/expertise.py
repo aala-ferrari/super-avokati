@@ -399,7 +399,12 @@ def _teste_di_sezione(index, term, limit=1):
 # Kodi», «dall'art. 309 del presente codice»): nell'audit AL del 28 set il procuratore scriveva tre volte «il neni 327 / 75/a
 # non è nel corpus» — c'erano, ma nessuno li portava. Solo il rinvio ESPLICITO allo stesso atto, solo articoli esistenti e
 # in vigore, al massimo 4, in coda al blocco.
-_RINVIO_AL = re.compile(r"\bnen(?:it|in|i)\s+(\d+(?:/[a-zçë]{1,2})?)\s*,?\s*(?:t[ëe]|i|e)\s+k[ëe]tij\s+(?:Kodi|ligji)\b", re.I)
+# v9.476: anche con la pika/il paragrafo in mezzo («nenit 327, të këtij Kodi», «paragrafit 3, të nenit 406/ç, të këtij Kodi»,
+# «sipas neneve 140 – 142, të këtij Kodi») e il rinvio non seguito dal nome di un ALTRO atto («nenit 100.»): misurato sui 5 codici
+# principali, 376 dei 378 numeri così letti esistono nello stesso codice
+_RINVIO_AL = re.compile(r"\bnen(?:it|in|eve|et|i)\s+(\d+(?:/[a-zçë]{1,2})?)(?![\w/])(?:\s*,?\s*(?:pika|paragraf\w*|shkronj\w*)\s*"
+                        r"[\w“”\"]{1,4})*(?!\s*,?\s*(?:t[ëe]\s+(?:ligjit|Kodit|Kushtetut|vendimit|VKM|Konvent|Rregullor|Statut|"
+                        r"Marrëveshj|Kartës)|i\s+(?:ligjit|Kodit|Kushtetut|vendimit|Konvent)|ligji\s+nr))", re.I)
 _RINVIO_IT = re.compile(r"\bart(?:icol[oi]|\.)\s*(\d+(?:-(?:bis|ter|quater|quinquies|sexies|septies|octies|novies|decies))?)"
                         r"(?:\s*,\s*comm[ai]\s*\d+(?:-bis)?)?\s*,?\s*(?:del|dello|della)\s+presente\s+"
                         r"(?:codice|decreto|testo\s+unico|legge|regolamento)\b", re.I)

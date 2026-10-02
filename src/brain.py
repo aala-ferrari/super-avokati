@@ -3056,6 +3056,7 @@ class SuperAvvocato:
         retrieved = self._retrieve(triage)
         retrieved = self._ankoro_citimet(user_message, retrieved, areas=getattr(triage, "areas", None))   # v9.359: il nene chiesto per numero, per primo
         retrieved = self._aggiungi_previgenti(retrieved)      # v9.405: accanto al testo unico non ancora applicabile, la norma vigente
+        retrieved = self._aggiungi_rinvii(retrieved)          # v9.476: gli articoli che i recuperati richiamano espressamente
         retrieved = self._studio_kerkuesi(user_message, triage, retrieved)
 
         # Simple fast-path streaming.
@@ -3452,6 +3453,7 @@ class SuperAvvocato:
         retrieved = self._retrieve(triage)
         retrieved = self._ankoro_citimet(user_message, retrieved, areas=getattr(triage, "areas", None))   # v9.359: il nene chiesto per numero, per primo
         retrieved = self._aggiungi_previgenti(retrieved)      # v9.405: accanto al testo unico non ancora applicabile, la norma vigente
+        retrieved = self._aggiungi_rinvii(retrieved)          # v9.476: gli articoli che i recuperati richiamano espressamente
         retrieved = self._studio_kerkuesi(user_message, triage, retrieved)
         log.info("retrieved %d articles", len(retrieved))
 
@@ -4389,6 +4391,46 @@ class SuperAvvocato:
             return out
         except Exception as exc:  # noqa: BLE001
             log.warning("mbyll_dosjen: saltato (non-fatal): %s", exc)
+            return retrieved
+
+    def _aggiungi_rinvii(self, retrieved, limit: int = 3):
+        """v9.476 — i RINVII INTERNI espliciti degli articoli recuperati (stesso atto: «sipas nenit 278 të këtij Kodi», «di cui
+        all'articolo 93-bis», «degli articoli 406 e 407»): misurato sulle risposte salvate (30 giorni), 38 risposte su 130 scrivono
+        «non ho il testo / non è nel blocco» e 114 articoli citati e verificati ma NON dati al modello erano vicini a uno dato. Gli
+        strumenti PRO li seguono dal v9.399 (`expertise._rinvii_interni`), la chat no. Solo articoli esistenti e in vigore, solo dai
+        primi 8, al massimo 3, copie marcate in coda (mai l'oggetto dell'indice; si aggiungono ai 12). Fail-silent."""
+        try:
+            if not retrieved:
+                return retrieved
+            it = self._current_jurisdiction() == "IT"
+            idx = self.index_it if (it and self.index_it is not None) else self.index
+            from . import expertise as _ex
+            presenti = {(a.code, str(a.number)) for a, _ in retrieved}
+            sorgenti = [(a.code, str(a.number), getattr(a, "body", "") or "") for a, _ in retrieved[:8]
+                        if not getattr(a, "_rinvio_da", "")]
+            nuovi = _ex._rinvii_interni(idx, sorgenti, "it" if it else "sq", max_add=limit, gia=presenti)
+            if not nuovi:
+                return retrieved
+            by_key = {(x.code, str(x.number)): x for x in idx.articles}
+            out = list(retrieved)
+            sc0 = min((sc for _, sc in retrieved), default=0.0)
+            aggiunti = []
+            for code, number, _t in nuovi:
+                v = by_key.get((code, str(number)))
+                if v is None:
+                    continue
+                da = next((a for a, _ in retrieved[:8] if a.code == code and re.search(
+                    r"\b%s\b" % re.escape(str(number)), getattr(a, "body", "") or "")), None)
+                c = _copy.copy(v)
+                c._rinvio_da = getattr(da, "citation", "") if da is not None else ""
+                out.append((c, sc0))
+                aggiunti.append(f"{code} {number}")
+            if aggiunti:
+                log.info("retrieval: rinvii interni dei recuperati %s", aggiunti)
+                _audit_set("rinvii", aggiunti)
+            return out
+        except Exception as exc:  # noqa: BLE001
+            log.warning("rinvii interni: saltati (non-fatal): %s", exc)
             return retrieved
 
     def _aggiungi_previgenti(self, retrieved, limit: int = 3):
@@ -7340,6 +7382,14 @@ def _format_articles_for_prompt(pairs: list[tuple[Article, float]]) -> str:
                 f"  (avokati e kërkoi me numër: përgjigju SË PARI për këtë nen, citoje fjalë për fjalë "
                 f"nga teksti më poshtë{' — KUJDES: është i shfuqizuar, thuaje' if getattr(a, 'repealed', False) else ''})\n"
             )
+        elif getattr(a, "_rinvio_da", ""):
+            # v9.476 — richiamato espressamente da un articolo del blocco
+            intestazione = ((
+                f"── {a.citation}  ⚑ RICHIAMATO DA «{getattr(a, '_rinvio_da', '')}»\n"
+                f"  (l'articolo del blocco rinvia espressamente a questo: il testo integrale è qui, non serve citarlo a memoria)\n")
+                if _it else (
+                f"── {a.citation}  ⚑ I REFERUAR NGA «{getattr(a, '_rinvio_da', '')}»\n"
+                f"  (neni i bllokut i referohet shprehimisht këtij: teksti i plotë është këtu, nuk ka nevojë ta citosh nga kujtesa)\n"))
         elif getattr(a, "_previgente_di", "") and _it:
             # v9.405 — la norma VIGENTE entrata accanto all'articolo di testo unico non ancora applicabile
             intestazione = (

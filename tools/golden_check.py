@@ -7642,6 +7642,35 @@ def main():
     except Exception as _e244:  # noqa: BLE001
         check("djalli-titull[244]: kontrollet u ekzekutuan", False, str(_e244))
 
+    # [245] v9.476 — la chat segue i RINVII INTERNI degli articoli recuperati (come gli strumenti PRO): KP 154 → 144, KPP 331 → 327/328,
+    # c.p.p. 405 → 407; copie marcate in coda, al massimo 3, mai un articolo abrogato o già presente
+    try:
+        import types as _ty245
+        from src import brain as _b245
+        from src.retrieval import ArticleIndex as _AI245
+        from pathlib import Path as _P245
+        _al245 = _AI245.load(); _it245 = _AI245.load(_P245("/app/data/index/bm25_it.pkl"))
+        def _r245(j, keys):
+            idx = _it245 if j == "IT" else _al245
+            d = _ty245.SimpleNamespace(index=_al245, index_it=_it245, _current_jurisdiction=lambda: j)
+            by = {(a.code, a.number): a for a in idx.articles}
+            pairs = [(by[k], 1.0) for k in keys]
+            out = _b245.SuperAvvocato._aggiungi_rinvii(d, pairs)
+            return out[len(pairs):], by
+        _x1, _ = _r245("AL", [("kodi_punes", "154")])
+        _x2, _ = _r245("AL", [("kodi_proc_penale", "331")])
+        _x3, _by3 = _r245("IT", [("codice_procedura_penale", "405"), ("codice_procedura_penale", "407")])
+        _k = lambda xs: {(a.code, a.number) for a, _ in xs}
+        _ok245 = (("kodi_punes", "144") in _k(_x1) and {("kodi_proc_penale", "327"), ("kodi_proc_penale", "328")} <= _k(_x2)
+                  and ("codice_procedura_penale", "407") not in _k(_x3) and len(_x2) <= 3
+                  and all(getattr(a, "_rinvio_da", "") and not a.repealed for a, _ in _x1 + _x2 + _x3)
+                  and not getattr(_by3[("codice_procedura_penale", "407")], "_rinvio_da", "")
+                  and "RICHIAMATO DA" in _b245._format_articles_for_prompt(_x3[:1]) if _x3 else True)
+        check("rinvii-chat[245]: la chat segue i rinvii interni (KP 154→144, KPP 331→327/328)", _ok245,
+              f"{_k(_x1)} | {_k(_x2)} | {_k(_x3)}")
+    except Exception as _e245:  # noqa: BLE001
+        check("rinvii-chat[245]: kontrollet u ekzekutuan", False, str(_e245))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
