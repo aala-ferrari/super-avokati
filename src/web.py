@@ -3375,9 +3375,19 @@ def _ruaj_djallin_ne_fill(body: dict, md: str) -> bool:
             juris = _active_jurisdiction(getattr(request, "user", None)) or "AL"
         except Exception:  # noqa: BLE001
             pass
-        titolo = ("### ⚔️ Avvocato del diavolo — le obiezioni (🔮 richiesto dall'avvocato sulla risposta qui sopra)"
-                  if juris == "IT" else
-                  "### ⚔️ Avokati i djallit — kundërargumentet (🔮 kërkuar nga avokati mbi përgjigjen e mësipërme)")
+        # v9.473 — QUALE risposta: il 🔮 si chiede anche sotto una risposta vecchia, e il messaggio va in fondo al filo («la risposta
+        # qui sopra» indicava quella sbagliata: caso vero del 28 set, obiezioni sul KPP 350 scritte sotto la risposta sul KP 302)
+        dom = " ".join((body.get("question") or "").split())
+        if len(dom) > 90:
+            dom = dom[:90].rsplit(" ", 1)[0] + "…"
+        if dom:
+            titolo = (f"### ⚔️ Avvocato del diavolo — le obiezioni (🔮 richiesto dall'avvocato sulla risposta a «{dom}»)"
+                      if juris == "IT" else
+                      f"### ⚔️ Avokati i djallit — kundërargumentet (🔮 kërkuar nga avokati mbi përgjigjen për «{dom}»)")
+        else:
+            titolo = ("### ⚔️ Avvocato del diavolo — le obiezioni (🔮 richiesto dall'avvocato sulla risposta qui sopra)"
+                      if juris == "IT" else
+                      "### ⚔️ Avokati i djallit — kundërargumentet (🔮 kërkuar nga avokati mbi përgjigjen e mësipërme)")
         storage.add_message(cid, "assistant", titolo + "\n\n" + md.strip(), kind=DJALLI_KIND)
         return True
     except Exception:  # noqa: BLE001

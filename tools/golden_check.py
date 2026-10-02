@@ -7631,6 +7631,17 @@ def main():
     except Exception as _e243:  # noqa: BLE001
         check("estero-documento[243]: kontrollet u ekzekutuan", False, str(_e243))
 
+    # [244] v9.473 — il diavolo salvato nel filo dice a QUALE domanda risponde (il 🔮 si chiede anche sotto risposte vecchie)
+    try:
+        import inspect as _in244
+        from src import web as _w244
+        _s244 = _in244.getsource(_w244._ruaj_djallin_ne_fill)
+        _ok244 = ('body.get("question")' in _s244 and "sulla risposta a «{dom}»" in _s244 and "mbi përgjigjen për «{dom}»" in _s244
+                  and _s244.count("### ⚔️ Avokati i djallit — kundërargumentet") >= 2)
+        check("djalli-titull[244]: il diavolo nel filo nomina la domanda a cui risponde", _ok244)
+    except Exception as _e244:  # noqa: BLE001
+        check("djalli-titull[244]: kontrollet u ekzekutuan", False, str(_e244))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
