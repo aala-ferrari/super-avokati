@@ -121,6 +121,10 @@ def check_it(limit: int | None) -> list[dict]:
             row["status"] = "DEAD"; row["note"] = f"{rep}/{len(arts)} abrogati: tenuto per dire «superato»"
             out.append(row); continue
         urn = d.get("urn") or ""
+        # v9.475: il controllo GIORNALIERO salta EUR-Lex (dietro il WAF: richieste fitte ogni giorno = pagine vuote); resta il lunedì
+        if urn.startswith("eurlex:") and os.environ.get("SKIP_EURLEX") == "1":
+            row["note"] = "EUR-Lex: solo nel controllo del lunedì"
+            out.append(row); continue
         try:
             if urn.startswith("eurlex:"):
                 ours = urn.split(":", 1)[1]                       # 02015R2446-20260701 | 02016E/TXT-20250315
@@ -172,7 +176,13 @@ def check_it(limit: int | None) -> list[dict]:
                     # atti mai modificati (L. 219/2017, L. 175/1998): la pagina non ha la riga
                     row["note"] = "Normattiva: nessun aggiornamento pubblicato"
                 if re.search(r"PROVVEDIMENTO ABROGATO", html):
-                    row["status"] = "REPEALED"; row["note"] = "Normattiva: PROVVEDIMENTO ABROGATO"
+                    if d.get("vigente_al"):
+                        # v9.475: atto scaricato di proposito al testo di OGGI («!vig=»): l'abrogazione che Normattiva mostra senza
+                        # data è quella FUTURA (testi unici fiscali dal 1/1/2027) — non è una legge morta; resta il confronto delle date
+                        row["note"] = (row["note"] + " · " if row["note"] else "") + \
+                            f"abrogazione futura (in corpus il testo vigente al {d['vigente_al']})"
+                    else:
+                        row["status"] = "REPEALED"; row["note"] = "Normattiva: PROVVEDIMENTO ABROGATO"
             else:
                 row["status"] = "UNKNOWN"; row["note"] = "senza urn"
         except Exception as exc:  # noqa: BLE001

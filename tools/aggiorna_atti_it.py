@@ -71,7 +71,15 @@ def main() -> int:
         nuovi = [k for k in nuovi if f"{f.stem}:{k}" not in salta]
         print(f"  {f.stem:28s} cambiati {len(cambiati):4d} · nuovi {len(nuovi):3d} · spariti alla fonte {len(spariti):3d} (restano)"
               + (f" · es. {', '.join(cambiati[:6])}" if cambiati else ""))
-        if modo != "apply" or not (cambiati or nuovi):
+        if modo != "apply":
+            continue
+        if not (cambiati or nuovi):
+            # v9.475: niente di sostanziale (solo note o tabelle tenute) — la data del controllo si aggiorna lo stesso, altrimenti il
+            # controllo di freschezza continua a segnalarlo «da aggiornare»
+            if n.get("fetched") and n["fetched"] > (o.get("fetched") or ""):
+                o["fetched"] = n["fetched"]
+                o_path.write_text(json.dumps(o, ensure_ascii=False), encoding="utf-8")
+                print(f"    ✓ solo la data di controllo ({n['fetched']})")
             continue
         shutil.copy2(o_path, str(o_path) + f".bak-{stamp}-aggiorna")
         for a in o["articles"]:

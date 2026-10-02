@@ -65,10 +65,13 @@ def manda(oggetto: str, corpo_html: str) -> bool:
 
 def main() -> int:
     dry = "--dry" in sys.argv
+    # v9.475 — anche ogni giorno (cron mar-dom): senza EUR-Lex, così un decreto su giustizia o fisco si vede il giorno dopo
+    giornaliero = "--giornaliero" in sys.argv
     LOG_DIR.mkdir(parents=True, exist_ok=True)
-    log = LOG_DIR / f"freshness-{datetime.now():%Y%m%d}.log"
+    log = LOG_DIR / f"freshness-{datetime.now():%Y%m%d}{'-g' if giornaliero else ''}.log"
     env = dict(os.environ, IT_ACTS_DIR=str(APP / "data" / "processed" / "it_acts"),
-               AL_SOURCES=str(APP / "tools" / "al_sources.json"), PYTHONUNBUFFERED="1")
+               AL_SOURCES=str(APP / "tools" / "al_sources.json"), PYTHONUNBUFFERED="1",
+               **({"SKIP_EURLEX": "1"} if giornaliero else {}))
     print(f"{ora()} avvio controllo freschezza → {log}")
     with open(log, "w", encoding="utf-8") as fh:
         p = subprocess.run([sys.executable, str(CHECK), "it", "al", "--json", str(LAST)],
@@ -103,8 +106,8 @@ def main() -> int:
                  f"EUR-Lex: <code>tools/ingest_eurlex.py &lt;id&gt;</code>; QBZ: aggiornare tools/al_sources.json e <code>tools/ingest_al_qbz.py probe/apply</code>), "
                  f"poi ricostruire l'indice e fare il deploy a server libero.</p>")
         if not dry:
-            manda(f"🔴 Super Avokati — {len(bad)} leggi da aggiornare (controllo settimanale)", corpo)
-    elif len(unk) >= SOGLIA_INCOMPLETO:
+            manda(f"🔴 Super Avokati — {len(bad)} leggi da aggiornare (controllo {'giornaliero' if giornaliero else 'settimanale'})", corpo)
+    elif len(unk) >= SOGLIA_INCOMPLETO and not giornaliero:
         righe = "".join(f"<li>{r['lang']}:{r['code']} — {r.get('note', '')}</li>" for r in unk[:30])
         corpo = (f"<p>Controllo di freschezza ({ora()}): nessuna legge da aggiornare tra quelle lette, ma <b>{len(unk)} atti non verificabili</b> "
                  f"(fonte non raggiungibile — EUR-Lex dietro WAF risponde pagine vuote dopo una raffica).</p><ul>{righe}</ul><p>Riepilogo: {riep}. Log: {log}. "
