@@ -7818,6 +7818,7 @@ def main():
         _r252b = _cn252._da_completare(_t252, _it252, None, {("codice_procedura_civile", "497")})
         _r252c = _cn252._da_completare("Neni 278 i Kodit Penal (nuk e kam tekstin në nenet që kam — verifikoje).", _al252, None, set())
         _r252d = _cn252._da_completare("- art. 99999 c.p.c. — non è tra gli articoli recuperati.", _it252, None, set())
+        _r252e = _cn252._da_completare("- (art. 9 D.Lgs. 23/2015, non recuperato nel blocco: verificalo su Normattiva)", _it252, None, set())
 
         class _F252:
             def complete(self, **kw):
@@ -7830,7 +7831,7 @@ def main():
             _os252.environ.pop("CANCELLO_COMPLETA", None)
         _src252 = _in252.getsource(_cn252.applica) + _in252.getsource(_br252.SuperAvvocato._cancello)
         _ok252 = (_r252a[0] == [1] and [(a.code, a.number) for a in _r252a[1]] == [("codice_procedura_civile", "497")]
-                  and _r252b[0] == [] and _r252c[0] == [0] and _r252d[0] == []
+                  and _r252b[0] == [] and _r252c[0] == [0] and _r252d[0] == [] and _r252e[0] == [0]
                   and _c252 == 1 and "quarantacinque" in _o252 and _o252.split("\n")[2] == _t252.split("\n")[2]
                   and _o252off == _t252 and _c252off == 0
                   and "completa(" in _src252 and "retrieved_keys=_keys" in _src252)

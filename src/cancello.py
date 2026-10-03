@@ -193,7 +193,7 @@ COMPLETA_MAX_CORPO = 3000
 _RISERVA_RE = re.compile(
     r"non (?:è|e|sono) (?:tra|fra|nel(?:l[ae])?)\s+(?:gli\s+)?(?:articoli|norme|testi|blocco|corpus|fascicolo)|"
     r"non (?:ho|abbiamo) (?:il testo|sottomano|davanti)|fuori dal corpus|non (?:mi )?(?:è stato|sono stati) fornit|"
-    r"(?:da |va |vanno |andrebbe |andrebbero )?(?:verificar[ei]|controllar[ei]|confermar[ei]|riscontrar[ei])\w*\s+(?:su|in|nel(?:la)?)\s+Normattiva|"
+    r"(?:verific|controll|conferm|riscontr)\w*\s+(?:sul\s+testo\s+)?(?:su|in|nel(?:la)?)\s+Normattiva|non\s+(?:è\s+stat[oa]\s+|sono\s+stat[ie]\s+)?recuperat\w*|"
     r"nuk e kam (?:tekstin|në nenet|ndër nenet|në bllok)|nuk (?:është|eshte|janë|jane) (?:në|ne|ndër|nder) (?:bllok|nenet|korpus)|"
     r"jashtë korpusit|nuk (?:më )?(?:është|janë) dhënë|mos u mbështet në kujtesë|verifiko(?:je|ni)? (?:tekstin|në QBZ|te QBZ)", re.I)
 
@@ -287,7 +287,8 @@ def completa(text: str, index, lang: str, backend=None, retrieved_codes=None, re
                 i = int(r.get("i")); nuovo = str(r.get("teksti") or r.get("testo") or "")
             except Exception:  # noqa: BLE001
                 continue
-            if i in idx and nuovo.strip() and nuovo != righe[i] and len(nuovo) <= len(righe[i]) * 1.6 + 300:
+            # v9.484: la riga cresce col dato del testo (480 → 1.050 caratteri sulla NASpI: il tetto 1,6×+300 la scartava)
+            if i in idx and nuovo.strip() and nuovo != righe[i] and len(nuovo) <= max(len(righe[i]) * 2 + 400, 1500):
                 righe[i] = nuovo; cambi += 1
         log.info("cancello: completate %d righe con il testo di %d articoli non nel blocco (%s)", cambi, len(arts),
                  ", ".join(f"{a.code} {a.number}" for a in arts))
