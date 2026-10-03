@@ -7880,6 +7880,30 @@ def main():
     except Exception as _e254:  # noqa: BLE001
         check("dypika[254]: kontrollet u ekzekutuan", False, str(_e254))
 
+    # [255] v9.487 — nella domanda penale la figura di reato del KP entra anche se una legge settoriale prende i posti (prova
+    # viva 3 ott: legge sulle armi 8/12, KP 278 una volta su due); non se il penale non è l'area principale, non per radici generiche
+    try:
+        from src import brain as _br255
+        from src.retrieval import ArticleIndex as _AI255
+        import inspect as _in255
+        _i255 = _AI255.load()
+        _armet = [(a, 5.0) for a in _i255.articles if a.code == "ligji_armet" and not a.repealed][:12]
+        _q255 = ["mbajtja pa leje e armëve të zjarrit në automjet", "municion luftarak pa leje në banesë"]
+        _a255 = _br255._ancora_vepra_penale(_armet, _i255, _q255, ["Penal", "Siguri"])
+        _b255 = _br255._ancora_vepra_penale(_armet, _i255, _q255, ["Kushtetues", "Penal"])
+        _c255 = _br255._ancora_vepra_penale(_armet, _i255, ["parashkrimi i ndjekjes penale"], ["Penal"])
+        _k278 = next(a for a in _i255.articles if a.code == "kodi_penal" and a.number == "278")
+        _d255 = _br255._ancora_vepra_penale([(_k278, 9.0)] + _armet[:11], _i255, _q255, ["Penal"])
+        _src255 = _in255.getsource(_br255.SuperAvvocato._retrieve)
+        _ok255 = (len(_a255) in (13, 14) and ("kodi_penal", "278") in [(a.code, a.number) for a, _ in _a255[:2]]
+                  and getattr(_a255[0][0], "_ancora_titull", False) and not getattr(_k278, "_ancora_vepra", False)
+                  and len(_b255) == 12 and len(_c255) == 12 and len(_d255) == 12
+                  and "_ancora_vepra_penale(" in _src255 and "_ancora_vepra" in _src255)
+        check("vepra[255]: la figura di reato del KP entra nella domanda penale, solo lì e solo per la rubrica",
+              _ok255, f"{[(a.code, a.number) for a, _ in _a255[:1]]} {len(_b255)} {len(_c255)} {len(_d255)}")
+    except Exception as _e255:  # noqa: BLE001
+        check("vepra[255]: kontrollet u ekzekutuan", False, str(_e255))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

@@ -33,6 +33,9 @@ CASI = [  # (giurisdizione, domanda dell'avvocato, articoli di cui almeno uno DE
     ("AL", "Babai i klientit vdiq pa testament, ka lënë gruan dhe tre fëmijë. Si ndahet trashëgimia?", [("kodi_civil", "361")]),
     ("AL", "Klienti u godit nga një makinë në vendkalim për këmbësorë dhe ka dëme shëndetësore. Kë padisim dhe për çfarë?", [("kodi_civil", "608"), ("kodi_civil", "640"), ("ligji_sigurimi_mjeteve", "9")]),
     ("AL", "Një vendim i Gjykatës së Lartë e shkel të drejtën e klientit për proces të rregullt. Si i drejtohemi Gjykatës Kushtetuese dhe brenda sa kohe?", [("ligji_gjykata_kushtetuese", "71/a"), ("kushtetuta", "131")]),
+    # v9.487 — prova viva 3 ott: il recupero portava solo la legge sulle armi, il KP 278 lo aggiungeva il Kërkuesi
+    ("AL", "Klienti u kap nga policia me një pistoletë pa leje në makinë, dhe në shtëpi i gjetën 20 fishekë luftarakë. Çfarë dënimi rrezikon dhe si mbrohemi?", [("kodi_penal", "278")]),
+    ("AL", "Policia i gjeti klientit një thikë të madhe në makinë. A është vepër penale?", [("kodi_penal", "279")]),
     ("IT", "Il cliente, amministratore di una sh.p.k. albanese, residente in Italia, guida l'auto aziendale targata albanese. Rischia la confisca?", [("reg_ue_2015_2446", "215"), ("codice_strada", "93-bis")]),
     ("IT", "Il credito del cliente risale al 2013 e il debitore non ha mai pagato: è prescritto?", [("codice_civile", "2946")]),
     ("IT", "Il cliente è stato licenziato per giustificato motivo oggettivo, assunto nel 2018 in azienda con 30 dipendenti. Che tutele ha?", [("tutele_crescenti", "3")]),

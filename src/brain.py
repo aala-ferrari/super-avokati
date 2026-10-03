@@ -429,6 +429,55 @@ def _ankoro_sipas_titullit(pairs, idx, testo: str, queries: list[str] | None = N
     return aggiunte + pairs
 
 
+_RADICI_GENERICHE = {"penal", "vepra", "veper", "ligji", "ligjo", "kodit", "kodi", "nenit", "denim", "denoh", "kryer", "krimi"}
+
+
+def _radici_5(testo: str) -> set[str]:
+    # v9.487: le parole che stanno in quasi ogni domanda penale non contano («Mosparashkrimi i ndjekjes penale» entrava per «penale»)
+    return {w[:5] for w in re.findall(r"[a-z]+", _norm(testo or "")) if len(w) >= 5} - _RADICI_GENERICHE
+
+
+def _ancora_vepra_penale(pairs, idx, queries: list[str], aree) -> list:
+    """v9.487 — nella domanda PENALE la figura di reato del Codice penale. Prova viva 3 ott (pistola in macchina e cartucce da
+    guerra in casa): la legge sulle armi ripete le parole delle query e prendeva 8 posti su 12, il KP 278 «Mbajtja pa leje … e
+    armëve … dhe e municionit» entrava UNA volta su due (lo aggiungeva il Kërkuesi). Per ogni query si cerca SOLO nel Codice
+    penale; il migliore entra (copia marcata, in aggiunta ai 12) se la sua RUBRICA condivide almeno due radici con una query
+    — mai una prima frase, mai per una domanda di procedura dove nessuna rubrica del KP risponde."""
+    # il penale deve essere l'AREA PRINCIPALE (la prima del triage): nel ricorso alla Kushtetuese (aree Kushtetues, Civil, Penal…)
+    # entrava il KP 59 «Pezullimi i ekzekutimit…» per «pezullimi i ekzekutimit të vendimit» — misurato, 3 ott
+    if not aree or str(aree[0]).lower() != "penal":
+        return pairs
+    try:
+        presenti = {(a.code, str(a.number)) for a, _ in pairs[:TOP_K_ARTICLES]}
+        punti: dict[tuple[str, str], float] = {}
+        art: dict[tuple[str, str], object] = {}
+        for q in queries or []:
+            if not (q or "").strip():
+                continue
+            for a, sc in idx.search(q, top_k=5, restrict_codes={"kodi_penal"}):
+                if getattr(a, "repealed", False) or sc <= 0:
+                    continue
+                k = (a.code, str(a.number))
+                punti[k] = punti.get(k, 0.0) + float(sc)
+                art[k] = a
+        rq = [_radici_5(q) for q in queries or []]
+        buoni = [k for k in sorted(punti, key=lambda x: -punti[x])[:4]
+                 if getattr(art[k], "heading_kind", "rubrike") != "fjali"
+                 and any(len(_radici_5(art[k].heading or "") & r) >= 2 for r in rq)]
+        if buoni and not any(k in presenti for k in buoni):      # una figura pertinente già fra i 12: niente da aggiungere
+            aggiunte = []
+            for k in buoni[:2]:              # le prime due: la più vicina per punteggio può essere la figura accanto (280 vs 278)
+                marcato = _copy.copy(art[k])
+                marcato._ancora_titull = True  # type: ignore[attr-defined]
+                marcato._ancora_vepra = True  # type: ignore[attr-defined]
+                aggiunte.append((marcato, punti[k]))
+            log.info("retrieval: vepra penale ancorata %s", ", ".join(f"{a.code} {a.number} «{(a.heading or '')[:50]}»" for a, _ in aggiunte))
+            return aggiunte + pairs
+    except Exception as exc:  # noqa: BLE001
+        log.warning("retrieval: ancora della vepra penale saltata (non-fatal): %s", exc)
+    return pairs
+
+
 PROCEDURAL_MAPPING: dict[str, tuple[str, ...]] = {
     "Penal":         ("kodi_proc_penale",),
     "Civil":         ("kodi_proc_civile",),
@@ -4668,6 +4717,7 @@ class SuperAvvocato:
             pairs = _ankoro_sipas_titullit(
                 pairs, idx, (triage.problem_summary or all_queries[0]),
                 queries=all_queries, restrict=restrict)
+            pairs = _ancora_vepra_penale(pairs, idx, all_queries, triage.areas)      # v9.487
         elif idx is self.index_it:
             pairs = _applica_ancore(pairs, idx, _testo_anc, triage.areas, ancore=ANCORE_IT)
             pairs = _ancore_it_veicolo(pairs, idx, " ".join([triage.problem_summary or ""] + list(all_queries)))
@@ -4677,6 +4727,7 @@ class SuperAvvocato:
         # coda: misurato col triage vero, l'ancora del preavviso buttava fuori KP 144 (procedura), 147 e 156 — articoli pertinenti
         # trovati dalla ricerca. Al massimo 4 in più.
         _extra += min(4, sum(1 for a, _ in pairs if getattr(a, "_ancora", False)))
+        _extra += min(2, sum(1 for a, _ in pairs if getattr(a, "_ancora_vepra", False)))     # v9.487: le figure di reato si aggiungono
         _out = pairs[: TOP_K_ARTICLES + _extra]
         _audit_set("recupero", {
             "corpus": "IT" if idx is self.index_it else "AL", "codici_filtro": sorted(restrict) if restrict else None,
