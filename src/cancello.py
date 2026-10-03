@@ -239,10 +239,10 @@ def _da_completare(text: str, index, retrieved_codes=None, retrieved_keys=None) 
             if it.get("status") != "verified" or not it.get("code") or it.get("resolved_by") == "straniero":
                 continue
             c, n = str(it["code"]), str(it["number"])
-            if (c, n) in keys:
-                continue
             art = cv._verify_number(lk, c, n)
             if art is None or not (getattr(art, "body", "") or "").strip():
+                continue
+            if (c, n) in keys or (c, str(art.number)) in keys:     # v9.488: il verificatore scrive «93/bis», il blocco «93-bis»
                 continue
             presi = True
             if (c, str(art.number)) not in visti and len(arts) < COMPLETA_MAX_ART:

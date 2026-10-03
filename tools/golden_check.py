@@ -7904,6 +7904,36 @@ def main():
     except Exception as _e255:  # noqa: BLE001
         check("vepra[255]: kontrollet u ekzekutuan", False, str(_e255))
 
+    # [256] v9.488 — il completamento vede il blocco che il senior AVEVA: non le copie aggiunte dopo dalla chiusura del dossier
+    # («⚑ CITUAR NGA»), e «93/bis» del verificatore = «93-bis» del blocco
+    try:
+        import copy as _cp256
+        from src import brain as _br256, cancello as _cn256
+        from src.retrieval import ArticleIndex as _AI256
+        from pathlib import Path as _P256
+        _it256 = _AI256.load(_P256("/app/data/index/bm25_it.pkl"))
+        _a93 = next(a for a in _it256.articles if a.code == "codice_strada" and a.number == "93-bis")
+        _a201 = next(a for a in _it256.articles if a.code == "codice_strada" and a.number == "201")
+        _r256 = _cn256._da_completare("- L'art. 93-bis C.d.S. non è tra gli articoli recuperati: da verificare su Normattiva.", _it256,
+                                     None, {("codice_strada", "93-bis")})
+        _c201 = _cp256.copy(_a201); _c201._cituar_nga = "seniori"
+        _cap256 = {}
+        _orig256 = _cn256.applica
+        def _fake256(text, idx, jur, lang, **kw):
+            _cap256.update(kw); return text, {}, {}
+        _cn256.applica = _fake256
+        try:
+            _sa256 = _br256.SuperAvvocato.__new__(_br256.SuperAvvocato)
+            _sa256.index, _sa256.index_it = None, _it256
+            _sa256._cancello("testo", [(_a93, 5.0), (_c201, 0.0)], "it", "IT")
+        finally:
+            _cn256.applica = _orig256
+        _ok256 = (_r256[0] == [] and _cap256.get("retrieved_keys") == {("codice_strada", "93-bis")})
+        check("blocco-vero[256]: il completamento non salta gli articoli aggiunti dopo e legge «93/bis» = «93-bis»",
+              _ok256, f"{_r256[0]} | {_cap256.get('retrieved_keys')}")
+    except Exception as _e256:  # noqa: BLE001
+        check("blocco-vero[256]: kontrollet u ekzekutuan", False, str(_e256))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

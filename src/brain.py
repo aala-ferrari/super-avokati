@@ -4168,7 +4168,9 @@ class SuperAvvocato:
             idx = self.index_it if (self.index_it is not None and jur == "IT") else self.index
             fidx = self.index if (self.index_it is not None and jur == "IT") else self.index_it
             _codes = {a.code for a, _ in (retrieved or [])} or None
-            _keys = {(a.code, str(a.number)) for a, _ in (retrieved or [])}
+            # v9.488: il blocco che il senior AVEVA davanti — non le copie che la chiusura del dossier (v9.361) aggiunge DOPO,
+            # prendendole proprio dalle citazioni del senior («⚑ CITUAR NGA …»): contate qui, il completamento le saltava sul percorso lungo
+            _keys = {(a.code, str(a.number)) for a, _ in (retrieved or []) if not getattr(a, "_cituar_nga", "")}
             out, rap, v = _cn.applica(text, idx, jur, lang, backend=getattr(self, "backend", None), retrieved_codes=_codes,
                                       modeli=STUDIO_GJYQTARI_MODEL, effort="high", foreign_index=fidx, retrieved_keys=_keys)
             if rap.get("prima") or rap.get("articoli_dati"):
