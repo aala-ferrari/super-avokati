@@ -538,6 +538,12 @@ def split_into_articles(text: str, doc: LegalDocument) -> list[Article]:
                              doc.code, num_str, seen_max + 1)
                     items.append((m, str(seen_max + 1)))
                     seen_max += 1
+                elif "/" in num_str and num_str not in {x[1] for x in items}:
+                    # v9.481 — un SOTTO-ARTICOLO aggiunto da una modifica che il consolidato stampa fuori posto
+                    # (ligji 80/2021: «Neni 39/1 Kundërvajtjet administrative» dopo il neni 40, le multe 0,1-1 %
+                    # delle entrate) è un articolo vero: si tiene, senza toccare la sequenza
+                    log.info("parser: %s — Neni %s fuori posto, tenuto (sotto-articolo)", doc.code, num_str)
+                    items.append((m, num_str))
                 else:
                     log.info("parser: %s — Neni %s fuori sequenza, saltato", doc.code, num_str)
                 continue

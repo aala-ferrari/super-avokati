@@ -7754,6 +7754,36 @@ def main():
     except Exception as _e249:  # noqa: BLE001
         check("avvio[249]: kontrollet u ekzekutuan", False, str(_e249))
 
+    # [250] v9.481 — le leggi sulle organizzazioni non profit (8788/2001 e 80/2021) nel corpus: per numero, per nome, il
+    # sotto-articolo fuori posto (39/1, le multe), la vecchia legge sul registro 8789/2001 abrogata, la ricerca
+    try:
+        from src import citation_verifier as _cv250, parser as _p250
+        from src.retrieval import ArticleIndex as _AI250
+        from types import SimpleNamespace as _SN250
+        _i250 = _AI250.load()
+        _st250 = []
+        for _t in ("Sipas nenit 39/1 të ligjit nr. 80/2021, gjoba është 0,1%.", "Neni 5 i ligjit nr. 8788, datë 7.5.2001.",
+                   "neni 9 i ligjit për organizatat jofitimprurëse", "neni 12 i ligjit për regjistrimin e organizatave jofitimprurëse",
+                   "neni 3 i ligjit nr. 8789/2001 për regjistrimin e OJF"):
+            _st250 += [(x["code"], x["number"], x["status"]) for x in _cv250.verify_text(_t, _i250)["items"]]
+        _hit250 = [(a.code, a.number) for a, _ in _i250.search("gjobë për mosregjistrimin e organizatës jofitimprurëse", top_k=8)]
+        _txt250 = ("Neni 39\nCertifikata\n1. Sekretaria lëshon certifikatën e regjistrimit për organizatën.\n"
+                   "Neni 40\nVërtetime\nPas regjistrimit lëshohet vërtetimi i regjistrimit për subjektin.\n"
+                   "Neni 41\nFormati\nKëshilli miraton formatin dhe përmbajtjen e certifikatës së regjistrimit.\n"
+                   "Neni 39/1\nKundërvajtjet administrative\n1. Mospërmbushja e detyrimit për regjistrim dënohet me gjobë.\n"
+                   "Neni 42\nHyrja\nKy ligj hyn në fuqi pesëmbëdhjetë ditë pas botimit në Fletoren Zyrtare.\n")
+        _a250 = _p250.split_into_articles(_txt250, _SN250(code="x", title_sq="x", area="", volatility="STABLE",
+                                                          last_amendment_date=None))
+        _n250 = [a.number for a in _a250]
+        _ok250 = (_st250 == [("ligji_regjistrimi_ojf", "39/1", "verified"), ("ligji_ojf", "5", "verified"),
+                             ("ligji_ojf", "9", "verified"), ("ligji_regjistrimi_ojf", "12", "verified"), (None, "3", "repealed")]
+                  and ("ligji_regjistrimi_ojf", "39/1") in _hit250[:3] and "39/1" in _n250
+                  and all("Kundërvajtjet" not in a.body for a in _a250 if a.number == "41"))
+        check("ojf[250]: leggi sulle organizzazioni non profit nel corpus, 39/1 tenuto, 8789/2001 abrogata",
+              _ok250, f"{_st250} | {_hit250[:3]} | {_n250}")
+    except Exception as _e250:  # noqa: BLE001
+        check("ojf[250]: kontrollet u ekzekutuan", False, str(_e250))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
