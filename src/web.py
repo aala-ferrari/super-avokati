@@ -141,6 +141,8 @@ app.config["MAX_CONTENT_LENGTH"] = (
 _INDEX: ArticleIndex | None = None
 _INDEX_IT: ArticleIndex | None = None
 _BRAIN: SuperAvvocato | None = None
+_AVVIO_FATTO = False                 # v9.480: init_db + promemoria + webhook Telegram fatti (una volta per processo)
+_AVVIO_LOCK = threading.Lock()
 
 
 def _ensure_loaded() -> None:
@@ -167,14 +169,24 @@ def _ensure_loaded() -> None:
         except Exception as exc:
             log.warning("brain init failed: %s", exc)
             _BRAIN = None
-    storage.init_db()
-    reminders_mod.start_background()
-    try:                                        # v9.410: il bot Telegram (spento se manca TELEGRAM_BOT_TOKEN)
-        from . import telegram_bot as _tg
-        _tg.imposta_cervello(lambda: _BRAIN)      # v9.420: la Segretaria risponde anche su Telegram
-        _tg.registra_webhook()
-    except Exception as exc:  # noqa: BLE001
-        log.warning("telegram: %s", exc)
+    # v9.480 — l'avvio si fa UNA volta: `_ensure_loaded()` gira a ogni richiesta (54 rotte, e il controllo di salute del
+    # container ogni 30 s) e rifaceva ogni volta init_db (migrazioni comprese) e setWebhook di Telegram — 47.000
+    # «app db ready» nel log e i 429 «Too Many Requests» del bot. Se qualcosa fallisce, si riprova alla richiesta dopo.
+    global _AVVIO_FATTO
+    if _AVVIO_FATTO:
+        return
+    with _AVVIO_LOCK:
+        if _AVVIO_FATTO:
+            return
+        storage.init_db()
+        reminders_mod.start_background()
+        try:                                        # v9.410: il bot Telegram (spento se manca TELEGRAM_BOT_TOKEN)
+            from . import telegram_bot as _tg
+            _tg.imposta_cervello(lambda: _BRAIN)      # v9.420: la Segretaria risponde anche su Telegram
+            _tg.registra_webhook()
+        except Exception as exc:  # noqa: BLE001
+            log.warning("telegram: %s", exc)
+        _AVVIO_FATTO = True
 
 
 # ── pages ──────────────────────────────────────────────────────────────────

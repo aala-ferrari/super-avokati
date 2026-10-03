@@ -7729,6 +7729,31 @@ def main():
     except Exception as _e248:  # noqa: BLE001
         check("wave11[248]: kontrollet u ekzekutuan", False, str(_e248))
 
+    # [249] v9.480 — l'avvio UNA volta: `_ensure_loaded()` gira a ogni richiesta e al controllo di salute (30 s) e rifaceva
+    # init_db + setWebhook di Telegram (47.000 «app db ready», 429 del bot). Eseguito con dipendenze finte, poi rimesso tutto.
+    try:
+        from src import web as _w249, storage as _s249, reminders as _r249, telegram_bot as _t249
+        _sal249 = (_w249._INDEX, _w249._BRAIN, _w249._AVVIO_FATTO, _s249.init_db, _r249.start_background,
+                   _t249.registra_webhook, _t249.imposta_cervello)
+        _n249 = {"db": 0, "rem": 0, "tg": 0}
+        try:
+            _w249._INDEX = _w249._INDEX or object()
+            _w249._BRAIN = _w249._BRAIN or object()
+            _w249._AVVIO_FATTO = False
+            _w249.storage.init_db = lambda *a, **k: _n249.__setitem__("db", _n249["db"] + 1)
+            _w249.reminders_mod.start_background = lambda *a, **k: _n249.__setitem__("rem", _n249["rem"] + 1)
+            _t249.registra_webhook = lambda *a, **k: _n249.__setitem__("tg", _n249["tg"] + 1)
+            _t249.imposta_cervello = lambda *a, **k: None
+            for _ in range(3):
+                _w249._ensure_loaded()
+        finally:
+            (_w249._INDEX, _w249._BRAIN, _w249._AVVIO_FATTO, _s249.init_db, _r249.start_background,
+             _t249.registra_webhook, _t249.imposta_cervello) = _sal249
+        check("avvio[249]: init_db, promemoria e webhook Telegram una volta sola su tre richieste",
+              _n249 == {"db": 1, "rem": 1, "tg": 1}, str(_n249))
+    except Exception as _e249:  # noqa: BLE001
+        check("avvio[249]: kontrollet u ekzekutuan", False, str(_e249))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
