@@ -7857,6 +7857,29 @@ def main():
     except Exception as _e253:  # noqa: BLE001
         check("media[253]: kontrollet u ekzekutuan", False, str(_e253))
 
+    # [254] v9.486 — l'elenco dopo i due punti (solo AL): «**Ligji nr. 74/2014 «Për armët»**: neni 24 …, neni 27 …» → la
+    # legge sulle armi; NON una riga d'elenco senza l'atto, NON dopo la fine della frase, NON in italiano
+    try:
+        from src import citation_verifier as _cv254
+        from src.retrieval import ArticleIndex as _AI254
+        from pathlib import Path as _P254
+        _al254 = _AI254.load(); _it254 = _AI254.load(_P254("/app/data/index/bm25_it.pkl"))
+        def _st254(t, i=None, codes=None):
+            return [(x["code"], x["number"], x["status"]) for x in _cv254.verify_text(t, i or _al254, retrieved_codes=codes)["items"]]
+        _a254 = _st254("Regjimi i autorizimeve rregullohet nga **Ligji nr. 74/2014 «Për armët»**: neni 24 rendit llojet e "
+                       "autorizimeve, neni 27 përcakton kuptimin e autorizimit në lëvizje.", codes={"ligji_armet", "kodi_penal"})
+        _b254 = _st254("Kontrolli bëhet sipas KPP.\n- Autorizimi «në vendbanim» (neni 28) e rëndon nxjerrjen në makinë.",
+                       codes={"ligji_armet", "kodi_penal"})
+        _c254 = _st254("Ligji nr. 74/2014 «Për armët» u ndryshua. Pastaj: neni 24 nuk zbatohet.", codes={"ligji_armet", "kodi_penal"})
+        _d254 = _st254("Conclusione confermata sul testo: via dell'art. 9, co. 1, lett. f) come riserva.", _it254)
+        _ok254 = (("ligji_armet", "24", "verified") in _a254 and ("ligji_armet", "27", "verified") in _a254
+                  and all(c is None for c, _n, _s in _b254) and all(c is None for c, _n, _s in _c254 if _n == "24")
+                  and all(c is None for c, _n, _s in _d254))
+        check("dypika[254]: l'elenco dopo i due punti prende la legge nominata, solo in albanese e nella stessa frase", _ok254,
+              f"{_a254} | {_b254} | {_c254} | {_d254}")
+    except Exception as _e254:  # noqa: BLE001
+        check("dypika[254]: kontrollet u ekzekutuan", False, str(_e254))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

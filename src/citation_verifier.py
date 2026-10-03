@@ -16,6 +16,7 @@ The verifier is a pure function of (text, index) — no side effects, no LLM.
 """
 from __future__ import annotations
 
+import os
 import re
 from collections import defaultdict
 from collections.abc import Iterable
@@ -1739,6 +1740,27 @@ def verify_text(
             return c if _esiste(c, number) else None
         return None
 
+    def _atto_della_riga(pos: int, number: str) -> str | None:
+        """v9.486 — l'ELENCO DOPO I DUE PUNTI: «**Ligji nr. 74/2014 «Për armët»**: neni 24 …, neni 27 …, neni 28 …» (prova
+        viva 3 ott). Il numero nudo prende l'atto nominato subito PRIMA dei due punti, solo se la citazione sta nella
+        stessa frase dell'elenco (nessun «. »/«; » dopo i due punti) e se il numero esiste in quell'atto. Misurato: la
+        regola larga («l'ultimo atto nominato nella riga») sbagliava spesso — in italiano il codice segue il numero —
+        e faceva comparire abrogati falsi; questa resta stretta di proposito."""
+        if os.environ.get("VERIFICA_RIGA", "1") == "0" or _lang == "it":
+            return None          # in italiano il codice segue il numero: misurato, la regola sbagliava (L. 91/1992 → d.P.R. 362/1994)
+        ini = text.rfind("\n", 0, pos) + 1
+        seg = text[ini:pos]
+        c = seg.rfind(":")
+        if c < 0 or re.search(r"[.;]\s", seg[c + 1:]):
+            return None
+        prima = re.split(r"[.;]\s+(?=[A-ZËÇ«“\"(*])", seg[max(0, c - 140):c])[-1].replace("*", " ")   # la stessa frase
+        words = prima.split()
+        for k in range(len(words) - 1, max(-1, len(words) - 14), -1):
+            code = _resolve(" ".join(words[k:k + 8]))
+            if code:
+                return code if code != FUORI_CORPUS and _esiste(code, number) else None
+        return None
+
     seen: set[tuple[str, str]] = set()  # dedupe (number, code-or-empty)
     citations: list[Citation] = []
 
@@ -1928,6 +1950,8 @@ def verify_text(
                     _d = _dal_documento(number)
                     if _d:
                         code_n, via = _d, "documento"
+                    elif (_rg := _atto_della_riga(m.start(), number)):
+                        code_n, via = _rg, "riga"
                     else:
                         _fd = _estero_dal_documento(number)
                         if _fd:
