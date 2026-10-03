@@ -7707,6 +7707,28 @@ def main():
     except Exception as _e247:  # noqa: BLE001
         check("kode-numer[247]: kontrollet u ekzekutuan", False, str(_e247))
 
+    # [248] v9.479 — i sette atti italiani più citati e mancanti (wave11): nel corpus, citabili per numero, recuperabili
+    try:
+        from src import citation_verifier as _cv248
+        from src.retrieval import ArticleIndex as _AI248
+        from pathlib import Path as _P248
+        _i248 = _AI248.load(_P248("/app/data/index/bm25_it.pkl"))
+        _cod248 = {a.code for a in _i248.articles}
+        _att248 = {"regolamento_anagrafico", "aire", "procedimenti_cittadinanza", "naspi", "ritardi_pagamento", "collegato_lavoro",
+                   "licenziamenti_collettivi"}
+        _r248 = _cv248.verify_text("Vale l'art. 32 della L. 183/2010, l'art. 4 della L. 223/1991, l'art. 1 del d.lgs. 22/2015, "
+                                   "l'art. 5 del d.lgs. 231/2002 e l'art. 7 del d.P.R. 223/1989.", _i248)
+        _st248 = [(x["code"], x["status"]) for x in _r248["items"]]
+        _hit248 = [a.code for a, _ in _i248.search("licenziamento collettivo procedura comunicazione sindacati riduzione di personale", top_k=8)]
+        _ok248 = (_att248 <= _cod248 and all(st == "verified" for _c, st in _st248) and len(_st248) == 5
+                  and {c for c, _ in _st248} == {"collegato_lavoro", "licenziamenti_collettivi", "naspi", "ritardi_pagamento",
+                                                  "regolamento_anagrafico"}
+                  and "licenziamenti_collettivi" in _hit248)
+        check("wave11[248]: residenza, AIRE, cittadinanza, NASpI, mora, collegato lavoro, licenziamenti collettivi nel corpus",
+              _ok248, f"{sorted(_att248 - _cod248)} | {_st248} | {_hit248[:4]}")
+    except Exception as _e248:  # noqa: BLE001
+        check("wave11[248]: kontrollet u ekzekutuan", False, str(_e248))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

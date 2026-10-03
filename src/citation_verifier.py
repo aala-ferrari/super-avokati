@@ -420,6 +420,10 @@ CODE_LABELS: dict[str, str] = {
     "riti_civili_semplificati": "D.Lgs 150/2011",
     "ordinamento_forense": "L. 247/2012 (forense)",
     "licenziamenti_individuali": "L. 604/1966",
+    "regolamento_anagrafico": "d.P.R. 223/1989 (anagrafe)", "aire": "L. 470/1988 (AIRE)",
+    "procedimenti_cittadinanza": "d.P.R. 362/1994 (cittadinanza)", "naspi": "d.lgs. 22/2015 (NASpI)",
+    "ritardi_pagamento": "d.lgs. 231/2002 (ritardi di pagamento)", "collegato_lavoro": "L. 183/2010 (collegato lavoro)",
+    "licenziamenti_collettivi": "L. 223/1991 (licenziamenti collettivi)",
     "legge_sospensione_feriale": "L. 742/1969",
     "tutele_crescenti": "D.Lgs 23/2015",
     "responsabilita_sanitaria": "L. 24/2017 (Gelli)",
@@ -669,6 +673,7 @@ _IT_CODE_CHECKS = [
     ("antiriciclaggio", "antiriciclaggio"),
     # v9.469 — forme usate nelle risposte vere e uscite «senza codice» (scansione di 85 risposte IT, 1 ott 2026)
     ("tuimmigrazione", "tu_immigrazione"),
+    ("regolamentoanagrafico", "regolamento_anagrafico"), ("collegatolavoro", "collegato_lavoro"),
     ("codass", "codice_assicurazioni"),
     ("disciplinaorganicadeicontratti", "contratti_lavoro"),
     # ── wave7 «blocco A» (16 set 2026): nomi per esteso (prima di «romaii»: «romaiii» lo contiene) ──
@@ -863,7 +868,9 @@ _IT_CODE_NUM_CHECKS = [
     ("6021973", "riscossione"), ("742000", "reati_tributari"), ("891913", "legge_notarile"),
     ("521985", "legge_52_1985"), ("471985", "condono_edilizio"), ("1222005", "immobili_da_costruire"),
     ("4311998", "locazioni_abitative"), ("3921978", "locazioni_immobili_urbani"), ("282010", "mediazione_civile"),
-    ("1502011", "riti_civili_semplificati"), ("2472012", "ordinamento_forense"), ("6041966", "licenziamenti_individuali"), ("7421969", "legge_sospensione_feriale"),
+    ("1502011", "riti_civili_semplificati"), ("2472012", "ordinamento_forense"), ("6041966", "licenziamenti_individuali"), ("2231989", "regolamento_anagrafico"), ("4701988", "aire"),
+    ("3621994", "procedimenti_cittadinanza"), ("222015", "naspi"), ("2312002", "ritardi_pagamento"), ("1832010", "collegato_lavoro"),
+    ("2231991", "licenziamenti_collettivi"), ("7421969", "legge_sospensione_feriale"),
     ("232015", "tutele_crescenti"), ("242017", "responsabilita_sanitaria"), ("3941999", "regolamento_immigrazione"),
     ("2672000", "tuel"), ("4481988", "processo_penale_minorile"), ("1712005", "codice_nautica_diporto"),
     ("2312007", "antiriciclaggio"), ("2312001", "responsabilita_enti"),   # v9.471: tolto «2852001» → codice_strada (il C.d.S. è il d.lgs. 285/1992: un «285/2001» inesistente risultava verificato)
