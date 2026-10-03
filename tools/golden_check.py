@@ -7934,6 +7934,23 @@ def main():
     except Exception as _e256:  # noqa: BLE001
         check("blocco-vero[256]: kontrollet u ekzekutuan", False, str(_e256))
 
+    # [257] v9.489 — l'anno a due cifre («D.Lgs. 286/98», «L. 241/90», «L. 604/66») e «Reg. del. 2015/2446» dopo «par. 3,»
+    try:
+        from src import citation_verifier as _cv257
+        from src.retrieval import ArticleIndex as _AI257
+        from pathlib import Path as _P257
+        _it257 = _AI257.load(_P257("/app/data/index/bm25_it.pkl"))
+        _att257 = {"art. 9 D.Lgs. 286/98": "tu_immigrazione", "art. 3 L. 241/90": "procedimento_amministrativo",
+                   "art. 2 L. 604/66": "licenziamenti_individuali", "art. 215, par. 3, Reg. del. 2015/2446": "reg_ue_2015_2446",
+                   "art. 9 D.Lgs. 286/1998": "tu_immigrazione"}
+        _got257 = {t: [(x["code"], x["status"]) for x in _cv257.verify_text(t, _it257)["items"]] for t in _att257}
+        _neg257 = [x["code"] for x in _cv257.verify_text("art. 5 L. 18/22", _it257)["items"]]
+        _ok257 = all(v == [(_att257[t], "verified")] for t, v in _got257.items()) and _neg257 == [None]
+        check("anno-due-cifre[257]: «286/98», «241/90», «604/66» e «Reg. del.» riconosciuti; una legge fuori corpus no", _ok257,
+              f"{_got257} | {_neg257}")
+    except Exception as _e257:  # noqa: BLE001
+        check("anno-due-cifre[257]: kontrollet u ekzekutuan", False, str(_e257))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

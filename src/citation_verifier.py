@@ -622,7 +622,7 @@ _SUB_IT = (r"(?:\s*,?\s*(?:(?:comm[ai]|co\.|c\.(?=\s*\d)|n\.|nn\.|punt[oi]|par(?
 _CONN_IT = (r"(?:(?:del|della|dello|dell[’']|dal|dalla)\s*(?:codice|cod\.|legge|l\.|d\.?\s?lgs|d\.?\s?l\b|d\.?\s?l\.|d\.?p\.?r|r\.?d\.?|"
             r"t\.?u\.?|reg\b|reg\.|regolamento|direttiva|dir\.|statuto|costituzione|cost\.|convenzione|protocollo|trattato|carta|"
             r"cedu|tfue|tue|gdpr|cdu|dnc|tuel|tuir|tub|tuf|cad|cpa|cpi|ccii|c\.[a-z]|medesim|stess|citat|predett|suddett)|"
-            r"l\.\s?\d|legge\b|d\.?\s?lgs|d\.?\s?l\.\s?\d|d\.?p\.?r\.?\s?\d|r\.?d\.?\s?\d|d\.?m\.?\s?\d|t\.?u\.?\b|reg\.?\s?(?:\(|\d|ue|ce|delegat|di\s+esec|esec)|"
+            r"l\.\s?\d|legge\b|d\.?\s?lgs|d\.?\s?l\.\s?\d|d\.?p\.?r\.?\s?\d|r\.?d\.?\s?\d|d\.?m\.?\s?\d|t\.?u\.?\b|reg\.?\s?(?:\(|\d|ue|ce|delegat|del\.|di\s+esec|esec)|"
             r"regolamento|direttiva|dir\.|cod\.|codice|c\.[a-z]|cost\.?\b|statuto|carta|cedu|tfue|tue|gdpr|cdu|dnc|tuel|tuir|tub|tuf|cad|"
             r"cpa|cpi|ccii|c\.d\.s\.|cds\b|l\.\s?fall|preleggi|disp\.|convenzione|protocollo|trattato|st(?:at)?\.?\s?lav\b)")
 
@@ -836,6 +836,7 @@ _IT_CODE_CHECKS = [
 # Riferimenti PER NUMERO («D.Lgs. 141/2024», «Reg. (UE) 2015/2446», «DPR 633/1972»):
 # il passaggio alfabetico sopra scarta le cifre, quindi «dlgs» da solo non dice nulla.
 # Qui si confronta il numero+anno compattato (v9.326). Ordine: il piu' lungo prima.
+_ANNO_2_RE = re.compile(r"(?<![\d/.])(\d{1,5})\s*/\s*(\d{2})(?![\d/])")
 _IT_CODE_NUM_CHECKS = [
     # v9.399: codici e testi unici che i giuristi citano anche per numero (prima «senza codice»)
     ("2851992", "codice_strada"), ("4951992", "regolamento_strada"), ("3851993", "tu_bancario"),
@@ -948,6 +949,10 @@ def _resolve_code_it(tail: str):
     # v9.406 — la DATA PER ESTESO («d.lgs. 10 marzo 2000, n. 74», «L. 24 novembre 1981, n. 689»: la forma formale, in una risposta
     # italiana su dieci) vale come «74/2000»: prima usciva sempre «senza codice»
     tail = _DATA_ATTO_RE.sub(lambda m_: f"{m_.group(2)}/{m_.group(1)}", tail or "")
+    # v9.489 — l'ANNO A DUE CIFRE («D.Lgs. 286/98», «L. 241/90», «L. 604/66»: la forma più comune fra giuristi) usciva «senza
+    # codice»; 46-99 → 19xx, 00-30 → 20xx, solo per «numero/anno» con esattamente due cifre dopo la barra
+    tail = _ANNO_2_RE.sub(lambda m_: f"{m_.group(1)}/{'19' if int(m_.group(2)) >= 46 else '20'}{m_.group(2)}"
+                          if int(m_.group(2)) >= 46 or int(m_.group(2)) <= 30 else m_.group(0), tail)
     with_digits = re.sub(r"[^a-z0-9]", "", re.sub(r"(\d+)\s+del\s+(\d{4})", r"\1/\2", (tail or "").lower()))
     # v9.399: il confronto è a CONFINE DI CIFRA — «158/1998» non è il TUF (58/1998), «191/1992» non è la L. 91/1992 —
     # su un testo in cui le parole restano separate (la «/» fra cifre si toglie, il resto diventa spazio): compattando
