@@ -199,6 +199,7 @@ _AL_NEW_ALIASES: list[tuple[str, list[str]]] = [
     ("ligji_prokuroria", ["ligji për organizimin dhe funksionimin e prokurorisë", "ligji për prokurorinë",
                           "ligji i prokurorisë"]),
     ("ligji_diskriminimi", ["ligji për mbrojtjen nga diskriminimi", "ligji kundër diskriminimit"]),
+    ("ligji_mediat_audiovizive", ["ligji për mediat audiovizive", "mediat audiovizive"]),
     ("ligji_identifikimi_elektronik", ["ligji për identifikimin elektronik", "identifikimi elektronik dhe shërbimet e besuara"]),
     ("ligji_regjistrimi_ojf", ["ligji për regjistrimin e organizatave jofitimprurëse", "regjistrimi i organizatave jofitimprurëse"]),
     ("ligji_ojf", ["ligji për organizatat jofitimprurëse", "ligji i organizatave jofitimprurëse"]),
@@ -275,6 +276,7 @@ _LAW_NUMBER_ALIASES: dict[str, str] = {
     "97/2016": "ligji_prokuroria", "10221": "ligji_diskriminimi", "10221/2010": "ligji_diskriminimi", "119/2014": "ligji_informimi",
     "8788": "ligji_ojf", "8788/2001": "ligji_ojf", "80/2021": "ligji_regjistrimi_ojf",  # v9.481
     "51/2026": "ligji_identifikimi_elektronik",  # v9.482
+    "97/2013": "ligji_mediat_audiovizive",  # v9.485
     "74/2014": "ligji_armet", "8308": "ligji_transportet_rrugore", "8308/1998": "ligji_transportet_rrugore",
     "162/2020": "ligji_prokurimi_publik", "133/2015": "ligji_trajtimi_prones", "20/2020": "ligji_proceset_kalimtare",
     # audit 16 set: il corpus non riconosceva il proprio numero
@@ -338,7 +340,7 @@ CODE_LABELS: dict[str, str] = {
     "ligji_gjykatat_administrative": "Ligji Gjykatat Administrative 49/2012", "ligji_gjykata_kushtetuese": "Ligji Gjykata Kushtetuese 8577/2000", "ligji_pergjegjesia_administrates": "Ligji Përgjegjësia Jashtëkontraktore 8510/1999", "ligji_marredheniet_juridiksionale": "Ligji Marrëdhëniet Juridiksionale 10193/2009", "ligji_shpronesimi": "Ligji Shpronësimet 8561/1999", "ligji_vetqeverisja_vendore": "Ligji Vetëqeverisja Vendore 139/2015",
     "ligji_planifikimi_territorit": "Ligji Planifikimi 107/2014", "ligji_te_denuarit": "Ligji Të Dënuarit 81/2020",
     "ligji_prokuroria": "Ligji Prokuroria 97/2016", "ligji_diskriminimi": "Ligji Diskriminimi 10221/2010", "ligji_informimi": "Ligji Informimi 119/2014",
-    "ligji_ojf": "Ligji OJF 8788/2001", "ligji_regjistrimi_ojf": "Ligji Regjistrimi OJF 80/2021", "ligji_identifikimi_elektronik": "Ligji Identifikimi Elektronik 51/2026",
+    "ligji_ojf": "Ligji OJF 8788/2001", "ligji_regjistrimi_ojf": "Ligji Regjistrimi OJF 80/2021", "ligji_identifikimi_elektronik": "Ligji Identifikimi Elektronik 51/2026", "ligji_mediat_audiovizive": "Ligji Mediat Audiovizive 97/2013",
     "ligji_armet": "Ligji Armët 74/2014", "ligji_transportet_rrugore": "Ligji Transportet 8308/1998",
     "ligji_prokurimi_publik": "Ligji Prokurimi 162/2020", "ligji_trajtimi_prones": "Ligji Trajtimi Pronës 133/2015",
     "ligji_proceset_kalimtare": "Ligji Proceset Kalimtare 20/2020",
@@ -1036,7 +1038,7 @@ def _build_number_to_codes(index: ArticleIndex) -> dict[str, list[str]]:
 # «Ligji nr. X, datë … / X/AAAA …, shfuqizohet(n)» (nominativo: «shfuqizuar me ligjin nr. X» = abrogato DA X, e non conta).
 # Mai una legge che abbiamo come codice nostro. 26 leggi al 28 set (8438/1998, 7829/1994 notariato, 9109/2003 avvocatura,
 # 33/2012 registrazione degli immobili, 108/2013 stranieri, 7928/1995 IVA…).
-_SHFUQ_LIGJ_RE = re.compile(r"\b[Ll]igji\s+nr\.?\s*,?\s*(\d{2,5})\s*(?:,\s*dat[ëe]\s*\d{1,2}\s*\.\s*\d{1,2}\s*\.\s*((?:19|20)\d\d)"
+_SHFUQ_LIGJ_RE = re.compile(r"\b[Ll]igji\s+nr\.?\s*,?\s*(\d{2,5})\s*(?:,?\s*dat[ëe]\s*\d{1,2}\s*\.\s*\d{1,2}\s*\.\s*((?:19|20)\d\d)"
                             r"|/\s*((?:19|20)\d\d))")
 
 
@@ -1066,8 +1068,10 @@ def _ligje_te_shfuqizuara(index) -> dict:
             flat = re.sub(r"\s+", " ", a.body)
             for m in _SHFUQ_LIGJ_RE.finditer(flat):
                 s0 = max(flat.rfind(". ", 0, m.start()), flat.rfind(";", 0, m.start()))
-                e0 = flat.find(". ", m.end())
-                e0 = len(flat) if e0 < 0 else e0
+                # v9.485: la frase finisce su un punto seguito da MAIUSCOLA — «… 1998 “…”, i ndryshuar, dhe ligji nr. 9742 …
+                # shfuqizohen»: il «nr. 9742» tagliava la frase della 8410/1998 prima di «shfuqizohen»
+                _e0 = re.compile(r"\.\s+(?=[A-ZËÇ“\"(])").search(flat, m.end())
+                e0 = _e0.start() if _e0 else len(flat)
                 e1 = flat.find(";", m.end())
                 e0 = min(e0, e1) if e1 >= 0 else e0
                 frase = flat[s0 + 1:e0]

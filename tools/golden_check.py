@@ -7840,6 +7840,23 @@ def main():
     except Exception as _e252:  # noqa: BLE001
         check("completa[252]: kontrollet u ekzekutuan", False, str(_e252))
 
+    # [253] v9.485 — la legge sui media audiovisivi (97/2013) nel corpus; il registro delle abrogate legge «Ligji nr. 8410
+    # datë 30.9.1998» (senza virgola) e non taglia la frase su «nr. 9742»: 8410/1998, 9742/2007 e 8389/1998 abrogate
+    try:
+        from src import citation_verifier as _cv253
+        from src.retrieval import ArticleIndex as _AI253
+        _i253 = _AI253.load()
+        _st253 = [(x["code"], x["status"]) for _t in ("neni 133 i ligjit nr. 97/2013", "neni 132 i ligjit për mediat audiovizive")
+                  for x in _cv253.verify_text(_t, _i253)["items"]]
+        _reg253 = _cv253._ligje_te_shfuqizuara(_i253)
+        _ok253 = (_st253 == [("ligji_mediat_audiovizive", "verified")] * 2
+                  and "97/2013" in _reg253.get("8410/1998", "") and "97/2013" in _reg253.get("9742/2007", "")
+                  and "113/2020" in _reg253.get("8389/1998", ""))
+        check("media[253]: 97/2013 nel corpus; 8410/1998, 9742/2007, 8389/1998 nel registro delle abrogate", _ok253,
+              f"{_st253} | {[k for k in ('8410/1998', '9742/2007', '8389/1998') if k in _reg253]}")
+    except Exception as _e253:  # noqa: BLE001
+        check("media[253]: kontrollet u ekzekutuan", False, str(_e253))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
