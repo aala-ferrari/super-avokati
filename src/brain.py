@@ -4119,9 +4119,10 @@ class SuperAvvocato:
             idx = self.index_it if (self.index_it is not None and jur == "IT") else self.index
             fidx = self.index if (self.index_it is not None and jur == "IT") else self.index_it
             _codes = {a.code for a, _ in (retrieved or [])} or None
+            _keys = {(a.code, str(a.number)) for a, _ in (retrieved or [])}
             out, rap, v = _cn.applica(text, idx, jur, lang, backend=getattr(self, "backend", None), retrieved_codes=_codes,
-                                      modeli=STUDIO_GJYQTARI_MODEL, effort="high", foreign_index=fidx)
-            if rap.get("prima"):
+                                      modeli=STUDIO_GJYQTARI_MODEL, effort="high", foreign_index=fidx, retrieved_keys=_keys)
+            if rap.get("prima") or rap.get("articoli_dati"):
                 _audit_set("cancello", rap)
             return out, v
         except Exception as exc:  # noqa: BLE001

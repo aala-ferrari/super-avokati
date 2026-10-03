@@ -7801,6 +7801,44 @@ def main():
     except Exception as _e251:  # noqa: BLE001
         check("firma-elettronica[251]: kontrollet u ekzekutuan", False, str(_e251))
 
+    # [252] v9.483 — il cancello COMPLETA: le righe con «non è tra gli articoli recuperati / da verificare su Normattiva /
+    # nuk e kam tekstin» su un articolo che il corpus HA (e che il senior non aveva) ricevono il testo ufficiale e vengono
+    # riviste; nient'altro cambia. Rilevamento eseguito sugli indici veri, correzione con un modello finto.
+    try:
+        import os as _os252
+        from src import cancello as _cn252, citation_verifier as _cv252, brain as _br252
+        from src.retrieval import ArticleIndex as _AI252
+        from pathlib import Path as _P252
+        import inspect as _in252
+        _al252 = _AI252.load(); _it252 = _AI252.load(_P252("/app/data/index/bm25_it.pkl"))
+        _cv252.registra_indici(al=_al252, it=_it252)
+        _t252 = ("Intro senza citazioni.\n- Il termine è quello dell'art. 497 c.p.c. — non è tra gli articoli recuperati, da verificare su Normattiva.\n"
+                 "- L'art. 2043 c.c. regola il fatto illecito.")
+        _r252a = _cn252._da_completare(_t252, _it252, None, set())
+        _r252b = _cn252._da_completare(_t252, _it252, None, {("codice_procedura_civile", "497")})
+        _r252c = _cn252._da_completare("Neni 278 i Kodit Penal (nuk e kam tekstin në nenet që kam — verifikoje).", _al252, None, set())
+        _r252d = _cn252._da_completare("- art. 99999 c.p.c. — non è tra gli articoli recuperati.", _it252, None, set())
+
+        class _F252:
+            def complete(self, **kw):
+                return '{"righe":[{"i":1,"testo":"- Il termine è di quarantacinque giorni dal pignoramento (art. 497 c.p.c.)."}]}'
+        _o252, _c252, _n252 = _cn252.completa(_t252, _it252, "it", backend=_F252(), retrieved_keys=set(), modeli="x")
+        _os252.environ["CANCELLO_COMPLETA"] = "0"
+        try:
+            _o252off, _c252off, _ = _cn252.completa(_t252, _it252, "it", backend=_F252(), retrieved_keys=set(), modeli="x")
+        finally:
+            _os252.environ.pop("CANCELLO_COMPLETA", None)
+        _src252 = _in252.getsource(_cn252.applica) + _in252.getsource(_br252.SuperAvvocato._cancello)
+        _ok252 = (_r252a[0] == [1] and [(a.code, a.number) for a in _r252a[1]] == [("codice_procedura_civile", "497")]
+                  and _r252b[0] == [] and _r252c[0] == [0] and _r252d[0] == []
+                  and _c252 == 1 and "quarantacinque" in _o252 and _o252.split("\n")[2] == _t252.split("\n")[2]
+                  and _o252off == _t252 and _c252off == 0
+                  and "completa(" in _src252 and "retrieved_keys=_keys" in _src252)
+        check("completa[252]: righe «non è tra gli articoli recuperati» riviste col testo ufficiale, solo quelle",
+              _ok252, f"{_r252a[0]} {_r252b[0]} {_r252c[0]} {_r252d[0]} | {_c252} | off={_c252off}")
+    except Exception as _e252:  # noqa: BLE001
+        check("completa[252]: kontrollet u ekzekutuan", False, str(_e252))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
