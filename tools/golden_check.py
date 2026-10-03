@@ -7784,6 +7784,23 @@ def main():
     except Exception as _e250:  # noqa: BLE001
         check("ojf[250]: kontrollet u ekzekutuan", False, str(_e250))
 
+    # [251] v9.482 — la firma elettronica: la 51/2026 nel corpus (per numero e per nome); la 107/2015 e la 9880/2008 che
+    # abroga risultano «abrogate — oggi 51/2026» (la 9880 era fuori dal registro per un «i ndryshuar» della legge prima)
+    try:
+        from src import citation_verifier as _cv251
+        from src.retrieval import ArticleIndex as _AI251
+        _i251 = _AI251.load()
+        _r251 = []
+        for _t in ("neni 25 i ligjit nr. 51/2026", "neni 30 i ligjit për identifikimin elektronik",
+                   "neni 10 i ligjit nr. 107/2015 për identifikimin elektronik",
+                   "neni 4 i ligjit nr. 9880, datë 25.2.2008, «Për nënshkrimin elektronik»"):
+            _r251 += [(x["code"], x["status"], "51/2026" in (x.get("article_heading") or "")) for x in _cv251.verify_text(_t, _i251)["items"]]
+        _ok251 = (_r251[:2] == [("ligji_identifikimi_elektronik", "verified", False)] * 2
+                  and _r251[2:] == [(None, "repealed", True), (None, "repealed", True)])
+        check("firma-elettronica[251]: 51/2026 nel corpus, 107/2015 e 9880/2008 abrogate con il successore", _ok251, str(_r251))
+    except Exception as _e251:  # noqa: BLE001
+        check("firma-elettronica[251]: kontrollet u ekzekutuan", False, str(_e251))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
