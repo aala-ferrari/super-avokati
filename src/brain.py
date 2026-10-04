@@ -432,6 +432,28 @@ def _ankoro_sipas_titullit(pairs, idx, testo: str, queries: list[str] | None = N
 _RADICI_GENERICHE = {"penal", "vepra", "veper", "ligji", "ligjo", "kodit", "kodi", "nenit", "denim", "denoh", "kryer", "krimi"}
 
 
+def _blocco_articoli_urgenza(retrieved, it: bool, quanti: int = 10, tetto: int = 900) -> str:
+    """v9.490 — gli articoli del blocco per il radar d'urgenza: rubrica e inizio del testo (dove i consolidati scrivono «COMMA
+    ABROGATO»), con la regola: termini e rischi solo da qui, mai da norme ricordate."""
+    righe = []
+    try:
+        for a, _ in (retrieved or [])[:quanti]:
+            corpo = re.sub(r"\s+", " ", str(getattr(a, "body", "") or "")).strip()[:tetto]
+            if not corpo:
+                continue
+            lab = getattr(a, "citation", "") or f"{getattr(a, 'code', '')} {getattr(a, 'number', '')}".strip()
+            righe.append(f"- {lab} — {str(getattr(a, 'heading', '') or '').strip()}: {corpo}")
+    except Exception:  # noqa: BLE001 — il radar non cade mai per un articolo incompleto
+        righe = []
+    if not righe:
+        return ""
+    if it:
+        return ("\nARTICOLI DEL CASO (testo vigente del corpus) — fonda termini e rischi SOLO su questi; un comma «ABROGATO» non "
+                "fonda nulla; se un rischio non ha base qui, scrivilo senza articolo:\n" + "\n".join(righe) + "\n")
+    return ("\nNENET E RASTIT (teksti në fuqi i korpusit) — afatet dhe rreziqet mbështeti VETËM te këto; një pikë «SHFUQIZUAR» "
+            "nuk mbështet asgjë; nëse një rrezik nuk ka bazë këtu, shkruaje pa nen:\n" + "\n".join(righe) + "\n")
+
+
 def _radici_5(testo: str) -> set[str]:
     # v9.487: le parole che stanno in quasi ogni domanda penale non contano («Mosparashkrimi i ndjekjes penale» entrava per «penale»)
     return {w[:5] for w in re.findall(r"[a-z]+", _norm(testo or "")) if len(w) >= 5} - _RADICI_GENERICHE
@@ -2680,7 +2702,13 @@ def _risposta_dalle_fasi(triage, *, strategic=None, timeline=None,
         if _app:
             p.append(T["nul"])
             for f in _app[:8]:
-                p.append("- **%s**" % getattr(f, "label", getattr(f, "title", "—")))
+                # v9.490 — il campo vero di NullityFinding è `name`: si leggeva label/title e ogni voce usciva «—» (il Giudice, prova
+                # viva del 4 ott: «cinque voci senza contenuto»); col nome anche il termine, quando c'è
+                _nm = getattr(f, "name", "") or getattr(f, "label", "") or getattr(f, "title", "")
+                if not _nm:
+                    continue
+                _dl = getattr(f, "deadline_hint", "") or ""
+                p.append("- **%s**%s" % (_nm, (" — " + _dl) if _dl else ""))
                 _b = getattr(f, "legal_basis", "") or getattr(f, "basis", "")
                 if _b:
                     p.append(T["baza"] % _b)
@@ -5487,16 +5515,30 @@ class SuperAvvocato:
         # LLM pass for personal-emergency markers the rollup can't see.
         dossier_hint = format_documents_for_prompt(documents or [], compact=True)
         dossier_block = f"\n{dossier_hint}\n" if dossier_hint else ""
+        # v9.490 — gli ARTICOLI del blocco anche qui: era l'unica fase che ragionava a memoria, e nel caso dell'auto targata albanese
+        # fondava il rischio sull'art. 93, c. 1-bis, C.d.S. ABROGATO (i «60 giorni») mentre le fasi con gli articoli usavano il 93-bis —
+        # il Giudice doveva correggerlo ogni volta (prova viva del 4 ott; 15 risposte di settembre)
+        _art_block = _blocco_articoli_urgenza(retrieved, _it_u)
+        if _it_u:
+            prompt = textwrap.dedent(f"""\
+                Il caso da preparare (leggilo con gli occhi dell'avvocato dell'emergenza):
+                \"\"\"{user_message}\"\"\"
 
-        prompt = textwrap.dedent(f"""\
-            Rasti që po përgatit (lexo me sy të avokatit të emergjencës):
-            \"\"\"{user_message}\"\"\"
+                Sintesi: {triage.problem_summary}
+                {dossier_block}{_art_block}
+                Distingui se è una domanda teorica o un'emergenza vera.
+                Restituisci JSON con level + signals.
+            """)
+        else:
+            prompt = textwrap.dedent(f"""\
+                Rasti që po përgatit (lexo me sy të avokatit të emergjencës):
+                \"\"\"{user_message}\"\"\"
 
-            Përmbledhja: {triage.problem_summary}
-            {dossier_block}
-            Dallo nëse ky është pyetje teorike ose emergjencë e vërtetë.
-            Kthe JSON me level + signals.
-        """)
+                Përmbledhja: {triage.problem_summary}
+                {dossier_block}{_art_block}
+                Dallo nëse ky është pyetje teorike ose emergjencë e vërtetë.
+                Kthe JSON me level + signals.
+            """)
 
         raw = self.backend.complete(
             system=self._system_for(URGENCY_SCAN_SYSTEM),
