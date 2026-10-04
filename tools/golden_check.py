@@ -8207,6 +8207,8 @@ def main():
               and ("kodi_proc_penale", "144") in _k270(_c270) and ("kodi_proc_civile", "148") not in _k270(_c270)
               and ("kodi_proc_civile", "443") in _k270(_a270) and ("kodi_proc_penale", "415") in _k270(_c270)
               and ("kodi_proc_civile", "443") not in _k270(_c270)
+              and {("ligji_gjykatat_administrative", "44"), ("kodi_proc_civile", "443")} <= _k270(_br270._applica_ancore(
+                  [], _al270, ["afati i ankimit", "Gjykata administrative e rrëzoi padinë: deri kur bëjmë apel?"], ["Administrativ"]))
               and "~~458~~, ~~445~~ dhe 42" in _d270, _d270[:90])
     except Exception as _e270:  # noqa: BLE001
         check("afate[270]: kontrollet u ekzekutuan", False, str(_e270))
@@ -8225,6 +8227,49 @@ def main():
               and _v271 == [("verified", "ligji_barnat"), ("verified", "ligji_barnat")] and "ligji_barnat" in _s271[:2], str(_v271) + str(_s271))
     except Exception as _e271:  # noqa: BLE001
         check("barnat[271]: kontrollet u ekzekutuan", False, str(_e271))
+
+    # [272] v9.503 — il Codice dei minori resta fuori dalle domande su ADULTI (prendeva 4 posti su 12 nel favoreggiamento), dentro quando
+    # la domanda parla di un minore
+    try:
+        from types import SimpleNamespace as _NS272
+        from src import brain as _br272
+        _p272 = [(_NS272(code="kodi_te_miturve", number="55"), 3.0), (_NS272(code="kodi_penal", number="302"), 2.0),
+                 (_NS272(code="processo_penale_minorile", number="1"), 1.0)]
+        _a272 = [a.code for a, _ in _br272._senza_codice_minori(_p272, "Vëllai i klientit kërkohej nga policia për vjedhje")]
+        _b272 = [a.code for a, _ in _br272._senza_codice_minori(_p272, "Djali im 16 vjeç u kap me drogë")]
+        _c272 = [a.code for a, _ in _br272._senza_codice_minori(_p272, "Mio figlio di 15 anni è stato denunciato")]
+        _d272 = [a.code for a, _ in _br272._senza_codice_minori(_p272, "Nga ç'moshë ka përgjegjësi penale një i mitur?")]
+        _src272 = open(_br272.__file__, encoding="utf-8").read()
+        check("minori[272]: codice dei minori fuori dalle domande su adulti, dentro con un minore",
+              _a272 == ["kodi_penal"] and len(_b272) == 3 and len(_c272) == 3 and len(_d272) == 3
+              and _src272.count("pairs = _senza_codice_minori(pairs, _testo_anc[-1] or ") == 2, str(_a272))
+    except Exception as _e272:  # noqa: BLE001
+        check("minori[272]: kontrollet u ekzekutuan", False, str(_e272))
+
+    # [273] v9.504 — la prescrizione nel LAVORO è il KP 203 (3 anni), non il KC 114 (10 anni «salvo diversa disposizione»)
+    try:
+        from src import brain as _br273
+        from src.retrieval import ArticleIndex as _AI273
+        _br273.set_request_jurisdiction("AL")
+        _al273 = _AI273.load()
+        _k273 = lambda q, aree: {(a.code, str(a.number)) for a, _ in _br273._applica_ancore([], _al273, q, aree)}
+        _a273 = _k273(["afati i parashkrimit të kërkesave nga marrëdhënia e punës", "Punëdhënësi e pushoi klientin pa paralajmërim"], ["Punë", "Civil"])
+        _b273 = _k273(["afati i parashkrimit të detyrimit", "Klienti ka një borxh nga viti 2012"], ["Civil"])
+        _c273 = _k273(["parashkrimi i detyrimeve", "A është parashkruar paga e papaguar e vitit 2021?"], ["Civil"])
+        check("parashkrim[273]: nel lavoro KP 203 (3 anni) e non il KC 114; nel civile il KC 114",
+              ("kodi_punes", "203") in _a273 and ("kodi_civil", "114") not in _a273
+              and ("kodi_civil", "114") in _b273 and ("kodi_civil", "115") in _b273 and ("kodi_punes", "203") not in _b273
+              and ("kodi_punes", "203") in _c273
+              and ("codice_civile", "2947") in {(a.code, str(a.number)) for a, _ in _br273._applica_ancore(
+                  [], _AI273.load(__import__("pathlib").Path("/app/data/index/bm25_it.pkl")),
+                  ["prescrizione", "Incidente stradale del 2023: il risarcimento del danno è prescritto?"], ["Civile"], ancore=_br273.ANCORE_IT)}
+              and ("codice_civile", "2948") in {(a.code, str(a.number)) for a, _ in _br273._applica_ancore(
+                  [], _AI273.load(__import__("pathlib").Path("/app/data/index/bm25_it.pkl")),
+                  ["prescrizione dei crediti", "Il datore non ha pagato gli stipendi del 2020: sono prescritti?"], ["Lavoro", "Civile"],
+                  ancore=_br273.ANCORE_IT)},
+              str(sorted(_a273)) + str(sorted(_c273)))
+    except Exception as _e273:  # noqa: BLE001
+        check("parashkrim[273]: kontrollet u ekzekutuan", False, str(_e273))
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

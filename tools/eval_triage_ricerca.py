@@ -36,6 +36,12 @@ CASI = [  # (giurisdizione, domanda dell'avvocato, articoli di cui almeno uno DE
     ("AL", "Një vendim i Gjykatës së Lartë e shkel të drejtën e klientit për proces të rregullt. Si i drejtohemi Gjykatës Kushtetuese dhe brenda sa kohe?", [("ligji_gjykata_kushtetuese", "71/a"), ("kushtetuta", "131")]),
     # v9.492 — prova viva in Chrome del 4 ott: c'era il KPC 443 (15 giorni), mancava il 444 (decorrenza: dal giorno dopo la notifica)
     ("AL", "Gjykata e shkallës së parë e rrëzoi padinë me vendim të shpallur më 15 shtator, na u njoftua më 22 shtator. Brenda cilës datë bëjmë ankim në apel?", [("kodi_proc_civile", "444")]),
+    # v9.504 — la prescrizione dei crediti di lavoro: KP 203 (3 anni), non il KC 114
+    ("AL", "Punëdhënësi nuk i ka paguar klientit pagat e tetorit dhe nëntorit 2022. A janë parashkruar?", [("kodi_punes", "203")]),
+    ("IT", "Il datore di lavoro non ha pagato al cliente gli stipendi di ottobre e novembre 2020. Sono prescritti?", [("codice_civile", "2948")]),
+    ("AL", "Qiramarrësi nuk më ka paguar qiranë e vitit 2021. A është parashkruar e drejta për ta kërkuar?", [("kodi_civil", "115")]),
+    ("AL", "Gjykata administrative e shkallës së parë e rrëzoi padinë tonë kundër bashkisë. Deri kur mund të bëjmë apel?", [("ligji_gjykatat_administrative", "44"), ("kodi_proc_civile", "443")]),
+    ("IT", "Il cliente ha subito un incidente stradale nel marzo 2023 e non ha ancora chiesto il risarcimento. È prescritto?", [("codice_civile", "2947")]),
     # v9.500 — il CALCOLO del termine (giorno di riposo): prova viva del 4 ott, il senior fissava una domenica
     ("AL", "Dje (3 tetor) klientit iu njoftua vendimi i arsyetuar civil që ia rrëzoi padinë. Deri kur mund të bëjmë apel?", [("kodi_proc_civile", "148")]),
     ("AL", "Klientit tim iu dha dënim me burgim nga gjykata e shkallës së parë, vendimi u njoftua dje. Deri kur bëjmë ankim në apel?", [("kodi_proc_penale", "144")]),

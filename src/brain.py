@@ -110,8 +110,20 @@ ANCORE_AL: tuple = (
     # v9.402: e solo nelle materie civilistiche (se il triage le dice) — in una domanda AMMINISTRATIVA («Bashkia i refuzoi lejen
     # e ndërtimit: brenda sa ditësh e padisim?») entrava 3 volte su 3 accanto ai 45 giorni della 49/2012 e alla prescrizione
     # degli illeciti amministrativi (ligji 10279/2010): lì la prescrizione civile di dieci anni è la regola sbagliata
-    (("parashkrim", "parashkru"), ("Penal",), (("kodi_civil", "114"),), r"parashkrim\w*\s+fitu\w*|fitim\w*\s+(?:\w+\s+){0,3}me\s+parashkrim\w*",
-     ("Civil", "Punë", "Familje", "Tregtare", "Konsumator", "Prone", "Sigurime", "Detar", "Ajror", "Nderkombetar")),
+    # v9.504 — ma NON nel lavoro: il Kodi i Punës ha la sua prescrizione (KP 203 «Parashkrimi»: 3 ANNI per i diritti del
+    # lavoratore verso il datore e viceversa, dalla nascita del diritto) e il KC 114 vale solo «kur në ligj nuk është
+    # parashikuar ndryshe». Misurato (4 ott, triage vero): nei licenziamenti entrava SEMPRE il KC 114 dichiarato «regola
+    # generale» e MAI il KP 203 — il rischio era «dieci anni» per una paga non pagata, che si prescrive in tre
+    # v9.504 — e il KC 114 non entra mai SENZA il KC 115, che fissa i termini speciali più brevi: affitti 3 anni (d), danno
+    # extracontrattuale 3 anni (dh), assicurazione 2 anni (ç), onore e reputazione 1 anno (e), trasporto, spedizione. Con il solo
+    # 114 «la qira non pagata del 2021 è prescritta?» partiva da dieci anni
+    (("parashkrim", "parashkru"), ("Penal", "Punë"), (("kodi_civil", "114"), ("kodi_civil", "115")),
+     r"parashkrim\w*\s+fitu\w*|fitim\w*\s+(?:\w+\s+){0,3}me\s+parashkrim\w*",
+     ("Civil", "Familje", "Tregtare", "Konsumator", "Prone", "Sigurime", "Detar", "Ajror", "Nderkombetar")),
+    (("parashkrim", "parashkru"), ("Penal",), (("kodi_punes", "203"),), r"parashkrim\w*\s+fitu\w*", ("Punë",)),
+    # … anche senza l'area del lavoro, se la DOMANDA parla di prescrizione e di lavoro/paga
+    ((("parashkr", "pun"), ("parashkr", "pag"), ("parashkr", "rrog")), ("Penal",), (("kodi_punes", "203"),), r"parashkrim\w*\s+fitu\w*",
+     None, True),
     # v9.380 — misurato con il triage vero (tools/eval_triage_ricerca.py): «Qiramarrësi nuk paguan qiranë prej 5 muajsh — si
     # ta nxjerr?» portava 11 nene del capitolo della qira ma NON il KC 698 (zgjidhja e kontratës për mospërmbushje), la regola
     # generale che vale anche per la qira. Non nel penale né nel lavoro (lì decide il Kodi i Punës).
@@ -166,10 +178,15 @@ ANCORE_AL: tuple = (
      ("Penal",), (("kodi_proc_civile", "148"), ("kodi_proc_civile", "149")), r"parashkrim\w*", None, True),
     # … e le norme DECISIVE dell'appello: misurato col triage vero (4 ott), un giro cercava solo «come si calcolano i termini» e
     # nel blocco non entravano né il KPC 443 (15 giorni) né il 444 (decorrenza dal giorno dopo la notifica del vendim arsyetuar).
-    # Solo dalla domanda, mai nel penale né nell'amministrativo (lì il termine è un altro: KPP 415, ligji 49/2012)
-    ((("apel",), ("ankim", "vendim"), ("ankim", "gjykat")), ("Penal", "Administrativ", "Kushtetues"),
+    # Solo dalla domanda, mai nel penale (lì il KPP 415) né per la Kushtetuese. Nell'AMMINISTRATIVO sì: la ligji 49/2012, art. 44,
+    # rinvia ai mezzi e ai termini del K.Pr.C. («përveç kur parashikohet ndryshe») — e lì entrano anche il 44 e il 45 (le decisioni
+    # NON appellabili: kundërvajtje sotto venti volte il salario minimo…). v9.504: la prima versione escludeva l'amministrativo, a torto
+    ((("apel",), ("ankim", "vendim"), ("ankim", "gjykat")), ("Penal", "Kushtetues"),
      (("kodi_proc_civile", "443"), ("kodi_proc_civile", "444")), r"parashkrim\w*|ankim\w*\s+kushtetu\w*|kushtetues\w*", None, True),
     ((("apel",), ("ankim", "vendim"), ("ankim", "dënim")), (), (("kodi_proc_penale", "415"),), r"parashkrim\w*", ("Penal",), True),
+    ((("apel",), ("ankim", "vendim"), ("ankim", "gjykat")), ("Penal",),
+     (("ligji_gjykatat_administrative", "44"), ("ligji_gjykatat_administrative", "45")), r"parashkrim\w*|ankim\w*\s+administrativ\w*",
+     ("Administrativ",), True),
     # … e nel penale le regole generali dei termini (KPP 144: calendario comune, il termine a giorni che finisce in un giorno di
     # riposo o festivo slitta al giorno lavorativo successivo)
     (("deri kur", "brenda sa dit", "brenda cilës dat", "brenda çfarë afat", "kur skadon", "kur mbaron afati", ("afat", "apel"),
@@ -180,6 +197,15 @@ ANCORE_AL: tuple = (
 # ordinaria + interruzione + sospensione e il 2946 c.c. «Prescrizione ordinaria» finiva oltre il 12° (2945, 2935, 2964 sopra).
 ANCORE_IT: tuple = (
     (("prescri",), ("Penale", "Penal"), (("codice_civile", "2946"),)),
+    # v9.504 — i crediti di LAVORO: retribuzioni (pagamenti periodici, art. 2948 n. 4) e indennità di fine rapporto (n. 5) si
+    # prescrivono in CINQUE anni. Misurato (4 ott): per «il datore non ha pagato gli stipendi del 2020, sono prescritti?» e
+    # simili il 2948 non usciva nei primi 8, il 2946 (dieci anni) sì — e l'ancora lo dichiarava regola generale
+    ((("prescri", "retribu"), ("prescri", "stipend"), ("prescri", "salari"), ("prescri", "tfr"), ("prescri", "fine rapporto"),
+      ("prescri", "lavorator"), ("prescri", "canon"), ("prescri", "affitt"), ("prescri", "locaz"), ("prescri", "pigion"),
+      ("prescri", "interess")), ("Penale", "Penal"), (("codice_civile", "2948"),)),
+    # … e il DANNO da fatto illecito: cinque anni, due per la circolazione dei veicoli (art. 2947 c.c.), non i dieci del 2946
+    ((("prescri", "risarc"), ("prescri", "danno"), ("prescri", "danni"), ("prescri", "sinistr"), ("prescri", "incident"),
+      ("prescri", "illecit")), ("Penale", "Penal"), (("codice_civile", "2947"),)),
     # v9.401 — la SOSPENSIONE FERIALE (L. 742/1969): l'art. 3 la esclude per le controversie di lavoro e previdenza (gli artt.
     # 429 e 459 c.p.c. che richiama sono quelli anteriori al 1973: oggi 409 e 442). Misurato (28 set, prove vive v9.400): la
     # bozza di un ricorso per licenziamento salvava il termine di 180 giorni dell'art. 6 L. 604/1966 «in ragione della
@@ -302,6 +328,26 @@ def _applica_ancore(pairs, idx, queries: list[str], aree: list[str], ancore=None
                  ", ".join("%s %s" % (a.code, a.number) for a, _ in promossi))
     _via = {id(x[0]) for x in promossi}
     return aggiunte + promossi + [x for x in pairs if id(x[0]) not in _via]
+
+
+# ── v9.503 — il CODICE DEI MINORI fuori dalle domande su ADULTI ─────────────────────────────────────────────────────────────
+# Misurato col triage vero (tools/eval_triage_ricerca.py, 4 ott): nel favoreggiamento del fratello ricercato il Kodi i Drejtësisë
+# Penale për të Mitur prendeva 4 posti su 12 (artt. 55, 71, 59, 47: ripete «dënim», «vepër», «burgim»), nella pistola 2 — posti
+# tolti alle norme vere. Escludere conta più che includere: resta fuori se la DOMANDA dell'avvocato non parla di un minore (v9.504:
+# solo la domanda — il triage scrive «fëmijë» per i parenti esonerati dal KP 302 e il filtro non scattava; senza domanda, tutto).
+_CODICI_MINORI = frozenset({"kodi_te_miturve", "processo_penale_minorile"})
+_MINORE_RX = re.compile(r"mitur|minor(?:e|i|enn\w*)|fëmij|femij|nxënës|nxenes|adoleshent|\b1[0-7]\s*-?\s*vjeç|\b1[0-7]\s*-?\s*vjec|"
+                        r"\b1[0-7]\s*ann[io]\b|nën\s*18|sotto\s+i\s+18|ragazz[oaie]|bambin|studente\s+(?:di|delle)\s+(?:medie|superiori)", re.I)
+
+
+def _senza_codice_minori(pairs, testo: str):
+    if _MINORE_RX.search(testo or ""):
+        return pairs
+    fuori = [a for a, _ in pairs if a.code in _CODICI_MINORI]
+    if not fuori:
+        return pairs
+    log.info("retrieval: codice dei minori fuori (nessun minore nella domanda): %s", ", ".join(f"{a.code} {a.number}" for a in fuori[:6]))
+    return [(a, s) for a, s in pairs if a.code not in _CODICI_MINORI]
 
 
 # ── v9.377 — ANCORA ITALIANA: veicolo con targa EXTRA-UE ─────────────────
@@ -4862,6 +4908,7 @@ class SuperAvvocato:
         # v9.394 — e le parole dell'avvocato (la testa della domanda): il triage riscrive («shtetas i huaj me leje qëndrimi» può
         # sparire dal riassunto), la domanda resta
         _testo_anc.append((getattr(triage, "domanda", "") or "")[:600])
+        pairs = _senza_codice_minori(pairs, _testo_anc[-1] or " ".join(_testo_anc))                   # v9.503
         if idx is self.index:
             pairs = _applica_ancore(pairs, idx, _testo_anc, triage.areas)
             pairs = _ancore_narkotike_al(pairs, idx, _testo_anc, triage.areas)      # v9.402
@@ -4872,6 +4919,9 @@ class SuperAvvocato:
         elif idx is self.index_it:
             pairs = _applica_ancore(pairs, idx, _testo_anc, triage.areas, ancore=ANCORE_IT)
             pairs = _ancore_it_veicolo(pairs, idx, " ".join([triage.problem_summary or ""] + list(all_queries)))
+        # v9.504 — e di nuovo DOPO le ancore: le ancore per titolo riportavano dentro il Codice dei minori (misurato: «kodi_te_miturve 9»
+        # nella detenzione ingiusta di un adulto, al posto di un articolo vero dei 12)
+        pairs = _senza_codice_minori(pairs, _testo_anc[-1] or " ".join(_testo_anc))
         # v9.377: le ancore del veicolo extra-UE si AGGIUNGONO ai 12 (non devono spingere fuori il C.d.S. trovato dalla ricerca)
         _extra = sum(1 for a, _ in pairs if getattr(a, "_ancora_it", False))
         # v9.400 — anche le ancore albanesi di REGOLA GENERALE (copie `_ancora`) si AGGIUNGONO ai 12 invece di spingere fuori la
