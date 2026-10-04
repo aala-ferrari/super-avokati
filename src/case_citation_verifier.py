@@ -132,9 +132,12 @@ def verify_cases_it(text: str) -> dict:
     # v9.385 — la CASSAZIONE sull'archivio UFFICIALE della Corte (src/cassazione.py): metadati di tutti i
     # provvedimenti dal 2009, testo integrale degli ultimi 5 anni. Esiti verified / mismatch (estremi diversi) /
     # unverified; fuori copertura o archivio che non risponde → nessun esito (stessa regola della Consulta).
+    non_risc = 0
     try:
         from . import cassazione as _cass
-        items += _cass.verifica(text or "").get("items") or []
+        _cr = _cass.verifica(text or "")
+        items += _cr.get("items") or []
+        non_risc = int((_cr.get("stats") or {}).get("non_riscontrabili") or 0)     # v9.499: archivio della Corte muto
     except Exception:  # noqa: BLE001
         pass
     # v9.389 — la CORTE DI GIUSTIZIA UE sull'archivio ufficiale dell'Ufficio delle pubblicazioni (src/cgue.py)
@@ -147,7 +150,7 @@ def verify_cases_it(text: str) -> dict:
     mis = sum(1 for i in items if i["status"] == "mismatch")
     return {"items": items,
             "stats": {"total": len(items), "verified": ver,
-                      "unverified": len(items) - ver, "mismatch": mis}}
+                      "unverified": len(items) - ver, "mismatch": mis, "non_riscontrabili": non_risc}}
 
 
 def verify_cases(text: str, index) -> dict:

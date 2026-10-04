@@ -648,6 +648,7 @@ def verifica(text: str) -> dict:
         trovati, offline = {}, True
     ramo_t = _ramo_testo(text)
     items = []
+    non_dette = 0
     for (n, y), ms in per.items():
         recs = trovati.get((n, y))
         if all(m["anno_da_data"] for m in ms) and trovati.get((n, y + 1)):
@@ -655,6 +656,7 @@ def verifica(text: str) -> dict:
             if not any(_date_ok(date, r) for r in recs or []) and any(_date_ok(date, r) for r in trovati[(n, y + 1)]):
                 recs, y = trovati[(n, y + 1)], y + 1
         if recs is None:
+            non_dette += 1                            # v9.499: contata, così la riga di verifica lo dice (mai «0 confermate»)
             continue                                  # l'archivio non l'ha potuta dire: nessun esito
         v = valuta(ms, recs, ramo_t)
         items.append({"raw": ms[0]["raw"], "court": "Cass", "number": n, "year": y, "status": v["status"],
@@ -667,6 +669,7 @@ def verifica(text: str) -> dict:
     st["unverified"] = st["total"] - st["verified"]
     if offline:
         st["offline"] = True
+        st["non_riscontrabili"] = non_dette
     return {"items": items, "stats": st}
 
 

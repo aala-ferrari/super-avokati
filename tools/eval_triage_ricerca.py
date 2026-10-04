@@ -23,7 +23,8 @@ CASI = [  # (giurisdizione, domanda dell'avvocato, articoli di cui almeno uno DE
     ("AL", "Klienti u kap nga policia me 3 gram kokainë në xhep. Çfarë rrezikon dhe a mund të mbrohemi me përdorimin vetjak?", [("kodi_penal", "283")]),
     ("AL", "A lejohet në Shqipëri kultivimi i kanabisit për qëllime mjekësore dhe çfarë licence duhet?", [("ligji_kanabisi_mjekesor", "14"), ("ligji_kanabisi_mjekesor", "15"), ("ligji_kanabisi_mjekesor", "4"), ("ligji_kanabisi_mjekesor", "5"), ("ligji_kanabisi_mjekesor", "1")]),
     ("AL", "Ketamina konsiderohet lëndë narkotike sipas ligjit shqiptar apo është lëndë e kontrolluar?", [("ligji_lendet_narkotike", "2"), ("ligji_lendet_narkotike", "shtojca"), ("ligji_lendet_narkotike", "3")]),
-    ("AL", "Farmacia e klientit shiste tramadol pa recetë mjekësore. Çfarë sanksionesh rrezikon?", [("ligji_lendet_narkotike", "101"), ("ligji_lendet_narkotike", "72"), ("ligji_lendet_narkotike", "65"), ("ligji_lendet_narkotike", "64")]),
+    ("AL", "Farmacia e klientit shiste tramadol pa recetë mjekësore. Çfarë sanksionesh rrezikon?", [("ligji_lendet_narkotike", "101"), ("ligji_lendet_narkotike", "72"), ("ligji_lendet_narkotike", "65"), ("ligji_lendet_narkotike", "64"),
+                                                                                                    ("ligji_barnat", "52"), ("ligji_barnat", "63")]),   # v9.502: il tramadolo non è in nessuna lista: decide la legge sui farmaci
     ("AL", "Klienti u kap në mars 2026 me disa gram HHC të blera në internet. A është vepër penale?", [("ligji_lendet_narkotike", "shtojca"), ("kodi_penal", "283")]),
     ("AL", "Një fermer kishte mbjellë 200 bimë kanabisi në tokën e tij. Çfarë dënimi rrezikon?", [("kodi_penal", "284")]),
     ("AL", "Klienti ka një borxh nga viti 2012 dhe kreditori tani e padit. A ka rënë në parashkrim?", [("kodi_civil", "114"), ("kodi_civil", "115")]),
@@ -35,6 +36,9 @@ CASI = [  # (giurisdizione, domanda dell'avvocato, articoli di cui almeno uno DE
     ("AL", "Një vendim i Gjykatës së Lartë e shkel të drejtën e klientit për proces të rregullt. Si i drejtohemi Gjykatës Kushtetuese dhe brenda sa kohe?", [("ligji_gjykata_kushtetuese", "71/a"), ("kushtetuta", "131")]),
     # v9.492 — prova viva in Chrome del 4 ott: c'era il KPC 443 (15 giorni), mancava il 444 (decorrenza: dal giorno dopo la notifica)
     ("AL", "Gjykata e shkallës së parë e rrëzoi padinë me vendim të shpallur më 15 shtator, na u njoftua më 22 shtator. Brenda cilës datë bëjmë ankim në apel?", [("kodi_proc_civile", "444")]),
+    # v9.500 — il CALCOLO del termine (giorno di riposo): prova viva del 4 ott, il senior fissava una domenica
+    ("AL", "Dje (3 tetor) klientit iu njoftua vendimi i arsyetuar civil që ia rrëzoi padinë. Deri kur mund të bëjmë apel?", [("kodi_proc_civile", "148")]),
+    ("AL", "Klientit tim iu dha dënim me burgim nga gjykata e shkallës së parë, vendimi u njoftua dje. Deri kur bëjmë ankim në apel?", [("kodi_proc_penale", "144")]),
     # v9.487 — prova viva 3 ott: il recupero portava solo la legge sulle armi, il KP 278 lo aggiungeva il Kërkuesi
     ("AL", "Klienti u kap nga policia me një pistoletë pa leje në makinë, dhe në shtëpi i gjetën 20 fishekë luftarakë. Çfarë dënimi rrezikon dhe si mbrohemi?", [("kodi_penal", "278")]),
     ("AL", "Policia i gjeti klientit një thikë të madhe në makinë. A është vepër penale?", [("kodi_penal", "279")]),

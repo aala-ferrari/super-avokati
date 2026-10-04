@@ -7754,7 +7754,7 @@ main {
 .fees-modal { max-width: 640px; }
 .fee-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; margin: 6px 0 12px; }
 .fee-lbl { display: flex; flex-direction: column; gap: 3px; font-size: .82rem; color: #6b5836; font-weight: 600; }
-.fee-lbl input { padding: 7px 10px; border: 1px solid #d8c9a8; border-radius: 8px; font-size: .95rem; }
+.fee-lbl input, .fee-lbl select { padding: 7px 10px; border: 1px solid #d8c9a8; border-radius: 8px; font-size: .95rem; background: #fff; color: #2a2734; font-weight: 400; }
 .fee-hint { color: #9a8c74; font-weight: 400; font-size: .72rem; }
 .fee-rates { border-top: 1px solid #e6dcc6; padding-top: 8px; }
 .fee-rates b { color: #7a5c1e; }
@@ -7766,7 +7766,7 @@ main {
 .fee-fixed summary { cursor: pointer; font-weight: 700; color: #7a5c1e; }
 .fee-fixed ul { margin: 6px 0 0; padding-left: 18px; }
 .fee-warn { margin-top: 12px; background: #fdf6e3; border: 1px solid #e8d9a8; border-radius: 10px; padding: 10px 12px; font-size: .82rem; color: #7a5c1e; }
-@media (prefers-color-scheme: dark){ .fee-lbl input, .fee-tbl td { color:#e0d8c4; } .fee-lbl input{ background:#221f16; border-color:#3a3320; } .fee-warn{ background:#2a2413; border-color:#4a3f1e; color:#d8c98a; } }
+@media (prefers-color-scheme: dark){ .fee-lbl input, .fee-lbl select, .fee-tbl td { color:#e0d8c4; } .fee-lbl input, .fee-lbl select{ background:#221f16; border-color:#3a3320; } .fee-warn{ background:#2a2413; border-color:#4a3f1e; color:#d8c98a; } }
 
 /* add-to-calendar */
 .cal-wrap { margin-top: 12px; }
@@ -8219,3 +8219,21 @@ details.analiza[open]>summary::before{content:"\25BE  "}
 /* v9.494 — la correzione del Giudice accanto alla voce del pannello */
 .giudice-corr{display:block;margin:4px 0 2px;padding:4px 8px;border-left:3px solid #b8860b;background:rgba(184,134,11,.10);font-size:.86em;line-height:1.35;white-space:normal}
 .giudice-corretto{outline:1px dashed rgba(184,134,11,.55);outline-offset:2px}
+
+/* v9.497 — su un portatile (715 px utili) avviso delle scadenze e suggerimenti prendevano 250 px e lasciavano ai messaggi
+   209 px: ora una riga ciascuno, il testo lungo con «…» (testo intero nel title). */
+.deadline-banner { flex-wrap: nowrap; padding: 5px 16px; }
+.deadline-banner .db-text { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.deadline-banner .db-open { padding: 4px 10px; white-space: nowrap; flex: none; }
+.suggest-banner { display: flex; align-items: center; gap: 8px; margin: 6px 12px 0; padding: 5px 8px 5px 10px; }
+.suggest-head { display: contents; }
+.suggest-title { flex: none; font-size: 12px; font-weight: 600; color: #5a4400; }
+.suggest-dismiss { order: 9; flex: none; }
+.suggest-row { flex: 1 1 auto; min-width: 0; flex-wrap: nowrap; gap: 6px; }
+.suggest-chip { flex: 1 1 0; padding: 4px 10px; align-items: center; }
+.suggest-chip-ico { font-size: 15px; }
+.suggest-chip-body { flex-direction: row; align-items: baseline; gap: 6px; }
+.suggest-chip-body strong { flex: none; white-space: nowrap; }
+.suggest-chip-body em { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+@media (max-width: 900px) { .suggest-title { display: none; } }
+@media (max-width: 720px) { .suggest-chip { flex-basis: 0; } .suggest-chip-body em { display: none; } }

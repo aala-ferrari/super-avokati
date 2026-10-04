@@ -156,6 +156,25 @@ ANCORE_AL: tuple = (
     ((("pushu", "pun"), ("pushoi", "pun"), ("pushim nga pun",), ("pushimi nga pun",), ("zgjidh", "kontrat", "pun"),
       ("largu", "nga pun"), ("largoi", "pun"), ("pushoj", "pun")),
      ("Penal",), (("kodi_punes", "143"), ("kodi_punes", "145")), None, ("Punë",)),
+    # v9.500 — «entro quando l'appello?»: il CALCOLO del termine (KPC 148 — giorno iniziale escluso, termine a mesi/anni; e la
+    # regola dell'ultimo giorno di riposo che slitta al giorno di lavoro — 149: l'ultimo giorno vale fino alle 24, la posta
+    # spedita l'ultimo giorno vale). Prova viva del 4 ott (vendim civil notificato il 3/10): il senior scriveva «la regola dello
+    # slittamento non è negli articoli che ho» e fissava il 18 ottobre, una DOMENICA; il Giudice ha corretto al 19 solo perché il
+    # completamento aveva portato il 148. Solo quando si chiede ENTRO QUANDO fare un atto, mai sulla prescrizione.
+    (("deri kur", "brenda sa dit", "brenda cilës dat", "brenda çfarë afat", "kur skadon", "kur mbaron afati", ("afat", "apel"),
+      ("afat", "ankim"), ("afat", "rekurs")),
+     ("Penal",), (("kodi_proc_civile", "148"), ("kodi_proc_civile", "149")), r"parashkrim\w*", None, True),
+    # … e le norme DECISIVE dell'appello: misurato col triage vero (4 ott), un giro cercava solo «come si calcolano i termini» e
+    # nel blocco non entravano né il KPC 443 (15 giorni) né il 444 (decorrenza dal giorno dopo la notifica del vendim arsyetuar).
+    # Solo dalla domanda, mai nel penale né nell'amministrativo (lì il termine è un altro: KPP 415, ligji 49/2012)
+    ((("apel",), ("ankim", "vendim"), ("ankim", "gjykat")), ("Penal", "Administrativ", "Kushtetues"),
+     (("kodi_proc_civile", "443"), ("kodi_proc_civile", "444")), r"parashkrim\w*|ankim\w*\s+kushtetu\w*|kushtetues\w*", None, True),
+    ((("apel",), ("ankim", "vendim"), ("ankim", "dënim")), (), (("kodi_proc_penale", "415"),), r"parashkrim\w*", ("Penal",), True),
+    # … e nel penale le regole generali dei termini (KPP 144: calendario comune, il termine a giorni che finisce in un giorno di
+    # riposo o festivo slitta al giorno lavorativo successivo)
+    (("deri kur", "brenda sa dit", "brenda cilës dat", "brenda çfarë afat", "kur skadon", "kur mbaron afati", ("afat", "apel"),
+      ("afat", "ankim"), ("afat", "rekurs")),
+     (), (("kodi_proc_penale", "144"),), r"parashkrim\w*", ("Penal",), True),
 )
 # v9.380 — ancore italiane di REGOLA GENERALE (stesso metro): «il credito risale al 2013 — è prescritto?» → il triage cerca
 # ordinaria + interruzione + sospensione e il 2946 c.c. «Prescrizione ordinaria» finiva oltre il 12° (2945, 2935, 2964 sopra).
@@ -237,8 +256,11 @@ def _applica_ancore(pairs, idx, queries: list[str], aree: list[str], ancore=None
     promossi: list = []
     for voce in (ANCORE_AL if ancore is None else ancore):
         parole, aree_spente, articoli = voce[0], voce[1], voce[2]
+        # v9.500: un sesto elemento = si guarda SOLO la domanda dell'avvocato (l'ultimo testo passato), non le riscritture del
+        # triage: per i termini il triage scrive «afati i ankimit» anche dove nessuno chiede entro quando (affitto, dogana, pistola)
+        _base = (queries[-1] or "").lower() if (len(voce) > 5 and voce[5] and queries) else testo
         # v9.381: un quarto elemento (regex) toglie le frasi che NON contano prima di cercare le parole
-        _t = re.sub(voce[3], " ", testo) if len(voce) > 3 and voce[3] else testo
+        _t = re.sub(voce[3], " ", _base) if len(voce) > 3 and voce[3] else _base
         # v9.380: una voce può essere una frase («pa testament») o una TUPLA di radici che devono esserci TUTTE
         # («individual» + «kushtetu»): il triage riscrive a ogni giro con parole diverse, le radici restano
         if not any((all(x in _t for x in p) if isinstance(p, tuple) else p in _t) for p in parole):
@@ -995,15 +1017,53 @@ DIRETTIVA_GJUHE = {
 }
 
 
+_MUAJT = {"sq": ("janar", "shkurt", "mars", "prill", "maj", "qershor", "korrik", "gusht", "shtator", "tetor", "nëntor", "dhjetor"),
+          "it": ("gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio", "agosto", "settembre", "ottobre",
+                 "novembre", "dicembre")}
+
+
+def riga_oggi(jurisdiction: str | None, oggi=None) -> str:
+    """v9.498 — la data di OGGI (ora locale della giurisdizione), col giorno della settimana e le festività del motore dei
+    termini. Il cervello non la riceveva mai (solo la cronologia, senza il giorno): i riquadri scrivevano «deposita oggi» di
+    domenica e contavano i giorni da una data indovinata. Solo fatti, nessuna regola di proroga (diversa fra civile e penale)."""
+    j = (jurisdiction or "AL").upper()
+    if j not in ("AL", "IT"):
+        return ""
+    try:
+        from datetime import datetime as _dtm
+        from . import deadline_engine as _de
+        from .storage import fuso_di
+        d = oggi or _dtm.now(fuso_di(j)).date()
+        it = j == "IT"
+        lg = "it" if it else "sq"
+        wd = _de._wd(d, lg)
+        if _de.is_holiday(d, j):
+            stato = " — festività nazionale" if it else " — festë zyrtare, ditë jo pune"
+        elif d.weekday() == 6:
+            stato = " — giorno festivo" if it else " — ditë jo pune"
+        elif d.weekday() == 5 and not it:
+            stato = " — ditë jo pune për gjykatat dhe zyrat publike"
+        else:
+            stato = ""
+        if it:
+            return (f"\n\n[DATA DI OGGI: {wd} {d.day} {_MUAJT['it'][d.month - 1]} {d.year}{stato}. «Oggi», «domani» e i giorni "
+                    "che mancano a un termine si contano da questa data.]")
+        return (f"\n\n[DATA E SOTME: {wd}, {d.day} {_MUAJT['sq'][d.month - 1]} {d.year}{stato}. «Sot», «nesër» dhe ditët që mbeten "
+                "deri te një afat llogariten nga kjo datë.]")
+    except Exception:  # noqa: BLE001 - la data non deve mai bloccare una risposta
+        return ""
+
+
 def direttiva_gjuhe_prompt(prompt: str, jurisdiction: str | None) -> str:
-    """Accoda al messaggio utente la riga di lingua della sessione. Idempotente,
+    """Accoda al messaggio utente la data di oggi (v9.498) e la riga di lingua della sessione, che resta l'ULTIMA. Idempotente,
     e un prompt vuoto resta vuoto (non si manda al cervello solo la riga)."""
     if not isinstance(prompt, str) or not prompt.strip():
         return prompt
     riga = DIRETTIVA_GJUHE.get((jurisdiction or "AL").upper(), DIRETTIVA_GJUHE["AL"])
     if riga.strip() in prompt:
         return prompt
-    return prompt + riga
+    oggi = "" if ("[DATA DI OGGI:" in prompt or "[DATA E SOTME:" in prompt) else riga_oggi(jurisdiction)
+    return prompt + oggi + riga
 
 
 ALBANIAN_LANGUAGE_RULES = """── RREGULLA GJUHËSORE (shqipe standarde juridike) ──

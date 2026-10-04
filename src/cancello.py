@@ -168,7 +168,15 @@ def _barra(text: str, index, lang: str, retrieved_codes=None) -> tuple[str, int,
         riga = text[riga_ini:riga_fin]
         if "fake" in stati:
             a, b = m.start("nums"), m.end("nums")
-            out.append(text[last:a] + "~~" + text[a:b] + "~~" + text[b:m.end()] + nota_r); last = m.end(); rimossi += 1
+            # v9.500 — in un elenco («nenet 458, 445 dhe 42 i Kushtetutës») si barrano SOLO i numeri inesistenti: prima si barrava
+            # tutto l'elenco, anche l'articolo valido (prova viva AL del 4 ott: «~~458, 445 dhe 42~~», ma l'art. 42 Cost. esiste)
+            falsi = {str(i.get("number") or "").lower() for i in items if i.get("status") == "fake"}
+            nums, pezzi, k, toccati = text[a:b], [], 0, 0
+            for t in re.finditer(r"\d+(?:[-/][\w.]+)*", nums):
+                if t.group(0).lower() in falsi:
+                    pezzi.append(nums[k:t.start()] + "~~" + t.group(0) + "~~"); k = t.end(); toccati += 1
+            nums_b = ("".join(pezzi) + nums[k:]) if toccati else ("~~" + nums + "~~")
+            out.append(text[last:a] + nums_b + text[b:m.end()] + nota_r); last = m.end(); rimossi += 1
         elif stati & {"repealed", "unconstitutional"} and not _GIA_DETTO_RE.search(riga):
             st = "repealed" if "repealed" in stati else "unconstitutional"
             nota = note_s[st]

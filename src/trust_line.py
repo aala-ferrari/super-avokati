@@ -206,6 +206,7 @@ def verifica(text: str, index, jurisdiction: str = "AL", retrieved_codes=None, f
         out["sentenze"]["mismatch"] = int(st.get("mismatch") or 0)
         out["sentenze"]["excluded"] = int(st.get("excluded") or 0)
         out["sentenze"]["total"] = int(st.get("total") or 0)
+        out["sentenze"]["offline"] = int(st.get("non_riscontrabili") or 0)     # v9.499: archivio della Cassazione muto
         # v9.385 — la Cassazione ha un resoconto suo per il Giudice (estremi ufficiali, esito, passo del testo):
         # qui si tengono gli item e il testo, fuori dall'audit (solo i conteggi vanno nel pacchetto)
         _cz = [it for it in pay.get("items") or [] if it.get("court") == "Cass"]
@@ -253,11 +254,12 @@ def stato(v: dict) -> str:
         return "FLAGS"
     # v9.361 — nessuna citazione = niente da verificare: dire «✅ e verifikuar» sarebbe una vula falsa
     # (misurato il 21 set su una risposta senza nene: usciva verde)
-    if not n.get("total") and not s.get("total") and not n.get("foreign_verified") and not n.get("foreign_unverified"):
+    if (not n.get("total") and not s.get("total") and not s.get("offline") and not n.get("foreign_verified")
+            and not n.get("foreign_unverified")):
         return "EMPTY"
     # «senza codice» (neni 155 nudo, col codice nominato poco prima) non è un errore: resta nel
     # conteggio della riga ma non abbassa lo stato (prova viva 16 set: 19 «pa kod» su un verdetto giusto)
-    if (s["unverified"] or s.get("excluded") or v.get("fatti_da_precisare") or n.get("foreign_unverified")
+    if (s["unverified"] or s.get("excluded") or s.get("offline") or v.get("fatti_da_precisare") or n.get("foreign_unverified")
             or n.get("avvisi")):
         return "RESERVATIONS"
     return "VERIFIED"
@@ -334,6 +336,8 @@ def riga(v: dict, lang: str = "sq", tempo: dict | None = None, coverage: dict | 
             b.append(f"{_mis} con estremi diversi")
         if s.get("excluded"):
             b.append(f"{s['excluded']} senza valore di precedente")
+        if s.get("offline"):
+            b.append(f"{s['offline']} non riscontrabili ora (archivio della Cassazione non raggiungibile)")
         c = f"fatti {f} da precisare" if f else "fatti: nessuno da precisare"
         if n.get("foreign_verified") or n.get("foreign_unverified"):
             c += f" | diritto straniero/internazionale {n.get('foreign_verified', 0)} verificato"
@@ -405,6 +409,9 @@ def blocco_per_gjyqtarin(v: dict, lang: str = "sq", coverage: dict | None = None
                      + " | ".join(b["dich"]) + " — controlla che la risposta NON si fondi sulla parte caduta")
         r.append(f"Sentenze citate: {s['verified']} confermate negli archivi, {s.get('quashed', 0)} ANNULLATE dalla Corte costituzionale, "
                  f"{s['unverified']} NON confermate (archivi parziali: da riscontrare, non necessariamente false).")
+        if s.get("offline"):
+            r.append(f"Cassazione: {s['offline']} citazioni NON riscontrabili adesso (l'archivio ufficiale della Corte non ha risposto): "
+                     "non sono né confermate né false — non espungerle per questo e non dichiararle confermate.")
         for b in s.get("quashed_list") or []:
             r.append(f"- {b} → ANNULLATA: non è un precedente valido")
         for b in s["bad"][:8]:

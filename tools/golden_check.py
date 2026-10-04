@@ -8100,6 +8100,132 @@ def main():
     except Exception as _e264:  # noqa: BLE001
         check("scadenze[264]: kontrollet u ekzekutuan", False, str(_e264))
 
+    # [265] v9.496 — il titolo automatico del fascicolo (dalla prima domanda) si taglia su parola intera, mai «… un de»
+    try:
+        from src import web as _w265
+        _t265 = _w265._tronca_titolo(" ".join("Al mio cliente è stato notificato il 25 settembre 2026 un decreto\npenale".split()), 60)
+        _src265 = open(_w265.__file__, encoding="utf-8").read()
+        check("titolo[265]: titolo automatico del fascicolo su parola intera",
+              _t265.endswith("…") and not _t265.endswith("de…") and len(_t265) <= 60
+              and _src265.count('_tronca_titolo(" ".join(message.split()), 60)') == 2 and "message[:60]" not in _src265, _t265)
+    except Exception as _e265:  # noqa: BLE001
+        check("titolo[265]: kontrollet u ekzekutuan", False, str(_e265))
+
+    # [266] v9.497 — avviso delle scadenze e suggerimenti su UNA riga: su un portatile lasciavano ai messaggi 209 px su 715
+    try:
+        from pathlib import Path as _P266
+        _css266 = (_P266("/app/static/style.css")).read_text(encoding="utf-8")
+        _js266 = (_P266("/app/static/app.js")).read_text(encoding="utf-8")
+        _i266 = _css266.find("v9.497")
+        _c266 = _css266[_i266:]
+        check("ui[266]: avviso delle scadenze e suggerimenti su una riga (testo intero nel title)",
+              _i266 > 0 and ".deadline-banner { flex-wrap: nowrap;" in _c266 and "text-overflow: ellipsis" in _c266
+              and ".suggest-head { display: contents; }" in _c266 and "_dbt.title = _dbt.textContent" in _js266, _c266[:80])
+    except Exception as _e266:  # noqa: BLE001
+        check("ui[266]: kontrollet u ekzekutuan", False, str(_e266))
+
+    # [267] v9.497 — il calcolatore delle imposte del notaio in sessione ITALIANA non è quello albanese (lek, ASHK, Tirana)
+    try:
+        from pathlib import Path as _P267
+        _js267 = (_P267("/app/static/app.js")).read_text(encoding="utf-8")
+        _i267 = _js267.find("function openNotaryFeesIT()")
+        _f267 = _js267[_i267:_js267.find("function openNotaryFees() {", _i267)]
+        check("notaio[267]: imposte d'acquisto italiane in sessione IT (registro 9/2 %, minimo 1.000 €, fisse 50 €, prezzo-valore)",
+              _i267 > 0 and "if (_CAL_IT) return openNotaryFeesIT();" in _js267 and "Math.max(1000, base * aliq / 100)" in _f267
+              and "1.05 * molt" in _f267 and "prima ? 110 : 120" in _f267 and "ALL" not in _f267 and "ASHK" not in _f267
+              and "riga(\"Imposta ipotecaria (fissa)\", eur(50))" in _f267, _f267[:80])
+    except Exception as _e267:  # noqa: BLE001
+        check("notaio[267]: kontrollet u ekzekutuan", False, str(_e267))
+
+    # [268] v9.498 — la data di OGGI (col giorno e le festività) in ogni chiamata al cervello, prima della riga di lingua
+    try:
+        import datetime as _dt268
+        from src import brain as _br268
+        _a268 = _br268.riga_oggi("IT", _dt268.date(2026, 10, 4))
+        _b268 = _br268.riga_oggi("AL", _dt268.date(2026, 10, 4))
+        _c268 = _br268.riga_oggi("AL", _dt268.date(2026, 10, 3))
+        _d268 = _br268.riga_oggi("IT", _dt268.date(2026, 10, 6))
+        _p268 = _br268.direttiva_gjuhe_prompt("Domanda", "IT")
+        check("oggi[268]: data di oggi col giorno e le festività, prima della riga di lingua, idempotente",
+              "domenica 4 ottobre 2026 — festività nazionale" in _a268 and "e diel, 4 tetor 2026 — ditë jo pune" in _b268
+              and "e shtunë, 3 tetor 2026 — ditë jo pune për gjykatat" in _c268 and "martedì 6 ottobre 2026." in _d268
+              and "[DATA DI OGGI:" in _p268 and _p268.endswith(_br268.DIRETTIVA_GJUHE["IT"])
+              and _br268.direttiva_gjuhe_prompt(_p268, "IT") == _p268 and _p268.count("[DATA DI OGGI:") == 1
+              and _br268.riga_oggi("EU") == "", _a268 + " | " + _c268)
+    except Exception as _e268:  # noqa: BLE001
+        check("oggi[268]: kontrollet u ekzekutuan", False, str(_e268))
+
+    # [269] v9.499 — (1) il comma in LETTERE («art. 326, primo comma, c.p.c.») non lascia la citazione senza codice; (2) con l'archivio
+    # della Cassazione muto la riga di verifica dice «N non riscontrabili ora», mai «0 confermate», e lo stato non è ✅
+    try:
+        from pathlib import Path as _P269
+        from src import citation_verifier as _cv269, brain as _br269, trust_line as _tl269, cassazione as _cz269
+        from src.retrieval import ArticleIndex as _AI269
+        _br269.set_request_jurisdiction("IT")
+        _it269 = _AI269.load(_P269("/app/data/index/bm25_it.pkl"))
+        _f269 = lambda t: [(x["status"], x.get("code"), str(x.get("number"))) for x in _cv269.verify_text(t, _it269)["items"]]
+        _ok1 = (_f269("art. 326, primo comma, c.p.c.") == [("verified", "codice_procedura_civile", "326")]
+                and _f269("art. 155, quarto e quinto comma, c.p.c.") == [("verified", "codice_procedura_civile", "155")]
+                and _f269("art. 2697, comma primo, c.c.") == [("verified", "codice_civile", "2697")]
+                and _f269("art. 9999, primo comma, c.p.c.") == [("fake", "codice_procedura_civile", "9999")])
+        _br269.set_request_jurisdiction("AL")
+        _al269 = _AI269.load()
+        _g269 = lambda t: [(x["status"], x.get("code"), str(x.get("number"))) for x in _cv269.verify_text(t, _al269)["items"]]
+        _ok1 = _ok1 and (_g269("neni 443, paragrafi i parë, i Kodit të Procedurës Civile") == [("verified", "kodi_proc_civile", "443")]
+                         and _g269("neni 155, pika e parë, e Kodit të Punës") == [("verified", "kodi_punes", "155")]
+                         and _g269("neni 9999, paragrafi i parë, i Kodit Penal")[0][0] == "fake")
+        _br269.set_request_jurisdiction("IT")
+        _old269 = _cz269.verifica
+        _cz269.verifica = lambda text: {"items": [], "stats": {"total": 0, "verified": 0, "unverified": 0, "mismatch": 0,
+                                                              "offline": True, "non_riscontrabili": 2}}
+        try:
+            _v269 = _tl269.verifica("Lo dice l'art. 2697 c.c. (Cass. civ., Sez. III, n. 1234/2020 e n. 5678/2021).", _it269, "IT")
+        finally:
+            _cz269.verifica = _old269
+        _r269 = _tl269.riga(_v269, "it")
+        _ok2 = ("2 non riscontrabili ora" in _r269 and _tl269.stato(_v269) == "RESERVATIONS"
+                and "NON riscontrabili adesso" in _tl269.blocco_per_gjyqtarin(_v269, "it"))
+        _br269.set_request_jurisdiction("AL")
+        check("verifica[269]: comma in lettere riconosciuto, archivio della Cassazione muto dichiarato", _ok1 and _ok2, _r269[:160])
+    except Exception as _e269:  # noqa: BLE001
+        check("verifica[269]: kontrollet u ekzekutuan", False, str(_e269))
+
+    # [270] v9.501 — (1) nella domanda «entro quando l'atto?» entra il CALCOLO dei termini (KPC 148-149, KPP 144), letto SOLO dalla
+    # domanda dell'avvocato (le riscritture del triage dicono «afat» anche nell'affitto); (2) il cancello barra solo i numeri inesistenti
+    try:
+        from src import brain as _br270, cancello as _cn270, citation_verifier as _cv270
+        from src.retrieval import ArticleIndex as _AI270
+        _br270.set_request_jurisdiction("AL")
+        _al270 = _AI270.load()
+        _k270 = lambda pr: {(a.code, str(a.number)) for a, _ in pr}
+        _a270 = _br270._applica_ancore([], _al270, ["afati i ankimit në apel", "Deri kur mund të bëjmë apel kundër vendimit?"], ["Civil"])
+        _b270 = _br270._applica_ancore([], _al270, ["afati i ankimit për padinë e qirasë", "Qiramarrësi nuk paguan qiranë: si ta nxjerr?"], ["Civil"])
+        _c270 = _br270._applica_ancore([], _al270, ["afati i ankimit", "Deri kur bëjmë ankim kundër dënimit?"], ["Penal"])
+        _d270 = _cn270._barra("Gjykata e Lartë (nenet 458, 445 dhe 42 i Kushtetutës).", _al270, "sq")[0]
+        check("afate[270]: calcolo dei termini nella domanda «deri kur», mai dalle riscritture; barrati solo i numeri inesistenti",
+              ("kodi_proc_civile", "148") in _k270(_a270) and ("kodi_proc_civile", "148") not in _k270(_b270)
+              and ("kodi_proc_penale", "144") in _k270(_c270) and ("kodi_proc_civile", "148") not in _k270(_c270)
+              and ("kodi_proc_civile", "443") in _k270(_a270) and ("kodi_proc_penale", "415") in _k270(_c270)
+              and ("kodi_proc_civile", "443") not in _k270(_c270)
+              and "~~458~~, ~~445~~ dhe 42" in _d270, _d270[:90])
+    except Exception as _e270:  # noqa: BLE001
+        check("afate[270]: kontrollet u ekzekutuan", False, str(_e270))
+
+    # [271] v9.502 — la LEGGE SUI FARMACI (ligji 105/2014, consolidato QBZ 23.10.2025) nel corpus: ricetta (52-53), sanzioni (63)
+    try:
+        from src import citation_verifier as _cv271, brain as _br271
+        from src.retrieval import ArticleIndex as _AI271
+        _br271.set_request_jurisdiction("AL")
+        _al271 = _AI271.load()
+        _k271 = {(a.code, str(a.number)) for a in _al271.articles}
+        _v271 = [(x["status"], x.get("code")) for x in _cv271.verify_text("neni 52 i ligjit nr. 105/2014 dhe neni 63 i ligjit për barnat", _al271)["items"]]
+        _s271 = [a.code for a, _ in _al271.search("shitja e barnave pa recetë në farmaci gjobë", 5)]
+        check("barnat[271]: legge sui farmaci nel corpus, verificata per numero e per nome, trovata dalla domanda sulla farmacia",
+              {("ligji_barnat", "52"), ("ligji_barnat", "53"), ("ligji_barnat", "63")} <= _k271
+              and _v271 == [("verified", "ligji_barnat"), ("verified", "ligji_barnat")] and "ligji_barnat" in _s271[:2], str(_v271) + str(_s271))
+    except Exception as _e271:  # noqa: BLE001
+        check("barnat[271]: kontrollet u ekzekutuan", False, str(_e271))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

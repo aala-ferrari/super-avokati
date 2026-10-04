@@ -7284,7 +7284,7 @@ def api_ask():
 
     # Auto-title the case with the first user message if it's still default.
     if case.title in ("Rast i ri", "Rast pa titull"):
-        auto_title = message[:60].strip()
+        auto_title = _tronca_titolo(" ".join(message.split()), 60)   # v9.496: su parola intera
         if auto_title:
             storage.rename_case(case.id, user.id, auto_title)
 
@@ -7503,7 +7503,7 @@ def _ask_prepare(user, data):
                     case.id, user.id, ANSWER_SYSTEM_VERSION,
                 )
             if case.title in ("Rast i ri", "Rast pa titull"):
-                auto_title = message[:60].strip()
+                auto_title = _tronca_titolo(" ".join(message.split()), 60)   # v9.496: su parola intera
                 if auto_title:
                     storage.rename_case(case.id, user.id, auto_title)
 

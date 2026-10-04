@@ -201,6 +201,7 @@ _AL_NEW_ALIASES: list[tuple[str, list[str]]] = [
                           "ligji i prokurorisë"]),
     ("ligji_diskriminimi", ["ligji për mbrojtjen nga diskriminimi", "ligji kundër diskriminimit"]),
     ("ligji_mediat_audiovizive", ["ligji për mediat audiovizive", "mediat audiovizive"]),
+    ("ligji_barnat", ["ligji për barnat dhe shërbimin farmaceutik", "ligji për barnat", "ligjit për barnat", "ligji i barnave"]),
     ("ligji_identifikimi_elektronik", ["ligji për identifikimin elektronik", "identifikimi elektronik dhe shërbimet e besuara"]),
     ("ligji_regjistrimi_ojf", ["ligji për regjistrimin e organizatave jofitimprurëse", "regjistrimi i organizatave jofitimprurëse"]),
     ("ligji_ojf", ["ligji për organizatat jofitimprurëse", "ligji i organizatave jofitimprurëse"]),
@@ -278,6 +279,7 @@ _LAW_NUMBER_ALIASES: dict[str, str] = {
     "8788": "ligji_ojf", "8788/2001": "ligji_ojf", "80/2021": "ligji_regjistrimi_ojf",  # v9.481
     "51/2026": "ligji_identifikimi_elektronik",  # v9.482
     "97/2013": "ligji_mediat_audiovizive",  # v9.485
+    "105/2014": "ligji_barnat",  # v9.502
     "74/2014": "ligji_armet", "8308": "ligji_transportet_rrugore", "8308/1998": "ligji_transportet_rrugore",
     "162/2020": "ligji_prokurimi_publik", "133/2015": "ligji_trajtimi_prones", "20/2020": "ligji_proceset_kalimtare",
     # audit 16 set: il corpus non riconosceva il proprio numero
@@ -341,7 +343,7 @@ CODE_LABELS: dict[str, str] = {
     "ligji_gjykatat_administrative": "Ligji Gjykatat Administrative 49/2012", "ligji_gjykata_kushtetuese": "Ligji Gjykata Kushtetuese 8577/2000", "ligji_pergjegjesia_administrates": "Ligji Përgjegjësia Jashtëkontraktore 8510/1999", "ligji_marredheniet_juridiksionale": "Ligji Marrëdhëniet Juridiksionale 10193/2009", "ligji_shpronesimi": "Ligji Shpronësimet 8561/1999", "ligji_vetqeverisja_vendore": "Ligji Vetëqeverisja Vendore 139/2015",
     "ligji_planifikimi_territorit": "Ligji Planifikimi 107/2014", "ligji_te_denuarit": "Ligji Të Dënuarit 81/2020",
     "ligji_prokuroria": "Ligji Prokuroria 97/2016", "ligji_diskriminimi": "Ligji Diskriminimi 10221/2010", "ligji_informimi": "Ligji Informimi 119/2014",
-    "ligji_ojf": "Ligji OJF 8788/2001", "ligji_regjistrimi_ojf": "Ligji Regjistrimi OJF 80/2021", "ligji_identifikimi_elektronik": "Ligji Identifikimi Elektronik 51/2026", "ligji_mediat_audiovizive": "Ligji Mediat Audiovizive 97/2013",
+    "ligji_barnat": "Ligji për barnat 105/2014", "ligji_ojf": "Ligji OJF 8788/2001", "ligji_regjistrimi_ojf": "Ligji Regjistrimi OJF 80/2021", "ligji_identifikimi_elektronik": "Ligji Identifikimi Elektronik 51/2026", "ligji_mediat_audiovizive": "Ligji Mediat Audiovizive 97/2013",
     "ligji_armet": "Ligji Armët 74/2014", "ligji_transportet_rrugore": "Ligji Transportet 8308/1998",
     "ligji_prokurimi_publik": "Ligji Prokurimi 162/2020", "ligji_trajtimi_prones": "Ligji Trajtimi Pronës 133/2015",
     "ligji_proceset_kalimtare": "Ligji Proceset Kalimtare 20/2020",
@@ -526,7 +528,11 @@ _LIST_SEP = r"(?:\s*(?:,|;|\bdhe\b|\be\b)\s*)"
 _SUB_NUM = r"\d{1,3}(?:-(?:bis|ter|quater|quinquies|sexies|septies|octies|novies|decies))?(?![\w/])\)?"
 _SUB_LET = (r"(?:[\"“«'][a-zçë]{1,2}[\"”»']|[a-zçë]{1,2}\)|"
             r"(?!(?:e|i|t[ëe]|s[ëe]|me|n[ëe]|se|ose|dhe|po|si|sa)(?![\wçë]))[a-zçë]{1,2}(?![\wçë/.]))")
-_SUB_AL = (r"(?:\s*,?\s*(?:(?:pik[aë]t?|paragraf\w{0,3}|fjali[aë]?|n[ëe]npik[aë]t?)\s+" + _SUB_NUM +
+# v9.499 — anche il paragrafo/la pika in LETTERE: «neni 443, paragrafi i parë, i Kodit…», «neni 155, pika e parë, e Kodit të
+# Punës», «paragrafi i fundit» (come «primo comma» in italiano: restava «pa kod»)
+_ORD_AL = (r"(?:i|e)\s+(?:par[ëe]|dyt[ëe]|tret[ëe]|kat[ëe]rt|pest[ëe]|gjasht[ëe]|shtat[ëe]|tet[ëe]|n[ëe]nt[ëe]|dhjet[ëe]|"
+           r"fundit|parafundit)(?![\wëç])")
+_SUB_AL = (r"(?:\s*,?\s*(?:(?:pik[aë]t?|paragraf\w{0,3}|fjali[aë]?|n[ëe]npik[aë]t?)\s+(?:" + _SUB_NUM + r"|" + _ORD_AL + r")"
            r"|(?:shkronj[aë]t?|g[ëe]rm[aë]t?)\s+" + _SUB_LET + r")"
            r"(?:\s*(?:,|\bdhe\b|\be\b)\s*(?:" + _SUB_NUM + r"|" + _SUB_LET + r"))*)")
 _CONN_AL = (r"(?:i|e|t[ëe]|s[ëe]|sipas)\s+(?:po\s+)?(?:k[ëe]tij\s+(?:ligji|kodi)\b|"
@@ -616,7 +622,13 @@ _NUM_TOKEN_IT = (r"\d+(?:[\-\s](?:bis|ter|quater|quinquies|sexies|septies|octies
 _SUB_NUM_IT = r"\d{1,3}(?:-(?:bis|ter|quater|quinquies|sexies|septies|octies|novies|decies|\d{1,3}))?(?![\w/])\)?"   # v9.357: anche «c. 8-9»
 _SUB_LET_IT = (r"(?:[\"“«'][a-z]{1,2}[\"”»']|[a-z]{1,2}\)|"
                r"(?!(?:e|ed|o|al|il|la|lo|le|di|in|su|se|no|un|ai|da|ne|si)(?![a-z]))[a-z]{1,2}(?![a-z/.]))")
+# v9.499 — il comma scritto in LETTERE, la forma classica dei giuristi: «art. 326, primo comma, c.p.c.», «art. 155, quarto e quinto
+# comma, c.p.c.», «comma primo». Senza, la citazione restava «senza codice» (prova viva del 4 ott: art. 326, 133, 327, 283 c.p.c.) e
+# il completamento non scattava sull'art. 133 dichiarato «non presente fra gli articoli recuperati»
+_ORD_IT = (r"(?:primo|secondo|terzo|quarto|quinto|sesto|settimo|ottavo|nono|decimo|undicesimo|dodicesimo|tredicesimo|"
+           r"quattordicesimo|quindicesimo|ultimo|penultimo)")
 _SUB_IT = (r"(?:\s*,?\s*(?:(?:comm[ai]|co\.|c\.(?=\s*\d)|n\.|nn\.|punt[oi]|par(?:agraf[oi])?\.?|§)\s*" + _SUB_NUM_IT +
+           r"|" + _ORD_IT + r"(?:\s*(?:,|\be\b|\bed\b)\s*" + _ORD_IT + r")*\s+comm[ai]\b|comm[ai]\s+" + _ORD_IT + r"\b"
            r"|lett(?:era|ere)?\.?\s*" + _SUB_LET_IT + r")"
            r"(?:\s*(?:,|\be\b|\bed\b)\s*(?:" + _SUB_NUM_IT + r"|" + _SUB_LET_IT + r"))*)")
 _CONN_IT = (r"(?:(?:del|della|dello|dell[’']|dal|dalla)\s*(?:codice|cod\.|legge|l\.|d\.?\s?lgs|d\.?\s?l\b|d\.?\s?l\.|d\.?p\.?r|r\.?d\.?|"

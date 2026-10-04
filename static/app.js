@@ -4457,6 +4457,7 @@
         (nextTxt ? ' — <span class="db-next">' + nextTxt + '</span>' : '') + '</span>' +
         '<button type="button" class="db-open">' + t('Hap kalendarin') + '</button>' +
         '<button type="button" class="db-close" aria-label="Mbyll">×</button>';
+      var _dbt = el.querySelector(".db-text"); if (_dbt) _dbt.title = _dbt.textContent;     // v9.497: una riga, testo intero al passaggio
       el.classList.toggle("db-alert", (od.length > 0 || today > 0));
       el.hidden = false;
       var ob = el.querySelector(".db-open"); if (ob) ob.onclick = function () { el.hidden = true; if (typeof openCalendar === "function") openCalendar(); };
@@ -4472,11 +4473,11 @@
     var ready = !!cur.backend_ready;
     var ov = document.createElement("div"); ov.className = "wa-modal-ov";
     ov.innerHTML = '<div class="wa-modal">' +
-      '<button class="wa-x" type="button" aria-label="Mbyll">×</button>' +
+      '<button class="wa-x" type="button" aria-label="' + (_CAL_IT ? "Chiudi" : "Mbyll") + '">×</button>' +
       '<h3>📱 WhatsApp për kujtesat</h3>' +
       '<p class="wa-sub">Merr kujtesat e afateve dhe seancave direkt në WhatsApp.</p>' +
       '<label class="wa-lab">Numri yt (me prefiks shteti)</label>' +
-      '<input class="wa-inp" type="tel" placeholder="p.sh. 355691234567" value="' + (cur.phone ? escapeHtml(cur.phone) : '') + '">' +
+      '<input class="wa-inp" type="tel" placeholder="' + (_CAL_IT ? "es. 393331234567" : "p.sh. 355691234567") + '" value="' + (cur.phone ? escapeHtml(cur.phone) : '') + '">' +
       '<div class="wa-note ' + (ready ? 'ok' : 'warn') + '">' + (ready
         ? '✓ Kanali WhatsApp është aktiv.'
         : '⚠ Numri ruhet tani; dërgimi aktivizohet kur të lidhet Meta WhatsApp (token + template i miratuar).') + '</div>' +
@@ -4491,9 +4492,9 @@
       btn.disabled = true; msg.textContent = "";
       try {
         var r = await fetch("/api/settings/whatsapp", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ phone: inp.value }) });
-        var d = await r.json(); if (!r.ok) throw new Error(d.error || "Gabim");
-        msg.textContent = d.linked ? "✓ U ruajt" : "✓ U hoq";
-        if (typeof toast === "function") toast(d.linked ? "WhatsApp u lidh" : "WhatsApp u hoq", "ok");
+        var d = await r.json(); if (!r.ok) throw new Error(d.error || (_CAL_IT ? "Errore" : "Gabim"));
+        msg.textContent = d.linked ? (_CAL_IT ? "✓ Salvato" : "✓ U ruajt") : (_CAL_IT ? "✓ Rimosso" : "✓ U hoq");
+        if (typeof toast === "function") toast(d.linked ? (_CAL_IT ? "WhatsApp collegato" : "WhatsApp u lidh") : (_CAL_IT ? "WhatsApp rimosso" : "WhatsApp u hoq"), "ok");
         setTimeout(close, 700);
       } catch (e) { msg.textContent = e.message; btn.disabled = false; }
     };
@@ -4512,7 +4513,7 @@
       '<h3>✉️ Email për kujtesat</h3>' +
       '<p class="wa-sub">Çdo studio i merr kujtesat në adresën e vet.</p>' +
       '<label class="wa-lab">Email-i i studios tuaj</label>' +
-      '<input class="wa-inp" type="email" placeholder="p.sh. studio@shembull.al" value="' + (val ? escapeHtml(val) : '') + '">' +
+      '<input class="wa-inp" type="email" placeholder="' + (_CAL_IT ? "es. studio@esempio.it" : "p.sh. studio@shembull.al") + '" value="' + (val ? escapeHtml(val) : '') + '">' +
       '<div class="wa-note ' + (ready ? 'ok' : 'warn') + '">' + (ready
         ? '✓ Kanali email është aktiv.'
         : '⚠ Adresa ruhet tani; dërgimi aktivizohet kur të verifikohet domeni dërgues në Resend.') + '</div>' +
@@ -7956,7 +7957,84 @@
       attach: true, source: "deadlines", saveTitle: "Parashkrimi & afatet", calendar: true });
   }
 
+  // v9.497 — in sessione ITALIANA il calcolatore era quello albanese (lek, ASHK, imposta per m² di Tirana, imposta sul reddito
+  // al 15 %): cifre sbagliate per un notaio italiano. Qui le imposte d'acquisto di un'abitazione secondo il diritto italiano,
+  // ogni regola riscontrata sul corpus (Tariffa, parte I, art. 1 e nota II-bis, d.P.R. 131/1986; art. 10 d.lgs. 23/2011 = stessa
+  // regola nella Tariffa del TU registro: minimo 1.000 €, ipotecaria e catastale 50 € fisse, esenzione da bollo e tasse; art. 1,
+  // c. 497, L. 266/2005 prezzo-valore). L'onorario del notaio è libero: nessuna tariffa inventata.
+  function openNotaryFeesIT() {
+    var ov = document.getElementById("fees-ov");
+    if (ov) ov.remove();
+    ov = document.createElement("div");
+    ov.id = "fees-ov"; ov.className = "ac-overlay";
+    function inp(id, label, val, hint) {
+      return '<label class="fee-lbl">' + label + (hint ? ' <span class="fee-hint">' + hint + '</span>' : '') +
+        '<input type="number" id="' + id + '" value="' + val + '" min="0" step="any"></label>';
+    }
+    function sel(id, label, opts) {
+      return '<label class="fee-lbl">' + label + '<select id="' + id + '">' +
+        opts.map(function (o) { return '<option value="' + o[0] + '">' + o[1] + '</option>'; }).join("") + '</select></label>';
+    }
+    ov.innerHTML = '<div class="ac-modal fees-modal">' +
+      '<div class="ac-head"><span>🧮 Imposte d\'acquisto di un\'abitazione</span><button class="ac-x" type="button" aria-label="Chiudi">×</button></div>' +
+      '<div class="ac-sub">Compravendita di case di abitazione (diritto italiano). Valori indicativi: verifica sempre il caso concreto.</div>' +
+      '<div class="fee-grid">' +
+        sel("fit-vend", "Venditore", [["privato", "Privato (o impresa in esenzione IVA)"], ["iva", "Impresa con IVA"]]) +
+        sel("fit-prima", "Prima casa (nota II-bis)", [["si", "Sì"], ["no", "No"]]) +
+        sel("fit-cat", "Categoria catastale", [["norm", "A2–A7, A11 (non di lusso)"], ["lusso", "A1, A8, A9 (di lusso)"]]) +
+        inp("fit-prezzo", "Prezzo dichiarato (€)", 200000) +
+        inp("fit-rendita", "Rendita catastale (€)", 800) +
+        sel("fit-pv", "Prezzo-valore (art. 1, c. 497, L. 266/2005)", [["si", "Sì — base sul valore catastale"], ["no", "No — base sul prezzo"]]) +
+        inp("fit-onor", "Onorario del notaio + IVA (€)", 0, "libero: inserisci il preventivo") +
+      '</div>' +
+      '<div class="fee-result"></div>' +
+      '<div class="fee-warn">⚠️ Valori INDICATIVI. Il prezzo-valore spetta solo all\'acquirente persona fisica che non agisce nell\'esercizio di attività ' +
+        'd\'impresa, per abitazioni e pertinenze, con venditore privato (o impresa in esenzione) e richiesta nell\'atto. Le case A1, A8, A9 non godono ' +
+        'dell\'aliquota prima casa. Con venditore impresa in regime IVA restano da aggiungere bollo, tasse ipotecarie e voltura in misura fissa. ' +
+        'Dal 1° gennaio 2027 le stesse misure sono nel testo unico dell\'imposta di registro (Tariffa, parte I, art. 1).</div>' +
+      "</div>";
+    document.body.appendChild(ov);
+    ov.querySelector(".ac-x").onclick = function () { ov.remove(); };
+    ov.addEventListener("click", function (e) { if (e.target === ov) ov.remove(); });
+    function num(id) { var v = parseFloat((document.getElementById(id) || {}).value); return isNaN(v) ? 0 : v; }
+    function val(id) { return (document.getElementById(id) || {}).value; }
+    function eur(n) { return n.toLocaleString("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €"; }
+    function riga(a, b) { return '<tr><td>' + a + '</td><td>' + b + '</td></tr>'; }
+    function recompute() {
+      var iva = val("fit-vend") === "iva", lusso = val("fit-cat") === "lusso";
+      var prima = val("fit-prima") === "si" && !lusso, pv = val("fit-pv") === "si" && !iva;
+      var prezzo = num("fit-prezzo"), rendita = num("fit-rendita"), onor = num("fit-onor");
+      var rows = "", tot = 0;
+      if (!iva) {
+        var molt = prima ? 110 : 120, vc = rendita * 1.05 * molt;
+        var base = pv ? vc : prezzo;
+        var aliq = prima ? 2 : 9, reg = Math.max(1000, base * aliq / 100);
+        rows += riga(pv ? "Base imponibile: valore catastale (" + rendita.toLocaleString("it-IT") + " × 1,05 × " + molt + ")" :
+                          "Base imponibile: prezzo", eur(base));
+        rows += riga("Imposta di registro " + aliq + " % (minimo 1.000 €)", eur(reg));
+        rows += riga("Imposta ipotecaria (fissa)", eur(50)) + riga("Imposta catastale (fissa)", eur(50));
+        rows += riga("Bollo, tasse ipotecarie, tributi catastali", "esenti");
+        tot = reg + 100;
+      } else {
+        var al = lusso ? 22 : (prima ? 4 : 10), v = prezzo * al / 100;
+        rows += riga("IVA " + al + " % sul prezzo (pagata al venditore, che la versa all'Erario)", eur(v));
+        rows += riga("Imposta di registro (fissa)", eur(200)) + riga("Imposta ipotecaria (fissa)", eur(200)) +
+                riga("Imposta catastale (fissa)", eur(200));
+        tot = v + 600;
+      }
+      if (onor > 0) { rows += riga("Onorario del notaio (preventivo)", eur(onor)); tot += onor; }
+      if (lusso && val("fit-prima") === "si") rows += riga("⚠️ Prima casa", "non applicabile alle categorie A1, A8, A9");
+      if (iva && val("fit-pv") === "si") rows += riga("⚠️ Prezzo-valore", "non si applica alle cessioni soggette a IVA");
+      document.querySelector("#fees-ov .fee-result").innerHTML = '<table class="fee-tbl">' + rows +
+        '<tr class="fee-total"><td><b>TOTALE imposte' + (onor > 0 ? " e onorario" : "") + '</b></td><td><b>' + eur(tot) + '</b></td></tr></table>';
+    }
+    Array.prototype.forEach.call(ov.querySelectorAll("input, select"), function (i) {
+      i.addEventListener("input", recompute); i.addEventListener("change", recompute); });
+    recompute();
+  }
+
   function openNotaryFees() {
+    if (_CAL_IT) return openNotaryFeesIT();
     var ov = document.getElementById("fees-ov");
     if (ov) ov.remove();
     ov = document.createElement("div");
