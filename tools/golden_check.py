@@ -8263,6 +8263,9 @@ def main():
               and ("codice_civile", "2947") in {(a.code, str(a.number)) for a, _ in _br273._applica_ancore(
                   [], _AI273.load(__import__("pathlib").Path("/app/data/index/bm25_it.pkl")),
                   ["prescrizione", "Incidente stradale del 2023: il risarcimento del danno è prescritto?"], ["Civile"], ancore=_br273.ANCORE_IT)}
+              and {("cittadinanza", "9.1"), ("cittadinanza", "10")} <= {(a.code, str(a.number)) for a, _ in _br273._applica_ancore(
+                  [], _AI273.load(__import__("pathlib").Path("/app/data/index/bm25_it.pkl")),
+                  ["cittadinanza per matrimonio", "Sposato con un'italiana: come ottiene la cittadinanza?"], ["Civile"], ancore=_br273.ANCORE_IT)}
               and ("codice_civile", "2948") in {(a.code, str(a.number)) for a, _ in _br273._applica_ancore(
                   [], _AI273.load(__import__("pathlib").Path("/app/data/index/bm25_it.pkl")),
                   ["prescrizione dei crediti", "Il datore non ha pagato gli stipendi del 2020: sono prescritti?"], ["Lavoro", "Civile"],
@@ -8270,6 +8273,26 @@ def main():
               str(sorted(_a273)) + str(sorted(_c273)))
     except Exception as _e273:  # noqa: BLE001
         check("parashkrim[273]: kontrollet u ekzekutuan", False, str(_e273))
+
+    # [274] v9.506 — l'incidente con un veicolo tiene nel filtro dei codici la legge sull'assicurazione e il Codice della strada
+    try:
+        from types import SimpleNamespace as _NS274
+        from src import brain as _br274
+        from src.retrieval import ArticleIndex as _AI274
+        _br274.set_request_jurisdiction("AL")
+        _sa274 = _br274.SuperAvvocato.__new__(_br274.SuperAvvocato)
+        _sa274.index = _AI274.load(); _sa274.index_it = None; _sa274._dense_cache = {}
+        _t274 = _NS274(areas=["Civil", "Penal"], search_queries=["përgjegjësia për dëmin jashtëkontraktor"], strategic_angles=[],
+                       problem_summary="Këmbësor i goditur nga një makinë", domanda="Klienti u godit nga një makinë në vendkalim për këmbësorë dhe ka dëme. Kush paguan?")
+        _ok274 = bool(_br274._INCIDENTE_RX.search(_t274.domanda)) and not _br274._INCIDENTE_RX.search("Qiramarrësi nuk paguan qiranë")
+        try:
+            _r274 = _sa274._retrieve(_t274)
+            _ok274 = _ok274 and any(a.code == "ligji_sigurimi_mjeteve" for a, _ in _r274)
+        except Exception as _x274:  # noqa: BLE001 — oggetto parziale: basta il riconoscimento
+            _ok274 = _ok274 and "_INCIDENTE_RX.search(" in open(_br274.__file__, encoding="utf-8").read()
+        check("incidente[274]: legge sull'assicurazione dei veicoli nel filtro quando la domanda parla di un incidente", _ok274)
+    except Exception as _e274:  # noqa: BLE001
+        check("incidente[274]: kontrollet u ekzekutuan", False, str(_e274))
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

@@ -203,6 +203,13 @@ ANCORE_IT: tuple = (
     ((("prescri", "retribu"), ("prescri", "stipend"), ("prescri", "salari"), ("prescri", "tfr"), ("prescri", "fine rapporto"),
       ("prescri", "lavorator"), ("prescri", "canon"), ("prescri", "affitt"), ("prescri", "locaz"), ("prescri", "pigion"),
       ("prescri", "interess")), ("Penale", "Penal"), (("codice_civile", "2948"),)),
+    # v9.506 — l'ACQUISTO della cittadinanza (matrimonio, residenza): la ricerca porta l'art. 5 (o il 9) ma non i passaggi che
+    # decidono l'esito — 9.1 (lingua B1, con l'esonero per il permesso UE di lungo periodo), 9-ter (termini del procedimento) e 10
+    # (giuramento ENTRO SEI MESI dalla notifica del decreto, altrimenti il decreto non ha effetto). Misurato (strato 2, 4 ott):
+    # nel caso del matrimonio la risposta di 53.000 caratteri non nominava mai il giuramento
+    ((("cittadinanz", "matrimon"), ("cittadinanz", "coniug"), ("cittadinanz", "sposat"), ("cittadinanz", "naturalizz"),
+      ("cittadinanz", "residenz"), ("cittadinanz", "richied"), ("cittadinanz", "domanda"), ("cittadinanz", "ottener"),
+      ("cittadinanz", "acquist")), (), (("cittadinanza", "9.1"), ("cittadinanza", "9-ter"), ("cittadinanza", "10"))),
     # … e il DANNO da fatto illecito: cinque anni, due per la circolazione dei veicoli (art. 2947 c.c.), non i dieci del 2946
     ((("prescri", "risarc"), ("prescri", "danno"), ("prescri", "danni"), ("prescri", "sinistr"), ("prescri", "incident"),
       ("prescri", "illecit")), ("Penale", "Penal"), (("codice_civile", "2947"),)),
@@ -335,6 +342,8 @@ def _applica_ancore(pairs, idx, queries: list[str], aree: list[str], ancore=None
 # Penale për të Mitur prendeva 4 posti su 12 (artt. 55, 71, 59, 47: ripete «dënim», «vepër», «burgim»), nella pistola 2 — posti
 # tolti alle norme vere. Escludere conta più che includere: resta fuori se la DOMANDA dell'avvocato non parla di un minore (v9.504:
 # solo la domanda — il triage scrive «fëmijë» per i parenti esonerati dal KP 302 e il filtro non scattava; senza domanda, tutto).
+_INCIDENTE_RX = re.compile(r"aksident|u\s+godit|goditi|përplas|perplas|automjet\w*\s+(?:e|i)\s+(?:goditi|përplasi)|"
+                           r"(?:makin|automjet)\w*.{0,40}(?:dëm|dem|plag|vdiq|këmbësor|kembesor)|këmbësor|kembesor", re.I)
 _CODICI_MINORI = frozenset({"kodi_te_miturve", "processo_penale_minorile"})
 _MINORE_RX = re.compile(r"mitur|minor(?:e|i|enn\w*)|fëmij|femij|nxënës|nxenes|adoleshent|\b1[0-7]\s*-?\s*vjeç|\b1[0-7]\s*-?\s*vjec|"
                         r"\b1[0-7]\s*ann[io]\b|nën\s*18|sotto\s+i\s+18|ragazz[oaie]|bambin|studente\s+(?:di|delle)\s+(?:medie|superiori)", re.I)
@@ -4825,6 +4834,12 @@ class SuperAvvocato:
             for area in triage.areas:
                 for proc_code in PROCEDURAL_MAPPING.get(area, ()):
                     codes.add(proc_code)
+            # v9.506 — l'INCIDENTE con un veicolo: il risarcimento passa dall'assicurazione obbligatoria (ligji 32/2021,
+            # `ligji_sigurimi_mjeteve`, art. 9 la richiesta all'assicuratore) e dal Codice della strada. Misurato (triage vero, 5 ott):
+            # quando il triage sceglie solo «Civil»/«Penal» la legge sull'assicurazione restava FUORI dal filtro dei codici e il caso
+            # del pedone investito non la trovava (nei giri con l'area «Sigurime» sì)
+            if _INCIDENTE_RX.search(" ".join([getattr(triage, "domanda", "") or "", triage.problem_summary or ""])):
+                codes.update(c for c in ("ligji_sigurimi_mjeteve", "kodi_rrugor") if any(d.code == c for d in LEGAL_DOCUMENTS))
             if not codes:
                 codes = None
 
