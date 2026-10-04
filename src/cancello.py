@@ -192,9 +192,10 @@ COMPLETA_MAX_ART = 8
 COMPLETA_MAX_CORPO = 3000
 _RISERVA_RE = re.compile(
     r"non (?:è|e|sono) (?:tra|fra|nel(?:l[ae])?)\s+(?:gli\s+)?(?:articoli|norme|testi|blocco|corpus|fascicolo)|"
-    r"non (?:ho|abbiamo) (?:il testo|sottomano|davanti)|fuori dal corpus|non (?:mi )?(?:è stato|sono stati) fornit|"
+    r"non (?:ho|abbiamo) (?:il testo|sottomano|davanti)|fuori (?:dal )?corpus|non (?:è |sono )?(?:presente |presenti )?(?:nel|in) (?:corpus|dossier|fascicolo|materiali)|"
+    r"non (?:mi )?(?:è stato|sono stati) fornit|"
     r"(?:verific|controll|conferm|riscontr)\w*\s+(?:sul\s+testo\s+)?(?:su|in|nel(?:la)?)\s+Normattiva|non\s+(?:è\s+stat[oa]\s+|sono\s+stat[ie]\s+)?recuperat\w*|"
-    r"nuk e kam (?:tekstin|në nenet|ndër nenet|në bllok)|nuk (?:është|eshte|janë|jane) (?:në|ne|ndër|nder) (?:bllok|nenet|korpus)|"
+    r"nuk e kam (?:tekstin|në nenet|ndër nenet|në bllok)|nuk (?:është|eshte|janë|jane) (?:në|ne|ndër|nder) (?:bllok|nenet|korpus|materialet)|"
     r"jashtë korpusit|nuk (?:më )?(?:është|janë) dhënë|mos u mbështet në kujtesë|verifiko(?:je|ni)? (?:tekstin|në QBZ|te QBZ)", re.I)
 
 _SYSTEM_COMPLETA = {
@@ -240,7 +241,8 @@ def _da_completare(text: str, index, retrieved_codes=None, retrieved_keys=None) 
                 continue
             c, n = str(it["code"]), str(it["number"])
             art = cv._verify_number(lk, c, n)
-            if art is None or not (getattr(art, "body", "") or "").strip():
+            # v9.492: l'articolo di UNA frase ha il testo nella rubrica (KPC 444): conta come testo
+            if art is None or not ((getattr(art, "body", "") or "").strip() or len((getattr(art, "heading", "") or "").strip()) > 40):
                 continue
             if (c, n) in keys or (c, str(art.number)) in keys:     # v9.488: il verificatore scrive «93/bis», il blocco «93-bis»
                 continue
@@ -266,7 +268,7 @@ def completa(text: str, index, lang: str, backend=None, retrieved_codes=None, re
         righe = text.split("\n")
         testi = []
         for a in arts:
-            corpo = (a.body or "").strip()
+            corpo = (a.body or "").strip() or (a.heading or "").strip()
             if len(corpo) > COMPLETA_MAX_CORPO:
                 corpo = corpo[:COMPLETA_MAX_CORPO] + (" […]" if lang == "it" else " […]")
             lab = cv.CODE_LABELS.get(a.code, a.code)

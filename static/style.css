@@ -8210,3 +8210,8 @@ details.analiza[open]>summary::before{content:"\25BE  "}
 .scadcrm-rin{border:none;background:none;cursor:pointer;font-size:14px;margin-left:auto}
 .scadcrm-titolo{flex:1;min-width:0}
 .scadcrm-rin-in{font-weight:600}
+
+/* v9.492 — passaggio di sessione dall'elenco dei fascicoli */
+.case-switch-juris{margin-top:6px;padding:5px 10px;border-radius:8px;border:1px solid var(--gold,#c9a227);background:transparent;color:inherit;font:inherit;font-size:.85em;cursor:pointer}
+.case-switch-juris:hover{background:rgba(201,162,39,.12)}
+.case-switch-juris:focus-visible{outline:2px solid var(--gold,#c9a227);outline-offset:2px}

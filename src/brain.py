@@ -438,7 +438,7 @@ def _blocco_articoli_urgenza(retrieved, it: bool, quanti: int = 10, tetto: int =
     righe = []
     try:
         for a, _ in (retrieved or [])[:quanti]:
-            corpo = re.sub(r"\s+", " ", str(getattr(a, "body", "") or "")).strip()[:tetto]
+            corpo = re.sub(r"\s+", " ", str(getattr(a, "body", "") or "") or str(getattr(a, "heading", "") or "")).strip()[:tetto]
             if not corpo:
                 continue
             lab = getattr(a, "citation", "") or f"{getattr(a, 'code', '')} {getattr(a, 'number', '')}".strip()
@@ -3134,6 +3134,7 @@ class SuperAvvocato:
         retrieved = self._ankoro_citimet(user_message, retrieved, areas=getattr(triage, "areas", None))   # v9.359: il nene chiesto per numero, per primo
         retrieved = self._aggiungi_previgenti(retrieved)      # v9.405: accanto al testo unico non ancora applicabile, la norma vigente
         retrieved = self._aggiungi_rinvii(retrieved)          # v9.476: gli articoli che i recuperati richiamano espressamente
+        retrieved = self._aggiungi_richiami_inversi(retrieved)    # v9.492: gli articoli brevi che richiamano (e precisano) un recuperato
         retrieved = self._studio_kerkuesi(user_message, triage, retrieved)
 
         # Simple fast-path streaming.
@@ -3531,6 +3532,7 @@ class SuperAvvocato:
         retrieved = self._ankoro_citimet(user_message, retrieved, areas=getattr(triage, "areas", None))   # v9.359: il nene chiesto per numero, per primo
         retrieved = self._aggiungi_previgenti(retrieved)      # v9.405: accanto al testo unico non ancora applicabile, la norma vigente
         retrieved = self._aggiungi_rinvii(retrieved)          # v9.476: gli articoli che i recuperati richiamano espressamente
+        retrieved = self._aggiungi_richiami_inversi(retrieved)    # v9.492: gli articoli brevi che richiamano (e precisano) un recuperato
         retrieved = self._studio_kerkuesi(user_message, triage, retrieved)
         log.info("retrieved %d articles", len(retrieved))
 
@@ -4511,6 +4513,56 @@ class SuperAvvocato:
             return out
         except Exception as exc:  # noqa: BLE001
             log.warning("rinvii interni: saltati (non-fatal): %s", exc)
+            return retrieved
+
+    def _aggiungi_richiami_inversi(self, retrieved, limit: int = 2, max_richiamanti: int = 3, max_chr: int = 700):
+        """v9.492 — il RICHIAMO INVERSO: l'articolo breve che richiama espressamente un articolo del blocco e lo PRECISA. Prova viva
+        in Chrome del 4 ott (appello civile AL): c'era il KPC 443 «Afati i ankimit» (15 giorni), mancava il KPC 444 «Afatet … fillojnë
+        nga dita e nesërme e njoftimit të vendimit të arsyetuar» — la decorrenza, cioè proprio la data — e il Giudice scriveva «la
+        disposizione sulla decorrenza non è nei materiali, verificala». I rinvii della v9.476 seguono solo il verso 443 → altri. Solo
+        AL, solo dai primi 8, solo se l'articolo trovato ha AL MASSIMO 3 richiamanti in tutto il codice (misurato: 1.278 articoli ne
+        hanno uno solo) e il richiamante è breve; copie marcate in coda, si aggiungono ai 12. Fail-silent."""
+        try:
+            if not retrieved or self._current_jurisdiction() == "IT":
+                return retrieved
+            idx = self.index
+            inv = getattr(idx, "_richiami_inversi", None)
+            if inv is None:
+                from . import expertise as _ex
+                esiste = {(a.code, str(a.number)) for a in idx.articles if not getattr(a, "repealed", False)}
+                inv = {}
+                for a in idx.articles:
+                    if getattr(a, "repealed", False):
+                        continue
+                    t = f"{a.heading or ''} {a.body or ''}"
+                    for m in _ex._RINVIO_AL.finditer(t):
+                        k = (a.code, m.group(1))
+                        if k in esiste and m.group(1) != str(a.number):
+                            inv.setdefault(k, []).append((a, len(t)))
+                try:
+                    idx._richiami_inversi = inv
+                except Exception:  # noqa: BLE001
+                    pass
+            presenti = {(a.code, str(a.number)) for a, _ in retrieved}
+            sc0 = min((sc for _, sc in retrieved), default=0.0)
+            out, aggiunti = list(retrieved), []
+            for a, _ in retrieved[:12]:          # tutto il blocco: col triage che varia il 443 può stare oltre l'8° posto
+                rich = inv.get((a.code, str(a.number))) or []
+                if not (1 <= len(rich) <= max_richiamanti):
+                    continue
+                for r, lung in rich:
+                    k = (r.code, str(r.number))
+                    if lung > max_chr or k in presenti or len(aggiunti) >= limit:
+                        continue
+                    c = _copy.copy(r)
+                    c._richiama = getattr(a, "citation", "") or f"{a.code} {a.number}"
+                    out.append((c, sc0)); presenti.add(k); aggiunti.append(f"{r.code} {r.number}")
+            if aggiunti:
+                log.info("retrieval: richiami inversi %s", aggiunti)
+                _audit_set("richiami_inversi", aggiunti)
+            return out
+        except Exception as exc:  # noqa: BLE001
+            log.warning("richiami inversi: saltati (non-fatal): %s", exc)
             return retrieved
 
     def _aggiungi_previgenti(self, retrieved, limit: int = 3):
@@ -7486,6 +7538,14 @@ def _format_articles_for_prompt(pairs: list[tuple[Article, float]]) -> str:
                 if _it else (
                 f"── {a.citation}  ⚑ I REFERUAR NGA «{getattr(a, '_rinvio_da', '')}»\n"
                 f"  (neni i bllokut i referohet shprehimisht këtij: teksti i plotë është këtu, nuk ka nevojë ta citosh nga kujtesa)\n"))
+        elif getattr(a, "_richiama", ""):
+            # v9.492 — l'articolo breve che richiama un articolo del blocco e lo precisa (decorrenza, forma, eccezioni)
+            intestazione = ((
+                f"── {a.citation}  ⚑ RICHIAMA «{getattr(a, '_richiama', '')}»\n"
+                f"  (precisa l'articolo del blocco: leggilo insieme a quello, è il testo integrale)\n")
+                if _it else (
+                f"── {a.citation}  ⚑ I REFEROHET «{getattr(a, '_richiama', '')}»\n"
+                f"  (e plotëson nenin e bllokut — afatin, formën, përjashtimet: lexoje bashkë me të, teksti i plotë është këtu)\n"))
         elif getattr(a, "_previgente_di", "") and _it:
             # v9.405 — la norma VIGENTE entrata accanto all'articolo di testo unico non ancora applicabile
             intestazione = (
@@ -7579,6 +7639,10 @@ def _format_articles_for_prompt(pairs: list[tuple[Article, float]]) -> str:
             intestazione = f"── {a.citation} (score={score:.2f})\n"
         # v9.361 — tetto DICHIARATO al corpo (34 «articoli» IT oltre 30.000 chr); mai sul nene chiesto per numero
         _body = a.body or ""
+        if not _body.strip() and len((a.heading or "").strip()) > 40:
+            # v9.492 — l'articolo di UNA frase ha tutto il testo nella rubrica (KPC 444: «Afatet … fillojnë nga dita e nesërme e
+            # njoftimit…»): il testo si mostra anche come testo, non solo come titolo
+            _body = (a.heading or "").strip() + (" (il testo dell'articolo è tutto qui)" if _it else " (i gjithë teksti i nenit është ky)")
         try:
             from .config import PROMPT_BODY_MAX_CHARS as _cap
         except Exception:  # noqa: BLE001

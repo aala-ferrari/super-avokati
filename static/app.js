@@ -136,6 +136,26 @@
          " nella giurisdizione albanese \u2014 passa alla sessione \ud83c\udde6\ud83c\uddf1 per vederli")
       : (_casiNascosti + (_casiNascosti === 1 ? " fashikull" : " fashikuj") +
          " n\u00eb juridiksionin italian \u2014 kalo n\u00eb sesionin \ud83c\uddee\ud83c\uddf9 p\u00ebr t\u2019i par\u00eb");
+    // v9.492 — il passaggio di sessione con un clic: la rotta c'era (POST /api/session/jurisdiction), l'interfaccia no —
+    // l'avvocato con due giurisdizioni doveva uscire e rientrare (prova in Chrome del 4 ott)
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "case-switch-juris";
+    btn.textContent = _CAL_IT ? "\ud83c\udde6\ud83c\uddf1 Passa alla sessione albanese" : "\ud83c\uddee\ud83c\uddf9 Kalo n\u00eb sesionin italian";
+    btn.addEventListener("click", async (ev) => {
+      ev.stopPropagation();
+      btn.disabled = true;
+      try {
+        const r = await fetch("/api/session/jurisdiction", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ jurisdiction: _CAL_IT ? "AL" : "IT" }),
+        });
+        if (r.ok) { location.reload(); return; }
+      } catch (_) { /* resta l'avviso */ }
+      btn.disabled = false;
+    });
+    li.appendChild(document.createElement("br"));
+    li.appendChild(btn);
     return li;
   }
 
@@ -7641,6 +7661,11 @@
 
   function tMode(sq) {
     if (UI_LANG !== "it") return sq;
+    // v9.492 — PRIMA la traduzione scritta (esatta, o senza l'emoji iniziale), POI la sostituzione per pezzi: al contrario
+    // «📅 Afatet e klientëve» diventava «📅 Scadenze e klientëve» (prova in Chrome del 4 ott) pur avendo in T_IT la frase giusta
+    if (T_IT[sq]) return T_IT[sq];
+    var _m0 = sq.match(/^(\S+\s+)(.+)$/);
+    if (_m0 && T_IT[_m0[2]]) return _m0[1] + T_IT[_m0[2]];
     for (var i = 0; i < MODEBAR_TXT.length; i++) {
       // ⚠️ Solo su confine di parola. Senza, «Avokat» colpiva dentro
       // «Avokatin» e produceva «Avvocatoin» — né albanese né italiano, sul

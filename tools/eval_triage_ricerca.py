@@ -33,6 +33,8 @@ CASI = [  # (giurisdizione, domanda dell'avvocato, articoli di cui almeno uno DE
     ("AL", "Babai i klientit vdiq pa testament, ka lënë gruan dhe tre fëmijë. Si ndahet trashëgimia?", [("kodi_civil", "361")]),
     ("AL", "Klienti u godit nga një makinë në vendkalim për këmbësorë dhe ka dëme shëndetësore. Kë padisim dhe për çfarë?", [("kodi_civil", "608"), ("kodi_civil", "640"), ("ligji_sigurimi_mjeteve", "9")]),
     ("AL", "Një vendim i Gjykatës së Lartë e shkel të drejtën e klientit për proces të rregullt. Si i drejtohemi Gjykatës Kushtetuese dhe brenda sa kohe?", [("ligji_gjykata_kushtetuese", "71/a"), ("kushtetuta", "131")]),
+    # v9.492 — prova viva in Chrome del 4 ott: c'era il KPC 443 (15 giorni), mancava il 444 (decorrenza: dal giorno dopo la notifica)
+    ("AL", "Gjykata e shkallës së parë e rrëzoi padinë me vendim të shpallur më 15 shtator, na u njoftua më 22 shtator. Brenda cilës datë bëjmë ankim në apel?", [("kodi_proc_civile", "444")]),
     # v9.487 — prova viva 3 ott: il recupero portava solo la legge sulle armi, il KP 278 lo aggiungeva il Kërkuesi
     ("AL", "Klienti u kap nga policia me një pistoletë pa leje në makinë, dhe në shtëpi i gjetën 20 fishekë luftarakë. Çfarë dënimi rrezikon dhe si mbrohemi?", [("kodi_penal", "278")]),
     ("AL", "Policia i gjeti klientit një thikë të madhe në makinë. A është vepër penale?", [("kodi_penal", "279")]),
@@ -59,6 +61,9 @@ def main() -> int:
         tr = sa._triage(q, [], None)
         ret = sa._retrieve(tr)
         ret = sa._ankoro_citimet(q, ret, areas=getattr(tr, "areas", None))
+        ret = sa._aggiungi_previgenti(ret)          # v9.492: la stessa catena della chat
+        ret = sa._aggiungi_rinvii(ret)
+        ret = sa._aggiungi_richiami_inversi(ret)
         if "--kerkuesi" in sys.argv:                   # il percorso vero: anche il ricercatore junior (una chiamata veloce)
             ret = sa._studio_kerkuesi(q, tr, ret)
         got = [(a.code, str(a.number)) for a, _ in ret]

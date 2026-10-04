@@ -7990,6 +7990,56 @@ def main():
     except Exception as _e259:  # noqa: BLE001
         check("anno-diverso[259]: kontrollet u ekzekutuan", False, str(_e259))
 
+    # [260] v9.492 — (1) il RICHIAMO INVERSO: col KPC 443 «Afati i ankimit» nel blocco entra il KPC 444 (la decorrenza), marcato;
+    # niente per un articolo richiamato da troppi; (2) un articolo di UNA frase (testo tutto nella rubrica) si mostra come testo;
+    # (3) nessun numero doppio nel corpus AL (ligji 8788/2001 aveva due «Neni 12» nel testo ufficiale: unità unica)
+    try:
+        import collections as _co260
+        from src import brain as _br260
+        from src.retrieval import ArticleIndex as _AI260
+        _al260 = _AI260.load()
+        _sa260 = _br260.SuperAvvocato.__new__(_br260.SuperAvvocato)
+        _sa260.index, _sa260.index_it = _al260, None
+        _sa260._jurisdiction_ctx = __import__("threading").local(); _sa260._jurisdiction_ctx.code = "AL"
+        _br260.set_request_jurisdiction("AL")
+        _a443 = next(a for a in _al260.articles if a.code == "kodi_proc_civile" and a.number == "443")
+        _out260 = _sa260._aggiungi_richiami_inversi([(_a443, 9.0)])
+        _k260 = [(a.code, a.number, getattr(a, "_richiama", "")) for a, _ in _out260]
+        _a444 = next(a for a, _ in _out260 if a.number == "444") if len(_out260) > 1 else None
+        _txt260 = _br260._format_articles_for_prompt([(_a444, 1.0)]) if _a444 is not None else ""
+        _dup260 = [k for k, v in _co260.Counter((a.code, a.number) for a in _al260.articles).items() if v > 1]
+        _ok260 = (len(_out260) == 2 and _k260[1][:2] == ("kodi_proc_civile", "444") and _k260[1][2]
+                  and "I REFEROHET" in _txt260 and "i gjithë teksti i nenit është ky" in _txt260 and not _dup260)
+        check("richiamo-inverso[260]: KPC 443 porta il 444 (decorrenza), testo di una frase visibile, nessun numero doppio",
+              _ok260, f"{_k260} | dup {_dup260[:3]}")
+    except Exception as _e260:  # noqa: BLE001
+        check("richiamo-inverso[260]: kontrollet u ekzekutuan", False, str(_e260))
+
+    # [261] v9.492 — il passaggio di sessione con un clic dall'avviso dei fascicoli dell'altra giurisdizione (la rotta c'era, il pulsante no)
+    try:
+        from pathlib import Path as _P261
+        _js261 = (_P261("/app/static/app.js")).read_text(encoding="utf-8")
+        _i261 = _js261.find("function _notaCasiNascosti")
+        _f261 = _js261[_i261:_i261 + 2600]
+        _ok261 = (_i261 > 0 and "/api/session/jurisdiction" in _f261 and 'method: "POST"' in _f261 and "location.reload()" in _f261
+                  and "case-switch-juris" in _f261)
+        check("sessione[261]: il pulsante «Passa alla sessione» chiama /api/session/jurisdiction e ricarica", _ok261, _f261[:120])
+    except Exception as _e261:  # noqa: BLE001
+        check("sessione[261]: kontrollet u ekzekutuan", False, str(_e261))
+
+    # [262] v9.493 — nella barra la traduzione SCRITTA viene prima della sostituzione per pezzi («Scadenze e klientëve»)
+    try:
+        from pathlib import Path as _P262
+        _js262 = (_P262("/app/static/app.js")).read_text(encoding="utf-8")
+        _i262 = _js262.find("function tMode(sq)")
+        _f262 = _js262[_i262:_i262 + 1400]
+        _ok262 = (_i262 > 0 and _f262.find("if (T_IT[sq]) return T_IT[sq];") > 0
+                  and _f262.find("if (T_IT[sq]) return T_IT[sq];") < _f262.find("MODEBAR_TXT.length")
+                  and '"\\ud83d\\udcc5 Afatet e klient\\u00ebve": "\\ud83d\\udcc5 Scadenze dei clienti"' in _js262)
+        check("barra[262]: tMode usa prima la traduzione esatta (niente «Scadenze e klientëve»)", _ok262, _f262[:160])
+    except Exception as _e262:  # noqa: BLE001
+        check("barra[262]: kontrollet u ekzekutuan", False, str(_e262))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
