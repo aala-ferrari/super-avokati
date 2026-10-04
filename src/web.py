@@ -7291,7 +7291,7 @@ def api_ask():
     try:
         created = _autopopulate_events_from_result(user.id, case.id, result)
         if created:
-            log.info("case %s: auto-populated %d calendar events", case.id, created)
+            log.info("case %s: %d scadenze dall'analisi da confermare", case.id, created)
     except Exception as exc:
         log.warning("autopopulate events failed (non-fatal): %s", exc)
 
@@ -7510,8 +7510,7 @@ def _ask_prepare(user, data):
             try:
                 created = _autopopulate_events_from_result(user.id, case.id, result)
                 if created:
-                    log.info("case %s: auto-populated %d calendar events (stream)",
-                             case.id, created)
+                    log.info("case %s: %d scadenze dall'analisi da confermare (stream)", case.id, created)
             except Exception as exc:
                 log.warning("autopopulate events failed (stream): %s", exc)
 
@@ -7869,83 +7868,68 @@ _ISO_DATE_RE = re.compile(r"(\d{4}-\d{2}-\d{2})")
 def _autopopulate_events_from_result(
     user_id: int, case_id: str, result,
 ) -> int:
-    """Derive events from timeline deadlines + critical urgency signals.
+    """Le date che l'analisi del cervello trova (scadenze della cronologia, segnali critici del radar d'urgenza) diventano
+    PROPOSTE dello scadenziario da confermare con un clic — v9.495. Prima diventavano EVENTI del calendario da sole, con i
+    promemoria (email, Telegram): una data sbagliata del modello era un avviso sbagliato all'avvocato. Visti nel calendario vero
+    dell'admin (4 ott): un termine nel 2036, uno nel 2024 (passato), «afat i SKADUAR» a marzo, titoli troncati a metà parola,
+    descrizioni in albanese in sessione italiana. Ora: niente date passate né oltre 5 anni, titolo intero, nota che dice da dove
+    viene la data, sempre «da verificare»; doppioni e date già in calendario come per i documenti (`_scad_salva`). Torna quante
+    proposte nuove."""
+    import hashlib as _hl
+    try:
+        juris = (storage.get_case(case_id, user_id).jurisdiction if storage.get_case(case_id, user_id) else None) or "AL"
+    except Exception:  # noqa: BLE001
+        juris = "AL"
+    it = juris == "IT"
+    oggi = storage.ora_locale(datetime.now(UTC).isoformat().replace("+00:00", "Z"), juris, "%Y-%m-%d")
+    limite = f"{int(oggi[:4]) + 5}{oggi[4:]}"
+    nota = ("data trovata dall'analisi della risposta (non da un documento né dal motore dei termini): controllala prima di "
+            "confermare") if it else ("datë e gjetur nga analiza e përgjigjes (jo nga një dokument, as nga motori i afateve): "
+                                      "kontrolloje para se ta konfirmosh")
+    proposte = []
 
-    Dedup key is `source_ref` so re-running the same analysis doesn't
-    create duplicate rows. If the extracted date has slipped (answer()
-    ran again after the user updated facts), update the existing event's
-    start time instead of minting a new one. Returns count of events
-    created or updated.
-    """
-    n = 0
+    def _aggiungi(data_iso: str, titolo: str, cosa: str, base: str, origine_ref: str) -> None:
+        if not data_iso or data_iso < oggi or data_iso > limite:
+            return
+        titolo = _tronca_titolo(titolo or ("Termine di legge" if it else "Afat ligjor"), 200)
+        chiave = "risposta:" + _hl.sha1(f"{origine_ref}|{data_iso}|{titolo.lower()[:80]}".encode()).hexdigest()[:16]
+        proposte.append({"tipo": "data", "kind": "afat", "titolo": titolo, "data": data_iso, "ora": "", "luogo": "",
+                         "cosa_fare": (cosa or "")[:500], "origine": "risposta", "citazione": "", "base": (base or "")[:200],
+                         "regola_json": "", "verificato": False, "nota": nota, "chiave": chiave})
+
     try:
         timeline = getattr(result, "timeline", None)
-        deadlines = list(getattr(timeline, "deadlines", []) or [])
-        for idx, d in enumerate(deadlines):
-            due = (d.due_date or "").strip()
-            if not due:
-                continue
-            m = _ISO_DATE_RE.match(due)
-            if not m:
-                continue
-            # Default to 09:00 local — deadlines rarely include a time,
-            # and 09:00 gives the lawyer a full workday to act.
-            starts_at = f"{m.group(1)}T09:00:00+00:00"
-            try:
-                dt = datetime.fromisoformat(starts_at.replace("Z", "+00:00"))
-                starts_iso = dt.astimezone(UTC).isoformat().replace("+00:00", "Z")
-            except Exception:
-                continue
-            source_ref = f"case:{case_id}:timeline:{idx}"
-            title = (d.action or "Afat ligjor")[:180]
-            description_lines = []
-            if d.article_ref:
-                description_lines.append(f"Neni: {d.article_ref}")
-            if d.anchor_event:
-                description_lines.append(f"Nga ngjarja: {d.anchor_event}")
-            description = "\n".join(description_lines) or None
-            urgency = d.urgency or "unknown"
-            reminders_offsets = [2880, 1440] if urgency in {"critical", "high"} else [1440]
-            _upsert_autoevent(
-                user_id=user_id, case_id=case_id, source_ref=source_ref,
-                title=title, kind="afat", starts_at=starts_iso,
-                description=description, reminders=reminders_offsets,
-            )
-            n += 1
-    except Exception as exc:
-        log.warning("timeline autopopulate failed: %s", exc)
-
+        for d in list(getattr(timeline, "deadlines", []) or []):
+            m = _ISO_DATE_RE.match((d.due_date or "").strip())
+            if m:
+                _aggiungi(m.group(1), d.action or "", d.anchor_event or "", d.article_ref or "", "timeline")
+    except Exception as exc:  # noqa: BLE001
+        log.warning("proposte dalla cronologia saltate: %s", exc)
     try:
         urgency_radar = getattr(result, "urgency_radar", None)
-        signals = list(getattr(urgency_radar, "signals", []) or [])
-        for idx, s in enumerate(signals):
-            if s.severity not in {"critical", "elevated"}:
+        for s_ in list(getattr(urgency_radar, "signals", []) or []):
+            if s_.severity not in ("critical", "elevated"):
                 continue
-            raw = (s.deadline or "").strip()
-            if not raw:
-                continue
-            m = _ISO_DATE_RE.search(raw)
-            if not m:
-                continue
-            starts_at = f"{m.group(1)}T09:00:00+00:00"
-            try:
-                dt = datetime.fromisoformat(starts_at.replace("Z", "+00:00"))
-                starts_iso = dt.astimezone(UTC).isoformat().replace("+00:00", "Z")
-            except Exception:
-                continue
-            source_ref = f"case:{case_id}:urgency:{idx}"
-            title = (s.label or s.action or "Veprim urgjent")[:180]
-            desc = s.reason or s.action or None
-            _upsert_autoevent(
-                user_id=user_id, case_id=case_id, source_ref=source_ref,
-                title=title, kind="afat", starts_at=starts_iso,
-                description=desc, reminders=[2880, 1440, 180],
-            )
-            n += 1
-    except Exception as exc:
-        log.warning("urgency autopopulate failed: %s", exc)
+            m = _ISO_DATE_RE.search((s_.deadline or "").strip())
+            if m:
+                _aggiungi(m.group(1), s_.label or s_.action or "", s_.action or "", "", "urgency")
+    except Exception as exc:  # noqa: BLE001
+        log.warning("proposte dal radar saltate: %s", exc)
+    if not proposte:
+        return 0
+    try:
+        return _scad_salva(proposte, [], case_id=case_id, uid=user_id, doc_id=None, juris=juris)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("proposte dall'analisi non salvate: %s", exc)
+        return 0
 
-    return n
+
+def _tronca_titolo(testo: str, n: int) -> str:
+    testo = (testo or "").strip()
+    if len(testo) <= n:
+        return testo
+    k = testo.rfind(" ", 0, n - 1)
+    return testo[:k if k > n // 2 else n - 1].rstrip(" ,;:—-") + "…"
 
 
 def _upsert_autoevent(

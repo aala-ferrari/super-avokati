@@ -6624,7 +6624,7 @@ def main():
         _solo_conf = "create_event" in _conf and "create_event" not in _in191.getsource(_w191.api_scadenze_analizza)
         _js = open("/app/static/app.js", encoding="utf-8").read()
         _ui = ("_scadDopoDocumenti(documents)" in _js and "openScadenziario" in _js and "/api/settings/telegram/link" in _js
-               and "Scadenze dai documenti" in _js and "Afatet nga dokumentet" in _js)
+               and "Scadenze del fascicolo" in _js and "Afatet e dosjes" in _js)
         _ui = _ui and "_scheme=" in _in191.getsource(_w191.api_ical_url)     # il link del calendario pubblico in https
         _tok = "usa_token_telegram" in _in191.getsource(_st191) and "DELETE FROM telegram_link WHERE token" in _in191.getsource(_st191.usa_token_telegram)
         check("scadenziario[191]: date e termini dai documenti verificati sul testo, conferma dell'avvocato, avvisi su tutti i "
@@ -8039,6 +8039,66 @@ def main():
         check("barra[262]: tMode usa prima la traduzione esatta (niente «Scadenze e klientëve»)", _ok262, _f262[:160])
     except Exception as _e262:  # noqa: BLE001
         check("barra[262]: kontrollet u ekzekutuan", False, str(_e262))
+
+    # [263] v9.494 — (1) la correzione del Giudice accanto alla voce del pannello (non solo un avviso in testa); (2) il blocco dei
+    # precedenti nella lingua della sessione e, per i precedenti italiani (id 0), niente link a /case-precedent/0 né «stato»;
+    # (3) i titoli del radar tagliati su parola intera
+    try:
+        from pathlib import Path as _P263
+        from src import brain as _br263
+        _js263 = (_P263("/app/static/app.js")).read_text(encoding="utf-8")
+        _i263 = _js263.find("function _applicaCorrezioniGiudice")
+        _f263 = _js263[_i263:_i263 + 4000]
+        _ok263 = (_i263 > 0 and "_applicaCorrezioniGiudice(msgEl, body," in _js263 and "NOMI.test" in _f263
+                  and 'target.tagName === "SUMMARY"' in _f263 and ".urgency-radar" in _f263
+                  and 'href="/case-precedent/${d.id}"' in _js263 and "const citeLink = (d) => d.id" in _js263
+                  and "Leggi la decisione" in _js263 and "Decisioni rilevanti dei tribunali" in _js263
+                  and "controllo le decisioni successive" in _js263
+                  and _br263._tronca("Presentare istanza di sostituzione della pena detentiva con il lavoro di pubblica utilità", 80).endswith("di…"))
+        check("pannelli[263]: correzioni del Giudice sulla voce, precedenti bilingui senza id 0, titoli su parola intera", _ok263,
+              _f263[:100])
+    except Exception as _e263:  # noqa: BLE001
+        check("pannelli[263]: kontrollet u ekzekutuan", False, str(_e263))
+
+    # [264] v9.495 — le date dell'analisi del cervello (cronologia, radar d'urgenza) diventano PROPOSTE dello scadenziario da
+    # confermare (origine «risposta»), mai eventi del calendario coi promemoria: niente date passate né oltre 5 anni, titolo intero
+    try:
+        from types import SimpleNamespace as _NS264
+        from datetime import date as _d264, timedelta as _td264
+        from pathlib import Path as _P264
+        from src import web as _w264
+        _pres264, _ev264 = [], []
+        _old264 = (_w264._scad_salva, _w264._upsert_autoevent, _w264.storage.get_case)
+        _w264._scad_salva = lambda pr, inn, **kw: (_pres264.append((pr, kw)), len(pr))[1]
+        _w264._upsert_autoevent = lambda **kw: _ev264.append(kw)
+        _w264.storage.get_case = lambda cid, uid: _NS264(jurisdiction="IT")
+        try:
+            _ok_f = (_d264.today() + _td264(days=20)).isoformat()
+            _res264 = _NS264(
+                timeline=_NS264(deadlines=[
+                    _NS264(due_date=_ok_f, action="Depositare l'opposizione al decreto penale di condanna davanti al GIP competente "
+                           "con la richiesta di rito alternativo e la documentazione del lavoro di pubblica utilità, il certificato del casellario "
+                           "e la dichiarazione di disponibilità dell'ente convenzionato", anchor_event="notifica",
+                           article_ref="art. 461 c.p.p.", urgency="critical"),
+                    _NS264(due_date="2024-03-01", action="passata", anchor_event="", article_ref="", urgency="high"),
+                    _NS264(due_date="2036-01-01", action="troppo lontana", anchor_event="", article_ref="", urgency="high")]),
+                urgency_radar=_NS264(signals=[_NS264(severity="critical", deadline=_ok_f + " (entro)", label="Opposizione",
+                                                     action="depositare", reason="")]))
+            _n264 = _w264._autopopulate_events_from_result(1, "c264", _res264)
+        finally:
+            _w264._scad_salva, _w264._upsert_autoevent, _w264.storage.get_case = _old264
+        _p264 = _pres264[0][0] if _pres264 else []
+        _js264 = (_P264("/app/static/app.js")).read_text(encoding="utf-8")
+        _ok264 = (not _ev264 and _n264 == 2 and len(_p264) == 2 and all(x["origine"] == "risposta" and not x["verificato"]
+                                                                          and x["data"] == _ok_f for x in _p264)
+                  and _p264[0]["titolo"].endswith("…") and len(_p264[0]["titolo"]) <= 200
+                  and "analisi" in _p264[0]["nota"] and _p264[0]["base"] == "art. 461 c.p.p."
+                  and _pres264[0][1].get("juris") == "IT" and _pres264[0][1].get("doc_id") is None
+                  and len({x["chiave"] for x in _p264}) == 2 and 'p.origine === "risposta"' in _js264)
+        check("scadenze[264]: date dell'analisi = proposte da confermare (mai passate, mai oltre 5 anni, nessun evento diretto)",
+              _ok264, str([(x["data"], x["titolo"][:30]) for x in _p264]) + f" eventi={len(_ev264)} n={_n264}")
+    except Exception as _e264:  # noqa: BLE001
+        check("scadenze[264]: kontrollet u ekzekutuan", False, str(_e264))
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

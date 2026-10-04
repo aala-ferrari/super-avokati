@@ -454,6 +454,15 @@ def _blocco_articoli_urgenza(retrieved, it: bool, quanti: int = 10, tetto: int =
             "nuk mbështet asgjë; nëse një rrezik nuk ka bazë këtu, shkruaje pa nen:\n" + "\n".join(righe) + "\n")
 
 
+def _tronca(testo: str, n: int) -> str:
+    """v9.494 — taglio su parola intera, con «…» (il radar mostrava «…con il lavoro di pubblic»)."""
+    testo = (testo or "").strip()
+    if len(testo) <= n:
+        return testo
+    k = testo.rfind(" ", 0, n - 1)
+    return (testo[:k if k > n // 2 else n - 1]).rstrip(" ,;:—-") + "…"
+
+
 def _radici_5(testo: str) -> set[str]:
     # v9.487: le parole che stanno in quasi ogni domanda penale non contano («Mosparashkrimi i ndjekjes penale» entrava per «penale»)
     return {w[:5] for w in re.findall(r"[a-z]+", _norm(testo or "")) if len(w) >= 5} - _RADICI_GENERICHE
@@ -5526,7 +5535,7 @@ class SuperAvvocato:
                 _reason += (f" ({_ref})" if _ref else "") + (f" — {_ev[:120]}" if _ev else "") + "."
                 signals.append(UrgencySignal(
                     kind="deadline",
-                    label=str(label)[:80],
+                    label=_tronca(str(label), 80),
                     reason=_reason,
                     severity="critical",
                     deadline=str(getattr(d, "due_date", "") or getattr(d, "date", "") or getattr(d, "target_date", "") or ""),
@@ -5553,7 +5562,7 @@ class SuperAvvocato:
                 )
                 signals.append(UrgencySignal(
                     kind="deadline",
-                    label=f.name[:80],
+                    label=_tronca(f.name, 80),
                     reason=(f.condition or f.consequence or
                             ("Termine processuale che rischia di far perdere il diritto." if _it_u else
                              "Afat procedural që rrezikon humbjen e së drejtës.")),
@@ -5625,7 +5634,7 @@ class SuperAvvocato:
             )
             signals.append(UrgencySignal(
                 kind=kind,
-                label=label[:100],
+                label=_tronca(label, 100),
                 reason=str(item.get("reason", "")).strip(),
                 severity=severity,
                 deadline=str(item.get("deadline", "")).strip(),

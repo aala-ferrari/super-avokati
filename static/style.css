@@ -8215,3 +8215,7 @@ details.analiza[open]>summary::before{content:"\25BE  "}
 .case-switch-juris{margin-top:6px;padding:5px 10px;border-radius:8px;border:1px solid var(--gold,#c9a227);background:transparent;color:inherit;font:inherit;font-size:.85em;cursor:pointer}
 .case-switch-juris:hover{background:rgba(201,162,39,.12)}
 .case-switch-juris:focus-visible{outline:2px solid var(--gold,#c9a227);outline-offset:2px}
+
+/* v9.494 — la correzione del Giudice accanto alla voce del pannello */
+.giudice-corr{display:block;margin:4px 0 2px;padding:4px 8px;border-left:3px solid #b8860b;background:rgba(184,134,11,.10);font-size:.86em;line-height:1.35;white-space:normal}
+.giudice-corretto{outline:1px dashed rgba(184,134,11,.55);outline-offset:2px}

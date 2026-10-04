@@ -127,6 +127,68 @@
     _casiNascosti = Number(data.hidden_other || 0);
     return data.cases || [];
   }
+  function _applicaCorrezioniGiudice(msgEl, body, txt) {
+    const k = txt.search(/Pannelli da correggere:|Panele për t'u korrigjuar:/);
+    if (k < 0) return 0;
+    const blk = txt.slice(k).split(/\n\s*---|\n#{2,3} /)[0];
+    const righe = blk.split("\n").slice(1).map((r) => r.trim()).filter((r) => /^[-•*]\s/.test(r));
+    const norm = (x) => String(x || "").toLowerCase().replace(/[*_`«»"“”]/g, "").replace(/\s+/g, " ").trim();
+    const parole = (x) => norm(x).split(/[^a-z0-9àèéìòùëç]+/).filter((w) => w.length > 3);
+    const cand = Array.prototype.filter.call(msgEl.querySelectorAll("li, summary, h3, h4, p, div, span"), (e) =>
+      !(body && body.contains(e)) && !e.closest(".panels-notice, .giudice-corr") && e.textContent.length < 700);
+    // il riquadro a cui la riga si riferisce, dal nome (il Giudice scrive «Piano d'azione — …», «⏰ Termini e rischi urgenti»…)
+    const PANNELLI = [[/termini e rischi|afate dhe rreziqe|rischi urgenti/, ".urgency-radar"],
+                      [/piano d.azione|plani i veprimit/, ".action-plan"],
+                      [/possibili nullit|radar di nullit|pavlefshm/, ".nullity-radar"],
+                      [/cronologia|kronologj/, ".timeline"]];
+    const NOMI = /^[^a-zàèéìòù]*(termini e rischi urgenti|piano d.azione|possibili nullità|punti strategici|cronologia|afate dhe rreziqe të ngutshme|plani i veprimit|pavlefshmëri të mundshme|pika strategjike|kronologjia)\b/;
+    const piu_profondo = (pred) => {
+      let t = null;
+      for (const e of cand) if (pred(norm(e.textContent)) && (!t || t.contains(e))) t = e;
+      return t;
+    };
+    let n = 0;
+    for (const r of righe) {
+      const frammenti = [];
+      for (const m of r.matchAll(/«([^»]{6,200})»/g)) {
+        if (NOMI.test(norm(m[1]))) continue;        // «Piano d'azione»: è il NOME del riquadro, non la voce (serve solo al ripiego)
+        frammenti.push(m[1]);
+        for (const pz of m[1].split(/\s+[—→]\s+|:\s+/)) if (pz.length >= 6 && pz !== m[1] && !NOMI.test(norm(pz))) frammenti.push(pz);
+      }
+      let target = null;
+      for (const f of frammenti) {                       // 1) il frammento alla lettera
+        const nf = norm(f);
+        target = piu_profondo((t) => t.includes(nf));
+        if (target) break;
+      }
+      if (!target) {                                     // 2) quasi alla lettera: il 70% delle parole significative
+        for (const f of frammenti) {
+          const pw = parole(f);
+          if (pw.length < 3) continue;
+          target = piu_profondo((t) => pw.filter((w) => t.includes(w)).length >= Math.ceil(pw.length * 0.7));
+          if (target) break;
+        }
+      }
+      let inTesta = false;
+      if (!target) {                                     // 3) il riquadro giusto, in testa
+        const nr = norm(r);
+        for (const [rx, sel] of PANNELLI) {
+          if (rx.test(nr)) { target = msgEl.querySelector(sel); inTesta = true; break; }
+        }
+      }
+      if (target && target.tagName === "SUMMARY") { target = target.parentElement; inTesta = true; }   // mai dentro un titolo
+      if (!target || (!inTesta && target.querySelector(":scope > .giudice-corr"))) continue;
+      const nota = document.createElement("div");
+      nota.className = "giudice-corr";
+      nota.textContent = (_CAL_IT ? "⚖️ Correzione del Giudice: " : "⚖️ Korrigjimi i Gjyqtarit: ") +
+        r.replace(/^[-•*]\s*/, "").replace(/\*\*/g, "");
+      if (inTesta) { const q = target.querySelectorAll(":scope > .giudice-corr"); target.insertBefore(nota, q.length ? q[q.length - 1].nextSibling : (target.children[1] || null)); }
+      else { target.classList.add("giudice-corretto"); target.appendChild(nota); }
+      n++;
+    }
+    return n;
+  }
+
   function _notaCasiNascosti() {
     if (!_casiNascosti) return null;
     const li = document.createElement("li");
@@ -781,6 +843,8 @@
     var conf = p.stato === "confermata";
     var fonte = p.origine === "legge"
       ? "⚖️ " + _sT("Afat ligjor", "Termine di legge") + (p.base ? " — " + _scadEsc(p.base) : "")
+      : p.origine === "risposta"          // v9.495: le date dell'analisi del cervello si confermano, non vanno in calendario da sole
+      ? "🧠 " + _sT("Nga analiza", "Dall'analisi") + (p.base ? " — " + _scadEsc(p.base) : "")
       : "📄 " + _sT("Nga dokumenti", "Dal documento") + (p.documento ? " «" + _scadEsc(p.documento) + "»" : "");
     var cit = p.citazione ? '<div class="scad-cit">“' + _scadEsc(p.citazione) + '”</div>' : "";
     var avviso = (!p.verificato && !conf)
@@ -842,7 +906,7 @@
                    ? _sT("Asnjë afat që vjen: në dokumente ka vetëm data të kaluara.", "Nessuna scadenza in arrivo: nei documenti ci sono solo date già passate.")
                    : _sT("Asnjë afat i gjetur ende.", "Nessuna scadenza trovata finora."))));
     box.innerHTML =
-      '<div class="scad-head"><strong>📅 ' + _sT("Afatet nga dokumentet", "Scadenze dai documenti") + "</strong>" +
+      '<div class="scad-head"><strong>📅 ' + _sT("Afatet e dosjes", "Scadenze del fascicolo") + "</strong>" +
       '<button type="button" class="scad-run"' + (d.in_corso ? " disabled" : "") + ">" +
       (nuovi ? _sT("Analizo dokumentet", "Analizza i documenti") : _sT("Rianalizo", "Rianalizza")) + "</button></div>" +
       '<p class="scad-help">' + _sT("Seancat, afatet e dokumentet që duhen dërguar deri në një datë, nga çdo dokument i dosjes: analiza nis vetë kur ngarkon një dokument me data, dhe të njofton me Telegram dhe email. Asgjë nuk hyn në kalendar pa konfirmimin tënd; kujtesat vijnë 7, 3 dhe 1 ditë para, dhe ditën e afatit.",
@@ -2028,26 +2092,32 @@
         .map((a) => `<span class="prec-article">${escapeHtml(a.code)} neni ${escapeHtml(a.article)}</span>`)
         .join("");
       const judgesLine = (js) => (js && js.length)
-        ? `<div class="prec-judges">Trupi gjykues: ${escapeHtml(js.join(", "))}</div>`
+        ? `<div class="prec-judges">${_CAL_IT ? "Collegio" : "Trupi gjykues"}: ${escapeHtml(js.join(", "))}</div>`
         : "";
+      // v9.494 — i precedenti italiani (Consulta, TAR/CdS, Cassazione) non hanno una riga nella banca dati delle decisioni
+      // (id 0): niente link a /case-precedent/0 né «stato della decisione» (cercava l'id nell'archivio albanese)
+      const citeLink = (d) => d.id
+        ? `<a class="prec-caseid" href="/case-precedent/${d.id}" target="_blank" rel="noopener" title="${_CAL_IT ? "Apri il fascicolo completo" : "Hap fashikullin e plotë"}">${escapeHtml(d.citation)}</a>`
+        : (d.source_url ? `<a class="prec-caseid" href="${encodeURI(d.source_url)}" target="_blank" rel="noopener">${escapeHtml(d.citation)}</a>`
+                        : `<span class="prec-caseid">${escapeHtml(d.citation)}</span>`);
       const items = precedents.map((d) => `
         <li>
           <span class="art-score">${d.score}</span>
           <div class="prec-cite">
-            <a class="prec-caseid" href="/case-precedent/${d.id}" target="_blank" rel="noopener" title="Hap fashikullin e plotë">${escapeHtml(d.citation)}</a>
+            ${citeLink(d)}
             <span class="prec-date">${escapeHtml(d.date || "")}</span>
             ${outcomeTag(d.outcome)}${d.label ? `<span class="prec-date">(${escapeHtml(d.label)})</span>` : ""}
           </div>
           ${d.summary ? `<div class="prec-objekti">${escapeHtml(d.summary)}</div>` : ""}
           ${d.articles_cited && d.articles_cited.length ? `<div class="prec-articles">${articlesBadges(d.articles_cited)}</div>` : ""}
           ${judgesLine(d.judges)}
-          ${d.source_url ? `<a class="prec-link" href="${encodeURI(d.source_url)}" target="_blank" rel="noopener">Lexo vendimin →</a>` : ""}
-          ${d.download ? `<a class="prec-dl" href="/api/precedent-file?f=${encodeURIComponent(d.download)}" title="Shkarko dokumentin origjinal">📎 Shkarko vendimin</a>` : ""}
-          <button type="button" class="prec-validity" data-vid="${d.id}">🔍 Statusi i vendimit</button><span class="prec-vresult" data-vid="${d.id}"></span>
+          ${d.source_url ? `<a class="prec-link" href="${encodeURI(d.source_url)}" target="_blank" rel="noopener">${_CAL_IT ? "Leggi la decisione →" : "Lexo vendimin →"}</a>` : ""}
+          ${d.download ? `<a class="prec-dl" href="/api/precedent-file?f=${encodeURIComponent(d.download)}" title="${_CAL_IT ? "Scarica il documento originale" : "Shkarko dokumentin origjinal"}">📎 ${_CAL_IT ? "Scarica la decisione" : "Shkarko vendimin"}</a>` : ""}
+          ${d.id ? `<button type="button" class="prec-validity" data-vid="${d.id}">🔍 ${_CAL_IT ? "Stato della decisione" : "Statusi i vendimit"}</button><span class="prec-vresult" data-vid="${d.id}"></span>` : ""}
         </li>
       `).join("");
       prec.innerHTML = `
-        <summary>⚖️ Vendime relevante të gjykatave (${precedents.length})</summary>
+        <summary>⚖️ ${_CAL_IT ? "Decisioni rilevanti dei tribunali" : "Vendime relevante të gjykatave"} (${precedents.length})</summary>
         <ul class="precedents-list">${items}</ul>
       `;
       prec.addEventListener("click", onPrecValidity);
@@ -2061,6 +2131,11 @@
     if (missing && (missing.facts || []).length) {
       msgEl.insertBefore(renderMissingFacts(missing), null);
     }
+
+    // v9.494 — le correzioni del Giudice ACCANTO alla voce del pannello che correggono (prima solo un avviso generico in testa:
+    // l'avvocato vedeva ancora «verosimilmente prorogato al 12/10» nel radar). Deterministico: si attaccano le righe di
+    // «Pannelli da correggere» alla voce citata fra «…»; il testo dei pannelli non si riscrive.
+    try { _applicaCorrezioniGiudice(msgEl, body, String(data.text || data.answer || data.markdown || "")); } catch (e) {}
 
     // kind classes
     if (data.kind === "error") msgEl.classList.add("error");
@@ -2188,7 +2263,7 @@
     var vid = btn.getAttribute("data-vid");
     var res = btn.parentElement.querySelector('.prec-vresult[data-vid="' + vid + '"]');
     btn.disabled = true;
-    if (res) res.innerHTML = ' <em style="color:#9a8a63">po kontrolloj vendimet e mëvonshme\u2026</em>';
+    if (res) res.innerHTML = ' <em style="color:#9a8a63">' + (_CAL_IT ? "controllo le decisioni successive\u2026" : "po kontrolloj vendimet e mëvonshme\u2026") + '</em>';
     try {
       var r = await fetch("/api/decision-validity", {
         method: "POST", headers: { "Content-Type": "application/json" },
