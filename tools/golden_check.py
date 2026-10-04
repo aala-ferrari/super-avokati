@@ -7951,6 +7951,45 @@ def main():
     except Exception as _e257:  # noqa: BLE001
         check("anno-due-cifre[257]: kontrollet u ekzekutuan", False, str(_e257))
 
+    # [258] v9.490 — i pannelli dalla prova viva del 4 ott: (1) le nullità nel testo dei pannelli col NOME (il campo vero), non «—»;
+    # (2) il radar d'urgenza riceve gli articoli del blocco (nel caso dell'auto fondava il rischio sull'art. 93, c. 1-bis, abrogato)
+    try:
+        from src import brain as _br258
+        import inspect as _in258
+        from types import SimpleNamespace as _SN258
+        _nr258 = _br258.NullityRadar(findings=[
+            _br258.NullityFinding(kind="deadline", name="Termine di 30 giorni per il ricorso", legal_basis="art. 204-bis C.d.S.",
+                                  citizen_applicable="po", deadline_hint="30 giorni dalla notifica")])
+        _tr258 = _br258.TriageResult(problem_summary="x", areas=[], search_queries=[], strategic_angles=[],
+                                     needs_followup=False, followup_question="", domanda="x")
+        _txt258 = _br258._risposta_dalle_fasi(_tr258, nullity_radar=_nr258, lang="it") if "lang" in _in258.signature(
+            _br258._risposta_dalle_fasi).parameters else _br258._risposta_dalle_fasi(_tr258, nullity_radar=_nr258)
+        _a258 = _SN258(code="codice_strada", number="93", citation="art. 93 Codice della strada", heading="Formalità",
+                       body="1. … 1-bis. COMMA ABROGATO DALLA L. 23 DICEMBRE 2021, N. 238.")
+        _b258 = _br258._blocco_articoli_urgenza([(_a258, 1.0)], True)
+        _bsq258 = _br258._blocco_articoli_urgenza([(_a258, 1.0)], False)
+        _src258 = _in258.getsource(_br258.SuperAvvocato._scan_urgency)
+        _ok258 = ("Termine di 30 giorni per il ricorso" in _txt258 and "**—**" not in _txt258
+                  and "COMMA ABROGATO" in _b258 and "SOLO su questi" in _b258 and "VETËM" in _bsq258
+                  and "_blocco_articoli_urgenza(retrieved" in _src258 and "Il caso da preparare" in _src258)
+        check("pannelli[258]: nullità col nome e radar d'urgenza con gli articoli del blocco", _ok258, _txt258[:200])
+    except Exception as _e258:  # noqa: BLE001
+        check("pannelli[258]: kontrollet u ekzekutuan", False, str(_e258))
+
+    # [259] v9.491 — un numero breve con un anno DIVERSO è un'altra legge: «ligji 82/2016» non è la 82/2024 sulla polizia
+    try:
+        from src import citation_verifier as _cv259
+        from src.retrieval import ArticleIndex as _AI259
+        _i259 = _AI259.load()
+        _f259 = lambda t: [(x["code"], x["status"]) for x in _cv259.verify_text(t, _i259)["items"]]
+        _ok259 = (_f259("neni 2 i ligjit 82/2016") == [(None, "needs_code")]
+                  and _f259("neni 2 i ligjit nr. 82/2024") == [("ligji_policia_2024", "verified")]
+                  and _f259("neni 5 i ligjit nr. 9901/2008")[0][0] == "ligji_shoqerite_tregtare")
+        check("anno-diverso[259]: «82/2016» non è la legge 82/2024; 82/2024 e 9901/2008 sì", _ok259,
+              f"{_f259('neni 2 i ligjit 82/2016')} {_f259('neni 2 i ligjit nr. 82/2024')} {_f259('neni 5 i ligjit nr. 9901/2008')}")
+    except Exception as _e259:  # noqa: BLE001
+        check("anno-diverso[259]: kontrollet u ekzekutuan", False, str(_e259))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

@@ -1140,6 +1140,11 @@ def _resolve_code(tail: str) -> str | None:
         num, year = lm.group(1), (lm.group(2) or lm.group(3))
         if year and f"{num}/{year}" in _LAW_NUMBER_ALIASES:
             return _LAW_NUMBER_ALIASES[f"{num}/{year}"]
+        # v9.491 — un numero BREVE con un ANNO diverso è un'altra legge (la numerazione ricomincia ogni anno): «neni 2 i ligjit
+        # 82/2016» risultava VERIFICATO sulla legge sulla polizia 82/2024 (prova viva AL del 3 ott: il Giudice lo segnalava).
+        # I numeri lunghi della vecchia numerazione continua (7850, 9901…) sono unici: per loro l'anno non serve.
+        if year and len(num) <= 3:
+            return None
         return _LAW_NUMBER_ALIASES.get(num)
     return None
 
