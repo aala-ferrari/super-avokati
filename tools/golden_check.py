@@ -8619,6 +8619,14 @@ def main():
     except Exception as _e290:  # noqa: BLE001
         check("lettere[290]: kontrollet u ekzekutuan", False, str(_e290))
 
+    # [291] v9.516 — il completamento delle righe «non recuperato» non torna ai tetti 10/8 (nella visura del banco una riga del parere,
+    # «art. 2946 c.c. — non recuperato», era rimasta oltre la decima)
+    try:
+        from src import cancello as _cn291
+        check("completa[291]: fino a 14 righe e 12 articoli per risposta", _cn291.COMPLETA_MAX_RIGHE >= 14 and _cn291.COMPLETA_MAX_ART >= 12)
+    except Exception as _e291:  # noqa: BLE001
+        check("completa[291]: kontrollet u ekzekutuan", False, str(_e291))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

@@ -195,8 +195,10 @@ def _barra(text: str, index, lang: str, retrieved_codes=None) -> tuple[str, int,
 # c.p.c., art. 7 d.lgs. 150/2011… — tutti NEL corpus. Il recupero ne porta 6 su 48 anche oggi (il senior in una risposta lunga
 # tocca 15-20 articoli, il blocco ne ha 12): la cura sta DOPO la scrittura. Le sole righe con la riserva vanno al modello del
 # Giudice col TESTO UFFICIALE di quegli articoli: conferma (e toglie la riserva) o corregge secondo il testo. Fail-safe.
-COMPLETA_MAX_RIGHE = 10
-COMPLETA_MAX_ART = 8
+# v9.516 — 10/8 → 14/12: nella visura del banco di prova (5 ott) il completamento si era fermato al tetto delle righe e una riga
+# del parere («art. 2946 c.c. — non recuperato») era rimasta, oltre la decima
+COMPLETA_MAX_RIGHE = 14
+COMPLETA_MAX_ART = 12
 COMPLETA_MAX_CORPO = 3000
 _RISERVA_RE = re.compile(
     r"non (?:è|e|sono) (?:tra|fra|nel(?:l[ae])?)\s+(?:gli\s+)?(?:articoli|norme|testi|blocco|corpus|fascicolo)|"
@@ -236,7 +238,7 @@ def _da_completare(text: str, index, retrieved_codes=None, retrieved_keys=None) 
     lk = cv._build_lookup(index)
     keys = {(str(c), str(n)) for c, n in (retrieved_keys or set())}
     idx, arts, visti = [], [], set()
-    for i, r in enumerate(righe):
+    for i, r in enumerate(righe):        # in ordine di testo: verdetto e analisi vengono prima del duello col diavolo
         if len(idx) >= COMPLETA_MAX_RIGHE or not _RISERVA_RE.search(r):
             continue
         try:
