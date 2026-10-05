@@ -2,7 +2,7 @@
 
 Strumento AI per avvocati (B2B), **bi-giurisdizione AL + IT**. Front-end Flask (waitress, UN processo) su porta
 5050, SQLite (`data/app.db`). Postgres `legalkb` NON è raggiungibile dal container: i precedenti vivono nel pickle.
-**Stato al 6 ott 2026 (v9.517)** — i numeri qui sono quelli veri; più sotto, nelle sezioni datate, c'è la storia:
+**Stato al 6 ott 2026 (v9.518)** — i numeri qui sono quelli veri; più sotto, nelle sezioni datate, c'è la storia:
 - **AL leggi** (`bm25.pkl`, BM25 con diacritici piegati dal v9.367, titolo del capitolo cercabile dal v9.373): **10.904 unità / 70 codici** (dal v9.391 anche la ligji 7975/1995 sugli stupefacenti e la 61/2023 sulla cannabis medica); embedding AL `_flat3`/`_ck3` (capitoli + corpo intero, `EMB_SUFFIX_SQ`/`EMB_SUFFIX2_SQ`), IT `_flat4`/`_ck4` dal v9.384 (`EMB_SUFFIX_IT`/`EMB_SUFFIX2_IT`); fonte
   `data/processed/all_articles.jsonl` (il pickle è derivato).
 - **Precedenti** (`bm25_decisions.pkl`): **3.996** = Kushtetuese **672** + Gjykata e Lartë **2.960** + CEDU **364**
@@ -1557,6 +1557,8 @@ rischio residuo della DPIA.
 - Super Avokati ha auth propria (login_required_api); utenti creati da admin o auto-provisionati da AALA (`/api/provision-demo`, secret-guarded).
 
 ## Storia versioni (sessione 9-10 set 2026 — War Room + audit «Next Generation» + notaio)
+
+**v9.518 — I RACCOGLITORI NON PERDONO PIÙ TUTTO AL TETTO DI SPESA (6 ott).** Dai log di produzione: su 166 raccolte, il raccoglitore WEB falliva con `RuntimeError` nel 14% (QBZ 7%), in silenzio (il senior risponde lo stesso, senza le fonti). Il registro delle chiamate: `NonZeroReturnCode` 17/211 web, 8 QBZ, 3 Fletorja; le riuscite costavano in mediana 0,19 $ e al massimo **0,2995 $** — appiccicate al tetto `STUDIO_MBLEDHES_BUDGET_USD` di 0,30 $. Provato col CLI: oltre il tetto chiude con «error_max_budget_usd», `is_error`, **nessun testo** → la raccolta si perdeva intera, anche ciò che aveva già trovato. Tetto 0,50 $ (env E codice; costa di più solo per quelle che oggi si perdono). Gli altri avvisi del log erano del golden (`g277`: la mia prova col CLI finto; i «3996 precedenti» e «caricamento fallito» degli oggetti di prova) o noti (in produzione 29 precedenti senza embedding = le 29 GjL annullate, tolte di proposito). Golden [34] aggiornato, 696.
 
 **v9.517 — IL RINVIO PER NOME AL CODICE DI PROCEDURA AMMINISTRATIVA (5-6 ott).** Dal banco di prova (licenziamento di uno straniero col permesso unico): l'art. 73 della ligji 79/2021 rinvia per NOME al KPA per il ricorso contro la revoca del permesso, e il senior scriveva «nuk e kam nenin e KPA-së në bllok — verifikoje», lasciando scoperto il termine del ricorso (30 giorni dalla notifica). I rinvii della v9.476 seguono solo lo stesso atto. `SuperAvvocato._aggiungi_rinvio_kpa` (solo AL, nei due percorsi, dopo i rinvii interni): se uno dei primi 8 recuperati di un altro atto nomina il KPA o il «ankim administrativ», entrano KPA 132 («Afatet e ankimit administrativ») e 133 (effetti), marcati «richiamati da». Misura col triage vero **34/35** (+1 caso: revoca del permesso → KPA 132; il caso caduto, la pistola, è la variabilità nota del triage: rifatto 3/3); il rinvio scatta in 3 casi, tutti pertinenti (stranieri, responsabilità della PA). Golden **[292]**, 696.
 

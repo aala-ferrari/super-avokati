@@ -629,7 +629,9 @@ PROMPT_BODY_MAX_CHARS = int(os.getenv("PROMPT_BODY_MAX_CHARS", "12000"))
 STUDIO_MBLEDHES_ENABLED = os.getenv("STUDIO_MBLEDHES_ENABLED", "1") == "1"
 STUDIO_MBLEDHES_MODEL = os.getenv("STUDIO_MBLEDHES_MODEL", "sonnet")
 STUDIO_MBLEDHES_EFFORT = os.getenv("STUDIO_MBLEDHES_EFFORT", "medium")
-STUDIO_MBLEDHES_BUDGET_USD = float(os.getenv("STUDIO_MBLEDHES_BUDGET_USD", "0.30"))
+# v9.518 — 0,30 → 0,50: le raccolte riuscite costavano fino a 0,2995 $ (mediana 0,19) e l'8% di quelle web (17/211, più 8 QBZ e 3
+# Fletorja) sforava: il CLI chiude con «error_max_budget_usd» SENZA testo e il raccoglitore perdeva tutto quello che aveva trovato
+STUDIO_MBLEDHES_BUDGET_USD = float(os.getenv("STUDIO_MBLEDHES_BUDGET_USD", "0.50"))
 STUDIO_MBLEDHES_TIMEOUT = int(os.getenv("STUDIO_MBLEDHES_TIMEOUT", "110"))
 STUDIO_MBLEDHES_WEB = os.getenv("STUDIO_MBLEDHES_WEB", "1") == "1"
 STUDIO_MBLEDHES_QBZ = os.getenv("STUDIO_MBLEDHES_QBZ", "1") == "1"

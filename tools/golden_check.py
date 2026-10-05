@@ -1608,9 +1608,9 @@ def main():
               "DOSJA E BURIMEVE" in _f and "UDHËZIM PËR SENIORIN" in _f and "153 Kodi Rrugor: NË FUQI" in _f
               and "DOSSIER DELLE FONTI" in _fi and "PREC" in _fi
               and _st34.formato_dosjen({"web": {}, "qbz": []}, "sq") == "")
-        check("mbledhes[34]: config — sonnet/medium/0.30$/110s, web e qbz accesi",
+        check("mbledhes[34]: config — sonnet/medium/0.50$/110s, web e qbz accesi (v9.518: 0,30 → 0,50)",
               _cf34.STUDIO_MBLEDHES_ENABLED and _cf34.STUDIO_MBLEDHES_MODEL == "sonnet"
-              and _cf34.STUDIO_MBLEDHES_EFFORT == "medium" and abs(_cf34.STUDIO_MBLEDHES_BUDGET_USD - 0.30) < 1e-9
+              and _cf34.STUDIO_MBLEDHES_EFFORT == "medium" and abs(_cf34.STUDIO_MBLEDHES_BUDGET_USD - 0.50) < 1e-9
               and _cf34.STUDIO_MBLEDHES_TIMEOUT == 110 and _cf34.STUDIO_MBLEDHES_WEB and _cf34.STUDIO_MBLEDHES_QBZ)
         _kw = _st34._kwargs_mbledhesi("sonnet", "medium")
         check("mbledhes[34]: «sonnet» del raccoglitore = tier MEDIUM (ha il web) + effort medium",
