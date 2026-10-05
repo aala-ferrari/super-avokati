@@ -194,7 +194,8 @@
       n++;
       // v9.507 — nel titolo del riquadro: «⚖️ N correzioni del Giudice», visibile anche a riquadro chiuso
       const box = target.closest(".urgency-radar, .action-plan, .nullity-radar, .timeline") || target.closest("details");
-      const sum = box && box.querySelector(":scope > summary");
+      // il radar d'urgenza non è un <details>: l'etichetta va nella sua testata (v9.508)
+      const sum = box && (box.querySelector(":scope > summary") || box.querySelector(":scope > .ur-header"));
       if (sum) {
         let b = sum.querySelector(".giudice-badge");
         if (!b) { b = document.createElement("span"); b.className = "giudice-badge"; b.dataset.n = "0"; sum.appendChild(b); }
@@ -510,7 +511,7 @@
 
   renameBtn.addEventListener("click", async () => {
     if (!activeCaseId) return;
-    const newTitle = prompt("Titulli i ri:", caseTitleText.textContent);
+    const newTitle = prompt((document.body.dataset.lang === "it") ? "Nuovo titolo:" : "Titulli i ri:", caseTitleText.textContent);
     if (!newTitle || !newTitle.trim()) return;
     const resp = await fetch(`/api/cases/${activeCaseId}`, {
       method: "PATCH",
@@ -590,7 +591,7 @@
 
   deleteCaseBtn.addEventListener("click", async () => {
     if (!activeCaseId) return;
-    if (!confirm("Sigurt që do ta fshish këtë rast dhe të gjithë historikun e tij? Kjo nuk kthehet mbrapsht.")) return;
+    if (!confirm((document.body.dataset.lang === "it") ? "Eliminare questo fascicolo e tutta la sua cronologia? L'operazione non si può annullare." : "Sigurt që do ta fshish këtë rast dhe të gjithë historikun e tij? Kjo nuk kthehet mbrapsht.")) return;
     const resp = await fetch(`/api/cases/${activeCaseId}`, { method: "DELETE" });
     if (resp.ok) {
       activeCaseId = null;
@@ -1392,7 +1393,7 @@
     }
 
     node.querySelector(".doc-delete").addEventListener("click", async () => {
-      if (!confirm(`Fshi "${d.filename}" nga dosja?`)) return;
+      if (!confirm((document.body.dataset.lang === "it") ? `Eliminare "${d.filename}" dal fascicolo?` : `Fshi "${d.filename}" nga dosja?`)) return;
       const resp = await fetch(
         `/api/cases/${activeCaseId}/documents/${d.id}`,
         { method: "DELETE" },
@@ -1733,7 +1734,7 @@
     var par = source === "answer" ? _parereDaInviare(md) : "";
     if (par && par.length >= 80 && par.length < md.length - 40) {
       var cp = document.createElement("button");
-      cp.type = "button"; cp.className = "copy-parere-btn";
+      cp.type = "button"; cp.className = "dl-docx-btn copy-parere-btn";
       cp.textContent = _CAL_IT ? "📋 Copia il parere" : "📋 Kopjo mendimin";
       cp.title = _CAL_IT ? "Solo il verdetto e la risposta, senza la verifica interna e il duello" : "Vetëm vendimi dhe përgjigjja, pa verifikimin e brendshëm dhe duelin";
       cp.addEventListener("click", function () {
@@ -1807,7 +1808,7 @@
         });
         head.querySelector(".research-del").addEventListener("click", async function (e) {
           e.stopPropagation();
-          if (!confirm("Fshij këtë kërkim nga fashikulli?")) return;
+          if (!confirm((document.body.dataset.lang === "it") ? "Eliminare questa ricerca dal fascicolo?" : "Fshij këtë kërkim nga fashikulli?")) return;
           await fetch("/api/cases/" + id + "/research/" + it.id, { method: "DELETE" });
           loadResearch(id);
         });
@@ -1855,7 +1856,7 @@
           });
           head.querySelector(".research-del").addEventListener("click", async function (e) {
             e.stopPropagation();
-            if (!confirm("Fshij këtë kërkim nga fashikulli?")) return;
+            if (!confirm((document.body.dataset.lang === "it") ? "Eliminare questa ricerca dal fascicolo?" : "Fshij këtë kërkim nga fashikulli?")) return;
             try { await fetch("/api/cases/" + activeCaseId + "/research/" + it.id, { method: "DELETE" }); } catch (e2) {}
             render(); if (typeof loadResearch === "function") loadResearch(activeCaseId);
           });
@@ -8858,7 +8859,7 @@
 
   timelineDelete?.addEventListener("click", async () => {
     if (!activeCaseId) return;
-    if (!confirm("Fshi linjën kohore aktuale?")) return;
+    if (!confirm((document.body.dataset.lang === "it") ? "Eliminare la cronologia attuale?" : "Fshi linjën kohore aktuale?")) return;
     try {
       const r = await fetch(`/api/cases/${activeCaseId}/timeline`, { method: "DELETE" });
       if (!r.ok) throw new Error("HTTP " + r.status);
@@ -9404,7 +9405,7 @@
   });
 
   studioCreateBtn?.addEventListener("click", async () => {
-    const name = prompt("Emri i studios së re:");
+    const name = prompt((document.body.dataset.lang === "it") ? "Nome del nuovo studio:" : "Emri i studios së re:");
     if (!name || !name.trim()) return;
     const r = await fetch("/api/firm", {
       method: "POST",
@@ -9465,7 +9466,7 @@
     // Wire remove buttons
     studioMembersBody.querySelectorAll(".studio-remove").forEach((btn) => {
       btn.addEventListener("click", async () => {
-        if (!confirm("Largoje këtë anëtar nga studio?")) return;
+        if (!confirm((document.body.dataset.lang === "it") ? "Togliere questo membro dallo studio?" : "Largoje këtë anëtar nga studio?")) return;
         const mid = btn.dataset.memberId;
         const r = await fetch(`/api/firm/members/${mid}`, { method: "DELETE" });
         if (r.ok) { toast("Anëtari u largua", "ok"); await loadStudio(); }
@@ -9608,7 +9609,7 @@
   }
 
   async function withdrawDraft(draftId) {
-    if (!confirm("Tërhiqe këtë bozzë?")) return;
+    if (!confirm((document.body.dataset.lang === "it") ? "Ritirare questa bozza?" : "Tërhiqe këtë bozzë?")) return;
     const r = await fetch(`/api/drafts/${draftId}`, { method: "DELETE" });
     if (r.ok) { toast("Bozza u tërhoq", "ok"); await loadReviewQueue(); }
     else { toast("Tërheqja dështoi", "error"); }
@@ -10107,7 +10108,7 @@
     }
 
     if (t.classList.contains("client-regen-btn")) {
-      if (!confirm("Linku i vjetër do të bëhet i pavlefshëm. Vazhdoj?")) return;
+      if (!confirm((document.body.dataset.lang === "it") ? "Il vecchio link non funzionerà più. Continuo?" : "Linku i vjetër do të bëhet i pavlefshëm. Vazhdoj?")) return;
       const r = await fetch(`/api/cases/${activeCaseId}/clients/${cid}/regenerate-token`, {
         method: "POST",
       });
@@ -10121,7 +10122,7 @@
     }
 
     if (t.classList.contains("client-delete-btn")) {
-      if (!confirm("Heq klientin? Linku do të bëhet i pavlefshëm.")) return;
+      if (!confirm((document.body.dataset.lang === "it") ? "Togliere il cliente? Il link non funzionerà più." : "Heq klientin? Linku do të bëhet i pavlefshëm.")) return;
       const r = await fetch(`/api/cases/${activeCaseId}/clients/${cid}`, {
         method: "DELETE",
       });
@@ -10239,7 +10240,7 @@
     if (!t.classList.contains("upd-del")) return;
     const uid = t.getAttribute("data-uid");
     if (!uid) return;
-    if (!confirm("Heq lajmin? Klienti nuk do ta shohë më.")) return;
+    if (!confirm((document.body.dataset.lang === "it") ? "Togliere l'aggiornamento? Il cliente non lo vedrà più." : "Heq lajmin? Klienti nuk do ta shohë më.")) return;
     const r = await fetch(`/api/cases/${activeCaseId}/status-updates/${uid}`, {
       method: "DELETE",
     });
@@ -10559,7 +10560,7 @@
     }
     if (del) {
       const rid = del.getAttribute("data-rid");
-      if (!confirm("Heq këtë rishikim?")) return;
+      if (!confirm((document.body.dataset.lang === "it") ? "Togliere questa revisione?" : "Heq këtë rishikim?")) return;
       const r = await fetch(`/api/cases/${activeCaseId}/contract-reviews/${rid}`, {
         method: "DELETE",
       });
@@ -10767,7 +10768,7 @@
   timeList?.addEventListener("click", async (e) => {
     const del = e.target.closest("[data-del-entry]");
     if (!del) return;
-    if (!confirm("Heq këtë regjistrim?")) return;
+    if (!confirm((document.body.dataset.lang === "it") ? "Togliere questa registrazione?" : "Heq këtë regjistrim?")) return;
     const eid = del.getAttribute("data-del-entry");
     const r = await fetch(`/api/cases/${activeCaseId}/time-entries/${eid}`, { method: "DELETE" });
     if (r.ok) { toast("U hoq", "ok"); await loadTimeEntries(); }
@@ -10870,7 +10871,7 @@
       if (r.ok) { toast(`Statusi → ${invoiceStatusLabel(status)}`, "ok"); await loadInvoicesList(); }
     }
     if (del) {
-      if (!confirm("Heq këtë faturë? Orët do të kthehen si të papaguara.")) return;
+      if (!confirm((document.body.dataset.lang === "it") ? "Togliere questa fattura? Le ore torneranno non fatturate." : "Heq këtë faturë? Orët do të kthehen si të papaguara.")) return;
       const id = del.getAttribute("data-inv-del");
       const r = await fetch(`/api/cases/${activeCaseId}/invoices/${id}`, { method: "DELETE" });
       if (r.ok) { toast("Faturë u hoq", "ok"); invoiceDetail.hidden = true; invoiceDetail.innerHTML = ""; await Promise.all([loadTimeEntries(), loadInvoicesList()]); }
@@ -11165,7 +11166,7 @@
       if (r.ok) { toast(`Status → ${letterStatusLabel(status)}`, "ok"); await loadLetters(); }
     }
     if (del) {
-      if (!confirm("Heq këtë letër?")) return;
+      if (!confirm((document.body.dataset.lang === "it") ? "Togliere questa lettera?" : "Heq këtë letër?")) return;
       const id = del.getAttribute("data-letter-del");
       const r = await fetch(`/api/cases/${activeCaseId}/letters/${id}`, { method: "DELETE" });
       if (r.ok) { toast("U hoq", "ok"); letterDetail.hidden = true; letterDetail.innerHTML = ""; await loadLetters(); }
@@ -11285,7 +11286,7 @@
   });
 
   rehearsalClearBtn?.addEventListener("click", () => {
-    if (rehearsalHistory.length && !confirm("Pastroj sesionin?")) return;
+    if (rehearsalHistory.length && !confirm((document.body.dataset.lang === "it") ? "Azzerare la sessione?" : "Pastroj sesionin?")) return;
     rehearsalHistory = [];
     renderRehearsalFeed();
     if ("speechSynthesis" in window) window.speechSynthesis.cancel();
@@ -12168,7 +12169,7 @@
         renderLesson(lesson.lesson_json, lesson.outcome);
       });
       document.getElementById("coach-del-existing").addEventListener("click", async () => {
-        if (!confirm("Fshi mësimin e këtij fascikuli?")) return;
+        if (!confirm((document.body.dataset.lang === "it") ? "Eliminare la lezione di questo fascicolo?" : "Fshi mësimin e këtij fascikuli?")) return;
         await fetch(`/api/cases/${activeCaseId}/lesson`, { method: "DELETE" });
         coachExisting.hidden = true;
         coachResult.hidden = true;
@@ -13622,7 +13623,7 @@ function moduleChips(u) {
       const newPw = prompt(_CAL_IT ? `Nuova password per '${uname}' (min 6 caratteri):` : `Fjalëkalimi i ri për '${uname}' (min 6 karaktere):`);
       if (!newPw) return;
       if (newPw.length < 6) {
-        alert("Fjalëkalimi duhet të jetë të paktën 6 karaktere.");
+        alert((document.body.dataset.lang === "it") ? "La password deve avere almeno 6 caratteri." : "Fjalëkalimi duhet të jetë të paktën 6 karaktere.");
         return;
       }
       const r = await fetch(`/api/admin/users/${uid}/password`, {

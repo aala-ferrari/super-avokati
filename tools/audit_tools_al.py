@@ -26,6 +26,9 @@ def post(path, payload, timeout=900, headers=None):
 _ts = int(time.time())
 EMAIL, CODE = f"audit-al-{_ts}@superavokati.test", f"Audit-{_ts}"
 atexit.register(lambda: __import__("src.storage", fromlist=["delete_user"]).delete_user(EMAIL))
+# v9.508 — fermato con SIGTERM l'atexit non gira (l'account di prova restava): l'arresto passa da sys.exit
+import signal as _sg
+_sg.signal(_sg.SIGTERM, lambda *_: sys.exit(143))
 post("/api/provision-demo", {"email": EMAIL, "code": CODE, "hours": 6,
                             "modules": ["avokat", "prokuror", "noter"]},
      headers={"X-Provision-Secret": os.environ.get("DEMO_PROVISION_SECRET", "")})

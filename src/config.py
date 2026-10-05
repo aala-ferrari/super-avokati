@@ -81,6 +81,11 @@ CLAUDE_CODE_FAST_EFFORT = os.getenv("CLAUDE_CODE_FAST_EFFORT", "")
 # v9.393 — la RETE DI SICUREZZA dei tier veloce/junior: se il loro modello raggiunge il limite della sottoscrizione (Opus
 # 5.5 al posto di Sonnet = centinaia di chiamate in più al giorno), la chiamata passa a questo modello invece di fallire.
 CLAUDE_CODE_LIMIT_FALLBACK_MODEL = os.getenv("CLAUDE_CODE_LIMIT_FALLBACK_MODEL", "claude-sonnet-5")
+# v9.508 — la RISERVA DEL SENIOR: se il modello del cervello (Opus 5) raggiunge il limite della sottoscrizione, la domanda
+# passa all'ALTRA mente invece di finire in errore (prima nessun ripiego: il senior al limite = risposta mancata). «» spegne.
+# Sforzo «high»: Fable a max in streaming col web ha superato una volta il tetto dei 45 min (misura del 21 set).
+CLAUDE_CODE_SENIOR_LIMIT_FALLBACK_MODEL = os.getenv("CLAUDE_CODE_SENIOR_LIMIT_FALLBACK_MODEL", "claude-fable-5-1")
+CLAUDE_CODE_SENIOR_LIMIT_EFFORT = os.getenv("CLAUDE_CODE_SENIOR_LIMIT_EFFORT", "high")
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-pro")
 GEMINI_FAST_MODEL = os.getenv("GEMINI_FAST_MODEL", "gemini-2.5-flash")
 

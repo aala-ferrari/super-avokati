@@ -138,6 +138,9 @@
     anello.style.width = (r.width + m * 2) + "px";
     anello.style.height = (r.height + m * 2) + "px";
     anello.style.display = "block";
+    // v9.508 — misurata a sinistra: ancora centrata al 50% la scheda esce più stretta del vero e, spostata, toccava il
+    // bordo destro del telefono (28→400 px su 400)
+    carta.style.left = "0px"; carta.style.transform = "none";
     var ch = carta.offsetHeight || 150, cw = carta.offsetWidth || 300;
     var sotto = r.bottom + 14 + ch < window.innerHeight;
     var top = sotto ? r.bottom + 14 : Math.max(12, r.top - ch - 14);

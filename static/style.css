@@ -8243,3 +8243,17 @@ details.analiza[open]>summary::before{content:"\25BE  "}
 .giudice-falso .giudice-corr{display:inline-block;width:100%;box-sizing:border-box;color:#2a2734;text-decoration:none}
 .giudice-badge{display:inline-block;margin-left:8px;padding:1px 8px;border-radius:999px;background:rgba(184,134,11,.16);color:#7a5a00;font-size:.78em;font-weight:700;vertical-align:middle;white-space:nowrap}
 @media (prefers-color-scheme: dark){.giudice-falso{color:rgba(224,216,196,.55)}.giudice-falso .giudice-corr{color:#e0d8c4}.giudice-badge{background:rgba(201,162,75,.22);color:#f0dfa8}}
+
+/* v9.508 — BERSAGLI DA DITO sul telefono (misurati a 400 px: la «×» dell'avviso scadenze 22×21, quella dei suggerimenti
+   24×18, i pulsanti del fascicolo 29×34 col cestino attaccato all'export). Minimo ~40 px; il cestino staccato. */
+@media (max-width: 600px) {
+  .deadline-banner .db-close, .suggest-dismiss {
+    min-width: 40px; min-height: 40px; display: inline-flex; align-items: center; justify-content: center;
+  }
+  #calendar-btn, #studio-btn { min-width: 38px; min-height: 38px; }
+  .case-header .icon-btn, #rename-case-btn { min-width: 36px; min-height: 36px; }
+  .case-header-actions #delete-case-btn { margin-left: 10px; }
+  .mf-po, .mf-jo { min-height: 40px; }
+  /* iPhone: Safari INGRANDISCE la pagina quando si tocca un campo sotto i 16 px (39 campi su 85 lo erano) */
+  input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=range]), textarea, select { font-size: 16px !important; }
+}

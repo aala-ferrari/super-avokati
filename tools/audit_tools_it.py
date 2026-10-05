@@ -28,6 +28,9 @@ CID = case["id"]
 # v9.395 — il fascicolo del collaudo (nell'account admin.it del titolare) si cancella all'uscita
 import atexit as _ax
 _ax.register(lambda: op.open(urllib.request.Request(BASE + f"/api/cases/{CID}", method="DELETE"), timeout=30).read())
+# v9.508 — fermato con SIGTERM l'atexit non gira e il fascicolo restava (10 trovati il 5 ott): l'arresto passa da sys.exit
+import signal as _sg, sys as _sy
+_sg.signal(_sg.SIGTERM, lambda *_: _sy.exit(143))
 print(f"caso {CID[:8]} giurisdizione={case.get('jurisdiction')}\n", flush=True)
 
 AL_LANG = re.compile(r"[ëç]|\b(nuk|është|janë|duhet|sipas|nenit|neni|rastin|"

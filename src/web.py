@@ -3036,12 +3036,14 @@ def _legal_md_to_html(md: str) -> str:
         # la riga di separazione (|---|---|) non e' contenuto
         corpo = [r for r in righe[1:]
                  if not all(set(c) <= set("-: ") for c in r)]
-        out.append("<table><thead><tr>")
+        # v9.508 — nel contenitore che scorre (la classe c'era nel CSS e nessuno la usava): sul telefono la tabella
+        # spingeva la pagina 10 px oltre lo schermo
+        out.append('<div class="tab-scorri"><table><thead><tr>')
         out.extend(f"<th>{inline(c)}</th>" for c in righe[0])
         out.append("</tr></thead><tbody>")
         for r in corpo:
             out.append("<tr>" + "".join(f"<td>{inline(c)}</td>" for c in r) + "</tr>")
-        out.append("</tbody></table>")
+        out.append("</tbody></table></div>")
 
     for riga in (md or "").replace("\r\n", "\n").split("\n"):
         r = riga.rstrip()

@@ -411,6 +411,8 @@ class ClaudeCodeBackend(LLMBackend):
         medium_effort: str | None = None,
         fast_effort: str | None = None,
         limit_fallback_model: str | None = None,
+        senior_limit_fallback_model: str | None = None,
+        senior_limit_effort: str | None = "high",
     ):
         self.cli = cli_path or shutil.which("claude")
         if not self.cli:
@@ -433,6 +435,17 @@ class ClaudeCodeBackend(LLMBackend):
         # veloce/junior quando il loro modello è al limite della sottoscrizione (None = nessun ripiego)
         self.fast_effort = fast_effort
         self.limit_fallback_model = limit_fallback_model
+        # v9.508 — riserva del senior al limite (l'altra mente), con il suo sforzo
+        self.senior_limit_fallback_model = senior_limit_fallback_model
+        self.senior_limit_effort = senior_limit_effort
+
+    def _riserva_senior(self, model: str, fast: bool, medium: bool) -> str | None:
+        """v9.508 — il modello di riserva se `model` è il SENIOR (Opus del cervello, anche quando un percorso lo chiede per
+        nome) e la riserva non è a sua volta in pausa per limite; altrimenti None (nessun ripiego: niente giri a vuoto)."""
+        r = self.senior_limit_fallback_model
+        if not r or fast or medium or _canon(model) != _canon(self.model) or _canon(r) == _canon(model):
+            return None
+        return r if modello_in_pausa(r) <= 0 else None
 
     def _pick_effort(self, fast: bool, medium: bool,
                      effort_override: str | None = None) -> str | None:
@@ -492,6 +505,13 @@ class ClaudeCodeBackend(LLMBackend):
                      model, int(modello_in_pausa(model_override)), callsite or "?", _fallback_model)
             model = _fallback_model
             effort_override = "max"          # regola del titolare (17 set): il sostituto è Opus MAX
+            _ripiego_fatto = True
+        _ris_sen = self._riserva_senior(model, fast, medium)
+        if _ris_sen and not _ripiego_fatto and modello_in_pausa(model) > 0:
+            log.info("Tetramorph: senior %s in pausa per limite (ancora %ds) — %s va alla riserva %s (effort %s)",
+                     model, int(modello_in_pausa(model)), callsite or "?", _ris_sen, self.senior_limit_effort)
+            model = _ris_sen
+            effort_override = self.senior_limit_effort or effort_override
             _ripiego_fatto = True
         tier = _tier_label(fast, medium)
         prompt_serialized = _serialize_prompt(system, messages)
@@ -687,6 +707,24 @@ class ClaudeCodeBackend(LLMBackend):
             _segna_pausa_per_avviso(model_override, _msg)
             t0 = time.time()
             proc, _limite = _esegui(cmd)
+        elif _limite and not _ripiego_fatto and _ris_sen and model != _ris_sen:
+            # v9.508 — il SENIOR è al limite: pausa, avviso al titolare, la stessa domanda all'altra mente
+            _emit_audit(outcome="error", response_text=None, error_class="ModelLimit")
+            _sen_m = model
+            _metti_in_pausa(_sen_m)
+            _segna_pausa_per_avviso(_sen_m, (proc.stderr or proc.stdout or "")[:90].replace("\n", " "))
+            log.warning("Tetramorph: limite del senior %s raggiunto — %s passa alla riserva %s per %d min",
+                        _sen_m, callsite or "?", _ris_sen, MODEL_LIMIT_PAUSE_S // 60)
+            model = _ris_sen
+            _ripiego_fatto = True
+            cmd[cmd.index("--model") + 1] = _ris_sen
+            if self.senior_limit_effort:
+                if "--effort" in cmd:
+                    cmd[cmd.index("--effort") + 1] = self.senior_limit_effort
+                else:
+                    cmd.extend(["--effort", self.senior_limit_effort])
+            t0 = time.time()
+            proc, _limite = _esegui(cmd)
         elif _limite and _rete and model != _rete:
             # v9.393 — il modello del tier veloce/junior è al limite: pausa, avviso al titolare, la chiamata passa alla rete
             _emit_audit(outcome="error", response_text=None, error_class="ModelLimit")
@@ -799,6 +837,17 @@ class ClaudeCodeBackend(LLMBackend):
             log.info("Tetramorph stream: %s in pausa per limite (ancora %ds) — %s va a %s (effort max)",
                      model, int(modello_in_pausa(model_override)), callsite or "?", _default_model)
             model, model_override, effort_override = _default_model, None, "max"
+        # v9.508 — il senior in pausa per limite → subito la riserva (l'altra mente); al limite adesso, idem più sotto
+        _ris_sen = self._riserva_senior(model, fast, medium)
+        if _ris_sen and modello_in_pausa(model) > 0:
+            log.info("Tetramorph stream: senior %s in pausa per limite — %s va alla riserva %s (effort %s)",
+                     model, callsite or "?", _ris_sen, self.senior_limit_effort)
+            yield from self.complete_stream(
+                system=system, messages=messages, fast=fast, medium=medium, session_id=None, callsite=callsite,
+                user_id=user_id, case_id=case_id, no_web=no_web, model_override=_ris_sen,
+                effort_override=self.senior_limit_effort or effort_override,
+            )
+            return
         tier = _tier_label(fast, medium)
         prompt_serialized = _serialize_prompt(system, messages)
         prompt_hash = _hash16(prompt_serialized)
@@ -927,7 +976,7 @@ class ClaudeCodeBackend(LLMBackend):
                         _uso_finale.update(_uso_da_risposta(evt))
                         if evt.get("is_error"):
                             err = str(evt.get("result", ""))[:500]
-                            if model_override and not collected and _model_limit_hit(err, ""):
+                            if (model_override or _ris_sen) and not collected and _model_limit_hit(err, ""):
                                 _limite_stream = err[:90].replace("\n", " ")
                                 _emit_audit(outcome="error", response_text=None, error_class="ModelLimit")
                                 break
@@ -952,7 +1001,7 @@ class ClaudeCodeBackend(LLMBackend):
 
                 rc = proc.wait(timeout=self.timeout_s)
                 _st.join(timeout=2)
-                if rc != 0 and not _limite_stream and model_override and not collected \
+                if rc != 0 and not _limite_stream and (model_override or _ris_sen) and not collected \
                         and _model_limit_hit("", "".join(_stderr_buf)):
                     _limite_stream = "".join(_stderr_buf)[:90].replace("\n", " ")
                     _emit_audit(outcome="error", response_text=None, error_class="ModelLimit")
@@ -979,6 +1028,18 @@ class ClaudeCodeBackend(LLMBackend):
                 except Exception:  # noqa: BLE001
                     pass
 
+        if _limite_stream and not model_override:
+            # v9.508 — il SENIOR è al limite prima di scrivere: pausa, avviso, la stessa domanda all'altra mente
+            _metti_in_pausa(model)
+            _segna_pausa_per_avviso(model, _limite_stream)
+            log.warning("Tetramorph stream: limite del senior %s raggiunto («%s») — %s passa alla riserva %s per %d min",
+                        model, _limite_stream, callsite or "?", _ris_sen, MODEL_LIMIT_PAUSE_S // 60)
+            yield from self.complete_stream(
+                system=system, messages=messages, fast=fast, medium=medium, session_id=None, callsite=callsite,
+                user_id=user_id, case_id=case_id, no_web=no_web, model_override=_ris_sen,
+                effort_override=self.senior_limit_effort or effort_override,
+            )
+            return
         if _limite_stream:
             # v9.393 — il modello scelto è al limite (pausa + email al titolare): la stessa domanda va al default a MAX
             _metti_in_pausa(model_override)
@@ -1394,6 +1455,8 @@ def build_backend() -> LLMBackend:
         CLAUDE_CODE_MEDIUM_EFFORT,
         CLAUDE_CODE_FAST_EFFORT,
         CLAUDE_CODE_LIMIT_FALLBACK_MODEL,
+        CLAUDE_CODE_SENIOR_LIMIT_EFFORT,
+        CLAUDE_CODE_SENIOR_LIMIT_FALLBACK_MODEL,
         CLAUDE_CODE_MEDIUM_MODEL,
         CLAUDE_CODE_MODEL,
         CLAUDE_FAST_MODEL,
@@ -1441,6 +1504,8 @@ def build_backend() -> LLMBackend:
             medium_effort=CLAUDE_CODE_MEDIUM_EFFORT or None,
             fast_effort=CLAUDE_CODE_FAST_EFFORT or None,                     # v9.393
             limit_fallback_model=CLAUDE_CODE_LIMIT_FALLBACK_MODEL or None,   # v9.393
+            senior_limit_fallback_model=CLAUDE_CODE_SENIOR_LIMIT_FALLBACK_MODEL or None,   # v9.508
+            senior_limit_effort=CLAUDE_CODE_SENIOR_LIMIT_EFFORT or None,
         )
 
     if choice == "gemini":

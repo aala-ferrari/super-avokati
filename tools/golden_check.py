@@ -2475,7 +2475,7 @@ def main():
         from src import studio as _st65
         _cs65 = _insp65.getsource(_bk65)
         _i65 = _cs65.find("def complete_stream(")
-        _stream65 = _cs65[_i65:_i65 + 9000] if _i65 >= 0 else ""
+        _stream65 = _cs65[_i65:_i65 + 12000] if _i65 >= 0 else ""
         _gj65 = _insp65.getsource(_st65.gjyqtari_fundit)
         _brgj65 = _insp65.getsource(brain.SuperAvvocato._gjyqtari_fundit)
         _cas65 = _insp65.getsource(brain.SuperAvvocato._compose_answer_stream)
@@ -8329,6 +8329,90 @@ def main():
               and 'getElementById("tg-menu-btn")?.addEventListener' in _a276)
     except Exception as _e276:  # noqa: BLE001
         check("menu[276]: kontrollet u ekzekutuan", False, str(_e276))
+
+    # [277] v9.508 — LA RISERVA DEL SENIOR: Opus del cervello al limite della sottoscrizione → la stessa domanda all'altra
+    # mente (prima nessun ripiego: il senior al limite = risposta mancata). Eseguito con un CLI FINTO, senza avvisi né audit.
+    try:
+        import os as _os277, json as _js277, tempfile as _tf277
+        from src import backends as _bk277, config as _cf277
+        _d277 = _tf277.mkdtemp()
+        _cli277 = _os277.path.join(_d277, "claude")
+        with open(_cli277, "w") as _f277:
+            _f277.write("#!/usr/bin/env python3\nimport sys, json\na = sys.argv; m = a[a.index('--model')+1]\n"
+                        "open(sys.argv[0] + '.log', 'a').write(m + ' ' + (a[a.index('--effort')+1] if '--effort' in a else '-') + '\\n')\n"
+                        "if 'opus' in m:\n    print(json.dumps({'type':'result','is_error':True,'result':\"You've reached your Opus limit. Switch to another model to continue.\"})); sys.exit(1)\n"
+                        "print(json.dumps({'type':'result','is_error':False,'result':'OK da ' + m,'session_id':'s'}))\n")
+        _os277.chmod(_cli277, 0o755)
+        _sv277 = (_bk277._segna_pausa_per_avviso, _bk277._audit_safe)
+        _bk277._segna_pausa_per_avviso = lambda *a, **k: None      # MAI l'email al titolare da una prova
+        _bk277._audit_safe = lambda **k: None
+        _pz277 = dict(_bk277._MODEL_LIMIT_UNTIL)
+        try:
+            _bk277._MODEL_LIMIT_UNTIL.clear()
+            _b277 = _bk277.ClaudeCodeBackend(model="claude-opus-5", cli_path=_cli277, effort="max",
+                                             senior_limit_fallback_model="claude-fable-5-1", senior_limit_effort="high")
+            _m = [{"role": "user", "content": "ciao"}]
+            _r1 = _b277.complete("s", _m, callsite="g277")
+            _p1 = _bk277.modello_in_pausa("claude-opus-5") > 0
+            _r2 = _b277.complete("s", _m, callsite="g277")
+            _r3 = "".join(x for k, x in _b277.complete_stream("s", _m, callsite="g277") if k == "delta")
+            _bk277._MODEL_LIMIT_UNTIL.clear()
+            _r4 = "".join(x for k, x in _b277.complete_stream("s", _m, callsite="g277") if k == "delta")
+            _bk277._MODEL_LIMIT_UNTIL.clear(); _bk277._metti_in_pausa("claude-fable-5-1")
+            try:
+                _b277.complete("s", _m, callsite="g277"); _r5 = "nessun errore"
+            except Exception:  # noqa: BLE001
+                _r5 = "errore"
+            _log277 = open(_cli277 + ".log").read().split("\n")
+            _veloce = _b277._riserva_senior("claude-sonnet-5", True, False)
+        finally:
+            _bk277._segna_pausa_per_avviso, _bk277._audit_safe = _sv277
+            _bk277._MODEL_LIMIT_UNTIL.clear(); _bk277._MODEL_LIMIT_UNTIL.update(_pz277)
+        check("riserva[277]: senior al limite → l'altra mente a high; in pausa si salta; streaming uguale; riserva in pausa = un tentativo e l'errore (mai un giro a vuoto); il tier veloce non la usa",
+              _r1 == "OK da claude-fable-5-1" and _p1 and _r2 == _r1 and _r3 == _r1 and _r4 == _r1 and _r5 == "errore"
+              and _log277[:7] == ["claude-opus-5 max", "claude-fable-5-1 high", "claude-fable-5-1 high", "claude-fable-5-1 high",
+                                  "claude-opus-5 max", "claude-fable-5-1 high", "claude-opus-5 max"]
+              and _veloce is None
+              and _cf277.CLAUDE_CODE_SENIOR_LIMIT_FALLBACK_MODEL == "claude-fable-5-1" and _cf277.CLAUDE_CODE_SENIOR_LIMIT_EFFORT == "high",
+              "%r %r %r %r %r %r" % (_r1, _r2, _r3, _r4, _r5, _log277[:7]))
+    except Exception as _e277:  # noqa: BLE001
+        check("riserva[277]: kontrollet u ekzekutuan", False, str(_e277))
+
+    # [278] v9.508 — bersagli da dito sul telefono (misurati a 400 px in una finestra vera: «×» 22×21 e 24×18, pulsanti del
+    # fascicolo 29×34 col cestino attaccato all'export)
+    try:
+        from pathlib import Path as _P278
+        _c278 = _P278("/app/static/style.css").read_text(encoding="utf-8")
+        _i278 = _c278.find("BERSAGLI DA DITO")
+        _b278 = _c278[_i278:_i278 + 1200] if _i278 >= 0 else ""
+        _h278 = _P278("/app/templates/index.html").read_text(encoding="utf-8")
+        check("telefono[278]: «×» e pulsanti del fascicolo ≥36-40 px sotto i 600 px, cestino staccato, style.css col suo numero",
+              "@media (max-width: 600px)" in _b278 and ".db-close" in _b278 and ".suggest-dismiss" in _b278
+              and "min-width: 40px" in _b278 and ".case-header .icon-btn" in _b278 and "textarea, select { font-size: 16px !important; }" in _b278 and "#delete-case-btn { margin-left" in _b278
+              and "style.css?v=159" in _h278 and "onboarding.js?v=3" in _h278
+              and 'carta.style.left = "0px"; carta.style.transform = "none";' in _P278("/app/static/onboarding.js").read_text(encoding="utf-8")
+              and 'cp.className = "dl-docx-btn copy-parere-btn"' in _P278("/app/static/app.js").read_text(encoding="utf-8"))
+        from src import web as _w278
+        _t278 = _w278._legal_md_to_html("| Dato | Fine |\n|---|---|\n| email | accesso |\n")
+        check("telefono[278]: la tabella dei documenti legali pubblici nel contenitore che scorre (la pagina non va oltre lo schermo)",
+              '<div class="tab-scorri"><table>' in _t278 and _t278.count("</table></div>") == 1 and "<td>email</td>" in _t278, _t278[:160])
+    except Exception as _e278:  # noqa: BLE001
+        check("telefono[278]: kontrollet u ekzekutuan", False, str(_e278))
+
+    # [279] v9.508 — LINGUA = SESSIONE anche nelle finestre NATIVE (confirm/prompt/alert): 18 erano solo albanesi («Sigurt që
+    # do ta fshish këtë rast…» a un avvocato italiano che cancella un fascicolo). Nessuna scansione del DOM le vede.
+    try:
+        import re as _re279
+        from pathlib import Path as _P279
+        _a279 = _P279("/app/static/app.js").read_text(encoding="utf-8")
+        _sole279 = [l.strip()[:90] for l in _a279.split("\n")
+                    if _re279.search(r"\b(confirm|prompt|alert)\(\s*[\"`]", l)
+                    and "dataset.lang" not in l and "_CAL_IT" not in l and "IT ?" not in l]
+        check("dialoghi[279]: nessuna conferma/prompt/avviso nativo con un testo fisso senza il ramo italiano",
+              not _sole279 and _a279.count('document.body.dataset.lang === "it"') >= 18 and "app.js?v=205" in _P279("/app/templates/index.html").read_text(encoding="utf-8"),
+              "; ".join(_sole279[:4]))
+    except Exception as _e279:  # noqa: BLE001
+        check("dialoghi[279]: kontrollet u ekzekutuan", False, str(_e279))
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
