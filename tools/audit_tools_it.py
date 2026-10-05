@@ -201,6 +201,9 @@ for name, path, payload, keys in TESTS:
                 _fh.write(blob)
         except Exception:  # noqa: BLE001 - il salvataggio non deve fermare l'audit
             pass
+        # v9.508 — i CODICI interni del piano d'azione («bucket»: «sot», «kjo_javë», «ky_muaj») non sono testo: l'interfaccia
+        # li mostra tradotti («Oggi», «Questa settimana»). Contarli dava «ALBANESE» a una risposta tutta italiana.
+        blob = re.sub(r'"bucket":\s*"[^"]*"', '"bucket": ""', blob)
         al_hits = AL_LANG.findall(blob)
         al_l = len(al_hits)
         al_w = len(AL_LAW.findall(blob))
