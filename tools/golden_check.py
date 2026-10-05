@@ -8627,6 +8627,27 @@ def main():
     except Exception as _e291:  # noqa: BLE001
         check("completa[291]: kontrollet u ekzekutuan", False, str(_e291))
 
+    # [292] v9.517 — il rinvio per NOME al KPA: un articolo recuperato di un altro atto che rinvia al Codice di procedura
+    # amministrativa (ligji 79/2021 neni 73: il ricorso contro la revoca del permesso) porta KPA 132 (termine) e 133 (effetti)
+    try:
+        from src import brain as _br292
+        from src.retrieval import ArticleIndex as _AI292
+        _sa292 = _br292.SuperAvvocato.__new__(_br292.SuperAvvocato)
+        _sa292.index = _AI292.load(); _sa292.index_it = None; _sa292._jurisdiction_ctx = __import__("threading").local()
+        _by292 = {(a.code, str(a.number)): a for a in _sa292.index.articles}
+        _r73 = _by292.get(("ligji_te_huajt", "73")); _kc = _by292.get(("kodi_civil", "114"))
+        _sa292._jurisdiction_ctx.code = "AL"
+        _out292 = {(a.code, str(a.number)) for a, _ in _sa292._aggiungi_rinvio_kpa([(_r73, 5.0)])} if _r73 else set()
+        _no292 = {(a.code, str(a.number)) for a, _ in _sa292._aggiungi_rinvio_kpa([(_kc, 5.0)])}
+        _sa292._jurisdiction_ctx.code = "IT"
+        _it292 = {(a.code, str(a.number)) for a, _ in _sa292._aggiungi_rinvio_kpa([(_r73, 5.0)])} if _r73 else set()
+        check("kpa[292]: l'art. 73 della 79/2021 porta KPA 132 e 133; un articolo che non nomina il KPA no; in sessione IT nulla",
+              {("kodi_proc_admin", "132"), ("kodi_proc_admin", "133")} <= _out292
+              and not any(c == "kodi_proc_admin" for c, _ in _no292) and not any(c == "kodi_proc_admin" for c, _ in _it292),
+              repr((sorted(_out292), sorted(_no292))))
+    except Exception as _e292:  # noqa: BLE001
+        check("kpa[292]: kontrollet u ekzekutuan", False, str(_e292))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

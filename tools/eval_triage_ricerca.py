@@ -43,6 +43,8 @@ CASI = [  # (giurisdizione, domanda dell'avvocato, articoli di cui almeno uno DE
     ("AL", "Gjykata administrative e shkallës së parë e rrëzoi padinë tonë kundër bashkisë. Deri kur mund të bëjmë apel?", [("ligji_gjykatat_administrative", "44"), ("kodi_proc_civile", "443")]),
     ("IT", "Il cliente ha subito un incidente stradale nel marzo 2023 e non ha ancora chiesto il risarcimento. È prescritto?", [("codice_civile", "2947")]),
     ("IT", "Il cliente, albanese, è sposato da tre anni con una cittadina italiana e vive in Italia. Come ottiene la cittadinanza?", [("cittadinanza", "10")]),
+    # v9.517 — la revoca del permesso di soggiorno: l'art. 73 della 79/2021 rinvia per nome al KPA (termine del ricorso: KPA 132)
+    ("AL", "Klientit i anuloi policia lejen e qëndrimit pasi humbi punën. Brenda sa kohe mund të bëjë ankim dhe te kush?", [("kodi_proc_admin", "132")]),
     # v9.511 — banco di prova della v9.510: la risposta parla di trascrizione 20 volte e non nomina mai l'art. 2644 c.c.
     ("IT", "Il mio cliente vuole acquistare un appartamento. Dalla visura ipotecaria risultano un'ipoteca volontaria a favore di una banca e un pignoramento trascritto su 1/2 dell'immobile. La vendita è possibile? Quali formalità bloccano e quali condizionano l'atto?", [("codice_civile", "2644")]),
     # v9.500 — il CALCOLO del termine (giorno di riposo): prova viva del 4 ott, il senior fissava una domenica
@@ -76,6 +78,7 @@ def main() -> int:
         ret = sa._ankoro_citimet(q, ret, areas=getattr(tr, "areas", None))
         ret = sa._aggiungi_previgenti(ret)          # v9.492: la stessa catena della chat
         ret = sa._aggiungi_rinvii(ret)
+        ret = sa._aggiungi_rinvio_kpa(ret)      # v9.517
         ret = sa._aggiungi_richiami_inversi(ret)
         if "--kerkuesi" in sys.argv:                   # il percorso vero: anche il ricercatore junior (una chiamata veloce)
             ret = sa._studio_kerkuesi(q, tr, ret)

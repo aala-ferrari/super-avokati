@@ -3270,6 +3270,7 @@ class SuperAvvocato:
         retrieved = self._ankoro_citimet(user_message, retrieved, areas=getattr(triage, "areas", None))   # v9.359: il nene chiesto per numero, per primo
         retrieved = self._aggiungi_previgenti(retrieved)      # v9.405: accanto al testo unico non ancora applicabile, la norma vigente
         retrieved = self._aggiungi_rinvii(retrieved)          # v9.476: gli articoli che i recuperati richiamano espressamente
+        retrieved = self._aggiungi_rinvio_kpa(retrieved)      # v9.517: il rinvio per NOME al KPA (ricorso amministrativo)
         retrieved = self._aggiungi_richiami_inversi(retrieved)    # v9.492: gli articoli brevi che richiamano (e precisano) un recuperato
         retrieved = self._studio_kerkuesi(user_message, triage, retrieved)
 
@@ -3670,6 +3671,7 @@ class SuperAvvocato:
         retrieved = self._ankoro_citimet(user_message, retrieved, areas=getattr(triage, "areas", None))   # v9.359: il nene chiesto per numero, per primo
         retrieved = self._aggiungi_previgenti(retrieved)      # v9.405: accanto al testo unico non ancora applicabile, la norma vigente
         retrieved = self._aggiungi_rinvii(retrieved)          # v9.476: gli articoli che i recuperati richiamano espressamente
+        retrieved = self._aggiungi_rinvio_kpa(retrieved)      # v9.517: il rinvio per NOME al KPA (ricorso amministrativo)
         retrieved = self._aggiungi_richiami_inversi(retrieved)    # v9.492: gli articoli brevi che richiamano (e precisano) un recuperato
         retrieved = self._studio_kerkuesi(user_message, triage, retrieved)
         log.info("retrieved %d articles", len(retrieved))
@@ -4651,6 +4653,45 @@ class SuperAvvocato:
             return out
         except Exception as exc:  # noqa: BLE001
             log.warning("rinvii interni: saltati (non-fatal): %s", exc)
+            return retrieved
+
+    _RINVIO_KPA_RX = re.compile(r"Kodi(?:t|n)?\s+(?:i|e|të|t[eë])\s+Procedur(?:ave|ës|es)\s+Administrative|\bKPA\b|"
+                                r"ankim\w*\s+administrativ", re.I)
+
+    def _aggiungi_rinvio_kpa(self, retrieved):
+        """v9.517 (banco di prova della v9.510, licenziamento + permesso di soggiorno): l'art. 73 della ligji 79/2021 sugli stranieri
+        rinvia per NOME al Codice di procedura amministrativa per il ricorso contro la revoca del permesso, e il senior scriveva
+        «nuk e kam nenin e KPA-së në bllok» — il termine del ricorso (30 giorni dalla notifica) restava scoperto. I rinvii della v9.476
+        seguono solo lo stesso atto. Qui: se uno dei primi 8 recuperati (di un altro atto) nomina il KPA o il ricorso amministrativo,
+        entrano KPA 132 («Afatet e ankimit administrativ», 30 giorni) e 133 (effetti), marcati «richiamati da». Solo AL, fail-silent."""
+        try:
+            if not retrieved or self._current_jurisdiction() == "IT":
+                return retrieved
+            presenti = {(a.code, str(a.number)) for a, _ in retrieved}
+            if {("kodi_proc_admin", "132"), ("kodi_proc_admin", "133")} <= presenti:
+                return retrieved
+            da = next((a for a, _ in retrieved[:8] if a.code != "kodi_proc_admin" and not getattr(a, "_rinvio_da", "")
+                       and self._RINVIO_KPA_RX.search(getattr(a, "body", "") or "")), None)
+            if da is None:
+                return retrieved
+            by_key = {(x.code, str(x.number)): x for x in self.index.articles if x.code == "kodi_proc_admin"}
+            out = list(retrieved)
+            sc0 = min((sc for _, sc in retrieved), default=0.0)
+            aggiunti = []
+            for n in ("132", "133"):
+                v = by_key.get(("kodi_proc_admin", n))
+                if v is None or ("kodi_proc_admin", n) in presenti or getattr(v, "repealed", False):
+                    continue
+                c = _copy.copy(v)
+                c._rinvio_da = getattr(da, "citation", "") or f"{da.code} {da.number}"
+                out.append((c, sc0))
+                aggiunti.append(f"kodi_proc_admin {n}")
+            if aggiunti:
+                log.info("retrieval: rinvio al KPA da %s %s → %s", da.code, da.number, aggiunti)
+                _audit_set("rinvio_kpa", aggiunti)
+            return out
+        except Exception as exc:  # noqa: BLE001
+            log.warning("rinvio al KPA: saltato (non-fatal): %s", exc)
             return retrieved
 
     def _aggiungi_richiami_inversi(self, retrieved, limit: int = 2, max_richiamanti: int = 3, max_chr: int = 700):
