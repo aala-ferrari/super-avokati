@@ -183,7 +183,7 @@ for name, path, payload, keys in TESTS:
     try:
         # la pipeline completa (/api/ask complex: fasi + diavolo + Giudice) supera i
         # 15 minuti: 40 min per lei, 15 per gli strumenti singoli
-        d = post(path, payload, timeout=2400 if path == "/api/ask" else 900)
+        d = post(path, payload, timeout=2400 if path == "/api/ask" else 1800)   # v9.508: il sollecito IT ha impiegato 21 min (riuscito)
         blob = ""
         for k in keys:
             v = d.get(k)

@@ -168,7 +168,7 @@ rows = []
 for name, path, payload, keys in TESTS:
     t0 = time.time()
     try:
-        d = post(path, payload, timeout=2400 if path == "/api/ask" else 900)
+        d = post(path, payload, timeout=2400 if path == "/api/ask" else 1800)   # v9.508: come nell'audit IT
         blob = ""
         for k in keys:
             v = d.get(k)
