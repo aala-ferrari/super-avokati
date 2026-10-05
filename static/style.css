@@ -8237,3 +8237,9 @@ details.analiza[open]>summary::before{content:"\25BE  "}
 .suggest-chip-body em { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 @media (max-width: 900px) { .suggest-title { display: none; } }
 @media (max-width: 720px) { .suggest-chip { flex-basis: 0; } .suggest-chip-body em { display: none; } }
+
+/* v9.507 — voce del riquadro dichiarata falsa dal Giudice: barrata, la correzione resta leggibile; etichetta nel titolo del riquadro */
+.giudice-falso{text-decoration:line-through;text-decoration-color:rgba(178,59,30,.75);text-decoration-thickness:1.5px;color:rgba(60,50,40,.62)}
+.giudice-falso .giudice-corr{display:inline-block;width:100%;box-sizing:border-box;color:#2a2734;text-decoration:none}
+.giudice-badge{display:inline-block;margin-left:8px;padding:1px 8px;border-radius:999px;background:rgba(184,134,11,.16);color:#7a5a00;font-size:.78em;font-weight:700;vertical-align:middle;white-space:nowrap}
+@media (prefers-color-scheme: dark){.giudice-falso{color:rgba(224,216,196,.55)}.giudice-falso .giudice-corr{color:#e0d8c4}.giudice-badge{background:rgba(201,162,75,.22);color:#f0dfa8}}

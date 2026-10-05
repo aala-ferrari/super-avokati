@@ -631,6 +631,8 @@ STREAM_STATUS_SQ: dict[str, str] = {
     "complex_analyzing":     "Po analizoj rastin me kujdes maksimal nga shumë kënde dhe po verifikoj ligjin e shifrat në burimet zyrtare — saktësia para shpejtësisë, prandaj merr pak minuta…",
     "complex_urgency":       "Po vlerësoj urgjencën dhe afatet…",
     "complex_composing":     "Po shkruaj përgjigjen përfundimtare — verifikoj çdo nen e shifër para se ta jap, që të jesh i sigurt…",
+    "complex_devil":         "⚔️ Avokati i djallit po e sulmon përgjigjen, dhe seniori po i përgjigjet…",
+    "complex_judge":         "⚖️ Gjyqtari po verifikon çdo nen në tekstin zyrtar dhe po jep vendimin përfundimtar…",
 }
 
 STREAM_STATUS_IT: dict[str, str] = {
@@ -642,6 +644,8 @@ STREAM_STATUS_IT: dict[str, str] = {
     "complex_analyzing":     "Sto analizzando il caso con la massima cura da più angolazioni e verifico norme e importi sulle fonti ufficiali — prima la precisione, poi la velocità: servono alcuni minuti…",
     "complex_urgency":       "Sto valutando urgenze e termini…",
     "complex_composing":     "Sto scrivendo la risposta definitiva — verifico ogni articolo e ogni importo prima di dartela…",
+    "complex_devil":         "⚔️ L'avvocato del diavolo attacca la risposta e il senior replica…",
+    "complex_judge":         "⚖️ Il Giudice verifica ogni norma sul testo ufficiale e scrive il verdetto finale…",
 }
 
 
@@ -3501,6 +3505,7 @@ class SuperAvvocato:
             except Exception as _exc_rl:  # noqa: BLE001
                 log.warning("war_room research loop wiring dështoi (non-fatal): %s", _exc_rl)
         retrieved = self._mbyll_dosjen_me_citime(answer_text, retrieved, "seniori")     # v9.361
+        yield ("status", self._status("complex_devil"))                                 # v9.507
         answer_text = self._studio_djalli(user_message, retrieved, precedents, answer_text)
         retrieved = self._mbyll_dosjen_me_citime(answer_text, retrieved, "djalli")      # v9.361
         # Source Verifier: il RAPPORTO di verifica per qualità sul dossier canonico —
@@ -3530,6 +3535,7 @@ class SuperAvvocato:
                 intro=False)
         except Exception:  # noqa: BLE001 — i pannelli sono un di piu' per il Giudice
             _fazat_x = ""
+        yield ("status", self._status("complex_judge"))                                 # v9.507
         answer_text = self._gjyqtari_fundit(
             user_message, retrieved, precedents, answer_text, dosja_txt=dosja_txt_x,
             fazat_txt=_fazat_x)

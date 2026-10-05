@@ -1161,6 +1161,7 @@ def init_db(db_path: Path = APP_DB_PATH) -> None:
         _add_column_if_missing(conn, "users", "plan_expires_at", "TEXT")
         conn.execute("UPDATE users SET modules = profession WHERE modules IS NULL OR modules = ''")
         _add_column_if_missing(conn, "users", "jurisdictions", "TEXT")
+        _add_column_if_missing(conn, "users", "esempi_creati", "TEXT")      # v9.507: «AL,IT» = fascicolo d'esempio già creato
         conn.execute("UPDATE users SET jurisdictions = 'AL' WHERE jurisdictions IS NULL OR jurisdictions = ''")
         # v9.395 — un evento appartiene alla giurisdizione del SUO fascicolo; uno
         # senza fascicolo a quella della sessione in cui e' nato (NULL = prima
@@ -2008,6 +2009,35 @@ def get_case_unscoped(case_id: str) -> Case | None:
             "SELECT * FROM cases WHERE id = ?", (case_id,),
         ).fetchone()
     return _case_from_row(row) if row else None
+
+
+def crea_fascicolo_esempio(user_id: int, giurisdizione: str, esempio: dict) -> str | None:
+    """v9.507 — il fascicolo d'ESEMPIO del primo accesso: una domanda vera e la risposta del cervello coi riquadri, così un
+    avvocato nuovo vede subito cosa fa il prodotto invece di una pagina vuota. Una volta sola per giurisdizione (colonna
+    `users.esempi_creati`), mai a un account di prova `.test`, mai se l'utente ha già fascicoli in quella giurisdizione."""
+    j = (giurisdizione or "AL").upper()
+    with db() as conn:
+        row = conn.execute("SELECT username, esempi_creati FROM users WHERE id = ?", (user_id,)).fetchone()
+        if not row or (row["username"] or "").lower().endswith(".test"):
+            return None
+        fatti = {x for x in (row["esempi_creati"] or "").split(",") if x}
+        if j in fatti:
+            return None
+        if conn.execute("SELECT 1 FROM cases WHERE user_id = ? AND COALESCE(jurisdiction,'AL') = ? LIMIT 1", (user_id, j)).fetchone():
+            fatti.add(j)
+            conn.execute("UPDATE users SET esempi_creati = ? WHERE id = ?", (",".join(sorted(fatti)), user_id))
+            return None
+        fatti.add(j)
+        conn.execute("UPDATE users SET esempi_creati = ? WHERE id = ?", (",".join(sorted(fatti)), user_id))
+    case = create_case(user_id, esempio["titolo"], jurisdiction=j)
+    cols = ("role", "content", "kind", "articles_json", "precedents_json", "timeline_json", "comparison_json", "missing_facts_json",
+            "premortem_json", "distinguishing_json", "evidence_map_json", "nullity_radar_json", "urgency_radar_json",
+            "action_plan_json", "contradictions_json", "opponent_playbook_json", "leverage_json", "citations_json")
+    with db() as conn:
+        for m in esempio.get("messaggi") or []:
+            conn.execute(f"INSERT INTO messages (case_id, created_at, {', '.join(cols)}) VALUES (?, ?, {', '.join('?' for _ in cols)})",
+                         (case.id, _utcnow(), *[m.get(c) for c in cols]))
+    return case.id
 
 
 def list_cases(user_id: int) -> list[Case]:

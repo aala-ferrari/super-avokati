@@ -8294,6 +8294,42 @@ def main():
     except Exception as _e274:  # noqa: BLE001
         check("incidente[274]: kontrollet u ekzekutuan", False, str(_e274))
 
+    # [275] v9.507 — funzionalità: (1) la FASE dell'analisi profonda nel battito (diavolo, Giudice) invece di «sto ancora lavorando»;
+    # (2) la voce del riquadro dichiarata falsa dal Giudice si barra, etichetta nel titolo; (3) il parere pulito da copiare/scaricare;
+    # (5) WhatsApp nascosto finché non è collegato; (7) il fascicolo d'esempio al primo accesso
+    try:
+        import json as _js275
+        from pathlib import Path as _P275
+        from src import brain as _br275, web as _w275, storage as _st275
+        _app275 = (_P275("/app/static/app.js")).read_text(encoding="utf-8")
+        _bsrc275 = open(_br275.__file__, encoding="utf-8").read()
+        _wsrc275 = open(_w275.__file__, encoding="utf-8").read()
+        _e275 = {j: _js275.loads((_P275(_w275.__file__).parent / "esempi" / f"esempio_{j}.json").read_text(encoding="utf-8")) for j in ("al", "it")}
+        _ok275 = ("complex_devil" in _br275.STREAM_STATUS_IT and "complex_judge" in _br275.STREAM_STATUS_SQ
+                  and _bsrc275.count('yield ("status", self._status("complex_devil"))') == 1
+                  and _bsrc275.count('yield ("status", self._status("complex_judge"))') == 1
+                  and '_ultima_fase["t"] = ' in _wsrc275 and "_GIUDICE_FALSO.test(r)" in _app275 and "giudice-badge" in _app275
+                  and "function _parereDaInviare" in _app275 and "copy-parere-btn" in _app275
+                  and "d.backend_ready && !d.phone) _waBtn.hidden = true" in _app275
+                  and hasattr(_st275, "crea_fascicolo_esempio") and "_esempio_primo_accesso(user)" in _wsrc275
+                  and all(_e275[j]["messaggi"][0]["role"] == "user" and _e275[j]["messaggi"][1]["role"] == "assistant"
+                          and len(_e275[j]["messaggi"][1]["content"]) > 5000 for j in ("al", "it"))
+                  and "Verdetto finale" in _e275["it"]["messaggi"][1]["content"] and "Vendimi përfundimtar" in _e275["al"]["messaggi"][1]["content"])
+        check("funzioni[275]: fase nel battito, voci false barrate, parere pulito, WhatsApp nascosto, fascicolo d'esempio", _ok275)
+    except Exception as _e275x:  # noqa: BLE001
+        check("funzioni[275]: kontrollet u ekzekutuan", False, str(_e275x))
+
+    # [276] v9.508 — Telegram per i promemoria nel menu utente (prima solo dentro la finestra iCal del calendario)
+    try:
+        from pathlib import Path as _P276
+        _h276 = (_P276("/app/templates/index.html")).read_text(encoding="utf-8")
+        _a276 = (_P276("/app/static/app.js")).read_text(encoding="utf-8")
+        check("menu[276]: Telegram per i promemoria nel menu utente, apre la sezione Telegram",
+              'id="tg-menu-btn"' in _h276 and 'data-i18n="tg_reminders"' in _h276 and 'tg_reminders: "Telegram per i promemoria"' in _a276
+              and 'getElementById("tg-menu-btn")?.addEventListener' in _a276)
+    except Exception as _e276:  # noqa: BLE001
+        check("menu[276]: kontrollet u ekzekutuan", False, str(_e276))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

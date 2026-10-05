@@ -127,6 +127,7 @@
     _casiNascosti = Number(data.hidden_other || 0);
     return data.cases || [];
   }
+  const _GIUDICE_FALSO = /\bFALS[OAIE]\b|\bERRAT[OAIE]\b|SBAGLIAT|\bE GABUAR\b|E PËRMBYSUR|E PERMBYSUR|E RREZIKSHME|non (?:si )?applica|non è applicabile|nuk zbatohet|nuk qëndron|togliere|togli\b|espunger|rimuover|\bhiq\b|hiqe\b|abrogat|shfuqizuar|non esiste|nuk ekziston/i;
   function _applicaCorrezioniGiudice(msgEl, body, txt) {
     const k = txt.search(/Pannelli da correggere:|Panele për t'u korrigjuar:/);
     if (k < 0) return 0;
@@ -183,8 +184,25 @@
       nota.textContent = (_CAL_IT ? "⚖️ Correzione del Giudice: " : "⚖️ Korrigjimi i Gjyqtarit: ") +
         r.replace(/^[-•*]\s*/, "").replace(/\*\*/g, "");
       if (inTesta) { const q = target.querySelectorAll(":scope > .giudice-corr"); target.insertBefore(nota, q.length ? q[q.length - 1].nextSibling : (target.children[1] || null)); }
-      else { target.classList.add("giudice-corretto"); target.appendChild(nota); }
+      else {
+        target.classList.add("giudice-corretto");
+        // v9.507 — la voce che il Giudice dichiara FALSA si barra (la correzione sotto resta leggibile): prima restava scritta
+        // com'era e l'avvocato la leggeva per prima
+        if (_GIUDICE_FALSO.test(r)) target.classList.add("giudice-falso");
+        target.appendChild(nota);
+      }
       n++;
+      // v9.507 — nel titolo del riquadro: «⚖️ N correzioni del Giudice», visibile anche a riquadro chiuso
+      const box = target.closest(".urgency-radar, .action-plan, .nullity-radar, .timeline") || target.closest("details");
+      const sum = box && box.querySelector(":scope > summary");
+      if (sum) {
+        let b = sum.querySelector(".giudice-badge");
+        if (!b) { b = document.createElement("span"); b.className = "giudice-badge"; b.dataset.n = "0"; sum.appendChild(b); }
+        b.dataset.n = String(Number(b.dataset.n) + 1);
+        const k = Number(b.dataset.n);
+        b.textContent = "⚖️ " + k + (_CAL_IT ? (k === 1 ? " correzione del Giudice" : " correzioni del Giudice")
+                                             : (k === 1 ? " korrigjim i Gjyqtarit" : " korrigjime të Gjyqtarit"));
+      }
     }
     return n;
   }
@@ -1647,6 +1665,23 @@
     setTimeout(function () { try { w.focus(); w.print(); } catch (e) {} }, 350);
   }
 
+  // v9.507 — il PARERE da mandare al cliente: il verdetto (o la risposta) senza la parte interna — la riga «🔎 Verifica», le
+  // correzioni dei riquadri, l'analisi completa col duello avvocato del diavolo / replica. Prima i pulsanti esportavano tutto.
+  function _parereDaInviare(md) {
+    var righe = String(md || "").split("\n"), out = [], salta = false, livelloSalto = 0, inPannelli = false;
+    for (var i = 0; i < righe.length; i++) {
+      var r = righe[i], h = /^(#{2,4})\s*(.*)$/.exec(r);
+      if (h && /^📚/.test(h[2])) break;                                   // da qui in giù: l'analisi completa
+      if (h && /^(⚔️|🛡️)/.test(h[2])) { salta = true; livelloSalto = h[1].length; continue; }
+      if (salta) { if (h && h[1].length <= livelloSalto) salta = false; else continue; }
+      if (/^>\s*🔎/.test(r)) continue;                                    // la riga di verifica interna
+      if (/^\s*\*{0,2}(Pannelli da correggere|Panele për t'u korrigjuar)\s*:?\s*\*{0,2}\s*:?/.test(r)) { inPannelli = true; continue; }
+      if (inPannelli) { if (/^\s*[-•*]\s/.test(r) || !r.trim()) { if (!r.trim()) inPannelli = false; continue; } inPannelli = false; }
+      out.push(r);
+    }
+    return out.join("\n").replace(/\n{3,}/g, "\n\n").replace(/(\n\s*-{3,}\s*)+$/, "").trim();
+  }
+
   async function _addSaveToCase(container, source, titleHint, md) {
     if (!container || !md || md.length < 10) return;
     var b = document.createElement("button");
@@ -1693,6 +1728,39 @@
     pf.type = "button"; pf.className = "dl-pdf-btn"; pf.innerHTML = "⬇️ PDF";
     pf.addEventListener("click", function () { _printAsPdf(titleHint || "Dokument", md); });
     container.appendChild(pf);
+
+    // v9.507 — il parere pulito, solo per le risposte del cervello e solo se c'è una parte interna da togliere
+    var par = source === "answer" ? _parereDaInviare(md) : "";
+    if (par && par.length >= 80 && par.length < md.length - 40) {
+      var cp = document.createElement("button");
+      cp.type = "button"; cp.className = "copy-parere-btn";
+      cp.textContent = _CAL_IT ? "📋 Copia il parere" : "📋 Kopjo mendimin";
+      cp.title = _CAL_IT ? "Solo il verdetto e la risposta, senza la verifica interna e il duello" : "Vetëm vendimi dhe përgjigjja, pa verifikimin e brendshëm dhe duelin";
+      cp.addEventListener("click", function () {
+        navigator.clipboard.writeText(par).then(function () {
+          cp.textContent = _CAL_IT ? "✓ Parere copiato" : "✓ U kopjua";
+          setTimeout(function () { cp.textContent = _CAL_IT ? "📋 Copia il parere" : "📋 Kopjo mendimin"; }, 2500);
+        }).catch(function () { if (typeof toast === "function") toast(_CAL_IT ? "Copia non riuscita" : "Kopjimi dështoi", "err"); });
+      });
+      container.appendChild(cp);
+      var pd = document.createElement("button");
+      pd.type = "button"; pd.className = "dl-docx-btn dl-parere-btn";
+      pd.textContent = _CAL_IT ? "⬇️ Parere per il cliente (DOCX)" : "⬇️ Mendimi për klientin (DOCX)";
+      pd.addEventListener("click", async function () {
+        pd.disabled = true;
+        try {
+          var r = await fetch("/api/export/docx", { method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ markdown: par, title: (_CAL_IT ? "Parere — " : "Mendim — ") + (titleHint || "").slice(0, 80) }) });
+          if (!r.ok) throw new Error();
+          var blob = await r.blob(); var url = URL.createObjectURL(blob);
+          var a3 = document.createElement("a"); a3.href = url;
+          a3.download = ((_CAL_IT ? "parere " : "mendim ") + (titleHint || "").replace(/[^0-9A-Za-z _-]/g, "").slice(0, 50)).trim() + ".docx";
+          document.body.appendChild(a3); a3.click(); a3.remove(); URL.revokeObjectURL(url);
+        } catch (e) { if (typeof toast === "function") toast(_CAL_IT ? "Download non riuscito" : "Shkarkimi dështoi", "err"); }
+        finally { pd.disabled = false; }
+      });
+      container.appendChild(pd);
+    }
   }
 
   (function () {
@@ -4466,6 +4534,11 @@
   }
 
   var _waBtn = document.getElementById("wa-link-btn");
+  // v9.507 — WhatsApp non è ancora collegato (manca il token Meta): la voce del menu prometteva un canale che non invia. Si
+  // nasconde finché il server non lo dice pronto (resta visibile a chi ha già salvato un numero, per poterlo togliere)
+  if (_waBtn) fetch("/api/settings/whatsapp").then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+    if (d && !d.backend_ready && !d.phone) _waBtn.hidden = true;
+  }).catch(function () {});
   if (_waBtn) _waBtn.addEventListener("click", async function () {
     var dd = document.getElementById("user-dropdown"); if (dd) dd.hidden = true;
     var cur = {};
@@ -4542,6 +4615,13 @@
   calNewBtn?.addEventListener("click", () => openEventModal());
   document.getElementById("cal-scad-btn")?.addEventListener("click", () => openScadDaCalendario());
   calIcalBtn?.addEventListener("click", openIcalModal);
+  // v9.508 — Telegram dal menu utente: il collegamento stava solo nella finestra iCal del calendario e quasi nessuno lo trovava
+  // (1 account collegato su 17). Si apre la stessa finestra, sulla sezione Telegram.
+  document.getElementById("tg-menu-btn")?.addEventListener("click", async () => {
+    const dd = document.getElementById("user-dropdown"); if (dd) dd.hidden = true;
+    await openIcalModal();
+    setTimeout(() => { document.getElementById("tg-link-btn")?.scrollIntoView({ block: "center" }); }, 150);
+  });
   calTodayIcon?.addEventListener("click", async () => {
     calCursor = _todayMidnight();
     miniCursor = new Date(calCursor.getFullYear(), calCursor.getMonth(), 1);
@@ -7527,6 +7607,7 @@
     codes: "codici", articles: "articoli", calendar: "Calendario",
     my_cases: "I miei casi", new_case: "Nuovo caso",
     wa_reminders: "WhatsApp per i promemoria", email_reminders: "Email per i promemoria", logout: "Esci",
+    tg_reminders: "Telegram per i promemoria",
     intake_ai: "Intake cliente (AI)", clients_research: "Clienti & Ricerche",
     composer_hint: "Apri un caso per iniziare la conversazione",
     ask_placeholder: "Scrivi qui la tua domanda\u2026",

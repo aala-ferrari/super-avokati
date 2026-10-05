@@ -1348,11 +1348,31 @@ def _resolve_case(case_id: str):
     return caso
 
 
+_ESEMPI: dict = {}
+
+
+def _esempio_primo_accesso(user) -> None:
+    """v9.507 — al primo elenco dei fascicoli nella giurisdizione della sessione, un fascicolo d'esempio (domanda + risposta vera
+    del cervello coi riquadri: `src/esempi/esempio_{al,it}.json`). Mai solleva: un esempio mancato non deve rompere l'elenco."""
+    try:
+        j = _active_jurisdiction(user)
+        if j not in ("AL", "IT"):
+            return
+        if j not in _ESEMPI:
+            _ESEMPI[j] = json.loads((Path(__file__).parent / "esempi" / f"esempio_{j.lower()}.json").read_text(encoding="utf-8"))
+        cid = storage.crea_fascicolo_esempio(user.id, j, _ESEMPI[j])
+        if cid:
+            log.info("fascicolo d'esempio %s creato per l'utente %s (%s)", cid[:8], user.id, j)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("fascicolo d'esempio non creato: %s", exc)
+
+
 @app.get("/api/cases")
 @login_required_api
 def api_list_cases():
     user = request.user  # type: ignore[attr-defined]
     firm = request.firm  # type: ignore[attr-defined]
+    _esempio_primo_accesso(user)                                           # v9.507
     if firm is None:
         cases = storage.list_cases(user.id)
     else:
@@ -7655,10 +7675,17 @@ def api_ask_start():
     _cid = (data.get("case_id") or "").strip()       # il thread non c'e' request
     _it_push = _active_jurisdiction(user) == "IT"    # v9.395: la notifica nella lingua della sessione
 
+    _ultima_fase = {"t": ""}    # v9.507: il battito ripete l'ultima fase invece di «sto ancora lavorando»
+
     def _run():
         try:
             for frame in gen():
                 jobs_mod.push(job_id, frame)
+                if '"type": "status"' in frame[:60]:
+                    try:
+                        _ultima_fase["t"] = (json.loads(frame[len("data: "):].strip()).get("text") or "").strip()
+                    except Exception:  # noqa: BLE001
+                        pass
         except Exception as exc:  # noqa: BLE001
             log.exception("ask job %s failed", job_id)
             jobs_mod.push(job_id, _sse_event(
@@ -7704,6 +7731,13 @@ def api_ask_start():
             if lavoro is None or lavoro.done:
                 return
             minuti = int((time.time() - partenza) / 60)
+            # v9.507 — la FASE in corso col tempo trascorso: dopo «sto scrivendo la risposta» il cervello lavora ancora 20-30 minuti
+            # (avvocato del diavolo, replica, Giudice) e il battito generico faceva sembrare l'analisi ferma
+            _f = re.sub(r"\s*·\s*\d+\s*min\.?\s*$", "", _ultima_fase["t"]).rstrip("…. ")
+            if _f and not _f.startswith(("Po punoj ende", "Sto ancora lavorando")):
+                _t = "%s… · %d min" % (_f, minuti)
+                jobs_mod.push(job_id, _sse_event({"type": "status", "text": _t, "text_it": _t}))
+                continue
             jobs_mod.push(job_id, _sse_event({
                 "type": "status",
                 "text": "Po punoj ende — %d min. Analiza vazhdon edhe nëse "
