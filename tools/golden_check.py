@@ -8484,6 +8484,98 @@ def main():
     except Exception as _e282:  # noqa: BLE001
         check("tetto[282]: kontrollet u ekzekutuan", False, str(_e282))
 
+    # [283] v9.511 — lo stesso tetto sugli strumenti PRO (X-Job-Key) e, nel client, nessuna attesa di una risposta
+    # parcheggiata dopo un rifiuto esplicito (4xx)
+    try:
+        from types import SimpleNamespace as _NS283
+        from src import web as _w283
+        _u283 = _NS283(id=987654322, is_admin=False, demo_expires_at="2026-10-12T00:00:00Z", plan_expires_at=None)
+        _cu283 = _w283.current_user
+        _w283.current_user = lambda: _u283
+        try:
+            with _w283.app.test_request_context("/api/notary/check", method="POST", headers={"X-Job-Key": "k1"}):
+                _r1 = _w283._tetto_strumenti_pro()
+                with _w283.app.test_request_context("/api/notary/check", method="POST", headers={"X-Job-Key": "k2"}):
+                    _r2 = _w283._tetto_strumenti_pro()
+                _w283._libera_strumento_pro()
+            _resto = _w283._PRO_IN_CORSO.get(987654322, 0)
+            with _w283.app.test_request_context("/api/notary/check", method="POST"):
+                _r3 = _w283._tetto_strumenti_pro()          # senza chiave: non conta
+        finally:
+            _w283.current_user = _cu283
+            _w283._PRO_IN_CORSO.pop(987654322, None)
+        _js283 = __import__("pathlib").Path("/app/static/app.js").read_text(encoding="utf-8")
+        check("tetto[283]: strumenti PRO — il secondo dello stesso account di prova rifiutato (429), slot liberato a fine richiesta; il client non aspetta dopo un 4xx",
+              _r1 is None and isinstance(_r2, tuple) and _r2[1] == 429 and _resto == 0 and _r3 is None
+              and "eSrv.noRetry = r.status >= 400 && r.status < 500;" in _js283 and "if (eRete && eRete.noRetry) throw eRete;" in _js283,
+              repr((_r1, _r2 and _r2[1] if isinstance(_r2, tuple) else _r2, _resto, _r3)))
+    except Exception as _e283:  # noqa: BLE001
+        check("tetto[283]: kontrollet u ekzekutuan", False, str(_e283))
+
+    # [284] v9.511 — gli errori della CHAT (appendError) finiscono nella bolla del messaggio, che il traduttore del DOM salta
+    # di proposito (.msg-body): anche con la voce nel dizionario restavano albanesi («Nuk u kthye përgjigje nga serveri.»)
+    try:
+        import re as _re284
+        _a284 = __import__("pathlib").Path("/app/static/app.js").read_text(encoding="utf-8")
+        _sole284 = [l.strip()[:90] for l in _a284.split("\n")
+                    if _re284.search(r'appendError\([^)]*["`][^"`]*[ëçË]', l)
+                    and "_CAL_IT" not in l and "dataset.lang" not in l]
+        check("errori-chat[284]: nessun appendError con testo albanese fisso senza il ramo italiano", not _sole284,
+              "; ".join(_sole284[:3]))
+    except Exception as _e284:  # noqa: BLE001
+        check("errori-chat[284]: kontrollet u ekzekutuan", False, str(_e284))
+
+    # [285] v9.511 — dal banco di prova della v9.510: «art. 340 Reg. C.d.S.» letto come Codice della strada (→ inesistente, barrato dal
+    # cancello) e «art. 217, lett. c), n. iii), Reg. 2015/2446» senza codice (il numero romano spezzava la citazione)
+    try:
+        from src import citation_verifier as _cv285
+        from src.retrieval import ArticleIndex as _AI285
+        _it285 = _AI285.load(__import__("pathlib").Path("/app/data/index/bm25_it.pkl"))
+        def _s285(t):
+            v = _cv285.verify_text(t, _it285)["items"]
+            c = v[0] if v else {}
+            return (c.get("status"), c.get("code")) if isinstance(c, dict) else (c.status, c.code)
+        _r285 = [_s285("art. 340 Reg. C.d.S."), _s285("ex art. 340 Reg. esec. C.d.S."), _s285("art. 93 C.d.S."),
+                 _s285("art. 9999 Reg. C.d.S."), _s285("art. 217, lett. c), n. iii), Reg. 2015/2446")]
+        check("verificatore[285]: «Reg. (esec.) C.d.S.» = il Regolamento, «C.d.S.» = il Codice, il numero inventato resta falso, «n. iii)» non spezza",
+              _r285 == [("verified", "regolamento_strada"), ("verified", "regolamento_strada"), ("verified", "codice_strada"),
+                        ("fake", "regolamento_strada"), ("verified", "reg_ue_2015_2446")], repr(_r285))
+    except Exception as _e285:  # noqa: BLE001
+        check("verificatore[285]: kontrollet u ekzekutuan", False, str(_e285))
+
+    # [286] v9.511 — l'acquisto di un immobile con formalità: 2644 (mai nel blocco col triage vero), 2913 (1 volta su 3), 2808 come
+    # ancore dichiarate, solo dalla DOMANDA; non nel penale, non fuori tema
+    try:
+        from src import brain as _br286
+        from src.retrieval import ArticleIndex as _AI286
+        _br286.set_request_jurisdiction("IT")
+        _it286 = _AI286.load(__import__("pathlib").Path("/app/data/index/bm25_it.pkl"))
+        _k286 = lambda q, aree: {(a.code, str(a.number)) for a, _ in _br286._applica_ancore([], _it286, q, aree, ancore=_br286.ANCORE_IT)}
+        _v286 = _k286(["effetti del pignoramento sulla vendita", "Il cliente vuole acquistare un appartamento: dalla visura risultano un'ipoteca e un pignoramento trascritto. La vendita è possibile?"], ["Civile"])
+        _p286 = _k286(["sequestro e pignoramento", "Vendeva auto rubate: il pignoramento dei beni è possibile?"], ["Penale"])
+        _f286 = _k286(["trascrizione", "Il mio cliente deve trascrivere la sentenza di divorzio?"], ["Famiglia"])
+        _br286.set_request_jurisdiction("AL")
+        _att = {("codice_civile", "2644"), ("codice_civile", "2913"), ("codice_civile", "2808")}
+        check("visura[286]: acquisto con ipoteca/pignoramento → 2644, 2913, 2808; mai nel penale né sulla trascrizione di una sentenza",
+              _att <= _v286 and not (_att & _p286) and not (_att & _f286), repr((sorted(_v286), sorted(_p286), sorted(_f286))))
+    except Exception as _e286:  # noqa: BLE001
+        check("visura[286]: kontrollet u ekzekutuan", False, str(_e286))
+
+    # [287] v9.512 — nel rapporto delle fonti in sessione IT il titolo scritto dal raccoglitore con una nota albanese
+    # («… (sintezë nga Brocardi/ASAPS mbi rregullin e 60») si pulisce; i titoli italiani e la sessione albanese non si toccano
+    try:
+        from src import war_room as _wr287
+        _f287 = _wr287._titolo_nella_lingua
+        check("fonti[287]: titolo con nota albanese ripulito in IT, intatto in AL, dominio come ultima risorsa",
+              _f287("Art. 132 CdS – Circolazione dei veicoli immatricolati negli Stati esteri (sintezë nga Brocardi/ASAPS mbi rregullin e 60",
+                    "https://www.brocardi.it/x", "it") == "Art. 132 CdS – Circolazione dei veicoli immatricolati negli Stati esteri"
+              and _f287("Corte cost. 113/2023 (sintesi)", "", "it") == "Corte cost. 113/2023 (sintesi)"
+              and _f287("Shkelja e rregullave për mjetet", "https://www.asaps.it/a", "it") == "asaps.it"
+              and _f287("Neni 153 (sintezë nga QBZ)", "https://qbz.gov.al", "sq") == "Neni 153 (sintezë nga QBZ)"
+              and "_titolo_nella_lingua(i.titulli, i.burimi, lang)" in __import__("inspect").getsource(_wr287.raport_verifikimi))
+    except Exception as _e287:  # noqa: BLE001
+        check("fonti[287]: kontrollet u ekzekutuan", False, str(_e287))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

@@ -220,6 +220,27 @@ _VERIF = {"sq": {"VERIFIED": "i vërtetuar", "PARTIAL": "për verifikim"},
 _BURIM = {"it": {"korpus": "corpus", "arkiv": "archivio"}}
 
 
+_ALB_RX = __import__("re").compile(r"[ëçËÇ]|\b(?:nga|mbi|dhe|për|sipas|rregullin|sintez\w*)\b")
+
+
+def _titolo_nella_lingua(titulli: str, burimi: str, lang: str) -> str:
+    """v9.511 (banco di prova della v9.510): una volta su ~15 il raccoglitore web scrive il titolo della fonte con una nota
+    ALBANESE anche in sessione italiana («Art. 132 CdS – … (sintezë nga Brocardi/ASAPS mbi rregullin e 60»), nonostante il
+    prompt chieda i valori in italiano. In italiano: via le parti tra parentesi o dopo un trattino che hanno parole albanesi; se
+    resta albanese, il dominio della fonte. L'albanese non si tocca."""
+    t = (titulli or "").strip()
+    if lang != "it" or not _ALB_RX.search(t):
+        return t
+    import re as _re
+    t = _re.sub(r"\s*\([^)]*\)?\s*$", lambda m: "" if _ALB_RX.search(m.group(0)) else m.group(0), t).strip(" –-—")
+    if _ALB_RX.search(t):
+        t = _re.split(r"\s+[–—-]\s+", t)[0].strip()
+    if _ALB_RX.search(t) or not t:
+        m = _re.search(r"https?://(?:www\.)?([^/\s]+)", burimi or "")
+        t = m.group(1) if m else "fonte web"
+    return t
+
+
 def _cilesia_fjale(cilesia: str, lang: str) -> str:
     return _CILESIA.get(lang, _CILESIA["sq"]).get(cilesia, cilesia.replace("_", " ").lower())
 
@@ -238,12 +259,12 @@ def raport_verifikimi(retrieved, sources, precedents, lang="sq") -> str:
     if verif:
         rr.append(T["verif"])
         for i in verif[:14]:
-            rr.append("  • [%s] %s (%s)" % (i.id, i.titulli, _cilesia_fjale(i.cilesia, lang)))
+            rr.append("  • [%s] %s (%s)" % (i.id, _titolo_nella_lingua(i.titulli, i.burimi, lang), _cilesia_fjale(i.cilesia, lang)))
     if partial:
         rr.append(T["pjes"])
         for i in partial[:10]:
             burim = i.burimi[:55] if i.burimi not in ("korpus", "arkiv") else _BURIM.get(lang, {}).get(i.burimi, i.burimi)
-            rr.append("  • [%s] %s (%s) — %s" % (i.id, i.titulli, _cilesia_fjale(i.cilesia, lang), burim))
+            rr.append("  • [%s] %s (%s) — %s" % (i.id, _titolo_nella_lingua(i.titulli, i.burimi, lang), _cilesia_fjale(i.cilesia, lang), burim))
     rr.append(T["nota"])
     rr.append("")
     return "\n".join(rr)

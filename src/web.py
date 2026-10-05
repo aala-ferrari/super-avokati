@@ -7115,7 +7115,8 @@ def api_video_compare(case_id: str):
 
     if not testi_video:
         return jsonify({
-            "error": "asnjë provë video ose audio e analizuar në fashikull"
+            "error": _t_err("Asnjë provë video ose audio e analizuar në fashikull.",
+                            "Nel fascicolo non c'è nessuna prova video o audio analizzata.")
         }), 400
 
     juris = _active_jurisdiction(request.user)  # type: ignore[attr-defined]
@@ -9720,6 +9721,54 @@ def _no_cache_html(resp):
     except Exception:  # noqa: BLE001 - mai far fallire una risposta per gli header
         pass
     return resp
+
+
+# v9.511 — TETTO PER UTENTE anche sugli strumenti PRO (i 20 di `_openTetramorphTool`, che mandano `X-Job-Key`): come per la
+# chat (`_tetto_lavori`), un account non deve tenere da solo i 6 posti del cervello aprendo strumenti in più schede.
+_PRO_IN_CORSO: dict[int, int] = {}
+_PRO_LOCK = threading.Lock()
+
+
+@app.before_request
+def _tetto_strumenti_pro():
+    if request.method != "POST" or not request.headers.get("X-Job-Key", "").strip():
+        return None
+    try:
+        user = current_user()
+    except Exception:  # noqa: BLE001
+        return None
+    if user is None:
+        return None
+    cap = _tetto_lavori(user)
+    with _PRO_LOCK:
+        n = _PRO_IN_CORSO.get(user.id, 0)
+        if cap and n >= cap:
+            _it = _active_jurisdiction(user) == "IT"
+            return jsonify({"busy": True, "max": cap, "error": (
+                ("Hai già %d strumenti al lavoro: aspetta che finiscano e poi riprova." if _it else
+                 "Ke tashmë %d mjete në punë: prit sa të mbarojnë dhe pastaj provo sërish.") % cap)}), 429
+        _PRO_IN_CORSO[user.id] = n + 1
+    from flask import g as _g
+    _g._pro_slot = user.id
+    return None
+
+
+@app.teardown_request
+def _libera_strumento_pro(_exc=None):
+    try:
+        from flask import g as _g
+        uid = getattr(_g, "_pro_slot", None)
+        if uid is None:
+            return
+        _g._pro_slot = None
+        with _PRO_LOCK:
+            n = _PRO_IN_CORSO.get(uid, 0) - 1
+            if n > 0:
+                _PRO_IN_CORSO[uid] = n
+            else:
+                _PRO_IN_CORSO.pop(uid, None)
+    except Exception:  # noqa: BLE001
+        pass
 
 
 @app.before_request

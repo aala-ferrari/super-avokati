@@ -619,7 +619,8 @@ _NUM_TOKEN_IT = (r"\d+(?:[\-\s](?:bis|ter|quater|quinquies|sexies|septies|octies
 # codice», «della legge», «Cost.»…) o l'anafora «del medesimo decreto». «art. 18, comma 4, di
 # conseguenza il codice civile…» NON attraversa. ⚠️ «c.» come abbreviazione di comma NON è ammessa fra
 # i sotto-riferimenti: «art. 2, c.c.» diventerebbe «comma c».
-_SUB_NUM_IT = r"\d{1,3}(?:-(?:bis|ter|quater|quinquies|sexies|septies|octies|novies|decies|\d{1,3}))?(?![\w/])\)?"   # v9.357: anche «c. 8-9»
+_SUB_NUM_IT = (r"(?:\d{1,3}(?:-(?:bis|ter|quater|quinquies|sexies|septies|octies|novies|decies|\d{1,3}))?(?![\w/])"   # v9.357: anche «c. 8-9»
+               r"|[ivx]{1,5}(?![a-z]))\)?")   # v9.511: «lett. c), n. iii)» (Reg. 2015/2446, art. 217): il romano spezzava la citazione
 _SUB_LET_IT = (r"(?:[\"“«'][a-z]{1,2}[\"”»']|[a-z]{1,2}\)|"
                r"(?!(?:e|ed|o|al|il|la|lo|le|di|in|su|se|no|un|ai|da|ne|si)(?![a-z]))[a-z]{1,2}(?![a-z/.]))")
 # v9.499 — il comma scritto in LETTERE, la forma classica dei giuristi: «art. 326, primo comma, c.p.c.», «art. 155, quarto e quinto
@@ -950,6 +951,13 @@ def _resolve_code_it(tail: str):
     # chiave). Parola intera, mai sottostringa («testo lavoro» non deve diventare lo Statuto).
     if re.search(r"(?<![a-z])st(?:at)?\.?\s?lav(?:\.|(?![a-z]))", _low):
         return "statuto_lavoratori"
+    # v9.511 (banco di prova del 5 ott): «art. 340 Reg. C.d.S.» / «Reg. esec. C.d.S.» — la forma con cui si cita il REGOLAMENTO del
+    # Codice della strada — compattata è «regcds»: nessuna chiave lunga la prendeva e vinceva la sigla «cds» → art. 340 del CODICE,
+    # che non esiste → «inesistente», e il cancello barrava una citazione vera. «Reg.» (anche «di esecuzione/attuazione») DAVANTI a
+    # C.d.S. o «codice della strada» = il regolamento; un «Reg. (UE)» o un numero di regolamento non c'entrano.
+    if re.search(r"(?<![a-z])reg(?:olamento)?\.?\s*(?:di\s+)?(?:es(?:ec(?:uzione)?)?\.?|att(?:uazione)?\.?)?\s*(?:del\s+)?"
+                 r"(?:c\.?\s?d\.?\s?s\.?(?![a-z])|cod(?:ice)?\.?\s*(?:della\s+)?strada)", _low):
+        return "regolamento_strada"
     for pat, code in _IT_CODE_CHECKS:
         if len(pat) <= 5 and pat not in _SHORT_AS_SUBSTRING:
             if pat in _tokens:

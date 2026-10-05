@@ -43,6 +43,8 @@ CASI = [  # (giurisdizione, domanda dell'avvocato, articoli di cui almeno uno DE
     ("AL", "Gjykata administrative e shkallës së parë e rrëzoi padinë tonë kundër bashkisë. Deri kur mund të bëjmë apel?", [("ligji_gjykatat_administrative", "44"), ("kodi_proc_civile", "443")]),
     ("IT", "Il cliente ha subito un incidente stradale nel marzo 2023 e non ha ancora chiesto il risarcimento. È prescritto?", [("codice_civile", "2947")]),
     ("IT", "Il cliente, albanese, è sposato da tre anni con una cittadina italiana e vive in Italia. Come ottiene la cittadinanza?", [("cittadinanza", "10")]),
+    # v9.511 — banco di prova della v9.510: la risposta parla di trascrizione 20 volte e non nomina mai l'art. 2644 c.c.
+    ("IT", "Il mio cliente vuole acquistare un appartamento. Dalla visura ipotecaria risultano un'ipoteca volontaria a favore di una banca e un pignoramento trascritto su 1/2 dell'immobile. La vendita è possibile? Quali formalità bloccano e quali condizionano l'atto?", [("codice_civile", "2644")]),
     # v9.500 — il CALCOLO del termine (giorno di riposo): prova viva del 4 ott, il senior fissava una domenica
     ("AL", "Dje (3 tetor) klientit iu njoftua vendimi i arsyetuar civil që ia rrëzoi padinë. Deri kur mund të bëjmë apel?", [("kodi_proc_civile", "148")]),
     ("AL", "Klientit tim iu dha dënim me burgim nga gjykata e shkallës së parë, vendimi u njoftua dje. Deri kur bëjmë ankim në apel?", [("kodi_proc_penale", "144")]),

@@ -1328,7 +1328,7 @@
         </div>
       </div>`;
     li.querySelector(".doc-name").textContent = filename;
-    li.querySelector(".doc-status").textContent = "Ngarkimi dështoi: " + error;
+    li.querySelector(".doc-status").textContent = ((document.body.dataset.lang === "it") ? "Caricamento non riuscito: " : "Ngarkimi dështoi: ") + error;
     li.querySelector(".doc-dismiss").addEventListener("click", () => li.remove());
     dossierList.appendChild(li);
   }
@@ -1439,7 +1439,7 @@
         });
         messages.querySelector(".msg.typing")?.remove();
         const data = await r.json();
-        if (!r.ok) { appendError(data.error || "Gabim"); return true; }
+        if (!r.ok) { appendError(data.error || ((document.body.dataset.lang === "it") ? "Errore" : "Gabim")); return true; }
         const head = `**⏳ ${_CAL_IT ? 'Termini procedurali' : 'Afatet procedurale'}** ${_CAL_IT ? 'per' : 'për'} *${escapeHtml(data.event_label || eventType)}* ${_CAL_IT ? 'dal' : 'nga'} **${eventDate}**\n\n`;
         // v9.400: l'API restituisce `derived_deadlines` (due_date, days, citation, notes): prima si leggevano campi che
         // non esistono e il comando rispondeva sempre «Asnjë afat»
@@ -1619,7 +1619,7 @@
         // rimandarla vale infinitamente piu' di un errore generico.
         mostraDomandaInterrotta(caseId);
       } else {
-        appendError("Nuk u kthye përgjigje nga serveri.");
+        appendError((document.body.dataset.lang === "it") ? "Il server non ha restituito una risposta." : "Nuk u kthye përgjigje nga serveri.");
       }
       await renderCaseList();
       const resp2 = await fetch(`/api/cases/${caseId}`);
@@ -4961,9 +4961,16 @@
             headers: { "Content-Type": "application/json", "X-Job-Key": chiave },
             body: JSON.stringify(payload),
           });
-          d = await r.json();
-          if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
+          d = await r.json().catch(function () { return {}; });
+          if (!r.ok || d.error) {
+            var eSrv = new Error(d.error || ("HTTP " + r.status));
+            // v9.511 — un rifiuto ESPLICITO del server (4xx: troppi strumenti insieme, permesso, dati) non è una
+            // connessione caduta: prima si restava ad aspettare una risposta parcheggiata che non sarebbe mai arrivata
+            eSrv.noRetry = r.status >= 400 && r.status < 500;
+            throw eSrv;
+          }
         } catch (eRete) {
+          if (eRete && eRete.noRetry) throw eRete;
           // La rete e' caduta (o il telefono ha sospeso la scheda): il
           // lavoro sul server continua. Si aspetta e si ripesca.
           status.textContent = TT("Lidhja u ndërpre — analiza vazhdon në server. Po e pres…");

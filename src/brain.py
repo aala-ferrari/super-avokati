@@ -230,6 +230,14 @@ ANCORE_IT: tuple = (
     ((("licenzi", "impugna"), ("licenzi", "ricorso"), ("licenzi", "giudizi"), ("licenzi", "tribunal"), ("licenzi", "reintegr"),
       ("licenzi", "giudice")),
      ("Penale", "Penal"), (("codice_procedura_civile", "441-bis"),)),
+    # v9.511 — l'ACQUISTO di un immobile con formalità nella visura (banco di prova della v9.510): la risposta parlava di
+    # trascrizione 20 volte e non nominava mai l'art. 2644 c.c.; col triage vero il 2644 non entrava MAI nel blocco del senior e il
+    # 2913 (le alienazioni del bene pignorato non hanno effetto verso il creditore: la norma che decide «il pignoramento blocca la
+    # vendita?») 1 volta su 3. Dichiarate: 2644 (effetti della trascrizione), 2913, 2808 (l'ipoteca segue il bene presso il terzo
+    # acquirente). Solo dalla DOMANDA dell'avvocato, mai nel penale.
+    ((("pignora", "vend"), ("pignora", "acquist"), ("pignora", "compr"), ("pignora", "alien"), ("ipotec", "vend"),
+      ("ipotec", "acquist"), ("ipotec", "compr"), ("visura",), ("trascri", "vend"), ("trascri", "acquist"), ("formalit", "immobil")),
+     ("Penale", "Penal"), (("codice_civile", "2644"), ("codice_civile", "2913"), ("codice_civile", "2808")), None, None, True),
 )
 
 
