@@ -7659,6 +7659,19 @@ def api_ask_stream():
                     mimetype="text/event-stream", headers=_SSE_HEADERS)
 
 
+def _tetto_lavori(user) -> int:
+    """v9.510 — quante analisi della chat può avere in corso insieme: l'amministratore senza tetto (0), un account di
+    PROVA 1 (`ASK_MAX_JOBS_DEMO`), uno studio pagante 3 (`ASK_MAX_JOBS_USER`: due fascicoli in parallelo sono normali)."""
+    if getattr(user, "is_admin", False):
+        return 0
+    try:
+        if getattr(user, "demo_expires_at", None) and not getattr(user, "plan_expires_at", None):
+            return int(os.environ.get("ASK_MAX_JOBS_DEMO", "1"))
+        return int(os.environ.get("ASK_MAX_JOBS_USER", "3"))
+    except ValueError:
+        return 3
+
+
 @app.post("/api/ask/start")
 @login_required_api
 @require_module("avokat", "prokuror")
@@ -7671,6 +7684,17 @@ def api_ask_start():
     """
     user = request.user  # type: ignore[attr-defined]
     data = request.get_json(force=True, silent=True) or {}
+    # v9.510 — TETTO PER UTENTE dei lavori in corso: il cervello ha 6 posti per TUTTI gli studi (semaforo globale) e un
+    # solo account che lancia più analisi profonde insieme fermava gli altri. PRIMA di `_ask_prepare`, che salva già la
+    # domanda: rifiutare dopo lascerebbe una domanda senza risposta nel fascicolo.
+    _cap = _tetto_lavori(user)
+    if _cap and jobs_mod.count_running(user.id) >= _cap:
+        _it = _active_jurisdiction(user) == "IT"
+        return jsonify({"busy": True, "max": _cap, "error": (
+            ("Hai già %d analisi in corso: aspetta che finisca e poi rimanda la domanda (puoi chiudere la pagina, il "
+             "lavoro continua e ti avvisiamo)." if _it else
+             "Ke tashmë %d analiza në punë: prit sa të mbarojë dhe pastaj dërgoje pyetjen (mund ta mbyllësh faqen, puna "
+             "vazhdon dhe të njoftojmë).") % _cap)}), 429
     gen, err = _ask_prepare(user, data)
     if err is not None:
         payload, status = err

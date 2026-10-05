@@ -1510,7 +1510,10 @@
       }
       if (!startResp.ok) {
         typing.remove();
-        appendError("Gabim serveri: " + startResp.status);
+        // v9.510 — il messaggio del server (già nella lingua della sessione: tetto delle analisi in corso, permessi…);
+        // prima «Gabim serveri: 429» in albanese anche in sessione italiana
+        const _e = await startResp.json().catch(() => ({}));
+        appendError(_e.error || ((document.body.dataset.lang === "it" ? "Errore del server: " : "Gabim serveri: ") + startResp.status));
         return;
       }
       const jobId = (await startResp.json()).job_id;

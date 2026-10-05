@@ -8409,7 +8409,7 @@ def main():
                     if _re279.search(r"\b(confirm|prompt|alert)\(\s*[\"`]", l)
                     and "dataset.lang" not in l and "_CAL_IT" not in l and "IT ?" not in l]
         check("dialoghi[279]: nessuna conferma/prompt/avviso nativo con un testo fisso senza il ramo italiano",
-              not _sole279 and _a279.count('document.body.dataset.lang === "it"') >= 18 and "app.js?v=205" in _P279("/app/templates/index.html").read_text(encoding="utf-8"),
+              not _sole279 and _a279.count('document.body.dataset.lang === "it"') >= 18 and int((_re279.search(r"app\.js\?v=(\d+)", _P279("/app/templates/index.html").read_text(encoding="utf-8")) or [0, 0])[1]) >= 205,
               "; ".join(_sole279[:4]))
     except Exception as _e279:  # noqa: BLE001
         check("dialoghi[279]: kontrollet u ekzekutuan", False, str(_e279))
@@ -8461,6 +8461,28 @@ def main():
         check("prova[281]: l'attivazione è agganciata al login riuscito", "storage.attiva_demo(user.id)" in _w281)
     except Exception as _e281:  # noqa: BLE001
         check("prova[281]: kontrollet u ekzekutuan", False, str(_e281))
+
+    # [282] v9.510 — TETTO PER UTENTE delle analisi in corso (6 posti del cervello per tutti gli studi): prova 1, pagante 3,
+    # amministratore senza; il rifiuto arriva PRIMA che la domanda venga salvata
+    try:
+        import inspect as _in282
+        from types import SimpleNamespace as _NS282
+        from src import web as _w282, jobs as _j282
+        _t = _w282._tetto_lavori
+        _caps = (_t(_NS282(is_admin=True)), _t(_NS282(is_admin=False, demo_expires_at="2026-10-12T00:00:00Z", plan_expires_at=None)),
+                 _t(_NS282(is_admin=False, demo_expires_at=None, plan_expires_at="2027-01-01T00:00:00Z")),
+                 _t(_NS282(is_admin=False, demo_expires_at=None, plan_expires_at=None)))
+        _jid = _j282.create(987654321, "g282")
+        _n1 = _j282.count_running(987654321)
+        _j282.finish(_jid)
+        _n2 = _j282.count_running(987654321)
+        _src282 = _in282.getsource(_w282.api_ask_start)
+        check("tetto[282]: prova 1, pagante 3, amministratore senza; conteggio dei lavori vivi; rifiuto prima di _ask_prepare; messaggio del server mostrato dal client",
+              _caps == (0, 1, 3, 3) and _n1 == 1 and _n2 == 0
+              and _src282.find("_tetto_lavori(user)") < _src282.find("_ask_prepare(user, data)")
+              and "appendError(_e.error ||" in __import__("pathlib").Path("/app/static/app.js").read_text(encoding="utf-8"), repr((_caps, _n1, _n2)))
+    except Exception as _e282:  # noqa: BLE001
+        check("tetto[282]: kontrollet u ekzekutuan", False, str(_e282))
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

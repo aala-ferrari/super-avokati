@@ -116,6 +116,12 @@ def slice_from(job_id: str, since: int) -> tuple[list[str], bool, int]:
         return chunk, job.done, since + len(chunk)
 
 
+def count_running(user_id: int) -> int:
+    """v9.510 — quanti lavori della chat ha in corso questo utente (tutti i fascicoli): serve al tetto per utente."""
+    with _lock:
+        return sum(1 for j in _jobs.values() if not j.done and j.user_id == user_id)
+
+
 def find_active(user_id: int, case_id: str) -> str | None:
     """Il lavoro ancora in corso per questo fascicolo, se c'e'.
 
