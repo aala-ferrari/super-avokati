@@ -525,7 +525,7 @@ _LIST_SEP = r"(?:\s*(?:,|;|\bdhe\b|\be\b)\s*)"
 # valori: cifre dopo «pika/paragrafi/fjalia», lettere SOLO dopo «shkronja/germa» («"d"», «dh)», «c»);
 # una lettera nuda mai seguita da un punto («, L.», «, c.c.» sono codici, non lettere) né una particella
 # «pika 1-bis» (sotto-riferimento di stile italiano dentro una citazione albanese di diritto straniero)
-_SUB_NUM = r"\d{1,3}(?:-(?:bis|ter|quater|quinquies|sexies|septies|octies|novies|decies))?(?![\w/])\)?"
+_SUB_NUM = r"\d{1,3}(?:-(?:bis|ter|quater|quinquies|sexies|septies|octies|novies|decies))?(?:/[a-zçë](?![\wçë]))?(?![\w/])\)?"   # v9.514: anche «pika 3/a»
 _SUB_LET = (r"(?:[\"“«'][a-zçë]{1,2}[\"”»']|[a-zçë]{1,2}\)|"
             r"(?!(?:e|i|t[ëe]|s[ëe]|me|n[ëe]|se|ose|dhe|po|si|sa)(?![\wçë]))[a-zçë]{1,2}(?![\wçë/.]))")
 # v9.499 — anche il paragrafo/la pika in LETTERE: «neni 443, paragrafi i parë, i Kodit…», «neni 155, pika e parë, e Kodit të

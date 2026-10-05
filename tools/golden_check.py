@@ -2487,7 +2487,8 @@ def main():
         check("chat[65]: streaming con WebSearch/WebFetch + testo finale dal result (non i delta) + Giudice riceve i pannelli e mette il verdetto IN TESTA + etichette pannelli in italiano",
               'cmd.extend(["--allowedTools", "WebSearch", "WebFetch"])' in _stream65
               and "final_text = full" in _stream65
-              and 'text = (final_text or "".join(collected)).strip()' in _cs65
+              and ('text = (final_text or "".join(collected)).strip()' in _cs65
+                   or 'text = _trattini((final_text or "".join(collected)).strip())' in _cs65)   # v9.513
               and "fazat" in _gj65 and "TITULLI_ANALIZA" in _gj65
               and ("return vendim + answer_text" in _brgj65 or "final = vendim + answer_text" in _brgj65)  # v9.331: + Trust Line sotto il titolo
               and "fazat_txt=_fazat_x" in _as65 and "_risposta_dalle_fasi(" in _as65
@@ -8575,6 +8576,33 @@ def main():
               and "_titolo_nella_lingua(i.titulli, i.burimi, lang)" in __import__("inspect").getsource(_wr287.raport_verifikimi))
     except Exception as _e287:  # noqa: BLE001
         check("fonti[287]: kontrollet u ekzekutuan", False, str(_e287))
+
+    # [288] v9.513 — il trattino NON SEPARABILE Unicode del modello («art. 452‑terdecies c.p.») diventa «-» dove esce ogni testo del
+    # modello (prima il verificatore leggeva «art. 452», l'articolo sbagliato); il trattino lungo degli intervalli resta
+    try:
+        import inspect as _in288
+        from src import backends as _bk288
+        _src288 = _in288.getsource(_bk288)
+        check("trattini[288]: ‑ → - a parità di lunghezza, «–» intatto, applicato al testo di complete, ai frammenti e al testo finale dello streaming",
+              _bk288._trattini("art. 452\u2011terdecies c.p. e artt. 1218\u20131223") == "art. 452-terdecies c.p. e artt. 1218\u20131223"
+              and _src288.count("_trattini(") >= 5)
+    except Exception as _e288:  # noqa: BLE001
+        check("trattini[288]: kontrollet u ekzekutuan", False, str(_e288))
+
+    # [289] v9.514 — «Neni 133, pika 3/a, i Kodit të Procedurave Administrative»: la barra dopo il numero della pika spezzava la citazione
+    try:
+        from src import citation_verifier as _cv289, brain as _br289
+        from src.retrieval import ArticleIndex as _AI289
+        _br289.set_request_jurisdiction("AL")
+        _al289 = _AI289.load()
+        def _s289(t):
+            v = _cv289.verify_text(t, _al289)["items"]; c = v[0] if v else {}
+            return (c.get("status"), c.get("code")) if isinstance(c, dict) else (c.status, c.code)
+        check("pika[289]: «pika 3/a» non spezza la citazione; il numero inventato resta falso",
+              _s289("Neni 133, pika 3/a, i Kodit të Procedurave Administrative.") == ("verified", "kodi_proc_admin")
+              and _s289("Neni 9999, pika 3/a, i Kodit të Procedurave Administrative.")[0] == "fake")
+    except Exception as _e289:  # noqa: BLE001
+        check("pika[289]: kontrollet u ekzekutuan", False, str(_e289))
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

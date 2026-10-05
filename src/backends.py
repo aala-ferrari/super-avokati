@@ -328,6 +328,17 @@ MODEL_LIMIT_PAUSE_S = int(os.environ.get("MODEL_LIMIT_PAUSE_S", "1800"))
 _MODEL_LIMIT_RE = re.compile(r"reached your [\w .-]{0,40}limit|switch to another model", re.I)
 
 
+# v9.513 — il modello scrive a volte il trattino NON SEPARABILE Unicode («art. 452‑terdecies c.p.», «art. 93‑bis C.d.S.»,
+# «artt. 153‑154»; 22 volte in 2 risposte italiane su 206): il verificatore riconosce solo «-» e leggeva «art. 452», cioè
+# controllava l'articolo SBAGLIATO. Qui, da dove passa ogni testo del modello, un carattere al posto di un carattere (le
+# posizioni non cambiano): il trattino resta trattino, a schermo identico. Il trattino lungo «–» degli intervalli non si tocca.
+_TRATTINI = {0x2010: "-", 0x2011: "-", 0x2012: "-"}
+
+
+def _trattini(s: str) -> str:
+    return s.translate(_TRATTINI) if s else s
+
+
 def _model_limit_hit(stdout: str, stderr: str) -> bool:
     return bool(_MODEL_LIMIT_RE.search((stdout or "") + " " + (stderr or "")))
 
@@ -787,7 +798,7 @@ class ClaudeCodeBackend(LLMBackend):
         if new_sid:
             self.last_session_id = new_sid
 
-        text = (data.get("result") or "").strip()
+        text = _trattini((data.get("result") or "").strip())
         if not text:
             _emit_audit(outcome="error", response_text=None,
                         error_class="EmptyResult")
@@ -965,6 +976,7 @@ class ClaudeCodeBackend(LLMBackend):
                             if delta.get("type") == "text_delta":
                                 chunk = delta.get("text") or ""
                                 if chunk:
+                                    chunk = _trattini(chunk)
                                     collected.append(chunk)
                                     yield ("delta", chunk)
                         continue
@@ -988,7 +1000,7 @@ class ClaudeCodeBackend(LLMBackend):
                             new_session_id = sid
                         # If we missed deltas (no partial messages), fall
                         # back to the full result text for collected.
-                        full = evt.get("result") or ""
+                        full = _trattini(evt.get("result") or "")
                         if full:
                             # v9.316 — con i tool attivi i delta includono anche i
                             # turni intermedi («cerco su Normattiva…»): il testo
@@ -1083,7 +1095,7 @@ class ClaudeCodeBackend(LLMBackend):
         if new_session_id:
             self.last_session_id = new_session_id
 
-        text = (final_text or "".join(collected)).strip()
+        text = _trattini((final_text or "".join(collected)).strip())
         if not text:
             _emit_audit(outcome="error", response_text=None,
                         error_class="EmptyResult")
