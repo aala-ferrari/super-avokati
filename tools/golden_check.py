@@ -8604,6 +8604,21 @@ def main():
     except Exception as _e289:  # noqa: BLE001
         check("pika[289]: kontrollet u ekzekutuan", False, str(_e289))
 
+    # [290] v9.515 — due parole prese per la LETTERA di un comma: «, TU Immigrazione» («TU») e «, né l'art. …» («n» di «né»)
+    try:
+        from src import citation_verifier as _cv290, brain as _br290
+        from src.retrieval import ArticleIndex as _AI290
+        _br290.set_request_jurisdiction("IT")
+        _it290 = _AI290.load(__import__("pathlib").Path("/app/data/index/bm25_it.pkl"))
+        _st290 = lambda t: [(c.get("status"), c.get("code"), c.get("number")) for c in _cv290.verify_text(t, _it290)["items"]]
+        _br290.set_request_jurisdiction("AL")
+        check("lettere[290]: «, TU Immigrazione» e «, né l'art.» non sono lettere di comma; il numero inventato resta falso",
+              _st290("art. 30, comma 1, lett. d), TU Immigrazione") == [("verified", "tu_immigrazione", "30")]
+              and _st290("l'art. 36, comma 5, né l'art. 135-sexies, comma 3, Codice del Consumo") == [("verified", "codice_consumo", "36"), ("verified", "codice_consumo", "135/sexies")]
+              and _st290("l'art. 9999, comma 2, né l'art. 2043 c.c.")[0][0] == "fake")
+    except Exception as _e290:  # noqa: BLE001
+        check("lettere[290]: kontrollet u ekzekutuan", False, str(_e290))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

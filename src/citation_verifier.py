@@ -622,7 +622,7 @@ _NUM_TOKEN_IT = (r"\d+(?:[\-\s](?:bis|ter|quater|quinquies|sexies|septies|octies
 _SUB_NUM_IT = (r"(?:\d{1,3}(?:-(?:bis|ter|quater|quinquies|sexies|septies|octies|novies|decies|\d{1,3}))?(?![\w/])"   # v9.357: anche «c. 8-9»
                r"|[ivx]{1,5}(?![a-z]))\)?")   # v9.511: «lett. c), n. iii)» (Reg. 2015/2446, art. 217): il romano spezzava la citazione
 _SUB_LET_IT = (r"(?:[\"“«'][a-z]{1,2}[\"”»']|[a-z]{1,2}\)|"
-               r"(?!(?:e|ed|o|al|il|la|lo|le|di|in|su|se|no|un|ai|da|ne|si)(?![a-z]))[a-z]{1,2}(?![a-z/.]))")
+               r"(?!(?:e|ed|o|al|il|la|lo|le|di|in|su|se|no|un|ai|da|ne|n[ée]|si|tu|ue)(?![a-z]))[a-z]{1,2}(?![a-zà-ù/.]))")   # v9.514: «, TU Immigrazione» non è la lettera «tu»
 # v9.499 — il comma scritto in LETTERE, la forma classica dei giuristi: «art. 326, primo comma, c.p.c.», «art. 155, quarto e quinto
 # comma, c.p.c.», «comma primo». Senza, la citazione restava «senza codice» (prova viva del 4 ott: art. 326, 133, 327, 283 c.p.c.) e
 # il completamento non scattava sull'art. 133 dichiarato «non presente fra gli articoli recuperati»
@@ -664,18 +664,18 @@ CITATION_RE_IT = re.compile(
     # v9.402: e l'INTERVALLO «artt. 1218-1223 c.c.» / «1218–1223» — prima il 1218 usciva «senza codice» e il 1223 spariva
     # (l'intervallo solo sul primo numero e dopo «e/ed»: dopo una virgola nuda «l'art. 3, 3-27 per l'art. 6» sono mensilità)
     r"(?P<nums>" + _NUM_TOKEN_IT + _RANGE_IT + r"(?:\s*(?:,|;)\s*" + _ART_RIP_IT + _NUM_TOKEN_IT +
-    r"|\s*(?:\be\b|\bed\b)\s*" + _ART_RIP_IT + _NUM_TOKEN_IT + _RANGE_IT + r")*)"
+    r"|\s*(?:\be\b|\bed\b|\bn[ée]\b)\s*" + _ART_RIP_IT + _NUM_TOKEN_IT + _RANGE_IT + r")*)"   # v9.514: anche «né»
     r"(?P<sub>" + _SUB_IT + r"*)"
     # v9.397: «artt. 408, comma 2, e 410 c.p.p.» — dopo un sotto-riferimento, «, e N» è un ALTRO articolo dell'elenco
     # (prima il 410 spariva e il 408 restava «senza codice»)
-    r"(?P<more>(?:\s*,\s*(?:e|ed)\s+" + _ART_RIP_IT + _NUM_TOKEN_IT + r"(?:" + _SUB_IT + r")*)*)"
+    r"(?P<more>(?:\s*,\s*(?:e|ed|n[ée])\s+" + _ART_RIP_IT + _NUM_TOKEN_IT + r"(?:" + _SUB_IT + r")*)*)"
     r"(?:\s*,(?=\s+" + _CONN_IT + r"))?"      # la virgola sì, lo spazio resta alla coda
     r"(?P<tail>" + _TAIL_IT + r")",
     re.IGNORECASE,
 )
 _NUM_RE_IT = re.compile(_NUM_TOKEN_IT)
 # i numeri dell'elenco dopo i sotto-riferimenti: solo quelli subito dopo «e/ed» (mai i numeri dei commi)
-_MORE_NUM_IT = re.compile(r"(?:\be\b|\bed\b)\s+" + _ART_RIP_IT + r"(" + _NUM_TOKEN_IT + r")", re.IGNORECASE)
+_MORE_NUM_IT = re.compile(r"(?:\be\b|\bed\b|\bn[ée]\b)\s+" + _ART_RIP_IT + r"(" + _NUM_TOKEN_IT + r")", re.IGNORECASE)
 # v9.397 — la CONTINUAZIONE con un codice suo: «… c.p.p. e 107 disp. att. c.p.p.», «… c.c., e 2059 c.c.».
 # Si legge solo se la sua coda porta un codice (mai un numero nudo che eredita a caso).
 _CONT_IT = re.compile(
