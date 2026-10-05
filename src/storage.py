@@ -1161,7 +1161,10 @@ def init_db(db_path: Path = APP_DB_PATH) -> None:
         _add_column_if_missing(conn, "users", "plan_expires_at", "TEXT")
         conn.execute("UPDATE users SET modules = profession WHERE modules IS NULL OR modules = ''")
         _add_column_if_missing(conn, "users", "jurisdictions", "TEXT")
-        _add_column_if_missing(conn, "users", "esempi_creati", "TEXT")      # v9.507: «AL,IT» = fascicolo d'esempio già creato
+        _add_column_if_missing(conn, "users", "esempi_creati", "TEXT")
+        # v9.509 — la prova parte dal PRIMO accesso (la regola dell'email di AALA: «attivalo entro 7 giorni, poi 12 ore»)
+        _add_column_if_missing(conn, "users", "demo_hours", "INTEGER")
+        _add_column_if_missing(conn, "users", "demo_activated_at", "TEXT")      # v9.507: «AL,IT» = fascicolo d'esempio già creato
         conn.execute("UPDATE users SET jurisdictions = 'AL' WHERE jurisdictions IS NULL OR jurisdictions = ''")
         # v9.395 — un evento appartiene alla giurisdizione del SUO fascicolo; uno
         # senza fascicolo a quella della sessione in cui e' nato (NULL = prima
@@ -1772,6 +1775,31 @@ def _add_months(dt, months: int):
     return dt.replace(year=y, month=m, day=d)
 
 
+import os as _os_demo
+_DEMO_ACTIVATION_DAYS = int(_os_demo.environ.get("DEMO_ACTIVATION_DAYS", "7"))
+_DEMO_WINDOW_HOURS = int(_os_demo.environ.get("DEMO_WINDOW_HOURS", "12"))
+
+
+def attiva_demo(user_id: int) -> str | None:
+    """v9.509 — al PRIMO accesso riuscito di una prova da attivare: da adesso `demo_hours` ore. Una volta sola (le
+    entrate successive non spostano la scadenza). Ritorna la nuova scadenza, o None se non c'era nulla da attivare."""
+    now = datetime.now(UTC)
+    with db() as conn:
+        row = conn.execute("SELECT demo_hours, demo_activated_at, demo_expires_at FROM users WHERE id = ?",
+                           (user_id,)).fetchone()
+        if not row or not row["demo_hours"] or row["demo_activated_at"] or not row["demo_expires_at"]:
+            return None
+        exp = (now + timedelta(hours=int(row["demo_hours"]))).strftime("%Y-%m-%dT%H:%M:%SZ")
+        cur = conn.execute("UPDATE users SET demo_activated_at = ?, demo_expires_at = ? "
+                           "WHERE id = ? AND demo_activated_at IS NULL",
+                           (now.strftime("%Y-%m-%dT%H:%M:%SZ"), exp, user_id))
+        conn.commit()
+    if cur.rowcount:
+        log.info("prova attivata per l'utente %s fino a %s", user_id, exp)
+        return exp
+    return None
+
+
 def provision_account(username: str, password_hash: str, modules=None,
                       months=None, hours: int = 6) -> str:
     """Create/refresh an account provisioned from AALA. `modules` = entitlements;
@@ -1787,7 +1815,10 @@ def provision_account(username: str, password_hash: str, modules=None,
         expires = _add_months(now, int(months)).strftime("%Y-%m-%dT%H:%M:%SZ")
         demo_iso, plan_iso = None, expires
     else:
-        expires = (now + timedelta(hours=int(hours or 6))).strftime("%Y-%m-%dT%H:%M:%SZ")
+        # v9.509 — prima: `hours` dall'APPROVAZIONE del lead, mentre l'email di AALA promette «attivalo entro 7 giorni: una
+        # volta avviato l'accesso dura 12 ore». Chi entrava il giorno dopo trovava «prova scaduta». Ora: finestra di
+        # attivazione (DEMO_ACTIVATION_DAYS, 7) e la durata (DEMO_WINDOW_HOURS, 12) parte al primo accesso (`attiva_demo`).
+        expires = (now + timedelta(days=_DEMO_ACTIVATION_DAYS)).strftime("%Y-%m-%dT%H:%M:%SZ")
         demo_iso, plan_iso = expires, None
     existing = get_user_by_username(username)
     if existing is not None and existing.is_admin:
@@ -1798,8 +1829,8 @@ def provision_account(username: str, password_hash: str, modules=None,
     with db() as conn:
         conn.execute(
             "UPDATE users SET password_hash=?, modules=?, demo_expires_at=?, "
-            "plan_expires_at=?, suspended=0 WHERE username=? COLLATE NOCASE",
-            (password_hash, ",".join(mods), demo_iso, plan_iso, username),
+            "plan_expires_at=?, suspended=0, demo_hours=?, demo_activated_at=NULL WHERE username=? COLLATE NOCASE",
+            (password_hash, ",".join(mods), demo_iso, plan_iso, (None if months else _DEMO_WINDOW_HOURS), username),
         )
         conn.commit()
     log.info("provisioned account %r modules=%s months=%s until %s",

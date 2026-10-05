@@ -17,11 +17,28 @@
   const btn = document.getElementById("login-btn");
   const errEl = document.getElementById("login-error");
 
+  // v9.509 — LINGUA = SESSIONE anche qui: con la pagina in italiano il clic su «Entra» mostrava «Po verifikoj…», gli
+  // errori in albanese («Demo ka skaduar», «Kredencialet janë të gabuara») e il pulsante tornava «Hyr»
+  const _it = () => document.documentElement.lang === "it";
+  const _M = {
+    sq: { wait: "Po verifikoj…", login: "Hyr", bad: "⚠️ Kredencialet janë të gabuara.", net: "⚠️ Gabim rrjeti: ",
+          err: "⚠️ Gabim gjatë hyrjes: ", many: (m) => "⚠️ Shumë përpjekje. Provo përsëri pas " + m + " minutash.",
+          suspended: "⚠️ Llogaria juaj është pezulluar. Kontaktoni studion.",
+          demo_expired: "⚠️ Prova falas ka skaduar. Për të vazhduar: info@aala.global · +355 69 955 5777",
+          plan_expired: "⚠️ Abonimi juaj ka skaduar. Për ta rinovuar: info@aala.global · +355 69 955 5777" },
+    it: { wait: "Verifico…", login: "Entra", bad: "⚠️ Credenziali errate.", net: "⚠️ Errore di rete: ",
+          err: "⚠️ Errore durante l'accesso: ", many: (m) => "⚠️ Troppi tentativi. Riprova tra " + m + " minuti.",
+          suspended: "⚠️ Il tuo account è sospeso. Contatta lo studio.",
+          demo_expired: "⚠️ La prova gratuita è scaduta. Per continuare: info@aala.global · +355 69 955 5777",
+          plan_expired: "⚠️ Il tuo abbonamento è scaduto. Per rinnovarlo: info@aala.global · +355 69 955 5777" },
+  };
+  const M = () => _M[_it() ? "it" : "sq"];
+
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     errEl.hidden = true;
     btn.disabled = true;
-    btn.textContent = "Po verifikoj…";
+    btn.textContent = M().wait;
     try {
       const resp = await fetch("/api/login", {
         method: "POST",
@@ -34,9 +51,10 @@
       });
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok) {
-        errEl.textContent = data.error === "invalid credentials"
-          ? "⚠️ Kredencialet janë të gabuara."
-          : "⚠️ Gabim gjatë hyrjes: " + (data.error || resp.status);
+        errEl.textContent = data.error === "invalid credentials" ? M().bad
+          : (data.blocked && M()[data.blocked]) ? M()[data.blocked]
+          : resp.status === 429 ? M().many(Math.max(1, Math.round((data.retry_after || 60) / 60)))
+          : M().err + (data.error || resp.status);
         errEl.hidden = false;
         passwordEl.value = "";
         passwordEl.focus();
@@ -47,11 +65,11 @@
       try { nxt = new URLSearchParams(window.location.search).get("next") || ""; } catch (e2) {}
       window.location.href = /^\/s(\/[0-9a-f-]{8,64})?$/.test(nxt) ? nxt : "/";
     } catch (err) {
-      errEl.textContent = "⚠️ Gabim rrjeti: " + err.message;
+      errEl.textContent = M().net + err.message;
       errEl.hidden = false;
     } finally {
       btn.disabled = false;
-      btn.textContent = "Hyr";
+      btn.textContent = M().login;
     }
   });
 })();
@@ -98,8 +116,8 @@
             problem_text:'KERKESE RESET FJALEKALIMI per Super Avokati (superavokati.ai). Perdoruesi me email '+em+' kerkon rivendosjen e fjalekalimit. Ju lutem kontaktoni perdoruesin dhe rivendosni fjalekalimin.'})})
         .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(function(){
           document.getElementById('forgot-email').style.display='none';btn.style.display='none';
-          msg.hidden=false;msg.textContent='\u2713 Kerkesa u dergua. Do te kontaktohesh me email nga administratori.';
-        }).catch(function(){btn.disabled=false;btn.textContent='Dergo kerkesen';msg.hidden=false;msg.style.color='#e57373';msg.textContent='Gabim, provo serish.';});
+          msg.hidden=false;msg.textContent=(document.documentElement.lang==='it')?'\u2713 Richiesta inviata. L\'amministratore ti contatterà per email.':'\u2713 Kërkesa u dërgua. Do të kontaktohesh me email nga administratori.';
+        }).catch(function(){var it=(document.documentElement.lang==='it');btn.disabled=false;btn.textContent=it?'Invia richiesta':'Dërgo kërkesën';msg.hidden=false;msg.style.color='#e57373';msg.textContent=it?'Errore, riprova.':'Gabim, provo sërish.';});
       });
     })();
 

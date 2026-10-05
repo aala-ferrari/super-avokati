@@ -8414,6 +8414,54 @@ def main():
     except Exception as _e279:  # noqa: BLE001
         check("dialoghi[279]: kontrollet u ekzekutuan", False, str(_e279))
 
+    # [280] v9.509 — il LOGIN nella lingua della pagina: con l'italiano scelto il clic su «Entra» dava «Po verifikoj…», gli
+    # errori albanesi («Demo ka skaduar», «Kredencialet janë të gabuara») e il pulsante tornava «Hyr»
+    try:
+        from pathlib import Path as _P280
+        _l280 = _P280("/app/static/login.js").read_text(encoding="utf-8")
+        _h280 = _P280("/app/templates/login.html").read_text(encoding="utf-8")
+        check("login[280]: attesa, errori, blocchi (prova scaduta, sospeso, troppi tentativi), rete e password dimenticata in italiano",
+              'it: { wait: "Verifico…", login: "Entra", bad: "⚠️ Credenziali errate."' in _l280
+              and "demo_expired: \"⚠️ La prova gratuita è scaduta." in _l280 and "M()[data.blocked]" in _l280
+              and "resp.status === 429 ? M().many(" in _l280 and 'btn.textContent = M().login;' in _l280
+              and '"Hyr";' not in _l280 and "'Dergo kerkesen'" not in _l280 and "Richiesta inviata" in _l280
+              and "login.js?v=5" in _h280)
+    except Exception as _e280:  # noqa: BLE001
+        check("login[280]: kontrollet u ekzekutuan", False, str(_e280))
+
+    # [281] v9.509 — la PROVA GRATUITA parte dal primo accesso: prima 6 ore dall'approvazione del lead, mentre l'email di AALA
+    # promette «attivalo entro 7 giorni, poi 12 ore». Eseguito su un DB TEMPORANEO (mai quello vero).
+    try:
+        import tempfile as _tf281
+        from datetime import datetime as _dt281, timedelta as _td281, UTC as _UTC281
+        from pathlib import Path as _P281
+        from src import storage as _st281
+        _db281 = _P281(_tf281.mkdtemp()) / "t.db"
+        _orig281 = _st281._connect
+        _st281._connect = lambda db_path=None: _orig281(_db281)
+        try:
+            _st281.init_db(_db281)
+            _ora = _dt281.now(_UTC281)
+            _e1 = _st281.provision_account("prova281@esempio.it", "x", hours=6)
+            _u = _st281.get_user_by_username("prova281@esempio.it")
+            _g1 = (_dt281.fromisoformat(_e1.replace("Z", "+00:00")) - _ora).total_seconds() / 3600
+            _a1 = _st281.attiva_demo(_u.id)
+            _g2 = (_dt281.fromisoformat(_a1.replace("Z", "+00:00")) - _ora).total_seconds() / 3600 if _a1 else None
+            _a2 = _st281.attiva_demo(_u.id)
+            _ok_acc = _st281.access_block_reason(_st281.get_user_by_username("prova281@esempio.it")) is None
+            _st281.provision_account("pagato281@esempio.it", "x", months=1)
+            _p = _st281.get_user_by_username("pagato281@esempio.it")
+            _a3 = _st281.attiva_demo(_p.id)
+        finally:
+            _st281._connect = _orig281
+        check("prova[281]: 7 giorni per attivarla, 12 ore dal primo accesso (una volta sola), l'abbonamento pagato non si tocca",
+              167 < _g1 < 169 and _g2 is not None and 11.9 < _g2 < 12.1 and _a2 is None and _ok_acc and _a3 is None,
+              "%r %r %r %r" % (_g1, _g2, _a2, _a3))
+        _w281 = _P281("/app/src/web.py").read_text(encoding="utf-8")
+        check("prova[281]: l'attivazione è agganciata al login riuscito", "storage.attiva_demo(user.id)" in _w281)
+    except Exception as _e281:  # noqa: BLE001
+        check("prova[281]: kontrollet u ekzekutuan", False, str(_e281))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

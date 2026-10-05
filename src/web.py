@@ -510,6 +510,10 @@ def api_login():
         _segna_fallito(username)
         return jsonify({"error": "invalid credentials"}), 401
     _azzera_tentativi(username)
+    try:                                   # v9.509 — la prova parte dal primo accesso, non dall'approvazione
+        storage.attiva_demo(user.id)
+    except Exception:  # noqa: BLE001
+        log.warning("attivazione della prova fallita per %r", username, exc_info=True)
     login_user(user)
     try:
         from flask import session as _sess
