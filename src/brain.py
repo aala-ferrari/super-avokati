@@ -213,6 +213,14 @@ ANCORE_IT: tuple = (
     # … e il DANNO da fatto illecito: cinque anni, due per la circolazione dei veicoli (art. 2947 c.c.), non i dieci del 2946
     ((("prescri", "risarc"), ("prescri", "danno"), ("prescri", "danni"), ("prescri", "sinistr"), ("prescri", "incident"),
       ("prescri", "illecit")), ("Penale", "Penal"), (("codice_civile", "2947"),)),
+    # … e il ramo del FATTO-REATO (art. 2947, comma 3: «se il fatto è considerato dalla legge come reato e per il reato è stabilita
+    # una prescrizione più lunga, questa si applica anche all'azione civile»): nel sinistro con lesioni decide la durata della
+    # prescrizione PENALE — lesioni colpose (590 c.p.), lesioni stradali gravi o gravissime (590-bis), il tempo a prescrivere (157).
+    # Prova viva in Chrome (6 ott, «incidente stradale del 10 marzo 2024: entro quando il risarcimento?»): la risposta apriva da sola
+    # la via delle lesioni e scriveva «il numero dell'articolo sulle lesioni stradali non è tra quelli che ho recuperati»; il 157 lo
+    # portava solo il completamento. Solo dalla DOMANDA dell'avvocato (il triage parla di «prescrizione» anche dove non c'è sinistro).
+    ((("prescri", "incident"), ("prescri", "sinistr"), ("prescri", "stradal"), ("prescri", "investit"), ("prescri", "tampon")),
+     (), (("codice_penale", "590"), ("codice_penale", "590-bis"), ("codice_penale", "157")), None, None, True),
     # v9.401 — la SOSPENSIONE FERIALE (L. 742/1969): l'art. 3 la esclude per le controversie di lavoro e previdenza (gli artt.
     # 429 e 459 c.p.c. che richiama sono quelli anteriori al 1973: oggi 409 e 442). Misurato (28 set, prove vive v9.400): la
     # bozza di un ricorso per licenziamento salvava il termine di 180 giorni dell'art. 6 L. 604/1966 «in ragione della

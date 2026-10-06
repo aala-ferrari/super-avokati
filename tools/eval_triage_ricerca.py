@@ -42,6 +42,8 @@ CASI = [  # (giurisdizione, domanda dell'avvocato, articoli di cui almeno uno DE
     ("AL", "Qiramarrësi nuk më ka paguar qiranë e vitit 2021. A është parashkruar e drejta për ta kërkuar?", [("kodi_civil", "115")]),
     ("AL", "Gjykata administrative e shkallës së parë e rrëzoi padinë tonë kundër bashkisë. Deri kur mund të bëjmë apel?", [("ligji_gjykatat_administrative", "44"), ("kodi_proc_civile", "443")]),
     ("IT", "Il cliente ha subito un incidente stradale nel marzo 2023 e non ha ancora chiesto il risarcimento. È prescritto?", [("codice_civile", "2947")]),
+    # v9.524 — prova viva in Chrome del 6 ott: il ramo del fatto-reato senza 590-bis c.p. nel blocco
+    ("IT", "Il mio cliente ha avuto un incidente stradale il 10 marzo 2024 (auto contro auto, colpa dell'altro conducente). Entro quando deve chiedere il risarcimento del danno prima che si prescriva?", [("codice_penale", "590-bis")]),
     ("IT", "Il cliente, albanese, è sposato da tre anni con una cittadina italiana e vive in Italia. Come ottiene la cittadinanza?", [("cittadinanza", "10")]),
     # v9.517 — la revoca del permesso di soggiorno: l'art. 73 della 79/2021 rinvia per nome al KPA (termine del ricorso: KPA 132)
     ("AL", "Klientit i anuloi policia lejen e qëndrimit pasi humbi punën. Brenda sa kohe mund të bëjë ankim dhe te kush?", [("kodi_proc_admin", "132")]),

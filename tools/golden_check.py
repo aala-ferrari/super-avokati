@@ -8829,6 +8829,26 @@ def main():
     except Exception as _e299:  # noqa: BLE001
         check("errori[299]: kontrollet u ekzekutuan", False, f"{type(_e299).__name__}: {_e299}")
 
+    # [300] v9.524 — la prescrizione del danno da sinistro: il ramo del fatto-reato (art. 2947, c. 3) ha bisogno di 590, 590-bis
+    # e 157 c.p. nel blocco (prova viva: «il numero dell'articolo sulle lesioni stradali non è tra quelli che ho recuperati»);
+    # solo dalla domanda — non per un credito qualsiasi né per un sinistro senza prescrizione
+    try:
+        from src import brain as _br300
+        from src.retrieval import ArticleIndex as _AI300
+        _br300.set_request_jurisdiction("IT")
+        _it300 = _AI300.load(__import__("pathlib").Path("/app/data/index/bm25_it.pkl"))
+        _k300 = lambda q, aree: {(a.code, str(a.number)) for a, _ in _br300._applica_ancore([], _it300, q, aree, ancore=_br300.ANCORE_IT)}
+        _v300 = _k300(["prescrizione del risarcimento da circolazione", "Il mio cliente ha avuto un incidente stradale il 10 marzo 2024. Entro quando deve chiedere il risarcimento prima che si prescriva?"], ["Civile"])
+        _c300 = _k300(["prescrizione del credito", "Il credito del cliente risale al 2013: è prescritto?"], ["Civile"])
+        _s300 = _k300(["prescrizione", "Il cliente ha avuto un incidente stradale ieri: chi paga i danni?"], ["Civile"])
+        _br300.set_request_jurisdiction("AL")
+        _att300 = {("codice_penale", "590"), ("codice_penale", "590-bis"), ("codice_penale", "157")}
+        check("sinistro[300]: prescrizione del danno da incidente → 590, 590-bis, 157 c.p. (fatto-reato); non per un credito né senza prescrizione",
+              _att300 <= _v300 and ("codice_civile", "2947") in _v300 and not (_att300 & _c300) and not (_att300 & _s300),
+              repr((sorted(_v300), sorted(_c300), sorted(_s300))))
+    except Exception as _e300:  # noqa: BLE001
+        check("sinistro[300]: kontrollet u ekzekutuan", False, str(_e300))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
