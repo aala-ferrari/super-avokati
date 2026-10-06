@@ -42,6 +42,17 @@ except Exception:  # noqa: BLE001
     SKIP_AL |= {"ligji_te_dhenat", "ligji_policia", "ligji_dhuna_familje"}
 
 
+
+def _abrogazione_futura(d: dict) -> str | None:
+    """La data (ISO) da cui l'atto risulta abrogato nella versione FUTURA della maggioranza dei suoi articoli, se ancora da venire."""
+    from datetime import date as _date
+    arts = d.get("articles") or []
+    oggi = _date.today().isoformat()
+    date_f = [str((a.get("futuro") or {}).get("dal") or "") for a in arts
+              if isinstance(a.get("futuro"), dict) and ((a["futuro"].get("repealed")) or "ABROGATO" in str(a["futuro"].get("body", "")).upper())]
+    date_f = [x for x in date_f if x > oggi]
+    return min(date_f) if arts and len(date_f) >= max(1, len(arts) // 2) else None
+
 def _get(url: str, timeout: int = 60) -> str:
     # EUR-Lex sta dietro AWS WAF: a urllib risponde 202 con una pagina-sfida JavaScript
     # (impronta TLS), a curl la pagina vera. Per EUR-Lex si passa da curl (host e container
@@ -176,7 +187,13 @@ def check_it(limit: int | None) -> list[dict]:
                     # atti mai modificati (L. 219/2017, L. 175/1998): la pagina non ha la riga
                     row["note"] = "Normattiva: nessun aggiornamento pubblicato"
                 if re.search(r"PROVVEDIMENTO ABROGATO", html):
-                    if d.get("vigente_al"):
+                    # v9.518 — anche l'atto RIALLINEATO articolo per articolo (riallinea_vigenti_it, v9.405: il d.P.R. 602/1973 ha
+                    # 135 articoli con la versione futura «abrogato» dal 2027 ma non `vigente_al`): ogni giorno dal 4 ott l'email
+                    # «1 legge da aggiornare» per una legge che si applica fino al 31/12/2026
+                    _fut = _abrogazione_futura(d)
+                    if _fut and not d.get("vigente_al"):
+                        row["note"] = (row["note"] + " · " if row["note"] else "") + f"abrogazione futura (dal {_fut}, versione futura in corpus)"
+                    elif d.get("vigente_al"):
                         # v9.475: atto scaricato di proposito al testo di OGGI («!vig=»): l'abrogazione che Normattiva mostra senza
                         # data è quella FUTURA (testi unici fiscali dal 1/1/2027) — non è una legge morta; resta il confronto delle date
                         row["note"] = (row["note"] + " · " if row["note"] else "") + \
