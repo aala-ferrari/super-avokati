@@ -541,7 +541,9 @@ _CONN_AL = (r"(?:i|e|t[ëe]|s[ëe]|sipas)\s+(?:po\s+)?(?:k[ëe]tij\s+(?:ligji|ko
 CITATION_RE = re.compile(
     r"\bnen(?:i|in|it|et|eve|ve)?\b\s+"
     # v9.399: «neni 114 dhe neni 115 i Kodit Civil» = un elenco con il codice in comune (come «nenet 114 dhe 115»)
-    r"(?P<nums>" + _NUM_TOKEN + r"(?:" + _LIST_SEP + r"(?:nen(?:i|in|it|et)?\s+)?" + _NUM_TOKEN + r")*)"
+    # v9.519: anche col GRASSETTO attorno ai numeri dell'elenco — «**Neni 12** dhe **Neni 96 i Ligjit nr. 9901/2008**»: il
+    # 12 restava senza codice (senza grassetto era verificato); il modello scrive spesso i numeri in grassetto
+    r"(?P<nums>" + _NUM_TOKEN + r"(?:\**" + _LIST_SEP + r"\**(?:nen(?:i|in|it|et)?\s+)?" + _NUM_TOKEN + r")*)"
     r"(?P<sub>" + _SUB_AL + r"*)"
     r"(?:\s*,(?=\s+" + _CONN_AL + r"))?"      # la virgola sì, lo spazio resta alla coda
     # Tail = up to 8 words, but never crossing "dhe" or another "nen..." —

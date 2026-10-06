@@ -8648,6 +8648,20 @@ def main():
     except Exception as _e292:  # noqa: BLE001
         check("kpa[292]: kontrollet u ekzekutuan", False, str(_e292))
 
+    # [293] v9.519 — il GRASSETTO attorno ai numeri di un elenco albanese («**Neni 12** dhe **Neni 96 i Ligjit nr. 9901/2008**»)
+    try:
+        from src import citation_verifier as _cv293, brain as _br293
+        from src.retrieval import ArticleIndex as _AI293
+        _br293.set_request_jurisdiction("AL")
+        _al293 = _AI293.load()
+        _s293 = lambda t: [(c.get("status"), c.get("code"), c.get("number")) for c in _cv293.verify_text(t, _al293)["items"]]
+        check("grassetto[293]: l'elenco in grassetto prende il codice in comune; un numero inventato resta falso",
+              _s293("Tagrat lindin nga ligji — **Neni 12** dhe **Neni 96 i Ligjit nr. 9901/2008**.")
+              == [("verified", "ligji_shoqerite_tregtare", "12"), ("verified", "ligji_shoqerite_tregtare", "96")]
+              and _s293("**Neni 9999** dhe **Neni 96 i Ligjit nr. 9901/2008**")[0][0] == "fake")
+    except Exception as _e293:  # noqa: BLE001
+        check("grassetto[293]: kontrollet u ekzekutuan", False, str(_e293))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
