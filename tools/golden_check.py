@@ -1617,7 +1617,7 @@ def main():
               _kw.get("medium") is True and _kw.get("effort_override") == "medium" and "fast" not in _kw)
         _bs = _io34.open(_os34.path.join(_rr34, "src", "backends.py"), encoding="utf-8").read()
         check("mbledhes[34]: backends — budget_usd per chiamata → --max-budget-usd",
-              "budget_usd: float | None = None) -> str:" in _bs
+              "budget_usd: float | None = None" in _bs
               and 'cmd.extend(["--max-budget-usd", str(budget_usd)])' in _bs)
         _br = _io34.open(_os34.path.join(_rr34, "src", "brain.py"), encoding="utf-8").read()
         check("mbledhes[34]: brain — i raccoglitori agganciati nei DUE percorsi simple + status",
@@ -8689,6 +8689,145 @@ def main():
               and "secretary.js?v=2" in _h295 and 'aria-label="Dil / Logout"' not in _h295)
     except Exception as _e295:  # noqa: BLE001
         check("inglese[295]: kontrollet u ekzekutuan", False, str(_e295))
+
+    # [296] v9.521 — il tetto di tempo dei raccoglitori stava solo nel futuro: il processo (web) restava vivo fino a 45 min col
+    # suo posto nel semaforo (visto in produzione: 9 min dopo la risposta). Ora il tetto arriva alla CLI e la ferma.
+    try:
+        from src import studio as _st296, backends as _bk296
+        _kw296 = []
+
+        class _F296:
+            def complete(self, **kw):
+                _kw296.append(kw.get("timeout_s"))
+                return "{}"
+
+        class _A296:
+            code, number, title_sq, heading, body = "kodi_civil", "1", "Kodi Civil", "h", "b"
+        _st296.mbledh_dosjen(_F296(), domanda="D", summary="S", retrieved=[(_A296(), 1.0)], lang="it", timeout_s=40)
+        # la CLI vera: subprocess.run riceve il tetto della chiamata, non i 2700 s del backend
+        _tm296 = []
+        _run0 = _bk296.subprocess.run
+
+        def _run296(*a, **kw):
+            _tm296.append(kw.get("timeout"))
+            raise _bk296.subprocess.TimeoutExpired(cmd="claude", timeout=kw.get("timeout"))
+        _bk296.subprocess.run = _run296
+        try:
+            _b296 = _bk296.ClaudeCodeBackend()
+            try:
+                _b296.complete(system="s", messages=[{"role": "user", "content": "u"}], medium=True, timeout_s=55,
+                               callsite="golden:296")
+                _e296 = ""
+            except RuntimeError as _x296:
+                _e296 = str(_x296)
+        finally:
+            _bk296.subprocess.run = _run0
+        check("tetto[296]: i raccoglitori passano il tetto alla CLI (55 s), il processo si ferma e lo dice",
+              sorted(set(_kw296)) == [55] and len(_kw296) == 3 and _tm296[:1] == [55] and "55s" in _e296,
+              f"kw={_kw296} run={_tm296} err={_e296[:80]}")
+        # l'uscita rc=1 per tetto di spesa: motivo e costo nell'audit (prima: «NonZeroReturnCode» muto, consumo perso)
+        _au296 = []
+        _as0 = _bk296._audit_safe
+        _bk296._audit_safe = lambda **kw: _au296.append(kw)
+        _bk296.subprocess.run = lambda *a, **kw: _bk296.subprocess.CompletedProcess(
+            a[0] if a else "claude", 1, stdout='{"terminal_reason":"budget_exhausted","total_cost_usd":0.51,"usage":{}}',
+            stderr="")
+        try:
+            try:
+                _b296.complete(system="s", messages=[{"role": "user", "content": "u"}], medium=True, callsite="golden:296b")
+            except RuntimeError:
+                pass
+        finally:
+            _bk296.subprocess.run = _run0
+            _bk296._audit_safe = _as0
+        check("tetto[296]: il tetto di spesa finito va nell'audit come BudgetExhausted col costo (0,51 $)",
+              any(x.get("error_class") == "BudgetExhausted" and x.get("cost_micro_usd") == 510000 for x in _au296),
+              str([(x.get("error_class"), x.get("cost_micro_usd")) for x in _au296]))
+    except Exception as _e296x:  # noqa: BLE001
+        check("tetto[296]: kontrollet u ekzekutuan", False, f"{type(_e296x).__name__}: {_e296x}")
+
+    # [297] v9.521 — la riga del motore dei termini che È l'udienza della citazione («Udienza di comparizione e trattazione»,
+    # senza ora) usciva come «termine» accanto all'udienza letta dal documento (ore 9:30): due righe per la stessa udienza (prova
+    # in Chrome, citazione per il 02/02/2027). Diventa udienza solo se il titolo la nomina E il giorno è un'udienza del documento.
+    try:
+        from src import scadenziario as _sz297
+        _c297 = _sz297._afati.compute
+        _sz297._afati.compute = lambda *a, **k: {"afatet": [
+            {"title": "Udienza di comparizione e trattazione — comparizione personale", "date": "2027-02-02",
+             "baza": "art. 183 c.p.c.", "passi": ["x"]},
+            {"title": "Termine per comparire all'udienza", "date": "2027-02-02", "baza": "art. 163 c.p.c.", "passi": ["y"]},
+            {"title": "Udienza di precisazione delle conclusioni", "date": "2027-03-03", "baza": "art. 189 c.p.c.", "passi": ["z"]}]}
+        try:
+            _doc297 = {"tipo": "data", "kind": "seance", "data": "2027-02-02", "ora": "09:30", "origine": "documento",
+                       "titolo": "Udienza di comparizione delle parti"}
+            _r297 = _sz297.termini_di_legge(None, None, {"trigger": "citazione", "descrizione": "d"}, jurisdiction="IT",
+                                            lang="it", data="2026-09-25", altre_date=[_doc297])
+        finally:
+            _sz297._afati.compute = _c297
+        check("udienza[297]: la riga del motore che è l'udienza del documento si unisce (ora tenuta); il termine resta termine",
+              [x["kind"] for x in _r297] == ["seance", "afat", "afat"] and _sz297.stesso_evento(_r297[0], _doc297)
+              and not _sz297.stesso_evento(_r297[1], _doc297), str([(x["kind"], x["data"]) for x in _r297]))
+    except Exception as _e297:  # noqa: BLE001
+        check("udienza[297]: kontrollet u ekzekutuan", False, f"{type(_e297).__name__}: {_e297}")
+
+    # [298] v9.523 — esportazioni: il .docx si chiamava come il titolo dentro `data/exports` CONDIVISA (due studi con lo stesso
+    # titolo nello stesso istante = documento dell'altro) e restava sul disco; il nome perdeva le vocali accentate; il Markdown
+    # e l'HTML del caso erano sempre in albanese («Super Avvocato — eksport i bisedës», «Qytetari», lang="sq")
+    try:
+        from src import web as _w298
+        _n298 = _w298._nome_file_sicuro("Parere sulla responsabilità civile", "x")
+        _r0 = _w298.pro_mod.render_act_docx
+        _w298.pro_mod.render_act_docx = lambda draft, path: path.write_bytes(b"PK-docx-" + draft["title"].encode())
+        try:
+            _b298 = _w298._docx_in_memoria({"title": "T298", "body_markdown": "x"})
+        finally:
+            _w298.pro_mod.render_act_docx = _r0
+        _resti298 = list((_w298.APP_DB_PATH.parent / "exports").glob(".exp-*.docx"))
+        _src298 = __import__("inspect").getsource(_w298.api_export_case)
+        _js298 = __import__("pathlib").Path("/app/static/app.js").read_text(encoding="utf-8")
+        check("export[298]: docx in memoria senza resti, nome con le accentate, Markdown e HTML nella lingua della sessione",
+              _n298 == "Parere sulla responsabilità civile" and _b298.getvalue() == b"PK-docx-T298" and not _resti298
+              and "eksport i bisedës_" not in _src298.replace("{_X[1]}", "") and '"esportazione della conversazione"' in _src298
+              and '"⚖️ Super Avvocato"' not in _src298 and "_Super Avvocato — " not in _src298 and '(_itx ? "it" : "sq")' in _js298
+              and 'html lang="sq"><head>' not in _js298 and '"Njoftimet nuk u lejuan": "Notifiche non consentite"' in _js298,
+              f"nome={_n298!r} resti={len(_resti298)}")
+        from docx import Document as _D298
+        from src import pro_features as _pf298
+        _pp298 = {"response_id": "r298", "timestamp_iso": "2026-10-06", "confidence": 1.0, "confidence_label": "I lartë",
+                  "citations": {"items": []}, "retrieved_articles": []}
+        _t298 = {j: " ".join(x.text for x in _D298(__import__("io").BytesIO(_pf298.provenance_docx(dict(_pp298, jurisdiction=j)))).paragraphs)
+                 for j in ("IT", "AL")}
+        check("export[298]: il documento di provenienza ha il titolo nella lingua del fascicolo (era «PROVENANCE PACK»)",
+              "PACCHETTO DI PROVENIENZA" in _t298["IT"] and "PAKETA E PREJARDHJES" in _t298["AL"]
+              and not any("PROVENANCE" in v or "REFUSAL" in v for v in _t298.values())
+              and '"provenienza_"' in __import__("inspect").getsource(_w298.api_provenance_docx), str(_t298)[:160])
+        _ic298 = _w298._render_ical("prova", [], tz="Europe/Rome")
+        check("export[298]: il calendario iCal col nome giusto e il fuso di Roma per l'avvocato italiano",
+              "X-WR-CALNAME:Super Avokati — prova" in _ic298 and "X-WR-TIMEZONE:Europe/Rome" in _ic298
+              and "Super Avvocato" not in _ic298 and "Europe/Tirane" in _w298._render_ical("prova", []), _ic298[:120])
+    except Exception as _e298:  # noqa: BLE001
+        check("export[298]: kontrollet u ekzekutuan", False, f"{type(_e298).__name__}: {_e298}")
+
+    # [299] v9.523 — 330 errori del server erano codici inglesi mostrati così come sono («not found», «forbidden», «brain not
+    # available»): tradotti in un punto nella lingua della sessione, codice conservato in `code`; i codici che il client
+    # confronta restano intatti
+    try:
+        from src import web as _w299
+        from flask import Response as _R299
+        import json as _j299
+
+        def _prova299(err, status=404):
+            with _w299.app.test_request_context("/api/x"):
+                _r = _w299._errori_nella_lingua(_R299(_j299.dumps({"error": err}), status=status, mimetype="application/json"))
+                return _r.get_json()
+        _a299, _b299, _c299, _d299 = _prova299("not found"), _prova299("text_required", 400), _prova299("forbidden", 200), \
+            _prova299("brain not available", 503)
+        check("errori[299]: codici inglesi tradotti (code conservato), confronti del client intatti, risposte 2xx intatte",
+              _a299["error"].startswith("Nuk u gjet") and _a299["code"] == "not found" and _b299 == {"error": "text_required"}
+              and _c299 == {"error": "forbidden"} and _d299["error"].startswith("Shërbimi nuk është gati")
+              and all(len(v) == 2 and v[1] for v in _w299._ERRORI_UMANI.values()), str([_a299, _b299, _d299])[:200])
+    except Exception as _e299:  # noqa: BLE001
+        check("errori[299]: kontrollet u ekzekutuan", False, f"{type(_e299).__name__}: {_e299}")
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

@@ -1573,7 +1573,8 @@ def build_strategy_compass(
 # nel DB resta intatto (lì il modello vero serve all'audit interno).
 _PROV_T = {
     "sq": {
-        "id": "ID", "refusal": "⚠ REFUSAL — citimet nuk u verifikuan. Përgjigjja ruhet si e pasigurt.",
+        "id": "ID", "titolo": "PAKETA E PREJARDHJES",
+        "refusal": "⚠ REFUZIM — citimet nuk u verifikuan. Përgjigjja ruhet si e pasigurt.",
         "cfg": "Konfigurimi", "motore": "Motori", "prompt": "Versioni i system prompt", "kb": "Versioni i bazës (KB)",
         "hin": "Hash kërkese (input)", "hout": "Hash përgjigjeje (output)", "conf": "Besimi (confidence)",
         "cit": "Citime dhe verifikim", "c_raw": "Citimi", "c_code": "Kodi", "c_st": "Statusi",
@@ -1582,11 +1583,12 @@ _PROV_T = {
                "foreign_repealed": "⚠ e drejtë e huaj, e shfuqizuar"},
         "ret": "Burime të marra (korpusi)", "art": "Neni",
         "lvl": {"I lartë": "I lartë", "Mesatar": "Mesatar", "I ulët": "I ulët"},
-        "foot": "Ky dokument provenance gjenerohet automatikisht nga Super Avokati për qëllime auditimi "
+        "foot": "Ky dokument i prejardhjes gjenerohet automatikisht nga Super Avokati për qëllime auditimi "
                 "(EU AI Act art. 12-13, llogaridhënia e sistemeve me rrezik të lartë).",
     },
     "it": {
-        "id": "ID", "refusal": "⚠ RIFIUTO — le citazioni non sono state verificate. La risposta è registrata come incerta.",
+        "id": "ID", "titolo": "PACCHETTO DI PROVENIENZA",
+        "refusal": "⚠ RIFIUTO — le citazioni non sono state verificate. La risposta è registrata come incerta.",
         "cfg": "Configurazione", "motore": "Motore", "prompt": "Versione del system prompt", "kb": "Versione della base (KB)",
         "hin": "Hash della richiesta (input)", "hout": "Hash della risposta (output)", "conf": "Affidabilità (confidence)",
         "cit": "Citazioni e verifica", "c_raw": "Citazione", "c_code": "Codice", "c_st": "Stato",
@@ -1618,7 +1620,7 @@ def provenance_docx(pack: dict) -> bytes:
     L = _PROV_T["it" if juris == "IT" else "sq"]
     doc = Document()
 
-    title = doc.add_heading("PROVENANCE PACK", level=0)
+    title = doc.add_heading(L["titolo"], level=0)   # v9.523: era in inglese in tutte e due le lingue
     title.alignment = 1
 
     pid = pack.get("response_id") or "—"

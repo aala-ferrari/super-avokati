@@ -2495,7 +2495,7 @@ def api_case_workflow_run_ai_step(case_id: str, workflow_id: int):
         if isinstance(v, str):
             user_prompt = user_prompt.replace(f"{{{{{k}}}}}", v)
     text = _BRAIN.backend.complete(
-        system=p.get("prompt_system") or "Ti je Super Avvocato.",
+        system=p.get("prompt_system") or _t_err("Ti je Super Avokati, asistent ligjor për avokatë.", "Sei Super Avokati, assistente legale per avvocati."),
         messages=[{"role": "user", "content": user_prompt}],
         max_tokens=int(p.get("max_tokens") or 1200),
         fast=fast,
@@ -5827,6 +5827,33 @@ def api_letters_draft():
     return jsonify(res)
 
 
+def _docx_in_memoria(draft: dict):
+    """v9.523 — il .docx si rende in un file dal nome UNICO, si legge in memoria e si cancella. Prima il file si chiamava come
+    il titolo dentro `data/exports` condivisa: due studi che esportavano lo stesso titolo («Diffida», «Parere») nello stesso
+    istante potevano ricevere l'uno il documento dell'altro, e ogni esportazione restava sul disco in chiaro."""
+    import uuid as _uuid
+    out_dir = APP_DB_PATH.parent / "exports"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    tmp = out_dir / f".exp-{_uuid.uuid4().hex}.docx"
+    try:
+        pro_mod.render_act_docx(draft, tmp)
+        return io.BytesIO(tmp.read_bytes())
+    finally:
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
+
+
+def _nome_file_sicuro(titolo: str, ripiego: str) -> str:
+    """Nome del file dal titolo: lettere di ogni lingua (à è é ì ò ù ç ë), cifre, spazi e trattini — prima le vocali accentate
+    italiane sparivano («Parere sulla responsabilit.docx»)."""
+    return re.sub(r"[^\w \-]", "", titolo or "", flags=re.UNICODE)[:60].strip() or ripiego
+
+
+_DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+
 @app.post("/api/letters/docx")
 @login_required_api
 def api_letters_docx():
@@ -5845,18 +5872,13 @@ def api_letters_docx():
         t = re.sub(r"\*\*(.+?)\*\*", r"\1", t)
         t = re.sub(r"`([^`]+)`", r"\1", t)
         lines.append(t)
-    safe = re.sub(r"[^0-9A-Za-zçëÇË _-]", "", title)[:60].strip() or "lettera"
-    out_path = APP_DB_PATH.parent / "exports" / (safe.replace(" ", "_") + ".docx")
+    safe = _nome_file_sicuro(title, "lettera")
     try:
-        pro_mod.render_act_docx({"title": title, "body_markdown": "\n".join(lines)},
-                                out_path)
+        buf = _docx_in_memoria({"title": title, "body_markdown": "\n".join(lines)})
     except Exception as exc:  # noqa: BLE001
         log.exception("letters docx failure")
         return Response(f"render error: {exc}", status=500)
-    return send_file(
-        out_path, as_attachment=True, download_name=safe + ".docx",
-        mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    )
+    return send_file(buf, as_attachment=True, download_name=safe.replace(" ", "_") + ".docx", mimetype=_DOCX_MIME)
 
 
 @app.post("/api/notary/draft")
@@ -6710,26 +6732,31 @@ def api_export_case(case_id: str):
     messages = storage.list_messages(case_id)
     fmt = request.args.get("format", "json").lower()
 
+    # v9.523: l'esportazione nella lingua della SESSIONE (era sempre albanese, col vecchio nome «Super Avvocato» e «Qytetari»)
+    _it_x = _active_jurisdiction(request.user) == "IT"  # type: ignore[attr-defined]
+    _X = (("caso", "esportazione della conversazione", "Creato", "Aggiornato", "🧑 Avvocato", "Norme citate", "Precedenti")
+          if _it_x else
+          ("rast", "eksport i bisedës", "Krijuar", "Përditësuar", "🧑 Avokati", "Nenet e cituara", "Precedentë"))
     slug = "".join(c if c.isalnum() or c in "-_" else "_"
-                   for c in case.title.lower())[:60] or "rast"
+                   for c in case.title.lower())[:60] or _X[0]
 
     if fmt == "md":
         buf = io.StringIO()
         buf.write(f"# {case.title}\n\n")
-        buf.write("_Super Avvocato — eksport i bisedës_\n")
-        buf.write(f"Krijuar: {case.created_at} · Përditësuar: {case.updated_at}\n\n")
+        buf.write(f"_Super Avokati — {_X[1]}_\n")
+        buf.write(f"{_X[2]}: {case.created_at} · {_X[3]}: {case.updated_at}\n\n")
         buf.write("---\n\n")
         for m in messages:
-            who = "🧑 Qytetari" if m.role == "user" else "⚖️ Super Avvocato"
+            who = _X[4] if m.role == "user" else "⚖️ Super Avokati"
             buf.write(f"## {who} — _{m.created_at}_\n\n{m.content}\n\n")
             if m.articles:
-                buf.write("**Nenet e cituara:**\n")
+                buf.write(f"**{_X[5]}:**\n")
                 for a in m.articles:
                     buf.write(f"- [{a.get('score', '?')}] {a.get('citation', '')} — "
                               f"{a.get('heading', '')}\n")
                 buf.write("\n")
             if m.precedents:
-                buf.write("**Vendime precedent:**\n")
+                buf.write(f"**{_X[6]}:**\n")
                 for p in m.precedents:
                     oc = f" ({p.get('outcome')})" if p.get("outcome") else ""
                     buf.write(f"- [{p.get('score', '?')}] {p.get('citation', '')}{oc} — "
@@ -8349,11 +8376,15 @@ def api_ical_feed(token: str):
     if user is None:
         return Response("not found", status=404, mimetype="text/plain")
     events = storage.list_events(user.id)
-    body = _render_ical(user.username, events)
+    try:                                   # v9.523: il fuso del calendario dell'avvocato italiano è Roma, non Tirana
+        _it_cal = _active_jurisdiction(user) == "IT"
+    except Exception:  # noqa: BLE001
+        _it_cal = False
+    body = _render_ical(user.username, events, tz="Europe/Rome" if _it_cal else "Europe/Tirane")
     return Response(body, mimetype="text/calendar; charset=utf-8")
 
 
-def _render_ical(cal_name: str, events: list) -> str:
+def _render_ical(cal_name: str, events: list, tz: str = "Europe/Tirane") -> str:
     """Render events as a minimal VCALENDAR feed.
 
     Timestamps are emitted in UTC (Z suffix). Google Calendar + Apple
@@ -8378,9 +8409,9 @@ def _render_ical(cal_name: str, events: list) -> str:
 
     lines = [
         "BEGIN:VCALENDAR", "VERSION:2.0",
-        "PRODID:-//Super Avvocato//Kalendari//SQ",
-        f"X-WR-CALNAME:Super Avvocato — {cal_name}",
-        "X-WR-TIMEZONE:Europe/Tirane",
+        "PRODID:-//Super Avokati//Kalendari//SQ",
+        f"X-WR-CALNAME:Super Avokati — {cal_name}",      # v9.523: era il vecchio nome «Super Avvocato»
+        f"X-WR-TIMEZONE:{tz}",
     ]
     for ev in events:
         lines.append("BEGIN:VEVENT")
@@ -8658,18 +8689,13 @@ def api_draft_act_docx(act_id: str):
     row = storage.get_drafted_act(act_id, user.id)
     if row is None:
         return Response("not found", status=404)
-    out_dir = APP_DB_PATH.parent / "drafts"
-    out_path = out_dir / f"{row.act_type}-{row.id[:8]}.docx"
     try:
-        pro_mod.render_act_docx(row.meta, out_path)
+        buf = _docx_in_memoria(row.meta)
     except Exception as exc:
         log.exception("docx render failure")
         return Response(f"render error: {exc}", status=500)
     safe_name = f"{row.act_type}-{row.created_at[:10]}.docx"
-    return send_file(
-        out_path, as_attachment=True, download_name=safe_name,
-        mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    )
+    return send_file(buf, as_attachment=True, download_name=safe_name, mimetype=_DOCX_MIME)
 
 
 @app.post("/api/export/docx")
@@ -8678,7 +8704,7 @@ def api_export_docx():
     """Generic: any Copilota markdown output -> downloadable .docx."""
     data = request.get_json(silent=True) or {}
     md = (data.get("markdown") or "").strip()
-    title = (data.get("title") or "Dokument").strip()
+    title = (data.get("title") or _t_err("Dokument", "Documento")).strip()
     if len(md) < 5:
         return Response("empty", status=400)
     # light inline-markdown cleanup so the .docx reads cleanly
@@ -8694,18 +8720,13 @@ def api_export_docx():
         t = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r"\1 (\2)", t)  # links
         lines.append(t)
     draft = {"title": title, "body_markdown": "\n".join(lines)}
-    safe = re.sub(r"[^0-9A-Za-zçëÇË _-]", "", title)[:60].strip() or "dokument"
-    out_dir = APP_DB_PATH.parent / "exports"
-    out_path = out_dir / (safe.replace(" ", "_") + ".docx")
+    safe = _nome_file_sicuro(title, _t_err("dokument", "documento"))
     try:
-        pro_mod.render_act_docx(draft, out_path)
+        buf = _docx_in_memoria(draft)
     except Exception as exc:  # noqa: BLE001
         log.exception("export docx failure")
         return Response(f"render error: {exc}", status=500)
-    return send_file(
-        out_path, as_attachment=True, download_name=safe + ".docx",
-        mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    )
+    return send_file(buf, as_attachment=True, download_name=safe + ".docx", mimetype=_DOCX_MIME)
 
 
 @app.get("/api/drafted-acts")
@@ -9549,7 +9570,8 @@ def api_provenance_docx(response_id: str):
         io.BytesIO(docx_bytes),
         mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         as_attachment=True,
-        download_name=f"provenance_{response_id}.docx",
+        download_name=("provenienza_" if (pack.get("jurisdiction") or "AL").upper() == "IT" else "prejardhja_")
+        + f"{response_id}.docx",
     )
 
 
@@ -9801,6 +9823,56 @@ def _t_err(sq: str, it: str) -> str:
     except Exception:  # noqa: BLE001
         pass
     return sq
+
+
+# v9.523 — 330 risposte d'errore del server erano codici INGLESI («not found», «forbidden», «brain not available»,
+# «no active firm»…) e l'interfaccia li mostra così come sono (toast, riquadri): l'avvocato albanese e quello italiano leggevano
+# inglese. Qui si traducono in UN punto, nella lingua della sessione; il codice resta in `code`. Fuori: i tre codici che il
+# client confronta («invalid credentials», «text_required», «documents_required»).
+_E_NON_TROVATO = ("Nuk u gjet (mund të jetë fshirë ose të mos jetë i yti).", "Non trovato (potrebbe essere stato eliminato o non essere tuo).")
+_E_PRONTO = ("Shërbimi nuk është gati për momentin. Provo serish pas pak.", "Il servizio non è pronto in questo momento. Riprova tra poco.")
+_E_TECNICO = ("Tetramorph hasi një problem teknik të përkohshëm. Provo serish.", "Tetramorph ha avuto un problema tecnico temporaneo. Riprova.")
+_E_TESTO = ("Mungon teksti: shkruaj faktet ose pyetjen përpara se të vazhdosh.", "Manca il testo: scrivi i fatti o la domanda prima di procedere.")
+_E_FILE = ("Asnjë skedar i zgjedhur.", "Nessun file selezionato.")
+_E_STUDIO = ("Nuk je anëtar i asnjë studioje aktive.", "Non fai parte di nessuno studio attivo.")
+_ERRORI_UMANI: dict[str, tuple[str, str]] = {
+    "not found": _E_NON_TROVATO, "not_found": _E_NON_TROVATO,
+    "case not found": ("Rasti nuk u gjet.", "Fascicolo non trovato."), "case_not_found": ("Rasti nuk u gjet.", "Fascicolo non trovato."),
+    "forbidden": ("Nuk ke leje për këtë veprim.", "Non hai il permesso per questa operazione."),
+    "unavailable": _E_PRONTO, "brain not available": _E_PRONTO, "brain_unavailable": _E_PRONTO, "brain unavailable": _E_PRONTO,
+    "no LLM backend available": _E_PRONTO, "index_unavailable": _E_PRONTO,
+    "no active firm": _E_STUDIO, "no_firm": _E_STUDIO,
+    "facts_required": _E_TESTO, "situation_required": _E_TESTO, "details_required": _E_TESTO, "act_required": _E_TESTO,
+    "query_required": _E_TESTO, "missing_description": _E_TESTO,
+    "user not found": ("Përdoruesi nuk u gjet.", "Utente non trovato."), "utente non trovato": ("Përdoruesi nuk u gjet.", "Utente non trovato."),
+    "no file": _E_FILE, "missing file": _E_FILE, "no filename": _E_FILE,
+    "empty": ("Teksti është bosh.", "Il testo è vuoto."), "empty message": ("Mesazhi është bosh.", "Il messaggio è vuoto."),
+    "empty reply": ("Përgjigjja është bosh.", "La risposta è vuota."),
+    "AI returned invalid JSON": _E_TECNICO, "AI call failed": _E_TECNICO, "ai_json": _E_TECNICO, "ai_format": _E_TECNICO,
+    "invalid_date_format": ("Data nuk është në formatin e duhur.", "La data non è nel formato corretto."),
+    "bad_request": ("Kërkesë e pavlefshme.", "Richiesta non valida."),
+    "no fields": ("Asnjë fushë për të ndryshuar.", "Nessun campo da modificare."),
+    "name required": ("Shkruaj emrin.", "Scrivi il nome."),
+    "missing case_id": ("Zgjidh një rast.", "Scegli un fascicolo."),
+}
+
+
+@app.after_request
+def _errori_nella_lingua(resp):
+    try:
+        if resp.status_code < 400 or resp.mimetype != "application/json" or resp.direct_passthrough:
+            return resp
+        dati = resp.get_json(silent=True)
+        if not isinstance(dati, dict) or not isinstance(dati.get("error"), str):
+            return resp
+        coppia = _ERRORI_UMANI.get(dati["error"].strip())
+        if not coppia:
+            return resp
+        dati = dict(dati, code=dati.get("code") or dati["error"], error=_t_err(*coppia))
+        resp.set_data(json.dumps(dati, ensure_ascii=False))
+    except Exception:  # noqa: BLE001 — una traduzione non deve mai rompere una risposta
+        pass
+    return resp
 
 
 def _active_jurisdiction(user):

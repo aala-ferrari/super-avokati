@@ -625,6 +625,9 @@ def _basi_dubbie(afatet: list[dict], index) -> dict[str, str]:
     return out
 
 
+_TITOLO_UDIENZA = re.compile(r"\s*(?:l['’]\s*)?(?:udienza|seanc[aëe]|seancë)\b", re.I)
+
+
 def termini_di_legge(backend, index, innesco: dict, *, jurisdiction: str, lang: str, data: str,
                      altre_date: list[dict] | None = None) -> list[dict]:
     """L'evento del documento + la sua data → i termini DI LEGGE dal motore esistente (articoli del corpus, data dal codice).
@@ -645,6 +648,11 @@ def termini_di_legge(backend, index, innesco: dict, *, jurisdiction: str, lang: 
                        facts=fatti, jurisdiction=jurisdiction)
     out = []
     dubbi = _basi_dubbie(r.get("afatet") or [], index)
+    # v9.521: la riga del motore che È l'udienza scritta nel documento («Udienza di comparizione e trattazione», 02/02 senza ora)
+    # usciva come «termine» accanto all'udienza del documento (02/02 ore 9:30): due righe per la stessa udienza. Solo se il
+    # titolo comincia con l'udienza E il giorno è quello di un'udienza del documento diventa «udienza» — e il controllo dei
+    # doppioni la unisce (tenendo l'ora); «termine per comparire all'udienza» resta un termine
+    sedute = {p.get("data") for p in (altre_date or []) if p.get("kind") == "seance" and p.get("data")}
     for a in (r.get("afatet") or []):
         d = _iso(a.get("date"))
         if not d:
@@ -656,7 +664,8 @@ def termini_di_legge(backend, index, innesco: dict, *, jurisdiction: str, lang: 
         dubbio = dubbi.get(a.get("baza") or "")
         if dubbio:                                      # v9.457: la base che il verificatore non conferma alla data di oggi
             passi = [dubbio] + list(passi)
-        out.append({"tipo": "data", "kind": "afat", "titolo": str(a.get("title") or "")[:160], "data": d,
+        _kind = "seance" if d in sedute and _TITOLO_UDIENZA.match(str(a.get("title") or "")) else "afat"
+        out.append({"tipo": "data", "kind": _kind, "titolo": str(a.get("title") or "")[:160], "data": d,
                     "origine": "legge", "citazione": innesco.get("descrizione") or "", "base": a.get("baza") or "",
                     "cosa_fare": "", "verificato": (bool(a.get("baza")) and bool(a.get("passi")) and not dubbio
                                                     and not _BASE_INCERTA.search(a.get("baza") or "")),

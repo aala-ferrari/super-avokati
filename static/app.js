@@ -553,7 +553,8 @@
       const clone = messages.cloneNode(true);
       clone.querySelectorAll("button, input, textarea, select, .composer, #composer, .pro-menu, script, [contenteditable]").forEach((el) => el.remove());
       const te = document.getElementById("case-title-text");
-      const title = ((te && te.textContent) || "Rasti").trim();
+      const _itx = document.body.dataset.lang === "it";   // v9.523: l'esportazione nella lingua della sessione
+      const title = ((te && te.textContent) || (_itx ? "Caso" : "Rasti")).trim();
       const esc = (s) => String(s).replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]));
       const extra = 'html,body{max-width:100%;overflow-x:hidden;-webkit-text-size-adjust:100%}' +
         'body{background:#fff!important;margin:0;padding:22px;color:#1a1a1a}' +
@@ -570,17 +571,18 @@
         '.messages img{height:auto}' +
         '@media(max-width:640px){body{padding:14px}.exp-head{font-size:20px}.messages{max-width:100%}}' +
         '@media print{body{padding:0}}';
-      const doc = '<!doctype html><html lang="sq"><head><meta charset="utf-8">' +
+      const doc = '<!doctype html><html lang="' + (_itx ? "it" : "sq") + '"><head><meta charset="utf-8">' +
         '<meta name="viewport" content="width=device-width,initial-scale=1">' +
         '<title>' + esc(title) + ' — Super Avokati</title>' +
         '<style>' + css + '</style><style>' + extra + '</style></head><body>' +
         '<h1 class="exp-head">' + esc(title) + '</h1>' +
-        '<p class="exp-sub">Super Avokati — Beteja fitohet para se të nisë · ' + new Date().toLocaleString("sq") + '</p>' +
+        '<p class="exp-sub">Super Avokati — ' + (_itx ? "La battaglia si vince prima che inizi" : "Beteja fitohet para se të nisë") +
+        ' · ' + new Date().toLocaleString(_itx ? "it-IT" : "sq") + '</p>' +
         '<div class="messages">' + clone.innerHTML + '</div></body></html>';
       const blob = new Blob([doc], { type: "text/html;charset=utf-8" });
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
-      a.download = (title.replace(/[^a-z0-9]+/gi, "_").slice(0, 50) || "rasti") + ".html";
+      a.download = (title.replace(/[^a-z0-9]+/gi, "_").slice(0, 50) || (_itx ? "caso" : "rasti")) + ".html";
       document.body.appendChild(a);
       a.click();
       setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
@@ -1659,7 +1661,7 @@
     if (!w) { if (typeof toast === "function") toast("Lejo dritaret pop-up për PDF", "warn"); return; }
     var safeTitle = String(title || "Dokument").replace(/[<>&]/g, "");
     var body = (typeof renderMarkdown === "function") ? renderMarkdown(md || "") : escapeHtml(md || "");
-    w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>' + safeTitle +
+    w.document.write('<!doctype html><html lang="' + (_CAL_IT ? "it" : "sq") + '"><head><meta charset="utf-8"><title>' + safeTitle +
       '</title><style>body{font-family:Georgia,\'Times New Roman\',serif;max-width:800px;margin:32px auto;padding:0 24px;color:#111;line-height:1.55}' +
       'h1,h2,h3{color:#0f2540;line-height:1.3}h1{font-size:22px;border-bottom:2px solid #c9a24b;padding-bottom:6px}h2{font-size:18px}h3{font-size:15px}' +
       'ul,ol{margin:8px 0 8px 22px}code{background:#f3f3f3;padding:1px 4px;border-radius:3px;font-size:.92em}' +
@@ -1697,7 +1699,7 @@
       try {
         var r = await fetch("/api/cases/" + activeCaseId + "/research", {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ source: source, title: (titleHint || "Kërkim").slice(0, 120), content: md }),
+          body: JSON.stringify({ source: source, title: (titleHint || (_CAL_IT ? "Ricerca" : "Kërkim")).slice(0, 120), content: md }),
         });
         if (!r.ok) throw new Error();
         b.innerHTML = t("\u2713 U ruajt në fashikull");
@@ -1717,11 +1719,11 @@
     dx.addEventListener("click", async function () {
       dx.disabled = true;
       try {
-        var r = await fetch("/api/export/docx", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ markdown: md, title: titleHint || "Dokument" }) });
+        var r = await fetch("/api/export/docx", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ markdown: md, title: titleHint || (_CAL_IT ? "Documento" : "Dokument") }) });
         if (!r.ok) throw new Error();
         var blob = await r.blob(); var url = URL.createObjectURL(blob);
         var a2 = document.createElement("a"); a2.href = url;
-        a2.download = ((titleHint || "dokument").replace(/[^0-9A-Za-z _-]/g, "").slice(0, 60).trim() || "dokument") + ".docx";
+        a2.download = ((titleHint || "").replace(/[^\p{L}\p{N} _-]/gu, "").slice(0, 60).trim() || (_CAL_IT ? "documento" : "dokument")) + ".docx";
         document.body.appendChild(a2); a2.click(); a2.remove(); URL.revokeObjectURL(url);
       } catch (e) { if (typeof toast === "function") toast("Shkarkimi dështoi", "err"); }
       finally { dx.disabled = false; }
@@ -1730,7 +1732,7 @@
 
     var pf = document.createElement("button");
     pf.type = "button"; pf.className = "dl-pdf-btn"; pf.innerHTML = "⬇️ PDF";
-    pf.addEventListener("click", function () { _printAsPdf(titleHint || "Dokument", md); });
+    pf.addEventListener("click", function () { _printAsPdf(titleHint || (_CAL_IT ? "Documento" : "Dokument"), md); });
     container.appendChild(pf);
 
     // v9.507 — il parere pulito, solo per le risposte del cervello e solo se c'è una parte interna da togliere
@@ -1758,7 +1760,7 @@
           if (!r.ok) throw new Error();
           var blob = await r.blob(); var url = URL.createObjectURL(blob);
           var a3 = document.createElement("a"); a3.href = url;
-          a3.download = ((_CAL_IT ? "parere " : "mendim ") + (titleHint || "").replace(/[^0-9A-Za-z _-]/g, "").slice(0, 50)).trim() + ".docx";
+          a3.download = ((_CAL_IT ? "parere " : "mendim ") + (titleHint || "").replace(/[^\p{L}\p{N} _-]/gu, "").slice(0, 50)).trim() + ".docx";
           document.body.appendChild(a3); a3.click(); a3.remove(); URL.revokeObjectURL(url);
         } catch (e) { if (typeof toast === "function") toast(_CAL_IT ? "Download non riuscito" : "Shkarkimi dështoi", "err"); }
         finally { pd.disabled = false; }
@@ -5181,13 +5183,13 @@
           try {
             var rr = await fetch("/api/letters/docx", {
               method: "POST", headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ markdown: d.markdown || "", title: d.label || "Shkresë" }),
+              body: JSON.stringify({ markdown: d.markdown || "", title: d.label || (_CAL_IT ? "Lettera" : "Shkresë") }),
             });
             if (!rr.ok) throw new Error("HTTP " + rr.status);
             var blob = await rr.blob();
             var url = URL.createObjectURL(blob);
             var a = document.createElement("a");
-            a.href = url; a.download = (d.label || "shkrese") + ".docx";
+            a.href = url; a.download = (d.label || (_CAL_IT ? "lettera" : "shkrese")) + ".docx";
             document.body.appendChild(a); a.click(); a.remove();
             setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
           } catch (e) { status.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; }
@@ -6285,7 +6287,7 @@
       var blob = new Blob(["\ufeff" + righe.join("\r\n")], { type: "text/csv;charset=utf-8" });
       var a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
-      a.download = "tabela_dosjes.csv";
+      a.download = (document.body.dataset.lang === "it" ? "tabella_fascicolo.csv" : "tabela_dosjes.csv");
       a.click();
       setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
     });
@@ -7706,6 +7708,7 @@
   Object.assign(T_IT, { "Skedar shumë i madh për serverin.": "File troppo grande per il server.", "Serveri ktheu një përgjigje të papritur (HTTP ": "Il server ha risposto in modo inatteso (HTTP " });
   Object.assign(T_IT, { "Nuk u lexua asnjë skedar. Provo ta zgjedhësh me butonin.": "Nessun file letto. Prova a sceglierlo con il pulsante.", "Asnjë skedar i zgjedhur. Formatet e pranuara: PDF, Word, foto (JPG, PNG, HEIC).": "Nessun file selezionato. Formati accettati: PDF, Word, foto (JPG, PNG, HEIC).", "Skedar shumë i madh (max 25 MB): ": "File troppo grande (max 25 MB): " });
   Object.assign(T_IT, { "Po e analizojmë…": "Analisi in corso…" });
+  Object.assign(T_IT, { "Njoftimet nuk u lejuan": "Notifiche non consentite" });   // v9.523
   Object.assign(T_IT, { "Po lexoj faqen": "Lettura pagina" });          // v9.449: «Lettura pagina 23/60»
   Object.assign(T_IT, { "Tërhiqi këtu ose kliko për të zgjedhur · PDF, Word, foto · max 25 MB/skedar": "Trascina qui o clicca per scegliere · PDF, Word, foto · max 25 MB per file" });
   Object.assign(T_IT, { "dokumente u lexuan": "documenti letti" });

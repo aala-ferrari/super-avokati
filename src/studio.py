@@ -62,12 +62,14 @@ def _kwargs_mbledhesi(modeli: str, effort: str) -> dict[str, Any]:
 def _chiama(backend, *, system: str, user: str, modeli: str, effort: str,
             max_tokens: int, callsite: str, case_id: str | None = None,
             mbledhes: bool = False, budget_usd: float | None = None,
-            no_web: bool = False) -> str:
+            no_web: bool = False, timeout_s: int | None = None) -> str:
     kw = _kwargs_mbledhesi(modeli, effort) if mbledhes else _kwargs_modeli(modeli, effort)
     if budget_usd:
         kw["budget_usd"] = budget_usd
     if no_web:
         kw["no_web"] = True        # giudica i materiali dati: niente web (v9.315)
+    if timeout_s:
+        kw["timeout_s"] = int(timeout_s)   # v9.521: il processo si ferma davvero al tetto
     msgs = [{"role": "user", "content": user}]
     try:
         return backend.complete(system=system, messages=msgs, max_tokens=max_tokens,
@@ -77,6 +79,7 @@ def _chiama(backend, *, system: str, user: str, modeli: str, effort: str,
         kw.pop("model_override", None)
         kw.pop("budget_usd", None)
         kw.pop("no_web", None)
+        kw.pop("timeout_s", None)
         return backend.complete(system=system, messages=msgs, max_tokens=max_tokens,
                                 callsite=callsite, case_id=case_id, **kw) or ""
 
@@ -854,7 +857,7 @@ def _blocco_nenesh(retrieved, sa: int = 8, lang: str = "sq") -> str:
 
 
 def mbledhesi_web(backend, *, domanda, summary, retrieved, lang="sq", modeli="sonnet",
-                  effort="medium", budget_usd=0.3, case_id=None) -> dict:
+                  effort="medium", budget_usd=0.3, case_id=None, timeout_s=None) -> dict:
     _L = (("DOMANDA:", "RIASSUNTO:", "ARTICOLI NEL CORPUS:") if lang == "it"
           else ("PYETJA:", "PËRMBLEDHJA:", "NENET NË KORPUS:"))
     user = (f"{_L[0]}\n{(domanda or '')[:3000]}\n\n{_L[1]}\n{(summary or '')[:1200]}\n\n"
@@ -862,12 +865,12 @@ def mbledhesi_web(backend, *, domanda, summary, retrieved, lang="sq", modeli="so
     raw = _chiama(backend, system=MBLEDHES_WEB_SYSTEM.get(lang, MBLEDHES_WEB_SYSTEM["sq"]),
                   user=user, modeli=modeli, effort=effort, max_tokens=1800,
                   callsite="studio:mbledhes_web", case_id=case_id, mbledhes=True,
-                  budget_usd=budget_usd)
+                  budget_usd=budget_usd, timeout_s=timeout_s)
     return mbledhes_web_parse(raw)
 
 
 def mbledhesi_qbz(backend, *, retrieved, lang="sq", modeli="sonnet", effort="medium",
-                  budget_usd=0.3, case_id=None) -> list[dict]:
+                  budget_usd=0.3, case_id=None, timeout_s=None) -> list[dict]:
     nene = _nenet_qendrore(retrieved)
     if not nene:
         return []
@@ -876,12 +879,12 @@ def mbledhesi_qbz(backend, *, retrieved, lang="sq", modeli="sonnet", effort="med
     raw = _chiama(backend, system=MBLEDHES_QBZ_SYSTEM.get(lang, MBLEDHES_QBZ_SYSTEM["sq"]),
                   user=user, modeli=modeli, effort=effort, max_tokens=900,
                   callsite="studio:mbledhes_qbz", case_id=case_id, mbledhes=True,
-                  budget_usd=budget_usd)
+                  budget_usd=budget_usd, timeout_s=timeout_s)
     return mbledhes_qbz_parse(raw, lang)
 
 
 def mbledhesi_fletorja(backend, *, retrieved, lang="sq", modeli="sonnet", effort="medium",
-                       budget_usd=0.3, case_id=None) -> list[dict]:
+                       budget_usd=0.3, case_id=None, timeout_s=None) -> list[dict]:
     """Agent D: la modifica PIÙ RECENTE in Gazzetta per i nene centrali (ligji i gjallë)."""
     nene = _nenet_qendrore(retrieved)
     if not nene:
@@ -891,7 +894,7 @@ def mbledhesi_fletorja(backend, *, retrieved, lang="sq", modeli="sonnet", effort
     raw = _chiama(backend, system=MBLEDHES_FLETORJA_SYSTEM.get(lang, MBLEDHES_FLETORJA_SYSTEM["sq"]),
                   user=user, modeli=modeli, effort=effort, max_tokens=1000,
                   callsite="studio:mbledhes_fletorja", case_id=case_id, mbledhes=True,
-                  budget_usd=budget_usd)
+                  budget_usd=budget_usd, timeout_s=timeout_s)
     return mbledhes_fletorja_parse(raw)
 
 
@@ -907,18 +910,19 @@ def mbledh_dosjen(backend, *, domanda, summary, retrieved, lang="sq", modeli="so
     lavori = {}
     ex = ThreadPoolExecutor(max_workers=3)
     t0 = _t.time()
+    _tetto_proc = int(timeout_s) + 15   # v9.521: oltre il tetto il processo viene fermato, non lasciato a se stesso
     if web:
         lavori["web"] = ex.submit(mbledhesi_web, backend, domanda=domanda, summary=summary,
                                   retrieved=retrieved, lang=lang, modeli=modeli, effort=effort,
-                                  budget_usd=budget_usd, case_id=case_id)
+                                  budget_usd=budget_usd, case_id=case_id, timeout_s=_tetto_proc)
     if qbz:
         lavori["qbz"] = ex.submit(mbledhesi_qbz, backend, retrieved=retrieved, lang=lang,
                                   modeli=modeli, effort=effort, budget_usd=budget_usd,
-                                  case_id=case_id)
+                                  case_id=case_id, timeout_s=_tetto_proc)
     if fletorja:
         lavori["fletorja"] = ex.submit(mbledhesi_fletorja, backend, retrieved=retrieved,
                                        lang=lang, modeli=modeli, effort=effort,
-                                       budget_usd=budget_usd, case_id=case_id)
+                                       budget_usd=budget_usd, case_id=case_id, timeout_s=_tetto_proc)
     for emri, fut in lavori.items():
         resto = max(1.0, timeout_s - (_t.time() - t0))
         try:
@@ -926,7 +930,7 @@ def mbledh_dosjen(backend, *, domanda, summary, retrieved, lang="sq", modeli="so
         except Exception as exc:  # noqa: BLE001 — timeout o gabim: vazhdojmë pa të
             dosja["gabime"].append(f"{emri}: {type(exc).__name__}")
         dosja["kohe"][emri] = round(_t.time() - t0, 1)
-    ex.shutdown(wait=False)   # chi è in ritardo finisce da solo (ha il tetto di spesa)
+    ex.shutdown(wait=False)   # chi è in ritardo viene fermato dal suo tetto (v9.521: prima restava vivo fino a 45 min)
     return dosja
 
 

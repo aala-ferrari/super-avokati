@@ -489,7 +489,12 @@ class ClaudeCodeBackend(LLMBackend):
                  effort_override: str | None = None,
                  raw_system: bool = False,
                  no_web: bool = False,
-                 budget_usd: float | None = None) -> str:
+                 budget_usd: float | None = None,
+                 timeout_s: int | None = None) -> str:
+        # v9.521 — timeout_s: tetto di tempo di QUESTA chiamata (i raccoglitori: 110 s). Prima il loro tetto stava solo
+        # nel futuro (`fut.result(timeout=…)`): il processo restava vivo fino a 45 min, col suo posto nel semaforo e il web
+        # aperto — visto in produzione un raccoglitore web ancora acceso 9 minuti dopo la risposta
+        _tmo = int(timeout_s) if timeout_s else self.timeout_s
         # no_web (v9.315): niente WebSearch/WebFetch per chi deve giudicare SOLO
         # i materiali dati (il Giudice Finale navigava: 440.877 token in una
         # chiamata, soglia 400k — costo e lentezza senza valore).
@@ -669,7 +674,7 @@ class ClaudeCodeBackend(LLMBackend):
                             text=True,
                             encoding="utf-8",
                             errors="replace",
-                            timeout=self.timeout_s,
+                            timeout=_tmo,
                             cwd=str(_CWD_CERVELLO),
                             check=False,
                         )
@@ -677,7 +682,7 @@ class ClaudeCodeBackend(LLMBackend):
                     _emit_audit(outcome="error", response_text=None,
                                 error_class="TimeoutExpired")
                     raise RuntimeError(
-                        f"Tetramorph timed out after {self.timeout_s}s"
+                        f"Tetramorph timed out after {_tmo}s"
                     ) from exc
                 if _model_limit_hit(_p.stdout or "", _p.stderr or ""):
                     return _p, True          # quota del modello esaurita: non si aspetta
@@ -775,8 +780,21 @@ class ClaudeCodeBackend(LLMBackend):
             return text
 
         if proc.returncode != 0:
+            # v9.521 — il PERCHÉ dell'uscita: il 5 % dei raccoglitori (30 su 650) cadeva qui senza una riga di log e senza
+            # consumo registrato. La CLI dice il motivo nel JSON («terminal_reason»: budget_exhausted = tetto di spesa
+            # finito, rc 1) e il costo già speso: si scrivono entrambi, così si misura invece di indovinare
+            try:
+                _dati_err = json.loads((proc.stdout or "").strip() or "{}")
+                _dati_err = _dati_err if isinstance(_dati_err, dict) else {}
+            except (json.JSONDecodeError, ValueError):
+                _dati_err = {}
+            _motivo = str(_dati_err.get("terminal_reason") or _dati_err.get("subtype") or "")
             _emit_audit(outcome="error", response_text=None,
-                        error_class="NonZeroReturnCode")
+                        error_class="BudgetExhausted" if "budget" in _motivo else "NonZeroReturnCode",
+                        uso=_uso_da_risposta(_dati_err) if _dati_err else None)
+            log.warning("Tetramorph: %s uscito con rc=%s — motivo «%s», costo %s $, stderr «%s»", callsite or "?",
+                        proc.returncode, _motivo or "?", _dati_err.get("total_cost_usd", "?"),
+                        (proc.stderr or "").strip()[-200:].replace("\n", " "))
             raise RuntimeError(_humanize_cli_failure(
                 proc.returncode, proc.stdout, proc.stderr))
 
