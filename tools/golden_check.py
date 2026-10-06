@@ -8849,6 +8849,50 @@ def main():
     except Exception as _e300:  # noqa: BLE001
         check("sinistro[300]: kontrollet u ekzekutuan", False, str(_e300))
 
+    # [301] v9.525 — NASpI: «68 giorni — norma non tra quelle recuperate» in un licenziamento, «l'art. 4 non è tra gli articoli
+    # recuperati» in una domanda sulla NASpI → ancore dalla domanda; non nel penale, non in una domanda di lavoro qualsiasi
+    try:
+        from src import brain as _br301
+        from src.retrieval import ArticleIndex as _AI301
+        _br301.set_request_jurisdiction("IT")
+        _it301 = _AI301.load(__import__("pathlib").Path("/app/data/index/bm25_it.pkl"))
+        _k301 = lambda q, aree: {(a.code, str(a.number)) for a, _ in _br301._applica_ancore([], _it301, q, aree, ancore=_br301.ANCORE_IT)}
+        _n301 = _k301(["indennità di disoccupazione", "Il cliente è stato licenziato: quanto prende di NASpI e per quanto tempo?"], ["Lavoro"])
+        _l301 = _k301(["licenziamento disciplinare", "Il cliente è stato licenziato per giusta causa dopo una contestazione. Cosa fare?"], ["Lavoro"])
+        _p301 = _k301(["truffa", "Il cliente ha percepito la NASpI lavorando in nero: rischia il processo per truffa?"], ["Penale"])
+        _f301 = _k301(["ferie", "Il datore non concede le ferie al cliente: cosa può fare?"], ["Lavoro"])
+        _br301.set_request_jurisdiction("AL")
+        _att301 = {("naspi", "3"), ("naspi", "4"), ("naspi", "5"), ("naspi", "6")}
+        check("naspi[301]: domanda sulla NASpI → 3-6, licenziamento → 6 (68 giorni); mai nel penale né fuori tema",
+              _att301 <= _n301 and ("naspi", "6") in _l301 and ("naspi", "4") not in _l301
+              and not (_att301 & _p301) and not (_att301 & _f301), repr((sorted(_n301), sorted(_l301), sorted(_p301))))
+        # … e (AL) il compenso della detenzione ingiusta: KPP 268-269 dalla domanda, non per una misura cautelare qualsiasi
+        from src.retrieval import ArticleIndex as _AI301b
+        _al301 = _AI301b.load()
+        _ka301 = lambda q, aree: {(a.code, str(a.number)) for a, _ in _br301._applica_ancore([], _al301, q, aree)}
+        _d301 = _ka301(["dëmshpërblim për paraburgim", "Klienti u mbajt 8 muaj në paraburgim dhe u pafajësua. Çfarë kompensimi i takon?"], ["Penal", "Civil"])
+        _m301 = _ka301(["masa e sigurimit", "Klientit i dhanë paraburgim për vjedhje. Si e apelojmë masën?"], ["Penal"])
+        check("naspi[301]: (AL) detenzione ingiusta → KPP 268-269 dalla domanda; non per l'appello contro la misura",
+              {("kodi_proc_penale", "268"), ("kodi_proc_penale", "269")} <= _d301
+              and not ({("kodi_proc_penale", "268"), ("kodi_proc_penale", "269")} & _m301), repr((sorted(_d301), sorted(_m301))))
+    except Exception as _e301:  # noqa: BLE001
+        check("naspi[301]: kontrollet u ekzekutuan", False, str(_e301))
+
+    # [302] v9.526 — l'auto con targa extra-UE: oltre al regime doganale (CDU, Reg. 2015/2446) le SANZIONI nazionali del D.Lgs.
+    # 141/2024 (99, 96, 78, 94) — sei risposte vere dicevano «non è fra le norme recuperate»; mai per un'auto italiana
+    try:
+        from src import brain as _br302
+        from src.retrieval import ArticleIndex as _AI302
+        _it302 = _AI302.load(__import__("pathlib").Path("/app/data/index/bm25_it.pkl"))
+        _k302 = lambda t: {(a.code, str(a.number)) for a, _ in _br302._ancore_it_veicolo([], _it302, t)}
+        _v302 = _k302("Il cliente vive in Italia da tre anni e guida un'auto targata albanese intestata alla sua sh.p.k.: rischia la confisca?")
+        _i302 = _k302("Il cliente ha preso una multa con la sua auto immatricolata a Milano: come la contesta?")
+        _att302 = {("codice_doganale_nazionale", n) for n in ("99", "96", "78", "94")}
+        check("dogana[302]: auto extra-UE → anche le sanzioni del D.Lgs. 141/2024 (99, 96, 78, 94); auto italiana → nessuna",
+              _att302 <= _v302 and ("codice_strada", "93-bis") in _v302 and not _i302, repr((sorted(_v302), sorted(_i302))))
+    except Exception as _e302:  # noqa: BLE001
+        check("dogana[302]: kontrollet u ekzekutuan", False, str(_e302))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

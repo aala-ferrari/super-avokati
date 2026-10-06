@@ -58,6 +58,9 @@ CASI = [  # (giurisdizione, domanda dell'avvocato, articoli di cui almeno uno DE
     ("IT", "Il cliente, amministratore di una sh.p.k. albanese, residente in Italia, guida l'auto aziendale targata albanese. Rischia la confisca?", [("reg_ue_2015_2446", "215"), ("codice_strada", "93-bis")]),
     ("IT", "Il credito del cliente risale al 2013 e il debitore non ha mai pagato: è prescritto?", [("codice_civile", "2946")]),
     ("IT", "Il cliente è stato licenziato per giustificato motivo oggettivo, assunto nel 2018 in azienda con 30 dipendenti. Che tutele ha?", [("tutele_crescenti", "3")]),
+    # v9.525 — risposte vere del 1° e 3 ott: NASpI senza l'art. 4 (misura) e senza il 6 (68 giorni)
+    ("IT", "Il cliente è stato licenziato a settembre dopo 4 anni di lavoro: quanto prende di NASpI, per quanto tempo ed entro quando fa domanda?", [("naspi", "4")]),
+    ("IT", "Il cliente è stato licenziato per giusta causa dopo una contestazione disciplinare. Cosa può fare e cosa gli spetta?", [("naspi", "6")]),
 ]
 
 

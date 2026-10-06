@@ -192,6 +192,13 @@ ANCORE_AL: tuple = (
     (("deri kur", "brenda sa dit", "brenda cilës dat", "brenda çfarë afat", "kur skadon", "kur mbaron afati", ("afat", "apel"),
       ("afat", "ankim"), ("afat", "rekurs")),
      (), (("kodi_proc_penale", "144"),), r"parashkrim\w*", ("Penal",), True),
+    # v9.525 — il COMPENSO per la detenzione ingiusta (KPP 268: diritto di chi è assolto con sentenza definitiva; 269: domanda
+    # «ndryshe nuk pranohet» entro TRE anni dalla definitività). Banco di prova col triage vero (6 ott): passava a giri alterni —
+    # in uno il blocco si riempiva della legge sulla responsabilità dell'amministrazione (8, 13, 11, 19, 7) e i due articoli che
+    # decidono diritto e termine restavano fuori. Solo dalla domanda.
+    ((("paraburgim", "pafaj"), ("paraburgim", "kompens"), ("paraburgim", "dëmshpërbl"), ("paraburgim", "demshperbl"),
+      ("burgim", "pafaj", "kompens"), ("arrest", "pafaj", "kompens"), ("burgim të padrejt",), ("burgim i padrejt",)),
+     (), (("kodi_proc_penale", "268"), ("kodi_proc_penale", "269")), None, None, True),
 )
 # v9.380 — ancore italiane di REGOLA GENERALE (stesso metro): «il credito risale al 2013 — è prescritto?» → il triage cerca
 # ordinaria + interruzione + sospensione e il 2946 c.c. «Prescrizione ordinaria» finiva oltre il 12° (2945, 2935, 2964 sopra).
@@ -221,6 +228,14 @@ ANCORE_IT: tuple = (
     # portava solo il completamento. Solo dalla DOMANDA dell'avvocato (il triage parla di «prescrizione» anche dove non c'è sinistro).
     ((("prescri", "incident"), ("prescri", "sinistr"), ("prescri", "stradal"), ("prescri", "investit"), ("prescri", "tampon")),
      (), (("codice_penale", "590"), ("codice_penale", "590-bis"), ("codice_penale", "157")), None, None, True),
+    # v9.525 — la NASpI (D.Lgs. 22/2015). Risposte vere del 1° e 3 ott: «la domanda va presentata nei termini di legge (68 giorni —
+    # norma non tra quelle recuperate)» in un licenziamento disciplinare, e «misura, massimale e décalage stanno nell'art. 4, che non
+    # è tra gli articoli recuperati» in una domanda sulla NASpI: le rubriche dicono «Requisiti», «Calcolo e misura», «Durata»,
+    # «Domanda e decorrenza» senza la parola NASpI. Domanda sulla NASpI → 3, 4, 5, 6; licenziamento → solo il 6 (decadenza di 68
+    # giorni dalla cessazione: soldi del cliente). Solo dalla DOMANDA, mai nel penale.
+    (("naspi", "disoccupazion"), ("Penale", "Penal"),
+     (("naspi", "3"), ("naspi", "4"), ("naspi", "5"), ("naspi", "6")), None, None, True),
+    (("licenzi",), ("Penale", "Penal"), (("naspi", "6"),), None, None, True),
     # v9.401 — la SOSPENSIONE FERIALE (L. 742/1969): l'art. 3 la esclude per le controversie di lavoro e previdenza (gli artt.
     # 429 e 459 c.p.c. che richiama sono quelli anteriori al 1973: oggi 409 e 442). Misurato (28 set, prove vive v9.400): la
     # bozza di un ricorso per licenziamento salvava il termine di 180 giorni dell'art. 6 L. 604/1966 «in ragione della
@@ -382,8 +397,15 @@ def _senza_codice_minori(pairs, testo: str):
 # sono tra quelli acquisiti… non li invento». Un veicolo extra-UE usato in Italia da chi vi risiede è anzitutto una
 # questione DOGANALE (ammissione temporanea: CDU 250; Reg. 2446 artt. 212, 214, 215, 217) oltre che di circolazione
 # (C.d.S. 93-bis). Scatta SOLO con un veicolo E un segnale extra-UE esplicito; entra dichiarata come ancora.
+# v9.526 — + le SANZIONI doganali nazionali (D.Lgs. 141/2024, All. 1): sei risposte vere dal 25 set al 4 ott dicevano «il D.Lgs.
+# 141/2024 non è fra le norme recuperate: articolo da verificare» (o «non azzardo numeri») — il decreto è nel corpus ma la ricerca
+# non lo porta. Decisivi: 99 c. 2 (mancato appuramento del regime speciale nei termini: 150-2.000 €, il caso dell'ammissione
+# temporanea scaduta), 96 (sotto le soglie il contrabbando degli artt. 78-83 è illecito amministrativo, 100-200 % dei diritti),
+# 78 (contrabbando per omessa dichiarazione), 94 (confisca nel contrabbando).
 ANCORE_IT_VEICOLO_EXTRA_UE = (("codice_strada", "93-bis"), ("codice_doganale_ue", "250"), ("reg_ue_2015_2446", "212"),
-                              ("reg_ue_2015_2446", "214"), ("reg_ue_2015_2446", "215"), ("reg_ue_2015_2446", "217"))
+                              ("reg_ue_2015_2446", "214"), ("reg_ue_2015_2446", "215"), ("reg_ue_2015_2446", "217"),
+                              ("codice_doganale_nazionale", "99"), ("codice_doganale_nazionale", "96"),
+                              ("codice_doganale_nazionale", "78"), ("codice_doganale_nazionale", "94"))
 _VEICOLO_RX = re.compile(r"\b(?:auto(?:mobil\w*|vettur\w*|veicol\w*)?|veicol\w*|macchin\w*|targ\w*|immatricol\w*|motoveicol\w*|"
                          r"furgon\w*|camion\w*|moto)\b", re.I)
 _EXTRA_UE_RX = re.compile(r"\b(?:albanes\w*|albania|extra[- ]?ue|extra[- ]?comunitar\w*|extracomunitar\w*|non[- ]ue|svizzer\w*|"
