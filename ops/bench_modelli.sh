@@ -8,6 +8,10 @@
 #   Db = sala di guerra: D3 tutto Opus 5.5 (inizio e fasi junior medium, senior high, Giudice max; diavolo Fable high) ·
 #        D2 senior Opus 5.5 high + Giudice Opus 5.5 max (inizio Sonnet)
 IMG=${IMG:-super-avvocato:v9.393}
+# v9.518 — la copia delle credenziali la prepara lo script e la cancella alla fine (prima la si creava a mano e restava in /tmp:
+# il 6 ott ne ho trovate quattro, 5 GB, col token d'accesso dentro). Il CLI nuovo RISCRIVE .credentials.json: mai la cartella vera.
+rm -rf /tmp/creds-test && cp -a /opt/claude-creds /tmp/creds-test && chown -R 1000:1000 /tmp/creds-test
+trap 'rm -rf /tmp/creds-test' EXIT
 L=/var/log/superavokati/bench393
 mkdir -p "$L"
 SIMPLE="al-parashkrim-civil-01,al-zhurma-makina-01,al-trashegimi-ligjore-pjeset-01,al-mosha-pergjegjesise-penale-01,al-afati-ankimit-civil-01,al-neni-88-kp-01,al-divorci-pelqim-01,al-ketamina-7975-01,it-prescrizione-ordinaria-01,it-prescrizione-illecito-01,it-impugnazione-licenziamento-01,it-art-2043-01"
