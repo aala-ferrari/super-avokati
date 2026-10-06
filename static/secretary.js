@@ -84,21 +84,21 @@
     sq: { title: "Tetramorph", sub: "Sekretarja jote AI", ph: "Shkruaj ose fol…",
       hi: "Përshëndetje! Jam Tetramorph, sekretarja jote. Pyet për seancat, takimet ose afatet e tua — ose thuaj p.sh. «regjistro një seancë më 4 gusht ora 10».",
       confirm: "Konfirmo", cancel: "Anulo", err: "Ndodhi një gabim. Provo përsëri.",
-      speak: "Dëgjo me zë", ttsOn: "Zëri: ndezur", ttsOff: "Zëri: fikur",
+      speak: "Dëgjo me zë", ttsOn: "Zëri: ndezur", ttsOff: "Zëri: fikur", close: "Mbyll", mic: "Fol", send: "Dërgo", voice: "Zëri",
       micHint: "Në iPhone përdor mikrofonin e tastierës për të diktuar.",
       micErr: "Zëri nuk u kap. Provo përsëri ose shkruaj.",
       micDenied: "Leja e mikrofonit u refuzua. Aktivizoje te cilësimet." },
     it: { title: "Tetramorph", sub: "La tua segretaria AI", ph: "Scrivi o parla…",
       hi: "Ciao! Sono Tetramorph, la tua segretaria. Chiedimi delle tue udienze, appuntamenti o scadenze — o dì ad es. «registra un'udienza il 4 agosto alle 10».",
       confirm: "Conferma", cancel: "Annulla", err: "Si è verificato un errore. Riprova.",
-      speak: "Ascolta", ttsOn: "Voce: attiva", ttsOff: "Voce: spenta",
+      speak: "Ascolta", ttsOn: "Voce: attiva", ttsOff: "Voce: spenta", close: "Chiudi", mic: "Parla", send: "Invia", voice: "Voce",
       micHint: "Su iPhone usa il microfono della tastiera per dettare.",
       micErr: "Voce non rilevata. Riprova o scrivi.",
       micDenied: "Permesso microfono negato. Attivalo nelle impostazioni." },
     en: { title: "Tetramorph", sub: "Your AI secretary", ph: "Type or speak…",
       hi: "Hi! I'm Tetramorph, your secretary. Ask about your hearings, appointments or deadlines — or say e.g. \"add a hearing on August 4 at 10\".",
       confirm: "Confirm", cancel: "Cancel", err: "Something went wrong. Try again.",
-      speak: "Listen", ttsOn: "Voice: on", ttsOff: "Voice: off",
+      speak: "Listen", ttsOn: "Voice: on", ttsOff: "Voice: off", close: "Close", mic: "Speak", send: "Send", voice: "Voice",
       micHint: "On iPhone use the keyboard mic to dictate.",
       micErr: "No speech detected. Try again or type.",
       micDenied: "Microphone permission denied. Enable it in settings." }
@@ -141,13 +141,13 @@
   panel.innerHTML =
     '<div class="sekr-head"><span class="mini"></span><span><b>' + L.title +
     '</b><small>' + L.sub + '</small></span>' +
-    '<button class="sekr-tts" title="' + L.ttsOff + '" aria-label="voice">🔇</button>' +
-    '<button class="sekr-x" aria-label="Close">×</button></div>' +
+    '<button class="sekr-tts" title="' + L.ttsOff + '" aria-label="' + L.voice + '">🔇</button>' +
+    '<button class="sekr-x" aria-label="' + L.close + '">×</button></div>' +
     '<div class="sekr-body"></div>' +
     '<div class="sekr-foot">' +
-    '<button class="sekr-mic" title="Voice">🎤</button>' +
+    '<button class="sekr-mic" title="' + L.mic + '">🎤</button>' +
     '<textarea rows="1" placeholder="' + L.ph + '"></textarea>' +
-    '<button class="sekr-send" title="Send">➤</button></div>';
+    '<button class="sekr-send" title="' + L.send + '">➤</button></div>';
 
   document.body.appendChild(fab);
   document.body.appendChild(panel);

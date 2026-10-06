@@ -8662,6 +8662,34 @@ def main():
     except Exception as _e293:  # noqa: BLE001
         check("grassetto[293]: kontrollet u ekzekutuan", False, str(_e293))
 
+    # [294] v9.520 — dalla prova in Chrome: il caso nuovo nasce col titolo nella lingua della sessione («Nuovo caso», e la prima
+    # domanda lo sostituisce anche così); con Telegram già collegato il pulsante non invita più a «collegarlo»
+    try:
+        from src import web as _w294
+        _a294 = __import__("pathlib").Path("/app/static/app.js").read_text(encoding="utf-8")
+        _s294 = __import__("inspect").getsource(_w294)
+        check("ritocchi[294]: titolo predefinito nella lingua della sessione e riconosciuto per il titolo automatico; pulsante Telegram secondo lo stato",
+              "Nuovo caso" in _w294._TITOLI_PREDEFINITI and "Rast i ri" in _w294._TITOLI_PREDEFINITI
+              and '("Nuovo caso" if attiva == "IT" else "Rast i ri")' in _s294 and _s294.count("case.title in _TITOLI_PREDEFINITI") == 2
+              and 'createCase(title = (document.body.dataset.lang === "it" ? "Nuovo caso" : "Rast i ri"))' in _a294
+              and '"Ricollega o cambia account"' in _a294)
+    except Exception as _e294:  # noqa: BLE001
+        check("ritocchi[294]: kontrollet u ekzekutuan", False, str(_e294))
+
+    # [295] v9.520 — parole inglesi nell'interfaccia (scansione del DOM vivo da telefono): «Provenance ·» sul riquadro, «Refusal» in
+    # albanese, la Segretaria con «Close / Voice / Send» fissi, «Dil / Logout»
+    try:
+        _P295 = __import__("pathlib").Path
+        _a295 = _P295("/app/static/app.js").read_text(encoding="utf-8")
+        _sk295 = _P295("/app/static/secretary.js").read_text(encoding="utf-8")
+        _h295 = _P295("/app/templates/index.html").read_text(encoding="utf-8")
+        check("inglese[295]: Provenienza/Prejardhja, Refuzim, Segretaria tradotta, uscita tradotta",
+              '<span class="prov-label">${PL.nome} ·' in _a295 and 'nome: "Provenienza"' in _a295 and "⚠ Refusal" not in _a295
+              and 'aria-label="Close"' not in _sk295 and 'title="Send"' not in _sk295 and 'close: "Chiudi"' in _sk295
+              and "secretary.js?v=2" in _h295 and 'aria-label="Dil / Logout"' not in _h295)
+    except Exception as _e295:  # noqa: BLE001
+        check("inglese[295]: kontrollet u ekzekutuan", False, str(_e295))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

@@ -240,7 +240,7 @@
     return li;
   }
 
-  async function createCase(title = "Rast i ri") {
+  async function createCase(title = (document.body.dataset.lang === "it" ? "Nuovo caso" : "Rast i ri")) {   // v9.520
     const resp = await fetch("/api/cases", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -2798,12 +2798,12 @@
     // e aperto mostrava l'identificativo tecnico del modello: il motore si chiama Tetramorph.
     const _pit = !!(document.body && document.body.dataset && document.body.dataset.lang === "it");
     const PL = _pit ? {
-      conf: "affidabilità", hint: "clicca per i dettagli", refusal: "⚠ Rifiuto: le citazioni non sono state verificate, la risposta è registrata come incerta.",
+      nome: "Provenienza", conf: "affidabilità", hint: "clicca per i dettagli", refusal: "⚠ Rifiuto: le citazioni non sono state verificate, la risposta è registrata come incerta.",
       id: "ID risposta", motore: "Motore", kb: "Versione KB", prompt: "Versione prompt", hin: "Hash richiesta", hout: "Hash risposta",
       juris: "Giurisdizione", ts: "Data e ora", json: "📄 Esporta JSON", docx: "📑 DOCX per il fascicolo",
       lvl: {"I lartë": "Alta", "Mesatar": "Media", "I ulët": "Bassa"},
     } : {
-      conf: "besimi", hint: "klik për detajet", refusal: "⚠ Refusal: citimet u dështuan, përgjigjja shënohet si e pasigurt.",
+      nome: "Prejardhja", conf: "besimi", hint: "klik për detajet", refusal: "⚠ Refuzim: citimet nuk u verifikuan, përgjigjja shënohet si e pasigurt.",
       id: "ID përgjigjeje", motore: "Motori", kb: "Versioni KB", prompt: "Versioni prompt", hin: "Hash kërkese", hout: "Hash përgjigjeje",
       juris: "Juridiksioni", ts: "Koha", json: "📄 Eksporto JSON", docx: "📑 DOCX për fashikull",
       lvl: {},
@@ -2815,7 +2815,7 @@
     wrap.innerHTML = `
       <summary>
         <span class="prov-icon">🔒</span>
-        <span class="prov-label">Provenance · ${PL.conf} ${pct}% (${escapeHtml(PL.lvl[label] || label)})</span>
+        <span class="prov-label">${PL.nome} · ${PL.conf} ${pct}% (${escapeHtml(PL.lvl[label] || label)})</span>
         <span class="prov-hint">${PL.hint}</span>
       </summary>
       ${refusalLine}
@@ -4414,6 +4414,12 @@
           tgStatus.textContent = tgData.linked
             ? _sT("✅ Telegram-i është lidhur. Kujtesat do të dërgohen automatikisht.", "✅ Telegram è collegato. Gli avvisi partono da soli.")
             : _sT("Telegram-i nuk është lidhur ende.", "Telegram non è ancora collegato.");
+        }
+        // v9.520 — già collegato: il pulsante e la spiegazione non invitano più a «collegarlo» (prova in Chrome del 6 ott)
+        if (tgData.linked) {
+          if (tgLink) tgLink.textContent = _sT("Lidh përsëri / ndrysho llogarinë", "Ricollega o cambia account");
+          if (tgHint) tgHint.textContent = _sT("Telegram-i është lidhur: kujtesat e seancave dhe të afateve të vijnë në bot. Shtyp butonin vetëm për të lidhur një llogari tjetër.",
+                                               "Telegram è collegato: gli avvisi di udienze e scadenze ti arrivano sul bot. Premi il pulsante solo per collegare un altro account.");
         }
       }
       icalModal.hidden = false;

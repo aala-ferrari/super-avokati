@@ -1412,8 +1412,10 @@ def api_create_case():
                             "needed": "create_case",
                             "your_role": role}), 403
     data = request.get_json(force=True, silent=True) or {}
-    title = (data.get("title") or "").strip() or "Rast i ri"
     attiva = _active_jurisdiction(user)
+    # v9.520 — il titolo predefinito nella lingua della sessione (prima «Rast i ri» anche in Italia: a schermo lo traduceva
+    # l'interfaccia, ma nelle email degli avvisi e nei documenti esportati restava albanese)
+    title = (data.get("title") or "").strip() or ("Nuovo caso" if attiva == "IT" else "Rast i ri")
     jurisdiction = (data.get("jurisdiction") or attiva).upper()
     if jurisdiction != attiva:
         # Un fascicolo nasce SEMPRE nella giurisdizione della sessione: un
@@ -7310,7 +7312,7 @@ def api_ask():
             )
 
     # Auto-title the case with the first user message if it's still default.
-    if case.title in ("Rast i ri", "Rast pa titull"):
+    if case.title in _TITOLI_PREDEFINITI:
         auto_title = _tronca_titolo(" ".join(message.split()), 60)   # v9.496: su parola intera
         if auto_title:
             storage.rename_case(case.id, user.id, auto_title)
@@ -7529,7 +7531,7 @@ def _ask_prepare(user, data):
                 storage.set_case_answer_system_version(
                     case.id, user.id, ANSWER_SYSTEM_VERSION,
                 )
-            if case.title in ("Rast i ri", "Rast pa titull"):
+            if case.title in _TITOLI_PREDEFINITI:
                 auto_title = _tronca_titolo(" ".join(message.split()), 60)   # v9.496: su parola intera
                 if auto_title:
                     storage.rename_case(case.id, user.id, auto_title)
@@ -7987,6 +7989,9 @@ def _autopopulate_events_from_result(
     except Exception as exc:  # noqa: BLE001
         log.warning("proposte dall'analisi non salvate: %s", exc)
         return 0
+
+
+_TITOLI_PREDEFINITI = ("Rast i ri", "Rast pa titull", "Nuovo caso", "Caso senza titolo")   # v9.520: anche quelli italiani
 
 
 def _tronca_titolo(testo: str, n: int) -> str:
