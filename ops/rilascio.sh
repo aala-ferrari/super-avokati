@@ -21,6 +21,7 @@ if ! docker build -q -t "super-avvocato:$V" . > /dev/null 2>> "$OUT"; then
   echo "BUILD FALLITO: niente deploy" >> "$OUT"; echo QA_FINITA >> "$OUT"; exit 1
 fi
 T=$(mktemp -d /tmp/tqa.XXXX)
+trap 'rm -rf "$T"' EXIT      # v9.518: la copia del DB (e delle credenziali) non resta in /tmp nemmeno se lo script si interrompe
 python3 -c "import sqlite3;s=sqlite3.connect('$APP/data/app.db');d=sqlite3.connect('$T/app.db');s.backup(d);d.close()"
 chown -R 1000:1000 "$T"
 docker run --rm --name "sa-q-$V" --memory=6000m --oom-score-adj=900 --env-file /opt/super-avvocato.env \

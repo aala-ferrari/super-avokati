@@ -7,6 +7,7 @@
 set -u
 APP=/var/www/apps/super-avvocato
 T=$(mktemp -d /tmp/misure.XXXX)
+trap 'rm -rf "$T"' EXIT      # v9.518: la copia del DB (e delle credenziali) non resta in /tmp nemmeno se lo script si interrompe
 IMG=$(docker inspect -f '{{.Config.Image}}' super-avvocato)
 mkdir -p "$T/tqa"
 python3 -c "import sqlite3;s=sqlite3.connect('$APP/data/app.db');d=sqlite3.connect('$T/tqa/app.db');s.backup(d);d.close()"
