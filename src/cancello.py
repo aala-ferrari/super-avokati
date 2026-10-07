@@ -184,6 +184,10 @@ def _barra(text: str, index, lang: str, retrieved_codes=None) -> tuple[str, int,
             _succ = next((i.get("successori") for i in items if i.get("status") == "repealed" and i.get("successori")), None)
             if st == "repealed" and _succ and lang == "it":
                 nota = f" [⚠ articolo abrogato — oggi art. {_succ[0]['number']} {_succ[0]['label']}]"
+            # v9.538: l'ATTO intero abrogato fuori corpus (TULD, Reg. 2454/93) — l'etichetta dice da chi
+            _aab = next((i for i in items if i.get("status") == "repealed" and i.get("resolved_by") == "atto_abrogato_it"), None)
+            if st == "repealed" and _aab and lang == "it" and _aab.get("article_heading"):
+                nota = f" [⚠ {_aab['article_heading']}]"
             out.append(text[last:m.end()] + nota); last = m.end(); etichettati += 1
     out.append(text[last:])
     return "".join(out), rimossi, etichettati

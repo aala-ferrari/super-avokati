@@ -953,6 +953,13 @@ def _resolve_code_it(tail: str):
     # chiave). Parola intera, mai sottostringa («testo lavoro» non deve diventare lo Statuto).
     if re.search(r"(?<![a-z])st(?:at)?\.?\s?lav(?:\.|(?![a-z]))", _low):
         return "statuto_lavoratori"
+    # v9.538 — due sigle che il cervello usa e che uscivano «senza codice» (risposte vere, 60 giorni): «art. 9 TUI» (testo unico
+    # immigrazione) e «art. 145 CAP» (codice delle assicurazioni private). Solo MAIUSCOLE e parola intera: «TUIR» resta il TUIR,
+    # «cap.» (capo, minuscolo) non c'entra
+    if re.search(r"(?<![A-Za-z])TUI(?![A-Za-z])", tail or ""):
+        return "tu_immigrazione"
+    if re.search(r"(?<![A-Za-z])CAP(?![A-Za-z])", tail or ""):
+        return "codice_assicurazioni"
     # v9.511 (banco di prova del 5 ott): «art. 340 Reg. C.d.S.» / «Reg. esec. C.d.S.» — la forma con cui si cita il REGOLAMENTO del
     # Codice della strada — compattata è «regcds»: nessuna chiave lunga la prendeva e vinceva la sigla «cds» → art. 340 del CODICE,
     # che non esiste → «inesistente», e il cancello barrava una citazione vera. «Reg.» (anche «di esecuzione/attuazione») DAVANTI a
@@ -1423,6 +1430,21 @@ def _fino_al_tu(d) -> str:
 def _ctu_label(chiave: str) -> str:
     from . import corrispondenze_tu as _ctu
     return _ctu.etichetta_atto(chiave)
+
+
+def _atto_abrogato_it(coda: str, index):
+    from . import atti_abrogati_it as _aa
+    return _aa.cerca(coda, index)
+
+
+def _ab_etichetta(k: str) -> str:
+    from . import atti_abrogati_it as _aa
+    return _aa.etichetta(k)
+
+
+def _ab_testo(k: str, voce: dict) -> str:
+    from . import atti_abrogati_it as _aa
+    return _aa.testo(k, voce)
 
 
 def _chiave_trasfuso(tail: str) -> str | None:
@@ -1953,6 +1975,23 @@ def verify_text(
                         article_heading=((_testo_successori(_succ, "vigente", _fino_al_tu(_fut)) if _fut else
                                           _testo_successori(_succ, "trasfuso")) if _succ else None),
                         resolved_by="trasfuso" if _succ else "fuori_corpus", successori=_succ or None))
+                continue
+            # v9.538 — un atto italiano ABROGATO che non è nel corpus («art. 301 TULD», «art. 561 Reg. 2454/93»): «abrogato da
+            # …», non «senza codice». Il registro si legge dalle liste di abrogazione del corpus (src/atti_abrogati_it.py)
+            # oltre la coda SOLO se la citazione continua con la virgola («… d.P.R. 23 gennaio 1973, n. 43»): mai l'atto della frase
+            # dopo («art. 216, comma 6 … del d.P.R. 43/1973» era un art. 216 del C.d.S.)
+            _ab = _atto_abrogato_it(tail + ((" " + text[m.end():m.end() + 40]) if re.match(r"\s*,", text[m.end():m.end() + 3])
+                                            else ""), index)
+            if _ab:
+                for number_raw in numbers:
+                    number = _normalise_number(number_raw)
+                    if (number, "AB:" + _ab[0]) in seen:
+                        continue
+                    seen.add((number, "AB:" + _ab[0]))
+                    citations.append(Citation(
+                        raw=(_cite_prefix + number_raw) if multi else full_raw, number=number, code=None,
+                        code_label=_ab_etichetta(_ab[0]), status="repealed", candidates=[],
+                        article_heading=_ab_testo(_ab[0], _ab[1]), resolved_by="atto_abrogato_it"))
                 continue
         if code is None and not kp_bare:
             _fcode = _resolve_foreign(tail)

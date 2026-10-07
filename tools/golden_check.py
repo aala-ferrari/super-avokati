@@ -9084,6 +9084,34 @@ def main():
     except Exception as _e310:  # noqa: BLE001
         check("omoglifi[310]: kontrollet u ekzekutuan", False, f"{type(_e310).__name__}: {_e310}")
 
+    # [311] v9.538 — gli atti ITALIANI abrogati che non sono nel corpus (TULD d.P.R. 43/1973 → D.Lgs. 141/2024, Reg. 2454/93):
+    # «abrogato da …», non «senza codice»; registro letto dalle liste di abrogazione del corpus, mai le parziali, mai le
+    # abrogazioni future dei testi unici fiscali, mai «può essere modificato o abrogato»; e le sigle «TUI» e «CAP»
+    try:
+        from pathlib import Path as _P311
+        from src.retrieval import ArticleIndex as _AI311
+        from src import atti_abrogati_it as _aa311, citation_verifier as _cv311
+        _ix311 = _AI311.load(_P311("/app/data/index/bm25_it.pkl"))
+        _r311 = _aa311.costruisci(_ix311)
+        check("abrogati_it[311]: nel registro TULD (D.Lgs. 141/2024), Reg. 2913/92 (CDU), Reg. 2454/93, L. 1204/1971",
+              all(k in _r311 for k in ("dpr:43:1973", "reg:2913:1992", "reg:2454:1993", "l:1204:1971"))
+              and "141/2024" in (_r311.get("dpr:43:1973") or {}).get("da", ""), str(len(_r311)))
+        check("abrogati_it[311]: fuori le parziali (L. 125/1991 salvo art. 11), «può essere abrogato» (d.P.R. 412/1993), gli atti del corpus",
+              not any(k in _r311 for k in ("l:125:1991", "dpr:412:1993", "l:604:1966", "dlgs:368:2001")))
+        def _st311(t, n):
+            return {i["number"]: (i["status"], i.get("code")) for i in _cv311.verify_text(t, _ix311)["items"]}.get(n)
+        check("abrogati_it[311]: «art. 301 TULD», «art. 282 del d.P.R. 23 gennaio 1973, n. 43», «art. 561 Reg. 2454/93» → abrogati",
+              _st311("La confisca ex art. 301 TULD.", "301") == ("repealed", None)
+              and _st311("Si applicava l'art. 282 del d.P.R. 23 gennaio 1973, n. 43, oggi abrogato.", "282") == ("repealed", None)
+              and _st311("Il vecchio art. 561 Reg. 2454/93.", "561") == ("repealed", None))
+        check("abrogati_it[311]: un art. 216 C.d.S. non prende il TULD della frase dopo; TUI e CAP sul codice giusto; TUIR resta TUIR",
+              _st311("La sanzione dell'art. 216, comma 6, C.d.S. è grave. Nel d.P.R. 43/1973 era diverso.", "216") == ("verified", "codice_strada")
+              and _st311("Il permesso (art. 9 TUI) dura.", "9") == ("verified", "tu_immigrazione")
+              and _st311("Il termine dell'art. 145 CAP.", "145") == ("verified", "codice_assicurazioni")
+              and (_st311("L'art. 73 TUIR definisce i soggetti.", "73") or ("", ""))[1] != "tu_immigrazione")
+    except Exception as _e311:  # noqa: BLE001
+        check("abrogati_it[311]: kontrollet u ekzekutuan", False, f"{type(_e311).__name__}: {_e311}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
