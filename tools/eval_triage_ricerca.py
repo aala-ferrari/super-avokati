@@ -80,6 +80,12 @@ CASI = [  # (giurisdizione, domanda dell'avvocato, articoli di cui almeno uno DE
     ("IT", "[frek-it2] La cliente è caduta su una buca del marciapiede comunale e si è rotta il polso. Chi risponde e cosa deve provare?", [("codice_civile", "2051")]),
     ("IT", "[frek-it2] Il cliente coltiva e recinta da 25 anni un terreno del vicino senza che nessuno abbia mai detto nulla. Può diventarne proprietario?", [("codice_civile", "1158")]),
     ("IT", "[frek-it2] Il cliente divorzia dopo 20 anni di matrimonio; la moglie non ha mai lavorato. Le spetta l'assegno divorzile?", [("divorzio", "5")]),
+    # v9.537 — nono giro (società, assicurazione del sinistro, responsabilità medica)
+    ("IT", "[frek9] L'amministratore della srl ha prelevato soldi dalla società senza giustificazione. Il cliente, socio al 30%, cosa può fare?", [("codice_civile", "2476")]),
+    ("IT", "[frek9] Il cliente ha avuto un tamponamento: l'assicurazione dell'altro non risponde da due mesi. Come funziona la richiesta di risarcimento?", [("codice_assicurazioni", "148"), ("codice_assicurazioni", "149")]),
+    ("IT", "[frek9] La cliente ha subito un intervento sbagliato in un ospedale pubblico. Contro chi agiamo e cosa dobbiamo fare prima della causa?", [("responsabilita_sanitaria", "7"), ("responsabilita_sanitaria", "8")]),
+    ("AL", "[frek9] Klienti pati një aksident, faji ishte i tjetrit, dhe siguruesi nuk po i përgjigjet prej dy muajsh. Si ta detyrojmë të paguajë?", [("ligji_sigurimi_mjeteve", "10"), ("ligji_sigurimi_mjeteve", "9")]),
+    ("AL", "[frek9] Klienti është ortak me 40% në një shpk dhe dëshiron të largohet nga shoqëria. Si e bën dhe çfarë i takon?", [("ligji_shoqerite_tregtare", "101"), ("ligji_shoqerite_tregtare", "103"), ("ligji_shoqerite_tregtare", "73")]),
     # v9.534 — ottavo giro (lavoro, consumo, strada, locazione, condominio, immigrazione)
     ("IT", "[frek8] Il cliente si è dimesso dopo 12 anni e il datore non gli ha ancora pagato il TFR. Come si calcola e cosa facciamo?", [("codice_civile", "2120")]),
     ("IT", "[frek8] Il cliente ha comprato online un divano e dopo una settimana vuole restituirlo. Può farlo senza motivo?", [("codice_consumo", "52")]),

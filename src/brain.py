@@ -206,6 +206,14 @@ ANCORE_AL: tuple = (
     (("çfarë dënimi", "cfare denimi", "ç'dënim", "rrezikon", "si e mbrojmë", "si e mbrojme", "si mbrohemi", "mbrojtja e klientit",
       "sa vjet burg", "dënimi maksimal", "denimi maksimal"),
      (), (("kodi_penal", "48"), ("kodi_penal", "53"), ("kodi_penal", "59"), ("kodi_proc_penale", "406")), None, ("Penal",), True),
+    # v9.537 — il socio di s.h.p.k. che vuole USCIRE: il banco di prova aspettava gli artt. 44-45 (che sono della società in nome
+    # collettivo) e il blocco ne era pieno; per la s.h.p.k. la legge 9901/2008 ha il recesso per giusti motivi (101), le sue
+    # conseguenze — valore della quota (103) — e la via ordinaria, la cessione della quota (73). La rubrica del 101 aveva
+    # un omoglifo cirillico («Largimi і ortakut»). Solo dalla domanda, mai nel penale.
+    ((("shpk", "largo"), ("sh.p.k", "largo"), ("përgjegjësi të kufizuar", "largo"), ("pergjegjesi te kufizuar", "largo"),
+      ("shpk", "dal nga shoq"), ("shpk", "përjashtim"), ("shpk", "perjashtim"), ("shpk", "kuot", "shit")),
+     ("Penal",), (("ligji_shoqerite_tregtare", "101"), ("ligji_shoqerite_tregtare", "103"), ("ligji_shoqerite_tregtare", "73")),
+     None, None, True),
     # … e il TENTATIVO quando i fatti lo suggeriscono («u kap duke vjedhur», «nuk arriti», «para se të dilte»): KP 22-23
     (("u kap duke", "u kapën duke", "tentativ", "nuk arriti", "para se të dilte", "para se te dilte", "u ndalua para"),
      (), (("kodi_penal", "22"), ("kodi_penal", "23")), None, ("Penal",), True),

@@ -9062,6 +9062,28 @@ def main():
     except Exception as _e309:  # noqa: BLE001
         check("raccoglitori[309]: kontrollet u ekzekutuan", False, str(_e309))
 
+    # [310] v9.537 — nessuna lettera CIRILLICA nel corpus albanese («tё», «і», «ҫ» al posto di «të», «i», «ç»: le parole non
+    # corrispondevano mai alle query) + il socio di s.h.p.k. che vuole uscire → artt. 101/103/73 della legge sulle società
+    try:
+        import re as _re310
+        from pathlib import Path as _P310
+        from src.retrieval import ArticleIndex as _AI310
+        _idx310 = _AI310.load(_P310("/app/data/index/bm25.pkl"))
+        _cir310 = [f"{a.code} {a.number}" for a in _idx310.articles
+                   if _re310.search(r"[\u0400-\u04FF]", " ".join(str(getattr(a, _c, "") or "") for _c in ("heading", "body", "note", "title_sq", "kreu", "pjesa", "seksioni")))]
+        check("omoglifi[310]: nessuna lettera cirillica nel corpus albanese", not _cir310, ", ".join(_cir310[:8]))
+        from src import brain as _b310
+        _v310 = [v for v in _b310.ANCORE_AL if ("ligji_shoqerite_tregtare", "101") in v[2]]
+        _dom310 = "Klienti është ortak me 40% në një shpk dhe dëshiron të largohet nga shoqëria. Si e bën?"
+        _p310 = _b310._applica_ancore([], _idx310, [_dom310], ["Civil"], ancore=_v310)
+        _q310 = _b310._applica_ancore([], _idx310, [_dom310], ["Penal"], ancore=_v310)
+        _r310 = _b310._applica_ancore([], _idx310, ["Klienti do të shesë makinën"], ["Civil"], ancore=_v310)
+        check("omoglifi[310]: socio di s.h.p.k. che esce → 101/103/73; non nel penale né fuori tema",
+              len(_v310) == 1 and {(a.code, a.number) for a, _ in _p310} >= {("ligji_shoqerite_tregtare", "101"), ("ligji_shoqerite_tregtare", "103")}
+              and not _q310 and not _r310, f"{[(a.code, a.number) for a, _ in _p310]} {len(_q310)} {len(_r310)}")
+    except Exception as _e310:  # noqa: BLE001
+        check("omoglifi[310]: kontrollet u ekzekutuan", False, f"{type(_e310).__name__}: {_e310}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
