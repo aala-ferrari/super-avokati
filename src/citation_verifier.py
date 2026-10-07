@@ -557,7 +557,8 @@ CITATION_RE = re.compile(
 )
 # Anafora: «neni 37, pika 1, i po këtij ligji» / «art. 4 del medesimo decreto» → il codice/legge
 # nominato per ULTIMO nel testo prima della citazione (finestra corta), mai un'ipotesi.
-_ANAFORA_AL = re.compile(r"^\s*(?:i|e|t[ëe]|s[ëe])\s+(?:po\s+)?k[ëe]tij\s+(?:ligji|kodi)\b", re.I)
+# v9.539: anche «… i/të të njëjtit ligj» («nenin 12 të të njëjtit ligj», «Neni 23 i të njëjtit ligj»: risposte vere AL, «pa kod»)
+_ANAFORA_AL = re.compile(r"^\s*(?:i|e|t[ëe]|s[ëe])\s+(?:(?:po\s+)?k[ëe]tij\s+(?:ligji|kodi)\b|(?:t[ëe]\s+)?nj[ëe]jtit\s+(?:ligj|kod)\w*)", re.I)
 _ANAFORA_IT = re.compile(r"^\s*(?:del|della|dello|dell[’'])\s*(?:medesim[oa]|stess[oa]|citat[oa]|predett[oa]|suddett[oa])\s+"
                          r"(?:decreto|legge|codice|regolamento|d\.?\s?lgs\.?|testo\s+unico|d\.?p\.?r\.?)", re.I)
 _ANAFORA_WINDOW = 1500
@@ -1175,6 +1176,16 @@ def _resolve_code(tail: str) -> str | None:
         if year and len(num) <= 3:
             return None
         return _LAW_NUMBER_ALIASES.get(num)
+    # v9.539 — «Neni 13/2-3 L.9901», «nenin 13 të L.9901»: la legge abbreviata «L.» (risposte vere AL: «pa kod»). Senza anno solo
+    # i numeri lunghi della vecchia numerazione continua (unici); con l'anno solo la coppia esatta — una legge ITALIANA citata in un
+    # testo albanese («L. 604/1966», «L. 1204/1971») non diventa mai una legge albanese
+    lm = re.search(r"(?<![a-zçë])l\.\s*(?:nr\.?\s*)?(\d{2,5})(?:\s*/\s*(\d{4}))?(?![\d/])", flat)
+    if lm:
+        num, year = lm.group(1), lm.group(2)
+        if year:
+            return _LAW_NUMBER_ALIASES.get(f"{num}/{year}")
+        if len(num) >= 4:
+            return _LAW_NUMBER_ALIASES.get(num)
     return None
 
 
@@ -1388,7 +1399,8 @@ def _codice_precedente(text: str, pos: int, resolve) -> str | None:
     win = text[max(0, pos - _ANAFORA_WINDOW):pos]
     words = win.split()
     for i in range(len(words) - 1, -1, -1):
-        code = resolve(" ".join(words[i:i + 6]))
+        # v9.539: 10 parole, non 6 — «Kodit të Drejtësisë Penale për të | Mitur» tagliato a 6 diventava il Codice PENALE
+        code = resolve(" ".join(words[i:i + 10]))
         if code:
             return code
     return None

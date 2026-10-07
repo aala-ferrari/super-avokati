@@ -9112,6 +9112,26 @@ def main():
     except Exception as _e311:  # noqa: BLE001
         check("abrogati_it[311]: kontrollet u ekzekutuan", False, f"{type(_e311).__name__}: {_e311}")
 
+    # [312] v9.539 — due forme albanesi reali che uscivano «pa kod»: la legge abbreviata «L.9901» e l'anafora «i/të të njëjtit
+    # ligj/kod» (con la finestra a 10 parole: il nome lungo del Codice dei minori non si riduce al Codice penale); una legge
+    # ITALIANA in un testo albanese («L. 604/1966») non diventa mai una legge albanese
+    try:
+        from pathlib import Path as _P312
+        from src.retrieval import ArticleIndex as _AI312
+        from src import citation_verifier as _cv312
+        _ix312 = _AI312.load(_P312("/app/data/index/bm25.pkl"))
+        def _st312(t, n):
+            return {i["number"]: (i["status"], i.get("code")) for i in _cv312.verify_text(t, _ix312)["items"]}.get(n)
+        check("verificatore[312]: «L.9901» e «të njëjtit ligj» risolti; il nome lungo del Codice dei minori resta quello",
+              _st312("Konflikti i interesit (Neni 13/2-3 L.9901) injorohet.", "13/2/3") == ("verified", "ligji_shoqerite_tregtare")
+              and _st312("(Neni 15 i Ligjit nr. 10279/2010). Ankimi pezullon (Neni 23 i të njëjtit ligj).", "23") == ("verified", "ligji_kundervajtjet")
+              and _st312("Neni 106 i Kodit të Drejtësisë Penale për të Mitur (nën minimum), Neni 105 dhe Neni 68 të të njëjtit kod.", "105") == ("verified", "kodi_te_miturve"))
+        _it312 = _st312("Në Itali vlen neni 5 L. 604/1966 (barra e provës).", "5")
+        check("verificatore[312]: una legge italiana («L. 604/1966») in un testo albanese non diventa una legge albanese",
+              not _it312 or _it312[1] is None or not str(_it312[1]).startswith(("ligji", "kodi")), str(_it312))
+    except Exception as _e312:  # noqa: BLE001
+        check("verificatore[312]: kontrollet u ekzekutuan", False, f"{type(_e312).__name__}: {_e312}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
