@@ -80,6 +80,11 @@ CASI = [  # (giurisdizione, domanda dell'avvocato, articoli di cui almeno uno DE
     ("IT", "[frek-it2] La cliente è caduta su una buca del marciapiede comunale e si è rotta il polso. Chi risponde e cosa deve provare?", [("codice_civile", "2051")]),
     ("IT", "[frek-it2] Il cliente coltiva e recinta da 25 anni un terreno del vicino senza che nessuno abbia mai detto nulla. Può diventarne proprietario?", [("codice_civile", "1158")]),
     ("IT", "[frek-it2] Il cliente divorzia dopo 20 anni di matrimonio; la moglie non ha mai lavorato. Le spetta l'assegno divorzile?", [("divorzio", "5")]),
+    # v9.531 — sesto giro (albanese: famiglia e procedura penale)
+    ("AL", "[frek6] Klientja rrihet nga bashkëshorti dhe ka frikë të kthehet në shtëpi. Si marrim menjëherë një urdhër mbrojtjeje?", [("ligji_dhuna_familje_2026", "30"), ("ligji_dhuna_familje_2026", "18"), ("ligji_dhuna_familje_2026", "36")]),
+    ("AL", "[frek6] Policia e arrestoi klientin dje në flagrancë. Brenda sa orësh duhet ta shohë gjyqtari dhe çfarë ndodh në seancë?", [("kodi_proc_penale", "258"), ("kodi_proc_penale", "259"), ("kodi_proc_penale", "251")]),
+    ("AL", "[frek6] Klienti është në paraburgim prej 10 muajsh për vjedhje dhe gjykimi nuk ka filluar. A ka një afat maksimal?", [("kodi_proc_penale", "263")]),
+    ("AL", "[frek6] Klienti u dënua 8 vjet më parë dhe e ka vuajtur dënimin. Si i hiqet precedenti penal nga dosja?", [("kodi_penal", "69")]),
     # v9.530 — quinto giro (riti e benefici penali, successioni, lavoro a termine)
     ("IT", "[frek-it5] Il cliente è imputato per lesioni personali: conviene il rito abbreviato e di quanto si riduce la pena?", [("codice_procedura_penale", "442")]),
     ("IT", "[frek-it5] Il cliente, accusato di furto aggravato, vuole patteggiare. Come funziona e che pena può concordare?", [("codice_procedura_penale", "444")]),

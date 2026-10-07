@@ -4427,8 +4427,12 @@ class SuperAvvocato:
             if idx is None:
                 return ""
             have = ", ".join(str(getattr(a, "number", "")) for a, _ in list(retrieved)[:12])
-            user = ("PYETJA:\n%s\n\nPËRGJIGJA:\n%s\n\nNENET QË KISHIM (numra):\n%s" %
-                    ((user_message or "")[:2000], (answer_text or "")[:6000], have))
+            # v9.531 — la risposta INTERA (mediana 27.800 caratteri nel percorso profondo): coi primi 6.000 il rilevatore delle
+            # lacune non vedeva mai la seconda metà; etichette nella lingua della sessione
+            _et = (("DOMANDA", "RISPOSTA", "ARTICOLI CHE AVEVAMO (numeri)") if lang == "it"
+                   else ("PYETJA", "PËRGJIGJA", "NENET QË KISHIM (numra)"))
+            user = ("%s:\n%s\n\n%s:\n%s\n\n%s:\n%s" %
+                    (_et[0], (user_message or "")[:2000], _et[1], (answer_text or "")[:40000], _et[2], have))
             raw = self.backend.complete(
                 system=war_room.GAP_SYSTEM.get(lang, war_room.GAP_SYSTEM["sq"]),
                 messages=[{"role": "user", "content": user}], max_tokens=400,

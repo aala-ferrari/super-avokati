@@ -264,6 +264,15 @@ _ETIKETA_DJALLI = {
 }
 
 
+# v9.531 — QUANTO della risposta del senior leggono il diavolo, la replica e il Giudice. Misurato su 44 risposte profonde (20 set → 7 ott):
+# la risposta del senior ha mediana 27.800 caratteri, p90 37.500, massimo 49.700; col duello la risposta intera arriva a ~60.000. I
+# tetti di prima (diavolo 20.000, replica 16.000, secondo round 12.000, Giudice 24.000) troncavano il diavolo in 32 casi su 44, la
+# replica in 41, il Giudice SEMPRE — e il duello, che sta in fondo, il Giudice non lo vedeva mai (prova viva del 7 ott: «il testo che
+# ho si interrompe a "Leva 10"; quello che viene dopo non lo giudico»). Ora coprono il massimo misurato con margine.
+TETTO_RISPOSTA = 60000
+TETTO_RISPOSTA_GIUDICE = 90000
+
+
 def djalli_system(lang: str = "sq") -> str:
     return DJALLI_SYSTEM_IT if lang == "it" else DJALLI_SYSTEM
 
@@ -287,7 +296,7 @@ def avokati_i_djallit(backend, *, domanda: str, blloku_neneve: str, pergjigja: s
     _L = _ETIKETA_DJALLI.get(lang, _ETIKETA_DJALLI["sq"])
     user = (f"{_L[0]}\n{(domanda or '')[:3000]}\n\n"
             f"{_L[1]}\n{(blloku_neneve or '')[:60000]}\n\n"
-            f"{_L[2]}\n{(pergjigja or '')[:20000]}")
+            f"{_L[2]}\n{(pergjigja or '')[:TETTO_RISPOSTA]}")
     raw = _chiama(backend, system=djalli_system(lang), user=user, modeli=modeli,
                   effort=effort, max_tokens=900, callsite="studio:djalli",
                   case_id=case_id)
@@ -338,7 +347,7 @@ def senior_pergjigjja(backend, *, domanda, blloku_neneve, pergjigja, sulmi,
           ("PYETJA:", "NENET (tekst i plotë):", "PËRGJIGJA IME:", "SULMI I AVOKATIT TË DJALLIT:"))
     user = ("%s\n%s\n\n%s\n%s\n\n%s\n%s\n\n%s\n%s" % (
                 _L[0], (domanda or "")[:2500], _L[1], (blloku_neneve or "")[:40000],
-                _L[2], (pergjigja or "")[:16000], _L[3], (sulmi or "")[:8000]))
+                _L[2], (pergjigja or "")[:TETTO_RISPOSTA], _L[3], (sulmi or "")[:16000]))
     raw = _chiama(backend, system=PERGJIGJE_SYSTEM.get(lang, PERGJIGJE_SYSTEM["sq"]),
                   # 1100 → 1800 (v9.322) → 3000 (v9.363): il Giudice della prova viva del 22 set
                   # («strehova vëllain») ha trovato la replica «e prerë në mes» anche a 1800
@@ -407,7 +416,7 @@ def sulmi_i_dyte(backend, *, domanda, blloku_neneve, pergjigja_v2, lang="sq",
           ("PYETJA:", "NENET (tekst i plotë):", "PËRGJIGJA E SENIORIT NDAJ SULMIT TIM TË PARË:"))
     user = ("%s\n%s\n\n%s\n%s\n\n%s\n%s" % (
                 _L[0], (domanda or "")[:2500], _L[1], (blloku_neneve or "")[:40000],
-                _L[2], (pergjigja_v2 or "")[:12000]))
+                _L[2], (pergjigja_v2 or "")[:TETTO_RISPOSTA]))
     raw = _chiama(backend, system=(DJALLI_2_SYSTEM_IT if lang == "it" else DJALLI_2_SYSTEM),
                   user=user, modeli=modeli,
                   effort=effort, max_tokens=700, callsite="studio:djalli_2",
@@ -606,7 +615,7 @@ def gjyqtari_fundit(backend, *, domanda: str, blloku_neneve: str, pergjigja: str
              f"{_L[1]}\n{(blloku_neneve or '')[:60000]}"]
     if (dosja or "").strip():
         parti.append(f"{_L[2]}\n" + dosja[:20000])
-    parti.append(f"{_L[3]}\n{(pergjigja or '')[:24000]}")
+    parti.append(f"{_L[3]}\n{(pergjigja or '')[:TETTO_RISPOSTA_GIUDICE]}")
     if (fazat or "").strip():
         # i pannelli (allerta, rischi, mappa prove, scadenze) girano PRIMA della
         # risposta e nessuno li correggeva: il Giudice li vede e li giudica (v9.316)

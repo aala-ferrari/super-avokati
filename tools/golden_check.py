@@ -9014,6 +9014,31 @@ def main():
     except Exception as _e307:  # noqa: BLE001
         check("link[307]: kontrollet u ekzekutuan", False, str(_e307))
 
+    # [308] v9.531 — diavolo, replica, secondo round e Giudice leggono la risposta del senior INTERA (prima: 20.000 / 16.000 / 12.000 /
+    # 24.000 caratteri — su 44 risposte profonde la mediana è 27.800, il Giudice non vedeva mai il duello in fondo)
+    try:
+        from src import studio as _st308
+        _u308 = []
+        _c0 = _st308._chiama
+        _st308._chiama = lambda backend, **kw: (_u308.append(kw.get("user") or ""), "x" * 60)[1]
+        try:
+            _r308 = ("Analisi " * 6200) + "FINE-RISPOSTA-308"            # ~49.700 caratteri, come la più lunga misurata
+            _g308 = ("Analisi " * 8700) + "FINE-DUELLO-308"              # ~70.000: risposta + duello, per il Giudice
+            _st308.avokati_i_djallit(None, domanda="D", blloku_neneve="N", pergjigja=_r308, lang="it")
+            _st308.senior_pergjigjja(None, domanda="D", blloku_neneve="N", pergjigja=_r308, sulmi="S", lang="it")
+            _st308.sulmi_i_dyte(None, domanda="D", blloku_neneve="N", pergjigja_v2=_r308, lang="it")
+            _st308.gjyqtari_fundit(None, domanda="D", blloku_neneve="N", pergjigja=_g308, lang="it")
+        finally:
+            _st308._chiama = _c0
+        _src308 = __import__("inspect").getsource(__import__("src.brain", fromlist=["x"]).SuperAvvocato._research_loop)
+        check("duello[308]: il rilevatore delle lacune (research loop) legge 40.000 caratteri, etichette nella lingua della sessione",
+              '(answer_text or "")[:40000]' in _src308 and '"RISPOSTA"' in _src308 and "[:6000]" not in _src308)
+        check("duello[308]: diavolo, replica, secondo round e Giudice ricevono la risposta del senior fino in fondo",
+              len(_u308) == 4 and all("FINE-RISPOSTA-308" in u for u in _u308[:3]) and "FINE-DUELLO-308" in _u308[3],
+              str([len(u) for u in _u308]))
+    except Exception as _e308:  # noqa: BLE001
+        check("duello[308]: kontrollet u ekzekutuan", False, f"{type(_e308).__name__}: {_e308}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
