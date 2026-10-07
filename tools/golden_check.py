@@ -8913,12 +8913,17 @@ def main():
         _av303 = _k303(["ricorso verbale", "Il cliente ha ricevuto una multa da autovelox notificata ieri. Entro quando può fare ricorso?"])
         _dp303 = _k303(["opposizione decreto penale", "Al cliente è stato notificato un decreto penale di condanna: entro quando l'opposizione?"])
         _er303 = _k303(["rinuncia all'eredità", "Il padre del cliente è morto lasciando più debiti che beni. Come evita di pagarli?"])
+        _ta303 = _k303(["ricorso giurisdizionale", "Il Comune ha negato al cliente il permesso di costruire. Come lo impugniamo?"])
+        _no303 = _k303(["notifica tardiva", "Il ricorso notarile è stato depositato in modo tardivo: cosa succede?"])
+        _ac303 = _k303(["ricorso tributario", "Al cliente è stato notificato un avviso di accertamento IRPEF. Entro quando il ricorso?"])
         _br303.set_request_jurisdiction("AL")
-        check("frequenti[303]: decreto ingiuntivo → c.p.c. 641/645/650 (non col decreto penale); multa → C.d.S. 203/204-bis/202; eredità con debiti → c.c. 519/484",
+        check("frequenti[303]: decreto ingiuntivo → c.p.c. 641/645/650 (non col decreto penale); multa → C.d.S. 203/204-bis/202; eredità con debiti → c.c. 519/484; TAR → c.p.a. 29 (non «tardivo»)",
               {("codice_procedura_civile", "641"), ("codice_procedura_civile", "645")} <= _di303
               and {("codice_strada", "203"), ("codice_strada", "204-bis")} <= _av303
               and ("codice_procedura_civile", "641") not in _dp303 and ("codice_strada", "203") not in _di303
-              and {("codice_civile", "519"), ("codice_civile", "484")} <= _er303 and ("codice_civile", "519") not in _av303,
+              and {("codice_civile", "519"), ("codice_civile", "484")} <= _er303 and ("codice_civile", "519") not in _av303
+              and ("codice_processo_amministrativo", "29") in _ta303 and ("codice_processo_amministrativo", "29") not in _no303
+              and ("processo_tributario", "21") in _ac303,
               repr((sorted(_di303), sorted(_av303), sorted(_dp303))))
         check("cittadinanza[303]: residenza → art. 9, matrimonio → art. 5 (con 9.1/9-ter/10); il permesso di soggiorno no",
               ("cittadinanza", "9") in _r303 and ("cittadinanza", "5") in _m303 and ("cittadinanza", "10") in _m303

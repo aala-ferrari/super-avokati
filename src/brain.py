@@ -302,6 +302,18 @@ ANCORE_IT: tuple = (
     # decisione e riduzione di pena) e la LEGITTIMA dei figli esclusi dal testamento (c.c. 536 legittimari, 537 riserva dei figli).
     # Solo dalla domanda.
     (("abbreviato",), (), (("codice_procedura_penale", "438"), ("codice_procedura_penale", "442")), None, None, True),
+    # v9.533 — il RICORSO AL TAR contro un provvedimento amministrativo (diniego del permesso di costruire, esclusione da una gara):
+    # c.p.a. 29 (azione di annullamento, sessanta giorni) e 41 (notificazione del ricorso). Banco di prova (7 ott): nel blocco il codice
+    # dell'ambiente, i beni culturali, c.p.a. 48 — non il 29. «tar» solo come PAROLA («tardivo», «notarile», «cantar…»).
+    ((" tar ", " tar,", " tar.", " tar?", "(tar)", "tribunale amministrativo", "permesso di costruire", "concessione edilizia",
+      ("diniego", "comune"), ("diniego", "regione"), ("diniego", "ministero"), ("esclus", "gara"), ("esclus", "bando"),
+      ("annull", "provvedimento", "comune")),
+     ("Penale", "Penal"), (("codice_processo_amministrativo", "29"), ("codice_processo_amministrativo", "41")), None, None, True),
+    # … e il RICORSO TRIBUTARIO contro avviso di accertamento o cartella: oggi (fino al 31/12/2026) il D.Lgs. 546/1992 — art. 21 (sessanta
+    # giorni) e 19 (atti impugnabili); il testo unico della giustizia tributaria si applica dal 1/1/2027. Banco di prova: il 21 al 14°.
+    ((("accertamento", "ricors"), ("accertamento", "impugn"), ("cartella", "ricors"), ("cartella", "impugn"), ("cartella", "opposizion"),
+      ("avviso di liquidazione",), ("commissione tributaria",), ("corte di giustizia tributaria",)),
+     ("Penale", "Penal"), (("processo_tributario", "21"), ("processo_tributario", "19")), None, None, True),
     ((("testament", "esclu"), ("legittima",), ("legittimari",), ("quota di riserva",), ("lasciato tutto", "figli"),
       ("eredit", "esclu", "figli")), ("Penale", "Penal"), (("codice_civile", "536"), ("codice_civile", "537")), None, None, True),
     # v9.527 — il DECRETO INGIUNTIVO notificato: il termine dell'opposizione sta nel c.p.c. 641 (quaranta giorni, salvo diverso termine

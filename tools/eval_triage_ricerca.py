@@ -80,6 +80,19 @@ CASI = [  # (giurisdizione, domanda dell'avvocato, articoli di cui almeno uno DE
     ("IT", "[frek-it2] La cliente è caduta su una buca del marciapiede comunale e si è rotta il polso. Chi risponde e cosa deve provare?", [("codice_civile", "2051")]),
     ("IT", "[frek-it2] Il cliente coltiva e recinta da 25 anni un terreno del vicino senza che nessuno abbia mai detto nulla. Può diventarne proprietario?", [("codice_civile", "1158")]),
     ("IT", "[frek-it2] Il cliente divorzia dopo 20 anni di matrimonio; la moglie non ha mai lavorato. Le spetta l'assegno divorzile?", [("divorzio", "5")]),
+    # v9.534 — ottavo giro (lavoro, consumo, strada, locazione, condominio, immigrazione)
+    ("IT", "[frek8] Il cliente si è dimesso dopo 12 anni e il datore non gli ha ancora pagato il TFR. Come si calcola e cosa facciamo?", [("codice_civile", "2120")]),
+    ("IT", "[frek8] Il cliente ha comprato online un divano e dopo una settimana vuole restituirlo. Può farlo senza motivo?", [("codice_consumo", "52")]),
+    ("IT", "[frek8] Al cliente sono stati tolti 10 punti dalla patente per eccesso di velocità. Quanti ne ha e come li recupera?", [("codice_strada", "126-bis")]),
+    ("IT", "[frek8] Il padrone di casa non restituisce al cliente il deposito cauzionale di tre mensilità dopo la fine dell'affitto. Cosa facciamo?", [("locazioni_immobili_urbani", "11")]),
+    ("IT", "[frek8] Un condomino non paga le spese condominiali da un anno. Come recupera l'amministratore?", [("disp_att_cc", "63")]),
+    ("IT", "[frek8] Il cliente albanese, senza permesso, ha in Italia la moglie e due figli minori regolari. Può essere espulso?", [("tu_immigrazione", "19")]),
+    # v9.533 — settimo giro (fisco, amministrativo, crisi d'impresa, forma della donazione)
+    ("IT", "[frek7] Al cliente è stato notificato un avviso di accertamento IRPEF il 15 settembre. Entro quando presentiamo ricorso?", [("processo_tributario", "21"), ("giustizia_tributaria", "67")]),   # il TU si applica dal 2027
+    ("IT", "[frek7] Il Comune ha negato al cliente il permesso di costruire con un provvedimento notificato ieri. Come e entro quando lo impugniamo?", [("codice_processo_amministrativo", "29")]),
+    ("IT", "[frek7] Una società deve al cliente 120.000 euro e non paga da un anno; è chiaramente insolvente. Possiamo chiederne la liquidazione giudiziale?", [("codice_crisi_impresa", "121"), ("codice_crisi_impresa", "37")]),
+    ("IT", "[frek7] Il cliente vuole donare la casa alla figlia. Basta una scrittura privata firmata da entrambi?", [("codice_civile", "782")]),
+    ("AL", "[frek7] Tatimet i bënë klientit një vlerësim tatimor prej 3 milionë lekësh që e konsideron të padrejtë. Si e ankimojmë dhe brenda sa kohe?", [("ligji_procedurat_tatimore", "106"), ("ligji_procedurat_tatimore", "107"), ("ligji_procedurat_tatimore", "109")]),
     # v9.531 — sesto giro (albanese: famiglia e procedura penale)
     ("AL", "[frek6] Klientja rrihet nga bashkëshorti dhe ka frikë të kthehet në shtëpi. Si marrim menjëherë një urdhër mbrojtjeje?", [("ligji_dhuna_familje_2026", "30"), ("ligji_dhuna_familje_2026", "18"), ("ligji_dhuna_familje_2026", "36")]),
     ("AL", "[frek6] Policia e arrestoi klientin dje në flagrancë. Brenda sa orësh duhet ta shohë gjyqtari dhe çfarë ndodh në seancë?", [("kodi_proc_penale", "258"), ("kodi_proc_penale", "259"), ("kodi_proc_penale", "251")]),
