@@ -9053,6 +9053,15 @@ def main():
     except Exception as _e308:  # noqa: BLE001
         check("duello[308]: kontrollet u ekzekutuan", False, f"{type(_e308).__name__}: {_e308}")
 
+    # [309] v9.536 — i raccoglitori non aprono i PDF interi dei codici (2-3 $ in un passo, «budget_exhausted» senza risultato)
+    try:
+        from src import studio as _st309
+        _ps309 = [d[l] for d in (_st309.MBLEDHES_WEB_SYSTEM, _st309.MBLEDHES_QBZ_SYSTEM, _st309.MBLEDHES_FLETORJA_SYSTEM) for l in ("sq", "it")]
+        check("raccoglitori[309]: web, QBZ e Gazzetta vietano i PDF interi e limitano le pagine aperte (sq+it)",
+              all(("MOS hap PDF" in p or "NON aprire i PDF" in p) and ("2 faqe" in p or "2 pagine" in p) for p in _ps309))
+    except Exception as _e309:  # noqa: BLE001
+        check("raccoglitori[309]: kontrollet u ekzekutuan", False, str(_e309))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
