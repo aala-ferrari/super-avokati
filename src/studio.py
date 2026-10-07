@@ -271,6 +271,10 @@ _ETIKETA_DJALLI = {
 # ho si interrompe a "Leva 10"; quello che viene dopo non lo giudico»). Ora coprono il massimo misurato con margine.
 TETTO_RISPOSTA = 60000
 TETTO_RISPOSTA_GIUDICE = 90000
+# v9.532 — e il resto di ciò che il Giudice legge: la verifica delle citazioni (6.000 → 20.000: prova viva del 7 ott, «il riscontro
+# mostrato è troncato» e tre sentenze restavano «da riscontrare»), i pannelli (14.000 → 30.000), il dossier (20.000 → 30.000), gli
+# articoli verbatim (60.000 → 100.000: con le ancore in aggiunta ai 12 il blocco arriva a ~20 articoli da 3.500 caratteri)
+TETTO_NENE = 100000
 
 
 def djalli_system(lang: str = "sq") -> str:
@@ -295,7 +299,7 @@ def avokati_i_djallit(backend, *, domanda: str, blloku_neneve: str, pergjigja: s
                       case_id: str | None = None) -> str:
     _L = _ETIKETA_DJALLI.get(lang, _ETIKETA_DJALLI["sq"])
     user = (f"{_L[0]}\n{(domanda or '')[:3000]}\n\n"
-            f"{_L[1]}\n{(blloku_neneve or '')[:60000]}\n\n"
+            f"{_L[1]}\n{(blloku_neneve or '')[:TETTO_NENE]}\n\n"
             f"{_L[2]}\n{(pergjigja or '')[:TETTO_RISPOSTA]}")
     raw = _chiama(backend, system=djalli_system(lang), user=user, modeli=modeli,
                   effort=effort, max_tokens=900, callsite="studio:djalli",
@@ -612,19 +616,19 @@ def gjyqtari_fundit(backend, *, domanda: str, blloku_neneve: str, pergjigja: str
               "VERIFIKIMI DETERMINIST I CITIMEVE (i bërë nga kodi mbi korpusin zyrtar, PARA vendimit "
               "tënd — është e dhënë, jo mendim):")
     parti = [f"{_L[0]}\n{(domanda or '')[:3500]}",
-             f"{_L[1]}\n{(blloku_neneve or '')[:60000]}"]
+             f"{_L[1]}\n{(blloku_neneve or '')[:TETTO_NENE]}"]
     if (dosja or "").strip():
-        parti.append(f"{_L[2]}\n" + dosja[:20000])
+        parti.append(f"{_L[2]}\n" + dosja[:30000])
     parti.append(f"{_L[3]}\n{(pergjigja or '')[:TETTO_RISPOSTA_GIUDICE]}")
     if (fazat or "").strip():
         # i pannelli (allerta, rischi, mappa prove, scadenze) girano PRIMA della
         # risposta e nessuno li correggeva: il Giudice li vede e li giudica (v9.316)
-        parti.append(f"{_L[4]}\n" + fazat[:14000])
+        parti.append(f"{_L[4]}\n" + fazat[:30000])
     if (verifikimi or "").strip():
         # v9.331 — lo scudo PRIMA del Giudice: articoli inesistenti/abrogati e sentenze non
         # confermate sono già misurati dal codice; il Giudice decide su materiale verificato,
         # non è più il posto in cui si scopre DOPO che una citazione era sbagliata
-        parti.append(f"{_L[5]}\n" + verifikimi[:6000])
+        parti.append(f"{_L[5]}\n" + verifikimi[:20000])
     user = "\n\n─────\n".join(parti)
     # no_web: il Giudice valuta SOLO nenet verbatim + risposta + dossier — mai
     # navigare (misurato: 440.877 token in una chiamata quando aveva il web)
