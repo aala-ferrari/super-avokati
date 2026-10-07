@@ -9072,6 +9072,13 @@ def main():
         _cir310 = [f"{a.code} {a.number}" for a in _idx310.articles
                    if _re310.search(r"[\u0400-\u04FF]", " ".join(str(getattr(a, _c, "") or "") for _c in ("heading", "body", "note", "title_sq", "kreu", "pjesa", "seksioni")))]
         check("omoglifi[310]: nessuna lettera cirillica nel corpus albanese", not _cir310, ", ".join(_cir310[:8]))
+        # v9.540 — e nessuna lettera SCOMPOSTA (dieresi combinante U+0308: spezzava la parola in due token) né carattere a
+        # larghezza zero
+        _inv310 = [f"{a.code} {a.number}" for a in _idx310.articles
+                   if _re310.search(r"[\u0300-\u036f\u200b-\u200d\u2060\ufeff]",
+                                    " ".join(str(getattr(a, _c, "") or "") for _c in ("heading", "body", "note", "title_sq", "kreu", "pjesa", "seksioni")))]
+        check("omoglifi[310]: nessuna lettera scomposta né carattere a larghezza zero nel corpus albanese (v9.540)", not _inv310,
+              ", ".join(_inv310[:8]))
         from src import brain as _b310
         _v310 = [v for v in _b310.ANCORE_AL if ("ligji_shoqerite_tregtare", "101") in v[2]]
         _dom310 = "Klienti është ortak me 40% në një shpk dhe dëshiron të largohet nga shoqëria. Si e bën?"

@@ -195,6 +195,10 @@ _FONTE_SOPRA = re.compile(r"^(?:Artt?\.\s*\d.*?(?:D\.\s?P\.\s?R\.|[Ll]egge|D\.\s
 
 def _pulisci(heading: str, body: str) -> tuple[str, str]:
     h, b = heading or "", body or ""
+    # v9.540 — il TRATTINO MORBIDO (U+00AD) di Normattiva: «comma 3­bis» (TU riscossione, CAD) — fra un numero e il suffisso vale
+    # «-», altrove si toglie; e i caratteri a larghezza zero
+    h, b = (re.sub(r"[​-‍⁠﻿]", "", re.sub(r"(?<=\d)­(?=[a-z])", "-", x).replace("­", ""))
+            for x in (h, b))
     _hs = re.sub(r"\s+", " ", re.sub(r"\(\(|\)\)", " ", h)).strip()
     _fonte_fatta = False
     if _hs and _FONTE_SOPRA.match(_hs):

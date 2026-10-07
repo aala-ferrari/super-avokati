@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import unicodedata
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
@@ -450,6 +451,9 @@ def split_into_articles(text: str, doc: LegalDocument) -> list[Article]:
     # v9.379 — un SEGNO di nota dopo il numero («Neni 70†», «Neni 12*», «Neni 5¹») rendeva l'intestazione irriconoscibile:
     # l'articolo spariva dentro il precedente (152/2013 neni 70 «Shfuqizimi» dentro il 69). Il segno si toglie.
     text = _SEGNO_NOTA_RE.sub(r"\1", text or "")
+    # v9.540 — lettere scomposte («E» + U+0308) ricomposte e caratteri a larghezza zero tolti: il segno combinante spezzava la
+    # parola in due token nella ricerca (62 articoli dei consolidati QBZ)
+    text = re.sub(r"[\u200b-\u200d\u2060\ufeff\u0300-\u036f]", "", unicodedata.normalize("NFC", text))
     raw_matches = list(ARTICLE_RE.finditer(text))
     # 16 set 2026 — «Neni N Titolo» sulla STESSA riga: il Kodi Zgjedhor perdeva così 81
     # articoli su 186 (audit_corpus). Si accetta solo se il titolo inizia in maiuscolo, non

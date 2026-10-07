@@ -6,7 +6,7 @@ Si sostituisce una lettera cirillica SOLO dentro una parola latina (preceduta o 
 (non ce n'è nel corpus AL; nei regolamenti UE italiani c'è il bulgaro e lì non si tocca — questo strumento è solo per il corpus AL).
 jsonl E pickle (stessi parametri di costruzione), backup, idempotente; il numero di articoli non cambia (embedding allineati).
 Nel container con /app/data scrivibile:  python3 tools/repair_omoglifi_al.py [--apply]"""
-import json, re, shutil, sys
+import json, re, shutil, sys, unicodedata
 from datetime import datetime
 from pathlib import Path
 sys.path.insert(0, "/app")
@@ -28,10 +28,22 @@ _RX_ISOLATA = re.compile(r"(?<![Ѐ-ӿ])[" + "".join(MAPPA) + r"](?![Ѐ-ӿ])")
 CAMPI = ("heading", "body", "note", "title_sq", "kreu", "pjesa", "seksioni")   # anche i titoli di capitolo e di parte: entrano nella ricerca
 
 
+_ZERO = re.compile(r"[\u200b-\u200d\u2060\ufeff]")
+
+
 def pulisci(s):
     if not isinstance(s, str) or not s:
         return s, 0
     n = [0]
+    # v9.540 — lettere SCOMPOSTE («E» + dieresi combinante U+0308 al posto di «Ë»: 62 articoli, legge sui consumatori, procura…):
+    # a schermo identiche, ma il segno combinante spezza la parola in due token («PË|RGJITHSHME» → «pe» + «rgjithshme»).
+    # NFC le ricompone; via anche i caratteri a larghezza zero
+    _nfc = unicodedata.normalize("NFC", s)
+    # dopo NFC un segno combinante rimasto è rumore («garancisë̈»: una «ë» già composta con una seconda dieresi)
+    _nz = re.sub(r"[\u0300-\u036f]", "", _ZERO.sub("", _nfc))
+    if _nz != s:
+        n[0] += 1
+    s = _nz
 
     def _r(m):
         n[0] += 1
