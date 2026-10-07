@@ -229,6 +229,24 @@ ANCORE_AL: tuple = (
     ((("parashkrim fitues",), ("parashkrimi fitues",), ("fitimi i pronësisë", "parashkrim"), ("uzukapion",), ("usukapion",),
       ("posed", "vjet"), ("pronar", "vjet", "tok"), ("pronar", "vjet", "rrethua"), ("pronar", "vjet", "truall")),
      ("Penal",), (("kodi_civil", "169"), ("kodi_civil", "168")), None, None, True),
+    # v9.528 — la casa comprata SENZA NOTAIO (scrittura a mano, soldi pagati): KC 83 (il trasferimento della proprietà di immobili si fa
+    # con atto notarile e si registra) e KC 92 (l'atto senza la forma di legge è nullo). Banco di prova (7 ott): nel blocco la
+    # registrazione (193-197), la vendita (705) e la legge notarile, non il 83. Solo dalla domanda, mai nel penale.
+    (("pa noter", "pa notere", "pa akt noterial", ("noter", "bleu"), ("noter", "bleva"), ("noter", "shitj", "shtëpi"),
+      ("marrëveshje", "dorë", "shtëpi"), ("marrëveshje", "dore", "shtepi"), ("shkruar me dorë", "shtëpi"), ("shkruar me dore", "shtepi")),
+     ("Penal",), (("kodi_civil", "83"), ("kodi_civil", "92")), None, None, True),
+    # … e tre casi del banco completo (7 ott) che passavano a giri alterni: il lavoro SENZA contratto scritto (KP 21: «lidhet në formë
+    # të shkruar», ma il contratto «quhet e lidhur» quando il lavoratore inizia a lavorare), la casa coniugale VENDUTA senza il consenso
+    # dell'altro coniuge (KF 57: «nuk mund të disponojnë banesën bashkëshortore… pa pëlqimin e tjetrit»), il SEQUESTRO doganale (Kodi
+    # doganor 271 oggetti e sequestro, 272 soluzione amministrativa, 281 diritto di ricorso). Solo dalla domanda.
+    (("pa kontratë", "pa kontrate", "kontratë të shkruar", "kontrate te shkruar", "kontratë me shkrim", "kontrate me shkrim"),
+     ("Penal",), (("kodi_punes", "21"),), None, ("Punë",), True),
+    ((("shit", "shtëpi", "burri"), ("shit", "shtepi", "burri"), ("shit", "shtëpi", "gruaja"), ("shit", "shtëpi", "bashkëshort"),
+      ("shit", "banes", "bashkëshort"), ("shit", "shtëpi", "pa e pyetur"), ("shit", "shtëpi", "pa pëlqim"), ("shit", "shtepi", "pa pelqim"),
+      ("banesën bashkëshortore",), ("banesa bashkëshortore",)),
+     ("Penal",), (("kodi_familjes", "57"),), None, None, True),
+    ((("dogan", "sekuestr"), ("dogan", "konfisk"), ("dogan", "kontraband"), ("dogan", "bllok")),
+     (), (("kodi_doganor", "271"), ("kodi_doganor", "272"), ("kodi_doganor", "281")), None, None, True),
 )
 # v9.380 — ancore italiane di REGOLA GENERALE (stesso metro): «il credito risale al 2013 — è prescritto?» → il triage cerca
 # ordinaria + interruzione + sospensione e il 2946 c.c. «Prescrizione ordinaria» finiva oltre il 12° (2945, 2935, 2964 sopra).
@@ -272,6 +290,14 @@ ANCORE_IT: tuple = (
     (("naspi", "disoccupazion"), ("Penale", "Penal"),
      (("naspi", "3"), ("naspi", "4"), ("naspi", "5"), ("naspi", "6")), None, None, True),
     (("licenzi",), ("Penale", "Penal"), (("naspi", "6"),), None, None, True),
+    # v9.529 — il PERIODO DI COMPORTO (c.c. 2110: in caso di malattia il lavoratore conserva il posto per il tempo stabilito dalla legge
+    # o dal contratto collettivo): la rubrica «Infortunio, malattia, gravidanza, puerperio» non dice «comporto» e il blocco si riempiva
+    # delle norme sul licenziamento (banco di prova, 7 ott). E il PRELIMINARE non rispettato: l'esecuzione specifica (2932) entrava al
+    # 13° posto, al limite. Solo dalla domanda, mai nel penale.
+    (("comporto", ("malattia", "conservazione del posto"), ("malattia", "licenzi"), ("malattia", "posto di lavoro"), ("infortunio", "licenzi")),
+     ("Penale", "Penal"), (("codice_civile", "2110"),), None, None, True),
+    ((("preliminare", "rogito"), ("preliminare", "rifiut"), ("preliminare", "inadempi"), ("compromesso", "rogito"),
+      ("compromesso", "rifiut")), ("Penale", "Penal"), (("codice_civile", "2932"), ("codice_civile", "1351")), None, None, True),
     # v9.527 — il DECRETO INGIUNTIVO notificato: il termine dell'opposizione sta nel c.p.c. 641 (quaranta giorni, salvo diverso termine
     # nel decreto), la forma nel 645, la tardiva nel 650. Banco di prova col triage vero (7 ott): «entro quando fa opposizione?» → nel
     # blocco 650, 647, 646 e perfino il decreto PENALE (c.p.p. 461-462), il 641 fuori. Solo dalla domanda.
@@ -636,6 +662,50 @@ def _radici_5(testo: str) -> set[str]:
     return {w[:5] for w in re.findall(r"[a-z]+", _norm(testo or "")) if len(w) >= 5} - _RADICI_GENERICHE
 
 
+_FIGURE_BASE_CACHE: dict = {}
+_RADICI_COMUNI_KP = frozenset({"kryen", "kompl"})
+
+
+def _figure_base_kp(idx) -> dict:
+    """radice (5 lettere) → (kodi_penal, numero) dell'articolo BASE di una figura di reato: rubrica di una parola («Vjedhja» → 134,
+    «Shpifja» → 120) o, dove il corpus ha la frase al posto della rubrica, «përbën veprën penale të X» (143 → mashtrimit). La prima
+    occorrenza vince (l'articolo base viene prima delle forme speciali); cache per indice."""
+    chiave = id(idx)
+    if chiave in _FIGURE_BASE_CACHE:
+        return _FIGURE_BASE_CACHE[chiave]
+    out: dict = {}
+    try:
+        for a in idx.articles:
+            if a.code != "kodi_penal" or getattr(a, "repealed", False):
+                continue
+            # solo la PARTE SPECIALE (dal 72): la parte generale ha «Bashkëpunimi» (26 — scatterebbe con ogni «bashkëshort»),
+            # «Falja», «Dashja», «Amnistia», che non sono figure di reato
+            try:
+                if int(re.match(r"\d+", str(a.number)).group(0)) < 72:
+                    continue
+            except (AttributeError, ValueError):
+                continue
+            h = (a.heading or "").strip()
+            parole = re.findall(r"[A-Za-zÀ-ÿëËçÇ]+", h)
+            nome = ""
+            if len(parole) == 1 and len(parole[0]) >= 5:
+                nome = parole[0]
+            else:
+                m = re.search(r"vepr\w*\s+penale\s+t[ëe]\s+([A-Za-zëçË]{5,})", h + " " + (a.body or "")[:300], re.I)
+                if m and getattr(a, "heading_kind", "") == "fjali":
+                    nome = m.group(1)
+            if nome:
+                r = _radici_5(nome)
+                if len(r) == 1:
+                    rad = next(iter(r))
+                    if rad not in _RADICI_COMUNI_KP:       # «kryen» (Kryengritja = anche il verbo «kryen»), «kompl» («komplet»)
+                        out.setdefault(rad, (a.code, str(a.number)))
+    except Exception:  # noqa: BLE001
+        out = {}
+    _FIGURE_BASE_CACHE[chiave] = out
+    return out
+
+
 def _ancora_vepra_penale(pairs, idx, queries: list[str], aree) -> list:
     """v9.487 — nella domanda PENALE la figura di reato del Codice penale. Prova viva 3 ott (pistola in macchina e cartucce da
     guerra in casa): la legge sulle armi ripete le parole delle query e prendeva 8 posti su 12, il KP 278 «Mbajtja pa leje … e
@@ -660,9 +730,34 @@ def _ancora_vepra_penale(pairs, idx, queries: list[str], aree) -> list:
                 punti[k] = punti.get(k, 0.0) + float(sc)
                 art[k] = a
         rq = [_radici_5(q) for q in queries or []]
+        # v9.528 — la figura BASE: «vjedhja» fa salire i furti speciali (138-141) e il 134 «Vjedhja» non entrava nei primi 5; il 143
+        # (truffa) ha la rubrica-frase «… përbën veprën penale të mashtrimit …». Mappa radice → articolo base (rubrica di una parola,
+        # o la frase «veprën penale të X»): se una query nomina la figura, l'articolo base entra fra i candidati.
+        for _rad, _k in _figure_base_kp(idx).items():
+            if any(_rad in r for r in rq) and _k not in punti:
+                punti[_k] = max(punti.values() or [1.0]) + 0.01
+                art[_k] = next(a for a in idx.articles if (a.code, str(a.number)) == _k)
+
+        # v9.528 — una rubrica di UNA parola («Vjedhja» 134, «Mashtrimi» 143, «Shpifja» 120, «Fyerja» 119) ha una radice sola e
+        # con «almeno due» non passava MAI: i reati più comuni restavano fuori (banco di prova del 7 ott: furto e truffa, col triage
+        # che scriveva «vjedhja neni 134 Kodi Penal»). Per le rubriche di una parola basta quella; per le altre restano due.
+        def _rubrica_ok(h: str, r: set) -> bool:
+            rh = _radici_5(h or "")
+            comuni = len(rh & r)
+            return comuni >= 2 or (len(rh) == 1 and comuni == 1)
+        _base = set(_figure_base_kp(idx).values())
         buoni = [k for k in sorted(punti, key=lambda x: -punti[x])[:4]
-                 if getattr(art[k], "heading_kind", "rubrike") != "fjali"
-                 and any(len(_radici_5(art[k].heading or "") & r) >= 2 for r in rq)]
+                 if (k in _base and any(r & {_r for _r, _kk in _figure_base_kp(idx).items() if _kk == k} for r in rq))
+                 or (getattr(art[k], "heading_kind", "rubrike") != "fjali" and any(_rubrica_ok(art[k].heading, r) for r in rq))]
+        # v9.528 — l'articolo BASE della figura entra sempre se manca, anche con una forma speciale già nel blocco: col 143/b
+        # (truffa informatica) e il 146 (truffa nel credito) fra i 12 il 143 «Mashtrimi» restava fuori — banco di prova completo
+        _base_mancanti = [k for k in buoni if k in _base and k not in presenti]
+        if _base_mancanti and any(k in presenti for k in buoni):
+            marcato = _copy.copy(art[_base_mancanti[0]])
+            marcato._ancora_titull = True  # type: ignore[attr-defined]
+            marcato._ancora_vepra = True  # type: ignore[attr-defined]
+            log.info("retrieval: vepra penale BASE ancorata %s %s", marcato.code, marcato.number)
+            return [(marcato, punti[_base_mancanti[0]])] + pairs
         if buoni and not any(k in presenti for k in buoni):      # una figura pertinente già fra i 12: niente da aggiungere
             aggiunte = []
             for k in buoni[:2]:              # le prime due: la più vicina per punteggio può essere la figura accanto (280 vs 278)
@@ -675,6 +770,40 @@ def _ancora_vepra_penale(pairs, idx, queries: list[str], aree) -> list:
     except Exception as exc:  # noqa: BLE001
         log.warning("retrieval: ancora della vepra penale saltata (non-fatal): %s", exc)
     return pairs
+
+
+def _citati_dal_triage(pairs, idx, queries: list[str]) -> list:
+    """v9.528 — l'articolo che il TRIAGE stesso cita col codice nelle sue query («furto art. 624 c.p.», «particolare tenuità del
+    fatto art. 131 bis», «vjedhja neni 134 Kodi Penal») entra nel blocco. Banco di prova col triage vero (7 ott): il triage scriveva
+    il numero giusto e l'articolo restava fuori (la ricerca lessicale non legge i numeri). Solo citazioni col codice RICONOSCIUTO dal
+    verificatore e presenti nel corpus (mai un numero nudo), al massimo 3, copie marcate in aggiunta ai 12. Fail-silent."""
+    try:
+        from . import citation_verifier as _cvt
+        testo = " ; ".join(q for q in (queries or []) if q)[:3000]
+        if not re.search(r"\d", testo):
+            return pairs
+        items = (_cvt.verify_text(testo, idx) or {}).get("items") or []
+        presenti = {(a.code, str(a.number)) for a, _ in pairs[:TOP_K_ARTICLES]}
+        per_chiave = {(a.code, str(a.number)): a for a in idx.articles}
+        aggiunte, visti = [], set()
+        for it in items:
+            if it.get("status") != "verified" or not it.get("code"):
+                continue
+            k = (str(it["code"]), str(it["number"]))
+            if k in presenti or k in visti or k not in per_chiave or getattr(per_chiave[k], "repealed", False):
+                continue
+            visti.add(k)
+            c = _copy.copy(per_chiave[k]); c._citato_triage = True  # type: ignore[attr-defined]
+            aggiunte.append((c, _punteggio_reale(idx, queries[:3], k)))
+            if len(aggiunte) >= 3:
+                break
+        if not aggiunte:
+            return pairs
+        log.info("retrieval: citati dal triage %s", ", ".join(f"{a.code} {a.number}" for a, _ in aggiunte))
+        return aggiunte + pairs
+    except Exception as exc:  # noqa: BLE001
+        log.warning("retrieval: citati dal triage saltati (non-fatal): %s", exc)
+        return pairs
 
 
 PROCEDURAL_MAPPING: dict[str, tuple[str, ...]] = {
@@ -5072,6 +5201,7 @@ class SuperAvvocato:
         elif idx is self.index_it:
             pairs = _applica_ancore(pairs, idx, _testo_anc, triage.areas, ancore=ANCORE_IT)
             pairs = _ancore_it_veicolo(pairs, idx, " ".join([triage.problem_summary or ""] + list(all_queries)))
+        pairs = _citati_dal_triage(pairs, idx, list(all_queries))      # v9.528
         # v9.504 — e di nuovo DOPO le ancore: le ancore per titolo riportavano dentro il Codice dei minori (misurato: «kodi_te_miturve 9»
         # nella detenzione ingiusta di un adulto, al posto di un articolo vero dei 12)
         pairs = _senza_codice_minori(pairs, _testo_anc[-1] or " ".join(_testo_anc))
@@ -5082,6 +5212,7 @@ class SuperAvvocato:
         # trovati dalla ricerca. Al massimo 4 in più.
         _extra += min(4, sum(1 for a, _ in pairs if getattr(a, "_ancora", False)))
         _extra += min(2, sum(1 for a, _ in pairs if getattr(a, "_ancora_vepra", False)))     # v9.487: le figure di reato si aggiungono
+        _extra += min(3, sum(1 for a, _ in pairs if getattr(a, "_citato_triage", False)))   # v9.528: citati dal triage, in aggiunta
         _out = pairs[: TOP_K_ARTICLES + _extra]
         _audit_set("recupero", {
             "corpus": "IT" if idx is self.index_it else "AL", "codici_filtro": sorted(restrict) if restrict else None,

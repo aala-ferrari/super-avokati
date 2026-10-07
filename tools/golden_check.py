@@ -8951,6 +8951,52 @@ def main():
     except Exception as _e304:  # noqa: BLE001
         check("ancore[304]: kontrollet u ekzekutuan", False, str(_e304))
 
+    # [305] v9.528 — (1) i reati con la rubrica di UNA parola («Vjedhja», «Mashtrimi») non passavano mai l'ancora della figura di
+    # reato (servivano due radici in comune); (2) l'articolo che il TRIAGE cita col codice entra nel blocco (max 3, in aggiunta);
+    # (3) la casa comprata senza notaio → KC 83/92
+    try:
+        from src import brain as _br305
+        from src.retrieval import ArticleIndex as _AI305
+        _al305 = _AI305.load()
+        _br305.set_request_jurisdiction("AL")
+        _v305 = {(a.code, str(a.number)) for a, _ in _br305._ancora_vepra_penale([], _al305, ["vjedhja në dyqan", "vjedhje me vlerë të vogël"], ["Penal"])}
+        _m305 = {(a.code, str(a.number)) for a, _ in _br305._ancora_vepra_penale([], _al305, ["mashtrimi për vizë pune", "mashtrim me para"], ["Penal"])}
+        _t305 = {(a.code, str(a.number)) for a, _ in _br305._citati_dal_triage([], _al305, ["vjedhja neni 134 i Kodit Penal", "dënimi"])}
+        _n305 = {(a.code, str(a.number)) for a, _ in _br305._citati_dal_triage([], _al305, ["vjedhja e vogël", "dënimi me gjobë"])}
+        _h305 = {(a.code, str(a.number)) for a, _ in _br305._applica_ancore([], _al305, ["forma e kontratës", "Klienti bleu një shtëpi me një marrëveshje të shkruar me dorë, pa noter. Është pronar?"], ["Civil"])}
+        # la forma speciale già nel blocco (143/b) non tiene fuori la base (143)
+        _sp305 = [(a, 9.0) for a in _al305.articles if a.code == "kodi_penal" and str(a.number) in ("143/b", "146")]
+        _bs305 = {(a.code, str(a.number)) for a, _ in _br305._ancora_vepra_penale(_sp305, _al305, ["mashtrimi me premtime false", "mashtrim për vizë"], ["Penal"])}
+        _k305 = lambda q, aree: {(a.code, str(a.number)) for a, _ in _br305._applica_ancore([], _al305, q, aree)}
+        _w305 = _k305(["forma e kontratës", "Klienti punoi dy vjet pa kontratë të shkruar dhe pronari e largoi."], ["Punë"])
+        _f305 = _k305(["pasuria e përbashkët", "Burri i klientes e shiti shtëpinë pa e pyetur atë."], ["Familje"])
+        _g305 = _k305(["sekuestrim doganor", "Dogana i sekuestroi klientit makinën për kontrabandë. Si ta kundërshtojmë?"], ["Administrativ"])
+        check("reati[305]: base 143 anche con 143/b nel blocco; KP 21 senza contratto; KF 57 casa venduta; dogana → 271/272/281",
+              ("kodi_penal", "143") in _bs305 and ("kodi_punes", "21") in _w305 and ("kodi_familjes", "57") in _f305
+              and {("kodi_doganor", "271"), ("kodi_doganor", "281")} <= _g305, repr((sorted(_bs305)[:4], sorted(_w305), sorted(_f305), sorted(_g305))))
+        check("reati[305]: rubriche di una parola (134 Vjedhja, 143 Mashtrimi) ancorate; citati dal triage col codice (134), mai senza numero; casa senza notaio → KC 83/92",
+              ("kodi_penal", "134") in _v305 and ("kodi_penal", "143") in _m305 and _t305 == {("kodi_penal", "134")} and not _n305
+              and {("kodi_civil", "83"), ("kodi_civil", "92")} <= _h305, repr((sorted(_v305), sorted(_m305), sorted(_t305), sorted(_h305))))
+    except Exception as _e305:  # noqa: BLE001
+        check("reati[305]: kontrollet u ekzekutuan", False, f"{type(_e305).__name__}: {_e305}")
+
+    # [306] v9.529 — il comporto (c.c. 2110, rubrica senza la parola) e il preliminare non rispettato (2932/1351) dalla domanda
+    try:
+        from src import brain as _br306
+        from src.retrieval import ArticleIndex as _AI306
+        _br306.set_request_jurisdiction("IT")
+        _it306 = _AI306.load(__import__("pathlib").Path("/app/data/index/bm25_it.pkl"))
+        _k306 = lambda q: {(a.code, str(a.number)) for a, _ in _br306._applica_ancore([], _it306, q, ["Civile"], ancore=_br306.ANCORE_IT)}
+        _c306 = _k306(["periodo di comporto", "Il cliente è in malattia da otto mesi e teme di essere licenziato. Fino a quando conserva il posto?"])
+        _p306 = _k306(["esecuzione in forma specifica", "Il cliente ha firmato un preliminare ma il venditore si rifiuta di fare il rogito."])
+        _l306 = _k306(["licenziamento disciplinare", "Il cliente è stato licenziato per giusta causa dopo una contestazione."])
+        _br306.set_request_jurisdiction("AL")
+        check("lavoro[306]: comporto → c.c. 2110; preliminare → 2932/1351; il licenziamento qualsiasi senza malattia no",
+              ("codice_civile", "2110") in _c306 and ("codice_civile", "2932") in _p306 and ("codice_civile", "2110") not in _l306,
+              repr((sorted(_c306), sorted(_p306), sorted(_l306))))
+    except Exception as _e306:  # noqa: BLE001
+        check("lavoro[306]: kontrollet u ekzekutuan", False, str(_e306))
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
