@@ -8976,6 +8976,11 @@ def main():
         _w305 = _k305(["forma e kontratës", "Klienti punoi dy vjet pa kontratë të shkruar dhe pronari e largoi."], ["Punë"])
         _f305 = _k305(["pasuria e përbashkët", "Burri i klientes e shiti shtëpinë pa e pyetur atë."], ["Familje"])
         _g305 = _k305(["sekuestrim doganor", "Dogana i sekuestroi klientit makinën për kontrabandë. Si ta kundërshtojmë?"], ["Administrativ"])
+        _pd305 = _k305(["vjedhja", "Klienti u kap duke vjedhur në një dyqan. Çfarë dënimi rrezikon dhe si e mbrojmë?"], ["Penal"])
+        _cv305 = _k305(["kontrata", "Klienti rrezikon të humbasë depozitën e qirasë: çfarë bëjmë?"], ["Civil"])
+        check("reati[305]: difesa penale → KP 48/53/59 + KPP 406, tentativo → KP 22/23; non nel civile",
+              {("kodi_penal", "48"), ("kodi_penal", "59"), ("kodi_proc_penale", "406"), ("kodi_penal", "22"), ("kodi_penal", "23")} <= _pd305
+              and not ({("kodi_penal", "48"), ("kodi_penal", "22")} & _cv305), repr((sorted(_pd305), sorted(_cv305))))
         check("reati[305]: base 143 anche con 143/b nel blocco; KP 21 senza contratto; KF 57 casa venduta; dogana → 271/272/281",
               ("kodi_penal", "143") in _bs305 and ("kodi_punes", "21") in _w305 and ("kodi_familjes", "57") in _f305
               and {("kodi_doganor", "271"), ("kodi_doganor", "281")} <= _g305, repr((sorted(_bs305)[:4], sorted(_w305), sorted(_f305), sorted(_g305))))
@@ -8995,12 +9000,14 @@ def main():
         _c306 = _k306(["periodo di comporto", "Il cliente è in malattia da otto mesi e teme di essere licenziato. Fino a quando conserva il posto?"])
         _p306 = _k306(["esecuzione in forma specifica", "Il cliente ha firmato un preliminare ma il venditore si rifiuta di fare il rogito."])
         _l306 = _k306(["licenziamento disciplinare", "Il cliente è stato licenziato per giusta causa dopo una contestazione."])
+        _o306 = _k306(["licenziamento orale", "Il datore ha detto al cliente a voce di non tornare più al lavoro, senza nessuna lettera."])
         _r306 = _k306(["rito abbreviato", "Il cliente è imputato per lesioni: conviene il rito abbreviato?"])
         _g306 = _k306(["quota di legittima", "Il padre ha lasciato tutto alla seconda moglie escludendo i due figli. Cosa spetta ai figli?"])
         _br306.set_request_jurisdiction("AL")
-        check("lavoro[306]: comporto → c.c. 2110; preliminare → 2932/1351; abbreviato → c.p.p. 438/442; legittima → c.c. 536/537; fuori tema no",
+        check("lavoro[306]: comporto → c.c. 2110; preliminare → 2932/1351; abbreviato → c.p.p. 438/442; legittima → c.c. 536/537; licenziamento orale → L. 604 art. 2 + D.Lgs. 23 art. 2; fuori tema no",
               ("codice_civile", "2110") in _c306 and ("codice_civile", "2932") in _p306 and ("codice_civile", "2110") not in _l306
-              and ("codice_procedura_penale", "442") in _r306 and ("codice_civile", "537") in _g306 and ("codice_civile", "537") not in _l306,
+              and ("codice_procedura_penale", "442") in _r306 and ("codice_civile", "537") in _g306 and ("codice_civile", "537") not in _l306
+              and {("licenziamenti_individuali", "2"), ("tutele_crescenti", "2")} <= _o306 and ("tutele_crescenti", "2") not in _l306,
               repr((sorted(_c306), sorted(_p306), sorted(_l306))))
     except Exception as _e306:  # noqa: BLE001
         check("lavoro[306]: kontrollet u ekzekutuan", False, str(_e306))

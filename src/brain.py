@@ -199,6 +199,16 @@ ANCORE_AL: tuple = (
     ((("paraburgim", "pafaj"), ("paraburgim", "kompens"), ("paraburgim", "dëmshpërbl"), ("paraburgim", "demshperbl"),
       ("burgim", "pafaj", "kompens"), ("arrest", "pafaj", "kompens"), ("burgim të padrejt",), ("burgim i padrejt",)),
      (), (("kodi_proc_penale", "268"), ("kodi_proc_penale", "269")), None, None, True),
+    # v9.535 — la CASSETTA DEGLI ATTREZZI della difesa penale: chiesta la pena o la difesa, il senior scriveva «la lista dell'art. 48
+    # non è nel mio blocco», «il giudizio abbreviato… i testi non sono nel blocco» (prova viva del furto in negozio, 7 ott). Attenuanti
+    # (KP 48), pena sotto il minimo (53), sospensione con messa alla prova (59), decisione nel giudizio abbreviato con la riduzione
+    # (KPP 406). Solo nel PENALE, dalla domanda.
+    (("çfarë dënimi", "cfare denimi", "ç'dënim", "rrezikon", "si e mbrojmë", "si e mbrojme", "si mbrohemi", "mbrojtja e klientit",
+      "sa vjet burg", "dënimi maksimal", "denimi maksimal"),
+     (), (("kodi_penal", "48"), ("kodi_penal", "53"), ("kodi_penal", "59"), ("kodi_proc_penale", "406")), None, ("Penal",), True),
+    # … e il TENTATIVO quando i fatti lo suggeriscono («u kap duke vjedhur», «nuk arriti», «para se të dilte»): KP 22-23
+    (("u kap duke", "u kapën duke", "tentativ", "nuk arriti", "para se të dilte", "para se te dilte", "u ndalua para"),
+     (), (("kodi_penal", "22"), ("kodi_penal", "23")), None, ("Penal",), True),
     # v9.527 — la DIFFAMAZIONE (Facebook, giornale, pubblicamente «hajdut/mashtrues»): banco di prova col triage vero (7 ott), area
     # «Civil» → il blocco teneva KC 114/115 e la legge sulla responsabilità dell'amministrazione, senza KP 120 (Shpifja: dire il falso
     # sapendolo, gjobë fino a 1,5 milioni; più grave «botërisht»), KP 119 (Fyerja) né KC 625 (danno non patrimoniale per «nderi,
@@ -290,6 +300,11 @@ ANCORE_IT: tuple = (
     (("naspi", "disoccupazion"), ("Penale", "Penal"),
      (("naspi", "3"), ("naspi", "4"), ("naspi", "5"), ("naspi", "6")), None, None, True),
     (("licenzi",), ("Penale", "Penal"), (("naspi", "6"),), None, None, True),
+    # v9.534 — il licenziamento ORALE («a voce», «senza lettera»): L. 604/1966 art. 2 (va comunicato per iscritto, altrimenti inefficace)
+    # e D.Lgs. 23/2015 art. 2 (licenziamento intimato in forma orale: nullità e reintegra). Banco completo (7 ott): a giri alterni.
+    ((("licenzi", "a voce"), ("licenzi", "orale"), ("licenzi", "verbalmente"), ("licenzi", "senza lettera"), ("licenzi", "nessuna lettera"),
+      ("non tornare", "lavoro"), ("a voce", "non tornare")),
+     ("Penale", "Penal"), (("licenziamenti_individuali", "2"), ("tutele_crescenti", "2")), None, None, True),
     # v9.529 — il PERIODO DI COMPORTO (c.c. 2110: in caso di malattia il lavoratore conserva il posto per il tempo stabilito dalla legge
     # o dal contratto collettivo): la rubrica «Infortunio, malattia, gravidanza, puerperio» non dice «comporto» e il blocco si riempiva
     # delle norme sul licenziamento (banco di prova, 7 ott). E il PRELIMINARE non rispettato: l'esecuzione specifica (2932) entrava al
