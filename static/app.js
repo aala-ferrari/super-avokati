@@ -3496,10 +3496,21 @@
     }
     function inline(s) {
       s = escapeHtml(s);
+      // v9.530 — i LINK markdown: «Fonti consultate: [Cass. SU 19596/2020](https://…) · […](…)» usciva come testo grezzo in ogni
+      // risposta con fonti web. Solo http/https; il testo e l'indirizzo sono già passati da escapeHtml (niente HTML può entrare,
+      // le virgolette sono &quot;). Si tolgono PRIMA di corsivo/grassetto: «_» e «*» negli indirizzi non devono diventare <em>.
+      const links = [];
+      s = s.replace(/\[([^\]\n]{1,240})\]\((https?:\/\/[^\s)]{3,600})\)/g, function (m, t, u) {
+        links.push([t, u]); return "\u0000" + (links.length - 1) + "\u0000";
+      });
       s = s.replace(/\*\*([^\*]+)\*\*/g, "<strong>$1</strong>");
       s = s.replace(/\*([^\*]+)\*/g, "<em>$1</em>");
       s = s.replace(/_([^_]+)_/g, "<em>$1</em>");
       s = s.replace(/`([^`]+)`/g, "<code>$1</code>");
+      s = s.replace(/\u0000(\d+)\u0000/g, function (m, i) {
+        const l = links[+i];
+        return l ? '<a href="' + l[1] + '" target="_blank" rel="noopener noreferrer nofollow">' + l[0] + "</a>" : "";
+      });
       return s;
     }
   }

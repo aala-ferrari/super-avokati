@@ -8990,12 +8990,29 @@ def main():
         _c306 = _k306(["periodo di comporto", "Il cliente è in malattia da otto mesi e teme di essere licenziato. Fino a quando conserva il posto?"])
         _p306 = _k306(["esecuzione in forma specifica", "Il cliente ha firmato un preliminare ma il venditore si rifiuta di fare il rogito."])
         _l306 = _k306(["licenziamento disciplinare", "Il cliente è stato licenziato per giusta causa dopo una contestazione."])
+        _r306 = _k306(["rito abbreviato", "Il cliente è imputato per lesioni: conviene il rito abbreviato?"])
+        _g306 = _k306(["quota di legittima", "Il padre ha lasciato tutto alla seconda moglie escludendo i due figli. Cosa spetta ai figli?"])
         _br306.set_request_jurisdiction("AL")
-        check("lavoro[306]: comporto → c.c. 2110; preliminare → 2932/1351; il licenziamento qualsiasi senza malattia no",
-              ("codice_civile", "2110") in _c306 and ("codice_civile", "2932") in _p306 and ("codice_civile", "2110") not in _l306,
+        check("lavoro[306]: comporto → c.c. 2110; preliminare → 2932/1351; abbreviato → c.p.p. 438/442; legittima → c.c. 536/537; fuori tema no",
+              ("codice_civile", "2110") in _c306 and ("codice_civile", "2932") in _p306 and ("codice_civile", "2110") not in _l306
+              and ("codice_procedura_penale", "442") in _r306 and ("codice_civile", "537") in _g306 and ("codice_civile", "537") not in _l306,
               repr((sorted(_c306), sorted(_p306), sorted(_l306))))
     except Exception as _e306:  # noqa: BLE001
         check("lavoro[306]: kontrollet u ekzekutuan", False, str(_e306))
+
+    # [307] v9.530 — i link markdown delle fonti («[Cass. SU 19596/2020](https://…)») uscivano come testo grezzo in ogni risposta con
+    # fonti web: il renderer li rende, solo http/https, dopo escapeHtml, prima del corsivo (gli «_» degli indirizzi)
+    try:
+        _js307 = __import__("pathlib").Path("/app/static/app.js").read_text(encoding="utf-8")
+        _h307 = __import__("pathlib").Path("/app/templates/index.html").read_text(encoding="utf-8")
+        _i307 = _js307[_js307.index("    function inline(s) {"):]
+        _i307 = _i307[:_i307.index("\n    }\n")]
+        check("link[307]: link markdown resi (solo http/https, noopener, prima del corsivo), app.js?v=210",
+              "(https?:\\/\\/" in _i307 and 'rel="noopener noreferrer nofollow"' in _i307
+              and _i307.index("links.push") < _i307.index("<em>$1</em>") and _i307.index("s = escapeHtml(s);") < _i307.index("links.push")
+              and "app.js?v=210" in _h307, _i307[:120])
+    except Exception as _e307:  # noqa: BLE001
+        check("link[307]: kontrollet u ekzekutuan", False, str(_e307))
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

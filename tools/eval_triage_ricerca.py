@@ -80,6 +80,17 @@ CASI = [  # (giurisdizione, domanda dell'avvocato, articoli di cui almeno uno DE
     ("IT", "[frek-it2] La cliente è caduta su una buca del marciapiede comunale e si è rotta il polso. Chi risponde e cosa deve provare?", [("codice_civile", "2051")]),
     ("IT", "[frek-it2] Il cliente coltiva e recinta da 25 anni un terreno del vicino senza che nessuno abbia mai detto nulla. Può diventarne proprietario?", [("codice_civile", "1158")]),
     ("IT", "[frek-it2] Il cliente divorzia dopo 20 anni di matrimonio; la moglie non ha mai lavorato. Le spetta l'assegno divorzile?", [("divorzio", "5")]),
+    # v9.530 — quinto giro (riti e benefici penali, successioni, lavoro a termine)
+    ("IT", "[frek-it5] Il cliente è imputato per lesioni personali: conviene il rito abbreviato e di quanto si riduce la pena?", [("codice_procedura_penale", "442")]),
+    ("IT", "[frek-it5] Il cliente, accusato di furto aggravato, vuole patteggiare. Come funziona e che pena può concordare?", [("codice_procedura_penale", "444")]),
+    ("IT", "[frek-it5] Il cliente incensurato è imputato di guida senza patente e lesioni lievi: può chiedere la messa alla prova?", [("codice_penale", "168-bis")]),
+    ("IT", "[frek-it5] Il cliente è stato condannato a un anno e sei mesi; non ha precedenti. Può ottenere la sospensione condizionale?", [("codice_penale", "163")]),
+    ("IT", "[frek-it5] Il nonno ha lasciato un testamento scritto a mano ma senza data. È valido?", [("codice_civile", "602")]),
+    ("IT", "[frek-it5] Il padre ha lasciato tutto alla seconda moglie escludendo i due figli. Cosa spetta ai figli?", [("codice_civile", "537")]),
+    ("IT", "[frek-it5] Il cliente ha donato una casa al figlio, che ora lo ha aggredito e lo ingiuria. Può revocare la donazione?", [("codice_civile", "801")]),
+    ("IT", "[frek-it5] Il cliente lavora con contratti a termine rinnovati da 30 mesi nella stessa azienda. Può chiedere l'assunzione a tempo indeterminato?", [("contratti_lavoro", "19")]),
+    ("AL", "[frek5] Klienti u dënua me 2 vjet burg për herë të parë. A mund t'i pezullohet ekzekutimi i dënimit?", [("kodi_penal", "59")]),
+    ("AL", "[frek5] Klienti akuzohet për vjedhje dhe dëshiron gjykim të shkurtuar. Si funksionon dhe sa ulet dënimi?", [("kodi_proc_penale", "403"), ("kodi_proc_penale", "406")]),
     # v9.529 — quarto giro
     ("IT", "[frek-it4] La cliente vuole separarsi perché il marito la tradisce da anni. Può chiedere che la separazione sia addebitata a lui?", [("codice_civile", "151")]),
     ("IT", "[frek-it4] Il figlio del cliente ha 24 anni, ha lasciato l'università e non lavora. Il padre deve ancora mantenerlo?", [("codice_civile", "337-septies")]),

@@ -298,6 +298,12 @@ ANCORE_IT: tuple = (
      ("Penale", "Penal"), (("codice_civile", "2110"),), None, None, True),
     ((("preliminare", "rogito"), ("preliminare", "rifiut"), ("preliminare", "inadempi"), ("compromesso", "rogito"),
       ("compromesso", "rifiut")), ("Penale", "Penal"), (("codice_civile", "2932"), ("codice_civile", "1351")), None, None, True),
+    # v9.530 — al limite del blocco (13° posto) nel quinto giro del banco di prova: il RITO ABBREVIATO (c.p.p. 438 richiesta, 442
+    # decisione e riduzione di pena) e la LEGITTIMA dei figli esclusi dal testamento (c.c. 536 legittimari, 537 riserva dei figli).
+    # Solo dalla domanda.
+    (("abbreviato",), (), (("codice_procedura_penale", "438"), ("codice_procedura_penale", "442")), None, None, True),
+    ((("testament", "esclu"), ("legittima",), ("legittimari",), ("quota di riserva",), ("lasciato tutto", "figli"),
+      ("eredit", "esclu", "figli")), ("Penale", "Penal"), (("codice_civile", "536"), ("codice_civile", "537")), None, None, True),
     # v9.527 — il DECRETO INGIUNTIVO notificato: il termine dell'opposizione sta nel c.p.c. 641 (quaranta giorni, salvo diverso termine
     # nel decreto), la forma nel 645, la tardiva nel 650. Banco di prova col triage vero (7 ott): «entro quando fa opposizione?» → nel
     # blocco 650, 647, 646 e perfino il decreto PENALE (c.p.p. 461-462), il 641 fuori. Solo dalla domanda.
