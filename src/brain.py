@@ -199,6 +199,36 @@ ANCORE_AL: tuple = (
     ((("paraburgim", "pafaj"), ("paraburgim", "kompens"), ("paraburgim", "dëmshpërbl"), ("paraburgim", "demshperbl"),
       ("burgim", "pafaj", "kompens"), ("arrest", "pafaj", "kompens"), ("burgim të padrejt",), ("burgim i padrejt",)),
      (), (("kodi_proc_penale", "268"), ("kodi_proc_penale", "269")), None, None, True),
+    # v9.527 — la DIFFAMAZIONE (Facebook, giornale, pubblicamente «hajdut/mashtrues»): banco di prova col triage vero (7 ott), area
+    # «Civil» → il blocco teneva KC 114/115 e la legge sulla responsabilità dell'amministrazione, senza KP 120 (Shpifja: dire il falso
+    # sapendolo, gjobë fino a 1,5 milioni; più grave «botërisht»), KP 119 (Fyerja) né KC 625 (danno non patrimoniale per «nderi,
+    # personaliteti ose reputacioni»). Solo dalla domanda.
+    (("shpif", "fyer", "nderin", "nderi i", "dinjitet", "reputacion", ("publik", "hajdut"), ("publik", "mashtrues"),
+      ("facebook", "hajdut"), ("facebook", "mashtrues"), ("rrjet", "hajdut")),
+     (), (("kodi_penal", "120"), ("kodi_penal", "119"), ("kodi_civil", "625")), None, None, True),
+    # … e la FORMA del testamento: il triage scrive «olograf» (una l), il codice «ollograf» — la ricerca lessicale non trovava il 392
+    # (due forme), il 393 (olografo: «shkruhet tërësisht me dorën e testatorit», data e firma) né il 404 (nullo se non nella forma
+    # di legge); nel blocco entravano invalidità generiche e la legge notarile. Solo dalla domanda, mai nel penale.
+    ((("testament", "kompjuter"), ("testament", "shtyp"), ("testament", "dorë"), ("testament", "dore"), ("testament", "nënshkr"),
+      ("testament", "form"), ("testament", "vlefsh"), ("testament", "olograf"), ("testament", "ollograf"), ("testament", "noter")),
+     ("Penal",), (("kodi_civil", "392"), ("kodi_civil", "393"), ("kodi_civil", "404")), None, None, True),
+    # … e l'erede che NON si può escludere: KC 379 («nuk mund të përjashtojë nga trashëgimia ligjore fëmijët e tij të mitur» e gli
+    # inabili al lavoro — la quota che spetterebbe per legge). Banco di prova (7 ott): passava a giri alterni — il triage cerca «pjesa
+    # e detyrueshme», il codice dice «përjashtojë… të mitur». Solo dalla domanda.
+    ((("testament", "mitur"), ("testament", "vjeç"), ("testament", "vjec"), ("testament", "përjashtu"), ("testament", "perjashtu"),
+      ("testament", "pjesa e detyrueshme"), ("testament", "pjesa e rezervuar"), ("testament", "paaftë"), ("testament", "paafte")),
+     ("Penal",), (("kodi_civil", "379"),), None, None, True),
+    # … e gli STRAORDINARI non pagati: i soldi li decide il KP 91 «Kompensimi» (paga normale + almeno il 25 %, o riposo maggiorato del
+    # 25 %); 88 definisce l'ora in più, 90 il massimo (200 l'anno, 48 ore la settimana). Banco di prova (7 ott): «12 orë në ditë pa ia
+    # paguar orët shtesë» → il 90 al 15° posto, il 91 fuori. Solo dalla domanda, mai nel penale.
+    (("orë shtesë", "orët shtesë", "ore shtese", "oret shtese", "orëve shtesë", "jashtë orarit", "jashte orarit", "orar zgjatur"),
+     ("Penal",), (("kodi_punes", "91"), ("kodi_punes", "90"), ("kodi_punes", "88")), None, None, True),
+    # … e l'USUCAPIONE: KC 169 (possesso pacifico e ininterrotto da proprietario per VENT'ANNI) e 168 (dieci anni con titolo e buona
+    # fede). Banco di prova completo (7 ott, 64 casi): «rrethuar prej 25 vjetësh një tokë… a mund të bëhet pronar?» → a giri alterni,
+    # nel blocco il 168, 170, 171 ma non il 169. Inneschi stretti («pronar + vjet» da solo prenderebbe gli affitti). Solo dalla domanda.
+    ((("parashkrim fitues",), ("parashkrimi fitues",), ("fitimi i pronësisë", "parashkrim"), ("uzukapion",), ("usukapion",),
+      ("posed", "vjet"), ("pronar", "vjet", "tok"), ("pronar", "vjet", "rrethua"), ("pronar", "vjet", "truall")),
+     ("Penal",), (("kodi_civil", "169"), ("kodi_civil", "168")), None, None, True),
 )
 # v9.380 — ancore italiane di REGOLA GENERALE (stesso metro): «il credito risale al 2013 — è prescritto?» → il triage cerca
 # ordinaria + interruzione + sospensione e il 2946 c.c. «Prescrizione ordinaria» finiva oltre il 12° (2945, 2935, 2964 sopra).
@@ -217,6 +247,12 @@ ANCORE_IT: tuple = (
     ((("cittadinanz", "matrimon"), ("cittadinanz", "coniug"), ("cittadinanz", "sposat"), ("cittadinanz", "naturalizz"),
       ("cittadinanz", "residenz"), ("cittadinanz", "richied"), ("cittadinanz", "domanda"), ("cittadinanz", "ottener"),
       ("cittadinanz", "acquist")), (), (("cittadinanza", "9.1"), ("cittadinanza", "9-ter"), ("cittadinanza", "10"))),
+    # v9.527 — … e la norma BASE del canale: banco di prova col triage vero (7 ott), «risiede legalmente da undici anni: può chiedere la
+    # cittadinanza?» → l'art. 9 (dieci anni per l'extra-UE) entrava al 14° posto, al limite del blocco; nel matrimonio decide il 5
+    ((("cittadinanz", "residenz"), ("cittadinanz", "risied"), ("cittadinanz", "naturalizz")), (),
+     (("cittadinanza", "9"),)),
+    ((("cittadinanz", "matrimon"), ("cittadinanz", "coniug"), ("cittadinanz", "sposat"), ("cittadinanz", "moglie"),
+      ("cittadinanz", "marito")), (), (("cittadinanza", "5"),)),
     # … e il DANNO da fatto illecito: cinque anni, due per la circolazione dei veicoli (art. 2947 c.c.), non i dieci del 2946
     ((("prescri", "risarc"), ("prescri", "danno"), ("prescri", "danni"), ("prescri", "sinistr"), ("prescri", "incident"),
       ("prescri", "illecit")), ("Penale", "Penal"), (("codice_civile", "2947"),)),
@@ -236,6 +272,23 @@ ANCORE_IT: tuple = (
     (("naspi", "disoccupazion"), ("Penale", "Penal"),
      (("naspi", "3"), ("naspi", "4"), ("naspi", "5"), ("naspi", "6")), None, None, True),
     (("licenzi",), ("Penale", "Penal"), (("naspi", "6"),), None, None, True),
+    # v9.527 — il DECRETO INGIUNTIVO notificato: il termine dell'opposizione sta nel c.p.c. 641 (quaranta giorni, salvo diverso termine
+    # nel decreto), la forma nel 645, la tardiva nel 650. Banco di prova col triage vero (7 ott): «entro quando fa opposizione?» → nel
+    # blocco 650, 647, 646 e perfino il decreto PENALE (c.p.p. 461-462), il 641 fuori. Solo dalla domanda.
+    ((("decreto ingiuntiv",), ("ingiunzione di pagamento",), ("ingiunto",)), ("Penale", "Penal"),
+     (("codice_procedura_civile", "641"), ("codice_procedura_civile", "645"), ("codice_procedura_civile", "650")), None, None, True),
+    # … e la MULTA stradale da contestare: ricorso al prefetto entro 60 giorni (C.d.S. 203) o al giudice di pace entro 30 (204-bis), il
+    # pagamento ridotto (202). Banco di prova (7 ott, autovelox): nel blocco 204, 201, 211, 215 e il regolamento — né il 203 né il 204-bis.
+    ((("multa", "ricors"), ("multa", "contest"), ("multa", "impugn"), ("multa", "annull"), ("autovelox",), ("velox",),
+      ("verbale", "polizia locale", "ricors"), ("verbale", "velocità", "ricors"), ("contravvenzion", "ricors"),
+      ("sanzione", "stradal", "ricors"), ("photored",), ("t-red",)), ("Penale", "Penal"),
+     (("codice_strada", "203"), ("codice_strada", "204-bis"), ("codice_strada", "202")), None, None, True),
+    # … e l'EREDITÀ piena di DEBITI: le due strade sono la rinuncia (c.c. 519: dichiarazione davanti a notaio o cancelliere) e
+    # l'accettazione col beneficio d'inventario (484: i debiti si pagano solo nei limiti dei beni), entro il termine del 480. Banco di
+    # prova (7 ott): nel blocco 13 articoli dell'inventario (485-511), né il 519 né il 484. Solo dalla domanda.
+    ((("eredit", "debit"), ("eredit", "rinunci"), ("eredit", "beneficio d"), ("successione", "debit"), ("rinunciare all'eredit",),
+      ("morto", "debiti"), ("deceduto", "debiti")), ("Penale", "Penal"),
+     (("codice_civile", "519"), ("codice_civile", "484"), ("codice_civile", "480")), None, None, True),
     # v9.401 — la SOSPENSIONE FERIALE (L. 742/1969): l'art. 3 la esclude per le controversie di lavoro e previdenza (gli artt.
     # 429 e 459 c.p.c. che richiama sono quelli anteriori al 1973: oggi 409 e 442). Misurato (28 set, prove vive v9.400): la
     # bozza di un ricorso per licenziamento salvava il termine di 180 giorni dell'art. 6 L. 604/1966 «in ragione della

@@ -61,6 +61,35 @@ CASI = [  # (giurisdizione, domanda dell'avvocato, articoli di cui almeno uno DE
     # v9.525 — risposte vere del 1° e 3 ott: NASpI senza l'art. 4 (misura) e senza il 6 (68 giorni)
     ("IT", "Il cliente è stato licenziato a settembre dopo 4 anni di lavoro: quanto prende di NASpI, per quanto tempo ed entro quando fa domanda?", [("naspi", "4")]),
     ("IT", "Il cliente è stato licenziato per giusta causa dopo una contestazione disciplinare. Cosa può fare e cosa gli spetta?", [("naspi", "6")]),
+    # v9.527 — i temi più frequenti degli albanesi in Italia (immigrazione, patente, cittadinanza): l'articolo che decide entra?
+    ("IT", "[migr] Il permesso di soggiorno per lavoro del cliente albanese è scaduto da tre mesi e non ha chiesto il rinnovo. Può ancora rinnovarlo o rischia l'espulsione?", [("tu_immigrazione", "5"), ("tu_immigrazione", "13")]),
+    ("IT", "[migr] Il cliente albanese lavora in Italia e vuole far venire la moglie e i due figli minori. Quali requisiti servono per il ricongiungimento familiare?", [("tu_immigrazione", "29")]),
+    ("IT", "[migr] Il cliente vive in Italia da due anni e guida ancora con la patente albanese. È valida o deve convertirla?", [("codice_strada", "135")]),
+    ("IT", "[migr] Al cliente è stato notificato ieri un decreto di espulsione del Prefetto. Entro quando e davanti a chi lo impugniamo?", [("tu_immigrazione", "13")]),
+    ("IT", "[migr] Il cliente albanese risiede legalmente in Italia da undici anni. Può chiedere la cittadinanza italiana e a quali condizioni?", [("cittadinanza", "9")]),
+    ("IT", "[migr] Il cliente ha il permesso di soggiorno da sei anni con reddito stabile. Può ottenere il permesso UE per soggiornanti di lungo periodo?", [("tu_immigrazione", "9")]),
+    # v9.527 — domande frequenti degli avvocati ITALIANI
+    ("IT", "[frek-it] Al cliente è stato notificato un decreto ingiuntivo di 18.000 euro il 1° ottobre. Entro quando fa opposizione?", [("codice_procedura_civile", "641")]),
+    ("IT", "[frek-it] L'inquilino del cliente non paga l'affitto da quattro mesi. Come lo mandiamo via?", [("codice_procedura_civile", "658")]),
+    ("IT", "[frek-it] La cliente si separa dal marito e hanno due figli minori. Come si stabilisce l'assegno di mantenimento per i figli?", [("codice_civile", "337-ter")]),
+    ("IT", "[frek-it] Il cliente ha ricevuto una multa da autovelox notificata ieri. Entro quando e a chi può fare ricorso?", [("codice_strada", "204-bis"), ("codice_strada", "203")]),
+    ("IT", "[frek-it] Il cliente è stato aggredito e ferito lievemente un mese fa. Entro quando deve presentare querela?", [("codice_penale", "124")]),
+    ("IT", "[frek-it] Il datore ha detto al cliente a voce di non tornare più al lavoro, senza nessuna lettera. Cosa fa il cliente?", [("licenziamenti_individuali", "2")]),
+    ("IT", "[frek-it2] Il padre del cliente è morto lasciando più debiti che beni. Come evita il cliente di pagare i debiti del padre?", [("codice_civile", "519"), ("codice_civile", "484")]),
+    ("IT", "[frek-it2] Un creditore vuole pignorare lo stipendio del cliente. Quanto gli possono prendere ogni mese?", [("codice_procedura_civile", "545")]),
+    ("IT", "[frek-it2] La cliente è caduta su una buca del marciapiede comunale e si è rotta il polso. Chi risponde e cosa deve provare?", [("codice_civile", "2051")]),
+    ("IT", "[frek-it2] Il cliente coltiva e recinta da 25 anni un terreno del vicino senza che nessuno abbia mai detto nulla. Può diventarne proprietario?", [("codice_civile", "1158")]),
+    ("IT", "[frek-it2] Il cliente divorzia dopo 20 anni di matrimonio; la moglie non ha mai lavorato. Le spetta l'assegno divorzile?", [("divorzio", "5")]),
+    # v9.527 — domande frequenti degli avvocati albanesi (testamento, diffamazione): l'articolo che decide entra?
+    ("AL", "[frek] Babai i klientit la me testament gjithë pasurinë vëllait të madh; klienti ishte 16 vjeç kur babai vdiq. A ka të drejtë në trashëgimi?", [("kodi_civil", "379")]),
+    ("AL", "[frek] Gjyshi la një testament të shtypur në kompjuter dhe të nënshkruar me dorë. A është i vlefshëm?", [("kodi_civil", "393"), ("kodi_civil", "404")]),
+    ("AL", "[frek] Një person publikoi në Facebook se klienti im është hajdut dhe mashtrues, gjë që nuk është e vërtetë. Çfarë mund të bëjmë?", [("kodi_penal", "120")]),
+    ("AL", "[frek] Klientja u divorcua një vit më parë dhe ish-bashkëshorti nuk paguan asgjë për djalin 8 vjeç. Si e detyrojmë të paguajë ushqimin?", [("kodi_familjes", "197"), ("kodi_familjes", "161")]),
+    ("AL", "[frek] Klienti punoi dy vjet në një restorant pa kontratë të shkruar dhe tani pronari e largoi. A ka të drejta?", [("kodi_punes", "21")]),
+    ("AL", "[frek] Punëdhënësi e detyron klientin të punojë 12 orë në ditë pa ia paguar orët shtesë. Çfarë i takon?", [("kodi_punes", "91")]),
+    ("AL", "[frek2] Klienti e punon dhe e ka rrethuar prej 25 vjetësh një tokë që në hipotekë është e fqinjit. A mund të bëhet pronar?", [("kodi_civil", "169")]),
+    ("AL", "[frek2] Burri i klientes e shiti shtëpinë ku jetojnë me fëmijët pa e pyetur atë. Shtëpia u ble gjatë martesës. Çfarë mund të bëjë?", [("kodi_familjes", "57"), ("kodi_familjes", "60")]),
+    ("AL", "[frek2] Klientja i tha punëdhënësit se është shtatzënë dhe pas një jave e hoqën nga puna. A është e ligjshme?", [("kodi_punes", "105/a"), ("kodi_punes", "146")]),
 ]
 
 

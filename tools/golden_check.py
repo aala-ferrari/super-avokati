@@ -8712,6 +8712,8 @@ def main():
             _tm296.append(kw.get("timeout"))
             raise _bk296.subprocess.TimeoutExpired(cmd="claude", timeout=kw.get("timeout"))
         _bk296.subprocess.run = _run296
+        _as296 = _bk296._audit_safe
+        _bk296._audit_safe = lambda **kw: None     # il golden gira anche in produzione: niente righe finte nell'audit vero
         try:
             _b296 = _bk296.ClaudeCodeBackend()
             try:
@@ -8722,6 +8724,7 @@ def main():
                 _e296 = str(_x296)
         finally:
             _bk296.subprocess.run = _run0
+            _bk296._audit_safe = _as296
         check("tetto[296]: i raccoglitori passano il tetto alla CLI (55 s), il processo si ferma e lo dice",
               sorted(set(_kw296)) == [55] and len(_kw296) == 3 and _tm296[:1] == [55] and "55s" in _e296,
               f"kw={_kw296} run={_tm296} err={_e296[:80]}")
@@ -8892,6 +8895,61 @@ def main():
               _att302 <= _v302 and ("codice_strada", "93-bis") in _v302 and not _i302, repr((sorted(_v302), sorted(_i302))))
     except Exception as _e302:  # noqa: BLE001
         check("dogana[302]: kontrollet u ekzekutuan", False, str(_e302))
+
+    # [303] v9.527 — cittadinanza: la norma base del canale nel blocco (art. 9 per residenza, entrava al 14° posto; art. 5 per
+    # matrimonio), oltre a 9.1/9-ter/10 della v9.506
+    try:
+        from src import brain as _br303
+        from src.retrieval import ArticleIndex as _AI303
+        _br303.set_request_jurisdiction("IT")
+        _it303 = _AI303.load(__import__("pathlib").Path("/app/data/index/bm25_it.pkl"))
+        _k303 = lambda q: {(a.code, str(a.number)) for a, _ in _br303._applica_ancore([], _it303, q, ["Immigrazione"], ancore=_br303.ANCORE_IT)}
+        _r303 = _k303(["cittadinanza per residenza", "Il cliente risiede legalmente in Italia da undici anni: può chiedere la cittadinanza?"])
+        _m303 = _k303(["cittadinanza per matrimonio", "Il cliente è sposato da tre anni con una cittadina italiana: come ottiene la cittadinanza?"])
+        _p303 = _k303(["permesso di soggiorno", "Il permesso di soggiorno del cliente è scaduto: può rinnovarlo?"])
+        _br303.set_request_jurisdiction("AL")
+        _br303.set_request_jurisdiction("IT")
+        _di303 = _k303(["termine opposizione", "Al cliente è stato notificato un decreto ingiuntivo il 1° ottobre. Entro quando fa opposizione?"])
+        _av303 = _k303(["ricorso verbale", "Il cliente ha ricevuto una multa da autovelox notificata ieri. Entro quando può fare ricorso?"])
+        _dp303 = _k303(["opposizione decreto penale", "Al cliente è stato notificato un decreto penale di condanna: entro quando l'opposizione?"])
+        _er303 = _k303(["rinuncia all'eredità", "Il padre del cliente è morto lasciando più debiti che beni. Come evita di pagarli?"])
+        _br303.set_request_jurisdiction("AL")
+        check("frequenti[303]: decreto ingiuntivo → c.p.c. 641/645/650 (non col decreto penale); multa → C.d.S. 203/204-bis/202; eredità con debiti → c.c. 519/484",
+              {("codice_procedura_civile", "641"), ("codice_procedura_civile", "645")} <= _di303
+              and {("codice_strada", "203"), ("codice_strada", "204-bis")} <= _av303
+              and ("codice_procedura_civile", "641") not in _dp303 and ("codice_strada", "203") not in _di303
+              and {("codice_civile", "519"), ("codice_civile", "484")} <= _er303 and ("codice_civile", "519") not in _av303,
+              repr((sorted(_di303), sorted(_av303), sorted(_dp303))))
+        check("cittadinanza[303]: residenza → art. 9, matrimonio → art. 5 (con 9.1/9-ter/10); il permesso di soggiorno no",
+              ("cittadinanza", "9") in _r303 and ("cittadinanza", "5") in _m303 and ("cittadinanza", "10") in _m303
+              and not any(c == "cittadinanza" for c, _ in _p303), repr((sorted(_r303), sorted(_m303), sorted(_p303))))
+    except Exception as _e303:  # noqa: BLE001
+        check("cittadinanza[303]: kontrollet u ekzekutuan", False, str(_e303))
+
+    # [304] v9.527 — (AL) diffamazione → KP 120/119 + KC 625; forma del testamento («olograf» del triage ≠ «ollograf» del codice)
+    # → KC 392/393/404; dalla domanda, non fuori tema
+    try:
+        from src import brain as _br304
+        from src.retrieval import ArticleIndex as _AI304
+        _al304 = _AI304.load()
+        _br304.set_request_jurisdiction("AL")
+        _k304 = lambda q, aree: {(a.code, str(a.number)) for a, _ in _br304._applica_ancore([], _al304, q, aree)}
+        _d304 = _k304(["cenimi i nderit", "Një person publikoi në Facebook se klienti im është hajdut. Çfarë mund të bëjmë?"], ["Civil"])
+        _t304 = _k304(["forma e testamentit", "Gjyshi la një testament të shtypur në kompjuter dhe të nënshkruar me dorë. A është i vlefshëm?"], ["Civil"])
+        _x304 = _k304(["trashëgimia ligjore", "Babai vdiq pa testament: si ndahet pasuria?"], ["Civil"])
+        _m304 = _k304(["pjesa e detyrueshme", "Babai la me testament gjithë pasurinë vëllait; klienti ishte 16 vjeç. A ka të drejtë?"], ["Civil"])
+        _o304 = _k304(["kohëzgjatja e punës", "Punëdhënësi e detyron klientin të punojë 12 orë në ditë pa ia paguar orët shtesë. Çfarë i takon?"], ["Punë"])
+        _u304 = _k304(["parashkrimi fitues", "Klienti e punon dhe e ka rrethuar prej 25 vjetësh një tokë të fqinjit. A mund të bëhet pronar?"], ["Prone"])
+        _q304 = _k304(["qiraja", "Qiramarrësi jeton prej 5 vjetësh në banesë dhe nuk paguan; pronari si ta nxjerrë?"], ["Civil"])
+        check("ancore[304]: (AL) diffamazione → KP 120/119 + KC 625; forma del testamento → KC 392/393/404; figlio minore escluso → KC 379; straordinari → KP 91; usucapione → KC 169 (non l'affitto); fuori tema no",
+              {("kodi_penal", "120"), ("kodi_penal", "119"), ("kodi_civil", "625")} <= _d304
+              and {("kodi_civil", "392"), ("kodi_civil", "393"), ("kodi_civil", "404")} <= _t304
+              and ("kodi_civil", "379") in _m304 and ("kodi_civil", "379") not in _x304
+              and ("kodi_punes", "91") in _o304 and ("kodi_punes", "91") not in _x304
+              and ("kodi_civil", "169") in _u304 and ("kodi_civil", "169") not in _q304
+              and not ({("kodi_civil", "392"), ("kodi_civil", "404"), ("kodi_penal", "120")} & _x304), repr((sorted(_d304), sorted(_t304), sorted(_x304), sorted(_m304))))
+    except Exception as _e304:  # noqa: BLE001
+        check("ancore[304]: kontrollet u ekzekutuan", False, str(_e304))
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
