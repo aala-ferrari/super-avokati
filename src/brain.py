@@ -206,6 +206,12 @@ ANCORE_AL: tuple = (
     (("çfarë dënimi", "cfare denimi", "ç'dënim", "rrezikon", "si e mbrojmë", "si e mbrojme", "si mbrohemi", "mbrojtja e klientit",
       "sa vjet burg", "dënimi maksimal", "denimi maksimal"),
      (), (("kodi_penal", "48"), ("kodi_penal", "53"), ("kodi_penal", "59"), ("kodi_proc_penale", "406")), None, ("Penal",), True),
+    # v9.541 — il DIVORZIO CONTESTATO: il Codice della famiglia non ha rubriche (la ricerca vede la prima frase) e col triage vero
+    # il blocco oscillava — nel banco dell'8 ott 128/130/160 ma non 132 (lo scioglimento chiesto da UNO dei coniugi quando la vita
+    # comune è diventata impossibile), 129 (interruzione della convivenza) né, per i figli, 155. Solo dalla domanda, mai nel penale.
+    ((("divorc", "nuk pranon"), ("divorc", "nuk do"), ("divorc", "kundërshton"), ("divorc", "kundershton"), ("divorc", "pa pëlqim"),
+      ("divorc", "pa pelqim"), ("zgjidhj", "martes", "nuk pranon"), ("zgjidhj", "martes", "njërit"), ("zgjidhj", "martes", "njerit")),
+     ("Penal",), (("kodi_familjes", "132"), ("kodi_familjes", "129"), ("kodi_familjes", "155")), None, None, True),
     # v9.537 — il socio di s.h.p.k. che vuole USCIRE: il banco di prova aspettava gli artt. 44-45 (che sono della società in nome
     # collettivo) e il blocco ne era pieno; per la s.h.p.k. la legge 9901/2008 ha il recesso per giusti motivi (101), le sue
     # conseguenze — valore della quota (103) — e la via ordinaria, la cessione della quota (73). La rubrica del 101 aveva
@@ -332,6 +338,13 @@ ANCORE_IT: tuple = (
       ("diniego", "comune"), ("diniego", "regione"), ("diniego", "ministero"), ("esclus", "gara"), ("esclus", "bando"),
       ("annull", "provvedimento", "comune")),
      ("Penale", "Penal"), (("codice_processo_amministrativo", "29"), ("codice_processo_amministrativo", "41")), None, None, True),
+    # v9.541 — la LIQUIDAZIONE GIUDIZIALE chiesta dal creditore: CCII 121 (presupposti: imprenditore commerciale non «minore», in
+    # stato d'insolvenza), 37 (chi può chiederla — anche un creditore), 49 (la sentenza di apertura). Banco completo dell'8 ott: il
+    # blocco era pieno del codice della crisi (34, 248, 297, 268…) ma senza 121 e 37; il 7 ott passava. Solo dalla domanda.
+    (("liquidazione giudiziale", "dichiarazione di fallimento", "istanza di fallimento", "chiederne il fallimento",
+      ("fallimento", "credit"), ("fallire", "societ")),
+     ("Penale", "Penal"), (("codice_crisi_impresa", "121"), ("codice_crisi_impresa", "37"), ("codice_crisi_impresa", "49")),
+     None, None, True),
     # … e il RICORSO TRIBUTARIO contro avviso di accertamento o cartella: oggi (fino al 31/12/2026) il D.Lgs. 546/1992 — art. 21 (sessanta
     # giorni) e 19 (atti impugnabili); il testo unico della giustizia tributaria si applica dal 1/1/2027. Banco di prova: il 21 al 14°.
     ((("accertamento", "ricors"), ("accertamento", "impugn"), ("cartella", "ricors"), ("cartella", "impugn"), ("cartella", "opposizion"),
@@ -775,9 +788,11 @@ def _ancora_vepra_penale(pairs, idx, queries: list[str], aree) -> list:
         # (truffa) ha la rubrica-frase «… përbën veprën penale të mashtrimit …». Mappa radice → articolo base (rubrica di una parola,
         # o la frase «veprën penale të X»): se una query nomina la figura, l'articolo base entra fra i candidati.
         for _rad, _k in _figure_base_kp(idx).items():
-            if any(_rad in r for r in rq) and _k not in punti:
+            # v9.541: in testa anche se la ricerca l'aveva GIÀ trovato con un punteggio basso — «… për veprën e mashtrimit» dava il
+            # 143 a 17,2 dietro 143/b, 144, 146, 147 e restava fuori dai primi 4 (banco completo dell'8 ott: truffa del visto)
+            if any(_rad in r for r in rq):
                 punti[_k] = max(punti.values() or [1.0]) + 0.01
-                art[_k] = next(a for a in idx.articles if (a.code, str(a.number)) == _k)
+                art[_k] = art.get(_k) or next(a for a in idx.articles if (a.code, str(a.number)) == _k)
 
         # v9.528 — una rubrica di UNA parola («Vjedhja» 134, «Mashtrimi» 143, «Shpifja» 120, «Fyerja» 119) ha una radice sola e
         # con «almeno due» non passava MAI: i reati più comuni restavano fuori (banco di prova del 7 ott: furto e truffa, col triage

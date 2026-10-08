@@ -9139,6 +9139,35 @@ def main():
     except Exception as _e312:  # noqa: BLE001
         check("verificatore[312]: kontrollet u ekzekutuan", False, f"{type(_e312).__name__}: {_e312}")
 
+    # [313] v9.541 — il DIVORZIO CONTESTATO (il coniuge non acconsente) → KF 132/129/155; non il consensuale, non nel penale
+    try:
+        from pathlib import Path as _P313
+        from src.retrieval import ArticleIndex as _AI313
+        from src import brain as _b313
+        _ix313 = _AI313.load(_P313("/app/data/index/bm25.pkl"))
+        _v313 = [v for v in _b313.ANCORE_AL if ("kodi_familjes", "132") in v[2]]
+        _k313 = lambda q, ar: {(a.code, a.number) for a, _ in _b313._applica_ancore([], _ix313, [q], ar, ancore=_v313)}
+        check("divorzio[313]: contestato → KF 132/129/155; il consensuale e il penale no",
+              len(_v313) == 1
+              and {("kodi_familjes", "132"), ("kodi_familjes", "155")} <= _k313("Klientja kërkon divorc, bashkëshorti nuk pranon. Kush merr fëmijët?", ["Familje"])
+              and not _k313("Si bëhet divorci me marrëveshje?", ["Familje"])
+              and not _k313("Klientja kërkon divorc, bashkëshorti nuk pranon dhe e kërcënon.", ["Penal"]))
+        # … la truffa: il KP 143 in testa anche se la ricerca l'aveva trovato con un punteggio basso; la liquidazione giudiziale IT
+        _by313 = {(a.code, str(a.number)): a for a in _ix313.articles}
+        _p313 = [(_by313[("kodi_penal", n)], 1.0) for n in ("145", "301", "312")]
+        _o313 = _b313._ancora_vepra_penale(_p313, _ix313, ["mashtrimi përfitim pasuror me anë mashtrimi",
+                                                          "parashkrimi i ndjekjes penale për veprën e mashtrimit"], ["Penal"])
+        _ixit313 = _AI313.load(_P313("/app/data/index/bm25_it.pkl"))
+        _vi313 = [v for v in _b313.ANCORE_IT if ("codice_crisi_impresa", "121") in v[2]]
+        _ki313 = {(a.code, a.number) for a, _ in _b313._applica_ancore([], _ixit313, [
+            "Una società deve al cliente 120.000 euro e non paga: possiamo chiederne la liquidazione giudiziale?"], ["Civile"], ancore=_vi313)}
+        check("reati/crisi[313]: truffa → KP 143 in testa; liquidazione giudiziale → CCII 121/37",
+              (_o313[0][0].code, _o313[0][0].number) == ("kodi_penal", "143")
+              and len(_vi313) == 1 and {("codice_crisi_impresa", "121"), ("codice_crisi_impresa", "37")} <= _ki313,
+              f"{(_o313[0][0].code, _o313[0][0].number)} {_ki313}")
+    except Exception as _e313:  # noqa: BLE001
+        check("divorzio[313]: kontrollet u ekzekutuan", False, f"{type(_e313).__name__}: {_e313}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
