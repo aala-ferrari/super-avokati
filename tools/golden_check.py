@@ -9337,6 +9337,27 @@ def main():
     except Exception as _e320:  # noqa: BLE001
         check("frek13[320]: kontrollet u ekzekutuan", False, f"{type(_e320).__name__}: {_e320}")
 
+    # [321] v9.549 — entro quando si impugna in italiano: penale → c.p.p. 585/172/582; civile → c.p.c. 325/327/155; mai l'uno nell'altro,
+    # mai nell'amministrativo; e solo quando la domanda chiede il termine
+    try:
+        from pathlib import Path as _P321
+        from src.retrieval import ArticleIndex as _AI321
+        from src import brain as _b321
+        _it321 = _AI321.load(_P321("/app/data/index/bm25_it.pkl"))
+        _i321 = lambda q, ar: {(a.code, a.number) for a, _ in _b321._applica_ancore([], _it321, [q], ar, _b321.ANCORE_IT)}
+        _pen321 = _i321("Condannato dal tribunale, motivazione depositata il 25 settembre: entro quando l'appello?", ["Penale"])
+        _civ321 = _i321("La sentenza civile è stata notificata il 1° ottobre: entro quando l'appello?", ["Civile"])
+        check("termini IT[321]: appello penale → c.p.p. 585/172/582; civile → c.p.c. 325/327/155; mai incrociati",
+              {("codice_procedura_penale", "585"), ("codice_procedura_penale", "172"), ("codice_procedura_penale", "582")} <= _pen321
+              and ("codice_procedura_civile", "325") not in _pen321
+              and {("codice_procedura_civile", "325"), ("codice_procedura_civile", "327"), ("codice_procedura_civile", "155")} <= _civ321
+              and ("codice_procedura_penale", "585") not in _civ321)
+        check("termini IT[321]: niente nell'amministrativo né senza la domanda sul termine",
+              ("codice_procedura_civile", "325") not in _i321("Il TAR ha respinto il ricorso: entro quando l'appello al Consiglio di Stato?", ["Amministrativo"])
+              and ("codice_procedura_civile", "325") not in _i321("Il cliente vuole appellare la sentenza civile: quali motivi?", ["Civile"]))
+    except Exception as _e321:  # noqa: BLE001
+        check("termini IT[321]: kontrollet u ekzekutuan", False, f"{type(_e321).__name__}: {_e321}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

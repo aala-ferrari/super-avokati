@@ -100,6 +100,8 @@ CASI = [  # (giurisdizione, domanda dell'avvocato, articoli di cui almeno uno DE
     ("IT", "[frek13] Il cliente alla guida ha investito un pedone causandogli fratture con prognosi di 60 giorni. Che reato rischia?", [("codice_penale", "590-bis")]),
     ("IT", "[frek13] Il cliente è denunciato per aver costruito un capannone senza permesso di costruire. Che pena rischia?", [("tu_edilizia", "44")]),
     ("IT", "[frek13] Il vicino ha costruito a un metro e mezzo dal confine del cliente. Cosa possiamo chiedere?", [("codice_civile", "873")]),
+    ("IT", "[frek13] Il cliente è stato condannato a un anno di reclusione per furto; la motivazione è stata depositata il 25 settembre. Entro quando va proposto l'appello?", [("codice_procedura_penale", "585")]),
+    ("IT", "[frek13] La sentenza civile di primo grado che ha respinto la domanda del cliente è stata notificata il 1° ottobre. Entro quando l'appello?", [("codice_procedura_civile", "325")]),
     # v9.544 — dodicesimo giro (8 ott): penale e amministrativo, attese lette sul testo
     ("AL", "[frek12] Klienti u arrestua për vjedhje dhe prokuroria kërkon arrest në burg. Çfarë kriteresh duhen dhe çfarë mase më të butë mund të kërkojmë?", [("kodi_proc_penale", "228"), ("kodi_proc_penale", "229"), ("kodi_proc_penale", "230")]),
     ("AL", "[frek12] Shteti do t'i shpronësojë klientit tokën për një rrugë. Çfarë të drejtash ka dhe si e kundërshton vlerën?", [("ligji_shpronesimi", "6"), ("ligji_shpronesimi", "16"), ("ligji_shpronesimi", "5")]),

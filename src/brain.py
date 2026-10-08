@@ -404,6 +404,21 @@ ANCORE_IT: tuple = (
     # procedimento disciplinare), mancava la norma che definisce la giusta causa, c.c. 2119 (decimo giro, 8 ott). Solo dalla domanda.
     (("in tronco", "giusta causa", "senza preavviso", ("licenzi", "assente"), ("licenzi", "assenza ingiustificat")),
      ("Penale", "Penal"), (("codice_civile", "2119"),), None, None, True),
+    # v9.549 — ENTRO QUANDO SI IMPUGNA, in italiano (le ancore c'erano solo per l'albanese, v9.500): due risposte vere del 4 ott sul
+    # termine dell'appello penale scrivevano «art. 172 c.p.p., non nel corpus» e «art. 111-bis c.p.p., non nel corpus» — sono nel
+    # corpus, non entravano nel blocco. Penale: c.p.p. 585 (i termini: 15/30/45 giorni, la decorrenza), 172 (il computo: giorno
+    # iniziale escluso, l'ultimo festivo che slitta) e 582 (la presentazione, col deposito telematico del 111-bis). Civile: c.p.c. 325
+    # (trenta giorni dalla notifica), 327 (sei mesi dalla pubblicazione) e 155 (il computo). Solo dalla domanda, ciascuna nella sua area
+    # (amministrativo e tributario hanno le loro: c.p.a. 29 e d.lgs. 546/1992 art. 21).
+    ((("entro quando", "appell"), ("termine", "appell"), ("scade", "appell"), ("entro quando", "impugn"), ("termine", "impugn"),
+      ("entro quando", "cassazione"), ("termine", "ricorso per cassazione"), ("quanti giorni", "appell"), ("quanti giorni", "impugn")),
+     (), (("codice_procedura_penale", "585"), ("codice_procedura_penale", "172"), ("codice_procedura_penale", "582")), None,
+     ("Penale", "Penal"), True),
+    ((("entro quando", "appell"), ("termine", "appell"), ("scade", "appell"), ("entro quando", "impugn"), ("termine", "impugn"),
+      ("entro quando", "cassazione"), ("termine", "ricorso per cassazione"), ("quanti giorni", "appell"), ("quanti giorni", "impugn")),
+     ("Penale", "Penal", "Amministrativo", "Administrativ", "Tributario"),
+     (("codice_procedura_civile", "325"), ("codice_procedura_civile", "327"), ("codice_procedura_civile", "155")), None,
+     ("Civile", "Civil", "Procedura civile", "Lavoro", "Famiglia"), True),
     # v9.548 — il PRESTITO fra privati («ha prestato 15.000 euro a un amico… non glieli restituisce»): il 1813 c.c. (mutuo) passava
     # al 1° posto quando il triage scriveva «mutuo», ma in un giro su quattro del banco (8 ott) restava fuori. Solo nel civile.
     ((("prestat", "restitu"), ("prestat", "amic"), ("prestito", "restitu"), ("mutuo", "restitu"), ("prestit", "scrittura privata")),
