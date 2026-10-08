@@ -173,6 +173,9 @@ ACTS = [
     # ── wave12 (8 ott 2026): le DISPOSIZIONI DI ATTUAZIONE del c.p.c. — c'erano quelle del c.c. e del c.p.p., non queste; le risposte
     # le citano (art. 188 opposizione e notifica del decreto ingiuntivo, 164-ter, 152 spese) e uscivano «fuori corpus»
     ("disp_att_cpc", "Disposizioni per l'attuazione del Codice di Procedura Civile e disposizioni transitorie (R.D. 1368/1941)", "Procedura Civile", "regio.decreto:1941-12-18;1368", "wave12"),
+    # … e la LEGGE 104/1992 (assistenza, integrazione e diritti delle persone con disabilità: i permessi dell'art. 33, il trasferimento,
+    # il divieto di trasferimento senza consenso): citata nelle risposte, non nel corpus
+    ("legge_104", "Legge-quadro per l'assistenza, l'integrazione sociale e i diritti delle persone handicappate (L. 104/1992)", "Lavoro", "legge:1992-02-05;104", "wave12"),
 ]
 # atti da scaricare al testo in vigore OGGI («!vig=»): senza data Normattiva dà la versione futura (qui: tutto «ABROGATO» dal 2027)
 VIGENTE_AL = {"tuir_1986", "processo_tributario", "sanzioni_tributarie_amministrative", "imposta_ipotecaria_catastale",

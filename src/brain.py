@@ -412,6 +412,10 @@ ANCORE_IT: tuple = (
     # procedimento disciplinare), mancava la norma che definisce la giusta causa, c.c. 2119 (decimo giro, 8 ott). Solo dalla domanda.
     (("in tronco", "giusta causa", "senza preavviso", ("licenzi", "assente"), ("licenzi", "assenza ingiustificat")),
      ("Penale", "Penal"), (("codice_civile", "2119"),), None, None, True),
+    # v9.551 — i PERMESSI per assistere un familiare con disabilità grave: la L. 104/1992 è entrata nel corpus (art. 33 «Agevolazioni»: tre
+    # giorni al mese, il trasferimento, il consenso); al primo giro del banco era all'11° posto. Mai nel penale.
+    (("legge 104", "l. 104", ("permess", "disabil"), ("permess", "handicap"), ("assist", "disabilità grave"), ("congedo", "disabil")),
+     ("Penale", "Penal"), (("legge_104", "33"),)),
     # v9.550 — il SEQUESTRO CONSERVATIVO («il debitore sta vendendo gli immobili prima della causa: come blocchiamo i beni?»): il 671
     # c.p.c. al 9°, dietro la revocatoria (2901 c.c.: un altro rimedio, dopo l'atto). Solo nel civile.
     (("sequestro conservativo", ("blocc", "beni"), ("vend", "immobil", "prima della causa"), ("garanzia del credito", "beni")),

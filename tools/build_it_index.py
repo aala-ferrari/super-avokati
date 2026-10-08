@@ -255,6 +255,14 @@ def _pulisci(heading: str, body: str) -> tuple[str, str]:
     # «-», altrove si toglie; e i caratteri a larghezza zero
     h, b = (re.sub(r"[​-‍⁠﻿]", "", re.sub(r"(?<=\d)­(?=[a-z])", "-", x).replace("­", ""))
             for x in (h, b))
+    # v9.551 — l'A CAPO davanti a una virgola o a un punto e virgola: lo lascia l'ingest dove toglie i segni del testo modificato
+    # («figli ((legittimi))\n, il coniuge…», «ascendenti ((...))\n, fratelli e sorelle»): 1.357 articoli IT, 54 senza rubrica per
+    # questo (c.c. 582 «Concorso del coniuge con ascendenti, fratelli e sorelle»). Si riunisce la riga; l'omissione «((...))» subito
+    # prima della virgola si toglie (è il testo soppresso, non c'è più)
+    # (anche col DOPPIO a capo: «… materiale analogo di natura sessuale\n\n, all'accattonaggio» — c.p. 600, reg. C.d.S.)
+    # (e col segno che si RIAPRE prima della virgola: «sessuale))\n\n((, all'accattonaggio»)
+    b = re.sub(r"[ \t]*(?:\(\(\s*)?\.\.\.(?:\s*\)\))?[ \t]*(?=(?:\n[ \t]*)+(?:\(\(\s*)?[,;])", "", b)
+    b = re.sub(r"[ \t]*(?:\n[ \t]*)+(?=(?:\(\(\s*)?[,;])", "", b)
     _hs = re.sub(r"\s+", " ", re.sub(r"\(\(|\)\)", " ", h)).strip()
     _fonte_fatta = False
     if _hs and _FONTE_SOPRA.match(_hs):

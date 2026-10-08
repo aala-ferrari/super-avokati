@@ -9375,6 +9375,28 @@ def main():
     except Exception as _e322:  # noqa: BLE001
         check("frek14[322]: kontrollet u ekzekutuan", False, f"{type(_e322).__name__}: {_e322}")
 
+    # [323] v9.551 — la L. 104/1992 nel corpus («art. 33 L. 104/1992» verificato, rubrica «Agevolazioni»); nessun corpo IT con l'a capo
+    # davanti alla virgola (1.357 prima), c.c. 582 con la sua rubrica
+    try:
+        import re as _re323
+        from pathlib import Path as _P323
+        from src.retrieval import ArticleIndex as _AI323
+        from src import citation_verifier as _cv323
+        _it323 = _AI323.load(_P323("/app/data/index/bm25_it.pkl"))
+        _by323 = {(a.code, a.number): a for a in _it323.articles}
+        _st323 = {i["number"]: (i["status"], i.get("code")) for i in _cv323.verify_text("I permessi dell'art. 33 L. 104/1992 e dell'art. 33 L. 104/92.", _it323)["items"]}
+        check("legge_104[323]: «art. 33 L. 104/1992» (anche «/92») verificato; rubrica «Agevolazioni»",
+              _st323.get("33") == ("verified", "legge_104") and (_by323.get(("legge_104", "33")) and _by323[("legge_104", "33")].heading == "Agevolazioni"),
+              str(_st323))
+        _nl323 = [k for k, a in _by323.items() if _re323.search(r"\n[ \t]*[,;]", a.body or "")]
+        check("corpus IT[323]: nessun a capo davanti a «,»/«;»; c.c. 582 «Concorso del coniuge con ascendenti, fratelli e sorelle»",
+              not _nl323 and (_by323[("codice_civile", "582")].heading or "").startswith("Concorso del coniuge con ascendenti"), str(_nl323[:5]))
+        from src import brain as _b323
+        _i323 = {(a.code, a.number) for a, _ in _b323._applica_ancore([], _it323, ["Il cliente assiste la madre con disabilità grave: ha diritto a permessi?"], ["Civile"], _b323.ANCORE_IT)}
+        check("legge_104[323]: permessi per il familiare disabile → L. 104/1992 art. 33", ("legge_104", "33") in _i323)
+    except Exception as _e323:  # noqa: BLE001
+        check("legge_104[323]: kontrollet u ekzekutuan", False, f"{type(_e323).__name__}: {_e323}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

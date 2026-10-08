@@ -86,6 +86,17 @@ CASI = [  # (giurisdizione, domanda dell'avvocato, articoli di cui almeno uno DE
     ("IT", "[frek9] La cliente ha subito un intervento sbagliato in un ospedale pubblico. Contro chi agiamo e cosa dobbiamo fare prima della causa?", [("responsabilita_sanitaria", "7"), ("responsabilita_sanitaria", "8")]),
     ("AL", "[frek9] Klienti pati një aksident, faji ishte i tjetrit, dhe siguruesi nuk po i përgjigjet prej dy muajsh. Si ta detyrojmë të paguajë?", [("ligji_sigurimi_mjeteve", "10"), ("ligji_sigurimi_mjeteve", "9")]),
     ("AL", "[frek9] Klienti është ortak me 40% në një shpk dhe dëshiron të largohet nga shoqëria. Si e bën dhe çfarë i takon?", [("ligji_shoqerite_tregtare", "101"), ("ligji_shoqerite_tregtare", "103"), ("ligji_shoqerite_tregtare", "73")]),
+    # v9.551 — quindicesimo giro (8 ott): servitù AL, corruzione; IT straordinari, ferie, diffamazione online, mantenimento non versato,
+    # furto in casa, successione senza testamento, permessi L. 104
+    ("AL", "[frek15] Toka e klientit nuk ka dalje në rrugë publike dhe fqinji nuk e lë të kalojë nga toka e tij. Çfarë të drejte kemi?", [("kodi_civil", "277")]),
+    ("AL", "[frek15] Një zyrtar i bashkisë i kërkoi klientit 2000 euro për t'i dhënë lejen e ndërtimit. Çfarë vepre është dhe çfarë rrezikon klienti nëse paguan?", [("kodi_penal", "259"), ("kodi_penal", "244")]),
+    ("IT", "[frek15] Il cliente lavora 50 ore a settimana e gli straordinari non vengono pagati. Cosa può chiedere?", [("orario_lavoro", "5"), ("codice_civile", "2108")]),
+    ("IT", "[frek15] Da due anni il datore non fa godere le ferie al cliente e ora vuole licenziarlo. Che diritti ha sulle ferie non godute?", [("orario_lavoro", "10")]),
+    ("IT", "[frek15] Un ex collega ha scritto su Facebook che il cliente è un ladro. È diffamazione? Cosa rischia?", [("codice_penale", "595")]),
+    ("IT", "[frek15] L'ex marito non versa l'assegno per i figli da sei mesi. È anche un reato?", [("codice_penale", "570-bis")]),
+    ("IT", "[frek15] Di notte sono entrati in casa del cliente e hanno rubato gioielli. Il ladro è stato preso: che pena rischia?", [("codice_penale", "624-bis")]),
+    ("IT", "[frek15] Il padre del cliente è morto senza testamento lasciando la moglie e due figli. Come si divide l'eredità?", [("codice_civile", "581")]),
+    ("IT", "[frek15] Il cliente assiste la madre con disabilità grave. Ha diritto a permessi retribuiti dal lavoro?", [("legge_104", "33")]),
     # v9.550 — quattordicesimo giro (8 ott): maternità, cautelare civile, alimenti fra parenti; IT separazione consensuale
     ("AL", "[frek14] Klientja është shtatzënë në muajin e pestë. Sa leje lindjeje i takon dhe kush e paguan?", [("kodi_punes", "105")]),
     ("AL", "[frek14] Debitori po i shet pasuritë para se të fillojë gjyqi. Si ia bllokojmë pasurinë klientit tonë që të mos humbasë kredinë?", [("kodi_proc_civile", "202"), ("kodi_proc_civile", "206")]),

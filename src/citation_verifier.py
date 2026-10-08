@@ -435,6 +435,7 @@ CODE_LABELS: dict[str, str] = {
     "procedimenti_cittadinanza": "d.P.R. 362/1994 (cittadinanza)", "naspi": "d.lgs. 22/2015 (NASpI)",
     "ritardi_pagamento": "d.lgs. 231/2002 (ritardi di pagamento)", "collegato_lavoro": "L. 183/2010 (collegato lavoro)",
     "licenziamenti_collettivi": "L. 223/1991 (licenziamenti collettivi)",
+    "legge_104": "L. 104/1992 (disabilità: permessi e tutele)",
     "legge_sospensione_feriale": "L. 742/1969",
     "tutele_crescenti": "D.Lgs 23/2015",
     "responsabilita_sanitaria": "L. 24/2017 (Gelli)",
@@ -899,7 +900,7 @@ _IT_CODE_NUM_CHECKS = [
     ("4311998", "locazioni_abitative"), ("3921978", "locazioni_immobili_urbani"), ("282010", "mediazione_civile"),
     ("1502011", "riti_civili_semplificati"), ("2472012", "ordinamento_forense"), ("6041966", "licenziamenti_individuali"), ("2231989", "regolamento_anagrafico"), ("4701988", "aire"),
     ("3621994", "procedimenti_cittadinanza"), ("222015", "naspi"), ("2312002", "ritardi_pagamento"), ("1832010", "collegato_lavoro"),
-    ("2231991", "licenziamenti_collettivi"), ("7421969", "legge_sospensione_feriale"),
+    ("2231991", "licenziamenti_collettivi"), ("1041992", "legge_104"), ("7421969", "legge_sospensione_feriale"),
     ("232015", "tutele_crescenti"), ("242017", "responsabilita_sanitaria"), ("3941999", "regolamento_immigrazione"),
     ("2672000", "tuel"), ("4481988", "processo_penale_minorile"), ("1712005", "codice_nautica_diporto"),
     ("2312007", "antiriciclaggio"), ("2312001", "responsabilita_enti"),   # v9.471: tolto «2852001» → codice_strada (il C.d.S. è il d.lgs. 285/1992: un «285/2001» inesistente risultava verificato)
