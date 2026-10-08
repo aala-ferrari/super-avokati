@@ -105,6 +105,10 @@ def _rubrica_prima_riga(body: str):
 # In E e H la fonte fra parentesi e le parentesi stesse sono il segnale forte: non si applica il filtro dei verbi («Casi di
 # non punibilità» è una rubrica). In F valgono tutti i filtri della forma A.
 _RUB_TU_FONTE = re.compile(r"\(\s*(?:articol[oi]|art\.)\s", re.I)
+# v9.547 — la riga della FONTE in senso largo: «( articolo …», «( art. …», «( legge 28 febbraio 1985 …», «( Legge 6 marzo 1998 …»,
+# «( decreto legislativo …», «( d.lgs. …», «( d.P.R. …», «( R.D. …»
+_RUB_FONTE_RIGA = re.compile(r"\(\s*(?:articol[oi]|artt?\.|legge\b|l\.\s|decreto\b|d\.\s?lgs|d\.\s?l\.|d\.\s?p\.\s?r|r\.\s?d\.?\s|regio\s+decreto)",
+                             re.I)
 _RUB_COMMA_DOPO_VUOTA = re.compile(r"^\s*([^\n]{3,140}?)[ \t\xa0]*\n(?:[ \t\xa0]*\n)+(?=[ \t\xa0]*(?:1\.|1\)|\(1\))[\s\xa0])")
 _RUB_DUE_RIGHE_VUOTA = re.compile(r"^\s*([^\n]{3,110}?)[ \t\xa0]*\n(?:[ \t\xa0]*\n)+[ \t\xa0]*([a-zà-ü][^\n]{0,110}?)[ \t\xa0]*\n"
                                   r"(?:[ \t\xa0]*\n)+(?=[ \t\xa0]*(?:1\.|1\)|\(1\))[\s\xa0])")
@@ -155,6 +159,58 @@ def _rubrica_forme_nuove(body: str):
             r = r1.rstrip(" .").strip()
             if _rubrica_ok(r, filtri_verbi=False) and _prima_parola(r) not in _RUB_STOP:
                 return r, "\n".join(righe[j:]).strip()
+        # v9.547 — le forme della FONTE che la regola sopra non vedeva (92 articoli italiani con la rubrica rimasta nel testo, fra cui
+        # la sanatoria edilizia, art. 36 d.P.R. 380/2001): (a) la fonte che comincia con «( legge / ( Legge / ( decreto / ( d.lgs. /
+        # ( d.P.R. / ( R.D.» (TU edilizia 36, TU immigrazione 49); (b) la fonte SPEZZATA su più righe, chiusa entro tre righe e solo
+        # alla fine di una riga (TUIR 39, TU riscossione 40); (c) la rubrica su DUE righe, la seconda minuscola, sopra la fonte
+        # (giustizia tributaria 39: «Ufficio di segreteria …» / «di primo e secondo grado»); (d) la rubrica che comincia con un
+        # articolo («La composizione delle corti…»): ammessa solo SENZA verbi. La parentesi della fonte resta il segnale forte.
+        def _fonte_chiusa(k):
+            # fino a otto righe, anche vuote in mezzo («(Artt. 3, comma 1, … 12,» / «» / «comma 1, 14 …)» delle accise)
+            if k >= len(righe) or not _RUB_FONTE_RIGA.match(righe[k].strip()):
+                return None
+            prof = 0
+            for kk in range(k, min(len(righe), k + 8)):
+                t = righe[kk].strip()
+                # le lettere d'elenco («lettera a)», «lettere b), c)») chiudono una parentesi mai aperta: non contano
+                prof += t.count("(") - (t.count(")") - len(re.findall(r"(?<![\w(])[a-z]{1,2}\)", t)))
+                if prof <= 0:
+                    return kk if t.endswith((")", ").")) else None
+            return None
+        def _ok_e(r):
+            r = r.rstrip(" .").strip()
+            if r.startswith("(") and r.endswith(")") and r.count("(") == 1:
+                r = r[1:-1].strip()                       # «(Assistenza sanitaria per gli stranieri non iscritti …)»
+            if not r or re.search(r"[.;:,]$", r) or len(r) > 160:
+                return None
+            w = _prima_parola(r)
+            if w in _RUB_STOP:
+                # l'ARTICOLO in testa («Il ricorso», «Le parti», «La giurisdizione tributaria» — giustizia tributaria): sì, se
+                # nella rubrica non c'è un verbo; «Non» solo davanti a un sostantivo («Non imponibilità», «Non riproponibilità»)
+                if w in ("il", "lo", "la", "i", "gli", "le", "l") and not _RUB_VERBI.search(r) and len(r) <= 140:
+                    return r if _rubrica_ok(r, filtri_verbi=False) else None
+                return r if _rubrica_ok(r) else None
+            if w == "non" and re.match(r"(?i)non\s+\w+(?:ità|enza|anza|zione|sione|mento)\b", r) and not _RUB_VERBI.search(r[4:]):
+                return r if _rubrica_ok(r, filtri_verbi=False) else None
+            return r if _rubrica_ok(r, filtri_verbi=False) else None
+        # il titolo dell'ATTO e la riga «ART. 1» / «Art. 1.» / il solo numero sopra la rubrica (TUIR 1, TU IVA 1, TU accertamento 1 e 103)
+        _salta = 0
+        while _salta < len(righe) and (not righe[_salta].strip() or re.fullmatch(
+                r"(?i)testo unico\b[^()\n]{0,160}|art\.?\s*\d+[a-z-]*\.?|\d{1,4}(?:-[a-z]+)?", righe[_salta].strip())):
+            _salta += 1
+        if 0 < _salta < len(righe) and _salta <= 6:
+            _sotto = _rubrica_forme_nuove("\n".join(righe[_salta:]))
+            if _sotto and _RUB_FONTE_RIGA.match(_sotto[1].lstrip()):
+                return _sotto
+        if r1 and (not r1.startswith("(") or (r1.endswith(")") and r1.count("(") == 1)):
+            if _fonte_chiusa(j) is not None and (_r := _ok_e(r1)):
+                return _r, "\n".join(righe[j:]).strip()
+            j2 = j + 1
+            while j2 < len(righe) and not righe[j2].strip():
+                j2 += 1
+            if (re.match(r"^[a-zà-ü]", r2) and len(r2) <= 110 and not re.search(r"[.;:,]$", r1)
+                    and _fonte_chiusa(j2) is not None and (_r := _ok_e(r1 + " " + r2))):
+                return _r, "\n".join(righe[j2:]).strip()
         m = re.match(r"^([^()\n]{3,260}?)\s*(\(\s*(?:articol[oi]|art\.)\s.*)$", r1, re.I)
         if (m and _rubrica_ok(m.group(1).rstrip(" .").strip(), filtri_verbi=False)
                 and _prima_parola(m.group(1)) not in _RUB_STOP

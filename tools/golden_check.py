@@ -9289,6 +9289,29 @@ def main():
     except Exception as _e318:  # noqa: BLE001
         check("disp_att_cpc[318]: kontrollet u ekzekutuan", False, f"{type(_e318).__name__}: {_e318}")
 
+    # [319] v9.547 — la RUBRICA rimasta nel testo sopra la fonte «( legge … )» / «( articolo … )» (53 articoli IT): la sanatoria edilizia
+    # (art. 36 d.P.R. 380/2001), «Il ricorso» del testo unico della giustizia tributaria; mai una frase con un verbo come rubrica
+    try:
+        import importlib.util as _ilu319
+        from pathlib import Path as _P319
+        from src.retrieval import ArticleIndex as _AI319
+        _sp319 = _ilu319.spec_from_file_location("bi319", "/app/tools/build_it_index.py")
+        _bi319 = _ilu319.module_from_spec(_sp319); _sp319.loader.exec_module(_bi319)
+        _it319 = _AI319.load(_P319("/app/data/index/bm25_it.pkl"))
+        _h319 = {(a.code, a.number): (a.heading or "") for a in _it319.articles if a.code in ("tu_edilizia", "giustizia_tributaria")}
+        check("rubriche IT[319]: TU edilizia 36 «Accertamento di conformità…», giustizia tributaria 64 «Il ricorso» nell'indice",
+              _h319.get(("tu_edilizia", "36"), "").startswith("Accertamento di conformità nelle ipotesi di assenza di titolo")
+              and _h319.get(("giustizia_tributaria", "64")) == "Il ricorso", str((_h319.get(("tu_edilizia", "36")), _h319.get(("giustizia_tributaria", "64")))))
+        _f319 = _bi319._rubrica_forme_nuove
+        _ok319 = _f319("Disposizioni transitorie\n\n( articolo 4, comma 1, lettera g), decreto legislativo 12 dicembre 2003, n. 344 ;\n"
+                       "articolo 13, commi da 2 a 5 )\n\n1. Le disposizioni")
+        _no319 = _f319("Il presente decreto si applica ai contratti\n\n( articolo 1 del decreto legislativo n. 50 del 2016 )\n\n1. Testo")
+        check("rubriche IT[319]: fonte spezzata con «lettera g)» → rubrica; una frase col verbo («Il presente decreto si applica…») no",
+              bool(_ok319) and _ok319[0] == "Disposizioni transitorie" and _ok319[1].startswith("( articolo 4")
+              and (not _no319 or _no319[0] != "Il presente decreto si applica ai contratti"), str((_ok319, _no319))[:200])
+    except Exception as _e319:  # noqa: BLE001
+        check("rubriche IT[319]: kontrollet u ekzekutuan", False, f"{type(_e319).__name__}: {_e319}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
