@@ -173,7 +173,7 @@ def _rubrica_forme_nuove(body: str):
             for kk in range(k, min(len(righe), k + 8)):
                 t = righe[kk].strip()
                 # le lettere d'elenco («lettera a)», «lettere b), c)») chiudono una parentesi mai aperta: non contano
-                prof += t.count("(") - (t.count(")") - len(re.findall(r"(?<![\w(])[a-z]{1,2}\)", t)))
+                prof += t.count("(") - (t.count(")") - len(re.findall(r"(?<![\w(])[a-z]{1,2}(?:-[a-z]+)?\)", t)))   # anche «gg-octies)»
                 if prof <= 0:
                     return kk if t.endswith((")", ").")) else None
             return None
@@ -184,6 +184,9 @@ def _rubrica_forme_nuove(body: str):
             if not r or re.search(r"[.;:,]$", r) or len(r) > 160:
                 return None
             w = _prima_parola(r)
+            # «Fermo di beni mobili registrati», «Fermo amministrativo»: qui «fermo» è un sostantivo, non il «fermo restando» delle frasi
+            if w == "fermo" and re.match(r"(?i)fermo\s+(?:di|dei|del|delle|amministrativ)", r) and not _RUB_VERBI.search(r):
+                return r if _rubrica_ok(r, filtri_verbi=False) else None
             if w in _RUB_STOP:
                 # l'ARTICOLO in testa («Il ricorso», «Le parti», «La giurisdizione tributaria» — giustizia tributaria): sì, se
                 # nella rubrica non c'è un verbo; «Non» solo davanti a un sostantivo («Non imponibilità», «Non riproponibilità»)

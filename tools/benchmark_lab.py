@@ -187,6 +187,12 @@ def _brain_retrieve(sa, lang: str, case: dict):
         pass
     t = TriageResult(problem_summary=case.get("summary") or "", areas=list(case.get("areas") or []),
                      search_queries=list(case.get("queries") or []), strategic_angles=list(case.get("angles") or []))
+    # v9.558 — nel percorso vero l'ULTIMO testo dato alle ancore è la domanda dell'avvocato (`triage.domanda`, v9.394): senza, le ancore
+    # «solo dalla domanda» (prescrizione AL/IT, termini…) non possono scattare in questo test. Il riassunto del caso fa da domanda.
+    try:
+        t.domanda = case.get("domanda") or case.get("summary") or ""
+    except Exception:  # noqa: BLE001
+        pass
     return [(a.code, str(a.number)) for a, _ in sa._retrieve(t)]
 
 

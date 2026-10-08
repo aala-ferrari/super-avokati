@@ -9517,6 +9517,28 @@ def main():
     except Exception as _e329:  # noqa: BLE001
         check("cancello[329]: kontrollet u ekzekutuan", False, f"{type(_e329).__name__}: {_e329}")
 
+    # [330] v9.558 — la prescrizione AL (KC 114/115) dalla DOMANDA, non dalle riscritture del triage; alimenti non pagati → KP 125 (solo
+    # penale); TU riscossione 187 «Fermo di beni mobili registrati» con la sua rubrica
+    try:
+        from pathlib import Path as _P330
+        from src.retrieval import ArticleIndex as _AI330
+        from src import brain as _b330
+        _al330 = _AI330.load(_P330("/app/data/index/bm25.pkl")); _it330 = _AI330.load(_P330("/app/data/index/bm25_it.pkl"))
+        _k330 = lambda qs, ar: {(a.code, a.number) for a, _ in _b330._applica_ancore([], _al330, qs, ar)}
+        check("prescrizione AL[330]: dalla domanda sì («A ka rënë në parashkrim?», «borxh nga viti 2012»); dal solo triage no",
+              ("kodi_civil", "114") in _k330(["Klienti ka një borxh nga viti 2012 dhe kreditori tani e padit. A ka rënë në parashkrim?"], ["Civil"])
+              and ("kodi_civil", "114") in _k330(["Klienti ka një borxh nga viti 2012: çfarë mund të bëjë kreditori?"], ["Civil"])
+              and ("kodi_civil", "114") not in _k330(["parashkrimi i së drejtës për të pranuar trashëgiminë",
+                                                      "Babai vdiq me borxhe. Si heq dorë klienti nga trashëgimia?"], ["Civil"]))
+        check("frek18[330]: ish-bashkëshorti nuk paguan detyrimin ushqimor → KP 125 (solo penale)",
+              ("kodi_penal", "125") in _k330(["Ish-bashkëshorti nuk paguan detyrimin ushqimor për fëmijën. A është vepër penale?"], ["Penal", "Familje"])
+              and ("kodi_penal", "125") not in _k330(["Ish-bashkëshorti nuk paguan detyrimin ushqimor për fëmijën."], ["Familje"]))
+        _h330 = {(a.code, a.number): a.heading for a in _it330.articles if a.code == "tu_riscossione"}
+        check("rubriche IT[330]: TU riscossione 187 «Fermo di beni mobili registrati»", _h330.get(("tu_riscossione", "187")) == "Fermo di beni mobili registrati",
+              repr(_h330.get(("tu_riscossione", "187"))))
+    except Exception as _e330:  # noqa: BLE001
+        check("[330]: kontrollet u ekzekutuan", False, f"{type(_e330).__name__}: {_e330}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

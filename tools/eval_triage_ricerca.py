@@ -86,6 +86,15 @@ CASI = [  # (giurisdizione, domanda dell'avvocato, articoli di cui almeno uno DE
     ("IT", "[frek9] La cliente ha subito un intervento sbagliato in un ospedale pubblico. Contro chi agiamo e cosa dobbiamo fare prima della causa?", [("responsabilita_sanitaria", "7"), ("responsabilita_sanitaria", "8")]),
     ("AL", "[frek9] Klienti pati një aksident, faji ishte i tjetrit, dhe siguruesi nuk po i përgjigjet prej dy muajsh. Si ta detyrojmë të paguajë?", [("ligji_sigurimi_mjeteve", "10"), ("ligji_sigurimi_mjeteve", "9")]),
     ("AL", "[frek9] Klienti është ortak me 40% në një shpk dhe dëshiron të largohet nga shoqëria. Si e bën dhe çfarë i takon?", [("ligji_shoqerite_tregtare", "101"), ("ligji_shoqerite_tregtare", "103"), ("ligji_shoqerite_tregtare", "73")]),
+    # v9.558 — diciottesimo giro (8 ott): privacy, alimenti non pagati (reato), rinuncia all'eredità AL; IT fermo dell'auto per cartelle,
+    # casa familiare, violazione di domicilio, falso profilo
+    ("AL", "[frek18] Ish-partneri publikoi në Facebook fotot private të klientes pa pëlqimin e saj. Çfarë vepre është?", [("kodi_penal", "121")]),
+    ("AL", "[frek18] Ish-bashkëshorti nuk paguan detyrimin ushqimor për fëmijën prej një viti, pavarësisht vendimit të gjykatës. A është vepër penale?", [("kodi_penal", "125")]),
+    ("AL", "[frek18] Babai i klientit vdiq me shumë borxhe. Si heq dorë klienti nga trashëgimia dhe brenda sa kohe?", [("kodi_civil", "333"), ("kodi_civil", "335")]),
+    ("IT", "[frek18] L'Agenzia delle Entrate Riscossione ha messo il fermo amministrativo sull'auto del cliente per delle cartelle. Come lo togliamo?", [("tu_riscossione", "187")]),
+    ("IT", "[frek18] Nella separazione i figli vivono con la madre. Chi resta nella casa familiare, che è intestata al marito?", [("codice_civile", "337-sexies")]),
+    ("IT", "[frek18] L'ex marito è entrato senza permesso in casa della cliente con le vecchie chiavi. Che reato è?", [("codice_penale", "614")]),
+    ("IT", "[frek18] Qualcuno ha aperto un profilo social a nome del cliente usando le sue foto per truffare altre persone. Che reato è?", [("codice_penale", "494")]),
     # v9.556 — diciassettesimo giro (8 ott): rapina, abuso d'ufficio, accesso agli atti AL, recesso online AL; IT decreto penale, messa
     # alla prova, immagini intime, ingiuria (D.Lgs. 7/2016)
     ("AL", "[frek17] Dy persona e sulmuan klientin në rrugë dhe i morën telefonin me forcë. Çfarë vepre është dhe çfarë dënimi parashikon?", [("kodi_penal", "139")]),

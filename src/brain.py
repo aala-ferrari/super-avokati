@@ -117,9 +117,13 @@ ANCORE_AL: tuple = (
     # v9.504 — e il KC 114 non entra mai SENZA il KC 115, che fissa i termini speciali più brevi: affitti 3 anni (d), danno
     # extracontrattuale 3 anni (dh), assicurazione 2 anni (ç), onore e reputazione 1 anno (e), trasporto, spedizione. Con il solo
     # 114 «la qira non pagata del 2021 è prescritta?» partiva da dieci anni
-    (("parashkrim", "parashkru"), ("Penal", "Punë"), (("kodi_civil", "114"), ("kodi_civil", "115")),
+    # v9.558 — SOLO dalla domanda (come la v9.552 per l'italiano): il triage aggiunge «parashkrim» da sé e il KC 114/115 andava in testa
+    # nella rinuncia all'eredità e nel sequestro conservativo (giri 14 e 18). Le 3 domande del banco sulla prescrizione la nominano;
+    # i segnali di tempo delle domande vere senza la parola: «ende në kohë», «borxh … nga viti».
+    (("parashkrim", "parashkru", "ende në kohë", "a është vonë", ("borxh", "nga viti"), ("borxh", "vjet më parë")),
+     ("Penal", "Punë"), (("kodi_civil", "114"), ("kodi_civil", "115")),
      r"parashkrim\w*\s+fitu\w*|fitim\w*\s+(?:\w+\s+){0,3}me\s+parashkrim\w*",
-     ("Civil", "Familje", "Tregtare", "Konsumator", "Prone", "Sigurime", "Detar", "Ajror", "Nderkombetar")),
+     ("Civil", "Familje", "Tregtare", "Konsumator", "Prone", "Sigurime", "Detar", "Ajror", "Nderkombetar"), True),
     (("parashkrim", "parashkru"), ("Penal",), (("kodi_punes", "203"),), r"parashkrim\w*\s+fitu\w*", ("Punë",)),
     # … anche senza l'area del lavoro, se la DOMANDA parla di prescrizione e di lavoro/paga
     ((("parashkr", "pun"), ("parashkr", "pag"), ("parashkr", "rrog")), ("Penal",), (("kodi_punes", "203"),), r"parashkrim\w*\s+fitu\w*",
@@ -240,6 +244,10 @@ ANCORE_AL: tuple = (
     ((("divorc", "fëmij", "shoh"), ("divorc", "fëmij", "takim"), ("divorc", "fëmij", "ndrysh"), ("divorc", "femij", "shoh"),
       ("zgjidhj", "martes", "fëmij", "ndrysh"), ("divorc", "lënë"), ("ish-bashkëshort", "fëmij", "shoh"), ("takimet me fëmij",)),
      ("Penal",), (("kodi_familjes", "159"), ("kodi_familjes", "158"), ("kodi_familjes", "155")), None, None, True),
+    # v9.558 — il MANCATO PAGAMENTO degli alimenti come reato (KP 125 «Mosdhënia e mjeteve për jetesë»): il triage scriveva «mospagimi
+    # i detyrimit ushqimor» e il blocco aveva il codice della famiglia e il 320/a, mai il 125. Solo nel penale.
+    ((("nuk paguan", "ushqim"), ("mospagim", "ushqim"), ("nuk jep", "ushqim"), ("alimentacion",), ("detyrim", "ushqimor", "vendim")),
+     (), (("kodi_penal", "125"),), None, ("Penal",), True),
     # v9.556 — dal diciassettesimo giro (8 ott). (1) Il FURTO CON VIOLENZA («e sulmuan… i morën telefonin me forcë»): il triage scriveva
     # «grabitja neni 140» (la rapina armata) e il KP 139 «Vjedhja me dhunë», che è il caso, restava fuori → 139 e 140, solo penale.
     # (2) L'ACCESSO ai documenti pubblici (ligji 119/2014): il 15 (il termine di risposta) al 13°.
