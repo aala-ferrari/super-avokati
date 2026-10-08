@@ -9397,6 +9397,21 @@ def main():
     except Exception as _e323:  # noqa: BLE001
         check("legge_104[323]: kontrollet u ekzekutuan", False, f"{type(_e323).__name__}: {_e323}")
 
+    # [324] v9.552 — l'ancora della prescrizione IT (c.c. 2946) guarda la DOMANDA: non scatta se è il triage a scrivere «prescrizione»
+    try:
+        from pathlib import Path as _P324
+        from src.retrieval import ArticleIndex as _AI324
+        from src import brain as _b324
+        _it324 = _AI324.load(_P324("/app/data/index/bm25_it.pkl"))
+        _i324 = lambda qs, ar: {(a.code, a.number) for a, _ in _b324._applica_ancore([], _it324, qs, ar, _b324.ANCORE_IT)}
+        check("prescrizione IT[324]: dalla domanda sì («è prescritto?», «ancora in tempo», «risale al 2014»); dal solo triage no",
+              ("codice_civile", "2946") in _i324(["Il credito del cliente risale al 2014 e il debitore non paga."], ["Civile"])
+              and ("codice_civile", "2946") in _i324(["Il cliente vuole chiedere i danni di un vecchio contratto: siamo ancora in tempo?"], ["Civile"])
+              and ("codice_civile", "2946") not in _i324(["prescrizione dell'azione di riduzione in pristino",
+                                                          "Il vicino ha costruito a un metro e mezzo dal confine. Cosa possiamo chiedere?"], ["Civile"]))
+    except Exception as _e324:  # noqa: BLE001
+        check("prescrizione IT[324]: kontrollet u ekzekutuan", False, f"{type(_e324).__name__}: {_e324}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

@@ -338,7 +338,11 @@ ANCORE_AL: tuple = (
 # v9.380 — ancore italiane di REGOLA GENERALE (stesso metro): «il credito risale al 2013 — è prescritto?» → il triage cerca
 # ordinaria + interruzione + sospensione e il 2946 c.c. «Prescrizione ordinaria» finiva oltre il 12° (2945, 2935, 2964 sopra).
 ANCORE_IT: tuple = (
-    (("prescri",), ("Penale", "Penal"), (("codice_civile", "2946"),)),
+    # v9.552 — SOLO dalla domanda: guardando anche le riscritture del triage, il 2946 andava in testa dove nessuno chiedeva della
+    # prescrizione (veranda abusiva, distanze fra costruzioni: il triage aggiunge «prescrizione» da sé — tredicesimo giro, 8 ott). Le
+    # domande vere senza la parola: «siamo ancora in tempo?», «il credito risale al 2014».
+    (("prescri", "ancora in tempo", "troppo tardi", ("risale al", "credit"), ("risale al", "debit"), ("risale al", "fattur")),
+     ("Penale", "Penal"), (("codice_civile", "2946"),), None, None, True),
     # v9.504 — i crediti di LAVORO: retribuzioni (pagamenti periodici, art. 2948 n. 4) e indennità di fine rapporto (n. 5) si
     # prescrivono in CINQUE anni. Misurato (4 ott): per «il datore non ha pagato gli stipendi del 2020, sono prescritti?» e
     # simili il 2948 non usciva nei primi 8, il 2946 (dieci anni) sì — e l'ancora lo dichiarava regola generale
