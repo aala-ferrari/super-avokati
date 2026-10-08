@@ -9412,6 +9412,27 @@ def main():
     except Exception as _e324:  # noqa: BLE001
         check("prescrizione IT[324]: kontrollet u ekzekutuan", False, f"{type(_e324).__name__}: {_e324}")
 
+    # [325] v9.553 — il RINVIO INTERNO dentro il testo di legge citato alla lettera prende l'atto della citazione («Art. 3, comma 3, D.Lgs.
+    # 23/2015: «… di cui all'articolo 1 …»» → D.Lgs. 23/2015); mai se il rinvio nomina un atto suo, se la citazione si chiude sul numero,
+    # se è annidata, o se l'atto non è l'ultima cosa prima delle virgolette
+    try:
+        from pathlib import Path as _P325
+        from src.retrieval import ArticleIndex as _AI325
+        from src import citation_verifier as _cv325
+        _it325 = _AI325.load(_P325("/app/data/index/bm25_it.pkl"))
+        def _st325(t, n):
+            return {i["number"]: (i["status"], i.get("code")) for i in _cv325.verify_text(t, _it325)["items"]}.get(n)
+        check("verificatore[325]: «Art. 3, comma 3, D.Lgs. 23/2015: «… all'articolo 1 …»» → D.Lgs. 23/2015 art. 1",
+              _st325("- **Art. 3, comma 3, D.Lgs. 23/2015**: «Al licenziamento dei lavoratori di cui all'articolo 1 non trova applicazione l'articolo 7 della legge 15 luglio 1966, n. 604».", "1")
+              == ("verified", "tutele_crescenti"))
+        check("verificatore[325]: niente codice al rinvio che nomina un atto, che chiude la citazione, annidato o dopo un'altra frase",
+              _st325("Art. 132 C.d.S. — «a quelle di cui all'articolo 53, comma 2, del decreto-legge 30 agosto 1993, n. 331, se provvisti».", "53") != ("verified", "codice_strada")
+              and _st325("ex art. 33-ter c.p.p., «sempre che non siano contestate le aggravanti di cui all'articolo 80».", "80") != ("verified", "codice_procedura_penale")
+              and _st325("Art. 13 Regolamento di esecuzione della legge sulla cittadinanza (DPR 572/1993) — «Si trascrive il testo dell'art. 15 della legge n. 91/1992: \"Art. 15. - L'acquisto ha effetto…\"».", "15") != ("verified", "regolamento_cittadinanza")
+              and _st325("art. 2043 c.c. Poi in un altro paragrafo «di cui all'articolo 9» senza fonte.", "9") != ("verified", "codice_civile"))
+    except Exception as _e325:  # noqa: BLE001
+        check("verificatore[325]: kontrollet u ekzekutuan", False, f"{type(_e325).__name__}: {_e325}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

@@ -1854,6 +1854,47 @@ def verify_text(
                 return code if code != FUORI_CORPUS and _esiste(code, number) else None
         return None
 
+    def _atto_della_citazione_testuale(pos: int, number: str) -> str | None:
+        """v9.552 — il RINVIO INTERNO dentro il testo di legge citato alla lettera: «**Art. 3, comma 3, D.Lgs. 23/2015**: «Al
+        licenziamento dei lavoratori di cui all'articolo 1 non trova applicazione…»» — l'«articolo 1» è del D.Lgs. 23/2015. Vale solo
+        dentro virgolette «…» ancora aperte, se subito prima della «« (fino a 140 caratteri, nella stessa riga) c'è una citazione col
+        suo atto, e se il numero esiste in quell'atto."""
+        q = text.rfind("«", 0, pos)
+        if q < 0 or "»" in text[q:pos] or pos - q > 1500:
+            return None
+        # misurato sulle risposte salvate (8 ott): il rinvio che NOMINA un atto suo («articolo 53 … del decreto-legge n. 331», «articolo
+        # 250 … del codice» = il CDU in una citazione del Reg. delegato, «art. 15 della legge» = L. 91/1992 in una del regolamento) non è
+        # un rinvio interno; e una citazione che si CHIUDE sul numero («le aggravanti di cui all'articolo 80»», art. 33-ter c.p.p.
+        # troncato: l'art. 80 è del T.U. stupefacenti) può essere tagliata — in tutti e due i casi resta senza codice
+        dopo = text[pos:pos + 120]
+        mnum = re.match(r"\S+\s+[\w-]+(?:\s*,\s*(?:comma|co\.|c\.|par(?:agrafo|\.)?|§|lett(?:era|\.)?|n\.)\s*[\w-]+(?:\)\s*)?)*", dopo)
+        resto = dopo[mnum.end():] if mnum else dopo
+        if re.match(r"\s*[»”\"]", resto):
+            return None
+        if re.match(r"\s*,?\s*(?:del|della|dello|dell['’]|dei|delle|di cui al(?:la)?|n\.\s*\d)\s*(?:codice|legge|l\.|decreto|d\.\s?lgs|"
+                    r"d\.\s?l\.|d\.\s?p\.\s?r|regolamento|reg\.|testo unico|t\.\s?u\.|direttiva|trattato|medesim|stess|predett|\d)",
+                    resto, re.I):
+            return None
+        ini = max(text.rfind("\n", 0, q) + 1, q - 140)
+        seg = text[ini:q].replace("*", " ")
+        if not any(True for _ in _cite_re.finditer(seg)):
+            return None
+        # l'ATTO deve essere l'ultima cosa prima delle virgolette (tolti «dispone/recita/prevede», i due punti, i trattini): «… c.c.
+        # Poi in un altro paragrafo «…»» non è una citazione testuale di quell'articolo
+        pul = re.sub(r"(?:[\s:,;\-—–(]|\b(?:dispone|testualmente|recita|prevede|stabilisce|così)\b)+$", "", seg, flags=re.I)
+        words = pul.split()
+        for k in range(len(words) - 1, max(-1, len(words) - 5), -1):
+            code = _resolve(" ".join(words[k:]))
+            # «Reg. C.d.S.»: la finestra corta dice «C.d.S.» (il codice, senza l'art. 394) — si allarga, sempre entro quattro parole
+            if code and code != FUORI_CORPUS and _esiste(code, number):
+                # una citazione ANNIDATA: «… Si trascrive il testo dell'art. 15 della legge n. 91/1992: "Art. 15…"» dentro il
+                # regolamento — se nelle 120 battute prima del numero c'è un altro atto, il rinvio non è del testo esterno
+                vicino = _resolve(text[max(q + 1, pos - 120):pos])
+                if vicino and vicino != code:
+                    return None
+                return code
+        return None
+
     # v9.545 — «art. 339 Reg. esec.», «art. 394 Reg.» in una risposta sul Codice della strada: il regolamento di esecuzione del C.d.S.
     # (d.P.R. 495/1992) citato senza ripetere «C.d.S.» (il Giudice lo segnalava come «falso positivo del parser»). Solo se il testo
     # parla del C.d.S., se dopo «Reg.» non c'è un numero o un «(UE)/CE/delegato» e se il regolamento UE di esecuzione 2015/2447
@@ -2081,6 +2122,8 @@ def verify_text(
                     code_n, via = anafora, "anafora"
                 elif (_ap := _atto_subito_prima(m.start(), number)):
                     code_n, via = _ap, "atto_prima"
+                elif (_ct := _atto_della_citazione_testuale(m.start(), number)):
+                    code_n, via = _ct, "citazione_testuale"
                 elif (_rc := _regolamento_cds(tail, number)):
                     code_n, via = _rc, "contesto"
                 else:
