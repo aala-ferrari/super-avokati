@@ -244,7 +244,9 @@ ANCORE_AL: tuple = (
     # mutuo) né 1051 (gli interessi) nel blocco. (2) Il FIGLIO dopo il divorzio e il genitore che vuole vederlo di più: KF 158 al 10°,
     # 159 («il provvedimento si può modificare in ogni momento») fuori; il blocco era pieno della «kujdestari» degli artt. 218-233,
     # cioè la TUTELA dei minori — un altro istituto, preso per la parola. Solo dalla domanda, mai nel penale.
-    ((("hua", "kthe"), ("hua", "kamat"), ("huadhën",), ("huamarr",), ("borxh", "kthe", "shok")),
+    # v9.559: «hua» COME PAROLA — stava dentro «ndryshuar», «lëshuar» (e « hua» da solo prenderebbe «i huaj»)
+    (((" hua ", "kthe"), (" hua ", "kamat"), (" hua,", "kthe"), (" hua.", "kthe"), (" huanë", "kthe"), (" huaja", "kthe"),
+      ("huadhën",), ("huamarr",), ("borxh", "kthe", "shok")),
      ("Penal",), (("kodi_civil", "1050"), ("kodi_civil", "1051")), None, None, True),
     ((("divorc", "fëmij", "shoh"), ("divorc", "fëmij", "takim"), ("divorc", "fëmij", "ndrysh"), ("divorc", "femij", "shoh"),
       ("zgjidhj", "martes", "fëmij", "ndrysh"), ("divorc", "lënë"), ("ish-bashkëshort", "fëmij", "shoh"), ("takimet me fëmij",)),
@@ -269,7 +271,7 @@ ANCORE_AL: tuple = (
     # minori, mai il KP 12 (la soglia dei 14 anni, 16 per le contravvenzioni). Solo nel penale, con un minore nominato. (2) Il
     # LICENZIAMENTO in malattia («me raport mjekësor»): mai il KP 130 «Sëmundje». (3) La DIVISIONE fra coeredi/comproprietari: KC 207
     # (la divisione: d'accordo o in giudizio, in natura o con la vendita) al 9°.
-    ((("djali", "vjeç"), ("vajza", "vjeç"), ("fëmija", "vjeç"), ("i mitur", "ndiq"), ("mosha", "përgjegjësi penale")),
+    ((("djali", " vjeç"), ("vajza", " vjeç"), ("fëmija", " vjeç"), ("i mitur", "ndiq"), ("mosha", "përgjegjësi penale")),
      (), (("kodi_penal", "12"),), None, ("Penal",), True),
     (("raport mjekësor", "raporti mjekësor", "leje mjekësore", ("sëmundj", "pushoi"), ("sëmundj", "pushua"), ("sëmur", "pushoi")),
      ("Penal",), (("kodi_punes", "130"),), None, None, True),
@@ -278,7 +280,9 @@ ANCORE_AL: tuple = (
     # v9.554 — i casi del banco completo (8 ott, AL 80/80) che passavano al LIMITE (10°-14° posto): la corruzione del funzionario
     # (KP 259 passiva, 244 attiva: chi paga), i vizi dell'edificio costruito (KC 864 garanzia, 865 rimedi, 866 la costruzione di
     # immobili), la locazione SCADUTA (KC 820) e il termine del ricorso amministrativo contro la revoca del permesso (KPA 132).
-    ((("korrupsion",), ("ryshfet",), ("zyrtar", "kërkoi", "euro"), ("zyrtar", "kërkoi", "para"), ("nëpunës", "kërkoi", "para")),
+    # v9.559: «para» è anche «përpara» e «para se» → i soldi come «euro/lekë» o « para » staccato
+    ((("korrupsion",), ("ryshfet",), ("zyrtar", "kërkoi", "euro"), ("zyrtar", "kërkoi", "lekë"), ("zyrtar", "kërkoi", " para "),
+      ("nëpunës", "kërkoi", " para "), ("nëpunës", "kërkoi", "euro"), ("nëpunës", "kërkoi", "lekë")),
      (), (("kodi_penal", "259"), ("kodi_penal", "244")), None, ("Penal",), True),
     ((("lagështir",), ("çarje", "mur"), ("difekt", "ndërtim"), ("defekt", "ndërtim"), ("vese", "ndërtes"), ("firma e ndërtimit", "dorëzoi")),
      ("Penal",), (("kodi_civil", "864"), ("kodi_civil", "865"), ("kodi_civil", "866")), None, None, True),
@@ -306,7 +310,9 @@ ANCORE_AL: tuple = (
      (), (("kodi_penal", "186"),)),
     # (3) la GUIDA IN STATO DI EBBREZZA: KP 291 «Drejtimi i automjeteve në mënyrë të parregullt» entrava al 12° (l'ultimo posto) e il
     # Kodi Rrugor 184 «Drejtimi i mjetit nën ndikimin e alkoolit» (le soglie, il ritiro della patente) no. Alcol E guida, dalla domanda.
-    ((("dehur", "drejt"), ("dehur", "makin"), ("alkool", "drejt"), ("alkool", "makin"), ("alkool", "mjet")),
+    # v9.559: « dehur» COME PAROLA — «dehur» stava dentro «i pandehuri» e «drejt» dentro «të drejtë»: scattava su quasi ogni domanda
+    # penale con un imputato (ricerca delle radici delle ancore dentro parole comuni, 8 ott)
+    (((" dehur", "drejt"), (" dehur", "makin"), ("alkool", "drejt"), ("alkool", "makin"), ("alkool", "mjet")),
      (), (("kodi_penal", "291"), ("kodi_rrugor", "184")), None, None, True),
     ((("falsifik", "nënshkrim"), ("falsifik", "nenshkrim"), ("falsifik", "prokur"), ("falsifik", "firm"), ("nënshkrim", "rremë")),
      (), (("kodi_civil", "92"),), None, ("Civil", "Prone")),
@@ -319,7 +325,7 @@ ANCORE_AL: tuple = (
     # … e la PENSIONE DI VECCHIAIA («62 vjeç, 30 vjet kontribute: a kam të drejtë?»): il 31 (15 anni minimi, l'età del 92) entrava
     # al 14° posto, dietro i premi di anzianità del KP e le pensioni delle ex cooperative (96). Il 92 ha la tabella dell'età.
     (("pension pleqërie", "pensionit të pleqërisë", "pension pleqerie", "pensioni i pleqërisë", ("pension", "mosh"),
-      ("pension", "vjeç"), ("pension", "kontribu"), ("dal", "në pension")),
+      ("pension", " vjeç"), ("pension", "kontribu"), ("dal", "në pension")),
      ("Penal",), (("ligji_sigurimet_shoqerore", "31"), ("ligji_sigurimet_shoqerore", "92")), None, None, True),
     # v9.537 — il socio di s.h.p.k. che vuole USCIRE: il banco di prova aspettava gli artt. 44-45 (che sono della società in nome
     # collettivo) e il blocco ne era pieno; per la s.h.p.k. la legge 9901/2008 ha il recesso per giusti motivi (101), le sue
@@ -348,7 +354,7 @@ ANCORE_AL: tuple = (
     # … e l'erede che NON si può escludere: KC 379 («nuk mund të përjashtojë nga trashëgimia ligjore fëmijët e tij të mitur» e gli
     # inabili al lavoro — la quota che spetterebbe per legge). Banco di prova (7 ott): passava a giri alterni — il triage cerca «pjesa
     # e detyrueshme», il codice dice «përjashtojë… të mitur». Solo dalla domanda.
-    ((("testament", "mitur"), ("testament", "vjeç"), ("testament", "vjec"), ("testament", "përjashtu"), ("testament", "perjashtu"),
+    ((("testament", "mitur"), ("testament", " vjeç"), ("testament", "vjec"), ("testament", "përjashtu"), ("testament", "perjashtu"),
       ("testament", "pjesa e detyrueshme"), ("testament", "pjesa e rezervuar"), ("testament", "paaftë"), ("testament", "paafte")),
      ("Penal",), (("kodi_civil", "379"),), None, None, True),
     # … e gli STRAORDINARI non pagati: i soldi li decide il KP 91 «Kompensimi» (paga normale + almeno il 25 %, o riposo maggiorato del
@@ -429,7 +435,8 @@ ANCORE_IT: tuple = (
     (("licenzi",), ("Penale", "Penal"), (("naspi", "6"),), None, None, True),
     # v9.534 — il licenziamento ORALE («a voce», «senza lettera»): L. 604/1966 art. 2 (va comunicato per iscritto, altrimenti inefficace)
     # e D.Lgs. 23/2015 art. 2 (licenziamento intimato in forma orale: nullità e reintegra). Banco completo (7 ott): a giri alterni.
-    ((("licenzi", "a voce"), ("licenzi", "orale"), ("licenzi", "verbalmente"), ("licenzi", "senza lettera"), ("licenzi", "nessuna lettera"),
+    # v9.559: « orale» come parola — «orale» stava dentro «danno morale», «temporale»
+    ((("licenzi", "a voce"), ("licenzi", " orale"), ("licenzi", "verbalmente"), ("licenzi", "senza lettera"), ("licenzi", "nessuna lettera"),
       ("non tornare", "lavoro"), ("a voce", "non tornare")),
      ("Penale", "Penal"), (("licenziamenti_individuali", "2"), ("tutele_crescenti", "2")), None, None, True),
     # v9.529 — il PERIODO DI COMPORTO (c.c. 2110: in caso di malattia il lavoratore conserva il posto per il tempo stabilito dalla legge
@@ -482,7 +489,8 @@ ANCORE_IT: tuple = (
     # v9.554 — dal banco completo (8 ott, IT 100/100), i casi al LIMITE (10°-12° posto): il mobbing (c.c. 2087, la tutela delle
     # condizioni di lavoro), i maltrattamenti in famiglia (c.p. 572), la sospensione condizionale (c.p. 163/164), gli alimenti ai
     # genitori (c.c. 433 chi è obbligato, 438 la misura — non il mantenimento dei figli, che è altro).
-    (("mobbing", ("umili", "lavor"), ("isol", "dipendent"), ("vessa", "lavor"), ("demansion", "umili")),
+    # v9.559: « isol» come inizio di parola — «isol» stava dentro «risoluzione (del rapporto del dipendente)»: ogni licenziamento
+    (("mobbing", ("umili", "lavor"), (" isol", "dipendent"), ("vessa", "lavor"), ("demansion", "umili")),
      ("Penale", "Penal"), (("codice_civile", "2087"),), None, None, True),
     (("maltratt", ("marito", "insult"), ("marito", "picchi"), ("convivente", "spint"), ("moglie", "picchi"), ("violenza", "domestic")),
      (), (("codice_penale", "572"),), None, ("Penale", "Penal"), True),

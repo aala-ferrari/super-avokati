@@ -9559,6 +9559,31 @@ def main():
     except Exception as _e331:  # noqa: BLE001
         check("ancore AL[331]: kontrollet u ekzekutuan", False, f"{type(_e331).__name__}: {_e331}")
 
+    # [332] v9.559 — RADICI DELLE ANCORE dentro parole comuni (cercate su tutto il corpus): «dehur» in «pandehuri», «hua» in
+    # «ndryshuar», «isol» in «risoluzione», «orale» in «morale», «para» in «përpara»: il caso vero scatta, il falso amico no
+    try:
+        from pathlib import Path as _P332
+        from src.retrieval import ArticleIndex as _AI332
+        from src import brain as _b332
+        _al332 = _AI332.load(_P332("/app/data/index/bm25.pkl")); _it332 = _AI332.load(_P332("/app/data/index/bm25_it.pkl"))
+        _k332 = lambda q, ar: {(a.code, a.number) for a, _ in _b332._applica_ancore([], _al332, [q], ar)}
+        _i332 = lambda q, ar: {(a.code, a.number) for a, _ in _b332._applica_ancore([], _it332, [q], ar, _b332.ANCORE_IT)}
+        check("radici AL[332]: ebbrezza, prestito, corruzione, età — veri sì, falsi amici no",
+              ("kodi_penal", "291") in _k332("Klienti u ndalua duke drejtuar makinën i dehur.", ["Penal"])
+              and ("kodi_penal", "291") not in _k332("I pandehuri ka të drejtë të heshtë gjatë marrjes në pyetje.", ["Penal"])
+              and ("kodi_civil", "1050") in _k332("I dha një shoku 10 mijë euro hua dhe ai nuk ia kthen.", ["Civil"])
+              and ("kodi_civil", "1050") not in _k332("Ligji i ndryshuar kthehet në fuqi për kontratat e lidhura.", ["Civil"])
+              and ("kodi_penal", "259") not in _k332("Zyrtari kërkoi dokumentet përpara se të jepte lejen.", ["Penal"])
+              and ("kodi_penal", "12") in _k332("Djali 13 vjeç vodhi një telefon.", ["Penal"])
+              and ("kodi_penal", "12") not in _k332("Djali mori një dënim 5-vjeçar për vjedhje.", ["Penal"]))
+        check("radici IT[332]: mobbing e licenziamento orale — veri sì, «risoluzione del rapporto» e «danno morale» no",
+              ("codice_civile", "2087") in _i332("Da mesi il datore umilia e isola il dipendente.", ["Civile"])
+              and ("codice_civile", "2087") not in _i332("La risoluzione del rapporto del dipendente per giusta causa.", ["Civile"])
+              and ("licenziamenti_individuali", "2") in _i332("Il cliente è stato licenziato in forma orale.", ["Lavoro"])
+              and ("licenziamenti_individuali", "2") not in _i332("Licenziato, chiede il danno morale per la lettera offensiva.", ["Lavoro"]))
+    except Exception as _e332:  # noqa: BLE001
+        check("radici[332]: kontrollet u ekzekutuan", False, f"{type(_e332).__name__}: {_e332}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
