@@ -388,6 +388,11 @@ ANCORE_IT: tuple = (
     # procedimento disciplinare), mancava la norma che definisce la giusta causa, c.c. 2119 (decimo giro, 8 ott). Solo dalla domanda.
     (("in tronco", "giusta causa", "senza preavviso", ("licenzi", "assente"), ("licenzi", "assenza ingiustificat")),
      ("Penale", "Penal"), (("codice_civile", "2119"),), None, None, True),
+    # v9.546 — l'USUCAPIONE: il 1158 c.c. (beni immobili: vent'anni di possesso continuato) entrava al 7°-8° posto dietro i 1160-1167
+    # (le usucapioni speciali e le cause di interruzione) e in un giro su quattro usciva dal blocco (banco di prova, 8 ott). Con il 1140
+    # (la nozione di possesso, su cui si gioca la causa). Solo dalla domanda o dal triage che dice «usucapione», mai nel penale.
+    (("usucapion", "usucapir", ("possesso", "vent'anni"), ("possesso", "ventennal"), ("coltiv", "recint", "anni")),
+     ("Penale", "Penal"), (("codice_civile", "1158"), ("codice_civile", "1140"))),
     # v9.544 — il PATTEGGIAMENTO: il 444 c'era al 4°, gli EFFETTI della sentenza (445: niente spese né pene accessorie sotto i due anni,
     # estinzione del reato) mai — e il cliente chiede proprio «che effetti ha»; il blocco era pieno delle pene sostitutive della 689/1981.
     (("patteggi", "applicazione della pena su richiesta", "pena concordata"), (),

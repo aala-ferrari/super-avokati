@@ -150,7 +150,7 @@ def tokenize_for(lang: str, text: str, stem: bool = False, fold: bool = False) -
 # +11 risultati pertinenti, -1. Si applica SOLO all'indice italiano.
 IT_CORE_CODES = frozenset({
     "codice_civile", "codice_penale", "codice_procedura_civile",
-    "codice_procedura_penale", "costituzione", "disp_att_cc", "disp_att_cpp",
+    "codice_procedura_penale", "costituzione", "disp_att_cc", "disp_att_cpp", "disp_att_cpc",
 })
 IT_CORE_BOOST = 1.3
 

@@ -198,7 +198,9 @@ def main() -> int:
         sa.index_it = ArticleIndex.load(Path("/app/data/index/bm25_it.pkl"))
     solo = [x for x in sys.argv[1:] if not x.startswith("-")]
     ok = 0; t0 = time.time()
-    for jur, q, exp in [c for c in CASI if not solo or any(w.lower() in c[1].lower() for w in solo)]:
+    # v9.546: «--giur=IT» / «--giur=AL» — solo le domande di una giurisdizione (un indice nuovo di una sola lingua)
+    _giur = next((x.split("=", 1)[1].upper() for x in sys.argv[1:] if x.startswith("--giur=")), None)
+    for jur, q, exp in [c for c in CASI if (not solo or any(w.lower() in c[1].lower() for w in solo)) and (not _giur or c[0] == _giur)]:
         B.set_request_jurisdiction(jur)
         try:
             sa._jurisdiction_ctx.code = jur
@@ -220,7 +222,7 @@ def main() -> int:
         print(f"{'✓' if hit else '✗'} [{jur}] {q[:70]:70s} | trovato {hit[:2]} pos {pos} | aree {tr.areas} | query {[x[:40] for x in tr.search_queries[:3]]}", flush=True)
         if not hit or "-v" in sys.argv:
             print("      blocco:", [f"{c}:{n}" for c, n in got[:14]], flush=True)
-    n = len([c for c in CASI if not solo or any(w.lower() in c[1].lower() for w in solo)])
+    n = len([c for c in CASI if (not solo or any(w.lower() in c[1].lower() for w in solo)) and (not _giur or c[0] == _giur)])
     print(f"\nnel blocco del senior: {ok}/{n} · {int((time.time()-t0)/max(n,1))} s/domanda (triage vero)")
     return 0
 

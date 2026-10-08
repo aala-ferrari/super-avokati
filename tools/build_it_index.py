@@ -259,6 +259,12 @@ def _pulisci(heading: str, body: str) -> tuple[str, str]:
             h, b = mm.group("r").strip(" ."), mm.group("t").strip()
         else:
             h, b = "", h.rstrip(" .") + "."
+    # v9.546 — i RESIDUI della rubrica fra parentesi in testa al corpo: «) Il coniuge dell'assente…» (c.c. 51), «) . I minori di età…»
+    # (c.c. 84), «. La riduzione della donazione…» (c.c. 563), «) ). Chiunque…» (c.p. 316-bis): 537 articoli italiani su 24.871, e il
+    # blocco del cervello li mostrava così. Solo parentesi chiuse e punti SINGOLI in testa: «...» (un'omissione del testo ufficiale)
+    # e «, e 2436…» (un taglio vero) restano come sono
+    b = re.sub(r"^\s*(?:[)\]]\s*)+(?:\.(?!\.)\s*)*", "", b)
+    b = re.sub(r"^\s*\.(?!\.)\s+(?=[A-ZÀ-Ü0-9«(\"])", "", b)
     return h, b.strip()
 
 # v9.413 — IMPORTI IN LIRE ancora nel testo vigente (339 articoli di 48 atti: c.p. 103, codice della navigazione 62, L. 689/1981 19,
@@ -383,7 +389,7 @@ CODES_META = Path("/app/data/processed/it_codes.json")
 INDEX = Path("/app/data/index/bm25_it.pkl")
 
 # display order: fundamentals first, then by area
-ORDER = ["costituzione", "codice_civile", "preleggi", "disp_att_cc", "codice_procedura_civile",
+ORDER = ["costituzione", "codice_civile", "preleggi", "disp_att_cc", "codice_procedura_civile", "disp_att_cpc",
          "codice_penale", "codice_procedura_penale", "disp_att_cpp",
          "codice_strada", "regolamento_strada", "codice_consumo", "codice_crisi_impresa",
          "ordinamento_polizia", "tulps", "statuto_lavoratori", "sicurezza_lavoro",

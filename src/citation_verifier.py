@@ -458,6 +458,7 @@ CODE_LABELS: dict[str, str] = {
     "costituzione": "Cost.",
     "disp_att_cc": "disp. att. c.c.",
     "disp_att_cpp": "disp. att. c.p.p.",
+    "disp_att_cpc": "disp. att. c.p.c.",
     "codice_strada": "C.d.S.",
     "regolamento_strada": "Reg. C.d.S.",
     "codice_consumo": "Cod. Consumo",
@@ -861,7 +862,7 @@ _IT_CODE_NUM_CHECKS = [
     ("581998", "tu_finanza"), ("892001", "equa_riparazione"), ("4471988", "codice_procedura_penale"),
     ("1042010", "codice_processo_amministrativo"), ("302005", "codice_proprieta_industriale"),
     ("12018", "codice_protezione_civile"), ("1172017", "codice_terzo_settore"), ("7731931", "tulps"),
-    ("2711989", "disp_att_cpp"), ("3181942", "disp_att_cc"), ("13981930", "codice_penale"),
+    ("2711989", "disp_att_cpp"), ("13681941", "disp_att_cpc"), ("3181942", "disp_att_cc"), ("13981930", "codice_penale"),
     ("14431940", "codice_procedura_civile"), ("1172026", "tuir"),
     ("20152446", "reg_ue_2015_2446"), ("20152447", "reg_ue_2015_2447"), ("20191111", "bruxelles_ii_ter"),
     # wave6: testi unici della riforma fiscale (prima dei vecchi atti che hanno abrogato)
@@ -939,11 +940,11 @@ def _resolve_code_it(tail: str):
         if "addizionale" in _low:
             return "cedu_protocollo_1"
         return "cedu"
-    # v9.399: le DISPOSIZIONI DI ATTUAZIONE del c.p.c. non sono nel corpus: mai confonderle col c.p.c. («art. 164-ter
-    # disp. att. c.p.c.», vero, usciva «inesistente» nel c.p.c.). Nessun codice = «da chiarire», mai «falso».
+    # v9.399: le DISPOSIZIONI DI ATTUAZIONE del c.p.c. — mai confonderle col c.p.c. («art. 164-ter disp. att. c.p.c.», vero,
+    # usciva «inesistente» nel c.p.c.). v9.546: ora sono nel corpus (R.D. 1368/1941) → si verificano sul loro testo
     if re.search(r"(?:disp(?:osizioni)?|norme)\.?\s*(?:di\s+|per\s+l['’]\s*)?att(?:uazione)?\.?\s*(?:del\s+)?"
                  r"(?:c\.?\s?p\.?\s?c\.?|cod(?:ice)?\.?\s*(?:di\s+)?proc(?:edura)?\.?\s*civ)", _low):
-        return FUORI_CORPUS
+        return "disp_att_cpc"
     # Sigle corte («cc», «cp», «cpc», «tub», «cost»…) SOLO come parola intera: nel testo
     # compattato «accise», «successioni», «accertamento» contengono «cc» e finivano nel
     # codice civile (audit_corpus, 16 set 2026). Le abbreviazioni puntate si ricompongono

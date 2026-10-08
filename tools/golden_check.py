@@ -9257,6 +9257,38 @@ def main():
     except Exception as _e317:  # noqa: BLE001
         check("verificatore[317]: kontrollet u ekzekutuan", False, f"{type(_e317).__name__}: {_e317}")
 
+    # [318] v9.546 — le DISPOSIZIONI DI ATTUAZIONE del c.p.c. nel corpus (R.D. 1368/1941): «art. 188 disp. att. c.p.c.» si verifica sul
+    # suo testo (prima «fuori corpus»), il c.p.c. resta il c.p.c., un numero che non c'è è inesistente; e nessun corpo italiano comincia
+    # con il residuo della rubrica («) Il coniuge…», «) . I minori…»: 537 articoli prima)
+    try:
+        import re as _re318
+        from pathlib import Path as _P318
+        from src.retrieval import ArticleIndex as _AI318
+        from src import citation_verifier as _cv318
+        _it318 = _AI318.load(_P318("/app/data/index/bm25_it.pkl"))
+        def _st318(t, n):
+            return {i["number"]: (i["status"], i.get("code")) for i in _cv318.verify_text(t, _it318)["items"]}.get(n)
+        check("disp_att_cpc[318]: «art. 188 disp. att. c.p.c.» verificato; «art. 152 c.p.c.» resta del codice; «art. 999 disp. att.» inesistente",
+              _st318("Oltre al rimedio ex art. 188 disp. att. c.p.c. davanti al giudice.", "188") == ("verified", "disp_att_cpc")
+              and _st318("L'art. 152 c.p.c. resta del codice.", "152") == ("verified", "codice_procedura_civile")
+              and (_st318("L'art. 999 disp. att. c.p.c. non esiste.", "999") or ("",))[0] == "fake")
+        _res318 = [(a.code, a.number) for a in _it318.articles if _re318.match(r"\s*(?:[)\]]|\.(?!\.)\s)", a.body or "")]
+        check("corpus IT[318]: nessun corpo comincia con «)» o «. » (residuo della rubrica)", len(_res318) <= 2, str(_res318[:6]))
+        import importlib.util as _ilu318
+        _sp318 = _ilu318.spec_from_file_location("bi318", "/app/tools/build_it_index.py")
+        _bi318 = _ilu318.module_from_spec(_sp318); _sp318.loader.exec_module(_bi318)
+        check("corpus IT[318]: _pulisci toglie «) .» in testa ma lascia «...» (omissione) e «, e 2436» (taglio vero)",
+              _bi318._pulisci("Età", ") .  I minori di età")[1] == "I minori di età"
+              and _bi318._pulisci("X", "...  1. Qualora")[1].startswith("...")
+              and _bi318._pulisci("X", ", e 2436, secondo comma")[1].startswith(", e 2436"))
+        from src import brain as _b318
+        _i318 = lambda q, ar: {(a.code, a.number) for a, _ in _b318._applica_ancore([], _it318, q, ar, _b318.ANCORE_IT)}
+        check("usucapione[318]: «coltiva e recinta da 25 anni» → c.c. 1158/1140; non nel penale",
+              {("codice_civile", "1158"), ("codice_civile", "1140")} <= _i318(["Il cliente coltiva e recinta da 25 anni un terreno del vicino."], ["Civile"])
+              and ("codice_civile", "1158") not in _i318(["Usucapione e falso ideologico nel verbale."], ["Penale"]))
+    except Exception as _e318:  # noqa: BLE001
+        check("disp_att_cpc[318]: kontrollet u ekzekutuan", False, f"{type(_e318).__name__}: {_e318}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
