@@ -212,6 +212,22 @@ ANCORE_AL: tuple = (
     ((("divorc", "nuk pranon"), ("divorc", "nuk do"), ("divorc", "kundërshton"), ("divorc", "kundershton"), ("divorc", "pa pëlqim"),
       ("divorc", "pa pelqim"), ("zgjidhj", "martes", "nuk pranon"), ("zgjidhj", "martes", "njërit"), ("zgjidhj", "martes", "njerit")),
      ("Penal",), (("kodi_familjes", "132"), ("kodi_familjes", "129"), ("kodi_familjes", "155")), None, None, True),
+    # v9.542 — dal decimo giro di domande frequenti (8 ott), norme decisive che il recupero lasciava fuori. (1) Lo SCONFINAMENTO del
+    # vicino («ndërtoi një mur që hyn në tokën e klientit»): il blocco era pieno della legge sui processi transitori e del catasto,
+    # senza KC 302 (azione contro chi turba la proprietà) né 296 (rivendica).
+    ((("fqinj", "tokën"), ("fqinj", "token"), ("fqinj", "mur"), ("fqinj", "kufi"), ("hyn", "tokën"), ("pushton", "tokën"),
+      ("cenon", "pronës"), ("cenim", "pronës"), ("zë", "tokën e")),
+     ("Penal",), (("kodi_civil", "302"), ("kodi_civil", "296")), None, None, True),
+    # (2) i VIZI della cosa venduta («bleu një makinë… doli një defekt… e kishte fshehur»): c'erano 716 e 722, mancava il KC 717 —
+    # il TERMINE di dieci giorni per denunciare il difetto, pena la perdita del diritto — e il 718 (il venditore che sapeva non può
+    # invocarlo), cioè proprio ciò che decide la causa.
+    ((("defekt", "bleu"), ("defekt", "blerë"), ("defekt", "shitës"), ("të meta", "shitës"), ("e metë", "shitës"), ("defekt", "blej")),
+     ("Penal",), (("kodi_civil", "717"), ("kodi_civil", "718"), ("kodi_civil", "716")), None, None, True),
+    # (3) la PAGA non pagata con la domanda degli interessi: KP 120 «Interesat në rast vonese» non entrava (c'erano 119, 115, 110…).
+    # (la PAROLA della paga — «pag» da sola sta anche in «nuk paguan qiranë» — e solo nel lavoro)
+    ((("pagën", "nuk"), ("pagës", "nuk"), ("pagen", "nuk"), ("pages", "nuk"), ("rrog", "nuk"), ("pagën", "vones"), ("pagës", "vones"),
+      ("pagën", "interes"), ("pagës", "interes"), ("paga e papaguar",), ("pagat e papaguara",)),
+     ("Penal",), (("kodi_punes", "120"), ("kodi_punes", "119")), None, ("Punë",), True),
     # v9.537 — il socio di s.h.p.k. che vuole USCIRE: il banco di prova aspettava gli artt. 44-45 (che sono della società in nome
     # collettivo) e il blocco ne era pieno; per la s.h.p.k. la legge 9901/2008 ha il recesso per giusti motivi (101), le sue
     # conseguenze — valore della quota (103) — e la via ordinaria, la cessione della quota (73). La rubrica del 101 aveva
@@ -345,6 +361,10 @@ ANCORE_IT: tuple = (
       ("fallimento", "credit"), ("fallire", "societ")),
      ("Penale", "Penal"), (("codice_crisi_impresa", "121"), ("codice_crisi_impresa", "37"), ("codice_crisi_impresa", "49")),
      None, None, True),
+    # v9.542 — il licenziamento IN TRONCO (giusta causa: assenza ingiustificata, furto, insubordinazione): c'era l'art. 7 St. Lav. (il
+    # procedimento disciplinare), mancava la norma che definisce la giusta causa, c.c. 2119 (decimo giro, 8 ott). Solo dalla domanda.
+    (("in tronco", "giusta causa", "senza preavviso", ("licenzi", "assente"), ("licenzi", "assenza ingiustificat")),
+     ("Penale", "Penal"), (("codice_civile", "2119"),), None, None, True),
     # … e il RICORSO TRIBUTARIO contro avviso di accertamento o cartella: oggi (fino al 31/12/2026) il D.Lgs. 546/1992 — art. 21 (sessanta
     # giorni) e 19 (atti impugnabili); il testo unico della giustizia tributaria si applica dal 1/1/2027. Banco di prova: il 21 al 14°.
     ((("accertamento", "ricors"), ("accertamento", "impugn"), ("cartella", "ricors"), ("cartella", "impugn"), ("cartella", "opposizion"),

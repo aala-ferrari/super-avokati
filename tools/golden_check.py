@@ -9168,6 +9168,25 @@ def main():
     except Exception as _e313:  # noqa: BLE001
         check("divorzio[313]: kontrollet u ekzekutuan", False, f"{type(_e313).__name__}: {_e313}")
 
+    # [314] v9.542 — decimo giro di domande frequenti: sconfinamento (KC 302/296), vizi della vendita (KC 717 dieci giorni, 718),
+    # paga non pagata con gli interessi (KP 120, solo nel lavoro e mai su «nuk paguan qiranë»), licenziamento in tronco (c.c. 2119)
+    try:
+        from pathlib import Path as _P314
+        from src.retrieval import ArticleIndex as _AI314
+        from src import brain as _b314
+        _al314 = _AI314.load(_P314("/app/data/index/bm25.pkl")); _it314 = _AI314.load(_P314("/app/data/index/bm25_it.pkl"))
+        def _k314(ix, anc, q, ar):
+            return {(a.code, a.number) for a, _ in _b314._applica_ancore([], ix, [q], ar, ancore=anc)}
+        check("frek10[314]: sconfinamento → KC 302; difetto dell'auto → KC 717/718; paga non pagata → KP 120; in tronco → c.c. 2119",
+              ("kodi_civil", "302") in _k314(_al314, None, "Fqinji ndërtoi një mur që hyn në tokën e klientit.", ["Civil"])
+              and ("kodi_civil", "717") in _k314(_al314, None, "Klienti bleu një makinë dhe doli një defekt që shitësi e fshehu.", ["Civil"])
+              and ("kodi_punes", "120") in _k314(_al314, None, "Punëdhënësi nuk i ka paguar pagën prej tre muajsh.", ["Punë"])
+              and ("codice_civile", "2119") in _k314(_it314, _b314.ANCORE_IT, "L'azienda lo licenzia in tronco per assenza ingiustificata.", ["Lavoro"]))
+        check("frek10[314]: la paga NON sull'affitto non pagato; l'ancora del lavoro non nel civile",
+              ("kodi_punes", "120") not in _k314(_al314, None, "Qiramarrësi nuk paguan qiranë prej katër muajsh.", ["Civil"]))
+    except Exception as _e314:  # noqa: BLE001
+        check("frek10[314]: kontrollet u ekzekutuan", False, f"{type(_e314).__name__}: {_e314}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
