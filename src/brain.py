@@ -240,6 +240,16 @@ ANCORE_AL: tuple = (
     ((("divorc", "fëmij", "shoh"), ("divorc", "fëmij", "takim"), ("divorc", "fëmij", "ndrysh"), ("divorc", "femij", "shoh"),
       ("zgjidhj", "martes", "fëmij", "ndrysh"), ("divorc", "lënë"), ("ish-bashkëshort", "fëmij", "shoh"), ("takimet me fëmij",)),
      ("Penal",), (("kodi_familjes", "159"), ("kodi_familjes", "158"), ("kodi_familjes", "155")), None, None, True),
+    # v9.555 — dal sedicesimo giro (8 ott). (1) L'ETÀ IMPUTABILE («djali 13 vjeç… a mund të ndiqet penalisht?»): nel blocco il codice dei
+    # minori, mai il KP 12 (la soglia dei 14 anni, 16 per le contravvenzioni). Solo nel penale, con un minore nominato. (2) Il
+    # LICENZIAMENTO in malattia («me raport mjekësor»): mai il KP 130 «Sëmundje». (3) La DIVISIONE fra coeredi/comproprietari: KC 207
+    # (la divisione: d'accordo o in giudizio, in natura o con la vendita) al 9°.
+    ((("djali", "vjeç"), ("vajza", "vjeç"), ("fëmija", "vjeç"), ("i mitur", "ndiq"), ("mosha", "përgjegjësi penale")),
+     (), (("kodi_penal", "12"),), None, ("Penal",), True),
+    (("raport mjekësor", "raporti mjekësor", "leje mjekësore", ("sëmundj", "pushoi"), ("sëmundj", "pushua"), ("sëmur", "pushoi")),
+     ("Penal",), (("kodi_punes", "130"),), None, None, True),
+    ((("bashkëpronar", "ndar"), ("trashëguan", "ndaj"), ("trashëguan", "shes"), ("nuk pranon", "ndaj"), ("pjesëtim",)),
+     ("Penal",), (("kodi_civil", "207"),), None, None, True),
     # v9.554 — i casi del banco completo (8 ott, AL 80/80) che passavano al LIMITE (10°-14° posto): la corruzione del funzionario
     # (KP 259 passiva, 244 attiva: chi paga), i vizi dell'edificio costruito (KC 864 garanzia, 865 rimedi, 866 la costruzione di
     # immobili), la locazione SCADUTA (KC 820) e il termine del ricorso amministrativo contro la revoca del permesso (KPA 132).
@@ -427,6 +437,15 @@ ANCORE_IT: tuple = (
     # procedimento disciplinare), mancava la norma che definisce la giusta causa, c.c. 2119 (decimo giro, 8 ott). Solo dalla domanda.
     (("in tronco", "giusta causa", "senza preavviso", ("licenzi", "assente"), ("licenzi", "assenza ingiustificat")),
      ("Penale", "Penal"), (("codice_civile", "2119"),), None, None, True),
+    # v9.555 — dal sedicesimo giro (8 ott). (1) La CASA OCCUPATA da estranei: c'erano 633/633-bis (invasione di terreni o edifici),
+    # mai il 634-bis (occupazione arbitraria di immobile destinato a domicilio altrui, 2024: il reato e la reintegra rapida) — solo con
+    # estranei o «abusivi», mai sull'inquilino che non lascia la casa (è un altro istituto: lo sfratto). (2) I DANNI del figlio minore:
+    # c.c. 2048 al 7°, dietro il 2047 (l'incapace).
+    (("occupazione abusiva", ("occupat", "sconosciut"), ("occupat", "estrane"), ("occupant", "abusiv"), ("occupat", "abusiv"),
+      ("occupat", "mentre", "vacanz")),
+     (), (("codice_penale", "634-bis"),), None, None, True),
+    ((("figlio", "ha rotto"), ("figlio", "ha danneggiato"), ("figlio", "ha ferito"), ("minorenne", "danneggi"), ("figlio minore", "danni")),
+     ("Penale", "Penal"), (("codice_civile", "2048"),), None, None, True),
     # v9.554 — dal banco completo (8 ott, IT 100/100), i casi al LIMITE (10°-12° posto): il mobbing (c.c. 2087, la tutela delle
     # condizioni di lavoro), i maltrattamenti in famiglia (c.p. 572), la sospensione condizionale (c.p. 163/164), gli alimenti ai
     # genitori (c.c. 433 chi è obbligato, 438 la misura — non il mantenimento dei figli, che è altro).

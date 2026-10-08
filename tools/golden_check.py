@@ -9457,6 +9457,27 @@ def main():
     except Exception as _e326:  # noqa: BLE001
         check("limite[326]: kontrollet u ekzekutuan", False, f"{type(_e326).__name__}: {_e326}")
 
+    # [327] v9.555 — sedicesimo giro: età imputabile (KP 12, solo penale), licenziamento in malattia (KP 130), divisione (KC 207); casa
+    # occupata da estranei (c.p. 634-bis, non l'inquilino che resta), danni del figlio minore (c.c. 2048)
+    try:
+        from pathlib import Path as _P327
+        from src.retrieval import ArticleIndex as _AI327
+        from src import brain as _b327
+        _al327 = _AI327.load(_P327("/app/data/index/bm25.pkl")); _it327 = _AI327.load(_P327("/app/data/index/bm25_it.pkl"))
+        _k327 = lambda q, ar: {(a.code, a.number) for a, _ in _b327._applica_ancore([], _al327, [q], ar)}
+        _i327 = lambda q, ar: {(a.code, a.number) for a, _ in _b327._applica_ancore([], _it327, [q], ar, _b327.ANCORE_IT)}
+        check("frek16 AL[327]: djali 13 vjeç → KP 12 (solo penale); raport mjekësor → KP 130; trashëguan… nuk pranon ta ndajë → KC 207",
+              ("kodi_penal", "12") in _k327("Djali 13 vjeç i klientes vodhi një telefon. A mund të ndiqet penalisht?", ["Penal"])
+              and ("kodi_penal", "12") not in _k327("Djali 13 vjeç i klientes do të ndryshojë shkollë.", ["Familje"])
+              and ("kodi_punes", "130") in _k327("Punëdhënësi e pushoi ndërsa ishte me raport mjekësor.", ["Punë"])
+              and ("kodi_civil", "207") in _k327("Tre vëllezër trashëguan një shtëpi dhe njëri nuk pranon ta ndajë.", ["Civil"]))
+        check("frek16 IT[327]: casa occupata da sconosciuti → c.p. 634-bis, l'inquilino che non lascia no; figlio che ha rotto il vetro → c.c. 2048",
+              ("codice_penale", "634-bis") in _i327("Mentre il cliente era in vacanza degli sconosciuti hanno occupato la sua casa.", ["Penale"])
+              and ("codice_penale", "634-bis") not in _i327("L'inquilino non lascia la casa alla scadenza del contratto.", ["Civile"])
+              and ("codice_civile", "2048") in _i327("Il figlio quindicenne ha rotto il vetro dell'auto del vicino: chi paga?", ["Civile"]))
+    except Exception as _e327:  # noqa: BLE001
+        check("frek16[327]: kontrollet u ekzekutuan", False, f"{type(_e327).__name__}: {_e327}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

@@ -86,6 +86,15 @@ CASI = [  # (giurisdizione, domanda dell'avvocato, articoli di cui almeno uno DE
     ("IT", "[frek9] La cliente ha subito un intervento sbagliato in un ospedale pubblico. Contro chi agiamo e cosa dobbiamo fare prima della causa?", [("responsabilita_sanitaria", "7"), ("responsabilita_sanitaria", "8")]),
     ("AL", "[frek9] Klienti pati një aksident, faji ishte i tjetrit, dhe siguruesi nuk po i përgjigjet prej dy muajsh. Si ta detyrojmë të paguajë?", [("ligji_sigurimi_mjeteve", "10"), ("ligji_sigurimi_mjeteve", "9")]),
     ("AL", "[frek9] Klienti është ortak me 40% në një shpk dhe dëshiron të largohet nga shoqëria. Si e bën dhe çfarë i takon?", [("ligji_shoqerite_tregtare", "101"), ("ligji_shoqerite_tregtare", "103"), ("ligji_shoqerite_tregtare", "73")]),
+    # v9.555 — sedicesimo giro (8 ott): età imputabile, multa amministrativa, divisione fra coeredi, licenziamento in malattia; IT disdetta
+    # del locatore, danni del figlio minore, casa occupata
+    ("AL", "[frek16] Djali 13 vjeç i klientes vodhi një telefon në shkollë. A mund të ndiqet penalisht?", [("kodi_penal", "12")]),
+    ("AL", "[frek16] Policia rrugore i vendosi klientit një gjobë që e konsideron të padrejtë. Si dhe brenda sa ditësh ankohet?", [("ligji_kundervajtjet", "29"), ("ligji_kundervajtjet", "26")]),
+    ("AL", "[frek16] Tre vëllezër trashëguan një shtëpi dhe njëri nuk pranon as ta ndajë as ta shesë. Si e zgjidhim?", [("kodi_civil", "207")]),
+    ("AL", "[frek16] Punëdhënësi e pushoi klientin ndërsa ishte me raport mjekësor për sëmundje. A është i ligjshëm pushimi?", [("kodi_punes", "130")]),
+    ("IT", "[frek16] Il proprietario vuole mandare via l'inquilino alla prima scadenza del contratto 4+4 per vendere la casa. Può farlo?", [("locazioni_abitative", "3")]),
+    ("IT", "[frek16] Il figlio quindicenne del cliente ha rotto con un pallone il vetro dell'auto del vicino. Chi deve pagare?", [("codice_civile", "2048")]),
+    ("IT", "[frek16] Mentre il cliente era in vacanza degli sconosciuti hanno occupato la sua casa. Cosa possiamo fare subito?", [("codice_penale", "634-bis")]),
     # v9.551 — quindicesimo giro (8 ott): servitù AL, corruzione; IT straordinari, ferie, diffamazione online, mantenimento non versato,
     # furto in casa, successione senza testamento, permessi L. 104
     ("AL", "[frek15] Toka e klientit nuk ka dalje në rrugë publike dhe fqinji nuk e lë të kalojë nga toka e tij. Çfarë të drejte kemi?", [("kodi_civil", "277")]),
