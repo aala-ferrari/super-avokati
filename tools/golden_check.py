@@ -9358,6 +9358,23 @@ def main():
     except Exception as _e321:  # noqa: BLE001
         check("termini IT[321]: kontrollet u ekzekutuan", False, f"{type(_e321).__name__}: {_e321}")
 
+    # [322] v9.550 — sequestro conservativo AL (KPC 202/206, non nel penale) e IT (c.p.c. 671); alimenti al genitore anziano (KF 192/198)
+    try:
+        from pathlib import Path as _P322
+        from src.retrieval import ArticleIndex as _AI322
+        from src import brain as _b322
+        _al322 = _AI322.load(_P322("/app/data/index/bm25.pkl")); _it322 = _AI322.load(_P322("/app/data/index/bm25_it.pkl"))
+        _k322 = lambda q, ar: {(a.code, a.number) for a, _ in _b322._applica_ancore([], _al322, [q], ar)}
+        _i322 = lambda q, ar: {(a.code, a.number) for a, _ in _b322._applica_ancore([], _it322, [q], ar, _b322.ANCORE_IT)}
+        check("frek14[322]: debitori shet pasuritë → KPC 202/206; jo në penal (masa e sigurimit penale)",
+              {("kodi_proc_civile", "202"), ("kodi_proc_civile", "206")} <= _k322("Debitori po i shet pasuritë para gjyqit. Si ia bllokojmë pasurinë?", ["Civil"])
+              and ("kodi_proc_civile", "202") not in _k322("Prokurori kërkon sekuestro konservative mbi pasurinë e të pandehurit.", ["Penal"]))
+        check("frek14[322]: nëna e moshuar pa të ardhura → KF 192/198; sequestro conservativo IT → c.p.c. 671",
+              {("kodi_familjes", "192"), ("kodi_familjes", "198")} <= _k322("Nëna e moshuar nuk ka të ardhura: a janë të detyruar fëmijët t'i japin ushqim?", ["Familje"])
+              and ("codice_procedura_civile", "671") in _i322("Il debitore vende gli immobili prima della causa: come blocchiamo i beni?", ["Civile"]))
+    except Exception as _e322:  # noqa: BLE001
+        check("frek14[322]: kontrollet u ekzekutuan", False, f"{type(_e322).__name__}: {_e322}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

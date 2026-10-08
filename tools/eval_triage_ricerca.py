@@ -86,6 +86,13 @@ CASI = [  # (giurisdizione, domanda dell'avvocato, articoli di cui almeno uno DE
     ("IT", "[frek9] La cliente ha subito un intervento sbagliato in un ospedale pubblico. Contro chi agiamo e cosa dobbiamo fare prima della causa?", [("responsabilita_sanitaria", "7"), ("responsabilita_sanitaria", "8")]),
     ("AL", "[frek9] Klienti pati një aksident, faji ishte i tjetrit, dhe siguruesi nuk po i përgjigjet prej dy muajsh. Si ta detyrojmë të paguajë?", [("ligji_sigurimi_mjeteve", "10"), ("ligji_sigurimi_mjeteve", "9")]),
     ("AL", "[frek9] Klienti është ortak me 40% në një shpk dhe dëshiron të largohet nga shoqëria. Si e bën dhe çfarë i takon?", [("ligji_shoqerite_tregtare", "101"), ("ligji_shoqerite_tregtare", "103"), ("ligji_shoqerite_tregtare", "73")]),
+    # v9.550 — quattordicesimo giro (8 ott): maternità, cautelare civile, alimenti fra parenti; IT separazione consensuale
+    ("AL", "[frek14] Klientja është shtatzënë në muajin e pestë. Sa leje lindjeje i takon dhe kush e paguan?", [("kodi_punes", "105")]),
+    ("AL", "[frek14] Debitori po i shet pasuritë para se të fillojë gjyqi. Si ia bllokojmë pasurinë klientit tonë që të mos humbasë kredinë?", [("kodi_proc_civile", "202"), ("kodi_proc_civile", "206")]),
+    ("AL", "[frek14] Nëna e moshuar e klientit nuk ka asnjë të ardhur. A janë të detyruar fëmijët t'i japin ushqim dhe sa?", [("kodi_familjes", "192"), ("kodi_familjes", "198")]),
+    ("IT", "[frek14] Marito e moglie sono d'accordo a separarsi e hanno un figlio. Qual è la strada più rapida?", [("codice_civile", "158"), ("negoziazione_assistita", "6")]),
+    ("IT", "[frek14] Il debitore sta vendendo i suoi immobili prima della causa. Come blocchiamo i beni a garanzia del credito del cliente?", [("codice_procedura_civile", "671")]),
+    ("IT", "[frek14] Il padre anziano del cliente non ha reddito e chiede gli alimenti ai figli. Chi deve pagare e quanto?", [("codice_civile", "433"), ("codice_civile", "438")]),
     # v9.548 — tredicesimo giro (8 ott): lesioni, minacce, ingiuria, abusi edilizi, esecuzione, falso; IT maternità, sanatoria, pignoramento,
     # lesioni stradali, distanze — attese lette sul testo
     ("AL", "[frek13] Fqinji e rrahu klientin dhe mjeku i dha 12 ditë paaftësi në punë. Çfarë vepre është dhe si ankohemi?", [("kodi_penal", "89"), ("kodi_penal", "90")]),

@@ -240,6 +240,14 @@ ANCORE_AL: tuple = (
     ((("divorc", "fëmij", "shoh"), ("divorc", "fëmij", "takim"), ("divorc", "fëmij", "ndrysh"), ("divorc", "femij", "shoh"),
       ("zgjidhj", "martes", "fëmij", "ndrysh"), ("divorc", "lënë"), ("ish-bashkëshort", "fëmij", "shoh"), ("takimet me fëmij",)),
      ("Penal",), (("kodi_familjes", "159"), ("kodi_familjes", "158"), ("kodi_familjes", "155")), None, None, True),
+    # v9.550 — dal quattordicesimo giro (8 ott). (1) Il SEQUESTRO CONSERVATIVO prima della causa («debitori po i shet pasuritë… si ia
+    # bllokojmë»): c'era il 206 (i tipi di misura), non il 202 (la regola: la corte decide entro 5 giorni, anche prima della causa — 204),
+    # e in testa la prescrizione (KC 114/115). Solo nel civile: la «masa e sigurimit» è anche il cautelare penale. (2) Gli ALIMENTI al
+    # genitore anziano: KF 192 (chi è obbligato, in ordine) al 13° posto, il 198 (il bisogno) mai.
+    ((("sigurim", "padi"), ("bllok", "pasuri"), ("sekuestro", "konservativ"), ("shet", "pasuri", "gjyq"), ("sekuestro", "para", "padi")),
+     ("Penal",), (("kodi_proc_civile", "202"), ("kodi_proc_civile", "206"), ("kodi_proc_civile", "204")), None, ("Civil",)),
+    ((("moshuar", "ushqim"), ("moshuar", "mbaj"), ("prind", "ushqim", "fëmijët e"), ("prind", "të ardhur", "detyru")),
+     ("Penal",), (("kodi_familjes", "192"), ("kodi_familjes", "198")), None, None, True),
     # v9.548 — dal tredicesimo giro (8 ott). (1) Le LESIONI da una lite («e rrahu… mjeku i dha 12 ditë paaftësi»): né KP 89 «Plagosja e
     # lehtë me dashje» (oltre 9 giorni di inabilità) né 90 «Dëmtime të tjera me dashje» (la rissa senza o con meno giorni) nel blocco —
     # il triage scriveva «dëmtim i lehtë i qëllimshëm» e il codice dice «plagosja». Solo nel penale, mai nella violenza domestica
@@ -404,6 +412,10 @@ ANCORE_IT: tuple = (
     # procedimento disciplinare), mancava la norma che definisce la giusta causa, c.c. 2119 (decimo giro, 8 ott). Solo dalla domanda.
     (("in tronco", "giusta causa", "senza preavviso", ("licenzi", "assente"), ("licenzi", "assenza ingiustificat")),
      ("Penale", "Penal"), (("codice_civile", "2119"),), None, None, True),
+    # v9.550 — il SEQUESTRO CONSERVATIVO («il debitore sta vendendo gli immobili prima della causa: come blocchiamo i beni?»): il 671
+    # c.p.c. al 9°, dietro la revocatoria (2901 c.c.: un altro rimedio, dopo l'atto). Solo nel civile.
+    (("sequestro conservativo", ("blocc", "beni"), ("vend", "immobil", "prima della causa"), ("garanzia del credito", "beni")),
+     ("Penale", "Penal"), (("codice_procedura_civile", "671"),)),
     # v9.549 — ENTRO QUANDO SI IMPUGNA, in italiano (le ancore c'erano solo per l'albanese, v9.500): due risposte vere del 4 ott sul
     # termine dell'appello penale scrivevano «art. 172 c.p.p., non nel corpus» e «art. 111-bis c.p.p., non nel corpus» — sono nel
     # corpus, non entravano nel blocco. Penale: c.p.p. 585 (i termini: 15/30/45 giorni, la decorrenza), 172 (il computo: giorno
