@@ -132,7 +132,9 @@ ANCORE_AL: tuple = (
     # ta nxjerr?» portava 11 nene del capitolo della qira ma NON il KC 698 (zgjidhja e kontratës për mospërmbushje), la regola
     # generale che vale anche per la qira. Non nel penale né nel lavoro (lì decide il Kodi i Punës).
     (("mospagim", "nuk paguan", "nuk ka paguar", "mospërmbush", "nuk përmbush", "mosekzekutim i kontrat", ("qira", "pagu"),
-      ("qira", "zgjidh")), ("Penal", "Punë"), (("kodi_civil", "698"),)),
+      ("qira", "zgjidh")), ("Penal", "Punë", "Familje"), (("kodi_civil", "698"),)),
+    # v9.559: nemmeno nella FAMIGLIA — conteggio delle ancore sul banco completo (8 ott): il 698 (risoluzione del contratto) scattava
+    # anche su «ish-bashkëshorti nuk paguan» (il mantenimento del figlio: lì decidono KF 197/161 e l'esecuzione, non un contratto)
     # v9.380 — «vdiq pa testament, la moglie e tre figli: come si divide?» non portava il KC 361 (radha e parë: fëmijët dhe
     # bashkëshorti në pjesë të barabarta) né il 360 (chi sono gli eredi legittimi): il triage scrive «trashëgimia ligjore», il
     # codice «trashëgimia me ligj» / «në radhë të parë thirren»
@@ -147,8 +149,11 @@ ANCORE_AL: tuple = (
     # v9.381 — la compravendita / il gravame di un immobile (ASHK, kartela, rubrika): KC 193 (cosa si trascrive) e KC 195 (il
     # NON registrato non si aliena né si grava — la trappola del caso «kufizim» del benchmark: nel blocco 1 volta su 3 il 193,
     # MAI il 195, e il punteggio del caso oscillava 0,55-1,00 fra un giro e l'altro qualunque fosse la variante)
-    (("kartel", ("ashk", "shit"), ("ashk", "blej"), ("ashk", "tjetërsim"), ("rubrik", "kufizim"), ("regjistr", "pasuri", "shit"),
-      ("hipotek", "shit")), ("Penal",), (("kodi_civil", "193"), ("kodi_civil", "195"))),
+    # v9.559 — «ashk» era una SOTTOSTRINGA di «bashkë-» (bashkëshort, bashkëpronar): l'ancora scattava su «bashkëshortët… shitën» e
+    # anche sul telefono comprato online e sull'auto usata (conteggio delle ancore sul banco completo, 8 ott: 8 casi su 91, 3 fuori
+    # tema). Ora ASHK come PAROLA (dopo uno spazio o una parentesi) o «kadastr»
+    (("kartel", (" ashk", "shit"), ("(ashk", "shit"), (" ashk", "blej"), (" ashk", "tjetërsim"), ("kadastr", "shit"), ("kadastr", "blej"),
+      ("rubrik", "kufizim"), ("regjistr", "pasuri", "shit"), ("hipotek", "shit")), ("Penal",), (("kodi_civil", "193"), ("kodi_civil", "195"))),
     # v9.394 — misurato dalla misura dei modelli (26 set): nel caso «straniero con permesso per lavoro licenziato» NESSUNA
     # delle 6 varianti (qualunque modello) citava la ligji 79/2021 art. 72 (i motivi di annullamento del permesso unico: il
     # rapporto interrotto 1/e con l'obbligo del datore di avvisare entro 2 settimane, e al p. 2 «Papunësia nuk përbën arsye të
@@ -244,6 +249,11 @@ ANCORE_AL: tuple = (
     ((("divorc", "fëmij", "shoh"), ("divorc", "fëmij", "takim"), ("divorc", "fëmij", "ndrysh"), ("divorc", "femij", "shoh"),
       ("zgjidhj", "martes", "fëmij", "ndrysh"), ("divorc", "lënë"), ("ish-bashkëshort", "fëmij", "shoh"), ("takimet me fëmij",)),
      ("Penal",), (("kodi_familjes", "159"), ("kodi_familjes", "158"), ("kodi_familjes", "155")), None, None, True),
+    # v9.559 — l'ARMA DA FUOCO senza permesso (KP 278 «Armëmbajtja pa leje»): banco completo (8 ott) — il blocco della pistola si
+    # riempiva della legge sulle armi (10, 24, 27, 38-42) e delle ancore della difesa, il 278 fuori. Solo armi da fuoco e munizioni
+    # (il coltello ha il suo 279); solo nel penale.
+    (("pistolet", "kallashnikov", "armë zjarri", "armë të zjarrit", "armëve të zjarrit", "fishek", "municion", ("armë", "pa leje")),
+     (), (("kodi_penal", "278"),), None, ("Penal",), True),
     # v9.558 — il MANCATO PAGAMENTO degli alimenti come reato (KP 125 «Mosdhënia e mjeteve për jetesë»): il triage scriveva «mospagimi
     # i detyrimit ushqimor» e il blocco aveva il codice della famiglia e il 320/a, mai il 125. Solo nel penale.
     ((("nuk paguan", "ushqim"), ("mospagim", "ushqim"), ("nuk jep", "ushqim"), ("alimentacion",), ("detyrim", "ushqimor", "vendim")),
@@ -614,7 +624,7 @@ def _applica_ancore(pairs, idx, queries: list[str], aree: list[str], ancore=None
     c'era gia': un'ancora che punta a un articolo inesistente e' un non-fatto,
     non un errore.
     """
-    testo = " ".join(queries).lower()
+    testo = " " + " ".join(queries).lower()     # v9.559: lo spazio in testa — un'ancora «come parola» (« ashk») vale anche a inizio frase
     # v9.380 — «già presente» vuol dire DENTRO i dodici: dalla ricerca ibrida (v9.353) `pairs` porta TUTTI i candidati fusi, e
     # un articolo al 40° posto contava come trovato — l'ancora non scattava e il taglio lo buttava (KC 698 sulla qira, art. 2946
     # c.c. sulla prescrizione: misurati col triage vero il 24 set)
@@ -626,7 +636,7 @@ def _applica_ancore(pairs, idx, queries: list[str], aree: list[str], ancore=None
         parole, aree_spente, articoli = voce[0], voce[1], voce[2]
         # v9.500: un sesto elemento = si guarda SOLO la domanda dell'avvocato (l'ultimo testo passato), non le riscritture del
         # triage: per i termini il triage scrive «afati i ankimit» anche dove nessuno chiede entro quando (affitto, dogana, pistola)
-        _base = (queries[-1] or "").lower() if (len(voce) > 5 and voce[5] and queries) else testo
+        _base = (" " + (queries[-1] or "").lower()) if (len(voce) > 5 and voce[5] and queries) else testo
         # v9.381: un quarto elemento (regex) toglie le frasi che NON contano prima di cercare le parole
         _t = re.sub(voce[3], " ", _base) if len(voce) > 3 and voce[3] else _base
         # v9.380: una voce può essere una frase («pa testament») o una TUPLA di radici che devono esserci TUTTE

@@ -9539,6 +9539,26 @@ def main():
     except Exception as _e330:  # noqa: BLE001
         check("[330]: kontrollet u ekzekutuan", False, f"{type(_e330).__name__}: {_e330}")
 
+    # [331] v9.559 — KC 698 (risoluzione del contratto per inadempimento) nella qira sì, nel mantenimento dei figli (Familje) no
+    try:
+        from pathlib import Path as _P331
+        from src.retrieval import ArticleIndex as _AI331
+        from src import brain as _b331
+        _al331 = _AI331.load(_P331("/app/data/index/bm25.pkl"))
+        _k331 = lambda q, ar: {(a.code, a.number) for a, _ in _b331._applica_ancore([], _al331, [q], ar)}
+        check("ancore AL[331]: KC 698 nella qira non pagata sì, nel mantenimento del figlio (Familje) no",
+              ("kodi_civil", "698") in _k331("Qiramarrësi nuk paguan qiranë prej 5 muajsh.", ["Civil"])
+              and ("kodi_civil", "698") not in _k331("Ish-bashkëshorti nuk paguan asgjë për djalin.", ["Familje", "Civil"]))
+        check("ancore AL[331]: KC 193/195 su «ASHK refuzoi regjistrimin e shitjes» sì; su «bashkëshortët… shitën» o il telefono no",
+              ("kodi_civil", "195") in _k331("ASHK refuzoi regjistrimin e shitjes së apartamentit.", ["Civil"])
+              and ("kodi_civil", "195") not in _k331("Ish-bashkëshortët nuk bien dakord si ta shitin makinën e përbashkët.", ["Civil"])
+              and ("kodi_civil", "195") not in _k331("blerja online e celularit dhe e drejta e shitësit për ta marrë mbrapsht", ["Konsumator"]))
+        check("ancore AL[331]: pistoletë pa leje → KP 278 (solo penale); il coltello no",
+              ("kodi_penal", "278") in _k331("Klienti u kap me një pistoletë pa leje në makinë.", ["Penal"])
+              and ("kodi_penal", "278") not in _k331("Policia i gjeti klientit një thikë të madhe në makinë.", ["Penal"]))
+    except Exception as _e331:  # noqa: BLE001
+        check("ancore AL[331]: kontrollet u ekzekutuan", False, f"{type(_e331).__name__}: {_e331}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
