@@ -228,6 +228,15 @@ ANCORE_AL: tuple = (
     ((("pagën", "nuk"), ("pagës", "nuk"), ("pagen", "nuk"), ("pages", "nuk"), ("rrog", "nuk"), ("pagën", "vones"), ("pagës", "vones"),
       ("pagën", "interes"), ("pagës", "interes"), ("paga e papaguar",), ("pagat e papaguara",)),
      ("Penal",), (("kodi_punes", "120"), ("kodi_punes", "119")), None, ("Punë",), True),
+    # v9.543 — dall'undicesimo giro (8 ott). (1) Il PRESTITO non restituito («i dha hua… nuk ia kthen»): né KC 1050 (il contratto di
+    # mutuo) né 1051 (gli interessi) nel blocco. (2) Il FIGLIO dopo il divorzio e il genitore che vuole vederlo di più: KF 158 al 10°,
+    # 159 («il provvedimento si può modificare in ogni momento») fuori; il blocco era pieno della «kujdestari» degli artt. 218-233,
+    # cioè la TUTELA dei minori — un altro istituto, preso per la parola. Solo dalla domanda, mai nel penale.
+    ((("hua", "kthe"), ("hua", "kamat"), ("huadhën",), ("huamarr",), ("borxh", "kthe", "shok")),
+     ("Penal",), (("kodi_civil", "1050"), ("kodi_civil", "1051")), None, None, True),
+    ((("divorc", "fëmij", "shoh"), ("divorc", "fëmij", "takim"), ("divorc", "fëmij", "ndrysh"), ("divorc", "femij", "shoh"),
+      ("zgjidhj", "martes", "fëmij", "ndrysh"), ("divorc", "lënë"), ("ish-bashkëshort", "fëmij", "shoh"), ("takimet me fëmij",)),
+     ("Penal",), (("kodi_familjes", "159"), ("kodi_familjes", "158"), ("kodi_familjes", "155")), None, None, True),
     # v9.537 — il socio di s.h.p.k. che vuole USCIRE: il banco di prova aspettava gli artt. 44-45 (che sono della società in nome
     # collettivo) e il blocco ne era pieno; per la s.h.p.k. la legge 9901/2008 ha il recesso per giusti motivi (101), le sue
     # conseguenze — valore della quota (103) — e la via ordinaria, la cessione della quota (73). La rubrica del 101 aveva

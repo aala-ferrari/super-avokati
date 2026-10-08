@@ -9187,6 +9187,20 @@ def main():
     except Exception as _e314:  # noqa: BLE001
         check("frek10[314]: kontrollet u ekzekutuan", False, f"{type(_e314).__name__}: {_e314}")
 
+    # [315] v9.543 — prestito non restituito → KC 1050/1051; figlio dopo il divorzio → KF 159/158 (non la tutela 218-233)
+    try:
+        from pathlib import Path as _P315
+        from src.retrieval import ArticleIndex as _AI315
+        from src import brain as _b315
+        _al315 = _AI315.load(_P315("/app/data/index/bm25.pkl"))
+        _k315 = lambda q, ar: {(a.code, a.number) for a, _ in _b315._applica_ancore([], _al315, [q], ar)}
+        check("frek11[315]: hua non restituita → KC 1050/1051; figlio dopo il divorzio → KF 159/158; non nel penale",
+              {("kodi_civil", "1050"), ("kodi_civil", "1051")} <= _k315("I dha një shoku 10 mijë euro hua dhe nuk ia kthen.", ["Civil"])
+              and {("kodi_familjes", "159"), ("kodi_familjes", "158")} <= _k315("Pas divorcit fëmija i është lënë nënës; babai do ta shohë më shpesh.", ["Familje"])
+              and ("kodi_civil", "1050") not in _k315("I dha një shoku hua dhe ai e kërcënon.", ["Penal"]))
+    except Exception as _e315:  # noqa: BLE001
+        check("frek11[315]: kontrollet u ekzekutuan", False, f"{type(_e315).__name__}: {_e315}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
