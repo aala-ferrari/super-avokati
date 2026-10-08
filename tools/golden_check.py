@@ -9312,6 +9312,31 @@ def main():
     except Exception as _e319:  # noqa: BLE001
         check("rubriche IT[319]: kontrollet u ekzekutuan", False, f"{type(_e319).__name__}: {_e319}")
 
+    # [320] v9.548 — lesioni da una lite → KP 89/90 (non nella violenza domestica); firma falsificata → KP 186 e, nel civile, KC 92
+    try:
+        from pathlib import Path as _P320
+        from src.retrieval import ArticleIndex as _AI320
+        from src import brain as _b320
+        _al320 = _AI320.load(_P320("/app/data/index/bm25.pkl"))
+        _k320 = lambda q, ar: {(a.code, a.number) for a, _ in _b320._applica_ancore([], _al320, [q], ar)}
+        check("frek13[320]: «e rrahu… 12 ditë paaftësi» → KP 89/90; jo me zonën Familje (dhuna në familje)",
+              {("kodi_penal", "89"), ("kodi_penal", "90")} <= _k320("Fqinji e rrahu klientin dhe mjeku i dha 12 ditë paaftësi në punë.", ["Penal"])
+              and ("kodi_penal", "89") not in _k320("Burri e rrah klienten çdo javë, mjeku i dha 5 ditë paaftësi.", ["Penal", "Familje"]))
+        check("frek13[320]: nënshkrim i falsifikuar në prokurë → KP 186; KC 92 vetëm me zonën civile",
+              {("kodi_penal", "186"), ("kodi_civil", "92")} <= _k320("Vëllai ia falsifikoi nënshkrimin në një prokurë dhe shiti tokën.", ["Penal", "Civil"])
+              and ("kodi_civil", "92") not in _k320("Klienti akuzohet se falsifikoi një nënshkrim.", ["Penal"])
+              and ("kodi_penal", "186") in _k320("Klienti akuzohet se falsifikoi një nënshkrim.", ["Penal"]))
+        check("frek13[320]: guida in stato di ebbrezza → KP 291 + Kodi Rrugor 184; l'alcol senza guida no",
+              {("kodi_penal", "291"), ("kodi_rrugor", "184")} <= _k320("Klientin e ndaloi policia duke drejtuar makinën i dehur, me 1,5 gram alkool.", ["Penal"])
+              and ("kodi_penal", "291") not in _k320("Klienti ishte i dehur dhe theu xhamin e një dyqani.", ["Penal"]))
+        _it320 = _AI320.load(_P320("/app/data/index/bm25_it.pkl"))
+        _i320 = lambda q, ar: {(a.code, a.number) for a, _ in _b320._applica_ancore([], _it320, [q], ar, _b320.ANCORE_IT)}
+        check("frek13[320]: prestito a un amico non restituito → c.c. 1813; non nel penale",
+              ("codice_civile", "1813") in _i320("Il cliente ha prestato 15.000 euro a un amico che non glieli restituisce.", ["Civile"])
+              and ("codice_civile", "1813") not in _i320("Il cliente ha prestato denaro a usura e non gli viene restituito.", ["Penale"]))
+    except Exception as _e320:  # noqa: BLE001
+        check("frek13[320]: kontrollet u ekzekutuan", False, f"{type(_e320).__name__}: {_e320}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

@@ -240,6 +240,22 @@ ANCORE_AL: tuple = (
     ((("divorc", "fëmij", "shoh"), ("divorc", "fëmij", "takim"), ("divorc", "fëmij", "ndrysh"), ("divorc", "femij", "shoh"),
       ("zgjidhj", "martes", "fëmij", "ndrysh"), ("divorc", "lënë"), ("ish-bashkëshort", "fëmij", "shoh"), ("takimet me fëmij",)),
      ("Penal",), (("kodi_familjes", "159"), ("kodi_familjes", "158"), ("kodi_familjes", "155")), None, None, True),
+    # v9.548 — dal tredicesimo giro (8 ott). (1) Le LESIONI da una lite («e rrahu… mjeku i dha 12 ditë paaftësi»): né KP 89 «Plagosja e
+    # lehtë me dashje» (oltre 9 giorni di inabilità) né 90 «Dëmtime të tjera me dashje» (la rissa senza o con meno giorni) nel blocco —
+    # il triage scriveva «dëmtim i lehtë i qëllimshëm» e il codice dice «plagosja». Solo nel penale, mai nella violenza domestica
+    # (area Familje: lì c'è il 130/a). (2) La FIRMA falsificata in una procura per vendere: KP 186 al 12°, in mezzo alle altre
+    # falsità (185, 190-192); con la vendita la nullità dell'atto (KC 92) nelle aree civili.
+    ((("rrah", "paaftësi"), ("rrah", "mjek"), ("rrah", "plag"), ("goditi", "mjek"), ("plagos",), ("paaftësi", "ditë"),
+      ("dëmtim i lehtë",), ("dëmtim të lehtë",), ("lëndim", "ditë")),
+     ("Familje",), (("kodi_penal", "89"), ("kodi_penal", "90")), None, ("Penal",)),
+    ((("falsifik", "nënshkrim"), ("falsifik", "nenshkrim"), ("falsifik", "prokur"), ("falsifik", "firm"), ("nënshkrim", "rremë")),
+     (), (("kodi_penal", "186"),)),
+    # (3) la GUIDA IN STATO DI EBBREZZA: KP 291 «Drejtimi i automjeteve në mënyrë të parregullt» entrava al 12° (l'ultimo posto) e il
+    # Kodi Rrugor 184 «Drejtimi i mjetit nën ndikimin e alkoolit» (le soglie, il ritiro della patente) no. Alcol E guida, dalla domanda.
+    ((("dehur", "drejt"), ("dehur", "makin"), ("alkool", "drejt"), ("alkool", "makin"), ("alkool", "mjet")),
+     (), (("kodi_penal", "291"), ("kodi_rrugor", "184")), None, None, True),
+    ((("falsifik", "nënshkrim"), ("falsifik", "nenshkrim"), ("falsifik", "prokur"), ("falsifik", "firm"), ("nënshkrim", "rremë")),
+     (), (("kodi_civil", "92"),), None, ("Civil", "Prone")),
     # v9.544 — dal dodicesimo giro (8 ott): la MISURA CAUTELARE chiesta dal PM («kërkon arrest në burg»): c'erano 229 e 230, mai il
     # 228 (il dyshim i arsyeshëm i bazuar në prova e le cause che escludono ogni misura — la prima difesa). Frasi del cautelare
     # PERSONALE: «masa e sigurimit» da sola è anche il sequestro conservativo civile (sigurimi i padisë). Solo nel penale.
@@ -388,6 +404,10 @@ ANCORE_IT: tuple = (
     # procedimento disciplinare), mancava la norma che definisce la giusta causa, c.c. 2119 (decimo giro, 8 ott). Solo dalla domanda.
     (("in tronco", "giusta causa", "senza preavviso", ("licenzi", "assente"), ("licenzi", "assenza ingiustificat")),
      ("Penale", "Penal"), (("codice_civile", "2119"),), None, None, True),
+    # v9.548 — il PRESTITO fra privati («ha prestato 15.000 euro a un amico… non glieli restituisce»): il 1813 c.c. (mutuo) passava
+    # al 1° posto quando il triage scriveva «mutuo», ma in un giro su quattro del banco (8 ott) restava fuori. Solo nel civile.
+    ((("prestat", "restitu"), ("prestat", "amic"), ("prestito", "restitu"), ("mutuo", "restitu"), ("prestit", "scrittura privata")),
+     ("Penale", "Penal"), (("codice_civile", "1813"),)),
     # v9.546 — l'USUCAPIONE: il 1158 c.c. (beni immobili: vent'anni di possesso continuato) entrava al 7°-8° posto dietro i 1160-1167
     # (le usucapioni speciali e le cause di interruzione) e in un giro su quattro usciva dal blocco (banco di prova, 8 ott). Con il 1140
     # (la nozione di possesso, su cui si gioca la causa). Solo dalla domanda o dal triage che dice «usucapione», mai nel penale.
