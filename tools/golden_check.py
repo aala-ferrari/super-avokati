@@ -9228,6 +9228,35 @@ def main():
     except Exception as _e316:  # noqa: BLE001
         check("frek12[316]: kontrollet u ekzekutuan", False, f"{type(_e316).__name__}: {_e316}")
 
+    # [317] v9.545 — tre forme italiane che uscivano «senza codice» nelle risposte vere: l'atto PRIMA del numero con la virgola
+    # («(D.P.R. 223/1989, art. 11)», «Il D.Lgs. 23/2015, all'art. 3»; anche AL «Ligjit nr. 9901/2008, neni 101»), la sigla dopo la
+    # virgola («art. 14, co. 3, TUSG») e il regolamento del C.d.S. citato «Reg. esec.»/«Reg.» — mai il Reg. delegato (UE) 2015/2446
+    try:
+        from pathlib import Path as _P317
+        from src.retrieval import ArticleIndex as _AI317
+        from src import citation_verifier as _cv317
+        _it317 = _AI317.load(_P317("/app/data/index/bm25_it.pkl"))
+        _al317 = _AI317.load(_P317("/app/data/index/bm25.pkl"))
+        def _st317(t, n, ix=None):
+            return {i["number"]: (i["status"], i.get("code")) for i in _cv317.verify_text(t, ix or _it317)["items"]}.get(n)
+        check("verificatore[317]: atto prima del numero («D.P.R. 223/1989, art. 11», «D.Lgs. 23/2015, all'art. 3», «Ligjit nr. 9901/2008, neni 101»)",
+              _st317("Dichiarazione di trasferimento (D.P.R. 223/1989, art. 11 — da verificare).", "11") == ("verified", "regolamento_anagrafico")
+              and _st317("Il D.Lgs. 23/2015, all'art. 3, comma 1, fissa la forbice.", "3") == ("verified", "tutele_crescenti")
+              and _st317("Sipas Ligjit nr. 9901/2008, neni 101 lejon largimin e ortakut.", "101", _al317) == ("verified", "ligji_shoqerite_tregtare"))
+        check("verificatore[317]: mai la coda di un'altra citazione né un atto fra parentesi («art. 132 C.d.S., art. 94», «(L. 604/1966), art. 18»)",
+              _st317("Sanzioni (art. 132 C.d.S., art. 94, comma 4-ter) e poi.", "94") == ("needs_code", None)
+              and _st317("La legge (L. 604/1966), art. 18 non si applica.", "18") == ("needs_code", None)
+              and _st317("Secondo la Cassazione, art. 5 non basta.", "5") == ("needs_code", None))
+        check("verificatore[317]: «art. 14, co. 3, TUSG» → TU spese di giustizia",
+              _st317("Pagamento integrativo (art. 14, co. 3, TUSG — non nel blocco).", "14") == ("verified", "tu_spese_giustizia"))
+        check("verificatore[317]: «art. 339 Reg. esec.» nel C.d.S. → regolamento; mai il Reg. delegato 2015/2446 né il regolamento di procedura",
+              _st317("Targa: art. 133 C.d.S. e art. 339 Reg. esec.; art. 102 C.d.S.", "339") == ("verified", "regolamento_strada")
+              and (_st317("Nel C.d.S. nulla; l'eccezione dell'art. 212 del Reg. delegato UE n. 2446 del 2015 vale.", "212") or ("", ""))[1] != "regolamento_strada"
+              and (_st317("Dogana e C.d.S.: artt. 212 e 217 Reg. del. sul punto.", "217") or ("", ""))[1] != "regolamento_strada"
+              and (_st317("C.d.S. a parte, l'art. 99 del regolamento di procedura della Corte.", "99") or ("", ""))[1] != "regolamento_strada")
+    except Exception as _e317:  # noqa: BLE001
+        check("verificatore[317]: kontrollet u ekzekutuan", False, f"{type(_e317).__name__}: {_e317}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

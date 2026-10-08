@@ -640,7 +640,9 @@ _CONN_IT = (r"(?:(?:del|della|dello|dell[’']|dal|dalla)\s*(?:codice|cod\.|legg
             r"cedu|tfue|tue|gdpr|cdu|dnc|tuel|tuir|tub|tuf|cad|cpa|cpi|ccii|c\.[a-z]|medesim|stess|citat|predett|suddett)|"
             r"l\.\s?\d|legge\b|d\.?\s?lgs|d\.?\s?l\.\s?\d|d\.?p\.?r\.?\s?\d|r\.?d\.?\s?\d|d\.?m\.?\s?\d|t\.?u\.?\b|reg\.?\s?(?:\(|\d|ue|ce|delegat|del\.|di\s+esec|esec)|"
             r"regolamento|direttiva|dir\.|cod\.|codice|c\.[a-z]|cost\.?\b|statuto|carta|cedu|tfue|tue|gdpr|cdu|dnc|tuel|tuir|tub|tuf|cad|"
-            r"cpa|cpi|ccii|c\.d\.s\.|cds\b|l\.\s?fall|preleggi|disp\.|convenzione|protocollo|trattato|st(?:at)?\.?\s?lav\b)")
+            r"cpa|cpi|ccii|c\.d\.s\.|cds\b|l\.\s?fall|preleggi|disp\.|convenzione|protocollo|trattato|st(?:at)?\.?\s?lav\b|"
+            # v9.545: «art. 14, co. 3, TUSG», «art. 5, comma 6, TUI» — la sigla dopo la virgola (CAP no: «cap.» è anche il capo)
+            r"t\.?u\.?s\.?g\b|tui\b)")
 
 # 16 set 2026 (benchmark lab): «art. 215 Reg. (UE) 2015/2446» — il token «(UE)» spezzava la coda e la citazione
 # restava «senza codice»; i soli parentetici ammessi sono le sigle UE/CE/CEE. v9.348: «art. 13-ter (allegato) Codice
@@ -961,6 +963,9 @@ def _resolve_code_it(tail: str):
         return "tu_immigrazione"
     if re.search(r"(?<![A-Za-z])CAP(?![A-Za-z])", tail or ""):
         return "codice_assicurazioni"
+    # v9.545 — «art. 14, co. 3, TUSG» (testo unico spese di giustizia, d.P.R. 115/2002: il contributo unificato) usciva «senza codice»
+    if re.search(r"(?<![A-Za-z])T\.?\s?U\.?\s?S\.?\s?G\.?(?![A-Za-z])", tail or ""):
+        return "tu_spese_giustizia"
     # v9.511 (banco di prova del 5 ott): «art. 340 Reg. C.d.S.» / «Reg. esec. C.d.S.» — la forma con cui si cita il REGOLAMENTO del
     # Codice della strada — compattata è «regcds»: nessuna chiave lunga la prendeva e vinceva la sigla «cds» → art. 340 del CODICE,
     # che non esiste → «inesistente», e il cancello barrava una citazione vera. «Reg.» (anche «di esecuzione/attuazione») DAVANTI a
@@ -1827,6 +1832,49 @@ def verify_text(
                 return code if code != FUORI_CORPUS and _esiste(code, number) else None
         return None
 
+    def _atto_subito_prima(pos: int, number: str) -> str | None:
+        """v9.545 — l'ATTO SCRITTO PRIMA del numero e attaccato con la virgola: «(D.P.R. 223/1989, art. 11 — da verificare)»,
+        «Il D.Lgs. 23/2015, all'art. 3, comma 1», «(Reg. esec. 2015/2447, art. 218)» — misurato sulle risposte vere (21 giorni,
+        8 ott): la forma inversa più comune fra le 233 citazioni italiane «senza codice». Stretta di proposito (la regola larga
+        della riga sbagliava): fra l'atto e «art.» SOLO la virgola (più «all'/nell'/dell'/dall'/ex»), l'atto non è la coda di
+        un'altra citazione («art. 132 C.d.S., art. 94» resta com'è), niente parentesi in mezzo, e il numero esiste nell'atto."""
+        seg = text[max(0, pos - 90):pos]
+        mm = re.search(r"([^,;()\[\]\n]{2,70}),\s*(?:(?:all|nell|dell|dall|sull)['’]\s*|ex\s+)?$", seg)
+        if not mm:
+            return None
+        head = mm.group(1).replace("*", " ")
+        if re.search(r"(?<![A-Za-zËëÇç])(?:art|artt|articol[oi]|nen[ie]t?|nenit)\b\.?\s*\d", head, re.I):
+            return None
+        words = head.split()
+        for k in range(len(words) - 1, max(-1, len(words) - 9), -1):
+            code = _resolve(" ".join(words[k:]))
+            if code:
+                return code if code != FUORI_CORPUS and _esiste(code, number) else None
+        return None
+
+    # v9.545 — «art. 339 Reg. esec.», «art. 394 Reg.» in una risposta sul Codice della strada: il regolamento di esecuzione del C.d.S.
+    # (d.P.R. 495/1992) citato senza ripetere «C.d.S.» (il Giudice lo segnalava come «falso positivo del parser»). Solo se il testo
+    # parla del C.d.S., se dopo «Reg.» non c'è un numero o un «(UE)/CE/delegato» e se il regolamento UE di esecuzione 2015/2447
+    # (dogana, spesso nelle stesse risposte) non ha anche lui quell'articolo: allora resta senza codice.
+    _cds_nel_testo = _lang == "it" and re.search(r"c\.\s?d\.\s?s\.|codice della strada", text, re.I) is not None
+    _ue2447_nel_testo = _lang == "it" and re.search(r"2015\s*/\s*2447", text) is not None
+    _ue2446_nel_testo = _lang == "it" and re.search(r"2015\s*/\s*2446|2446\s+del\s+2015|reg(?:olamento|\.)?\s*del(?:egato|\.)", text, re.I) is not None
+
+    def _regolamento_cds(tail_: str, number: str) -> str | None:
+        if not _cds_nel_testo:
+            return None
+        # dopo «Reg.»/«Reg. esec.» solo la fine, la punteggiatura, «e/ed», «sul/sulla»: un elenco di permessi, non di divieti —
+        # la regex coi divieti tornava indietro su «Reg» senza punto e prendeva «Reg. delegato (UE) 2015/2446» e «regolamento
+        # di procedura della Corte» (misurato sulle risposte salvate, 8 ott)
+        if not re.match(r"\s*(?:del\s+)?reg(?:olamento)?\.?(?:\s*(?:di\s+)?es(?:ec(?:uzione)?)?\.?)?"
+                        r"(?=\s*(?:$|[,;:)\]*—–\-]|e\b|ed\b|sul\b|sull|sulla\b|per\b))", tail_ or "", re.I):
+            return None
+        if not _esiste("regolamento_strada", number):
+            return None
+        if (_ue2447_nel_testo and _esiste("reg_ue_2015_2447", number)) or (_ue2446_nel_testo and _esiste("reg_ue_2015_2446", number)):
+            return None
+        return "regolamento_strada"
+
     seen: set[tuple[str, str]] = set()  # dedupe (number, code-or-empty)
     citations: list[Citation] = []
 
@@ -2029,6 +2077,10 @@ def verify_text(
             if code_n is None and not kp_bare:
                 if anafora and _esiste(anafora, number):
                     code_n, via = anafora, "anafora"
+                elif (_ap := _atto_subito_prima(m.start(), number)):
+                    code_n, via = _ap, "atto_prima"
+                elif (_rc := _regolamento_cds(tail, number)):
+                    code_n, via = _rc, "contesto"
                 else:
                     _d = _dal_documento(number)
                     if _d:
