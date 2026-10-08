@@ -86,6 +86,15 @@ CASI = [  # (giurisdizione, domanda dell'avvocato, articoli di cui almeno uno DE
     ("IT", "[frek9] La cliente ha subito un intervento sbagliato in un ospedale pubblico. Contro chi agiamo e cosa dobbiamo fare prima della causa?", [("responsabilita_sanitaria", "7"), ("responsabilita_sanitaria", "8")]),
     ("AL", "[frek9] Klienti pati një aksident, faji ishte i tjetrit, dhe siguruesi nuk po i përgjigjet prej dy muajsh. Si ta detyrojmë të paguajë?", [("ligji_sigurimi_mjeteve", "10"), ("ligji_sigurimi_mjeteve", "9")]),
     ("AL", "[frek9] Klienti është ortak me 40% në një shpk dhe dëshiron të largohet nga shoqëria. Si e bën dhe çfarë i takon?", [("ligji_shoqerite_tregtare", "101"), ("ligji_shoqerite_tregtare", "103"), ("ligji_shoqerite_tregtare", "73")]),
+    # v9.544 — dodicesimo giro (8 ott): penale e amministrativo, attese lette sul testo
+    ("AL", "[frek12] Klienti u arrestua për vjedhje dhe prokuroria kërkon arrest në burg. Çfarë kriteresh duhen dhe çfarë mase më të butë mund të kërkojmë?", [("kodi_proc_penale", "228"), ("kodi_proc_penale", "229"), ("kodi_proc_penale", "230")]),
+    ("AL", "[frek12] Shteti do t'i shpronësojë klientit tokën për një rrugë. Çfarë të drejtash ka dhe si e kundërshton vlerën?", [("ligji_shpronesimi", "6"), ("ligji_shpronesimi", "16"), ("ligji_shpronesimi", "5")]),
+    ("AL", "[frek12] Klienti ka 62 vjeç dhe 30 vjet kontribute. A ka të drejtë për pension pleqërie?", [("ligji_sigurimet_shoqerore", "31"), ("ligji_sigurimet_shoqerore", "92")]),
+    ("AL", "[frek12] Bashkia nuk i përgjigjet kërkesës së klientit për leje prej tre muajsh. Çfarë pasoje ka heshtja?", [("kodi_proc_admin", "97")]),
+    ("IT", "[frek12] Il cliente è stato arrestato per spaccio e il PM chiede il carcere. Quali esigenze cautelari servono e come impugniamo l'ordinanza?", [("codice_procedura_penale", "274"), ("codice_procedura_penale", "275"), ("codice_procedura_penale", "309")]),
+    ("IT", "[frek12] Il cliente vuole patteggiare per un furto aggravato. Come funziona e che effetti ha la sentenza?", [("codice_procedura_penale", "444"), ("codice_procedura_penale", "445")]),
+    ("IT", "[frek12] Il Comune non risponde da cinque mesi all'istanza del cliente. Cosa possiamo fare contro il silenzio?", [("procedimento_amministrativo", "2"), ("codice_processo_amministrativo", "117"), ("codice_processo_amministrativo", "31")]),
+    ("IT", "[frek12] L'ASL rifiuta di dare al cliente copia della sua pratica. Come otteniamo l'accesso agli atti?", [("procedimento_amministrativo", "22"), ("procedimento_amministrativo", "25")]),
     # v9.543 — undicesimo giro (8 ott), attese lette sul testo
     ("AL", "[frek11] Klienti i dha një shoku 10 mijë euro hua me shkrim dhe ai nuk ia kthen. Çfarë mund të kërkojë, edhe kamata?", [("kodi_civil", "1050"), ("kodi_civil", "1051")]),
     ("AL", "[frek11] Klientja i dhuroi të birit një apartament dhe tani ai e ka përzënë nga shtëpia. A mund ta kthejë dhurimin?", [("kodi_civil", "771")]),

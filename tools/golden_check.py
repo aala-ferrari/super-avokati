@@ -9201,6 +9201,33 @@ def main():
     except Exception as _e315:  # noqa: BLE001
         check("frek11[315]: kontrollet u ekzekutuan", False, f"{type(_e315).__name__}: {_e315}")
 
+    # [316] v9.544 — misura cautelare → KPP 228/229/230 (non sul sequestro civile); la «vjetërsi» contributiva non porta il premio
+    # di anzianità del KP (la pensione); patteggiamento → c.p.p. 444/445
+    try:
+        from pathlib import Path as _P316
+        from src.retrieval import ArticleIndex as _AI316
+        from src import brain as _b316
+        _al316 = _AI316.load(_P316("/app/data/index/bm25.pkl"))
+        _it316 = _AI316.load(_P316("/app/data/index/bm25_it.pkl"))
+        _k316 = lambda q, ar: {(a.code, a.number) for a, _ in _b316._applica_ancore([], _al316, q, ar)}
+        _i316 = lambda q, ar: {(a.code, a.number) for a, _ in _b316._applica_ancore([], _it316, q, ar, _b316.ANCORE_IT)}
+        check("frek12[316]: arrest në burg → KPP 228/229/230; jo në sigurimin e padisë civile",
+              {("kodi_proc_penale", "228"), ("kodi_proc_penale", "229"), ("kodi_proc_penale", "230")}
+              <= _k316(["Prokuroria kërkon arrest në burg për klientin."], ["Penal"])
+              and ("kodi_proc_penale", "228") not in _k316(["Kërkojmë masën e sigurimit të padisë mbi llogarinë e debitorit."], ["Civil"]))
+        check("frek12[316]: vjetërsia në kontribute (pension) nuk sjell KP 145/152; pushimi pas 8 vjetësh po",
+              ("kodi_punes", "145") not in _k316(["pension i pjesshëm për vjetërsi kontribuesi", "Klienti ka 62 vjeç dhe 30 vjet kontribute."], ["Punë"])
+              and ("kodi_punes", "145") in _k316(["U pushua nga puna pas 8 vjetësh, i takon shpërblimi për vjetërsi?"], ["Punë"]))
+        check("frek12[316]: pension pleqërie → ligji 7703 nenet 31/92; jo në pushimin nga puna pa pension",
+              {("ligji_sigurimet_shoqerore", "31"), ("ligji_sigurimet_shoqerore", "92")}
+              <= _k316(["Klienti ka 62 vjeç dhe 30 vjet kontribute. A ka të drejtë për pension pleqërie?"], ["Punë"])
+              and ("ligji_sigurimet_shoqerore", "31") not in _k316(["U pushua nga puna pas 8 vjetësh, i takon shpërblimi për vjetërsi?"], ["Punë"]))
+        check("frek12[316]: patteggiamento → c.p.p. 444/445",
+              {("codice_procedura_penale", "444"), ("codice_procedura_penale", "445")}
+              <= _i316(["Il cliente vuole patteggiare per un furto aggravato: che effetti ha la sentenza?"], ["Penale"]))
+    except Exception as _e316:  # noqa: BLE001
+        check("frek12[316]: kontrollet u ekzekutuan", False, f"{type(_e316).__name__}: {_e316}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

@@ -158,7 +158,10 @@ ANCORE_AL: tuple = (
      # v9.399: la regola di BASE è il KP 145 (contratto a tempo indeterminato risolto dal datore: dopo 3 anni, 15 giorni
      # di paga per anno); il 152 sta nella sezione dei contratti A TERMINE e rinvia al 145 — prima entrava solo il 152
      # (trovato dal Giudice nell'audit AL del 28 set: «vjetërsia: baza është neni 145, jo 152»)
-     ("Penal",), (("kodi_punes", "145"), ("kodi_punes", "152"))),
+     # v9.544: la «vjetërsi» CONTRIBUTIVA è la pensione, non il premio: «62 vjeç, 30 vjet kontribute» → il triage scriveva
+     # «pension i pjesshëm për vjetërsi kontribuesi» e i KP 145/152 andavano in testa al posto della legge sulle pensioni
+     ("Penal",), (("kodi_punes", "145"), ("kodi_punes", "152")),
+     r"vjetërsi\w*\s+(?:në\s+|e\s+|të\s+)?(?:kontribu|sigurim)\w*|pension\w*"),
     # v9.400 — il licenziamento da parte del datore: il PREAVVISO (KP 143) decide la paga dovuta (155/1), il giorno da cui
     # corrono i 180 giorni della causa (146/2) e, se non è stato dato, fa della risoluzione una risoluzione con effetto
     # immediato (143/4 → 155); l'anzianità (KP 145) sono soldi del cliente dopo 3 anni. Misurato (28 set, prove vive degli
@@ -237,6 +240,17 @@ ANCORE_AL: tuple = (
     ((("divorc", "fëmij", "shoh"), ("divorc", "fëmij", "takim"), ("divorc", "fëmij", "ndrysh"), ("divorc", "femij", "shoh"),
       ("zgjidhj", "martes", "fëmij", "ndrysh"), ("divorc", "lënë"), ("ish-bashkëshort", "fëmij", "shoh"), ("takimet me fëmij",)),
      ("Penal",), (("kodi_familjes", "159"), ("kodi_familjes", "158"), ("kodi_familjes", "155")), None, None, True),
+    # v9.544 — dal dodicesimo giro (8 ott): la MISURA CAUTELARE chiesta dal PM («kërkon arrest në burg»): c'erano 229 e 230, mai il
+    # 228 (il dyshim i arsyeshëm i bazuar në prova e le cause che escludono ogni misura — la prima difesa). Frasi del cautelare
+    # PERSONALE: «masa e sigurimit» da sola è anche il sequestro conservativo civile (sigurimi i padisë). Solo nel penale.
+    (("arrest në burg", "arrestit në burg", "arresti në burg", "paraburgim", "sigurimit personal", "sigurimi personal",
+      ("arrest", "shtëpi"), ("masë sigurimi", "prokuror"), ("masës së sigurimit", "arrest"), ("masa e sigurimit", "arrest")),
+     (), (("kodi_proc_penale", "228"), ("kodi_proc_penale", "229"), ("kodi_proc_penale", "230")), None, ("Penal",)),
+    # … e la PENSIONE DI VECCHIAIA («62 vjeç, 30 vjet kontribute: a kam të drejtë?»): il 31 (15 anni minimi, l'età del 92) entrava
+    # al 14° posto, dietro i premi di anzianità del KP e le pensioni delle ex cooperative (96). Il 92 ha la tabella dell'età.
+    (("pension pleqërie", "pensionit të pleqërisë", "pension pleqerie", "pensioni i pleqërisë", ("pension", "mosh"),
+      ("pension", "vjeç"), ("pension", "kontribu"), ("dal", "në pension")),
+     ("Penal",), (("ligji_sigurimet_shoqerore", "31"), ("ligji_sigurimet_shoqerore", "92")), None, None, True),
     # v9.537 — il socio di s.h.p.k. che vuole USCIRE: il banco di prova aspettava gli artt. 44-45 (che sono della società in nome
     # collettivo) e il blocco ne era pieno; per la s.h.p.k. la legge 9901/2008 ha il recesso per giusti motivi (101), le sue
     # conseguenze — valore della quota (103) — e la via ordinaria, la cessione della quota (73). La rubrica del 101 aveva
@@ -374,6 +388,10 @@ ANCORE_IT: tuple = (
     # procedimento disciplinare), mancava la norma che definisce la giusta causa, c.c. 2119 (decimo giro, 8 ott). Solo dalla domanda.
     (("in tronco", "giusta causa", "senza preavviso", ("licenzi", "assente"), ("licenzi", "assenza ingiustificat")),
      ("Penale", "Penal"), (("codice_civile", "2119"),), None, None, True),
+    # v9.544 — il PATTEGGIAMENTO: il 444 c'era al 4°, gli EFFETTI della sentenza (445: niente spese né pene accessorie sotto i due anni,
+    # estinzione del reato) mai — e il cliente chiede proprio «che effetti ha»; il blocco era pieno delle pene sostitutive della 689/1981.
+    (("patteggi", "applicazione della pena su richiesta", "pena concordata"), (),
+     (("codice_procedura_penale", "444"), ("codice_procedura_penale", "445"))),
     # … e il RICORSO TRIBUTARIO contro avviso di accertamento o cartella: oggi (fino al 31/12/2026) il D.Lgs. 546/1992 — art. 21 (sessanta
     # giorni) e 19 (atti impugnabili); il testo unico della giustizia tributaria si applica dal 1/1/2027. Banco di prova: il 21 al 14°.
     ((("accertamento", "ricors"), ("accertamento", "impugn"), ("cartella", "ricors"), ("cartella", "impugn"), ("cartella", "opposizion"),
