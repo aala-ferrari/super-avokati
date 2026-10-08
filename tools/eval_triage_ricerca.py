@@ -86,6 +86,16 @@ CASI = [  # (giurisdizione, domanda dell'avvocato, articoli di cui almeno uno DE
     ("IT", "[frek9] La cliente ha subito un intervento sbagliato in un ospedale pubblico. Contro chi agiamo e cosa dobbiamo fare prima della causa?", [("responsabilita_sanitaria", "7"), ("responsabilita_sanitaria", "8")]),
     ("AL", "[frek9] Klienti pati një aksident, faji ishte i tjetrit, dhe siguruesi nuk po i përgjigjet prej dy muajsh. Si ta detyrojmë të paguajë?", [("ligji_sigurimi_mjeteve", "10"), ("ligji_sigurimi_mjeteve", "9")]),
     ("AL", "[frek9] Klienti është ortak me 40% në një shpk dhe dëshiron të largohet nga shoqëria. Si e bën dhe çfarë i takon?", [("ligji_shoqerite_tregtare", "101"), ("ligji_shoqerite_tregtare", "103"), ("ligji_shoqerite_tregtare", "73")]),
+    # v9.556 — diciassettesimo giro (8 ott): rapina, abuso d'ufficio, accesso agli atti AL, recesso online AL; IT decreto penale, messa
+    # alla prova, immagini intime, ingiuria (D.Lgs. 7/2016)
+    ("AL", "[frek17] Dy persona e sulmuan klientin në rrugë dhe i morën telefonin me forcë. Çfarë vepre është dhe çfarë dënimi parashikon?", [("kodi_penal", "139")]),
+    ("AL", "[frek17] Një nëpunës i bashkisë e refuzoi qëllimisht lejen e klientit pa asnjë arsye ligjore, për ta dëmtuar. A ka vepër penale?", [("kodi_penal", "248")]),
+    ("AL", "[frek17] Bashkia nuk i jep klientit kopjen e vendimit të këshillit bashkiak. Si e kërkojmë dhe brenda sa kohe duhet të përgjigjen?", [("ligji_informimi", "15"), ("ligji_informimi", "11")]),
+    ("AL", "[frek17] Klienti bleu online një celular dhe pas pesë ditësh do ta kthejë pa dhënë arsye. A ka të drejtë?", [("ligji_konsumatoret", "37/1"), ("ligji_konsumatoret", "37/3")]),
+    ("IT", "[frek17] Al cliente è stato notificato un decreto penale di condanna. Entro quando e come si oppone?", [("codice_procedura_penale", "461")]),
+    ("IT", "[frek17] Il cliente incensurato è accusato di furto semplice. Può chiedere la messa alla prova?", [("codice_penale", "168-bis")]),
+    ("IT", "[frek17] L'ex fidanzato ha pubblicato in un gruppo foto intime della cliente senza il suo consenso. Che reato è?", [("codice_penale", "612-ter")]),
+    ("IT", "[frek17] Un collega ha insultato pesantemente il cliente davanti a tutti in ufficio. Possiamo denunciarlo?", [("sanzioni_pecuniarie_civili", "4")]),
     # v9.555 — sedicesimo giro (8 ott): età imputabile, multa amministrativa, divisione fra coeredi, licenziamento in malattia; IT disdetta
     # del locatore, danni del figlio minore, casa occupata
     ("AL", "[frek16] Djali 13 vjeç i klientes vodhi një telefon në shkollë. A mund të ndiqet penalisht?", [("kodi_penal", "12")]),

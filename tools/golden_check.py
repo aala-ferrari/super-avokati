@@ -9478,6 +9478,28 @@ def main():
     except Exception as _e327:  # noqa: BLE001
         check("frek16[327]: kontrollet u ekzekutuan", False, f"{type(_e327).__name__}: {_e327}")
 
+    # [328] v9.556 — il D.Lgs. 7/2016 nel corpus (ingiuria = illecito civile: «art. 4 D.Lgs. 7/2016» verificato, ancora sull'insulto) e le
+    # ancore AL del diciassettesimo giro (furto con violenza KP 139/140 solo penale, accesso ai documenti pubblici ligji 119/2014 art. 15)
+    try:
+        from pathlib import Path as _P328
+        from src.retrieval import ArticleIndex as _AI328
+        from src import brain as _b328
+        from src import citation_verifier as _cv328
+        _al328 = _AI328.load(_P328("/app/data/index/bm25.pkl")); _it328 = _AI328.load(_P328("/app/data/index/bm25_it.pkl"))
+        _st328 = {i["number"]: (i["status"], i.get("code")) for i in _cv328.verify_text("L'ingiuria è oggi un illecito civile (art. 4 D.Lgs. 7/2016).", _it328)["items"]}
+        _i328 = {(a.code, a.number) for a, _ in _b328._applica_ancore([], _it328, ["Un collega ha insultato il cliente davanti a tutti: possiamo denunciarlo?"], ["Penale"], _b328.ANCORE_IT)}
+        check("ingiuria[328]: «art. 4 D.Lgs. 7/2016» verificato; l'insulto davanti ai colleghi → D.Lgs. 7/2016 art. 4",
+              _st328.get("4") == ("verified", "sanzioni_pecuniarie_civili") and ("sanzioni_pecuniarie_civili", "4") in _i328, str(_st328))
+        _k328 = lambda q, ar: {(a.code, a.number) for a, _ in _b328._applica_ancore([], _al328, [q], ar)}
+        check("frek17 AL[328]: «i morën telefonin me forcë» → KP 139/140 (solo penale); kopja e vendimit të bashkisë → ligji_informimi 15",
+              {("kodi_penal", "139"), ("kodi_penal", "140")} <= _k328("Dy persona e sulmuan klientin dhe i morën telefonin me forcë.", ["Penal"])
+              and ("kodi_penal", "139") not in _k328("Dy persona e sulmuan klientin dhe i morën telefonin me forcë.", ["Civil"])
+              and ("ligji_informimi", "15") in _k328("Bashkia nuk i jep klientit kopjen e vendimit të këshillit.", ["Administrativ"]))
+        _m328 = {(a.code, a.number) for a, _ in _b328._applica_ancore([], _it328, ["Il cliente incensurato è accusato di furto semplice: può chiedere la messa alla prova?"], ["Penale"], _b328.ANCORE_IT)}
+        check("messa alla prova[328]: → c.p. 168-bis + c.p.p. 464-bis", {("codice_penale", "168-bis"), ("codice_procedura_penale", "464-bis")} <= _m328)
+    except Exception as _e328:  # noqa: BLE001
+        check("frek17[328]: kontrollet u ekzekutuan", False, f"{type(_e328).__name__}: {_e328}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

@@ -176,6 +176,9 @@ ACTS = [
     # … e la LEGGE 104/1992 (assistenza, integrazione e diritti delle persone con disabilità: i permessi dell'art. 33, il trasferimento,
     # il divieto di trasferimento senza consenso): citata nelle risposte, non nel corpus
     ("legge_104", "Legge-quadro per l'assistenza, l'integrazione sociale e i diritti delle persone handicappate (L. 104/1992)", "Lavoro", "legge:1992-02-05;104", "wave12"),
+    # … e il D.LGS. 7/2016: l'INGIURIA (ex art. 594 c.p.) e gli altri reati trasformati in illeciti civili con sanzione pecuniaria civile —
+    # oggi nel corpus c'era solo il 594 «abrogato»
+    ("sanzioni_pecuniarie_civili", "Abrogazione di reati e illeciti con sanzioni pecuniarie civili — ingiuria, danneggiamento semplice (D.Lgs. 7/2016)", "Civile", "decreto.legislativo:2016-01-15;7", "wave12"),
 ]
 # atti da scaricare al testo in vigore OGGI («!vig=»): senza data Normattiva dà la versione futura (qui: tutto «ABROGATO» dal 2027)
 VIGENTE_AL = {"tuir_1986", "processo_tributario", "sanzioni_tributarie_amministrative", "imposta_ipotecaria_catastale",

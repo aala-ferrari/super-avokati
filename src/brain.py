@@ -240,6 +240,13 @@ ANCORE_AL: tuple = (
     ((("divorc", "fëmij", "shoh"), ("divorc", "fëmij", "takim"), ("divorc", "fëmij", "ndrysh"), ("divorc", "femij", "shoh"),
       ("zgjidhj", "martes", "fëmij", "ndrysh"), ("divorc", "lënë"), ("ish-bashkëshort", "fëmij", "shoh"), ("takimet me fëmij",)),
      ("Penal",), (("kodi_familjes", "159"), ("kodi_familjes", "158"), ("kodi_familjes", "155")), None, None, True),
+    # v9.556 — dal diciassettesimo giro (8 ott). (1) Il FURTO CON VIOLENZA («e sulmuan… i morën telefonin me forcë»): il triage scriveva
+    # «grabitja neni 140» (la rapina armata) e il KP 139 «Vjedhja me dhunë», che è il caso, restava fuori → 139 e 140, solo penale.
+    # (2) L'ACCESSO ai documenti pubblici (ligji 119/2014): il 15 (il termine di risposta) al 13°.
+    ((("me forcë", "morën"), ("me forcë", "mori"), ("me dhunë", "vodh"), ("me dhunë", "morën"), ("sulmuan", "morën")),
+     (), (("kodi_penal", "139"), ("kodi_penal", "140")), None, ("Penal",), True),
+    ((("kopje", "vendim", "bashki"), ("e drejta e informimit",), ("informacion publik",), ("nuk i jep", "kopje"), ("kërkes", "informacion", "institucion")),
+     ("Penal",), (("ligji_informimi", "15"), ("ligji_informimi", "11")), None, None, True),
     # v9.555 — dal sedicesimo giro (8 ott). (1) L'ETÀ IMPUTABILE («djali 13 vjeç… a mund të ndiqet penalisht?»): nel blocco il codice dei
     # minori, mai il KP 12 (la soglia dei 14 anni, 16 per le contravvenzioni). Solo nel penale, con un minore nominato. (2) Il
     # LICENZIAMENTO in malattia («me raport mjekësor»): mai il KP 130 «Sëmundje». (3) La DIVISIONE fra coeredi/comproprietari: KC 207
@@ -437,6 +444,14 @@ ANCORE_IT: tuple = (
     # procedimento disciplinare), mancava la norma che definisce la giusta causa, c.c. 2119 (decimo giro, 8 ott). Solo dalla domanda.
     (("in tronco", "giusta causa", "senza preavviso", ("licenzi", "assente"), ("licenzi", "assenza ingiustificat")),
      ("Penale", "Penal"), (("codice_civile", "2119"),), None, None, True),
+    # v9.556 — la MESSA ALLA PROVA: c.p. 168-bis (i presupposti: pena fino a quattro anni) all'11°, il 464-bis c.p.p. (la richiesta e il
+    # termine) dietro. Dalla domanda, solo nel penale.
+    (("messa alla prova", "messa in prova", ("sospensione del procedimento", "prova")),
+     (), (("codice_penale", "168-bis"), ("codice_procedura_penale", "464-bis")), None, ("Penale", "Penal"), True),
+    # v9.556 — l'INGIURIA (offesa alla persona presente): dal 2016 non è reato, è un illecito civile con sanzione pecuniaria (D.Lgs. 7/2016
+    # art. 4, entrato nel corpus): nel blocco gli artt. 3, 5, 6, 7 della legge ma non il 4, la norma che lo dice.
+    (("ingiuri", ("insult", "davanti"), ("insultat",), ("offes", "presente"), ("offes", "davanti a")),
+     (), (("sanzioni_pecuniarie_civili", "4"),), None, None, True),
     # v9.555 — dal sedicesimo giro (8 ott). (1) La CASA OCCUPATA da estranei: c'erano 633/633-bis (invasione di terreni o edifici),
     # mai il 634-bis (occupazione arbitraria di immobile destinato a domicilio altrui, 2024: il reato e la reintegra rapida) — solo con
     # estranei o «abusivi», mai sull'inquilino che non lascia la casa (è un altro istituto: lo sfratto). (2) I DANNI del figlio minore:
