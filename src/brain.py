@@ -240,6 +240,17 @@ ANCORE_AL: tuple = (
     ((("divorc", "fëmij", "shoh"), ("divorc", "fëmij", "takim"), ("divorc", "fëmij", "ndrysh"), ("divorc", "femij", "shoh"),
       ("zgjidhj", "martes", "fëmij", "ndrysh"), ("divorc", "lënë"), ("ish-bashkëshort", "fëmij", "shoh"), ("takimet me fëmij",)),
      ("Penal",), (("kodi_familjes", "159"), ("kodi_familjes", "158"), ("kodi_familjes", "155")), None, None, True),
+    # v9.554 — i casi del banco completo (8 ott, AL 80/80) che passavano al LIMITE (10°-14° posto): la corruzione del funzionario
+    # (KP 259 passiva, 244 attiva: chi paga), i vizi dell'edificio costruito (KC 864 garanzia, 865 rimedi, 866 la costruzione di
+    # immobili), la locazione SCADUTA (KC 820) e il termine del ricorso amministrativo contro la revoca del permesso (KPA 132).
+    ((("korrupsion",), ("ryshfet",), ("zyrtar", "kërkoi", "euro"), ("zyrtar", "kërkoi", "para"), ("nëpunës", "kërkoi", "para")),
+     (), (("kodi_penal", "259"), ("kodi_penal", "244")), None, ("Penal",), True),
+    ((("lagështir",), ("çarje", "mur"), ("difekt", "ndërtim"), ("defekt", "ndërtim"), ("vese", "ndërtes"), ("firma e ndërtimit", "dorëzoi")),
+     ("Penal",), (("kodi_civil", "864"), ("kodi_civil", "865"), ("kodi_civil", "866")), None, None, True),
+    ((("qira", "mbaroi"), ("qira", "përfundoi"), ("qiramarrës", "nuk largohet"), ("qiramarrës", "nuk liron")),
+     ("Penal",), (("kodi_civil", "820"),), None, None, True),
+    ((("leje", "qëndrim", "brenda sa"), ("leje", "qëndrim", "afat"), ("leje", "qëndrim", "deri kur")),
+     ("Penal",), (("kodi_proc_admin", "132"),), None, None, True),
     # v9.550 — dal quattordicesimo giro (8 ott). (1) Il SEQUESTRO CONSERVATIVO prima della causa («debitori po i shet pasuritë… si ia
     # bllokojmë»): c'era il 206 (i tipi di misura), non il 202 (la regola: la corte decide entro 5 giorni, anche prima della causa — 204),
     # e in testa la prescrizione (KC 114/115). Solo nel civile: la «masa e sigurimit» è anche il cautelare penale. (2) Gli ALIMENTI al
@@ -416,6 +427,17 @@ ANCORE_IT: tuple = (
     # procedimento disciplinare), mancava la norma che definisce la giusta causa, c.c. 2119 (decimo giro, 8 ott). Solo dalla domanda.
     (("in tronco", "giusta causa", "senza preavviso", ("licenzi", "assente"), ("licenzi", "assenza ingiustificat")),
      ("Penale", "Penal"), (("codice_civile", "2119"),), None, None, True),
+    # v9.554 — dal banco completo (8 ott, IT 100/100), i casi al LIMITE (10°-12° posto): il mobbing (c.c. 2087, la tutela delle
+    # condizioni di lavoro), i maltrattamenti in famiglia (c.p. 572), la sospensione condizionale (c.p. 163/164), gli alimenti ai
+    # genitori (c.c. 433 chi è obbligato, 438 la misura — non il mantenimento dei figli, che è altro).
+    (("mobbing", ("umili", "lavor"), ("isol", "dipendent"), ("vessa", "lavor"), ("demansion", "umili")),
+     ("Penale", "Penal"), (("codice_civile", "2087"),), None, None, True),
+    (("maltratt", ("marito", "insult"), ("marito", "picchi"), ("convivente", "spint"), ("moglie", "picchi"), ("violenza", "domestic")),
+     (), (("codice_penale", "572"),), None, ("Penale", "Penal"), True),
+    (("sospensione condizionale", ("condannat", "senza precedenti"), ("condannat", "incensurat"), ("condannat", "non ha precedenti")),
+     (), (("codice_penale", "163"), ("codice_penale", "164")), None, ("Penale", "Penal"), True),
+    (("obbligo alimentare", ("aliment", "anzian"), ("aliment", "genitor"), ("aliment", "padre"), ("aliment", "madre")),
+     ("Penale", "Penal"), (("codice_civile", "433"), ("codice_civile", "438")), None, None, True),
     # v9.551 — i PERMESSI per assistere un familiare con disabilità grave: la L. 104/1992 è entrata nel corpus (art. 33 «Agevolazioni»: tre
     # giorni al mese, il trasferimento, il consenso); al primo giro del banco era all'11° posto. Mai nel penale.
     (("legge 104", "l. 104", ("permess", "disabil"), ("permess", "handicap"), ("assist", "disabilità grave"), ("congedo", "disabil")),

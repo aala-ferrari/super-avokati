@@ -9433,6 +9433,30 @@ def main():
     except Exception as _e325:  # noqa: BLE001
         check("verificatore[325]: kontrollet u ekzekutuan", False, f"{type(_e325).__name__}: {_e325}")
 
+    # [326] v9.554 — i casi al limite del banco completo: AL corruzione, vizi dell'edificio, locazione scaduta, termine contro la revoca del
+    # permesso; IT mobbing, maltrattamenti, sospensione condizionale, alimenti ai genitori — ciascuno solo nella sua area
+    try:
+        from pathlib import Path as _P326
+        from src.retrieval import ArticleIndex as _AI326
+        from src import brain as _b326
+        _al326 = _AI326.load(_P326("/app/data/index/bm25.pkl")); _it326 = _AI326.load(_P326("/app/data/index/bm25_it.pkl"))
+        _k326 = lambda q, ar: {(a.code, a.number) for a, _ in _b326._applica_ancore([], _al326, [q], ar)}
+        _i326 = lambda q, ar: {(a.code, a.number) for a, _ in _b326._applica_ancore([], _it326, [q], ar, _b326.ANCORE_IT)}
+        check("limite AL[326]: korrupsion → KP 259/244; lagështirë → KC 864-866; qiraja mbaroi → KC 820; leje qëndrimi afat → KPA 132",
+              {("kodi_penal", "259"), ("kodi_penal", "244")} <= _k326("Një zyrtar i bashkisë i kërkoi klientit 2000 euro për lejen.", ["Penal"])
+              and ("kodi_penal", "259") not in _k326("Një zyrtar i bashkisë i kërkoi klientit 2000 euro për lejen.", ["Administrativ"])
+              and ("kodi_civil", "866") in _k326("Firma e ndërtimit i dorëzoi shtëpinë me lagështirë.", ["Civil"])
+              and ("kodi_civil", "820") in _k326("Kontrata e qirasë mbaroi në qershor dhe qiramarrësi nuk largohet.", ["Civil"])
+              and ("kodi_proc_admin", "132") in _k326("Policia i anuloi lejen e qëndrimit. Brenda sa kohe ankohemi?", ["Administrativ"]))
+        check("limite IT[326]: mobbing → 2087; maltrattamenti → c.p. 572 (solo penale); sospensione condizionale → 163/164; alimenti al padre → 433/438",
+              ("codice_civile", "2087") in _i326("Da mesi il datore umilia e isola il dipendente: è mobbing?", ["Civile"])
+              and ("codice_penale", "572") in _i326("La cliente subisce insulti e spinte dal marito convivente.", ["Penale"])
+              and ("codice_penale", "572") not in _i326("La cliente subisce insulti e spinte dal marito convivente.", ["Famiglia"])
+              and {("codice_penale", "163"), ("codice_penale", "164")} <= _i326("Condannato a un anno e sei mesi, non ha precedenti: sospensione condizionale?", ["Penale"])
+              and {("codice_civile", "433"), ("codice_civile", "438")} <= _i326("Il padre anziano chiede gli alimenti ai figli.", ["Civile"]))
+    except Exception as _e326:  # noqa: BLE001
+        check("limite[326]: kontrollet u ekzekutuan", False, f"{type(_e326).__name__}: {_e326}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
