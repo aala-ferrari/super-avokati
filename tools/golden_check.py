@@ -9500,6 +9500,23 @@ def main():
     except Exception as _e328:  # noqa: BLE001
         check("frek17[328]: kontrollet u ekzekutuan", False, f"{type(_e328).__name__}: {_e328}")
 
+    # [329] v9.557 — il completamento del cancello rivede anche le righe SENZA riserva che citano gli articoli fuori blocco (la risposta
+    # sull'ingiuria diceva «Cassa delle ammende (art. 10)» sopra e «Fondo di rotazione» sotto); non le righe su altri articoli
+    try:
+        from pathlib import Path as _P329
+        from src.retrieval import ArticleIndex as _AI329
+        from src import cancello as _ca329
+        _it329 = _AI329.load(_P329("/app/data/index/bm25_it.pkl"))
+        _t329 = ("La sanzione è devoluta alla Cassa delle ammende (art. 10 D.Lgs. 7/2016).\n"
+                 "Il risarcimento segue l'art. 2043 c.c.\n"
+                 "L'art. 10 D.Lgs. 7/2016 non è tra gli articoli recuperati: verificare.")
+        _idx329, _arts329 = _ca329._da_completare(_t329, _it329)
+        check("cancello[329]: rivede la riga con la riserva E quella senza sullo stesso art. 10, non quella sul 2043",
+              _idx329 == [0, 2] and [(a.code, str(a.number)) for a in _arts329] == [("sanzioni_pecuniarie_civili", "10")],
+              str((_idx329, [(a.code, a.number) for a in _arts329])))
+    except Exception as _e329:  # noqa: BLE001
+        check("cancello[329]: kontrollet u ekzekutuan", False, f"{type(_e329).__name__}: {_e329}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
