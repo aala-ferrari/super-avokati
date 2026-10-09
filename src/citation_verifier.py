@@ -616,9 +616,12 @@ def _kp_resolve(number: str, text: str, retrieved_codes: set, lookup: dict) -> s
 # v9.383 — e i numeri «puntati» del c.p.c. Cartabia e dei testi unici: «art. 473-bis.12 c.p.c.», «art. 2506.1 c.c.»,
 # «art. 270-bis.1 c.p.». Un «.N» che nel codice NON è un articolo («art. 6.1 CEDU» = par. 1) torna all'articolo base
 # in _verify_number, ma solo se quel codice non ha articoli puntati su quella base (altrimenti «473-bis.99» è falso).
-_NUM_TOKEN_IT = (r"\d+(?:[\-\s](?:bis|ter|quater|quinquies|sexies|septies|octies|novies|decies|undecies|duodecies|"
+# v9.571 — il suffisso latino in CORSIVO markdown («art. 196-*sexies* disp. att. c.p.c.», «93-**bis** C.d.S.», «612 *bis* c.p.»):
+# prima usciva «art. 196» senza codice (mai completato dal cancello) o, peggio, «612» VERIFICATO sul testo della minaccia invece
+# degli atti persecutori. I segni d'enfasi attorno al suffisso fanno parte del numero (si tolgono in `_normalise_number`)
+_NUM_TOKEN_IT = (r"\d+(?:[\-\s]\s*(?:\*{1,2}|_)?(?:bis|ter|quater|quinquies|sexies|septies|octies|novies|decies|undecies|duodecies|"
                  r"terdecies|quaterdecies|quinquiesdecies|sexiesdecies|septiesdecies|octiesdecies|noviesdecies|vicies)"
-                 r"(?![a-z]))?(?:\.\d{1,3}(?![\d]))?")
+                 r"(?:\*{1,2}|_)?(?![a-z]))?(?:\.\d{1,3}(?![\d]))?")
 # 17 set 2026 — «art. 18, comma 4, L. 300/1970» è LA forma canonica italiana e usciva «senza codice»
 # (117 occorrenze nelle ultime 121 risposte): stessa regola dell'albanese — dopo «comma/commi/lett./
 # n./punto …» si attraversa UNA virgola solo se segue una legge/codice («L.», «D.Lgs.», «c.c.», «del
@@ -678,6 +681,9 @@ CITATION_RE_IT = re.compile(
     # (prima il 410 spariva e il 408 restava «senza codice»)
     r"(?P<more>(?:\s*,\s*(?:e|ed|n[ée])\s+" + _ART_RIP_IT + _NUM_TOKEN_IT + r"(?:" + _SUB_IT + r")*)*)"
     r"(?:\s*,(?=\s+" + _CONN_IT + r"))?"      # la virgola sì, lo spazio resta alla coda
+    # v9.571 — il GRASSETTO che si chiude fra il numero e l'atto: «**Art. 5** L. 604/1966», «**art. 4, comma 1** D.Lgs. 23/2015»
+    # (16 citazioni «senza codice» nelle risposte salvate: la coda doveva cominciare con uno spazio e si fermava agli asterischi)
+    r"(?:\*{1,2}|_{1,2})?"
     r"(?P<tail>" + _TAIL_IT + r")",
     re.IGNORECASE,
 )
@@ -1044,7 +1050,7 @@ def _normalise_number(n: str) -> str:
     """Normalise '132/A' / '132-a' / '132 / a' → '132/a' (lowercase).
     v9.383: «art. 473 bis c.p.c.» (lo SPAZIO al posto del trattino, frequentissimo) diventava «473bis» e usciva
     «inesistente» su un articolo vero: lo spazio fra il numero e il suffisso vale come il trattino."""
-    s = re.sub(r"\s*/\s*", "/", n.strip().lower())
+    s = re.sub(r"\s*/\s*", "/", re.sub(r"[*_]", "", n).strip().lower())        # v9.571: «196-*sexies*», «93-**bis**»
     s = re.sub(r"(?<=[0-9a-z])\s+(?=[a-z])", "/", s)
     s = s.replace(" ", "")
     s = s.replace("-", "/").replace("\u2013", "/")

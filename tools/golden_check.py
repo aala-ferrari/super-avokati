@@ -128,8 +128,11 @@ def main():
           ("kodi_penal", "134") in scanned(idx, "vjedhje"))
     check("heading-scan 'plagosje' → KP 88",
           ("kodi_penal", "88") in scanned(idx, "plagosje"))
-    check("heading-scan 'trashegimia' (pa theks) → KC 316 (diacritic-fold)",
-          ("kodi_civil", "316") in scanned(idx, "trashegimia"))
+    # v9.571: il KC 316 ha ora la sua rubrica vera («Kuptimi i trashëgimit»; la prima frase «Trashëgimia është…» è tornata nel corpo):
+    # il controllo resta sullo SCOPO — senza accenti si trovano le rubriche del KC che cominciano con «Trashëgim…»
+    _tr3 = [(c, n, h) for c, n, h in ex._heading_scan(idx, "trashegimia")]
+    check("heading-scan 'trashegimia' (pa theks) → nene të KC me titull «Trashëgim…» (diacritic-fold)",
+          any(c == "kodi_civil" and ex._fold(h).startswith("trashegim") for c, n, h in _tr3), str([(c, n) for c, n, _h in _tr3]))
     check("seed pairs respektohen (KP 66 për parashkrim)",
           ("kodi_penal", "66") in retrieved(idx, "parashkrim", seed=[("kodi_penal", "66")]))
 
@@ -9752,6 +9755,81 @@ def main():
               and (_I339[("tu_edilizia", "3")].body or "").startswith("1. ") and not _fonte339, str(_fonte339[:5]))
     except Exception as _e339:  # noqa: BLE001
         check("rubriche IT[339]: kontrollet u ekzekutuan", False, f"{type(_e339).__name__}: {_e339}")
+
+    # [341] v9.570 — testo AL ripulito dalle NOTE A PIÈ DI PAGINA del PDF QBZ: il KC 3 (aveva per «prima frase» la nota della legge
+    # 17/2012, che ora sta nella nota del KC 625 come norma transitoria) e 27 nene con la nota in mezzo al testo, spesso a metà frase
+    # (Kodi Rrugor 3), anche la Corte costituzionale (urbanistica 52, Kodi Zgjedhor 162): la nota nel campo `note`, il testo ricongiunto
+    try:
+        import importlib.util as _ilu341
+        from pathlib import Path as _P341
+        from src.retrieval import ArticleIndex as _AI341
+        _al341 = _AI341.load(_P341("/app/data/index/bm25.pkl"))
+        _A341 = {(a.code, a.number): a for a in _al341.articles}
+        _kc3, _kc625 = _A341[("kodi_civil", "3")], _A341[("kodi_civil", "625")]
+        check("note AL[341]: KC 3 «Të huajt gëzojnë po ato të drejta…» (non la nota della legge 17/2012); la norma transitoria nel KC 625",
+              (_kc3.heading or "").startswith("Të huajt gëzojnë po ato të drejta") and "17/2012" not in (_kc3.heading or "")
+              and "Dispozitë kalimtare" in (_kc625.note or "") and "reputacionit" in (_kc625.note or ""), (_kc3.heading or "")[:60])
+        _kr3, _p52, _z162 = _A341[("kodi_rrugor", "3")], _A341[("ligji_planifikimi_territorit", "52")], _A341[("kodi_zgjedhor", "162")]
+        check("note AL[341]: Kodi Rrugor 3 ricongiunto («nuk ⏎ ndërpriten»), Corte costituzionale nella nota (urbanistica 52, Kodi Zgjedhor 162)",
+              "rrymat e trafikut nuk\nndërpriten" in (_kr3.body or "") and "komunë" in (_kr3.note or "")
+              and "Gjykata Kushtetuese me vendimin nr. 15" in (_p52.note or "") and "Gjykata Kushtetuese" not in (_p52.body or "")
+              and "jo më\npak se 35 000" in (_p52.body or "")
+              and "në listën e\npërcaktuar në pikën 4" in (_z162.body or "") and "Gjykata Kushtetuese vendosi" in (_z162.note or ""))
+        _sp341 = _ilu341.spec_from_file_location("rnc341", "/app/tools/repair_note_corpo_al.py")
+        _rnc341 = _ilu341.module_from_spec(_sp341); _sp341.loader.exec_module(_rnc341)
+        _rest341 = [(a.code, a.number) for a in _al341.articles if not a.repealed and _rnc341.separa(a.body or "")[1]]
+        check("note AL[341]: nessuna nota a piè di pagina rimasta dentro i testi AL", not _rest341, str(_rest341[:6]))
+    except Exception as _e341:  # noqa: BLE001
+        check("note AL[341]: kontrollet u ekzekutuan", False, f"{type(_e341).__name__}: {_e341}")
+
+    # [342] v9.571 — le RUBRICHE del KC e del KF stanno sopra «Neni N» nel PDF: ora sono il titolo del LORO articolo (prima finivano in
+    # coda al precedente: il KC 625 sul danno non patrimoniale finiva con «Përgjegjësia solidare»); le intestazioni di capitolo in
+    # minuscolo («SEKSIONI I ⏎ Personat fizikë») fuori dai testi
+    try:
+        from pathlib import Path as _P342
+        from src.retrieval import ArticleIndex as _AI342
+        from src import parser as _pa342
+        _al342 = _AI342.load(_P342("/app/data/index/bm25.pkl"))
+        _A342 = {(a.code, a.number): a for a in _al342.articles}
+        _h342 = lambda c, n: (_A342[(c, n)].heading or "", getattr(_A342[(c, n)], "heading_kind", ""))
+        check("rubriche KC/KF[342]: KC 626 «Përgjegjësia solidare», 114 «Afatet e parashkrimit», 608, 277; KF 33, 73 — il loro testo nel corpo",
+              _h342("kodi_civil", "626") == ("Përgjegjësia solidare", "rubrike")
+              and (_A342[("kodi_civil", "626")].body or "").startswith("Kur dëmi është shkaktuar nga shumë persona")
+              and _h342("kodi_civil", "114")[0] == "Afatet e parashkrimit" and _h342("kodi_civil", "608")[0] == "Përgjegjësia për shkaktimin e dëmit"
+              and _h342("kodi_civil", "277")[0] == "Servituti i kalimit"
+              and _h342("kodi_familjes", "33")[0] == "Shkaqet e pavlefshmërisë" and _h342("kodi_familjes", "73")[0] == "Bashkësia ligjore",
+              str([_h342("kodi_civil", "626"), _h342("kodi_civil", "114")]))
+        check("rubriche KC/KF[342]: la rubrica non resta in coda al precedente (KC 625, 23); niente «PERSONAT JURIDIKË» nel KC 23",
+              not (_A342[("kodi_civil", "625")].body or "").rstrip().endswith("Përgjegjësia solidare")
+              and "PERSONAT JURIDIKË" not in (_A342[("kodi_civil", "23")].body or "")
+              and "Përmbajtja e personit juridik" not in (_A342[("kodi_civil", "23")].body or ""))
+        _cg342 = _pa342.taglia_coda_gerarchia("Teksti i nenit.\nKREU II\nSUBJEKTET E SË DREJTËS\nSEKSIONI I\nPersonat fizikë")
+        _ca342 = _pa342.taglia_coda_gerarchia("Mallra të ndryshme (kodi NC 97060000).\nPJESA C\nANTIKUARET\nMallra me moshë më të madhe se njëqind vjet (kodi NC 97060000).")
+        check("code di capitolo[342]: «SEKSIONI I ⏎ Personat fizikë» tolta; il contenuto di un allegato che chiude la frase resta",
+              _cg342[0] == "Teksti i nenit." and _ca342[1] == "", str((_cg342, _ca342)))
+    except Exception as _e342:  # noqa: BLE001
+        check("rubriche KC/KF[342]: kontrollet u ekzekutuan", False, f"{type(_e342).__name__}: {_e342}")
+
+    # [343] v9.571 — il MARKDOWN dentro le citazioni italiane: suffisso latino in corsivo («art. 196-*sexies* disp. att. c.p.c.»,
+    # «612 *bis* c.p.» — prima verificato come 612, la minaccia) e grassetto che si chiude fra numero e atto («**Art. 5** L. 604/1966»)
+    try:
+        from pathlib import Path as _P343
+        from src.retrieval import ArticleIndex as _AI343
+        from src import citation_verifier as _cv343
+        _it343 = _AI343.load(_P343("/app/data/index/bm25_it.pkl"))
+        def _st343(t):
+            return [(i.get("code"), i.get("number"), i.get("status")) for i in _cv343.verify_text(t, _it343)["items"]]
+        check("verificatore[343]: «196-*sexies* disp. att. c.p.c.», «612 *bis* c.p.», «5-*bis* D.Lgs. 28/2010» col suffisso",
+              _st343("(art. 196-*sexies* disp. att. c.p.c.)") == [("disp_att_cpc", "196/sexies", "verified")]
+              and _st343("Atti persecutori: art. 612 *bis* c.p.") == [("codice_penale", "612/bis", "verified")]
+              and _st343("art. 5-*bis* D.Lgs. 28/2010") == [("mediazione_civile", "5/bis", "verified")],
+              str(_st343("Atti persecutori: art. 612 *bis* c.p.")))
+        check("verificatore[343]: «**Art. 5** L. 604/1966», «**art. 4, comma 1** D.Lgs. 23/2015» — l'atto dopo il grassetto",
+              _st343("- **Art. 5** L. 604/1966: «L'onere della prova»") == [("licenziamenti_individuali", "5", "verified")]
+              and _st343("**art. 4, comma 1** D.Lgs. 23/2015") == [("tutele_crescenti", "4", "verified")],
+              str(_st343("- **Art. 5** L. 604/1966: «L'onere della prova»")))
+    except Exception as _e343:  # noqa: BLE001
+        check("verificatore[343]: kontrollet u ekzekutuan", False, f"{type(_e343).__name__}: {_e343}")
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

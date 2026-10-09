@@ -426,6 +426,7 @@ def _clean_text(text: str) -> str:
 
 _NOTA_INTEST_RE = re.compile(r"^\((?:Ndryshuar|Shtuar|Shfuqizuar)\b", re.I)
 _SOTTOTITOLO_RE = re.compile(r"^[A-ZÇË]\.\s+[A-ZÇË]")
+_GERARCHIA_MISTA_RE = re.compile(r"^(?:Kapitulli|Seksioni|Nënseksioni|Kreu|Pjesa|Titulli)\s+(?:[IVXLC]+|\d+)\s*$")   # v9.571
 
 
 def _riga_titolo(t: str) -> bool:
@@ -443,12 +444,29 @@ def taglia_coda_gerarchia(raw: str) -> tuple[str, str]:
     k = len(lines)
     while k > 0:
         t = lines[k - 1].strip()
-        if not t or HIERARCHY_RE.match(t) or _riga_titolo(t) or _NOTA_INTEST_RE.match(t):
+        if not t or HIERARCHY_RE.match(t) or _GERARCHIA_MISTA_RE.match(t) or _riga_titolo(t) or _NOTA_INTEST_RE.match(t):
             k -= 1
+            continue
+        # v9.571 — il titolo in minuscolo SOTTO un'intestazione («SEKSIONI I ⏎ Personat fizikë», «Kapitulli 1 ⏎ Dispozitat e
+        # përgjithshme për …»), anche a capo su più righe («KREU 1 ⏎ Trajtimi tarifor … të tyre të ⏎ veçantë»): 148 code rimaste
+        # nei testi AL perché la riga di titolo doveva essere tutta maiuscola. Un gruppo di al più 3 righe senza punteggiatura
+        # finale, la prima maiuscola, SUBITO sotto un'intestazione vera (il contenuto di un allegato «… (kodi NC 97060000).» resta)
+        g = k
+        while g > 0 and k - g < 3:
+            u = lines[g - 1].strip()
+            if not u or HIERARCHY_RE.match(u) or _GERARCHIA_MISTA_RE.match(u):
+                break
+            if len(u) > 160 or re.search(r"[.;:,]\s*$", u):
+                g = -1
+                break
+            g -= 1
+        if 0 < g < k and lines[g - 1].strip() and (HIERARCHY_RE.match(lines[g - 1].strip()) or _GERARCHIA_MISTA_RE.match(lines[g - 1].strip())) \
+                and re.match(r"[A-ZÇË]", lines[g].strip()):
+            k = g
             continue
         break
     coda = [ln.strip() for ln in lines[k:] if ln.strip()]
-    if k == 0 or not coda or not any(HIERARCHY_RE.match(c) or _SOTTOTITOLO_RE.match(c) for c in coda):
+    if k == 0 or not coda or not any(HIERARCHY_RE.match(c) or _GERARCHIA_MISTA_RE.match(c) or _SOTTOTITOLO_RE.match(c) for c in coda):
         return raw, ""
     return "\n".join(lines[:k]).rstrip(), "\n".join(coda)
 

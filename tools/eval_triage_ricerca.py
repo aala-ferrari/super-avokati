@@ -86,6 +86,14 @@ CASI = [  # (giurisdizione, domanda dell'avvocato, articoli di cui almeno uno DE
     ("IT", "[frek9] La cliente ha subito un intervento sbagliato in un ospedale pubblico. Contro chi agiamo e cosa dobbiamo fare prima della causa?", [("responsabilita_sanitaria", "7"), ("responsabilita_sanitaria", "8")]),
     ("AL", "[frek9] Klienti pati një aksident, faji ishte i tjetrit, dhe siguruesi nuk po i përgjigjet prej dy muajsh. Si ta detyrojmë të paguajë?", [("ligji_sigurimi_mjeteve", "10"), ("ligji_sigurimi_mjeteve", "9")]),
     ("AL", "[frek9] Klienti është ortak me 40% në një shpk dhe dëshiron të largohet nga shoqëria. Si e bën dhe çfarë i takon?", [("ligji_shoqerite_tregtare", "101"), ("ligji_shoqerite_tregtare", "103"), ("ligji_shoqerite_tregtare", "73")]),
+    # v9.571 — venticinquesimo giro (10 ott): periodo di prova e riparazioni della casa in affitto AL; phishing, termine della
+    # querela, accesso agli atti e danno da ritardo della PA
+    ("AL", "[frek25] Punëdhënësi e largoi klientin gjatë kohës së provës pa asnjë arsye. A ka të drejtë ta bëjë?", [("kodi_punes", "142"), ("kodi_punes", "143")]),
+    ("AL", "[frek25] Qiradhënësi nuk po e riparon çatinë që pikon në banesën që klienti ka me qira. Çfarë të drejtash ka?", [("kodi_civil", "805")]),
+    ("IT", "[frek25] Al cliente hanno svuotato il conto con una mail falsa della banca. Che reato è e cosa possiamo fare?", [("codice_penale", "640-ter")]),
+    ("IT", "[frek25] Il cliente è stato aggredito tre mesi e mezzo fa e ora vuole sporgere querela. È ancora in tempo?", [("codice_penale", "124")]),
+    ("IT", "[frek25] Il Comune non risponde da due mesi alla richiesta di accesso agli atti del cliente. Cosa può fare?", [("procedimento_amministrativo", "25")]),
+    ("IT", "[frek25] La Regione ha concluso il procedimento con un anno di ritardo e l'impresa del cliente ha perso un appalto. Si può chiedere il risarcimento?", [("procedimento_amministrativo", "2-bis")]),
     # v9.568 — ventiquattresimo giro (9 ott), dalle riserve delle risposte vere: i TERMINI d'impugnazione — misura cautelare
     # AL (KPP 249, 5 giorni) e appello AL (KPP 415, 15 giorni); iscrizione a ruolo dell'opposizione (c.p.c. 165), riesame (c.p.p. 309)
     ("AL", "[frek24] Gjykata i caktoi klientit masën e sigurimit arrest në burg. Si e ankimojmë dhe brenda sa ditësh?", [("kodi_proc_penale", "249")]),
