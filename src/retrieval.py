@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import pickle
+import os
 import re
 from collections.abc import Iterable
 from dataclasses import asdict
@@ -223,6 +224,8 @@ class ArticleIndex:
     ) -> list[tuple[Article, float]]:
         """Return (article, score) pairs sorted by BM25 score descending."""
         tokens = tokenize_for(getattr(self, "lang", "sq"), query, stem=bool(getattr(self, "stem", False)), fold=bool(getattr(self, "fold", False)))
+        # v9.562 — misurato e NON fatto: togliere i NUMERI dalla query («art. 629 c.p.» premia anche chi RINVIA al 629: c.p. 518-quater
+        # nell'estorsione) col banco IT a triage FISSO (116 domande): posizione media 3,00 → 3,09, nei primi tre 74 → 72. I numeri restano.
         if not tokens:
             return []
 

@@ -9587,6 +9587,20 @@ def main():
     except Exception as _e332:  # noqa: BLE001
         check("radici[332]: kontrollet u ekzekutuan", False, f"{type(_e332).__name__}: {_e332}")
 
+    # [333] v9.562 — recesso dall'acquisto online → cod. consumo 52/54; furto di poco valore → particolare tenuità c.p. 131-bis (solo penale)
+    try:
+        from pathlib import Path as _P333
+        from src.retrieval import ArticleIndex as _AI333
+        from src import brain as _b333
+        _it333 = _AI333.load(_P333("/app/data/index/bm25_it.pkl"))
+        _i333 = lambda q, ar: {(a.code, a.number) for a, _ in _b333._applica_ancore([], _it333, [q], ar, _b333.ANCORE_IT)}
+        check("frek-it[333]: divano comprato online da restituire → cod. consumo 52; furto da 15 euro → c.p. 131-bis (solo penale)",
+              ("codice_consumo", "52") in _i333("Il cliente ha comprato online un divano e vuole restituirlo senza motivo.", ["Civile"])
+              and ("codice_penale", "131-bis") in _i333("furto di modico valore al supermercato, incensurato: particolare tenuità?", ["Penale"])
+              and ("codice_penale", "131-bis") not in _i333("particolare tenuità del danno nel risarcimento", ["Civile"]))
+    except Exception as _e333:  # noqa: BLE001
+        check("frek-it[333]: kontrollet u ekzekutuan", False, f"{type(_e333).__name__}: {_e333}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

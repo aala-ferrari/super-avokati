@@ -271,13 +271,27 @@ def main() -> int:
     ok = 0; t0 = time.time()
     # v9.546: «--giur=IT» / «--giur=AL» — solo le domande di una giurisdizione (un indice nuovo di una sola lingua)
     _giur = next((x.split("=", 1)[1].upper() for x in sys.argv[1:] if x.startswith("--giur=")), None)
+    _tc_path = next((x.split("=", 1)[1] for x in sys.argv[1:] if x.startswith("--triage-cache=")), None)
+    import json
+    from pathlib import Path
+    _tc = json.loads(Path(_tc_path).read_text(encoding="utf-8")) if _tc_path and Path(_tc_path).exists() else {}
+    _posizioni = []
     for jur, q, exp in [c for c in CASI if (not solo or any(w.lower() in c[1].lower() for w in solo)) and (not _giur or c[0] == _giur)]:
         B.set_request_jurisdiction(jur)
         try:
             sa._jurisdiction_ctx.code = jur
         except Exception:  # noqa: BLE001
             pass
-        tr = sa._triage(q, [], None)
+        # v9.562 — «--triage-cache=FILE»: il triage di ogni domanda si salva e si RIGIOCA identico (il triage vero cambia a ogni giro:
+        # per confrontare due versioni della ricerca serve lo stesso triage)
+        if _tc_path and q in _tc:
+            tr = B.TriageResult(**{k: v for k, v in _tc[q].items() if k in B.TriageResult.__dataclass_fields__})
+        else:
+            tr = sa._triage(q, [], None)
+            if _tc_path:
+                import dataclasses as _dc
+                _tc[q] = _dc.asdict(tr)
+                Path(_tc_path).write_text(json.dumps(_tc, ensure_ascii=False), encoding="utf-8")
         ret = sa._retrieve(tr)
         ret = sa._ankoro_citimet(q, ret, areas=getattr(tr, "areas", None))
         ret = sa._aggiungi_previgenti(ret)          # v9.492: la stessa catena della chat
@@ -290,11 +304,15 @@ def main() -> int:
         hit = [e for e in exp if e in got]
         ok += bool(hit)
         pos = min((got.index(e) + 1 for e in hit), default=None)
+        _posizioni.append(pos)
         print(f"{'✓' if hit else '✗'} [{jur}] {q[:70]:70s} | trovato {hit[:2]} pos {pos} | aree {tr.areas} | query {[x[:40] for x in tr.search_queries[:3]]}", flush=True)
         if not hit or "-v" in sys.argv:
             print("      blocco:", [f"{c}:{n}" for c, n in got[:14]], flush=True)
     n = len([c for c in CASI if (not solo or any(w.lower() in c[1].lower() for w in solo)) and (not _giur or c[0] == _giur)])
     print(f"\nnel blocco del senior: {ok}/{n} · {int((time.time()-t0)/max(n,1))} s/domanda (triage vero)")
+    _pp = [p for p in _posizioni if p]
+    if _pp:
+        print(f"posizioni: media {sum(_pp)/len(_pp):.2f} · nei primi 3: {sum(1 for p in _pp if p <= 3)} · oltre il 9°: {sum(1 for p in _pp if p > 9)}")
     return 0
 
 

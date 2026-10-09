@@ -473,6 +473,13 @@ ANCORE_IT: tuple = (
     # procedimento disciplinare), mancava la norma che definisce la giusta causa, c.c. 2119 (decimo giro, 8 ott). Solo dalla domanda.
     (("in tronco", "giusta causa", "senza preavviso", ("licenzi", "assente"), ("licenzi", "assenza ingiustificat")),
      ("Penale", "Penal"), (("codice_civile", "2119"),), None, None, True),
+    # v9.562 — dal banco IT a triage fisso (9 ott, 116 domande: 114): (1) il RECESSO dall'acquisto online — c'erano le eccezioni e gli
+    # effetti (cod. consumo 54, 57, 59), non il 52 (il diritto: 14 giorni senza motivo); (2) la PARTICOLARE TENUITÀ del fatto (c.p.
+    # 131-bis) nel furto di poco valore: il triage la nominava e non entrava.
+    ((("recesso", "online"), ("comprat", "online", "restitu"), ("recesso", "a distanza"), ("restitu", "senza motivo"), ("ripensamento",)),
+     ("Penale", "Penal"), (("codice_consumo", "52"), ("codice_consumo", "54"))),
+    (("particolare tenuità", "tenuità del fatto", ("modico valore", "furto"), ("incensurat", "evitare la condanna")),
+     (), (("codice_penale", "131-bis"),), None, ("Penale", "Penal")),
     # v9.556 — la MESSA ALLA PROVA: c.p. 168-bis (i presupposti: pena fino a quattro anni) all'11°, il 464-bis c.p.p. (la richiesta e il
     # termine) dietro. Dalla domanda, solo nel penale.
     (("messa alla prova", "messa in prova", ("sospensione del procedimento", "prova")),
