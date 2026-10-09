@@ -86,9 +86,25 @@ CASI = [  # (giurisdizione, domanda dell'avvocato, articoli di cui almeno uno DE
     ("IT", "[frek9] La cliente ha subito un intervento sbagliato in un ospedale pubblico. Contro chi agiamo e cosa dobbiamo fare prima della causa?", [("responsabilita_sanitaria", "7"), ("responsabilita_sanitaria", "8")]),
     ("AL", "[frek9] Klienti pati një aksident, faji ishte i tjetrit, dhe siguruesi nuk po i përgjigjet prej dy muajsh. Si ta detyrojmë të paguajë?", [("ligji_sigurimi_mjeteve", "10"), ("ligji_sigurimi_mjeteve", "9")]),
     ("AL", "[frek9] Klienti është ortak me 40% në një shpk dhe dëshiron të largohet nga shoqëria. Si e bën dhe çfarë i takon?", [("ligji_shoqerite_tregtare", "101"), ("ligji_shoqerite_tregtare", "103"), ("ligji_shoqerite_tregtare", "73")]),
+    # v9.567 — ventiduesimo giro (9 ott): rinuncia all'eredità AL/IT, costruzione abusiva AL, infortunio sul lavoro AL,
+    # affidamento dei figli, dimissioni per giusta causa
+    ("AL", "[frek22] Babai i klientit vdiq dhe la shumë borxhe. Klienti nuk do ta marrë trashëgiminë. Si veprojmë dhe brenda çfarë afati?", [("kodi_civil", "333"), ("kodi_civil", "335")]),
+    ("AL", "[frek22] Fqinji po ndërton një kat shtesë pa leje mbi pallatin ku banon klienti. Çfarë mund të bëjmë?", [("kodi_penal", "199/a")]),
+    ("AL", "[frek22] Punëtori u lëndua rëndë në punë, por punëdhënësi thotë se nuk ka faj. Çfarë të drejtash ka?", [("kodi_punes", "39"), ("ligji_sigurimet_shoqerore", "44")]),  # il 131 è solo la paga durante l'infortunio
+    ("IT", "[frek22] Il padre del cliente è morto pieno di debiti. Come può evitare di ereditarli?", [("codice_civile", "519")]),
+    ("IT", "[frek22] Nella separazione i genitori litigano su con chi devono stare i figli. Cosa decide il giudice?", [("codice_civile", "337-ter")]),
+    ("IT", "[frek22] Il datore non paga lo stipendio da tre mesi e il dipendente vuole dimettersi subito senza preavviso. Può farlo?", [("codice_civile", "2119")]),
+    # v9.566 — ventunesimo giro (9 ott): cane del vicino, auto senza assicurazione AL; IT dati del conducente, Fondo di garanzia,
+    # finita locazione, licenziamento collettivo
+    ("AL", "[frek21] Qeni i fqinjit kafshoi djalin e klientes në rrugë. Kush përgjigjet për dëmin?", [("kodi_civil", "621")]),
+    ("AL", "[frek21] Klientin e përplasi një makinë pa siguracion dhe drejtuesi u largua. Kush ia paguan dëmin?", [("ligji_sigurimi_mjeteve", "41")]),
+    ("IT", "[frek21] Al cliente è arrivata una multa con la richiesta di comunicare chi guidava. Se non lo comunica cosa succede?", [("codice_strada", "126-bis")]),
+    ("IT", "[frek21] Il cliente è stato investito da un'auto senza assicurazione. Chi lo risarcisce?", [("codice_assicurazioni", "283")]),
+    ("IT", "[frek21] Il contratto d'affitto è scaduto e l'inquilino non lascia la casa. Come procediamo?", [("codice_procedura_civile", "657")]),
+    ("IT", "[frek21] L'azienda vuole licenziare 20 dipendenti per crisi. Quali criteri deve rispettare nella scelta dei lavoratori?", [("licenziamenti_collettivi", "5"), ("licenziamenti_collettivi", "24")]),
     # v9.566 — ventesimo giro (9 ott): privacy e dintorni — cancellazione dei dati AL, telecamera del vicino AL/IT, diritto all'oblio,
     # regolamento condominiale sugli animali, revisione scaduta, danno per dati sanitari diffusi
-    ("AL", "[frek20] Një kompani publikoi të dhënat personale të klientit pa pëlqimin e tij dhe ai kërkon që t'i fshijë. Çfarë të drejte ka?", [("ligji_te_dhenat_2024", "57")]),
+    ("AL", "[frek20] Një kompani publikoi të dhënat personale të klientit pa pëlqimin e tij dhe ai kërkon që t'i fshijë. Çfarë të drejte ka?", [("ligji_te_dhenat_2024", "15")]),  # v9.566: il 57 è della parte per le autorità competenti (artt. 47 ss.)
     ("AL", "[frek20] Fqinji vendosi një kamerë që filmon oborrin dhe dritaret e shtëpisë së klientit. Çfarë mund të bëjmë?", [("kodi_penal", "121")]),
     ("IT", "[frek20] Il cliente vuole che un sito cancelli vecchie notizie e dati personali che lo riguardano. Come procediamo?", [("gdpr", "17")]),
     ("IT", "[frek20] Il vicino ha installato una telecamera che riprende il giardino e le finestre del cliente. È lecito?", [("codice_penale", "615-bis")]),

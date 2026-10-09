@@ -9630,6 +9630,68 @@ def main():
     except Exception as _e335:  # noqa: BLE001
         check("ricerca[335]: kontrollet u ekzekutuan", False, f"{type(_e335).__name__}: {_e335}")
 
+    # [336] v9.566 — auto senza assicurazione o non identificata → Fondi i kompensimit (AL 41) / Fondo di garanzia (cod. ass. 283);
+    # il lavoratore «pa sigurim» / senza assicurazione INAIL no (il veicolo dev'esserci)
+    try:
+        from pathlib import Path as _P336
+        from src.retrieval import ArticleIndex as _AI336
+        from src import brain as _b336
+        _al336 = _AI336.load(_P336("/app/data/index/bm25.pkl")); _it336 = _AI336.load(_P336("/app/data/index/bm25_it.pkl"))
+        _k336 = lambda q, ar: {(a.code, a.number) for a, _ in _b336._applica_ancore([], _al336, [q], ar)}
+        _i336 = lambda q, ar: {(a.code, a.number) for a, _ in _b336._applica_ancore([], _it336, [q], ar, _b336.ANCORE_IT)}
+        check("frek21[336]: makinë pa siguracion / e paidentifikuar → ligji_sigurimi_mjeteve 41; punëtori pa sigurim jo",
+              ("ligji_sigurimi_mjeteve", "41") in _k336("E përplasi një makinë pa siguracion dhe drejtuesi u largua.", ["Civil"])
+              and ("ligji_sigurimi_mjeteve", "41") in _k336("Dëmin e shkaktoi një mjet i paidentifikuar.", ["Sigurime"])
+              and ("ligji_sigurimi_mjeteve", "41") not in _k336("Klienti punon pa sigurime shoqërore prej dy vitesh.", ["Punë"]))
+        check("frek20[336]: kamera e fqinjit filmon oborrin → KP 121; kamera që regjistroi vjedhjen jo",
+              ("kodi_penal", "121") in _k336("Fqinji vendosi një kamerë që filmon oborrin dhe dritaret e shtëpisë.", ["Civil"])
+              and ("kodi_penal", "121") not in _k336("Kamerat e dyqanit regjistruan vjedhjen.", ["Penal"]))
+        check("frek22[336]: kat shtesë pa leje → KP 199/a; i huaji punon në ndërtim pa leje pune jo (lavoro)",
+              ("kodi_penal", "199/a") in _k336("Fqinji po ndërton një kat shtesë pa leje mbi pallatin.", ["Ndertim", "Civil"])
+              and ("kodi_penal", "199/a") not in _k336("I huaji punon në ndërtim pa leje pune.", ["Punë", "Administrativ"]))
+        check("frek21[336]: investito da auto senza assicurazione / pirata della strada → cod. ass. 283; lavoratore senza assicurazione no",
+              ("codice_assicurazioni", "283") in _i336("Il cliente è stato investito da un'auto senza assicurazione.", ["Civile"])
+              and ("codice_assicurazioni", "283") in _i336("Investito da un pirata della strada mai trovato.", ["Penale"])
+              and ("codice_assicurazioni", "283") in _i336("Investito da una macchina senza assicurazione.", ["Civile"])
+              and ("codice_assicurazioni", "283") not in _i336("Il dipendente lavorava senza assicurazione INAIL.", ["Lavoro"])
+              and ("codice_assicurazioni", "283") not in _i336("Il lavoratore autonomo non assicurato si è fatto male.", ["Lavoro"])
+              and ("codice_assicurazioni", "283") not in _i336("Licenziato senza motivo e senza assicurazione.", ["Lavoro"]))
+    except Exception as _e336:  # noqa: BLE001
+        check("frek21[336]: kontrollet u ekzekutuan", False, f"{type(_e336).__name__}: {_e336}")
+
+    # [337] v9.567 — la rubrica AL non riconosciuta (lunga, su due righe, con un verbo, con la nota redazionale) incollata al
+    # paragrafo 1 come «prima frase»: 168 nene nelle leggi CON rubriche → rubrica · nota · corpo. Mai nei codici senza rubriche.
+    try:
+        import re as _re337
+        from collections import defaultdict as _dd337
+        from pathlib import Path as _P337
+        from src.retrieval import ArticleIndex as _AI337
+        from src.parser import rubrika_para_paragrafit as _rpp337
+        _al337 = _AI337.load(_P337("/app/data/index/bm25.pkl"))
+        _A337 = {(a.code, a.number): a for a in _al337.articles}
+        _d57 = _A337[("ligji_te_dhenat_2024", "57")]; _p247 = _A337[("kodi_proc_penale", "247")]
+        check("rubriche AL[337]: dhënat 57 «E drejta për korrigjimin ose fshirjen…» e il «1.» nel corpo; KPP 247 rubrica + nota 35/2017",
+              _d57.heading == "E drejta për korrigjimin ose fshirjen e të dhënave personale dhe për kufizimin e përpunimit"
+              and _d57.heading_kind == "rubrike" and (_d57.body or "").startswith("1. Subjekti")
+              and _p247.heading == "Kërkimi i personit që nuk gjendet" and "35/2017" in (_p247.note or "")
+              and (_p247.body or "").startswith("1. Kur personi"), f"{_d57.heading[:60]!r} / {_p247.heading[:60]!r}")
+        _x337 = _rpp337("Ushqimi (Numërtuar pika 1 me ligjin nr. 136/2015, datë 5.12.2015) 1. Punëdhënësi vë në dispozicion")
+        check("rubriche AL[337]: la regola — rubrica, nota, «1. …»; non l'introduzione d'elenco né il rinvio «nenit 1.»",
+              _x337 == ("Ushqimi", "(Numërtuar pika 1 me ligjin nr. 136/2015, datë 5.12.2015)", "1. Punëdhënësi vë në dispozicion")
+              and _rpp337("Janë të hipotekueshme: 1. Sendet e paluajtshme") is None
+              and _rpp337("Zbatohen dispozitat e nenit 1. Ky ligj") is None
+              and _rpp337("1. Shqipëria është Republikë parlamentare.") is None, str(_x337))
+        _per337 = _dd337(list)
+        for _a in _al337.articles:
+            _per337[_a.code].append(_a)
+        _rest337 = [(_c, _a.number) for _c, _l in _per337.items()
+                    if sum(1 for _a in _l if getattr(_a, "heading_kind", "") == "rubrike") >= 0.6 * len(_l)
+                    for _a in _l if getattr(_a, "heading_kind", "") == "fjali" and not _a.repealed and _rpp337(_a.heading)]
+        check("rubriche AL[337]: nessuna rubrica+paragrafo rimasta nelle leggi a rubriche; il Codice civile resta «prima frase»",
+              not _rest337 and _A337[("kodi_civil", "5")].heading_kind == "fjali", str(_rest337[:5]))
+    except Exception as _e337:  # noqa: BLE001
+        check("rubriche AL[337]: kontrollet u ekzekutuan", False, f"{type(_e337).__name__}: {_e337}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

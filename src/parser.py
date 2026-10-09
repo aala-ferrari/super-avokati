@@ -108,6 +108,56 @@ def _kandidat_rubrike(lines: list[str]):
     return rub, note, corpo
 
 
+# v9.567 — la rubrica NON riconosciuta (troppo lunga, su due righe, o con un verbo: «Përpunimi që nuk kërkon identifikim»)
+# finiva incollata al primo paragrafo come «prima frase» («Fondi … 1. Subjekti i të dhënave ka…»): 173 nene nelle leggi CON
+# rubriche. Si separa solo nei codici dove le rubriche sono la regola (≥60%), e solo davanti a un «1.» seguito da maiuscola.
+_RUB_PRIMA_DI_1_RX = re.compile(
+    r"^(?P<r>[A-ZÇËÜ][^.;!?:«»()]{2,200}?)\s*(?P<n>\((?=[^()]*(?:\bnr\b|datë|\d{4}))[^()]*\)?)?\s+1\.\s+(?P<t>[A-ZÇËÜ«\"“(].*)$", re.S)
+_RUB_CODA_NO = {"dhe", "e", "të", "i", "në", "për", "ose", "nga", "me", "se", "që", "si", "neni", "nenit", "nenin", "pika", "pikës",
+                "pikën", "nr", "ligjit", "ligji", "paragrafi", "paragrafit", "shkronja", "shkronjës", "kreu", "kreut", "sipas"}
+
+
+def rubrika_para_paragrafit(heading: str):
+    """(rubrica, nota, resto) se la «prima frase» è una rubrica (con la sua nota redazionale «(Ndryshuar … datë …)», se c'è)
+    incollata al paragrafo 1, altrimenti None."""
+    m = _RUB_PRIMA_DI_1_RX.match((heading or "").strip())
+    if not m:
+        return None
+    rub = " ".join(m.group("r").split()).strip(" ,-–—")
+    if not rub or rub.split()[-1].lower() in _RUB_CODA_NO or re.search(r"\d$", rub) or rub.count("“") != rub.count("”"):
+        return None
+    nota = " ".join((m.group("n") or "").split())
+    if nota and not nota.endswith(")"):
+        nota += ")"
+    return rub, nota, "1. " + m.group("t").strip()
+
+
+def separa_rubriche_incollate(articles: list) -> int:
+    """Nei codici a rubriche (≥60% «rubrike»), la «fjali» che è rubrica + paragrafo 1 diventa rubrica e corpo. Ritorna quanti."""
+    from collections import defaultdict
+    per = defaultdict(list)
+    for a in articles:
+        per[a.code].append(a)
+    n = 0
+    for arts in per.values():
+        if sum(1 for a in arts if getattr(a, "heading_kind", "") == "rubrike") < 0.6 * len(arts):
+            continue
+        for a in arts:
+            if getattr(a, "heading_kind", "") != "fjali" or getattr(a, "repealed", False):
+                continue
+            x = rubrika_para_paragrafit(a.heading)
+            if not x:
+                continue
+            a.heading, _nota, primo = x
+            if _nota:
+                a.note = " ".join(y for y in ((getattr(a, "note", "") or ""), _nota) if y).strip()
+            a.body = (primo + ("\n" + a.body if (a.body or "").strip() else "")).strip()
+            a.heading_kind = "rubrike"
+            a.paragrafet = _paragrafet(a.body)
+            n += 1
+    return n
+
+
 def _paragrafet(body: str) -> list[str]:
     """I paragrafi del corpo: nuovo paragrafo a un numero in testa («1.», «2)») o dopo una riga che chiude
     una frase quando la successiva comincia con maiuscola. Interno (verifica, segmenti): mai numeri inventati."""
@@ -661,6 +711,7 @@ def split_into_articles(text: str, doc: LegalDocument) -> list[Article]:
             )
         )
     articles.extend(_group_repeal_stubs(text, items, articles, doc))
+    separa_rubriche_incollate(articles)          # v9.567
     return articles
 
 

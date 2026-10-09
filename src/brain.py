@@ -251,6 +251,23 @@ ANCORE_AL: tuple = (
     ((("divorc", "fëmij", "shoh"), ("divorc", "fëmij", "takim"), ("divorc", "fëmij", "ndrysh"), ("divorc", "femij", "shoh"),
       ("zgjidhj", "martes", "fëmij", "ndrysh"), ("divorc", "lënë"), ("ish-bashkëshort", "fëmij", "shoh"), ("takimet me fëmij",)),
      ("Penal",), (("kodi_familjes", "159"), ("kodi_familjes", "158"), ("kodi_familjes", "155")), None, None, True),
+    # v9.566 — dal ventunesimo giro (9 ott): l'auto SENZA ASSICURAZIONE o non identificata (pirata) — il Fondi i kompensimit della Byroja
+    # (ligji_sigurimi_mjeteve 41: paga i danni dei mezzi «të pasiguruara» e «të paidentifikuara») era al 9°. Solo col veicolo accanto:
+    # «pa sigurim» da solo è il lavoratore in nero.
+    ((("pa sigur", " makin"), ("pa sigur", " mjet"), ("pasigur", " makin"), ("pasigur", " mjet"), ("pa siguracion",),
+      ("paidentifik", " makin"), ("paidentifik", " mjet"), ("përplas", " u largua"), ("përplas", " iku")),
+     (), (("ligji_sigurimi_mjeteve", "41"),), None, None, True),
+    # v9.567 — la COSTRUZIONE ABUSIVA del vicino («po ndërton një kat shtesë pa leje»): il blocco era tutto legge urbanistica
+    # (ispettorato, demolizione), mai il reato KP 199/a «Ndërtimi i paligjshëm». Mai nel lavoro («punon në ndërtim pa leje pune»).
+    ((("ndërton", "pa leje"), ("ndërtoi", "pa leje"), ("ndërtuar", "pa leje"), ("ndërtim pa leje",), ("ndërtimi pa leje",),
+      ("ndërtime pa leje",), ("kat shtesë", "leje"), ("ndërtim", "paligjshëm"), ("ndërtimi i paligjshëm",)),
+     ("Punë",), (("kodi_penal", "199/a"),), None, None, True),
+    # v9.566 — la TELECAMERA del vicino che riprende cortile e finestre: KP 121 «Ndërhyrje të padrejta në jetën private» (fiksimi i
+    # figurave pa pëlqim) fuori dal blocco, pieno della legge sui dati. Solo con la ripresa della vita privata (cortile, finestre, di
+    # nascosto, senza consenso): la telecamera che ha ripreso il furto è una prova, non il reato.
+    (((" kamer", "oborr"), (" kamer", "dritar"), (" kamer", "pa pëlqim"), (" kamer", "fshehur"), (" kamer", "fshehtas"),
+      ("filmo", "pa pëlqim"), ("incizo", "pa pëlqim"), ("fotografi", "pa pëlqim"), (" video", "pa pëlqim")),
+     (), (("kodi_penal", "121"),), None, None, True),
     # v9.563 — i tre casi del banco AL a triage fisso (9 ott, 93/93) oltre il 9° posto: il COLTELLO (KP 279 «armë të ftohta», 12°), il
     # FURTO DI ENERGIA (KP 137, 11°), la lavoratrice INCINTA licenziata (KP 105/a divieto, 146 nullità del licenziamento, 11°).
     ((" thikë", " thika", "armë të ftohta", "armë e ftohtë", "armëve të ftohta", " bajonet"),
@@ -477,6 +494,16 @@ ANCORE_IT: tuple = (
       ("fallimento", "credit"), ("fallire", "societ")),
      ("Penale", "Penal"), (("codice_crisi_impresa", "121"), ("codice_crisi_impresa", "37"), ("codice_crisi_impresa", "49")),
      None, None, True),
+    # v9.566 — dal ventunesimo giro (9 ott): investito da un'auto SENZA ASSICURAZIONE o non identificata — il Fondo di garanzia per le
+    # vittime della strada (cod. ass. 283) era all'8°, dietro 144/149. Solo col veicolo o col sinistro accanto.
+    # (« auto» e « moto» da soli sono anche «autonomo», «autorizzazione», «motivo»: la parola intera o le forme lunghe)
+    ((("senza assicurazione", "auto "), ("senza assicurazione", "auto,"), ("senza assicurazione", "auto."), ("senza assicurazione", "automobil"),
+      ("senza assicurazione", "autovettur"), ("senza assicurazione", "macchina"), ("senza assicurazione", "veicol"),
+      ("senza assicurazione", "moto "), ("senza assicurazione", "motocicl"), ("senza assicurazione", "motorino"), ("senza assicurazione", "scooter"),
+      ("senza assicurazione", "investit"), ("senza assicurazione", "incident"), ("non assicurat", "auto "), ("non assicurat", "auto,"),
+      ("non assicurat", "auto."), ("non assicurat", "veicol"), ("non assicurat", "investit"), ("non assicurat", "macchina"),
+      ("pirata della strada",), ("non identificat", "veicol"), ("non identificat", "investit"), ("fondo di garanzia", "vittime")),
+     (), (("codice_assicurazioni", "283"),), None, None, True),
     # v9.542 — il licenziamento IN TRONCO (giusta causa: assenza ingiustificata, furto, insubordinazione): c'era l'art. 7 St. Lav. (il
     # procedimento disciplinare), mancava la norma che definisce la giusta causa, c.c. 2119 (decimo giro, 8 ott). Solo dalla domanda.
     (("in tronco", "giusta causa", "senza preavviso", ("licenzi", "assente"), ("licenzi", "assenza ingiustificat")),
