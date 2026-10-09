@@ -153,7 +153,10 @@ IT_CORE_CODES = frozenset({
     "codice_civile", "codice_penale", "codice_procedura_civile",
     "codice_procedura_penale", "costituzione", "disp_att_cc", "disp_att_cpp", "disp_att_cpc",
 })
-IT_CORE_BOOST = 1.3
+# v9.565 — 1.3 → 1.0, MISURATO col banco a triage fisso (9 ott): la spinta era stata tarata PRIMA della ricerca per senso (v9.353), che oggi
+# porta da sé i codici base. A ricerca nuda IT 106 → 107/116, media 2,78 → 2,73, nei primi 3 80 → 82 (1.6: 105, 3,05); con le ancore
+# 116/116, media 2,84 → 2,80, nei primi 3 80 → 82; strato 1 retrieval:it 228 → 231/248. Regolabile (`IT_CORE_BOOST`) per misure future.
+IT_CORE_BOOST = float(os.environ.get("IT_CORE_BOOST", "1.0"))
 
 
 class ArticleIndex:

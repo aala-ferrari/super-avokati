@@ -9621,6 +9621,9 @@ def main():
         import os as _os335
         from src import dense as _dn335
         _f335 = _dn335.fondi([(type("A", (), {"code": "c", "number": "1"})(), 5.0)], [(type("A", (), {"code": "c", "number": "1"})(), 0.9)])
+        from src import retrieval as _rt335
+        check("ricerca[335]: spinta ai codici base IT = 1,0 (misurato: la ricerca per senso la rende inutile)",
+              _os335.environ.get("IT_CORE_BOOST") is not None or _rt335.IT_CORE_BOOST == 1.0, str(_rt335.IT_CORE_BOOST))
         check("ricerca[335]: RRF_K = 20 (misurato), peso del senso 1,0, fusione 2/(20+1)",
               (_os335.environ.get("DENSE_RRF_K") or _dn335.RRF_K == 20) and _dn335.PESO_DENSO == 1.0
               and abs(_f335[("c", "1")][0] - 2.0 / 21) < 1e-9, str((_dn335.RRF_K, _dn335.PESO_DENSO, _f335)))
