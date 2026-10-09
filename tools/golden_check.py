@@ -9601,6 +9601,21 @@ def main():
     except Exception as _e333:  # noqa: BLE001
         check("frek-it[333]: kontrollet u ekzekutuan", False, f"{type(_e333).__name__}: {_e333}")
 
+    # [334] v9.563 — i casi AL oltre il 9° a triage fisso: coltello → KP 279; energia → KP 137 (solo penale); incinta licenziata → KP 105/a, 146
+    try:
+        from pathlib import Path as _P334
+        from src.retrieval import ArticleIndex as _AI334
+        from src import brain as _b334
+        _al334 = _AI334.load(_P334("/app/data/index/bm25.pkl"))
+        _k334 = lambda q, ar: {(a.code, a.number) for a, _ in _b334._applica_ancore([], _al334, [q], ar)}
+        check("limite AL[334]: thikë → KP 279; lidhje e paligjshme me rrjetin elektrik → KP 137; shtatzënë e hoqën nga puna → KP 105/a, 146",
+              ("kodi_penal", "279") in _k334("Policia i gjeti klientit një thikë të madhe në makinë.", ["Penal"])
+              and ("kodi_penal", "279") not in _k334("Policia i gjeti klientit një pistoletë në makinë.", ["Penal"])
+              and ("kodi_penal", "137") in _k334("OSHEE e kallëzoi për një lidhje të paligjshme me rrjetin elektrik.", ["Penal"])
+              and {("kodi_punes", "105/a"), ("kodi_punes", "146")} <= _k334("I tha punëdhënësit se është shtatzënë dhe e hoqën nga puna.", ["Punë"]))
+    except Exception as _e334:  # noqa: BLE001
+        check("limite AL[334]: kontrollet u ekzekutuan", False, f"{type(_e334).__name__}: {_e334}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

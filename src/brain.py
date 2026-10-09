@@ -251,6 +251,14 @@ ANCORE_AL: tuple = (
     ((("divorc", "fëmij", "shoh"), ("divorc", "fëmij", "takim"), ("divorc", "fëmij", "ndrysh"), ("divorc", "femij", "shoh"),
       ("zgjidhj", "martes", "fëmij", "ndrysh"), ("divorc", "lënë"), ("ish-bashkëshort", "fëmij", "shoh"), ("takimet me fëmij",)),
      ("Penal",), (("kodi_familjes", "159"), ("kodi_familjes", "158"), ("kodi_familjes", "155")), None, None, True),
+    # v9.563 — i tre casi del banco AL a triage fisso (9 ott, 93/93) oltre il 9° posto: il COLTELLO (KP 279 «armë të ftohta», 12°), il
+    # FURTO DI ENERGIA (KP 137, 11°), la lavoratrice INCINTA licenziata (KP 105/a divieto, 146 nullità del licenziamento, 11°).
+    ((" thikë", " thika", "armë të ftohta", "armë e ftohtë", "armëve të ftohta", " bajonet"),
+     (), (("kodi_penal", "279"),), None, ("Penal",), True),
+    ((("energji", "paligj"), ("lidhje", "rrjet", "elektrik"), (" oshee",), ("vjedhje", "energji"), ("vodh", "drita")),
+     (), (("kodi_penal", "137"),), None, ("Penal",), True),
+    ((("shtatzën", "pushu"), ("shtatzën", "hoqën"), ("shtatzën", "largu"), ("shtatzën", "pushoi"), ("shtatzën", "nga puna")),
+     ("Penal",), (("kodi_punes", "105/a"), ("kodi_punes", "146")), None, None, True),
     # v9.561 — la VIOLAZIONE DI DOMICILIO («hyri me forcë në shtëpinë e saj pa leje»): KP 112 «Dhunimi i banesës» all'11°, dietro la legge
     # sulla violenza domestica (che resta: spesso è anche quella). Solo nel penale.
     ((("hyri", "shtëpi", "pa leje"), ("hyri", "banes", "pa leje"), ("hyri me forcë", "shtëpi"), ("hyri me forcë", "banes"), ("dhunim", "banes")),
