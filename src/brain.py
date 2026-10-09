@@ -251,6 +251,10 @@ ANCORE_AL: tuple = (
     ((("divorc", "fëmij", "shoh"), ("divorc", "fëmij", "takim"), ("divorc", "fëmij", "ndrysh"), ("divorc", "femij", "shoh"),
       ("zgjidhj", "martes", "fëmij", "ndrysh"), ("divorc", "lënë"), ("ish-bashkëshort", "fëmij", "shoh"), ("takimet me fëmij",)),
      ("Penal",), (("kodi_familjes", "159"), ("kodi_familjes", "158"), ("kodi_familjes", "155")), None, None, True),
+    # v9.561 — la VIOLAZIONE DI DOMICILIO («hyri me forcë në shtëpinë e saj pa leje»): KP 112 «Dhunimi i banesës» all'11°, dietro la legge
+    # sulla violenza domestica (che resta: spesso è anche quella). Solo nel penale.
+    ((("hyri", "shtëpi", "pa leje"), ("hyri", "banes", "pa leje"), ("hyri me forcë", "shtëpi"), ("hyri me forcë", "banes"), ("dhunim", "banes")),
+     (), (("kodi_penal", "112"),), None, ("Penal",), True),
     # v9.559 — l'ARMA DA FUOCO senza permesso (KP 278 «Armëmbajtja pa leje»): banco completo (8 ott) — il blocco della pistola si
     # riempiva della legge sulle armi (10, 24, 27, 38-42) e delle ancore della difesa, il 278 fuori. Solo armi da fuoco e munizioni
     # (il coltello ha il suo 279); solo nel penale.

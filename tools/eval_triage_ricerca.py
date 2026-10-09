@@ -86,6 +86,15 @@ CASI = [  # (giurisdizione, domanda dell'avvocato, articoli di cui almeno uno DE
     ("IT", "[frek9] La cliente ha subito un intervento sbagliato in un ospedale pubblico. Contro chi agiamo e cosa dobbiamo fare prima della causa?", [("responsabilita_sanitaria", "7"), ("responsabilita_sanitaria", "8")]),
     ("AL", "[frek9] Klienti pati një aksident, faji ishte i tjetrit, dhe siguruesi nuk po i përgjigjet prej dy muajsh. Si ta detyrojmë të paguajë?", [("ligji_sigurimi_mjeteve", "10"), ("ligji_sigurimi_mjeteve", "9")]),
     ("AL", "[frek9] Klienti është ortak me 40% në një shpk dhe dëshiron të largohet nga shoqëria. Si e bën dhe çfarë i takon?", [("ligji_shoqerite_tregtare", "101"), ("ligji_shoqerite_tregtare", "103"), ("ligji_shoqerite_tregtare", "73")]),
+    # v9.561 — diciannovesimo giro (9 ott): energia elettrica, violazione di domicilio AL; IT adozione del figlio del coniuge, rifiuto
+    # dell'alcoltest, usura, omessa dichiarazione, estorsione
+    ("AL", "[frek19] OSHEE e kallëzoi klientin sepse kishte një lidhje të paligjshme me rrjetin elektrik. Çfarë rrezikon?", [("kodi_penal", "137")]),
+    ("AL", "[frek19] Ish-burri i klientes hyri me forcë në shtëpinë e saj pa leje. Çfarë vepre është?", [("kodi_penal", "112")]),
+    ("IT", "[frek19] Il cliente vuole adottare il figlio che la moglie ha avuto da una precedente relazione. Come si fa?", [("adozione", "44")]),
+    ("IT", "[frek19] Il cliente fermato dalla polizia si è rifiutato di fare l'alcoltest. Cosa rischia?", [("codice_strada", "186")]),
+    ("IT", "[frek19] Un conoscente ha prestato soldi al cliente con interessi del 10% al mese e ora lo minaccia. Che reato è?", [("codice_penale", "644")]),
+    ("IT", "[frek19] Il cliente non ha presentato la dichiarazione dei redditi per tre anni e ha evaso 80.000 euro di imposte all'anno. Rischia il penale?", [("reati_tributari", "5")]),
+    ("IT", "[frek19] Un ex socio minaccia di diffondere documenti compromettenti se il cliente non gli dà 20.000 euro. Che reato è?", [("codice_penale", "629")]),
     # v9.558 — diciottesimo giro (8 ott): privacy, alimenti non pagati (reato), rinuncia all'eredità AL; IT fermo dell'auto per cartelle,
     # casa familiare, violazione di domicilio, falso profilo
     ("AL", "[frek18] Ish-partneri publikoi në Facebook fotot private të klientes pa pëlqimin e saj. Çfarë vepre është?", [("kodi_penal", "121")]),

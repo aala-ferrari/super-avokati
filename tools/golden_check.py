@@ -9581,6 +9581,9 @@ def main():
               and ("codice_civile", "2087") not in _i332("La risoluzione del rapporto del dipendente per giusta causa.", ["Civile"])
               and ("licenziamenti_individuali", "2") in _i332("Il cliente è stato licenziato in forma orale.", ["Lavoro"])
               and ("licenziamenti_individuali", "2") not in _i332("Licenziato, chiede il danno morale per la lettera offensiva.", ["Lavoro"]))
+        check("frek19 AL[332]: «hyri me forcë në shtëpinë e saj pa leje» → KP 112 (solo penale)",
+              ("kodi_penal", "112") in _k332("Ish-burri hyri me forcë në shtëpinë e saj pa leje.", ["Penal", "Familje"])
+              and ("kodi_penal", "112") not in _k332("Ish-burri hyri me forcë në shtëpinë e saj pa leje.", ["Familje"]))
     except Exception as _e332:  # noqa: BLE001
         check("radici[332]: kontrollet u ekzekutuan", False, f"{type(_e332).__name__}: {_e332}")
 
