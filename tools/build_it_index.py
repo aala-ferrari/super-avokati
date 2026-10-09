@@ -252,6 +252,20 @@ _FONTE_SOPRA = re.compile(r"^(?:Artt?\.\s*\d.*?(?:D\.\s?P\.\s?R\.|[Ll]egge|D\.\s
                           r"|Disposizione nuova\.?)$")
 
 
+# v9.569 — la fonte tolta dalla rubrica dalle regole v9.569 viaggia in testa al corpo fra due separatori e finisce nella NOTA
+# dell'articolo («Fonte: …»), non nel corpo: nei testi unici è lunga («legge 28 febbraio 1985, n. 47, articoli 19 e 20; decreto-legge
+# …») e in testa al corpo spostava il testo normativo oltre i 128 token della codifica (TU edilizia 44 dal 1° all'11° nel banco)
+_FONTE_SEP = "\ue000"            # uso privato: NON è uno spazio (\x1e lo è per str.strip, e spariva)
+
+
+def _separa_fonte(body: str) -> tuple[str, str]:
+    """(fonte, corpo) se il corpo comincia con la fonte marcata da `_pulisci`, altrimenti ("", corpo)."""
+    if body.startswith(_FONTE_SEP):
+        f, _, rest = body[1:].partition(_FONTE_SEP)
+        return f.strip(), rest.strip()
+    return "", body
+
+
 def _pulisci(heading: str, body: str) -> tuple[str, str]:
     h, b = heading or "", body or ""
     # v9.540 — il TRATTINO MORBIDO (U+00AD) di Normattiva: «comma 3­bis» (TU riscossione, CAD) — fra un numero e il suffisso vale
@@ -326,6 +340,46 @@ def _pulisci(heading: str, body: str) -> tuple[str, str]:
             h, b = mm.group("r").strip(" ."), mm.group("t").strip()
         else:
             h, b = "", h.rstrip(" .") + "."
+    # v9.569 — le ultime forme con la parentesi chiusa DENTRO la rubrica (34 articoli nell'indice, letti): (a) rubrica + testo, col
+    # corpo che ricomincia con la rubrica — «Atti urgenti) 1. Il giudice…» (c.p.p. 554), «Regime fiscale per raccoglitori
+    # occasionali) 1. …» (IVA 34-ter): resta la rubrica, dal corpo si toglie il doppione in testa; (b) fonte o marcatore DAVANTI —
+    # «Art. 10 Cod. Str.) Provvedimento di autorizzazione» (reg. C.d.S.), «L-R) Documenti di identità…» (TU documentazione),
+    # «L, commi 1 e 2 - R, comma 3) Progettazione degli impianti ( legge …» (TU edilizia), «Art. 6 T.U. spiriti 1924 - …)
+    # Accertamento dell'accisa sull'alcole» (accise): la rubrica è DOPO la parentesi, la fonte va in testa al corpo. Mai gli
+    # allegati («Allegato XL — a) Agenti chimici» è un'etichetta giusta).
+    mh = re.match(r"^(?P<a>[^()]{1,300}?)\)\s+(?P<z>\S.*)$", h, re.S)
+    if mh and not re.match(r"(?i)(allegat|tabell|tariff|prospett)", h):
+        a_, z_ = mh.group("a").strip(), mh.group("z").strip()
+        _rx_a = r"^\s*\(?\s*" + r"\s+".join(re.escape(w) for w in a_.rstrip(" .").split()) + r"\s*\.?\s*\)?\s*\.?\s*"
+        if (re.match(r"(?:\d+\.\s|[A-ZÀ-Ü«\"])", z_) and re.match(_rx_a, b)
+                and _rubrica_ok(a_.strip(" ."), filtri_verbi=False)
+                and not re.match(r"^(?:Artt?\.\s*\d|L\b|R\b|L\s*-\s*R\b|Legge\b|legge\b|T\.\s?U\.)", a_)):
+            h, b = a_.strip(" ."), re.sub(_rx_a, "", b, count=1)
+        elif (re.match(r"^(?:Artt?\.\s*\d|L\b|R\b|L\s*-\s*R\b|Legge\b|legge\b|D\.\s?(?:Lgs|L|P\.\s?R)|T\.\s?U\.)", a_)
+              and re.match(r"[A-ZÀ-Ü]", z_)):
+            m2 = re.match(r"^(?P<r>.+?)\s*\(\s*(?P<f>(?:legge|decreto|d\.\s?lgs|d\.\s?p\.\s?r|r\.\s?d)\b[^)]*)\)?\s*$", z_, re.I | re.S)
+            _r, _f2 = (m2.group("r"), m2.group("f")) if m2 else (z_, "")
+            _r = _r.strip(" .,")
+            # («Tabelle delle sostanze soggette a controllo», stupefacenti 13: con la fonte davanti è una rubrica, non un allegato)
+            if (_rubrica_ok(_r, filtri_verbi=False) or re.match(r"Tabelle\s+(?:delle|dei)\s", _r)) and len(_r) <= 200 and ":" not in _r:
+                h = _r
+                b = _FONTE_SEP + a_.strip(" ,;-") + ((" — " + _f2.strip(" ,;")) if _f2 else "") + _FONTE_SEP + b.strip()
+    # v9.569 — la FONTE incollata in coda alla rubrica SENZA parentesi, nei testi unici (edilizia, maternità, pari opportunità,
+    # immigrazione): «Definizioni degli interventi edilizi legge 5 agosto 1978, n. 457, art. 31», «Lavoro notturno legge 9 dicembre
+    # 1977, n. 903, art. 5, commi 1 e 2, lettere a) e b)». Solo con l'atto identificato (data e/o numero) seguito SUBITO da «art.»;
+    # mai se la rubrica finisce con una preposizione («Modifiche al decreto legislativo …» è una rubrica vera) o è in maiuscolo
+    mfs = re.match(r"^(?P<r>[A-ZÀ-Ü][^()]{2,160}?)\s+\(?\s*(?P<f>(?:legge|decreto legislativo|decreto-legge|decreto legge|d\.\s?lgs\.?|"
+                   r"d\.\s?l\.|d\.\s?p\.\s?r\.?|r\.\s?d\.?|regio decreto|decreto del presidente della repubblica)\s+"
+                   r"(?:\d{1,2}°?\s+\w+\s+\d{4}|n\.\s*\d+)[^()]{0,160}?[,;]\s*(?:art\.?|artt\.?|articol[oi])\s*\d.*)$", h, re.I | re.S)
+    if mfs and not mfs.group("r").isupper():
+        _r = mfs.group("r").strip(" .,;-")
+        _ult = _r.split()[-1].lower().rstrip("'’") if _r.split() else ""
+        if (_ult not in {"al", "allo", "alla", "ai", "agli", "alle", "dal", "dallo", "dalla", "dai", "dagli", "dalle", "del", "dello",
+                         "della", "dei", "degli", "delle", "di", "da", "il", "lo", "la", "i", "gli", "le", "nel", "nella", "con", "per",
+                         "su", "sul", "sulla", "e", "ed", "o", "dell", "all", "dall", "nell", "sull", "un", "una", "uno", "previsto",
+                         "prevista", "previsti", "previste", "citato", "citata", "sensi"}
+                and _rubrica_ok(_r, filtri_verbi=False)):
+            h, b = _r, _FONTE_SEP + mfs.group("f").strip(" .,;()") + _FONTE_SEP + b.strip()
     # v9.546 — i RESIDUI della rubrica fra parentesi in testa al corpo: «) Il coniuge dell'assente…» (c.c. 51), «) . I minori di età…»
     # (c.c. 84), «. La riduzione della donazione…» (c.c. 563), «) ). Chiunque…» (c.p. 316-bis): 537 articoli italiani su 24.871, e il
     # blocco del cervello li mostrava così. Solo parentesi chiuse e punti SINGOLI in testa: «...» (un'omissione del testo ufficiale)
@@ -569,6 +623,7 @@ def main():
                     "futuro_testo": ("" if (_fu or {}).get("repealed") else _bf[:600]),
                     "non_in_vigore_dal": _nv if (_nv and _nv > _oggi_iso) else ""}
             _h, _b = _pulisci(art.get("heading") or "", art.get("body") or "")
+            _fonte_r, _b = _separa_fonte(_b)
             # v9.409 — pagine che sono solo un'etichetta («Tabella 1», «Allegato III-bis», «[senza testo]»: il contenuto è
             # un'immagine): nell'indice rispondevano alle ricerche su «tabella/allegato» senza dire niente
             if not _as_bool(art.get("repealed")) and re.fullmatch(
@@ -596,7 +651,8 @@ def main():
                 last_amendment_date=_lad,
                 # v9.401: una nota di collegamento NOSTRA (dichiarata come tale) viaggia col testo ufficiale — es. l'art. 3
                 # L. 742/1969 richiama gli artt. 429 e 459 c.p.c. nella numerazione anteriore al 1973
-                note=_nota_con_lire(art.get("note") or "", _b, _as_bool(art.get("repealed")))))
+                note=_nota_con_lire("\n".join(x for x in ((art.get("note") or "").strip(), ("Fonte: " + _fonte_r) if _fonte_r else "") if x),
+                                    _b, _as_bool(art.get("repealed")))))
         meta.append({"code": cid, "title": a["title"], "area": a.get("area") or "",
                      "count": len(arts)})
         print(f"  {cid:34s} {len(arts):>5} art   {a['title'][:46]}")

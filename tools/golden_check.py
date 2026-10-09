@@ -9719,6 +9719,40 @@ def main():
     except Exception as _e338:  # noqa: BLE001
         check("verificatore[338]: kontrollet u ekzekutuan", False, f"{type(_e338).__name__}: {_e338}")
 
+    # [339] v9.569 — rubriche italiane con la parentesi chiusa DENTRO: rubrica + testo («Atti urgenti) 1. Il giudice…») e fonte o
+    # marcatore davanti («Art. 215 Cod. Str.) Rimozione del veicolo», «L-R) Documenti di identità…», accise, TU edilizia, stupefacenti)
+    try:
+        import re as _re339
+        from pathlib import Path as _P339
+        from src.retrieval import ArticleIndex as _AI339
+        _it339 = _AI339.load(_P339("/app/data/index/bm25_it.pkl"))
+        _I339 = {(a.code, a.number): a for a in _it339.articles}
+        _h339 = lambda c, n: (_I339[(c, n)].heading or "") if (c, n) in _I339 else None
+        check("rubriche IT[339]: c.p.p. 554 «Atti urgenti» (il testo nel corpo), reg. C.d.S. 397 «Rimozione del veicolo», TU doc. 35, "
+              "accise 45, TU edilizia 67, stupefacenti 13 — la fonte nella nota",
+              _h339("codice_procedura_penale", "554") == "Atti urgenti"
+              and (_I339[("codice_procedura_penale", "554")].body or "").startswith("1. Il giudice")
+              and _h339("regolamento_strada", "397") == "Rimozione del veicolo"
+              and (_I339[("regolamento_strada", "397")].body or "").startswith("1. La sanzione")
+              and "Fonte: Art. 215 Cod. Str." in (getattr(_I339[("regolamento_strada", "397")], "note", "") or "")
+              and _h339("tu_documentazione_amministrativa", "35") == "Documenti di identità e di riconoscimento"
+              and _h339("accise", "45") == "Circostanze aggravanti" and _h339("tu_edilizia", "67") == "Collaudo statico"
+              and _h339("stupefacenti", "13") == "Tabelle delle sostanze soggette a controllo",
+              str([_h339("codice_procedura_penale", "554"), _h339("regolamento_strada", "397"), _h339("stupefacenti", "13")]))
+        _rest339 = [(a.code, a.number) for a in _it339.articles if a.heading and not a.repealed
+                    and _re339.match(r"^[^()]{1,300}(?<!\s[a-z])\)\s+\S", a.heading) and not _re339.match(r"(?i)(allegat|tabell|tariff|prospett)", a.heading)]
+        check("rubriche IT[339]: nessuna rubrica con la parentesi chiusa dentro (fuori dagli allegati)", not _rest339, str(_rest339[:6]))
+        _fonte339 = [(a.code, a.number) for a in _it339.articles if a.code in ("tu_edilizia", "maternita_paternita", "tu_immigrazione",
+                     "codice_pari_opportunita") and _re339.search(r"\b(?:legge|decreto)\s+\d{1,2}\s+\w+\s+\d{4},\s*n\.\s*\d+,\s*art", a.heading or "")]
+        check("rubriche IT[339]: la fonte in coda alla rubrica dei testi unici va nel corpo (TU edilizia 3 «Definizioni degli interventi "
+              "edilizi», maternità 53 «Lavoro notturno», TU immigrazione 5 «Permesso di soggiorno»)",
+              _h339("tu_edilizia", "3") == "Definizioni degli interventi edilizi" and _h339("maternita_paternita", "53") == "Lavoro notturno"
+              and _h339("tu_immigrazione", "5") == "Permesso di soggiorno"
+              and "Fonte: legge 5 agosto 1978" in (getattr(_I339[("tu_edilizia", "3")], "note", "") or "")
+              and (_I339[("tu_edilizia", "3")].body or "").startswith("1. ") and not _fonte339, str(_fonte339[:5]))
+    except Exception as _e339:  # noqa: BLE001
+        check("rubriche IT[339]: kontrollet u ekzekutuan", False, f"{type(_e339).__name__}: {_e339}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
