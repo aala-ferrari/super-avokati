@@ -86,6 +86,15 @@ CASI = [  # (giurisdizione, domanda dell'avvocato, articoli di cui almeno uno DE
     ("IT", "[frek9] La cliente ha subito un intervento sbagliato in un ospedale pubblico. Contro chi agiamo e cosa dobbiamo fare prima della causa?", [("responsabilita_sanitaria", "7"), ("responsabilita_sanitaria", "8")]),
     ("AL", "[frek9] Klienti pati një aksident, faji ishte i tjetrit, dhe siguruesi nuk po i përgjigjet prej dy muajsh. Si ta detyrojmë të paguajë?", [("ligji_sigurimi_mjeteve", "10"), ("ligji_sigurimi_mjeteve", "9")]),
     ("AL", "[frek9] Klienti është ortak me 40% në një shpk dhe dëshiron të largohet nga shoqëria. Si e bën dhe çfarë i takon?", [("ligji_shoqerite_tregtare", "101"), ("ligji_shoqerite_tregtare", "103"), ("ligji_shoqerite_tregtare", "73")]),
+    # v9.568 — ventitreesimo giro (9 ott): successione senza testamento AL/IT, asta contestata AL; usura, disdetta del 4+4,
+    # furto in abitazione, guida senza patente
+    ("AL", "[frek23] Babai i klientit vdiq pa lënë testament. Ka gruan dhe tre fëmijë. Si ndahet pasuria?", [("kodi_civil", "361")]),
+    ("AL", "[frek23] Përmbaruesi e shiti në ankand shtëpinë e klientit me një çmim shumë të ulët. A mund ta kundërshtojmë shitjen?", [("kodi_proc_civile", "572"), ("kodi_proc_civile", "580")]),
+    ("IT", "[frek23] Il padre è morto senza testamento lasciando la moglie e due figli. Come si divide l'eredità?", [("codice_civile", "581"), ("codice_civile", "566")]),
+    ("IT", "[frek23] Un privato ha prestato soldi al cliente e ora pretende interessi del 10% al mese. Cosa possiamo fare?", [("codice_penale", "644")]),
+    ("IT", "[frek23] Il proprietario vuole mandare via l'inquilino alla prima scadenza del contratto 4+4. Può farlo?", [("locazioni_abitative", "3")]),
+    ("IT", "[frek23] Dei ladri sono entrati nell'appartamento del cliente mentre era in vacanza. Che reato è e cosa rischiano?", [("codice_penale", "624-bis")]),
+    ("IT", "[frek23] Il cliente è stato fermato alla guida senza aver mai preso la patente. Cosa rischia?", [("codice_strada", "116")]),
     # v9.567 — ventiduesimo giro (9 ott): rinuncia all'eredità AL/IT, costruzione abusiva AL, infortunio sul lavoro AL,
     # affidamento dei figli, dimissioni per giusta causa
     ("AL", "[frek22] Babai i klientit vdiq dhe la shumë borxhe. Klienti nuk do ta marrë trashëgiminë. Si veprojmë dhe brenda çfarë afati?", [("kodi_civil", "333"), ("kodi_civil", "335")]),
