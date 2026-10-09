@@ -592,6 +592,11 @@ ANCORE_IT: tuple = (
     # blocco 650, 647, 646 e perfino il decreto PENALE (c.p.p. 461-462), il 641 fuori. Solo dalla domanda.
     ((("decreto ingiuntiv",), ("ingiunzione di pagamento",), ("ingiunto",)), ("Penale", "Penal"),
      (("codice_procedura_civile", "641"), ("codice_procedura_civile", "645"), ("codice_procedura_civile", "650")), None, None, True),
+    # v9.568 — … e, fatta l'opposizione, l'ISCRIZIONE A RUOLO entro dieci giorni dalla notifica (c.p.c. 165, che il 645 richiama: oltre
+    # il termine l'opposizione è improcedibile). Una risposta vera lo diceva «da riscontrare» (7 ott); nel giro 24 il 165 restava fuori.
+    ((("opposizion", "decreto ingiuntiv", "ruolo"), ("opposizion", "decreto ingiuntiv", "costitu"), ("opposizion", "ingiunzion", "ruolo"),
+      ("iscrizione a ruolo", "opposizion"), ("iscritta a ruolo", "opposizion"), ("iscriver", "ruolo", "opposizion")),
+     ("Penale", "Penal"), (("codice_procedura_civile", "165"),), None, None, True),
     # … e la MULTA stradale da contestare: ricorso al prefetto entro 60 giorni (C.d.S. 203) o al giudice di pace entro 30 (204-bis), il
     # pagamento ridotto (202). Banco di prova (7 ott, autovelox): nel blocco 204, 201, 211, 215 e il regolamento — né il 203 né il 204-bis.
     ((("multa", "ricors"), ("multa", "contest"), ("multa", "impugn"), ("multa", "annull"), ("autovelox",), ("velox",),

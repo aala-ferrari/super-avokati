@@ -9692,6 +9692,33 @@ def main():
     except Exception as _e337:  # noqa: BLE001
         check("rubriche AL[337]: kontrollet u ekzekutuan", False, f"{type(_e337).__name__}: {_e337}")
 
+    # [338] v9.568 — vince l'atto PIÙ VICINO al numero: la rubrica scritta dopo la sigla («art. 1219 c.c. costituzione in mora», «art. 74
+    # c.p.p. costituzione di parte civile», «art. 165 c.p.c. costituzione in giudizio») non lo cambia più nella Costituzione
+    try:
+        from pathlib import Path as _P338
+        from src.retrieval import ArticleIndex as _AI338
+        from src import citation_verifier as _cv338
+        _it338 = _AI338.load(_P338("/app/data/index/bm25_it.pkl"))
+        def _st338(t, n):
+            return {i["number"]: (i["status"], i.get("code")) for i in _cv338.verify_text(t, _it338)["items"]}.get(n)
+        check("verificatore[338]: «art. 1219 c.c. costituzione in mora», «art. 74 c.p.p. costituzione di parte civile», «art. 165 c.p.c. "
+              "costituzione in giudizio» → c.c., c.p.p., c.p.c. (prima: Costituzione)",
+              _st338("Vale l'art. 1219 c.c. costituzione in mora.", "1219") == ("verified", "codice_civile")
+              and _st338("Si veda l'art. 74 c.p.p. costituzione di parte civile.", "74") == ("verified", "codice_procedura_penale")
+              and _st338("Entro dieci giorni: art. 165 c.p.c. costituzione in giudizio.", "165") == ("verified", "codice_procedura_civile"),
+              str((_st338("Vale l'art. 1219 c.c. costituzione in mora.", "1219"), _st338("Si veda l'art. 74 c.p.p. costituzione di parte civile.", "74"))))
+        check("verificatore[338]: la Costituzione citata davvero resta la Costituzione (art. 24 Cost., art. 111 della Costituzione)",
+              _st338("Il diritto di difesa (art. 24 Cost.) è inviolabile.", "24") == ("verified", "costituzione")
+              and _st338("Lo dice l'art. 111 della Costituzione.", "111") == ("verified", "costituzione"))
+        _it338b = _AI338.load(_P338("/app/data/index/bm25_it.pkl"))
+        from src import brain as _b338
+        _i338 = lambda q, ar: {(a.code, a.number) for a, _ in _b338._applica_ancore([], _it338b, [q], ar, _b338.ANCORE_IT)}
+        check("frek24[338]: opposizione al decreto ingiuntivo da iscrivere a ruolo → c.p.c. 165; il decreto ingiuntivo senza opposizione no",
+              ("codice_procedura_civile", "165") in _i338("Abbiamo notificato l'opposizione al decreto ingiuntivo: entro quando va iscritta a ruolo?", ["Civile"])
+              and ("codice_procedura_civile", "165") not in _i338("Al cliente è stato notificato un decreto ingiuntivo.", ["Civile"]))
+    except Exception as _e338:  # noqa: BLE001
+        check("verificatore[338]: kontrollet u ekzekutuan", False, f"{type(_e338).__name__}: {_e338}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

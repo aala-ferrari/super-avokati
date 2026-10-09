@@ -976,12 +976,30 @@ def _resolve_code_it(tail: str):
     if re.search(r"(?<![a-z])reg(?:olamento)?\.?\s*(?:di\s+)?(?:es(?:ec(?:uzione)?)?\.?|att(?:uazione)?\.?)?\s*(?:del\s+)?"
                  r"(?:c\.?\s?d\.?\s?s\.?(?![a-z])|cod(?:ice)?\.?\s*(?:della\s+)?strada)", _low):
         return "regolamento_strada"
+    # v9.568 — la SIGLA subito dopo il numero vince sulla chiave lunga più avanti: prima vinceva la chiave lunga ovunque fosse nella
+    # coda, e la rubrica scritta dopo la sigla cambiava atto — «art. 1219 c.c. costituzione in mora» → Costituzione, inesistente;
+    # «art. 74 c.p.p. costituzione di parte civile» → art. 74 della COSTITUZIONE «verificato» col testo sbagliato. Fra due chiavi
+    # LUNGHE resta l'ordine della lista, che è una priorità («altri tributi indiretti» prima di «testo unico dell'imposta di registro»:
+    # sono pezzi dello stesso titolo). La posizione di una sigla è quella della sua parola nel testo compattato (stesse lettere).
+    _pos_tok: dict[str, int] = {}
+    _off = 0
+    for _m in re.finditer(r"[a-z]+", _norm):
+        _pos_tok.setdefault(_m.group(0), _off)
+        _off += len(_m.group(0))
+    _scelta, _sigla = None, None
     for pat, code in _IT_CODE_CHECKS:
         if len(pat) <= 5 and pat not in _SHORT_AS_SUBSTRING:
-            if pat in _tokens:
-                return code
-        elif pat in compact:
-            return code
+            _p = _pos_tok.get(pat, -1)
+            if _p >= 0 and (_sigla is None or _p < _sigla[0]):
+                _sigla = (_p, code)
+        else:
+            _p = compact.find(pat)
+        if _p >= 0 and _scelta is None:
+            _scelta = (_p, code)
+    if _scelta:
+        if _sigla and _sigla[0] < _scelta[0]:
+            return _sigla[1]
+        return _scelta[1]
     # secondo passaggio: numero/anno (le sigle «D.Lgs.», «DPR», «Reg.» da sole non bastano);
     # «legge n. 91 del 1992» vale come «91/1992» (17 set 2026)
     # v9.406 — la DATA PER ESTESO («d.lgs. 10 marzo 2000, n. 74», «L. 24 novembre 1981, n. 689»: la forma formale, in una risposta

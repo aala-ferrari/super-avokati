@@ -86,6 +86,12 @@ CASI = [  # (giurisdizione, domanda dell'avvocato, articoli di cui almeno uno DE
     ("IT", "[frek9] La cliente ha subito un intervento sbagliato in un ospedale pubblico. Contro chi agiamo e cosa dobbiamo fare prima della causa?", [("responsabilita_sanitaria", "7"), ("responsabilita_sanitaria", "8")]),
     ("AL", "[frek9] Klienti pati një aksident, faji ishte i tjetrit, dhe siguruesi nuk po i përgjigjet prej dy muajsh. Si ta detyrojmë të paguajë?", [("ligji_sigurimi_mjeteve", "10"), ("ligji_sigurimi_mjeteve", "9")]),
     ("AL", "[frek9] Klienti është ortak me 40% në një shpk dhe dëshiron të largohet nga shoqëria. Si e bën dhe çfarë i takon?", [("ligji_shoqerite_tregtare", "101"), ("ligji_shoqerite_tregtare", "103"), ("ligji_shoqerite_tregtare", "73")]),
+    # v9.568 — ventiquattresimo giro (9 ott), dalle riserve delle risposte vere: i TERMINI d'impugnazione — misura cautelare
+    # AL (KPP 249, 5 giorni) e appello AL (KPP 415, 15 giorni); iscrizione a ruolo dell'opposizione (c.p.c. 165), riesame (c.p.p. 309)
+    ("AL", "[frek24] Gjykata i caktoi klientit masën e sigurimit arrest në burg. Si e ankimojmë dhe brenda sa ditësh?", [("kodi_proc_penale", "249")]),
+    ("AL", "[frek24] Klienti u dënua me burg në shkallë të parë. Brenda sa ditësh duhet të bëjmë apel?", [("kodi_proc_penale", "415")]),
+    ("IT", "[frek24] Abbiamo notificato l'atto di opposizione al decreto ingiuntivo. Entro quando va iscritta a ruolo la causa?", [("codice_procedura_civile", "165")]),
+    ("IT", "[frek24] Il GIP ha disposto la custodia cautelare in carcere per il cliente. Come la impugniamo e entro quando?", [("codice_procedura_penale", "309")]),
     # v9.568 — ventitreesimo giro (9 ott): successione senza testamento AL/IT, asta contestata AL; usura, disdetta del 4+4,
     # furto in abitazione, guida senza patente
     ("AL", "[frek23] Babai i klientit vdiq pa lënë testament. Ka gruan dhe tre fëmijë. Si ndahet pasuria?", [("kodi_civil", "361")]),
