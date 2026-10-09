@@ -32,7 +32,13 @@ ENABLED = os.environ.get("DENSE_ENABLED", "1") == "1"
 MODEL = os.environ.get("DENSE_MODEL", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
 EMB_DIR = Path(os.environ.get("EMB_DIR", str(INDEX_PATH.parent / "models")))
 DEPTH = int(os.environ.get("DENSE_DEPTH", "50"))
-RRF_K = 60
+# v9.564 — 60 → 20, MISURATO col banco a triage fisso (9 ott): a ricerca nuda (ancore spente) IT 106/116 sempre, media 3,04 → 2,78, oltre il
+# 9° 5 → 2; AL 76 → 77/93, media 4,30 → 3,88, oltre il 9° 10 → 3 (griglia: 30, 100, peso 0,7/0,85/1,15/1,3, solo BM25 — vedi CLAUDE.md);
+# con le ancore (produzione) IT 116/116 media 2,97 → 2,84, nei primi 3 76 → 80; AL 93/93 media 3,29 → 3,19. Con un k più piccolo i PRIMI
+# posti di ciascuna ricerca pesano di più: l'articolo che una delle due (parole o senso) mette in testa non viene diluito dalla coda
+RRF_K = int(os.environ.get("DENSE_RRF_K", "20"))
+# v9.564 — peso della parte per SENSO nella fusione (1.0 = alla pari con BM25); regolabile per la misura a triage fisso
+PESO_DENSO = float(os.environ.get("DENSE_PESO", "1.0"))
 # v9.362 — SEGMENTI: MiniLM legge 128 token e il 61 % AL / 62 % IT dei nene sono più lunghi (misurato 21 set:
 # il 3° paragrafo del 302 — l'esclusione dei familiari — cominciava al token 206 e non era MAI stato
 # codificato). Ogni articolo diventa 1..N segmenti da ~CHUNK_TOKENS token con sovrapposizione, ognuno
@@ -289,7 +295,7 @@ def fondi(bm25_results, dense_results, kk: int = RRF_K) -> dict:
     for r, (a, s) in enumerate(dense_results, 1):
         key = (a.code, a.number)
         f, b, d = out.get(key, (0.0, 0.0, 0.0))
-        out[key] = (f + 1.0 / (kk + r), b, max(d, float(s)))
+        out[key] = (f + PESO_DENSO / (kk + r), b, max(d, float(s)))
     return out
 
 

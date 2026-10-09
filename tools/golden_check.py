@@ -3567,7 +3567,7 @@ def main():
         from src import dense as _dn102, brain as _br102
         _A = lambda c, n: _t102.SimpleNamespace(code=c, number=n, repealed=False)
         _f = _dn102.fondi([(_A("kc", "1"), 9.0), (_A("kc", "2"), 5.0)], [(_A("kc", "2"), 0.8), (_A("kc", "3"), 0.7)])
-        _okA = (abs(_f[("kc", "2")][0] - (1/62 + 1/61)) < 1e-9 and _f[("kc", "2")][1] == 5.0 and _f[("kc", "2")][2] == 0.8
+        _okA = (abs(_f[("kc", "2")][0] - (1/(_dn102.RRF_K + 2) + 1/(_dn102.RRF_K + 1))) < 1e-9 and _f[("kc", "2")][1] == 5.0 and _f[("kc", "2")][2] == 0.8
                 and _f[("kc", "3")][1] == 0.0 and _f[("kc", "1")][2] == 0.0
                 and max(_f, key=lambda k: _f[k][0]) == ("kc", "2"))                    # chi è in entrambe vince
         # senza embedding/modello: indice denso None, nessuna eccezione
@@ -9615,6 +9615,17 @@ def main():
               and {("kodi_punes", "105/a"), ("kodi_punes", "146")} <= _k334("I tha punëdhënësit se është shtatzënë dhe e hoqën nga puna.", ["Punë"]))
     except Exception as _e334:  # noqa: BLE001
         check("limite AL[334]: kontrollet u ekzekutuan", False, f"{type(_e334).__name__}: {_e334}")
+
+    # [335] v9.564 — la costante della fusione per rango è quella MISURATA (20) e la fusione la usa davvero; peso del senso 1,0
+    try:
+        import os as _os335
+        from src import dense as _dn335
+        _f335 = _dn335.fondi([(type("A", (), {"code": "c", "number": "1"})(), 5.0)], [(type("A", (), {"code": "c", "number": "1"})(), 0.9)])
+        check("ricerca[335]: RRF_K = 20 (misurato), peso del senso 1,0, fusione 2/(20+1)",
+              (_os335.environ.get("DENSE_RRF_K") or _dn335.RRF_K == 20) and _dn335.PESO_DENSO == 1.0
+              and abs(_f335[("c", "1")][0] - 2.0 / 21) < 1e-9, str((_dn335.RRF_K, _dn335.PESO_DENSO, _f335)))
+    except Exception as _e335:  # noqa: BLE001
+        check("ricerca[335]: kontrollet u ekzekutuan", False, f"{type(_e335).__name__}: {_e335}")
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

@@ -651,6 +651,9 @@ def _applica_ancore(pairs, idx, queries: list[str], aree: list[str], ancore=None
     c'era gia': un'ancora che punta a un articolo inesistente e' un non-fatto,
     non un errore.
     """
+    # v9.564 — SOLO PER MISURARE la ricerca «nuda» (le ancore portano in testa le norme attese e coprono la qualità della ricerca)
+    if os.environ.get("ANCORE_SPENTE") == "1":
+        return pairs
     testo = " " + " ".join(queries).lower()     # v9.559: lo spazio in testa — un'ancora «come parola» (« ashk») vale anche a inizio frase
     # v9.380 — «già presente» vuol dire DENTRO i dodici: dalla ricerca ibrida (v9.353) `pairs` porta TUTTI i candidati fusi, e
     # un articolo al 40° posto contava come trovato — l'ancora non scattava e il taglio lo buttava (KC 698 sulla qira, art. 2946
