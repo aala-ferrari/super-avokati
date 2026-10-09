@@ -86,6 +86,15 @@ CASI = [  # (giurisdizione, domanda dell'avvocato, articoli di cui almeno uno DE
     ("IT", "[frek9] La cliente ha subito un intervento sbagliato in un ospedale pubblico. Contro chi agiamo e cosa dobbiamo fare prima della causa?", [("responsabilita_sanitaria", "7"), ("responsabilita_sanitaria", "8")]),
     ("AL", "[frek9] Klienti pati një aksident, faji ishte i tjetrit, dhe siguruesi nuk po i përgjigjet prej dy muajsh. Si ta detyrojmë të paguajë?", [("ligji_sigurimi_mjeteve", "10"), ("ligji_sigurimi_mjeteve", "9")]),
     ("AL", "[frek9] Klienti është ortak me 40% në një shpk dhe dëshiron të largohet nga shoqëria. Si e bën dhe çfarë i takon?", [("ligji_shoqerite_tregtare", "101"), ("ligji_shoqerite_tregtare", "103"), ("ligji_shoqerite_tregtare", "73")]),
+    # v9.566 — ventesimo giro (9 ott): privacy e dintorni — cancellazione dei dati AL, telecamera del vicino AL/IT, diritto all'oblio,
+    # regolamento condominiale sugli animali, revisione scaduta, danno per dati sanitari diffusi
+    ("AL", "[frek20] Një kompani publikoi të dhënat personale të klientit pa pëlqimin e tij dhe ai kërkon që t'i fshijë. Çfarë të drejte ka?", [("ligji_te_dhenat_2024", "57")]),
+    ("AL", "[frek20] Fqinji vendosi një kamerë që filmon oborrin dhe dritaret e shtëpisë së klientit. Çfarë mund të bëjmë?", [("kodi_penal", "121")]),
+    ("IT", "[frek20] Il cliente vuole che un sito cancelli vecchie notizie e dati personali che lo riguardano. Come procediamo?", [("gdpr", "17")]),
+    ("IT", "[frek20] Il vicino ha installato una telecamera che riprende il giardino e le finestre del cliente. È lecito?", [("codice_penale", "615-bis")]),
+    ("IT", "[frek20] Il regolamento condominiale vieta di tenere cani negli appartamenti. Questo divieto è valido?", [("codice_civile", "1138")]),
+    ("IT", "[frek20] Il cliente è stato fermato con la revisione dell'auto scaduta da sei mesi. Cosa rischia?", [("codice_strada", "80")]),
+    ("IT", "[frek20] Una clinica ha diffuso per errore i dati sanitari del cliente. Può chiedere il risarcimento?", [("gdpr", "82")]),
     # v9.561 — diciannovesimo giro (9 ott): energia elettrica, violazione di domicilio AL; IT adozione del figlio del coniuge, rifiuto
     # dell'alcoltest, usura, omessa dichiarazione, estorsione
     ("AL", "[frek19] OSHEE e kallëzoi klientin sepse kishte një lidhje të paligjshme me rrjetin elektrik. Çfarë rrezikon?", [("kodi_penal", "137")]),
