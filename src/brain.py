@@ -900,7 +900,19 @@ _CODICI_CONDIZIONATI_IT = (
                 r"statal|minister|\bcomun[ei]\b|comunal|region|provinc|\basl\b|azienda\s+sanitaria|ospedal|scuol|insegnant|docent|"
                 r"universit|ente\s+pubblic|\bp\.?a\.?\b|concors|forze\s+armate|polizi|carabinier|militar|vigil|prefettur|agenzia\s+delle", re.I)),
     ("maternita_paternita", "maternità e paternità",
-     re.compile(r"incint|gravid|maternit|paternit|conged|allatt|nascit|nato|neonat|parto|puerper|bambin|\bfigli|adozion|adott|affidament", re.I)),
+     # … e la DISABILITÀ: l'art. 42 è il congedo straordinario fino a due anni per chi assiste un familiare disabile grave, anche il figlio
+     # che assiste un genitore (la prima stesura lo toglieva dalla domanda «assiste la madre con disabilità grave» del banco)
+     re.compile(r"incint|gravid|maternit|paternit|conged|allatt|nascit|nato|neonat|parto|puerper|bambin|\bfigli|adozion|adott|affidament|"
+                r"disabil|handicap|invalid|\b104\b|assist", re.I)),
+    # v9.586 — gli stessi posti liberati li prendevano altri due codici di categoria: l'ORDINAMENTO FORENSE (il disciplinare degli AVVOCATI,
+    # nella contestazione disciplinare di un dipendente) e il CODICE DELLA NAVIGAZIONE (ferie e malattia dei marittimi, nelle ferie e
+    # nella malattia di un dipendente qualunque)
+    ("ordinamento_forense", "ordinamento forense",
+     re.compile(r"avvocat|forens|ordine\s+(?:degli|forense)|consiglio\s+(?:nazionale\s+forense|dell.ordine)|\bcnf\b|\bcoa\b|praticant|"
+                r"parcell|deontolog|patrocinio|procura\s+alle\s+liti|onorari", re.I)),
+    ("codice_navigazione", "navigazione",
+     re.compile(r"\bnav[ei]\b|navigazion|marittim|marinai|portual|\bporto\b|imbarc|equipaggi|armator|comandante|diporto|yacht|barca|"
+                r"traghett|\baere|aeroport|\bvol[oi]\b|pilota|hostess|steward|compagnia\s+aerea|bagagli|overbooking|nautic|naufrag", re.I)),
 )
 
 
@@ -934,6 +946,54 @@ _TUTELA_AL_RX = re.compile(r"birës|bires|adopt|jetim|pa\s+prind|"
                            r"gjysh\w*(?:\s+\S+){0,4}?\s+kujdestar|"
                            r"kujdestar\w*\s+(?:i|e|t[eë])\s+(?:em[eë]ruar|caktuar)|organ\w*\s+(?:i|e)\s+kujdestaris|"
                            r"zot[eë]si|\b(?:i|e)\s+paaft[eë]|kujdestaria\s+mbi", re.I)
+
+
+# ── v9.587 — il gemello ALBANESE dei codici condizionati: leggi di materia stretta che entrano per una parola comune ──
+# Banco AL coi blocchi (10 ott, 111 domande): la legge sui RAPPORTI GIURISDIZIONALI CON L'ESTERO (10193/2009: estradizione, rogatorie)
+# in 5 domande tutte interne (telecamera del vicino, funzionario del Comune, minaccia di morte, flagranza, sospensione della pena); i
+# MEDIA AUDIOVISIVI (97/2013, art. 133 le multe dell'AMA) in 4 (due di guida in stato di ebbrezza, il tramadolo); la legge sui DETENUTI
+# in 8, anche dove nessuno è in carcere; la RESPONSABILITÀ DELLA PUBBLICA AMMINISTRAZIONE (8510/1999) in 6 senza un'amministrazione
+# (alimenti, il cane del vicino, l'insulto su Facebook). Restano solo se la DOMANDA ne dà il motivo
+_CODICI_CONDIZIONATI_AL = (
+    ("ligji_marredheniet_juridiksionale", "rapporti giurisdizionali con l'estero",
+     re.compile(r"jashtë|jashte|\bi\s+huaj|\be\s+huaj|\btë\s+huaj|\bte\s+huaj|ekstradi|letërporosi|leterporosi|letër\s*-?\s*porosi|"
+                r"shtet\w*\s+(?:tjet|të\s+huaj|te\s+huaj)|vend\w*\s+(?:tjet|të\s+huaj)|ndërkombëtar|nderkombetar|interpol|"
+                r"itali|greqi|gjermani|angli|britani|franc|zvicër|zvicer|austri|belgjik|hollan|amerik|shba|kosov|maqedoni|mal\s+i\s+zi|"
+                r"turqi|bashkimi\s+evropian|\bbe\b|europ|evrop|transferim\w*\s+(?:i|e|të)\s+(?:të\s+)?dënuar|njohj\w*\s+(?:e|së)\s+vendim", re.I)),
+    ("ligji_mediat_audiovizive", "media audiovisivi",
+     re.compile(r"\bmedia|televizion|\btv\b|radio|transmet|audiovizi|\bama\b|emetim|kanal|reklam|program\w*\s+(?:televiz|radio)|ekran", re.I)),
+    ("ligji_te_denuarit", "detenuti",
+     re.compile(r"burg|i\s+dënuar|e\s+dënuar|të\s+dënuar|i\s+denuar|vuajt|vuan\s+dënim|lirim|liri\s+me\s+kusht|rehabilit|"
+                r"paraburgim|qeli|institucion\w*\s+(?:i|e|të)\s+ekzekutimit|ekzekutim\w*\s+(?:i|e|të)\s+(?:vendimit\s+)?(?:penal|dënim)", re.I)),
+    ("ligji_pergjegjesia_administrates", "responsabilità della pubblica amministrazione",
+     # «publik» non dentro «publikoi» (ha pubblicato), «administrat» non dentro «administratorin» della società, lo Stato non dentro
+     # «shtetas» (cittadino), la polizia solo insieme a un danno o un'ingiustizia (in ogni arresto la polizia c'è)
+     re.compile(r"administrat(?:a|ës|es|ën|en|ave|ive|iv|e)\b|\bshtet(?:i|it|in|ëror\w*|eror\w*)?\b|bashki|komun|institucion|zyrtar|"
+                r"nëpunës|nepunes|ministri|organ\w*\s+(?:publik|shtetëror)|\bpublik(?:e|ë)?\b|qeveri|prefekt|agjenci|drejtori|"
+                r"polici\w*.{0,80}(?:dëm|dem|shpërblim|shperblim|padrejt|abuz|dhun|rrah|keqtraj)|paraburgim|burgim\w*\s+(?:i|e)\s+padrejt|spital", re.I)),
+    # … e due leggi che prendevano i posti liberati: l'IDENTIFICAZIONE ELETTRONICA (51/2026: firma, sigilli, portafoglio digitale — entrava
+    # nel morso del cane e nella diffamazione su Facebook) e il REGISTRO DELLE ORGANIZZAZIONI NON PROFIT (nella telecamera del vicino)
+    ("ligji_identifikimi_elektronik", "identificazione elettronica",
+     re.compile(r"elektronik|dixhital|digital|nënshkrim|nenshkrim|e-?albania|vul[eë]\s+elektronik|certifikat\w*\s+(?:dixhital|elektronik)|"
+                r"portofol|identitet\w*\s+(?:dixhital|elektronik)|online|internet|email|e-mail|vulos", re.I)),
+    ("ligji_regjistrimi_ojf", "registro delle organizzazioni non profit",
+     re.compile(r"\bojf\b|jofitimprur|shoqat|fondacion|organizat\w*\s+(?:jo|pa)|qendr\w*\s+(?:jo|pa)\s*fitim|regjistr\w*\s+(?:i|e|të)\s+organizat", re.I)),
+    ("ligji_ojf", "organizzazioni non profit",
+     re.compile(r"\bojf\b|jofitimprur|shoqat|fondacion|organizat\w*\s+(?:jo|pa)|qendr\w*\s+(?:jo|pa)\s*fitim|regjistr\w*\s+(?:i|e|të)\s+organizat", re.I)),
+)
+
+
+def _senza_codici_condizionati_al(pairs, testo: str):
+    t = testo or ""
+    via = {code: nome for code, nome, innesco in _CODICI_CONDIZIONATI_AL if not innesco.search(t)}
+    if not via:
+        return pairs
+    fuori = [a for a, _ in pairs if a.code in via]
+    if not fuori:
+        return pairs
+    log.info("retrieval: %s fuori (nessun motivo nella domanda): %s", " e ".join(sorted({via[a.code] for a in fuori})),
+             ", ".join(f"{a.code} {a.number}" for a in fuori[:8]))
+    return [(a, s) for a, s in pairs if a.code not in via]
 
 
 def _senza_tutela_al(pairs, testo: str):
@@ -5717,6 +5777,7 @@ class SuperAvvocato:
         pairs = _senza_codice_minori(pairs, _testo_anc[-1] or " ".join(_testo_anc), triage.areas)                   # v9.503
         if idx is self.index:
             pairs = _senza_tutela_al(pairs, _testo_anc[-1] or " ".join(_testo_anc))                                # v9.581
+            pairs = _senza_codici_condizionati_al(pairs, _testo_anc[-1] or " ".join(_testo_anc))                  # v9.587
             pairs = _applica_ancore(pairs, idx, _testo_anc, triage.areas)
             pairs = _ancore_narkotike_al(pairs, idx, _testo_anc, triage.areas)      # v9.402
             pairs = _ankoro_sipas_titullit(
@@ -5736,6 +5797,7 @@ class SuperAvvocato:
         pairs = _senza_codice_minori(pairs, _testo_anc[-1] or " ".join(_testo_anc), triage.areas)
         if idx is self.index:                       # v9.581 — anche qui: le ancore per titolo («Kujdestaria…») la riportavano dentro
             pairs = _senza_tutela_al(pairs, _testo_anc[-1] or " ".join(_testo_anc))
+            pairs = _senza_codici_condizionati_al(pairs, _testo_anc[-1] or " ".join(_testo_anc))   # v9.587: idem
         # v9.377: le ancore del veicolo extra-UE si AGGIUNGONO ai 12 (non devono spingere fuori il C.d.S. trovato dalla ricerca)
         _extra = sum(1 for a, _ in pairs if getattr(a, "_ancora_it", False))
         # v9.400 — anche le ancore albanesi di REGOLA GENERALE (copie `_ancora`) si AGGIUNGONO ai 12 invece di spingere fuori la

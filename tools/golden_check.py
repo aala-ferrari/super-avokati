@@ -10232,9 +10232,14 @@ def main():
         from src.retrieval import ArticleIndex as _AI358
         from src import brain as _b358
         _p358 = [(_NS358(code=c, number=n), 1.0) for c, n in (("statuto_lavoratori", "18"), ("pubblico_impiego", "55-quater"),
-                                                               ("maternita_paternita", "54"), ("tutele_crescenti", "3"))]
+                                                               ("maternita_paternita", "54"), ("tutele_crescenti", "3"),
+                                                               ("ordinamento_forense", "56"), ("codice_navigazione", "359"))]
         _c358 = lambda t: [a.code for a, _ in _b358._senza_codici_condizionati_it(_p358, t)]
         _okA358 = (_c358("Il cliente è stato licenziato per giusta causa dopo una contestazione disciplinare.") == ["statuto_lavoratori", "tutele_crescenti"]
+                   and "maternita_paternita" in _c358("Il cliente assiste la madre con disabilità grave. Ha diritto a permessi e congedi?")
+                   and "codice_navigazione" in _c358("Il cliente è un marittimo imbarcato su una nave: le ferie non godute?")
+                   and "ordinamento_forense" in _c358("Il Consiglio dell'Ordine ha aperto un procedimento disciplinare contro l'avvocato.")
+                   and "codice_navigazione" not in _c358("Da due anni il datore non fa godere le ferie al cliente.")
                    and "maternita_paternita" in _c358("La cliente è stata licenziata mentre era incinta di quattro mesi.")
                    and "pubblico_impiego" in _c358("Il cliente, dipendente del Comune, ha ricevuto una contestazione disciplinare.")
                    and "pubblico_impiego" not in _c358("La cliente è stata licenziata mentre era incinta di quattro mesi."))
@@ -10249,6 +10254,34 @@ def main():
               _okA358 and _okB358 and "pairs = _senza_codici_condizionati_it(pairs" in _src358, "A=%s B=%s" % (_okA358, _okB358))
     except Exception as _e358:  # noqa: BLE001
         check("condizionati[358]: kontrollet u ekzekutuan", False, f"{type(_e358).__name__}: {_e358}")
+
+    # [359] v9.587 — i codici condizionati ALBANESI: rapporti con l'estero, media audiovisivi, detenuti, responsabilità della PA fuori dalle
+    # domande che non ne danno il motivo (e i falsi amici degli inneschi: «publikoi», «administratorin», «shtetas», la polizia di ogni arresto)
+    try:
+        from src import brain as _b359
+        from types import SimpleNamespace as _NS359
+        _p359 = [(_NS359(code=c, number="1"), 1.0) for c in ("kodi_penal", "ligji_marredheniet_juridiksionale", "ligji_mediat_audiovizive",
+                                                              "ligji_te_denuarit", "ligji_pergjegjesia_administrates")]
+        _c359 = lambda t: {a.code for a, _ in _b359._senza_codici_condizionati_al(_p359, t)}
+        _src359 = __import__("pathlib").Path("/app/src/brain.py").read_text(encoding="utf-8")
+        check("condizionati-al[359]: la minaccia di morte resta col solo KP; estradizione/TV/carcere/Bashkia tengono la loro legge; "
+              "«publikoi», «administratorin», «shtetas» e la polizia dell'arresto non tengono la responsabilità della PA",
+              _c359("Një person i dërgon klientit mesazhe se do ta vrasë. Çfarë mund të bëjmë?") == {"kodi_penal"}
+              and "ligji_marredheniet_juridiksionale" in _c359("Italia kërkon ekstradimin e klientit.")
+              and "ligji_mediat_audiovizive" in _c359("Një televizion transmetoi pamje të klientit pa leje.")
+              and "ligji_te_denuarit" in _c359("Klienti vuan dënimin në burg dhe kërkon leje.")
+              and "ligji_pergjegjesia_administrates" in _c359("Bashkia ma prishi murin pa vendim, kush paguan dëmin?")
+              and "ligji_pergjegjesia_administrates" not in _c359("Ish-partneri publikoi në Facebook fotot e klientes.")
+              and "ligji_pergjegjesia_administrates" not in _c359("Ortakët duan ta shkarkojnë administratorin e shpk-së.")
+              and "ligji_pergjegjesia_administrates" not in _c359("Shtetas i huaj me leje qëndrimi, u kap nga policia me kokainë.")
+              and _b359._senza_codici_condizionati_al([(_NS359(code="ligji_identifikimi_elektronik", number="22"), 1.0),
+                                                       (_NS359(code="ligji_regjistrimi_ojf", number="43"), 1.0)],
+                                                      "Qeni i fqinjit kafshoi djalin e klientes në rrugë.") == []
+              and len(_b359._senza_codici_condizionati_al([(_NS359(code="ligji_identifikimi_elektronik", number="22"), 1.0)],
+                                                          "A vlen kontrata e nënshkruar me nënshkrim elektronik?")) == 1
+              and _src359.count("pairs = _senza_codici_condizionati_al(pairs") == 2)
+    except Exception as _e359:  # noqa: BLE001
+        check("condizionati-al[359]: kontrollet u ekzekutuan", False, f"{type(_e359).__name__}: {_e359}")
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
