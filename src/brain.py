@@ -323,7 +323,10 @@ ANCORE_AL: tuple = (
     # bllokojmë»): c'era il 206 (i tipi di misura), non il 202 (la regola: la corte decide entro 5 giorni, anche prima della causa — 204),
     # e in testa la prescrizione (KC 114/115). Solo nel civile: la «masa e sigurimit» è anche il cautelare penale. (2) Gli ALIMENTI al
     # genitore anziano: KF 192 (chi è obbligato, in ordine) al 13° posto, il 198 (il bisogno) mai.
-    ((("sigurim", "padi"), ("bllok", "pasuri"), ("sekuestro", "konservativ"), ("shet", "pasuri", "gjyq"), ("sekuestro", "para", "padi")),
+    # v9.586 — «sigurim» + «padi» separati scattavano sull'INFORTUNIO sul lavoro («sigurimet shoqërore» + «padi për dëmshpërblim»: KPC
+    # 202/204/206 nel blocco): serve la frase giuridica «sigurimi i padisë» (anche declinata), le altre coppie restano
+    ((("sigurimi i padis",), ("sigurimin e padis",), ("sigurimit të padis",), ("sigurimit te padis",), ("sigurim padie",),
+      ("bllok", "pasuri"), ("sekuestro", "konservativ"), ("shet", "pasuri", "gjyq"), ("sekuestro", "para", "padi")),
      ("Penal",), (("kodi_proc_civile", "202"), ("kodi_proc_civile", "206"), ("kodi_proc_civile", "204")), None, ("Civil",)),
     ((("moshuar", "ushqim"), ("moshuar", "mbaj"), ("prind", "ushqim", "fëmijët e"), ("prind", "të ardhur", "detyru")),
      ("Penal",), (("kodi_familjes", "192"), ("kodi_familjes", "198")), None, None, True),
@@ -853,6 +856,67 @@ def _senza_adozione(pairs, testo: str):
     return [(a, s) for a, s in pairs if a.code != "adozione"]
 
 
+# ── v9.585 — il gemello ITALIANO della tutela: i capitoli del codice civile sui minori SENZA genitori e sulle persone incapaci ──
+# Prova dal browser (10 ott: la figlia di 15 anni collocata presso la madre vuole andare dal padre): nel blocco c.c. 348 «Scelta del
+# tutore» e 403 — la tutela dei minori senza genitori presa per le parole della separazione («minore», «collocamento», «genitore»).
+# Fuori, ciascuno salvo che la DOMANDA usi le sue parole: Titolo X (tutela dei minori ed emancipazione, artt. 343-399), Titolo XI
+# (affiliazione e affidamento: l'art. 403, l'intervento della pubblica autorità a favore del minore in pericolo), Titolo XII
+# (amministrazione di sostegno, interdizione, inabilitazione) e Titolo VIII (adozione dei maggiorenni). «tutela» da sola non conta
+# («come tuteliamo la madre»): contano «tutore», «giudice tutelare», «orfano», i genitori morti
+_CC_GRUPPI_TUTELA = (
+    (re.compile(r"TITOLO\s+X\b.*TUTELA\s+E\s+DELL.EMANCIPAZIONE", re.I),
+     re.compile(r"tutor|protutor|giudice\s+tutelare|orfan|senza\s+(?:i\s+)?genitori|genitori\s+(?:sono\s+)?(?:morti|deceduti|defunti|scomparsi)|"
+                r"(?:morte|decesso|morti)\s+(?:di\s+entrambi\s+)?(?:dei|i|entrambi\s+i)\s+genitori|decadenz\w*\s+dalla\s+responsabilit|emancipa", re.I)),
+    (re.compile(r"TITOLO\s+XI\b.*AFFILIAZIONE", re.I),
+     re.compile(r"pericol|abbandon|maltratt|abus|violen|allontan|servizi\s+sociali|comunit[àa]\b|casa\s+famiglia|\b403\b", re.I)),
+    (re.compile(r"TITOLO\s+XII\b.*MISURE\s+DI\s+PROTEZIONE", re.I),
+     re.compile(r"sostegno|interdi|inabilit|incapac|demenz|alzheimer|anzian|non\s+(?:è|e')\s+più\s+in\s+grado|disabil", re.I)),
+    (re.compile(r"TITOLO\s+VIII\b.*ADOZIONE\s+DI\s+PERSONE\s+MAGGIORI", re.I), _ADOZIONE_RX),
+)
+
+
+def _senza_tutela_it(pairs, testo: str):
+    t = testo or ""
+    via = [kreu_rx for kreu_rx, innesco in _CC_GRUPPI_TUTELA if not innesco.search(t)]
+    if not via:
+        return pairs
+    fuori = [a for a, _ in pairs if a.code == "codice_civile" and any(rx.search(getattr(a, "kreu", "") or "") for rx in via)]
+    if not fuori:
+        return pairs
+    log.info("retrieval: tutela, sostegno, 403 e adozione dei maggiorenni (c.c.) fuori (non nella domanda): %s",
+             ", ".join(f"{a.code} {a.number}" for a in fuori[:8]))
+    ids = {id(a) for a in fuori}
+    return [(a, s) for a, s in pairs if id(a) not in ids]
+
+
+# ── v9.586 — due codici italiani che entrano per le parole del LICENZIAMENTO, senza c'entrare ──
+# Banco IT coi blocchi (10 ott, 16 domande di lavoro privato): il testo unico del PUBBLICO IMPIEGO (d.lgs. 165/2001, artt. 55-bis…55-sexies:
+# il disciplinare dei dipendenti pubblici) in 5, il testo unico della MATERNITÀ (d.lgs. 151/2001, artt. 54-55: il divieto di licenziare la
+# lavoratrice madre, le dimissioni del genitore) in 7 senza gravidanza né figli. Restano solo se la DOMANDA ne dà il motivo: un datore pubblico,
+# oppure gravidanza, congedi, nascita, figli (la lavoratrice incinta del banco tiene il suo art. 54)
+_CODICI_CONDIZIONATI_IT = (
+    ("pubblico_impiego", "pubblico impiego",
+     re.compile(r"pubblic\w*\s+(?:impieg|amministraz|dipendent|concors)|dipendent\w*\s+pubblic|impiegat\w*\s+(?:pubblic|statal|comunal|regional)|"
+                r"statal|minister|\bcomun[ei]\b|comunal|region|provinc|\basl\b|azienda\s+sanitaria|ospedal|scuol|insegnant|docent|"
+                r"universit|ente\s+pubblic|\bp\.?a\.?\b|concors|forze\s+armate|polizi|carabinier|militar|vigil|prefettur|agenzia\s+delle", re.I)),
+    ("maternita_paternita", "maternità e paternità",
+     re.compile(r"incint|gravid|maternit|paternit|conged|allatt|nascit|nato|neonat|parto|puerper|bambin|\bfigli|adozion|adott|affidament", re.I)),
+)
+
+
+def _senza_codici_condizionati_it(pairs, testo: str):
+    t = testo or ""
+    via = {code: nome for code, nome, innesco in _CODICI_CONDIZIONATI_IT if not innesco.search(t)}
+    if not via:
+        return pairs
+    fuori = [a for a, _ in pairs if a.code in via]
+    if not fuori:
+        return pairs
+    log.info("retrieval: %s fuori (nessun motivo nella domanda): %s", " e ".join(sorted({via[a.code] for a in fuori})),
+             ", ".join(f"{a.code} {a.number}" for a in fuori[:8]))
+    return [(a, s) for a, s in pairs if a.code not in via]
+
+
 # ── v9.581 — il gemello albanese: BIRËSIMI e KUJDESTARIA MBI TË MITURIT/TË PAAFTËT fuori dalle domande sui figli dopo il divorzio ──
 # Banco coi blocchi (10 ott): «pas divorcit fëmija i është lënë nënës; babai dëshiron ta shohë më shpesh» aveva nel blocco i KF 263,
 # 264, 268 (la tutela del minore SENZA genitori, «Kujdestaria mbi të miturit») — la stessa parola «kujdestari» del collocamento del figlio
@@ -946,6 +1010,11 @@ def _ancore_it_veicolo(pairs, idx, testo: str):
 _RADICE_GJATESI = 5
 _TITUJ_MAX = 4
 _TITUJ_MAX_PER_RADICE = 2
+# v9.584 — il SENSO come cancello minimo delle ancore per titolo: misurato sui 41 casi del banco AL etichettati a mano (13
+# pertinenti, 28 falsi amici di una parola sola), coseno domanda-articolo: pertinenti 0,27-0,58, falsi amici 0,15-0,67 — nessuna
+# soglia li separa, ma sotto 0,22 restano solo i del tutto estranei («kontakt» del figlio → «Pika e vetme të kontaktit» dei servizi
+# fiduciari 0,17, il viceroteco del notaio 0,15, gli «Udhëzimet» della procura 0,19, gli atti amministrativi non motivati 0,22).
+_TITUJ_COS_MIN = float(os.environ.get("TITUJ_COS_MIN", "0.22"))
 _RADICE_MIN_FJALE = 6
 # radici troppo generiche per essere un tema (misurate sul KRr)
 _RADICE_PERJASHTO = frozenset({
@@ -970,8 +1039,30 @@ def _radicet_e_pyetjes(testo: str) -> set[str]:
     return out
 
 
+def _coseni_per_senso(idx, testo: str, chiavi) -> dict:
+    """v9.584 — {(code, number): somiglianza per senso fra il testo e l'articolo} (la stessa fusione intero+segmenti della ricerca),
+    solo per le chiavi date. Vuoto se l'indice per senso manca o qualcosa va storto: allora nessun cancello."""
+    try:
+        from . import dense as _dn
+        _dx = _dn.indice(idx, "it" if getattr(idx, "lang", "sq") == "it" else "sq")
+        if _dx is None or not (testo or "").strip():
+            return {}
+        voluti = {(c, str(n)) for c, n in chiavi}
+        out = {}
+        for a, sc in _dx.search(testo, depth=len(_dx.articles), include_repealed=True):
+            k = (a.code, str(a.number))
+            if k in voluti:
+                out[k] = float(sc)
+                if len(out) == len(voluti):
+                    break
+        return out
+    except Exception as exc:  # noqa: BLE001 — il cancello non deve mai far cadere una risposta
+        log.warning("retrieval: coseno delle ancore per titolo non calcolato (non-fatal): %s", exc)
+        return {}
+
+
 def _ankoro_sipas_titullit(pairs, idx, testo: str, queries: list[str] | None = None,
-                           restrict=None, sa: int = 3):
+                           restrict=None, sa: int = 3, domanda: str | None = None):
     """Mette nel blocco gli articoli il cui TITOLO nomina il tema della domanda.
 
     Stessa onestà delle ancore: copia marcata, punteggio BM25 vero. Torna la
@@ -1026,6 +1117,19 @@ def _ankoro_sipas_titullit(pairs, idx, testo: str, queries: list[str] | None = N
             con_punt.append((a, n_rad, punt))
     if not con_punt:
         return pairs
+    # v9.584 — e il SENSO: un titolo che condivide una parola ma, per significato, non ha niente a che fare con la DOMANDA
+    # dell'avvocato è un falso amico (la soglia e la misura sopra, a `_TITUJ_COS_MIN`)
+    if _TITUJ_COS_MIN > 0:
+        _cos = _coseni_per_senso(idx, domanda or testo, [(a.code, a.number) for a, _n, _p in con_punt])
+        if _cos:
+            _via = [(a, _cos[(a.code, str(a.number))]) for a, _n, _p in con_punt
+                    if _cos.get((a.code, str(a.number)), 1.0) < _TITUJ_COS_MIN]
+            if _via:
+                log.info("retrieval: ancore per titolo SENZA SENSO per la domanda (coseno < %.2f): %s", _TITUJ_COS_MIN,
+                         ", ".join("%s %s «%s» %.2f" % (a.code, a.number, (a.heading or "")[:40], c) for a, c in _via))
+                con_punt = [t for t in con_punt if _cos.get((t[0].code, str(t[0].number)), 1.0) >= _TITUJ_COS_MIN]
+        if not con_punt:
+            return pairs
     con_punt.sort(key=lambda t: (-t[1], -t[2], len(t[0].body or "")))
     aggiunte = []
     for a, _n, punt in con_punt[:sa]:
@@ -5617,11 +5721,13 @@ class SuperAvvocato:
             pairs = _ancore_narkotike_al(pairs, idx, _testo_anc, triage.areas)      # v9.402
             pairs = _ankoro_sipas_titullit(
                 pairs, idx, (triage.problem_summary or all_queries[0]),
-                queries=all_queries, restrict=restrict)
+                queries=all_queries, restrict=restrict, domanda=(_testo_anc[-1] or None))
             pairs = _ancora_vepra_penale(pairs, idx, all_queries, triage.areas)      # v9.487
         elif idx is self.index_it:
             pairs = _senza_diritto_straniero(pairs, _testo_anc[-1] or " ".join(_testo_anc), triage.areas)        # v9.579
             pairs = _senza_adozione(pairs, _testo_anc[-1] or " ".join(_testo_anc))                                # v9.580
+            pairs = _senza_tutela_it(pairs, _testo_anc[-1] or " ".join(_testo_anc))                               # v9.585
+            pairs = _senza_codici_condizionati_it(pairs, _testo_anc[-1] or " ".join(_testo_anc))                  # v9.586
             pairs = _applica_ancore(pairs, idx, _testo_anc, triage.areas, ancore=ANCORE_IT)
             pairs = _ancore_it_veicolo(pairs, idx, " ".join([triage.problem_summary or ""] + list(all_queries)))
         pairs = _citati_dal_triage(pairs, idx, list(all_queries))      # v9.528
@@ -5637,6 +5743,11 @@ class SuperAvvocato:
         # trovati dalla ricerca. Al massimo 4 in più.
         _extra += min(4, sum(1 for a, _ in pairs if getattr(a, "_ancora", False)))
         _extra += min(2, sum(1 for a, _ in pairs if getattr(a, "_ancora_vepra", False)))     # v9.487: le figure di reato si aggiungono
+        # v9.584 — e le ancore per TITOLO: erano le uniche a NON aggiungersi, quindi stavano in testa ai 12 e spingevano fuori gli
+        # ultimi articoli trovati — misurato sul banco AL, su ~50 ancore per titolo solo una quindicina pertinenti (il telefono rubato
+        # portava «impulseve telefonike» e «thirrjeve telefonike», la minaccia di morte «Shkatërrimi i rrugëve»): un falso amico deve
+        # costare qualche token, non una norma vera
+        _extra += min(3, sum(1 for a, _ in pairs if getattr(a, "_ancora_titull", False) and not getattr(a, "_ancora_vepra", False)))
         _extra += min(3, sum(1 for a, _ in pairs if getattr(a, "_citato_triage", False)))   # v9.528: citati dal triage, in aggiunta
         _out = pairs[: TOP_K_ARTICLES + _extra]
         _audit_set("recupero", {

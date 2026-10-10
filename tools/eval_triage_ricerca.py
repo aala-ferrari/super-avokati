@@ -240,6 +240,10 @@ CASI = [  # (giurisdizione, domanda dell'avvocato, articoli di cui almeno uno DE
     ("AL", "[frek11] Ish-i dashuri e ndjek klienten çdo ditë dhe i dërgon mesazhe kërcënuese. Çfarë vepre penale është?", [("kodi_penal", "121/a"), ("kodi_penal", "84")]),
     ("AL", "[frek11] Klienti u ndalua nga policia duke drejtuar makinën i dehur. Çfarë rrezikon penalisht?", [("kodi_penal", "291")]),
     ("AL", "[frek11] Pas divorcit fëmija i është lënë nënës; babai dëshiron ta shohë më shpesh. Si ta ndryshojmë vendimin?", [("kodi_familjes", "159"), ("kodi_familjes", "158")]),
+    # v9.584 — giro 29, le due domande della prova dal browser del 10 ott: nel blocco albanese l'ancora per titolo portava la legge
+    # sull'identificazione elettronica (art. 71 «Pika e vetme të kontaktit», per la radice «kontakt»), in quello italiano c.c. 348
+    ("AL", "[frek29] Pas divorcit, gjykata ia la djalin 9 vjeç nënës, klientes sime. Tani babai kërkon ta shohë më shpesh dhe ka paralajmëruar se do të kërkojë kujdestarinë e djalit. Çfarë mund të bëjë ai dhe si e mbrojmë nënën?", [("kodi_familjes", "158"), ("kodi_familjes", "226")]),
+    ("IT", "[frek29] Dopo la separazione la figlia di 15 anni è stata collocata presso la madre, mia cliente. Ora la ragazza dice che vuole andare a vivere con il padre, che ha già annunciato un ricorso. Può decidere lei? Come difendiamo la madre e quali sono i tempi?", [("codice_procedura_civile", "473-bis.4"), ("codice_civile", "337-ter")]),
     ("IT", "[frek11] La cliente ha donato la casa al figlio, che ora l'ha cacciata e la insulta. Può revocare la donazione?", [("codice_civile", "801")]),
     ("IT", "[frek11] L'impresa ha consegnato la casa nuova con infiltrazioni e crepe nei muri. Quali azioni abbiamo e in che termini?", [("codice_civile", "1667"), ("codice_civile", "1668"), ("codice_civile", "1669")]),
     ("IT", "[frek11] I nonni non riescono più a vedere il nipote dopo la separazione dei genitori. Possono rivolgersi al giudice?", [("codice_civile", "317-bis")]),

@@ -855,10 +855,11 @@ def mbledhes_fletorja_parse(raw: str) -> list[dict]:
 
 
 def _nenet_qendrore(retrieved, sa: int = 3) -> list[str]:
-    """Le ancore e ciò che ha portato il Kërkuesi prima; poi i primi per punteggio."""
+    """Le ancore e ciò che ha portato il Kërkuesi prima; poi i primi per punteggio. v9.584: le ancore per TITOLO no (sono spesso
+    falsi amici di una parola sola, e il raccoglitore QBZ verifica la vigenza solo di questi tre: gli toglievano le norme vere),
+    tranne le figure di reato del codice penale (`_ancora_vepra`), che sono la norma del caso."""
     prima = [a for a, _ in retrieved
-             if getattr(a, "_kerkues", False) or getattr(a, "_ancora_titull", False)
-             or getattr(a, "_ancora", False)]
+             if getattr(a, "_kerkues", False) or getattr(a, "_ancora", False) or getattr(a, "_ancora_vepra", False)]
     resto = [a for a, _ in retrieved if a not in prima]
     scelti = (prima + resto)[:sa]
     return [f"{a.number} {getattr(a, 'title_sq', None) or a.code}" for a in scelti]

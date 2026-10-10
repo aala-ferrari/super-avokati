@@ -10160,6 +10160,96 @@ def main():
     except Exception as _e355:  # noqa: BLE001
         check("Cassazione[355]: kontrollet u ekzekutuan", False, f"{type(_e355).__name__}: {_e355}")
 
+    # [356] v9.584 — le ANCORE PER TITOLO (AL): su ~50 del banco solo una quindicina pertinenti, il resto falsi amici di una parola
+    # sola («kontakt» del figlio → «Pika e vetme të kontaktit» dei servizi fiduciari; il telefono rubato → «impulseve telefonike»).
+    # Ora si AGGIUNGONO ai 12 (non spingono fuori le norme trovate), sotto la soglia di senso non entrano, e il raccoglitore QBZ non
+    # le tratta come norme centrali (tranne le figure di reato). Eseguito con oggetti finti e un coseno finto.
+    try:
+        from src import brain as _b356, studio as _s356
+        from types import SimpleNamespace as _NS356
+        _src356 = __import__("pathlib").Path("/app/src/brain.py").read_text(encoding="utf-8")
+        _okA356 = ('getattr(a, "_ancora_titull", False) and not getattr(a, "_ancora_vepra", False)' in _src356
+                   and "domanda=(_testo_anc[-1] or None)" in _src356 and _b356._TITUJ_COS_MIN > 0)
+        _art356 = _NS356(code="ligji_x", number="71", heading="Pika e vetme të kontaktit", heading_kind="rubrike",
+                         body="Autoriteti është pika e vetme e kontaktit.", repealed=False)
+        _idx356 = _NS356(articles=[_art356], lang="sq", search=lambda q, top_k=400, restrict_codes=None: [(_art356, 3.0)])
+        _oc356, _or356 = _b356._coseni_per_senso, _b356._radicet_e_pyetjes
+        try:
+            _b356._radicet_e_pyetjes = lambda t: ["konta"]
+            _run356 = lambda: _b356._ankoro_sipas_titullit([], _idx356, "babai kërkon kontakt me djalin", queries=["kontakt"], domanda="d")
+            _b356._coseni_per_senso = lambda idx, t, ch: {("ligji_x", "71"): 0.17}
+            _via356 = _run356()
+            _b356._coseni_per_senso = lambda idx, t, ch: {("ligji_x", "71"): 0.40}
+            _den356 = _run356()
+            _b356._coseni_per_senso = lambda idx, t, ch: {}            # senza indice per senso: come prima
+            _senza356 = _run356()
+        finally:
+            _b356._coseni_per_senso, _b356._radicet_e_pyetjes = _oc356, _or356
+        _okB356 = (_via356 == [] and len(_den356) == 1 and getattr(_den356[0][0], "_ancora_titull", False) and len(_senza356) == 1)
+        _t356 = _NS356(number="71", title_sq="Ligji X", code="ligji_x", _ancora_titull=True)
+        _v356 = _NS356(number="278", title_sq="Kodi Penal", code="kodi_penal", _ancora_titull=True, _ancora_vepra=True)
+        _q356 = _s356._nenet_qendrore([(_NS356(number="1", title_sq="A", code="a"), 9.0), (_NS356(number="2", title_sq="B", code="b"), 8.0),
+                                        (_t356, 7.5), (_v356, 7.0)])
+        _okC356 = _q356[0].startswith("278 ") and not any(x.startswith("71 ") for x in _q356)
+        check("titull[356]: le ancore per titolo si aggiungono ai 12, sotto la soglia di senso non entrano (senza indice per senso come "
+              "prima), e il raccoglitore QBZ non le tratta come norme centrali (le figure di reato sì)",
+              _okA356 and _okB356 and _okC356, "A=%s B=%s C=%s %s" % (_okA356, _okB356, _okC356, _q356))
+    except Exception as _e356:  # noqa: BLE001
+        check("titull[356]: kontrollet u ekzekutuan", False, f"{type(_e356).__name__}: {_e356}")
+
+    # [357] v9.585 — il gemello ITALIANO della tutela: Titoli X (tutela dei minori), XI (art. 403), XII (sostegno, interdizione) e
+    # VIII (adozione dei maggiorenni) del c.c. fuori dalle domande di separazione e affido, ciascuno dentro con le sue parole
+    try:
+        from src import brain as _b357
+        from types import SimpleNamespace as _NS357
+        _k357 = {"337-ter": "TITOLO IX — DELLA RESPONSABILITÀ GENITORIALE E DEI DIRITTI E DOVERI DEL FIGLIO · CAPO II",
+                 "348": "TITOLO X — DELLA TUTELA E DELL'EMANCIPAZIONE · CAPO I — Della tutela dei minori",
+                 "403": "TITOLO XI — DELL'AFFILIAZIONE E DELL'AFFIDAMENTO",
+                 "404": "Titolo XII — Delle misure di protezione delle persone prive in tutto od in parte di autonomia",
+                 "291": "TITOLO VIII — DELL'ADOZIONE DI PERSONE MAGGIORI DI ETÀ · CAPO I — Dell'adozione di persone",
+                 "433": "TITOLO XIII — DEGLI ALIMENTI"}
+        _p357 = [(_NS357(code="codice_civile", number=n, kreu=k), 1.0) for n, k in _k357.items()] + \
+                [(_NS357(code="codice_procedura_civile", number="473-bis.4", kreu="TITOLO IV-BIS"), 1.0)]
+        _f357 = lambda t: [a.number for a, _ in _b357._senza_tutela_it(_p357, t)]
+        _src357 = __import__("pathlib").Path("/app/src/brain.py").read_text(encoding="utf-8")
+        check("tutela-it[357]: nella separazione via c.c. 348, 403, 404, 291 (restano 337-ter, 433, c.p.c.); dentro con i genitori morti "
+              "(348), i servizi sociali (403), l'amministrazione di sostegno (404), l'adozione (291); «come tuteliamo» non conta",
+              _f357("Dopo la separazione la figlia di 15 anni è stata collocata presso la madre: può decidere lei?") == ["337-ter", "433", "473-bis.4"]
+              and "348" in _f357("I genitori del bambino sono morti in un incidente: chi diventa tutore?")
+              and "403" in _f357("I servizi sociali hanno allontanato il bambino per maltrattamenti")
+              and "404" in _f357("Il padre anziano non è più in grado di gestire i conti: amministrazione di sostegno?")
+              and "291" in _f357("Il cliente vuole adottare il figlio maggiorenne della moglie")
+              and _f357("Come tuteliamo la madre nel ricorso del padre?") == ["337-ter", "433", "473-bis.4"]
+              and "pairs = _senza_tutela_it(pairs" in _src357)
+    except Exception as _e357:  # noqa: BLE001
+        check("tutela-it[357]: kontrollet u ekzekutuan", False, f"{type(_e357).__name__}: {_e357}")
+
+    # [358] v9.586 — codici condizionati IT (pubblico impiego solo con un datore pubblico, testo unico della maternità solo con gravidanza,
+    # congedi, nascita o figli) e l'ancora AL del sequestro conservativo stretta alla frase «sigurimi i padisë» (scattava sull'infortunio)
+    try:
+        from pathlib import Path as _P358
+        from types import SimpleNamespace as _NS358
+        from src.retrieval import ArticleIndex as _AI358
+        from src import brain as _b358
+        _p358 = [(_NS358(code=c, number=n), 1.0) for c, n in (("statuto_lavoratori", "18"), ("pubblico_impiego", "55-quater"),
+                                                               ("maternita_paternita", "54"), ("tutele_crescenti", "3"))]
+        _c358 = lambda t: [a.code for a, _ in _b358._senza_codici_condizionati_it(_p358, t)]
+        _okA358 = (_c358("Il cliente è stato licenziato per giusta causa dopo una contestazione disciplinare.") == ["statuto_lavoratori", "tutele_crescenti"]
+                   and "maternita_paternita" in _c358("La cliente è stata licenziata mentre era incinta di quattro mesi.")
+                   and "pubblico_impiego" in _c358("Il cliente, dipendente del Comune, ha ricevuto una contestazione disciplinare.")
+                   and "pubblico_impiego" not in _c358("La cliente è stata licenziata mentre era incinta di quattro mesi."))
+        _al358 = _AI358.load(_P358("/app/data/index/bm25.pkl"))
+        _k358 = lambda q, ar: {(a.code, a.number) for a, _ in _b358._applica_ancore([], _al358, [q], ar)}
+        _okB358 = (("kodi_proc_civile", "202") not in _k358("Punëtori u lëndua rëndë në punë; padi për dëmshpërblim dhe sigurimet shoqërore e paaftësisë.", ["Civil", "Punë"])
+                   and ("kodi_proc_civile", "202") in _k358("Kërkojmë sigurimin e padisë para se debitori të shesë apartamentin.", ["Civil"])
+                   and ("kodi_proc_civile", "202") in _k358("Debitori po i shet pasuritë para gjyqit. Si ia bllokojmë pasurinë?", ["Civil"]))
+        _src358 = _P358("/app/src/brain.py").read_text(encoding="utf-8")
+        check("condizionati[358]: pubblico impiego e testo unico della maternità fuori dai licenziamenti privati senza figli (dentro col Comune, "
+              "con la gravidanza); l'ancora del sequestro AL non scatta sull'infortunio, scatta con «sigurimin e padisë» e col debitore che vende",
+              _okA358 and _okB358 and "pairs = _senza_codici_condizionati_it(pairs" in _src358, "A=%s B=%s" % (_okA358, _okB358))
+    except Exception as _e358:  # noqa: BLE001
+        check("condizionati[358]: kontrollet u ekzekutuan", False, f"{type(_e358).__name__}: {_e358}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
