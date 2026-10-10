@@ -18,6 +18,11 @@ JSONL = Path(os.environ.get("RUBPAR_JSONL", "/app/data/processed/all_articles.js
 PKL = Path(os.environ.get("RUBPAR_PKL", "/app/data/index/bm25.pkl"))
 CACHE = Path(os.environ.get("AL_TEXT_CACHE", "/app/data/processed/al_text_cache"))
 CODICI = ("kodi_civil", "kodi_familjes")
+# v9.572 — negli altri codici la rubrica sta DOPO «Neni N» e la riga sopra è di solito un titolo di SEZIONE; le due eccezioni vere,
+# lette nel sorgente (la rubrica del primo articolo di un capitolo, sotto il titolo maiuscolo): KPC 202 «Kur lejohet sigurimi i
+# padisë» (la v9.571 la toglieva dalla coda del 201/a come titolo di capitolo) e KPU 179 «Emri». «Faqe|4» (piè di pagina), il seguito
+# di una frase, un titolo di sezione: NO
+SOLO = {"kodi_proc_civile": {"202"}, "kodi_punes": {"179"}}
 NENI = re.compile(r"^\s*Neni\s+(\d+(?:/\d+)?(?:/[a-zë])?)\s*$")
 HIER = re.compile(r"^(?:PJESA|KREU|SEKSIONI|TITULLI|KAPITULLI|Kapitulli|Seksioni|Kreu)\s+([IVXLC]+|\d+)\s*$")
 
@@ -67,11 +72,13 @@ def main() -> int:
     apply, verbose = "--apply" in sys.argv, "-v" in sys.argv
     rows = [json.loads(l) for l in JSONL.read_text(encoding="utf-8").splitlines() if l.strip()]
     toccati, n_rub, n_coda, salti = {}, 0, 0, []
-    for code in CODICI:
+    for code in CODICI + tuple(SOLO):
         f = CACHE / f"{code}.txt"
         if not f.exists():
             print("manca il testo sorgente", f); continue
         mappa = mappa_rubriche(f.read_text(encoding="utf-8"))
+        if code in SOLO:
+            mappa = {k: v for k, v in mappa.items() if k in SOLO[code]}
         arts = [r for r in rows if r.get("code") == code]
         pos = {str(r["number"]): i for i, r in enumerate(arts)}
         for n, rub in mappa.items():

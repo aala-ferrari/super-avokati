@@ -72,6 +72,10 @@ def separa(body: str):
     return "\n".join(tenute).strip(), note
 
 
+# v9.572 — il PIÈ DI PAGINA «Faqe|N» del PDF della legge 133/2015 sul trattamento della proprietà (19 nene): solo la riga da sola
+PAGINA = re.compile(r"(?m)^[ \t]*Faqe[ \t]*\|[ \t]*\d+[ \t]*(?:\n|$)")
+
+
 def main() -> int:
     apply, verbose = "--apply" in sys.argv, "-v" in sys.argv
     dati = [json.loads(r) for r in JSONL.read_text(encoding="utf-8").splitlines() if r.strip()]
@@ -79,13 +83,14 @@ def main() -> int:
     for d in dati:
         if d.get("repealed"):
             continue
-        corpo, note = separa(d.get("body") or "")
-        if not note:
+        senza_pagine = PAGINA.sub("", d.get("body") or "").rstrip()
+        corpo, note = separa(senza_pagine)
+        if not note and senza_pagine == (d.get("body") or "").rstrip():
             continue
         k = (d["code"], str(d["number"]))
-        nota = " ".join(x for x in ((d.get("note") or "").strip(), " ".join(note)) if x)
+        nota = " ".join(x for x in ((d.get("note") or "").strip(), " ".join(note)) if x) if note else (d.get("note") or "")
         nuovi[k] = (corpo, nota)
-        print(f"{k[0]} {k[1]}: {len(note)} note → {' | '.join(n[:90] for n in note)}")
+        print(f"{k[0]} {k[1]}: {len(note)} note → {' | '.join(n[:90] for n in note)}" if note else f"{k[0]} {k[1]}: piè di pagina tolti")
         if verbose:
             print("   PRIMA:", (d.get("body") or "")[:600].replace("\n", " ⏎ "))
             print("   DOPO :", corpo[:600].replace("\n", " ⏎ "))
