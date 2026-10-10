@@ -30,6 +30,12 @@
   "count": 1059
  },
  {
+  "code": "disp_att_cpc",
+  "title": "Disposizioni per l'attuazione del Codice di Procedura Civile e disposizioni transitorie (R.D. 1368/1941)",
+  "area": "Procedura Civile",
+  "count": 308
+ },
+ {
   "code": "codice_penale",
   "title": "Codice Penale",
   "area": "Penale",
@@ -94,6 +100,18 @@
   "title": "Testo Unico Sicurezza sul Lavoro",
   "area": "Lavoro",
   "count": 392
+ },
+ {
+  "code": "tu_infortuni",
+  "title": "Testo unico dell'assicurazione obbligatoria contro gli infortuni sul lavoro e le malattie professionali (d.P.R. 1124/1965)",
+  "area": "Lavoro",
+  "count": 296
+ },
+ {
+  "code": "danno_biologico_inail",
+  "title": "Assicurazione contro gli infortuni sul lavoro e le malattie professionali — danno biologico (d.lgs. 38/2000)",
+  "area": "Lavoro",
+  "count": 29
  },
  {
   "code": "tu_bancario",
@@ -291,7 +309,7 @@
   "code": "reg_ue_2015_2447",
   "title": "Regolamento di esecuzione (UE) 2015/2447 — modalità di applicazione del CDU",
   "area": "Doganale",
-  "count": 356
+  "count": 357
  },
  {
   "code": "accise",
@@ -495,7 +513,7 @@
   "code": "tu_riscossione",
   "title": "Testo Unico versamenti e riscossione (D.Lgs 33/2025)",
   "area": "Tributario",
-  "count": 246
+  "count": 247
  },
  {
   "code": "tu_registro",
@@ -780,6 +798,18 @@
   "count": 8
  },
  {
+  "code": "aire",
+  "title": "Anagrafe e censimento degli italiani all'estero — AIRE (L. 470/1988)",
+  "area": "Cittadinanza",
+  "count": 21
+ },
+ {
+  "code": "collegato_lavoro",
+  "title": "Collegato lavoro — decadenze e controversie di lavoro (L. 183/2010)",
+  "area": "Lavoro",
+  "count": 50
+ },
+ {
   "code": "imposta_bollo",
   "title": "Imposta di bollo (d.P.R. 642/1972)",
   "area": "Tributario",
@@ -792,16 +822,58 @@
   "count": 24
  },
  {
+  "code": "legge_104",
+  "title": "Legge-quadro per l'assistenza, l'integrazione sociale e i diritti delle persone handicappate (L. 104/1992)",
+  "area": "Lavoro",
+  "count": 48
+ },
+ {
   "code": "legge_sospensione_feriale",
   "title": "Sospensione dei termini processuali nel periodo feriale (L. 742/1969)",
   "area": "Procedura Civile",
   "count": 7
  },
  {
+  "code": "licenziamenti_collettivi",
+  "title": "Licenziamenti collettivi, mobilità e integrazione salariale (L. 223/1991)",
+  "area": "Lavoro",
+  "count": 31
+ },
+ {
+  "code": "naspi",
+  "title": "Ammortizzatori sociali: NASpI e DIS-COLL (d.lgs. 22/2015)",
+  "area": "Lavoro",
+  "count": 19
+ },
+ {
+  "code": "procedimenti_cittadinanza",
+  "title": "Regolamento sui procedimenti di acquisto della cittadinanza (d.P.R. 362/1994)",
+  "area": "Cittadinanza",
+  "count": 9
+ },
+ {
   "code": "processo_tributario",
   "title": "Processo tributario (d.lgs. 546/1992)",
   "area": "Tributario",
   "count": 94
+ },
+ {
+  "code": "regolamento_anagrafico",
+  "title": "Regolamento anagrafico della popolazione residente (d.P.R. 223/1989)",
+  "area": "Cittadinanza",
+  "count": 63
+ },
+ {
+  "code": "ritardi_pagamento",
+  "title": "Lotta contro i ritardi di pagamento nelle transazioni commerciali (d.lgs. 231/2002)",
+  "area": "Civile",
+  "count": 13
+ },
+ {
+  "code": "sanzioni_pecuniarie_civili",
+  "title": "Abrogazione di reati e illeciti con sanzioni pecuniarie civili — ingiuria, danneggiamento semplice (D.Lgs. 7/2016)",
+  "area": "Civile",
+  "count": 13
  },
  {
   "code": "sanzioni_tributarie_amministrative",
