@@ -258,6 +258,46 @@ _FONTE_SOPRA = re.compile(r"^(?:Artt?\.\s*\d.*?(?:D\.\s?P\.\s?R\.|[Ll]egge|D\.\s
 _FONTE_SEP = "\ue000"            # uso privato: NON è uno spazio (\x1e lo è per str.strip, e spariva)
 
 
+# v9.573 — la FORMULA DI PROMULGAZIONE in coda all'ULTIMO articolo degli atti storici («Roma, addì 16 marzo 1942-XX ⏎ VITTORIO
+# EMANUELE ⏎ GRANDI» nel c.c. 2969, «Dato a Roma, addì 30 aprile 1992 ⏎ … SPADOLINI ⏎ ANDREOTTI …» nel C.d.S. 240, «Visto, d'ordine
+# di Sua Maestà il Re d'Italia e di Albania ⏎ Imperatore d'Etiopia ⏎ …» nelle disp. att.): non è testo dell'articolo. Mai nelle unità
+# «N-legge» (lì è la legge di approvazione stessa) né negli allegati; solo se la coda è fatta di righe brevi senza verbi normativi.
+_PROMULGA_RX = re.compile(r"(?m)^(?:[A-ZÀ-Ü][\wÀ-ÿ'’. ]{1,40},\s+addì\s+.*\d{4}.*|Dat[oa] a\s+.+|"
+                          r"Visto,?\s+(?:il\s+|Il\s+)?(?:Guardasigilli|Guardasigillo|d'ordine di Sua Maestà|Ministro).*)$")
+
+
+# … e le NOTE DELLA GAZZETTA UFFICIALE («Note all'art. 206:», «Nota all'art. 11, comma 2:», «Note alle premesse:», «NOTE AL DECRETO»):
+# 696 articoli, 2,5 milioni di caratteri che NON sono testo normativo ma note redazionali col testo di altre leggi citate — il C.d.S.
+# 206 (797 caratteri di testo) portava l'art. 27 della L. 689/1981 per intero, il d.lgs. 74/2000 art. 25 69.520 caratteri. Stanno in
+# CODA all'articolo, dopo l'intestazione su una riga da sola: si taglia dall'intestazione alla fine.
+_NOTE_GU_RX = re.compile(r"(?m)^[ \t]*(?:Note|Nota|NOTE|NOTA)[ \t]+(?:all['’][ \t]*art(?:icolo)?\.?[ \t]*[\w\-]+(?:,[ \t]*comma[ \t]*[\w\-]+)?|"
+                         r"alle[ \t]+premesse|ALLE[ \t]+PREMESSE|al[ \t]+decreto|AL[ \t]+DECRETO)[ \t]*(?:[:.]?[ \t]*$|:[ \t]*-[ \t])")   # anche «Note all'art. 55: - Per il testo…»
+# gli avvisi di pubblicazione della G.U. dopo le firme («Il presente decreto è pubblicato, per motivi di massima urgenza, senza note…»,
+# «In Supplemento ordinario … si procederà alla ripubblicazione…»): fanno parte della formula anche se hanno un verbo
+_AVVISO_GU_RX = re.compile(r"^(?:Il presente decreto è pubblicato|In Supplemento ordinario alla Gazzetta|Registrat[oa] alla Corte dei conti|"
+                           r"Atti di Governo|Ministeri istituzionali)", re.I)
+
+
+def _taglia_note_gu(body: str) -> str:
+    m = _NOTE_GU_RX.search(body or "")
+    return body[:m.start()].rstrip() if m else body
+
+
+def _taglia_promulgazione(body: str) -> str:
+    body = _taglia_note_gu(body)                 # le note della G.U. vengono DOPO la formula: prima si tolgono quelle
+    m = _PROMULGA_RX.search(body or "")
+    if not m:
+        return body
+    coda = body[m.start():]
+    righe = [l.strip() for l in coda.splitlines() if l.strip()]
+    # niente tetto di lunghezza: i ministri firmatari possono essere quindici (codice dei contratti, 1.552 caratteri); conta che ogni
+    # riga sia breve e senza verbi normativi
+    if righe and all(_AVVISO_GU_RX.match(l) or (len(l) <= 200 and not re.search(r"\b(?:è|sono|deve|devono|può|possono|si applica|si applicano)\b", l))
+                     for l in righe):
+        return body[:m.start()].rstrip()
+    return body
+
+
 def _separa_fonte(body: str) -> tuple[str, str]:
     """(fonte, corpo) se il corpo comincia con la fonte marcata da `_pulisci`, altrimenti ("", corpo)."""
     if body.startswith(_FONTE_SEP):
@@ -624,6 +664,10 @@ def main():
                     "non_in_vigore_dal": _nv if (_nv and _nv > _oggi_iso) else ""}
             _h, _b = _pulisci(art.get("heading") or "", art.get("body") or "")
             _fonte_r, _b = _separa_fonte(_b)
+            if not re.search(r"legge|allegat|tabell", str(art["number"]), re.I):
+                _b = _taglia_promulgazione(_b)                     # v9.573 (anche le note della G.U.)
+            else:
+                _b = _taglia_note_gu(_b)                           # v9.573: le note della G.U. mai, nemmeno nelle leggi di approvazione
             # v9.409 — pagine che sono solo un'etichetta («Tabella 1», «Allegato III-bis», «[senza testo]»: il contenuto è
             # un'immagine): nell'indice rispondevano alle ricerche su «tabella/allegato» senza dire niente
             if not _as_bool(art.get("repealed")) and re.fullmatch(

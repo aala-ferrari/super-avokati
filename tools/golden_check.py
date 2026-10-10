@@ -9779,6 +9779,9 @@ def main():
         _rnc341 = _ilu341.module_from_spec(_sp341); _sp341.loader.exec_module(_rnc341)
         _rest341 = [(a.code, a.number) for a in _al341.articles if not a.repealed and _rnc341.separa(a.body or "")[1]]
         check("note AL[341]: nessuna nota a piè di pagina rimasta dentro i testi AL", not _rest341, str(_rest341[:6]))
+        _pag341 = [(a.code, a.number) for a in _al341.articles if _rnc341.PAGINA.search(a.body or "")]
+        check("note AL[341]: v9.572 — niente piè di pagina «Faqe|N» nei testi (legge 133/2015 sul trattamento della proprietà)",
+              not _pag341, str(_pag341[:6]))
     except Exception as _e341:  # noqa: BLE001
         check("note AL[341]: kontrollet u ekzekutuan", False, f"{type(_e341).__name__}: {_e341}")
 
@@ -9799,6 +9802,9 @@ def main():
               and _h342("kodi_civil", "277")[0] == "Servituti i kalimit"
               and _h342("kodi_familjes", "33")[0] == "Shkaqet e pavlefshmërisë" and _h342("kodi_familjes", "73")[0] == "Bashkësia ligjore",
               str([_h342("kodi_civil", "626"), _h342("kodi_civil", "114")]))
+        check("rubriche[342]: v9.572 — KPC 202 «Kur lejohet sigurimi i padisë», KPU 179 «Emri» (la rubrica sopra «Neni N» a inizio capitolo)",
+              _h342("kodi_proc_civile", "202") == ("Kur lejohet sigurimi i padisë", "rubrike") and _h342("kodi_punes", "179")[0] == "Emri"
+              and not (_A342[("kodi_punes", "178")].body or "").rstrip().endswith("Emri"), str((_h342("kodi_proc_civile", "202"), _h342("kodi_punes", "179"))))
         check("rubriche KC/KF[342]: la rubrica non resta in coda al precedente (KC 625, 23); niente «PERSONAT JURIDIKË» nel KC 23",
               not (_A342[("kodi_civil", "625")].body or "").rstrip().endswith("Përgjegjësia solidare")
               and "PERSONAT JURIDIKË" not in (_A342[("kodi_civil", "23")].body or "")
@@ -9830,6 +9836,33 @@ def main():
               str(_st343("- **Art. 5** L. 604/1966: «L'onere della prova»")))
     except Exception as _e343:  # noqa: BLE001
         check("verificatore[343]: kontrollet u ekzekutuan", False, f"{type(_e343).__name__}: {_e343}")
+
+    # [344] v9.573 — la FORMULA DI PROMULGAZIONE fuori dall'ultimo articolo degli atti italiani («Roma, addì 16 marzo 1942-XX ⏎ VITTORIO
+    # EMANUELE ⏎ GRANDI» nel c.c. 2969, le firme in coda al C.d.S. 240, allo Statuto 41, alla L. 241/1990 art. 31…); le unità «N-legge»
+    # (la legge di approvazione) la tengono
+    try:
+        import re as _re344
+        from pathlib import Path as _P344
+        from src.retrieval import ArticleIndex as _AI344
+        _it344 = _AI344.load(_P344("/app/data/index/bm25_it.pkl"))
+        _I344 = {(a.code, a.number): a for a in _it344.articles}
+        check("promulgazione IT[344]: c.c. 2969, C.d.S. 240, Statuto 41 finiscono col loro testo; il c.c. «2-legge» tiene la formula",
+              (_I344[("codice_civile", "2969")].body or "").rstrip().endswith("cause d'improponibilità dell'azione.")
+              and "VITTORIO EMANUELE" not in (_I344[("codice_civile", "2969")].body or "")
+              and "addì" not in (_I344[("codice_strada", "240")].body or "") and "Guardasigilli" not in (_I344[("statuto_lavoratori", "41")].body or "")
+              and "addì" in (_I344[("codice_civile", "2-legge")].body or ""), (_I344[("codice_civile", "2969")].body or "")[-80:])
+        _rx344 = _re344.compile(r"(?m)^(?:Dato|Data) a\s+\S+.*addì|^Visto,? il Guardasigilli")
+        _rest344 = [(a.code, a.number) for a in _it344.articles if not _re344.search(r"legge|allegat|tabell", str(a.number), _re344.I)
+                    and _rx344.search(a.body or "")]
+        check("promulgazione IT[344]: nessun altro articolo con «Dato a … addì» / «Visto, il Guardasigilli» (fuori da leggi di approvazione e allegati)",
+              not _rest344, str(_rest344[:6]))
+        _ngu344 = _re344.compile(r"(?m)^[ \t]*(?:Note|Nota|NOTE|NOTA)[ \t]+(?:all['’][ \t]*art|alle[ \t]+premesse|al[ \t]+decreto|AL[ \t]+DECRETO)")
+        _restn344 = [(a.code, a.number) for a in _it344.articles if _ngu344.search(a.body or "")]
+        check("note G.U. IT[344]: nessun articolo con le «Note all'art. N» della Gazzetta; C.d.S. 206 senza l'art. 27 della L. 689/1981",
+              not _restn344 and "Esecuzione forzata" not in (_I344[("codice_strada", "206")].body or "")
+              and (_I344[("codice_strada", "206")].body or "").rstrip().endswith("in unica soluzione."), str(_restn344[:6]))
+    except Exception as _e344:  # noqa: BLE001
+        check("promulgazione IT[344]: kontrollet u ekzekutuan", False, f"{type(_e344).__name__}: {_e344}")
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
