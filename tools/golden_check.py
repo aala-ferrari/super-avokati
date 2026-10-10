@@ -10520,6 +10520,79 @@ def main():
     except Exception as _e368:  # noqa: BLE001
         check("condizionati-al[368]: kontrollet u ekzekutuan", False, f"{type(_e368).__name__}: {_e368}")
 
+    # [369] v9.595 — d.lgs. 231/2001, TULPS, codice del consumo, codice delle assicurazioni, TU spese di giustizia e giudice di pace penale col
+    # loro motivo: il 231 fuori dall'incidente stradale (l'art. 22 è la prescrizione degli illeciti degli ENTI) e dentro con la società;
+    # il TULPS fuori dall'usura; il danno da prodotto fuori dalla buca del marciapiede e dentro con l'acquisto; le assicurazioni dentro col
+    # sinistro; ⚠️ «cliente» non è un «ente» (l'innesco ha il confine di parola davanti)
+    try:
+        from types import SimpleNamespace as _NS369
+        from src import brain as _b369
+        _p369 = [(_NS369(code=c, number=n), 1.0) for c, n in (("codice_civile", "2043"), ("responsabilita_enti", "22"), ("tulps", "165"),
+                                                               ("codice_consumo", "125"), ("codice_assicurazioni", "144"))]
+        _f369 = lambda t: {a.code for a, _ in _b369._senza_codici_condizionati_it(_p369, t, ["Civile"])}
+        _ok369 = (_f369("La cliente è caduta su una buca del marciapiede comunale e si è rotta il polso. Chi paga?") == {"codice_civile"}
+                  and _f369("Un conoscente ha prestato soldi al cliente con interessi del 10% al mese.") == {"codice_civile"}
+                  and "codice_assicurazioni" in _f369("Il cliente ha subito un incidente stradale e chiede il risarcimento.")
+                  and "responsabilita_enti" not in _f369("Il cliente ha subito un incidente stradale e chiede il risarcimento.")
+                  and "responsabilita_enti" in _f369("La società del cliente è indagata per corruzione: rischia sanzioni?")
+                  and "codice_consumo" in _f369("Il cliente ha comprato online un tostapane difettoso che ha preso fuoco.")
+                  and "tulps" in _f369("Il questore ha revocato la licenza del bar del cliente.")
+                  and "responsabilita_enti" not in _f369("Il cliente vuole querelare il vicino."))
+        check("condizionati[369]: 231, TULPS, consumo, assicurazioni, spese di giustizia, giudice di pace penale solo col loro motivo "
+              "(«cliente» non è un «ente»)", _ok369)
+    except Exception as _e369:  # noqa: BLE001
+        check("condizionati[369]: kontrollet u ekzekutuan", False, f"{type(_e369).__name__}: {_e369}")
+
+    # [370] v9.596 — le NOVELLE PURE (ogni comma modifica un articolo di un atto che abbiamo consolidato) fuori dalla ricerca italiana: il
+    # testo è quello di allora (L. 689/1981 art. 91 = la querela del 582 c.p. del 1981; art. 13 St. Lav. = il 2103 c.c. del 1970). Mai gli
+    # articoli veri che usano le stesse parole («è sostituito in giudizio il Ministro», «Le leggi non sono abrogate…»), mai un articolo
+    # con una norma propria (la prescrizione e la norma transitoria della L. 689/1981, l'abrogazione con la regola per le affiliazioni)
+    try:
+        from pathlib import Path as _P370
+        from src.retrieval import ArticleIndex as _AI370
+        from src import brain as _b370
+        _it370 = _AI370.load(_P370("/app/data/index/bm25_it.pkl"))
+        _by370 = {(a.code, str(a.number)): a for a in _it370.articles}
+        _nv370 = lambda c, n: bool((c, n) in _by370 and _b370._novella_pura(_by370[(c, n)], _it370))
+        _si370 = [("sanzioni_amministrative", "91"), ("sanzioni_amministrative", "125"), ("sanzioni_amministrative", "134"),
+                  ("statuto_lavoratori", "13"), ("legge_52_1985", "1"), ("equa_riparazione", "1")]
+        _no370 = [("codice_procedura_civile", "76"), ("preleggi", "15"), ("codice_civile", "2103"), ("sanzioni_amministrative", "28"),
+                  ("sanzioni_amministrative", "99"), ("adozione", "77"), ("collegato_lavoro", "32"), ("codice_penale", "582")]
+        _okN370 = all(_nv370(c, n) for c, n in _si370) and not any(_nv370(c, n) for c, n in _no370)
+        _p370 = [(_by370[k], 1.0) for k in (("sanzioni_amministrative", "91"), ("codice_penale", "582"), ("statuto_lavoratori", "13"),
+                                             ("codice_civile", "2103"))]
+        _okF370 = [(a.code, str(a.number)) for a, _ in _b370._senza_novelle(_p370, _it370)] == [("codice_penale", "582"), ("codice_civile", "2103")]
+        _src370 = open("/app/src/brain.py", encoding="utf-8").read()
+        _okW370 = _src370.count("_senza_novelle(") >= 3          # definizione + recupero + aggiunte del Kërkuesi
+        check("novelle[370]: le novelle pure fuori dalla ricerca italiana (L. 689/1981 artt. 91/125/134, St. Lav. 13, L. 52/1985), mai gli "
+              "articoli veri con le stesse parole né quelli con una norma propria", _okN370 and _okF370 and _okW370,
+              "N=%s F=%s W=%s" % (_okN370, _okF370, _okW370))
+    except Exception as _e370:  # noqa: BLE001
+        check("novelle[370]: kontrollet u ekzekutuan", False, f"{type(_e370).__name__}: {_e370}")
+
+    # [371] v9.596 — nautica da diporto, ambiente, proprietà industriale, contratti pubblici, legge Pinto e beni culturali col loro motivo
+    # nella domanda: fuori dalle domande stradali, di lavoro e di pignoramento; dentro con la barca, i rifiuti, il marchio, la gara, la
+    # causa che dura da anni, il vincolo paesaggistico. ⚠️ «rinnovati» non è un'«ATI», «quanto costa» non è la costa
+    try:
+        from types import SimpleNamespace as _NS371
+        from src import brain as _b371
+        _c371 = ("codice_nautica_diporto", "codice_ambiente", "codice_proprieta_industriale", "codice_contratti_pubblici",
+                 "equa_riparazione", "codice_beni_culturali")
+        _p371 = [(_NS371(code=c, number="1"), 1.0) for c in ("codice_civile",) + _c371]
+        _f371 = lambda t: {a.code for a, _ in _b371._senza_codici_condizionati_it(_p371, t, ["Civile"])}
+        _ok371 = (_f371("Il cliente è stato fermato con la revisione dell'auto scaduta da sei mesi: cosa rischia?") == {"codice_civile"}
+                  and _f371("Il cliente lavora con contratti a termine rinnovati da 30 mesi nella stessa azienda: quanto costa la causa?") == {"codice_civile"}
+                  and "codice_nautica_diporto" in _f371("La barca del cliente è stata fermata dalla capitaneria di porto.")
+                  and "codice_ambiente" in _f371("La ditta vicina scarica rifiuti nel fiume: cosa possiamo fare?")
+                  and "codice_proprieta_industriale" in _f371("Un concorrente usa un marchio identico a quello del cliente.")
+                  and "codice_contratti_pubblici" in _f371("L'impresa del cliente è stata esclusa dalla gara d'appalto del Comune.")
+                  and "equa_riparazione" in _f371("La causa del cliente dura da dodici anni: può chiedere un indennizzo per la durata irragionevole?")
+                  and "codice_beni_culturali" in _f371("La casa del cliente è in una zona con vincolo paesaggistico: serve un'autorizzazione?"))
+        check("condizionati[371]: nautica, ambiente, proprietà industriale, contratti pubblici, legge Pinto, beni culturali solo col loro "
+              "motivo («rinnovati» non è un'ATI, «quanto costa» non è la costa)", _ok371)
+    except Exception as _e371:  # noqa: BLE001
+        check("condizionati[371]: kontrollet u ekzekutuan", False, f"{type(_e371).__name__}: {_e371}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

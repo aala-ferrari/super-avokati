@@ -985,6 +985,110 @@ _CODICI_CONDIZIONATI_IT = _CODICI_CONDIZIONATI_IT + (
     ("codice_doganale_nazionale", "codici doganali", _DOGANA_RX), ("codice_doganale_ue", "codici doganali", _DOGANA_RX),
     ("reg_ue_2015_2446", "codici doganali", _DOGANA_RX), ("reg_ue_2015_2447", "codici doganali", _DOGANA_RX),
 )
+# v9.595 — dalla mappa per codice del banco IT (`scratchpad/settori_it.py`, in quali domande entra ogni legge di settore): il d.lgs. 231/2001
+# (responsabilità degli ENTI) in 7 domande su persone fisiche — l'incidente stradale e la cartella delle multe prendevano l'art. 22, la
+# prescrizione degli illeciti degli enti, il cane del vicino il 25-undevicies, il phishing e il profilo falso il 24-bis (⚠️ la misura della
+# v9.592 lo dava «sempre a ragione» per un errore mio: l'innesco «ente\b» combaciava con «cliente»); il TULPS (licenze, porto d'armi,
+# esercizi pubblici) in 9 domande penali o civili qualsiasi — usura, estorsione, diffamazione, furto in casa, perfino i nonni che non vedono
+# il nipote; il CODICE DEL CONSUMO (gli artt. 114-127 sul danno da prodotto difettoso) nella buca del marciapiede, nell'incidente stradale,
+# nel cane, nell'acqua dal piano di sopra; il CODICE DELLE ASSICURAZIONI nella contestazione disciplinare, nella telecamera, nel Comune che
+# non risponde; il TU SPESE DI GIUSTIZIA nel prestito, nella telecamera, nelle ferie; il GIUDICE DI PACE PENALE nella multa e nel fermo
+# dell'auto. Restano col loro motivo: un ente, una società o un'impresa (e il datore di lavoro: l'infortunio è reato presupposto del
+# 25-septies); licenze, armi, locali, pubblica sicurezza; un acquisto, un venditore, un prodotto, un contratto col consumatore; un sinistro,
+# una polizza, un risarcimento; spese, contributo unificato, patrocinio a spese dello Stato, consulenti; i reati del giudice di pace
+# ⚠️ inneschi LARGHI di proposito: un motivo in più lascia dentro un po' di rumore, un motivo in meno toglie una norma che serve
+# (provati sulle 152 domande intere del banco: nessuna attesa persa, tolto solo rumore)
+# ⚠️ e senza falsi amici: «licenz» prendeva «licenziamento», «impres» «impressione», «fabbric» «fabbricato»
+_CODICI_CONDIZIONATI_IT = _CODICI_CONDIZIONATI_IT + (
+    ("responsabilita_enti", "responsabilità degli enti", re.compile(
+        r"societ|\bsrl\b|s\.r\.l|\bspa\b|s\.p\.a|\bente\b|\benti\b|aziend|\bimpres[ae]\b|imprenditor|\bditt[ae]\b|\b231\b|modello\s+(?:organizzativ|di\s+organizzazion)|"
+        r"organismo\s+di\s+vigilanza|\bodv\b|cooperativ|consorzi|fondazion|associazion|persona\s+giuridic|datore\s+di\s+lavoro|"
+        r"stabiliment|\bfabbric(?:a|he)\b|cantier|legale\s+rappresentant|amministrator\w*\s+(?:unic|delegat|della\s+societ)|\bcda\b|"
+        r"consiglio\s+di\s+amministrazione|dirigent|apical|compliance|whistleblow|appalt", re.I)),
+    ("tulps", "TULPS", re.compile(
+        r"\blicenz[ae]\b|porto\s+d.armi|\barm[ai]\b|pistol|fucil|coltell|caccia|poligon|esercizi\w*\s+pubblic|\bbar\b|ristorant|pizzeri|\bpub\b|"
+        r"locale\s+pubblic|aprir\w*\s+un\s+locale|locale\s+(?:notturn|da\s+ballo)|night|discotec|circol\w*\s+privat|spettacol|"
+        r"manifestazion|riunion\w*\s+pubblic|corteo|pubblica\s+sicurezza|sicurezza\s+pubblica|questur|questor|guardi\w*\s+giurat|"
+        r"vigilanza\s+privat|investigator|sal[ae]\s+gioc|slot|scommess|lotteri|agenzi\w*\s+d.affari|compro\s+oro|preziosi|affittacamer|"
+        r"alberg|struttur\w*\s+ricettiv|tulps|fuochi\s+d.artificio|esplosiv|ambulant|noleggi|autorimess|accattonaggio|foglio\s+di\s+via|"
+        r"avviso\s+orale|ammoniment|\bdaspo\b", re.I)),
+    ("codice_consumo", "codice del consumo", re.compile(
+        r"consumator|acquist|comprat|\bcompr[aio]|vendit|venditor|negozi|online|on-line|e-commerce|internet|\bsito\b|garanzi|difett|"
+        r"\breso\b|recesso|\brecede|rimbors|prodott|contratt\w*\s+(?:a\s+distanza|fuori\s+dai\s+locali)|clausol|pubblicit|"
+        r"pratic\w*\s+commercial|bollett|telefon|abbonament|palestr|pacchett\w*\s+turistic|viaggi|vacanz|credito\s+al\s+consumo|"
+        r"finanziament|multipropriet|concessionari|spedizion|consegn|ordin\w*\s+(?:online|su)|fornitor|fornitur|operator\w*\s+telefonic|"
+        r"gestore|servizio\s+clienti|reclam|riparaz|preventiv|\bluce\b|\bgas\b|energia\s+elettric", re.I)),
+    ("codice_assicurazioni", "codice delle assicurazioni", re.compile(
+        r"assicura|polizz|sinistr|incident|\brca\b|risarciment|indennizz|broker|intermediar|carta\s+verde|tamponament|investit|"
+        r"\bscontr|\burt|collision|pedon|ciclist|circolazion|danno\s+biologic|constatazione\s+amichevole|\bcid\b|"
+        r"fondo\s+(?:di\s+)?garanzi|vittime\s+della\s+strada|perit\w*\s+assicurativ|compagni\w*\s+(?:di\s+)?assicura|rivals|"
+        r"malasanit|errore\s+medic|responsabilit\w*\s+(?:medic|sanitari)|operat\w*\s+male|invalidit\w*\s+permanent|"
+        r"dann[oi]\s+permanent|lesion\w*\s+permanent|micropermanent|macropermanent|monopattin|scooter|\bmoto\b|motorin|ciclomotor", re.I)),
+    ("tu_spese_giustizia", "TU spese di giustizia", re.compile(
+        r"patrocinio|gratuit|spes\w*\s+(?:di\s+giustizia|processual|legal|del\s+giudizio|della\s+causa|di\s+lite)|contribut\w*\s+unificat|"
+        r"costi?\s+della\s+causa|quanto\s+costa|non\s+ha\s+(?:i\s+)?soldi|reddito\s+bass|indigent|consulent\w*\s+tecnic|\bctu\b|\bctp\b|"
+        r"perizi|onorari|compens\w*\s+(?:del\s+)?(?:difensor|avvocat|perit|consulent|custod)|difensor\w*\s+d.ufficio|"
+        r"recupero\s+(?:delle\s+)?spese|cancelleri|diritti\s+di\s+copia|marca\s+da\s+bollo|iscri\w*\s+a\s+ruolo|"
+        r"testimon\w*.{0,40}(?:rimbors|indennit)|pena\s+pecuniari|ammend|spese\s+(?:di\s+)?mantenimento\s+in\s+carcere|confisc|"
+        r"sequestr|custodi\w*\s+(?:del|dei)\s+ben", re.I)),
+    ("giudice_pace_penale", "giudice di pace penale", re.compile(
+        r"giudice\s+di\s+pace|ingiuri|insult|minacc|percoss|lesion|danneggiament|diffamazion|molesti|disturbo|getto\s+pericoloso|"
+        r"ingresso\s+(?:e\s+soggiorno\s+)?illegal|clandestin|10-bis|immigra|espulsion|soggiorn|querela|offes|schiaff|"
+        r"\bmors|\bcan[ei]\b|animal|deturp|imbratt|decenza|invasion\w*\s+di\s+terren|ingresso\s+abusiv|usurpazion|"
+        r"sottrazion\w*\s+di\s+cose\s+comuni", re.I)),
+)
+# v9.596 — altri sei codici di settore che il banco IT (mappa per codice dopo la v9.594) trovava solo per parole: la NAUTICA DA DIPORTO
+# in 4 domande stradali (patente, multa, revisione, alcoltest), il CODICE DELL'AMBIENTE in 3 (l'art. 318-quater, la prescrizione
+# delle contravvenzioni ambientali, negli stipendi non pagati e nell'incidente), la PROPRIETÀ INDUSTRIALE in 3 (la buca, l'intervento
+# sbagliato, la contestazione disciplinare), i CONTRATTI PUBBLICI in 4 cause di lavoro o di pignoramento, la LEGGE PINTO in 3
+# (decreto ingiuntivo, decreto penale, pignoramento), i BENI CULTURALI in 3 (espulsione, profilo falso, permesso di costruire senza
+# vincoli). Inneschi larghi come per la v9.595; provati sulle 152 domande intere del banco: tolto solo rumore
+# ⚠️ falsi amici trovati provando: «rifiut» dentro «si è rifiutato» (l'alcoltest teneva dentro l'ambiente), «bonific» dentro
+# «bonifico», «bando» dentro «abbandono», «insegna» dentro «insegnante», l'emissione dell'assegno, la rottamazione delle cartelle
+_CODICI_CONDIZIONATI_IT = _CODICI_CONDIZIONATI_IT + (
+    ("codice_nautica_diporto", "codice della nautica da diporto", re.compile(
+        r"nautic|diporto|\bbarc[ah]|yacht|natant|imbarcazion|gommon|moto\s+d.acqua|acquascooter|\bvela\b|velier|ormegg|"
+        r"porto\s+turistic|capitaneria|skipper|charter|\bmare\b|navigazion|marin[ae]\b|motoscaf|canoa|kayak|jet\s*ski|"
+        r"unità\s+da\s+diporto", re.I)),
+    ("codice_ambiente", "codice dell'ambiente", re.compile(
+        r"ambient|\brifiuti\b|rifiut\w*\s+(?:speciale|pericolos|urban|ingombrant|industrial|tossic)|inquin|scaric|"
+        r"emissioni\s+(?:in\s+atmosfera|inquinant|odorigen|di\s+(?:fumi|gas|polver|rumor))|emission\w*\s+(?:della|dello|del|"
+        r"dalla|dal)\s+(?:fabbric|stabiliment|impiant|aziend|caldai|camin)|bonifica\b|bonifiche\b|bonificar|discaric|amianto|"
+        r"eternit|acque\s+reflue|fognatur|depurator|smaltiment|ecolog|danno\s+ambientale|odor|fum[oi]\b|polver|miasm|"
+        r"terre\s+e\s+rocce|abbandon\w*\s+(?:di\s+)?(?:rifiut|material)|combustion|brucia|bruciat|sterpaglie|fanghi|reflu|"
+        r"sversament|idrocarbur|serbato|cisterna|falda|pozz[oi]\b|\baia\b|valutazione\s+d.impatto|"
+        r"autorizzazion\w*\s+(?:unica\s+)?ambiental|rottam\w*\s+(?:di\s+)?(?:veicol|auto|mezz)|autodemolizion|"
+        r"veicoli\s+fuori\s+uso|pneumatic|olio\s+(?:esausto|usato)|raee|imballagg|plastica|green|sostenibil|energ|impianto|"
+        r"cava\b|cave\b", re.I)),
+    ("codice_proprieta_industriale", "proprietà industriale", re.compile(
+        r"marchi|marchio|brevett|invenzion|design|modell\w*\s+(?:industrial|di\s+utilità|ornamental)|segret\w*\s+(?:industrial|"
+        r"commercial|aziendal)|know.how|concorrenza\s+sleale|contraffa|propriet\w*\s+(?:industrial|intellettual)|"
+        r"nome\s+a\s+dominio|dominio\s+internet|denominazion\w*\s+(?:di\s+origine|protett)|indicazion\w*\s+geografic|\bdop\b|"
+        r"\bigp\b|topografi|varietà\s+vegetal|\blogo\b|imitazion|copiat\w*\s+(?:il\s+)?(?:prodotto|logo|nome|modello)|uibm|"
+        r"ufficio\s+brevetti|licenza\s+d.uso|royalt|franchising|ditta\s+e\s+insegna|\binsegn[ae]\b", re.I)),
+    ("codice_contratti_pubblici", "codice dei contratti pubblici", re.compile(
+        r"appalt|\bgar[ae]\b|\bband[oi]\b|stazione\s+appaltant|contratt\w*\s+pubblic|aggiudicaz|subappalt|concession|"
+        r"lavori\s+pubblic|fornitur\w*\s+(?:alla|alle|della|per\s+la|al)\s+(?:pubblica|amministrazion|comune|regione|asl|ospedal|"
+        r"ministero)|codice\s+dei\s+contratti|\brup\b|\banac\b|offert\w*\s+(?:economicamente|anomala|tecnica)|\bdurc\b|"
+        r"soccorso\s+istruttorio|esclusion\w*\s+(?:dalla\s+)?(?:gara|procedura)|project\s+financing|partenariato|"
+        r"centrale\s+di\s+committenza|\bmepa\b|consip|affidament\w*\s+diretto|in\s+house|\bati\b|\brti\b|"
+        r"raggruppament\w*\s+temporane|avvalimento|cauzione\s+provvisoria|polizza\s+fideiussoria|varianti\s+in\s+corso|"
+        r"revisione\s+(?:dei\s+)?prezzi", re.I)),
+    ("equa_riparazione", "legge Pinto", re.compile(
+        r"pinto|equa\s+riparazion|durata\s+(?:irragionevol|eccessiv|ragionevol|del\s+processo|della\s+causa|del\s+giudizio|"
+        r"della\s+procedura)|(?:processo|causa|giudizio|procedura)\w*\s+(?:\w+\s+){0,3}(?:lung|lent|etern|infinit|dura\b|durat|"
+        r"pendent|da\s+anni)|da\s+(?:\d+|dieci|nove|otto|sette|sei|cinque|quattro|tre|due|molti|tanti)\s+anni\s+(?:di\s+|"
+        r"in\s+)?(?:causa|processo|giudizio|tribunale)|lentezza|rimedi\w*\s+preventiv|istanza\s+di\s+(?:prelievo|accelerazione)|"
+        r"ritard\w*\s+(?:della\s+)?(?:giustizia|sentenza|decisione|del\s+giudice|del\s+tribunale|del\s+processo)|"
+        r"art\.?\s*6\s+(?:della\s+)?(?:cedu|convenzione)|ragionevole\s+durata|indennizz\w*\s+(?:per\s+la\s+)?(?:durata|ritardo)", re.I)),
+    ("codice_beni_culturali", "codice dei beni culturali", re.compile(
+        r"cultural|paesagg|vincol|soprintend|monument|storic|archeolog|opere?\s+d.arte|antiquar|museo|musei|reperto|reperti|"
+        r"\bscav[oi]\b|dipint|quadr[oi]\s+(?:d.autore|di\s+valore|antic|d.arte|di\s+pregio)|scultur|biblioteca|"
+        r"archivio\s+storico|artistic|esportazion\w*\s+(?:di\s+)?(?:opere|beni)|autorizzazion\w*\s+paesaggistic|"
+        r"zona\s+(?:vincolata|tutelata)|costier|litorale|spiagg|demanio|parco\s+(?:naturale|nazionale|regionale|archeologic)|"
+        r"area\s+protetta|bosco|boschi|lago|fiume|collin|montagn|centro\s+storico|chiesa|palazzo\s+storico|villa\s+storica|"
+        r"tutela\s+indiretta|prelazione\s+(?:artistica|dello\s+stato)", re.I)),
+)
 # v9.592 — e l'ORDINAMENTO PENITENZIARIO (L. 354/1975 e il regolamento, d.P.R. 230/2000) nelle domande civili e di lavoro: nel banco il
 # trasferimento del dipendente prendeva il trasferimento dei detenuti (art. 42), la contestazione disciplinare il disciplinare del carcere
 # (reg. 81), l'assegno non pagato il lavoro esterno (21-bis), il pignoramento del conto il conto dei detenuti (84). Resta in ogni domanda
@@ -1671,6 +1775,84 @@ def _citati_dal_triage(pairs, idx, queries: list[str], areas=None) -> list:
         log.warning("retrieval: citati dal triage saltati (non-fatal): %s", exc)
         return pairs
 
+
+
+# ── v9.596 — le NOVELLE PURE fuori dalla ricerca italiana ──
+# Un articolo il cui OGNI comma è la modifica di un articolo di un altro atto che abbiamo consolidato («Il secondo comma dell'articolo
+# 582 del codice penale è sostituito dal seguente: "…"») porta il testo di ALLORA: nel banco IT la L. 689/1981 entrava in 23 domande coi
+# suoi artt. 89-98 (la querela del 582 c.p. «fino a venti giorni» del 1981), l'art. 125 col vecchio n. 6 dell'art. 157 c.p., l'art. 134
+# sull'appello contro le sentenze del PRETORE; e l'art. 13 dello Statuto dei lavoratori è il testo del 1970 dell'art. 2103 c.c. sulle
+# mansioni (riscritto nel 2015 dal d.lgs. 81/2015). Scansione dell'indice (10 ott): 99 articoli su 23.728, letti uno per uno, tutti
+# modifiche vere — L. 689/1981 43, L. 52/1985 15 (trascrizioni del c.c.), codice della crisi 12, adozione 8… Il testo vigente sta
+# nell'atto modificato. Restano nell'indice (il verificatore li riconosce se citati) e l'articolo chiesto per numero dall'avvocato
+# entra comunque (`_ankoro_citimet`). Se l'atto modificato NON è nel corpus, o un comma ha una norma propria, l'articolo resta
+_NOV_COMMA = re.compile(r"(?m)^\s*(?:\(\(\s*)?\d+\s*[\.\)]\s")
+_NOV_START = re.compile(r"^\s*(?:\(\(\s*)?(?:\d+\s*[\.\)]\s*(?:\(\(\s*)?)?(?:Dopo|Prima|All?\s*['’]|Alla|Allo|Agli|Alle|Ai|Al|Nel|Nell\s*['’]|"
+                        r"Nella|Nello|Negli|Nelle|Nei|Il|La|Lo|L\s*['’]|I|Gli|Le)\s*", re.I)
+_NOV_ART = re.compile(r"\barticol[oi]\s+(?:da\s+)?(\d+[\w-]*)", re.I)
+_NOV_VERB = re.compile(
+    r"(?:è|sono)\s+(?:sostituit[oaie]|inserit[oaie]|aggiunt[oaie]|premess[oaie])\b[^.;]{0,80}?(?:\b(?:dal|dai|dalla|dalle|il|i|la|le|lo|gli)\s+seguent|"
+    r"\bin\s+fine\b|:)|sono\s+apportat[ei]\s+le\s+seguenti\s+modific|"
+    r"le\s+parole\s*[«\"“][^»\"”]{0,300}[»\"”][^.;]{0,120}?(?:sono\s+|è\s+)?(?:sostituit|soppress)", re.I)
+_NOVELLE_CACHE: dict = {}
+_CODICI_INDICE: dict = {}
+
+
+def _commi_fuori_citazione(body: str) -> list[str]:
+    """I commi dell'articolo, saltando quelli che stanno DENTRO il testo citato da un comma di modifica."""
+    pos = [m.start() for m in _NOV_COMMA.finditer(body)] or [0]
+    if pos[0] != 0 and body[:pos[0]].strip():
+        pos = [0] + pos
+    out, dentro = [], False
+    for c in (body[a:b] for a, b in zip(pos, pos[1:] + [len(body)])):
+        if dentro:
+            if c.count('"') % 2 == 1 or c.count("»") > c.count("«") or c.count("”") > c.count("“"):
+                dentro = False
+            continue
+        out.append(c)
+        if c.count('"') % 2 == 1 or c.count("«") > c.count("»") or c.count("“") > c.count("”"):
+            dentro = True
+    return out
+
+
+def _novella_pura(a, idx) -> bool:
+    k = (id(idx), a.code, str(a.number), len(a.body or ""))       # la lunghezza: un indice ricaricato non eredita un esito vecchio
+    if k in _NOVELLE_CACHE:
+        return _NOVELLE_CACHE[k]
+    esito = False
+    try:
+        b = (a.body or "").strip()
+        if len(b) >= 40 and not getattr(a, "repealed", False):
+            codici = _CODICI_INDICE.get(id(idx))
+            if codici is None:
+                codici = _CODICI_INDICE[id(idx)] = frozenset(x.code for x in idx.articles)
+            from . import citation_verifier as _cvn
+            esito = True
+            for c in _commi_fuori_citazione(b):
+                m = _NOV_ART.search(c[:350]) if _NOV_START.match(c) else None
+                v = _NOV_VERB.search(c[:700]) if m else None
+                if not m or not v or v.start() < m.start() or _cvn._resolve_code_it(c[m.end():v.start()]) not in codici:
+                    esito = False
+                    break
+    except Exception:  # noqa: BLE001
+        esito = False
+    _NOVELLE_CACHE[k] = esito
+    return esito
+
+
+def _senza_novelle(pairs, idx):
+    """v9.596 — fuori dalla ricerca italiana le novelle pure (vedi sopra). Fail-silent."""
+    try:
+        fuori = [a for a, _ in pairs if _novella_pura(a, idx)]
+        if not fuori:
+            return pairs
+        log.info("retrieval: novelle fuori (testo di allora, l'atto modificato è nel corpus): %s",
+                 ", ".join(f"{a.code} {a.number}" for a in fuori[:8]))
+        ids = {id(a) for a in fuori}
+        return [(a, s) for a, s in pairs if id(a) not in ids]
+    except Exception as exc:  # noqa: BLE001
+        log.warning("retrieval: filtro delle novelle saltato (non-fatal): %s", exc)
+        return pairs
 
 PROCEDURAL_MAPPING: dict[str, tuple[str, ...]] = {
     "Penal":         ("kodi_proc_penale",),
@@ -5172,6 +5354,7 @@ class SuperAvvocato:
                     nuovo = _senza_codici_condizionati_it(nuovo, _t, triage.areas)
                     nuovo = _senza_procedura_civile_nel_penale(nuovo, _t, triage.areas)
                     nuovo = _senza_codici_fiscali_it(nuovo, _t, triage.areas)                       # v9.590
+                    nuovo = _senza_novelle(nuovo, idx)                                               # v9.596
                 _dopo = {(a.code, str(a.number)) for a, _ in nuovo}
                 esito["shtuar"] = [k for k in (esito.get("shtuar") or []) if (k[0], str(k[1])) in _dopo]
                 if _prima - _dopo:
@@ -6101,6 +6284,8 @@ class SuperAvvocato:
             pairs = _voci_tabella_malattie(pairs, idx, _testo_anc[-1] or "")                                    # v9.593
             pairs = _ancore_it_veicolo(pairs, idx, " ".join([triage.problem_summary or ""] + list(all_queries)))
         pairs = _citati_dal_triage(pairs, idx, list(all_queries), triage.areas)      # v9.528 (v9.588: le aree per il gemello)
+        if idx is self.index_it:
+            pairs = _senza_novelle(pairs, idx)                                          # v9.596
         # v9.504 — e di nuovo DOPO le ancore: le ancore per titolo riportavano dentro il Codice dei minori (misurato: «kodi_te_miturve 9»
         # nella detenzione ingiusta di un adulto, al posto di un articolo vero dei 12)
         pairs = _senza_codice_minori(pairs, _testo_anc[-1] or " ".join(_testo_anc), triage.areas)
