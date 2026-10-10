@@ -10416,6 +10416,30 @@ def main():
     except Exception as _e364:  # noqa: BLE001
         check("fisco[364]: kontrollet u ekzekutuan", False, f"{type(_e364).__name__}: {_e364}")
 
+    # [365] v9.591 — «TUSL» = d.lgs. 81/2008 nel verificatore; i titoli albanesi delle fonti web («Art. 2087 i Kodit Civil») fuori dal dossier
+    # e dall'elenco delle fonti in sessione italiana (diventano il dominio), intatti in sessione albanese
+    try:
+        from pathlib import Path as _P365
+        from src.retrieval import ArticleIndex as _AI365
+        from src import citation_verifier as _cv365, studio as _st365
+        from src.war_room import _titolo_nella_lingua as _tnl365
+        _it365 = _AI365.load(_P365("/app/data/index/bm25_it.pkl"))
+        _s365 = {i["number"]: (i["status"], i.get("code")) for i in _cv365.verify_text(
+            "Lo impone l'art. 20 TUSL; per i ponteggi artt. 111 ss. TUSL.", _it365)["items"]}
+        _d365 = {"web": {"burime": [{"titulli": "Art. 2087 i Kodit Civil", "data": "2026", "citim": "L'imprenditore è tenuto ad adottare…",
+                                     "url": "https://www.brocardi.it/codice-civile/art2087.html"}]}}
+        _fit365 = _st365.formato_dosjen(_d365, "it"); _fsq365 = _st365.formato_dosjen(_d365, "sq")
+        _sint365 = _st365.sintesi_burimet(_d365, "it")
+        check("fonti[365]: «art. 20 TUSL» verificato sul d.lgs. 81/2008; il titolo albanese di una fonte web esce dal dossier e dall'elenco "
+              "in sessione italiana (brocardi.it), resta in quella albanese; i titoli italiani non si toccano",
+              _s365.get("20") == ("verified", "sicurezza_lavoro") and _s365.get("111") == ("verified", "sicurezza_lavoro")
+              and "Kodit" not in _fit365 and "brocardi.it" in _fit365 and "Kodit" in _fsq365
+              and _sint365 and _sint365[0]["titulli"] == "brocardi.it"
+              and _tnl365("Art. 2087 c.c. — Tutela delle condizioni di lavoro", "https://x.it", "it") == "Art. 2087 c.c. — Tutela delle condizioni di lavoro",
+              str((_s365, _sint365[:1])))
+    except Exception as _e365:  # noqa: BLE001
+        check("fonti[365]: kontrollet u ekzekutuan", False, f"{type(_e365).__name__}: {_e365}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

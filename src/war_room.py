@@ -220,7 +220,11 @@ _VERIF = {"sq": {"VERIFIED": "i vërtetuar", "PARTIAL": "për verifikim"},
 _BURIM = {"it": {"korpus": "corpus", "arkiv": "archivio"}}
 
 
-_ALB_RX = __import__("re").compile(r"[ëçËÇ]|\b(?:nga|mbi|dhe|për|sipas|rregullin|sintez\w*)\b")
+# v9.591 — anche il lessico giuridico albanese senza lettere accentate: nella prova dal browser (sessione IT, infortunio in cantiere) il
+# raccoglitore web ha intitolato la pagina di Brocardi sull'art. 2087 c.c. «Art. 2087 i Kodit Civil» — il verificatore l'ha letta come
+# diritto straniero e la riga di verifica diceva «diritto straniero 1 non verificato» in una risposta tutta italiana
+_ALB_RX = __import__("re").compile(r"[ëçËÇ]|\b(?:nga|mbi|dhe|për|sipas|rregullin|sintez\w*|kodi[ts]?|kodin|nen[ie]t?|nenin|ligj\w*|"
+                                   r"vendim\w*|gjykat\w*|kushtetut\w*|shqipt\w*|republikës)\b", __import__("re").I)
 
 
 def _titolo_nella_lingua(titulli: str, burimi: str, lang: str) -> str:

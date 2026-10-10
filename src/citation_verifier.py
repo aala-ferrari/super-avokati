@@ -830,6 +830,9 @@ _IT_CODE_CHECKS = [
     ("codicedelterzosettore", "codice_terzo_settore"),
     ("statutodeilavoratori", "statuto_lavoratori"),
     ("testounicosicurezza", "sicurezza_lavoro"),
+    # v9.591 — «TUSL» (Testo Unico Sicurezza sul Lavoro), la sigla con cui i giuristi citano il d.lgs. 81/2008: nella prova dal browser
+    # sull'infortunio in cantiere «art. 20 TUSL», «art. 289 TUSL», «artt. 90 ss. TUSL» uscivano senza codice (8 su 64 citazioni)
+    ("tusl", "sicurezza_lavoro"),
     ("testounicobancario", "tu_bancario"),
     ("testounicoedilizia", "tu_edilizia"),
     ("codicedellambiente", "codice_ambiente"),

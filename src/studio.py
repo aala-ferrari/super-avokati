@@ -1036,10 +1036,12 @@ def formato_dosjen(dosja: dict, lang: str = "sq", precedents_block: str = "") ->
             titull = f.get("neni") or f.get("ligji") or "—"
             kur = f.get("fletorja") or f.get("data") or "—"
             rr.append(f"  • {titull} ({kur}){extra} — «{f['citim']}» — {f['url']}")
+    # v9.591 — i titoli delle fonti web nella lingua della sessione anche qui (la v9.512 li puliva solo nel rapporto di verifica)
+    from .war_room import _titolo_nella_lingua as _tnl
     if akte:
         rr.append(T["akte"])
         for c in akte:
-            rr.append(f"  • {c['titulli']} ({c['data'] or '—'}) — «{c['citim']}» — {c['url']}")
+            rr.append(f"  • {_tnl(c['titulli'], c['url'], lang)} ({c['data'] or '—'}) — «{c['citim']}» — {c['url']}")
     # Solo gli stati CONFERMATI: «E PAQARTË» su tutto è informazione nulla e
     # spingerebbe il senior a scrivere «verifica su QBZ» ovunque.
     _pa = (_STATUSE_QBZ["sq"][3], _STATUSE_QBZ["it"][3])
@@ -1053,7 +1055,7 @@ def formato_dosjen(dosja: dict, lang: str = "sq", precedents_block: str = "") ->
     if burime:
         rr.append(T["web"])
         for c in burime:
-            rr.append(f"  • {c['titulli']} ({c['data'] or '—'}) — «{c['citim']}» — {c['url']}")
+            rr.append(f"  • {_tnl(c['titulli'], c['url'], lang)} ({c['data'] or '—'}) — «{c['citim']}» — {c['url']}")
     if prec:
         rr.append(T["prec"])
         rr.append(prec)
@@ -1075,10 +1077,11 @@ def sintesi_burimet(dosja: dict, lang: str = "sq") -> list[dict]:
                     "titulli": (f.get("neni") or f.get("ligji") or "")[:120],
                     "citim": (f.get("citim") or "")[:500], "url": f.get("url") or "",
                     "data": f.get("fletorja") or f.get("data") or ""})
+    from .war_room import _titolo_nella_lingua as _tnl      # v9.591: i titoli nella lingua della sessione anche per l'avvocato
     for c in (web.get("akte_nenligjore") or []):
         out.append({"agjenti": "web",
                     "tip": ("akt nënligjor" if lang == "sq" else "norma attuativa"),
-                    "titulli": (c.get("titulli") or "")[:120], "citim": (c.get("citim") or "")[:500],
+                    "titulli": _tnl(c.get("titulli") or "", c.get("url") or "", lang)[:120], "citim": (c.get("citim") or "")[:500],
                     "url": c.get("url") or "", "data": c.get("data") or ""})
     _pa = (_STATUSE_QBZ["sq"][3], _STATUSE_QBZ["it"][3])
     for q in (d.get("qbz") or []):
@@ -1092,6 +1095,6 @@ def sintesi_burimet(dosja: dict, lang: str = "sq") -> list[dict]:
                     "url": q.get("url") or "", "data": q.get("data") or ""})
     for c in (web.get("burime") or []):
         out.append({"agjenti": "web", "tip": ("burim" if lang == "sq" else "fonte"),
-                    "titulli": (c.get("titulli") or "")[:120], "citim": (c.get("citim") or "")[:500],
+                    "titulli": _tnl(c.get("titulli") or "", c.get("url") or "", lang)[:120], "citim": (c.get("citim") or "")[:500],
                     "url": c.get("url") or "", "data": c.get("data") or ""})
     return out
