@@ -929,6 +929,13 @@ _SHORT_AS_SUBSTRING = frozenset({"romai"})
 # resta «da chiarire» (needs_code, resolved_by="fuori_corpus"), MAI «falsa» — «non lo trovo» ≠ «è inventato».
 FUORI_CORPUS = "__fuori_corpus__"
 
+# v9.577 — le citazioni dell'ANEKS della Costituzione (rivlerësimi kalimtar), coi neni a LETTERE: «neni D, pika 5, i Aneksit (të
+# Kushtetutës)», «nenit Ë, paragrafi 2, të Aneksit», «Aneksi (i Kushtetutës), neni DH». Le lettere a due caratteri prima di quelle a uno
+_ANEKS_KUSHT_RE = re.compile(
+    r"\b[Nn]en(?:i|in|it)\s+(?P<l1>DH|Dh|[A-ZËÇ])(?![A-Za-zËëÇç])(?:\s*,\s*(?:pika|pikën|pikës|paragrafi|paragrafin|paragrafit)\s+\d+(?:/[a-zë])?"
+    r"\s*,?)?\s+(?:i|e|të|së)\s+Aneks(?:it|in)\b(?!\s+(?:i|e|të)\s+(?:[Ll]igjit|VKM|[Vv]endimit|[Kk]odit|[Rr]regullores))"
+    r"|\bAneks(?:i|it|in)\b(?:\s+(?:i|e|të)\s+Kushtetutës)?\s*,\s*[Nn]en(?:i|in|it)\s+(?P<l2>DH|Dh|[A-ZËÇ])(?![A-Za-zËëÇç])")
+
 
 _DATA_ATTO_RE = re.compile(r"\d{1,2}°?\s+(?:gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|"
                            r"dicembre)\s+(\d{4})\s*,?\s*n\.?\s*(\d{1,5})(?!\d)", re.I)
@@ -2264,6 +2271,27 @@ def verify_text(
             _emit(number, code_n, raw, via)
             if _lang == "it" and code_n in _TU_AMBIGUI_V and citations:
                 citations[-1]._coda_tu = _come_nominato_tu(code_n, tail)
+
+    if _lang != "it":
+        # v9.577 — l'ANEKS della Costituzione (il vetting: neni A-G, unità «aneks-neni-X» dal v9.576): «neni D, pika 5, i Aneksit të
+        # Kushtetutës», «(Aneksi, neni D)», «nenit Ë, paragrafi 2, të Aneksit» — il numero è una LETTERA e nessuna di queste citazioni
+        # si leggeva (prova in Chrome del 10 ott: la risposta citava D, Ç, C, E, Ë, F, G e la riga di verifica non ne contava nessuna).
+        # Solo se il testo (o il contesto) parla della Costituzione; una lettera che l'Aneks non ha («neni H i Aneksit») è inesistente
+        try:
+            _kush_ctx = "kushtetut" in ((text or "") + " " + (context_text or "")).lower()
+            for _ma in _ANEKS_KUSHT_RE.finditer(text or "") if _kush_ctx else ():
+                _lett = (_ma.group("l1") or _ma.group("l2") or "").upper()
+                _num = _normalise_number(f"aneks-neni-{_lett}")          # «aneks/neni/d», come le chiavi dell'indice
+                if (_num, "kushtetuta") in seen:
+                    continue
+                seen.add((_num, "kushtetuta"))
+                _art = _verify_number(lookup, "kushtetuta", _num) or _verify_number(lookup_all, "kushtetuta", _num)
+                citations.append(Citation(
+                    raw=_ma.group(0), number=_num, code="kushtetuta", code_label=CODE_LABELS.get("kushtetuta", "Kushtetuta"),
+                    status="verified" if _art is not None else "fake", candidates=[],
+                    article_heading=(getattr(_art, "heading", "") or None) if _art is not None else None, resolved_by="aneks"))
+        except Exception:  # noqa: BLE001 - un aiuto in più, mai un guasto del verificatore
+            pass
 
     if _lang == "it":
         # v9.397 — le continuazioni con un codice proprio («… c.p.p. e 107 disp. att. c.p.p.»)

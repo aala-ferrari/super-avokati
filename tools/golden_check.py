@@ -9953,6 +9953,68 @@ def main():
     except Exception as _e347:  # noqa: BLE001
         check("aneks[347]: kontrollet u ekzekutuan", False, f"{type(_e347).__name__}: {_e347}")
 
+    # [348] v9.577 — le citazioni dell'Aneks della Costituzione (neni a LETTERE) si verificano: prova in Chrome del 10 ott sul vetting,
+    # la risposta citava D, Ç, C, E, Ë, F, G e la riga di verifica non ne contava nessuna
+    try:
+        from src.retrieval import ArticleIndex as _AI348
+        from src import citation_verifier as _cv348
+        _al348 = _AI348.load()
+        def _st348(t):
+            return [(i["status"], i.get("code"), i["number"]) for i in _cv348.verify_text(t, _al348)["items"] if i.get("resolved_by") == "aneks"]
+        check("aneks-citim[348]: «Aneksi, neni D», «neni D, pika 5, i Aneksit të Kushtetutës», «nenit Ë, paragrafi 2, të Aneksit», «Aneksi i "
+              "Kushtetutës, neni DH» → verificati",
+              _st348("Kushtetuta (Aneksi, neni D) e detyron të shpjegojë burimin e ligjshëm.") == [("verified", "kushtetuta", "aneks/neni/d")]
+              and _st348("Pa provë, neni D, pika 5, i Aneksit të Kushtetutës sjell shkarkim.") == [("verified", "kushtetuta", "aneks/neni/d")]
+              and _st348("Sipas Kushtetutës, me përjashtim të vendimeve sipas nenit Ë, paragrafi 2, të Aneksit.") == [("verified", "kushtetuta", "aneks/neni/ë")]
+              and _st348("Aneksi i Kushtetutës, neni DH, kontrolli i figurës.") == [("verified", "kushtetuta", "aneks/neni/dh")])
+        check("aneks-citim[348]: lettera che l'Aneks non ha → inesistente; l'allegato di un'altra legge o un testo senza Costituzione → niente",
+              _st348("neni H i Aneksit të Kushtetutës") == [("fake", "kushtetuta", "aneks/neni/h")]
+              and _st348("Kushtetuta; neni D i Aneksit të ligjit për tatimet") == []
+              and _st348("neni D i Aneksit të kontratës") == [])
+    except Exception as _e348:  # noqa: BLE001
+        check("aneks-citim[348]: kontrollet u ekzekutuan", False, f"{type(_e348).__name__}: {_e348}")
+
+    # [349] v9.577 — ventisettesimo giro: i casi al limite (riduzione dell'assegno per i figli, divorzio dopo la separazione) e il costruttore
+    # in ritardo con la penale del contratto (KC 541-544 «kushti penal», mai trovato; KC 481 mora del debitore)
+    try:
+        from pathlib import Path as _P349
+        from src.retrieval import ArticleIndex as _AI349
+        from src import brain as _b349
+        _it349 = _AI349.load(_P349("/app/data/index/bm25_it.pkl"))
+        _al349 = _AI349.load()
+        _ii349 = lambda q, ar: {(a.code, a.number) for a, _ in _b349._applica_ancore([], _it349, [q], ar, _b349.ANCORE_IT)}
+        _ia349 = lambda q, ar: {(a.code, a.number) for a, _ in _b349._applica_ancore([], _al349, [q], ar, _b349.ANCORE_AL)}
+        check("ancore[349]: riduzione dell'assegno per i figli → c.c. 337-quinquies + c.p.c. 473-bis.29; divorzio dopo la separazione → "
+              "L. 898/1970 art. 3; mai nel penale",
+              {("codice_civile", "337-quinquies"), ("codice_procedura_civile", "473-bis.29")}
+              <= _ii349("Il cliente ha perso il lavoro e vuole la riduzione dell'assegno di mantenimento per i figli.", ["Civile"])
+              and ("divorzio", "3") in _ii349("Sono separati consensualmente da otto mesi: possono già chiedere il divorzio?", ["Civile"])
+              and ("divorzio", "3") not in _ii349("Nella separazione la moglie chiede l'assegno.", ["Civile"])
+              and not _ii349("Violazione degli obblighi di assistenza: non versa l'assegno ai figli e chiede la riduzione.", ["Penale"]))
+        _c349 = _ia349("Shoqëria ndërtuese nuk e dorëzoi apartamentin në afat; kontrata parashikon gjobë për çdo ditë vonesë.", ["Civil"])
+        check("ancore[349]: costruttore in ritardo con la penale → KC 541/543/544 (kushti penal) + 481 (vonesa); mai nel lavoro né "
+              "per una multa amministrativa",
+              {("kodi_civil", "541"), ("kodi_civil", "543"), ("kodi_civil", "544"), ("kodi_civil", "481")} <= _c349
+              and not _ia349("Inspektorati i dha gjobë për vonesë në dorëzimin e kontratës së punës.", ["Punë"])
+              and not _ia349("Policia i vuri gjobë për vonesë në dorëzimin e dokumenteve.", ["Administrativ"]), str(sorted(_c349)))
+    except Exception as _e349:  # noqa: BLE001
+        check("ancore[349]: kontrollet u ekzekutuan", False, f"{type(_e349).__name__}: {_e349}")
+
+    # [350] v9.578 — nessun corpo albanese fatto SOLO del titolo del capitolo seguente: il KC 540 (patto commissorio) aveva per corpo
+    # «KREU II ⏎ KUSHTI PENAL», la Kushtetuta 44 «KREU III ⏎ LIRITË DHE TË DREJTAT POLITIKE» (105 articoli, tools/repair_coda_sola_al.py)
+    try:
+        from src.retrieval import ArticleIndex as _AI350
+        from src.parser import taglia_coda_gerarchia as _tc350, _is_italian_code as _iic350
+        _al350 = _AI350.load()
+        _solo350 = [(a.code, str(a.number)) for a in _al350.articles if not _iic350(a.code) and (a.body or "").strip()
+                    and _tc350("Riga di contenuto.\n" + a.body)[0].strip() == "Riga di contenuto." and len((a.heading or "").strip()) >= 20]
+        _by350 = {(a.code, str(a.number)): a for a in _al350.articles}
+        check("coda-sola[350]: nessun corpo albanese fatto solo del titolo del capitolo seguente (KC 540, Kushtetuta 44, KF 107…)",
+              not _solo350 and not (_by350[("kodi_civil", "540")].body or "").strip()
+              and "KUSHTI PENAL" in (_by350[("kodi_civil", "541")].kreu or ""), str(_solo350[:6]))
+    except Exception as _e350:  # noqa: BLE001
+        check("coda-sola[350]: kontrollet u ekzekutuan", False, f"{type(_e350).__name__}: {_e350}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

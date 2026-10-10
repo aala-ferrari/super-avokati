@@ -415,6 +415,16 @@ ANCORE_AL: tuple = (
      ("Penal",), (("kodi_familjes", "57"),), None, None, True),
     ((("dogan", "sekuestr"), ("dogan", "konfisk"), ("dogan", "kontraband"), ("dogan", "bllok")),
      (), (("kodi_doganor", "271"), ("kodi_doganor", "272"), ("kodi_doganor", "281")), None, None, True),
+    # v9.577 — ventisettesimo giro: il costruttore che non consegna l'appartamento nel termine e la «gjobë për çdo ditë vonesë» del
+    # contratto = il KUSHTI PENAL (KC 541-545, senza rubriche: il triage scriveva «klauzola penale», il codice dice «kushti penal») e
+    # nessuno dei due entrava; la MORA del debitore (KC 481). Solo nelle materie civili: «gjobë» è anche la multa amministrativa,
+    # «penal» il diritto penale
+    ((("gjob", "vones"), ("gjob", "kontrat", "dit"), ("kushti penal",), ("kushtin penal",), ("kushtit penal",), ("klauzol", "penal"),
+      ("penalitet",)),
+     ("Penal", "Punë", "Administrativ"), (("kodi_civil", "541"), ("kodi_civil", "543"), ("kodi_civil", "544")), None,
+     ("Civil", "Tregtare", "Konsumator", "Prone"), True),
+    ((("vones", "dorëz"), ("vonuar", "dorëz"), ("nuk e dorëzoi", "afat"), ("nuk dorëzoi", "afat"), ("nuk e ka dorëzuar", "afat")),
+     ("Penal", "Punë", "Administrativ"), (("kodi_civil", "481"),), None, ("Civil", "Tregtare", "Konsumator", "Prone"), True),
 )
 # v9.380 — ancore italiane di REGOLA GENERALE (stesso metro): «il credito risale al 2013 — è prescritto?» → il triage cerca
 # ordinaria + interruzione + sospensione e il 2946 c.c. «Prescrizione ordinaria» finiva oltre il 12° (2945, 2935, 2964 sopra).
@@ -462,6 +472,13 @@ ANCORE_IT: tuple = (
     ((("prescri", "multa"), ("prescri", "multe"), ("prescri", "contravvenz"), ("prescri", "autovelox"), ("prescri", "codice della strada"),
       ("prescri", "sanzion", "stradal"), ("prescri", "verbal", "stradal")),
      ("Penale", "Penal"), (("sanzioni_amministrative", "28"), ("codice_strada", "209")), None, None, True),
+    # v9.577 — ventisettesimo giro, i casi al limite (10° posto, il taglio è al 12°-14°): la riduzione dell'assegno per i figli (c.c.
+    # 337-quinquies «Revisione delle disposizioni…», c.p.c. 473-bis.29 «Modificabilità dei provvedimenti») e il divorzio dopo la
+    # separazione (L. 898/1970 art. 3: sei mesi dalla comparizione nella consensuale, dodici nella giudiziale)
+    ((("assegno", "figli", "riduz"), ("assegno", "figli", "ridurre"), ("assegno", "figli", "modific"), ("assegno", "figli", "revision"),
+      ("mantenimento", "figli", "riduz"), ("mantenimento", "figli", "ridurre"), ("mantenimento", "figli", "perso il lavoro")),
+     ("Penale", "Penal"), (("codice_civile", "337-quinquies"), ("codice_procedura_civile", "473-bis.29")), None, None, True),
+    ((("divorzi", "separat"), ("divorzi", "separaz")), ("Penale", "Penal"), (("divorzio", "3"),), None, None, True),
     # v9.525 — la NASpI (D.Lgs. 22/2015). Risposte vere del 1° e 3 ott: «la domanda va presentata nei termini di legge (68 giorni —
     # norma non tra quelle recuperate)» in un licenziamento disciplinare, e «misura, massimale e décalage stanno nell'art. 4, che non
     # è tra gli articoli recuperati» in una domanda sulla NASpI: le rubriche dicono «Requisiti», «Calcolo e misura», «Durata»,
