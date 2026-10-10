@@ -131,7 +131,8 @@ def main() -> None:
 # Kushtetuese (77-79/2026 comprese, con questo watcher che diceva «asnjë vendim i ri») e 7.250 vendime della
 # Gjykata e Lartë presenti nel suo archivio pubblico (Strapi GraphQL, campo `files`). Qui si confronta, per
 # l'anno in corso e il precedente, l'ELENCO UFFICIALE con i file che abbiamo; i buchi finiscono nell'email.
-# Nessun download, nessun ingest: si scaricano con tools/… e passano da reparse_vendime.py (verifica 1×1).
+# Nessun download, nessun ingest: si scaricano con tools/scarica_vendime_mancanti.py (in una cartella di prova) e passano da
+# reparse_vendime.py (verifica 1×1) — la procedura completa è in testa a quello strumento.
 RAW = "/var/www/apps/super-avvocato/data/raw/jurisprudence"
 
 

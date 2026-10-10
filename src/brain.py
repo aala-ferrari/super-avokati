@@ -777,17 +777,21 @@ def _applica_ancore(pairs, idx, queries: list[str], aree: list[str], ancore=None
 _INCIDENTE_RX = re.compile(r"aksident|u\s+godit|goditi|përplas|perplas|automjet\w*\s+(?:e|i)\s+(?:goditi|përplasi)|"
                            r"(?:makin|automjet)\w*.{0,40}(?:dëm|dem|plag|vdiq|këmbësor|kembesor)|këmbësor|kembesor", re.I)
 _CODICI_MINORI = frozenset({"kodi_te_miturve", "processo_penale_minorile"})
-_MINORE_RX = re.compile(r"mitur|minor(?:e|i|enn\w*)|fëmij|femij|nxënës|nxenes|adoleshent|\b1[0-7]\s*-?\s*vjeç|\b1[0-7]\s*-?\s*vjec|"
+_MINORE_RX = re.compile(r"mitur|minor(?:e|i|enn\w*)|fëmij|femij|nxënës|nxenes|adoleshent|\b(?:[1-9]|1[0-7])\s*-?\s*vje[çc]|"
                         r"\b1[0-7]\s*ann[io]\b|nën\s*18|sotto\s+i\s+18|ragazz[oaie]|bambin|studente\s+(?:di|delle)\s+(?:medie|superiori)", re.I)
 
 
-def _senza_codice_minori(pairs, testo: str):
-    if _MINORE_RX.search(testo or ""):
+def _senza_codice_minori(pairs, testo: str, areas=None):
+    # v9.581 — il codice dei minori è PENALE (il minore imputato, e in Albania anche la vittima o il testimone minore): resta se nella
+    # domanda c'è un minore E la materia è penale (o il triage non dice le aree). Prima l'età a una cifra («djali 8 vjeç», «vajza 9 vjeç»)
+    # non contava come minore — il codice usciva anche dalla domanda sul bambino vittima —, e un minore in una domanda di famiglia
+    # (alimenti, affido) lo teneva dentro dove non serve
+    if _MINORE_RX.search(testo or "") and (not areas or any(re.search(r"penal", str(x or ""), re.I) for x in areas)):
         return pairs
     fuori = [a for a, _ in pairs if a.code in _CODICI_MINORI]
     if not fuori:
         return pairs
-    log.info("retrieval: codice dei minori fuori (nessun minore nella domanda): %s", ", ".join(f"{a.code} {a.number}" for a in fuori[:6]))
+    log.info("retrieval: codice dei minori fuori (nessun minore nella domanda, o materia non penale): %s", ", ".join(f"{a.code} {a.number}" for a in fuori[:6]))
     return [(a, s) for a, s in pairs if a.code not in _CODICI_MINORI]
 
 
@@ -825,6 +829,58 @@ def _senza_diritto_straniero(pairs, testo: str, areas=None):
     log.info("retrieval: diritto straniero fuori (nessun elemento straniero nella domanda): %s",
              ", ".join(f"{a.code} {a.number}" for a in fuori[:8]))
     return [(a, s) for a, s in pairs if a.code not in _CODICI_ESTERO_IT]
+
+
+# ── v9.580 — la LEGGE SULL'ADOZIONE fuori dalle domande che non parlano di adozione o di affidamento familiare ──────────────────
+# Dal banco coi blocchi (10 ott, 25 domande di famiglia): la L. 184/1983 («Diritto del minore ad una famiglia») entrava con 1-3 articoli
+# in 9 domande — separazione e affido condiviso, casa familiare, nonni, figlio che rompe il vetro del vicino, morso del cane, trasferimento
+# del figlio: l'«affidamento familiare» degli artt. 2-5 condivide le parole con l'«affidamento» dei figli nella separazione. Resta solo se
+# la DOMANDA parla di adozione, affidamento/affido familiare o presso terzi, abbandono, casa famiglia o comunità, servizi sociali,
+# adottabilità, tribunale per i minorenni. Solo italiano
+_ADOZIONE_RX = re.compile(r"adott|adozion|affid\w*\s+(?:famil|etero|presso\s+(?:terzi|una\s+famiglia|i\s+nonni|parenti))|"
+                          r"famiglia\s+affidataria|abbandon|casa\s+famiglia|comunit[àa]\s+(?:di\s+tipo\s+familiare|per\s+minori|educativ)|"
+                          r"servizi\s+sociali|assistenti?\s+social|adottabilit|tribunale\s+per\s+i\s+minorenni|kafala", re.I)
+
+
+def _senza_adozione(pairs, testo: str):
+    if _ADOZIONE_RX.search(testo or ""):
+        return pairs
+    fuori = [a for a, _ in pairs if a.code == "adozione"]
+    if not fuori:
+        return pairs
+    log.info("retrieval: legge sull'adozione fuori (né adozione né affidamento familiare nella domanda): %s",
+             ", ".join(f"{a.code} {a.number}" for a in fuori[:8]))
+    return [(a, s) for a, s in pairs if a.code != "adozione"]
+
+
+# ── v9.581 — il gemello albanese: BIRËSIMI e KUJDESTARIA MBI TË MITURIT/TË PAAFTËT fuori dalle domande sui figli dopo il divorzio ──
+# Banco coi blocchi (10 ott): «pas divorcit fëmija i është lënë nënës; babai dëshiron ta shohë më shpesh» aveva nel blocco i KF 263,
+# 264, 268 (la tutela del minore SENZA genitori, «Kujdestaria mbi të miturit») — la stessa parola «kujdestari» del collocamento del figlio
+# nella separazione. Fuori i capitoli del Kodi i Familjes sull'adozione (Titulli IV «Birësimi») e sulla tutela (Kreu «Kujdestaria
+# mbi…»), salvo che la DOMANDA parli di adozione, di un minore senza genitori, di incapacità o di un tutore nominato. La responsabilità
+# genitoriale (KF 215-239) resta: è la materia del caso
+_KF_TUTELA_RX = re.compile(r"BIRËSIM|KUJDESTARIA\s+MBI", re.I)
+# le frasi vere dei casi di tutela (misurate: la prima stesura ne teneva dentro 4 su 10 — «i vdiqën prindërit», «prindërit e tij
+# kanë vdekur», «nëna dhe babai vdiqën», «humbi të dy prindërit», «gjyshërit duan kujdestarinë» restavano fuori)
+_TUTELA_AL_RX = re.compile(r"birës|bires|adopt|jetim|pa\s+prind|"
+                           r"prind[eë]r\w*(?:\s+\S+){0,3}?\s+(?:(?:kan[eë]|ka)\s+)?(?:vdekur|vdek|vdiq\w*)|"
+                           r"(?:vdiq|vdek)\w*(?:\s+\S+){0,2}?\s+(?:t[eë]\s+dy\s+)?prind[eë]r|"
+                           r"humb\w*\s+(?:t[eë]\s+dy\s+)?prind[eë]r|"
+                           r"(?:n[eë]na|babai)\s+(?:dhe|e)\s+(?:babai|n[eë]na)(?:\s+\S+){0,2}?\s+(?:kan[eë]\s+)?(?:vdekur|vdiq\w*)|"
+                           r"gjysh\w*(?:\s+\S+){0,4}?\s+kujdestar|"
+                           r"kujdestar\w*\s+(?:i|e|t[eë])\s+(?:em[eë]ruar|caktuar)|organ\w*\s+(?:i|e)\s+kujdestaris|"
+                           r"zot[eë]si|\b(?:i|e)\s+paaft[eë]|kujdestaria\s+mbi", re.I)
+
+
+def _senza_tutela_al(pairs, testo: str):
+    if _TUTELA_AL_RX.search(testo or ""):
+        return pairs
+    fuori = [a for a, _ in pairs if a.code == "kodi_familjes" and _KF_TUTELA_RX.search(getattr(a, "kreu", "") or "")]
+    if not fuori:
+        return pairs
+    log.info("retrieval: birësimi/kujdestaria fuori (non nella domanda): %s", ", ".join(f"{a.code} {a.number}" for a in fuori[:8]))
+    _via = {id(a) for a in fuori}
+    return [(a, s) for a, s in pairs if id(a) not in _via]
 
 
 # ── v9.377 — ANCORA ITALIANA: veicolo con targa EXTRA-UE ─────────────────
@@ -5554,8 +5610,9 @@ class SuperAvvocato:
         # v9.394 — e le parole dell'avvocato (la testa della domanda): il triage riscrive («shtetas i huaj me leje qëndrimi» può
         # sparire dal riassunto), la domanda resta
         _testo_anc.append((getattr(triage, "domanda", "") or "")[:600])
-        pairs = _senza_codice_minori(pairs, _testo_anc[-1] or " ".join(_testo_anc))                   # v9.503
+        pairs = _senza_codice_minori(pairs, _testo_anc[-1] or " ".join(_testo_anc), triage.areas)                   # v9.503
         if idx is self.index:
+            pairs = _senza_tutela_al(pairs, _testo_anc[-1] or " ".join(_testo_anc))                                # v9.581
             pairs = _applica_ancore(pairs, idx, _testo_anc, triage.areas)
             pairs = _ancore_narkotike_al(pairs, idx, _testo_anc, triage.areas)      # v9.402
             pairs = _ankoro_sipas_titullit(
@@ -5564,12 +5621,15 @@ class SuperAvvocato:
             pairs = _ancora_vepra_penale(pairs, idx, all_queries, triage.areas)      # v9.487
         elif idx is self.index_it:
             pairs = _senza_diritto_straniero(pairs, _testo_anc[-1] or " ".join(_testo_anc), triage.areas)        # v9.579
+            pairs = _senza_adozione(pairs, _testo_anc[-1] or " ".join(_testo_anc))                                # v9.580
             pairs = _applica_ancore(pairs, idx, _testo_anc, triage.areas, ancore=ANCORE_IT)
             pairs = _ancore_it_veicolo(pairs, idx, " ".join([triage.problem_summary or ""] + list(all_queries)))
         pairs = _citati_dal_triage(pairs, idx, list(all_queries))      # v9.528
         # v9.504 — e di nuovo DOPO le ancore: le ancore per titolo riportavano dentro il Codice dei minori (misurato: «kodi_te_miturve 9»
         # nella detenzione ingiusta di un adulto, al posto di un articolo vero dei 12)
-        pairs = _senza_codice_minori(pairs, _testo_anc[-1] or " ".join(_testo_anc))
+        pairs = _senza_codice_minori(pairs, _testo_anc[-1] or " ".join(_testo_anc), triage.areas)
+        if idx is self.index:                       # v9.581 — anche qui: le ancore per titolo («Kujdestaria…») la riportavano dentro
+            pairs = _senza_tutela_al(pairs, _testo_anc[-1] or " ".join(_testo_anc))
         # v9.377: le ancore del veicolo extra-UE si AGGIUNGONO ai 12 (non devono spingere fuori il C.d.S. trovato dalla ricerca)
         _extra = sum(1 for a, _ in pairs if getattr(a, "_ancora_it", False))
         # v9.400 — anche le ancore albanesi di REGOLA GENERALE (copie `_ancora`) si AGGIUNGONO ai 12 invece di spingere fuori la

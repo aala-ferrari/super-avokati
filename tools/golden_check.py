@@ -10035,6 +10035,131 @@ def main():
     except Exception as _e351:  # noqa: BLE001
         check("estero[351]: kontrollet u ekzekutuan", False, f"{type(_e351).__name__}: {_e351}")
 
+    # [352] v9.580 — la L. 184/1983 sull'adozione fuori dalle domande di separazione e affido (entrava in 9 domande di famiglia su 25 per
+    # l'«affidamento familiare» degli artt. 2-5); dentro con adozione, affidamento familiare, abbandono, servizi sociali; cablata
+    try:
+        from src import brain as _b352
+        from types import SimpleNamespace as _NS352
+        _p352 = [(_NS352(code=c, number=n), 1.0) for c, n in (("codice_civile", "337-ter"), ("adozione", "4"), ("adozione", "44"))]
+        _k352 = lambda t: [a.code for a, _ in _b352._senza_adozione(_p352, t)]
+        _src352 = __import__("pathlib").Path("/app/src/brain.py").read_text(encoding="utf-8")
+        check("adozione[352]: separazione e affido condiviso senza la L. 184/1983; adozione, affidamento familiare, servizi sociali la tengono",
+              _k352("Nella separazione i genitori litigano su con chi devono stare i figli: affido condiviso o esclusivo?") == ["codice_civile"]
+              and "adozione" in _k352("Il cliente vuole adottare il figlio della moglie.")
+              and "adozione" in _k352("I servizi sociali hanno disposto l'affidamento familiare del bambino.")
+              and "pairs = _senza_adozione(pairs" in _src352)
+    except Exception as _e352:  # noqa: BLE001
+        check("adozione[352]: kontrollet u ekzekutuan", False, f"{type(_e352).__name__}: {_e352}")
+
+    # [353] v9.581 — il gemello albanese: Birësimi e Kujdestaria mbi të miturit fuori dalle domande sul figlio dopo il divorzio (KF 263,
+    # 264, 268 nel blocco «babai dëshiron ta shohë më shpesh»); la responsabilità genitoriale resta; dentro con jetim, pa prindër, birësim
+    try:
+        from src import brain as _b353
+        from types import SimpleNamespace as _NS353
+        _p353 = [(_NS353(code="kodi_familjes", number=n, kreu=k), 1.0) for n, k in (
+            ("158", "KREU III — PASOJAT E ZGJIDHJES SË MARTESËS"), ("221", "KREU II — USHTRIMI I PËRGJEGJËSISË PRINDËRORE"),
+            ("263", "KREU I — KUJDESTARIA MBI TË MITURIT"), ("245", "TITULLI IV — BIRËSIMI"))]
+        _k353 = lambda t: [a.number for a, _ in _b353._senza_tutela_al(_p353, t)]
+        _src353 = __import__("pathlib").Path("/app/src/brain.py").read_text(encoding="utf-8")
+        check("kujdestari[353]: dopo il divorzio via Birësimi e Kujdestaria mbi të miturit, resta la responsabilità genitoriale; jetim / "
+              "birësim li tengono",
+              _k353("Pas divorcit fëmija i është lënë nënës; babai dëshiron ta shohë më shpesh.") == ["158", "221"]
+              and "263" in _k353("Fëmija mbeti jetim: kush emërohet kujdestar?")
+              and "245" in _k353("Klienti dëshiron të birësojë fëmijën e gruas.")
+              # le frasi vere dei casi di tutela restano dentro (la prima stesura ne perdeva 6 su 10) …
+              and all("263" in _k353(t) for t in (
+                  "I vdiqën prindërit dhe vajza 12 vjeçe jeton me tezen. Kush bëhet kujdestar?",
+                  "Prindërit e tij kanë vdekur dhe xhaxhai do ta marrë fëmijën.",
+                  "Nëna dhe babai vdiqën vitin e kaluar; çfarë procedure ka për kujdestarinë?",
+                  "Fëmija humbi të dy prindërit, kush e përfaqëson?",
+                  "Gjyshërit duan kujdestarinë e nipit sepse nëna është në burg."))
+              # … e la «kujdestaria» della separazione resta fuori
+              and all("263" not in _k353(t) for t in (
+                  "Kujdestaria e fëmijës pas divorcit: babai kërkon ta ndryshojë.",
+                  "Gjyshërit duan ta shohin nipin pas divorcit, nëna nuk lejon.",
+                  "Babai vdiq dhe la një shtëpi; si ndahet trashëgimia mes fëmijëve?"))
+              and _src353.count("pairs = _senza_tutela_al(pairs") == 2)
+    except Exception as _e353:  # noqa: BLE001
+        check("kujdestari[353]: kontrollet u ekzekutuan", False, f"{type(_e353).__name__}: {_e353}")
+
+    # [354] v9.581 — il codice dei minori (penale) resta se c'è un minore E la materia è penale: l'età a una cifra conta («vajza 9 vjeç»),
+    # un minore in una domanda di famiglia (alimenti, affido) non lo tiene dentro
+    try:
+        from src import brain as _b354
+        from types import SimpleNamespace as _NS354
+        _p354 = [(_NS354(code=c, number=n), 1.0) for c, n in (("kodi_penal", "100"), ("kodi_te_miturve", "16"))]
+        _k354 = lambda t, ar=None: [a.code for a, _ in _b354._senza_codice_minori(_p354, t, ar)]
+        check("minori[354]: «vajza 9 vjeç» nel penale tiene il codice dei minori; alimenti del «djali 8 vjeç» (famiglia) no; adulto mai",
+              "kodi_te_miturve" in _k354("Fqinji abuzoi me vajzën 9 vjeç. Si e mbrojmë?", ["Penal"])
+              and "kodi_te_miturve" not in _k354("Ish-bashkëshorti nuk paguan ushqimin për djalin 8 vjeç.", ["Familje", "Civil"])
+              and "kodi_te_miturve" not in _k354("Klienti u arrestua për vjedhje.", ["Penal"])
+              and "kodi_te_miturve" in _k354("Djali 13 vjeç vodhi një telefon."))
+    except Exception as _e354:  # noqa: BLE001
+        check("minori[354]: kontrollet u ekzekutuan", False, f"{type(_e354).__name__}: {_e354}")
+
+    # [355] v9.582 — dal 7 ottobre il firewall del Ministero scarta il nostro server: la pausa dell'archivio della Cassazione
+    # raddoppia a ogni guasto consecutivo (5 → 10 → 20 … minuti, tetto un'ora) e la prima risposta riuscita la azzera; un 4xx
+    # (query nostra sbagliata) non è un guasto dell'archivio; durante la pausa nessuna richiesta, nemmeno per i passi del testo.
+    # Eseguito con un urlopen finto: nessuna richiesta vera.
+    try:
+        from src import cassazione as _C355
+        import io as _io355, urllib.error as _ue355, urllib.request as _ur355
+        _orig355 = _ur355.urlopen
+        _cache355 = _C355._cache_get
+        _stato355 = (_C355._down_until, _C355._fallimenti)
+        def _boom355(exc):
+            def _f(*a, **k):
+                raise exc
+            return _f
+        class _Ok355(_io355.BytesIO):
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+        try:
+            _C355._down_until, _C355._fallimenti = 0.0, 0
+            _pause355 = []
+            for _ in range(5):
+                _ur355.urlopen = _boom355(_ue355.URLError("timed out"))
+                try:
+                    _C355._solr({"q": "x"}, timeout=1)
+                except Exception:  # noqa: BLE001
+                    pass
+                _pause355.append(round((_C355._down_until - __import__("time").time()) / 60))
+            _okA355 = _pause355 == [5, 10, 20, 40, 60] and _C355._fallimenti == 5
+            _C355._down_until, _C355._fallimenti = 0.0, 0
+            _ur355.urlopen = _boom355(_ue355.HTTPError("u", 400, "bad", None, None))
+            try:
+                _C355._solr({"q": "x"}, timeout=1)
+            except Exception:  # noqa: BLE001
+                pass
+            _okB355 = _C355._fallimenti == 0 and _C355._down_until == 0.0
+            _ur355.urlopen = _boom355(_ue355.HTTPError("u", 503, "down", None, None))
+            try:
+                _C355._solr({"q": "x"}, timeout=1)
+            except Exception:  # noqa: BLE001
+                pass
+            _okC355 = _C355._fallimenti == 1 and _C355._down_until > __import__("time").time()
+            _ur355.urlopen = lambda *a, **k: _Ok355(b'{"response": {"docs": []}}')
+            _C355._solr({"q": "x"}, timeout=1)
+            _okD355 = _C355._fallimenti == 0 and _C355._down_until == 0.0
+            # durante la pausa: cerca() senza cache dice «offline», gli estratti non chiedono niente
+            _chiamate355 = []
+            _ur355.urlopen = lambda *a, **k: (_chiamate355.append(1), _Ok355(b'{}'))[1]
+            _C355._cache_get = lambda keys: {}
+            _C355._down_until = __import__("time").time() + 600
+            _res355, _off355 = _C355.cerca([(69871, 2025)])
+            _est355 = _C355.estratti([{"status": "verified", "record": {"sn_id": "snciv2025569871O"}, "posizioni": [(0, 5)]}], "testo prova")
+            _okE355 = _off355 and _est355 == {} and not _chiamate355
+        finally:
+            _ur355.urlopen = _orig355
+            _C355._cache_get = _cache355
+            _C355._down_until, _C355._fallimenti = _stato355
+        check("Cassazione[355]: pausa dell'archivio che raddoppia (5-10-20-40-60 min) e si azzera alla prima risposta; un 4xx non conta, "
+              "un 5xx sì; durante la pausa nessuna richiesta (verifica «offline», niente passi)",
+              _okA355 and _okB355 and _okC355 and _okD355 and _okE355,
+              "A=%s %s B=%s C=%s D=%s E=%s" % (_okA355, _pause355, _okB355, _okC355, _okD355, _okE355))
+    except Exception as _e355:  # noqa: BLE001
+        check("Cassazione[355]: kontrollet u ekzekutuan", False, f"{type(_e355).__name__}: {_e355}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

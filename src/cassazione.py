@@ -44,6 +44,7 @@ import sqlite3
 import ssl
 import threading
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -298,6 +299,14 @@ _ctx_lock = threading.Lock()
 _ctx: ssl.SSLContext | None = None
 _net_sem = threading.Semaphore(2)
 _down_until = 0.0
+# v9.582 — dal 7 ottobre 2026 il firewall del Ministero scarta le connessioni del nostro server (dal Mac l'archivio risponde
+# in 0,3 s; dal server il SYN non riceve risposta, il tracciato muore dentro la rete Telecom): una pausa fissa di 5 minuti
+# faceva pagare 5-10 s a quasi ogni domanda italiana e bussava di continuo a un firewall che ci scarta. Ora la pausa
+# raddoppia a ogni guasto CONSECUTIVO (5 → 10 → 20 → 40 → 60 minuti, tetto `CASS_PAUSA_MAX_S`) e la prima risposta
+# riuscita la azzera. Solo i guasti di rete e i 5xx contano: un 4xx è una nostra query sbagliata, non l'archivio giù.
+PAUSA_BASE_S = 300.0
+PAUSA_MAX_S = float(os.environ.get("CASS_PAUSA_MAX_S", "3600"))
+_fallimenti = 0
 _mem: dict = {}
 _mem_lock = threading.Lock()
 _FL = ("id,kind,szdec,tipoprov,datdec,datdep,materia,filename,ocrdis,sic-materia,sic-data_ud,sic-datdep,sic-ricorrente,"
@@ -320,9 +329,40 @@ def _solr(params: dict, timeout: float = TIMEOUT_S) -> dict:
         "User-Agent": "Mozilla/5.0 (compatible; SuperAvokati-verifica/1.0)",
         "Referer": "https://www.italgiure.giustizia.it/sncass/",
         "Content-Type": "application/x-www-form-urlencoded"})
-    with _net_sem:
-        with urllib.request.urlopen(req, context=_ssl_ctx(), timeout=timeout) as r:
-            return json.loads(r.read().decode("utf-8", "replace"))
+    try:
+        with _net_sem:
+            with urllib.request.urlopen(req, context=_ssl_ctx(), timeout=timeout) as r:
+                out = json.loads(r.read().decode("utf-8", "replace"))
+    except urllib.error.HTTPError as exc:
+        if exc.code >= 500:
+            _segna_guasto()
+        raise
+    except (urllib.error.URLError, OSError):         # timeout, connessione scartata o rifiutata, nome che non risolve
+        _segna_guasto()
+        raise
+    _segna_risposta()
+    return out
+
+
+def _segna_guasto() -> float:
+    """Un guasto in più: pausa che raddoppia fino al tetto. Ritorna la pausa in secondi."""
+    global _down_until, _fallimenti
+    _fallimenti += 1
+    pausa = min(PAUSA_BASE_S * (2 ** min(_fallimenti - 1, 10)), PAUSA_MAX_S)
+    _down_until = max(_down_until, time.time() + pausa)
+    return pausa
+
+
+def _segna_risposta() -> None:
+    global _fallimenti, _down_until
+    if _fallimenti:
+        log.info("cassazione: l'archivio risponde di nuovo (dopo %d guasti consecutivi)", _fallimenti)
+    _fallimenti = 0
+    _down_until = 0.0
+
+
+def _minuti_di_pausa() -> int:
+    return max(1, int(round((_down_until - time.time()) / 60)))
 
 
 def _db():
@@ -498,9 +538,11 @@ def cerca(coppie: list[tuple[int, int]]) -> tuple[dict, bool]:
                             trovati[k].append(r)
                 nuovi.update({k: _unisci(v) for k, v in trovati.items()})
         except Exception as exc:  # noqa: BLE001
-            _down_until = time.time() + 300
+            if time.time() >= _down_until:
+                _segna_guasto()
             offline = True
-            log.warning("cassazione: archivio non raggiungibile (%s) — nessun riscontro per 5 minuti", str(exc)[:120])
+            log.warning("cassazione: archivio non raggiungibile (%s) — nessun riscontro per %d minuti (guasti consecutivi: %d)",
+                        str(exc)[:120], _minuti_di_pausa(), _fallimenti)
         if nuovi:
             _cache_put(nuovi)
             got.update(nuovi)
@@ -726,7 +768,7 @@ def estratti(items: list[dict], text: str, massimo: int = 6, tetto_s: float = 6.
     out: dict = {}
     t0 = time.time()
     for it in items:
-        if len(out) >= massimo or time.time() - t0 > tetto_s:
+        if len(out) >= massimo or time.time() - t0 > tetto_s or time.time() < _down_until:
             break
         r = it.get("record") or {}
         sid = r.get("sn_id")
@@ -876,8 +918,10 @@ def cerca_precedenti(domande: list[str], ramo: str = "civ", k: int = 3, tetto_s:
             d = _solr({"q": f"kind:{kind} AND ocr:(" + " OR ".join(parole) + ")", "rows": 8, "sort": "score desc",
                        "fl": _FL + ",score", "fq": fq}, timeout=min(TIMEOUT_S, resto))
         except Exception as exc:  # noqa: BLE001
-            _down_until = time.time() + 300
-            log.warning("cassazione: ricerca dei precedenti non riuscita (%s)", str(exc)[:120])
+            if time.time() >= _down_until:
+                _segna_guasto()
+            log.warning("cassazione: ricerca dei precedenti non riuscita (%s) — archivio in pausa per %d minuti (guasti consecutivi: %d)",
+                        str(exc)[:120], _minuti_di_pausa(), _fallimenti)
             return []
         for r, doc in enumerate((d.get("response") or {}).get("docs") or []):
             i = doc.get("id")
