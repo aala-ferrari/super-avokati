@@ -10397,6 +10397,25 @@ def main():
     except Exception as _e363:  # noqa: BLE001
         check("riti[363]: kontrollet u ekzekutuan", False, f"{type(_e363).__name__}: {_e363}")
 
+    # [364] v9.590 — i codici FISCALI fuori dalle domande senza tema fiscale (26 domande su 150 nel banco IT): dentro col fisco, con la
+    # casa da comprare, con la successione, o con la materia tributaria nel triage
+    try:
+        from types import SimpleNamespace as _NS364
+        from src import brain as _b364
+        _p364 = [(_NS364(code=c, number=n), 1.0) for c, n in (("codice_civile", "156"), ("tuir", "3"), ("tu_riscossione", "72-ter"),
+                                                               ("reati_tributari", "2"))]
+        _f364 = lambda t, ar=None: [a.code for a, _ in _b364._senza_codici_fiscali_it(_p364, t, ar)]
+        _ok364 = (_f364("La cliente si separa dal marito e hanno due figli minori: come si decide l'assegno?", ["Civile"]) == ["codice_civile"]
+                  and _f364("Un creditore privato vuole pignorare lo stipendio del cliente: quanto può prendere?", ["Civile"]) == ["codice_civile"]
+                  and len(_f364("L'Agenzia delle Entrate ha notificato una cartella al cliente: come la contestiamo?", ["Civile"])) == 4
+                  and len(_f364("Il cliente vuole comprare casa come prima casa: quanto paga?", ["Civile"])) == 4
+                  and len(_f364("Il padre è morto e ha lasciato due case in eredità: cosa devono fare i figli?", ["Civile"])) == 4
+                  and len(_f364("Il cliente ha un debito e teme il pignoramento.", ["Tributario"])) == 4)
+        check("fisco[364]: TUIR, riscossione e reati tributari fuori dalla separazione e dal pignoramento di un privato; dentro con la "
+              "cartella, la prima casa, l'eredità o la materia tributaria", _ok364)
+    except Exception as _e364:  # noqa: BLE001
+        check("fisco[364]: kontrollet u ekzekutuan", False, f"{type(_e364).__name__}: {_e364}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

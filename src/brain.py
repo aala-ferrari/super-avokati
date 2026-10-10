@@ -995,6 +995,37 @@ def _senza_procedura_civile_nel_penale(pairs, testo: str, areas=None):
     return [(a, s) for a, s in pairs if a.code not in via]
 
 
+# ── v9.590 — i codici FISCALI fuori dalle domande senza un tema fiscale ──────────────────────────────────────────────────────
+# Banco IT coi blocchi (10 ott, dopo la v9.589): in 26 domande su 150 che non parlano di imposte entravano i testi unici fiscali — la
+# separazione con due figli portava TUIR 3; il pignoramento dello stipendio da parte di un PRIVATO i limiti dell'agente della riscossione
+# (d.P.R. 602/1973 art. 72-ter) e l'accertamento; il decreto ingiuntivo il TU riscossione 154; il condomino moroso il TU riscossione 40 e 5;
+# la multa dell'autovelox le sanzioni tributarie; l'usura i reati tributari. I testi unici fiscali ripetono «credito», «pignoramento»,
+# «locazione», «sanzione», «interessi» e vincono per parole. Restano se la DOMANDA parla di fisco, imposte, tasse, cartelle e riscossione,
+# fatture, redditi, o di un atto che si tassa (comprare o vendere casa, rogito, donazione, successione, registrazione), o se il triage
+# dice materia tributaria o doganale. Solo italiano: in albanese nessun codice fiscale entra fuori tema (misurato sullo stesso banco)
+_CODICI_FISCALI_IT = frozenset({"tuir", "tuir_1986", "iva", "tu_iva", "accertamento_imposte", "tu_accertamento", "riscossione",
+                                "tu_riscossione", "imposta_registro", "tu_registro", "imposta_bollo", "imposta_ipotecaria_catastale",
+                                "imposta_successioni", "sanzioni_tributarie", "sanzioni_tributarie_amministrative", "tu_sanzioni_tributarie",
+                                "statuto_contribuente", "giustizia_tributaria", "processo_tributario", "adempimento_unico", "accise",
+                                "reati_tributari"})
+_FISCO_RX = re.compile(r"tribut|fisc|accertament|cartell|agenzia\s+delle\s+entrate|impost|\biva\b|evasion|elusion|redditi|tass[ae]\b|"
+                       r"\bimu\b|\btari\b|registr|rogito|notai|bollo|equitalia|riscossion|contribuent|cedolare|detrazion|deduc|fattur|"
+                       r"scontrin|\bf24\b|partita\s+iva|forfettari|plusvalenz|accis|dogan|acquist\w*\s+(?:di\s+|la\s+|una\s+)?casa|"
+                       r"compr\w*\s+(?:la\s+|una\s+)?casa|vend\w*\s+(?:la\s+|una\s+)?casa|compravendit|prima\s+casa|donazion|"
+                       r"\bdonat|successi|eredit|lasci\w*\s+in\s+eredit|testament|"
+                       r"bonari|\binps\b|contribut|fermo\s+amministrativ|ganasc|\birpef\b|\bires\b|\birap\b|ipoteca\s+legale", re.I)
+
+
+def _senza_codici_fiscali_it(pairs, testo: str, areas=None):
+    if _FISCO_RX.search(testo or "") or any(re.search(r"tribut|fiscal|tatim|dogan|accis", str(x or ""), re.I) for x in (areas or [])):
+        return pairs
+    fuori = [a for a, _ in pairs if a.code in _CODICI_FISCALI_IT]
+    if not fuori:
+        return pairs
+    log.info("retrieval: codici fiscali fuori (nessun tema fiscale nella domanda): %s", ", ".join(f"{a.code} {a.number}" for a in fuori[:8]))
+    return [(a, s) for a, s in pairs if a.code not in _CODICI_FISCALI_IT]
+
+
 def _senza_codici_condizionati_it(pairs, testo: str):
     t = testo or ""
     via = {code: nome for code, nome, innesco in _CODICI_CONDIZIONATI_IT if not innesco.search(t)}
@@ -5016,6 +5047,7 @@ class SuperAvvocato:
                     nuovo = _senza_tutela_it(nuovo, _t)
                     nuovo = _senza_codici_condizionati_it(nuovo, _t)
                     nuovo = _senza_procedura_civile_nel_penale(nuovo, _t, triage.areas)
+                    nuovo = _senza_codici_fiscali_it(nuovo, _t, triage.areas)                       # v9.590
                 _dopo = {(a.code, str(a.number)) for a, _ in nuovo}
                 esito["shtuar"] = [k for k in (esito.get("shtuar") or []) if (k[0], str(k[1])) in _dopo]
                 if _prima - _dopo:
@@ -5940,6 +5972,7 @@ class SuperAvvocato:
             pairs = _senza_tutela_it(pairs, _testo_anc[-1] or " ".join(_testo_anc))                               # v9.585
             pairs = _senza_codici_condizionati_it(pairs, _testo_anc[-1] or " ".join(_testo_anc))                  # v9.586
             pairs = _senza_procedura_civile_nel_penale(pairs, _testo_anc[-1] or " ".join(_testo_anc), triage.areas)  # v9.588
+            pairs = _senza_codici_fiscali_it(pairs, _testo_anc[-1] or " ".join(_testo_anc), triage.areas)           # v9.590
             pairs = _applica_ancore(pairs, idx, _testo_anc, triage.areas, ancore=ANCORE_IT)
             pairs = _ancore_it_veicolo(pairs, idx, " ".join([triage.problem_summary or ""] + list(all_queries)))
         pairs = _citati_dal_triage(pairs, idx, list(all_queries), triage.areas)      # v9.528 (v9.588: le aree per il gemello)
