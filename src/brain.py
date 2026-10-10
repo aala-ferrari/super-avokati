@@ -791,6 +791,42 @@ def _senza_codice_minori(pairs, testo: str):
     return [(a, s) for a, s in pairs if a.code not in _CODICI_MINORI]
 
 
+# ── v9.579 — il DIRITTO INTERNAZIONALE PRIVATO e dell'IMMIGRAZIONE fuori dalle domande senza elemento straniero ─────────────────
+# Prova in Chrome del 10 ott (la madre che si trasferisce a 400 km col figlio, tutto in Italia): 7 articoli su 20 del blocco erano del
+# Reg. (UE) 2019/1111 (Bruxelles II-ter: 8, 9, 13, 27 e, per rinvio interno, 7, 10, 29) più il TU immigrazione 31 — posti tolti alle norme
+# vere (l'art. 473-bis.39 c.p.c. sulle sanzioni restava fuori e il senior lo citava dal web); il senior lo diceva da sé («il Reg. UE
+# 2019/1111 qui non c'entra: il trasferimento è interno»). I regolamenti UE di giurisdizione e legge applicabile, la L. 218/1995 e gli atti
+# dell'immigrazione e della cittadinanza entrano solo se la DOMANDA ha un elemento straniero (un Paese, una nazionalità, «estero»,
+# «straniero», «UE», «internazionale», «permesso di soggiorno», «cittadinanza», «espulsione» …) o il triage dice un'area internazionale.
+# Solo italiano (in Albania il diritto straniero non è nel corpus della sessione)
+_CODICI_ESTERO_IT = frozenset({"bruxelles_i_bis", "bruxelles_ii_ter", "roma_i", "roma_ii", "roma_iii", "alimenti_ue",
+                               "regimi_patrimoniali_ue", "successioni_ue", "notifiche_ue", "ingiunzione_europea", "small_claims",
+                               "diritto_internazionale_privato", "tu_immigrazione", "regolamento_immigrazione",
+                               "protezione_internazionale", "cittadini_ue", "codice_visti", "codice_frontiere_schengen",
+                               "reg_ue_2018_1806", "protocollo_it_al_migranti", "cittadinanza", "regolamento_cittadinanza",
+                               "procedimenti_cittadinanza", "convenzione_it_al_fisco", "mandato_arresto_europeo"})
+_ESTERO_RX = re.compile(
+    r"ester[oaie]|stranier|extra[- ]?ue|comunitar|unione europea|\bue\b|europe[oaie]|internazional|transfrontalier|transnazional|"
+    r"\baja\b|rimpatri|espatri|cittadinanz|nazionalit|soggiorn|permess[oi]|ricongiung|espuls|clandestin|irregolar|questur|frontier|"
+    r"schengen|asilo|rifugiat|richiedent|protezione\s+(?:internazionale|sussidiaria|speciale)|immigra|emigra|migrant|apolid|consolat|"
+    r"ambasciat|apostill|\bpaes[ei]\b|altro\s+stato|stat[oi]\s+(?:membr|ester|terz)|albanes|albania|tedesc|germani|frances|francia|"
+    r"spagn|rumen|romania|polacc|polonia|ucrain|marocc|tunisi|egizi|egitto|cines|\bcina\b|indian|\bindia\b|filippin|bangladesh|"
+    r"pakistan|senegal|nigeria|svizzer|inglese|inghilterra|regno\s+unito|britannic|american|stati\s+uniti|brasil|argentin|peruvian|"
+    r"ecuador|russ[oaie]\b|russia|serb|kosov|macedon|montenegr|\bturc|turchia|\bgrec|austria|\bbelg|olanda|olandes|portogh|svezia|"
+    r"svedes|irland|croat|sloven|bulgar|ungher|\bcec[oaie]\b|slovacc|moldav|georgia|lussemburg", re.I)
+
+
+def _senza_diritto_straniero(pairs, testo: str, areas=None):
+    if _ESTERO_RX.search(testo or "") or any(re.search(r"internaz|immigr|nderkomb|ester[oi]", str(x or ""), re.I) for x in (areas or [])):
+        return pairs
+    fuori = [a for a, _ in pairs if a.code in _CODICI_ESTERO_IT]
+    if not fuori:
+        return pairs
+    log.info("retrieval: diritto straniero fuori (nessun elemento straniero nella domanda): %s",
+             ", ".join(f"{a.code} {a.number}" for a in fuori[:8]))
+    return [(a, s) for a, s in pairs if a.code not in _CODICI_ESTERO_IT]
+
+
 # ── v9.377 — ANCORA ITALIANA: veicolo con targa EXTRA-UE ─────────────────
 # Misurato (benchmark strato 2, 24 set, caso «auto targata albanese dell'amministratore di una sh.p.k. residente in
 # Italia»): con le parole dell'avvocato l'art. 215 del Reg. delegato (UE) 2015/2446 non entra nei primi 200 risultati
@@ -5527,6 +5563,7 @@ class SuperAvvocato:
                 queries=all_queries, restrict=restrict)
             pairs = _ancora_vepra_penale(pairs, idx, all_queries, triage.areas)      # v9.487
         elif idx is self.index_it:
+            pairs = _senza_diritto_straniero(pairs, _testo_anc[-1] or " ".join(_testo_anc), triage.areas)        # v9.579
             pairs = _applica_ancore(pairs, idx, _testo_anc, triage.areas, ancore=ANCORE_IT)
             pairs = _ancore_it_veicolo(pairs, idx, " ".join([triage.problem_summary or ""] + list(all_queries)))
         pairs = _citati_dal_triage(pairs, idx, list(all_queries))      # v9.528

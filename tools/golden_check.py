@@ -10015,6 +10015,26 @@ def main():
     except Exception as _e350:  # noqa: BLE001
         check("coda-sola[350]: kontrollet u ekzekutuan", False, f"{type(_e350).__name__}: {_e350}")
 
+    # [351] v9.579 — il diritto internazionale privato e dell'immigrazione fuori dalle domande italiane senza elemento straniero (prova
+    # in Chrome: il trasferimento del figlio a 400 km aveva 7 articoli su 20 del Reg. UE 2019/1111); dentro con un Paese, «straniero»,
+    # «permesso di soggiorno» o un'area internazionale del triage; cablato nel recupero italiano
+    try:
+        from src import brain as _b351
+        from types import SimpleNamespace as _NS351
+        _p351 = [(_NS351(code=c, number=n), 1.0) for c, n in (("bruxelles_ii_ter", "9"), ("codice_civile", "316"),
+                                                             ("tu_immigrazione", "31"), ("codice_procedura_civile", "473-bis.11"))]
+        _k351 = lambda t, ar=None: [a.code for a, _ in _b351._senza_diritto_straniero(_p351, t, ar)]
+        _src351 = __import__("pathlib").Path("/app/src/brain.py").read_text(encoding="utf-8")
+        check("estero[351]: senza elemento straniero via Bruxelles II-ter e TU immigrazione; con «tedesca», «Germania», «permesso di "
+              "soggiorno» o l'area internazionale restano; cablato nel recupero italiano",
+              _k351("La ex moglie si è trasferita a 400 km con il figlio di 7 anni senza il consenso del padre.") == ["codice_civile", "codice_procedura_civile"]
+              and "bruxelles_ii_ter" in _k351("La madre tedesca ha portato il figlio in Germania.")
+              and "tu_immigrazione" in _k351("Il cliente è stato fermato senza permesso di soggiorno.")
+              and "bruxelles_ii_ter" in _k351("Trasferimento del figlio.", ["Civile", "Internazionale"])
+              and "pairs = _senza_diritto_straniero(pairs" in _src351)
+    except Exception as _e351:  # noqa: BLE001
+        check("estero[351]: kontrollet u ekzekutuan", False, f"{type(_e351).__name__}: {_e351}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

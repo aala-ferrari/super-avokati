@@ -101,6 +101,10 @@ CASI = [  # (giurisdizione, domanda dell'avvocato, articoli di cui almeno uno DE
     ("AL", "[frek27] Ish-bashkëshorti humbi punën dhe kërkon t'ia ulë detyrimin ushqimor për fëmijën. A mundet?", [("kodi_familjes", "207")]),
     ("AL", "[frek27] Shoqëria ndërtuese nuk e dorëzoi apartamentin në afatin e kontratës, që parashikon një gjobë për çdo ditë vonesë. Çfarë mund të kërkojë klienti?", [("kodi_civil", "481"), ("kodi_civil", "543"), ("kodi_civil", "544")]),
     ("AL", "[frek27] Klienti është prokuror në procesin e rivlerësimit dhe Komisioni i kërkon të justifikojë burimin e ligjshëm të pasurisë. Çfarë parashikon Kushtetuta?", [("kushtetuta", "aneks-neni-D")]),
+    # v9.579 — dalla prova in Chrome (10 ott): il trasferimento del figlio DENTRO l'Italia (prima metà del blocco al Reg. UE 2019/1111) e,
+    # per controllo, la sottrazione verso un altro Stato UE, dove il regolamento deve restare
+    ("IT", "[frek28] La ex moglie si è trasferita in un'altra città, a 400 km, con il figlio di 7 anni senza il consenso del padre. Cosa può fare il padre e con quali tempi?", [("codice_procedura_civile", "473-bis.11"), ("codice_civile", "337-ter"), ("codice_civile", "316")]),
+    ("IT", "[frek28] La madre tedesca ha portato il figlio in Germania senza il consenso del padre italiano e non vuole tornare. Cosa può fare il padre?", [("bruxelles_ii_ter", "22"), ("bruxelles_ii_ter", "23"), ("bruxelles_ii_ter", "24"), ("bruxelles_ii_ter", "27"), ("bruxelles_ii_ter", "29")]),
     # v9.571 — venticinquesimo giro (10 ott): periodo di prova e riparazioni della casa in affitto AL; phishing, termine della
     # querela, accesso agli atti e danno da ritardo della PA
     ("AL", "[frek25] Punëdhënësi e largoi klientin gjatë kohës së provës pa asnjë arsye. A ka të drejtë ta bëjë?", [("kodi_punes", "142"), ("kodi_punes", "143")]),
