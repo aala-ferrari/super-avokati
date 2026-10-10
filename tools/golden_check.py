@@ -10634,6 +10634,33 @@ def main():
     except Exception as _e373:  # noqa: BLE001
         check("condizionati[373]: kontrollet u ekzekutuan", False, f"{type(_e373).__name__}: {_e373}")
 
+    # [374] v9.598 — i SERVIZI DI PAGAMENTO nel corpus italiano (d.lgs. 11/2010: l'onere della prova della banca, il rimborso immediato,
+    # la colpa grave del pagatore), letti dal verificatore per numero e nome, e l'ancora del phishing (solo dalla domanda)
+    try:
+        from pathlib import Path as _P374
+        from src.retrieval import ArticleIndex as _AI374
+        from src import brain as _b374
+        from src import citation_verifier as _cv374
+        _it374 = _AI374.load(_P374("/app/data/index/bm25_it.pkl"))
+        _by374 = {(a.code, str(a.number)): a for a in _it374.articles}
+        _okC374 = (all(("servizi_pagamento", n) in _by374 for n in ("9", "10", "11", "12", "40"))
+                   and "13 mesi" in (_by374[("servizi_pagamento", "9")].body or "")
+                   and "onere del prestatore" in (_by374[("servizi_pagamento", "10")].body or "")
+                   and "rimborsa" in (_by374[("servizi_pagamento", "11")].body or "")
+                   and _by374[("servizi_pagamento", "11")].citation.lower().startswith("art."))
+        _st374 = lambda t: [(i.get("status"), i.get("code")) for i in (_cv374.verify_text(t, _it374) or {}).get("items", [])]
+        _okV374 = (("verified", "servizi_pagamento") in _st374("Ai sensi dell'art. 11 del d.lgs. 11/2010 la banca deve rimborsare.")
+                   and ("verified", "servizi_pagamento") in _st374("l'art. 10 del d.lgs. 27 gennaio 2010, n. 11 pone la prova a carico della banca"))
+        _a374 = lambda q, ar: {(a.code, a.number) for a, _ in _b374._applica_ancore([], _it374, [q], ar, _b374.ANCORE_IT)}
+        _okA374 = ({("servizi_pagamento", "9"), ("servizi_pagamento", "10"), ("servizi_pagamento", "11"), ("servizi_pagamento", "12")}
+                   <= _a374("Al cliente hanno svuotato il conto con una mail falsa della banca: cosa possiamo fare?", ["Civile"])
+                   and ("servizi_pagamento", "11") in _a374("Sulla carta di credito del cliente ci sono due pagamenti non autorizzati.", ["Civile"])
+                   and ("servizi_pagamento", "11") not in _a374("Il cliente ha fatto un bonifico per l'affitto e il padrone di casa nega di averlo ricevuto.", ["Civile"]))
+        check("pagamenti[374]: d.lgs. 11/2010 nel corpus (artt. 10, 11, 12, 40), verificato per numero e per data, ancora del phishing "
+              "solo con un'operazione non autorizzata", _okC374 and _okV374 and _okA374, "C=%s V=%s A=%s" % (_okC374, _okV374, _okA374))
+    except Exception as _e374:  # noqa: BLE001
+        check("pagamenti[374]: kontrollet u ekzekutuan", False, f"{type(_e374).__name__}: {_e374}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

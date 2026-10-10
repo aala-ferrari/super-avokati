@@ -200,6 +200,8 @@ _IT_CODE_EXACT = frozenset({
     "aire", "procedimenti_cittadinanza", "naspi", "ritardi_pagamento", "collegato_lavoro", "licenziamenti_collettivi",
     # v9.589 (wave13): il danno biologico INAIL (d.lgs. 38/2000); il testo unico INAIL è «tu_infortuni» (prefisso «tu_»)
     "danno_biologico_inail",
+    # v9.598 (wave14): i servizi di pagamento (d.lgs. 11/2010: phishing, operazioni non autorizzate)
+    "servizi_pagamento",
     "responsabilita_enti", "responsabilita_sanitaria", "procedimento_amministrativo",
     "stupefacenti", "divorzio", "adozione", "equa_riparazione", "antiriciclaggio",
     # wave5 (16 set 2026): tributario, notarile, procedura, lavoro + EUR-Lex

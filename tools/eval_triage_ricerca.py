@@ -252,6 +252,9 @@ CASI = [  # (giurisdizione, domanda dell'avvocato, articoli di cui almeno uno DE
     # asbesto (mesotelioma)
     ("IT", "[frek31] Il cliente ha lavorato 25 anni in una fonderia esposto a rumori fortissimi e ora ha un'ipoacusia bilaterale. È una malattia professionale? Cosa può chiedere all'INAIL e in che tempi?", [("tu_infortuni", "3"), ("tu_infortuni", "allegato-4-voce-71")]),
     ("IT", "[frek31] Il padre della cliente, ex operaio dei cantieri navali esposto all'amianto, è morto di mesotelioma pleurico. Cosa possono chiedere i familiari all'INAIL e all'ex datore?", [("tu_infortuni", "3"), ("tu_infortuni", "allegato-4-voce-53")]),
+    # v9.598 — il phishing con la banca che non rimborsa (prova viva dell'11 ott: il d.lgs. 11/2010 non c'era e le norme portanti uscivano
+    # «da riscontrare su Normattiva»)
+    ("IT", "[frek32] Al cliente hanno svuotato il conto con un SMS falso della banca: ha inserito le credenziali e sono partiti tre bonifici. La banca non rimborsa perché dice che il cliente è stato gravemente negligente. Chi deve provare cosa e entro quando va contestato?", [("servizi_pagamento", "10"), ("servizi_pagamento", "12"), ("servizi_pagamento", "9")]),
     ("IT", "[frek11] La cliente ha donato la casa al figlio, che ora l'ha cacciata e la insulta. Può revocare la donazione?", [("codice_civile", "801")]),
     ("IT", "[frek11] L'impresa ha consegnato la casa nuova con infiltrazioni e crepe nei muri. Quali azioni abbiamo e in che termini?", [("codice_civile", "1667"), ("codice_civile", "1668"), ("codice_civile", "1669")]),
     ("IT", "[frek11] I nonni non riescono più a vedere il nipote dopo la separazione dei genitori. Possono rivolgersi al giudice?", [("codice_civile", "317-bis")]),

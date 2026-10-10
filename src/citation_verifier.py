@@ -437,6 +437,7 @@ CODE_LABELS: dict[str, str] = {
     "licenziamenti_collettivi": "L. 223/1991 (licenziamenti collettivi)",
     "legge_104": "L. 104/1992 (disabilità: permessi e tutele)",
     "tu_infortuni": "d.P.R. 1124/1965 (TU INAIL)", "danno_biologico_inail": "d.lgs. 38/2000 (danno biologico INAIL)",
+    "servizi_pagamento": "d.lgs. 11/2010 (servizi di pagamento)",
     "sanzioni_pecuniarie_civili": "D.Lgs. 7/2016 (illeciti civili: ingiuria)",
     "legge_sospensione_feriale": "L. 742/1969",
     "tutele_crescenti": "D.Lgs 23/2015",
@@ -713,6 +714,8 @@ _IT_CODE_CHECKS = [
     # v9.589 — il testo unico INAIL citato per nome: «art. 10 del T.U. INAIL», «art. 2 del testo unico infortuni»
     ("testounicoinail", "tu_infortuni"), ("testounicodegliinfortuni", "tu_infortuni"), ("testounicoinfortuni", "tu_infortuni"),
     ("tuinail", "tu_infortuni"), ("tuinfortuni", "tu_infortuni"),
+    # v9.598 — il d.lgs. 11/2010 citato per nome: «art. 11 del decreto sui servizi di pagamento»
+    ("decretosuiservizidipagamento", "servizi_pagamento"), ("decretoservizidipagamento", "servizi_pagamento"),
     ("regolamentoanagrafico", "regolamento_anagrafico"), ("collegatolavoro", "collegato_lavoro"),
     ("codass", "codice_assicurazioni"),
     ("disciplinaorganicadeicontratti", "contratti_lavoro"),
@@ -915,6 +918,7 @@ _IT_CODE_NUM_CHECKS = [
     ("1502011", "riti_civili_semplificati"), ("2472012", "ordinamento_forense"), ("6041966", "licenziamenti_individuali"), ("2231989", "regolamento_anagrafico"), ("4701988", "aire"),
     ("3621994", "procedimenti_cittadinanza"), ("222015", "naspi"), ("2312002", "ritardi_pagamento"), ("1832010", "collegato_lavoro"),
     ("11241965", "tu_infortuni"), ("382000", "danno_biologico_inail"),   # v9.589
+    ("112010", "servizi_pagamento"),   # v9.598: d.lgs. 27 gennaio 2010, n. 11
     ("2231991", "licenziamenti_collettivi"), ("1041992", "legge_104"), ("72016", "sanzioni_pecuniarie_civili"), ("7421969", "legge_sospensione_feriale"),
     ("232015", "tutele_crescenti"), ("242017", "responsabilita_sanitaria"), ("3941999", "regolamento_immigrazione"),
     ("2672000", "tuel"), ("4481988", "processo_penale_minorile"), ("1712005", "codice_nautica_diporto"),

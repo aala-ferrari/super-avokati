@@ -703,6 +703,18 @@ ANCORE_IT: tuple = (
     ((("pignora", "vend"), ("pignora", "acquist"), ("pignora", "compr"), ("pignora", "alien"), ("ipotec", "vend"),
       ("ipotec", "acquist"), ("ipotec", "compr"), ("visura",), ("trascri", "vend"), ("trascri", "acquist"), ("formalit", "immobil")),
      ("Penale", "Penal"), (("codice_civile", "2644"), ("codice_civile", "2913"), ("codice_civile", "2808")), None, None, True),
+    # v9.598 — il PHISHING e le operazioni di pagamento NON AUTORIZZATE. Prova viva dell'11 ott (conto svuotato con una mail falsa della
+    # banca, credenziali e OTP inseriti, la banca rifiuta il rimborso per «colpa grave»): il cervello scriveva che gli articoli recuperati
+    # «non sono le norme applicabili» (c.c. 1900, 2236, c.p.c. 813-ter, TUB 126-quinquiesdecies, presi per «colpa grave» e «conto di
+    # pagamento») e che la disciplina è il d.lgs. 11/2010, allora fuori corpus. Dichiarati: art. 9 (contestare «senza indugio», al più tardi
+    # entro 13 mesi dall'addebito: il pannello dei termini lo dava «non presente nel corpus»), art. 10 (provare l'autenticazione e la corretta
+    # esecuzione spetta al prestatore), art. 11 (rimborso immediato dell'operazione non autorizzata), art. 12 (la perdita resta al pagatore
+    # solo per frode, dolo o colpa grave). Solo dalla DOMANDA dell'avvocato
+    (("phishing", "smishing", "vishing", ("operazion", "non autorizzat"), ("bonific", "non autorizzat"), ("addebit", "non autorizzat"),
+      ("pagament", "non autorizzat"), ("svuotat", "conto"), ("svuota", "conto"), ("mail falsa", "banca"), ("sms falso", "banca"),
+      ("carta", "clonat"), ("home banking", "truff"), (" otp", "banca"), ("credenziali", "banca"), ("frode", "carta di credito"),
+      ("truffa", "bonific"), ("finto operatore", "banca")),
+     (), (("servizi_pagamento", "9"), ("servizi_pagamento", "10"), ("servizi_pagamento", "11"), ("servizi_pagamento", "12")), None, None, True),
 )
 
 

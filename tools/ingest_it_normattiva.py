@@ -184,6 +184,11 @@ ACTS = [
     # dell'art. 13 d.lgs. 38/2000: una domanda sul lavoratore caduto dal ponteggio non aveva le norme sul COSA spetta e DA CHI
     ("tu_infortuni", "Testo unico dell'assicurazione obbligatoria contro gli infortuni sul lavoro e le malattie professionali (d.P.R. 1124/1965)", "Lavoro", "decreto.presidente.repubblica:1965-06-30;1124", "wave13"),
     ("danno_biologico_inail", "Assicurazione contro gli infortuni sul lavoro e le malattie professionali — danno biologico (d.lgs. 38/2000)", "Lavoro", "decreto.legislativo:2000-02-23;38", "wave13"),
+    # ── wave14 (11 ott 2026): i SERVIZI DI PAGAMENTO — prova viva sul phishing (conto svuotato con una mail falsa della banca): il cervello
+    # scriveva che gli articoli recuperati «non sono le norme applicabili» (c.c. 1900, 2236, c.p.c. 813-ter, TUB 126-quinquiesdecies, presi
+    # per «colpa grave» e «conto di pagamento») e che la disciplina è il d.lgs. 11/2010, che nel corpus non c'era: onere della prova della
+    # banca (art. 10), rimborso immediato delle operazioni non autorizzate (art. 11), responsabilità del pagatore e colpa grave (art. 12)
+    ("servizi_pagamento", "Servizi di pagamento nel mercato interno — operazioni non autorizzate, rimborso, responsabilità (d.lgs. 11/2010)", "Civile", "decreto.legislativo:2010-01-27;11", "wave14"),
 ]
 # atti da scaricare al testo in vigore OGGI («!vig=»): senza data Normattiva dà la versione futura (qui: tutto «ABROGATO» dal 2027)
 VIGENTE_AL = {"tuir_1986", "processo_tributario", "sanzioni_tributarie_amministrative", "imposta_ipotecaria_catastale",
