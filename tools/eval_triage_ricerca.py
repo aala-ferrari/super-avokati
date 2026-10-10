@@ -248,6 +248,10 @@ CASI = [  # (giurisdizione, domanda dell'avvocato, articoli di cui almeno uno DE
     # danno alla salute né la competenza) e la sua gemella italiana, col testo unico INAIL entrato nel corpus (wave13)
     ("AL", "[frek30] Klienti u lëndua rëndë në kantier, ra nga skela sepse punëdhënësi nuk i kishte dhënë rrip sigurimi. Punëdhënësi thotë se faji është i punëtorit. Çfarë të drejtash ka dhe kë padisim?", [("kodi_punes", "39"), ("kodi_civil", "641")]),
     ("IT", "[frek30] Il cliente è caduto dal ponteggio in cantiere perché il datore di lavoro non gli aveva dato l'imbracatura. Il datore dice che la colpa è del lavoratore. Che diritti ha e chi citiamo?", [("tu_infortuni", "10"), ("codice_civile", "2087")]),
+    # v9.593 — giro 31, la MALATTIA PROFESSIONALE con le tabelle INAIL nel corpus (un'unità per voce): voce 71 ipoacusia da rumore, voce 53
+    # asbesto (mesotelioma)
+    ("IT", "[frek31] Il cliente ha lavorato 25 anni in una fonderia esposto a rumori fortissimi e ora ha un'ipoacusia bilaterale. È una malattia professionale? Cosa può chiedere all'INAIL e in che tempi?", [("tu_infortuni", "3"), ("tu_infortuni", "allegato-4-voce-71")]),
+    ("IT", "[frek31] Il padre della cliente, ex operaio dei cantieri navali esposto all'amianto, è morto di mesotelioma pleurico. Cosa possono chiedere i familiari all'INAIL e all'ex datore?", [("tu_infortuni", "3"), ("tu_infortuni", "allegato-4-voce-53")]),
     ("IT", "[frek11] La cliente ha donato la casa al figlio, che ora l'ha cacciata e la insulta. Può revocare la donazione?", [("codice_civile", "801")]),
     ("IT", "[frek11] L'impresa ha consegnato la casa nuova con infiltrazioni e crepe nei muri. Quali azioni abbiamo e in che termini?", [("codice_civile", "1667"), ("codice_civile", "1668"), ("codice_civile", "1669")]),
     ("IT", "[frek11] I nonni non riescono più a vedere il nipote dopo la separazione dei genitori. Possono rivolgersi al giudice?", [("codice_civile", "317-bis")]),

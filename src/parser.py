@@ -271,12 +271,14 @@ def unita_nominata_it(number) -> str:
         # «allegato-ii.2-bis-art-1» (codice dei contratti) → «Allegato II.2-bis, art. 1»; «allegato-iv-2» (un blocco) → «Allegato
         # IV (2)»; «allegato-3a» → «Allegato 3A»
         mm = re.match(r"^(?P<n>[0-9ivxlc]+(?:\.\d+)*|[a-z])(?P<let>[a-z])?(?P<lat>-" + _LAT_IT + r")?"
-                      r"(?:-art-(?P<art>\d+(?:-" + _LAT_IT + r")?))?(?:-(?P<blk>\d+))?$", rest)
+                      r"(?:-art-(?P<art>\d+(?:-" + _LAT_IT + r")?))?(?:-voce-(?P<voce>\d+))?(?:-(?P<blk>\d+))?$", rest)
         if mm:
             n_ = mm.group("n")
             out = "Allegato " + (n_ if n_[0].isdigit() else n_.upper()) + ((mm.group("let") or "").upper()) + (mm.group("lat") or "")
             if mm.group("art"):
                 out += ", art. " + mm.group("art")
+            if mm.group("voce"):              # v9.593: una voce di tabella («allegato-4-voce-71» → «Allegato 4, voce 71»: TU INAIL)
+                out += ", voce " + mm.group("voce")
             if mm.group("blk"):
                 out += f" ({mm.group('blk')})"
             return out

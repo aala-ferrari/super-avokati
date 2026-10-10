@@ -10348,7 +10348,9 @@ def main():
         _okC362 = (all(k in _by362 and not _by362[k].repealed for k in (("tu_infortuni", "2"), ("tu_infortuni", "10"), ("tu_infortuni", "11"),
                                                                        ("tu_infortuni", "112"), ("danno_biologico_inail", "13")))
                    and _iic362("tu_infortuni") and _iic362("danno_biologico_inail")
-                   and not any(a.code == "tu_infortuni" and str(a.number).startswith("allegato") for a in _it362.articles))
+                   # v9.593: dentro le VOCI delle tabelle delle malattie professionali, mai i segnaposto delle immagini né i vecchi blocchi
+                   and not any(a.code == "tu_infortuni" and str(a.number).startswith("allegato") and "-voce-" not in str(a.number)
+                               for a in _it362.articles))
         def _st362(t, n):
             return {i["number"]: (i["status"], i.get("code")) for i in _cv362.verify_text(t, _it362)["items"]}.get(n)
         _okV362 = (_st362("Il datore risponde del danno differenziale (art. 10 d.P.R. 1124/1965).", "10") == ("verified", "tu_infortuni")
@@ -10439,6 +10441,84 @@ def main():
               str((_s365, _sint365[:1])))
     except Exception as _e365:  # noqa: BLE001
         check("fonti[365]: kontrollet u ekzekutuan", False, f"{type(_e365).__name__}: {_e365}")
+
+    # [366] v9.592 — notaio, dogana e carcere fra i codici condizionati italiani: la legge notarile fuori dalla contestazione disciplinare di un
+    # dipendente, la cauzione doganale fuori dal deposito cauzionale dell'affitto, il trasferimento dei detenuti fuori dal trasferimento del
+    # dipendente; dentro col rogito, con l'auto di targa albanese, con la materia penale o col carcere nella domanda
+    try:
+        from types import SimpleNamespace as _NS366
+        from src import brain as _b366
+        _p366 = [(_NS366(code=c, number=n), 1.0) for c, n in (("statuto_lavoratori", "7"), ("legge_notarile", "146"),
+                                                               ("codice_doganale_nazionale", "44"), ("ordinamento_penitenziario", "42"))]
+        _f366 = lambda t, ar=None: {a.code for a, _ in _b366._senza_codici_condizionati_it(_p366, t, ar)}
+        _ok366 = (_f366("Il datore vuole trasferire il cliente da Milano a Bari e gli ha mandato una contestazione disciplinare.", ["Lavoro"])
+                  == {"statuto_lavoratori"}
+                  and "legge_notarile" in _f366("Il notaio ha sbagliato il rogito della casa del cliente.", ["Civile"])
+                  and "codice_doganale_nazionale" in _f366("L'auto targata albanese del cliente è stata fermata dalla Guardia di Finanza.", ["Civile"])
+                  and "ordinamento_penitenziario" in _f366("Il cliente è stato trasferito in un altro istituto.", ["Penale"])
+                  and "ordinamento_penitenziario" in _f366("Il cliente è detenuto e vuole lavorare all'esterno.", ["Lavoro"])
+                  and "ordinamento_penitenziario" in _f366("Il cliente vuole essere trasferito.", None))
+        check("condizionati[366]: legge notarile, codici doganali e ordinamento penitenziario fuori senza motivo (contestazione disciplinare, "
+              "trasferimento del dipendente); dentro col rogito, la targa albanese, la materia penale, il carcere", _ok366)
+    except Exception as _e366:  # noqa: BLE001
+        check("condizionati[366]: kontrollet u ekzekutuan", False, f"{type(_e366).__name__}: {_e366}")
+
+    # [367] v9.593 — le TABELLE DELLE MALATTIE PROFESSIONALI del TU INAIL nel corpus, un'unità per voce, lette «Allegato 4, voce 71»; l'ancora della malattia professionale (artt. 3, 134, 112; art. 211 in agricoltura) e mai sull'amianto
+    # del tetto del condominio; l'infortunio non la accende
+    try:
+        from pathlib import Path as _P367
+        from src.retrieval import ArticleIndex as _AI367
+        from src import brain as _b367
+        from src.parser import numero_visibile_it as _nv367
+        _it367 = _AI367.load(_P367("/app/data/index/bm25_it.pkl"))
+        _by367 = {(a.code, str(a.number)): a for a in _it367.articles}
+        _tab367 = [k for k in _by367 if k[0] == "tu_infortuni" and "-voce-" in k[1]]
+        _v367 = lambda n: (_by367[("tu_infortuni", n)].body if ("tu_infortuni", n) in _by367 else "")
+        _okT367 = (len(_tab367) >= 100 and "IPOACUSIA DA RUMORE" in _v367("allegato-4-voce-71") and "4 anni" in _v367("allegato-4-voce-71")
+                   and "MESOTELIOMA" in _v367("allegato-4-voce-53") and _v367("allegato-5-voce-1")
+                   and ("tu_infortuni", "allegato-4-1") not in _by367                      # i blocchi della prima stesura non ci sono più
+                   and _nv367("allegato-4-voce-71") == "Allegato 4, voce 71" and _nv367("allegato-iv-2") == "Allegato IV (2)")
+        _i367 = lambda q: {(a.code, a.number) for a, _ in _b367._applica_ancore([], _it367, [q], ["Lavoro"], _b367.ANCORE_IT)}
+        _okA367 = ({("tu_infortuni", "3"), ("tu_infortuni", "134"), ("tu_infortuni", "112")}
+                   <= _i367("Il cliente ha un'ipoacusia dopo 25 anni in fonderia: è una malattia professionale?")
+                   and ("tu_infortuni", "211") in _i367("Il bracciante agricolo si è ammalato per i pesticidi usati nei campi: cosa chiede?")
+                   and ("tu_infortuni", "3") not in _i367("Il condominio deve rimuovere l'amianto dal tetto: chi paga la bonifica?")
+                   and ("tu_infortuni", "3") not in _i367("Il cliente è caduto dal ponteggio in cantiere: che diritti ha?"))
+        # la voce per la malattia NOMINATA (il triage cerca le prestazioni, non la malattia): mesotelioma → voce 53; niente senza lavoro
+        _vt367 = lambda q: {str(a.number) for a, _ in _b367._voci_tabella_malattie([], _it367, q)}
+        _okV367 = ("allegato-4-voce-53" in _vt367("Il padre, ex operaio dei cantieri navali esposto all'amianto, è morto di mesotelioma "
+                                                   "pleurico. Cosa chiedono i familiari all'INAIL?")
+                   and "allegato-4-voce-71" in _vt367("Dopo 25 anni in fonderia il cliente ha un'ipoacusia: cosa chiede all'INAIL?")
+                   and not _vt367("Il medico non ha diagnosticato in tempo il tumore al polmone della cliente: possiamo fare causa?")
+                   and not _vt367("Il dipendente è in malattia da otto mesi e teme il licenziamento per superamento del comporto."))
+        _okA367 = _okA367 and _okV367
+        check("tabelle-inail[367]: tabelle delle malattie professionali nel corpus, un'unità per voce (ipoacusia da rumore voce 71, 4 anni; "
+              "mesotelioma voce 53), lette «Allegato 4, voce 71»; ancora della malattia professionale (artt. 3, 134, 112; 211 in agricoltura), "
+              "mai sull'amianto del condominio", _okT367 and _okA367,
+              "T=%s A=%s" % (_okT367, _okA367))
+    except Exception as _e367:  # noqa: BLE001
+        check("tabelle-inail[367]: kontrollet u ekzekutuan", False, f"{type(_e367).__name__}: {_e367}")
+
+    # [368] v9.594 — le leggi di settore albanesi col loro motivo: la procura (art. 90 = prescrizione disciplinare degli impiegati) fuori dalle
+    # domande penali qualsiasi e dentro col vetting; l'antiriciclaggio fuori dalla telecamera; la legge notarile fuori dal morso del cane e
+    # dentro con la successione; le contravvenzioni fuori dal permesso di costruire rifiutato e dentro con la multa
+    try:
+        from types import SimpleNamespace as _NS368
+        from src import brain as _b368
+        _p368 = [(_NS368(code=c, number=n), 1.0) for c, n in (("kodi_penal", "134"), ("ligji_prokuroria", "90"), ("ligji_pastrimi_parave", "16/1"),
+                                                               ("ligji_noteri", "64"), ("ligji_kundervajtjet", "29"))]
+        _f368 = lambda t: {a.code for a, _ in _b368._senza_codici_condizionati_al(_p368, t)}
+        _ok368 = (_f368("Vëllai i klientit kërkohej nga policia për vjedhje dhe klienti e mbajti në shtëpi.") == {"kodi_penal"}
+                  and _f368("Qeni i fqinjit kafshoi djalin e klientes në rrugë. Kush përgjigjet?") == {"kodi_penal"}
+                  and "ligji_prokuroria" in _f368("Klienti është prokuror në procesin e rivlerësimit: si mbrohet?")
+                  and "ligji_noteri" in _f368("Babai i klientit vdiq pa testament: si ndahet pasuria?")
+                  and "ligji_kundervajtjet" in _f368("Policia rrugore i vendosi klientit një gjobë të padrejtë: si ankohet?")
+                  and "ligji_kundervajtjet" not in _f368("Bashkia i refuzoi klientit lejen e ndërtimit: brenda sa ditësh e padisim?")
+                  and "ligji_pastrimi_parave" in _f368("Banka i bllokoi klientit një transaksion si dyshim për pastrim parash."))
+        check("condizionati-al[368]: procura, antiriciclaggio, notarile, contravvenzioni (e antimafia, appalti, discriminazione, avvocatura) "
+              "solo col loro motivo nella domanda", _ok368)
+    except Exception as _e368:  # noqa: BLE001
+        check("condizionati-al[368]: kontrollet u ekzekutuan", False, f"{type(_e368).__name__}: {_e368}")
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

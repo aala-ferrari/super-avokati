@@ -576,11 +576,22 @@ ANCORE_IT: tuple = (
     # danno biologico (entrati con la wave13): l'esonero del datore e il danno DIFFERENZIALE (d.P.R. 1124/1965 art. 10: il datore
     # risponde quando il fatto è reato perseguibile d'ufficio, per la parte che l'INAIL non copre), il regresso dell'INAIL (art. 11) e
     # il danno biologico indennizzato (d.lgs. 38/2000 art. 13). Solo dalla domanda e solo con il lavoro: mai la polizza infortuni privata.
-    ((("infortun", "lavor"), ("infortun", "cantier"), ("infortun", "datore"), ("infortun", "inail"), "malattia professional",
-      "malattie professional", ("cadut", "ponteggi"), ("cadut", "impalcatur"), ("cadut", "cantier"), ("ferit", "cantier"),
-      ("lesion", "cantier"), " inail"),
+    ((("infortun", "lavor"), ("infortun", "cantier"), ("infortun", "datore"), ("infortun", "inail"),
+      ("cadut", "ponteggi"), ("cadut", "impalcatur"), ("cadut", "cantier"), ("ferit", "cantier"),
+      ("lesion", "cantier"), ("incident", "lavor"), ("incident", "cantier"), (" inail", "infortun"), (" inail", "cadut"),
+      (" inail", "ferit"), (" inail", "incident")),
      (), (("tu_infortuni", "10"), ("tu_infortuni", "11"), ("danno_biologico_inail", "13"), ("codice_civile", "2087")),
      r"polizz\w*\s+(?:\w+\s+){0,2}infortun\w*|assicurazion\w*\s+privat\w*\s+(?:\w+\s+){0,2}infortun\w*", None, True),
+    # v9.593 — la MALATTIA PROFESSIONALE, con le tabelle INAIL rientrate nel corpus (allegati 4 e 5 del TU, rilette dalle righe a caratteri):
+    # la presunzione per le malattie in tabella (art. 3), l'indennizzo se la malattia si manifesta entro il periodo massimo della tabella dopo
+    # la fine della lavorazione (art. 134), i tre anni dalla manifestazione per chiedere le prestazioni (art. 112); in agricoltura l'art. 211.
+    # Solo dalla domanda (l'amianto da solo è anche la bonifica del tetto del condominio: serve la malattia)
+    (("malattia professional", "malattie professional", "tecnopati", ("malat", "inail"), "mesoteliom", "asbestosi", ("amianto", "malat"),
+      ("amianto", "tumor"), ("amianto", "mort"), "ipoacusi", ("sordit", "rumor"), ("tunnel carpale", "lavor"), ("ernia", "lavor", "inail")),
+     (), (("tu_infortuni", "3"), ("tu_infortuni", "134"), ("tu_infortuni", "112")), None, None, True),
+    # ⚠️ «malat», non «malatti»: «si è ammalato per i pesticidi» non conteneva «malatti» (preso dal golden [367])
+    ((("malat", "agricol"), ("malat", "bracciant"), ("malat", "pesticid"), ("malat", "fitosanitar")),
+     (), (("tu_infortuni", "211"),), None, None, True),
     # v9.555 — dal sedicesimo giro (8 ott). (1) La CASA OCCUPATA da estranei: c'erano 633/633-bis (invasione di terreni o edifici),
     # mai il 634-bis (occupazione arbitraria di immobile destinato a domicilio altrui, 2024: il reato e la reintegra rapida) — solo con
     # estranei o «abusivi», mai sull'inquilino che non lascia la casa (è un altro istituto: lo sfratto). (2) I DANNI del figlio minore:
@@ -955,6 +966,33 @@ _CODICI_CONDIZIONATI_IT = (
      re.compile(r"\bnav[ei]\b|navigazion|marittim|marinai|portual|\bporto\b|imbarc|equipaggi|armator|comandante|diporto|yacht|barca|"
                 r"traghett|\baere|aeroport|\bvol[oi]\b|pilota|hostess|steward|compagnia\s+aerea|bagagli|overbooking|nautic|naufrag", re.I)),
 )
+# v9.592 — dal banco IT coi blocchi dopo la v9.590 (`scratchpad/condizionati2.py`): la LEGGE e il REGOLAMENTO NOTARILE in 4 domande che non
+# c'entrano (la contestazione disciplinare di un dipendente prendeva l'art. 146 della legge notarile — il disciplinare dei NOTAI —, il
+# pignoramento del conto il regolamento 127); i CODICI DOGANALI in 4 (il deposito cauzionale dell'affitto prendeva la «cauzione» doganale,
+# il telefono difettoso il CDU 260, il prestito e i cani del condominio il codice nazionale e il Reg. 2015/2446). Restano con un motivo
+# nella domanda: un atto notarile o ciò che lo richiede (casa, società, testamento, donazione, procura, mutuo…); merci, dazi, importazioni,
+# un veicolo o un Paese fuori dall'Unione, gli acquisti dall'estero (l'auto con targa albanese della v9.378 resta: anche l'ancora la porta)
+_NOTAIO_RX = re.compile(
+    r"notai|notar|rogit|atto\s+pubblic|testament|procur|compravendit|donazion|successi|eredit|societ|\bsrl\b|\bspa\b|s\.r\.l|"
+    r"autentic|preliminare|ipotec|mutuo|\bcasa\b|immobil|terren|appartament|separazion\w*\s+consensual|convenzion\w*\s+matrimonial|"
+    r"fondo\s+patrimonial|divisione|quietanz|scrittura\s+privata\s+autenticat", re.I)
+_DOGANA_RX = re.compile(
+    r"dogan|dazi|import|esport|export|\bmerc[ei]\b|merci|extra[- ]?ue|extracomunitar|fuori\s+dall.unione|targ|veicol|\bauto\b|"
+    r"automobil|motociclett|camion|contrabband|frontier|confin|spedizion|pacc|corrier|amazon|aliexpress|temu|shein|\bcina\b|cines|"
+    r"stati\s+uniti|svizzer|albani|albanes|turchi|regno\s+unito|inghilterra|\buk\b|accis|carburant|tabacc|sigarett|alcol", re.I)
+_CODICI_CONDIZIONATI_IT = _CODICI_CONDIZIONATI_IT + (
+    ("legge_notarile", "legge notarile", _NOTAIO_RX), ("regolamento_notarile", "regolamento notarile", _NOTAIO_RX),
+    ("codice_doganale_nazionale", "codici doganali", _DOGANA_RX), ("codice_doganale_ue", "codici doganali", _DOGANA_RX),
+    ("reg_ue_2015_2446", "codici doganali", _DOGANA_RX), ("reg_ue_2015_2447", "codici doganali", _DOGANA_RX),
+)
+# v9.592 — e l'ORDINAMENTO PENITENZIARIO (L. 354/1975 e il regolamento, d.P.R. 230/2000) nelle domande civili e di lavoro: nel banco il
+# trasferimento del dipendente prendeva il trasferimento dei detenuti (art. 42), la contestazione disciplinare il disciplinare del carcere
+# (reg. 81), l'assegno non pagato il lavoro esterno (21-bis), il pignoramento del conto il conto dei detenuti (84). Resta in ogni domanda
+# PENALE (le misure alternative e la liberazione anticipata servono anche al patteggiamento e al decreto penale) e con il carcere nella domanda
+_CARCERE_RX = re.compile(r"carcer|detenut|detenzion|penitenziar|misur\w*\s+alternativ|affidament\w*\s+in\s+prova|semilibert|"
+                         r"liberazion\w*\s+anticipat|espia|sorveglianz|domiciliar|reclusion|ergastol|esecuzione\s+della\s+pena|"
+                         r"ordine\s+di\s+(?:esecuzione|carcerazione)|permess\w*\s+premio|41-bis", re.I)
+_CODICI_PENITENZIARI_IT = frozenset({"ordinamento_penitenziario", "regolamento_penitenziario"})
 
 
 # v9.588 — la PROCEDURA CIVILE nelle domande SOLO PENALI (banco IT coi blocchi: 8 su 25): c.p.c. 155 nel termine d'appello penale (lì il
@@ -1016,6 +1054,49 @@ _FISCO_RX = re.compile(r"tribut|fisc|accertament|cartell|agenzia\s+delle\s+entra
                        r"bonari|\binps\b|contribut|fermo\s+amministrativ|ganasc|\birpef\b|\bires\b|\birap\b|ipoteca\s+legale", re.I)
 
 
+# ── v9.593 — la VOCE della tabella delle malattie professionali per la malattia NOMINATA nella domanda ─────────────────────────────
+# Con le tabelle INAIL nel corpus (un'unità per voce) la domanda sull'ipoacusia trovava la sua voce, quella sul mesotelioma no: il triage
+# cercava le prestazioni («rendita ai superstiti», «regresso dell'INAIL») e non la malattia, e la voce — il periodo massimo di
+# indennizzabilità, la lavorazione che fa presumere la causa — restava fuori dal blocco. Se la domanda nomina una malattia legata al
+# lavoro, si cerca la DOMANDA dentro le sole voci del TU INAIL: entra la voce migliore (e la seconda se vale quasi quanto la prima),
+# solo se nomina la malattia della domanda; copia marcata, in aggiunta ai 12. Solo italiano.
+_MALATTIA_PROF_RX = re.compile(r"malatti\w*\s+professional|tecnopati", re.I)
+_MALATTIA_SPEC_RX = re.compile(r"mesoteliom|asbestos|silicos|antracos|siderosi|pneumoconios|ipoacusi|sordit|tunnel\s+carpale|ernia\s+discal|"
+                               r"epicondil|tendinit|borsit|dermatit|eczem|asma|broncopneumopat|bronchit|leucemi|carcinom|neoplasi|"
+                               r"saturnism|intossicazion|polmon|vescic|laring|pleur|rachid|lombar|menisc|ginocch|spall|gomit|polso", re.I)
+_LAVORO_ESPOSIZIONE_RX = re.compile(r"lavor|fabbric|cantier|operai|dipendent|inail|espost|esposizion|aziend|stabiliment|miniera|fonderi|"
+                                    r"industri|agricol|bracciant|officin|reparto|turni|mansion", re.I)
+
+
+def _voci_tabella_malattie(pairs, idx, domanda: str):
+    t = domanda or ""
+    if not (_MALATTIA_PROF_RX.search(t) or (_MALATTIA_SPEC_RX.search(t) and _LAVORO_ESPOSIZIONE_RX.search(t))):
+        return pairs
+    nomi = {m.group(0).lower() for m in _MALATTIA_SPEC_RX.finditer(t)}
+    if not nomi:
+        return pairs
+    try:
+        trov = [(a, sc) for a, sc in idx.search(t, top_k=60, restrict_codes=["tu_infortuni"])
+                if "-voce-" in str(a.number) and sc > 0 and any(n in (a.body or "").lower() for n in nomi)]
+    except Exception:  # noqa: BLE001 — un passo in più non deve mai far cadere una risposta
+        return pairs
+    if not trov:
+        return pairs
+    scelte = [trov[0]] + [x for x in trov[1:2] if x[1] >= 0.9 * trov[0][1]]
+    presenti = {(a.code, str(a.number)) for a, _ in pairs[:TOP_K_ARTICLES]}
+    nuove = []
+    for a, sc in scelte:
+        if (a.code, str(a.number)) in presenti:
+            continue
+        c = _copy.copy(a)
+        c._ancora = True  # type: ignore[attr-defined]
+        nuove.append((c, sc))
+    if not nuove:
+        return pairs
+    log.info("retrieval: voci della tabella delle malattie professionali: %s", ", ".join(str(a.number) for a, _ in nuove))
+    return nuove + pairs
+
+
 def _senza_codici_fiscali_it(pairs, testo: str, areas=None):
     if _FISCO_RX.search(testo or "") or any(re.search(r"tribut|fiscal|tatim|dogan|accis", str(x or ""), re.I) for x in (areas or [])):
         return pairs
@@ -1026,9 +1107,12 @@ def _senza_codici_fiscali_it(pairs, testo: str, areas=None):
     return [(a, s) for a, s in pairs if a.code not in _CODICI_FISCALI_IT]
 
 
-def _senza_codici_condizionati_it(pairs, testo: str):
+def _senza_codici_condizionati_it(pairs, testo: str, areas=None):
     t = testo or ""
     via = {code: nome for code, nome, innesco in _CODICI_CONDIZIONATI_IT if not innesco.search(t)}
+    # v9.592 — il penitenziario: fuori solo se la materia NON è penale (con aree note) e la domanda non parla di carcere o di pena da espiare
+    if (areas and not any(re.search(r"penal", str(x or ""), re.I) for x in areas) and not _CARCERE_RX.search(t)):
+        via.update({c: "ordinamento penitenziario" for c in _CODICI_PENITENZIARI_IT})
     if not via:
         return pairs
     fuori = [a for a, _ in pairs if a.code in via]
@@ -1090,6 +1174,46 @@ _CODICI_CONDIZIONATI_AL = (
      re.compile(r"\bojf\b|jofitimprur|shoqat|fondacion|organizat\w*\s+(?:jo|pa)|qendr\w*\s+(?:jo|pa)\s*fitim|regjistr\w*\s+(?:i|e|të)\s+organizat", re.I)),
     ("ligji_ojf", "organizzazioni non profit",
      re.compile(r"\bojf\b|jofitimprur|shoqat|fondacion|organizat\w*\s+(?:jo|pa)|qendr\w*\s+(?:jo|pa)\s*fitim|regjistr\w*\s+(?:i|e|të)\s+organizat", re.I)),
+)
+
+
+# v9.594 — dal banco AL a triage fisso, codice per codice (`scratchpad/settori_al.py`: in quali domande entra ogni legge di settore): la legge
+# sulla PROCURA entrava in 7 domande penali qualsiasi con l'art. 90 «Afatet e parashkrimit» — la prescrizione DISCIPLINARE dei suoi
+# impiegati — e gli artt. 74 e 113 (il personale della procura); l'ANTIRICICLAGGIO 16/1 (protezione dei dati) nella telecamera del vicino e
+# nelle foto su Facebook; l'ANTIMAFIA 5 nella minaccia di morte; gli APPALTI PUBBLICI 10 nei dati pubblicati da un'azienda; la legge sulla
+# DISCRIMINAZIONE 28 (la revoca del commissario) nel vetting; la legge sull'AVVOCATURA 50 (l'appello disciplinare degli avvocati) nel
+# pignoramento dell'ufficiale giudiziario; la legge NOTARILE nel morso del cane, nel prestito e nell'appello civile; le CONTRAVVENZIONI
+# AMMINISTRATIVE (10279/2010, art. 29 l'impugnazione delle sanzioni) nel permesso di costruire rifiutato e nel permesso di soggiorno
+# revocato. Ognuna resta con il suo motivo nella domanda; dove entravano a ragione (la successione e la casa venduta per il notaio, la multa
+# e la confisca doganale per le contravvenzioni, il vetting per la procura) il motivo c'è
+_CODICI_CONDIZIONATI_AL = _CODICI_CONDIZIONATI_AL + (
+    ("ligji_prokuroria", "legge sulla procura",
+     re.compile(r"\bklp\b|këshill\w*\s+(?:i|e|të)\s+lartë|keshill\w*\s+(?:i|e|te)\s+larte|vetting|rivlerësim|rivleresim|\bspak\b|\bbkh\b|"
+                r"byro\w*\s+kombëtare|disiplin\w*.{0,60}prokuror|prokuror\w*.{0,60}disiplin|emër\w*.{0,30}prokuror|transferim\w*.{0,30}prokuror|"
+                r"karrier|kryeprokuror|prokurori\w*\s+(?:e|së)\s+(?:përgjithshme|posaçme)|nëpunës\w*\s+(?:i|e|të)\s+prokurori|"
+                r"ankim\w*.{0,40}(?:ndaj|kundër|kunder)\s+prokuror", re.I)),
+    ("ligji_kundervajtjet", "contravvenzioni amministrative",
+     re.compile(r"gjob|kundërvajtj|kundervajtj|sanksion|konfiskim|sekuestr|mas[eë]\s+administrative|dënim\w*\s+administrativ|"
+                r"denim\w*\s+administrativ|ndëshkim|ndeshkim|penalitet|procesverbal", re.I)),
+    ("ligji_pastrimi_parave", "antiriciclaggio",
+     re.compile(r"pastrim\w*|para\s+(?:të|te)\s+pista|riciklim|burim\w*\s+(?:i|e|të|te)\s+(?:ligjshëm|paligjshëm|ligjshem|paligjshem)|"
+                r"transaksion|\bbank|kesh|cash|\baml\b|\bfiu\b|\baif\b|noter|kripto|bitcoin|"
+                r"pasuri\w*\s+(?:e|të)\s+(?:pajustifikuar|paligjshme)|deklarat\w*\s+(?:e|të)\s+pasuris", re.I)),
+    ("ligji_antimafia", "antimafia",
+     re.compile(r"antimafia|organizat\w*\s+kriminal|grup\w*\s+(?:i|të|te)\s+strukturuar|krim\w*\s+(?:i|të|te)\s+organizuar|"
+                r"mas[aë]?\s+parandaluese|konfiskim\w*\s+(?:i|e|të)\s+pasuris|pasuri\w*\s+(?:e|të)\s+(?:paligjshme|pajustifikuar)|trafik|mafi|\bspak\b", re.I)),
+    ("ligji_prokurimi_publik", "appalti pubblici",
+     re.compile(r"prokurim|tender|kontrat\w*\s+(?:publike|koncesion)|koncesion|ankand\w*\s+publik|\bapp\b|autoritet\w*\s+kontraktor|ofert|"
+                r"operator\w*\s+ekonomik", re.I)),
+    ("ligji_diskriminimi", "discriminazione",
+     re.compile(r"diskrimin|barazi|pabarabart|komisioner\w*\s+(?:për|per)\s+mbrojtjen|\bkmd\b|racor|racial|gjinor|orientim\w*\s+seksual|"
+                r"aftësi\w*\s+(?:të|te)\s+kufizuar|aftesi\w*\s+te\s+kufizuar|\brom[eë]?\b|egjiptian|fetar", re.I)),
+    ("ligji_avokatia", "avvocatura",
+     re.compile(r"avokat|dhom\w*\s+(?:e|së)\s+avokatis|honorar|licenc\w*\s+(?:e|së)\s+ushtrimit", re.I)),
+    ("ligji_noteri", "legge notarile",
+     # ⚠️ non la casa da sola («e strehoi në shtëpi» il fratello ricercato): servono l'atto o ciò che lo richiede (preso dal golden [368])
+     re.compile(r"noter|trashëgim|trashegim|testament|vdiq|vdekj|\bshit|\bbler|\bbleu|prokur|dhurim|dhuroi|hipotek|akt\w*\s+noterial|"
+                r"vërtetim|vertetim|kontrat\w*\s+(?:e\s+|të\s+)?shitj|me\s+dorë|kalim\w*\s+(?:i|e|të)\s+pronës|regjistrim\w*\s+(?:i|e|të)\s+pronës", re.I)),
 )
 
 
@@ -5045,7 +5169,7 @@ class SuperAvvocato:
                     nuovo = _senza_diritto_straniero(nuovo, _t, triage.areas)
                     nuovo = _senza_adozione(nuovo, _t)
                     nuovo = _senza_tutela_it(nuovo, _t)
-                    nuovo = _senza_codici_condizionati_it(nuovo, _t)
+                    nuovo = _senza_codici_condizionati_it(nuovo, _t, triage.areas)
                     nuovo = _senza_procedura_civile_nel_penale(nuovo, _t, triage.areas)
                     nuovo = _senza_codici_fiscali_it(nuovo, _t, triage.areas)                       # v9.590
                 _dopo = {(a.code, str(a.number)) for a, _ in nuovo}
@@ -5970,10 +6094,11 @@ class SuperAvvocato:
             pairs = _senza_diritto_straniero(pairs, _testo_anc[-1] or " ".join(_testo_anc), triage.areas)        # v9.579
             pairs = _senza_adozione(pairs, _testo_anc[-1] or " ".join(_testo_anc))                                # v9.580
             pairs = _senza_tutela_it(pairs, _testo_anc[-1] or " ".join(_testo_anc))                               # v9.585
-            pairs = _senza_codici_condizionati_it(pairs, _testo_anc[-1] or " ".join(_testo_anc))                  # v9.586
+            pairs = _senza_codici_condizionati_it(pairs, _testo_anc[-1] or " ".join(_testo_anc), triage.areas)    # v9.586 (v9.592: le aree)
             pairs = _senza_procedura_civile_nel_penale(pairs, _testo_anc[-1] or " ".join(_testo_anc), triage.areas)  # v9.588
             pairs = _senza_codici_fiscali_it(pairs, _testo_anc[-1] or " ".join(_testo_anc), triage.areas)           # v9.590
             pairs = _applica_ancore(pairs, idx, _testo_anc, triage.areas, ancore=ANCORE_IT)
+            pairs = _voci_tabella_malattie(pairs, idx, _testo_anc[-1] or "")                                    # v9.593
             pairs = _ancore_it_veicolo(pairs, idx, " ".join([triage.problem_summary or ""] + list(all_queries)))
         pairs = _citati_dal_triage(pairs, idx, list(all_queries), triage.areas)      # v9.528 (v9.588: le aree per il gemello)
         # v9.504 — e di nuovo DOPO le ancore: le ancore per titolo riportavano dentro il Codice dei minori (misurato: «kodi_te_miturve 9»
