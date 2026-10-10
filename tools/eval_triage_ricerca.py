@@ -244,6 +244,10 @@ CASI = [  # (giurisdizione, domanda dell'avvocato, articoli di cui almeno uno DE
     # sull'identificazione elettronica (art. 71 «Pika e vetme të kontaktit», per la radice «kontakt»), in quello italiano c.c. 348
     ("AL", "[frek29] Pas divorcit, gjykata ia la djalin 9 vjeç nënës, klientes sime. Tani babai kërkon ta shohë më shpesh dhe ka paralajmëruar se do të kërkojë kujdestarinë e djalit. Çfarë mund të bëjë ai dhe si e mbrojmë nënën?", [("kodi_familjes", "158"), ("kodi_familjes", "226")]),
     ("IT", "[frek29] Dopo la separazione la figlia di 15 anni è stata collocata presso la madre, mia cliente. Ora la ragazza dice che vuole andare a vivere con il padre, che ha già annunciato un ricorso. Può decidere lei? Come difendiamo la madre e quali sono i tempi?", [("codice_procedura_civile", "473-bis.4"), ("codice_civile", "337-ter")]),
+    # v9.589 — giro 30, l'INFORTUNIO SUL LAVORO: la domanda della prova dal browser del 10 ott (AL: il Giudice non trovava la norma sul
+    # danno alla salute né la competenza) e la sua gemella italiana, col testo unico INAIL entrato nel corpus (wave13)
+    ("AL", "[frek30] Klienti u lëndua rëndë në kantier, ra nga skela sepse punëdhënësi nuk i kishte dhënë rrip sigurimi. Punëdhënësi thotë se faji është i punëtorit. Çfarë të drejtash ka dhe kë padisim?", [("kodi_punes", "39"), ("kodi_civil", "641")]),
+    ("IT", "[frek30] Il cliente è caduto dal ponteggio in cantiere perché il datore di lavoro non gli aveva dato l'imbracatura. Il datore dice che la colpa è del lavoratore. Che diritti ha e chi citiamo?", [("tu_infortuni", "10"), ("codice_civile", "2087")]),
     ("IT", "[frek11] La cliente ha donato la casa al figlio, che ora l'ha cacciata e la insulta. Può revocare la donazione?", [("codice_civile", "801")]),
     ("IT", "[frek11] L'impresa ha consegnato la casa nuova con infiltrazioni e crepe nei muri. Quali azioni abbiamo e in che termini?", [("codice_civile", "1667"), ("codice_civile", "1668"), ("codice_civile", "1669")]),
     ("IT", "[frek11] I nonni non riescono più a vedere il nipote dopo la separazione dei genitori. Possono rivolgersi al giudice?", [("codice_civile", "317-bis")]),

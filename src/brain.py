@@ -124,7 +124,10 @@ ANCORE_AL: tuple = (
      ("Penal", "Punë"), (("kodi_civil", "114"), ("kodi_civil", "115")),
      r"parashkrim\w*\s+fitu\w*|fitim\w*\s+(?:\w+\s+){0,3}me\s+parashkrim\w*",
      ("Civil", "Familje", "Tregtare", "Konsumator", "Prone", "Sigurime", "Detar", "Ajror", "Nderkombetar"), True),
-    (("parashkrim", "parashkru"), ("Penal",), (("kodi_punes", "203"),), r"parashkrim\w*\s+fitu\w*", ("Punë",)),
+    # v9.589 — anche il KP 203 SOLO dalla domanda (come il KC 114/115 dalla v9.558): contato sul banco AL a triage fisso, entrava in 11
+    # domande di lavoro su 111 che non chiedono della prescrizione (licenziamenti, periodo di prova, gravidanza, straordinari: lì il termine
+    # che decide è quello dei 180 giorni, KP 146/155), sulla parola «parashkrim» che il triage aggiunge da sé
+    (("parashkrim", "parashkru"), ("Penal",), (("kodi_punes", "203"),), r"parashkrim\w*\s+fitu\w*", ("Punë",), True),
     # … anche senza l'area del lavoro, se la DOMANDA parla di prescrizione e di lavoro/paga
     ((("parashkr", "pun"), ("parashkr", "pag"), ("parashkr", "rrog")), ("Penal",), (("kodi_punes", "203"),), r"parashkrim\w*\s+fitu\w*",
      None, True),
@@ -330,6 +333,20 @@ ANCORE_AL: tuple = (
      ("Penal",), (("kodi_proc_civile", "202"), ("kodi_proc_civile", "206"), ("kodi_proc_civile", "204")), None, ("Civil",)),
     ((("moshuar", "ushqim"), ("moshuar", "mbaj"), ("prind", "ushqim", "fëmijët e"), ("prind", "të ardhur", "detyru")),
      ("Penal",), (("kodi_familjes", "192"), ("kodi_familjes", "198")), None, None, True),
+    # v9.589 — l'INFORTUNIO SUL LAVORO (prova dal browser del 10 ott, sessione AL: «Klienti u lëndua rëndë në kantier, ra nga skela
+    # sepse punëdhënësi nuk i kishte dhënë rrip sigurimi… Çfarë të drejtash ka dhe kë padisim?»): risposta giusta su KP 39 e 43, ma il
+    # Giudice scriveva «neni i kompetencës tokësore nuk u gjet» e il risarcimento del danno alla SALUTE era senza la sua norma. Nel
+    # corpus ci sono: KC 641 (danno alla salute: capacità di lavoro persa o ridotta, spese di cura), KC 645 (chi riceve le prestazioni
+    # dell'ISSH: «në mënyrën e caktuar me ligj» — la differenza del KP 39/2), KPC 47 (cause di lavoro: anche dove abita l'attore) e 48
+    # (danno: dove è avvenuto; danno alla salute: anche dove abita l'attore). Solo dalla domanda e solo col lavoro (o civile) nel triage.
+    # Misurato sul banco a triage fisso: con tutte e quattro le ancore uscivano dai blocchi due articoli (fra cui l'atteso art. 44 della
+    # legge sulle assicurazioni sociali) → le due che il Giudice cercava, KC 641 e KPC 48 (il 645 è un rinvio, il 48 copre già la causa)
+    # ⚠️ «u lëndua» da solo è anche il morso del cane o la rissa (lì il KPC 47 delle cause di lavoro non c'entra): sempre col lavoro
+    ((("u lëndua", "pun"), ("u lendua", "pun"), ("u lëndu", "pun"), ("u dëmtua", "pun"), ("u demtua", "pun"), ("u plagos", "pun"),
+      "lëndim në pun", "lëndimi në pun", "aksident në pun", "aksident ne pun", "aksidenti në pun", "aksidentin në pun",
+      "aksidentit në pun", "aksident pune", "aksident gjatë pun", "aksident gjate pun", "sëmundje profesional", "semundje profesional",
+      " ra nga skel", ("kantier", "lënd"), ("kantier", "aksident"), ("kantier", "plagos"), ("kantier", "dëmtua")),
+     (), (("kodi_civil", "641"), ("kodi_proc_civile", "48")), None, ("Punë", "Civil", "Sigurime"), True),
     # v9.548 — dal tredicesimo giro (8 ott). (1) Le LESIONI da una lite («e rrahu… mjeku i dha 12 ditë paaftësi»): né KP 89 «Plagosja e
     # lehtë me dashje» (oltre 9 giorni di inabilità) né 90 «Dëmtime të tjera me dashje» (la rissa senza o con meno giorni) nel blocco —
     # il triage scriveva «dëmtim i lehtë i qëllimshëm» e il codice dice «plagosja». Solo nel penale, mai nella violenza domestica
@@ -437,12 +454,16 @@ ANCORE_IT: tuple = (
     # domande vere senza la parola: «siamo ancora in tempo?», «il credito risale al 2014».
     (("prescri", "ancora in tempo", "troppo tardi", ("risale al", "credit"), ("risale al", "debit"), ("risale al", "fattur")),
      ("Penale", "Penal"), (("codice_civile", "2946"),), None, None, True),
+    # v9.589 — anche il 2948 e il 2947 SOLO dalla domanda (come il 2946 dalla v9.552): contate sul banco IT a triage fisso, le due ancore
+    # scattavano in 23 domande su 150 che non chiedono nulla della prescrizione (la buca del marciapiede, la caparra, lo stipendio non
+    # pagato, l'infortunio nel cantiere: due posti in testa al blocco), sulla parola che il triage aggiunge da sé; le due domande del banco
+    # che la chiedono («sono prescritti?», «è prescritto?») la scrivono
     # v9.504 — i crediti di LAVORO: retribuzioni (pagamenti periodici, art. 2948 n. 4) e indennità di fine rapporto (n. 5) si
     # prescrivono in CINQUE anni. Misurato (4 ott): per «il datore non ha pagato gli stipendi del 2020, sono prescritti?» e
     # simili il 2948 non usciva nei primi 8, il 2946 (dieci anni) sì — e l'ancora lo dichiarava regola generale
     ((("prescri", "retribu"), ("prescri", "stipend"), ("prescri", "salari"), ("prescri", "tfr"), ("prescri", "fine rapporto"),
       ("prescri", "lavorator"), ("prescri", "canon"), ("prescri", "affitt"), ("prescri", "locaz"), ("prescri", "pigion"),
-      ("prescri", "interess")), ("Penale", "Penal"), (("codice_civile", "2948"),)),
+      ("prescri", "interess")), ("Penale", "Penal"), (("codice_civile", "2948"),), None, None, True),
     # v9.506 — l'ACQUISTO della cittadinanza (matrimonio, residenza): la ricerca porta l'art. 5 (o il 9) ma non i passaggi che
     # decidono l'esito — 9.1 (lingua B1, con l'esonero per il permesso UE di lungo periodo), 9-ter (termini del procedimento) e 10
     # (giuramento ENTRO SEI MESI dalla notifica del decreto, altrimenti il decreto non ha effetto). Misurato (strato 2, 4 ott):
@@ -458,7 +479,7 @@ ANCORE_IT: tuple = (
       ("cittadinanz", "marito")), (), (("cittadinanza", "5"),)),
     # … e il DANNO da fatto illecito: cinque anni, due per la circolazione dei veicoli (art. 2947 c.c.), non i dieci del 2946
     ((("prescri", "risarc"), ("prescri", "danno"), ("prescri", "danni"), ("prescri", "sinistr"), ("prescri", "incident"),
-      ("prescri", "illecit")), ("Penale", "Penal"), (("codice_civile", "2947"),)),
+      ("prescri", "illecit")), ("Penale", "Penal"), (("codice_civile", "2947"),), None, None, True),
     # … e il ramo del FATTO-REATO (art. 2947, comma 3: «se il fatto è considerato dalla legge come reato e per il reato è stabilita
     # una prescrizione più lunga, questa si applica anche all'azione civile»): nel sinistro con lesioni decide la durata della
     # prescrizione PENALE — lesioni colpose (590 c.p.), lesioni stradali gravi o gravissime (590-bis), il tempo a prescrivere (157).
@@ -551,6 +572,15 @@ ANCORE_IT: tuple = (
     # art. 4, entrato nel corpus): nel blocco gli artt. 3, 5, 6, 7 della legge ma non il 4, la norma che lo dice.
     (("ingiuri", ("insult", "davanti"), ("insultat",), ("offes", "presente"), ("offes", "davanti a")),
      (), (("sanzioni_pecuniarie_civili", "4"),), None, None, True),
+    # v9.589 — l'INFORTUNIO SUL LAVORO in Italia: nel corpus c'erano il c.c. 2087 e il d.lgs. 81/2008, non il testo unico INAIL né il
+    # danno biologico (entrati con la wave13): l'esonero del datore e il danno DIFFERENZIALE (d.P.R. 1124/1965 art. 10: il datore
+    # risponde quando il fatto è reato perseguibile d'ufficio, per la parte che l'INAIL non copre), il regresso dell'INAIL (art. 11) e
+    # il danno biologico indennizzato (d.lgs. 38/2000 art. 13). Solo dalla domanda e solo con il lavoro: mai la polizza infortuni privata.
+    ((("infortun", "lavor"), ("infortun", "cantier"), ("infortun", "datore"), ("infortun", "inail"), "malattia professional",
+      "malattie professional", ("cadut", "ponteggi"), ("cadut", "impalcatur"), ("cadut", "cantier"), ("ferit", "cantier"),
+      ("lesion", "cantier"), " inail"),
+     (), (("tu_infortuni", "10"), ("tu_infortuni", "11"), ("danno_biologico_inail", "13"), ("codice_civile", "2087")),
+     r"polizz\w*\s+(?:\w+\s+){0,2}infortun\w*|assicurazion\w*\s+privat\w*\s+(?:\w+\s+){0,2}infortun\w*", None, True),
     # v9.555 — dal sedicesimo giro (8 ott). (1) La CASA OCCUPATA da estranei: c'erano 633/633-bis (invasione di terreni o edifici),
     # mai il 634-bis (occupazione arbitraria di immobile destinato a domicilio altrui, 2024: il reato e la reintegra rapida) — solo con
     # estranei o «abusivi», mai sull'inquilino che non lascia la casa (è un altro istituto: lo sfratto). (2) I DANNI del figlio minore:
@@ -820,18 +850,29 @@ _ESTERO_RX = re.compile(
     r"spagn|rumen|romania|polacc|polonia|ucrain|marocc|tunisi|egizi|egitto|cines|\bcina\b|indian|\bindia\b|filippin|bangladesh|"
     r"pakistan|senegal|nigeria|svizzer|inglese|inghilterra|regno\s+unito|britannic|american|stati\s+uniti|brasil|argentin|peruvian|"
     r"ecuador|russ[oaie]\b|russia|serb|kosov|macedon|montenegr|\bturc|turchia|\bgrec|austria|\bbelg|olanda|olandes|portogh|svezia|"
-    r"svedes|irland|croat|sloven|bulgar|ungher|\bcec[oaie]\b|slovacc|moldav|georgia|lussemburg", re.I)
+    r"svedes|irland|croat|sloven|bulgar|ungher|\bcec[oaie]\b|slovacc|moldav|georgia|lussemburg|"
+    r"estradiz|rogator|interpol", re.I)   # v9.589: l'estradizione e le rogatorie sono l'elemento straniero del libro XI del c.p.p.
+
+
+# v9.589 — e il LIBRO XI del c.p.p. («Rapporti giurisdizionali con autorità straniere»: estradizione, rogatorie, riconoscimento delle
+# sentenze straniere): nella prova dal browser del 10 ott sull'appello per furto in abitazione entrava per senso l'art. 706 «Ricorso per
+# cassazione» (dell'ESTRADIZIONE), nel banco gli artt. 698 e 744 nello stalking. Stessa regola: solo con un elemento straniero
+_LIBRO_XI_CPP_RX = re.compile(r"autorit\w*\s+stranier", re.I)
+
+
+def _libro_xi_cpp(a) -> bool:
+    return a.code == "codice_procedura_penale" and bool(_LIBRO_XI_CPP_RX.search(str(getattr(a, "pjesa", "") or "")))
 
 
 def _senza_diritto_straniero(pairs, testo: str, areas=None):
     if _ESTERO_RX.search(testo or "") or any(re.search(r"internaz|immigr|nderkomb|ester[oi]", str(x or ""), re.I) for x in (areas or [])):
         return pairs
-    fuori = [a for a, _ in pairs if a.code in _CODICI_ESTERO_IT]
+    fuori = [a for a, _ in pairs if a.code in _CODICI_ESTERO_IT or _libro_xi_cpp(a)]
     if not fuori:
         return pairs
     log.info("retrieval: diritto straniero fuori (nessun elemento straniero nella domanda): %s",
              ", ".join(f"{a.code} {a.number}" for a in fuori[:8]))
-    return [(a, s) for a, s in pairs if a.code not in _CODICI_ESTERO_IT]
+    return [(a, s) for a, s in pairs if not (a.code in _CODICI_ESTERO_IT or _libro_xi_cpp(a))]
 
 
 # ── v9.580 — la LEGGE SULL'ADOZIONE fuori dalle domande che non parlano di adozione o di affidamento familiare ──────────────────
@@ -925,14 +966,33 @@ _CIVILE_NEL_PENALE_RX = re.compile(r"marit|mogli|convivent|coniug|famigli|famili
                                    r"sfratt|decreto\s+ingiuntiv|esecuzione\s+forzata|eredit|contratt", re.I)
 
 
+# v9.589 — e gli altri RITI non penali: il processo AMMINISTRATIVO (c.p.a.) e quello TRIBUTARIO (d.lgs. 546/1992, TU della giustizia
+# tributaria) entravano per senso nelle impugnazioni penali — prova dal browser del 10 ott sull'appello per furto in abitazione: TU
+# giustizia tributaria 120 «Sentenze revocabili» (col d.lgs. 546/1992 art. 64 accanto), c.p.a. 101 «Contenuto del ricorso in appello»; nel
+# banco il c.p.a. 77 e 54 in tre domande penali. Restano se la domanda parla di fisco (il doppio binario dei reati tributari) o di un atto
+# amministrativo (l'ammonimento del questore, il foglio di via, l'interdittiva); i riti civili speciali seguono il c.p.c.
+_FISCO_NEL_PENALE_RX = re.compile(r"tribut|fisc|accertament|cartell|agenzia\s+delle\s+entrate|imposta|\biva\b|evasion|"
+                                  r"dichiarazion\w*\s+(?:dei\s+redditi|fraudolent|infedel|omess|iva|annual)|omess\w*\s+dichiarazion|"
+                                  r"fattur|commissione\s+tributaria|corte\s+di\s+giustizia\s+tributaria", re.I)
+_AMMINISTRATIVO_NEL_PENALE_RX = re.compile(r"\btar\b|consiglio\s+di\s+stato|questor|prefett|ammoniment|foglio\s+di\s+via|daspo|"
+                                           r"interdittiv|provvediment\w*\s+amministrativ|ricorso\s+amministrativ|pubblica\s+amministrazione|"
+                                           r"\bcomune\b|licenz|permesso\s+di\s+costruire|revoca\s+(?:della\s+)?patente|sospensione\s+della\s+patente", re.I)
+_RITI_CIVILI = ("codice_procedura_civile", "disp_att_cpc", "riti_civili_semplificati", "mediazione_civile", "negoziazione_assistita")
+_RITI_NON_PENALI = ((_RITI_CIVILI, _CIVILE_NEL_PENALE_RX, "procedura civile"),
+                    (("codice_processo_amministrativo",), _AMMINISTRATIVO_NEL_PENALE_RX, "processo amministrativo"),
+                    (("processo_tributario", "giustizia_tributaria"), _FISCO_NEL_PENALE_RX, "processo tributario"))
+
+
 def _senza_procedura_civile_nel_penale(pairs, testo: str, areas=None):
-    if not areas or not all(re.search(r"penal", str(x or ""), re.I) for x in areas) or _CIVILE_NEL_PENALE_RX.search(testo or ""):
+    if not areas or not all(re.search(r"penal", str(x or ""), re.I) for x in areas):
         return pairs
-    fuori = [a for a, _ in pairs if a.code in ("codice_procedura_civile", "disp_att_cpc")]
+    via = {c: nome for codici, resta, nome in _RITI_NON_PENALI if not resta.search(testo or "") for c in codici}
+    fuori = [a for a, _ in pairs if a.code in via]
     if not fuori:
         return pairs
-    log.info("retrieval: procedura civile fuori da una domanda solo penale: %s", ", ".join(f"{a.code} {a.number}" for a in fuori[:8]))
-    return [(a, s) for a, s in pairs if a.code not in ("codice_procedura_civile", "disp_att_cpc")]
+    log.info("retrieval: %s fuori da una domanda solo penale: %s", " e ".join(dict.fromkeys(via[a.code] for a in fuori)),
+             ", ".join(f"{a.code} {a.number}" for a in fuori[:8]))
+    return [(a, s) for a, s in pairs if a.code not in via]
 
 
 def _senza_codici_condizionati_it(pairs, testo: str):

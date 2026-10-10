@@ -436,6 +436,7 @@ CODE_LABELS: dict[str, str] = {
     "ritardi_pagamento": "d.lgs. 231/2002 (ritardi di pagamento)", "collegato_lavoro": "L. 183/2010 (collegato lavoro)",
     "licenziamenti_collettivi": "L. 223/1991 (licenziamenti collettivi)",
     "legge_104": "L. 104/1992 (disabilità: permessi e tutele)",
+    "tu_infortuni": "d.P.R. 1124/1965 (TU INAIL)", "danno_biologico_inail": "d.lgs. 38/2000 (danno biologico INAIL)",
     "sanzioni_pecuniarie_civili": "D.Lgs. 7/2016 (illeciti civili: ingiuria)",
     "legge_sospensione_feriale": "L. 742/1969",
     "tutele_crescenti": "D.Lgs 23/2015",
@@ -709,6 +710,9 @@ _IT_CODE_CHECKS = [
     ("antiriciclaggio", "antiriciclaggio"),
     # v9.469 — forme usate nelle risposte vere e uscite «senza codice» (scansione di 85 risposte IT, 1 ott 2026)
     ("tuimmigrazione", "tu_immigrazione"),
+    # v9.589 — il testo unico INAIL citato per nome: «art. 10 del T.U. INAIL», «art. 2 del testo unico infortuni»
+    ("testounicoinail", "tu_infortuni"), ("testounicodegliinfortuni", "tu_infortuni"), ("testounicoinfortuni", "tu_infortuni"),
+    ("tuinail", "tu_infortuni"), ("tuinfortuni", "tu_infortuni"),
     ("regolamentoanagrafico", "regolamento_anagrafico"), ("collegatolavoro", "collegato_lavoro"),
     ("codass", "codice_assicurazioni"),
     ("disciplinaorganicadeicontratti", "contratti_lavoro"),
@@ -907,6 +911,7 @@ _IT_CODE_NUM_CHECKS = [
     ("4311998", "locazioni_abitative"), ("3921978", "locazioni_immobili_urbani"), ("282010", "mediazione_civile"),
     ("1502011", "riti_civili_semplificati"), ("2472012", "ordinamento_forense"), ("6041966", "licenziamenti_individuali"), ("2231989", "regolamento_anagrafico"), ("4701988", "aire"),
     ("3621994", "procedimenti_cittadinanza"), ("222015", "naspi"), ("2312002", "ritardi_pagamento"), ("1832010", "collegato_lavoro"),
+    ("11241965", "tu_infortuni"), ("382000", "danno_biologico_inail"),   # v9.589
     ("2231991", "licenziamenti_collettivi"), ("1041992", "legge_104"), ("72016", "sanzioni_pecuniarie_civili"), ("7421969", "legge_sospensione_feriale"),
     ("232015", "tutele_crescenti"), ("242017", "responsabilita_sanitaria"), ("3941999", "regolamento_immigrazione"),
     ("2672000", "tuel"), ("4481988", "processo_penale_minorile"), ("1712005", "codice_nautica_diporto"),

@@ -198,6 +198,8 @@ _IT_CODE_EXACT = frozenset({
     "tuir_1986", "processo_tributario", "adempimento_unico",
     # v9.479 (wave11): residenza, AIRE, cittadinanza, NASpI, interessi di mora, collegato lavoro, licenziamenti collettivi
     "aire", "procedimenti_cittadinanza", "naspi", "ritardi_pagamento", "collegato_lavoro", "licenziamenti_collettivi",
+    # v9.589 (wave13): il danno biologico INAIL (d.lgs. 38/2000); il testo unico INAIL è «tu_infortuni» (prefisso «tu_»)
+    "danno_biologico_inail",
     "responsabilita_enti", "responsabilita_sanitaria", "procedimento_amministrativo",
     "stupefacenti", "divorzio", "adozione", "equa_riparazione", "antiriciclaggio",
     # wave5 (16 set 2026): tributario, notarile, procedura, lavoro + EUR-Lex

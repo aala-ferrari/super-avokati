@@ -8257,11 +8257,14 @@ def main():
         _br273.set_request_jurisdiction("AL")
         _al273 = _AI273.load()
         _k273 = lambda q, aree: {(a.code, str(a.number)) for a, _ in _br273._applica_ancore([], _al273, q, aree)}
-        _a273 = _k273(["afati i parashkrimit të kërkesave nga marrëdhënia e punës", "Punëdhënësi e pushoi klientin pa paralajmërim"], ["Punë", "Civil"])
+        # v9.589: il KP 203 solo se la DOMANDA parla di prescrizione (la parola scritta dal triage non basta più: 11 domande di lavoro su 111)
+        _a273 = _k273(["afati i parashkrimit të kërkesave nga marrëdhënia e punës",
+                       "Punëdhënësi e pushoi klientin pa paralajmërim: a ka rënë në parashkrim padia?"], ["Punë", "Civil"])
+        _n273 = _k273(["afati i parashkrimit të kërkesave nga marrëdhënia e punës", "Punëdhënësi e pushoi klientin pa paralajmërim"], ["Punë"])
         _b273 = _k273(["afati i parashkrimit të detyrimit", "Klienti ka një borxh nga viti 2012"], ["Civil"])
         _c273 = _k273(["parashkrimi i detyrimeve", "A është parashkruar paga e papaguar e vitit 2021?"], ["Civil"])
         check("parashkrim[273]: nel lavoro KP 203 (3 anni) e non il KC 114; nel civile il KC 114",
-              ("kodi_punes", "203") in _a273 and ("kodi_civil", "114") not in _a273
+              ("kodi_punes", "203") in _a273 and ("kodi_civil", "114") not in _a273 and ("kodi_punes", "203") not in _n273
               and ("kodi_civil", "114") in _b273 and ("kodi_civil", "115") in _b273 and ("kodi_punes", "203") not in _b273
               and ("kodi_punes", "203") in _c273
               and ("codice_civile", "2947") in {(a.code, str(a.number)) for a, _ in _br273._applica_ancore(
@@ -8273,7 +8276,13 @@ def main():
               and ("codice_civile", "2948") in {(a.code, str(a.number)) for a, _ in _br273._applica_ancore(
                   [], _AI273.load(__import__("pathlib").Path("/app/data/index/bm25_it.pkl")),
                   ["prescrizione dei crediti", "Il datore non ha pagato gli stipendi del 2020: sono prescritti?"], ["Lavoro", "Civile"],
-                  ancore=_br273.ANCORE_IT)},
+                  ancore=_br273.ANCORE_IT)}
+              # v9.589: 2948 e 2947 solo dalla domanda — la «prescrizione» scritta dal triage non basta (23 domande su 150)
+              and not ({("codice_civile", "2948"), ("codice_civile", "2947")} & {(a.code, str(a.number)) for a, _ in _br273._applica_ancore(
+                  [], _AI273.load(__import__("pathlib").Path("/app/data/index/bm25_it.pkl")),
+                  ["prescrizione del risarcimento del danno", "prescrizione dei crediti di lavoro",
+                   "La cliente è caduta su una buca del marciapiede comunale e si è rotta il polso. Chi paga?"], ["Civile"],
+                  ancore=_br273.ANCORE_IT)}),
               str(sorted(_a273)) + str(sorted(_c273)))
     except Exception as _e273:  # noqa: BLE001
         check("parashkrim[273]: kontrollet u ekzekutuan", False, str(_e273))
@@ -10324,6 +10333,69 @@ def main():
                                         "_senza_codici_condizionati_it(nuovo", "_senza_procedura_civile_nel_penale(nuovo")))
     except Exception as _e361:  # noqa: BLE001
         check("kerkuesi[361]: kontrollet u ekzekutuan", False, f"{type(_e361).__name__}: {_e361}")
+
+    # [362] v9.589 — l'INFORTUNIO SUL LAVORO: il testo unico INAIL e il danno biologico nel corpus italiano, citati per numero e per nome;
+    # le ancore AL (danno alla salute KC 641, competenza KPC 48) e IT (art. 10-11 TU INAIL, art. 13 d.lgs. 38/2000, c.c. 2087)
+    # scattano sull'infortunio e MAI sul morso del cane o sulla polizza infortuni privata
+    try:
+        from pathlib import Path as _P362
+        from src.retrieval import ArticleIndex as _AI362
+        from src import citation_verifier as _cv362, brain as _b362
+        from src.parser import _is_italian_code as _iic362
+        _it362 = _AI362.load(_P362("/app/data/index/bm25_it.pkl"))
+        _al362 = _AI362.load(_P362("/app/data/index/bm25.pkl"))
+        _by362 = {(a.code, str(a.number)): a for a in _it362.articles}
+        _okC362 = (all(k in _by362 and not _by362[k].repealed for k in (("tu_infortuni", "2"), ("tu_infortuni", "10"), ("tu_infortuni", "11"),
+                                                                       ("tu_infortuni", "112"), ("danno_biologico_inail", "13")))
+                   and _iic362("tu_infortuni") and _iic362("danno_biologico_inail")
+                   and not any(a.code == "tu_infortuni" and str(a.number).startswith("allegato") for a in _it362.articles))
+        def _st362(t, n):
+            return {i["number"]: (i["status"], i.get("code")) for i in _cv362.verify_text(t, _it362)["items"]}.get(n)
+        _okV362 = (_st362("Il datore risponde del danno differenziale (art. 10 d.P.R. 1124/1965).", "10") == ("verified", "tu_infortuni")
+                   and _st362("L'INAIL indennizza il danno biologico (art. 13 d.lgs. 38/2000).", "13") == ("verified", "danno_biologico_inail")
+                   and _st362("Lo prevede l'art. 11 del T.U. INAIL.", "11") == ("verified", "tu_infortuni")
+                   and _st362("La prescrizione è triennale (art. 112 del testo unico infortuni).", "112") == ("verified", "tu_infortuni"))
+        _iA362 = lambda q, ar: {(a.code, a.number) for a, _ in _b362._applica_ancore([], _al362, [q], ar)}
+        _iI362 = lambda q, ar: {(a.code, a.number) for a, _ in _b362._applica_ancore([], _it362, [q], ar, _b362.ANCORE_IT)}
+        _qA362 = "Klienti u lëndua rëndë në kantier, ra nga skela sepse punëdhënësi nuk i kishte dhënë rrip sigurimi. Çfarë të drejtash ka?"
+        _okA362 = ({("kodi_civil", "641"), ("kodi_proc_civile", "48")} <= _iA362(_qA362, ["Punë", "Civil"])
+                   and ("kodi_proc_civile", "48") not in _iA362("Klienti u lëndua nga qeni i fqinjit në rrugë. Kush paguan?", ["Civil"])
+                   and ("kodi_civil", "641") not in _iA362(_qA362, ["Penal"]))
+        _qI362 = "Il cliente è caduto dal ponteggio in cantiere perché il datore non gli aveva dato l'imbracatura. Che diritti ha?"
+        _okI362 = ({("tu_infortuni", "10"), ("tu_infortuni", "11"), ("danno_biologico_inail", "13")} <= _iI362(_qI362, ["Lavoro"])
+                   and ("tu_infortuni", "10") not in _iI362("Il cliente ha una polizza infortuni privata e la compagnia non paga dopo la caduta "
+                                                             "in casa. Cosa facciamo?", ["Civile"]))
+        check("infortunio[362]: TU INAIL (d.P.R. 1124/1965) e danno biologico (d.lgs. 38/2000) nel corpus, verificati per numero e per nome; "
+              "ancore AL KC 641 + KPC 48 e IT art. 10-11 TU + art. 13 — mai sul cane del vicino né sulla polizza privata",
+              _okC362 and _okV362 and _okA362 and _okI362, "C=%s V=%s A=%s I=%s" % (_okC362, _okV362, _okA362, _okI362))
+    except Exception as _e362:  # noqa: BLE001
+        check("infortunio[362]: kontrollet u ekzekutuan", False, f"{type(_e362).__name__}: {_e362}")
+
+    # [363] v9.589 — fuori dalle domande SOLO penali anche i riti amministrativo e tributario (dentro col fisco o con un atto amministrativo),
+    # e il libro XI del c.p.p. (estradizione, rogatorie) senza un elemento straniero — prova dal browser sull'appello per furto in abitazione
+    try:
+        from pathlib import Path as _P363
+        from src.retrieval import ArticleIndex as _AI363
+        from src import brain as _b363
+        _it363 = _AI363.load(_P363("/app/data/index/bm25_it.pkl"))
+        _by363 = {(a.code, str(a.number)): a for a in _it363.articles}
+        _p363 = [(_by363[k], 1.0) for k in (("codice_procedura_penale", "585"), ("codice_processo_amministrativo", "101"),
+                                             ("giustizia_tributaria", "120"), ("processo_tributario", "64"), ("codice_procedura_penale", "706"))
+                 if k in _by363]
+        _q363 = "Il cliente è stato condannato in primo grado per furto in abitazione: entro quando va proposto l'appello?"
+        _r363 = lambda t, ar: {(a.code, str(a.number)) for a, _ in _b363._senza_diritto_straniero(_b363._senza_procedura_civile_nel_penale(_p363, t, ar), t, ar)}
+        _okR363 = (len(_p363) == 5 and _r363(_q363, ["Penale"]) == {("codice_procedura_penale", "585")}
+                   and ("giustizia_tributaria", "120") in _r363("Il cliente ha emesso fatture false e ha ricevuto anche un avviso di accertamento: "
+                                                                 "entro quando l'appello penale?", ["Penale"])
+                   and ("codice_processo_amministrativo", "101") in _r363("Il questore ha ammonito il cliente per stalking e poi è stato "
+                                                                           "condannato: entro quando l'appello?", ["Penale"])
+                   and ("codice_procedura_penale", "706") in _r363("La Germania chiede l'estradizione del cliente condannato là: "
+                                                                    "entro quando il ricorso?", ["Penale"])
+                   and len(_r363(_q363, ["Penale", "Amministrativo"])) == 4)
+        check("riti[363]: c.p.a. e processo tributario fuori dalle domande solo penali (dentro col fisco o con l'ammonimento del questore); "
+              "libro XI del c.p.p. solo con un elemento straniero (l'estradizione)", _okR363, str(sorted(_r363(_q363, ["Penale"]))))
+    except Exception as _e363:  # noqa: BLE001
+        check("riti[363]: kontrollet u ekzekutuan", False, f"{type(_e363).__name__}: {_e363}")
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
