@@ -10593,6 +10593,47 @@ def main():
     except Exception as _e371:  # noqa: BLE001
         check("condizionati[371]: kontrollet u ekzekutuan", False, f"{type(_e371).__name__}: {_e371}")
 
+    # [372] v9.597 — il «permesso di costruire» non è un elemento straniero (il permesso di soggiorno sì); codice della crisi, TUB e TUF col
+    # loro motivo; la L. 689/1981 sempre nel penale (pene sostitutive), fuori dal civile senza una sanzione amministrativa
+    try:
+        from types import SimpleNamespace as _NS372
+        from src import brain as _b372
+        _E372 = _b372._ESTERO_RX
+        _okE372 = (not _E372.search("Il Comune ha negato al cliente il permesso di costruire.") and not _E372.search("permessi retribuiti della legge 104")
+                   and bool(_E372.search("Il permesso di soggiorno del cliente è scaduto.")))
+        _p372 = [(_NS372(code=c, number="1"), 1.0) for c in ("codice_civile", "codice_crisi_impresa", "tu_bancario", "tu_finanza", "sanzioni_amministrative")]
+        _f372 = lambda t, ar: {a.code for a, _ in _b372._senza_codici_condizionati_it(_p372, t, ar)}
+        _okC372 = (_f372("Un privato ha prestato soldi al cliente e ora pretende interessi del 10% al mese.", ["Civile"]) == {"codice_civile"}
+                   and _f372("Il cliente si è dimesso e il datore non gli ha pagato il TFR.", ["Lavoro"]) == {"codice_civile"}
+                   and {"codice_crisi_impresa", "tu_bancario"} <= _f372("La società del cliente non riesce più a pagare le rate del mutuo alla banca.", ["Civile"])
+                   and "tu_finanza" in _f372("La banca ha venduto al cliente obbligazioni subordinate e ha perso i risparmi.", ["Civile"])
+                   and "sanzioni_amministrative" in _f372("Il cliente è stato condannato a un anno e sei mesi: può avere una pena sostitutiva?", ["Penale"])
+                   and "sanzioni_amministrative" in _f372("Al cliente è arrivata una multa da autovelox.", ["Amministrativo"])
+                   and "sanzioni_amministrative" not in _f372("Il credito del cliente risale al 2013: è prescritto?", ["Civile"]))
+        check("condizionati[372]: «permesso di costruire» non è straniero; crisi d'impresa, TUB e TUF col loro motivo; L. 689/1981 nel penale "
+              "e con la sanzione amministrativa, fuori dal civile", _okE372 and _okC372, "E=%s C=%s" % (_okE372, _okC372))
+    except Exception as _e372:  # noqa: BLE001
+        check("condizionati[372]: kontrollet u ekzekutuan", False, f"{type(_e372).__name__}: {_e372}")
+
+    # [373] v9.597 — AL: la legge sugli stupefacenti fuori dalla guida da ubriaco, la cannabis medica fuori dalla ketamina, la violenza
+    # domestica fuori dalla riduzione degli alimenti; dentro col loro motivo
+    try:
+        from types import SimpleNamespace as _NS373
+        from src import brain as _b373
+        _p373 = [(_NS373(code=c, number="1"), 1.0) for c in ("kodi_penal", "ligji_lendet_narkotike", "ligji_kanabisi_mjekesor", "ligji_dhuna_familje_2026")]
+        _f373 = lambda t: {a.code for a, _ in _b373._senza_codici_condizionati_al(_p373, t)}
+        _ok373 = (_f373("Klienti u ndalua nga policia duke drejtuar makinën i dehur. Çfarë rrezikon?") == {"kodi_penal"}
+                  and _f373("Ish-bashkëshorti humbi punën dhe kërkon t'ia ulë detyrimin ushqimor për fëmijën.") == {"kodi_penal"}
+                  and {"ligji_lendet_narkotike"} <= _f373("Klienti u kap me 3 gram kokainë në xhep.")
+                  and "ligji_kanabisi_mjekesor" not in _f373("Ketamina konsiderohet lëndë narkotike sipas ligjit shqiptar?")
+                  and "ligji_kanabisi_mjekesor" in _f373("A lejohet kultivimi i kanabisit për qëllime mjekësore?")
+                  and "ligji_dhuna_familje_2026" in _f373("Klientja rrihet nga bashkëshorti dhe ka frikë të kthehet në shtëpi.")
+                  and "ligji_dhuna_familje_2026" in _f373("Ish-partneri publikoi në Facebook fotot private të klientes."))
+        check("condizionati[373]: stupefacenti, cannabis medica e violenza domestica AL solo col loro motivo (non la guida da ubriaco, non "
+              "la ketamina per la cannabis, non la riduzione degli alimenti)", _ok373)
+    except Exception as _e373:  # noqa: BLE001
+        check("condizionati[373]: kontrollet u ekzekutuan", False, f"{type(_e373).__name__}: {_e373}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

@@ -855,7 +855,10 @@ _CODICI_ESTERO_IT = frozenset({"bruxelles_i_bis", "bruxelles_ii_ter", "roma_i", 
                                "procedimenti_cittadinanza", "convenzione_it_al_fisco", "mandato_arresto_europeo"})
 _ESTERO_RX = re.compile(
     r"ester[oaie]|stranier|extra[- ]?ue|comunitar|unione europea|\bue\b|europe[oaie]|internazional|transfrontalier|transnazional|"
-    r"\baja\b|rimpatri|espatri|cittadinanz|nazionalit|soggiorn|permess[oi]|ricongiung|espuls|clandestin|irregolar|questur|frontier|"
+    r"\baja\b|rimpatri|espatri|cittadinanz|nazionalit|soggiorn|ricongiung|espuls|clandestin|irregolar|questur|frontier|"
+    # v9.597 — il «permesso» straniero, non quello DI COSTRUIRE (nel banco il permesso di costruire negato teneva dentro il regolamento
+    # dell'immigrazione), né i permessi retribuiti, sindacali, della legge 104, il permesso premio del detenuto
+    r"permess[oi](?!\s+(?:di\s+costruir|di\s+costruzion|a\s+costruir|edilizi|retribuit|sindacal|(?:per\s+(?:la\s+)?)?(?:legge\s+)?104\b|per\s+(?:assistere|l.assistenza)|premio|per\s+lutto|di\s+uscita))|"
     r"schengen|asilo|rifugiat|richiedent|protezione\s+(?:internazionale|sussidiaria|speciale)|immigra|emigra|migrant|apolid|consolat|"
     r"ambasciat|apostill|\bpaes[ei]\b|altro\s+stato|stat[oi]\s+(?:membr|ester|terz)|albanes|albania|tedesc|germani|frances|francia|"
     r"spagn|rumen|romania|polacc|polonia|ucrain|marocc|tunisi|egizi|egitto|cines|\bcina\b|indian|\bindia\b|filippin|bangladesh|"
@@ -1089,6 +1092,42 @@ _CODICI_CONDIZIONATI_IT = _CODICI_CONDIZIONATI_IT + (
         r"area\s+protetta|bosco|boschi|lago|fiume|collin|montagn|centro\s+storico|chiesa|palazzo\s+storico|villa\s+storica|"
         r"tutela\s+indiretta|prelazione\s+(?:artistica|dello\s+stato)", re.I)),
 )
+# v9.597 — tre testi unici che la mappa per codice del banco IT (dopo la v9.596) trovava per parole: il CODICE DELLA CRISI in 6 domande
+# senza un'impresa in crisi (il licenziamento, il TFR non pagato dopo le dimissioni, il preliminare, l'inquilino che recede, il fermo
+# dell'auto, il debitore che vende i beni prima della causa), il TESTO UNICO BANCARIO nel prestito FRA PRIVATI e nel pignoramento del
+# conto, il TESTO UNICO DELLA FINANZA nella contestazione disciplinare, nella diffamazione, nei contratti a termine. Restano col loro
+# motivo: un'impresa, una società, un socio, l'insolvenza o il sovraindebitamento; una banca, un mutuo, un finanziamento, un conto
+# bancario, il phishing; la borsa, gli investimenti, i titoli, i risparmi (provati sulle 152 domande intere: tolto solo rumore)
+_CODICI_CONDIZIONATI_IT = _CODICI_CONDIZIONATI_IT + (
+    ("codice_crisi_impresa", "codice della crisi d'impresa", re.compile(
+        r"societ|\bsrl\b|s\.r\.l|\bspa\b|s\.p\.a|\bimpres[ae]\b|imprenditor|aziend|\bditt[ae]\b|fallim|liquidazion|insolven|"
+        r"\bcrisi\b|concordat|sovraindebit|esdebit|curator|stato\s+d.insolvenza|non\s+riesc\w*\s+(?:più\s+)?a\s+pagar|"
+        r"debit\w*\s+(?:che\s+)?non\s+(?:riesce|può|paga)|piano\s+del\s+consumatore|accordo\s+di\s+ristrutturazion|"
+        r"composizione\s+negoziata|cooperativ|consorzi|amministrator\w*\s+(?:unic|della\s+societ|delegat)|\bsoci[oi]?\b|"
+        r"bancarott|chiusura\s+(?:della\s+)?(?:società|attività)|cessazione\s+dell.attività", re.I)),
+    ("tu_bancario", "testo unico bancario", re.compile(
+        r"\bbanc[ah]|bancar|istituto\s+di\s+credito|mutuo|mutui|finanziament|carta\s+di\s+credito|bancomat|bonific|fideiussion|"
+        r"interess\w*\s+(?:bancari|usurari|moratori|passivi)|\btass[oi]\s+(?:di\s+interesse|d.interesse|usurari)|anatocism|"
+        r"centrale\s+(?:dei\s+)?rischi|\bcrif\b|segnalazion\w*\s+(?:in\s+)?(?:centrale|crif)|intermediar\w*\s+finanziari|leasing|"
+        r"credito\s+al\s+consumo|trasparenza|commission\w*\s+(?:bancari|di\s+massimo)|phishing|home\s+banking|"
+        r"conto\s+(?:corrente\s+)?(?:bancario|online)|cessione\s+del\s+quinto|arbitro\s+bancario|\babf\b|finanziari[ae]\b|"
+        r"prestito\s+(?:della|dalla|in|con\s+la)\s+banca|carta\s+(?:prepagata|di\s+debito)|\biban\b|estratto\s+conto|scoperto", re.I)),
+    ("tu_finanza", "testo unico della finanza", re.compile(
+        r"borsa|azion[ei]\s+(?:quotat|di\s+societ)|obbligazion\w*\s+(?:societari|bancari|subordinat)|strumenti\s+finanziari|"
+        r"investiment|risparmi|consulent\w*\s+finanziari|promotor\w*\s+finanziari|\bsim\b|\bsgr\b|fondo\s+comune|"
+        r"\bfondi\s+(?:comuni|d.investimento)|derivat|insider|aggiotaggio|manipolazion\w*\s+del\s+mercato|\bquotat|consob|"
+        r"prospetto|\bopa\b|crypto|cripto|bitcoin|trading|broker|gestione\s+(?:di\s+)?patrimon|polizz\w*\s+(?:unit|index)|"
+        r"\bbond\b|titoli|azionist|assemblea\s+(?:dei\s+)?soci|società\s+quotat|emittent", re.I)),
+)
+# v9.597 — e la L. 689/1981 (sanzioni amministrative e, dal 2022, le PENE SOSTITUTIVE degli artt. 53 ss.): fuori dalle domande civili e di
+# lavoro senza una sanzione amministrativa (l'art. 30 nell'incidente, il 28 nel credito del 2013 e nel TFR, il 36 nel pignoramento),
+# sempre dentro nel PENALE (le pene sostitutive servono al patteggiamento, al decreto penale, alla condanna breve)
+_SANZ_AMM_RX = re.compile(
+    r"sanzion\w*\s+amministrativ|illecit\w*\s+amministrativ|\bmult[ae]\b|verbal|contravvenz|ordinanz\w*[-\s]+ingiunzion|"
+    r"ingiunzion|depenalizz|oblazion|pagamento\s+in\s+misura\s+ridotta|autovelox|codice\s+della\s+strada|\bc\.?d\.?s\.?\b|"
+    r"revision|patente|pene?\s+sostitutiv|lavoro\s+di\s+pubblica\s+utilit|semilibert|detenzione\s+domiciliare|"
+    r"pena\s+pecuniari|decreto\s+penale|prefett|ispettorato|accertament\w*\s+(?:della\s+)?violazion|"
+    r"contestazion\w*\s+(?:della\s+)?violazion|cartell\w*\s+(?:esattorial|di\s+pagamento)", re.I)
 # v9.592 — e l'ORDINAMENTO PENITENZIARIO (L. 354/1975 e il regolamento, d.P.R. 230/2000) nelle domande civili e di lavoro: nel banco il
 # trasferimento del dipendente prendeva il trasferimento dei detenuti (art. 42), la contestazione disciplinare il disciplinare del carcere
 # (reg. 81), l'assegno non pagato il lavoro esterno (21-bis), il pignoramento del conto il conto dei detenuti (84). Resta in ogni domanda
@@ -1217,6 +1256,9 @@ def _senza_codici_condizionati_it(pairs, testo: str, areas=None):
     # v9.592 — il penitenziario: fuori solo se la materia NON è penale (con aree note) e la domanda non parla di carcere o di pena da espiare
     if (areas and not any(re.search(r"penal", str(x or ""), re.I) for x in areas) and not _CARCERE_RX.search(t)):
         via.update({c: "ordinamento penitenziario" for c in _CODICI_PENITENZIARI_IT})
+    # v9.597 — la L. 689/1981: fuori solo se la materia NON è penale (con aree note) e la domanda non ha una sanzione amministrativa
+    if (areas and not any(re.search(r"penal", str(x or ""), re.I) for x in areas) and not _SANZ_AMM_RX.search(t)):
+        via["sanzioni_amministrative"] = "L. 689/1981"
     if not via:
         return pairs
     fuori = [a for a, _ in pairs if a.code in via]
@@ -1320,6 +1362,25 @@ _CODICI_CONDIZIONATI_AL = _CODICI_CONDIZIONATI_AL + (
                 r"vërtetim|vertetim|kontrat\w*\s+(?:e\s+|të\s+)?shitj|me\s+dorë|kalim\w*\s+(?:i|e|të)\s+pronës|regjistrim\w*\s+(?:i|e|të)\s+pronës", re.I)),
 )
 
+# v9.597 — il gemello albanese, dalla mappa per codice del banco AL dopo la v9.594: la legge sugli STUPEFACENTI (7975/1995, art. 56
+# sul transito) nella guida in stato di EBBREZZA, la CANNABIS MEDICA (61/2023, art. 40) nella domanda sulla ketamina, la VIOLENZA
+# DOMESTICA (11/2026, art. 8 «Dhunë ekonomike») nella riduzione degli alimenti dell'ex coniuge che ha perso il lavoro. Restano col loro
+# motivo (una sostanza, una ricetta, la farmacia; la cannabis, l'uso medico, la coltivazione; botte, minacce, persecuzione, paura,
+# foto intime pubblicate, la forza, l'ordine di protezione)
+_CODICI_CONDIZIONATI_AL = _CODICI_CONDIZIONATI_AL + (
+    ("ligji_lendet_narkotike", "legge sugli stupefacenti", re.compile(
+        r"narkoti|drog|lënd\w*\s+(?:narkotike|psikotrope|të\s+kontrolluara)|lend\w*\s+(?:narkotike|psikotrope)|kokain|heroin|"
+        r"kanab|marihuan|hashish|ekstazi|amfetamin|shabu|ketamin|tramadol|metadon|morfin|fentanil|\bopi|kodein|benzodiazep|"
+        r"psikotrop|recet|farmaci|\bbar[ëe]\b|\bbarna|barnat|prekursor|precursor|\bhhc\b|\bthc\b|\bcbd\b|kultiv|"
+        r"bim[ëe]\w*\s+(?:kanabis|droge)|doz[ëe]|gram", re.I)),
+    ("ligji_kanabisi_mjekesor", "cannabis medica", re.compile(
+        r"kanab|marihuan|hashish|\bthc\b|\bhhc\b|\bcbd\b|kërp|kerp|mjekësor|mjekesor|farmaceutik|kultiv", re.I)),
+    ("ligji_dhuna_familje_2026", "violenza domestica", re.compile(
+        r"dhun|rrah|rrih|godit|plagos|kërcën|kercen|ngacm|ndjek|përndjek|perndjek|frikë|frike|abuz|keqtraj|"
+        r"urdh\w*\s+(?:i\s+)?mbrojtj|mbrojtj\w*\s+(?:e\s+)?(?:menjëhershme|imediate|të\s+menjëhershme)|fyerj|\bfye|poshtër|"
+        r"kontroll\w*\s+(?:ekonomik|financiar)|izolim|seksual|përdhun|perdhun|forc|shantazh|foto\w*\s+(?:private|intime)|"
+        r"imazh\w*\s+(?:intim|privat)|publikoi|turpër", re.I)),
+)
 
 def _senza_codici_condizionati_al(pairs, testo: str):
     t = testo or ""

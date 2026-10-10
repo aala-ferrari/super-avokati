@@ -74,6 +74,8 @@ def main() -> int:
     ap.add_argument("--flat", action="store_true", help="un vettore per articolo (testo troncato a 128 token: comportamento v9.353)")
     ap.add_argument("--suffix", default=os.environ.get("EMB_SUFFIX", ""), help="suffisso dei file (es. _ck) per una codifica affiancata")
     ap.add_argument("--it-index", default="/app/data/index/bm25_it.pkl", help="v9.383: l'indice italiano da codificare (anche di prova)")
+    ap.add_argument("--pota", action="store_true", help="v9.597: toglie le righe delle unità che non esistono più nell'indice "
+                    "(i blocchi sostituiti, gli articoli riuniti) e riscrive i file; nient'altro cambia")
     a = ap.parse_args()
     import numpy as np
     from src import dense
@@ -89,6 +91,22 @@ def main() -> int:
             idx = ArticleIndex.load() if what == "al" else ArticleIndex.load(Path(a.it_index))
             base = dense.EMB_DIR / f"emb_{lang}_{dense.tag()}{a.suffix}"
             _old_E, _old_keys = None, None
+            if a.pota:
+                if not base.with_suffix(".npy").exists():
+                    print(f"{what}: {base.name}.npy non c'è"); continue
+                _E = np.load(base.with_suffix(".npy"))
+                _K = json.loads(Path(str(base) + ".keys.json").read_text(encoding="utf-8"))
+                _vivi = {(x.code, str(x.number)) for x in idx.articles}
+                _tieni = [i for i, k in enumerate(_K) if (k[0], str(k[1])) in _vivi]
+                _via = sorted({(k[0], str(k[1])) for k in _K if (k[0], str(k[1])) not in _vivi})
+                if not _via:
+                    print(f"{what}: {base.name} — niente da togliere"); continue
+                _tmp = base.with_name(base.name + ".tmp.npy")
+                np.save(_tmp, _E[_tieni]); os.replace(_tmp, base.with_suffix(".npy"))
+                Path(str(base) + ".keys.json").write_text(json.dumps([_K[i] for i in _tieni], ensure_ascii=False), encoding="utf-8")
+                print(f"{what}: {base.name} — tolte {len(_K) - len(_tieni)} righe di {len(_via)} unità sparite: "
+                      + ", ".join(f"{c} {n}" for c, n in _via[:12]), flush=True)
+                continue
             _rif = {(k[0], str(k[1])) for k in json.loads(Path(a.rifai).read_text(encoding="utf-8"))} if a.rifai else set()
             if base.with_suffix(".npy").exists() and (a.incremental or _rif):
                 _old_E = np.load(base.with_suffix(".npy"))
