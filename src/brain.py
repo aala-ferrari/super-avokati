@@ -452,8 +452,16 @@ ANCORE_IT: tuple = (
     # Prova viva in Chrome (6 ott, «incidente stradale del 10 marzo 2024: entro quando il risarcimento?»): la risposta apriva da sola
     # la via delle lesioni e scriveva «il numero dell'articolo sulle lesioni stradali non è tra quelli che ho recuperati»; il 157 lo
     # portava solo il completamento. Solo dalla DOMANDA dell'avvocato (il triage parla di «prescrizione» anche dove non c'è sinistro).
-    ((("prescri", "incident"), ("prescri", "sinistr"), ("prescri", "stradal"), ("prescri", "investit"), ("prescri", "tampon")),
+    # v9.574: non più «stradal» da solo — prova in Chrome (10 ott, «cartella per multe stradali del 2019: sono prescritte?»): ancorava
+    # lesioni stradali e prescrizione del REATO a una domanda sulle MULTE; servono l'incidente o le lesioni
+    ((("prescri", "incident"), ("prescri", "sinistr"), ("prescri", "investit"), ("prescri", "tampon"), ("prescri", "lesion"),
+      ("prescri", "ferit"), ("prescri", "feriment")),
      (), (("codice_penale", "590"), ("codice_penale", "590-bis"), ("codice_penale", "157")), None, None, True),
+    # … e la prescrizione delle MULTE stradali: cinque anni dalla violazione (L. 689/1981 art. 28, a cui rinvia il C.d.S. 209). Mai nel
+    # penale («multa» è anche la pena pecuniaria del delitto); mai le sanzioni tributarie (hanno la loro prescrizione)
+    ((("prescri", "multa"), ("prescri", "multe"), ("prescri", "contravvenz"), ("prescri", "autovelox"), ("prescri", "codice della strada"),
+      ("prescri", "sanzion", "stradal"), ("prescri", "verbal", "stradal")),
+     ("Penale", "Penal"), (("sanzioni_amministrative", "28"), ("codice_strada", "209")), None, None, True),
     # v9.525 — la NASpI (D.Lgs. 22/2015). Risposte vere del 1° e 3 ott: «la domanda va presentata nei termini di legge (68 giorni —
     # norma non tra quelle recuperate)» in un licenziamento disciplinare, e «misura, massimale e décalage stanno nell'art. 4, che non
     # è tra gli articoli recuperati» in una domanda sulla NASpI: le rubriche dicono «Requisiti», «Calcolo e misura», «Durata»,

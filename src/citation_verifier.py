@@ -1491,6 +1491,64 @@ def _ab_testo(k: str, voce: dict) -> str:
     return _aa.testo(k, voce)
 
 
+# v9.575 — un ATTO ITALIANO NOMINATO per estremi ma assente dal corpus («art. 83 D.L. 18/2020», «art. 1, commi 537-543, L. 24
+# dicembre 2012, n. 228», «art. 73 R.D.L. 1827/1935»): la citazione resta «da chiarire» (needs_code, resolved_by="fuori_corpus")
+# con l'atto come etichetta. Prima il pannello diceva «codice non specificato — potrebbe essere: Cost., c.c., c.p.c. …», cioè tutti
+# i codici con quel numero: rumore su un atto scritto per esteso (risposte vere, 60 giorni: 13 citazioni su 2.450, 6 atti).
+# Solo l'atto IN TESTA alla coda (al più dopo «del/della/dal…»): «art. 5 come modificato dal D.L. 18/2020» non è del D.L. 18/2020
+_ATTO_NOMINATO_IT = re.compile(
+    r"\s*(?:\*{1,2}|_{1,2})?\s*(?:(?:del|dal|nel|al)(?:la|lo|l['’])?\s+|di\s+cui\s+al(?:la|lo|l['’])?\s+)?(?:\*{1,2})?\s*"
+    r"(?P<tipo>r\.\s?d\.\s?l\.?|r\.\s?d\.?|d\.\s?lgs\.?|dlgs\.?|decreto\s+legislativo|d\.\s?l\.?|decreto[\s-]+legge|"
+    r"d\.\s?p\.\s?r\.?|dpr|decreto\s+del\s+presidente\s+della\s+repubblica|d\.\s?p\.\s?c\.\s?m\.?|dpcm|d\.\s?m\.?|"
+    r"decreto\s+ministeriale|l\.\s?cost\.?|legge\s+costituzionale|l\.|legge)"
+    r"\s*(?:n\.?\s*)?(?P<num>\d{1,5})\s*/\s*(?P<anno>\d{4})(?!\d)", re.I)
+_TIPO_ATTO_IT = {"rdl": "R.D.L.", "rd": "R.D.", "dlgs": "D.Lgs.", "decretolegislativo": "D.Lgs.", "dl": "D.L.", "decretolegge": "D.L.",
+                 "dpr": "d.P.R.", "decretodelpresidentedellarepubblica": "d.P.R.", "dpcm": "D.P.C.M.", "dm": "D.M.",
+                 "decretoministeriale": "D.M.", "lcost": "L. cost.", "leggecostituzionale": "L. cost.", "l": "L.", "legge": "L."}
+
+
+def _atto_nominato_it(coda: str) -> str | None:
+    """«D.L. 18/2020», «L. 228/2012» … — l'atto italiano scritto in testa alla coda di una citazione, nella forma breve; None se
+    la coda non comincia con un atto per estremi. Va chiamata solo quando il verificatore NON ha riconosciuto l'atto (= fuori corpus)."""
+    s = _DATA_ATTO_RE.sub(lambda m_: f"{m_.group(2)}/{m_.group(1)}", coda or "")
+    s = re.sub(r"(\d+)\s+del\s+(\d{4})", r"\1/\2", s)
+    s = _ANNO_2_RE.sub(lambda m_: f"{m_.group(1)}/{'19' if int(m_.group(2)) >= 46 else '20'}{m_.group(2)}"
+                       if int(m_.group(2)) >= 46 or int(m_.group(2)) <= 30 else m_.group(0), s)
+    m = _ATTO_NOMINATO_IT.match(s)
+    if not m:
+        return None
+    tipo = _TIPO_ATTO_IT.get(re.sub(r"[^a-z]", "", m.group("tipo").lower()))
+    # un atto del corpus che il risolutore non scioglie da solo (il R.D. 262/1942 è il c.c. E le preleggi) non è «fuori corpus»
+    if not tipo or f"{int(m.group('num'))}/{m.group('anno')}" in _num_anno_nel_corpus():
+        return None
+    return f"{tipo} {int(m.group('num'))}/{m.group('anno')}"
+
+
+_NUM_ANNO_CORPUS: frozenset | None = None
+
+
+def _num_anno_nel_corpus() -> frozenset:
+    """«262/1942», «689/1981», … — gli estremi degli atti italiani del corpus, dalle etichette e dalle chiavi per numero."""
+    global _NUM_ANNO_CORPUS
+    if _NUM_ANNO_CORPUS is None:
+        v = set()
+        for lab in CODE_LABELS.values():
+            for n_, a_ in re.findall(r"(?<![\d/])(\d{1,5})\s*/\s*(\d{4})(?!\d)", lab or ""):
+                v.add(f"{int(n_)}/{a_}")
+        for pat, _c in _IT_CODE_NUM_CHECKS:
+            if pat.isdigit() and len(pat) >= 5 and pat[-4:-2] in ("18", "19", "20"):
+                v.add(f"{int(pat[:-4])}/{pat[-4:]}")
+        try:                                   # e gli estremi veri di ogni atto (URN Normattiva, `acts_meta.json`)
+            from . import acts_meta as _am
+            for _m in _am.carica().values():
+                if _m.get("jur") == "IT" and str(_m.get("numero") or "").isdigit() and _m.get("anno"):
+                    v.add(f"{int(_m['numero'])}/{_m['anno']}")
+        except Exception:  # noqa: BLE001
+            pass
+        _NUM_ANNO_CORPUS = frozenset(v)
+    return _NUM_ANNO_CORPUS
+
+
 def _chiave_trasfuso(tail: str) -> str | None:
     """Un vecchio atto FUORI corpus, decreto legislativo o d.P.R., trasfuso in un testo unico (mai le leggi omnibus:
     «art. 1 l. 190/2014» ha centinaia di commi su temi diversi, la corrispondenza per articolo non vuol dire nulla)."""
@@ -1870,8 +1928,21 @@ def verify_text(
         if not mm:
             return None
         head = mm.group(1).replace("*", " ")
-        if re.search(r"(?<![A-Za-zËëÇç])(?:art|artt|articol[oi]|nen[ie]t?|nenit)\b\.?\s*\d", head, re.I):
-            return None
+        _arts = list(re.finditer(r"(?<![A-Za-zËëÇç])(?:art|artt|articol[oi]|nen[ie]t?|nenit)\b\.?\s*\d", head, re.I))
+        if _arts:
+            # v9.575 — la forma della Cassazione, copiata dalle massime: «ai sensi dell'art. 209 C.d.S. e della L. n. 689 del 1981,
+            # art. 28» (risposta vera del 10 ott: usciva «senza codice»). L'atto introdotto da «e della/e del/nonché» DOPO un'altra
+            # citazione è un atto nuovo, non la coda di quella; senza il connettore («art. 132 C.d.S., art. 94») resta com'è
+            if _lang != "it":
+                return None
+            _resto = head[_arts[-1].end():]
+            _conn = None
+            for _conn in re.finditer(r"(?<![A-Za-z])(?:e|ed|nonché|nonche|oppure)\s+(?:(?:del|dal|al|nel)(?:la|lo|le|l['’])?|dei|degli|"
+                                     r"delle|dagli|dalle|agli|alle|il|lo|la|le|gli|i|l['’])(?![A-Za-z])\s*", _resto, re.I):
+                pass
+            if _conn is None:
+                return None
+            head = _resto[_conn.end():]
         words = head.split()
         for k in range(len(words) - 1, max(-1, len(words) - 9), -1):
             code = _resolve(" ".join(words[k:]))
@@ -2120,6 +2191,19 @@ def verify_text(
                         raw=(_cite_prefix + number_raw) if multi else full_raw, number=number, code=None,
                         code_label=_ab_etichetta(_ab[0]), status="repealed", candidates=[],
                         article_heading=_ab_testo(_ab[0], _ab[1]), resolved_by="atto_abrogato_it"))
+                continue
+            # v9.575 — l'atto scritto per estremi ma fuori corpus: «da chiarire» con l'atto come etichetta, mai la lista dei codici
+            _fa = _atto_nominato_it(tail + ((" " + text[m.end():m.end() + 40]) if re.match(r"\s*,", text[m.end():m.end() + 3])
+                                            else ""))
+            if _fa:
+                for number_raw in numbers:
+                    number = _normalise_number(number_raw)
+                    if (number, "FC:" + _fa) in seen:
+                        continue
+                    seen.add((number, "FC:" + _fa))
+                    citations.append(Citation(
+                        raw=(_cite_prefix + number_raw) if multi else full_raw, number=number, code=None,
+                        code_label=_fa, status="needs_code", candidates=[], resolved_by="fuori_corpus"))
                 continue
         if code is None and not kp_bare:
             _fcode = _resolve_foreign(tail)

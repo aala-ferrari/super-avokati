@@ -86,6 +86,21 @@ CASI = [  # (giurisdizione, domanda dell'avvocato, articoli di cui almeno uno DE
     ("IT", "[frek9] La cliente ha subito un intervento sbagliato in un ospedale pubblico. Contro chi agiamo e cosa dobbiamo fare prima della causa?", [("responsabilita_sanitaria", "7"), ("responsabilita_sanitaria", "8")]),
     ("AL", "[frek9] Klienti pati një aksident, faji ishte i tjetrit, dhe siguruesi nuk po i përgjigjet prej dy muajsh. Si ta detyrojmë të paguajë?", [("ligji_sigurimi_mjeteve", "10"), ("ligji_sigurimi_mjeteve", "9")]),
     ("AL", "[frek9] Klienti është ortak me 40% në një shpk dhe dëshiron të largohet nga shoqëria. Si e bën dhe çfarë i takon?", [("ligji_shoqerite_tregtare", "101"), ("ligji_shoqerite_tregtare", "103"), ("ligji_shoqerite_tregtare", "73")]),
+    # v9.574 — dalla prova in Chrome (10 ott): la prescrizione delle multe stradali
+    ("IT", "[frek26] Al cliente è arrivata una cartella esattoriale per multe stradali non pagate notificate nel 2019. Come si contesta e sono prescritte?", [("sanzioni_amministrative", "28"), ("codice_strada", "209")]),
+    # v9.577 — ventisettesimo giro (10 ott): contestazione disciplinare, testamento dell'incapace, riduzione dell'assegno, divorzio dopo la
+    # separazione, fideiussione, trasferimento del lavoratore; AL amministratore della shpk, riduzione degli alimenti, ritardo del costruttore,
+    # vetting (l'Aneksi della Costituzione separato nella v9.576)
+    ("IT", "[frek27] Il cliente ha ricevuto una lettera di contestazione disciplinare dal datore di lavoro. Entro quanti giorni può presentare le sue giustificazioni?", [("statuto_lavoratori", "7")]),
+    ("IT", "[frek27] Il padre del cliente ha fatto testamento quando era già gravemente malato di Alzheimer. Il figlio escluso può impugnarlo?", [("codice_civile", "591")]),
+    ("IT", "[frek27] Il cliente ha perso il lavoro e non riesce più a pagare l'assegno di mantenimento per i figli. Può chiederne la riduzione?", [("codice_civile", "337-quinquies"), ("codice_procedura_civile", "473-bis.29")]),
+    ("IT", "[frek27] Marito e moglie sono separati consensualmente da otto mesi. Possono già chiedere il divorzio?", [("divorzio", "3")]),
+    ("IT", "[frek27] Il cliente ha firmato una fideiussione per i debiti della sua società, ora fallita, e la banca gli chiede tutto il debito. Cosa può opporre?", [("codice_civile", "1944"), ("codice_civile", "1945"), ("codice_civile", "1957")]),
+    ("IT", "[frek27] Il datore di lavoro vuole trasferire il cliente da Milano a Bari senza spiegargli il motivo. Può farlo?", [("codice_civile", "2103")]),
+    ("AL", "[frek27] Ortakët e një shpk-je duan ta shkarkojnë administratorin sepse nuk u paraqet llogaritë. Si veprojnë?", [("ligji_shoqerite_tregtare", "95")]),
+    ("AL", "[frek27] Ish-bashkëshorti humbi punën dhe kërkon t'ia ulë detyrimin ushqimor për fëmijën. A mundet?", [("kodi_familjes", "207")]),
+    ("AL", "[frek27] Shoqëria ndërtuese nuk e dorëzoi apartamentin në afatin e kontratës, që parashikon një gjobë për çdo ditë vonesë. Çfarë mund të kërkojë klienti?", [("kodi_civil", "481"), ("kodi_civil", "543"), ("kodi_civil", "544")]),
+    ("AL", "[frek27] Klienti është prokuror në procesin e rivlerësimit dhe Komisioni i kërkon të justifikojë burimin e ligjshëm të pasurisë. Çfarë parashikon Kushtetuta?", [("kushtetuta", "aneks-neni-D")]),
     # v9.571 — venticinquesimo giro (10 ott): periodo di prova e riparazioni della casa in affitto AL; phishing, termine della
     # querela, accesso agli atti e danno da ritardo della PA
     ("AL", "[frek25] Punëdhënësi e largoi klientin gjatë kohës së provës pa asnjë arsye. A ka të drejtë ta bëjë?", [("kodi_punes", "142"), ("kodi_punes", "143")]),

@@ -9022,10 +9022,10 @@ def main():
         _h307 = __import__("pathlib").Path("/app/templates/index.html").read_text(encoding="utf-8")
         _i307 = _js307[_js307.index("    function inline(s) {"):]
         _i307 = _i307[:_i307.index("\n    }\n")]
-        check("link[307]: link markdown resi (solo http/https, noopener, prima del corsivo), app.js?v=210",
+        check("link[307]: link markdown resi (solo http/https, noopener, prima del corsivo), app.js?v≥210",
               "(https?:\\/\\/" in _i307 and 'rel="noopener noreferrer nofollow"' in _i307
               and _i307.index("links.push") < _i307.index("<em>$1</em>") and _i307.index("s = escapeHtml(s);") < _i307.index("links.push")
-              and "app.js?v=210" in _h307, _i307[:120])
+              and int(re.search(r"app\.js\?v=(\d+)", _h307).group(1)) >= 210, _i307[:120])
     except Exception as _e307:  # noqa: BLE001
         check("link[307]: kontrollet u ekzekutuan", False, str(_e307))
 
@@ -9863,6 +9863,95 @@ def main():
               and (_I344[("codice_strada", "206")].body or "").rstrip().endswith("in unica soluzione."), str(_restn344[:6]))
     except Exception as _e344:  # noqa: BLE001
         check("promulgazione IT[344]: kontrollet u ekzekutuan", False, f"{type(_e344).__name__}: {_e344}")
+
+    # [345] v9.574 — la prescrizione delle MULTE stradali → L. 689/1981 art. 28 e C.d.S. 209, non le lesioni stradali (c.p. 590/590-bis/157:
+    # l'ancora del sinistro scattava su «stradali» — prova in Chrome del 10 ott); il sinistro con lesioni le tiene
+    try:
+        from pathlib import Path as _P345
+        from src.retrieval import ArticleIndex as _AI345
+        from src import brain as _b345
+        _it345 = _AI345.load(_P345("/app/data/index/bm25_it.pkl"))
+        _i345 = lambda q, ar: {(a.code, a.number) for a, _ in _b345._applica_ancore([], _it345, [q], ar, _b345.ANCORE_IT)}
+        _m345 = _i345("Cartella esattoriale per multe stradali non pagate del 2019: sono prescritte?", ["Administrativ"])
+        _s345 = _i345("Incidente stradale con lesioni nel 2022: entro quando si prescrive il risarcimento?", ["Civile"])
+        check("multe[345]: multe stradali prescritte → L. 689/1981 art. 28 + C.d.S. 209, non c.p. 590/157; il sinistro con lesioni sì",
+              {("sanzioni_amministrative", "28"), ("codice_strada", "209")} <= _m345 and ("codice_penale", "590") not in _m345
+              and ("codice_penale", "590") in _s345
+              and ("sanzioni_amministrative", "28") not in _i345("Il reato è punito con la multa: quando si prescrive?", ["Penale"]),
+              str((sorted(_m345), sorted(_s345))))
+    except Exception as _e345:  # noqa: BLE001
+        check("multe[345]: kontrollet u ekzekutuan", False, f"{type(_e345).__name__}: {_e345}")
+
+    # [346] v9.575 — dalla prova in Chrome sulle multe (10 ott): (1) la forma della Cassazione «dell'art. 209 C.d.S. e della L. n. 689
+    # del 1981, art. 28» → art. 28 L. 689/1981 (usciva «senza codice»), mai la coda di un'altra citazione («art. 132 C.d.S., art. 94»);
+    # (2) l'atto scritto per estremi ma FUORI corpus («art. 1, commi 537-543, L. 24 dicembre 2012, n. 228», «art. 83 D.L. 18/2020») →
+    # «atto non nel corpus» con l'atto come etichetta, mai «codice non specificato — potrebbe essere: Cost., c.c., …»; un atto del corpus
+    # mai «fuori corpus» (R.D. 262/1942 = c.c. e preleggi: resta da chiarire); la Trust Line li conta a parte; il pannello li dice
+    try:
+        from pathlib import Path as _P346
+        from src.retrieval import ArticleIndex as _AI346
+        from src import citation_verifier as _cv346, trust_line as _tl346
+        _it346 = _AI346.load(_P346("/app/data/index/bm25_it.pkl"))
+        def _st346(t, n):
+            return [(i["status"], i.get("code"), i.get("resolved_by"), i.get("code_label"))
+                    for i in _cv346.verify_text(t, _it346)["items"] if i["number"].split("/")[0] == n]
+        check("verificatore[346]: «… e della L. n. 689 del 1981, art. 28» (Cassazione) → L. 689/1981; senza connettore resta senza codice",
+              _st346("la prescrizione ai sensi dell'art. 209 C.d.S. e della L. n. 689 del 1981, art. 28 (Cass.)", "28")
+              == [("verified", "sanzioni_amministrative", "atto_prima", "L. 689/1981")]
+              and _st346("Sanzioni (art. 132 C.d.S., art. 94, comma 4-ter) e poi.", "94") == [("needs_code", None, None, None)]
+              and _st346("ai sensi dell'art. 2 c.c. e della legge, art. 3 si applica", "3") == [("needs_code", None, None, None)])
+        _fc346 = [_st346("la sospensione (art. 1, commi 537-543, L. 24 dicembre 2012, n. 228) opera", "1"),
+                  _st346("la sospensione Covid (art. 83, comma 9, D.L. 18/2020) non salva", "83"),
+                  _st346("Ammonimento (art. 8 d.l. 11/2009, conv. L. 38/2009)", "8")]
+        check("verificatore[346]: atto per estremi fuori corpus → «fuori corpus» con l'atto (L. 228/2012, D.L. 18/2020, D.L. 11/2009)",
+              _fc346 == [[("needs_code", None, "fuori_corpus", "L. 228/2012")], [("needs_code", None, "fuori_corpus", "D.L. 18/2020")],
+                         [("needs_code", None, "fuori_corpus", "D.L. 11/2009")]], str(_fc346))
+        check("verificatore[346]: mai «fuori corpus» un atto del corpus né l'atto che MODIFICA («come modificato dal D.L. 18/2020»)",
+              _st346("ai sensi dell'art. 28 L. 689/1981 il diritto", "28")[0][:2] == ("verified", "sanzioni_amministrative")
+              and _st346("ai sensi dell'art. 1 R.D. 262/1942 si applica", "1")[0][2] != "fuori_corpus"
+              and _st346("l'art. 5 come modificato dal D.L. 18/2020 dispone", "5")[0][2] != "fuori_corpus"
+              and "262/1942" in _cv346._num_anno_nel_corpus() and "689/1981" in _cv346._num_anno_nel_corpus())
+        _v346 = _tl346.verifica("Norme: art. 28 L. 689/1981; la sospensione (art. 83 D.L. 18/2020) non rileva.", _it346, "IT")
+        _r346 = _tl346.riga(_v346, "it")
+        check("trust[346]: la riga dice «di atti fuori corpus», non «senza codice»",
+              _v346["nene"].get("fuori_corpus") == 1 and "1 di atti fuori corpus" in _r346 and "senza codice" not in _r346, _r346)
+        _js346 = __import__("pathlib").Path("/app/static/app.js").read_text(encoding="utf-8")
+        check("pannello[346]: la citazione fuori corpus mostra l'atto e «atto non nel corpus», tradotta; il grassetto markdown non si vede",
+              'c.resolved_by === "fuori_corpus"' in _js346
+              and '"akt jashtë korpusit — verifikoje në burimin zyrtar": "atto non nel corpus — da riscontrare sulla fonte ufficiale"' in _js346
+              and "<code>${escapeHtml(_rawVis(c.raw))}</code>" in _js346 and "<code>${escapeHtml(c.raw)}</code>" not in _js346)
+    except Exception as _e346:  # noqa: BLE001
+        check("verificatore[346]: kontrollet u ekzekutuan", False, f"{type(_e346).__name__}: {_e346}")
+
+    # [347] v9.576 — gli ALLEGATI albanesi incollati all'ULTIMO articolo e la formula di promulgazione: la Costituzione aveva il
+    # vetting (ANEKS «Rivlerësimi kalimtar…», neni A-G, 20.000 caratteri) dentro l'art. 183 — oltre il tetto del prompt (12.000) i neni
+    # D-G non arrivavano mai al modello —; l'IVA i suoi tre allegati nell'art. 161; le imposte sul reddito la dichiarazione del
+    # lavoratore autonomo nell'art. 72 (tools/repair_aneks_al.py). Ora unità a sé, lette «Aneksi, neni D» / «Shtojca 1»
+    try:
+        from src.retrieval import ArticleIndex as _AI347
+        from src.parser import unita_nominata_al as _ua347
+        _al347 = _AI347.load()
+        _by347 = {(a.code, str(a.number)): a for a in _al347.articles}
+        _k183, _kd347 = _by347.get(("kushtetuta", "183")), _by347.get(("kushtetuta", "aneks-neni-D"))
+        check("aneks[347]: «aneks-neni-D» → «Aneksi, neni D», «shtojca-1» → «Shtojca 1», «aneks-I» → «Aneksi I»; i numeri veri intatti",
+              _ua347("aneks-neni-D") == "Aneksi, neni D" and _ua347("shtojca-1") == "Shtojca 1" and _ua347("aneks-I") == "Aneksi I"
+              and _ua347("88") == "" and _ua347("149/a") == "")
+        check("aneks[347]: Kushtetuta — l'art. 183 senza l'ANEKS, il vetting in 10 unità (neni A-G) col titolo del capitolo",
+              _k183 is not None and len(_k183.body) < 2000 and not re.search(r"(?m)^Neni D$", _k183.body)
+              and _kd347 is not None and _kd347.heading == "Vlerësimi i pasurive" and "Rivlerësimi kalimtar" in (_kd347.kreu or "")
+              and _kd347.citation.startswith("Aneksi, neni D — ")
+              and sum(1 for a in _al347.articles if a.code == "kushtetuta" and str(a.number).startswith("aneks-neni-")) == 10)
+        check("aneks[347]: IVA aneks-I/II/III, imposte sul reddito shtojca-1, consumatori shtojca-I; nessuna formula di promulgazione nei corpi",
+              all(k in _by347 for k in (("ligji_tvsh", "aneks-I"), ("ligji_tvsh", "aneks-III"), ("ligji_tatimi_te_ardhurat", "shtojca-1"),
+                                         ("ligji_konsumatoret", "shtojca-I")))
+              and not [k for k, a in _by347.items()
+                       if k[0] != "vkm_dispozita_doganore" and re.search(r"(?m)^Shpallur me dekretin", a.body or "")])
+        _r347 = [(a.code, str(a.number)) for a, _ in _al347.search("vlerësimi i pasurive të gjyqtarit në procesin e rivlerësimit kalimtar",
+                                                                   top_k=8)]
+        check("aneks[347]: «vlerësimi i pasurive … rivlerësimit kalimtar» → Kushtetuta, Aneksi neni D nei primi 5",
+              ("kushtetuta", "aneks-neni-D") in _r347[:5], str(_r347))
+    except Exception as _e347:  # noqa: BLE001
+        check("aneks[347]: kontrollet u ekzekutuan", False, f"{type(_e347).__name__}: {_e347}")
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

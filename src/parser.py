@@ -244,6 +244,19 @@ def numero_visibile_it(number: str) -> str:
 _LAT_IT = r"(?:bis|ter|quater|quinquies|sexies|septies|octies|novies|decies)"
 
 
+def unita_nominata_al(number) -> str:
+    """v9.576 — gli ALLEGATI albanesi entrati come unità a sé si leggono come li legge un giurista: «aneks-I» → «Aneksi I»,
+    «shtojca-1» → «Shtojca 1», «shtojca» → «Shtojca», «aneks-neni-A» → «Aneksi, neni A» (Kushtetuta: rivlerësimi kalimtar),
+    «skema» → «Skema» — mai «Neni aneks-neni-A i …». Vuota per i numeri veri."""
+    m = re.match(r"^(aneks|shtojca|skema)(?:-(neni-)?(.+))?$", str(number or ""), re.I)
+    if not m:
+        return ""
+    base = {"aneks": "Aneksi", "shtojca": "Shtojca", "skema": "Skema"}[m.group(1).lower()]
+    if not m.group(3):
+        return base
+    return f"{base}, neni {m.group(3)}" if m.group(2) else f"{base} {m.group(3)}"
+
+
 def unita_nominata_it(number) -> str:
     s = str(number or "").lower()
     m = re.match(r"^(tabella|tabelle|tariffa|prospetto|allegato|allegati)(?:-(.*))?$", s)
@@ -359,6 +372,9 @@ class Article:
             if _u:
                 return f"{_u} {self.title_sq}"
             return f"art. {numero_visibile_it(self.number)} {self.title_sq}"
+        _ua = unita_nominata_al(self.number)
+        if _ua:
+            return f"{_ua} — {self.title_sq}"
         return f"Neni {self.number} i {self.title_sq}"
 
     @property

@@ -60,7 +60,7 @@ def _art_map(index) -> dict:
 
 
 def vuota() -> dict:
-    return {"nene": {"verified": 0, "repealed": 0, "repealed_noted": 0, "fake": 0, "needs_code": 0, "unconstitutional": 0, "total": 0, "bad": [],
+    return {"nene": {"verified": 0, "repealed": 0, "repealed_noted": 0, "fake": 0, "needs_code": 0, "fuori_corpus": 0, "unconstitutional": 0, "total": 0, "bad": [],
                      "foreign_verified": 0, "foreign_unverified": 0, "foreign": [], "avvisi": [], "trasfusi": []},
             "sentenze": {"verified": 0, "unverified": 0, "quashed": 0, "mismatch": 0, "excluded": 0, "total": 0, "bad": [],
                          "quashed_list": [], "excluded_list": []},
@@ -111,6 +111,9 @@ def verifica(text: str, index, jurisdiction: str = "AL", retrieved_codes=None, f
         st = r.get("stats") or {}
         for k in ("verified", "repealed", "fake", "needs_code", "total"):
             out["nene"][k] = int(st.get(k) or 0)
+        # v9.575 — l'atto scritto per estremi ma fuori corpus («art. 83 D.L. 18/2020») non è «senza codice»: lo si dice a parole
+        out["nene"]["fuori_corpus"] = sum(1 for it in r.get("items") or []
+                                          if it.get("status") == "needs_code" and it.get("resolved_by") == "fuori_corpus")
         out["nene"]["foreign_verified"] = int(st.get("foreign_verified") or 0)
         out["nene"]["foreign_unverified"] = int(st.get("foreign_unverified") or 0) + int(st.get("foreign_repealed") or 0)
         for it in r.get("items") or []:
@@ -322,8 +325,10 @@ def riga(v: dict, lang: str = "sq", tempo: dict | None = None, coverage: dict | 
             a.append(f"{n['fake']} non trovate nel corpus")
         if n.get("unconstitutional"):
             a.append(f"{n['unconstitutional']} dichiarate incostituzionali")
-        if n["needs_code"]:
-            a.append(f"{n['needs_code']} senza codice")
+        if n["needs_code"] - n.get("fuori_corpus", 0) > 0:
+            a.append(f"{n['needs_code'] - n.get('fuori_corpus', 0)} senza codice")
+        if n.get("fuori_corpus"):
+            a.append(f"{n['fuori_corpus']} di atti fuori corpus")
         if n.get("avvisi"):
             a.append(f"{len(n['avvisi'])} da controllare (numerazione o decorrenza)")
         b = [f"sentenze {s['verified']} confermate"]
@@ -354,8 +359,10 @@ def riga(v: dict, lang: str = "sq", tempo: dict | None = None, coverage: dict | 
             a.append(f"{n['fake']} nuk u gjetën në korpus")
         if n.get("unconstitutional"):
             a.append(f"{n['unconstitutional']} të shpallura antikushtetuese")
-        if n["needs_code"]:
-            a.append(f"{n['needs_code']} pa kod")
+        if n["needs_code"] - n.get("fuori_corpus", 0) > 0:
+            a.append(f"{n['needs_code'] - n.get('fuori_corpus', 0)} pa kod")
+        if n.get("fuori_corpus"):
+            a.append(f"{n['fuori_corpus']} nga akte jashtë korpusit")
         b = [f"vendime {s['verified']} të konfirmuara"]
         if s.get("quashed"):
             b.append(f"{s['quashed']} TË SHFUQIZUARA")
@@ -391,7 +398,9 @@ def blocco_per_gjyqtarin(v: dict, lang: str = "sq", coverage: dict | None = None
     if lang == "it":
         r.append(f"Articoli citati nella risposta: {n['verified']} verificati nel corpus ufficiale, "
                  f"{n['repealed']} ABROGATI, {n['fake']} INESISTENTI nel corpus, {n.get('unconstitutional', 0)} dichiarati incostituzionali, "
-                 f"{n['needs_code']} senza codice indicato.")
+                 f"{n['needs_code'] - n.get('fuori_corpus', 0)} senza codice indicato"
+                 + (f", {n['fuori_corpus']} di atti fuori dal corpus (da riscontrare sulla fonte ufficiale: né vere né false per noi)"
+                    if n.get("fuori_corpus") else "") + ".")
         for b in n["bad"][:14]:
             tag = _tag_it.get(b["status"], b["status"])
             extra = f" ({b['code']}: {b['heading']})" if b.get("heading") else (f" ({b['code']})" if b.get("code") else "")
@@ -454,7 +463,9 @@ def blocco_per_gjyqtarin(v: dict, lang: str = "sq", coverage: dict | None = None
     else:
         r.append(f"Nenet e cituara në përgjigje: {n['verified']} të verifikuara në korpusin zyrtar, "
                  f"{n['repealed']} TË SHFUQIZUARA, {n['fake']} NUK EKZISTOJNË në korpus, {n.get('unconstitutional', 0)} të shpallura antikushtetuese, "
-                 f"{n['needs_code']} pa kod të treguar.")
+                 f"{n['needs_code'] - n.get('fuori_corpus', 0)} pa kod të treguar"
+                 + (f", {n['fuori_corpus']} nga akte jashtë korpusit (për t'u verifikuar në burimin zyrtar: as të vërteta as të rreme për ne)"
+                    if n.get("fuori_corpus") else "") + ".")
         for b in n["bad"][:14]:
             tag = _tag_sq.get(b["status"], b["status"])
             extra = f" ({b['code']}: {b['heading']})" if b.get("heading") else (f" ({b['code']})" if b.get("code") else "")
