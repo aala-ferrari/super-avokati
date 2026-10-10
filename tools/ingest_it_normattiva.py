@@ -179,6 +179,11 @@ ACTS = [
     # … e il D.LGS. 7/2016: l'INGIURIA (ex art. 594 c.p.) e gli altri reati trasformati in illeciti civili con sanzione pecuniaria civile —
     # oggi nel corpus c'era solo il 594 «abrogato»
     ("sanzioni_pecuniarie_civili", "Abrogazione di reati e illeciti con sanzioni pecuniarie civili — ingiuria, danneggiamento semplice (D.Lgs. 7/2016)", "Civile", "decreto.legislativo:2016-01-15;7", "wave12"),
+    # ── wave13 (10 ott 2026): l'INFORTUNIO SUL LAVORO — nel corpus c'erano il c.c. 2087 e il d.lgs. 81/2008, non il testo unico INAIL
+    # (indennizzo, esonero del datore e danno differenziale artt. 10-11, regresso, prescrizione dell'art. 112) né il danno biologico
+    # dell'art. 13 d.lgs. 38/2000: una domanda sul lavoratore caduto dal ponteggio non aveva le norme sul COSA spetta e DA CHI
+    ("tu_infortuni", "Testo unico dell'assicurazione obbligatoria contro gli infortuni sul lavoro e le malattie professionali (d.P.R. 1124/1965)", "Lavoro", "decreto.presidente.repubblica:1965-06-30;1124", "wave13"),
+    ("danno_biologico_inail", "Assicurazione contro gli infortuni sul lavoro e le malattie professionali — danno biologico (d.lgs. 38/2000)", "Lavoro", "decreto.legislativo:2000-02-23;38", "wave13"),
 ]
 # atti da scaricare al testo in vigore OGGI («!vig=»): senza data Normattiva dà la versione futura (qui: tutto «ABROGATO» dal 2027)
 VIGENTE_AL = {"tuir_1986", "processo_tributario", "sanzioni_tributarie_amministrative", "imposta_ipotecaria_catastale",

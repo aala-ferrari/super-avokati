@@ -10283,6 +10283,48 @@ def main():
     except Exception as _e359:  # noqa: BLE001
         check("condizionati-al[359]: kontrollet u ekzekutuan", False, f"{type(_e359).__name__}: {_e359}")
 
+    # [360] v9.588 — il CODICE GEMELLO giusto nei citati dal triage («applicazione della pena su richiesta delle parti art. 444 c.p.c.» → c.p.p.
+    # 444; le citazioni giuste restano) e la procedura civile fuori dalle domande solo penali (dentro con la famiglia: gli ordini di protezione)
+    try:
+        from pathlib import Path as _P360
+        from types import SimpleNamespace as _NS360
+        from src.retrieval import ArticleIndex as _AI360
+        from src import brain as _b360
+        _it360 = _AI360.load(_P360("/app/data/index/bm25_it.pkl"))
+        _ct360 = lambda q, ar=("Penal",): [(a.code, str(a.number)) for a, _ in _b360._citati_dal_triage([], _it360, [q], list(ar))]
+        _okA360 = (("codice_procedura_penale", "444") in _ct360("applicazione della pena su richiesta delle parti art. 444 c.p.c.")
+                   and ("codice_procedura_penale", "445") in _ct360("limiti patteggiamento pene accessorie art. 445 c.p.c.")
+                   and ("codice_procedura_civile", "645") in _ct360("opposizione al decreto ingiuntivo art. 645 c.p.c. termine", ("Civile",))
+                   and ("codice_civile", "2043") in _ct360("risarcimento del danno ingiusto art. 2043 c.c.", ("Civile",))
+                   # in una domanda CIVILE la sigla civile resta anche se le parole somigliano al gemello penale (KPC 147 → mai KPP 147)
+                   and ("codice_procedura_civile", "444") in _ct360("applicazione della pena su richiesta delle parti art. 444 c.p.c.", ("Civile",))
+                   and ("codice_procedura_civile", "444") in _ct360("applicazione della pena su richiesta delle parti art. 444 c.p.c.", ()))
+        _p360 = [(_NS360(code=c, number=n), 1.0) for c, n in (("codice_procedura_penale", "172"), ("codice_procedura_civile", "155"),
+                                                               ("codice_procedura_civile", "473-bis.70"))]
+        _f360 = lambda t, ar: [a.code for a, _ in _b360._senza_procedura_civile_nel_penale(_p360, t, ar)]
+        _okB360 = (_f360("Il cliente è stato condannato a un anno per furto: entro quando l'appello?", ["Penal"]) == ["codice_procedura_penale"]
+                   and len(_f360("La cliente subisce insulti e spinte dal marito convivente: come la tuteliamo?", ["Penal"])) == 3
+                   and len(_f360("Il cliente è stato condannato a un anno per furto: entro quando l'appello?", ["Penal", "Civile"])) == 3)
+        check("gemelli[360]: «art. 444/445 c.p.c.» del triage in un patteggiamento → c.p.p. 444/445 (le citazioni giuste restano); procedura "
+              "civile fuori dal penale puro (dentro col marito convivente o con un'area civile)", _okA360 and _okB360,
+              "A=%s B=%s" % (_okA360, _okB360))
+    except Exception as _e360:  # noqa: BLE001
+        check("gemelli[360]: kontrollet u ekzekutuan", False, f"{type(_e360).__name__}: {_e360}")
+
+    # [361] v9.588 — le aggiunte del Kërkuesi passano dagli stessi filtri di materia della ricerca (rimetteva la responsabilità della PA in un
+    # infortunio con datore privato, appena tolta dal filtro)
+    try:
+        import inspect as _in361
+        from src import brain as _b361
+        _s361 = _in361.getsource(_b361.SuperAvvocato._studio_kerkuesi)
+        check("kerkuesi[361]: le aggiunte del junior passano da minori, tutela, codici condizionati (AL e IT), diritto straniero, adozione e "
+              "procedura civile nel penale",
+              all(x in _s361 for x in ("_senza_codice_minori(nuovo", "_senza_tutela_al(nuovo", "_senza_codici_condizionati_al(nuovo",
+                                        "_senza_diritto_straniero(nuovo", "_senza_adozione(nuovo", "_senza_tutela_it(nuovo",
+                                        "_senza_codici_condizionati_it(nuovo", "_senza_procedura_civile_nel_penale(nuovo")))
+    except Exception as _e361:  # noqa: BLE001
+        check("kerkuesi[361]: kontrollet u ekzekutuan", False, f"{type(_e361).__name__}: {_e361}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

@@ -916,6 +916,25 @@ _CODICI_CONDIZIONATI_IT = (
 )
 
 
+# v9.588 — la PROCEDURA CIVILE nelle domande SOLO PENALI (banco IT coi blocchi: 8 su 25): c.p.c. 155 nel termine d'appello penale (lì il
+# computo è il c.p.p. 172), 650 e 668 (opposizione al decreto INGIUNTIVO) nel decreto penale, 669-terdecies nella custodia cautelare, 631-bis
+# nella diffamazione. Esce quando il triage vede solo materia penale — salvo che la DOMANDA parli di famiglia o convivenza (gli ordini di
+# protezione contro gli abusi familiari, c.p.c. 473-bis.69 ss., sono il rimedio immediato accanto a quello penale) o di una causa civile
+_CIVILE_NEL_PENALE_RX = re.compile(r"marit|mogli|convivent|coniug|famigli|familiar|figli|compagn|separaz|divorz|maltratt|"
+                                   r"violenza\s+domestica|abus|risarc|\bdann[oi]\b|parte\s+civile|causa\s+civile|giudizio\s+civile|pignor|"
+                                   r"sfratt|decreto\s+ingiuntiv|esecuzione\s+forzata|eredit|contratt", re.I)
+
+
+def _senza_procedura_civile_nel_penale(pairs, testo: str, areas=None):
+    if not areas or not all(re.search(r"penal", str(x or ""), re.I) for x in areas) or _CIVILE_NEL_PENALE_RX.search(testo or ""):
+        return pairs
+    fuori = [a for a, _ in pairs if a.code in ("codice_procedura_civile", "disp_att_cpc")]
+    if not fuori:
+        return pairs
+    log.info("retrieval: procedura civile fuori da una domanda solo penale: %s", ", ".join(f"{a.code} {a.number}" for a in fuori[:8]))
+    return [(a, s) for a, s in pairs if a.code not in ("codice_procedura_civile", "disp_att_cpc")]
+
+
 def _senza_codici_condizionati_it(pairs, testo: str):
     t = testo or ""
     via = {code: nome for code, nome, innesco in _CODICI_CONDIZIONATI_IT if not innesco.search(t)}
@@ -1352,7 +1371,57 @@ def _ancora_vepra_penale(pairs, idx, queries: list[str], aree) -> list:
     return pairs
 
 
-def _citati_dal_triage(pairs, idx, queries: list[str]) -> list:
+# v9.588 — il TRIAGE sbaglia a volte la sigla fra due codici gemelli: «applicazione della pena su richiesta delle parti art. 444 c.p.c.»,
+# «limiti patteggiamento pene accessorie art. 445 c.p.c.» (banco IT coi blocchi, 10 ott: c.p.c. 444 e 445 entravano in un patteggiamento
+# per furto). Quando l'articolo citato esiste anche nel codice gemello, vince quello la cui rubrica e il cui inizio corrispondono alle
+# PAROLE della query (la citazione tolta); a parità resta la sigla scritta
+_GEMELLI_CODICI = {"codice_procedura_civile": "codice_procedura_penale", "codice_procedura_penale": "codice_procedura_civile",
+                   "codice_civile": "codice_penale", "codice_penale": "codice_civile",
+                   "kodi_proc_civile": "kodi_proc_penale", "kodi_proc_penale": "kodi_proc_civile",
+                   "kodi_civil": "kodi_penal", "kodi_penal": "kodi_civil"}
+_PAROLE_VUOTE_GEMELLI = {"della", "delle", "degli", "dello", "nella", "nelle", "sulla", "sulle", "dalla", "dalle", "come", "quando",
+                         "articolo", "comma", "codice", "procedura", "civile", "penale", "neni", "nenit", "kodit", "kodi", "sipas"}
+
+
+def _radici_gemelli(testo: str) -> set:
+    try:
+        from .retrieval import fold_sq as _f
+        t = _f(testo or "").lower()
+    except Exception:  # noqa: BLE001
+        t = (testo or "").lower()
+    return {w[:5] for w in re.findall(r"[a-zà-ÿ]{4,}", t) if w not in _PAROLE_VUOTE_GEMELLI}
+
+
+_CODICI_PENALI_GEMELLI = {"codice_procedura_penale", "codice_penale", "kodi_proc_penale", "kodi_penal"}
+
+
+def _gemello_giusto(k: tuple, query: str, per_chiave: dict, areas=None) -> tuple:
+    """(code, number): la chiave citata o quella del codice gemello, se le parole della query corrispondono di più al gemello.
+    Solo dentro la MATERIA del triage: verso il gemello penale se il triage vede materia penale, verso quello civile se non è tutta
+    penale; senza aree non si cambia (la prima stesura spostava il KPC 147 di un appello CIVILE sul KPP 147: anche lì si parla di termini)."""
+    tw = _GEMELLI_CODICI.get(k[0])
+    if not tw or (tw, k[1]) not in per_chiave or not areas:
+        return k
+    _pen = [bool(re.search(r"penal", str(x or ""), re.I)) for x in areas]
+    if (tw in _CODICI_PENALI_GEMELLI and not any(_pen)) or (tw not in _CODICI_PENALI_GEMELLI and all(_pen)):
+        return k
+    q = _radici_gemelli(re.sub(r"\b(?:artt?|art|neni|nenet)\.?\s*\d+[\w./-]*(?:\s+[\w.]+){0,2}", " ", query or "", flags=re.I))
+    if not q:
+        return k
+    def _punti(chiave):
+        a = per_chiave[chiave]
+        if getattr(a, "repealed", False):
+            return -1
+        return len(q & _radici_gemelli(f"{a.heading or ''} {(a.body or '')[:500]}"))
+    pc, pt = _punti(k), _punti((tw, k[1]))
+    if pt > pc:
+        log.info("retrieval: citato dal triage %s %s → %s %s (il gemello corrisponde alla query: %d parole contro %d)",
+                 k[0], k[1], tw, k[1], pt, pc)
+        return (tw, k[1])
+    return k
+
+
+def _citati_dal_triage(pairs, idx, queries: list[str], areas=None) -> list:
     """v9.528 — l'articolo che il TRIAGE stesso cita col codice nelle sue query («furto art. 624 c.p.», «particolare tenuità del
     fatto art. 131 bis», «vjedhja neni 134 Kodi Penal») entra nel blocco. Banco di prova col triage vero (7 ott): il triage scriveva
     il numero giusto e l'articolo restava fuori (la ricerca lessicale non legge i numeri). Solo citazioni col codice RICONOSCIUTO dal
@@ -1370,6 +1439,8 @@ def _citati_dal_triage(pairs, idx, queries: list[str]) -> list:
             if it.get("status") != "verified" or not it.get("code"):
                 continue
             k = (str(it["code"]), str(it["number"]))
+            _q = next((q for q in (queries or []) if q and str(it.get("raw") or "") and str(it.get("raw")) in q), "")
+            k = _gemello_giusto(k, _q, per_chiave, areas)                           # v9.588
             if k in presenti or k in visti or k not in per_chiave or getattr(per_chiave[k], "repealed", False):
                 continue
             visti.add(k)
@@ -4870,6 +4941,25 @@ class SuperAvvocato:
                 queries=list(triage.search_queries), restrict=restrict,
                 modeli=STUDIO_KERKUES_MODEL, effort=STUDIO_KERKUES_EFFORT,
                 max_nene=STUDIO_KERKUES_MAX_NENE)
+            # v9.588 — le aggiunte del junior passano dagli STESSI filtri di materia della ricerca (prova dal browser, 10 ott: in un infortunio
+            # in cantiere con datore privato il Kërkuesi rimetteva l'art. 11 della legge sulla responsabilità della PA, appena tolto dal filtro)
+            if esito.get("shtuar"):
+                _t = (user_message or "")[:600]
+                _prima = {(a.code, str(a.number)) for a, _ in nuovo}
+                nuovo = _senza_codice_minori(nuovo, _t, triage.areas)
+                if idx is self.index:
+                    nuovo = _senza_tutela_al(nuovo, _t)
+                    nuovo = _senza_codici_condizionati_al(nuovo, _t)
+                else:
+                    nuovo = _senza_diritto_straniero(nuovo, _t, triage.areas)
+                    nuovo = _senza_adozione(nuovo, _t)
+                    nuovo = _senza_tutela_it(nuovo, _t)
+                    nuovo = _senza_codici_condizionati_it(nuovo, _t)
+                    nuovo = _senza_procedura_civile_nel_penale(nuovo, _t, triage.areas)
+                _dopo = {(a.code, str(a.number)) for a, _ in nuovo}
+                esito["shtuar"] = [k for k in (esito.get("shtuar") or []) if (k[0], str(k[1])) in _dopo]
+                if _prima - _dopo:
+                    log.info("studio: aggiunte del kërkuesi tolte dai filtri di materia: %s", ", ".join("%s %s" % k for k in sorted(_prima - _dopo)))
             _audit_set("kerkuesi", {"aggiunti": ["%s %s" % k for k in (esito.get("shtuar") or [])],
                                     "mancava_norma": bool(esito.get("mungon_norma_percaktuese")), "pse": (esito.get("pse") or "")[:200]})
             if esito.get("shtuar"):
@@ -5789,9 +5879,10 @@ class SuperAvvocato:
             pairs = _senza_adozione(pairs, _testo_anc[-1] or " ".join(_testo_anc))                                # v9.580
             pairs = _senza_tutela_it(pairs, _testo_anc[-1] or " ".join(_testo_anc))                               # v9.585
             pairs = _senza_codici_condizionati_it(pairs, _testo_anc[-1] or " ".join(_testo_anc))                  # v9.586
+            pairs = _senza_procedura_civile_nel_penale(pairs, _testo_anc[-1] or " ".join(_testo_anc), triage.areas)  # v9.588
             pairs = _applica_ancore(pairs, idx, _testo_anc, triage.areas, ancore=ANCORE_IT)
             pairs = _ancore_it_veicolo(pairs, idx, " ".join([triage.problem_summary or ""] + list(all_queries)))
-        pairs = _citati_dal_triage(pairs, idx, list(all_queries))      # v9.528
+        pairs = _citati_dal_triage(pairs, idx, list(all_queries), triage.areas)      # v9.528 (v9.588: le aree per il gemello)
         # v9.504 — e di nuovo DOPO le ancore: le ancore per titolo riportavano dentro il Codice dei minori (misurato: «kodi_te_miturve 9»
         # nella detenzione ingiusta di un adulto, al posto di un articolo vero dei 12)
         pairs = _senza_codice_minori(pairs, _testo_anc[-1] or " ".join(_testo_anc), triage.areas)
