@@ -1372,7 +1372,9 @@ def verify_subject(backend, index, *, subject_text: str, context: str = "",
     # sull'assemblea della SHPK e le maggioranze non sono nel corpus» per una società che vende un magazzino da 500.000 euro
     _seed = list(_VERIFY_SUBJECT_SEED)
     if re.search(r"\bshet\b|\bshes|shitj|tjetersim|dispono|dhuron|hipotek|\bblen\b|blerj", _expertise._fold(context or "")):
-        _seed += [("ligji_shoqerite_tregtare", "82"), ("ligji_shoqerite_tregtare", "81"), ("ligji_shoqerite_tregtare", "87")]
+        _seed += [("ligji_shoqerite_tregtare", "82"), ("ligji_shoqerite_tregtare", "81"), ("ligji_shoqerite_tregtare", "87"),
+                  # v9.619 (ri-audit): il quorum (86) e i poteri dell'amministratore che firma (95 nomina e doveri, 96 rappresentanza)
+                  ("ligji_shoqerite_tregtare", "86"), ("ligji_shoqerite_tregtare", "95"), ("ligji_shoqerite_tregtare", "96")]
     art_block, arts = _art_block(backend, index, q, _seed, extra=len(_seed) - len(_VERIFY_SUBJECT_SEED))
     system = (
         "Ti je jurist që kryen KUJDESIN E DUHUR (due diligence) mbi një SUBJEKT tregtar para një veprimi "

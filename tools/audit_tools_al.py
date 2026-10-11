@@ -160,7 +160,8 @@ ONLY = (sys.argv[1] if len(sys.argv) > 1 else "").strip().lower()
 if ONLY.startswith("-") and ONLY[1:]:
     TESTS = [t for t in TESTS if ONLY[1:] not in t[0].lower()]
 elif ONLY:
-    TESTS = [t for t in TESTS if ONLY in t[0].lower()]
+    # v9.618: più nomi separati da «|» («analiza|masë sigurimi|trashëgimia») per rifare solo gli strumenti toccati
+    TESTS = [t for t in TESTS if any(o.strip() and o.strip() in t[0].lower() for o in ONLY.split("|"))]
 OUT_DIR = "/tmp/audit_al"
 os.makedirs(OUT_DIR, exist_ok=True)
 

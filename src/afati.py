@@ -93,7 +93,10 @@ TRIGGERS = {
         "label": "Njoftim i vendimit civil (gjykata)",
         "seed": [("kodi_proc_civile", "443"), ("kodi_proc_civile", "444"), ("kodi_proc_civile", "445"),
                  ("kodi_proc_civile", "451"), ("kodi_proc_civile", "148"), ("kodi_proc_civile", "151"),
-                 ("kodi_proc_civile", "496")],
+                 ("kodi_proc_civile", "496"),
+                 # v9.618: dove si deposita (446) e la FORMA dell'appello — contenuto (454) e allegati, con i 5 giorni per
+                 # correggere i difetti (455): nell'audit dell'11 ott «gli elementi formali dell'appello non sono nel corpus»
+                 ("kodi_proc_civile", "446"), ("kodi_proc_civile", "454"), ("kodi_proc_civile", "455")],
         # v9.399: + 444 (dal giorno dopo) e 445; + 148 (calcolo e giorno festivo), 151 (rimessione nel termine), 496
         # (revisione: 30 giorni dalla conoscenza del motivo) — l'audit del 28 set li diceva «non nel corpus» perché non
         # arrivavano al modello
@@ -264,7 +267,9 @@ def compute(backend, index, *, trigger: str, event_date: str = "", facts: str = 
     _tab = TRIGGERS_IT if _lang == "it" else TRIGGERS
     cfg = _tab.get(trigger) or _tab["tjeter"]
     query = (facts or "") + " " + cfg["label"] + " " + cfg["q"]
-    arts = _expertise.retrieve_grounded(backend, index, query, seed_pairs=cfg["seed"])
+    # v9.618: i semi si contano nei 16 (il «vendim_civil» ne ha 10): oltre gli 8, ogni seme è un posto in più per la ricerca
+    arts = _expertise.retrieve_grounded(backend, index, query, seed_pairs=cfg["seed"],
+                                        max_arts=16 + max(0, len(cfg["seed"]) - 8))
     from .deadlines import _blocco     # stesso blocco della prescrizione: etichette della sessione, 3.500 caratteri
     art_block = _blocco(arts, _lang)
     system = (

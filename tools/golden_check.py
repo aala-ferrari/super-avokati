@@ -11204,13 +11204,25 @@ def main():
         _nuovi = (_m392 | _a392 | _v392 | set(_sit("Gjurmët e gishtave dhe ADN-ja e të pandehurit; porositë kalonin nga celulari; grup i organizuar."))
                   | {("kodi_civil", "379"), ("ligji_shoqerite_tregtare", "81"), ("ligji_shoqerite_tregtare", "82"),
                      ("ligji_shoqerite_tregtare", "87"), ("ligji_sigurimi_mjeteve", "10"), ("ligji_sigurimi_mjeteve", "41"),
-                     ("kodi_proc_civile", "12"), ("kodi_proc_penale", "74"), ("kodi_proc_penale", "249"), ("kodi_proc_penale", "263")})
+                     ("kodi_proc_civile", "12"), ("kodi_proc_penale", "74"), ("kodi_proc_penale", "249"), ("kodi_proc_penale", "263"),
+                     # v9.619: l'atto d'accusa (KPP 331, 332, 61, KP 12), l'analisi (KP 1, 59), la forma dell'appello (KPC 446/454/455)
+                     ("kodi_proc_penale", "331"), ("kodi_proc_penale", "332"), ("kodi_proc_penale", "61"), ("kodi_penal", "12"),
+                     ("kodi_penal", "1"), ("kodi_penal", "59"), ("kodi_proc_civile", "446"), ("kodi_proc_civile", "454"),
+                     ("kodi_proc_civile", "455"), ("kodi_proc_penale", "324"), ("kodi_proc_penale", "329/a"),
+                     ("kodi_civil", "117"), ("ligji_sigurimi_mjeteve", "25"), ("kodi_rrugor", "147"),
+                     ("ligji_shoqerite_tregtare", "86"), ("ligji_shoqerite_tregtare", "95"), ("ligji_shoqerite_tregtare", "96")}
+                  | set(_sit("Policia kontrolloi makinën dhe gjeti një pistoletë; administratori i shoqërisë ALFA SHPK.")))
         _morti = sorted(k for k in _nuovi if k not in _vivi392)
         _ok392 = (not _morti
                   and {("kodi_penal", "50"), ("kodi_proc_penale", "258"), ("kodi_proc_penale", "144")} <= _m392
                   and ("kodi_penal", "22") not in _m392                       # «u përpoq të ikte» = la fuga, non il tentativo
                   and {("kodi_penal", "25"), ("kodi_proc_penale", "7"), ("kodi_proc_penale", "144")} <= _a392
                   and ("ligji_dhuna_familje_2026", "18") in _v392
+                  and {("kodi_penal", "287"), ("kodi_proc_penale", "210")} <= _a392          # v9.619
+                  and ("kodi_proc_penale", "202") in set(_sit("Policia kontrolloi makinën dhe gjeti një pistoletë."))
+                  and not _sit("Klienti u gjet i pafajshëm në gjykim.")
+                  and any(__import__("re").search(_rx, _ex392._fold("Klientin tim e përplasi nga pas një makinë te semafori."))
+                          and ("kodi_rrugor", "147") in _ss for _rx, _ss in _ex392.TEMPLATES["aksident_rrugor"]["semi_se"])
                   and not _sit("Më vodhën telefonin në autobus.") and not _sit("Një grup qytetarësh protestoi para bashkisë.")
                   and ("ligji_sigurimi_mjeteve", "10") in _ex392.TEMPLATES["aksident_rrugor"]["primary_articles"]
                   and '("kodi_civil", "379")' in open(_nt392.__file__, encoding="utf-8").read())
@@ -11223,6 +11235,49 @@ def main():
               f"morti={_morti}")
     except Exception as _e392:  # noqa: BLE001
         check("semi_pro[392]: kontrollet u ekzekutuan", False, f"{type(_e392).__name__}: {_e392}")
+
+    # [393] v9.619 — il CODICE PRIMA di «neni» nelle tabelle («| KC neni 608 |», «| 32/2021 neni 10/1 |», «| KP nenet 88, 89 |»),
+    # stretto: la virgola chiude la citazione precedente («neni 250 KPC, neni 64 …»); «Kusht.» è la Costituzione, «me kusht.» no
+    try:
+        from src.retrieval import ArticleIndex as _AI393
+        from src import citation_verifier as _cv393
+        _al393 = _AI393.load()
+        _T393 = ("| KC neni 608 | Përgjegjësia |\n| 32/2021 neni 10/1 | afatet |\n| KP nenet 88, 89 | dashje — Kodi Penal |\n"
+                 "| KRr neni 120 | pikët |\n| KC neni 9999 | x |\nHiqen nga dosja: neni 250 KPC, neni 64 i ligjit të falimentimit.\n"
+                 "VKM 112/2025, nenet 42/49 Kusht. janë jashtë; dënimi sipas nenit 59 me kusht.")
+        _r393 = {(i["number"], i.get("code"), i["status"]) for i in _cv393.verify_text(_T393, _al393)["items"]}
+        _att393 = {("608", "kodi_civil", "verified"), ("10/1", "ligji_sigurimi_mjeteve", "verified"),
+                   ("88", "kodi_penal", "verified"), ("89", "kodi_penal", "verified"), ("120", "kodi_rrugor", "verified"),
+                   ("42/49", "kushtetuta", "verified")}
+        _no393 = [x for x in _r393 if (x[0] == "9999" and x[2] == "verified") or (x[0] == "64" and x[1] == "kodi_proc_civile")
+                  or (x[0] == "59" and x[1] == "kushtetuta")]
+        _ok393 = _att393 <= _r393 and not _no393
+        check("kodi_para[393]: codice prima di «neni» nelle tabelle, la virgola chiude la citazione prima, «Kusht.» ≠ «me kusht.»",
+              _ok393, f"mancano={sorted(_att393 - _r393)} sbagliati={_no393}")
+        # [393b] la spia «⏳ da rinfrescare» tace sugli atti che il controllo di freschezza di al massimo 3 giorni ha dato «OK»
+        import tempfile as _tf393, json as _js393, os as _os393, time as _tm393
+        _fd393, _fp393 = _tf393.mkstemp(suffix=".json")
+        _os393.close(_fd393)
+        _vecchio393 = _os393.environ.get("FRESHNESS_LAST")
+        try:
+            _txt393 = "Sipas nenit 10 të ligjit nr. 32/2021 dhe nenit 608 të Kodit Civil."
+            with open(_fp393, "w", encoding="utf-8") as _fh393:
+                _js393.dump([{"lang": "al", "code": "ligji_sigurimi_mjeteve", "status": "OK"}, {"lang": "al", "code": "kodi_civil", "status": "STALE"}], _fh393)
+            _os393.environ["FRESHNESS_LAST"] = _fp393
+            _it393 = {i["code"]: i for i in _cv393.verify_text(_txt393, _al393)["items"]}
+            _fresh_ok = bool(_it393.get("ligji_sigurimi_mjeteve", {}).get("fresco")) and not _it393.get("kodi_civil", {}).get("fresco")
+            _os393.utime(_fp393, (_tm393.time() - 5 * 86400, _tm393.time() - 5 * 86400))    # controllo di 5 giorni fa: non vale
+            _it393b = {i["code"]: i for i in _cv393.verify_text(_txt393, _al393)["items"]}
+            _fresh_ok = _fresh_ok and not _it393b.get("ligji_sigurimi_mjeteve", {}).get("fresco")
+        finally:
+            if _vecchio393 is None:
+                _os393.environ.pop("FRESHNESS_LAST", None)
+            else:
+                _os393.environ["FRESHNESS_LAST"] = _vecchio393
+            _os393.unlink(_fp393)
+        check("kodi_para[393b]: la spia «da rinfrescare» tace solo con un controllo di freschezza «OK» recente", _fresh_ok)
+    except Exception as _e393:  # noqa: BLE001
+        check("kodi_para[393]: kontrollet u ekzekutuan", False, f"{type(_e393).__name__}: {_e393}")
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

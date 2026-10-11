@@ -55,7 +55,12 @@ TEMPLATES = {
                              # v9.618: i TERMINI dell'assicuratore (art. 10: 90 giorni per il danno alla persona, 30 per le cose,
                              # 14 per pagare, poi gli interessi) e il FONDO di compensazione per il veicolo non assicurato o non
                              # identificato (art. 41) — nell'audit dell'11 ott «l'articolo sui termini non è nel corpus»
-                             ("ligji_sigurimi_mjeteve", "10"), ("ligji_sigurimi_mjeteve", "41")],
+                             ("ligji_sigurimi_mjeteve", "10"), ("ligji_sigurimi_mjeteve", "41"),
+                             # v9.619 (ri-audit): da quando corre la prescrizione (KC 117) e i massimali minimi dell'assicurazione
+                             # obbligatoria (art. 25) — la perizia li dava «non nel corpus»
+                             ("kodi_civil", "117"), ("ligji_sigurimi_mjeteve", "25")],
+        # v9.619: semi di SITUAZIONE (fatti piegati, senza diacritici): il tamponamento → la distanza di sicurezza (Kodi Rrugor 147)
+        "semi_se": [(r"nga pas|nga mbrapa|tamponim|perplas\w*\s+(\w+\s+){0,3}(pas|mbrapa)|e goditi nga", [("kodi_rrugor", "147")])],
         "elements": ["Veprimi/pakujdesia (shkelje e kodit rrugor)", "Faji",
                      "Lidhja shkakësore me dëmin", "Dëmi konkret (pasuror + jopasuror)"],
         "evidence": ["Raport i policisë rrugore / procesverbal", "Dëshmitarë okularë",
@@ -787,8 +792,13 @@ def analyze(backend, index, *, case_type: str, facts: str, max_tokens: int = 280
         raise ValueError("unknown case_type")
     # v9.618: i semi del modello si contano dentro i 16 — con tanti semi (l'incidente ne ha 14) restavano 2 posti alla ricerca:
     # oltre gli 8 semi, ogni seme in più è un posto in più
-    _prim = tpl.get("primary_articles") or []
-    arts = retrieve_grounded(backend, index, facts, seed_pairs=_prim, max_arts=16 + max(0, len(_prim) - 8))
+    _prim = list(tpl.get("primary_articles") or [])
+    _ff = _fold(facts or "")
+    for _rx, _ss in tpl.get("semi_se") or []:
+        if re.search(_rx, _ff):
+            _prim += [x for x in _ss if x not in _prim]
+    _n_sem = sum(1 for _c, _n in _prim if _article_text(index, _c, _n))     # solo i semi che esistono in QUESTO indice (IT: nessuno)
+    arts = retrieve_grounded(backend, index, facts, seed_pairs=_prim, max_arts=16 + max(0, _n_sem - 8))
     art_block = blocco_articoli(arts, _lang_indice(index))      # v9.399: 3.500 caratteri, etichette della sessione
     scaffold = (
         "STRUKTURA E PRITSHME:\n"

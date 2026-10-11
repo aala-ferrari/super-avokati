@@ -161,6 +161,9 @@ def _semi_situazione_al(facts: str) -> list:
     if _RX_FISCALE.search(f):
         out.append(("kodi_penal", "180"))
         out.append(("kodi_proc_penale", "7"))    # v9.618: ne bis in idem — l'amministrazione fiscale sanziona già lo stesso fatto
+        # v9.619 (ri-audit dell'11 ott, l'analisi delle fatture fiktive): «il riciclaggio, la confisca del prodotto e il sequestro dei
+        # conti non sono nel corpus» → KP 287 (riciclaggio del prodotto), KP 36 (confisca), KPP 210 (sequestro presso le banche)
+        out += [("kodi_penal", "287"), ("kodi_penal", "36"), ("kodi_proc_penale", "210")]
         if _RX_ARKA.search(f):
             out.append(("kodi_penal", "182"))
         if _RX_MOSPAGIM.search(f):
@@ -190,10 +193,17 @@ def _semi_situazione_al(facts: str) -> list:
         out += [("kodi_proc_penale", n) for n in ("251", "252", "258", "259", "144")]
     if _RX_GISHTA.search(f):
         out.append(("kodi_proc_penale", "295"))
+    # v9.619: la cosa trovata nell'auto o in casa = una perquisizione e un sequestro (KPP 202 condizioni, 298 in flagranza, 208)
+    if _re.search(r"\bu\s+gjet\w*\s+(\w+\s+){0,3}(ne|te|tek)\s+(makin|banes|shtepi|zyr|automjet|xhep|cant)|kontroll\w*\s+(i\s+|e\s+|te\s+)?"
+                  r"(makin|banes|shtepi|personit|automjet|zyr)|kontrolluan|\bkontrolli\s+fizik", f):
+        out += [("kodi_proc_penale", "202"), ("kodi_proc_penale", "298"), ("kodi_proc_penale", "208")]
     if _RX_BIOLOGJIK.search(f):
         out += [("kodi_proc_penale", "295"), ("kodi_proc_penale", "201/a")]
     if _RX_ELEKTRONIK.search(f):
         out += [("kodi_proc_penale", "299/a"), ("kodi_proc_penale", "191/a"), ("kodi_proc_penale", "208/a")]
+    # v9.619: una società o un'impresa nei fatti → la responsabilità penale della persona giuridica (KP 45) e le pene accessorie (KP 30)
+    if _re.search(r"\bshoqeri|\bsh\.?p\.?k\b|\bsh\.?a\.?\b|kompani|person\w*\s+juridik|\bbiznes", f):
+        out += [("kodi_penal", "45"), ("kodi_penal", "30")]
     if _RX_DHUNE.search(f) and _RX_FAMILJE.search(f):
         out += [("ligji_dhuna_familje_2026", n) for n in ("18", "26", "30", "36", "42")]
     return out
@@ -373,7 +383,9 @@ def analyze(backend, index, *, facts: str, max_tokens: int = 3000) -> dict:
         # v9.404: + KP 55 (più reati: l'audit IT e AL scriveva «il concorso di reati non è nel corpus»)
         seeds, n_add = _semi_al([("kodi_penal", "47"), ("kodi_penal", "48"), ("kodi_penal", "50"), ("kodi_penal", "66"),
                                  ("kodi_proc_penale", "323"), ("kodi_proc_penale", "324")], facts,
-                                extra=[("kodi_proc_penale", "284"), ("kodi_penal", "55")])
+                                # v9.619: + KP 1 (crimine o contravvenzione: decide la prescrizione del KP 66) e KP 59 (la
+                                # sospensione con la messa alla prova) — nel ri-audit «non sono nel corpus»
+                                extra=[("kodi_proc_penale", "284"), ("kodi_penal", "55"), ("kodi_penal", "1"), ("kodi_penal", "59")])
         arts = _expertise.retrieve_grounded(backend, index, facts, seed_pairs=seeds, max_arts=16 + n_add, preferiti=_PREF_AL)
     prompt = (
         P["fatti"] + "\n" + (facts or "").strip()
@@ -398,7 +410,11 @@ def draft_indictment(backend, index, *, facts, max_tokens=3200):
         seeds, n_add = _semi_it(_cpp("415-bis", "416", "417", "550", "552", "33-bis", "33-ter", "407"), facts)
         arts = _expertise.retrieve_grounded(backend, index, facts, seed_pairs=seeds, max_arts=16 + n_add)
     else:
-        seeds, n_add = _semi_al(None, facts)
+        # v9.619: la richiesta di rinvio a giudizio (KPP 331: nulla se manca il contenuto) e l'udienza preliminare (332), la
+        # commisurazione e le circostanze (KP 47, 48, 50), la parte civile (KPP 61) e l'età imputabile (KP 12) — nel ri-audit
+        # dell'11 ott l'atto d'accusa le dava «non nel corpus» e lasciava [___]
+        seeds, n_add = _semi_al([("kodi_proc_penale", "331"), ("kodi_proc_penale", "332"), ("kodi_penal", "47"),
+                                 ("kodi_penal", "48"), ("kodi_penal", "50"), ("kodi_proc_penale", "61"), ("kodi_penal", "12")], facts)
         arts = _expertise.retrieve_grounded(backend, index, facts, seed_pairs=seeds or None, max_arts=16 + n_add,
                                             preferiti=_PREF_AL)
     prompt = (P["fatti_ind"] + "\n" + (facts or "").strip()
@@ -735,7 +751,10 @@ def victim_rights(backend, index, *, facts, max_tokens=2400):
                        ("kodi_proc_penale", "329"), ("kodi_proc_penale", "323")],
                 # v9.403: KPP 291 — il ricorso contro il decreto di non avvio del procedimento (10 giorni dalla notifica):
                 # nell'audit del 29 set il termine era «non dato nei testi»
-                semi_in_piu_al=[("kodi_proc_penale", "291"), ("kodi_proc_penale", "144")],   # v9.618: + il calcolo dei termini
+                # v9.618: + il calcolo dei termini; v9.619: + KPP 324 (proroga delle indagini) e 329/a (richiesta di archiviazione al
+                # giudice), che il 327 richiama — nel ri-audit «il testo del 329/a e del 324 non è nel mio corpus»
+                semi_in_piu_al=[("kodi_proc_penale", "291"), ("kodi_proc_penale", "144"), ("kodi_proc_penale", "324"),
+                                ("kodi_proc_penale", "329/a")],
                 intro=_P["sq"]["vitt"], extra="të drejtat i dëmtuar faza afati",
                 max_tokens=max_tokens)
 

@@ -17,6 +17,7 @@ The verifier is a pure function of (text, index) — no side effects, no LLM.
 from __future__ import annotations
 
 import os
+import time as time_mod
 import re
 from collections import defaultdict
 from collections.abc import Iterable
@@ -53,6 +54,8 @@ CODE_ALIASES: dict[str, str] = {
     "kpu": "kodi_punes",
     "kpun": "kodi_punes",
     "kr": "kodi_rrugor",
+    "krr": "kodi_rrugor",             # v9.619: «KRr neni 120» (la sigla usata nelle tabelle)
+    "k.rr": "kodi_rrugor",
     "kd": "kodi_doganor",
     "kdog": "kodi_doganor",
     "kdt": "kodi_detar",
@@ -1069,6 +1072,32 @@ class Citation:
     successori: list | None = None
     # v9.403 — un avviso su una citazione verificata («art. 73 TUIR»: nella numerazione del vecchio d.P.R. 917/1986 è altro)
     avviso: str | None = None
+    # v9.619 — il controllo QUOTIDIANO di freschezza (data/freshness_last.json) ha confermato che il nostro testo dell'atto è l'ultimo
+    fresco: bool = False
+
+
+# v9.619 — «⏳ 17 për t'u rifreskuar» sulla perizia dell'incidente (prova in Chrome dell'11 ott): la spia «questa disposizione cambia
+# spesso — verifica la versione attuale» si accendeva su OGNI articolo dei codici a volatilità media, anche quando il controllo di
+# freschezza di quella stessa mattina (tools/freshness_check.py, cron 06:20: il consolidato alla fonte = il nostro, nessuna legge
+# modificativa dopo) l'aveva confermato. Con un controllo «OK» di al massimo 3 giorni la spia tace; senza il controllo, come prima.
+_FRESCHI_CACHE: dict = {"mtime": None, "dati": {}}
+
+
+def _atti_freschi(lang: str) -> set:
+    try:
+        from pathlib import Path as _P
+        p = _P(os.environ.get("FRESHNESS_LAST", str(_P(__file__).resolve().parent.parent / "data" / "freshness_last.json")))
+        st = p.stat()
+        if (time_mod.time() - st.st_mtime) / 86400.0 > float(os.environ.get("FRESCHEZZA_MAX_GIORNI", "3")):
+            return set()
+        if _FRESCHI_CACHE["mtime"] != st.st_mtime:
+            import json as _j
+            _FRESCHI_CACHE["dati"] = {(str(x.get("lang") or "").lower(), str(x.get("code") or "")): str(x.get("status") or "").upper()
+                                      for x in _j.loads(p.read_text(encoding="utf-8")) if isinstance(x, dict)}
+            _FRESCHI_CACHE["mtime"] = st.st_mtime
+        return {c for (l, c), stato in _FRESCHI_CACHE["dati"].items() if l == lang and stato == "OK"}
+    except Exception:  # noqa: BLE001
+        return set()
 
 
 def _normalise_number(n: str) -> str:
@@ -1210,6 +1239,15 @@ def _ligj_i_shfuqizuar(tail: str, index) -> tuple[str, str] | None:
     return None
 
 
+# v9.619 — il codice ATTACCATO prima di «neni» (tabelle): sigla, «Kodi …» al nominativo o numero/anno della legge, e nient'altro
+_CODICE_PRIMA_RE = re.compile(
+    r"(?:^|[\s(\[|•:–—-])("
+    r"K\.?\s?Pr\.?\s?[CPA]\.?|KPC|KPP|KPA|KC|KP|KF|KRr|KZ|K\.C\.|K\.P\.|K\.F\."
+    r"|(?:Ligj(?:i|it)?\s+(?:nr\.?\s*)?)?\d{1,5}/\d{4}"
+    r"|Kod(?:i|it)\s+(?:i\s+|të\s+|e\s+)?[A-ZËÇ][\wëçË]+(?:\s+(?:i\s+|të\s+|e\s+)?[A-ZËÇ][\wëçË]+){0,3}"
+    r")\s*$")
+
+
 def _resolve_code(tail: str) -> str | None:
     """Extract a canonical code key from the text right after the article num."""
     if not tail:
@@ -1219,6 +1257,12 @@ def _resolve_code(tail: str) -> str | None:
     # mid-phrase ("të Kodit të\nProcedurës Penale").
     flat = re.sub(r"\s+", " ", tail.lower())
     m = _ALIAS_RE.search(flat)
+    # v9.619 — «nenet 42/49 Kusht.» (l'abbreviazione della Costituzione, risposta vera dell'11 ott: usciva verificata su un'ALTRA
+    # norma, presa dall'atto citato prima). Solo con la maiuscola e il punto: «dënim me kusht.» è la condizionale, non la Costituzione;
+    # vince l'abbreviazione se viene PRIMA di un'altra sigla nella coda («Kusht. dhe KPC 32/154»)
+    ks = re.search(r"(?<![\wËëÇç])Kusht\.(?!\w)", re.sub(r"\s+", " ", tail))
+    if ks and (not m or ks.start() <= m.start()):
+        return "kushtetuta"
     if m:
         return CODE_ALIASES.get(m.group(1).lower())
     # No named code — try a special law cited by number ("ligji nr. 9901").
@@ -1982,6 +2026,41 @@ def verify_text(
                 return code if code != FUORI_CORPUS and _esiste(code, number) else None
         return None
 
+    def _codice_attaccato_prima(pos: int, number: str) -> str | None:
+        """v9.619 — il CODICE SCRITTO PRIMA di «neni», ATTACCATO, come nelle TABELLE delle risposte: «| KC neni 608 |»,
+        «| 32/2021 neni 10/1 |», «| KP nenet 88, 89 |», «(Kodi Civil neni 641)». Prova in Chrome dell'11 ott (la perizia
+        dell'incidente stradale): 25 citazioni su 48 «pa kod», tutte celle di tabella col codice in testa. Solo AL e STRETTA: il
+        codice è l'ULTIMA cosa prima di «neni» (sigla, «Kodi …» al nominativo, o numero/anno della legge), dentro la stessa cella o
+        riga — la prima stesura risolveva l'ultima frase della riga e prendeva «… Procedurës Civile dhe neni 144/5/1» per il KPC
+        (misurato sulle 110 risposte salvate). La sigla «KP» si scioglie dal documento come sempre; il numero deve esistere."""
+        if _lang == "it":
+            return None
+        ini = max(text.rfind("\n", 0, pos), text.rfind("|", 0, pos), text.rfind("(", 0, pos), text.rfind("[", 0, pos)) + 1
+        seg = text[max(ini, pos - 70):pos].replace("*", " ")
+        mm = _CODICE_PRIMA_RE.search(seg)
+        if not mm:
+            return None
+        cand = mm.group(1).strip()
+        if re.fullmatch(r"\d{1,5}/\d{4}", cand):
+            cand = "ligji nr. " + cand
+        code = _resolve(cand)
+        if not code or code == FUORI_CORPUS:
+            return None
+        if _kp_bare(cand, code):
+            code = _kp_resolve(number, text, retrieved_codes, lookup)
+        return code if code and _esiste(code, number) else None
+
+    # v9.619 — e il legame a livello di documento sa anche di questi: «Ndaj fajtorit (nenet 608, 622)» dopo «| KC neni 608 |»
+    if _lang != "it":
+        for _m in _cite_re.finditer(text or ""):
+            if _resolve(_m.group("tail") or "") is not None:
+                continue
+            for _nr in _num_re.findall(_m.group("nums")):
+                _n0 = _normalise_number(_nr)
+                _cp0 = _codice_attaccato_prima(_m.start(), _n0)
+                if _cp0:
+                    legami.setdefault(_n0.split("/")[0], set()).add(_cp0)
+
     def _atto_della_citazione_testuale(pos: int, number: str) -> str | None:
         """v9.552 — il RINVIO INTERNO dentro il testo di legge citato alla lettera: «**Art. 3, comma 3, D.Lgs. 23/2015**: «Al
         licenziamento dei lavoratori di cui all'articolo 1 non trova applicazione…»» — l'«articolo 1» è del D.Lgs. 23/2015. Vale solo
@@ -2271,6 +2350,8 @@ def verify_text(
                     code_n, via = anafora, "anafora"
                 elif (_ap := _atto_subito_prima(m.start(), number)):
                     code_n, via = _ap, "atto_prima"
+                elif (_cp := _codice_attaccato_prima(m.start(), number)):
+                    code_n, via = _cp, "codice_prima"
                 elif (_ct := _atto_della_citazione_testuale(m.start(), number)):
                     code_n, via = _ct, "citazione_testuale"
                 elif (_rc := _regolamento_cds(tail, number)):
@@ -2396,13 +2477,17 @@ def verify_text(
             if _a is not None:
                 _c.volatility = getattr(_a, "volatility", None)
                 _c.last_amendment_date = getattr(_a, "last_amendment_date", None)
+    _freschi = _atti_freschi("it" if _lang == "it" else "al")
+    for _c in citations:
+        if _c.code and _c.code in _freschi:
+            _c.fresco = True
     stats = {
         "verified": sum(1 for c in citations if c.status == "verified"),
         "fake": sum(1 for c in citations if c.status == "fake"),
         "repealed": sum(1 for c in citations if c.status == "repealed"),
         "needs_code": sum(1 for c in citations if c.status == "needs_code"),
         "stale": sum(1 for c in citations if c.status == "verified"
-                     and (c.volatility or "").upper() == "MEDIUM"),
+                     and (c.volatility or "").upper() == "MEDIUM" and not c.fresco),
         "foreign_verified": sum(1 for c in citations if c.status == "foreign_verified"),
         "foreign_repealed": sum(1 for c in citations if c.status == "foreign_repealed"),
         "foreign_unverified": sum(1 for c in citations if c.status == "foreign_unverified"),
