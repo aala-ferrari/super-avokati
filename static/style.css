@@ -8263,3 +8263,82 @@ details.analiza[open]>summary::before{content:"\25BE  "}
   /* iPhone: Safari INGRANDISCE la pagina quando si tocca un campo sotto i 16 px (39 campi su 85 lo erano) */
   input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=range]), textarea, select { font-size: 16px !important; }
 }
+
+
+/* v9.622 — 👍/👎 sotto la risposta */
+.fb-wrap { margin-top: 12px; padding-top: 10px; border-top: 1px dashed #e6dcc6;
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; }
+.fb-lab { font-size: .86rem; color: #6b5f47; font-weight: 600; }
+.fb-btn { background: #fbf7ec; border: 1px solid #d8c69a; border-radius: 9px; padding: 4px 10px;
+  font-size: 1.05rem; line-height: 1.2; cursor: pointer; min-width: 40px; min-height: 34px; }
+.fb-btn:hover { background: #f4ecd6; }
+.fb-btn.on.fb-up { background: #e3f1e1; border-color: #6aa86a; }
+.fb-btn.on.fb-down { background: #fbe4df; border-color: #d0806e; }
+.fb-btn:disabled { opacity: .6; cursor: default; }
+.fb-msg { font-size: .84rem; color: #6b5f47; }
+.fb-box { flex: 1 1 100%; }
+.fb-box[hidden] { display: none; }
+.fb-txt { width: 100%; box-sizing: border-box; border: 1px solid #d8c69a; border-radius: 9px; padding: 8px 10px;
+  font: inherit; font-size: .92rem; background: #fff; color: #201a0d; resize: vertical; }
+.fb-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+.fb-send { background: #0f2540; color: #f3e6c4; border: none; border-radius: 9px; padding: 7px 16px;
+  font-weight: 700; cursor: pointer; min-height: 34px; }
+.fb-send:disabled { opacity: .6; cursor: default; }
+.fb-note { font-size: .78rem; color: #8a7d60; }
+@media (max-width: 600px) {
+  .fb-btn { min-height: 40px; min-width: 44px; }
+  .fb-send { min-height: 40px; }
+  .fb-txt { font-size: 16px; }          /* sotto i 16 px Safari su iPhone ingrandisce la pagina a ogni tocco */
+}
+@media (prefers-color-scheme: dark) {
+  .fb-wrap { border-top-color: #3a3320; }
+  .fb-lab, .fb-msg { color: #b6a888; }
+  .fb-btn { background: #2a2416; border-color: #5a4a26; }
+  .fb-btn:hover { background: #33291a; }
+  .fb-btn.on.fb-up { background: #1f3420; border-color: #4f8a50; }
+  .fb-btn.on.fb-down { background: #3a1f19; border-color: #9a5444; }
+  .fb-txt { background: #16130d; color: #e0d8c4; border-color: #4a4026; }
+  .fb-send { background: #c9a24b; color: #201a0d; }
+  .fb-note { color: #9a8c6e; }
+}
+
+/* v9.622 — il conto alla rovescia della prova / dell'abbonamento */
+.trial-banner { display: flex; align-items: center; gap: 10px; margin: 0; padding: 8px 16px;
+  background: #eef3fa; border-bottom: 1px solid #c9d6ea; color: #1f3350; font-size: .9rem; }
+.trial-banner[hidden] { display: none; }
+.trial-banner.urgent { background: #fdf0ec; border-bottom-color: #e8b9a6; color: #6b2a17; }
+.trial-banner .tb-text { flex: 1 1 auto; min-width: 0; }
+.trial-banner a { color: inherit; font-weight: 700; white-space: nowrap; }
+.trial-banner .tb-x { background: none; border: none; font-size: 1.3rem; line-height: 1; color: #8a8578;
+  cursor: pointer; padding: 0 4px; }
+.trial-banner .tb-x:hover { color: #b23b1e; }
+@media (max-width: 600px) {
+  .trial-banner { font-size: .85rem; padding: 7px 12px; }
+  .trial-banner .tb-x { min-width: 36px; min-height: 36px; }
+}
+@media (prefers-color-scheme: dark) {
+  .trial-banner { background: #16202f; border-bottom-color: #2c3d57; color: #d4dff0; }
+  .trial-banner.urgent { background: #2a1c17; border-bottom-color: #5a3326; color: #f0d2c6; }
+}
+
+/* v9.622 — cambio password */
+.pw-modal .pw-gap { margin-top: 10px; }
+.pw-modal .pw-show { display: flex; align-items: center; gap: 6px; margin: 10px 0 12px; font-size: .85rem; color: #6b5f47; }
+@media (prefers-color-scheme: dark) { .pw-modal .pw-show { color: #b6a888; } }
+
+/* v9.622 — i giudizi nel pannello Studio (amministratore) */
+.fbadm-sec { margin-top: 14px; }
+.fbadm-sec[hidden] { display: none; }
+.fbadm-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 6px 0 8px; }
+.fbadm-sum { font-size: .88rem; color: #6b5f47; }
+.fbadm-list { display: flex; flex-direction: column; gap: 6px; max-height: 50vh; overflow-y: auto; }
+.fbadm-item { border: 1px solid #e3d3a5; border-radius: 9px; padding: 6px 10px; background: #fdfaf3; }
+.fbadm-item.neg { border-color: #e0a796; background: #fdf3ef; }
+.fbadm-item summary { cursor: pointer; font-size: .88rem; }
+.fbadm-c { display: block; margin-top: 4px; font-style: italic; }
+.fbadm-q, .fbadm-a { margin-top: 6px; font-size: .85rem; white-space: pre-wrap; word-break: break-word; }
+@media (prefers-color-scheme: dark) {
+  .fbadm-sum { color: #b6a888; }
+  .fbadm-item { background: #201d15; border-color: #3a3320; }
+  .fbadm-item.neg { background: #2a1c17; border-color: #5a3326; }
+}

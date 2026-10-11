@@ -302,6 +302,8 @@
     for (const m of c.messages) {
       if (m.role === "user") appendUser(m.content);
       else appendBot({
+        id: m.id,                       // v9.622: i pulsanti 👍/👎 sanno su quale risposta scrivere
+        feedback: m.feedback || null,
         kind: m.kind || "answer",
         text: m.content,
         articles: m.articles || [],
@@ -1954,6 +1956,76 @@
     msgEl.appendChild(wrap);
   }
 
+  // v9.622 — il giudizio dell'avvocato sulla risposta: 👍 utile / 👎 non utile, e col 👎 una riga su cosa non va. È l'unica
+  // misura di qualità che viene da chi usa il prodotto sui suoi casi: il 👎 arriva al titolare (il commento e la risposta
+  // li legge il team: lo dice la nota sotto il campo). Un giudizio per risposta, si può cambiare.
+  function _attachFeedback(msgEl, mid, fb) {
+    if (!msgEl || !mid) return;
+    var IT = _CAL_IT, stato = (fb && fb.rating) ? fb.rating : 0;
+    var wrap = document.createElement("div");
+    wrap.className = "fb-wrap";
+    wrap.innerHTML =
+      '<span class="fb-lab">' + (IT ? "Questa risposta ti è stata utile?" : "A ju ndihmoi kjo përgjigje?") + '</span>' +
+      '<button type="button" class="fb-btn fb-up" aria-pressed="false" title="' + (IT ? "Utile" : "E dobishme") + '">👍</button>' +
+      '<button type="button" class="fb-btn fb-down" aria-pressed="false" title="' + (IT ? "Non utile" : "Jo e dobishme") + '">👎</button>' +
+      '<span class="fb-msg" aria-live="polite"></span>' +
+      '<div class="fb-box" hidden>' +
+        '<textarea class="fb-txt" rows="2" maxlength="1000" placeholder="' +
+          (IT ? "Cosa non va? Una norma sbagliata, un termine, qualcosa che manca…" : "Çfarë nuk shkon? Një nen i gabuar, një afat, diçka që mungon…") + '"></textarea>' +
+        '<div class="fb-row"><button type="button" class="fb-send">' + (IT ? "Invia" : "Dërgo") + '</button>' +
+        '<span class="fb-note">' + (IT ? "Il commento e questa risposta li legge il team di Super Avokati per correggerla."
+                                       : "Komentin dhe këtë përgjigje i lexon ekipi i Super Avokatit për ta përmirësuar.") + '</span></div>' +
+      '</div>';
+    var up = wrap.querySelector(".fb-up"), down = wrap.querySelector(".fb-down"), msg = wrap.querySelector(".fb-msg");
+    var box = wrap.querySelector(".fb-box"), txt = wrap.querySelector(".fb-txt"), send = wrap.querySelector(".fb-send");
+    function mostra(r) {
+      stato = r;
+      up.classList.toggle("on", r > 0); up.setAttribute("aria-pressed", r > 0 ? "true" : "false");
+      down.classList.toggle("on", r < 0); down.setAttribute("aria-pressed", r < 0 ? "true" : "false");
+    }
+    async function manda(r, commento) {
+      var body = { rating: r }; if (commento) body.comment = commento;
+      var res = await fetch("/api/messages/" + mid + "/feedback", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body) });
+      var d = await res.json().catch(function () { return {}; });
+      if (!res.ok) throw new Error(d.error || ((IT ? "Errore " : "Gabim ") + res.status));
+      return d;
+    }
+    mostra(stato);
+    if (stato < 0 && fb && fb.comment) msg.textContent = IT ? "✓ Commento inviato" : "✓ Komenti u dërgua";
+    up.addEventListener("click", async function () {
+      up.disabled = down.disabled = true;
+      try {
+        var d = await manda(stato > 0 ? 0 : 1);
+        mostra(d.rating); box.hidden = true;
+        msg.textContent = d.rating > 0 ? (IT ? "Grazie!" : "Faleminderit!") : "";
+      } catch (e) { msg.textContent = e.message; }
+      finally { up.disabled = down.disabled = false; }
+    });
+    down.addEventListener("click", async function () {
+      if (stato < 0) { box.hidden = !box.hidden; if (!box.hidden) txt.focus(); return; }
+      up.disabled = down.disabled = true;
+      try {
+        var d = await manda(-1);
+        mostra(d.rating); box.hidden = false; txt.focus();
+        msg.textContent = IT ? "Grazie. Dicci cosa non va (facoltativo):" : "Faleminderit. Na thoni çfarë nuk shkon (sipas dëshirës):";
+      } catch (e) { msg.textContent = e.message; }
+      finally { up.disabled = down.disabled = false; }
+    });
+    send.addEventListener("click", async function () {
+      var c = (txt.value || "").trim();
+      if (!c) { txt.focus(); return; }
+      send.disabled = true;
+      try {
+        await manda(-1, c);
+        mostra(-1); box.hidden = true; txt.value = "";
+        msg.textContent = IT ? "✓ Inviato al team. Grazie." : "✓ U dërgua te ekipi. Faleminderit.";
+      } catch (e) { msg.textContent = e.message; }
+      finally { send.disabled = false; }
+    });
+    msgEl.appendChild(wrap);
+  }
+
   function appendUser(text) {
     _lastQuestion = text;
     const tpl = document.getElementById("user-msg-tpl");
@@ -2017,6 +2089,7 @@
     linkCaseMarkers(body, data.precedents || []);
     if (data.kind !== "error" && data.kind !== "devil") _attachSecondOpinion(msgEl, _lastQuestion, data.text || "");
     if (data.kind !== "error") _addSaveToCase(msgEl, "answer", _lastQuestion || "Përgjigje", data.text || "");
+    if (data.kind !== "error") _attachFeedback(msgEl, data.message_id || data.id, data.feedback);   // v9.622
     if (data.kind === "answer" && _isSimpleAnswer(data)) _attachDeepButton(msgEl, _lastQuestion);
 
     // Citation trust badge — provenance lock. Always at the very top of
@@ -4645,6 +4718,121 @@
         setTimeout(close, 700);
       } catch (e) { msg.textContent = e.message; btn.disabled = false; }
     };
+  });
+
+  // v9.622 — il conto alla rovescia della PROVA gratuita (72 ore dal primo accesso) e dell'ABBONAMENTO che scade entro 14
+  // giorni. Prima l'avvocato scopriva la fine della prova solo quando l'app lo buttava fuori, senza sapere a chi scrivere.
+  // I secondi rimasti li dà il server e si contano dall'orologio del telefono (un'ora sbagliata non dice «scaduta» a chi
+  // ha ancora due giorni). Si chiude con la ×, e torna se si entra nelle ultime 12 ore.
+  (function () {
+    var el = document.getElementById("trial-banner");
+    if (!el || document.body.dataset.admin === "1") return;
+    var IT = _CAL_IT, info = null, tipo = "", fine = 0, timer = null;
+    var CONTATTI = '<a href="mailto:info@aala.global">info@aala.global</a> · <a href="tel:+355699555777">+355 69 955 5777</a>';
+    function durata(sec) {
+      var g = Math.floor(sec / 86400), o = Math.floor((sec % 86400) / 3600), m = Math.floor((sec % 3600) / 60);
+      if (sec >= 86400) {
+        var gg = g + (IT ? (g === 1 ? " giorno" : " giorni") : " ditë");
+        return o ? gg + (IT ? " e " + o + (o === 1 ? " ora" : " ore") : " e " + o + " orë") : gg;
+      }
+      if (sec >= 3600) {
+        var oo = o + (IT ? (o === 1 ? " ora" : " ore") : " orë");
+        return m ? oo + (IT ? " e " + m + (m === 1 ? " minuto" : " minuti") : " e " + m + (m === 1 ? " minutë" : " minuta")) : oo;
+      }
+      if (sec >= 60) return m + (IT ? (m === 1 ? " minuto" : " minuti") : (m === 1 ? " minutë" : " minuta"));
+      return IT ? "meno di un minuto" : "më pak se një minutë";
+    }
+    function dataLocale(iso) {
+      var d = new Date(iso); if (isNaN(d)) return "";
+      var gg = String(d.getDate()).padStart(2, "0"), mm = String(d.getMonth() + 1).padStart(2, "0");
+      return IT ? gg + "/" + mm + "/" + d.getFullYear() : gg + "." + mm + "." + d.getFullYear();
+    }
+    function chiuso(fase) { try { return sessionStorage.getItem("sa_tb_closed") === fase; } catch (e) { return false; } }
+    function disegna() {
+      if (!info) return;
+      var sec = Math.max(0, Math.round((fine - Date.now()) / 1000));
+      var urgente = tipo === "trial" ? sec < 12 * 3600 : sec < 3 * 86400;
+      var fase = tipo + (urgente ? "!" : "");
+      if (chiuso(fase)) { el.hidden = true; return; }
+      var testo;
+      if (tipo === "trial") {
+        testo = sec > 0
+          ? (IT ? "🕐 <b>Prova gratuita</b>: ancora <b>" + durata(sec) + "</b>. Per continuare con l'abbonamento: "
+                : "🕐 <b>Prova falas</b>: edhe <b>" + durata(sec) + "</b>. Për të vazhduar me abonim: ")
+          : (IT ? "⚠️ <b>La prova gratuita è scaduta.</b> Per continuare: " : "⚠️ <b>Prova falas ka skaduar.</b> Për të vazhduar: ");
+      } else {
+        testo = sec > 0
+          ? (IT ? "📅 Il tuo abbonamento scade il <b>" + dataLocale(info.expires_at) + "</b> (tra " + durata(sec) + "). Per rinnovarlo: "
+                : "📅 Abonimi juaj skadon më <b>" + dataLocale(info.expires_at) + "</b> (edhe " + durata(sec) + "). Për ta rinovuar: ")
+          : (IT ? "⚠️ <b>Il tuo abbonamento è scaduto.</b> Per rinnovarlo: " : "⚠️ <b>Abonimi juaj ka skaduar.</b> Për ta rinovuar: ");
+      }
+      el.innerHTML = '<span class="tb-text">' + testo + CONTATTI + '</span>' +
+        '<button type="button" class="tb-x" aria-label="' + (IT ? "Chiudi" : "Mbyll") + '">×</button>';
+      el.classList.toggle("urgent", urgente || sec <= 0);
+      el.hidden = false;
+      el.querySelector(".tb-x").onclick = function () {
+        try { sessionStorage.setItem("sa_tb_closed", fase); } catch (e) {}
+        el.hidden = true;
+      };
+    }
+    fetch("/api/me").then(function (r) { return r.ok ? r.json() : null; }).then(function (me) {
+      if (!me) return;
+      if (me.trial) { info = me.trial; tipo = "trial"; }
+      else if (me.plan) { info = me.plan; tipo = "plan"; }
+      else return;
+      fine = Date.now() + (Number(info.seconds_left) || 0) * 1000;
+      disegna();
+      timer = setInterval(disegna, 30000);
+    }).catch(function () {});
+  })();
+
+  // v9.622 — l'avvocato cambia la SUA password (prima poteva farlo solo l'amministratore, e chi entrava col codice della
+  // prova restava col codice). Serve quella attuale; la nuova va scritta due volte, con l'occhio per vederla.
+  var _pwBtn = document.getElementById("pw-menu-btn");
+  if (_pwBtn) _pwBtn.addEventListener("click", function () {
+    var dd = document.getElementById("user-dropdown"); if (dd) dd.hidden = true;
+    var IT = _CAL_IT;
+    var ov = document.createElement("div"); ov.className = "wa-modal-ov";
+    ov.innerHTML = '<div class="wa-modal pw-modal">' +
+      '<button class="wa-x" type="button" aria-label="' + (IT ? "Chiudi" : "Mbyll") + '">×</button>' +
+      '<h3>🔑 ' + (IT ? "Cambia password" : "Ndrysho fjalëkalimin") + '</h3>' +
+      '<p class="wa-sub">' + (IT ? "Vale da subito, su tutti i dispositivi al prossimo accesso." : "Vlen menjëherë, në të gjitha pajisjet në hyrjen e ardhshme.") + '</p>' +
+      '<label class="wa-lab">' + (IT ? "Password attuale" : "Fjalëkalimi aktual") + '</label>' +
+      '<input class="wa-inp pw-cur" type="password" autocomplete="current-password">' +
+      '<label class="wa-lab pw-gap">' + (IT ? "Nuova password (almeno 8 caratteri)" : "Fjalëkalimi i ri (të paktën 8 karaktere)") + '</label>' +
+      '<input class="wa-inp pw-new" type="password" autocomplete="new-password" minlength="8">' +
+      '<label class="wa-lab pw-gap">' + (IT ? "Ripeti la nuova password" : "Përsërite fjalëkalimin e ri") + '</label>' +
+      '<input class="wa-inp pw-new2" type="password" autocomplete="new-password" minlength="8">' +
+      '<label class="pw-show"><input type="checkbox" class="pw-eye"> ' + (IT ? "Mostra le password" : "Shfaq fjalëkalimet") + '</label>' +
+      '<div class="wa-row"><button class="wa-save" type="button">' + (IT ? "Salva" : "Ruaj") + '</button><span class="wa-msg" aria-live="polite"></span></div>' +
+      '</div>';
+    document.body.appendChild(ov);
+    var cur = ov.querySelector(".pw-cur"), n1 = ov.querySelector(".pw-new"), n2 = ov.querySelector(".pw-new2");
+    var msg = ov.querySelector(".wa-msg"), btn = ov.querySelector(".wa-save");
+    function close() { ov.remove(); }
+    ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
+    ov.querySelector(".wa-x").onclick = close;
+    ov.querySelector(".pw-eye").onchange = function () {
+      var tipo = this.checked ? "text" : "password"; cur.type = n1.type = n2.type = tipo;
+    };
+    setTimeout(function () { cur.focus(); }, 50);
+    btn.onclick = async function () {
+      msg.textContent = "";
+      if (!cur.value) { msg.textContent = IT ? "Scrivi la password attuale." : "Shkruaj fjalëkalimin aktual."; cur.focus(); return; }
+      if (n1.value.length < 8) { msg.textContent = IT ? "La nuova password deve avere almeno 8 caratteri." : "Fjalëkalimi i ri duhet të ketë të paktën 8 karaktere."; n1.focus(); return; }
+      if (n1.value !== n2.value) { msg.textContent = IT ? "Le due password nuove non coincidono." : "Dy fjalëkalimet e reja nuk përputhen."; n2.focus(); return; }
+      btn.disabled = true;
+      try {
+        var r = await fetch("/api/me/password", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ current: cur.value, new: n1.value }) });
+        var d = await r.json().catch(function () { return {}; });
+        if (!r.ok) throw new Error(d.error || ((IT ? "Errore " : "Gabim ") + r.status));
+        msg.textContent = IT ? "✓ Password cambiata" : "✓ Fjalëkalimi u ndryshua";
+        if (typeof toast === "function") toast(IT ? "Password cambiata" : "Fjalëkalimi u ndryshua", "ok");
+        setTimeout(close, 900);
+      } catch (e) { msg.textContent = e.message; btn.disabled = false; }
+    };
+    [cur, n1, n2].forEach(function (inp) { inp.addEventListener("keydown", function (e) { if (e.key === "Enter") btn.click(); }); });
   });
 
   // ─── nav wiring ─────────────────────────────────────────────────
@@ -7653,6 +7841,7 @@
     my_cases: "I miei casi", new_case: "Nuovo caso",
     wa_reminders: "WhatsApp per i promemoria", email_reminders: "Email per i promemoria", logout: "Esci",
     tg_reminders: "Telegram per i promemoria",
+    pw_menu: "Cambia password",
     intake_ai: "Primo colloquio", clients_research: "Clienti & Ricerche",
     composer_hint: "Apri un caso per iniziare la conversazione",
     ask_placeholder: "Scrivi qui la tua domanda\u2026",
@@ -13834,7 +14023,7 @@ function moduleChips(u) {
     // Trovo l'id corrente da /api/me
     const meR = await fetch("/api/me");
     const me = await meR.json().catch(() => ({}));
-    const meId = me?.user?.id;
+    const meId = me?.id || me?.user?.id || parseInt(document.body.dataset.userId || "0", 10);   // v9.622: era sempre vuoto
     if (!meId) {
       myPasswdStatus.textContent = "Errore: utente non identificato";
       myPasswdStatus.style.color = "#c66";
@@ -14057,12 +14246,60 @@ function moduleChips(u) {
 
   usagePeriodSel?.addEventListener("change", loadUsageDashboard);
 
+  // v9.622 — i giudizi degli avvocati sulle risposte (👍/👎 col commento): gli ultimi 100 e il riepilogo di 30 giorni. La
+  // domanda e l'inizio della risposta si leggono SOLO qui, nell'app: l'avviso del 👎 al titolare non li porta fuori.
+  async function loadFeedbackAdmin() {
+    var sec = document.getElementById("fbadm-sec");
+    if (!IS_ADMIN || !sec) return;
+    var IT = _CAL_IT;
+    if (!sec.dataset.pronto) {
+      sec.innerHTML = '<h4 class="studio-section-title">👍👎 ' + (IT ? "Giudizi sulle risposte" : "Vlerësimet e përgjigjeve") + '</h4>' +
+        '<div class="fbadm-bar"><select class="studio-select fbadm-filter" aria-label="' + (IT ? "Filtro" : "Filtri") + '">' +
+        '<option value="">' + (IT ? "Tutti" : "Të gjitha") + '</option>' +
+        '<option value="-1">' + (IT ? "Solo 👎" : "Vetëm 👎") + '</option>' +
+        '<option value="1">' + (IT ? "Solo 👍" : "Vetëm 👍") + '</option></select>' +
+        '<span class="fbadm-sum"></span></div><div class="fbadm-list"></div>';
+      sec.dataset.pronto = "1";
+      sec.querySelector(".fbadm-filter").addEventListener("change", loadFeedbackAdmin);
+    }
+    sec.hidden = false;
+    var filt = sec.querySelector(".fbadm-filter").value;
+    var list = sec.querySelector(".fbadm-list"), sum = sec.querySelector(".fbadm-sum");
+    list.innerHTML = '<p class="studio-empty">' + (IT ? "Caricamento…" : "Duke ngarkuar…") + '</p>';
+    function pulito(t) {   // la riga di verifica e i segni del markdown non servono a capire cosa è stato detto
+      return String(t || "").split("\n").filter(function (r) { return r.trim().indexOf("🔎") !== 0; }).join("\n")
+        .replace(/\*\*|__|^#+\s*/gm, "").trim();
+    }
+    try {
+      var r = await fetch("/api/admin/feedback?limit=100" + (filt ? "&rating=" + filt : ""));
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      var d = await r.json();
+      var sm = d.summary || {};
+      sum.textContent = (IT ? "Ultimi 30 giorni: " : "30 ditët e fundit: ") + "👍 " + (sm.su || 0) + " · 👎 " + (sm.giu || 0);
+      var items = d.items || [];
+      if (!items.length) { list.innerHTML = '<p class="studio-empty">' + (IT ? "Nessun giudizio ancora." : "Asnjë vlerësim ende.") + '</p>'; return; }
+      list.innerHTML = items.map(function (f) {
+        var quando = f.updated_at ? new Date(f.updated_at).toLocaleString(IT ? "it-IT" : "sq-AL") : "";
+        return '<details class="fbadm-item' + (f.rating < 0 ? ' neg' : '') + '">' +
+          '<summary><span class="fbadm-r">' + (f.rating > 0 ? "👍" : "👎") + '</span> <b>' + escHtml(f.username || "?") + '</b> · ' +
+          escHtml(f.jurisdiction || "AL") + ' · ' + escHtml(quando) + (f.case_title ? ' · ' + escHtml(f.case_title) : '') +
+          (f.comment ? '<span class="fbadm-c">💬 ' + escHtml(f.comment) + '</span>' : '') + '</summary>' +
+          (f.question ? '<div class="fbadm-q"><b>' + (IT ? "Domanda" : "Pyetja") + ':</b> ' + escHtml(f.question) + '</div>' : '') +
+          '<div class="fbadm-a"><b>' + (IT ? "Inizio della risposta" : "Fillimi i përgjigjes") + ':</b> ' + escHtml(pulito(f.answer_head)) + '</div>' +
+          '</details>';
+      }).join("");
+    } catch (e) {
+      list.innerHTML = '<p class="studio-empty">' + (IT ? "Errore: " : "Gabim: ") + escHtml(e.message) + '</p>';
+    }
+  }
+
   // hook a openStudioModal — ricarica utenti + usage ogni volta che apre Studio
   const _origOpenStudio = openStudioModal;
   openStudioModal = function() {
     _origOpenStudio();
     loadAdminUsers();
     loadUsageDashboard();
+    loadFeedbackAdmin();
     loadFirmProfile();
   };
   studioBtn?.removeEventListener("click", _origOpenStudio);

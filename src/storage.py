@@ -912,6 +912,24 @@ CREATE TABLE IF NOT EXISTS push_subscriptions (
     created_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_push_user ON push_subscriptions(user_id);
+
+-- v9.622 — il giudizio dell'avvocato su una risposta (👍 utile / 👎 non utile, con una riga di commento): l'unica misura
+-- di qualità che viene da chi usa il prodotto sui suoi casi. Uno per risposta e per utente (si può cambiare idea o
+-- toglierlo); `alerted_at` = quando il titolare è stato avvisato di un 👎 (una volta sola per giudizio).
+CREATE TABLE IF NOT EXISTS answer_feedback (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    message_id   INTEGER NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+    case_id      TEXT NOT NULL,
+    user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    rating       INTEGER NOT NULL,
+    comment      TEXT,
+    jurisdiction TEXT,
+    alerted_at   TEXT,
+    created_at   TEXT NOT NULL,
+    updated_at   TEXT NOT NULL,
+    UNIQUE (message_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_feedback_updated ON answer_feedback(updated_at DESC);
 """
 
 # Roles ordered by seniority/permission breadth. Used by permission checks.
@@ -1441,6 +1459,9 @@ class User:
     demo_expires_at: str | None = None
     plan_expires_at: str | None = None
     jurisdictions: str = ""      # comma-set: AL,IT (empty -> AL)
+    # v9.622 — `_user_payload` (pannello Studio) legge `u.reminder_email` dal v9.248 e il campo non c'era: l'elenco degli utenti
+    # dell'amministratore rispondeva 500 (e anche moduli / abbonamento / email, che salvavano e poi davano errore)
+    reminder_email: str | None = None
 
 
 CASE_STAGES: tuple[str, ...] = (
@@ -1521,10 +1542,12 @@ def _user_from_row(r: sqlite3.Row) -> User:
     demo = r["demo_expires_at"] if "demo_expires_at" in keys else None
     plan = r["plan_expires_at"] if "plan_expires_at" in keys else None
     jur = r["jurisdictions"] if "jurisdictions" in keys and r["jurisdictions"] else ""
+    mail = r["reminder_email"] if "reminder_email" in keys else None
     return User(id=r["id"], username=r["username"],
                 is_admin=bool(r["is_admin"]), created_at=r["created_at"],
                 suspended=susp, profession=prof, modules=mods,
-                demo_expires_at=demo, plan_expires_at=plan, jurisdictions=jur)
+                demo_expires_at=demo, plan_expires_at=plan, jurisdictions=jur,
+                reminder_email=mail)
 
 
 def _case_from_row(r: sqlite3.Row) -> Case:
@@ -1658,8 +1681,11 @@ def set_user_jurisdictions(user_id: int, jurisdictions) -> bool:
 
 
 def set_user_plan_expiry(user_id: int, iso_or_none) -> bool:
+    """Abbonamento fino a `iso_or_none` (None = senza scadenza). v9.622: l'abbonamento SOSTITUISCE la prova — prima la
+    scadenza della prova restava e, controllata per prima da `access_block_reason`, bloccava allo scadere delle 72 ore
+    anche l'avvocato che si era abbonato e a cui l'amministratore aveva dato i mesi dal pannello ⚙️."""
     with db() as conn:
-        cur = conn.execute("UPDATE users SET plan_expires_at = ? WHERE id = ?",
+        cur = conn.execute("UPDATE users SET plan_expires_at = ?, demo_expires_at = NULL, demo_hours = NULL WHERE id = ?",
                            (iso_or_none, user_id))
         conn.commit()
         return cur.rowcount > 0
@@ -1675,10 +1701,12 @@ def access_block_reason(user):
     if getattr(user, "suspended", False):
         return "suspended"
     now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    plan = getattr(user, "plan_expires_at", None)
+    if plan and now < plan:
+        return None          # v9.622 — un abbonamento valido vince su una prova scaduta rimasta scritta
     demo = getattr(user, "demo_expires_at", None)
     if demo and now >= demo:
         return "demo_expired"
-    plan = getattr(user, "plan_expires_at", None)
     if plan and now >= plan:
         return "plan_expired"
     return None
@@ -1944,6 +1972,7 @@ def delete_user(username: str) -> tuple[bool, str | None]:
         # log ha user_id nullable e la FK «SET NULL» lo mette a NULL da sé.
         # v9.412: i codici Telegram non usati (tabella senza FK: la ricerca qui sotto non la vedrebbe)
         conn.execute("DELETE FROM telegram_link WHERE user_id = ?", (uid,))
+        conn.execute("DELETE FROM answer_feedback WHERE user_id = ?", (uid,))     # v9.622
         _tieni = ("ai_audit_log", "case_access_log", "legal_acceptances")
         for _t in [r["name"] for r in conn.execute(
                 "SELECT name FROM sqlite_master WHERE type='table'").fetchall()]:
@@ -2311,6 +2340,101 @@ def conversation_history(case_id: str, max_turns: int = 20) -> list[dict]:
     msgs = list_messages(case_id)
     pruned = msgs[-(max_turns * 2):]
     return [{"role": m.role, "content": m.content} for m in pruned]
+
+
+# ── v9.622 — il giudizio dell'avvocato sulle risposte (👍/👎) ─────────────────
+
+def get_message_meta(message_id: int) -> dict | None:
+    """Fascicolo, ruolo e tipo di un messaggio (per il controllo d'accesso del giudizio), senza il testo."""
+    with db() as conn:
+        row = conn.execute("SELECT id, case_id, role, kind FROM messages WHERE id = ?", (message_id,)).fetchone()
+    return dict(row) if row else None
+
+
+def salva_feedback(message_id: int, case_id: str, user_id: int, rating: int, comment: str | None = None,
+                   jurisdiction: str | None = None) -> dict | None:
+    """Scrive (o cambia) il giudizio di un utente su una risposta. `rating` 1 o -1; 0 lo TOGLIE (ritorna None).
+    Col 👎 il commento si tiene se non ne arriva uno nuovo (il 👎 si salva subito, il commento arriva dopo); passando al 👍
+    senza commento, quello del 👎 si toglie."""
+    now = _utcnow()
+    comment = (comment or "").strip()[:1000] or None
+    with db() as conn:
+        if rating == 0:
+            conn.execute("DELETE FROM answer_feedback WHERE message_id = ? AND user_id = ?", (message_id, user_id))
+            return None
+        conn.execute(
+            "INSERT INTO answer_feedback (message_id, case_id, user_id, rating, comment, jurisdiction, created_at, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT(message_id, user_id) DO UPDATE SET rating = excluded.rating, "
+            "comment = CASE WHEN excluded.rating > 0 AND excluded.comment IS NULL THEN NULL "
+            "ELSE COALESCE(excluded.comment, answer_feedback.comment) END, "
+            "jurisdiction = COALESCE(excluded.jurisdiction, answer_feedback.jurisdiction), updated_at = excluded.updated_at",
+            (message_id, case_id, user_id, int(rating), comment, jurisdiction, now, now))
+        row = conn.execute("SELECT * FROM answer_feedback WHERE message_id = ? AND user_id = ?",
+                           (message_id, user_id)).fetchone()
+    return dict(row) if row else None
+
+
+def feedback_dei_messaggi(message_ids: list[int], user_id: int) -> dict[int, dict]:
+    """Il giudizio di QUESTO utente sui messaggi dati: {message_id: {rating, comment}} (per ridisegnare i pulsanti)."""
+    ids = [int(i) for i in message_ids if i][:2000]
+    if not ids:
+        return {}
+    out: dict[int, dict] = {}
+    with db() as conn:
+        for i in range(0, len(ids), 500):
+            parte = ids[i:i + 500]
+            q = ",".join("?" * len(parte))
+            for r in conn.execute(f"SELECT message_id, rating, comment FROM answer_feedback "
+                                  f"WHERE user_id = ? AND message_id IN ({q})", (user_id, *parte)):
+                out[int(r["message_id"])] = {"rating": int(r["rating"]), "comment": r["comment"] or ""}
+    return out
+
+
+def segna_feedback_avvisato(feedback_id: int) -> bool:
+    """Prende il diritto di avvisare il titolare di un 👎: True una volta sola (anche con due thread insieme)."""
+    with db() as conn:
+        cur = conn.execute("UPDATE answer_feedback SET alerted_at = ? WHERE id = ? AND alerted_at IS NULL AND rating < 0",
+                           (_utcnow(), feedback_id))
+        return cur.rowcount > 0
+
+
+def get_feedback(feedback_id: int) -> dict | None:
+    with db() as conn:
+        row = conn.execute("SELECT * FROM answer_feedback WHERE id = ?", (feedback_id,)).fetchone()
+    return dict(row) if row else None
+
+
+def elenco_feedback(limit: int = 100, rating: int | None = None) -> list[dict]:
+    """Per l'amministratore: gli ultimi giudizi con chi, quando, il fascicolo, la domanda e l'inizio della risposta."""
+    limit = max(1, min(int(limit or 100), 500))
+    where, args = "", []
+    if rating in (1, -1):
+        where, args = "WHERE f.rating = ?", [rating]
+    with db() as conn:
+        rows = conn.execute(
+            "SELECT f.id, f.message_id, f.case_id, f.user_id, f.rating, f.comment, f.jurisdiction, f.alerted_at, "
+            "f.created_at, f.updated_at, u.username, c.title AS case_title, m.kind, "
+            "substr(m.content, 1, 900) AS answer_head, "
+            "(SELECT substr(q.content, 1, 400) FROM messages q WHERE q.case_id = m.case_id AND q.id < m.id "
+            " AND q.role = 'user' ORDER BY q.id DESC LIMIT 1) AS question "
+            "FROM answer_feedback f LEFT JOIN users u ON u.id = f.user_id "
+            "LEFT JOIN cases c ON c.id = f.case_id LEFT JOIN messages m ON m.id = f.message_id "
+            f"{where} ORDER BY f.updated_at DESC LIMIT ?", (*args, limit)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def riepilogo_feedback(days: int = 30) -> dict:
+    """Quanti 👍 e 👎 negli ultimi `days` giorni, per giurisdizione."""
+    da = (datetime.now(UTC) - timedelta(days=int(days))).strftime("%Y-%m-%dT%H:%M:%S")
+    out = {"giorni": int(days), "su": 0, "giu": 0, "per_giurisdizione": {}}
+    with db() as conn:
+        for r in conn.execute("SELECT COALESCE(jurisdiction, 'AL') AS j, rating, COUNT(*) AS n FROM answer_feedback "
+                              "WHERE updated_at >= ? GROUP BY j, rating", (da,)):
+            k = "su" if r["rating"] > 0 else "giu"
+            out[k] += int(r["n"])
+            out["per_giurisdizione"].setdefault(r["j"], {"su": 0, "giu": 0})[k] += int(r["n"])
+    return out
 
 
 # ── documents (the case file / "dosja") ────────────────────────────────────

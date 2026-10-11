@@ -11312,6 +11312,87 @@ def main():
     except Exception as _e394:  # noqa: BLE001
         check("ligjore[394]: kontrollet u ekzekutuan", False, f"{type(_e394).__name__}: {_e394}")
 
+    # [395] v9.622 — il giudizio dell'avvocato sulle risposte (👍/👎), il cambio della propria password, il conto alla rovescia
+    # della prova, l'abbonamento che SOSTITUISCE la prova (prima la prova scaduta bloccava anche chi aveva pagato) e l'elenco
+    # utenti dell'amministratore (500 dal v9.248: `u.reminder_email` che non esisteva). Eseguito su un DB TEMPORANEO.
+    try:
+        import tempfile as _tf395
+        from pathlib import Path as _P395
+        from types import SimpleNamespace as _NS395
+        from src import storage as _st395, web as _w395
+        _db395 = _P395(_tf395.mkdtemp()) / "t.db"
+        _orig395 = _st395._connect
+        _st395._connect = lambda db_path=None: _orig395(_db395)
+        try:
+            _st395.init_db(_db395)
+            _u395 = _st395.create_user("avv395@esempio.it", "x")
+            _c395 = _st395.create_case(_u395.id, "Caso 395", jurisdiction="AL")
+            _st395.add_message(_c395.id, "user", "Domanda 395?")
+            _m395 = _st395.add_message(_c395.id, "assistant", "Risposta 395.", kind="answer")
+            _f1 = _st395.salva_feedback(_m395.id, _c395.id, _u395.id, -1, "", "AL")
+            _f2 = _st395.salva_feedback(_m395.id, _c395.id, _u395.id, -1, "manca il termine", "AL")
+            _f3 = _st395.salva_feedback(_m395.id, _c395.id, _u395.id, -1, "", "AL")
+            _a1, _a2 = _st395.segna_feedback_avvisato(_f1["id"]), _st395.segna_feedback_avvisato(_f1["id"])
+            _el = _st395.elenco_feedback(10)
+            _f4 = _st395.salva_feedback(_m395.id, _c395.id, _u395.id, 1, "", "AL")
+            _mappa = _st395.feedback_dei_messaggi([_m395.id], _u395.id)
+            _f5 = _st395.salva_feedback(_m395.id, _c395.id, _u395.id, 0)
+            _ok_fb = (_f1["rating"] == -1 and _f2["comment"] == "manca il termine" and _f3["comment"] == "manca il termine"
+                      and _a1 and not _a2 and _el and _el[0]["question"] == "Domanda 395?" and _f4["comment"] is None
+                      and _mappa == {_m395.id: {"rating": 1, "comment": ""}} and _f5 is None
+                      and _st395.feedback_dei_messaggi([_m395.id], _u395.id) == {})
+            _st395.provision_account("prova395@esempio.it", "x", hours=6)
+            _pu = _st395.get_user_by_username("prova395@esempio.it")
+            _st395.attiva_demo(_pu.id)
+            with _st395.db() as _cx:
+                _cx.execute("UPDATE users SET demo_expires_at = '2020-01-01T00:00:00Z' WHERE id = ?", (_pu.id,))
+            _bloccato = _st395.access_block_reason(_st395.get_user_by_id(_pu.id))
+            _st395.set_user_plan_expiry(_pu.id, "2099-01-01T00:00:00Z")
+            _pu2 = _st395.get_user_by_id(_pu.id)
+            _ok_piano = (_bloccato == "demo_expired" and _pu2.demo_expires_at is None
+                         and _st395.access_block_reason(_pu2) is None
+                         and _st395.access_block_reason(_NS395(is_admin=False, suspended=False,
+                                                               demo_expires_at="2020-01-01T00:00:00Z",
+                                                               plan_expires_at="2099-01-01T00:00:00Z")) is None)
+            _st395.set_user_reminder_email(_u395.id, "studio395@esempio.it")
+            _pay = _w395._user_payload(_st395.get_user_by_id(_u395.id))
+            _ok_pay = _pay.get("email") == "studio395@esempio.it"
+        finally:
+            _st395._connect = _orig395
+        from datetime import datetime as _dt395, timedelta as _td395, UTC as _UTC395
+        _iso = lambda d: (_dt395.now(_UTC395) + d).strftime("%Y-%m-%dT%H:%M:%SZ")
+        _sa1 = _w395._stato_accesso(_NS395(is_admin=False, demo_expires_at=_iso(_td395(hours=72)), plan_expires_at=None))
+        _sa2 = _w395._stato_accesso(_NS395(is_admin=False, demo_expires_at=None, plan_expires_at=_iso(_td395(days=5))))
+        _sa3 = _w395._stato_accesso(_NS395(is_admin=False, demo_expires_at=None, plan_expires_at=_iso(_td395(days=60))))
+        _sa4 = _w395._stato_accesso(_NS395(is_admin=True, demo_expires_at=_iso(_td395(hours=5)), plan_expires_at=None))
+        _ok_sa = (_sa1["trial"] and 71.9 * 3600 < _sa1["trial"]["seconds_left"] <= 72 * 3600 and _sa1["plan"] is None
+                  and _sa2["plan"] and _sa2["trial"] is None and _sa3 == {"trial": None, "plan": None}
+                  and _sa4 == {"trial": None, "plan": None})
+        _rotte = {r.rule for r in _w395.app.url_map.iter_rules()}
+        _src395 = open("/app/src/web.py", encoding="utf-8").read()
+        import inspect as _in395
+        _av395 = _in395.getsource(_w395._avvisa_feedback)
+        _ok_web = ({"/api/messages/<int:mid>/feedback", "/api/admin/feedback", "/api/me/password"} <= _rotte
+                   and _src395.count('"message_id": saved_msg.id') == 2
+                   and "content" not in _av395 and "question" not in _av395)
+        _js395 = open("/app/static/app.js", encoding="utf-8").read()
+        _ht395 = open("/app/templates/index.html", encoding="utf-8").read()
+        _cs395 = open("/app/static/style.css", encoding="utf-8").read()
+        _ok_ui = ("_attachFeedback(msgEl, data.message_id || data.id, data.feedback)" in _js395
+                  and "id: m.id," in _js395 and '"/api/me/password"' in _js395 and "loadFeedbackAdmin();" in _js395
+                  and 'id="pw-menu-btn"' in _ht395 and 'id="trial-banner"' in _ht395 and 'id="fbadm-sec"' in _ht395
+                  and ".trial-banner[hidden]" in _cs395 and ".fb-box[hidden]" in _cs395 and ".fbadm-sec[hidden]" in _cs395
+                  and "me?.id ||" in _js395)
+        check("giudizi[395]: 👍/👎 salvati e cambiati (il commento resta col 👎, sparisce col 👍), avviso una volta sola, elenco con la domanda",
+              _ok_fb, repr((_f1, _f2, _f3, _a1, _a2, _f4, _mappa))[:300])
+        check("giudizi[395]: l'abbonamento sostituisce la prova e vince su una prova scaduta; l'elenco utenti dell'admin ha l'email",
+              _ok_piano and _ok_pay, repr((_bloccato, _pu2, _pay.get("email")))[:300])
+        check("giudizi[395]: conto alla rovescia (prova 72 ore, abbonamento entro 14 giorni, mai all'amministratore); rotte, numero "
+              "della risposta nei due percorsi, l'avviso non porta fuori domanda e risposta; interfaccia cablata",
+              _ok_sa and _ok_web and _ok_ui, repr((_sa1, _sa2, _sa3, _sa4, _ok_web, _ok_ui))[:300])
+    except Exception as _e395:  # noqa: BLE001
+        check("giudizi[395]: kontrollet u ekzekutuan", False, f"{type(_e395).__name__}: {_e395}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

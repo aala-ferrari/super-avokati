@@ -613,6 +613,33 @@ def api_logout():
     return jsonify({"ok": True})
 
 
+def _stato_accesso(u) -> dict:
+    """v9.622 — per il conto alla rovescia in testa all'app: la PROVA gratuita (72 ore dal primo accesso) che scade, o
+    l'ABBONAMENTO che scade entro 14 giorni. Secondi rimasti e non solo la data: il client li conta dal suo orologio,
+    così un telefono con l'ora sbagliata non dice «scaduta» a chi ha ancora due giorni. L'amministratore non ha né
+    l'una né l'altro."""
+    out = {"trial": None, "plan": None}
+    if u is None or getattr(u, "is_admin", False):
+        return out
+    from datetime import datetime, UTC
+
+    def _dt(iso):
+        try:
+            return datetime.fromisoformat(str(iso).replace("Z", "+00:00")) if iso else None
+        except ValueError:
+            return None
+    now = datetime.now(UTC)
+    plan = _dt(getattr(u, "plan_expires_at", None))
+    demo = _dt(getattr(u, "demo_expires_at", None))
+    if demo and not (plan and plan > now):
+        out["trial"] = {"expires_at": u.demo_expires_at, "seconds_left": max(0, int((demo - now).total_seconds()))}
+    elif plan:
+        sec = int((plan - now).total_seconds())
+        if sec <= 14 * 86400:
+            out["plan"] = {"expires_at": u.plan_expires_at, "seconds_left": max(0, sec)}
+    return out
+
+
 @app.get("/api/me")
 def api_me():
     u = current_user()
@@ -623,7 +650,166 @@ def api_me():
         "id": u.id,
         "username": u.username,
         "is_admin": u.is_admin,
+        **_stato_accesso(u),
     })
+
+
+@app.post("/api/me/password")
+@login_required_api
+def api_me_password():
+    """v9.622 — l'avvocato cambia la SUA password dal menu (prima poteva farlo solo l'amministratore, e chi entrava col
+    codice della prova restava col codice). Serve la password ATTUALE: con una sessione rimasta aperta su un computer
+    dello studio nessuno deve poter chiudere fuori il titolare dell'account. Lo stesso freno dell'accesso (5 errori
+    per utenza in 15 minuti)."""
+    from .auth import verify_password
+    user = request.user  # type: ignore[attr-defined]
+    data = request.get_json(silent=True) or {}
+    attuale = str(data.get("current") or "")
+    nuova = str(data.get("new") or "")
+    attesa = _login_bloccato(user.username)
+    if attesa:
+        return jsonify({"error": _t_err("Shumë përpjekje. Provo përsëri pas %d minutash." % max(1, attesa // 60),
+                                        "Troppi tentativi. Riprova fra %d minuti." % max(1, attesa // 60)),
+                        "retry_after": attesa}), 429
+    salvata = storage.get_user_password_hash(user.username)
+    if not (salvata and verify_password(attuale, salvata)):
+        _segna_fallito(user.username)
+        return jsonify({"error": _t_err("Fjalëkalimi aktual nuk është i saktë.", "La password attuale non è corretta."),
+                        "code": "wrong_current"}), 403
+    if len(nuova) < 8:
+        return jsonify({"error": _t_err("Fjalëkalimi i ri duhet të ketë të paktën 8 karaktere.",
+                                        "La nuova password deve avere almeno 8 caratteri."), "code": "too_short"}), 400
+    if nuova == attuale:
+        return jsonify({"error": _t_err("Fjalëkalimi i ri është i njëjtë me atë aktual.",
+                                        "La nuova password è uguale a quella attuale."), "code": "same"}), 400
+    if not storage.set_password_hash(user.username, hash_password(nuova)):
+        return jsonify({"error": _t_err("Ndryshimi dështoi.", "Modifica non riuscita.")}), 500
+    _azzera_tentativi(user.username)
+    log.info("l'utente %s ha cambiato la propria password", user.username)
+    return jsonify({"ok": True})
+
+
+# ── v9.622 — 👍/👎 sulle risposte ──────────────────────────────────────────────
+_AVVISI_FB_LOCK = threading.Lock()
+_AVVISI_FB_PROGRAMMATI: set[int] = set()
+_AVVISI_FB_ORARI: list[float] = []
+
+
+def _destinatario_avvisi_feedback() -> int | None:
+    """Chi riceve l'avviso di un 👎: `FEEDBACK_ALERT_UID` se dato; altrimenti il primo amministratore con Telegram
+    collegato, poi il primo con un'email. UNO solo: il titolare ha più account amministratore, e quattro avvisi uguali
+    per la stessa risposta insegnano a ignorarli."""
+    env = os.environ.get("FEEDBACK_ALERT_UID", "").strip()
+    if env.isdigit():
+        return int(env)
+    admins = sorted((u for u in storage.list_users() if u.is_admin and not getattr(u, "suspended", False)),
+                    key=lambda u: u.id)
+    for u in admins:
+        if storage.get_user_telegram_chat(u.id):
+            return u.id
+    for u in admins:
+        e = storage.get_user_reminder_email(u.id) or ""
+        if "@" in e and not e.strip().lower().endswith(".test"):
+            return u.id
+    return None
+
+
+def _avvisa_feedback(fid: int) -> None:
+    """Il titolare saprà di un 👎 su Telegram / email / telefono. Nel messaggio NON vanno la domanda né la risposta (sono
+    del fascicolo dello studio: restano nell'app, nel pannello Studio): solo chi, la sessione e il suo commento, che
+    l'avvocato ha scritto sapendo che arriva al team. Tetto: 20 avvisi l'ora."""
+    try:
+        fb = storage.get_feedback(fid)
+        if not fb or int(fb["rating"]) >= 0 or fb.get("alerted_at"):
+            return
+        autore = storage.get_user_by_id(int(fb["user_id"]))
+        if autore is None or autore.is_admin or autore.username.strip().lower().endswith(".test"):
+            return                               # le prove interne e gli account di prova non disturbano il titolare
+        dest = _destinatario_avvisi_feedback()
+        if dest is None or dest == autore.id:
+            return
+        ora = time.time()
+        with _AVVISI_FB_LOCK:
+            _AVVISI_FB_ORARI[:] = [t for t in _AVVISI_FB_ORARI if ora - t < 3600]
+            if len(_AVVISI_FB_ORARI) >= int(os.environ.get("FEEDBACK_ALERT_MAX_ORA", "20")):
+                log.info("avviso del giudizio %s non mandato: tetto orario raggiunto", fid)
+                return
+            _AVVISI_FB_ORARI.append(ora)
+        if not storage.segna_feedback_avvisato(fid):
+            return
+        commento = (fb.get("comment") or "").strip()
+        righe = [f"Da: {autore.username} · sessione {fb.get('jurisdiction') or 'AL'}",
+                 "Commento: " + (commento[:200] + ("…" if len(commento) > 200 else "") if commento else "(nessuno)"),
+                 "Domanda e risposta: pannello Studio → «Giudizi sulle risposte» (restano nell'app)."]
+        esiti = reminders_mod.avvisa_utente(dest, "👎 Super Avokati — una risposta giudicata non utile", righe,
+                                            lang="it", link="https://superavokati.ai/")
+        log.info("giudizio negativo %s: avviso al titolare (utente %s) %s", fid, dest, esiti)
+    except Exception:  # noqa: BLE001 — un avviso non deve mai rompere niente
+        log.warning("avviso del giudizio %s fallito", fid, exc_info=True)
+    finally:
+        with _AVVISI_FB_LOCK:
+            _AVVISI_FB_PROGRAMMATI.discard(fid)
+
+
+def _programma_avviso_feedback(fid: int) -> None:
+    """Il 👎 si salva subito e il commento arriva dopo: l'avviso parte dopo `FEEDBACK_ALERT_DELAY_S` (120 s), una volta."""
+    if os.environ.get("FEEDBACK_ALERT", "1") == "0":
+        return
+    with _AVVISI_FB_LOCK:
+        if fid in _AVVISI_FB_PROGRAMMATI:
+            return
+        _AVVISI_FB_PROGRAMMATI.add(fid)
+    try:
+        t = threading.Timer(float(os.environ.get("FEEDBACK_ALERT_DELAY_S", "120")), _avvisa_feedback, args=(fid,))
+        t.daemon = True
+        t.start()
+    except Exception:  # noqa: BLE001
+        with _AVVISI_FB_LOCK:
+            _AVVISI_FB_PROGRAMMATI.discard(fid)
+
+
+@app.post("/api/messages/<int:mid>/feedback")
+@login_required_api
+def api_message_feedback(mid: int):
+    """v9.622 — il giudizio dell'avvocato su una risposta: `rating` 1 (utile), -1 (non utile), 0 (lo toglie) e un
+    commento facoltativo. Solo sulle risposte di un fascicolo che vede in QUESTA sessione (`_resolve_case`: studio e
+    giurisdizione); il 👎 avvisa il titolare una volta, due minuti dopo."""
+    user = request.user  # type: ignore[attr-defined]
+    data = request.get_json(silent=True) or {}
+    try:
+        rating = int(data.get("rating"))
+    except (TypeError, ValueError):
+        rating = None
+    if rating not in (1, -1, 0):
+        return jsonify({"error": _t_err("Vlerësim i pavlefshëm.", "Giudizio non valido.")}), 400
+    meta = storage.get_message_meta(mid)
+    if not meta or meta.get("role") != "assistant" or meta.get("kind") == "error":
+        return jsonify({"error": "not found"}), 404
+    case = _resolve_case(meta["case_id"])
+    if not case:
+        return jsonify({"error": "not found"}), 404
+    fb = storage.salva_feedback(mid, case.id, user.id, rating, str(data.get("comment") or ""),
+                                (getattr(case, "jurisdiction", None) or "AL").upper())
+    if fb and int(fb["rating"]) < 0 and not fb.get("alerted_at"):
+        _programma_avviso_feedback(int(fb["id"]))
+    return jsonify({"ok": True, "rating": int(fb["rating"]) if fb else 0, "comment": (fb or {}).get("comment") or ""})
+
+
+@app.get("/api/admin/feedback")
+@login_required_api
+def api_admin_feedback():
+    """v9.622 — per l'amministratore: gli ultimi giudizi (chi, quando, il fascicolo, la domanda e l'inizio della risposta)
+    e il riepilogo di 30 giorni. `?rating=-1` solo i 👎."""
+    user = request.user  # type: ignore[attr-defined]
+    if not user.is_admin:
+        return jsonify({"error": "forbidden"}), 403
+    r = request.args.get("rating", "")
+    try:
+        limit = int(request.args.get("limit", "100"))
+    except ValueError:
+        limit = 100
+    return jsonify({"items": storage.elenco_feedback(limit=limit, rating=(int(r) if r in ("1", "-1") else None)),
+                    "summary": storage.riepilogo_feedback(30)})
 
 
 # ── Bolla Segretaria (assistant AI: agjenda + shkrim me konfirmim) ─────────
@@ -1459,6 +1645,11 @@ def api_get_case(case_id: str):
         return jsonify({"error": "not found"}), 404
     messages = storage.list_messages(case_id)
     documents = storage.list_documents(case_id)
+    try:                                   # v9.622 — il 👍/👎 già dato resta acceso riaprendo il fascicolo
+        _giudizi = storage.feedback_dei_messaggi([m.id for m in messages if m.role == "assistant"],
+                                                 request.user.id)  # type: ignore[attr-defined]
+    except Exception:  # noqa: BLE001
+        _giudizi = {}
     return jsonify({
         "id": case.id,
         "title": case.title,
@@ -1478,6 +1669,7 @@ def api_get_case(case_id: str):
              "contradictions": m.contradictions,
              "opponent_playbook": m.opponent_playbook,
              "leverage": m.leverage,
+             "feedback": _giudizi.get(m.id),
              "created_at": m.created_at}
             for m in messages
         ],
@@ -7452,6 +7644,7 @@ def api_ask():
         "decision_citations": decision_citations,
         "provenance": provenance.to_dict(),
         "case_id": case.id,
+        "message_id": saved_msg.id,          # v9.622: i pulsanti 👍/👎 sanno su quale risposta scrivere
     })
 
 
@@ -7673,6 +7866,7 @@ def _ask_prepare(user, data):
                 "citations": citations_payload,
                 "provenance": provenance.to_dict(),
                 "case_id": case.id,
+                "message_id": saved_msg.id,  # v9.622: i pulsanti 👍/👎 sanno su quale risposta scrivere
             })
             # ① la spilla sopravvive al refresh: testo annotato + verifiche
             # scritti sul messaggio gia' salvato. Best-effort: un fallimento
@@ -10235,7 +10429,7 @@ def _user_payload(u) -> dict:
         "is_admin": u.is_admin,
         "created_at": (u.created_at.isoformat() if hasattr(getattr(u, "created_at", None), "isoformat") else getattr(u, "created_at", None)),
         "suspended": bool(getattr(u, "suspended", False)),
-            "email": u.reminder_email,
+        "email": getattr(u, "reminder_email", None),
         "profession": getattr(u, "profession", "avokat"),
         "modules": sorted(storage.user_modules(u)),
         "jurisdictions": sorted(storage.user_jurisdictions(u)),
