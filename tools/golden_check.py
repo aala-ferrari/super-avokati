@@ -10661,6 +10661,47 @@ def main():
     except Exception as _e374:  # noqa: BLE001
         check("pagamenti[374]: kontrollet u ekzekutuan", False, f"{type(_e374).__name__}: {_e374}")
 
+    # [375] v9.599 — col permesso di costruire negato o senza risposta entra il TU edilizia art. 20 (la norma di merito dei motivi), accanto
+    # al rito del TAR; non nella sanatoria né nel penale
+    try:
+        from pathlib import Path as _P375
+        from src.retrieval import ArticleIndex as _AI375
+        from src import brain as _b375
+        _it375 = _AI375.load(_P375("/app/data/index/bm25_it.pkl"))
+        _a375 = lambda q, ar: {(a.code, a.number) for a, _ in _b375._applica_ancore([], _it375, [q], ar, _b375.ANCORE_IT)}
+        _ok375 = (("tu_edilizia", "20") in _a375("Il Comune ha negato al cliente il permesso di costruire: come lo impugniamo?", ["Amministrativo"])
+                  and ("tu_edilizia", "20") in _a375("Il Comune non risponde da tre mesi alla domanda di permesso di costruire del cliente.", ["Amministrativo"])
+                  and ("tu_edilizia", "20") not in _a375("Il cliente ha costruito una veranda senza permesso: si può sanare?", ["Amministrativo"])
+                  and ("tu_edilizia", "20") not in _a375("Il cliente è denunciato: il permesso di costruire gli era stato negato e ha costruito lo stesso.", ["Penale"]))
+        check("edilizia[375]: col permesso di costruire negato o senza risposta entra il TU edilizia art. 20; non nella sanatoria né nel penale", _ok375)
+    except Exception as _e375:  # noqa: BLE001
+        check("edilizia[375]: kontrollet u ekzekutuan", False, f"{type(_e375).__name__}: {_e375}")
+
+    # [376] v9.600 — i nomi degli strumenti nella lingua della sessione: niente inglese (Bench Memo, Red Team, Settlement Monte Carlo,
+    # Ratio Coach, Corporate Intelligence, Financial OS, WIP aging, Cashflow) né parole italiane («visura», «CDA») nei testi ALBANESI
+    # della pagina; ogni testo albanese nuovo ha la sua voce italiana (il traduttore del DOM aggancia il testo esatto); la raccomandazione
+    # del memo del giudice a schermo nella lingua della sessione (il token FIGHT/SETTLE/FOLD resta interno)
+    try:
+        import re as _re376
+        _h376 = open("/app/templates/index.html", encoding="utf-8").read()
+        _j376 = open("/app/static/app.js", encoding="utf-8").read()
+        _vecchi376 = ["<strong>Bench Memo</strong>", "<strong>Red Team</strong>", "<strong>Settlement Monte Carlo</strong>",
+                      "<strong>Ratio Coach</strong>", "<strong>Corporate Intelligence</strong>", "<strong>Financial OS</strong>",
+                      ">WIP aging<", ">Cashflow<", "📊 Financial OS", "🏢 Corporate Intelligence", "Gjenero Bench Memo",
+                      "nga visura", "soci/CDA"]
+        _okH376 = not any(x in _h376 for x in _vecchi376)
+        _okC376 = not any(x in _j376 for x in ['"Bench Memo", "Llogarit', '"Red Team", "Stres', '"Ratio Coach", "Bëj',
+                                               '"Corporate Intelligence", "Ekstrakto', '"Settlement Monte Carlo", "10k'])
+        _nuovi376 = ["Memo e gjyqtarit", "Stres-testi i tezës", "Simulimi i marrëveshjes", "Mësimet e rasteve", "Analiza e shoqërive",
+                     "Financat e studios", "Puna e pafaturuar", "Rrjedha e parave", "⚔️ Stres-testi i tezës", "🎯 Simulimi i marrëveshjes (Monte Carlo)"]
+        _okT376 = all(('"%s":' % x) in _j376 for x in _nuovi376) and all(x in (_h376 + _j376) for x in _nuovi376)
+        _okR376 = ("_recNellaLingua" in _j376 and '"HIQ DORË"' in _j376 and '"RINUNCIA"' in _j376 and "VERDETTO CONSIGLIATO" in _j376)
+        check("nomi[376]: strumenti in albanese nella sessione AL e in italiano nella IT (niente inglese, niente «visura/CDA»), "
+              "raccomandazione del memo nella lingua della sessione", _okH376 and _okC376 and _okT376 and _okR376,
+              "H=%s C=%s T=%s R=%s" % (_okH376, _okC376, _okT376, _okR376))
+    except Exception as _e376:  # noqa: BLE001
+        check("nomi[376]: kontrollet u ekzekutuan", False, f"{type(_e376).__name__}: {_e376}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

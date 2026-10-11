@@ -715,6 +715,14 @@ ANCORE_IT: tuple = (
       ("carta", "clonat"), ("home banking", "truff"), (" otp", "banca"), ("credenziali", "banca"), ("frode", "carta di credito"),
       ("truffa", "bonific"), ("finto operatore", "banca")),
      (), (("servizi_pagamento", "9"), ("servizi_pagamento", "10"), ("servizi_pagamento", "11"), ("servizi_pagamento", "12")), None, None, True),
+    # v9.599 — il PERMESSO DI COSTRUIRE negato, rifiutato o senza risposta: l'ancora del TAR (v9.533) porta il RITO (c.p.a. 29 e 41), non
+    # la norma di MERITO da cui vengono i motivi del ricorso — il TU edilizia art. 20 (procedimento di rilascio: termini, preavviso di
+    # rigetto, silenzio-assenso al comma 8). Banco IT dopo la v9.598: nel blocco del diniego c.p.a. e L. 241/1990, mai il TU edilizia; al
+    # loro posto la mediazione civile e il c.p.c. 435 e 473-bis.31 per la parola «ricorso». Solo dalla DOMANDA, mai nel penale
+    ((("permesso di costruire", "negat"), ("permesso di costruire", "dinieg"), ("permesso di costruire", "rifiut"),
+      ("permesso di costruire", "respint"), ("permesso di costruire", "rigett"), ("permesso di costruire", "silenzio"),
+      ("permesso di costruire", "non risponde"), ("permesso di costruire", "non ha risposto")),
+     ("Penale", "Penal"), (("tu_edilizia", "20"),), None, None, True),
 )
 
 

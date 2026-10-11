@@ -196,11 +196,11 @@
             </button>
             <button type="button" class="pro-menu-item pro-menu-new" data-pro="bench" role="menuitem">
               <span class="pro-menu-ico">⚖️</span>
-              <div><strong>Bench Memo</strong><em>Si do të mendojë gjyqtari → P(fitore) · dobësi · upgrade argumentesh · FIGHT/SETTLE/FOLD</em></div>
+              <div><strong>Memo e gjyqtarit</strong><em>Si do të mendojë gjyqtari → gjasat e fitores · dobësitë · si forcohen argumentet · LUFTO / PAJTOHU / HIQ DORË</em></div>
             </button>
             <button type="button" class="pro-menu-item" data-pro="stress" role="menuitem">
               <span class="pro-menu-ico">⚔️</span>
-              <div><strong>Red Team</strong><em>Stres-test i tezës — raund i vetëm ose loop derisa konvergon</em></div>
+              <div><strong>Stres-testi i tezës</strong><em>Sulmi kundër tezës sate — një raund ose disa raunde derisa teza të qëndrojë</em></div>
             </button>
             <button type="button" class="pro-menu-item pro-menu-new" data-pro="devilconsult" role="menuitem">
               <span class="pro-menu-ico">😈</span>
@@ -216,11 +216,11 @@
             </button>
             <button type="button" class="pro-menu-item pro-menu-new" data-pro="settlement" role="menuitem">
               <span class="pro-menu-ico">🎯</span>
-              <div><strong>Settlement Monte Carlo</strong><em>10k simulime → percentile i ofertës + kontër-ofertë e rekomanduar</em></div>
+              <div><strong>Simulimi i marrëveshjes</strong><em>10 mijë simulime → ku bie oferta + kundëroferta e rekomanduar</em></div>
             </button>
             <button type="button" class="pro-menu-item pro-menu-new" data-pro="coach" role="menuitem">
               <span class="pro-menu-ico">📝</span>
-              <div><strong>Ratio Coach</strong><em data-i18n="it_03">Post-mortem strukturuar i fascikulit + surface mësimesh nga rastet e mëparshme të ngjashme</em></div>
+              <div><strong>Mësimet e rasteve</strong><em data-i18n="it_03">Analizë e strukturuar e rastit + mësimet nga rastet e ngjashme të mëparshme</em></div>
             </button>
             <button type="button" class="pro-menu-item pro-menu-new" data-pro="precedent" role="menuitem">
               <span class="pro-menu-ico">📚</span>
@@ -276,7 +276,7 @@
             </button>
             <button type="button" class="pro-menu-item pro-menu-new" data-pro="corporate" role="menuitem">
               <span class="pro-menu-ico">🏢</span>
-              <div><strong>Corporate Intelligence</strong><em data-i18n="it_02">Ekstrakto soci/CDA/prokuror nga visura · Contract Gatekeeper · Checklist KYC/AML</em></div>
+              <div><strong>Analiza e shoqërive</strong><em data-i18n="it_02">Ortakët, administratorët dhe të autorizuarit nga ekstrakti QKB · kontrolli i kontratës · lista KYC/AML</em></div>
             </button>
             <button type="button" class="pro-menu-item pro-menu-new" data-pro="lexombush" role="menuitem">
               <span class="pro-menu-ico">📸</span>
@@ -327,7 +327,7 @@
             </button>
             <button type="button" class="pro-menu-item pro-menu-new" data-pro="financial" role="menuitem">
               <span class="pro-menu-ico">📊</span>
-              <div><strong>Financial OS</strong><em>Profitability rasti · realization · WIP aging · cashflow</em></div>
+              <div><strong>Financat e studios</strong><em>Fitimi për rast · shkalla e arkëtimit · puna e pafaturuar · rrjedha e parave</em></div>
             </button>
             <div class="pro-menu-divider" aria-hidden="true" data-i18n="grp_cilesime">— CILËSIME —</div>
             <button type="button" class="pro-menu-item" id="push-toggle" role="menuitem"
@@ -434,7 +434,7 @@
           <ol class="tour-steps">
             <li><strong>Hap një rast</strong> — kliko "＋ Rast i ri" majtas. Çdo rast ka kujtesë të vetën, dokumentet e veta dhe analizat Pro të lidhura.</li>
             <li><strong>Bisedo si me një kolegë senior</strong> — shkruaj shqip, pa formula. Çdo "Neni X" në përgjigje verifikohet kundër korpusit ({{ '{:,}'.format(total_articles).replace(',', '.') }} nene në {{ num_codes }} kode).</li>
-            <li><strong>Mjete Pro</strong> ⭐ — pasi rasti është i hapur, mund të lëshosh: 🧠 <em>Genio Legale</em> (6 perspektiva paralele), ⚖️ <em>Bench Memo</em> (si do mendojë gjyqtari), ⚔️ <em>Red Team</em> (stres-test i tezës), 📚 <em>Pattern e precedentëve</em>, 📝 <em>Ratio Coach</em> (post-mortem + mësime).</li>
+            <li><strong>Mjete Pro</strong> ⭐ — pasi rasti është i hapur, mund të lëshosh: 🧠 <em>Genio Legale</em> (6 perspektiva paralele), ⚖️ <em>Memo e gjyqtarit</em> (si do mendojë gjyqtari), ⚔️ <em>Red Team</em> (stres-test i tezës), 📚 <em>Pattern e precedentëve</em>, 📝 <em>Ratio Coach</em> (post-mortem + mësime).</li>
             <li><strong>Komanda të shpejta në bisedë</strong> — shkruaj <code>/afatet</code> për të llogaritur afatet procedurale KPC/KPP nga një ngjarje.</li>
           </ol>
           {% endif %}
@@ -821,13 +821,13 @@
   <div class="pro-modal-card">
     <header class="pro-modal-head">
       <div>
-        <h3 id="stress-modal-title">⚔️ Red Team — stres-test i tezës</h3>
+        <h3 id="stress-modal-title">⚔️ Stres-testi i tezës</h3>
         <p class="pro-modal-sub">Sulmo tezën tënde para se gjyqtari ta bëjë. Raund i vetëm (i shpejtë) ose loop iterativ derisa strategjia konvergon.</p>
       </div>
       <button type="button" class="icon-btn" data-close aria-label="Mbyll">&times;</button>
     </header>
     <div class="pro-modal-body">
-      <div class="pro-segmented" role="tablist" aria-label="Modaliteti i Red Team">
+      <div class="pro-segmented" role="tablist" aria-label="Modaliteti i stres-testit">
         <button type="button" class="pro-seg-btn pro-seg-active" data-stress-mode="single" role="tab" aria-selected="true">🎯 Raund i vetëm</button>
         <button type="button" class="pro-seg-btn" data-stress-mode="loop" role="tab" aria-selected="false">🥊 Loop multi-raund</button>
       </div>
@@ -859,7 +859,7 @@
     <header class="pro-modal-head">
       <div>
         <h3 id="draft-modal-title">📜 Fabrika e akteve procedurale</h3>
-        <p class="pro-modal-sub">Përshkruaj rastin në gjuhë natyrale dhe zgjidh llojin e aktit. Del një draft i plotë, gati për depozitim, me nene reale nga kodet shqiptare. Shkarkohet si .docx.</p>
+        <p class="pro-modal-sub">Përshkruaj rastin në gjuhë natyrale dhe zgjidh llojin e aktit. Del një projekt i plotë, gati për depozitim, me nene reale nga kodet shqiptare. Shkarkohet si .docx.</p>
       </div>
       <button type="button" class="icon-btn" data-close aria-label="Mbyll">&times;</button>
     </header>
@@ -1420,7 +1420,7 @@
   <div class="pro-modal-backdrop" data-close></div>
   <div class="pro-modal-card pro-modal-wide">
     <header class="pro-modal-head">
-      <h3 id="coach-modal-title">📝 Ratio Coach — Mësime që përsëriten</h3>
+      <h3 id="coach-modal-title">📝 Mësimet e rasteve — çfarë përsëritet</h3>
       <p class="pro-modal-sub">Pas çdo rasti të mbyllur, AI ekstrakton mësimin e transferueshëm: çfarë funksionoi, çfarë dështoi, faktori vendimtar. Në rastet e ardhshme të ngjashme, mësimet ngrihen automatikisht para se të bësh të njëjtin gabim ose të humbasësh të njëjtën lëvizje fituese.</p>
       <button type="button" class="pro-modal-close" data-close aria-label="Mbyll">&times;</button>
     </header>
@@ -1541,7 +1541,7 @@
   <div class="pro-modal-backdrop" data-close></div>
   <div class="pro-modal-card pro-modal-wide">
     <header class="pro-modal-head">
-      <h3 id="bench-modal-title">⚖️ Bench Memo — Si do të mendojë gjyqtari</h3>
+      <h3 id="bench-modal-title">⚖️ Memo e gjyqtarit — si do të mendojë gjyqtari</h3>
       <p data-i18n="it_60" class="pro-modal-sub">Memorandum gjyqësor i kalibruar për gjykatën specifike: inkuadrimi i çështjes, P(fitore), dobësitë e tua që do të sulmohen, forcat e kundërshtarit që do të pranohen, upgrade argumentesh, rekomandim final.</p>
       <button type="button" class="pro-modal-close" data-close aria-label="Mbyll">&times;</button>
     </header>
@@ -1563,7 +1563,7 @@
       <textarea id="bench-desc" class="pro-textarea" rows="3" placeholder="Përshkrim shtesë i çështjes (opsional — fascikuli aktual ngarkohet automatikisht)"></textarea>
       <textarea id="bench-opp" class="pro-textarea" rows="4" placeholder="Memorie / parashtrim i kundërshtarit (opsional — kopjo tekstin këtu për analizë më të thellë)"></textarea>
       <div class="bench-actions-row">
-        <button id="bench-run-btn" class="pro-run-btn">Gjenero Bench Memo</button>
+        <button id="bench-run-btn" class="pro-run-btn">Gjenero memon e gjyqtarit</button>
         <span id="bench-status" class="pro-status"></span>
       </div>
       <div id="bench-result" class="pro-result" hidden></div>
@@ -1576,7 +1576,7 @@
   <div class="pro-modal-backdrop" data-close></div>
   <div class="pro-modal-card pro-modal-wide">
     <header class="pro-modal-head">
-      <h3 id="corporate-modal-title">🏢 Corporate Intelligence</h3>
+      <h3 id="corporate-modal-title">🏢 Analiza e shoqërive</h3>
       <p data-i18n="it_67" class="pro-modal-sub">Ngarko dokumentin e shoqërisë → AI nxjerr ortakët, administratorët, të autorizuarit me prokurë dhe afatet. Kontrollo nënshkruesin para nënshkrimit. Gjenero listën e kontrollit KYC/AML (Ligji 9917/2008).</p>
       <button type="button" class="pro-modal-close" data-close aria-label="Mbyll">&times;</button>
     </header>
@@ -1650,7 +1650,7 @@
   <div class="pro-modal-card">
     <header class="pro-modal-head">
       <div>
-        <h3 id="settlement-modal-title">🎯 Settlement — Monte Carlo</h3>
+        <h3 id="settlement-modal-title">🎯 Simulimi i marrëveshjes (Monte Carlo)</h3>
         <p class="pro-modal-sub">AI elicit 4–6 skenarë financiarë → 10.000 simulime → percentile i ofertës aktuale + kontër-ofertë e rekomanduar.</p>
       </div>
       <button type="button" class="pro-modal-close" data-close aria-label="Mbyll">&times;</button>
@@ -1663,7 +1663,7 @@
         <label>Roli <select id="settle-role"><option value="plaintiff">Paditësi (marrim)</option><option value="defendant">I paditur (paguajmë)</option></select></label>
       </div>
       <div class="settle-launch-row">
-        <button type="button" id="settle-run" class="primary">🎲 Lësho 10k simulime</button>
+        <button type="button" id="settle-run" class="primary">🎲 Lësho 10 mijë simulime</button>
         <span id="settle-status" class="pro-status"></span>
       </div>
       <div id="settle-result" class="pro-result" hidden></div>
@@ -1681,8 +1681,8 @@
   <div class="pro-modal-card pro-modal-wide">
     <header class="pro-modal-head">
       <div>
-        <h3 id="financial-modal-title">📊 Financial OS</h3>
-        <p class="pro-modal-sub">Profitability i rastit · realization studio · WIP aging · cashflow forecast.</p>
+        <h3 id="financial-modal-title">📊 Financat e studios</h3>
+        <p class="pro-modal-sub">Fitimi për rast · shkalla e arkëtimit e studios · puna e pafaturuar sipas vjetërsisë · parashikimi i rrjedhës së parave.</p>
       </div>
       <button type="button" class="pro-modal-close" data-close aria-label="Mbyll">&times;</button>
     </header>
@@ -1690,8 +1690,8 @@
       <div class="fin-tabs" role="tablist">
         <button type="button" class="fin-tab is-active" data-fintab="case">Rast aktual</button>
         <button type="button" class="fin-tab" data-fintab="firm">Studio</button>
-        <button type="button" class="fin-tab" data-fintab="wip">WIP aging</button>
-        <button type="button" class="fin-tab" data-fintab="cashflow">Cashflow</button>
+        <button type="button" class="fin-tab" data-fintab="wip">Puna e pafaturuar</button>
+        <button type="button" class="fin-tab" data-fintab="cashflow">Rrjedha e parave</button>
       </div>
       <div class="fin-pane" data-finpane="case"><p data-i18n="it_69" class="pro-modal-sub">Po ngarkohet…</p></div>
       <div class="fin-pane" data-finpane="firm" hidden><p data-i18n="it_70" class="pro-modal-sub">Po ngarkohet…</p></div>
@@ -1722,7 +1722,7 @@
   </div>
 </template>
 
-<script src="/static/app.js?v=211"></script>
+<script src="/static/app.js?v=212"></script>
 <script src="/static/secretary.js?v=2"></script>
 <script src="/static/onboarding.js?v=3" defer></script>
   <script src="/static/sw-register.js?v=1" defer></script>
