@@ -345,7 +345,10 @@ ANCORE_AL: tuple = (
     # 49/2012, il cui art. 1/2 rinvia al codice di procedura civile (quindi al KPC 148, che l'ancora dei termini porta già). La stessa
     # prova: il Giudice calcolava lunedì 26 ottobre col KPC 148 ma scriveva «ura normative te KPC nuk është në dosje» e prudenzialmente
     # fissava venerdì 23
-    (_VETTING_ANKIM_AL, (), (("ligji_rivleresimi", "4"), ("ligji_gjykatat_administrative", "1")), None, None, True, "coda"),
+    # v9.626 — + l'art. 46 della legge 49/2012 (gli atti da allegare al ricorso), a cui rinvia lo stesso art. 63/2 («depozitohet pranë
+    # Komisionit … sipas nenit 46»): la risposta vera dell'11 ott scriveva «forma e ankimit e paverifikuar — neni 46 nuk është në dosje»
+    (_VETTING_ANKIM_AL, (), (("ligji_rivleresimi", "4"), ("ligji_gjykatat_administrative", "1"),
+                             ("ligji_gjykatat_administrative", "46")), None, None, True, "coda"),
     # v9.394 — misurato dalla misura dei modelli (26 set): nel caso «straniero con permesso per lavoro licenziato» NESSUNA
     # delle 6 varianti (qualunque modello) citava la ligji 79/2021 art. 72 (i motivi di annullamento del permesso unico: il
     # rapporto interrotto 1/e con l'obbligo del datore di avvisare entro 2 settimane, e al p. 2 «Papunësia nuk përbën arsye të
@@ -488,6 +491,11 @@ ANCORE_AL: tuple = (
      (), (("kodi_penal", "137"),), None, ("Penal",), True),
     ((("shtatzën", "pushu"), ("shtatzën", "hoqën"), ("shtatzën", "largu"), ("shtatzën", "pushoi"), ("shtatzën", "nga puna")),
      ("Penal",), (("kodi_punes", "105/a"), ("kodi_punes", "146")), None, None, True),
+    # v9.626 — e IN CODA la strada della DISCRIMINAZIONE (ligji 10221/2010: art. 12 il divieto, anche nel licenziamento; art. 36 la causa
+    # — 3 anni dalla conoscenza, 5 dal fatto, e l'onere della prova che passa al datore): la risposta vera dell'11 ott (call center,
+    # quattro contratti annuali) la indicava come via oltre i 180 giorni ma scriveva «10221/2010 nuk është në bllokun e neneve të mia»
+    ((("shtatzën", "pushu"), ("shtatzën", "hoqën"), ("shtatzën", "largu"), ("shtatzën", "pushoi"), ("shtatzën", "nga puna")),
+     ("Penal",), (("ligji_diskriminimi", "12"), ("ligji_diskriminimi", "36")), None, None, True, "coda"),
     # v9.561 — la VIOLAZIONE DI DOMICILIO («hyri me forcë në shtëpinë e saj pa leje»): KP 112 «Dhunimi i banesës» all'11°, dietro la legge
     # sulla violenza domestica (che resta: spesso è anche quella). Solo nel penale.
     ((("hyri", "shtëpi", "pa leje"), ("hyri", "banes", "pa leje"), ("hyri me forcë", "shtëpi"), ("hyri me forcë", "banes"), ("dhunim", "banes")),
@@ -2439,8 +2447,11 @@ in un atto è un danno professionale, non un aiuto.
 BUDGET DI RICERCA (v9.325 — il titolare paga ogni pagina letta): al massimo
 4 ricerche e 6 pagine lette per risposta. Cerca SOLO ciò che non è già negli
 articoli forniti o nel filo della conversazione; una fonte primaria (Normattiva,
-GU, EUR-Lex, cortedicassazione.it) vale più di cinque commenti. Trovato il
-dato, fermati e scrivi: non ricontrollare ciò che hai già verificato.
+GU, EUR-Lex, cortedicassazione.it) vale più di cinque commenti. NON aprire il
+PDF intero di un codice o di un testo unico (centinaia di pagine): il testo
+ufficiale degli articoli è tra quelli forniti — se ne manca uno, cercalo per
+numero. Trovato il dato, fermati e scrivi: non ricontrollare ciò che hai già
+verificato.
 """
 
 JURISDICTION_OVERRIDE_EU = """
@@ -3601,7 +3612,7 @@ Kur avokati pyet "sa është" / "sa paguaj" / "sa përqind", PËRGJIGJU ME SHIFR
 SAKTËSIA MBI GJITHÇKA — RREGULL I SHENJTË: një avokat NUK mund të gabojë; një shifër ose nen i gabuar humbet kauzën dhe klientin. Më mirë vono dhe jep të saktën sesa shpejt e gabim. MOS HAMENDËSO KURRË një numër, nen apo afat. Nëse pas verifikimit nuk e gjen dot shifrën e saktë, thuaj QARTË: çfarë është e SIGURT (p.sh. TVSH 20%, struktura e detyrimeve) dhe çfarë duhet marrë nga VKM-ja në fuqi me linkun e saktë. Dallo gjithmonë "e sigurt" nga "duhet verifikuar" — kjartësia është mbrojtja e avokatit.
 
 BURIMET E WEBIT — kur ke përdorur kërkimin në internet për këtë përgjigje, MBYLLE me seksionin «## Burimet e webit»: listë e numëruar; për çdo burim URL-ja e plotë, data e aksesit dhe gjysmë rreshti se çfarë mbështet. Nëse s'ke përdorur web: MOS e shto seksionin — një bibliografi e shpikur është e kundërta e qëllimit.
-BUXHETI I KËRKIMIT (çdo faqe e lexuar kushton): maksimumi 4 kërkime dhe 6 faqe të lexuara për përgjigje. Kërko VETËM atë që nuk është tashmë te nenet e dhëna ose te filli i bisedës; një burim parësor (QBZ, Fletorja Zyrtare, gjykata) vlen më shumë se pesë komente. Sapo e gjen të dhënën, ndalo dhe shkruaj."""
+BUXHETI I KËRKIMIT (çdo faqe e lexuar kushton): maksimumi 4 kërkime dhe 6 faqe të lexuara për përgjigje. Kërko VETËM atë që nuk është tashmë te nenet e dhëna ose te filli i bisedës; një burim parësor (QBZ, Fletorja Zyrtare, gjykata) vlen më shumë se pesë komente. MOS hap PDF-në e plotë të një kodi ose ligji (qindra faqe): teksti zyrtar i neneve është te nenet e dhëna — nëse të mungon një nen, kërkoje me numrin e tij. Sapo e gjen të dhënën, ndalo dhe shkruaj."""
 
 
 # v9.376 — FORMA BREVE (regola del titolare, 24 set 2026: «deve dirti il senso, la soluzione e come si vince, non troppo
@@ -3661,7 +3672,8 @@ MOS HAMENDËSO KURRË një numër, nen apo afat. Shkurtësia nuk justifikon asnj
 
 BURIMET E WEBIT — kur ke përdorur internetin, MBYLLE me «## Burimet e webit» (listë e numëruar: URL, data e aksesit,
 gjysmë rreshti se çfarë mbështet). Pa web: MOS e shto. BUXHETI I KËRKIMIT: maksimumi 4 kërkime dhe 6 faqe të lexuara;
-kërko VETËM atë që nuk është te nenet ose te filli; sapo e gjen, ndalo dhe shkruaj."""
+kërko VETËM atë që nuk është te nenet ose te filli; MOS hap PDF-në e plotë të një kodi ose ligji (nenet janë te blloku: një nen që
+mungon kërkohet me numër); sapo e gjen, ndalo dhe shkruaj."""
 if FORMATI_I_SHKURTER:
     ANSWER_SYSTEM = ANSWER_SYSTEM_SHKURTER
     ANSWER_SECTIONS.update({"law": "## 1. 🎯 Në thelb", "rights": "## 2. 🛠️ Zgjidhja", "actions": "## 2. 🛠️ Zgjidhja",

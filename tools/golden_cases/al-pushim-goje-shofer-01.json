@@ -1,0 +1,48 @@
+{
+  "id": "al-pushim-goje-shofer-01",
+  "jurisdiction": "AL",
+  "title": "Pushim me gojë pas 6 vjetësh, pa shkak",
+  "question": "Klienti punonte si shofer prej 6 vjetësh me kontratë pa afat. Punëdhënësi e pushoi me gojë, pa asnjë njoftim me shkrim dhe pa asnjë shkak. Çfarë të drejtash ka, brenda çfarë afati duhet të ngrejë padi dhe në cilën gjykatë?",
+  "facts": "Kontratë pa afat, 6 vjet, pushim me gojë, pa njoftim, pa shkak.",
+  "expected_laws": [
+    {
+      "code": "kodi_punes",
+      "number": "155"
+    },
+    {
+      "code": "kodi_punes",
+      "number": "153"
+    },
+    {
+      "code": "kodi_punes",
+      "number": "146"
+    },
+    {
+      "code": "kodi_punes",
+      "number": "145"
+    },
+    {
+      "code": "kodi_proc_civile",
+      "number": "47"
+    }
+  ],
+  "must_not_cite": [
+    {
+      "code": "kodi_penal",
+      "number": "155"
+    }
+  ],
+  "key_points": [
+    "180 dit",
+    "vjet[ëe]rsi",
+    "njoftim"
+  ],
+  "verdict_expect": "zgjidhje e menjëhershme e pajustifikuar (KP 155): paga e njoftimit + dëmshpërblim deri në një vit pagë, shpërblim vjetërsie (KP 145); padi brenda 180 ditëve; gjykata edhe e vendbanimit të punëmarrësit (KPC 47)",
+  "expected_issues": [
+    "zgjidhja e pajustifikuar",
+    "afati 180 ditë",
+    "kompetenca tokësore"
+  ],
+  "notes": "SEED dalla prova viva del 11 ott 2026 (v9.608-610, 21 min, ✅ 24 nene) — da validare.",
+  "validated_by": null
+}

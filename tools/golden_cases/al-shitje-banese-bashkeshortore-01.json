@@ -1,0 +1,44 @@
+{
+  "id": "al-shitje-banese-bashkeshortore-01",
+  "jurisdiction": "AL",
+  "title": "Banesa bashkëshortore e shitur pa pëlqimin e bashkëshortes",
+  "question": "Bashkëshorti i klientes sime shiti me akt noterial, pa pëlqimin e saj, apartamentin që e blenë bashkë gjatë martesës; blerësi e regjistroi në ASHK. A mund ta anulojmë shitjen, kundër kujt ngremë padinë dhe brenda çfarë afati?",
+  "facts": "Apartament i blerë gjatë martesës, shitur nga bashkëshorti me akt noterial pa pëlqim, regjistruar në ASHK.",
+  "expected_laws": [
+    {
+      "code": "kodi_familjes",
+      "number": "57"
+    },
+    {
+      "code": "kodi_familjes",
+      "number": "90"
+    },
+    {
+      "code": "kodi_familjes",
+      "number": "94"
+    },
+    {
+      "code": "kodi_proc_civile",
+      "number": "45"
+    }
+  ],
+  "must_not_cite": [
+    {
+      "code": "kodi_familjes",
+      "number": "33"
+    }
+  ],
+  "key_points": [
+    "(një|1) vit",
+    "pëlqim",
+    "blerës"
+  ],
+  "verdict_expect": "po — anulim i aktit që tejkalon të drejtat (KF 94) për veprim jashtë administrimit të zakonshëm pa të dy bashkëshortët (KF 90, 57); padi kundër bashkëshortit dhe blerësit; një vit nga dijenia; gjykata e vendit të pasurisë (KPC 45)",
+  "expected_issues": [
+    "pëlqimi i bashkëshortit",
+    "afati 1 vit",
+    "kompetenca sipas vendit të sendit"
+  ],
+  "notes": "SEED dalla prova viva del 11 ott 2026 (v9.607, casa coniugale) — da validare.",
+  "validated_by": null
+}

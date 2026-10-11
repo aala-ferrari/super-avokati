@@ -1,0 +1,39 @@
+{
+  "id": "al-vetting-ankim-kpk-01",
+  "jurisdiction": "AL",
+  "title": "Vetting: ankimi kundër shkarkimit nga KPK",
+  "question": "Klienti im është gjyqtar. Komisioni i Pavarur i Kualifikimit vendosi shkarkimin e tij nga detyra në procesin e rivlerësimit kalimtar; vendimi iu njoftua dje. Brenda sa ditësh ankohemi, ku depozitohet ankimi dhe kush e ka barrën e provës për pasurinë?",
+  "facts": "Gjyqtar në rivlerësim, vendim shkarkimi nga KPK, njoftuar dje.",
+  "expected_laws": [
+    {
+      "code": "ligji_rivleresimi",
+      "number": "63"
+    },
+    {
+      "code": "ligji_rivleresimi",
+      "number": "52"
+    },
+    {
+      "code": "kushtetuta",
+      "number": "aneks-neni-D"
+    },
+    {
+      "code": "kushtetuta",
+      "number": "aneks-neni-F"
+    }
+  ],
+  "must_not_cite": [],
+  "key_points": [
+    "15 dit",
+    "Kolegji i Apel",
+    "barr"
+  ],
+  "verdict_expect": "15 ditë nga njoftimi (neni 63), depozitohet pranë Komisionit, e shqyrton Kolegji i Apelimit; barra e provës te subjekti (Aneksi Ç/5, D/3; neni 52)",
+  "expected_issues": [
+    "afati i ankimit 15 ditë",
+    "vendi i depozitimit",
+    "barra e provës"
+  ],
+  "notes": "SEED dalla prova viva del 11 ott 2026 (v9.609-610, 23 min, ✅ 25 nene) — da validare.",
+  "validated_by": null
+}

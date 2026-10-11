@@ -234,6 +234,30 @@ def _audit_safe(**kw) -> None:
         log.warning("audit_log_call failed (%s): %s", kw.get("callsite"), exc)
 
 
+
+def _json_cli(testo) -> dict:
+    """v9.626 — l'uscita `--output-format json` del CLI è UN oggetto JSON, ma il CLI può stampare prima delle righe sue: con un
+    modello che la sua versione non conosce ancora (Sonnet 5.5 sul 2.1.282) la prima riga è «[claude-code:unrecognized_model]
+    {...}» e `json.loads` di tutto cadeva — la chiamata finiva in errore pur avendo la risposta. Si prende l'ULTIMA riga che è
+    un oggetto JSON; se nessuna lo è, si solleva come prima (`JSONDecodeError`)."""
+    t = (testo or "").strip()
+    if not t:
+        return {}
+    try:
+        d = json.loads(t)
+        return d if isinstance(d, dict) else {}
+    except json.JSONDecodeError:
+        for riga in reversed(t.splitlines()):
+            riga = riga.strip()
+            if riga.startswith("{") and riga.endswith("}"):
+                try:
+                    d = json.loads(riga)
+                except json.JSONDecodeError:
+                    continue
+                if isinstance(d, dict) and ("result" in d or "type" in d or "is_error" in d):
+                    return d
+        raise
+
 class LLMBackend(ABC):
     name: str = "abstract"
     last_session_id: str | None = None  # set by session-aware backends
@@ -705,7 +729,7 @@ class ClaudeCodeBackend(LLMBackend):
             _metti_in_pausa(model_override)
             _emit_audit(outcome="error", response_text=None, error_class="ModelLimit")
             try:
-                _msg = str((json.loads((proc.stdout or "").strip() or "{}")).get("result") or "")[:90]
+                _msg = str(_json_cli(proc.stdout).get("result") or "")[:90]
             except Exception:  # noqa: BLE001
                 _msg = (proc.stderr or proc.stdout or "")[:90].replace("\n", " ")
             log.warning("Tetramorph: limite di %s raggiunto («%s») — %s passa a %s per %d min",
@@ -784,7 +808,7 @@ class ClaudeCodeBackend(LLMBackend):
             # consumo registrato. La CLI dice il motivo nel JSON («terminal_reason»: budget_exhausted = tetto di spesa
             # finito, rc 1) e il costo già speso: si scrivono entrambi, così si misura invece di indovinare
             try:
-                _dati_err = json.loads((proc.stdout or "").strip() or "{}")
+                _dati_err = _json_cli(proc.stdout)
                 _dati_err = _dati_err if isinstance(_dati_err, dict) else {}
             except (json.JSONDecodeError, ValueError):
                 _dati_err = {}
@@ -799,7 +823,7 @@ class ClaudeCodeBackend(LLMBackend):
                 proc.returncode, proc.stdout, proc.stderr))
 
         try:
-            data = json.loads(proc.stdout.strip() or "{}")
+            data = _json_cli(proc.stdout)
         except json.JSONDecodeError as exc:
             _emit_audit(outcome="error", response_text=None,
                         error_class="JSONDecodeError")
@@ -1175,7 +1199,7 @@ class ClaudeCodeBackend(LLMBackend):
                 f"{proc.stderr[-400:].strip() or proc.stdout[-400:].strip()}"
             )
         try:
-            data = json.loads(proc.stdout.strip() or "{}")
+            data = _json_cli(proc.stdout)
         except json.JSONDecodeError as exc:
             raise RuntimeError(
                 f"Tetramorph OCR non-JSON output: {proc.stdout[:400]}"

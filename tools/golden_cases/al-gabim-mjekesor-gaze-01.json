@@ -1,0 +1,52 @@
+{
+  "id": "al-gabim-mjekesor-gaze-01",
+  "jurisdiction": "AL",
+  "title": "Gabim mjekësor: gazë e lënë në bark, spital publik",
+  "question": "Klientes sime i lanë një gazë në bark gjatë një operacioni në spitalin rajonal publik; u desh një ndërhyrje e dytë dhe ka pasur dhimbje dhe mungesë nga puna për tre muaj. Kë padisim, çfarë dëmi kërkojmë, brenda çfarë afati, dhe a ka përgjegjësi penale për mjekun?",
+  "facts": "Operacion në spital publik, gazë e harruar, ndërhyrje e dytë, 3 muaj paaftësi për punë.",
+  "expected_laws": [
+    {
+      "code": "kodi_civil",
+      "number": "608"
+    },
+    {
+      "code": "kodi_civil",
+      "number": "618"
+    },
+    {
+      "code": "kodi_civil",
+      "number": "641"
+    },
+    {
+      "code": "kodi_civil",
+      "number": "625"
+    },
+    {
+      "code": "kodi_civil",
+      "number": "115"
+    },
+    {
+      "code": "kodi_penal",
+      "number": "96"
+    }
+  ],
+  "must_not_cite": [
+    {
+      "code": "kodi_civil",
+      "number": "621"
+    }
+  ],
+  "key_points": [
+    "(3|tre|tri) vjet",
+    "618|punëdhënës",
+    "96"
+  ],
+  "verdict_expect": "po — padi kundër spitalit (KC 618) dhe mjekut (KC 608); dëmi në shëndet KC 641 + jopasuror KC 625; 3 vjet nga dijenia (KC 115/dh); KP 96 me ekspertizë mjeko-ligjore",
+  "expected_issues": [
+    "përgjegjësia e spitalit për mjekun",
+    "afati 3 vjet",
+    "neglizhenca në trajtimin mjekësor"
+  ],
+  "notes": "SEED dalla prova viva del 11 ott 2026 (v9.612-613: percorso profondo 29 min, il Giudice correggeva KC 618 e KP 66) — da validare.",
+  "validated_by": null
+}

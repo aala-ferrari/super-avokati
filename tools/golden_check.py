@@ -8815,7 +8815,10 @@ def main():
         finally:
             _w298.pro_mod.render_act_docx = _r0
         _resti298 = list((_w298.APP_DB_PATH.parent / "exports").glob(".exp-*.docx"))
-        _src298 = __import__("inspect").getsource(_w298.api_export_case)
+        # v9.625: il Markdown e il JSON del fascicolo stanno in `_esporta_md_caso` / `_esporta_json_caso` (comuni con «Scarica i miei
+        # dati»): si leggono le due funzioni
+        _src298 = (__import__("inspect").getsource(_w298.api_export_case)
+                   + __import__("inspect").getsource(_w298._esporta_md_caso))
         _js298 = __import__("pathlib").Path("/app/static/app.js").read_text(encoding="utf-8")
         check("export[298]: docx in memoria senza resti, nome con le accentate, Markdown e HTML nella lingua della sessione",
               _n298 == "Parere sulla responsabilità civile" and _b298.getvalue() == b"PK-docx-T298" and not _resti298
@@ -11599,6 +11602,31 @@ def main():
               "fascicolo singolo esporta come prima; voce nel menu", _ok400 and _ok400ui, repr((_r400.status_code, _nomi400))[:300])
     except Exception as _e400:  # noqa: BLE001
         check("export[400]: kontrollet u ekzekutuan", False, f"{type(_e400).__name__}: {_e400}")
+
+    # [401] v9.626 — l'uscita JSON del CLI letta anche con righe d'avviso davanti (Sonnet 5.5 sul CLI 2.1.282 stampa prima
+    # «[claude-code:unrecognized_model] {...}»: `json.loads` di tutto cadeva e la chiamata finiva in errore con la risposta pronta)
+    try:
+        import json as _js401
+        from src import backends as _bk401
+        _r1 = _bk401._json_cli('[claude-code:unrecognized_model] {"model":"claude-sonnet-5-5"}\n{"type":"result","result":"PRONTO","is_error":false}')
+        _r2 = _bk401._json_cli('{"result":"ok"}')
+        try:
+            _bk401._json_cli("nessun json")
+            _r3 = False
+        except _js401.JSONDecodeError:
+            _r3 = True
+        _src401 = open("/app/src/backends.py", encoding="utf-8").read()
+        check("cli[401]: l'ultima riga JSON dell'uscita del CLI vale anche con avvisi davanti; nessuna lettura fragile rimasta",
+              _r1.get("result") == "PRONTO" and _r2 == {"result": "ok"} and _bk401._json_cli("") == {} and _r3
+              and "json.loads(proc.stdout" not in _src401 and 'json.loads((proc.stdout or "")' not in _src401, repr((_r1, _r2, _r3)))
+        # e il senior dei casi difficili non apre i PDF interi dei codici (contesto fino a 1.019.487 token l'11 ott: il testo dei
+        # nene è già nel blocco)
+        from src import brain as _br401
+        check("cli[401]: il budget di ricerca vieta il PDF intero di un codice (sq e it)",
+              "MOS hap PDF-në e plotë të një kodi" in _br401.ANSWER_SYSTEM
+              and "NON aprire il\nPDF intero di un codice" in _br401.JURISDICTION_OVERRIDE_IT)
+    except Exception as _e401:  # noqa: BLE001
+        check("cli[401]: kontrollet u ekzekutuan", False, f"{type(_e401).__name__}: {_e401}")
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
