@@ -419,6 +419,19 @@ _RINVIO_IT_IMPL = re.compile(
 _OBJ_CACHE: dict = {}
 
 
+# v9.614 — un rinvio dentro una frase che ESCLUDE l'applicazione non va seguito: il KP 66 (prescrizione penale) chiude con «Veprat
+# penale të kreut II, seksionit I, nenet 76 - 79/c, nuk i nënshtrohen parashkrimit» e il rinvio portava il KP 76 (genocidio) nel blocco del
+# furto di sei anni fa (banco AL a triage fisso, giro 41). Solo albanese: «nuk zbatohen / nuk i nënshtrohen / nuk shtrihen» nella stessa
+# frase (fra «.» o «;» seguiti da uno spazio) del numero citato
+_RINVIO_NEGATO_AL = re.compile(r"\bnuk\s+(?:i\s+|u\s+)?(?:zbatohe|nënshtrohe|nenshtrohe|shtrihe|aplikohe)", re.I)
+
+
+def _in_frase_negata_al(t: str, pos: int) -> bool:
+    ini = max(t.rfind(". ", 0, pos), t.rfind("; ", 0, pos), t.rfind(".\n", 0, pos), t.rfind(";\n", 0, pos))
+    fine = min([x for x in (t.find(". ", pos), t.find("; ", pos), t.find(".\n", pos), t.find(";\n", pos)) if x >= 0] or [len(t)])
+    return bool(_RINVIO_NEGATO_AL.search(t[ini + 1: fine + 1]))
+
+
 def _rinvii_interni(index, arts, lang, max_add=4, gia=None):
     key = id(index)
     obj = _OBJ_CACHE.get(key)
@@ -430,6 +443,8 @@ def _rinvii_interni(index, arts, lang, max_add=4, gia=None):
     out = []
     for c, n, t in arts[:10]:
         for m in (mm for rx in rxs for mm in rx.finditer(t or "")):
+            if lang != "it" and _in_frase_negata_al(t or "", m.start()):
+                continue
             k = (c, m.group(1).replace(" ", "").lower() if lang != "it" else m.group(1).lower())
             a = obj.get(k)
             if a is None or getattr(a, "repealed", False) or k in seen:

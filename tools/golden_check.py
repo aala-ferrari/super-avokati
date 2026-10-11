@@ -11092,6 +11092,38 @@ def main():
     except Exception as _e387:  # noqa: BLE001
         check("mjek[387]: kontrollet u ekzekutuan", False, f"{type(_e387).__name__}: {_e387}")
 
+    # [388] v9.614 — la CONVIVENZA (KF 163/164, coi beni KC 655 in coda; mai nel penale), la PRESCRIZIONE PENALE (KP 66; KP 68 per la pena
+    # non eseguita; mai la prescrizione civile di un debito), e il capo X del KPC (durata irragionevole del processo) solo quando la
+    # domanda ne parla
+    try:
+        from src import brain as _br388
+        from src.retrieval import ArticleIndex as _AI388
+        _br388.set_request_jurisdiction("AL")
+        _al388 = _AI388.load()
+        _k388 = lambda q, aree: {(a.code, str(a.number)) for a, _ in _br388._applica_ancore([], _al388, ["pyetje", q], aree)}
+        _ok388a = ({("kodi_familjes", "163"), ("kodi_familjes", "164"), ("kodi_civil", "655")} <= _k388(
+            "Klientja bashkëjetoi 10 vjet me partnerin pa u martuar dhe blenë një shtëpi në emrin e tij. A ka të drejtë?", ["Familje", "Civil"])
+            and ("kodi_familjes", "163") not in _k388("Ish-bashkëjetuesi e rrahu klienten dhe e kërcënoi.", ["Penal"]))
+        _ok388b = (("kodi_penal", "66") in _k388("Klienti kreu një vjedhje para gjashtë vitesh. A ka rënë vepra në parashkrim?", ["Penal"])
+                   and ("kodi_penal", "68") in _k388("Dënimi nuk u ekzekutua kurrë: a është parashkruar ekzekutimi i dënimit?", ["Penal"])
+                   and ("kodi_penal", "66") not in _k388("Klienti ka një borxh nga viti 2012. A ka rënë në parashkrim?", ["Civil"]))
+        _x388 = [a for a in _al388.articles if a.code == "kodi_proc_civile" and "AFATIT TË ARSYESHËM" in (getattr(a, "kreu", "") or "")][:3]
+        _p388 = [(a, 1.0) for a in _x388]
+        _ok388c = (len(_x388) == 3
+                   and not _br388._senza_afati_arsyeshem_al(_p388, "Fqinji ka lidhur kanalizimin në oborrin e klientit. Çfarë mund të bëjmë?")
+                   and len(_br388._senza_afati_arsyeshem_al(_p388, "Gjykimi i çështjes zgjat prej 7 vitesh. A mund të kërkojmë shpërblim?")) == 3)
+        # … e il rinvio dentro una frase che ESCLUDE l'applicazione non si segue: KP 66 «nenet 76 - 79/c, nuk i nënshtrohen parashkrimit»
+        # non porta l'omicidio (KP 76) nel blocco del furto; un rinvio normale sì
+        from src import expertise as _ex388
+        _kp66 = next(a for a in _al388.articles if a.code == "kodi_penal" and str(a.number) == "66")
+        _r388 = _ex388._rinvii_interni(_al388, [("kodi_penal", "66", _kp66.body or "")], "sq", max_add=4)
+        _r388b = _ex388._rinvii_interni(_al388, [("kodi_penal", "999", "Dënohet sipas nenit 134 të këtij Kodi.")], "sq", max_add=4)
+        _ok388d = (not any(str(n) == "76" for _c, n, _t in _r388) and any(str(n) == "134" for _c, n, _t in _r388b))
+        check("bashkejetesa[388]: convivenza KF 163/164 (+ KC 655), prescrizione penale KP 66/68 mai civile, durata del processo solo se "
+              "chiesta, rinvio negato non seguito", _ok388a and _ok388b and _ok388c and _ok388d, f"{_ok388a} {_ok388b} {_ok388c} {_ok388d}")
+    except Exception as _e388:  # noqa: BLE001
+        check("bashkejetesa[388]: kontrollet u ekzekutuan", False, f"{type(_e388).__name__}: {_e388}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

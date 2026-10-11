@@ -165,6 +165,22 @@ _MJEK_JASHTE_AL = (r"(?s)^(?=.*(?:punëdhënës|punedhenes|(?:pushoi|pushua|push
                    r"^(?=.*(?:aksident|përplas|perplas|u\s+godit))(?!.*(?:gabim|gabo|gabu|pakujdesi|neglizhenc|malpraktik)).*$|"
                    r"mjek\w*[\s-]+ligj\w*|raport\w*\s+mjek\w*|v[ëe]rtetim\w*\s+mjek\w*|mjek\w*\s+i\s+pun[ëe]s|"
                    r"operacion\w*\s+(?:policor|bankar|financiar|tregtar|doganor|ushtarak|kompjuterik)\w*")
+# v9.614 — la CONVIVENZA senza matrimonio (giro 41: «bashkëjetoi 10 vjet me partnerin pa u martuar … shtëpia në emrin e tij»): il
+# blocco era tutto del regime patrimoniale dei CONIUGI (KF 76-122), mai il KF 163 (cos'è la convivenza: un'unione di fatto stabile) né
+# il 164 (gli effetti su figli e beni solo con un accordo davanti al notaio); per i beni, in coda, il KC 655 (l'arricchimento senza
+# causa: chi ha pagato senza essere intestatario)
+_BASHKEJETESA_AL = ("bashkëjet", "bashkejet", "pa u martuar", "të pamartuar", "te pamartuar", "jo të martuar", "jo te martuar",
+                    "bashkim fakti", "bashkimi i fakti", "bashkim de facto", "konkubin")
+_BASHKEJETESA_PASURI_AL = tuple((b, p) for b in _BASHKEJETESA_AL
+                                for p in ("shtëpi", "shtepi", "apartament", "banes", "pasuri", "bler", "blenë", "blene", "kontribu",
+                                          "paguan", "pagoi", "para "))
+# v9.614 — la PRESCRIZIONE PENALE (KP 66: dalla commissione del fatto finché la persona diventa imputato; giro 41 e prova viva
+# dell'errore medico dell'11 ott: il senior scriveva «afatin nuk e gjej» e il KP 66 l'ha portato il diavolo). Il KP 66 ha il testo
+# nella rubrica (prima frase) e la ricerca gli mette davanti il KP 67 (i crimini di guerra imprescrittibili). Solo dalla domanda e
+# nel penale; il KP 68 (prescrizione dell'ESECUZIONE della pena) se la domanda parla della pena non eseguita
+_PARASHKRIM_PENAL_AL = (tuple(("parashkr", x) for x in ("vepr", "ndjek", "penal", "kallëz", "kallez", "pandehur", "prokurori",
+                                                          "akuz", "dënim", "denim"))
+                        + ("ndiqet ende", "ndiqet akoma", "ndiqet më ", ("mund të ndiqet", "vjet"), ("mund te ndiqet", "vjet")))
 # v9.613 — il genitore che vuole portare il FIGLIO a vivere all'ESTERO senza il consenso dell'altro: KF 221 (i genitori non sono d'accordo
 # → decide il tribunale nell'interesse del figlio, dopo il tentativo di conciliazione) e KF 222 (solo l'atto «abituale» si presume fatto
 # col consenso dell'altro genitore: trasferirsi all'estero non lo è). Giro 39 del banco: KF 221 al 12° posto, sul filo del taglio.
@@ -260,6 +276,13 @@ ANCORE_AL: tuple = (
     # questa norma («mungon norma bazë… kë padisim») e aggiungeva al suo posto KC 621 (animali) e 613 (minori)
     (_MJEK_INNESCHI_AL + _MJEK_VDEKJE_AL, (), (("kodi_civil", "625"), ("kodi_civil", "618"), ("kodi_civil", "115")), _MJEK_JASHTE_AL, None, True,
      "coda"),
+    # v9.614 — la convivenza senza matrimonio (`_BASHKEJETESA_AL`): KF 163 e 164; coi beni in coda il KC 655 (arricchimento senza causa)
+    (_BASHKEJETESA_AL, ("Penal",), (("kodi_familjes", "163"), ("kodi_familjes", "164")), None, None, True),
+    (_BASHKEJETESA_PASURI_AL, ("Penal",), (("kodi_civil", "655"),), None, None, True, "coda"),
+    # v9.614 — la prescrizione penale (`_PARASHKRIM_PENAL_AL`): KP 66; KP 68 per la pena non eseguita
+    (_PARASHKRIM_PENAL_AL, (), (("kodi_penal", "66"),), None, ("Penal",), True),
+    ((("parashkr", "ekzekut", "dënim"), ("parashkr", "ekzekut", "denim"), ("parashkr", "vuajt", "dënim")), (), (("kodi_penal", "68"),),
+     None, ("Penal",), True),
     # v9.613 — il figlio portato a vivere all'estero senza il consenso dell'altro genitore: KF 221 e 222 (vedi `_FEMIJE_JASHTE_AL`)
     (_FEMIJE_JASHTE_AL, ("Penal",), (("kodi_familjes", "221"), ("kodi_familjes", "222")), r"(?s)^(?=.*bir[ëe]s).*$", None, True),
     # v9.611 — il DEBITORE davanti all'esecuzione forzata (la banca che esegue l'ipoteca, l'ufficiale giudiziario): KPC 510 (i titoli
@@ -1621,6 +1644,28 @@ def _senza_nullita_matrimonio_al(pairs, testo: str):
     if not fuori:
         return pairs
     log.info("retrieval: nullità del matrimonio fuori (non nella domanda): %s", ", ".join(f"{a.code} {a.number}" for a in fuori[:8]))
+    _via = {id(a) for a in fuori}
+    return [(a, s) for a, s in pairs if id(a) not in _via]
+
+
+# v9.614 — il capo X del K.Pr.C. (artt. 399/1-399/11: il risarcimento per la DURATA IRRAGIONEVOLE del processo, il «Pinto» albanese)
+# fuori dalle domande che non parlano di un processo o di un'esecuzione che durano troppo. Letti i blocchi del banco AL a triage fisso
+# (136 domande): entrava in 5, nessuna sulla durata del processo — la fogna del vicino, la diagnosi sbagliata, i termini d'appello, la
+# detenzione ingiusta (lì il KPP 268-269) — preso per «dëm», «afat», «shpërblim»
+_AFATI_ARSYESHEM_RX = re.compile(
+    r"afat\w*\s+(?:i\s+|të\s+|te\s+)?arsyesh|kohëzgjatj|kohezgjatj|"
+    r"(?:gjykim|gjyq|proces|çështj|ceshtj|ekzekut)\w*.{0,50}(?:zgjat|vonu|vonon|vones|nuk\s+po\s+përfundon|nuk\s+po\s+perfundon|"
+    r"nuk\s+ka\s+përfunduar|nuk\s+ka\s+perfunduar|prej\s+\d+\s+vit|prej\s+vitesh|me\s+vite)|"
+    r"(?:zgjat|vonu|vonon|vones)\w*.{0,50}(?:gjykim|gjyq|proces|çështj|ceshtj|ekzekut)", re.I | re.S)
+
+
+def _senza_afati_arsyeshem_al(pairs, testo: str):
+    if _AFATI_ARSYESHEM_RX.search(testo or ""):
+        return pairs
+    fuori = [a for a, _ in pairs if a.code == "kodi_proc_civile" and "AFATIT TË ARSYESHËM" in (getattr(a, "kreu", "") or "")]
+    if not fuori:
+        return pairs
+    log.info("retrieval: durata irragionevole del processo fuori (non nella domanda): %s", ", ".join(f"{a.code} {a.number}" for a in fuori[:8]))
     _via = {id(a) for a in fuori}
     return [(a, s) for a, s in pairs if id(a) not in _via]
 
@@ -5648,6 +5693,7 @@ class SuperAvvocato:
                 nuovo = _senza_codice_minori(nuovo, _t, triage.areas)
                 if idx is self.index:
                     nuovo = _senza_tutela_al(nuovo, _t)
+                    nuovo = _senza_afati_arsyeshem_al(nuovo, _t)                                     # v9.614
                     nuovo = _senza_codici_condizionati_al(nuovo, _t)
                 else:
                     nuovo = _senza_diritto_straniero(nuovo, _t, triage.areas)
@@ -6652,6 +6698,7 @@ class SuperAvvocato:
         if idx is self.index:
             pairs = _senza_tutela_al(pairs, _testo_anc[-1] or " ".join(_testo_anc))                                # v9.581
             pairs = _senza_nullita_matrimonio_al(pairs, _testo_anc[-1] or " ".join(_testo_anc))                   # v9.607
+            pairs = _senza_afati_arsyeshem_al(pairs, _testo_anc[-1] or " ".join(_testo_anc))                     # v9.614
             pairs = _senza_codici_condizionati_al(pairs, _testo_anc[-1] or " ".join(_testo_anc))                  # v9.587
             pairs = _applica_ancore(pairs, idx, _testo_anc, triage.areas)
             pairs = _ancore_narkotike_al(pairs, idx, _testo_anc, triage.areas)      # v9.402
@@ -6678,6 +6725,7 @@ class SuperAvvocato:
         if idx is self.index:                       # v9.581 — anche qui: le ancore per titolo («Kujdestaria…») la riportavano dentro
             pairs = _senza_tutela_al(pairs, _testo_anc[-1] or " ".join(_testo_anc))
             pairs = _senza_nullita_matrimonio_al(pairs, _testo_anc[-1] or " ".join(_testo_anc))                   # v9.607
+            pairs = _senza_afati_arsyeshem_al(pairs, _testo_anc[-1] or " ".join(_testo_anc))                     # v9.614
             pairs = _senza_codici_condizionati_al(pairs, _testo_anc[-1] or " ".join(_testo_anc))   # v9.587: idem
         # v9.377: le ancore del veicolo extra-UE si AGGIUNGONO ai 12 (non devono spingere fuori il C.d.S. trovato dalla ricerca)
         _extra = sum(1 for a, _ in pairs if getattr(a, "_ancora_it", False))

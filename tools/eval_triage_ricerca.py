@@ -286,6 +286,12 @@ CASI = [  # (giurisdizione, domanda dell'avvocato, articoli di cui almeno uno DE
     # nella prova viva dell'errore medico (11 ott) il senior scriveva «afatin nuk e gjej» e il KP 66 l'ha portato il diavolo
     ("AL", "[frek41] Klienti kreu një vjedhje të vogël para gjashtë vitesh dhe tani prokuroria e thirri si të pandehur. A ka rënë vepra në parashkrim?", [("kodi_penal", "66")]),
     ("AL", "[frek41] Mjeku që e operoi gabim klienten para katër vjetësh a mund të ndiqet ende penalisht?", [("kodi_penal", "66"), ("kodi_penal", "96")]),
+    # v9.614 — giro 42: la durata IRRAGIONEVOLE del processo (KPC capo X, artt. 399/1-399/12: il filtro della v9.614 lo tiene SOLO
+    # quando la domanda ne parla; attese 399/4 — a quale tribunale — e 399/3 — il «shpërblim i drejtë» —, corrette dopo aver letto il
+    # capo: al primo giro avevo scritto 399/1, l'oggetto, e 399/6), la pena mai eseguita (KP 68), la convivenza con un figlio
+    ("AL", "[frek42] Gjykimi i çështjes civile të klientit zgjat prej 7 vitesh në shkallë të parë. A mund të kërkojë shpërblim për vonesën dhe ku?", [("kodi_proc_civile", "399/4"), ("kodi_proc_civile", "399/3")]),
+    ("AL", "[frek42] Klienti u dënua me 2 vjet burg në vitin 2015 dhe dënimi nuk u ekzekutua kurrë. A është parashkruar ekzekutimi i dënimit?", [("kodi_penal", "68")]),
+    ("AL", "[frek42] Klienti dhe partnerja jetojnë bashkë pa u martuar dhe kanë një fëmijë. Çfarë të drejtash kanë dhe si e mbrojnë pasurinë?", [("kodi_familjes", "163"), ("kodi_familjes", "164")]),
     ("IT", "[frek29] Dopo la separazione la figlia di 15 anni è stata collocata presso la madre, mia cliente. Ora la ragazza dice che vuole andare a vivere con il padre, che ha già annunciato un ricorso. Può decidere lei? Come difendiamo la madre e quali sono i tempi?", [("codice_procedura_civile", "473-bis.4"), ("codice_civile", "337-ter")]),
     # v9.589 — giro 30, l'INFORTUNIO SUL LAVORO: la domanda della prova dal browser del 10 ott (AL: il Giudice non trovava la norma sul
     # danno alla salute né la competenza) e la sua gemella italiana, col testo unico INAIL entrato nel corpus (wave13)
