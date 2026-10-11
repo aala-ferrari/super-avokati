@@ -5661,11 +5661,12 @@ class SuperAvvocato:
                 return answer_text
             from . import studio
             lang = "it" if self._current_jurisdiction() == "IT" else "sq"
+            _prec_blk = _format_precedents_block(precedents)     # v9.605: le stesse decisioni che ha letto il senior
             sez = studio.avokati_i_djallit(
                 self.backend, domanda=user_message,
                 blloku_neneve=_format_articles_for_prompt(retrieved),
                 pergjigja=answer_text, lang=lang,
-                modeli=STUDIO_DJALLI_MODEL, effort=STUDIO_DJALLI_EFFORT)
+                modeli=STUDIO_DJALLI_MODEL, effort=STUDIO_DJALLI_EFFORT, precedentet=_prec_blk)
             if not (sez or "").strip():
                 return answer_text
             sez = _apply_corrections(_verify_citations(sez, precedents))
@@ -5683,7 +5684,7 @@ class SuperAvvocato:
                     self.backend, domanda=user_message,
                     blloku_neneve=_format_articles_for_prompt(retrieved),
                     pergjigja=answer_text, sulmi=sez, lang=lang,
-                    modeli=_mendja, effort=_eff_rep)
+                    modeli=_mendja, effort=_eff_rep, precedentet=_prec_blk)
                 if risposta:
                     risposta = _apply_corrections(_verify_citations(risposta, precedents))
                     log.info("studio: seniori iu përgjigj sulmeve (%d shkronja)", len(risposta))
@@ -5702,14 +5703,14 @@ class SuperAvvocato:
                         self.backend, domanda=user_message,
                         blloku_neneve=_format_articles_for_prompt(retrieved),
                         pergjigja_v2=risposta, lang=lang,
-                        modeli=STUDIO_DJALLI_MODEL, effort=STUDIO_DJALLI_EFFORT)
+                        modeli=STUDIO_DJALLI_MODEL, effort=STUDIO_DJALLI_EFFORT, precedentet=_prec_blk)
                     if (_s2 or "").strip():
                         _s2 = _apply_corrections(_verify_citations(_s2, precedents))
                         _fin = studio.senior_pergjigjja(
                             self.backend, domanda=user_message,
                             blloku_neneve=_format_articles_for_prompt(retrieved),
                             pergjigja=answer_text, sulmi=_s2, lang=lang,
-                            modeli=_mendja, effort=_eff_rep, finale=True)
+                            modeli=_mendja, effort=_eff_rep, finale=True, precedentet=_prec_blk)
                         if _fin:
                             _fin = _apply_corrections(_verify_citations(_fin, precedents))
                             raund2 = _s2 + _fin
@@ -5890,7 +5891,8 @@ class SuperAvvocato:
                 return trust_line.inserisci_riga(answer_text, trust_line.riga(v1, lang, tempo=_tempo, coverage=_cov), "")
             _kw_gj = dict(domanda=user_message, blloku_neneve=_format_articles_for_prompt(retrieved),
                           pergjigja=answer_text, dosja=dosja_txt or "", lang=lang, fazat=fazat_txt or "",
-                          verifikimi=trust_line.blocco_per_gjyqtarin(v1, lang, coverage=_cov))
+                          verifikimi=trust_line.blocco_per_gjyqtarin(v1, lang, coverage=_cov),
+                          precedentet=_format_precedents_block(precedents))      # v9.605
             _usato_gj = _modeli_gj
             try:
                 vendim = studio.gjyqtari_fundit(self.backend, modeli=_modeli_gj, effort=STUDIO_GJYQTARI_EFFORT, **_kw_gj)
@@ -6470,6 +6472,7 @@ class SuperAvvocato:
         # widens to unfiltered if that returns nothing (legal questions
         # often cross domains).
         case_type_hint = _area_to_case_type(triage.areas)
+        _testi_p = [getattr(triage, "domanda", "") or ""] + queries          # v9.605: il passo del ragionamento sulla domanda
 
         if case_type_hint:
             hits = self.kb.search(
@@ -6477,10 +6480,10 @@ class SuperAvvocato:
                 cited_articles=cited_articles,
             )
             if hits:
-                return hits
-        return self.kb.search(
+                return _con_passi(hits, _testi_p)
+        return _con_passi(self.kb.search(
             queries, top_k=TOP_K_DECISIONS, cited_articles=cited_articles,
-        )
+        ), _testi_p)
 
     def _retrieve_adverse_precedents(
         self,
@@ -6509,11 +6512,12 @@ class SuperAvvocato:
                 queries.append(angle)
         case_type_hint = _area_to_case_type(triage.areas)
         kwargs = dict(top_k=5, outcomes=_LOSING_OUTCOMES, cited_articles=cited_articles)
+        _testi_p = [getattr(triage, "domanda", "") or ""] + queries          # v9.605: per distinguere serve il ragionamento
         if case_type_hint:
             hits = self.kb.search(queries, type=case_type_hint, **kwargs)
             if hits:
-                return hits
-        return self.kb.search(queries, **kwargs)
+                return _con_passi(hits, _testi_p)
+        return _con_passi(self.kb.search(queries, **kwargs), _testi_p)
 
     # ── stage 3: strategic analysis ───────────────────────────────────────
 
@@ -6836,6 +6840,7 @@ class SuperAvvocato:
                 f"── VENDIM ID={c.id}\n"
                 f"   {c.citation} ({date_str}) — OUTCOME: {c.outcome or 'unknown'}\n"
                 f"   Përmbledhje: {(c.summary or '')[:360]}\n"
+                + (f"   Pasazh nga arsyetimi: «{c._passo}»\n" if getattr(c, "_passo", "") else "")      # v9.605
                 + (f"   Nenet e cituara: {arts}\n" if arts else "")
             )
         adverse_block = "\n".join(lines)
@@ -9334,6 +9339,25 @@ def _precedente_te_lidhur(pairs, cited, sa: int = 3):
     return out
 
 
+def _con_passi(hits, testi):
+    """v9.605 — per ogni precedente albanese scelto, una COPIA col passo del ragionamento pertinente alla domanda (`_passo`). Copia,
+    mai l'oggetto dell'indice: sei richieste girano insieme e il passo di una domanda non deve finire nel blocco di un'altra."""
+    try:
+        from .retrieval_kb import passo_pertinente
+    except Exception:  # noqa: BLE001
+        return hits
+    out = []
+    for c, s in hits or []:
+        passo = passo_pertinente(c, testi)
+        if passo:
+            c2 = _copy.copy(c)
+            c2._passo = passo  # type: ignore[attr-defined]
+            out.append((c2, s))
+        else:
+            out.append((c, s))
+    return out
+
+
 def _format_precedents_block(pairs: list[tuple[CasePrecedent, float]]) -> str:
     """Render the top precedents so the model can cite them precisely.
 
@@ -9358,7 +9382,8 @@ def _format_precedents_block(pairs: list[tuple[CasePrecedent, float]]) -> str:
            "forza": "Forza/trattamento", "sintesi": "Sintesi", "articoli": "Articoli citati", "collegio": "Collegio"}
           if _it else
           {"testa": "── VENDIME RELEVANTE TË GJYKATAVE (precedent nga KB) ──", "forza": "Forca/trajtimi",
-           "sintesi": "Përmbledhje", "articoli": "Nenet e cituara", "collegio": "Trupi gjykues"})
+           "sintesi": "Përmbledhje", "articoli": "Nenet e cituara", "collegio": "Trupi gjykues",
+           "passo": "Pasazh nga arsyetimi i gjykatës (zgjedhur sipas pyetjes — citoje vendimin VETËM për atë që thotë ky tekst)"})
     lines = ["", _L["testa"]]
     for c, score in pairs:
         outcome = f" — {c.outcome}" if c.outcome else ""
@@ -9382,6 +9407,8 @@ def _format_precedents_block(pairs: list[tuple[CasePrecedent, float]]) -> str:
         if c.summary:
             # la Cassazione porta il PASSO del testo integrale: deve arrivare intero al senior (non tagliato a 260)
             lines.append(f"    {_L['sintesi']}: {c.summary[:900 if c.court_code == 'Cass' else 260]}")
+        if getattr(c, "_passo", "") and _L.get("passo"):
+            lines.append(f"    {_L['passo']}: «{c._passo}»")         # v9.605
         if getattr(c, "dispositivo", ""):
             # v9.463: ciò che la Corte ha DECISO (accoglie, non fondata «nei sensi di cui in motivazione», inammissibile…): senza,
             # il modello leggeva solo un passo della motivazione e non sapeva come era finita

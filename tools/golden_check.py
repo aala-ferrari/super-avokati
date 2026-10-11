@@ -10814,6 +10814,49 @@ def main():
     except Exception as _e379:  # noqa: BLE001
         check("lingua[379]: kontrollet u ekzekutuan", False, f"{type(_e379).__name__}: {_e379}")
 
+    # [380] v9.605 — i precedenti albanesi portano il PASSO del ragionamento pertinente alla domanda (dal ragionamento compresso, mai
+    # sull'oggetto dell'indice), e lo stesso blocco delle decisioni arriva al diavolo, alla replica, al secondo round e al Giudice
+    try:
+        import inspect as _in380, zlib as _z380, copy as _cp380
+        from src import retrieval_kb as _kb380, studio as _st380, brain as _br380
+        _br380.set_request_jurisdiction("AL")
+        _rag380 = ("1. Paditësi kërkon shpërblim për zgjidhjen e kontratës.\n\n"
+                   "2. Kolegji vlerëson se gjykata e apelit ka zbatuar drejt ligjin procedural për njoftimin e palëve.\n\n"
+                   "3. Kolegji çmon se zgjidhja e menjëhershme e kontratës së punës pa shkak të justifikuar, pa respektuar afatin e "
+                   "njoftimit, i jep punëmarrësit të drejtën e pagës së afatit të njoftimit dhe dëmshpërblimin deri në një vit pagë, "
+                   "sipas nenit 155 të Kodit të Punës; padia ngrihet brenda 180 ditëve.\n\n"
+                   "4. Për këto arsye vendimi lihet në fuqi.")
+        _p380 = _kb380.CasePrecedent(id=1, court_code="gjykata_elarte", court_name="GjL", court_level="larte", case_number="00-2024-1",
+                                     decision_date=None, type="civil", subtype=None, outcome="rrëzim",
+                                     summary="Zgjidhje kontrate pune", excerpt="")
+        _p380._reasoning_z = _z380.compress(_rag380.encode("utf-8"))
+        _q380 = ["Klienti u largua nga puna pa paralajmërim pas 6 vitesh: çfarë shpërblimi i takon?", "zgjidhja e menjëhershme pa shkak"]
+        _pa380 = _kb380.passo_pertinente(_p380, _q380)
+        _okA380 = ("neni" in _pa380.lower() or "155" in _pa380) and "njoftimin e palëve" not in _pa380 and len(_pa380) <= 905
+        _okB380 = _kb380.passo_pertinente(_p380, ["parashikim i motit dhe stinët"]) == ""          # fuori tema: niente passo
+        _h380 = _br380._con_passi([(_p380, 1.0)], _q380)
+        _okC380 = (_h380[0][0] is not _p380 and getattr(_h380[0][0], "_passo", "") and not hasattr(_p380, "_passo")
+                   and "Pasazh nga arsyetimi" in _br380._format_precedents_block(_h380))
+        class _BE380:
+            def __init__(self): self.u = []
+            def complete(self, system=None, messages=None, **k):
+                self.u.append(" ".join(m.get("content", "") for m in (messages or []) if isinstance(m, dict)))
+                return "ok"
+        _be380 = _BE380()
+        _blk380 = _br380._format_precedents_block(_h380)
+        _st380.gjyqtari_fundit(_be380, domanda="q", blloku_neneve="n", pergjigja="r", lang="sq", precedentet=_blk380)
+        _st380.avokati_i_djallit(_be380, domanda="q", blloku_neneve="n", pergjigja="r", lang="sq", precedentet=_blk380)
+        _okD380 = len(_be380.u) >= 2 and all("VENDIMET E GJYKATAVE QË LEXOI SENIORI" in u and "Pasazh nga arsyetimi" in u for u in _be380.u[-2:])
+        _src380 = _in380.getsource(_br380.SuperAvvocato._gjyqtari_fundit) + _in380.getsource(_br380.SuperAvvocato._studio_djalli)
+        _okE380 = ("precedentet=_format_precedents_block(precedents)" in _src380 and _src380.count("precedentet=_prec_blk") >= 4
+                   and "_con_passi(" in _in380.getsource(_br380.SuperAvvocato._retrieve_precedents)
+                   and "_con_passi(" in _in380.getsource(_br380.SuperAvvocato._retrieve_adverse_precedents))
+        check("precedenti[380]: passo del ragionamento pertinente (copia, mai l'indice; niente passo fuori tema) e le stesse decisioni "
+              "a diavolo, replica, secondo round e Giudice", _okA380 and _okB380 and _okC380 and _okD380 and _okE380,
+              "A=%s %r B=%s C=%s D=%s E=%s" % (_okA380, _pa380[:80], _okB380, _okC380, _okD380, _okE380))
+    except Exception as _e380:  # noqa: BLE001
+        check("precedenti[380]: kontrollet u ekzekutuan", False, f"{type(_e380).__name__}: {_e380}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import os
 import re
+import zlib
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import date
@@ -398,6 +399,15 @@ def _pickle_to_precedent(d: dict, idx: int) -> CasePrecedent:
     )
     # v9.367: il BM25 dei precedenti legge il ragionamento VERO (dal Kolegji) e il dispositivo, non 500 chr di testa
     p._bm25_text = " ".join(x for x in ((d.get("objekti") or ""), _disp, (d.get("reasoning") or "")[:3000]) if x)
+    # v9.605 — il RAGIONAMENTO intero, compresso (66 MB di testo per 4.017 decisioni: ~4 volte meno compresso), aperto solo per i
+    # precedenti scelti a ogni domanda: il senior riceveva l'oggetto della causa e l'esito, MAI ciò che la corte ha ragionato, e il
+    # Giudice scriveva «le posizioni attribuite ai precedenti non sono nei materiali» (prove vive del 10-11 ott)
+    _rag = d.get("reasoning") or ""
+    if _rag:
+        try:
+            p._reasoning_z = zlib.compress(_rag.encode("utf-8"), 3)
+        except Exception:  # noqa: BLE001
+            pass
     # v9.372: le CEDU sono in inglese/francese e l'avvocato cerca in shqip («tortura në polici») → per le parole si
     # aggiunge il NOME albanese degli articoli della Convenzione che la decisione cita (dai metadati HUDOC). Solo
     # per la ricerca: nulla di questo si mostra.
@@ -432,6 +442,81 @@ _KONVENTA_SQ = {
     "P7-4": "e drejta për të mos u gjykuar ose dënuar dy herë",
     "35": "kushtet e pranueshmërisë shterimi i mjeteve të brendshme",
 }
+
+
+# v9.605 — il PASSO del ragionamento più vicino alla domanda (deterministico, nessuna chiamata al modello): i paragrafi del
+# ragionamento, contate le radici di 5 lettere (diacritici piegati) in comune con la domanda e le query, tolte le parole che stanno
+# in ogni sentenza; vince il paragrafo con più radici distinte (almeno due), allungato col seguente se corto, tagliato a fine frase
+_PASSO_GENERICHE = frozenset("""gjyka gjyki koleg vendi nenit nenin nenet ligji ligjt kodit padit padis pales palet palen kerke kerku
+cesht rasti rastn sipas eshte kesaj ketij kete duhet lidhj prand megji gjith nderm perka paras mbeti mbete pasta tjeter tjera
+ankim ankue apeli gjyqe proce shkal kerko arsye arsyet fakti fakte provo prova sepse keshtu kryer bazen bazuar konst vleresp
+vlere vlers lartë larte shqip shtet republ kushte rrethi cfare thote brend padia ishte kisht vetem gjate pjese
+menyr duhen behet klien""".split())
+
+
+def _radici_passo(testo: str) -> set:
+    from src.retrieval import fold_sq
+    out = set()
+    for w in re.findall(r"[a-zë-ü]{5,}", fold_sq((testo or "").lower())):
+        rr = w[:5]
+        if rr not in _PASSO_GENERICHE:
+            out.add(rr)
+    return out
+
+
+def passo_pertinente(prec, testi, max_chars: int = 900, min_radici: int = 2) -> str:
+    """Il paragrafo del ragionamento di `prec` più vicino a `testi` = [domanda dell'avvocato, query del triage…], o «» se nessuno
+    supera la soglia (meglio niente che un passo fuori tema). Le radici della DOMANDA pesano doppio e almeno una deve esserci (le
+    query del triage da sole portavano paragrafi procedurali: «neni 467 KPC» in una causa di sfratto); una radice vale anche dentro
+    una parola composta («shpërblim» in «dëmshpërblimin»). Mai solleva."""
+    try:
+        z = getattr(prec, "_reasoning_z", None)
+        if not z:
+            return ""
+        from src.retrieval import fold_sq
+        rag = zlib.decompress(z).decode("utf-8", "replace")
+        testi = [t for t in (testi or [])]
+        q_dom = _radici_passo(testi[0]) if testi else set()
+        q_tri = set()
+        for t in testi[1:]:
+            q_tri |= _radici_passo(t)
+        q_tri -= q_dom
+        if len(q_dom | q_tri) < min_radici:
+            return ""
+        par = [x.strip() for x in re.split(r"\n\s*\n|\n(?=\s*\d{1,3}\.\s)", rag) if x and x.strip()]
+        if len(par) <= 2:                    # un muro di testo: a pezzi di ~600 caratteri, a fine frase
+            par, cur = [], ""
+            for fr in re.split(r"(?<=[.;])\s+", rag):
+                cur = (cur + " " + fr).strip()
+                if len(cur) >= 600:
+                    par.append(cur); cur = ""
+            if cur:
+                par.append(cur)
+        best_s, best_i = -1, -1
+        for i, p_ in enumerate(par):
+            if len(p_) < 60:
+                continue
+            f = fold_sq(p_.lower())
+            k_q = sum(1 for r_ in q_dom if r_ in f)
+            k_t = sum(1 for r_ in q_tri if r_ in f)
+            if (q_dom and k_q < 1) or k_q + k_t < min_radici:
+                continue
+            sc = 2 * k_q + k_t
+            if sc > best_s:
+                best_s, best_i = sc, i
+        if best_i < 0:
+            return ""
+        txt = par[best_i]
+        if len(txt) < 300 and best_i + 1 < len(par):
+            txt = txt + " " + par[best_i + 1]
+        txt = re.sub(r"\s+", " ", txt).strip()
+        if len(txt) > max_chars:
+            cut = txt[:max_chars]
+            j = max(cut.rfind(". "), cut.rfind("; "))
+            txt = (cut[: j + 1] if j > max_chars * 0.5 else cut.rstrip()) + " …"
+        return txt
+    except Exception:  # noqa: BLE001
+        return ""
 
 
 def _load_precedents_from_pickle() -> list[CasePrecedent]:

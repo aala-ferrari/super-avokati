@@ -294,12 +294,28 @@ def djalli_format(testo: str, lang: str = "sq") -> str:
     return f"\n\n---\n\n### {TITULLI_DJALLI.get(lang, TITULLI_DJALLI['sq'])}\n\n{t}\n"
 
 
+# v9.605 — le DECISIONI che il senior ha letto (oggetto, esito, passo del ragionamento): senza, diavolo e Giudice scrivevano «i
+# precedenti non sono nei materiali — non mandateli al cliente» anche su sentenze confermate dalla verifica (7/7, prova viva dell'11 ott)
+_ETIKETA_PRECEDENTET = {
+    "sq": ("VENDIMET E GJYKATAVE QË LEXOI SENIORI (të njëjtat: objekti, rezultati, pasazhi nga arsyetimi) — një vendim që është "
+           "këtu NUK është «jashtë materialeve»; gjyko nëse përgjigja i atribuon diçka që teksti këtu nuk e thotë:"),
+    "it": ("DECISIONI LETTE DAL SENIOR (le stesse: oggetto, esito, passo della motivazione) — una decisione che è qui NON è «fuori "
+           "dai materiali»; giudica se la risposta le attribuisce qualcosa che il testo qui non dice:"),
+}
+
+
+def _blocco_precedentet(precedentet: str, lang: str) -> str:
+    p = (precedentet or "").strip()
+    return ("\n\n" + _ETIKETA_PRECEDENTET.get(lang, _ETIKETA_PRECEDENTET["sq"]) + "\n" + p[:16000]) if p else ""
+
+
 def avokati_i_djallit(backend, *, domanda: str, blloku_neneve: str, pergjigja: str,
                       lang: str = "sq", modeli: str = "fable", effort: str = "max",
-                      case_id: str | None = None) -> str:
+                      case_id: str | None = None, precedentet: str = "") -> str:
     _L = _ETIKETA_DJALLI.get(lang, _ETIKETA_DJALLI["sq"])
     user = (f"{_L[0]}\n{(domanda or '')[:3000]}\n\n"
-            f"{_L[1]}\n{(blloku_neneve or '')[:TETTO_NENE]}\n\n"
+            f"{_L[1]}\n{(blloku_neneve or '')[:TETTO_NENE]}"
+            + _blocco_precedentet(precedentet, lang) + "\n\n"
             f"{_L[2]}\n{(pergjigja or '')[:TETTO_RISPOSTA]}")
     raw = _chiama(backend, system=djalli_system(lang), user=user, modeli=modeli,
                   effort=effort, max_tokens=900, callsite="studio:djalli",
@@ -341,7 +357,7 @@ _TITULL_PERGJIGJE = {
 
 
 def senior_pergjigjja(backend, *, domanda, blloku_neneve, pergjigja, sulmi,
-                      lang="sq", modeli="opus", effort="max", case_id=None, finale=False) -> str:
+                      lang="sq", modeli="opus", effort="max", case_id=None, finale=False, precedentet="") -> str:
     """2° passaggio: il senior risponde all'attacco del diavolo — accolto/
     respinto/parziale per ogni obiezione + strategia rivista. Vuoto se non produce."""
     if not (sulmi or "").strip() or not (pergjigja or "").strip():
@@ -349,8 +365,8 @@ def senior_pergjigjja(backend, *, domanda, blloku_neneve, pergjigja, sulmi,
     _L = (("DOMANDA:", "ARTICOLI (testo integrale):", "LA MIA RISPOSTA:",
            "ATTACCO DELL'AVVOCATO DEL DIAVOLO:") if lang == "it" else
           ("PYETJA:", "NENET (tekst i plotë):", "PËRGJIGJA IME:", "SULMI I AVOKATIT TË DJALLIT:"))
-    user = ("%s\n%s\n\n%s\n%s\n\n%s\n%s\n\n%s\n%s" % (
-                _L[0], (domanda or "")[:2500], _L[1], (blloku_neneve or "")[:40000],
+    user = ("%s\n%s\n\n%s\n%s%s\n\n%s\n%s\n\n%s\n%s" % (
+                _L[0], (domanda or "")[:2500], _L[1], (blloku_neneve or "")[:40000], _blocco_precedentet(precedentet, lang),
                 _L[2], (pergjigja or "")[:TETTO_RISPOSTA], _L[3], (sulmi or "")[:16000]))
     raw = _chiama(backend, system=PERGJIGJE_SYSTEM.get(lang, PERGJIGJE_SYSTEM["sq"]),
                   # 1100 → 1800 (v9.322) → 3000 (v9.363): il Giudice della prova viva del 22 set
@@ -411,15 +427,15 @@ def duhet_raund2(sez: str, risposta: str) -> bool:
 
 
 def sulmi_i_dyte(backend, *, domanda, blloku_neneve, pergjigja_v2, lang="sq",
-                 modeli="fable", effort="max", case_id=None) -> str:
+                 modeli="fable", effort="max", case_id=None, precedentet="") -> str:
     """Secondo attacco di Fable, SOLO sul residuo (la rebuttal del senior)."""
     if not (pergjigja_v2 or "").strip():
         return ""
     _L = (("DOMANDA:", "ARTICOLI (testo integrale):", "RISPOSTA DEL SENIOR AL MIO PRIMO ATTACCO:")
           if lang == "it" else
           ("PYETJA:", "NENET (tekst i plotë):", "PËRGJIGJA E SENIORIT NDAJ SULMIT TIM TË PARË:"))
-    user = ("%s\n%s\n\n%s\n%s\n\n%s\n%s" % (
-                _L[0], (domanda or "")[:2500], _L[1], (blloku_neneve or "")[:40000],
+    user = ("%s\n%s\n\n%s\n%s%s\n\n%s\n%s" % (
+                _L[0], (domanda or "")[:2500], _L[1], (blloku_neneve or "")[:40000], _blocco_precedentet(precedentet, lang),
                 _L[2], (pergjigja_v2 or "")[:TETTO_RISPOSTA]))
     raw = _chiama(backend, system=(DJALLI_2_SYSTEM_IT if lang == "it" else DJALLI_2_SYSTEM),
                   user=user, modeli=modeli,
@@ -592,7 +608,7 @@ TITULLI_ANALIZA = {
 def gjyqtari_fundit(backend, *, domanda: str, blloku_neneve: str, pergjigja: str,
                     dosja: str = "", lang: str = "sq", modeli: str = "fable",
                     effort: str = "max", case_id: str | None = None,
-                    fazat: str = "", verifikimi: str = "") -> str:
+                    fazat: str = "", verifikimi: str = "", precedentet: str = "") -> str:
     """Il Giudice Finale: Fable 5.1 max effort riceve TUTTO (nenet verbatim, la
     risposta con attacchi e repliche = le menti degli altri agenti, il dossier dei
     raccoglitori) e dà il VERDETTO FINALE — conferma o corregge, cerca l'ago nel
@@ -617,6 +633,8 @@ def gjyqtari_fundit(backend, *, domanda: str, blloku_neneve: str, pergjigja: str
               "tënd — është e dhënë, jo mendim):")
     parti = [f"{_L[0]}\n{(domanda or '')[:3500]}",
              f"{_L[1]}\n{(blloku_neneve or '')[:TETTO_NENE]}"]
+    if (precedentet or "").strip():                       # v9.605: le decisioni che ha letto il senior
+        parti.append(_blocco_precedentet(precedentet, lang).strip())
     if (dosja or "").strip():
         parti.append(f"{_L[2]}\n" + dosja[:30000])
     parti.append(f"{_L[3]}\n{(pergjigja or '')[:TETTO_RISPOSTA_GIUDICE]}")
