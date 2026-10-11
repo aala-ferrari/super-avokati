@@ -4969,7 +4969,8 @@ def main():
         _okD = ("<dt>${PL.motore}</dt><dd><code>Tetramorph</code></dd>" in _js and "prov.model ||" not in _js
                 and '_CAL_IT ? "✓ Mosse da imitare"' in _js and '_CAL_IT ? "Parte" : "Pala"' in _js
                 and "if (root.matches && root.matches(_SEL)) els.unshift(root);" in _js
-                and 'kerk: "Ricercatore (norma mancante)"' in _js and "GDPR-AL flags\"" not in _js.split('"Semafor 🟢🟡🔴 për çdo klauzolë + GDPR-AL flags": ')[1][:80])
+                and 'kerk: "Ricercatore (norma mancante)"' in _js and not _re143.search(r"GDPR-AL|flags", (_js.split('"Semafor 🟢🟡🔴 për çdo klauzolë + rreziqet për të dhënat personale": ') + [""])[1][:80])
+                and '"Semafor 🟢🟡🔴 për çdo klauzolë + rreziqet për të dhënat personale": ' in _js)
         from src import reminders as _rm143
         _R = _NS143(offset_minutes=1440)
         _okE = (_rm143._fmt_ahead(_R, "it") == "1 giorno prima" and _rm143._fmt_ahead(_R) == "1 ditë para"
@@ -10791,19 +10792,23 @@ def main():
         _al379 = _re379.sub(r"<!--.*?-->", "", _re379.sub(r"\{% if [^%]*%\}.*?\{% else %\}", "", _ix379, flags=_re379.S), flags=_re379.S)
         _vietati379 = ["Senior Partner", "Kill-shot", "kill-shot", "Pattern e precedent", "Checklist", "magic-link", "Bozze", "bozz",
                        "sotomet", "fascikul", "Intake", "Vigilanza Normativa", "Leverage", "Visura", "upgrade", "ratio AI", "matcho",
-                       "elicit", "AI bën", "AI po", "AI ka", "AI rikthen", "AI nxjerr", "Genio Legale", "Red Team", "Ratio Coach", "Bench"]
+                       "elicit", "AI bën", "AI po", "AI ka", "AI rikthen", "AI nxjerr", "Genio Legale", "Red Team", "Ratio Coach", "Bench",
+                       "GDPR-AL flags", ">Vigilanza<", "Revizor Senior", "revizor senior", "Histori briefe", "Po nis intake"]
         _okA379 = not [v for v in _vietati379 if v in _al379]
         # app.js: fuori dalle chiavi del dizionario, i testi vivi non li hanno più
         _vivo379 = "\n".join(L for L in _js379.split("\n") if "Object.assign(T_IT" not in L and not _re379.match(r'\s*"[^"]+"\s*:\s*"', L))
         _vietatiJ379 = ["Kërko LIVE", "red-flag, niveli", "Vazhdo në draft", "Drafto letr", "Letër e draftuar", "Përmbledhje AI:", "Ti je avokat senior",
                         "Sotomet", "Bozza u", "kill-shot i vetëm", "💥 Kill-shot", '"Genio Legale",', "AI dështoi", "AI-i do", "elicit skenarët",
-                        '"Intake", "📥"', "📊 Pipeline", "Senior Partner Brief", "Checklist: \" + act"]
+                        '"Intake", "📥"', "📊 Pipeline", "Senior Partner Brief", "Checklist: \" + act",
+                        'tag: "live"', 'tag: "draft"', "Revizor Senior", "revizor senior"]
         _okB379 = not [v for v in _vietatiJ379 if v in _vivo379]
         _okC379 = all(('"%s":' % k) in _js379 for k in ("Gjeniu Ligjor", "Prirjet e precedentëve", "Lista e kontrollit e fashikullit",
                                                      "📝 Projekte në rishikim", "Levat e fshehura", "Goditja vdekjeprurëse",
                                                      "🧠 Gjeniu Ligjor — gjashtë mendje mbi rastin", "Intervista e klientit"))
         _okD379 = ("colpo decisivo" in _js379 and "Orientamenti dei precedenti" in _js379 and "Lista di controllo del fascicolo" in _js379
-                   and "magic-link" not in _js379 and "Bench memo precedenti" not in _js379 and "Nessun kill-shot" not in _js379)
+                   and "magic-link" not in _js379 and "Bench memo precedenti" not in _js379 and "Nessun kill-shot" not in _js379
+                   and not [x for x in ("Storico brief", "Avvio l'intake", "Il carico del team", "· checklist KYC/AML", 'it_03: "Post-mortem',
+                                        "Del një draft i plotë") if x in _js379])
         from src import storage as _sto379
         _okE379 = ("Intake" not in _sto379.stage_label("intake", "AL") and "Intake" not in _sto379.stage_label("intake", "IT"))
         check("lingua[379]: sessione albanese senza inglese né italiano nei nomi e nelle descrizioni degli strumenti (Gjeniu Ligjor, "
