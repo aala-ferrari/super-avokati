@@ -51,7 +51,11 @@ TEMPLATES = {
                              ("kodi_civil", "640"), ("kodi_civil", "641"), ("ligji_sigurimi_mjeteve", "9"),
                              # v9.403: la responsabilità SOLIDALE di più danneggianti (tamponamento a catena): nell'audit del
                              # 29 set «il numero dell'articolo sulla solidarietà non è fra quelli dati»
-                             ("kodi_civil", "626")],
+                             ("kodi_civil", "626"),
+                             # v9.618: i TERMINI dell'assicuratore (art. 10: 90 giorni per il danno alla persona, 30 per le cose,
+                             # 14 per pagare, poi gli interessi) e il FONDO di compensazione per il veicolo non assicurato o non
+                             # identificato (art. 41) — nell'audit dell'11 ott «l'articolo sui termini non è nel corpus»
+                             ("ligji_sigurimi_mjeteve", "10"), ("ligji_sigurimi_mjeteve", "41")],
         "elements": ["Veprimi/pakujdesia (shkelje e kodit rrugor)", "Faji",
                      "Lidhja shkakësore me dëmin", "Dëmi konkret (pasuror + jopasuror)"],
         "evidence": ["Raport i policisë rrugore / procesverbal", "Dëshmitarë okularë",
@@ -781,7 +785,10 @@ def analyze(backend, index, *, case_type: str, facts: str, max_tokens: int = 280
     tpl = TEMPLATES.get(case_type)
     if tpl is None:
         raise ValueError("unknown case_type")
-    arts = retrieve_grounded(backend, index, facts, seed_pairs=tpl.get("primary_articles"))
+    # v9.618: i semi del modello si contano dentro i 16 — con tanti semi (l'incidente ne ha 14) restavano 2 posti alla ricerca:
+    # oltre gli 8 semi, ogni seme in più è un posto in più
+    _prim = tpl.get("primary_articles") or []
+    arts = retrieve_grounded(backend, index, facts, seed_pairs=_prim, max_arts=16 + max(0, len(_prim) - 8))
     art_block = blocco_articoli(arts, _lang_indice(index))      # v9.399: 3.500 caratteri, etichette della sessione
     scaffold = (
         "STRUKTURA E PRITSHME:\n"

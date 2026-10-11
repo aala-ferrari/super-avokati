@@ -307,7 +307,9 @@ _SUCC_SYSTEM_IT = (
 
 
 def succession(backend, index, *, situation: str, jurisdiction: str = "AL", max_tokens: int = 2400) -> dict:
-    _semi = [("kodi_civil", "316"), ("kodi_civil", "317"), ("kodi_civil", "361"), ("kodi_civil", "363")]
+    # v9.618: + KC 379 «Rezervë ligjore» — il prompt chiede sempre «la quota riservata se c'è», e nell'audit dell'11 ott la
+    # risposta scriveva «la percentuale della riserva non la determino: l'articolo del K.C. non è nel corpus»
+    _semi = [("kodi_civil", "316"), ("kodi_civil", "317"), ("kodi_civil", "361"), ("kodi_civil", "363"), ("kodi_civil", "379")]
     if re.search(r"bashkeshort|\bgrua|\bburr|e shoqj|i shoqi|vejush", _expertise._fold(situation or "")):
         _semi += _SEED_KOMUNITET
     _it_idx = _expertise._lang_indice(index) == "it"
@@ -1365,7 +1367,13 @@ def verify_subject(backend, index, *, subject_text: str, context: str = "",
     person → disa shoqëri) dhe kryqëzoji me veprimin/pyetjen. NDIHMESË: të dhënat i merr
     vetë profesionisti nga QKB (publik) — ky mjet i analizon, nuk lidhet live me QKB."""
     q = (context or "") + " shoqëri administrator ortak aksionar status likuidim çregjistrim përfaqësim tagra kuota"
-    art_block, arts = _art_block(backend, index, q, _VERIFY_SUBJECT_SEED)
+    # v9.618: quando la società VENDE o dispone di un bene, l'assemblea dei soci (legge sulle società art. 82/4: oltre il 5 % degli
+    # attivi la convoca l'amministratore; art. 81 le competenze, art. 87 le maggioranze) — nell'audit dell'11 ott «le disposizioni
+    # sull'assemblea della SHPK e le maggioranze non sono nel corpus» per una società che vende un magazzino da 500.000 euro
+    _seed = list(_VERIFY_SUBJECT_SEED)
+    if re.search(r"\bshet\b|\bshes|shitj|tjetersim|dispono|dhuron|hipotek|\bblen\b|blerj", _expertise._fold(context or "")):
+        _seed += [("ligji_shoqerite_tregtare", "82"), ("ligji_shoqerite_tregtare", "81"), ("ligji_shoqerite_tregtare", "87")]
+    art_block, arts = _art_block(backend, index, q, _seed, extra=len(_seed) - len(_VERIFY_SUBJECT_SEED))
     system = (
         "Ti je jurist që kryen KUJDESIN E DUHUR (due diligence) mbi një SUBJEKT tregtar para një veprimi "
         "(shitje, prokurë, kontratë) ose për një pyetje të kolegut. Të është dhënë tekst nga QKB — një "

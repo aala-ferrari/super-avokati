@@ -127,11 +127,40 @@ _RX_PASTRIM = _re.compile(
     r"origjin\w*\s+(\w+\s+){0,2}paligjshme|(fsheh|mbul)\w*\s+(\w+\s+){0,3}origjin")
 
 
+# v9.618 — dall'audit dei 27 strumenti in sessione AL (11 ott, staging): il modello scriveva onestamente «non è nel corpus» per il
+# CONCORSO di persone (KP 25-27: le fatture fiktive hanno sempre chi le usa), per la RECIDIVA (KP 50/ç: il reato commesso dopo una
+# condanna per un crimine; e 50/h), per l'ARRESTO IN FLAGRANZA e la sua CONVALIDA (KPP 251-252, 258 entro 48 ore, 259), per il NE
+# BIS IN IDEM coi fatti fiscali già sanzionati dall'amministrazione (KPP 7), per il CALCOLO DEI TERMINI (KPP 144: ore, giorni, il
+# giorno festivo), per l'IDENTIFICAZIONE con le impronte (KPP 295) e i campioni biologici (KPP 201/a), per la conservazione dei DATI
+# INFORMATICI (KPP 299/a, 191/a, 208/a) e per gli ORDINI DI PROTEZIONE della legge 11/2026 nella violenza in famiglia o dal
+# partner. Tutti verificati sul corpus; come gli altri semi, si AGGIUNGONO ai 16 del recupero.
+_RX_BASHKEPUNIM = _re.compile(
+    r"bashkepun|se\s+bashku|bashke\s+me\s+(nje|dy|tre|disa|te)|me\s+ndihmen\s+e|\bne\s+grup|grup\w*\s+(i\s+|te\s+)?(organizuar|strukturuar|kriminal)|"
+    r"\bband[aeë]\b|organizator|"
+    r"\b(dy|tre|kater|disa)\s+(persona|te\s+pandehur|autor)|ndihmes\w*\s+(i|e|te)\s+(veprës|vepres|autorit)|shtyt\w*\s+(i|e)\s+|"
+    r"fatur\w*\s+(fiktiv|false|t[e]\s+rreme)")
+_RX_ORGANIZUAR = _re.compile(r"grup\w*\s+(i\s+|te\s+)?(organizuar|strukturuar)|organizat\w*\s+kriminal|krim\w*\s+(e\s+|te\s+)?organizuar|"
+                            r"band\w*\s+(e\s+)?armatosur")
+_RX_DENIM_MEPARSHEM = _re.compile(
+    r"denim\w*\s+(te\s+|e\s+)?meparsh|(i|e)\s+denuar\s+(me\s+pare|perpara|disa\s+here)|(eshte|ishte|kishte\s+qene)\s+denuar|"
+    r"precedent\w*\s+penal|recidiv|(here|heren)\s+(e\s+)?(dyte|trete)|per\s+te\s+njejten\s+veper")
+_RX_FLAGRANCE = _re.compile(r"flagranc|\bu\s+kap\b|\bkapur\s+(ne|duke)|arrestu|u\s+ndalua|ndaluar\s+nga\s+policia")
+_RX_GISHTA = _re.compile(r"gjurm\w*\s+(e\s+|te\s+)?gisht|daktilo")
+_RX_BIOLOGJIK = _re.compile(r"\badn\b|\bdna\b|kampion\w*\s+biologjik|gjak\w*\s+(i|e)\s+(gjetur|mbetur)")
+_RX_ELEKTRONIK = _re.compile(
+    r"online|internet|platform|aplikacion|\be-?mail|mesazh|whatsapp|facebook|instagram|tiktok|telegram|kompjuter|"
+    r"elektronik|kripto|bitcoin|(nga|me|ne|permes)\s+(celular|telefon)|telefonat")
+_RX_DHUNE = _re.compile(r"sulm|dhun|rrah|godit|kercen|ngacm|perndjek|plagos|terroriz")
+_RX_FAMILJE = _re.compile(r"partner|bashkeshort|\bburri|\bgruaja|e\s+dashur|i\s+dashur|bashkejetu|familj|\bbabai|\bnena\b|vellai|motra|"
+                          r"djali|vajza|ish-|ish\s")
+
+
 def _semi_situazione_al(facts: str) -> list:
     f = _expertise._fold(facts or "")
     out = []
     if _RX_FISCALE.search(f):
         out.append(("kodi_penal", "180"))
+        out.append(("kodi_proc_penale", "7"))    # v9.618: ne bis in idem — l'amministrazione fiscale sanziona già lo stesso fatto
         if _RX_ARKA.search(f):
             out.append(("kodi_penal", "182"))
         if _RX_MOSPAGIM.search(f):
@@ -141,13 +170,32 @@ def _semi_situazione_al(facts: str) -> list:
     if "sekuestr" in f:
         out.append(("kodi_proc_penale", "208"))
         if _re.search(r"\bpolic", f):
-            out += [("kodi_proc_penale", "300"), ("kodi_proc_penale", "301")]
+            out += [("kodi_proc_penale", "300"), ("kodi_proc_penale", "301"), ("kodi_proc_penale", "144")]   # v9.618: le 48 ore
     if "shperdor" in f:
         out += [("kodi_penal", "248"), ("kodi_penal", "135")]
     # v9.405 — il fatto TENTATO (KP 22 «Kuptimi i tentativës», 23 «Përgjegjësia për tentativën»): nell'audit AL del 29 set
     # l'analisi di un tentativo lo qualificava senza gli articoli sulla tentativa
-    if _re.search(r"tentativ|tentoi|tenton|u perpoq|perpiqej|perpjek|nuk arriti|pa arritur|u pengua|u ndalua para", f):
+    # v9.618: «u përpoq të ikte» (tentò la FUGA) non è il tentativo del reato
+    _f_tent = _re.sub(r"(u perpoq|perpiqej|perpjek\w*)\s+(per\s+)?te\s+(ik|larg|arratis|fsheh|shmang)\w*", " ", f)
+    if _re.search(r"tentativ|tentoi|tenton|u perpoq|perpiqej|perpjek|nuk arriti|pa arritur|u pengua|u ndalua para", _f_tent):
         out += [("kodi_penal", "22"), ("kodi_penal", "23")]
+    # v9.618 (vedi sopra `_RX_BASHKEPUNIM`)
+    if _RX_BASHKEPUNIM.search(f):
+        out += [("kodi_penal", "25"), ("kodi_penal", "26"), ("kodi_penal", "27")]
+    if _RX_ORGANIZUAR.search(f):
+        out += [("kodi_penal", "28"), ("kodi_proc_penale", "75/a")]
+    if _RX_DENIM_MEPARSHEM.search(f):
+        out.append(("kodi_penal", "50"))
+    if _RX_FLAGRANCE.search(f):
+        out += [("kodi_proc_penale", n) for n in ("251", "252", "258", "259", "144")]
+    if _RX_GISHTA.search(f):
+        out.append(("kodi_proc_penale", "295"))
+    if _RX_BIOLOGJIK.search(f):
+        out += [("kodi_proc_penale", "295"), ("kodi_proc_penale", "201/a")]
+    if _RX_ELEKTRONIK.search(f):
+        out += [("kodi_proc_penale", "299/a"), ("kodi_proc_penale", "191/a"), ("kodi_proc_penale", "208/a")]
+    if _RX_DHUNE.search(f) and _RX_FAMILJE.search(f):
+        out += [("ligji_dhuna_familje_2026", n) for n in ("18", "26", "30", "36", "42")]
     return out
 
 
@@ -436,7 +484,8 @@ def investigation_plan(backend, index, *, facts, max_tokens=2800):
                        ("kodi_proc_penale", "283")],
                 extra="plan hetimi veprime hetimore afati", max_tokens=max_tokens,
                 semi_in_piu_al=[("kodi_proc_penale", "284"), ("kodi_proc_penale", "202"), ("kodi_proc_penale", "208"),
-                                ("kodi_proc_penale", "178"), ("kodi_proc_penale", "221"), ("kodi_proc_penale", "274")])
+                                ("kodi_proc_penale", "178"), ("kodi_proc_penale", "221"), ("kodi_proc_penale", "274"),
+                                ("kodi_proc_penale", "144")])   # v9.618: il calcolo dei termini (KPP 144)
 
 
 _ACT_KINDS = {
@@ -546,6 +595,9 @@ def coercive_measure(backend, index, *, facts, max_tokens=2800):
                        ("kodi_proc_penale", "230"), ("kodi_proc_penale", "232"),
                        ("kodi_proc_penale", "237"), ("kodi_proc_penale", "238"),
                        ("kodi_proc_penale", "244")],
+                # v9.618: la gjykata kompetente (KPP 74), il ricorso contro la misura (249: 5 giorni) e la durata della custodia (263)
+                # — nell'audit dell'11 ott «le disposizioni sulla competenza non sono nel corpus»
+                semi_in_piu_al=[("kodi_proc_penale", "74"), ("kodi_proc_penale", "249"), ("kodi_proc_penale", "263")],
                 extra="masë sigurimi personal arrest kushtet kriteret", max_tokens=max_tokens)
 
 
@@ -683,7 +735,7 @@ def victim_rights(backend, index, *, facts, max_tokens=2400):
                        ("kodi_proc_penale", "329"), ("kodi_proc_penale", "323")],
                 # v9.403: KPP 291 — il ricorso contro il decreto di non avvio del procedimento (10 giorni dalla notifica):
                 # nell'audit del 29 set il termine era «non dato nei testi»
-                semi_in_piu_al=[("kodi_proc_penale", "291")],
+                semi_in_piu_al=[("kodi_proc_penale", "291"), ("kodi_proc_penale", "144")],   # v9.618: + il calcolo dei termini
                 intro=_P["sq"]["vitt"], extra="të drejtat i dëmtuar faza afati",
                 max_tokens=max_tokens)
 

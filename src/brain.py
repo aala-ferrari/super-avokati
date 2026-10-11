@@ -307,6 +307,13 @@ ANCORE_AL: tuple = (
     # v9.616 — l'ordine di demolizione impugnato (`_PRISHJE_AL`)
     (_PRISHJE_AL, (), (("ligji_planifikimi_territorit", "49/1"), ("ligji_inspektimi_territorit", "14")), None, None, True),
     (_PRISHJE_AL, (), (("ligji_inspektimi_territorit", "13"), ("kodi_proc_admin", "132")), None, None, True, "coda"),
+    # v9.618 — l'ONERE DELLA PROVA nel processo civile (KPC 12: «pala që pretendon një të drejtë … të provojë faktet»): nell'audit
+    # dell'11 ott il diavolo e il Giudice scrivevano «kush pretendon faktin e provon (neni përkatës i KPC nuk është në materialet)».
+    # Solo quando la domanda chiede chi deve provare, in coda, mai nel penale (lì l'onere è dell'accusa: KPP)
+    (("barra e provës", "barra e proves", "barrën e provës", "barren e proves", "barrë e provës", "barre e proves",
+      "kush e provon", "kush duhet ta provojë", "kush duhet ta provoje", "kush duhet të provojë", "kush duhet te provoje",
+      "detyrimi për të provuar", "detyrimi per te provuar", "si ta provojmë", "si ta provojme", "si e provojmë", "si e provojme"),
+     ("Penal",), (("kodi_proc_civile", "12"),), None, None, True, "coda"),
     # v9.616 — lo stallo fra soci (`_DEADLOCK_AL`): legge sulle società art. 99 (scioglimento per il mancato funzionamento degli organi)
     (_DEADLOCK_AL, ("Penal",), (("ligji_shoqerite_tregtare", "99"),), _DEADLOCK_JASHTE_AL, ("Tregtare",), True),
     # v9.615 — il contratto a termine rinnovato (`_AFAT_PUNE_AL`): KP 151 (+ 149, 140); il cognome del figlio (`_MBIEMRI_FEMIJES_AL`): KF 52 e stato civile 57
@@ -9784,13 +9791,17 @@ def _format_precedents_block(pairs: list[tuple[CasePrecedent, float]]) -> str:
                 pass
         if c.summary:
             # la Cassazione porta il PASSO del testo integrale: deve arrivare intero al senior (non tagliato a 260)
-            lines.append(f"    {_L['sintesi']}: {c.summary[:900 if c.court_code == 'Cass' else 260]}")
+            # v9.617 — per la Kushtetuese e la Gjykata e Lartë il riassunto è l'OGGETTO della richiesta («Shfuqizimi i vendimit nr. …»
+            # = ciò che il ricorrente CHIEDEVA): con l'etichetta «Përmbledhje» il Giudice lo leggeva come esito
+            _et = ("Objekti (çfarë u kërkua — jo çfarë u vendos)" if (not _it and c.court_code in ("kushtetuese", "gjykata_elarte"))
+                   else _L['sintesi'])
+            lines.append(f"    {_et}: {c.summary[:900 if c.court_code == 'Cass' else 260]}")
         if getattr(c, "_passo", "") and _L.get("passo"):
             lines.append(f"    {_L['passo']}: «{c._passo}»")         # v9.605
         if getattr(c, "dispositivo", ""):
             # v9.463: ciò che la Corte ha DECISO (accoglie, non fondata «nei sensi di cui in motivazione», inammissibile…): senza,
             # il modello leggeva solo un passo della motivazione e non sapeva come era finita
-            lines.append(f"    Dispositivo: {c.dispositivo[:900]}")
+            lines.append(f"    {'Dispositivo' if _it else 'Dispozitivi (çfarë vendosi gjykata — mos i atribuo më shumë se kaq)'}: {c.dispositivo[:900]}")
         if c.articles_cited:
             arts = ", ".join(f"{code} {'art.' if _it else 'neni'} {art}" for code, art in c.articles_cited[:6])
             lines.append(f"    {_L['articoli']}: {arts}")

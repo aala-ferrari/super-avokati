@@ -7479,7 +7479,17 @@ def main():
         _ok236 = _ok236 and _lunghe == 0
         import inspect as _in236
         from src import brain as _b236
-        _ok236 = _ok236 and "Dispositivo:" in _in236.getsource(_b236._format_precedents_block) \
+        # v9.617: l'etichetta è nella lingua della sessione («Dispositivo» / «Dispozitivi (…)»): si ESEGUE il blocco in sessione IT
+        from src import retrieval_kb as _rk236
+        _p236 = _rk236._pickle_to_precedent({"court_code": "kushtetuese", "number": "128", "date": "04.06.2024", "outcome": "pranim",
+                                             "dispositif": "1) dichiara non fondate le questioni", "citation": "Corte cost. 128/2024",
+                                             "objekti": "x"}, 0)
+        _b236.set_request_jurisdiction("IT")
+        try:
+            _blk236 = _b236._format_precedents_block([(_p236, 1.0)])
+        finally:
+            _b236.set_request_jurisdiction("AL")
+        _ok236 = _ok236 and "Dispositivo: 1) dichiara non fondate" in _blk236 \
             and 'dispositivo=r.get("dispositivo")' in _in236.getsource(_b236._precedenti_it)
         check("dispositivo-it[236]: dispositivo delle decisioni italiane nel blocco, nessun testo tagliato a 60.000", _ok236,
               f"{_d1[:60]!r} | {_d2[:60]!r} | tagliate {_lunghe}")
@@ -11163,6 +11173,56 @@ def main():
               f"art14={_a14 is not None} stati={_st390}")
     except Exception as _e390:  # noqa: BLE001
         check("inspektim[390]: kontrollet u ekzekutuan", False, f"{type(_e390).__name__}: {_e390}")
+
+    # [391] v9.616 — il DISPOSITIVO delle decisioni albanesi arriva al cervello (Kushtetuese 45/2024: violazione accertata, nessun
+    # annullamento), con l'etichetta nella lingua della sessione
+    try:
+        from src import retrieval_kb as _rk391, brain as _br391
+        _p391 = _rk391._pickle_to_precedent({"court_code": "kushtetuese", "number": "45", "date": "01.10.2024", "outcome": "pranim",
+                                             "dispositif": "[pranim] 1. Pranimin e kërkesës. 2. Konstatimin e shkeljes së të drejtës për proces të rregullt.",
+                                             "citation": "Vendimi nr. 45/2024 i Gjykatës Kushtetuese", "objekti": "x"}, 0)
+        _br391.set_request_jurisdiction("AL")
+        _b391 = _br391._format_precedents_block([(_p391, 1.0)])
+        _ok391 = (_p391.dispositivo.startswith("1. Pranimin e kërkesës") and "Dispozitivi" in _b391 and "Dispositivo:" not in _b391
+                  and "Konstatimin e shkeljes" in _b391 and "Objekti (çfarë u kërkua" in _b391 and "Përmbledhje:" not in _b391)
+        check("dispozitivi[391]: dispositivo delle decisioni AL nel blocco dei precedenti, etichetta albanese", _ok391)
+    except Exception as _e391:  # noqa: BLE001
+        check("dispozitivi[391]: kontrollet u ekzekutuan", False, f"{type(_e391).__name__}: {_e391}")
+
+    # [392] v9.618 — dall'audit AL dei 27 strumenti: i semi che mancavano (concorso, recidiva, flagranza e convalida, ne bis in idem,
+    # calcolo dei termini, impronte, dati informatici, ordini di protezione; riserva ereditaria; assemblea della srl che vende; termini
+    # dell'assicuratore; onere della prova in chat), tutti nel corpus e vivi; e i falsi amici che NON li accendono
+    try:
+        from src.retrieval import ArticleIndex as _AI392
+        from src import prosecutor as _pr392, notary as _nt392, expertise as _ex392, brain as _br392
+        _al392 = _AI392.load()
+        _vivi392 = {(a.code, str(a.number)) for a in _al392.articles if not getattr(a, "repealed", False)}
+        _sit = _pr392._semi_situazione_al
+        _m392 = set(_sit("I pandehuri u kap në flagrancë duke shitur 50 gram kokainë; ka një dënim të mëparshëm për të njëjtën vepër; u përpoq të ikte."))
+        _a392 = set(_sit("Një biznesmen ka lëshuar fatura fiktive për 20 milionë lekë; policia ka sekuestruar dokumentacionin kontabël."))
+        _v392 = set(_sit("Më sulmoi ish-partneri dhe bëra kallëzim: çfarë mund të bëj gjatë procedimit?"))
+        _nuovi = (_m392 | _a392 | _v392 | set(_sit("Gjurmët e gishtave dhe ADN-ja e të pandehurit; porositë kalonin nga celulari; grup i organizuar."))
+                  | {("kodi_civil", "379"), ("ligji_shoqerite_tregtare", "81"), ("ligji_shoqerite_tregtare", "82"),
+                     ("ligji_shoqerite_tregtare", "87"), ("ligji_sigurimi_mjeteve", "10"), ("ligji_sigurimi_mjeteve", "41"),
+                     ("kodi_proc_civile", "12"), ("kodi_proc_penale", "74"), ("kodi_proc_penale", "249"), ("kodi_proc_penale", "263")})
+        _morti = sorted(k for k in _nuovi if k not in _vivi392)
+        _ok392 = (not _morti
+                  and {("kodi_penal", "50"), ("kodi_proc_penale", "258"), ("kodi_proc_penale", "144")} <= _m392
+                  and ("kodi_penal", "22") not in _m392                       # «u përpoq të ikte» = la fuga, non il tentativo
+                  and {("kodi_penal", "25"), ("kodi_proc_penale", "7"), ("kodi_proc_penale", "144")} <= _a392
+                  and ("ligji_dhuna_familje_2026", "18") in _v392
+                  and not _sit("Më vodhën telefonin në autobus.") and not _sit("Një grup qytetarësh protestoi para bashkisë.")
+                  and ("ligji_sigurimi_mjeteve", "10") in _ex392.TEMPLATES["aksident_rrugor"]["primary_articles"]
+                  and '("kodi_civil", "379")' in open(_nt392.__file__, encoding="utf-8").read())
+        _br392.set_request_jurisdiction("AL")
+        _k392 = lambda q, ar: {(a.code, str(a.number)) for a, _ in _br392._applica_ancore([], _al392, ["pyetje", q], ar)}
+        _ok392 = (_ok392 and ("kodi_proc_civile", "12") in _k392("Kush e ka barrën e provës për shkeljen disiplinore?", ["Punë"])
+                  and ("kodi_proc_civile", "12") not in _k392("Kush e ka barrën e provës në procesin penal?", ["Penal"])
+                  and ("kodi_proc_civile", "12") not in _k392("Si ta paguajmë qiranë e prapambetur?", ["Civil"]))
+        check("semi_pro[392]: semi dell'audit AL nel corpus e vivi, falsi amici esclusi, onere della prova in coda", _ok392,
+              f"morti={_morti}")
+    except Exception as _e392:  # noqa: BLE001
+        check("semi_pro[392]: kontrollet u ekzekutuan", False, f"{type(_e392).__name__}: {_e392}")
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

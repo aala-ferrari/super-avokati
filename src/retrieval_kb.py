@@ -396,6 +396,10 @@ def _pickle_to_precedent(d: dict, idx: int) -> CasePrecedent:
         articles_cited=arts,
         source_url=d.get("source_url") or None,
         source_file=_pickle_norm_file(d.get("source_file") or ""),
+        # v9.616 — il DISPOSITIVO anche per le decisioni albanesi (prima solo per le italiane, v9.463): nella prova viva dell'11 ott
+        # il Giudice dava «SHFUQIZUAR» la GjL 00-2023-5019 perché la Kushtetuese 45/2024 era «pranim», mentre il dispositivo dice
+        # soltanto «Pranimin e kërkesës. Konstatimin e shkeljes…» — una violazione accertata, nessun annullamento
+        dispositivo=re.split(r"\s*U\s+shpall\s+sot\b", (_disp[_disp.find("]") + 1:] if _disp.startswith("[") and "]" in _disp else _disp).strip())[0][:600],
     )
     # v9.367: il BM25 dei precedenti legge il ragionamento VERO (dal Kolegji) e il dispositivo, non 500 chr di testa
     p._bm25_text = " ".join(x for x in ((d.get("objekti") or ""), _disp, (d.get("reasoning") or "")[:3000]) if x)
