@@ -22,6 +22,7 @@ ESITI: list = []
 
 
 def ok(nome: str, cond: bool, extra: str = "") -> None:
+    cond = bool(cond)
     ESITI.append(cond)
     print(("✓ " if cond else "✗ ") + nome + (f" — {extra}" if extra and not cond else ""))
 

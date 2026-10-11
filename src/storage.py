@@ -1098,6 +1098,7 @@ def init_db(db_path: Path = APP_DB_PATH) -> None:
         # 1️⃣ Profili i Studios: le regole della casa, per studio
         _add_column_if_missing(conn, "firms", "profile_json", "TEXT")
         _add_column_if_missing(conn, "users", "session_gen", "INTEGER")     # v9.623
+        _add_column_if_missing(conn, "cases", "archived_at", "TEXT")        # v9.624
         _add_column_if_missing(conn, "messages", "timeline_json", "TEXT")
         _add_column_if_missing(conn, "messages", "comparison_json", "TEXT")
         _add_column_if_missing(conn, "messages", "missing_facts_json", "TEXT")
@@ -1523,6 +1524,9 @@ class Case:
     # language. Allowed: AL (Albania, default), IT (Italy), EU (EU law).
     jurisdiction: str = "AL"
     jurisdiction_secondary: str | None = None
+    # v9.624 — un fascicolo chiuso si ARCHIVIA invece di cancellarlo: esce dall'elenco attivo, resta cercabile e si riporta
+    # indietro con un clic (prima c'era solo il cestino, che cancella tutto)
+    archived_at: str | None = None
 
 
 @dataclass
@@ -1574,11 +1578,20 @@ def _case_from_row(r: sqlite3.Row) -> Case:
     stage = r["stage"] if "stage" in keys and r["stage"] else "intake"
     jur = r["jurisdiction"] if "jurisdiction" in keys and r["jurisdiction"] else "AL"
     jur2 = r["jurisdiction_secondary"] if "jurisdiction_secondary" in keys else None
+    arch = r["archived_at"] if "archived_at" in keys else None
     return Case(id=r["id"], user_id=r["user_id"], title=r["title"],
                 claude_session_id=r["claude_session_id"],
                 created_at=r["created_at"], updated_at=r["updated_at"],
                 answer_system_version=asv, stage=stage,
-                jurisdiction=jur, jurisdiction_secondary=jur2)
+                jurisdiction=jur, jurisdiction_secondary=jur2, archived_at=arch)
+
+
+def set_case_archived(case_id: str, archived: bool) -> bool:
+    """v9.624 — archivia (o riporta tra gli attivi) un fascicolo. L'ordine dell'elenco non cambia: `updated_at` resta."""
+    with db() as conn:
+        cur = conn.execute("UPDATE cases SET archived_at = ? WHERE id = ?",
+                           (_utcnow() if archived else None, case_id))
+        return cur.rowcount > 0
 
 
 def set_case_stage(case_id: str, stage: str,
@@ -2515,7 +2528,7 @@ def _piega(t) -> str:
     return "".join(ch for ch in t if not unicodedata.combining(ch))
 
 
-def _brano(testo: str, qf: str, prima: int = 70, dopo: int = 110) -> str:
+def _brano(testo: str, qf: str, prima: int = 32, dopo: int = 140) -> str:
     """Il pezzo di testo attorno alla prima occorrenza (piegata) di `qf`, su una riga."""
     testo = str(testo or "")
     pezzi = [_piega(ch) for ch in testo]

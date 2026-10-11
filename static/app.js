@@ -294,6 +294,7 @@
     welcomeMsg?.remove();
     caseHeader.hidden = false;
     caseTitleText.textContent = c.title;
+    _aggiornaArchivioBtn(!!c.archived_at);          // v9.624
     const stageSelect = document.getElementById("case-stage-select");
     if (stageSelect) {
       stageSelect.value = c.stage || "intake";
@@ -424,8 +425,14 @@
     });
   }
 
+  // v9.624 — l'ultimo elenco ricevuto: la ricerca e la tendina degli archiviati lo ridisegnano senza richiederlo al server
+  let _ultimiCasi = [];
   async function renderCaseList() {
     const cases = await fetchCases();
+    _ultimiCasi = cases;
+    _disegnaCasi(cases);
+  }
+  function _disegnaCasi(cases) {
     caseList.innerHTML = "";
     if (!cases.length) {
       const li = document.createElement("li");
@@ -437,10 +444,18 @@
       return;
     }
     const tpl = document.getElementById("case-item-tpl");
-    for (const c of cases) {
+    // v9.624 — gli archiviati in fondo, dietro una tendina (aperta se la si è aperta l'ultima volta, o mentre si cerca)
+    const _q = ((document.getElementById("case-search") || {}).value || "").trim();
+    let _apri = !!_q;
+    try { _apri = _apri || localStorage.getItem("sa_show_arch") === "1"; } catch (e) {}
+    const _attivi = cases.filter((c) => !c.archived), _archiviati = cases.filter((c) => c.archived);
+    const _ordine = _attivi.concat(_apri ? _archiviati : []);
+    for (const c of _ordine) {
+      if (c === _archiviati[0]) caseList.appendChild(_tendinaArchiviati(_archiviati.length, true));
       const node = tpl.content.cloneNode(true);
       const li = node.querySelector(".case-item");
       li.dataset.id = c.id;
+      if (c.archived) li.classList.add("archived");
       if (c.id === activeCaseId) li.classList.add("active");
       node.querySelector(".case-title").textContent = c.title;
       const meta = node.querySelector(".case-meta");
@@ -451,18 +466,46 @@
       node.querySelector(".case-select").addEventListener("click", () => selectCase(c.id));
       caseList.appendChild(node);
     }
+    if (_archiviati.length && !_apri) caseList.appendChild(_tendinaArchiviati(_archiviati.length, false));
     const nota = _notaCasiNascosti();
     if (nota) caseList.appendChild(nota);
     _filtraCasi();          // v9.623: la ricerca scritta resta applicata quando l'elenco si ridisegna
+  }
+  function _tendinaArchiviati(n, aperta) {
+    const li = document.createElement("li");
+    li.className = "case-arch-toggle";
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "case-arch-btn"; b.setAttribute("aria-expanded", aperta ? "true" : "false");
+    b.textContent = (aperta ? "▾ " : "▸ ") + "🗄️ " + (_CAL_IT ? "Archiviati" : "Të arkivuara") + " (" + n + ")";
+    b.addEventListener("click", () => {
+      try { localStorage.setItem("sa_show_arch", aperta ? "0" : "1"); } catch (e) {}
+      _disegnaCasi(_ultimiCasi);
+    });
+    li.appendChild(b);
+    return li;
   }
 
   // v9.623 — cercare nei fascicoli: i titoli si filtrano subito; dalla terza lettera il server cerca anche nel testo delle
   // domande, delle risposte e dei documenti (senza badare a maiuscole né a ë/ç), solo nei fascicoli visibili in questa sessione
   function _piegaTesto(t) {
-    try { return String(t || "").normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase(); }
+    try { return String(t || "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase(); }
     catch (e) { return String(t || "").toLowerCase(); }
   }
   var _cercaTimer = null, _cercaUltima = "";
+  // v9.624 — la parola trovata EVIDENZIATA nel brano (senza badare a maiuscole né a ë/ç: «pushim» illumina «Pushimi»)
+  function _conEvidenza(testo, q) {
+    testo = String(testo || "");
+    var f = _piegaTesto(q).trim();
+    if (f.length < 3) return escapeHtml(testo);
+    var V = { a: "aàáâäã", e: "eëèéêẽ", i: "iìíîï", o: "oòóôöõ", u: "uùúûü", c: "cç", n: "nñ", s: "sš", z: "zž" };
+    var pat = f.split("").map(function (ch) {
+      return V[ch] ? "[" + V[ch] + V[ch].toUpperCase() + "]" : ch.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    }).join("");
+    var m = null;
+    try { m = new RegExp(pat, "i").exec(testo); } catch (e) { m = null; }
+    if (!m) return escapeHtml(testo);
+    return escapeHtml(testo.slice(0, m.index)) + "<mark>" + escapeHtml(m[0]) + "</mark>" + escapeHtml(testo.slice(m.index + m[0].length));
+  }
   function _filtraCasi() {
     var inp = document.getElementById("case-search");
     var q = _piegaTesto(inp ? inp.value.trim() : "");
@@ -491,10 +534,10 @@
       box.innerHTML = '<div class="csr-head">' + (IT ? "Nel testo dei fascicoli" : "Në tekstin e rasteve") + ' (' + res.length + ')</div>' +
         res.map(function (c) {
           return '<button type="button" class="csr-item" data-id="' + escapeHtml(c.case_id) + '"><span class="csr-title">' +
-            escapeHtml(c.title || "") + '</span>' + (c.hits || []).map(function (h) {
+            (c.archived ? "🗄️ " : "") + escapeHtml(c.title || "") + '</span>' + (c.hits || []).map(function (h) {
               var dove = h.tipo === "documento" ? "📎 " + escapeHtml(h.filename || "") + ": "
                 : (h.role === "user" ? (IT ? "Domanda: " : "Pyetja: ") : (IT ? "Risposta: " : "Përgjigjja: "));
-              return '<span class="csr-hit">' + dove + escapeHtml(h.brano || "") + '</span>';
+              return '<span class="csr-hit">' + dove + _conEvidenza(h.brano || "", q) + '</span>';
             }).join("") + '</button>';
         }).join("");
       Array.prototype.forEach.call(box.querySelectorAll(".csr-item"), function (b) {
@@ -507,14 +550,15 @@
   (function () {
     var inp = document.getElementById("case-search");
     if (!inp) return;
+    var _cera = false;
     inp.addEventListener("input", function () {
-      _filtraCasi();
-      clearTimeout(_cercaTimer);
       var q = inp.value.trim();
+      if (!!q !== _cera) { _cera = !!q; _disegnaCasi(_ultimiCasi); } else _filtraCasi();   // v9.624: anche gli archiviati
+      clearTimeout(_cercaTimer);
       _cercaTimer = setTimeout(function () { _cercaNelTesto(q); }, 450);
     });
     inp.addEventListener("keydown", function (e) {
-      if (e.key === "Escape") { inp.value = ""; _filtraCasi(); _cercaNelTesto(""); }
+      if (e.key === "Escape") { inp.value = ""; _cera = false; _disegnaCasi(_ultimiCasi); _cercaNelTesto(""); }
     });
   })();
 
@@ -653,6 +697,34 @@
       setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
     } catch (e) {
       window.location.href = `/api/cases/${activeCaseId}/export?format=md`;
+    }
+  });
+
+  // v9.624 — archiviare un fascicolo chiuso: esce dall'elenco attivo (resta in «Archiviati» e nella ricerca), niente si
+  // cancella, le scadenze in calendario restano; lo stesso pulsante lo riporta tra gli attivi
+  let _activeArchived = false;
+  function _aggiornaArchivioBtn(arch) {
+    _activeArchived = !!arch;
+    const b = document.getElementById("archive-case-btn");
+    if (!b) return;
+    b.textContent = arch ? "📤" : "🗄️";
+    b.title = arch ? (_CAL_IT ? "Riporta tra i fascicoli attivi" : "Ktheje te rastet aktive")
+                   : (_CAL_IT ? "Archivia il fascicolo (resta cercabile, niente si cancella)" : "Arkivo rastin (mbetet i kërkueshëm, asgjë nuk fshihet)");
+    b.setAttribute("aria-label", b.title);
+  }
+  document.getElementById("archive-case-btn")?.addEventListener("click", async () => {
+    if (!activeCaseId) return;
+    const vuole = !_activeArchived;
+    try {
+      const r = await fetch(`/api/cases/${activeCaseId}/archive`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ archived: vuole }) });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      _aggiornaArchivioBtn(vuole);
+      if (typeof toast === "function") toast(vuole ? (_CAL_IT ? "Fascicolo archiviato: lo trovi in «Archiviati»" : "Rasti u arkivua: e gjen te «Të arkivuara»")
+                                                   : (_CAL_IT ? "Fascicolo riportato tra gli attivi" : "Rasti u kthye te rastet aktive"), "ok");
+      await renderCaseList();
+    } catch (e) {
+      if (typeof toast === "function") toast(_CAL_IT ? "Archiviazione non riuscita" : "Arkivimi dështoi", "err");
     }
   });
 
@@ -3344,6 +3416,9 @@
   }
 
   // ─── render missing-facts panel (the 3 questions a lawyer asks) ──
+  // v9.624 — un campo vuoto che il modello ha scritto «null» arrivava a schermo come «None» («Nëse PO: None»): vale vuoto
+  // (il server ora lo pulisce alla fonte; questo serve per le risposte già salvate)
+  function _nn(x) { const t = (x == null ? "" : String(x)).trim(); return (t === "None" || t === "null") ? "" : t; }
   function renderMissingFacts(mf) {
     const wrap = document.createElement("details");
     wrap.className = "missing-facts";
@@ -3353,8 +3428,8 @@
     const facts = mf.facts || [];
     const items = facts.map((f, i) => {
       const impact = [];
-      if (f.impact_if_yes) impact.push(`<div class="mf-impact"><strong>${it ? "Se SÌ:" : "Nëse PO:"}</strong> ${escapeHtml(f.impact_if_yes)}</div>`);
-      if (f.impact_if_no)  impact.push(`<div class="mf-impact"><strong>${it ? "Se NO:" : "Nëse JO:"}</strong> ${escapeHtml(f.impact_if_no)}</div>`);
+      if (_nn(f.impact_if_yes)) impact.push(`<div class="mf-impact"><strong>${it ? "Se SÌ:" : "Nëse PO:"}</strong> ${escapeHtml(_nn(f.impact_if_yes))}</div>`);
+      if (_nn(f.impact_if_no))  impact.push(`<div class="mf-impact"><strong>${it ? "Se NO:" : "Nëse JO:"}</strong> ${escapeHtml(_nn(f.impact_if_no))}</div>`);
       return `
         <li class="mf-item">
           <button class="mf-ask" type="button" data-question="${escapeHtml(f.question)}">
@@ -3596,7 +3671,7 @@
           <span class="tl-urg-badge">${urgencyIcon[u]} ${urgencyLabel[u]}</span>
           <div class="tl-action">${escapeHtml(d.action)}</div>
           <div class="tl-timing">${escapeHtml(timing)}</div>
-          ${d.article_ref ? `<div class="tl-ref">${escapeHtml(d.article_ref)}</div>` : ""}
+          ${_nn(d.article_ref) ? `<div class="tl-ref">${escapeHtml(_nn(d.article_ref))}</div>` : ""}
         </li>
       `;
     }).join("");

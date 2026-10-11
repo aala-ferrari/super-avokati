@@ -1,4 +1,4 @@
-"""v9.623 — prova della RICERCA NEI FASCICOLI su un database di PROVA (client di test di Flask, nessuna richiesta vera). Si lancia
+"""v9.623 — prova della RICERCA NEI FASCICOLI (e, dal v9.624, dell'ARCHIVIO dei fascicoli) su un database di PROVA (client di test di Flask, nessuna richiesta vera). Si lancia
 come tools/prova_link_scadenze.py (container usa-e-getta, `APP_DB_PATH` su una COPIA)."""
 from __future__ import annotations
 
@@ -17,6 +17,7 @@ ESITI: list = []
 
 
 def ok(nome: str, cond: bool, extra: str = "") -> None:
+    cond = bool(cond)
     ESITI.append(cond)
     print(("✓ " if cond else "✗ ") + nome + (f" — {extra}" if extra and not cond else ""))
 
@@ -74,6 +75,28 @@ try:
     st, d = cerca(cl, "100%_")
     ok("i caratteri speciali non diventano jolly", st == 200 and d.get("results") == [], repr(d)[:200])
     ok("senza sessione → 401", app.test_client().get("/api/cases/search?q=paralajmerim").status_code == 401)
+
+    # v9.624 — archiviare un fascicolo chiuso
+    with cl.session_transaction() as s:
+        s["jurisdiction"] = "AL"
+    r = cl.patch(f"/api/cases/{kola.id}/archive", json={"archived": True})
+    elenco = {c["id"]: c for c in (cl.get("/api/cases").get_json() or {}).get("cases", [])}
+    ok("archiviato: resta nell'elenco col segno «archiviato»", r.status_code == 200 and elenco.get(kola.id, {}).get("archived") is True,
+       f"{r.status_code} {elenco.get(kola.id)}")
+    st, d = cerca(cl, "paralajmerim")
+    ok("un fascicolo archiviato si trova ancora con la ricerca, segnato", st == 200 and d.get("results")
+       and d["results"][0].get("archived") is True, repr(d)[:200])
+    ok("aperto, dice di essere archiviato", (cl.get(f"/api/cases/{kola.id}").get_json() or {}).get("archived_at"))
+    cl2 = app.test_client()
+    with cl2.session_transaction() as s:
+        s["user_id"] = u2.id
+        s["jurisdiction"] = "AL"
+    ok("un altro avvocato non archivia il fascicolo altrui → 404",
+       cl2.patch(f"/api/cases/{kola.id}/archive", json={"archived": False}).status_code == 404)
+    r = cl.patch(f"/api/cases/{kola.id}/archive", json={"archived": False})
+    elenco = {c["id"]: c for c in (cl.get("/api/cases").get_json() or {}).get("cases", [])}
+    ok("riportato tra gli attivi", r.status_code == 200 and elenco.get(kola.id, {}).get("archived") is False
+       and (cl.get(f"/api/cases/{kola.id}").get_json() or {}).get("archived_at") is None)
     html = cl.get("/").get_data(as_text=True)
     ok("la casella di ricerca sta sopra l'elenco dei fascicoli",
        'id="case-search"' in html and html.find('id="case-search"') < html.find('id="case-list"'))

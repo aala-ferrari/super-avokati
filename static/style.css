@@ -8368,3 +8368,16 @@ details.analiza[open]>summary::before{content:"\25BE  "}
   .csr-head { color: #cbb98f; }
   .csr-hit { color: #b6a888; }
 }
+
+
+/* v9.624 — i fascicoli archiviati */
+.case-arch-toggle { list-style: none; }
+.case-arch-btn { width: 100%; text-align: left; background: none; border: none; padding: 8px 12px; font: inherit;
+  font-size: .82rem; font-weight: 700; color: var(--gray-500); cursor: pointer; border-radius: 8px; }
+.case-arch-btn:hover { background: var(--gray-50); color: var(--ink); }
+.case-item.archived .case-title { color: var(--gray-500); font-weight: 500; }
+.case-item.archived .case-select { opacity: .85; }
+@media (max-width: 600px) { .case-arch-btn { min-height: 40px; } }
+@media (prefers-color-scheme: dark) { .case-item.archived .case-title { color: #8a8578; } }
+.csr-hit mark { background: #f5e6bf; color: inherit; padding: 0 1px; border-radius: 3px; }
+@media (prefers-color-scheme: dark) { .csr-hit mark { background: #5a4a26; } }

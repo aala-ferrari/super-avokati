@@ -3786,6 +3786,17 @@ def answer_system_for(base: str, jurisdiction: str | None) -> str:
 # ── data types ─────────────────────────────────────────────────────────────
 
 
+
+def _testo(v) -> str:
+    """v9.624 — il testo di un campo del JSON del modello. Un `null` (o la parola «None»/«null» scritta dal modello) è VUOTO:
+    prima `str()` del valore letto con `.get(chiave, "")` dava, per un `null`, la parola «None» a schermo (misurato: 5 risposte su 236, «Nëse PO: None»
+    nelle domande sui fatti e il riferimento all'articolo della cronologia). Mai «none» minuscolo: è un valore vero di alcuni
+    campi (il livello del radar d'urgenza)."""
+    if v is None:
+        return ""
+    t = str(v).strip()
+    return "" if t in ("None", "null") else t
+
 @dataclass
 class TriageResult:
     problem_summary: str
@@ -5666,7 +5677,7 @@ class SuperAvvocato:
                 fast=True,
             )
             data = _parse_json_block(raw)
-        complexity_raw = str(data.get("complexity", "")).strip().lower()
+        complexity_raw = _testo(data.get("complexity")).strip().lower()
         complexity = "simple" if complexity_raw == "simple" else "complex"
         # V7.8 — deterministic override: if the message looks clearly informative
         # (short, no adversary/deadline markers, no dossier), force "simple".
@@ -5687,12 +5698,12 @@ class SuperAvvocato:
                     areas.append(_a)
                     log.info("triage: area «%s» shtuar nga emri i kodit në pyetje", _a)
         return TriageResult(
-            problem_summary=str(data.get("problem_summary", "")),
+            problem_summary=_testo(data.get("problem_summary")),
             areas=areas,
             search_queries=list(data.get("search_queries") or []) or [user_message],
             strategic_angles=list(data.get("strategic_angles") or []),
             needs_followup=bool(data.get("needs_followup", False)),
-            followup_question=str(data.get("followup_question", "")).strip(),
+            followup_question=_testo(data.get("followup_question")).strip(),
             complexity=complexity,
             domanda=user_message,
         )
@@ -6950,8 +6961,8 @@ class SuperAvvocato:
         details = []
         for item in data.get("critical_details") or []:
             if isinstance(item, dict):
-                title = str(item.get("title", "")).strip()
-                detail = str(item.get("detail", "")).strip()
+                title = _testo(item.get("title")).strip()
+                detail = _testo(item.get("detail")).strip()
                 if title and detail:
                     details.append(StrategicInsight(title=title, detail=detail))
             elif isinstance(item, str) and item.strip():
@@ -7022,13 +7033,13 @@ class SuperAvvocato:
         for item in (data.get("anchors") or []):
             if not isinstance(item, dict):
                 continue
-            event = str(item.get("event", "")).strip()
+            event = _testo(item.get("event")).strip()
             if not event:
                 continue
             anchors.append(TimelineAnchor(
                 event=event,
                 date=_normalise_iso_date(item.get("date")),
-                source_quote=str(item.get("source_quote", "")).strip(),
+                source_quote=_testo(item.get("source_quote")).strip(),
             ))
 
         deadlines: list[TimelineDeadline] = []
@@ -7036,7 +7047,7 @@ class SuperAvvocato:
         for item in (data.get("deadlines") or []):
             if not isinstance(item, dict):
                 continue
-            action = str(item.get("action", "")).strip()
+            action = _testo(item.get("action")).strip()
             if not action:
                 continue
             due_date_str = _normalise_iso_date(item.get("due_date"))
@@ -7048,11 +7059,11 @@ class SuperAvvocato:
                     due_date_str = None
             deadlines.append(TimelineDeadline(
                 action=action,
-                anchor_event=str(item.get("anchor_event", "")).strip(),
+                anchor_event=_testo(item.get("anchor_event")).strip(),
                 anchor_date=_normalise_iso_date(item.get("anchor_date")),
                 days_after=_coerce_int(item.get("days_after")),
                 due_date=due_date_str,
-                article_ref=str(item.get("article_ref", "")).strip(),
+                article_ref=_testo(item.get("article_ref")).strip(),
                 urgency=_urgency_from_days(days_remaining),
                 days_remaining=days_remaining,
             ))
@@ -7148,7 +7159,7 @@ class SuperAvvocato:
         for item in (data.get("decisive_differences") or []):
             if not isinstance(item, dict):
                 continue
-            attr = str(item.get("attribute", "")).strip()
+            attr = _testo(item.get("attribute")).strip()
             if not attr:
                 continue
             status_raw = str(item.get("citizen_status", "e paqartë")).strip().lower()
@@ -7157,10 +7168,10 @@ class SuperAvvocato:
             )
             differences.append(DecisiveDifference(
                 attribute=attr,
-                winners_have=str(item.get("winners_have", "")).strip(),
-                losers_lacked=str(item.get("losers_lacked", "")).strip(),
+                winners_have=_testo(item.get("winners_have")).strip(),
+                losers_lacked=_testo(item.get("losers_lacked")).strip(),
                 citizen_status=status,
-                action=str(item.get("action", "")).strip(),
+                action=_testo(item.get("action")).strip(),
             ))
             if len(differences) >= 4:
                 break
@@ -7175,10 +7186,10 @@ class SuperAvvocato:
             ]
 
         return PrecedentComparison(
-            pattern_winners=str(data.get("pattern_winners", "")).strip(),
-            pattern_losers=str(data.get("pattern_losers", "")).strip(),
+            pattern_winners=_testo(data.get("pattern_winners")).strip(),
+            pattern_losers=_testo(data.get("pattern_losers")).strip(),
             citizen_alignment=alignment,  # type: ignore[arg-type]
-            alignment_reason=str(data.get("alignment_reason", "")).strip(),
+            alignment_reason=_testo(data.get("alignment_reason")).strip(),
             decisive_factors=factors,
             decisive_differences=differences,
         )
@@ -7260,10 +7271,10 @@ class SuperAvvocato:
                 continue
             if cid in seen or cid not in by_id:
                 continue
-            reason = str(it.get("reason", "")).strip()
+            reason = _testo(it.get("reason")).strip()
             if not reason:
                 continue
-            strategy = str(it.get("strategy", "")).strip().lower()
+            strategy = _testo(it.get("strategy")).strip().lower()
             still_dangerous = bool(it.get("still_dangerous")) or strategy == "still_dangerous"
             items.append(DistinguishedPrecedent(
                 case_id=cid,
@@ -7335,8 +7346,8 @@ class SuperAvvocato:
         for item in (data.get("claims") or []):
             if not isinstance(item, dict):
                 continue
-            claim = str(item.get("claim", "")).strip()
-            needed = str(item.get("needed_proof", "")).strip()
+            claim = _testo(item.get("claim")).strip()
+            needed = _testo(item.get("needed_proof")).strip()
             if not claim or not needed:
                 continue
             bearer_raw = str(item.get("who_bears_burden", "klienti")).strip().lower()
@@ -7356,7 +7367,7 @@ class SuperAvvocato:
                 who_bears_burden=bearer,
                 burden_shift=bool(item.get("burden_shift", False)),
                 status=status,
-                notes=str(item.get("notes", "")).strip(),
+                notes=_testo(item.get("notes")).strip(),
             ))
         return EvidenceMap(claims=claims[:6])
 
@@ -7424,7 +7435,7 @@ class SuperAvvocato:
         for item in (data.get("findings") or []):
             if not isinstance(item, dict):
                 continue
-            name = str(item.get("name", "")).strip()
+            name = _testo(item.get("name")).strip()
             if not name:
                 continue
             kind_raw = str(item.get("kind", "procedural_defect")).strip().lower()
@@ -7445,13 +7456,13 @@ class SuperAvvocato:
             findings.append(NullityFinding(
                 kind=kind,
                 name=name,
-                legal_basis=str(item.get("legal_basis", "")).strip(),
-                condition=str(item.get("condition", "")).strip(),
+                legal_basis=_testo(item.get("legal_basis")).strip(),
+                condition=_testo(item.get("condition")).strip(),
                 applies_to=applies,
                 citizen_applicable=applicable,
-                deadline_hint=str(item.get("deadline_hint", "")).strip(),
-                consequence=str(item.get("consequence", "")).strip(),
-                action=str(item.get("action", "")).strip(),
+                deadline_hint=_testo(item.get("deadline_hint")).strip(),
+                consequence=_testo(item.get("consequence")).strip(),
+                action=_testo(item.get("action")).strip(),
             ))
             if len(findings) >= 6:
                 break
@@ -7597,7 +7608,7 @@ class SuperAvvocato:
         for item in (data.get("signals") or []):
             if not isinstance(item, dict):
                 continue
-            label = str(item.get("label", "")).strip()
+            label = _testo(item.get("label")).strip()
             if not label:
                 continue
             kind_raw = str(item.get("kind", "other")).strip().lower()
@@ -7611,10 +7622,10 @@ class SuperAvvocato:
             signals.append(UrgencySignal(
                 kind=kind,
                 label=_tronca(label, 100),
-                reason=str(item.get("reason", "")).strip(),
+                reason=_testo(item.get("reason")).strip(),
                 severity=severity,
-                deadline=str(item.get("deadline", "")).strip(),
-                action=str(item.get("action", "")).strip(),
+                deadline=_testo(item.get("deadline")).strip(),
+                action=_testo(item.get("action")).strip(),
             ))
             if len(signals) >= 6:
                 break
@@ -7732,7 +7743,7 @@ class SuperAvvocato:
         for it in (data.get("items") or []):
             if not isinstance(it, dict):
                 continue
-            desc = str(it.get("description", "")).strip()
+            desc = _testo(it.get("description")).strip()
             if not desc:
                 continue
             refs_raw = it.get("doc_refs") or []
@@ -7763,7 +7774,7 @@ class SuperAvvocato:
                 doc_refs=doc_refs[:4],
                 conflicting_values=conflicting,
                 severity=severity,
-                implication=str(it.get("implication", "")).strip()[:240],
+                implication=_testo(it.get("implication")).strip()[:240],
             ))
             if len(items) >= 5:
                 break
@@ -7932,7 +7943,7 @@ class SuperAvvocato:
         for it in (data.get("items") or []):
             if not isinstance(it, dict):
                 continue
-            text = str(it.get("text", "")).strip()
+            text = _testo(it.get("text")).strip()
             if not text:
                 continue
             bucket_raw = str(it.get("bucket", "kjo_javë")).strip()
@@ -7953,8 +7964,8 @@ class SuperAvvocato:
                 bucket=bucket,
                 priority=priority,
                 source=source,
-                reason=str(it.get("reason", "")).strip()[:120],
-                legal_basis=str(it.get("legal_basis", "")).strip()[:60],
+                reason=_testo(it.get("reason")).strip()[:120],
+                legal_basis=_testo(it.get("legal_basis")).strip()[:60],
             ))
             if len(items) >= 8:
                 break
@@ -8062,15 +8073,15 @@ class SuperAvvocato:
         for item in (data.get("facts") or []):
             if not isinstance(item, dict):
                 continue
-            q = str(item.get("question", "")).strip()
-            why = str(item.get("why_it_matters", "")).strip()
+            q = _testo(item.get("question")).strip()
+            why = _testo(item.get("why_it_matters")).strip()
             if not q or not why:
                 continue
             facts.append(MissingFact(
                 question=q,
                 why_it_matters=why,
-                impact_if_yes=str(item.get("impact_if_yes", "")).strip(),
-                impact_if_no=str(item.get("impact_if_no", "")).strip(),
+                impact_if_yes=_testo(item.get("impact_if_yes")).strip(),
+                impact_if_no=_testo(item.get("impact_if_no")).strip(),
             ))
         return MissingFactsAnalysis(facts=facts[:4])
 
@@ -8140,7 +8151,7 @@ class SuperAvvocato:
         for item in (data.get("risks") or []):
             if not isinstance(item, dict):
                 continue
-            r = str(item.get("risk", "")).strip()
+            r = _testo(item.get("risk")).strip()
             if not r:
                 continue
             sev_raw = str(item.get("severity", "medium")).strip().lower()
@@ -8149,7 +8160,7 @@ class SuperAvvocato:
             )
             risks.append(PremortemRisk(
                 risk=r,
-                mitigation=str(item.get("mitigation", "")).strip(),
+                mitigation=_testo(item.get("mitigation")).strip(),
                 severity=sev,
             ))
         # Sort by severity so the answer prompt sees the biggest risks first.
@@ -8214,12 +8225,12 @@ class SuperAvvocato:
             log.warning("opponent_playbook JSON parse failed, returning empty")
             return OpponentPlaybook()
 
-        opponent = str(data.get("opponent", "")).strip()
+        opponent = _testo(data.get("opponent")).strip()
         moves: list[OpponentMove] = []
         for item in (data.get("moves") or []):
             if not isinstance(item, dict):
                 continue
-            mv = str(item.get("move", "")).strip()
+            mv = _testo(item.get("move")).strip()
             if not mv:
                 continue
             sev_raw = str(item.get("severity", "medium")).strip().lower()
@@ -8228,10 +8239,10 @@ class SuperAvvocato:
             )
             moves.append(OpponentMove(
                 move=mv,
-                why_it_threatens=str(item.get("why_it_threatens", "")).strip(),
-                counter=str(item.get("counter", "")).strip(),
+                why_it_threatens=_testo(item.get("why_it_threatens")).strip(),
+                counter=_testo(item.get("counter")).strip(),
                 severity=sev,
-                legal_basis=str(item.get("legal_basis", "")).strip(),
+                legal_basis=_testo(item.get("legal_basis")).strip(),
             ))
         sev_rank = {"high": 0, "medium": 1, "low": 2}
         moves.sort(key=lambda x: sev_rank.get(x.severity, 1))
@@ -8289,7 +8300,7 @@ class SuperAvvocato:
         for item in (data.get("levers") or []):
             if not isinstance(item, dict):
                 continue
-            lv = str(item.get("lever", "")).strip()
+            lv = _testo(item.get("lever")).strip()
             if not lv:
                 continue
             pl_raw = str(item.get("pressure_level", "firm")).strip().lower()
@@ -8302,10 +8313,10 @@ class SuperAvvocato:
             )
             levers.append(LeverageLever(
                 lever=lv,
-                mechanism=str(item.get("mechanism", "")).strip(),
+                mechanism=_testo(item.get("mechanism")).strip(),
                 pressure_level=pl,
                 timing=tm,
-                risk_to_citizen=str(item.get("risk_to_citizen", "")).strip(),
+                risk_to_citizen=_testo(item.get("risk_to_citizen")).strip(),
             ))
         pressure_rank = {"decisive": 0, "firm": 1, "soft": 2}
         levers.sort(key=lambda x: pressure_rank.get(x.pressure_level, 1))

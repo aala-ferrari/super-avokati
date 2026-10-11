@@ -11502,6 +11502,60 @@ def main():
     except Exception as _e397:  # noqa: BLE001
         check("cerca[397]: kontrollet u ekzekutuan", False, f"{type(_e397).__name__}: {_e397}")
 
+    # [398] v9.624 — ARCHIVIARE un fascicolo chiuso invece di cancellarlo: esce dall'elenco attivo (tendina «Archiviati»), resta
+    # nella ricerca, si riporta indietro; niente si cancella. Eseguito su un DB TEMPORANEO.
+    try:
+        import tempfile as _tf398, inspect as _in398
+        from pathlib import Path as _P398
+        from src import storage as _st398, web as _w398
+        _db398 = _P398(_tf398.mkdtemp()) / "t.db"
+        _orig398 = _st398._connect
+        _st398._connect = lambda db_path=None: _orig398(_db398)
+        try:
+            _st398.init_db(_db398)
+            _u398 = _st398.create_user("arch398@esempio.it", "x")
+            _c398 = _st398.create_case(_u398.id, "Caso 398", jurisdiction="AL")
+            _st398.add_message(_c398.id, "user", "domanda 398")
+            _prima = _st398.get_case(_c398.id, _u398.id)
+            _ok1 = _st398.set_case_archived(_c398.id, True)
+            _dopo = _st398.get_case(_c398.id, _u398.id)
+            _ok2 = _st398.set_case_archived(_c398.id, False)
+            _riportato = _st398.get_case(_c398.id, _u398.id)
+            _msg398 = _st398.list_messages(_c398.id)
+        finally:
+            _st398._connect = _orig398
+        _okst = (_prima.archived_at is None and _ok1 and _dopo.archived_at and _dopo.updated_at == _prima.updated_at
+                 and _ok2 and _riportato.archived_at is None and len(_msg398) == 1)
+        _js398 = open("/app/static/app.js", encoding="utf-8").read()
+        _okw = ("/api/cases/<case_id>/archive" in {r.rule for r in _w398.app.url_map.iter_rules()}
+                and "_resolve_case(case_id)" in _in398.getsource(_w398.api_archive_case)
+                and '"archived": bool(getattr(c, "archived_at", None))' in _in398.getsource(_w398.api_list_cases)
+                and "_tendinaArchiviati(" in _js398 and "/archive`" in _js398
+                and 'id="archive-case-btn"' in open("/app/templates/index.html", encoding="utf-8").read())
+        check("archivio[398]: archiviato e riportato senza cancellare né riordinare; rotta col controllo d'accesso; elenco e "
+              "tendina nell'interfaccia", _okst and _okw, repr((_prima, _dopo, _riportato, _okw))[:300])
+    except Exception as _e398:  # noqa: BLE001
+        check("archivio[398]: kontrollet u ekzekutuan", False, f"{type(_e398).__name__}: {_e398}")
+
+    # [399] v9.624 — la parola «None» a schermo: un campo `null` del JSON del modello diventava «None» («Nëse PO: None» nelle
+    # domande sui fatti, il riferimento all'articolo della cronologia: 5 risposte su 236). `brain._testo` alla fonte (51
+    # punti, nessuno col vecchio `str(x.get("k", ""))`), `_nn` nel client per le risposte già salvate; e la ricerca evidenzia
+    # la parola trovata
+    try:
+        import re as _re399
+        from src import brain as _br399
+        _ok399 = (_br399._testo(None) == "" and _br399._testo("None") == "" and _br399._testo("null") == ""
+                  and _br399._testo("  x  ") == "x" and _br399._testo("none") == "none" and _br399._testo(3) == "3")
+        _vecchi399 = _re399.findall(r'str\(\w+\.get\("\w+", ""\)\)', open("/app/src/brain.py", encoding="utf-8").read())
+        _js399 = open("/app/static/app.js", encoding="utf-8").read()
+        _okjs399 = ("_nn(f.impact_if_yes)" in _js399 and "_nn(f.impact_if_no)" in _js399 and "_nn(d.article_ref)" in _js399
+                    and "function _conEvidenza(" in _js399 and "_conEvidenza(h.brano" in _js399)
+        check("none[399]: il null del modello è vuoto (mai la parola «None»), nessun vecchio schema in brain.py, il client lo "
+              "toglie dalle risposte salvate; la ricerca evidenzia la parola", _ok399 and not _vecchi399 and _okjs399,
+              repr((_ok399, len(_vecchi399), _okjs399)))
+    except Exception as _e399:  # noqa: BLE001
+        check("none[399]: kontrollet u ekzekutuan", False, f"{type(_e399).__name__}: {_e399}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

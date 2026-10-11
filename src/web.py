@@ -1706,7 +1706,8 @@ def api_list_cases():
          "creator_id": c.user_id,
          "is_mine": c.user_id == user.id,
          "stage": c.stage,
-         "stage_label": storage.stage_label(c.stage, attiva)}
+         "stage_label": storage.stage_label(c.stage, attiva),
+         "archived": bool(getattr(c, "archived_at", None))}             # v9.624
         for c in visibili
     ], "jurisdiction": attiva, "hidden_other": len(cases) - len(visibili)})
 
@@ -1731,7 +1732,8 @@ def api_search_cases():
         c = visibili.get(t["case_id"])
         if c is None:
             continue
-        voce = per_caso.setdefault(c.id, {"case_id": c.id, "title": c.title, "updated_at": c.updated_at, "hits": []})
+        voce = per_caso.setdefault(c.id, {"case_id": c.id, "title": c.title, "updated_at": c.updated_at, "hits": [],
+                                          "archived": bool(getattr(c, "archived_at", None))})
         if len(voce["hits"]) < 3:
             voce["hits"].append({k: t.get(k) for k in ("tipo", "role", "brano", "filename", "message_id", "document_id")})
     return jsonify({"q": q, "results": list(per_caso.values()), "jurisdiction": attiva})
@@ -1811,6 +1813,7 @@ def api_get_case(case_id: str):
         "stage_label": storage.stage_label(case.stage, getattr(case, "jurisdiction", None)),
         "created_at": case.created_at,
         "updated_at": case.updated_at,
+        "archived_at": getattr(case, "archived_at", None),                 # v9.624
         "messages": [
             {"id": m.id, "role": m.role, "content": m.content, "kind": m.kind,
              "articles": m.articles, "precedents": m.precedents, "citations": m.citations,
@@ -1851,6 +1854,20 @@ def api_delete_case(case_id: str):
     if not storage.delete_case(case_id, user.id):
         return jsonify({"error": "not found"}), 404
     return jsonify({"ok": True})
+
+
+@app.patch("/api/cases/<case_id>/archive")
+@login_required_api
+def api_archive_case(case_id: str):
+    """v9.624 — archivia un fascicolo chiuso (o lo riporta tra gli attivi): `{archived: true|false}`. Chi lo vede in questa
+    sessione può archiviarlo, come per la fase; niente si cancella, le scadenze in calendario restano."""
+    case = _resolve_case(case_id)
+    if not case:
+        return jsonify({"error": "not found"}), 404
+    archiviato = bool((request.get_json(force=True, silent=True) or {}).get("archived", True))
+    if not storage.set_case_archived(case.id, archiviato):
+        return jsonify({"error": "update failed"}), 500
+    return jsonify({"ok": True, "archived": archiviato})
 
 
 @app.patch("/api/cases/<case_id>/stage")
