@@ -108,6 +108,11 @@ _CASA_CONIUGALE_AL = (("shit", "shtëpi", "burri"), ("shit", "shtepi", "burri"),
                       ("shiti", "apartament", "burri"), ("shitur", "apartament", "burri"), ("shiti", "apartament", "gruaja"),
                       ("shitur", "apartament", "gruaja"), ("shit", "apartament", "pa pëlqim"), ("shit", "apartament", "pa pelqim"),
                       ("banesën bashkëshortore",), ("banesa bashkëshortore",))
+# v9.610 — il ricorso contro la decisione del vetting («rivlerësim» da solo è anche la rivalutazione di un immobile: col giudice, il
+# procuratore, la KPK o la Commissione; «ankohemi» non contiene «ankim»: anche «anko»)
+_VETTING_ANKIM_AL = (tuple((r, v, p) for r in ("rivlerësim", "rivleresim", "vetting", "veting") for v in ("ankim", "anko", "apel")
+                           for p in ("gjyqtar", "prokuror", " kpk", "komision", "kualifikim"))
+                     + ((" kpk", "ankim"), (" kpk", "anko"), ("kolegj", "posaçëm"), ("kolegj", "posacem")))
 # v9.608 — il licenziamento IN TRONCO: chi licenzia + come (senza preavviso, a voce, subito, senza motivo)
 _PUSHIM_VERB_AL = ("pushoi", "pushu", "largoi nga puna", "largua nga puna", "hoqi nga puna", "hoqën nga puna", "zgjidhi kontratën")
 _PUSHIM_MENJEHER_AL = ("pa paralajmërim", "pa paralajmerim", "asnjë paralajmërim", "asnje paralajmerim", "pa njoftim", "pa afat njoftimi", "me gojë", "me goje", "menjëherë",
@@ -188,6 +193,24 @@ ANCORE_AL: tuple = (
     # tema). Ora ASHK come PAROLA (dopo uno spazio o una parentesi) o «kadastr»
     (("kartel", (" ashk", "shit"), ("(ashk", "shit"), (" ashk", "blej"), (" ashk", "tjetërsim"), ("kadastr", "shit"), ("kadastr", "blej"),
       ("rubrik", "kufizim"), ("regjistr", "pasuri", "shit"), ("hipotek", "shit")), ("Penal",), (("kodi_civil", "193"), ("kodi_civil", "195"))),
+    # v9.610 — il BLOCCO delle operazioni sulla kartela (Rubrika D: «kufizohen veprimet», «ndalim i veprimeve»): chi lo mette, quanto dura
+    # e come si toglie — legge sul catasto 111/2018 art. 27 (l'ordine del direttore dura 30 giorni salvo il sequestro del tribunale; il
+    # proprietario va avvisato e può ricorrere) e art. 65 (ricorso amministrativo contro l'Agenzia, poi 45 giorni per il tribunale). La
+    # risposta sul vincolo in Rubrika D del 21 set: «Norma e L.111/2018 për kufizimet/shënimet në kartelë (kush i vendos, kush i heq,
+    # ankimi) nuk është në materialet e mia». Solo dalla domanda, mai nel penale
+    ((("kufizim", "kartel"), ("kufizim", "rubrik"), ("kufizim", " ashk"), ("kufizim", "(ashk"), ("kufizohen veprimet",),
+      ("ndalim", "veprime", "kartel"), ("ndalim", "veprime", " ashk"), ("bllok", "kartel"), ("bllok", " ashk"), ("pezull", "veprime", " ashk")),
+     ("Penal",), (("ligji_kadastra", "27"), ("ligji_kadastra", "65")), None, None, True),
+    # v9.610 — il RICORSO contro la decisione del vetting (KPK → Kolegji i Posaçëm i Apelimit): legge 84/2016 art. 63 (tutte le decisioni
+    # della Commissione, 15 giorni dalla notifica, depositato presso la Commissione; il ricorso amministrativo del KPA NON si applica). Prova
+    # viva AL dell'11 ott (giudice destituito, «brenda sa ditësh ankohemi, ku depozitohet ankimi»): il 63 non era fra i dodici, l'ha aggiunto
+    # il Kërkuesi. Solo dalla domanda (inneschi in `_VETTING_ANKIM_AL`)
+    (_VETTING_ANKIM_AL, (), (("ligji_rivleresimi", "63"),), None, None, True),
+    # … e in coda il PONTE verso le regole del calcolo del termine: la legge sul vetting non ne ha, l'art. 4/6 rinvia al KPA o alla legge
+    # 49/2012, il cui art. 1/2 rinvia al codice di procedura civile (quindi al KPC 148, che l'ancora dei termini porta già). La stessa
+    # prova: il Giudice calcolava lunedì 26 ottobre col KPC 148 ma scriveva «ura normative te KPC nuk është në dosje» e prudenzialmente
+    # fissava venerdì 23
+    (_VETTING_ANKIM_AL, (), (("ligji_rivleresimi", "4"), ("ligji_gjykatat_administrative", "1")), None, None, True, "coda"),
     # v9.394 — misurato dalla misura dei modelli (26 set): nel caso «straniero con permesso per lavoro licenziato» NESSUNA
     # delle 6 varianti (qualunque modello) citava la ligji 79/2021 art. 72 (i motivi di annullamento del permesso unico: il
     # rapporto interrotto 1/e con l'obbligo del datore di avvisare entro 2 settimane, e al p. 2 «Papunësia nuk përbën arsye të
@@ -6218,6 +6241,27 @@ class SuperAvvocato:
     _RINVIO_KPA_RX = re.compile(r"Kodi(?:t|n)?\s+(?:i|e|të|t[eë])\s+Procedur(?:ave|ës|es)\s+Administrative|\bKPA\b|"
                                 r"ankim\w*\s+administrativ", re.I)
 
+    # v9.610 — un rinvio NEGATO non è un rinvio: la legge sul vetting nomina il KPA solo per escluderlo («Parashikimet e nenit 82 të
+    # Kodit të Procedurave Administrative nuk zbatohen», art. 52; «Rregullat për ankimin administrativ, parashikuar në nenin 128, të KPA,
+    # nuk zbatohen», art. 63) e il rinvio portava KPA 132-133 (il ricorso amministrativo, 30 giorni) accanto al ricorso del vetting
+    # (15 giorni) — prova viva AL dell'11 ott. Conta la frase che nomina il KPA: se dice che NON si applica, quell'articolo non rinvia
+    _KPA_NEGATO_RX = re.compile(r"nuk\s+(?:zbatohe|aplikohe|vlejn|vlen\b)|përjashtohe|perjashtohe|nuk\s+kanë\s+të\s+bëjnë|nuk\s+kane\s+te\s+bejne", re.I)
+
+    # la frase finisce al punto o al punto e virgola, NON all'a capo: il PDF va a capo a metà frase («…Kodit të Procedurave⏎Administrative,
+    # nuk zbatohen.»); comincia dopo il punto precedente o al numero del paragrafo («⏎3. »)
+    _FINE_FRASE_RX = re.compile(r"[.;](?=\s|$)")
+    _INIZIO_FRASE_RX = re.compile(r"[.;]\s|\n\s*\d{1,2}\.\s")
+
+    def _rinvia_al_kpa(self, testo: str) -> bool:
+        testo = testo or ""
+        for m in self._RINVIO_KPA_RX.finditer(testo):
+            i = max((x.end() for x in self._INIZIO_FRASE_RX.finditer(testo, 0, m.start())), default=0)
+            f = self._FINE_FRASE_RX.search(testo, m.end())
+            j = f.start() if f else len(testo)
+            if not self._KPA_NEGATO_RX.search(testo[i:j]):
+                return True
+        return False
+
     def _aggiungi_rinvio_kpa(self, retrieved):
         """v9.517 (banco di prova della v9.510, licenziamento + permesso di soggiorno): l'art. 73 della ligji 79/2021 sugli stranieri
         rinvia per NOME al Codice di procedura amministrativa per il ricorso contro la revoca del permesso, e il senior scriveva
@@ -6231,7 +6275,7 @@ class SuperAvvocato:
             if {("kodi_proc_admin", "132"), ("kodi_proc_admin", "133")} <= presenti:
                 return retrieved
             da = next((a for a, _ in retrieved[:8] if a.code != "kodi_proc_admin" and not getattr(a, "_rinvio_da", "")
-                       and self._RINVIO_KPA_RX.search(getattr(a, "body", "") or "")), None)
+                       and self._rinvia_al_kpa(getattr(a, "body", "") or "")), None)
             if da is None:
                 return retrieved
             by_key = {(x.code, str(x.number)): x for x in self.index.articles if x.code == "kodi_proc_admin"}

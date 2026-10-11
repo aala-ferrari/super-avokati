@@ -10974,6 +10974,43 @@ def main():
     except Exception as _e383:  # noqa: BLE001
         check("vetting[383]: kontrollet u ekzekutuan", False, f"{type(_e383).__name__}: {_e383}")
 
+    # [384] v9.610 — il BLOCCO delle operazioni sulla kartela (Rubrika D, «kufizohen veprimet»): entrano legge sul catasto art. 27 (chi lo
+    # ordina, 30 giorni salvo sequestro del tribunale, ricorso del proprietario) e art. 65 (ricorso contro l'Agenzia, 45 giorni per il
+    # tribunale); mai col conto bancario bloccato né nel penale
+    try:
+        from src import brain as _br384
+        from src.retrieval import ArticleIndex as _AI384
+        _br384.set_request_jurisdiction("AL")
+        _al384 = _AI384.load()
+        _k384 = lambda q, aree: {(a.code, str(a.number)) for a, _ in _br384._applica_ancore([], _al384, ["pyetje", q], aree)}
+        _kd384 = {("ligji_kadastra", "27"), ("ligji_kadastra", "65")}
+        _ok384 = (_kd384 <= _k384("Në kartelën e apartamentit, në Rubrikën D, ASHK ka shënuar «kufizohen veprimet». Si e heqim?", ["Prone", "Civil"])
+                  and not (_kd384 & _k384("Banka bllokoi llogarinë e klientit. Si e zhbllokojmë?", ["Civil"]))
+                  and not (_kd384 & _k384("Policia bllokoi pasurinë e klientit në ASHK pas arrestit. Çfarë rrezikon?", ["Penal"])))
+        _txt384 = next(a.body for a in _al384.articles if a.code == "ligji_kadastra" and str(a.number) == "27")
+        check("kartela[384]: il blocco delle operazioni sulla kartela porta legge sul catasto 27 e 65, mai col conto né nel penale",
+              _ok384 and "30 ditë" in (_txt384 or ""), str(sorted(_k384("ASHK vendosi bllokim në kartelën e klientit.", ["Civil"])))[:200])
+    except Exception as _e384:  # noqa: BLE001
+        check("kartela[384]: kontrollet u ekzekutuan", False, f"{type(_e384).__name__}: {_e384}")
+    # [384b] v9.610 — un rinvio NEGATO al KPA non porta KPA 132-133 (il ricorso amministrativo, 30 giorni): la legge sul vetting lo nomina
+    # solo per escluderlo (artt. 52 e 63); la legge sugli stranieri (art. 73) vi rinvia davvero e lo porta ancora
+    try:
+        from src import brain as _br384b
+        from src.retrieval import ArticleIndex as _AI384b
+        _al384b = _AI384b.load()
+        _sa384b = _br384b.SuperAvvocato.__new__(_br384b.SuperAvvocato)
+        _tx384b = lambda c, n: next((a.body or "") for a in _al384b.articles if a.code == c and str(a.number) == n)
+        _okA384b = (not _sa384b._rinvia_al_kpa(_tx384b("ligji_rivleresimi", "52")) and not _sa384b._rinvia_al_kpa(_tx384b("ligji_rivleresimi", "63"))
+                    and _sa384b._rinvia_al_kpa(_tx384b("ligji_te_huajt", "73")))
+        check("kpa[384b]: il KPA nominato per escluderlo («nuk zbatohen») non porta il ricorso amministrativo; il rinvio vero sì", _okA384b)
+        # [384c] il ricorso del vetting (84/2016 art. 63) con la domanda del giudice destituito dalla KPK; mai la rivalutazione di un immobile
+        _k384c = lambda q, aree: {(x.code, str(x.number)) for x, _ in _br384b._applica_ancore([], _al384b, ["pyetje", q], aree)}
+        _ok384c = (("ligji_rivleresimi", "63") in _k384c("Klienti është gjyqtar në procesin e rivlerësimit. KPK vendosi shkarkimin. Brenda sa ditësh ankohemi?", ["Kushtetues"])
+                   and ("ligji_rivleresimi", "63") not in _k384c("Do të ankohemi kundër vendimit të apelit për rivlerësimin e pronës nga ASHK.", ["Civil"]))
+        check("vetting[384c]: il ricorso contro la decisione della KPK porta l'art. 63 della 84/2016, mai la rivalutazione di un immobile", _ok384c)
+    except Exception as _e384b:  # noqa: BLE001
+        check("kpa[384b]: kontrollet u ekzekutuan", False, f"{type(_e384b).__name__}: {_e384b}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
