@@ -1447,6 +1447,11 @@ _CODICI_CONDIZIONATI_AL = (
 # revocato. Ognuna resta con il suo motivo nella domanda; dove entravano a ragione (la successione e la casa venduta per il notaio, la multa
 # e la confisca doganale per le contravvenzioni, il vetting per la procura) il motivo c'è
 _CODICI_CONDIZIONATI_AL = _CODICI_CONDIZIONATI_AL + (
+    # v9.609 — la legge sul vetting: «pasuri», «vlerësim», «deklarim», «komision» stanno in mille domande; resta col vetting nella domanda
+    ("ligji_rivleresimi", "legge sul vetting",
+     re.compile(r"vetting|veting|rivlerësim|rivleresim|\bkpk\b|komision\w*\s+(?:i|e)\s+pavarur\s+(?:i|e)\s+kualifikim|"
+                r"kolegj\w*\s+(?:i|e)\s+posaçëm|kolegj\w*\s+(?:i|e)\s+posacem|\bonm\b|aneks\w*\s+(?:i|e|të|te)\s+kushtetut|"
+                r"(?:gjyqtar|prokuror)\w*.{0,80}(?:pasuri|figur|aftësi profesional|aftesi profesional)\w*.{0,40}(?:vlerës|vleres|kontroll|deklar)", re.I)),
     ("ligji_prokuroria", "legge sulla procura",
      re.compile(r"\bklp\b|këshill\w*\s+(?:i|e|të)\s+lartë|keshill\w*\s+(?:i|e|te)\s+larte|vetting|rivlerësim|rivleresim|\bspak\b|\bbkh\b|"
                 r"byro\w*\s+kombëtare|disiplin\w*.{0,60}prokuror|prokuror\w*.{0,60}disiplin|emër\w*.{0,30}prokuror|transferim\w*.{0,30}prokuror|"
@@ -4736,6 +4741,7 @@ class SuperAvvocato:
         retrieved = self._ankoro_citimet(user_message, retrieved, areas=getattr(triage, "areas", None))   # v9.359: il nene chiesto per numero, per primo
         retrieved = self._aggiungi_previgenti(retrieved)      # v9.405: accanto al testo unico non ancora applicabile, la norma vigente
         retrieved = self._aggiungi_rinvii(retrieved)          # v9.476: gli articoli che i recuperati richiamano espressamente
+        retrieved = self._aggiungi_elenco_dettaglio(retrieved)    # v9.609: gli articoli che disciplinano le voci di un elenco recuperato
         retrieved = self._aggiungi_rinvio_kpa(retrieved)      # v9.517: il rinvio per NOME al KPA (ricorso amministrativo)
         retrieved = self._aggiungi_richiami_inversi(retrieved)    # v9.492: gli articoli brevi che richiamano (e precisano) un recuperato
         retrieved = self._studio_kerkuesi(user_message, triage, retrieved)
@@ -5137,6 +5143,7 @@ class SuperAvvocato:
         retrieved = self._ankoro_citimet(user_message, retrieved, areas=getattr(triage, "areas", None))   # v9.359: il nene chiesto per numero, per primo
         retrieved = self._aggiungi_previgenti(retrieved)      # v9.405: accanto al testo unico non ancora applicabile, la norma vigente
         retrieved = self._aggiungi_rinvii(retrieved)          # v9.476: gli articoli che i recuperati richiamano espressamente
+        retrieved = self._aggiungi_elenco_dettaglio(retrieved)    # v9.609: gli articoli che disciplinano le voci di un elenco recuperato
         retrieved = self._aggiungi_rinvio_kpa(retrieved)      # v9.517: il rinvio per NOME al KPA (ricorso amministrativo)
         retrieved = self._aggiungi_richiami_inversi(retrieved)    # v9.492: gli articoli brevi che richiamano (e precisano) un recuperato
         retrieved = self._studio_kerkuesi(user_message, triage, retrieved)
@@ -6146,6 +6153,66 @@ class SuperAvvocato:
             return out
         except Exception as exc:  # noqa: BLE001
             log.warning("rinvii interni: saltati (non-fatal): %s", exc)
+            return retrieved
+
+    def _aggiungi_elenco_dettaglio(self, retrieved, limit: int = 4):
+        """v9.609 — l'articolo che ELENCA gli istituti e gli articoli che li disciplinano: «I siguruari … do të përfitojë: a) të
+        ardhura për paaftësi të përkohshme; b) … ç) të ardhura për paaftësi të përhershme në masë të vogël» (legge 7703, art. 46) e
+        subito dopo gli artt. 47-50 con la MISURA di ciascuna. Prova viva AL del 10 ott (infortunio in cantiere): nel blocco c'erano
+        43-46 e il senior scriveva «neni që e cakton masën nuk është në materialet që kam, kërkoje» — vedeva solo i titoli nell'indice
+        del capitolo. Il rinvio non ha numero, quindi `_aggiungi_rinvii` non lo vede. Qui: dai dodici recuperati con un elenco «a) / 1)»,
+        gli articoli dello STESSO capitolo nei dieci numeri successivi la cui rubrica (senza la prima parola: «E ardhura» → «të
+        ardhura» dell'elenco; almeno 4 parole) sta nel testo dell'articolo che elenca. Al massimo 4, copie marcate in coda (si
+        aggiungono ai 12). Solo AL, fail-silent."""
+        try:
+            if not retrieved or self._current_jurisdiction() == "IT":
+                return retrieved
+            from .retrieval import fold_sq as _fold
+
+            def _n(x):
+                m = re.match(r"(\d+)", str(x or ""))
+                return int(m.group(1)) if m else None
+
+            presenti = {(a.code, str(a.number)) for a, _ in retrieved}
+            per_kreu: dict = {}
+            for x in self.index.articles:
+                k = getattr(x, "kreu", "") or ""
+                if k and not getattr(x, "repealed", False):
+                    per_kreu.setdefault((x.code, k), []).append(x)
+            out = list(retrieved)
+            sc0 = min((sc for _, sc in retrieved), default=0.0)
+            aggiunti = []
+            for a, _ in retrieved[:TOP_K_ARTICLES]:
+                if len(aggiunti) >= limit:
+                    break
+                corpo_v = getattr(a, "body", "") or ""
+                if getattr(a, "_rinvio_da", "") or getattr(a, "_dettaglio_di", "") or not re.search(r"(?:^|\s)(?:[a-zç]|\d{1,2})\)\s", corpo_v):
+                    continue
+                corpo = " ".join(_fold(corpo_v).lower().split())
+                n0 = _n(a.number)
+                for v in per_kreu.get((a.code, getattr(a, "kreu", "") or ""), []):
+                    if len(aggiunti) >= limit:
+                        break
+                    kk = (v.code, str(v.number))
+                    nv = _n(v.number)
+                    if kk in presenti or n0 is None or nv is None or not (n0 < nv <= n0 + 10):
+                        continue
+                    if getattr(v, "heading_kind", "rubrike") != "rubrike":
+                        continue
+                    parole = _fold(v.heading or "").lower().split()
+                    if len(parole) < 4 or " ".join(parole[1:]) not in corpo:
+                        continue
+                    c = _copy.copy(v)
+                    c._dettaglio_di = getattr(a, "citation", "") or f"{a.code} {a.number}"
+                    out.append((c, sc0))
+                    presenti.add(kk)
+                    aggiunti.append(f"{v.code} {v.number}")
+            if aggiunti:
+                log.info("retrieval: dettaglio degli elenchi dei recuperati %s", aggiunti)
+                _audit_set("dettaglio_elenchi", aggiunti)
+            return out
+        except Exception as exc:  # noqa: BLE001
+            log.warning("dettaglio degli elenchi: saltato (non-fatal): %s", exc)
             return retrieved
 
     _RINVIO_KPA_RX = re.compile(r"Kodi(?:t|n)?\s+(?:i|e|të|t[eë])\s+Procedur(?:ave|ës|es)\s+Administrative|\bKPA\b|"
@@ -9246,6 +9313,14 @@ def _format_articles_for_prompt(pairs: list[tuple[Article, float]]) -> str:
                 if _it else (
                 f"── {a.citation}  ⚑ I REFERUAR NGA «{getattr(a, '_rinvio_da', '')}»\n"
                 f"  (neni i bllokut i referohet shprehimisht këtij: teksti i plotë është këtu, nuk ka nevojë ta citosh nga kujtesa)\n"))
+        elif getattr(a, "_dettaglio_di", ""):
+            # v9.609 — disciplina una delle voci elencate da un articolo del blocco (la misura, le condizioni)
+            intestazione = ((
+                f"── {a.citation}  ⚑ DETTAGLIO DELL'ELENCO DI «{getattr(a, '_dettaglio_di', '')}»\n"
+                f"  (quell'articolo elenca questo istituto; qui la sua disciplina: è il testo integrale)\n")
+                if _it else (
+                f"── {a.citation}  ⚑ DETAJ I ELENCIT TË «{getattr(a, '_dettaglio_di', '')}»\n"
+                f"  (ai nen e rendit këtë institut; këtu rregullimi i tij — masa, kushtet: teksti i plotë është këtu)\n"))
         elif getattr(a, "_richiama", ""):
             # v9.492 — l'articolo breve che richiama un articolo del blocco e lo precisa (decorrenza, forma, eccezioni)
             intestazione = ((

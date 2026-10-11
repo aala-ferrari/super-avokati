@@ -10933,6 +10933,47 @@ def main():
     except Exception as _e382:  # noqa: BLE001
         check("ancore[382]: kontrollet u ekzekutuan", False, f"{type(_e382).__name__}: {_e382}")
 
+    # [383] v9.609 — la legge 84/2016 sul VETTING nel corpus (71 nene: l'appello al Kolegji i Apelimit entro 15 giorni, neni 63; l'onere
+    # della prova, neni 52), riconosciuta dal verificatore per numero/anno e per nome (mai «84» da solo), nel blocco solo con il vetting
+    # nella domanda; e le parole spezzate a fine riga dai PDF di QBZ riunite solo quando la parola intera esiste nel corpus
+    try:
+        import json as _json383
+        from src import brain as _br383
+        from src import citation_verifier as _cv383
+        from src.retrieval import ArticleIndex as _AI383
+        _br383.set_request_jurisdiction("AL")
+        _al383 = _AI383.load()
+        _vt383 = {str(a.number): a for a in _al383.articles if a.code == "ligji_rivleresimi"}
+        _okA383 = (len(_vt383) >= 70 and "15 ditë" in (_vt383.get("63").body or "") and "Barra e provës" in (_vt383.get("52").heading or ""))
+        _st383 = lambda t: [(c.get("code"), str(c.get("number")), c.get("status")) for c in _cv383.verify_text(t, _al383)["items"]]
+        _v1 = _st383("Ankimi bëhet sipas nenit 63 të ligjit nr. 84/2016 brenda 15 ditëve.")
+        _v2 = _st383("Sipas nenit 99 të ligjit nr. 84/2016 vendimi është i formës së prerë.")
+        _v3 = _st383("Sipas nenit 52 të ligjit për rivlerësimin kalimtar të gjyqtarëve dhe prokurorëve barra e provës kalon te subjekti.")
+        _okB383 = (("ligji_rivleresimi", "63", "verified") in _v1 and any(c == "ligji_rivleresimi" and s == "fake" for c, _n, s in _v2)
+                   and ("ligji_rivleresimi", "52", "verified") in _v3)
+        _kc383 = next(a for a in _al383.articles if a.code == "kodi_civil" and str(a.number) == "114")
+        _pr383 = [(_vt383["63"], 5.0), (_kc383, 4.0)]
+        _no383 = [a.code for a, _ in _br383._senza_codici_condizionati_al(_pr383, "Klienti ka një borxh nga viti 2012. A ka rënë në parashkrim?")]
+        _si383 = [a.code for a, _ in _br383._senza_codici_condizionati_al(_pr383, "Klienti është gjyqtar në procesin e rivlerësimit; KPK e shkarkoi. Brenda sa ditësh ankohemi?")]
+        _okC383 = "ligji_rivleresimi" not in _no383 and "ligji_rivleresimi" in _si383 and "kodi_civil" in _no383
+        import sys as _sys383
+        _sys383.path.insert(0, "/app/tools")
+        import repair_trattini_al as _rt383
+        _voc383 = _rt383.vocabolario(["kompensimit kompensimit administrative administrative njëri tjetrit"])
+        _r383 = lambda t: _rt383.ripara(t, _voc383)[0]
+        _okD383 = (_r383("e drejta e kompen-simit") == "e drejta e kompensimit" and _r383("gjykatat adminis-\ntrative") == "gjykatat administrative"
+                   and _r383("njëri-tjetrit") == "njëri-tjetrit" and _r383("ILDKPKI-së") == "ILDKPKI-së"
+                   and _r383("ish-bashkëshorti") == "ish-bashkëshorti" and _r383("neni 5-bis") == "neni 5-bis")
+        _voc_c383 = _rt383.vocabolario([(a.heading or "") + " " + (a.body or "") for a in _al383.articles])
+        _resti383 = [m.group(0) for a in _vt383.values() for m in _rt383._RX.finditer(a.body or "")
+                     if _rt383.ripara(m.group(0), _voc_c383)[1]]
+        _okE383 = not _resti383
+        check("vetting[383]: legge 84/2016 nel corpus e nel verificatore, solo col vetting nella domanda; parole spezzate riunite",
+              _okA383 and _okB383 and _okC383 and _okD383 and _okE383,
+              "A=%s B=%s C=%s D=%s E=%s %s %s %s" % (_okA383, _okB383, _okC383, _okD383, _okE383, _v1[:3], _v2[:2], _resti383[:5]))
+    except Exception as _e383:  # noqa: BLE001
+        check("vetting[383]: kontrollet u ekzekutuan", False, f"{type(_e383).__name__}: {_e383}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

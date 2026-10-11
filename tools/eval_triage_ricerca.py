@@ -247,6 +247,8 @@ CASI = [  # (giurisdizione, domanda dell'avvocato, articoli di cui almeno uno DE
     ("AL", "[frek33] Bashkëshorti i klientes e shiti me akt noterial, pa pëlqimin e saj, apartamentin që e kishin blerë bashkë gjatë martesës. Shitja u bë para 4 muajsh dhe blerësi e ka regjistruar në ASHK. A mund ta anulojmë shitjen, kundër kujt ngremë padinë dhe brenda çfarë afati?", [("kodi_familjes", "57"), ("kodi_familjes", "94")]),
     ("AL", "[frek34] Debitori i klientit, pasi e paditëm për borxhin, ia dhuroi shtëpinë djalit të tij. A mund ta rrëzojmë dhurimin dhe si e mbrojmë kredinë?", [("kodi_civil", "607")]),
     ("AL", "[frek34] Punëdhënësi e pushoi klientin me gojë, pa asnjë arsye, pas 5 vitesh pune. Ku e ngremë padinë dhe çfarë dëmshpërblimi kërkojmë?", [("kodi_punes", "155"), ("kodi_punes", "153"), ("kodi_proc_civile", "47")]),
+    ("AL", "[frek35] Klienti është gjyqtar në procesin e rivlerësimit dhe Komisioni vendosi shkarkimin e tij nga detyra. Brenda sa ditësh dhe ku ankohemi?", [("ligji_rivleresimi", "63")]),
+    ("AL", "[frek35] Punëtori humbi 40 për qind të aftësisë për punë pas një aksidenti në punë. Sa është e ardhura që i takon nga sigurimet shoqërore?", [("ligji_sigurimet_shoqerore", "49")]),
     ("IT", "[frek29] Dopo la separazione la figlia di 15 anni è stata collocata presso la madre, mia cliente. Ora la ragazza dice che vuole andare a vivere con il padre, che ha già annunciato un ricorso. Può decidere lei? Come difendiamo la madre e quali sono i tempi?", [("codice_procedura_civile", "473-bis.4"), ("codice_civile", "337-ter")]),
     # v9.589 — giro 30, l'INFORTUNIO SUL LAVORO: la domanda della prova dal browser del 10 ott (AL: il Giudice non trovava la norma sul
     # danno alla salute né la competenza) e la sua gemella italiana, col testo unico INAIL entrato nel corpus (wave13)
@@ -382,6 +384,7 @@ def main() -> int:
         ret = sa._ankoro_citimet(q, ret, areas=getattr(tr, "areas", None))
         ret = sa._aggiungi_previgenti(ret)          # v9.492: la stessa catena della chat
         ret = sa._aggiungi_rinvii(ret)
+        ret = sa._aggiungi_elenco_dettaglio(ret)    # v9.609
         ret = sa._aggiungi_rinvio_kpa(ret)      # v9.517
         ret = sa._aggiungi_richiami_inversi(ret)
         if "--kerkuesi" in sys.argv:                   # il percorso vero: anche il ricercatore junior (una chiamata veloce)
