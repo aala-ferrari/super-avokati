@@ -11011,6 +11011,37 @@ def main():
     except Exception as _e384b:  # noqa: BLE001
         check("kpa[384b]: kontrollet u ekzekutuan", False, f"{type(_e384b).__name__}: {_e384b}")
 
+    # [385] v9.611 — la riga di verifica scritta dal codice non è una citazione: rileggendo un testo salvato «nene 40 të verifikuara» usciva
+    # «pa kod»; la citazione vera dopo la riga resta verificata, e le posizioni restano quelle del testo
+    try:
+        from src import citation_verifier as _cv385
+        from src.retrieval import ArticleIndex as _AI385
+        _al385 = _AI385.load()
+        _t385 = ("### ⚖️ Vendimi përfundimtar\n\n> 🔎 **Verifikimi:** nene 40 të verifikuara · 15 pa kod | vendime 8 të konfirmuara — ✅\n\n"
+                 "Sipas nenit 39 të Kodit të Punës punëdhënësi përgjigjet.")
+        _it385 = _cv385.verify_text(_t385, _al385)["items"]
+        _ok385 = (len(_it385) == 1 and _it385[0].get("status") == "verified" and str(_it385[0].get("number")) == "39"
+                  and _t385.find(_it385[0].get("raw") or "#") > 0)
+        check("verifica[385]: la riga «🔎 Verifikimi» del codice non conta come citazione; la citazione vera resta verificata", _ok385,
+              str([(i.get("code"), i.get("number"), i.get("status")) for i in _it385]))
+    except Exception as _e385:  # noqa: BLE001
+        check("verifica[385]: kontrollet u ekzekutuan", False, f"{type(_e385).__name__}: {_e385}")
+    # [385b] v9.611 — il debitore davanti all'esecuzione (la banca esegue l'ipoteca): KPC 510 (anche il contratto di credito è titolo
+    # esecutivo), 609 (l'azione contro il titolo, 30 giorni), 610 (il ricorso contro l'ufficiale giudiziario) in coda; mai nel penale
+    try:
+        from src import brain as _br385b
+        from src.retrieval import ArticleIndex as _AI385b
+        _br385b.set_request_jurisdiction("AL")
+        _al385b = _AI385b.load()
+        _k385b = lambda q, aree: [(a.code, str(a.number)) for a, _ in _br385b._applica_ancore([], _al385b, ["pyetje", q], aree)]
+        _e385b = {("kodi_proc_civile", "510"), ("kodi_proc_civile", "609"), ("kodi_proc_civile", "610")}
+        _ok385b = (_e385b <= set(_k385b("Banka kërkon të ekzekutojë hipotekën mbi shtëpinë e klientit. Çfarë mund të bëjmë?", ["Civil"]))
+                   and not (_e385b & set(_k385b("Prokuroria kërkon ekzekutimin e vendimit penal me burg.", ["Penal"])))
+                   and not (_e385b & set(_k385b("Klienti mori një kredi nga banka dhe e ka paguar rregullisht. A mund ta ulë interesin?", ["Civil"]))))
+        check("esecuzione[385b]: la banca che esegue l'ipoteca porta KPC 510, 609 e 610; mai nel penale né col credito pagato", _ok385b)
+    except Exception as _e385b:  # noqa: BLE001
+        check("esecuzione[385b]: kontrollet u ekzekutuan", False, f"{type(_e385b).__name__}: {_e385b}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

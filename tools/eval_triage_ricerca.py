@@ -250,6 +250,11 @@ CASI = [  # (giurisdizione, domanda dell'avvocato, articoli di cui almeno uno DE
     ("AL", "[frek35] Klienti është gjyqtar në procesin e rivlerësimit dhe Komisioni vendosi shkarkimin e tij nga detyra. Brenda sa ditësh dhe ku ankohemi?", [("ligji_rivleresimi", "63")]),
     ("AL", "[frek35] Punëtori humbi 40 për qind të aftësisë për punë pas një aksidenti në punë. Sa është e ardhura që i takon nga sigurimet shoqërore?", [("ligji_sigurimet_shoqerore", "49")]),
     ("AL", "[frek36] Në kartelën e apartamentit të klientit, në Rubrikën D, ASHK ka shënuar «kufizohen veprimet». Klienti do ta shesë apartamentin. Kush e ka vendosur këtë kufizim, sa zgjat dhe si ankohemi?", [("ligji_kadastra", "27")]),
+    ("AL", "[frek37] Klienti ka një fëmijë të lindur jashtë martese dhe dëshiron ta njohë si të tijin, por nëna nuk pranon. Si veprohet?", [("kodi_familjes", "181")]),
+    ("AL", "[frek37] Nëna e fëmijës kërkon të vërtetojë në gjykatë atësinë e babait që nuk e njeh fëmijën. Brenda çfarë afati duhet ngritur padia?", [("kodi_familjes", "183"), ("kodi_familjes", "189")]),
+    ("AL", "[frek37] Punëtori u largua nga puna dhe i kanë mbetur 15 ditë pushime vjetore të pa marra. A i paguhen?", [("kodi_punes", "92"), ("kodi_punes", "94")]),
+    ("AL", "[frek37] Policia e kufirit i lëshoi klientit, shtetas i huaj, urdhër largimi nga Shqipëria. Si dhe brenda sa kohe ankohet?", [("ligji_te_huajt", "100"), ("ligji_te_huajt", "99")]),
+    ("AL", "[frek37] Banka kërkon të ekzekutojë hipotekën mbi shtëpinë e klientit sepse nuk ka paguar 6 këste të kredisë. Çfarë mund të bëjmë?", [("kodi_proc_civile", "510"), ("kodi_proc_civile", "609")]),
     ("IT", "[frek29] Dopo la separazione la figlia di 15 anni è stata collocata presso la madre, mia cliente. Ora la ragazza dice che vuole andare a vivere con il padre, che ha già annunciato un ricorso. Può decidere lei? Come difendiamo la madre e quali sono i tempi?", [("codice_procedura_civile", "473-bis.4"), ("codice_civile", "337-ter")]),
     # v9.589 — giro 30, l'INFORTUNIO SUL LAVORO: la domanda della prova dal browser del 10 ott (AL: il Giudice non trovava la norma sul
     # danno alla salute né la competenza) e la sua gemella italiana, col testo unico INAIL entrato nel corpus (wave13)

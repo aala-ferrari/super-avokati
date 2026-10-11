@@ -205,6 +205,15 @@ ANCORE_AL: tuple = (
     # della Commissione, 15 giorni dalla notifica, depositato presso la Commissione; il ricorso amministrativo del KPA NON si applica). Prova
     # viva AL dell'11 ott (giudice destituito, «brenda sa ditësh ankohemi, ku depozitohet ankimi»): il 63 non era fra i dodici, l'ha aggiunto
     # il Kërkuesi. Solo dalla domanda (inneschi in `_VETTING_ANKIM_AL`)
+    # v9.611 — il DEBITORE davanti all'esecuzione forzata (la banca che esegue l'ipoteca, l'ufficiale giudiziario): KPC 510 (i titoli
+    # esecutivi: anche «aktet për dhënien e kredive bankare»), 609 (l'azione del debitore: titolo nullo, debito inesistente, minore o
+    # estinto — 30 giorni da quando sa dell'esecuzione) e 610 (il ricorso contro gli atti dell'ufficiale giudiziario, 5 giorni). Giro 37
+    # del banco: «Banka kërkon të ekzekutojë hipotekën mbi shtëpinë e klientit… Çfarë mund të bëjmë?» → nel blocco 610 e 511, mai 510 né
+    # 609. Solo dalla domanda, mai nel penale; IN CODA (nell'asta contestata le norme dell'asta trovate dalla ricerca restano davanti)
+    ((("hipotek", "ekzekut"), ("hipotek", "përmbar"), ("hipotek", "permbar"), ("bank", "ekzekut"), ("kredi", "ekzekut"),
+      ("bank", "përmbar"), ("kredi", "përmbar"), ("përmbarues", "shtëpi"), ("përmbarues", "banes"), ("përmbarues", "pasuri"),
+      ("permbarues", "shtepi"), ("lajmërim", "ekzekutim"), ("lajmerim", "ekzekutim"), ("urdhër", "ekzekutim"), ("urdher", "ekzekutim")),
+     ("Penal",), (("kodi_proc_civile", "510"), ("kodi_proc_civile", "609"), ("kodi_proc_civile", "610")), None, None, True, "coda"),
     (_VETTING_ANKIM_AL, (), (("ligji_rivleresimi", "63"),), None, None, True),
     # … e in coda il PONTE verso le regole del calcolo del termine: la legge sul vetting non ne ha, l'art. 4/6 rinvia al KPA o alla legge
     # 49/2012, il cui art. 1/2 rinvia al codice di procedura civile (quindi al KPC 148, che l'ancora dei termini porta già). La stessa

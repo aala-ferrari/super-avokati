@@ -1816,6 +1816,9 @@ _VOCE_TABELLA_IVA = re.compile(
     r"(?:\s*,?\s*parte\s+(?P<p>[IVX]+(?:\s*-?\s*bis)?))?(?P<rest>(?:[^.;\n]|\.(?!\s+[A-ZÀ-Ü])){0,120})", re.I)
 
 
+_RIGA_VERIFICA_RX = re.compile(r"^[ \t>]*🔎\s*(?:\*\*)?\s*(?:Verifikimi|Verifica)\b[^\n]*", re.M)
+
+
 def verify_text(
     text: str,
     index: ArticleIndex,
@@ -1840,6 +1843,10 @@ def verify_text(
             "stats": {"verified": int, "fake": int, "needs_code": int, "total": int},
         }
     """
+    # v9.611 — la RIGA DI VERIFICA che scrive il codice («🔎 **Verifikimi:** nene 25 të verifikuara · 6 pa kod …», «🔎 **Verifica:** norme
+    # 12 verificate») non è una citazione: rileggendo un testo salvato «nene 25» usciva «pa kod». Si maschera a parità di lunghezza (le
+    # posizioni e i frammenti `raw` restano quelli del testo)
+    text = _RIGA_VERIFICA_RX.sub(lambda m: " " * len(m.group(0)), text or "")
     lookup = _build_lookup(index)
     lookup_all = _build_lookup_all(index)
     num_to_codes = _build_number_to_codes(index)
