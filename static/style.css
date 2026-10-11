@@ -38,6 +38,11 @@
 
 /* ─── reset ────────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+/* v9.625 — l'attributo `hidden` vale SEMPRE: un `display: flex/block` di una classe lo batteva in silenzio (la trappola già
+   vista nel v9.396, curata finora caso per caso). Misurato nella pagina viva: l'intestazione del fascicolo (fase e cestino)
+   visibile senza nessun fascicolo aperto, la voce WhatsApp che il v9.507 voleva nascosta, i contatori «0», la griglia vuota
+   del Genio, il campo dei round dello stress test. Nessun elemento con `hidden` viene mostrato in altro modo (controllato). */
+[hidden] { display: none !important; }
 html { height: 100%; -webkit-text-size-adjust: 100%; }
 body {
   height: 100vh;       /* fallback */

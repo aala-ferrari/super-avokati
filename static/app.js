@@ -4974,6 +4974,27 @@
     [cur, n1, n2].forEach(function (inp) { inp.addEventListener("keydown", function (e) { if (e.key === "Enter") btn.click(); }); });
   });
 
+  // v9.625 — «Scarica i miei dati»: un .zip con tutti i fascicoli della sessione (conversazione .md e .json, documenti originali,
+  // ricerche salvate) e l'agenda — la restituzione dei dati che l'accordo sui dati promette allo studio
+  document.getElementById("export-all-btn")?.addEventListener("click", async function () {
+    var dd = document.getElementById("user-dropdown"); if (dd) dd.hidden = true;
+    var IT = _CAL_IT, b = this;
+    if (b.disabled) return;
+    b.disabled = true;
+    if (typeof toast === "function") toast(IT ? "Preparo il file con i tuoi dati…" : "Po përgatis skedarin me të dhënat e tua…", "ok");
+    try {
+      var r = await fetch("/api/me/export");
+      if (!r.ok) { var d = await r.json().catch(function () { return {}; }); throw new Error(d.error || ("HTTP " + r.status)); }
+      var blob = await r.blob(), url = URL.createObjectURL(blob);
+      var nome = ((r.headers.get("Content-Disposition") || "").match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/) || [])[1] || "super-avokati.zip";
+      var a = document.createElement("a"); a.href = url; a.download = decodeURIComponent(nome);
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+    } catch (e) {
+      if (typeof toast === "function") toast((IT ? "Download non riuscito: " : "Shkarkimi dështoi: ") + e.message, "err");
+    } finally { b.disabled = false; }
+  });
+
   // ─── nav wiring ─────────────────────────────────────────────────
   calendarBtn?.addEventListener("click", openCalendar);
   calCloseBtn?.addEventListener("click", closeCalendar);
@@ -7980,7 +8001,7 @@
     my_cases: "I miei casi", new_case: "Nuovo caso",
     wa_reminders: "WhatsApp per i promemoria", email_reminders: "Email per i promemoria", logout: "Esci",
     tg_reminders: "Telegram per i promemoria",
-    pw_menu: "Cambia password",
+    pw_menu: "Cambia password", export_all: "Scarica i miei dati",
     case_search_ph: "🔎 Cerca nei fascicoli…", case_search_aria: "Cerca nei fascicoli",
     intake_ai: "Primo colloquio", clients_research: "Clienti & Ricerche",
     composer_hint: "Apri un caso per iniziare la conversazione",

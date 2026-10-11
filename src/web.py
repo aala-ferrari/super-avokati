@@ -7117,6 +7117,64 @@ def api_add_party(case_id: str):
     return jsonify({"party": _party_payload(p)}), 201
 
 
+def _esporta_md_caso(case, messages, it: bool) -> str:
+    """La conversazione di un fascicolo in Markdown, nella lingua della sessione (v9.523). Usata dall'esportazione del singolo
+    fascicolo e, dal v9.625, da «Scarica i miei dati»."""
+    _X = (("caso", "esportazione della conversazione", "Creato", "Aggiornato", "🧑 Avvocato", "Norme citate", "Precedenti")
+          if it else
+          ("rast", "eksport i bisedës", "Krijuar", "Përditësuar", "🧑 Avokati", "Nenet e cituara", "Precedentë"))
+    buf = io.StringIO()
+    buf.write(f"# {case.title}\n\n")
+    buf.write(f"_Super Avokati — {_X[1]}_\n")
+    buf.write(f"{_X[2]}: {case.created_at} · {_X[3]}: {case.updated_at}\n\n")
+    buf.write("---\n\n")
+    for m in messages:
+        who = _X[4] if m.role == "user" else "⚖️ Super Avokati"
+        buf.write(f"## {who} — _{m.created_at}_\n\n{m.content}\n\n")
+        if m.articles:
+            buf.write(f"**{_X[5]}:**\n")
+            for a in m.articles:
+                buf.write(f"- [{a.get('score', '?')}] {a.get('citation', '')} — "
+                          f"{a.get('heading', '')}\n")
+            buf.write("\n")
+        if m.precedents:
+            buf.write(f"**{_X[6]}:**\n")
+            for pr in m.precedents:
+                oc = f" ({pr.get('outcome')})" if pr.get("outcome") else ""
+                buf.write(f"- [{pr.get('score', '?')}] {pr.get('citation', '')}{oc} — "
+                          f"{(pr.get('objekti') or '')[:120]}\n")
+            buf.write("\n")
+        buf.write("---\n\n")
+    return buf.getvalue()
+
+
+def _esporta_json_caso(case, messages) -> dict:
+    """Tutto il fascicolo (anche i riquadri dell'analisi), per l'esportazione completa."""
+    return {
+        "case": {
+            "id": case.id,
+            "title": case.title,
+            "created_at": case.created_at,
+            "updated_at": case.updated_at,
+        },
+        "messages": [
+            {"role": m.role, "content": m.content, "kind": m.kind,
+             "articles": m.articles, "precedents": m.precedents, "citations": m.citations,
+             "timeline": m.timeline, "comparison": m.comparison,
+             "missing_facts": m.missing_facts, "premortem": m.premortem,
+             "distinguishing": m.distinguishing, "evidence_map": m.evidence_map,
+             "nullity_radar": m.nullity_radar,
+             "urgency_radar": m.urgency_radar,
+             "action_plan": m.action_plan,
+             "contradictions": m.contradictions,
+             "opponent_playbook": m.opponent_playbook,
+             "leverage": m.leverage,
+             "created_at": m.created_at}
+            for m in messages
+        ],
+    }
+
+
 @app.get("/api/cases/<case_id>/export")
 @login_required_api
 def api_export_case(case_id: str):
@@ -7133,68 +7191,112 @@ def api_export_case(case_id: str):
 
     # v9.523: l'esportazione nella lingua della SESSIONE (era sempre albanese, col vecchio nome «Super Avvocato» e «Qytetari»)
     _it_x = _active_jurisdiction(request.user) == "IT"  # type: ignore[attr-defined]
-    _X = (("caso", "esportazione della conversazione", "Creato", "Aggiornato", "🧑 Avvocato", "Norme citate", "Precedenti")
-          if _it_x else
-          ("rast", "eksport i bisedës", "Krijuar", "Përditësuar", "🧑 Avokati", "Nenet e cituara", "Precedentë"))
     slug = "".join(c if c.isalnum() or c in "-_" else "_"
-                   for c in case.title.lower())[:60] or _X[0]
-
+                   for c in case.title.lower())[:60] or ("caso" if _it_x else "rast")
     if fmt == "md":
-        buf = io.StringIO()
-        buf.write(f"# {case.title}\n\n")
-        buf.write(f"_Super Avokati — {_X[1]}_\n")
-        buf.write(f"{_X[2]}: {case.created_at} · {_X[3]}: {case.updated_at}\n\n")
-        buf.write("---\n\n")
-        for m in messages:
-            who = _X[4] if m.role == "user" else "⚖️ Super Avokati"
-            buf.write(f"## {who} — _{m.created_at}_\n\n{m.content}\n\n")
-            if m.articles:
-                buf.write(f"**{_X[5]}:**\n")
-                for a in m.articles:
-                    buf.write(f"- [{a.get('score', '?')}] {a.get('citation', '')} — "
-                              f"{a.get('heading', '')}\n")
-                buf.write("\n")
-            if m.precedents:
-                buf.write(f"**{_X[6]}:**\n")
-                for p in m.precedents:
-                    oc = f" ({p.get('outcome')})" if p.get("outcome") else ""
-                    buf.write(f"- [{p.get('score', '?')}] {p.get('citation', '')}{oc} — "
-                              f"{(p.get('objekti') or '')[:120]}\n")
-                buf.write("\n")
-            buf.write("---\n\n")
-        data = buf.getvalue().encode("utf-8")
+        data = _esporta_md_caso(case, messages, _it_x).encode("utf-8")
         filename = f"{slug}.md"
         mimetype = "text/markdown; charset=utf-8"
     else:
-        payload = {
-            "case": {
-                "id": case.id,
-                "title": case.title,
-                "created_at": case.created_at,
-                "updated_at": case.updated_at,
-            },
-            "messages": [
-                {"role": m.role, "content": m.content, "kind": m.kind,
-                 "articles": m.articles, "precedents": m.precedents, "citations": m.citations,
-                 "timeline": m.timeline, "comparison": m.comparison,
-                 "missing_facts": m.missing_facts, "premortem": m.premortem,
-                 "distinguishing": m.distinguishing, "evidence_map": m.evidence_map,
-                 "nullity_radar": m.nullity_radar,
-                 "urgency_radar": m.urgency_radar,
-                 "action_plan": m.action_plan,
-                 "contradictions": m.contradictions,
-                 "opponent_playbook": m.opponent_playbook,
-                 "leverage": m.leverage,
-                 "created_at": m.created_at}
-                for m in messages
-            ],
-        }
-        data = json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
+        data = json.dumps(_esporta_json_caso(case, messages), ensure_ascii=False, indent=2).encode("utf-8")
         filename = f"{slug}.json"
         mimetype = "application/json; charset=utf-8"
 
     return send_file(io.BytesIO(data), mimetype=mimetype,
                      as_attachment=True, download_name=filename)
+
+
+# v9.625 — «Scarica i miei dati»: l'accordo sui dati (DPA, art. 5) promette allo studio la RESTITUZIONE di tutti i dati a fine
+# rapporto e l'aiuto per la portabilità; prima si esportava un fascicolo alla volta (l'admin ne ha 65)
+_EXPORT_LOCK = threading.Lock()
+_EXPORT_ORARI: dict[int, list[float]] = {}
+_GIA_COMPRESSI = {".pdf", ".jpg", ".jpeg", ".png", ".heic", ".heif", ".webp", ".gif", ".mp4", ".mov", ".avi", ".mkv", ".dav",
+                  ".mp3", ".m4a", ".aac", ".ogg", ".opus", ".zip", ".docx", ".xlsx", ".pptx"}
+
+
+@app.get("/api/me/export")
+@login_required_api
+def api_me_export():
+    """Tutti i dati dell'avvocato in un .zip: per ogni fascicolo visibile in QUESTA sessione (gli stessi dell'elenco: studio e
+    giurisdizione — Regola #1, quelli dell'altra si esportano entrando nell'altra sessione) la conversazione leggibile (.md) e
+    completa (.json), i documenti caricati negli originali e le ricerche salvate; l'agenda della sessione. Ogni fascicolo
+    esportato finisce nel registro degli accessi. Al massimo 3 esportazioni l'ora."""
+    import tempfile
+    import zipfile
+    from datetime import datetime as _dt, UTC as _UTC
+    user = request.user  # type: ignore[attr-defined]
+    firm = request.firm  # type: ignore[attr-defined]
+    ora = time.time()
+    with _EXPORT_LOCK:
+        recenti = [t for t in _EXPORT_ORARI.get(user.id, []) if ora - t < 3600]
+        if len(recenti) >= 3:
+            return jsonify({"error": _t_err("Ke shkarkuar të dhënat 3 herë në një orë: provo përsëri më vonë.",
+                                            "Hai già scaricato i dati 3 volte in un'ora: riprova più tardi.")}), 429
+        _EXPORT_ORARI[user.id] = recenti + [ora]
+    attiva = _active_jurisdiction(user)
+    it = attiva == "IT"
+    cases = storage.list_cases(user.id) if firm is None else storage.list_cases_for_member(user.id, firm.id)
+    visibili = [c for c in cases if (getattr(c, "jurisdiction", None) or "AL").upper() == attiva]
+    oggi = _dt.now(_UTC).strftime("%Y-%m-%d")
+    radice = f"super-avokati-{oggi}"
+    N = {"caso": "fascicolo" if it else "rasti", "doc": "documenti" if it else "dokumente",
+         "ric": "ricerche" if it else "kerkime", "agenda": "agenda" if it else "agjenda"}
+    ip = (request.headers.get("X-Forwarded-For", "").split(",")[0].strip() or request.remote_addr)
+    ua = request.headers.get("User-Agent")
+    tmp = tempfile.SpooledTemporaryFile(max_size=64 * 1024 * 1024)
+    n_doc = 0
+    with zipfile.ZipFile(tmp, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as zf:
+        for i, c in enumerate(visibili, 1):
+            cartella = f"{radice}/{i:03d} {_nome_file_sicuro(c.title, N['caso'])}"
+            msgs = storage.list_messages(c.id)
+            zf.writestr(f"{cartella}/{N['caso']}.md", _esporta_md_caso(c, msgs, it))
+            zf.writestr(f"{cartella}/{N['caso']}.json",
+                        json.dumps(_esporta_json_caso(c, msgs), ensure_ascii=False, indent=2))
+            usati: set[str] = set()
+            for d in storage.list_documents(c.id):
+                try:
+                    sorgente = Path(d.storage_path) if d.storage_path else None
+                    if not sorgente or not sorgente.is_file():
+                        continue
+                    est = (Path(d.filename or "").suffix or d.ext or "").lower()[:10]
+                    nome = _nome_file_sicuro(Path(d.filename or "").stem, N["doc"]) + est
+                    k, base = 2, nome
+                    while nome.lower() in usati:
+                        nome = f"{Path(base).stem} ({k}){est}"
+                        k += 1
+                    usati.add(nome.lower())
+                    zf.write(sorgente, f"{cartella}/{N['doc']}/{nome}",
+                             compress_type=zipfile.ZIP_STORED if est in _GIA_COMPRESSI else zipfile.ZIP_DEFLATED)
+                    n_doc += 1
+                except Exception:  # noqa: BLE001 — un file illeggibile non ferma l'esportazione
+                    log.warning("esportazione: documento %s non incluso", getattr(d, "id", "?"), exc_info=True)
+            for j, r in enumerate(storage.list_research(c.id), 1):
+                zf.writestr(f"{cartella}/{N['ric']}/{j:02d} {_nome_file_sicuro(r.get('title') or '', N['ric'])}.md",
+                            r.get("content") or "")
+            storage.log_case_access(user_id=user.id, username=getattr(user, "username", None), case_id=c.id,
+                                    firm_id=(firm.id if firm else None), action="export", ip=ip, user_agent=ua)
+        try:
+            eventi = storage.eventi_della_giurisdizione(storage.list_events(user.id), attiva)
+            zf.writestr(f"{radice}/{N['agenda']}.json",
+                        json.dumps([_event_payload(e) for e in eventi], ensure_ascii=False, indent=2, default=str))
+        except Exception:  # noqa: BLE001
+            log.warning("esportazione: agenda non inclusa", exc_info=True)
+        if it:
+            leggimi = (f"Super Avokati — i tuoi dati, esportati il {oggi}.\n\nSessione: Italia · fascicoli: {len(visibili)} · "
+                       f"documenti: {n_doc}.\nI fascicoli dell'altra giurisdizione si esportano entrando in quella sessione.\n\n"
+                       "Per ogni fascicolo:\n  fascicolo.md    la conversazione, leggibile\n  fascicolo.json  tutto, anche i "
+                       "riquadri dell'analisi\n  documenti/      i file caricati, originali\n  ricerche/       le ricerche "
+                       "salvate\nagenda.json: gli eventi del calendario.\n")
+        else:
+            leggimi = (f"Super Avokati — të dhënat e tua, të eksportuara më {oggi}.\n\nSesioni: Shqipëri · raste: {len(visibili)} · "
+                       f"dokumente: {n_doc}.\nRastet e juridiksionit tjetër eksportohen duke hyrë në atë sesion.\n\n"
+                       "Për çdo rast:\n  rasti.md      biseda, e lexueshme\n  rasti.json    gjithçka, edhe panelet e "
+                       "analizës\n  dokumente/    skedarët e ngarkuar, origjinalet\n  kerkime/      kërkimet e ruajtura\n"
+                       "agjenda.json: ngjarjet e kalendarit.\n")
+        zf.writestr(f"{radice}/{'LEGGIMI' if it else 'LEXOMË'}.txt", leggimi)
+    tmp.seek(0)
+    log.info("esportazione completa per %s: %d fascicoli, %d documenti", user.username, len(visibili), n_doc)
+    return send_file(tmp, mimetype="application/zip", as_attachment=True, download_name=f"{radice}.zip")
 
 
 # ── dossier (per-case documents) API ───────────────────────────────────────

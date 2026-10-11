@@ -13,7 +13,7 @@ V="${1:?versione, es. v9.448}"
 APP=/var/www/apps/super-avvocato
 OUT="/tmp/qa-$V.out"
 PROVE="prova_conferma_telegram prova_sollecito prova_link_scadenze prova_fascicolo_lungo prova_segretaria_avvisi
-       prova_scadenze_studio prova_doppioni prova_rinvio prova_ripresa prova_chiedi prova_feedback prova_reset prova_cerca"
+       prova_scadenze_studio prova_doppioni prova_rinvio prova_ripresa prova_chiedi prova_feedback prova_reset prova_cerca prova_export"
 PROVE=$(echo $PROVE)                 # su UNA riga: dentro «bash -c» un a capo spezza il for (primo uso, v9.449: nessuna prova girava)
 cd "$APP" || exit 1
 : > "$OUT"

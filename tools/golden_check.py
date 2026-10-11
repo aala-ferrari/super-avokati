@@ -11556,6 +11556,50 @@ def main():
     except Exception as _e399:  # noqa: BLE001
         check("none[399]: kontrollet u ekzekutuan", False, f"{type(_e399).__name__}: {_e399}")
 
+    # [400] v9.625 — «SCARICA I MIEI DATI»: il DPA (art. 5) promette allo studio la restituzione di tutti i dati; prima si
+    # esportava un fascicolo alla volta. Un .zip coi fascicoli della SESSIONE (mai quelli dell'altra giurisdizione né di altri
+    # studi), i documenti originali, le ricerche e l'agenda; il fascicolo singolo esporta come prima. Eseguito su un DB TEMPORANEO.
+    try:
+        import tempfile as _tf400, io as _io400, zipfile as _zf400
+        from pathlib import Path as _P400
+        from src import storage as _st400, web as _w400
+        _dir400 = _P400(_tf400.mkdtemp())
+        _db400 = _dir400 / "t.db"
+        _orig400 = _st400._connect
+        _st400._connect = lambda db_path=None: _orig400(_db400)
+        try:
+            _st400.init_db(_db400)
+            _u400 = _st400.create_user("export400@esempio.it", "x")
+            _st400.set_user_jurisdictions(_u400.id, ["AL", "IT"])
+            _c400 = _st400.create_case(_u400.id, "Kola 400", jurisdiction="AL")
+            _i400 = _st400.create_case(_u400.id, "Rossi 400", jurisdiction="IT")
+            _st400.add_message(_c400.id, "user", "Pyetja 400?")
+            _f400 = _dir400 / "doc.pdf"
+            _f400.write_bytes(b"%PDF-400")
+            _st400.create_document(case_id=_c400.id, filename="Vendim 400.pdf", ext=".pdf", mimetype="application/pdf",
+                                   size_bytes=8, storage_path=str(_f400))
+            _cl400 = _w400.app.test_client()
+            with _cl400.session_transaction() as _s400:
+                _s400["user_id"] = _u400.id
+                _s400["jurisdiction"] = "AL"
+            _r400 = _cl400.get("/api/me/export")
+            _nomi400 = _zf400.ZipFile(_io400.BytesIO(_r400.data)).namelist() if _r400.status_code == 200 else []
+            _md400 = _cl400.get(f"/api/cases/{_c400.id}/export?format=md")
+        finally:
+            _st400._connect = _orig400
+        _ok400 = (_r400.status_code == 200 and any(n.endswith("/rasti.md") for n in _nomi400)
+                  and any(n.endswith("/dokumente/Vendim 400.pdf") for n in _nomi400)
+                  and not any("Rossi" in n for n in _nomi400) and any(n.endswith("/LEXOMË.txt") for n in _nomi400)
+                  and _md400.status_code == 200 and _md400.data.decode("utf-8").startswith("# Kola 400"))
+        _js400 = open("/app/static/app.js", encoding="utf-8").read()
+        _ok400ui = ('"/api/me/export"' in _js400 and 'id="export-all-btn"' in open("/app/templates/index.html", encoding="utf-8").read()
+                    # v9.625: l'attributo hidden vale sempre (prima un display della classe lo batteva in silenzio)
+                    and "[hidden] { display: none !important; }" in open("/app/static/style.css", encoding="utf-8").read())
+        check("export[400]: tutti i fascicoli della sessione in un .zip (documenti originali, mai l'altra giurisdizione), il "
+              "fascicolo singolo esporta come prima; voce nel menu", _ok400 and _ok400ui, repr((_r400.status_code, _nomi400))[:300])
+    except Exception as _e400:  # noqa: BLE001
+        check("export[400]: kontrollet u ekzekutuan", False, f"{type(_e400).__name__}: {_e400}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
