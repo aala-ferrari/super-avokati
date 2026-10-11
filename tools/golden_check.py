@@ -8478,8 +8478,9 @@ def main():
             _a3 = _st281.attiva_demo(_p.id)
         finally:
             _st281._connect = _orig281
-        check("prova[281]: 7 giorni per attivarla, 12 ore dal primo accesso (una volta sola), l'abbonamento pagato non si tocca",
-              167 < _g1 < 169 and _g2 is not None and 11.9 < _g2 < 12.1 and _a2 is None and _ok_acc and _a3 is None,
+        # 11 ott 2026: la prova dura 72 ore dal primo accesso (decisione del titolare per il lancio AL; era 12)
+        check("prova[281]: 7 giorni per attivarla, 72 ore dal primo accesso (una volta sola), l'abbonamento pagato non si tocca",
+              167 < _g1 < 169 and _g2 is not None and 71.9 < _g2 < 72.1 and _a2 is None and _ok_acc and _a3 is None,
               "%r %r %r %r" % (_g1, _g2, _a2, _a3))
         _w281 = _P281("/app/src/web.py").read_text(encoding="utf-8")
         check("prova[281]: l'attivazione è agganciata al login riuscito", "storage.attiva_demo(user.id)" in _w281)

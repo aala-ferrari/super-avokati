@@ -1,6 +1,6 @@
 # Condizioni d'uso
 
-Versione 2026-08-31
+Versione 2026-10-11
 
 ---
 
@@ -67,8 +67,13 @@ adempimento con un termine.
 
 ## 7. Prezzo e durata
 
-Secondo il piano sottoscritto. Alla cessazione i dati sono restituiti o
-cancellati entro 30 giorni, come previsto dall'Accordo sul trattamento.
+**Prova gratuita:** si attiva col primo accesso, entro 7 giorni dal ricevimento
+del codice, e dura **72 ore** da quell'accesso. Alla scadenza l'account si
+ferma da solo: **nessun obbligo di pagamento e nessun rinnovo automatico.**
+
+**Abbonamento:** secondo il piano sottoscritto. Alla cessazione i dati sono
+restituiti o cancellati entro 30 giorni, come previsto dall'Accordo sul
+trattamento.
 
 ## 8. Responsabilità
 

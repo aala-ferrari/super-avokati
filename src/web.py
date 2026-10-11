@@ -2997,7 +2997,9 @@ def api_genio_run(case_id: str):
 #
 # La versione e' una data. Cambiando i testi si alza, e tutti riaccettano:
 # altrimenti l'accettazione si riferisce a un documento che non esiste piu'.
-LEGAL_VERSION = os.environ.get("LEGAL_VERSION", "2026-08-31")
+# 11 ott 2026: + la prova gratuita di 72 ore nelle condizioni (art. 7, sq/it) — prima del lancio agli avvocati albanesi: da qui
+# tutti accettano lo stesso testo (le accettazioni precedenti sono solo degli account del titolare e di prova)
+LEGAL_VERSION = os.environ.get("LEGAL_VERSION", "2026-10-11")
 LEGAL_DOCS = "terms,privacy,dpa"
 
 

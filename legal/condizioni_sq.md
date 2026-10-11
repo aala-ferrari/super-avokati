@@ -1,6 +1,6 @@
 # Kushtet e përdorimit
 
-Versioni 2026-08-31
+Versioni 2026-10-11
 
 ---
 
@@ -66,8 +66,12 @@ tuat**: mos u mbështet te disponueshmëria e shërbimit për një detyrim me af
 
 ## 7. Çmimi dhe kohëzgjatja
 
-Sipas planit të nënshkruar. Në përfundim, të dhënat kthehen ose fshihen brenda
-30 ditësh, siç parashikon Marrëveshja për përpunimin.
+**Prova falas:** aktivizohet me hyrjen e parë, brenda 7 ditëve nga marrja e
+kodit, dhe zgjat **72 orë** nga ajo hyrje. Në përfundim llogaria ndalet vetë:
+**asnjë detyrim pagese dhe asnjë rinovim automatik.**
+
+**Abonimi:** sipas planit të nënshkruar. Në përfundim, të dhënat kthehen ose
+fshihen brenda 30 ditësh, siç parashikon Marrëveshja për përpunimin.
 
 ## 8. Përgjegjësia
 

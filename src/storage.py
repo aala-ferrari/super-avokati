@@ -1777,7 +1777,9 @@ def _add_months(dt, months: int):
 
 import os as _os_demo
 _DEMO_ACTIVATION_DAYS = int(_os_demo.environ.get("DEMO_ACTIVATION_DAYS", "7"))
-_DEMO_WINDOW_HOURS = int(_os_demo.environ.get("DEMO_WINDOW_HOURS", "12"))
+# 11 ott 2026 — decisione del titolare per il lancio agli avvocati albanesi: la prova dura 72 ORE dal primo accesso (era 12: per un
+# avvocato che valuta il prodotto su casi veri, mezza giornata era poca). Lo stesso numero lo scrive AALA nell'email (approve/route.ts)
+_DEMO_WINDOW_HOURS = int(_os_demo.environ.get("DEMO_WINDOW_HOURS", "72"))
 
 
 def attiva_demo(user_id: int) -> str | None:
@@ -1817,7 +1819,7 @@ def provision_account(username: str, password_hash: str, modules=None,
     else:
         # v9.509 — prima: `hours` dall'APPROVAZIONE del lead, mentre l'email di AALA promette «attivalo entro 7 giorni: una
         # volta avviato l'accesso dura 12 ore». Chi entrava il giorno dopo trovava «prova scaduta». Ora: finestra di
-        # attivazione (DEMO_ACTIVATION_DAYS, 7) e la durata (DEMO_WINDOW_HOURS, 12) parte al primo accesso (`attiva_demo`).
+        # attivazione (DEMO_ACTIVATION_DAYS, 7) e la durata (DEMO_WINDOW_HOURS, 72 dall'11 ott) parte al primo accesso (`attiva_demo`).
         expires = (now + timedelta(days=_DEMO_ACTIVATION_DAYS)).strftime("%Y-%m-%dT%H:%M:%SZ")
         demo_iso, plan_iso = expires, None
     existing = get_user_by_username(username)
