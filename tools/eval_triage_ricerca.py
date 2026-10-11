@@ -268,6 +268,24 @@ CASI = [  # (giurisdizione, domanda dell'avvocato, articoli di cui almeno uno DE
     ("AL", "[frek39] Klienti e shleu plotësisht kredinë e shtëpisë, por hipoteka e bankës figuron ende në kartelën e pasurisë në ASHK. Si e heqim?", [("kodi_civil", "583"), ("ligji_kadastra", "56")]),
     ("AL", "[frek39] Nëna dëshiron ta marrë fëmijën me vete për të jetuar në Itali, por babai nuk jep pëlqimin. Çfarë mund të bëjë?", [("kodi_familjes", "221")]),
     ("AL", "[frek39] Dikush i dërgoi klientit një mesazh të rremë si nga banka, mori të dhënat e kartës dhe i tërhoqi 3000 euro nga llogaria. Çfarë vepre penale është?", [("kodi_penal", "143/b")]),
+    # v9.613 — giro 40: le stesse situazioni dette con parole diverse (l'errore del medico senza «gabim», il paziente morto dopo
+    # l'intervento, il figlio da trasferire all'estero)
+    ("AL", "[frek40] Mjeku gaboi diagnozën dhe sëmundja e klientit u përkeqësua. Kë padisim dhe brenda çfarë afati?", [("kodi_civil", "641"), ("kodi_civil", "115")]),
+    ("AL", "[frek40] Nëna e klientit vdiq pas një operacioni të thjeshtë në spital. A mund të padisim mjekun dhe spitalin?", [("kodi_civil", "643"), ("kodi_penal", "96")]),
+    ("AL", "[frek40] Ish-bashkëshortja do ta zhvendosë djalin në Gjermani dhe klienti kundërshton. A mund ta ndalojë?", [("kodi_familjes", "221")]),
+    # v9.614 — giro 41: la convivenza senza matrimonio (KF 163-164), l'inquilino e il nuovo proprietario (KC 822), le molestie sul lavoro
+    # (KP 32, KP 108/a), il testamento fatto con la demenza (KC 373, 411), l'istanza di fallimento del creditore (ligji 110/2016 artt. 13, 16),
+    # l'indennità di disoccupazione (ligji 7703 artt. 53, 55)
+    ("AL", "[frek41] Klientja bashkëjetoi 10 vjet me partnerin pa u martuar dhe blenë një shtëpi të regjistruar vetëm në emrin e tij. Tani ndahen: a ka ajo të drejtë mbi shtëpinë?", [("kodi_familjes", "163"), ("kodi_familjes", "164")]),
+    ("AL", "[frek41] Pronari ia shiti apartamentin ku klienti banon me qira një personi tjetër, dhe pronari i ri i kërkon të largohet menjëherë. A duhet të largohet?", [("kodi_civil", "822")]),
+    ("AL", "[frek41] Shefi e ngacmon seksualisht klienten në punë dhe punëdhënësi nuk merr asnjë masë. Çfarë mund të bëjë?", [("kodi_punes", "32"), ("kodi_penal", "108/a")]),
+    ("AL", "[frek41] Babai i klientit bëri testament pak para se të vdiste, kur kishte demencë të rëndë. A mund ta kundërshtojmë dhe brenda çfarë afati?", [("kodi_civil", "373"), ("kodi_civil", "411")]),
+    ("AL", "[frek41] Një shoqëri i ka borxh klientit prej dy vitesh dhe nuk paguan asnjë kreditor. A mund të kërkojmë falimentimin e saj?", [("ligji_falimentimi", "16"), ("ligji_falimentimi", "13")]),
+    ("AL", "[frek41] Klienti humbi punën dhe kërkon pagesë papunësie. Çfarë i takon dhe për sa kohë?", [("ligji_sigurimet_shoqerore", "53"), ("ligji_sigurimet_shoqerore", "55")]),
+    # … e la PRESCRIZIONE PENALE (KP 66: dalla commissione del fatto fino a quando la persona diventa imputato), che nessuna ancora porta:
+    # nella prova viva dell'errore medico (11 ott) il senior scriveva «afatin nuk e gjej» e il KP 66 l'ha portato il diavolo
+    ("AL", "[frek41] Klienti kreu një vjedhje të vogël para gjashtë vitesh dhe tani prokuroria e thirri si të pandehur. A ka rënë vepra në parashkrim?", [("kodi_penal", "66")]),
+    ("AL", "[frek41] Mjeku që e operoi gabim klienten para katër vjetësh a mund të ndiqet ende penalisht?", [("kodi_penal", "66"), ("kodi_penal", "96")]),
     ("IT", "[frek29] Dopo la separazione la figlia di 15 anni è stata collocata presso la madre, mia cliente. Ora la ragazza dice che vuole andare a vivere con il padre, che ha già annunciato un ricorso. Può decidere lei? Come difendiamo la madre e quali sono i tempi?", [("codice_procedura_civile", "473-bis.4"), ("codice_civile", "337-ter")]),
     # v9.589 — giro 30, l'INFORTUNIO SUL LAVORO: la domanda della prova dal browser del 10 ott (AL: il Giudice non trovava la norma sul
     # danno alla salute né la competenza) e la sua gemella italiana, col testo unico INAIL entrato nel corpus (wave13)

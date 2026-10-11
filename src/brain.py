@@ -140,6 +140,42 @@ _DIFESA_SEGNI = (r"\brrezikon\b|akuz|pandehur|si\s+(?:ta\s+|e\s+)?mbroj|si\s+mbr
                  r"mbrojtj\w*\s+e\s+nevojshme")
 _CLIENTE_VITTIMA_RX = r"(?s)^(?!.*(?:" + _DIFESA_SEGNI + r")).*(?:" + _VITTIMA_SEGNI + r").*$"
 
+# v9.613 — l'ERRORE MEDICO detto come lo dicono gli avvocati (v9.612 voleva «mjek/spital/operacion» + «gabim/pakujdesi»: «mjeku gaboi
+# diagnozën», «i dha ilaçin e gabuar», «kirurgu i la një gazë në bark», «padisim spitalin» non la accendevano). Un contesto sanitario
+# (medico, ospedale, clinica, chirurgo, intervento, dentista, infermiere, paziente, farmaco, diagnosi) + un errore o una negligenza, oppure
+# la causa contro il medico o l'ospedale detta per esteso. Fuori (quarto elemento): il RAPPORTO DI LAVORO (licenziamento, datore: l'ospedale
+# come datore di lavoro), la commissione medica dell'invalidità (KMCAP), il medico legale, il certificato medico, il medico del lavoro,
+# l'«operazione» bancaria o di polizia, e l'incidente stradale senza un errore detto (la vittima finisce in ospedale, il medico non c'entra)
+_MJEK_KONTEKST_AL = ("mjek", "spital", "klinik", "kirurg", "operacion", "u operua", "operuar", "operim", "dentist", "stomatolog",
+                     "infermier", "maternitet", "pacient", "ilaç", "ilaq", "diagnoz", "diagnostik")
+_MJEK_GABIM_AL = ("gabim", "gaboi", "gabuan", "gabuar", "gabuara", "pakujdesi", "neglizhenc", "harroi", " gazë", " gaze ", "pincë",
+                  "nuk e diagnostik", "me vonesë", "me vonese", "u vonua")
+_MJEK_INNESCHI_AL = (tuple((k, g) for k in _MJEK_KONTEKST_AL for g in _MJEK_GABIM_AL)
+                     + ("malpraktik", "padisim spitalin", "padisim mjekun", "padisim klinikën", "padisim kliniken", "padisë ndaj spitalit",
+                        "padi ndaj spitalit", "padi ndaj mjekut", "kallëzojmë mjekun", "kallezojme mjekun", "kallëzim ndaj mjekut",
+                        "përgjegjësi penale për mjekun", "pergjegjesi penale per mjekun", "përgjegjësia e mjekut", "përgjegjësia e spitalit",
+                        "pergjegjesia e mjekut", "pergjegjesia e spitalit", "faji i mjekut", "faji i spitalit", "faj i mjekut"))
+# … il paziente MORTO: KC 643 (il danno quando muore una persona: mantenimento dei familiari a carico, spese funerarie) e KP 96 c. 2;
+# morto dopo un intervento anche senza un errore detto (è la domanda che l'avvocato fa per sapere se c'è una colpa)
+_MJEK_VDEKJE_AL = (tuple((k, g, d) for k in _MJEK_KONTEKST_AL for g in _MJEK_GABIM_AL
+                         for d in ("vdiq", "vdekj", "humbi jetën", "humbi jeten", "ndërroi jetë", "nderroi jete"))
+                   + tuple((k, d) for k in ("operacion", "u operua", "operuar", "kirurg", "maternitet")
+                           for d in ("vdiq", "vdekj", "humbi jetën", "humbi jeten", "ndërroi jetë", "nderroi jete")))
+_MJEK_JASHTE_AL = (r"(?s)^(?=.*(?:punëdhënës|punedhenes|(?:pushoi|pushua|pushim|largoi|largua|hoqi|hoqën|hoqen)\s+nga\s+puna|kmcap|komision\w*\s+mjek)).*$|"
+                   r"^(?=.*(?:aksident|përplas|perplas|u\s+godit))(?!.*(?:gabim|gabo|gabu|pakujdesi|neglizhenc|malpraktik)).*$|"
+                   r"mjek\w*[\s-]+ligj\w*|raport\w*\s+mjek\w*|v[ëe]rtetim\w*\s+mjek\w*|mjek\w*\s+i\s+pun[ëe]s|"
+                   r"operacion\w*\s+(?:policor|bankar|financiar|tregtar|doganor|ushtarak|kompjuterik)\w*")
+# v9.613 — il genitore che vuole portare il FIGLIO a vivere all'ESTERO senza il consenso dell'altro: KF 221 (i genitori non sono d'accordo
+# → decide il tribunale nell'interesse del figlio, dopo il tentativo di conciliazione) e KF 222 (solo l'atto «abituale» si presume fatto
+# col consenso dell'altro genitore: trasferirsi all'estero non lo è). Giro 39 del banco: KF 221 al 12° posto, sul filo del taglio.
+# Mai nell'adozione (il consenso all'adozione è un'altra cosa, KF 247)
+_FEMIJE_JASHTE_AL = tuple((f, j, q) for f in ("fëmij", "femij", "djal", "vajz", "të birin", "të bijën", "te birin", "te bijen")
+                          for j in ("jashtë shtetit", "jashte shtetit", "jashtë vendit", "jashte vendit", " itali", " greqi", " gjermani",
+                                    " angli", " francë", " france", " zvicër", " zvicer", " amerik", "emigr", "të jetojë në",
+                                    "të jetuar në", "te jetoje ne", "te jetuar ne", "zhvendos", "transfer", "pasaport")
+                          for q in ("pëlqim", "pelqim", "nuk pranon", "nuk jep", "kundërshton", "kundershton", "nuk lejon",
+                                    "nuk bien dakord", "pa lejen", "pa e pyetur"))
+
 
 ANCORE_AL: tuple = (
     # v9.381: «parashkrimi fitues» (usucapione, KC 168 e ss.) NON è la prescrizione estintiva: non accende il 114
@@ -191,7 +227,11 @@ ANCORE_AL: tuple = (
     # v9.559 — «ashk» era una SOTTOSTRINGA di «bashkë-» (bashkëshort, bashkëpronar): l'ancora scattava su «bashkëshortët… shitën» e
     # anche sul telefono comprato online e sull'auto usata (conteggio delle ancore sul banco completo, 8 ott: 8 casi su 91, 3 fuori
     # tema). Ora ASHK come PAROLA (dopo uno spazio o una parentesi) o «kadastr»
-    (("kartel", (" ashk", "shit"), ("(ashk", "shit"), (" ashk", "blej"), (" ashk", "tjetërsim"), ("kadastr", "shit"), ("kadastr", "blej"),
+    # v9.613 — non più «kartel» da sola: la kartela citata per CANCELLARE un'ipoteca pagata (giro 39) portava in testa il KC 195 (il non
+    # registrato non si aliena), che lì non c'entra, e spingeva il KC 583 al 4° posto; la kartela conta con una vendita, un acquisto,
+    # un trasferimento o una donazione
+    ((("kartel", "shit"), ("kartel", "shes"), ("kartel", "blej"), ("kartel", "bler"), ("kartel", "tjetërsim"), ("kartel", "dhur"),
+      (" ashk", "shit"), ("(ashk", "shit"), (" ashk", "blej"), (" ashk", "tjetërsim"), ("kadastr", "shit"), ("kadastr", "blej"),
       ("rubrik", "kufizim"), ("regjistr", "pasuri", "shit"), ("hipotek", "shit")), ("Penal",), (("kodi_civil", "193"), ("kodi_civil", "195"))),
     # v9.610 — il BLOCCO delle operazioni sulla kartela (Rubrika D: «kufizohen veprimet», «ndalim i veprimeve»): chi lo mette, quanto dura
     # e come si toglie — legge sul catasto 111/2018 art. 27 (l'ordine del direttore dura 30 giorni salvo il sequestro del tribunale; il
@@ -211,14 +251,17 @@ ANCORE_AL: tuple = (
     # extracontrattuale, lett. dh). Giro 38 del banco («Gjatë një operacioni në spital mjeku i bëri klientes një gabim… Kë padisim dhe
     # brenda çfarë afati?»): nel blocco le lesioni colpose (KP 91-92) e la responsabilità della PA, mai 641, 96, 625. Solo dalla domanda,
     # in civile E in penale (la stessa domanda li ha tutti e due)
-    ((("mjek", "gabim"), ("spital", "gabim"), ("operacion", "gabim"), ("mjek", "pakujdesi"), ("spital", "pakujdesi"),
-      ("neglizhenc", "mjek"), ("neglizhenc", "spital"), ("neglizhenc", "shëndet"), ("malpraktik",), ("diagnoz", "gabim"),
-      ("diagnoz", "vonuar"), ("diagnoz", "vonesë")),
-     (), (("kodi_civil", "641"), ("kodi_penal", "96")), None, None, True),
-    ((("mjek", "gabim"), ("spital", "gabim"), ("operacion", "gabim"), ("mjek", "pakujdesi"), ("spital", "pakujdesi"),
-      ("neglizhenc", "mjek"), ("neglizhenc", "spital"), ("neglizhenc", "shëndet"), ("malpraktik",), ("diagnoz", "gabim"),
-      ("diagnoz", "vonuar"), ("diagnoz", "vonesë")),
-     (), (("kodi_civil", "625"), ("kodi_civil", "115")), None, None, True, "coda"),
+    # v9.613 — gli inneschi in `_MJEK_INNESCHI_AL` (contesto sanitario × errore, la causa contro il medico per esteso), fuori il lavoro,
+    # la KMCAP, il medico legale, l'incidente senza errore (`_MJEK_JASHTE_AL`); il paziente MORTO porta anche KC 643
+    (_MJEK_INNESCHI_AL, (), (("kodi_civil", "641"), ("kodi_penal", "96")), _MJEK_JASHTE_AL, None, True),
+    (_MJEK_VDEKJE_AL, (), (("kodi_civil", "643"), ("kodi_penal", "96")), _MJEK_JASHTE_AL, None, True),
+    # in coda anche KC 618 «Përgjegjësia e punëdhënësit»: «kë padisim — spitalin apo mjekun?» (il datore risponde del danno fatto dal suo
+    # dipendente nell'esercizio delle mansioni; la persona giuridica dei suoi organi) — prova viva dell'11 ott: il Kërkuesi cercava proprio
+    # questa norma («mungon norma bazë… kë padisim») e aggiungeva al suo posto KC 621 (animali) e 613 (minori)
+    (_MJEK_INNESCHI_AL + _MJEK_VDEKJE_AL, (), (("kodi_civil", "625"), ("kodi_civil", "618"), ("kodi_civil", "115")), _MJEK_JASHTE_AL, None, True,
+     "coda"),
+    # v9.613 — il figlio portato a vivere all'estero senza il consenso dell'altro genitore: KF 221 e 222 (vedi `_FEMIJE_JASHTE_AL`)
+    (_FEMIJE_JASHTE_AL, ("Penal",), (("kodi_familjes", "221"), ("kodi_familjes", "222")), r"(?s)^(?=.*bir[ëe]s).*$", None, True),
     # v9.611 — il DEBITORE davanti all'esecuzione forzata (la banca che esegue l'ipoteca, l'ufficiale giudiziario): KPC 510 (i titoli
     # esecutivi: anche «aktet për dhënien e kredive bankare»), 609 (l'azione del debitore: titolo nullo, debito inesistente, minore o
     # estinto — 30 giorni da quando sa dell'esecuzione) e 610 (il ricorso contro gli atti dell'ufficiale giudiziario, 5 giorni). Giro 37

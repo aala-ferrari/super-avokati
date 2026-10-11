@@ -11058,6 +11058,40 @@ def main():
     except Exception as _e386:  # noqa: BLE001
         check("mjek[386]: kontrollet u ekzekutuan", False, f"{type(_e386).__name__}: {_e386}")
 
+    # [387] v9.613 — l'errore medico DETTO COME LO DICONO gli avvocati («mjeku gaboi diagnozën», «i la një gazë», «padisim spitalin»), il
+    # paziente MORTO (KC 643), mai il lavoro / la KMCAP / l'incidente senza errore; il figlio portato all'ESTERO senza consenso (KF 221/222,
+    # mai l'adozione); la kartela non porta KC 193/195 senza una vendita
+    try:
+        from src import brain as _br387
+        from src.retrieval import ArticleIndex as _AI387
+        _br387.set_request_jurisdiction("AL")
+        _al387 = _AI387.load()
+        _k387 = lambda q, aree: {(a.code, str(a.number)) for a, _ in _br387._applica_ancore([], _al387, ["pyetje", q], aree)}
+        _m387 = {("kodi_civil", "641"), ("kodi_penal", "96"), ("kodi_civil", "618")}
+        _ok387a = all(_m387 <= _k387(q, ["Civil", "Penal"]) for q in (
+            "Mjeku gaboi diagnozën dhe sëmundja e klientit u përkeqësua. Kë padisim?",
+            "Kirurgu i la një gazë në bark klientes gjatë operacionit.",
+            "Infermierja i dha klientit ilaçin e gabuar dhe ai u dëmtua rëndë.",
+            "A mund ta padisim spitalin për dëmin që i shkaktoi klientit?"))
+        _ok387b = {("kodi_civil", "643"), ("kodi_penal", "96")} <= _k387(
+            "Nëna e klientit vdiq pas një operacioni të thjeshtë në spital. A mund të padisim mjekun?", ["Civil", "Penal"])
+        _ok387c = not any(("kodi_penal", "96") in _k387(q, a) for q, a in (
+            ("Punëdhënësi e pushoi gabimisht ndërsa ishte me raport mjekësor.", ["Punë"]),
+            ("KMCAP e vlerësoi gabim shkallën e invaliditetit të klientit. Si ankohemi?", ["Administrativ"]),
+            ("Klienti u përplas nga një makinë dhe vdiq në spital. Kë padisim?", ["Civil"]),
+            ("Akti i ekspertimit mjeko-ligjor ka një gabim në datën e lindjes.", ["Penal"]),
+            ("Gjatë një operacioni policor, policia arrestoi gabimisht klientin.", ["Penal"])))
+        _f387 = {("kodi_familjes", "221"), ("kodi_familjes", "222")}
+        _ok387d = (_f387 <= _k387("Nëna dëshiron ta marrë fëmijën me vete për të jetuar në Itali, por babai nuk jep pëlqimin.", ["Familje", "Civil"])
+                   and not (_f387 & _k387("Çifti italian do të birësojë një fëmijë shqiptar dhe ta çojë në Itali; si jepet pëlqimi?", ["Familje"])))
+        _ok387e = (("kodi_civil", "195") not in _k387("Klienti e shleu kredinë, por hipoteka figuron ende në kartelën e pasurisë.", ["Civil"])
+                   and ("kodi_civil", "195") in _k387("Klienti do ta shesë apartamentin, por në kartelë ka një shënim.", ["Civil"]))
+        check("mjek[387]: errore medico nelle forme vere e paziente morto (KC 643), mai lavoro/KMCAP/incidente; figlio all'estero KF 221/222 "
+              "mai l'adozione; kartela senza vendita senza KC 195",
+              _ok387a and _ok387b and _ok387c and _ok387d and _ok387e, f"{_ok387a} {_ok387b} {_ok387c} {_ok387d} {_ok387e}")
+    except Exception as _e387:  # noqa: BLE001
+        check("mjek[387]: kontrollet u ekzekutuan", False, f"{type(_e387).__name__}: {_e387}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
