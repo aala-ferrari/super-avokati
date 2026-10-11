@@ -32,6 +32,9 @@ T = [  # (domanda, fatti, area, regex contenuto, nene attesi)
  ("e drejta e pronës kompensimi i pronarëve", "Ish-pronarët kërkojnë kompensimin e pronës së shpronësuar, vendimi i AKKP nuk zbatohet", None, r"kompensim|pron\w* \w* shpronesu|AKKP|AKP|kthim\w* \w* pron", [("convention", r"P1"), ("kushtetuta", r"^41$")]),
  ("procesi i rregullt ligjor standardi i arsyetimit të vendimit", "Kërkuesi pretendon se vendimi i gjykatës nuk ishte i arsyetuar dhe iu cenua procesi i rregullt", None, r"proces\w* \w* rregullt|arsyetim", [("kushtetuta", r"^42$"), ("convention", r"^6")]),
  ("tortura në polici deklarata e marrë me dhunë", "I arrestuari u rrah në komisariat dhe deklarata iu mor me dhunë", None, r"tortur|keqtrajtim|trajtim\w* \w* cnjerezor|dhun\w* \w* polic", [("convention", r"^3$")]),
+ # v9.607 — formulazioni COLLOQUIALI (come le scrive il triage o l'avvocato: «grabitje», «i morën me forcë»), non le parole del codice
+ ("i morën telefonin me forcë në rrugë", "Dy persona e sulmuan në rrugë dhe i morën telefonin me forcë", "Penal", r"vjedhj\w* me dhun|grabit", [("kodi_penal", r"^1(39|40)$")]),
+ ("shitja e banesës së përbashkët pa pëlqimin e bashkëshortes", "Bashkëshorti shiti apartamentin e blerë gjatë martesës pa pëlqimin e gruas", "Familje", r"pasuri\w* \w* perbashket|bashkepronesi|pelqim\w* \w* bashkeshort", [("kodi_familjes", r"^(57|60|7[4-9]|8\d|9\d)$")]),
  ("dëmshpërblim nga burgimi i padrejtë", "Kërkuesi u mbajt në paraburgim dhe u pafajësua, kërkon dëmshpërblim", None, r"paraburgim|burgim\w* \w* padrejt|pafajes", [("kodi_proc_penale", r"^26[7-9]"), ("convention", r"^5")]),
 ]
 FT = [(re.compile(fold_sq(rx).lower()), exp) for _q, _f, _a, rx, exp in T]
@@ -46,22 +49,44 @@ def rel(c, i):
                 return True
     return False
 HINTS = []
+ANC = []
+B.set_request_jurisdiction("AL")
 for q, f, a, rx, exp in T:
     h = []
+    # v9.607: come nel cervello, prima le ANCORE (la figura di reato, la regola generale), poi la ricerca
+    try:
+        for x, _s in B._applica_ancore([], arts, [q, f], [a] if a else []):
+            if (x.code, x.number) not in h:
+                h.append((x.code, x.number))
+    except Exception:
+        pass
+    ANC.append(list(h))
     for qq in (q, f):
         for art, s in arts.search(qq, top_k=12):
             if (art.code, art.number) not in h:
                 h.append((art.code, art.number))
     HINTS.append(h[:12])
-def run(name, filt=True, hint=True):
+_PER_CHIAVE = {(x.code, x.number): x for x in arts.articles}
+def _rubriche(i, sa=3, numero=True, solo_ancore=False):
+    """v9.607: le RUBRICHE delle norme centrali (le parole del legislatore: «Vjedhja me dhunë») come query in più."""
+    out = []
+    for k in (ANC[i] if solo_ancore else HINTS[i]):
+        x = _PER_CHIAVE.get(k)
+        if x is not None and getattr(x, "heading_kind", "rubrike") == "rubrike" and (x.heading or "").strip():
+            out.append(f"{x.heading} neni {x.number}" if numero else x.heading)
+        if len(out) >= sa:
+            break
+    return out
+def run(name, filt=True, hint=True, rubriche=False, sa=3, numero=True, solo_ancore=False):
     t0 = time.time(); p = h1 = 0; n = 0
     rows = []
     for i, (q, f, a, rx, exp) in enumerate(T):
         typ = B._area_to_case_type([a]) if (a and filt) else None
         kw = dict(top_k=5, cited_articles=HINTS[i] if hint else None)
-        hits = kb.search([q, f], type=typ, **kw) if typ else []
+        qq = [q, f] + (_rubriche(i, sa=sa, numero=numero, solo_ancore=solo_ancore) if rubriche else [])
+        hits = kb.search(qq, type=typ, **kw) if typ else []
         if not hits:
-            hits = kb.search([q, f], **kw)
+            hits = kb.search(qq, **kw)
         k = sum(1 for c, s in hits if rel(c, i)); p += k; n += 1
         h1 += 1 if hits and rel(hits[0][0], i) else 0
         rows.append(k)
@@ -70,6 +95,7 @@ def run(name, filt=True, hint=True):
 if __name__ == "__main__":
     orig = DN.precedenti
     run("produzione")
+    run("rubrica 1 senza numero", rubriche=True, sa=1, numero=False)
     run("senza filtro area", filt=False)
     run("senza nene-indizio", hint=False)
     DN.precedenti = lambda r: None; run("solo BM25"); DN.precedenti = orig

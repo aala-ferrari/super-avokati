@@ -10862,6 +10862,77 @@ def main():
     except Exception as _e380:  # noqa: BLE001
         check("precedenti[380]: kontrollet u ekzekutuan", False, f"{type(_e380).__name__}: {_e380}")
 
+    # [381] v9.607 — la casa coniugale venduta dal coniuge senza consenso (prova viva AL dell'11 ott): (a) il capitolo «PAVLEFSHMËRIA E
+    # MARTESËS» del Kodi i Familjes (artt. 33-49, nullità del MATRIMONIO) fuori dalle domande che non parlano della validità del
+    # matrimonio, dentro quando ne parlano; (b) l'ancora della casa coniugale scatta anche con l'APPARTAMENTO e porta KF 57, 90 e 94 —
+    # non col venditore di un acquisto («shitësi vonon»); (c) il KPC 45 (tribunale del luogo dell'immobile) in coda nelle cause su un
+    # immobile, mai nel penale; (d) il filtro sta nei due punti del recupero albanese
+    try:
+        from src import brain as _br381
+        from src.retrieval import ArticleIndex as _AI381
+        _br381.set_request_jurisdiction("AL")
+        _al381 = _AI381.load()
+        _pr381 = [(a, 5.0) for a in _al381.articles if a.code == "kodi_familjes" and str(a.number) in ("33", "44", "47", "57", "90")]
+        _q381 = ("Bashkëshorti i klientes e shiti me akt noterial, pa pëlqimin e saj, apartamentin që e kishin blerë bashkë gjatë martesës. "
+                 "A mund ta anulojmë shitjen dhe kundër kujt ngremë padinë?")
+        _okA381 = len(_pr381) == 5 and {str(a.number) for a, _ in _br381._senza_nullita_matrimonio_al(_pr381, _q381)} == {"57", "90"}
+        _nul381 = ["A mund të kërkojmë pavlefshmërinë e martesës? Ajo u martua nën kanosje nga familja.",
+                   "Martesa është e pavlefshme sepse ai ishte i martuar me një tjetër (bigami)?",
+                   "Si bëhet anulimi i martesës së lidhur në lajthim?",
+                   "Martesa ishte fiktive, vetëm për letra: a mund ta anulojmë martesën?"]
+        _okB381 = all(len(_br381._senza_nullita_matrimonio_al(_pr381, q)) == 5 for q in _nul381)
+        _kf381 = [("kodi_familjes", "57"), ("kodi_familjes", "90"), ("kodi_familjes", "94")]
+        _k381 = lambda q, aree: [(a.code, str(a.number)) for a, _ in _br381._applica_ancore([], _al381, ["anulim shitje", q], aree)]
+        _o381 = _k381(_q381, ["Familje", "Civil"])
+        _okC381 = (set(_kf381) <= set(_o381) and ("kodi_proc_civile", "45") in _o381
+                   and _o381.index(("kodi_familjes", "57")) < min(_o381.index(k) for k in _kf381[1:] + [("kodi_proc_civile", "45")])
+                   and _o381.index(("kodi_proc_civile", "45")) > max(_o381.index(k) for k in _kf381))
+        _o381d = _k381("Klienti dhe bashkëshortja blenë një apartament nga një shoqëri ndërtimi; shitësi vonon dorëzimin. Çfarë bëjmë?",
+                       ["Civil"])
+        _okD381 = not (set(_kf381) & set(_o381d))
+        _o381e = _k381("Klienti vodhi sende në një apartament dhe tani ka një padi penale. Çfarë dënimi rrezikon?", ["Penal"])
+        _okE381 = ("kodi_proc_civile", "45") not in _o381e
+        _okF381 = open(_br381.__file__, encoding="utf-8").read().count("pairs = _senza_nullita_matrimonio_al(pairs, ") == 2
+        check("casa[381]: nullità del matrimonio fuori dalla vendita della casa coniugale, KF 57/90/94 con l'appartamento, KPC 45 in "
+              "coda, mai nel penale", _okA381 and _okB381 and _okC381 and _okD381 and _okE381 and _okF381,
+              "A=%s B=%s C=%s D=%s E=%s F=%s %s" % (_okA381, _okB381, _okC381, _okD381, _okE381, _okF381, _o381[:8]))
+    except Exception as _e381:  # noqa: BLE001
+        check("casa[381]: kontrollet u ekzekutuan", False, f"{type(_e381).__name__}: {_e381}")
+
+    # [382] v9.608 — (a) un articolo portato da DUE ancore (KP 145: premio di anzianità e preavviso) entra una volta sola, anche quando
+    # la ricerca l'aveva trovato più in basso; (b) il licenziamento in tronco porta KP 155 e KP 153 (la giusta causa che il 155
+    # presuppone), mai le ferie né il penale; (c) il KPC 47 (tribunale delle cause di lavoro) in coda con una causa nella domanda, mai
+    # nell'infortunio; (d) la revocatoria KC 607 col debitore che dona o vende ai familiari, mai col compratore che deve i soldi né nel
+    # fallimento
+    try:
+        from src import brain as _br382
+        from src.retrieval import ArticleIndex as _AI382
+        _br382.set_request_jurisdiction("AL")
+        _al382 = _AI382.load()
+        _kp382 = {str(a.number): a for a in _al382.articles if a.code == "kodi_punes"}
+        _pr382 = [(_kp382[n], 9.0 - i * 0.1) for i, n in enumerate(("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"))] + [(_kp382["145"], 1.0)]
+        _q382 = "Punëdhënësi e pushoi klientin pas 8 vitesh pa asnjë paralajmërim. Çfarë i takon?"
+        _r382 = _br382._applica_ancore(_pr382, _al382, ["zgjidhje kontrate", _q382], ["Punë", "Civil"])
+        # la finestra che arriva al senior: i 12 + le copie delle ancore (al massimo 4), come in `_retrieve`
+        _r382 = _r382[:12 + min(4, sum(1 for a, _ in _r382 if getattr(a, "_ancora", False)))]
+        _o382 = [(a.code, str(a.number)) for a, _ in _r382]
+        _okA382 = _o382.count(("kodi_punes", "145")) == 1 and len(_o382) == len(set(_o382))
+        _k382 = lambda q, aree: [(a.code, str(a.number)) for a, _ in _br382._applica_ancore([], _al382, ["pyetje", q], aree)]
+        _okB382 = ({("kodi_punes", "155"), ("kodi_punes", "153")} <= set(_o382)
+                   and not ({("kodi_punes", "155"), ("kodi_punes", "153")} & set(_k382("Klienti ka 10 ditë pushime vjetore të pa marra: a i paguhen?", ["Punë"])))
+                   and not ({("kodi_punes", "155"), ("kodi_punes", "153")} & set(_k382("Procedimi penal ndaj klientit u pushua menjëherë. Çfarë bëjmë?", ["Penal"]))))
+        _o382c = _k382("Punëdhënësi e pushoi klientin me gojë, pa asnjë arsye, pas 5 vitesh. Ku e ngremë padinë?", ["Punë"])
+        _okC382 = (("kodi_proc_civile", "47") in _o382c and _o382c.index(("kodi_proc_civile", "47")) == len(_o382c) - 1
+                   and ("kodi_proc_civile", "47") not in _k382("Klienti u lëndua rëndë në kantier, ra nga skela. Kë padisim?", ["Punë", "Civil"]))
+        _okD382 = (("kodi_civil", "607") in _k382("Debitori i klientit, pasi e paditëm, ia dhuroi shtëpinë djalit të tij. A mund ta rrëzojmë?", ["Civil"])
+                   and ("kodi_civil", "607") not in _k382("Klienti shiti makinën dhe blerësi i ka ende borxh 3.000 euro.", ["Civil"])
+                   and ("kodi_civil", "607") not in _k382("Shoqëria debitore është në falimentim dhe ia shiti makinat administratorit.", ["Civil"]))
+        check("ancore[382]: un articolo da due ancore una volta sola; licenziamento in tronco KP 155/153; KPC 47 in coda nelle cause di "
+              "lavoro; revocatoria KC 607", _okA382 and _okB382 and _okC382 and _okD382,
+              "A=%s B=%s C=%s D=%s %s" % (_okA382, _okB382, _okC382, _okD382, _o382[:6]))
+    except Exception as _e382:  # noqa: BLE001
+        check("ancore[382]: kontrollet u ekzekutuan", False, f"{type(_e382).__name__}: {_e382}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

@@ -99,6 +99,21 @@ log = get_logger(__name__)
 import copy as _copy
 
 # v9.394 — le frasi del permesso dello straniero e del licenziamento (per l'ancora della ligji 79/2021 art. 72-73)
+# v9.607 — la casa coniugale venduta senza il consenso dell'altro coniuge (v9.528: KF 57; v9.607 anche con l'appartamento: per
+# l'appartamento la VENDITA FATTA — «shiti», «shitur» —, non la radice «shit»: «blenë një apartament… shitësi vonon» è il venditore di
+# un acquisto, non il coniuge che vende)
+_CASA_CONIUGALE_AL = (("shit", "shtëpi", "burri"), ("shit", "shtepi", "burri"), ("shit", "shtëpi", "gruaja"), ("shit", "shtëpi", "bashkëshort"),
+                      ("shit", "banes", "bashkëshort"), ("shit", "shtëpi", "pa e pyetur"), ("shit", "shtëpi", "pa pëlqim"),
+                      ("shit", "shtepi", "pa pelqim"), ("shiti", "apartament", "bashkëshort"), ("shitur", "apartament", "bashkëshort"),
+                      ("shiti", "apartament", "burri"), ("shitur", "apartament", "burri"), ("shiti", "apartament", "gruaja"),
+                      ("shitur", "apartament", "gruaja"), ("shit", "apartament", "pa pëlqim"), ("shit", "apartament", "pa pelqim"),
+                      ("banesën bashkëshortore",), ("banesa bashkëshortore",))
+# v9.608 — il licenziamento IN TRONCO: chi licenzia + come (senza preavviso, a voce, subito, senza motivo)
+_PUSHIM_VERB_AL = ("pushoi", "pushu", "largoi nga puna", "largua nga puna", "hoqi nga puna", "hoqën nga puna", "zgjidhi kontratën")
+_PUSHIM_MENJEHER_AL = ("pa paralajmërim", "pa paralajmerim", "asnjë paralajmërim", "asnje paralajmerim", "pa njoftim", "pa afat njoftimi", "me gojë", "me goje", "menjëherë",
+                       "menjehere", "pa shkak", "pa asnjë shkak", "pa asnje shkak", "pa arsye", "pa asnjë arsye", "pa asnje arsye")
+_ZGJIDHJE_MENJEHER_AL = ("zgjidhje e menjëhershme", "zgjidhja e menjëhershme", "zgjidhjen e menjëhershme", "zgjidhje të menjëhershme",
+                         "zgjidhjes së menjëhershme", "zgjidhje e menjehershme", "zgjidhja e menjehershme", "zgjidhjen e menjehershme")
 _LEJE_AL = ("leje qëndrim", "lejes së qëndrim", "lejen e qëndrim", "leja e qëndrim", "leje të qëndrim", "lejet e qëndrim",
             "leje qendrim", "lejes se qendrim", "lejen e qendrim", "leja e qendrim", "leje unik", "lejes unik", "lejen unik",
             "leja unik", "shtetas i huaj", "shtetasi i huaj", "shtetas të huaj", "punëmarrës i huaj", "punëmarrësi i huaj",
@@ -199,6 +214,19 @@ ANCORE_AL: tuple = (
     ((("pushu", "pun"), ("pushoi", "pun"), ("pushim nga pun",), ("pushimi nga pun",), ("zgjidh", "kontrat", "pun"),
       ("largu", "nga pun"), ("largoi", "pun"), ("pushoj", "pun")),
      ("Penal",), (("kodi_punes", "143"), ("kodi_punes", "145")), None, ("Punë",)),
+    # v9.608 — il licenziamento IN TRONCO (senza preavviso, a voce, «menjëherë»): il KP 155 (risoluzione immediata ingiustificata: la
+    # paga del preavviso, il risarcimento fino a un anno di paga, la causa entro 180 giorni) e il KP 153 che dice cosa è una giusta
+    # causa — il 155 la presuppone («e pajustifikuar») senza citarla per numero. Prova viva AL dell'11 ott (licenziamento orale
+    # dell'autista): «neni 153 («Shkaqe të justifikuara») NUK është në dosje me tekst — pra po argumentoja mbi një kusht që nuk e kam
+    # lexuar». Solo dalla domanda e solo nel lavoro
+    (tuple((v, m) for v in _PUSHIM_VERB_AL for m in _PUSHIM_MENJEHER_AL) + _ZGJIDHJE_MENJEHER_AL,
+     ("Penal",), (("kodi_punes", "155"), ("kodi_punes", "153")), None, ("Punë",), True),
+    # … e il TRIBUNALE COMPETENTE nelle cause di lavoro (KPC 47: anche quello del luogo dove abita il lavoratore): il Giudice della
+    # stessa prova «Jashtë materialeve, për verifikim: kompetenca tokësore». In coda, solo con una causa o un tribunale nella domanda;
+    # mai nell'infortunio (lì il KPC 48 della v9.589: con le due insieme uscivano articoli attesi)
+    (tuple((v, c) for v in _PUSHIM_VERB_AL + ("pagën", "pagë ", "rrogën", "rrogë ", "punëdhënës", "punedhenes") for c in ("padi", "gjykat")),
+     ("Penal",), (("kodi_proc_civile", "47"),), r"(?s)^(?=.*(?:lëndu|lendu|aksident|skel|plagos|sëmundje profesional)).*$", ("Punë",), True,
+     "coda"),
     # v9.500 — «entro quando l'appello?»: il CALCOLO del termine (KPC 148 — giorno iniziale escluso, termine a mesi/anni; e la
     # regola dell'ultimo giorno di riposo che slitta al giorno di lavoro — 149: l'ultimo giorno vale fino alle 24, la posta
     # spedita l'ultimo giorno vale). Prova viva del 4 ott (vendim civil notificato il 3/10): il senior scriveva «la regola dello
@@ -354,6 +382,22 @@ ANCORE_AL: tuple = (
     ((("sigurimi i padis",), ("sigurimin e padis",), ("sigurimit të padis",), ("sigurimit te padis",), ("sigurim padie",),
       ("bllok", "pasuri"), ("sekuestro", "konservativ"), ("shet", "pasuri", "gjyq"), ("sekuestro", "para", "padi")),
      ("Penal",), (("kodi_proc_civile", "202"), ("kodi_proc_civile", "206"), ("kodi_proc_civile", "204")), None, ("Civil",)),
+    # v9.608 — e quando il debitore ha GIÀ venduto, donato o intestato ad altri i beni: la revocatoria, KC 607 «Kundërshtimi i veprimeve
+    # juridike të debitorit» (il credito nato prima dell'atto; per l'atto a titolo oneroso la consapevolezza del terzo, presunta se è
+    # il coniuge, un genitore, un figlio, un fratello). Prova viva AL del 10 ott (debitore che vende i beni): il diavolo scriveva «Mjeti
+    # ndaj tjetërsimeve të kryera (kundërshtimi i veprimeve të debitorit në dëm të kreditorit) nuk u gjet në materialet». Solo dalla
+    # domanda, mai nel penale; mai nel fallimento (il 607 stesso: «nuk zbatohet në procedurën e falimentimit»)
+    # (le persone vicine con lo spazio davanti: «nën» stava dentro «makinën»; «borxh» da solo non dice CHI è il debitore — «shiti
+    # makinën dhe blerësi i ka borxh» è il contrario)
+    (tuple(("debitor", v) for v in ("shiti", "dhuroi", "tjetërso", "tjeterso", "ia kaloi", "kaloi pasuri", "kaloi shtëpi",
+                                    "kaloi apartament", "transferoi", "po shet", "po i shet", "i shet"))
+     + tuple(("debitor", v, "në emër") for v in ("regjistroi", "vuri", "kaloi"))
+     + tuple(("borxh", v) for v in ("dhuroi", "ia kaloi", "ia shiti", "tjetërso", "tjeterso"))
+     + tuple(("borxh", "shiti", p) for p in (" vëlla", " djal", " vajz", " grua", " bashkëshort", " nus", " kushëri", " prind",
+                                             " nën", " bab", " motr"))
+     + ("në dëm të kreditor", "ne dem te kreditor", "t'i shpëtuar borxh", "t'i shpetuar borxh", ("t'i shmangur", "borxh"),
+        "paulian", "kundërshtimi i veprimeve", "kundershtimi i veprimeve"),
+     ("Penal",), (("kodi_civil", "607"),), r"(?s)^(?=.*falimen).*$", None, True),
     ((("moshuar", "ushqim"), ("moshuar", "mbaj"), ("prind", "ushqim", "fëmijët e"), ("prind", "të ardhur", "detyru")),
      ("Penal",), (("kodi_familjes", "192"), ("kodi_familjes", "198")), None, None, True),
     # v9.589 — l'INFORTUNIO SUL LAVORO (prova dal browser del 10 ott, sessione AL: «Klienti u lëndua rëndë në kantier, ra nga skela
@@ -452,10 +496,22 @@ ANCORE_AL: tuple = (
     # doganor 271 oggetti e sequestro, 272 soluzione amministrativa, 281 diritto di ricorso). Solo dalla domanda.
     (("pa kontratë", "pa kontrate", "kontratë të shkruar", "kontrate te shkruar", "kontratë me shkrim", "kontrate me shkrim"),
      ("Penal",), (("kodi_punes", "21"),), None, ("Punë",), True),
-    ((("shit", "shtëpi", "burri"), ("shit", "shtepi", "burri"), ("shit", "shtëpi", "gruaja"), ("shit", "shtëpi", "bashkëshort"),
-      ("shit", "banes", "bashkëshort"), ("shit", "shtëpi", "pa e pyetur"), ("shit", "shtëpi", "pa pëlqim"), ("shit", "shtepi", "pa pelqim"),
-      ("banesën bashkëshortore",), ("banesa bashkëshortore",)),
-     ("Penal",), (("kodi_familjes", "57"),), None, None, True),
+    # v9.607 — anche con «apartament» (prova viva dell'11 ott: «Bashkëshorti… e shiti… apartamentin që e kishin blerë bashkë gjatë
+    # martesës») e con le altre due basi della causa: KF 90 (gli atti oltre l'ordinaria amministrazione della comunione li fanno i due
+    # coniugi insieme — il senior scriveva «neni 90 KF nuk është me tekst në bllok») e KF 94 (annullamento dell'atto che eccede i poteri)
+    (_CASA_CONIUGALE_AL, ("Penal",), (("kodi_familjes", "57"),), None, None, True),
+    # (KF 90 e 94 IN CODA, dietro il 57 — misurato sul banco: come ancore normali entravano davanti al 57 già trovato dalla ricerca
+    # e lo spostavano dal 5° al 7° posto nella casa venduta dal marito)
+    (_CASA_CONIUGALE_AL, ("Penal",), (("kodi_familjes", "90"), ("kodi_familjes", "94")), None, None, True, "coda"),
+    # v9.607 — (dopo le norme di merito della coda) il TRIBUNALE COMPETENTE nelle cause sugli IMMOBILI (KPC 45: «Paditë për të drejta reale mbi sende të paluajtshme…
+    # ngrihen në gjykatën e vendit ku ndodhet sendi»; l'articolo non ha rubrica e non entrava mai): prova viva dell'11 ott, il Giudice
+    # scriveva «neni i kompetencës tokësore (gjykata e vendit të sendit) nuk u gjet në materialet». Solo dalla domanda, con una causa e un
+    # immobile; in coda alle norme del caso; mai nel penale. ⚠️ « ashk» COME PAROLA (dentro «bashkia», «bashkë»: la prima stesura
+    # scattava sulla prescrizione di un debito e sul permesso di costruire negato dal Comune — misurato sul banco), niente «kartel»
+    # (è anche la carta bancaria), «paluajtshm» per tutte le forme («pasurinë e paluajtshme»)
+    ((("padi", "apartament"), ("padi", "banes"), ("padi", "paluajtshm"), ("padi", "tokë"), ("padi", " token"),
+      ("padi", "truall"), ("padi", " ashk"), ("padi", "(ashk"), ("gjykat", "apartament"), ("gjykat", "paluajtshm")),
+     ("Penal",), (("kodi_proc_civile", "45"),), None, None, True, "coda"),
     ((("dogan", "sekuestr"), ("dogan", "konfisk"), ("dogan", "kontraband"), ("dogan", "bllok")),
      (), (("kodi_doganor", "271"), ("kodi_doganor", "272"), ("kodi_doganor", "281")), None, None, True),
     # v9.577 — ventisettesimo giro: il costruttore che non consegna l'appartamento nel termine e la «gjobë për çdo ditë vonesë» del
@@ -807,6 +863,7 @@ def _applica_ancore(pairs, idx, queries: list[str], aree: list[str], ancore=None
     aggiunte = []
     promossi: list = []
     in_coda: list = []
+    copiate: set = set()        # v9.608 — chiavi aggiunte come COPIA in questo giro (vedi sotto)
     for voce in (ANCORE_AL if ancore is None else ancore):
         parole, aree_spente, articoli = voce[0], voce[1], voce[2]
         # v9.500: un sesto elemento = si guarda SOLO la domanda dell'avvocato (l'ultimo testo passato), non le riscritture del
@@ -831,6 +888,11 @@ def _applica_ancore(pairs, idx, queries: list[str], aree: list[str], ancore=None
             if chiave in presenti:
                 if _coda:                   # già trovata: resta dove l'ha messa la ricerca
                     continue
+                # v9.608 — se l'ha già AGGIUNTA come copia un'ancora precedente di questo giro, non si promuove anche l'originale
+                # trovato dalla ricerca più in basso: entrava DUE volte (KP 145 dall'ancora del premio di anzianità e da quella del
+                # preavviso: 3 blocchi su 112 del banco AL con l'articolo doppio, un posto tolto a una norma vera)
+                if chiave in copiate:
+                    continue
                 # v9.394 — già fra i 12, ma ciò che entra DOPO in testa (ancore per titolo, nene chiesti per numero,
                 # Kërkuesi) può spingerlo oltre il taglio: misurato il 26 set col triage vero, il KP 152 di «licenziato dopo 8
                 # anni» usciva dal blocco proprio nel giro in cui il triage cercava «shpërblim për vjetërsi». Si porta in testa
@@ -848,6 +910,7 @@ def _applica_ancore(pairs, idx, queries: list[str], aree: list[str], ancore=None
             marcato._ancora = True  # type: ignore[attr-defined]
             (in_coda if _coda else aggiunte).append((marcato, _punteggio_reale(idx, queries, chiave)))
             presenti.add(chiave)
+            copiate.add(chiave)
     if not aggiunte and not promossi and not in_coda:
         return pairs
     if aggiunte or in_coda:
@@ -857,7 +920,11 @@ def _applica_ancore(pairs, idx, queries: list[str], aree: list[str], ancore=None
         log.info("retrieval: ancore già trovate portate in testa: %s",
                  ", ".join("%s %s" % (a.code, a.number) for a, _ in promossi))
     _via = {id(x[0]) for x in promossi}
-    return aggiunte + promossi + in_coda + [x for x in pairs if id(x[0]) not in _via]
+    _resto = [x for x in pairs if id(x[0]) not in _via]
+    # v9.608 — la coda va dietro le NORME DEL CASO, cioè anche dietro i primi tre trovati dalla ricerca: prima stava davanti a tutto
+    # ciò che la ricerca aveva trovato, e nella casa coniugale venduta dal marito (sette ancore normali e tre in coda) il KF 57, primo
+    # per la ricerca, finiva all'11° posto
+    return aggiunte + promossi + _resto[:3] + in_coda + _resto[3:]
 
 
 # ── v9.503 — il CODICE DEI MINORI fuori dalle domande su ADULTI ─────────────────────────────────────────────────────────────
@@ -1442,6 +1509,28 @@ def _senza_codici_condizionati_al(pairs, testo: str):
     return [(a, s) for a, s in pairs if a.code not in via]
 
 
+# v9.607 — il capitolo «PAVLEFSHMËRIA E MARTESËS» del Kodi i Familjes (artt. 33-49: nullità del MATRIMONIO, lajthim, detyrim, chi può
+# chiederla) fuori dalle domande che non parlano della validità del matrimonio. Prova viva dell'11 ott (il marito ha venduto la casa
+# coniugale senza il consenso della moglie: «A mund ta anulojmë shitjen?»): 5 articoli su 19 del blocco erano nullità del matrimonio
+# (KF 33, 34, 44, 45, 47), presi per «anulim» e «pavlefshmëri», mentre mancava il KF 90 (l'amministrazione della comunione)
+_NULLITA_MATRIMONIO_RX = re.compile(
+    r"pavlefshm\w*\s+(?:e|i|të|te|së|se)\s+martes|martes\w*\s+(?:(?:është|eshte|ishte|u\s+shpall)\s+)?(?:e\s+|i\s+)?pavlefshm|"
+    r"anul\w*\s+(?:(?:e|i|të|te|së|se)\s+)?martes|martes\w*\s+(?:(?:ishte|është|eshte)\s+)?fiktiv|bigami|"
+    r"(?:martes|martua|martuar)\w*.{0,40}(?:lajthim|kanosj)|(?:lajthim|kanosj)\w*.{0,40}(?:martes|martua|martuar)|"
+    r"martes\w*.{0,20}nuk\s+(?:ishte|është|eshte)\s+(?:e\s+)?(?:vlefshme|ligjshme)", re.I | re.S)
+
+
+def _senza_nullita_matrimonio_al(pairs, testo: str):
+    if _NULLITA_MATRIMONIO_RX.search(testo or ""):
+        return pairs
+    fuori = [a for a, _ in pairs if a.code == "kodi_familjes" and "PAVLEFSHMËRIA E MARTESËS" in (getattr(a, "kreu", "") or "")]
+    if not fuori:
+        return pairs
+    log.info("retrieval: nullità del matrimonio fuori (non nella domanda): %s", ", ".join(f"{a.code} {a.number}" for a in fuori[:8]))
+    _via = {id(a) for a in fuori}
+    return [(a, s) for a, s in pairs if id(a) not in _via]
+
+
 def _senza_tutela_al(pairs, testo: str):
     if _TUTELA_AL_RX.search(testo or ""):
         return pairs
@@ -1644,7 +1733,16 @@ def _ankoro_sipas_titullit(pairs, idx, testo: str, queries: list[str] | None = N
         aggiunte.append((marcato, punt))
     log.info("retrieval: ancorati per titull %s",
              ", ".join("%s %s" % (a.code, a.number) for a, _ in aggiunte))
-    return aggiunte + pairs
+    # v9.608 — DIETRO le ancore dichiarate e le prime tre norme trovate, non in testa: sono le ancore meno affidabili (v9.584: su ~50
+    # una quindicina pertinenti) e in testa al blocco c'era quasi sempre un falso amico — «E drejta e shtimit për sendet shtëpiake» (gli
+    # oggetti di casa nell'eredità) per la «shtëpi» del debitore e del marito che la vende, «Vjedhja e energjisë elektrike ose impulseve
+    # telefonike» per il telefono rubato. Non in fondo ai dodici: quando è pertinente è spesso LA norma (il Neni 153 della marmitta,
+    # v9.265: terzo nei dodici). Restano nel blocco (si aggiungono ai 12, v9.584): cambia solo il posto
+    _k = 0
+    while _k < len(pairs) and getattr(pairs[_k][0], "_ancora", False):
+        _k += 1
+    _k = min(len(pairs), _k + 3)
+    return pairs[:_k] + aggiunte + pairs[_k:]
 
 
 _RADICI_GENERICHE = {"penal", "vepra", "veper", "ligji", "ligjo", "kodit", "kodi", "nenit", "denim", "denoh", "kryer", "krimi"}
@@ -6376,6 +6474,7 @@ class SuperAvvocato:
         pairs = _senza_codice_minori(pairs, _testo_anc[-1] or " ".join(_testo_anc), triage.areas)                   # v9.503
         if idx is self.index:
             pairs = _senza_tutela_al(pairs, _testo_anc[-1] or " ".join(_testo_anc))                                # v9.581
+            pairs = _senza_nullita_matrimonio_al(pairs, _testo_anc[-1] or " ".join(_testo_anc))                   # v9.607
             pairs = _senza_codici_condizionati_al(pairs, _testo_anc[-1] or " ".join(_testo_anc))                  # v9.587
             pairs = _applica_ancore(pairs, idx, _testo_anc, triage.areas)
             pairs = _ancore_narkotike_al(pairs, idx, _testo_anc, triage.areas)      # v9.402
@@ -6401,6 +6500,7 @@ class SuperAvvocato:
         pairs = _senza_codice_minori(pairs, _testo_anc[-1] or " ".join(_testo_anc), triage.areas)
         if idx is self.index:                       # v9.581 — anche qui: le ancore per titolo («Kujdestaria…») la riportavano dentro
             pairs = _senza_tutela_al(pairs, _testo_anc[-1] or " ".join(_testo_anc))
+            pairs = _senza_nullita_matrimonio_al(pairs, _testo_anc[-1] or " ".join(_testo_anc))                   # v9.607
             pairs = _senza_codici_condizionati_al(pairs, _testo_anc[-1] or " ".join(_testo_anc))   # v9.587: idem
         # v9.377: le ancore del veicolo extra-UE si AGGIUNGONO ai 12 (non devono spingere fuori il C.d.S. trovato dalla ricerca)
         _extra = sum(1 for a, _ in pairs if getattr(a, "_ancora_it", False))

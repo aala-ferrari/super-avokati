@@ -243,6 +243,10 @@ CASI = [  # (giurisdizione, domanda dell'avvocato, articoli di cui almeno uno DE
     # v9.584 — giro 29, le due domande della prova dal browser del 10 ott: nel blocco albanese l'ancora per titolo portava la legge
     # sull'identificazione elettronica (art. 71 «Pika e vetme të kontaktit», per la radice «kontakt»), in quello italiano c.c. 348
     ("AL", "[frek29] Pas divorcit, gjykata ia la djalin 9 vjeç nënës, klientes sime. Tani babai kërkon ta shohë më shpesh dhe ka paralajmëruar se do të kërkojë kujdestarinë e djalit. Çfarë mund të bëjë ai dhe si e mbrojmë nënën?", [("kodi_familjes", "158"), ("kodi_familjes", "226")]),
+    # v9.607 — la prova viva dell'11 ott: la casa coniugale venduta senza consenso (KF 57 qualunque sia il regime, KF 94 annullamento)
+    ("AL", "[frek33] Bashkëshorti i klientes e shiti me akt noterial, pa pëlqimin e saj, apartamentin që e kishin blerë bashkë gjatë martesës. Shitja u bë para 4 muajsh dhe blerësi e ka regjistruar në ASHK. A mund ta anulojmë shitjen, kundër kujt ngremë padinë dhe brenda çfarë afati?", [("kodi_familjes", "57"), ("kodi_familjes", "94")]),
+    ("AL", "[frek34] Debitori i klientit, pasi e paditëm për borxhin, ia dhuroi shtëpinë djalit të tij. A mund ta rrëzojmë dhurimin dhe si e mbrojmë kredinë?", [("kodi_civil", "607")]),
+    ("AL", "[frek34] Punëdhënësi e pushoi klientin me gojë, pa asnjë arsye, pas 5 vitesh pune. Ku e ngremë padinë dhe çfarë dëmshpërblimi kërkojmë?", [("kodi_punes", "155"), ("kodi_punes", "153"), ("kodi_proc_civile", "47")]),
     ("IT", "[frek29] Dopo la separazione la figlia di 15 anni è stata collocata presso la madre, mia cliente. Ora la ragazza dice che vuole andare a vivere con il padre, che ha già annunciato un ricorso. Può decidere lei? Come difendiamo la madre e quali sono i tempi?", [("codice_procedura_civile", "473-bis.4"), ("codice_civile", "337-ter")]),
     # v9.589 — giro 30, l'INFORTUNIO SUL LAVORO: la domanda della prova dal browser del 10 ott (AL: il Giudice non trovava la norma sul
     # danno alla salute né la competenza) e la sua gemella italiana, col testo unico INAIL entrato nel corpus (wave13)
