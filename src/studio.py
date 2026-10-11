@@ -854,15 +854,108 @@ def mbledhes_fletorja_parse(raw: str) -> list[dict]:
     return out[:3]
 
 
-def _nenet_qendrore(retrieved, sa: int = 3) -> list[str]:
+def _articoli_qendrore(retrieved, sa: int = 3) -> list:
     """Le ancore e ciò che ha portato il Kërkuesi prima; poi i primi per punteggio. v9.584: le ancore per TITOLO no (sono spesso
     falsi amici di una parola sola, e il raccoglitore QBZ verifica la vigenza solo di questi tre: gli toglievano le norme vere),
     tranne le figure di reato del codice penale (`_ancora_vepra`), che sono la norma del caso."""
     prima = [a for a, _ in retrieved
              if getattr(a, "_kerkues", False) or getattr(a, "_ancora", False) or getattr(a, "_ancora_vepra", False)]
     resto = [a for a, _ in retrieved if a not in prima]
-    scelti = (prima + resto)[:sa]
-    return [f"{a.number} {getattr(a, 'title_sq', None) or a.code}" for a in scelti]
+    return (prima + resto)[:sa]
+
+
+def _nenet_qendrore(retrieved, sa: int = 3) -> list[str]:
+    return [f"{a.number} {getattr(a, 'title_sq', None) or a.code}" for a in _articoli_qendrore(retrieved, sa)]
+
+
+# ── v9.601 — la VIGENZA dei nene centrali dal controllo QUOTIDIANO di freschezza, senza agenti col web ──
+# I raccoglitori «QBZ» e «Fletorja Zyrtare» (Agent D) erano agenti col web (Sonnet, 5 ricerche, tetto 110 s) che cercavano a mano se i
+# nene centrali erano ancora in vigore e l'ultima legge modificativa: in 14 giorni 16 fallimenti su 248 il primo, 14 su 249 il secondo
+# (timeout, uscite anomale), e quando falliscono il senior scrive «verifica su QBZ». Lo stesso dato esiste già, deterministico: il cron
+# quotidiano (`tools/freshness_check.py`, ogni mattina) confronta per OGNI atto la data del consolidato alla fonte (QBZ, Normattiva) con il
+# nostro testo e cerca le leggi modificative uscite dopo (QBZ REST `qbz:actChanges`) → `data/freshness_last.json`, «OK» se il testo del
+# corpus è l'ultimo. Se TUTTI gli atti dei nene centrali sono «OK» in un controllo di al massimo `STUDIO_VIGENZA_MAX_GIORNI` giorni, la
+# vigenza si scrive dal dato (in vigore o abrogato secondo il corpus, con la data del consolidato) e i due agenti non partono; se il
+# controllo è vecchio o un atto è cambiato (STALE), partono come prima. `STUDIO_VIGENZA_DETERMINISTICA=0` spegne
+import os as _os_v
+import time as _time_v
+from pathlib import Path as _Path_v
+
+_FRESCHEZZA_PATH = _Path_v(_os_v.environ.get("FRESHNESS_LAST", str(_Path_v(__file__).resolve().parent.parent / "data" / "freshness_last.json")))
+_FRESCHEZZA_CACHE: dict = {"mtime": None, "dati": {}}
+
+
+def _freschezza() -> tuple:
+    """({(lingua, codice): voce} dell'ultimo controllo, età in giorni, data del controllo) — ({}, None, "") se manca."""
+    try:
+        st = _FRESCHEZZA_PATH.stat()
+        if _FRESCHEZZA_CACHE["mtime"] != st.st_mtime:
+            dati = json.loads(_FRESCHEZZA_PATH.read_text(encoding="utf-8"))
+            _FRESCHEZZA_CACHE["dati"] = {(str(x.get("lang") or "").lower(), str(x.get("code") or "")): x
+                                         for x in dati if isinstance(x, dict)}
+            _FRESCHEZZA_CACHE["mtime"] = st.st_mtime
+        return (_FRESCHEZZA_CACHE["dati"], (_time_v.time() - st.st_mtime) / 86400.0,
+                _time_v.strftime("%d.%m.%Y", _time_v.localtime(st.st_mtime)))
+    except Exception:  # noqa: BLE001
+        return {}, None, ""
+
+
+def _url_fonte(code: str, lang: str) -> str:
+    try:
+        if lang == "sq":
+            from .temporal import _al_sources
+            return (_al_sources().get(code) or {}).get("url") or ""
+    except Exception:  # noqa: BLE001
+        pass
+    return ""
+
+
+def vigenza_deterministica(retrieved, lang: str = "sq", sa: int = 3):
+    """→ {"qbz": [...], "fletorja_auto": {...}} quando il controllo di freschezza copre tutti gli atti dei nene centrali, altrimenti None."""
+    if _os_v.environ.get("STUDIO_VIGENZA_DETERMINISTICA", "1") == "0":
+        return None
+    try:
+        max_g = float(_os_v.environ.get("STUDIO_VIGENZA_MAX_GIORNI", "2.5"))
+    except ValueError:
+        max_g = 2.5
+    dati, eta, data_k = _freschezza()
+    if not dati or eta is None or eta > max_g:
+        return None
+    scelti = _articoli_qendrore(retrieved, sa)
+    if not scelti:
+        return None
+    lk = "al" if lang == "sq" else "it"
+    voci = {}
+    for a in scelti:
+        v = dati.get((lk, a.code))
+        if not v or str(v.get("status") or "") != "OK":
+            return None
+        voci[a.code] = v
+    S = _STATUSE_QBZ.get(lang, _STATUSE_QBZ["sq"])
+
+    def _cons(v):
+        src = str(v.get("source") or "")
+        if lang == "sq":
+            if src.startswith("cons-"):
+                return "teksti i konsoliduar QBZ i " + src[5:]
+            return "teksti bazë (pa ndryshime)" if src == "base" else ("teksti QBZ " + src if src else "teksti QBZ")
+        return ("testo Normattiva aggiornato al " + src) if src else "testo Normattiva"
+
+    qbz = []
+    for a in scelti:
+        repealed = bool(getattr(a, "repealed", False))
+        st = S[2] if repealed else S[0]
+        nota = (("%s; kontrolli automatik i %s: asnjë ligj ndryshues pas tij" % (_cons(voci[a.code]), data_k)) if lang == "sq"
+                else ("%s; controllo automatico del %s: nessuna modifica successiva" % (_cons(voci[a.code]), data_k)))
+        qbz.append({"neni": f"{a.number} {getattr(a, 'title_sq', None) or a.code}", "statusi": st, "ndryshimi": nota,
+                    "url": _url_fonte(a.code, lang), "data": str(voci[a.code].get("source") or "")})
+    atti, visti = [], set()
+    for a in scelti:
+        if a.code in visti:
+            continue
+        visti.add(a.code)
+        atti.append((getattr(a, "title_sq", None) or a.code, _cons(voci[a.code])))
+    return {"qbz": qbz, "fletorja_auto": {"data": data_k, "atti": atti}}
 
 
 def _blocco_nenesh(retrieved, sa: int = 8, lang: str = "sq") -> str:
@@ -925,6 +1018,21 @@ def mbledh_dosjen(backend, *, domanda, summary, retrieved, lang="sq", modeli="so
     dosja: dict[str, Any] = {"web": {"akte_nenligjore": [], "burime": []}, "qbz": [],
                              "fletorja": [], "kohe": {}, "gabime": []}
     lavori = {}
+    # v9.601 — la vigenza dal controllo quotidiano di freschezza: se copre i nene centrali, QBZ e Fletorja non partono
+    if qbz or fletorja:
+        try:
+            _det = vigenza_deterministica(retrieved, lang)
+        except Exception as _e_det:  # noqa: BLE001
+            log.warning("studio: vigenza deterministica saltata (non-fatal): %s", _e_det)
+            _det = None
+        if _det:
+            dosja["qbz"] = _det["qbz"]
+            dosja["fletorja_auto"] = _det["fletorja_auto"]
+            dosja["kohe"]["qbz"] = 0.0
+            dosja["deterministica"] = True
+            qbz = fletorja = False
+            log.info("studio: vigenza dal controllo di freschezza (%s) — %s: QBZ e Fletorja senza agenti",
+                     _det["fletorja_auto"].get("data"), ", ".join(t for t, _ in _det["fletorja_auto"].get("atti", [])[:4]))
     ex = ThreadPoolExecutor(max_workers=3)
     t0 = _t.time()
     _tetto_proc = int(timeout_s) + 15   # v9.521: oltre il tetto il processo viene fermato, non lasciato a se stesso
@@ -959,6 +1067,7 @@ _TITUJ_DOSJE = {
         "akte": "📜 AKTE NËNLIGJORE / RREGULLORE (citime tekstuale nga webi — ⚠ verifikoji para se t'i citosh):",
         "qbz": "🌐 STATUSI NË BURIMET ZYRTARE (QBZ) i neneve qendrore:",
         "fletorja": "🆕 NDRYSHIMI MË I FUNDIT (Fletorja Zyrtare — ligji i gjallë, ⚠ verifikoje):",
+        "fletorja_auto": "🆕 FLETORJA ZYRTARE — kontroll automatik i QBZ (%s): asnjë ligj ndryshues i botuar pas tekstit që kemi në korpus:",
         "web": "🔎 NGA WEBI — shifra zyrtare, praktikë (citime tekstuale me URL — ⚠ verifikoji):",
         "prec": "⚖️ PRECEDENTË nga arkivi ynë:",
         "asgje_web": "(kërkuesi në web nuk gjeti asgjë të sigurt — mos shpik)",
@@ -975,6 +1084,7 @@ _TITUJ_DOSJE = {
         "akte": "📜 NORME ATTUATIVE / REGOLAMENTI (citazioni testuali dal web — ⚠ da verificare prima di citarle):",
         "qbz": "🌐 VIGENZA SU FONTI UFFICIALI degli articoli centrali:",
         "fletorja": "🆕 MODIFICA PIÙ RECENTE (Gazzetta Ufficiale — legge viva, ⚠ da verificare):",
+        "fletorja_auto": "🆕 GAZZETTA UFFICIALE — controllo automatico su Normattiva (%s): nessuna modifica pubblicata dopo il testo del corpus:",
         "web": "🔎 DAL WEB — cifre ufficiali, prassi (citazioni testuali con URL — ⚠ da verificare):",
         "prec": "⚖️ PRECEDENTI dal nostro archivio:",
         "asgje_web": "(il ricercatore web non ha trovato nulla di certo — non inventare)",
@@ -1007,7 +1117,8 @@ def formato_dosjen(dosja: dict, lang: str = "sq", precedents_block: str = "") ->
     kohe = (dosja or {}).get("kohe") or {}
     prec = (precedents_block or "").strip()
     _pa0 = (_STATUSE_QBZ["sq"][3], _STATUSE_QBZ["it"][3])
-    if not (akte or burime or fletorja or [q for q in qbz if q.get("statusi") not in _pa0] or prec or gabime):
+    if not (akte or burime or fletorja or [q for q in qbz if q.get("statusi") not in _pa0] or prec or gabime
+            or ((dosja or {}).get("fletorja_auto") or {}).get("atti")):
         return ""
     rr = ["", T["kreu"]]
     if gabime:
@@ -1029,6 +1140,11 @@ def formato_dosjen(dosja: dict, lang: str = "sq", precedents_block: str = "") ->
         _ag2 = _AGJENTET.get(lang, _AGJENTET["sq"])
         for k in _checked:
             rr.append("  • " + _ag2.get(k, k))
+    _fa = (dosja or {}).get("fletorja_auto") or {}
+    if _fa.get("atti"):
+        rr.append(T["fletorja_auto"] % _fa.get("data", ""))
+        for _tit, _cons in _fa["atti"]:
+            rr.append(f"  • {_tit} — {_cons}")
     if fletorja:
         rr.append(T["fletorja"])
         for f in fletorja:

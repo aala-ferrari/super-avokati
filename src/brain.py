@@ -105,6 +105,22 @@ _LEJE_AL = ("leje qëndrim", "lejes së qëndrim", "lejen e qëndrim", "leja e q
             "punemarres i huaj")
 _PUSHIM_AL = ("zgjidh", "pushu", "pushoi", "pushon", "pushim nga", "largu", "ndërpre", "nderpre")
 
+# v9.602 — il cliente VITTIMA del reato (non imputato): la cassetta della difesa penale non serve. Tutta la domanda si cancella (l'ancora
+# non scatta) se c'è un segno della vittima e NESSUN segno della difesa. Il cliente come complemento («klientin», «klienten», «klientit»)
+# di un verbo di reato, il passivo («klienti u sulmua»), «i morën / i vodhën», «viktimë», «pala e dëmtuar», la denuncia da fare.
+_VITTIMA_SEGNI = (r"(?:sulmu|sulmo|godit|rrah|plagos|kërcënu|kercenu|kërcëno|kerceno|mashtru|mashtro|vodh|grabit|ofend|fye|fyu|shpif|"
+                  r"ngacm|përndjek|perndjek|ndjek|keqtrajt|dhun|rrëmb|rremb|kanos|zhvat|kërcen|kercen)\w*\s+klient(?:in|en|it|es|ës)\b|"
+                  r"klient\w*\s+u\s+(?:sulmua|godit\w*|rrah\w*|plagos\w*|kërcënua|kercenua|mashtrua|grabit\w*|vodh\w*|ofendua|fye|"
+                  r"dhunua|keqtrajtua|ngacmua|rrëmbye|rrembye)\b|"
+                  r"\b(?:i|ia|iu)\s+(?:morën|moren|vodhën|vodhen|grabitën|grabiten|rrëmbyen|rrembyen|zhvatën|zhvaten)\b|"
+                  r"\bviktim|pal[ëae]\s+e\s+d[ëe]mtuar|\b[ie]\s+d[ëe]mtuar[ia]\b|"
+                  r"(?:bëj|bej|paraqes|depozit)\w*\s+(?:një\s+|nje\s+)?kall[ëe]zim")
+_DIFESA_SEGNI = (r"\brrezikon\b|akuz|pandehur|si\s+(?:ta\s+|e\s+)?mbroj|si\s+mbrohem|mbrojtj\w*\s+(?:e\s+|të\s+|te\s+)?klient|"
+                 r"arrest|\bu\s+kap\b|e\s+kapën|e\s+kapen|ndaj\s+klient|kall[ëe]zoi\s+klient|\bu\s+mbrojt|vet[ëe]mbrojtj|"
+                 r"mbrojtj\w*\s+e\s+nevojshme")
+_CLIENTE_VITTIMA_RX = r"(?s)^(?!.*(?:" + _DIFESA_SEGNI + r")).*(?:" + _VITTIMA_SEGNI + r").*$"
+
+
 ANCORE_AL: tuple = (
     # v9.381: «parashkrimi fitues» (usucapione, KC 168 e ss.) NON è la prescrizione estintiva: non accende il 114
     # v9.402: e solo nelle materie civilistiche (se il triage le dice) — in una domanda AMMINISTRATIVA («Bashkia i refuzoi lejen
@@ -218,9 +234,16 @@ ANCORE_AL: tuple = (
     # non è nel mio blocco», «il giudizio abbreviato… i testi non sono nel blocco» (prova viva del furto in negozio, 7 ott). Attenuanti
     # (KP 48), pena sotto il minimo (53), sospensione con messa alla prova (59), decisione nel giudizio abbreviato con la riduzione
     # (KPP 406). Solo nel PENALE, dalla domanda.
+    # v9.602 — ma NON quando il cliente è la VITTIMA («Dy persona e sulmuan klientin… i morën telefonin… çfarë dënimi parashikon?»):
+    # attenuanti, pena sotto il minimo, sospensione e abbreviato sono la difesa dell'IMPUTATO e prendevano quattro posti davanti alla figura
+    # di reato (KP 139 all'8°-9°, banco AL a triage fisso). Il cliente-vittima si riconosce dalla domanda (`_CLIENTE_VITTIMA_RX`: il cliente
+    # complemento di un verbo di reato, «klienti u sulmua», «i morën», «viktimë», «pala e dëmtuar», «bëjmë kallëzim»), salvo un segno della
+    # difesa («rrezikon», «akuz…», «i pandehur», «si e mbrojmë», l'arresto, la legittima difesa). E la cassetta va IN CODA alle norme del caso
+    # (settimo elemento «coda»): prima la figura di reato, poi gli attrezzi.
     (("çfarë dënimi", "cfare denimi", "ç'dënim", "rrezikon", "si e mbrojmë", "si e mbrojme", "si mbrohemi", "mbrojtja e klientit",
       "sa vjet burg", "dënimi maksimal", "denimi maksimal"),
-     (), (("kodi_penal", "48"), ("kodi_penal", "53"), ("kodi_penal", "59"), ("kodi_proc_penale", "406")), None, ("Penal",), True),
+     (), (("kodi_penal", "48"), ("kodi_penal", "53"), ("kodi_penal", "59"), ("kodi_proc_penale", "406")), _CLIENTE_VITTIMA_RX,
+     ("Penal",), True, "coda"),
     # v9.541 — il DIVORZIO CONTESTATO: il Codice della famiglia non ha rubriche (la ricerca vede la prima frase) e col triage vero
     # il blocco oscillava — nel banco dell'8 ott 128/130/160 ma non 132 (lo scioglimento chiesto da UNO dei coniugi quando la vita
     # comune è diventata impossibile), 129 (interruzione della convivenza) né, per i figli, 155. Solo dalla domanda, mai nel penale.
@@ -783,6 +806,7 @@ def _applica_ancore(pairs, idx, queries: list[str], aree: list[str], ancore=None
     per_chiave = {(a.code, a.number): a for a in idx.articles}
     aggiunte = []
     promossi: list = []
+    in_coda: list = []
     for voce in (ANCORE_AL if ancore is None else ancore):
         parole, aree_spente, articoli = voce[0], voce[1], voce[2]
         # v9.500: un sesto elemento = si guarda SOLO la domanda dell'avvocato (l'ultimo testo passato), non le riscritture del
@@ -800,10 +824,13 @@ def _applica_ancore(pairs, idx, queries: list[str], aree: list[str], ancore=None
         # (con le aree note: se il triage non ne dà, l'ancora scatta come sempre — golden [4] «scatta senza areas»)
         if len(voce) > 4 and voce[4] and aree and not any(x in aree for x in voce[4]):
             continue
+        _coda = len(voce) > 6 and voce[6] == "coda"       # v9.602: la cassetta degli attrezzi dietro le norme del caso
         for chiave in articoli:
             if chiave not in per_chiave:
                 continue
             if chiave in presenti:
+                if _coda:                   # già trovata: resta dove l'ha messa la ricerca
+                    continue
                 # v9.394 — già fra i 12, ma ciò che entra DOPO in testa (ancore per titolo, nene chiesti per numero,
                 # Kërkuesi) può spingerlo oltre il taglio: misurato il 26 set col triage vero, il KP 152 di «licenziato dopo 8
                 # anni» usciva dal blocco proprio nel giro in cui il triage cercava «shpërblim për vjetërsi». Si porta in testa
@@ -819,18 +846,18 @@ def _applica_ancore(pairs, idx, queries: list[str], aree: list[str], ancore=None
             # di un altro.
             marcato = _copy.copy(per_chiave[chiave])
             marcato._ancora = True  # type: ignore[attr-defined]
-            aggiunte.append((marcato, _punteggio_reale(idx, queries, chiave)))
+            (in_coda if _coda else aggiunte).append((marcato, _punteggio_reale(idx, queries, chiave)))
             presenti.add(chiave)
-    if not aggiunte and not promossi:
+    if not aggiunte and not promossi and not in_coda:
         return pairs
-    if aggiunte:
+    if aggiunte or in_coda:
         log.info("retrieval: ancorati %s",
-                 ", ".join("%s %s" % (a.code, a.number) for a, _ in aggiunte))
+                 ", ".join("%s %s" % (a.code, a.number) for a, _ in aggiunte + in_coda))
     if promossi:
         log.info("retrieval: ancore già trovate portate in testa: %s",
                  ", ".join("%s %s" % (a.code, a.number) for a, _ in promossi))
     _via = {id(x[0]) for x in promossi}
-    return aggiunte + promossi + [x for x in pairs if id(x[0]) not in _via]
+    return aggiunte + promossi + in_coda + [x for x in pairs if id(x[0]) not in _via]
 
 
 # ── v9.503 — il CODICE DEI MINORI fuori dalle domande su ADULTI ─────────────────────────────────────────────────────────────

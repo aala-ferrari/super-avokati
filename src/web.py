@@ -3282,7 +3282,7 @@ def api_genio_start():
             try:
                 push_mod.avvisa(
                     storage, _uid,
-                    "Genio Legale è pronto" if _it_push else "Gjenio Legale është gati",
+                    "Genio Legale è pronto" if _it_push else "Gjeniu Ligjor është gati",
                     ("L'analisi approfondita del caso è terminata. Aprila per leggerla." if _it_push else
                      "Analiza e thellë e rastit ka përfunduar. Hape për ta lexuar."),
                     url="/", tag="genio-%s" % _cid[:8],

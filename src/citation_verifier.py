@@ -2245,6 +2245,14 @@ def verify_text(
             if _rip and _i < len(numbers) - 1 and code_n and not _esiste(code_n, number):
                 code_n = None
             via = None
+            if code_n is None and kp_bare:
+                # v9.603 — «neni 39 KP» in una risposta che nomina per esteso SIA il Kodi i Punës SIA il Kodi Penal (l'infortunio sul lavoro
+                # con la responsabilità penale del datore, 10 ott: 25 «KP», tutte Kodi i Punës, sei rimaste «pa kod»): decide lo stesso
+                # documento, se scrive quel numero col codice per esteso («nenin 39 të Kodit të Punës», «nenet 141 … 155 të Kodit të
+                # Punës»). Solo uno dei due codici della sigla e solo se il legame è unico; altrimenti resta ambigua, mai un verde a caso
+                _d = _dal_documento(number)
+                if _d in ("kodi_punes", "kodi_penal"):
+                    code_n, via = _d, "documento"
             if code_n is None and not kp_bare:
                 if anafora and _esiste(anafora, number):
                     code_n, via = anafora, "anafora"

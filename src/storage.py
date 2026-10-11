@@ -1447,14 +1447,14 @@ CASE_STAGES: tuple[str, ...] = (
     "intake", "preparation", "hearing", "decision", "execution",
 )
 CASE_STAGE_LABELS_SQ: dict[str, str] = {
-    "intake": "Intake / pranim",
+    "intake": "Pranimi i rastit",
     "preparation": "Përgatitje",
     "hearing": "Seancë",
     "decision": "Vendim",
     "execution": "Ekzekutim",
 }
 CASE_STAGE_LABELS_IT: dict[str, str] = {
-    "intake": "Intake / accoglienza",
+    "intake": "Accoglienza del caso",
     "preparation": "Preparazione",
     "hearing": "Udienza",
     "decision": "Decisione",

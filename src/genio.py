@@ -150,7 +150,7 @@ PERSPECTIVES: list[Perspective] = [
     Perspective(
         key="kill_shot",
         label_sq="Goditja vdekjeprurëse",
-        label_it="Kill-shot avversario",
+        label_it="Colpo decisivo dell'avversario",
         system=(
             "Ti je avokati i kundërshtarit. Spiteous. Ke lexuar të gjithë "
             "fashikullin dhe duhet ta SHKATËRROSH këtë padi nesër në "
@@ -189,7 +189,7 @@ PERSPECTIVES: list[Perspective] = [
     Perspective(
         key="leverage",
         label_sq="Levat e fshehura",
-        label_it="Leverage nascosta",
+        label_it="Leve nascoste",
         system=(
             "Ti je këshilltar strategjik për avokat — sheh leva pression "
             "që juristët teknikë i injorojnë: timing (kur ngacmon, kur "

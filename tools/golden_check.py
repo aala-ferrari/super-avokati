@@ -10702,6 +10702,118 @@ def main():
     except Exception as _e376:  # noqa: BLE001
         check("nomi[376]: kontrollet u ekzekutuan", False, f"{type(_e376).__name__}: {_e376}")
 
+    # [377] v9.601 — la vigenza dei nene centrali dal controllo QUOTIDIANO di freschezza: tutti gli atti «OK» in un controllo recente →
+    # stato e data del consolidato nel dossier, e gli agenti QBZ e Fletorja NON partono; un atto STALE o un controllo vecchio → gli agenti
+    try:
+        import json as _js377, os as _os377, tempfile as _tf377, time as _tm377
+        from types import SimpleNamespace as _NS377
+        from src import studio as _st377
+        _orig377 = (_st377._FRESCHEZZA_PATH, dict(_st377._FRESCHEZZA_CACHE))
+        _d377 = _tf377.mkdtemp()
+        _f377 = _os377.path.join(_d377, "freshness_last.json")
+        def _scrivi377(voci, eta_g=0.2):
+            open(_f377, "w", encoding="utf-8").write(_js377.dumps(voci))
+            _t = _tm377.time() - eta_g * 86400
+            _os377.utime(_f377, (_t, _t))
+            _st377._FRESCHEZZA_PATH = __import__("pathlib").Path(_f377)
+            _st377._FRESCHEZZA_CACHE.update({"mtime": None, "dati": {}})
+        _arts377 = [(_NS377(code="kodi_punes", number="146", title_sq="Kodi i Punës", repealed=False), 9.0),
+                    (_NS377(code="kodi_punes", number="155", title_sq="Kodi i Punës", repealed=False), 8.0),
+                    (_NS377(code="kodi_civil", number="999", title_sq="Kodi Civil", repealed=True), 7.0)]
+        _ok_v = [{"lang": "al", "code": "kodi_punes", "status": "OK", "source": "cons-2024-08-09"},
+                 {"lang": "al", "code": "kodi_civil", "status": "OK", "source": "cons-2026-08-01"}]
+        _scrivi377(_ok_v)
+        _v1 = _st377.vigenza_deterministica(_arts377, "sq") or {}
+        _okA377 = ([q["statusi"] for q in _v1.get("qbz", [])] == ["NË FUQI", "NË FUQI", "I SHFUQIZUAR"]
+                   and "2024-08-09" in _v1["qbz"][0]["ndryshimi"] and len(_v1.get("fletorja_auto", {}).get("atti", [])) == 2)
+        _scrivi377([{"lang": "al", "code": "kodi_punes", "status": "STALE", "source": "cons-2026-10-01"}, _ok_v[1]])
+        _okB377 = _st377.vigenza_deterministica(_arts377, "sq") is None
+        _scrivi377(_ok_v, eta_g=4)
+        _okC377 = _st377.vigenza_deterministica(_arts377, "sq") is None
+        _scrivi377(_ok_v)
+        class _BE377:
+            def complete(self, *a, **k):
+                raise RuntimeError("agente chiamato")
+        _ds377 = _st377.mbledh_dosjen(_BE377(), domanda="q", summary="s", retrieved=_arts377, lang="sq", web=False, qbz=True, fletorja=True)
+        _okD377 = (not _ds377.get("gabime") and _ds377.get("deterministica")
+                   and "kontroll automatik i QBZ" in _st377.formato_dosjen(_ds377, "sq"))
+        check("vigenza[377]: vigenza dei nene centrali dal controllo quotidiano di freschezza (atti OK e recenti → niente agenti QBZ e "
+              "Fletorja; atto STALE o controllo vecchio → gli agenti)", _okA377 and _okB377 and _okC377 and _okD377,
+              "A=%s B=%s C=%s D=%s" % (_okA377, _okB377, _okC377, _okD377))
+        _st377._FRESCHEZZA_PATH = _orig377[0]; _st377._FRESCHEZZA_CACHE.clear(); _st377._FRESCHEZZA_CACHE.update(_orig377[1])
+    except Exception as _e377:  # noqa: BLE001
+        check("vigenza[377]: kontrollet u ekzekutuan", False, f"{type(_e377).__name__}: {_e377}")
+
+    # [378] v9.602 — la cassetta della difesa penale AL (KP 48/53/59, KPP 406) NON scatta col cliente VITTIMA («e sulmuan klientin… i
+    # morën telefonin»), scatta con l'imputato («u kap», «rrezikon», «si e mbrojmë», l'accusa, la legittima difesa) e va IN CODA: prima la
+    # figura di reato (aggiunta o già trovata e portata in testa), poi gli attrezzi
+    try:
+        import re as _re378
+        from src import brain as _br378
+        from src.retrieval import ArticleIndex as _AI378
+        _br378.set_request_jurisdiction("AL")
+        _al378 = _AI378.load()
+        _rx378 = _br378._CLIENTE_VITTIMA_RX
+        _via378 = lambda q: _re378.sub(_rx378, " ", " " + q.lower()).strip() == ""
+        _vitt378 = ["Dy persona e sulmuan klientin në rrugë dhe i morën telefonin me forcë. Çfarë vepre është dhe çfarë dënimi parashikon?",
+                    "Ish-burri e ndjek klienten çdo ditë dhe e kërcënon. Çfarë dënimi parashikon ligji?",
+                    "Hynë në shtëpinë e klientit dhe i vodhën bizhuteritë. Çfarë dënimi parashikon?"]
+        _dif378 = ["Klienti u kap duke vjedhur në një dyqan. Çfarë dënimi rrezikon?",
+                   "Klienti u sulmua dhe u mbrojt duke plagosur sulmuesin. Çfarë dënimi parashikon?",
+                   "Klienti akuzohet se plagosi viktimën me thikë. Çfarë dënimi rrezikon?",
+                   "Klienti e goditi fqinjin me grusht. Çfarë dënimi parashikon?"]
+        _okA378 = all(_via378(q) for q in _vitt378) and not any(_via378(q) for q in _dif378)
+        _kit378 = {("kodi_penal", "48"), ("kodi_penal", "53"), ("kodi_penal", "59"), ("kodi_proc_penale", "406")}
+        _k378 = lambda pr, q: [(a.code, str(a.number)) for a, _ in _br378._applica_ancore(pr, _al378, ["vjedhje me dhunë", q], ["Penal"])]
+        _okB378 = not (_kit378 & set(_k378([], _vitt378[0])))
+        # l'imputato: 139 già fra i dodici al 9° posto, la domanda accende anche l'ancora 139/140 → 140 aggiunto, 139 in testa, la cassetta dopo
+        _cerca378 = [(a, 5.0) for a in _al378.articles if a.code == "kodi_penal" and str(a.number) in ("1", "2", "3", "4", "5", "6", "7", "8")]
+        _139 = next(a for a in _al378.articles if a.code == "kodi_penal" and str(a.number) == "139")
+        _pr378 = _cerca378 + [(_139, 4.0)] + [(a, 3.0) for a in _al378.articles if a.code == "kodi_penal" and str(a.number) in ("9", "10", "11")]
+        _o378 = _k378(_pr378, "Klienti me një shok i morën me forcë telefonin një kalimtari. Çfarë dënimi rrezikon?")
+        _okC378 = (_kit378 <= set(_o378) and _o378.index(("kodi_penal", "139")) < min(_o378.index(k) for k in _kit378)
+                   and _o378.index(("kodi_penal", "140")) < min(_o378.index(k) for k in _kit378))
+        check("difesa[378]: la cassetta della difesa penale AL non scatta col cliente vittima, scatta con l'imputato e va dietro la figura "
+              "di reato", _okA378 and _okB378 and _okC378, "A=%s B=%s C=%s %s" % (_okA378, _okB378, _okC378, _o378[:8]))
+    except Exception as _e378:  # noqa: BLE001
+        check("difesa[378]: kontrollet u ekzekutuan", False, f"{type(_e378).__name__}: {_e378}")
+
+    # [379] v9.604 — la sessione albanese SOLO in albanese anche nei nomi e nelle descrizioni degli strumenti: niente «Genio Legale —
+    # Senior Partner Brief», «Kill-shot avversario», «Pattern», «ratio AI», «Checklist», «magic-link», «Bozze/bozza/sotomet», «fascikul»,
+    # «Intake», «Pipeline», «alert», «matchohet», «elicit», «Vigilanza Normativa», «LIVE», «red-flag», «AI» generico (→ «Tetramorph»);
+    # e nella sessione italiana niente inglese al loro posto (colpo decisivo, lista di controllo, orientamenti dei precedenti)
+    try:
+        import io as _io379, os as _os379, re as _re379
+        _rr379 = _os379.path.dirname(_os379.path.dirname(_os379.path.abspath(__file__)))
+        _ix379 = _io379.open(_os379.path.join(_rr379, "templates", "index.html"), encoding="utf-8").read()
+        _js379 = _io379.open(_os379.path.join(_rr379, "static", "app.js"), encoding="utf-8").read()
+        # la base albanese di index.html: tolta la guida italiana del ramo Jinja
+        _al379 = _re379.sub(r"<!--.*?-->", "", _re379.sub(r"\{% if [^%]*%\}.*?\{% else %\}", "", _ix379, flags=_re379.S), flags=_re379.S)
+        _vietati379 = ["Senior Partner", "Kill-shot", "kill-shot", "Pattern e precedent", "Checklist", "magic-link", "Bozze", "bozz",
+                       "sotomet", "fascikul", "Intake", "Vigilanza Normativa", "Leverage", "Visura", "upgrade", "ratio AI", "matcho",
+                       "elicit", "AI bën", "AI po", "AI ka", "AI rikthen", "AI nxjerr", "Genio Legale", "Red Team", "Ratio Coach", "Bench"]
+        _okA379 = not [v for v in _vietati379 if v in _al379]
+        # app.js: fuori dalle chiavi del dizionario, i testi vivi non li hanno più
+        _vivo379 = "\n".join(L for L in _js379.split("\n") if "Object.assign(T_IT" not in L and not _re379.match(r'\s*"[^"]+"\s*:\s*"', L))
+        _vietatiJ379 = ["Kërko LIVE", "red-flag, niveli", "Vazhdo në draft", "Drafto letr", "Letër e draftuar", "Përmbledhje AI:", "Ti je avokat senior",
+                        "Sotomet", "Bozza u", "kill-shot i vetëm", "💥 Kill-shot", '"Genio Legale",', "AI dështoi", "AI-i do", "elicit skenarët",
+                        '"Intake", "📥"', "📊 Pipeline", "Senior Partner Brief", "Checklist: \" + act"]
+        _okB379 = not [v for v in _vietatiJ379 if v in _vivo379]
+        _okC379 = all(('"%s":' % k) in _js379 for k in ("Gjeniu Ligjor", "Prirjet e precedentëve", "Lista e kontrollit e fashikullit",
+                                                     "📝 Projekte në rishikim", "Levat e fshehura", "Goditja vdekjeprurëse",
+                                                     "🧠 Gjeniu Ligjor — gjashtë mendje mbi rastin", "Intervista e klientit"))
+        _okD379 = ("colpo decisivo" in _js379 and "Orientamenti dei precedenti" in _js379 and "Lista di controllo del fascicolo" in _js379
+                   and "magic-link" not in _js379 and "Bench memo precedenti" not in _js379 and "Nessun kill-shot" not in _js379)
+        from src import storage as _sto379
+        _okE379 = ("Intake" not in _sto379.stage_label("intake", "AL") and "Intake" not in _sto379.stage_label("intake", "IT"))
+        check("lingua[379]: sessione albanese senza inglese né italiano nei nomi e nelle descrizioni degli strumenti (Gjeniu Ligjor, "
+              "Prirjet e precedentëve, lista e kontrollit, projekte, fashikull, Tetramorph), sessione italiana senza inglese",
+              _okA379 and _okB379 and _okC379 and _okD379 and _okE379,
+              "A=%s %s B=%s %s C=%s D=%s E=%s" % (_okA379, [v for v in _vietati379 if v in _al379][:5], _okB379,
+                                                   [v for v in _vietatiJ379 if v in _vivo379][:5], _okC379, _okD379, _okE379))
+    except Exception as _e379:  # noqa: BLE001
+        check("lingua[379]: kontrollet u ekzekutuan", False, f"{type(_e379).__name__}: {_e379}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

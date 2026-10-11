@@ -71,7 +71,7 @@
       <span class="calendar-toggle-label" data-i18n="calendar">Kalendari</span>
       <span class="calendar-badge" id="calendar-badge" hidden>0</span>
     </button>
-    <button type="button" id="vigilanza-topbar-btn" class="calendar-toggle" title="Vigilanza Normativa — alerte për fascikujt e tu" data-i18n-title="vigilanza_title" aria-label="Hap vigilanzën" data-i18n-aria="open_vigilanza" hidden>
+    <button type="button" id="vigilanza-topbar-btn" class="calendar-toggle" title="Mbikëqyrja e legjislacionit — njoftime për fashikujt e tu" data-i18n-title="vigilanza_title" aria-label="Hap mbikëqyrjen e legjislacionit" data-i18n-aria="open_vigilanza" hidden>
       <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
         <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
               d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/>
@@ -129,8 +129,8 @@
       <span class="new-case-plus">＋</span> <span data-i18n="new_case">Rast i ri</span>
     </button>
 
-    <button id="intake-btn" class="intake-btn" type="button" title="Intake i drejtuar nga AI: bëj pyetje klientit dhe gjenero përmbledhjen">
-      <span class="intake-ico">🎙️</span> <span data-i18n="intake_ai">Intake klienti (AI)</span>
+    <button id="intake-btn" class="intake-btn" type="button" title="Intervista e klientit me Tetramorph: bëj pyetje klientit dhe gjenero përmbledhjen">
+      <span class="intake-ico">🎙️</span> <span data-i18n="intake_ai">Intervista e klientit</span>
     </button>
 
     <button id="clients-dir-btn" class="intake-btn" type="button" title="Rubrika e klientëve: rastet dhe kërkimet e ruajtura në një vend">
@@ -166,7 +166,7 @@
         <span id="case-title-text"></span>
         <button type="button" id="rename-case-btn" class="icon-btn" title="Riemëro rastin">✏️</button>
         <select id="case-stage-select" class="stage-select" title="Faza e rastit">
-          <option value="intake">📥 Intake</option>
+          <option value="intake">📥 Pranim</option>
           <option value="preparation">📚 Përgatitje</option>
           <option value="hearing">⚖️ Seancë</option>
           <option value="decision">📜 Vendim</option>
@@ -192,7 +192,7 @@
             <div class="pro-menu-divider" aria-hidden="true" data-i18n="grp_mendja">— MENDJA & STRATEGJIA —</div>
             <button type="button" class="pro-menu-item pro-menu-new" data-pro="genio" role="menuitem">
               <span class="pro-menu-ico">🧠</span>
-              <div><strong>Genio Legale</strong><em>6 perspektiva paralele: rifrazim · kill-shot · levat · pemë · e vërteta · zëri yt</em></div>
+              <div><strong>Gjeniu Ligjor</strong><em>6 perspektiva paralele: rifrazim · goditja vendimtare · levat · pema e vendimeve · e vërteta · zëri yt</em></div>
             </button>
             <button type="button" class="pro-menu-item pro-menu-new" data-pro="bench" role="menuitem">
               <span class="pro-menu-ico">⚖️</span>
@@ -224,21 +224,21 @@
             </button>
             <button type="button" class="pro-menu-item pro-menu-new" data-pro="precedent" role="menuitem">
               <span class="pro-menu-ico">📚</span>
-              <div><strong>Pattern e precedentëve</strong><em data-i18n="it_01">Vendimet e Kushtetueses, Gjykatës së Lartë dhe GjEDNj + ratio AI → lëvizjet që fituan, kurthet që humbën, kill-shot</em></div>
+              <div><strong>Prirjet e precedentëve</strong><em data-i18n="it_01">Vendimet e Kushtetueses, Gjykatës së Lartë dhe GjEDNj + arsyetimi i tyre → lëvizjet që fituan, kurthet që humbën, goditja vendimtare</em></div>
             </button>
             <div class="pro-menu-divider" aria-hidden="true" data-i18n="grp_fashikull">— FASHIKULLI —</div>
             <button type="button" class="pro-menu-item pro-menu-new" data-pro="dosja" role="menuitem">
               <span class="pro-menu-ico">📁</span>
               <div><strong>Dosja</strong><em data-i18n="it_09">Gjithçka që ke ruajtur — përgjigje, akte, prokura, shkresa — nga të gjitha rastet, në një vend</em></div>
             </button>
-            <button type="button" class="pro-menu-item pro-menu-new" data-pro="fascikull" role="menuitem">
+            <button type="button" class="pro-menu-item pro-menu-new" data-pro="fashikull" role="menuitem">
               <span class="pro-menu-ico">🗂️</span>
               <div><strong data-i18n="it_10">Fashikulli intelligjent</strong><em>Kronologji + kontradikta, kush tha çfarë, pyet dokumentet, gjilpëra — mbi dokumentet e rastit</em></div>
             </button>
             <button type="button" class="pro-menu-item pro-menu-new" data-pro="tabela" role="menuitem">📊 <span data-i18n="tb_menu">Tabela e Dosjes</span></button>
             <button type="button" class="pro-menu-item pro-menu-new" data-pro="cklist" role="menuitem">
               <span class="pro-menu-ico">✅</span>
-              <div><strong data-i18n="it_12">Checklist i fashikullit</strong><em data-i18n="it_13">Për një çështje/akt: dokumentet/provat e kërkuara vs të pranishme vs mungojnë/skaduar + plotësia</em></div>
+              <div><strong data-i18n="it_12">Lista e kontrollit e fashikullit</strong><em data-i18n="it_13">Për një çështje/akt: dokumentet/provat e kërkuara vs të pranishme vs mungojnë/skaduar + plotësia</em></div>
             </button>
             <button type="button" class="pro-menu-item pro-menu-new" data-pro="regjistri" role="menuitem">
               <span class="pro-menu-ico">🔎</span>
@@ -272,7 +272,7 @@
             <button type="button" class="pro-menu-item pro-menu-new" data-pro="harta" role="menuitem">🧩 <span data-i18n="harta_menu">Harta e Pretendimeve</span></button>
             <button type="button" class="pro-menu-item pro-menu-new" data-pro="klauzolat" role="menuitem">
               <span class="pro-menu-ico">📚</span>
-              <div><strong>Klauzolat e studios</strong><em data-i18n="it_16">Ruaj klauzolat e preferuara; drafteri (akt/prokurë/Redakto) i përdor për të ruajtur stilin</em></div>
+              <div><strong>Klauzolat e studios</strong><em data-i18n="it_16">Ruaj klauzolat e preferuara; hartuesi (akt/prokurë/Redakto) i përdor për të ruajtur stilin</em></div>
             </button>
             <button type="button" class="pro-menu-item pro-menu-new" data-pro="corporate" role="menuitem">
               <span class="pro-menu-ico">🏢</span>
@@ -280,7 +280,7 @@
             </button>
             <button type="button" class="pro-menu-item pro-menu-new" data-pro="lexombush" role="menuitem">
               <span class="pro-menu-ico">📸</span>
-              <div><strong>Lexo & mbush</strong><em>Lexon dokumentet → nxjerr të dhënat → i çon te drafti (sipas profesionit)</em></div>
+              <div><strong>Lexo & mbush</strong><em>Lexon dokumentet → nxjerr të dhënat → i çon te projekti (sipas profesionit)</em></div>
             </button>
             <div class="pro-menu-divider" aria-hidden="true" data-i18n="grp_besues">— BESUESHMËRIA —</div>
             <button type="button" class="pro-menu-item pro-menu-new" data-pro="hublive" role="menuitem">
@@ -402,7 +402,7 @@
            i documenti e le analisi Pro vi si collegano e restano archiviati.</p>
         <p>Per iniziare, clicca <strong>"＋ Nuovo caso"</strong> a sinistra.</p>
         {% else %}
-        <p>Hap një <em>rast</em> të ri për çdo fascikul — memoria e bisedës,
+        <p>Hap një <em>rast</em> të ri për çdo fashikull — memoria e bisedës,
            dokumentet dhe analizat Pro lidhen me të dhe mbeten të arkivuara.</p>
         <p>Për të filluar, kliko <strong>"＋ Rast i ri"</strong> në anën e majtë.</p>
         {% endif %}
@@ -425,16 +425,16 @@
           <summary>📖 Guida rapida — come funziona Super Avokati</summary>
           <ol class="tour-steps">
             <li><strong>Apri un caso</strong> — clicca "＋ Nuovo caso" a sinistra. Ogni caso ha la propria memoria, i propri documenti e le analisi Pro collegate.</li>
-            <li><strong>Parla come con un collega senior</strong> — scrivi in italiano, senza formule. Ogni "art. X" nella risposta viene verificato contro il corpus ({{ '{:,}'.format(total_articles).replace(',', '.') }} articoli in {{ num_codes }} codici).</li>
-            <li><strong>Strumenti Pro</strong> ⭐ — a caso aperto puoi lanciare: 🧠 <em>Genio Legale</em> (6 prospettive parallele), ⚖️ <em>Bench Memo</em> (come ragionerà il giudice), ⚔️ <em>Red Team</em> (stress-test della tesi), 📚 <em>Pattern dei precedenti</em>, 📝 <em>Ratio Coach</em> (post-mortem + lezioni apprese).</li>
+            <li><strong>Parla come con un collega esperto</strong> — scrivi in italiano, senza formule. Ogni "art. X" nella risposta viene verificato contro il corpus ({{ '{:,}'.format(total_articles).replace(',', '.') }} articoli in {{ num_codes }} codici).</li>
+            <li><strong>Strumenti Pro</strong> ⭐ — a caso aperto puoi lanciare: 🧠 <em>Genio Legale</em> (6 prospettive parallele), ⚖️ <em>Memo del giudice</em> (come ragionerà il giudice), ⚔️ <em>Stress test della tesi</em>, 📚 <em>Orientamenti dei precedenti</em>, 📝 <em>Lezioni dai casi</em> (analisi dei casi chiusi + lezioni apprese).</li>
             <li><strong>Comandi rapidi in chat</strong> — scrivi <code>/afatet</code> per calcolare le scadenze procedurali (c.p.c./c.p.p.) a partire da un evento.</li>
           </ol>
           {% else %}
           <summary>📖 Tour i shpejtë — si funksionon Super Avokati</summary>
           <ol class="tour-steps">
             <li><strong>Hap një rast</strong> — kliko "＋ Rast i ri" majtas. Çdo rast ka kujtesë të vetën, dokumentet e veta dhe analizat Pro të lidhura.</li>
-            <li><strong>Bisedo si me një kolegë senior</strong> — shkruaj shqip, pa formula. Çdo "Neni X" në përgjigje verifikohet kundër korpusit ({{ '{:,}'.format(total_articles).replace(',', '.') }} nene në {{ num_codes }} kode).</li>
-            <li><strong>Mjete Pro</strong> ⭐ — pasi rasti është i hapur, mund të lëshosh: 🧠 <em>Genio Legale</em> (6 perspektiva paralele), ⚖️ <em>Memo e gjyqtarit</em> (si do mendojë gjyqtari), ⚔️ <em>Red Team</em> (stres-test i tezës), 📚 <em>Pattern e precedentëve</em>, 📝 <em>Ratio Coach</em> (post-mortem + mësime).</li>
+            <li><strong>Bisedo si me një koleg me përvojë</strong> — shkruaj shqip, pa formula. Çdo "Neni X" në përgjigje verifikohet kundër korpusit ({{ '{:,}'.format(total_articles).replace(',', '.') }} nene në {{ num_codes }} kode).</li>
+            <li><strong>Mjete Pro</strong> ⭐ — pasi rasti është i hapur, mund të lëshosh: 🧠 <em>Gjeniu Ligjor</em> (6 perspektiva paralele), ⚖️ <em>Memo e gjyqtarit</em> (si do mendojë gjyqtari), ⚔️ <em>Stres-testi i tezës</em>, 📚 <em>Prirjet e precedentëve</em>, 📝 <em>Mësimet e rasteve</em> (analiza e rasteve të mbyllura + mësime).</li>
             <li><strong>Komanda të shpejta në bisedë</strong> — shkruaj <code>/afatet</code> për të llogaritur afatet procedurale KPC/KPP nga një ngjarje.</li>
           </ol>
           {% endif %}
@@ -802,7 +802,7 @@
       <div class="ical-url-row">
         <button type="button" id="tg-link-btn" class="primary">Lidh Telegram</button>
       </div>
-      <details class="tg-manuale"><summary data-i18n="tg_manuale">Lidhja me dorë (chat ID)</summary>
+      <details class="tg-manuale"><summary data-i18n="tg_manuale">Lidhja me dorë (ID e bisedës)</summary>
       <div class="ical-url-row">
         <input type="text" id="tg-chat-input" placeholder="123456789" maxlength="20" />
         <button type="button" id="tg-save-btn" class="primary" data-i18n="ev_save">Ruaj</button>
@@ -888,8 +888,8 @@
   <div class="pro-modal-card intake-card">
     <header class="pro-modal-head">
       <div>
-        <h3 data-i18n="it_32" id="intake-title">🎙️ Intake klienti me AI</h3>
-        <p data-i18n="it_33" class="pro-modal-sub">AI bën pyetje hap pas hapi në shqip. Në fund prodhon një përmbledhje të strukturuar dhe hap rastin automatikisht.</p>
+        <h3 data-i18n="it_32" id="intake-title">🎙️ Intervista e klientit me Tetramorph</h3>
+        <p data-i18n="it_33" class="pro-modal-sub">Tetramorph bën pyetje hap pas hapi në shqip. Në fund prodhon një përmbledhje të strukturuar dhe hap rastin automatikisht.</p>
       </div>
       <button type="button" class="icon-btn" data-close aria-label="Mbyll">&times;</button>
     </header>
@@ -897,7 +897,7 @@
       <div id="intake-progress" class="intake-progress">
         <span id="intake-step-num">Pyetja 1</span>
         <span class="intake-progress-sep">·</span>
-        <span id="intake-progress-hint">AI po dëgjon</span>
+        <span id="intake-progress-hint">Tetramorph po dëgjon</span>
       </div>
 
       <div id="intake-transcript" class="intake-transcript" aria-live="polite"></div>
@@ -916,7 +916,7 @@
       </div>
 
       <div id="intake-finalize-block" class="intake-finalize" hidden>
-        <p class="intake-done-msg">✅ AI ka mbledhur sa duhet. Kliko për të prodhuar përmbledhjen dhe hapur rastin.</p>
+        <p class="intake-done-msg">✅ Tetramorph ka mbledhur sa duhet. Kliko për të prodhuar përmbledhjen dhe hapur rastin.</p>
         <div class="pro-actions">
           <button data-i18n="it_35" type="button" id="intake-back-btn" class="ghost">⟵ Bëj edhe një pyetje</button>
           <button type="button" id="intake-finalize-btn" class="primary">Prodho përmbledhjen + Hap rastin</button>
@@ -943,7 +943,7 @@
     <header class="pro-modal-head">
       <div>
         <h3 data-i18n="it_36" id="clients-modal-title">👤 Klientët e rastit</h3>
-        <p data-i18n="it_37" class="pro-modal-sub">Krijo një link privat (magic-link) që klienti të ndjekë ecurinë: faza, takimet e ardhshme, lajmet që ke ndarë.</p>
+        <p data-i18n="it_37" class="pro-modal-sub">Krijo një lidhje private që klienti të ndjekë ecurinë: faza, takimet e ardhshme, lajmet që ke ndarë.</p>
       </div>
       <button type="button" class="icon-btn" data-close aria-label="Mbyll">&times;</button>
     </header>
@@ -969,7 +969,7 @@
       <div class="updates-panel">
         <h4 data-i18n="it_41" class="updates-h4">📢 Lajme për klientin</h4>
         <p data-i18n="it_42" class="updates-hint">
-          Çfarë shkruan këtu shfaqet në portalin e klientit. Përdor "Përkthe për qytetarin" për të rikthyer tekst teknik në gjuhë të thjeshtë, ose "Sugjero lajm" për një propozim AI.
+          Çfarë shkruan këtu shfaqet në portalin e klientit. Përdor "Përkthe për qytetarin" për të rikthyer tekst teknik në gjuhë të thjeshtë, ose "Sugjero lajm" për një propozim nga Tetramorph.
         </p>
 
         <textarea id="status-update-body" rows="4" maxlength="2000"
@@ -983,7 +983,7 @@
             <option value="translation">🔄 Përkthim</option>
           </select>
           <button type="button" id="status-translate-btn" class="ghost" title="Marr tekst teknik dhe e rishkruaj në shqip të thjeshtë">🔄 Përkthe për qytetarin</button>
-          <button type="button" id="status-auto-btn" class="ghost" title="AI propozon një lajm bazuar në fazën dhe mesazhin e fundit">✨ Sugjero lajm</button>
+          <button type="button" id="status-auto-btn" class="ghost" title="Tetramorph propozon një lajm bazuar në fazën dhe mesazhin e fundit">✨ Sugjero lajm</button>
           <button type="button" id="status-publish-btn" class="primary">Publiko →</button>
         </div>
 
@@ -1002,7 +1002,7 @@
     <header class="pro-modal-head">
       <div>
         <h3 id="jargon-title">🔄 Përkthe për qytetarin</h3>
-        <p data-i18n="it_43" class="pro-modal-sub">Ngjit tekst teknik (citime nga ne nene, vendime, akte). AI rikthen një version të thjeshtë në shqip që klienti e kupton.</p>
+        <p data-i18n="it_43" class="pro-modal-sub">Ngjit tekst teknik (citime nga ne nene, vendime, akte). Tetramorph rikthen një version të thjeshtë në shqip që klienti e kupton.</p>
       </div>
       <button type="button" class="icon-btn" data-close aria-label="Mbyll">&times;</button>
     </header>
@@ -1031,7 +1031,7 @@
     <header class="pro-modal-head">
       <div>
         <h3 id="contract-modal-title">📑 Rishikim kontrate</h3>
-        <p data-i18n="it_44" class="pro-modal-sub">Ngjit tekstin e plotë të kontratës. AI rikthen semafor 🟢🟡🔴 për çdo klauzolë, detyrime, afate, dhe rrezigjet GDPR-AL.</p>
+        <p data-i18n="it_44" class="pro-modal-sub">Ngjit tekstin e plotë të kontratës. Tetramorph rikthen semafor 🟢🟡🔴 për çdo klauzolë, detyrime, afate, dhe rreziqet për të dhënat personale.</p>
       </div>
       <button type="button" class="icon-btn" data-close aria-label="Mbyll">&times;</button>
     </header>
@@ -1310,7 +1310,7 @@
         </table>
       </div>
 
-      <h4 class="studio-section-title">📝 Bozze në revizion <span id="review-badge" class="review-badge" hidden>0</span></h4>
+      <h4 class="studio-section-title">📝 Projekte në rishikim <span id="review-badge" class="review-badge" hidden>0</span></h4>
       <p class="pro-modal-sub" id="review-help" style="margin: 0 0 8px;"></p>
       <div id="review-queue" class="review-queue"><p class="studio-empty">Duke ngarkuar…</p></div>
 
@@ -1331,8 +1331,8 @@
   <div class="pro-modal-card pro-modal-wide">
     <header class="pro-modal-head">
       <div>
-        <h3 id="genio-modal-title">🧠 Genio Legale — Senior Partner Brief</h3>
-        <p class="pro-modal-sub">Lësho 6 mendje paralele mbi këtë rast. Çdo lente është një partner senior tjetër. Mendojnë në kohë reale.</p>
+        <h3 id="genio-modal-title">🧠 Gjeniu Ligjor — gjashtë mendje mbi rastin</h3>
+        <p class="pro-modal-sub">Lësho 6 mendje paralele mbi këtë rast. Çdo lente është një avokat tjetër me përvojë. Mendojnë në kohë reale.</p>
       </div>
       <button type="button" class="pro-modal-close" data-close aria-label="Mbyll">&times;</button>
     </header>
@@ -1342,7 +1342,7 @@
         <div class="genio-launch-row">
           <label for="genio-file" class="genio-clip" title="Bashkëngjit PDF, foto, docx">📎</label>
           <input type="file" id="genio-file" hidden accept=".pdf,.png,.jpg,.jpeg,.heic,.heif,.tif,.tiff,.docx,.doc,.txt,.rtf,.html">
-          <button type="button" id="genio-run" class="primary" style="background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;border:none;padding:12px 24px;border-radius:10px;font-weight:700;font-size:1.05rem;cursor:pointer;box-shadow:0 3px 10px rgba(22,163,74,.35)">🚀 Lësho Genio (~20–30 min)</button>
+          <button type="button" id="genio-run" class="primary" style="background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;border:none;padding:12px 24px;border-radius:10px;font-weight:700;font-size:1.05rem;cursor:pointer;box-shadow:0 3px 10px rgba(22,163,74,.35)">🚀 Lësho Gjeniun (~20–30 min)</button>
           <button type="button" id="genio-resume" hidden style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;border:none;padding:12px 18px;border-radius:10px;font-weight:700;font-size:1rem;cursor:pointer;box-shadow:0 3px 10px rgba(217,119,6,.35);margin-left:8px">🔄 Rifresko</button>
           <span id="genio-status" class="pro-status"></span>
         </div>
@@ -1357,11 +1357,11 @@
           <div class="genio-body"></div>
         </article>
         <article class="genio-card" data-key="kill_shot">
-          <header><span class="genio-ico">💀</span><h4>Kill-shot avversario</h4><span class="genio-badge">…</span></header>
+          <header><span class="genio-ico">💀</span><h4>Goditja vdekjeprurëse</h4><span class="genio-badge">…</span></header>
           <div class="genio-body"></div>
         </article>
         <article class="genio-card" data-key="leverage">
-          <header><span class="genio-ico">⚖️</span><h4>Leverage të fshehura</h4><span class="genio-badge">…</span></header>
+          <header><span class="genio-ico">⚖️</span><h4>Levat e fshehura</h4><span class="genio-badge">…</span></header>
           <div class="genio-body"></div>
         </article>
         <article class="genio-card" data-key="decision_tree">
@@ -1387,8 +1387,8 @@
   <div class="pro-modal-card pro-modal-wide">
     <header class="pro-modal-head">
       <div>
-        <h3 id="precedent-modal-title">📚 Pattern e precedentëve</h3>
-        <p data-i18n="it_52" class="pro-modal-sub">Vendimet e gjykatave (Kushtetuese · Gjykata e Lartë · GjEDNj-Shqipëri) + ratio AI → lëvizjet që fituan, kurthet që humbën, kill-shot.</p>
+        <h3 id="precedent-modal-title">📚 Prirjet e precedentëve</h3>
+        <p data-i18n="it_52" class="pro-modal-sub">Vendimet e gjykatave (Kushtetuese · Gjykata e Lartë · GjEDNj-Shqipëri) + arsyetimi i tyre → lëvizjet që fituan, kurthet që humbën, goditja vendimtare.</p>
       </div>
       <button type="button" class="pro-modal-close" data-close aria-label="Mbyll">&times;</button>
     </header>
@@ -1421,20 +1421,20 @@
   <div class="pro-modal-card pro-modal-wide">
     <header class="pro-modal-head">
       <h3 id="coach-modal-title">📝 Mësimet e rasteve — çfarë përsëritet</h3>
-      <p class="pro-modal-sub">Pas çdo rasti të mbyllur, AI ekstrakton mësimin e transferueshëm: çfarë funksionoi, çfarë dështoi, faktori vendimtar. Në rastet e ardhshme të ngjashme, mësimet ngrihen automatikisht para se të bësh të njëjtin gabim ose të humbasësh të njëjtën lëvizje fituese.</p>
+      <p class="pro-modal-sub">Pas çdo rasti të mbyllur, Tetramorph nxjerr mësimin që vlen edhe për raste të tjera: çfarë funksionoi, çfarë dështoi, faktori vendimtar. Në rastet e ardhshme të ngjashme, mësimet ngrihen automatikisht para se të bësh të njëjtin gabim ose të humbasësh të njëjtën lëvizje fituese.</p>
       <button type="button" class="pro-modal-close" data-close aria-label="Mbyll">&times;</button>
     </header>
     <div class="pro-modal-body">
 
       <div class="coach-tabs" role="tablist">
-        <button class="coach-tab coach-tab-active" data-ctab="postmortem" role="tab">🎯 Post-mortem fascikuli aktual</button>
+        <button class="coach-tab coach-tab-active" data-ctab="postmortem" role="tab">🎯 Analiza e fashikullit aktual</button>
         <button class="coach-tab" data-ctab="library" role="tab">📚 Biblioteka e mësimeve</button>
         <button class="coach-tab" data-ctab="relevant" role="tab">🔍 Mësime relevante për këtë rast</button>
       </div>
 
       <!-- TAB 1: post-mortem -->
       <div id="coach-tab-postmortem" class="coach-tab-panel">
-        <p class="coach-hint">Trego rezultatin e fascikulit aktual dhe AI do ta analizojë historikun + dokumentet për të nxjerrë mësimin e transferueshëm.</p>
+        <p class="coach-hint">Trego rezultatin e fashikullit aktual dhe Tetramorph do ta analizojë historikun + dokumentet për të nxjerrë mësimin që vlen edhe për raste të tjera.</p>
         <div class="coach-row">
           <select id="coach-outcome" class="pro-select">
             <option value="fituar">✓ Fituar</option>
@@ -1446,7 +1446,7 @@
         </div>
         <textarea id="coach-summary" class="pro-textarea" rows="3" placeholder="Përshkrim shtesë (opsional) — si vajti, çfarë kishte rëndësi, çfarë kishte papritur"></textarea>
         <div class="coach-actions-row">
-          <button id="coach-run-btn" class="pro-run-btn">Gjenero Post-Mortem</button>
+          <button id="coach-run-btn" class="pro-run-btn">Gjenero analizën</button>
           <span id="coach-status" class="pro-status"></span>
         </div>
         <div id="coach-existing" class="coach-existing" hidden></div>
@@ -1456,15 +1456,15 @@
       <!-- TAB 2: library -->
       <div id="coach-tab-library" class="coach-tab-panel" hidden>
         <div id="coach-library" class="coach-library">
-          <p class="coach-empty">Biblioteka e zbrazët. Bëj post-mortem të rasteve të mbyllura për të nisur ndërtimin.</p>
+          <p class="coach-empty">Biblioteka e zbrazët. Analizo rastet e mbyllura për ta nisur.</p>
         </div>
       </div>
 
       <!-- TAB 3: relevant for current case -->
       <div id="coach-tab-relevant" class="coach-tab-panel" hidden>
-        <p data-i18n="it_53" class="coach-hint">Top-3 mësime nga rastet e mëparshme që janë më të ngjashme me fascikulin aktual.</p>
+        <p data-i18n="it_53" class="coach-hint">3 mësimet më të dobishme nga rastet e mëparshme që janë më të ngjashme me fashikullin aktual.</p>
         <div id="coach-relevant" class="coach-relevant">
-          <p class="coach-empty">Hap një fascikul fillimisht.</p>
+          <p class="coach-empty">Hap një fashikull fillimisht.</p>
         </div>
       </div>
 
@@ -1477,8 +1477,8 @@
   <div class="pro-modal-backdrop" data-close></div>
   <div class="pro-modal-card pro-modal-wide">
     <header class="pro-modal-head">
-      <h3 id="vigilanza-modal-title">📰 Vigilanza Normativa</h3>
-      <p data-i18n="it_54" class="pro-modal-sub">Çdo akt i ri (ligj, vendim, udhëzim) që ngarkon këtu klasifikohet automatikisht me AI dhe matchohet kundër fascikujve të tu të hapur. Rezultati: alert i drejtpërdrejtë në ato raste që preken.</p>
+      <h3 id="vigilanza-modal-title">📰 Mbikëqyrja e legjislacionit</h3>
+      <p data-i18n="it_54" class="pro-modal-sub">Çdo akt i ri (ligj, vendim, udhëzim) që ngarkon këtu klasifikohet automatikisht nga Tetramorph dhe krahasohet me fashikujt e tu të hapur. Rezultati: njoftim i menjëhershëm në rastet që preken.</p>
       <button type="button" class="pro-modal-close" data-close aria-label="Mbyll">&times;</button>
     </header>
     <div class="pro-modal-body">
@@ -1496,15 +1496,15 @@
           <button id="vig-refresh-btn" class="pro-btn-small">↻ Rifresko</button>
         </div>
         <div id="vig-alerts-list" class="vig-alerts-list">
-          <p data-i18n="it_56" class="vig-empty">Asnjë alert. Ngarko një ndryshim ligjor ose prit vendimin e radhës.</p>
+          <p data-i18n="it_56" class="vig-empty">Asnjë njoftim. Ngarko një ndryshim ligjor ose prit vendimin e radhës.</p>
         </div>
       </div>
 
       <!-- TAB 2: upload -->
       <div id="vig-tab-upload" class="vig-tab-panel" hidden>
-        <p data-i18n="it_57" class="vig-hint">Ngjit tekstin e plotë të aktit (ligj, VKM, udhëzim, vendim Gjykate). AI do ta klasifikojë dhe matchojë me fascikujt e tu të hapur.</p>
+        <p data-i18n="it_57" class="vig-hint">Ngjit tekstin e plotë të aktit (ligj, VKM, udhëzim, vendim Gjykate). Tetramorph do ta klasifikojë dhe do ta krahasojë me fashikujt e tu të hapur.</p>
         <div class="vig-row">
-          <input id="vig-up-title" class="pro-input" type="text" placeholder="Titull (opsional — AI do ta plotësojë)">
+          <input id="vig-up-title" class="pro-input" type="text" placeholder="Titull (opsional — e plotëson Tetramorph)">
           <select id="vig-up-source" class="pro-select">
             <option value="manual">Manual</option>
             <option value="fletorja_zyrtare">Fletorja Zyrtare</option>
@@ -1519,7 +1519,7 @@
         </div>
         <textarea id="vig-up-content" class="pro-textarea" rows="10" placeholder="Ngjit tekstin e plotë këtu (≥50 karaktere)…"></textarea>
         <div class="vig-actions-row">
-          <button id="vig-upload-btn" class="pro-run-btn">Klasifiko & matcho me fascikujt</button>
+          <button id="vig-upload-btn" class="pro-run-btn">Klasifiko dhe krahaso me fashikujt</button>
           <span id="vig-upload-status" class="pro-status"></span>
         </div>
         <div id="vig-upload-result" class="pro-result" hidden></div>
@@ -1542,7 +1542,7 @@
   <div class="pro-modal-card pro-modal-wide">
     <header class="pro-modal-head">
       <h3 id="bench-modal-title">⚖️ Memo e gjyqtarit — si do të mendojë gjyqtari</h3>
-      <p data-i18n="it_60" class="pro-modal-sub">Memorandum gjyqësor i kalibruar për gjykatën specifike: inkuadrimi i çështjes, P(fitore), dobësitë e tua që do të sulmohen, forcat e kundërshtarit që do të pranohen, upgrade argumentesh, rekomandim final.</p>
+      <p data-i18n="it_60" class="pro-modal-sub">Memorandum gjyqësor i kalibruar për gjykatën specifike: inkuadrimi i çështjes, P(fitore), dobësitë e tua që do të sulmohen, forcat e kundërshtarit që do të pranohen, përmirësimi i argumenteve, rekomandimi përfundimtar.</p>
       <button type="button" class="pro-modal-close" data-close aria-label="Mbyll">&times;</button>
     </header>
     <div class="pro-modal-body">
@@ -1556,11 +1556,11 @@
           <option data-i18n="it_66" value="gjykata_komerciale">Gjykata Komerciale (Tiranë)</option>
           <option value="ecthr_albania">GjEDNj — Shqipëri</option>
         </select>
-        <select id="bench-history" class="pro-select" aria-label="Bench memo të mëparshme">
+        <select id="bench-history" class="pro-select" aria-label="Memot e mëparshme të gjyqtarit">
           <option value="">— Hap memo të mëparshme —</option>
         </select>
       </div>
-      <textarea id="bench-desc" class="pro-textarea" rows="3" placeholder="Përshkrim shtesë i çështjes (opsional — fascikuli aktual ngarkohet automatikisht)"></textarea>
+      <textarea id="bench-desc" class="pro-textarea" rows="3" placeholder="Përshkrim shtesë i çështjes (opsional — fashikulli aktual ngarkohet automatikisht)"></textarea>
       <textarea id="bench-opp" class="pro-textarea" rows="4" placeholder="Memorie / parashtrim i kundërshtarit (opsional — kopjo tekstin këtu për analizë më të thellë)"></textarea>
       <div class="bench-actions-row">
         <button id="bench-run-btn" class="pro-run-btn">Gjenero memon e gjyqtarit</button>
@@ -1577,7 +1577,7 @@
   <div class="pro-modal-card pro-modal-wide">
     <header class="pro-modal-head">
       <h3 id="corporate-modal-title">🏢 Analiza e shoqërive</h3>
-      <p data-i18n="it_67" class="pro-modal-sub">Ngarko dokumentin e shoqërisë → AI nxjerr ortakët, administratorët, të autorizuarit me prokurë dhe afatet. Kontrollo nënshkruesin para nënshkrimit. Gjenero listën e kontrollit KYC/AML (Ligji 9917/2008).</p>
+      <p data-i18n="it_67" class="pro-modal-sub">Ngarko dokumentin e shoqërisë → Tetramorph nxjerr ortakët, administratorët, të autorizuarit me prokurë dhe afatet. Kontrollo nënshkruesin para nënshkrimit. Gjenero listën e kontrollit KYC/AML (Ligji 9917/2008).</p>
       <button type="button" class="pro-modal-close" data-close aria-label="Mbyll">&times;</button>
     </header>
     <div class="pro-modal-body">
@@ -1593,7 +1593,7 @@
       <div id="corp-tab-extract" class="corp-tab-panel">
         <div class="corp-row">
           <select id="corp-doc-type" class="pro-select">
-            <option value="visura">Visura / Ekstrakt QKB</option>
+            <option value="visura">Ekstrakti i QKB-së</option>
             <option value="statuto">Statuti / Akti i themelimit</option>
             <option data-i18n="it_68" value="procura">Prokurë / Autorizim</option>
             <option value="bilanci">Bilanci</option>
@@ -1634,7 +1634,7 @@
       <div id="corp-tab-kyc" class="corp-tab-panel" hidden>
         <p class="corp-hint">Analizë e gap-it KYC/AML bazuar në dokumentet e ngarkuara (rregull fiks, pa thirrje AI).</p>
         <div class="corp-actions-row">
-          <button id="corp-kyc-btn" class="pro-run-btn">Gjenero Checklist</button>
+          <button id="corp-kyc-btn" class="pro-run-btn">Gjenero listën e kontrollit</button>
           <span id="corp-kyc-status" class="pro-status"></span>
         </div>
         <div id="corp-kyc-result" class="pro-result" hidden></div>
@@ -1651,7 +1651,7 @@
     <header class="pro-modal-head">
       <div>
         <h3 id="settlement-modal-title">🎯 Simulimi i marrëveshjes (Monte Carlo)</h3>
-        <p class="pro-modal-sub">AI elicit 4–6 skenarë financiarë → 10.000 simulime → percentile i ofertës aktuale + kontër-ofertë e rekomanduar.</p>
+        <p class="pro-modal-sub">Tetramorph ndërton 4–6 skenarë financiarë → 10.000 simulime → percentili i ofertës aktuale + kundëroferta e rekomanduar.</p>
       </div>
       <button type="button" class="pro-modal-close" data-close aria-label="Mbyll">&times;</button>
     </header>
@@ -1722,7 +1722,7 @@
   </div>
 </template>
 
-<script src="/static/app.js?v=212"></script>
+<script src="/static/app.js?v=213"></script>
 <script src="/static/secretary.js?v=2"></script>
 <script src="/static/onboarding.js?v=3" defer></script>
   <script src="/static/sw-register.js?v=1" defer></script>
