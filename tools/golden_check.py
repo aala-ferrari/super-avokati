@@ -8451,8 +8451,10 @@ def main():
               'it: { wait: "Verifico…", login: "Entra", bad: "⚠️ Credenziali errate."' in _l280
               and "demo_expired: \"⚠️ La prova gratuita è scaduta." in _l280 and "M()[data.blocked]" in _l280
               and "resp.status === 429 ? M().many(" in _l280 and 'btn.textContent = M().login;' in _l280
-              and '"Hyr";' not in _l280 and "'Dergo kerkesen'" not in _l280 and "Richiesta inviata" in _l280
-              and "login.js?v=5" in _h280)
+              and '"Hyr";' not in _l280 and "'Dergo kerkesen'" not in _l280
+              # v9.623: la password dimenticata col codice via email (prima «Richiesta inviata» all'amministratore)
+              and "Se l'email è registrata" in _l280 and "Invia di nuovo il codice" in _l280
+              and int((__import__("re").search(r"login\.js\?v=(\d+)", _h280) or [0, 0])[1]) >= 5)
     except Exception as _e280:  # noqa: BLE001
         check("login[280]: kontrollet u ekzekutuan", False, str(_e280))
 
@@ -11392,6 +11394,113 @@ def main():
               _ok_sa and _ok_web and _ok_ui, repr((_sa1, _sa2, _sa3, _sa4, _ok_web, _ok_ui))[:300])
     except Exception as _e395:  # noqa: BLE001
         check("giudizi[395]: kontrollet u ekzekutuan", False, f"{type(_e395).__name__}: {_e395}")
+
+    # [396] v9.623 — la PASSWORD DIMENTICATA da soli: codice di 6 cifre via email (prima «Password dimenticata?» creava solo una
+    # richiesta per l'amministratore). Il codice si salva come impronta, uno per utente, 15 minuti, 5 tentativi; l'email dei
+    # promemoria vale solo se è di UN account; mai email agli account di prova. Eseguito su un DB TEMPORANEO.
+    try:
+        import tempfile as _tf396, inspect as _in396
+        from pathlib import Path as _P396
+        from src import storage as _st396, web as _w396, reminders as _rm396
+        from src.auth import hash_password as _hp396, verify_password as _vp396
+        _db396 = _P396(_tf396.mkdtemp()) / "t.db"
+        _orig396 = _st396._connect
+        _st396._connect = lambda db_path=None: _orig396(_db396)
+        try:
+            _st396.init_db(_db396)
+            _a = _st396.create_user("Avv396@Esempio.it", "x")
+            _b = _st396.create_user("rossi396", "x")
+            _c = _st396.create_user("anna396", "x")
+            _d = _st396.create_user("luca396", "x")
+            _st396.set_user_reminder_email(_b.id, "rossi396@esempio.it")
+            _st396.set_user_reminder_email(_c.id, "doppia396@esempio.it")
+            _st396.set_user_reminder_email(_d.id, "doppia396@esempio.it")
+            _trova = (_st396.utente_per_email("avv396@esempio.it"), _st396.utente_per_email("ROSSI396@esempio.it"),
+                      _st396.utente_per_email("doppia396@esempio.it"), _st396.utente_per_email("nessuno396@esempio.it"),
+                      _st396.utente_per_email("senza-chiocciola"))
+            _ok_trova = (_trova[0] and _trova[0].id == _a.id and _trova[1] and _trova[1].id == _b.id
+                         and _trova[2] is None and _trova[3] is None and _trova[4] is None)
+            _st396.crea_reset_password(_a.id, _hp396("111111"))
+            _st396.crea_reset_password(_a.id, _hp396("222222"))
+            _e1 = _st396.usa_reset_password(_a.id, lambda h: _vp396("111111", h))   # il vecchio è annullato
+            _e2 = _st396.usa_reset_password(_a.id, lambda h: _vp396("222222", h))
+            _e3 = _st396.usa_reset_password(_a.id, lambda h: _vp396("222222", h))   # già usato
+            _st396.crea_reset_password(_a.id, _hp396("333333"))
+            _e4 = [_st396.usa_reset_password(_a.id, lambda h: _vp396("000000", h)) for _ in range(5)]
+            _e5 = _st396.usa_reset_password(_a.id, lambda h: _vp396("333333", h))   # finiti i tentativi
+            with _st396.db() as _cx:
+                _salvati = [r["code_hash"] for r in _cx.execute("SELECT code_hash FROM password_resets")]
+            _gen0 = _st396.get_user_by_id(_a.id).session_gen
+            _gen1 = _st396.nuova_generazione_sessioni(_a.id)
+            _ok_gen = _gen0 == 0 and _gen1 == 1 and _st396.get_user_by_id(_a.id).session_gen == 1
+            _ok_codici = (_e1 == "sbagliato" and _e2 == "ok" and _e3 == "nessuno" and _e4 == ["sbagliato"] * 5
+                          and _e5 == "nessuno" and not any(c in ("111111", "222222", "333333") for c in _salvati))
+        finally:
+            _st396._connect = _orig396
+        _rotte396 = {r.rule for r in _w396.app.url_map.iter_rules()}
+        _req396 = _in396.getsource(_w396.api_password_reset_request)
+        _lj396 = open("/app/static/login.js", encoding="utf-8").read()
+        _lh396 = open("/app/templates/login.html", encoding="utf-8").read()
+        from src import auth as _au396
+        _cu396 = _in396.getsource(_au396.current_user) + _in396.getsource(_au396.login_user)
+        _ok_web396 = ({"/api/password-reset/request", "/api/password-reset/confirm"} <= _rotte396
+                      and 'session.get("gen")' in _cu396 and 'session["gen"]' in _cu396
+                      and "nuova_generazione_sessioni" in _in396.getsource(_w396.api_password_reset_confirm)
+                      and "nuova_generazione_sessioni" in _in396.getsource(_w396.api_me_password)
+                      and _req396.count("return risposta") >= 3 and "jsonify({\"ok\": True})" in _req396
+                      and _rm396.manda_email("x@prova.test", "o", "h") == "invalid email"
+                      and "/api/password-reset/request" in _lj396 and "/api/password-reset/confirm" in _lj396
+                      and 'id="forgot-step2"' in _lh396 and "/api/leads/intake" not in _lj396)
+        check("reset[396]: utente dall'email (nome utente o email dei promemoria se unica), codice nuovo annulla il vecchio, una "
+              "volta sola, 5 tentativi, salvato come impronta", _ok_trova and _ok_codici,
+              repr((_trova, _e1, _e2, _e3, _e4, _e5))[:300])
+        check("reset[396]: rotte, stessa risposta per ogni email, mai email agli account di prova, pagina di accesso in due passaggi; "
+              "cambio e recupero della password chiudono le sessioni degli altri dispositivi", _ok_web396 and _ok_gen,
+              repr((_ok_web396, _gen0, _gen1)))
+    except Exception as _e396:  # noqa: BLE001
+        check("reset[396]: kontrollet u ekzekutuan", False, f"{type(_e396).__name__}: {_e396}")
+
+    # [397] v9.623 — CERCARE NEI FASCICOLI: senza badare a maiuscole né a ë/ç (l'avvocato albanese scrive spesso senza dieresi),
+    # nei messaggi e nei documenti, mai negli errori, i caratteri speciali non sono jolly; la rotta usa gli stessi fascicoli
+    # visibili dell'elenco (studio e giurisdizione). Eseguito su un DB TEMPORANEO.
+    try:
+        import tempfile as _tf397, inspect as _in397
+        from pathlib import Path as _P397
+        from src import storage as _st397, web as _w397
+        _db397 = _P397(_tf397.mkdtemp()) / "t.db"
+        _orig397 = _st397._connect
+        _st397._connect = lambda db_path=None: _orig397(_db397)
+        try:
+            _st397.init_db(_db397)
+            _u397 = _st397.create_user("cerca397@esempio.it", "x")
+            _c397 = _st397.create_case(_u397.id, "Kola 397", jurisdiction="AL")
+            _st397.add_message(_c397.id, "user", "Klienti u pushua pa paralajmërim.")
+            _st397.add_message(_c397.id, "assistant", "gabim paralajmërim", kind="error")
+            _d397 = _st397.create_document(case_id=_c397.id, filename="Vendim.pdf", ext=".pdf", mimetype="application/pdf",
+                                           size_bytes=1, storage_path="/tmp/x.pdf")
+            _st397.update_document_analysis(_d397.id, extracted_text="Gjykata vendosi më 12.03.2026 nr. 4417.", doc_type=None,
+                                            summary=None, key_facts=[])
+            _r1 = _st397.cerca_nei_fascicoli([_c397.id], "PARALAJMERIM")
+            _r2 = _st397.cerca_nei_fascicoli([_c397.id], "4417")
+            _r3 = _st397.cerca_nei_fascicoli([_c397.id], "%%%")
+            _r4 = _st397.cerca_nei_fascicoli([_c397.id], "pa")
+            _r5 = _st397.cerca_nei_fascicoli(["altro-fascicolo"], "paralajmerim")
+        finally:
+            _st397._connect = _orig397
+        _ok397 = (len(_r1) == 1 and _r1[0]["role"] == "user" and "paralajmërim" in _r1[0]["brano"]
+                  and len(_r2) == 1 and _r2[0]["tipo"] == "documento" and "4417" in _r2[0]["brano"]
+                  and _r3 == [] and _r4 == [] and _r5 == [])
+        _src397 = _in397.getsource(_w397.api_search_cases)
+        _js397 = open("/app/static/app.js", encoding="utf-8").read()
+        _ok397w = ("_active_jurisdiction(user)" in _src397 and "list_cases_for_member(user.id, firm.id)" in _src397
+                   and "/api/cases/search" in {r.rule for r in _w397.app.url_map.iter_rules()}
+                   and '"/api/cases/search?q="' in _js397 and "_filtraCasi();" in _js397
+                   and 'id="case-search"' in open("/app/templates/index.html", encoding="utf-8").read())
+        check("cerca[397]: nei messaggi e nei documenti senza maiuscole né diacritici, mai negli errori né fuori dai fascicoli dati; "
+              "la rotta usa i fascicoli visibili della sessione; casella cablata", _ok397 and _ok397w,
+              repr((_r1, _r2, _r3, _r4, _r5, _ok397w))[:300])
+    except Exception as _e397:  # noqa: BLE001
+        check("cerca[397]: kontrollet u ekzekutuan", False, f"{type(_e397).__name__}: {_e397}")
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

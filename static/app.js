@@ -453,7 +453,70 @@
     }
     const nota = _notaCasiNascosti();
     if (nota) caseList.appendChild(nota);
+    _filtraCasi();          // v9.623: la ricerca scritta resta applicata quando l'elenco si ridisegna
   }
+
+  // v9.623 — cercare nei fascicoli: i titoli si filtrano subito; dalla terza lettera il server cerca anche nel testo delle
+  // domande, delle risposte e dei documenti (senza badare a maiuscole né a ë/ç), solo nei fascicoli visibili in questa sessione
+  function _piegaTesto(t) {
+    try { return String(t || "").normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase(); }
+    catch (e) { return String(t || "").toLowerCase(); }
+  }
+  var _cercaTimer = null, _cercaUltima = "";
+  function _filtraCasi() {
+    var inp = document.getElementById("case-search");
+    var q = _piegaTesto(inp ? inp.value.trim() : "");
+    Array.prototype.forEach.call(caseList.querySelectorAll(".case-item"), function (li) {
+      var tt = li.querySelector(".case-title");
+      li.hidden = !!q && _piegaTesto(tt ? tt.textContent : "").indexOf(q) < 0;
+    });
+  }
+  async function _cercaNelTesto(q) {
+    var box = document.getElementById("case-search-res");
+    if (!box) return;
+    _cercaUltima = q;
+    if (q.length < 3) { box.hidden = true; box.innerHTML = ""; return; }
+    var IT = _CAL_IT;
+    box.hidden = false;
+    box.innerHTML = '<div class="csr-head">' + (IT ? "Cerco nel testo dei fascicoli…" : "Po kërkoj në tekstin e rasteve…") + '</div>';
+    try {
+      var r = await fetch("/api/cases/search?q=" + encodeURIComponent(q));
+      var d = await r.json();
+      if (q !== _cercaUltima) return;           // nel frattempo è partita una ricerca più recente
+      var res = (d && d.results) || [];
+      if (!res.length) {
+        box.innerHTML = '<div class="csr-head">' + (IT ? "Nessun risultato nel testo dei fascicoli." : "Asnjë rezultat në tekstin e rasteve.") + '</div>';
+        return;
+      }
+      box.innerHTML = '<div class="csr-head">' + (IT ? "Nel testo dei fascicoli" : "Në tekstin e rasteve") + ' (' + res.length + ')</div>' +
+        res.map(function (c) {
+          return '<button type="button" class="csr-item" data-id="' + escapeHtml(c.case_id) + '"><span class="csr-title">' +
+            escapeHtml(c.title || "") + '</span>' + (c.hits || []).map(function (h) {
+              var dove = h.tipo === "documento" ? "📎 " + escapeHtml(h.filename || "") + ": "
+                : (h.role === "user" ? (IT ? "Domanda: " : "Pyetja: ") : (IT ? "Risposta: " : "Përgjigjja: "));
+              return '<span class="csr-hit">' + dove + escapeHtml(h.brano || "") + '</span>';
+            }).join("") + '</button>';
+        }).join("");
+      Array.prototype.forEach.call(box.querySelectorAll(".csr-item"), function (b) {
+        b.addEventListener("click", function () { selectCase(b.dataset.id); });
+      });
+    } catch (e) {
+      if (q === _cercaUltima) box.innerHTML = '<div class="csr-head">' + (IT ? "Ricerca non riuscita." : "Kërkimi dështoi.") + '</div>';
+    }
+  }
+  (function () {
+    var inp = document.getElementById("case-search");
+    if (!inp) return;
+    inp.addEventListener("input", function () {
+      _filtraCasi();
+      clearTimeout(_cercaTimer);
+      var q = inp.value.trim();
+      _cercaTimer = setTimeout(function () { _cercaNelTesto(q); }, 450);
+    });
+    inp.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") { inp.value = ""; _filtraCasi(); _cercaNelTesto(""); }
+    });
+  })();
 
   function stageEmoji(stage) {
     return ({intake:"📥", preparation:"📚", hearing:"⚖️",
@@ -4796,7 +4859,8 @@
     ov.innerHTML = '<div class="wa-modal pw-modal">' +
       '<button class="wa-x" type="button" aria-label="' + (IT ? "Chiudi" : "Mbyll") + '">×</button>' +
       '<h3>🔑 ' + (IT ? "Cambia password" : "Ndrysho fjalëkalimin") + '</h3>' +
-      '<p class="wa-sub">' + (IT ? "Vale da subito, su tutti i dispositivi al prossimo accesso." : "Vlen menjëherë, në të gjitha pajisjet në hyrjen e ardhshme.") + '</p>' +
+      '<p class="wa-sub">' + (IT ? "Vale da subito. Sugli altri dispositivi dove sei entrato dovrai rientrare con la nuova password."
+                                  : "Vlen menjëherë. Në pajisjet e tjera ku ke hyrë do të duhet të hysh përsëri me fjalëkalimin e ri.") + '</p>' +
       '<label class="wa-lab">' + (IT ? "Password attuale" : "Fjalëkalimi aktual") + '</label>' +
       '<input class="wa-inp pw-cur" type="password" autocomplete="current-password">' +
       '<label class="wa-lab pw-gap">' + (IT ? "Nuova password (almeno 8 caratteri)" : "Fjalëkalimi i ri (të paktën 8 karaktere)") + '</label>' +
@@ -7842,6 +7906,7 @@
     wa_reminders: "WhatsApp per i promemoria", email_reminders: "Email per i promemoria", logout: "Esci",
     tg_reminders: "Telegram per i promemoria",
     pw_menu: "Cambia password",
+    case_search_ph: "🔎 Cerca nei fascicoli…", case_search_aria: "Cerca nei fascicoli",
     intake_ai: "Primo colloquio", clients_research: "Clienti & Ricerche",
     composer_hint: "Apri un caso per iniziare la conversazione",
     ask_placeholder: "Scrivi qui la tua domanda\u2026",
@@ -14289,7 +14354,7 @@ function moduleChips(u) {
           '</details>';
       }).join("");
     } catch (e) {
-      list.innerHTML = '<p class="studio-empty">' + (IT ? "Errore: " : "Gabim: ") + escHtml(e.message) + '</p>';
+      list.innerHTML = '<p class="studio-empty">' + (_CAL_IT ? "Errore: " : "Gabim: ") + escHtml(e.message) + '</p>';
     }
   }
 

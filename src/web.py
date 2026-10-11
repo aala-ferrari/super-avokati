@@ -528,6 +528,129 @@ def api_login():
                                          "is_admin": user.is_admin}})
 
 
+# ── v9.623 — la password dimenticata, da soli: codice di 6 cifre via email (prima «Harrova fjalëkalimin?» creava solo una
+# richiesta per l'amministratore, che doveva reimpostarla a mano: con il lancio non regge). La risposta è SEMPRE la stessa,
+# che l'email esista o no; il codice vale 15 minuti e 5 tentativi; tetto per email e per indirizzo.
+_RESET_LOCK = threading.Lock()
+_RESET_RICHIESTE: dict[str, list[float]] = {}
+
+_RESET_EMAIL = {
+    "sq": ("Kodi për fjalëkalimin e ri — Super Avokati",
+           "Kodi juaj për të vendosur një fjalëkalim të ri:", "Vlen 15 minuta. Shkruajeni te superavokati.ai/login → «Harrova "
+           "fjalëkalimin?».", "Nëse nuk e keni kërkuar ju, injorojeni këtë email: fjalëkalimi juaj nuk ndryshon."),
+    "it": ("Il codice per la nuova password — Super Avokati",
+           "Il tuo codice per impostare una nuova password:", "Vale 15 minuti. Scrivilo su superavokati.ai/login → «Password "
+           "dimenticata?».", "Se non l'hai chiesto tu, ignora questa email: la tua password non cambia."),
+}
+
+
+def _reset_troppe(chiave: str, massimo: int) -> bool:
+    ora = time.time()
+    with _RESET_LOCK:
+        recenti = [t for t in _RESET_RICHIESTE.get(chiave, []) if ora - t < 3600]
+        if len(recenti) >= massimo:
+            _RESET_RICHIESTE[chiave] = recenti
+            return True
+        recenti.append(ora)
+        _RESET_RICHIESTE[chiave] = recenti
+        if len(_RESET_RICHIESTE) > 5000:
+            for k in list(_RESET_RICHIESTE):
+                if not [t for t in _RESET_RICHIESTE[k] if ora - t < 3600]:
+                    _RESET_RICHIESTE.pop(k, None)
+    return False
+
+
+@app.post("/api/password-reset/request")
+def api_password_reset_request():
+    _ensure_loaded()
+    data = request.get_json(force=True, silent=True) or {}
+    email = str(data.get("email") or "").strip().lower()[:200]
+    lang = "it" if str(data.get("lang") or "").lower() == "it" else "sq"
+    risposta = jsonify({"ok": True})
+    if "@" not in email:
+        return risposta
+    ip = (request.headers.get("X-Forwarded-For", "").split(",")[0].strip() or request.remote_addr or "?")
+    if _reset_troppe("e:" + email, 3) or _reset_troppe("ip:" + ip, 10):
+        log.info("reset password: troppe richieste per %r", email)
+        return risposta
+    try:
+        u = storage.utente_per_email(email)
+        if u is None or getattr(u, "suspended", False):
+            log.info("reset password chiesto per un indirizzo senza account unico")
+            return risposta
+        # l'impronta del codice (lenta di proposito) e l'invio in sottofondo: la risposta arriva nello stesso tempo che l'email
+        # esista o no — dal tempo non si capisce se un indirizzo è registrato
+        _sfondo = threading.Thread(target=_manda_codice_reset, args=(u.id, u.username, getattr(u, "reminder_email", None),
+                                                                    email, lang), daemon=True)
+        _sfondo.start()
+        if _RESET_SINCRONO:
+            _sfondo.join(20)
+    except Exception:  # noqa: BLE001 — la risposta resta la stessa
+        log.warning("reset password: richiesta fallita", exc_info=True)
+    return risposta
+
+
+_RESET_SINCRONO = False          # solo per le prove: aspetta l'invio prima di rispondere
+
+
+def _manda_codice_reset(uid: int, username: str, reminder_email: str | None, email: str, lang: str) -> None:
+    try:
+        codice = f"{secrets.randbelow(10 ** 6):06d}"
+        storage.crea_reset_password(uid, hash_password(codice))
+        ogg, intro, uso, nota = _RESET_EMAIL[lang]
+        html_mail = ('<div style="font-family:Georgia,serif;max-width:520px;margin:0 auto;color:#1a1a1a">'
+                     '<div style="background:#0f2540;color:#f3e6c4;padding:14px 18px;border-radius:12px 12px 0 0"><b>'
+                     'SUPER AVOKATI</b></div><div style="border:1px solid #e3d3a5;border-top:none;border-radius:0 0 12px 12px;'
+                     f'padding:18px"><p style="margin:0 0 10px">{html.escape(intro)}</p>'
+                     f'<p style="font-size:30px;letter-spacing:8px;font-weight:bold;margin:6px 0 14px;color:#0f2540">{codice}</p>'
+                     f'<p style="margin:0 0 8px">{html.escape(uso)}</p>'
+                     f'<p style="margin:12px 0 0;font-size:13px;color:#777">{html.escape(nota)}</p></div></div>')
+        destinatario = username if "@" in username else (reminder_email or email)
+        esito = reminders_mod.manda_email(destinatario, ogg, html_mail)
+        log.info("reset password per l'utente %s: email %s", uid, "spedita" if esito is None else esito)
+    except Exception:  # noqa: BLE001
+        log.warning("reset password: invio del codice fallito", exc_info=True)
+
+
+@app.post("/api/password-reset/confirm")
+def api_password_reset_confirm():
+    from .auth import verify_password
+    _ensure_loaded()
+    data = request.get_json(force=True, silent=True) or {}
+    email = str(data.get("email") or "").strip().lower()[:200]
+    codice = re.sub(r"\D", "", str(data.get("code") or ""))[:6]
+    nuova = str(data.get("new") or "")
+    it = str(data.get("lang") or "").lower() == "it"
+    sbagliato = jsonify({"error": "Codice non valido o scaduto." if it else "Kodi nuk është i vlefshëm ose ka skaduar.",
+                         "code": "bad_code"}), 400
+    if len(nuova) < 8:
+        return jsonify({"error": "La nuova password deve avere almeno 8 caratteri." if it
+                        else "Fjalëkalimi i ri duhet të ketë të paktën 8 karaktere.", "code": "too_short"}), 400
+    attesa = _login_bloccato(email or "?")
+    if attesa:
+        return jsonify({"error": ("Troppi tentativi. Riprova fra %d minuti." if it
+                                  else "Shumë përpjekje. Provo përsëri pas %d minutash.") % max(1, attesa // 60),
+                        "retry_after": attesa}), 429
+    u = storage.utente_per_email(email) if len(codice) == 6 else None
+    if u is None:
+        _segna_fallito(email or "?")
+        return sbagliato
+    esito = storage.usa_reset_password(u.id, lambda h: verify_password(codice, h))
+    if esito != "ok":
+        _segna_fallito(email)
+        return sbagliato
+    if not storage.set_password_hash(u.username, hash_password(nuova)):
+        return jsonify({"error": "Modifica non riuscita." if it else "Ndryshimi dështoi."}), 500
+    _azzera_tentativi(email)
+    _azzera_tentativi(u.username)
+    try:                                   # chi aveva la password vecchia (un dispositivo rimasto aperto) esce
+        storage.nuova_generazione_sessioni(u.id)
+    except Exception:  # noqa: BLE001
+        log.warning("chiusura delle sessioni fallita dopo il reset dell'utente %s", u.id, exc_info=True)
+    log.info("password reimpostata col codice per l'utente %s", u.id)
+    return jsonify({"ok": True, "username": u.username})
+
+
 @app.post("/api/provision-demo")
 def api_provision_demo():
     """Server-to-server: AALA calls this when an admin approves a legal demo
@@ -685,6 +808,11 @@ def api_me_password():
     if not storage.set_password_hash(user.username, hash_password(nuova)):
         return jsonify({"error": _t_err("Ndryshimi dështoi.", "Modifica non riuscita.")}), 500
     _azzera_tentativi(user.username)
+    try:                                   # v9.623 — gli altri dispositivi escono, questo resta dentro
+        from flask import session as _sess
+        _sess["gen"] = storage.nuova_generazione_sessioni(user.id)
+    except Exception:  # noqa: BLE001
+        log.warning("chiusura delle altre sessioni fallita per %s", user.username, exc_info=True)
     log.info("l'utente %s ha cambiato la propria password", user.username)
     return jsonify({"ok": True})
 
@@ -1581,6 +1709,32 @@ def api_list_cases():
          "stage_label": storage.stage_label(c.stage, attiva)}
         for c in visibili
     ], "jurisdiction": attiva, "hidden_other": len(cases) - len(visibili)})
+
+
+@app.get("/api/cases/search")
+@login_required_api
+def api_search_cases():
+    """v9.623 — dove compare una parola nei fascicoli: nel testo delle domande e delle risposte e nei documenti caricati (nome,
+    riassunto, testo letto), senza badare a maiuscole né a ë/ç/accenti. Solo i fascicoli che l'avvocato vede in QUESTA
+    sessione (gli stessi dell'elenco: studio e giurisdizione). Almeno 3 lettere."""
+    user = request.user  # type: ignore[attr-defined]
+    firm = request.firm  # type: ignore[attr-defined]
+    q = str(request.args.get("q") or "").strip()[:120]
+    if len(q) < 3:
+        return jsonify({"q": q, "results": []})
+    cases = storage.list_cases(user.id) if firm is None else storage.list_cases_for_member(user.id, firm.id)
+    attiva = _active_jurisdiction(user)
+    visibili = {c.id: c for c in cases if (getattr(c, "jurisdiction", None) or "AL").upper() == attiva}
+    trovati = storage.cerca_nei_fascicoli(list(visibili), q, limite=40)
+    per_caso: dict[str, dict] = {}
+    for t in trovati:
+        c = visibili.get(t["case_id"])
+        if c is None:
+            continue
+        voce = per_caso.setdefault(c.id, {"case_id": c.id, "title": c.title, "updated_at": c.updated_at, "hits": []})
+        if len(voce["hits"]) < 3:
+            voce["hits"].append({k: t.get(k) for k in ("tipo", "role", "brano", "filename", "message_id", "document_id")})
+    return jsonify({"q": q, "results": list(per_caso.values()), "jurisdiction": attiva})
 
 
 @app.post("/api/cases")
@@ -10652,6 +10806,13 @@ def api_admin_users_set_password(user_id):
     ok = storage.set_password_hash(target.username, hash_password(new_pw))
     if not ok:
         return jsonify({"error": "errore aggiornamento password"}), 500
+    try:                                   # v9.623 — le sessioni aperte con la password vecchia si chiudono (la propria resta)
+        from flask import session as _sess
+        _g = storage.nuova_generazione_sessioni(target.id)
+        if target.id == user.id:
+            _sess["gen"] = _g
+    except Exception:  # noqa: BLE001
+        log.warning("chiusura delle sessioni fallita per %s", target.username, exc_info=True)
     log.info("user %s changed password for user %s", user.username, target.username)
     return jsonify({"ok": True})
 

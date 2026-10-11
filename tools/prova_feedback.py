@@ -124,10 +124,17 @@ try:
     ok("nuova password corta → 400", st == 400 and d.get("code") == "too_short", f"{st} {d}")
     st, d = pw(cl, current="vecchia-123", new="vecchia-123")
     ok("nuova uguale alla vecchia → 400", st == 400 and d.get("code") == "same", f"{st} {d}")
+    altro = app.test_client()              # lo stesso avvocato su un altro dispositivo
+    with altro.session_transaction() as s:
+        s["user_id"] = u1.id
+        s["jurisdiction"] = "AL"
+    ok("l'altro dispositivo è dentro prima del cambio", altro.get("/api/me").status_code == 200)
     st, d = pw(cl, current="vecchia-123", new="nuova-password-1")
     ok("cambio riuscito, si entra con la nuova e non con la vecchia",
        st == 200 and authenticate(u1.username, "nuova-password-1") is not None
        and authenticate(u1.username, "vecchia-123") is None, f"{st} {d}")
+    ok("dopo il cambio l'altro dispositivo esce, questo resta dentro",
+       altro.get("/api/me").status_code == 401 and cl.get("/api/me").status_code == 200)
     ok("senza sessione → 401", app.test_client().post("/api/me/password", json={"current": "a", "new": "b"}).status_code == 401)
 
     # la prova: conto alla rovescia, e l'abbonamento che la sostituisce

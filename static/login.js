@@ -104,27 +104,59 @@
   });
 })();
 
+// v9.623 — la password dimenticata, da soli: prima «Harrova fjalëkalimin?» creava solo una richiesta per l'amministratore, che
+// doveva reimpostarla a mano. Ora: l'email → un codice di 6 cifre (15 minuti) → il codice e la nuova password due volte. La
+// risposta del server alla richiesta è sempre la stessa, che l'email esista o no.
 (function(){
-      var link=document.getElementById('forgot-link'),form=document.getElementById('forgot-form'),msg=document.getElementById('forgot-msg');
-      if(!link)return;
-      link.addEventListener('click',function(e){e.preventDefault();form.hidden=!form.hidden;});
-      form.addEventListener('submit',function(e){e.preventDefault();
-        var em=document.getElementById('forgot-email').value.trim();if(!em)return;
-        var btn=document.getElementById('forgot-btn');btn.disabled=true;btn.textContent='...';
-        fetch('/api/leads/intake',{method:'POST',headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({contact_name:'Reset fjalekalimi',contact_email:em,source:'web',
-            problem_text:'KERKESE RESET FJALEKALIMI per Super Avokati (superavokati.ai). Perdoruesi me email '+em+' kerkon rivendosjen e fjalekalimit. Ju lutem kontaktoni perdoruesin dhe rivendosni fjalekalimin.'})})
-        .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(function(){
-          document.getElementById('forgot-email').style.display='none';btn.style.display='none';
-          msg.hidden=false;msg.textContent=(document.documentElement.lang==='it')?'\u2713 Richiesta inviata. L\'amministratore ti contatterà per email.':'\u2713 Kërkesa u dërgua. Do të kontaktohesh me email nga administratori.';
-        }).catch(function(){var it=(document.documentElement.lang==='it');btn.disabled=false;btn.textContent=it?'Invia richiesta':'Dërgo kërkesën';msg.hidden=false;msg.style.color='#e57373';msg.textContent=it?'Errore, riprova.':'Gabim, provo sërish.';});
-      });
-    })();
+  var link=document.getElementById('forgot-link'),form=document.getElementById('forgot-form'),msg=document.getElementById('forgot-msg');
+  if(!link||!form)return;
+  var emailEl=document.getElementById('forgot-email'),btn=document.getElementById('forgot-btn'),step2=document.getElementById('forgot-step2');
+  var codeEl=document.getElementById('forgot-code'),n1=document.getElementById('forgot-new'),n2=document.getElementById('forgot-new2'),setBtn=document.getElementById('forgot-set');
+  var T={
+    sq:{sent:"✓ Nëse email-i është i regjistruar, ju dërguam një kod me 6 shifra (shikoni edhe te «Spam»). Shkruajeni më poshtë.",
+        again:"Dërgo përsëri kodin",err:"Gabim, provo sërish.",code6:"Shkruaj kodin me 6 shifra nga email-i.",
+        short:"Fjalëkalimi i ri duhet të ketë të paktën 8 karaktere.",mismatch:"Dy fjalëkalimet e reja nuk përputhen.",
+        done:"✓ Fjalëkalimi u ndryshua. Tani hyni me fjalëkalimin e ri."},
+    it:{sent:"✓ Se l'email è registrata, ti abbiamo mandato un codice di 6 cifre (guarda anche nello «Spam»). Scrivilo qui sotto.",
+        again:"Invia di nuovo il codice",err:"Errore, riprova.",code6:"Scrivi il codice di 6 cifre ricevuto per email.",
+        short:"La nuova password deve avere almeno 8 caratteri.",mismatch:"Le due password nuove non coincidono.",
+        done:"✓ Password cambiata. Ora entra con la nuova password."}
+  };
+  function it(){return document.documentElement.lang==='it';}
+  function tr(k){return T[it()?'it':'sq'][k];}
+  function mostra(testo,ok){msg.hidden=false;msg.style.color=ok?'#3aa981':'#e57373';msg.textContent=testo;}
+  link.addEventListener('click',function(e){e.preventDefault();form.hidden=!form.hidden;if(!form.hidden)emailEl.focus();});
+  form.addEventListener('submit',function(e){e.preventDefault();
+    var em=emailEl.value.trim();if(!em)return;
+    btn.disabled=true;
+    fetch('/api/password-reset/request',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:em,lang:it()?'it':'sq'})})
+    .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
+    .then(function(){btn.disabled=false;btn.textContent=tr('again');step2.hidden=false;mostra(tr('sent'),true);codeEl.focus();})
+    .catch(function(){btn.disabled=false;mostra(tr('err'),false);});
+  });
+  setBtn.addEventListener('click',function(){
+    var code=(codeEl.value||'').replace(/\D/g,'');
+    if(code.length!==6){mostra(tr('code6'),false);codeEl.focus();return;}
+    if(n1.value.length<8){mostra(tr('short'),false);n1.focus();return;}
+    if(n1.value!==n2.value){mostra(tr('mismatch'),false);n2.focus();return;}
+    setBtn.disabled=true;
+    fetch('/api/password-reset/confirm',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email:emailEl.value.trim(),code:code,new:n1.value,lang:it()?'it':'sq'})})
+    .then(function(r){return r.json().catch(function(){return {};}).then(function(d){if(!r.ok)throw new Error(d.error||tr('err'));return d;});})
+    .then(function(d){
+      step2.hidden=true;emailEl.style.display='none';btn.style.display='none';mostra(tr('done'),true);
+      var u=document.getElementById('login-username'),p=document.getElementById('login-password');
+      if(u&&d.username){u.value=d.username;} if(p){p.value='';p.focus();}
+    })
+    .catch(function(e){setBtn.disabled=false;mostra(e.message||tr('err'),false);});
+  });
+  [codeEl,n1,n2].forEach(function(el){el.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();setBtn.click();}});});
+})();
 
 (function(){
   var I18N={
-    sq:{pw_toggle:"Shfaq/fshih fjalëkalimin",tagline:"Beteja fitohet para se të nisë.",username:"Përdoruesi",password:"Fjalëkalimi",login:"Hyr",forgot:"Harrova fjalëkalimin?",forgot_label:"Email-i yt (i regjistruar)",forgot_btn:"Dërgo kërkesën"},
-    it:{pw_toggle:"Mostra/nascondi la password",tagline:"La battaglia si vince prima che inizi.",username:"Nome utente",password:"Password",login:"Entra",forgot:"Password dimenticata?",forgot_label:"La tua email (registrata)",forgot_btn:"Invia richiesta"}
+    sq:{pw_toggle:"Shfaq/fshih fjalëkalimin",tagline:"Beteja fitohet para se të nisë.",username:"Përdoruesi",password:"Fjalëkalimi",login:"Hyr",forgot:"Harrova fjalëkalimin?",forgot_label:"Email-i yt (i regjistruar)",forgot_btn:"Dërgo kodin",forgot_code_label:"Kodi nga email-i (6 shifra)",forgot_new_label:"Fjalëkalimi i ri (të paktën 8 karaktere)",forgot_new2_label:"Përsërite fjalëkalimin e ri",forgot_set_btn:"Vendos fjalëkalimin e ri"},
+    it:{pw_toggle:"Mostra/nascondi la password",tagline:"La battaglia si vince prima che inizi.",username:"Nome utente",password:"Password",login:"Entra",forgot:"Password dimenticata?",forgot_label:"La tua email (registrata)",forgot_btn:"Invia il codice",forgot_code_label:"Il codice dell'email (6 cifre)",forgot_new_label:"Nuova password (almeno 8 caratteri)",forgot_new2_label:"Ripeti la nuova password",forgot_set_btn:"Imposta la nuova password"}
   };
   function apply(lang){
     var d=I18N[lang]||I18N.sq;

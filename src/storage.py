@@ -930,6 +930,19 @@ CREATE TABLE IF NOT EXISTS answer_feedback (
     UNIQUE (message_id, user_id)
 );
 CREATE INDEX IF NOT EXISTS idx_feedback_updated ON answer_feedback(updated_at DESC);
+
+-- v9.623 — il codice per reimpostare la password da soli (via email, dalla pagina di accesso). Si salva solo l'impronta del
+-- codice; ne vale UNO per utente (il nuovo annulla i vecchi), 15 minuti, 5 tentativi.
+CREATE TABLE IF NOT EXISTS password_resets (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    code_hash   TEXT NOT NULL,
+    expires_at  TEXT NOT NULL,
+    attempts    INTEGER NOT NULL DEFAULT 0,
+    used_at     TEXT,
+    created_at  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_pwreset_user ON password_resets(user_id, id DESC);
 """
 
 # Roles ordered by seniority/permission breadth. Used by permission checks.
@@ -1084,6 +1097,7 @@ def init_db(db_path: Path = APP_DB_PATH) -> None:
         _add_column_if_missing(conn, "messages", "citations_json", "TEXT")
         # 1️⃣ Profili i Studios: le regole della casa, per studio
         _add_column_if_missing(conn, "firms", "profile_json", "TEXT")
+        _add_column_if_missing(conn, "users", "session_gen", "INTEGER")     # v9.623
         _add_column_if_missing(conn, "messages", "timeline_json", "TEXT")
         _add_column_if_missing(conn, "messages", "comparison_json", "TEXT")
         _add_column_if_missing(conn, "messages", "missing_facts_json", "TEXT")
@@ -1462,6 +1476,9 @@ class User:
     # v9.622 — `_user_payload` (pannello Studio) legge `u.reminder_email` dal v9.248 e il campo non c'era: l'elenco degli utenti
     # dell'amministratore rispondeva 500 (e anche moduli / abbonamento / email, che salvavano e poi davano errore)
     reminder_email: str | None = None
+    # v9.623 — la «generazione» delle sessioni: cambiando o recuperando la password sale di uno, e le sessioni nate prima
+    # (gli altri dispositivi) non valgono più. Le sessioni vecchie senza numero valgono come 0.
+    session_gen: int = 0
 
 
 CASE_STAGES: tuple[str, ...] = (
@@ -1543,11 +1560,12 @@ def _user_from_row(r: sqlite3.Row) -> User:
     plan = r["plan_expires_at"] if "plan_expires_at" in keys else None
     jur = r["jurisdictions"] if "jurisdictions" in keys and r["jurisdictions"] else ""
     mail = r["reminder_email"] if "reminder_email" in keys else None
+    gen = int(r["session_gen"] or 0) if "session_gen" in keys else 0
     return User(id=r["id"], username=r["username"],
                 is_admin=bool(r["is_admin"]), created_at=r["created_at"],
                 suspended=susp, profession=prof, modules=mods,
                 demo_expires_at=demo, plan_expires_at=plan, jurisdictions=jur,
-                reminder_email=mail)
+                reminder_email=mail, session_gen=gen)
 
 
 def _case_from_row(r: sqlite3.Row) -> Case:
@@ -1973,6 +1991,7 @@ def delete_user(username: str) -> tuple[bool, str | None]:
         # v9.412: i codici Telegram non usati (tabella senza FK: la ricerca qui sotto non la vedrebbe)
         conn.execute("DELETE FROM telegram_link WHERE user_id = ?", (uid,))
         conn.execute("DELETE FROM answer_feedback WHERE user_id = ?", (uid,))     # v9.622
+        conn.execute("DELETE FROM password_resets WHERE user_id = ?", (uid,))     # v9.623
         _tieni = ("ai_audit_log", "case_access_log", "legal_acceptances")
         for _t in [r["name"] for r in conn.execute(
                 "SELECT name FROM sqlite_master WHERE type='table'").fetchall()]:
@@ -1990,6 +2009,56 @@ def delete_user(username: str) -> tuple[bool, str | None]:
         conn.execute("DELETE FROM firm_members WHERE user_id = ?", (uid,))
         cur = conn.execute("DELETE FROM users WHERE id = ?", (uid,))
         return cur.rowcount > 0, None
+
+
+def utente_per_email(email: str) -> User | None:
+    """v9.623 — l'utente di un indirizzo, per il recupero della password: prima chi ha quell'email come NOME UTENTE (le prove
+    e gli account di AALA), poi chi l'ha come email dei promemoria — ma solo se è UNO (il titolare ha più account con la stessa
+    email: lì non si indovina, e il codice non parte)."""
+    email = (email or "").strip()
+    if "@" not in email:
+        return None
+    with db() as conn:
+        row = conn.execute("SELECT * FROM users WHERE username = ? COLLATE NOCASE", (email,)).fetchone()
+        if row:
+            return _user_from_row(row)
+        rows = conn.execute("SELECT * FROM users WHERE reminder_email = ? COLLATE NOCASE LIMIT 2", (email,)).fetchall()
+    return _user_from_row(rows[0]) if len(rows) == 1 else None
+
+
+def crea_reset_password(user_id: int, code_hash: str, minuti: int = 15) -> None:
+    """Un codice nuovo annulla quelli di prima: vale sempre l'ultima email ricevuta."""
+    now = datetime.now(UTC)
+    with db() as conn:
+        conn.execute("UPDATE password_resets SET used_at = 'sostituito' WHERE user_id = ? AND used_at IS NULL", (user_id,))
+        conn.execute("INSERT INTO password_resets (user_id, code_hash, expires_at, created_at) VALUES (?, ?, ?, ?)",
+                     (user_id, code_hash, (now + timedelta(minutes=int(minuti))).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                      now.strftime("%Y-%m-%dT%H:%M:%SZ")))
+
+
+def usa_reset_password(user_id: int, verifica) -> str:
+    """Controlla il codice dell'ultima richiesta ancora valida: «ok» (e la richiesta non vale più), «sbagliato» (un
+    tentativo in meno), «nessuno» (scaduto, usato, finiti i 5 tentativi o mai chiesto). `verifica(code_hash) -> bool`."""
+    now = _utcnow()
+    with db() as conn:
+        row = conn.execute("SELECT id, code_hash, expires_at, attempts FROM password_resets "
+                           "WHERE user_id = ? AND used_at IS NULL ORDER BY id DESC LIMIT 1", (user_id,)).fetchone()
+        if not row or row["expires_at"] <= now or int(row["attempts"]) >= 5:
+            return "nessuno"
+        if verifica(row["code_hash"]):
+            conn.execute("UPDATE password_resets SET used_at = ? WHERE id = ?", (now, row["id"]))
+            return "ok"
+        conn.execute("UPDATE password_resets SET attempts = attempts + 1 WHERE id = ?", (row["id"],))
+        return "sbagliato"
+
+
+def nuova_generazione_sessioni(user_id: int) -> int:
+    """v9.623 — chiude le sessioni aperte dell'utente (gli altri dispositivi): ritorna il numero nuovo, da scrivere nella
+    sessione di chi deve restare dentro."""
+    with db() as conn:
+        conn.execute("UPDATE users SET session_gen = COALESCE(session_gen, 0) + 1 WHERE id = ?", (user_id,))
+        row = conn.execute("SELECT session_gen FROM users WHERE id = ?", (user_id,)).fetchone()
+    return int(row["session_gen"] or 0) if row else 0
 
 
 def set_password_hash(username: str, password_hash: str) -> bool:
@@ -2435,6 +2504,64 @@ def riepilogo_feedback(days: int = 30) -> dict:
             out[k] += int(r["n"])
             out["per_giurisdizione"].setdefault(r["j"], {"su": 0, "giu": 0})[k] += int(r["n"])
     return out
+
+
+# ── v9.623 — cercare nei fascicoli ─────────────────────────────────────────────
+
+def _piega(t) -> str:
+    """Minuscole e senza segni diacritici (ë → e, ç → c, à → a): «paralajmerim» trova «paralajmërim»."""
+    import unicodedata
+    t = unicodedata.normalize("NFKD", str(t or "")).casefold()
+    return "".join(ch for ch in t if not unicodedata.combining(ch))
+
+
+def _brano(testo: str, qf: str, prima: int = 70, dopo: int = 110) -> str:
+    """Il pezzo di testo attorno alla prima occorrenza (piegata) di `qf`, su una riga."""
+    testo = str(testo or "")
+    pezzi = [_piega(ch) for ch in testo]
+    mappa: list[int] = []
+    for i, pz in enumerate(pezzi):
+        mappa.extend([i] * len(pz))
+    k = "".join(pezzi).find(qf)
+    if k < 0 or not mappa:
+        a, b = 0, min(len(testo), prima + dopo)
+    else:
+        a = max(0, mappa[k] - prima)
+        b = min(len(testo), mappa[min(k + len(qf) - 1, len(mappa) - 1)] + 1 + dopo)
+    brano = re.sub(r"\s+", " ", testo[a:b].replace("**", "")).strip()
+    return ("…" if a else "") + brano + ("…" if b < len(testo) else "")
+
+
+def cerca_nei_fascicoli(case_ids: list[str], q: str, limite: int = 40) -> list[dict]:
+    """Dove compare `q` (senza badare a maiuscole né a ë/ç/accenti) nei messaggi e nei documenti dei fascicoli dati — quelli
+    che l'avvocato vede in questa sessione, li sceglie il chiamante. Le occorrenze più recenti per prime."""
+    qf = _piega(q).strip()
+    ids = [str(c) for c in case_ids if c][:2000]
+    if len(qf) < 3 or not ids:
+        return []
+    pattern = "%" + qf.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+    out: list[dict] = []
+    with db() as conn:
+        conn.create_function("piega", 1, _piega, deterministic=True)
+        for i in range(0, len(ids), 500):
+            parte = ids[i:i + 500]
+            segni = ",".join("?" * len(parte))
+            for r in conn.execute(
+                    f"SELECT id, case_id, role, kind, content, created_at FROM messages WHERE case_id IN ({segni}) "
+                    f"AND kind IS NOT 'error' AND piega(content) LIKE ? ESCAPE '\\' ORDER BY id DESC LIMIT ?",
+                    (*parte, pattern, int(limite))):
+                out.append({"tipo": "messaggio", "case_id": r["case_id"], "message_id": r["id"], "role": r["role"],
+                            "brano": _brano(r["content"], qf), "created_at": r["created_at"]})
+            for r in conn.execute(
+                    f"SELECT id, case_id, filename, summary, extracted_text, created_at FROM documents WHERE case_id IN ({segni}) "
+                    f"AND (piega(filename) LIKE ? ESCAPE '\\' OR piega(summary) LIKE ? ESCAPE '\\' "
+                    f"OR piega(extracted_text) LIKE ? ESCAPE '\\') ORDER BY created_at DESC LIMIT ?",
+                    (*parte, pattern, pattern, pattern, int(limite))):
+                dove = next((t for t in (r["filename"], r["summary"], r["extracted_text"]) if qf in _piega(t)), "")
+                out.append({"tipo": "documento", "case_id": r["case_id"], "document_id": r["id"], "filename": r["filename"],
+                            "brano": _brano(dove, qf), "created_at": r["created_at"]})
+    out.sort(key=lambda x: x.get("created_at") or "", reverse=True)
+    return out[:int(limite)]
 
 
 # ── documents (the case file / "dosja") ────────────────────────────────────

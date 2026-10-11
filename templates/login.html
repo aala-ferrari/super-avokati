@@ -91,17 +91,27 @@
 
     <div class="login-footer">
       <a href="#" id="forgot-link" style="color:#c9a24b;text-decoration:none;font-size:13px" data-i18n="forgot">Harrova fjalëkalimin?</a>
+      <!-- v9.623 — la password dimenticata, da soli: il codice di 6 cifre arriva per email (login.js) -->
       <form id="forgot-form" hidden style="margin-top:14px;text-align:left">
         <label style="display:block;font-size:12px;color:#b99a4e;margin-bottom:6px;letter-spacing:.04em" data-i18n="forgot_label">Email-i yt (i regjistruar)</label>
-        <input type="email" id="forgot-email" required placeholder="ti@email.com"
-          style="width:100%;padding:11px 13px;border-radius:9px;border:1px solid rgba(201,162,75,.4);background:rgba(255,255,255,.06);color:#f5efe0;font-size:14px;box-sizing:border-box" />
+        <input type="email" id="forgot-email" required placeholder="ti@email.com" autocomplete="email"
+          style="width:100%;padding:11px 13px;border-radius:9px;border:1px solid rgba(201,162,75,.4);background:rgba(255,255,255,.06);color:#f5efe0;font-size:16px;box-sizing:border-box" />
         <button type="submit" id="forgot-btn"
-          style="margin-top:10px;width:100%;padding:11px;border:none;border-radius:9px;background:linear-gradient(135deg,#e7ce8e,#b0883e);color:#1a1206;font-weight:600;cursor:pointer" data-i18n="forgot_btn">Dërgo kërkesën</button>
+          style="margin-top:10px;width:100%;padding:11px;border:none;border-radius:9px;background:linear-gradient(135deg,#e7ce8e,#b0883e);color:#1a1206;font-weight:600;cursor:pointer" data-i18n="forgot_btn">Dërgo kodin</button>
+        <div id="forgot-step2" hidden>
+          <label for="forgot-code" style="display:block;font-size:12px;color:#b99a4e;margin:10px 0 6px;letter-spacing:.04em" data-i18n="forgot_code_label">Kodi nga email-i (6 shifra)</label>
+          <input type="text" id="forgot-code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" style="width:100%;padding:11px 13px;border-radius:9px;border:1px solid rgba(201,162,75,.4);background:rgba(255,255,255,.06);color:#f5efe0;font-size:16px;box-sizing:border-box;letter-spacing:6px" />
+          <label for="forgot-new" style="display:block;font-size:12px;color:#b99a4e;margin:10px 0 6px;letter-spacing:.04em" data-i18n="forgot_new_label">Fjalëkalimi i ri (të paktën 8 karaktere)</label>
+          <input type="password" id="forgot-new" autocomplete="new-password" style="width:100%;padding:11px 13px;border-radius:9px;border:1px solid rgba(201,162,75,.4);background:rgba(255,255,255,.06);color:#f5efe0;font-size:16px;box-sizing:border-box" />
+          <label for="forgot-new2" style="display:block;font-size:12px;color:#b99a4e;margin:10px 0 6px;letter-spacing:.04em" data-i18n="forgot_new2_label">Përsërite fjalëkalimin e ri</label>
+          <input type="password" id="forgot-new2" autocomplete="new-password" style="width:100%;padding:11px 13px;border-radius:9px;border:1px solid rgba(201,162,75,.4);background:rgba(255,255,255,.06);color:#f5efe0;font-size:16px;box-sizing:border-box" />
+          <button type="button" id="forgot-set" style="margin-top:10px;width:100%;padding:11px;border:none;border-radius:9px;background:linear-gradient(135deg,#e7ce8e,#b0883e);color:#1a1206;font-weight:600;cursor:pointer" data-i18n="forgot_set_btn">Vendos fjalëkalimin e ri</button>
+        </div>
         <div id="forgot-msg" style="margin-top:10px;font-size:13px;color:#3aa981" hidden></div>
       </form>
     </div>
   </div>
 </div>
-  <script src="/static/login.js?v=5" defer></script>
+  <script src="/static/login.js?v=6" defer></script>
 </body>
 </html>

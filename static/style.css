@@ -8342,3 +8342,29 @@ details.analiza[open]>summary::before{content:"\25BE  "}
   .fbadm-item { background: #201d15; border-color: #3a3320; }
   .fbadm-item.neg { background: #2a1c17; border-color: #5a3326; }
 }
+
+
+/* v9.623 — cercare nei fascicoli */
+.case-search-wrap { padding: 0 12px 8px; }
+.case-search { width: 100%; box-sizing: border-box; padding: 8px 11px; border: 1px solid var(--gray-200); border-radius: 9px;
+  font: inherit; font-size: .9rem; background: var(--paper); color: var(--ink); }
+.case-search:focus { outline: none; border-color: #d8c69a; box-shadow: 0 0 0 3px rgba(201,162,77,.18); }
+.case-item[hidden] { display: none; }
+.case-search-res { margin: 0 12px 10px; border: 1px solid #e6dcc6; border-radius: 10px; background: #fbf9f4;
+  max-height: 46vh; overflow-y: auto; }
+.case-search-res[hidden] { display: none; }
+.csr-head { padding: 7px 10px; font-size: .78rem; font-weight: 700; color: #8a6a1d; letter-spacing: .02em; }
+.csr-item { display: flex; flex-direction: column; gap: 3px; width: 100%; text-align: left; background: none; border: none;
+  border-top: 1px solid #eee4cd; padding: 8px 10px; cursor: pointer; font: inherit; }
+.csr-item:hover { background: #f3eee0; }
+.csr-title { font-weight: 700; font-size: .86rem; color: var(--black); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.csr-hit { font-size: .78rem; color: #5b5244; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical; overflow: hidden; }
+@media (max-width: 600px) { .case-search { font-size: 16px; padding: 10px 12px; } }
+@media (prefers-color-scheme: dark) {
+  .case-search-res { background: #221f16; border-color: #3a3320; }
+  .csr-item { border-top-color: #3a3320; }
+  .csr-item:hover { background: #2a2416; }
+  .csr-head { color: #cbb98f; }
+  .csr-hit { color: #b6a888; }
+}

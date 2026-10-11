@@ -63,6 +63,13 @@ def current_user() -> storage.User | None:
     # subscription/demo expires or the account is suspended (admin exempt).
     if user is not None and storage.access_block_reason(user):
         return None
+    # v9.623 — una sessione nata prima dell'ultimo cambio o recupero della password non vale più (gli altri dispositivi)
+    if user is not None:
+        try:
+            if int(session.get("gen") or 0) != int(getattr(user, "session_gen", 0) or 0):
+                return None
+        except (TypeError, ValueError):
+            return None
     return user
 
 
@@ -90,6 +97,7 @@ def current_role(firm_id: int | None = None) -> str | None:
 def login_user(user: storage.User) -> None:
     session.clear()
     session["user_id"] = user.id
+    session["gen"] = int(getattr(user, "session_gen", 0) or 0)     # v9.623
     session.permanent = True
 
 

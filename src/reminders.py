@@ -310,6 +310,33 @@ def _send_email(to_email: str, event, reminder) -> str | None:
         return f"{type(e).__name__}: {str(e)[:200]}"
 
 
+def manda_email(to_email: str, subject: str, html: str) -> str | None:
+    """v9.623 — un'email qualsiasi dal mittente degli avvisi (il codice per la nuova password). None = spedita, altrimenti il
+    motivo. Mai agli account di prova (`.test`). Mai solleva."""
+    to = (to_email or "").strip()
+    if "@" not in to or to.lower().endswith(".test"):
+        return "invalid email"
+    if not _email_configured():
+        return "email not configured"
+    payload = json.dumps({"from": REMINDER_EMAIL_FROM, "to": [to], "subject": subject, "html": html}).encode("utf-8")
+    req = urllib.request.Request(RESEND_API, data=payload, method="POST",
+                                 headers={"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json",
+                                          "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+                                                        "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"})
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = json.loads(resp.read().decode("utf-8", errors="ignore"))
+        return None if data.get("id") else f"resend error: {str(data)[:200]}"
+    except urllib.error.HTTPError as e:
+        try:
+            corpo = e.read().decode("utf-8", errors="ignore")
+        except Exception:  # noqa: BLE001
+            corpo = str(e)
+        return f"http {e.code}: {corpo[:250]}"
+    except Exception as e:  # noqa: BLE001
+        return f"{type(e).__name__}: {str(e)[:200]}"
+
+
 # ── channel selection ─────────────────────────────────────────────────────
 
 # v9.466 — su 17 account uno solo ha collegato il bot (l'amministratore): chi riceve gli avvisi solo per email non sa che su Telegram
