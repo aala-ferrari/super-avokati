@@ -255,6 +255,19 @@ CASI = [  # (giurisdizione, domanda dell'avvocato, articoli di cui almeno uno DE
     ("AL", "[frek37] Punëtori u largua nga puna dhe i kanë mbetur 15 ditë pushime vjetore të pa marra. A i paguhen?", [("kodi_punes", "92"), ("kodi_punes", "94")]),
     ("AL", "[frek37] Policia e kufirit i lëshoi klientit, shtetas i huaj, urdhër largimi nga Shqipëria. Si dhe brenda sa kohe ankohet?", [("ligji_te_huajt", "100"), ("ligji_te_huajt", "99")]),
     ("AL", "[frek37] Banka kërkon të ekzekutojë hipotekën mbi shtëpinë e klientit sepse nuk ka paguar 6 këste të kredisë. Çfarë mund të bëjmë?", [("kodi_proc_civile", "510"), ("kodi_proc_civile", "609")]),
+    ("AL", "[frek38] Klienti bleu një telefon të ri që doli me defekt pas një muaji dhe dyqani nuk pranon ta riparojë ose ta zëvendësojë. Çfarë të drejtash ka?", [("ligji_konsumatoret", "31"), ("ligji_konsumatoret", "30")]),
+    ("AL", "[frek38] Gjatë një operacioni në spital mjeku i bëri klientes një gabim dhe tani ka dëmtime të përhershme në shëndet. Kë padisim dhe brenda çfarë afati?", [("kodi_civil", "641"), ("kodi_civil", "115")]),
+    ("AL", "[frek38] Fqinji ka lidhur kanalizimin e shtëpisë së tij në mënyrë të tillë që ujërat e zeza derdhen në oborrin e klientit. Çfarë mund të bëjmë?", [("kodi_civil", "159"), ("kodi_civil", "608")]),
+    ("AL", "[frek38] Klientit i hoqën të gjitha pikët e lejes së drejtimit pas disa gjobave. Si e rifiton lejen e drejtimit?", [("kodi_rrugor", "120/1")]),
+    # v9.613 — giro 39: comproprietà ereditaria venduta a un estraneo (prelazione KC 204), pensione d'invalidità (ligji 7703 neni 35),
+    # riconoscimento del divorzio straniero (KPC 393 e 395: Gjykata e Apelit), ipoteca da cancellare dopo il mutuo pagato (KC 583, catasto 56),
+    # il genitore che vuole portare il figlio all'estero (KF 221), il phishing bancario (KP 143/b)
+    ("AL", "[frek39] Vëllai i klientit, bashkëpronar i shtëpisë që trashëguan nga prindërit, ia shiti pjesën e tij një personi të huaj pa i pyetur më parë vëllezërit. Çfarë mund të bëjnë?", [("kodi_civil", "204")]),
+    ("AL", "[frek39] Klienti, 45 vjeç, u sëmur rëndë dhe nuk mund të punojë më. Ka 15 vjet kontribute. A ka të drejtë për pension invaliditeti dhe kush e vendos invaliditetin?", [("ligji_sigurimet_shoqerore", "35")]),
+    ("AL", "[frek39] Klienti u divorcua në Itali me vendim të gjykatës italiane. Si e njohim vendimin në Shqipëri që ta regjistrojë në gjendjen civile?", [("kodi_proc_civile", "393"), ("kodi_proc_civile", "395")]),
+    ("AL", "[frek39] Klienti e shleu plotësisht kredinë e shtëpisë, por hipoteka e bankës figuron ende në kartelën e pasurisë në ASHK. Si e heqim?", [("kodi_civil", "583"), ("ligji_kadastra", "56")]),
+    ("AL", "[frek39] Nëna dëshiron ta marrë fëmijën me vete për të jetuar në Itali, por babai nuk jep pëlqimin. Çfarë mund të bëjë?", [("kodi_familjes", "221")]),
+    ("AL", "[frek39] Dikush i dërgoi klientit një mesazh të rremë si nga banka, mori të dhënat e kartës dhe i tërhoqi 3000 euro nga llogaria. Çfarë vepre penale është?", [("kodi_penal", "143/b")]),
     ("IT", "[frek29] Dopo la separazione la figlia di 15 anni è stata collocata presso la madre, mia cliente. Ora la ragazza dice che vuole andare a vivere con il padre, che ha già annunciato un ricorso. Può decidere lei? Come difendiamo la madre e quali sono i tempi?", [("codice_procedura_civile", "473-bis.4"), ("codice_civile", "337-ter")]),
     # v9.589 — giro 30, l'INFORTUNIO SUL LAVORO: la domanda della prova dal browser del 10 ott (AL: il Giudice non trovava la norma sul
     # danno alla salute né la competenza) e la sua gemella italiana, col testo unico INAIL entrato nel corpus (wave13)

@@ -205,6 +205,20 @@ ANCORE_AL: tuple = (
     # della Commissione, 15 giorni dalla notifica, depositato presso la Commissione; il ricorso amministrativo del KPA NON si applica). Prova
     # viva AL dell'11 ott (giudice destituito, «brenda sa ditësh ankohemi, ku depozitohet ankimi»): il 63 non era fra i dodici, l'ha aggiunto
     # il Kërkuesi. Solo dalla domanda (inneschi in `_VETTING_ANKIM_AL`)
+    # v9.612 — l'ERRORE MEDICO (gabim/pakujdesi/neglizhencë del medico o dell'ospedale): KC 641 (il danno alla salute), KP 96
+    # «Neglizhenca në trajtimin mjekësor» (la figura di reato specifica del professionista sanitario) e, in coda, KC 625 (il danno non
+    # patrimoniale: «dëmtim i shëndetit, i integritetit fizik ose psikik») e KC 115 (i termini brevi di prescrizione: il danno
+    # extracontrattuale, lett. dh). Giro 38 del banco («Gjatë një operacioni në spital mjeku i bëri klientes një gabim… Kë padisim dhe
+    # brenda çfarë afati?»): nel blocco le lesioni colpose (KP 91-92) e la responsabilità della PA, mai 641, 96, 625. Solo dalla domanda,
+    # in civile E in penale (la stessa domanda li ha tutti e due)
+    ((("mjek", "gabim"), ("spital", "gabim"), ("operacion", "gabim"), ("mjek", "pakujdesi"), ("spital", "pakujdesi"),
+      ("neglizhenc", "mjek"), ("neglizhenc", "spital"), ("neglizhenc", "shëndet"), ("malpraktik",), ("diagnoz", "gabim"),
+      ("diagnoz", "vonuar"), ("diagnoz", "vonesë")),
+     (), (("kodi_civil", "641"), ("kodi_penal", "96")), None, None, True),
+    ((("mjek", "gabim"), ("spital", "gabim"), ("operacion", "gabim"), ("mjek", "pakujdesi"), ("spital", "pakujdesi"),
+      ("neglizhenc", "mjek"), ("neglizhenc", "spital"), ("neglizhenc", "shëndet"), ("malpraktik",), ("diagnoz", "gabim"),
+      ("diagnoz", "vonuar"), ("diagnoz", "vonesë")),
+     (), (("kodi_civil", "625"), ("kodi_civil", "115")), None, None, True, "coda"),
     # v9.611 — il DEBITORE davanti all'esecuzione forzata (la banca che esegue l'ipoteca, l'ufficiale giudiziario): KPC 510 (i titoli
     # esecutivi: anche «aktet për dhënien e kredive bankare»), 609 (l'azione del debitore: titolo nullo, debito inesistente, minore o
     # estinto — 30 giorni da quando sa dell'esecuzione) e 610 (il ricorso contro gli atti dell'ufficiale giudiziario, 5 giorni). Giro 37

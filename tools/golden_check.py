@@ -11042,6 +11042,22 @@ def main():
     except Exception as _e385b:  # noqa: BLE001
         check("esecuzione[385b]: kontrollet u ekzekutuan", False, f"{type(_e385b).__name__}: {_e385b}")
 
+    # [386] v9.612 — l'ERRORE MEDICO porta KC 641 (danno alla salute) e KP 96 (negligenza nel trattamento medico), in coda KC 625 e 115;
+    # mai una visita del medico senza errore
+    try:
+        from src import brain as _br386
+        from src.retrieval import ArticleIndex as _AI386
+        _br386.set_request_jurisdiction("AL")
+        _al386 = _AI386.load()
+        _k386 = lambda q, aree: [(a.code, str(a.number)) for a, _ in _br386._applica_ancore([], _al386, ["pyetje", q], aree)]
+        _o386 = _k386("Gjatë një operacioni në spital mjeku i bëri klientes një gabim dhe tani ka dëmtime të përhershme. Kë padisim?", ["Civil", "Penal"])
+        _ok386 = ({("kodi_civil", "641"), ("kodi_penal", "96"), ("kodi_civil", "625"), ("kodi_civil", "115")} <= set(_o386)
+                  and _o386.index(("kodi_civil", "641")) < _o386.index(("kodi_civil", "625"))
+                  and not ({("kodi_civil", "641"), ("kodi_penal", "96")} & set(_k386("Mjeku i punës e deklaroi klientin të aftë për punë. A mund ta kundërshtojmë?", ["Punë"]))))
+        check("mjek[386]: l'errore medico porta KC 641 e KP 96, in coda KC 625 e 115; mai la visita senza errore", _ok386, str(_o386[:6]))
+    except Exception as _e386:  # noqa: BLE001
+        check("mjek[386]: kontrollet u ekzekutuan", False, f"{type(_e386).__name__}: {_e386}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
