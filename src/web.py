@@ -3028,12 +3028,41 @@ def _legal_md_to_html(md: str) -> str:
     out: list[str] = []
     lista: str = ""        # "ul" / "ol" / "" — quale elenco e' aperto
     tabella: list[str] = []
+    # v9.621 — i file sono scritti a mano e vanno a capo a 80 colonne: una riga NON e' un paragrafo. Prima ogni riga diventava un
+    # <p> a se' (frasi spezzate a meta' sulla pagina pubblica) e un **grassetto** che va a capo usciva con le stelline e col
+    # grassetto sulla riga sbagliata (art. 8 delle condizioni: «**Nuk përgjigjemi … të tij**»). Ora, come in markdown, le righe
+    # di testo consecutive si uniscono in un paragrafo, le righe dopo una voce d'elenco la continuano, quelle dopo «> » la
+    # citazione — e il grassetto si applica al testo unito.
+    para: list[str] = []
+    citaz: list[str] = []
+    voce: list[str] = []
+
+    def chiudi_para() -> None:
+        if para:
+            out.append(f"<p>{inline(' '.join(para))}</p>")
+            del para[:]
+
+    def chiudi_citaz() -> None:
+        if citaz:
+            out.append(f"<blockquote>{inline(' '.join(citaz))}</blockquote>")
+            del citaz[:]
+
+    def chiudi_voce() -> None:
+        if voce:
+            out.append(f"<li>{inline(' '.join(voce))}</li>")
+            del voce[:]
 
     def chiudi_lista() -> None:
         nonlocal lista
+        chiudi_voce()
         if lista:
             out.append(f"</{lista}>")
             lista = ""
+
+    def chiudi_tutto() -> None:
+        chiudi_para()
+        chiudi_citaz()
+        chiudi_lista()
 
     def chiudi_tabella() -> None:
         if not tabella:
@@ -3056,40 +3085,43 @@ def _legal_md_to_html(md: str) -> str:
     for riga in (md or "").replace("\r\n", "\n").split("\n"):
         r = riga.rstrip()
         if r.lstrip().startswith("|"):
-            chiudi_lista()
+            chiudi_tutto()
             tabella.append(r)
             continue
         chiudi_tabella()
         if not r.strip():
-            chiudi_lista()
+            chiudi_tutto()
             continue
         if r.startswith("---") and set(r) == {"-"}:
-            chiudi_lista()
+            chiudi_tutto()
             out.append("<hr>")
         elif r.startswith("#"):
-            chiudi_lista()
+            chiudi_tutto()
             liv = len(r) - len(r.lstrip("#"))
             out.append(f"<h{min(liv, 3)}>{inline(r[liv:].strip())}</h{min(liv, 3)}>")
-        elif r.startswith("> "):
+        elif r.startswith("> ") or r == ">":
+            chiudi_para()
             chiudi_lista()
-            out.append(f"<blockquote>{inline(r[2:])}</blockquote>")
-        elif r[:2] in ("- ", "* "):
-            if lista != "ul":
+            citaz.append(r[2:].strip())
+        elif r[:2] in ("- ", "* ") or (r[:1].isdigit() and ". " in r[:4]):
+            chiudi_para()
+            chiudi_citaz()
+            tipo = "ul" if r[:2] in ("- ", "* ") else "ol"
+            if lista != tipo:
                 chiudi_lista()
-                out.append("<ul>")
-                lista = "ul"
-            out.append(f"<li>{inline(r[2:])}</li>")
-        elif r[:1].isdigit() and ". " in r[:4]:
-            if lista != "ol":
-                chiudi_lista()
-                out.append("<ol>")
-                lista = "ol"
-            out.append(f"<li>{inline(r.split('. ', 1)[1])}</li>")
+                out.append(f"<{tipo}>")
+                lista = tipo
+            else:
+                chiudi_voce()
+            voce.append(r[2:].strip() if tipo == "ul" else r.split(". ", 1)[1].strip())
+        elif voce:
+            voce.append(r.strip())          # continuazione della voce (rientrata o «pigra»)
+        elif citaz:
+            citaz.append(r.strip())
         else:
-            chiudi_lista()
-            out.append(f"<p>{inline(r)}</p>")
+            para.append(r.strip())
     chiudi_tabella()
-    chiudi_lista()
+    chiudi_tutto()
     return "\n".join(out)
 
 
@@ -3173,9 +3205,11 @@ def api_legal_doc(nome: str):
         testo = f.read_text(encoding="utf-8")
     except OSError:
         return jsonify({"error": "unreadable"}), 500
+    # v9.621 — anche l'HTML, dallo STESSO renderer della pagina pubblica: la finestra dell'app usava il renderer delle risposte, che
+    # non conosce tabelle né citazioni né grassetti su più righe, e l'accordo sui dati arrivava all'avvocato come righe di «|»
     return jsonify({"name": nome, "lang": lingua if tradotto else "it",
                     "translated": tradotto, "version": LEGAL_VERSION,
-                    "markdown": testo})
+                    "markdown": testo, "html": _legal_md_to_html(testo)})
 
 
 @app.get("/api/legal/status")

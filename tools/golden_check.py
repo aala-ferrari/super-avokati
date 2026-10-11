@@ -8413,7 +8413,10 @@ def main():
         check("telefono[278]: «×» e pulsanti del fascicolo ≥36-40 px sotto i 600 px, cestino staccato, style.css col suo numero",
               "@media (max-width: 600px)" in _b278 and ".db-close" in _b278 and ".suggest-dismiss" in _b278
               and "min-width: 40px" in _b278 and ".case-header .icon-btn" in _b278 and "textarea, select { font-size: 16px !important; }" in _b278 and "#delete-case-btn { margin-left" in _b278
-              and "style.css?v=159" in _h278 and "onboarding.js?v=3" in _h278
+              # v9.621: «almeno» (come [68], [279], [307]): ogni modifica alza il numero, e un controllo che lo vuole alla lettera
+              # fermava il rilascio successivo
+              and int((__import__("re").search(r"style\.css\?v=(\d+)", _h278) or [0, 0])[1]) >= 159
+              and int((__import__("re").search(r"onboarding\.js\?v=(\d+)", _h278) or [0, 0])[1]) >= 3
               and 'carta.style.left = "0px"; carta.style.transform = "none";' in _P278("/app/static/onboarding.js").read_text(encoding="utf-8")
               and 'cp.className = "dl-docx-btn copy-parere-btn"' in _P278("/app/static/app.js").read_text(encoding="utf-8"))
         from src import web as _w278
@@ -11279,6 +11282,35 @@ def main():
         check("kodi_para[393b]: la spia «da rinfrescare» tace solo con un controllo di freschezza «OK» recente", _fresh_ok)
     except Exception as _e393:  # noqa: BLE001
         check("kodi_para[393]: kontrollet u ekzekutuan", False, f"{type(_e393).__name__}: {_e393}")
+
+    # [394] v9.621 — i documenti legali come li vede l'avvocato: le righe di testo si uniscono in paragrafi (i file vanno a capo a 80
+    # colonne), il grassetto che va a capo si chiude giusto, tabelle e citazioni rese; e la finestra dell'app usa lo STESSO HTML
+    try:
+        import glob as _gl394, re as _re394
+        from src.web import _legal_md_to_html as _md394
+        _cattivi394 = []
+        for _f394 in sorted(_gl394.glob("/app/legal/*.md")):
+            if "interno" in _f394:
+                continue
+            _t394 = open(_f394, encoding="utf-8").read()
+            _h394 = _md394(_t394)
+            if "**" in _h394:
+                _cattivi394.append(_f394.split("/")[-1] + ": stelline")
+            if "\n|" in _t394 and "<table>" not in _h394:
+                _cattivi394.append(_f394.split("/")[-1] + ": tabella")
+            if _re394.search(r"(?m)^> ", _t394) and "<blockquote>" not in _h394:
+                _cattivi394.append(_f394.split("/")[-1] + ": citazione")
+        _p394 = _md394("Riga uno con **grassetto che\nva a capo** e fine.\n\n- voce **a\n  capo** qui\n")
+        _ok394 = (not _cattivi394 and "<p>Riga uno con <strong>grassetto che va a capo</strong> e fine.</p>" in _p394
+                  and "<li>voce <strong>a capo</strong> qui</li>" in _p394)
+        _js394 = open("/app/static/app.js", encoding="utf-8").read()
+        _ok394 = _ok394 and "(d.html || renderMarkdown(d.markdown" in _js394
+        _w394 = open("/app/src/web.py", encoding="utf-8").read()
+        _ok394 = _ok394 and '"html": _legal_md_to_html(testo)' in _w394
+        check("ligjore[394]: paragrafi uniti, grassetto su più righe, tabelle e citazioni; la finestra usa l'HTML del server", _ok394,
+              f"{_cattivi394}")
+    except Exception as _e394:  # noqa: BLE001
+        check("ligjore[394]: kontrollet u ekzekutuan", False, f"{type(_e394).__name__}: {_e394}")
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

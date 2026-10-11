@@ -8,6 +8,11 @@
   var CHIAVE = "sa_tour_v1_done";
   var lang = (document.body && document.body.dataset && document.body.dataset.lang) || "sq";
   var L = lang === "it" ? "it" : "sq";
+  // v9.621 — quanti codici: dall'intestazione della pagina (il numero vero della giurisdizione della sessione), mai scritto qui
+  // (diceva 64 e 129 mentre erano 72 e 149)
+  var NK = "";
+  try { NK = ((document.querySelector(".stat-pill strong") || {}).textContent || "").trim(); } catch (e) {}
+  if (!/^\d[\d.]*$/.test(NK)) NK = "";
 
   var TESTI = {
     sq: {
@@ -17,7 +22,7 @@
       hapa: [
         ["new-case-btn", "Rastet", "Këtu hap një rast të ri: çdo bisedë, dokument dhe kërkim jeton brenda rastit të vet."],
         ["mode-bar", "Mënyrat e punës", "Zgjidh si punon truri: pyetje-përgjigje, analizë e thellë, hartim aktesh…"],
-        ["ask-input", "Pyetja", "Shkruaj si njeriu, jo si makina. Tetramorph arsyeton mbi 64 kode e ligje shqiptare dhe mijëra vendime të Kushtetueses, Gjykatës së Lartë dhe GjEDNj."],
+        ["ask-input", "Pyetja", "Shkruaj si njeriu, jo si makina. Tetramorph arsyeton mbi " + (NK ? NK + " kode e ligje shqiptare" : "kodet dhe ligjet shqiptare") + " dhe mijëra vendime të Kushtetueses, Gjykatës së Lartë dhe GjEDNj."],
         ["composer-attach", "Dokumentet", "Bashkangjit PDF, foto, Word — analizohen brenda rastit, me citime të verifikuara."],
         ["dosja-btn", "Dosja", "Gjithçka e ruajtur dhe e ngarkuar, nga të gjitha rastet — në një vend."],
         ["calendar-btn", "Kalendari & Sekretarja", "Afatet procedurale futen vetë në kalendar; Sekretarja virtuale mban takimet — edhe me zë."],
@@ -33,7 +38,7 @@
       hapa: [
         ["new-case-btn", "I casi", "Qui apri un caso nuovo: ogni conversazione, documento e ricerca vive dentro il suo caso."],
         ["mode-bar", "Le modalità", "Scegli come lavora il cervello: domanda-risposta, analisi profonda, redazione atti…"],
-        ["ask-input", "La domanda", "Scrivi da persona, non da macchina. Tetramorph ragiona su 129 codici e leggi italiane ed europee e su migliaia di decisioni (Consulta, Consiglio di Stato, TAR, Cassazione)."],
+        ["ask-input", "La domanda", "Scrivi da persona, non da macchina. Tetramorph ragiona su " + (NK ? NK + " codici e leggi italiane ed europee" : "i codici e le leggi italiane ed europee") + " e su migliaia di decisioni (Consulta, Consiglio di Stato, TAR, Cassazione)."],
         ["composer-attach", "I documenti", "Allega PDF, foto, Word — vengono analizzati dentro il caso, con citazioni verificate."],
         ["dosja-btn", "Il dossier", "Tutto ciò che hai salvato e caricato, da tutti i casi — in un posto solo."],
         ["calendar-btn", "Calendario & Segretaria", "I termini processuali entrano da soli in calendario; la Segretaria virtuale tiene gli appuntamenti — anche a voce."],

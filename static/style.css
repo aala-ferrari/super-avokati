@@ -7962,7 +7962,13 @@ main {
 .legal-body h1{font-size:1.25rem;margin:.2em 0 .5em}
 .legal-body h2{font-size:1.05rem;margin:1.1em 0 .4em}
 .legal-body table{width:100%;border-collapse:collapse;margin:.6em 0}
-.legal-body th,.legal-body td{border:1px solid #e8dfc9;padding:6px 8px;text-align:left;font-size:13px}
+.legal-body th,.legal-body td{border:1px solid #e8dfc9;padding:6px 8px;text-align:left;font-size:13px;vertical-align:top}
+/* v9.621 — l'HTML del renderer dei documenti legali: tabelle che scorrono sul telefono, citazioni, paragrafi */
+.legal-body .tab-scorri{overflow-x:auto;margin:.6em 0}
+.legal-body th{background:#faf5e6;font-weight:700}
+.legal-body blockquote{margin:.8em 0;padding:.6em .9em;background:#fdf8ea;border-left:3px solid #c9a24d;border-radius:0 7px 7px 0}
+.legal-body p{margin:.55em 0}
+.legal-body ul,.legal-body ol{margin:.55em 0;padding-left:1.3em}
 .legal-nota{background:#fff6e0;border:1px solid #e2c98a;border-radius:8px;
   padding:9px 12px;margin-bottom:12px;font-size:13px;color:#7a5f16}
 .legal-ok{display:flex;align-items:flex-start;gap:9px;margin:14px 0 12px;

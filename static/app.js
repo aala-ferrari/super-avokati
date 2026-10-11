@@ -14225,7 +14225,9 @@ function moduleChips(u) {
         '<div class="legal-nota">' + (IT
           ? "⚠️ Questo testo non è ancora disponibile nella lingua della tua sessione: lo stai leggendo in italiano."
           : "⚠️ Ky tekst ende nuk është në gjuhën tënde: po e lexon në italisht.") + '</div>';
-      body.innerHTML = avviso + renderMarkdown(d.markdown || "");
+      // v9.621 — l'HTML del server (lo stesso renderer della pagina pubblica /legale, testo già passato da escape): il renderer delle
+      // risposte non conosce tabelle, citazioni e grassetti su più righe — l'accordo sui dati usciva come righe di «|»
+      body.innerHTML = avviso + (d.html || renderMarkdown(d.markdown || ""));
       body.scrollTop = 0;
     }
     DOCS.forEach(([nome, etichetta], i) => {
