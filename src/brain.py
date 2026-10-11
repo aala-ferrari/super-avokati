@@ -165,6 +165,34 @@ _MJEK_JASHTE_AL = (r"(?s)^(?=.*(?:punëdhënës|punedhenes|(?:pushoi|pushua|push
                    r"^(?=.*(?:aksident|përplas|perplas|u\s+godit))(?!.*(?:gabim|gabo|gabu|pakujdesi|neglizhenc|malpraktik)).*$|"
                    r"mjek\w*[\s-]+ligj\w*|raport\w*\s+mjek\w*|v[ëe]rtetim\w*\s+mjek\w*|mjek\w*\s+i\s+pun[ëe]s|"
                    r"operacion\w*\s+(?:policor|bankar|financiar|tregtar|doganor|ushtarak|kompjuterik)\w*")
+# v9.615 — il contratto a TERMINE rinnovato ogni anno (giro 43: «ia ripërtërin kontratën me afat çdo vit prej katër vitesh»): KP 151/1
+# (contratti a termine successivi per almeno tre anni → il mancato rinnovo vale come licenziamento da contratto a tempo indeterminato),
+# in coda KP 149 (la proroga tacita) e KP 140 (il termine va giustificato con ragioni oggettive: era al 13° posto)
+_AFAT_PUNE_AL = (tuple(("kontrat", a, r) for a in ("afat", "vjeçar", "vjecar", "kohë të caktuar", "kohe te caktuar", "kohëzgjatje të caktuar")
+                       for r in ("ripërtëri", "riperteri", "rinov", "zgjat", "çdo vit", "cdo vit"))
+                 + (("kontrat", "kohë të caktuar"), ("kontrat", "kohëzgjatje të caktuar"), ("kontrat", "afat të caktuar"),
+                    ("kontrat", "me afat", "nuk do t", "ripërtëri")))
+# v9.616 — lo STALLO fra soci (prova viva dell'11 ott, due soci al 50 % e la società bloccata da un anno: «nenet e prishjes për shpk-në
+# janë në Pjesën VII… nuk i kam në bllokun tim»): la legge sulle società, art. 99/1/c — la s.h.p.k. si scioglie quando l'oggetto diventa
+# irrealizzabile «për shkak të mosfunksionimit të vazhduar të organeve të shoqërisë» —, nella parte IV, mai nel blocco. Solo con la materia
+# commerciale nel triage; mai il conto o i beni bloccati (tasse, sequestro)
+_DEADLOCK_AL = (("ortak", "bllok", "vendim"), ("ortak", "bllokuar"), ("asamble", "bllok"), ("ortak", "nuk pranon asnjë vendim"),
+                ("ortak", "nuk pranon asnje vendim"), ("mosfunksionim", "organ"), ("deadlock",), ("ngërç",), ("shoqëria është bllokuar",),
+                ("shoqëria u bllokua",), ("shoqeria eshte bllokuar",))
+_DEADLOCK_JASHTE_AL = (r"(?s)^(?=.*(?:llogari\w*.{0,40}bllok|bllok\w*.{0,40}llogari|tatim\w*.{0,60}bllok|bllok\w*.{0,40}(?:pasuri|sekuestr|kartel)|"
+                       r"sekuestr\w*.{0,40}bllok)).*$")
+# v9.616 — l'ORDINE DI DEMOLIZIONE impugnato (prova viva dell'11 ott e giro 44): L. 107/2014 art. 49/1 «Ankimi administrativ dhe gjyqësor»
+# (il ricorso segue il KPA e NON sospende l'esecuzione) e la legge sull'ispezione 9780/2007 art. 14 (ricorso alla commissione del comune,
+# poi il tribunale); in coda l'art. 13 (decisioni e termini) e il KPA 132. Solo con la costruzione nella domanda (la «prishja» è anche quella
+# del contratto)
+_PRISHJE_AL = (tuple((p, a, c) for p in ("prishj", "shemb") for a in ("ankim", "ankoh", "ankimoj", "pezull", "kundërsht", "kundersht", "apel")
+                     for c in ("ndërt", "ndert", "kat ", "ballkon", "objekt", "shtes", "leje", "banes", "shtëpi", "shtepi", "mur"))
+               + ("urdhër prishjeje", "urdher prishjeje", "vendim prishjeje", "vendimi i prishjes", "vendimin e prishjes",
+                  "vendimi për prishjen", "vendimin për prishjen"))
+# v9.615 — il COGNOME del figlio (giro 43: «t'ia ndryshojë fëmijës mbiemrin»): KF 52 (il figlio prende il cognome comune; senza accordo,
+# quello del padre) e la legge sullo stato civile art. 57 (quando il cognome si cambia: nei casi del Kodi i Familjes o a domanda, artt.
+# 57/1-57/10) — l'art. 57 al 10° posto, il KF 52 fuori
+_MBIEMRI_FEMIJES_AL = tuple(("mbiemr", f) for f in ("fëmij", "femij", "djal", "vajz", "të birit", "të bijës", "te birit", "te bijes"))
 # v9.614 — la CONVIVENZA senza matrimonio (giro 41: «bashkëjetoi 10 vjet me partnerin pa u martuar … shtëpia në emrin e tij»): il
 # blocco era tutto del regime patrimoniale dei CONIUGI (KF 76-122), mai il KF 163 (cos'è la convivenza: un'unione di fatto stabile) né
 # il 164 (gli effetti su figli e beni solo con un accordo davanti al notaio); per i beni, in coda, il KC 655 (l'arricchimento senza
@@ -276,6 +304,17 @@ ANCORE_AL: tuple = (
     # questa norma («mungon norma bazë… kë padisim») e aggiungeva al suo posto KC 621 (animali) e 613 (minori)
     (_MJEK_INNESCHI_AL + _MJEK_VDEKJE_AL, (), (("kodi_civil", "625"), ("kodi_civil", "618"), ("kodi_civil", "115")), _MJEK_JASHTE_AL, None, True,
      "coda"),
+    # v9.616 — l'ordine di demolizione impugnato (`_PRISHJE_AL`)
+    (_PRISHJE_AL, (), (("ligji_planifikimi_territorit", "49/1"), ("ligji_inspektimi_territorit", "14")), None, None, True),
+    (_PRISHJE_AL, (), (("ligji_inspektimi_territorit", "13"), ("kodi_proc_admin", "132")), None, None, True, "coda"),
+    # v9.616 — lo stallo fra soci (`_DEADLOCK_AL`): legge sulle società art. 99 (scioglimento per il mancato funzionamento degli organi)
+    (_DEADLOCK_AL, ("Penal",), (("ligji_shoqerite_tregtare", "99"),), _DEADLOCK_JASHTE_AL, ("Tregtare",), True),
+    # v9.615 — il contratto a termine rinnovato (`_AFAT_PUNE_AL`): KP 151 (+ 149, 140); il cognome del figlio (`_MBIEMRI_FEMIJES_AL`): KF 52 e stato civile 57
+    # (prova viva in Chrome dell'11 ott, la lavoratrice incinta con 4 contratti annuali: il Giudice correggeva «kudo neni 140 → neni
+    # 151/1» — il 140 non ha la regola dei tre anni, è solo un argomento di supporto; il 149/2 è la proroga tacita)
+    (_AFAT_PUNE_AL, ("Penal",), (("kodi_punes", "151"),), None, ("Punë",), True),
+    (_AFAT_PUNE_AL, ("Penal",), (("kodi_punes", "149"), ("kodi_punes", "140")), None, ("Punë",), True, "coda"),
+    (_MBIEMRI_FEMIJES_AL, ("Penal",), (("kodi_familjes", "52"), ("ligji_gjendja_civile", "57")), None, None, True),
     # v9.614 — la convivenza senza matrimonio (`_BASHKEJETESA_AL`): KF 163 e 164; coi beni in coda il KC 655 (arricchimento senza causa)
     (_BASHKEJETESA_AL, ("Penal",), (("kodi_familjes", "163"), ("kodi_familjes", "164")), None, None, True),
     (_BASHKEJETESA_PASURI_AL, ("Penal",), (("kodi_civil", "655"),), None, None, True, "coda"),
@@ -1564,6 +1603,12 @@ _CODICI_CONDIZIONATI_AL = _CODICI_CONDIZIONATI_AL + (
      re.compile(r"vetting|veting|rivlerësim|rivleresim|\bkpk\b|komision\w*\s+(?:i|e)\s+pavarur\s+(?:i|e)\s+kualifikim|"
                 r"kolegj\w*\s+(?:i|e)\s+posaçëm|kolegj\w*\s+(?:i|e)\s+posacem|\bonm\b|aneks\w*\s+(?:i|e|të|te)\s+kushtetut|"
                 r"(?:gjyqtar|prokuror)\w*.{0,80}(?:pasuri|figur|aftësi profesional|aftesi profesional)\w*.{0,40}(?:vlerës|vleres|kontroll|deklar)", re.I)),
+    # v9.616 — la legge sull'ISPEZIONE EDILIZIA (9780/2007): solo con un tema edilizio nella domanda («vendim», «ankim», «afat», «gjobë»
+    # stanno in mille domande)
+    ("ligji_inspektimi_territorit", "ispezione edilizia",
+     re.compile(r"ndërtim|ndertim|leje\s+(?:ndërtimi|ndertimi|zhvillimi)|prishj|shemb|kat\w*\s+shtes|ballkon|objekt\w*\s+pa\s+leje|"
+                r"\bikmt\b|inspektorat\w*\s+(?:i|e)\s+mbrojtjes|mbrojtj\w*\s+(?:e|së|se)\s+territorit|legaliz|urbanist|"
+                r"policia\s+e\s+ndërtimit|policia\s+e\s+ndertimit|kundërligjshm\w*\s+(?:ndërtim|punim)", re.I)),
     ("ligji_prokuroria", "legge sulla procura",
      re.compile(r"\bklp\b|këshill\w*\s+(?:i|e|të)\s+lartë|keshill\w*\s+(?:i|e|te)\s+larte|vetting|rivlerësim|rivleresim|\bspak\b|\bbkh\b|"
                 r"byro\w*\s+kombëtare|disiplin\w*.{0,60}prokuror|prokuror\w*.{0,60}disiplin|emër\w*.{0,30}prokuror|transferim\w*.{0,30}prokuror|"

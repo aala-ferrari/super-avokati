@@ -292,6 +292,24 @@ CASI = [  # (giurisdizione, domanda dell'avvocato, articoli di cui almeno uno DE
     ("AL", "[frek42] Gjykimi i çështjes civile të klientit zgjat prej 7 vitesh në shkallë të parë. A mund të kërkojë shpërblim për vonesën dhe ku?", [("kodi_proc_civile", "399/4"), ("kodi_proc_civile", "399/3")]),
     ("AL", "[frek42] Klienti u dënua me 2 vjet burg në vitin 2015 dhe dënimi nuk u ekzekutua kurrë. A është parashkruar ekzekutimi i dënimit?", [("kodi_penal", "68")]),
     ("AL", "[frek42] Klienti dhe partnerja jetojnë bashkë pa u martuar dhe kanë një fëmijë. Çfarë të drejtash kanë dhe si e mbrojnë pasurinë?", [("kodi_familjes", "163"), ("kodi_familjes", "164")]),
+    # v9.615 — giro 43: gli alimenti all'ex coniuge (KF 199-200: solo se incapace di lavorare e senza mezzi, chiesti con il divorzio o
+    # entro 6 mesi, al massimo 6 anni — l'attesa del primo giro era il contributo compensativo, KF 147-148, che è un'altra cosa), il
+    # bene personale prima del matrimonio (KF 77), i contratti a termine rinnovati (KP 151/1: successivi per almeno tre anni → a tempo
+    # indeterminato; KP 140 il termine va giustificato), la resistenza al poliziotto (KP 236), il cognome del figlio dopo il divorzio (ligji 10129/2009 neni 57, KF 52), la
+    # donazione della casa (KC 764: atto pubblico e registrazione, altrimenti nulla), l'amministratore che usa i soldi della società
+    # (ligji 9901/2008 neni 98, KP 135)
+    ("AL", "[frek43] Pas divorcit ish-bashkëshortja kërkon që klienti t'i japë një shumë mujore për jetesën e saj. A ka të drejtë?", [("kodi_familjes", "199"), ("kodi_familjes", "200")]),
+    ("AL", "[frek43] Klienti e kishte apartamentin para martesës; tani në divorc gruaja kërkon gjysmën. A i takon?", [("kodi_familjes", "77")]),
+    ("AL", "[frek43] Punëdhënësi ia ripërtërin klientit kontratën me afat çdo vit prej katër vitesh. A është tani kontratë pa afat?", [("kodi_punes", "151"), ("kodi_punes", "140")]),
+    ("AL", "[frek43] Klienti e shtyu një polic gjatë një kontrolli për të mos u shoqëruar në komisariat. Çfarë rrezikon?", [("kodi_penal", "236")]),
+    ("AL", "[frek43] Pas divorcit nëna dëshiron t'ia ndryshojë fëmijës mbiemrin me mbiemrin e saj. Si bëhet dhe a duhet pëlqimi i babait?", [("ligji_gjendja_civile", "57"), ("kodi_familjes", "52")]),
+    ("AL", "[frek43] Babai i klientit dëshiron t'i dhurojë apartamentin. Si duhet bërë dhurimi që të jetë i vlefshëm?", [("kodi_civil", "764")]),
+    ("AL", "[frek43] Administratori i shpk-së përdori paratë e shoqërisë për nevoja personale. Çfarë mund të bëjnë ortakët?", [("ligji_shoqerite_tregtare", "98"), ("kodi_penal", "135")]),
+    # v9.616 — giro 44: l'ordine di demolizione dell'ispettorato edilizio (ligji 9780/2007 art. 14: ricorso alla commissione del comune,
+    # poi il tribunale) — la prova viva dell'11 ott scriveva «legjislacioni i inspektimit (L. 9780/2007) jashtë materialeve»
+    ("AL", "[frek44] Inspektorati i mbrojtjes së territorit të bashkisë i dha klientit vendim prishjeje për një shtesë në ballkon të ndërtuar pa leje. Ku dhe brenda çfarë afati ankohemi?", [("ligji_inspektimi_territorit", "14")]),
+    ("AL", "[frek44] Bashkia i dha klientit urdhër prishjeje për një kat shtesë të ndërtuar pa leje. A mund ta ankimojmë dhe a pezullohet prishja?", [("ligji_inspektimi_territorit", "14")]),
+    ("AL", "[frek44] Klienti është ortak me 50% në një shpk me një ortak tjetër me 50%. Tjetri nuk pranon asnjë vendim dhe shoqëria është bllokuar prej një viti. Çfarë zgjidhjesh ligjore ka?", [("ligji_shoqerite_tregtare", "99"), ("ligji_shoqerite_tregtare", "101")]),
     ("IT", "[frek29] Dopo la separazione la figlia di 15 anni è stata collocata presso la madre, mia cliente. Ora la ragazza dice che vuole andare a vivere con il padre, che ha già annunciato un ricorso. Può decidere lei? Come difendiamo la madre e quali sono i tempi?", [("codice_procedura_civile", "473-bis.4"), ("codice_civile", "337-ter")]),
     # v9.589 — giro 30, l'INFORTUNIO SUL LAVORO: la domanda della prova dal browser del 10 ott (AL: il Giudice non trovava la norma sul
     # danno alla salute né la competenza) e la sua gemella italiana, col testo unico INAIL entrato nel corpus (wave13)

@@ -11124,6 +11124,46 @@ def main():
     except Exception as _e388:  # noqa: BLE001
         check("bashkejetesa[388]: kontrollet u ekzekutuan", False, f"{type(_e388).__name__}: {_e388}")
 
+    # [389] v9.615 — il contratto a termine rinnovato ogni anno porta KP 140 (solo nel lavoro); il cognome del figlio KF 52 e la legge sullo
+    # stato civile art. 57 (mai il cognome dell'ex coniuge)
+    try:
+        from src import brain as _br389
+        from src.retrieval import ArticleIndex as _AI389
+        _br389.set_request_jurisdiction("AL")
+        _al389 = _AI389.load()
+        _k389 = lambda q, aree: {(a.code, str(a.number)) for a, _ in _br389._applica_ancore([], _al389, ["pyetje", q], aree)}
+        _ok389 = ({("kodi_punes", "151"), ("kodi_punes", "140")} <= _k389("Punëdhënësi ia ripërtërin kontratën me afat çdo vit prej katër vitesh.", ["Punë"])
+                  and ("kodi_punes", "151") not in _k389("Kontrata e qirasë me afat 5 vjet mbaron në qershor.", ["Civil"])
+                  and {("kodi_familjes", "52"), ("ligji_gjendja_civile", "57")} <= _k389(
+                      "Nëna dëshiron t'ia ndryshojë fëmijës mbiemrin pas divorcit.", ["Familje"])
+                  and ("kodi_familjes", "52") not in _k389("Ish-bashkëshortja dëshiron të mbajë mbiemrin e burrit pas divorcit.", ["Familje"]))
+        check("afat_pune[389]: contratto a termine rinnovato KP 151 (+ 140 in coda) solo nel lavoro; cognome del figlio KF 52 + stato civile 57", _ok389)
+    except Exception as _e389:  # noqa: BLE001
+        check("afat_pune[389]: kontrollet u ekzekutuan", False, f"{type(_e389).__name__}: {_e389}")
+
+    # [390] v9.616 — la legge 9780/2007 sull'ispezione edilizia nel corpus (art. 14: il ricorso contro la decisione dell'ispettorato), nel
+    # verificatore per numero e per nome, e fra i codici condizionati (resta solo con un tema edilizio nella domanda)
+    try:
+        from src.retrieval import ArticleIndex as _AI390
+        from src import citation_verifier as _cv390, brain as _br390
+        _al390 = _AI390.load()
+        _a14 = next((a for a in _al390.articles if a.code == "ligji_inspektimi_territorit" and str(a.number) == "14"), None)
+        _r390 = _cv390.verify_text("Sipas nenit 14 të ligjit nr. 9780/2007, ankimi administrativ paraqitet në Komisionin e Shqyrtimit.", _al390)
+        _st390 = [it.get("status") for it in _r390["items"] if str(it.get("number")) == "14"]
+        _p390 = [(_a14, 1.0)] if _a14 is not None else []
+        _ok390 = (_a14 is not None and "ankimi administrativ" in (_a14.body or "") and _st390 == ["verified"]
+                  and not _br390._senza_codici_condizionati_al(_p390, "Punëdhënësi nuk i paguan orët shtesë klientit.")
+                  and len(_br390._senza_codici_condizionati_al(_p390, "Bashkia i dha klientit urdhër prishjeje për një kat shtesë.")) == 1)
+        _br390.set_request_jurisdiction("AL")
+        _k390 = lambda q: {(a.code, str(a.number)) for a, _ in _br390._applica_ancore([], _al390, ["pyetje", q], ["Ndertim", "Administrativ"])}
+        _ok390 = (_ok390 and {("ligji_planifikimi_territorit", "49/1"), ("ligji_inspektimi_territorit", "14")} <= _k390(
+                      "Bashkia i dha klientit urdhër prishjeje për një kat shtesë. A mund ta ankimojmë?")
+                  and ("ligji_inspektimi_territorit", "14") not in _k390("Klienti do të kundërshtojë prishjen e kontratës së qirasë."))
+        check("inspektim[390]: legge 9780/2007 nel corpus (art. 14), verificata per numero, condizionata al tema edilizio, ancora della demolizione", _ok390,
+              f"art14={_a14 is not None} stati={_st390}")
+    except Exception as _e390:  # noqa: BLE001
+        check("inspektim[390]: kontrollet u ekzekutuan", False, f"{type(_e390).__name__}: {_e390}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
