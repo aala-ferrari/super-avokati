@@ -1022,7 +1022,12 @@ def main():
         import tempfile as _tf3
         _d3 = _tf3.mkdtemp()
         _f3 = _os2.path.join(_d3, "skan.png")
-        open(_f3, "wb").write(b"x" * 1024)
+        open(_f3, "wb").write(b"\x89PNG\r\n\x1a\n" + b"x" * 1024)
+        # v9.633 — un Word che non siamo riusciti a leggere non si allega al cervello (non lo apre): resta il nome
+        import zipfile as _zf3
+        _f3w = _os2.path.join(_d3, "autorizim.doc")
+        with _zf3.ZipFile(_f3w, "w") as _z3:
+            _z3.writestr("word/document.xml", "<w:document/>")
         _docs3 = [
             {"filename": "akt.pdf", "extracted_text": "teksti i aktit",
              "storage_path": _f3},                       # ka tekst → inline
@@ -1032,6 +1037,7 @@ def main():
             {"filename": "skan.png", "extracted_text": "", "summary": "",
              "storage_path": _f3},                       # i verber → Read
             {"filename": "humbur.docx", "extracted_text": "", "summary": ""},
+            {"filename": "autorizim.doc", "extracted_text": "", "summary": "", "storage_path": _f3w, "status": "error"},
         ]
         _inl, _ler = _sel(_docs3)
         _ni = [x["filename"] for x in _inl]
@@ -1044,6 +1050,8 @@ def main():
               "vetem aty syte e Read-it duhen vertet")
         check("selektori: pa tekst dhe pa skedar → mbetet emri",
               "humbur.docx" in _ni)
+        check("selektori: një Word i palexuar NUK i bashkëngjitet trurit (s'e hap dot) — mbetet emri me paralajmërimin (v9.633)",
+              "autorizim.doc" in _ni and "autorizim.doc" not in _nl)
     except Exception as _e:  # noqa: BLE001
         check("kompozimi[22]: kontrollet u ekzekutuan", False, str(_e))
 
@@ -3785,9 +3793,12 @@ def main():
         _src = _insp110.getsource(_br110)
         _okB = (_src.count('stage_plan = {"skuadra_gather": stage_plan["skuadra_gather"]}') == 2
                 and _src.count("precedents = _precedente_te_lidhur(precedents, _cituar_pairs)") == 2
-                and _src.count("urgency_radar = None if _norme else self._scan_urgency(") == 2
-                and _src.count("action_plan = None if _norme else self._build_action_plan(") == 2
-                and _src.count("[] if _norme else self._retrieve_adverse_precedents(") == 2
+                and (_src.count("urgency_radar = None if _norme else self._scan_urgency(")
+                     + _src.count("urgency_radar = None if (_norme or _rishikim) else self._scan_urgency(")) == 2
+                and (_src.count("action_plan = None if _norme else self._build_action_plan(")
+                     + _src.count("action_plan = None if (_norme or _rishikim) else self._build_action_plan(")) == 2
+                and (_src.count("[] if _norme else self._retrieve_adverse_precedents(")
+                     + _src.count("[] if (_norme or _rishikim) else self._retrieve_adverse_precedents(")) == 2
                 and _src.count("_NORME_HINT[") == 2 and "_msg_c, history, triage, retrieved, precedents" in _src)
         _r = _insp110.getsource(_br110.SuperAvvocato._research_loop)
         _okC = "not in {c for c, _ in have_keys}" in _r and "< 40" in _r
@@ -12101,11 +12112,214 @@ console.log(JSON.stringify(out));
         _st416.avokati_i_djallit(_f416, domanda="D", blloku_neneve="neni 1", pergjigja="R", lang="sq")
         _ok4 = "DOSJA E MBLEDHËSVE" not in _f416.ultimo
         _src416 = open("/app/src/brain.py", encoding="utf-8").read()
-        _ok5 = ("answer_text, dosja_txt=dosja_txt_x)" in _src416 and _src416.count('dosja=dosja_txt or ""') >= 4)
+        _ok5 = (("answer_text, dosja_txt=dosja_txt_x)" in _src416
+                 or "dosja_txt=dosja_txt_x + (_blocco_rishikim(_dok_r, _lang_r) if _rishikim else \"\"))" in _src416)
+                and _src416.count('dosja=dosja_txt or ""') >= 4)
         check("djalli-dosja[416]: il dossier dei raccoglitori arriva a diavolo, replica e secondo giro (e non c'è se manca)",
               _ok1 and _ok2 and _ok3 and _ok4 and _ok5, f"{_ok1} {_ok2} {_ok3} {_ok4} {_ok5}")
     except Exception as _e416:  # noqa: BLE001
         check("djalli-dosja[416]: kontrollet u ekzekutuan", False, f"{type(_e416).__name__}: {_e416}")
+
+    # [417] v9.633 — IL FORMATO DAL CONTENUTO: il caso vero del 12 ott era un .docx rinominato .doc, e antiword era cercato in
+    # /usr/local/bin (Debian lo mette in /usr/bin): ogni .doc caricato finiva in errore e il cervello «rivedeva» il documento senza
+    # averlo letto. Qui: un .docx col nome .doc, un Word 97 vero (con ë/ç: antiword in UTF-8), un RTF col nome .doc, un ODT, e dal
+    # .docx anche tabelle, intestazione e note.
+    try:
+        import tempfile as _tf417, zipfile as _zf417, shutil as _sh417
+        from pathlib import Path as _P417
+        from src.extract import readers as _rd417
+        from src import documents as _dc417
+        _d417 = _P417(_tf417.mkdtemp())
+        from docx import Document as _Doc417
+        _doc = _Doc417()
+        _doc.sections[0].header.is_linked_to_previous = False
+        _doc.sections[0].header.paragraphs[0].text = "BEMARG-PROVA Sh.p.k — kreu i faqes"
+        _doc.add_paragraph("Shoqëria përfaqësohet nga administratori Z. Arben Prova.")
+        _tb = _doc.add_table(rows=1, cols=2)
+        _tb.cell(0, 0).text = "Qiramarrësi"
+        _tb.cell(0, 1).text = "Halim Prova"
+        _f1 = _d417 / "autorizim.doc"          # un .docx con l'estensione sbagliata
+        _doc.save(str(_f1))
+        _t1, _ = _dc417.extract_text(_f1, ".doc", "application/msword")
+        _ok1 = (_rd417.formato_reale(_f1) == "docx" and "përfaqësohet" in _t1 and "Qiramarrësi | Halim Prova" in _t1
+                and "kreu i faqes" in _t1)
+        _sh417.rmtree(_d417, ignore_errors=True)
+        _d417 = _P417(_tf417.mkdtemp())
+        _fx = _P417(__file__).resolve().parent / "fixtures" / "prova_word97.doc"
+        _t2 = ""
+        if _fx.exists():
+            _t2, _ = _dc417.extract_text(_fx, ".doc", "application/msword")
+        _ok2 = (_rd417.formato_reale(_fx) == "doc" and "ëË çÇ" in _t2 and "përfaqësuar" in _t2 and "çelësi" in _t2
+                and _sh417.which("antiword") is not None)
+        _f3 = _d417 / "vjeter.doc"             # un RTF salvato come .doc
+        _f3.write_bytes(b"{\\rtf1\\ansi\\ansicpg1252{\\fonttbl\\f0 Helvetica;}\\f0 Autorizim p\\'ebr p\\'ebrdorim\\par "
+                        b"Shoq\\'ebria \\u235?mund\\par}")
+        _t3, _ = _dc417.extract_text(_f3, ".doc", "application/msword")
+        _ok3 = (_rd417.formato_reale(_f3) == "rtf" and "Autorizim për përdorim" in _t3 and "Shoqëria" in _t3
+                and "\\rtf" not in _t3 and "fonttbl" not in _t3)
+        _f4 = _d417 / "kontrate.odt"
+        with _zf417.ZipFile(_f4, "w") as _z4:
+            _z4.writestr("mimetype", "application/vnd.oasis.opendocument.text")
+            _z4.writestr("content.xml", '<?xml version="1.0"?><office:document-content '
+                         'xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" '
+                         'xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"><office:body><office:text>'
+                         '<text:p>Kontrata e qirasë</text:p><text:p>Neni<text:s/>1</text:p></office:text></office:body>'
+                         '</office:document-content>')
+        _f4d = _d417 / "kontrate.doc"
+        _sh417.copyfile(_f4, _f4d)
+        _t4, _ = _dc417.extract_text(_f4d, ".doc", "application/msword")
+        _ok4 = _rd417.formato_reale(_f4d) == "odt" and "Kontrata e qirasë" in _t4 and "Neni 1" in _t4
+        _f5 = _d417 / "x.doc"
+        _f5.write_bytes(b"%PDF-1.4\ntrailer<</Root 1 0 R>>\n%%EOF\n")
+        _ok5 = _rd417.formato_reale(_f5) == "pdf"
+        _src417 = open("/app/src/extract/readers.py", encoding="utf-8").read()
+        _ok6 = '"-m", "UTF-8.txt"' in _src417 and "shutil.which(\"antiword\")" in _src417
+        check("formato[417]: il formato dal contenuto — .docx rinominato .doc, Word 97 vero con ë/ç (antiword trovato, UTF-8), "
+              "RTF e ODT col nome .doc, PDF riconosciuto; dal .docx tabelle e intestazione",
+              _ok1 and _ok2 and _ok3 and _ok4 and _ok5 and _ok6,
+              f"docx-come-doc={_ok1} word97={_ok2} rtf={_ok3} odt={_ok4} pdf={_ok5} antiword={_ok6} | {_t2[:80]!r} | {_t3[:60]!r}")
+    except Exception as _e417:  # noqa: BLE001
+        check("formato[417]: kontrollet u ekzekutuan", False, f"{type(_e417).__name__}: {_e417}")
+
+    # [418] v9.633 — LA REVISIONE DEL DOCUMENTO: «rishiko këtë dokument nëse është ok» non accende più la sala di guerra (termini,
+    # leve, precedenti estranei: 54.000 caratteri senza aver letto il documento). Riconoscimento, controlli meccanici, norme della
+    # revisione, il documento intero nel blocco, il formato della revisione e il documento al diavolo e al Giudice.
+    try:
+        import inspect as _insp418
+        from src import brain as _br418
+        from src import documents as _dc418
+        _br418.set_request_jurisdiction("AL")          # le etichette del blocco documenti seguono la sessione
+        _docs = [{"filename": "Autorizim.doc", "extracted_text": "x", "created_at": "2026-10-12T11:59:56Z"}]
+        _f = _br418._eshte_rishikim_dokumenti
+        _okA = (_f("rishiko pak kete dokument nese esht ok per te autorizuar drejtimin e mjetit prone e shoqeris shpk, nga "
+                   "administratori i saj. per perdorim jasht shtetit.", _docs)
+                and _f("controlla questa procura: è corretta?", _docs) and _f("kontrollo kontratën e qirasë, a ka gabime?", _docs)
+                and not _f("rishiko pak kete dokument", [])
+                and not _f("kontrollo padinë që na erdhi nga pala tjetër dhe më thuaj si mbrohemi", _docs)
+                and not _f("shiko këtë vendim dhe më thuaj brenda sa ditësh bëjmë apel", _docs)
+                and not _f("kontrollo dokumentet e dosjes dhe më thuaj çfarë strategjie ndjekim", _docs)
+                and _f("rishiko këtë prokurë" + "\n\n[FAKT QË MUNGON sipas triazhit: «" + "x" * 400 + "» — MOS e ndal përgjigjen]", _docs))
+        _TX = ("AUTORIZIM PER PERDORIM AUTOMJETI\nShoqeria “PROVA” Sh.p.k, me nr. NUIS M00000000X, perfaqesuar nga administratori "
+               "Z. Arben Prova, atësia Ejup, me Leternjoftim ID nr. ---------- dhe nr. personal ------------------, ka ne pronesi "
+               "autoveturen tip tip PORSCHE, me targa AB000ZZ.\nAUTORIZOJ: Z. Arben Prova, atësia Ejup, dhe/ose Z. Halim Prova, "
+               "qe secili te perdore kete autoveture brenda dhe jashte territorit te Republikes se Shqiperise. Perdorimi ka "
+               "filluar nga sot dhe do te vazhdoj per periudhe te pacaktuar.\nTirane, me 05.06.2025\nV E R T E T I M\nNe, Tirane "
+               "me daten ___.06.2025 para meje noteres, u paraqit personalisht Shoqeria ... nenshkroi rregullisht para meje.\n"
+               "AUTHORIZATION FOR VEHICLE USE\nPROVA Sh.p.k., represented of Mr. Arben Prova, son of Ejup, born on 04.12.1962, "
+               "resident in Tirana, have on his ownership the vehicle PORSCHE, with plate AB000ZZ. Hereby Authorize: Mr. Arben "
+               "Prova, and/ or Mr. Halim Prova, that which one of them to use and drive the above mentioned vehicle inside and "
+               "outside the territory of the Republic of Albania. The use of the vehicle started on today. ")
+        _kk = _br418._kontrolle_dokumenti(_TX, "sq")
+        _kt = " || ".join(_kk)
+        _okB = ("vende bosh" in _kt and "tip tip" in _kt and "Arben Prova" in _kt and "05.06.2025" in _kt
+                and "dy versione gjuhësore" in _kt and "drejtshkrim" in _kt)
+        _an = {(c, n) for c, n, _p in _br418._ancore_rishikimi(_TX, "sq")}
+        _okC = {("kodi_civil", "72"), ("kodi_civil", "67"), ("ligji_shoqerite_tregtare", "13"),
+                ("ligji_sigurimi_mjeteve", "16"), ("ligji_noteri", "128")} <= _an
+        _okC2 = all(_cv_esiste(idx, c, n) for c, n in _an)
+        _okC3 = not _br418._vetperfaqesim("Shoqëria X Sh.p.k, përfaqësuar nga administratori Z. Arben Prova. AUTORIZOJ: "
+                                          "Z. Halim Prova, atësia Osman, të përdorë automjetin.")
+        _long = ("Neni 1. " + "fjali e kontratës " * 2000).strip()
+        _blk = _dc418.format_documents_for_prompt(
+            [{"filename": "kontrata.docx", "extracted_text": _long + " FUNDI-I-DOKUMENTIT", "_rishikim": True, "_budget": 80000},
+             {"filename": "autorizim.doc", "status": "error", "error": "zip"}], char_budget=12000)
+        _okD = ("FUNDI-I-DOKUMENTIT" in _blk and "DOKUMENTI PËR RISHIKIM" in _blk and "NUK U LEXUA" in _blk)
+        _src418 = _insp418.getsource(_br418)
+        _okE = (_src418.count("_hint_rishikimi(_dok_r, _lang_r) if _rishikim else") == 2
+                and _src418.count('formati=(_RISHIKIM_FORMATI[_lang_r] if _rishikim else "")') == 2
+                and _src418.count("_blocco_rishikim(_dok_r, _lang_r)") >= 4
+                and "{formati or _ISTRUZIONE_FORMATI}" in _src418
+                and _src418.count("retrieved = self._ankoro_rishikimin(retrieved, _ancore_rishikimi(") == 2
+                and _src418.count('"" if _rishikim else self._research_loop(') == 2
+                and _src418.count('"" if _rishikim else _wr') == 2)
+        _okF = ("Teksti i korrigjuar" in _br418._RISHIKIM_FORMATI["sq"] and "Testo corretto" in _br418._RISHIKIM_FORMATI["it"]
+                and "pa afate procedurale" in _br418._RISHIKIM_FORMATI["sq"]
+                and "NUK U LEXUA" in _br418._hint_rishikimi({"filename": "a.doc"}, "sq"))
+        # le norme della revisione entrano DAVVERO nel recupero, marcate (sul cervello finto con l'indice vero)
+        class _B418:
+            index, index_it = idx, None
+            def _current_jurisdiction(self):
+                return "AL"
+        _r418 = _br418.SuperAvvocato._ankoro_rishikimin(_B418(), [], _br418._ancore_rishikimi(_TX, "sq"))
+        _okG = len(_r418) >= 4 and all(getattr(a, "_ancora_rishikim", "") for a, _ in _r418)
+        _pr418 = _br418._format_articles_for_prompt(_r418[:2])
+        _okH = "NORMË PËR RISHIKIMIN E DOKUMENTIT" in _pr418
+        check("rishikim[418]: «rishiko këtë dokument» → revisione (non la sala di guerra): riconoscimento e falsi amici, controlli "
+              "meccanici (vuoti, «tip tip», rappresentante = autorizzato, data vecchia, due lingue, ë), norme della revisione nel "
+              "recupero e dichiarate, documento intero nel blocco, «non letto» detto, formato e documento a diavolo e Giudice",
+              _okA and _okB and _okC and _okC2 and _okC3 and _okD and _okE and _okF and _okG and _okH,
+              f"rilev={_okA} kontr={_okB} ancore={_okC}/{_okC2} falso={_okC3} blocco={_okD} cablaggio={_okE} formato={_okF} "
+              f"recupero={_okG} prompt={_okH} | {_kt[:300]} | {sorted(_an)}")
+    except Exception as _e418:  # noqa: BLE001
+        check("rishikim[418]: kontrollet u ekzekutuan", False, f"{type(_e418).__name__}: {_e418}")
+
+    # [419] v9.633 — GLI ALLEGATI DAPPERTUTTO (titolare, 12 ott: «se hai una procura e devi solo revisionarla, la alleghi e Super
+    # Avokati la migliora»): il documento da rivedere nei redattori (atto, procura, dichiarazione, redattore dell'avvocato, atto
+    # d'indagine) va a parte dai dati, il redattore lo RIVEDE (non riscrive da zero) con le norme della revisione; gli allegati anche
+    # nei pannelli che non li avevano; un solo elenco di formati (anche .doc, .heic, .odt).
+    try:
+        from src import notary as _nt419
+        _a419 = open("/app/static/app.js", encoding="utf-8").read()
+        _w419 = open("/app/src/web.py", encoding="utf-8").read()
+        _h419 = open("/app/templates/index.html", encoding="utf-8").read()
+        _okA = (_a419.count("_revRowHtml() +") >= 5 and _a419.count('existing_text: rev.text || ""') >= 5
+                and all('_attachRowHtml("' + c + '")' in _a419 for c in ("afati-file", "pdeed-file", "cc-file", "intake-file",
+                                                                           "nd-file", "prok-file", "ndecl-file", "ft-file"))
+                and 'var _ACCEPT_DOCS = ".pdf,.docx,.doc,.odt,.txt,.rtf,.jpg,.jpeg,.png,.webp,.svg,.tif,.tiff,.heic,.heif"' in _a419
+                and 't("\\ud83d\\udcce Bashkëngjit PDF/foto")' not in _a419 and 'TT("\\ud83d\\udcce Bashkëngjit PDF/foto")' not in _a419)
+        _okB = ("existing=existing" in _w419 and 'existing=(body.get("existing_text") or "").strip()[:40000]' in _w419
+                and "notary_mod._blocco_esistente(existing, _it_p)" in _w419
+                and 'accept=".pdf,.docx,.doc,.odt' in _h419)
+
+        class _FB419:
+            def __init__(self): self.ultimo = ""
+            def complete(self, system=None, messages=None, **kw):
+                self.ultimo = (messages or [{}])[-1].get("content", ""); return "ok"
+        _fb = _FB419()
+        _EX = ("PROKURË E POSAÇME. Shoqëria PROVA Sh.p.k, NIPT M00000000X, përfaqësuar nga administratori Z. Arben Prova, "
+               "AUTORIZOJ: Z. Arben Prova të drejtojë automjetin jashtë territorit të Republikës së Shqipërisë.")
+        _res = _nt419.draft_prokura(_fb, idx, form="e_posacme", scope_keys=[], details="", existing=_EX)
+        _arts = {(a["code"], a["number"]) for a in _res.get("articles", [])}
+        _okC = ("DOKUMENTI EKZISTUES PËR RISHIKIM" in _fb.ultimo and _EX[:60] in _fb.ultimo and "MOS e harto nga e para" in _fb.ultimo
+                and "tagrat janë ato të dokumentit ekzistues" in _fb.ultimo and ("kodi_civil", "67") in _arts
+                and ("ligji_shoqerite_tregtare", "13") in _arts)
+        _nt419.draft_prokura(_fb, idx, form="e_posacme", scope_keys=["bankar"], details="Z. A, ID 1, përfaqësuesi Z. B")
+        _okD = "DOKUMENTI EKZISTUES" not in _fb.ultimo
+        check("allegati[419]: il documento da rivedere nei 5 redattori (a parte dai dati, rivisto e non riscritto, con le norme della "
+              "revisione), allegati nei pannelli che non li avevano, un solo elenco di formati (.doc, .heic, .odt) anche nel "
+              "controllo del contratto", _okA and _okB and _okC and _okD,
+              f"client={_okA} server={_okB} revisione={_okC} senza={_okD} | {sorted(_arts)[:12]}")
+    except Exception as _e419:  # noqa: BLE001
+        check("allegati[419]: kontrollet u ekzekutuan", False, f"{type(_e419).__name__}: {_e419}")
+
+    # [420] v9.633 — KRr 178/1/c è l'autorizzazione del CANDIDATO alla patente (artt. 119-120 KRr), non quella del proprietario: il 12 ott
+    # il senior ci ha costruito sopra multa e fermo del veicolo. Una nota NOSTRA, dichiarata come tale, sotto l'articolo.
+    try:
+        from src import brain as _br420
+        _k178 = next(a for a in idx.articles if a.code == "kodi_rrugor" and str(a.number) == "178")
+        _k177 = next(a for a in idx.articles if a.code == "kodi_rrugor" and str(a.number) == "177")
+        _p = _br420._format_articles_for_prompt([(_k178, 1.0)])
+        _q = _br420._format_articles_for_prompt([(_k177, 1.0)])
+        check("nota[420]: sotto il KRr 178 la nota di Super Avokati (lettera «c» = il kursant dell'autoscuola, artt. 119-120), "
+              "dichiarata come non-testo di legge; non sugli altri articoli",
+              "Shënim i Super Avokatit (nuk është tekst ligji)" in _p and "kursantit" in _p and "Shënim i Super Avokatit" not in _q
+              and "119" in _p and "120" in _p)
+    except Exception as _e420:  # noqa: BLE001
+        check("nota[420]: kontrollet u ekzekutuan", False, f"{type(_e420).__name__}: {_e420}")
+
+    # [421] v9.633 — un documento finito in errore si RILEGGE senza ricaricarlo (il 12 ott ogni .doc era in errore): la rotta vincolata
+    # al fascicolo visibile, solo i documenti in errore, il pulsante «🔄 Rilexo/Rileggi» accanto all'errore
+    try:
+        import inspect as _insp421
+        from src import web as _w421, storage as _s421
+        _f421 = _insp421.getsource(_w421.api_rileggi_documento)
+        _a421 = open("/app/static/app.js", encoding="utf-8").read()
+        check("rileggi[421]: un documento in errore si rilegge senza ricaricarlo (fascicolo visibile, solo gli errori, pulsante bilingue)",
+              "_resolve_case(case_id)" in _f421 and 'doc.status != "error"' in _f421 and "storage.mark_document_pending(doc_id)" in _f421
+              and "avvia_elaborazione_documento(" in _f421 and hasattr(_s421, "mark_document_pending")
+              and "/documents/${d.id}/rileggi" in _a421 and '"\\ud83d\\udd04 Rilexo": "\\ud83d\\udd04 Rileggi"' in _a421)
+    except Exception as _e421:  # noqa: BLE001
+        check("rileggi[421]: kontrollet u ekzekutuan", False, f"{type(_e421).__name__}: {_e421}")
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

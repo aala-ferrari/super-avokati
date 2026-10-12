@@ -159,12 +159,28 @@ def _check_upload_extensions():
 
     TESTO = b"Egregio Sig. Rossi, la licenziamo per giusta causa."
     muti = []
+    # v9.633 — i formati di TESTO devono dare testo VERO, non un errore: la guardia accettava l'errore come «instradato» e per mesi
+    # ogni .doc caricato è finito in errore (antiword cercato in /usr/local/bin) senza che nessuno se ne accorgesse
+    DEVONO_LEGGERE = {".docx", ".doc", ".odt", ".rtf", ".txt"}
     with tempfile.TemporaryDirectory() as td:
         for ext in sorted(ALLOWED_UPLOAD_EXTENSIONS):
             p = pathlib.Path(td) / ("prova" + ext)
             if ext == ".docx":
                 from docx import Document
                 doc = Document(); doc.add_paragraph(TESTO.decode()); doc.save(str(p))
+            elif ext == ".doc":
+                import shutil as _sh
+                _sh.copyfile(pathlib.Path(__file__).resolve().parent / "fixtures" / "prova_word97.doc", p)
+            elif ext == ".odt":
+                import zipfile as _zf
+                with _zf.ZipFile(p, "w") as z:
+                    z.writestr("mimetype", "application/vnd.oasis.opendocument.text")
+                    z.writestr("content.xml", '<?xml version="1.0"?><office:document-content '
+                               'xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" '
+                               'xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"><office:body><office:text>'
+                               '<text:p>' + TESTO.decode() + '</text:p></office:text></office:body></office:document-content>')
+            elif ext == ".rtf":
+                p.write_bytes(b"{\\rtf1\\ansi{\\fonttbl\\f0 Arial;}\\f0 " + TESTO + b"\\par}")
             elif ext == ".svg":
                 p.write_bytes(b'<svg xmlns="http://www.w3.org/2000/svg">'
                               b"<text>licenziamento</text></svg>")
@@ -188,6 +204,8 @@ def _check_upload_extensions():
                 txt, _ = _docs.extract_text(p, ext, "application/octet-stream",
                                             backend=None)
             except Exception:
+                if ext in DEVONO_LEGGERE:
+                    muti.append(ext)  # un formato di testo che va in errore: il documento dell'avvocato non si legge
                 continue          # errore esplicito: instradata, va bene
             if not (txt or "").strip():
                 muti.append(ext)  # nessun testo E nessun errore: sparita

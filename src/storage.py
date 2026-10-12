@@ -2659,6 +2659,12 @@ def update_document_analysis(
         )
 
 
+def mark_document_pending(doc_id: str) -> None:
+    """v9.633 — un documento in errore torna «in lettura» per essere riletto (senza ricaricarlo)."""
+    with db() as conn:
+        conn.execute("UPDATE documents SET status='pending', error=NULL WHERE id = ?", (doc_id,))
+
+
 def mark_document_error(doc_id: str, error: str) -> None:
     with db() as conn:
         conn.execute(

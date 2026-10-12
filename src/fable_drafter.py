@@ -49,7 +49,19 @@ _SYSTEM = (
 )
 
 
-def draft(backend, *, kind: str, brief: str, clauses_text: str = "", max_tokens: int = 4200) -> dict:
+def _blocco_esistente(existing: str) -> str:
+    """v9.633 — il documento ESISTENTE da rivedere e migliorare (stessa consegna del notaio), nella lingua della sessione."""
+    if len((existing or "").strip()) < 30:
+        return ""
+    try:
+        from .notary import _blocco_esistente as _be
+        from .brain import request_jurisdiction
+        return _be(existing, str(request_jurisdiction() or "AL").upper() == "IT")
+    except Exception:  # noqa: BLE001
+        return ""
+
+
+def draft(backend, *, kind: str, brief: str, clauses_text: str = "", max_tokens: int = 4200, existing: str = "") -> dict:
     """Return {"markdown": str} — a drafted document via Fable."""
     label = KINDS.get(kind, KINDS["contract"])
     prompt = (
@@ -58,11 +70,12 @@ def draft(backend, *, kind: str, brief: str, clauses_text: str = "", max_tokens:
         + (("\n\nKLAUZOLAT E PREFERUARA TE STUDIOS (perdori kur pershtaten, ruaj stilin e studios):\n" + clauses_text) if clauses_text else "")
         + "\n\nHarto dokumentin e plot\u00eb, t\u00eb strukturuar dhe gati p\u00ebr p\u00ebrdorim. "
         + "N\u00ebse citon nene, sigurohu q\u00eb jan\u00eb realë."
+        + _blocco_esistente(existing)
     )
     md = backend.complete(
         system=_juris(_SYSTEM),
         messages=[{"role": "user", "content": prompt}],
-        max_tokens=max_tokens,
+        max_tokens=max_tokens + (2500 if (existing or "").strip() else 0),
         model_override=FABLE_MODEL,
         callsite="fable_draft",
     )

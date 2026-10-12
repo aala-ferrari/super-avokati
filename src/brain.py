@@ -4491,11 +4491,26 @@ def _docs_per_compose(documents):
         percorso = d.get("storage_path")
         if ha_testo:
             inline.append(d)
-        elif percorso and Path(percorso).exists():
+        elif percorso and Path(percorso).exists() and _leggibile_dal_cervello(percorso):
             da_leggere.append(d)
         else:
-            inline.append(d)   # niente testo e niente file: resta il nome
+            # niente testo e niente file, oppure un file che il lettore del cervello non apre (Word, RTF, zip): resta il nome
+            # con l'avviso «non letto» (v9.633: allegare il .docx non letto faceva «rivedere» il documento alla cieca)
+            inline.append(d)
     return inline, da_leggere
+
+
+def _leggibile_dal_cervello(percorso) -> bool:
+    """Il lettore di file del cervello apre PDF, immagini e testo: un Word o un RTF che non siamo riusciti a leggere noi non lo
+    apre nemmeno lui (prova del 12 ott: «mjetet e dekompresimit u bllokuan»)."""
+    try:
+        from .extract.readers import formato_reale
+        reale = formato_reale(percorso)
+    except Exception:  # noqa: BLE001
+        reale = None
+    if reale in ("pdf", "jpg", "png", "webp"):
+        return True
+    return reale is None and Path(percorso).suffix.lower() in (".txt", ".md", ".csv")
 
 
 def _allegati_per_cervello(documents):
@@ -5129,11 +5144,25 @@ class SuperAvvocato:
         if _norme:
             log.info("pyetje norme: fazat mbi fakte, radar, plani dhe precedentët e palidhur anashkalohen")
             _audit_set("pyetje_norme", True)
+        # v9.633 — RISHIKIM DOKUMENTI: solo la revisione del documento allegato (niente fasi sui fatti, il documento intero)
+        _rishikim = (not _norme) and _eshte_rishikim_dokumenti(user_message, documents)
+        _lang_r = "it" if self._current_jurisdiction() == "IT" else "sq"
+        _dok_r = _dokumenti_per_rishikim(documents, user_message) if _rishikim else None
+        _docs_c = documents
+        if _rishikim:
+            log.info("rishikim dokumenti «%s»: fazat mbi fakte, radar, plani dhe precedentët e palidhur anashkalohen",
+                     (_dok_r or {}).get("filename"))
+            _audit_set("rishikim_dokumenti", (_dok_r or {}).get("filename") or True)
+            retrieved = self._ankoro_rishikimin(retrieved, _ancore_rishikimi((_dok_r or {}).get("extracted_text") or "", _lang_r))
+            cited_pairs = [(a.code, a.number) for a, _ in retrieved]
+            _docs_c = _shenjo_dokumentin(documents, _dok_r)
         _cituar_pairs = [(a.code, a.number) for a, _ in retrieved if getattr(a, "_cituar", False)] or cited_pairs
         try:
             precedents = self._retrieve_precedents(triage, cited_pairs)
             if _norme:
                 precedents = _precedente_te_lidhur(precedents, _cituar_pairs)
+            elif _rishikim:
+                precedents = _precedente_te_lidhur(precedents, cited_pairs)[:2]
             _audit_precedenti(precedents)
         except Exception as exc:
             log.warning("stream: precedents retrieval failed: %s", exc)
@@ -5142,7 +5171,7 @@ class SuperAvvocato:
 
         yield ("status", self._status("complex_precedents"))
         try:
-            adverse_precedents = [] if _norme else self._retrieve_adverse_precedents(
+            adverse_precedents = [] if (_norme or _rishikim) else self._retrieve_adverse_precedents(
                 triage, cited_pairs)
         except Exception as exc:
             log.warning("stream: adverse retrieval failed: %s", exc)
@@ -5166,9 +5195,9 @@ class SuperAvvocato:
             "nullity_radar":   lambda: self._scan_nullities(user_message, triage, retrieved, documents),
             "contradictions":  lambda: self._detect_contradictions(documents),
         }
-        if _norme:
+        if _norme or _rishikim:
             stage_plan = {"skuadra_gather": stage_plan["skuadra_gather"]}
-        adversary_present = False if _norme else _has_adversary(user_message, triage, documents)
+        adversary_present = False if (_norme or _rishikim) else _has_adversary(user_message, triage, documents)
         if adversary_present:
             stage_plan["opponent"] = lambda: self._simulate_opponent(
                 user_message, triage, retrieved, precedents, documents)
@@ -5195,14 +5224,14 @@ class SuperAvvocato:
         yield ("status", self._status("complex_urgency"))
         urgency_radar: UrgencyRadar | None = None
         try:
-            urgency_radar = None if _norme else self._scan_urgency(
+            urgency_radar = None if (_norme or _rishikim) else self._scan_urgency(
                 user_message, triage, timeline, nullity_radar, documents, retrieved=retrieved)
         except Exception as exc:
             log.warning("stream urgency_radar failed: %s", exc)
 
         action_plan: ActionPlan | None = None
         try:
-            action_plan = None if _norme else self._build_action_plan(
+            action_plan = None if (_norme or _rishikim) else self._build_action_plan(
                 triage, urgency_radar, nullity_radar,
                 evidence_map, comparison, premortem,
                 contradictions=contradictions,
@@ -5217,7 +5246,8 @@ class SuperAvvocato:
         new_sid = session_id
         final_text = ""   # v9.316: il testo finale pulito del compose (con i tool, i delta hanno anche i turni intermedi)
         try:
-            _msg_c = user_message + (_NORME_HINT["it" if self._current_jurisdiction() == "IT" else "sq"] if _norme else "")
+            _msg_c = (user_message + (_NORME_HINT["it" if self._current_jurisdiction() == "IT" else "sq"] if _norme else "")
+                      + (_hint_rishikimi(_dok_r, _lang_r) if _rishikim else ""))
             for kind, payload in self._compose_answer_stream(
                 _msg_c, history, triage, retrieved, precedents,
                 strategic=strategic, timeline=timeline, comparison=comparison,
@@ -5226,7 +5256,8 @@ class SuperAvvocato:
                 urgency_radar=urgency_radar, action_plan=action_plan,
                 contradictions=contradictions,
                 opponent_playbook=opponent_playbook, leverage=leverage,
-                session_id=session_id, documents=documents, dosja_txt=dosja_txt_x,
+                session_id=session_id, documents=_docs_c, dosja_txt=dosja_txt_x,
+                formati=(_RISHIKIM_FORMATI[_lang_r] if _rishikim else ""),
             ):
                 if kind == "delta":
                     collected.append(str(payload))
@@ -5261,10 +5292,18 @@ class SuperAvvocato:
             )
             testo = ""
             try:
-                testo = self._compose_answer(
-                    _msg_c, history, triage, retrieved, precedents,
-                    session_id=session_id, documents=None, no_web=True, **_fasi,
-                )
+                if _rishikim:
+                    # v9.633 — la revisione si ricompone col SOLO documento da rivedere (testo inline, nessun allegato)
+                    testo = self._compose_answer(
+                        _msg_c, history, triage, retrieved, precedents,
+                        session_id=session_id, documents=[d for d in (_docs_c or []) if d.get("_rishikim")],
+                        no_web=True, formati=_RISHIKIM_FORMATI[_lang_r], **_fasi,
+                    )
+                else:
+                    testo = self._compose_answer(
+                        _msg_c, history, triage, retrieved, precedents,
+                        session_id=session_id, documents=None, no_web=True, **_fasi,
+                    )
             except Exception as exc2:  # noqa: BLE001
                 log.error("anche la ricomposizione e' fallita (%s) — "
                           "consegno le fasi", exc2)
@@ -5298,14 +5337,15 @@ class SuperAvvocato:
         if request_senior() == "fable" or _gjyqtari_suprem():
             try:
                 _lang_rl = "it" if self._current_jurisdiction() == "IT" else "sq"
-                _extra_rl = self._research_loop(user_message, answer_text, retrieved, _lang_rl)
+                _extra_rl = "" if _rishikim else self._research_loop(user_message, answer_text, retrieved, _lang_rl)   # v9.633
                 if _extra_rl:
                     answer_text = answer_text + _extra_rl
             except Exception as _exc_rl:  # noqa: BLE001
                 log.warning("war_room research loop wiring dështoi (non-fatal): %s", _exc_rl)
         retrieved = self._mbyll_dosjen_me_citime(answer_text, retrieved, "seniori")     # v9.361
         yield ("status", self._status("complex_devil"))                                 # v9.507
-        answer_text = self._studio_djalli(user_message, retrieved, precedents, answer_text, dosja_txt=dosja_txt_x)
+        answer_text = self._studio_djalli(user_message, retrieved, precedents, answer_text,
+                                          dosja_txt=dosja_txt_x + (_blocco_rishikim(_dok_r, _lang_r) if _rishikim else ""))
         retrieved = self._mbyll_dosjen_me_citime(answer_text, retrieved, "djalli")      # v9.361
         # Source Verifier: il RAPPORTO di verifica per qualità sul dossier canonico —
         # verificate vs da-verificare. v9.358: su ogni percorso profondo. Fail-silent.
@@ -5313,7 +5353,7 @@ class SuperAvvocato:
             try:
                 from . import war_room as _wr
                 _lang_wr = "it" if self._current_jurisdiction() == "IT" else "sq"
-                _rap = _wr.raport_verifikimi(retrieved, burimet_x, precedents, _lang_wr)
+                _rap = "" if _rishikim else _wr.raport_verifikimi(retrieved, burimet_x, precedents, _lang_wr)   # v9.633
                 if _rap:
                     answer_text = answer_text + _rap
                     log.info("war_room: raport verifikimi u shtua (max-mode, %d shkronja)", len(_rap))
@@ -5336,7 +5376,8 @@ class SuperAvvocato:
             _fazat_x = ""
         yield ("status", self._status("complex_judge"))                                 # v9.507
         answer_text = self._gjyqtari_fundit(
-            user_message, retrieved, precedents, answer_text, dosja_txt=dosja_txt_x,
+            user_message, retrieved, precedents, answer_text,
+            dosja_txt=dosja_txt_x + (_blocco_rishikim(_dok_r, _lang_r) if _rishikim else ""),
             fazat_txt=_fazat_x)
 
         final_sid = getattr(self.backend, "last_session_id", None) or new_sid
@@ -5513,11 +5554,25 @@ class SuperAvvocato:
         if _norme:
             log.info("pyetje norme: fazat mbi fakte, radar, plani dhe precedentët e palidhur anashkalohen")
             _audit_set("pyetje_norme", True)
+        # v9.633 — RISHIKIM DOKUMENTI: solo la revisione del documento allegato (niente fasi sui fatti, il documento intero)
+        _rishikim = (not _norme) and _eshte_rishikim_dokumenti(user_message, documents)
+        _lang_r = "it" if self._current_jurisdiction() == "IT" else "sq"
+        _dok_r = _dokumenti_per_rishikim(documents, user_message) if _rishikim else None
+        _docs_c = documents
+        if _rishikim:
+            log.info("rishikim dokumenti «%s»: fazat mbi fakte, radar, plani dhe precedentët e palidhur anashkalohen",
+                     (_dok_r or {}).get("filename"))
+            _audit_set("rishikim_dokumenti", (_dok_r or {}).get("filename") or True)
+            retrieved = self._ankoro_rishikimin(retrieved, _ancore_rishikimi((_dok_r or {}).get("extracted_text") or "", _lang_r))
+            cited_pairs = [(a.code, a.number) for a, _ in retrieved]
+            _docs_c = _shenjo_dokumentin(documents, _dok_r)
         _cituar_pairs = [(a.code, a.number) for a, _ in retrieved if getattr(a, "_cituar", False)] or cited_pairs
 
         precedents = self._retrieve_precedents(triage, cited_pairs)
         if _norme:
             precedents = _precedente_te_lidhur(precedents, _cituar_pairs)
+        elif _rishikim:
+            precedents = _precedente_te_lidhur(precedents, cited_pairs)[:2]
         _audit_precedenti(precedents)
         log.info("retrieved %d precedents", len(precedents))
 
@@ -5526,7 +5581,7 @@ class SuperAvvocato:
         # miss them when the top BM25 hits happen to all be wins. A
         # great lawyer studies the cases that went AGAINST them harder
         # than the ones that favour them — and so does this brain.
-        adverse_precedents = [] if _norme else self._retrieve_adverse_precedents(triage, cited_pairs)
+        adverse_precedents = [] if (_norme or _rishikim) else self._retrieve_adverse_precedents(triage, cited_pairs)
         # Merge the adverse hits that weren't already in the mixed list
         # so the UI/prompt see the full picture.
         seen_ids = {c.id for c, _ in precedents}
@@ -5561,9 +5616,9 @@ class SuperAvvocato:
         # case actually has one. Informative "how does X work?" questions
         # that still crossed the complexity gate (long but non-adversarial)
         # burn ~60-120s here producing empty JSON that gets dropped.
-        if _norme:
+        if _norme or _rishikim:
             stage_plan = {"skuadra_gather": stage_plan["skuadra_gather"]}
-        adversary_present = False if _norme else _has_adversary(user_message, triage, documents)
+        adversary_present = False if (_norme or _rishikim) else _has_adversary(user_message, triage, documents)
         if adversary_present:
             stage_plan["opponent"] = lambda: self._simulate_opponent(
                 user_message, triage, retrieved, precedents, documents)
@@ -5630,7 +5685,7 @@ class SuperAvvocato:
         # compose prompt so critical cases get an action-first framing.
         urgency_radar: UrgencyRadar | None = None
         try:
-            urgency_radar = None if _norme else self._scan_urgency(
+            urgency_radar = None if (_norme or _rishikim) else self._scan_urgency(
                 user_message, triage, timeline, nullity_radar, documents, retrieved=retrieved
             )
             if urgency_radar and not urgency_radar.is_empty():
@@ -5651,7 +5706,7 @@ class SuperAvvocato:
         # raises them instead of letting them sit in a panel.
         action_plan: ActionPlan | None = None
         try:
-            action_plan = None if _norme else self._build_action_plan(
+            action_plan = None if (_norme or _rishikim) else self._build_action_plan(
                 triage, urgency_radar, nullity_radar,
                 evidence_map, comparison, premortem,
                 contradictions=contradictions,
@@ -5661,7 +5716,8 @@ class SuperAvvocato:
         except Exception as exc:
             log.warning("action_plan failed (non-fatal): %s", exc)
 
-        _msg_c = user_message + (_NORME_HINT["it" if self._current_jurisdiction() == "IT" else "sq"] if _norme else "")
+        _msg_c = (user_message + (_NORME_HINT["it" if self._current_jurisdiction() == "IT" else "sq"] if _norme else "")
+                      + (_hint_rishikimi(_dok_r, _lang_r) if _rishikim else ""))
         answer_text = self._compose_answer(
             _msg_c, history, triage, retrieved, precedents, strategic, timeline, comparison,
             premortem=premortem, distinguishing=distinguishing,
@@ -5669,7 +5725,8 @@ class SuperAvvocato:
             urgency_radar=urgency_radar, action_plan=action_plan,
             contradictions=contradictions,
             opponent_playbook=opponent_playbook, leverage=leverage,
-            session_id=session_id, documents=documents,
+            session_id=session_id, documents=_docs_c,
+            formati=(_RISHIKIM_FORMATI[_lang_r] if _rishikim else ""),
         )
         # Citation verifier (V7.2): strip any [[case:ID]] marker in the
         # final text whose ID is NOT in the retrieved precedent list — the
@@ -5695,17 +5752,18 @@ class SuperAvvocato:
         if _gjyqtari_suprem():          # v9.358: anche il percorso non-stream ha loop + raport
             try:
                 _lang_n = "it" if self._current_jurisdiction() == "IT" else "sq"
-                _extra_n = self._research_loop(user_message, answer_text, retrieved, _lang_n)
+                _extra_n = "" if _rishikim else self._research_loop(user_message, answer_text, retrieved, _lang_n)   # v9.633
                 if _extra_n:
                     answer_text = answer_text + _extra_n
                 from . import war_room as _wr_n
-                _rap_n = _wr_n.raport_verifikimi(retrieved, [], precedents, _lang_n)
+                _rap_n = "" if _rishikim else _wr_n.raport_verifikimi(retrieved, [], precedents, _lang_n)   # v9.633
                 if _rap_n:
                     answer_text = answer_text + _rap_n
             except Exception as _exc_n:  # noqa: BLE001
                 log.warning("gjyqtari suprem (non-stream) loop/raport dështoi (non-fatal): %s", _exc_n)
         retrieved = self._mbyll_dosjen_me_citime(answer_text, retrieved, "seniori")     # v9.361
-        answer_text = self._studio_djalli(user_message, retrieved, precedents, answer_text)
+        answer_text = self._studio_djalli(user_message, retrieved, precedents, answer_text,
+                                          **({"dosja_txt": _blocco_rishikim(_dok_r, _lang_r)} if _rishikim else {}))
         retrieved = self._mbyll_dosjen_me_citime(answer_text, retrieved, "djalli")      # v9.361
         # ⚖️ Il Giudice Finale (Fable 5.1 max): verdetto finale sul percorso non-stream.
         _fazat_n = ""
@@ -5719,7 +5777,8 @@ class SuperAvvocato:
         except Exception:  # noqa: BLE001
             _fazat_n = ""
         answer_text = self._gjyqtari_fundit(user_message, retrieved, precedents, answer_text,
-                                            fazat_txt=_fazat_n)
+                                            fazat_txt=_fazat_n,
+                                            **({"dosja_txt": _blocco_rishikim(_dok_r, _lang_r)} if _rishikim else {}))
         # ClaudeCodeBackend exposes the (possibly new) session_id after each
         # stateful call; other backends leave it as None.
         new_session_id = getattr(self.backend, "last_session_id", None) or session_id
@@ -6686,6 +6745,44 @@ class SuperAvvocato:
             return out
         except Exception as exc:  # noqa: BLE001
             log.warning("aggiungi_previgenti: saltato (non-fatal): %s", exc)
+            return retrieved
+
+    def _ankoro_rishikimin(self, retrieved, ancore):
+        """v9.633 — le norme della REVISIONE dal contenuto del documento (forma della procura della persona giuridica, il
+        rappresentante che agisce con sé stesso, l'assicurazione obbligatoria fuori dal territorio, l'autentica della firma):
+        copie marcate e dichiarate, dopo i nene chiesti per numero e prima del resto; mai un articolo abrogato. Max 5.
+        Fail-silent: senza indice o senza ancore il recupero resta com'è."""
+        if not ancore:
+            return retrieved
+        try:
+            jur = self._current_jurisdiction()
+            idx = self.index_it if (self.index_it is not None and jur == "IT") else self.index
+            if idx is None:
+                return retrieved
+            by_key = {(a.code, str(a.number)): a for a in idx.articles}
+            out = list(retrieved or [])
+            top = max([float(sc) for _, sc in out] or [1.0]) + 0.005
+            testa = []
+            for code, num, perche in ancore[:5]:
+                k = (code, str(num))
+                a = by_key.get(k)
+                if a is None or getattr(a, "repealed", False) or any((x.code, str(x.number)) == k for x, _ in testa):
+                    continue
+                out = [(x, sc) for x, sc in out if (x.code, str(x.number)) != k]
+                c = _copy.copy(a)
+                c._ancora_rishikim = perche
+                testa.append((c, top))
+            if not testa:
+                return retrieved
+            n_cit = 0
+            while n_cit < len(out) and getattr(out[n_cit][0], "_cituar", False):
+                n_cit += 1
+            out = out[:n_cit] + testa + out[n_cit:]
+            log.info("rishikim: norme della revisione %s", [f"{x.code} {x.number}" for x, _ in testa])
+            _audit_set("ancore_rishikimi", [f"{x.code} {x.number}" for x, _ in testa])
+            return out
+        except Exception as exc:  # noqa: BLE001
+            log.warning("ankoro_rishikimin dështoi (non-fatal): %s", exc)
             return retrieved
 
     def _ankoro_citimet(self, user_message: str, retrieved, areas=None):
@@ -8524,6 +8621,7 @@ class SuperAvvocato:
         session_id: str | None,
         documents: list[dict] | None,
         dosja_txt: str = "",
+        formati: str = "",
     ) -> tuple[list[dict[str, str]], list[Path]]:
         """Build the (messages, attachment_paths) pair for compose.
 
@@ -8597,7 +8695,7 @@ class SuperAvvocato:
             Nenet e gjetura nga kodet shqiptare (me rëndësinë zbritëse):
             {context}
             {precedents_block}{comparison_block}{distinguishing_block}{evidence_map_block}{contradictions_block}{nullity_block}{premortem_block}{opponent_block}{leverage_block}{strategic_block}{timeline_block}{action_plan_block}
-            {dossier_guidance}{_ISTRUZIONE_FORMATI}
+            {dossier_guidance}{formati or _ISTRUZIONE_FORMATI}
         """)
 
         # v9.322 — la storia entra sempre, potata (--resume e' disabilitato)
@@ -8627,13 +8725,14 @@ class SuperAvvocato:
         documents: list[dict] | None = None,
         dosja_txt: str = "",
         no_web: bool = False,
+        formati: str = "",
     ) -> str:
         messages, attachment_paths = self._build_compose_messages(
             user_message, history, triage, retrieved, precedents,
             strategic, timeline, comparison, premortem, distinguishing,
             evidence_map, nullity_radar, urgency_radar, action_plan,
             contradictions, opponent_playbook, leverage,
-            session_id, documents, dosja_txt=dosja_txt,
+            session_id, documents, dosja_txt=dosja_txt, formati=formati,
         )
         return self.backend.complete(
             system=self._answer_system(),
@@ -8669,6 +8768,7 @@ class SuperAvvocato:
         session_id: str | None = None,
         documents: list[dict] | None = None,
         dosja_txt: str = "",
+        formati: str = "",
     ) -> Iterator[tuple[str, object]]:
         """V7.9 — streaming variant of ``_compose_answer``.
 
@@ -8682,7 +8782,7 @@ class SuperAvvocato:
             strategic, timeline, comparison, premortem, distinguishing,
             evidence_map, nullity_radar, urgency_radar, action_plan,
             contradictions, opponent_playbook, leverage,
-            session_id, documents, dosja_txt=dosja_txt,
+            session_id, documents, dosja_txt=dosja_txt, formati=formati,
         )
         backend = self.backend
         can_stream = (
@@ -9109,6 +9209,302 @@ _NORME_HINT = {
            "blocco (con limiti di pena/termini e la nota delle modifiche), poi gli articoli vicini e le differenze in una breve "
            "tabella; NESSUNA strategia, termine, piano d'azione o precedente su fatti che non ti sono stati dati — non inventare "
            "un cliente, un imputato o un fascicolo; chiudi con una riga: quali fatti servirebbero per un consiglio concreto.]"),
+}
+
+
+# v9.633 — RISHIKIM DOKUMENTI («rishiko këtë dokument nëse është ok», «controlla questa procura»): l'avvocato chiede SOLO la
+# revisione del documento allegato. Caso vero del 12 ott (autorizzazione all'uso all'estero dell'auto della shpk, firmata
+# dall'amministratore per sé stesso): la sala di guerra completa ha scritto 54.000 caratteri — termini processuali, leve, precedenti
+# su fallimento e ASHK, l'art. 178/1/c del Codice della strada letto come «autorizzazione del proprietario» (è quella del
+# candidato alla patente) — senza aver letto il documento. Ora: la revisione (verdetto, errori legali col nene, dati mancanti,
+# errori di lingua e traduzione, testo corretto), niente fasi sui fatti, il documento intero al senior, al diavolo e al Giudice,
+# controlli meccanici sul testo e le norme che una revisione del genere deve avere davanti.
+_RISHIKIM_FORTE_RX = re.compile(
+    r"\b(rishiko\w*|rishikim\w*|kontrollo\w*|korrigjo\w*|verifiko\w*|p[eë]rmir[eë]so\w*|"
+    r"rivedi\w*|riveder\w*|revision\w*|controll\w*|verific\w*|corregg\w*|miglior\w*)\b", re.I)
+_RISHIKIM_DOBET_RX = re.compile(r"\b(shiko\w*|lexo\w*|guarda\w*|leggi\w*)\b", re.I)
+_RISHIKIM_OK_RX = re.compile(
+    r"(\bok\b|n[eë] rregull|e sakt[eë]|i sakt[eë]|e vlefsh[eë]m|i vlefsh[eë]m|gabim\w*|mungon|mang[eë]si|"
+    r"va bene|[eè] corrett|[eè] giust|[eè] valid|in regola|error\w*|mancan\w*|manca\b)", re.I)
+_RISHIKIM_OBJ_RX = re.compile(
+    r"\b(dokument\w*|kontrat\w*|prokur\w*|autorizim\w*|akt\w*|shkres\w*|marr[eë]veshj\w*|deklarat\w*|k[eë]rkes\w*|"
+    r"padi\w*|ankim\w*|testament\w*|statut\w*|draft\w*|projekt\w*|let[eë]r\w*|vendim\w* (?:t[eë] )?asamble\w*|"
+    r"document\w*|contratt\w*|procur\w*|autorizzazion\w*|delega|atto|lettera|ricorso|diffida|dichiarazion\w*|"
+    r"bozza|accordo|verbale|scrittur\w*)\b", re.I)
+_RISHIKIM_KETE_RX = re.compile(r"\b(k[eë]t[eë]|k[eë]to|ky|kjo|bashk[eë]ngjitur|bashkangjitur|questo|questa|questi|"
+                               r"allegat\w*)\b", re.I)
+# un documento dell'ALTRA parte (ricevuto, notificato) o una domanda di strategia non è una «revisione»: percorso di sempre
+_RISHIKIM_JO_RX = re.compile(
+    r"(na erdh|na kan[eë] d[eë]rguar|na nj[eë]ftuan|m[oë]rr[eë]m|kemi marr[eë]|pal[ae] tjet[eë]r|kund[eë]rshtar|"
+    r"strategji|si fitojm|si mbrohemi|[cç]far[eë] b[eë]jm[eë]|si veprojm|ci hanno|abbiamo ricevuto|notificat|controparte|"
+    r"ricevut|strategi|come vinciamo|cosa facciamo|come ci difendiamo)", re.I)
+
+
+def _eshte_rishikim_dokumenti(user_message: str, documents) -> bool:
+    """Vero se l'avvocato chiede di RIVEDERE un documento allegato (non di analizzare un caso). Si guarda la domanda dell'avvocato,
+    senza la consegna del «fatto mancante» che il triage le accoda (con quella la domanda supera la soglia di lunghezza)."""
+    s_ = re.split(r"\n\n\[(?:FAKT QË MUNGON|FATTO MANCANTE)", user_message or "")[0].strip()
+    if not documents or not s_ or len(s_) > 700 or _RISHIKIM_JO_RX.search(s_):
+        return False
+    verbo = bool(_RISHIKIM_FORTE_RX.search(s_)) or (bool(_RISHIKIM_DOBET_RX.search(s_)) and bool(_RISHIKIM_OK_RX.search(s_)))
+    oggetto = bool(_RISHIKIM_OBJ_RX.search(s_)) or bool(_RISHIKIM_KETE_RX.search(s_))
+    return verbo and oggetto
+
+
+def _dokumenti_per_rishikim(documents, user_message: str = ""):
+    """Il documento da rivedere: quello nominato nella domanda, altrimenti il più recente del fascicolo."""
+    docs = [d for d in (documents or []) if isinstance(d, dict)]
+    if not docs:
+        return None
+    radici_q = {w[:6] for w in re.findall(r"[a-z]{5,}", _fold_sq((user_message or "").lower()))}
+
+    def punteggio(d):
+        # le radici del nome del file e del tipo riconosciuto («Kontratë qiraje», «Prokurë») in comune con la domanda
+        nome = re.sub(r"\.[a-z0-9]{2,5}$", "", (d.get("filename") or "").lower()) + " " + (d.get("doc_type") or "").lower()
+        return len({w[:6] for w in re.findall(r"[a-z]{5,}", _fold_sq(nome))} & radici_q)
+
+    return max(docs, key=lambda d: (punteggio(d), str(d.get("created_at") or "")))
+
+
+def _fold_sq(t: str) -> str:
+    return (t or "").replace("ë", "e").replace("Ë", "E").replace("ç", "c").replace("Ç", "C")
+
+
+_NOME_RX = r"([A-ZÇËÜ][a-zçëüéè\-]+(?:\s+[A-ZÇËÜ][a-zçëüéè\-]+){1,2})"
+_RAPPR_RX = re.compile(
+    r"(?:p[eë]rfaq[eë]suar|perfaqesuar|represented|rappresentat[ao])\s+(?:nga\s+|by\s+|of\s+|da\s+|dal\s+|dalla\s+|dall['’]\s*)"
+    r"(?:(?:i\s+)?(?:administrator\w*|ortak\w*|drejtor\w*|amministrator\w*(?:\s+unico)?|legale\s+rappresentante|director|"
+    r"the\s+administrator)\s+)?(?:(?:Z|Znj|Zj|Mr|Mrs|Ms|Sig|Sig\.ra|Dott|Avv)\.?\s+)?" + _NOME_RX)
+_BENEFICIARIO_RX = re.compile(
+    r"\b(AUTORIZOJ|AUTORIZON|[Aa]utorizoj|[Aa]utorizon|[Cc]aktoj|[Cc]akton|[Ee]m[eë]roj|[Ee]m[eë]ron|i\s+jep\b|"
+    r"[Hh]ereby\s+[Aa]uthori[sz]e\w*|[Aa]uthori[sz]es|[Aa]ppoints?|AUTORIZZA|[Aa]utorizza|[Dd]elega|[Nn]omina|"
+    r"BLER[EË]SI|[Bb]ler[eë]si|QIRAMARR[EË]SI|[Qq]iramarr[eë]si|HUAMARR[EË]SI|[Hh]uamarr[eë]si|ACQUIRENTE|[Aa]cquirente)\b")
+
+
+def _vetperfaqesim(text: str) -> str:
+    """Il nome del rappresentante della società se nel documento è ANCHE il beneficiario (autorizzato, compratore, conduttore…):
+    il rappresentante che agisce con sé stesso. Stringa vuota se non lo è o non si capisce."""
+    t = text or ""
+    m = _RAPPR_RX.search(t)
+    if not m:
+        return ""
+    nome = m.group(1).strip()
+    chiave = _fold_sq(nome).lower()
+    for b in _BENEFICIARIO_RX.finditer(t):
+        if b.start() < m.start():
+            continue
+        dopo = _fold_sq(t[b.end(): b.end() + 260]).lower()
+        if chiave in dopo:
+            return nome
+    return ""
+
+
+def _kontrolle_dokumenti(text: str, lang: str) -> list[str]:
+    """Controlli MECCANICI sul testo del documento (nessun modello): campi vuoti, parole ripetute, punteggiatura doppia, il
+    rappresentante che autorizza sé stesso, date vecchie, due versioni linguistiche, lettere ë/ç mancanti. Il senior li verifica."""
+    t = text or ""
+    it = lang == "it"
+    out: list[str] = []
+    vuoti: list[str] = []
+    for m in re.finditer(r"(?:_{3,}|-{4,}|={4,}|-={3,}|\.{6,}|…{2,})", t):
+        prima = re.sub(r"\s+", " ", t[max(0, m.start() - 70): m.start()]).strip()
+        prima = prima[-48:].strip(" ,;:")
+        if prima and prima not in vuoti:
+            vuoti.append(prima)
+    if vuoti:
+        lista = "; ".join("«…" + v + " ___»" for v in vuoti[:9])
+        out.append((f"campi vuoti ({len(vuoti)}): " if it else f"vende bosh ({len(vuoti)}): ") + lista
+                   + (" …" if len(vuoti) > 9 else ""))
+    ripetute = []
+    for m in re.finditer(r"\b([^\W\d_]{3,})\s+\1\b", t, re.I):
+        w = m.group(0)
+        if w.lower() not in [x.lower() for x in ripetute]:
+            ripetute.append(w)
+    if ripetute:
+        out.append(("parole ripetute: " if it else "fjalë të përsëritura: ") + ", ".join("«" + w + "»" for w in ripetute[:6]))
+    doppie = len(re.findall(r",\s*,", t))
+    if doppie:
+        out.append(("virgola doppia «,,»: " if it else "presje e dyfishtë «,,»: ") + str(doppie))
+    nome = _vetperfaqesim(t)
+    if nome:
+        out.append((f"il rappresentante della società ({nome}) è anche il beneficiario dell'atto: atto del rappresentante con "
+                    f"sé stesso / conflitto di interessi — verifica l'autorizzazione dei soci" if it else
+                    f"përfaqësuesi i shoqërisë ({nome}) është edhe përfituesi/i autorizuari i aktit: veprim i përfaqësuesit me "
+                    f"veten / konflikt interesi — verifiko lejen e ortakëve"))
+    try:
+        oggi = date.today()
+        trovate = []
+        for g, mm, aa in re.findall(r"\b(\d{1,2})[./](\d{1,2})[./](\d{4})\b", t):
+            try:
+                d = date(int(aa), int(mm), int(g))
+            except ValueError:
+                continue
+            if d not in trovate:
+                trovate.append(d)
+        recenti = [d for d in trovate if d.year >= 1990]
+        if recenti:
+            ultima = max(d for d in recenti if d <= oggi) if any(d <= oggi for d in recenti) else None
+            if ultima and (oggi - ultima).days > 183:
+                mesi = (oggi.year - ultima.year) * 12 + (oggi.month - ultima.month)
+                out.append((f"la data più recente del documento è {ultima:%d.%m.%Y} (circa {mesi} mesi fa): se si usa ora, "
+                            f"va rifirmato con la data nuova" if it else
+                            f"data më e fundit në dokument është {ultima:%d.%m.%Y} (rreth {mesi} muaj më parë): nëse "
+                            f"përdoret tani, duhet nënshkruar sërish me datën e re"))
+    except Exception:  # noqa: BLE001
+        pass
+    en = len(re.findall(r"\b(the|and|of|with|hereby|which|vehicle|authori[sz]\w*|resident|born)\b", t, re.I))
+    sq = len(re.findall(r"\b(dhe|nga|me|p[eë]r|t[eë]|n[eë]|s[eë]|nj[eë]|shtetas\w*|lindur|banues|atësia|atesia)\b", t, re.I))
+    if en >= 12 and sq >= 12:
+        out.append("il documento ha due versioni linguistiche (albanese e inglese): controlla che coincidano (nomi, numeri, "
+                   "termini, poteri)" if it else
+                   "dokumenti ka dy versione gjuhësore (shqip dhe anglisht): kontrollo që të përputhen (emrat, numrat, afati, tagrat)")
+    pa = len(re.findall(r"\b(te|ne|per|se|eshte|nje|kete|pergjegjes\w*|perfaqes\w*|pronesi\w*|perdor\w*)\b", t))
+    me = len(re.findall(r"\b(t[ë]|n[ë]|p[ë]r|s[ë]|[ë]sht[ë]|nj[ë]|k[ë]t[ë]|p[ë]rgjegj[ë]s\w*|p[ë]rfaq[ë]s\w*|pron[ë]si\w*|p[ë]rdor\w*)\b", t))
+    if pa >= 6 and pa > me * 0.4:
+        out.append("ortografia albanese: molte parole senza ë/ç («per» → «për», «te» → «të», «ne» → «në», «perdorim» → «përdorim»)"
+                   if it else
+                   "drejtshkrim: shumë fjalë pa ë/ç («per» → «për», «te» → «të», «ne» → «në», «perdorim» → «përdorim»)")
+    return out
+
+
+def _ancore_rishikimi(text: str, lang: str) -> list[tuple[str, str, str]]:
+    """Le norme che una revisione deve avere davanti, dal CONTENUTO del documento (codice, numero, perché). Si dichiarano."""
+    t = text or ""
+    fol = _fold_sq(t).lower()
+    out: list[tuple[str, str, str]] = []
+    nome = _vetperfaqesim(t)
+    if lang == "it":
+        if re.search(r"procur|deleg|autorizz", fol) and re.search(r"s\.?\s?r\.?\s?l|s\.?\s?p\.?\s?a|societ|partita iva|p\.?\s?iva", fol):
+            out.append(("codice_civile", "1392", "forma della procura"))
+        if nome:
+            out += [("codice_civile", "1395", "contratto con se stesso: il rappresentante che agisce con sé stesso"),
+                    ("codice_civile", "1394", "conflitto d'interessi del rappresentante"),
+                    ("codice_civile", "2475-ter", "conflitto di interessi degli amministratori di s.r.l.")]
+        return out
+    if re.search(r"prokur|autoriz", fol) and re.search(r"sh\.?\s?p\.?\s?k|shpk|sh\.\s?a\b|shoqeri|person\w* juridik|\bnipt\b|\bnuis\b", fol):
+        out.append(("kodi_civil", "72", "forma e prokurës, edhe e personit juridik (nënshkrimi i drejtuesit dhe vula; akt noterial "
+                                        "kur e kërkon ligji)"))
+    if nome:
+        out += [("kodi_civil", "67", "përfaqësuesi që vepron në emër të të përfaqësuarit me veten"),
+                ("ligji_shoqerite_tregtare", "13", "konflikti i interesit: miratimi paraprak i ortakëve")]
+    if re.search(r"automjet|autovetur|\btarg|shasi|\bmjet\w*\b", fol) and re.search(
+            r"jashte (?:shtetit|territorit|vendit|shqiperise)|brenda dhe jashte|outside the territory|\babroad\b", fol):
+        out.append(("ligji_sigurimi_mjeteve", "16", "sigurimi i detyrueshëm: vlefshmëria territoriale (kartoni jeshil)"))
+    if re.search(r"\bvertetim|\bnoter", fol):
+        out.append(("ligji_noteri", "128", "vërtetimi i nënshkrimeve: kur bëhet dhe çfarë shënon noteri"))
+    return out
+
+
+_RISHIKIM_HINT = {
+    "sq": ("\n\n[RISHIKIM DOKUMENTI — avokati kërkon VETËM rishikimin e dokumentit «{emri}» (teksti i plotë është te DOKUMENTET "
+           "E DOSJES, i shënuar «DOKUMENTI PËR RISHIKIM»). Lexoje rresht për rresht, edhe vërtetimin noterial dhe versionin në "
+           "gjuhë tjetër. Kontrollo: kush nënshkruan dhe me çfarë tagri, kush autorizohet ose përfiton, forma e duhur e aktit, të "
+           "dhënat e detyrueshme, datat dhe afati, mospërputhjet ndërmjet pjesëve. Mos sajo fakte që nuk janë në dokument; ajo që "
+           "mungon dhe e di vetëm klienti, kërkoje në fund te «Për saktësi:» (1-3 fakte të thjeshta, jo pyetje ligjore).{kontrolle}]"),
+    "it": ("\n\n[REVISIONE DEL DOCUMENTO — l'avvocato chiede SOLO la revisione del documento «{emri}» (il testo integrale è nei "
+           "DOCUMENTI DEL FASCICOLO, segnato «DOCUMENTO DA RIVEDERE»). Leggilo riga per riga, anche l'autentica notarile e la "
+           "versione in altra lingua. Controlla: chi firma e con quali poteri, chi è autorizzato o beneficia, la forma giusta "
+           "dell'atto, i dati obbligatori, le date e la durata, le incongruenze fra le parti. Non inventare fatti che non sono "
+           "nel documento; ciò che manca e sa solo il cliente chiedilo in fondo con «Per precisione:» (1-3 fatti semplici, non "
+           "domande giuridiche).{kontrolle}]"),
+}
+_RISHIKIM_PALEXUAR = {
+    "sq": ("\n\n[RISHIKIM DOKUMENTI — dokumenti «{emri}» NUK U LEXUA (skedari nuk u hap). Thuaje në një rresht dhe kërko ta "
+           "ringarkojë si PDF ose .docx. MOS e rishiko verbërisht dhe mos e përshkruaj: mund të japësh vetëm, të ndarë qartë dhe "
+           "shkurt, çfarë duhet të përmbajë një dokument i tillë, me nenet e bllokut.]"),
+    "it": ("\n\n[REVISIONE DEL DOCUMENTO — il documento «{emri}» NON È STATO LETTO (il file non si è aperto). Dillo in una riga "
+           "e chiedi di ricaricarlo come PDF o .docx. NON rivederlo alla cieca e non descriverlo: puoi solo dire, separato e breve, "
+           "cosa deve contenere un documento del genere, con gli articoli del blocco.]"),
+}
+_RISHIKIM_FORMATI = {
+    "sq": ("Shkruaj RISHIKIMIN e dokumentit — jo opinionin standard me seksione — në shqip, me këtë rend dhe këta tituj:\n"
+           "**1. Verdikti** — 1-2 rreshta: a është i përdorshëm për qëllimin e pyetjes (po / po, pasi të korrigjohen pikat më "
+           "poshtë / jo) dhe pse.\n"
+           "**2. Gabimet ligjore** — për secilin: çfarë thotë dokumenti (cito fjalët e tij) → pse është gabim, me nenin nga "
+           "blloku → si korrigjohet.\n"
+           "**3. Të dhëna që mungojnë dhe mospërputhje** — vendet bosh, të dhënat e detyrueshme që mungojnë, mospërputhjet "
+           "ndërmjet pjesëve (versioni shqip / në gjuhë tjetër, vërtetimi noterial).\n"
+           "**4. Gabime gjuhësore dhe përkthimi** — listë e shkurtër «gabim → saktë».\n"
+           "**5. Teksti i korrigjuar** — dokumenti i plotë, gati për nënshkrim, në të njëjtat gjuhë si origjinali, me [___] ku "
+           "avokati duhet të plotësojë.\n"
+           "Asgjë tjetër: pa afate procedurale, leva, plan veprimi, precedentë apo ankime që nuk lidhen drejtpërdrejt me "
+           "vlefshmërinë e këtij dokumenti. Cito vetëm nenet e mësipërme; një kërkesë praktike që nuk del nga një nen (p.sh. "
+           "çfarë kërkon policia ose dogana e një shteti tjetër) shkruaje si «për t'u verifikuar», pa numër neni."),
+    "it": ("Scrivi la REVISIONE del documento — non il parere standard a sezioni — in italiano, con questo ordine e questi "
+           "titoli:\n"
+           "**1. Verdetto** — 1-2 righe: è utilizzabile per lo scopo della domanda (sì / sì, dopo le correzioni qui sotto / no) "
+           "e perché.\n"
+           "**2. Errori giuridici** — per ciascuno: cosa dice il documento (cita le sue parole) → perché è sbagliato, con "
+           "l'articolo dal blocco → come si corregge.\n"
+           "**3. Dati mancanti e incongruenze** — campi vuoti, dati obbligatori assenti, incongruenze fra le parti (versioni "
+           "linguistiche, autentica notarile).\n"
+           "**4. Errori di lingua e di traduzione** — breve elenco «errore → corretto».\n"
+           "**5. Testo corretto** — il documento completo, pronto per la firma, nelle stesse lingue dell'originale, con [___] "
+           "dove l'avvocato deve completare.\n"
+           "Nient'altro: niente termini processuali, leve, piano d'azione, precedenti o ricorsi che non riguardino direttamente "
+           "la validità di questo documento. Cita solo gli articoli qui sopra; un requisito pratico che non viene da un articolo "
+           "(per esempio cosa chiedono la polizia o la dogana di un altro Stato) scrivilo come «da verificare», senza numero."),
+}
+
+
+def _kontrolle_txt(text: str, lang: str) -> str:
+    righe = _kontrolle_dokumenti(text, lang)
+    if not righe:
+        return ""
+    testa = (" CONTROLLI MECCANICI SUL TESTO (fatti dal codice, verificali tu):" if lang == "it" else
+             " KONTROLLE MEKANIKE MBI TEKSTIN (i bëri kodi, verifikoji ti):")
+    return testa + "".join("\n- " + r for r in righe)
+
+
+def _blocco_rishikim(doc: dict, lang: str, tetto: int = 60000) -> str:
+    """Il documento da rivedere per il diavolo e il Giudice (che non ricevono il blocco DOCUMENTI del senior)."""
+    if not doc:
+        return ""
+    testo = (doc.get("extracted_text") or "").strip()
+    if not testo:
+        return ""
+    nome = doc.get("filename") or ("documento" if lang == "it" else "dokument")
+    return ("\n\n━━━ " + ("DOCUMENTO RIVISTO" if lang == "it" else "DOKUMENTI QË RISHIKOHET") + f": {nome} "
+            + ("(testo integrale)" if lang == "it" else "(tekst i plotë)") + " ━━━\n" + testo[:tetto] + "\n")
+
+
+def _hint_rishikimi(doc, lang: str) -> str:
+    """La consegna della revisione per il senior (con i controlli meccanici), o l'avviso «non letto» se il documento non ha testo."""
+    emri = (doc or {}).get("filename") or ("documento" if lang == "it" else "dokument")
+    testo = ((doc or {}).get("extracted_text") or "").strip()
+    if not testo:
+        return _RISHIKIM_PALEXUAR[lang].format(emri=emri)
+    return _RISHIKIM_HINT[lang].format(emri=emri, kontrolle=_kontrolle_txt(testo, lang))
+
+
+def _shenjo_dokumentin(documents, doc):
+    """Il documento da rivedere entra INTERO (fino a 80.000 caratteri) e segnato; gli altri come sempre. Copie, mai gli originali."""
+    if not doc:
+        return documents
+    out = []
+    for d in documents or []:
+        if d is doc:
+            c = dict(d)
+            c["_rishikim"] = True
+            c["_budget"] = 80000
+            out.append(c)
+        else:
+            out.append(d)
+    return out
+
+
+# v9.633 — note NOSTRE su articoli letti male in prove vere: si mostrano al cervello sotto l'articolo, dichiarate come tali (mai
+# testo di legge). KRr 178/1/c: «autorizimin për ushtrimin e drejtimit» è l'autorizzazione del candidato alla patente (artt. 119
+# e 120 KRr), e il 12 ott il senior l'ha letta come l'autorizzazione del proprietario («dokument i detyrueshëm sipas vetë Kodit»),
+# costruendoci sopra multa e fermo del veicolo.
+NOTE_REDAZIONALI = {
+    ("kodi_rrugor", "178"): (
+        "shkronja «c» e pikës 1 ka të bëjë me AUTORIZIMIN PËR USHTRIMIN E DREJTIMIT që i jepet kursantit të autoshkollës "
+        "(nenet 119 dhe 120 të këtij Kodi; pika 2 e këtij neni: instruktori) — nuk është autorizimi i pronarit për t'ia "
+        "dhënë mjetin një personi tjetër.",
+        "la lettera «c» del punto 1 riguarda l'AUTORIZZAZIONE ALL'ESERCITAZIONE alla guida del candidato dell'autoscuola "
+        "(artt. 119 e 120 di questo Codice; punto 2: l'istruttore) — non è l'autorizzazione del proprietario a far guidare "
+        "il veicolo a un altro."),
 }
 
 
@@ -9718,6 +10114,13 @@ def _format_articles_for_prompt(pairs: list[tuple[Article, float]]) -> str:
                 f"  (neni i cituar me atë numër është shfuqizuar ose rinumëruar: ky është teksti NË FUQI — "
                 f"përgjigju mbi këtë dhe thuaje)\n"
             )
+        elif getattr(a, "_ancora_rishikim", ""):
+            # v9.633 — una norma che la revisione del documento deve avere davanti (forma della procura, conflitto d'interessi…)
+            intestazione = ((
+                f"── {a.citation}  ⚑ NORMA PER LA REVISIONE DEL DOCUMENTO — {getattr(a, '_ancora_rishikim', '')}\n"
+                f"  (aggiunta perché il documento la tocca: verifica se e come si applica — testo integrale)\n") if _it else (
+                f"── {a.citation}  ⚑ NORMË PËR RISHIKIMIN E DOKUMENTIT — {getattr(a, '_ancora_rishikim', '')}\n"
+                f"  (u shtua sepse dokumenti e prek: kontrollo nëse dhe si zbatohet — tekst i plotë)\n"))
         elif getattr(a, "_ancora", False):
             intestazione = (
                 f"── {a.citation}  ⚑ RREGULL E PËRGJITHSHME\n"
@@ -9795,6 +10198,10 @@ def _format_articles_for_prompt(pairs: list[tuple[Article, float]]) -> str:
         # v9.362 — la nota editoriale separata dal testo (rubrica pulita) resta visibile al cervello
         _nota = getattr(a, "note", "") or ""
         _nota_line = (f"  ℹ {'Nota redazionale' if _it else 'Shënim redaksional'}: {_nota}\n") if _nota else ""
+        _nostra = NOTE_REDAZIONALI.get((a.code, str(a.number)))
+        if _nostra:
+            _nota_line += (f"  📝 {'Nota di Super Avokati (non è testo di legge)' if _it else 'Shënim i Super Avokatit (nuk është tekst ligji)'}: "
+                           f"{_nostra[1] if _it else _nostra[0]}\n")
         # v9.463 — la Corte costituzionale nelle note ufficiali di Normattiva: il testo qui sotto può contenere parole CADUTE
         _cc_line = ""
         if _is_italian_code(a.code):

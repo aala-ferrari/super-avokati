@@ -4025,12 +4025,14 @@ def api_fable_draft():
     body = request.get_json(silent=True) or {}
     kind = (body.get("kind") or "contract").strip()
     brief = (body.get("brief") or "").strip()
-    if len(brief) < 15:
+    existing = (body.get("existing_text") or "").strip()[:40000]     # v9.633: il documento esistente da rivedere
+    if len(brief) < 15 and len(existing) < 30:
         return jsonify({"error": "brief_required"}), 400
     try:
         res = fable_drafter_mod.draft(_BRAIN.backend, kind=kind,
                                       brief=_with_case(brief[:8000], body),
-                                      clauses_text=_firm_clauses_text(body))
+                                      clauses_text=_firm_clauses_text(body),
+                                      existing=existing)
     except Exception as exc:  # noqa: BLE001
         log.exception("fable-draft failed")
         return jsonify({"error": _safe_err(exc)}), 200
@@ -6295,12 +6297,14 @@ def api_letters_docx():
 def api_notary_draft():
     body = request.get_json(silent=True) or {}
     details = (body.get("details") or "").strip()
-    if len(details) < 10:
+    existing = (body.get("existing_text") or "").strip()[:40000]     # v9.633: il documento esistente da rivedere
+    if len(details) < 10 and len(existing) < 30:
         return jsonify({"error": "details_required"}), 400
     out, err = _notary_run(notary_mod.draft_deed,
                            deed_type=(body.get("deed_type") or "").strip(),
                            details=_with_case(details[:12000], body),
-                           clauses_text=_firm_clauses_text(body))
+                           clauses_text=_firm_clauses_text(body),
+                           existing=existing)
     return err if err else out
 
 
@@ -6348,7 +6352,8 @@ def api_notary_prokura():
                            details=(body.get("details") or "").strip()[:12000],
                            duration=(body.get("duration") or "").strip()[:120],
                            subdelegation=bool(body.get("subdelegation")),
-                           clauses_text=_firm_clauses_text(body))
+                           clauses_text=_firm_clauses_text(body),
+                           existing=(body.get("existing_text") or "").strip()[:40000])
     return err if err else out
 
 
@@ -6364,11 +6369,13 @@ def api_notary_declaration_types():
 def api_notary_declaration():
     body = request.get_json(silent=True) or {}
     details = (body.get("details") or "").strip()
-    if len(details) < 10:
+    existing = (body.get("existing_text") or "").strip()[:40000]     # v9.633: il documento esistente da rivedere
+    if len(details) < 10 and len(existing) < 30:
         return jsonify({"error": "details_required"}), 400
     out, err = _notary_run(notary_mod.draft_declaration,
                            decl_type=(body.get("decl_type") or "").strip(),
-                           details=details[:12000])
+                           details=details[:12000],
+                           existing=existing)
     return err if err else out
 
 
@@ -6782,11 +6789,11 @@ def api_prosecutor_indictment():
     return jsonify({"markdown": md, "citations": cits})
 
 
-def _pros_facts(fn, body, key="facts", minlen=15, **extra):
+def _pros_facts(fn, body, key="facts", minlen=15, cap=14000, **extra):
     val = (body.get(key) or "").strip()
     if len(val) < minlen:
         return jsonify({"error": key + "_required"}), 400
-    kw = {key: _with_case(val[:14000], body)}
+    kw = {key: _with_case(val[:cap], body)}
     kw.update(extra)
     out, err = _notary_run(fn, **kw)
     return err if err else out
@@ -6810,7 +6817,15 @@ def api_prosecutor_plan():
 @require_module("prokuror")
 def api_prosecutor_act():
     body = request.get_json(silent=True) or {}
-    return _pros_facts(prosecutor_mod.investigative_act, body,
+    existing = (body.get("existing_text") or "").strip()[:40000]
+    cap = 14000
+    if len(existing) >= 30:
+        # v9.633 — l'atto esistente da rivedere entra con la consegna della revisione (stessa del notaio)
+        _it_p = (_active_jurisdiction(getattr(request, "user", None)) or "AL") == "IT"
+        body = dict(body)
+        body["facts"] = ((body.get("facts") or "").strip()[:14000] + notary_mod._blocco_esistente(existing, _it_p)).strip()
+        cap = 60000
+    return _pros_facts(prosecutor_mod.investigative_act, body, cap=cap,
                        kind=(body.get("kind") or "kontroll").strip()[:20])
 
 
@@ -7523,6 +7538,34 @@ def api_upload_document(case_id: str):
     return jsonify(payload), 201
 
 
+@app.post("/api/cases/<case_id>/documents/<doc_id>/rileggi")
+@login_required_api
+def api_rileggi_documento(case_id: str, doc_id: str):
+    """v9.633 — un documento che non si è letto si RILEGGE senza ricaricarlo: dopo una correzione del lettore (il 12 ott ogni .doc
+    finiva in errore, e il .docx rinominato .doc dell'avvocato non si apriva) o un OCR caduto. Solo i documenti in errore, solo nei
+    fascicoli che l'utente vede in questa sessione."""
+    _ensure_loaded()
+    user = request.user  # type: ignore[attr-defined]
+    case = _resolve_case(case_id)
+    if case is None:
+        return jsonify({"error": "not found"}), 404
+    doc = storage.get_document(doc_id, case_id)
+    if doc is None:
+        return jsonify({"error": "not found"}), 404
+    if doc.status != "error":
+        return jsonify(_document_payload(doc))
+    p = Path(doc.storage_path or "")
+    if not p.exists():
+        return jsonify({"error": _t_err("Skedari nuk është më në server: ngarkoje sërish.",
+                                        "Il file non è più sul server: ricaricalo.")}), 410
+    storage.mark_document_pending(doc_id)
+    avvia_elaborazione_documento(storage.get_document(doc_id, case_id), case_id, user.id, _active_jurisdiction(user), p,
+                                 doc.filename)
+    payload = _document_payload(storage.get_document(doc_id, case_id))
+    payload["processing"] = True
+    return jsonify(payload), 202
+
+
 @app.post("/api/cases/<case_id>/table")
 @login_required_api
 def api_case_table(case_id: str):
@@ -7781,6 +7824,10 @@ def api_ask():
             "key_facts": d.key_facts,
             "extracted_text": text or None,
             "storage_path": d.storage_path,
+            # v9.633 — lo stato arriva al cervello: un documento che non si è letto si dice, non si «rivede» alla cieca
+            "status": getattr(d, "status", None),
+            "error": (getattr(d, "error", None) or "")[:200] or None,
+            "created_at": getattr(d, "created_at", None),
         })
 
     if not _BRAIN:
@@ -7992,6 +8039,10 @@ def _ask_prepare(user, data):
             "key_facts": d.key_facts,
             "extracted_text": text or None,
             "storage_path": d.storage_path,
+            # v9.633 — lo stato arriva al cervello: un documento che non si è letto si dice, non si «rivede» alla cieca
+            "status": getattr(d, "status", None),
+            "error": (getattr(d, "error", None) or "")[:200] or None,
+            "created_at": getattr(d, "created_at", None),
         })
 
     if not _BRAIN:
@@ -8998,6 +9049,10 @@ def _load_case_docs(case_id: str) -> list[dict]:
             "key_facts": d.key_facts,
             "extracted_text": text or None,
             "storage_path": d.storage_path,
+            # v9.633 — lo stato arriva al cervello: un documento che non si è letto si dice, non si «rivede» alla cieca
+            "status": getattr(d, "status", None),
+            "error": (getattr(d, "error", None) or "")[:200] or None,
+            "created_at": getattr(d, "created_at", None),
         })
     return out
 

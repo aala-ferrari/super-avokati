@@ -1489,6 +1489,21 @@
     const status = node.querySelector(".doc-status");
     if (d.status === "error") {
       status.textContent = "⚠ " + (d.error || "gabim");
+      // v9.633 — un documento in errore si rilegge senza ricaricarlo (il lettore dei .doc è stato riparato il 12 ott)
+      const rb = document.createElement("button");
+      rb.type = "button"; rb.className = "doc-retry";
+      rb.textContent = TT("\ud83d\udd04 Rilexo");
+      rb.addEventListener("click", async () => {
+        rb.disabled = true;
+        try {
+          const r = await fetch(`/api/cases/${activeCaseId}/documents/${d.id}/rileggi`, { method: "POST" });
+          const j = await r.json().catch(() => ({}));
+          if (!r.ok) throw new Error(j.error || ("HTTP " + r.status));
+          await refreshDossier();
+          _pollDossier();
+        } catch (e) { rb.disabled = false; status.textContent = "⚠ " + e.message; }
+      });
+      status.after(rb);
     } else if (d.status === "pending") {
       status.innerHTML = '<span class="spinner"></span> ' + (d.progresso       // v9.449: la pagina che l'OCR sta leggendo
         ? escHtml(TT("Po lexoj faqen") + " " + d.progresso) : TT("Po e analizojmë…"));
@@ -5297,6 +5312,53 @@
   // Legge TUTTI i file scelti e li accoda al testo, in ordine, con il nome
   // del file come intestazione quando sono piu' di uno. Imposta da se'
   // `multiple`: il markup dei singoli strumenti non va toccato.
+  // v9.633 — gli allegati dappertutto (titolare, 12 ott: «metti il posto per allegare doc, docx, pdf, foto anche nelle altre
+  // opzioni: se hai una procura e devi solo revisionarla, la alleghi e Super Avokati la migliora»). Un solo elenco di formati.
+  var _ACCEPT_DOCS = ".pdf,.docx,.doc,.odt,.txt,.rtf,.jpg,.jpeg,.png,.webp,.svg,.tif,.tiff,.heic,.heif";
+  function _attachRowHtml(cls) {
+    return '<div class="ac-attach-row"><label class="ac-attach">' + t("\ud83d\udcce Bashkëngjit dokument (PDF, Word, foto)") +
+      '<input type="file" class="' + cls + '" accept="' + _ACCEPT_DOCS + '" hidden></label><span class="ac-attach-hint">' +
+      t("ose ngjit tekstin poshtë") + '</span></div>';
+  }
+  // il documento ESISTENTE da rivedere e migliorare: tenuto a parte dai dati (non finisce nel campo di testo), con il nome a vista
+  function _revRowHtml() {
+    return '<div class="ac-attach-row rev-row"><label class="ac-attach">' + t("\ud83d\udcdd Bashkëngjit dokumentin për rishikim (PDF, Word, foto)") +
+      '<input type="file" class="rev-file" accept="' + _ACCEPT_DOCS + '" hidden></label><span class="ac-attach-hint rev-chip">' +
+      t("Super Avokati e rishikon dhe e përmirëson") + '</span></div>';
+  }
+  function _wireRevision(ov, statusEl, runBtn) {
+    var st = { text: "", name: "" };
+    var inp = ov.querySelector(".rev-file"), chip = ov.querySelector(".rev-chip");
+    if (!inp || !chip) return st;
+    var vuoto = chip.textContent;
+    inp.onchange = async function () {
+      var f = inp.files && inp.files[0];
+      if (!f) return;
+      if (runBtn) runBtn.disabled = true;
+      try {
+        var dd = await _extractFileText(f, statusEl);
+        var tx = (dd.text || "").trim();
+        if (!tx) {
+          st.text = ""; st.name = "";
+          if (statusEl) statusEl.textContent = TT("Dokumenti nuk ka tekst t\u00eb lexuesh\u00ebm.");
+        } else {
+          st.text = tx; st.name = f.name;
+          chip.innerHTML = "\u2713 " + escapeHtml(f.name) + " \u00b7 " + tx.length + " " + TT("karaktere") +
+            ' <button type="button" class="rev-x" aria-label="' + TT("Hiq") + '">\u00d7</button>';
+          if (statusEl) statusEl.textContent = TT("\u2713 Dokumenti u lexua \u2014 do ta rishikojmë dhe përmirësojmë");
+          var x = chip.querySelector(".rev-x");
+          if (x) x.onclick = function () { st.text = ""; st.name = ""; chip.textContent = vuoto; if (statusEl) statusEl.textContent = ""; };
+        }
+      } catch (e) {
+        if (statusEl) statusEl.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message;
+      } finally {
+        if (runBtn) runBtn.disabled = false;
+        inp.value = "";
+      }
+    };
+    return st;
+  }
+
   function _readFilesInto(input, ta, statusEl, runBtn) {
     if (!input || !ta) return;
     input.multiple = true;
@@ -5341,7 +5403,7 @@
         }).join("") + '<span class="pk-langs-hint">' + t('Gjuha e synuar') + '</span></div>'
       : "";
     var attachHtml = cfg.attach
-      ? '<div class="ac-attach-row"><label class="ac-attach">' + t('\ud83d\udcce Bashkëngjit PDF/foto') + '<input type="file" class="ft-file" accept=".pdf,.docx,.doc,.txt,.rtf,.jpg,.jpeg,.png,.webp,.svg,.tif,.tiff,.heic,.heif" hidden></label><span class="ac-attach-hint">' + t('ose ngjit tekstin poshtë') + '</span></div>'
+      ? _attachRowHtml("ft-file")
       : "";
     ov.innerHTML =
       '<div class="ac-modal">' +
@@ -5668,7 +5730,8 @@
           '<option value="clause">\ud83d\udcce Klauzol\u00eb</option>' +
           '<option value="letter">\u2709\ufe0f Let\u00ebr zyrtare</option>' +
         '</select>' +
-        '<div class="ac-attach-row"><label class="ac-attach">\ud83d\udcce Bashk\u00ebngjit PDF/foto<input type="file" class="fd-file" accept=".pdf,.docx,.doc,.txt,.rtf,.jpg,.jpeg,.png,.webp,.svg,.tif,.tiff,.heic,.heif" hidden></label><span class="ac-attach-hint">ose p\u00ebrshkruaj posht\u00eb</span></div>' +
+        '<div class="ac-attach-row"><label class="ac-attach">' + t("\ud83d\udcce Bashkëngjit dokument (PDF, Word, foto)") + '<input type="file" class="fd-file" accept="' + _ACCEPT_DOCS + '" hidden></label><span class="ac-attach-hint">ose p\u00ebrshkruaj posht\u00eb</span></div>' +
+        _revRowHtml() +
         '<textarea class="ac-ta" placeholder="P.sh. Kontrat\u00eb qiraje p\u00ebr ambient biznesi. Qiradh\u00ebn\u00ebs [emri], qiramarr\u00ebs [emri]. Qira 1200 EUR/muaj, afat 5 vjet, ndalohet n\u00ebnqiraja, penalitet 0.1%/dit\u00eb von\u00ebs, garanci 3 muaj\u2026"></textarea>' +
         '<label class="ac-clauses"><input type="checkbox" class="fd-useclauses"> \ud83d\udcda P\u00ebrdor klauzolat e studios</label>' +
         '<div class="ac-row"><button class="ac-run" type="button">Harto \u2192</button><span class="ac-status"></span></div>' +
@@ -5680,17 +5743,18 @@
         result = ov.querySelector(".ac-result");
     var fdFile = ov.querySelector(".fd-file");
     _readFilesInto(fdFile, ta, status, run);
+    var rev = _wireRevision(ov, status, run);
     function close() { ov.remove(); }
     ov.querySelector(".ac-x").onclick = close;
     ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
     run.onclick = async function () {
       var brief = (ta.value || "").trim();
-      if (brief.length < 15) { status.textContent = "P\u00ebrshkruaj pak m\u00eb shum\u00eb."; return; }
-      run.disabled = true; status.textContent = "Tetramorph po harton\u2026"; result.innerHTML = "";
+      if (brief.length < 15 && !rev.text) { status.textContent = t("P\u00ebrshkruaj pak m\u00eb shum\u00eb."); return; }
+      run.disabled = true; status.textContent = rev.text ? t("Po rishikon dokumentin\u2026 (~4-6 min)") : t("Tetramorph po harton\u2026"); result.innerHTML = "";
       try {
         var r = await fetch("/api/fable-draft", {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ kind: kind.value, brief: brief, case_id: activeCaseId || "", use_clauses: !!(ov.querySelector(".fd-useclauses") && ov.querySelector(".fd-useclauses").checked) }),
+          body: JSON.stringify({ kind: kind.value, brief: brief, existing_text: rev.text || "", case_id: activeCaseId || "", use_clauses: !!(ov.querySelector(".fd-useclauses") && ov.querySelector(".fd-useclauses").checked) }),
         });
         var d = await r.json();
         if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
@@ -5758,7 +5822,7 @@
         _pl(TT("Mbrojtjet / pikat e dob\u00ebta"), t.defenses) +
         _pl(TT("Afatet"), t.deadlines) +
         _pl(TT("Pyetje udh\u00ebzuese"), t.questions) +
-        '<div class="exp-attachrow"><label class="ac-attach">' + TT("\ud83d\udcce Bashkëngjit PDF/foto") + '<input type="file" class="exp-file" accept=".pdf,.docx,.doc,.txt,.rtf,.jpg,.jpeg,.png,.webp,.svg,.tif,.tiff,.heic,.heif" hidden></label></div>' +
+        '<div class="exp-attachrow"><label class="ac-attach">' + TT("\ud83d\udcce Bashkëngjit dokument (PDF, Word, foto)") + '<input type="file" class="exp-file" accept="' + _ACCEPT_DOCS + '" hidden></label></div>' +
         '<textarea class="ac-ta exp-ta" placeholder="' + TT("Përshkruaj faktet e çështjes (ose bashkëngjit dokumentet)…") + '"></textarea>' +
         '<div class="ac-row"><button class="ac-run exp-run" type="button">' + TT("Gjenero ekspertiz\u00ebn \u2192") + '</button><span class="ac-status exp-status"></span></div>' +
         '<div class="ac-result exp-result"></div>';
@@ -5918,7 +5982,7 @@
       '<div class="ac-sub">' + t("Zgjidh llojin e aktit dhe jep të dhënat. Merr një projekt të plotë me klauzolat e detyrueshme (çdo nen kalon nga Verifikuar). Noteri e verifikon dhe e nënshkruan.") + '</div>' +
       '<select class="fd-kind nd-kind"></select>' +
       '<div class="nd-must"></div>' +
-      '<div class="ac-attach-row"><label class="ac-attach">' + t("\ud83d\udcce Bashkëngjit PDF/foto") + '<input type="file" class="nd-file" accept=".pdf,.docx,.doc,.txt,.rtf,.jpg,.jpeg,.png,.webp,.svg,.tif,.tiff,.heic,.heif" hidden></label></div>' +
+      _attachRowHtml("nd-file") + _revRowHtml() +
       '<textarea class="ac-ta" placeholder="' + t("Jep të dhënat: palët, objekti, çmimi, nr. pasurie, data… (ato që s’i ke, do vihen [___])") + '"></textarea>' +
       '<label class="ac-clauses"><input type="checkbox" class="nd-useclauses"> ' + t("📚 Përdor klauzolat e studios") + '</label>' +
       '<div class="ac-row"><button class="ac-run" type="button">' + t("Harto aktin \u2192") + '</button><span class="ac-status"></span></div>' +
@@ -5944,13 +6008,14 @@
     }
     kind.onchange = showMust; showMust();
     _readFilesInto(file, ta, status, run);
+    var rev = _wireRevision(ov, status, run);
     run.onclick = async function () {
       var details = (ta.value || "").trim();
-      if (details.length < 10) { status.textContent = t("Jep të dhënat."); return; }
-      run.disabled = true; status.textContent = t("Po harton aktin\u2026 (~5-8 min)"); result.innerHTML = "";
+      if (details.length < 10 && !rev.text) { status.textContent = t("Jep të dhënat."); return; }
+      run.disabled = true; status.textContent = rev.text ? t("Po rishikon dokumentin\u2026 (~4-6 min)") : t("Po harton aktin\u2026 (~5-8 min)"); result.innerHTML = "";
       try {
         var r = await fetch("/api/notary/draft", { method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ deed_type: kind.value, details: details, use_clauses: !!(ov.querySelector(".nd-useclauses") && ov.querySelector(".nd-useclauses").checked), case_id: activeCaseId || "" }) });
+          body: JSON.stringify({ deed_type: kind.value, details: details, existing_text: rev.text || "", use_clauses: !!(ov.querySelector(".nd-useclauses") && ov.querySelector(".nd-useclauses").checked), case_id: activeCaseId || "" }) });
         var d = await r.json();
         if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
         status.textContent = "";
@@ -5996,6 +6061,7 @@
       '<div class="prok-forms nd-must-box"></div>' +
       '<div class="prok-scopes nd-must-box"><em>' + t("Po ngarkoj…") + '</em></div>' +
       '<div class="ac-row" style="gap:10px;flex-wrap:wrap"><input type="text" class="prok-dur ac-ta" style="min-height:auto;height:38px;flex:1;min-width:180px" placeholder="' + t("Afati (p.sh. 1 vit — ose lere bosh)") + '" /><label style="display:flex;align-items:center;gap:6px"><input type="checkbox" class="prok-subdel" /> ' + t("Lejo nën-delegim") + '</label></div>' +
+      _revRowHtml() + _attachRowHtml("prok-file") +
       '<textarea class="ac-ta" placeholder="' + t("Të dhënat: i përfaqësuari (emër, atësi, ID), përfaqësuesi (emër, ID), pasuria/shoqëria nëse ka… (ato që s’i ke do vihen [___])") + '"></textarea>' +
       '<label class="ac-clauses"><input type="checkbox" class="prok-useclauses"> ' + t("📚 Përdor klauzolat e studios") + '</label>' +
       '<div class="ac-row"><button class="ac-run" type="button">' + t("Harto prokurën →") + '</button><span class="ac-status"></span></div>' +
@@ -6020,16 +6086,18 @@
       (data.scopes || []).map(function (sc) {
         return '<label style="display:flex;gap:6px;align-items:flex-start;font-size:13px"><input type="checkbox" class="prok-sc" value="' + sc.key + '"> ' + escapeHtml(t(sc.label)) + '</label>';
       }).join("") + '</div>';
+    _readFilesInto(ov.querySelector(".prok-file"), ta, status, run);
+    var rev = _wireRevision(ov, status, run);
     run.onclick = async function () {
       var form = (ov.querySelector('input[name="prokform"]:checked') || {}).value || "e_posacme";
       var scope_keys = Array.prototype.map.call(ov.querySelectorAll(".prok-sc:checked"), function (c) { return c.value; });
       var details = (ta.value || "").trim();
-      if (form === "e_posacme" && !scope_keys.length) { status.textContent = t("Zgjidh të paktën një tager (ose forma e përgjithshme)."); return; }
-      if (details.length < 10) { status.textContent = t("Jep të dhënat e palëve."); return; }
-      run.disabled = true; status.textContent = t("Po harton prokurën… (~4-6 min)"); result.innerHTML = "";
+      if (form === "e_posacme" && !scope_keys.length && !rev.text) { status.textContent = t("Zgjidh të paktën një tager (ose forma e përgjithshme)."); return; }
+      if (details.length < 10 && !rev.text) { status.textContent = t("Jep të dhënat e palëve."); return; }
+      run.disabled = true; status.textContent = rev.text ? t("Po rishikon dokumentin\u2026 (~4-6 min)") : t("Po harton prokurën… (~4-6 min)"); result.innerHTML = "";
       try {
         var r = await fetch("/api/notary/prokura", { method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ form: form, scope_keys: scope_keys, details: details, duration: (dur.value || "").trim(), subdelegation: !!subdel.checked, use_clauses: !!(ov.querySelector(".prok-useclauses") && ov.querySelector(".prok-useclauses").checked) }) });
+          body: JSON.stringify({ form: form, scope_keys: scope_keys, details: details, existing_text: rev.text || "", duration: (dur.value || "").trim(), subdelegation: !!subdel.checked, use_clauses: !!(ov.querySelector(".prok-useclauses") && ov.querySelector(".prok-useclauses").checked) }) });
         var d = await r.json();
         if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
         status.textContent = "";
@@ -6041,7 +6109,7 @@
         var copy = document.createElement("button"); copy.className = "fd-copy"; copy.type = "button"; copy.textContent = "📋 Kopjo tekstin";
         copy.onclick = function () { navigator.clipboard.writeText(d.markdown || "").then(function () { copy.textContent = "✓ U kopjua"; }).catch(function () {}); };
         result.appendChild(copy);
-        _addSaveToCase(result, "notary", "Prokurë", d.markdown || "");
+        _addSaveToCase(result, "notary", rev.text ? TT("Prokurë (e rishikuar)") : "Prokurë", d.markdown || "");
       } catch (e) { status.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; }
       finally { run.disabled = false; }
     };
@@ -6058,6 +6126,7 @@
       '<div class="ac-sub">' + t("Zgjidh llojin e deklaratës dhe jep të dhënat. Merr një deklaratë të plotë (çdo nen kalon nga Verifikuar). Noteri e verifikon dhe e nënshkruan.") + '</div>' +
       '<select class="fd-kind ndecl-kind"></select>' +
       '<div class="ndecl-must nd-must"></div>' +
+      _revRowHtml() + _attachRowHtml("ndecl-file") +
       '<textarea class="ac-ta" placeholder="' + t("Jep të dhënat: deklaruesi, i mituri/objekti, periudha… (ato që s’i ke do vihen [___])") + '"></textarea>' +
       '<div class="ac-row"><button class="ac-run" type="button">' + t("Harto deklaratën →") + '</button><span class="ac-status"></span></div>' +
       '<div class="ac-result"></div>' +
@@ -6080,13 +6149,15 @@
         (tp.must || []).map(function (m) { return '<li>' + escapeHtml(t(m)) + '</li>'; }).join("") + '</ul></div>' : "";
     }
     kind.onchange = showMust; showMust();
+    _readFilesInto(ov.querySelector(".ndecl-file"), ta, status, run);
+    var rev = _wireRevision(ov, status, run);
     run.onclick = async function () {
       var details = (ta.value || "").trim();
-      if (details.length < 10) { status.textContent = t("Jep të dhënat."); return; }
-      run.disabled = true; status.textContent = t("Po harton deklaratën… (~2 min)"); result.innerHTML = "";
+      if (details.length < 10 && !rev.text) { status.textContent = t("Jep të dhënat."); return; }
+      run.disabled = true; status.textContent = rev.text ? t("Po rishikon dokumentin\u2026 (~4-6 min)") : t("Po harton deklaratën… (~2 min)"); result.innerHTML = "";
       try {
         var r = await fetch("/api/notary/declaration", { method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ decl_type: kind.value, details: details }) });
+          body: JSON.stringify({ decl_type: kind.value, details: details, existing_text: rev.text || "" }) });
         var d = await r.json();
         if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
         status.textContent = "";
@@ -6131,7 +6202,7 @@
       '<div class="ac-head"><span>' + tMode("🚦 Kontroll konfliktesh") + '</span><button class="ac-x" type="button" aria-label="Mbyll">×</button></div>' +
       '<div class="ac-sub">' + t("Krahason aktin e ri me aktet e ruajtura më parë të të njëjtit rast/klient dhe gjen konfliktet (dy prokura që japin të njëjtin tager, akte kontradiktore, prokurë e revokuar që përdoret ende…).") + '' +
         (hasCase ? '' : ' <b>' + t("⚠️ Hap një rast me akte të ruajtura që krahasimi të ketë kuptim.") + '</b>') + '</div>' +
-      '<div class="ac-attach-row"><label class="ac-attach">' + t("📎 Bashkëngjit PDF/foto") + '<input type="file" class="nconf-file" accept=".pdf,.docx,.doc,.txt,.rtf,.jpg,.jpeg,.png,.webp,.svg,.tif,.tiff,.heic,.heif" hidden></label></div>' +
+      '<div class="ac-attach-row"><label class="ac-attach">' + t("\ud83d\udcce Bashkëngjit dokument (PDF, Word, foto)") + '<input type="file" class="nconf-file" accept="' + _ACCEPT_DOCS + '" hidden></label></div>' +
       '<textarea class="ac-ta" placeholder="' + t("Ngjit tekstin e plotë të AKTIT TË RI që do të noterizohet…") + '"></textarea>' +
       '<div class="ac-row"><button class="ac-run" type="button">' + t("Kontrollo konfliktet →") + '</button><span class="ac-status"></span></div>' +
       '<div class="ac-result"></div>' +
@@ -6238,7 +6309,8 @@
       '<div class="ac-head"><span>🧩 Veprime hetimore</span><button class="ac-x" type="button" aria-label="Mbyll">×</button></div>' +
       '<div class="ac-sub">Zgjidh veprimin dhe jep faktet. Merr kërkesën/urdhrin me bazën ligjore, kushtet dhe arsyetimin (çdo nen kalon nga Verifikuar). Prokurori/gjykata vendos.</div>' +
       '<select class="fd-kind pact-kind"></select>' +
-      '<div class="ac-attach-row"><label class="ac-attach">📎 Bashkëngjit PDF/foto<input type="file" class="pact-file" accept=".pdf,.docx,.doc,.txt,.rtf,.jpg,.jpeg,.png,.webp,.svg,.tif,.tiff,.heic,.heif" hidden></label></div>' +
+      '<div class="ac-attach-row"><label class="ac-attach">' + t("\ud83d\udcce Bashkëngjit dokument (PDF, Word, foto)") + '<input type="file" class="pact-file" accept="' + _ACCEPT_DOCS + '" hidden></label></div>' +
+      _revRowHtml() +
       '<textarea class="ac-ta" placeholder="Faktet: çfarë kërkohet, ku/te kush, çfarë prove pritet…"></textarea>' +
       '<div class="ac-row"><button class="ac-run" type="button">Harto kërkesën →</button><span class="ac-status"></span></div>' +
       '<div class="ac-result"></div>' +
@@ -6254,13 +6326,14 @@
     try { var r = await fetch("/api/prosecutor/act-kinds"); if (r.ok) kinds = (await r.json()).kinds || []; } catch (e) {}
     kind.innerHTML = kinds.map(function (k) { return '<option value="' + k.key + '">' + escapeHtml(t(k.label)) + '</option>'; }).join("");
     _readFilesInto(file, ta, status, run);
+    var rev = _wireRevision(ov, status, run);
     run.onclick = async function () {
       var facts = (ta.value || "").trim();
-      if (facts.length < 15) { status.textContent = "Jep faktet."; return; }
-      run.disabled = true; status.textContent = "Po harton kërkesën… (~4-5 min)"; result.innerHTML = "";
+      if (facts.length < 15 && !rev.text) { status.textContent = t("Jep faktet."); return; }
+      run.disabled = true; status.textContent = rev.text ? t("Po rishikon dokumentin\u2026 (~4-6 min)") : t("Po harton kërkesën… (~4-5 min)"); result.innerHTML = "";
       try {
         var r = await fetch("/api/prosecutor/investigative-act", { method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ kind: kind.value, facts: facts, case_id: activeCaseId || "" }) });
+          body: JSON.stringify({ kind: kind.value, facts: facts, existing_text: rev.text || "", case_id: activeCaseId || "" }) });
         var d = await r.json();
         if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
         status.textContent = "";
@@ -6398,6 +6471,7 @@
       '<div class="ac-head"><span data-i18n="intake_title">🎙️ Pika e parë — tregoni problemin</span><button class="ac-x" type="button" aria-label="Mbyll">×</button></div>' +
       '<div class="ac-sub" data-i18n="intake_sub">Tregoni me fjalët tuaja çfarë ju ndodhi (me zë ose me shkrim). Ju themi nëse ka çështje, sa urgjente është, kush ju ndihmon — dhe ju përgatisim dokumentin e parë. Orientim, jo këshillë përfundimtare.</div>' +
       '<div class="intake-inrow"><button type="button" class="intake-mic" title="Fol shqip">🎙️</button>' +
+      _attachRowHtml("intake-file") +
       '<textarea class="ac-ta intake-ta" data-i18n-ph="intake_ph" placeholder="P.sh. Më rrahu një fqinj para 3 ditësh, kam mavijosje dhe një dëshmitar…"></textarea></div>' +
       '<div class="ac-row"><button class="ac-run" type="button" data-i18n="intake_go">Më orjento →</button><span class="ac-status"></span></div>' +
       '<div class="ac-result"></div>' +
@@ -6407,6 +6481,7 @@
     var ta = ov.querySelector(".intake-ta"), run = ov.querySelector(".ac-run"),
         status = ov.querySelector(".ac-status"), result = ov.querySelector(".ac-result"),
         mic = ov.querySelector(".intake-mic");
+    _readFilesInto(ov.querySelector(".intake-file"), ta, status, run);     // v9.633: la lettera ricevuta si allega
     function close() { try { if (rec) rec.stop(); } catch (e) {} ov.remove(); }
     ov.querySelector(".ac-x").onclick = close;
     ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
@@ -6917,7 +6992,7 @@
       } else {
         txt = '<span class="fk-warn">' + t("Do të krijohet një rast i ri kur të ngarkosh.") + '</span>';
       }
-      info.innerHTML = '<div class="fk-uprow"><label class="fk-upload">' + t('📎 Ngarko dokumente') + '<input type="file" multiple class="fk-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.tif,.tiff,.docx,.txt,.mp4,.mov,.avi,.mkv,.m4v,.webm,.mpg,.wmv,.dav,video/*,.mp3,.wav,.m4a,.aac,.ogg,.opus,.amr,audio/*" hidden></label> ' + txt + '</div>';
+      info.innerHTML = '<div class="fk-uprow"><label class="fk-upload">' + t('📎 Ngarko dokumente') + '<input type="file" multiple class="fk-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.tif,.tiff,.heic,.heif,.svg,.docx,.doc,.odt,.rtf,.txt,.mp4,.mov,.avi,.mkv,.m4v,.webm,.mpg,.wmv,.dav,video/*,.mp3,.wav,.m4a,.aac,.ogg,.opus,.amr,audio/*" hidden></label> ' + txt + '</div>';
       var fkFile = info.querySelector(".fk-file");
       if (fkFile) fkFile.onchange = async function () {
         if (!fkFile.files || !fkFile.files.length) return;
@@ -7119,6 +7194,7 @@
         '<select class="fd-kind afati-trig" style="flex:1;min-width:200px"></select>' +
         '<label style="display:flex;align-items:center;gap:6px">' + t("Data e ngjarjes ") + '<input type="date" class="afati-date"></label>' +
       '</div>' +
+      _attachRowHtml("afati-file") +
       '<textarea class="ac-ta afati-ta" placeholder="' + t("Detaje (opsionale): p.sh. arrestim në flagrancë për vjedhje; vendimi u njoftua sot…") + '"></textarea>' +
       '<div class="ac-row"><button class="ac-run afati-run" type="button">' + t("Llogarit afatet →") + '</button><span class="ac-status afati-st"></span></div>' +
       '<div class="ac-result afati-res"></div>' +
@@ -7127,6 +7203,7 @@
     var trig = ov.querySelector(".afati-trig"), date = ov.querySelector(".afati-date"),
         ta = ov.querySelector(".afati-ta"), run = ov.querySelector(".afati-run"),
         status = ov.querySelector(".afati-st"), result = ov.querySelector(".afati-res");
+    _readFilesInto(ov.querySelector(".afati-file"), ta, status, run);      // v9.633: il provvedimento notificato si allega
     function close() { ov.remove(); }
     ov.querySelector(".ac-x").onclick = close;
     ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
@@ -7211,7 +7288,7 @@
     ov.innerHTML = '<div class="ac-modal">' +
       '<div class="ac-head"><span>' + tMode("🕵️ Inspektori — rishikuesi me përvojë") + '</span><button class="ac-x" type="button" aria-label="Mbyll">×</button></div>' +
       '<div class="ac-sub">' + t("Ngjit aktin (ose bashkëngjit PDF/foto). Inspektori e SULMON si një gjyqtar dhe jep një indeks rreziku 0-100, problemet sipas rëndësisë dhe rregullimet. Nëse ka një rast hapur, krahason edhe me aktet e ruajtura. Ndihmesë — noteri vendos.") + '</div>' +
-      '<div class="ac-attach-row"><label class="ac-attach">' + t("📎 Bashkëngjit PDF/foto") + '<input type="file" class="isp-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.tif,.tiff,.docx" hidden></label></div>' +
+      '<div class="ac-attach-row"><label class="ac-attach">' + t("\ud83d\udcce Bashkëngjit dokument (PDF, Word, foto)") + '<input type="file" class="isp-file" accept="' + _ACCEPT_DOCS + '" hidden></label></div>' +
       '<textarea class="ac-ta" placeholder="' + t("Ngjit tekstin e plotë të aktit notarial që do të inspektohet…") + '"></textarea>' +
       '<div class="ac-row"><button class="ac-run" type="button">' + t("Inspekto aktin →") + '</button><span class="ac-status"></span></div>' +
       '<div class="ac-result"></div>' +
@@ -7255,6 +7332,7 @@
     ov.innerHTML = '<div class="ac-modal">' +
       '<div class="ac-head"><span>' + tMode("🧭 Hapat pas aktit") + '</span><button class="ac-x" type="button" aria-label="Mbyll">×</button></div>' +
       '<div class="ac-sub">' + t("Pas nënshkrimit të aktit: ku të regjistrosh, çfarë, brenda cilit afat. Afati i regjistrimit të pasurisë (30 ditë) llogaritet në mënyrë DETERMINISTIKE (kalendar); afatet e tjera dhe tarifat verifikohen zyrtarisht — asgjë nuk shpiket.") + '</div>' +
+      _attachRowHtml("pdeed-file") +
       '<textarea class="ac-ta pdeed-act" placeholder="' + t("Përshkruaj aktin e nënshkruar: p.sh. «shitje apartamenti nr. 7/512 nga X te Y»…") + '"></textarea>' +
       '<div class="ac-row" style="gap:10px;flex-wrap:wrap"><label style="display:flex;align-items:center;gap:6px;font-size:13px">' + t("Data e aktit:") + ' <input type="date" class="pdeed-date" style="padding:7px 10px;border:1px solid var(--line,#d9cfc0);border-radius:8px;font-size:14px" /></label></div>' +
       '<div class="ac-row"><button class="ac-run" type="button">' + t("Nxirr hapat →") + '</button><span class="ac-status"></span></div>' +
@@ -7263,6 +7341,7 @@
     document.body.appendChild(ov);
     var act = ov.querySelector(".pdeed-act"), date = ov.querySelector(".pdeed-date"),
         run = ov.querySelector(".ac-run"), status = ov.querySelector(".ac-status"), result = ov.querySelector(".ac-result");
+    _readFilesInto(ov.querySelector(".pdeed-file"), act, status, run);    // v9.633: l'atto firmato si allega
     function close() { ov.remove(); }
     ov.querySelector(".ac-x").onclick = close;
     ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
@@ -7524,7 +7603,7 @@
     ov.innerHTML = '<div class="ac-modal">' +
       '<div class="ac-head"><span>' + tMode("📸 Lexo & mbush") + '</span><button class="ac-x" type="button" aria-label="Mbyll">×</button></div>' +
       '<div class="ac-sub">' + t("Bashkëngjit ose ngjit një ose disa dokumente (ID, certifikatë pronësie/ASHK, ekstrakt QKB, akt i mëparshëm…). Nxjerr të dhënat e strukturuara — VETËM ato që gjenden, pa shpikur — dhe i çon direkt te projekti i aktit.") + '</div>' +
-      '<div class="ac-attach-row"><label class="ac-attach">' + t("📎 Bashkëngjit PDF/foto") + '<input type="file" class="ext-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.tif,.tiff,.docx" hidden multiple></label></div>' +
+      '<div class="ac-attach-row"><label class="ac-attach">' + t("\ud83d\udcce Bashkëngjit dokument (PDF, Word, foto)") + '<input type="file" class="ext-file" accept="' + _ACCEPT_DOCS + '" hidden multiple></label></div>' +
       '<textarea class="ac-ta" placeholder="' + t("Ose ngjit këtu tekstin e dokumentit/dokumenteve…") + '"></textarea>' +
       '<div class="ac-row"><button class="ac-run" type="button">' + t("Nxirr të dhënat →") + '</button><span class="ac-status"></span></div>' +
       '<div class="ac-result"></div>' +
@@ -7607,7 +7686,7 @@
       '<div class="ac-head"><span>' + tMode("✅ Lista e kontrollit e fashikullit") + '</span><button class="ac-x" type="button" aria-label="Mbyll">×</button></div>' +
       '<div class="ac-sub">' + t("Shkruaj llojin e aktit dhe jep dokumentet (bashkëngjit/ngjit, ose përdor fashikullin e rastit). Kontrollohet çfarë ËSHTË, çfarë MUNGON dhe çfarë ka SKADUAR, me një indeks plotësie.") + '</div>' +
       '<input type="text" class="ac-ta ck-act" style="min-height:auto;height:40px" placeholder="' + t("Lloji i aktit — p.sh. Kontratë shitje apartamenti") + '" />' +
-      '<div class="ac-attach-row"><label class="ac-attach">' + t("📎 Bashkëngjit PDF/foto") + '<input type="file" class="ck-file" accept=".pdf,.jpg,.jpeg,.png,.webp,.tif,.tiff,.docx" hidden multiple></label>' +
+      '<div class="ac-attach-row"><label class="ac-attach">' + t("\ud83d\udcce Bashkëngjit dokument (PDF, Word, foto)") + '<input type="file" class="ck-file" accept="' + _ACCEPT_DOCS + '" hidden multiple></label>' +
       (hasCase ? '<label class="ck-dossier"><input type="checkbox" class="ck-usecase" checked> ' + t("Përdor dokumentet e rastit") + '</label>' : '') + '</div>' +
       '<textarea class="ac-ta ck-docs" placeholder="' + t("Ose ngjit tekstin e dokumenteve…") + '"></textarea>' +
       '<div class="ac-row"><button class="ac-run" type="button">' + t("Kontrollo fashikullin →") + '</button><span class="ac-status"></span></div>' +
@@ -7664,6 +7743,7 @@
       '<div class="ac-head"><span>' + tMode("🗣️ Për klientin") + '</span><button class="ac-x" type="button" aria-label="Mbyll">×</button></div>' +
       '<div class="ac-sub">' + t("Zgjidh: shpjego aktin me fjalë të thjeshta për klientin, ose gjenero një email gati për dërgim. Ngjit aktin ose kontekstin.") + '</div>' +
       '<select class="fd-kind cc-kind"></select>' +
+      _attachRowHtml("cc-file") +
       '<textarea class="ac-ta" placeholder="' + t("Ngjit aktin (për shpjegimin) ose kontekstin (lloji akti, emri klientit, çfarë duhet, data)…") + '"></textarea>' +
       '<div class="ac-row"><button class="ac-run" type="button">' + t("Gjenero →") + '</button><span class="ac-status"></span></div>' +
       '<div class="ac-result"></div>' +
@@ -7672,6 +7752,7 @@
     var kind = ov.querySelector(".cc-kind"), ta = ov.querySelector(".ac-ta"),
         run = ov.querySelector(".ac-run"), status = ov.querySelector(".ac-status"),
         result = ov.querySelector(".ac-result");
+    _readFilesInto(ov.querySelector(".cc-file"), ta, status, run);         // v9.633: l'atto da spiegare si allega
     function close() { ov.remove(); }
     ov.querySelector(".ac-x").onclick = close;
     ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
@@ -8344,6 +8425,18 @@
     "Rrjedha e parave": "Flusso di cassa",
   });
 
+  // v9.633 — gli allegati nei redattori e nei pannelli: testi albanesi nuovi
+  Object.assign(T_IT, {
+    "\ud83d\udcce Bashkëngjit dokument (PDF, Word, foto)": "\ud83d\udcce Allega un documento (PDF, Word, foto)",
+    "\ud83d\udcdd Bashkëngjit dokumentin për rishikim (PDF, Word, foto)": "\ud83d\udcdd Allega il documento da rivedere (PDF, Word, foto)",
+    "Super Avokati e rishikon dhe e përmirëson": "Super Avokati lo rivede e lo migliora",
+    "karaktere": "caratteri",
+    "Hiq": "Togli",
+    "\u2713 Dokumenti u lexua \u2014 do ta rishikojmë dhe përmirësojmë": "\u2713 Documento letto \u2014 lo rivediamo e lo miglioriamo",
+    "Po rishikon dokumentin\u2026 (~4-6 min)": "Sto rivedendo il documento\u2026 (~4-6 min)",
+    "Prokurë (e rishikuar)": "Procura (rivista)",
+    "\ud83d\udd04 Rilexo": "\ud83d\udd04 Rileggi"
+  });
   // v9.604 — testi albanesi nuovi (nomi senza inglese né italiano): il traduttore del DOM aggancia il testo esatto
   Object.assign(T_IT, {
     "Gjeniu Ligjor": "Genio Legale",
@@ -8737,7 +8830,7 @@
       '<div class="ac-modal">' +
         '<div class="ac-head"><span>' + tMode("\ud83d\udee1\ufe0f Kontroll cilësie i aktit") + '</span><button class="ac-x" type="button" aria-label="Mbyll">\u00d7</button></div>' +
         '<div class="ac-sub">' + t("Ngjit tekstin e aktit (padi, ankim, memorie, kontratë). Verifikohen nenet e cituara: inekzistente, të shfuqizuara ose të paqarta — para depozitimit.") + '</div>' +
-        '<div class="ac-attach-row"><label class="ac-attach">' + t("\ud83d\udcce Bashkëngjit PDF/foto") + '<input type="file" class="ac-file" accept=".pdf,.docx,.doc,.txt,.rtf,.jpg,.jpeg,.png,.webp,.svg,.tif,.tiff,.heic,.heif" hidden></label><span class="ac-attach-hint">' + t("ose ngjit tekstin poshtë") + '</span></div>' +
+        '<div class="ac-attach-row"><label class="ac-attach">' + t("\ud83d\udcce Bashkëngjit dokument (PDF, Word, foto)") + '<input type="file" class="ac-file" accept="' + _ACCEPT_DOCS + '" hidden></label><span class="ac-attach-hint">' + t("ose ngjit tekstin poshtë") + '</span></div>' +
         '<textarea class="ac-ta" placeholder="' + t("Ngjit këtu tekstin e aktit…") + '"></textarea>' +
         '<div class="ac-row"><button class="ac-run" type="button">' + t("Kontrollo aktin") + '</button><span class="ac-status"></span></div>' +
         '<div class="ac-result"></div>' +

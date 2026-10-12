@@ -147,7 +147,7 @@ MAX_AUDIO_SIZE_MB = int(os.getenv("MAX_AUDIO_SIZE_MB", "200"))
 ALLOWED_UPLOAD_EXTENSIONS = frozenset({".pdf", ".jpg", ".jpeg", ".png", ".svg",
                                        ".webp", ".tif", ".tiff",
                                        ".heic", ".heif",   # foto iPhone
-                                       ".docx", ".doc", ".txt", ".rtf"}) | VIDEO_EXTENSIONS | AUDIO_EXTENSIONS
+                                       ".docx", ".doc", ".odt", ".txt", ".rtf"}) | VIDEO_EXTENSIONS | AUDIO_EXTENSIONS
 
 # ⚠️ Soglia SEPARATA per i video. 25 MB vanno bene per un atto scansionato e
 # sono ridicoli per un video (tre minuti di telefono li superano). Ma alzare

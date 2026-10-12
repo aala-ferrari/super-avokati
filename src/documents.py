@@ -24,6 +24,7 @@ import json
 import mimetypes
 import re
 import tempfile
+import shutil
 import uuid
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
@@ -130,6 +131,7 @@ def validate_upload(filename: str, size_bytes: int) -> ValidationResult:
             ".heif": "image/heif",
             ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             ".doc": "application/msword",
+            ".odt": "application/vnd.oasis.opendocument.text",
             ".txt": "text/plain",
             ".rtf": "application/rtf",
             ".mp4": "video/mp4", ".mov": "video/quicktime",
@@ -217,6 +219,43 @@ def extract_text(
             lingua = "sq"
         return audio_mod.analizza(path, original_filename or path.name, lingua), True
 
+    # v9.633 — il formato dal CONTENUTO, non dall'estensione (caso vero del 12 ott: un .docx rinominato .doc finiva ad antiword
+    # e il documento risultava «in errore»; il cervello lo «rivedeva» senza averlo letto). Un PDF o una foto con l'estensione
+    # sbagliata passano dal loro lettore con una COPIA col suffisso giusto: il lettore di immagini del cervello decide dal suffisso.
+    _reale = None
+    if ext != ".svg":
+        try:
+            from .extract.readers import formato_reale as _formato_reale
+            _reale = _formato_reale(path)
+        except Exception:  # noqa: BLE001
+            _reale = None
+    _uguali = {("jpg", ".jpg"), ("jpg", ".jpeg"), ("png", ".png"), ("webp", ".webp"), ("heic", ".heic"), ("heic", ".heif"),
+               ("pdf", ".pdf"), ("html", ".html"), ("html", ".htm")}
+    if _reale in ("pdf", "jpg", "png", "webp", "heic") and (_reale, ext) not in _uguali:
+        log.info("documento %s: estensione %s, formato reale %s", original_filename or path.name, ext, _reale)
+        if _reale == "pdf":
+            copia = path.with_suffix(".reale.pdf")
+            try:
+                shutil.copyfile(path, copia)
+                return _extract_pdf(copia, backend, progresso)
+            finally:
+                try:
+                    copia.unlink(missing_ok=True)
+                except OSError:
+                    pass
+        jpg = _to_jpeg(path)
+        if jpg == path:
+            raise RuntimeError("immagine non leggibile (formato %s con estensione %s)" % (_reale, ext))
+        try:
+            return _vision_ocr_image(jpg, "image/jpeg", backend), True
+        finally:
+            try:
+                jpg.unlink(missing_ok=True)
+            except OSError:
+                pass
+    if _reale in ("docx", "doc", "odt", "rtf") and ext not in {".docx", ".doc", ".odt", ".rtf", ".txt"}:
+        ext = "." + _reale          # un Word salvato come .pdf o .jpg: lo legge extract.readers (che guarda il contenuto)
+
     if ext == ".pdf":
         text, used_ocr = _extract_pdf(path, backend, progresso)
         return text, used_ocr
@@ -236,7 +275,7 @@ def extract_text(
                     jpg.unlink(missing_ok=True)
                 except OSError:
                     pass
-    if ext in {".docx", ".doc", ".txt", ".rtf", ".html", ".htm"}:
+    if ext in {".docx", ".doc", ".odt", ".txt", ".rtf", ".html", ".htm"}:
         # Word/testo: li legge extract.readers (python-docx, antiword, plain).
         # Senza questo ramo un .docx ammesso dall'upload tornava vuoto SENZA
         # errore — l'allegato spariva in silenzio.
@@ -637,7 +676,18 @@ def format_documents_for_prompt(
         header = f"[{i}] {d.get('filename', L('dokument', 'documento'))}"
         if d.get("doc_type"):
             header += f" — {d['doc_type']}"
+        if d.get("_rishikim"):
+            # v9.633 — il documento che l'avvocato ha chiesto di rivedere
+            header += L("  ← DOKUMENTI PËR RISHIKIM (teksti i plotë më poshtë)", "  ← DOCUMENTO DA RIVEDERE (testo integrale qui sotto)")
         parts.append(header)
+        if not (d.get("extracted_text") or "").strip() and not (d.get("summary") or "").strip() and (
+                d.get("status") == "error" or d.get("error")):
+            # v9.633 — un documento che non si è potuto leggere si DICE: prima entrava solo il nome e il cervello lo
+            # «rivedeva» alla cieca (caso del 12 ott: un .docx rinominato .doc)
+            parts.append("  ⚠ " + L("DOKUMENTI NUK U LEXUA (skedari nuk u hap dot). Mos e rishiko dhe mos e përshkruaj verbërisht: "
+                                    "thuaji avokatit në një rresht ta ringarkojë si PDF ose .docx.",
+                                    "IL DOCUMENTO NON È STATO LETTO (il file non si è aperto). Non rivederlo e non descriverlo alla "
+                                    "cieca: di' all'avvocato in una riga di ricaricarlo come PDF o .docx."))
         if d.get("summary"):
             parts.append(f"  {L('Përmbledhje', 'Riassunto')}: {d['summary']}")
         facts = d.get("key_facts") or []
@@ -648,7 +698,7 @@ def format_documents_for_prompt(
         if not compact:
             text = (d.get("extracted_text") or "").strip()
             if text:
-                clipped = _budget_clip(text, char_budget or DOC_CONTEXT_CHAR_BUDGET, domanda)
+                clipped = _budget_clip(text, d.get("_budget") or char_budget or DOC_CONTEXT_CHAR_BUDGET, domanda)
                 parts.append("  " + L("Përmbajtja tekstuale (për citim):", "Testo (per citare):"))
                 for line in clipped.splitlines():
                     parts.append(f"    {line}")

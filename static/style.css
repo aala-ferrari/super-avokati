@@ -7503,6 +7503,12 @@ main {
 .ac-attach, .cr-attach { display:inline-flex; align-items:center; gap:6px; cursor:pointer; background:#f3ede0; border:1px solid #d8c9a8; color:#6b5836; font-weight:600; font-size:.9rem; padding:8px 14px; border-radius:10px; transition:background .15s; }
 .ac-attach:hover, .cr-attach:hover { background:#ece2cd; }
 .ac-attach-hint, .cr-attach-hint { color:#9a8c74; font-size:.82rem; }
+/* v9.633 — il documento da rivedere: nome e caratteri letti a vista, con la × per toglierlo */
+.rev-row .rev-chip { color:#5c4a2a; }
+.rev-x { border:0; background:transparent; color:inherit; font-size:1.05rem; line-height:1; cursor:pointer; padding:2px 8px; min-width:36px; min-height:32px; }
+.rev-x:hover, .rev-x:focus-visible { color:#8a3a1a; }
+.doc-retry { margin-left:8px; border:1px solid #c9b88f; background:#fbf6ea; color:#5c4a2a; border-radius:6px; padding:2px 10px; min-height:32px; font-size:.82rem; cursor:pointer; }
+.doc-retry:disabled { opacity:.55; cursor:default; }
 
 /* Këshilltari i dytë (secondo consulente) — additive, distinct indigo accent */
 .so-wrap { margin-top: 14px; }
