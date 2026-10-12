@@ -275,6 +275,27 @@ TETTO_RISPOSTA_GIUDICE = 90000
 # mostrato è troncato» e tre sentenze restavano «da riscontrare»), i pannelli (14.000 → 30.000), il dossier (20.000 → 30.000), gli
 # articoli verbatim (60.000 → 100.000: con le ancore in aggiunta ai 12 il blocco arriva a ~20 articoli da 3.500 caratteri)
 TETTO_NENE = 100000
+# v9.635 — la replica del senior e il secondo round del diavolo leggevano gli articoli tagliati a 40.000 caratteri (diavolo e Giudice a
+# TETTO_NENE): nella misura della revisione del 12 ott (autorizzazione dell'auto della shpk) i nene 91, 93 e 179 del Codice della strada,
+# entrati in coda al blocco come rinvii, stavano oltre il taglio e il senior li ha ritirati «i citova nga kujtesa, nuk janë në dosje» (il
+# Giudice ha dovuto rimetterli). Ora tutti leggono lo stesso blocco.
+# v9.635 — il DOCUMENTO DA RIVEDERE viaggia dentro il dossier del diavolo, della replica e del Giudice, DOPO le fonti dei raccoglitori: col
+# tetto del dossier (20.000 / 30.000) un contratto lungo arrivava tagliato o non arrivava. Si separa e passa intero; il tetto vale per il resto.
+SHENJA_RISHIKIMI = {"sq": "DOKUMENTI QË RISHIKOHET", "it": "DOCUMENTO RIVISTO"}
+FUNDI_RISHIKIMI = {"sq": "FUNDI I DOKUMENTIT QË RISHIKOHET", "it": "FINE DEL DOCUMENTO RIVISTO"}
+TETTO_DOKUMENTI_RISHIKIM = 62000
+_RX_RISHIKIM = re.compile(
+    r"\n*━━━ (?:DOKUMENTI QË RISHIKOHET|DOCUMENTO RIVISTO)\b.*?"
+    r"(?:━━━ (?:FUNDI I DOKUMENTIT QË RISHIKOHET|FINE DEL DOCUMENTO RIVISTO) ━━━\n?|\Z)", re.S)
+
+
+def _ndaj_rishikimin(dosja: str) -> tuple:
+    """(il documento da rivedere, il resto del dossier). Senza documento: («», dossier)."""
+    d = dosja or ""
+    m = _RX_RISHIKIM.search(d)
+    if not m:
+        return "", d
+    return m.group(0).strip("\n"), d[:m.start()] + d[m.end():]
 
 
 def djalli_system(lang: str = "sq") -> str:
@@ -324,8 +345,10 @@ _ETIKETA_DOSJA = {
 
 
 def _blocco_dosja(dosja: str, lang: str) -> str:
-    d = (dosja or "").strip()
-    return ("\n\n" + _ETIKETA_DOSJA.get(lang, _ETIKETA_DOSJA["sq"]) + "\n" + d[:TETTO_DOSJA_DJALLI]) if d else ""
+    dok, resto = _ndaj_rishikimin(dosja)
+    d = (resto or "").strip()
+    out = ("\n\n" + dok[:TETTO_DOKUMENTI_RISHIKIM]) if dok else ""
+    return out + (("\n\n" + _ETIKETA_DOSJA.get(lang, _ETIKETA_DOSJA["sq"]) + "\n" + d[:TETTO_DOSJA_DJALLI]) if d else "")
 
 
 def avokati_i_djallit(backend, *, domanda: str, blloku_neneve: str, pergjigja: str,
@@ -385,7 +408,7 @@ def senior_pergjigjja(backend, *, domanda, blloku_neneve, pergjigja, sulmi,
            "ATTACCO DELL'AVVOCATO DEL DIAVOLO:") if lang == "it" else
           ("PYETJA:", "NENET (tekst i plotë):", "PËRGJIGJA IME:", "SULMI I AVOKATIT TË DJALLIT:"))
     user = ("%s\n%s\n\n%s\n%s%s\n\n%s\n%s\n\n%s\n%s" % (
-                _L[0], (domanda or "")[:2500], _L[1], (blloku_neneve or "")[:40000],
+                _L[0], (domanda or "")[:2500], _L[1], (blloku_neneve or "")[:TETTO_NENE],
                 _blocco_precedentet(precedentet, lang) + _blocco_dosja(dosja, lang),
                 _L[2], (pergjigja or "")[:TETTO_RISPOSTA], _L[3], (sulmi or "")[:16000]))
     raw = _chiama(backend, system=PERGJIGJE_SYSTEM.get(lang, PERGJIGJE_SYSTEM["sq"]),
@@ -455,7 +478,7 @@ def sulmi_i_dyte(backend, *, domanda, blloku_neneve, pergjigja_v2, lang="sq",
           if lang == "it" else
           ("PYETJA:", "NENET (tekst i plotë):", "PËRGJIGJA E SENIORIT NDAJ SULMIT TIM TË PARË:"))
     user = ("%s\n%s\n\n%s\n%s%s\n\n%s\n%s" % (
-                _L[0], (domanda or "")[:2500], _L[1], (blloku_neneve or "")[:40000],
+                _L[0], (domanda or "")[:2500], _L[1], (blloku_neneve or "")[:TETTO_NENE],
                 _blocco_precedentet(precedentet, lang) + _blocco_dosja(dosja, lang),
                 _L[2], (pergjigja_v2 or "")[:TETTO_RISPOSTA]))
     raw = _chiama(backend, system=(DJALLI_2_SYSTEM_IT if lang == "it" else DJALLI_2_SYSTEM),
@@ -656,8 +679,11 @@ def gjyqtari_fundit(backend, *, domanda: str, blloku_neneve: str, pergjigja: str
              f"{_L[1]}\n{(blloku_neneve or '')[:TETTO_NENE]}"]
     if (precedentet or "").strip():                       # v9.605: le decisioni che ha letto il senior
         parti.append(_blocco_precedentet(precedentet, lang).strip())
-    if (dosja or "").strip():
-        parti.append(f"{_L[2]}\n" + dosja[:30000])
+    _dok_r, _dosja_r = _ndaj_rishikimin(dosja)          # v9.635: il documento da rivedere intero, il tetto vale per il resto
+    if _dok_r:
+        parti.append(_dok_r[:TETTO_DOKUMENTI_RISHIKIM])
+    if (_dosja_r or "").strip():
+        parti.append(f"{_L[2]}\n" + _dosja_r.strip()[:30000])
     parti.append(f"{_L[3]}\n{(pergjigja or '')[:TETTO_RISPOSTA_GIUDICE]}")
     if (fazat or "").strip():
         # i pannelli (allerta, rischi, mappa prove, scadenze) girano PRIMA della

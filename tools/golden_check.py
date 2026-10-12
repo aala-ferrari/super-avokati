@@ -12710,6 +12710,82 @@ const F = new Function("localStorage", "fetch", "document", "TT", "_CAL_IT", "se
     except Exception as _e426:  # noqa: BLE001
         check("lavoro[426]: kontrollet u ekzekutuan", False, f"{type(_e426).__name__}: {_e426}")
 
+    # [427] v9.635 — LA REPLICA DEL SENIOR LEGGE GLI STESSI ARTICOLI DEL DIAVOLO E DEL GIUDICE, e il DOCUMENTO DA RIVEDERE arriva intero.
+    # Nella misura della revisione del 12 ott (autorizzazione dell'auto della shpk) la replica leggeva gli articoli tagliati a 40.000
+    # caratteri e ha ritirato tre nene del Codice della strada che erano nel blocco («i citova nga kujtesa»); e il documento da rivedere
+    # stava in coda al dossier dei raccoglitori, che si tagliava a 20.000 (diavolo, replica) e 30.000 (Giudice). Si ESEGUONO le funzioni.
+    try:
+        from src import studio as _st427
+        from src.brain import _blocco_rishikim as _br427
+        _src427 = open("/app/src/studio.py", encoding="utf-8").read()
+        _doc427 = {"filename": "Kontrata.docx", "extracted_text": "KONTRATE QIRAJE\n" + ("Klauzole e gjate. " * 2500) + "\nFUND-ZZZ"}
+        _dosja427 = ("[WEB-001] burim " * 2500) + _br427(_doc427, "sq")
+
+        class _B427:
+            def __init__(self):
+                self.u = ""
+
+            def complete(self, **kw):
+                self.u = kw["messages"][0]["content"]
+                return "x" * 200
+        _esiti427 = {}
+        for _fn, _kw in (("gjyqtari", dict(domanda="d", blloku_neneve="Q" * 70000, pergjigja="p", dosja=_dosja427)),
+                         ("replica", dict(domanda="d", blloku_neneve="Q" * 70000, pergjigja="p", sulmi="s", dosja=_dosja427)),
+                         ("djalli_2", dict(domanda="d", blloku_neneve="Q" * 70000, pergjigja_v2="p", dosja=_dosja427)),
+                         ("djalli", dict(domanda="d", blloku_neneve="Q" * 70000, pergjigja="p", dosja=_dosja427))):
+            _b = _B427()
+            {"gjyqtari": _st427.gjyqtari_fundit, "replica": _st427.senior_pergjigjja, "djalli_2": _st427.sulmi_i_dyte,
+             "djalli": _st427.avokati_i_djallit}[_fn](_b, **_kw)
+            _esiti427[_fn] = (_b.u.count("Q") >= 70000, "FUND-ZZZ" in _b.u, 0 < _b.u.count("[WEB-001]") <= 1900)
+        _d, _r = _st427._ndaj_rishikimin("fonti" + _br427({"filename": "c", "extracted_text": "CONTRATTO fine-it"}, "it") + "dopo")
+        _ok427 = (all(all(v) for v in _esiti427.values()) and "(blloku_neneve or \"\")[:40000]" not in _src427
+                  and "fine-it" in _d and _r == "fontidopo" and _st427._blocco_dosja("", "sq") == ""
+                  and _st427._ndaj_rishikimin("solo fonti")[0] == "")
+        check("rishikim[427]: replica e secondo round con tutti gli articoli, il documento da rivedere intero a diavolo, replica e Giudice",
+              _ok427, f"{_esiti427} it={_d[:40]!r}/{_r!r}")
+    except Exception as _e427:  # noqa: BLE001
+        check("rishikim[427]: kontrollet u ekzekutuan", False, f"{type(_e427).__name__}: {_e427}")
+
+    # [428] v9.635 — GLI ARTICOLI DEL DOCUMENTO IN REVISIONE NON SONO NORME. Misura della revisione del 12 ott (contratto d'affitto
+    # albanese): «**Neni 3 – afati 50-vjeçar**», «neni 6, që seniori e la pezull» si leggevano come articoli del Codice civile (la riga
+    # «nene 34 të verifikuara», KC 1-6 nel blocco del Giudice: «artefakt — mos i cito»). E l'articolo di un documento PRIVATO detto come
+    # tale («neni 6 i kontratës», «art. 5 del contratto») non è mai una norma. Misurato prima su 201 risposte vere (75 giorni): cambiano 3
+    # risposte, tutte rimandi ad articoli di un contratto. Si ESEGUE il verificatore sugli indici veri.
+    try:
+        from src import citation_verifier as _cv428
+        _it428 = ArticleIndex.load(INDEX_FILE.parent / "bm25_it.pkl")
+        _contr428 = ("KONTRATË QIRAJE\nNeni 1 – Objekti\nQiradhënësi jep me qira...\nNeni 2 – Çmimi\n400 euro.\nNeni 3 – Afati\n"
+                     "50 vjet.\nNeni 803 i Kodit Civil zbatohet sipas ligjit.\n**Neni 6** – Të metat\n")
+        _nd428 = _cv428.numri_e_dokumentit(_contr428)
+        _risp428 = ("**Neni 3 – afati 50-vjeçar:** e pavlefshme sipas nenit 803 të Kodit Civil. Neni 6 i kontratës bie nën nenin 807 "
+                    "të Kodit Civil; neni 6, që seniori e la pezull, hiqet. Neni 3 i Kodit Civil nuk ka të bëjë.")
+        def _st428(r):
+            return sorted((d["number"], d["code"] or "", d["status"]) for d in r["items"])
+        _prima428 = _st428(_cv428.verify_text(_risp428, idx, retrieved_codes={"kodi_civil"}))
+        _cv428.imposta_numri_dokumentit(_nd428)
+        _dopo428 = _st428(_cv428.verify_text(_risp428, idx, retrieved_codes={"kodi_civil"}))
+        _cv428.imposta_numri_dokumentit(None)
+        _esplicito428 = _st428(_cv428.verify_text(_risp428, idx, retrieved_codes={"kodi_civil"}, numri_dokumentit=_nd428))
+        _okA = (_nd428 == ["1", "2", "3", "6"] and ("3", "kodi_civil", "verified") in _prima428
+                and _dopo428 == [("3", "kodi_civil", "verified"), ("803", "kodi_civil", "verified"), ("807", "kodi_civil", "verified")]
+                and _esplicito428 == _dopo428 and _cv428.numri_dokumentit_attivi() is None)
+        # il documento privato, anche fuori dalla revisione; le leggi restano
+        _al428 = _st428(_cv428.verify_text("Neni 6 i kontratës dhe neni 7 i autorizimit; neni 72 i Kodit Civil.", idx))
+        _itx428 = _st428(_cv428.verify_text("L'art. 5 del contratto e l'art. 18 del CCNL; art. 18 dello Statuto dei lavoratori, "
+                                            "art. 1341 c.c.", _it428))
+        _okB = (_al428 == [("72", "kodi_civil", "verified")]
+                and ("1341", "codice_civile", "verified") in _itx428 and not any(n == "5" for n, _c, _s in _itx428)
+                and sum(1 for n, _c, _s in _itx428 if n == "18") == 1)
+        # azzerati a ogni risposta (brain) e a ogni richiesta (web: i thread di waitress si riusano)
+        _br428 = open("/app/src/brain.py", encoding="utf-8").read()
+        _wb428 = open("/app/src/web.py", encoding="utf-8").read()
+        _okC = (_br428.count("_cv_nd.imposta_numri_dokumentit(_nd_r)") == 2 and "_cv_nd.imposta_numri_dokumentit(None)" in _br428
+                and "_cv_nd.imposta_numri_dokumentit(None)" in _wb428)
+        check("rishikim[428]: gli articoli del documento in revisione e di un documento privato non si leggono come norme",
+              _okA and _okB and _okC, f"nd={_nd428} prima={_prima428} dopo={_dopo428} al={_al428} it={_itx428} C={_okC}")
+    except Exception as _e428:  # noqa: BLE001
+        check("rishikim[428]: kontrollet u ekzekutuan", False, f"{type(_e428).__name__}: {_e428}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

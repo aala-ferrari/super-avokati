@@ -1879,6 +1879,48 @@ _VOCE_TABELLA_IVA = re.compile(
 _RIGA_VERIFICA_RX = re.compile(r"^[ \t>]*🔎\s*(?:\*\*)?\s*(?:Verifikimi|Verifica)\b[^\n]*", re.M)
 
 
+# v9.635 — GLI ARTICOLI DEL DOCUMENTO IN REVISIONE non sono norme. Nella misura della revisione del 12 ott (contratto d'affitto albanese)
+# il senior scriveva «**Neni 3 – afati 50-vjeçar**», «neni 6, që seniori e la pezull», «neni 1 i kontratës»: numeri NUDI che il
+# verificatore attribuiva al codice del recupero (KC 1-8 «verificati», la riga diceva «nene 34 të verifikuara») e la chiusura del dossier
+# portava KC 1-6 nel blocco del Giudice («artefakt — mos i cito», scriveva lui). Per il thread della risposta: i numeri degli articoli del
+# documento (le sue intestazioni) — un numero nudo che è fra questi, senza un codice scritto vicino, non si legge come norma. E in ogni caso
+# l'articolo di un documento PRIVATO detto come tale («neni 6 i kontratës», «art. 3 del contratto», «art. 18 del CCNL») non è una norma. Fuori di proposito
+# «marrëveshjes» / «accordo»: anche gli accordi internazionali (Stabilizzazione e Associazione, Schengen) si citano così — nella revisione
+# l'articolo dell'accordo rivisto lo prende comunque la regola dei numeri del documento.
+import threading as _thr_nd
+_ND = _thr_nd.local()
+_NENI_DOK_RX = re.compile(
+    r"(?mi)^[ \t>*#|_]*(?:neni|nenit|article|articolo|art\.)\s*(\d{1,3})\s*(?:$|[–—:.\-(]|\*\*|\s+[–—-])")
+
+
+def numri_e_dokumentit(testo: str) -> list:
+    """I numeri degli articoli di un documento dalle sue intestazioni a inizio riga: «Neni 3 – Afati», «NENI 4», «Art. 2 - Oggetto»,
+    «Articolo 5 (Durata)». Mai «Neni 803 i Kodit Civil …» (dopo il numero deve venire un separatore o la fine della riga)."""
+    out = []
+    for m in _NENI_DOK_RX.finditer(testo or ""):
+        if m.group(1) not in out:
+            out.append(m.group(1))
+    return out
+
+
+def imposta_numri_dokumentit(numri) -> None:
+    """I numeri degli articoli del documento in revisione per il thread corrente (None = nessuno)."""
+    _ND.numri = frozenset(str(n) for n in (numri or ())) or None
+
+
+def numri_dokumentit_attivi():
+    return getattr(_ND, "numri", None)
+
+
+_DOC_PRIVATO_RX = {
+    "sq": re.compile(r"\s*,?\s*(?:i|e|të|së|te|se)\s+(?:kontrat[ëe]s|statutit(?!\s+t[ëe]\s+rom)|draftit|projekt(?:it|kontrat)|"
+                     r"autorizimit|prokur[ëe]s|aktit\s+(?:t[ëe]\s+)?themelimit|procesverbalit|dokumentit)\b", re.I),
+    "it": re.compile(r"\s*,?\s*(?:del|dello|della|dell['’]|nel|nello|nella|nell['’])\s*(?:contratt|statuto\s+(?:della\s+societ|sociale|"
+                     r"dell['’]associazion|della\s+fondazion)|atto\s+costitutiv|procura\b|scrittura|preliminar|ccnl\b|bozza|documento\b|"
+                     r"verbale\b|regolamento\s+(?:condominial|contrattual|aziendal))", re.I),
+}
+
+
 def verify_text(
     text: str,
     index: ArticleIndex,
@@ -1886,6 +1928,7 @@ def verify_text(
     retrieved_codes: Iterable[str] | None = None,
     context_text: str | None = None,
     foreign_index=None,
+    numri_dokumentit=None,
 ) -> dict:
     """Scan ``text`` for ``Neni N <code>`` patterns and verify each one.
 
@@ -1911,6 +1954,7 @@ def verify_text(
     lookup_all = _build_lookup_all(index)
     num_to_codes = _build_number_to_codes(index)
     retrieved_codes = set(retrieved_codes or [])
+    _nd = set(numri_dokumentit) if numri_dokumentit is not None else set(numri_dokumentit_attivi() or ())   # v9.635
 
     # V-IT: Italian corpus -> Italian citation extraction (art. N c.c. ...).
     _lang = getattr(index, "lang", "sq")
@@ -2223,10 +2267,13 @@ def verify_text(
                 code_label=None, status="fake", candidates=[],
             ))
 
+    _dok_priv = _DOC_PRIVATO_RX["it" if _lang == "it" else "sq"]
     for m in _cite_re.finditer(text):
         nums_block = m.group("nums")
         tail = m.group("tail") or ""
         code = _resolve(tail)              # one shared code for the list
+        if code is None and _dok_priv.match(tail):
+            continue                       # v9.635: «neni 6 i kontratës», «art. 3 del contratto» — l'articolo di un documento privato
         if code is None and _lang == "it":
             # v9.406 — la coda si ferma alla virgola prima di «n. 74»: se lì comincia una data per esteso, la si legge intera
             _ext = tail + text[m.end():m.end() + 40]
@@ -2380,6 +2427,9 @@ def verify_text(
                         if _fd:
                             _emit_foreign(number, _fd, (_cite_prefix + number_raw) if multi else full_raw)
                             continue
+            if (_nd and code is None and not kp_bare and via in (None, "documento")
+                    and number.split("/")[0] in _nd):
+                continue                   # v9.635: un articolo del documento in revisione, non una norma
             key = (number, code_n or ("kp?" if kp_bare else ""))
             if key in seen:
                 continue

@@ -2604,6 +2604,11 @@ _AUDIT = _threading.local()
 
 def _audit_reset() -> None:
     _AUDIT.data = {"passi": [], "t0": time.time()}
+    try:                                            # v9.635: mai i numeri del documento di una richiesta precedente
+        from . import citation_verifier as _cv_nd
+        _cv_nd.imposta_numri_dokumentit(None)
+    except Exception:  # noqa: BLE001
+        pass
     try:                                            # v9.361: la revisione del corpus in ogni audit
         from .corpus_hash import revision as _rev
         _AUDIT.data["corpus_revision"] = _rev()["rev"]
@@ -5154,6 +5159,14 @@ class SuperAvvocato:
                      (_dok_r or {}).get("filename"))
             _audit_set("rishikim_dokumenti", (_dok_r or {}).get("filename") or True)
             retrieved = self._ankoro_rishikimin(retrieved, _ancore_rishikimi((_dok_r or {}).get("extracted_text") or "", _lang_r))
+            try:                                    # v9.635: gli articoli del documento non sono norme (verificatore, riga, dossier)
+                from . import citation_verifier as _cv_nd
+                _nd_r = _cv_nd.numri_e_dokumentit((_dok_r or {}).get("extracted_text") or "")
+                _cv_nd.imposta_numri_dokumentit(_nd_r)
+                if _nd_r:
+                    _audit_set("rishikim_nenet_e_dokumentit", _nd_r[:40])
+            except Exception:  # noqa: BLE001
+                pass
             cited_pairs = [(a.code, a.number) for a, _ in retrieved]
             _docs_c = _shenjo_dokumentin(documents, _dok_r)
         _cituar_pairs = [(a.code, a.number) for a, _ in retrieved if getattr(a, "_cituar", False)] or cited_pairs
@@ -5564,6 +5577,14 @@ class SuperAvvocato:
                      (_dok_r or {}).get("filename"))
             _audit_set("rishikim_dokumenti", (_dok_r or {}).get("filename") or True)
             retrieved = self._ankoro_rishikimin(retrieved, _ancore_rishikimi((_dok_r or {}).get("extracted_text") or "", _lang_r))
+            try:                                    # v9.635: gli articoli del documento non sono norme (verificatore, riga, dossier)
+                from . import citation_verifier as _cv_nd
+                _nd_r = _cv_nd.numri_e_dokumentit((_dok_r or {}).get("extracted_text") or "")
+                _cv_nd.imposta_numri_dokumentit(_nd_r)
+                if _nd_r:
+                    _audit_set("rishikim_nenet_e_dokumentit", _nd_r[:40])
+            except Exception:  # noqa: BLE001
+                pass
             cited_pairs = [(a.code, a.number) for a, _ in retrieved]
             _docs_c = _shenjo_dokumentin(documents, _dok_r)
         _cituar_pairs = [(a.code, a.number) for a, _ in retrieved if getattr(a, "_cituar", False)] or cited_pairs
@@ -9599,8 +9620,11 @@ def _blocco_rishikim(doc: dict, lang: str, tetto: int = 60000) -> str:
     if not testo:
         return ""
     nome = doc.get("filename") or ("documento" if lang == "it" else "dokument")
-    return ("\n\n━━━ " + ("DOCUMENTO RIVISTO" if lang == "it" else "DOKUMENTI QË RISHIKOHET") + f": {nome} "
-            + ("(testo integrale)" if lang == "it" else "(tekst i plotë)") + " ━━━\n" + testo[:tetto] + "\n")
+    from . import studio as _st                     # v9.635: i marcatori stanno in studio, che separa il documento dal dossier
+    _l = "it" if lang == "it" else "sq"
+    return ("\n\n━━━ " + _st.SHENJA_RISHIKIMI[_l] + f": {nome} "
+            + ("(testo integrale)" if lang == "it" else "(tekst i plotë)") + " ━━━\n" + testo[:tetto]
+            + "\n━━━ " + _st.FUNDI_RISHIKIMI[_l] + " ━━━\n")
 
 
 def _hint_rishikimi(doc, lang: str) -> str:

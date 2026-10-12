@@ -10381,6 +10381,11 @@ def _arm_jurisdiction():
         _brain_mod.set_request_jurisdiction("AL")
     except Exception:  # noqa: BLE001
         pass
+    try:                       # v9.635: i numeri del documento in revisione valgono solo per la risposta che li ha impostati
+        from . import citation_verifier as _cv_nd
+        _cv_nd.imposta_numri_dokumentit(None)
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def _t_err(sq: str, it: str) -> str:
