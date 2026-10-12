@@ -12618,6 +12618,98 @@ const F = new Function("localStorage", "fetch", "document", "TT", "_CAL_IT", "se
     except Exception as _e425:  # noqa: BLE001
         check("redattori[425]: kontrollet u ekzekutuan", False, f"{type(_e425).__name__}: {_e425}")
 
+    # [426] v9.635 — GLI STRUMENTI LUNGHI FATTI A MANO non perdono il lavoro (titolare, 12 ott: «anche se fai un'altra cosa altrove,
+    # quando rientri deve ripartire dall'ultimo lavoro, in background»): perizie, lettere, AML, proprietà, soggetto, ispezione,
+    # dati estratti, simulazione, termini, adempimenti, lista di controllo, cliente, controllo dell'atto, conflitti, primo
+    # contatto — la richiesta parcheggiata (`_fetchLungo`), un ELENCO di lavori ricordati (prima uno solo), all'avvio i pronti
+    # nel pannello e quelli ancora al lavoro attesi in sottofondo con l'avviso «Pronto — Apri», l'avviso anche se la finestra è
+    # stata chiusa. Eseguito con node sulle funzioni vere di app.js con un browser finto
+    try:
+        import json as _j426, shutil as _sh426, subprocess as _sp426
+        _node426 = _sh426.which("node")
+        _a426 = open("/app/static/app.js", encoding="utf-8").read()
+        if _node426:
+            _js426 = r"""const src = require("fs").readFileSync(process.argv[process.argv.length - 1], "utf8");
+function prendi(da, a) { const i = src.indexOf(da); const j = src.indexOf(a, i + 1); if (i < 0 || j < 0) throw new Error("manca " + da); return src.slice(i, j); }
+const codice = "var _PARCHEGGIO_CHIAVE = \"sa_lavoro_in_sospeso\";\n" +
+  prendi("  function _nuovaChiave() {", "  // ⚠️ In localStorage e non solo in memoria") +
+  prendi("  function _inSospesoLista() {", "  function _avvisoRispostaPronta(titolo, d) {") +
+  prendi("  async function _ripescaRisposta(chiave, status, minuti) {", "  // All'avvio: c'era un lavoro in sospeso") +
+  prendi("  async function _recuperaLavoroInSospeso() {", "  // La si mostra in un pannello suo");
+const LS = new Map();
+const localStorage = { getItem: (k) => (LS.has(k) ? LS.get(k) : null), setItem: (k, v) => LS.set(k, String(v)), removeItem: (k) => LS.delete(k) };
+const corpo = new Set();
+const document = { body: { contains: (x) => corpo.has(x) } };
+let modo = "ok", chiaviViste = [], pronti = {};
+async function fetch(url, opz) {
+  if (String(url).startsWith("/api/tool/result")) {
+    const k = decodeURIComponent(String(url).split("key=")[1]);
+    if (pronti[k] === "subito") return { status: 200, json: async () => ({ markdown: "**PRONTO " + k + "**" }) };
+    if (pronti[k] && pronti[k]-- <= 1) return { status: 200, json: async () => ({ markdown: "**DOPO " + k + "**" }) };
+    return { status: 202, json: async () => ({}) };
+  }
+  chiaviViste.push(opz.headers["X-Job-Key"]);
+  if (modo === "rete") throw new Error("rete");
+  return new Response(JSON.stringify({ markdown: "**RISULTATO**" }), { status: 200, headers: { "Content-Type": "application/json" } });
+}
+const avvisi = [], pannelli = [];
+const realeST = setTimeout;
+const F = new Function("localStorage", "fetch", "document", "TT", "_CAL_IT", "setTimeout", "_avvisoRispostaPronta", "_mostraRispostaRecuperata",
+  codice + "; return { _fetchLungo, _inSospesoLista, _ricordaInSospeso, _dimenticaInSospeso, _recuperaLavoroInSospeso };")(
+  localStorage, fetch, document, (x) => x, false, (fn) => realeST(fn, 0), (t, d) => avvisi.push([t, d.markdown]), (t, d) => pannelli.push([t, d.markdown]));
+(async () => {
+  const out = {};
+  const ov = {}; corpo.add(ov);
+  const st = { textContent: "" };
+  // 1) riuscito con la finestra aperta: nessun avviso, nessun lavoro ricordato
+  let r = await F._fetchLungo("/api/notary/aml-check", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }, "Kontroll AML", ov, st);
+  out.aperta = [(await r.json()).markdown === "**RISULTATO**", avvisi.length === 0, F._inSospesoLista().length === 0, !!chiaviViste[0]];
+  // 2) finestra chiusa prima della fine: l'avviso «Pronto — Apri» col risultato
+  const ov2 = {};
+  r = await F._fetchLungo("/api/expertise/analyze", { method: "POST", body: "{}" }, "Modele Ekspertize", ov2, st);
+  out.chiusa = [(await r.json()).markdown === "**RISULTATO**", avvisi.length === 1 && avvisi[0][0] === "Modele Ekspertize"];
+  // 3) la rete cade: il risultato si ripesca dal parcheggio, chi chiama riceve una Response normale
+  modo = "rete";
+  const p = F._fetchLungo("/api/letters/draft", { method: "POST", body: "{}" }, "Letra", ov, st);
+  await new Promise((res) => realeST(res, 5));
+  pronti[chiaviViste[chiaviViste.length - 1]] = 2;
+  r = await p;
+  out.rete = [r.ok, (await r.json()).markdown.startsWith("**DOPO"), F._inSospesoLista().length === 0];
+  // 4) l'elenco: due lavori insieme restano tutti e due; il formato vecchio (un oggetto) si legge ancora
+  F._ricordaInSospeso("a1", { saveTitle: "A" }); F._ricordaInSospeso("b2", { saveTitle: "B" });
+  const due = F._inSospesoLista().map((x) => x.chiave).join(",");
+  F._dimenticaInSospeso("a1");
+  out.elenco = [due === "a1,b2", F._inSospesoLista().map((x) => x.chiave).join(",") === "b2"];
+  localStorage.setItem("sa_lavoro_in_sospeso", JSON.stringify({ chiave: "vecchio", titolo: "V", quando: Date.now() }));
+  out.vecchio = F._inSospesoLista().length === 1 && F._inSospesoLista()[0].chiave === "vecchio";
+  // 5) all'avvio: il pronto si mostra nel pannello, quello ancora al lavoro si aspetta e poi l'avviso
+  localStorage.setItem("sa_lavoro_in_sospeso", JSON.stringify([
+    { chiave: "k-pronto", titolo: "P", quando: Date.now() }, { chiave: "k-lavora", titolo: "L", quando: Date.now() },
+    { chiave: "k-vecchio", titolo: "X", quando: Date.now() - 50 * 60 * 1000 }]));
+  pronti["k-pronto"] = "subito"; pronti["k-lavora"] = 2;
+  avvisi.length = 0;
+  await F._recuperaLavoroInSospeso();
+  await new Promise((res) => realeST(res, 60));
+  out.avvio = [pannelli.length === 1 && pannelli[0][0] === "P", avvisi.length === 1 && avvisi[0][0] === "L", F._inSospesoLista().length === 0];
+  console.log(JSON.stringify(out));
+})();
+"""
+            _o426 = _j426.loads(_sp426.run([_node426, "-e", _js426, "/app/static/app.js"], capture_output=True, text=True,
+                                           timeout=60).stdout or "{}")
+            _okA = _o426 == {"aperta": [True, True, True, True], "chiusa": [True, True], "rete": [True, True, True],
+                             "elenco": [True, True], "vecchio": True, "avvio": [True, True, True]}
+        else:
+            _o426, _okA = "node assente", True
+        import re as _re426
+        _siti = _re426.findall(r'_fetchLungo\("(/api/[a-z0-9/_-]+)"', _a426)
+        _okB = (len(_siti) == 18 and len(set(_siti)) == 15 and ", ov, null)" not in _a426
+                and all(('fetch("' + u + '"') not in _a426 for u in set(_siti))
+                and _a426.count('(_CAL_IT ? "') >= 18 and "localStorage.setItem(_PARCHEGGIO_CHIAVE" in _a426)
+        check("lavoro[426]: gli strumenti lunghi fatti a mano parcheggiati e ritrovati (rete che cade, finestra chiusa, elenco di "
+              "lavori, all'avvio pronti e in corso)", _okA and _okB, f"comportamento={_o426} siti={len(_siti)}/{len(set(_siti))}")
+    except Exception as _e426:  # noqa: BLE001
+        check("lavoro[426]: kontrollet u ekzekutuan", False, f"{type(_e426).__name__}: {_e426}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

@@ -1894,12 +1894,12 @@
       d = await r.json().catch(function () { return {}; });
       if (!r.ok || d.error) { var e1 = new Error(d.error || ("HTTP " + r.status)); e1.noRetry = r.status >= 400 && r.status < 500; throw e1; }
     } catch (eRete) {
-      if (eRete && eRete.noRetry) { _dimenticaInSospeso(); st.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + eRete.message; return; }
+      if (eRete && eRete.noRetry) { _dimenticaInSospeso(chiave); st.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + eRete.message; return; }
       st.textContent = TT("Lidhja u ndërpre — analiza vazhdon në server. Po e pres…");
       d = await _ripescaRisposta(chiave, st);
-      if (!d) return;
+      if (!d) { _dimenticaInSospeso(chiave); return; }
     }
-    _dimenticaInSospeso();
+    _dimenticaInSospeso(chiave);
     st.textContent = "";
     out.innerHTML = renderMarkdown(d.markdown || "");
     var pulita = _pulisciTraduzione(d.markdown || "");
@@ -5848,13 +5848,13 @@
       }
       run.disabled = true; status.textContent = t("Po hartohet shkresa…"); result.innerHTML = "";
       try {
-        var r = await fetch("/api/letters/draft", {
+        var r = await _fetchLungo("/api/letters/draft", {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ kind: sel.value, form: form.value,
                                  facts: extra, extra: extra,
                                  received: receivedText,
                                  case_id: activeCaseId || "" }),
-        });
+        }, (_CAL_IT ? "Lettere e atti" : "Letra dhe shkresa"), ov, status);
         var d = await r.json();
         if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
         status.textContent = "";
@@ -6039,8 +6039,8 @@
         if (facts.length < 15) { status.textContent = TT("P\u00ebrshkruaj faktet."); return; }
         run.disabled = true; status.textContent = TT("Po nd\u00ebrtoj ekspertiz\u00ebn me dy mendjet\u2026 (~5-8 min)"); result.innerHTML = "";
         try {
-          var r = await fetch("/api/expertise/analyze", { method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ case_type: t.key, facts: facts, case_id: activeCaseId || "" }) });
+          var r = await _fetchLungo("/api/expertise/analyze", { method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ case_type: t.key, facts: facts, case_id: activeCaseId || "" }) }, (_CAL_IT ? "Modelli di perizia" : "Modele Ekspertize"), ov, status);
           var d = await r.json();
           if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
           status.textContent = "";
@@ -6404,8 +6404,8 @@
       if (newAct.length < 20) { status.textContent = t("Ngjit aktin e ri."); return; }
       run.disabled = true; status.textContent = t("Po kontrolloj konfliktet… (~2-3 min)"); result.innerHTML = "";
       try {
-        var r = await fetch("/api/notary/conflicts", { method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ case_id: activeCaseId || "", new_act: newAct }) });
+        var r = await _fetchLungo("/api/notary/conflicts", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ case_id: activeCaseId || "", new_act: newAct }) }, (_CAL_IT ? "Controllo dei conflitti" : "Kontroll konfliktesh"), ov, status);
         var d = await r.json();
         if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
         status.textContent = "";
@@ -6706,8 +6706,8 @@
       if (listening) { try { rec.stop(); } catch (e) {} listening = false; mic.classList.remove("listening"); }
       run.disabled = true; status.textContent = t("Po ju orjentoj… (~1-2 min)"); result.innerHTML = "";
       try {
-        var r = await fetch("/api/intake/triage", { method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ story: story }) });
+        var r = await _fetchLungo("/api/intake/triage", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ story: story }) }, (_CAL_IT ? "Primo contatto" : "Pika e parë"), ov, status);
         var d = await r.json();
         if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
         status.textContent = "";
@@ -7288,7 +7288,7 @@
       if (text.length < 30) { ispSt.textContent = t("Ngjit aktin."); return; }
       ispBtn.disabled = true; ispSt.textContent = t("Po inspektoj… (~2-3 min)"); ispRes.innerHTML = "";
       try {
-        var r = await fetch("/api/notary/inspect", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: text, case_id: activeCaseId || "" }) });
+        var r = await _fetchLungo("/api/notary/inspect", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: text, case_id: activeCaseId || "" }) }, (_CAL_IT ? "Ispezione dell'atto" : "Ispektim akti"), ov, ispSt);
         var d = await r.json(); if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
         ispSt.textContent = "";
         ispRes.innerHTML = _riskGauge(d.risk, d.verdict) + '<div class="fd-out"></div>';
@@ -7313,7 +7313,7 @@
       else { extSt.textContent = t("Jep tekstin ose zgjidh dokumentet e rastit."); return; }
       extBtn.disabled = true; extSt.textContent = t("Po nxjerr të dhënat… (~1-2 min)"); extRes.innerHTML = "";
       try {
-        var r = await fetch("/api/notary/extract", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        var r = await _fetchLungo("/api/notary/extract", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }, (_CAL_IT ? "Dati estratti" : "Të dhëna të nxjerra"), ov, extSt);
         var d = await r.json(); if (!r.ok || d.error) throw new Error(d.error === "text_required" ? t("Nuk ka tekst — bashkëngjit ose përdor dokumentet e rastit.") : (d.error || ("HTTP " + r.status)));
         extSt.textContent = "";
         extRes.innerHTML = '<div class="fd-out"></div>'; extRes.querySelector(".fd-out").innerHTML = renderMarkdown(d.markdown || "");
@@ -7332,7 +7332,7 @@
       if (change.length < 4) { wiSt.textContent = t("Shkruaj ndryshimin."); return; }
       wiBtn.disabled = true; wiSt.textContent = t("Po simuloj… (~2 min)"); wiRes.innerHTML = "";
       try {
-        var r = await fetch("/api/notary/whatif", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ act: act, change: change }) });
+        var r = await _fetchLungo("/api/notary/whatif", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ act: act, change: change }) }, (_CAL_IT ? "Simulazione di una modifica" : "Simulim ndryshimi"), ov, wiSt);
         var d = await r.json(); if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
         wiSt.textContent = "";
         wiRes.innerHTML = '<div class="fd-out"></div>'; var out = wiRes.querySelector(".fd-out"); out.innerHTML = renderMarkdown(d.markdown || "");
@@ -7393,8 +7393,8 @@
     run.onclick = async function () {
       run.disabled = true; status.textContent = t("Po llogaris afatet… (~2 min)"); result.innerHTML = "";
       try {
-        var r = await fetch("/api/afati/compute", { method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ trigger: trig.value, event_date: date.value || "", facts: (ta.value || "").trim(), case_id: activeCaseId || "" }) });
+        var r = await _fetchLungo("/api/afati/compute", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ trigger: trig.value, event_date: date.value || "", facts: (ta.value || "").trim(), case_id: activeCaseId || "" }) }, (_CAL_IT ? "Termini procedurali" : "Afatet procedurale"), ov, status);
         var d = await r.json();
         if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
         status.textContent = "";
@@ -7486,8 +7486,8 @@
       if (text.length < 30) { status.textContent = t("Ngjit aktin."); return; }
       run.disabled = true; status.textContent = t("Inspektori po e sulmon aktin… (~2-3 min)"); result.innerHTML = "";
       try {
-        var r = await fetch("/api/notary/inspect", { method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: text, case_id: activeCaseId || "" }) });
+        var r = await _fetchLungo("/api/notary/inspect", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: text, case_id: activeCaseId || "" }) }, (_CAL_IT ? "Ispezione dell'atto" : "Ispektim akti"), ov, status);
         var d = await r.json();
         if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
         status.textContent = "";
@@ -7530,8 +7530,8 @@
       if (a.length < 10) { status.textContent = t("Përshkruaj aktin e nënshkruar."); return; }
       run.disabled = true; status.textContent = t("Po nxjerr hapat pas aktit… (~3-5 min)"); result.innerHTML = "";
       try {
-        var r = await fetch("/api/notary/post-deed", { method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ act: a, act_date: (date.value || "").trim() }) });
+        var r = await _fetchLungo("/api/notary/post-deed", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ act: a, act_date: (date.value || "").trim() }) }, (_CAL_IT ? "Adempimenti dopo l'atto" : "Hapat pas aktit"), ov, status);
         var d = await r.json();
         if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
         status.textContent = "";
@@ -7584,8 +7584,8 @@
       if (s.length < 20) { status.textContent = t("Përshkruaj veprimin dhe palët."); return; }
       run.disabled = true; status.textContent = t("Po kontrolloj AML… (~3-5 min)"); result.innerHTML = "";
       try {
-        var r = await fetch("/api/notary/aml-check", { method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ situation: s }) });
+        var r = await _fetchLungo("/api/notary/aml-check", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ situation: s }) }, (_CAL_IT ? "Controllo antiriciclaggio" : "Kontroll AML"), ov, status);
         var d = await r.json();
         if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
         status.textContent = "";
@@ -7698,8 +7698,8 @@
       if (s.length < 30) { status.textContent = t("Ngjit të dhënat e subjektit nga QKB."); return; }
       run.disabled = true; status.textContent = t("Po verifikoj subjektin… (~2-4 min)"); result.innerHTML = "";
       try {
-        var r = await fetch("/api/notary/verify-subject", { method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ subject: s, context: (ctx.value || "").trim() }) });
+        var r = await _fetchLungo("/api/notary/verify-subject", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ subject: s, context: (ctx.value || "").trim() }) }, (_CAL_IT ? "Verifica del soggetto" : "Verifikim subjekti"), ov, status);
         var d = await r.json();
         if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
         status.textContent = "";
@@ -7755,8 +7755,8 @@
       if (certText.length < 40) { status.textContent = t("Ngarko ose ngjit certifikatën e pronësisë."); return; }
       run.disabled = true; status.textContent = t("Po verifikoj pronësinë dhe barrët… (~3-5 min)"); result.innerHTML = "";
       try {
-        var r = await fetch("/api/notary/verify-property", { method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ certificate: certText, transaction: (tx.value || "").trim() }) });
+        var r = await _fetchLungo("/api/notary/verify-property", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ certificate: certText, transaction: (tx.value || "").trim() }) }, (_CAL_IT ? "Verifica della proprietà" : "Verifikim pronësie"), ov, status);
         var d = await r.json();
         if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
         status.textContent = "";
@@ -7810,8 +7810,8 @@
       if (text.length < 20) { status.textContent = t("Bashkëngjit ose ngjit dokumentin."); return; }
       run.disabled = true; status.textContent = t("Po nxjerr të dhënat… (~1-2 min)"); result.innerHTML = "";
       try {
-        var r = await fetch("/api/notary/extract", { method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: text }) });
+        var r = await _fetchLungo("/api/notary/extract", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: text }) }, (_CAL_IT ? "Dati estratti" : "Të dhëna të nxjerra"), ov, status);
         var d = await r.json();
         if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
         status.textContent = "";
@@ -7899,7 +7899,7 @@
       else { status.textContent = t("Jep dokumentet ose zgjidh fashikullin e rastit."); return; }
       run.disabled = true; status.textContent = t("Po kontrolloj fashikullin… (~1-2 min)"); result.innerHTML = "";
       try {
-        var r = await fetch("/api/notary/checklist", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        var r = await _fetchLungo("/api/notary/checklist", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }, (_CAL_IT ? "Lista di controllo" : "Lista e kontrollit"), ov, status);
         var d = await r.json();
         if (!r.ok || d.error) throw new Error(d.error === "documents_required" ? t("Nuk ka dokumente — bashkëngjit ose hap një rast me dokumente.") : (d.error || ("HTTP " + r.status)));
         status.textContent = "";
@@ -7944,8 +7944,8 @@
       if (text.length < 10) { status.textContent = t("Ngjit aktin ose kontekstin."); return; }
       run.disabled = true; status.textContent = t("Po gjeneroj… (~1-2 min)"); result.innerHTML = "";
       try {
-        var r = await fetch("/api/notary/client", { method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ kind: kind.value, text: text }) });
+        var r = await _fetchLungo("/api/notary/client", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ kind: kind.value, text: text }) }, (_CAL_IT ? "Per il cliente" : "Për klientin"), ov, status);
         var d = await r.json();
         if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
         status.textContent = "";
@@ -8048,8 +8048,8 @@
       if (change.length < 4) { status.textContent = t("Shkruaj ndryshimin që po mendon."); return; }
       run.disabled = true; status.textContent = t("Po simuloj impaktin… (~2 min)"); result.innerHTML = "";
       try {
-        var r = await fetch("/api/notary/whatif", { method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ act: act, change: change }) });
+        var r = await _fetchLungo("/api/notary/whatif", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ act: act, change: change }) }, (_CAL_IT ? "Simulazione di una modifica" : "Simulim ndryshimi"), ov, status);
         var d = await r.json();
         if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
         status.textContent = "";
@@ -9033,7 +9033,7 @@
       if (txt.length < 10) { status.textContent = t("Ngjit tekstin e aktit."); return; }
       run.disabled = true; status.textContent = t("Po verifikoj nenet\u2026"); result.innerHTML = "";
       try {
-        var r = await fetch("/api/act-check", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: txt }) });
+        var r = await _fetchLungo("/api/act-check", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: txt }) }, (_CAL_IT ? "Controllo dell'atto" : "Kontroll i aktit"), ov, status);
         var d = await r.json();
         if (!r.ok) throw new Error(d.error || ("HTTP " + r.status));
         status.textContent = ""; result.innerHTML = _renderActReport(d);
@@ -15097,15 +15097,63 @@ function moduleChips(u) {
   // ⚠️ In localStorage e non solo in memoria: su Android la scheda non viene
   // solo sospesa, a volte viene UCCISA — al ritorno la pagina riparte da zero
   // e senza questo l'avvocato non trova nemmeno l'errore.
+  // v9.635 — un ELENCO di lavori (prima uno solo: il secondo strumento lanciato faceva dimenticare il primo); il formato vecchio
+  // (un oggetto) si legge ancora
+  function _inSospesoLista() {
+    try {
+      var v = JSON.parse(localStorage.getItem(_PARCHEGGIO_CHIAVE) || "null");
+      if (!v) return [];
+      return Array.isArray(v) ? v : [v];
+    } catch (e) { return []; }
+  }
   function _ricordaInSospeso(chiave, cfg) {
     try {
-      localStorage.setItem(_PARCHEGGIO_CHIAVE, JSON.stringify({
-        chiave: chiave, titolo: cfg.saveTitle || cfg.title || "", quando: Date.now(),
-      }));
+      var l = _inSospesoLista().filter(function (x) { return x && x.chiave !== chiave && Date.now() - (x.quando || 0) < 40 * 60 * 1000; });
+      l.push({ chiave: chiave, titolo: (cfg && (cfg.saveTitle || cfg.title)) || "", quando: Date.now() });
+      localStorage.setItem(_PARCHEGGIO_CHIAVE, JSON.stringify(l.slice(-10)));
     } catch (e) {}
   }
-  function _dimenticaInSospeso() {
-    try { localStorage.removeItem(_PARCHEGGIO_CHIAVE); } catch (e) {}
+  function _dimenticaInSospeso(chiave) {
+    try {
+      if (!chiave) { localStorage.removeItem(_PARCHEGGIO_CHIAVE); return; }
+      var l = _inSospesoLista().filter(function (x) { return x && x.chiave !== chiave; });
+      if (l.length) localStorage.setItem(_PARCHEGGIO_CHIAVE, JSON.stringify(l)); else localStorage.removeItem(_PARCHEGGIO_CHIAVE);
+    } catch (e) {}
+  }
+  // v9.635 — gli strumenti lunghi fatti a mano (perizie, lettere, AML, proprietà, soggetto, ispezione, termini…): la richiesta
+  // PARCHEGGIATA come gli strumenti PRO; se la rete cade si ripesca; se l'avvocato ha chiuso la finestra prima della fine, il
+  // risultato non va perso: un avviso «✓ Pronto — Apri». Restituisce una Response come fetch: chi chiama non cambia.
+  async function _fetchLungo(url, opz, titolo, contenitore, statusEl) {
+    var chiave = _nuovaChiave();
+    var o = Object.assign({}, opz || {});
+    o.headers = Object.assign({}, (opz && opz.headers) || {}, { "X-Job-Key": chiave });
+    _ricordaInSospeso(chiave, { saveTitle: titolo || "" });
+    var r;
+    try {
+      r = await fetch(url, o);
+    } catch (eRete) {
+      if (statusEl && document.body.contains(statusEl)) statusEl.textContent = TT("Lidhja u ndërpre — analiza vazhdon në server. Po e pres…");
+      var d = await _ripescaRisposta(chiave, statusEl);
+      if (!d) { _dimenticaInSospeso(chiave); throw eRete; }
+      r = new Response(JSON.stringify(d), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
+    _dimenticaInSospeso(chiave);
+    if (r.ok && contenitore && !document.body.contains(contenitore)) {
+      try {
+        var dd = await r.clone().json();
+        if (dd && !dd.error && (dd.markdown || dd.result)) _avvisoRispostaPronta(titolo, dd);
+      } catch (e) {}
+    }
+    return r;
+  }
+  function _avvisoRispostaPronta(titolo, d) {
+    var el = document.createElement("div"); el.className = "red-pronto";
+    el.innerHTML = '<span></span><button type="button" class="red-apri"></button><button type="button" class="red-chiudi" aria-label="×">×</button>';
+    el.querySelector("span").textContent = (_CAL_IT ? "✓ Pronto: " : "✓ Gati: ") + (titolo || "");
+    el.querySelector(".red-apri").textContent = _CAL_IT ? "Apri" : "Hape";
+    el.querySelector(".red-apri").onclick = function () { el.remove(); _mostraRispostaRecuperata(titolo, d); };
+    el.querySelector(".red-chiudi").onclick = function () { el.remove(); };
+    document.body.appendChild(el);
   }
 
   // Aspetta la risposta parcheggiata. `null` se non arriva entro il tempo:
@@ -15126,23 +15174,28 @@ function moduleChips(u) {
 
   // All'avvio: c'era un lavoro in sospeso quando la pagina è morta?
   async function _recuperaLavoroInSospeso() {
-    var grezzo;
-    try { grezzo = localStorage.getItem(_PARCHEGGIO_CHIAVE); } catch (e) { return; }
-    if (!grezzo) return;
-    var v;
-    try { v = JSON.parse(grezzo); } catch (e) { _dimenticaInSospeso(); return; }
-    // più vecchio di 40 minuti: il server l'ha già scordato
-    if (!v || !v.chiave || Date.now() - (v.quando || 0) > 40 * 60 * 1000) {
-      _dimenticaInSospeso(); return;
-    }
-    var resp;
-    try { resp = await fetch("/api/tool/result?key=" + encodeURIComponent(v.chiave)); }
-    catch (e) { return; }
-    if (resp.status !== 200) { return; }      // ancora al lavoro: si riproverà
-    var d;
-    try { d = await resp.json(); } catch (e) { _dimenticaInSospeso(); return; }
-    _dimenticaInSospeso();
-    _mostraRispostaRecuperata(v.titolo, d);
+    // v9.635 — tutti i lavori ricordati, non uno solo; quelli ancora al lavoro si aspettano in sottofondo (prima si rinunciava
+    // fino al caricamento successivo) e, quando sono pronti, un avviso «✓ Pronto — Apri»
+    _inSospesoLista().forEach(function (v) {
+      // più vecchio di 40 minuti: il server l'ha già scordato
+      if (!v || !v.chiave || Date.now() - (v.quando || 0) > 40 * 60 * 1000) { _dimenticaInSospeso(v && v.chiave); return; }
+      (async function () {
+        var resp;
+        try { resp = await fetch("/api/tool/result?key=" + encodeURIComponent(v.chiave)); }
+        catch (e) { return; }
+        if (resp.status === 202) {
+          var dAtteso = await _ripescaRisposta(v.chiave, null, Math.max(1, 40 - Math.round((Date.now() - (v.quando || 0)) / 60000)));
+          _dimenticaInSospeso(v.chiave);
+          if (dAtteso) _avvisoRispostaPronta(v.titolo, dAtteso);
+          return;
+        }
+        if (resp.status !== 200) return;
+        var d;
+        try { d = await resp.json(); } catch (e) { _dimenticaInSospeso(v.chiave); return; }
+        _dimenticaInSospeso(v.chiave);
+        _mostraRispostaRecuperata(v.titolo, d);
+      })();
+    });
   }
 
   // La si mostra in un pannello suo: l'avvocato ha chiuso l'app, non può
