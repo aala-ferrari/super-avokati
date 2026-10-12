@@ -150,6 +150,11 @@ _RX_BIOLOGJIK = _re.compile(r"\badn\b|\bdna\b|kampion\w*\s+biologjik|gjak\w*\s+(
 _RX_ELEKTRONIK = _re.compile(
     r"online|internet|platform|aplikacion|\be-?mail|mesazh|whatsapp|facebook|instagram|tiktok|telegram|kompjuter|"
     r"elektronik|kripto|bitcoin|(nga|me|ne|permes)\s+(celular|telefon)|telefonat")
+# v9.628 — una MISURA CAUTELARE già in atto nei fatti. Non «masat e sigurimit teknik» (la sicurezza sul lavoro), non «u arrestua
+# në shtëpi» (l'arresto A casa), non «detyrimi për të paraqitur deklaratën» (l'obbligo di presentare un atto)
+_RX_MASE = _re.compile(r"\bmas\w*\s+(e\s+|te\s+)?sigurimi\w*\b(?!\s+(teknik|ne\s+pune|shoqeror|shendetesor))|\bmas\w*\s+shtrengues|"
+                       r"paraburgim|\barrest(i|it|in)?\s+(ne\s+)?(burg|shtepi)|detyrim\w*\s+(per\s+t\W?u\s+)?paraqit|"
+                       r"ndalim\w*\s+(i\s+|e\s+)?dalje\w*\s+jashte")
 _RX_DHUNE = _re.compile(r"sulm|dhun|rrah|godit|kercen|ngacm|perndjek|plagos|terroriz")
 _RX_FAMILJE = _re.compile(r"partner|bashkeshort|\bburri|\bgruaja|e\s+dashur|i\s+dashur|bashkejetu|familj|\bbabai|\bnena\b|vellai|motra|"
                           r"djali|vajza|ish-|ish\s")
@@ -191,6 +196,13 @@ def _semi_situazione_al(facts: str) -> list:
         out.append(("kodi_penal", "50"))
     if _RX_FLAGRANCE.search(f):
         out += [("kodi_proc_penale", n) for n in ("251", "252", "258", "259", "144")]
+    # v9.628 — la misura in atto: condizioni e criteri (KPP 228, 229), revoca e sostituzione (260); con la custodia anche i criteri
+    # speciali dell'arresto in carcere (230) e la durata per fase (263). Audit AL del 12 ott, l'atto d'accusa: «dispozitat mbi masat
+    # e sigurimit personal dhe kriteret e tyre nuk përfshihen në korpusin e dispozitave të dhëna»
+    if _RX_MASE.search(f):
+        out += [("kodi_proc_penale", n) for n in ("228", "229", "260")]
+        if _re.search(r"paraburgim|\barrest(i|it|in)?\s+(ne\s+)?burg", f):
+            out += [("kodi_proc_penale", "230"), ("kodi_proc_penale", "263")]
     if _RX_GISHTA.search(f):
         out.append(("kodi_proc_penale", "295"))
     # v9.619: la cosa trovata nell'auto o in casa = una perquisizione e un sequestro (KPP 202 condizioni, 298 in flagranza, 208)

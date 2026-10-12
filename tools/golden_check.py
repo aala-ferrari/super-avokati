@@ -11755,6 +11755,50 @@ def main():
     except Exception as _e405:  # noqa: BLE001
         check("omoglifi[405]: kontrollet u ekzekutuan", False, f"{type(_e405).__name__}: {_e405}")
 
+    # [406] v9.629 — una MISURA CAUTELARE già in atto nei fatti porta al procuratore condizioni e criteri (KPP 228, 229), revoca e
+    # sostituzione (260), con la custodia i criteri speciali (230) e la durata per fase (263); non la sicurezza sul lavoro («masat e
+    # sigurimit teknik»), non l'arresto a casa («u arrestua në shtëpinë»), non l'obbligo di presentare un atto
+    try:
+        from src import prosecutor as _pr406
+        _s406 = _pr406._semi_situazione_al
+        _k406 = ("kodi_proc_penale", "228")
+        _m406 = _s406("Ndaj tij është caktuar masa e sigurimit «detyrim paraqitjeje».")
+        _ok406 = (all(("kodi_proc_penale", n) in _s406("I pandehuri ndodhet në paraburgim që nga 3 marsi.")
+                      for n in ("228", "229", "260", "230", "263"))
+                  and _k406 in _m406 and ("kodi_proc_penale", "263") not in _m406
+                  and ("kodi_proc_penale", "263") in _s406("Kërkojmë arrestin në burg.")
+                  and _k406 in _s406("I është vënë ndalimi i daljes jashtë shtetit.")
+                  and _k406 not in _s406("Punëdhënësi nuk mori masat e sigurimit teknik dhe punëtori ra nga skela.")
+                  and _k406 not in _s406("U arrestua në shtëpinë e tij.")
+                  and _k406 not in _s406("Shoqëria kishte detyrimin për të paraqitur deklaratën tatimore."))
+        check("prokuror[406]: la misura cautelare in atto porta i suoi criteri al procuratore (non la sicurezza sul lavoro)", _ok406,
+              f"{_m406}")
+    except Exception as _e406:  # noqa: BLE001
+        check("prokuror[406]: kontrollet u ekzekutuan", False, f"{type(_e406).__name__}: {_e406}")
+
+    # [407] v9.629 — ogni precedente degli embedding è nel recuperatore, o è una decisione della Gjykata e Lartë ANNULLATA dalla
+    # Kushtetuese (fuori dalla ricerca per regola, v9.376): l'avviso «29 precedenti non trovati» a ogni avvio era solo questo
+    try:
+        import json as _js407
+        from pathlib import Path as _P407
+        from src import dense as _dn407
+        from src.case_graph import annullati_gjl as _an407
+        from src.retrieval_kb import LegalKBRetriever as _KB407
+        _fk407 = _P407(str(_dn407.EMB_DIR / f"emb_dec_{_dn407.tag()}") + ".keys.json")
+        if _fk407.exists():
+            _keys407 = _js407.loads(_fk407.read_text(encoding="utf-8"))
+            _D407 = _dn407.DenseDecisions.carica(_KB407.load().cases)
+            _ann407 = _an407()
+            _manc407 = [k for k, r in zip(_keys407, _D407.rows) if r < 0] if _D407 else ["(embedding non caricati)"]
+            _altri407 = [k for k in _manc407
+                         if not (k.split("|")[0] == "gjykata_elarte" and k.split("|", 2)[-1].strip() in _ann407)]
+            check("precedenti[407]: ogni precedente degli embedding è nel recuperatore o è un'annullata della Kushtetuese",
+                  _D407 is not None and not _altri407, f"{len(_manc407)} mancanti, non annullati: {_altri407[:6]}")
+        else:
+            check("precedenti[407]: embedding dei precedenti assenti (saltato)", True, "")
+    except Exception as _e407:  # noqa: BLE001
+        check("precedenti[407]: kontrollet u ekzekutuan", False, f"{type(_e407).__name__}: {_e407}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

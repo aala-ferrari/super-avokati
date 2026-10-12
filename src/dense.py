@@ -331,10 +331,22 @@ class DenseDecisions:
         # v9.369: nel pickle `year` = anno del NUMERO (00-2022-3054), nel retriever = anno della DATA (2023): per la
         # Gjykata e Lartë e la CEDU il numero da solo è unico nella corte — ripiego su corte|numero
         rows = [pos.get(k, pos_num.get(k.split("|")[0] + "|" + k.split("|", 2)[-1], -1)) for k in keys]
-        mancanti = sum(1 for r in rows if r < 0)
+        mancanti = [k for k, r in zip(keys, rows) if r < 0]
         if mancanti:
-            log.warning("dense: %d precedenti con embedding non trovati nel retriever (chiavi diverse o corpus cambiato)", mancanti)
-        if mancanti > len(rows) * 0.2:
+            # v9.629 — le decisioni della Gjykata e Lartë ANNULLATE dalla Kushtetuese stanno fuori dal retriever per regola (v9.376):
+            # non sono un disallineamento, e l'avviso «29 precedenti non trovati» a ogni avvio confondeva il controllo dei log
+            try:
+                from src.case_graph import annullati_gjl
+                _ann = annullati_gjl()
+            except Exception:  # noqa: BLE001
+                _ann = {}
+            _escluse = sum(1 for k in mancanti if k.split("|")[0] == "gjykata_elarte" and k.split("|", 2)[-1].strip() in _ann)
+            if _escluse:
+                log.info("dense: %d precedenti annullati dalla Kushtetuese fuori dalla ricerca (regola v9.376)", _escluse)
+            if len(mancanti) > _escluse:
+                log.warning("dense: %d precedenti con embedding non trovati nel retriever (chiavi diverse o corpus cambiato)",
+                            len(mancanti) - _escluse)
+        if len(mancanti) > len(rows) * 0.2:
             return None
         return cls(E, rows)
 
