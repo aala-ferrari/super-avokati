@@ -1665,6 +1665,11 @@ _CODICI_CONDIZIONATI_AL = _CODICI_CONDIZIONATI_AL + (
      re.compile(r"vetting|veting|rivlerësim|rivleresim|\bkpk\b|komision\w*\s+(?:i|e)\s+pavarur\s+(?:i|e)\s+kualifikim|"
                 r"kolegj\w*\s+(?:i|e)\s+posaçëm|kolegj\w*\s+(?:i|e)\s+posacem|\bonm\b|aneks\w*\s+(?:i|e|të|te)\s+kushtetut|"
                 r"(?:gjyqtar|prokuror)\w*.{0,80}(?:pasuri|figur|aftësi profesional|aftesi profesional)\w*.{0,40}(?:vlerës|vleres|kontroll|deklar)", re.I)),
+    # v9.628 — la legge sulla RESPONSABILITÀ PENALE DELLE PERSONE GIURIDICHE (9754/2007): solo con una società o un ente nella domanda
+    # («përgjegjësi», «dënim», «gjobë» stanno in tutte le domande penali)
+    ("ligji_personat_juridike", "responsabilità penale delle persone giuridiche",
+     re.compile(r"person\w*\s+juridik|shoqëri|shoqeri|\bsh\.?\s?p\.?\s?k\b|\bsh\.?\s?a\.?\b|kompani|ndërmarrj|ndermarrj|\bfirm|biznes|"
+                r"korporat|ent\w*\s+(?:publik|privat)|organizat\w*\s+jofitim|administrator\w*\s+(?:i|e)\s+(?:shoqër|shoqer)", re.I)),
     # v9.616 — la legge sull'ISPEZIONE EDILIZIA (9780/2007): solo con un tema edilizio nella domanda («vendim», «ankim», «afat», «gjobë»
     # stanno in mille domande)
     ("ligji_inspektimi_territorit", "ispezione edilizia",

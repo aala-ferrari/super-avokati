@@ -204,6 +204,11 @@ def _semi_situazione_al(facts: str) -> list:
     # v9.619: una società o un'impresa nei fatti → la responsabilità penale della persona giuridica (KP 45) e le pene accessorie (KP 30)
     if _re.search(r"\bshoqeri|\bsh\.?p\.?k\b|\bsh\.?a\.?\b|kompani|person\w*\s+juridik|\bbiznes", f):
         out += [("kodi_penal", "45"), ("kodi_penal", "30")]
+        # v9.628 — e la LEGGE a cui il KP 45/4 rinvia (ligji 9754/2007): le basi della responsabilità della società (3), le pene
+        # principali e accessorie con la confisca (9, 10), le fasce della multa per pena del reato (11), le attenuanti — i modelli di
+        # organizzazione, il danno risarcito (20) — e il rappresentante della società nel procedimento (26, entro 10 giorni). Audit AL
+        # del 12 ott (fatture false): «neni 45 ¶4 i delegon … një ligji të veçantë, i cili nuk është në korpusin e dhënë»
+        out += [("ligji_personat_juridike", n) for n in ("3", "9", "10", "11", "20", "26")]
     if _RX_DHUNE.search(f) and _RX_FAMILJE.search(f):
         out += [("ligji_dhuna_familje_2026", n) for n in ("18", "26", "30", "36", "42")]
     return out

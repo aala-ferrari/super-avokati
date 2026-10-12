@@ -11709,6 +11709,52 @@ def main():
     except Exception as _e403:  # noqa: BLE001
         check("markdown[403]: kontrollet u ekzekutuan", False, f"{type(_e403).__name__}: {_e403}")
 
+    # [404] v9.628 — la LEGGE 9754/2007 sulla responsabilità penale delle persone giuridiche (il KP 45/4 vi rinvia; QBZ: solo il testo
+    # base, mai modificata): nel corpus (31 nene, l'art. 11 con le fasce della multa), letta dal verificatore per numero e per nome, solo con
+    # una società nella domanda, e i suoi semi nel procuratore quando nei fatti c'è una società
+    try:
+        from src import brain as _br404, prosecutor as _pr404, citation_verifier as _cv404
+        from src.retrieval import ArticleIndex as _AI404
+        _br404.set_request_jurisdiction("AL")
+        _al404 = _AI404.load()
+        _pj404 = [a for a in _al404.articles if a.code == "ligji_personat_juridike"]
+        _v404 = _cv404.verify_text("Sipas nenit 11 të ligjit nr. 9754/2007 dhe nenit 3 të ligjit për përgjegjësinë penale të personave "
+                                   "juridikë, shoqëria dënohet me gjobë.", _al404)["items"]
+        _pjp = [(a, 1.0) for a in _pj404[:3]]
+        _ok404 = (len(_pj404) >= 30 and any(str(a.number) == "11" and "25 milionë" in (a.body or "") for a in _pj404)
+                  and not any("Shpallur me dekretin" in (a.body or "") for a in _pj404)
+                  and sum(1 for c in _v404 if c.get("status") == "verified" and c.get("code") == "ligji_personat_juridike") >= 2
+                  and len(_br404._senza_codici_condizionati_al(_pjp, "Administratori i shoqërisë dha ryshfet për tenderin.")) == 3
+                  and _br404._senza_codici_condizionati_al(_pjp, "Klienti u kap me 50 gram kokainë.") == []
+                  and ("ligji_personat_juridike", "11") in _pr404._semi_situazione_al("Shoqëria ALFA shpk lëshoi fatura fiktive.")
+                  and ("ligji_personat_juridike", "11") not in _pr404._semi_situazione_al("Klienti vodhi një telefon."))
+        check("personat_juridike[404]: legge 9754/2007 nel corpus e nel verificatore, solo con una società, semi del procuratore",
+              _ok404, f"{len(_pj404)} {[(c.get('status'), c.get('code'), c.get('number')) for c in _v404]}")
+    except Exception as _e404:  # noqa: BLE001
+        check("personat_juridike[404]: kontrollet u ekzekutuan", False, f"{type(_e404).__name__}: {_e404}")
+
+    # [405] v9.628 — gli OMOGLIFI CIRILLICI tolti anche all'INGRESSO del parser albanese: la legge 9754/2007 dal .docx ufficiale QBZ
+    # portava «kohё», «dёnuar», «pёr» (artt. 18, 19, 25: il [310] ha fermato il rilascio). Prima dell'intestazione «Neni» (una «е»
+    # cirillica nel «Nеni» faceva sparire l'articolo), il cirillico vero resta com'è, e la riparazione del corpus usa le stesse regole
+    try:
+        import types as _ty405
+        from src import parser as _pa405
+        _d405 = _ty405.SimpleNamespace(code="prova_omo", title_sq="Ligji i provës", area="Penal", volatility="STABLE",
+                                       last_amendment_date="")
+        _x405 = ("Neni 1\nKoha e paraburgimit\nKohё e paraburgimit llogaritet nё dёnimin e personit juridik.\n"
+                 "Neni 2\nLargimi і ortakut\nOrtaku largohet pёr shkaqe tё arsyeshme.\n"
+                 "Nеni 3\nDënimet\nа) gjoba; ҫ) mbyllja e veprimtarisë.\n")
+        _a405 = {str(a.number): a for a in _pa405.split_into_articles(_x405, _d405)}
+        _t405 = " ".join(f"{a.heading} {a.body}" for a in _a405.values())
+        _ok405 = (sorted(_a405) == ["1", "2", "3"] and not re.search(r"[Ѐ-ӿ]", _t405)
+                  and "Kohë e paraburgimit llogaritet në dënimin" in _t405 and "Largimi i ortakut" in _t405
+                  and "për shkaqe të arsyeshme" in _t405 and "a) gjoba; ç) mbyllja" in _t405
+                  and _pa405.omoglifi_latini("Москва и Тирана") == ("Москва и Тирана", 0))
+        check("omoglifi[405]: le lettere cirilliche tolte anche all'ingresso del parser albanese (il cirillico vero resta)",
+              _ok405, f"{sorted(_a405)} {_t405[:300]!r}")
+    except Exception as _e405:  # noqa: BLE001
+        check("omoglifi[405]: kontrollet u ekzekutuan", False, f"{type(_e405).__name__}: {_e405}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

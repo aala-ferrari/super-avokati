@@ -26,6 +26,34 @@ from .logging_utils import get_logger
 
 log = get_logger(__name__)
 
+# v9.537 / v9.628 — OMOGLIFI CIRILLICI nei testi albanesi (QBZ: «ё» U+0451 per «ë», «і», «а», «ҫ» per «ç»…): la piegatura dei
+# diacritici della ricerca non li tocca e la parola non corrisponde più a nessuna domanda. Nel corpus AL non c'è cirillico vero:
+# la lettera si sostituisce dentro una parola latina, come parola intera fra due parole latine («Largimi і ortakut») e isolata
+# senza altre cirilliche accanto (elenchi «а) …», «“і”»). Li usano l'ingresso (split_into_articles) e tools/repair_omoglifi_al.py
+OMOGLIFI_CIRILLICI = {"ё": "ë", "Ё": "Ë", "і": "i", "І": "I", "ј": "j", "а": "a", "А": "A", "е": "e", "Е": "E", "о": "o",
+                      "О": "O", "р": "p", "Р": "P", "с": "c", "С": "C", "х": "x", "Х": "X", "у": "y", "к": "k", "К": "K",
+                      "Т": "T", "Н": "H", "В": "B", "М": "M", "ѕ": "s", "ҫ": "ç", "Ҫ": "Ç"}
+_LAT_AL = r"A-Za-zÀ-ÿËëÇç"
+_OMO = "".join(OMOGLIFI_CIRILLICI)
+_OMO_DENTRO = re.compile(r"(?<=[" + _LAT_AL + r"])[" + _OMO + r"]|[" + _OMO + r"](?=[" + _LAT_AL + r"])")
+_OMO_SOLA = re.compile(r"(?<=[" + _LAT_AL + r"][ \t\xa0])[" + _OMO + r"](?=[ \t\xa0,;.:][ \t\xa0]?[" + _LAT_AL + r"])")
+_OMO_ISOLATA = re.compile(r"(?<![Ѐ-ӿ])[" + _OMO + r"](?![Ѐ-ӿ])")
+
+
+def omoglifi_latini(s: str) -> tuple[str, int]:
+    """Le lettere cirilliche al posto di quelle latine in un testo albanese → latine: (testo, quante sostituite)."""
+    n = 0
+
+    def _r(m):
+        nonlocal n
+        n += 1
+        return OMOGLIFI_CIRILLICI[m.group(0)]
+    # due passate della prima regola: «ёs» fra due cirilliche vicine si scioglie alla seconda
+    for rx in (_OMO_DENTRO, _OMO_DENTRO, _OMO_SOLA, _OMO_ISOLATA):
+        s = rx.sub(_r, s)
+    return s, n
+
+
 # Matches "Neni 37", "Neni 83/a", "Neni 170/ç" or the glued form "Neni37"
 # that some PDFs produce when the text-extractor drops the space.
 # NOTE: we use [ \t] (not \s) inside the number group — otherwise newlines are
@@ -544,6 +572,10 @@ def split_into_articles(text: str, doc: LegalDocument) -> list[Article]:
     # v9.540 — lettere scomposte («E» + U+0308) ricomposte e caratteri a larghezza zero tolti: il segno combinante spezzava la
     # parola in due token nella ricerca (62 articoli dei consolidati QBZ)
     text = re.sub(r"[\u200b-\u200d\u2060\ufeff\u0300-\u036f]", "", unicodedata.normalize("NFC", text))
+    # v9.628 \u2014 e gli omoglifi cirillici, dopo la NFC (\u00ab\u0435\u00bb + dieresi diventa \u00ab\u0451\u00bb): la legge 9754/2007 dal .docx ufficiale QBZ
+    # portava \u00abkoh\u0451\u00bb, \u00abd\u0451nuar\u00bb, \u00abp\u0451r\u00bb negli artt. 18, 19, 25 (il golden [310] ha fermato il rilascio). Prima solo la riparazione
+    # del corpus gi\u00e0 caricato: ora i caricamenti nuovi nascono puliti
+    text = omoglifi_latini(text)[0]
     raw_matches = list(ARTICLE_RE.finditer(text))
     # 16 set 2026 — «Neni N Titolo» sulla STESSA riga: il Kodi Zgjedhor perdeva così 81
     # articoli su 186 (audit_corpus). Si accetta solo se il titolo inizia in maiuscolo, non

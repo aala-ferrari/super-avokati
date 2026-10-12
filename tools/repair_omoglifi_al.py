@@ -14,17 +14,8 @@ from src.retrieval import ArticleIndex, Article  # noqa: E402
 
 JSONL = Path("/app/data/processed/all_articles.jsonl")
 PKL = Path("/app/data/index/bm25.pkl")
-MAPPA = {"ё": "ë", "Ё": "Ë", "і": "i", "І": "I", "ј": "j", "а": "a", "А": "A", "е": "e", "Е": "E", "о": "o", "О": "O",
-         "р": "p", "Р": "P", "с": "c", "С": "C", "х": "x", "Х": "X", "у": "y", "к": "k", "К": "K", "Т": "T", "Н": "H",
-         "В": "B", "М": "M", "ѕ": "s", "ҫ": "ç", "Ҫ": "Ç"}
-_LAT = r"A-Za-zÀ-ÿËëÇç"
-_RX = re.compile(r"(?<=[" + _LAT + r"])[" + "".join(MAPPA) + r"]|[" + "".join(MAPPA) + r"](?=[" + _LAT + r"])")
-# … e la lettera cirillica che è una PAROLA intera fra due parole latine («Largimi і ortakut», «… а …»): in albanese «i», «e», «a»,
-# «o» sono parole
-_RX_SOLA = re.compile(r"(?<=[" + _LAT + r"][ \t\xa0])[" + "".join(MAPPA) + r"](?=[ \t\xa0,;.:][ \t\xa0]?[" + _LAT + r"])")
-# … e la lettera ISOLATA senza altre cirilliche accanto: lettere d'elenco a inizio riga («а) …», «ё) …», «ҫ) …»), dopo una virgola
-# («, і cili»), fra virgolette («“і”»). Nel corpus AL non c'è cirillico vero (misurato: i resti erano tutti omoglifi)
-_RX_ISOLATA = re.compile(r"(?<![Ѐ-ӿ])[" + "".join(MAPPA) + r"](?![Ѐ-ӿ])")
+# v9.628 — le regole stanno nel parser (le usa anche l'ingresso: i caricamenti nuovi nascono puliti)
+from src.parser import omoglifi_latini  # noqa: E402
 CAMPI = ("heading", "body", "note", "title_sq", "kreu", "pjesa", "seksioni")   # anche i titoli di capitolo e di parte: entrano nella ricerca
 
 
@@ -45,15 +36,8 @@ def pulisci(s):
         n[0] += 1
     s = _nz
 
-    def _r(m):
-        n[0] += 1
-        return MAPPA[m.group(0)]
-    # due passate: «ёs» in mezzo a due cirilliche vicine si scioglie alla seconda
-    out = _RX.sub(_r, s)
-    out = _RX.sub(_r, out)
-    out = _RX_SOLA.sub(_r, out)
-    out = _RX_ISOLATA.sub(_r, out)
-    return out, n[0]
+    out, k = omoglifi_latini(s)
+    return out, n[0] + k
 
 
 def main() -> int:
