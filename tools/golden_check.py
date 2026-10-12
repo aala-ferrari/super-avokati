@@ -12066,9 +12066,16 @@ console.log(JSON.stringify(out));
         _t2 = "Sipas nenit 9999 të Kodit Civil palët mund ta zgjidhin kontratën. Afati nis sipas nenit 120 të Kodit Civil."
         _v1, _v2 = _tl415.verifica(_t1, _al415, "AL"), _tl415.verifica(_t2, _al415, "AL")
         _b1, _b2 = _cn415._barra(_t1, _al415, "sq")[0], _cn415._barra(_t2, _al415, "sq")[0]
+        # … e lo scudo della chat e degli strumenti: la spilla non lo conta fra i fantasmi e il testo non prende «[⚠ verifikim dështoi]»
+        from src import citation_verifier as _cv415, citation_shield as _cs415
+        _p1 = _cs415.senza_inesistenti_dichiarati(_t1, _cv415.verify_text(_t1, _al415))
+        _p2 = _cs415.senza_inesistenti_dichiarati(_t2, _cv415.verify_text(_t2, _al415))
         _ok415 = (_v1["nene"]["fake"] == 0 and _v1["nene"].get("fake_noted") == 1 and _tl415.stato(_v1) != "FLAGS"
                   and "~~" not in _b1 and _v2["nene"]["fake"] == 1 and _tl415.stato(_v2) == "FLAGS" and "~~9999~~" in _b2
-                  and "të deklaruara si të tilla" in _tl415.riga(_v1, "sq"))
+                  and "të deklaruara si të tilla" in _tl415.riga(_v1, "sq")
+                  and _p1["stats"]["fake"] == 0 and _p1["stats"].get("fake_noted") == 1
+                  and "verifikim dështoi" not in _cs415.annotate_fake_citations(_t1, _p1)
+                  and _p2["stats"]["fake"] == 1 and "verifikim dështoi" in _cs415.annotate_fake_citations(_t2, _p2))
         check("inesistente[415]: l'articolo che la frase dice inesistente non si barra e non è rosso; il fantasma vero sì", _ok415,
               f"{_v1['nene']} | {_v2['nene']['fake']} | {_b1[:60]}")
     except Exception as _e415:  # noqa: BLE001

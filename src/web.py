@@ -7865,6 +7865,7 @@ def api_ask():
     citations_payload = cv_mod.verify_text(
         result.text or "", _req_index(), retrieved_codes=retrieved_codes,
     )
+    cs_mod.senza_inesistenti_dichiarati(result.text or "", citations_payload)     # v9.633
 
     # V8.11 Citation Shield V2 — refusal preamble when all citations are
     # fabricated, fake-citation inline annotation, provenance pack.
@@ -8085,6 +8086,7 @@ def _ask_prepare(user, data):
             citations_payload = cv_mod.verify_text(
                 result.text or "", _idx, retrieved_codes=retrieved_codes,
             )
+            cs_mod.senza_inesistenti_dichiarati(result.text or "", citations_payload)     # v9.633
 
             # V8.11 Citation Shield V2 — same logic as the blocking path
             refused = cs_mod.should_refuse(citations_payload)
@@ -10517,7 +10519,7 @@ def _scudo_deterministico(md: str, juris: str | None = None) -> str:
     except Exception:  # noqa: BLE001
         juris = juris or "AL"
     try:
-        cits = cv_mod.verify_text(md, _req_index())
+        cits = cs_mod.senza_inesistenti_dichiarati(md, cv_mod.verify_text(md, _req_index()))     # v9.633
         if int((cits.get("stats") or {}).get("fake") or 0) > 0:
             md = cs_mod.annotate_fake_citations(md, cits)
     except Exception:  # noqa: BLE001
@@ -10588,6 +10590,7 @@ def _scudo_citazioni(md: str, citations: dict, retrieved_codes=None) -> str:
                 citations.clear(); citations.update(_c2)
     except Exception:  # noqa: BLE001
         log.debug("cancello nello scudo saltato", exc_info=True)
+    cs_mod.senza_inesistenti_dichiarati(md, citations)     # v9.633: l'inesistente che la frase dice inesistente
     try:
         juris = "AL"
         try:

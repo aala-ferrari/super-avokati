@@ -280,6 +280,27 @@ def build_provenance_pack(
 # rewrites fake citations inline with a [verifikim dështoi] marker.
 
 
+def senza_inesistenti_dichiarati(text: str, citations_payload: dict[str, Any]) -> dict[str, Any]:
+    """v9.633 — toglie dal resoconto delle citazioni l'articolo INESISTENTE che la frase stessa dice inesistente («Askush nuk citon
+    nenin 120 të Ligjit 8510 — një nen i tillë nuk ekziston»): non è una citazione su cui la risposta si regge, e annotarlo con
+    «[⚠ verifikim dështoi]» o contarlo fra i «nene fantazmë» della spilla rendeva confusa una frase giusta. Modifica il dict sul posto
+    (i chiamanti lo rimandano al client) e lo restituisce; non solleva mai."""
+    try:
+        from .trust_line import inesistenza_dichiarata
+        items = citations_payload.get("items") or []
+        via = [it for it in items if it.get("status") == "fake" and inesistenza_dichiarata(text or "", it.get("raw") or "")]
+        if not via:
+            return citations_payload
+        citations_payload["items"] = [it for it in items if it not in via]
+        st = citations_payload.setdefault("stats", {})
+        st["fake"] = max(0, int(st.get("fake") or 0) - len(via))
+        st["total"] = max(0, int(st.get("total") or 0) - len(via))
+        st["fake_noted"] = int(st.get("fake_noted") or 0) + len(via)
+    except Exception:  # noqa: BLE001
+        pass
+    return citations_payload
+
+
 def annotate_fake_citations(text: str, citations_payload: dict[str, Any]) -> str:
     """Append a small marker after each fake citation occurrence.
 
