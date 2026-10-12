@@ -12870,6 +12870,35 @@ const F = new Function("localStorage", "document", "_traduciAtto", "_soloAtto", 
     except Exception as _e429:  # noqa: BLE001
         check("redattori[429]: kontrollet u ekzekutuan", False, f"{type(_e429).__name__}: {_e429}")
 
+    # [430] v9.635 — LA RICHIESTA DI REVISIONE SENZA VERBO: «A është në rregull kjo prokurë?», «È corretta questa procura?», «Ky akt
+    # noterial a ka mangësi?», «Che ne pensi di questo contratto?» finivano nella sala di guerra intera (6 su 17 frasi vere riconosciute).
+    # Il dimostrativo deve stare ACCANTO al documento e «në rregull» è una parola intera: la domanda vera del titolare sul vincolo in
+    # kartela («kufizohen veprimet deri ne rregullimin … a mund ta lidhë noteri kontratë me këtë kufizim?») resta una domanda sul caso
+    try:
+        from src import brain as _br430
+        _f430, _d430 = _br430._eshte_rishikim_dokumenti, [{"filename": "x.docx"}]
+        _si430 = ["rishiko këtë dokument nëse është ok", "A është në rregull kjo prokurë?", "Shiko kontratën bashkëngjitur, ka gabime?",
+                  "è corretta questa procura?", "Puoi controllare il contratto allegato?", "dimmi se va bene questo contratto",
+                  "a mund ta kontrollosh këtë kontratë", "Çfarë mendon për këtë kontratë?", "Kjo autorizim a vlen për Italinë?",
+                  "Cosa ne pensi di questo contratto di locazione?", "Questa procura è valida per vendere la casa?",
+                  "A është e vlefshme kjo prokurë për të shitur shtëpinë?", "verifica se la procura allegata è in regola",
+                  "Ky akt noterial a ka mangësi?", "La scrittura allegata va bene così?", "a eshte ne rregull kjo kontrate qiraje",
+                  "Kontrolloje autorizimin, a mund ta përdor në Itali?"]
+        _no430 = ["Na erdhi kjo padi, si mbrohemi?", "Abbiamo ricevuto questa diffida: è corretta?",
+                  "Kontrata e qirasë: brenda sa ditësh paguhet qiraja?", "Klienti u pushua nga puna pa paralajmërim, çfarë bëjmë?",
+                  "Il cliente ha firmato un contratto di lavoro a termine nel 2021, è ancora valido il termine?",
+                  "Pala tjetër na dërgoi këtë kontratë, a është në rregull?", "Cosa prevede l'art. 1395 c.c.?",
+                  "nese kemi kufizim , ku thuhet : kufizohen veprimet deri ne rregullimin e mardhenieve me truallin. banka e ka dhen "
+                  "miratimin per shitje, por nga ashk thuhet se esht kufizimi. a mund tr lidhi noteri kontrate me kete kufizim? dhe si "
+                  "hiqet kufizimi?"]
+        _mancate430 = [x for x in _si430 if not _f430(x, _d430)]
+        _falsi430 = [x[:60] for x in _no430 if _f430(x, _d430)]
+        check("rishikim[430]: la richiesta di revisione anche senza verbo, il dimostrativo accanto al documento",
+              not _mancate430 and not _falsi430 and not _f430("A është në rregull kjo prokurë?", []),
+              f"mancate={_mancate430} falsi={_falsi430}")
+    except Exception as _e430:  # noqa: BLE001
+        check("rishikim[430]: kontrollet u ekzekutuan", False, f"{type(_e430).__name__}: {_e430}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

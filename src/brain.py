@@ -9286,13 +9286,21 @@ _RISHIKIM_FORTE_RX = re.compile(
     r"rivedi\w*|riveder\w*|revision\w*|controll\w*|verific\w*|corregg\w*|miglior\w*)\b", re.I)
 _RISHIKIM_DOBET_RX = re.compile(r"\b(shiko\w*|lexo\w*|guarda\w*|leggi\w*)\b", re.I)
 _RISHIKIM_OK_RX = re.compile(
-    r"(\bok\b|n[eë] rregull|e sakt[eë]|i sakt[eë]|e vlefsh[eë]m|i vlefsh[eë]m|gabim\w*|mungon|mang[eë]si|"
-    r"va bene|[eè] corrett|[eè] giust|[eè] valid|in regola|error\w*|mancan\w*|manca\b)", re.I)
-_RISHIKIM_OBJ_RX = re.compile(
-    r"\b(dokument\w*|kontrat\w*|prokur\w*|autorizim\w*|akt\w*|shkres\w*|marr[eë]veshj\w*|deklarat\w*|k[eë]rkes\w*|"
+    r"(\bok\b|n[eë] rregull\b|e sakt[eë]|i sakt[eë]|\bvlefsh(?:[eë]m|me)\b|gabim\w*|mungon|mang[eë]si|\bvlen\b|"
+    r"va bene|[eè] corrett|[eè] giust|[eè] valid|in regola|error\w*|mancan\w*|manca\b|\bvale\b)", re.I)
+# v9.635 — il parere chiesto su QUESTO documento («Çfarë mendon për këtë kontratë?», «Che ne pensi di questo contratto?»)
+_RISHIKIM_MENDIM_RX = re.compile(r"(\bmendon\b|\bmendim\w*|cosa ne pensi|che ne pensi|cosa pensi|\bparere\b)", re.I)
+_RISHIKIM_OBJ_ALT = (
+    r"(?:dokument\w*|kontrat\w*|prokur\w*|autorizim\w*|akt\w*|shkres\w*|marr[eë]veshj\w*|deklarat\w*|k[eë]rkes\w*|"
     r"padi\w*|ankim\w*|testament\w*|statut\w*|draft\w*|projekt\w*|let[eë]r\w*|vendim\w* (?:t[eë] )?asamble\w*|"
     r"document\w*|contratt\w*|procur\w*|autorizzazion\w*|delega|atto|lettera|ricorso|diffida|dichiarazion\w*|"
-    r"bozza|accordo|verbale|scrittur\w*)\b", re.I)
+    r"bozza|accordo|verbale|scrittur\w*)")
+_RISHIKIM_OBJ_RX = re.compile(r"\b" + _RISHIKIM_OBJ_ALT + r"\b", re.I)
+# v9.635 — il dimostrativo ACCANTO al documento («kjo prokurë», «këtë kontratë», «questo contratto», «la scrittura allegata»): nella
+# domanda vera «a mund ta lidhë noteri kontratë me këtë kufizim?» il «këtë» era del vincolo, non del documento
+_RISHIKIM_QUESTO_DOC_RX = re.compile(
+    r"\b(?:k[eë]t[eë]|k[eë]to|ky|kjo|questo|questa|questi|queste)\s+(?:[\w’']+\s+){0,2}?" + _RISHIKIM_OBJ_ALT + r"\b"
+    r"|\b" + _RISHIKIM_OBJ_ALT + r"\s+(?:[\w’']+\s+){0,2}?(?:bashk[eë]ngjitur|bashkangjitur|allegat\w*)\b", re.I)
 _RISHIKIM_KETE_RX = re.compile(r"\b(k[eë]t[eë]|k[eë]to|ky|kjo|bashk[eë]ngjitur|bashkangjitur|questo|questa|questi|"
                                r"allegat\w*)\b", re.I)
 # un documento dell'ALTRA parte (ricevuto, notificato) o una domanda di strategia non è una «revisione»: percorso di sempre
@@ -9310,7 +9318,12 @@ def _eshte_rishikim_dokumenti(user_message: str, documents) -> bool:
         return False
     verbo = bool(_RISHIKIM_FORTE_RX.search(s_)) or (bool(_RISHIKIM_DOBET_RX.search(s_)) and bool(_RISHIKIM_OK_RX.search(s_)))
     oggetto = bool(_RISHIKIM_OBJ_RX.search(s_)) or bool(_RISHIKIM_KETE_RX.search(s_))
-    return verbo and oggetto
+    # v9.635 — la domanda SENZA verbo di revisione su QUESTO documento: «A është në rregull kjo prokurë?», «È corretta questa
+    # procura?», «Ky akt noterial a ka mangësi?», «Che ne pensi di questo contratto?» — misurato su 17 frasi vere: prima 6 su 17
+    # riconosciute (le altre finivano nella sala di guerra intera, il difetto del 12 ott); serve il dimostrativo o «allegato»
+    su_questo = (bool(_RISHIKIM_QUESTO_DOC_RX.search(s_))
+                 and (bool(_RISHIKIM_OK_RX.search(s_)) or bool(_RISHIKIM_MENDIM_RX.search(s_))))
+    return (verbo and oggetto) or su_questo
 
 
 def _dokumenti_per_rishikim(documents, user_message: str = ""):
