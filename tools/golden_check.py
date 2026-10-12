@@ -11799,6 +11799,24 @@ def main():
     except Exception as _e407:  # noqa: BLE001
         check("precedenti[407]: kontrollet u ekzekutuan", False, f"{type(_e407).__name__}: {_e407}")
 
+    # [408] v9.630 — l'appalto e la persona giuridica nei semi del procuratore (prova in Chrome del 12 ott: l'analisi dava «non nel
+    # corpus» il KP 258, lo shpërdorim, le pene accessorie e il ponte verso KP e KPP della 9754): con un tender KP 258 e 248; con una
+    # società anche gli artt. 2, 4, 12, 18, 25 della 9754 e, con un appalto o fondi pubblici, il 15 (mai senza)
+    try:
+        from src import prosecutor as _pr408
+        _s408 = _pr408._semi_situazione_al
+        _t408 = _s408("Administratori i shoqërisë ALFA shpk i dha ryshfet zyrtarit të bashkisë që shoqëria të fitonte tenderin publik.")
+        _f408 = _s408("Shoqëria ALFA shpk lëshoi fatura fiktive për 20 milionë lekë.")
+        _ok408 = (all(x in _t408 for x in [("kodi_penal", "258"), ("kodi_penal", "248")]
+                      + [("ligji_personat_juridike", n) for n in ("2", "4", "12", "15", "18", "25")])
+                  and ("ligji_personat_juridike", "25") in _f408 and ("ligji_personat_juridike", "15") not in _f408
+                  and ("kodi_penal", "258") not in _f408
+                  and ("kodi_penal", "258") not in _s408("Klienti vodhi një telefon në dyqan."))
+        check("prokuror[408]: tender → KP 258/248; società → 9754 artt. 2, 4, 12, 18, 25 (e 15 solo con appalti o fondi pubblici)",
+              _ok408, f"{_t408} | {_f408}")
+    except Exception as _e408:  # noqa: BLE001
+        check("prokuror[408]: kontrollet u ekzekutuan", False, f"{type(_e408).__name__}: {_e408}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

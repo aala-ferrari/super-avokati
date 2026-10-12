@@ -181,6 +181,11 @@ def _semi_situazione_al(facts: str) -> list:
             out += [("kodi_proc_penale", "300"), ("kodi_proc_penale", "301"), ("kodi_proc_penale", "144")]   # v9.618: le 48 ore
     if "shperdor" in f:
         out += [("kodi_penal", "248"), ("kodi_penal", "135")]
+    # v9.630 — un TENDER o un'asta pubblica nei fatti: la violazione dell'uguaglianza dei partecipanti (KP 258, il funzionario e chi
+    # concorre) e l'abuso d'ufficio (248). Prova in Chrome del 12 ott: «shkelja e barazisë së pjesëmarrësve në tendera publike /
+    # shpërdorimi i detyrës nga zyrtari … nuk janë në korpusin e dhënë»
+    if _re.search(r"\btender|\bankand|prokurim\w*\s+publik", f):
+        out += [("kodi_penal", "258"), ("kodi_penal", "248")]
     # v9.405 — il fatto TENTATO (KP 22 «Kuptimi i tentativës», 23 «Përgjegjësia për tentativën»): nell'audit AL del 29 set
     # l'analisi di un tentativo lo qualificava senza gli articoli sulla tentativa
     # v9.618: «u përpoq të ikte» (tentò la FUGA) non è il tentativo del reato
@@ -221,6 +226,14 @@ def _semi_situazione_al(facts: str) -> list:
         # organizzazione, il danno risarcito (20) — e il rappresentante della società nel procedimento (26, entro 10 giorni). Audit AL
         # del 12 ott (fatture false): «neni 45 ¶4 i delegon … një ligji të veçantë, i cili nuk është në korpusin e dhënë»
         out += [("ligji_personat_juridike", n) for n in ("3", "9", "10", "11", "20", "26")]
+        # v9.630 — prova in Chrome del 12 ott (l'amministratore paga il funzionario per vincere l'appalto): l'analisi dava «non nel
+        # corpus» le durate delle pene accessorie, le misure cautelari verso la società e la sua prescrizione — ci sono: il ponte
+        # verso KP e KPP (2: la legge vale «për aq sa nuk është parashikuar ndryshe» nei codici; 25: le norme del procedimento
+        # sull'indagato e l'imputato «për aq sa është e mundur»), chi è organo della società (4), lo scioglimento (12), il divieto
+        # di attività (18); con un appalto o fondi pubblici nei fatti l'esclusione dagli appalti (15: da 1 a 5 anni)
+        out += [("ligji_personat_juridike", n) for n in ("2", "4", "12", "18", "25")]
+        if _re.search(r"\btender|\bankand|prokurim|fond\w*\s+(e\s+|te\s+)?publik", f):
+            out.append(("ligji_personat_juridike", "15"))
     if _RX_DHUNE.search(f) and _RX_FAMILJE.search(f):
         out += [("ligji_dhuna_familje_2026", n) for n in ("18", "26", "30", "36", "42")]
     return out
