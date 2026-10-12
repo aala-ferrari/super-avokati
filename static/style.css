@@ -8422,3 +8422,9 @@ details.analiza[open]>summary::before{content:"\25BE  "}
 .red-pronto { position:fixed; left:50%; transform:translateX(-50%); bottom:calc(18px + env(safe-area-inset-bottom, 0px)); z-index:9999; display:flex; align-items:center; gap:10px; max-width:calc(100vw - 32px); padding:10px 14px; border-radius:12px; background:#15192a; color:#f6f1e6; box-shadow:0 8px 28px rgba(0,0,0,.25); font-size:.92rem; }
 .red-apri { border:0; background:#c9a24b; color:#15192a; font-weight:700; border-radius:8px; padding:6px 14px; min-height:36px; cursor:pointer; }
 .red-chiudi { border:0; background:transparent; color:#f6f1e6; font-size:1.2rem; min-width:36px; min-height:36px; cursor:pointer; }
+/* v9.635 — le lingue scelte all'inizio nei redattori del notaio */
+.red-lingue { display:flex; flex-wrap:wrap; align-items:center; gap:6px 12px; margin:2px 0 10px; font-size:.9rem; color:#6b5836; }
+.red-lingue-lab { font-weight:600; }
+.red-lingua-opt { display:inline-flex; align-items:center; gap:6px; min-height:36px; padding:0 10px; border:1px solid #d8c9a8; border-radius:8px; background:#fffdf8; cursor:pointer; }
+.red-lingua-opt input { margin:0; }
+.red-lingue-nota { flex-basis:100%; font-size:.8rem; opacity:.75; }

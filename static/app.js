@@ -1879,7 +1879,7 @@
   // v9.635 — la traduzione dell'atto senza passare da «Përkthim»: lo stesso traduttore (glossario, rilettura del giurista della
   // lingua d'arrivo, avviso «traduzione di lavoro»), solo sull'atto PULITO; la richiesta è parcheggiata come gli strumenti PRO
   async function _traduciAtto(box, atto, target, titolo) {
-    var nomi = { en: "English", it: "Italiano", sq: "Shqip" };
+    var nomi = _CAL_IT ? { en: "Inglese", it: "Italiano", sq: "Albanese" } : { en: "Anglisht", it: "Italisht", sq: "Shqip" };
     var blocco = document.createElement("div"); blocco.className = "atto-traduzione";
     blocco.innerHTML = '<div class="atto-trad-head"></div><div class="atto-trad-status"></div><div class="fd-out"></div><div class="atto-trad-azioni"></div>';
     blocco.querySelector(".atto-trad-head").textContent = "🌐 " + (nomi[target] || target) + (_CAL_IT ? " — traduzione di lavoro" : " — përkthim pune");
@@ -1936,7 +1936,7 @@
     var tr = _bottoneAtto(_CAL_IT ? "🌐 Traduci l'atto" : "🌐 Përkthe aktin", function () {
       if (riga.querySelector(".atto-lingue")) return Promise.resolve();
       var sc = document.createElement("span"); sc.className = "atto-lingue";
-      (_CAL_IT ? [["en", "English"], ["sq", "Shqip"]] : [["en", "English"], ["it", "Italiano"]]).forEach(function (x) {
+      (_CAL_IT ? [["en", "Inglese"], ["sq", "Albanese"]] : [["en", "Anglisht"], ["it", "Italisht"]]).forEach(function (x) {
         var lb = document.createElement("button"); lb.type = "button"; lb.className = "pk-lang"; lb.textContent = x[1];
         lb.onclick = function () { lb.disabled = true; _traduciAtto(container, atto, x[0], titolo); };
         sc.appendChild(lb);
@@ -6188,6 +6188,7 @@
       _attachRowHtml("nd-file") + _revRowHtml() +
       '<textarea class="ac-ta" placeholder="' + t("Jep të dhënat: palët, objekti, çmimi, nr. pasurie, data… (ato që s’i ke, do vihen [___])") + '"></textarea>' +
       '<label class="ac-clauses"><input type="checkbox" class="nd-useclauses"> ' + t("📚 Përdor klauzolat e studios") + '</label>' +
+      _lingueRigaHtml() +
       '<div class="ac-row"><button class="ac-run" type="button">' + t("Harto aktin \u2192") + '</button><span class="ac-status"></span></div>' +
       '<div class="ac-result"></div>' +
       "</div>";
@@ -6223,11 +6224,12 @@
           status, _tit);
         if (!document.body.contains(ov)) return;      // finestra chiusa: il risultato è salvato, riaprendola si ritrova
         status.textContent = "";
-        _redattoreMostra(result, d, "notary", _tit, true);
+        _redattoreMostra(result, d, "notary", _tit, true, "akt");
       } catch (e) { status.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; }
       finally { run.disabled = false; }
     };
-    _redattoreRipristina("akt", ov, status, run, result, function (d, tit) { _redattoreMostra(result, d, "notary", tit, true); });
+    _lingueRicorda(ov, "akt");
+    _redattoreRipristina("akt", ov, status, run, result, function (d, tit) { _redattoreMostra(result, d, "notary", tit, true, "akt"); });
     setTimeout(function () { ta.focus(); }, 50);
   }
 
@@ -6261,6 +6263,7 @@
       _revRowHtml() + _attachRowHtml("prok-file") +
       '<textarea class="ac-ta" placeholder="' + t("Të dhënat: i përfaqësuari (emër, atësi, ID), përfaqësuesi (emër, ID), pasuria/shoqëria nëse ka… (ato që s’i ke do vihen [___])") + '"></textarea>' +
       '<label class="ac-clauses"><input type="checkbox" class="prok-useclauses"> ' + t("📚 Përdor klauzolat e studios") + '</label>' +
+      _lingueRigaHtml() +
       '<div class="ac-row"><button class="ac-run" type="button">' + t("Harto prokurën →") + '</button><span class="ac-status"></span></div>' +
       '<div class="ac-result"></div>' +
       "</div>";
@@ -6299,11 +6302,12 @@
           status, _tit);
         if (!document.body.contains(ov)) return;      // finestra chiusa: il risultato è salvato, riaprendola si ritrova
         status.textContent = "";
-        _redattoreMostra(result, d, "notary", _tit, true);
+        _redattoreMostra(result, d, "notary", _tit, true, "prokura");
       } catch (e) { status.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; }
       finally { run.disabled = false; }
     };
-    _redattoreRipristina("prokura", ov, status, run, result, function (d, tit) { _redattoreMostra(result, d, "notary", tit, true); });
+    _lingueRicorda(ov, "prokura");
+    _redattoreRipristina("prokura", ov, status, run, result, function (d, tit) { _redattoreMostra(result, d, "notary", tit, true, "prokura"); });
     setTimeout(function () { ta.focus(); }, 50);
   }
 
@@ -6319,6 +6323,7 @@
       '<div class="ndecl-must nd-must"></div>' +
       _revRowHtml() + _attachRowHtml("ndecl-file") +
       '<textarea class="ac-ta" placeholder="' + t("Jep të dhënat: deklaruesi, i mituri/objekti, periudha… (ato që s’i ke do vihen [___])") + '"></textarea>' +
+      _lingueRigaHtml() +
       '<div class="ac-row"><button class="ac-run" type="button">' + t("Harto deklaratën →") + '</button><span class="ac-status"></span></div>' +
       '<div class="ac-result"></div>' +
       "</div>";
@@ -6352,11 +6357,12 @@
           JSON.stringify({ decl_type: kind.value, details: details, existing_text: rev.text || "" }), status, _tit);
         if (!document.body.contains(ov)) return;      // finestra chiusa: il risultato è salvato, riaprendola si ritrova
         status.textContent = "";
-        _redattoreMostra(result, d, "notary", _tit, true);
+        _redattoreMostra(result, d, "notary", _tit, true, "deklarate");
       } catch (e) { status.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; }
       finally { run.disabled = false; }
     };
-    _redattoreRipristina("deklarate", ov, status, run, result, function (d, tit) { _redattoreMostra(result, d, "notary", tit, true); });
+    _lingueRicorda(ov, "deklarate");
+    _redattoreRipristina("deklarate", ov, status, run, result, function (d, tit) { _redattoreMostra(result, d, "notary", tit, true, "deklarate"); });
     setTimeout(function () { ta.focus(); }, 50);
   }
 
@@ -15269,7 +15275,8 @@ function moduleChips(u) {
   }
   async function _redattoreRichiesta(id, ov, endpoint, corpoJson, statusEl, titolo) {
     var chiave = _nuovaChiave();
-    var base = { chiave: chiave, quando: Date.now(), stato: "in_corso", titolo: titolo || "", modulo: _redModulo(ov) };
+    var base = { chiave: chiave, quando: Date.now(), stato: "in_corso", titolo: titolo || "", modulo: _redModulo(ov),
+                 lingue: _lingueScelte(ov) };
     _redScrivi(id, base);
     var p = (async function () {
       var d;
@@ -15290,7 +15297,7 @@ function moduleChips(u) {
     _RED_IN_CORSO[id] = p;
     try { return await p; } finally { if (_RED_IN_CORSO[id] === p) delete _RED_IN_CORSO[id]; }
   }
-  function _redattoreMostra(result, d, source, titolo, copia) {
+  function _redattoreMostra(result, d, source, titolo, copia, id) {
     result.innerHTML = '<div class="fd-out"></div>';
     var out = result.querySelector(".fd-out");
     out.innerHTML = renderMarkdown(d.markdown || "");
@@ -15305,6 +15312,42 @@ function moduleChips(u) {
       result.appendChild(copy);
     }
     _addSaveToCase(result, source, titolo, d.markdown || "", { atto: true });
+    if (id) _redTraduzioniAuto(id, result, d.markdown || "", titolo);
+  }
+  // v9.635 — LE LINGUE SCELTE ALL'INIZIO (idea del titolare, 12 ott: «o magari scegliere già dall'inizio in quante lingue lo vuoi la
+  // procura»): nei redattori del notaio «🌐 Traduci anche in: ☐ English ☐ Italiano/Shqip»; quando l'atto è pronto le traduzioni
+  // dell'atto PULITO partono da sole, una dopo l'altra (il tetto per utente degli strumenti parcheggiati: mai due insieme), una volta
+  // sola anche se il risultato si mostra a finestra riaperta. La scelta si ricorda per redattore; «🌐 Traduci l'atto» dopo resta.
+  var _LINGUE_LS = "sa_lingue_pre_";
+  function _lingueRigaHtml() {
+    var ll = _CAL_IT ? [["en", "Inglese"], ["sq", "Albanese"]] : [["en", "Anglisht"], ["it", "Italisht"]];
+    return '<div class="red-lingue"><span class="red-lingue-lab">' + (_CAL_IT ? "🌐 Traduci anche in:" : "🌐 Përkthe edhe në:") + '</span>' +
+      ll.map(function (x) { return '<label class="red-lingua-opt"><input type="checkbox" class="red-lingua" value="' + x[0] + '"> ' + x[1] + '</label>'; }).join("") +
+      '<span class="red-lingue-nota">' + (_CAL_IT ? "traduzione di lavoro dell'atto pulito, a fine redazione" : "përkthim pune i aktit të pastër, në fund të hartimit") + '</span></div>';
+  }
+  function _lingueScelte(ov) {
+    return Array.prototype.map.call(ov.querySelectorAll(".red-lingua:checked"), function (c) { return c.value; });
+  }
+  function _lingueRicorda(ov, id) {
+    var salvate = [];
+    try { salvate = JSON.parse(localStorage.getItem(_LINGUE_LS + id) || "[]") || []; } catch (e) {}
+    Array.prototype.forEach.call(ov.querySelectorAll(".red-lingua"), function (c) {
+      c.checked = salvate.indexOf(c.value) >= 0;
+      c.onchange = function () { try { localStorage.setItem(_LINGUE_LS + id, JSON.stringify(_lingueScelte(ov))); } catch (e) {} };
+    });
+  }
+  function _redTraduzioniAuto(id, result, md, titolo) {
+    var st = _redLeggi(id);
+    if (!st || !st.lingue || !st.lingue.length || st.lingueFatte) return;
+    var atto = _soloAtto(md);
+    if (atto.length < 80) return;
+    _redScrivi(id, Object.assign({}, st, { lingueFatte: true }));
+    (async function () {
+      for (var i = 0; i < st.lingue.length; i++) {
+        if (!document.body.contains(result)) return;
+        try { await _traduciAtto(result, atto, st.lingue[i], titolo); } catch (e) {}
+      }
+    })();
   }
   function _redNotaUltimo(id, st, result, statusEl) {
     var n = document.createElement("div"); n.className = "red-ultimo";

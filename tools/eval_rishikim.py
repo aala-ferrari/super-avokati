@@ -138,9 +138,33 @@ def valuta(caso, finale, tipi, fasi, errori, secondi):
         "parole": {p[:40]: ok for p, ok in parole}, "altra_lingua": len(altra), "esempi_altra_lingua": altra[:5],
         "tipi_eventi": tipi,
     }
+    # v9.635 — il DOCUMENTO FINALE sotto il verdetto (le correzioni accolte applicate al testo corretto del senior): se il codice lo ha,
+    # deve esserci ed essere INTERO (lunghezza e fine del documento, la stessa regola del cervello). Sul codice di prima: «n/d».
+    doc_fin = documento_finale(finale, lingua)
     esito["passa"] = bool(finale and sum(sez) >= 4 and not guerra and not pannelli and not manca_tutte and ok_una
-                          and all(ok for _, ok in parole) and len(altra) <= 2 and not errori)
+                          and all(ok for _, ok in parole) and len(altra) <= 2 and not errori
+                          and doc_fin.get("ok", True))
+    esito["documento_finale"] = doc_fin
     return esito
+
+
+def documento_finale(finale: str, lingua: str) -> dict:
+    try:
+        from src import brain as _b
+        _tit, _sen, _compl = _b.TITULLI_DOKUMENTI, _b._testo_corretto_del_senior, _b._documento_finale_completo
+    except Exception:  # noqa: BLE001 — codice senza documento finale (v9.634)
+        return {"n/d": True}
+    lang = "it" if lingua == "IT" else "sq"
+    testa = _tit[lang].split("\n", 1)[0].strip()
+    i = (finale or "").find(testa)
+    sen = _sen(finale or "", lang)
+    if i < 0:
+        return {"presente": False, "senior": len(sen), "ok": len(sen) < 150}   # senza testo del senior non c'è nulla da finalizzare
+    corpo = finale[i + len(_tit[lang]):]
+    m = re.search(r"^[ \t]*#{2,4}[ \t]*(?:📚|⚔|🛡|⚖)", corpo, re.M)        # il documento può avere i suoi «---»: fine = il titolo dopo
+    corpo = re.sub(r"(?:\s*-{3,}\s*)+$", "", (corpo[:m.start()] if m else corpo)).strip()
+    return {"presente": True, "caratteri": len(corpo), "senior": len(sen),
+            "rapporto": round(len(corpo) / len(sen), 2) if sen else None, "ok": bool(_compl(sen, corpo)) if sen else True}
 
 
 def main():
@@ -192,7 +216,9 @@ def main():
         print(f"{'✓' if e['passa'] else '✗'} {e['caso']:26s} {e['secondi']:5d}s sezioni {e['sezioni']} · norme mancanti "
               f"{e['norme_mancanti'] or '-'} · una_di {e['una_di_trovate'] or '-'} · difetti "
               f"{sum(e['parole'].values())}/{len(e['parole'])} · sala di guerra {len(e['sala_di_guerra_nel_testo']) + len(e['pannelli_di_guerra'])}"
-              f" · altra lingua {e['altra_lingua']}")
+              f" · altra lingua {e['altra_lingua']}"
+              + (f" · documento finale {('intero' if e['documento_finale'].get('ok') else 'INCOMPLETO') if e['documento_finale'].get('presente') else ('assente' if not e['documento_finale'].get('n/d') else 'n/d')}"
+                 f" ({e['documento_finale'].get('caratteri', 0)}/{e['documento_finale'].get('senior', 0)})" if "documento_finale" in e else ""))
     json.dump(esiti, open(os.path.join(USCITA, "esiti.json"), "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     return 0 if passati == len(esiti) else 1
 

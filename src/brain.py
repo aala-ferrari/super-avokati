@@ -6349,18 +6349,19 @@ class SuperAvvocato:
                 return ""
             from . import studio
             it = lang == "it"
-            user = (("(A) TESTO CORRETTO DEL SENIOR:\n" if it else "(A) TEKSTI I KORRIGJUAR NGA SENIORI:\n") + teksti[:30000]
+            user = (("(A) TESTO CORRETTO DEL SENIOR:\n" if it else "(A) TEKSTI I KORRIGJUAR NGA SENIORI:\n") + teksti[:60000]
                     + ("\n\n(B1) RISPOSTE DEL SENIOR ALL'AVVOCATO DEL DIAVOLO:\n" if it else
                        "\n\n(B1) PËRGJIGJET E SENIORIT NDAJ AVOKATIT TË DJALLIT:\n") + (_repliche_del_senior(answer_text) or "—")
                     + ("\n\n(B2) VERDETTO DEL GIUDICE FINALE:\n" if it else "\n\n(B2) VENDIMI I GJYQTARIT TË FUNDIT:\n")
                     + (vendim or "")[:12000])
             out = self.backend.complete(
                 system=_DOKUMENTI_FINALE_SYSTEM["it" if it else "sq"], messages=[{"role": "user", "content": user}],
-                max_tokens=16000, callsite="rishikim:dokumenti_perfundimtar", raw_system=True, no_web=True,
-                **studio._kwargs_modeli("opus", "high"))
+                max_tokens=max(16000, min(32000, len(teksti) // 2)), callsite="rishikim:dokumenti_perfundimtar", raw_system=True,
+                no_web=True, **studio._kwargs_modeli("opus", "high"))
             out = re.sub(r"^```[a-zA-Z]*\s*\n|\n```\s*$", "", (out or "").strip()).strip()
-            if len(out) < 150 or len(out) < 0.4 * len(teksti):
-                log.warning("rishikim: dokumenti përfundimtar i shkurtër (%d nga %d shkronja) — nuk shtohet", len(out), len(teksti))
+            # v9.635 — completo o niente: «almeno il 40 %» lasciava passare un documento senza l'ultima parte (firme, spazio per il notaio)
+            if not _documento_finale_completo(teksti, out):
+                log.warning("rishikim: dokumenti përfundimtar jo i plotë (%d nga %d shkronja) — nuk shtohet", len(out), len(teksti))
                 return ""
             log.info("rishikim: dokumenti përfundimtar u shkrua (%d shkronja, nga %d të seniorit)", len(out), len(teksti))
             _audit_set("rishikim_dokumenti", {"chr": len(out), "chr_senior": len(teksti)})
@@ -9590,6 +9591,27 @@ def _testo_corretto_del_senior(answer_text: str, lang: str) -> str:
     resto = (answer_text or "")[m.end():]
     f = _FINE_TESTO_RX.search(resto)
     return (resto[:f.start()] if f else resto).strip().strip("-").strip()
+
+
+def _parole_piegate(t: str) -> list:
+    import unicodedata as _ud
+    t = _ud.normalize("NFKD", (t or "").lower())
+    t = "".join(ch for ch in t if not _ud.combining(ch))
+    return [w for w in re.findall(r"[a-z]{4,}", t)]
+
+
+def _documento_finale_completo(teksti: str, out: str) -> bool:
+    """v9.635 — il documento finale è INTERO: lunghezza fra il 60 % e il 180 % del testo corretto del senior, e la FINE c'è (le parole
+    delle ultime righe del senior — firme, spazio per il notaio, «Baza ligjore» — si ritrovano nell'ultimo quarto del documento finale).
+    Un documento troncato dalla fine o fatto di un riassunto non arriva all'avvocato."""
+    teksti, out = (teksti or "").strip(), (out or "").strip()
+    if len(out) < 150 or not teksti or not (0.6 * len(teksti) <= len(out) <= 1.8 * len(teksti)):
+        return False
+    coda = set(_parole_piegate(teksti[-600:]))
+    if len(coda) < 4:
+        return True                                 # niente da confrontare (testo cortissimo): basta la lunghezza
+    fine = set(_parole_piegate(out[-max(1200, len(out) // 4):]))
+    return len(coda & fine) >= 0.4 * len(coda)
 
 
 def _repliche_del_senior(answer_text: str, tetto: int = 16000) -> str:

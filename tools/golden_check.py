@@ -12786,6 +12786,80 @@ const F = new Function("localStorage", "fetch", "document", "TT", "_CAL_IT", "se
     except Exception as _e428:  # noqa: BLE001
         check("rishikim[428]: kontrollet u ekzekutuan", False, f"{type(_e428).__name__}: {_e428}")
 
+    # [429] v9.635 — LE LINGUE SCELTE ALL'INIZIO nei redattori del notaio (idea del titolare, 12 ott: «o magari scegliere già
+    # dall'inizio in quante lingue lo vuoi la procura»): quando l'atto è pronto le traduzioni dell'atto pulito partono da sole, UNA
+    # ALLA VOLTA (il tetto per utente: mai due insieme), una volta sola anche riaprendo la finestra; la scelta si salva nello stato
+    # del lavoro e si ricorda per la volta dopo; i nomi delle lingue nella lingua della sessione. Si ESEGUE il codice vero con node.
+    try:
+        import json as _j429, shutil as _sh429, subprocess as _sp429
+        _node429 = _sh429.which("node")
+        _a429 = open("/app/static/app.js", encoding="utf-8").read()
+        if _node429:
+            _js429 = r"""const src = require("fs").readFileSync(process.argv[process.argv.length - 1], "utf8");
+function prendi(da, a) { const i = src.indexOf(da); const j = src.indexOf(a, i + 1); if (i < 0 || j < 0) throw new Error("manca " + da); return src.slice(i, j); }
+const codice = prendi("  var _RED_LS = \"sa_redattore_\";", "  var _RED_APRI = {");
+const LS = new Map();
+const localStorage = { getItem: (k) => (LS.has(k) ? LS.get(k) : null), setItem: (k, v) => LS.set(k, String(v)), removeItem: (k) => LS.delete(k) };
+const corpo = new Set();
+const document = { body: { contains: (x) => corpo.has(x) } };
+const chiamate = [];
+let inCorso = 0, maxInsieme = 0;
+async function _traduciAtto(box, atto, target, titolo) {
+  inCorso++; maxInsieme = Math.max(maxInsieme, inCorso);
+  chiamate.push([target, atto.slice(0, 8), titolo]);
+  await new Promise((r) => setTimeout(r, 15));
+  inCorso--;
+}
+const F = new Function("localStorage", "document", "_traduciAtto", "_soloAtto", "_CAL_IT", "TT", "fetch", "_nuovaChiave", "_ripescaRisposta",
+  codice + "; return { _redTraduzioniAuto, _lingueScelte, _lingueRigaHtml, _lingueRicorda, _redScrivi, _redLeggi, _redattoreRichiesta };")(
+  localStorage, document, _traduciAtto, (md) => md, false, (x) => x,
+  async () => ({ ok: true, status: 200, json: async () => ({ markdown: "PROKURË E POSAÇME — tekst i plotë i aktit për provë, mjaft i gjatë për tetëdhjetë shkronja." }) }),
+  () => "k1", async () => null);
+(async () => {
+  const out = {};
+  const result = {}; corpo.add(result);
+  const md = "PROKURË E POSAÇME — tekst i plotë i aktit për provë, mjaft i gjatë për tetëdhjetë shkronja.";
+  F._redScrivi("prokura", { chiave: "a", stato: "pronto", lingue: ["en", "it"] });
+  F._redTraduzioniAuto("prokura", result, md, "Prokurë");
+  await new Promise((r) => setTimeout(r, 80));
+  out.prima = [chiamate.map((c) => c[0]).join(","), maxInsieme, F._redLeggi("prokura").lingueFatte === true];
+  F._redTraduzioniAuto("prokura", result, md, "Prokurë");          // riaperta: niente di nuovo
+  await new Promise((r) => setTimeout(r, 40));
+  out.riaperta = chiamate.length;
+  F._redScrivi("akt", { chiave: "b", stato: "pronto", lingue: [] });
+  F._redTraduzioniAuto("akt", result, md, "Akt");
+  F._redScrivi("deklarate", { chiave: "c", stato: "pronto", lingue: ["en"] });
+  F._redTraduzioniAuto("deklarate", result, "corto", "D");         // atto troppo corto: niente
+  await new Promise((r) => setTimeout(r, 40));
+  out.niente = chiamate.length;
+  // la scelta nella finestra: letta, salvata nello stato della richiesta, ricordata per la volta dopo
+  const caselle = [{ className: "red-lingua", value: "en", checked: true }, { className: "red-lingua", value: "it", checked: false }];
+  const ov = { querySelectorAll: (sel) => sel === ".red-lingua:checked" ? caselle.filter((c) => c.checked) : (sel === ".red-lingua" ? caselle : []) };
+  corpo.add(ov);
+  out.scelte = F._lingueScelte(ov).join(",");
+  await F._redattoreRichiesta("prokura", ov, "/api/notary/prokura", "{}", null, "Prokurë");
+  out.stato = (F._redLeggi("prokura").lingue || []).join(",") + "|" + F._redLeggi("prokura").stato;
+  F._lingueRicorda(ov, "prokura"); caselle[1].checked = true; caselle[1].onchange();
+  caselle[0].checked = caselle[1].checked = false; F._lingueRicorda(ov, "prokura");
+  out.ricordate = caselle.map((c) => c.checked).join(",");
+  out.html = /red-lingua" value="en"> Anglisht/.test(F._lingueRigaHtml()) && /Italisht/.test(F._lingueRigaHtml()) && !/English|Italiano/.test(F._lingueRigaHtml());
+  console.log(JSON.stringify(out));
+})();
+"""
+            _o429 = _j429.loads(_sp429.run([_node429, "-e", _js429, "/app/static/app.js"], capture_output=True, text=True,
+                                           timeout=60).stdout or "{}")
+            _okA = _o429 == {"prima": ["en,it", 1, True], "riaperta": 2, "niente": 2, "scelte": "en", "stato": "en|pronto",
+                             "ricordate": "false,true", "html": True}
+        else:
+            _o429, _okA = "node assente", True
+        _okB = (_a429.count("      _lingueRigaHtml() +") == 3 and _a429.count("    _lingueRicorda(ov, ") == 3
+                and _a429.count('_redattoreMostra(result, d, "notary", _tit, true, "') == 3
+                and "if (id) _redTraduzioniAuto(id, result, d.markdown || "", titolo);" in _a429)
+        check("redattori[429]: le lingue scelte all'inizio tradotte da sole, una alla volta e una volta sola",
+              _okA and _okB, f"comportamento={_o429} wiring={_okB}")
+    except Exception as _e429:  # noqa: BLE001
+        check("redattori[429]: kontrollet u ekzekutuan", False, f"{type(_e429).__name__}: {_e429}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
