@@ -54,7 +54,13 @@ try:
        str((g2.status, g2.error)))
     ok("l'analisi delle scadenze interrotta riparte (con l'avviso)", any(d3.id in x[3] and x[4] for x in LANCIATI), str(LANCIATI))
     ok("… ma non per il documento riletto (riparte da solo)", not any(d1.id in x[3] for x in LANCIATI))
-    ok("l'esito conta i lavori ripresi", esito == {"documenti": 1, "analisi": 1, "persi": 1}, str(esito))
+    # v9.633 — si contano i lavori DI QUESTA PROVA: la QA gira su una COPIA del DB di produzione, che può avere altri documenti
+    # «in lettura» (il 12 ott un documento rimesso in lettura per farlo rileggere dalla versione nuova ha fermato il rilascio)
+    _miei = {d1.id, d2.id, d3.id}
+    _riletti = [r for r in RILETTI if r[0] in _miei]
+    _lanciati = [x for x in LANCIATI if x[0] == c.id]
+    ok("l'esito conta i lavori ripresi", _riletti == [(d1.id, "IT")] and len(_lanciati) == 1 and esito["documenti"] >= 1
+       and esito["analisi"] >= 1 and esito["persi"] >= 1, f"{esito} | {_riletti} | {_lanciati}")
     os.environ["RIPRESA_LAVORI"] = "0"
     ok("RIPRESA_LAVORI=0 spegne", web._riprendi_lavori_interrotti(attesa_s=0) == {"documenti": 0, "analisi": 0, "persi": 0})
 finally:
