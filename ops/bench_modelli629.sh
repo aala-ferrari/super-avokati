@@ -71,6 +71,12 @@ case "$1" in
   # v9.629 — D4 ripreso sui 5 casi rimasti: il primo giro (12 ott) è stato ucciso dall'OOM globale delle 03:45 (riavvio della
   # produzione + due binari + il contesto di 1 milione di token di Opus 5.5) dopo il primo caso. Da lanciare DA SOLO.
   D4R) run_variant sa-bench-b D4R deep "al-pushim-leje-qendrimi-01,al-prona-kufizim-rubrika-d-01,al-vetting-ankim-kpk-01,al-pushim-goje-shofer-01,al-shitje-banese-bashkeshortore-01" $OPUS55MAX; echo D4R_DONE >> "$L/timeline.txt" ;;
+  # D0S5: i casi difficili con le fasi junior su Sonnet 5.5 e il senior di oggi (il binario S ha misurato solo le domande semplici)
+  D0S5) run_variant sa-bench-b D0S5 deep "$DEEP" $SONNET55; echo D0S5_DONE >> "$L/timeline.txt" ;;
+  # SEQ: D4R e poi D0S5, uno dopo l'altro e da soli (mai due binari pesanti insieme, mai con un rilascio)
+  SEQ) run_variant sa-bench-b D4R deep "al-pushim-leje-qendrimi-01,al-prona-kufizim-rubrika-d-01,al-vetting-ankim-kpk-01,al-pushim-goje-shofer-01,al-shitje-banese-bashkeshortore-01" $OPUS55MAX
+       echo D4R_DONE >> "$L/timeline.txt"
+       run_variant sa-bench-b D0S5 deep "$DEEP" $SONNET55; echo D0S5_DONE >> "$L/timeline.txt" ;;
   *) binario_A & sleep 120; binario_B & wait ;;
 esac
 echo "BENCH_DONE ${1:-AB}" >> "$L/timeline.txt"

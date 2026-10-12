@@ -196,6 +196,31 @@ def _brain_retrieve(sa, lang: str, case: dict):
     return [(a.code, str(a.number)) for a, _ in sa._retrieve(t)]
 
 
+
+def con_base(items, idx):
+    """v9.631 — «neni 608/1», «115/dh» (paragrafo o lettera dentro l'articolo) valgono come citazione dell'articolo BASE (608,
+    115) quando «608/1» non è un articolo a sé nel corpus: il verificatore li dà verificati col numero intero e il conteggio a
+    numero esatto li perdeva («norme 4/6» su una risposta che citava «neni 608/1 i Kodit Civil» e «Neni 115/dh i Kodit Civil»).
+    Un articolo vero con la lettera («105/a») resta distinto dal 105."""
+    from src.citation_verifier import _normalise_number as norm
+    esistenti = {(a.code, norm(str(a.number))) for a in idx.articles}
+    out = set()
+    for code, num in items:
+        num = norm(str(num)) if num else num
+        out.add((code, num))
+        if code and num and "/" in num and (code, num) not in esistenti:
+            base = num.split("/")[0]
+            if (code, base) in esistenti:
+                out.add((code, base))
+    return out
+
+
+def attesi(lista):
+    """v9.632 — i numeri attesi normalizzati come quelli del verificatore («aneks-neni-D» → «aneks/neni/d», «9-ter» → «9/ter»): a
+    confronto esatto un articolo dell'Aneks citato e verificato contava come mancante."""
+    from src.citation_verifier import _normalise_number as norm
+    return [(e["code"], norm(str(e["number"]))) for e in (lista or [])]
+
 def run_layer1(verbose: bool = True) -> dict:
     from src import citation_verifier as cv
     al, it = _idx()
@@ -427,10 +452,10 @@ def run_layer2(limit: int, only: str | None, mode: str = "normal", ids: list[str
         # («neni 152» in un caso di lavoro); senza, il benchmark contava «senza codice» = mancante
         _rc = {a.get("code") for a in ((audit.get("recupero") or {}).get("articoli") or []) if a.get("code")} or None
         r = cv.verify_text(final, idx, retrieved_codes=_rc)
-        cited_ok = {(i["code"], i["number"]) for i in r["items"] if i["status"] == "verified"}
-        cited_any = {(i.get("code"), i["number"]) for i in r["items"]}
-        exp = [(e["code"], str(e["number"])) for e in (c.get("expected_laws") or [])]
-        must_not = [(e["code"], str(e["number"])) for e in (c.get("must_not_cite") or [])]
+        cited_ok = con_base({(i["code"], i["number"]) for i in r["items"] if i["status"] == "verified"}, idx)
+        cited_any = con_base({(i.get("code"), i["number"]) for i in r["items"]}, idx)
+        exp = attesi(c.get("expected_laws"))
+        must_not = attesi(c.get("must_not_cite"))
         found = [e for e in exp if e in cited_ok or any(x[1] == e[1] and x[0] == e[0] for x in cited_any)]
         viol = [e for e in must_not if e in cited_any]
         kps = c.get("key_points") or []

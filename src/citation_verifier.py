@@ -959,6 +959,16 @@ _ANEKS_KUSHT_RE = re.compile(
     r"\b[Nn]en(?:i|in|it)\s+(?P<l1>DH|Dh|[A-ZËÇ])(?![A-Za-zËëÇç])(?:\s*,\s*(?:pika|pikën|pikës|paragrafi|paragrafin|paragrafit)\s+\d+(?:/[a-zë])?"
     r"\s*,?)?\s+(?:i|e|të|së)\s+Aneks(?:it|in)\b(?!\s+(?:i|e|të)\s+(?:[Ll]igjit|VKM|[Vv]endimit|[Kk]odit|[Rr]regullores))"
     r"|\bAneks(?:i|it|in)\b(?:\s+(?:i|e|të)\s+Kushtetutës)?\s*,\s*[Nn]en(?:i|in|it)\s+(?P<l2>DH|Dh|[A-ZËÇ])(?![A-Za-zËëÇç])")
+# v9.632 — e le forme che il modello usa davvero nelle risposte sul vetting (banco dei modelli del 12 ott: 18 «neni F» in una sola
+# risposta, nessuno contato): «nenit F, pika 1 i Kushtetutës» (gli articoli della Costituzione sono NUMERI: un neni della Costituzione
+# con una LETTERA è dell'Aneks), «Aneks F/1», «Aneks Ç/5», «Aneksi D». Solo le dieci lettere che l'Aneks ha: un'altra lettera non è
+# una citazione (nessun altro atto del corpus usa «Aneks» + lettera)
+_ANEKS_LETTERE = r"(?:DH|Dh|[ABCÇDEËFG])"
+_ANEKS_KUSHT2_RE = re.compile(
+    r"\b[Nn]en(?:i|in|it)\s+(?P<l3>" + _ANEKS_LETTERE + r")(?![A-Za-zËëÇç])(?:\s*,\s*(?:pika|pikën|pikës|paragrafi|paragrafin|"
+    r"paragrafit)\s+\d+(?:/[a-zë])?\s*,?)?\s+(?:i|e|të|së)\s+Kushtetutës"
+    r"|\bAneks(?:i|it|in)?\s+(?P<l4>" + _ANEKS_LETTERE + r")(?:/\d+)?(?![A-Za-zËëÇç0-9])"
+    r"(?!\s+(?:i|e|të)\s+(?:[Ll]igjit|VKM|[Vv]endimit|[Kk]odit|[Rr]regullores))")
 
 
 _DATA_ATTO_RE = re.compile(r"\d{1,2}°?\s+(?:gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|"
@@ -2396,8 +2406,10 @@ def verify_text(
         # Solo se il testo (o il contesto) parla della Costituzione; una lettera che l'Aneks non ha («neni H i Aneksit») è inesistente
         try:
             _kush_ctx = "kushtetut" in ((text or "") + " " + (context_text or "")).lower()
-            for _ma in _ANEKS_KUSHT_RE.finditer(text or "") if _kush_ctx else ():
-                _lett = (_ma.group("l1") or _ma.group("l2") or "").upper()
+            _trovati = [m for _rx in (_ANEKS_KUSHT_RE, _ANEKS_KUSHT2_RE) for m in _rx.finditer(text or "")] if _kush_ctx else []
+            for _ma in sorted(_trovati, key=lambda m: m.start()):
+                _g = _ma.groupdict()
+                _lett = (_g.get("l1") or _g.get("l2") or _g.get("l3") or _g.get("l4") or "").upper()
                 _num = _normalise_number(f"aneks-neni-{_lett}")          # «aneks/neni/d», come le chiavi dell'indice
                 if (_num, "kushtetuta") in seen:
                     continue

@@ -11839,6 +11839,76 @@ def main():
     except Exception as _e409:  # noqa: BLE001
         check("i18n[409]: kontrollet u ekzekutuan", False, f"{type(_e409).__name__}: {_e409}")
 
+    # [410] v9.632 — le citazioni dell'Aneks della Costituzione (il vetting) nelle forme che il modello usa davvero: «nenit F, pika 1 i
+    # Kushtetutës», «Aneks F/1», «Aneks Ç/5» erano INVISIBILI alla verifica (banco dei modelli del 12 ott: 18 «neni F» in una risposta,
+    # nessuno contato); mai una lettera che l'Aneks non ha («neni H i Kushtetutës», l'«Aneksi I» di un'altra legge)
+    try:
+        from src import citation_verifier as _cv410
+        from src.retrieval import ArticleIndex as _AI410
+        _i410 = _AI410.load()
+
+        def _v410(_t):
+            return [(c.get("code"), c.get("number"), c.get("status")) for c in _cv410.verify_text(_t, _i410)["items"]]
+        _a410 = _v410("Sipas nenit F, pika 1 i Kushtetutës, Kolegji i Apelimit vendos; ankimi depozitohet (Aneks F/1).")
+        _b410 = _v410("Barra e provës për pasurinë: Aneks Ç/5 dhe neni D, pika 3, të Aneksit të Kushtetutës.")
+        _c410 = _v410("Sipas Kushtetutës, neni H i Kushtetutës nuk ekziston; shih Aneksi I i ligjit për tatimet.")
+        _ok410 = (("kushtetuta", "aneks/neni/f", "verified") in _a410 and ("kushtetuta", "aneks/neni/ç", "verified") in _b410
+                  and ("kushtetuta", "aneks/neni/d", "verified") in _b410
+                  and not any(x[0] == "kushtetuta" and "aneks" in str(x[1]) for x in _c410))
+        check("aneks[410]: «nenit F, pika 1 i Kushtetutës», «Aneks F/1», «Aneks Ç/5» verificati sull'Aneks; mai una lettera che non ha",
+              _ok410, f"{_a410} | {_b410} | {_c410}")
+    except Exception as _e410:  # noqa: BLE001
+        check("aneks[410]: kontrollet u ekzekutuan", False, f"{type(_e410).__name__}: {_e410}")
+
+    # [411] v9.632 — il traduttore italiano del DOM non entra mai in un ciclo: l'osservatore guarda anche le modifiche del testo e ogni
+    # scrittura ne genera una; con una voce identica a sé («studio» → «studio») o una catena A → B → A la pagina si BLOCCAVA in sessione
+    # italiana (aprire Super Notaio, con la carta «studio»; riprodotto in Chrome il 12 ott). Si esegue con node il vero _trNode di app.js
+    # su un nodo finto che, come l'osservatore, ritraduce a ogni scrittura; e la versione vecchia DEVE ciclare (il controllo morde)
+    try:
+        import json as _j411, shutil as _sh411, subprocess as _sp411
+        from pathlib import Path as _P411
+        _app411 = _P411("/app/static/app.js").read_text(encoding="utf-8")
+        _a411 = _app411.index("  var _COUNT_TAIL = ")
+        _b411 = _app411.index("  function translateDOM(root)")
+        _src411 = _app411[_a411:_b411]
+        _vecchio411 = ("var _COUNT_TAIL = /^(.*?)(\\s*[\\(\\[]\\s*\\d+(?:\\s*[\\/·-]\\s*\\d+)?\\s*[\\)\\]]|\\s+\\d+)$/;"
+                       "function _lookup(s){var hit=T_IT[s];if(hit)return hit;var m=_COUNT_TAIL.exec(s);"
+                       "if(m&&T_IT[m[1].trim()])return T_IT[m[1].trim()]+m[2];return null;}"
+                       "function _trNode(node){var raw=node.nodeValue;if(!raw)return;var s=raw.trim();if(s.length<2)return;"
+                       "var hit=_lookup(s);if(!hit)return;node.nodeValue=raw.replace(s,hit);}")
+        _node411 = _sh411.which("node")
+        if _node411:
+            _prova411 = r"""
+const T_IT = {"studio": "studio", "Alfa": "Beta", "Beta": "Alfa", "Përgjigju kur ke të dhënat": "Rispondi quando hai i dati",
+              "Rispondi quando hai i dati": "Rispondi quando hai i dati", "Ruaj": "Salva", "Fazat": "Fasi"};
+const _NO_TR = ".nessuno";
+function fai(src) { return (new Function("T_IT", "_NO_TR", src + "\n; return _trNode;"))(T_IT, _NO_TR); }
+function prova(trNode, testo) {
+  let scritture = 0, giri = 0;
+  const node = { _v: testo, parentElement: null,
+    get nodeValue() { return this._v; },
+    set nodeValue(v) { this._v = v; scritture++; if (++giri < 100) trNode(this); } };
+  trNode(node);
+  return [scritture, node._v];
+}
+const nuovo = fai(process.argv[1]), vecchio = fai(process.argv[2]);
+const out = {};
+for (const t of ["studio", "Alfa", "Përgjigju kur ke të dhënat", "Ruaj", "Fazat (3)"]) out[t] = [prova(nuovo, t), prova(vecchio, t)];
+console.log(JSON.stringify(out));
+"""
+            _o411 = _j411.loads(_sp411.run([_node411, "-e", _prova411, _src411, _vecchio411], capture_output=True, text=True,
+                                           timeout=30).stdout or "{}")
+            _ok411 = (_o411.get("studio", [[9]])[0][0] == 0 and _o411["Alfa"][0] == [1, "Beta"]
+                      and _o411["Përgjigju kur ke të dhënat"][0] == [1, "Rispondi quando hai i dati"]
+                      and _o411["Ruaj"][0] == [1, "Salva"] and _o411["Fazat (3)"][0] == [1, "Fasi (3)"]
+                      and _o411["studio"][1][0] >= 99 and _o411["Alfa"][1][0] >= 99)
+        else:
+            _o411, _ok411 = "node assente", True
+        check("i18n[411]: il traduttore italiano del DOM non cicla (voce identica a sé, catena A→B→A), la versione vecchia sì",
+              _ok411, f"{_o411}")
+    except Exception as _e411:  # noqa: BLE001
+        check("i18n[411]: kontrollet u ekzekutuan", False, f"{type(_e411).__name__}: {_e411}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

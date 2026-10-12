@@ -8375,16 +8375,27 @@
     return null;
   }
 
+  // v9.632 — il testo che il traduttore ha appena scritto NON si ritraduce. L'osservatore guarda anche le modifiche del testo
+  // (characterData) e ogni scrittura ne genera una: con una voce identica a sé («studio» → «studio», «Email / PEC», «— STUDIO —»…)
+  // o una catena A → B → A la pagina entrava in un ciclo senza fine e si BLOCCAVA in sessione italiana (aprire Super Notaio, con
+  // la carta «studio»; misurato in Chrome il 12 ott: 49 scritture prima del limite della prova). Niente scrittura se il testo non
+  // cambia, e un nodo che porta ancora il testo scritto da noi si lascia stare.
+  var _SCRITTI = (typeof WeakMap !== "undefined") ? new WeakMap() : null;
+
   function _trNode(node) {
     var raw = node.nodeValue;
     if (!raw) return;
+    if (_SCRITTI && _SCRITTI.get(node) === raw) return;
     var s = raw.trim();
     if (s.length < 2) return;
     var hit = _lookup(s);
     if (!hit) return;
     var p = node.parentElement;
     if (p && p.closest && p.closest(_NO_TR)) return;
-    node.nodeValue = raw.replace(s, hit);
+    var nuovo = raw.replace(s, hit);
+    if (nuovo === raw) return;
+    if (_SCRITTI) _SCRITTI.set(node, nuovo);
+    node.nodeValue = nuovo;
   }
 
   function translateDOM(root) {

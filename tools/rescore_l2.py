@@ -14,6 +14,8 @@ L2 = Path("/app/data/benchmark/layer2")
 
 
 def main(runs):
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from benchmark_lab import con_base, attesi
     from src.retrieval import ArticleIndex
     from src import citation_verifier as cv
     al = ArticleIndex.load(); it = ArticleIndex.load(Path("/app/data/index/bm25_it.pkl"))
@@ -33,11 +35,14 @@ def main(runs):
                 continue
             juris = (c.get("jurisdiction") or "AL").upper(); idx = it if juris == "IT" else al
             final = md.read_text(encoding="utf-8")
+            if not final.strip():
+                print(f"· {cid}: vuoto (caso interrotto) — non contato"); continue
             r = cv.verify_text(final, idx)
-            cited_ok = {(i["code"], i["number"]) for i in r["items"] if i["status"] == "verified"}
-            cited_any = {(i.get("code"), i["number"]) for i in r["items"]}
-            exp = [(e["code"], str(e["number"])) for e in (c.get("expected_laws") or [])]
-            must_not = [(e["code"], str(e["number"])) for e in (c.get("must_not_cite") or [])]
+            # v9.631 — «608/1», «115/dh» valgono per l'articolo base (benchmark_lab.con_base)
+            cited_ok = con_base({(i["code"], i["number"]) for i in r["items"] if i["status"] == "verified"}, idx)
+            cited_any = con_base({(i.get("code"), i["number"]) for i in r["items"]}, idx)
+            exp = attesi(c.get("expected_laws"))
+            must_not = attesi(c.get("must_not_cite"))
             found = [e for e in exp if e in cited_ok or e in cited_any]
             # numeri citati SENZA codice che combaciano con un atteso: informazione, non punteggio
             pa_kod = [e for e in exp if e not in found and any(x[0] is None and x[1] == e[1] for x in cited_any)]
