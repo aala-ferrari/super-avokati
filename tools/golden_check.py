@@ -12864,7 +12864,7 @@ const F = new Function("localStorage", "document", "_traduciAtto", "_soloAtto", 
             _o429, _okA = "node assente", True
         _okB = (_a429.count("      _lingueRigaHtml() +") == 3 and _a429.count("    _lingueRicorda(ov, ") == 3
                 and _a429.count('_redattoreMostra(result, d, "notary", _tit, true, "') == 3
-                and "if (id) _redTraduzioniAuto(id, result, d.markdown || "", titolo);" in _a429)
+                and 'if (id) _redTraduzioniAuto(id, result, d.markdown || "", titolo);' in _a429)
         check("redattori[429]: le lingue scelte all'inizio tradotte da sole, una alla volta e una volta sola",
               _okA and _okB, f"comportamento={_o429} wiring={_okB}")
     except Exception as _e429:  # noqa: BLE001
