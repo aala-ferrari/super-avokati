@@ -7505,6 +7505,11 @@ main {
 .ac-attach-hint, .cr-attach-hint { color:#9a8c74; font-size:.82rem; }
 /* v9.633 — il documento da rivedere: nome e caratteri letti a vista, con la × per toglierlo */
 .rev-row .rev-chip { color:#5c4a2a; }
+/* v9.634 — una scelta sola sopra gli allegati dei redattori: «da zero» (allegato dei dati) o «rivedi» (il documento da rivedere) */
+.rev-mode { display:flex; flex-wrap:wrap; gap:8px; margin:2px 0 10px; }
+.rev-opt { border:1px solid #d8c9a8; background:transparent; color:#6b5836; font-weight:600; font-size:.9rem; padding:8px 14px; border-radius:999px; cursor:pointer; min-height:36px; }
+.rev-opt.on { background:#c9a24b; border-color:#c9a24b; color:#171717; }
+.rev-opt:focus-visible { outline:2px solid #8a6a20; outline-offset:2px; }
 .rev-x { border:0; background:transparent; color:inherit; font-size:1.05rem; line-height:1; cursor:pointer; padding:2px 8px; min-width:36px; min-height:32px; }
 .rev-x:hover, .rev-x:focus-visible { color:#8a3a1a; }
 .doc-retry { margin-left:8px; border:1px solid #c9b88f; background:#fbf6ea; color:#5c4a2a; border-radius:6px; padding:2px 10px; min-height:32px; font-size:.82rem; cursor:pointer; }

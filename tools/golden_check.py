@@ -12321,6 +12321,93 @@ console.log(JSON.stringify(out));
     except Exception as _e421:  # noqa: BLE001
         check("rileggi[421]: kontrollet u ekzekutuan", False, f"{type(_e421).__name__}: {_e421}")
 
+    # [422] v9.634 — UNA scelta e UN allegato alla volta nei redattori (titolare, 12 ott: «perché c'è 2 volte allega il documento?»):
+    # in testa «Harto nga e para» / «Rishiko dokumentin që ke»; da zero si vede solo l'allegato dei dati, in revisione solo quello del
+    # documento da rivedere; la scelta sta sempre sopra gli allegati (anche dove il redattore metteva i dati per primi); in revisione
+    # senza documento il pulsante non parte e lo dice; tornando a «da zero» il documento da rivedere non parte con la richiesta.
+    # Si esegue con node il vero _revRowHtml/_wireRevision di app.js su un DOM finto.
+    try:
+        import json as _j422, shutil as _sh422, subprocess as _sp422
+        _node422 = _sh422.which("node")
+        if _node422:
+            _prova422 = r"""// Prova del v9.634: la scelta «da zero / rivedi» dei redattori, eseguendo il vero _revRowHtml/_wireRevision di app.js su un DOM finto.
+const fs = require("fs");
+const app = fs.readFileSync(process.argv[process.argv.length - 1], "utf8");   // «node -e … percorso» e «node file percorso»
+const a = app.indexOf("  function _revRowHtml() {"), b = app.indexOf("  function _readFilesInto(");
+const src = app.slice(a, b);
+const fai = new Function("t", "TT", "escapeHtml", "_extractFileText", "_CAL_IT", "_ACCEPT_DOCS",
+  src + "\n; return { _revRowHtml, _wireRevision };");
+const id = (x) => x;
+const F = fai(id, id, (x) => String(x), async () => ({ text: "PROKURË E POSAÇME — tekst prove" }), false, ".pdf,.docx");
+
+function el(cls, tag) {
+  const e = { tag: tag || "div", cl: new Set((cls || "").split(" ").filter(Boolean)), hidden: false, textContent: "", innerHTML: "",
+    placeholder: "", attrs: {}, parentNode: null, children: [], listeners: [], files: null, value: "", onclick: null, onchange: null,
+    classList: { contains: (c) => e.cl.has(c), toggle: (c, on) => (on ? e.cl.add(c) : e.cl.delete(c)), add: (c) => e.cl.add(c) },
+    getAttribute: (k) => (k in e.attrs ? e.attrs[k] : null), setAttribute: (k, v) => { e.attrs[k] = String(v); },
+    appendChild(n) { n.parentNode = e; e.children.push(n); return n; },
+    insertBefore(n, ref) { const i = e.children.indexOf(n); if (i >= 0) e.children.splice(i, 1);
+      e.children.splice(e.children.indexOf(ref), 0, n); n.parentNode = e; return n; },
+    addEventListener(type, fn, cap) { e.listeners.push([type, fn, !!cap]); },
+    _tutti() { return e.children.flatMap((c) => [c, ...c._tutti()]); },
+    _ok(sel) { const m = /^([a-z]*)\.([\w-]+)$/.exec(sel); return m && (!m[1] || m[1] === e.tag) && e.cl.has(m[2]); },
+    querySelector(sel) { return e._tutti().find((c) => c._ok(sel)) || null; },
+    querySelectorAll(sel) { return e._tutti().filter((c) => c._ok(sel)); } };
+  return e;
+}
+const html = F._revRowHtml();
+// il redattore dell'atto notarile: prima l'allegato dei dati, poi la scelta e il documento da rivedere (l'ordine vecchio)
+const ov = el("ac-overlay"), dataRow = el("ac-attach-row"), sw = el("rev-mode"), revRow = el("ac-attach-row rev-row"),
+      ta = el("ac-ta", "textarea"), run = el("ac-run", "button"), status = el("ac-status");
+const optNew = el("rev-opt on", "button"), optRev = el("rev-opt", "button");
+optNew.attrs["data-mode"] = "new"; optRev.attrs["data-mode"] = "rev";
+sw.appendChild(optNew); sw.appendChild(optRev);
+const inp = el("rev-file", "input"), chip = el("ac-attach-hint rev-chip", "span");
+chip.textContent = "Super Avokati e rishikon dhe e përmirëson";
+revRow.appendChild(inp); revRow.appendChild(chip); revRow.hidden = true;
+ta.placeholder = "Jep të dhënat…"; run.textContent = "Harto aktin →";
+[dataRow, sw, revRow, ta, run, status].forEach((n) => ov.appendChild(n));
+const st = F._wireRevision(ov, status, run);
+const ordine = ov.children.map((n) => n === sw ? "scelta" : n === revRow ? "rivedi" : n === dataRow ? "dati" : "altro").slice(0, 3).join(">");
+const cattura = ov.listeners.find((l) => l[0] === "click" && l[2]);
+function clic() { let fermato = false; cattura[1]({ target: run, stopPropagation() { fermato = true; }, preventDefault() {} }); return fermato; }
+const r = {};
+r.html = /class="rev-mode"/.test(html) && /data-mode="new"/.test(html) && /data-mode="rev"/.test(html)
+  && /class="ac-attach-row rev-row" hidden/.test(html) && /class="rev-file"/.test(html);
+r.ordine = ordine;
+r.inizio = [st.mode, revRow.hidden, dataRow.hidden, run.textContent];
+optRev.onclick();
+r.rivedi = [st.mode, revRow.hidden, dataRow.hidden, ta.placeholder, run.textContent, optRev.cl.has("on"), optNew.cl.has("on"),
+            optRev.attrs["aria-pressed"]];
+r.senzaDoc = [clic(), status.textContent];
+(async () => {
+  inp.files = [{ name: "prokura.docx" }];
+  await inp.onchange();
+  r.conDoc = [st.name, st.text.length > 10, clic()];
+  optNew.onclick();
+  r.daZero = [st.mode, st.text, st.name, revRow.hidden, dataRow.hidden, ta.placeholder, run.textContent, clic()];
+  console.log(JSON.stringify(r));
+})();
+"""
+            _o422 = _j422.loads(_sp422.run([_node422, "-e", _prova422, "/app/static/app.js"], capture_output=True, text=True,
+                                           timeout=30).stdout or "{}")
+            _ok422 = (_o422.get("html") is True and _o422.get("ordine") == "scelta>rivedi>dati"
+                      and _o422.get("inizio") == ["new", True, False, "Harto aktin →"]
+                      and (_o422.get("rivedi") or [None])[:3] == ["rev", False, True]
+                      and _o422["rivedi"][4] == "Rishiko dokumentin →" and _o422["rivedi"][5:] == [True, False, "true"]
+                      and _o422.get("senzaDoc") == [True, "Ngarko së pari dokumentin që do të rishikosh."]
+                      and _o422.get("conDoc") == ["prokura.docx", True, False]
+                      and _o422.get("daZero") == ["new", "", "", True, False, "Jep të dhënat…", "Harto aktin →", False])
+        else:
+            _o422, _ok422 = "node assente", True
+        _a422 = open("/app/static/app.js", encoding="utf-8").read()
+        _ok422b = ('"\\u270d\\ufe0f Harto nga e para": "\\u270d\\ufe0f Scrivi da zero"' in _a422
+                   and '"Ngarko së pari dokumentin që do të rishikosh.": "Carica prima il documento da rivedere."' in _a422)
+        check("redattori[422]: una scelta («da zero» / «rivedi») e un allegato alla volta, sopra gli allegati, senza documento non parte",
+              _ok422 and _ok422b, f"{_o422} | it={_ok422b}")
+    except Exception as _e422:  # noqa: BLE001
+        check("redattori[422]: kontrollet u ekzekutuan", False, f"{type(_e422).__name__}: {_e422}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

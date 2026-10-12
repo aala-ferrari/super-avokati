@@ -5320,17 +5320,67 @@
       '<input type="file" class="' + cls + '" accept="' + _ACCEPT_DOCS + '" hidden></label><span class="ac-attach-hint">' +
       t("ose ngjit tekstin poshtë") + '</span></div>';
   }
-  // il documento ESISTENTE da rivedere e migliorare: tenuto a parte dai dati (non finisce nel campo di testo), con il nome a vista
+  // il documento ESISTENTE da rivedere e migliorare: tenuto a parte dai dati (non finisce nel campo di testo), con il nome a vista.
+  // v9.634 — UNA scelta e UN pulsante per allegare alla volta (titolare, 12 ott: «perché c'è 2 volte allega il documento?»): i due
+  // pulsanti quasi uguali — i documenti coi DATI per scrivere un atto nuovo e l'atto GIÀ SCRITTO da rivedere — sembravano un
+  // doppione. In testa «Harto nga e para» / «Rishiko dokumentin që ke»: nel primo modo si vede solo l'allegato dei dati, nel secondo
+  // solo quello del documento da rivedere (la casella resta, per le istruzioni o i dati da cambiare).
   function _revRowHtml() {
-    return '<div class="ac-attach-row rev-row"><label class="ac-attach">' + t("\ud83d\udcdd Bashkëngjit dokumentin për rishikim (PDF, Word, foto)") +
+    return '<div class="rev-mode" role="group" aria-label="' + t("Çfarë do të bësh?") + '">' +
+        '<button type="button" class="rev-opt on" data-mode="new" aria-pressed="true">' + t("\u270d\ufe0f Harto nga e para") + '</button>' +
+        '<button type="button" class="rev-opt" data-mode="rev" aria-pressed="false">' + t("\ud83d\udcdd Rishiko dokumentin që ke") + '</button>' +
+      '</div>' +
+      '<div class="ac-attach-row rev-row" hidden><label class="ac-attach">' + t("\ud83d\udcdd Bashkëngjit dokumentin për rishikim (PDF, Word, foto)") +
       '<input type="file" class="rev-file" accept="' + _ACCEPT_DOCS + '" hidden></label><span class="ac-attach-hint rev-chip">' +
       t("Super Avokati e rishikon dhe e përmirëson") + '</span></div>';
   }
   function _wireRevision(ov, statusEl, runBtn) {
-    var st = { text: "", name: "" };
+    var st = { text: "", name: "", mode: "new" };
     var inp = ov.querySelector(".rev-file"), chip = ov.querySelector(".rev-chip");
     if (!inp || !chip) return st;
     var vuoto = chip.textContent;
+    var revRow = ov.querySelector(".rev-row"), sw = ov.querySelector(".rev-mode");
+    var dataRow = Array.prototype.filter.call(ov.querySelectorAll(".ac-attach-row"), function (r) {
+      return !r.classList.contains("rev-row");
+    })[0] || null;
+    var ta = ov.querySelector("textarea.ac-ta");
+    var phNew = ta ? ta.placeholder : "", runNew = runBtn ? runBtn.textContent : "";
+    // la scelta sempre sopra gli allegati, nello stesso ordine in tutti i redattori: scelta → documento da rivedere → dati
+    if (sw && revRow && dataRow && dataRow.parentNode) {
+      dataRow.parentNode.insertBefore(sw, dataRow);
+      dataRow.parentNode.insertBefore(revRow, dataRow);
+    }
+    function svuota() { st.text = ""; st.name = ""; chip.textContent = vuoto; }
+    function modo(m) {
+      st.mode = m === "rev" ? "rev" : "new";
+      var rev = st.mode === "rev";
+      if (sw) Array.prototype.forEach.call(sw.querySelectorAll(".rev-opt"), function (b) {
+        var on = b.getAttribute("data-mode") === st.mode;
+        b.classList.toggle("on", on);
+        b.setAttribute("aria-pressed", on ? "true" : "false");
+      });
+      if (revRow) revRow.hidden = !rev;
+      if (dataRow) dataRow.hidden = rev;
+      if (ta) ta.placeholder = rev ? TT("Çfarë duhet ndryshuar, shtuar ose kontrolluar? (opsionale)") : phNew;
+      if (runBtn) runBtn.textContent = rev ? TT("Rishiko dokumentin \u2192") : runNew;
+      if (!rev && st.text) svuota();        // tornando a «da zero» il documento da rivedere non parte più con la richiesta
+      if (statusEl) statusEl.textContent = "";
+    }
+    if (sw) Array.prototype.forEach.call(sw.querySelectorAll(".rev-opt"), function (b) {
+      b.onclick = function () { modo(b.getAttribute("data-mode")); };
+    });
+    // nel modo «rivedi» senza il documento il pulsante non parte (fase di cattura, prima del suo onclick): lo dice, invece di
+    // chiedere i dati di un atto nuovo
+    ov.addEventListener("click", function (e) {
+      if (st.mode !== "rev" || st.text || !runBtn) return;
+      var el = e.target;
+      while (el && el !== runBtn && el !== ov) el = el.parentNode;
+      if (el !== runBtn) return;
+      e.stopPropagation();
+      e.preventDefault();
+      if (statusEl) statusEl.textContent = TT("Ngarko së pari dokumentin që do të rishikosh.");
+    }, true);
+    modo("new");
     inp.onchange = async function () {
       var f = inp.files && inp.files[0];
       if (!f) return;
@@ -5347,7 +5397,7 @@
             ' <button type="button" class="rev-x" aria-label="' + TT("Hiq") + '">\u00d7</button>';
           if (statusEl) statusEl.textContent = TT("\u2713 Dokumenti u lexua \u2014 do ta rishikojmë dhe përmirësojmë");
           var x = chip.querySelector(".rev-x");
-          if (x) x.onclick = function () { st.text = ""; st.name = ""; chip.textContent = vuoto; if (statusEl) statusEl.textContent = ""; };
+          if (x) x.onclick = function () { svuota(); if (statusEl) statusEl.textContent = ""; };
         }
       } catch (e) {
         if (statusEl) statusEl.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message;
@@ -8435,7 +8485,14 @@
     "\u2713 Dokumenti u lexua \u2014 do ta rishikojmë dhe përmirësojmë": "\u2713 Documento letto \u2014 lo rivediamo e lo miglioriamo",
     "Po rishikon dokumentin\u2026 (~4-6 min)": "Sto rivedendo il documento\u2026 (~4-6 min)",
     "Prokurë (e rishikuar)": "Procura (rivista)",
-    "\ud83d\udd04 Rilexo": "\ud83d\udd04 Rileggi"
+    "\ud83d\udd04 Rilexo": "\ud83d\udd04 Rileggi",
+    // v9.634 — la scelta sopra gli allegati dei redattori
+    "Çfarë do të bësh?": "Cosa vuoi fare?",
+    "\u270d\ufe0f Harto nga e para": "\u270d\ufe0f Scrivi da zero",
+    "\ud83d\udcdd Rishiko dokumentin që ke": "\ud83d\udcdd Rivedi il documento che hai",
+    "Çfarë duhet ndryshuar, shtuar ose kontrolluar? (opsionale)": "Cosa va cambiato, aggiunto o controllato? (facoltativo)",
+    "Rishiko dokumentin \u2192": "Rivedi il documento \u2192",
+    "Ngarko së pari dokumentin që do të rishikosh.": "Carica prima il documento da rivedere."
   });
   // v9.604 — testi albanesi nuovi (nomi senza inglese né italiano): il traduttore del DOM aggancia il testo esatto
   Object.assign(T_IT, {
