@@ -22,8 +22,12 @@ vendosim ne, mbi ato të klientëve të tu vendos ti.
 
 ## 1. Kush i përpunon të dhënat e tua
 
-**Super Avokati** — superavokati.ai
-Kontakt: **info@aala.global** · +355 69 95 55 777 · Tiranë / Milano
+Kontrollues është shoqëria që të ofron **Super Avokati** (superavokati.ai), sipas tregut:
+
+- në **Shqipëri**: **Albania Auto Legal Alliance sh.p.k.** (AALA), NIPT **M61628011J**, Tiranë — telefon +355 69 955 5777;
+- në **Itali**: **Deltalux Srl**, P.IVA **12021700963**, me seli në Milano, Via San Raffaele 1 — telefon +39 380 635 8654.
+
+Email: **info@aala.global**
 
 ## 2. Cilat të dhëna, pse, dhe për sa kohë
 

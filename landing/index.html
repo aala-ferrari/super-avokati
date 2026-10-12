@@ -28,7 +28,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
-<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Organization","@id":"https://superavokati.ai/#org","name":"Super Avokati","url":"https://superavokati.ai","email":"info@aala.global","sameAs":["https://aala.global"]},{"@type":"LegalService","name":"Super Avokati","description":"Truri ligjor me inteligjencë artificiale për avokatë, prokurorë dhe noterë: analizë, strategji, hartim kontratash dhe modele ekspertize, mbi ligjin shqiptar dhe atë italian.","url":"https://superavokati.ai","provider":{"@id":"https://superavokati.ai/#org"},"areaServed":["Shqipëri","Kosovë","Itali"],"availableLanguage":["sq","it","en"],"serviceType":["asistencë ligjore","hartim kontratash","modele ekspertize","akte noteriale","konsulencë juridike","avokat me AI"]},{"@type":"WebSite","url":"https://superavokati.ai","name":"Super Avokati","inLanguage":["sq","it","en"]}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Organization","@id":"https://superavokati.ai/#org","name":"Super Avokati","url":"https://superavokati.ai","email":"info@aala.global","sameAs":["https://aala.global"]},{"@type":"Organization","@id":"https://superavokati.ai/#aala","name":"AALA","legalName":"Albania Auto Legal Alliance sh.p.k.","taxID":"M61628011J","telephone":"+355699555777","email":"info@aala.global","address":{"@type":"PostalAddress","addressLocality":"Tirana","addressCountry":"AL"},"areaServed":["AL","XK"],"url":"https://aala.global"},{"@type":"Organization","@id":"https://superavokati.ai/#deltalux","name":"Deltalux Srl","legalName":"Deltalux Srl","vatID":"IT12021700963","telephone":"+393806358654","email":"info@aala.global","address":{"@type":"PostalAddress","streetAddress":"Via San Raffaele 1","addressLocality":"Milano","addressCountry":"IT"},"areaServed":["IT"]},{"@type":"LegalService","name":"Super Avokati","description":"Truri ligjor me inteligjencë artificiale për avokatë, prokurorë dhe noterë: analizë, strategji, hartim kontratash dhe modele ekspertize, mbi ligjin shqiptar dhe atë italian.","url":"https://superavokati.ai","provider":[{"@id":"https://superavokati.ai/#aala"},{"@id":"https://superavokati.ai/#deltalux"}],"areaServed":["Shqipëri","Kosovë","Itali"],"availableLanguage":["sq","it","en"],"serviceType":["asistencë ligjore","hartim kontratash","modele ekspertize","akte noteriale","konsulencë juridike","avokat me AI"],"brand":{"@id":"https://superavokati.ai/#org"}},{"@type":"WebSite","url":"https://superavokati.ai","name":"Super Avokati","inLanguage":["sq","it","en"]}]}</script>
 <style>
   :root{
     --navy:#0a1024; --navy2:#0d1b3e; --navy3:#122a55;
@@ -416,9 +416,9 @@
         <div><label for="dvSurname" data-i18n="demo_surname">Mbiemri</label><input type="text" id="dvSurname" autocomplete="family-name" /></div>
       </div>
       <label for="dvPhone" data-i18n="demo_phone">Telefoni (i vërtetë)</label>
-      <input type="tel" id="dvPhone" autocomplete="tel" placeholder="+355 69 000 0000" />
+      <input type="tel" id="dvPhone" autocomplete="tel" placeholder="+355 69 000 0000" data-i18n-ph="ph_tel" />
       <label for="dvEmail" data-i18n="demo_email">Email (i vërtetë)</label>
-      <input type="email" id="dvEmail" autocomplete="email" placeholder="emri@studio.al" />
+      <input type="email" id="dvEmail" autocomplete="email" placeholder="emri@studio.al" data-i18n-ph="ph_email" />
       <label data-i18n="prof_label">Profesioni</label>
       <div class="prof-pick" id="dvProf">
         <button type="button" data-prof="avokat" data-i18n="prof_avokat">Avokat</button>
@@ -445,7 +445,7 @@
       <a class="brand" href="/" style="font-size:20px"><img class="mk" alt="AALA" style="height:26px" /> Super Avokati</a>
       <div style="display:flex;gap:26px;flex-wrap:wrap;align-items:center">
         <a href="mailto:info@aala.global">✉&nbsp; info@aala.global</a>
-        <a href="tel:+355699555777">☎&nbsp; +355 69 955 5777</a>
+        <span data-i18n-html="foot_tel"><a href="tel:+355699555777">☎&nbsp; +355 69 955 5777</a></span>
         <a href="#about" data-i18n="nav_about">Kush jemi</a>
         <a href="/login" class="btn btn-ghost" style="padding:8px 20px" data-i18n="nav_enter">Hyr</a>
       </div>
@@ -453,6 +453,7 @@
     <div style="border-top:1px solid var(--line);padding-top:20px;font-size:13px;color:var(--slate);line-height:1.7">
       <span data-i18n-html="foot_prop">superavokati.ai është nën koordinimin dhe pronësinë e <b class="gold">Albania Auto Legal Alliance</b> — të gjitha të drejtat e rezervuara.</span>
       <span style="opacity:.7"> &nbsp;·&nbsp; © <span id="yr"></span> · <a href="https://aala.global" class="gold">aala.global</a></span>
+      <div data-i18n-html="foot_soc" style="margin-top:8px;font-size:12px;opacity:.8">Ofruesi në Shqipëri: <b>Albania Auto Legal Alliance sh.p.k.</b> · NIPT M61628011J · Tiranë · <a href="tel:+355699555777" class="gold">+355 69 955 5777</a> · <a href="/legale" class="gold">Kushtet dhe privatësia</a></div>
     </div>
   </div>
 </footer>
@@ -493,7 +494,7 @@
 <script>
 /* ============ i18n ============ */
 const I18N = {
-  sq:{nav_about:"Kush jemi",nav_brain:"Tetramorph",nav_who:"Për kë",nav_security:"Siguria",nav_enter:"Hyr",
+  sq:{doc_title:"Super Avokati — Truri ligjor me AI · Avokat, Prokuror & Noter · Ligj shqiptar & italian",nav_about:"Kush jemi",nav_brain:"Tetramorph",nav_who:"Për kë",nav_security:"Siguria",nav_enter:"Hyr",
     hero_eyebrow:"Inteligjenca Ligjore",hero_title:"Avokati yt me <em>Inteligjencë Artificiale</em>",
     hero_sub:"Super Avokati analizon, këshillon dhe harton kontrata e akte — mbi ligjin shqiptar dhe atë italian, me saktësinë dhe strategjinë e një studioje ligjore të nivelit të lartë. Për avokatë, prokurorë dhe noterë.",
     hero_cta1:"Provoje tani",hero_cta2:"Mëso më shumë",tb1n:"72",tb1:"kode & ligje shqiptare",tb2n:"149",tb2:"kode & ligje italiane",tb3n:"100%",tb3:"konfidencial",tb4n:"24/7",tb4:"gjithmonë aktiv",
@@ -518,9 +519,10 @@ const I18N = {
     cta_sub:"Provoje Super Avokatin sot dhe shih se çfarë do të thotë të kesh një avokat me AI në krah.",cta_btn:"Hyr në Super Avokati",foot_by:"pjesë e aleancës",
     brand_slogan:"Beteja fitohet para se të nisë",hero_motto:"“Beteja fitohet para se të nisë.”",scales_motto:"Drejtësia në ekuilibër. Saktësia në çdo vendim.",
     foot_prop:"superavokati.ai është nën koordinimin dhe pronësinë e <b class='gold'>Albania Auto Legal Alliance</b> — të gjitha të drejtat e rezervuara.",
+    foot_soc:"Ofruesi në Shqipëri: <b>Albania Auto Legal Alliance sh.p.k.</b> · NIPT M61628011J · Tiranë · <a href='tel:+355699555777' class='gold'>+355 69 955 5777</a> · <a href='/legale' class='gold'>Kushtet dhe privatësia</a>",foot_tel:"<a href='tel:+355699555777'>☎&nbsp; +355 69 955 5777</a>",ph_tel:"+355 69 000 0000",ph_email:"emri@studio.al",
     demo_cta:"🎬 Regjistrohu falas për të parë video-demon (2 min)",demo_eyebrow:"Video demo",demo_title:"Shiko Super Avokatin në punë",demo_sub:"Plotëso të dhënat e vërteta dhe videoja hapet menjëherë — një rast civil real, hap pas hapi.",demo_name:"Emri",demo_surname:"Mbiemri",demo_phone:"Telefoni (i vërtetë)",demo_email:"Email (i vërtetë)",demo_btn:"Shiko videon →",demo_gdpr:"Duke u regjistruar pranon <a href='/legale' target='_blank' rel='noopener'>Kushtet &amp; Privatësinë</a>. Të dhënat përdoren vetëm për t'ju kontaktuar rreth Super Avokatit.",demo_err_name:"Shkruaj emrin dhe mbiemrin e vërtetë.",demo_err_phone:"Numri i telefonit nuk duket i vërtetë.",demo_err_email:"Email-i nuk duket i vërtetë — përdor adresën tënde reale.",
     reg_eyebrow:"Provë falas · 72 orë",reg_title:"Kërko provën tënde",reg_sub:"Plotëso të dhënat: do të marrësh në email kodin e hyrjes. Prova zgjat 72 orë nga hyrja e parë.",reg_name:"Emri dhe mbiemri",reg_email:"Email",reg_phone:"Telefoni",reg_submit:"Kërko kodin",card_req:"Tesera profesionale (e detyrueshme)",reg_card_hint:"Përdoret vetëm për verifikimin e licencës profesionale dhe ruhet në mënyrë të rezervuar.",reg_card_big:"Skedari është shumë i madh (max 8 MB).",prof_label:"Profesioni",prof_avokat:"Avokat",prof_noter:"Noter",prof_prokuror:"Prokuror",prof_prokuror_note:"Për prokurorët nuk kërkohet dokument — ju kontaktojmë personalisht.",demo_err_prof:"Zgjidh profesionin.",demo_err_card:"Ngarko teserën profesionale (foto ose PDF, max 8 MB).",demo_btn_prok:"Dërgo kërkesën →",demo_sent_title:"✓ Kërkesa u regjistrua!",demo_sent_body:"Videoja demonstruese do t'ju dërgohet me email si link personal, së bashku me detajet e platformës. Ju kontaktojmë brenda ditës.",demo_verifying:"🧠 Po verifikojmë teserën…",demo_err_notcard:"Ky dokument nuk duket teserë profesionale. Ngarko teserën e avokatit ose noterit — shqiptare ose italiane (foto e qartë ose PDF).",reg_success:"✓ Kërkesa u dërgua! Do të marrësh një kod aktivizimi në email sapo të miratohet."},
-  it:{nav_about:"Chi siamo",nav_brain:"Tetramorph",nav_who:"Per chi",nav_security:"Sicurezza",nav_enter:"Entra",
+  it:{doc_title:"Super Avokati — Il cervello legale con AI · Avvocato, Procuratore e Notaio · Diritto albanese e italiano",nav_about:"Chi siamo",nav_brain:"Tetramorph",nav_who:"Per chi",nav_security:"Sicurezza",nav_enter:"Entra",
     hero_eyebrow:"Intelligenza Legale",hero_title:"Il tuo Avvocato con <em>Intelligenza Artificiale</em>",
     hero_sub:"Super Avokati analizza, consiglia e redige contratti e atti — sul diritto albanese e su quello italiano, con la precisione e la strategia di uno studio legale di alto livello. Per avvocati, procuratori e notai.",
     hero_cta1:"Provalo ora",hero_cta2:"Scopri di più",tb1n:"72",tb1:"codici & leggi albanesi",tb2n:"149",tb2:"codici & leggi italiani",tb3n:"100%",tb3:"riservato",tb4n:"24/7",tb4:"sempre attivo",
@@ -544,10 +546,11 @@ const I18N = {
     cta_eyebrow:"Inizia ora",cta_title:"La giustizia merita <span class='gold'>la mente migliore</span>.",
     cta_sub:"Prova Super Avokati oggi e scopri cosa significa avere un avvocato con AI al tuo fianco.",cta_btn:"Entra in Super Avokati",foot_by:"parte dell'alleanza",
     brand_slogan:"La battaglia si vince prima di iniziare",hero_motto:"“La battaglia si vince prima di iniziare.”",scales_motto:"Giustizia in equilibrio. Precisione in ogni decisione.",
-    foot_prop:"superavokati.ai è sotto il coordinamento e la proprietà di <b class='gold'>Albania Auto Legal Alliance</b> — tutti i diritti riservati.",
+    foot_prop:"In Italia Super Avokati è fornito da <b class='gold'>Deltalux Srl</b> — tutti i diritti riservati.",
+    foot_soc:"Fornitore in Italia: <b>Deltalux Srl</b> · P.IVA 12021700963 · Via San Raffaele 1, Milano · <a href='tel:+393806358654' class='gold'>+39 380 635 8654</a> · <a href='/legale/it' class='gold'>Condizioni e privacy</a>",foot_tel:"<a href='tel:+393806358654'>☎&nbsp; +39 380 635 8654</a>",ph_tel:"+39 333 000 0000",ph_email:"nome@studio.it",
     demo_cta:"🎬 Registrati gratis per vedere il video demo (2 min)",demo_eyebrow:"Video demo",demo_title:"Guarda Super Avokati al lavoro",demo_sub:"Inserisci dati veri e il video si apre subito — un caso civile reale, passo dopo passo.",demo_name:"Nome",demo_surname:"Cognome",demo_phone:"Telefono (reale)",demo_email:"Email (reale)",demo_btn:"Guarda il video →",demo_gdpr:"Registrandoti accetti <a href='/legale/it' target='_blank' rel='noopener'>Condizioni &amp; Privacy</a>. I dati servono solo per contattarti su Super Avokati.",demo_err_name:"Scrivi nome e cognome veri.",demo_err_phone:"Il numero di telefono non sembra reale.",demo_err_email:"L'email non sembra reale — usa il tuo indirizzo vero.",
     reg_eyebrow:"Prova gratuita · 72 ore",reg_title:"Richiedi la tua prova",reg_sub:"Compila i dati: riceverai via email il codice di accesso. La prova dura 72 ore dal primo accesso.",reg_name:"Nome e cognome",reg_email:"Email",reg_phone:"Telefono",reg_submit:"Richiedi il codice",card_req:"Tessera dell'ordine (obbligatoria)",reg_card_hint:"Usata solo per verificare l'abilitazione professionale, conservata in modo riservato.",reg_card_big:"Il file è troppo grande (max 8 MB).",prof_label:"Professione",prof_avokat:"Avvocato",prof_noter:"Notaio",prof_prokuror:"Procuratore",prof_prokuror_note:"Per i procuratori nessun documento — vi contattiamo di persona.",demo_err_prof:"Scegli la professione.",demo_err_card:"Carica la tessera professionale (foto o PDF, max 8 MB).",demo_btn_prok:"Invia la richiesta →",demo_sent_title:"✓ Richiesta registrata!",demo_sent_body:"Il video dimostrativo ti sarà inviato via email come link personale, insieme ai dettagli della piattaforma. Ti contattiamo in giornata.",demo_verifying:"🧠 Verifica della tessera in corso…",demo_err_notcard:"Questo documento non sembra una tessera professionale. Carica la tessera d'avvocato o di notaio — italiana o albanese (foto nitida o PDF).",reg_success:"✓ Richiesta inviata! Riceverai un codice di attivazione via email dopo l'approvazione."},
-  en:{nav_about:"About",nav_brain:"Tetramorph",nav_who:"For whom",nav_security:"Security",nav_enter:"Enter",
+  en:{doc_title:"Super Avokati — The AI legal brain · Lawyer, Prosecutor & Notary · Albanian & Italian law",nav_about:"About",nav_brain:"Tetramorph",nav_who:"For whom",nav_security:"Security",nav_enter:"Enter",
     hero_eyebrow:"Legal Intelligence",hero_title:"Your Lawyer powered by <em>Artificial Intelligence</em>",
     hero_sub:"Super Avokati analyzes, advises and drafts contracts and legal acts — grounded in Albanian and Italian law, with the precision and strategy of a top-tier law firm. For lawyers, prosecutors and notaries.",
     hero_cta1:"Try it now",hero_cta2:"Learn more",tb1n:"72",tb1:"Albanian codes & laws",tb2n:"149",tb2:"Italian codes & laws",tb3n:"100%",tb3:"confidential",tb4n:"24/7",tb4:"always on",
@@ -571,20 +574,39 @@ const I18N = {
     cta_eyebrow:"Start now",cta_title:"Justice deserves <span class='gold'>the finest mind</span>.",
     cta_sub:"Try Super Avokati today and discover what it means to have an AI lawyer at your side.",cta_btn:"Enter Super Avokati",foot_by:"part of the alliance",
     brand_slogan:"The battle is won before it begins",hero_motto:"“The battle is won before it begins.”",scales_motto:"Justice in balance. Precision in every decision.",
-    foot_prop:"superavokati.ai is under the coordination and ownership of <b class='gold'>Albania Auto Legal Alliance</b> — all rights reserved.",
+    foot_prop:"In the European Union Super Avokati is provided by <b class='gold'>Deltalux Srl</b> — all rights reserved.",
+    foot_soc:"Provider in the EU: <b>Deltalux Srl</b> · VAT IT12021700963 · Via San Raffaele 1, Milan, Italy · <a href='tel:+393806358654' class='gold'>+39 380 635 8654</a> · <a href='/legale/it' class='gold'>Terms and privacy (Italian)</a>",foot_tel:"<a href='tel:+393806358654'>☎&nbsp; +39 380 635 8654</a>",ph_tel:"+39 333 000 0000",ph_email:"name@lawfirm.eu",
     demo_cta:"🎬 Register free to watch the demo video (2 min)",demo_eyebrow:"Demo video",demo_title:"See Super Avokati at work",demo_sub:"Enter real details and the video opens right away — a real civil case, step by step.",demo_name:"First name",demo_surname:"Last name",demo_phone:"Phone (real)",demo_email:"Email (real)",demo_btn:"Watch the video →",demo_gdpr:"By registering you accept the <a href='/legale' target='_blank' rel='noopener'>Terms &amp; Privacy</a>. Your details are used only to contact you about Super Avokati.",demo_err_name:"Please enter your real first and last name.",demo_err_phone:"That phone number does not look real.",demo_err_email:"That email does not look real — use your actual address.",
     reg_eyebrow:"Free trial · 72 hours",reg_title:"Request your trial",reg_sub:"Fill in your details: you'll receive your access code by email. The trial lasts 72 hours from your first sign-in.",reg_name:"Full name",reg_email:"Email",reg_phone:"Phone",reg_submit:"Request the code",card_req:"Professional card (required)",reg_card_hint:"Used only to verify your professional licence, stored confidentially.",reg_card_big:"File too large (max 8 MB).",prof_label:"Profession",prof_avokat:"Lawyer",prof_noter:"Notary",prof_prokuror:"Prosecutor",prof_prokuror_note:"Prosecutors need no document — we'll contact you personally.",demo_err_prof:"Choose your profession.",demo_err_card:"Upload your professional card (photo or PDF, max 8 MB).",demo_btn_prok:"Send the request →",demo_sent_title:"✓ Request received!",demo_sent_body:"The demo video will be sent to your email as a personal link, together with platform details. We'll contact you within the day.",demo_verifying:"🧠 Verifying your card…",demo_err_notcard:"This document doesn't look like a professional card. Upload your lawyer's or notary's card — Albanian or Italian (clear photo or PDF).",reg_success:"✓ Request sent! You'll receive an activation code by email once approved."}
 };
-function setLang(l){
+function setLang(l,scelta){
   document.documentElement.lang=l;
   document.querySelectorAll('[data-i18n]').forEach(e=>{const v=I18N[l][e.getAttribute('data-i18n')];if(v!=null)e.textContent=v;});
   document.querySelectorAll('[data-i18n-html]').forEach(e=>{const v=I18N[l][e.getAttribute('data-i18n-html')];if(v!=null)e.innerHTML=v;});
+  if(I18N[l].doc_title)document.title=I18N[l].doc_title;
+  document.querySelectorAll('[data-i18n-ph]').forEach(e=>{const v=I18N[l][e.getAttribute('data-i18n-ph')];if(v!=null)e.setAttribute('placeholder',v);});
   document.querySelectorAll('.lang button').forEach(b=>b.classList.toggle('on',b.dataset.lang===l));
-  try{localStorage.setItem('sa_lang',l);}catch(e){}
+  // si ricorda solo la scelta FATTA dal visitatore: prima si salvava anche il predefinito e l'albanese restava per sempre
+  if(scelta){try{localStorage.setItem('sa_lang_scelta',l);localStorage.setItem('sa_lang',l);}catch(e){}}
 }
-document.querySelectorAll('.lang button').forEach(b=>b.onclick=()=>setLang(b.dataset.lang));
-let saved='sq';try{saved=localStorage.getItem('sa_lang')||'sq';}catch(e){}
-if(!I18N[saved])saved='sq';setLang(saved);
+document.querySelectorAll('.lang button').forEach(b=>b.onclick=()=>setLang(b.dataset.lang,true));
+/* 12 ott 2026 — la lingua del mercato: la lingua decide anche la società (Albania → AALA, Italia → Deltalux).
+   Ordine: la scelta del visitatore; una vecchia scelta it/en (il vecchio «sq» era il predefinito salvato da solo);
+   il paese dell'indirizzo IP, scritto da nginx in <html data-paese> (dati RIPE NCC); la lingua del browser; l'albanese. */
+function linguaIniziale(){
+  let x=null;try{x=localStorage.getItem('sa_lang_scelta');}catch(e){}
+  if(x&&I18N[x])return x;
+  try{x=localStorage.getItem('sa_lang');}catch(e){x=null;}
+  if(x&&x!=='sq'&&I18N[x])return x;
+  const p=String(document.documentElement.getAttribute('data-paese')||'').toUpperCase();
+  if(p==='IT')return 'it';
+  if(p==='AL')return 'sq';
+  const n=String((navigator.languages&&navigator.languages[0])||navigator.language||'').toLowerCase();
+  if(n.indexOf('it')===0)return 'it';
+  if(n.indexOf('en')===0)return 'en';
+  return 'sq';
+}
+setLang(linguaIniziale(),false);
 document.getElementById('yr').textContent=new Date().getFullYear();
 
 /* logo AALA (base64 inline) → nav, footer e sigillo del click */

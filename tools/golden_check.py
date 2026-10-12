@@ -11909,6 +11909,69 @@ console.log(JSON.stringify(out));
     except Exception as _e411:  # noqa: BLE001
         check("i18n[411]: kontrollet u ekzekutuan", False, f"{type(_e411).__name__}: {_e411}")
 
+    # [412] v9.632 — chi fornisce il servizio, per mercato: in Albania Albania Auto Legal Alliance sh.p.k. (NIPT M61628011J dal QKB,
+    # +355 69 955 5777), in Italia Deltalux Srl (P.IVA 12021700963, Via San Raffaele 1, Milano, +39 380 635 8654). I documenti legali
+    # (un contratto nomina la SOCIETÀ, mai un marchio) mettono per primo il mercato della loro lingua; il banner della prova, la pagina
+    # d'accesso e la pagina pubblica /legale danno il numero della società della lingua; la lingua della pagina d'accesso, senza una
+    # scelta, viene dal paese dell'IP che nginx manda come X-Paese
+    try:
+        import glob as _gl412, os as _os412
+        _bad412 = []
+        for _f412 in sorted(_gl412.glob("/app/legal/*.md")):
+            _n412 = _os412.path.basename(_f412)
+            _t412 = open(_f412, encoding="utf-8").read()
+            if "95 55 777" in _t412:
+                _bad412.append(_n412 + ": numero vecchio")
+            if _n412.split("_")[0] in ("condizioni", "privacy", "dpa") or _n412.startswith("interno_dpia") \
+                    or _n412.startswith("interno_registro"):
+                for _x412 in ("M61628011J", "12021700963", "+355 69 955 5777", "+39 380 635 8654", "Albania Auto Legal Alliance sh.p.k."):
+                    if _x412 not in _t412:
+                        _bad412.append(_n412 + ": manca " + _x412)
+        _pit = open("/app/legal/privacy_it.md", encoding="utf-8").read()
+        _psq = open("/app/legal/privacy_sq.md", encoding="utf-8").read()
+        _cit = open("/app/legal/condizioni_it.md", encoding="utf-8").read()
+        if not (_pit.find("Deltalux Srl") < _pit.find("Albania Auto Legal Alliance sh.p.k.")):
+            _bad412.append("privacy_it: prima l'Italia")
+        if not (_psq.find("Albania Auto Legal Alliance sh.p.k.") < _psq.find("Deltalux Srl")):
+            _bad412.append("privacy_sq: prima l'Albania")
+        if "**Chi lo fornisce**: in Italia **Deltalux Srl**" not in _cit:
+            _bad412.append("condizioni_it: chi lo fornisce")
+        _aj412 = open("/app/static/app.js", encoding="utf-8").read()
+        _lj412 = open("/app/static/login.js", encoding="utf-8").read()
+        _i412 = _aj412.find("var CONTATTI = ")
+        if _i412 < 0 or "tel:+393806358654" not in _aj412[_i412:_i412 + 400] or "tel:+355699555777" not in _aj412[_i412:_i412 + 400]:
+            _bad412.append("app.js: contatti del banner per lingua")
+        if ('demo_expired: "⚠️ La prova gratuita è scaduta. Per continuare: info@aala.global · +39 380 635 8654"' not in _lj412
+                or 'demo_expired: "⚠️ Prova falas ka skaduar. Për të vazhduar: info@aala.global · +355 69 955 5777"' not in _lj412
+                or "function linguaIniziale()" not in _lj412 or 'lang: document.documentElement.lang || ""' not in _lj412
+                or 'if(scelta){try{localStorage.setItem("sa_ui_lang",lang);}' not in _lj412):
+            _bad412.append("login.js: numeri e lingua iniziale")
+        from src import web as _w412
+        with _w412.app.test_request_context("/login", headers={"X-Paese": "it"}):
+            _pit412 = _w412._paese_richiesta()
+        with _w412.app.test_request_context("/login", headers={"X-Paese": "FR"}):
+            _pfr412 = _w412._paese_richiesta()
+        with _w412.app.test_request_context("/login"):
+            _pno412 = _w412._paese_richiesta()
+        _c412 = _w412.app.test_client()
+        _l_it = _c412.get("/login", headers={"X-Paese": "IT"}).get_data(as_text=True)
+        _l_no = _c412.get("/login").get_data(as_text=True)
+        _g_it = _c412.get("/legale/it").get_data(as_text=True)
+        _g_sq = _c412.get("/legale").get_data(as_text=True)
+        _ok_web412 = (_pit412 == "IT" and _pfr412 == "" and _pno412 == ""
+                      and 'data-paese="IT"' in _l_it and 'data-paese=""' in _l_no
+                      and "In Italia: Deltalux Srl" in _g_it and "+39 380 635 8654" in _g_it
+                      and _g_it.find("In Italia: Deltalux") < _g_it.find("In Albania: AALA")
+                      and "Në Shqipëri: AALA" in _g_sq and _g_sq.find("Në Shqipëri: AALA") < _g_sq.find("Në Itali: Deltalux")
+                      and "M61628011J" in _g_sq)
+        if not _ok_web412:
+            _bad412.append("web: X-Paese %r/%r/%r, pagina d'accesso o /legale" % (_pit412, _pfr412, _pno412))
+        check("societa[412]: AALA (NIPT M61628011J, +355) e Deltalux (P.IVA 12021700963, +39) nei documenti, nel banner, "
+              "nell'accesso e in /legale, ognuna nel suo mercato; la lingua dell'accesso dal paese dell'IP",
+              not _bad412, "; ".join(_bad412[:6]))
+    except Exception as _e412:  # noqa: BLE001
+        check("societa[412]: kontrollet u ekzekutuan", False, f"{type(_e412).__name__}: {_e412}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

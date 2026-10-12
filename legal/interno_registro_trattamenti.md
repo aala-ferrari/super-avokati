@@ -17,8 +17,8 @@ Art. 30 GDPR · Ligji nr. 124/2024 · versione 2026-08-31
 
 | | |
 |---|---|
-| **Chi** | Super Avokati — superavokati.ai |
-| **Contatto** | info@aala.global · +355 69 95 55 777 |
+| **Chi** | **Albania Auto Legal Alliance sh.p.k.** (AALA), NIPT M61628011J, Tirana — per l'Albania · **Deltalux Srl**, P.IVA 12021700963, Via San Raffaele 1, Milano — per l'Italia · prodotto: Super Avokati (superavokati.ai) |
+| **Contatto** | info@aala.global · +355 69 955 5777 (Albania) · +39 380 635 8654 (Italia) |
 | **Sedi** | Tirana · Milano |
 | **Responsabile protezione dati (DPO)** | ⚠️ **da valutare** — vedi nota in fondo |
 

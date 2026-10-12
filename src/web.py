@@ -356,7 +356,16 @@ def login_page() -> str:
     _ensure_loaded()
     if current_user() is not None:
         return redirect(url_for("index"))
-    return render_template("login.html")
+    return render_template("login.html", paese=_paese_richiesta())
+
+
+def _paese_richiesta() -> str:
+    """12 ott 2026 — il paese del visitatore, che nginx legge dall'indirizzo IP (`geo $sa_paese`, dati RIPE NCC) e manda
+    come `X-Paese`: «AL» (Albania e Kosovo) o «IT» (Italia, San Marino, Vaticano), altrimenti vuoto. Serve solo a
+    scegliere la lingua della pagina d'accesso quando il visitatore non ne ha ancora scelta una; nginx sovrascrive
+    l'intestazione, quindi un client non può imporla (e anche se potesse, cambierebbe solo la lingua)."""
+    v = (request.headers.get("X-Paese") or "").strip().upper()
+    return v if v in ("AL", "IT") else ""
 
 
 _LINK_CASO_RX = re.compile(r"[0-9a-f-]{8,64}")

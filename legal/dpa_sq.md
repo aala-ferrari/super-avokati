@@ -18,9 +18,10 @@ Versioni 2026-08-31 · neni 26 i Ligjit nr. 124/2024 · neni 28 GDPR (BE 2016/67
 
 | | Shqipëri | Itali |
 |---|---|---|
-| **Shoqëria** | **AALA** — Albania Auto Legal Alliance | **Deltalux Srl** |
+| **Shoqëria** | **AALA** — Albania Auto Legal Alliance sh.p.k. | **Deltalux Srl** |
 | **Selia** | Tiranë | Via San Raffaele 1, Milano |
-| **NIPT/P.IVA** | — | 12021700963 |
+| **NIPT/P.IVA** | NIPT M61628011J | P.IVA 12021700963 |
+| **Telefoni** | +355 69 955 5777 | +39 380 635 8654 |
 
 Super Avokati është **produkti**; palë kontraktuese është shoqëria e treguar më
 sipër sipas tregut. Një marrëveshje që përmend vetëm një markë nuk individualizon

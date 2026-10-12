@@ -18,10 +18,10 @@ Versione 1.0 — 31 agosto 2026 · prossima revisione: **31 agosto 2027**
 
 | | Albania | Italia |
 |---|---|---|
-| **Società** | **AALA** — Albania Auto Legal Alliance | **Deltalux Srl** |
+| **Società** | **AALA** — Albania Auto Legal Alliance sh.p.k. | **Deltalux Srl** |
 | **Sede** | Tirana | Via San Raffaele 1, Milano |
-| **P.IVA** | — | 12021700963 |
-| **Contatto** | info@aala.global · +355 69 95 55 777 | info@aala.global |
+| **NIPT / P.IVA** | NIPT M61628011J | P.IVA 12021700963 |
+| **Contatto** | info@aala.global · +355 69 955 5777 | info@aala.global · +39 380 635 8654 |
 | **Autorità** | Komisioneri për të Drejtën e Informimit dhe Mbrojtjen e të Dhënave Personale (IDP) | Garante per la protezione dei dati personali |
 
 **Ruolo**: per i dati dei clienti degli studi siamo **responsabili del

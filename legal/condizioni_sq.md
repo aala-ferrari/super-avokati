@@ -14,6 +14,10 @@ Një mjet **ndihmës** profesional për avokatë, noterë dhe prokurorë: kërki
 burimet normative dhe në praktikën gjyqësore, analizë fashikujsh, hartim
 draftesh.
 
+**Kush e ofron**: në Shqipëri **Albania Auto Legal Alliance sh.p.k.**
+(AALA), NIPT M61628011J, Tiranë; në Itali **Deltalux Srl**, P.IVA
+12021700963, me seli në Milano, Via San Raffaele 1.
+
 ## 2. Çfarë NUK është — dhe kjo është pjesa e rëndësishme
 
 **Nuk është avokat dhe nuk zëvendëson gjykimin tënd.** Gjithçka që prodhon është
@@ -87,4 +91,4 @@ detyrueshme për mbrojtjen e të dhënave.
 
 ---
 
-Pyetje: **info@aala.global** · +355 69 95 55 777
+Pyetje: **info@aala.global** · +355 69 955 5777 (Shqipëri) · +39 380 635 8654 (Itali)

@@ -66,8 +66,11 @@ footer{border-top:1px solid var(--linea);padding-top:18px;color:var(--tenue);
   <section id="{{ nome }}">{{ testo|safe }}</section>
   {% endfor %}
   <footer>
-    AALA — Albania Auto Legal Alliance (Tiranë) · Deltalux Srl — Via San Raffaele 1, Milano (P.IVA 12021700963)<br>
-    info@aala.global · +355 69 95 55 777
+    {% if lingua == "it" %}In Italia: Deltalux Srl — P.IVA 12021700963 — Via San Raffaele 1, Milano · +39 380 635 8654<br>
+    In Albania: AALA — Albania Auto Legal Alliance sh.p.k. — NIPT M61628011J — Tirana · +355 69 955 5777<br>
+    {% else %}Në Shqipëri: AALA — Albania Auto Legal Alliance sh.p.k. — NIPT M61628011J — Tiranë · +355 69 955 5777<br>
+    Në Itali: Deltalux Srl — P.IVA 12021700963 — Via San Raffaele 1, Milano · +39 380 635 8654<br>
+    {% endif %}info@aala.global
   </footer>
 </main>
 </body>

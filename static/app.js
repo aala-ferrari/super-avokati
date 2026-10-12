@@ -4913,7 +4913,10 @@
     var el = document.getElementById("trial-banner");
     if (!el || document.body.dataset.admin === "1") return;
     var IT = _CAL_IT, info = null, tipo = "", fine = 0, timer = null;
-    var CONTATTI = '<a href="mailto:info@aala.global">info@aala.global</a> · <a href="tel:+355699555777">+355 69 955 5777</a>';
+    // il numero della società del mercato della sessione: Deltalux in Italia, AALA in Albania (12 ott)
+    var CONTATTI = '<a href="mailto:info@aala.global">info@aala.global</a> · ' + (IT
+      ? '<a href="tel:+393806358654">+39 380 635 8654</a>'
+      : '<a href="tel:+355699555777">+355 69 955 5777</a>');
     function durata(sec) {
       var g = Math.floor(sec / 86400), o = Math.floor((sec % 86400) / 3600), m = Math.floor((sec % 3600) / 60);
       if (sec >= 86400) {

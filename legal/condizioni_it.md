@@ -14,6 +14,10 @@ Uno strumento di **assistenza** professionale per avvocati, notai e
 procuratori: ricerca nelle fonti normative e giurisprudenziali, analisi di
 fascicoli, redazione di bozze.
 
+**Chi lo fornisce**: in Italia **Deltalux Srl**, P.IVA 12021700963, sede a
+Milano, Via San Raffaele 1; in Albania **Albania Auto Legal Alliance sh.p.k.**
+(AALA), NIPT M61628011J, Tirana.
+
 ## 2. Cosa NON è — e questa è la parte importante
 
 **Non è un avvocato e non sostituisce il tuo giudizio.** Tutto quello che
@@ -89,4 +93,4 @@ inderogabili a tutela dei dati.
 
 ---
 
-Domande: **info@aala.global** · +355 69 95 55 777
+Domande: **info@aala.global** · +39 380 635 8654 (Italia) · +355 69 955 5777 (Albania)

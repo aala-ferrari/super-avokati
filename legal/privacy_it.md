@@ -22,8 +22,12 @@ dati dei tuoi clienti decidi tu.
 
 ## 1. Chi tratta i tuoi dati
 
-**Super Avokati** — superavokati.ai
-Contatto: **info@aala.global** · +355 69 95 55 777 · Tirana / Milano
+Il titolare è la società che ti fornisce **Super Avokati** (superavokati.ai), secondo il mercato:
+
+- in **Italia**: **Deltalux Srl**, P.IVA **12021700963**, sede a Milano, Via San Raffaele 1 — telefono +39 380 635 8654;
+- in **Albania**: **Albania Auto Legal Alliance sh.p.k.** (AALA), NIPT **M61628011J**, Tirana — telefono +355 69 955 5777.
+
+Email: **info@aala.global**
 
 ## 2. Quali dati, perché, e per quanto
 

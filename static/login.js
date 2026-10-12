@@ -29,8 +29,8 @@
     it: { wait: "Verifico…", login: "Entra", bad: "⚠️ Credenziali errate.", net: "⚠️ Errore di rete: ",
           err: "⚠️ Errore durante l'accesso: ", many: (m) => "⚠️ Troppi tentativi. Riprova tra " + m + " minuti.",
           suspended: "⚠️ Il tuo account è sospeso. Contatta lo studio.",
-          demo_expired: "⚠️ La prova gratuita è scaduta. Per continuare: info@aala.global · +355 69 955 5777",
-          plan_expired: "⚠️ Il tuo abbonamento è scaduto. Per rinnovarlo: info@aala.global · +355 69 955 5777" },
+          demo_expired: "⚠️ La prova gratuita è scaduta. Per continuare: info@aala.global · +39 380 635 8654",
+          plan_expired: "⚠️ Il tuo abbonamento è scaduto. Per rinnovarlo: info@aala.global · +39 380 635 8654" },
   };
   const M = () => _M[_it() ? "it" : "sq"];
 
@@ -46,7 +46,8 @@
         body: JSON.stringify({
           username: usernameEl.value.trim(),
           password: passwordEl.value,
-          lang: (function () { try { return localStorage.getItem("sa_ui_lang") || ""; } catch (e) { return ""; } })(),
+          // la lingua che la pagina mostra (scelta col pulsante, o dal paese e dal browser): decide anche la sessione
+          lang: document.documentElement.lang || "",
         }),
       });
       const data = await resp.json().catch(() => ({}));
@@ -158,16 +159,28 @@
     sq:{pw_toggle:"Shfaq/fshih fjalëkalimin",tagline:"Beteja fitohet para se të nisë.",username:"Përdoruesi",password:"Fjalëkalimi",login:"Hyr",forgot:"Harrova fjalëkalimin?",forgot_label:"Email-i yt (i regjistruar)",forgot_btn:"Dërgo kodin",forgot_code_label:"Kodi nga email-i (6 shifra)",forgot_new_label:"Fjalëkalimi i ri (të paktën 8 karaktere)",forgot_new2_label:"Përsërite fjalëkalimin e ri",forgot_set_btn:"Vendos fjalëkalimin e ri"},
     it:{pw_toggle:"Mostra/nascondi la password",tagline:"La battaglia si vince prima che inizi.",username:"Nome utente",password:"Password",login:"Entra",forgot:"Password dimenticata?",forgot_label:"La tua email (registrata)",forgot_btn:"Invia il codice",forgot_code_label:"Il codice dell'email (6 cifre)",forgot_new_label:"Nuova password (almeno 8 caratteri)",forgot_new2_label:"Ripeti la nuova password",forgot_set_btn:"Imposta la nuova password"}
   };
-  function apply(lang){
+  function apply(lang,scelta){
     var d=I18N[lang]||I18N.sq;
     document.documentElement.lang=lang;
     document.querySelectorAll("[data-i18n]").forEach(function(el){var k=el.getAttribute("data-i18n");if(d[k])el.textContent=d[k];});
     document.querySelectorAll("[data-i18n-aria]").forEach(function(el){var k=el.getAttribute("data-i18n-aria");if(d[k])el.setAttribute("aria-label",d[k]);});
     document.querySelectorAll("[data-i18n-title]").forEach(function(el){var k=el.getAttribute("data-i18n-title");if(d[k])el.setAttribute("title",d[k]);});
     document.querySelectorAll(".ll-btn").forEach(function(b){b.classList.toggle("active",b.getAttribute("data-lang")===lang);});
-    try{localStorage.setItem("sa_ui_lang",lang);}catch(e){}
+    if(scelta){try{localStorage.setItem("sa_ui_lang",lang);}catch(e){}}
   }
-  var lang="sq";try{lang=localStorage.getItem("sa_ui_lang")||"sq";}catch(e){}
-  document.querySelectorAll(".ll-btn").forEach(function(b){b.addEventListener("click",function(){apply(b.getAttribute("data-lang"));});});
-  apply(lang);
+  // 12 ott 2026 — si ricorda solo la lingua SCELTA col pulsante; senza scelta: quella scelta sulla pagina iniziale, poi il
+  // paese dell'IP (nginx → data-paese: AL / IT), poi la lingua del browser, poi l'albanese
+  function linguaIniziale(){
+    var x=null;try{x=localStorage.getItem("sa_ui_lang");}catch(e){}
+    if(x==="sq"||x==="it")return x;
+    try{x=localStorage.getItem("sa_lang_scelta");}catch(e){x=null;}
+    if(x==="sq"||x==="it")return x;
+    var p=String(document.documentElement.getAttribute("data-paese")||"").toUpperCase();
+    if(p==="IT")return "it";
+    if(p==="AL")return "sq";
+    var n=String((navigator.languages&&navigator.languages[0])||navigator.language||"").toLowerCase();
+    return n.indexOf("it")===0?"it":"sq";
+  }
+  document.querySelectorAll(".ll-btn").forEach(function(b){b.addEventListener("click",function(){apply(b.getAttribute("data-lang"),true);});});
+  apply(linguaIniziale(),false);
 })();
