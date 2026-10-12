@@ -108,6 +108,12 @@ _CASA_CONIUGALE_AL = (("shit", "shtëpi", "burri"), ("shit", "shtepi", "burri"),
                       ("shiti", "apartament", "burri"), ("shitur", "apartament", "burri"), ("shiti", "apartament", "gruaja"),
                       ("shitur", "apartament", "gruaja"), ("shit", "apartament", "pa pëlqim"), ("shit", "apartament", "pa pelqim"),
                       ("banesën bashkëshortore",), ("banesa bashkëshortore",))
+# v9.633 — anche la vendita ANNUNCIATA («burri do ta shesë shtëpinë pa e pyetur», «po e shet apartamentin»): è il momento in cui il KF 57
+# serve di più (si può ancora fermarla). Frasi intere, mai la radice «shes» (sta dentro «sheshi», la piazza)
+_CASA_CONIUGALE_AL = _CASA_CONIUGALE_AL + tuple((v, c, x) for v in ("ta shes", "e shet", "t'i shes", "ta shet")
+                                                for c in ("shtëpi", "shtepi", "apartament", "banes")
+                                                for x in ("burri", "gruaja", "bashkëshort", "bashkeshort", "pa e pyetur",
+                                                          "pa pëlqim", "pa pelqim"))
 # v9.610 — il ricorso contro la decisione del vetting («rivlerësim» da solo è anche la rivalutazione di un immobile: col giudice, il
 # procuratore, la KPK o la Commissione; «ankohemi» non contiene «ankim»: anche «anko»)
 _VETTING_ANKIM_AL = (tuple((r, v, p) for r in ("rivlerësim", "rivleresim", "vetting", "veting") for v in ("ankim", "anko", "apel")
@@ -168,6 +174,37 @@ _MJEK_JASHTE_AL = (r"(?s)^(?=.*(?:punëdhënës|punedhenes|(?:pushoi|pushua|push
                    r"^(?=.*(?:aksident|përplas|perplas|u\s+godit))(?!.*(?:gabim|gabo|gabu|pakujdesi|neglizhenc|malpraktik)).*$|"
                    r"mjek\w*[\s-]+ligj\w*|raport\w*\s+mjek\w*|v[ëe]rtetim\w*\s+mjek\w*|mjek\w*\s+i\s+pun[ëe]s|"
                    r"operacion\w*\s+(?:policor|bankar|financiar|tregtar|doganor|ushtarak|kompjuterik)\w*")
+# v9.633 — dalle risposte PROFONDE del banco dei modelli (12 ott, sei casi difficili albanesi letti uno per uno): le norme che il
+# cervello stesso dichiarava di non avere («nuk është në dosje», «nuk e kam», «nuk është në materiale»), tutte nel corpus. Nell'errore
+# medico: col TERMINE nella domanda il KC 131 (l'interruzione della prescrizione: anche «me çdo veprim që e vë debitorin në vonesë», lett.
+# c — la diffida all'ospedale; il senior scriveva «dispozitat e Kodit Civil për ndërprerjen e parashkrimit nuk janë në bllokun që kam»),
+# con la responsabilità PENALE il KP 88 (il «dëmtim i rëndë» che il KP 96 presuppone: «përkufizimi i tij (nenet 88–89) nuk është në dosje»)
+_AFAT_PYETJE_AL = ("afat", "deri kur", "brenda sa", "brenda çfarë", "brenda cfare", "parashkr", "kur skadon", "sa kohë", "sa kohe")
+_PENAL_PYETJE_AL = ("penal", "kallëz", "kallez", "burg", "vepër penale", "veper penale")
+_MJEK_AFAT_AL = tuple(((x,) if isinstance(x, str) else x) + (t,) for x in _MJEK_INNESCHI_AL for t in _AFAT_PYETJE_AL)
+_MJEK_PENAL_AL = tuple(((x,) if isinstance(x, str) else x) + (t,) for x in _MJEK_INNESCHI_AL for t in _PENAL_PYETJE_AL)
+# … e la CAUSA PER UN DANNO CONTRO UN ENTE PUBBLICO (l'ospedale pubblico, il Comune, la polizia, un ministero, lo Stato): legge 49/2012
+# art. 7 (la competenza dei tribunali amministrativi, anche per la «ndërhyrje e paligjshme ose mosveprimi i organit publik») e art. 18 (i
+# termini; al par. 4 il danno extracontrattuale col termine della legge speciale). Nel caso della garza nell'ospedale regionale il Giudice
+# scriveva «dispozita e kompetencës lëndore nuk është në materiale» e «afati 45-ditor nuk gjendet në asnjë nen të dosjes», mentre le
+# sentenze del blocco erano dei tribunali amministrativi. Il danno come SOSTANTIVO («dëmton» sta in ogni domanda penale)
+_ENTE_PUBBLICO_AL = ("spital publik", "spitalin publik", "spitali publik", "spitalit publik", "spitalin rajonal", "spitali rajonal",
+                     "spitalit rajonal", "spital rajonal", "spitalin shtetëror", "spitali shtetëror", "spitalit shtetëror",
+                     "spital shtetëror", "qendra shëndetësore", "qendrën shëndetësore", "bashkia", "bashkisë", "bashkinë", "bashkise",
+                     "bashkine", "komuna", "komunës", "komunën", "ministri", "policia", "policisë", "policinë", "policise", "policine",
+                     "institucion publik", "institucioni publik", "institucionin publik", "institucionit publik", "ent publik",
+                     "enti publik", "entin publik", "entit publik", "organ publik", "organi publik", "organin publik", "organit publik",
+                     "shtetin ", "shtetit ", "shteti ", "prefektur", "administratës publike", "administrata publike",
+                     "administratën publike", "administrates publike")
+_DEM_EMER_AL = ("dëm ", "dëmi", "dëmin", "dëmit", "dëmet", "dëmeve", "dëmshpërbl", "demshperbl", "kompensim")
+_PADI_PYETJE_AL = ("padi", "padis", "gjykat", "kë padis", "ke padis", "kundër kujt", "kunder kujt", "ku ngre", "ku ta ngre")
+_ENTE_DANNO_AL = tuple((e, d, q) for e in _ENTE_PUBBLICO_AL for d in _DEM_EMER_AL for q in _PADI_PYETJE_AL)
+# … nella casa coniugale venduta da annullare: il SEQUESTRO della causa (KPC 202 quando si concede, 206 le misure: anche «masa të tjera të
+# përshtatshme», cioè il divieto di disporre registrato in ASHK) perché il compratore non rivenda a un altro: «Dispozitat e Kodit të
+# Procedurës Civile për masat e sigurimit të padisë nuk janë në bllokun e neneve që kam»
+_CASA_CONIUGALE_PADI_AL = tuple(((x,) if isinstance(x, str) else x) + (q,) for x in _CASA_CONIUGALE_AL
+                                for q in ("anul", "pavlefsh", "padi", "padis"))
+
 # v9.615 — il contratto a TERMINE rinnovato ogni anno (giro 43: «ia ripërtërin kontratën me afat çdo vit prej katër vitesh»): KP 151/1
 # (contratti a termine successivi per almeno tre anni → il mancato rinnovo vale come licenziamento da contratto a tempo indeterminato),
 # in coda KP 149 (la proroga tacita) e KP 140 (il termine va giustificato con ragioni oggettive: era al 13° posto)
@@ -243,6 +280,12 @@ ANCORE_AL: tuple = (
      ("Penal", "Punë"), (("kodi_civil", "114"), ("kodi_civil", "115")),
      r"parashkrim\w*\s+fitu\w*|fitim\w*\s+(?:\w+\s+){0,3}me\s+parashkrim\w*",
      ("Civil", "Familje", "Tregtare", "Konsumator", "Prone", "Sigurime", "Detar", "Ajror", "Nderkombetar"), True),
+    # v9.633 — … e in coda l'INTERRUZIONE (KC 131: il riconoscimento del debitore, la causa anche davanti a un giudice incompetente, ogni
+    # atto che mette in mora il debitore, la domanda di esecuzione): «è prescritto?» dipende quasi sempre da lì
+    (("parashkrim", "parashkru", "ende në kohë", "a është vonë", ("borxh", "nga viti"), ("borxh", "vjet më parë")),
+     ("Penal", "Punë"), (("kodi_civil", "131"),),
+     r"parashkrim\w*\s+fitu\w*|fitim\w*\s+(?:\w+\s+){0,3}me\s+parashkrim\w*",
+     ("Civil", "Familje", "Tregtare", "Konsumator", "Prone", "Sigurime", "Detar", "Ajror", "Nderkombetar"), True, "coda"),
     # v9.589 — anche il KP 203 SOLO dalla domanda (come il KC 114/115 dalla v9.558): contato sul banco AL a triage fisso, entrava in 11
     # domande di lavoro su 111 che non chiedono della prescrizione (licenziamenti, periodo di prova, gravidanza, straordinari: lì il termine
     # che decide è quello dei 180 giorni, KP 146/155), sulla parola «parashkrim» che il triage aggiunge da sé
@@ -307,6 +350,11 @@ ANCORE_AL: tuple = (
     # questa norma («mungon norma bazë… kë padisim») e aggiungeva al suo posto KC 621 (animali) e 613 (minori)
     (_MJEK_INNESCHI_AL + _MJEK_VDEKJE_AL, (), (("kodi_civil", "625"), ("kodi_civil", "618"), ("kodi_civil", "115")), _MJEK_JASHTE_AL, None, True,
      "coda"),
+    # v9.633 — col termine nella domanda l'interruzione della prescrizione (KC 131), con la responsabilità penale il KP 88; con un ente
+    # pubblico convenuto per un danno la competenza e i termini del tribunale amministrativo (vedi `_AFAT_PYETJE_AL` e `_ENTE_DANNO_AL`)
+    (_MJEK_AFAT_AL, (), (("kodi_civil", "131"),), _MJEK_JASHTE_AL, None, True, "coda"),
+    (_MJEK_PENAL_AL, (), (("kodi_penal", "88"),), _MJEK_JASHTE_AL, None, True, "coda"),
+    (_ENTE_DANNO_AL, (), (("ligji_gjykatat_administrative", "7"), ("ligji_gjykatat_administrative", "18")), None, None, True, "coda"),
     # v9.616 — l'ordine di demolizione impugnato (`_PRISHJE_AL`)
     (_PRISHJE_AL, (), (("ligji_planifikimi_territorit", "49/1"), ("ligji_inspektimi_territorit", "14")), None, None, True),
     (_PRISHJE_AL, (), (("ligji_inspektimi_territorit", "13"), ("kodi_proc_admin", "132")), None, None, True, "coda"),
@@ -352,6 +400,10 @@ ANCORE_AL: tuple = (
     # Komisionit … sipas nenit 46»): la risposta vera dell'11 ott scriveva «forma e ankimit e paverifikuar — neni 46 nuk është në dosje»
     (_VETTING_ANKIM_AL, (), (("ligji_rivleresimi", "4"), ("ligji_gjykatat_administrative", "1"),
                              ("ligji_gjykatat_administrative", "46")), None, None, True, "coda"),
+    # v9.633 — + la Costituzione 179/b, par. 8: il mandato della KPK e del Commissario pubblico finito il 31.12.2024, i casi non conclusi
+    # al Consiglio superiore della giustizia o della procura, i ricorsi contro le decisioni non ancora definitive alla Corte costituzionale.
+    # Il banco (vetting, «ku depozitohet ankimi»): «179/b(8) nuk e kam në dosje» — e una decisione della KPK notificata oggi non può esserci
+    (_VETTING_ANKIM_AL, (), (("kushtetuta", "179/b"),), None, None, True, "coda"),
     # v9.394 — misurato dalla misura dei modelli (26 set): nel caso «straniero con permesso per lavoro licenziato» NESSUNA
     # delle 6 varianti (qualunque modello) citava la ligji 79/2021 art. 72 (i motivi di annullamento del permesso unico: il
     # rapporto interrotto 1/e con l'obbligo del datore di avvisare entro 2 settimane, e al p. 2 «Papunësia nuk përbën arsye të
@@ -725,6 +777,8 @@ ANCORE_AL: tuple = (
     ((("padi", "apartament"), ("padi", "banes"), ("padi", "paluajtshm"), ("padi", "tokë"), ("padi", " token"),
       ("padi", "truall"), ("padi", " ashk"), ("padi", "(ashk"), ("gjykat", "apartament"), ("gjykat", "paluajtshm")),
      ("Penal",), (("kodi_proc_civile", "45"),), None, None, True, "coda"),
+    # v9.633 — … e il SEQUESTRO della causa (KPC 202, 206) quando si chiede di annullare la vendita (vedi `_CASA_CONIUGALE_PADI_AL`)
+    (_CASA_CONIUGALE_PADI_AL, ("Penal",), (("kodi_proc_civile", "202"), ("kodi_proc_civile", "206")), None, None, True, "coda"),
     ((("dogan", "sekuestr"), ("dogan", "konfisk"), ("dogan", "kontraband"), ("dogan", "bllok")),
      (), (("kodi_doganor", "271"), ("kodi_doganor", "272"), ("kodi_doganor", "281")), None, None, True),
     # v9.577 — ventisettesimo giro: il costruttore che non consegna l'appartamento nel termine e la «gjobë për çdo ditë vonesë» del
@@ -5251,7 +5305,7 @@ class SuperAvvocato:
                 log.warning("war_room research loop wiring dështoi (non-fatal): %s", _exc_rl)
         retrieved = self._mbyll_dosjen_me_citime(answer_text, retrieved, "seniori")     # v9.361
         yield ("status", self._status("complex_devil"))                                 # v9.507
-        answer_text = self._studio_djalli(user_message, retrieved, precedents, answer_text)
+        answer_text = self._studio_djalli(user_message, retrieved, precedents, answer_text, dosja_txt=dosja_txt_x)
         retrieved = self._mbyll_dosjen_me_citime(answer_text, retrieved, "djalli")      # v9.361
         # Source Verifier: il RAPPORTO di verifica per qualità sul dossier canonico —
         # verificate vs da-verificare. v9.358: su ogni percorso profondo. Fail-silent.
@@ -6020,7 +6074,7 @@ class SuperAvvocato:
             log.warning("war_room research loop fallito (non-fatal): %s", exc)
             return ""
 
-    def _studio_djalli(self, user_message, retrieved, precedents, answer_text):
+    def _studio_djalli(self, user_message, retrieved, precedents, answer_text, dosja_txt: str = ""):
         """L'avvocato del diavolo attacca la risposta prima che arrivi
         all'avvocato; la sua sezione si accoda, con le citazioni passate
         dallo scudo. Fallimento silenzioso."""
@@ -6036,7 +6090,8 @@ class SuperAvvocato:
                 self.backend, domanda=user_message,
                 blloku_neneve=_format_articles_for_prompt(retrieved),
                 pergjigja=answer_text, lang=lang,
-                modeli=STUDIO_DJALLI_MODEL, effort=STUDIO_DJALLI_EFFORT, precedentet=_prec_blk)
+                modeli=STUDIO_DJALLI_MODEL, effort=STUDIO_DJALLI_EFFORT, precedentet=_prec_blk,
+                dosja=dosja_txt or "")      # v9.633: il dossier dei raccoglitori che il senior ha letto
             if not (sez or "").strip():
                 return answer_text
             sez = _apply_corrections(_verify_citations(sez, precedents))
@@ -6054,7 +6109,7 @@ class SuperAvvocato:
                     self.backend, domanda=user_message,
                     blloku_neneve=_format_articles_for_prompt(retrieved),
                     pergjigja=answer_text, sulmi=sez, lang=lang,
-                    modeli=_mendja, effort=_eff_rep, precedentet=_prec_blk)
+                    modeli=_mendja, effort=_eff_rep, precedentet=_prec_blk, dosja=dosja_txt or "")
                 if risposta:
                     risposta = _apply_corrections(_verify_citations(risposta, precedents))
                     log.info("studio: seniori iu përgjigj sulmeve (%d shkronja)", len(risposta))
@@ -6073,14 +6128,15 @@ class SuperAvvocato:
                         self.backend, domanda=user_message,
                         blloku_neneve=_format_articles_for_prompt(retrieved),
                         pergjigja_v2=risposta, lang=lang,
-                        modeli=STUDIO_DJALLI_MODEL, effort=STUDIO_DJALLI_EFFORT, precedentet=_prec_blk)
+                        modeli=STUDIO_DJALLI_MODEL, effort=STUDIO_DJALLI_EFFORT, precedentet=_prec_blk,
+                        dosja=dosja_txt or "")
                     if (_s2 or "").strip():
                         _s2 = _apply_corrections(_verify_citations(_s2, precedents))
                         _fin = studio.senior_pergjigjja(
                             self.backend, domanda=user_message,
                             blloku_neneve=_format_articles_for_prompt(retrieved),
                             pergjigja=answer_text, sulmi=_s2, lang=lang,
-                            modeli=_mendja, effort=_eff_rep, finale=True, precedentet=_prec_blk)
+                            modeli=_mendja, effort=_eff_rep, finale=True, precedentet=_prec_blk, dosja=dosja_txt or "")
                         if _fin:
                             _fin = _apply_corrections(_verify_citations(_fin, precedents))
                             raund2 = _s2 + _fin
@@ -6380,12 +6436,13 @@ class SuperAvvocato:
             log.warning("mbyll_dosjen: saltato (non-fatal): %s", exc)
             return retrieved
 
-    def _aggiungi_rinvii(self, retrieved, limit: int = 3):
+    def _aggiungi_rinvii(self, retrieved, limit: int = 4):
         """v9.476 — i RINVII INTERNI espliciti degli articoli recuperati (stesso atto: «sipas nenit 278 të këtij Kodi», «di cui
         all'articolo 93-bis», «degli articoli 406 e 407»): misurato sulle risposte salvate (30 giorni), 38 risposte su 130 scrivono
         «non ho il testo / non è nel blocco» e 114 articoli citati e verificati ma NON dati al modello erano vicini a uno dato. Gli
         strumenti PRO li seguono dal v9.399 (`expertise._rinvii_interni`), la chat no. Solo articoli esistenti e in vigore, solo dai
-        primi 8, al massimo 3, copie marcate in coda (mai l'oggetto dell'indice; si aggiungono ai 12). Fail-silent."""
+        primi 8 (v9.633: e dalle norme dichiarate — ancore, nene chiesti per numero — in qualunque posto, per prime), al massimo 4,
+        copie marcate in coda (mai l'oggetto dell'indice; si aggiungono ai 12). Fail-silent."""
         try:
             if not retrieved:
                 return retrieved
@@ -6393,8 +6450,14 @@ class SuperAvvocato:
             idx = self.index_it if (it and self.index_it is not None) else self.index
             from . import expertise as _ex
             presenti = {(a.code, str(a.number)) for a, _ in retrieved}
-            sorgenti = [(a.code, str(a.number), getattr(a, "body", "") or "") for a, _ in retrieved[:8]
-                        if not getattr(a, "_rinvio_da", "")]
+            # v9.633 — anche dalle norme DICHIARATE (ancore, nene chiesti per numero) oltre l'ottavo posto, e per prime: nel vetting il
+            # l'art. 52 della legge 84/2016 (l'onere della prova, ancorato in coda) dice «sipas nenit 45» e il senior scriveva
+            # «nenin 45 nuk e kam në dosje — e ndërtova levën kryesore mbi një normë që nuk e kam lexuar». Tetto 3 → 4
+            _dich = [(a.code, str(a.number), getattr(a, "body", "") or "") for a, _ in retrieved[8:]
+                     if (getattr(a, "_ancora", False) or getattr(a, "_ancora_it", False) or getattr(a, "_cituar", False))
+                     and not getattr(a, "_rinvio_da", "")]
+            sorgenti = _dich + [(a.code, str(a.number), getattr(a, "body", "") or "") for a, _ in retrieved[:8]
+                                if not getattr(a, "_rinvio_da", "")]
             nuovi = _ex._rinvii_interni(idx, sorgenti, "it" if it else "sq", max_add=limit, gia=presenti)
             if not nuovi:
                 return retrieved
@@ -6406,7 +6469,8 @@ class SuperAvvocato:
                 v = by_key.get((code, str(number)))
                 if v is None:
                     continue
-                da = next((a for a, _ in retrieved[:8] if a.code == code and re.search(
+                _fonti = {(c0, n0) for c0, n0, _t0 in sorgenti}
+                da = next((a for a, _ in retrieved if (a.code, str(a.number)) in _fonti and a.code == code and re.search(
                     r"\b%s\b" % re.escape(str(number)), getattr(a, "body", "") or "")), None)
                 c = _copy.copy(v)
                 c._rinvio_da = getattr(da, "citation", "") if da is not None else ""
@@ -6862,7 +6926,9 @@ class SuperAvvocato:
         # v9.400 — anche le ancore albanesi di REGOLA GENERALE (copie `_ancora`) si AGGIUNGONO ai 12 invece di spingere fuori la
         # coda: misurato col triage vero, l'ancora del preavviso buttava fuori KP 144 (procedura), 147 e 156 — articoli pertinenti
         # trovati dalla ricerca. Al massimo 4 in più.
-        _extra += min(4, sum(1 for a, _ in pairs if getattr(a, "_ancora", False)))
+        # v9.633: 4 → 6 — l'errore medico con un ospedale pubblico (641, 96 + in coda 625, 618, 115, 131, 88, 49/2012 artt. 7 e 18) ne
+        # porta nove: col tetto a 4 le ultime prendevano il posto di cinque norme trovate dalla ricerca
+        _extra += min(6, sum(1 for a, _ in pairs if getattr(a, "_ancora", False)))
         _extra += min(2, sum(1 for a, _ in pairs if getattr(a, "_ancora_vepra", False)))     # v9.487: le figure di reato si aggiungono
         # v9.584 — e le ancore per TITOLO: erano le uniche a NON aggiungersi, quindi stavano in testa ai 12 e spingevano fuori gli
         # ultimi articoli trovati — misurato sul banco AL, su ~50 ancore per titolo solo una quindicina pertinenti (il telefono rubato
@@ -9428,7 +9494,9 @@ def _indice_kreut(pairs) -> str:
     try:
         from collections import Counter
         from . import citation_verifier as _cvr
-        cnt = Counter((a.code, (a.kreu or "").strip()) for a, _ in (pairs or []) if (a.kreu or "").strip())
+        # v9.633: il contenitore è il capitolo, o la Parte quando la Parte non ha capitoli (Costituzione, parti IV-XVIII)
+        _cont = lambda a: ((getattr(a, "kreu", "") or "") or (getattr(a, "pjesa", "") or "")).strip()
+        cnt = Counter((a.code, _cont(a)) for a, _ in (pairs or []) if _cont(a))
         if not cnt:
             return ""
         (code, kreu), n = cnt.most_common(1)[0]
@@ -9443,7 +9511,7 @@ def _indice_kreut(pairs) -> str:
         # («RASTET E ZGJIDHJES SË MARTESËS» + «PASOJAT E ZGJIDHJES SË MARTESËS» = 125-162)
         gruppi: list[tuple[str, list]] = []
         for x in tutti:
-            k = (x.kreu or "").strip()
+            k = _cont(x)
             if gruppi and gruppi[-1][0] == k:
                 gruppi[-1][1].append(x)
             else:

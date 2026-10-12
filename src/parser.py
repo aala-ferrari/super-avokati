@@ -205,8 +205,12 @@ def _paragrafet(body: str) -> list[str]:
 
 
 # Hierarchy headers (PJESA / KREU / SEKSIONI / TITULLI). Used as context.
+# v9.633 — anche «PJESA E PARË», «PJESA E TETËMBËDHJETË»: la forma dei codici albanesi (Costituzione, KPC, KPP, KPA, KF, Kodi Detar,
+# falimento, detenuti, regolamento della polizia…). Il regex voleva UNA parola dopo l'etichetta, quindi nessuna Parte veniva letta e il
+# capitolo non si azzerava alla Parte nuova: nella Costituzione gli artt. 121-183 (Corte costituzionale, tribunali, procura, referendum,
+# finanze, forze armate, misure straordinarie, disposizioni transitorie) stavano tutti nel «KREU II — MARRËVESHJET NDËRKOMBËTARE»
 HIERARCHY_RE = re.compile(
-    r"(?m)^[ \t]*(PJESA|KREU|SEKSIONI|TITULLI|KAPITULLI)\s+([A-ZÇËÏ0-9/]+)\s*$"
+    r"(?m)^[ \t]*(PJESA|KREU|SEKSIONI|TITULLI|KAPITULLI)\s+(?:(?<=PJESA )E\s+)?([A-ZÇËÏ0-9/]+)\s*$"
 )
 
 REPEALED_MARKERS = ("shfuqizuar", "shfuqizohet")
@@ -336,8 +340,10 @@ def unita_nominata_it(number) -> str:
 
 
 SEARCH_CHAPTERS = os.environ.get("SEARCH_CHAPTERS", "1") == "1"
+# v9.633 — anche «PJESA E NËNTË — GJYKATAT»: senza, nella ricerca entravano «pjesa» (che sta in ogni domanda sulle quote di eredità) e
+# l'ordinale in lettere («nëntë», «tetë»)
 _CAP_PREFIX = re.compile(r"^\s*(?:(?:KREU|KAPITULLI|SEKSIONI|TITULLI|PJESA|NËNSEKSIONI|CAPO|TITOLO|SEZIONE|LIBRO|PARTE|PARAGRAFO)\s+|§\s*)"
-                         r"[IVXLCDM0-9]+(?:[-\s]*(?:bis|ter|quater|A|B))?\s*[—–\-.:]*\s*", re.I)
+                         r"(?:(?<=PJESA )E\s+[A-ZÇËÏ]+|[IVXLCDM0-9]+(?:[-\s]*(?:bis|ter|quater|A|B))?)\s*[—–\-.:]*\s*", re.I)
 
 
 # v9.383 — le voci italiane (tools/it_gerarchia.py) sono SEMPRE «etichetta — titolo» o l'etichetta da sola: «TITOLO
@@ -423,7 +429,8 @@ class Article:
         # risarcimento per detenzione ingiusta lo dice solo «KREU V — KOMPENSIMI PËR BURGIM TË PADREJTË». Senza, una
         # domanda su quel tema non lo trovava mai. Solo il titolo, senza «KREU V —».
         if SEARCH_CHAPTERS:
-            parts.extend(titoli_capitolo(getattr(self, "kreu", ""), getattr(self, "seksioni", "")))
+            # v9.633: in una Parte senza capitoli (Costituzione, parti IV-XVIII) il contenitore è la Parte
+            parts.extend(titoli_capitolo(getattr(self, "kreu", "") or getattr(self, "pjesa", ""), getattr(self, "seksioni", "")))
         parts.append(self.body)
         return "\n".join(parts)
 

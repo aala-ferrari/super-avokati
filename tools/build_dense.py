@@ -33,7 +33,9 @@ def _capitolo(x) -> str:
     """Il titolo del capitolo (kreu + seksioni) senza «KREU V —»: dice il TEMA quando la rubrica è generica.
     v9.383: parte per parte (i campi italiani uniscono Titolo · Capo e Sezione · §), in minuscolo se è tutto maiuscolo."""
     from src.parser import titoli_capitolo
-    parti = [p.lower() if p.isupper() else p for p in titoli_capitolo(getattr(x, "kreu", ""), getattr(x, "seksioni", ""))]
+    # v9.633: in una Parte senza capitoli il contenitore è la Parte (come `Article.searchable_text`)
+    parti = [p.lower() if p.isupper() else p for p in titoli_capitolo(getattr(x, "kreu", "") or getattr(x, "pjesa", ""),
+                                                                     getattr(x, "seksioni", ""))]
     return " · ".join(parti)
 
 

@@ -1483,7 +1483,7 @@ def main():
         check("studio[30]: truri e thërret djallin vetëm pas përgjigjes complex (2 rrugë)",
               hasattr(brain.SuperAvvocato, "_studio_djalli")
               and open("/app/src/brain.py", encoding="utf-8").read().count(
-                  "self._studio_djalli(user_message, retrieved, precedents, answer_text)") == 2)
+                  "self._studio_djalli(user_message, retrieved, precedents, answer_text") == 2)     # v9.633: + dosja_txt nello stream
         check("studio[30]: prompt djalli — fronte + gravità [KRITIKE] + «pika ku do sulmoja», senza pareri nuovi, mai inventare",
               all(x in _st2.DJALLI_SYSTEM for x in ("GABIM", "mungon", "parashkrimi", "barra",
                                                     "[KRITIKE]", "PIKA KU DO TË SULMOJA", "MOS shpik nene", "Mos shkruaj parere")))
@@ -5849,8 +5849,9 @@ def main():
         _okA = ({("kodi_punes", "143"), ("kodi_punes", "145")} <= _lav170
                 and ("kodi_punes", "143") not in _pen170 and ("kodi_punes", "143") not in _civ170)
         _srcb170 = open("/app/src/brain.py", encoding="utf-8").read()
-        _okC = ('_extra += min(4, sum(1 for a, _ in pairs if getattr(a, "_ancora", False)))' in _srcb170
-                and "(13 gjithsej" not in _srcb170)
+        # v9.633: il tetto delle ancore in aggiunta ai 12 è passato da 4 a 6 (l'errore medico con l'ospedale pubblico ne porta nove)
+        _mC170 = __import__("re").search(r'_extra \+= min\((\d+), sum\(1 for a, _ in pairs if getattr\(a, "_ancora", False\)\)\)', _srcb170)
+        _okC = (bool(_mC170) and int(_mC170.group(1)) >= 4 and "(13 gjithsej" not in _srcb170)
         from src import pro_features as _pf170
         _srcp170 = open("/app/src/pro_features.py", encoding="utf-8").read()
         _srcw170 = open("/app/src/web.py", encoding="utf-8").read()
@@ -7684,7 +7685,7 @@ def main():
         _x3, _by3 = _r245("IT", [("codice_procedura_penale", "405"), ("codice_procedura_penale", "407")])
         _k = lambda xs: {(a.code, a.number) for a, _ in xs}
         _ok245 = (("kodi_punes", "144") in _k(_x1) and {("kodi_proc_penale", "327"), ("kodi_proc_penale", "328")} <= _k(_x2)
-                  and ("codice_procedura_penale", "407") not in _k(_x3) and len(_x2) <= 3
+                  and ("codice_procedura_penale", "407") not in _k(_x3) and len(_x2) <= 4      # v9.633: tetto 3 → 4
                   and all(getattr(a, "_rinvio_da", "") and not a.repealed for a, _ in _x1 + _x2 + _x3)
                   and not getattr(_by3[("codice_procedura_penale", "407")], "_rinvio_da", "")
                   and "RICHIAMATO DA" in _b245._format_articles_for_prompt(_x3[:1]) if _x3 else True)
@@ -10938,7 +10939,7 @@ def main():
         _q382 = "Punëdhënësi e pushoi klientin pas 8 vitesh pa asnjë paralajmërim. Çfarë i takon?"
         _r382 = _br382._applica_ancore(_pr382, _al382, ["zgjidhje kontrate", _q382], ["Punë", "Civil"])
         # la finestra che arriva al senior: i 12 + le copie delle ancore (al massimo 4), come in `_retrieve`
-        _r382 = _r382[:12 + min(4, sum(1 for a, _ in _r382 if getattr(a, "_ancora", False)))]
+        _r382 = _r382[:12 + min(6, sum(1 for a, _ in _r382 if getattr(a, "_ancora", False)))]      # v9.633: tetto 6
         _o382 = [(a.code, str(a.number)) for a, _ in _r382]
         _okA382 = _o382.count(("kodi_punes", "145")) == 1 and len(_o382) == len(set(_o382))
         _k382 = lambda q, aree: [(a.code, str(a.number)) for a, _ in _br382._applica_ancore([], _al382, ["pyetje", q], aree)]
@@ -11976,6 +11977,128 @@ console.log(JSON.stringify(out));
               not _bad412, "; ".join(_bad412[:6]))
     except Exception as _e412:  # noqa: BLE001
         check("societa[412]: kontrollet u ekzekutuan", False, f"{type(_e412).__name__}: {_e412}")
+
+    # [413] v9.633 — dalle risposte PROFONDE del banco dei modelli (sei casi difficili letti uno per uno): le norme che il cervello stesso
+    # diceva di non avere arrivano IN CODA — errore medico col termine → KC 131 (interruzione della prescrizione), col penale → KP 88, con un
+    # ente pubblico convenuto per un danno → legge 49/2012 artt. 7 e 18; vetting → Costituzione 179/b; casa coniugale da annullare → KPC
+    # 202/206 (anche la vendita ANNUNCIATA porta il KF 57); prescrizione civile → KC 131 (mai nel lavoro); i rinvii interni seguiti anche
+    # dalle norme DICHIARATE oltre l'ottavo posto (84/2016 art. 52 → 45)
+    try:
+        import copy as _cp413, types as _ty413
+        from src import brain as _br413
+        from src.retrieval import ArticleIndex as _AI413
+        _br413.set_request_jurisdiction("AL")
+        _al413 = _AI413.load()
+        _k413 = lambda q, aree: [(a.code, str(a.number)) for a, _ in _br413._applica_ancore([], _al413, ["pyetje", q], aree)]
+        _cattivi413 = []
+        _m = _k413("Klientes sime i lanë një gazë në bark gjatë një operacioni në spitalin rajonal publik. Kë padisim, çfarë dëmi "
+                   "kërkojmë, brenda çfarë afati, dhe a ka përgjegjësi penale për mjekun?", ["Civil", "Penal"])
+        _nuove = [("kodi_civil", "131"), ("kodi_penal", "88"), ("ligji_gjykatat_administrative", "7"), ("ligji_gjykatat_administrative", "18")]
+        if not (set(_nuove) <= set(_m) and min(_m.index(x) for x in _nuove) > _m.index(("kodi_civil", "641"))):
+            _cattivi413.append("medico pubblico %s" % _m)
+        if set(_nuove[:3]) & set(_k413("Mjeku i një klinike private gaboi diagnozën e klientit. Kë padisim?", ["Civil"])):
+            _cattivi413.append("medico privato")
+        if ("kushtetuta", "179/b") not in _k413("Klienti është gjyqtar; KPK vendosi shkarkimin në rivlerësim. Brenda sa ditësh ankohemi?", ["Kushtetues"]):
+            _cattivi413.append("vetting")
+        _c = _k413("Bashkëshorti i klientes shiti apartamentin pa pëlqimin e saj. A mund ta anulojmë shitjen?", ["Familje", "Civil"])
+        if not ({("kodi_proc_civile", "202"), ("kodi_proc_civile", "206")} <= set(_c)
+                and _c.index(("kodi_proc_civile", "202")) > _c.index(("kodi_familjes", "57"))):
+            _cattivi413.append("casa %s" % _c)
+        _c2 = _k413("Burri i klientes po do ta shesë shtëpinë pa e pyetur. Çfarë të drejtash ka ajo?", ["Familje"])
+        if ("kodi_familjes", "57") not in _c2 or ("kodi_proc_civile", "202") in _c2:
+            _cattivi413.append("vendita annunciata %s" % _c2)
+        if ("kodi_civil", "131") not in _k413("Klienti ka një borxh nga viti 2015 ndaj një shoqërie. A është parashkruar?", ["Civil"]) \
+                or ("kodi_civil", "131") in _k413("Punëdhënësi nuk i ka paguar pagat e vitit 2022. A janë parashkruar?", ["Punë"]):
+            _cattivi413.append("prescrizione")
+        if ("ligji_gjykatat_administrative", "7") in _k413("Klienti u kap duke vjedhur; a e dëmton kjo dosjen e tij në gjykatë?", ["Penal"]):
+            _cattivi413.append("penale 'dëmton'")
+        _by413 = {(a.code, str(a.number)): a for a in _al413.articles}
+        _fill = [(_by413[("kodi_civil", str(n))], 5.0) for n in range(1, 10)]
+        _a52 = _cp413.copy(_by413[("ligji_rivleresimi", "52")]); _a52._ancora = True
+        _d413 = _ty413.SimpleNamespace(index=_al413, index_it=None, _current_jurisdiction=lambda: "AL")
+        _r1 = [(a.code, str(a.number)) for a, _ in _br413.SuperAvvocato._aggiungi_rinvii(_d413, _fill + [(_a52, 1.0)])[10:]]
+        _r2 = [(a.code, str(a.number)) for a, _ in _br413.SuperAvvocato._aggiungi_rinvii(
+            _d413, _fill + [(_cp413.copy(_by413[("ligji_rivleresimi", "52")]), 1.0)])[10:]]
+        if ("ligji_rivleresimi", "45") not in _r1 or _r2:
+            _cattivi413.append("rinvii %s %s" % (_r1, _r2))
+        check("ancore[413]: le norme che il banco profondo diceva di non avere (KC 131, KP 88, 49/2012 artt. 7 e 18, Costituzione 179/b, "
+              "KPC 202/206) in coda e solo col loro motivo; i rinvii anche dalle norme dichiarate", not _cattivi413, "; ".join(_cattivi413))
+    except Exception as _e413:  # noqa: BLE001
+        check("ancore[413]: kontrollet u ekzekutuan", False, f"{type(_e413).__name__}: {_e413}")
+
+    # [414] v9.633 — le PARTI dei codici albanesi («PJESA E PARË … E TETËMBËDHJETË»): il regex delle intestazioni voleva una parola dopo
+    # l'etichetta e nessuna Parte veniva letta, il capitolo non si azzerava alla Parte nuova (Costituzione 121-183 tutta nel «KREU II —
+    # MARRËVESHJET NDËRKOMBËTARE», KPC 510 sotto «KUNDËRSHTIMI I TË TRETIT»), e l'intestazione restava in coda all'articolo prima
+    try:
+        import re as _re414
+        from src import parser as _pa414
+        from src.retrieval import ArticleIndex as _AI414
+        _ok_rx = (bool(_pa414.HIERARCHY_RE.match("PJESA E NËNTË")) and bool(_pa414.HIERARCHY_RE.match("PJESA I"))
+                  and bool(_pa414.HIERARCHY_RE.match("KREU IV")) and not _pa414.HIERARCHY_RE.match("KREU E IV")
+                  and _pa414.titoli_capitolo("PJESA E NËNTË — GJYKATAT") == ["GJYKATAT"]
+                  and _pa414.titoli_capitolo("PJESA E PËRGJITHSHME") == [])
+        _al414 = _AI414.load()
+        _A414 = {(a.code, str(a.number)): a for a in _al414.articles}
+        _k135 = _A414[("kushtetuta", "135")]
+        _cont = lambda a: (a.kreu or a.pjesa or "")
+        _ok_dati = ("GJYKATAT" in (_k135.pjesa or "") and not (_k135.kreu or "")
+                    and "DISPOZITA KALIMTARE" in _cont(_A414[("kushtetuta", "179/b")])
+                    and "EKZEKUTIMI I DETYRUESHËM" in _cont(_A414[("kodi_proc_civile", "510")])
+                    and not any(a.code == "kushtetuta" and "MARRËVESHJET NDËRKOMBËTARE" in (a.kreu or "")
+                                and _re414.match(r"\d+", str(a.number)) and int(_re414.match(r"\d+", str(a.number)).group(0)) > 123
+                                for a in _al414.articles)
+                    and "GJYKATAT" in _k135.searchable_text and "MARRËVESHJET" not in _k135.searchable_text)
+        _code414 = [f"{a.code}:{a.number}" for a in _al414.articles
+                    if _re414.search(r"(?m)^[ \t]*PJESA\s+E\s+[A-ZÇË]+\s*$", a.body or "")]
+        check("parti[414]: le Parti «PJESA E …» lette, il capitolo azzerato alla Parte nuova (Costituzione 135 → GJYKATAT, KPC 510 → "
+              "esecuzione forzata), nessuna intestazione di Parte in coda ai corpi", _ok_rx and _ok_dati and not _code414,
+              f"regex={_ok_rx} dati={_ok_dati} code={_code414[:5]}")
+    except Exception as _e414:  # noqa: BLE001
+        check("parti[414]: kontrollet u ekzekutuan", False, f"{type(_e414).__name__}: {_e414}")
+
+    # [415] v9.633 — l'articolo INESISTENTE che la frase stessa dice inesistente (il Giudice che smonta una citazione del diavolo: «një nen
+    # i tillë nuk ekziston») non si barra e non accende il rosso; il fantasma vero sì
+    try:
+        from src import trust_line as _tl415, cancello as _cn415
+        from src.retrieval import ArticleIndex as _AI415
+        _al415 = _AI415.load()
+        _t1 = "Askush nuk citon nenin 120 të Ligjit 8510 — një nen i tillë nuk ekziston në atë ligj. Afati nis sipas nenit 120 të Kodit Civil."
+        _t2 = "Sipas nenit 9999 të Kodit Civil palët mund ta zgjidhin kontratën. Afati nis sipas nenit 120 të Kodit Civil."
+        _v1, _v2 = _tl415.verifica(_t1, _al415, "AL"), _tl415.verifica(_t2, _al415, "AL")
+        _b1, _b2 = _cn415._barra(_t1, _al415, "sq")[0], _cn415._barra(_t2, _al415, "sq")[0]
+        _ok415 = (_v1["nene"]["fake"] == 0 and _v1["nene"].get("fake_noted") == 1 and _tl415.stato(_v1) != "FLAGS"
+                  and "~~" not in _b1 and _v2["nene"]["fake"] == 1 and _tl415.stato(_v2) == "FLAGS" and "~~9999~~" in _b2
+                  and "të deklaruara si të tilla" in _tl415.riga(_v1, "sq"))
+        check("inesistente[415]: l'articolo che la frase dice inesistente non si barra e non è rosso; il fantasma vero sì", _ok415,
+              f"{_v1['nene']} | {_v2['nene']['fake']} | {_b1[:60]}")
+    except Exception as _e415:  # noqa: BLE001
+        check("inesistente[415]: kontrollet u ekzekutuan", False, f"{type(_e415).__name__}: {_e415}")
+
+    # [416] v9.633 — il DOSSIER DEI RACCOGLITORI che il senior ha letto arriva anche al diavolo, alla replica del senior e al secondo
+    # giro: senza, il diavolo attaccava come «non nei materiali» le date del consolidato e del controllo della Fletorja prese proprio da
+    # lì, e il senior le toglieva
+    try:
+        from src import studio as _st416
+        class _Fb416:
+            def __init__(self): self.ultimo = ""
+            def complete(self, system=None, messages=None, **kw):
+                self.ultimo = (messages or [{}])[-1].get("content", ""); return "ok"
+        _f416 = _Fb416()
+        _DS = "kontrolli automatik i 11.10.2026: asnjë ligj ndryshues"
+        _st416.avokati_i_djallit(_f416, domanda="D", blloku_neneve="neni 1", pergjigja="R", lang="sq", dosja=_DS)
+        _ok1 = _DS in _f416.ultimo and "NUK është «jashtë materialeve»" in _f416.ultimo
+        _st416.senior_pergjigjja(_f416, domanda="D", blloku_neneve="neni 1", pergjigja="R", sulmi="S", lang="sq", dosja=_DS)
+        _ok2 = _DS in _f416.ultimo
+        _st416.sulmi_i_dyte(_f416, domanda="D", blloku_neneve="art. 1", pergjigja_v2="R", lang="it", dosja=_DS)
+        _ok3 = _DS in _f416.ultimo and "NON è «fuori dai materiali»" in _f416.ultimo
+        _st416.avokati_i_djallit(_f416, domanda="D", blloku_neneve="neni 1", pergjigja="R", lang="sq")
+        _ok4 = "DOSJA E MBLEDHËSVE" not in _f416.ultimo
+        _src416 = open("/app/src/brain.py", encoding="utf-8").read()
+        _ok5 = ("answer_text, dosja_txt=dosja_txt_x)" in _src416 and _src416.count('dosja=dosja_txt or ""') >= 4)
+        check("djalli-dosja[416]: il dossier dei raccoglitori arriva a diavolo, replica e secondo giro (e non c'è se manca)",
+              _ok1 and _ok2 and _ok3 and _ok4 and _ok5, f"{_ok1} {_ok2} {_ok3} {_ok4} {_ok5}")
+    except Exception as _e416:  # noqa: BLE001
+        check("djalli-dosja[416]: kontrollet u ekzekutuan", False, f"{type(_e416).__name__}: {_e416}")
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

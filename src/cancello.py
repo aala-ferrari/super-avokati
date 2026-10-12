@@ -150,6 +150,14 @@ def _correzione_modello(text: str, bad: list[dict], index, lang: str, backend, m
     return "\n".join(righe), cambi
 
 
+def _tl_inesistenza(text: str, i: int, j: int) -> bool:
+    try:
+        from .trust_line import INESISTENZA_RE, frase_di
+        return bool(INESISTENZA_RE.search(frase_di(text, i, j)))
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def _barra(text: str, index, lang: str, retrieved_codes=None) -> tuple[str, int, int]:
     """Passo 3, deterministico: il numero di un articolo inesistente si barra (e non è più una
     citazione per il verificatore); abrogato/incostituzionale prende l'etichetta se la riga non lo
@@ -166,6 +174,9 @@ def _barra(text: str, index, lang: str, retrieved_codes=None) -> tuple[str, int,
         stati = {i["status"] for i in items}
         riga_ini = text.rfind("\n", 0, m.start()) + 1; riga_fin = text.find("\n", m.end()); riga_fin = len(text) if riga_fin < 0 else riga_fin
         riga = text[riga_ini:riga_fin]
+        # v9.633 — la frase stessa dice che l'articolo non esiste (il Giudice che smonta una citazione del diavolo): niente barratura
+        if "fake" in stati and _tl_inesistenza(text, m.start(), m.end()):
+            continue
         if "fake" in stati:
             a, b = m.start("nums"), m.end("nums")
             # v9.500 — in un elenco («nenet 458, 445 dhe 42 i Kushtetutës») si barrano SOLO i numeri inesistenti: prima si barrava

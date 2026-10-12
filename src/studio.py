@@ -309,13 +309,32 @@ def _blocco_precedentet(precedentet: str, lang: str) -> str:
     return ("\n\n" + _ETIKETA_PRECEDENTET.get(lang, _ETIKETA_PRECEDENTET["sq"]) + "\n" + p[:16000]) if p else ""
 
 
+# v9.633 — il DOSSIER DEI RACCOGLITORI (fonti web, il controllo QBZ / Gazzetta ufficiale, i blocchi del tempo e delle tabelle) che il
+# senior ha letto: senza, il diavolo attaccava come «nuk janë në materiale» le date del consolidato e del controllo della Fletorja che il
+# senior aveva preso proprio da lì, e il senior le TOGLIEVA («[PRANOHET] … Hiqen si të pambështetura»: banco dei modelli, vetting, 12 ott)
+TETTO_DOSJA_DJALLI = 20000
+_ETIKETA_DOSJA = {
+    "sq": ("DOSJA E MBLEDHËSVE QË LEXOI SENIORI (burime web, kontrolli QBZ / Fletorja Zyrtare, blloqe të tjera) — një pohim që vjen "
+           "prej këtu NUK është «jashtë materialeve»; sulmoje vetëm nëse burimi keqpërdoret, është dytësor kundër një norme ose nuk thotë "
+           "atë që i atribuohet:"),
+    "it": ("DOSSIER DEI RACCOGLITORI LETTO DAL SENIOR (fonti web, controllo Normattiva / Gazzetta ufficiale, altri blocchi) — "
+           "un'affermazione che viene da qui NON è «fuori dai materiali»; attaccala solo se la fonte è usata male, è secondaria contro una "
+           "norma o non dice ciò che le si attribuisce:"),
+}
+
+
+def _blocco_dosja(dosja: str, lang: str) -> str:
+    d = (dosja or "").strip()
+    return ("\n\n" + _ETIKETA_DOSJA.get(lang, _ETIKETA_DOSJA["sq"]) + "\n" + d[:TETTO_DOSJA_DJALLI]) if d else ""
+
+
 def avokati_i_djallit(backend, *, domanda: str, blloku_neneve: str, pergjigja: str,
                       lang: str = "sq", modeli: str = "fable", effort: str = "max",
-                      case_id: str | None = None, precedentet: str = "") -> str:
+                      case_id: str | None = None, precedentet: str = "", dosja: str = "") -> str:
     _L = _ETIKETA_DJALLI.get(lang, _ETIKETA_DJALLI["sq"])
     user = (f"{_L[0]}\n{(domanda or '')[:3000]}\n\n"
             f"{_L[1]}\n{(blloku_neneve or '')[:TETTO_NENE]}"
-            + _blocco_precedentet(precedentet, lang) + "\n\n"
+            + _blocco_precedentet(precedentet, lang) + _blocco_dosja(dosja, lang) + "\n\n"
             f"{_L[2]}\n{(pergjigja or '')[:TETTO_RISPOSTA]}")
     raw = _chiama(backend, system=djalli_system(lang), user=user, modeli=modeli,
                   effort=effort, max_tokens=900, callsite="studio:djalli",
@@ -357,7 +376,7 @@ _TITULL_PERGJIGJE = {
 
 
 def senior_pergjigjja(backend, *, domanda, blloku_neneve, pergjigja, sulmi,
-                      lang="sq", modeli="opus", effort="max", case_id=None, finale=False, precedentet="") -> str:
+                      lang="sq", modeli="opus", effort="max", case_id=None, finale=False, precedentet="", dosja="") -> str:
     """2° passaggio: il senior risponde all'attacco del diavolo — accolto/
     respinto/parziale per ogni obiezione + strategia rivista. Vuoto se non produce."""
     if not (sulmi or "").strip() or not (pergjigja or "").strip():
@@ -366,7 +385,8 @@ def senior_pergjigjja(backend, *, domanda, blloku_neneve, pergjigja, sulmi,
            "ATTACCO DELL'AVVOCATO DEL DIAVOLO:") if lang == "it" else
           ("PYETJA:", "NENET (tekst i plotë):", "PËRGJIGJA IME:", "SULMI I AVOKATIT TË DJALLIT:"))
     user = ("%s\n%s\n\n%s\n%s%s\n\n%s\n%s\n\n%s\n%s" % (
-                _L[0], (domanda or "")[:2500], _L[1], (blloku_neneve or "")[:40000], _blocco_precedentet(precedentet, lang),
+                _L[0], (domanda or "")[:2500], _L[1], (blloku_neneve or "")[:40000],
+                _blocco_precedentet(precedentet, lang) + _blocco_dosja(dosja, lang),
                 _L[2], (pergjigja or "")[:TETTO_RISPOSTA], _L[3], (sulmi or "")[:16000]))
     raw = _chiama(backend, system=PERGJIGJE_SYSTEM.get(lang, PERGJIGJE_SYSTEM["sq"]),
                   # 1100 → 1800 (v9.322) → 3000 (v9.363): il Giudice della prova viva del 22 set
@@ -427,7 +447,7 @@ def duhet_raund2(sez: str, risposta: str) -> bool:
 
 
 def sulmi_i_dyte(backend, *, domanda, blloku_neneve, pergjigja_v2, lang="sq",
-                 modeli="fable", effort="max", case_id=None, precedentet="") -> str:
+                 modeli="fable", effort="max", case_id=None, precedentet="", dosja="") -> str:
     """Secondo attacco di Fable, SOLO sul residuo (la rebuttal del senior)."""
     if not (pergjigja_v2 or "").strip():
         return ""
@@ -435,7 +455,8 @@ def sulmi_i_dyte(backend, *, domanda, blloku_neneve, pergjigja_v2, lang="sq",
           if lang == "it" else
           ("PYETJA:", "NENET (tekst i plotë):", "PËRGJIGJA E SENIORIT NDAJ SULMIT TIM TË PARË:"))
     user = ("%s\n%s\n\n%s\n%s%s\n\n%s\n%s" % (
-                _L[0], (domanda or "")[:2500], _L[1], (blloku_neneve or "")[:40000], _blocco_precedentet(precedentet, lang),
+                _L[0], (domanda or "")[:2500], _L[1], (blloku_neneve or "")[:40000],
+                _blocco_precedentet(precedentet, lang) + _blocco_dosja(dosja, lang),
                 _L[2], (pergjigja_v2 or "")[:TETTO_RISPOSTA]))
     raw = _chiama(backend, system=(DJALLI_2_SYSTEM_IT if lang == "it" else DJALLI_2_SYSTEM),
                   user=user, modeli=modeli,

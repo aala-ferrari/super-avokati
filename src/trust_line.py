@@ -87,6 +87,33 @@ def _abrogazione_dichiarata(text: str, raw: str) -> bool:
         return False
 
 
+# v9.633 — l'articolo INESISTENTE che la frase stessa dice inesistente: il Giudice che smonta una citazione del diavolo («Askush nuk
+# citon nenin 120 të Ligjit 8510 — një nen i tillë nuk ekziston»: banco dei modelli, 12 ott) non è un errore della risposta, e barrarne
+# il numero rendeva la frase illeggibile («nen ~~120~~ … [⛔ citim i hequr]»). Solo dentro la STESSA frase
+INESISTENZA_RE = re.compile(r"nuk\s+ekziston|s['’]\s*ekziston|nuk\s+ka\s+(?:asnjë\s+|asnje\s+|një\s+|nje\s+)?nen|"
+                            r"\bnen\w*\s+(?:i|e)\s+till[ëe]\s+nuk|askush\s+nuk\s+(?:e\s+)?cit|i\s+paekzistuesh|e\s+paekzistuesh|"
+                            r"nuk\s+gjendet\s+n[ëe]\s+(?:asnj[ëe]|at[ëe]|k[ëe]t[ëe])\s+(?:ligj|kod|akt)|"
+                            r"non\s+esist|inesistent|non\s+c['’]\s*[èe]\s+(?:un|alcun)\w*\s+art|nessun\s+articolo", re.I)
+
+
+def frase_di(text: str, i: int, j: int) -> str:
+    """La frase che contiene text[i:j] (fra «. », «; » o a capo)."""
+    a = max(text.rfind(". ", 0, i), text.rfind("; ", 0, i), text.rfind("\n", 0, i)) + 1
+    fini = [x for x in (text.find(". ", j), text.find("; ", j), text.find("\n", j)) if x >= 0]
+    return text[a:(min(fini) if fini else len(text))]
+
+
+def inesistenza_dichiarata(text: str, raw: str) -> bool:
+    try:
+        r = (raw or "").rstrip("…").strip()
+        if len(r) < 5:
+            return False
+        i = (text or "").find(r)
+        return i >= 0 and bool(INESISTENZA_RE.search(frase_di(text, i, i + len(r))))
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def _sentenza_nominata(nota: str, text: str) -> bool:
     """La nota della Consulta («… con sentenza 26 settembre - 8 novembre 2018 n. 194 …») e la risposta la nomina già («sent. 194/2018»,
     «n. 194 del 2018»)? Allora la citazione è consapevole e non si ripete al Giudice."""
@@ -127,6 +154,10 @@ def verifica(text: str, index, jurisdiction: str = "AL", retrieved_codes=None, f
             if it.get("status") == "repealed" and _abrogazione_dichiarata(text, it.get("raw") or ""):
                 out["nene"]["repealed"] = max(0, out["nene"]["repealed"] - 1)
                 out["nene"]["repealed_noted"] += 1
+                continue
+            if it.get("status") == "fake" and inesistenza_dichiarata(text, it.get("raw") or ""):
+                out["nene"]["fake"] = max(0, out["nene"]["fake"] - 1)
+                out["nene"]["fake_noted"] = out["nene"].get("fake_noted", 0) + 1
                 continue
             if it.get("status") in ("fake", "repealed"):
                 out["nene"]["bad"].append({
@@ -323,6 +354,8 @@ def riga(v: dict, lang: str = "sq", tempo: dict | None = None, coverage: dict | 
             a.append(f"{n['repealed_noted']} abrogate e dichiarate tali")
         if n["fake"]:
             a.append(f"{n['fake']} non trovate nel corpus")
+        if n.get("fake_noted"):
+            a.append(f"{n['fake_noted']} inesistenti e dichiarate tali")
         if n.get("unconstitutional"):
             a.append(f"{n['unconstitutional']} dichiarate incostituzionali")
         if n["needs_code"] - n.get("fuori_corpus", 0) > 0:
@@ -357,6 +390,8 @@ def riga(v: dict, lang: str = "sq", tempo: dict | None = None, coverage: dict | 
             a.append(f"{n['repealed_noted']} të shfuqizuara të deklaruara si të tilla")
         if n["fake"]:
             a.append(f"{n['fake']} nuk u gjetën në korpus")
+        if n.get("fake_noted"):
+            a.append(f"{n['fake_noted']} që nuk ekzistojnë, të deklaruara si të tilla")
         if n.get("unconstitutional"):
             a.append(f"{n['unconstitutional']} të shpallura antikushtetuese")
         if n["needs_code"] - n.get("fuori_corpus", 0) > 0:
