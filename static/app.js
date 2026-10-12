@@ -592,6 +592,7 @@
   // Un lavoro rimasto in sospeso quando la pagina e' morta (telefono che
   // libera memoria): la risposta e' parcheggiata sul server, si recupera.
   setTimeout(function () { _recuperaLavoroInSospeso(); }, 1500);
+  setTimeout(function () { try { _redattoriAlRitorno(); } catch (e) {} }, 2500);       // v9.635
   // v9.426: il link di un avviso («superavokati.ai/s/<fascicolo>» → «/#scadenze=<fascicolo>») apre lo Scadenziario sul cliente
   (function () {
     var m = /^#scadenze(?:=([0-9a-f-]{8,64}))?$/.exec(window.location.hash || "");
@@ -1825,6 +1826,128 @@
 
   // v9.507 — il PARERE da mandare al cliente: il verdetto (o la risposta) senza la parte interna — la riga «🔎 Verifica», le
   // correzioni dei riquadri, l'analisi completa col duello avvocato del diavolo / replica. Prima i pulsanti esportavano tutto.
+  // v9.635 — L'ATTO PULITO (titolare, 12 ott: «quando salviamo il docx o pdf non devono esserci le cose per il notaio, il
+  // procuratore o l'avvocato, le direttive: solo l'atto pulito — o due opzioni, salva tutto / salva solo l'atto»). Dai formati
+  // dei redattori: revisione «📄 Teksti i përmirësuar / Testo migliorato» fino a «✅/⚠/🔎»; atto d'indagine «📝 …» fino al
+  // titolo seguente; atto nuovo del notaio = tutto prima di «✅ Kërkesat formale / Requisiti formali» o «⚠ …» in coda.
+  function _pulisciAtto(t) {
+    return String(t || "")
+      .replace(/^[ \t]*[*_]*\s*(?:Ky është material ndihmës|Kjo është NDIHMES|Questo è un AUSILIO|Questo è materiale di supporto)[^\n]*\n?/gim, "")
+      .replace(/(?:\n[ \t]*-{3,}[ \t]*)+\s*$/, "")
+      .replace(/\n{3,}/g, "\n\n").trim();
+  }
+  function _soloAtto(md) {
+    var s = String(md || "");
+    var m = /^#{2,4}[ \t]*📄[ \t]*(?:Teksti i përmirësuar|Testo migliorato)[^\n]*\n([\s\S]*?)(?=^#{2,4}[ \t]*(?:✅|⚠|🔎)|(?![\s\S]))/m.exec(s);
+    if (m) return _pulisciAtto(m[1]);
+    m = /^#{2,4}[ \t]*📝[^\n]*\n([\s\S]*?)(?=^#{2,4}[ \t]|(?![\s\S]))/m.exec(s);
+    if (m) return _pulisciAtto(m[1]);
+    var f = /^#{2,4}[ \t]*(?:✅|⚠)/m.exec(s);
+    return _pulisciAtto(f ? s.slice(0, f.index) : s);
+  }
+  // la traduzione pulita: senza i «termini incerti» del revisore e senza l'avviso «traduzione di lavoro» (restano a schermo)
+  function _pulisciTraduzione(md) {
+    var s = String(md || "");
+    var f = /^#{2,3}[ \t]*⚠/m.exec(s);
+    if (f) s = s.slice(0, f.index);
+    return s.replace(/\n?[ \t]*⚠️?[ \t]*\*[^\n]*\*[ \t]*$/, "").replace(/(?:\n[ \t]*-{3,}[ \t]*)+\s*$/, "").trim();
+  }
+  async function _scaricaDocx(md, titolo, nomeFile) {
+    var r = await fetch("/api/export/docx", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ markdown: md, title: titolo }) });
+    if (!r.ok) throw new Error();
+    var blob = await r.blob(); var url = URL.createObjectURL(blob);
+    var a = document.createElement("a"); a.href = url;
+    a.download = (String(nomeFile || titolo || "").replace(/[^\p{L}\p{N} _-]/gu, "").slice(0, 60).trim() || (_CAL_IT ? "documento" : "dokument")) + ".docx";
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  }
+  function _bottoneAtto(testo, fn) {
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "dl-docx-btn atto-btn"; b.textContent = testo;
+    b.addEventListener("click", async function () {
+      b.disabled = true;
+      try { await fn(b); } catch (e) { if (typeof toast === "function") toast(_CAL_IT ? "Operazione non riuscita" : "Veprimi dështoi", "error"); }
+      finally { b.disabled = false; }
+    });
+    return b;
+  }
+  function _copiaNegliAppunti(b, testo, fatto, prima) {
+    return navigator.clipboard.writeText(testo).then(function () {
+      b.textContent = fatto; setTimeout(function () { b.textContent = prima; }, 2500);
+    });
+  }
+  // v9.635 — la traduzione dell'atto senza passare da «Përkthim»: lo stesso traduttore (glossario, rilettura del giurista della
+  // lingua d'arrivo, avviso «traduzione di lavoro»), solo sull'atto PULITO; la richiesta è parcheggiata come gli strumenti PRO
+  async function _traduciAtto(box, atto, target, titolo) {
+    var nomi = { en: "English", it: "Italiano", sq: "Shqip" };
+    var blocco = document.createElement("div"); blocco.className = "atto-traduzione";
+    blocco.innerHTML = '<div class="atto-trad-head"></div><div class="atto-trad-status"></div><div class="fd-out"></div><div class="atto-trad-azioni"></div>';
+    blocco.querySelector(".atto-trad-head").textContent = "🌐 " + (nomi[target] || target) + (_CAL_IT ? " — traduzione di lavoro" : " — përkthim pune");
+    var st = blocco.querySelector(".atto-trad-status"), out = blocco.querySelector(".fd-out"), az = blocco.querySelector(".atto-trad-azioni");
+    box.appendChild(blocco);
+    st.textContent = _CAL_IT ? "Sto traducendo l'atto… (alcuni minuti)" : "Po e përkthej aktin… (disa minuta)";
+    var chiave = _nuovaChiave(), d;
+    _ricordaInSospeso(chiave, { saveTitle: (_CAL_IT ? "Traduzione — " : "Përkthim — ") + (titolo || "") });
+    try {
+      var r = await fetch("/api/translate", { method: "POST", headers: { "Content-Type": "application/json", "X-Job-Key": chiave },
+        body: JSON.stringify({ text: atto, target: target }) });
+      d = await r.json().catch(function () { return {}; });
+      if (!r.ok || d.error) { var e1 = new Error(d.error || ("HTTP " + r.status)); e1.noRetry = r.status >= 400 && r.status < 500; throw e1; }
+    } catch (eRete) {
+      if (eRete && eRete.noRetry) { _dimenticaInSospeso(); st.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + eRete.message; return; }
+      st.textContent = TT("Lidhja u ndërpre — analiza vazhdon në server. Po e pres…");
+      d = await _ripescaRisposta(chiave, st);
+      if (!d) return;
+    }
+    _dimenticaInSospeso();
+    st.textContent = "";
+    out.innerHTML = renderMarkdown(d.markdown || "");
+    var pulita = _pulisciTraduzione(d.markdown || "");
+    var tLingua = nomi[target] || target;
+    az.appendChild(_bottoneAtto(_CAL_IT ? "📄 Atto + traduzione (Word)" : "📄 Akti + përkthimi (Word)", function () {
+      return _scaricaDocx(atto + "\n\n---\n\n" + pulita, (titolo || "") + " — " + tLingua, (titolo || "") + " " + target);
+    }));
+    az.appendChild(_bottoneAtto(_CAL_IT ? "📄 Solo la traduzione (Word)" : "📄 Vetëm përkthimi (Word)", function () {
+      return _scaricaDocx(pulita, (titolo || "") + " — " + tLingua, (titolo || "") + " " + target);
+    }));
+    var cpt = _bottoneAtto(_CAL_IT ? "📋 Copia la traduzione" : "📋 Kopjo përkthimin", function (b) {
+      return _copiaNegliAppunti(b, pulita, _CAL_IT ? "✓ Copiata" : "✓ U kopjua", _CAL_IT ? "📋 Copia la traduzione" : "📋 Kopjo përkthimin");
+    });
+    az.appendChild(cpt);
+  }
+  // i pulsanti dell'atto pulito sotto un redattore: Word, PDF, appunti e la traduzione con la scelta della lingua
+  function _aggiungiAzioniAtto(container, titleHint, md) {
+    var atto = _soloAtto(md);
+    if (atto.length < 80) return false;
+    var titolo = titleHint || (_CAL_IT ? "Atto" : "Akt");
+    var riga = document.createElement("div"); riga.className = "atto-azioni";
+    var lab = document.createElement("span"); lab.className = "atto-lab";
+    lab.textContent = _CAL_IT ? "Solo l'atto, pulito (senza le note per il professionista):" : "Vetëm akti, i pastër (pa shënimet për profesionistin):";
+    riga.appendChild(lab);
+    riga.appendChild(_bottoneAtto(_CAL_IT ? "📄 Solo l'atto (Word)" : "📄 Vetëm akti (Word)", function () {
+      return _scaricaDocx(atto, titolo, titolo);
+    }));
+    riga.appendChild(_bottoneAtto(_CAL_IT ? "📄 Solo l'atto (PDF)" : "📄 Vetëm akti (PDF)", function () {
+      _printAsPdf(titolo, atto); return Promise.resolve();
+    }));
+    riga.appendChild(_bottoneAtto(_CAL_IT ? "📋 Copia l'atto" : "📋 Kopjo aktin", function (b) {
+      return _copiaNegliAppunti(b, atto, _CAL_IT ? "✓ Atto copiato" : "✓ U kopjua", _CAL_IT ? "📋 Copia l'atto" : "📋 Kopjo aktin");
+    }));
+    var tr = _bottoneAtto(_CAL_IT ? "🌐 Traduci l'atto" : "🌐 Përkthe aktin", function () {
+      if (riga.querySelector(".atto-lingue")) return Promise.resolve();
+      var sc = document.createElement("span"); sc.className = "atto-lingue";
+      (_CAL_IT ? [["en", "English"], ["sq", "Shqip"]] : [["en", "English"], ["it", "Italiano"]]).forEach(function (x) {
+        var lb = document.createElement("button"); lb.type = "button"; lb.className = "pk-lang"; lb.textContent = x[1];
+        lb.onclick = function () { lb.disabled = true; _traduciAtto(container, atto, x[0], titolo); };
+        sc.appendChild(lb);
+      });
+      riga.appendChild(sc);
+      return Promise.resolve();
+    });
+    riga.appendChild(tr);
+    container.appendChild(riga);
+    return true;
+  }
   // v9.635 — il DOCUMENTO FINALE di una revisione («📄 Dokumenti përfundimtar / Documento finale»): solo il documento, senza la
   // nota in corsivo; finisce al titolo dell'analisi completa («📚»), mai a un «---» interno al documento (le versioni linguistiche)
   function _documentoFinale(md) {
@@ -1848,7 +1971,7 @@
     return out.join("\n").replace(/\n{3,}/g, "\n\n").replace(/(\n\s*-{3,}\s*)+$/, "").trim();
   }
 
-  async function _addSaveToCase(container, source, titleHint, md) {
+  async function _addSaveToCase(container, source, titleHint, md, opz) {
     if (!container || !md || md.length < 10) return;
     var b = document.createElement("button");
     b.type = "button"; b.className = "save-case-btn";
@@ -1894,6 +2017,12 @@
     pf.type = "button"; pf.className = "dl-pdf-btn"; pf.innerHTML = "⬇️ PDF";
     pf.addEventListener("click", function () { _printAsPdf(titleHint || (_CAL_IT ? "Documento" : "Dokument"), md); });
     container.appendChild(pf);
+    // v9.635 — nei cinque redattori: «Tutto» (con le note per il professionista) e, sotto, solo l'atto pulito
+    if (opz && opz.atto && _soloAtto(md).length >= 80) {
+      dx.innerHTML = _CAL_IT ? "⬇️ Tutto (DOCX)" : "⬇️ Gjithçka (DOCX)";
+      pf.innerHTML = _CAL_IT ? "⬇️ Tutto (PDF)" : "⬇️ Gjithçka (PDF)";
+      _aggiungiAzioniAtto(container, titleHint, md);
+    }
 
     // v9.635 — il documento finale della revisione, da solo: in Word (pronto per la firma) o negli appunti
     var docFin = source === "answer" ? _documentoFinale(md) : "";
@@ -5841,32 +5970,17 @@
       if (brief.length < 15 && !rev.text) { status.textContent = t("P\u00ebrshkruaj pak m\u00eb shum\u00eb."); return; }
       run.disabled = true; status.textContent = rev.text ? t("Po rishikon dokumentin\u2026 (~4-6 min)") : t("Tetramorph po harton\u2026"); result.innerHTML = "";
       try {
-        var r = await fetch("/api/fable-draft", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ kind: kind.value, brief: brief, existing_text: rev.text || "", case_id: activeCaseId || "", use_clauses: !!(ov.querySelector(".fd-useclauses") && ov.querySelector(".fd-useclauses").checked) }),
-        });
-        var d = await r.json();
-        if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
+        var _tit = "Draft: " + (kind ? kind.value : "");
+        var d = await _redattoreRichiesta("draft", ov, "/api/fable-draft",
+          JSON.stringify({ kind: kind.value, brief: brief, existing_text: rev.text || "", case_id: activeCaseId || "", use_clauses: !!(ov.querySelector(".fd-useclauses") && ov.querySelector(".fd-useclauses").checked) }),
+          status, _tit);
+        if (!document.body.contains(ov)) return;      // finestra chiusa: il risultato è salvato, riaprendola si ritrova
         status.textContent = "";
-        result.innerHTML = '<div class="fd-out"></div>';
-        var out = result.querySelector(".fd-out");
-        out.innerHTML = renderMarkdown(d.markdown || "");
-        if (d.citations) highlightNeni(out, buildCitStatusMap(d.citations));
-        if (d.citations && d.citations.stats && d.citations.stats.total > 0) {
-          result.insertBefore(renderCitationsBadge(d.citations, null), out);
-        }
-        var copy = document.createElement("button");
-        copy.className = "fd-copy"; copy.type = "button"; copy.textContent = "\ud83d\udccb Kopjo tekstin";
-        copy.onclick = function () {
-          navigator.clipboard.writeText(d.markdown || "").then(function () {
-            copy.textContent = "\u2713 U kopjua";
-          }).catch(function () {});
-        };
-        result.appendChild(copy);
-        _addSaveToCase(result, "draft", "Draft: " + (kind ? kind.value : ""), d.markdown || "");
+        _redattoreMostra(result, d, "draft", _tit, true);
       } catch (e) { status.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; }
       finally { run.disabled = false; }
     };
+    _redattoreRipristina("draft", ov, status, run, result, function (d, tit) { _redattoreMostra(result, d, "draft", tit, true); });
     setTimeout(function () { ta.focus(); }, 50);
   }
 
@@ -6103,23 +6217,17 @@
       if (details.length < 10 && !rev.text) { status.textContent = t("Jep të dhënat."); return; }
       run.disabled = true; status.textContent = rev.text ? t("Po rishikon dokumentin\u2026 (~4-6 min)") : t("Po harton aktin\u2026 (~5-8 min)"); result.innerHTML = "";
       try {
-        var r = await fetch("/api/notary/draft", { method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ deed_type: kind.value, details: details, existing_text: rev.text || "", use_clauses: !!(ov.querySelector(".nd-useclauses") && ov.querySelector(".nd-useclauses").checked), case_id: activeCaseId || "" }) });
-        var d = await r.json();
-        if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
+        var _tit = "Akt: " + (kind.options[kind.selectedIndex] ? kind.options[kind.selectedIndex].text : "");
+        var d = await _redattoreRichiesta("akt", ov, "/api/notary/draft",
+          JSON.stringify({ deed_type: kind.value, details: details, existing_text: rev.text || "", use_clauses: !!(ov.querySelector(".nd-useclauses") && ov.querySelector(".nd-useclauses").checked), case_id: activeCaseId || "" }),
+          status, _tit);
+        if (!document.body.contains(ov)) return;      // finestra chiusa: il risultato è salvato, riaprendola si ritrova
         status.textContent = "";
-        result.innerHTML = '<div class="fd-out"></div>';
-        var out = result.querySelector(".fd-out");
-        out.innerHTML = renderMarkdown(d.markdown || "");
-        if (d.citations) highlightNeni(out, buildCitStatusMap(d.citations));
-        if (d.citations && d.citations.stats && d.citations.stats.total > 0) result.insertBefore(renderCitationsBadge(d.citations, null), out);
-        var copy = document.createElement("button"); copy.className = "fd-copy"; copy.type = "button"; copy.textContent = "\ud83d\udccb Kopjo tekstin";
-        copy.onclick = function () { navigator.clipboard.writeText(d.markdown || "").then(function () { copy.textContent = "\u2713 U kopjua"; }).catch(function () {}); };
-        result.appendChild(copy);
-        _addSaveToCase(result, "notary", "Akt: " + (kind.options[kind.selectedIndex] ? kind.options[kind.selectedIndex].text : ""), d.markdown || "");
+        _redattoreMostra(result, d, "notary", _tit, true);
       } catch (e) { status.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; }
       finally { run.disabled = false; }
     };
+    _redattoreRipristina("akt", ov, status, run, result, function (d, tit) { _redattoreMostra(result, d, "notary", tit, true); });
     setTimeout(function () { ta.focus(); }, 50);
   }
 
@@ -6185,23 +6293,17 @@
       if (details.length < 10 && !rev.text) { status.textContent = t("Jep të dhënat e palëve."); return; }
       run.disabled = true; status.textContent = rev.text ? t("Po rishikon dokumentin\u2026 (~4-6 min)") : t("Po harton prokurën… (~4-6 min)"); result.innerHTML = "";
       try {
-        var r = await fetch("/api/notary/prokura", { method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ form: form, scope_keys: scope_keys, details: details, existing_text: rev.text || "", duration: (dur.value || "").trim(), subdelegation: !!subdel.checked, use_clauses: !!(ov.querySelector(".prok-useclauses") && ov.querySelector(".prok-useclauses").checked) }) });
-        var d = await r.json();
-        if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
+        var _tit = rev.text ? TT("Prokurë (e rishikuar)") : "Prokurë";
+        var d = await _redattoreRichiesta("prokura", ov, "/api/notary/prokura",
+          JSON.stringify({ form: form, scope_keys: scope_keys, details: details, existing_text: rev.text || "", duration: (dur.value || "").trim(), subdelegation: !!subdel.checked, use_clauses: !!(ov.querySelector(".prok-useclauses") && ov.querySelector(".prok-useclauses").checked) }),
+          status, _tit);
+        if (!document.body.contains(ov)) return;      // finestra chiusa: il risultato è salvato, riaprendola si ritrova
         status.textContent = "";
-        result.innerHTML = '<div class="fd-out"></div>';
-        var out = result.querySelector(".fd-out");
-        out.innerHTML = renderMarkdown(d.markdown || "");
-        if (d.citations) highlightNeni(out, buildCitStatusMap(d.citations));
-        if (d.citations && d.citations.stats && d.citations.stats.total > 0) result.insertBefore(renderCitationsBadge(d.citations, null), out);
-        var copy = document.createElement("button"); copy.className = "fd-copy"; copy.type = "button"; copy.textContent = "📋 Kopjo tekstin";
-        copy.onclick = function () { navigator.clipboard.writeText(d.markdown || "").then(function () { copy.textContent = "✓ U kopjua"; }).catch(function () {}); };
-        result.appendChild(copy);
-        _addSaveToCase(result, "notary", rev.text ? TT("Prokurë (e rishikuar)") : "Prokurë", d.markdown || "");
+        _redattoreMostra(result, d, "notary", _tit, true);
       } catch (e) { status.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; }
       finally { run.disabled = false; }
     };
+    _redattoreRipristina("prokura", ov, status, run, result, function (d, tit) { _redattoreMostra(result, d, "notary", tit, true); });
     setTimeout(function () { ta.focus(); }, 50);
   }
 
@@ -6245,23 +6347,16 @@
       if (details.length < 10 && !rev.text) { status.textContent = t("Jep të dhënat."); return; }
       run.disabled = true; status.textContent = rev.text ? t("Po rishikon dokumentin\u2026 (~4-6 min)") : t("Po harton deklaratën… (~2 min)"); result.innerHTML = "";
       try {
-        var r = await fetch("/api/notary/declaration", { method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ decl_type: kind.value, details: details, existing_text: rev.text || "" }) });
-        var d = await r.json();
-        if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
+        var _tit = "Deklaratë: " + (kind.options[kind.selectedIndex] ? kind.options[kind.selectedIndex].text : "");
+        var d = await _redattoreRichiesta("deklarate", ov, "/api/notary/declaration",
+          JSON.stringify({ decl_type: kind.value, details: details, existing_text: rev.text || "" }), status, _tit);
+        if (!document.body.contains(ov)) return;      // finestra chiusa: il risultato è salvato, riaprendola si ritrova
         status.textContent = "";
-        result.innerHTML = '<div class="fd-out"></div>';
-        var out = result.querySelector(".fd-out");
-        out.innerHTML = renderMarkdown(d.markdown || "");
-        if (d.citations) highlightNeni(out, buildCitStatusMap(d.citations));
-        if (d.citations && d.citations.stats && d.citations.stats.total > 0) result.insertBefore(renderCitationsBadge(d.citations, null), out);
-        var copy = document.createElement("button"); copy.className = "fd-copy"; copy.type = "button"; copy.textContent = "📋 Kopjo tekstin";
-        copy.onclick = function () { navigator.clipboard.writeText(d.markdown || "").then(function () { copy.textContent = "✓ U kopjua"; }).catch(function () {}); };
-        result.appendChild(copy);
-        _addSaveToCase(result, "notary", "Deklaratë: " + (kind.options[kind.selectedIndex] ? kind.options[kind.selectedIndex].text : ""), d.markdown || "");
+        _redattoreMostra(result, d, "notary", _tit, true);
       } catch (e) { status.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; }
       finally { run.disabled = false; }
     };
+    _redattoreRipristina("deklarate", ov, status, run, result, function (d, tit) { _redattoreMostra(result, d, "notary", tit, true); });
     setTimeout(function () { ta.focus(); }, 50);
   }
 
@@ -6421,20 +6516,16 @@
       if (facts.length < 15 && !rev.text) { status.textContent = t("Jep faktet."); return; }
       run.disabled = true; status.textContent = rev.text ? t("Po rishikon dokumentin\u2026 (~4-6 min)") : t("Po harton kërkesën… (~4-5 min)"); result.innerHTML = "";
       try {
-        var r = await fetch("/api/prosecutor/investigative-act", { method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ kind: kind.value, facts: facts, existing_text: rev.text || "", case_id: activeCaseId || "" }) });
-        var d = await r.json();
-        if (!r.ok || d.error) throw new Error(d.error || ("HTTP " + r.status));
+        var _tit = "Veprim hetimor: " + (kind.options[kind.selectedIndex] ? kind.options[kind.selectedIndex].text : "");
+        var d = await _redattoreRichiesta("veprim", ov, "/api/prosecutor/investigative-act",
+          JSON.stringify({ kind: kind.value, facts: facts, existing_text: rev.text || "", case_id: activeCaseId || "" }), status, _tit);
+        if (!document.body.contains(ov)) return;      // finestra chiusa: il risultato è salvato, riaprendola si ritrova
         status.textContent = "";
-        result.innerHTML = '<div class="fd-out"></div>';
-        var out = result.querySelector(".fd-out");
-        out.innerHTML = renderMarkdown(d.markdown || "");
-        if (d.citations) highlightNeni(out, buildCitStatusMap(d.citations));
-        if (d.citations && d.citations.stats && d.citations.stats.total > 0) result.insertBefore(renderCitationsBadge(d.citations, null), out);
-        _addSaveToCase(result, "prosecutor", "Veprim hetimor: " + (kind.options[kind.selectedIndex] ? kind.options[kind.selectedIndex].text : ""), d.markdown || "");
+        _redattoreMostra(result, d, "prosecutor", _tit, false);
       } catch (e) { status.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + e.message; }
       finally { run.disabled = false; }
     };
+    _redattoreRipristina("veprim", ov, status, run, result, function (d, tit) { _redattoreMostra(result, d, "prosecutor", tit, false); });
     setTimeout(function () { ta.focus(); }, 50);
   }
 
@@ -15077,6 +15168,168 @@ function moduleChips(u) {
     ov.querySelector(".ac-x").onclick = function () { ov.remove(); };
     ov.addEventListener("click", function (e) { if (e.target === ov) ov.remove(); });
     try { _addSaveToCase(box, "research", titolo || "Kërkim", d.markdown || d.result || ""); } catch (e) {}
+  }
+
+  // v9.635 — I REDATTORI NON PERDONO IL LAVORO (titolare, 12 ott: «se togli la pagina e ritorni lì devi rifare da capo: anche se
+  // fai un'altra cosa altrove, quando rientri deve ripartire dall'ultimo lavoro richiesto, in background»). Prima i cinque
+  // redattori (procura, atto notarile, dichiarazione, redattore dell'avvocato, atto d'indagine) chiamavano il server con una fetch
+  // semplice: chiudendo la finestra il risultato finiva in un pannello che non c'era più, ricaricando la pagina si perdeva. Ora la
+  // richiesta è PARCHEGGIATA sul server (X-Job-Key, come gli strumenti PRO), il lavoro è ricordato nel telefono/PC
+  // (localStorage, per redattore) e riaprendo il redattore si ritrova il risultato — o «il lavoro di prima continua…» finché arriva.
+  var _RED_LS = "sa_redattore_";
+  var _RED_IN_CORSO = {};
+  var _RED_TITOLI = { prokura: "📝 Redakto prokurë", akt: "📜 Redakto akt notarial", deklarate: "✍️ Deklaratë noteriale",
+                      draft: "✍️ Redakto me Tetramorph", veprim: "🧩 Veprime hetimore" };
+  function _redLeggi(id) { try { return JSON.parse(localStorage.getItem(_RED_LS + id) || "null"); } catch (e) { return null; } }
+  function _redScrivi(id, v) {
+    try { localStorage.setItem(_RED_LS + id, JSON.stringify(v)); }
+    catch (e) {      // spazio pieno: si ricorda almeno la chiave (il server tiene la risposta 40 minuti)
+      try { var w = Object.assign({}, v); delete w.d; localStorage.setItem(_RED_LS + id, JSON.stringify(w)); } catch (e2) {}
+    }
+  }
+  function _redTogli(id) { try { localStorage.removeItem(_RED_LS + id); } catch (e) {} }
+  function _redCompatta(d) { return { markdown: (d && d.markdown) || "", citations: (d && d.citations) || null }; }
+  // i campi della finestra (tipo d'atto, dati, poteri, durata…): chiave = posizione + tipo + classe, si rimettono solo se combaciano
+  function _redCampi(ov) {
+    return Array.prototype.filter.call(ov.querySelectorAll("select, textarea, input"), function (el) { return el.type !== "file"; });
+  }
+  function _redChiaveCampo(el, i) {
+    return i + "|" + el.tagName + "|" + (el.className || "") + "|" + (el.type || "") + "|" + (el.name || "") +
+      ((el.type === "checkbox" || el.type === "radio") ? "|" + el.value : "");
+  }
+  function _redModulo(ov) {
+    var m = {};
+    _redCampi(ov).forEach(function (el, i) {
+      m[_redChiaveCampo(el, i)] = (el.type === "checkbox" || el.type === "radio") ? !!el.checked : String(el.value || "").slice(0, 20000);
+    });
+    return m;
+  }
+  function _redRipristinaModulo(ov, m) {
+    if (!m) return;
+    _redCampi(ov).forEach(function (el, i) {
+      var k = _redChiaveCampo(el, i);
+      if (!(k in m)) return;
+      if (el.type === "checkbox" || el.type === "radio") el.checked = !!m[k];
+      else el.value = m[k];
+      if (el.tagName === "SELECT" && typeof el.onchange === "function") { try { el.onchange(); } catch (e) {} }
+    });
+  }
+  async function _redattoreRichiesta(id, ov, endpoint, corpoJson, statusEl, titolo) {
+    var chiave = _nuovaChiave();
+    var base = { chiave: chiave, quando: Date.now(), stato: "in_corso", titolo: titolo || "", modulo: _redModulo(ov) };
+    _redScrivi(id, base);
+    var p = (async function () {
+      var d;
+      try {
+        var r = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json", "X-Job-Key": chiave }, body: corpoJson });
+        d = await r.json().catch(function () { return {}; });
+        if (!r.ok || d.error) { var e1 = new Error(d.error || ("HTTP " + r.status)); e1.noRetry = r.status >= 400 && r.status < 500; throw e1; }
+      } catch (eRete) {
+        if (eRete && eRete.noRetry) { _redTogli(id); throw eRete; }
+        // la rete è caduta o la scheda è stata sospesa: il lavoro sul server continua, si ripesca
+        if (statusEl && document.body.contains(statusEl)) statusEl.textContent = TT("Lidhja u ndërpre — analiza vazhdon në server. Po e pres…");
+        d = await _ripescaRisposta(chiave, statusEl, 40);
+        if (!d) { _redTogli(id); throw eRete; }
+      }
+      _redScrivi(id, Object.assign({}, base, { stato: "pronto", quando: Date.now(), d: _redCompatta(d) }));
+      return d;
+    })();
+    _RED_IN_CORSO[id] = p;
+    try { return await p; } finally { if (_RED_IN_CORSO[id] === p) delete _RED_IN_CORSO[id]; }
+  }
+  function _redattoreMostra(result, d, source, titolo, copia) {
+    result.innerHTML = '<div class="fd-out"></div>';
+    var out = result.querySelector(".fd-out");
+    out.innerHTML = renderMarkdown(d.markdown || "");
+    if (d.citations) { try { highlightNeni(out, buildCitStatusMap(d.citations)); } catch (e) {} }
+    if (d.citations && d.citations.stats && d.citations.stats.total > 0) result.insertBefore(renderCitationsBadge(d.citations, null), out);
+    if (copia) {
+      var copy = document.createElement("button"); copy.className = "fd-copy"; copy.type = "button";
+      copy.textContent = _CAL_IT ? "📋 Copia tutto il testo" : "📋 Kopjo tekstin";
+      copy.onclick = function () {
+        navigator.clipboard.writeText(d.markdown || "").then(function () { copy.textContent = _CAL_IT ? "✓ Copiato" : "✓ U kopjua"; }).catch(function () {});
+      };
+      result.appendChild(copy);
+    }
+    _addSaveToCase(result, source, titolo, d.markdown || "", { atto: true });
+  }
+  function _redNotaUltimo(id, st, result, statusEl) {
+    var n = document.createElement("div"); n.className = "red-ultimo";
+    var ora = "";
+    try { ora = new Date(st.quando).toLocaleString(_CAL_IT ? "it-IT" : "sq-AL", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }); } catch (e) {}
+    n.innerHTML = '<span></span><button type="button" class="red-nuovo"></button>';
+    n.querySelector("span").textContent = (_CAL_IT ? "↩︎ L'ultimo lavoro di questo redattore" : "↩︎ Puna e fundit e këtij redaktori") + (ora ? " (" + ora + ")" : "");
+    var b = n.querySelector("button");
+    b.textContent = _CAL_IT ? "🆕 Ricomincia" : "🆕 Fillo nga e para";
+    b.onclick = function () { _redTogli(id); result.innerHTML = ""; if (statusEl) statusEl.textContent = ""; };
+    result.insertBefore(n, result.firstChild);
+  }
+  // riaprendo il redattore: l'ultimo risultato (24 ore), o il lavoro ancora in corso che si aspetta e si mostra appena arriva
+  async function _redattoreRipristina(id, ov, statusEl, run, result, mostra) {
+    var st = _redLeggi(id);
+    if (!st || !st.chiave) return;
+    var eta = Date.now() - (st.quando || 0);
+    if (st.stato === "pronto" && eta < 24 * 3600 * 1000) {
+      _redRipristinaModulo(ov, st.modulo);
+      if (st.d && st.d.markdown) { mostra(st.d, st.titolo || ""); _redNotaUltimo(id, st, result, statusEl); return; }
+      var d0 = null;      // risultato non salvato nel telefono (spazio pieno): il server lo tiene ancora per 40 minuti
+      try { var r0 = await fetch("/api/tool/result?key=" + encodeURIComponent(st.chiave)); if (r0.status === 200) d0 = await r0.json(); } catch (e) {}
+      if (d0 && document.body.contains(ov)) { mostra(d0, st.titolo || ""); _redNotaUltimo(id, st, result, statusEl); } else if (!d0) _redTogli(id);
+      return;
+    }
+    if (st.stato === "in_corso" && eta < 40 * 60 * 1000) {
+      _redRipristinaModulo(ov, st.modulo);
+      if (run) run.disabled = true;
+      if (statusEl) statusEl.textContent = _CAL_IT ? "⏳ Il lavoro chiesto prima continua sul server — il risultato compare qui appena è pronto."
+                                                   : "⏳ Puna e kërkuar më parë vazhdon në server — rezultati del këtu sapo të jetë gati.";
+      var d = null;
+      try {
+        if (_RED_IN_CORSO[id]) d = await _RED_IN_CORSO[id];
+        else {
+          d = await _ripescaRisposta(st.chiave, statusEl, Math.max(1, 40 - Math.round(eta / 60000)));
+          if (d) _redScrivi(id, Object.assign({}, st, { stato: "pronto", quando: Date.now(), d: _redCompatta(d) }));
+          else _redTogli(id);
+        }
+      } catch (e) { d = null; if (statusEl) statusEl.textContent = (_CAL_IT ? "Errore: " : "Gabim: ") + (e && e.message ? e.message : ""); }
+      if (!document.body.contains(ov)) return;
+      if (run) run.disabled = false;
+      if (d) { if (statusEl) statusEl.textContent = ""; mostra(d, st.titolo || ""); }
+      return;
+    }
+    _redTogli(id);
+  }
+  var _RED_APRI = {
+    prokura: function () { openProkura(); }, akt: function () { openNotaryDeed(); }, deklarate: function () { openDeclaration(); },
+    draft: function () { openTetramorphDraft(); }, veprim: function () { openProsAct(); },
+  };
+  function _avvisoRedattorePronto(id) {
+    var el = document.createElement("div"); el.className = "red-pronto";
+    el.innerHTML = '<span></span><button type="button" class="red-apri"></button><button type="button" class="red-chiudi" aria-label="×">×</button>';
+    el.querySelector("span").textContent = (_CAL_IT ? "✓ Pronto: " : "✓ Gati: ") + tMode(_RED_TITOLI[id] || "");
+    el.querySelector(".red-apri").textContent = _CAL_IT ? "Apri" : "Hape";
+    el.querySelector(".red-apri").onclick = function () { el.remove(); if (_RED_APRI[id]) _RED_APRI[id](); };
+    el.querySelector(".red-chiudi").onclick = function () { el.remove(); };
+    document.body.appendChild(el);
+  }
+  // all'avvio (pagina ricaricata, scheda uccisa dal telefono): i lavori dei redattori ancora in corso si aspettano in sottofondo
+  // e, quando sono pronti, un avviso con «Apri»
+  function _redattoriAlRitorno() {
+    var ids = Object.keys(_RED_TITOLI);
+    ids.forEach(function (id) {
+      var st = _redLeggi(id);
+      if (!st || !st.chiave) return;
+      var eta = Date.now() - (st.quando || 0);
+      if (st.stato === "pronto" && eta > 24 * 3600 * 1000) { _redTogli(id); return; }
+      if (st.stato !== "in_corso") return;
+      if (eta > 40 * 60 * 1000) { _redTogli(id); return; }
+      (async function () {
+        var d = await _ripescaRisposta(st.chiave, null, Math.max(1, 40 - Math.round(eta / 60000)));
+        var ora = _redLeggi(id);
+        if (!d || !ora || ora.chiave !== st.chiave) return;            // nel frattempo è partito un altro lavoro
+        if (ora.stato !== "pronto") _redScrivi(id, Object.assign({}, st, { stato: "pronto", quando: Date.now(), d: _redCompatta(d) }));
+        if (!document.querySelector(".ac-overlay .ac-run")) _avvisoRedattorePronto(id);
+      })();
+    });
   }
 
   // Il lavoro e' ancora vivo sul server? Si chiede prima di dichiarare

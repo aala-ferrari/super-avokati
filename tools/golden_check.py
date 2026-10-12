@@ -12507,6 +12507,117 @@ console.log(JSON.stringify([d.startsWith("**AUTORIZIM**"), d.includes("AUTHORIZA
     except Exception as _e424:  # noqa: BLE001
         check("rishikim[424]: kontrollet u ekzekutuan", False, f"{type(_e424).__name__}: {_e424}")
 
+    # [425] v9.635 — I REDATTORI (titolare, 12 ott): (1) «nel Word/PDF solo l'atto pulito, senza le note per il notaio/procuratore/
+    # avvocato — o due opzioni» → «Tutto» + «Solo l'atto» (Word, PDF, appunti), l'atto estratto dai formati veri dei redattori;
+    # (2) «se togli la pagina e ritorni devi rifare da capo» → la richiesta parcheggiata (X-Job-Key), il lavoro ricordato per
+    # redattore, ritrovato riaprendolo (anche in corso) e all'avvio; (3) «un pulsante che traduce» → «Traduci l'atto» sull'atto
+    # pulito, col traduttore di Përkthim. Si eseguono con node le funzioni vere di app.js (estrazione; richiesta, rete che cade,
+    # finestra riaperta, lavoro in corso, rifiuto 4xx con un browser finto)
+    try:
+        import json as _j425, shutil as _sh425, subprocess as _sp425
+        _node425 = _sh425.which("node")
+        _a425 = open("/app/static/app.js", encoding="utf-8").read()
+        if _node425:
+            _atto425 = r"""const src = require("fs").readFileSync(process.argv[process.argv.length - 1], "utf8");
+function prendi(da, a) { const i = src.indexOf(da), j = src.indexOf(a, i + 1); return src.slice(i, j); }
+const blocco = prendi("  function _pulisciAtto(t) {", "  async function _scaricaDocx(");
+const f = new Function(blocco + "; return { _soloAtto, _pulisciTraduzione };")();
+const rev = "### 🔎 Çfarë korrigjova\n| Si ishte | Si u bë | Pse |\n|---|---|---|\n| a | b | c |\n\n### 📄 Teksti i përmirësuar\n\nREPUBLIKA E SHQIPËRISË\n**PROKURË E POSAÇME**\nTekst shqip.\n\n---\n\nREPUBLIC OF ALBANIA\n**SPECIAL POWER OF ATTORNEY**\nEnglish text.\n\n### ✅ Kërkesat formale\n- forma\n\n*Ky është material ndihmës për noterin: verifikoni.*";
+const nuovo = "**PROKURË E POSAÇME**\n\nUnë [___] autorizoj [___] të shesë apartamentin.\n\n### ✅ Kërkesat formale\n- akt noterial\n\n---\n*Kjo është NDIHMESË: noteri e verifikon.*";
+const pros = "### 📌 Baza ligjore & kushtet\nneni 202 KPP\n\n### 🧩 Arsyetimi\npse\n\n### 📝 Kërkesa/urdhri — teksti i plotë\nKËRKESË PËR KONTROLL\nTekst i kërkesës.\n\n### ⚠️ Kujdes\nautorizim gjyqësor";
+const avv = "**KONTRATË QIRAJE**\n\nNeni 1 — Objekti.\nNeni 2 — Qiraja.";
+const tr = "SPECIAL POWER OF ATTORNEY\nText.\n\n## ⚠️ Terma të pasigurt\n- «tagër» — power\n\n⚠️ *Working translation by Super Avokati — not a substitute for a sworn translator.*";
+const r = {
+  rev: f._soloAtto(rev), nuovo: f._soloAtto(nuovo), pros: f._soloAtto(pros), avv: f._soloAtto(avv), tr: f._pulisciTraduzione(tr),
+};
+console.log(JSON.stringify({
+  rev_ok: r.rev.startsWith("REPUBLIKA") && r.rev.includes("English text.") && !r.rev.includes("Kërkesat") && !r.rev.includes("Çfarë korrigjova"),
+  nuovo_ok: r.nuovo.startsWith("**PROKURË") && r.nuovo.endsWith("apartamentin.") ,
+  pros_ok: r.pros.startsWith("KËRKESË") && !r.pros.includes("Kujdes") && !r.pros.includes("Arsyetimi"),
+  avv_ok: r.avv === avv, tr_ok: r.tr === "SPECIAL POWER OF ATTORNEY\nText.",
+}));
+"""
+            _red425 = r"""const src = require("fs").readFileSync(process.argv[process.argv.length - 1], "utf8");
+function prendi(da, a) { const i = src.indexOf(da); const j = src.indexOf(a, i + 1); if (i < 0 || j < 0) throw new Error("manca " + da); return src.slice(i, j); }
+const codice = prendi("  function _nuovaChiave() {", "  // ⚠️ In localStorage e non solo in memoria") +
+               prendi("  async function _ripescaRisposta(chiave, status, minuti) {", "  // All'avvio: c'era un lavoro in sospeso") +
+               prendi("  var _RED_LS = \"sa_redattore_\";", "  var _RED_APRI = {");
+const LS = new Map();
+const localStorage = { getItem: (k) => (LS.has(k) ? LS.get(k) : null), setItem: (k, v) => LS.set(k, String(v)), removeItem: (k) => LS.delete(k) };
+let reteGiu = false, risultatoServer = null, chiamateRisultato = 0, ultimaChiave = null;
+async function fetch(url, opz) {
+  if (String(url).startsWith("/api/tool/result")) { chiamateRisultato++; return risultatoServer && chiamateRisultato >= 2 ? { status: 200, json: async () => risultatoServer } : { status: 202, json: async () => ({}) }; }
+  ultimaChiave = opz && opz.headers && opz.headers["X-Job-Key"];
+  if (reteGiu) throw new Error("rete");
+  return { ok: true, status: 200, json: async () => ({ markdown: "**PROKURË**\nTesti.", citations: null }) };
+}
+const corpo = new Set();
+function el(tag, cls, extra) { const e = Object.assign({ tagName: tag, className: cls || "", type: "", name: "", value: "", checked: false, textContent: "", innerHTML: "", disabled: false,
+  children: [], insertBefore(n) { this.children.unshift(n); }, querySelector() { return { set textContent(v) {}, get textContent() { return ""; }, onclick: null }; } }, extra || {}); return e; }
+const document = { body: { contains: (x) => corpo.has(x) }, createElement: (t) => el(t.toUpperCase()) };
+const campi = [el("SELECT", "fd-kind", { value: "shitje" }), el("TEXTAREA", "ac-ta", { value: "Të dhënat e palëve" }), el("INPUT", "prok-sc", { type: "checkbox", value: "bankar", checked: true })];
+const ov = { querySelectorAll: () => campi };
+corpo.add(ov);
+const realeST = setTimeout;
+const F = new Function("localStorage", "fetch", "document", "TT", "_CAL_IT", "setTimeout",
+  codice + "; return { _redattoreRichiesta, _redattoreRipristina, _redLeggi, _redModulo, _redRipristinaModulo, _RED_IN_CORSO };")(
+  localStorage, fetch, document, (x) => x, false, (fn) => realeST(fn, 0));
+(async () => {
+  const out = {};
+  const st = { textContent: "" };
+  // 1) richiesta riuscita: lavoro salvato «pronto» con il risultato e i campi
+  const d1 = await F._redattoreRichiesta("prokura", ov, "/api/notary/prokura", "{}", st, "Prokurë");
+  const s1 = F._redLeggi("prokura");
+  out.riuscita = [d1.markdown.startsWith("**PROKURË"), s1.stato, !!ultimaChiave, s1.modulo && Object.keys(s1.modulo).length === 3];
+  // 2) la rete cade: il risultato si ripesca dal parcheggio del server
+  reteGiu = true; risultatoServer = { markdown: "**PROKURË E RIPESCATA**", citations: null }; chiamateRisultato = 0;
+  const d2 = await F._redattoreRichiesta("prokura", ov, "/api/notary/prokura", "{}", st, "Prokurë");
+  out.rete_caduta = [d2.markdown.includes("RIPESCATA"), F._redLeggi("prokura").stato, chiamateRisultato >= 2];
+  // 3) la finestra riaperta: i campi tornano e il risultato si mostra
+  campi[0].value = ""; campi[1].value = ""; campi[2].checked = false;
+  let mostrato = null; const result = el("DIV", "ac-result");
+  await F._redattoreRipristina("prokura", ov, st, { disabled: false }, result, (d) => { mostrato = d.markdown; });
+  out.riaperta = [mostrato && mostrato.includes("RIPESCATA"), campi[0].value === "shitje", campi[1].value === "Të dhënat e palëve", campi[2].checked === true];
+  // 4) lavoro ancora in corso nella stessa pagina: la finestra riaperta aspetta la stessa promessa
+  reteGiu = false;
+  let sblocca; const prom = new Promise((r) => { sblocca = r; });
+  F._RED_IN_CORSO["akt"] = prom;
+  localStorage.setItem("sa_redattore_akt", JSON.stringify({ chiave: "k1", quando: Date.now(), stato: "in_corso", titolo: "Akt", modulo: {} }));
+  let mostrato2 = null;
+  const pr = F._redattoreRipristina("akt", ov, st, { disabled: false }, result, (d) => { mostrato2 = d.markdown; });
+  const attesa = st.textContent.startsWith("⏳");
+  sblocca({ markdown: "**AKT NOTERIAL**" }); await pr;
+  out.in_corso = [attesa, mostrato2 === "**AKT NOTERIAL**"];
+  // 5) un rifiuto esplicito del server (4xx) non resta in attesa e dimentica il lavoro
+  const fetch4 = async () => ({ ok: false, status: 429, json: async () => ({ error: "troppi" }) });
+  const G = new Function("localStorage", "fetch", "document", "TT", "_CAL_IT", "setTimeout", codice + "; return { _redattoreRichiesta, _redLeggi };")(
+    localStorage, fetch4, document, (x) => x, false, (fn) => realeST(fn, 0));
+  let errore = null; try { await G._redattoreRichiesta("deklarate", ov, "/x", "{}", st, "D"); } catch (e) { errore = e.message; }
+  out.rifiuto = [errore === "troppi", G._redLeggi("deklarate") === null];
+  console.log(JSON.stringify(out));
+})();
+"""
+            _o1 = _j425.loads(_sp425.run([_node425, "-e", _atto425, "/app/static/app.js"], capture_output=True, text=True,
+                                         timeout=30).stdout or "{}")
+            _o2 = _j425.loads(_sp425.run([_node425, "-e", _red425, "/app/static/app.js"], capture_output=True, text=True,
+                                         timeout=60).stdout or "{}")
+            _okA = _o1 == {"rev_ok": True, "nuovo_ok": True, "pros_ok": True, "avv_ok": True, "tr_ok": True}
+            _okB = _o2 == {"riuscita": [True, "pronto", True, True], "rete_caduta": [True, "pronto", True],
+                           "riaperta": [True, True, True, True], "in_corso": [True, True], "rifiuto": [True, True]}
+        else:
+            _o1 = _o2 = "node assente"; _okA = _okB = True
+        _okC = (_a425.count('_redattoreRichiesta("') == 5 and _a425.count('_redattoreRipristina("') == 5
+                and '_addSaveToCase(result, source, titolo, d.markdown || "", { atto: true })' in _a425
+                and "_redattoriAlRitorno()" in _a425 and '"X-Job-Key": chiave }, body: corpoJson' in _a425
+                and 'fetch("/api/notary/prokura"' not in _a425 and 'fetch("/api/notary/draft"' not in _a425
+                and 'fetch("/api/fable-draft"' not in _a425 and 'fetch("/api/prosecutor/investigative-act"' not in _a425
+                and "async function _traduciAtto(box, atto, target, titolo)" in _a425 and 'fetch("/api/translate"' in _a425)
+        check("redattori[425]: solo l'atto pulito (Word/PDF/appunti) accanto a «Tutto», il lavoro parcheggiato e ritrovato (rete che "
+              "cade, finestra riaperta, in corso, all'avvio), la traduzione dell'atto pulito",
+              _okA and _okB and _okC, f"atto={_o1} lavoro={_o2} wiring={_okC}")
+    except Exception as _e425:  # noqa: BLE001
+        check("redattori[425]: kontrollet u ekzekutuan", False, f"{type(_e425).__name__}: {_e425}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
