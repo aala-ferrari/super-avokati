@@ -5933,9 +5933,11 @@
     try { var r = await fetch("/api/notary/deed-types"); if (r.ok) types = (await r.json()).types || []; } catch (e) {}
     kind.innerHTML = types.map(function (t) { return '<option value="' + t.key + '">' + t.emoji + ' ' + escapeHtml(TT(t.label)) + '</option>'; }).join("");
     function showMust() {
-      var t = types.filter(function (x) { return x.key === kind.value; })[0];
-      must.innerHTML = t ? '<div class="nd-must-box"><b>' + t("Klauzolat e detyrueshme:") + '</b><ul>' +
-        (t.must || []).map(function (m) { return '<li>' + escapeHtml(t(m)) + '</li>'; }).join("") + '</ul></div>' : "";
+      // v9.630 — il tipo NON si chiama «t»: nascondeva la traduzione, showMust() lanciava un errore e il pulsante restava
+      // senza gestore (dal 19 ago il redattore non partiva dall'interfaccia; tools/js_ombra_t.py lo sorveglia)
+      var tp = types.filter(function (x) { return x.key === kind.value; })[0];
+      must.innerHTML = tp ? '<div class="nd-must-box"><b>' + t("Klauzolat e detyrueshme:") + '</b><ul>' +
+        (tp.must || []).map(function (m) { return '<li>' + escapeHtml(t(m)) + '</li>'; }).join("") + '</ul></div>' : "";
     }
     kind.onchange = showMust; showMust();
     _readFilesInto(file, ta, status, run);
@@ -6068,9 +6070,11 @@
     try { var r = await fetch("/api/notary/declaration-types"); if (r.ok) types = (await r.json()).types || []; } catch (e) {}
     kind.innerHTML = types.map(function (t) { return '<option value="' + t.key + '">' + t.emoji + ' ' + escapeHtml(TT(t.label)) + '</option>'; }).join("");
     function showMust() {
-      var t = types.filter(function (x) { return x.key === kind.value; })[0];
-      must.innerHTML = t ? '<div class="nd-must-box"><b>' + t("Elementet e detyrueshme:") + '</b><ul>' +
-        (t.must || []).map(function (m) { return '<li>' + escapeHtml(t(m)) + '</li>'; }).join("") + '</ul></div>' : "";
+      // v9.630 — il tipo NON si chiama «t»: nascondeva la traduzione, showMust() lanciava un errore e il pulsante restava
+      // senza gestore (dal 19 ago il redattore non partiva dall'interfaccia; tools/js_ombra_t.py lo sorveglia)
+      var tp = types.filter(function (x) { return x.key === kind.value; })[0];
+      must.innerHTML = tp ? '<div class="nd-must-box"><b>' + t("Elementet e detyrueshme:") + '</b><ul>' +
+        (tp.must || []).map(function (m) { return '<li>' + escapeHtml(t(m)) + '</li>'; }).join("") + '</ul></div>' : "";
     }
     kind.onchange = showMust; showMust();
     run.onclick = async function () {
@@ -8694,13 +8698,14 @@
       var st = form.querySelector(".cal-status");
       if (!activeCaseId) { st.textContent = t("Hap ose krijo nj\u00eb rast q\u00eb ta ruash."); return; }
       var d = form.querySelector(".cal-date").value;
-      var t = (form.querySelector(".cal-title").value || "Afat").trim();
+      // v9.630 — il titolo non si chiama «t» (nascondeva la traduzione: il gestore cadeva e la scadenza non si salvava mai)
+      var titolo = (form.querySelector(".cal-title").value || "Afat").trim();
       if (!d) { st.textContent = t("Zgjidh dat\u00ebn e afatit."); return; }
       st.textContent = t("Duke ruajtur\u2026");
       try {
         var r = await fetch("/api/events", {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title: t, kind: "afat", starts_at: d + "T09:00:00",
+          body: JSON.stringify({ title: titolo, kind: "afat", starts_at: d + "T09:00:00",
             case_id: activeCaseId, reminders: [43200, 10080, 1440] }),
         });
         if (!r.ok) { var e = await r.json().catch(function () { return {}; }); throw new Error(e.error || ("HTTP " + r.status)); }

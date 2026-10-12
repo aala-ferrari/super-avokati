@@ -11817,6 +11817,28 @@ def main():
     except Exception as _e408:  # noqa: BLE001
         check("prokuror[408]: kontrollet u ekzekutuan", False, f"{type(_e408).__name__}: {_e408}")
 
+    # [409] v9.630 — nessuna chiamata t(…) del client finisce su una «t» LOCALE (variabile o parametro): la trappola che dal 19 ago
+    # spegneva il redattore degli atti e quello delle dichiarazioni notarili (showMust lanciava un errore, il pulsante restava senza
+    # gestore) e il «📅 Shto afatin në kalendar» degli strumenti PRO (la scadenza non si salvava mai). Gli audit chiamano l'API e non
+    # se ne accorgono: lo trova l'analisi degli ambiti (tools/js_ombra_t.py), che qui morde anche su un caso finto
+    try:
+        import importlib.util as _iu409
+        from pathlib import Path as _P409
+        _sp409 = _iu409.spec_from_file_location("js_ombra_t", "/app/tools/js_ombra_t.py")
+        _m409 = _iu409.module_from_spec(_sp409)
+        _sp409.loader.exec_module(_m409)
+        _bad409 = 'function t(s){return s}\nfunction a(){ var t = {k:1}; return t("x"); }\nfunction b(t){ return t("y"); }\n'
+        _good409 = ('function t(s){return s}\nfunction a(){ var tp = {k:1}; return t("x"); }\n'
+                    'var m = [1].map(function (t) { return t + 1; });\nvar s = `${t("z")}`;\n')
+        _d409 = []
+        for _f409 in sorted(_P409("/app/static").glob("*.js")):
+            _d409 += [(_f409.name, _x409[0]) for _x409 in _m409.analizza(_f409.read_text(encoding="utf-8"))]
+        _ok409 = len(_m409.analizza(_bad409)) == 2 and _m409.analizza(_good409) == [] and not _d409
+        check("i18n[409]: nessuna t(…) del client nascosta da una «t» locale (redattori notarili, calendario degli strumenti PRO)",
+              _ok409, f"{_d409[:8]}")
+    except Exception as _e409:  # noqa: BLE001
+        check("i18n[409]: kontrollet u ekzekutuan", False, f"{type(_e409).__name__}: {_e409}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
