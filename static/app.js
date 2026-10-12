@@ -1825,6 +1825,14 @@
 
   // v9.507 — il PARERE da mandare al cliente: il verdetto (o la risposta) senza la parte interna — la riga «🔎 Verifica», le
   // correzioni dei riquadri, l'analisi completa col duello avvocato del diavolo / replica. Prima i pulsanti esportavano tutto.
+  // v9.635 — il DOCUMENTO FINALE di una revisione («📄 Dokumenti përfundimtar / Documento finale»): solo il documento, senza la
+  // nota in corsivo; finisce al titolo dell'analisi completa («📚»), mai a un «---» interno al documento (le versioni linguistiche)
+  function _documentoFinale(md) {
+    var m = /^### 📄 (?:Dokumenti përfundimtar|Documento finale)[^\n]*\n([\s\S]*?)(?=\n-{3,}\s*\n+### 📚|\n### 📚|(?![\s\S]))/m.exec(String(md || ""));
+    if (!m) return "";
+    var tx = m[1].replace(/^\s*\*[^\n]*\*\s*\n/, "").trim();
+    return tx.length >= 80 ? tx : "";
+  }
   function _parereDaInviare(md) {
     var righe = String(md || "").split("\n"), out = [], salta = false, livelloSalto = 0, inPannelli = false;
     for (var i = 0; i < righe.length; i++) {
@@ -1887,6 +1895,37 @@
     pf.addEventListener("click", function () { _printAsPdf(titleHint || (_CAL_IT ? "Documento" : "Dokument"), md); });
     container.appendChild(pf);
 
+    // v9.635 — il documento finale della revisione, da solo: in Word (pronto per la firma) o negli appunti
+    var docFin = source === "answer" ? _documentoFinale(md) : "";
+    if (docFin) {
+      var dfd = document.createElement("button");
+      dfd.type = "button"; dfd.className = "dl-docx-btn dl-docfin-btn";
+      dfd.textContent = _CAL_IT ? "📄 Documento corretto (Word)" : "📄 Dokumenti i korrigjuar (Word)";
+      dfd.addEventListener("click", async function () {
+        dfd.disabled = true;
+        try {
+          var r = await fetch("/api/export/docx", { method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ markdown: docFin, title: (_CAL_IT ? "Documento corretto — " : "Dokumenti i korrigjuar — ") + (titleHint || "").slice(0, 80) }) });
+          if (!r.ok) throw new Error();
+          var blob = await r.blob(); var url = URL.createObjectURL(blob);
+          var a4 = document.createElement("a"); a4.href = url;
+          a4.download = ((_CAL_IT ? "documento corretto " : "dokumenti i korrigjuar ") + (titleHint || "").replace(/[^\p{L}\p{N} _-]/gu, "").slice(0, 50)).trim() + ".docx";
+          document.body.appendChild(a4); a4.click(); a4.remove(); URL.revokeObjectURL(url);
+        } catch (e) { if (typeof toast === "function") toast(_CAL_IT ? "Download non riuscito" : "Shkarkimi dështoi", "err"); }
+        finally { dfd.disabled = false; }
+      });
+      container.appendChild(dfd);
+      var dfc = document.createElement("button");
+      dfc.type = "button"; dfc.className = "dl-docx-btn copy-docfin-btn";
+      dfc.textContent = _CAL_IT ? "📋 Copia il documento" : "📋 Kopjo dokumentin";
+      dfc.addEventListener("click", function () {
+        navigator.clipboard.writeText(docFin).then(function () {
+          dfc.textContent = _CAL_IT ? "✓ Documento copiato" : "✓ U kopjua";
+          setTimeout(function () { dfc.textContent = _CAL_IT ? "📋 Copia il documento" : "📋 Kopjo dokumentin"; }, 2500);
+        }).catch(function () { if (typeof toast === "function") toast(_CAL_IT ? "Copia non riuscita" : "Kopjimi dështoi", "err"); });
+      });
+      container.appendChild(dfc);
+    }
     // v9.507 — il parere pulito, solo per le risposte del cervello e solo se c'è una parte interna da togliere
     var par = source === "answer" ? _parereDaInviare(md) : "";
     if (par && par.length >= 80 && par.length < md.length - 40) {

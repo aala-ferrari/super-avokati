@@ -12408,6 +12408,105 @@ r.senzaDoc = [clic(), status.textContent];
     except Exception as _e422:  # noqa: BLE001
         check("redattori[422]: kontrollet u ekzekutuan", False, f"{type(_e422).__name__}: {_e422}")
 
+    # [423] v9.635 — LE NORME DELLA REVISIONE DAL CONTENUTO, dalla misura della revisione (12 ott): «përfaqësuar nga administratori I
+    # SAJ, Z. …» (la forma più comune) non era letta e l'amministratore che autorizza sé stesso non portava KC 67 e 9901 art. 13;
+    # la procura di un PRIVATO per vendere un immobile non portava la forma (IT c.c. 1392, 1350, 2657; AL KC 72, 83); «anche a sé
+    # stesso» non portava il contratto con sé stesso (c.c. 1395, 1394). Le trappole restano fuori (due nomi diversi, una vendita)
+    try:
+        from src import brain as _br423
+        _fr423 = [("Shoqëria X Sh.p.k, përfaqësuar nga administratori Z. Arben Prova. AUTORIZOJ: Z. Halim Prova, atësia Osman, të "
+                   "përdorë automjetin.", False),
+                  ("La società ALFA S.r.l., in persona del legale rappresentante pro tempore, sig. Mario Rossi, AUTORIZZA il sig. "
+                   "Mario Rossi a utilizzare il veicolo.", True),
+                  ("Shoqëria Beta sh.p.k., përfaqësuar ligjërisht nga administratori i saj, z. Ilir Prova, AUTORIZON z. Ilir Prova "
+                   "të drejtojë mjetin.", True),
+                  ("Shoqëria PROVA AUTO Sh.p.k., përfaqësuar nga administratori i saj Z. Gentian Prova,\n\nAUTORIZON\n\nZ. Gentian "
+                   "Prova, lindur më 12.03.1980", True),
+                  ("Kontratë shitjeje: shitësi Z. Arben Prova i shet blerësit Z. Ilir Prova apartamentin.", False),
+                  ("Shoqëria Gama sh.p.k., përfaqësuar nga administratori i saj Z. Ilir Prova, AUTORIZON Z. Besnik Prova të drejtojë "
+                   "mjetin.", False)]
+        _okA = all(bool(_br423._vetperfaqesim(t)) == atteso for t, atteso in _fr423)
+        _pit = ("PROCURA SPECIALE. Io sottoscritto Mario Prova NOMINO mio procuratore speciale il sig. Luca Prova affinché venda "
+                "l'appartamento sito in Milano al prezzo che riterrà più opportuno, anche a sé stesso, e compia tutto quanto "
+                "necessario davanti al notaio.")
+        _ait = {(c, n) for c, n, _p in _br423._ancore_rishikimi(_pit, "it")}
+        _okB = ({("codice_civile", "1392"), ("codice_civile", "1350"), ("codice_civile", "2657"), ("codice_civile", "1395"),
+                 ("codice_civile", "1394")} <= _ait and ("codice_civile", "2475-ter") not in _ait
+                and all(_cv_esiste(idx_it, c, n) for c, n in _ait))
+        _aal = {(c, n) for c, n, _p in _br423._ancore_rishikimi(
+            "PROKURË E POSAÇME. Unë Arben Prova autorizoj Z. Ilir Prova të shesë apartamentin tim, pasuri e paluajtshme nr. 12/34.",
+            "sq")}
+        _okC = ({("kodi_civil", "72"), ("kodi_civil", "83")} <= _aal and ("kodi_civil", "67") not in _aal
+                and all(_cv_esiste(idx, c, n) for c, n in _aal))
+        _okD = not _br423._ancore_rishikimi("Kontratë qiraje për banesën në Tiranë, qiraja 400 euro.", "sq")
+        check("rishikim[423]: le norme della revisione dal contenuto — «administratori i saj, z. …», la procura del privato per un "
+              "immobile (1392/1350/2657, KC 72/83), «anche a sé stesso» (1395/1394), trappole fuori",
+              _okA and _okB and _okC and _okD, f"rappr={_okA} it={sorted(_ait)} al={sorted(_aal)} affitto={_okD}")
+    except Exception as _e423:  # noqa: BLE001
+        check("rishikim[423]: kontrollet u ekzekutuan", False, f"{type(_e423).__name__}: {_e423}")
+
+    # [424] v9.635 — IL DOCUMENTO FINALE DELLA REVISIONE: il Giudice correggeva il «Testo corretto» del senior ma il testo restava
+    # quello di prima; ora un passaggio di redazione dopo il Giudice applica le correzioni accolte e mette UN documento pronto per
+    # la firma sotto il verdetto (passa dal cancello e dalla riga di fiducia), il client lo scarica in Word o lo copia da solo
+    try:
+        import inspect as _insp424, json as _j424, os as _os424, shutil as _sh424, subprocess as _sp424
+        from src import brain as _br424
+        _rev424 = ("# RISHIKIM\n\n## 1. Verdikti\nPo, pasi të korrigjohet.\n\n## 2. Gabimet ligjore\nNeni 67 i Kodit Civil...\n\n"
+                   "## 5. Teksti i korrigjuar\n\n**AUTORIZIM**\nShoqëria PROVA sh.p.k. autorizon [___] të drejtojë automjetin.\n"
+                   "Klauzola V: shuhet me mbarimin e tagrave të nënshkruesit.\n\n---\n\n**AUTHORIZATION**\nPROVA sh.p.k. authorizes "
+                   "[___].\n\n**Për saktësi:**\n1. Sa ortakë ka shoqëria?\n\n---\n\n### ⚔️ Avokati i djallit — kundërargumentet\n"
+                   "Klauzola V është e gabuar.\n\n---\n\n### 🛡️ Përgjigje kundërargumenteve (seniori)\nE pranoj: klauzola V hiqet.\n")
+        _t424 = _br424._testo_corretto_del_senior(_rev424, "sq")
+        _r424 = _br424._repliche_del_senior(_rev424)
+        _okA = (_t424.startswith("**AUTORIZIM**") and "AUTHORIZATION" in _t424 and "Për saktësi" not in _t424
+                and "⚔" not in _t424 and _r424.startswith("### 🛡️") and "klauzola V hiqet" in _r424)
+
+        class _FB424:
+            def __init__(self, risposta): self.risposta, self.kw = risposta, None
+            def complete(self, **kw):
+                self.kw = kw; return self.risposta
+        _doc424 = ("**AUTORIZIM**\nShoqëria PROVA sh.p.k., me vulën e saj, autorizon [___] të drejtojë automjetin brenda dhe jashtë "
+                   "territorit.\n\n---\n\n**AUTHORIZATION**\nPROVA sh.p.k., with its seal, authorizes [___] to drive the vehicle.")
+        _b1 = _br424.SuperAvvocato.__new__(_br424.SuperAvvocato); _b1.backend = _FB424(_doc424)
+        _o1 = _br424.SuperAvvocato._dokumenti_perfundimtar(_b1, "### ⚖️ Vendimi\n\nKlauzola V hiqet.", _rev424, "sq")
+        _b2 = _br424.SuperAvvocato.__new__(_br424.SuperAvvocato); _b2.backend = _FB424("ok")
+        _o2 = _br424.SuperAvvocato._dokumenti_perfundimtar(_b2, "v", _rev424, "sq")
+        _os424.environ["RISHIKIM_DOKUMENTI_FINALE"] = "0"
+        _o3 = _br424.SuperAvvocato._dokumenti_perfundimtar(_b1, "v", _rev424, "sq")
+        _os424.environ.pop("RISHIKIM_DOKUMENTI_FINALE", None)
+        _kw = _b1.backend.kw or {}
+        _okB = (_o1.startswith("### 📄 Dokumenti përfundimtar") and "me vulën e saj" in _o1 and _o2 == "" and _o3 == ""
+                and _kw.get("raw_system") is True and _kw.get("no_web") is True and "Klauzola V hiqet" in _kw["messages"][0]["content"]
+                and "(A) TEKSTI I KORRIGJUAR" in _kw["messages"][0]["content"])
+        _g424 = _insp424.getsource(_br424.SuperAvvocato._gjyqtari_fundit)
+        _okC = ("if rishikim:" in _g424 and "self._dokumenti_perfundimtar(vendim, answer_text, lang)" in _g424
+                and _g424.count("self._cancello(") == 3 and _g424.index("self._dokumenti_perfundimtar(") < _g424.index("self._cancello(final")
+                and _insp424.getsource(_br424.SuperAvvocato.answer_stream).count("rishikim=_rishikim") == 1
+                and _insp424.getsource(_br424.SuperAvvocato.answer).count("rishikim=_rishikim") == 1)
+        _node424 = _sh424.which("node")
+        if _node424:
+            _js424 = r"""
+const src = require("fs").readFileSync(process.argv[process.argv.length - 1], "utf8");
+const a = src.indexOf("  function _documentoFinale(md) {"), b = src.indexOf("  function _parereDaInviare(md) {");
+const f = new Function(src.slice(a, b) + "; return _documentoFinale;")();
+const md = "### ⚖️ Vendimi përfundimtar\n\n**VENDIMI: PO**\n\n### 📄 Dokumenti përfundimtar — gati për nënshkrim\n\n*Shënim.*\n\n**AUTORIZIM**\nShoqëria PROVA autorizon [___] të drejtojë automjetin brenda dhe jashtë territorit.\n\n---\n\n**AUTHORIZATION**\nPROVA authorizes [___].\n\n---\n\n### 📚 Analiza e plotë\n\n# RISHIKIM";
+const d = f(md);
+console.log(JSON.stringify([d.startsWith("**AUTORIZIM**"), d.includes("AUTHORIZATION"), !d.includes("Analiza"), !d.includes("Shënim"), f("### ⚖️ Verdetto finale\n\nniente")]));
+"""
+            _o424 = _j424.loads(_sp424.run([_node424, "-e", _js424, "/app/static/app.js"], capture_output=True, text=True,
+                                           timeout=30).stdout or "[]")
+            _okD = _o424 == [True, True, True, True, ""]
+        else:
+            _o424, _okD = "node assente", True
+        _a424 = open("/app/static/app.js", encoding="utf-8").read()
+        _okE = "_documentoFinale(md)" in _a424 and "📄 Dokumenti i korrigjuar (Word)" in _a424 and "📄 Documento corretto (Word)" in _a424
+        check("rishikim[424]: il documento finale della revisione — correzioni del Giudice applicate da un passaggio di redazione, sotto "
+              "il verdetto e prima del cancello; nel client da solo in Word o negli appunti",
+              _okA and _okB and _okC and _okD and _okE,
+              f"estrai={_okA} redazione={_okB} wiring={_okC} client={_okD}/{_o424} pulsanti={_okE}")
+    except Exception as _e424:  # noqa: BLE001
+        check("rishikim[424]: kontrollet u ekzekutuan", False, f"{type(_e424).__name__}: {_e424}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

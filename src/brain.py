@@ -5378,7 +5378,7 @@ class SuperAvvocato:
         answer_text = self._gjyqtari_fundit(
             user_message, retrieved, precedents, answer_text,
             dosja_txt=dosja_txt_x + (_blocco_rishikim(_dok_r, _lang_r) if _rishikim else ""),
-            fazat_txt=_fazat_x)
+            fazat_txt=_fazat_x, rishikim=_rishikim)
 
         final_sid = getattr(self.backend, "last_session_id", None) or new_sid
         yield ("final", LegalAnswer(
@@ -5777,7 +5777,7 @@ class SuperAvvocato:
         except Exception:  # noqa: BLE001
             _fazat_n = ""
         answer_text = self._gjyqtari_fundit(user_message, retrieved, precedents, answer_text,
-                                            fazat_txt=_fazat_n,
+                                            fazat_txt=_fazat_n, rishikim=_rishikim,
                                             **({"dosja_txt": _blocco_rishikim(_dok_r, _lang_r)} if _rishikim else {}))
         # ClaudeCodeBackend exposes the (possibly new) session_id after each
         # stateful call; other backends leave it as None.
@@ -6317,8 +6317,39 @@ class SuperAvvocato:
         except Exception as exc:  # noqa: BLE001
             log.warning("claims: raccolta fallita (non-fatal): %s", exc)
 
+    def _dokumenti_perfundimtar(self, vendim: str, answer_text: str, lang: str) -> str:
+        """v9.635 — il documento FINALE della revisione: il testo corretto del senior con le correzioni accolte (Giudice e repliche al
+        diavolo), pronto per la firma. Torna la sezione (titolo + nota + documento) o "" — mai solleva."""
+        if os.environ.get("RISHIKIM_DOKUMENTI_FINALE", "1") == "0":
+            return ""
+        try:
+            teksti = _testo_corretto_del_senior(answer_text, lang)
+            if len(teksti) < 150:
+                return ""
+            from . import studio
+            it = lang == "it"
+            user = (("(A) TESTO CORRETTO DEL SENIOR:\n" if it else "(A) TEKSTI I KORRIGJUAR NGA SENIORI:\n") + teksti[:30000]
+                    + ("\n\n(B1) RISPOSTE DEL SENIOR ALL'AVVOCATO DEL DIAVOLO:\n" if it else
+                       "\n\n(B1) PËRGJIGJET E SENIORIT NDAJ AVOKATIT TË DJALLIT:\n") + (_repliche_del_senior(answer_text) or "—")
+                    + ("\n\n(B2) VERDETTO DEL GIUDICE FINALE:\n" if it else "\n\n(B2) VENDIMI I GJYQTARIT TË FUNDIT:\n")
+                    + (vendim or "")[:12000])
+            out = self.backend.complete(
+                system=_DOKUMENTI_FINALE_SYSTEM["it" if it else "sq"], messages=[{"role": "user", "content": user}],
+                max_tokens=16000, callsite="rishikim:dokumenti_perfundimtar", raw_system=True, no_web=True,
+                **studio._kwargs_modeli("opus", "high"))
+            out = re.sub(r"^```[a-zA-Z]*\s*\n|\n```\s*$", "", (out or "").strip()).strip()
+            if len(out) < 150 or len(out) < 0.4 * len(teksti):
+                log.warning("rishikim: dokumenti përfundimtar i shkurtër (%d nga %d shkronja) — nuk shtohet", len(out), len(teksti))
+                return ""
+            log.info("rishikim: dokumenti përfundimtar u shkrua (%d shkronja, nga %d të seniorit)", len(out), len(teksti))
+            _audit_set("rishikim_dokumenti", {"chr": len(out), "chr_senior": len(teksti)})
+            return TITULLI_DOKUMENTI["it" if it else "sq"] + out + "\n"
+        except Exception as exc:  # noqa: BLE001 — il documento finale è un di più: la revisione resta comunque
+            log.warning("rishikim: dokumenti përfundimtar dështoi (non-fatal): %s", exc)
+            return ""
+
     def _gjyqtari_fundit(self, user_message, retrieved, precedents, answer_text,
-                         dosja_txt="", fazat_txt=""):
+                         dosja_txt="", fazat_txt="", rishikim=False):
         """Il Giudice Finale (Fable 5.1 max effort): riceve la risposta completa
         (con gli attacchi del diavolo e le repliche = le menti degli altri agenti)
         + i nenet VERBATIM + il dossier dei raccoglitori (web/QBZ/Fletorja) e appende
@@ -6420,6 +6451,15 @@ class SuperAvvocato:
             _audit_set("giudice", {"esito": "verdetto", "chr": len(vendim), "mendja": _usato_gj,
                                    "riserva": bool(getattr(self.backend, "last_model_used", "") and not _skuadra and
                                                    getattr(self.backend, "last_model_used", "") != STUDIO_GJYQTARI_MODEL) or _usato_gj != _modeli_gj})
+            # v9.635 — nella revisione di un documento: il documento FINALE (correzioni del Giudice applicate) subito sotto il
+            # verdetto, prima del titolo dell'analisi completa; passa dal cancello e dalla riga di fiducia come il resto
+            if rishikim:
+                _doc_fin = self._dokumenti_perfundimtar(vendim, answer_text, lang)
+                if _doc_fin:
+                    _t_an = studio.TITULLI_ANALIZA.get(lang, studio.TITULLI_ANALIZA["sq"])
+                    _p_an = vendim.rfind(_t_an)
+                    vendim = ((vendim[:_p_an] + "\n\n" + _doc_fin.rstrip() + vendim[_p_an:]) if _p_an >= 0
+                              else (vendim.rstrip() + "\n\n" + _doc_fin))
             # v9.316 — il verdetto IN TESTA (prima la decisione, poi l'analisi completa);
             # v9.331 — la TRUST LINE (categorica, ricalcolata sul testo finale) sotto il titolo
             final = vendim + answer_text
@@ -9271,10 +9311,21 @@ def _fold_sq(t: str) -> str:
 
 
 _NOME_RX = r"([A-ZÇËÜ][a-zçëüéè\-]+(?:\s+[A-ZÇËÜ][a-zçëüéè\-]+){1,2})"
+# v9.635 — anche «përfaqësuar nga administratori I SAJ, Z. …» (la forma più comune negli atti albanesi: nella misura della
+# revisione l'amministratore che autorizza sé stesso NON portava KC 67 e 9901 art. 13), «përfaqësuar ligjërisht nga», «in
+# persona del legale rappresentante pro tempore» e i titoli in minuscolo («sig.», «dott.»)
 _RAPPR_RX = re.compile(
-    r"(?:p[eë]rfaq[eë]suar|perfaqesuar|represented|rappresentat[ao])\s+(?:nga\s+|by\s+|of\s+|da\s+|dal\s+|dalla\s+|dall['’]\s*)"
+    r"(?:(?:p[eë]rfaq[eë]suar|perfaqesuar|represented|rappresentat[ao])\s+(?:(?:lig[jl][eë]risht|legally|legalmente)\s+)?"
+    r"(?:nga\s+|by\s+|of\s+|da\s+|dal\s+|dalla\s+|dall['’]\s*)|in\s+persona\s+(?:del(?:l[ao]|l['’])?|di)\s*)"
     r"(?:(?:i\s+)?(?:administrator\w*|ortak\w*|drejtor\w*|amministrator\w*(?:\s+unico)?|legale\s+rappresentante|director|"
-    r"the\s+administrator)\s+)?(?:(?:Z|Znj|Zj|Mr|Mrs|Ms|Sig|Sig\.ra|Dott|Avv)\.?\s+)?" + _NOME_RX)
+    r"the\s+administrator)(?:\s+(?:i|e)\s+(?:saj|tij|shoq[eë]ris[eë]))?,?\s+(?:pro\s+tempore,?\s+)?)?"
+    r"(?:(?:[Zz]|[Zz]nj|[Zz]j|Mr|Mrs|Ms|[Ss]ig|[Ss]ig\.ra|[Dd]ott|[Aa]vv)\.?\s+)?" + _NOME_RX)
+# v9.635 — la clausola che permette al rappresentante di contrattare CON SÉ STESSO (la procura italiana della misura: «venda …
+# anche a sé stesso o a società da lui amministrate»): il contratto con sé stesso anche senza una società
+_VETVETJA_RX = {
+    "sq": re.compile(r"\bme\s+(?:veten|vetveten)\b|\bndaj\s+vetes\b", re.I),
+    "it": re.compile(r"\b(?:a|con|verso)\s+s[eé]\s+stess[oa]\b|\bcontratto\s+con\s+s[eé]\s+stess|\bin\s+proprio\b", re.I),
+}
 _BENEFICIARIO_RX = re.compile(
     r"\b(AUTORIZOJ|AUTORIZON|[Aa]utorizoj|[Aa]utorizon|[Cc]aktoj|[Cc]akton|[Ee]m[eë]roj|[Ee]m[eë]ron|i\s+jep\b|"
     r"[Hh]ereby\s+[Aa]uthori[sz]e\w*|[Aa]uthori[sz]es|[Aa]ppoints?|AUTORIZZA|[Aa]utorizza|[Dd]elega|[Nn]omina|"
@@ -9374,19 +9425,35 @@ def _ancore_rishikimi(text: str, lang: str) -> list[tuple[str, str, str]]:
     out: list[tuple[str, str, str]] = []
     nome = _vetperfaqesim(t)
     if lang == "it":
-        if re.search(r"procur|deleg|autorizz", fol) and re.search(r"s\.?\s?r\.?\s?l|s\.?\s?p\.?\s?a|societ|partita iva|p\.?\s?iva", fol):
+        procura_it = re.search(r"procur|deleg|autorizz", fol)
+        # v9.635 — la procura per un IMMOBILE anche di un privato: la forma della procura segue quella del contratto (la vendita di
+        # un immobile per iscritto) e il notaio trascrive solo da atto pubblico o scrittura privata autenticata
+        immobile_it = re.search(r"immobil|appartament|fabbricat|terren|compravendit|rogito|\bvend[aeio]|\bnotai", fol)
+        if procura_it and (immobile_it or re.search(r"s\.?\s?r\.?\s?l|s\.?\s?p\.?\s?a|societ|partita iva|p\.?\s?iva", fol)):
             out.append(("codice_civile", "1392", "forma della procura"))
-        if nome:
+        if procura_it and immobile_it:
+            out += [("codice_civile", "1350", "atti che devono farsi per iscritto: la vendita di un immobile"),
+                    ("codice_civile", "2657", "titolo per la trascrizione: atto pubblico o scrittura privata autenticata")]
+        if nome or _VETVETJA_RX["it"].search(t):
             out += [("codice_civile", "1395", "contratto con se stesso: il rappresentante che agisce con sé stesso"),
-                    ("codice_civile", "1394", "conflitto d'interessi del rappresentante"),
-                    ("codice_civile", "2475-ter", "conflitto di interessi degli amministratori di s.r.l.")]
+                    ("codice_civile", "1394", "conflitto d'interessi del rappresentante")]
+        if nome:
+            out.append(("codice_civile", "2475-ter", "conflitto di interessi degli amministratori di s.r.l."))
         return out
-    if re.search(r"prokur|autoriz", fol) and re.search(r"sh\.?\s?p\.?\s?k|shpk|sh\.\s?a\b|shoqeri|person\w* juridik|\bnipt\b|\bnuis\b", fol):
+    procura_al = re.search(r"prokur|autoriz", fol)
+    # v9.635 — la prokurë per vendere un immobile anche di un privato: KC 72 (la forma della procura segue quella del contratto) e
+    # KC 83 (trasferimento di un immobile: atto notarile e registrazione, altrimenti invalido)
+    pasuri_al = re.search(r"pasuri\w* (?:e )?paluajtshm|apartament|\btruall|kalimin e pronesise|\bbanes", fol)
+    if procura_al and (pasuri_al or re.search(r"sh\.?\s?p\.?\s?k|shpk|sh\.\s?a\b|shoqeri|person\w* juridik|\bnipt\b|\bnuis\b", fol)):
         out.append(("kodi_civil", "72", "forma e prokurës, edhe e personit juridik (nënshkrimi i drejtuesit dhe vula; akt noterial "
                                         "kur e kërkon ligji)"))
+    if procura_al and pasuri_al:
+        out.append(("kodi_civil", "83", "kalimi i pronësisë së një sendi të paluajtshëm: akt noterial dhe regjistrim, përndryshe "
+                                        "i pavlefshëm"))
+    if nome or _VETVETJA_RX["sq"].search(t):
+        out.append(("kodi_civil", "67", "përfaqësuesi që vepron në emër të të përfaqësuarit me veten"))
     if nome:
-        out += [("kodi_civil", "67", "përfaqësuesi që vepron në emër të të përfaqësuarit me veten"),
-                ("ligji_shoqerite_tregtare", "13", "konflikti i interesit: miratimi paraprak i ortakëve")]
+        out.append(("ligji_shoqerite_tregtare", "13", "konflikti i interesit: miratimi paraprak i ortakëve"))
     if re.search(r"automjet|autovetur|\btarg|shasi|\bmjet\w*\b", fol) and re.search(
             r"jashte (?:shtetit|territorit|vendit|shqiperise)|brenda dhe jashte|outside the territory|\babroad\b", fol):
         out.append(("ligji_sigurimi_mjeteve", "16", "sigurimi i detyrueshëm: vlefshmëria territoriale (kartoni jeshil)"))
@@ -9445,6 +9512,74 @@ _RISHIKIM_FORMATI = {
            "la validità di questo documento. Cita solo gli articoli qui sopra; un requisito pratico che non viene da un articolo "
            "(per esempio cosa chiedono la polizia o la dogana di un altro Stato) scrivilo come «da verificare», senza numero."),
 }
+
+
+# v9.635 — IL DOCUMENTO FINALE DELLA REVISIONE (titolare, 12 ott: «se hai una procura e devi solo revisionarla, la alleghi e Super
+# Avokati la migliora»). Nella prova sul documento del titolare il Giudice correggeva il «Testo corretto» del senior («la clausola V
+# va tolta»), ma il testo restava quello di prima: l'avvocato avrebbe dovuto applicare a mano le correzioni. Dopo il Giudice un
+# passaggio di REDAZIONE applica le correzioni accolte (del Giudice e quelle che il senior ha accolto rispondendo al diavolo) e
+# scrive UN documento finale, pronto per la firma, subito sotto il verdetto. Fail-silent: senza testo corretto o se la redazione
+# cade, la risposta resta com'era.
+_TESTO_CORRETTO_RX = {
+    "sq": re.compile(r"^[ \t]*(?:#{1,4}[ \t]*|\*\*)?[ \t]*5[.)][ \t]*Teksti i korrigjuar\b.*$", re.I | re.M),
+    "it": re.compile(r"^[ \t]*(?:#{1,4}[ \t]*|\*\*)?[ \t]*5[.)][ \t]*Testo corretto\b.*$", re.I | re.M),
+}
+_FINE_TESTO_RX = re.compile(r"^[ \t]*(?:#{2,4}[ \t]*(?:⚔|🛡|📚|⚖|📄)|━━━|\*\*(?:Për saktësi|Per precisione)\b)", re.M)
+_REPLICA_RX = re.compile(r"^#{2,4}[ \t]*🛡.*$", re.M)
+_DOPO_REPLICA_RX = re.compile(r"^#{2,4}[ \t]*(?:⚔|📚|⚖|📄)", re.M)
+TITULLI_DOKUMENTI = {
+    "sq": ("### 📄 Dokumenti përfundimtar — gati për nënshkrim\n\n*Teksti i korrigjuar me korrigjimet e pranuara nga Gjyqtari i "
+           "Fundit. Plotëso [___] dhe kontrolloje para nënshkrimit.*\n\n"),
+    "it": ("### 📄 Documento finale — pronto per la firma\n\n*Il testo corretto con le correzioni accolte dal Giudice finale. "
+           "Completa i [___] e controllalo prima della firma.*\n\n"),
+}
+_DOKUMENTI_FINALE_SYSTEM = {
+    "sq": ("Ti je redaktori përfundimtar i një studioje ligjore. Të jepen (A) teksti i korrigjuar i një dokumenti, shkruar nga "
+           "seniori, dhe (B) korrigjimet që erdhën pas tij: përgjigjet e seniorit ndaj avokatit të djallit dhe vendimi i Gjyqtarit "
+           "të Fundit. Shkruaj VETËM dokumentin përfundimtar, të plotë, gati për nënshkrim.\n"
+           "Rregulla:\n"
+           "1. Zbato çdo korrigjim të pranuar që prek TEKSTIN e dokumentit (një klauzolë për t'u hequr, shtuar ose ndryshuar, një e "
+           "dhënë, forma, data). Kur Gjyqtari i Fundit e kundërshton seniorin, vlen Gjyqtari.\n"
+           "2. Mos ndrysho asgjë tjetër: pjesët që askush nuk i ka korrigjuar mbeten fjalë për fjalë si te (A).\n"
+           "3. Mos shpik të dhëna (emra, numra, data, NIPT/NUIS): ku mungojnë lër [___].\n"
+           "4. Të njëjtat gjuhë si (A): nëse dokumenti është në dy gjuhë, të dy versionet, të përputhura.\n"
+           "5. Pa hyrje, pa shpjegime, pa listë korrigjimesh, pa tituj të tjerë: vetëm dokumenti. Mos shto nene që nuk janë te (A) "
+           "ose te korrigjimet.\n"
+           "Nëse asnjë korrigjim nuk prek tekstin, ktheje (A) siç është."),
+    "it": ("Sei il redattore finale di uno studio legale. Ricevi (A) il testo corretto di un documento, scritto dal senior, e (B) le "
+           "correzioni arrivate dopo: le risposte del senior all'avvocato del diavolo e il verdetto del Giudice finale. Scrivi SOLO "
+           "il documento finale, completo, pronto per la firma.\n"
+           "Regole:\n"
+           "1. Applica ogni correzione accolta che riguarda il TESTO del documento (una clausola da togliere, aggiungere o cambiare, un "
+           "dato, la forma, una data). Quando il Giudice finale contraddice il senior, vale il Giudice.\n"
+           "2. Non cambiare nient'altro: le parti che nessuno ha corretto restano parola per parola come in (A).\n"
+           "3. Non inventare dati (nomi, numeri, date, codice fiscale, partita IVA): dove mancano lascia [___].\n"
+           "4. Le stesse lingue di (A): se il documento è in due lingue, tutte e due le versioni, allineate.\n"
+           "5. Niente introduzione, spiegazioni, elenco delle correzioni o altri titoli: solo il documento. Non aggiungere articoli "
+           "che non sono in (A) o nelle correzioni.\n"
+           "Se nessuna correzione riguarda il testo, restituisci (A) così com'è."),
+}
+
+
+def _testo_corretto_del_senior(answer_text: str, lang: str) -> str:
+    """Il «5. Testo corretto» della revisione del senior, fino alla sezione successiva (domande «Per precisione», duello, analisi)."""
+    m = _TESTO_CORRETTO_RX.get(lang, _TESTO_CORRETTO_RX["sq"]).search(answer_text or "")
+    if not m:
+        return ""
+    resto = (answer_text or "")[m.end():]
+    f = _FINE_TESTO_RX.search(resto)
+    return (resto[:f.start()] if f else resto).strip().strip("-").strip()
+
+
+def _repliche_del_senior(answer_text: str, tetto: int = 16000) -> str:
+    """Le risposte del senior all'avvocato del diavolo («🛡️ …»): lì il senior accoglie o respinge le obiezioni."""
+    t = answer_text or ""
+    pezzi = []
+    for m in _REPLICA_RX.finditer(t):
+        resto = t[m.start():]
+        f = _DOPO_REPLICA_RX.search(resto, 1)
+        pezzi.append(resto[: f.start() if f else len(resto)].strip())
+    return "\n\n".join(pezzi)[-tetto:]
 
 
 def _kontrolle_txt(text: str, lang: str) -> str:
