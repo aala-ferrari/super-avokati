@@ -592,7 +592,7 @@ function setLang(l,scelta){
 document.querySelectorAll('.lang button').forEach(b=>b.onclick=()=>setLang(b.dataset.lang,true));
 /* 12 ott 2026 — la lingua del mercato: la lingua decide anche la società (Albania → AALA, Italia → Deltalux).
    Ordine: la scelta del visitatore; una vecchia scelta it/en (il vecchio «sq» era il predefinito salvato da solo);
-   il paese dell'indirizzo IP, scritto da nginx in <html data-paese> (dati RIPE NCC); la lingua del browser; l'albanese. */
+   il paese dell'indirizzo IP, scritto da nginx in <html data-paese> (dati RIPE NCC); un browser in italiano; l'albanese. */
 function linguaIniziale(){
   let x=null;try{x=localStorage.getItem('sa_lang_scelta');}catch(e){}
   if(x&&I18N[x])return x;
@@ -603,8 +603,7 @@ function linguaIniziale(){
   if(p==='AL')return 'sq';
   const n=String((navigator.languages&&navigator.languages[0])||navigator.language||'').toLowerCase();
   if(n.indexOf('it')===0)return 'it';
-  if(n.indexOf('en')===0)return 'en';
-  return 'sq';
+  return 'sq';   // l'inglese solo se scelto: Googlebot ha il browser in inglese e un IP americano, e deve vedere l'albanese
 }
 setLang(linguaIniziale(),false);
 document.getElementById('yr').textContent=new Date().getFullYear();

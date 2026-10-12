@@ -5,8 +5,8 @@ da /var/www/superavokati-landing) e il golden non la vede.
 Controlla: il JSON-LD si legge; gli script si compilano (node --check); le tre lingue hanno le stesse chiavi e ogni chiave
 del markup c'è in tutte; la SOCIETÀ della lingua (albanese → Albania Auto Legal Alliance sh.p.k., NIPT M61628011J,
 +355 69 955 5777; italiano e inglese → Deltalux Srl, P.IVA 12021700963, +39 380 635 8654) e mai quella dell'altro mercato
-nella stessa riga; la lingua iniziale (scelta del visitatore > vecchia scelta it/en > paese dall'IP di nginx > browser >
-albanese) su 10 casi con un browser finto. Esce 1 se qualcosa non torna.
+nella stessa riga; la lingua iniziale (scelta del visitatore > vecchia scelta it/en > paese dall'IP di nginx > browser in
+italiano > albanese: un browser in inglese, come Googlebot, resta sull'albanese) su 10 casi con un browser finto. Esce 1 se qualcosa non torna.
 
 Uso:  python3 tools/verifica_landing.py [landing/index.html]
 """
@@ -18,7 +18,7 @@ import sys
 import tempfile
 
 CASI = [  # (localStorage, data-paese, lingua del browser, attesa)
-    ({}, "IT", "sq-AL", "it"), ({}, "AL", "it-IT", "sq"), ({}, "", "it-IT", "it"), ({}, "", "en-GB", "en"),
+    ({}, "IT", "sq-AL", "it"), ({}, "AL", "it-IT", "sq"), ({}, "", "it-IT", "it"), ({}, "", "en-US", "sq"),
     ({}, "", "de-DE", "sq"), ({"sa_lang": "sq"}, "IT", "it", "it"), ({"sa_lang": "it"}, "AL", "sq", "it"),
     ({"sa_lang_scelta": "sq"}, "IT", "it", "sq"), ({"sa_lang_scelta": "en"}, "AL", "sq", "en"), ({}, None, "", "sq"),
 ]
