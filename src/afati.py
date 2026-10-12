@@ -96,7 +96,10 @@ TRIGGERS = {
                  ("kodi_proc_civile", "496"),
                  # v9.618: dove si deposita (446) e la FORMA dell'appello — contenuto (454) e allegati, con i 5 giorni per
                  # correggere i difetti (455): nell'audit dell'11 ott «gli elementi formali dell'appello non sono nel corpus»
-                 ("kodi_proc_civile", "446"), ("kodi_proc_civile", "454"), ("kodi_proc_civile", "455")],
+                 ("kodi_proc_civile", "446"), ("kodi_proc_civile", "454"), ("kodi_proc_civile", "455"),
+                 # v9.627: e se l'appello SOSPENDE l'esecuzione (449: sì, salvo la legge disponga diversamente) — l'audit AL del 12 ott
+                 # «Për pezullim ekzekutimi gjatë shqyrtimit të apelit — verifiko dispozitat përkatëse, nuk përfshihen»
+                 ("kodi_proc_civile", "449")],
         # v9.399: + 444 (dal giorno dopo) e 445; + 148 (calcolo e giorno festivo), 151 (rimessione nel termine), 496
         # (revisione: 30 giorni dalla conoscenza del motivo) — l'audit del 28 set li diceva «non nel corpus» perché non
         # arrivavano al modello

@@ -310,6 +310,13 @@ CASI = [  # (giurisdizione, domanda dell'avvocato, articoli di cui almeno uno DE
     ("AL", "[frek44] Inspektorati i mbrojtjes së territorit të bashkisë i dha klientit vendim prishjeje për një shtesë në ballkon të ndërtuar pa leje. Ku dhe brenda çfarë afati ankohemi?", [("ligji_inspektimi_territorit", "14")]),
     ("AL", "[frek44] Bashkia i dha klientit urdhër prishjeje për një kat shtesë të ndërtuar pa leje. A mund ta ankimojmë dhe a pezullohet prishja?", [("ligji_inspektimi_territorit", "14")]),
     ("AL", "[frek44] Klienti është ortak me 50% në një shpk me një ortak tjetër me 50%. Tjetri nuk pranon asnjë vendim dhe shoqëria është bllokuar prej një viti. Çfarë zgjidhjesh ligjore ka?", [("ligji_shoqerite_tregtare", "99"), ("ligji_shoqerite_tregtare", "101")]),
+    # v9.627 — giro 45: la domanda VERA dell'11 ott (call center, quattro contratti annuali, il contratto non rinnovato dopo
+    # l'annuncio della gravidanza): nessuna ancora della gravidanza scattava (volevano «pushu/hoqën»), e la risposta scriveva
+    # «10221/2010 nuk është në bllok», «nenet e Ligjit 7703/1993 … nuk janë në materiale», «kompetencën territoriale … nuk i kam»
+    ("AL", "[frek45] Klientja punon prej 4 vitesh në një call center me kontrata 1-vjeçare që ripërtërihen çdo vit. Pasi njoftoi se është shtatzënë, punëdhënësi i tha se kontrata nuk do t'i ripërtërihet. Çfarë të drejtash ka dhe çfarë bëjmë?", [("kodi_punes", "151"), ("kodi_punes", "105/a")]),
+    # v9.627 — giro 46: la perquisizione dell'auto senza decreto in flagranza (la prova in Chrome del 12 ott: nel blocco arresto e misure,
+    # mai KPP 298/202)
+    ("AL", "[frek46] Klienti u kap nga policia me 50 gram kokainë në makinë. Policia e kontrolloi makinën pa urdhër të prokurorit dhe e arrestoi në flagrancë. Çfarë rrezikon, a është i vlefshëm kontrolli i makinës dhe çfarë kërkojmë në seancën e vlerësimit të arrestit dhe të masës së sigurimit?", [("kodi_proc_penale", "298"), ("kodi_proc_penale", "202")]),
     ("IT", "[frek29] Dopo la separazione la figlia di 15 anni è stata collocata presso la madre, mia cliente. Ora la ragazza dice che vuole andare a vivere con il padre, che ha già annunciato un ricorso. Può decidere lei? Come difendiamo la madre e quali sono i tempi?", [("codice_procedura_civile", "473-bis.4"), ("codice_civile", "337-ter")]),
     # v9.589 — giro 30, l'INFORTUNIO SUL LAVORO: la domanda della prova dal browser del 10 ott (AL: il Giudice non trovava la norma sul
     # danno alla salute né la competenza) e la sua gemella italiana, col testo unico INAIL entrato nel corpus (wave13)

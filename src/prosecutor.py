@@ -385,7 +385,10 @@ def analyze(backend, index, *, facts: str, max_tokens: int = 3000) -> dict:
                                  ("kodi_proc_penale", "323"), ("kodi_proc_penale", "324")], facts,
                                 # v9.619: + KP 1 (crimine o contravvenzione: decide la prescrizione del KP 66) e KP 59 (la
                                 # sospensione con la messa alla prova) — nel ri-audit «non sono nel corpus»
-                                extra=[("kodi_proc_penale", "284"), ("kodi_penal", "55"), ("kodi_penal", "1"), ("kodi_penal", "59")])
+                                extra=[("kodi_proc_penale", "284"), ("kodi_penal", "55"), ("kodi_penal", "1"), ("kodi_penal", "59"),
+                                       # v9.627: e gli OBBLIGHI della messa alla prova (KP 60) accanto alla sospensione (59): l'audit
+                                       # del 12 ott «Detyrimet sipas nenit 60 (teksti i nenit 60 nuk është në korpus)»
+                                       ("kodi_penal", "60")])
         arts = _expertise.retrieve_grounded(backend, index, facts, seed_pairs=seeds, max_arts=16 + n_add, preferiti=_PREF_AL)
     prompt = (
         P["fatti"] + "\n" + (facts or "").strip()
@@ -501,7 +504,11 @@ def investigation_plan(backend, index, *, facts, max_tokens=2800):
                 extra="plan hetimi veprime hetimore afati", max_tokens=max_tokens,
                 semi_in_piu_al=[("kodi_proc_penale", "284"), ("kodi_proc_penale", "202"), ("kodi_proc_penale", "208"),
                                 ("kodi_proc_penale", "178"), ("kodi_proc_penale", "221"), ("kodi_proc_penale", "274"),
-                                ("kodi_proc_penale", "144")])   # v9.618: il calcolo dei termini (KPP 144)
+                                ("kodi_proc_penale", "144"),   # v9.618: il calcolo dei termini (KPP 144)
+                                # v9.627 — la PRESCRIZIONE del reato (KP 66, con KP 1: crimine o contravvenzione) e la DURATA delle
+                                # misure cautelari (KPP 263): l'audit AL del 12 ott (truffa da 5.000 €) le dava «nuk janë në korpusin
+                                # e dhënë» e «jashtë korpusit»
+                                ("kodi_penal", "66"), ("kodi_penal", "1"), ("kodi_proc_penale", "263")])
 
 
 _ACT_KINDS = {
@@ -677,9 +684,15 @@ def stress_test(backend, index, *, text, max_tokens=2600):
         "### \U0001f50e Provat shfajësuese — çka duhet kërkuar në favor të të pandehurit\n"
         "### ✅ Si të forcohet akti — çka duhet plotësuar para paraqitjes\n"
         + _TETRA)
+    # v9.627 — lo stress test albanese NON aveva nessun seme (l'italiano sì): la difesa che legge l'atto cercava le nullità e la prova
+    # inutilizzabile senza le norme — l'audit AL del 12 ott: «dispozita e Kodit Penal mbi ndarjen krim/kundërvajtje penale … nuk
+    # është në korpusin e dhënë», e i rinvii del KPP 331 (34/a, 34/b…) «vetëm si referenca». In AGGIUNTA ai 16: la ricerca del reato
+    # dell'atto resta intera
     return _gen(backend, index, facts=text, system=system, callsite="pros_stress",
                 seeds=None, intro=_P["sq"]["stress"], extra="dobësi pavlefshmëri provë",
-                max_tokens=max_tokens)
+                max_tokens=max_tokens,
+                semi_in_piu_al=[("kodi_proc_penale", n) for n in ("128", "129", "130", "131", "151", "34/a", "331")]
+                + [("kodi_penal", "1")])
 
 
 # ───────────────────────── (ii) CITIZEN-FACING ─────────────────────────

@@ -3691,8 +3691,26 @@
     const lines = md.split("\n");
     const out = [];
     let inList = null;
-    for (let raw of lines) {
-      let l = raw;
+    for (let i = 0; i < lines.length; i++) {
+      let l = lines[i];
+      // v9.627 — le CITAZIONI «> …» (la riga «🔎 Verifikimi» in testa a ogni risposta, gli avvisi degli strumenti PRO) e le TABELLE
+      // markdown uscivano come testo grezzo: in Chrome, nella richiesta di misura cautelare, 49 righe di tabella e 43 citazioni
+      // con «|» e «>» a vista, in ogni strumento PRO e nella chat
+      const qm = l.match(/^\s*>\s?(.*)$/);
+      if (qm) {
+        const righe = [qm[1]];
+        while (i + 1 < lines.length && /^\s*>/.test(lines[i + 1])) { i++; righe.push(lines[i].replace(/^\s*>\s?/, "")); }
+        closeList();
+        out.push('<blockquote class="md-quote">' + righe.map(inline).join("<br>") + "</blockquote>");
+        continue;
+      }
+      if (_rigaTabella(l)) {
+        const blocco = [l];
+        while (i + 1 < lines.length && _rigaTabella(lines[i + 1])) { i++; blocco.push(lines[i]); }
+        closeList();
+        out.push(_tabellaHtml(blocco));
+        continue;
+      }
       const hm = l.match(/^(#{1,4})\s+(.*)$/);
       if (hm) {
         closeList();
@@ -3720,6 +3738,31 @@
     function closeList() {
       if (inList) { out.push(`</${inList}>`); inList = null; }
     }
+    function _rigaTabella(r) {
+      return /^\s*\|.*\|\s*$/.test(r || "") && (r.match(/\|/g) || []).length >= 2;
+    }
+    function _celle(r) {
+      let x = r.trim();
+      if (x.charAt(0) === "|") x = x.slice(1);
+      if (x.slice(-1) === "|" && x.slice(-2) !== "\\|") x = x.slice(0, -1);
+      const celle = []; let cur = "";
+      for (let k = 0; k < x.length; k++) {
+        if (x[k] === "\\" && x[k + 1] === "|") { cur += "\\|"; k++; continue; }   // «\|» resta un carattere (lo scioglie inline)
+        if (x[k] === "|") { celle.push(cur.trim()); cur = ""; continue; }
+        cur += x[k];
+      }
+      celle.push(cur.trim());
+      return celle;
+    }
+    function _tabellaHtml(rows) {
+      const sep = (r) => /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$/.test(r);
+      let head = null, corpo = rows;
+      if (rows.length >= 2 && sep(rows[1])) { head = _celle(rows[0]); corpo = rows.slice(2); }
+      corpo = corpo.filter((r) => !sep(r));
+      const th = head && head.some((c) => c) ? "<thead><tr>" + head.map((c) => "<th>" + inline(c) + "</th>").join("") + "</tr></thead>" : "";
+      const tb = "<tbody>" + corpo.map((r) => "<tr>" + _celle(r).map((c) => "<td>" + inline(c) + "</td>").join("") + "</tr>").join("") + "</tbody>";
+      return '<div class="md-tab"><table class="md-table">' + th + tb + "</table></div>";
+    }
     function inline(s) {
       s = escapeHtml(s);
       // v9.530 — i LINK markdown: «Fonti consultate: [Cass. SU 19596/2020](https://…) · […](…)» usciva come testo grezzo in ogni
@@ -3729,6 +3772,9 @@
       s = s.replace(/\[([^\]\n]{1,240})\]\((https?:\/\/[^\s)]{3,600})\)/g, function (m, t, u) {
         links.push([t, u]); return "\u0000" + (links.length - 1) + "\u0000";
       });
+      // v9.627 — gli ESCAPE del markdown: i campi da riempire «\_\_\_» (diventavano barre e corsivi), «\*», «\|» delle tabelle
+      const esc = [];
+      s = s.replace(/\\([\\`*_{}\[\]()#+\-.!|~])/g, function (m, c) { esc.push(c); return "\u0001" + (esc.length - 1) + "\u0001"; });
       s = s.replace(/\*\*([^\*]+)\*\*/g, "<strong>$1</strong>");
       s = s.replace(/\*([^\*]+)\*/g, "<em>$1</em>");
       s = s.replace(/_([^_]+)_/g, "<em>$1</em>");
@@ -3737,6 +3783,7 @@
         const l = links[+i];
         return l ? '<a href="' + l[1] + '" target="_blank" rel="noopener noreferrer nofollow">' + l[0] + "</a>" : "";
       });
+      s = s.replace(/\u0001(\d+)\u0001/g, function (m, i) { return esc[+i] || ""; });
       return s;
     }
   }

@@ -124,6 +124,9 @@ _LEJE_AL = ("leje qëndrim", "lejes së qëndrim", "lejen e qëndrim", "leja e q
             "leja unik", "shtetas i huaj", "shtetasi i huaj", "shtetas të huaj", "punëmarrës i huaj", "punëmarrësi i huaj",
             "punemarres i huaj")
 _PUSHIM_AL = ("zgjidh", "pushu", "pushoi", "pushon", "pushim nga", "largu", "ndërpre", "nderpre")
+# v9.627 — la gravidanza (anche «shtatzan-», la grafia del KP 105/a) e il contratto NON RINNOVATO
+_SHTATZENE_AL = ("shtatzën", "shtatzan")
+_MOSRIPERTERITJE_AL = ("ripërtër", "riperter", "rinov", "nuk ia zgjat", "nuk do ta zgjat", "nuk do t'ia zgjat")
 
 # v9.602 — il cliente VITTIMA del reato (non imputato): la cassetta della difesa penale non serve. Tutta la domanda si cancella (l'ancora
 # non scatta) se c'è un segno della vittima e NESSUN segno della difesa. Il cliente come complemento («klientin», «klienten», «klientit»)
@@ -385,7 +388,12 @@ ANCORE_AL: tuple = (
     # … e il TRIBUNALE COMPETENTE nelle cause di lavoro (KPC 47: anche quello del luogo dove abita il lavoratore): il Giudice della
     # stessa prova «Jashtë materialeve, për verifikim: kompetenca tokësore». In coda, solo con una causa o un tribunale nella domanda;
     # mai nell'infortunio (lì il KPC 48 della v9.589: con le due insieme uscivano articoli attesi)
-    (tuple((v, c) for v in _PUSHIM_VERB_AL + ("pagën", "pagë ", "rrogën", "rrogë ", "punëdhënës", "punedhenes") for c in ("padi", "gjykat")),
+    (tuple((v, c) for v in _PUSHIM_VERB_AL + ("pagën", "pagë ", "rrogën", "rrogë ", "punëdhënës", "punedhenes")
+           for c in ("padi", "gjykat", "çfarë bëjmë", "cfare bejme", "ç'bëjmë", "si veprojmë", "si te veprojme",
+                     "çfarë mund të bëjmë", "cfare mund te bejme", "ku ankohemi", "ku të ankohemi")),
+     # v9.627 — anche quando l'avvocato chiede «çfarë bëjmë / si veprojmë / ku ankohemi» senza scrivere «padi/gjykatë»: la
+     # risposta vera della lavoratrice incinta (11 ott) consigliava la causa e scriveva «Kompetencën territoriale … verifikoje te
+     # K.Pr.C. — këto nene nuk i kam»
      ("Penal",), (("kodi_proc_civile", "47"),), r"(?s)^(?=.*(?:lëndu|lendu|aksident|skel|plagos|sëmundje profesional)).*$", ("Punë",), True,
      "coda"),
     # v9.500 — «entro quando l'appello?»: il CALCOLO del termine (KPC 148 — giorno iniziale escluso, termine a mesi/anni; e la
@@ -472,6 +480,22 @@ ANCORE_AL: tuple = (
     ((("pa sigur", " makin"), ("pa sigur", " mjet"), ("pasigur", " makin"), ("pasigur", " mjet"), ("pa siguracion",),
       ("paidentifik", " makin"), ("paidentifik", " mjet"), ("përplas", " u largua"), ("përplas", " iku")),
      (), (("ligji_sigurimi_mjeteve", "41"),), None, None, True),
+    # v9.627 — la PERQUISIZIONE senza decreto (dell'auto, della casa, della persona) in flagranza o «pa urdhër»: KPP 298 «Kontrollimet»
+    # (la polizia giudiziaria perquisisce in flagranza e lo convalida il pubblico ministero) e KPP 202 (le condizioni della perquisizione,
+    # il par. 3 rinvia al 298). Prova in Chrome del 12 ott (50 g di cocaina nell'auto, perquisizione senza decreto): nel blocco l'arresto
+    # in flagranza (251-252) e le misure (228-229), mai le norme della perquisizione — il Kërkuesi: «i mungon pikërisht norma që
+    # përcakton kushtet e kontrollit të automjetit». Solo dalla domanda e solo nel penale
+    (tuple((k, x) for k in ("kontroll", "bastis")
+           for x in ("pa urdhër", "pa urdher", "pa vendim", "pa leje të", "pa autorizim", "flagranc", "pa prokuror")),
+     (), (("kodi_proc_penale", "298"), ("kodi_proc_penale", "202")), None, ("Penal",), True),
+    # v9.627 — la PATENTE A PUNTI (Kodi Rrugor 120/1 «Lejedrejtimi me pikë»: venti punti, le detrazioni, che cosa succede a zero):
+    # banco AL a triage fisso del 12 ott, [frek38] «i hoqën të gjitha pikët e lejes së drejtimit» FUORI dal blocco — la rubrica dice
+    # «pike» senza la ë e la ricerca non lega «pikëve» a «pike». Solo dalla domanda, con le parole della patente accanto ai punti
+    # («pika 3 e nenit» non conta: serve la forma plurale o «pikë» staccata, e la patente nella stessa domanda)
+    (tuple((p, l) for p in (" pikët", " pikëve", " pikë ", " pikë.", " pikë,", " piket", " pikeve", "me pikë", "me pike")
+           for l in ("lejes së drejtimit", "lejen e drejtimit", "leja e drejtimit", "leje drejtimi", "lejedrejtim", "lejes se drejtimit",
+                     "lejen e drejtimit", "patent")),
+     (), (("kodi_rrugor", "120/1"),), None, None, True),
     # v9.567 — la COSTRUZIONE ABUSIVA del vicino («po ndërton një kat shtesë pa leje»): il blocco era tutto legge urbanistica
     # (ispettorato, demolizione), mai il reato KP 199/a «Ndërtimi i paligjshëm». Mai nel lavoro («punon në ndërtim pa leje pune»).
     ((("ndërton", "pa leje"), ("ndërtoi", "pa leje"), ("ndërtuar", "pa leje"), ("ndërtim pa leje",), ("ndërtimi pa leje",),
@@ -496,6 +520,19 @@ ANCORE_AL: tuple = (
     # quattro contratti annuali) la indicava come via oltre i 180 giorni ma scriveva «10221/2010 nuk është në bllokun e neneve të mia»
     ((("shtatzën", "pushu"), ("shtatzën", "hoqën"), ("shtatzën", "largu"), ("shtatzën", "pushoi"), ("shtatzën", "nga puna")),
      ("Penal",), (("ligji_diskriminimi", "12"), ("ligji_diskriminimi", "36")), None, None, True, "coda"),
+    # v9.627 — il contratto a termine NON RINNOVATO dopo l'annuncio della gravidanza (la forma più frequente: «kontrata nuk do t'i
+    # ripërtërihet») non accendeva nessuna delle due: entrambe volevano «pushu/hoqën/largu/nga puna». Anche «shtatzan-» (la grafia
+    # del KP 105/a). Solo nel lavoro
+    (tuple((g, r) for g in _SHTATZENE_AL for r in _MOSRIPERTERITJE_AL), ("Penal",),
+     (("kodi_punes", "105/a"), ("kodi_punes", "146")), None, ("Punë",), True),
+    (tuple((g, r) for g in _SHTATZENE_AL for r in _MOSRIPERTERITJE_AL), ("Penal",),
+     (("ligji_diskriminimi", "12"), ("ligji_diskriminimi", "36")), None, ("Punë",), True, "coda"),
+    # v9.627 — e IN CODA il REDDITO DI MATERNITÀ (ligji 7703/1993 «Për sigurimet shoqërore» art. 27: 12 mesi di assicurazione,
+    # 365 giorni, almeno 35 prima e 63 dopo il parto): dallo stesso periodo dipende la nullità del licenziamento del KP 107/1. La
+    # risposta vera: «Nenet e Ligjit 7703/1993 që e përcaktojnë nuk janë në materiale (vetëm neni 28)». Solo nel lavoro
+    (("barrëlindj", "leje lindj", "lejen e lindj", "lejes së lindj", "leje e lindj", "leja e lindj", "lehon")
+     + tuple((g, w) for g in _SHTATZENE_AL for w in (" pun", "kontrat", "pagë", "pagën", "pagu", "rrog")), ("Penal",),
+     (("ligji_sigurimet_shoqerore", "27"),), None, ("Punë",), True, "coda"),
     # v9.561 — la VIOLAZIONE DI DOMICILIO («hyri me forcë në shtëpinë e saj pa leje»): KP 112 «Dhunimi i banesës» all'11°, dietro la legge
     # sulla violenza domestica (che resta: spesso è anche quella). Solo nel penale.
     ((("hyri", "shtëpi", "pa leje"), ("hyri", "banes", "pa leje"), ("hyri me forcë", "shtëpi"), ("hyri me forcë", "banes"), ("dhunim", "banes")),
@@ -604,6 +641,16 @@ ANCORE_AL: tuple = (
     (("arrest në burg", "arrestit në burg", "arresti në burg", "paraburgim", "sigurimit personal", "sigurimi personal",
       ("arrest", "shtëpi"), ("masë sigurimi", "prokuror"), ("masës së sigurimit", "arrest"), ("masa e sigurimit", "arrest")),
      (), (("kodi_proc_penale", "228"), ("kodi_proc_penale", "229"), ("kodi_proc_penale", "230")), None, ("Penal",)),
+    # v9.627 — l'ARRESTO IN FLAGRANZA e la sua CONVALIDA: KPP 258 (il pubblico ministero chiede la convalida entro 48 ore, altrimenti
+    # l'arresto perde efficacia) e 259 (l'udienza di convalida); IN CODA il ricorso contro la misura (249: 5 giorni) e il calcolo dei
+    # termini (144: il giorno festivo). Prova in Chrome del 12 ott (50 g di cocaina, arresto in flagranza): il Giudice scriveva «afati
+    # tjetër 48-orësh … norma nuk është në bllok (nenet 253–258)» e «rregulli i shtyrjes në ditën e punës nuk është në materialet e mia»
+    (tuple(("arrest", x) for x in ("flagranc", "vleftës", "vlerësimit të arrest", "vlerësimin e arrest", "seancën e vleft",
+                                   "seanca e vleft")) + (("flagranc", "seanc"),),
+     (), (("kodi_proc_penale", "258"), ("kodi_proc_penale", "259")), None, ("Penal",), True),
+    (tuple(("arrest", x) for x in ("flagranc", "vleftës", "vlerësimit të arrest", "vlerësimin e arrest", "seancën e vleft",
+                                   "seanca e vleft")) + (("flagranc", "seanc"), ("masës së sigurimit", "ankim"), ("masa e sigurimit", "ankim")),
+     (), (("kodi_proc_penale", "249"), ("kodi_proc_penale", "144")), None, ("Penal",), True, "coda"),
     # … e la PENSIONE DI VECCHIAIA («62 vjeç, 30 vjet kontribute: a kam të drejtë?»): il 31 (15 anni minimi, l'età del 92) entrava
     # al 14° posto, dietro i premi di anzianità del KP e le pensioni delle ex cooperative (96). Il 92 ha la tabella dell'età.
     (("pension pleqërie", "pensionit të pleqërisë", "pension pleqerie", "pensioni i pleqërisë", ("pension", "mosh"),
@@ -1642,9 +1689,12 @@ _CODICI_CONDIZIONATI_AL = _CODICI_CONDIZIONATI_AL + (
     ("ligji_prokurimi_publik", "appalti pubblici",
      re.compile(r"prokurim|tender|kontrat\w*\s+(?:publike|koncesion)|koncesion|ankand\w*\s+publik|\bapp\b|autoritet\w*\s+kontraktor|ofert|"
                 r"operator\w*\s+ekonomik", re.I)),
+    # v9.627 — anche la GRAVIDANZA («shtatzëninë» è fra i motivi dell'art. 1 della legge): senza, la coda della v9.626 (artt. 12 e 36
+    # nella lavoratrice incinta licenziata) entrava e questo filtro la toglieva subito dopo — il banco a triage fisso del 12 ott non
+    # mostrava nessun blocco cambiato
     ("ligji_diskriminimi", "discriminazione",
      re.compile(r"diskrimin|barazi|pabarabart|komisioner\w*\s+(?:për|per)\s+mbrojtjen|\bkmd\b|racor|racial|gjinor|orientim\w*\s+seksual|"
-                r"aftësi\w*\s+(?:të|te)\s+kufizuar|aftesi\w*\s+te\s+kufizuar|\brom[eë]?\b|egjiptian|fetar", re.I)),
+                r"aftësi\w*\s+(?:të|te)\s+kufizuar|aftesi\w*\s+te\s+kufizuar|\brom[eë]?\b|egjiptian|fetar|shtatzën|shtatzan", re.I)),
     ("ligji_avokatia", "avvocatura",
      re.compile(r"avokat|dhom\w*\s+(?:e|së)\s+avokatis|honorar|licenc\w*\s+(?:e|së)\s+ushtrimit", re.I)),
     ("ligji_noteri", "legge notarile",

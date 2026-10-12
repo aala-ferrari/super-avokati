@@ -11628,6 +11628,87 @@ def main():
     except Exception as _e401:  # noqa: BLE001
         check("cli[401]: kontrollet u ekzekutuan", False, f"{type(_e401).__name__}: {_e401}")
 
+    # [402] v9.627 — la lavoratrice incinta col contratto a termine NON RINNOVATO (la domanda vera dell'11 ott): le ancore della
+    # gravidanza scattano anche senza «pushu/hoqën», in coda il reddito di maternità (ligji 7703/1993 art. 27) e il tribunale delle
+    # cause di lavoro (KPC 47) anche con «çfarë bëjmë»; mai nel penale, mai l'infortunio col KPC 47, mai fuori dal lavoro
+    try:
+        from src import brain as _br402
+        from src.retrieval import ArticleIndex as _AI402
+        _br402.set_request_jurisdiction("AL")
+        _al402 = _AI402.load()
+        _k402 = lambda q, aree: {(a.code, str(a.number)) for a, _ in _br402._applica_ancore([], _al402, ["pyetje", q], aree)}
+        _cc402 = _k402("Klientja punon prej 4 vitesh në një call center me kontrata 1-vjeçare që ripërtërihen çdo vit. Pasi njoftoi se "
+                       "është shtatzënë, punëdhënësi i tha se kontrata nuk do t'i ripërtërihet. Çfarë të drejtash ka dhe çfarë bëjmë?",
+                       ["Punë", "Civil"])
+        _ok402a = {("kodi_punes", "151"), ("kodi_punes", "105/a"), ("kodi_punes", "146"), ("ligji_diskriminimi", "12"),
+                   ("ligji_diskriminimi", "36"), ("ligji_sigurimet_shoqerore", "27"), ("kodi_proc_civile", "47")} <= _cc402
+        _ok402b = (("ligji_sigurimet_shoqerore", "27") in _k402("Klientja është shtatzënë në muajin e pestë. Sa leje lindjeje i takon "
+                                                               "dhe kush e paguan?", ["Punë", "Civil"])
+                   and ("ligji_sigurimet_shoqerore", "27") not in _k402("Ish-burri e kërcënoi klienten shtatzënë në vendin e punës.",
+                                                                       ["Penal"]))
+        _ok402c = (("kodi_proc_civile", "47") not in _k402("Klienti u lëndua në punë dhe punëdhënësi nuk i paguan pagën. Çfarë bëjmë?",
+                                                          ["Punë"])
+                   and ("kodi_proc_civile", "47") not in _k402("Fqinji ndërtoi murin brenda tokës së klientit. Çfarë bëjmë?", ["Civil"])
+                   and ("ligji_diskriminimi", "12") not in _k402("Klientja është shtatzënë dhe pronari nuk ia ripërtërin kontratën e "
+                                                                 "qirasë. Çfarë bëjmë?", ["Civil"]))
+        # … e la legge 10221/2010 RESTA dopo il filtro dei codici condizionati quando la domanda parla di gravidanza (prima la coda
+        # della v9.626 entrava e il filtro la toglieva subito: nessun blocco cambiato sul banco)
+        _d402 = [(a, 1.0) for a in _al402.articles if a.code == "ligji_diskriminimi" and str(a.number) in ("12", "36")]
+        _ok402e = (len(_d402) == 2
+                   and len(_br402._senza_codici_condizionati_al(_d402, "Klientja i tha punëdhënësit se është shtatzënë dhe pas një "
+                                                                      "jave e hoqën nga puna.")) == 2
+                   and _br402._senza_codici_condizionati_al(_d402, "Klientit i hoqën pikët e lejes së drejtimit.") == [])
+        # … e la PATENTE A PUNTI (KRr 120/1, rubrica «Lejedrejtimi me pike» senza la ë: [frek38] fuori dal blocco il 12 ott)
+        _ok402d = (("kodi_rrugor", "120/1") in _k402("Klientit i hoqën të gjitha pikët e lejes së drejtimit pas disa gjobave. Si e "
+                                                    "rifiton lejen e drejtimit?", ["Rrugor", "Administrativ"])
+                   and ("kodi_rrugor", "120/1") not in _k402("Klienti ngiste makinën pa leje drejtimi dhe u kap. Çfarë rrezikon?",
+                                                            ["Rrugor", "Penal"]))
+        # … e la PERQUISIZIONE senza decreto in flagranza (KPP 298 e 202): solo nel penale
+        _ok402g = ({("kodi_proc_penale", "298"), ("kodi_proc_penale", "202")} <= _k402(
+            "Klienti u kap me 50 gram kokainë në makinë. Policia e kontrolloi makinën pa urdhër të prokurorit dhe e arrestoi.", ["Penal"])
+            and ("kodi_proc_penale", "298") not in _k402("Inspektori bëri kontrollin pa urdhër në dyqanin e klientit dhe i vuri gjobë.",
+                                                        ["Administrativ"]))
+        # … e la CONVALIDA dell'arresto in flagranza (KPP 258 le 48 ore, 259 l'udienza; in coda 249 il ricorso e 144 il calcolo)
+        _fl402 = _k402("Policia e arrestoi klientin në flagrancë me 50 gram kokainë. Çfarë kërkojmë në seancën e vleftësimit?", ["Penal"])
+        _ok402h = ({("kodi_proc_penale", "258"), ("kodi_proc_penale", "259"), ("kodi_proc_penale", "249"),
+                    ("kodi_proc_penale", "144")} <= _fl402
+                   and ("kodi_proc_penale", "258") not in _k402("Klienti u arrestua në Itali për një vepër të vjetër.", ["Penal"]))
+        check("shtatzena[402]: contratto non rinnovato alla lavoratrice incinta (KP 105/a e 146, 10221 artt. 12 e 36), reddito di "
+              "maternità 7703 art. 27, KPC 47 anche con «çfarë bëjmë»; mai nel penale né fuori dal lavoro; patente a punti KRr 120/1; "
+              "perquisizione senza decreto KPP 298/202; convalida dell'arresto KPP 258/259 (+ 249, 144)",
+              _ok402a and _ok402b and _ok402c and _ok402d and _ok402e and _ok402g and _ok402h,
+              f"{_ok402a} {_ok402b} {_ok402c} {_ok402d} {_ok402e} {_ok402g} {_ok402h} {sorted(_cc402)}")
+    except Exception as _e402:  # noqa: BLE001
+        check("shtatzena[402]: kontrollet u ekzekutuan", False, f"{type(_e402).__name__}: {_e402}")
+
+    # [403] v9.627 — il renderer del client rende le TABELLE e le CITAZIONI markdown e gli ESCAPE («\_\_\_» dei campi da riempire):
+    # prima in ogni risposta e strumento PRO uscivano «|», «>» e barre a vista (Chrome, 12 ott: misura cautelare con 49 righe di
+    # tabella e 43 citazioni grezze). Eseguito con node (c'è nell'immagine: il CLI del cervello è un programma node)
+    try:
+        import json as _j403, shutil as _sh403, subprocess as _sp403
+        _js403 = __import__("pathlib").Path("/app/static/app.js").read_text(encoding="utf-8")
+        _css403 = __import__("pathlib").Path("/app/static/style.css").read_text(encoding="utf-8")
+        _i0 = _js403.index("  function renderMarkdown(md) {")
+        _b403 = _js403[_i0:_js403.index("  // ═══ CALENDAR (V7.10)", _i0)]
+        _ok403s = ("function _tabellaHtml(rows)" in _b403 and 'class="md-quote"' in _b403 and ".md-table" in _css403
+                   and _b403.index("const esc = [];") < _b403.index("<strong>$1</strong>"))
+        _node403 = _sh403.which("node")
+        if _node403:
+            _prova = (_b403 + "\nconsole.log(renderMarkdown(" + _j403.dumps(
+                "> 🔎 **Verifikimi:** nene 3 | vendime 1\n\n| | |\n|---|---|\n| Procedimi nr. | \\_\\_\\_, viti 2026 |\n| Neni | 283 \\| 283/a |\n\n"
+                "| Trashëgimtar | Pjesa |\n|:---|---:|\n| Bashkëshortja | **1/3** |\n\nTekst <b>x</b> \\*yll\\*") + "));")
+            _o403 = _sp403.run([_node403, "-e", _prova], capture_output=True, text=True, timeout=30).stdout
+            _ok403n = ('<blockquote class="md-quote">🔎 <strong>Verifikimi:</strong>' in _o403 and _o403.count("<table") == 2
+                       and "<td>___, viti 2026</td>" in _o403 and "<td>283 | 283/a</td>" in _o403
+                       and "<thead><tr><th>Trashëgimtar</th>" in _o403 and "&lt;b&gt;x&lt;/b&gt;" in _o403 and "*yll*" in _o403
+                       and "|---|" not in _o403)
+        else:
+            _o403, _ok403n = "node assente", True
+        check("markdown[403]: tabelle, citazioni ed escape resi dal renderer del client (eseguito con node), testo HTML sempre "
+              "escapato", _ok403s and _ok403n, f"{_ok403s} {_ok403n} {_o403[:300]}")
+    except Exception as _e403:  # noqa: BLE001
+        check("markdown[403]: kontrollet u ekzekutuan", False, f"{type(_e403).__name__}: {_e403}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

@@ -8386,3 +8386,12 @@ details.analiza[open]>summary::before{content:"\25BE  "}
 @media (prefers-color-scheme: dark) { .case-item.archived .case-title { color: #8a8578; } }
 .csr-hit mark { background: #f5e6bf; color: inherit; padding: 0 1px; border-radius: 3px; }
 @media (prefers-color-scheme: dark) { .csr-hit mark { background: #5a4a26; } }
+
+/* v9.627 — le TABELLE e le CITAZIONI del markdown delle risposte (chat, strumenti PRO, Genio): prima testo grezzo con «|» e «>» */
+.md-tab { overflow-x: auto; margin: .6em 0; -webkit-overflow-scrolling: touch; }
+.md-table { border-collapse: collapse; font-size: .93em; min-width: 60%; }
+.md-table th, .md-table td { border: 1px solid #e3d9bf; padding: 5px 9px; vertical-align: top; text-align: left; }
+.md-table th { background: #f7efd9; font-weight: 600; }
+.md-table tr:nth-child(even) td { background: #fdfaf2; }
+.md-quote { margin: .6em 0; padding: .55em .9em; background: #fdf8ea; border-left: 3px solid var(--gold); border-radius: 0 7px 7px 0; }
+@media (max-width: 600px) { .md-table { font-size: .88em; } .md-table th, .md-table td { padding: 4px 6px; } }

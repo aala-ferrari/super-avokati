@@ -143,7 +143,17 @@ def draft_deed(backend, index, *, deed_type: str, details: str, clauses_text: st
     tpl = DEED_TYPES.get(deed_type)
     if tpl is None:
         raise ValueError("unknown deed_type")
-    art_block, arts = _art_block(backend, index, details + " " + tpl["label"], tpl["seed"])
+    seed, extra = tpl["seed"], 0
+    # v9.627 — la BOZZA della compravendita riceveva solo KC 750-751: l'audit AL del 12 ott scriveva che le norme del Codice civile
+    # «për garancinë e të metave dhe për evikcionin, afatet e regjistrimit pranë ASHK … normën e tatimit mbi fitimin kapital» erano da
+    # verificare fuori. → i semi dei documenti della compravendita (catasto 24, plusvalenza 17, comunione fra coniugi KF 76/77/90/94),
+    # la vendita (KC 705), i diritti dei terzi e l'evizione (719, 727), i vizi dell'immobile (756: cinque anni), le spese (708), la
+    # forma dell'atto notarile (noteria 101, 105). In AGGIUNTA ai 16 della ricerca; solo sul corpus albanese
+    if deed_type == "shitje_pasurie" and _expertise._lang_indice(index) == "sq":
+        _in_piu = _SEED_SHITJE_DOKUMENTE + [("kodi_civil", n) for n in ("705", "719", "727", "756", "708")] + _SEED_FORMA_AKTI[:2]
+        seed = list(dict.fromkeys(list(seed) + _in_piu))
+        extra = len(seed) - len(tpl["seed"])
+    art_block, arts = _art_block(backend, index, details + " " + tpl["label"], seed, extra=extra)
     system = (
         "Ti je NOTER shqiptar me përvojë, që harton akte notariale sipas së drejtës shqiptare "
         "(Ligji nr. 110/2018 'Për noterinë' dhe Kodi Civil). Harto aktin e kërkuar TË PLOTË, "
@@ -1438,7 +1448,18 @@ def aml_check(backend, index, *, situation: str, jurisdiction: str = "AL",
     law = "D.Lgs 231/2007" if juris == "IT" else "Ligji nr. 9917/2008"
     fiu = ("UIF — Unità di Informazione Finanziaria (Banca d'Italia)" if juris == "IT"
            else "AIF — Agjencia e Inteligjencës Financiare (ish-DPPPP)")
-    art_block, arts = _art_block(backend, index, (situation or "") + q, seed)
+    extra = 0
+    if juris != "IT":
+        # v9.627 — coi CONTANTI nei fatti il divieto di pagare in contanti oltre 100.000 lekë (ligji 9920/2008 neni 59) e la FORMA
+        # dell'atto notarile (identificazione delle parti 101, contenuto 105): l'audit AL del 12 ott (PEP straniero, 300.000 € in
+        # contanti, società alle Cayman) scriveva «Kufizimet ligjore për pagesat në para fizike … nuk janë në korpusin e dhënë» e
+        # «Kërkesat formale notariale (identifikimi i palëve, … ) nuk përfshihen»
+        _in_piu = list(_SEED_FORMA_AKTI[:2])
+        if _re_ck.search(r"para\s+(?:në|ne)\s+dorë|para\s+(?:në|ne)\s+dore|\bkesh\b|cash|para\s+fizike|kontant", situation or "", _re_ck.I):
+            _in_piu.insert(0, ("ligji_procedurat_tatimore", "59"))
+        seed = list(dict.fromkeys(list(seed) + _in_piu))
+        extra = len(_in_piu)
+    art_block, arts = _art_block(backend, index, (situation or "") + q, seed, extra=extra)
     system = (
         "Ti je specialist i pajtueshmërisë KUNDËR PASTRIMIT TË PARAVE që ndihmon profesionistin "
         "(noter/avokat/prokuror) — SUBJEKT RAPORTUES sipas " + law + " — të kryejë vigjilencën e "
