@@ -1,0 +1,30 @@
+{
+ "id": "al_qira_banese",
+ "giurisdizione": "AL",
+ "nome_file": "Kontrate qiraje apartamenti.txt",
+ "formato": "txt",
+ "domanda": "Rishiko këtë kontratë qiraje para se ta firmosë klientja ime (qiramarrësja). A ka klauzola të pavlefshme?",
+ "testo": "KONTRATË QIRAJE\n\nSot më ___.___.2026, në Tiranë, ndërmjet:\n1. Qiradhënësi: Z. Arben Prova, i lindur më ________, me nr. personal ____________, banues në Tiranë;\n2. Qiramarrësja: Znj. Elona Prova, me nr. personal ____________, banuese në Elbasan;\nu lidh kjo kontratë qiraje:\n\nNeni 1 – Objekti: Qiradhënësi i jep me qira qiramarrëses apartamentin në Tiranë, Rruga e Kavajës, pallati 12, ap. 5, me sipërfaqe ___ m2, nr. pasurie ________, për banim.\nNeni 2 – Qiraja: Qiraja është 400 euro në muaj, që paguhet në fillim të çdo muaji.\nNeni 3 – Afati: Kontrata është për një kohë të pacaktuar dhe qiramarrësja nuk mund të largohet para 50 vjetëve.\nNeni 4 – Depozita: Qiramarrësja paguan një depozitë prej 2 qirash që nuk kthehet në asnjë rast.\nNeni 5 – Riparimet: Të gjitha riparimet, edhe ato të mëdha të strukturës së ndërtesës, i bën qiramarrësja.\nNeni 6 – Qiradhënësi nuk mban asnjë përgjegjësi për të metat e banesës, edhe kur i ka ditur dhe i ka fshehur.\n\nQiradhënësi                    Qiramarrësja",
+ "norme_tutte": [
+  [
+   "kodi_civil",
+   "803"
+  ]
+ ],
+ "norme_una_di": [
+  [
+   "kodi_civil",
+   "807"
+  ],
+  [
+   "kodi_civil",
+   "802"
+  ]
+ ],
+ "parole": [
+  "pes[eë] vjet|5 vjet",
+  "depozit",
+  "riparim"
+ ],
+ "nota": "durata contraddittoria e oltre il massimo di 5 anni per le abitazioni (KC 803/2), esonero dalla responsabilità per vizi nascosti in malafede (KC 807), riparazioni strutturali al conduttore (KC 802), deposito mai restituito, campi vuoti"
+}

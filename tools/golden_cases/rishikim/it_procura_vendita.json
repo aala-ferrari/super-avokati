@@ -1,0 +1,38 @@
+{
+ "id": "it_procura_vendita",
+ "giurisdizione": "IT",
+ "nome_file": "Procura speciale vendita.docx",
+ "formato": "docx",
+ "domanda": "Controlla questa procura: va bene per vendere l'appartamento del mio cliente davanti al notaio?",
+ "testo": "PROCURA SPECIALE\n\nIo sottoscritto Mario Prova, nato a Bari il ___________, codice fiscale ________________, residente a Milano, via Roma 10,\n\nNOMINO\n\nmio procuratore speciale il sig. Luca Prova, nato a Bari il 03/05/1985, affinché in mio nome e per mio conto venda l'appartamento sito in Milano, via Verdi 5, piano 2, al prezzo che riterrà più opportuno, anche a sé stesso o a società da lui amministrate, incassi il prezzo e ne rilasci quietanza, e compia tutto quanto necessario davanti al notaio.\n\nLa presente procura è valida fino a revoca.\n\nMilano, 10 marzo 2024\n\nFirma: Mario Prova",
+ "norme_tutte": [
+  [
+   "codice_civile",
+   "1392"
+  ],
+  [
+   "codice_civile",
+   "1395"
+  ]
+ ],
+ "norme_una_di": [
+  [
+   "codice_civile",
+   "2657"
+  ],
+  [
+   "codice_civile",
+   "1350"
+  ],
+  [
+   "codice_civile",
+   "1394"
+  ]
+ ],
+ "parole": [
+  "autentic",
+  "s[ée] stess|1395",
+  "catast|foglio|particella|subaltern"
+ ],
+ "nota": "scrittura privata non autenticata (il notaio non la accetta: 1392 + 1350, 2657), vendita anche a sé stesso a prezzo libero (1395), mancano data di nascita, codice fiscale, dati catastali"
+}

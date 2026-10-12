@@ -1,0 +1,42 @@
+{
+ "id": "it_locazione_abitativa",
+ "giurisdizione": "IT",
+ "nome_file": "Contratto locazione Torino.txt",
+ "formato": "txt",
+ "domanda": "Rivedi questo contratto di locazione prima che la mia cliente (conduttrice) lo firmi: ci sono clausole nulle?",
+ "testo": "CONTRATTO DI LOCAZIONE AD USO ABITATIVO\n\nTra il sig. Paolo Prova (locatore), C.F. ________________, e la sig.ra Giulia Prova (conduttrice), C.F. ________________,\nsi conviene:\n1. Il locatore concede in locazione l'appartamento in Torino, corso Francia 20, int. 4, ad uso abitazione della conduttrice.\n2. Durata: due anni, senza rinnovo, dal 1° ottobre 2026.\n3. Canone: 700 euro mensili; le parti convengono inoltre un importo ulteriore di 200 euro mensili da versare in contanti e non indicato nel contratto registrato.\n4. Deposito cauzionale: sei mensilità, non produttive di interessi.\n5. Le spese di registrazione sono interamente a carico della conduttrice.\n6. In caso di ritardo nel pagamento anche di un solo giorno il contratto si intende risolto.\n\nLetto, confermato e sottoscritto.\nTorino, ___________",
+ "norme_tutte": [
+  [
+   "locazioni_abitative",
+   "2"
+  ],
+  [
+   "locazioni_abitative",
+   "13"
+  ]
+ ],
+ "norme_una_di": [
+  [
+   "locazioni_immobili_urbani",
+   "11"
+  ],
+  [
+   "locazioni_immobili_urbani",
+   "8"
+  ],
+  [
+   "locazioni_immobili_urbani",
+   "5"
+  ],
+  [
+   "codice_civile",
+   "1456"
+  ]
+ ],
+ "parole": [
+  "4\\s*\\+\\s*4|quattro anni|3\\s*\\+\\s*2|tre anni",
+  "null[oaei]|nullità",
+  "tre mensilità|3 mensilità|tre mesi"
+ ],
+ "nota": "due anni senza rinnovo (art. 2 L. 431/1998: 4+4 o 3+2), canone in nero nullo (art. 13), deposito oltre tre mensilità e senza interessi (art. 11 L. 392/1978), registrazione tutta alla conduttrice (art. 8), risoluzione per un giorno di ritardo (art. 5: venti giorni)"
+}

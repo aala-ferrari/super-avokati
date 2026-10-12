@@ -1,0 +1,34 @@
+{
+ "id": "al_autorizim_shpk",
+ "giurisdizione": "AL",
+ "nome_file": "Autorizim makina e shoqerise.docx",
+ "formato": "docx",
+ "domanda": "A është në rregull ky autorizim për ta përdorur makinën e shoqërisë në Itali? Rishikoje.",
+ "testo": "AUTORIZIM\n\nShoqëria “PROVA AUTO” Sh.p.k., me NUIS ____________, me seli në Durrës, Lagjja 4, Rruga Tregtare, përfaqësuar nga administratori i saj Z. Gentian Prova,\n\nAUTORIZON\n\nZ. Gentian Prova, lindur më 12.03.1980 në Durrës, me nr. personal ____________, që të drejtojë dhe të përdorë automjetin tip Volkswagen Tiguan, me targa AB 123 CD, pronë e shoqërisë, brenda dhe jashtë territorit të Republikës së Shqipërisë, në vendet e Bashkimit Europian, për periudhën 01.01.2025 – 31.12.2025.\n\nI autorizuari ka të drejtë të kalojë kufirin, të paraqesë automjetin para autoriteteve doganore dhe policore, dhe të kryejë çdo veprim të nevojshëm për përdorimin e automjetit.\n\nKy autorizim lëshohet në bazë të nenit 178 të Kodit Rrugor.\n\nDurrës, më 15.01.2025\n\nPër shoqërinë\nAdministratori\nGentian Prova\n(nënshkrimi)",
+ "norme_tutte": [
+  [
+   "kodi_civil",
+   "67"
+  ],
+  [
+   "kodi_civil",
+   "72"
+  ]
+ ],
+ "norme_una_di": [
+  [
+   "ligji_shoqerite_tregtare",
+   "13"
+  ],
+  [
+   "ligji_sigurimi_mjeteve",
+   "16"
+  ]
+ ],
+ "parole": [
+  "NUIS|NIPT",
+  "vul[aoë]",
+  "178[\\s\\S]{0,500}(kursant|kandidat|autoshkoll|shkoll[eë]s? s[eë] drejtimit|nuk [eë]sht[eë] baz|nuk lidhet|nuk i p[eë]rket)"
+ ],
+ "nota": "l'amministratore autorizza sé stesso (KC 67, 9901 art. 13), senza vulë (KC 72), NUIS e nr. personal vuoti, periodo 2025 scaduto, base sbagliata KRr 178 (è l'autorizzazione del candidato dell'autoscuola)"
+}
