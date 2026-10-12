@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """Smoke test: call every tool fn with a STUBBED brain (no LLM wait) to catch
 logic/parsing/signature bugs fast and deterministically."""
-import sys, traceback
+import os, sys, traceback
+# v9.632 — i casi negativi voluti di queste prove (limiti finti del modello, indici finti, archivio irraggiungibile)
+# scrivevano avvisi FALSI nel log vero di produzione a ogni rilascio («--- produzione» gira dentro il container vivo,
+# che monta logs/): vanno in un file loro, e il log dell'app resta quello degli avvocati
+os.environ.setdefault("LOG_PATH", "/app/logs/qa.log")
 sys.path.insert(0, "/app")
 from src.web import _ensure_loaded  # noqa: E402
 _ensure_loaded()

@@ -21,6 +21,9 @@ import os
 import re
 import sys
 
+# v9.632 — le prove non scrivono nel log vero dell'app (vedi tools/golden_check.py)
+os.environ.setdefault("LOG_PATH", "/app/logs/qa.log")
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, "src")
 GREEN, RED, RESET = "\033[32m", "\033[31m", "\033[0m"

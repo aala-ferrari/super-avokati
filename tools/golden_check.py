@@ -9,8 +9,13 @@ retrieval stem bugs. Run after every build:
 
 Exit code 0 = all green; 1 = at least one regression. Extend GOLDENS freely.
 """
+import os
 import re
 import sys
+# v9.632 — i casi negativi voluti di queste prove (limiti finti del modello, indici finti, archivio irraggiungibile)
+# scrivevano avvisi FALSI nel log vero di produzione a ogni rilascio («--- produzione» gira dentro il container vivo,
+# che monta logs/): vanno in un file loro, e il log dell'app resta quello degli avvocati
+os.environ.setdefault("LOG_PATH", "/app/logs/qa.log")
 sys.path.insert(0, "/app")
 
 from src.retrieval import ArticleIndex           # noqa: E402
