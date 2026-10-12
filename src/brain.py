@@ -6812,7 +6812,7 @@ class SuperAvvocato:
     def _ankoro_rishikimin(self, retrieved, ancore):
         """v9.633 — le norme della REVISIONE dal contenuto del documento (forma della procura della persona giuridica, il
         rappresentante che agisce con sé stesso, l'assicurazione obbligatoria fuori dal territorio, l'autentica della firma):
-        copie marcate e dichiarate, dopo i nene chiesti per numero e prima del resto; mai un articolo abrogato. Max 5.
+        copie marcate e dichiarate, dopo i nene chiesti per numero e prima del resto; mai un articolo abrogato. Max 6.
         Fail-silent: senza indice o senza ancore il recupero resta com'è."""
         if not ancore:
             return retrieved
@@ -6825,7 +6825,7 @@ class SuperAvvocato:
             out = list(retrieved or [])
             top = max([float(sc) for _, sc in out] or [1.0]) + 0.005
             testa = []
-            for code, num, perche in ancore[:5]:
+            for code, num, perche in ancore[:6]:
                 k = (code, str(num))
                 a = by_key.get(k)
                 if a is None or getattr(a, "repealed", False) or any((x.code, str(x.number)) == k for x, _ in testa):
@@ -9476,6 +9476,14 @@ def _ancore_rishikimi(text: str, lang: str) -> list[tuple[str, str, str]]:
         out.append(("kodi_civil", "67", "përfaqësuesi që vepron në emër të të përfaqësuarit me veten"))
     if nome:
         out.append(("ligji_shoqerite_tregtare", "13", "konflikti i interesit: miratimi paraprak i ortakëve"))
+    # v9.635 — l'AMMINISTRATORE che firma per la società: la norma della sua rappresentanza (il Giudice della misura della revisione,
+    # 12 ott: «norma e posaçme për administratorin e SHPK nuk u gjet në materialet që kam») — SHPK art. 96, SHA art. 158
+    if re.search(r"administrator", fol):
+        if re.search(r"sh\.?\s?p\.?\s?k|\bshpk\b|me pergjegjesi te kufizuar", fol):
+            out.append(("ligji_shoqerite_tregtare", "96", "përfaqësimi i SHPK nga administratorët: kufizimet e tagrave i "
+                                                          "kundrejtohen të tretëve sipas nenit 12"))
+        elif re.search(r"\bsh\.\s?a\b|shoqeri aksionare", fol):
+            out.append(("ligji_shoqerite_tregtare", "158", "administratorët e shoqërisë aksionare"))
     if re.search(r"automjet|autovetur|\btarg|shasi|\bmjet\w*\b", fol) and re.search(
             r"jashte (?:shtetit|territorit|vendit|shqiperise)|brenda dhe jashte|outside the territory|\babroad\b", fol):
         out.append(("ligji_sigurimi_mjeteve", "16", "sigurimi i detyrueshëm: vlefshmëria territoriale (kartoni jeshil)"))

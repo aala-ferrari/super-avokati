@@ -12439,9 +12439,19 @@ r.senzaDoc = [clic(), status.textContent];
         _okC = ({("kodi_civil", "72"), ("kodi_civil", "83")} <= _aal and ("kodi_civil", "67") not in _aal
                 and all(_cv_esiste(idx, c, n) for c, n in _aal))
         _okD = not _br423._ancore_rishikimi("Kontratë qiraje për banesën në Tiranë, qiraja 400 euro.", "sq")
+        # l'amministratore che firma per la società: la norma della sua rappresentanza (SHPK art. 96, SHA art. 158), mai per un privato
+        _shpk423 = {(c, n) for c, n, _p in _br423._ancore_rishikimi(_fr423[3][0], "sq")}
+        _sha423 = {(c, n) for c, n, _p in _br423._ancore_rishikimi(
+            "Shoqëria Alfa sh.a., përfaqësuar nga administratori Z. Arben Prova, autorizon Z. Ilir Prova të nënshkruajë kontratën.", "sq")}
+        _okE = (("ligji_shoqerite_tregtare", "96") in _shpk423 and ("kodi_civil", "67") in _shpk423
+                and ("ligji_shoqerite_tregtare", "158") in _sha423 and ("ligji_shoqerite_tregtare", "96") not in _sha423
+                and not any(c == "ligji_shoqerite_tregtare" for c, _n in _aal)
+                and all(_cv_esiste(idx, c, n) for c, n in _shpk423 | _sha423))
         check("rishikim[423]: le norme della revisione dal contenuto — «administratori i saj, z. …», la procura del privato per un "
-              "immobile (1392/1350/2657, KC 72/83), «anche a sé stesso» (1395/1394), trappole fuori",
-              _okA and _okB and _okC and _okD, f"rappr={_okA} it={sorted(_ait)} al={sorted(_aal)} affitto={_okD}")
+              "immobile (1392/1350/2657, KC 72/83), «anche a sé stesso» (1395/1394), l'amministratore della SHPK/SHA (9901 artt. "
+              "96/158), trappole fuori",
+              _okA and _okB and _okC and _okD and _okE,
+              f"rappr={_okA} it={sorted(_ait)} al={sorted(_aal)} affitto={_okD} shpk={sorted(_shpk423)} sha={sorted(_sha423)}")
     except Exception as _e423:  # noqa: BLE001
         check("rishikim[423]: kontrollet u ekzekutuan", False, f"{type(_e423).__name__}: {_e423}")
 
