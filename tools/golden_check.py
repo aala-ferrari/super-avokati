@@ -13011,6 +13011,45 @@ const F = new Function("localStorage", "document", "fetch", "renderMarkdown", "_
     except Exception as _e432:  # noqa: BLE001
         check("redattori[432]: kontrollet u ekzekutuan", False, f"{type(_e432).__name__}: {_e432}")
 
+    # [433] v9.637 — LA PROCURA PER UNA SOCIETÀ SCRITTA DA ZERO. Il titolare, 13 ott: «una procura per l'uso dell'auto della
+    # società: cosa uso?». Misurato: «Redakto prokurë» riceveva gli artt. 14-16 della legge sulla Procura della Repubblica, uno
+    # doganale e uno fiscale, e non le norme del caso — l'amministratore che firma per la SHPK (9901/2008 art. 96), l'auto fuori
+    # dal Paese (32/2021 art. 16), l'amministratore che autorizza sé stesso (KC 67, art. 13): entravano solo rivedendo un documento.
+    try:
+        from src import notary as _nt433
+        class _FB433:
+            def __init__(self): self.ultimo = ""
+            def complete(self, system=None, messages=None, **kw):
+                self.ultimo = (messages or [{}])[-1].get("content", ""); return "ok"
+        _fb433 = _FB433()
+        _sh433 = ("Shoqëria «PROVA» SHPK, NIPT M00000000X, përfaqësuar nga administratori z. Arben Prova, autorizon "
+                  "z. Gent Shembulli të përdorë automjetin e shoqërisë, targa AA000AA.")
+        _r1 = _nt433.draft_prokura(_fb433, idx, form="e_posacme", scope_keys=["perdorim_automjeti", "dalje_automjeti_jashte"],
+                                   details=_sh433)
+        _a1 = {(a["code"], str(a["number"])) for a in _r1.get("articles", [])}
+        _ok1 = (("ligji_shoqerite_tregtare", "96") in _a1 and ("kodi_civil", "72") in _a1
+                and ("ligji_sigurimi_mjeteve", "16") in _a1 and not any(c == "ligji_prokuroria" for c, _n in _a1))
+        _vete = ("Shoqëria «PROVA» SHPK, NIPT M00000000X, përfaqësuar nga administratori z. Arben Prova, autorizon "
+                 "z. Arben Prova të drejtojë automjetin e shoqërisë.")
+        _r2 = _nt433.draft_prokura(_fb433, idx, form="e_posacme", scope_keys=["perdorim_automjeti"], details=_vete)
+        _a2 = {(a["code"], str(a["number"])) for a in _r2.get("articles", [])}
+        _ok2 = ("kodi_civil", "67") in _a2 and ("ligji_shoqerite_tregtare", "13") in _a2
+        # un privato, l'auto in Albania: nessuna norma della società né dell'estero dal contenuto
+        _p433 = _nt433._semi_esistente("prokurë " + _nt433.PROKURA_SCOPES["perdorim_automjeti"]["label"]
+                                       + "\nZ. Arben Prova, ID A0000000, autorizon z. Gent Shembulli të përdorë automjetin e tij.", False)
+        _ok3 = not any(x in _p433 for x in (("ligji_shoqerite_tregtare", "96"), ("ligji_sigurimi_mjeteve", "16"),
+                                            ("kodi_civil", "67"), ("ligji_shoqerite_tregtare", "13")))
+        # il filtro da solo: fuori senza motivo, dentro col motivo, i semi sempre
+        _f433 = _nt433._senza_fuori_tema([("ligji_prokuroria", "14", "x"), ("kodi_civil", "64", "y")], "prokurë për automjetin", [], idx)
+        _g433 = _nt433._senza_fuori_tema([("ligji_prokuroria", "14", "x")], "ankim ndaj kryeprokurorit", [], idx)
+        _h433 = _nt433._senza_fuori_tema([("ligji_prokuroria", "14", "x")], "prokurë", [("ligji_prokuroria", "14")], idx)
+        _ok4 = [a[0] for a in _f433] == ["kodi_civil"] and len(_g433) == 1 and len(_h433) == 1
+        check("noter[433]: la procura per una società scritta da zero riceve le norme della società e dell'auto, senza la legge "
+              "sulla Procura della Repubblica", _ok1 and _ok2 and _ok3 and _ok4,
+              f"shpk={_ok1} vete={_ok2} privato={_ok3} filtro={_ok4} | {sorted(_a1)[:16]}")
+    except Exception as _e433:  # noqa: BLE001
+        check("noter[433]: kontrollet u ekzekutuan", False, f"{type(_e433).__name__}: {_e433}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

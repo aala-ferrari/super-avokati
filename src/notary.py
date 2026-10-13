@@ -102,8 +102,37 @@ def list_deed_types() -> list[dict]:
              "must": DEED_TYPES[k]["must"]} for k in _ORDER]
 
 
+# v9.637 — le leggi che con un atto del notaio non c'entrano, se i dati non ne parlano (gli stessi motivi della chat:
+# brain._CODICI_CONDIZIONATI_AL). Misurato il 13 ott sulla procura d'uso dell'auto di una SHPK: arrivavano gli artt. 14-16
+# della legge sulla PROCURA DELLA REPUBBLICA (la ricerca prende «prokurë» per «prokurori»). Solo queste leggi: la legge
+# notarile, l'antiriciclaggio, le ONG, l'estero e la PA restano, in un atto del notaio servono anche senza la parola. I semi
+# restano sempre.
+_NOTER_FUORI = frozenset({"ligji_prokuroria", "ligji_mediat_audiovizive", "ligji_te_denuarit", "ligji_rivleresimi",
+                          "ligji_personat_juridike", "ligji_kundervajtjet", "ligji_lendet_narkotike",
+                          "ligji_kanabisi_mjekesor", "ligji_prokurimi_publik", "ligji_diskriminimi",
+                          "ligji_dhuna_familje_2026"})
+
+
+def _senza_fuori_tema(arts, text, seed, index):
+    if _expertise._lang_indice(index) != "sq":
+        return arts
+    try:
+        from .brain import _CODICI_CONDIZIONATI_AL
+    except Exception:  # noqa: BLE001
+        return arts
+    t = text or ""
+    via = {c for c, _nome, innesco in _CODICI_CONDIZIONATI_AL if c in _NOTER_FUORI and not innesco.search(t)}
+    semi = {(c, str(n)) for c, n in (seed or [])}
+    fuori = [a for a in arts if a[0] in via and (a[0], str(a[1])) not in semi]
+    if not fuori:
+        return arts
+    log.info("notaio: fuori tema (nessun motivo nei dati): %s", ", ".join(f"{a[0]} {a[1]}" for a in fuori[:8]))
+    return [a for a in arts if a not in fuori]
+
+
 def _art_block(backend, index, text, seed, extra: int = 0):
     arts = _expertise.retrieve_grounded(backend, index, text, seed_pairs=seed, max_arts=16 + max(0, int(extra or 0)))
+    arts = _senza_fuori_tema(arts, text, seed, index)
     # v9.399: il testo fino a 3.500 caratteri (prima 900: il KC 361 arrivava senza la quota del coniuge) e «art.» in IT
     return _expertise.blocco_articoli(arts, _expertise._lang_indice(index)), arts
 
@@ -200,7 +229,8 @@ def draft_deed(backend, index, *, deed_type: str, details: str, clauses_text: st
         seed = list(dict.fromkeys(list(seed) + _in_piu))
         extra = len(seed) - len(tpl["seed"])
     _it_d = _expertise._lang_indice(index) == "it"
-    _semi_e = [x for x in _semi_esistente(existing, _it_d) if x not in seed]
+    # v9.637 — anche dai DATI dell'atto scritto da zero (la società e il suo amministratore, chi agisce con sé stesso)
+    _semi_e = [x for x in _semi_esistente((details or "") + "\n" + (existing or ""), _it_d) if x not in seed]
     if _semi_e:
         seed = list(seed) + _semi_e
         extra += len(_semi_e)
@@ -722,7 +752,12 @@ def draft_prokura(backend, index, *, form: str, scope_keys=None, details: str = 
         # c.c.). Audit IT del 29 set: «l'art. 2657 c.c. non figura tra gli articoli forniti»
         if _RX_IMMOBILE_IT.search((details or "") + " " + " ".join(scope_keys)) or any("pasuri" in k for k in scope_keys):
             dedup += [("codice_civile", "1350"), ("codice_civile", "2657")]
-    _semi_e = [x for x in _semi_esistente(existing, _it) if x not in dedup]
+    # v9.637 — le norme dal CONTENUTO anche per la procura scritta da zero (prima solo in revisione): la SHPK e il suo
+    # amministratore (9901/2008 art. 96), l'amministratore che autorizza sé stesso (KC 67, art. 13), l'auto fuori dal Paese
+    # (32/2021 art. 16). Il testo: «prokurë» (lo strumento è quello), le finalità scelte, i dati, il documento allegato
+    _testo_semi = (("procura " if _it else "prokurë ") + " ".join(PROKURA_SCOPES[k]["label"] for k in scope_keys)
+                   + "\n" + (details or "") + "\n" + (existing or ""))
+    _semi_e = [x for x in _semi_esistente(_testo_semi, _it) if x not in dedup]
     dedup = list(dedup) + _semi_e
     art_block, arts = _art_block(backend, index, (details or "") + " " + (existing or "")[:1500]
                                  + (" procura rappresentanza poteri" if _it else " prokurë përfaqësim tagra"), dedup,
@@ -826,7 +861,8 @@ def draft_declaration(backend, index, *, decl_type: str, details: str = "", max_
     if tpl is None:
         raise ValueError("unknown decl_type")
     _it_dc = _expertise._lang_indice(index) == "it"
-    _semi_dc = list(tpl["seed"]) + [x for x in _semi_esistente(existing, _it_dc) if x not in tpl["seed"]]
+    _semi_dc = list(tpl["seed"]) + [x for x in _semi_esistente((details or "") + "\n" + (existing or ""), _it_dc)
+                                    if x not in tpl["seed"]]   # v9.637: anche dai dati, non solo dal documento
     art_block, arts = _art_block(backend, index, details + " " + tpl["label"] + " " + (existing or "")[:1500], _semi_dc,
                                  extra=len(_semi_dc) - len(tpl["seed"]))
     system = (
