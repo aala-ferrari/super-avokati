@@ -1871,6 +1871,24 @@
     });
     return b;
   }
+  // v9.635 — il documento si COPIA e si STAMPA pulito: la cornice di citazione «> » (il modello a volte scrive l'atto come una
+  // citazione: nella prova della revisione del 13 ott ogni riga del documento finale cominciava con «>»), le barre del markdown
+  // («\_\_\_» della riga della firma) e, negli appunti, anche i segni di grassetto, corsivo e titolo
+  function _senzaCitazione(md) {
+    var testo = String(md || ""), righe = testo.split("\n");
+    var piene = righe.filter(function (r) { return r.trim(); });
+    var cit = piene.filter(function (r) { return /^\s*>/.test(r); }).length;
+    if (!piene.length || cit < 0.8 * piene.length) return testo;
+    return righe.map(function (r) { return r.replace(/^\s*>\s?/, ""); }).join("\n");
+  }
+  function _testoSemplice(md) {
+    return _senzaCitazione(md).split("\n").map(function (r) {
+      return r.replace(/^\s*#{1,6}\s+/, "")
+        .replace(/\*\*([^*\n]+?)\*\*/g, "$1").replace(/__([^_\n]+?)__/g, "$1")
+        .replace(/(^|[^\w*\\])\*(?!\s)([^*\n]+?)\*(?![\w*])/g, "$1$2")
+        .replace(/\\([\\`*_{}\[\]()#+\-.!|>~])/g, "$1");
+    }).join("\n");
+  }
   function _copiaNegliAppunti(b, testo, fatto, prima) {
     return navigator.clipboard.writeText(testo).then(function () {
       b.textContent = fatto; setTimeout(function () { b.textContent = prima; }, 2500);
@@ -1911,7 +1929,7 @@
       return _scaricaDocx(pulita, (titolo || "") + " — " + tLingua, (titolo || "") + " " + target);
     }));
     var cpt = _bottoneAtto(_CAL_IT ? "📋 Copia la traduzione" : "📋 Kopjo përkthimin", function (b) {
-      return _copiaNegliAppunti(b, pulita, _CAL_IT ? "✓ Copiata" : "✓ U kopjua", _CAL_IT ? "📋 Copia la traduzione" : "📋 Kopjo përkthimin");
+      return _copiaNegliAppunti(b, _testoSemplice(pulita), _CAL_IT ? "✓ Copiata" : "✓ U kopjua", _CAL_IT ? "📋 Copia la traduzione" : "📋 Kopjo përkthimin");
     });
     az.appendChild(cpt);
   }
@@ -1928,10 +1946,10 @@
       return _scaricaDocx(atto, titolo, titolo);
     }));
     riga.appendChild(_bottoneAtto(_CAL_IT ? "📄 Solo l'atto (PDF)" : "📄 Vetëm akti (PDF)", function () {
-      _printAsPdf(titolo, atto); return Promise.resolve();
+      _printAsPdf(titolo, _senzaCitazione(atto)); return Promise.resolve();
     }));
     riga.appendChild(_bottoneAtto(_CAL_IT ? "📋 Copia l'atto" : "📋 Kopjo aktin", function (b) {
-      return _copiaNegliAppunti(b, atto, _CAL_IT ? "✓ Atto copiato" : "✓ U kopjua", _CAL_IT ? "📋 Copia l'atto" : "📋 Kopjo aktin");
+      return _copiaNegliAppunti(b, _testoSemplice(atto), _CAL_IT ? "✓ Atto copiato" : "✓ U kopjua", _CAL_IT ? "📋 Copia l'atto" : "📋 Kopjo aktin");
     }));
     var tr = _bottoneAtto(_CAL_IT ? "🌐 Traduci l'atto" : "🌐 Përkthe aktin", function () {
       if (riga.querySelector(".atto-lingue")) return Promise.resolve();
@@ -2048,7 +2066,7 @@
       dfc.type = "button"; dfc.className = "dl-docx-btn copy-docfin-btn";
       dfc.textContent = _CAL_IT ? "📋 Copia il documento" : "📋 Kopjo dokumentin";
       dfc.addEventListener("click", function () {
-        navigator.clipboard.writeText(docFin).then(function () {
+        navigator.clipboard.writeText(_testoSemplice(docFin)).then(function () {
           dfc.textContent = _CAL_IT ? "✓ Documento copiato" : "✓ U kopjua";
           setTimeout(function () { dfc.textContent = _CAL_IT ? "📋 Copia il documento" : "📋 Kopjo dokumentin"; }, 2500);
         }).catch(function () { if (typeof toast === "function") toast(_CAL_IT ? "Copia non riuscita" : "Kopjimi dështoi", "err"); });

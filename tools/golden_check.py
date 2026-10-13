@@ -12899,6 +12899,48 @@ const F = new Function("localStorage", "document", "_traduciAtto", "_soloAtto", 
     except Exception as _e430:  # noqa: BLE001
         check("rishikim[430]: kontrollet u ekzekutuan", False, f"{type(_e430).__name__}: {_e430}")
 
+    # [431] v9.635 — IL DOCUMENTO SI ESPORTA, SI STAMPA E SI COPIA PULITO. Nella prova della revisione del 13 ott ogni riga del documento
+    # finale cominciava con «>» (il modello l'ha scritto come citazione) e la riga della firma era «\_\_\_»: in Word restavano il «>» in
+    # testa a ogni riga, le barre e i corsivi «*…*»; negli appunti anche i «**». Si ESEGUONO la pulizia del Word (server) e quelle della
+    # copia e della stampa (client, con node).
+    try:
+        import json as _j431, shutil as _sh431, subprocess as _sp431
+        from src import web as _w431
+        _md431 = ("> **AUTORIZIM PËR PËRDORIMIN**\n> Shoqëria “PROVA” sh.p.k., *e përfaqësuar* nga administratori\n>\n> 1. të "
+                  "drejtojë;\n> Nënshkrimi \\_\\_\\_\n> *(Opsionale:)* Akti\n* elenco\nLigji* senza chiusura e neni 12\\*")
+        _okA = _w431._md_per_docx(_md431) == ("AUTORIZIM PËR PËRDORIMIN\nShoqëria “PROVA” sh.p.k., e përfaqësuar nga administratori\n\n"
+                                             "1. të drejtojë;\nNënshkrimi ___\n(Opsionale:) Akti\n- elenco\nLigji* senza chiusura e neni 12*")
+        _a431 = open("/app/static/app.js", encoding="utf-8").read()
+        _node431 = _sh431.which("node")
+        if _node431:
+            _js431 = r"""const src = require("fs").readFileSync(process.argv[process.argv.length - 1], "utf8");
+const a = src.indexOf("  function _senzaCitazione(md) {"), b = src.indexOf("  function _copiaNegliAppunti(");
+const F = new Function(src.slice(a, b) + "; return { _senzaCitazione, _testoSemplice };")();
+const doc = "> **AUTORIZIM PËR PËRDORIMIN**\n> Shoqëria “PROVA” sh.p.k., *e përfaqësuar* nga administratori\n>\n> 1. të drejtojë;\n> Nënshkrimi \\_\\_\\_\\_\\_\\_\n> *(Opsionale:)* Akti";
+const misto = "Testo normale\n> una citazione di legge\naltro testo\nancora";
+const out = {
+  pdf: F._senzaCitazione(doc),
+  copia: F._testoSemplice(doc),
+  misto: F._senzaCitazione(misto) === misto,
+  titoli: F._testoSemplice("### Titulli\n**I.** Neni 12* dhe neni 5\\*"),
+};
+console.log(JSON.stringify(out));
+"""
+            _o431 = _j431.loads(_sp431.run([_node431, "-e", _js431, "/app/static/app.js"], capture_output=True, text=True,
+                                           timeout=30).stdout or "{}")
+            _okB = (_o431.get("copia") == "AUTORIZIM PËR PËRDORIMIN\nShoqëria “PROVA” sh.p.k., e përfaqësuar nga administratori\n\n1. të "
+                                          "drejtojë;\nNënshkrimi ______\n(Opsionale:) Akti"
+                    and not _o431.get("pdf", ">").lstrip().startswith(">") and "**AUTORIZIM" in _o431.get("pdf", "")
+                    and _o431.get("misto") is True and _o431.get("titoli") == "Titulli\nI. Neni 12* dhe neni 5*")
+        else:
+            _o431, _okB = "node assente", True
+        _okC = ("_copiaNegliAppunti(b, _testoSemplice(atto)," in _a431 and "_copiaNegliAppunti(b, _testoSemplice(pulita)," in _a431
+                and "navigator.clipboard.writeText(_testoSemplice(docFin))" in _a431 and "_printAsPdf(titolo, _senzaCitazione(atto))" in _a431)
+        check("export[431]: il documento si esporta in Word, si stampa e si copia pulito (citazione, barre, corsivi, grassetto)",
+              _okA and _okB and _okC, f"word={_okA} client={_o431} wiring={_okC}")
+    except Exception as _e431:  # noqa: BLE001
+        check("export[431]: kontrollet u ekzekutuan", False, f"{type(_e431).__name__}: {_e431}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

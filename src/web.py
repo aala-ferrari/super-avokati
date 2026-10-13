@@ -9267,6 +9267,29 @@ def api_draft_act_docx(act_id: str):
     return send_file(buf, as_attachment=True, download_name=safe_name, mimetype=_DOCX_MIME)
 
 
+def _md_per_docx(md: str) -> str:
+    """Pulizia leggera del markdown perché il .docx si legga pulito (grassetto, codice, link, elenchi «* »). v9.635: anche la cornice di
+    citazione «> » (il documento finale della revisione scritto come citazione: in Word il «>» restava in testa a ogni riga), il corsivo
+    «*…*» e le barre del markdown («\\_\\_\\_» della riga della firma)."""
+    lines = []
+    for ln in (md or "").split("\n"):
+        t = ln.rstrip()
+        st = t.lstrip()
+        if st.startswith(">"):
+            st = re.sub(r"^(?:>\s?)+", "", st)
+            t = st
+        # normalise "* bullet" -> "- bullet" (render_act_docx handles "- ")
+        if st.startswith("* ") and not st.startswith("**"):
+            t = t[: len(t) - len(st)] + "- " + st[2:]
+        t = re.sub(r"\*\*(.+?)\*\*", r"\1", t)   # bold
+        t = re.sub(r"(^|[^\w*\\])\*(?!\s)([^*\n]+?)\*(?![\w*])", r"\1\2", t)   # corsivo
+        t = re.sub(r"`([^`]+)`", r"\1", t)          # inline code
+        t = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r"\1 (\2)", t)  # links
+        t = re.sub(r"\\([\\`*_{}\[\]()#+\-.!|>~])", r"\1", t)   # le barre del markdown
+        lines.append(t)
+    return "\n".join(lines)
+
+
 @app.post("/api/export/docx")
 @login_required_api
 def api_export_docx():
@@ -9276,19 +9299,7 @@ def api_export_docx():
     title = (data.get("title") or _t_err("Dokument", "Documento")).strip()
     if len(md) < 5:
         return Response("empty", status=400)
-    # light inline-markdown cleanup so the .docx reads cleanly
-    lines = []
-    for ln in md.split("\n"):
-        t = ln.rstrip()
-        st = t.lstrip()
-        # normalise "* bullet" -> "- bullet" (render_act_docx handles "- ")
-        if st.startswith("* ") and not st.startswith("**"):
-            t = t[: len(t) - len(st)] + "- " + st[2:]
-        t = re.sub(r"\*\*(.+?)\*\*", r"\1", t)   # bold
-        t = re.sub(r"`([^`]+)`", r"\1", t)          # inline code
-        t = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r"\1 (\2)", t)  # links
-        lines.append(t)
-    draft = {"title": title, "body_markdown": "\n".join(lines)}
+    draft = {"title": title, "body_markdown": _md_per_docx(md)}
     safe = _nome_file_sicuro(title, _t_err("dokument", "documento"))
     try:
         buf = _docx_in_memoria(draft)
