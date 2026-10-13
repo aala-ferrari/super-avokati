@@ -308,7 +308,7 @@ Sorgente di verità: `/opt/super-avvocato.env`, letto da `config.py`.
   ausiliarie, triage, raccoglitori, OCR. Misurato sul banco dei modelli (6 casi difficili AL, percorso profondo, ricalcolati
   con `rescore_l2.py`): senior Opus 5 + junior Sonnet 5 (D0) **0,969 / 27 min**; senior Opus 5 + junior Sonnet 5.5 (D0S5)
   **1,000 / 18 min**; senior Opus 5.5 max + junior Sonnet 5 (D4) 0,982 / 50 min. Domande semplici: Sonnet 5.5 0,900 / 118 s
-  contro 0,908 / 225 s. Il senior resta Opus 5 max (Opus 5.5 + Sonnet 5.5 non ancora misurato insieme). Backup dell'env
+  contro 0,908 / 225 s. **Opus 5.5 + Sonnet 5.5 misurati insieme (12-13 ott, stessi 6 casi, stessa immagine v9.634)**: senior Opus 5.5 max (D5) **0,925 / 40 min**, 8,2 citazioni senza codice a caso; senior Opus 5.5 high (D6, chiesto dal titolare) **0,948 / 14 min**, 10,5 senza codice (31 nel caso del permesso di soggiorno) — contro D0S5 1,000 / 18 min, 2,7 senza codice. Opus 5.5 (high o max) scrive spesso «neni 144» senza il codice: il verificatore non lo conferma. **Il senior resta Opus 5 max**; Opus 5.5 high sarebbe il più veloce: da rimisurare se un giorno il prompt gli fa scrivere sempre il codice. Correzioni del Giudice ai pannelli: D5 e D6 21, D0S5 34 (su 6 casi: rumore possibile). Backup dell'env
   `/opt/super-avvocato.env.bak-20261012-174049-sonnet55`; un env nuovo vale solo dopo `run.sh` (o `RECREATE=1`);
 - **Fable**: `model_override="fable"` va dritto al CLI come `--model fable`.
   **Verificato chiedendo al modello il proprio identificativo: risponde
