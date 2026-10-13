@@ -1896,13 +1896,39 @@
   }
   // v9.635 — la traduzione dell'atto senza passare da «Përkthim»: lo stesso traduttore (glossario, rilettura del giurista della
   // lingua d'arrivo, avviso «traduzione di lavoro»), solo sull'atto PULITO; la richiesta è parcheggiata come gli strumenti PRO
-  async function _traduciAtto(box, atto, target, titolo) {
+  function _bloccoTraduzione(box, target) {
     var nomi = _CAL_IT ? { en: "Inglese", it: "Italiano", sq: "Albanese" } : { en: "Anglisht", it: "Italisht", sq: "Shqip" };
     var blocco = document.createElement("div"); blocco.className = "atto-traduzione";
     blocco.innerHTML = '<div class="atto-trad-head"></div><div class="atto-trad-status"></div><div class="fd-out"></div><div class="atto-trad-azioni"></div>';
     blocco.querySelector(".atto-trad-head").textContent = "🌐 " + (nomi[target] || target) + (_CAL_IT ? " — traduzione di lavoro" : " — përkthim pune");
-    var st = blocco.querySelector(".atto-trad-status"), out = blocco.querySelector(".fd-out"), az = blocco.querySelector(".atto-trad-azioni");
     box.appendChild(blocco);
+    return blocco;
+  }
+  function _riempiTraduzione(blocco, atto, target, titolo, markdown) {
+    var nomi = _CAL_IT ? { en: "Inglese", it: "Italiano", sq: "Albanese" } : { en: "Anglisht", it: "Italisht", sq: "Shqip" };
+    var out = blocco.querySelector(".fd-out"), az = blocco.querySelector(".atto-trad-azioni");
+    blocco.querySelector(".atto-trad-status").textContent = "";
+    out.innerHTML = renderMarkdown(markdown || "");
+    az.innerHTML = "";
+    var pulita = _pulisciTraduzione(markdown || "");
+    var tLingua = nomi[target] || target;
+    az.appendChild(_bottoneAtto(_CAL_IT ? "📄 Atto + traduzione (Word)" : "📄 Akti + përkthimi (Word)", function () {
+      return _scaricaDocx(atto + "\n\n---\n\n" + pulita, (titolo || "") + " — " + tLingua, (titolo || "") + " " + target);
+    }));
+    az.appendChild(_bottoneAtto(_CAL_IT ? "📄 Solo la traduzione (Word)" : "📄 Vetëm përkthimi (Word)", function () {
+      return _scaricaDocx(pulita, (titolo || "") + " — " + tLingua, (titolo || "") + " " + target);
+    }));
+    az.appendChild(_bottoneAtto(_CAL_IT ? "📋 Copia la traduzione" : "📋 Kopjo përkthimin", function (b) {
+      return _copiaNegliAppunti(b, _testoSemplice(pulita), _CAL_IT ? "✓ Copiata" : "✓ U kopjua", _CAL_IT ? "📋 Copia la traduzione" : "📋 Kopjo përkthimin");
+    }));
+  }
+  async function _traduciAtto(box, atto, target, titolo) {
+    var blocco = _bloccoTraduzione(box, target);
+    var st = blocco.querySelector(".atto-trad-status");
+    // v9.636 — la traduzione di un REDATTORE si salva col suo lavoro e torna riaprendo la finestra (prova in Chrome del 13 ott:
+    // tornava l'atto, la traduzione già fatta no); solo se nel frattempo non è partito un altro lavoro in quel redattore
+    var rid = box && box.dataset ? box.dataset.redId : "";
+    var rChiave = rid ? ((_redLeggi(rid) || {}).chiave || "") : "";
     st.textContent = _CAL_IT ? "Sto traducendo l'atto… (alcuni minuti)" : "Po e përkthej aktin… (disa minuta)";
     var chiave = _nuovaChiave(), d;
     _ricordaInSospeso(chiave, { saveTitle: (_CAL_IT ? "Traduzione — " : "Përkthim — ") + (titolo || "") });
@@ -1918,20 +1944,14 @@
       if (!d) { _dimenticaInSospeso(chiave); return; }
     }
     _dimenticaInSospeso(chiave);
-    st.textContent = "";
-    out.innerHTML = renderMarkdown(d.markdown || "");
-    var pulita = _pulisciTraduzione(d.markdown || "");
-    var tLingua = nomi[target] || target;
-    az.appendChild(_bottoneAtto(_CAL_IT ? "📄 Atto + traduzione (Word)" : "📄 Akti + përkthimi (Word)", function () {
-      return _scaricaDocx(atto + "\n\n---\n\n" + pulita, (titolo || "") + " — " + tLingua, (titolo || "") + " " + target);
-    }));
-    az.appendChild(_bottoneAtto(_CAL_IT ? "📄 Solo la traduzione (Word)" : "📄 Vetëm përkthimi (Word)", function () {
-      return _scaricaDocx(pulita, (titolo || "") + " — " + tLingua, (titolo || "") + " " + target);
-    }));
-    var cpt = _bottoneAtto(_CAL_IT ? "📋 Copia la traduzione" : "📋 Kopjo përkthimin", function (b) {
-      return _copiaNegliAppunti(b, _testoSemplice(pulita), _CAL_IT ? "✓ Copiata" : "✓ U kopjua", _CAL_IT ? "📋 Copia la traduzione" : "📋 Kopjo përkthimin");
-    });
-    az.appendChild(cpt);
+    _riempiTraduzione(blocco, atto, target, titolo, d.markdown || "");
+    if (rid && rChiave) {
+      var ora = _redLeggi(rid);
+      if (ora && ora.chiave === rChiave) {
+        var tr = Object.assign({}, ora.traduzioni || {}); tr[target] = d.markdown || "";
+        _redScrivi(rid, Object.assign({}, ora, { traduzioni: tr }));
+      }
+    }
   }
   // i pulsanti dell'atto pulito sotto un redattore: Word, PDF, appunti e la traduzione con la scelta della lingua
   function _aggiungiAzioniAtto(container, titleHint, md) {
@@ -15329,8 +15349,15 @@ function moduleChips(u) {
       };
       result.appendChild(copy);
     }
+    if (id) result.dataset.redId = id;
     _addSaveToCase(result, source, titolo, d.markdown || "", { atto: true });
-    if (id) _redTraduzioniAuto(id, result, d.markdown || "", titolo);
+    if (id) {
+      var stT = _redLeggi(id), attoT = _soloAtto(d.markdown || "");
+      Object.keys((stT && stT.traduzioni) || {}).forEach(function (lg) {
+        if (stT.traduzioni[lg]) _riempiTraduzione(_bloccoTraduzione(result, lg), attoT, lg, titolo, stT.traduzioni[lg]);
+      });
+      _redTraduzioniAuto(id, result, d.markdown || "", titolo);
+    }
   }
   // v9.635 — LE LINGUE SCELTE ALL'INIZIO (idea del titolare, 12 ott: «o magari scegliere già dall'inizio in quante lingue lo vuoi la
   // procura»): nei redattori del notaio «🌐 Traduci anche in: ☐ English ☐ Italiano/Shqip»; quando l'atto è pronto le traduzioni
@@ -15363,6 +15390,7 @@ function moduleChips(u) {
     (async function () {
       for (var i = 0; i < st.lingue.length; i++) {
         if (!document.body.contains(result)) return;
+        if (st.traduzioni && st.traduzioni[st.lingue[i]]) continue;
         try { await _traduciAtto(result, atto, st.lingue[i], titolo); } catch (e) {}
       }
     })();

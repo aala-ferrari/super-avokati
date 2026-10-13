@@ -12941,6 +12941,76 @@ console.log(JSON.stringify(out));
     except Exception as _e431:  # noqa: BLE001
         check("export[431]: kontrollet u ekzekutuan", False, f"{type(_e431).__name__}: {_e431}")
 
+    # [432] v9.636 — LA TRADUZIONE TORNA COL LAVORO DEL REDATTORE. Prova in Chrome del 13 ott (procura di prova con l'italiano scelto
+    # all'inizio): riaprendo la finestra tornava l'atto, la traduzione già fatta no. Ora si salva nello stato del redattore (solo se nel
+    # frattempo non è partito un altro lavoro) e torna coi suoi pulsanti senza chiamare il server. Si ESEGUE il codice vero con node.
+    try:
+        import json as _j432, shutil as _sh432, subprocess as _sp432
+        _node432 = _sh432.which("node")
+        if _node432:
+            _js432 = r"""const src = require("fs").readFileSync(process.argv[process.argv.length - 1], "utf8");
+function prendi(da, a) { const i = src.indexOf(da); const j = src.indexOf(a, i + 1); if (i < 0 || j < 0) throw new Error("manca " + da); return src.slice(i, j); }
+const codice = prendi("  function _pulisciAtto(t) {", "  async function _scaricaDocx(") +
+               prendi("  function _senzaCitazione(md) {", "  function _copiaNegliAppunti(") +
+               prendi("  function _bloccoTraduzione(box, target) {", "  // i pulsanti dell'atto pulito sotto un redattore") +
+               prendi("  var _RED_LS = \"sa_redattore_\";", "  var _RED_APRI = {");
+const LS = new Map();
+const localStorage = { getItem: (k) => (LS.has(k) ? LS.get(k) : null), setItem: (k, v) => LS.set(k, String(v)), removeItem: (k) => LS.delete(k) };
+function el(cls) {
+  const e = { className: cls || "", dataset: {}, children: [], _html: "", textContent: "",
+    appendChild(c) { this.children.push(c); return c; },
+    insertBefore(c) { this.children.unshift(c); return c; },
+    querySelector(sel) { const c = sel.replace(/^\./, ""); const giro = (n) => { for (const x of n.children) { if ((" " + x.className + " ").includes(" " + c + " ")) return x; const y = giro(x); if (y) return y; } return null; }; return giro(this); },
+    querySelectorAll(sel) { const c = sel.replace(/^\./, ""); const out = []; const giro = (n) => { for (const x of n.children) { if ((" " + x.className + " ").includes(" " + c + " ")) out.push(x); giro(x); } }; giro(this); return out; } };
+  Object.defineProperty(e, "innerHTML", { get() { return e._html; }, set(v) { e._html = v; e.children = []; String(v).replace(/<div class="([^"]+)"><\/div>/g, (m, k) => { e.children.push(el(k)); return m; }); } });
+  return e;
+}
+const corpo = new Set();
+const document = { body: { contains: (x) => corpo.has(x) }, createElement: () => el("") };
+let chiamate = 0;
+const fetch = async () => { chiamate++; return { ok: true, status: 200, json: async () => ({ markdown: "PROCURA SPECIALE\nTesto italiano." }) }; };
+const F = new Function("localStorage", "document", "fetch", "renderMarkdown", "_bottoneAtto", "_scaricaDocx", "_copiaNegliAppunti", "_nuovaChiave",
+  "_ricordaInSospeso", "_dimenticaInSospeso", "_ripescaRisposta", "TT", "_CAL_IT", "highlightNeni", "buildCitStatusMap", "renderCitationsBadge", "_addSaveToCase",
+  codice + "; return { _traduciAtto, _redattoreMostra, _redScrivi, _redLeggi };")(
+  localStorage, document, fetch, (m) => "<p>" + m + "</p>", (t) => { const b = el("atto-btn"); b.textContent = t; return b; }, async () => {}, async () => {},
+  () => "k-trad", () => {}, () => {}, async () => null, (x) => x, false, () => {}, () => ({}), () => el(""), () => {});
+(async () => {
+  const out = {};
+  const atto = "PROKURË E POSAÇME\nUnë, Arben Prova, autorizoj Av. Ilir Shembulli të më përfaqësojë në gjykatë.";
+  // 1) il redattore mostra il suo lavoro: il contenitore sa di quale redattore è
+  F._redScrivi("prokura", { chiave: "lav-1", stato: "pronto", lingue: [], d: { markdown: atto } });
+  const r1 = el("ac-result"); corpo.add(r1);
+  F._redattoreMostra(r1, { markdown: atto }, "notary", "Prokurë", true, "prokura");
+  out.contenitore = r1.dataset.redId;
+  // 2) traduzione chiesta dal pulsante: si salva nel lavoro del redattore
+  await F._traduciAtto(r1, atto, "it", "Prokurë");
+  out.salvata = (F._redLeggi("prokura").traduzioni || {}).it === "PROCURA SPECIALE\nTesto italiano.";
+  // 3) riapertura: la traduzione torna senza chiamare il server
+  const prima = chiamate;
+  const r2 = el("ac-result"); corpo.add(r2);
+  F._redattoreMostra(r2, { markdown: atto }, "notary", "Prokurë", true, "prokura");
+  const b = r2.querySelectorAll("atto-traduzione");
+  out.riaperta = [b.length, b.length ? b[0].querySelector("fd-out").innerHTML.includes("Testo italiano") : false,
+                  b.length ? b[0].querySelector("atto-trad-azioni").children.length : 0, chiamate === prima];
+  // 4) un lavoro NUOVO partito nel frattempo: la traduzione del vecchio non gli si attacca
+  F._redScrivi("akt", { chiave: "vecchio", stato: "pronto", lingue: [] });
+  const r3 = el("ac-result"); corpo.add(r3); r3.dataset.redId = "akt";
+  const p = F._traduciAtto(r3, atto, "en", "Akt");
+  F._redScrivi("akt", { chiave: "nuovo", stato: "in_corso", lingue: [] });
+  await p;
+  out.nuovo_pulito = !F._redLeggi("akt").traduzioni;
+  console.log(JSON.stringify(out));
+})();
+"""
+            _o432 = _j432.loads(_sp432.run([_node432, "-e", _js432, "/app/static/app.js"], capture_output=True, text=True,
+                                           timeout=30).stdout or "{}")
+            _ok432 = _o432 == {"contenitore": "prokura", "salvata": True, "riaperta": [1, True, 3, True], "nuovo_pulito": True}
+        else:
+            _o432, _ok432 = "node assente", True
+        check("redattori[432]: la traduzione si salva col lavoro del redattore e torna riaprendo la finestra", _ok432, f"{_o432}")
+    except Exception as _e432:  # noqa: BLE001
+        check("redattori[432]: kontrollet u ekzekutuan", False, f"{type(_e432).__name__}: {_e432}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
