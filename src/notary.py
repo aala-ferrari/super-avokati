@@ -729,11 +729,75 @@ _PROKURA_SYSTEM_IT = (
 )
 
 
+# v9.638 — l'autorizzazione all'USO DEL VEICOLO, breve come la fa il notaio (modello del titolare, 13 ott: una pagina — chi
+# firma, l'auto, il delegato, «sia in Italia che all'estero», la firma, l'autentica e la marca da bollo). Vale con la forma
+# speciale e SOLO le finalità dell'auto; senza un documento da rivedere (la revisione resta quella della v9.633).
+_SCOPE_AUTO = frozenset({"perdorim_automjeti", "dalje_automjeti_jashte"})
+
+
+def _prokura_breve(it: bool, scope_keys, details: str, duration: str, subdelegation: bool, art_block: str,
+                   clauses_text: str = "") -> tuple:
+    jashte = "dalje_automjeti_jashte" in (scope_keys or [])
+    if it:
+        system = (
+            "Sei un NOTAIO italiano. Redigi un'AUTORIZZAZIONE ALLA CIRCOLAZIONE (uso del veicolo) BREVE, come nella pratica "
+            "notarile: una pagina, nessuna clausola superflua, nessun articolo citato dentro l'atto. Solo queste parti, in "
+            "quest'ordine: 1) il titolo «AUTORIZZAZIONE ALLA CIRCOLAZIONE»; 2) «Il sottoscritto …»: l'identità completa di chi "
+            "firma (nome, luogo e data di nascita, residenza, codice fiscale, cittadinanza; per uno straniero il permesso di "
+            "soggiorno) e, se il veicolo è di una società, «in qualità di amministratore unico (o legale rappresentante) della "
+            "società …, con sede …, iscritta nel Registro delle Imprese di … con il C.F. …»; 3) «PROPRIETARIO DEL "
+            "SOTTODESCRITTO VEICOLO» (per la società: «PROPRIETARIA»): classe, marca e tipo, targa, telaio; 4) «DELEGA» la "
+            "persona autorizzata (nome, luogo e data di nascita, documento) «a fare uso del sopradescritto veicolo"
+            + (" sia in Italia che all'estero" if jashte else " in Italia") + "»; 5) durata e facoltà di sostituzione SOLO se "
+            "sono indicate nei dati; 6) luogo, data e firma (luogo e data [___] se non sono nei dati: mai la data di oggi); 7) "
+            "l'AUTENTICA DELLA FIRMA da parte del notaio, breve (attesta vera e autentica la firma di chi sottoscrive, con i "
+            "suoi dati e la qualità in cui firma; luogo e data in lettere, [___] se non sono nei dati; firma e "
+            "sigillo del notaio; lo spazio per la marca da bollo). NON aggiungere altri poteri (vendita, assicurazione, "
+            "revisione, pratiche) se i dati non li chiedono espressamente. Dove manca un dato, lascia [___]. Dopo l'atto "
+            "aggiungi '### ✅ Requisiti formali': da 3 a 6 punti di UNA riga ciascuno, SOLO quelli che valgono per questo caso, "
+            "ciascuno con l'articolo preso dagli ARTICOLI qui sotto (cita solo quelli). SOLO in italiano. " + _NOTARY_ID_IT)
+        prompt = ("DATI DEL NOTAIO:\n" + (details or "").strip()
+                  + (("\nDURATA: " + duration) if (duration or "").strip() else "")
+                  + ("\nSOSTITUZIONE: consentita" if subdelegation else "")
+                  + "\n\n─────\nARTICOLI DAL CORPUS (solo per i «Requisiti formali» — non citarli dentro l'atto):\n" + art_block
+                  + (("\n\n─────\nCLAUSOLE PREFERITE DELLO STUDIO (solo se adatte a un atto breve):\n" + clauses_text)
+                     if clauses_text else "")
+                  + "\n\nRedigi l'autorizzazione in markdown, breve.")
+    else:
+        system = (
+            "Ti je NOTER shqiptar. Harto një AUTORIZIM PËR PËRDORIMIN E AUTOMJETIT, TË SHKURTËR si në praktikën noteriale: "
+            "një faqe, pa klauzola të tepërta, pa nene të cituara brenda aktit. VETËM këto pjesë, me këtë rend: 1) titulli "
+            "«AUTORIZIM PËR PËRDORIMIN E AUTOMJETIT»; 2) «I nënshkruari …»: identiteti i plotë i atij që nënshkruan (emri, "
+            "vendlindja dhe datëlindja, vendbanimi, numri personal, shtetësia) dhe, nëse automjeti është i një shoqërie, «në "
+            "cilësinë e administratorit të shoqërisë …, me seli …, NIPT …»; 3) «PRONAR I AUTOMJETIT» (për shoqërinë: "
+            "«PRONARE E AUTOMJETIT»): kategoria, marka dhe tipi, targa, numri i shasisë (VIN); 4) «AUTORIZON» personin e "
+            "autorizuar (emri, vendlindja dhe datëlindja, dokumenti) «të përdorë dhe të drejtojë automjetin e mësipërm"
+            + (" brenda dhe jashtë territorit të Republikës së Shqipërisë" if jashte else
+               " brenda territorit të Republikës së Shqipërisë") + "»; 5) afati dhe nën-delegimi VETËM nëse jepen te të "
+            "dhënat; 6) vendi, data dhe nënshkrimi (vendi dhe data [___] nëse nuk jepen: kurrë data e sotme); 7) VËRTETIMI I "
+            "NËNSHKRIMIT nga noteri, i shkurtër (noteri vërteton nënshkrimin e atij që nënshkruan, me të dhënat e tij dhe "
+            "cilësinë në të cilën nënshkruan; vendi dhe data me fjalë, [___] nëse nuk jepen; "
+            "nënshkrimi dhe vula e noterit). MOS shto tagra të tjera (shitje, sigurim, kontroll teknik, përfaqësim në DPSHTRR) "
+            "nëse të dhënat nuk i kërkojnë shprehimisht. Ku mungon një e dhënë, lër [___]. Pas aktit shto '### ✅ Kërkesat "
+            "formale': nga 3 deri në 6 pika, secila NJË rresht, VETËM ato që vlejnë për këtë rast, secila me nenin nga NENET më "
+            "poshtë (cito vetëm ato). " + _NOTARY_ID)
+        prompt = ("TË DHËNAT NGA NOTERI:\n" + (details or "").strip()
+                  + (("\nAFATI: " + duration) if (duration or "").strip() else "")
+                  + ("\nNËN-DELEGIM: i lejuar" if subdelegation else "")
+                  + "\n\n─────\nNENET NGA KORPUSI (vetëm për «Kërkesat formale» — mos i cito brenda aktit):\n" + art_block
+                  + (("\n\n─────\nKLAUZOLAT E PREFERUARA TË STUDIOS (vetëm nëse i përshtaten një akti të shkurtër):\n"
+                      + clauses_text) if clauses_text else "")
+                  + "\n\nHarto autorizimin në markdown, të shkurtër.")
+    return system, prompt
+
+
 def draft_prokura(backend, index, *, form: str, scope_keys=None, details: str = "",
                   duration: str = "", subdelegation: bool = False, clauses_text: str = "",
                   max_tokens: int = 3200, existing: str = "") -> dict:
     form = form if form in PROKURA_FORMS else "e_posacme"
     scope_keys = [k for k in (scope_keys or []) if k in PROKURA_SCOPES]
+    _breve = (form == "e_posacme" and bool(scope_keys) and set(scope_keys) <= _SCOPE_AUTO
+              and not (existing or "").strip())   # v9.638: l'autorizzazione all'uso del veicolo, breve
     seed = list(_PROKURA_BASE)
     scope_lines = []
     for k in scope_keys:
@@ -759,6 +823,14 @@ def draft_prokura(backend, index, *, form: str, scope_keys=None, details: str = 
                    + "\n" + (details or "") + "\n" + (existing or ""))
     _semi_e = [x for x in _semi_esistente(_testo_semi, _it) if x not in dedup]
     dedup = list(dedup) + _semi_e
+    if _breve:
+        # l'autentica della firma: c.c. 2703 e la forma della procura (1392); in Albania la legge sul notariato, art. 128
+        # in Italia anche l'annotazione dell'uso da parte di un altro oltre i 30 giorni (C.d.S. art. 94, c. 4-bis)
+        _semi_b = [x for x in ([("codice_civile", "2703"), ("codice_civile", "1392"), ("codice_strada", "94")] if _it
+                               else [("ligji_noteri", "128")])
+                   if x not in dedup]
+        dedup = list(dedup) + _semi_b
+        _semi_e = list(_semi_e) + _semi_b   # in aggiunta ai 16 della ricerca
     art_block, arts = _art_block(backend, index, (details or "") + " " + (existing or "")[:1500]
                                  + (" procura rappresentanza poteri" if _it else " prokurë përfaqësim tagra"), dedup,
                                  extra=(4 if _it else 0) + len(_semi_e))
@@ -811,6 +883,9 @@ def draft_prokura(backend, index, *, form: str, scope_keys=None, details: str = 
                      if clauses_text else "")
                   + "\n\nRedigi la procura completa in markdown."
                   + _blocco_esistente(existing, True))
+    if _breve:
+        system, prompt = _prokura_breve(_it, scope_keys, details, duration, subdelegation, art_block, clauses_text)
+        max_tokens = min(max_tokens, 1600)
     md = backend.complete(system=system, messages=[{"role": "user", "content": prompt}],
                           max_tokens=max_tokens + (2500 if existing else 0), callsite="notary_prokura")
     return {"markdown": (md or "").strip(),

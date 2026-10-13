@@ -9474,6 +9474,14 @@ def _ancore_rishikimi(text: str, lang: str) -> list[tuple[str, str, str]]:
                     ("codice_civile", "1394", "conflitto d'interessi del rappresentante")]
         if nome:
             out.append(("codice_civile", "2475-ter", "conflitto di interessi degli amministratori di s.r.l."))
+        # v9.638 — l'AMMINISTRATORE che firma per la società: la norma della sua rappresentanza (il gemello dell'art. 96/158
+        # albanese). Dalla prova del 13 ott: per una S.r.l. il requisito citava l'art. 2298 (società di persone)
+        if re.search(r"amministrator|legale rappresentante", fol):
+            if re.search(r"s\.?\s?r\.?\s?l\b|responsabilit\w* limitata", fol):
+                out.append(("codice_civile", "2475-bis", "rappresentanza della s.r.l.: gli amministratori; i limiti dell'atto "
+                                                          "costitutivo non si oppongono ai terzi"))
+            elif re.search(r"s\.?\s?p\.?\s?a\b|per azioni", fol):
+                out.append(("codice_civile", "2384", "poteri di rappresentanza degli amministratori della s.p.a."))
         return out
     procura_al = re.search(r"prokur|autoriz", fol)
     # v9.635 — la prokurë per vendere un immobile anche di un privato: KC 72 (la forma della procura segue quella del contratto) e

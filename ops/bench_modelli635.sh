@@ -76,11 +76,28 @@ binario_D6() {   # v9.635: DA SOLO — Opus 5.5 high + Sonnet 5.5
   run_variant sa-bench-d6 D6 deep "$DEEP" $OPUS55HIGH $SONNET55
   echo D6_DONE >> "$L/timeline.txt"
 }
+# v9.636 — il GIUDICE FINALE su Opus 5.5 (titolare, 13 ott alba: «se mettiamo giudice finale opus 5.5 con high, xhigh o max, visto che è
+# un modello più grande?»). Il resto come in produzione (senior Opus 5 max, junior Sonnet 5.5 high): si confronta con D0S5 (1,000 / 18 min)
+binario_D7() {   # DA SOLO — Giudice Opus 5.5 max
+  run_variant sa-bench-d7 D7 deep "$DEEP" $SONNET55 -e STUDIO_GJYQTARI_MODEL=claude-opus-5-5 -e STUDIO_GJYQTARI_EFFORT=max
+  echo D7_DONE >> "$L/timeline.txt"
+}
+binario_D8() {   # DA SOLO — Giudice Opus 5.5 xhigh
+  run_variant sa-bench-d8 D8 deep "$DEEP" $SONNET55 -e STUDIO_GJYQTARI_MODEL=claude-opus-5-5 -e STUDIO_GJYQTARI_EFFORT=xhigh
+  echo D8_DONE >> "$L/timeline.txt"
+}
+binario_D9() {   # DA SOLO — Giudice Opus 5.5 high
+  run_variant sa-bench-d9 D9 deep "$DEEP" $SONNET55 -e STUDIO_GJYQTARI_MODEL=claude-opus-5-5 -e STUDIO_GJYQTARI_EFFORT=high
+  echo D9_DONE >> "$L/timeline.txt"
+}
 case "$1" in
   A) binario_A ;;
   B) binario_B ;;
   D5) binario_D5 ;;
   D6) binario_D6 ;;
+  D7) binario_D7 ;;
+  D8) binario_D8 ;;
+  D9) binario_D9 ;;
   *) binario_A & sleep 120; binario_B & wait ;;
 esac
 echo "BENCH_DONE ${1:-AB}" >> "$L/timeline.txt"

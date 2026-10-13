@@ -13050,6 +13050,52 @@ const F = new Function("localStorage", "document", "fetch", "renderMarkdown", "_
     except Exception as _e433:  # noqa: BLE001
         check("noter[433]: kontrollet u ekzekutuan", False, f"{type(_e433).__name__}: {_e433}")
 
+    # [434] v9.638 — L'AUTORIZZAZIONE ALL'USO DEL VEICOLO, BREVE COME LA FA IL NOTAIO. Il titolare, 13 ott, con le foto di
+    # un'autorizzazione vera: una pagina (chi firma, l'auto, il delegato, «sia in Italia che all'estero», firma e autentica).
+    # Con la forma speciale e SOLO le finalità dell'auto lo strumento scrive quella; con un altro potere, o rivedendo un
+    # documento, resta la procura completa.
+    try:
+        from src import notary as _nt434
+        class _FB434:
+            def __init__(self): self.sys, self.msg, self.kw = "", "", {}
+            def complete(self, system=None, messages=None, **kw):
+                if kw.get("callsite") == "notary_prokura":
+                    self.sys, self.msg, self.kw = system or "", (messages or [{}])[-1].get("content", ""), kw
+                return "ok"
+        _fb434 = _FB434()
+        _d434 = ("Shoqëria «PROVA» SHPK, NIPT M00000000X, përfaqësuar nga administratori z. Arben Prova; automjeti targa "
+                 "AA000AA; i autorizuari z. Gent Shembulli.")
+        _r1 = _nt434.draft_prokura(_fb434, idx, form="e_posacme", scope_keys=["perdorim_automjeti", "dalje_automjeti_jashte"],
+                                   details=_d434)
+        _a1 = {(a["code"], str(a["number"])) for a in _r1.get("articles", [])}
+        _ok1 = ("AUTORIZIM PËR PËRDORIMIN E AUTOMJETIT" in _fb434.sys and "brenda dhe jashtë territorit" in _fb434.sys
+                and "VËRTETIMI I NËNSHKRIMIT" in _fb434.sys and "Kërkesat formale" in _fb434.sys
+                and _fb434.kw.get("max_tokens", 9999) <= 1600 and "NËN-DELEGIM" not in _fb434.msg
+                and ("ligji_noteri", "128") in _a1 and ("ligji_sigurimi_mjeteve", "16") in _a1)
+        _nt434.draft_prokura(_fb434, idx, form="e_posacme", scope_keys=["perdorim_automjeti"], details=_d434)
+        _ok2 = ("brenda territorit të Republikës së Shqipërisë" in _fb434.sys and "brenda dhe jashtë" not in _fb434.sys)
+        _nt434.draft_prokura(_fb434, idx, form="e_posacme", scope_keys=["perdorim_automjeti", "shitje_automjeti"], details=_d434)
+        _ok3 = "Harto prokurën TË PLOTË" in _fb434.sys and "AUTORIZIM PËR PËRDORIMIN" not in _fb434.sys
+        _nt434.draft_prokura(_fb434, idx, form="e_posacme", scope_keys=["perdorim_automjeti"], details="",
+                             existing="AUTORIZIM. Shoqëria PROVA SHPK autorizon z. Gent Shembulli të përdorë automjetin targa AA000AA.")
+        _ok4 = "AUTORIZIM PËR PËRDORIMIN" not in _fb434.sys
+        _it434 = idx_it if "idx_it" in dir() else ArticleIndex.load(INDEX_FILE.parent / "bm25_it.pkl")
+        _r5 = _nt434.draft_prokura(_fb434, _it434, form="e_posacme", scope_keys=["perdorim_automjeti", "dalje_automjeti_jashte"],
+                                   details="La società PROVA S.r.l., in persona dell'amministratore unico sig. Mario Prova, delega "
+                                           "il sig. Luca Esempio all'uso della vettura targata AA000AA.")
+        _a5 = {(a["code"], str(a["number"])) for a in _r5.get("articles", [])}
+        _ok5 = ("AUTORIZZAZIONE ALLA CIRCOLAZIONE" in _fb434.sys and "sia in Italia che all'estero" in _fb434.sys
+                and "AUTENTICA DELLA FIRMA" in _fb434.sys and "Requisiti formali" in _fb434.sys
+                and ("codice_civile", "2703") in _a5 and ("codice_civile", "2475-bis") in _a5
+                and ("codice_strada", "94") in _a5 and "UNA riga" in _fb434.sys
+                and "mai la data di oggi" in _fb434.sys
+                and not __import__("re").search(r"[ëçË]|\bneni\b", _fb434.sys + _fb434.msg[:200]))
+        check("noter[434]: l'autorizzazione all'uso del veicolo breve come quella del notaio (AL e IT); con un altro potere o "
+              "in revisione resta la procura completa", _ok1 and _ok2 and _ok3 and _ok4 and _ok5,
+              f"breve={_ok1} solo_dentro={_ok2} altro_potere={_ok3} revisione={_ok4} it={_ok5}")
+    except Exception as _e434:  # noqa: BLE001
+        check("noter[434]: kontrollet u ekzekutuan", False, f"{type(_e434).__name__}: {_e434}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
