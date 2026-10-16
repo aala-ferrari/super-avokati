@@ -2502,7 +2502,8 @@ def main():
         _intro65 = '"Për çdo pretendim tregojmë ÇFARË duhet provuar' in _js65 and '"Këto janë mospërputhjet mes dokumenteve' in _js65
         check("chat[65]: streaming con WebSearch/WebFetch + testo finale dal result (non i delta) + Giudice riceve i pannelli e mette il verdetto IN TESTA + etichette pannelli in italiano",
               'cmd.extend(["--allowedTools", "WebSearch", "WebFetch"])' in _stream65
-              and "final_text = full" in _stream65
+              and ("final_text = full" in _stream65 or ("final_text = _ric_s" in _stream65   # v9.640: + il contenuto prima
+                   and "_ricuci(_testi_prima_degli_strumenti(_seq_stream), full)" in _stream65))   # di uno strumento
               and ('text = (final_text or "".join(collected)).strip()' in _cs65
                    or 'text = _trattini((final_text or "".join(collected)).strip())' in _cs65)   # v9.513
               and "fazat" in _gj65 and "TITULLI_ANALIZA" in _gj65
@@ -13207,6 +13208,52 @@ const F = new Function("localStorage", "document", "fetch", "renderMarkdown", "_
               f"cablaggio={_okH}")
     except Exception as _e435:  # noqa: BLE001
         check("noter[435]: kontrollet u ekzekutuan", False, f"{type(_e435).__name__}: {_e435}")
+
+    # [436] v9.640 — IL TESTO SCRITTO PRIMA DI UNO STRUMENTO NON SI PERDE. Il `result` della CLI è solo il testo dopo l'ultimo
+    # strumento (prova del 16 ott: INIZIO-ALFA → ricerca → FINE-OMEGA dava «FINE-OMEGA»; un contratto tornava da metà dell'art. 17).
+    # `complete()` legge stream-json ridotto alla riga del result (limiti ed errori come prima, senza le pagine web); i testi
+    # lunghi prima di uno strumento tornano davanti, i brevi (frasi di passaggio) no, un finale che riparte da capo vale da solo.
+    try:
+        import inspect as _in436, json as _js436, subprocess as _sp436
+        from src import backends as _be436
+        _p1 = "# KONTRATË QIRAJE\n\n" + ("Neni 1 – Objekti. Qiradhënësi i jep me qira qiramarrëses apartamentin. " * 30) + "njoftimi konsiderohet i marrë kur"
+        _ev = [{"type": "system", "subtype": "init", "session_id": "s"},
+               {"type": "assistant", "message": {"content": [{"type": "text", "text": "Verifikoj nenin 510 KPC."}]}},
+               {"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "WebSearch", "input": {}}]}},
+               {"type": "user", "message": {"content": [{"type": "tool_result", "content": "You have reached your limit of free articles"}]}},
+               {"type": "assistant", "message": {"content": [{"type": "text", "text": _p1}]}},
+               {"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "WebFetch", "input": {}}]}},
+               {"type": "assistant", "parent_tool_use_id": "x", "message": {"content": [{"type": "text", "text": "sotto-agente " * 200}]}},
+               {"type": "assistant", "message": {"content": [{"type": "text", "text": "tërhiqet a refuzohet. ### Neni 18 – Ligji"}]}},
+               {"type": "result", "subtype": "success", "is_error": False, "result": "tërhiqet a refuzohet. ### Neni 18 – Ligji",
+                "session_id": "s", "total_cost_usd": 0.01}]
+        _out = "[claude-code:unrecognized_model] x\n" + "\n".join(_js436.dumps(e, ensure_ascii=False) for e in _ev)
+        _proc = _be436._compatta_stream(_sp436.CompletedProcess(["claude"], 0, stdout=_out, stderr=""))
+        _d = _be436._json_cli(_proc.stdout)
+        _okA = (_d.get("result") == "tërhiqet a refuzohet. ### Neni 18 – Ligji" and "free articles" not in _proc.stdout
+                and not _be436._model_limit_hit(_proc.stdout, "") and _proc.prima_strumenti == ["Verifikoj nenin 510 KPC.", _p1])
+        _r = _be436._ricuci(_proc.prima_strumenti, _d["result"])
+        _okB = (_r.startswith("# KONTRATË QIRAJE") and "Verifikoj nenin" not in _r and "sotto-agente" not in _r
+                and _r.endswith("kur tërhiqet a refuzohet. ### Neni 18 – Ligji"))
+        _okC = (_be436._ricuci(["cerco su Normattiva l'art. 2043 c.c."], "Risposta completa.") == "Risposta completa."
+                and _be436._ricuci([_p1], "# KONTRATË QIRAJE\n\nNeni 1 riscritto da capo.") == "# KONTRATË QIRAJE\n\nNeni 1 riscritto da capo."
+                and _be436._ricuci([], "solo") == "solo" and _be436._ricuci([_p1], "").startswith("# KONTRATË")
+                and _be436._ricuci([_p1], "### Neni 18").endswith("kur\n\n### Neni 18"))
+        # senza `result` (CLI caduta): niente testi né pagine web nell'uscita che leggono i controlli
+        _p2 = _be436._compatta_stream(_sp436.CompletedProcess(["claude"], 1, stdout="\n".join(_js436.dumps(e) for e in _ev[:4]),
+                                                              stderr="boom"))
+        _okD = ("free articles" not in _p2.stdout and "Verifikoj" not in _p2.stdout and '"init"' in _p2.stdout)
+        _src = _in436.getsource(_be436.ClaudeCodeBackend.complete) if hasattr(_be436, "ClaudeCodeBackend") else ""
+        _src_s = _in436.getsource(_be436.ClaudeCodeBackend.complete_stream) if hasattr(_be436, "ClaudeCodeBackend") else ""
+        _okE = ('"--output-format", "stream-json", "--verbose"' in _src and "_p = _compatta_stream(_p)" in _src
+                and "_ricuci(getattr(proc, \"prima_strumenti\"" in _src and "_seq_stream.extend(_blocchi_assistente(evt))" in _src_s
+                and "_ricuci(_testi_prima_degli_strumenti(_seq_stream), full)" in _src_s)
+        check("cli[436]: il testo scritto PRIMA di uno strumento non si perde (complete e stream): i pezzi lunghi tornano davanti, "
+              "le frasi di passaggio no, un finale che riparte da capo vale da solo; i controlli dei limiti non leggono le pagine web",
+              _okA and _okB and _okC and _okD and _okE,
+              f"compatta={_okA} ricuci={_okB} casi={_okC} senza_result={_okD} cablaggio={_okE} | {_r[-60:]!r}")
+    except Exception as _e436:  # noqa: BLE001
+        check("cli[436]: kontrollet u ekzekutuan", False, f"{type(_e436).__name__}: {_e436}")
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

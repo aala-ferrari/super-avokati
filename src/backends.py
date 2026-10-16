@@ -235,6 +235,92 @@ def _audit_safe(**kw) -> None:
 
 
 
+# v9.640 — IL TESTO SCRITTO PRIMA DI UNO STRUMENTO. Il `result` della CLI è SOLO il testo dopo l'ultimo strumento (prova
+# del 16 ott: «scrivi INIZIO-ALFA, cerca sul web, scrivi FINE-OMEGA» → «FINE-OMEGA»): il contratto del redattore dell'avvocato
+# tornava cominciando a metà dell'art. 17. Da `stream-json` si ricava l'ordine di testi e strumenti; i testi LUNGHI scritti
+# prima di uno strumento sono contenuto e tornano davanti al finale, i brevi sono frasi di passaggio («cerco su Normattiva…»,
+# la ragione del v9.316) e restano fuori; se il finale riparte da capo vale lui solo.
+_MIN_CONTENUTO_PRIMA = 1200
+_TIPI_EVENTI_LUNGHI = ("assistant", "user", "stream_event")   # testi del cervello e risultati degli strumenti (pagine web)
+
+
+def _blocchi_assistente(evt) -> list:
+    """[("testo", t) | ("strumento", nome)] di un evento `assistant` del cervello (non dei sotto-agenti)."""
+    if not isinstance(evt, dict) or evt.get("type") != "assistant" or evt.get("parent_tool_use_id"):
+        return []
+    out = []
+    for b in ((evt.get("message") or {}).get("content") or []):
+        if not isinstance(b, dict):
+            continue
+        if b.get("type") == "text" and b.get("text"):
+            out.append(("testo", str(b["text"])))
+        elif b.get("type") in ("tool_use", "server_tool_use"):
+            out.append(("strumento", str(b.get("name") or "")))
+    return out
+
+
+def _sequenza_stream(stdout) -> tuple:
+    """Da un'uscita `stream-json`: la sequenza dei testi e degli strumenti, la riga JSON dell'evento `result` (None se manca)
+    e le righe che non sono testi né risultati di strumenti (per i messaggi d'errore quando il `result` manca)."""
+    seq, ris, altre = [], None, []
+    for riga in (stdout or "").splitlines():
+        r = riga.strip()
+        if not r:
+            continue
+        evt = None
+        if r.startswith("{") and r.endswith("}"):
+            try:
+                evt = json.loads(r)
+            except json.JSONDecodeError:
+                evt = None
+        if isinstance(evt, dict):
+            if evt.get("type") == "result":
+                ris = r
+                continue
+            if evt.get("type") == "assistant":
+                seq.extend(_blocchi_assistente(evt))
+            if evt.get("type") in _TIPI_EVENTI_LUNGHI:
+                continue
+        altre.append(riga)
+    return seq, ris, altre
+
+
+def _testi_prima_degli_strumenti(seq) -> list:
+    """I testi scritti PRIMA dell'ultimo strumento (quelli che il `result` lascia fuori)."""
+    ultimo = max((i for i, (k, _v) in enumerate(seq or []) if k == "strumento"), default=-1)
+    return [v for i, (k, v) in enumerate(seq or []) if k == "testo" and i < ultimo]
+
+
+def _ricuci(prima, finale: str) -> str:
+    """Il finale col contenuto scritto prima degli strumenti davanti: solo i pezzi lunghi, e non se il finale riparte da capo."""
+    pezzi = [p.strip() for p in (prima or []) if len((p or "").strip()) >= _MIN_CONTENUTO_PRIMA]
+    f = (finale or "").strip()
+    if not pezzi:
+        return finale or ""
+    testa = next((r.strip() for r in pezzi[0].splitlines() if r.strip()), "")[:60]
+    if f and testa and testa in f[:600]:
+        return finale              # il finale riscrive da capo: vale lui solo
+    unione = "\n\n".join(pezzi)
+    if not f:
+        return unione
+    sep = " " if (f[:1].islower() or f[:1] in ",.;:)»”") else "\n\n"   # il finale continua la frase interrotta
+    return unione + sep + f
+
+
+def _compatta_stream(proc):
+    """L'uscita `stream-json` di `subprocess.run` ridotta a quella di `--output-format json` (la sola riga del `result`): i
+    controlli di limite, errori e consumo restano quelli di prima e non leggono le pagine web. I testi scritti prima degli
+    strumenti restano in `proc.prima_strumenti`."""
+    try:
+        seq, ris, altre = _sequenza_stream(proc.stdout)
+    except Exception:  # noqa: BLE001 - mai perdere la risposta per questo
+        proc.prima_strumenti = []
+        return proc
+    proc.prima_strumenti = _testi_prima_degli_strumenti(seq)
+    proc.stdout = ris if ris is not None else "\n".join(altre)
+    return proc
+
+
 def _json_cli(testo) -> dict:
     """v9.626 — l'uscita `--output-format json` del CLI è UN oggetto JSON, ma il CLI può stampare prima delle righe sue: con un
     modello che la sua versione non conosce ancora (Sonnet 5.5 sul 2.1.282) la prima riga è «[claude-code:unrecognized_model]
@@ -578,7 +664,9 @@ class ClaudeCodeBackend(LLMBackend):
                 extra={"session_id": session_id, "resumed": bool(session_id)},
             )
 
-        cmd = [self.cli, "-p", "--output-format", "json", "--model", model]
+        # v9.640 — `stream-json` per avere anche i testi scritti prima degli strumenti; `_compatta_stream` riduce l'uscita
+        # alla riga del `result` (= `--output-format json`), così tutto il resto la legge come prima
+        cmd = [self.cli, "-p", "--output-format", "stream-json", "--verbose", "--model", model]
         # Valvola di sicurezza, DISATTIVATA per scelta (vedi config.py):
         # fermare un'analisi legale a meta' per risparmiare centesimi e' un
         # cattivo affare. Esiste per il giorno in cui servisse.
@@ -702,6 +790,7 @@ class ClaudeCodeBackend(LLMBackend):
                             cwd=str(_CWD_CERVELLO),
                             check=False,
                         )
+                    _p = _compatta_stream(_p)   # v9.640
                 except subprocess.TimeoutExpired as exc:
                     _emit_audit(outcome="error", response_text=None,
                                 error_class="TimeoutExpired")
@@ -840,7 +929,12 @@ class ClaudeCodeBackend(LLMBackend):
         if new_sid:
             self.last_session_id = new_sid
 
-        text = _trattini((data.get("result") or "").strip())
+        _finale = data.get("result") or ""
+        _ricucito = _ricuci(getattr(proc, "prima_strumenti", None) or [], _finale)   # v9.640
+        if _ricucito != _finale:
+            log.warning("Tetramorph: %s — %d caratteri scritti prima di uno strumento rimessi davanti alla risposta",
+                        callsite or "?", max(0, len(_ricucito) - len(_finale)))
+        text = _trattini(_ricucito.strip())
         if not text:
             _emit_audit(outcome="error", response_text=None,
                         error_class="EmptyResult")
@@ -958,6 +1052,7 @@ class ClaudeCodeBackend(LLMBackend):
         collected: list[str] = []
         new_session_id: str | None = None
         final_text: str = ""   # il testo finale del CLI (evento result), v9.316
+        _seq_stream: list = []  # v9.640: testi e strumenti nell'ordine (eventi `assistant`)
         _limite_stream = ""    # v9.393: quota del modello scelto esaurita prima di scrivere → ripiego
 
         # Same semaphore as the blocking path — streaming still holds a
@@ -1010,6 +1105,10 @@ class ClaudeCodeBackend(LLMBackend):
                             new_session_id = sid
                         continue
 
+                    if etype == "assistant":
+                        _seq_stream.extend(_blocchi_assistente(evt))
+                        continue
+
                     if etype == "stream_event":
                         inner = evt.get("event") or {}
                         if inner.get("type") == "content_block_delta":
@@ -1047,7 +1146,14 @@ class ClaudeCodeBackend(LLMBackend):
                             # v9.316 — con i tool attivi i delta includono anche i
                             # turni intermedi («cerco su Normattiva…»): il testo
                             # finale pulito e' QUESTO, non la cucitura dei delta.
-                            final_text = full
+                            # v9.640 — ma il contenuto LUNGO scritto prima di uno
+                            # strumento torna davanti (il `result` lo lascia fuori)
+                            _ric_s = _trattini(_ricuci(_testi_prima_degli_strumenti(_seq_stream), full))
+                            if _ric_s != full:
+                                log.warning("Tetramorph stream: %s — %d caratteri scritti prima di uno strumento "
+                                            "rimessi davanti alla risposta", callsite or "?",
+                                            max(0, len(_ric_s) - len(full)))
+                            final_text = _ric_s
                         if full and not collected:
                             collected.append(full)
                             yield ("delta", full)
