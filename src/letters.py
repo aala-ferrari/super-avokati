@@ -646,7 +646,11 @@ def draft(backend, index, *, kind: str, facts: str, case_context: str = "",
         "• Çdo pretendim kryesor mbështetet me nenin përkatës, të cituar në "
         "trupin e tekstit.\n"
         "• Mos premto rezultate të sigurta dhe mos kërcëno atë që nuk mund "
-        "të bëhet ligjërisht.\n\n"
+        "të bëhet ligjërisht.\n"
+        # v9.643: la lettera che si manda sta in una o due pagine (l'audit del 16 ott: 18.000-23.000 caratteri)
+        "• SHKURT DHE E FORTË: shkresa (seksioni ✉️) zë një deri në dy faqe — rreth 400-700 fjalë; çdo pretendim "
+        "kryesor me nenin e vet, pa nën-seksione të shumta, pa përsëritur tekstin e neneve dhe pa përmendur nene që "
+        "nuk zbatohen. Data e shkresës [___] (është ajo e dërgimit).\n\n"
         + ("── DOKUMENTI I MARRË ──\n"
            "Avokati ka bashkëngjitur dokumentin që i ka ardhur (letër pushimi, "
            "akt, njoftim). Lexoje me kujdes dhe PËRGJIGJU PIKË PËR PIKË: "
@@ -661,9 +665,9 @@ def draft(backend, index, *, kind: str, facts: str, case_context: str = "",
         "ka një rrezik, shpjegoje te seksioni ⚠️, kurrë këtu: kjo pjesë "
         "eksportohet në .docx dhe shkon te marrësi ashtu siç është.)\n"
         "### 📎 Si dërgohet\n"
-        "(kanali, çfarë bashkëlidhet, çfarë ruhet si provë)\n"
+        "(deri në 4 rreshta: kanali, çfarë bashkëlidhet, çfarë ruhet si provë)\n"
         "### ⚠️ Përpara se ta dërgosh\n"
-        "(të dhënat që mungojnë, afatet për t'u verifikuar, rreziqet)\n\n"
+        "(deri në 5 pika, një rresht secila: të dhënat që mungojnë, afatet për t'u verifikuar, rreziqet)\n\n"
         + _IDENTITY)
 
     prompt = (
@@ -711,7 +715,10 @@ def _draft_it(backend, tpl, kind, family, base, art_block, arts, form, extra, re
         "o somme.\n"
         "• Dove manca un dato (nome, indirizzo, importo, data, protocollo), lascia il segnaposto [___] — mai inventato.\n"
         "• Ogni pretesa principale è sostenuta dall'articolo pertinente, citato nel testo.\n"
-        "• Non promettere risultati certi e non minacciare ciò che non si può fare legalmente.\n\n"
+        "• Non promettere risultati certi e non minacciare ciò che non si può fare legalmente.\n"
+        "• BREVE E FERMO: la lettera (sezione ✉️) sta in una o due pagine — circa 400-700 parole; ogni pretesa principale "
+        "con il suo articolo, senza tante sottosezioni, senza ripetere il testo degli articoli e senza nominare articoli che "
+        "non si applicano. La data della lettera [___] (è quella dell'invio).\n\n"
         + ("── DOCUMENTO RICEVUTO ──\n"
            "L'avvocato ha allegato il documento che gli è arrivato (lettera di licenziamento, atto, comunicazione). Leggilo "
            "con attenzione e RISPONDI PUNTO PER PUNTO: contesta ogni pretesa infondata, indica quali requisiti formali non "
@@ -723,9 +730,9 @@ def _draft_it(backend, tpl, kind, family, base, art_block, arts, form, extra, re
         "tolto qualcosa dalla richiesta dell'avvocato o c'è un rischio, spiegalo nella sezione ⚠️, mai qui: questa parte si "
         "esporta in .docx e arriva al destinatario così com'è.)\n"
         "### 📎 Come si invia\n"
-        "(il canale, cosa si allega, cosa si conserva come prova)\n"
+        "(al massimo 4 righe: il canale, cosa si allega, cosa si conserva come prova)\n"
         "### ⚠️ Prima di inviarla\n"
-        "(i dati mancanti, i termini da verificare, i rischi)\n\n"
+        "(al massimo 5 punti, una riga ciascuno: i dati mancanti, i termini da verificare, i rischi)\n\n"
         + _IDENTITY_IT)
     prompt = (
         "TIPO DI ATTO: " + tpl["label"]

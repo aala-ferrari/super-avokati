@@ -13414,6 +13414,20 @@ const F = new Function("localStorage", "document", "fetch", "renderMarkdown", "_
     except Exception as _e440:  # noqa: BLE001
         check("fabrika[440]: kontrollet u ekzekutuan", False, f"{type(_e440).__name__}: {_e440}")
 
+    # [441] v9.643 — LE LETTERE BREVI: una o due pagine, ogni pretesa col suo articolo, niente articoli che non si applicano, la
+    # data [___]; «come si invia» al massimo 4 righe e «prima di inviarla» al massimo 5 punti, nelle due lingue
+    try:
+        _l441 = open("/app/src/letters.py", encoding="utf-8").read()
+        _js441 = open("/app/static/app.js", encoding="utf-8").read()
+        _i441 = _js441.find("s = s.replace(/_{2,}/g")
+        _okR441 = _i441 > 0 and _i441 < _js441.find('s = s.replace(/_([^_]+)_/g, "<em>$1</em>")')
+        check("letra[441]: lettere brevi (una o due pagine, data [___], avvisi brevi) in albanese e in italiano",
+              "SHKURT DHE E FORTË" in _l441 and "BREVE E FERMO" in _l441 and "deri në 5 pika" in _l441
+              and "al massimo 5 punti" in _l441 and "400-700" in _l441 and _okR441,
+              f"regole o segnaposto (renderer={_okR441})")
+    except Exception as _e441:  # noqa: BLE001
+        check("letra[441]: kontrollet u ekzekutuan", False, f"{type(_e441).__name__}: {_e441}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
