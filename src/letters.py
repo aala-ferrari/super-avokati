@@ -248,7 +248,8 @@ CATALOGUE_IT: dict[str, dict] = {
         "emoji": "\U0001f512", "family": REPORT, "group": "Segnalazioni alle autorità",
         "recipient": "Garante per la protezione dei dati personali",
         "channel": "PEC secondo il modello del Garante",
-        "seeds": [("codice_privacy", "140"), ("codice_privacy", "141"),
+        # v9.642: l'art. 140 del codice privacy è abrogato → il reclamo all'autorità di controllo è l'art. 77 del GDPR
+        "seeds": [("gdpr", "77"), ("codice_privacy", "141"),
                   ("codice_privacy", "142"), ("codice_privacy", "143")],
         "query": "trattamento illecito dati personali reclamo garante diritto "
                  "accesso cancellazione consenso violazione",
@@ -265,8 +266,9 @@ CATALOGUE_IT: dict[str, dict] = {
         "recipient": "Procura della Repubblica presso il Tribunale competente",
         "channel": "Deposito o PEC secondo le regole dell'ufficio",
         "seeds": [("codice_procedura_penale", "333"), ("codice_procedura_penale", "336"),
+                  # v9.642: il termine per la querela (c.p. 124) al posto della truffa, che entrava in ogni denuncia
                   ("codice_procedura_penale", "337"), ("codice_penale", "120"),
-                  ("codice_penale", "640")],
+                  ("codice_penale", "124")],
         "query": "denuncia querela notizia di reato persona offesa termine "
                  "querela remissione costituzione parte civile",
         "must": [
@@ -363,8 +365,10 @@ CATALOGUE_AL: dict[str, dict] = {
         "emoji": "\U0001f697", "family": CLAIM, "group": "Kërkesa palës kundërshtare",
         "recipient": "Shoqëria e sigurimit — sektori i dëmeve",
         "channel": "Protokoll ose postë rekomande",
-        "seeds": [("kodi_civil", "608"), ("kodi_civil", "609"), ("kodi_civil", "643"),
-                  ("kodi_rrugor", "1")],
+        # v9.642: la procedura e i termini dell'assicuratore (32/2021 artt. 9-10), l'attività pericolosa (KC 622) e il danno
+        # alla salute (640, 641, 625) — prima l'art. 1 del codice della strada e il danno da morte (643) in ogni richiesta
+        "seeds": [("ligji_sigurimi_mjeteve", "9"), ("ligji_sigurimi_mjeteve", "10"), ("kodi_civil", "608"),
+                  ("kodi_civil", "622"), ("kodi_civil", "640"), ("kodi_civil", "641"), ("kodi_civil", "625")],
         "query": "dëmshpërblim aksident rrugor sigurim i detyrueshëm dëm pasuror "
                  "jopasuror kërkesë pagese",
         "must": [
@@ -380,7 +384,8 @@ CATALOGUE_AL: dict[str, dict] = {
         "emoji": "\U0001f6d2", "family": CLAIM, "group": "Kërkesa palës kundërshtare",
         "recipient": "Tregtari / Sipërmarrësi",
         "channel": "Postë rekomande ose ankesë e protokolluar",
-        "seeds": [("ligji_konsumatoret", "1"), ("ligji_konsumatoret", "3"),
+        # v9.642: conformità, termini e risarcimento del consumatore (prima l'oggetto e le definizioni della legge)
+        "seeds": [("ligji_konsumatoret", "29"), ("ligji_konsumatoret", "30"), ("ligji_konsumatoret", "31"),
                   ("kodi_civil", "705")],
         "query": "mospërputhje e mallit garanci ligjore konsumator riparim "
                  "zëvendësim kthim parash kushte të padrejta",
@@ -412,8 +417,10 @@ CATALOGUE_AL: dict[str, dict] = {
         "emoji": "⚖️", "family": REPORT, "group": "Njoftime autoriteteve",
         "recipient": "Prokuroria pranë Gjykatës kompetente",
         "channel": "Dorëzim me protokoll",
+        # v9.642: la vittima-accusatrice (KPP 59: per insulto, diffamazione, lesioni lievi… si va in TRIBUNALE, non in procura)
+        # al posto della truffa (KP 143), che entrava in ogni denuncia
         "seeds": [("kodi_proc_penale", "280"), ("kodi_proc_penale", "283"),
-                  ("kodi_proc_penale", "284"), ("kodi_penal", "143")],
+                  ("kodi_proc_penale", "284"), ("kodi_proc_penale", "59")],
         "query": "kallëzim penal njoftim i veprës penale i dëmtuari ankim "
                  "afati i ankimit provat",
         "must": [
@@ -462,8 +469,9 @@ CATALOGUE_AL: dict[str, dict] = {
         "emoji": "\U0001f512", "family": REPORT, "group": "Njoftime autoriteteve",
         "recipient": "Komisioneri për të Drejtën e Informimit dhe Mbrojtjen e të Dhënave Personale",
         "channel": "Protokoll ose ankesë elektronike",
-        "seeds": [("ligji_te_dhenat", "1"), ("ligji_te_dhenat", "3"),
-                  ("ligji_te_dhenat", "12")],
+        # v9.642: la legge 9887/2008 è ABROGATA dalla 124/2024 — i semi erano tre suoi articoli abrogati
+        "seeds": [("ligji_te_dhenat_2024", "12"), ("ligji_te_dhenat_2024", "14"), ("ligji_te_dhenat_2024", "15"),
+                  ("ligji_te_dhenat_2024", "19"), ("ligji_te_dhenat_2024", "86"), ("ligji_te_dhenat_2024", "88")],
         "query": "përpunim i paligjshëm i të dhënave personale pëlqim e drejta "
                  "e aksesit fshirje ankesë kontrollues",
         "must": [
@@ -493,8 +501,9 @@ CATALOGUE_AL: dict[str, dict] = {
         "emoji": "\U0001f4c2", "family": REQUEST, "group": "Kërkesa institucioneve",
         "recipient": "Institucioni publik që i zotëron dokumentet",
         "channel": "Protokoll i institucionit",
-        "seeds": [("kodi_proc_admin", "1"), ("kodi_proc_admin", "45"),
-                  ("kushtetuta", "23")],
+        # v9.642: la legge sul diritto all'informazione (119/2014): richiesta, termine, ricorso al Commissario e al giudice
+        "seeds": [("ligji_informimi", "3"), ("ligji_informimi", "11"), ("ligji_informimi", "15"),
+                  ("ligji_informimi", "24"), ("ligji_informimi", "25"), ("kushtetuta", "23")],
         "query": "e drejta e informimit dokumente zyrtare kërkesë afat "
                  "përgjigje refuzim ankim",
         "must": [

@@ -158,6 +158,29 @@ _RX_MASE = _re.compile(r"\bmas\w*\s+(e\s+|te\s+)?sigurimi\w*\b(?!\s+(teknik|ne\s
 _RX_DHUNE = _re.compile(r"sulm|dhun|rrah|godit|kercen|ngacm|perndjek|plagos|terroriz")
 _RX_FAMILJE = _re.compile(r"partner|bashkeshort|\bburri|\bgruaja|e\s+dashur|i\s+dashur|bashkejetu|familj|\bbabai|\bnena\b|vellai|motra|"
                           r"djali|vajza|ish-|ish\s")
+# v9.642 — dall'audit del procuratore AL del 16 ott (14 casi col cervello vero + la diagnosi del recupero: 22/30 norme attese nel
+# blocco): l'analisi della RAPINA scriveva «il corpus non contiene l'articolo sulla vjedhja me dhunë» (KP 139 c'è: i termini
+# estratti dicevano «grabitje», che nessuna rubrica contiene) né quello sull'acquisto di cose rubate (KP 287/b, con la difesa
+# «l'ho comprato da uno sconosciuto»); 9 giorni di inabilità senza il KP 90 (fino a 9 giorni: è lui, non l'89); il furto in casa
+# senza la violazione di domicilio (KP 112) e il danneggiamento (150); la minaccia «do të të vras» senza la Kanosja (KP 84); la
+# violazione dell'ordine di protezione senza il KP 321; l'AUTORE IGNOTO senza la SOSPENSIONE delle indagini (KPP 326: il modello
+# proponeva l'archiviazione, che per l'autore ignoto non c'è); insulto e diffamazione senza i KP 119-120 e la vittima-accusatrice
+# (KPP 59: si va in tribunale, non in procura); la corruzione senza i KP 259/244 e la competenza (KPP 75/a).
+_RX_GRABITJE = _re.compile(r"grabit|(me\s+forc|me\s+dhun|godit|rrah|sulm)\w*.{0,90}?\b(mor|vodh|rremb)\w*|"
+                           r"\b(mor|vodh|rremb)\w*.{0,60}?(me\s+forc|me\s+dhun)")
+_RX_ARME = _re.compile(r"\barm[eë]\w*|\bthik|pistolet|kallash|revole|\bgjuet")
+_RX_LENDIM = _re.compile(r"paaftesi|plag[eo]s|lendim|lendua|demtim\w*\s+(trupor|i\s+shendet)")
+_RX_BLERE_VJEDHUR = _re.compile(r"(\bble(u|re|ri|n)\b|blerj)\w*.{0,120}?(vjedh|panjohur)|(vjedh|panjohur).{0,120}?(\bble(u|re|ri|n)\b|blerj)")
+_RX_BANESE_HYRJE = _re.compile(r"(banes|shtepi|apartament)\w*.{0,80}?(\bhyri|\bhyre\b|\bhyrj|u\s+fut|\bfuti|\bthye)|"
+                               r"(\bhyri|\bhyrj|u\s+fut|\bfuti|\bthye)\w*.{0,80}?(banes|shtepi|apartament)")
+_RX_KANOSJE = _re.compile(r"kercen|kanos|do\s+te\s+(te\s+)?(vras|mbys|plagos)|kam\s+per\s+te\s+(te\s+)?vrare")
+_RX_URDHER_MBROJTJE = _re.compile(r"urdh\w*\s+(i\s+|e\s+|te\s+)?mbrojtj")
+_RX_AUTOR_PANJOHUR = _re.compile(r"autor\w*\s+(i\s+|e\s+|te\s+)?(panjohur|paidentifik)|i\s+paidentifikuar|"
+                                 r"autor\w*\s+(\w+\s+){0,3}(nuk|s)\s+(u\s+)?(identifikua|zbulua|gjet)|"
+                                 r"(nuk|s)\s+(u\s+)?(identifikua|zbulua)\w*\s+(\w+\s+){0,2}autor")
+_RX_NDER = _re.compile(r"shpif|\bfye|\bfyer|ofend|\bnderi?\b|dinjitet|poshter|cnder|nuk\s+(eshte|jane)\s+e\s+vertet")
+_RX_KORRUPSION = _re.compile(r"ryshfet|korrupsion|kerkoi\s+.{0,40}?(euro|leke|para|dhurat)|"
+                             r"per\s+te\s+(me\s+)?dhene\s+.{0,40}?(leje|vendim|dokument|licenc)")
 
 
 def _semi_situazione_al(facts: str) -> list:
@@ -236,6 +259,32 @@ def _semi_situazione_al(facts: str) -> list:
             out.append(("ligji_personat_juridike", "15"))
     if _RX_DHUNE.search(f) and _RX_FAMILJE.search(f):
         out += [("ligji_dhuna_familje_2026", n) for n in ("18", "26", "30", "36", "42")]
+        out.append(("kodi_penal", "130/a"))                      # v9.642: la figura della violenza in famiglia
+    # v9.642 (vedi `_RX_GRABITJE`)
+    if _RX_GRABITJE.search(f):
+        out.append(("kodi_penal", "139"))
+        if _RX_ARME.search(f):
+            out.append(("kodi_penal", "140"))
+    if _RX_LENDIM.search(f):
+        out += [("kodi_penal", "89"), ("kodi_penal", "90")]
+        if _re.search(r"rrezik\w*\s+(per\s+)?jet|\brende\b|gjymt|shemtim|\bthik|\barm", f):
+            out.append(("kodi_penal", "88"))
+    if _RX_BLERE_VJEDHUR.search(f):
+        out.append(("kodi_penal", "287/b"))
+    if _RX_BANESE_HYRJE.search(f):
+        out.append(("kodi_penal", "112"))
+        if _re.search(r"\bthye|demtoi|shkaterr", f):
+            out.append(("kodi_penal", "150"))
+    if _RX_KANOSJE.search(f):
+        out.append(("kodi_penal", "84"))
+    if _RX_URDHER_MBROJTJE.search(f):
+        out.append(("kodi_penal", "321"))
+    if _RX_AUTOR_PANJOHUR.search(f):
+        out.append(("kodi_proc_penale", "326"))
+    if _RX_NDER.search(f):
+        out += [("kodi_penal", "119"), ("kodi_penal", "120"), ("kodi_proc_penale", "59")]
+    if _RX_KORRUPSION.search(f):
+        out += [("kodi_penal", "259"), ("kodi_penal", "244"), ("kodi_proc_penale", "75/a")]
     return out
 
 
@@ -246,6 +295,49 @@ def _semi_al(seeds, facts: str, extra=()) -> tuple[list, int]:
     add = [x for x in list(extra) + _semi_situazione_al(facts) if x not in base]
     add = list(dict.fromkeys(add))
     return base + add, len(add)
+
+
+# v9.642 — QUALI CODICI può portare il recupero del procuratore AL (i semi passano sempre). Nell'audit del 16 ott il blocco del
+# furto aveva la legge sull'assicurazione auto, la VKM doganale («merci di valore trascurabile»), il codice dei minori e la legge
+# sui rapporti con le autorità straniere; quello dell'archiviazione la sospensione del procedimento disciplinare dell'ufficiale
+# giudiziario: il modello spiegava uno per uno perché non si applicano. Dentro sempre il codice penale e quello di procedura; gli
+# altri codici penali o di settore solo col loro motivo nei fatti; della Costituzione solo le garanzie del processo penale.
+_KUSHT_PENALE = frozenset({"27", "28", "29", "30", "31", "32", "33", "34", "35", "36", "37", "42", "43"})
+_CODICI_COL_MOTIVO_AL = (
+    (r"narkotik|droge|\bdrog|kokain|heroin|kanabis|marihuan|hashash|psikotrop|metamfetamin|ekstazi|lend\w*\s+narkotik", ("ligji_lendet_narkotike", "ligji_kanabisi_mjekesor", "ligji_barnat")),
+    (r"\bshoqeri|\bsh\.?p\.?k\b|\bsh\.?a\.?\b|kompani|person\w*\s+juridik|\bbiznes|administrator", ("ligji_personat_juridike", "ligji_shoqerite_tregtare")),
+    (r"\bi\s+mitur|\be\s+mitur|\bte\s+mitur|\bnen\s+(14|16|18)\s+vjec|\b(1[0-7]|[1-9])\s*(-\s*)?vjec", ("kodi_te_miturve",)),
+    (r"jashte\s+shtetit|ekstradim|leterporosi|\bi\s+huaj|\be\s+huaj|shtetas\w*\s+(i\s+|e\s+)?huaj|interpol|europol", ("ligji_marredheniet_juridiksionale", "ligji_te_huajt")),
+    (r"aksident|rrugor|automjet|\bmakin|patent|drejtim\w*\s+(e\s+|te\s+)?mjet|alkool|\bshpejtesi", ("kodi_rrugor", "ligji_sigurimi_mjeteve", "ligji_transportet_rrugore")),
+    (r"dogan|kontraband|import|eksport", ("kodi_doganor", "vkm_dispozita_doganore")),
+    (r"tatim|\btvsh|fiskal|\bfatur|evazion", ("ligji_procedurat_tatimore", "ligji_tvsh", "ligji_tatimi_te_ardhurat")),
+    (r"\barm[eë]\w*|pistolet|kallash|revole|municion|\bgjuet", ("ligji_armet",)),
+    (r"pastrim|shpelarj|origjin\w*\s+(\w+\s+){0,2}paligjshme", ("ligji_pastrimi_parave",)),
+    (r"organizat\w*\s+kriminal|grup\w*\s+(i\s+|te\s+)?(strukturuar|organizuar)|mafi|pasuri\w*\s+(e\s+|te\s+)?paligjshme", ("ligji_antimafia",)),
+    (r"ndertim|leje\s+(e\s+)?ndertim|kat\s+shtese|\bpallat", ("ligji_planifikimi_territorit", "ligji_inspektimi_territorit")),
+    (r"\bpolic\w*.{0,60}?(dhun|keqtrajt|abuz|tortur|rrah)", ("ligji_policia_2024", "rregullore_policia")),
+    (r"te\s+dhena\w*\s+personale|privatesi|kamer\w*\s+(e\s+)?fsheht", ("ligji_te_dhenat_2024",)),
+    (r"\bburg\b|\bburgu\b|i\s+burgosur|i\s+denuar\s+me\s+burg|paraburgim", ("ligji_te_denuarit",)),
+    (r"zgjedh|\bvot", ("kodi_zgjedhor",)),
+    (r"tender|ankand|prokurim\w*\s+publik", ("ligji_prokurimi_publik",)),
+    (r"falimentim", ("ligji_falimentimi",)),
+)
+
+
+def _codici_ammessi_al(facts: str):
+    f = _expertise._fold(facts or "")
+    ok = {"kodi_penal", "kodi_proc_penale"}
+    if _RX_DHUNE.search(f) and _RX_FAMILJE.search(f) or _RX_URDHER_MBROJTJE.search(f):
+        ok.add("ligji_dhuna_familje_2026")
+    for rx, codici in _CODICI_COL_MOTIVO_AL:
+        if _re.search(rx, f):
+            ok.update(codici)
+
+    def ammessi(code, number):
+        if code == "kushtetuta":
+            return str(number) in _KUSHT_PENALE
+        return code in ok
+    return ammessi
 
 
 # v9.404 — SEMI DI SITUAZIONE in sessione IT (stessa misura, 9 casi × 3 campioni dei termini, indice IT con le rubriche v9.403):
@@ -326,18 +418,28 @@ _SYSTEM = (
     "Mos zbulo kurrë modelin — je 'Tetramorph' i superavokati.ai."
 )
 
+# v9.642 — la «aktakuzë» del KPP vigente è la RICHIESTA DI RINVIO A GIUDIZIO dell'art. 331, rivolta al giudice dell'udienza
+# preliminare, col contenuto del par. 3 (a pena di nullità senza la notifica dell'art. 327/2-4). Il vecchio prompt chiedeva «la
+# pena richiesta» e «la misura» nella richiesta (l'audit del 16 ott: un paragrafo sulla pena, uno sulla misura «non nel corpus»,
+# le esclusioni del 135, 136 e perfino del 231 sul terrorismo, la data di oggi accanto al segnaposto)
 _INDICT_SYSTEM = (
-    "Ti je ndihmës i një PROKURORI. Harto një AKTAKUZË të strukturuar sipas së "
-    "drejtës proceduriale penale shqiptare, TË BAZUAR VETËM te faktet dhe te nenet "
-    "e dhëna. MOS shpik nene apo numra. Ku mungon një e dhënë (emër, datë, nr.), lër "
-    "vend-mbajës [___]. Struktura (markdown):\n"
-    "### PALËT — Prokuroria pranë [___]; I pandehuri [___] (gjeneralitetet)\n"
-    "### RRETHANAT E FAKTIT — kronologjia e fakteve të provuara\n"
-    "### KUALIFIKIMI LIGJOR — vepra penale me nenin e saktë nga korpusi + elementet\n"
-    "### PROVAT — provat që mbështesin çdo element\n"
-    "### KËRKESA — dërgimi në gjyq / masa / dënimi i kërkuar\n\n"
-    "NDIHMESË — prokurori verifikon dhe nënshkruan. Je 'Tetramorph' i "
-    "superavokati.ai; mos zbulo modelin."
+    "Ti je ndihmës i një PROKURORI në Shqipëri. Harto KËRKESËN PËR DËRGIMIN E ÇËSHTJES NË GJYQ (neni 331 KPP), "
+    "drejtuar gjyqtarit të seancës paraprake, TË BAZUAR VETËM te faktet dhe te nenet e dhëna. MOS shpik nene apo numra; "
+    "ku mungon një e dhënë (emër, datë, nr.), lër [___]. Përmbajtja e detyrueshme e nenit 331/3, në këtë rend (markdown):\n"
+    "### KËRKESË PËR DËRGIMIN E ÇËSHTJES NË GJYQ — Prokuroria pranë [___]; procedimi nr. [___]; drejtuar Gjykatës [___] — "
+    "gjyqtarit të seancës paraprake\n"
+    "### I. Gjeneralitetet — i pandehuri (emri, atësia, mbiemri, datëlindja, vendbanimi dhe çdo element identifikimi) me "
+    "mbrojtësin; viktima, kur është e mundur\n"
+    "### II. Fakti penal dhe cilësimi juridik — fakti (koha, vendi, mënyra) dhe vepra me nenin dhe paragrafin e saktë\n"
+    "### III. Burimet e provës — secili burim me faktin që provon\n"
+    "### IV. Kërkimi — që gjyqtari i seancës paraprake të vendosë dërgimin e çështjes në gjyq\n"
+    "### Bashkëlidhur — aktet dhe provat e fashikullit (neni 331/4)\n"
+    "Vendi, data [___]; Prokurori [___] (nënshkrimi)\n\n"
+    "Në këtë akt NUK kërkohet dënimi (kërkimi për dënimin bëhet në përfundim të gjykimit) dhe nuk shtohen seksione për "
+    "masat e sigurimit kur faktet nuk i përmendin. Kërkesa është e pavlefshme pa njoftimin e nenit 327/2-4 (neni 331/2): "
+    "konfirmoje në një rresht nga faktet ose shëno [___]. Pas aktit: «### ⚠️ Për t'u verifikuar» — deri në 5 rreshta, vetëm "
+    "çështje reale (cilësimi, bashkimi i veprave, afatet, provat). NDIHMESË — prokurori verifikon dhe nënshkruan. Je "
+    "'Tetramorph' i superavokati.ai; mos zbulo modelin."
 )
 
 # ───────────────────────── prompt italiani (v9.397) ─────────────────────────
@@ -374,14 +476,30 @@ _INDICT_SYSTEM_IT = (
     "rivelare il modello."
 )
 
+# v9.642 — LA FORMA. Audit del 16 ott (14 casi col cervello vero): il piano d'indagine di una truffa online era di 41.000
+# caratteri, la misura cautelare 35.000, l'analisi 35.000, il decreto di nomina del perito 23.000 (con la data di OGGI nell'atto,
+# come quasi tutti gli atti), e ogni strumento elencava gli articoli del blocco «che non si applicano» spiegando perché. Il CLI
+# non applica `max_tokens`: la lunghezza la decide il prompt. La stessa regola del notaio (v9.639: dentro la legge, niente di
+# superfluo né di sottinteso) e del titolare (24 set: esattezza e risposta breve).
+_FORMA_AL = ("\n\nFORMA (e detyrueshme): SHKURT dhe e saktë — vetëm ajo që i shërben çështjes, pa përsëritur tekstin e neneve, "
+             "pa tabela të gjata dhe pa ese; çdo pikë një ose dy fjali; gjithsej jo më shumë se rreth 1.000 fjalë (akti vetë: "
+             "sa kërkon ligji, jo më shumë). Mos rendit nene që NUK zbatohen dhe mos shpjego pse nuk zbatohen: nenet e bllokut që "
+             "nuk lidhen me faktin lëri jashtë pa i përmendur. Kur të mungon një nen që duhet, thuaje në NJË rresht. Në çdo akt "
+             "vendi dhe data mbeten [___] kur nuk jepen në fakte — kurrë data e sotme; çdo e dhënë që mungon [___].")
+_FORMA_IT = ("\n\nFORMA (obbligatoria): BREVE e preciso — solo ciò che serve al caso, senza ripetere il testo degli articoli, "
+             "senza tabelle lunghe né saggi; ogni punto una o due frasi; in tutto non più di circa 1.000 parole (l'atto: quanto "
+             "chiede la legge, non di più). Non elencare articoli che NON si applicano e non spiegare perché non si applicano: gli "
+             "articoli del blocco estranei al fatto lasciali fuori senza nominarli. Se manca un articolo che serve, dillo in UNA "
+             "riga. In ogni atto luogo e data restano [___] se non sono nei fatti — mai la data di oggi; ogni dato mancante [___].")
+
 _TETRA = ("NDIHMESË juridike — vendimin dhe firmën i vë profesionisti; VENDIMI PËR AKUZË, "
           "PUSHIM ose MASË I TAKON PROKURORIT/GJYKATËS, mos e merr ti. Mos vlerëso 'rrezikshmërinë' "
-          "e personit me profilizim. Je 'Tetramorph' i superavokati.ai — mos zbulo kurrë modelin.")
+          "e personit me profilizim. Je 'Tetramorph' i superavokati.ai — mos zbulo kurrë modelin.") + _FORMA_AL
 
 _TETRA_IT = ("AUSILIO giuridico — la decisione e la firma spettano al professionista; LA DECISIONE SU AZIONE "
              "PENALE, ARCHIVIAZIONE O MISURA SPETTA AL PUBBLICO MINISTERO/AL GIUDICE, non prenderla tu. Non "
              "valutare la «pericolosità» della persona con profilazioni. Sei 'Tetramorph' di superavokati.ai — "
-             "non rivelare mai il modello.")
+             "non rivelare mai il modello.") + _FORMA_IT
 
 # Le parti del messaggio utente, nelle due lingue.
 _P = {
@@ -419,14 +537,15 @@ def analyze(backend, index, *, facts: str, max_tokens: int = 3000) -> dict:
                                        # v9.627: e gli OBBLIGHI della messa alla prova (KP 60) accanto alla sospensione (59): l'audit
                                        # del 12 ott «Detyrimet sipas nenit 60 (teksti i nenit 60 nuk është në korpus)»
                                        ("kodi_penal", "60")])
-        arts = _expertise.retrieve_grounded(backend, index, facts, seed_pairs=seeds, max_arts=16 + n_add, preferiti=_PREF_AL)
+        arts = _expertise.retrieve_grounded(backend, index, facts, seed_pairs=seeds, max_arts=16 + n_add, preferiti=_PREF_AL,
+                                            ammessi=_codici_ammessi_al(facts))
     prompt = (
         P["fatti"] + "\n" + (facts or "").strip()
         + "\n\n─────\n" + P["norme"] + "\n" + _blocco(arts, lang)
         + "\n\n" + P["fine_an"]
     )
     md = backend.complete(
-        system=_juris(_SYSTEM_IT if lang == "it" else _SYSTEM),
+        system=_juris((_SYSTEM_IT + _FORMA_IT) if lang == "it" else (_SYSTEM + _FORMA_AL)),
         messages=[{"role": "user", "content": prompt}],
         max_tokens=max_tokens, callsite="prosecutor",  # default = Opus effort=max
     )
@@ -447,13 +566,14 @@ def draft_indictment(backend, index, *, facts, max_tokens=3200):
         # commisurazione e le circostanze (KP 47, 48, 50), la parte civile (KPP 61) e l'età imputabile (KP 12) — nel ri-audit
         # dell'11 ott l'atto d'accusa le dava «non nel corpus» e lasciava [___]
         seeds, n_add = _semi_al([("kodi_proc_penale", "331"), ("kodi_proc_penale", "332"), ("kodi_penal", "47"),
-                                 ("kodi_penal", "48"), ("kodi_penal", "50"), ("kodi_proc_penale", "61"), ("kodi_penal", "12")], facts)
+                                 ("kodi_penal", "48"), ("kodi_penal", "50"), ("kodi_proc_penale", "61"), ("kodi_penal", "12")], facts,
+                                extra=[("kodi_penal", "55")])      # v9.642: il concorso di reati
         arts = _expertise.retrieve_grounded(backend, index, facts, seed_pairs=seeds or None, max_arts=16 + n_add,
-                                            preferiti=_PREF_AL)
+                                            preferiti=_PREF_AL, ammessi=_codici_ammessi_al(facts))
     prompt = (P["fatti_ind"] + "\n" + (facts or "").strip()
               + "\n\n─────\n" + P["norme"] + "\n" + _blocco(arts, lang)
               + "\n\n" + P["fine_ind"])
-    md = backend.complete(system=_juris(_INDICT_SYSTEM_IT if lang == "it" else _INDICT_SYSTEM),
+    md = backend.complete(system=_juris((_INDICT_SYSTEM_IT + _FORMA_IT) if lang == "it" else (_INDICT_SYSTEM + _FORMA_AL)),
                           messages=[{"role": "user", "content": prompt}],
                           max_tokens=max_tokens, callsite="indictment")
     return {"markdown": (md or "").strip(),
@@ -480,7 +600,7 @@ def _gen(backend, index, *, facts, system, callsite, seeds=None, extra="",
     else:
         sd, n_add = _semi_al(seeds, facts, extra=semi_in_piu_al)
         arts = _expertise.retrieve_grounded(backend, index, (facts or "") + " " + extra, seed_pairs=sd or None,
-                                            max_arts=16 + n_add, preferiti=_PREF_AL)
+                                            max_arts=16 + n_add, preferiti=_PREF_AL, ammessi=_codici_ammessi_al(facts))
     prompt = ((intro or P["dati"]) + "\n" + (facts or "").strip()
               + "\n\n─────\n" + P["norme"] + "\n" + _blocco(arts, lang)
               + "\n\n" + P["fine"])
@@ -542,17 +662,21 @@ def investigation_plan(backend, index, *, facts, max_tokens=2800):
 
 
 _ACT_KINDS = {
-    "kontroll": {"label": "Kërkesë për kontroll (person/vend)",
-                 "seed": [("kodi_proc_penale", "202"), ("kodi_proc_penale", "204"), ("kodi_proc_penale", "205")],
+    # v9.642: le etichette dicono CHI decide — la perquisizione la decide il GIUDICE su richiesta (KPP 202/1, 202/a), il
+    # sequestro probatorio e la nomina del perito li decide il PM stesso (208/1; 179: «organi procedues»), l'intercettazione la
+    # autorizza il giudice (222/1). Prima tutte e quattro erano «Kërkesë për …» e il perito usciva come richiesta al giudice
+    "kontroll": {"label": "Kërkesë për vendim kontrolli (drejtuar gjykatës)",
+                 "seed": [("kodi_proc_penale", "202"), ("kodi_proc_penale", "202/a"), ("kodi_proc_penale", "204"),
+                          ("kodi_proc_penale", "205")],
                  "q": "kontroll personi vendi kushtet"},
-    "sekuestrim": {"label": "Kërkesë për sekuestrim",
+    "sekuestrim": {"label": "Vendim për sekuestrimin e provave materiale",
                    "seed": [("kodi_proc_penale", "208"), ("kodi_proc_penale", "203"), ("kodi_proc_penale", "301")],
                    "q": "sekuestrim objekti provë materiale"},
-    "ekspertim": {"label": "Kërkesë për ekspertim",
+    "ekspertim": {"label": "Vendim për caktimin e ekspertit",
                   "seed": [("kodi_proc_penale", "178"), ("kodi_proc_penale", "179"),
                            ("kodi_proc_penale", "183"), ("kodi_proc_penale", "185")],
                   "q": "ekspertim ekspert detyra pyetjet"},
-    "pergjim": {"label": "Kërkesë për përgjim",
+    "pergjim": {"label": "Kërkesë për autorizimin e përgjimit (drejtuar gjykatës)",
                 # v9.399: + 222 (la decisione che autorizza: il cuore dell'atto), 223 (esecuzione), 226 (inutilizzabilità)
                 "seed": [("kodi_proc_penale", "221"), ("kodi_proc_penale", "222"), ("kodi_proc_penale", "223"),
                          ("kodi_proc_penale", "226")],
@@ -600,13 +724,14 @@ def investigative_act(backend, index, *, kind, facts, max_tokens=2600):
                     seeds=cfg["seed"], extra=cfg["q"], max_tokens=max_tokens)
     cfg = _ACT_KINDS.get(kind) or _ACT_KINDS["kontroll"]
     system = (
-        "Ti je ndihmës i një PROKURORI. Harto KËRKESËN/URDHRIN për veprimin hetimor '" + cfg["label"]
-        + "' sipas Kodit të Procedurës Penale, TË BAZUAR VETËM te faktet dhe te nenet e dhëna. MOS "
-        "shpik nene. Ku mungon një e dhënë, lër [___]. Jep (markdown):\n"
-        "### \U0001f4cc Baza ligjore & kushtet — nenet nga korpusi dhe kushtet që duhen plotësuar\n"
-        "### \U0001f9e9 Arsyetimi — pse ky veprim është i nevojshëm dhe proporcional me hetimin\n"
-        "### \U0001f4dd Kërkesa/urdhri — teksti i plotë, gati për t'u paraqitur (objekti, vendi/personi, çka kërkohet)\n"
-        "### ⚠️ Kujdes — çka duhet respektuar që veprimi të mos jetë i pavlefshëm (autorizim gjyqësor nëse kërkohet, afate, të drejtat)\n"
+        "Ti je ndihmës i një PROKURORI. Harto AKTIN për veprimin hetimor '" + cfg["label"]
+        + "' sipas Kodit të Procedurës Penale — KËRKESË drejtuar gjykatës kur neni e kërkon vendimin e gjykatës, VENDIM "
+        "i prokurorit kur neni ia jep atij — TË BAZUAR VETËM te faktet dhe te nenet e dhëna. MOS shpik nene. Ku mungon një "
+        "e dhënë, lër [___]. Jep (markdown):\n"
+        "### \U0001f4cc Baza ligjore & kushtet — nenet dhe kushtet që duhen plotësuar (deri në 6 pika)\n"
+        "### \U0001f4dd Akti — teksti i plotë, gati për nënshkrim: objekti, vendi ose personi, çfarë kërkohet ose urdhërohet, "
+        "arsyetimi i shkurtër (nevoja dhe proporcionaliteti), njoftimet dhe të drejtat që duhen bërë të ditura; data [___]\n"
+        "### ⚠️ Kujdes — deri në 5 pika: çfarë duhet respektuar që akti të mos jetë i pavlefshëm dhe prova e papërdorshme\n"
         + _TETRA)
     return _gen(backend, index, facts=facts, system=system, callsite="pros_act",
                 seeds=cfg["seed"], extra=cfg["q"], max_tokens=max_tokens)
@@ -673,19 +798,34 @@ def dismissal_request(backend, index, *, facts, max_tokens=2600):
                     # cercare anche gli elementi a favore (c.p.p. 358) — nell'audit IT del 29 set «non compresi fra gli articoli»
                     semi_in_piu_it=_cp("157", "158", "160", "161", "120", "124") + _cpp("358"),
                     extra="richiesta di archiviazione infondatezza notizia di reato", max_tokens=max_tokens)
+    # v9.642 — l'audit del 16 ott: col reato d'AUTORE IGNOTO lo strumento proponeva il «pushim» del 328/1/ç (per l'autore ignoto
+    # il KPP prevede la SOSPENSIONE delle indagini, art. 326) e, sul crimine, dava «il 329/a non è nel corpus» (la richiesta al
+    # giudice dell'udienza preliminare): i semi non avevano né il 326 né il 329/a né il KP 1 (crimine o contravvenzione)
     system = (
-        "Ti je ndihmës i një PROKURORI. Harto një KËRKESË/PROJEKT-VENDIM për PUSHIM ose MOSFILLIM të "
-        "procedimit sipas KPP, TË BAZUAR VETËM te faktet dhe te nenet e dhëna. VENDIMI I TAKON "
-        "PROKURORIT — ky është vetëm projekt i arsyetuar. MOS shpik nene. Jep (markdown):\n"
-        "### \U0001f4dc Baza ligjore — mosfillim apo pushim, me nenin nga korpusi dhe shkakun\n"
-        "### \U0001f9ed Arsyetimi — pse nuk ka vend për ndjekje (mungon fakti/prova/vepra, parashkrim etj.)\n"
-        "### ⚖️ Kundërshtimi i mundshëm — a ka prova që do të kërkonin vazhdim? (objektiviteti)\n"
-        "### \U0001f4e2 Njoftimi & ankimi — kush njoftohet dhe e drejta e të dëmtuarit për ankim\n"
+        "Ti je ndihmës i një PROKURORI. Harto aktin për MBYLLJEN ose NDALIMIN e procedimit sipas KPP, TË BAZUAR VETËM te "
+        "faktet dhe te nenet e dhëna. VENDIMI I TAKON PROKURORIT (dhe, për krimet, GJYQTARIT) — ky është projekt i arsyetuar. "
+        "MOS shpik nene. Së PARI zgjidh rrugën që përcakton KPP:\n"
+        "• AUTORI I PANJOHUR (nuk është identifikuar askush): nuk ka pushim — prokurori vendos PEZULLIMIN E HETIMEVE (neni "
+        "326), pasi janë kryer të gjitha veprimet e mundshme; vendimi i arsyetuar i njoftohet viktimës ose kallëzuesit, që "
+        "mund të ankohen brenda 10 ditëve te gjyqtari i seancës paraprake; hetimi rifillon me vendim të prokurorit.\n"
+        "• Para fillimit të procedimit, kur ka një nga rrethanat e nenit 290: VENDIM PËR MOSFILLIM (neni 291).\n"
+        "• Pas hetimeve, kur ka një shkak të nenit 328/1: për KUNDËRVAJTJE PENALE prokurori VENDOS vetë pushimin (neni 328, "
+        "njoftimi brenda 5 ditëve, ankim neni 329); për KRIM prokurori i KËRKON gjyqtarit të seancës paraprake pushimin "
+        "(neni 329/a). Vepra është kundërvajtje penale kur neni i Kodit Penal e thotë shprehimisht («përbën kundërvajtje "
+        "penale»); përndryshe është krim (neni 1 KP).\n"
+        "Jep (markdown):\n"
+        "### \U0001f9ed Rruga — cili akt dhe pse, me nenin (deri në 3 rreshta)\n"
+        "### \U0001f4dd Akti — vendimi ose kërkesa, i plotë, gati për nënshkrim (shkaku me nenin dhe arsyetimi i shkurtër)\n"
+        "### \U0001f4e2 Njoftimi & ankimi — kush njoftohet, brenda sa ditësh, ku ankohet\n"
+        "### ⚖️ Para se ta mbyllësh — a ka ende veprime ose prova që do të kërkonin vazhdim? (objektiviteti; deri në 5 pika)\n"
         + _TETRA)
     return _gen(backend, index, facts=facts, system=system, callsite="pros_dismiss",
                 seeds=[("kodi_proc_penale", "290"), ("kodi_proc_penale", "291"),
-                       ("kodi_proc_penale", "328")],
-                extra="pushim mosfillim procedimi", max_tokens=max_tokens)
+                       ("kodi_proc_penale", "326"), ("kodi_proc_penale", "327"),
+                       ("kodi_proc_penale", "328"), ("kodi_proc_penale", "329"),
+                       ("kodi_proc_penale", "329/a")],
+                semi_in_piu_al=[("kodi_penal", "1"), ("kodi_penal", "66")],
+                extra="pushim mosfillim pezullim procedimi", max_tokens=max_tokens)
 
 
 def stress_test(backend, index, *, text, max_tokens=2600):
@@ -746,19 +886,29 @@ def citizen_complaint(backend, index, *, facts, max_tokens=2800):
                     intro=_P["it"]["citt"], extra="denuncia querela persona offesa diritti", max_tokens=max_tokens)
     system = (
         "Ti je ndihmës që e ndihmon një QYTETAR të përgatisë një KALLËZIM PENAL të saktë (ndihmesë, jo "
-        "këshillë ligjore zyrtare). Nga rrëfimi, harto kallëzimin TË PLOTË dhe të strukturuar, TË BAZUAR "
-        "te faktet dhe te nenet e dhëna. MOS shpik nene. Ku mungon një e dhënë, lër [___]. Jep (markdown):\n"
-        "### \U0001f4dd KALLËZIMI — teksti gati për dorëzim: kallëzuesi, të dhënat, RRETHANAT (kush/çfarë/kur/ku), "
-        "dëmi, provat, personat e përfshirë (nëse dihen), dhe KËRKESA për fillim procedimi\n"
-        "### \U0001f4cd Ku dorëzohet — Prokuroria pranë gjykatës kompetente sipas vendit; ose SPAK nëse është "
-        "korrupsion/krim i organizuar/funksionarë të lartë (shpjego shkurt pse)\n"
+        "këshillë ligjore zyrtare). Nga rrëfimi, harto aktin TË PLOTË dhe të strukturuar, TË BAZUAR te faktet dhe te "
+        "nenet e dhëna. MOS shpik nene. Ku mungon një e dhënë, lër [___]. Së PARI përcakto RRUGËN sipas veprës (v9.642):\n"
+        "• kur vepra është ndër ato të nenit 59 KPP (viktima akuzuese: p.sh. fyerja, shpifja, rrahja dhe dëmtimet e lehta, "
+        "ndërhyrja në jetën private) → NUK është kallëzim në prokurori: është KËRKESË E VIKTIMËS AKUZUESE që paraqitet "
+        "drejtpërdrejt në GJYKATË (neni 59 dhe 284/5), ku viktima vërteton akuzën si palë dhe kërkon shpërblimin e dëmit;\n"
+        "• kur vepra është ndër ato të nenit 284/1 KPP → ndjekja fillon vetëm me ANKIMIN e viktimës, te prokurori ose te "
+        "policia gjyqësore (mund të tërhiqet në çdo fazë);\n"
+        "• në rastet e tjera → KALLËZIM te prokurori ose te policia gjyqësore (neni 283).\n"
+        "Jep (markdown):\n"
+        "### \U0001f9ed Rruga — cili akt dhe ku, me nenin (deri në 3 rreshta)\n"
+        "### \U0001f4dd AKTI — teksti gati për dorëzim: kush e paraqet, të dhënat, RRETHANAT (kush/çfarë/kur/ku), dëmi, "
+        "provat, personat e përfshirë (nëse dihen) dhe KËRKESA; vendi dhe data [___]\n"
+        "### \U0001f4cd Ku dorëzohet — gjykata ose prokuroria kompetente sipas vendit; SPAK vetëm kur vepra është ndër ato të "
+        "nenit 75/a KPP (shpjego shkurt pse)\n"
         "### \U0001f4ce Dokumentet për t'u bashkangjitur — lista konkrete sipas llojit të veprës\n"
-        "### ⚖️ Të drejtat e tua si i dëmtuar — shkurt (neni 58 KPP) dhe se mund të njoftohesh e të ankohesh\n"
+        "### ⚖️ Të drejtat e tua si i dëmtuar — shkurt (neni 58 KPP)\n"
         + _TETRA)
     return _gen(backend, index, facts=facts, system=system, callsite="pros_complaint",
-                seeds=[("kodi_proc_penale", "283"), ("kodi_proc_penale", "58"),
+                seeds=[("kodi_proc_penale", "283"), ("kodi_proc_penale", "284"),
+                       ("kodi_proc_penale", "59"), ("kodi_proc_penale", "58"),
                        ("kodi_proc_penale", "290")],
-                intro=_P["sq"]["citt"], extra="kallëzim i dëmtuar të drejtat",
+                semi_in_piu_al=[("kodi_penal", "66")],
+                intro=_P["sq"]["citt"], extra="kallëzim ankim viktima akuzuese i dëmtuar të drejtat",
                 max_tokens=max_tokens)
 
 
@@ -797,7 +947,9 @@ def victim_rights(backend, index, *, facts, max_tokens=2400):
                 # v9.618: + il calcolo dei termini; v9.619: + KPP 324 (proroga delle indagini) e 329/a (richiesta di archiviazione al
                 # giudice), che il 327 richiama — nel ri-audit «il testo del 329/a e del 324 non è nel mio corpus»
                 semi_in_piu_al=[("kodi_proc_penale", "291"), ("kodi_proc_penale", "144"), ("kodi_proc_penale", "324"),
-                                ("kodi_proc_penale", "329/a")],
+                                ("kodi_proc_penale", "329/a"),
+                                # v9.642: la vittima-accusatrice (KPP 59) e la parte civile nel processo penale (61)
+                                ("kodi_proc_penale", "59"), ("kodi_proc_penale", "61")],
                 intro=_P["sq"]["vitt"], extra="të drejtat i dëmtuar faza afati",
                 max_tokens=max_tokens)
 
@@ -820,20 +972,31 @@ def dismissal_appeal(backend, index, *, facts, max_tokens=2600):
                     seeds=_cpp("408", "409", "410", "410-bis", "411"),
                     intro=_P["it"]["app"], extra="opposizione archiviazione termine reclamo nullità", max_tokens=max_tokens)
     system = (
-        "Ti je ndihmës që e ndihmon një QYTETAR TË DËMTUAR të kuptojë një VENDIM PUSHIMI/MOSFILLIMI dhe "
-        "të përgatisë ANKIMIN në gjykatë (ndihmesë, jo këshillë zyrtare). Bazohu te faktet dhe te nenet e "
-        "dhëna — mos shpik. ⚠️ AFATET E ANKIMIT janë vendimtare — thekso që të verifikohen me "
-        "avokat/dispozitat. Jep (markdown):\n"
-        "### \U0001f50e Çfarë thotë vendimi — shpjegim i thjeshtë i arsyeve të pushimit/mosfillimit\n"
-        "### ⚖️ A ka bazë ankimi — pikat e dobëta të vendimit dhe të drejta e ankimit (neni 291/329 KPP)\n"
-        "### \U0001f4dd ANKIMI — teksti i strukturuar drejtuar gjykatës kompetente\n"
-        "### ⏰ Afati — brenda sa kohe duhet paraqitur (VERIFIKO me dispozitat/avokat — mos u vono)\n"
+        "Ti je ndihmës që e ndihmon një QYTETAR TË DËMTUAR të kuptojë një vendim që mbyll ose ndal procedimin dhe të "
+        "përgatisë ANKIMIN (ndihmesë, jo këshillë zyrtare). Bazohu te faktet dhe te nenet e dhëna — mos shpik. Dallo aktin "
+        "(v9.642):\n"
+        "• VENDIM PËR MOSFILLIM (neni 291) → ankim brenda 10 ditëve nga njoftimi, në gjykatë (gjyqtari që gjykon kërkesat "
+        "gjatë hetimeve paraprake);\n"
+        "• VENDIM PËR PUSHIM nga prokurori (neni 328, kundërvajtje) → ankim brenda 10 ditëve nga marrja dijeni, te gjyqtari i "
+        "seancës paraprake (neni 329);\n"
+        "• VENDIM PËR PEZULLIMIN E HETIMEVE (neni 326, autori i panjohur) → ankim brenda 10 ditëve nga marrja dijeni, te "
+        "gjyqtari i seancës paraprake;\n"
+        "• KËRKESË E PROKURORIT PËR PUSHIM (neni 329/a, krim) → viktima njoftohet dhe parashtron pikëpamjet para gjyqtarit; "
+        "kundër vendimit të gjyqtarit për pushim (neni 329/6) ankohet në gjykatën e apelit.\n"
+        "⚠️ AFATET janë vendimtare: llogarite datën e fundit nga data e njoftimit që jep qytetari dhe thuaje qartë; nëse ka "
+        "kaluar, thuaje hapur. Jep (markdown):\n"
+        "### \U0001f50e Çfarë thotë vendimi — shpjegim i thjeshtë (deri në 5 rreshta)\n"
+        "### ⚖️ A ka bazë ankimi — pikat e dobëta të vendimit, me nenin\n"
+        "### \U0001f4dd ANKIMI — teksti i strukturuar, drejtuar gjykatës kompetente (data [___])\n"
+        "### ⏰ Afati — data e fundit dhe ku depozitohet\n"
         + _TETRA)
     return _gen(backend, index, facts=facts, system=system, callsite="pros_appeal",
                 seeds=[("kodi_proc_penale", "291"), ("kodi_proc_penale", "292"),
-                       ("kodi_proc_penale", "328"), ("kodi_proc_penale", "329"),
+                       ("kodi_proc_penale", "326"), ("kodi_proc_penale", "328"),
+                       ("kodi_proc_penale", "329"), ("kodi_proc_penale", "329/a"),
                        ("kodi_proc_penale", "284")],
-                intro=_P["sq"]["app"], extra="ankim pushim mosfillim afati",
+                semi_in_piu_al=[("kodi_proc_penale", "58"), ("kodi_proc_penale", "144")],
+                intro=_P["sq"]["app"], extra="ankim pushim mosfillim pezullim afati",
                 max_tokens=max_tokens)
 
 
@@ -864,5 +1027,8 @@ def delay_complaint(backend, index, *, facts, max_tokens=2400):
     return _gen(backend, index, facts=facts, system=system, callsite="pros_delay",
                 seeds=[("kodi_proc_penale", "323"), ("kodi_proc_penale", "324"),
                        ("kodi_proc_penale", "58")],
+                # v9.642: la registrazione della notizia di reato (287), i 15 giorni per il non avvio (291), il ricorso contro
+                # la proroga delle indagini (325)
+                semi_in_piu_al=[("kodi_proc_penale", "287"), ("kodi_proc_penale", "291"), ("kodi_proc_penale", "325")],
                 intro=_P["sq"]["del"], extra="vonesa ankesa afati hetimit",
                 max_tokens=max_tokens)

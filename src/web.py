@@ -5246,6 +5246,27 @@ def _coppie_per_pro(case_id: str | None, text: str) -> list:
     return pairs[:16] or None
 
 
+_SUFFISSO_MERITO = {False: "\n\n(Për kërkimin: normat MATERIALE të mosmarrëveshjes — jo procedura e ankimit.)",
+                    True: "\n\n(Per la ricerca: le norme SOSTANZIALI della controversia — non la procedura d'impugnazione.)"}
+
+
+def _coppie_per_merito(case_id: str | None, text: str, act_type: str) -> list:
+    """v9.642 — `_coppie_per_pro` e, per gli atti che impugnano o discutono una decisione (appello, ricorso, memoria), fino a 8
+    articoli in più da un recupero sulle norme SOSTANZIALI della lite. Fail-silent: senza, come prima."""
+    pairs = _coppie_per_pro(case_id, text)
+    if act_type not in ("ankim", "rekurs", "memorie"):
+        return pairs
+    try:
+        it = _active_jurisdiction(getattr(request, "user", None)) == "IT"
+        extra = _coppie_e_rastit(None, (text or "")[:2800] + _SUFFISSO_MERITO[it], it)
+        seen = {(a.code, str(a.number)) for a, _ in (pairs or [])}
+        nuovi = [(a, s) for a, s in extra if (a.code, str(a.number)) not in seen][:8]
+        return (list(pairs or []) + nuovi) or None
+    except Exception:  # noqa: BLE001
+        log.warning("recupero del merito per l'atto fallito (non-fatal)", exc_info=True)
+        return pairs
+
+
 def _nenet_e_rastit(case_id: str, question: str, it: bool) -> str:
     """I nene del fascicolo per gli strumenti brevi senza recupero proprio — risposta in udienza, simulazione dell'accordo
     (v9.399). Blocco compatto (10 articoli, testo fino a 1.500 caratteri). Fail-silent: vuoto = come prima.
@@ -9225,7 +9246,7 @@ def api_draft_act_create():
         draft = pro_mod.draft_act(
             _BRAIN.backend, _req_index(),
             act_type=act_type, brief=brief, case_docs=case_docs,
-            retrieved=_coppie_per_pro(case_id, brief),   # v9.400
+            retrieved=_coppie_per_merito(case_id, brief, act_type),   # v9.400; v9.642: + il merito negli appelli
         )
     except Exception as exc:
         log.exception("draft act failure")

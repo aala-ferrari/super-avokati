@@ -9463,17 +9463,18 @@
       return;
     }
     draftRun.disabled = true;
-    draftStatus.textContent = "Po harton aktin… (mund të zgjasë deri në 2 min)";
+    draftStatus.textContent = "Po harton aktin… (~5-8 min)";
     draftStatus.className = "pro-status";
     draftResult.hidden = true;
     try {
       const body = { act_type: actType, brief };
       if (activeCaseId) body.case_id = activeCaseId;
-      const resp = await fetch("/api/draft-act", {
+      // v9.642: la richiesta resta parcheggiata sul server (X-Job-Key): sul telefono una connessione caduta non perde l'atto
+      const resp = await _fetchLungo("/api/draft-act", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
-      });
+      }, (_CAL_IT ? "Atto: " : "Akt: ") + (draftSelect.options[draftSelect.selectedIndex] || {}).text, draftResult, draftStatus);
       if (!resp.ok) {
         const err = await resp.json().catch(() => ({}));
         throw new Error(err.error || `HTTP ${resp.status}`);
@@ -9507,7 +9508,7 @@
         <a class="secondary" style="padding:10px 14px;border-radius:10px;text-decoration:none;background:var(--gold-soft);color:var(--ink);border:1px solid var(--gold);" href="/api/draft-act/${encodeURIComponent(data.id)}/docx">⬇ .docx</a>
       </div>
       ${petitum ? `<div class="pro-section"><h4>KËRKOJMË (petitum)</h4><ol>${petitum}</ol></div>` : ""}
-      <div class="pro-section"><h4>Teksti i aktit</h4><div class="draft-body">${escapeHtml(d.body_markdown || "").replace(/\n/g,"<br>")}</div></div>
+      <div class="pro-section"><h4>Teksti i aktit</h4><div class="draft-body">${renderMarkdown(d.body_markdown || "")}</div></div>
       ${cited ? `<div class="pro-section"><h4>Bazë ligjore</h4><ul>${cited}</ul></div>` : ""}
       ${warnings ? `<div class="pro-section"><h4>⚠ Verifiko para depozitimit</h4><ul>${warnings}</ul></div>` : ""}
     `;

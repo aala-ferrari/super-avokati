@@ -5698,7 +5698,7 @@ def main():
             _b163.set_request_jurisdiction("AL")
         _web163 = open("/app/src/web.py", encoding="utf-8").read()
         _pfs163 = open("/app/src/pro_features.py", encoding="utf-8").read()
-        _okB = (_web163.count("retrieved=_coppie_per_pro(") == 4 and "backend=_BRAIN.backend, index=_INDEX" not in _web163
+        _okB = ((_web163.count("retrieved=_coppie_per_pro(") + _web163.count("retrieved=_coppie_per_merito(")) == 4 and "backend=_BRAIN.backend, index=_INDEX" not in _web163
                 and '"converg" in thesis' in _pfs163 and "retrieved = retrieved or index.search(" in _pfs163)
         check("pro[163]: strumenti PRO con l'articolo fino a 1.500 caratteri (KP 146 intero), recupero del cervello, indice "
               "della sessione (niente indice albanese in IT), convergenza del duello anche in italiano", _okA and _okIT and _okB,
@@ -12727,7 +12727,7 @@ const F = new Function("localStorage", "fetch", "document", "TT", "_CAL_IT", "se
             _o426, _okA = "node assente", True
         import re as _re426
         _siti = _re426.findall(r'_fetchLungo\("(/api/[a-z0-9/_-]+)"', _a426)
-        _okB = (len(_siti) == 18 and len(set(_siti)) == 15 and ", ov, null)" not in _a426
+        _okB = (len(_siti) >= 19 and len(set(_siti)) >= 16 and ", ov, null)" not in _a426
                 and all(('fetch("' + u + '"') not in _a426 for u in set(_siti))
                 and _a426.count('(_CAL_IT ? "') >= 18 and "localStorage.setItem(_PARCHEGGIO_CHIAVE" in _a426)
         check("lavoro[426]: gli strumenti lunghi fatti a mano parcheggiati e ritrovati (rete che cade, finestra chiusa, elenco di "
@@ -13279,6 +13279,140 @@ const F = new Function("localStorage", "document", "fetch", "renderMarkdown", "_
               _okA and _okB and _okC, f"it={_okA} al={_okB} aggiornamento={_okC}")
     except Exception as _e437:  # noqa: BLE001
         check("noter[437]: kontrollet u ekzekutuan", False, f"{type(_e437).__name__}: {_e437}")
+
+    # [438] v9.642 — I SEMI SCRITTI NEL CODICE ESISTONO E SONO IN VIGORE: ogni coppia («codice», «numero») dei sorgenti, e i
+    # c.p.p./c.p. scritti con _cpp()/_cp(), contro gli indici veri. Prima il reclamo albanese al Commissario dei dati partiva da tre
+    # articoli della legge 9887/2008, ABROGATA dalla 124/2024, e il reclamo italiano al Garante dall'art. 140 abrogato del codice privacy
+    try:
+        import glob as _glob438, re as _re438
+        _it438 = idx_it if "idx_it" in dir() else ArticleIndex.load(INDEX_FILE.parent / "bm25_it.pkl")
+        _by438 = {}
+        for _ix438 in (idx, _it438):
+            for _a438 in _ix438.articles:
+                _by438[(_a438.code, str(_a438.number))] = _a438
+        _codici438 = {c for c, _ in _by438}
+        _rx438 = _re438.compile(r'\(\s*"([a-z][a-z0-9_]+)"\s*,\s*"([0-9][0-9a-z/\-\.]*)"\s*[,)]')
+        _rxc438 = _re438.compile(r'_(cpp|cp)\(([^)]*)\)')
+        _male438 = []
+        _visti438 = 0
+        for _f438 in sorted(_glob438.glob("/app/src/*.py")):
+            for _i438, _riga438 in enumerate(open(_f438, encoding="utf-8").read().splitlines(), 1):
+                _cp438 = [(m.group(1), m.group(2)) for m in _rx438.finditer(_riga438)]
+                for m in _rxc438.finditer(_riga438):
+                    _code438 = "codice_procedura_penale" if m.group(1) == "cpp" else "codice_penale"
+                    _cp438 += [(_code438, n) for n in _re438.findall(r'"([^"]+)"', m.group(2))]
+                for _c438, _n438 in _cp438:
+                    if _c438 not in _codici438:
+                        continue
+                    _visti438 += 1
+                    _a438 = _by438.get((_c438, _n438))
+                    if _a438 is None or getattr(_a438, "repealed", False):
+                        _male438.append(f"{_f438.rsplit('/', 1)[-1]}:{_i438} {_c438} {_n438}"
+                                        + (" (non esiste)" if _a438 is None else " (abrogato)"))
+        check("semi[438]: ogni seme scritto nel codice esiste nel corpus ed è in vigore (lettere, procuratore, notaio, perizie, "
+              "termini, atti)", _visti438 > 300 and not _male438, f"visti {_visti438}; {_male438[:6]}")
+    except Exception as _e438:  # noqa: BLE001
+        check("semi[438]: kontrollet u ekzekutuan", False, f"{type(_e438).__name__}: {_e438}")
+
+    # [439] v9.642 — IL PROCURATORE ALBANESE DALL'AUDIT DEL 16 OTT: i semi di situazione dei casi veri (rapina → KP 139 e, con la
+    # cosa comprata da uno sconosciuto, 287/b; 9 giorni di inabilità → 89-90; furto in casa → 112 e 150; minaccia → 84; ordine di
+    # protezione violato → 321; autore ignoto → KPP 326; diffamazione → KP 119-120 e la vittima-accusatrice KPP 59; corruzione →
+    # 259, 244 e la competenza 75/a), il filtro dei codici (niente assicurazione auto né Costituzione fuori dalle garanzie penali in
+    # una rapina), i prompt (la richiesta di rinvio a giudizio del 331 senza la pena; la strada dell'archiviazione 326/328/329/a; la
+    # strada della denuncia 59/284/283; la forma breve con la data [___]) e i semi degli strumenti
+    try:
+        from src import prosecutor as _pr439, expertise as _ex439, brain as _br439
+        _br439.set_request_jurisdiction("AL")
+        _casi439 = {
+            "grabitje": ("dy persona e goditën me grushte dhe i morën me forcë telefonin; telefoni u gjet te Arben Prova, i cili "
+                         "deklaroi se e kishte blerë nga një person i panjohur; paaftësi 9 ditë",
+                         {("kodi_penal", "139"), ("kodi_penal", "287/b"), ("kodi_penal", "90")}),
+            "banese": ("i pandehuri hyri duke thyer dritaren në banesën e viktimës dhe mori laptopin",
+                       {("kodi_penal", "112"), ("kodi_penal", "150")}),
+            "kanosje": ("fqinji më tha «do të të vras» para dy dëshmitarëve", {("kodi_penal", "84")}),
+            "urdher": ("ndaj tij ishte në fuqi një urdhër mbrojtjeje i gjykatës dhe ai u afrua te banesa",
+                       {("kodi_penal", "321")}),
+            "panjohur": ("nga makina u vodh një çantë; autori nuk u identifikua", {("kodi_proc_penale", "326")}),
+            "shpifje": ("publikoi në Facebook se kam vjedhur paratë e firmës, gjë që nuk është e vërtetë",
+                        {("kodi_penal", "120"), ("kodi_proc_penale", "59")}),
+            "korrupsion": ("punonjësi i bashkisë më kërkoi 2.000 euro për të më dhënë lejen më shpejt",
+                           {("kodi_penal", "259"), ("kodi_proc_penale", "75/a")}),
+        }
+        _male439 = []
+        for _k439, (_t439, _att439) in _casi439.items():
+            _s439 = set(_pr439._semi_situazione_al(_t439))
+            if not _att439 <= _s439:
+                _male439.append(f"{_k439}: mancano {sorted(_att439 - _s439)}")
+        # trappole: la fuga non è una rapina, la violenza in famiglia senza nulla preso non è una rapina, il furto senza casa
+        for _t439, _no439 in (("u përpoq të ikte nga policia", ("kodi_penal", "139")),
+                              ("goditi me grushte bashkëshorten dhe e kërcënoi", ("kodi_penal", "139")),
+                              ("nga makina u vodh një çantë me dokumente", ("kodi_penal", "112")),
+                              ("Personi i dytë nuk është identifikuar ende, por e dimë kush është", ("kodi_proc_penale", "326"))):
+            if _no439 in set(_pr439._semi_situazione_al(_t439)):
+                _male439.append(f"falso: {_no439} in «{_t439[:40]}»")
+        _amm439 = _pr439._codici_ammessi_al(_casi439["grabitje"][0])
+        _okF439 = (_amm439("kodi_penal", "139") and _amm439("kodi_proc_penale", "326") and not _amm439("ligji_sigurimi_mjeteve", "25")
+                   and not _amm439("vkm_dispozita_doganore", "420") and not _amm439("kushtetuta", "26")
+                   and _amm439("kushtetuta", "28") and _pr439._codici_ammessi_al("50 gram kokainë")("ligji_lendet_narkotike", "9"))
+        _okP439 = ("331" in _pr439._INDICT_SYSTEM and "gjyqtarit të seancës paraprake" in _pr439._INDICT_SYSTEM
+                   and "NUK kërkohet dënimi" in _pr439._INDICT_SYSTEM and "kurrë data e sotme" in _pr439._TETRA
+                   and "mai la data di oggi" in _pr439._TETRA_IT)
+        _src439 = open("/app/src/prosecutor.py", encoding="utf-8").read()
+        _okS439 = ("PEZULLIMIN E HETIMEVE (neni" in _src439 and "(neni 329/a)" in _src439 and "VIKTIMËS AKUZUESE" in _src439
+                   and _src439.count("ammessi=_codici_ammessi_al(facts)") == 3
+                   and "(_SYSTEM + _FORMA_AL)" in _src439 and "(_INDICT_SYSTEM + _FORMA_AL)" in _src439)
+        # gli strumenti col backend finto: i semi dell'archiviazione e della denuncia arrivano al modello
+        class _FB439:
+            def complete(self, system=None, messages=None, **kw):
+                return ""
+        _fb439 = _FB439()
+        _r439 = _pr439.dismissal_request(_fb439, idx, facts="Procedimi për vjedhje; autori nuk u identifikua.")
+        _a439 = {(x["code"], x["number"]) for x in _r439["articles"]}
+        _r439b = _pr439.citizen_complaint(_fb439, idx, facts="Më shpifi në Facebook ish-partneri.")
+        _b439 = {(x["code"], x["number"]) for x in _r439b["articles"]}
+        _okT439 = ({("kodi_proc_penale", "326"), ("kodi_proc_penale", "329/a"), ("kodi_penal", "1")} <= _a439
+                   and {("kodi_proc_penale", "59"), ("kodi_proc_penale", "284")} <= _b439
+                   and not any(c in ("ligji_sigurimi_mjeteve", "vkm_dispozita_doganore", "kodi_civil") for c, _n in _a439 | _b439))
+        # l'articolo finale di ogni legge non è mai la risposta a «hyrje në banesë»
+        _okH439 = not any(_h439 and _h439.lower().startswith("hyrja në fuqi")
+                          for _c439, _n439, _h439 in [(c, n, next((a.heading for a in idx.articles if a.code == c and a.number == n), ""))
+                                                       for c, n, _t in _ex439._heading_scan_rank(idx, "hyrje në banesë", limit=10)])
+        check("prokuror[439]: semi di situazione dei casi veri e trappole, filtro dei codici, richiesta di rinvio del 331, "
+              "strade di archiviazione e denuncia, forma breve con la data [___], semi degli strumenti, «Hyrja në fuqi» fuori",
+              not _male439 and _okF439 and _okP439 and _okS439 and _okT439 and _okH439,
+              f"{_male439[:4]} filtro={_okF439} prompt={_okP439} sorgente={_okS439} strumenti={_okT439} hyrja={_okH439}")
+    except Exception as _e439:  # noqa: BLE001
+        check("prokuror[439]: kontrollet u ekzekutuan", False, f"{type(_e439).__name__}: {_e439}")
+
+    # [440] v9.642 — LA FABBRICA DEGLI ATTI: la struttura dall'articolo di procedura (KPC 154/156, 453-455, 474-475; KPP 412-413),
+    # la data [___], gli avvisi brevi, la misura cautelare nella richiesta penale; nel client il testo reso (non il markdown crudo)
+    # e la richiesta parcheggiata. Le lettere: i semi del reclamo sui dati personali sulla legge 124/2024 in vigore
+    try:
+        from src import pro_features as _pf440, letters as _lt440, brain as _br440
+        _br440.set_request_jurisdiction("AL")
+        _sa440 = _pf440._SEMI_ATTO["AL"]
+        _okD440 = ("kurrë data e sotme" in _pf440.DRAFT_SYSTEM and "453-455" in _pf440.DRAFT_SYSTEM
+                   and "deri në 6" in _pf440.DRAFT_SYSTEM
+                   and {("kodi_proc_civile", n) for n in ("453", "454", "455")} <= {(v[0], v[1]) for v in _sa440["ankim"]}
+                   and ("kodi_proc_civile", "474") in {(v[0], v[1]) for v in _sa440["rekurs"]}
+                   and ("kodi_proc_penale", "260") in {(v[0], v[1]) for v in _sa440["kerkese_penale"]})
+        _r440 = _pf440._con_semi_dell_atto([], idx, "kerkese_penale", "Klienti është në paraburgim; kërkojmë arrest në shtëpi.")
+        _okM440 = {("kodi_proc_penale", "260"), ("kodi_proc_penale", "263")} <= {(a.code, a.number) for a, _s in _r440}
+        _js440 = open("/app/static/app.js", encoding="utf-8").read()
+        _okJ440 = ('renderMarkdown(d.body_markdown || "")' in _js440 and '_fetchLungo("/api/draft-act"' in _js440
+                   and 'escapeHtml(d.body_markdown || "").replace' not in _js440)
+        _w440 = open("/app/src/web.py", encoding="utf-8").read()
+        _okW440 = ("_coppie_per_merito(case_id, brief, act_type)" in _w440 and "normat MATERIALE" in _w440)
+        _cat440 = _lt440.catalogue("AL")
+        _okL440 = (all(c == "ligji_te_dhenat_2024" for c, _n in _cat440["te_dhenat_personale"]["seeds"])
+                   and ("kodi_penal", "143") not in _cat440["kallezim_prokurori"]["seeds"]
+                   and ("ligji_informimi", "15") in _cat440["kerkese_informacioni"]["seeds"])
+        check("fabrika[440]: atti dalla norma di procedura, data [___], avvisi brevi, misura cautelare; client col testo reso e "
+              "la richiesta parcheggiata; lettere sui semi in vigore; il merito negli appelli",
+              _okD440 and _okM440 and _okJ440 and _okL440 and _okW440,
+              f"prompt={_okD440} misura={_okM440} client={_okJ440} lettere={_okL440} merito={_okW440}")
+    except Exception as _e440:  # noqa: BLE001
+        check("fabrika[440]: kontrollet u ekzekutuan", False, f"{type(_e440).__name__}: {_e440}")
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

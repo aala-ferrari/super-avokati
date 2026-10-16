@@ -356,11 +356,14 @@ def _heading_scan_rank(index, term, limit=3, preferiti=None):
     tws = list(dict.fromkeys(w for w in words if len(w) >= 5))
     pref = set(preferiti or ())
     scored = []
+    _fuqi = "fuqi" in words
     for a in getattr(index, "articles", []):
         if getattr(a, "repealed", False):
             continue
         hw = _fold(getattr(a, "heading", "") or "").split()
         if not hw:
+            continue
+        if not _fuqi and hw[:3] == ["hyrja", "ne", "fuqi"]:      # v9.642: l'articolo finale di ogni legge, mai un tema
             continue
         hr = [w for w in hw if len(w) >= 4]
         ov = sum(1 for tw in tws if any(_stessa_radice(tw, w) for w in hr))
@@ -513,17 +516,27 @@ def _forme_qualificate(index, arts, facts, codici=("kodi_penal",), max_add=2):
     return out
 
 
-def retrieve_grounded(backend, index, facts, seed_pairs=None, max_arts=16, preferiti=None):
+def retrieve_grounded(backend, index, facts, seed_pairs=None, max_arts=16, preferiti=None, ammessi=None):
     """Robust grounded retrieval: curated seeds + heading-scan on model-extracted
-    offense terms (reliable anchor) + BM25 context fill. Never invents."""
+    offense terms (reliable anchor) + BM25 context fill. Never invents.
+    v9.642 — `ammessi(code, number) -> bool`: gli articoli NON seme che non passano restano fuori e il posto va al seguente
+    (il procuratore riceveva la legge sull'assicurazione auto, il codice dei minori, la VKM doganale, la legge sui rapporti con
+    l'estero accanto al furto: l'audit del 16 ott ne contava 6-10 per blocco, e il modello spiegava perché non si applicano)."""
     arts, seen = [], set()
-    def add(code, num, txt):
-        if (code, num) not in seen:
-            seen.add((code, num)); arts.append((code, num, txt))
+    def add(code, num, txt, seme=False):
+        if (code, num) in seen:
+            return
+        if not seme and ammessi is not None:
+            try:
+                if not ammessi(code, str(num)):
+                    return
+            except Exception:  # noqa: BLE001
+                pass
+        seen.add((code, num)); arts.append((code, num, txt))
     for code, num in (seed_pairs or []):
         t = _article_text(index, code, num)
         if t:
-            add(code, num, t)
+            add(code, num, t, seme=True)
     lang = "it" if getattr(index, "lang", "sq") == "it" else "sq"
     # v9.399 — SOSTANZE STUPEFACENTI nominate nei fatti (lo stesso riconoscimento del cervello: le liste della 7975/1995 e le
     # tabelle del d.P.R. 309/1990): entrano le norme penali sugli stupefacenti. Nell'audit AL del 28 set la misura cautelare
@@ -541,7 +554,7 @@ def retrieve_grounded(backend, index, facts, seed_pairs=None, max_arts=16, prefe
                 for code, num in _sem_st:
                     t = _article_text(index, code, num)
                     if t:
-                        add(code, num, t)
+                        add(code, num, t, seme=True)
         else:
             from . import narkotike_al as _nk
             if any(not x.get("jo") for x in _nk.trova(facts or "")):
@@ -551,7 +564,7 @@ def retrieve_grounded(backend, index, facts, seed_pairs=None, max_arts=16, prefe
                 for code, num in _semi_nk:
                     t = _article_text(index, code, num)
                     if t:
-                        add(code, num, t)
+                        add(code, num, t, seme=True)
     except Exception:  # noqa: BLE001
         pass
     terms = _expand_terms(backend, facts, lang)
@@ -580,13 +593,24 @@ def retrieve_grounded(backend, index, facts, seed_pairs=None, max_arts=16, prefe
         except Exception:  # noqa: BLE001
             pass
     arts = arts[:max_arts]
+    if ammessi is not None:                                       # v9.642: anche i rinvii e le forme vicine passano dal filtro
+        _amm = ammessi
+        def _ok(c, n):
+            try:
+                return bool(_amm(c, str(n)))
+            except Exception:  # noqa: BLE001
+                return True
+    else:
+        def _ok(c, n):
+            return True
     if preferiti:
         try:
-            arts = arts + _forme_qualificate(index, arts, facts, codici=tuple(preferiti))   # v9.403: la forma aggravata vicina
+            arts = arts + [x for x in _forme_qualificate(index, arts, facts, codici=tuple(preferiti))   # v9.403: la forma aggravata vicina
+                           if _ok(x[0], x[1])]
         except Exception:  # noqa: BLE001
             pass
     try:
-        arts = arts + _rinvii_interni(index, arts, lang)          # v9.399: i rinvii espliciti allo stesso atto
+        arts = arts + [x for x in _rinvii_interni(index, arts, lang) if _ok(x[0], x[1])]   # v9.399: i rinvii espliciti
     except Exception:  # noqa: BLE001
         pass
     if lang == "it":

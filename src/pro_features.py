@@ -437,7 +437,13 @@ DRAFT_SYSTEM = textwrap.dedent("""\
     nga përshkrimi që të jepet dhe nenet që të ofrohen, shkruaj një akt
     procedural SHQIPËRI, gati për depozitim në gjykatë.
 
-    Strukturë standarde:
+    Strukturën e aktit e jep NENI I PROCEDURËS për atë lloj akti, kur
+    është në bllok: çdo element që ai kërkon duhet të jetë në akt, në
+    rendin e tij (kërkesëpadia: nenet 154 dhe 156 KPC — edhe atësia e
+    palëve, vlera e padisë, kontaktet elektronike, dëshmitarët me faktet
+    që provojnë, provat që kërkohen nga i padituri ose të tretët,
+    ekspertimi, pagimi i tarifës; ankimi: nenet 453-455 KPC; rekursi:
+    474-475 KPC; ankimi penal: 412-413 KPP). Përndryshe, strukturë standarde:
       1. Gjykata që i drejtohet
       2. Palët (paditësi / i padituri ose analogët)
       3. Lënda e kërkesës (një rresht)
@@ -447,6 +453,16 @@ DRAFT_SYSTEM = textwrap.dedent("""\
       6. KËRKOJMË (petitum) — lista e qartë e kërkesave
       7. Lista e provave
       8. Vendi, data, nënshkrimi
+
+    RREGULLA (v9.642):
+      - Vendi dhe data e aktit mbeten [___] (data është ajo e
+        depozitimit): kurrë data e sotme. Çdo e dhënë që mungon: [___].
+      - Pa të tepra: argumentet mbështeten vetëm te nenet që zbatohen në
+        këtë çështje; nenet e bllokut që nuk kanë lidhje lëri jashtë pa i
+        përmendur dhe mos ndërto argumente «nëse zbatohet».
+      - "warnings": deri në 6, secili NJË rresht — vetëm ato që avokati
+        duhet të bëjë ose të kontrollojë para depozitimit (afati me datën
+        e llogaritur, tarifa, dokumentet shoqëruese, të dhënat që mungojnë).
 
     Dorëzo VETËM një JSON:
     {
@@ -486,13 +502,22 @@ _SEMI_ATTO: dict = {
         "padi": [("kodi_proc_civile", "154"), ("kodi_proc_civile", "156"), ("kodi_proc_civile", "42"),
                  ("kodi_proc_civile", "43", r"sh\.?\s?p\.?\s?k|\bsha\b|shoqëri|person juridik"),
                  ("kodi_proc_civile", "47", _RX_LAVORO)],
+        # v9.642: la firma, il contenuto e gli allegati dell'appello (KPC 453-455: senza, 5 giorni per correggere o l'appello
+        # torna indietro) e la forma e il deposito dell'appello penale (KPP 412-413)
         "ankim": [("kodi_proc_civile", "443", "CIVILE"), ("kodi_proc_civile", "444", "CIVILE"),
-                  ("kodi_proc_civile", "446", "CIVILE"),
-                  ("kodi_proc_penale", "410", "PENALE"), ("kodi_proc_penale", "415", "PENALE")],
+                  ("kodi_proc_civile", "446", "CIVILE"), ("kodi_proc_civile", "453", "CIVILE"),
+                  ("kodi_proc_civile", "454", "CIVILE"), ("kodi_proc_civile", "455", "CIVILE"),
+                  ("kodi_proc_penale", "410", "PENALE"), ("kodi_proc_penale", "412", "PENALE"),
+                  ("kodi_proc_penale", "413", "PENALE"), ("kodi_proc_penale", "415", "PENALE")],
         "rekurs": [("kodi_proc_civile", "472", "CIVILE"), ("kodi_proc_civile", "475", "CIVILE"),
-                   ("kodi_proc_civile", "443", "CIVILE"),
+                   ("kodi_proc_civile", "443", "CIVILE"), ("kodi_proc_civile", "474", "CIVILE"),
                    ("kodi_proc_penale", "432", "PENALE"), ("kodi_proc_penale", "435", "PENALE")],
         "kundershtim": [("kodi_proc_civile", "609"), ("kodi_proc_civile", "610")],
+        # v9.642: la richiesta sulla MISURA cautelare (revoca o sostituzione, condizioni e criteri, durata della custodia)
+        "kerkese_penale": [("kodi_proc_penale", "260", r"mas\w*\s+(e\s+|t[eë]\s+)?sigurim|paraburgim|arrest"),
+                           ("kodi_proc_penale", "228", r"mas\w*\s+(e\s+|t[eë]\s+)?sigurim|paraburgim|arrest"),
+                           ("kodi_proc_penale", "229", r"mas\w*\s+(e\s+|t[eë]\s+)?sigurim|paraburgim|arrest"),
+                           ("kodi_proc_penale", "263", r"paraburgim|arrest\w*\s+n[eë]\s+burg")],
     },
     "IT": {
         "padi": [("codice_procedura_civile", "163", r"^(?!.*(?:lavor|licenzi))"),
