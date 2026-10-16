@@ -6186,10 +6186,10 @@ def _notary_run(fn, **kw):
     cits = {"items": [], "stats": {}}
     try:
         if md:
-            cits = cv_mod.verify_text(md, _req_index())
+            cits = cv_mod.verify_text(md, _req_index(), retrieved_codes=_codici_res(res))
     except Exception:  # noqa: BLE001
         pass
-    md = _scudo_citazioni(md, cits)
+    md = _scudo_citazioni(md, cits, retrieved_codes=_codici_res(res))
     return jsonify({"markdown": md, "citations": cits}), None
 
 
@@ -6252,7 +6252,7 @@ def api_letters_draft():
     cits = {"items": [], "stats": {}}
     try:
         if md:
-            cits = cv_mod.verify_text(md, _req_index())
+            cits = cv_mod.verify_text(md, _req_index(), retrieved_codes=_codici_res(res))
     except Exception:  # noqa: BLE001
         pass
     res["citations"] = cits
@@ -6479,7 +6479,7 @@ def api_notary_inspect():
     cits = {"items": [], "stats": {}}
     try:
         if md:
-            cits = cv_mod.verify_text(md, _req_index())
+            cits = cv_mod.verify_text(md, _req_index(), retrieved_codes=_codici_res(res))
     except Exception:  # noqa: BLE001
         pass
     try:
@@ -6647,7 +6647,7 @@ def api_notary_checklist():
     cits = {"items": [], "stats": {}}
     try:
         if md:
-            cits = cv_mod.verify_text(md, _req_index())
+            cits = cv_mod.verify_text(md, _req_index(), retrieved_codes=_codici_res(res))
     except Exception:  # noqa: BLE001
         pass
     return jsonify({"markdown": md, "completeness": res.get("completeness"), "citations": cits})
@@ -6806,10 +6806,10 @@ def api_prosecutor_indictment():
     cits = {"items": [], "stats": {}}
     try:
         if md:
-            cits = cv_mod.verify_text(md, _req_index())
+            cits = cv_mod.verify_text(md, _req_index(), retrieved_codes=_codici_res(res))
     except Exception:  # noqa: BLE001
         pass
-    md = _scudo_citazioni(md, cits)
+    md = _scudo_citazioni(md, cits, retrieved_codes=_codici_res(res))
     return jsonify({"markdown": md, "citations": cits})
 
 
@@ -6979,7 +6979,7 @@ def api_afati_compute():
     cits = {"items": [], "stats": {}}
     try:
         if md:
-            cits = cv_mod.verify_text(md, _req_index())
+            cits = cv_mod.verify_text(md, _req_index(), retrieved_codes=_codici_res(res))
     except Exception:  # noqa: BLE001
         pass
     return jsonify({"markdown": md, "afatet": res.get("afatet", []), "citations": cits})
@@ -7006,10 +7006,10 @@ def api_prescription():
     cits = {"items": [], "stats": {}}
     try:
         if md:
-            cits = cv_mod.verify_text(md, _req_index())
+            cits = cv_mod.verify_text(md, _req_index(), retrieved_codes=_codici_res(res))
     except Exception:  # noqa: BLE001
         pass
-    md = _scudo_citazioni(md, cits)
+    md = _scudo_citazioni(md, cits, retrieved_codes=_codici_res(res))
     return jsonify({"markdown": md, "citations": cits})
 
 
@@ -7033,10 +7033,10 @@ def api_prosecutor_analyze():
     citations = {"items": [], "stats": {}}
     try:
         if md:
-            citations = cv_mod.verify_text(md, _req_index())
+            citations = cv_mod.verify_text(md, _req_index(), retrieved_codes=_codici_res(res))
     except Exception:  # noqa: BLE001
         pass
-    md = _scudo_citazioni(md, citations)
+    md = _scudo_citazioni(md, citations, retrieved_codes=_codici_res(res))
     return jsonify({"markdown": md, "citations": citations})
 
 
@@ -7064,10 +7064,10 @@ def api_expertise_analyze():
     citations = {"items": [], "stats": {}}
     try:
         if md:
-            citations = cv_mod.verify_text(md, _req_index())
+            citations = cv_mod.verify_text(md, _req_index(), retrieved_codes=_codici_res(res))
     except Exception:  # noqa: BLE001
         pass
-    md = _scudo_citazioni(md, citations)
+    md = _scudo_citazioni(md, citations, retrieved_codes=_codici_res(res))
     return jsonify({"markdown": md, "citations": citations})
 
 
@@ -7418,7 +7418,7 @@ def api_who_said(case_id: str):
     cits = {"items": [], "stats": {}}
     try:
         if md and _INDEX is not None:
-            cits = cv_mod.verify_text(md, _req_index())
+            cits = cv_mod.verify_text(md, _req_index(), retrieved_codes=_codici_res(res))
     except Exception:  # noqa: BLE001
         pass
     res["citations"] = cits
@@ -10657,6 +10657,15 @@ def _cancello_web(md: str, retrieved_codes=None, idx=None) -> tuple[str, dict]:
             return md, {}
 
 
+def _codici_res(res) -> set | None:
+    """v9.644 — i codici degli articoli che lo strumento ha dato al modello (`res["articles"]`), per la verifica delle citazioni."""
+    try:
+        cod = {a.get("code") for a in ((res or {}).get("articles") or []) if isinstance(a, dict) and a.get("code")}
+        return cod or None
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def _scudo_citazioni(md: str, citations: dict, retrieved_codes=None) -> str:
     """Fa viaggiare l'avviso insieme al testo, non solo a schermo.
 
@@ -10682,7 +10691,7 @@ def _scudo_citazioni(md: str, citations: dict, retrieved_codes=None) -> str:
             _md2, _ = _cancello_web(md, retrieved_codes)
             if _md2 and _md2 != md:
                 md = _md2
-                _c2 = cv_mod.verify_text(md, _req_index())
+                _c2 = cv_mod.verify_text(md, _req_index(), retrieved_codes=retrieved_codes)
                 citations.clear(); citations.update(_c2)
     except Exception:  # noqa: BLE001
         log.debug("cancello nello scudo saltato", exc_info=True)

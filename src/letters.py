@@ -420,7 +420,9 @@ CATALOGUE_AL: dict[str, dict] = {
         # v9.642: la vittima-accusatrice (KPP 59: per insulto, diffamazione, lesioni lievi… si va in TRIBUNALE, non in procura)
         # al posto della truffa (KP 143), che entrava in ogni denuncia
         "seeds": [("kodi_proc_penale", "280"), ("kodi_proc_penale", "283"),
-                  ("kodi_proc_penale", "284"), ("kodi_proc_penale", "59")],
+                  ("kodi_proc_penale", "284"), ("kodi_proc_penale", "59"),
+                  # v9.644: il termine per denunciare è la prescrizione dell'azione penale (il KPP non ne fissa un altro)
+                  ("kodi_penal", "66")],
         "query": "kallëzim penal njoftim i veprës penale i dëmtuari ankim "
                  "afati i ankimit provat",
         "must": [
@@ -431,7 +433,21 @@ CATALOGUE_AL: dict[str, dict] = {
             "Nëse vepra ndiqet me ankim, kërkesa shprehimisht për ndjekje",
             "Caktimi i mbrojtësit dhe rezerva për t'u paraqitur si palë",
         ],
-        "note": "Verifiko afatin e ankimit: nëse ka kaluar, thuaje hapur.",
+        # v9.644 — la VIA ha la precedenza sul tipo scelto (audit del 16 ott: per la diffamazione il cervello scriveva la denuncia
+        # in procura e diceva solo nei rischi che si va in tribunale); liste dei KPP 59/1 e 284/1 lette dal corpus; e il KPP non ha
+        # un termine per la querela: il limite è la prescrizione (KP 66)
+        "note": ("RRUGA KA PËRPARËSI MBI LLOJIN E SHKRESËS. (1) Kur vepra është ndër ato të nenit 59 KPP (rrahja dhe dëmtimet "
+                 "e lehta 90, plagosjet nga pakujdesia 91-92, dhunimi i banesës 112/1, fyerja 119 e 119/b, shpifja 120, "
+                 "ndërhyrja në jetën private 121, përhapja e sekreteve vetjake 122, mosdhënia e mjeteve për jetesë 125, "
+                 "marrja e padrejtë e fëmijës 127, shkelja e paprekshmërisë së banesës 254) shkresa NUK është kallëzim në "
+                 "prokurori: harto KËRKESËN E VIKTIMËS AKUZUESE drejtuar Gjykatës së Shkallës së Parë të Juridiksionit të "
+                 "Përgjithshëm [___] (nenet 59 dhe 284/5 KPP) — palët, faktet, cilësimi, provat, kërkesa për dënim dhe për "
+                 "shpërblimin e dëmit — dhe thuaje në pikën e parë të ⚠️. (2) Kur vepra është ndër ato të nenit 284/1 KPP "
+                 "(kanosja 84, plagosja e lehtë me dashje 89 e të tjera), kallëzimi shpreh qartë vullnetin e viktimës që të "
+                 "procedohet: ky ankim mund të tërhiqet në çdo fazë. (3) Afati: KPP nuk cakton afat të veçantë për kallëzimin "
+                 "ose ankimin e viktimës — kufiri është parashkrimi i ndjekjes penale (neni 66 KP; p.sh. dy vjet për "
+                 "kundërvajtjet që dënohen vetëm me gjobë, si fyerja dhe shpifja): llogarite nga data e veprës dhe, nëse mund "
+                 "të ketë kaluar, thuaje hapur."),
     },
     "tatimet": {
         "label": "Njoftim Drejtorisë së Tatimeve / kontroll tatimor",

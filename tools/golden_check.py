@@ -13428,6 +13428,122 @@ const F = new Function("localStorage", "document", "fetch", "renderMarkdown", "_
     except Exception as _e441:  # noqa: BLE001
         check("letra[441]: kontrollet u ekzekutuan", False, f"{type(_e441).__name__}: {_e441}")
 
+    # [442] v9.644 — LA DENUNCIA E LE PERIZIE DALL'AUDIT DEL 16 OTT: la lettera «Kallëzim penal» porta la via (vittima-accusatrice in
+    # tribunale per i reati del KPP 59) e il termine vero (la prescrizione del KP 66, nessun termine speciale nel KPP); le perizie
+    # albanesi coi semi giusti (legittima difesa e querela nelle lesioni, responsabilità contrattuale e clausola penale nel contratto,
+    # niente furto di energia nel furto), senza i codici estranei, con la forma breve e l'AMP al posto dello SHÇBA
+    try:
+        from src import letters as _lt442, expertise as _ex442, brain as _br442
+        _br442.set_request_jurisdiction("AL")
+        _kp442 = _lt442.catalogue("AL")["kallezim_prokurori"]
+        _okL442 = (("kodi_penal", "66") in _kp442["seeds"] and "RRUGA KA PËRPARËSI" in _kp442["note"]
+                   and "KËRKESËN E VIKTIMËS AKUZUESE" in _kp442["note"] and "neni 66 KP" in _kp442["note"]
+                   and "Verifiko afatin e ankimit" not in _kp442["note"])
+        _T442 = _ex442.TEMPLATES
+        _okS442 = (("kodi_penal", "137") not in _T442["vjedhje"]["primary_articles"]
+                   and {("kodi_penal", "19"), ("kodi_proc_penale", "284"), ("kodi_proc_penale", "286"), ("kodi_penal", "66")}
+                   <= set(_T442["plagosje"]["primary_articles"])
+                   and {("kodi_civil", "476"), ("kodi_civil", "486")} <= set(_T442["mosmarreveshje_civile"]["primary_articles"])
+                   and ("kodi_civil", "608") not in _T442["mosmarreveshje_civile"]["primary_articles"]
+                   and "Kontrollit të Brendshëm" not in str(_T442["abuzim_policor"]) and "Mbikëqyrjes Policore" in str(_T442["abuzim_policor"]))
+        _sys442 = _ex442._system(_T442["plagosje"])
+        _okF442 = ("1.300 fjalë" in _sys442 and "lëri jashtë pa i përmendur" in _sys442 and "Tetramorph" in _sys442
+                   and "kurrë vetëm «KC [numri]»" in _sys442)
+
+        class _FB442:
+            def complete(self, system=None, messages=None, **kw):
+                return ""
+        _fb442 = _FB442()
+        _r442 = _ex442.analyze(_fb442, idx, case_type="plagosje", facts=(
+            "Klienti akuzohet se goditi me thikë në krah një person gjatë një zënke; paaftësi 12 ditë; klienti thotë se u sulmua i "
+            "pari me një shishe."))
+        _a442 = {(x["code"], x["number"]) for x in _r442["articles"]}
+        _r442b = _ex442.analyze(_fb442, idx, case_type="mosmarreveshje_civile", facts=(
+            "Kontratë me shoqërinë «Ndërtimi Shembull» sh.p.k. për rikonstruksionin e apartamentit; paradhënie 10.000 euro; punimet u "
+            "ndërprenë dhe shoqëria nuk përgjigjet; penalitet 50 euro për çdo ditë vonesë."))
+        _b442 = {(x["code"], x["number"]) for x in _r442b["articles"]}
+        _r442c = _ex442.analyze(_fb442, idx, case_type="vjedhje", facts="Klienti akuzohet se mori nga dyqani dy telefona pa paguar.")
+        _c442 = {(x["code"], x["number"]) for x in _r442c["articles"]}
+        _rumore442 = ("kodi_civil", "ligji_lendet_narkotike", "vkm_dispozita_doganore", "kodi_punes", "ligji_planifikimi_territorit",
+                      "ligji_pastrimi_parave", "ligji_prokurimi_publik", "ligji_procedurat_tatimore", "kushtetuta")
+        _okA442 = ({("kodi_penal", "19"), ("kodi_proc_penale", "284"), ("kodi_penal", "89")} <= _a442
+                   and not any(c in _rumore442 for c, _n in _a442)
+                   and {("kodi_civil", "476"), ("kodi_civil", "542"), ("kodi_civil", "115"), ("kodi_civil", "850"),
+                        ("kodi_proc_civile", "202")} <= _b442
+                   and not any(c in _rumore442[1:] for c, _n in _b442)
+                   and ("kodi_penal", "137") not in _c442 and ("kodi_penal", "134") in _c442)
+        _src442 = open("/app/src/expertise.py", encoding="utf-8").read()
+        _okC442 = "key = (id(index), tuple(codici))" in _src442
+        check("eksp[442]: la denuncia porta la via del KPP 59 e il termine del KP 66; perizie coi semi giusti, senza i codici "
+              "estranei, brevi, AMP al posto dello SHÇBA; cache delle forme aggravate per codice",
+              _okL442 and _okS442 and _okF442 and _okA442 and _okC442,
+              f"lettera={_okL442} semi={_okS442} forma={_okF442} recupero={_okA442} cache={_okC442} "
+              f"lesioni={sorted(_a442)[:20]} contratto={sorted(_b442)[:24]}")
+    except Exception as _e442:  # noqa: BLE001
+        check("eksp[442]: kontrollet u ekzekutuan", False, f"{type(_e442).__name__}: {_e442}")
+
+    # [443] v9.644 — LA VENDITA DI UN IMMOBILE nel cervello (i vizi → KC 756, cinque anni; la superficie → 752, 753, 755; i dieci
+    # giorni del KC 717 solo per i mobili) e l'indice del capitolo con la frase intera dei codici senza rubriche; le perizie italiane
+    # coi semi e il filtro
+    try:
+        from src import brain as _br443, expertise as _ex443
+        _q443 = ("Klienti bleu në mars 2026 një apartament nga shoqëria ndërtuese; në shtator zbuloi një defekt: lagështirë të rëndë në mure, dhe se "
+                 "sipërfaqja reale është 78 m² dhe jo 86 m². Çfarë bëjmë?")
+        _k443 = {(a.code, a.number) for a, _s in _br443._applica_ancore([], idx, [_q443], ["Civil"])}
+        _q443b = "Klienti bleu një makinë të përdorur; pas një muaji doli një defekt në motor që shitësi e kishte fshehur."
+        _k443b = {(a.code, a.number) for a, _s in _br443._applica_ancore([], idx, [_q443b], ["Civil"])}
+        _q443c = "Qiramarrësi ankohet se apartamenti ka lagështirë dhe nuk do të paguajë qiranë."
+        _k443c = {(a.code, a.number) for a, _s in _br443._applica_ancore([], idx, [_q443c], ["Civil"])}
+        _okA443 = ({("kodi_civil", "756"), ("kodi_civil", "752"), ("kodi_civil", "755")} <= _k443
+                   and ("kodi_civil", "717") not in _k443
+                   and ("kodi_civil", "717") in _k443b and ("kodi_civil", "756") not in _k443b
+                   and ("kodi_civil", "756") not in _k443c)
+        _kc443 = {str(a.number): a for a in idx.articles if a.code == "kodi_civil"}
+        _t443 = _br443._titolo_indice(_kc443["756"])
+        _okT443 = "pesë vjet" in _t443 and len(_br443._titolo_indice(_kc443["752"])) <= 171
+        _okIT443 = (("codice_penale", "585") in _ex443._SEMI_IT["plagosje"]
+                    and _ex443._codici_ammessi_eksp_it("plagosje", _ex443.TEMPLATES["plagosje"], "lite con un coltello")("armi", "4")
+                    and not _ex443._codici_ammessi_eksp_it("plagosje", _ex443.TEMPLATES["plagosje"], "lite con un coltello")("tu_finanza", "31"))
+        check("immobile[443]: vizi dell'immobile comprato → KC 756, superficie → 752/753/755, il 717 solo per i mobili e mai per un "
+              "affitto; indice del capitolo con la frase intera; perizie italiane coi semi e il filtro",
+              _okA443 and _okT443 and _okIT443,
+              f"ancore={_okA443} ({sorted(_k443)} / {sorted(_k443b)} / {sorted(_k443c)}) titolo={_okT443} «{_t443[:60]}» it={_okIT443}")
+    except Exception as _e443:  # noqa: BLE001
+        check("immobile[443]: kontrollet u ekzekutuan", False, f"{type(_e443).__name__}: {_e443}")
+
+    # [444] v9.644 — il termine della querela che il KPP non ha: la regola nei prompt albanesi (perizia penale, procuratore,
+    # prescrizione) e mai in sessione italiana; i semi del KPP nella prescrizione di un reato su querela
+    try:
+        from src import expertise as _ex444, prosecutor as _pr444
+        _src444 = open("/app/src/expertise.py", encoding="utf-8").read()
+        _okK444 = ("NUK cakton afat të veçantë" in _ex444._ANKIMI_AL and _ex444._ANKIMI_AL in _pr444._TETRA
+                   and _ex444._ANKIMI_AL not in _pr444._TETRA_IT
+                   and '(_ANKIMI_AL if _al and tpl.get("domain") == "penal" else "")' in _src444)
+        _src444d = open("/app/src/deadlines.py", encoding="utf-8").read()
+        _okD444 = '_semi += [("kodi_proc_penale", "284"), ("kodi_proc_penale", "59")]' in _src444d and "_ANKIMI_AL.replace" in _src444d
+        from src import brain as _br444
+        _okD444 = (_okD444 and "ANKIMI I VIKTIMËS" in _br444.ALBANIAN_LANGUAGE_RULES and "ANKIMI I VIKTIMËS" in _br444.TRIAGE_SYSTEM
+                   and "ANKIMI I VIKTIMËS" in _br444.URGENCY_SCAN_SYSTEM)
+        check("querela[444]: il KPP non ha un termine per la querela — regola nei prompt albanesi (perizia penale, procuratore, "
+              "prescrizione), mai in italiano; KPP 284/59 nella prescrizione dei reati su querela",
+              _okK444 and _okD444, f"prompt={_okK444} prescrizione={_okD444}")
+    except Exception as _e444:  # noqa: BLE001
+        check("querela[444]: kontrollet u ekzekutuan", False, f"{type(_e444).__name__}: {_e444}")
+
+    # [445] v9.644 — la verifica delle citazioni degli strumenti PRO con i codici degli articoli che hanno ricevuto
+    try:
+        from src import web as _w445
+        _s445 = open("/app/src/web.py", encoding="utf-8").read()
+        _ok445 = (_w445._codici_res({"articles": [{"code": "kodi_penal", "number": "19"}, {"code": "kodi_proc_penale", "number": "284"}]})
+                  == {"kodi_penal", "kodi_proc_penale"} and _w445._codici_res({}) is None
+                  and _s445.count("retrieved_codes=_codici_res(res)") >= 13
+                  and "_c2 = cv_mod.verify_text(md, _req_index(), retrieved_codes=retrieved_codes)" in _s445)
+        check("pro[445]: le citazioni degli strumenti PRO si verificano coi codici degli articoli dati (notaio, procuratore, "
+              "lettere, termini, prescrizione, perizie) anche dopo il cancello", _ok445,
+              f"occorrenze={_s445.count('retrieved_codes=_codici_res(res)')}")
+    except Exception as _e445:  # noqa: BLE001
+        check("pro[445]: kontrollet u ekzekutuan", False, f"{type(_e445).__name__}: {_e445}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

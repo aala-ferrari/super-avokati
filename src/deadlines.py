@@ -101,7 +101,12 @@ def _today() -> str:
 
 def prescription(backend, index, *, facts: str, jurisdiction: str = "AL", max_tokens: int = 2400) -> dict:
     _lang = "it" if (jurisdiction or "AL").upper() == "IT" else "sq"
-    arts = _expertise.retrieve_grounded(backend, index, facts, seed_pairs=(_SEED_IT if _lang == "it" else _SEED))
+    _semi = _SEED_IT if _lang == "it" else list(_SEED)
+    # v9.644: con un reato che si persegue su querela o con la richiesta della vittima-accusatrice, gli articoli del KPP che lo dicono
+    # (e che non hanno un termine: il limite è il KP 66) — la prescrizione della diffamazione dava per esistente un «afat i posaçëm»
+    if _lang != "it" and re.search(r"shpif|\bfye|\bfyer|kanos|kercen|plagos|rrah|ankim|kallez|viktim", _expertise._fold(facts or "")):
+        _semi += [("kodi_proc_penale", "284"), ("kodi_proc_penale", "59")]
+    arts = _expertise.retrieve_grounded(backend, index, facts, seed_pairs=_semi)
     art_block = _blocco(arts, _lang)
     system = (
         "Ti je ekspert i së drejtës shqiptare. Llogarit PARASHKRIMIN dhe afatet për rastin e "
@@ -109,7 +114,7 @@ def prescription(backend, index, *, facts: str, jurisdiction: str = "AL", max_to
         "nene, afate apo numra.\n\n"
         "Nëse është PENALE: përcakto dënimin maksimal të veprës (nga neni material), zbato "
         "SHKALLËN e nenit 66 të Kodit Penal (parashkrimi i ndjekjes penale sipas rëndësisë), dhe "
-        "kontrollo nenin 67 (veprat që NUK parashkruhen). Nëse është CIVILE: zbato nenet 112-136 "
+        "kontrollo nenin 67 (veprat që NUK parashkruhen)." + _expertise._ANKIMI_AL.replace("\n\n", " ") + " Nëse është CIVILE: zbato nenet 112-136 "
         "të Kodit Civil — neni 114 (rregulli i përgjithshëm: dhjetë vjet), neni 115 (afatet e "
         "shkurtra), nenet 117-123 (kur fillon afati), 129-130 (pezullimi), 131-135 (ndërprerja), "
         "136 (llogaritja e afatit) — dhe afatet e posaçme nëse jepen.\n\n"

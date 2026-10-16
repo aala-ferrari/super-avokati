@@ -58,7 +58,9 @@ TEMPLATES = {
                              ("ligji_sigurimi_mjeteve", "10"), ("ligji_sigurimi_mjeteve", "41"),
                              # v9.619 (ri-audit): da quando corre la prescrizione (KC 117) e i massimali minimi dell'assicurazione
                              # obbligatoria (art. 25) — la perizia li dava «non nel corpus»
-                             ("kodi_civil", "117"), ("ligji_sigurimi_mjeteve", "25")],
+                             ("kodi_civil", "117"), ("ligji_sigurimi_mjeteve", "25"),
+                             # v9.644 (audit del 16 ott: «non mi sono state date», sul penale dell'incidente)
+                             ("kodi_penal", "66"), ("kodi_proc_penale", "61"), ("kodi_proc_penale", "284")],
         # v9.619: semi di SITUAZIONE (fatti piegati, senza diacritici): il tamponamento → la distanza di sicurezza (Kodi Rrugor 147)
         "semi_se": [(r"nga pas|nga mbrapa|tamponim|perplas\w*\s+(\w+\s+){0,3}(pas|mbrapa)|e goditi nga", [("kodi_rrugor", "147")])],
         "elements": ["Veprimi/pakujdesia (shkelje e kodit rrugor)", "Faji",
@@ -80,8 +82,13 @@ TEMPLATES = {
         "label": "Vjedhje",
         "emoji": "\U0001f4b0",
         "domain": "penal",
-        "primary_articles": [("kodi_penal", "134"), ("kodi_penal", "135"),
-                             ("kodi_penal", "137")],
+        # v9.644: il 137 è il furto di ENERGIA ELETTRICA o di impulsi telefonici, non il furto: lo porta solo il fatto; dentro le
+        # attenuanti (48: il danno risarcito, i rapporti normalizzati), la sospensione (59), la prescrizione (66) e il rito
+        # abbreviato (KPP 406: la pena ridotta di un terzo)
+        "primary_articles": [("kodi_penal", "134"), ("kodi_penal", "48"), ("kodi_penal", "59"), ("kodi_penal", "66"),
+                             ("kodi_proc_penale", "406")],
+        "semi_se": [(r"energji|elektrik|\bdrita\b|rrym\w*\s+elektrik|impuls\w*\s+telefon|lidhj\w*\s+(e\s+)?paligjshme", [("kodi_penal", "137")]),
+                    (r"\bpunonj|\bzyrtar|arketar|kasier|ne\s+detyr|shperdor", [("kodi_penal", "135")])],
         "elements": ["Marrja/përvetësimi i pasurisë së luajtshme", "Pasuria i përket tjetrit",
                      "Pa pëlqimin e pronarit", "Dashja për përvetësim përfundimtar (dolus)"],
         "evidence": ["Kallëzimi i të dëmtuarit + listë sendesh", "CCTV / dëshmitarë",
@@ -101,7 +108,9 @@ TEMPLATES = {
         "emoji": "\U0001f52b",
         "domain": "penal",
         "primary_articles": [("kodi_penal", "139"), ("kodi_penal", "140"),
-                             ("kodi_penal", "141")],
+                             ("kodi_penal", "141"),
+                             # v9.644: la riqualificazione in furto (134), le attenuanti (48), la prescrizione (66)
+                             ("kodi_penal", "134"), ("kodi_penal", "48"), ("kodi_penal", "66")],
         "elements": ["Elementet e vjedhjes", "Përdorim force ose kanosje ndaj personit",
                      "Rrethana rënduese (armë, grup, natë, dëmtim)"],
         "evidence": ["Dëshmi e viktimës", "Raport mjeko-ligjor për dëmtimet/kanosjen",
@@ -120,7 +129,11 @@ TEMPLATES = {
         "emoji": "\u26b0\ufe0f",
         "domain": "penal",
         "primary_articles": [("kodi_penal", "76"), ("kodi_penal", "78"),
-                             ("kodi_penal", "79"), ("kodi_penal", "82")],
+                             ("kodi_penal", "79"), ("kodi_penal", "82"),
+                             # v9.644: le difese che il modello stesso elenca — legittima difesa (19) e il suo eccesso (83),
+                             # l'omicidio colposo (85), l'incapacità di intendere (17), le attenuanti (48: la provocazione)
+                             ("kodi_penal", "19"), ("kodi_penal", "83"), ("kodi_penal", "85"), ("kodi_penal", "17"),
+                             ("kodi_penal", "48")],
         "elements": ["Veprimi që shkakton vdekjen", "Lidhja shkakësore", "Dashja (ose paramendimi për 78)",
                      "Rrethana (viktimë e mbrojtur, motive, mjete)"],
         "evidence": ["Autopsia / ekspertiza mjeko-ligjore", "Vendi i ngjarjes + provat materiale",
@@ -139,7 +152,14 @@ TEMPLATES = {
         "emoji": "\U0001fa78",
         "domain": "penal",
         "primary_articles": [("kodi_penal", "88"), ("kodi_penal", "89"),
-                             ("kodi_penal", "90")],
+                             ("kodi_penal", "90"),
+                             # v9.644: la legittima difesa (19) e la lesione grave nell'eccesso o nel turbamento (88/b, 88/a), le
+                             # lesioni colpose (91, 92), le attenuanti (48), la prescrizione (66) e la QUERELA: il KP 89 si
+                             # persegue solo su querela della vittima (KPP 284/1) che si può ritirare fino alla sentenza definitiva
+                             # (286) — il modello scriveva «di solito 3 mesi», che è il diritto italiano
+                             ("kodi_penal", "19"), ("kodi_penal", "88/b"), ("kodi_penal", "88/a"), ("kodi_penal", "91"),
+                             ("kodi_penal", "92"), ("kodi_penal", "48"), ("kodi_penal", "66"),
+                             ("kodi_proc_penale", "284"), ("kodi_proc_penale", "286")],
         "elements": ["Veprim i kundërligjshëm", "Dëmtim trupor ndaj tjetrit",
                      "Dashje ose pakujdesi", "Rëndësia e plagës (tier: e rëndë 88 / e lehtë 89)"],
         "evidence": ["Raport mjeko-ligjor (ditë paaftësie → tieri)", "Foto plagësh / dosje spitalore",
@@ -158,7 +178,10 @@ TEMPLATES = {
         "label": "Mashtrim",
         "emoji": "\U0001f3ad",
         "domain": "penal",
-        "primary_articles": [("kodi_penal", "143"), ("kodi_penal", "186")],
+        "primary_articles": [("kodi_penal", "143"), ("kodi_penal", "186"),
+                             ("kodi_penal", "48"), ("kodi_penal", "66")],                      # v9.644
+        "semi_se": [(r"online|internet|facebook|instagram|e-?mail|kart\w*\s+(e\s+)?(bank|krediti)|llogari\w*\s+bank|kompjuter|"
+                     r"aplikacion|phishing|fjalekalim|\bpin\b|\botp\b", [("kodi_penal", "143/b")])],
         "elements": ["Veprime mashtruese / gënjeshtër", "Vënia në lajthim e viktimës",
                      "Dëmi pasuror", "Dashja për përfitim të padrejtë"],
         "evidence": ["Dokumente/kontrata", "Komunikime (email, mesazhe)", "Transaksione bankare",
@@ -175,8 +198,26 @@ TEMPLATES = {
         "label": "Mosmarrëveshje civile / kontratë",
         "emoji": "\U0001f4dc",
         "domain": "civil",
-        "primary_articles": [("kodi_civil", "698"), ("kodi_civil", "699"),
-                             ("kodi_civil", "450"), ("kodi_civil", "608")],
+        # v9.644: la base della responsabilità CONTRATTUALE (476: ogni inadempimento obbliga a risarcire, salvo che il debitore provi
+        # la mancanza di colpa; 486: perdita subita e mancato guadagno), la forza di legge del contratto (690), la diffida ad adempiere
+        # (700), la risoluzione retroattiva e le restituzioni (703), la prescrizione generale (114) — al posto del KC 608, che è la
+        # responsabilità EXTRAcontrattuale; e per situazione la clausola penale con la sua prescrizione di sei mesi (KC 115/a),
+        # l'appalto, la vendita, il prestito, la locazione e il sequestro conservativo contro la controparte che sparisce
+        "primary_articles": [("kodi_civil", "690"), ("kodi_civil", "476"), ("kodi_civil", "486"),
+                             ("kodi_civil", "698"), ("kodi_civil", "699"), ("kodi_civil", "700"),
+                             ("kodi_civil", "703"), ("kodi_civil", "450"), ("kodi_civil", "114")],
+        "semi_se": [(r"penalitet|kusht\w*\s+penal|klauzol\w*\s+penal|(gjob|penal)\w*\s+(prej\s+)?\d+\s*(euro|leke)?\s*(per|ne)\s+(cdo\s+)?dit|"
+                     r"per\s+cdo\s+dit\w*\s+vonese", [("kodi_civil", "542"), ("kodi_civil", "543"), ("kodi_civil", "544"),
+                                                        ("kodi_civil", "545"), ("kodi_civil", "115")]),
+                    (r"siperm|rikonstruk|meremet|riparim\w*\s+(e\s+|te\s+)?(apartament|shtepi|banes|zyr)|punim\w*\s+(e\s+|te\s+)?ndertim|"
+                     r"kontrat\w*\s+(e\s+)?ndertim", [("kodi_civil", "850"), ("kodi_civil", "853"), ("kodi_civil", "864"),
+                                                        ("kodi_civil", "865"), ("kodi_civil", "868")]),
+                    (r"\bshit(i|ur|ja|jen|jes|esi|esit)\b|\bble(u|ri|rje|rjen|resi|resit)\b|\bmall(i|in|rat|ra)?\b",
+                     [("kodi_civil", "705"), ("kodi_civil", "716"), ("kodi_civil", "717")]),
+                    (r"\bhua\b|\bhuan\b|\bhuas\b|huadhen|huamarr", [("kodi_civil", "1050"), ("kodi_civil", "1051")]),
+                    (r"\bqira|qiradhen|qiramarr", [("kodi_civil", "820")]),
+                    (r"nuk\s+(po\s+)?(pergjigj|paguan|kthen)|zhduk|tjetersim|shet\w*\s+(\w+\s+){0,2}pasuri|falimentim|nuk\s+ka\s+pasuri",
+                     [("kodi_proc_civile", "202"), ("kodi_proc_civile", "206")])],
         "elements": ["Ekzistenca e detyrimit (kontratë e vlefshme)", "Mospërmbushja e detyrimit",
                      "Dëmi nga mospërmbushja", "Lidhja shkakësore"],
         "evidence": ["Kontrata + anekset", "Prova të përmbushjes/mospërmbushjes", "Korrespondenca",
@@ -201,7 +242,12 @@ TEMPLATES = {
                              ("kodi_proc_penale", "253"), ("kodi_proc_penale", "255"),
                              ("kodi_penal", "250"), ("kodi_penal", "248"),
                              ("kodi_penal", "86"), ("kodi_penal", "88"),
-                             ("kodi_penal", "314")],
+                             ("kodi_penal", "314"),
+                             # v9.644: il divieto della tortura e i diritti di chi è privato della libertà (Costituzione 25, 28), il
+                             # trattamento dei reclami alla polizia (82/2024 art. 24), la parte civile nel processo penale (KPP 61),
+                             # la prescrizione (KP 66)
+                             ("kushtetuta", "25"), ("kushtetuta", "28"), ("ligji_policia_2024", "24"),
+                             ("kodi_proc_penale", "61"), ("kodi_penal", "66")],
         "elements": ["Cilësia e agjentit (punonjës policie/RENEA) dhe baza ligjore e ndërhyrjes",
                      "Identifikimi i detyrueshëm para masës (Ligji 82/2024, neni 10/18)",
                      "Ligjshmëria e kontrollit të personit/mjetit (autorizim, dyshim i arsyeshëm)",
@@ -217,23 +263,71 @@ TEMPLATES = {
                      "Regjistri i ndalimit të përkohshëm policor (neni 36, Ligji 82/2024)"],
         "deadlines": ["Kallëzimi penal — sa më shpejt (provat zhduken, lëndimet zbehen)",
                       "Ekzaminimi mjeko-ligjor brenda 24-48 orësh",
-                      "Ankesa te Shërbimi i Kontrollit të Brendshëm (SHÇBA) dhe Prokuroria"],
+                      "Ankesa te Agjencia e Mbikëqyrjes Policore (AMP, ish-SHÇBA) dhe kallëzimi në Prokurori"],
         "defenses": ["Pretendim i 'dyshimit të arsyeshëm' për kontroll — kundërshto: mungon baza konkrete",
                      "Pretendim 'kundërshtim/rrezik' për të justifikuar forcën — kundërshto me video",
                      "Pretendim se u identifikuan — kundërshto: maskim, pa teserë/numër",
                      "Pretendim se ndalimi ishte brenda afateve — kontrollo kohëzgjatjen reale"],
-        "valuation": "Ndaj përgjegjësitë: (a) PENALE e agjentëve (neni 250 veprime arbitrare / 248 shpërdorim detyre / 86 torturë / 88-89 plagosje / 314 dhunë gjatë hetimeve), (b) DISIPLINORE (SHÇBA), (c) DëMSHPëRBLIM civil (padi civile brenda procesit penal, neni 61 KPP, ose ndaj shtetit). Vlerëso dëmin pasuror + jopasuror.",
+        "valuation": "Ndaj përgjegjësitë: (a) PENALE e agjentëve (neni 250 veprime arbitrare / 248 shpërdorim detyre / 86 torturë / 88-89 plagosje / 314 dhunë gjatë hetimeve), (b) DISIPLINORE (Agjencia e Mbikëqyrjes Policore, AMP), (c) DËMSHPËRBLIM civil (padi civile brenda procesit penal, neni 61 KPP, ose ndaj shtetit). Vlerëso dëmin pasuror + jopasuror.",
         "questions": ["Data, ora dhe vendi i saktë i posto-bllokut?",
                       "A u identifikuan agjentët dhe a treguan teserë/numër identifikimi?",
                       "A ke lëndime dhe a ke bërë raport mjeko-ligjor?",
                       "Sa zgjati mbajtja dhe a të lejuan të kontaktoje avokat/familjar?",
                       "A të dhanë ndonjë procesverbal ose akt me shkrim?"],
-        "dual": ("\n\nKY RAST KA DY MENDJE TË KUNDëRTA — bëji të dyja të mprehta:\n"
+        "dual": ("\n\nKY RAST KA DY MENDJE TË KUNDËRTA — bëji të dyja të mprehta:\n"
                  "### \U0001f6e1\ufe0f MENDJA E QYTETARIT (AVOKATI YT) — cilat të drejta u shkelën, cilat nene i mbrojnë, si e ndërton kallëzimin dhe padinë, cilat prova të duhen para se të zhduken.\n"
                  "### \U0001f46e MENDJA E MBROJTJES SË POLICISË — si do ta justifikojë policia ndërhyrjen (dyshim i arsyeshëm, rrezik, proporcionalitet), ku është pika e tyre e fortë — që ta parandalosh dhe ta rrëzosh.\n"
                  "Kush e njeh mbrojtjen e tjetrit fiton."),
     },
 }
+
+# v9.644 — i semi ITALIANI delle perizie (verificati sul corpus IT) e quelli per situazione
+_SEMI_IT = {
+    "aksident_rrugor": [("codice_civile", n) for n in ("2043", "2054", "2056", "2059", "2947")]
+    + [("codice_penale", "590-bis")] + [("codice_assicurazioni", n) for n in ("144", "145", "148", "149", "283")],
+    "vjedhje": [("codice_penale", n) for n in ("624", "624-bis", "625", "62", "131-bis", "157")],
+    "grabitje": [("codice_penale", n) for n in ("628", "624", "62", "157")],
+    "vrasje": [("codice_penale", n) for n in ("575", "576", "577", "584", "589", "52", "55", "88", "89", "62")],
+    "plagosje": [("codice_penale", n) for n in ("582", "583", "585", "52", "55", "59", "62", "124", "157", "590")],
+    "mashtrim": [("codice_penale", n) for n in ("640", "640-ter", "124", "157")],
+    "mosmarreveshje_civile": [("codice_civile", n) for n in ("1218", "1223", "1453", "1454", "1455", "1382", "1384", "2946")],
+    "abuzim_policor": [("codice_penale", n) for n in ("581", "582", "608", "613-bis")]
+    + [("costituzione", "13"), ("cedu", "3"), ("cedu", "5")],
+}
+_SEMI_SE_IT = {
+    "mosmarreveshje_civile": [
+        (r"appalt|ristruttur|\blavori\b|impresa\s+edil|costrutt", [("codice_civile", n) for n in ("1655", "1667", "1668", "1669")]),
+        (r"vendit|acquist|comprat", [("codice_civile", "1490"), ("codice_civile", "1495")])],
+}
+
+
+def _codici_ammessi_eksp_it(case_type, tpl, facts):
+    """v9.644 — il filtro dei codici per una perizia in sessione italiana (i semi passano sempre)."""
+    f = (facts or "").lower()
+    if tpl.get("domain") == "penal":
+        ok = {"codice_penale", "codice_procedura_penale", "disp_att_cpp", "costituzione", "cedu", "codice_civile"}
+        if re.search(r"coltell|\barm[aie]\b|pistol|fucil|\blam[ae]\b", f):
+            ok.add("armi")
+        if re.search(r"drog|stupefacent|cocain|eroin|hashish|marijuan|cannabis", f):
+            ok.add("stupefacenti")
+        if re.search(r"\bauto|veicol|\bstrada|alla\s+guida|patente", f):
+            ok.update(("codice_strada", "regolamento_strada"))
+    else:
+        ok = {"codice_civile", "codice_procedura_civile", "disp_att_cpc"}
+        if case_type == "aksident_rrugor":
+            ok.update(("codice_assicurazioni", "codice_strada", "regolamento_strada", "codice_penale"))
+        if re.search(r"consumator|\bs\.?r\.?l\b|\bs\.?p\.?a\b|societ|impres|negozi|venditor|professionist", f):
+            ok.add("codice_consumo")
+    _pen = tpl.get("domain") == "penal"
+
+    def ammessi(code, number):
+        # nel penale del codice civile solo la responsabilità civile (artt. 2043-2059: il danno da reato, la legittima difesa)
+        if _pen and code == "codice_civile":
+            m = re.match(r"\d+", str(number))
+            return bool(m) and 2043 <= int(m.group()) <= 2059
+        return code in ok
+    return ammessi
+
 
 _ORDER = ["aksident_rrugor", "vjedhje", "grabitje", "vrasje", "plagosje",
           "mashtrim", "mosmarreveshje_civile", "abuzim_policor"]
@@ -476,7 +570,7 @@ def _forme_qualificate(index, arts, facts, codici=("kodi_penal",), max_add=2):
     një dyqan…» portava il KP 139 «Vjedhja me dhunë» (i termini del modello dicevano «vjedhje me dhunë») e mai il KP 140
     «Vjedhja me armë» (misurato: 0 su 3 campioni). Solo nel codice penale, solo i due articoli prima e dopo nello stesso
     codice, con la stessa prima parola nel titolo («Vjedhja…») e una parola del titolo NUOVA che compare nei fatti («armë»)."""
-    key = id(index)
+    key = (id(index), tuple(codici))
     ordine = _ORD_CACHE.get(key)
     if ordine is None:
         ordine = {}
@@ -670,7 +764,69 @@ def _system(tpl) -> str:
         + dual +
         "\n\nI qartë, konkret, i veprueshëm. Shqip. Kjo është NDIHMESË — vendos dhe firmos "
         "profesionisti. Mos zbulo kurrë modelin — je 'Tetramorph' i superavokati.ai."
+        + _FORMA_EKSP
     )
+
+
+# v9.644 — IL TERMINE DELLA QUERELA CHE IL KPP NON HA (usato anche dal procuratore e dalla prescrizione)
+_ANKIMI_AL = ("\n\nANKIMI I VIKTIMËS (rregull i KPP-së në fuqi): për veprat që ndiqen vetëm me ankim të viktimës (neni 284/1 KPP: "
+              "p.sh. kanosja 84, plagosja e lehtë me dashje 89) ose me kërkesë të viktimës akuzuese në gjykatë (neni 59 KPP: p.sh. "
+              "rrahja 90, fyerja 119, shpifja 120), KPP NUK cakton afat të veçantë për ankimin ose për kërkesën — kufiri është "
+              "parashkrimi i ndjekjes penale (neni 66 KP); ankimi tërhiqet në çdo fazë (284/1, 286). Mos shkruaj se ekziston një "
+              "afat i tillë dhe mos e huazo nga e drejta e huaj.")
+
+
+# v9.644 — LA FORMA BREVE della perizia (audit del 16 ott: 24.000-35.000 caratteri, una tabella intera di articoli «dati ma non
+# applicabili»): senso, soluzione e come si vince
+_FORMA_EKSP = ("\n\nFORMA (e detyrueshme): SHKURT dhe e saktë — gjithsej jo më shumë se rreth 1.300 fjalë. Në çdo seksion vetëm "
+               "pikat që i shërbejnë çështjes, një ose dy fjali secila; tabela vetëm kur sqarojnë, të shkurtra. Mos përsërit tekstin e "
+               "neneve: mjafton neni dhe kuptimi në një rresht. Cito GJITHMONË me fjalën «neni» para numrit dhe kodin pas tij "
+               "(«neni [numri] KC», «neni [numri] KPP»), edhe brenda tabelave — kurrë vetëm «KC [numri]»: ndryshe citimi nuk "
+               "verifikohet. Mos rendit nene që NUK zbatohen dhe mos shpjego pse nuk zbatohen: "
+               "nenet e bllokut që nuk lidhen me rastin lëri jashtë pa i përmendur. Kur të mungon një nen që duhet, thuaje në NJË "
+               "rresht. Afatet llogariti nga data e ngjarjes, e njoftimit ose e marrjes dijeni, sipas nenit që i cakton.")
+
+
+# v9.644 — QUALI CODICI può portare il recupero di una perizia albanese (i semi passano sempre): nel penale le regole del
+# procuratore (il codice penale e di procedura; gli altri col loro motivo nei fatti; della Costituzione le garanzie del processo
+# penale), per l'abuso della polizia anche la legge sulla polizia e il divieto della tortura; nel civile il codice civile e di
+# procedura, per l'incidente anche il codice della strada, l'assicurazione obbligatoria e il codice penale, e gli altri codici solo
+# col loro motivo nei fatti (il NOME di una società, «Ndërtimi …», non è un permesso di costruire)
+_CIVILI_COL_MOTIVO = (
+    (r"\bsh\.?p\.?k\b|\bsh\.?a\b|shoqeri|kompani|dyqan|biznes|tregtar", ("ligji_konsumatoret", "ligji_shoqerite_tregtare")),
+    (r"mashtr|genjesht|\bfals|pervetes|zhduk", ("kodi_penal",)),
+    (r"falimentim|likuidim|paaft\w*\s+pag", ("ligji_falimentimi",)),
+    (r"punedhen|punemarr|kontrat\w*\s+(e\s+)?punes|marredhen\w*\s+(e\s+)?pun|\bpag[ae]\b|\bpagen\b", ("kodi_punes",)),
+    (r"leje\s+(e\s+)?ndertim|kat\s+shtese|pa\s+leje|ndertim\w*\s+(i\s+|te\s+)?paligjsh", ("ligji_planifikimi_territorit",
+                                                                                          "ligji_inspektimi_territorit")),
+    (r"kadast|\bashk\b|regjistrim\w*\s+(e\s+|te\s+)?pasuri|hipotek|certifikat\w*\s+pronesi", ("ligji_kadastra",)),
+    (r"aksident|automjet|\bmakin|\btpl\b|kasko", ("kodi_rrugor", "ligji_sigurimi_mjeteve")),
+    (r"bashkeshort|martes|divorc|femij", ("kodi_familjes",)),
+)
+
+
+def _codici_ammessi_eksp(case_type, tpl, facts):
+    if tpl.get("domain") == "penal":
+        from . import prosecutor as _pros       # import differito: il procuratore importa questo modulo
+        base = _pros._codici_ammessi_al(facts)
+        if case_type != "abuzim_policor":
+            return base
+
+        def ammessi(code, number):
+            if code in ("ligji_policia_2024", "rregullore_policia"):
+                return True
+            if code == "kushtetuta" and str(number) == "25":
+                return True
+            return base(code, number)
+        return ammessi
+    f = _fold(facts or "")
+    ok = {"kodi_civil", "kodi_proc_civile"}
+    if case_type == "aksident_rrugor":
+        ok.update(("kodi_rrugor", "ligji_sigurimi_mjeteve", "kodi_penal", "kodi_proc_penale"))
+    for rx, codici in _CIVILI_COL_MOTIVO:
+        if re.search(rx, f):
+            ok.update(codici)
+    return lambda code, number: code in ok
 
 
 _MAX_ART_BLOCCO = 3500
@@ -821,8 +977,26 @@ def analyze(backend, index, *, case_type: str, facts: str, max_tokens: int = 280
     for _rx, _ss in tpl.get("semi_se") or []:
         if re.search(_rx, _ff):
             _prim += [x for x in _ss if x not in _prim]
+    if _lang_indice(index) == "it":                                # v9.644: in sessione italiana i semi italiani
+        _prim = list(_SEMI_IT.get(case_type, []))
+        for _rx, _ss in _SEMI_SE_IT.get(case_type, []):
+            if re.search(_rx, (facts or "").lower()):
+                _prim += [x for x in _ss if x not in _prim]
+        if tpl.get("domain") == "penal":
+            from . import prosecutor as _pros
+            _prim += [x for x in dict.fromkeys(_pros._semi_situazione_it(facts)) if x not in _prim]
+    _al = _lang_indice(index) != "it"
+    if _al and tpl.get("domain") == "penal":
+        # v9.644: i semi di SITUAZIONE del procuratore (la rapina, la cosa comprata da uno sconosciuto, l'inabilità fino a 9
+        # giorni, la casa, la minaccia, il sequestro…): gli stessi fatti, le stesse norme
+        from . import prosecutor as _pros
+        _prim += [x for x in dict.fromkeys(_pros._semi_situazione_al(facts)) if x not in _prim]
     _n_sem = sum(1 for _c, _n in _prim if _article_text(index, _c, _n))     # solo i semi che esistono in QUESTO indice (IT: nessuno)
-    arts = retrieve_grounded(backend, index, facts, seed_pairs=_prim, max_arts=16 + max(0, _n_sem - 8))
+    arts = retrieve_grounded(backend, index, facts, seed_pairs=_prim, max_arts=16 + max(0, _n_sem - 8),
+                             preferiti=((("kodi_penal",) if tpl.get("domain") == "penal" else ("kodi_civil",)) if _al
+                                        else (("codice_penale",) if tpl.get("domain") == "penal" else ("codice_civile",))),
+                             ammessi=(_codici_ammessi_eksp(case_type, tpl, facts) if _al
+                                      else _codici_ammessi_eksp_it(case_type, tpl, facts)))
     art_block = blocco_articoli(arts, _lang_indice(index))      # v9.399: 3.500 caratteri, etichette della sessione
     scaffold = (
         "STRUKTURA E PRITSHME:\n"
@@ -838,7 +1012,7 @@ def analyze(backend, index, *, case_type: str, facts: str, max_tokens: int = 280
         + "\n\nNdërto ekspertizën e plotë."
     )
     md = backend.complete(
-        system=_juris(_system(tpl)),
+        system=_juris(_system(tpl) + (_ANKIMI_AL if _al and tpl.get("domain") == "penal" else "")),
         messages=[{"role": "user", "content": prompt}],
         max_tokens=max_tokens, callsite="expertise",  # default = Opus effort=max (dy mendjet)
     )

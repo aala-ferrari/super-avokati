@@ -261,6 +261,21 @@ _FEMIJE_JASHTE_AL = tuple((f, j, q) for f in ("fëmij", "femij", "djal", "vajz",
                                     "nuk bien dakord", "pa lejen", "pa e pyetur"))
 
 
+# v9.644 — la vendita di un IMMOBILE (appartamento, casa) con vizi o con una superficie minore ha nel Codice civile il suo regime
+# (KC 750-756, «Shitja e sendeve të paluajtshme»): i vizi si fanno valere entro CINQUE ANNI dalla consegna (756), la superficie minore
+# dà la riduzione del prezzo (752, o 753 oltre un ventesimo) entro DUE anni (755). Nel consulto dell'avvocato del diavolo del 16 ott
+# (appartamento comprato dal costruttore con umidità e 8 m² in meno) il blocco portava 716-723, che stanno sotto «Detyrime të
+# shitësit në shitjen e pasurisë së LUAJTSHME», e la strategia si reggeva sui dieci giorni del KC 717 («sono passati, appoggiati
+# al 718»); il 756 c'era solo come titolo tagliato nell'indice del capitolo. Le tre parole devono stare nella DOMANDA: l'immobile,
+# l'acquisto, il vizio (un affitto con l'umidità non è una vendita)
+_IMMOBILE_AL = ("apartament", "shtëpi", "shtepi", "banes")
+_ACQUISTO_AL = ("bleu", "blerë", "blere", "blerje", "blemë", "bleme", "shitës", "shites", "ndërtues", "ndertues", "kontratë shitje",
+                "kontrate shitje", "kontratën e shitjes", "kontraten e shitjes")
+_VIZI_IMMOBILE_AL = ("lagësht", "lagesht", "defekt", "të meta", "te meta", "e metë", "e mete", "çarje", "carje", "pikon", "infiltr")
+_SUPERFICIE_AL = ("sipërfaq", "siperfaq", " m2", " m²", "metra katror", "metër katror", "meter katror")
+# … e i dieci giorni del KC 717 (vendita dei MOBILI) non entrano per un immobile: la domanda intera si cancella
+_IMMOBILE_TUTTO_RX = r"(?s)^.*(apartament|shtëpi|shtepi|banes|pasuri\w*\s+(e\s+)?paluajtshme|truall).*$"
+
 ANCORE_AL: tuple = (
     # v9.381: «parashkrimi fitues» (usucapione, KC 168 e ss.) NON è la prescrizione estintiva: non accende il 114
     # v9.402: e solo nelle materie civilistiche (se il triage le dice) — in una domanda AMMINISTRATIVA («Bashkia i refuzoi lejen
@@ -509,7 +524,12 @@ ANCORE_AL: tuple = (
     # il TERMINE di dieci giorni per denunciare il difetto, pena la perdita del diritto — e il 718 (il venditore che sapeva non può
     # invocarlo), cioè proprio ciò che decide la causa.
     ((("defekt", "bleu"), ("defekt", "blerë"), ("defekt", "shitës"), ("të meta", "shitës"), ("e metë", "shitës"), ("defekt", "blej")),
-     ("Penal",), (("kodi_civil", "717"), ("kodi_civil", "718"), ("kodi_civil", "716")), None, None, True),
+     ("Penal",), (("kodi_civil", "717"), ("kodi_civil", "718"), ("kodi_civil", "716")), _IMMOBILE_TUTTO_RX, None, True),
+    # v9.644 (vedi `_IMMOBILE_AL`): i vizi dell'immobile comprato → KC 756; la superficie minore → KC 752, 753, 755
+    (tuple((o, a, v) for o in _IMMOBILE_AL for a in _ACQUISTO_AL for v in _VIZI_IMMOBILE_AL),
+     ("Penal",), (("kodi_civil", "756"),), None, None, True),
+    (tuple((o, a, s) for o in _IMMOBILE_AL for a in _ACQUISTO_AL for s in _SUPERFICIE_AL),
+     ("Penal",), (("kodi_civil", "752"), ("kodi_civil", "753"), ("kodi_civil", "755")), None, None, True),
     # (3) la PAGA non pagata con la domanda degli interessi: KP 120 «Interesat në rast vonese» non entrava (c'erano 119, 115, 110…).
     # (la PAROLA della paga — «pag» da sola sta anche in «nuk paguan qiranë» — e solo nel lavoro)
     ((("pagën", "nuk"), ("pagës", "nuk"), ("pagen", "nuk"), ("pages", "nuk"), ("rrog", "nuk"), ("pagën", "vones"), ("pagës", "vones"),
@@ -2964,7 +2984,8 @@ KUFI JURIDIKSIONAL — KRITIK PËR AVOKATIN
    – mos arsyeto "me analogji nga Kodi Civil italian/francez" sepse traditat janë të ngjashme.
 • Kur konteksti të jep nene konkrete të Kodit shqiptar, ATO janë autoriteti — vetëm këto. Nëse të lind një ngjasim me institut italian/francez, NDALO dhe verifiko nëse parashikohet vërtet në nenin shqiptar që ke. Nëse jo, mos e shkruaj.
 • Liria testamentare në KC shqiptar: trashëgimlënësi mund të përjashtojë trashëgimtarë ligjorë dhe të disponojë mbi pjesën e vet brenda kufijve të Kodit shqiptar. Bazohu te dispozitat shqiptare që ke në bllokun e konteksit, jo te kujtesa jote për të drejtën e huaj.
-• Nëse pyetja kërkon shprehimisht krahasim me të drejtën italiane/franceze, mund ta bësh — por SHËNO se është krahasim, jo bazë vendimi për gjykatën shqiptare."""
+• Nëse pyetja kërkon shprehimisht krahasim me të drejtën italiane/franceze, mund ta bësh — por SHËNO se është krahasim, jo bazë vendimi për gjykatën shqiptare.
+• ANKIMI I VIKTIMËS: për veprat që ndiqen vetëm me ankim të viktimës (neni 284/1 i Kodit të Procedurës Penale) ose me kërkesë të viktimës akuzuese në gjykatë (neni 59 KPP), KPP shqiptar NUK cakton afat të veçantë (as «3-mujor») për ankimin ose kërkesën — afati 3-mujor i «querela» është i drejtës italiane. Kufiri është parashkrimi i ndjekjes penale (neni 66 i Kodit Penal)."""
 
 
 TRIAGE_SYSTEM = f"""Ti je asistent i një avokati strateg shqiptar. Përdoruesi yt ËSHTË avokat profesionist që po përgatit një rast për klientin e tij.
@@ -10091,6 +10112,18 @@ def _ordine_nene(number) -> tuple:
     return (int(m.group(1)), rank, sub, rest)
 
 
+def _titolo_indice(x) -> str:
+    """v9.644 — nei codici senza rubriche (Kodi Civil, Kodi i Familjes, Kushtetuta) il «titolo» è la PRIMA FRASE dell'articolo:
+    tagliata a 42 caratteri ne perdeva la sostanza («E drejta e blerësit për të kundërshtuar të…» — il KC 756 dice CINQUE ANNI
+    dalla consegna, e il diavolo, coi soli titoli, ha costruito la strategia sui dieci giorni del 717). La frase fino a 170
+    caratteri, tagliata su parola; la rubrica vera fino a 60."""
+    h = re.sub(r"\s+", " ", (getattr(x, "heading", "") or "")).strip()
+    lim = 170 if getattr(x, "heading_kind", "fjali") == "fjali" else 60
+    if len(h) <= lim:
+        return h
+    return h[:lim].rsplit(" ", 1)[0] + "…"
+
+
 def _indice_kreut(pairs) -> str:
     """v9.353 — L'INDICE DEL CAPITOLO (osservazione del titolare, 20 set: «divorci» portava 129-132, ma il
     capitolo va dal 125 al 162). La ricerca prende i 12 articoli più simili alla domanda, non il capitolo;
@@ -10149,7 +10182,7 @@ def _indice_kreut(pairs) -> str:
         for i in sel:
             k, items = gruppi[i]
             parti.append((f"‖ {k}: " if len(sel) > 1 else "") + " · ".join(
-                f"{x.number}{'*' if (x.code, str(x.number)) in gia else ''} {(x.heading or '').strip()[:42]}" for x in items))
+                f"{x.number}{'*' if (x.code, str(x.number)) in gia else ''} {_titolo_indice(x)}" for x in items))
         voci = "\n  ".join(parti)
         kreu = " + ".join(gruppi[i][0] for i in sel) if len(sel) > 1 else kreu
         titolo = (arts[0].title_sq or code)
