@@ -12268,7 +12268,7 @@ console.log(JSON.stringify(out));
                 and 'var _ACCEPT_DOCS = ".pdf,.docx,.doc,.odt,.txt,.rtf,.jpg,.jpeg,.png,.webp,.svg,.tif,.tiff,.heic,.heif"' in _a419
                 and 't("\\ud83d\\udcce Bashkëngjit PDF/foto")' not in _a419 and 'TT("\\ud83d\\udcce Bashkëngjit PDF/foto")' not in _a419)
         _okB = ("existing=existing" in _w419 and 'existing=(body.get("existing_text") or "").strip()[:40000]' in _w419
-                and "notary_mod._blocco_esistente(existing, _it_p)" in _w419
+                and "notary_mod._blocco_esistente(existing, _it_p, _fatti)" in _w419
                 and 'accept=".pdf,.docx,.doc,.odt' in _h419)
 
         class _FB419:
@@ -12365,6 +12365,10 @@ sw.appendChild(optNew); sw.appendChild(optRev);
 const inp = el("rev-file", "input"), chip = el("ac-attach-hint rev-chip", "span");
 chip.textContent = "Super Avokati e rishikon dhe e përmirëson";
 revRow.appendChild(inp); revRow.appendChild(chip); revRow.hidden = true;
+// v9.639: l'etichetta dell'allegato dei dati (il primo nodo di testo del <label>) e il suggerimento accanto
+const lblD = el("ac-attach", "label"), hintD = el("ac-attach-hint", "span");
+lblD.firstChild = { nodeType: 3, nodeValue: "📎 Bashkëngjit dokument (PDF, Word, foto)" }; hintD.textContent = "ose ngjit tekstin poshtë";
+dataRow.appendChild(lblD); dataRow.appendChild(hintD);
 ta.placeholder = "Jep të dhënat…"; run.textContent = "Harto aktin →";
 [dataRow, sw, revRow, ta, run, status].forEach((n) => ov.appendChild(n));
 const st = F._wireRevision(ov, status, run);
@@ -12376,9 +12380,11 @@ r.html = /class="rev-mode"/.test(html) && /data-mode="new"/.test(html) && /data-
   && /class="ac-attach-row rev-row" hidden/.test(html) && /class="rev-file"/.test(html);
 r.ordine = ordine;
 r.inizio = [st.mode, revRow.hidden, dataRow.hidden, run.textContent];
+r.etIni = [lblD.firstChild.nodeValue, hintD.textContent];
 optRev.onclick();
 r.rivedi = [st.mode, revRow.hidden, dataRow.hidden, ta.placeholder, run.textContent, optRev.cl.has("on"), optNew.cl.has("on"),
             optRev.attrs["aria-pressed"]];
+r.etRev = [lblD.firstChild.nodeValue, hintD.textContent, ta.placeholder];
 r.senzaDoc = [clic(), status.textContent];
 (async () => {
   inp.files = [{ name: "prokura.docx" }];
@@ -12386,6 +12392,7 @@ r.senzaDoc = [clic(), status.textContent];
   r.conDoc = [st.name, st.text.length > 10, clic()];
   optNew.onclick();
   r.daZero = [st.mode, st.text, st.name, revRow.hidden, dataRow.hidden, ta.placeholder, run.textContent, clic()];
+  r.etNew = [lblD.firstChild.nodeValue, hintD.textContent];
   console.log(JSON.stringify(r));
 })();
 """
@@ -12393,7 +12400,13 @@ r.senzaDoc = [clic(), status.textContent];
                                            timeout=30).stdout or "{}")
             _ok422 = (_o422.get("html") is True and _o422.get("ordine") == "scelta>rivedi>dati"
                       and _o422.get("inizio") == ["new", True, False, "Harto aktin →"]
-                      and (_o422.get("rivedi") or [None])[:3] == ["rev", False, True]
+                      and (_o422.get("rivedi") or [None])[:3] == ["rev", False, False]
+                      and _o422.get("etIni") == ["📎 Bashkëngjit dokument (PDF, Word, foto)", "ose ngjit tekstin poshtë"]
+                      and _o422.get("etRev") == ["📎 2. Të dhënat e reja (ID, ekstrakt, foto)",
+                                                 "opsionale — futen në vendet e duhura",
+                                                 "Të dhënat e reja ose çfarë duhet ndryshuar (p.sh. adresa e re, atësia, "
+                                                 "amësia) — opsionale"]
+                      and _o422.get("etNew") == _o422.get("etIni")
                       and _o422["rivedi"][4] == "Rishiko dokumentin →" and _o422["rivedi"][5:] == [True, False, "true"]
                       and _o422.get("senzaDoc") == [True, "Ngarko së pari dokumentin që do të rishikosh."]
                       and _o422.get("conDoc") == ["prokura.docx", True, False]
@@ -12403,7 +12416,8 @@ r.senzaDoc = [clic(), status.textContent];
         _a422 = open("/app/static/app.js", encoding="utf-8").read()
         _ok422b = ('"\\u270d\\ufe0f Harto nga e para": "\\u270d\\ufe0f Scrivi da zero"' in _a422
                    and '"Ngarko së pari dokumentin që do të rishikosh.": "Carica prima il documento da rivedere."' in _a422)
-        check("redattori[422]: una scelta («da zero» / «rivedi») e un allegato alla volta, sopra gli allegati, senza documento non parte",
+        check("redattori[422]: una scelta («da zero» / «rivedi») sopra gli allegati; in revisione i due allegati numerati (1. il "
+              "documento, 2. i dati nuovi), da zero quello dei dati com'era; senza documento non parte",
               _ok422 and _ok422b, f"{_o422} | it={_ok422b}")
     except Exception as _e422:  # noqa: BLE001
         check("redattori[422]: kontrollet u ekzekutuan", False, f"{type(_e422).__name__}: {_e422}")
@@ -13069,7 +13083,9 @@ const F = new Function("localStorage", "document", "fetch", "renderMarkdown", "_
                                    details=_d434)
         _a1 = {(a["code"], str(a["number"])) for a in _r1.get("articles", [])}
         _ok1 = ("AUTORIZIM PËR PËRDORIMIN E AUTOMJETIT" in _fb434.sys and "brenda dhe jashtë territorit" in _fb434.sys
-                and "VËRTETIMI I NËNSHKRIMIT" in _fb434.sys and "Kërkesat formale" in _fb434.sys
+                and "MBYLLJA E AKTIT NOTERIAL" in _fb434.sys and "neni 128" in _fb434.sys and "atësia" in _fb434.sys
+                and "Nr. [___] Rep." in _fb434.sys and "VËRTETIMI I NËNSHKRIMIT" not in _fb434.sys
+                and ("ligji_noteri", "105") in _a1 and "Kërkesat formale" in _fb434.sys
                 and _fb434.kw.get("max_tokens", 9999) <= 1600 and "NËN-DELEGIM" not in _fb434.msg
                 and ("ligji_noteri", "128") in _a1 and ("ligji_sigurimi_mjeteve", "16") in _a1)
         _nt434.draft_prokura(_fb434, idx, form="e_posacme", scope_keys=["perdorim_automjeti"], details=_d434)
@@ -13095,6 +13111,102 @@ const F = new Function("localStorage", "document", "fetch", "renderMarkdown", "_
               f"breve={_ok1} solo_dentro={_ok2} altro_potere={_ok3} revisione={_ok4} it={_ok5}")
     except Exception as _e434:  # noqa: BLE001
         check("noter[434]: kontrollet u ekzekutuan", False, f"{type(_e434).__name__}: {_e434}")
+
+    # [435] v9.639 — AGGIORNARE UN DOCUMENTO GIÀ SCRITTO CON I DATI NUOVI, E NIENTE DI SUPERFLUO. Il titolare, 13 ott: «se mando
+    # il documento nuovo d'identità, l'indirizzo, l'estratto della società, il nome del padre e della madre, il notaio deve
+    # metterli nella procura nuova… sostituirli bene e nei posti giusti; dentro la legge, ma senza aggiungere cose che non
+    # servono o che sono sottintese». Con i dati nuovi la consegna è l'AGGIORNAMENTO (ogni dato al suo posto, ovunque, il resto
+    # com'è); il riassunto del fascicolo non conta come dati nuovi; il documento scaduto lo segnala il codice (MRZ con le cifre di
+    # controllo, se no la data più lontana vicino all'etichetta); durata e sostituzione della procura solo se date.
+    try:
+        from src import notary as _nt435, fable_drafter as _fd435, brain as _br435
+        class _FB435:
+            def __init__(self): self.sys, self.msg, self.web = "", "", {}
+            def complete(self, system=None, messages=None, **kw):
+                self.sys, self.msg = system or "", (messages or [{}])[-1].get("content", "")
+                self.web[kw.get("callsite")] = kw.get("no_web")
+                return "### 📄 Teksti i përmirësuar\nok"
+        _fb = _FB435()
+        _EX435 = ("PROKURË E POSAÇME. Unë, Arben Prova, lindur në Elbasan më 01.01.1980, me letërnjoftim nr. 000000001, banues "
+                  "në Tiranë, Rr. e Kavajës nr. 1, AUTORIZOJ z. Gent Shembulli të përdorë automjetin targa AA000AA.")
+        _NU435 = ("Letërnjoftimi i ri: Arben Prova, nr. 000000002, Data e lëshimit 12.03.2021, Data e skadimit 11.03.2031. Adresa "
+                  "e re: Tiranë, Rr. e Durrësit nr. 2. Atësia: Petrit; amësia: Drita.")
+        _b, _bi = _nt435._blocco_esistente(_EX435, False, _NU435), _nt435._blocco_esistente(_EX435, True, _NU435)
+        _br = _nt435._blocco_esistente(_EX435, False, "")
+        _okA = ("PËR PËRDITËSIM ME TË DHËNAT E REJA" in _b and "KUDO" in _b and "Atësinë dhe amësinë" in _b
+                and "Çfarë ndryshova" in _b and "### 📄 Teksti i përmirësuar" in _b and "Për t'u kontrolluar" in _b
+                and "DA AGGIORNARE CON I DATI NUOVI" in _bi and "OVUNQUE" in _bi and "Paternità e maternità" in _bi
+                and "Cosa ho cambiato" in _bi and "### 📄 Testo migliorato" in _bi
+                and not __import__("re").search(r"[ëçË]", _nt435._PERDITESIM_EKZ_IT + _nt435._PA_TEPRI_IT)
+                and "PËR RISHIKIM DHE PËRMIRËSIM" in _br and "PËRDITËSO" not in _br and "NJË rresht" in _br
+                and "FJALË PËR FJALË" in _b and "kurrë data e sotme" in _b and "deri në 5 rreshta" in _b
+                and "PAROLA PER PAROLA" in _bi and "mai la data di oggi" in _bi and "al massimo 5 righe" in _bi)
+        # la procura: aggiornamento coi dati, durata e sostituzione solo se date (AL e IT)
+        _r = _nt435.draft_prokura(_fb, idx, form="e_posacme", scope_keys=[], details=_NU435, existing=_EX435)
+        _okB = ("PËR PËRDITËSIM" in _fb.msg and _NU435[:40] in _fb.msg and "Dokument i skaduar" not in _r["markdown"]
+                and "LLOJI: (ai i dokumentit ekzistues më poshtë)" in _fb.msg and "mbeten siç janë" in _fb.msg
+                and ("ligji_noteri", "105") in {(a["code"], str(a["number"])) for a in _r["articles"]})
+        _nt435.draft_prokura(_fb, idx, form="e_posacme", scope_keys=["bankar"], details="Z. A, ID 1, përfaqësuesi Z. B")
+        _okC = ("AFATI:" not in _fb.msg and "NËN-DELEGIM" not in _fb.msg and "PA TË TEPRA" in _fb.sys
+                and "VETËM nëse jepen" in _fb.sys and "NJË rresht" in _fb.sys)
+        _nt435.draft_prokura(_fb, idx, form="e_posacme", scope_keys=["bankar"], details="Z. A, ID 1, përfaqësuesi Z. B",
+                             duration="1 vit", subdelegation=True)
+        _okC = _okC and "AFATI: 1 vit" in _fb.msg and "NËN-DELEGIM: i lejuar" in _fb.msg
+        _it435 = idx_it if "idx_it" in dir() else ArticleIndex.load(INDEX_FILE.parent / "bm25_it.pkl")
+        _nt435.draft_prokura(_fb, _it435, form="e_posacme", scope_keys=["bankar"], details="Il sig. A delega il sig. B in banca.")
+        _okD = ("DURATA:" not in _fb.msg and "SOSTITUZIONE" not in _fb.msg and "NIENTE DI SUPERFLUO" in _fb.sys
+                and "SOLO se sono indicate" in _fb.sys and "mai la data di oggi" in _fb.sys and "base giuridica" in _fb.sys)
+        _nt435.draft_prokura(_fb, _it435, form="e_posacme", scope_keys=[], details="Nuova carta d'identità di Mario Prova: n. "
+                             "CA00000AA, scadenza 11.03.2031. Paternità: Giovanni.", existing="PROCURA SPECIALE. Il sig. Mario "
+                             "Prova, nato a Milano il 1° gennaio 1980, carta d'identità n. CA11111BB, nomina il sig. Luca Esempio.")
+        _okD = (_okD and "DA AGGIORNARE CON I DATI NUOVI" in _fb.msg and "AGGIORNA il documento" in _fb.msg
+                and "TIPO: (quello del documento esistente qui sotto)" in _fb.msg and "restano come sono" in _fb.msg)
+        # l'atto: il riassunto del fascicolo NON è un dato nuovo (nuovi=""), i dati veri sì; niente di superfluo
+        _nt435.draft_deed(_fb, idx, deed_type="prokure", details="KONTEKSTI I FASHIKULLIT: " + "fakt " * 20, existing=_EX435,
+                          nuovi="")
+        _okE = ("PËR RISHIKIM DHE PËRMIRËSIM" in _fb.msg and "PA TË TEPRA" in _fb.sys and "NJË rresht" in _fb.sys
+                and "kurrë data e sotme" in _fb.sys and "baza ligjore" in _fb.sys)
+        _nt435.draft_deed(_fb, idx, deed_type="prokure", details=_NU435, existing=_EX435)
+        _okE = (_okE and "PËR PËRDITËSIM" in _fb.msg
+                and "Afati dhe nën-delegimi (vetëm nëse jepen)" in _nt435.DEED_TYPES["prokure"]["must"])
+        # il documento d'identità scaduto: dalla riga MRZ (cifre di controllo ICAO) o dalla data più lontana dopo l'etichetta
+        _mrz_scad = "IDALB000000002<<<<<<<<<<<<<<<\n7408122F1204159ALB<<<<<<<<<<<6\nPROVA<<ARBEN<<<<<<<<<<<<<<<<<<"
+        _mrz_ok = "IDALB000000002<<<<<<<<<<<<<<<\n7408122F3103119ALB<<<<<<<<<<<6\nPROVA<<ARBEN<<<<<<<<<<<<<<<<<<"
+        _mrz_bad = "7408122F1204151ALB<<<<<<<<<<<6"
+        _col = "Data e lëshimit / Date of issue\nData e skadimit / Date of expiry\n12.03.2021\n11.03.2031"
+        _a1, _a2 = _nt435._avviso_scadenza(_mrz_scad, False), _nt435._avviso_scadenza(_mrz_scad, True)
+        _okF = ("rreshti MRZ" in _a1 and "15.04.2012" in _a1 and "### ⚠️ Dokument i skaduar te të dhënat" in _a1
+                and "riga MRZ" in _a2 and "in data 15.04.2012" in _a2 and not __import__("re").search(r"[ëçË]", _a2)
+                and _nt435._avviso_scadenza(_mrz_ok, False) == "" and _nt435._avviso_scadenza(_mrz_bad, False) == ""
+                and _nt435._avviso_scadenza(_col, False) == ""
+                and "05.06.2024" in _nt435._avviso_scadenza("Data e skadimit: 05.06.2024", False)
+                and _nt435._avviso_scadenza("Kontratë qiraje e lidhur më 01.02.2020.", False) == "")
+        _r = _nt435.draft_deed(_fb, idx, deed_type="dhurim", details="Dhuruesi Arben Prova.\n" + _mrz_scad)
+        _r2 = _nt435.draft_declaration(_fb, idx, decl_type="vertetim_fakti", details="Deklaruesi Arben Prova.\n" + _mrz_scad)
+        _okF = (_okF and _r["markdown"].endswith(_a1) and _r2["markdown"].endswith(_a1) and "PA TË TEPRA" in _fb.sys)
+        # il redattore dell'avvocato: le protezioni che servono al caso, non l'elenco fisso; con i dati nuovi è un aggiornamento
+        _br435.set_request_jurisdiction("AL")
+        _fd435.draft(_fb, kind="contract", brief=_NU435, existing=_EX435)
+        _okG = ("PA TË TEPRA" in _fd435._SYSTEM and "vetëm kur rasti i kërkon" in _fd435._SYSTEM
+                and "force madhore)" not in _fd435._SYSTEM and "PËR PËRDITËSIM" in _fb.msg
+                and "kurrë data e sotme" in _fd435._SYSTEM)
+        # i quattro redattori senza web (la CLI restituisce solo il testo dopo l'ultima ricerca: documento troncato)
+        _okG = _okG and all(_fb.web.get(c) is True for c in ("notary_draft", "notary_prokura", "notary_declaration",
+                                                             "fable_draft"))
+        _w435 = open("/app/src/web.py", encoding="utf-8").read()
+        _a435 = open("/app/static/app.js", encoding="utf-8").read()
+        _okH = ("existing=existing, nuovi=details)" in _w435 and "existing=existing, nuovi=_brief)" in _w435
+                and "_blocco_esistente(existing, _it_p, _fatti)" in _w435 and "details[:(24000 if existing else 12000)]" in _w435
+                and "if (dataRow) dataRow.hidden = false;" in _a435
+                and '"\\ud83d\\udcce 2. Të dhënat e reja (ID, ekstrakt, foto)": "\\ud83d\\udcce 2. Dati nuovi (documento, visura, foto)"' in _a435
+                and '"Afati dhe nën-delegimi (vetëm nëse jepen)": "Termine e sostituzione (solo se indicati)"' in _a435)
+        check("noter[435]: il documento già scritto si AGGIORNA coi dati nuovi (ogni dato al suo posto, ovunque, il resto com'è; "
+              "il fascicolo non conta come dato nuovo), il documento scaduto lo segnala il codice, niente di superfluo nei redattori "
+              "(durata e sostituzione solo se date)", _okA and _okB and _okC and _okD and _okE and _okF and _okG and _okH,
+              f"blocchi={_okA} procura={_okB} solo_se_dati={_okC} it={_okD} atto={_okE} scaduto={_okF} avvocato={_okG} "
+              f"cablaggio={_okH}")
+    except Exception as _e435:  # noqa: BLE001
+        check("noter[435]: kontrollet u ekzekutuan", False, f"{type(_e435).__name__}: {_e435}")
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

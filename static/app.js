@@ -5536,7 +5536,7 @@
         '<button type="button" class="rev-opt on" data-mode="new" aria-pressed="true">' + t("\u270d\ufe0f Harto nga e para") + '</button>' +
         '<button type="button" class="rev-opt" data-mode="rev" aria-pressed="false">' + t("\ud83d\udcdd Rishiko dokumentin që ke") + '</button>' +
       '</div>' +
-      '<div class="ac-attach-row rev-row" hidden><label class="ac-attach">' + t("\ud83d\udcdd Bashkëngjit dokumentin për rishikim (PDF, Word, foto)") +
+      '<div class="ac-attach-row rev-row" hidden><label class="ac-attach">' + t("\ud83d\udcdd 1. Dokumenti që ke (PDF, Word, foto)") +
       '<input type="file" class="rev-file" accept="' + _ACCEPT_DOCS + '" hidden></label><span class="ac-attach-hint rev-chip">' +
       t("Super Avokati e rishikon dhe e përmirëson") + '</span></div>';
   }
@@ -5551,6 +5551,14 @@
     })[0] || null;
     var ta = ov.querySelector("textarea.ac-ta");
     var phNew = ta ? ta.placeholder : "", runNew = runBtn ? runBtn.textContent : "";
+    // v9.639 — in revisione DUE allegati, numerati: «1. Il documento che hai» e «2. Dati nuovi» (documento d'identità, visura o
+    // estratto QKB, foto), che il redattore mette al loro posto (titolare, 13 ott: «se mando il documento nuovo, l'indirizzo,
+    // l'estratto della società, il nome del padre e della madre… deve sostituirli nei posti giusti»). I dati letti vanno nella
+    // casella come prima (si vedono e si correggono); cambia solo l'etichetta, e torna com'era scrivendo da zero
+    var dataLbl = dataRow ? dataRow.querySelector(".ac-attach") : null;
+    var dataTxt = dataLbl && dataLbl.firstChild && dataLbl.firstChild.nodeType === 3 ? dataLbl.firstChild : null;
+    var dataHint = dataRow ? dataRow.querySelector(".ac-attach-hint") : null;
+    var lblNew = dataTxt ? dataTxt.nodeValue : "", hintNew = dataHint ? dataHint.textContent : "";
     // la scelta sempre sopra gli allegati, nello stesso ordine in tutti i redattori: scelta → documento da rivedere → dati
     if (sw && revRow && dataRow && dataRow.parentNode) {
       dataRow.parentNode.insertBefore(sw, dataRow);
@@ -5566,8 +5574,10 @@
         b.setAttribute("aria-pressed", on ? "true" : "false");
       });
       if (revRow) revRow.hidden = !rev;
-      if (dataRow) dataRow.hidden = rev;
-      if (ta) ta.placeholder = rev ? TT("Çfarë duhet ndryshuar, shtuar ose kontrolluar? (opsionale)") : phNew;
+      if (dataRow) dataRow.hidden = false;
+      if (dataTxt) dataTxt.nodeValue = rev ? TT("\ud83d\udcce 2. Të dhënat e reja (ID, ekstrakt, foto)") : lblNew;
+      if (dataHint) dataHint.textContent = rev ? TT("opsionale — futen në vendet e duhura") : hintNew;
+      if (ta) ta.placeholder = rev ? TT("Të dhënat e reja ose çfarë duhet ndryshuar (p.sh. adresa e re, atësia, amësia) — opsionale") : phNew;
       if (runBtn) runBtn.textContent = rev ? TT("Rishiko dokumentin \u2192") : runNew;
       if (!rev && st.text) svuota();        // tornando a «da zero» il documento da rivedere non parte più con la richiesta
       if (statusEl) statusEl.textContent = "";
@@ -8666,7 +8676,14 @@
     "\ud83d\udcdd Rishiko dokumentin që ke": "\ud83d\udcdd Rivedi il documento che hai",
     "Çfarë duhet ndryshuar, shtuar ose kontrolluar? (opsionale)": "Cosa va cambiato, aggiunto o controllato? (facoltativo)",
     "Rishiko dokumentin \u2192": "Rivedi il documento \u2192",
-    "Ngarko së pari dokumentin që do të rishikosh.": "Carica prima il documento da rivedere."
+    "Ngarko së pari dokumentin që do të rishikosh.": "Carica prima il documento da rivedere.",
+    // v9.639 — in revisione i due allegati numerati e la casella dei dati nuovi
+    "\ud83d\udcdd 1. Dokumenti që ke (PDF, Word, foto)": "\ud83d\udcdd 1. Il documento che hai (PDF, Word, foto)",
+    "\ud83d\udcce 2. Të dhënat e reja (ID, ekstrakt, foto)": "\ud83d\udcce 2. Dati nuovi (documento, visura, foto)",
+    "opsionale — futen në vendet e duhura": "facoltativo — vanno al loro posto",
+    "Të dhënat e reja ose çfarë duhet ndryshuar (p.sh. adresa e re, atësia, amësia) — opsionale":
+      "Dati nuovi o cosa cambiare (es. nuovo indirizzo, paternità, maternità) — facoltativo",
+    "Afati dhe nën-delegimi (vetëm nëse jepen)": "Termine e sostituzione (solo se indicati)"
   });
   // v9.604 — testi albanesi nuovi (nomi senza inglese né italiano): il traduttore del DOM aggancia il testo esatto
   Object.assign(T_IT, {

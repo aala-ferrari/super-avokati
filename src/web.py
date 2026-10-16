@@ -4029,10 +4029,11 @@ def api_fable_draft():
     if len(brief) < 15 and len(existing) < 30:
         return jsonify({"error": "brief_required"}), 400
     try:
+        _brief = brief[:(24000 if existing else 8000)]   # v9.639: con il documento, i dati nuovi
         res = fable_drafter_mod.draft(_BRAIN.backend, kind=kind,
-                                      brief=_with_case(brief[:8000], body),
+                                      brief=_with_case(_brief, body),
                                       clauses_text=_firm_clauses_text(body),
-                                      existing=existing)
+                                      existing=existing, nuovi=_brief)
     except Exception as exc:  # noqa: BLE001
         log.exception("fable-draft failed")
         return jsonify({"error": _safe_err(exc)}), 200
@@ -6300,11 +6301,12 @@ def api_notary_draft():
     existing = (body.get("existing_text") or "").strip()[:40000]     # v9.633: il documento esistente da rivedere
     if len(details) < 10 and len(existing) < 30:
         return jsonify({"error": "details_required"}), 400
+    details = details[:(24000 if existing else 12000)]   # v9.639: con il documento, i dati nuovi (la visura storica è lunga)
     out, err = _notary_run(notary_mod.draft_deed,
                            deed_type=(body.get("deed_type") or "").strip(),
-                           details=_with_case(details[:12000], body),
+                           details=_with_case(details, body),
                            clauses_text=_firm_clauses_text(body),
-                           existing=existing)
+                           existing=existing, nuovi=details)
     return err if err else out
 
 
@@ -6349,7 +6351,8 @@ def api_notary_prokura():
     out, err = _notary_run(notary_mod.draft_prokura,
                            form=(body.get("form") or "e_posacme").strip(),
                            scope_keys=[str(x)[:40] for x in scopes][:16],
-                           details=(body.get("details") or "").strip()[:12000],
+                           details=(body.get("details") or "").strip()[:(24000 if (body.get("existing_text") or "").strip()
+                                                                        else 12000)],
                            duration=(body.get("duration") or "").strip()[:120],
                            subdelegation=bool(body.get("subdelegation")),
                            clauses_text=_firm_clauses_text(body),
@@ -6374,7 +6377,7 @@ def api_notary_declaration():
         return jsonify({"error": "details_required"}), 400
     out, err = _notary_run(notary_mod.draft_declaration,
                            decl_type=(body.get("decl_type") or "").strip(),
-                           details=details[:12000],
+                           details=details[:(24000 if existing else 12000)],
                            existing=existing)
     return err if err else out
 
@@ -6823,7 +6826,8 @@ def api_prosecutor_act():
         # v9.633 — l'atto esistente da rivedere entra con la consegna della revisione (stessa del notaio)
         _it_p = (_active_jurisdiction(getattr(request, "user", None)) or "AL") == "IT"
         body = dict(body)
-        body["facts"] = ((body.get("facts") or "").strip()[:14000] + notary_mod._blocco_esistente(existing, _it_p)).strip()
+        _fatti = (body.get("facts") or "").strip()[:14000]
+        body["facts"] = (_fatti + notary_mod._blocco_esistente(existing, _it_p, _fatti)).strip()
         cap = 60000
     return _pros_facts(prosecutor_mod.investigative_act, body, cap=cap,
                        kind=(body.get("kind") or "kontroll").strip()[:20])
