@@ -5192,7 +5192,8 @@ def main():
         _cr_al, _cr_it = _w148.CONTRACT_REVIEW_SYSTEM, _w148.CONTRACT_REVIEW_SYSTEM_IT
         _okA = ("124/2024" in _cr_al and "92/686/911" not in _cr_al and "neni 686 KC" in _cr_al
                 and all(k in _cr_it for k in ("1341", "1342", "1229", "33-36", "806-808", "2016/679"))
-                and "CONTRACT_REVIEW_SYSTEM_IT if _active_jurisdiction(user) == \"IT\"" in _in148.getsource(_w148.api_contract_review))
+                and "CONTRACT_REVIEW_SYSTEM_IT if it else CONTRACT_REVIEW_SYSTEM" in _in148.getsource(_w148._rishikim_kontrate)
+                and "_rishikim_kontrate(" in _in148.getsource(_w148.api_contract_review))
         _okB = ('"plain_sq"' in _w148.JARGON_TRANSLATE_SYSTEM_IT and '"body_sq"' in _w148.AUTO_STATUS_SYSTEM_IT
                 and "JARGON_TRANSLATE_SYSTEM_IT" in _in148.getsource(_w148.api_translate_jargon)
                 and "AUTO_STATUS_SYSTEM_IT" in _in148.getsource(_w148.api_auto_status)
@@ -13543,6 +13544,89 @@ const F = new Function("localStorage", "document", "fetch", "renderMarkdown", "_
               f"occorrenze={_s445.count('retrieved_codes=_codici_res(res)')}")
     except Exception as _e445:  # noqa: BLE001
         check("pro[445]: kontrollet u ekzekutuan", False, f"{type(_e445).__name__}: {_e445}")
+
+    # [446] v9.645 — la mappa delle pretese, il Red Team e la revisione del contratto RADICATI nel corpus (audit del 17 ott:
+    # citavano a memoria, la mappa coi dieci giorni dei mobili per un appartamento, il Red Team 23 minuti sul web)
+    try:
+        import inspect as _in446, re as _re446
+        from pathlib import Path as _P446
+        from src import web as _w446, adversary as _ad446, semi_contratti as _sc446, brain as _br446
+        _al446 = ArticleIndex.load()
+        _it446 = ArticleIndex.load(_P446("/app/data/index/bm25_it.pkl"))
+        # (a) ogni seme scritto nel codice esiste ed è in vigore nell'indice della sua lingua
+        _tal = [k for _, ks in _sc446._AL for k in ks] + [("ligji_konsumatoret", "27")]
+        _tit = [k for _, ks in _sc446._IT for k in ks] + [("locazioni_abitative", "2"), ("locazioni_abitative", "13"),
+                                                          ("locazioni_immobili_urbani", "11"), ("codice_consumo", "33"),
+                                                          ("codice_consumo", "36")]
+        _manc446 = ([f"{c} {n}" for c, n in _tal if not _cv_esiste(_al446, c, n)]
+                    + [f"{c} {n}" for c, n in _tit if not _cv_esiste(_it446, c, n)])
+        # (b) i semi sui contratti di prova: ogni clausola riconosciuta porta la sua norma; i fatti di una causa no
+        _qira446 = ("KONTRATË QIRAJE midis «Prona Shembull» sh.p.k. (qiradhënësi) dhe Arben Prova (qiramarrësi), apartament për banim. "
+                    "Për çdo ditë vonesë qiramarrësi paguan penalitet 50 euro. Nëse largohet, paguan qiranë e mbetur. Depozita është "
+                    "3.000 euro dhe nuk kthehet në asnjë rast. Qiradhënësi nuk përgjigjet për asnjë dëm. Çdo mosmarrëveshje zgjidhet "
+                    "nga arbitri i caktuar nga qiradhënësi.")
+        _loc446 = ("Contratto di locazione ad uso abitativo tra Immobiliare Esempio s.r.l. (locatore) e Mario Prova (conduttore). "
+                   "Penale di 80 euro per ogni giorno di ritardo. Il deposito cauzionale non viene restituito. Il locatore non "
+                   "risponde di alcun danno. Ogni controversia è decisa da un arbitro nominato dal locatore.")
+        _sal446, _sit446 = _sc446.semi(_qira446, "sq"), _sc446.semi(_loc446, "it")
+        _okB446 = (all(k in _sal446 for k in (("kodi_civil", "807"), ("kodi_civil", "544"), ("kodi_civil", "602"),
+                                              ("kodi_civil", "655"), ("kodi_civil", "479"), ("ligji_arbitrazhi", "9"),
+                                              ("ligji_konsumatoret", "27"), ("kodi_civil", "686")))
+                   and all(k in _sit446 for k in (("codice_civile", "1229"), ("codice_civile", "1384"), ("codice_civile", "1579"),
+                                                  ("codice_consumo", "33"), ("locazioni_abitative", "13"),
+                                                  ("locazioni_immobili_urbani", "11"), ("codice_procedura_civile", "810")))
+                   and ("kodi_civil", "601") not in _sc446.semi("Klienti depozitoi padinë më 3.5.2026 dhe gjykata e rrëzoi.", "sq")
+                   and len(_sal446) <= _sc446.MAX_SEMI and len(_sit446) <= _sc446.MAX_SEMI)
+        # (c) i tre strumenti: articoli dal blocco, verificati coi codici dati; niente web nella mappa e nella revisione
+        _sh446 = _in446.getsource(_w446._harta_pretendimeve)
+        _sr446 = _in446.getsource(_w446._red_team)
+        _sk446 = _in446.getsource(_w446._rishikim_kontrate)
+        _okC446 = ("_nenet_per_djallin(facts, body)" in _sh446 and "no_web=True" in _sh446
+                   and "retrieved_codes=(codici or None)" in _sh446 and "_HARTA_SYSTEM_IT if it" in _sh446
+                   and "semi=semi_contratti_mod.semi(text, lang)" in _sr446 and "context=blocco" in _sr446
+                   and "retrieved_codes=(codici or None)" in _sr446
+                   and "semi=semi_contratti_mod.semi(source_text, lang)" in _sk446 and "no_web=True" in _sk446
+                   and "_annota_revisione(" in _sk446
+                   and "_harta_pretendimeve(" in _in446.getsource(_w446.api_claim_chart)
+                   and "_red_team(" in _in446.getsource(_w446.api_adversary)
+                   and "_rishikim_kontrate(" in _in446.getsource(_w446.api_contract_review)
+                   and "MANCA" in _w446._HARTA_SYSTEM_IT and not _re446.search(r"[ëçË]", _w446._HARTA_SYSTEM_IT)
+                   and "KONTEKST/NENE" in _w446._HARTA_SYSTEM and "1.300" in _w446._HARTA_SYSTEM
+                   and "NENET E KORPUSIT" in _w446.CONTRACT_REVIEW_SYSTEM
+                   and "Juridiksionit të Përgjithshëm" in _w446.CONTRACT_REVIEW_SYSTEM
+                   and "ARTICOLI DEL CORPUS" in _w446.CONTRACT_REVIEW_SYSTEM_IT
+                   and not _re446.search(r"[ëçË]", _w446.CONTRACT_REVIEW_SYSTEM_IT))
+        # (d) il Red Team: prompt albanese con le lettere vere e la regola dei nene, italiano senza albanese; web solo in Italia
+        _sa446 = _in446.getsource(_ad446.attack)
+        _okD446 = ("DobEsi" not in _ad446._SYSTEM and "Dobësitë" in _ad446._SYSTEM and "KONTEKST/NENE" in _ad446._SYSTEM
+                   and "CONTESTO/ARTICOLI" in _ad446._SYSTEM_IT and not _re446.search(r"[ëçË]", _ad446._SYSTEM_IT)
+                   and '{"no_web": True}' in _sa446 and "_konteksti(context" in _sa446)
+        # (e) la revisione: un nene inesistente scritto in un campo si annota lì (eseguito)
+        _p446 = {"clauses": [{"issue": "Bie ndesh me nenin 9999 të Kodit Civil.", "suggestion": None}]}
+        _prev446 = _w446._INDEX
+        try:
+            _w446._INDEX = _al446
+            with _w446.app.test_request_context("/"):
+                _st446 = _w446._annota_revisione(_p446)
+        finally:
+            _w446._INDEX = _prev446
+        _okE446 = (_p446["clauses"][0]["issue"] != "Bie ndesh me nenin 9999 të Kodit Civil."
+                   and int(_st446.get("fake") or 0) >= 1)
+        # (f) l'ancora del socio che esce dalla s.h.p.k.: mai sul contratto di una società, sempre sul socio
+        _k1 = {(a.code, str(a.number)) for a, _ in _br446._applica_ancore([], _al446, [_qira446], ["Civil"])}
+        _k2 = {(a.code, str(a.number)) for a, _ in _br446._applica_ancore(
+            [], _al446, ["Klienti është ortak me 40% në një shpk dhe dëshiron të largohet nga shoqëria. Si e bën?"], ["Civil"])}
+        _okF446 = ("ligji_shoqerite_tregtare", "101") not in _k1 and ("ligji_shoqerite_tregtare", "101") in _k2
+        # (g) la data di oggi: vale l'ora locale anche quando il sistema (UTC) dice ancora il giorno prima
+        _okG446 = "ora e Shqipërisë" in _br446.riga_oggi("AL") and "ora italiana" in _br446.riga_oggi("IT")
+        check("contratti[446]: mappa delle pretese, Red Team e revisione del contratto radicati nel corpus (semi delle clausole "
+              "verificati, verifica coi codici dati, niente web dove il corpus basta), ancora del socio che esce non sui contratti, "
+              "ora locale nella data di oggi",
+              not _manc446 and _okB446 and _okC446 and _okD446 and _okE446 and _okF446 and _okG446,
+              f"semi mancanti={_manc446} semi={_okB446} strumenti={_okC446} redteam={_okD446} revisione={_okE446} "
+              f"ancora={_okF446} oggi={_okG446}")
+    except Exception as _e446:  # noqa: BLE001
+        check("contratti[446]: kontrollet u ekzekutuan", False, f"{type(_e446).__name__}: {_e446}")
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

@@ -732,8 +732,14 @@ ANCORE_AL: tuple = (
     # collettivo) e il blocco ne era pieno; per la s.h.p.k. la legge 9901/2008 ha il recesso per giusti motivi (101), le sue
     # conseguenze — valore della quota (103) — e la via ordinaria, la cessione della quota (73). La rubrica del 101 aveva
     # un omoglifo cirillico («Largimi і ortakut»). Solo dalla domanda, mai nel penale.
-    ((("shpk", "largo"), ("sh.p.k", "largo"), ("përgjegjësi të kufizuar", "largo"), ("pergjegjesi te kufizuar", "largo"),
-      ("shpk", "dal nga shoq"), ("shpk", "përjashtim"), ("shpk", "perjashtim"), ("shpk", "kuot", "shit")),
+    # v9.645 — mai su un CONTRATTO di una società (««Prona Shembull» sh.p.k.» … «nëse largohet, paguan qiranë»: l'audit del
+    # Red Team del 17 ott ha visto 101/103/73 in testa al blocco della locazione): serve il socio o la quota, o il verbo con
+    # la società; e «përjashtim» da solo è anche l'esonero dalla responsabilità
+    ((("shpk", "ortak", "largo"), ("sh.p.k", "ortak", "largo"), ("përgjegjësi të kufizuar", "ortak", "largo"),
+      ("pergjegjesi te kufizuar", "ortak", "largo"), ("shpk", "kuot", "largo"), ("sh.p.k", "kuot", "largo"),
+      ("shpk", "largohet nga shoq"), ("shpk", "largohem nga shoq"), ("shpk", "largimi nga shoq"),
+      ("sh.p.k", "largohet nga shoq"), ("shpk", "dal nga shoq"), ("shpk", "ortak", "përjashtim"),
+      ("shpk", "ortak", "perjashtim"), ("shpk", "kuot", "shit")),
      ("Penal",), (("ligji_shoqerite_tregtare", "101"), ("ligji_shoqerite_tregtare", "103"), ("ligji_shoqerite_tregtare", "73")),
      None, None, True),
     # … e il TENTATIVO quando i fatti lo suggeriscono («u kap duke vjedhur», «nuk arriti», «para se të dilte»): KP 22-23
@@ -2916,9 +2922,9 @@ def riga_oggi(jurisdiction: str | None, oggi=None) -> str:
             stato = ""
         if it:
             return (f"\n\n[DATA DI OGGI: {wd} {d.day} {_MUAJT['it'][d.month - 1]} {d.year}{stato}. «Oggi», «domani» e i giorni "
-                    "che mancano a un termine si contano da questa data.]")
+                    "che mancano a un termine si contano da questa data (ora italiana: se il sistema mostra un'altra data, vale questa).]")
         return (f"\n\n[DATA E SOTME: {wd}, {d.day} {_MUAJT['sq'][d.month - 1]} {d.year}{stato}. «Sot», «nesër» dhe ditët që mbeten "
-                "deri te një afat llogariten nga kjo datë.]")
+                "deri te një afat llogariten nga kjo datë (ora e Shqipërisë: nëse sistemi tregon një datë tjetër, vlen kjo).]")
     except Exception:  # noqa: BLE001 - la data non deve mai bloccare una risposta
         return ""
 

@@ -63,6 +63,7 @@ from . import vault as vault_mod
 from . import second_opinion as second_opinion_mod
 from . import fable_drafter as fable_drafter_mod
 from . import adversary as adversary_mod
+from . import semi_contratti as semi_contratti_mod
 from . import expertise as expertise_mod
 from . import prosecutor as prosecutor_mod
 from . import living_law as living_mod
@@ -2273,6 +2274,70 @@ CONTRACT_REVIEW_SYSTEM_IT = (
 )
 
 
+# v9.645 — la revisione riceve gli articoli che le clausole chiamano in causa (`semi_contratti` + il recupero del cervello):
+# l'audit del 17 ott (locazione con penale di 50 €/giorno, deposito non restituibile, esonero totale, arbitro del locatore)
+# la vedeva citare solo gli articoli scritti in questo prompt (KC 92, 686, 688) — nessuna norma della locazione, della penale
+# (KC 544: la riduzione), della caparra, dell'arbitrato — e chiamare il tribunale col nome di prima della riforma della
+# mappa giudiziaria.
+CONTRACT_REVIEW_SYSTEM += (
+    "\n\nNENET: nëse të jepet blloku «NENET E KORPUSIT», çdo nen që përmend në «issue» ose «suggestion» merret prej "
+    "tij, me numrin dhe kodin ashtu si në bllok (p.sh. «neni [numri] KC»); një nen që nuk është në bllok thuaje me fjalë. "
+    "Mos shkruaj nene nga kujtesa. Gjykatat e shkallës së parë quhen sot «Gjykata e Shkallës së Parë e Juridiksionit të "
+    "Përgjithshëm [qyteti]»."
+)
+CONTRACT_REVIEW_SYSTEM_IT += (
+    "\n\nARTICOLI: se ti viene dato il blocco «ARTICOLI DEL CORPUS», ogni articolo che citi in «issue» o «suggestion» "
+    "viene da lì, con numero e codice come nel blocco (es. «art. [numero] c.c.»); un articolo che non è nel blocco dillo a "
+    "parole. Non citare articoli a memoria."
+)
+
+
+def _annota_revisione(parsed: dict, codici=None) -> dict:
+    """v9.645 — le citazioni della revisione (JSON) passano dal verificatore campo per campo: un nene inesistente si annota
+    nel suo campo, come fa lo scudo sul testo. Torna le statistiche sommate. Non solleva mai."""
+    tot: dict = {}
+    try:
+        idx = _req_index()
+        for c in (parsed or {}).get("clauses") or []:
+            if not isinstance(c, dict):
+                continue
+            for campo in ("issue", "suggestion"):
+                v = c.get(campo)
+                if not isinstance(v, str) or not v.strip():
+                    continue
+                r = cv_mod.verify_text(v, idx, retrieved_codes=(codici or None))
+                for k, n in (r.get("stats") or {}).items():
+                    if isinstance(n, int):
+                        tot[k] = tot.get(k, 0) + n
+                if int((r.get("stats") or {}).get("fake") or 0) > 0:
+                    c[campo] = cs_mod.annotate_fake_citations(v, r)
+    except Exception:  # noqa: BLE001
+        log.debug("revisione: verifica dei campi saltata", exc_info=True)
+    return tot
+
+
+def _rishikim_kontrate(source_text: str, body: dict) -> tuple[dict, dict]:
+    """v9.645 — il cuore della revisione del contratto, fuori dalla rotta per poterlo misurare: articoli del corpus nel
+    messaggio, niente web, campi verificati. Torna (risultato, statistiche delle citazioni)."""
+    it = _giur_richiesta() == "IT"
+    lang = "it" if it else "sq"
+    blocco, codici = _nenet_per_djallin(source_text, body, semi=semi_contratti_mod.semi(source_text, lang))
+    content = source_text
+    if blocco:
+        content += (("\n\n─────\nARTICOLI DEL CORPUS (verbatim — cita SOLO da qui):\n" if it else
+                     "\n\n─────\nNENET E KORPUSIT (verbatim — cito VETËM nga këtu):\n") + blocco)
+    raw = _BRAIN.backend.complete(
+        # v9.399: in sessione IT il prompt italiano (prima: diritto albanese da ignorare)
+        system=(CONTRACT_REVIEW_SYSTEM_IT if it else CONTRACT_REVIEW_SYSTEM),
+        messages=[{"role": "user", "content": content}],
+        max_tokens=6000,
+        fast=False,  # full Opus — high-stakes
+        no_web=True, callsite="contract_review",
+    )
+    parsed = _intake_parse_json(raw)
+    return parsed, _annota_revisione(parsed, codici)
+
+
 def _compute_contract_risk(clauses: list, gdpr_flags: list) -> int:
     """Fallback risk calc if AI didn't return one. Each risk clause = 25,
     each watch = 10, plus GDPR severity bumps. Capped at 100."""
@@ -2314,15 +2379,7 @@ def api_contract_review(case_id: str):
     if len(source_text) > 60000:
         source_text = source_text[:60000]
     try:
-        raw = _BRAIN.backend.complete(
-            # v9.399: in sessione IT il prompt italiano (prima: diritto albanese da ignorare)
-            system=(CONTRACT_REVIEW_SYSTEM_IT if _active_jurisdiction(user) == "IT"
-                    else CONTRACT_REVIEW_SYSTEM),
-            messages=[{"role": "user", "content": source_text}],
-            max_tokens=6000,
-            fast=False,  # full Opus — high-stakes
-        )
-        parsed = _intake_parse_json(raw)
+        parsed, _cit_rev = _rishikim_kontrate(source_text, data)     # v9.645: radicata nel corpus
     except Exception as exc:
         log.warning("contract-review failed: %s", exc)
         return jsonify({"error": "review failed",
@@ -3875,18 +3932,94 @@ def api_devil_consult():
     return jsonify({"markdown": md, "citations": citations, "grounded": bool(blocco), "saved": saved})
 
 
+# v9.645 — la mappa riceve gli articoli del corpus (`_nenet_per_djallin`) e lavora senza web: l'audit del 17 ott (sessione AL,
+# appartamento con lagështirë e 78 m² invece di 86) l'ha vista citare a memoria con «⚠️ MOS e shkruaj në padi pa e hapur
+# Kodin» accanto a ogni nene, dopo 640 s e 404.000 token a cercare (senza riuscire a leggerli) i PDF del Codice civile — e
+# costruire la strategia sui dieci giorni del KC 717, che stanno sotto la vendita dei MOBILI, senza il KC 756 (cinque anni per
+# l'immobile) né il 752/755. Il recupero del cervello sugli stessi fatti porta 756, 752, 753, 755, 864-866 (misurato).
 _HARTA_SYSTEM = """Je «Harta e Pretendimeve» — ndërton matricën element-për-element që lidh çdo pretendim me bazën ligjore dhe me provat REALE të dosjes.
 
 METODA (e detyrueshme):
-1. Zbërthe çështjen në PRETENDIME të veçanta (ose elemente të veprës/padisë): një rresht për secilin.
+1. Zbërthe çështjen në PRETENDIME të veçanta (ose elemente të veprës/padisë): një rresht për secilin — vetëm elementet që vendosin (zakonisht 8-14 rreshta), jo çdo hollësi.
 2. Për çdo pretendim, plotëso tabelën me EKZAKTËSISHT këto kolona:
    | Pretendimi / Elementi | Baza ligjore (nen konkret) | Provat në dosje (citim TEKSTUAL + burimi) | Kundërprova / dobësia | Gjendja | Forca 1-5 + pse |
 3. Gjendja është një nga: **mbështetur** · **pjesërisht** · **kontestuar** · **MUNGON**.
-4. CITIM TEKSTUAL, kurrë parafrazë: «...fjalët e sakta...» [Dok N] ose (dëshmia e X, data). Pa provë në dosje → gjendja MUNGON — mos plotëso nga interneti apo nga kujtesa.
-5. PAS tabelës, seksioni «🕳️ BOSHLLËQET — PRIORITETI»: lista e elementeve MUNGON/pjesërisht me ÇFARË duhet saktësisht për t'i mbyllur (cili dokument, cila dëshmi, cili ekspert, cila kërkesë provash).
+4. CITIM TEKSTUAL, kurrë parafrazë: «...fjalët e sakta...» [Dok N] ose (dëshmia e X, data). Pa provë në dosje → gjendja MUNGON — mos plotëso nga interneti apo nga kujtesa. Nëse dosja nuk ka asnjë dokument, thuaje NJË herë, në një rresht, në krye.
+5. PAS tabelës, seksioni «🕳️ BOSHLLËQET — PRIORITETI»: maksimumi 8 pika, sipas rëndësisë — për secilën ÇFARË duhet saktësisht për ta mbyllur (cili dokument, cila dëshmi, cili ekspert, cila kërkesë provash) dhe, kur ka, afati.
 6. Mbyll me «⚖️ Si peshon»: 3-4 rreshta se ku është më i fortë dhe më i dobët dosja — VLERËSIM PUNE, JO përfundim mbi themelin.
 
+BAZA LIGJORE (e detyrueshme): nenet merren VETËM nga blloku «KONTEKST/NENE» — teksti zyrtar i korpusit, fjalë për fjalë; shkruaj numrin dhe kodin ashtu si në bllok (p.sh. «neni [numri] KC»). Një nen që nuk është në bllok: thuaje me fjalë dhe shëno «për t'u verifikuar». Mos shkruaj shënime për «verifikimin e numërtimit» apo për burime interneti: nenet që ke janë ato zyrtare. Lexo çdo nen para se ta vësh në tabelë dhe zbatoje vetëm aty ku i përshtatet faktit (lloji i sendit, i kontratës, i palës).
+
+GJATËSIA: rreth 1.300 fjalë gjithsej, pa hyrje.
+
 RREGULLA TË HEKURTA: mos konkludo mbi fajësinë a themelin; mos shpik nene, prova a dëshmi; boshllëku i thënë hapur vlen më shumë se një tabelë që duket e plotë."""
+
+
+_HARTA_SYSTEM_IT = """Sei la «Mappa delle pretese»: costruisci la matrice elemento per elemento che lega ogni pretesa alla base giuridica e alle prove REALI del fascicolo.
+
+METODO (obbligatorio):
+1. Scomponi la questione in PRETESE distinte (o elementi del reato/della domanda): una riga ciascuna — solo gli elementi che decidono (di solito 8-14 righe), non ogni dettaglio.
+2. Per ogni pretesa compila la tabella con ESATTAMENTE queste colonne:
+   | Pretesa / Elemento | Base giuridica (articolo preciso) | Prove nel fascicolo (citazione TESTUALE + fonte) | Prova contraria / debolezza | Stato | Forza 1-5 + perché |
+3. Lo stato è uno fra: **provato** · **in parte** · **contestato** · **MANCA**.
+4. CITAZIONE TESTUALE, mai parafrasi: «...le parole esatte...» [Doc N] oppure (dichiarazione di X, data). Senza prova nel fascicolo → stato MANCA — non riempire da internet o dalla memoria. Se il fascicolo non ha alcun documento, dillo UNA volta, in una riga, in testa.
+5. DOPO la tabella, la sezione «🕳️ LACUNE — PRIORITÀ»: al massimo 8 punti, per importanza — per ciascuno COSA serve esattamente per chiuderlo (quale documento, quale testimonianza, quale consulente, quale istanza istruttoria) e, se c'è, il termine.
+6. Chiudi con «⚖️ Come pesa»: 3-4 righe su dove il fascicolo è più forte e più debole — VALUTAZIONE DI LAVORO, NON una conclusione sul merito.
+
+BASE GIURIDICA (obbligatoria): gli articoli si prendono SOLO dal blocco «CONTESTO/ARTICOLI» — il testo ufficiale del corpus, parola per parola; scrivi numero e codice come nel blocco (es. «art. [numero] c.c.»). Un articolo che non è nel blocco: dillo a parole e segna «da verificare». Niente note sulla «verifica della numerazione» né fonti internet: gli articoli che hai sono quelli ufficiali. Leggi ogni articolo prima di metterlo in tabella e applicalo solo dove si adatta al fatto (tipo di bene, di contratto, di parte).
+
+LUNGHEZZA: circa 1.300 parole in tutto, senza introduzione.
+
+REGOLE FERREE: non concludere sulla colpevolezza o sul merito; non inventare articoli, prove o testimonianze; una lacuna detta apertamente vale più di una tabella che sembra completa."""
+
+
+def _giur_richiesta() -> str:
+    """La giurisdizione della sessione per gli strumenti che non passano dal cervello (AL se non si sa)."""
+    try:
+        return _active_jurisdiction(getattr(request, "user", None)) or "AL"
+    except Exception:  # noqa: BLE001
+        return "AL"
+
+
+def _harta_pretendimeve(facts: str, body: dict) -> dict:
+    """v9.645 — 🧩 la mappa delle pretese RADICATA: gli articoli del recupero del cervello sui fatti (`_nenet_per_djallin`),
+    il prompt della lingua della sessione, niente web (il testo ufficiale è nel blocco), le citazioni verificate coi codici
+    degli articoli dati. Fuori dalla rotta per poterla misurare (`tools/audit_avokat2_al.py`)."""
+    it = _giur_richiesta() == "IT"
+    blocco, codici = _nenet_per_djallin(facts, body)
+    md = _BRAIN.backend.complete(
+        system=_HARTA_SYSTEM_IT if it else _HARTA_SYSTEM,
+        messages=[{"role": "user", "content": _with_case(facts[:12000], body)
+                   + second_opinion_mod._konteksti(blocco, "it" if it else "sq")}],
+        max_tokens=3000, fast=False, callsite="claim_chart", no_web=True,
+    )
+    citations = {"items": [], "stats": {}}
+    try:
+        if _INDEX is not None and md:
+            citations = cv_mod.verify_text(md, _req_index(), retrieved_codes=(codici or None))
+    except Exception:  # noqa: BLE001
+        pass
+    md = _scudo_citazioni(md, citations, retrieved_codes=(codici or None))
+    return {"markdown": md, "citations": citations, "grounded": bool(blocco)}
+
+
+def _red_team(text: str, body: dict) -> dict:
+    """v9.645 — ⚔️ il Red Team sul contratto RADICATO: gli articoli che le clausole chiamano in causa (`semi_contratti`) davanti
+    al recupero del cervello, il prompt della lingua della sessione; in Albania senza web (il corpus è completo: l'audit del
+    17 ott l'ha visto leggere il Codice civile da infocip.org e la legge sull'arbitrato da un PDF russo per 23 minuti, e citare il
+    neni 28 della legge sui consumatori da una versione del 2008), in Italia col web solo per la giurisprudenza."""
+    lang = "it" if _giur_richiesta() == "IT" else "sq"
+    blocco, codici = _nenet_per_djallin(text, body, semi=semi_contratti_mod.semi(text, lang))
+    res = adversary_mod.attack(_BRAIN.backend, text=_with_case(text[:16000], body), context=blocco, lang=lang)
+    md = res.get("markdown") or ""
+    citations = {"items": [], "stats": {}}
+    try:
+        if _INDEX is not None and md:
+            citations = cv_mod.verify_text(md, _req_index(), retrieved_codes=(codici or None))
+    except Exception:  # noqa: BLE001
+        pass
+    md = _scudo_citazioni(md, citations, retrieved_codes=(codici or None))
+    return {"markdown": md, "citations": citations, "grounded": bool(blocco)}
 
 
 _PERKTHIM_TARGETS = {"sq", "it", "en"}
@@ -3940,23 +4073,10 @@ def api_claim_chart():
     if len(facts) < 15:
         return jsonify({"error": "facts_required"}), 400
     try:
-        md = _BRAIN.backend.complete(
-            system=_HARTA_SYSTEM,
-            messages=[{"role": "user", "content": _with_case(facts[:12000], body)}],
-            max_tokens=3000, fast=False,
-            callsite="claim_chart",
-        )
+        return jsonify(_harta_pretendimeve(facts, body))      # v9.645: radicata nel corpus
     except Exception as exc:  # noqa: BLE001
         log.exception("claim-chart failed")
         return jsonify({"error": _safe_err(exc)}), 200
-    citations = {"items": [], "stats": {}}
-    try:
-        if _INDEX is not None and md:
-            citations = cv_mod.verify_text(md, _req_index())
-    except Exception:  # noqa: BLE001
-        pass
-    md = _scudo_citazioni(md, citations)
-    return jsonify({"markdown": md, "citations": citations})
 
 
 @app.post("/api/adversary")
@@ -3972,19 +4092,10 @@ def api_adversary():
     if len(text) < 30:
         return jsonify({"error": "text_required"}), 400
     try:
-        res = adversary_mod.attack(_BRAIN.backend, text=_with_case(text[:16000], body))
+        return jsonify(_red_team(text, body))                 # v9.645: radicato nel corpus
     except Exception as exc:  # noqa: BLE001
         log.exception("adversary failed")
         return jsonify({"error": _safe_err(exc)}), 200
-    md = res.get("markdown") or ""
-    citations = {"items": [], "stats": {}}
-    try:
-        if _INDEX is not None and md:
-            citations = cv_mod.verify_text(md, _req_index())
-    except Exception:  # noqa: BLE001
-        pass
-    md = _scudo_citazioni(md, citations)
-    return jsonify({"markdown": md, "citations": citations})
 
 
 @app.post("/api/cases/<case_id>/needle")
@@ -10551,7 +10662,7 @@ def _verifica_per_djallin(answer: str, codici: set[str] | None = None) -> str:
         return ""
 
 
-def _nenet_per_djallin(text: str, body: dict, answer: str = "") -> tuple[str, set[str]]:
+def _nenet_per_djallin(text: str, body: dict, answer: str = "", semi=None) -> tuple[str, set[str]]:
     """I nene VERBATIM per il diavolo → (blocco per il prompt, codici recuperati).
 
     Prima strada (gratis, la più fedele): il fascicolo aperto ha già salvato con l'ultima risposta
@@ -10595,6 +10706,23 @@ def _nenet_per_djallin(text: str, body: dict, answer: str = "") -> tuple[str, se
         except Exception:  # noqa: BLE001
             log.warning("djalli: recupero dei nene fallito (non-fatal)", exc_info=True)
             pairs = []
+    # v9.645 — i SEMI di un contratto (Red Team, revisione: `semi_contratti`) in testa, verbatim dall'indice della sessione:
+    # il recupero su un contratto intero porta 12-19 articoli per sei istituti diversi (misurato: 4 su 10 decisivi)
+    if semi:
+        try:
+            _by = {(a.code, str(a.number)): a for a in idx.articles}
+            _presenti = {(a.code, str(a.number)) for a, _ in pairs}
+            _top = max([float(s) for _, s in pairs] or [1.0]) + 1.0
+            _davanti = []
+            for _c, _n in semi:
+                _a = _by.get((_c, str(_n)))
+                if _a is None or (_c, str(_n)) in _presenti or getattr(_a, "repealed", False):
+                    continue
+                _davanti.append((_a, _top))
+                _presenti.add((_c, str(_n)))
+            pairs = _davanti + list(pairs)
+        except Exception:  # noqa: BLE001
+            log.debug("djalli: semi del contratto non aggiunti", exc_info=True)
     if not pairs:
         return "", set()
     try:
