@@ -13255,6 +13255,31 @@ const F = new Function("localStorage", "document", "fetch", "renderMarkdown", "_
     except Exception as _e436:  # noqa: BLE001
         check("cli[436]: kontrollet u ekzekutuan", False, f"{type(_e436).__name__}: {_e436}")
 
+    # [437] v9.641 — LA PROCURA ITALIANA E GLI UFFICI ALBANESI: in sessione IT i poteri delle finalità nominano ASHK/QKB/DPSHTRR; il
+    # prompt dice che sono albanesi e che per un bene in Italia si usano gli uffici italiani (per un bene in Albania restano)
+    try:
+        from src import notary as _nt437
+        class _FB437:
+            def __init__(self): self.msg = ""
+            def complete(self, system=None, messages=None, **kw):
+                self.msg = (messages or [{}])[-1].get("content", ""); return "ok"
+        _fb437 = _FB437()
+        _it437 = idx_it if "idx_it" in dir() else ArticleIndex.load(INDEX_FILE.parent / "bm25_it.pkl")
+        _nt437.draft_prokura(_fb437, _it437, form="e_posacme", scope_keys=["shitje_pasurie"],
+                             details="Il sig. Mario Prova delega il sig. Luca Esempio a vendere l'appartamento di via Verdi 2.")
+        _okA = ("gli uffici nominati sono quelli ALBANESI" in _fb437.msg and "Registro delle Imprese" in _fb437.msg
+                and "se sono in Albania lasciali come sono" in _fb437.msg)
+        _nt437.draft_prokura(_fb437, idx, form="e_posacme", scope_keys=["shitje_pasurie"], details="Z. A autorizon z. B të shesë.")
+        _okB = "uffici nominati" not in _fb437.msg
+        _nt437.draft_prokura(_fb437, _it437, form="e_posacme", scope_keys=[], details="Nuovo indirizzo: via Roma 1.",
+                             existing="PROCURA SPECIALE. Il sig. Mario Prova nomina il sig. Luca Esempio suo procuratore.")
+        _okC = "uffici nominati" not in _fb437.msg
+        check("noter[437]: la procura italiana sa che gli uffici delle finalità sono albanesi (italiani per un bene in Italia, "
+              "albanesi per un bene in Albania); non nella procura albanese né in un aggiornamento senza finalità",
+              _okA and _okB and _okC, f"it={_okA} al={_okB} aggiornamento={_okC}")
+    except Exception as _e437:  # noqa: BLE001
+        check("noter[437]: kontrollet u ekzekutuan", False, f"{type(_e437).__name__}: {_e437}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

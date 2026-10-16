@@ -897,6 +897,14 @@ _PROKURA_SYSTEM_IT = (
 # speciale e SOLO le finalità dell'auto; senza un documento da rivedere (la revisione resta quella della v9.633).
 _SCOPE_AUTO = frozenset({"perdorim_automjeti", "dalje_automjeti_jashte"})
 
+# v9.641 — in sessione IT i poteri delle finalità nominano gli uffici ALBANESI (ASHK, QKB, DPSHTRR, e-Albania): la procura per
+# un appartamento di Reggio Emilia segnalava «la registrazione presso l'ASHK (catasto albanese)». Non si sostituiscono alla
+# cieca: per un bene in Albania (la procura fatta in Italia per vendere a Tirana) quegli uffici sono giusti
+_UFFICI_AL_IN_IT = ("; gli uffici nominati sono quelli ALBANESI: se il bene, la società o il veicolo sono in Italia usa gli "
+                    "uffici italiani corrispondenti (ASHK → Agenzia delle Entrate, Territorio: catasto e pubblicità "
+                    "immobiliare; QKB → Registro delle Imprese; DPSHTRR → Motorizzazione civile e PRA; e-Albania → i "
+                    "servizi telematici della pubblica amministrazione); se sono in Albania lasciali come sono")
+
 
 def _prokura_breve(it: bool, scope_keys, details: str, duration: str, subdelegation: bool, art_block: str,
                    clauses_text: str = "") -> tuple:
@@ -1054,7 +1062,8 @@ def draft_prokura(backend, index, *, form: str, scope_keys=None, details: str = 
         system = _PROKURA_SYSTEM_IT + _NOTARY_ID_IT
         prompt = ("TIPO: " + ("(quello del documento esistente qui sotto)" if _tipo_doc else PROKURA_FORMS_IT[form])
                   + (("\n\n─────\n" + GENERAL_POA_GUIDE_IT) if form == "e_pergjithshme" and not _tipo_doc else "")
-                  + "\n\nPOTERI RICHIESTI (finalità scelte nello strumento — rendile in italiano):\n" + scope_txt
+                  + "\n\nPOTERI RICHIESTI (finalità scelte nello strumento — rendile in italiano"
+                  + (_UFFICI_AL_IN_IT if scope_lines else "") + "):\n" + scope_txt
                   + (("\n\nDURATA: " + duration) if (duration or "").strip() else "")
                   + ("\nSOSTITUZIONE: consentita" if subdelegation else "")
                   + "\n\nDATI DEL NOTAIO:\n" + (details or "").strip()
