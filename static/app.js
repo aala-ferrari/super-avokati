@@ -12591,6 +12591,12 @@
   function handleGenioEvent(evt) {
     if (evt.type === "brief_id") {
       _genioBriefId = evt.id || _genioBriefId;
+    } else if (evt.type === "queued") {
+      // v9.650 — un altro Genio è in corso: si aspetta il turno, e lo si dice
+      genioStatusEl.textContent = _CAL_IT
+        ? "In coda: un'altra analisi del Genio è in corso — parte da sola appena finisce (di solito pochi minuti)."
+        : "Në radhë: po punon një analizë tjetër e Gjeniut — nis vetë sapo të mbarojë (zakonisht pak minuta).";
+      genioStatusEl.className = "pro-status";
     } else if (evt.type === "perspective") {
       renderGenioCard(evt.result.key, evt.result);
     } else if (evt.type === "completed") {

@@ -715,7 +715,11 @@ def run_brief(*, backend, case_block: str, voice_samples_block: str,
     garantire che il semaforo torni libero anche se il giro salta o se chi
     ascolta se ne va a meta'.
     """
-    _genio_sem.acquire()
+    # v9.650 — il Genio lanciato mentre un altro gira aspetta il suo turno: lo si DICE (prima le carte restavano «duke
+    # menduar…» senza un perché; col Genio a ~4 minuti l'attesa è breve, ma il giorno del lancio i Geni arrivano insieme)
+    if not _genio_sem.acquire(blocking=False):
+        yield {"type": "queued"}
+        _genio_sem.acquire()
     try:
         yield from _run_brief(
             backend=backend, case_block=case_block,

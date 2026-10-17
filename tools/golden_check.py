@@ -14091,6 +14091,31 @@ const F = new Function("localStorage", "document", "fetch", "renderMarkdown", "_
     except Exception as _e456:  # noqa: BLE001
         check("genio[456]: kontrollet u ekzekutuan", False, f"{type(_e456).__name__}: {_e456}")
 
+    # [457] v9.650 — IL GENIO IN CODA SI DICE: un Genio alla volta in tutto il sistema; chi lo lancia mentre un altro gira
+    # aspettava senza un segno (carte «duke menduar…» ferme). Eseguito: semaforo occupato → primo evento «queued», poi il giro.
+    try:
+        from src import genio as _g457
+        _tenuti457 = 0
+        while _g457._genio_sem.acquire(blocking=False):
+            _tenuti457 += 1
+        class _FB457:
+            def complete(self, system=None, messages=None, **kw):
+                return '{"alternatives": [], "kill_shots": [], "leverage_points": []}'
+        _gen457 = _g457.run_brief(backend=_FB457(), case_block="ÇËSHTJA: prova\nJuridiksioni: AL\n", voice_samples_block="",
+                                  perspectives=[p for p in _g457.PERSPECTIVES if p.key == "decision_tree"])
+        _primo457 = next(_gen457)
+        for _ in range(_tenuti457):
+            _g457._genio_sem.release()
+        _resto457 = [e.get("type") for e in _gen457]
+        _js457 = open("/app/static/app.js", encoding="utf-8").read()
+        check("genio[457]: il Genio lanciato mentre un altro gira dice «in coda» e poi parte da solo",
+              _tenuti457 >= 1 and _primo457 == {"type": "queued"} and "perspective" in _resto457
+              and _g457._genio_sem.acquire(blocking=False) and (_g457._genio_sem.release() is None)
+              and 'evt.type === "queued"' in _js457 and "Në radhë: po punon një analizë tjetër e Gjeniut" in _js457,
+              f"tenuti={_tenuti457} primo={_primo457} resto={_resto457}")
+    except Exception as _e457:  # noqa: BLE001
+        check("genio[457]: kontrollet u ekzekutuan", False, f"{type(_e457).__name__}: {_e457}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
