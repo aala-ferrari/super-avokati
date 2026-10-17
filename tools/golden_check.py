@@ -14152,6 +14152,44 @@ const F = new Function("localStorage", "document", "fetch", "renderMarkdown", "_
     except Exception as _e458:  # noqa: BLE001
         check("lead[458]: kontrollet u ekzekutuan", False, f"{type(_e458).__name__}: {_e458}")
 
+    # [459] v9.652 — GLI ELENCHI DI NUMERI NEL VERIFICATORE. Dalla scansione delle risposte vere: «artt. 409, n. 1, e 413, co. 1
+    # e 2, c.p.c.» dava un art. 2 c.p.c. (abrogato) — il «2» è un comma —; «entro il termine dell'art. 2847; 3) con l'estinzione…»
+    # (l'elenco dell'art. 2878 c.c. citato alla lettera) dava un art. 3 c.c.; in albanese «sipas nenit 144; 2) …» dava un
+    # «neni 2 KP» verificato; «art. 12, commi 1 e 2» dava un art. 2. Dopo «; » un numero è un articolo solo se non è una voce
+    # d'elenco («3)», «12)»); dopo i sotto-riferimenti valgono solo i numeri preceduti da «, e/ed». Gli elenchi veri restano.
+    try:
+        from pathlib import Path as _P459
+        from src import citation_verifier as _cv459
+        _al459 = ArticleIndex.load()
+        _it459 = ArticleIndex.load(_P459("/app/data/index/bm25_it.pkl"))
+        _v459 = lambda t, idx: {(i.get("code"), str(i.get("number"))) for i in _cv459.verify_text(t, idx).get("items", [])}
+        _n459 = lambda t, idx: {n for _, n in _v459(t, idx)}
+        _casi459 = [
+            ("artt. 409, n. 1, e 413, co. 1 e 2, c.p.c.", _it459,
+             {("codice_procedura_civile", "409"), ("codice_procedura_civile", "413")}, {"2"}),
+            ("(art. 2878 c.c.): «1) con la cancellazione; 2) con la mancata rinnovazione entro il termine dell'art. 2847; "
+             "3) con l'estinzione dell'obbligazione».", _it459, set(), {"3"}),
+            ("la regola dell'art. 5; 12) segue", _it459, set(), {"12"}),
+            ("art. 12, commi 1 e 2, d.lgs. 11/2010", _it459, {("servizi_pagamento", "12")}, {"2"}),
+            ("Il danno (artt. 2043, 2059 c.c.) si prova.", _it459, {("codice_civile", "2043"), ("codice_civile", "2059")}, set()),
+            ("Vedi artt. 2043; 2059 c.c.", _it459, {("codice_civile", "2043"), ("codice_civile", "2059")}, set()),
+            ("artt. 408, comma 2, e 410 c.p.p.", _it459,
+             {("codice_procedura_penale", "408"), ("codice_procedura_penale", "410")}, {"2"}),
+            ("Neni 155 i Kodit të Punës thotë: «1) ... sipas nenit 144; 2) ...».", _al459, set(), {"2"}),
+            ("nenet 143; 144 dhe 145 të Kodit të Punës", _al459,
+             {("kodi_punes", "143"), ("kodi_punes", "144"), ("kodi_punes", "145")}, set()),
+        ]
+        _ko459 = []
+        for _t459, _idx459, _att459, _viet459 in _casi459:
+            _r459 = _v459(_t459, _idx459)
+            if not (_att459 <= _r459) or (_viet459 & {n for _, n in _r459}):
+                _ko459.append((_t459[:40], sorted(_r459)))
+        _okB459 = "108/4" in _n459("rastet e refuzimit (nenet 62/1/o, 63/1/gj, 97/1, 108/4 të ligjit nr. 110/2018)", _al459)
+        check("verificatore[459]: le voci d'elenco dopo «;» e i numeri dei commi non diventano articoli; gli elenchi veri restano",
+              not _ko459 and _okB459, f"sbagliati={_ko459} 108/4={_okB459}")
+    except Exception as _e459:  # noqa: BLE001
+        check("verificatore[459]: kontrollet u ekzekutuan", False, f"{type(_e459).__name__}: {_e459}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

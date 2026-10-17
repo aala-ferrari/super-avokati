@@ -535,6 +535,7 @@ _NUM_TOKEN = (r"\d+(?!\d)(?![\-\u2013](?:vje[çc]|vjet|dit|muaj|muj|or[ëe]|jav)
               r"(?:[/\-\u2013][a-zA-Z\u00e7\u00eb\u00c7\u00cb0-9]{1,4})*")
 # Enumerated-list separators: "nenet 134, 135 dhe 136 të Kodit Penal".
 _LIST_SEP = r"(?:\s*(?:,|;|\bdhe\b|\be\b)\s*)"
+_LIST_SEP_SENZA_PV = r"(?:\s*(?:,|\bdhe\b|\be\b)\s*)"   # v9.652: il «;» ha il suo ramo (il punto elencato «; 2)» non è un nene)
 
 # 17 set 2026 — SOTTO-RIFERIMENTI INTERPOSTI fra il numero e il codice. La coda non attraversa mai
 # le virgole (giusto: altrimenti una citazione ruba il codice della frase dopo), ma così la forma
@@ -569,7 +570,10 @@ CITATION_RE = re.compile(
     # v9.399: «neni 114 dhe neni 115 i Kodit Civil» = un elenco con il codice in comune (come «nenet 114 dhe 115»)
     # v9.519: anche col GRASSETTO attorno ai numeri dell'elenco — «**Neni 12** dhe **Neni 96 i Ligjit nr. 9901/2008**»: il
     # 12 restava senza codice (senza grassetto era verificato); il modello scrive spesso i numeri in grassetto
-    r"(?P<nums>" + _NUM_TOKEN + r"(?:\**" + _LIST_SEP + r"\**(?:nen(?:i|in|it|et)?\s+)?" + _NUM_TOKEN + r")*)"
+    # v9.652: un numero dell'elenco seguito da «)» è il punto di un elenco, non un articolo — «… sipas nenit 144; 2) …» nel
+    # testo citato di un articolo dava «neni 2 i Kodit të Punës» VERIFICATO (un falso verde; in italiano «art. 3 c.c.» abrogato)
+    r"(?P<nums>" + _NUM_TOKEN + r"(?:\**" + _LIST_SEP_SENZA_PV + r"\**(?:nen(?:i|in|it|et)?\s+)?" + _NUM_TOKEN +
+    r"|\**\s*;\s*\**(?:nen(?:i|in|it|et)?\s+)?" + _NUM_TOKEN + r"(?![\w/\-\u2013]|\s*\))" + r")*)"
     r"(?P<sub>" + _SUB_AL + r"*)"
     r"(?:\s*,(?=\s+(?:" + _CONN_AL + r"|" + _SIGLA_NUDA_AL + r")))?"      # la virgola sì, lo spazio resta alla coda
     # Tail = up to 8 words, but never crossing "dhe" or another "nen..." —
@@ -722,7 +726,11 @@ CITATION_RE_IT = re.compile(
     # convenzione dei giuristi): prima la coda del primo attraversava il secondo (il 126 si perdeva)
     # v9.402: e l'INTERVALLO «artt. 1218-1223 c.c.» / «1218–1223» — prima il 1218 usciva «senza codice» e il 1223 spariva
     # (l'intervallo solo sul primo numero e dopo «e/ed»: dopo una virgola nuda «l'art. 3, 3-27 per l'art. 6» sono mensilità)
-    r"(?P<nums>" + _NUM_TOKEN_IT + _RANGE_IT + r"(?:\s*(?:,|;)\s*" + _ART_RIP_IT + _NUM_TOKEN_IT +
+    # v9.652: dopo «;» un numero seguito da «)» è il punto di un elenco numerato («… dall'art. 2847; 3) …» nel testo citato
+    # dell'art. 2878 c.c. dava «art. 3 c.c.», abrogato), non un altro articolo; dopo la virgola resta un elenco (la parentesi
+    # che chiude «(artt. 2043, 2059)» è normale)
+    r"(?P<nums>" + _NUM_TOKEN_IT + _RANGE_IT + r"(?:\s*,\s*" + _ART_RIP_IT + _NUM_TOKEN_IT +
+    r"|\s*;\s*" + _ART_RIP_IT + _NUM_TOKEN_IT + r"(?![\w\-]|\s*\))" +
     r"|\s*(?:\be\b|\bed\b|\bn[ée]\b)\s*" + _ART_RIP_IT + _NUM_TOKEN_IT + _RANGE_IT + r")*)"   # v9.514: anche «né»
     r"(?P<sub>" + _SUB_IT + r"*)"
     # v9.397: «artt. 408, comma 2, e 410 c.p.p.» — dopo un sotto-riferimento, «, e N» è un ALTRO articolo dell'elenco
@@ -736,8 +744,12 @@ CITATION_RE_IT = re.compile(
     re.IGNORECASE,
 )
 _NUM_RE_IT = re.compile(_NUM_TOKEN_IT)
-# i numeri dell'elenco dopo i sotto-riferimenti: solo quelli subito dopo «e/ed» (mai i numeri dei commi)
+# i numeri dell'elenco dopo i sotto-riferimenti: solo quelli subito dopo «, e/ed» (mai i numeri dei commi)
 _MORE_NUM_IT = re.compile(r"(?:\be\b|\bed\b|\bn[ée]\b)\s+" + _ART_RIP_IT + r"(" + _NUM_TOKEN_IT + r")", re.IGNORECASE)
+# v9.652 — ogni pezzo del gruppo «more» è «, e N» + i SUOI sotto-riferimenti: «artt. 409, n. 1, e 413, co. 1 e 2, c.p.c.» dava
+# anche un «art. 2 c.p.c.» (abrogato!) dall'«e 2» del comma — la riga di verifica diceva «abrogato» su una citazione giusta
+_MORE_PEZZO_IT = re.compile(r"\s*,\s*(?:e|ed|n[ée])\s+" + _ART_RIP_IT + r"(" + _NUM_TOKEN_IT + r")(?:" + _SUB_IT + r")*",
+                            re.IGNORECASE)
 # v9.397 — la CONTINUAZIONE con un codice suo: «… c.p.p. e 107 disp. att. c.p.p.», «… c.c., e 2059 c.c.».
 # Si legge solo se la sua coda porta un codice (mai un numero nudo che eredita a caso).
 _CONT_IT = re.compile(
@@ -1571,7 +1583,7 @@ def _numeri_in_piu(m) -> list:
         more = m.group("more") or ""
     except (IndexError, KeyError):
         return []
-    return _MORE_NUM_IT.findall(more) if more else []
+    return [p.group(1) for p in _MORE_PEZZO_IT.finditer(more)] if more else []
 
 
 # ── v9.403: vecchi articoli fiscali → articoli dei testi unici (src/corrispondenze_tu.py) ─────────────────────────────
