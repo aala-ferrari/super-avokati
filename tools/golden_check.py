@@ -14072,6 +14072,25 @@ const F = new Function("localStorage", "document", "fetch", "renderMarkdown", "_
     except Exception as _e455:  # noqa: BLE001
         check("lingua[455]: kontrollet u ekzekutuan", False, f"{type(_e455).__name__}: {_e455}")
 
+    # [456] v9.649 — IL GENIO A SCHERMO, dalla prova in Chrome della v9.648 (brief completo in 3 min 20 s): il pulsante prometteva
+    # «~20–30 min», il livello del rischio etico usciva in inglese («rrezik etik: low»), la carta dello stile mostrava gli asterischi
+    # del markdown («**DREJTUAR:**») e lo stato diceva «Gjenio» (il nome albanese è «Gjeniu»).
+    try:
+        _ht456 = open("/app/templates/index.html", encoding="utf-8").read()
+        _js456 = open("/app/static/app.js", encoding="utf-8").read()
+        _i456 = _js456.find("function renderGenioContent(")
+        _e456 = _js456.find("V9.2 PRECEDENT PATTERN", _i456) if _i456 > 0 else -1
+        _f456 = _js456[_i456:(_e456 if _e456 > 0 else _i456 + 20000)] if _i456 > 0 else ""
+        check("genio[456]: il pannello del Genio dice il tempo vero (~5 min), il rischio etico nella lingua della sessione, il "
+              "testo della lente reso dal renderer della chat, «Gjeniu» in albanese",
+              "🚀 Lësho Gjeniun (~5 min)" in _ht456 and "20–30 min" not in _ht456
+              and '"🚀 Lësho Gjeniun (~5 min)": "🚀 Avvia il Genio (~5 min)"' in _js456
+              and "RISK[String(l.ethical_risk" in _f456 and 'low: L("i ulët", "basso")' in _f456
+              and "renderMarkdown(res.raw" in _f456 and "htmlEsc(res.raw" not in _f456
+              and "Gjenio po punon" not in _js456 and "Gjeniu po punon" in _js456)
+    except Exception as _e456:  # noqa: BLE001
+        check("genio[456]: kontrollet u ekzekutuan", False, f"{type(_e456).__name__}: {_e456}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
