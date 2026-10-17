@@ -15,7 +15,7 @@ from dataclasses import dataclass
 
 from .backends import LLMBackend
 from .genio import GENIO_JURISDICTION_GUARD
-from .precedent import PrecedentRef, gather_precedents
+from .precedent import PrecedentRef, gather_precedents, gather_precedents_it
 from .retrieval import ArticleIndex, DecisionIndex
 
 def _juris(system_prompt: str) -> str:
@@ -48,6 +48,18 @@ COURT_LABELS = {
 
 DEFAULT_COURT = "gjykata_lartë"
 
+# v9.647 — in sessione italiana le STESSE chiavi (sono i valori della scelta nell'interfaccia) coi giudici italiani: prima il
+# prompt diceva a un memo italiano che la causa stava davanti alla «Gjykata e Lartë e Republikës së Shqipërisë»
+COURT_LABELS_IT = {
+    "gjykata_lartë": "Corte Suprema di Cassazione",
+    "gjykata_apelit": "Corte d'appello",
+    "gjykata_shkalle1": "Tribunale (primo grado)",
+    "gjykata_kushtetuese": "Corte costituzionale",
+    "gjykata_administrative": "Giustizia amministrativa (TAR / Consiglio di Stato)",
+    "gjykata_komerciale": "Tribunale delle imprese",
+    "ecthr_albania": "Corte europea dei diritti dell'uomo",
+}
+
 # ── System prompt ─────────────────────────────────────────────────────
 
 BENCH_SYSTEM = (
@@ -66,7 +78,30 @@ BENCH_SYSTEM = (
     "4) Konsidero kalibrimin sipas gjykatës specifike — Kushtetuesja vendos "
     "ndryshe nga Gjykata e Lartë komerciale.\n"
     "5) Përfundo me një rekomandim të vetëm: FIGHT, SETTLE, ose FOLD.\n"
-    "6) Kthe VETËM JSON të vlefshëm pa asnjë tekst tjetër para apo pas."
+    "6) Kthe VETËM JSON të vlefshëm pa asnjë tekst tjetër para apo pas.\n"
+    # v9.647 — le citazioni si verificano: senza «neni» e il codice restano «senza codice»
+    "7) Cito nenet me fjalën «neni» dhe kodin ashtu si në kontekst (p.sh. «neni [numri] i Kodit Civil»), kurrë vetëm «KC [numri]»."
+)
+
+# v9.647 — il memo in sessione ITALIANA: prima riceveva il prompt albanese col vincolo «VETËM të drejtën shqiptare» in testa
+# (GENIO_JURISDICTION_GUARD), i giudici e i precedenti ALBANESI
+BENCH_SYSTEM_IT = (
+    "Sei un giudice italiano con 30 anni di esperienza (c.c., c.p., c.p.c., c.p.p., Costituzione, leggi speciali). "
+    "Compito: scrivi un BENCH MEMO come lo scriveresti per te prima di decidere — non per lusingare l'avvocato, ma per "
+    "mostrare COME ragionerà il giudice. Valuta a freddo le due parti, indica l'esito più probabile con percentuali "
+    "realistiche e individua dove cadrà il colpo del giudice.\n\n"
+    "REGOLE CRITICHE:\n"
+    "1) Basati SOLO sugli articoli italiani e sui precedenti dati nel contesto.\n"
+    "2) Non inventare citazioni — se un articolo o una decisione non è nel contesto, non citarli.\n"
+    "3) Le probabilità devono essere calibrate: molto di rado 90%+ o 10%-, la maggior parte dei casi veri sta fra il 35 "
+    "e il 65%.\n"
+    "4) Considera il giudice specifico — la Corte costituzionale decide diversamente da una sezione civile della Cassazione.\n"
+    "5) Chiudi con una sola raccomandazione che comincia con FIGHT, SETTLE o FOLD (il token resta così: è un codice "
+    "dell'interfaccia), seguito dalla motivazione in italiano.\n"
+    "6) Restituisci SOLO JSON valido, senza testo prima o dopo; tutti i valori in italiano.\n"
+    "7) Cita gli articoli nella forma «art. [numero] c.c.» come nel contesto.\n"
+    "8) Lavori senza web, per scelta: niente note su strumenti negati; la «verifica viva» della Cassazione richiesta sopra "
+    "non si applica al memo."
 )
 
 BENCH_USER_TEMPLATE = """\
@@ -134,6 +169,71 @@ Tani shkruaj BENCH MEMO në formatin JSON:
   "recommendation": "FIGHT|SETTLE|FOLD — me arsyetim të shkurtër prej 1-2 fjalish"
 }}"""
 
+BENCH_USER_TEMPLATE_IT = """\
+═════════════════════════════════════════════
+LA QUESTIONE DAVANTI AL GIUDICE
+═════════════════════════════════════════════
+{case_description}
+
+═════════════════════════════════════════════
+IL GIUDICE CHE DECIDERÀ
+═════════════════════════════════════════════
+{court_label}
+
+═════════════════════════════════════════════
+I DOCUMENTI DELLA NOSTRA PARTE (sintesi)
+═════════════════════════════════════════════
+{documents}
+
+═════════════════════════════════════════════
+MEMORIA / ATTO DELLA CONTROPARTE
+═════════════════════════════════════════════
+{opponent_filing}
+
+═════════════════════════════════════════════
+ARTICOLI ITALIANI PERTINENTI (testo ufficiale del corpus)
+═════════════════════════════════════════════
+{articles_block}
+
+═════════════════════════════════════════════
+PRECEDENTI SIMILI
+═════════════════════════════════════════════
+{precedents_block}
+
+═════════════════════════════════════════════
+
+Ora scrivi il BENCH MEMO in formato JSON:
+
+{{
+  "issue_framing": "Come il giudice inquadrerebbe la questione principale (1-2 frasi, termini giuridici).",
+  "applicable_law": [
+    {{"reference": "art. X c.c.", "relevance": "alto|medio|basso", "why": "perché questo articolo è rilevante"}}
+  ],
+  "controlling_precedents": [
+    {{"citation": "Cass. civ., sez. ..., n. ...", "court": "...", "outcome": "...", "ratio_used": "il ragionamento trasferibile", "weight": "alto|medio|basso"}}
+  ],
+  "outcome_prediction": {{
+    "p_plaintiff_pct": 0,
+    "p_defendant_pct": 0,
+    "confidence": "alta|media|bassa",
+    "key_factor": "Il fattore che sposta di più l'esito",
+    "court_calibration_note": "Perché questo giudice specifico può cambiare l'esito"
+  }},
+  "our_weaknesses": [
+    {{"point": "la nostra debolezza", "judge_attack": "come la attaccherà il giudice", "severity": "alta|media|bassa"}}
+  ],
+  "opponent_strengths": [
+    {{"point": "la forza della controparte", "why_judge_accepts": "perché il giudice la accoglie", "weight": "alto|medio|basso"}}
+  ],
+  "argument_upgrades": [
+    {{"current": "l'argomento che hai", "upgrade": "come riformularlo", "p_shift_pct": 0}}
+  ],
+  "procedural_risks": [
+    {{"risk": "rischio processuale", "mitigation": "come evitarlo"}}
+  ],
+  "recommendation": "FIGHT|SETTLE|FOLD — con una motivazione breve di 1-2 frasi"
+}}"""
+
 # ── Data classes ──────────────────────────────────────────────────────
 
 @dataclass
@@ -155,47 +255,59 @@ def generate_bench_memo(
     case_id: str | None = None,
     top_k_articles: int = 8,
     top_k_precedents: int = 6,
+    articles=None,
+    articles_block: str | None = None,
+    precedents_block: str | None = None,
+    precedents_used: list | None = None,
+    lang: str = "sq",
 ) -> dict:
-    """Generate the judicial bench memo (single Opus call)."""
+    """Generate the judicial bench memo (single Opus call).
 
-    # Retrieve articles + precedents
-    articles = _retrieve_articles(article_index, inp.case_description, top_k_articles)
-    precedents = gather_precedents(
-        inp.case_description,
-        top_k=top_k_precedents,
-        decision_index=decision_index,
-    )
+    v9.647 — `articles`/`articles_block` e `precedents_block`/`precedents_used` arrivano dal recupero del CERVELLO
+    (`web._memo_gjyqtari`: triage + ricerca ibrida + ancore, precedenti col passo del ragionamento); senza, il ripiego di prima
+    (BM25 nudo sulla descrizione). `lang` = la lingua della sessione: prompt, giudici e precedenti italiani in sessione IT."""
+    it = lang == "it"
+    if articles is None:
+        articles = _retrieve_articles(article_index, inp.case_description, top_k_articles)
+    if precedents_block is None:
+        if it:
+            precedents = gather_precedents_it(inp.case_description, top_k=top_k_precedents)
+        else:
+            precedents = gather_precedents(inp.case_description, top_k=top_k_precedents, decision_index=decision_index)
+        precedents_block = "\n\n".join(p.to_block("it" if it else "sq") for p in precedents) if precedents else ""
+        precedents_used = _serialize_precedents(precedents)
 
-    articles_block = _format_articles(articles) or "(asnjë nen specifik nuk u gjet)"
-    precedents_block = "\n\n".join(p.to_block() for p in precedents) \
-        if precedents else "(asnjë precedent i ngjashëm nuk u gjet)"
+    articles_block = (articles_block or _format_articles(articles)
+                      or ("(nessun articolo specifico trovato)" if it else "(asnjë nen specifik nuk u gjet)"))
+    precedents_block = precedents_block or ("(nessun precedente simile trovato)" if it else "(asnjë precedent i ngjashëm nuk u gjet)")
 
-    court_label = COURT_LABELS.get(inp.court_code, inp.court_code)
+    court_label = (COURT_LABELS_IT if it else COURT_LABELS).get(inp.court_code, inp.court_code)
 
-    prompt = BENCH_USER_TEMPLATE.format(
+    prompt = (BENCH_USER_TEMPLATE_IT if it else BENCH_USER_TEMPLATE).format(
         case_description=inp.case_description.strip(),
         court_label=court_label,
-        documents=(inp.documents_summary or "(s'ka dokumente të ngarkuara)")[:6000],
-        opponent_filing=(inp.opponent_filing or "(s'ka memorie kundërshtari)")[:6000],
-        articles_block=articles_block[:5000],
-        precedents_block=precedents_block[:8000],
+        documents=(inp.documents_summary or ("(nessun documento caricato)" if it else "(s'ka dokumente të ngarkuara)"))[:6000],
+        opponent_filing=(inp.opponent_filing or ("(nessuna memoria della controparte)" if it else "(s'ka memorie kundërshtari)"))[:6000],
+        articles_block=articles_block[:60000],      # v9.647: il testo intero degli articoli (era 5.000 caratteri, 400 per articolo)
+        precedents_block=precedents_block[:20000],
     )
 
     t0 = time.monotonic()
     try:
         text = backend.complete(
-            system=_juris(BENCH_SYSTEM),
+            system=_juris(BENCH_SYSTEM_IT if it else BENCH_SYSTEM),
             messages=[{"role": "user", "content": prompt}],
             max_tokens=4500,
             callsite="bench_memo",
             case_id=case_id,
+            no_web=True,       # v9.647: gli articoli e i precedenti sono nel contesto (prima navigava: 15 minuti)
         )
     except Exception as exc:  # noqa: BLE001
         log.exception("bench_memo: backend error")
         return {**_empty_memo(),
                 "_ms": int((time.monotonic() - t0) * 1000),
                 "_parse_error": f"backend: {type(exc).__name__}: {exc}",
-                "precedents_used": _serialize_precedents(precedents)}
+                "precedents_used": precedents_used or []}
 
     elapsed_ms = int((time.monotonic() - t0) * 1000)
     parsed = _extract_json(text)
@@ -203,13 +315,15 @@ def generate_bench_memo(
         log.warning("bench_memo: JSON parse failed")
         return {**_empty_memo(), "_raw": text[:2000], "_ms": elapsed_ms,
                 "_parse_error": "JSON parse failed",
-                "precedents_used": _serialize_precedents(precedents)}
+                "precedents_used": precedents_used or []}
 
     parsed["_ms"] = elapsed_ms
-    parsed["precedents_used"] = _serialize_precedents(precedents)
+    parsed["precedents_used"] = precedents_used or []
+    # v9.647 — `Article` non ha `id`: «AttributeError» DOPO la risposta del modello (15 minuti), il memo non arrivava MAI
+    # (nella tabella dei memo: zero righe in produzione); ora codice, numero e citazione
     parsed["articles_used"] = [
-        {"id": a.id, "label": getattr(a, "label", "") or getattr(a, "heading", ""),
-         "code": a.code} for a, _ in articles
+        {"code": a.code, "number": str(getattr(a, "number", "")),
+         "label": getattr(a, "citation", "") or getattr(a, "heading", "")} for a, _ in (articles or [])
     ]
     return parsed
 
@@ -232,7 +346,7 @@ def _format_articles(hits) -> str:
     for art, score in hits:
         label = (getattr(art, "label", None) or getattr(art, "heading", None)
                  or getattr(art, "id", "?"))
-        body = (getattr(art, "body", "") or getattr(art, "text", "") or "")[:400]
+        body = (getattr(art, "body", "") or getattr(art, "text", "") or "")[:1500]
         lines.append(f"### {label} [{art.code}]\n{body.strip()}")
     return "\n\n".join(lines)
 

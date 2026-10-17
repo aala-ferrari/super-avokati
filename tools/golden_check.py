@@ -13710,8 +13710,9 @@ const F = new Function("localStorage", "document", "fetch", "renderMarkdown", "_
                       and _o449[1].count('class="sparring"') == 2)
         else:
             _o449, _ok449 = ["node assente", ""], True
+        _v449 = __import__("re").search(r"/static/app\.js\?v=(\d+)", open("/app/templates/index.html", encoding="utf-8").read())
         check("sparring[449]: il duello si chiude solo nella risposta col diavolo, mai nei titoli ⚔️/🛡️ degli strumenti (eseguito "
-              "con node); app.js?v=233", _ok449 and "/static/app.js?v=233" in open("/app/templates/index.html", encoding="utf-8").read(),
+              "con node); app.js?v≥233", _ok449 and bool(_v449) and int(_v449.group(1)) >= 233,
               str(_o449)[:300])
     except Exception as _e449:  # noqa: BLE001
         check("sparring[449]: kontrollet u ekzekutuan", False, f"{type(_e449).__name__}: {_e449}")
@@ -13746,6 +13747,63 @@ const F = new Function("localStorage", "document", "fetch", "renderMarkdown", "_
               "stesso messaggio", _okA450 and _okB450, f"ripresa={_okA450} casi={_okB450} | {_r450[:40]!r}…{_r450[-30:]!r}")
     except Exception as _e450:  # noqa: BLE001
         check("cli[450]: kontrollet u ekzekutuan", False, f"{type(_e450).__name__}: {_e450}")
+
+    # [451] v9.647 — il MEMO DEL GIUDICE: `articles_used` leggeva `a.id` (Article non ce l'ha) → «AttributeError» dopo la risposta
+    # del modello, il memo non arrivava mai; ora il recupero del cervello, il testo intero degli articoli, senza web, in sessione IT
+    # prompt, giudici e precedenti italiani; i campi del memo verificati; nell'interfaccia le intestazioni nella lingua della sessione
+    try:
+        import inspect as _in451, re as _re451, json as _j451
+        from pathlib import Path as _P451
+        from src import bench_memo as _bm451, web as _w451, brain as _br451
+        _al451 = ArticleIndex.load()
+        _a451 = [(a, 9.0) for a in _al451.articles if a.code == "kodi_punes" and str(a.number) in ("143", "155")][:2]
+        class _FB451:
+            def __init__(self): self.sys, self.msg, self.kw = "", "", {}
+            def complete(self, system=None, messages=None, **kw):
+                self.sys, self.msg, self.kw = system or "", (messages or [{}])[-1].get("content", ""), kw
+                return _j451.dumps({"issue_framing": "x", "applicable_law": [{"reference": "neni 155 i Kodit të Punës",
+                                    "relevance": "i lartë", "why": "y"}], "recommendation": "FIGHT — z"})
+        _fb451 = _FB451()
+        _br451.set_request_jurisdiction("AL")
+        _m1 = _bm451.generate_bench_memo(_bm451.BenchMemoInput(case_description="Pushim me gojë pas 7 vitesh."), backend=_fb451,
+                                         article_index=_al451, articles=_a451, articles_block="NENE", precedents_block="PREC",
+                                         precedents_used=[], lang="sq")
+        _okA451 = (not _m1.get("_parse_error") and len(_m1.get("articles_used") or []) == 2
+                   and _m1["articles_used"][0]["code"] == "kodi_punes" and _fb451.kw.get("no_web") is True
+                   and "NENE" in _fb451.msg and "Gjykata e Lartë e Republikës së Shqipërisë" in _fb451.msg)
+        _br451.set_request_jurisdiction("IT")
+        _m2 = _bm451.generate_bench_memo(_bm451.BenchMemoInput(case_description="Licenziamento orale."), backend=_fb451,
+                                         article_index=_al451, articles=[], articles_block="ARTICOLI", precedents_block="PRECEDENTI",
+                                         precedents_used=[], lang="it")
+        _okB451 = ("giudice italiano" in _fb451.sys and "KUFI JURIDIKSIONAL" not in _fb451.sys
+                   and "IL GIUDICE CHE DECIDERÀ" in _fb451.msg and "Corte Suprema di Cassazione" in _fb451.msg
+                   and "ÇËSHTJA PARA GJYKATËS" not in _fb451.msg and set(_bm451.COURT_LABELS_IT) == set(_bm451.COURT_LABELS)
+                   and not _re451.search(r"[ëçË]", _bm451.BENCH_SYSTEM_IT + _bm451.BENCH_USER_TEMPLATE_IT))
+        _br451.set_request_jurisdiction("AL")
+        # i campi del memo verificati: un nene inesistente si annota nel suo campo
+        _mm = {"applicable_law": [{"reference": "neni 9999 i Kodit Civil", "why": "x"}], "_raw": "neni 9999 i Kodit Civil"}
+        _prev451 = _w451._INDEX
+        try:
+            _w451._INDEX = _al451
+            with _w451.app.test_request_context("/"):
+                _st451 = _w451._annota_json_campi(_mm)
+        finally:
+            _w451._INDEX = _prev451
+        _okC451 = (_mm["applicable_law"][0]["reference"] != "neni 9999 i Kodit Civil" and _mm["_raw"] == "neni 9999 i Kodit Civil"
+                   and int(_st451.get("fake") or 0) == 1)
+        _sw451 = _in451.getsource(_w451._memo_gjyqtari) + _in451.getsource(_w451.api_bench_memo_run)
+        _js451 = open("/app/static/app.js", encoding="utf-8").read()
+        _okD451 = ("_retrieve_precedents(" in _sw451 and "_format_articles_for_prompt(pairs)" in _sw451
+                   and "_annota_json_campi(memo" in _sw451 and "_memo_gjyqtari(case_description" in _sw451
+                   and 'except Exception as exc:  # noqa: BLE001 — v9.647' in _sw451
+                   and '"Articoli applicabili"' in _js451 and "/\\balt[oa]\\b/" in _js451
+                   and "_fetchLungo(`/api/cases/${activeCaseId}/bench-memo`" in _js451 and "(≈45-90s)" not in _js451.split("V9.4 BENCH MEMO")[1][:6000])
+        check("memo[451]: il memo del giudice arriva (niente «a.id»), radicato nel recupero del cervello, senza web, italiano in "
+              "sessione IT (prompt, giudici, precedenti), campi verificati, interfaccia nella lingua della sessione e richiesta "
+              "parcheggiata", _okA451 and _okB451 and _okC451 and _okD451,
+              f"al={_okA451} it={_okB451} campi={_okC451} cablaggio={_okD451}")
+    except Exception as _e451:  # noqa: BLE001
+        check("memo[451]: kontrollet u ekzekutuan", False, f"{type(_e451).__name__}: {_e451}")
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

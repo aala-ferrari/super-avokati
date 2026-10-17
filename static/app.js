@@ -13423,24 +13423,26 @@
   benchHistEl && benchHistEl.addEventListener("change", async () => {
     const id = benchHistEl.value;
     if (!id) return;
-    benchStatusEl.textContent = "Duke ngarkuar…";
+    benchStatusEl.textContent = _CAL_IT ? "Caricamento…" : "Duke ngarkuar…";
     try {
       const r = await fetch(`/api/bench-memo/${id}`);
-      if (!r.ok) { benchStatusEl.textContent = "Gabim ngarkimi"; return; }
+      if (!r.ok) { benchStatusEl.textContent = _CAL_IT ? "Errore di caricamento" : "Gabim ngarkimi"; return; }
       const data = await r.json();
       benchCourtEl.value = data.court_code || "gjykata_lartë";
       renderBenchMemo(data.memo);
       benchStatusEl.textContent = `✓ Memo ${id}`;
-    } catch (e) { benchStatusEl.textContent = "Gabim rrjeti"; }
+    } catch (e) { benchStatusEl.textContent = _CAL_IT ? "Errore di rete" : "Gabim rrjeti"; }
   });
 
   benchRunBtn && benchRunBtn.addEventListener("click", async () => {
-    if (!activeCaseId) { benchStatusEl.textContent = "Hap një rast fillimisht."; return; }
+    if (!activeCaseId) { benchStatusEl.textContent = _CAL_IT ? "Apri prima un fascicolo." : "Hap një rast fillimisht."; return; }
     benchRunBtn.disabled = true;
-    benchStatusEl.textContent = "Gjyqtari po e shqyrton çështjen… (≈45-90s)";
+    // v9.647 — il memo dura minuti (il cervello legge articoli e precedenti): la richiesta si PARCHEGGIA come gli altri strumenti
+    // lunghi (il telefono che passa a un'altra app non la perde), e l'attesa scritta è quella vera (era «≈45-90s»)
+    benchStatusEl.textContent = _CAL_IT ? "Il giudice sta esaminando il caso… (~5-10 min)" : "Gjyqtari po e shqyrton çështjen… (~5-10 min)";
     benchResEl.hidden = true;
     try {
-      const r = await fetch(`/api/cases/${activeCaseId}/bench-memo`, {
+      const r = await _fetchLungo(`/api/cases/${activeCaseId}/bench-memo`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -13448,14 +13450,14 @@
           court_code: benchCourtEl.value,
           opponent_filing: benchOppEl.value.trim(),
         }),
-      });
+      }, _CAL_IT ? "Memo del giudice" : "Memo e gjyqtarit", benchResEl, benchStatusEl);
       const data = await r.json();
-      if (!r.ok) { benchStatusEl.textContent = data.error || "Gabim."; return; }
+      if (!r.ok) { benchStatusEl.textContent = data.error || (_CAL_IT ? "Errore." : "Gabim."); return; }
       benchStatusEl.textContent = `✓ ${(data.elapsed_ms/1000).toFixed(1)}s · memo #${data.memo_id}`;
       renderBenchMemo(data.memo);
       loadBenchHistory();
     } catch (e) {
-      benchStatusEl.textContent = "Gabim rrjeti.";
+      benchStatusEl.textContent = _CAL_IT ? "Errore di rete." : "Gabim rrjeti.";
     } finally {
       benchRunBtn.disabled = false;
     }
@@ -13464,8 +13466,8 @@
   function renderBenchMemo(m) {
     if (!m) { benchResEl.hidden = true; return; }
     if (m._parse_error) {
-      benchResEl.innerHTML = `<div class="bench-err">⚠️ Gabim parsimi: ${escHtml(m._parse_error)}</div>` +
-        (m._raw ? `<details><summary>Përgjigja e papërpunuar</summary><pre>${escHtml(m._raw)}</pre></details>` : "");
+      benchResEl.innerHTML = `<div class="bench-err">⚠️ ${_CAL_IT ? "Il memo non è riuscito" : "Memo nuk u krijua"}: ${escHtml(m._parse_error)}</div>` +
+        (m._raw ? `<details><summary>${_CAL_IT ? "Risposta grezza" : "Përgjigja e papërpunuar"}</summary><pre>${escHtml(m._raw)}</pre></details>` : "");
       benchResEl.hidden = false;
       return;
     }
@@ -13473,7 +13475,7 @@
     const op = m.outcome_prediction || {};
     const pP = Number(op.p_plaintiff_pct) || 0;
     const pD = Number(op.p_defendant_pct) || 0;
-    const conf = op.confidence || "i ulët";
+    const conf = op.confidence || (_CAL_IT ? "bassa" : "i ulët");
     const rec = (m.recommendation || "").trim();
     // v9.600 — il token del modello (FIGHT/SETTLE/FOLD) decide il colore; a schermo va nella lingua della sessione
     const _recNellaLingua = (r) => r.replace(/^(FIGHT|SETTLE|FOLD)\b/, (k) => (_CAL_IT
@@ -13508,8 +13510,8 @@
       const sCls = shift > 0 ? "bench-shift-pos" : shift < 0 ? "bench-shift-neg" : "";
       const sign = shift > 0 ? "+" : "";
       return `<li>
-        <div class="bench-upg-cur"><strong>Tani:</strong> ${escHtml(u.current || "")}</div>
-        <div class="bench-upg-new"><strong>Riformulim:</strong> ${escHtml(u.upgrade || "")}</div>
+        <div class="bench-upg-cur"><strong>${_CAL_IT ? "Ora:" : "Tani:"}</strong> ${escHtml(u.current || "")}</div>
+        <div class="bench-upg-new"><strong>${_CAL_IT ? "Riformulazione:" : "Riformulim:"}</strong> ${escHtml(u.upgrade || "")}</div>
         <div class="bench-shift ${sCls}">P-shift: ${sign}${shift}%</div>
       </li>`;
     }).join("");
@@ -13525,34 +13527,34 @@
       </div>
 
       <div class="bench-card bench-card-issue">
-        <h4>📜 Si do ta inkuadrojë gjyqtari</h4>
+        <h4>📜 ${_CAL_IT ? "Come il giudice inquadrerà la questione" : "Si do ta inkuadrojë gjyqtari"}</h4>
         <p>${escHtml(m.issue_framing || "")}</p>
       </div>
 
       <div class="bench-card bench-card-pred">
-        <h4>🎯 Parashikimi i rezultatit · besueshmëri ${escHtml(conf)}</h4>
+        <h4>🎯 ${_CAL_IT ? "Previsione dell'esito · attendibilità" : "Parashikimi i rezultatit · besueshmëri"} ${escHtml(conf)}</h4>
         <div class="bench-pred-bar">
-          <div class="bench-pred-p" style="width:${pP}%" title="P(Paditësi fiton): ${pP}%">P ${pP}%</div>
-          <div class="bench-pred-d" style="width:${pD}%" title="P(I padituri fiton): ${pD}%">D ${pD}%</div>
+          <div class="bench-pred-p" style="width:${pP}%" title="${_CAL_IT ? "P(vince l'attore)" : "P(Paditësi fiton)"}: ${pP}%">${_CAL_IT ? "A" : "P"} ${pP}%</div>
+          <div class="bench-pred-d" style="width:${pD}%" title="${_CAL_IT ? "P(vince il convenuto)" : "P(I padituri fiton)"}: ${pD}%">${_CAL_IT ? "C" : "D"} ${pD}%</div>
         </div>
-        <div class="bench-pred-key"><strong>Faktori kyç:</strong> ${escHtml(op.key_factor || "")}</div>
-        <div class="bench-pred-court"><em>Kalibrimi për gjykatën:</em> ${escHtml(op.court_calibration_note || "")}</div>
+        <div class="bench-pred-key"><strong>${_CAL_IT ? "Fattore chiave:" : "Faktori kyç:"}</strong> ${escHtml(op.key_factor || "")}</div>
+        <div class="bench-pred-court"><em>${_CAL_IT ? "Calibrazione sul giudice:" : "Kalibrimi për gjykatën:"}</em> ${escHtml(op.court_calibration_note || "")}</div>
       </div>
 
-      ${lawHtml ? `<div class="bench-card"><h4>📚 Nenet e zbatueshme</h4><ul class="bench-list">${lawHtml}</ul></div>` : ""}
-      ${precHtml ? `<div class="bench-card"><h4>⚖️ Precedentë kontrollues</h4><ul class="bench-list">${precHtml}</ul></div>` : ""}
-      ${weakHtml ? `<div class="bench-card bench-card-weak"><h4>🔴 Dobësitë tona që do të sulmohen</h4><ul class="bench-list">${weakHtml}</ul></div>` : ""}
-      ${oppHtml ? `<div class="bench-card bench-card-opp"><h4>💪 Forcat e kundërshtarit që pranohen</h4><ul class="bench-list">${oppHtml}</ul></div>` : ""}
-      ${upgHtml ? `<div class="bench-card bench-card-upg"><h4>🚀 Upgrade argumentesh</h4><ul class="bench-list">${upgHtml}</ul></div>` : ""}
-      ${procHtml ? `<div class="bench-card"><h4>⚠️ Rreziqe procedurale</h4><ul class="bench-list">${procHtml}</ul></div>` : ""}
+      ${lawHtml ? `<div class="bench-card"><h4>📚 ${_CAL_IT ? "Articoli applicabili" : "Nenet e zbatueshme"}</h4><ul class="bench-list">${lawHtml}</ul></div>` : ""}
+      ${precHtml ? `<div class="bench-card"><h4>⚖️ ${_CAL_IT ? "Precedenti decisivi" : "Precedentë kontrollues"}</h4><ul class="bench-list">${precHtml}</ul></div>` : ""}
+      ${weakHtml ? `<div class="bench-card bench-card-weak"><h4>🔴 ${_CAL_IT ? "Le nostre debolezze che verranno attaccate" : "Dobësitë tona që do të sulmohen"}</h4><ul class="bench-list">${weakHtml}</ul></div>` : ""}
+      ${oppHtml ? `<div class="bench-card bench-card-opp"><h4>💪 ${_CAL_IT ? "I punti di forza della controparte che saranno accolti" : "Forcat e kundërshtarit që pranohen"}</h4><ul class="bench-list">${oppHtml}</ul></div>` : ""}
+      ${upgHtml ? `<div class="bench-card bench-card-upg"><h4>🚀 ${_CAL_IT ? "Come rafforzare gli argomenti" : "Si të forcohen argumentet"}</h4><ul class="bench-list">${upgHtml}</ul></div>` : ""}
+      ${procHtml ? `<div class="bench-card"><h4>⚠️ ${_CAL_IT ? "Rischi processuali" : "Rreziqe procedurale"}</h4><ul class="bench-list">${procHtml}</ul></div>` : ""}
     `;
     benchResEl.hidden = false;
   }
 
   function _relClass(s) {
     s = (s || "").toLowerCase();
-    if (s.includes("lartë") || s.includes("larte")) return "high";
-    if (s.includes("mesëm") || s.includes("mesem")) return "med";
+    if (s.includes("lartë") || s.includes("larte") || /\balt[oa]\b/.test(s)) return "high";     // v9.647: anche «alto/alta»
+    if (s.includes("mesëm") || s.includes("mesem") || /\bmedi[oa]\b/.test(s)) return "med";
     return "low";
   }
   function _sevClass(s) { return _relClass(s); }

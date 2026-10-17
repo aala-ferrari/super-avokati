@@ -4619,19 +4619,12 @@ def api_bench_memo_run(case_id: str):
         opponent_filing=opponent_filing or None,
     )
 
-    inp = bench_mod.BenchMemoInput(
-        case_description=case_description,
-        documents_summary=documents_summary,
-        opponent_filing=opponent_filing,
-        court_code=court_code,
-    )
-
     t0 = time.monotonic()
-    memo = bench_mod.generate_bench_memo(
-        inp, backend=_BRAIN.backend,
-        article_index=_req_index(), decision_index=None,
-        case_id=case_id,
-    )
+    try:
+        memo = _memo_gjyqtari(case_description, documents_summary, opponent_filing, court_code, case_id=case_id)
+    except Exception as exc:  # noqa: BLE001 — v9.647: il memo non resta «in corso» per sempre
+        log.exception("bench-memo failed")
+        memo = {**bench_mod._empty_memo(), "_parse_error": _safe_err(exc)}
     elapsed_ms = int((time.monotonic() - t0) * 1000)
     status = "error" if memo.get("_parse_error") else "completed"
     storage.finalize_bench_memo(memo_id, memo=memo, status=status,
@@ -4641,6 +4634,69 @@ def api_bench_memo_run(case_id: str):
         "memo_id": memo_id, "status": status, "elapsed_ms": elapsed_ms,
         "memo": memo, "court_code": court_code,
     }), 201
+
+
+def _memo_gjyqtari(case_description: str, documents_summary: str, opponent_filing: str, court_code: str,
+                   case_id: str | None = None) -> dict:
+    """v9.647 — ⚖️ il memo del giudice col recupero del CERVELLO: triage + ricerca ibrida + ancore sulla descrizione (e sull'atto
+    della controparte), il testo intero degli articoli (`brain._format_articles_for_prompt`), i precedenti del cervello col passo
+    del ragionamento (in sessione IT l'archivio italiano), e le citazioni del memo verificate campo per campo. Prima: BM25 nudo
+    sulla descrizione, 400 caratteri per articolo, precedenti albanesi anche in sessione italiana — e un «AttributeError» dopo la
+    risposta del modello, per cui il memo non arrivava mai."""
+    from . import brain as brain_mod
+    juris = _giur_richiesta()
+    lang = "it" if juris == "IT" else "sq"
+    testo = (case_description or "") + ("\n\n" + opponent_filing if opponent_filing else "")
+    pairs, prec_pairs = [], []
+    try:
+        _BRAIN._jurisdiction_ctx.code = juris          # la thread-local del worker può essere stale
+        tri = _BRAIN._triage(testo[:6000], [], None)
+        pairs = list(_BRAIN._retrieve(tri) or [])
+        prec_pairs = list(_BRAIN._retrieve_precedents(tri, [(a.code, str(a.number)) for a, _ in pairs[:12]]) or [])[:6]
+    except Exception:  # noqa: BLE001
+        log.warning("bench-memo: recupero del cervello fallito, ripiego sulla ricerca semplice", exc_info=True)
+    blocco = brain_mod._format_articles_for_prompt(pairs)[:60000] if pairs else None
+    blocco_prec = brain_mod._format_precedents_block(prec_pairs) if prec_pairs else None
+    usati = [{"citation": getattr(p, "citation", ""), "court_code": getattr(p, "court", "") or getattr(p, "court_code", ""),
+              "outcome": getattr(p, "outcome", "") or ""} for p, _ in prec_pairs]
+    inp = bench_mod.BenchMemoInput(case_description=case_description, documents_summary=documents_summary,
+                                   opponent_filing=opponent_filing, court_code=court_code)
+    memo = bench_mod.generate_bench_memo(
+        inp, backend=_BRAIN.backend, article_index=_req_index(), decision_index=None, case_id=case_id,
+        articles=pairs or None, articles_block=blocco, precedents_block=blocco_prec,
+        precedents_used=usati if prec_pairs else None, lang=lang)
+    if not memo.get("_parse_error"):
+        memo["_citazioni"] = _annota_json_campi(memo, {a.code for a, _ in pairs} or None)
+    return memo
+
+
+def _annota_json_campi(obj, codici=None, _stats=None) -> dict:
+    """v9.647 — le citazioni di un risultato JSON (il memo del giudice) passano dal verificatore campo per campo: un nene o un
+    articolo inesistente si annota nel suo campo, come fa lo scudo sul testo. Le chiavi interne («_…», gli articoli e i precedenti
+    usati) si saltano. Torna le statistiche sommate; non solleva mai."""
+    st = {} if _stats is None else _stats
+    try:
+        idx = _req_index()
+        if isinstance(obj, dict):
+            for k, v in list(obj.items()):
+                if str(k).startswith("_") or k in ("precedents_used", "articles_used"):
+                    continue
+                if isinstance(v, str) and len(v) > 5:
+                    r = cv_mod.verify_text(v, idx, retrieved_codes=codici)
+                    for kk, n in (r.get("stats") or {}).items():
+                        if isinstance(n, int):
+                            st[kk] = st.get(kk, 0) + n
+                    if int((r.get("stats") or {}).get("fake") or 0) > 0:
+                        obj[k] = cs_mod.annotate_fake_citations(v, r)
+                elif isinstance(v, (dict, list)):
+                    _annota_json_campi(v, codici, st)
+        elif isinstance(obj, list):
+            for v in obj:
+                if isinstance(v, (dict, list)):
+                    _annota_json_campi(v, codici, st)
+    except Exception:  # noqa: BLE001
+        log.debug("annotazione dei campi JSON saltata", exc_info=True)
+    return st
 
 
 @app.get("/api/bench-memo/<int:memo_id>")
@@ -4670,10 +4726,11 @@ def api_bench_memo_list(case_id: str):
 @login_required_api
 def api_bench_memo_courts():
     """Return the list of court codes the user can pick for calibration."""
+    _lab = bench_mod.COURT_LABELS_IT if _sessione_it() else bench_mod.COURT_LABELS     # v9.647: i giudici della sessione
     return jsonify({
         "default": bench_mod.DEFAULT_COURT,
         "courts": [{"code": k, "label": v}
-                   for k, v in bench_mod.COURT_LABELS.items()],
+                   for k, v in _lab.items()],
     })
 
 
