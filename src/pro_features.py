@@ -429,7 +429,7 @@ ACT_TYPES: dict[str, str] = {
     "rekurs":  "Rekurs në Gjykatën e Lartë",
     "memorie": "Memorie sqaruese / konkluzione",
     "kerkese_penale": "Kërkesë në procedim penal",
-    "kundershtim": "Kundërshtim (opozitë) ndaj ekzekutimit",
+    "kundershtim": "Kundërshtim ndaj ekzekutimit",      # v9.654: era «Kundërshtim (opozitë) …» — «opozitë» è un italianismo
 }
 
 
@@ -496,8 +496,15 @@ DRAFT_SYSTEM = textwrap.dedent("""\
 # kompetenca tokësore» senza un numero (prova viva del 29 set sulla padia per licenziamento). Tutti verificati sul corpus.
 # Voce = (codice, numero[, condizione]); condizione «PENALE»/«CIVILE» (dal racconto) o una regex che deve comparire.
 _RX_LAVORO = r"\bpun[ëe]\b|punëmarrës|punëdhënës|pushim nga puna|kontrat\w* (?:e|të) punës|lavor|licenzi"
+# v9.654 — in italiano anche le parole con cui l'avvocato racconta un processo penale: «condannato per furto a un anno di
+# reclusione; vogliamo l'appello» era preso per un appello CIVILE (semi c.p.c. 342/325/327 invece di c.p.p. 593/585/581). Mai
+# «pena» o «condanna» da sole («a pena di decadenza», «condannato al pagamento delle spese» sono civili) né i nomi dei reati (il
+# furto dell'auto che l'assicurazione non paga è una causa civile): «condannato PER …», reclusione, querela, c.p.p., gip, indagato;
+# in albanese «burgim»
 _RX_PENALE = (r"penal|i pandehur|të pandehur|dënim|prokurori|vepër penale|veprës penale|imputat|reato|pubblico ministero|"
-              r"sentenza di condanna|\bpm\b")
+              r"sentenza di condanna|\bpm\b|burgim|reclusion|\breati\b|c\.\s?p\.\s?p|querel|decreto penale|"
+              r"condannat\w*\s+per\s|custodia cautelare|arresti domiciliari|procura della repubblica|"
+              r"\bgip\b|\bgup\b|giudice per le indagini|indagat")
 _SEMI_ATTO: dict = {
     "AL": {
         "padi": [("kodi_proc_civile", "154"), ("kodi_proc_civile", "156"), ("kodi_proc_civile", "42"),
@@ -521,14 +528,37 @@ _SEMI_ATTO: dict = {
                            ("kodi_proc_penale", "263", r"paraburgim|arrest\w*\s+n[eë]\s+burg")],
     },
     "IT": {
+        # v9.653: + il termine a comparire (163-bis: dopo la riforma Cartabia è ciò che fa sbagliare la data dell'udienza), la
+        # costituzione dell'attore (165) e i fori (18, 19, 20; in albanese c'erano già KPC 42-43); nel lavoro il decreto che fissa
+        # l'udienza (415)
         "padi": [("codice_procedura_civile", "163", r"^(?!.*(?:lavor|licenzi))"),
+                 ("codice_procedura_civile", "163-bis", r"^(?!.*(?:lavor|licenzi))"),
+                 ("codice_procedura_civile", "165", r"^(?!.*(?:lavor|licenzi))"),
+                 ("codice_procedura_civile", "18", r"^(?!.*(?:lavor|licenzi))"),
+                 ("codice_procedura_civile", "19", r"s\.r\.l|s\.p\.a|societ|\bente\b|associazion"),
+                 ("codice_procedura_civile", "20", r"contratt|obbligazion|pagament|credit|debit"),
                  ("codice_procedura_civile", "409", r"lavor|licenzi"), ("codice_procedura_civile", "413", r"lavor|licenzi"),
-                 ("codice_procedura_civile", "414", r"lavor|licenzi")],
+                 ("codice_procedura_civile", "414", r"lavor|licenzi"), ("codice_procedura_civile", "415", r"lavor|licenzi")],
+        # v9.653: la richiesta sulla misura cautelare non aveva semi italiani (in albanese KPP 228/229/260/263): condizioni,
+        # esigenze, criteri di scelta, revoca e sostituzione, termini di durata; riesame e appello se nominati
+        "kerkese_penale": [("codice_procedura_penale", "299", r"misur|custodi|arrest|domiciliar|cautelar|obbligo di (?:firma|dimora)"),
+                           ("codice_procedura_penale", "273", r"misur|custodi|arrest|domiciliar|cautelar"),
+                           ("codice_procedura_penale", "274", r"misur|custodi|arrest|domiciliar|cautelar"),
+                           ("codice_procedura_penale", "275", r"misur|custodi|arrest|domiciliar|cautelar"),
+                           ("codice_procedura_penale", "303", r"custodi|arrest|domiciliar|durata"),
+                           ("codice_procedura_penale", "309", r"riesame"), ("codice_procedura_penale", "310", r"appell")],
+        # v9.653: + nel penale la FORMA dell'impugnazione (581: dopo la riforma Cartabia la dichiarazione o elezione di domicilio
+        # e, per l'imputato assente, lo specifico mandato a impugnare, commi 1-ter e 1-quater, a pena di inammissibilità — 591),
+        # il deposito (582); nel lavoro il ricorso in appello (434); il ricorso per cassazione penale non aveva semi (606, 613)
         "ankim": [("codice_procedura_civile", "342", "CIVILE"), ("codice_procedura_civile", "325", "CIVILE"),
-                  ("codice_procedura_civile", "327", "CIVILE"),
-                  ("codice_procedura_penale", "593", "PENALE"), ("codice_procedura_penale", "585", "PENALE")],
+                  ("codice_procedura_civile", "327", "CIVILE"), ("codice_procedura_civile", "434", r"lavor|licenzi"),
+                  ("codice_procedura_penale", "593", "PENALE"), ("codice_procedura_penale", "585", "PENALE"),
+                  ("codice_procedura_penale", "581", "PENALE"), ("codice_procedura_penale", "582", "PENALE"),
+                  ("codice_procedura_penale", "591", "PENALE")],
         "rekurs": [("codice_procedura_civile", "360", "CIVILE"), ("codice_procedura_civile", "366", "CIVILE"),
-                   ("codice_procedura_civile", "325", "CIVILE")],
+                   ("codice_procedura_civile", "325", "CIVILE"),
+                   ("codice_procedura_penale", "606", "PENALE"), ("codice_procedura_penale", "585", "PENALE"),
+                   ("codice_procedura_penale", "581", "PENALE"), ("codice_procedura_penale", "613", "PENALE")],
         "kundershtim": [("codice_procedura_civile", "615"), ("codice_procedura_civile", "617")],
     },
 }

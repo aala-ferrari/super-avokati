@@ -14261,6 +14261,41 @@ const F = new Function("localStorage", "document", "fetch", "renderMarkdown", "_
     except Exception as _e461:  # noqa: BLE001
         check("semi[461]: kontrollet u ekzekutuan", False, f"{type(_e461).__name__}: {_e461}")
 
+    # [462] v9.654 — LA FABBRICA DEGLI ATTI IN SESSIONE ITALIANA: la citazione senza il termine a comparire (163-bis) e i fori,
+    # l'appello penale senza la forma dell'impugnazione (581, coi commi Cartabia a pena di inammissibilità) né il 591, il ricorso
+    # per cassazione penale e la richiesta sulla misura cautelare senza nessun seme; e «condannato per furto a un anno di reclusione»
+    # preso per un appello CIVILE (il riconoscimento del penale non conosceva reclusione, querela, c.p.p., gip). Eseguito con
+    # `_con_semi_dell_atto` vero, con la trappola dell'appello civile sul furto dell'auto non pagato dall'assicurazione.
+    try:
+        from pathlib import Path as _P462
+        from src import pro_features as _pf462, brain as _br462
+        _it462 = ArticleIndex.load(_P462("/app/data/index/bm25_it.pkl"))
+        _br462.set_request_jurisdiction("IT")
+        try:
+            def _s462(tipo, testo):
+                return {(a.code, str(a.number)) for a, _ in _pf462._con_semi_dell_atto([], _it462, tipo, testo)}
+            _padi462 = _s462("padi", "Il cliente vanta un credito di 12.000 euro verso la Rossi S.r.l. per forniture non pagate.")
+            _lav462 = _s462("padi", "Licenziamento orale del lavoratore: impugnazione.")
+            _app462 = _s462("ankim", "Il cliente è stato condannato per furto a un anno di reclusione; vogliamo l'appello.")
+            _ric462 = _s462("rekurs", "Ricorso per cassazione contro la condanna penale della Corte d'appello.")
+            _mis462 = _s462("kerkese_penale", "Il cliente è in custodia cautelare in carcere da 5 mesi; chiediamo gli arresti domiciliari.")
+            _civ462 = _s462("ankim", "Furto dell'auto: la compagnia di assicurazione non paga, il tribunale ha respinto la domanda; appello.")
+        finally:
+            _br462.set_request_jurisdiction("AL")
+        _cpc, _cpp = "codice_procedura_civile", "codice_procedura_penale"
+        _ok462 = ({(_cpc, "163-bis"), (_cpc, "18"), (_cpc, "19"), (_cpc, "20")} <= _padi462 and (_cpc, "409") not in _padi462
+                  and {(_cpc, "414"), (_cpc, "415")} <= _lav462 and (_cpc, "163-bis") not in _lav462
+                  and {(_cpp, "581"), (_cpp, "591"), (_cpp, "593")} <= _app462 and (_cpc, "342") not in _app462
+                  and {(_cpp, "606"), (_cpp, "613")} <= _ric462
+                  and {(_cpp, "273"), (_cpp, "274"), (_cpp, "275"), (_cpp, "299"), (_cpp, "303")} <= _mis462
+                  and (_cpc, "342") in _civ462 and (_cpp, "593") not in _civ462
+                  and not any("opozit" in v.lower() for v in _pf462.ACT_TYPES.values()))   # «opozitë»: italianismo (v9.654)
+        check("atti[462]: i semi italiani della Fabbrica degli atti (citazione, lavoro, appello e ricorso penale, misura cautelare)",
+              _ok462, f"padi={sorted(_padi462)} lavoro={sorted(_lav462)} appello={sorted(_app462)} ricorso={sorted(_ric462)} "
+                      f"misura={sorted(_mis462)} civile={sorted(_civ462)}")
+    except Exception as _e462:  # noqa: BLE001
+        check("atti[462]: kontrollet u ekzekutuan", False, f"{type(_e462).__name__}: {_e462}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

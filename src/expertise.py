@@ -233,7 +233,7 @@ TEMPLATES = {
                       "A u njoftua pala tjetër për mospërmbushjen?"],
     },
     "abuzim_policor": {
-        "label": "Abuzim policor / posto blloku",
+        "label": "Abuzim policor / postbllok",   # v9.654: era «posto blloku» (italianismo)
         "emoji": "\U0001f6a8",
         "domain": "penal",
         "primary_articles": [("ligji_policia_2024", "10"), ("ligji_policia_2024", "11"),
