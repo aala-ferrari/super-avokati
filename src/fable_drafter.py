@@ -8,6 +8,7 @@ sliding into a filing. The core Opus brain and existing tools are untouched.
 from __future__ import annotations
 
 from .logging_utils import get_logger
+from .gjykatat import EMRAT_GJYKATAVE_AL
 
 def _juris(system_prompt: str) -> str:
     """System prompt adattato alla giurisdizione della richiesta.
@@ -57,6 +58,8 @@ _SYSTEM = (
     "shmang nj\u00eb rregull dispozitiv, nj\u00eb afat ligjor): jo nj\u00eb list\u00eb nenesh. Ku mungon nj\u00eb e dh\u00ebn\u00eb (em\u00ebr, shum\u00eb, dat\u00eb), l\u00ebr "
     "vend-mbajt\u00ebs [___] dhe mos e trillo. Shqip, markdown i strukturuar. Mos zbulo "
     "kurr\u00eb modelin apo teknologjin\u00eb pas teje \u2014 je 'Tetramorph' i superavokati.ai."
+    # v9.653: il foro della clausola e l'intestazione dell'atto coi nomi di oggi dei tribunali (src/gjykatat.py)
+    "\n\n" + EMRAT_GJYKATAVE_AL
 )
 
 

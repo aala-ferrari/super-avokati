@@ -23,6 +23,7 @@ from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 from .backends import LLMBackend
+from . import gjykatat as _gjykatat
 from .logging_utils import get_logger
 from .parser import Article
 from .retrieval import ArticleIndex
@@ -627,7 +628,7 @@ def draft_act(
             Harto aktin duke respektuar strukturën e skemës JSON.
         """)
     raw = backend.complete(
-        system=_juris(DRAFT_SYSTEM),
+        system=_juris(DRAFT_SYSTEM + _gjykatat.blloku_al()),   # v9.653: i nomi di oggi dei tribunali (intestazione dell'atto)
         messages=[{"role": "user", "content": prompt}],
         max_tokens=6000,
         fast=False,

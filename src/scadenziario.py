@@ -219,7 +219,7 @@ TUTTO ciò che ha una data o un termine per l'avvocato. Rispondi con UN SOLO ogg
  "inneschi": [{"trigger": "una delle chiavi qui sotto",
                "data": "AAAA-MM-GG della NOTIFICA / comunicazione dell'atto se il documento la dice, altrimenti vuoto",
                "data_atto": "AAAA-MM-GG dell'atto stesso (pronuncia, pubblicazione, deposito, emissione) se c'è",
-               "descrizione": "l'evento, con autorità e numero (es. «sentenza n. 1234/2026 del Tribunale di Milano, pubblicata il …»)",
+               "descrizione": "l'evento, con autorità e numero (es. «sentenza n. [numero] del [giudice], pubblicata il […]»)",
                "citazione": "la frase ESATTA del documento"}]}
 
 REGOLE:
@@ -256,7 +256,7 @@ REGOLE:
  "inneschi": [{"trigger": "një nga çelësat më poshtë",
                "data": "VVVV-MM-DD e NJOFTIMIT të aktit nëse dokumenti e thotë, përndryshe bosh",
                "data_atto": "VVVV-MM-DD e vetë aktit (shpallja, data e vendimit, lëshimi) nëse ka",
-               "descrizione": "ngjarja, me autoritetin dhe numrin (p.sh. «vendimi nr. 1234 i Gjykatës së Rrethit Tiranë, datë …»)",
+               "descrizione": "ngjarja, me autoritetin dhe numrin (p.sh. «vendimi nr. [numri] i [gjykatës], datë […]»)",
                "citazione": "fjalia E SAKTË e dokumentit"}]}
 
 RREGULLA:

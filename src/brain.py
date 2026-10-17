@@ -2968,6 +2968,8 @@ def direttiva_gjuhe_prompt(prompt: str, jurisdiction: str | None) -> str:
     return prompt + oggi + riga
 
 
+# v9.653 — i nomi di oggi dei tribunali albanesi (src/gjykatat.py): «Gjykata e Rrethit Gjyqësor» 23 volte su 38 nelle risposte
+from .gjykatat import EMRAT_GJYKATAVE_AL  # noqa: E402
 ALBANIAN_LANGUAGE_RULES = """── RREGULLA GJUHËSORE (shqipe standarde juridike) ──
 
 GRAMATIKË — rasat e përemrave dëftorë
@@ -3005,6 +3007,7 @@ REGJISTRI DHE FORMAT
 • Fjali të shkurtra, të qarta — preferohen pa nënfjali të tejzgjatura.
 • Ruaj emrat e institucioneve në formën zyrtare (Gjykata e Lartë,
     Këshilli i Lartë Gjyqësor, Avokati i Popullit, etj.).
+• """ + EMRAT_GJYKATAVE_AL + """
 • Numrat e neneve: "neni 130 i Kodit Penal" (jo "neni 130, Kodi Penal").
 • Data: shkruaj "14 maj 2026" (ditë muaj vit pa presje).
 

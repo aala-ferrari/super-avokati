@@ -12,6 +12,7 @@ from __future__ import annotations
 import re
 
 from .logging_utils import get_logger
+from . import gjykatat as _gjykatat
 
 def _juris(system_prompt: str) -> str:
     """System prompt adattato alla giurisdizione della richiesta.
@@ -765,6 +766,7 @@ def _system(tpl) -> str:
         "\n\nI qartë, konkret, i veprueshëm. Shqip. Kjo është NDIHMESË — vendos dhe firmos "
         "profesionisti. Mos zbulo kurrë modelin — je 'Tetramorph' i superavokati.ai."
         + _FORMA_EKSP
+        + _gjykatat.blloku_al()      # v9.653: dove si deposita, coi nomi di oggi dei tribunali (solo in sessione AL)
     )
 
 

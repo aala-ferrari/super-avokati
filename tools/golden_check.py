@@ -14190,6 +14190,77 @@ const F = new Function("localStorage", "document", "fetch", "renderMarkdown", "_
     except Exception as _e459:  # noqa: BLE001
         check("verificatore[459]: kontrollet u ekzekutuan", False, f"{type(_e459).__name__}: {_e459}")
 
+    # [460] v9.653 — I NOMI DI OGGI DEI TRIBUNALI ALBANESI: nelle risposte AL dei 60 giorni «Gjykata e Rrethit Gjyqësor» 23 volte
+    # contro 15 il nome giusto («Gjykata kompetente është Gjykata e Rrethit Gjyqësor…»). La regola (src/gjykatat.py, ligji
+    # 98/2016 nenet 3 e 15) nelle regole albanesi della chat e negli strumenti che scrivono il nome della corte (atti, lettere,
+    # procuratore, perizie, redattore) — solo in sessione albanese — e nessun esempio di prompt col nome vecchio.
+    try:
+        import inspect as _in460
+        from src import (gjykatat as _gj460, brain as _br460, prosecutor as _pr460, fable_drafter as _fd460,
+                         letters as _lt460, pro_features as _pf460, expertise as _ex460)
+        _E460 = _gj460.EMRAT_GJYKATAVE_AL
+        _okA460 = ("Gjykata e Shkallës së Parë e Juridiksionit të Përgjithshëm" in _E460
+                   and "Gjykata e Apelit e Juridiksionit të Përgjithshëm" in _E460 and "Rrethit Gjyqësor" in _E460)
+        _okB460 = (_E460 in _br460.ANSWER_SYSTEM and _E460 in _br460.ANSWER_SIMPLE_SYSTEM
+                   and _E460 in _pr460._FORMA_AL and _E460 not in _pr460._FORMA_IT
+                   and _E460 in _fd460._SYSTEM and _E460 not in _fd460._SYSTEM_IT
+                   and "EMRAT_GJYKATAVE_AL" in _in460.getsource(_lt460.draft)
+                   and "EMRAT_GJYKATAVE_AL" not in _in460.getsource(_lt460._draft_it)
+                   and "_gjykatat.blloku_al()" in _in460.getsource(_pf460.draft_act)
+                   and "_gjykatat.blloku_al()" in _in460.getsource(_ex460._system))
+        _br460.set_request_jurisdiction("IT")
+        _it460 = _gj460.blloku_al()
+        _br460.set_request_jurisdiction("AL")
+        _al460 = _gj460.blloku_al()
+        _okC460 = _it460 == "" and _E460 in _al460
+        _vecchio460 = re.compile(r"(?i)gjykat\w*\s+(?:e|s[ëe])\s+rrethit")
+        _okD460 = not any(_vecchio460.search(open(f"/app/{_f}", encoding="utf-8").read())
+                          for _f in ("src/documents.py", "src/scadenziario.py", "templates/index.html"))
+        check("gjykatat[460]: i nomi di oggi dei tribunali albanesi nella chat e negli strumenti (solo AL), nessun esempio col "
+              "nome vecchio", _okA460 and _okB460 and _okC460 and _okD460,
+              f"testo={_okA460} agganci={_okB460} sessione={_okC460} esempi={_okD460}")
+    except Exception as _e460:  # noqa: BLE001
+        check("gjykatat[460]: kontrollet u ekzekutuan", False, f"{type(_e460).__name__}: {_e460}")
+
+    # [461] v9.653 — I SEMI RILETTI SULLA RUBRICA VERA (il [438] controlla solo che esistano). La lettera di transazione si fondava
+    # sul KC 1064 (recesso dal FRANCHISING) e 1065 (RENDITA VITALIZIA); la cessione di quote della SHPK sull'art. 34 della legge
+    # sulle società (società di persone); la liquidazione della SHPK sugli artt. 3 e 10; l'usufrutto su garanzia e assicurazione;
+    # il mutuo, il preliminare con caparra e l'accordo transattivo sul solo KC 659; l'ispettorato del lavoro sul KP 72 (i bagni).
+    try:
+        from src import letters as _lt461, notary as _nt461
+        _by461 = {(a.code, str(a.number)): a for a in ArticleIndex.load().articles}
+        def _testo461(c, n):
+            a = _by461.get((c, n))
+            return ((a.heading or "") + " " + (a.kreu or "") + " " + (a.body or "")[:300]).lower() if a else ""
+        _cat461 = next(v for v in vars(_lt461).values() if isinstance(v, dict) and "propozim_pajtimi" in v)
+        def _semi461(d, k):
+            return [tuple(x[:2]) for x in d[k].get("seed", d[k].get("seeds", []))]
+        _attese461 = [
+            (_cat461, "propozim_pajtimi", ("kodi_proc_civile", "158/ç"), "pajtim"),
+            (_cat461, "propozim_pajtimi", ("ligji_ndermjetesimi", "22"), "aktmarrëveshj"),
+            (_cat461, "inspektoriati_punes", ("kodi_punes", "95"), "regjistr"),
+            (_nt461.DEED_TYPES, "shitje_kuotash", ("ligji_shoqerite_tregtare", "73"), "kuot"),
+            (_nt461.DEED_TYPES, "likuidim_shpk", ("ligji_shoqerite_tregtare", "191"), "likuid"),
+            (_nt461.DEED_TYPES, "uzufrukt", ("kodi_civil", "235"), "uzufrukt"),
+            (_nt461.DEED_TYPES, "servitut", ("kodi_civil", "281"), "servitut"),
+            (_nt461.DEED_TYPES, "huaje", ("kodi_civil", "1050"), "hua"),
+            (_nt461.DEED_TYPES, "huaje", ("kodi_proc_civile", "510"), "titujt ekzekutiv"),
+            (_nt461.DEED_TYPES, "premtim_shitje", ("kodi_civil", "601"), "kapar"),
+            (_nt461.DEED_TYPES, "vendim_asambleje", ("ligji_shoqerite_tregtare", "87"), "vendime"),
+            (_nt461.DECLARATION_TYPES, "pelqim_udhetimi_minor", ("kodi_familjes", "220"), "përgjegjësis"),
+        ]
+        _ko461 = [(k, s) for d, k, s, parola in _attese461 if s not in _semi461(d, k) or parola not in _testo461(*s)]
+        _vietati461 = {("kodi_civil", "1064"), ("kodi_civil", "1065"), ("ligji_shoqerite_tregtare", "34"), ("kodi_punes", "72")}
+        _tutti461 = [s for d in (_cat461, _nt461.DEED_TYPES, _nt461.DECLARATION_TYPES) for k in d for s in _semi461(d, k)]
+        _okB461 = not (_vietati461 & set(_tutti461))
+        _okC461 = (_cat461["inspektoriati_punes"]["recipient"].startswith("Inspektorati Shtetëror")
+                   and _cat461["tatimet"]["recipient"] == "Drejtoria Rajonale Tatimore")
+        check("semi[461]: transazione, quote, liquidazione, usufrutto, servitù, mutuo, preliminare, assemblea e lettere sulle "
+              "norme giuste; nessun seme sul franchising, sulla rendita vitalizia o sulle società di persone; i nomi delle istituzioni",
+              not _ko461 and _okB461 and _okC461, f"sbagliati={_ko461} vietati={_okB461} nomi={_okC461}")
+    except Exception as _e461:  # noqa: BLE001
+        check("semi[461]: kontrollet u ekzekutuan", False, f"{type(_e461).__name__}: {_e461}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))

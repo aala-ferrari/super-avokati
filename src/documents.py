@@ -429,7 +429,7 @@ VISION_PROMPT = (
     "Kthe VETËM tekstin e plotë të dukshëm në këtë imazh, duke ruajtur "
     "rendin e rreshtave dhe ndarjet në paragrafë. Mos shto asnjë koment, "
     "përmbledhje apo shpjegim. Nëse ka vula, nënshkrime ose stampa, "
-    "shënoji në kllapa katrore (p.sh. [VULA: Gjykata e Rrethit Tiranë]). "
+    "shënoji në kllapa katrore (p.sh. [VULA: <teksti i vulës>], [NËNSHKRIM]). "
     "Nëse imazhi është i paqartë ose bosh, kthe vetëm '[IMAZH I PAQARTË]'."
 )
 # v9.427: in sessione italiana i segni (timbri, firme, pagina illeggibile) nella lingua della sessione; il testo si trascrive

@@ -25,6 +25,7 @@ import re as _re
 
 from . import expertise as _expertise
 from .logging_utils import get_logger
+from .gjykatat import EMRAT_GJYKATAVE_AL
 
 def _juris(system_prompt: str) -> str:
     """System prompt adattato alla giurisdizione della richiesta.
@@ -485,7 +486,9 @@ _FORMA_AL = ("\n\nFORMA (e detyrueshme): SHKURT dhe e saktë — vetëm ajo që 
              "pa tabela të gjata dhe pa ese; çdo pikë një ose dy fjali; gjithsej jo më shumë se rreth 1.000 fjalë (akti vetë: "
              "sa kërkon ligji, jo më shumë). Mos rendit nene që NUK zbatohen dhe mos shpjego pse nuk zbatohen: nenet e bllokut që "
              "nuk lidhen me faktin lëri jashtë pa i përmendur. Kur të mungon një nen që duhet, thuaje në NJË rresht. Në çdo akt "
-             "vendi dhe data mbeten [___] kur nuk jepen në fakte — kurrë data e sotme; çdo e dhënë që mungon [___].")
+             "vendi dhe data mbeten [___] kur nuk jepen në fakte — kurrë data e sotme; çdo e dhënë që mungon [___]."
+             # v9.653: la richiesta di rinvio a giudizio e le richieste al giudice portano il nome della corte di oggi
+             "\n\n" + EMRAT_GJYKATAVE_AL)
 _FORMA_IT = ("\n\nFORMA (obbligatoria): BREVE e preciso — solo ciò che serve al caso, senza ripetere il testo degli articoli, "
              "senza tabelle lunghe né saggi; ogni punto una o due frasi; in tutto non più di circa 1.000 parole (l'atto: quanto "
              "chiede la legge, non di più). Non elencare articoli che NON si applicano e non spiegare perché non si applicano: gli "

@@ -29,6 +29,7 @@ from __future__ import annotations
 
 from . import expertise as _expertise
 from .logging_utils import get_logger
+from .gjykatat import EMRAT_GJYKATAVE_AL
 
 log = get_logger(__name__)
 
@@ -70,7 +71,11 @@ CATALOGUE_IT: dict[str, dict] = {
         "emoji": "\U0001f4bc", "family": CLAIM, "group": "Diffide alla controparte",
         "recipient": "Datore di lavoro / Ufficio del personale",
         "channel": "PEC (o raccomandata A/R) — conserva la ricevuta",
-        "seeds": [("statuto_lavoratori", "7"), ("statuto_lavoratori", "18"),
+        # v9.653: + L. 604/1966 artt. 6 (l'impugnazione SCRITTA entro sessanta giorni, poi centottanta per il ricorso: questa lettera
+        # è l'impugnazione) e 2 (forma scritta), d.lgs. 23/2015 art. 3 (assunti dal 7 marzo 2015) — la nota chiedeva il termine e
+        # gli articoli che lo danno non arrivavano
+        "seeds": [("licenziamenti_individuali", "6"), ("licenziamenti_individuali", "2"), ("tutele_crescenti", "3"),
+                  ("statuto_lavoratori", "7"), ("statuto_lavoratori", "18"),
                   ("codice_civile", "2118"), ("codice_civile", "2119"),
                   ("codice_civile", "2697")],
         "query": "licenziamento disciplinare contestazione giusta causa "
@@ -84,8 +89,9 @@ CATALOGUE_IT: dict[str, dict] = {
             "Termine per la risposta e avvertimento che in mancanza si adirà il Giudice del lavoro",
             "Riserva di ogni azione e di ogni ulteriore danno",
         ],
-        "note": "Ricorda al lavoratore il termine di decadenza per impugnare il "
-                "licenziamento: verificalo nel caso concreto e indicalo espressamente.",
+        "note": "Questa lettera è l'impugnazione stragiudiziale del licenziamento (art. 6 L. 604/1966, negli articoli "
+                "dati): dillo nel testo e indica il termine dalla ricezione della comunicazione e quello successivo per il "
+                "ricorso, come li scrive l'articolo.",
     },
     "diffida_adempiere": {
         "label": "Diffida ad adempiere / messa in mora",
@@ -213,8 +219,10 @@ CATALOGUE_IT: dict[str, dict] = {
         "emoji": "\U0001f9fe", "family": REPORT, "group": "Segnalazioni alle autorità",
         "recipient": "Agenzia delle Entrate — Direzione competente / Comando GdF",
         "channel": "PEC al protocollo dell'ufficio competente",
-        "seeds": [("codice_penale", "640"), ("codice_penale", "483"),
-                  ("codice_penale", "491"), ("sanzioni_amministrative", "1")],
+        # v9.653: erano truffa (640), falsità del privato (483), falsità in testamento olografo o cambiale (491) e il principio di
+        # legalità delle sanzioni amministrative — e la nota diceva che il d.lgs. 74/2000 non era nel corpus (c'è dalla v9.326)
+        "seeds": [("reati_tributari", "2"), ("reati_tributari", "4"), ("reati_tributari", "5"),
+                  ("reati_tributari", "8"), ("reati_tributari", "10")],
         "query": "fatture per operazioni inesistenti evasione dichiarazione "
                  "infedele frode fiscale segnalazione verifica",
         "must": [
@@ -224,8 +232,9 @@ CATALOGUE_IT: dict[str, dict] = {
             "La richiesta di verifica (non una pretesa personale)",
             "Dati del segnalante e disponibilità a fornire chiarimenti",
         ],
-        "note": "La normativa penale tributaria specifica (D.Lgs 74/2000) non è nel "
-                "corpus: descrivi la condotta senza inventare numeri di articolo.",
+        "note": "Per fatti fino al 31/12/2026 i reati tributari sono quelli del D.Lgs. 74/2000 (negli articoli dati); dal "
+                "1° gennaio 2027 si applica il testo unico sanzioni tributarie (D.Lgs. 173/2024). La segnalazione descrive i "
+                "fatti e chiede la verifica: non qualifica il reato con certezza.",
     },
     "ispettorato_lavoro": {
         "label": "Esposto all'Ispettorato del Lavoro",
@@ -401,7 +410,11 @@ CATALOGUE_AL: dict[str, dict] = {
         "emoji": "\U0001f91d", "family": CLAIM, "group": "Zgjidhje me pajtim",
         "recipient": "Pala kundërshtare ose avokati i saj",
         "channel": "Shkresë me shënimin 'pa paragjykim'",
-        "seeds": [("kodi_civil", "1064"), ("kodi_civil", "1065")],
+        # v9.653: erano KC 1064 (il recesso dal contratto di FRANCHISING) e 1065 (la RENDITA VITALIZIA) — la lettera di transazione
+        # si fondava su due articoli che non c'entrano. La conciliazione davanti al giudice (KPC 158/ç), la legge sulla mediazione
+        # (riservatezza 19, l'accordo 22 e la sua esecuzione 23) e la forza di legge del contratto (KC 690)
+        "seeds": [("kodi_civil", "690"), ("kodi_proc_civile", "158/ç"), ("ligji_ndermjetesimi", "1"),
+                  ("ligji_ndermjetesimi", "19"), ("ligji_ndermjetesimi", "22"), ("ligji_ndermjetesimi", "23")],
         "query": "pajtim lëshime të ndërsjella mosmarrëveshje heqje dorë "
                  "shlyerje e plotë",
         "must": [
@@ -450,9 +463,9 @@ CATALOGUE_AL: dict[str, dict] = {
                  "të ketë kaluar, thuaje hapur."),
     },
     "tatimet": {
-        "label": "Njoftim Drejtorisë së Tatimeve / kontroll tatimor",
+        "label": "Njoftim Drejtorisë Rajonale Tatimore / kontroll tatimor",
         "emoji": "\U0001f9fe", "family": REPORT, "group": "Njoftime autoriteteve",
-        "recipient": "Drejtoria Rajonale e Tatimeve",
+        "recipient": "Drejtoria Rajonale Tatimore",      # v9.653: il nome della 9920/2008 (era «… e Tatimeve»)
         "channel": "Protokoll i institucionit",
         "seeds": [("kodi_penal", "180"), ("kodi_penal", "181"), ("kodi_penal", "186")],
         "query": "fshehje të ardhurash fatura fiktive evazion tatimor kontroll "
@@ -466,11 +479,14 @@ CATALOGUE_AL: dict[str, dict] = {
         ],
     },
     "inspektoriati_punes": {
-        "label": "Ankesë në Inspektoriatin Shtetëror të Punës",
+        "label": "Ankesë në Inspektoratin Shtetëror të Punës",
         "emoji": "\U0001f477", "family": REPORT, "group": "Njoftime autoriteteve",
-        "recipient": "Inspektoriati Shtetëror i Punës dhe Shërbimeve Shoqërore",
+        "recipient": "Inspektorati Shtetëror i Punës dhe Shërbimeve Shoqërore",   # v9.653: «Inspektoriati» era un refuso (corpus: «Inspektorati»)
         "channel": "Protokoll ose ankesë elektronike",
-        "seeds": [("kodi_punes", "39"), ("kodi_punes", "42"), ("kodi_punes", "72")],
+        # v9.653: al posto del KP 72 («Instalimet sanitare»: i bagni) il contratto scritto (21), il registro dei dipendenti (36),
+        # l'orario (78) e il registro delle paghe e dei contributi (95) — il lavoro in nero, l'orario e i contributi
+        "seeds": [("kodi_punes", "21"), ("kodi_punes", "36"), ("kodi_punes", "39"), ("kodi_punes", "42"),
+                  ("kodi_punes", "78"), ("kodi_punes", "95")],
         "query": "punë e padeklaruar siguria në punë orari i punës pushime "
                  "inspektim kontroll kushte pune",
         "must": [
@@ -502,7 +518,7 @@ CATALOGUE_AL: dict[str, dict] = {
         "emoji": "\U0001f54a️", "family": REPORT, "group": "Njoftime autoriteteve",
         "recipient": "Avokati i Popullit",
         "channel": "Protokoll, postë ose ankesë elektronike",
-        "seeds": [("kushtetuta", "60"), ("kushtetuta", "61"), ("kushtetuta", "63")],
+        "seeds": [("kushtetuta", "60")],    # v9.653: via 61 (elezione) e 63 (relazione annuale), estranei a un reclamo
         "query": "shkelje e të drejtave nga administrata publike ankesë "
                  "avokati i popullit veprim i paligjshëm institucion",
         "must": [
@@ -644,7 +660,7 @@ def draft(backend, index, *, kind: str, facts: str, case_context: str = "",
             "ta mbyllë tani. Forca vjen nga nenet e sakta dhe nga faktet, JO "
             "nga fyerjet apo kërcënimet. "
             "NDALOHET rreptësisht të kërcënosh kallëzim penal, njoftim te "
-            "tatimet, inspektoriati apo çdo autoritet tjetër për të marrë "
+            "tatimet, inspektorati apo çdo autoritet tjetër për të marrë "
             "pagesë: kjo është SHANTAZH dhe e shkatërron edhe klientin edhe "
             "avokatin. Njoftimi se do t'i drejtohemi GJYKATËS është i ligjshëm "
             "dhe lejohet."
@@ -684,7 +700,7 @@ def draft(backend, index, *, kind: str, facts: str, case_context: str = "",
         "(deri në 4 rreshta: kanali, çfarë bashkëlidhet, çfarë ruhet si provë)\n"
         "### ⚠️ Përpara se ta dërgosh\n"
         "(deri në 5 pika, një rresht secila: të dhënat që mungojnë, afatet për t'u verifikuar, rreziqet)\n\n"
-        + _IDENTITY)
+        + _IDENTITY + "\n\n" + EMRAT_GJYKATAVE_AL)   # v9.653: i nomi di oggi dei tribunali (ramo albanese)
 
     prompt = (
         "LLOJI I SHKRESËS: " + tpl["label"]

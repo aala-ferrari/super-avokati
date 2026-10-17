@@ -671,8 +671,14 @@ def _kp_resolve(number: str, text: str, retrieved_codes: set, lookup: dict) -> s
 # v9.571 — il suffisso latino in CORSIVO markdown («art. 196-*sexies* disp. att. c.p.c.», «93-**bis** C.d.S.», «612 *bis* c.p.»):
 # prima usciva «art. 196» senza codice (mai completato dal cancello) o, peggio, «612» VERIFICATO sul testo della minaccia invece
 # degli atti persecutori. I segni d'enfasi attorno al suffisso fanno parte del numero (si tolgono in `_normalise_number`)
-_NUM_TOKEN_IT = (r"\d+(?:[\-\s]\s*(?:\*{1,2}|_)?(?:bis|ter|quater|quinquies|sexies|septies|octies|novies|decies|undecies|duodecies|"
-                 r"terdecies|quaterdecies|quinquiesdecies|sexiesdecies|septiesdecies|octiesdecies|noviesdecies|vicies)"
+# v9.653 — «nonies» (= novies), «duodevicies» (= octiesdecies), «undevicies» (= noviesdecies): Normattiva usa le due grafie dello
+# stesso numero (nel corpus 93 «novies» e 4 «nonies»: c.p. 609-nonies, c.p.c. 281-nonies…; la L. 241/1990 ha «21-novies», che la
+# legge e i giuristi scrivono «21-nonies» — l'annullamento d'ufficio). Senza: «art. 21-nonies L. 241/1990» usciva «senza codice» e
+# «art. 21 nonies della legge 241/1990» VERIFICATO sull'art. 21 («Disposizioni sanzionatorie»), un altro articolo. Le grafie si
+# equivalgono in `_normalise_number`, da tutte e due le parti (testo e corpus)
+_NUM_TOKEN_IT = (r"\d+(?:[\-\s]\s*(?:\*{1,2}|_)?(?:bis|ter|quater|quinquies|sexies|septies|octies|novies|nonies|decies|undecies|duodecies|"
+                 r"terdecies|quaterdecies|quinquiesdecies|sexiesdecies|septiesdecies|octiesdecies|duodevicies|noviesdecies|"
+                 r"undevicies|vicies)"
                  r"(?:\*{1,2}|_)?(?![a-z]))?(?:\.\d{1,3}(?![\d]))?")
 # 17 set 2026 — «art. 18, comma 4, L. 300/1970» è LA forma canonica italiana e usciva «senza codice»
 # (117 occorrenze nelle ultime 121 risposte): stessa regola dell'albanese — dopo «comma/commi/lett./
@@ -680,7 +686,7 @@ _NUM_TOKEN_IT = (r"\d+(?:[\-\s]\s*(?:\*{1,2}|_)?(?:bis|ter|quater|quinquies|sexi
 # codice», «della legge», «Cost.»…) o l'anafora «del medesimo decreto». «art. 18, comma 4, di
 # conseguenza il codice civile…» NON attraversa. ⚠️ «c.» come abbreviazione di comma NON è ammessa fra
 # i sotto-riferimenti: «art. 2, c.c.» diventerebbe «comma c».
-_SUB_NUM_IT = (r"(?:\d{1,3}(?:-(?:bis|ter|quater|quinquies|sexies|septies|octies|novies|decies|\d{1,3}))?(?![\w/])"   # v9.357: anche «c. 8-9»
+_SUB_NUM_IT = (r"(?:\d{1,3}(?:-(?:bis|ter|quater|quinquies|sexies|septies|octies|novies|nonies|decies|\d{1,3}))?(?![\w/])"   # v9.357: anche «c. 8-9»
                r"|[ivx]{1,5}(?![a-z]))\)?")   # v9.511: «lett. c), n. iii)» (Reg. 2015/2446, art. 217): il romano spezzava la citazione
 _SUB_LET_IT = (r"(?:[\"“«'][a-z]{1,2}[\"”»']|[a-z]{1,2}\)|"
                r"(?!(?:e|ed|o|al|il|la|lo|le|di|in|su|se|no|un|ai|da|ne|n[ée]|si|tu|ue)(?![a-z]))[a-z]{1,2}(?![a-zà-ù/.]))")   # v9.514: «, TU Immigrazione» non è la lettera «tu»
@@ -1168,6 +1174,10 @@ def _normalise_number(n: str) -> str:
     s = re.sub(r"(?<=[0-9a-z])\s+(?=[a-z])", "/", s)
     s = s.replace(" ", "")
     s = s.replace("-", "/").replace("\u2013", "/")
+    # v9.653: le due grafie dello stesso ordinale latino valgono uguale (testo e corpus passano entrambi di qui)
+    s = re.sub(r"(?<=/)nonies(?![a-z])", "novies", s)
+    s = re.sub(r"(?<=/)duodevicies(?![a-z])", "octiesdecies", s)
+    s = re.sub(r"(?<=/)undevicies(?![a-z])", "noviesdecies", s)
     return s
 
 

@@ -628,7 +628,9 @@ DEED_TYPES.update({
                  "Detyrimet e mirëmbajtjes dhe kthimi i sendit", "Data, nënshkrimet, vula"]},
     "huaje": {
         "label": "Kontratë huaje", "emoji": "\U0001f4b5",
-        "seed": [("kodi_civil", "659")],
+        "seed": [("kodi_civil", "1050"), ("kodi_civil", "1051"), ("kodi_civil", "1052"), ("kodi_proc_civile", "510")],
+        # v9.653 — semi riletti sulla rubrica vera (il golden [438] controlla solo che esistano): erano il solo KC 659 («contenuto del contratto»);
+        # il mutuo (1050-1052) e l'atto notarile con un obbligo di denaro che è titolo esecutivo (KPC 510/d)
         "must": ["Huadhënësi dhe huamarrësi", "Shuma e huasë dhe monedha",
                  "Interesi (nëse ka) dhe afati i kthimit", "Këstet/mënyra e shlyerjes",
                  "Garancitë (nëse ka)", "Data, nënshkrimet, vula"]},
@@ -658,19 +660,25 @@ DEED_TYPES.update({
                  "Çregjistrimi/regjistrimi në DPSHTRR", "Data, nënshkrimet, vula"]},
     "shitje_kuotash": {
         "label": "Kontratë kalimi/shitjeje kuotash (SHPK)", "emoji": "\U0001f4c8",
-        "seed": [("ligji_shoqerite_tregtare", "34"), ("kodi_civil", "705")],
+        "seed": [("ligji_shoqerite_tregtare", "73"), ("ligji_shoqerite_tregtare", "74"), ("kodi_civil", "705")],
+        # v9.653 — semi riletti sulla rubrica vera (il golden [438] controlla solo che esistano): l'art. 34 è il trasferimento dei diritti di
+        # amministrazione nelle società di persone; le quote della SHPK sono gli artt. 73 (modi di acquisto e cessione) e 74 (effetti)
         "must": ["Shitësi (ortaku) dhe blerësi", "Shoqëria (SHPK) dhe NIPT-i",
                  "Kuotat e kaluara dhe përqindja", "Çmimi", "Miratimi/parablerja e ortakëve nëse kërkohet",
                  "Regjistrimi i ndryshimit në QKB", "Data, nënshkrimet, vula"]},
     "premtim_shitje": {
         "label": "Kontratë premtimi për shitje (me kapar)", "emoji": "\U0001f91d",
-        "seed": [("kodi_civil", "659"), ("kodi_civil", "705")],
+        "seed": [("kodi_civil", "601"), ("kodi_civil", "602"), ("kodi_civil", "83"), ("kodi_civil", "705")],
+        # v9.653 — semi riletti sulla rubrica vera (il golden [438] controlla solo che esistano): la CAPARRA del titolo (KC 601-602) e la forma
+        # notarile per gli immobili (KC 83) mancavano
         "must": ["Palët premtuese", "Pasuria/objekti i premtimit dhe çmimi i rënë dakord",
                  "Kapari/paradhënia dhe pasojat në tërheqje", "Afati për lidhjen e kontratës përfundimtare",
                  "Data, nënshkrimet, vula"]},
     "aktmarreveshje": {
         "label": "Aktmarrëveshje (zgjidhje mosmarrëveshjeje)", "emoji": "\U0001f54a️",
-        "seed": [("kodi_civil", "659")],
+        "seed": [("kodi_civil", "659"), ("kodi_civil", "690"), ("kodi_proc_civile", "510")],
+        # v9.653 — semi riletti sulla rubrica vera (il golden [438] controlla solo che esistano): l'accordo ha forza di legge fra le parti
+        # (KC 690) e, con un obbligo di denaro, l'atto notarile è titolo esecutivo (KPC 510/d)
         "must": ["Palët", "Mosmarrëveshja që zgjidhet", "Lëshimet e ndërsjella (çfarë pranon secili)",
                  "Detyrimet e reja dhe afatet", "Klauzola e mbylljes së mosmarrëveshjes",
                  "Data, nënshkrimet, vula"]},
@@ -683,13 +691,19 @@ DEED_TYPES.update({
                  "Përfaqësimi ligjor", "Kohëzgjatja dhe rregullat e prishjes", "Data, nënshkrimet, vula; QKB"]},
     "vendim_asambleje": {
         "label": "Vendim i asamblesë së ortakëve", "emoji": "\U0001f5f3️",
-        "seed": [("ligji_shoqerite_tregtare", "12")],
+        "seed": [("ligji_shoqerite_tregtare", "81"), ("ligji_shoqerite_tregtare", "82"), ("ligji_shoqerite_tregtare", "86"),
+                 ("ligji_shoqerite_tregtare", "87")],
+        # v9.653 — semi riletti sulla rubrica vera (il golden [438] controlla solo che esistano): competenze, convocazione, quorum e maggioranze
+        # dell'assemblea della SHPK (era l'art. 12, generale sugli organi)
         "must": ["Shoqëria dhe NIPT-i", "Data dhe kuorumi i asamblesë", "Rendi i ditës",
                  "Vendimi (ndryshim administratori/objekti/kapitali/miratim bilanci)",
                  "Votat", "Nënshkrimet; regjistrimi në QKB"]},
     "likuidim_shpk": {
         "label": "Likuidim/mbyllje e shoqërisë (SHPK)", "emoji": "\U0001f6d1",
-        "seed": [("ligji_shoqerite_tregtare", "3"), ("ligji_shoqerite_tregtare", "10")],
+        "seed": [("ligji_shoqerite_tregtare", "99"), ("ligji_shoqerite_tregtare", "188"), ("ligji_shoqerite_tregtare", "191"),
+                 ("ligji_shoqerite_tregtare", "197")],
+        # v9.653 — semi riletti sulla rubrica vera (il golden [438] controlla solo che esistano): erano 3 (cosa sono le società) e 10
+        # (responsabilità dei fondatori); lo scioglimento della SHPK (99), la sua iscrizione (188), il liquidatore (191, 197)
         "must": ["Shoqëria dhe NIPT-i", "Vendimi për prishje/likuidim", "Emërimi i likuiduesit",
                  "Shlyerja e kreditorëve dhe bilanci përfundimtar", "Ndarja e aktivit të mbetur",
                  "Çregjistrimi në QKB", "Data, nënshkrimet, vula"]},
@@ -703,7 +717,9 @@ _ORDER += ["qira", "huaje", "sipermarrje", "peng", "shkembim", "shitje_automjeti
 DEED_TYPES.update({
     "uzufrukt": {
         "label": "Kontratë uzufrukti", "emoji": "\U0001f33f",
-        "seed": [("kodi_civil", "250"), ("kodi_civil", "252")],
+        "seed": [("kodi_civil", "232"), ("kodi_civil", "233"), ("kodi_civil", "234"), ("kodi_civil", "235")],
+        # v9.653 — semi riletti sulla rubrica vera (il golden [438] controlla solo che esistano): erano 250 e 252 (garanzia e assicurazione
+        # dell'usufrutto); la nozione, la costituzione, la durata e la FORMA NOTARILE dell'usufrutto (KC 232-235)
         "must": ["Palët (pronari i sendit / uzufruktari)",
                  "Sendi/pasuria mbi të cilën krijohet uzufrukti (nr. pasurie, kadastër)",
                  "Përmbajtja e uzufruktit (gëzimi dhe frutet)",
@@ -712,7 +728,9 @@ DEED_TYPES.update({
                  "Regjistrimi në ASHK", "Data, nënshkrimet, vula noteriale"]},
     "servitut": {
         "label": "Kontratë servituti (e drejtë kalimi etj.)", "emoji": "\U0001f6e3️",
-        "seed": [("kodi_civil", "290"), ("kodi_civil", "292")],
+        "seed": [("kodi_civil", "261"), ("kodi_civil", "281"), ("kodi_civil", "283"), ("kodi_civil", "292")],
+        # v9.653 — semi riletti sulla rubrica vera (il golden [438] controlla solo che esistano): la nozione (261), le servitù costituite per
+        # contratto (281, 283) e la tutela (292); il 290 è la divisione del fondo dominante
         "must": ["Palët (prona dominuese / prona shërbyese, me nr. pasurie)",
                  "Lloji i servitutit (kalim, ujë, pamje etj.)",
                  "Përmbajtja dhe mënyra e ushtrimit", "Kompensimi (nëse ka)",
@@ -814,7 +832,7 @@ PROKURA_SCOPES = {
     "kuota_shitje": {"label": "Shitje/blerje kuotash ose aksionesh",
         "powers": ["të shesë ose blejë kuota/aksione të shoqërisë", "të nënshkruajë aktin e kalimit",
                    "të regjistrojë ndryshimin në QKB"],
-        "seed": [("ligji_shoqerite_tregtare", "34")]},
+        "seed": [("ligji_shoqerite_tregtare", "73")]},     # v9.653: le quote della SHPK (era l'art. 34, società di persone)
     "terheqje_page": {"label": "Tërheqje page/pensioni/përfitimesh",
         "powers": ["të tërheqë pagën, pensionin ose përfitimet", "të nënshkruajë për marrjen e tyre"],
         "seed": [("kodi_civil", "73")]},
@@ -1085,7 +1103,8 @@ def draft_prokura(backend, index, *, form: str, scope_keys=None, details: str = 
 # ---- DEKLARATA noteriale ----
 DECLARATION_TYPES = {
     "pelqim_udhetimi_minor": {"label": "Deklaratë pëlqimi për udhëtim të të miturit", "emoji": "\U0001f6c2",
-        "seed": [("kodi_familjes", "3")],
+        "seed": [("kodi_familjes", "215"), ("kodi_familjes", "220"), ("kodi_familjes", "222")],   # v9.653: la responsabilità
+        # genitoriale esercitata insieme (220) e il consenso presunto SOLO per gli atti usuali (222): il viaggio all'estero no (era KF 3)
         "must": ["Prindi/kujdestari deklarues (identiteti)", "I mituri (emri, datëlindja, pasaporta)",
                  "Pëlqimi për udhëtim/dalje jashtë shtetit, destinacioni dhe shoqëruesi",
                  "Periudha", "Data, nënshkrimi, vula noteriale"]},
