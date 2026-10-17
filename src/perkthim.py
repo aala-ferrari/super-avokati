@@ -42,6 +42,60 @@ DISCLAIMER = {
 
 _SEGNA_GLOSSAR = "---GLOSSAR---"
 
+# v9.655 — LE EQUIVALENZE DI LEGGE AL↔IT, fisse dall'inizio (il glossario viaggiante comincia da qui e la prima scelta comanda).
+# Prova col cervello vero (17 ott): «urdhër ekzekutimi» reso «titolo esecutivo» (è l'ORDINE di esecuzione, KPC 511; il titolo
+# esecutivo è il KPC 510), «clausola penale» resa «penalitet» (il Kodi Civil dice «kusht penal», nenet 541-545), «atto notarile»
+# reso «akt notarial» (in albanese «noterial»). Solo termini dove il codice di ciascun paese ha un nome preciso — niente istituzioni
+# (restano col loro nome) né termini ambigui («kërkesëpadi» è citazione o ricorso a seconda del rito).
+GLOSSARIO_FISSO = {
+    "it": {   # dall'albanese all'italiano
+        "urdhër ekzekutimi": "ordine di esecuzione",
+        "titull ekzekutiv": "titolo esecutivo",
+        "përmbarues gjyqësor": "ufficiale giudiziario",
+        "vendim i formës së prerë": "sentenza passata in giudicato",
+        "kusht penal": "clausola penale",
+        "kapar": "caparra",
+        "akt noterial": "atto notarile",
+        "prokurë": "procura",
+        "kamatvonesë": "interessi moratori",
+        "shpenzime gjyqësore": "spese processuali",
+        "paditës": "attore",
+        "i paditur": "convenuto",
+        "masë sigurimi": "misura cautelare",
+        "rekurs": "ricorso per cassazione",
+    },
+    "sq": {   # dall'italiano all'albanese
+        "ordine di esecuzione": "urdhër ekzekutimi",
+        "titolo esecutivo": "titull ekzekutiv",
+        "ufficiale giudiziario": "përmbarues gjyqësor",
+        "passata in giudicato": "e formës së prerë",
+        "clausola penale": "kusht penal",
+        "caparra": "kapar",
+        "atto notarile": "akt noterial",
+        "rogito notarile": "akt noterial",
+        "notaio": "noter",
+        "procura": "prokurë",
+        "interessi moratori": "kamatvonesë",
+        "spese processuali": "shpenzime gjyqësore",
+        "attore": "paditës",
+        "convenuto": "i paditur",
+        "misura cautelare": "masë sigurimi",
+        "foro competente": "gjykata kompetente",
+    },
+}
+
+# la sezione dei termini incerti nella lingua della SESSIONE (LINGUA = SESSIONE: era sempre albanese)
+TITOLO_INCERTI = {"sq": "## ⚠️ Terma të pasigurt", "it": "## ⚠️ Termini incerti", "en": "## ⚠️ Uncertain terms"}
+LINGUA_SESSIONE = {"sq": "shqip", "it": "italisht", "en": "anglisht"}
+
+
+def _lingua_sessione() -> str:
+    try:
+        from .brain import request_jurisdiction
+        return "it" if (request_jurisdiction() or "AL").upper() == "IT" else "sq"
+    except Exception:  # noqa: BLE001
+        return "sq"
+
 
 # ── funzioni pure (le sorvegliano i golden) ──────────────────────────────
 
@@ -133,17 +187,20 @@ termi burimor = përkthimi i zgjedhur
 Pas bllokut mos shkruaj ASGJË tjetër."""
 
 
-def _system_rilettura(target: str) -> str:
+def _system_rilettura(target: str, sessione: str = "sq") -> str:
+    titolo = TITOLO_INCERTI.get(sessione, TITOLO_INCERTI["sq"])
     return f"""Je jurist me gjuhë amtare {LINGUA[target]} ({LINGUA_NEL_TARGET[target]}). Merr një përkthim juridik dhe LËMOJE që të tingëllojë si i shkruar drejtpërdrejt në {LINGUA_NEL_TARGET[target]} nga një jurist — jo si përkthim.
 
 RREGULLA:
 1. Kthe TEKSTIN E PLOTË të lëmuar — asnjë fjali e hequr, asnjë e shtuar, struktura dhe numërimi të paprekur.
 2. Ndrequl vetëm: fraza që «tingëllojnë përkthim», terma juridikë jo idiomatikë, mospërputhje terminologjike mes pjesëve.
-3. NË FUND, VETËM nëse ke dyshime reale, shto seksionin:
-## ⚠️ Terma të pasigurt
-- «termi» — alternativa dhe pse
+3. Kur të jepet TEKSTI BURIMOR, ai shërben VETËM për krahasim (mos e kthe): çdo term juridik i përkthimit duhet të japë të njëjtin institut si burimi — p.sh. një «urdhër ekzekutimi» nuk bëhet «titolo esecutivo», një «kusht penal» nuk bëhet «penalitet». Termat e glosarit të detyrueshëm mbeten ashtu siç janë:
+{glossar_testo(GLOSSARIO_FISSO.get(target, {}))}
+4. NË FUND, VETËM nëse ke dyshime reale, shto seksionin — titulli dhe shënimet në {LINGUA_SESSIONE.get(sessione, "shqip")} (gjuha e avokatit që e lexon):
+{titolo}
+- «termi» — alternativa dhe pse, me fjalë: MOS cito nene, numra ligjesh apo vendime në këtë seksion
 Nëse s'ka dyshime, mos e shto fare seksionin.
-4. Asnjë koment tjetër, asnjë hyrje: vetëm teksti."""
+5. Asnjë koment tjetër, asnjë hyrje: vetëm teksti."""
 
 
 # ── orchestrazione ───────────────────────────────────────────────────────
@@ -153,7 +210,8 @@ def perkthe(backend, testo: str, target: str,
     """Traduce a blocchi col glossario viaggiante, poi rilegge. Ritorna
     {markdown, cope, riletto, glossar}."""
     cope = spezza(testo)
-    gloss: dict[str, str] = {}
+    gloss: dict[str, str] = dict(GLOSSARIO_FISSO.get(target, {}))   # v9.655: le equivalenze di legge, fisse
+    sessione = _lingua_sessione()
     tradotti: list[str] = []
     for pezzo in cope:
         out = backend.complete(
@@ -172,17 +230,27 @@ def perkthe(backend, testo: str, target: str,
 
     riletto = False
     if unito and len(unito) <= MAX_RILETTURA:
+        # v9.655: la rilettura vede anche il testo d'origine (prima no: non poteva accorgersi di un istituto reso male)
+        _msg2 = (("TEKSTI BURIMOR (vetëm për krahasim — mos e kthe):\n" + testo[:MAX_RILETTURA]
+                  + "\n\n=====\nPËRKTHIMI PËR T'U LËMUAR (ktheje të plotë):\n" + unito) if len(testo) <= MAX_RILETTURA else unito)
         out2 = backend.complete(
-            system=_system_rilettura(target),
-            messages=[{"role": "user", "content": unito}],
+            system=_system_rilettura(target, sessione),
+            messages=[{"role": "user", "content": _msg2}],
             max_tokens=12000,
             fast=False,
             effort_override="high", raw_system=True,
             callsite=callsite + "_rilettura",
         )
         out2 = (out2 or "").strip()
+        # v9.655: se ha ripetuto le intestazioni del messaggio, si tiene solo ciò che segue; se ha restituito anche il testo
+        # d'origine (troppo lungo) o lo ha «mangiato» (troppo corto), resta la prima traduzione
+        _seg = "PËRKTHIMI PËR T'U LËMUAR (ktheje të plotë):"
+        if _seg in out2:
+            out2 = out2.split(_seg, 1)[1].strip()
+        if "TEKSTI BURIMOR" in out2:
+            out2 = ""
         # paracadute: se la rilettura ha «mangiato» il testo, resta la prima
-        if len(out2) >= 0.6 * len(unito):
+        if 0.6 * len(unito) <= len(out2) <= 1.6 * len(unito) + 600:
             unito, riletto = out2, True
 
     return {

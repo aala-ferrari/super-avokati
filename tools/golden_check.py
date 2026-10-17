@@ -14296,6 +14296,45 @@ const F = new Function("localStorage", "document", "fetch", "renderMarkdown", "_
     except Exception as _e462:  # noqa: BLE001
         check("atti[462]: kontrollet u ekzekutuan", False, f"{type(_e462).__name__}: {_e462}")
 
+    # [463] v9.655 — IL TRADUTTORE GIURIDICO: prova col cervello vero (17 ott) — «urdhër ekzekutimi» reso «titolo esecutivo», «clausola
+    # penale» resa «penalitet» (il KC dice «kusht penal»), «atto notarile» reso «akt notarial», una nota sulla caparra col «neni 697»
+    # (è il 601-602) e le note in albanese in sessione italiana. Glossario fisso delle equivalenze di legge, rilettura col testo
+    # d'origine, note nella lingua della sessione senza numeri d'articolo, l'eco del testo d'origine scartato. Cervello finto.
+    try:
+        from src import perkthim as _pk463, brain as _br463
+
+        class _FintoB463:
+            def __init__(self, eco=False):
+                self.chiamate, self.eco = [], eco
+            def complete(self, **kw):
+                self.chiamate.append(kw)
+                msg = kw["messages"][0]["content"]
+                if kw.get("callsite", "").endswith("_rilettura"):
+                    return msg if self.eco else msg.split("(ktheje të plotë):\n", 1)[-1]
+                return "Traduzione di prova del testo, abbastanza lunga da passare il controllo della rilettura.\n\n---GLOSSAR---\nkapar = caparra penitenziale\n"
+        _br463.set_request_jurisdiction("IT")
+        try:
+            _b463 = _FintoB463()
+            _r463 = _pk463.perkthe(_b463, "Kapari dhe kushti penal sipas kontratës; urdhri i ekzekutimit.", "it")
+            _sys_tr, _sys_ril = _b463.chiamate[0]["system"], _b463.chiamate[-1]["system"]
+            _msg_ril = _b463.chiamate[-1]["messages"][0]["content"]
+            _b463e = _FintoB463(eco=True)
+            _r463e = _pk463.perkthe(_b463e, "Kapari dhe kushti penal sipas kontratës; urdhri i ekzekutimit.", "it")
+        finally:
+            _br463.set_request_jurisdiction("AL")
+        _sys_al = _pk463._system_rilettura("sq", "sq")
+        _ok463 = ("kusht penal = clausola penale" in _sys_tr and "urdhër ekzekutimi = ordine di esecuzione" in _sys_tr
+                  and _r463["glossar"].get("kapar") == "caparra"                      # la scelta fissa comanda sul modello
+                  and "TEKSTI BURIMOR" in _msg_ril and "## ⚠️ Termini incerti" in _sys_ril and "MOS cito nene" in _sys_ril
+                  and "## ⚠️ Terma të pasigurt" in _sys_al
+                  and "TEKSTI BURIMOR" not in _r463e["markdown"] and _r463["riletto"])
+        check("perkthim[463]: equivalenze di legge fisse, rilettura col testo d'origine, note nella lingua della sessione senza "
+              "articoli, eco scartata", _ok463,
+              f"glossario={'kusht penal = clausola penale' in _sys_tr} kapar={_r463['glossar'].get('kapar')} "
+              f"burimor={'TEKSTI BURIMOR' in _msg_ril} it={'Termini incerti' in _sys_ril} eco={'TEKSTI BURIMOR' in _r463e['markdown']}")
+    except Exception as _e463:  # noqa: BLE001
+        check("perkthim[463]: kontrollet u ekzekutuan", False, f"{type(_e463).__name__}: {_e463}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
