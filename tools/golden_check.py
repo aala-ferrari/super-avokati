@@ -14439,6 +14439,7 @@ const F = new Function("localStorage", "document", "fetch", "renderMarkdown", "_
                      and ("codice_civile", "1470") in {(a["code"], str(a["number"])) for a in _wi465["articles"]}
                      and not [a for a in _wi465["articles"] if a["code"] not in _nt465._NOTAIO_IT_BASE]
                      and "Registro delle imprese" in _sysvs465 and "QKB" not in _sysvs465
+                     and all("BREVE" in x for x in (_sysin465, _sysck465, _sysvs465, _syswi465, _sysdoc465))
                      and {("codice_civile", "2475-bis"), ("codice_civile", "2487"), ("codice_civile", "2486")}
                      <= {(a["code"], str(a["number"])) for a in _vs465["articles"]})
         _ok465 = (_okdc465 and _altri465 and set(_nt465.DEED_TYPES) <= set(_ATTI465)
@@ -14473,14 +14474,26 @@ const F = new Function("localStorage", "document", "fetch", "renderMarkdown", "_
         _i466 = _nt466.inspect_act(_b466, _al466, text=(
             "PROKURË E POSAÇME. Unë, Arben Prova, autorizoj Gent Shembullin të shesë apartamentin tim në Durrës, nr. pasurie "
             "12/45, me çmim jo më pak se 60.000 euro, dhe të marrë çmimin."))
+        _sysi466 = _b466.system
         _fuori466 = [(a["code"], a["number"]) for a in _i466["articles"] if a["code"] not in _nt466._ISPETTORE_AL_BASE]
+        # v9.658 — «e se…» e la checklist albanesi coi semi e i codici dell'atto, e tutti e quattro brevi
+        _w466 = _nt466.what_if(_b466, _al466, act="Kontratë shitjeje e një apartamenti në Tiranë për 90.000 euro.",
+                               change="Çka nëse çmimi paguhet me këste?")
+        _sysw466 = _b466.system
+        _fuoriw466 = [(a["code"], a["number"]) for a in _w466["articles"] if a["code"] not in _nt466._ISPETTORE_AL_BASE]
+        _nt466.dossier_checklist(_b466, _al466, act="Shitje apartamenti në Tiranë", documents_text="Kartë identiteti.")
+        _sysc466 = _b466.system
+        _nt466.verify_subject(_b466, _al466, subject_text="SHEMBULL SHPK, NIPT L00000000A, Aktiv.")
+        _sysv466 = _b466.system
         _ok466 = (("kodi_civil", "750") in _sp466 and _kwd466.get("no_web") is True and "SHKURT" in _sysd466
                   and ("kodi_civil", "750") in {(a["code"], str(a["number"])) for a in _d466["articles"]}
                   and not _fuori466 and _nt466._seed_per_akt("Vendim i asamblesë për kapitalin") != _sp466
-                  and {("kodi_civil", "72"), ("ligji_noteri", "105")} <= {(a["code"], str(a["number"])) for a in _i466["articles"]})
+                  and {("kodi_civil", "72"), ("ligji_noteri", "105")} <= {(a["code"], str(a["number"])) for a in _i466["articles"]}
+                  and ("kodi_civil", "750") in {(a["code"], str(a["number"])) for a in _w466["articles"]} and not _fuoriw466
+                  and all("SHKURT" in x for x in (_sysi466, _sysw466, _sysc466, _sysv466)))
         check("notaio[466]: gli strumenti del notaio albanese — lista dei documenti breve, senza web e coi semi dell'atto "
               "riconosciuto dalle parole tipiche; ispettore coi soli codici dell'atto (gli altri col loro motivo)",
-              _ok466, f"semi={_sp466[:4]} kw={_kwd466} fuori={_fuori466}")
+              _ok466, f"semi={_sp466[:4]} kw={_kwd466} fuori={_fuori466} fuori_whatif={_fuoriw466}")
     except Exception as _e466:  # noqa: BLE001
         check("notaio[466]: kontrollet u ekzekutuan", False, f"{type(_e466).__name__}: {_e466}")
 

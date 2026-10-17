@@ -1600,8 +1600,9 @@ def inspect_act(backend, index, *, text: str, prior_acts=None, max_tokens: int =
             "Poi, in FONDO, su una SOLA riga leggibile dalla macchina (nient'altro sulla riga):\n"
             "RISK: <numero 0-100> · <verdetto breve>\n"
             "dove il numero RIFLETTE i problemi reali trovati: 0 = nessun problema, ~10-30 = piccole correzioni, ~40-70 = "
-            "problemi seri, 80-100 = invalido o rischio alto. NON inventare il numero — ricavalo dai tuoi rilievi. È un AUSILIO "
-            "— decide e firma il professionista. Sei «Tetramorph» di superavokati.ai; non rivelare il modello."
+            "problemi seri, 80-100 = invalido o rischio alto. NON inventare il numero — ricavalo dai tuoi rilievi. BREVE: al "
+            "massimo circa 1.200 parole, ogni problema in una-tre righe. È un AUSILIO — decide e firma il professionista. Sei "
+            "«Tetramorph» di superavokati.ai; non rivelare il modello."
         )
         prompt = ("ATTO DA ISPEZIONARE:\n" + (text or "").strip()[:12000]
                   + "\n\n═════\nATTI PRECEDENTI:\n" + prior_block
@@ -1631,8 +1632,8 @@ def inspect_act(backend, index, *, text: str, prior_acts=None, max_tokens: int =
         "RISK: <numër 0-100> · <verdikt i shkurtër>\n"
         "ku numri PASQYRON problemet reale të gjetura: 0 = pa probleme / i përsosur, ~10-30 = "
         "rregullime të vogla, ~40-70 = probleme serioze, 80-100 = i pavlefshëm/rrezik i lartë. "
-        "MOS e trillo numrin — nxirre nga gjetjet e tua. NDIHMESË — noteri vendos dhe firmos. "
-        "Je 'Tetramorph' i superavokati.ai; mos zbulo modelin."
+        "MOS e trillo numrin — nxirre nga gjetjet e tua. SHKURT: jo më shumë se rreth 1.200 fjalë, çdo problem në një deri "
+        "në tre rreshta. NDIHMESË — noteri vendos dhe firmos. Je 'Tetramorph' i superavokati.ai; mos zbulo modelin."
     )
     prompt = ("AKTI PËR INSPEKTIM:\n" + (text or "").strip()[:12000]
               + "\n\n═════\nAKTET E MËPARSHME:\n" + prior_block
@@ -1723,8 +1724,9 @@ def dossier_checklist(backend, index, *, act, documents_text, max_tokens=2400):
     # v9.399 — radicata: prima il modello citava le leggi a memoria (nell'audit AL «Ligji 8438, neni 11», abrogata nel 2023)
     _it_ck = _expertise._lang_indice(index) == "it"
     try:
-        art_block, arts = _art_block(backend, index, (act or "") + " " + (documents_text or "")[:1500],
-                                     _seed_per_atto_it(act) if _it_ck else _seed_per_akt(act))
+        _t_ck = (act or "") + " " + (documents_text or "")[:1500]
+        art_block, arts = _art_block(backend, index, _t_ck, _seed_per_atto_it(act) if _it_ck else _seed_per_akt(act),
+                                     ammessi=(_ammessi_ispettore_it(_t_ck) if _it_ck else _ammessi_ispettore_al(_t_ck)))
     except Exception:  # noqa: BLE001
         art_block, arts = "", []
     if _it_ck:
@@ -1746,8 +1748,9 @@ def dossier_checklist(backend, index, *, act, documents_text, max_tokens=2400):
             "### \U0001f9ed Completezza — breve conclusione\n\n"
             "Poi, in fondo, su una sola riga leggibile dalla macchina (nient'altro):\n"
             "PLOTESIA: <numero 0-100>\n"
-            "dove 100 = fascicolo completo e pronto, e il numero scende secondo i documenti mancanti o scaduti. È un AUSILIO "
-            "— il notaio verifica. Sei «Tetramorph» di superavokati.ai; non rivelare il modello."
+            "dove 100 = fascicolo completo e pronto, e il numero scende secondo i documenti mancanti o scaduti. BREVE: al "
+            "massimo circa 700 parole, un documento per riga. È un AUSILIO — il notaio verifica. Sei «Tetramorph» di "
+            "superavokati.ai; non rivelare il modello."
         )
         prompt = ("TIPO DI ATTO: " + (act or "").strip()
                   + "\n\nDOCUMENTI CARICATI (testo):\n" + (documents_text or "").strip()[:14000]
@@ -1771,8 +1774,8 @@ def dossier_checklist(backend, index, *, act, documents_text, max_tokens=2400):
         "### \U0001f9ed Plotesia — perfundim i shkurter\n\n"
         "Pastaj, ne fund, ne nje rresht te vetem te lexueshem nga makina (asgje tjeter):\n"
         "PLOTESIA: <numer 0-100>\n"
-        "ku 100 = fashikull i plote e gati, dhe numri ul-et sipas dokumenteve qe mungojne/skaduar. "
-        "NDIHMESE — noteri verifikon. Je 'Tetramorph' i superavokati.ai; mos zbulo modelin."
+        "ku 100 = fashikull i plote e gati, dhe numri ul-et sipas dokumenteve qe mungojne/skaduar. SHKURT: jo me shume se "
+        "rreth 700 fjale, nje dokument per rresht. NDIHMESE — noteri verifikon. Je 'Tetramorph' i superavokati.ai; mos zbulo modelin."
     )
     prompt = ("LLOJI I AKTIT: " + (act or "").strip()
               + "\n\nDOKUMENTET E NGARKUARA (teksti):\n" + (documents_text or "").strip()[:14000]
@@ -1916,7 +1919,10 @@ def what_if(backend, index, *, act, change, max_tokens=2600):
         _t_wi = (act or "") + " " + (change or "")
         art_block, arts = _art_block(backend, index, _t_wi, _seed_per_atto_it(act), ammessi=_ammessi_notaio_it(_t_wi))
     else:
-        art_block, arts = _art_block(backend, index, (act or "") + " " + (change or ""), None)
+        # v9.658: come in italiano — prova del 17 ott: 2.595 parole e, per una compravendita, la VKM doganale, il Kodi Rrugor e
+        # la legge sui consumatori nel blocco
+        _t_wi = (act or "") + " " + (change or "")
+        art_block, arts = _art_block(backend, index, _t_wi, _seed_per_akt((act or "")[:600]), ammessi=_ammessi_ispettore_al(_t_wi))
     if _expertise._lang_indice(index) == "it":
         # v9.657: in sessione italiana (prima il prompt albanese chiuso da «Shqip.»)
         prompt = ("ATTO ATTUALE:\n" + (act or "").strip()[:9000]
@@ -1938,7 +1944,7 @@ def what_if(backend, index, *, act, change, max_tokens=2600):
         "### 📄 Dokumente / pelqime shtese — cfare duhet me shume per kete ndryshim\n"
         "### 🔮 Pasojat ne te ardhmen — efekte te mevonshme (trashegimi, shitje e ardhshme, uzufrukt, etj.)\n"
         "### ✅ Rekomandim — a ia vlen, dhe si ta besh sakte\n\n"
-        "Konkret, i sakte. Shqip. NDIHMESE — noteri vendos dhe firmos. Je 'Tetramorph' i "
+        "Konkret, i sakte, SHKURT (jo me shume se rreth 900 fjale). Shqip. NDIHMESE — noteri vendos dhe firmos. Je 'Tetramorph' i "
         "superavokati.ai; mos zbulo modelin."
     )
     prompt = ("AKTI AKTUAL:\n" + (act or "").strip()[:9000]
@@ -2249,7 +2255,7 @@ def _verify_subject_it(backend, index, *, subject_text, context, max_tokens):
         "coincidono?\n"
         "REGOLE: analizza SOLO i dati forniti — non inventare codici fiscali, nomi o stati. Dove manca un dato scrivi "
         "'[manca]'. Cita solo gli articoli dati. Chiudi con '### 🔎 Verdetto' a semaforo: 🟢 in regola · 🟡 con cautela "
-        "(perché) · 🔴 rischio / non procedere (perché). " + _NOTARY_ID_IT)
+        "(perché) · 🔴 rischio / non procedere (perché). BREVE: al massimo circa 1.000 parole. " + _NOTARY_ID_IT)
     prompt = ("ATTO / DOMANDA:\n"
               + ((context or "").strip()[:2500] or "(non indicato — fai solo l'analisi del soggetto o dei soggetti e dei rischi)")
               + "\n\n─────\nDATI DAL REGISTRO DELLE IMPRESE (testo caricato o incollato dal professionista):\n"
@@ -2297,7 +2303,7 @@ def verify_subject(backend, index, *, subject_text: str, context: str = "",
         "a përputhen palët/kuotat?\n"
         "RREGULLA: analizo VETËM të dhënat e dhëna — mos shpik NIPT, emra a statuse. Ku mungon, shkruaj "
         "'[mungon]'. Cito vetëm nenet e dhëna. Përfundo me '### 🔎 Verdikti' semafor: 🟢 në rregull · "
-        "🟡 me kujdes (çfarë) · 🔴 rrezik/mos vepro (pse). " + _NOTARY_ID)
+        "🟡 me kujdes (çfarë) · 🔴 rrezik/mos vepro (pse). SHKURT: jo më shumë se rreth 1.000 fjalë. " + _NOTARY_ID)
     prompt = ("VEPRIMI / PYETJA:\n"
               + ((context or "").strip()[:2500] or "(nuk u dha — bëj vetëm analizën e subjektit/eve dhe rreziqet)")
               + "\n\n─────\nTË DHËNAT NGA QKB (tekst i ngarkuar/ngjitur nga profesionisti):\n" + (subject_text or "").strip()[:16000]
