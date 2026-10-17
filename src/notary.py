@@ -177,6 +177,34 @@ _NOTAIO_IT_COL_MOTIVO = (
 )
 
 
+_ISPETTORE_AL_BASE = frozenset({
+    "kodi_civil", "kodi_proc_civile", "kodi_familjes", "ligji_noteri", "ligji_kadastra", "ligji_shoqerite_tregtare",
+    "ligji_pastrimi_parave", "ligji_konsumatoret", "ligji_tatimi_te_ardhurat", "ligji_permbarimi_privat", "ligji_ndermjetesimi",
+    "ligji_arbitrazhi"})
+_ISPETTORE_AL_COL_MOTIVO = (
+    (r"pandehur|veper\w*\s+penal|aktakuz|prokuror|\bkpp\b|\bkp\b|kallezim", ("kodi_penal", "kodi_proc_penale")),
+    (r"akt\w*\s+administrativ|bashki|ankim\w*\s+administrativ|\bkpa\b|organ\w*\s+publik",
+     ("kodi_proc_admin", "ligji_gjykatat_administrative")),
+    (r"punemarr|punedhen|kontrat\w*\s+(e\s+)?pun|\bpag[ae]\b", ("kodi_punes",)),
+    (r"automjet|makin|\btarg|dpshtrr", ("kodi_rrugor", "ligji_sigurimi_mjeteve")),
+    (r"dogan|\bmall(i|ra|rat)?\b|import|eksport", ("kodi_doganor", "vkm_dispozita_doganore")),
+    (r"tatim|tvsh|\bnipt\b|deklarat\w*\s+tatimor", ("ligji_procedurat_tatimore", "ligji_tvsh")),
+    (r"te dhena\w*\s+personal|privatesi", ("ligji_te_dhenat_2024",)),
+    (r"kushtetu", ("kushtetuta",)),
+)
+
+
+def _ammessi_ispettore_al(text: str):
+    """v9.657 — l'ispettore in sessione albanese: a una procura per vendere un appartamento arrivavano la VKM doganale, la legge
+    sull'IVA, la Costituzione e quella sui dati (prova del 17 ott). I codici degli atti e dei contratti; gli altri col loro motivo."""
+    t = _expertise._fold(text or "")
+    ok = set(_ISPETTORE_AL_BASE)
+    for rx, codici in _ISPETTORE_AL_COL_MOTIVO:
+        if re.search(rx, t):
+            ok.update(codici)
+    return lambda code, number: code in ok
+
+
 def _ammessi_ispettore_it(text: str):
     """v9.657 — l'ispettore legge ogni atto (contratti, atti giudiziari, atti notarili): i codici del notaio, il c.p.c. e il
     consumo, più il penale con un atto penale e l'amministrativo con un atto amministrativo (prova del 17 ott: a un preliminare
@@ -222,13 +250,41 @@ def _radici_akt(t: str) -> set:
     return {w[:5] for w in re.findall(r"[a-z]{4,}", t)}
 
 
+# v9.657 — le parole tipiche di ogni atto (prova del 17 ott: «shitje apartamenti … shitësi është i martuar» aveva UNA sola radice
+# in comune con «Kontratë shitjeje pasurie të paluajtshme» e la lista dei documenti restava senza i semi della compravendita)
+_FJALET_AKTI = {
+    "shitje_pasurie": "shitje shes shet shiti blen blerje blerës apartament shtëpi banesë truall tokë ndërtesë dyqan",
+    "hipoteke": "hipotekë hipotekor kredi bankë garanci",
+    "prokure": "prokurë autorizim përfaqësues",
+    "testament": "testament trashëgimlënës vullneti i fundit",
+    "dhurim": "dhurim dhuron dhurues dhuratë",
+    "trashegimi": "trashëgimi trashëgimtar dëshmi trashëgimie vdekje i ndjeri",
+    "kontrate_martese": "kontratë martese regjim pasuror bashkëshortë",
+    "themelim_shoqerie": "themelim shoqëri sh.p.k. ortak kapital",
+    "qira": "qira qiramarrës qiradhënës qiraja",
+    "huaje": "hua huadhënës huamarrës kthim interes",
+    "sipermarrje": "sipërmarrje ndërtim punime rikonstruksion",
+    "peng": "peng send i luajtshëm garanci",
+    "shkembim": "shkëmbim shkëmben",
+    "shitje_automjeti": "automjet makinë targë mjet",
+    "shitje_kuotash": "kuota kuotash ortak shoqëri kalim",
+    "premtim_shitje": "premtim kapar parakontratë",
+    "aktmarreveshje": "marrëveshje pajtim mosmarrëveshje",
+    "statut_shpk": "statut sh.p.k.",
+    "vendim_asambleje": "asamble vendim ortakë",
+    "likuidim_shpk": "likuidim mbyllje çregjistrim likuidues",
+    "uzufrukt": "uzufrukt uzufruktuar",
+    "servitut": "servitut kalim pronë shërbyese",
+}
+
+
 def _seed_per_akt(act: str):
     """I semi dell'atto del catalogo che somiglia di più alla descrizione («shitje pasurie e paluajtshme» → la compravendita):
     almeno due radici in comune, altrimenti nessuno (resta il recupero per termini). Solo per il corpus albanese."""
     fa = _radici_akt(act)
     best, key, score = None, None, 0
     for k, v in DEED_TYPES.items():
-        sc = len(fa & _radici_akt((v.get("label") or "") + " " + k.replace("_", " ")))
+        sc = len(fa & _radici_akt((v.get("label") or "") + " " + k.replace("_", " ") + " " + _FJALET_AKTI.get(k, "")))
         if sc > score:
             best, key, score = v, k, sc
     if score < 2 or not best:
@@ -1246,11 +1302,11 @@ DECLARATION_TYPES = {
         "must": ["Autorizuesi dhe i autorizuari", "Veprimi/qëllimi i autorizimit",
                  "Kufijtë dhe afati", "Data, nënshkrimi, vula"]},
     "vertetim_fakti": {"label": "Deklaratë për vërtetim fakti", "emoji": "\U0001f4cb",
-        "seed": [],
+        "seed": [("ligji_noteri", "131")],      # v9.657: il notaio certifica che una persona è in vita o dove dimora
         "must": ["Deklaruesi (identiteti)", "Fakti i deklaruar qartë (vendbanim, gjendje, pronësi etj.)",
                  "Përgjegjësia për vërtetësinë", "Data, nënshkrimi, vula"]},
     "burim_fondesh": {"label": "Deklaratë burimi të fondeve", "emoji": "\U0001f9fe",
-        "seed": [],
+        "seed": [("ligji_pastrimi_parave", "4"), ("ligji_pastrimi_parave", "4/1")],   # v9.657: la vigjilenca e duhur
         "must": ["Deklaruesi", "Shuma dhe transaksioni", "Burimi i ligjshëm i fondeve",
                  "Zotimi për vërtetësi (kundër pastrimit të parave)", "Data, nënshkrimi, vula"]},
 }
@@ -1352,13 +1408,15 @@ def documents_needed(backend, index, *, act: str, max_tokens: int = 1800) -> dic
         "### \U0001f4c4 Dokumentet e nevojshme — për secilin: çfarë është dhe kush e lëshon\n"
         "### \U0001f465 Për secilën palë — dokumentet e identitetit dhe të posaçme\n"
         "### ⚠️ Kujdes — verifikime kritike (barrë/hipoteka, pëlqime, zotësi, afate vlefshmërie)\n"
-        "Ji konkret e praktik. Mos shpik nene; nëse citon një nen, përdor vetëm ata të dhënë. "
+        # v9.657: la prova del 17 ott ne aveva 2.390 parole (in italiano 4.150, con la Cassazione dal web) → breve e senza web
+        "Ji konkret e praktik. Mos shpik nene; nëse citon një nen, përdor vetëm ata të dhënë. SHKURT: jo më shumë se rreth "
+        "600 fjalë, një dokument për rresht, pa jurisprudencë dhe pa seksione të tjera përveç të trijave. "
         + _NOTARY_ID)
     prompt = ("AKTI/SHËRBIMI:\n" + (act or "").strip()
               + "\n\n─────\nNENET NGA KORPUSI (nëse ka):\n" + art_block
               + "\n\nListo dokumentet që duhen.")
     md = backend.complete(system=system, messages=[{"role": "user", "content": prompt}],
-                          max_tokens=max_tokens, callsite="notary_documents")
+                          max_tokens=max_tokens, callsite="notary_documents", no_web=True)
     return {"markdown": (md or "").strip(),
             "articles": [{"code": c, "number": n} for c, n, _t in arts]}
 
@@ -1493,8 +1551,20 @@ _RISK_RE = _re.compile(r"RISK:\s*(\d{1,3})\s*(?:/\s*100)?\s*[·|\-–—:]*\s*(.
 def inspect_act(backend, index, *, text: str, prior_acts=None, max_tokens: int = 3000) -> dict:
     """Adversarial senior-reviewer pass over a notarial act. Returns a markdown
     report + a risk score (0-100, low=good) grounded in the issues found."""
-    art_block, arts = _art_block(backend, index, text, None,
-                                 ammessi=(_ammessi_ispettore_it(text) if _expertise._lang_indice(index) == "it" else None))
+    # v9.657: le norme dell'atto stesso (l'atto riconosciuto dalla descrizione e, per un atto notarile, la forma) — prova del 17 ott:
+    # l'ispettore di una procura a vendere riceveva KC 95, KPC 453 e 573, non i KC 70-72 né la forma dell'atto notarile
+    _it_in = _expertise._lang_indice(index) == "it"
+    _f_in = _expertise._fold((text or "")[:3000])
+    if _it_in:
+        _semi_in = list(_seed_per_atto_it((text or "")[:600]) or [])
+        if re.search(r"notai|rogito|repertorio|\bprocura\b", _f_in):
+            _semi_in += [x for x in (("legge_notarile", "47"), ("legge_notarile", "51")) if x not in _semi_in]
+    else:
+        _semi_in = list(_seed_per_akt((text or "")[:600]) or [])
+        if re.search(r"noter|prokur|testament|\bakt\w*\s+noterial", _f_in):
+            _semi_in += [x for x in _SEED_FORMA_AKTI if x not in _semi_in]
+    art_block, arts = _art_block(backend, index, text, _semi_in or None, extra=max(0, len(_semi_in) - 8),
+                                 ammessi=(_ammessi_ispettore_it(text) if _it_in else _ammessi_ispettore_al(text)))
     prior_acts = prior_acts or []
     if prior_acts:
         blocks = []
@@ -1824,8 +1894,39 @@ def client_comm(backend, index, *, kind, text, max_tokens=2000):
 # ÇKA NËSE… (Tier 2 #2) — simula l'impatto di una modifica di clausola/
 # parametro: effetti giuridici, tasse, rischi, documenti, futuro.
 # ═══════════════════════════════════════════════════════════════════
+_WHAT_IF_SYSTEM_IT = (
+    "Sei un ANALISTA GIURIDICO. Ti vengono dati l'ATTO attuale (contratto, atto processuale o giudiziario, atto notarile) e una "
+    "MODIFICA a cui il professionista sta pensando («e se…»). Analizza l'IMPATTO di questa modifica — sulla base dell'atto, della "
+    "modifica e degli articoli del corpus. NON inventare articoli né importi di imposte. Dai (markdown):\n"
+    "### 🔄 La modifica — riassumi in breve che cosa cambia\n"
+    "### ⚖️ Effetti giuridici — che cosa cambia per la legge (diritti, obblighi, proprietà, forma richiesta)\n"
+    "### 💶 Imposte e tariffe — l'impatto su imposte e tariffe (INDICATIVO, non definitivo — verifica con le tariffe ufficiali)\n"
+    "### ⚠️ Rischi nuovi — quali rischi aggiunge o toglie questa modifica\n"
+    "### 📄 Documenti / consensi in più — che cosa serve in più per questa modifica\n"
+    "### 🔮 Conseguenze future — effetti successivi (successione, vendita futura, usufrutto, ecc.)\n"
+    "### ✅ Raccomandazione — conviene, e come farlo correttamente\n\n"
+    "Concreto, esatto, BREVE (al massimo circa 900 parole). In italiano. È un AUSILIO — decide e firma il professionista. Sei "
+    "«Tetramorph» di superavokati.ai; non rivelare il modello.")
+
+
 def what_if(backend, index, *, act, change, max_tokens=2600):
-    art_block, arts = _art_block(backend, index, (act or "") + " " + (change or ""), None)
+    if _expertise._lang_indice(index) == "it":
+        # prova del 17 ott: senza semi né filtro arrivavano il codice della crisi, il TUB, c.p.c. 807 e il codice delle
+        # assicurazioni, e la risposta era di 3.478 parole
+        _t_wi = (act or "") + " " + (change or "")
+        art_block, arts = _art_block(backend, index, _t_wi, _seed_per_atto_it(act), ammessi=_ammessi_notaio_it(_t_wi))
+    else:
+        art_block, arts = _art_block(backend, index, (act or "") + " " + (change or ""), None)
+    if _expertise._lang_indice(index) == "it":
+        # v9.657: in sessione italiana (prima il prompt albanese chiuso da «Shqip.»)
+        prompt = ("ATTO ATTUALE:\n" + (act or "").strip()[:9000]
+                  + "\n\nLA MODIFICA A CUI PENSO (e se…):\n" + (change or "").strip()[:2000]
+                  + "\n\n─────\nARTICOLI DEL CORPUS (cita solo questi):\n" + art_block
+                  + "\n\nAnalizza l'impatto della modifica.")
+        md = backend.complete(system=_WHAT_IF_SYSTEM_IT, messages=[{"role": "user", "content": prompt}],
+                              max_tokens=max_tokens, callsite="notary_whatif")
+        return {"markdown": (md or "").strip(),
+                "articles": [{"code": c, "number": n} for c, n, _t in arts]}
     system = (
         "Ti je ANALIST JURIDIK. Te jepet AKTI aktual (kontratë, akt procedural/gjyqësor ose akt notarial) dhe nje NDRYSHIM qe profesionisti "
         "po mendon ('cka nese...'). Analizo IMPAKTIN e ketij ndryshimi — i bazuar te akti, te ndryshimi "
@@ -2117,11 +2218,58 @@ _VERIFY_SUBJECT_LIKUIDIM = [("ligji_shoqerite_tregtare", "191"), ("ligji_shoqeri
                             ("ligji_shoqerite_tregtare", "197")]
 
 
+# v9.657 — la stessa due diligence in sessione ITALIANA sulla VISURA CAMERALE (prima: il prompt sul QKB albanese, i semi della
+# legge 9901/2008 che nell'indice italiano non esistono, gli stati «Aktiv / Në likuidim / I çregjistruar»)
+_VERIFY_SUBJECT_SEED_IT = [("codice_civile", n) for n in ("2475", "2475-bis", "2475-ter", "2383", "2384", "2468")] + \
+    [("antiriciclaggio", "20")]
+_VERIFY_SUBJECT_LIQ_IT = [("codice_civile", n) for n in ("2484", "2486", "2487", "2487-bis", "2489", "2495")]
+
+
+def _verify_subject_it(backend, index, *, subject_text, context, max_tokens):
+    q = (context or "") + " società amministratore socio quote stato liquidazione cancellazione rappresentanza poteri"
+    _seed = list(_VERIFY_SUBJECT_SEED_IT)
+    _t = ((subject_text or "") + " " + (context or "")).lower()
+    if re.search(r"liquidaz|scioglim|cancellat", _t):
+        _seed += _VERIFY_SUBJECT_LIQ_IT
+    if re.search(r"\bvend|cession|\bcede|aliena|ipotec|acquist|compra|donazion", (context or "").lower()):
+        _seed += [("codice_civile", "2479"), ("codice_civile", "2479-bis")]
+    art_block, arts = _art_block(backend, index, q, _seed, extra=max(0, len(_seed) - 8), ammessi=_ammessi_notaio_it(q))
+    system = (
+        "Sei un giurista che svolge la DUE DILIGENCE su un SOGGETTO commerciale prima di un atto (vendita, procura, contratto) "
+        "o per la domanda di un collega. Ti viene dato un testo dal Registro delle imprese — una VISURA o un RISULTATO DI "
+        "RICERCA (può contenere più soggetti: ricerca per nome o per PERSONA).\n"
+        "COMPITO:\n"
+        "1) ESTRAI per ciascun soggetto: denominazione, codice fiscale e partita IVA, forma (S.r.l., S.p.A., ditta "
+        "individuale…), STATO (attiva / inattiva / sospesa / in liquidazione / cancellata / sottoposta a procedura "
+        "concorsuale), amministratori e poteri, soci con le quote, capitale, oggetto, data di iscrizione.\n"
+        "2) SEGNALA I RISCHI: stato non attivo (liquidazione, cancellazione, procedura concorsuale → 🔴), poteri limitati o "
+        "firma congiunta, modifiche recenti; e — se il testo è una ricerca per PERSONA — quali delle società collegate sono in "
+        "situazione critica (segnale antiriciclaggio / adeguata verifica rafforzata).\n"
+        "3) INCROCIA con l'atto o la domanda: questo soggetto può agire legalmente? chi firma ha i poteri? parti e quote "
+        "coincidono?\n"
+        "REGOLE: analizza SOLO i dati forniti — non inventare codici fiscali, nomi o stati. Dove manca un dato scrivi "
+        "'[manca]'. Cita solo gli articoli dati. Chiudi con '### 🔎 Verdetto' a semaforo: 🟢 in regola · 🟡 con cautela "
+        "(perché) · 🔴 rischio / non procedere (perché). " + _NOTARY_ID_IT)
+    prompt = ("ATTO / DOMANDA:\n"
+              + ((context or "").strip()[:2500] or "(non indicato — fai solo l'analisi del soggetto o dei soggetti e dei rischi)")
+              + "\n\n─────\nDATI DAL REGISTRO DELLE IMPRESE (testo caricato o incollato dal professionista):\n"
+              + (subject_text or "").strip()[:16000]
+              + "\n\n─────\nARTICOLI DEL CORPUS (cita solo questi):\n" + art_block
+              + "\n\nRispondi in markdown: **Soggetto/i** (i dati) · **Rischi e segnali** · "
+              + "**Incrocio con l'atto** · **🔎 Verdetto**.")
+    md = backend.complete(system=system, messages=[{"role": "user", "content": prompt}],
+                          max_tokens=max_tokens, callsite="notary_verify_subject")
+    return {"markdown": (md or "").strip(),
+            "articles": [{"code": c, "number": n} for c, n, _t in arts]}
+
+
 def verify_subject(backend, index, *, subject_text: str, context: str = "",
                    max_tokens: int = 2800) -> dict:
     """Analizo të dhënat e një SUBJEKTI nga QKB (ekstrakt ose rezultat kërkimi, edhe me
     person → disa shoqëri) dhe kryqëzoji me veprimin/pyetjen. NDIHMESË: të dhënat i merr
     vetë profesionisti nga QKB (publik) — ky mjet i analizon, nuk lidhet live me QKB."""
+    if _expertise._lang_indice(index) == "it":
+        return _verify_subject_it(backend, index, subject_text=subject_text, context=context, max_tokens=max_tokens)
     q = (context or "") + " shoqëri administrator ortak aksionar status likuidim çregjistrim përfaqësim tagra kuota"
     # v9.618: quando la società VENDE o dispone di un bene, l'assemblea dei soci (legge sulle società art. 82/4: oltre il 5 % degli
     # attivi la convoca l'amministratore; art. 81 le competenze, art. 87 le maggioranze) — nell'audit dell'11 ott «le disposizioni

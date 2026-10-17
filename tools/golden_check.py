@@ -14258,6 +14258,8 @@ const F = new Function("localStorage", "document", "fetch", "renderMarkdown", "_
             (_nt461.PROKURA_SCOPES, "heqje_dore_trashegimie", ("kodi_civil", "333"), "heqja dorë"),
             (_nt461.PROKURA_SCOPES, "likuidim_shpk", ("ligji_shoqerite_tregtare", "191"), "likuid"),
             (_nt461.PROKURA_SCOPES, "perfaqesim_tatimor", ("ligji_procedurat_tatimore", "35"), "përfaqësim"),
+            (_nt461.DECLARATION_TYPES, "burim_fondesh", ("ligji_pastrimi_parave", "4"), "vigjilenc"),           # v9.657
+            (_nt461.DECLARATION_TYPES, "vertetim_fakti", ("ligji_noteri", "131"), "gjallë"),
         ]
         _ko461 = [(k, s) for d, k, s, parola in _attese461 if s not in _semi461(d, k) or parola not in _testo461(*s)]
         _vietati461 = {("kodi_civil", "1064"), ("kodi_civil", "1065"), ("ligji_shoqerite_tregtare", "34"), ("kodi_punes", "72")}
@@ -14404,6 +14406,12 @@ const F = new Function("localStorage", "document", "fetch", "renderMarkdown", "_
             _sysex465 = _b465.system
             _nt465.dossier_checklist(_b465, _it465, act="Compravendita immobiliare", documents_text="Carta d'identità.")
             _sysck465 = _b465.system
+            _wi465 = _nt465.what_if(_b465, _it465, act="Compravendita di un appartamento a Milano.",
+                                    change="E se il prezzo fosse pagato a rate?")
+            _syswi465 = _b465.system
+            _vs465 = _nt465.verify_subject(_b465, _it465, subject_text="Visura: ESEMPIO S.R.L., in liquidazione, amministratore Mario Prova.",
+                                           context="La società vende un immobile.")
+            _sysvs465 = _b465.system
         finally:
             _br465.set_request_jurisdiction("AL")
         _lal465 = _nt465.list_deed_types()
@@ -14426,7 +14434,13 @@ const F = new Function("localStorage", "document", "fetch", "renderMarkdown", "_
                      and "In italiano" in _syscl465 and "Shqip" not in _syscl465 and "ASHK" not in _syscl465
                      and "ISPETTORE" in _sysin465 and "shqiptare" not in _sysin465 and "RISK:" in _sysin465
                      and "visura" in _sysex465 and "ASHK" not in _sysex465 and "në shqip" not in _sysex465
-                     and "prassi italiana" in _sysck465 and "110/2018" not in _sysck465 and "PLOTESIA:" in _sysck465)
+                     and "prassi italiana" in _sysck465 and "110/2018" not in _sysck465 and "PLOTESIA:" in _sysck465
+                     and "ANALISTA GIURIDICO" in _syswi465 and "Shqip" not in _syswi465
+                     and ("codice_civile", "1470") in {(a["code"], str(a["number"])) for a in _wi465["articles"]}
+                     and not [a for a in _wi465["articles"] if a["code"] not in _nt465._NOTAIO_IT_BASE]
+                     and "Registro delle imprese" in _sysvs465 and "QKB" not in _sysvs465
+                     and {("codice_civile", "2475-bis"), ("codice_civile", "2487"), ("codice_civile", "2486")}
+                     <= {(a["code"], str(a["number"])) for a in _vs465["articles"]})
         _ok465 = (_okdc465 and _altri465 and set(_nt465.DEED_TYPES) <= set(_ATTI465)
                   and not [(k, x) for k, v in _ATTI465.items() for x in v["seed"] if x not in _by465]
                   and not [t for t in _lit465 if re.search(r"[ëç]", t["label"] + " ".join(t["must"]))]
@@ -14440,6 +14454,35 @@ const F = new Function("localStorage", "document", "fetch", "renderMarkdown", "_
               _ok465, f"dichiarazioni={_okdc465} altri={_altri465} articoli={_arts465} fuori={_fuori465} sys={_sys465[:100]!r} msg={_msg465[:100]!r}")
     except Exception as _e465:  # noqa: BLE001
         check("notaio[465]: kontrollet u ekzekutuan", False, f"{type(_e465).__name__}: {_e465}")
+
+    # [466] v9.657 — GLI STRUMENTI DEL NOTAIO ALBANESE dalla prova del 17 ott: la lista dei documenti di 2.390 parole e senza i semi
+    # della compravendita («shitje apartamenti» aveva una sola radice in comune con l'etichetta dell'atto), l'ispettore a cui, per
+    # una procura a vendere, arrivavano la VKM doganale, l'IVA, la Costituzione e la legge sui dati
+    try:
+        from src import notary as _nt466
+
+        class _B466:
+            def complete(self, system="", messages=None, **kw):
+                self.system, self.kw = system, kw
+                return "## x"
+        _b466 = _B466()
+        _al466 = ArticleIndex.load()
+        _sp466 = _nt466._seed_per_akt("Shitje apartamenti në Tiranë midis dy personave privatë; shitësi është i martuar.") or []
+        _d466 = _nt466.documents_needed(_b466, _al466, act="Shitje apartamenti në Tiranë; shitësi është i martuar.")
+        _kwd466, _sysd466 = dict(_b466.kw), _b466.system
+        _i466 = _nt466.inspect_act(_b466, _al466, text=(
+            "PROKURË E POSAÇME. Unë, Arben Prova, autorizoj Gent Shembullin të shesë apartamentin tim në Durrës, nr. pasurie "
+            "12/45, me çmim jo më pak se 60.000 euro, dhe të marrë çmimin."))
+        _fuori466 = [(a["code"], a["number"]) for a in _i466["articles"] if a["code"] not in _nt466._ISPETTORE_AL_BASE]
+        _ok466 = (("kodi_civil", "750") in _sp466 and _kwd466.get("no_web") is True and "SHKURT" in _sysd466
+                  and ("kodi_civil", "750") in {(a["code"], str(a["number"])) for a in _d466["articles"]}
+                  and not _fuori466 and _nt466._seed_per_akt("Vendim i asamblesë për kapitalin") != _sp466
+                  and {("kodi_civil", "72"), ("ligji_noteri", "105")} <= {(a["code"], str(a["number"])) for a in _i466["articles"]})
+        check("notaio[466]: gli strumenti del notaio albanese — lista dei documenti breve, senza web e coi semi dell'atto "
+              "riconosciuto dalle parole tipiche; ispettore coi soli codici dell'atto (gli altri col loro motivo)",
+              _ok466, f"semi={_sp466[:4]} kw={_kwd466} fuori={_fuori466}")
+    except Exception as _e466:  # noqa: BLE001
+        check("notaio[466]: kontrollet u ekzekutuan", False, f"{type(_e466).__name__}: {_e466}")
 
     # [462] v9.654 — LA FABBRICA DEGLI ATTI IN SESSIONE ITALIANA: la citazione senza il termine a comparire (163-bis) e i fori,
     # l'appello penale senza la forma dell'impugnazione (581, coi commi Cartabia a pena di inammissibilità) né il 591, il ricorso
