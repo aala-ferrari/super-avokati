@@ -93,12 +93,12 @@ TEMPLATES = {
         "elements": ["Marrja/përvetësimi i pasurisë së luajtshme", "Pasuria i përket tjetrit",
                      "Pa pëlqimin e pronarit", "Dashja për përvetësim përfundimtar (dolus)"],
         "evidence": ["Kallëzimi i të dëmtuarit + listë sendesh", "CCTV / dëshmitarë",
-                     "Gjurmë (ADN, gjurmë gishtash)", "Recuperim i sendit të vjedhur",
+                     "Gjurmë (ADN, gjurmë gishtash)", "Rikuperimi i sendit të vjedhur",
                      "Vlerësim i vlerës së sendit"],
         "deadlines": ["Parashkrimi sipas rëndësisë së veprës", "Afati i ankimit 15 ditë"],
         "defenses": ["Alibi / identifikim i gabuar", "Mungesë dashjeje", "Pëlqim i pronarit",
                      "Provë e marrë në kundërshtim me ligjin (kërkesë përjashtimi)"],
-        "valuation": "Dënimi sipas tierit (vlerë, rrethana). Lehtësuese: kthim sendi, dëmshpërblim, mungesë precedentësh.",
+        "valuation": "Dënimi sipas paragrafit të nenit 134 (bashkëpunimi, përsëritja, rrethanat). Lehtësuese: kthim sendi, dëmshpërblim, mungesë precedentësh.",
         "questions": ["Cila është akuza e saktë (neni)?",
                       "A ka CCTV/dëshmitarë që identifikojnë autorin?",
                       "A u kthye sendi ose a ka dëmshpërblim?",
@@ -119,7 +119,7 @@ TEMPLATES = {
         "deadlines": ["Parashkrimi", "Afati i ankimit 15 ditë", "Afatet e paraburgimit"],
         "defenses": ["Identifikim i gabuar / alibi", "Kontestim i përdorimit të forcës (rikualifikim si vjedhje e thjeshtë 134)",
                      "Mungesë dashjeje", "Chain-of-custody i armës / provë e paligjshme"],
-        "valuation": "Dënim i rëndë sipas rrethanave. Kontesto rrethanat rënduese për ulje tieri.",
+        "valuation": "Dënim i rëndë sipas rrethanave. Kontesto rrethanat rënduese për të zbritur në paragrafin më të lehtë.",
         "questions": ["A u përdor forcë apo armë, dhe si u provua?",
                       "A ka dëmtim trupor (raport mjeko-ligjor)?",
                       "A veproi vetëm apo në grup?",
@@ -162,14 +162,14 @@ TEMPLATES = {
                              ("kodi_penal", "92"), ("kodi_penal", "48"), ("kodi_penal", "66"),
                              ("kodi_proc_penale", "284"), ("kodi_proc_penale", "286")],
         "elements": ["Veprim i kundërligjshëm", "Dëmtim trupor ndaj tjetrit",
-                     "Dashje ose pakujdesi", "Rëndësia e plagës (tier: e rëndë 88 / e lehtë 89)"],
-        "evidence": ["Raport mjeko-ligjor (ditë paaftësie → tieri)", "Foto plagësh / dosje spitalore",
+                     "Dashje ose pakujdesi", "Rëndësia e plagës (e rëndë 88 / e lehtë 89)"],
+        "evidence": ["Raport mjeko-ligjor (ditët e paaftësisë → neni 88, 89 ose 90)", "Foto plagësh / dosje spitalore",
                      "Arma (thika) + sekuestrim", "Dëshmitarë / CCTV për fillimin e konfliktit"],
-        "deadlines": ["Parashkrimi sipas tierit", "Afati i ankimit 15 ditë"],
+        "deadlines": ["Parashkrimi sipas nenit të veprës (88, 89 ose 90)", "Afati i ankimit 15 ditë"],
         "defenses": ["Vetëmbrojtje / mbrojtje e domosdoshme (proporcionaliteti)", "Provokim",
-                     "Kontestim i rëndësisë së plagës (ulje tieri 88→89)", "Identifikim i gabuar",
+                     "Kontestim i rëndësisë së plagës (nga neni 88 te 89)", "Identifikim i gabuar",
                      "Chain-of-custody i armës"],
-        "valuation": "Dënimi sipas tierit të plagës. Beteja kryesore: rëndësia e plagës + vetëmbrojtja.",
+        "valuation": "Dënimi sipas nenit të plagës (88, 89 ose 90). Beteja kryesore: rëndësia e plagës + vetëmbrojtja.",
         "questions": ["Sa ditë paaftësie tregon raporti mjeko-ligjor?",
                       "Kush e filloi konfliktin / a kishte kanosje ndaj klientit?",
                       "A u përdor thikë/armë dhe si u sekuestrua?",
@@ -190,7 +190,7 @@ TEMPLATES = {
         "deadlines": ["Parashkrimi", "Afati i ankimit 15 ditë"],
         "defenses": ["Mosmarrëveshje thjesht civile (jo penale)", "Mungesë dashjeje mashtruese",
                      "Mungesë e lidhjes shkakësore me dëmin"],
-        "valuation": "Dënim sipas vlerës së dëmit. Argumento natyrën civile për të shmangur penalen.",
+        "valuation": "Dënimi sipas paragrafit të nenit 143 (bashkëpunimi, përsëritja, pasojat). Argumento natyrën civile për të shmangur penalen.",
         "questions": ["Cili ishte mashtrimi konkret dhe si u vu në lajthim viktima?",
                       "Sa është dëmi pasuror dhe si provohet?",
                       "A ka prova të dashjes që në fillim (jo thjesht mospërmbushje kontrate)?"],
@@ -258,7 +258,7 @@ TEMPLATES = {
         "evidence": ["Raport mjeko-ligjor për lëndimet — URGJENT, bëje menjëherë",
                      "Foto/video të lëndimeve me datë",
                      "Procesverbali i kontrollit/shoqërimit (kërkoje zyrtarisht)",
-                     "Regjistrimet e kamerave të posto-bllokut / body-cam",
+                     "Regjistrimet e kamerave të postbllokut / body-cam",
                      "Urdhri i shërbimit dhe emrat/numrat e identifikimit të agjentëve",
                      "Dëshmitarë okularë",
                      "Regjistri i ndalimit të përkohshëm policor (neni 36, Ligji 82/2024)"],
@@ -270,7 +270,7 @@ TEMPLATES = {
                      "Pretendim se u identifikuan — kundërshto: maskim, pa teserë/numër",
                      "Pretendim se ndalimi ishte brenda afateve — kontrollo kohëzgjatjen reale"],
         "valuation": "Ndaj përgjegjësitë: (a) PENALE e agjentëve (neni 250 veprime arbitrare / 248 shpërdorim detyre / 86 torturë / 88-89 plagosje / 314 dhunë gjatë hetimeve), (b) DISIPLINORE (Agjencia e Mbikëqyrjes Policore, AMP), (c) DËMSHPËRBLIM civil (padi civile brenda procesit penal, neni 61 KPP, ose ndaj shtetit). Vlerëso dëmin pasuror + jopasuror.",
-        "questions": ["Data, ora dhe vendi i saktë i posto-bllokut?",
+        "questions": ["Data, ora dhe vendi i saktë i postbllokut?",
                       "A u identifikuan agjentët dhe a treguan teserë/numër identifikimi?",
                       "A ke lëndime dhe a ke bërë raport mjeko-ligjor?",
                       "Sa zgjati mbajtja dhe a të lejuan të kontaktoje avokat/familjar?",
@@ -284,16 +284,25 @@ TEMPLATES = {
 
 # v9.644 — i semi ITALIANI delle perizie (verificati sul corpus IT) e quelli per situazione
 _SEMI_IT = {
-    "aksident_rrugor": [("codice_civile", n) for n in ("2043", "2054", "2056", "2059", "2947")]
-    + [("codice_penale", "590-bis")] + [("codice_assicurazioni", n) for n in ("144", "145", "148", "149", "283")],
-    "vjedhje": [("codice_penale", n) for n in ("624", "624-bis", "625", "62", "131-bis", "157")],
-    "grabitje": [("codice_penale", n) for n in ("628", "624", "62", "157")],
-    "vrasje": [("codice_penale", n) for n in ("575", "576", "577", "584", "589", "52", "55", "88", "89", "62")],
-    "plagosje": [("codice_penale", n) for n in ("582", "583", "585", "52", "55", "59", "62", "124", "157", "590")],
-    "mashtrim": [("codice_penale", n) for n in ("640", "640-ter", "124", "157")],
-    "mosmarreveshje_civile": [("codice_civile", n) for n in ("1218", "1223", "1453", "1454", "1455", "1382", "1384", "2946")],
-    "abuzim_policor": [("codice_penale", n) for n in ("581", "582", "608", "613-bis")]
-    + [("costituzione", "13"), ("cedu", "3"), ("cedu", "5")],
+    # v9.656: ogni articolo che il modello italiano (perizie_it.TESTI_IT) nomina è fra i semi — la perizia sull'abuso di polizia
+    # dichiarava «non nel corpus» gli artt. 349 e 74 c.p.p., 124 c.p., 2043-2059 c.c., che ci sono; + i termini d'impugnazione
+    # (art. 585 c.p.p.) in tutte le perizie penali
+    "aksident_rrugor": [("codice_civile", n) for n in ("2043", "2054", "2056", "2059", "2947", "1227")]
+    + [("codice_penale", "590-bis")] + [("codice_assicurazioni", n) for n in ("144", "145", "148", "149", "283", "138", "139")],
+    "vjedhje": [("codice_penale", n) for n in ("624", "624-bis", "625", "62", "131-bis", "157", "124")]
+    + [("codice_procedura_penale", "585")],
+    "grabitje": [("codice_penale", n) for n in ("628", "624", "62", "157")] + [("codice_procedura_penale", "585")],
+    "vrasje": [("codice_penale", n) for n in ("575", "576", "577", "584", "589", "52", "55", "88", "89", "62")]
+    + [("codice_procedura_penale", "585")],
+    "plagosje": [("codice_penale", n) for n in ("582", "583", "585", "52", "55", "59", "62", "124", "157", "590")]
+    + [("codice_procedura_penale", "585")],
+    "mashtrim": [("codice_penale", n) for n in ("640", "640-ter", "124", "157", "61", "62")] + [("codice_procedura_penale", "585")],
+    "mosmarreveshje_civile": [("codice_civile", n) for n in ("1218", "1223", "1225", "1453", "1454", "1455", "1460", "1382", "1384",
+                                                             "2946")],
+    "abuzim_policor": [("codice_penale", n) for n in ("581", "582", "608", "613-bis", "605", "606", "610", "53", "124")]
+    + [("codice_procedura_penale", n) for n in ("349", "352", "74")]
+    + [("costituzione", "13"), ("costituzione", "28"), ("cedu", "3"), ("cedu", "5")]
+    + [("codice_civile", "2043"), ("codice_civile", "2059")],
 }
 _SEMI_SE_IT = {
     "mosmarreveshje_civile": [
@@ -334,10 +343,29 @@ _ORDER = ["aksident_rrugor", "vjedhje", "grabitje", "vrasje", "plagosje",
           "mashtrim", "mosmarreveshje_civile", "abuzim_policor"]
 
 
+def _sessione_it() -> bool:
+    try:
+        from .brain import request_jurisdiction
+        return (request_jurisdiction() or "AL").upper() == "IT"
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def testi_modello(case_type: str, it: bool) -> dict:
+    """v9.656 — i testi del modello nella giurisdizione della sessione: in Italia quelli scritti per il diritto italiano
+    (`perizie_it.TESTI_IT`: prima arrivavano i testi albanesi con i numeri del KP e della legge sulla polizia albanese)."""
+    t = TEMPLATES[case_type]
+    if not it:
+        return t
+    from .perizie_it import TESTI_IT
+    return {**t, **TESTI_IT.get(case_type, {})}
+
+
 def list_templates() -> list[dict]:
+    it = _sessione_it()
     out = []
     for k in _ORDER:
-        t = TEMPLATES[k]
+        t = testi_modello(k, it)
         out.append({"key": k, "label": t["label"], "emoji": t["emoji"],
                     "domain": t["domain"], "questions": t["questions"],
                     "elements": t["elements"], "evidence": t["evidence"],
@@ -736,6 +764,30 @@ def _grounded_articles(index, tpl, facts):
     return arts
 
 
+def _system_it(tpl) -> str:
+    """v9.656 — il prompt della perizia in sessione italiana (prima era quello albanese, «Ti je ekspert i lartë i së drejtës
+    shqiptare… Shqip», con il vincolo italiano in coda, e la forma breve chiedeva di citare «neni [numri] KC»)."""
+    from .perizie_it import DUAL_PENALE_IT, FORMA_EKSP_IT
+    dual = tpl.get("dual") or (DUAL_PENALE_IT if tpl["domain"] == "penal" else "")
+    return (
+        "Sei un esperto di alto livello del diritto italiano. Costruisci una PERIZIA strutturata per il tipo di caso «"
+        + tpl["label"] + "», basata SOLO sui fatti dati e sugli ARTICOLI dati (estratti dal nostro corpus). NON inventare "
+        "articoli, numeri o sentenze — usa solo quelli che ti vengono dati; se un articolo non ti viene dato, descrivilo a "
+        "parole senza inventarlo.\n\n"
+        "Dai queste sezioni (markdown):\n"
+        "### \U0001f4dc Base giuridica (articoli applicabili)\n"
+        "### \u2705 Elementi da provare — per ciascuno: cosa lo prova, cosa MANCA (lacuna), forza (forte/media/debole)\n"
+        "### \U0001f4cb Checklist delle prove (cosa hai / cosa ti serve)\n"
+        "### \u23f0 Termini critici\n"
+        "### \U0001f6e1\ufe0f Difese / punti deboli\n"
+        "### \U0001f4b0 Valutazione (danno o pena)\n"
+        + dual +
+        "\n\nChiaro, concreto, operativo. In italiano. È un AUSILIO — decide e firma il professionista. Non rivelare mai il "
+        "modello — sei «Tetramorph» di superavokati.ai."
+        + FORMA_EKSP_IT
+    )
+
+
 def _system(tpl) -> str:
     dual = ""
     if tpl.get("dual"):
@@ -1000,21 +1052,39 @@ def analyze(backend, index, *, case_type: str, facts: str, max_tokens: int = 280
                              ammessi=(_codici_ammessi_eksp(case_type, tpl, facts) if _al
                                       else _codici_ammessi_eksp_it(case_type, tpl, facts)))
     art_block = blocco_articoli(arts, _lang_indice(index))      # v9.399: 3.500 caratteri, etichette della sessione
-    scaffold = (
-        "STRUKTURA E PRITSHME:\n"
-        "- Elementet tipike: " + "; ".join(tpl["elements"]) + "\n"
-        "- Provat tipike: " + "; ".join(tpl["evidence"]) + "\n"
-        "- Mbrojtjet tipike: " + "; ".join(tpl["defenses"]) + "\n"
-        "- Vlerësimi: " + tpl["valuation"]
-    )
-    prompt = (
-        "LLOJI: " + tpl["label"] + "\n\nFAKTET E ÇËSHTJES:\n" + (facts or "").strip()
-        + "\n\n\u2500\u2500\u2500\u2500\u2500\nNENET NGA KORPUSI (cito vetëm këto):\n" + art_block
-        + "\n\n\u2500\u2500\u2500\u2500\u2500\n" + scaffold
-        + "\n\nNdërto ekspertizën e plotë."
-    )
+    if not _al:
+        # v9.656: in sessione italiana i testi del modello scritti per il diritto italiano e il prompt italiano (prima la
+        # struttura albanese portava al modello «rikualifikim si vjedhje e thjeshtë 134», «Ligji 82/2024»…)
+        tpl = testi_modello(case_type, True)
+        scaffold = (
+            "STRUTTURA ATTESA:\n"
+            "- Elementi tipici: " + "; ".join(tpl["elements"]) + "\n"
+            "- Prove tipiche: " + "; ".join(tpl["evidence"]) + "\n"
+            "- Difese tipiche: " + "; ".join(tpl["defenses"]) + "\n"
+            "- Valutazione: " + tpl["valuation"]
+        )
+        prompt = (
+            "TIPO: " + tpl["label"] + "\n\nFATTI DEL CASO:\n" + (facts or "").strip()
+            + "\n\n\u2500\u2500\u2500\u2500\u2500\nARTICOLI DEL CORPUS (cita solo questi):\n" + art_block
+            + "\n\n\u2500\u2500\u2500\u2500\u2500\n" + scaffold
+            + "\n\nCostruisci la perizia completa."
+        )
+    else:
+        scaffold = (
+            "STRUKTURA E PRITSHME:\n"
+            "- Elementet tipike: " + "; ".join(tpl["elements"]) + "\n"
+            "- Provat tipike: " + "; ".join(tpl["evidence"]) + "\n"
+            "- Mbrojtjet tipike: " + "; ".join(tpl["defenses"]) + "\n"
+            "- Vlerësimi: " + tpl["valuation"]
+        )
+        prompt = (
+            "LLOJI: " + tpl["label"] + "\n\nFAKTET E ÇËSHTJES:\n" + (facts or "").strip()
+            + "\n\n\u2500\u2500\u2500\u2500\u2500\nNENET NGA KORPUSI (cito vetëm këto):\n" + art_block
+            + "\n\n\u2500\u2500\u2500\u2500\u2500\n" + scaffold
+            + "\n\nNdërto ekspertizën e plotë."
+        )
     md = backend.complete(
-        system=_juris(_system(tpl) + (_ANKIMI_AL if _al and tpl.get("domain") == "penal" else "")),
+        system=_juris((_system(tpl) + (_ANKIMI_AL if _al and tpl.get("domain") == "penal" else "")) if _al else _system_it(tpl)),
         messages=[{"role": "user", "content": prompt}],
         max_tokens=max_tokens, callsite="expertise",  # default = Opus effort=max (dy mendjet)
     )

@@ -27,9 +27,16 @@ legittimo e resta permesso.
 """
 from __future__ import annotations
 
+import re
+
 from . import expertise as _expertise
 from .logging_utils import get_logger
 from .gjykatat import EMRAT_GJYKATAVE_AL
+
+# v9.656 — i fatti di un atto tributario (l'autotutela del fisco ha le sue norme e il suo giudice)
+_RX_FISCO_IT = (r"agenzia (delle )?entrate|\btribut|\bimpost[ae]\b|\btass[ae]\b|cartella (di pagamento|esattoriale)|"
+                r"avviso di accertamento|accertamento (fiscale|tributario)|avviso bonario|\bcontribuente\b|"
+                r"\birpef\b|\bimu\b|\btari\b|\biva\b")
 
 log = get_logger(__name__)
 
@@ -167,8 +174,15 @@ CATALOGUE_IT: dict[str, dict] = {
         "emoji": "\U0001f6d2", "family": CLAIM, "group": "Diffide alla controparte",
         "recipient": "Venditore / Professionista",
         "channel": "PEC, raccomandata A/R o modulo di reclamo tracciato",
-        "seeds": [("codice_consumo", "33"), ("codice_consumo", "36"),
-                  ("codice_consumo", "130"), ("codice_consumo", "135")],
+        # v9.656: la garanzia legale com'è dal d.lgs. 170/2021 — conformità (129), due anni (133), presunzione di un anno
+        # (135), rimedi (135-bis/ter/quater); l'art. 130 («Obblighi del venditore e condotta del consumatore») parla delle
+        # dichiarazioni pubbliche. Clausole vessatorie e recesso solo se i fatti ne parlano.
+        "seeds": [("codice_consumo", "129"), ("codice_consumo", "133"), ("codice_consumo", "135"),
+                  ("codice_consumo", "135-bis"), ("codice_consumo", "135-ter"), ("codice_consumo", "135-quater")],
+        "seeds_se": [(r"clausol|vessator", [("codice_consumo", "33"), ("codice_consumo", "36")]),
+                     (r"recesso|ripensament|\bon-?line\b|(contratto|vendita|acquist\w*) a distanza|e-commerce|sito (web|internet)|"
+                      r"marketplace|fuori dai locali|porta a porta",
+                      [("codice_consumo", "52"), ("codice_consumo", "54"), ("codice_consumo", "56")])],
         "query": "difetto di conformità garanzia legale consumatore riparazione "
                  "sostituzione clausole vessatorie recesso",
         "must": [
@@ -184,7 +198,8 @@ CATALOGUE_IT: dict[str, dict] = {
         "recipient": "Ufficio reclami della banca",
         "channel": "PEC o raccomandata A/R (poi eventuale ricorso ABF)",
         "seeds": [("tu_bancario", "117"), ("tu_bancario", "118"),
-                  ("tu_bancario", "119"), ("tu_bancario", "120")],
+                  ("tu_bancario", "119"), ("tu_bancario", "120"),
+                  ("tu_bancario", "128-bis")],   # v9.656: il ricorso all'ABF, che il reclamo prepara
         "query": "reclamo banca trasparenza condizioni anatocismo interessi "
                  "usura commissioni documentazione rapporti",
         "must": [
@@ -199,8 +214,10 @@ CATALOGUE_IT: dict[str, dict] = {
         "emoji": "\U0001f91d", "family": CLAIM, "group": "Definizione bonaria",
         "recipient": "Controparte o suo difensore",
         "channel": "PEC — marcare 'senza pregiudizio'",
-        "seeds": [("codice_civile", "1965"), ("codice_civile", "1966"),
-                  ("codice_civile", "2113")],
+        "seeds": [("codice_civile", "1965"), ("codice_civile", "1966")],
+        # v9.656: rinunzie e transazioni del LAVORATORE — solo se la lite è di lavoro
+        "seeds_se": [(r"lavorat|\bdipendent|datore di lavoro|licenzi|retribuzion|stipend|\btfr\b|contratto di lavoro",
+                      [("codice_civile", "2113")])],
         "query": "transazione reciproche concessioni res litigiosa rinuncia "
                  "quietanza liberatoria",
         "must": [
@@ -313,8 +330,25 @@ CATALOGUE_IT: dict[str, dict] = {
         "emoji": "\U0001f504", "family": REQUEST, "group": "Istanze alla PA",
         "recipient": "Amministrazione che ha emesso l'atto",
         "channel": "PEC al protocollo",
-        "seeds": [("procedimento_amministrativo", "7"), ("procedimento_amministrativo", "10"),
-                  ("procedimento_amministrativo", "21")],
+        # v9.656: l'autotutela È l'annullamento d'ufficio (21-novies, che i giuristi scrivono «21-nonies») sul vizio del
+        # 21-octies, la revoca (21-quinquies), la nullità (21-septies) e la motivazione (3) — erano gli artt. 7 e 10
+        # (avvio del procedimento, partecipazione) e il 21, che sono le SANZIONI per le dichiarazioni false nella SCIA.
+        # Nel fisco l'autotutela ha le sue norme dal 2024 (Statuto del contribuente 10-quater obbligatoria, 10-quinquies).
+        # + il termine del ricorso al TAR (c.p.a. 29), che la lettera deve ricordare (l'istanza non lo sospende); con i fatti
+        # del caso l'avvio del procedimento e il preavviso di rigetto (7, 10-bis) e la SCIA (19) — prova del 17 ott: la lettera
+        # li citava dicendo «non figurano tra gli articoli forniti»
+        "seeds": [("procedimento_amministrativo", "21-novies"), ("procedimento_amministrativo", "21-octies"),
+                  ("procedimento_amministrativo", "21-quinquies"), ("procedimento_amministrativo", "21-septies"),
+                  ("procedimento_amministrativo", "3")],
+        "seeds_se": [(r"comunicazione (di|dell'?)\s*avvio|avvio del procedimento|contraddittorio|preavviso|10-bis|"
+                      r"senza (essere )?(sentit|avvisat|interpellat)",
+                      [("procedimento_amministrativo", "7"), ("procedimento_amministrativo", "10-bis")]),
+                     (r"\bscia\b|s\.c\.i\.a|segnalazione certificata", [("procedimento_amministrativo", "19")]),
+                     # nel fisco l'atto si impugna davanti alla Corte di giustizia tributaria (d.lgs. 546/1992 art. 21 fino
+                     # al 2026, testo unico art. 67 dal 2027), altrove al TAR (c.p.a. 29): mai il TAR per una cartella
+                     (_RX_FISCO_IT, [("statuto_contribuente", "10-quater"), ("statuto_contribuente", "10-quinquies"),
+                                     ("processo_tributario", "21"), ("giustizia_tributaria", "67")]),
+                     (_RX_FISCO_IT, [("codice_processo_amministrativo", "29")], "senza")],
         "query": "annullamento autotutela atto illegittimo interesse pubblico "
                  "revoca riesame vizio motivazione",
         "must": [
@@ -579,6 +613,20 @@ def list_kinds(jurisdiction: str | None = None) -> list[dict]:
     return out
 
 
+def semi_per(tpl: dict, testo: str) -> list:
+    """v9.656 — i semi della voce + quelli che i FATTI chiamano in causa («seeds_se»: (regex, coppie)).
+    Una norma che serve solo in un caso particolare (l'art. 2113 c.c. nella transazione del lavoratore, l'autotutela
+    tributaria) non entra in ogni lettera: il modello la citerebbe dove non si applica."""
+    out = list(tpl.get("seeds") or [])
+    t = testo or ""
+    for voce in tpl.get("seeds_se") or ():
+        rx, coppie = voce[0], voce[1]
+        senza = len(voce) > 2 and voce[2] == "senza"        # la norma entra quando i fatti NON ne parlano
+        if bool(re.search(rx, t, re.I)) != senza:
+            out += [c for c in coppie if c not in out]
+    return out
+
+
 def _art_block(backend, index, text, seeds):
     arts = _expertise.retrieve_grounded(backend, index, text, seed_pairs=seeds)
     # v9.399: il testo fino a 3.500 caratteri (prima 900) e le etichette della sessione («art.» in IT)
@@ -633,8 +681,9 @@ def draft(backend, index, *, kind: str, facts: str, case_context: str = "",
         # entra anche nella ricerca: le norme giuste spesso stanno nel
         # documento ricevuto (la contestazione cita gli articoli che invoca)
         base = (base + "\n\n" + received[:6000]).strip()
+    seeds = semi_per(tpl, base)
     art_block, arts = _art_block(backend, index,
-                                 (base[:2500] + " " + tpl["query"]), tpl["seeds"])
+                                 (base[:2500] + " " + tpl["query"]), seeds)
 
     family = tpl["family"]
     if (jurisdiction or "AL").upper() == "IT":

@@ -45,7 +45,7 @@ DEED_TYPES = {
         "seed": [("kodi_civil", "560"), ("kodi_civil", "562"), ("kodi_civil", "568")],
         "must": ["Palët (kreditor hipotekor/debitor)", "Kredia e siguruar dhe shuma",
                  "Pasuria e hipotekuar (nr. pasurie, kadastër)", "Rangu i hipotekës",
-                 "Data, nënshkrimet, vula; regjistrimi në ZVRPP/kadastër"]},
+                 "Data, nënshkrimet, vula; regjistrimi në ASHK (kadastër)"]},
     "prokure": {
         "label": "Prokurë (e përgjithshme ose e posaçme)", "emoji": "\U0001f4dd",
         "seed": [("kodi_civil", "70"), ("kodi_civil", "71"), ("kodi_civil", "72")],
@@ -54,7 +54,10 @@ DEED_TYPES = {
                  "Data, nënshkrimi, vula"]},
     "testament": {
         "label": "Testament", "emoji": "\U0001f4dc",
-        "seed": [("kodi_civil", "372"), ("kodi_civil", "392"), ("kodi_civil", "393")],
+        # v9.656: il notaio redige il testamento NOTARILE (KC 397: era solo l'olografo, 393), con la capacità (373), la
+        # riserva che il «must» chiede di rispettare (379), la revoca (402) e il registro nazionale (ligji 110/2018 art. 140)
+        "seed": [("kodi_civil", "372"), ("kodi_civil", "373"), ("kodi_civil", "392"), ("kodi_civil", "397"),
+                 ("kodi_civil", "379"), ("kodi_civil", "402"), ("ligji_noteri", "140")],
         "must": ["Trashëgimlënësi (identiteti + zotësia për të vepruar)",
                  "Vullneti i qartë mbi pasurinë", "Respektimi i pjesës së rezervuar (nëse ka)",
                  "Forma (ollograf ose noterial)", "Data, nënshkrimi, dëshmitarët nëse kërkohen"]},
@@ -66,19 +69,25 @@ DEED_TYPES = {
                  "Pranimi i të dhuruarit", "Data, nënshkrimet, vula"]},
     "trashegimi": {
         "label": "Dëshmi trashëgimie (akt noterial)", "emoji": "⚖️",
-        "seed": [("kodi_civil", "316"), ("kodi_civil", "317")],
+        # v9.656: la dëshmi trashëgimie la regola la legge notarile (artt. 111 richiesta, 112 contenuto, 113 rilascio,
+        # 116 nullità) e i suoi eredi sono quelli del KC 360-361 (erano solo le definizioni generali 316-317)
+        "seed": [("ligji_noteri", "111"), ("ligji_noteri", "112"), ("ligji_noteri", "113"), ("ligji_noteri", "116"),
+                 ("kodi_civil", "330"), ("kodi_civil", "360"), ("kodi_civil", "361")],
         "must": ["Trashëgimlënësi + data e vdekjes", "Trashëgimtarët + lidhja e afërisë",
                  "Pjesët takuese sipas ligjit ose testamentit", "Pasuria trashëgimore",
                  "Data, nënshkrimet, vula noteriale"]},
     "kontrate_martese": {
         "label": "Kontratë martese (regjimi pasuror)", "emoji": "\U0001f48d",
-        "seed": [("kodi_familjes", "66"), ("kodi_familjes", "108")],
+        "seed": [("kodi_familjes", "66"), ("kodi_familjes", "69"), ("kodi_familjes", "108")],   # v9.656: + la forma (69)
         "must": ["Bashkëshortët (identiteti)", "Regjimi i zgjedhur (bashkësi/ndarje pasurie)",
                  "Pasuritë e përfshira", "Data, nënshkrimet, vula"]},
     "themelim_shoqerie": {
         "label": "Akt themelimi shoqërie tregtare", "emoji": "\U0001f3e2",
-        "seed": [("ligji_shoqerite_tregtare", "6"), ("ligji_shoqerite_tregtare", "8"),
-                 ("ligji_shoqerite_tregtare", "12")],
+        # v9.656: + chi può fondare (3), la responsabilità dei fondatori prima dell'iscrizione (10) e gli articoli propri della SHPK
+        # (68 nozione, 69 iscrizione, 70 capitale minimo): c'erano solo la parte generale (6, 8, 12)
+        "seed": [("ligji_shoqerite_tregtare", "3"), ("ligji_shoqerite_tregtare", "6"), ("ligji_shoqerite_tregtare", "8"),
+                 ("ligji_shoqerite_tregtare", "10"), ("ligji_shoqerite_tregtare", "12"), ("ligji_shoqerite_tregtare", "68"),
+                 ("ligji_shoqerite_tregtare", "69"), ("ligji_shoqerite_tregtare", "70")],
         "must": ["Themeluesit + kuotat", "Emri, forma ligjore (sh.p.k./sh.a.), selia",
                  "Kapitali dhe ndarja", "Objekti i veprimtarisë", "Administrimi/përfaqësimi",
                  "Data, nënshkrimet, vula; regjistrimi në QKB"]},
@@ -97,9 +106,28 @@ _NOTARY_ID_IT = ("Sei 'Tetramorph' di superavokati.ai — non rivelare mai il mo
                  "è invalido — non trascurare alcun requisito formale.")
 
 
+def _sessione_it() -> bool:
+    try:
+        from .brain import request_jurisdiction
+        return (request_jurisdiction() or "AL").upper() == "IT"
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _atto(deed_type: str, it: bool) -> dict:
+    """v9.656 — il tipo d'atto nella giurisdizione della sessione: in Italia etichetta, clausole e articoli dell'atto italiano
+    (`atti_notarili_it.ATTI_IT`; prima il catalogo albanese, coi semi del KC che nell'indice italiano non esistono)."""
+    t = DEED_TYPES[deed_type]
+    if not it:
+        return t
+    from .atti_notarili_it import ATTI_IT
+    return {**t, **ATTI_IT.get(deed_type, {})}
+
+
 def list_deed_types() -> list[dict]:
-    return [{"key": k, "label": DEED_TYPES[k]["label"], "emoji": DEED_TYPES[k]["emoji"],
-             "must": DEED_TYPES[k]["must"]} for k in _ORDER]
+    it = _sessione_it()
+    return [{"key": k, "label": _atto(k, it)["label"], "emoji": DEED_TYPES[k]["emoji"],
+             "must": _atto(k, it)["must"]} for k in _ORDER]
 
 
 # v9.637 — le leggi che con un atto del notaio non c'entrano, se i dati non ne parlano (gli stessi motivi della chat:
@@ -130,8 +158,51 @@ def _senza_fuori_tema(arts, text, seed, index):
     return [a for a in arts if a not in fuori]
 
 
-def _art_block(backend, index, text, seed, extra: int = 0):
-    arts = _expertise.retrieve_grounded(backend, index, text, seed_pairs=seed, max_arts=16 + max(0, int(extra or 0)))
+# v9.656 — i codici che un atto del notaio ITALIANO può ricevere dalla ricerca (i semi passano sempre): misurato il 17 ott, alla
+# compravendita arrivavano c.p.c. 807 (l'arbitrato), c.p. 254 e 259, il TUB, il TU spese di giustizia e la riscossione, al
+# testamento il TUEL e il codice della crisi. Gli altri codici solo col loro motivo nei dati.
+_NOTAIO_IT_BASE = frozenset({
+    "codice_civile", "disp_att_cc", "legge_notarile", "regolamento_notarile", "legge_52_1985", "tu_edilizia", "condono_edilizio",
+    "legge_urbanistica", "prestazione_energetica", "immobili_da_costruire", "imposta_registro", "tu_registro",
+    "imposta_ipotecaria_catastale", "imposta_successioni", "imposta_bollo", "adempimento_unico", "antiriciclaggio",
+    "successioni_ue", "regimi_patrimoniali_ue", "diritto_internazionale_privato", "unioni_civili", "locazioni_abitative",
+    "locazioni_immobili_urbani", "tuir_1986", "tu_documentazione_amministrativa"})
+_NOTAIO_IT_COL_MOTIVO = (
+    (r"\bveicol|\bauto(mobile|veicolo)?\b|\btarga\b|\bmoto(ciclo|veicolo)?\b|\bpra\b", ("codice_strada",)),
+    (r"\bbanca\b|\bbancari|mutuo|finanziament|credito fondiario", ("tu_bancario",)),
+    (r"fallit|liquidazione giudiziale|insolven|concordato|crisi d'impresa", ("codice_crisi_impresa",)),
+    (r"consumator", ("codice_consumo",)),
+    (r"arbitr|clausola compromissoria|titolo esecutivo|precetto|esecuzion", ("codice_procedura_civile",)),
+    (r"\bvisto\b|\bvisti\b|ingresso|soggiorno|ambasciat|consolat", ("codice_visti", "tu_immigrazione", "regolamento_immigrazione")),
+)
+
+
+def _ammessi_ispettore_it(text: str):
+    """v9.657 — l'ispettore legge ogni atto (contratti, atti giudiziari, atti notarili): i codici del notaio, il c.p.c. e il
+    consumo, più il penale con un atto penale e l'amministrativo con un atto amministrativo (prova del 17 ott: a un preliminare
+    arrivavano il codice della crisi, c.p. 251 e 355, la riscossione e il TU accertamento)."""
+    t = (text or "").lower()
+    base = _ammessi_notaio_it(text)
+    extra = {"codice_procedura_civile", "codice_consumo"}
+    if re.search(r"imputat|indagat|\breato\b|c\.p\.p\.|pubblico ministero|querela|rinvio a giudizio", t):
+        extra.update(("codice_penale", "codice_procedura_penale"))
+    if re.search(r"\btar\b|ricorso al t|provvedimento amministrativ|\bcomune\b|pubblica amministrazione|c\.p\.a\.", t):
+        extra.update(("codice_processo_amministrativo", "procedimento_amministrativo"))
+    return lambda code, number: code in extra or base(code, number)
+
+
+def _ammessi_notaio_it(text: str):
+    t = (text or "").lower()
+    ok = set(_NOTAIO_IT_BASE)
+    for rx, codici in _NOTAIO_IT_COL_MOTIVO:
+        if re.search(rx, t):
+            ok.update(codici)
+    return lambda code, number: code in ok
+
+
+def _art_block(backend, index, text, seed, extra: int = 0, ammessi=None):
+    arts = _expertise.retrieve_grounded(backend, index, text, seed_pairs=seed, max_arts=16 + max(0, int(extra or 0)),
+                                        ammessi=ammessi)
     arts = _senza_fuori_tema(arts, text, seed, index)
     # v9.399: il testo fino a 3.500 caratteri (prima 900: il KC 361 arrivava senza la quota del coniuge) e «art.» in IT
     return _expertise.blocco_articoli(arts, _expertise._lang_indice(index)), arts
@@ -166,6 +237,21 @@ def _seed_per_akt(act: str):
     if key == "shitje_pasurie":
         seed += _SEED_SHITJE_DOKUMENTE
     return seed or None
+
+
+def _seed_per_atto_it(act: str):
+    """v9.657 — come `_seed_per_akt`, sul catalogo ITALIANO (`atti_notarili_it.ATTI_IT`): «vendita di un appartamento a
+    Milano» → i semi della compravendita. Almeno due radici in comune, altrimenti nessuno."""
+    from .atti_notarili_it import ATTI_IT
+    fa = _radici_akt(act)
+    best, score = None, 0
+    for v in ATTI_IT.values():
+        sc = len(fa & _radici_akt((v.get("label") or "") + " " + (v.get("parole") or "")))
+        if sc > score:
+            best, score = v, sc
+    if score < 2 or not best:
+        return None
+    return list(best.get("seed") or []) or None
 
 
 # v9.633 — la REVISIONE di un documento esistente (procura, atto, dichiarazione) allegato dal professionista. Titolare, 12 ott:
@@ -390,12 +476,38 @@ def draft_deed(backend, index, *, deed_type: str, details: str, clauses_text: st
         seed = list(dict.fromkeys(list(seed) + _in_piu))
         extra = len(seed) - len(tpl["seed"])
     _it_d = _expertise._lang_indice(index) == "it"
+    if _it_d:                         # v9.656: l'atto italiano — etichetta, clausole e articoli dell'atto italiano
+        tpl = _atto(deed_type, True)
+        seed = list(tpl["seed"])
+        extra = max(0, len(seed) - 8)
     # v9.637 — anche dai DATI dell'atto scritto da zero (la società e il suo amministratore, chi agisce con sé stesso)
     _semi_e = [x for x in _semi_esistente((details or "") + "\n" + (existing or ""), _it_d) if x not in seed]
     if _semi_e:
         seed = list(seed) + _semi_e
         extra += len(_semi_e)
-    art_block, arts = _art_block(backend, index, details + " " + tpl["label"] + " " + (existing or "")[:1500], seed, extra=extra)
+    _testo_ricerca = details + " " + tpl["label"] + " " + (existing or "")[:1500]
+    art_block, arts = _art_block(backend, index, _testo_ricerca, seed, extra=extra,
+                                 ammessi=(_ammessi_notaio_it(_testo_ricerca + " " + (clauses_text or "")) if _it_d else None))
+    if _it_d:
+        system = (
+            "Sei un NOTAIO italiano esperto, che redige atti notarili secondo il diritto italiano (legge 16 febbraio 1913, "
+            "n. 89, «legge notarile», e codice civile). Redigi l'atto richiesto COMPLETO, professionale, pronto per la "
+            "stipula, con TUTTE le clausole obbligatorie e i requisiti formali. Basati SOLO sui dati e sugli articoli dati — "
+            "NON inventare articoli o numeri. Dove manca un dato (nome, prezzo, dati catastali, data), lascia il segnaposto "
+            "[___] e non inventarlo. " + _PA_TEPRI_IT + "Alla fine, aggiungi una sezione '### ✅ Requisiti formali' con la "
+            "lista di controllo (punti brevi, ciascuno UNA riga). " + _NOTARY_ID_IT)
+        prompt = ("TIPO DI ATTO: " + tpl["label"]
+                  + "\n\nCLAUSOLE OBBLIGATORIE:\n- " + "\n- ".join(tpl["must"])
+                  + "\n\nDATI DAL NOTAIO:\n" + (details or "").strip()
+                  + (("\n\n─────\nCLAUSOLE PREFERITE DELLO STUDIO (usale quando si adattano all'atto, conserva lo stile "
+                      "dello studio):\n" + clauses_text) if clauses_text else "")
+                  + "\n\n─────\nARTICOLI DEL CORPUS (cita solo questi):\n" + art_block
+                  + "\n\nRedigi l'atto completo in markdown."
+                  + _blocco_esistente(existing, _it_d, _nuovi))
+        md = backend.complete(system=system, messages=[{"role": "user", "content": prompt}],
+                              max_tokens=max_tokens + (2500 if existing else 0), callsite="notary_draft", no_web=True)
+        return {"markdown": (md or "").strip() + _avviso_scadenza(_nuovi, _it_d),
+                "articles": [{"code": c, "number": n} for c, n, _t in arts]}
     system = (
         "Ti je NOTER shqiptar me përvojë, që harton akte notariale sipas së drejtës shqiptare "
         "(Ligji nr. 110/2018 'Për noterinë' dhe Kodi Civil). Harto aktin e kërkuar TË PLOTË, "
@@ -684,8 +796,11 @@ DEED_TYPES.update({
                  "Data, nënshkrimet, vula"]},
     "statut_shpk": {
         "label": "Statut i SHPK-së", "emoji": "\U0001f4d8",
-        "seed": [("ligji_shoqerite_tregtare", "6"), ("ligji_shoqerite_tregtare", "8"),
-                 ("ligji_shoqerite_tregtare", "12")],
+        # v9.656: + gli articoli della SHPK che lo statuto deve rispettare: nozione (68), iscrizione (69), capitale minimo (70),
+        # competenze dell'assemblea (81), nomina e poteri dell'amministratore (95) e rappresentanza (96)
+        "seed": [("ligji_shoqerite_tregtare", "6"), ("ligji_shoqerite_tregtare", "8"), ("ligji_shoqerite_tregtare", "12"),
+                 ("ligji_shoqerite_tregtare", "68"), ("ligji_shoqerite_tregtare", "69"), ("ligji_shoqerite_tregtare", "70"),
+                 ("ligji_shoqerite_tregtare", "81"), ("ligji_shoqerite_tregtare", "95"), ("ligji_shoqerite_tregtare", "96")],
         "must": ["Emri, forma (SHPK) dhe selia", "Objekti i veprimtarisë",
                  "Kapitali themeltar dhe kuotat e ortakëve", "Organet (asambleja, administratori) dhe kompetencat",
                  "Përfaqësimi ligjor", "Kohëzgjatja dhe rregullat e prishjes", "Data, nënshkrimet, vula; QKB"]},
@@ -783,17 +898,19 @@ PROKURA_SCOPES = {
         "powers": ["të përfaqësojë para Drejtorisë së Tatimeve dhe organeve tatimore",
                    "të plotësojë e nënshkruajë deklarata tatimore", "të komunikojë me kontabilistin/ekspertin kontabël",
                    "të paguajë detyrimet ose të kërkojë rimbursim tatimor"],
-        "seed": [("kodi_civil", "64"), ("kodi_civil", "66")]},
+        "seed": [("kodi_civil", "64"), ("kodi_civil", "66"),
+                 ("ligji_procedurat_tatimore", "35")]},   # v9.656: il diritto di farsi rappresentare davanti al fisco
     "administrim_shoqerie": {"label": "Administrim/përfaqësim i shoqërisë (SHPK/SHA)",
         "powers": ["të administrojë e përfaqësojë shoqërinë", "të nënshkruajë kontrata në emër të saj",
                    "të operojë llogaritë bankare të shoqërisë", "të përfaqësojë para QKB dhe institucioneve"],
-        "seed": [("ligji_shoqerite_tregtare", "12")]},
+        "seed": [("ligji_shoqerite_tregtare", "12"), ("ligji_shoqerite_tregtare", "96")]},   # v9.656: + la rappresentanza della SHPK
     "likuidim_shpk": {"label": "Likuidim/mbyllje e shoqërisë SHPK",
         "powers": ["të emërohet ose veprojë si likuidues i shoqërisë", "të kryejë procedurën e likuidimit",
                    "të shlyejë kreditorët dhe të mbyllë llogaritë bankare",
                    "të nënshkruajë e depozitojë aktet në QKB", "të çregjistrojë përfundimisht shoqërinë"],
-        "seed": [("ligji_shoqerite_tregtare", "3"), ("ligji_shoqerite_tregtare", "10"),
-                 ("kodi_civil", "70")]},
+        # v9.656: come l'atto della v9.653 — scioglimento (99), iscrizione (188), liquidatori (191, 197); erano gli artt. 3 e 10
+        "seed": [("ligji_shoqerite_tregtare", "99"), ("ligji_shoqerite_tregtare", "188"),
+                 ("ligji_shoqerite_tregtare", "191"), ("ligji_shoqerite_tregtare", "197")]},
     "regjistrim_qkb": {"label": "Regjistrim/ndryshime në QKB",
         "powers": ["të regjistrojë shoqërinë ose ndryshimet në QKB",
                    "të ndryshojë objektin, administratorin ose kuotat", "të tërheqë ekstrakte dhe vërtetime"],
@@ -801,7 +918,10 @@ PROKURA_SCOPES = {
     "perfaqesim_gjykate": {"label": "Përfaqësim në gjykatë",
         "powers": ["të përfaqësojë në procese civile/administrative", "të nënshkruajë akte procedurale",
                    "të bëjë pajtim ose të heqë dorë nga padia", "të ushtrojë ankim"],
-        "seed": [("kodi_civil", "64")]},
+        # v9.656: la procura alle liti è del K.Pr.C. — chi può essere rappresentante (96), cosa può fare senza un potere
+        # espresso (97: mai atti di disposizione del diritto — pajtimi, heqja dorë), revoca (98), Gjykata e Lartë (96/a)
+        "seed": [("kodi_proc_civile", "96"), ("kodi_proc_civile", "97"), ("kodi_proc_civile", "98"),
+                 ("kodi_proc_civile", "96/a")]},
     "bankar": {"label": "Veprime bankare",
         "powers": ["të hapë ose mbyllë llogari bankare", "të depozitojë ose tërheqë para",
                    "të nënshkruajë për kredi", "të operojë depozitat dhe kasafortën"],
@@ -813,10 +933,14 @@ PROKURA_SCOPES = {
     "pranim_trashegimie": {"label": "Pranim trashëgimie",
         "powers": ["të pranojë trashëgiminë në emër të të përfaqësuarit", "të marrë dëshminë e trashëgimisë",
                    "të regjistrojë pasurinë e trashëguar në ASHK"],
-        "seed": [("kodi_civil", "316"), ("kodi_civil", "317")]},
+        # v9.656: l'eredità si acquista con la morte (330-331) e si documenta con la dëshmi (ligji 110/2018 artt. 111, 113)
+        "seed": [("kodi_civil", "330"), ("kodi_civil", "331"), ("ligji_noteri", "111"), ("ligji_noteri", "113")]},
     "heqje_dore_trashegimie": {"label": "Heqje dorë nga trashëgimia",
         "powers": ["të heqë dorë nga trashëgimia në emër të të përfaqësuarit", "të nënshkruajë deklaratën përkatëse"],
-        "seed": [("kodi_civil", "316")]},
+        # v9.656: forma e procura speciale (KC 333), effetti (334), tre mesi (335), nulla prima dell'apertura o con
+        # condizione (337), irrevocabile (339), il notaio (ligji 110/2018 art. 117) — era solo la definizione (316)
+        "seed": [("kodi_civil", "333"), ("kodi_civil", "334"), ("kodi_civil", "335"), ("kodi_civil", "337"),
+                 ("kodi_civil", "339"), ("ligji_noteri", "117")]},
     "hipotekim_kredi": {"label": "Hipotekim i pasurisë / marrje kredie",
         "powers": ["të hipotekojë pasurinë e paluajtshme", "të marrë kredi pranë bankës",
                    "të nënshkruajë kontratën e kredisë dhe hipotekës", "të regjistrojë hipotekën në ASHK"],
@@ -1134,9 +1258,19 @@ _DECL_ORDER = ["pelqim_udhetimi_minor", "mbajtje_financiare", "pelqim_bashkeshor
                "autorizim_perfaqesimi", "vertetim_fakti", "burim_fondesh"]
 
 
+def _dichiarazione(decl_type: str, it: bool) -> dict:
+    """v9.657 — la dichiarazione nella giurisdizione della sessione (in Italia `atti_notarili_it.DICHIARAZIONI_IT`)."""
+    t = DECLARATION_TYPES[decl_type]
+    if not it:
+        return t
+    from .atti_notarili_it import DICHIARAZIONI_IT
+    return {**t, **DICHIARAZIONI_IT.get(decl_type, {})}
+
+
 def list_declaration_types() -> list:
-    return [{"key": k, "label": DECLARATION_TYPES[k]["label"], "emoji": DECLARATION_TYPES[k]["emoji"],
-             "must": DECLARATION_TYPES[k]["must"]} for k in _DECL_ORDER]
+    it = _sessione_it()
+    return [{"key": k, "label": _dichiarazione(k, it)["label"], "emoji": DECLARATION_TYPES[k]["emoji"],
+             "must": _dichiarazione(k, it)["must"]} for k in _DECL_ORDER]
 
 
 def draft_declaration(backend, index, *, decl_type: str, details: str = "", max_tokens: int = 2400,
@@ -1145,10 +1279,30 @@ def draft_declaration(backend, index, *, decl_type: str, details: str = "", max_
     if tpl is None:
         raise ValueError("unknown decl_type")
     _it_dc = _expertise._lang_indice(index) == "it"
+    if _it_dc:
+        tpl = _dichiarazione(decl_type, True)     # v9.657: la dichiarazione italiana
     _semi_dc = list(tpl["seed"]) + [x for x in _semi_esistente((details or "") + "\n" + (existing or ""), _it_dc)
                                     if x not in tpl["seed"]]   # v9.637: anche dai dati, non solo dal documento
-    art_block, arts = _art_block(backend, index, details + " " + tpl["label"] + " " + (existing or "")[:1500], _semi_dc,
-                                 extra=len(_semi_dc) - len(tpl["seed"]))
+    _testo_dc = details + " " + tpl["label"] + " " + (existing or "")[:1500]
+    art_block, arts = _art_block(backend, index, _testo_dc, _semi_dc, extra=len(_semi_dc) - len(tpl["seed"]),
+                                 ammessi=(_ammessi_notaio_it(_testo_dc) if _it_dc else None))
+    if _it_dc:
+        system = (
+            "Sei un NOTAIO italiano che redige DICHIARAZIONI (atti unilaterali) secondo il diritto italiano. Redigi la "
+            "dichiarazione COMPLETA, in prima persona del dichiarante, pronta per la sottoscrizione e l'autentica, con tutti "
+            "gli elementi obbligatori e le formalità. Dove manca un dato, lascia [___] — non inventarlo. Basati SOLO sugli "
+            "articoli dati. " + _PA_TEPRI_IT + "Aggiungi alla fine '### ✅ Requisiti formali' (punti brevi, UNA riga "
+            "ciascuno). " + _NOTARY_ID_IT)
+        prompt = ("TIPO DI DICHIARAZIONE: " + tpl["label"]
+                  + "\n\nELEMENTI OBBLIGATORI:\n- " + "\n- ".join(tpl["must"])
+                  + "\n\nDATI DAL NOTAIO:\n" + (details or "").strip()
+                  + "\n\n─────\nARTICOLI DEL CORPUS:\n" + art_block
+                  + "\n\nRedigi la dichiarazione completa in markdown."
+                  + _blocco_esistente(existing, _it_dc, details))
+        md = backend.complete(system=system, messages=[{"role": "user", "content": prompt}],
+                              max_tokens=max_tokens + (2500 if existing else 0), callsite="notary_declaration", no_web=True)
+        return {"markdown": (md or "").strip() + _avviso_scadenza(details, _it_dc),
+                "articles": [{"code": c, "number": n} for c, n, _t in arts]}
     system = (
         "Ti je NOTER shqiptar që harton DEKLARATA NOTERIALE (akte njëpalëshe) sipas Ligjit nr. "
         "110/2018 'Për noterinë'. Harto deklaratën TË PLOTË, në vetën e parë të deklaruesit, gati "
@@ -1171,8 +1325,26 @@ def draft_declaration(backend, index, *, decl_type: str, details: str = "", max_
 
 # ---- Checklist dokumentesh (party-document checklist) ----
 def documents_needed(backend, index, *, act: str, max_tokens: int = 1800) -> dict:
-    art_block, arts = _art_block(backend, index, act,
-                                 None if _expertise._lang_indice(index) == "it" else _seed_per_akt(act))
+    if _expertise._lang_indice(index) == "it":
+        # v9.657: in sessione italiana prompt e semi italiani (prima: «sipas praktikës shqiptare dhe Ligjit nr. 110/2018»)
+        art_block, arts = _art_block(backend, index, act, _seed_per_atto_it(act), ammessi=_ammessi_notaio_it(act))
+        system = (
+            "Sei un NOTAIO italiano esperto. Per l'atto o il servizio notarile descritto, elenca TUTTI i documenti che il "
+            "cliente e le parti devono portare per preparare l'atto secondo la prassi notarile italiana. Dai (markdown):\n"
+            "### \U0001f4c4 Documenti necessari — per ciascuno: cos'è e chi lo rilascia\n"
+            "### \U0001f465 Per ciascuna parte — documenti d'identità e particolari\n"
+            "### ⚠️ Attenzione — verifiche critiche (ipoteche e pesi, consensi, capacità, termini di validità)\n"
+            # (prova del 17 ott: 4.150 parole e la Cassazione cercata sul web per una lista di documenti → breve e senza web)
+            "Sii concreto e pratico. Non inventare articoli; se citi un articolo, usa solo quelli dati. BREVE: al massimo circa "
+            "600 parole, un documento per riga, niente giurisprudenza e nessuna sezione oltre le tre. " + _NOTARY_ID_IT)
+        prompt = ("ATTO/SERVIZIO:\n" + (act or "").strip()
+                  + "\n\n─────\nARTICOLI DEL CORPUS (se ci sono):\n" + art_block
+                  + "\n\nElenca i documenti necessari.")
+        md = backend.complete(system=system, messages=[{"role": "user", "content": prompt}],
+                              max_tokens=max_tokens, callsite="notary_documents", no_web=True)
+        return {"markdown": (md or "").strip(),
+                "articles": [{"code": c, "number": n} for c, n, _t in arts]}
+    art_block, arts = _art_block(backend, index, act, _seed_per_akt(act))
     system = (
         "Ti je NOTER shqiptar me përvojë. Për aktin/shërbimin noterial të përshkruar, listo TË "
         "GJITHA dokumentet që duhet të sjellë klienti/palët për ta përgatitur aktin sipas praktikës "
@@ -1197,6 +1369,27 @@ def documents_needed(backend, index, *, act: str, max_tokens: int = 1800) -> dic
 
 def draft_revocation(backend, index, *, details: str = "", max_tokens: int = 2200) -> dict:
     """Draft a notarial REVOCATION of a power of attorney (revokim prokure)."""
+    if _expertise._lang_indice(index) == "it":
+        # v9.657: la revoca italiana (prima il prompt albanese nominava «neni 75… neni 74… neni 76» del KC)
+        seed_it = [("codice_civile", n) for n in ("1396", "1397", "1722", "1723", "1724", "1725", "1726")]
+        art_block, arts = _art_block(backend, index, (details or "") + " revoca della procura mandato", seed_it,
+                                     ammessi=_ammessi_notaio_it(details or ""))
+        system = (
+            "Sei un NOTAIO italiano che redige l'atto di REVOCA DI PROCURA secondo il codice civile. Redigi l'atto COMPLETO, "
+            "pronto per la stipula o l'autentica, con: l'identità del RAPPRESENTATO che revoca, i dati della PROCURA revocata "
+            "(repertorio e raccolta, data, notaio, procuratore — quello che c'è, il resto [___]), la dichiarazione chiara della "
+            "revoca, l'ONERE di portarla a conoscenza del procuratore e dei terzi con mezzi idonei (altrimenti non è opponibile "
+            "ai terzi che non la conoscevano) e la richiesta di restituzione del documento della procura, oltre alle formalità "
+            "(data, lettura, sottoscrizione). Basati SOLO sugli articoli dati — non inventare. " + _PA_TEPRI_IT
+            + "Aggiungi alla fine '### ✅ Requisiti formali' e '### 📣 Comunicazioni necessarie' (a chi va comunicata perché "
+            "la revoca sia opponibile ai terzi). " + _NOTARY_ID_IT)
+        prompt = ("OPERAZIONE: revoca della procura.\n\nDATI DAL NOTAIO:\n" + (details or "").strip()
+                  + "\n\n─────\nARTICOLI DEL CORPUS (cita solo questi):\n" + art_block
+                  + "\n\nRedigi l'atto di revoca in markdown.")
+        md = backend.complete(system=system, messages=[{"role": "user", "content": prompt}],
+                              max_tokens=max_tokens, callsite="notary_revocation", no_web=True)
+        return {"markdown": (md or "").strip(),
+                "articles": [{"code": c, "number": n} for c, n, _t in arts]}
     seed = [("kodi_civil", "70"), ("kodi_civil", "72"), ("kodi_civil", "74"),
             ("kodi_civil", "75"), ("kodi_civil", "76")]
     art_block, arts = _art_block(backend, index, (details or "") + " revokim shfuqizim prokure", seed)
@@ -1235,6 +1428,35 @@ def check_conflicts(backend, index, *, new_act: str, prior_acts=None, max_tokens
         prior_block = "\n\n".join(blocks)
     else:
         prior_block = "(nuk ka akte të ruajtura më parë për këtë klient/rast)"
+    if _expertise._lang_indice(index) == "it":
+        # v9.657: in sessione italiana (prima il prompt albanese con la «neni 76» del KC per la procura estinta)
+        art_block, _arts = _art_block(backend, index, (new_act or "")[:1500] + " procura revoca disposizione",
+                                      [("codice_civile", "1396"), ("codice_civile", "1722")],
+                                      ammessi=_ammessi_notaio_it(new_act or ""))
+        if not prior_acts:
+            prior_block = "(nessun atto salvato prima per questo cliente o fascicolo)"
+        else:
+            prior_block = prior_block.replace("### [Akt i mëparshëm ", "### [Atto precedente ")
+        system = (
+            "Sei un NOTAIO-revisore rigoroso. Confronta l'ATTO NUOVO con gli ATTI PRECEDENTI dello stesso cliente o fascicolo "
+            "e trova i CONFLITTI e le INCONGRUENZE. Cerca soprattutto:\n"
+            "• due procure vive che danno LO STESSO potere di disposizione (vendita, ipoteca) a persone diverse;\n"
+            "• un atto in contrasto con uno precedente (es. la vendita di un bene già donato o ipotecato);\n"
+            "• una procura che sembra revocata o estinta ma è ancora usata;\n"
+            "• dati delle parti che non coincidono (nomi, documenti, dati catastali, codice fiscale) fra gli atti;\n"
+            "• problemi di legittima fra testamenti e donazioni.\n"
+            "Basati sui testi dati — non inventare fatti né articoli. Dai (markdown):\n"
+            "### \U0001f6a8 Conflitti trovati — per ciascuno: quale atto precedente, quale conflitto, gravità (alta/media/bassa)\n"
+            "### ⚠️ Da verificare — punti da controllare prima della stipula\n"
+            "### ✅ Conclusione — si può procedere o cosa va risolto o revocato prima\n"
+            "Se non ci sono conflitti, dillo chiaramente. " + _NOTARY_ID_IT)
+        prompt = ("ATTO NUOVO (da stipulare):\n" + (new_act or "").strip()[:9000]
+                  + "\n\n═════\nATTI PRECEDENTI DEL CLIENTE:\n" + prior_block
+                  + "\n\n─────\nARTICOLI DEL CORPUS (se aiutano):\n" + art_block
+                  + "\n\nControlla i conflitti.")
+        md = backend.complete(system=system, messages=[{"role": "user", "content": prompt}],
+                              max_tokens=max_tokens, callsite="notary_conflicts")
+        return {"markdown": (md or "").strip(), "articles": []}
     art_block, _arts = _art_block(backend, index, (new_act or "")[:1500] + " prokurë revokim disponim", None)
     system = (
         "Ti je NOTER-kontrollues i rreptë. Krahaso AKTIN E RI me AKTET E MËPARSHME të të njëjtit "
@@ -1271,7 +1493,8 @@ _RISK_RE = _re.compile(r"RISK:\s*(\d{1,3})\s*(?:/\s*100)?\s*[·|\-–—:]*\s*(.
 def inspect_act(backend, index, *, text: str, prior_acts=None, max_tokens: int = 3000) -> dict:
     """Adversarial senior-reviewer pass over a notarial act. Returns a markdown
     report + a risk score (0-100, low=good) grounded in the issues found."""
-    art_block, arts = _art_block(backend, index, text, None)
+    art_block, arts = _art_block(backend, index, text, None,
+                                 ammessi=(_ammessi_ispettore_it(text) if _expertise._lang_indice(index) == "it" else None))
     prior_acts = prior_acts or []
     if prior_acts:
         blocks = []
@@ -1281,6 +1504,40 @@ def inspect_act(backend, index, *, text: str, prior_acts=None, max_tokens: int =
         prior_block = "\n\n".join(blocks)
     else:
         prior_block = "(pa akte të mëparshme për krahasim)"
+    if _expertise._lang_indice(index) == "it":
+        # v9.657: in sessione italiana (prima «Ti je INSPEKTOR … i akteve juridike shqiptare»)
+        prior_block = (prior_block.replace("### [Akt i mëparshëm ", "### [Atto precedente ") if prior_acts
+                       else "(nessun atto precedente da confrontare)")
+        system = (
+            "Sei un ISPETTORE / REVISORE SENIOR di atti giuridici (contratti, citazioni, ricorsi, atti d'accusa, atti notarili) "
+            "— leggi l'atto come un ispettore o un giudice che VUOLE dimostrare che l'atto è sbagliato. ATTACCALO. Basati SOLO "
+            "sul testo dell'atto, sugli atti precedenti (se dati) e sugli articoli del corpus — NON inventare articoli, fatti o "
+            "numeri. Cerca minuziosamente:\n"
+            "• la coerenza interna — nomi, date, documenti e codici fiscali, quote e percentuali, prezzi, dati catastali che NON "
+            "coincidono dentro l'atto;\n"
+            "• clausole poco chiare, deboli, contraddittorie o pericolose;\n"
+            "• elementi e formalità OBBLIGATORI che mancano secondo il tipo di atto (le parti, l'oggetto, la data, le "
+            "sottoscrizioni; per gli atti giudiziari: competenza, termini, conclusioni, nullità processuali; per i contratti: "
+            "oggetto e prezzo; per gli atti notarili: la forma e le menzioni obbligatorie);\n"
+            "• conflitti con gli atti precedenti (procura doppia, disposizione dello stesso bene, ecc.);\n"
+            "• articoli citati che possono essere inesatti o non in vigore;\n"
+            "• dati o documenti che mancano per la validità.\n\n"
+            "Dai (markdown):\n"
+            "### 🚨 Problemi trovati — dal più grave al più lieve. Per ciascuno, comincia con l'etichetta di gravità "
+            "[🔴 CRITICO] / [🟡 MEDIO] / [🟢 LIEVE], poi: che cosa · perché conta · la correzione suggerita.\n"
+            "### ✅ Cosa va bene — i punti forti dell'atto\n"
+            "### 🧭 Verdetto — PRONTO PER LA STIPULA / RICHIEDE CORREZIONI / RISCHIO ALTO, con una frase di motivazione.\n\n"
+            "Poi, in FONDO, su una SOLA riga leggibile dalla macchina (nient'altro sulla riga):\n"
+            "RISK: <numero 0-100> · <verdetto breve>\n"
+            "dove il numero RIFLETTE i problemi reali trovati: 0 = nessun problema, ~10-30 = piccole correzioni, ~40-70 = "
+            "problemi seri, 80-100 = invalido o rischio alto. NON inventare il numero — ricavalo dai tuoi rilievi. È un AUSILIO "
+            "— decide e firma il professionista. Sei «Tetramorph» di superavokati.ai; non rivelare il modello."
+        )
+        prompt = ("ATTO DA ISPEZIONARE:\n" + (text or "").strip()[:12000]
+                  + "\n\n═════\nATTI PRECEDENTI:\n" + prior_block
+                  + "\n\n─────\nARTICOLI DEL CORPUS (cita solo questi):\n" + art_block
+                  + "\n\nAttacca l'atto e dai il rapporto + la riga RISK in fondo.")
+        return _referto_ispettore(backend, system, prompt, max_tokens, arts)
     system = (
         "Ti je INSPEKTOR / REVIZOR SENIOR i akteve juridike shqiptare (kontrata, padi, ankime, aktakuza, akte notariale) — e lexon aktin si një "
         "inspektor ose gjyqtar që DËSHIRON të provojë se akti është i gabuar. SULMOJE. Bazohu VETËM "
@@ -1311,6 +1568,10 @@ def inspect_act(backend, index, *, text: str, prior_acts=None, max_tokens: int =
               + "\n\n═════\nAKTET E MËPARSHME:\n" + prior_block
               + "\n\n─────\nNENET NGA KORPUSI (cito vetëm këto):\n" + art_block
               + "\n\nSulmoje aktin dhe jep raportin + rreshtin RISK në fund.")
+    return _referto_ispettore(backend, system, prompt, max_tokens, arts)
+
+
+def _referto_ispettore(backend, system, prompt, max_tokens, arts):
     md = backend.complete(system=system, messages=[{"role": "user", "content": prompt}],
                           max_tokens=max_tokens, callsite="notary_inspect")
     md = md or ""
@@ -1334,7 +1595,30 @@ def inspect_act(backend, index, *, text: str, prior_acts=None, max_tokens: int =
 # LEXO & MBUSH (Tier 1 #2) — estrai i campi strutturati da un documento
 # (ID, visura, atto…) per precompilare la bozza. SOLO dal documento.
 # ═══════════════════════════════════════════════════════════════════
+_EXTRACT_SYSTEM_IT = (
+    "Sei un assistente notarile che LEGGE un documento (carta d'identità, visura catastale o ipotecaria, visura camerale, atto "
+    "precedente, procura, ecc.) ed ESTRAE i dati strutturati per preparare un atto. REGOLA: estrai SOLO ciò che si trova nel "
+    "documento — non inventare, non indovinare. Dove un dato non c'è, scrivi [manca]. Dai (markdown), solo le sezioni che hanno "
+    "dati:\n"
+    "### 👤 Persone — per ciascuna: Nome Cognome · paternità (se c'è) · data e luogo di nascita · codice fiscale · documento · "
+    "cittadinanza · residenza\n"
+    "### 🏠 Immobile — Comune · foglio · particella · subalterno · categoria · rendita · superficie · indirizzo\n"
+    "### 🏢 Società — denominazione · codice fiscale / partita IVA · forma · sede · amministratore · capitale e quote\n"
+    "### 💶 Dati economici — prezzo o somma · valuta · modalità di pagamento\n"
+    "### 📅 Date e riferimenti — le date, numero di repertorio e raccolta, notaio (se c'è)\n"
+    "### ⚠️ Attenzione — incongruenze o dati poco chiari o mancanti da verificare\n\n"
+    "Preciso, pulito, in italiano — questo blocco servirà direttamente per redigere l'atto. Sei «Tetramorph» di "
+    "superavokati.ai; non rivelare il modello.")
+
+
 def extract_data(backend, index, *, text: str, max_tokens: int = 2000) -> dict:
+    if _expertise._lang_indice(index) == "it":
+        # v9.657: in sessione italiana (prima «kartelë ASHK, ekstrakt QKB… në shqip»)
+        md = backend.complete(system=_juris(_EXTRACT_SYSTEM_IT),
+                              messages=[{"role": "user", "content": "DOCUMENTO:\n" + (text or "").strip()[:14000]
+                                         + "\n\nEstrai i dati strutturati."}],
+                              max_tokens=max_tokens, callsite="notary_extract")
+        return {"markdown": (md or "").strip(), "articles": []}
     system = (
         "Ti je asistent noterial që LEXON një dokument (kartë identiteti, çertifikatë pronësie/"
         "kartelë ASHK, ekstrakt QKB, akt i mëparshëm, procurë, etj.) dhe NXJERR të dhënat e "
@@ -1367,11 +1651,39 @@ _PLOT_RE = _re_ck.compile(r"PLOTESIA:\s*(\d{1,3})", _re_ck.IGNORECASE)
 
 def dossier_checklist(backend, index, *, act, documents_text, max_tokens=2400):
     # v9.399 — radicata: prima il modello citava le leggi a memoria (nell'audit AL «Ligji 8438, neni 11», abrogata nel 2023)
+    _it_ck = _expertise._lang_indice(index) == "it"
     try:
         art_block, arts = _art_block(backend, index, (act or "") + " " + (documents_text or "")[:1500],
-                                     None if _expertise._lang_indice(index) == "it" else _seed_per_akt(act))
+                                     _seed_per_atto_it(act) if _it_ck else _seed_per_akt(act))
     except Exception:  # noqa: BLE001
         art_block, arts = "", []
+    if _it_ck:
+        # v9.657: in sessione italiana (prima «sipas praktikes shqiptare (… Ligji 110/2018 … KPC/KPP)»)
+        system = (
+            "Sei un assistente giuridico che controlla il FASCICOLO di una pratica o di un atto. Ti vengono dati il TIPO DI "
+            "ATTO e il testo dei DOCUMENTI caricati. Compito: (1) individua i documenti RICHIESTI per questo tipo di pratica o "
+            "di atto secondo la prassi italiana (atti notarili: legge notarile e norme di settore; cause: documenti e prove "
+            "necessari secondo il codice di procedura civile o penale); (2) verifica quali sono PRESENTI nei documenti dati; "
+            "(3) quali MANCANO; (4) segnala ogni documento SCADUTO o datato (validità del documento d'identità, età della "
+            "visura o del certificato) e le incongruenze. Basati SOLO sui documenti dati — non presumere che un documento "
+            "esista se non lo vedi. Articoli e leggi: cita SOLO quelli del blocco ARTICOLI DEL CORPUS; se un obbligo non ha "
+            "lì il suo articolo, descrivilo senza numero di articolo e senza numero di legge (non citare leggi a memoria). "
+            "Dai (markdown):\n"
+            "### \U0001f4cb Documenti richiesti per questo atto\n"
+            "### ✅ Presenti (trovati nel fascicolo)\n"
+            "### ❌ Mancanti\n"
+            "### ⏳ Scaduti / da verificare (date, termini)\n"
+            "### \U0001f9ed Completezza — breve conclusione\n\n"
+            "Poi, in fondo, su una sola riga leggibile dalla macchina (nient'altro):\n"
+            "PLOTESIA: <numero 0-100>\n"
+            "dove 100 = fascicolo completo e pronto, e il numero scende secondo i documenti mancanti o scaduti. È un AUSILIO "
+            "— il notaio verifica. Sei «Tetramorph» di superavokati.ai; non rivelare il modello."
+        )
+        prompt = ("TIPO DI ATTO: " + (act or "").strip()
+                  + "\n\nDOCUMENTI CARICATI (testo):\n" + (documents_text or "").strip()[:14000]
+                  + ("\n\n─────\nARTICOLI DEL CORPUS:\n" + art_block if art_block else "")
+                  + "\n\nFai la checklist e la riga PLOTESIA in fondo.")
+        return _referto_checklist(backend, system, prompt, max_tokens, arts)
     system = (
         "Ti je asistent juridik qe kontrollon FASHIKULLIN e nje çështjeje ose akti. Te jepet "
         "LLOJI I AKTIT dhe teksti i DOKUMENTEVE te ngarkuara. Detyra: (1) percakto dokumentet e "
@@ -1396,6 +1708,10 @@ def dossier_checklist(backend, index, *, act, documents_text, max_tokens=2400):
               + "\n\nDOKUMENTET E NGARKUARA (teksti):\n" + (documents_text or "").strip()[:14000]
               + ("\n\n─────\nNENET NGA KORPUSI:\n" + art_block if art_block else "")
               + "\n\nBej checklist-in dhe rreshtin PLOTESIA ne fund.")
+    return _referto_checklist(backend, system, prompt, max_tokens, arts)
+
+
+def _referto_checklist(backend, system, prompt, max_tokens, arts):
     md = backend.complete(system=system, messages=[{"role": "user", "content": prompt}],
                           max_tokens=max_tokens, callsite="notary_checklist")
     md = md or ""
@@ -1450,19 +1766,54 @@ def list_client_kinds():
     return [{"key": k, "label": v["label"]} for k, v in _CLIENT_KINDS.items()]
 
 
+# v9.657 — le stesse quattro voci per la sessione italiana (prima: il prompt albanese chiuso da «Shqip.» e, nell'email di
+# chiusura, la registrazione «në ASHK/QKB»)
+_CLIENT_SYS_IT = {
+    "shpjego": (
+        "Sei un NOTAIO che spiega al cliente (persona comune, NON giurista) che cosa sta firmando — in modo semplice, cordiale, "
+        "senza gergo. Dal testo dell'atto spiega (markdown):\n"
+        "### 📄 Che cosa stai firmando — in parole semplici\n"
+        "### ✅ Che cosa ottieni e che cosa dai\n"
+        "### ⚠️ Attenzione — obblighi, rischi, punti delicati (es. resta un'ipoteca, termini, condizioni)\n"
+        "### ▶️ Dopo la firma — che cosa succede poi (trascrizione, registrazione, voltura…)\n\n"
+        "Basati sull'atto e sugli articoli dati — non inventare. Lingua cordiale e comprensibile."),
+    "email_dokumente": (
+        "Scrivi un'EMAIL formale ma cordiale al CLIENTE per chiedergli i documenti necessari per l'atto. Dal contesto (tipo "
+        "di atto, documenti necessari, nome del cliente se c'è) scrivi un'email PRONTA da inviare: saluto, breve spiegazione, "
+        "ELENCO dei documenti, termine e modo della consegna, chiusura cortese. Dove manca un dato, lascia [___]."),
+    "email_takim": (
+        "Scrivi un'EMAIL al CLIENTE per fissare l'appuntamento dal notaio: proponi data e ora [___], il luogo (studio notarile "
+        "[___]) e che cosa il cliente deve portare con sé. PRONTA da inviare, cortese."),
+    "email_perfundim": (
+        "Scrivi un'EMAIL di riepilogo al CLIENTE dopo la stipula dell'atto: che cosa è stato fatto, i passaggi che restano "
+        "(registrazione, trascrizione e voltura, deposito nel registro delle imprese, ecc.), i costi se ci sono, e un "
+        "ringraziamento. PRONTA da inviare."),
+}
+
+
 def client_comm(backend, index, *, kind, text, max_tokens=2000):
     cfg = _CLIENT_KINDS.get(kind) or _CLIENT_KINDS["shpjego"]
     kind = kind if kind in _CLIENT_KINDS else "shpjego"
-    system = _CLIENT_SYS[kind] + ("\n\nShqip. NDIHMESË — noteri kontrollon para se ta dërgojë/nënshkruajë. "
-                                  "Je 'Tetramorph' i superavokati.ai; mos zbulo modelin.")
+    _it_cc = _expertise._lang_indice(index) == "it"
+    if _it_cc:
+        system = _CLIENT_SYS_IT[kind] + ("\n\nIn italiano. È un AUSILIO — il notaio controlla prima di inviarla o firmarla. "
+                                         "Sei «Tetramorph» di superavokati.ai; non rivelare il modello.")
+    else:
+        system = _CLIENT_SYS[kind] + ("\n\nShqip. NDIHMESË — noteri kontrollon para se ta dërgojë/nënshkruajë. "
+                                      "Je 'Tetramorph' i superavokati.ai; mos zbulo modelin.")
     arts = []
     if cfg["ground"]:
-        art_block, arts = _art_block(backend, index, text, None)
-        prompt = ("AKTI:\n" + (text or "").strip()[:12000]
-                  + "\n\n─────\nNENET NGA KORPUSI (nëse ndihmojnë, cito vetëm këto):\n" + art_block
-                  + "\n\nShpjegoja klientit thjesht.")
+        art_block, arts = _art_block(backend, index, text, (_seed_per_atto_it(text) if _it_cc else None),
+                                     ammessi=(_ammessi_notaio_it(text) if _it_cc else None))
+        prompt = ((("ATTO:\n" + (text or "").strip()[:12000]
+                    + "\n\n─────\nARTICOLI DEL CORPUS (se aiutano, cita solo questi):\n" + art_block
+                    + "\n\nSpiegalo al cliente in modo semplice.")) if _it_cc else
+                  ("AKTI:\n" + (text or "").strip()[:12000]
+                   + "\n\n─────\nNENET NGA KORPUSI (nëse ndihmojnë, cito vetëm këto):\n" + art_block
+                   + "\n\nShpjegoja klientit thjesht."))
     else:
-        prompt = "KONTEKSTI:\n" + (text or "").strip()[:8000] + "\n\nHarto email-in gati për dërgim."
+        prompt = (("CONTESTO:\n" + (text or "").strip()[:8000] + "\n\nScrivi l'email pronta da inviare.") if _it_cc else
+                  ("KONTEKSTI:\n" + (text or "").strip()[:8000] + "\n\nHarto email-in gati për dërgim."))
     md = backend.complete(system=system, messages=[{"role": "user", "content": prompt}],
                           max_tokens=max_tokens, callsite="notary_client")
     return {"markdown": (md or "").strip(),
@@ -1502,10 +1853,11 @@ def what_if(backend, index, *, act, change, max_tokens=2600):
 # ---- Verifica proprietà & gravami (funzione di garanzia del notaio) ----
 # NDIHMESË: il notaio pulls the official certificate from ASHK — questo mjet la
 # LEGGE e cross-checka; NON si collega live ad ASHK (nessuna API). Seed: solo nene
-# VERIFICATE (ipoteka 560/562/568, servitut 290/292, uzufrukt 250); pronësia/
-# sekuestro/regjistrim entrano dal BM25-fill sul testo.
+# VERIFICATE (ipoteka 560/562/568, servitut 261/292, uzufrukt 232); pronësia/
+# sekuestro/regjistrim entrano dal BM25-fill sul testo. v9.656: erano il 290 (la DIVISIONE del fondo dominante) e il 250
+# (la garanzia che l'usufruttuario non dà) — al loro posto la servitù come peso sul fondo (261) e il contenuto dell'usufrutto (232).
 _VERIFY_PROP_SEED = [("kodi_civil", "560"), ("kodi_civil", "562"), ("kodi_civil", "568"),
-                     ("kodi_civil", "290"), ("kodi_civil", "292"), ("kodi_civil", "250"),
+                     ("kodi_civil", "261"), ("kodi_civil", "292"), ("kodi_civil", "232"),
                      ("kodi_civil", "193"), ("kodi_civil", "195"), ("ligji_kadastra", "24")]
 
 # ── ITALIA (v9.312): il notaio italiano legge la VISURA IPOTECARIA/CATASTALE ──
@@ -1680,7 +2032,7 @@ def post_deed_plan(backend, index, *, act: str, jurisdiction: str = "AL",
     else:
         auth = ("AUTORITETET (përdor ato që i takojnë aktit): ASHK përmes e-Albania (regjistrimi i "
                 "pasurisë së paluajtshme dhe i barrëve); QKB (regjistrim/ndryshim i shoqërisë); "
-                "DPSHTRR (kalimi i automjetit); Drejtoria e Tatimeve (taksat/tatimet, p.sh. taksa e "
+                "DPSHTRR (kalimi i automjetit); Drejtoria Rajonale Tatimore (taksat/tatimet, p.sh. taksa e "
                 "kalimit të pronësisë); gjendja civile kur duhet.")
     if juris == "IT" and _expertise._lang_indice(index) == "it":
         _sem = [("codice_civile", n) for n in ("2643", "2644", "2645-bis", "2657", "2671")] + \

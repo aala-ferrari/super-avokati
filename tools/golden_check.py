@@ -14248,6 +14248,16 @@ const F = new Function("localStorage", "document", "fetch", "renderMarkdown", "_
             (_nt461.DEED_TYPES, "premtim_shitje", ("kodi_civil", "601"), "kapar"),
             (_nt461.DEED_TYPES, "vendim_asambleje", ("ligji_shoqerite_tregtare", "87"), "vendime"),
             (_nt461.DECLARATION_TYPES, "pelqim_udhetimi_minor", ("kodi_familjes", "220"), "përgjegjësis"),
+            (_nt461.DEED_TYPES, "statut_shpk", ("ligji_shoqerite_tregtare", "70"), "kapital"),        # v9.656
+            (_nt461.DEED_TYPES, "themelim_shoqerie", ("ligji_shoqerite_tregtare", "10"), "themeluesve"),
+            # v9.656 — lo scanner AST dei semi (anche le comprensioni [("codice", n) for n in (...)])
+            (_nt461.DEED_TYPES, "testament", ("kodi_civil", "397"), "noterial"),
+            (_nt461.DEED_TYPES, "trashegimi", ("ligji_noteri", "112"), "dëshmisë"),
+            (_nt461.DEED_TYPES, "kontrate_martese", ("kodi_familjes", "69"), "forma"),
+            (_nt461.PROKURA_SCOPES, "perfaqesim_gjykate", ("kodi_proc_civile", "97"), "përfaqësuesit"),
+            (_nt461.PROKURA_SCOPES, "heqje_dore_trashegimie", ("kodi_civil", "333"), "heqja dorë"),
+            (_nt461.PROKURA_SCOPES, "likuidim_shpk", ("ligji_shoqerite_tregtare", "191"), "likuid"),
+            (_nt461.PROKURA_SCOPES, "perfaqesim_tatimor", ("ligji_procedurat_tatimore", "35"), "përfaqësim"),
         ]
         _ko461 = [(k, s) for d, k, s, parola in _attese461 if s not in _semi461(d, k) or parola not in _testo461(*s)]
         _vietati461 = {("kodi_civil", "1064"), ("kodi_civil", "1065"), ("ligji_shoqerite_tregtare", "34"), ("kodi_punes", "72")}
@@ -14255,11 +14265,181 @@ const F = new Function("localStorage", "document", "fetch", "renderMarkdown", "_
         _okB461 = not (_vietati461 & set(_tutti461))
         _okC461 = (_cat461["inspektoriati_punes"]["recipient"].startswith("Inspektorati Shtetëror")
                    and _cat461["tatimet"]["recipient"] == "Drejtoria Rajonale Tatimore")
-        check("semi[461]: transazione, quote, liquidazione, usufrutto, servitù, mutuo, preliminare, assemblea e lettere sulle "
-              "norme giuste; nessun seme sul franchising, sulla rendita vitalizia o sulle società di persone; i nomi delle istituzioni",
-              not _ko461 and _okB461 and _okC461, f"sbagliati={_ko461} vietati={_okB461} nomi={_okC461}")
+        # v9.656 — le lettere italiane: l'autotutela sull'annullamento d'ufficio (non sull'art. 21 «Disposizioni
+        # sanzionatorie»), la garanzia legale del consumatore dopo il 2021 (non l'art. 130), l'ABF nel reclamo alla banca, e i
+        # semi condizionati ai fatti (l'art. 2113 solo nel lavoro, l'autotutela tributaria solo col fisco)
+        from pathlib import Path as _P461
+        _byit461 = {(a.code, str(a.number)): a for a in ArticleIndex.load(_P461("/app/data/index/bm25_it.pkl")).articles}
+        _catit461 = _lt461.catalogue("IT")
+        def _h461(c, n):
+            a = _byit461.get((c, n))
+            return (a.heading or "").lower() if a else ""
+        _aut461 = _lt461.semi_per(_catit461["istanza_autotutela"], "ordinanza di demolizione del Comune, senza avvio del procedimento")
+        _autF461 = _lt461.semi_per(_catit461["istanza_autotutela"], "avviso di accertamento IRPEF dell'Agenzia delle Entrate")
+        _cons461 = _lt461.semi_per(_catit461["reclamo_consumatore"], "la lavatrice comprata in negozio non centrifuga")
+        _tr461 = _lt461.semi_per(_catit461["proposta_transattiva"], "lite sul prezzo della fornitura fra due società")
+        _trL461 = _lt461.semi_per(_catit461["proposta_transattiva"], "il lavoratore licenziato chiede il TFR")
+        _pa = "procedimento_amministrativo"
+        _okD461 = ((_pa, "21-novies") in _aut461 and "annullamento d'ufficio" in _h461(_pa, "21-novies")
+                   and (_pa, "21") not in _aut461 and ("statuto_contribuente", "10-quater") not in _aut461
+                   and ("codice_processo_amministrativo", "29") in _aut461 and (_pa, "7") in _aut461
+                   and ("processo_tributario", "21") not in _aut461
+                   and ("statuto_contribuente", "10-quater") in _autF461 and "autotutela" in _h461("statuto_contribuente", "10-quater")
+                   and ("processo_tributario", "21") in _autF461 and ("codice_processo_amministrativo", "29") not in _autF461
+                   and ("codice_consumo", "133") in _cons461 and "responsabilità del venditore" in _h461("codice_consumo", "133")
+                   and ("codice_consumo", "130") not in _cons461 and ("codice_consumo", "52") not in _cons461
+                   and ("tu_bancario", "128-bis") in _catit461["reclamo_banca"]["seeds"]
+                   and ("codice_civile", "2113") not in _tr461 and ("codice_civile", "2113") in _trL461
+                   and all((c, n) in _byit461 for v in _catit461.values() for voce in v.get("seeds_se") or () for c, n in voce[1]))
+        check("semi[461]: transazione, quote, liquidazione, usufrutto, servitù, mutuo, preliminare, assemblea, testamento notarile, "
+              "dëshmi trashëgimie, procure alle liti e di rinuncia all'eredità, lettere italiane sulle norme giuste; nessun seme sul "
+              "franchising, sulla rendita vitalizia o sulle società di persone; semi condizionati ai fatti; i nomi delle istituzioni",
+              not _ko461 and _okB461 and _okC461 and _okD461,
+              f"sbagliati={_ko461} vietati={_okB461} nomi={_okC461} lettere_it={_okD461}")
     except Exception as _e461:  # noqa: BLE001
         check("semi[461]: kontrollet u ekzekutuan", False, f"{type(_e461).__name__}: {_e461}")
+
+    # [464] v9.656 — LE PERIZIE IN SESSIONE ITALIANA scritte per il diritto italiano. Fino alla v9.655 l'avvocato italiano leggeva
+    # nell'interfaccia «riqualificazione come furto semplice 134», «premeditazione per l'art. 78», «tier: grave 88 / lieve 89»,
+    # «Legge 82/2024, artt. 10 e 18» (articoli ALBANESI) e una riga in albanese, e il modello riceveva il prompt e la struttura
+    # albanesi («Ti je ekspert i lartë i së drejtës shqiptare… Shqip», citare «neni [numri] KC»). Eseguito con un cervello finto
+    # che registra il prompt; i testi italiani passano tutti dal verificatore del corpus italiano.
+    try:
+        from pathlib import Path as _P464
+        from src import expertise as _ex464, brain as _br464, perizie_it as _pz464, citation_verifier as _cv464
+        _it464 = ArticleIndex.load(_P464("/app/data/index/bm25_it.pkl"))
+
+        class _B464:
+            def complete(self, system="", messages=None, **kw):
+                self.system, self.msg = system, (messages or [{}])[-1].get("content", "")
+                return "ok"
+        _b464 = _B464()
+        _br464.set_request_jurisdiction("IT")
+        try:
+            _lit464 = _ex464.list_templates()
+            _ex464.analyze(_b464, _it464, case_type="grabitje", facts="Rapina con un coltello in un negozio di Milano.")
+            _sys464, _msg464 = _b464.system, _b464.msg
+        finally:
+            _br464.set_request_jurisdiction("AL")
+        _lal464 = _ex464.list_templates()
+        _ex464.analyze(_b464, ArticleIndex.load(), case_type="grabitje", facts="Grabitje me thikë në një dyqan në Tiranë.")
+        _sysal464 = _b464.system
+
+        def _stringhe464(lista):
+            return [x for t in lista for k in ("label", "elements", "evidence", "defenses", "deadlines", "questions")
+                    for x in (t[k] if isinstance(t[k], list) else [t[k]])]
+        _sit464, _sal464 = _stringhe464(_lit464), _stringhe464(_lal464)
+        _albanese464 = [x for x in _sit464 if re.search(r"[ëç]|\btier\b|82/2024|\bKPP\b|\bneni\b|134\)|AMP\b", x)]
+        _testi464 = "\n".join(x for d in _pz464.TESTI_IT.values() for v in d.values() for x in (v if isinstance(v, list) else [v]))
+        _ver464 = _cv464.verify_text(_testi464, _it464)["items"]
+        _nonver464 = [(c["raw"] if isinstance(c, dict) else c.raw) for c in _ver464
+                      if (c["status"] if isinstance(c, dict) else c.status) != "verified"]
+        # ogni articolo che il testo italiano di un modello nomina è fra i SUOI semi (altrimenti il modello lo dichiara «non
+        # nel corpus» o lo cerca sul web: la prova del 17 ott sull'abuso di polizia con gli artt. 349 e 74 c.p.p.)
+        _semi_ko464 = []
+        for _k464, _d464 in _pz464.TESTI_IT.items():
+            _t464 = "\n".join(x for v in _d464.values() for x in (v if isinstance(v, list) else [v]))
+            _semi464 = {(c, str(n).replace("/", "-")) for c, n in _ex464._SEMI_IT.get(_k464, [])}
+            for _c464 in _cv464.verify_text(_t464, _it464)["items"]:
+                _cc464, _nn464 = (_c464["code"], _c464["number"]) if isinstance(_c464, dict) else (_c464.code, _c464.number)
+                if (_cc464, str(_nn464).replace("/", "-")) not in _semi464:
+                    _semi_ko464.append((_k464, _cc464, _nn464))
+        _ok464 = (len(_lit464) == len(_lal464) == 8 and not _albanese464 and len(_ver464) >= 40 and not _nonver464
+                  and not _semi_ko464
+                  and "diritto italiano" in _sys464 and "Ti je ekspert" not in _sys464 and "së drejtës shqiptare" not in _sys464
+                  and "neni [numri]" not in _sys464
+                  and "LA MENTE DEL PUBBLICO MINISTERO" in _sys464 and "art. [numero] c.p." in _sys464
+                  and "ARTICOLI DEL CORPUS" in _msg464 and "STRUTTURA ATTESA" in _msg464 and "624 c.p." in _msg464
+                  and "NENET NGA KORPUSI" not in _msg464 and "rikualifikim" not in _msg464
+                  and "së drejtës shqiptare" in _sysal464 and "MENDJA E PROKURORIT" in _sysal464
+                  and not [x for x in _sal464 if re.search(r"\btier|posto-bll|Recuperim", x)])
+        check("perizie[464]: in sessione italiana testi, struttura e prompt scritti per il diritto italiano (nessun articolo "
+              "albanese a schermo né nel prompt, ogni articolo citato verificato sul corpus IT); in sessione albanese invariati, "
+              "senza «tier» né «posto-blloku»",
+              _ok464, f"albanese={_albanese464[:3]} citazioni={len(_ver464)} non_verificate={_nonver464} fuori_dai_semi={_semi_ko464} "
+                      f"sys_it={_sys464[:120]!r} msg_it={_msg464[:160]!r}")
+    except Exception as _e464:  # noqa: BLE001
+        check("perizie[464]: kontrollet u ekzekutuan", False, f"{type(_e464).__name__}: {_e464}")
+
+    # [465] v9.656 — GLI ATTI DEL NOTAIO IN SESSIONE ITALIANA. Il redattore («Redigi atto notarile») in sessione italiana usava il
+    # catalogo albanese (clausole in albanese, semi del Codice civile albanese che nell'indice italiano non esistono) e il prompt
+    # «Ti je NOTER shqiptar…»: misurato il 17 ott, alla compravendita arrivavano c.p.c. 807 (arbitrato), c.p. 254 e 259, il TUB e il
+    # TU spese di giustizia, al testamento il TUEL e il codice della crisi. Eseguito con un cervello finto che registra il prompt.
+    try:
+        from pathlib import Path as _P465
+        from src import notary as _nt465, brain as _br465
+        from src.atti_notarili_it import ATTI_IT as _ATTI465
+        _it465 = ArticleIndex.load(_P465("/app/data/index/bm25_it.pkl"))
+        _by465 = {(a.code, str(a.number)) for a in _it465.articles}
+
+        class _B465:
+            def complete(self, system="", messages=None, **kw):
+                self.system, self.msg = system, (messages or [{}])[-1].get("content", "")
+                return "## atto"
+        _b465 = _B465()
+        _br465.set_request_jurisdiction("IT")
+        try:
+            _lit465 = _nt465.list_deed_types()
+            _d465 = _nt465.draft_deed(_b465, _it465, deed_type="shitje_pasurie", details=(
+                "Mario Esempio vende a Giulia Prova un appartamento a Milano per 250.000 euro con bonifico; il venditore è in "
+                "comunione legale; l'acquirente chiede le agevolazioni prima casa."))
+            _sys465, _msg465 = _b465.system, _b465.msg
+            # v9.657 — le dichiarazioni italiane (prima: semi del KF albanese e «Ti je NOTER shqiptar»)
+            _ldc465 = _nt465.list_declaration_types()
+            _dc465 = _nt465.draft_declaration(_b465, _it465, decl_type="vertetim_fakti",
+                                              details="Mario Esempio dichiara di essere l'unico erede del padre.")
+            _sysdc465, _msgdc465 = _b465.system, _b465.msg
+            # v9.657 — lista dei documenti, revoca della procura, conflitti, comunicazioni al cliente
+            _doc465 = _nt465.documents_needed(_b465, _it465, act="Compravendita di un appartamento a Milano fra privati.")
+            _sysdoc465 = _b465.system
+            _rev465 = _nt465.draft_revocation(_b465, _it465, details="Mario Esempio revoca la procura generale data a Luca Prova.")
+            _sysrev465 = _b465.system
+            _nt465.check_conflicts(_b465, _it465, new_act="Procura a vendere l'appartamento di Milano a Luca Prova.")
+            _syscf465 = _b465.system
+            _nt465.client_comm(_b465, _it465, kind="email_perfundim", text="Compravendita stipulata oggi.")
+            _syscl465 = _b465.system
+            _nt465.inspect_act(_b465, _it465, text="Contratto di compravendita fra Mario Esempio e Giulia Prova.")
+            _sysin465 = _b465.system
+            _nt465.extract_data(_b465, _it465, text="Visura catastale: Comune di Milano, foglio 10, particella 20.")
+            _sysex465 = _b465.system
+            _nt465.dossier_checklist(_b465, _it465, act="Compravendita immobiliare", documents_text="Carta d'identità.")
+            _sysck465 = _b465.system
+        finally:
+            _br465.set_request_jurisdiction("AL")
+        _lal465 = _nt465.list_deed_types()
+        _arts465 = [(a["code"], str(a["number"])) for a in _d465["articles"]]
+        _semi465 = set(_ATTI465["shitje_pasurie"]["seed"])
+        _fuori465 = [x for x in _arts465 if x not in _semi465 and x[0] not in _nt465._NOTAIO_IT_BASE]
+        from src.atti_notarili_it import DICHIARAZIONI_IT as _DIC465
+        _okdc465 = (set(_nt465.DECLARATION_TYPES) <= set(_DIC465)
+                    and not [(k, x) for k, v in _DIC465.items() for x in v["seed"] if x not in _by465]
+                    and not [t for t in _ldc465 if re.search(r"[ëç]", t["label"] + " ".join(t["must"]))]
+                    and ("tu_documentazione_amministrativa", "47") in {(a["code"], str(a["number"])) for a in _dc465["articles"]}
+                    and "NOTAIO italiano" in _sysdc465 and "shqiptar" not in _sysdc465
+                    and "TIPO DI DICHIARAZIONE" in _msgdc465 and "LLOJI I DEKLARATËS" not in _msgdc465
+                    and _nt465.list_declaration_types()[0]["label"] == _nt465.DECLARATION_TYPES["pelqim_udhetimi_minor"]["label"])
+        _altri465 = (("codice_civile", "1470") in {(a["code"], str(a["number"])) for a in _doc465["articles"]}
+                     and "prassi notarile italiana" in _sysdoc465 and "shqiptare" not in _sysdoc465
+                     and ("codice_civile", "1396") in {(a["code"], str(a["number"])) for a in _rev465["articles"]}
+                     and "REVOCA DI PROCURA" in _sysrev465 and "neni 7" not in _sysrev465
+                     and "NOTAIO-revisore" in _syscf465 and "neni 76" not in _syscf465
+                     and "In italiano" in _syscl465 and "Shqip" not in _syscl465 and "ASHK" not in _syscl465
+                     and "ISPETTORE" in _sysin465 and "shqiptare" not in _sysin465 and "RISK:" in _sysin465
+                     and "visura" in _sysex465 and "ASHK" not in _sysex465 and "në shqip" not in _sysex465
+                     and "prassi italiana" in _sysck465 and "110/2018" not in _sysck465 and "PLOTESIA:" in _sysck465)
+        _ok465 = (_okdc465 and _altri465 and set(_nt465.DEED_TYPES) <= set(_ATTI465)
+                  and not [(k, x) for k, v in _ATTI465.items() for x in v["seed"] if x not in _by465]
+                  and not [t for t in _lit465 if re.search(r"[ëç]", t["label"] + " ".join(t["must"]))]
+                  and _lal465[0]["label"] == _nt465.DEED_TYPES["shitje_pasurie"]["label"]
+                  and {("codice_civile", "1470"), ("legge_52_1985", "29"), ("tu_edilizia", "46")} <= set(_arts465)
+                  and not _fuori465
+                  and "NOTAIO italiano" in _sys465 and "shqiptar" not in _sys465 and "Requisiti formali" in _sys465
+                  and "ARTICOLI DEL CORPUS" in _msg465 and "CLAUSOLE OBBLIGATORIE" in _msg465 and "Kërkesat" not in _msg465)
+        check("notaio[465]: gli atti e le dichiarazioni del notaio in sessione italiana col catalogo italiano (clausole, "
+              "articoli verificati sul corpus IT, solo i codici del notaio), prompt italiano; in sessione albanese invariati",
+              _ok465, f"dichiarazioni={_okdc465} altri={_altri465} articoli={_arts465} fuori={_fuori465} sys={_sys465[:100]!r} msg={_msg465[:100]!r}")
+    except Exception as _e465:  # noqa: BLE001
+        check("notaio[465]: kontrollet u ekzekutuan", False, f"{type(_e465).__name__}: {_e465}")
 
     # [462] v9.654 — LA FABBRICA DEGLI ATTI IN SESSIONE ITALIANA: la citazione senza il termine a comparire (163-bis) e i fori,
     # l'appello penale senza la forma dell'impugnazione (581, coi commi Cartabia a pena di inammissibilità) né il 591, il ricorso
