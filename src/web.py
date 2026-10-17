@@ -2288,7 +2288,8 @@ CONTRACT_REVIEW_SYSTEM += (
 CONTRACT_REVIEW_SYSTEM_IT += (
     "\n\nARTICOLI: se ti viene dato il blocco «ARTICOLI DEL CORPUS», ogni articolo che citi in «issue» o «suggestion» "
     "viene da lì, con numero e codice come nel blocco (es. «art. [numero] c.c.»); un articolo che non è nel blocco dillo a "
-    "parole. Non citare articoli a memoria."
+    "parole. Non citare articoli a memoria. Lavori senza web, per scelta: niente note su strumenti negati o sulla «verifica viva» "
+    "della Cassazione, che qui non si applica."
 )
 
 
@@ -2335,7 +2336,8 @@ def _rishikim_kontrate(source_text: str, body: dict) -> tuple[dict, dict]:
         no_web=True, callsite="contract_review",
     )
     parsed = _intake_parse_json(raw)
-    return parsed, _annota_revisione(parsed, codici)
+    with _articoli_del_documento(source_text):   # v9.646: «neni 3» della kontrata non è una norma
+        return parsed, _annota_revisione(parsed, codici)
 
 
 def _compute_contract_risk(clauses: list, gdpr_flags: list) -> int:
@@ -3970,7 +3972,31 @@ BASE GIURIDICA (obbligatoria): gli articoli si prendono SOLO dal blocco «CONTES
 
 LUNGHEZZA: circa 1.300 parole in tutto, senza introduzione.
 
+SENZA WEB, PER SCELTA: lavori con gli articoli del blocco e con le prove del fascicolo; NON scrivere note su strumenti negati o verifiche non eseguibili — la «verifica viva» della Cassazione richiesta sopra NON si applica alla mappa.
+
 REGOLE FERREE: non concludere sulla colpevolezza o sul merito; non inventare articoli, prove o testimonianze; una lacuna detta apertamente vale più di una tabella che sembra completa."""
+
+
+class _articoli_del_documento:
+    """v9.646 — gli articoli di un CONTRATTO (o dell'atto) non sono norme: «neni 4» del contratto attaccato dal Red Team, «Neni 5 –
+    Qiraja» del contratto appena redatto. Il verificatore li conta «senza codice» (il Red Team AL: 8 su 32; il contratto di locazione
+    redatto: 17 su 35; quello italiano 39 su 64) — la stessa regola della revisione nella chat (v9.635): un numero NUDO che è fra
+    gli articoli del documento non è una citazione di legge. Vale per il thread, anche dentro lo scudo; si azzera all'uscita."""
+
+    def __init__(self, *testi):
+        self.numri = []
+        for t in testi:
+            for n in cv_mod.numri_e_dokumentit(t or ""):
+                if n not in self.numri:
+                    self.numri.append(n)
+
+    def __enter__(self):
+        cv_mod.imposta_numri_dokumentit(self.numri or None)
+        return self
+
+    def __exit__(self, *exc):
+        cv_mod.imposta_numri_dokumentit(None)
+        return False
 
 
 def _giur_richiesta() -> str:
@@ -4013,12 +4039,13 @@ def _red_team(text: str, body: dict) -> dict:
     res = adversary_mod.attack(_BRAIN.backend, text=_with_case(text[:16000], body), context=blocco, lang=lang)
     md = res.get("markdown") or ""
     citations = {"items": [], "stats": {}}
-    try:
-        if _INDEX is not None and md:
-            citations = cv_mod.verify_text(md, _req_index(), retrieved_codes=(codici or None))
-    except Exception:  # noqa: BLE001
-        pass
-    md = _scudo_citazioni(md, citations, retrieved_codes=(codici or None))
+    with _articoli_del_documento(text):          # v9.646: «neni 4» del contratto attaccato non è una norma
+        try:
+            if _INDEX is not None and md:
+                citations = cv_mod.verify_text(md, _req_index(), retrieved_codes=(codici or None))
+        except Exception:  # noqa: BLE001
+            pass
+        md = _scudo_citazioni(md, citations, retrieved_codes=(codici or None))
     return {"markdown": md, "citations": citations, "grounded": bool(blocco)}
 
 
@@ -4141,22 +4168,49 @@ def api_fable_draft():
         return jsonify({"error": "brief_required"}), 400
     try:
         _brief = brief[:(24000 if existing else 8000)]   # v9.639: con il documento, i dati nuovi
-        res = fable_drafter_mod.draft(_BRAIN.backend, kind=kind,
-                                      brief=_with_case(_brief, body),
-                                      clauses_text=_firm_clauses_text(body),
-                                      existing=existing, nuovi=_brief)
+        return jsonify(_redakto(kind, _brief, existing, body))      # v9.646: radicato nel corpus
     except Exception as exc:  # noqa: BLE001
         log.exception("fable-draft failed")
         return jsonify({"error": _safe_err(exc)}), 200
+
+
+def _nenet_redattore(kind: str, brief: str, existing: str, body: dict) -> tuple[str, set[str]]:
+    """v9.646 — gli articoli del corpus per il redattore: il recupero del cervello sulle istruzioni (e sul documento da rivedere)
+    e, per un contratto o una clausola, le norme delle clausole tipiche (`semi_contratti`, v9.645); con un documento da rivedere
+    anche le norme lette dal suo contenuto (`brain._ancore_rishikimi`, come il notaio). Fail-silent: senza, il redattore
+    lavora come prima (senza blocco: «non inventare»)."""
+    lang = "it" if _giur_richiesta() == "IT" else "sq"
+    testo = ((brief or "") + "\n" + (existing or "")).strip()
+    semi: list = []
+    try:
+        if kind in ("contract", "clause"):
+            semi += semi_contratti_mod.semi(testo, lang)
+        if (existing or "").strip():
+            from . import brain as _brm
+            semi += [(c, n) for c, n, _p in _brm._ancore_rishikimi(existing, lang)]
+    except Exception:  # noqa: BLE001
+        log.debug("redattore: semi non calcolati", exc_info=True)
+    return _nenet_per_djallin(testo, body, semi=semi or None)
+
+
+def _redakto(kind: str, brief: str, existing: str, body: dict) -> dict:
+    """v9.646 — ✍️ «Redakto me Tetramorph» RADICATO: gli articoli del corpus davanti (`_nenet_redattore`), il prompt della
+    lingua della sessione, le citazioni verificate coi codici degli articoli dati. Fuori dalla rotta per poterlo misurare."""
+    lang = "it" if _giur_richiesta() == "IT" else "sq"
+    blocco, codici = _nenet_redattore(kind, brief, existing, body)
+    res = fable_drafter_mod.draft(_BRAIN.backend, kind=kind, brief=_with_case(brief, body),
+                                  clauses_text=_firm_clauses_text(body), existing=existing, nuovi=brief,
+                                  context=blocco, lang=lang)
     md = res.get("markdown") or ""
     citations = {"items": [], "stats": {}}
-    try:
-        if _INDEX is not None and md:
-            citations = cv_mod.verify_text(md, _req_index())
-    except Exception:  # noqa: BLE001
-        pass
-    md = _scudo_citazioni(md, citations)
-    return jsonify({"markdown": md, "citations": citations})
+    with _articoli_del_documento(md, existing):  # v9.646: «Neni 5 – Qiraja» del contratto redatto non è una norma
+        try:
+            if _INDEX is not None and md:
+                citations = cv_mod.verify_text(md, _req_index(), retrieved_codes=(codici or None))
+        except Exception:  # noqa: BLE001
+            pass
+        md = _scudo_citazioni(md, citations, retrieved_codes=(codici or None))
+    return {"markdown": md, "citations": citations, "grounded": bool(blocco)}
 
 
 @app.post("/api/extract-text")

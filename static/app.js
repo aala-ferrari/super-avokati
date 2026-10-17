@@ -4038,6 +4038,10 @@
   function collapseSparring(html) {
     try {
       if (!/<h4>(⚔️|🛡️)/.test(html)) return html;
+      // v9.646 — solo il DUELLO della chat (c'è l'avvocato del diavolo): i titoli ⚔️/🛡️ degli strumenti restavano CHIUSI — il Red Team
+      // «⚔️ Dobësitë» (la prima sezione, la più importante), il procuratore «🛡️ Ana e mbrojtjes» e «🛡️ Dobësitë e provave», le perizie
+      // «🛡️ Mbrojtjet / pikat e dobëta» e «🛡️ MENDJA E QYTETARIT» (prova in Chrome del Red Team, 17 ott)
+      if (!/<h4>⚔️ (Avokati i djallit|Avvocato del diavolo)/.test(html)) return html;
       const parts = html.split(/(?=<h[2-4]>)/);
       let out = "", open = false;
       for (const part of parts) {

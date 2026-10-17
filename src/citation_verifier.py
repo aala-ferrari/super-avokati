@@ -544,7 +544,7 @@ _LIST_SEP = r"(?:\s*(?:,|;|\bdhe\b|\be\b)\s*)"
 # «pika 1-bis» (sotto-riferimento di stile italiano dentro una citazione albanese di diritto straniero)
 _SUB_NUM = r"\d{1,3}(?:-(?:bis|ter|quater|quinquies|sexies|septies|octies|novies|decies))?(?:/[a-zçë](?![\wçë]))?(?![\w/])\)?"   # v9.514: anche «pika 3/a»
 _SUB_LET = (r"(?:[\"“«'][a-zçë]{1,2}[\"”»']|[a-zçë]{1,2}\)|"
-            r"(?!(?:e|i|t[ëe]|s[ëe]|me|n[ëe]|se|ose|dhe|po|si|sa)(?![\wçë]))[a-zçë]{1,2}(?![\wçë/.]))")
+            r"(?!(?:e|i|t[ëe]|s[ëe]|me|n[ëe]|se|ose|dhe|po|si|sa|kc|kd|kf|kp|kr|kz)(?![\wçë]))[a-zçë]{1,2}(?![\wçë/.]))")
 # v9.499 — anche il paragrafo/la pika in LETTERE: «neni 443, paragrafi i parë, i Kodit…», «neni 155, pika e parë, e Kodit të
 # Punës», «paragrafi i fundit» (come «primo comma» in italiano: restava «pa kod»)
 _ORD_AL = (r"(?:i|e)\s+(?:par[ëe]|dyt[ëe]|tret[ëe]|kat[ëe]rt|pest[ëe]|gjasht[ëe]|shtat[ëe]|tet[ëe]|n[ëe]nt[ëe]|dhjet[ëe]|"
@@ -555,6 +555,10 @@ _SUB_AL = (r"(?:\s*,?\s*(?:(?:pik[aë]t?|paragraf\w{0,3}|fjali[aë]?|n[ëe]npik[
 _CONN_AL = (r"(?:i|e|t[ëe]|s[ëe]|sipas)\s+(?:po\s+)?(?:k[ëe]tij\s+(?:ligji|kodi)\b|"
             r"kodit\b|ligjit\b|kushtetut[ëe]s\b|vkm\b|rregullores\b|dekretit\b|k\.\s?p|kp\b|kc\b|kpc\b|kpp\b|krr\b|kf\b)")
 
+# v9.646 — le sigle dei codici (dagli alias: «kp», «kpc», «k.pr.c», «krr»…), nude dopo la virgola dei sotto-riferimenti
+_SIGLE_AL = sorted({k for k in CODE_ALIASES if re.fullmatch(r"[a-zë.]{2,8}", k) and not k.isdigit()}, key=len, reverse=True)
+_SIGLA_NUDA_AL = r"(?:" + "|".join(re.escape(s) for s in _SIGLE_AL) + r")\.?(?![\wçë])"
+
 CITATION_RE = re.compile(
     r"\bnen(?:i|in|it|et|eve|ve)?\b\s+"
     # v9.399: «neni 114 dhe neni 115 i Kodit Civil» = un elenco con il codice in comune (come «nenet 114 dhe 115»)
@@ -562,7 +566,7 @@ CITATION_RE = re.compile(
     # 12 restava senza codice (senza grassetto era verificato); il modello scrive spesso i numeri in grassetto
     r"(?P<nums>" + _NUM_TOKEN + r"(?:\**" + _LIST_SEP + r"\**(?:nen(?:i|in|it|et)?\s+)?" + _NUM_TOKEN + r")*)"
     r"(?P<sub>" + _SUB_AL + r"*)"
-    r"(?:\s*,(?=\s+" + _CONN_AL + r"))?"      # la virgola sì, lo spazio resta alla coda
+    r"(?:\s*,(?=\s+(?:" + _CONN_AL + r"|" + _SIGLA_NUDA_AL + r")))?"      # la virgola sì, lo spazio resta alla coda
     # Tail = up to 8 words, but never crossing "dhe" or another "nen..." —
     # otherwise one citation swallows the next and steals its code.
     # v9.399: … né davanti a un «neni» preceduto da virgolette o barra ("neni 114 KC" / "neni 443 KPC")
@@ -607,6 +611,31 @@ def _kp_bare(tail: str, code: str | None) -> bool:
     """La citazione porta SOLO la sigla nuda «KP»/«K.P.» (nessun nome per esteso)."""
     return (code in (None, "kodi_penal") and bool(_KP_BARE_RE.search(tail or ""))
             and not re.search(r"penal|pun[ëe]s", tail or "", re.I))
+
+
+_CITAZ_DOPO_RE = re.compile(r"^[^\n«\"“]{0,30}[«\"“]([^»\"”\n]{12,500})[»\"”]")
+
+
+def _kp_dalla_citazione(text: str, pos: int, number: str, lookup: dict) -> str | None:
+    """v9.646 — la sigla «KP» resta ambigua (i due codici nel documento o nel contesto): se subito dopo la citazione c'è il testo
+    fra virgolette, vince il codice nel cui articolo stanno quelle parole (almeno 3 parole piene, il 70 %). Mai a caso."""
+    m = _CITAZ_DOPO_RE.match((text or "")[pos:pos + 560])
+    if not m:
+        return None
+    def _f(s):
+        return re.sub(r"[ëè]", "e", re.sub(r"[ç]", "c", (s or "").lower()))
+    parole = [w for w in re.findall(r"[a-z]{4,}", _f(m.group(1)))][:14]
+    if len(parole) < 3:
+        return None
+    ok = []
+    for c in ("kodi_punes", "kodi_penal"):
+        a = _verify_number(lookup, c, number)
+        if a is None:
+            continue
+        corpo = _f((getattr(a, "heading", "") or "") + " " + (getattr(a, "body", "") or ""))
+        if sum(1 for w in parole if w in corpo) >= max(3, int(len(parole) * 0.7 + 0.5)):
+            ok.append(c)
+    return ok[0] if len(ok) == 1 else None
 
 
 def _kp_resolve(number: str, text: str, retrieved_codes: set, lookup: dict) -> str | None:
@@ -1987,7 +2016,9 @@ def verify_text(
             _rip_l = bool(_code) and len(_tutti) > 1 and _e_elenco_ripetuto(_m)
             for _i, _nr in enumerate(_tutti):
                 _n = _normalise_number(_nr)
-                _c = _kp_resolve(_n, _src, retrieved_codes, lookup) if _kp else _code
+                # v9.646: le parole citate subito dopo decidono prima del documento e del contesto (una citazione alla volta)
+                _c = (((_kp_dalla_citazione(_src, _m.end(), _n, lookup) if len(_tutti) == 1 else None)
+                       or _kp_resolve(_n, _src, retrieved_codes, lookup)) if _kp else _code)
                 if (_c and _rip_l and _i < len(_tutti) - 1 and _verify_number(lookup, _c, _n) is None
                         and _verify_number(lookup_all, _c, _n) is None):
                     continue                     # inferenza smentita: non lega (v9.399)
@@ -2393,10 +2424,14 @@ def verify_text(
         _rip = bool(code) and len(numbers) > 1 and _e_elenco_ripetuto(m)
         for _i, number_raw in enumerate(numbers):
             number = _normalise_number(number_raw)
-            code_n = _kp_resolve(number, text, retrieved_codes, lookup) if kp_bare else code
+            # v9.646 — «KP» con il testo citato subito dopo: decidono le parole citate (prova diretta), prima del documento e del
+            # contesto del recupero («neni 134, pika 2, KP: «Vjedhja e kryer në bashkëpunim»» in una risposta di lavoro restava
+            # Kodi i Punës per il contesto); solo per una citazione singola, non per un elenco
+            _kq = _kp_dalla_citazione(text, m.end(), number, lookup) if (kp_bare and len(numbers) == 1) else None
+            code_n = (_kq or _kp_resolve(number, text, retrieved_codes, lookup)) if kp_bare else code
             if _rip and _i < len(numbers) - 1 and code_n and not _esiste(code_n, number):
                 code_n = None
-            via = None
+            via = "citazione" if (_kq and code_n == _kq) else None
             if code_n is None and kp_bare:
                 # v9.603 — «neni 39 KP» in una risposta che nomina per esteso SIA il Kodi i Punës SIA il Kodi Penal (l'infortunio sul lavoro
                 # con la responsabilità penale del datore, 10 ott: 25 «KP», tutte Kodi i Punës, sei rimaste «pa kod»): decide lo stesso
@@ -2428,7 +2463,7 @@ def verify_text(
                             _emit_foreign(number, _fd, (_cite_prefix + number_raw) if multi else full_raw)
                             continue
             if (_nd and code is None and not kp_bare and via in (None, "documento")
-                    and number.split("/")[0] in _nd):
+                    and re.split(r"[/.]", number)[0] in _nd):   # v9.646: anche «art. 7.4» (comma 4 dell'art. 7 del contratto)
                 continue                   # v9.635: un articolo del documento in revisione, non una norma
             key = (number, code_n or ("kp?" if kp_bare else ""))
             if key in seen:

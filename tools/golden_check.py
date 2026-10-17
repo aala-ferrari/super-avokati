@@ -13197,7 +13197,8 @@ const F = new Function("localStorage", "document", "fetch", "renderMarkdown", "_
                                                              "fable_draft"))
         _w435 = open("/app/src/web.py", encoding="utf-8").read()
         _a435 = open("/app/static/app.js", encoding="utf-8").read()
-        _okH = ("existing=existing, nuovi=details)" in _w435 and "existing=existing, nuovi=_brief)" in _w435
+        _okH = ("existing=existing, nuovi=details)" in _w435 and "existing=existing, nuovi=brief," in _w435
+                and "_redakto(kind, _brief, existing, body)" in _w435
                 and "_blocco_esistente(existing, _it_p, _fatti)" in _w435 and "details[:(24000 if existing else 12000)]" in _w435
                 and "if (dataRow) dataRow.hidden = false;" in _a435
                 and '"\\ud83d\\udcce 2. Të dhënat e reja (ID, ekstrakt, foto)": "\\ud83d\\udcce 2. Dati nuovi (documento, visura, foto)"' in _a435
@@ -13247,7 +13248,7 @@ const F = new Function("localStorage", "document", "fetch", "renderMarkdown", "_
         _src = _in436.getsource(_be436.ClaudeCodeBackend.complete) if hasattr(_be436, "ClaudeCodeBackend") else ""
         _src_s = _in436.getsource(_be436.ClaudeCodeBackend.complete_stream) if hasattr(_be436, "ClaudeCodeBackend") else ""
         _okE = ('"--output-format", "stream-json", "--verbose"' in _src and "_p = _compatta_stream(_p)" in _src
-                and "_ricuci(getattr(proc, \"prima_strumenti\"" in _src and "_seq_stream.extend(_blocchi_assistente(evt))" in _src_s
+                and "_ricuci(getattr(proc, \"prima_strumenti\"" in _src and "_aggiungi_blocchi(_seq_stream, evt)" in _src_s
                 and "_ricuci(_testi_prima_degli_strumenti(_seq_stream), full)" in _src_s)
         check("cli[436]: il testo scritto PRIMA di uno strumento non si perde (complete e stream): i pezzi lunghi tornano davanti, "
               "le frasi di passaggio no, un finale che riparte da capo vale da solo; i controlli dei limiti non leggono le pagine web",
@@ -13627,6 +13628,124 @@ const F = new Function("localStorage", "document", "fetch", "renderMarkdown", "_
               f"ancora={_okF446} oggi={_okG446}")
     except Exception as _e446:  # noqa: BLE001
         check("contratti[446]: kontrollet u ekzekutuan", False, f"{type(_e446).__name__}: {_e446}")
+
+    # [447] v9.646 — «Redakto me Tetramorph» radicato nel corpus e in italiano nella sessione italiana
+    try:
+        import inspect as _in447, re as _re447
+        from src import web as _w447, fable_drafter as _fd447, brain as _br447
+        class _FB447:
+            def __init__(self): self.sys, self.msg, self.kw = "", "", {}
+            def complete(self, system=None, messages=None, **kw):
+                self.sys, self.msg, self.kw = system or "", (messages or [{}])[-1].get("content", ""), kw
+                return "ok"
+        _fb447 = _FB447()
+        _br447.set_request_jurisdiction("IT")
+        _fd447.draft(_fb447, kind="contract", brief="Contratto di locazione ad uso abitativo a Milano.",
+                     context="art. 1571 c.c. — Nozione …", lang="it")
+        _it447 = ("TIPO DI DOCUMENTO" in _fb447.msg and "LLOJI I DOKUMENTIT" not in _fb447.msg
+                  and "CONTESTO/ARTICOLI" in _fb447.msg and "art. 1571 c.c." in _fb447.msg
+                  and "avvocato SENIOR italiano" in _fb447.sys and _fb447.kw.get("no_web") is True)
+        _br447.set_request_jurisdiction("AL")
+        _fd447.draft(_fb447, kind="act", brief="Padi për pagat e papaguara.", context="neni 115 i Kodit të Punës …", lang="sq")
+        _al447 = ("LLOJI I DOKUMENTIT" in _fb447.msg and "KONTEKST/NENE" in _fb447.msg and "merri nga blloku" in _fb447.msg
+                  and "sigurohu" not in _fb447.msg and "avokat SENIOR shqiptar" in _fb447.sys)
+        _src447 = _in447.getsource(_fd447)
+        _okP447 = ("KONTEKST/NENE" in _fd447._SYSTEM and "CONTESTO/ARTICOLI" in _fd447._SYSTEM_IT
+                   and not _re447.search(r"[ëçË]", _fd447._SYSTEM_IT + "".join(_fd447.KINDS_IT.values()))
+                   and set(_fd447.KINDS_IT) == set(_fd447.KINDS) and "sigurohu q" not in _src447)
+        _sr447 = _in447.getsource(_w447._redakto) + _in447.getsource(_w447._nenet_redattore)
+        # (e gli articoli del CONTRATTO non contano come norme: «Neni 5 – Qiraja» del contratto redatto, «neni 4» di quello attaccato)
+        with _w447._articoli_del_documento("### Neni 1 – Objekti\nNeni 5. Qiraja\n"):
+            _nd447 = __import__("src.citation_verifier", fromlist=["x"]).numri_dokumentit_attivi()
+        _okW447 = (set(_nd447 or ()) == {"1", "5"}
+                   and __import__("src.citation_verifier", fromlist=["x"]).numri_dokumentit_attivi() is None
+                   and "_articoli_del_documento(md, existing)" in _sr447
+                   and "_articoli_del_documento(text)" in _in447.getsource(_w447._red_team)
+                   and "_articoli_del_documento(source_text)" in _in447.getsource(_w447._rishikim_kontrate)
+                   and "_nenet_redattore(kind, brief, existing, body)" in _sr447 and "context=blocco, lang=lang" in _sr447
+                   and "retrieved_codes=(codici or None)" in _sr447 and 'kind in ("contract", "clause")' in _sr447
+                   and "_ancore_rishikimi(existing, lang)" in _sr447 and "semi=semi or None" in _sr447)
+        check("redattore[447]: «Redakto me Tetramorph» con gli articoli del corpus davanti (semi delle clausole per contratti e "
+              "clausole, norme del documento da rivedere), citazioni verificate coi codici dati, prompt e etichette italiane in "
+              "sessione IT", _it447 and _al447 and _okP447 and _okW447,
+              f"it={_it447} al={_al447} prompt={_okP447} web={_okW447}")
+    except Exception as _e447:  # noqa: BLE001
+        check("redattore[447]: kontrollet u ekzekutuan", False, f"{type(_e447).__name__}: {_e447}")
+
+    # [448] v9.646 — «neni N, pika M, KP:» (la forma delle tabelle degli strumenti): la sigla dopo la virgola è il codice, non una
+    # «lettera» del comma; e «KP» ambigua (Kodi Penal / Kodi i Punës) la decidono le parole citate subito dopo, mai a caso
+    try:
+        from src import citation_verifier as _cv448
+        _ix448 = ArticleIndex.load()
+        def _st448(t, rc=None):
+            return [(it.get("status"), it.get("code")) for it in _cv448.verify_text(t, _ix448, retrieved_codes=rc).get("items", [])]
+        _a448 = _st448("| neni 145, pikat 1 e 2, KP: «paga e një 15-ditëshi, mbi çdo vit pune të plotë» |")
+        _b448 = _st448("| neni 820, pika 1, KC | neni 47, pika 2, KPC |")
+        _c448 = _st448("| neni 146, pika 1, shkronja «a», KP: «punëmarrësi ka pretendime që rrjedhin nga kontrata e punës» |")
+        _d448 = _st448("| neni 155, pika 3, KP |", {"kodi_punes", "kodi_penal"})
+        _e448 = _st448("Sipas nenit 155, pika 1, i Kodit të Punës dhe nenit 155, pika 3, KP.")
+        _ok448 = (_a448 == [("verified", "kodi_punes")] and _b448 == [("verified", "kodi_civil"), ("verified", "kodi_proc_civile")]
+                  and _c448 == [("verified", "kodi_punes")] and _d448 == [("needs_code", None)]
+                  and all(x == ("verified", "kodi_punes") for x in _e448) and _e448)
+        check("kp[448]: «neni N, pika M, KP:» — la sigla nuda dopo la virgola è il codice; «KP» ambigua decisa dalle parole citate, "
+              "altrimenti senza codice (mai un verde a caso)", _ok448,
+              f"a={_a448} b={_b448} c={_c448} d={_d448} e={_e448}")
+    except Exception as _e448x:  # noqa: BLE001
+        check("kp[448]: kontrollet u ekzekutuan", False, f"{type(_e448x).__name__}: {_e448x}")
+
+    # [449] v9.646 — il duello a scomparsa (v9.319) SOLO nella risposta della chat col diavolo: i titoli ⚔️/🛡️ degli strumenti PRO
+    # (Red Team «⚔️ Dobësitë», procuratore «🛡️ Dobësitë e provave», perizie «🛡️ Mbrojtjet») restavano chiusi. Eseguito con node
+    try:
+        import json as _j449, shutil as _sh449, subprocess as _sp449
+        _js449 = __import__("pathlib").Path("/app/static/app.js").read_text(encoding="utf-8")
+        _i449 = _js449.index("  function renderMarkdown(md) {")
+        _b449 = _js449[_i449:_js449.index("  // ═══ CALENDAR (V7.10)", _i449)]
+        _n449 = _sh449.which("node")
+        if _n449:
+            _p449 = (_b449 + "\nconsole.log(JSON.stringify([renderMarkdown(" + _j449.dumps(
+                "### ⚔️ Dobësitë\nA\n\n### 🛡️ Dobësitë e provave\nB") + "), renderMarkdown(" + _j449.dumps(
+                "### Përgjigja\nC\n\n### ⚔️ Avokati i djallit — kundërargumentet\nD\n\n### 🛡️ Seniori\nE") + ")]));")
+            _o449 = _j449.loads(_sp449.run([_n449, "-e", _p449], capture_output=True, text=True, timeout=30).stdout or "[\"\", \"\"]")
+            _ok449 = ('class="sparring"' not in _o449[0] and "Dobësitë" in _o449[0] and "B" in _o449[0]
+                      and _o449[1].count('class="sparring"') == 2)
+        else:
+            _o449, _ok449 = ["node assente", ""], True
+        check("sparring[449]: il duello si chiude solo nella risposta col diavolo, mai nei titoli ⚔️/🛡️ degli strumenti (eseguito "
+              "con node); app.js?v=233", _ok449 and "/static/app.js?v=233" in open("/app/templates/index.html", encoding="utf-8").read(),
+              str(_o449)[:300])
+    except Exception as _e449:  # noqa: BLE001
+        check("sparring[449]: kontrollet u ekzekutuan", False, f"{type(_e449).__name__}: {_e449}")
+
+    # [450] v9.646 — la RIPRESA dopo il limite dei token d'uscita: il CLI inietta «Output token limit hit. Resume directly…» e il cervello
+    # continua in un messaggio NUOVO; il `result` è solo l'ultimo pezzo (17 ott: un contratto di Fable tornava dalla tabella dell'Aneks 1).
+    # Un messaggio nuovo dopo un messaggio finito col testo = ripresa: il pezzo lungo prima torna davanti. Stesso messaggio = niente
+    try:
+        import json as _js450, subprocess as _sp450
+        from src import backends as _be450
+        _a450 = "# KONTRATË QIRAJE BANIMI\n\n" + ("Neni 1 – Objekti. Qiradhënësi i jep me qira apartamentin për banim. " * 30) + "Aneksi 1 – Inventari"
+        _ev450 = [{"type": "assistant", "message": {"id": "m1", "content": [{"type": "thinking", "thinking": "..."}]}},
+                  {"type": "assistant", "message": {"id": "m1", "content": [{"type": "text", "text": _a450}]}},
+                  {"type": "assistant", "message": {"id": "m2", "content": [{"type": "text", "text": "| Nr. | Sendi |"}]}},
+                  {"type": "result", "subtype": "success", "is_error": False, "result": "| Nr. | Sendi |", "session_id": "s"}]
+        _p450 = _be450._compatta_stream(_sp450.CompletedProcess(["claude"], 0, stdout="\n".join(_js450.dumps(e, ensure_ascii=False)
+                                                                                                for e in _ev450), stderr=""))
+        _r450 = _be450._ricuci(_p450.prima_strumenti, _be450._json_cli(_p450.stdout)["result"])
+        _okA450 = _r450.startswith("# KONTRATË QIRAJE BANIMI") and _r450.endswith("Inventari\n\n| Nr. | Sendi |")
+        # stesso messaggio con due testi (nessuna ripresa): niente da rimettere; dopo uno strumento il messaggio nuovo non è una ripresa
+        _s1 = []
+        for _e in ({"type": "assistant", "message": {"id": "m1", "content": [{"type": "text", "text": "A" * 1500}]}},
+                   {"type": "assistant", "message": {"id": "m1", "content": [{"type": "text", "text": "B"}]}}):
+            _be450._aggiungi_blocchi(_s1, _e)
+        _s2 = []
+        for _e in ({"type": "assistant", "message": {"id": "m1", "content": [{"type": "tool_use", "name": "WebSearch"}]}},
+                   {"type": "assistant", "message": {"id": "m2", "content": [{"type": "text", "text": "C"}]}}):
+            _be450._aggiungi_blocchi(_s2, _e)
+        _okB450 = (_be450._testi_prima_degli_strumenti(_s1) == [] and ("continua", "") not in _s2
+                   and _be450._testi_prima_degli_strumenti(_s2) == [])
+        check("cli[450]: la ripresa dopo il limite dei token d'uscita non perde la prima parte (contratto intero), mai doppioni nello "
+              "stesso messaggio", _okA450 and _okB450, f"ripresa={_okA450} casi={_okB450} | {_r450[:40]!r}…{_r450[-30:]!r}")
+    except Exception as _e450:  # noqa: BLE001
+        check("cli[450]: kontrollet u ekzekutuan", False, f"{type(_e450).__name__}: {_e450}")
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:

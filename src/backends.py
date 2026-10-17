@@ -259,6 +259,30 @@ def _blocchi_assistente(evt) -> list:
     return out
 
 
+def _aggiungi_blocchi(seq: list, evt) -> None:
+    """Accoda alla sequenza i blocchi di un evento `assistant` del cervello.
+
+    v9.646 — la RIPRESA dopo il limite dei token d'uscita: quando la risposta (ragionamento compreso) supera il tetto, il CLI
+    inietta un turno suo («Output token limit hit. Resume directly — no apology, no recap…», `max_output_tokens_recovery`) e il
+    cervello continua in un NUOVO messaggio; il `result` è solo quest'ultimo pezzo. Misurato il 17 ott: un contratto di locazione
+    di «Redakto me Tetramorph» (Fable max) tornava di 3.187 caratteri, cominciando dalla tabella dell'Aneks 1 — tutto il contratto
+    prima era perso. Se comincia un messaggio nuovo e il precedente era finito con un TESTO (nessuno strumento in mezzo), si segna
+    ("continua", ""): per `_testi_prima_degli_strumenti` vale come uno strumento, e `_ricuci` rimette il pezzo lungo davanti.
+    Senza id del messaggio non si segna nulla (come prima)."""
+    bl = _blocchi_assistente(evt)
+    if not bl:
+        return
+    mid = str(((evt.get("message") or {}).get("id")) or "")
+    prec = next((v for k, v in reversed(seq) if k == "_msg"), None)
+    if mid and prec is not None and mid != prec:
+        ultimo = next((k for k, _v in reversed(seq) if k in ("testo", "strumento")), None)
+        if ultimo == "testo":
+            seq.append(("continua", ""))
+    if mid and mid != prec:
+        seq.append(("_msg", mid))
+    seq.extend(bl)
+
+
 def _sequenza_stream(stdout) -> tuple:
     """Da un'uscita `stream-json`: la sequenza dei testi e degli strumenti, la riga JSON dell'evento `result` (None se manca)
     e le righe che non sono testi né risultati di strumenti (per i messaggi d'errore quando il `result` manca)."""
@@ -278,7 +302,7 @@ def _sequenza_stream(stdout) -> tuple:
                 ris = r
                 continue
             if evt.get("type") == "assistant":
-                seq.extend(_blocchi_assistente(evt))
+                _aggiungi_blocchi(seq, evt)
             if evt.get("type") in _TIPI_EVENTI_LUNGHI:
                 continue
         altre.append(riga)
@@ -286,8 +310,9 @@ def _sequenza_stream(stdout) -> tuple:
 
 
 def _testi_prima_degli_strumenti(seq) -> list:
-    """I testi scritti PRIMA dell'ultimo strumento (quelli che il `result` lascia fuori)."""
-    ultimo = max((i for i, (k, _v) in enumerate(seq or []) if k == "strumento"), default=-1)
+    """I testi scritti PRIMA dell'ultimo strumento o dell'ultima ripresa dopo il limite d'uscita (quelli che il `result` lascia
+    fuori)."""
+    ultimo = max((i for i, (k, _v) in enumerate(seq or []) if k in ("strumento", "continua")), default=-1)
     return [v for i, (k, v) in enumerate(seq or []) if k == "testo" and i < ultimo]
 
 
@@ -932,7 +957,7 @@ class ClaudeCodeBackend(LLMBackend):
         _finale = data.get("result") or ""
         _ricucito = _ricuci(getattr(proc, "prima_strumenti", None) or [], _finale)   # v9.640
         if _ricucito != _finale:
-            log.warning("Tetramorph: %s — %d caratteri scritti prima di uno strumento rimessi davanti alla risposta",
+            log.warning("Tetramorph: %s — %d caratteri scritti prima di uno strumento (o di una ripresa) rimessi davanti alla risposta",
                         callsite or "?", max(0, len(_ricucito) - len(_finale)))
         text = _trattini(_ricucito.strip())
         if not text:
@@ -1106,7 +1131,7 @@ class ClaudeCodeBackend(LLMBackend):
                         continue
 
                     if etype == "assistant":
-                        _seq_stream.extend(_blocchi_assistente(evt))
+                        _aggiungi_blocchi(_seq_stream, evt)
                         continue
 
                     if etype == "stream_event":
