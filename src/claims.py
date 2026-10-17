@@ -148,7 +148,9 @@ class Ombra:
     def __init__(self, backend, text: str, lang: str, index, jurisdiction: str, retrieved_codes=None):
         self.result: dict | None = None
         self.error: str | None = None
-        self._t = threading.Thread(target=self._run, args=(backend, text, lang, index, jurisdiction, retrieved_codes), daemon=True)
+        from .brain import porta_contesto as _ctx   # v9.648: la giurisdizione della richiesta anche nel thread in ombra
+        self._t = threading.Thread(target=_ctx(self._run), args=(backend, text, lang, index, jurisdiction, retrieved_codes),
+                                   daemon=True)
 
     def start(self):
         if MODE == "off" or not (self._t):

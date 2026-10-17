@@ -6807,6 +6807,13 @@ def finalize_genio_brief(brief_id: int, *, by_key: dict,
         )
 
 
+def set_genio_case_block(brief_id: int, case_block: str) -> None:
+    """v9.648 — il blocco del caso ricostruito coi nene del corpus (cercati nel thread del lavoro, dopo la creazione del brief):
+    la ripresa delle menti mancanti riusa questo, nene compresi."""
+    with db() as conn:
+        conn.execute("UPDATE genio_briefs SET case_block = ? WHERE id = ?", (case_block, brief_id))
+
+
 def mark_genio_running(brief_id: int) -> None:
     """Ripresa: riporta il brief a 'running' mentre si rifanno le menti
     mancanti (la finalize scriverà lo stato definitivo alla fine)."""
@@ -7396,6 +7403,35 @@ def segna_analisi_scadenze(document_id: str, case_id: str, user_id: int, stato: 
             "VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(document_id) DO UPDATE SET stato=excluded.stato, n=excluded.n, "
             "errore=excluded.errore, updated_at=excluded.updated_at, user_id=excluded.user_id",
             (document_id, case_id, user_id, stato, int(n), errore, _utcnow()))
+
+
+def chiudi_lavori_orfani(prima_di: str) -> dict:
+    """v9.648 — i lavori lunghi rimasti «running» da un riavvio (Genio, analisi dei precedenti, memo del giudice: girano in
+    thread del processo, un deploy li uccide) passano in errore — SOLO quelli partiti prima di `prima_di` (l'avvio del processo).
+    Un Genio con lenti già buone diventa «partial» (si riprende con «Riprova le menti mancanti»). Torna quanti per tabella."""
+    fuori: dict = {}
+    now = _utcnow()
+    with db() as conn:
+        n = 0
+        for bid, bk in conn.execute("SELECT id, by_key_json FROM genio_briefs WHERE status = 'running' AND started_at < ?",
+                                    (prima_di,)).fetchall():
+            try:
+                per_lente = json.loads(bk or "{}")
+            except (ValueError, TypeError):
+                per_lente = {}
+            buone = any(isinstance(v, dict) and v.get("kind") not in (None, "error") for v in (per_lente or {}).values())
+            conn.execute("UPDATE genio_briefs SET status = ?, completed_at = ? WHERE id = ?",
+                         ("partial" if buone else "error", now, bid))
+            n += 1
+        fuori["genio_briefs"] = n
+        for t in ("precedent_briefs", "bench_memos"):
+            try:
+                cur = conn.execute(f"UPDATE {t} SET status = 'error', completed_at = ? WHERE status = 'running' AND started_at < ?",
+                                   (now, prima_di))
+                fuori[t] = cur.rowcount
+            except sqlite3.Error:
+                fuori[t] = 0
+    return fuori
 
 
 def lavori_interrotti() -> tuple[list[dict], list[dict]]:

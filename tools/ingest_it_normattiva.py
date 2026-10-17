@@ -189,6 +189,11 @@ ACTS = [
     # per «colpa grave» e «conto di pagamento») e che la disciplina è il d.lgs. 11/2010, che nel corpus non c'era: onere della prova della
     # banca (art. 10), rimborso immediato delle operazioni non autorizzate (art. 11), responsabilità del pagatore e colpa grave (art. 12)
     ("servizi_pagamento", "Servizi di pagamento nel mercato interno — operazioni non autorizzate, rimborso, responsabilità (d.lgs. 11/2010)", "Civile", "decreto.legislativo:2010-01-27;11", "wave14"),
+    # ── wave15 (17 ott 2026): le DIMISSIONI TELEMATICHE — nel caso di misura del Genio (licenziamento orale, la società dice che il
+    # lavoratore «si è dimesso») la norma decisiva è l'art. 26 del d.lgs. 151/2015: le dimissioni valgono solo con la procedura
+    # telematica (c. 1) e, dal 2025, il c. 7-bis (L. 203/2024) sulle dimissioni per FATTI CONCLUDENTI (assenza ingiustificata oltre il
+    # termine del contratto collettivo o 15 giorni). Nel corpus non c'era: c'era il d.lgs. 151/2001 (maternità), che è un altro atto
+    ("semplificazioni_lavoro", "Semplificazioni in materia di lavoro — dimissioni telematiche e risoluzione consensuale (d.lgs. 151/2015)", "Lavoro", "decreto.legislativo:2015-09-14;151", "wave15"),
 ]
 # atti da scaricare al testo in vigore OGGI («!vig=»): senza data Normattiva dà la versione futura (qui: tutto «ABROGATO» dal 2027)
 VIGENTE_AL = {"tuir_1986", "processo_tributario", "sanzioni_tributarie_amministrative", "imposta_ipotecaria_catastale",

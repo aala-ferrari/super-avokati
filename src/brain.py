@@ -882,6 +882,15 @@ ANCORE_IT: tuple = (
     # giorni dalla cessazione: soldi del cliente). Solo dalla DOMANDA, mai nel penale.
     (("naspi", "disoccupazion"), ("Penale", "Penal"),
      (("naspi", "3"), ("naspi", "4"), ("naspi", "5"), ("naspi", "6")), None, None, True),
+    # v9.648 — le DIMISSIONI (il caso di misura del Genio, 17 ott: «la società sostiene che il lavoratore si è dimesso»): l'art. 26
+    # del d.lgs. 151/2015 — dimissioni valide solo con la procedura telematica (c. 1); dal 2025 il c. 7-bis (L. 203/2024): l'assenza
+    # ingiustificata oltre il termine del contratto collettivo o 15 giorni vale dimissioni, salvo il fatto imputabile al datore. Nel
+    # corpus dalla v9.648; con le parole dell'avvocato («si è dimesso») la ricerca non lo portava nei primi 15. Mai la dimissione
+    # dall'OSPEDALE (malasanità, infortunio)
+    ((("dimission",), ("dimess", "lavor"), ("dimess", "datore"), ("dimess", "licenzi"), ("dimess", "societ"), ("dimett", "lavor"),
+      ("assenz", "ingiustific"), ("abbandon", "posto di lavoro")), ("Penale", "Penal"), (("semplificazioni_lavoro", "26"),),
+     r"dimess\w*\s+da\w*['’]?\s*(?:ospedal|pronto soccorso|clinic|reparto|struttura)|dimission\w*\s+(?:ospedalier|dall?['’]?\s*ospedal)",
+     None, True),
     (("licenzi",), ("Penale", "Penal"), (("naspi", "6"),), None, None, True),
     # v9.534 — il licenziamento ORALE («a voce», «senza lettera»): L. 604/1966 art. 2 (va comunicato per iscritto, altrimenti inefficace)
     # e D.Lgs. 23/2015 art. 2 (licenziamento intimato in forma orale: nullità e reintegra). Banco completo (7 ott): a giri alterni.
@@ -2798,6 +2807,15 @@ def porta_utente(uid: int | None, fn):
     return _dentro
 
 
+def porta_contesto(fn):
+    """v9.648 — come `porta_utente`, per i thread PARALLELI nati dentro una richiesta o un lavoro (raccoglitori, lenti del
+    Genio, celle della Tabela, proposizioni in ombra): il thread nuovo non eredita i `threading.local` e il collo di bottiglia
+    del backend leggeva la giurisdizione AL — in un fascicolo italiano accodava «[DATA E SOTME…]» e «[GJUHA E PËRGJIGJES:
+    VETËM SHQIP…]» al messaggio dei raccoglitori web/QBZ/Gazzetta e delle sei lenti del Genio (misurato il 17 ott registrando
+    i prompt veri: Opus 5 max ha scritto una lente intera in albanese). Si chiama nel thread che CREA il lavoro."""
+    return porta_utente(request_user_id(), fn)
+
+
 def set_request_jurisdiction(code: str | None) -> None:
     _REQUEST_JURISDICTION.code = (code or "AL").upper()
 
@@ -2862,6 +2880,15 @@ def apply_jurisdiction(system_prompt: str, jurisdiction: str | None) -> str:
     if j == "IT":
         if JURISDICTION_OVERRIDE_IT in system_prompt:
             return system_prompt
+        # v9.648 — il guard del Genio è condiviso da strumenti con il prompt solo albanese (analisi del caso chiuso, corporate,
+        # vigilanza): in sessione IT diceva «applichi VETËM il diritto albanese» e subito dopo l'override diceva il contrario.
+        # Qui, nel collo di bottiglia, si sostituisce con quello italiano (import differito: genio importa da brain).
+        try:
+            from .genio import GENIO_JURISDICTION_GUARD as _gg, GENIO_JURISDICTION_GUARD_IT as _ggi
+            if _gg in system_prompt:
+                system_prompt = system_prompt.replace(_gg, _ggi)
+        except Exception:  # noqa: BLE001
+            pass
         return pre + _etichette_it(system_prompt) + JURISDICTION_OVERRIDE_IT
     if j == "EU":
         if JURISDICTION_OVERRIDE_EU in system_prompt:
@@ -3864,7 +3891,50 @@ FORMATIMI:
 Mbylle me një fjali të shkurtër kolegjale: "Nëse del diçka më specifike ose hyn në kontest me dikë, më thuaj dhe e shohim më thellë." (ose ekuivalent natyral). Pa fundore zyrtare, pa disclaimer."""
 
 
+# v9.648 — la risposta BREVE in sessione italiana ha il suo testo: col prompt albanese («GJUHA: GJITHMONË në shqip», «Cito
+# nenet … "Neni X i Kodit Y"», «verifikoje në qbz.gov.al») + l'override italiano in coda, il modello riceveva due ordini opposti
+# (registrato il 17 ott coi prompt veri di una domanda italiana). Stesse regole, senza esempi concreti da copiare.
+ANSWER_SIMPLE_SYSTEM_IT = """Sei Super Avokati — il collega senior virtuale dell'avvocato.
+Questa è una domanda semplice e informativa (niente causa in corso, niente controparte, niente termini che scadono). Rispondi come risponderebbe un collega senior che conosce la risposta a memoria: breve, chiaro, da pari a pari, senza moduli.
+
+LINGUA: SEMPRE in italiano.
+
+COME RISPONDERE:
+- Vai dritto alla risposta. Niente preambolo, niente cinque sezioni con le icone, niente titoli se non aiutano davvero.
+- Il più breve possibile senza lasciare fuori ciò che va saputo — un buon collega non fa un monologo quando la domanda ha una risposta chiara.
+- Cita gli articoli che usi nella forma italiana ESATTA: «art. [N] c.c.», «art. [N] c.p.c.», «art. [N] L. [numero]/[anno]», «art. [N] d.lgs. [numero]/[anno]». Non inventare numeri di articoli — se non ti sono stati dati, non citarli.
+- NON TROVATO NON VUOL DIRE CHE NON ESISTE: «non lo trovo fra gli articoli che ho», mai «non esiste».
+- Quando la risposta ha condizioni o eccezioni («dipende se…», «salvo il caso in cui…»), dille in breve — sono quelle che fanno la differenza in aula.
+- Parla da pari a pari: «il cliente», «tu», «noi».
+
+QUANDO NON HAI COPERTURA:
+Se dagli articoli che hai NON esce la risposta esatta, dillo apertamente: «Dagli articoli che ho non trovo una risposta diretta su questo punto — verificala sulla fonte primaria o con un collega specialista.»
+
+QUANDO LA DOMANDA HA UNA SFUMATURA STRATEGICA:
+Se rispondendo emerge un dettaglio che può servire alla strategia, dillo con una frase in fondo. Niente sezioni a parte — solo come consiglio da collega.
+
+LEGGI CHE CAMBIANO SPESSO:
+- Se l'articolo che citi porta «⚠ VOLATILE», aggiungi una frase: «Questa legge cambia spesso — prima di agire, verificala su Normattiva.»
+- Per «ℹ Legge modificata periodicamente», basta un accenno alla data della versione indicizzata se è rilevante.
+- Per gli articoli stabili, non toccare il tema.
+
+FORMATO:
+- Paragrafi brevi, elenchi quando aiutano, nessuna tabella inutile.
+- Niente intestazioni «## 1. Base giuridica» e simili — quel formato è per i casi complessi, non per domande come questa.
+- Nessun riassunto del problema in testa — la domanda la conosci.
+
+Chiudi con una breve frase da collega (se viene fuori qualcosa di più specifico o un contenzioso, lo guardiamo più a fondo), con parole tue. Nessuna chiusa formale, nessun disclaimer."""
+
+_SIMPLE_PROMPT_IT = (
+    'Domanda:\n"""{domanda}"""\n\nArticoli che ho per questa domanda:\n{context}\n\n'
+    "Rispondi in modo diretto, breve, naturale — come un collega che conosce la risposta a memoria. Cita gli articoli che usi "
+    "nella forma «art. [N]» seguita dal codice o dalla legge. Niente cinque sezioni, niente preambolo.\n")
+
+
 if FORMATI_I_SHKURTER:
+    ANSWER_SIMPLE_SYSTEM_IT += ("\n\nQUANDO LA DOMANDA HA DEI FATTI (cliente, caso, contenzioso): l'ordine è sempre — 1) la risposta "
+                                "netta con l'articolo decisivo; 2) cosa fai in concreto (e il termine); 3) la leva che vince e il "
+                                "rischio da evitare. Un paragrafo breve ciascuno, senza titoli superflui.")
     # v9.376 — anche la risposta breve dice prima il SENSO, poi la SOLUZIONE, poi COME SI VINCE (quando ci sono fatti)
     ANSWER_SIMPLE_SYSTEM += ("\n\nKUR PYETJA KA FAKTE (klient, rast, kontest): rendi është gjithmonë — 1) përgjigjja e prerë me "
                              "nenin vendimtar; 2) çfarë bën konkretisht (dhe afati); 3) leva që e fiton dhe rreziku që duhet "
@@ -5125,7 +5195,8 @@ class SuperAvvocato:
                 yield ("skuadra", burimet_s)
             yield ("status", self._status("simple_composing"))
             context = _format_articles_for_prompt(retrieved) + dosja_txt
-            prompt = textwrap.dedent(f"""\
+            _it_s = self._current_jurisdiction() == "IT"     # v9.648: il prompt della risposta breve nella lingua della sessione
+            prompt = _SIMPLE_PROMPT_IT.format(domanda=user_message, context=context) if _it_s else textwrap.dedent(f"""\
                 Pyetja:
                 \"\"\"{user_message}\"\"\"
 
@@ -5142,7 +5213,7 @@ class SuperAvvocato:
             new_sid = session_id
             final_txt = ""
             for kind, payload in backend.complete_stream(
-                system=self._answer_system(ANSWER_SIMPLE_SYSTEM),
+                system=self._answer_system(ANSWER_SIMPLE_SYSTEM_IT if _it_s else ANSWER_SIMPLE_SYSTEM),
                 messages=msgs,
                 fast=False,
                 session_id=session_id,
@@ -8666,7 +8737,8 @@ class SuperAvvocato:
         downgrade quality, just shed ceremony.
         """
         context = _format_articles_for_prompt(retrieved) + (dosja_txt or "")
-        prompt = textwrap.dedent(f"""\
+        _it_s = self._current_jurisdiction() == "IT"     # v9.648: il prompt della risposta breve nella lingua della sessione
+        prompt = _SIMPLE_PROMPT_IT.format(domanda=user_message, context=context) if _it_s else textwrap.dedent(f"""\
             Pyetja:
             \"\"\"{user_message}\"\"\"
 
@@ -8680,7 +8752,7 @@ class SuperAvvocato:
         # v9.322 — la storia entra sempre, potata (--resume e' disabilitato)
         messages = _history_for_prompt(history) + [{"role": "user", "content": prompt}]
         return self.backend.complete(
-            system=self._answer_system(ANSWER_SIMPLE_SYSTEM),
+            system=self._answer_system(ANSWER_SIMPLE_SYSTEM_IT if _it_s else ANSWER_SIMPLE_SYSTEM),
             messages=messages,
             max_tokens=1500,
             fast=False,
@@ -9531,7 +9603,9 @@ def _ancore_rishikimi(text: str, lang: str) -> list[tuple[str, str, str]]:
             out.append(("ligji_shoqerite_tregtare", "96", "përfaqësimi i SHPK nga administratorët: kufizimet e tagrave i "
                                                           "kundrejtohen të tretëve sipas nenit 12"))
         elif re.search(r"\bsh\.\s?a\b|shoqeri aksionare", fol):
-            out.append(("ligji_shoqerite_tregtare", "158", "administratorët e shoqërisë aksionare"))
+            # v9.648: era il 158 («Administratorët», la nomina): la rappresentanza della SHA è il 159, gemello del 96
+            out.append(("ligji_shoqerite_tregtare", "159", "përfaqësimi i shoqërisë aksionare nga administratorët: kufizimet e "
+                                                           "tagrave i kundrejtohen të tretëve sipas nenit 12"))
     if re.search(r"automjet|autovetur|\btarg|shasi|\bmjet\w*\b", fol) and re.search(
             r"jashte (?:shtetit|territorit|vendit|shqiperise)|brenda dhe jashte|outside the territory|\babroad\b", fol):
         out.append(("ligji_sigurimi_mjeteve", "16", "sigurimi i detyrueshëm: vlefshmëria territoriale (kartoni jeshil)"))
@@ -10194,9 +10268,9 @@ def _indice_kreut(pairs) -> str:
         titolo = (arts[0].title_sq or code)
         if _is_italian_code(code):
             return (f"\n── 📚 IL CAPITOLO INTERO — {kreu} ({titolo}, artt. {arts[0].number}-{arts[-1].number}; * = già sopra per esteso)\n"
-                    f"  {voci}\n  (solo le rubriche: se un altro articolo di questo capitolo serve al caso, citalo per numero — esiste nel corpus e viene verificato — o chiedilo per esteso)\n")
+                    f"  {voci}\n  (solo le rubriche, accorciate con «…»: il testo dell'articolo nel corpus è INTERO — se un altro articolo di questo capitolo serve al caso, citalo per numero — esiste nel corpus e viene verificato — o chiedilo per esteso)\n")
         return (f"\n── 📚 KREU I PLOTË — {kreu} ({titolo}, nenet {arts[0].number}-{arts[-1].number}; * = më sipër me tekst të plotë)\n"
-                f"  {voci}\n  (vetëm titujt: nëse një nen tjetër i këtij kreu i duhet rastit, citoje me numër — ekziston në korpus dhe verifikohet — ose kërkoje me tekst të plotë)\n")
+                f"  {voci}\n  (vetëm titujt, të shkurtuar me «…»: teksti i nenit në korpus është i PLOTË — nëse një nen tjetër i këtij kreu i duhet rastit, citoje me numër — ekziston në korpus dhe verifikohet — ose kërkoje me tekst të plotë)\n")
     except Exception:  # noqa: BLE001
         return ""
 
@@ -10371,11 +10445,15 @@ def _format_articles_for_prompt(pairs: list[tuple[Article, float]]) -> str:
                 f"── {a.citation}  ⚑ NORMË PËR RISHIKIMIN E DOKUMENTIT — {getattr(a, '_ancora_rishikim', '')}\n"
                 f"  (u shtua sepse dokumenti e prek: kontrollo nëse dhe si zbatohet — tekst i plotë)\n"))
         elif getattr(a, "_ancora", False):
-            intestazione = (
+            # v9.648 — l'etichetta delle ancore anche in italiano: in sessione IT la riga albanese arrivava al senior e al Genio
+            # (cinque volte nel blocco del licenziamento orale), e Opus 5 max ha scritto una lente intera in albanese
+            intestazione = ((
+                f"── {a.citation}  ⚑ REGOLA GENERALE\n"
+                f"  (non trovata dalla ricerca per parole — aggiunta perché è la regola di base di questo tema; "
+                f"leggila come base, non come eccezione)\n") if _it else (
                 f"── {a.citation}  ⚑ RREGULL E PËRGJITHSHME\n"
                 f"  (nuk u gjet nga kërkimi me fjalë — u shtua sepse është "
-                f"rregulli bazë i kësaj teme; lexoje si bazë, jo si përjashtim)\n"
-            )
+                f"rregulli bazë i kësaj teme; lexoje si bazë, jo si përjashtim)\n"))
         elif getattr(a, "_ancora_it", False):
             intestazione = (
                 f"── {a.citation}  ⚑ VEICOLO EXTRA-UE — REGIME DOGANALE / CIRCOLAZIONE\n"

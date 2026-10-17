@@ -47,8 +47,12 @@ _EXTRACT_SYSTEM = (
 _GATE_SYSTEM = (
     GENIO_JURISDICTION_GUARD
     + "Je ekspert i autorizimeve të nënshkrimit sipas të drejtës tregtare "
-    "shqiptare. Ligji 9901/2008 Neni 147 (administrator), Neni 167 (prokurist), "
-    "Neni 120 (fuqia e nënshkrimit të organeve). Kthe VETËM JSON të vlefshëm."
+    "shqiptare. Ligji 9901/2008: neni 12 (kompetencat e organeve dhe përfaqësimi ligjor), neni 96 (përfaqësimi i "
+    "shoqërisë me përgjegjësi të kufizuar nga administratorët), neni 159 (përfaqësimi i shoqërisë aksionare); përfaqësimi "
+    "me prokurë: Kodi Civil nenet 64-72. Kthe VETËM JSON të vlefshëm."
+    # v9.648 — prima: «Neni 147 (administrator), Neni 167 (prokurist), Neni 120 (fuqia e nënshkrimit)» — nella legge 9901/2008
+    # il 147 è il diritto di voto, il 167 il consiglio di sorveglianza, il 120 il trasferimento delle azioni: articoli che
+    # ESISTONO (il verificatore li dava per buoni) ma dicono altro — la classe di errore peggiore, verde e sbagliata
 )
 
 # ── KYC requirements per Ligji 9917/2008 + udhëzimi BSH ─────────────
@@ -75,7 +79,7 @@ _KYC_REQS: list[dict] = [
     {
         "id": "id_titullar",
         "label": "Dokument identiteti i titullarit efektiv (>25% kapital ose kontroll)",
-        "basis": "Ligji 9917/2008 Neni 7 (titullari efektiv)",
+        "basis": "Ligji 9917/2008 neni 4/1, shkronja c (pronari përfitues)",
         "doc_types": {"id", "pasaporte", "leternjoftim"},
     },
     {
@@ -86,20 +90,20 @@ _KYC_REQS: list[dict] = [
     },
     {
         "id": "prokura",
-        "label": "Prokurë / autorizim i nënshkruesit (nëse jo anëtar CDA)",
-        "basis": "Ligji 9901/2008 Neni 167",
+        "label": "Prokurë / autorizim i nënshkruesit (nëse nuk është administrator i regjistruar)",
+        "basis": "Ligji 9917/2008 neni 5/1/d (akti i përfaqësimit); Kodi Civil neni 70",
         "doc_types": {"procura", "prokura", "autorizim"},
     },
     {
         "id": "bilanci",
         "label": "Bilanci i audituar (3 vitet e fundit)",
-        "basis": "Ligji 9917/2008 Neni 6",
+        "basis": "Ligji 9917/2008 neni 4/1 (profili i rrezikut, burimi i fondeve)",
         "doc_types": {"bilanci", "bilanco", "pasqyre_financiare"},
     },
     {
         "id": "deklarata_origjines",
         "label": "Deklaratë burimi fondesh",
-        "basis": "Ligji 9917/2008 Neni 6 §3",
+        "basis": "Ligji 9917/2008 nenet 4/1 dhe 8 (burimi i fondeve; vigjilenca e zgjeruar)",
         "doc_types": {"deklarata_origjines", "deklarate_burimeve"},
     },
     {
@@ -108,6 +112,28 @@ _KYC_REQS: list[dict] = [
         "basis": "Praktikë administrative QKB",
         "doc_types": {"certifikata_tatimore", "vertetim_tatimor"},
     },
+]
+
+# v9.648 — la stessa lista per l'avvocato ITALIANO (prima la sessione IT riceveva la legge albanese 9917/2008 e le etichette in
+# albanese): D.Lgs. 231/2007 e codice civile, articoli letti dal corpus il 17 ott (stessi id: la logica non cambia)
+_KYC_REQS_IT: list[dict] = [
+    {"id": "ekstrakti_qkb", "label": "Visura camerale aggiornata (Registro delle imprese, non oltre 3 mesi)",
+     "basis": "D.Lgs. 231/2007 art. 18, c. 1, lett. a); art. 19", "doc_types": _KYC_REQS[0]["doc_types"]},
+    {"id": "statuti", "label": "Statuto / atto costitutivo", "basis": "D.Lgs. 231/2007 art. 19",
+     "doc_types": _KYC_REQS[1]["doc_types"]},
+    {"id": "nuis", "label": "Codice fiscale / partita IVA della società", "basis": "D.Lgs. 231/2007 art. 18, c. 1, lett. a)",
+     "doc_types": _KYC_REQS[2]["doc_types"] | {"codice_fiscale", "partita_iva"}},
+    {"id": "id_titullar", "label": "Documento d'identità del titolare effettivo (oltre il 25 % del capitale o controllo)",
+     "basis": "D.Lgs. 231/2007 art. 18, c. 1, lett. b); art. 20", "doc_types": _KYC_REQS[3]["doc_types"] | {"carta_identita", "passaporto"}},
+    {"id": "id_nenshkrues", "label": "Documento d'identità di chi firma per la società",
+     "basis": "D.Lgs. 231/2007 art. 18, c. 1, lett. a) (esecutore)", "doc_types": _KYC_REQS[4]["doc_types"] | {"carta_identita", "passaporto"}},
+    {"id": "prokura", "label": "Procura / delega del firmatario (se non è amministratore iscritto)",
+     "basis": "D.Lgs. 231/2007 art. 18, c. 1, lett. a) (potere di rappresentanza); c.c. artt. 1392, 2206",
+     "doc_types": _KYC_REQS[5]["doc_types"] | {"delega"}},
+    {"id": "bilanci", "label": "Bilancio (ultimi 3 esercizi)", "basis": "D.Lgs. 231/2007 art. 18, c. 1, lett. c)",
+     "doc_types": _KYC_REQS[6]["doc_types"] | {"bilancio"}},
+    {"id": "deklarata_origjines", "label": "Dichiarazione sull'origine dei fondi",
+     "basis": "D.Lgs. 231/2007 artt. 24-25 (adeguata verifica rafforzata)", "doc_types": _KYC_REQS[7]["doc_types"] | {"origine_fondi"}},
 ]
 
 # ── Extraction ────────────────────────────────────────────────────────
@@ -274,6 +300,7 @@ def check_signatory(
 def kyc_checklist(
     corp_extractions: list[dict],
     uploaded_doc_types: list[str],
+    lang: str = "sq",
 ) -> dict:
     """Return AML/KYC gap analysis per Ligji 9917/2008.
 
@@ -288,7 +315,8 @@ def kyc_checklist(
     missing: list[str] = []
     expiring: list[str] = []
 
-    for req in _KYC_REQS:
+    it = lang == "it"
+    for req in (_KYC_REQS_IT if it else _KYC_REQS):
         found = bool(req["doc_types"] & present_types)
         # prokura: not needed if signatory is a CDA member
         if req["id"] == "prokura" and merged.get("cda"):
@@ -310,6 +338,7 @@ def kyc_checklist(
                 days = (exp - today).days
                 if 0 <= days <= 60:
                     expiring.append(
+                        f"{sc['dokumenti']} scade il {sc['skadon']} ({days} giorni)" if it else
                         f"{sc['dokumenti']} skadon {sc['skadon']} "
                         f"({days} ditë)"
                     )
@@ -324,6 +353,7 @@ def kyc_checklist(
             age_days = (today - qd).days
             if age_days > 90:
                 expiring.append(
+                    f"Visura del {qkb_date} ({age_days} giorni — limite 90 giorni)" if it else
                     f"Ekstrakt QKB i datës {qkb_date} ({age_days} ditë i vjetër — kufiri 90 ditë)"
                 )
         except ValueError:

@@ -3273,6 +3273,75 @@ def _gather_case_documents(case_id: str, limit: int = 12) -> list[dict]:
     return out
 
 
+def _nene_per_genio(fatti: str, ultima: str, case_id: str, juris: str, idx) -> tuple[str, set]:
+    """v9.648 — i nene del corpus per il Genio, FUORI dalla richiesta (nel thread del lavoro): con una risposta del cervello nel
+    fascicolo gli STESSI nene che il senior aveva davanti (`messages.articles_json`); senza, il triage + il recupero ibrido della
+    chat sui fatti. → (blocco verbatim per il prompt, codici). Fail-silent: senza nulla il Genio lavora come prima."""
+    from . import brain as brain_mod
+    pairs: list = []
+    try:
+        if ultima:
+            testa = " ".join(ultima.split())[:120]
+            by_key = {(a.code, str(a.number)): a for a in idx.articles}
+            for m in reversed(storage.list_messages(case_id)):
+                if m.role != "assistant" or not m.articles or testa not in " ".join((m.content or "").split()):
+                    continue
+                for it in m.articles:
+                    a = by_key.get((it.get("code"), str(it.get("number"))))
+                    if a is not None:
+                        pairs.append((a, float(it.get("score") or 0.0)))
+                break
+    except Exception:  # noqa: BLE001
+        log.debug("genio: nene della risposta non letti", exc_info=True)
+        pairs = []
+    if not pairs and _BRAIN is not None and (fatti or "").strip():
+        try:
+            _BRAIN._jurisdiction_ctx.code = juris
+            brain_mod.set_request_jurisdiction(juris)
+            tri = _BRAIN._triage(fatti[:6000], [], None)
+            pairs = list(_BRAIN._retrieve(tri) or [])
+            # v9.648 — lo STESSO blocco della chat (non solo il recupero): ogni passo è facoltativo, uno che fallisce non toglie gli altri
+            for _passo in (lambda r: _BRAIN._ankoro_citimet(fatti, r, areas=getattr(tri, "areas", None)),
+                           _BRAIN._aggiungi_previgenti, _BRAIN._aggiungi_rinvii, _BRAIN._aggiungi_elenco_dettaglio,
+                           _BRAIN._aggiungi_rinvio_kpa, _BRAIN._aggiungi_richiami_inversi,
+                           lambda r: _BRAIN._studio_kerkuesi(fatti, tri, r)):
+                try:
+                    pairs = list(_passo(pairs) or pairs)
+                except Exception:  # noqa: BLE001
+                    log.debug("genio: un passo del blocco saltato", exc_info=True)
+        except Exception:  # noqa: BLE001
+            log.warning("genio: recupero dei nene fallito (non-fatal)", exc_info=True)
+            pairs = []
+    if not pairs:
+        return "", set()
+    try:
+        blocco = brain_mod._format_articles_for_prompt(pairs)
+    except Exception:  # noqa: BLE001
+        blocco = "\n\n".join(f"{a.citation}\n{(a.body or '')[:1500]}" for a, _ in pairs)
+    log.info("genio: %d nene del corpus nel blocco del caso (%s)", len(pairs), "risposta del cervello" if ultima else "recupero")
+    return blocco[:60000], {a.code for a, _ in pairs}
+
+
+def _verifica_lente_genio(r: dict, idx, codici=None) -> None:
+    """v9.648 — le citazioni di una lente del Genio passano dal verificatore (prima nessuna verifica: il Genio era l'unico
+    strumento del cervello fuori dallo scudo). Lenti JSON: campo per campo (`_annota_json_campi`, anche le liste «legal_basis»);
+    la voce (testo): sul testo, con lo stesso scudo degli altri strumenti. Un nene inesistente si annota dove sta; le statistiche
+    vanno in `r["citations"]` (la carta le mostra). Non solleva mai."""
+    try:
+        st: dict = {}
+        if isinstance(r.get("parsed"), (dict, list)):
+            st = _annota_json_campi(r["parsed"], codici or None, idx=idx)
+        elif (r.get("raw") or "").strip():
+            cits = cs_mod.senza_inesistenti_dichiarati(r["raw"], cv_mod.verify_text(r["raw"], idx, retrieved_codes=codici or None))
+            st = {k: v for k, v in (cits.get("stats") or {}).items() if isinstance(v, int)}
+            if st.get("fake"):
+                r["raw"] = cs_mod.annotate_fake_citations(r["raw"], cits)
+        r["citations"] = {k: v for k, v in st.items() if v and k in ("verified", "fake", "repealed", "needs_code", "stale",
+                                                                    "foreign_verified", "foreign_unverified")}
+    except Exception:  # noqa: BLE001
+        log.debug("genio: verifica della lente saltata", exc_info=True)
+
+
 def _genio_prepare(case_id: str, description: str = "", resume_brief_id=None):
     """Prepara un giro di Genio. Torna `(generatore, brief_id, None)` se si
     puo' partire, oppure `(None, None, (payload, status))` se no.
@@ -3312,6 +3381,11 @@ def _genio_prepare(case_id: str, description: str = "", resume_brief_id=None):
 
     seed_by_key: dict = {}
     plist = None  # None → tutte e sei le lenti
+    codici_genio: set = set()
+    _idx_genio = _req_index()        # v9.648: il generatore gira nel thread del lavoro, dove la richiesta non c'è più
+    _juris_genio = getattr(case, "jurisdiction", None) or "AL"
+    _ricostruisci = None
+    _fatti_genio = _ultima_genio = ""
     if resume_brief_id:
         prev = storage.get_genio_brief(resume_brief_id)
         if prev is None or prev.get("case_id") != case_id:
@@ -3345,6 +3419,12 @@ def _genio_prepare(case_id: str, description: str = "", resume_brief_id=None):
             recent_messages=recent_msgs, documents=docs,
             previous_briefs=precedenti,
         )
+        # v9.648 — i NENE DEL CORPUS per le sei menti (prima nessuno: citavano a memoria o dal web, 10-17 minuti a lente): si
+        # cercano nel thread del lavoro (`_nene_per_genio`, prima delle menti) e il blocco del caso si ricostruisce con loro
+        _fatti_genio = "\n".join([description] + [(m.get("content") or "")[:3000] for m in recent_msgs if m.get("role") == "user"][-3:]
+                                 + [(d.get("summary") or "")[:600] for d in docs if d.get("summary")])
+        _ultima_genio = next((m.get("content") or "" for m in reversed(recent_msgs) if m.get("role") == "assistant"), "")
+        _ricostruisci = (case, jur, description, recent_msgs, docs, precedenti)
         brief_id = storage.create_genio_brief(
             case_id=case_id, user_id=user.id,
             description=description, case_block=case_block,
@@ -3355,7 +3435,18 @@ def _genio_prepare(case_id: str, description: str = "", resume_brief_id=None):
         return f"data: {payload}\n\n"
 
     def _stream():
+        nonlocal case_block, codici_genio
         yield _event({"type": "brief_id", "id": brief_id})
+        if _ricostruisci is not None:
+            try:
+                _blocco, codici_genio = _nene_per_genio(_fatti_genio, _ultima_genio, case_id, _juris_genio, _idx_genio)
+                if _blocco:
+                    _c, _j, _d, _m, _docs, _p = _ricostruisci
+                    case_block = genio_mod.build_case_block(_c, jurisdiction=_j, extra_description=_d, recent_messages=_m,
+                                                            documents=_docs, previous_briefs=_p, articles_block=_blocco)
+                    storage.set_genio_case_block(brief_id, case_block)
+            except Exception:  # noqa: BLE001
+                log.warning("genio: nene del corpus non aggiunti (non-fatal)", exc_info=True)
         by_key: dict = dict(seed_by_key)
         # le lenti già buone si ridisegnano subito (riapertura pulita)
         for _r in seed_by_key.values():
@@ -3374,6 +3465,7 @@ def _genio_prepare(case_id: str, description: str = "", resume_brief_id=None):
                     had_any_error = True
                 else:
                     had_any_success = True
+                    _verifica_lente_genio(r, _idx_genio, codici_genio)
                 by_key[r["key"]] = r
                 yield _event(evt)
             elif evt["type"] == "completed":
@@ -4428,7 +4520,7 @@ def api_corporate_extract(case_id: str):
     Returns: { id, extracted, doc_name, doc_type }
     """
     user = request.user  # type: ignore[attr-defined]
-    case = storage.get_case(case_id, user.id)
+    case = _resolve_case(case_id)  # v9.648: studio e giurisdizione della sessione, come gli altri
     if not case:
         return jsonify({"error": _t_err("Rasti nuk u gjet", "Caso non trovato")}), 404
 
@@ -4472,7 +4564,7 @@ def api_corporate_gatekeeper(case_id: str):
     Returns: gatekeeper result dict
     """
     user = request.user  # type: ignore[attr-defined]
-    case = storage.get_case(case_id, user.id)
+    case = _resolve_case(case_id)  # v9.648: studio e giurisdizione della sessione, come gli altri
     if not case:
         return jsonify({"error": _t_err("Rasti nuk u gjet", "Caso non trovato")}), 404
 
@@ -4498,15 +4590,22 @@ def api_corporate_gatekeeper(case_id: str):
         backend=_BRAIN.backend,
     )
     result["elapsed_ms"] = int((time.monotonic() - t0) * 1000)
+    # v9.648 — «baza_ligjore» e gli avvisi passano dal verificatore: un nene inesistente si annota nel suo campo
+    _cit = _annota_json_campi(result, {"ligji_shoqerite_tregtare", "kodi_civil"})
+    if any(_cit.values()):
+        result["citations"] = {k: v for k, v in _cit.items() if v and k in ("verified", "fake", "repealed", "needs_code")}
     return jsonify(result)
 
 
 @app.post("/api/cases/<case_id>/corporate/kyc")
 @login_required_api
 def api_corporate_kyc(case_id: str):
-    """Return KYC/AML checklist for the case (rule-based, no AI call)."""
+    """Return KYC/AML checklist for the case (rule-based, no AI call).
+
+    v9.648: la lista della giurisdizione della sessione (in IT D.Lgs. 231/2007: prima la legge albanese 9917/2008 in albanese) e il
+    fascicolo per la stessa strada degli altri (`_resolve_case`: studio e giurisdizione)."""
     user = request.user  # type: ignore[attr-defined]
-    case = storage.get_case(case_id, user.id)
+    case = _resolve_case(case_id)
     if not case:
         return jsonify({"error": _t_err("Rasti nuk u gjet", "Caso non trovato")}), 404
 
@@ -4514,7 +4613,8 @@ def api_corporate_kyc(case_id: str):
     uploaded_types = [r["doc_type"] for r in rows]
     extractions = [r["extracted"] for r in rows]
 
-    result = corp_mod.kyc_checklist(extractions, uploaded_types)
+    result = corp_mod.kyc_checklist(extractions, uploaded_types,
+                                    lang="it" if _active_jurisdiction(user) == "IT" else "sq")
     return jsonify(result)
 
 
@@ -4523,7 +4623,7 @@ def api_corporate_kyc(case_id: str):
 def api_corporate_list(case_id: str):
     """List all corporate extractions for a case."""
     user = request.user  # type: ignore[attr-defined]
-    case = storage.get_case(case_id, user.id)
+    case = _resolve_case(case_id)  # v9.648: studio e giurisdizione della sessione, come gli altri
     if not case:
         return jsonify({"error": _t_err("Rasti nuk u gjet", "Caso non trovato")}), 404
 
@@ -4535,7 +4635,7 @@ def api_corporate_list(case_id: str):
 @login_required_api
 def api_corporate_delete(case_id: str, extraction_id: int):
     user = request.user  # type: ignore[attr-defined]
-    case = storage.get_case(case_id, user.id)
+    case = _resolve_case(case_id)  # v9.648: studio e giurisdizione della sessione, come gli altri
     if not case:
         return jsonify({"error": _t_err("Rasti nuk u gjet", "Caso non trovato")}), 404
 
@@ -4596,7 +4696,7 @@ def api_bench_memo_run(case_id: str):
     Returns: { memo_id, status, elapsed_ms, memo }
     """
     user = request.user  # type: ignore[attr-defined]
-    case = storage.get_case(case_id, user.id)
+    case = _resolve_case(case_id)  # v9.648: studio e giurisdizione della sessione, come gli altri
     if not case:
         return jsonify({"error": _t_err("Rasti nuk u gjet", "Caso non trovato")}), 404
     if _BRAIN is None or _INDEX is None:
@@ -4670,30 +4770,46 @@ def _memo_gjyqtari(case_description: str, documents_summary: str, opponent_filin
     return memo
 
 
-def _annota_json_campi(obj, codici=None, _stats=None) -> dict:
+def _annota_json_campi(obj, codici=None, _stats=None, idx=None, _contesto=None) -> dict:
     """v9.647 — le citazioni di un risultato JSON (il memo del giudice) passano dal verificatore campo per campo: un nene o un
     articolo inesistente si annota nel suo campo, come fa lo scudo sul testo. Le chiavi interne («_…», gli articoli e i precedenti
-    usati) si saltano. Torna le statistiche sommate; non solleva mai."""
+    usati) si saltano. Torna le statistiche sommate; non solleva mai.
+    v9.648: anche le stringhe DENTRO le liste («legal_basis»: ["neni 756 KC", …] — prima si saltavano) e `idx` passato da chi
+    lavora fuori dalla richiesta (il Genio gira nel thread del suo lavoro, dove `_req_index()` non c'è)."""
     st = {} if _stats is None else _stats
+    # v9.648 — il CONTESTO del documento: un campo che scrive «neni 155» senza il codice prende il codice che lo stesso risultato
+    # gli dà altrove («neni 155 i Kodit të Punës» in un altro campo), come fa il verificatore sul testo intero. Senza, campo per campo,
+    # il Genio sul licenziamento AL contava 89 citazioni «senza codice» contro 77 verificate
+    if _contesto is None and _stats is None:
+        try:
+            _contesto = json.dumps(obj, ensure_ascii=False)
+        except Exception:  # noqa: BLE001
+            _contesto = None
+
+    def _uno(v):
+        r = cv_mod.verify_text(v, idx, retrieved_codes=codici, context_text=_contesto)
+        for kk, n in (r.get("stats") or {}).items():
+            if isinstance(n, int):
+                st[kk] = st.get(kk, 0) + n
+        return cs_mod.annotate_fake_citations(v, r) if int((r.get("stats") or {}).get("fake") or 0) > 0 else v
+
     try:
-        idx = _req_index()
+        if idx is None:
+            idx = _req_index()
         if isinstance(obj, dict):
             for k, v in list(obj.items()):
                 if str(k).startswith("_") or k in ("precedents_used", "articles_used"):
                     continue
                 if isinstance(v, str) and len(v) > 5:
-                    r = cv_mod.verify_text(v, idx, retrieved_codes=codici)
-                    for kk, n in (r.get("stats") or {}).items():
-                        if isinstance(n, int):
-                            st[kk] = st.get(kk, 0) + n
-                    if int((r.get("stats") or {}).get("fake") or 0) > 0:
-                        obj[k] = cs_mod.annotate_fake_citations(v, r)
+                    obj[k] = _uno(v)
                 elif isinstance(v, (dict, list)):
-                    _annota_json_campi(v, codici, st)
+                    _annota_json_campi(v, codici, st, idx, _contesto)
         elif isinstance(obj, list):
-            for v in obj:
-                if isinstance(v, (dict, list)):
-                    _annota_json_campi(v, codici, st)
+            for i, v in enumerate(obj):
+                if isinstance(v, str) and len(v) > 5:
+                    obj[i] = _uno(v)
+                elif isinstance(v, (dict, list)):
+                    _annota_json_campi(v, codici, st, idx, _contesto)
     except Exception:  # noqa: BLE001
         log.debug("annotazione dei campi JSON saltata", exc_info=True)
     return st
@@ -4706,7 +4822,7 @@ def api_bench_memo_get(memo_id: int):
     row = storage.get_bench_memo(memo_id)
     if not row:
         return jsonify({"error": _t_err("Bench memo nuk u gjet", "Bench memo non trovato")}), 404
-    case = storage.get_case(row["case_id"], user.id) if row["case_id"] else None
+    case = _resolve_case(row["case_id"]) if row["case_id"] else None   # v9.648
     if not case:
         return jsonify({"error": "Nuk autorizuar"}), 403
     return jsonify(row)
@@ -4716,7 +4832,7 @@ def api_bench_memo_get(memo_id: int):
 @login_required_api
 def api_bench_memo_list(case_id: str):
     user = request.user  # type: ignore[attr-defined]
-    case = storage.get_case(case_id, user.id)
+    case = _resolve_case(case_id)  # v9.648: studio e giurisdizione della sessione, come gli altri
     if not case:
         return jsonify({"error": _t_err("Rasti nuk u gjet", "Caso non trovato")}), 404
     return jsonify({"items": storage.list_bench_memos(case_id)})
@@ -4882,7 +4998,7 @@ def api_postmortem_run(case_id: str):
     Returns: { lesson_id, lesson, elapsed_ms }
     """
     user = request.user  # type: ignore[attr-defined]
-    case = storage.get_case(case_id, user.id)
+    case = _resolve_case(case_id)  # v9.648: studio e giurisdizione della sessione, come gli altri
     if not case:
         return jsonify({"error": _t_err("Rasti nuk u gjet", "Caso non trovato")}), 404
     if _BRAIN is None:
@@ -4922,7 +5038,7 @@ def api_postmortem_run(case_id: str):
 @login_required_api
 def api_case_lesson_get(case_id: str):
     user = request.user  # type: ignore[attr-defined]
-    case = storage.get_case(case_id, user.id)
+    case = _resolve_case(case_id)  # v9.648: studio e giurisdizione della sessione, come gli altri
     if not case:
         return jsonify({"error": _t_err("Rasti nuk u gjet", "Caso non trovato")}), 404
     lesson = storage.get_case_lesson(case_id)
@@ -4935,7 +5051,7 @@ def api_case_lesson_get(case_id: str):
 @login_required_api
 def api_case_lesson_delete(case_id: str):
     user = request.user  # type: ignore[attr-defined]
-    case = storage.get_case(case_id, user.id)
+    case = _resolve_case(case_id)  # v9.648: studio e giurisdizione della sessione, come gli altri
     if not case:
         return jsonify({"error": _t_err("Rasti nuk u gjet", "Caso non trovato")}), 404
     deleted = storage.delete_case_lesson(case_id, user.id)
@@ -4967,7 +5083,7 @@ def api_lessons_relevant():
 
     if case_id and not description:
         # build description from case content
-        case = storage.get_case(case_id, user.id)
+        case = _resolve_case(case_id)  # v9.648: studio e giurisdizione della sessione, come gli altri
         if not case:
             return jsonify({"error": _t_err("Rasti nuk u gjet", "Caso non trovato")}), 404
         title, convo, docs = _build_postmortem_context(case_id)
@@ -7871,7 +7987,8 @@ def api_case_table(case_id: str):
 
     from concurrent.futures import ThreadPoolExecutor
     with ThreadPoolExecutor(max_workers=3) as ex:
-        rreshtat = list(ex.map(_nje, docs))
+        # v9.648 — la sessione anche nei thread delle celle (in sessione IT ricevevano «VETËM SHQIP» dal backend)
+        rreshtat = list(ex.map(brain_mod.porta_contesto(_nje), docs))
 
     return jsonify({"columns": pyetjet, "rows": rreshtat,
                     "skipped": pa_tekst})
@@ -10406,7 +10523,7 @@ def api_provenance_docx(response_id: str):
 @login_required_api
 def api_case_provenance_list(case_id: str):
     user = request.user  # type: ignore[attr-defined]
-    case = storage.get_case(case_id, user.id)
+    case = _resolve_case(case_id)  # v9.648: studio e giurisdizione della sessione, come gli altri
     if not case:
         return jsonify({"error": "not_found"}), 404
     packs = storage.list_provenance(case_id, user.id, limit=100)
@@ -12095,6 +12212,9 @@ _CASE_PRECEDENT_MISSING = """<!DOCTYPE html>
 
 # ── entrypoint ─────────────────────────────────────────────────────────────
 
+_AVVIO_PROCESSO = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())   # v9.648: per i lavori orfani di un riavvio
+
+
 def _riprendi_lavori_interrotti(attesa_s: float = 60.0) -> dict:
     """v9.441 — all'avvio del SERVER (mai nei processi di prova: si chiama solo da `main`) i lavori lasciati a metà da un riavvio
     ripartono da soli, uno alla volta: i documenti rimasti «in lettura» (OCR/riassunto: prima restavano «pending» per sempre e il
@@ -12103,6 +12223,15 @@ def _riprendi_lavori_interrotti(attesa_s: float = 60.0) -> dict:
     esito = {"documenti": 0, "analisi": 0, "persi": 0}
     if os.environ.get("RIPRESA_LAVORI", "1") == "0" or _BRAIN is None:
         return esito
+    # v9.648 — Genio, analisi dei precedenti e memo del giudice girano in thread di QUESTO processo: un riavvio li uccide e la riga
+    # restava «running» per sempre (12 brief del Genio in produzione, da giugno). Si chiudono SOLO quelli partiti prima
+    # dell'avvio del processo (mai uno chiesto nei primi secondi); il Genio con lenti già buone resta «parziale» e si riprende.
+    try:
+        _chiusi = storage.chiudi_lavori_orfani(_AVVIO_PROCESSO)
+        if any(_chiusi.values()):
+            log.info("ripresa lavori: lavori interrotti da un riavvio chiusi %s", _chiusi)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("ripresa lavori: chiusura dei lavori orfani fallita: %s", exc)
     time.sleep(attesa_s)                       # il server prima risponde, poi si recupera
     try:
         docs, anal = storage.lavori_interrotti()

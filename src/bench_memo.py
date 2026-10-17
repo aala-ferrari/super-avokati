@@ -126,7 +126,7 @@ MEMORIE/PARASHTRIM I KUNDËRSHTARIT
 {opponent_filing}
 
 ═════════════════════════════════════════════
-NENET SHQIPTARE PËRKATËSE (BM25 top hits)
+NENET E KORPUSIT — NENET SHQIPTARE PËRKATËSE (teksti zyrtar)
 ═════════════════════════════════════════════
 {articles_block}
 

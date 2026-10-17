@@ -53,7 +53,7 @@ Kthe VETËM JSON me skemën e mëposhtme:
   "source_type": "ligj | vkm | udhëzim | vendim_gjykate | rregullore | tjetër",
   "kind": "ndryshim_neni | shfuqizim | ligj_i_ri | precedent_i_ri | interpretim | tjetër",
   "affected_codes": ["KC", "KP", ...],  // shkurtesat shqipe
-  "affected_articles": ["Neni 248 KC", "Neni 12 KP", ...],
+  "affected_articles": ["Neni [N] i Kodit …", ...],
   "topics": ["fjalë çelës që përshkruajnë lëndën — 3-8 sende"],
   "summary": "1-2 fjali që përshkruajnë çfarë ndryshon dhe pse ka rëndësi",
   "urgency": "i lartë | i mesëm | i ulët",

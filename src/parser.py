@@ -234,6 +234,8 @@ _IT_CODE_EXACT = frozenset({
     "danno_biologico_inail",
     # v9.598 (wave14): i servizi di pagamento (d.lgs. 11/2010: phishing, operazioni non autorizzate)
     "servizi_pagamento",
+    # v9.648 (wave15): le semplificazioni del lavoro (d.lgs. 151/2015: dimissioni telematiche, art. 26 e c. 7-bis)
+    "semplificazioni_lavoro",
     "responsabilita_enti", "responsabilita_sanitaria", "procedimento_amministrativo",
     "stupefacenti", "divorzio", "adozione", "equa_riparazione", "antiriciclaggio",
     # wave5 (16 set 2026): tributario, notarile, procedura, lavoro + EUR-Lex

@@ -554,6 +554,7 @@ ORDER = ["costituzione", "codice_civile", "preleggi", "disp_att_cc", "codice_pro
          "codice_penale", "codice_procedura_penale", "disp_att_cpp",
          "codice_strada", "regolamento_strada", "codice_consumo", "codice_crisi_impresa",
          "ordinamento_polizia", "tulps", "statuto_lavoratori", "sicurezza_lavoro", "tu_infortuni", "danno_biologico_inail",
+         "semplificazioni_lavoro",
          "tu_bancario", "servizi_pagamento", "tu_finanza", "codice_proprieta_industriale", "codice_terzo_settore",
          "codice_assicurazioni", "responsabilita_enti", "procedimento_amministrativo",
          "codice_processo_amministrativo", "codice_amministrazione_digitale",

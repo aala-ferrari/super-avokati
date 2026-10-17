@@ -71,7 +71,7 @@ Tani ekstrakto mësimet. Kthe VETËM JSON me skemën:
   "transferable_lesson": "Mësimi i përgjithshëm që e transferon në çdo rast të ngjashëm (1-2 fjali, parim, jo fakt specifik).",
   "opponent_strategy": "Strategjia që përdori kundërshtari, nëse u identifikua (1 fjali ose null).",
   "applicable_codes": ["KC", "KP", ...],
-  "key_articles": ["Neni 248 KC", ...],
+  "key_articles": ["Neni [N] i Kodit …", ...],
   "warning_signs_for_future": [
     "Sinjal i hershëm që do ta kërkoja në raste të ngjashme në të ardhmen",
     ... (deri 3 sende)
@@ -118,6 +118,7 @@ def case_postmortem(inp: PostmortemInput, *, backend: LLMBackend,
             max_tokens=2200,
             callsite="ratio_coach_postmortem",
             case_id=case_id,
+            no_web=True,   # v9.648: si analizza la storia del fascicolo — il web (che il guard condiviso imponeva) non serve
         )
     except Exception as exc:  # noqa: BLE001
         log.exception("ratio_coach: backend error")

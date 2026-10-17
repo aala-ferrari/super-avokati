@@ -1737,8 +1737,13 @@ def _post_deed_footer(md, _dres, _de, juris, act_date, _basis, arts) -> dict:
 # AML. NDIHMESË: i dati li prende il professionista da QKB; non ci si connette live.
 # corporate.py fa extract_corporate/check_signatory (per l'avvocato); questo è la due
 # diligence act-time con status/rete/cross-check, per notaio/avvocato/procuratore.
-_VERIFY_SUBJECT_SEED = [("ligji_shoqerite_tregtare", "12"), ("ligji_shoqerite_tregtare", "147"),
-                        ("ligji_shoqerite_tregtare", "167")]
+# v9.648 — erano 12, 147, 167: nella legge 9901/2008 il 147 è il diritto di voto nell'assemblea della SHA e il 167 il consiglio di
+# sorveglianza — la due diligence sul soggetto (chi può firmare, conflitti) chiede la rappresentanza e le persone collegate
+_VERIFY_SUBJECT_SEED = [("ligji_shoqerite_tregtare", "12"), ("ligji_shoqerite_tregtare", "96"),
+                        ("ligji_shoqerite_tregtare", "159"), ("ligji_shoqerite_tregtare", "13")]
+# la società in liquidazione: firma il liquidatore, non l'amministratore (nomina, amministrazione, diritti e doveri)
+_VERIFY_SUBJECT_LIKUIDIM = [("ligji_shoqerite_tregtare", "191"), ("ligji_shoqerite_tregtare", "196"),
+                            ("ligji_shoqerite_tregtare", "197")]
 
 
 def verify_subject(backend, index, *, subject_text: str, context: str = "",
@@ -1751,6 +1756,8 @@ def verify_subject(backend, index, *, subject_text: str, context: str = "",
     # attivi la convoca l'amministratore; art. 81 le competenze, art. 87 le maggioranze) — nell'audit dell'11 ott «le disposizioni
     # sull'assemblea della SHPK e le maggioranze non sono nel corpus» per una società che vende un magazzino da 500.000 euro
     _seed = list(_VERIFY_SUBJECT_SEED)
+    if re.search(r"likuid", _expertise._fold((subject_text or "") + " " + (context or ""))):
+        _seed += _VERIFY_SUBJECT_LIKUIDIM
     if re.search(r"\bshet\b|\bshes|shitj|tjetersim|dispono|dhuron|hipotek|\bblen\b|blerj", _expertise._fold(context or "")):
         _seed += [("ligji_shoqerite_tregtare", "82"), ("ligji_shoqerite_tregtare", "81"), ("ligji_shoqerite_tregtare", "87"),
                   # v9.619 (ri-audit): il quorum (86) e i poteri dell'amministratore che firma (95 nomina e doveri, 96 rappresentanza)

@@ -450,6 +450,7 @@ CODE_LABELS: dict[str, str] = {
     "legge_104": "L. 104/1992 (disabilità: permessi e tutele)",
     "tu_infortuni": "d.P.R. 1124/1965 (TU INAIL)", "danno_biologico_inail": "d.lgs. 38/2000 (danno biologico INAIL)",
     "servizi_pagamento": "d.lgs. 11/2010 (servizi di pagamento)",
+    "semplificazioni_lavoro": "d.lgs. 151/2015 (semplificazioni del lavoro, dimissioni telematiche)",
     "sanzioni_pecuniarie_civili": "D.Lgs. 7/2016 (illeciti civili: ingiuria)",
     "legge_sospensione_feriale": "L. 742/1969",
     "tutele_crescenti": "D.Lgs 23/2015",
@@ -527,7 +528,11 @@ CODE_LABELS: dict[str, str] = {
 # a known code alias.
 
 # One article-number token: "132", "132/a", "132/1", "132-a", "4/1/2".
-_NUM_TOKEN = r"\d+(?:[/\-\u2013][a-zA-Z\u00e7\u00eb\u00c7\u00cb0-9]{1,4})*"
+# v9.648 — una DURATA non è un articolo: «nisin afatet 2-vjeçar i nenit 755 dhe 5-vjeçar i nenit 756» (il Genio, 17 ott) dava
+# «neni 5-vjeç» INESISTENTE (l'elenco «755 dhe 5-vjeç» prendeva la durata come numero con suffisso); «-vjeçar», «-ditor»,
+# «-mujor», «-orësh», «-javor» dopo il numero lo escludono (e niente ripiego su «5»: la cifra intera o niente)
+_NUM_TOKEN = (r"\d+(?!\d)(?![\-\u2013](?:vje[çc]|vjet|dit|muaj|muj|or[ëe]|jav))"
+              r"(?:[/\-\u2013][a-zA-Z\u00e7\u00eb\u00c7\u00cb0-9]{1,4})*")
 # Enumerated-list separators: "nenet 134, 135 dhe 136 të Kodit Penal".
 _LIST_SEP = r"(?:\s*(?:,|;|\bdhe\b|\be\b)\s*)"
 
@@ -960,6 +965,7 @@ _IT_CODE_NUM_CHECKS = [
     ("3621994", "procedimenti_cittadinanza"), ("222015", "naspi"), ("2312002", "ritardi_pagamento"), ("1832010", "collegato_lavoro"),
     ("11241965", "tu_infortuni"), ("382000", "danno_biologico_inail"),   # v9.589
     ("112010", "servizi_pagamento"),   # v9.598: d.lgs. 27 gennaio 2010, n. 11
+    ("1512015", "semplificazioni_lavoro"),   # v9.648: d.lgs. 14 settembre 2015, n. 151 (dimissioni telematiche) — ≠ 151/2001 (maternità)
     ("2231991", "licenziamenti_collettivi"), ("1041992", "legge_104"), ("72016", "sanzioni_pecuniarie_civili"), ("7421969", "legge_sospensione_feriale"),
     ("232015", "tutele_crescenti"), ("242017", "responsabilita_sanitaria"), ("3941999", "regolamento_immigrazione"),
     ("2672000", "tuel"), ("4481988", "processo_penale_minorile"), ("1712005", "codice_nautica_diporto"),

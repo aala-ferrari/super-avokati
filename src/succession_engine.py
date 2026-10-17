@@ -16,7 +16,7 @@ fa, lo fa con `fractions.Fraction` (esatto, niente errori di virgola):
 
 KUFI JURIDIKSIONAL: divisione per STRUTTURA secondo la legge della SESSIONE — in AL il KC
 albanese (Neni 361), MAI quote trapiantate (riserva 50%/75% italo-francese); in IT il codice civile
-italiano (artt. 566, 581), mai la regola albanese (v9.395). La riserva (Neni 393 KC / artt. 536 ss.
+italiano (artt. 566, 581), mai la regola albanese (v9.395). La riserva (Neni 379 KC / artt. 536 ss.
 c.c.) è materia del notaio, non la calcola questo modulo.
 """
 from __future__ import annotations

@@ -59,22 +59,117 @@ GENIO_JURISDICTION_GUARD = (
     "NDALO — verifiko a është vërtet në nenin shqiptar që ke. Nëse "
     "jo, mos e shkruaj. Krahasimi me të drejtën e huaj lejohet vetëm "
     "kur shënohet shprehimisht si krahasim, jo si bazë vendimi.\n\n"
-    "VEGLA WEB — DETYRUESHME për avokat të zgjuar. Ke akses në kërkim web "
-    "(WebSearch/WebFetch). PËRDORE gjithmonë para se të mbyllësh analizën: "
-    "(1) VERIFIKO nëse ligji ka NDRYSHUAR së fundmi — p.sh. ndryshimet e "
-    "Kodit Rrugor 2024-2026: heqja e PËRHERSHME e lejes për kapje DY herë "
-    "radhazi me alkool mbi 0.5 g/l, alkool zero për shoferët e rinj 2 vjet; "
-    "(2) GJEJ precedentë / vendime PUBLIKE të gjykatave shqiptare që "
-    "mbështesin ose rrezikojnë tezën; (3) lajme juridike relevante. "
-    "Ji dhelpërak: gjej gjilpërën në kashtë. Bëj SA kërkime web të duhen për saktësi MAKSIMALE — mos kurse kohën. Saktësia vjen GJITHMONË para shpejtësisë: më mirë të vonohesh dhe ta gjesh të saktën, sesa shpejt e gabim. Cito GJITHMONË burimin "
-    "(URL + datë). Mos u mbështet vetëm te nenet e ngarkuara — ligji mund "
-    "të jetë përditësuar pas tyre.\n\n"
-    "SHIFRA KONKRETE — kur pyetja prek taksa, dogana, akcizë, tarifa, gjoba apo çmime: "
-    "mos u mjafto me 'kontrollo në faqe'. KËRKO shifrën zyrtare aktuale (dogana.gov.al, "
-    "tatime.gov.al, qbz.gov.al, financa.gov.al), jep strukturën me numra dhe një vlerësim "
-    "konkret në euro/lekë, cito URL+datë. Saktësia para shpejtësisë: më mirë vono sesa jep numër "
-    "të gabuar; por mos shpik kurrë — nëse nuk e gjen, ndaj qartë 'e sigurt' nga 'duhet verifikuar te VKM'.\n\n"
+    # v9.648 — il web OBBLIGATORIO e illimitato («Bëj SA kërkime web të duhen… mos kurse kohën») esce: le sei menti navigavano
+    # 10-17 minuti l'una (1800 s di tetto: 3 lenti in timeout) e saturavano la sottoscrizione (38 lenti «Tetramorph i zënë» su
+    # 41 errori dei brief di settembre); e il blocco del caso NON conteneva un solo nene, mentre questa stessa riga chiedeva di
+    # basarsi «te nenet e dhëna në kontekst». Ora i nene del corpus sono nel blocco (`web._genio_prepare`), si citano da lì e,
+    # in Albania, niente web (il corpus è completo e controllato ogni giorno; la stessa scelta, misurata, del Red Team v9.645).
+    # E via l'esempio concreto del Kodi Rrugor (heqja e lejes, alkool zero): il modello copia gli esempi dei prompt.
+    # ⚠️ Il guard è CONDIVISO (analisi dei precedenti, corporate, ratio coach, memo del giudice AL, vigilanza): quegli strumenti
+    # avevano anche loro «web obbligatorio» — il memo AL perfino con `no_web=True` (il prompt chiedeva ciò che lo strumento non
+    # aveva). Qui niente sul web: il «niente web» lo aggiunge solo il Genio (`_guard`), dove le menti albanesi girano senza.
+    "NENET — BAZA E ÇDO PËRGJIGJEJE. Çdo nen që citon merre nga nenet e korpusit që të jepen në kontekst (blloku «NENET E "
+    "KORPUSIT» ose blloku i neneve të mjetit): numri + kodi ose ligji, fjalë për fjalë kur citon. Një nen që të duket se "
+    "mungon thuaje me fjalë («duhet edhe norma për …»), PA numër. Mos cito nene nga kujtesa.\n\n"
+    "SHIFRA KONKRETE — kur pyetja prek taksa, tarifa, gjoba apo çmime: jep shifrën vetëm kur del nga një nen i bllokut; "
+    "përndryshe thuaj qartë «duhet verifikuar» dhe ku (VKM, tarifa zyrtare). Mos shpik kurrë një shifër.\n\n"
 )
+
+
+GENIO_JURISDICTION_GUARD_IT = (
+    "STANDARD DEL RAGIONAMENTO — sei il miglior avvocato senior in Italia: rigoroso, acuto e scaltro. Pensa a FONDO prima di "
+    "rispondere; prevedi OGNI mossa della controparte; trova le leve nascoste, le trappole procedurali e i punti deboli; non "
+    "lasciare NESSUNA debolezza nella difesa. Ogni affermazione poggia su un articolo concreto o su un precedente reale — niente "
+    "congetture, niente superficialità.\n\n"
+    "LIMITE DI GIURISDIZIONE — CRITICO. Applichi SOLO il diritto italiano (con il diritto dell'Unione e la CEDU come li applica "
+    "il giudice italiano). Nessun diritto di altri Paesi come base: un confronto solo se dichiarato come tale.\n\n"
+    "ARTICOLI — LA BASE DI OGNI RISPOSTA. Nel blocco «ARTICOLI DEL CORPUS» hai il testo vigente degli articoli del caso. Ogni "
+    "articolo che citi prendilo da lì: numero + atto, parola per parola quando citi. Un articolo che ti sembra mancare dillo a "
+    "parole («serve anche la norma su …»), SENZA numero. Non citare articoli a memoria.\n\n"
+    "WEB SOLO PER LA GIURISPRUDENZA: se serve una sentenza di Cassazione recente, al massimo 3 ricerche e 4 pagine lette; mai il "
+    "PDF intero di un codice o di una legge; la sentenza con gli estremi e la fonte.\n\n"
+    "CIFRE CONCRETE: una cifra solo se viene da un articolo del blocco; altrimenti «da verificare» e dove. Mai inventare.\n\n"
+)
+
+
+def _e_it(case_block: str) -> bool:
+    return "Juridiksioni: IT" in (case_block or "")
+
+
+_PA_WEB_SQ = ("PA WEB: korpusi shqiptar i neneve dhe i vendimeve është i plotë dhe kontrollohet çdo ditë me QBZ — mos kërko në "
+              "internet.\n\n")
+# v9.648 — la FORMA della citazione in ogni campo: misurato sul licenziamento AL, Opus 5.5 scriveva «neni 155», «neni 146/2» senza il
+# codice in quasi tutti i campi (89 «senza codice» contro 77 verificate) e il verificatore non li può confermare
+_FORMA_CITIMIT_SQ = ("FORMA E CITIMIT — në ÇDO fushë dhe në çdo fjali: numri i nenit BASHKË me kodin ose ligjin («neni [numri] i Kodit "
+                     "të Punës», «neni [numri] i Kodit Civil», «neni [numri] i ligjit nr. …»), edhe kur e ke përmendur më sipër; kurrë "
+                     "«neni [numri]» i vetëm — pa kodin verifikuesi nuk e konfirmon.\n\n")
+_FORMA_CITAZIONE_IT = ("FORMA DELLA CITAZIONE — in OGNI campo e in ogni frase: il numero dell'articolo INSIEME all'atto («art. [N] c.c.», "
+                       "«art. [N] L. 604/1966»), anche se l'hai già nominato sopra; mai «art. [N]» da solo — senza l'atto il "
+                       "verificatore non lo conferma.\n\n")
+
+
+def _guard(case_block: str) -> str:
+    """v9.648 — il guard della giurisdizione del FASCICOLO (prima sempre quello albanese); in Albania col «niente web»."""
+    return (GENIO_JURISDICTION_GUARD_IT + _FORMA_CITAZIONE_IT) if _e_it(case_block) else (GENIO_JURISDICTION_GUARD + _PA_WEB_SQ
+                                                                                           + _FORMA_CITIMIT_SQ)
+
+
+def _web(case_block: str) -> dict:
+    """v9.648 — in Albania le sei menti senza web (`no_web`): il corpus è completo; in Italia il web resta per la Cassazione."""
+    return {} if _e_it(case_block) else {"no_web": True}
+
+
+# v9.648 — la combinazione PREDEFINITA delle sei lenti, scelta sulla misura (17 ott, licenziamento orale AL e IT, codice finale):
+# Opus 5.5 high sulle tre lenti che TROVANO le norme, Sonnet 5.5 high su albero, verità brutale e stile — 4/4 norme decisive,
+# 0 parole dell'altra lingua, 220-246 s e 2,3-2,7 $ contro 281-314 s e 2,6-3,6 $ di Opus 5.5 su tutte; Opus 5 max (il Genio di
+# prima) 791-917 s. Chiave della lente → (modello, sforzo), «*» per le altre. L'env la sostituisce: GENIO_MODEL / GENIO_EFFORT
+# per tutte, GENIO_MODEL_<CHIAVE> per una.
+GENIO_PREDEFINITO: dict[str, tuple[str, str]] = {
+    "*": ("opus55", "high"),
+    "decision_tree": ("sonnet", "high"),
+    "brutal_truth": ("sonnet", "high"),
+    "voice": ("sonnet", "high"),
+}
+
+
+def _kw_lente(key: str) -> dict:
+    """v9.648 — modello e sforzo di UNA lente, dall'env (letto a ogni chiamata: la misura cambia combinazione nello stesso processo).
+    `GENIO_MODEL` / `GENIO_EFFORT` per tutte, `GENIO_MODEL_<CHIAVE>` / `GENIO_EFFORT_<CHIAVE>` per una (KILL_SHOT, LEVERAGE…).
+    Valori: «opus» (il senior del cervello, Opus 5 max: il comportamento di prima della v9.648), «opus55» (Opus 5.5), «fable»
+    (Fable 5.1), «sonnet» (il tier medio, Sonnet 5.5 con il suo sforzo), oppure un id esplicito. Senza env = `GENIO_PREDEFINITO`."""
+    from .config import FABLE_MODEL_ID
+    k = (key or "").split(":")[0].upper()
+    m = (os.environ.get(f"GENIO_MODEL_{k}") or os.environ.get("GENIO_MODEL") or "").strip()
+    e = (os.environ.get(f"GENIO_EFFORT_{k}") or os.environ.get("GENIO_EFFORT") or "").strip()
+    if not m:
+        m, e_pred = GENIO_PREDEFINITO.get(k.lower(), GENIO_PREDEFINITO["*"])
+        e = e or e_pred
+    kw: dict = {}
+    ml = m.lower()
+    if ml == "sonnet":
+        kw["medium"] = True
+    elif ml == "fable":
+        kw["model_override"] = FABLE_MODEL_ID
+    elif ml in ("opus55", "opus-5-5", "opus5.5"):
+        kw["model_override"] = "claude-opus-5-5"
+    elif ml and ml != "opus":
+        kw["model_override"] = m
+    if e:
+        kw["effort_override"] = e
+    return kw
+
+
+_SCHEMA_IT = (("(KC/KPC/Kushtetuta)", "(c.c./c.p.c./Costituzione)"), ('"art. X KC"', '"art. X c.c."'),
+              ('"art. X KPC"', '"art. X c.p.c."'), ('"art. ose ligj"', '"art. X + atto"'))
+_SCHEMA_AL = (('"art. X KC"', '"neni X KC"'), ('"art. X KPC"', '"neni X KPC"'), ('"art. ose ligj"', '"neni X + ligji"'))
+
+
+def _adatta_schema(prompt: str, case_block: str) -> str:
+    """v9.648 — i segnaposto degli schemi JSON nella forma della giurisdizione: in un fascicolo IT «art. X KC» (un codice
+    albanese) spingeva le menti verso il codice sbagliato, in uno albanese «art.» al posto di «neni»."""
+    for a, b in (_SCHEMA_IT if _e_it(case_block) else _SCHEMA_AL):
+        prompt = prompt.replace(a, b)
+    return prompt
 
 
 def _direttiva_gjuhe(case_block: str) -> str:
@@ -82,12 +177,11 @@ def _direttiva_gjuhe(case_block: str) -> str:
     sono in albanese: senza questa riga la lingua d'uscita va a fortuna
     (misurato: kill-shot con corpo shqip su un caso IT, 4 set 2026)."""
     if "Juridiksioni: IT" in (case_block or ""):
+        # v9.648 — solo italiano: le lenti di un fascicolo IT hanno ora il testo italiano, e una riga albanese in testa al
+        # sistema tirava ancora verso l'albanese
         return (
-            "GJUHA E PËRGJIGJES — KRITIKE: fashikulli është ITALIAN. "
-            "SHKRUAJ GJITHÇKA VETËM NË GJUHËN ITALIANE — çdo fjali, çdo "
-            "listë, çdo titull, pa asnjë fjalë shqipe. "
-            "LINGUA DELLA RISPOSTA — CRITICO: il fascicolo è italiano, "
-            "l'intero brief va scritto SOLO in italiano.\n\n"
+            "LINGUA DELLA RISPOSTA — CRITICO: il fascicolo è italiano. Scrivi TUTTO solo in italiano — ogni frase, ogni "
+            "elenco, ogni titolo, nessuna parola albanese.\n\n"
         )
     return ""
 
@@ -102,6 +196,10 @@ class Perspective:
     system: str
     user_template: str
     max_tokens: int = 2800
+    # v9.648 — il testo ITALIANO della lente (fascicolo IT): con le istruzioni solo albanesi Opus 5 max, misurato sul licenziamento
+    # orale italiano, scriveva le sei lenti IN ALBANESE (90-199 parole albanesi per lente) e Sonnet 5.5 una lente su sei
+    system_it: str = ""
+    user_template_it: str = ""
 
 
 PERSPECTIVES: list[Perspective] = [
@@ -118,8 +216,8 @@ PERSPECTIVES: list[Perspective] = [
             "një kontratë e bëhet konkurrencë e pandershme, një tort "
             "bëhet pasurim i padrejtë, një çështje civile bëhet abuz "
             "i pozitës dominuese. Mendon në cilësinë e formulimit "
-            "juridik, jo në sasi argumentimi. Mos sajo nene; nëse nuk "
-            "je i sigurt për një referim, shkruaj 'art. N (verifiko)'."
+            "juridik, jo në sasi argumentimi. Mos sajo nene: merri nga "
+            "blloku i neneve; një nen që mungon thuaje me fjalë, pa numër."
         ),
         user_template=(
             "{case_block}\n\n"
@@ -145,6 +243,8 @@ PERSPECTIVES: list[Perspective] = [
             '  "verdict": "rekomanim final për avokatin (≤ 3 fjali)"\n'
             "}}"
         ),
+        system_it="Sei un socio senior di uno studio legale con 25 anni di esperienza. Il tuo talento più grande: vedere la VERA natura giuridica di una questione quando l'avvocato giovane vede solo la superficie. Individui riformulazioni non ovvie: un contratto diventa concorrenza sleale, un illecito diventa arricchimento senza causa, una lite civile diventa abuso di posizione dominante. Pensi alla qualità della qualificazione giuridica, non alla quantità di argomenti. Non inventare articoli: prendili dal blocco degli articoli; un articolo che manca dillo a parole, senza numero.",
+        user_template_it='{case_block}\n\nIndividua fino a 3 RIFORMULAZIONI alternative di questa questione, in ordine di percorribilità. Per ciascuna: (a) il nome della tesi giuridica, (b) la base normativa (c.c./c.p.c./Costituzione), (c) perché è più forte o più debole dell\'impostazione attuale, (d) le prove necessarie che mancano.\n\nRestituisci solo JSON pulito, senza preambolo, con lo schema:\n{{\n  "current_framing": "la frase che descrive l\'impostazione attuale",\n  "alternatives": [\n    {{\n      "name": "string",\n      "rank": 1|2|3,\n      "thesis": "1-2 frasi",\n      "legal_basis": ["art. X c.c.", ...],\n      "strength_vs_current": "string",\n      "missing_evidence": ["string", ...],\n      "risk_if_chosen": "1 frase"\n    }}\n  ],\n  "verdict": "raccomandazione finale per l\'avvocato (≤ 3 frasi)"\n}}',
     ),
 
     Perspective(
@@ -184,6 +284,8 @@ PERSPECTIVES: list[Perspective] = [
             '  "fatal_combo_warning": "nëse 2+ goditje aplikohen së bashku → ç\'ndodh"\n'
             "}}"
         ),
+        system_it="Sei l'avvocato della controparte. Spietato. Hai letto tutto il fascicolo e devi DISTRUGGERE questa causa domattina. Cerchi: contraddizioni negli atti, cavilli procedurali (termini, giurisdizione, competenza, atti nulli), debolezze probatorie, pretese non provate, esposizione fiscale, terzi non chiamati in causa. Senza pietà.",
+        user_template_it='{case_block}\n\nRagiona come l\'avvocato della controparte. Individua i 3 COLPI più letali con cui distruggeresti questa causa, dal più letale al meno letale. Per ciascuno: (a) il tipo (procedurale / sostanziale / probatorio), (b) il meccanismo concreto (quale atto, quale articolo, quale termine), (c) la contromossa che il nostro avvocato deve preparare PRIMA di entrare in aula.\n\nJSON pulito:\n{{\n  "kill_shots": [\n    {{\n      "rank": 1,\n      "kind": "procedural|substantial|evidentiary",\n      "title": "string",\n      "mechanics": "2-3 frasi",\n      "legal_anchor": ["art. X c.p.c.", ...],\n      "lethality": 1-10,\n      "our_counter_prep": "2-3 frasi"\n    }}\n  ],\n  "fatal_combo_warning": "se 2 o più colpi si applicano insieme → cosa succede"\n}}',
     ),
 
     Perspective(
@@ -197,7 +299,10 @@ PERSPECTIVES: list[Perspective] = [
             "procesi për palën tjetër, palë të treta që mund të aktivohen "
             "(kreditorë, autoriteti tatimor, vlerësues, konkurrentë), "
             "pikat ku interesi personal i kundërshtarit kontradikton "
-            "interesin e tij ligjor."
+            "interesin e tij ligjor. Kurrë kërcënim me kallëzim penal ose me "
+            "sinjalizim për të marrë pagesë a marrëveshje: është shtrëngim "
+            "(neni 109/b i Kodit Penal); njoftimi se do të ndiqet rruga ligjore "
+            "mbetet i lejuar."
         ),
         user_template=(
             "{case_block}\n\n"
@@ -222,6 +327,8 @@ PERSPECTIVES: list[Perspective] = [
             '  "do_not_use": "leva që duken tërheqëse por janë trap (1-2 fjali)"\n'
             "}}"
         ),
+        system_it="Sei il consulente strategico dell'avvocato: vedi le leve di pressione che i giuristi tecnici ignorano — il tempismo (quando muovere, quando aspettare), l'esposizione reputazionale, l'esposizione fiscale, il costo del processo per la controparte, i terzi che si possono attivare (creditori, amministrazione finanziaria, periti, concorrenti), i punti in cui l'interesse personale della controparte contraddice il suo interesse giuridico. Mai minacciare una denuncia o una segnalazione per ottenere un pagamento o un accordo: è estorsione (annunciare le vie legali resta lecito).",
+        user_template_it='{case_block}\n\nIndividua fino a 3 LEVE DI PRESSIONE che l\'avvocato non ha considerato. Per ciascuna: (a) la leva, (b) perché funziona PROPRIO con questa controparte, (c) come si attiva in concreto (lettera, reclamo, segnalazione a un\'autorità, contatto con un terzo), (d) il rischio di effetto boomerang (etico, giuridico, tattico).\n\nRestituisci JSON:\n{{\n  "leverage_points": [\n    {{\n      "rank": 1,\n      "lever": "nome breve",\n      "why_it_works": "2-3 frasi specifiche per questa controparte",\n      "activation": "azione concreta",\n      "ethical_risk": "low|medium|high",\n      "backfire_risk": "1-2 frasi",\n      "legal_basis": ["art. X + atto", ...]\n    }}\n  ],\n  "do_not_use": "le leve che sembrano attraenti ma sono una trappola (1-2 frasi)"\n}}',
     ),
 
     Perspective(
@@ -265,6 +372,8 @@ PERSPECTIVES: list[Perspective] = [
             "të mblidhen ≈ 1.0."
         ),
         max_tokens=3500,
+        system_it='Sei un teorico dei giochi applicato al contenzioso. Pensi per alberi decisionali probabilistici. Ogni nodo ha la nostra mossa + le risposte possibili con le loro probabilità (che sommano a 1,0) + il valore atteso in EUR. Le stime devono essere realistiche, non fantastiche.',
+        user_template_it='{case_block}\n\nCostruisci l\'albero decisionale di questa questione, profondo 3 mosse.\n\nRestituisci JSON per la visualizzazione:\n{{\n  "root_label": "la situazione attuale (≤ 8 parole)",\n  "branches": [\n    {{\n      "our_move": "la nostra mossa (≤ 12 parole)",\n      "rationale": "1 frase",\n      "their_responses": [\n        {{\n          "label": "la loro risposta (≤ 10 parole)",\n          "probability": 0.0-1.0,\n          "our_counter": "la nostra contromossa (≤ 12 parole)",\n          "expected_value_eur": number,\n          "duration_months": number\n        }}\n      ]\n    }}\n  ],\n  "recommended_path": "il percorso consigliato in 3 passi (1 frase)",\n  "expected_value_total_eur": number,\n  "dominant_strategy_note": "perché questo percorso domina le alternative"\n}}\n\nLimite: 2-4 rami alla radice, ciascuno con 2-3 their_responses. Le probabilità delle their_responses di ciascun ramo devono sommare ≈ 1,0.',
     ),
 
     Perspective(
@@ -294,6 +403,8 @@ PERSPECTIVES: list[Perspective] = [
             '  "red_flags_for_lawyer": ["rrezik specifik për avokatin (mandat, fatura, reputacion)", ...]\n'
             "}}"
         ),
+        system_it="Sei l'avvocato che dice al cliente la verità anche quando non vuole sentirla. Onesto sul valore reale della causa, sui costi completi (avvocato + giudizio + tempo + costo emotivo), sulla distanza fra le aspettative del cliente e la realtà, sulla probabilità di vittoria e su cosa va detto ADESSO al cliente prima che il rapporto si rompa. Senza attenuazioni.",
+        user_template_it='{case_block}\n\nValuta senza giri di parole. JSON:\n{{\n  "real_value_eur": {{"low": number, "likely": number, "high": number}},\n  "client_probable_expectation_eur": number,\n  "expectation_gap_severity": "low|medium|high|critical",\n  "win_probability": 0.0-1.0,\n  "total_cost_estimate_eur": {{"legal_fees": number, "court_fees": number, "time_value": number, "emotional_cost_label": "low|medium|high"}},\n  "duration_months_realistic": number,\n  "honest_recommendation": "continue|settle_now|withdraw|refer_to_specialist",\n  "what_to_tell_client_today": "la frase esatta (≤ 3 frasi) da dire al cliente al primo incontro",\n  "red_flags_for_lawyer": ["rischio specifico per l\'avvocato (mandato, parcella, reputazione)", ...]\n}}',
     ),
 
     Perspective(
@@ -321,6 +432,8 @@ PERSPECTIVES: list[Perspective] = [
             "stilistike imitove (formaliteti, gjatësia e fjalive, etj.)."
         ),
         max_tokens=2200,
+        system_it="Sei un IMITATORE dello stile di un avvocato specifico. Hai letto i suoi atti precedenti e scrivi paragrafi nuovi indistinguibili dagli originali. Imiti: la scelta delle parole, la lunghezza delle frasi, la formalità, l'uso delle citazioni, il ritmo retorico. Se mancano i campioni di stile, usa uno stile professionale italiano neutro (formale, chiaro, non enfatico).",
+        user_template_it="{voice_samples_block}\n\n{case_block}\n\nScrivi i 3 paragrafi di APERTURA del prossimo atto (ricorso, atto di citazione, appello o memoria, secondo il contesto) per questa questione. Senza preambolo, solo il testo pronto da incollare nel documento. Usa lo stile dei campioni sopra.\n\nDopo i paragrafi, aggiungi una riga '---' e una breve nota '(stile imitato da: ...)' che racconta quali tratti stilistici hai imitato (formalità, lunghezza delle frasi, ecc.).",
     ),
 ]
 
@@ -363,15 +476,23 @@ def _gather_voice_samples(user_id: int, *, max_samples: int = 3,
                     break
     except Exception:
         pass
+    try:
+        from .documents import _lingua_sessione
+        it = _lingua_sessione() == "it"
+    except Exception:  # noqa: BLE001
+        it = False
     if not rows:
+        if it:
+            return ("CAMPIONI DI STILE: l'avvocato non ha atti precedenti nel sistema. Usa uno stile professionale italiano neutro, "
+                    "formale, chiaro. Niente domande retoriche, niente aggettivi superflui.")
         return ("MOSTRA STILI: avokati nuk ka akte të mëparshme në "
                 "sistem. Përdor stil profesional shqiptar neutral, "
                 "formal, të kthjellët. Mos shto thirrje retorike, mos "
                 "përdor mbiemra teprues.")
-    parts = ["MOSTRA STILI nga akte të mëparshme të AVOKATIT (imiton "
-             "leximin e tyre):"]
+    parts = ["CAMPIONI DI STILE dagli atti precedenti dell'AVVOCATO (imitane la lettura):" if it else
+             "MOSTRA STILI nga akte të mëparshme të AVOKATIT (imiton leximin e tyre):"]
     for i, (kind, txt) in enumerate(rows, 1):
-        parts.append(f"\n--- Mostra {i} ({kind}) ---\n{txt}")
+        parts.append(f"\n--- {'Campione' if it else 'Mostra'} {i} ({kind}) ---\n{txt}")
     return "\n".join(parts)
 
 
@@ -409,21 +530,24 @@ def run_perspective(p: Perspective, *,
         "ms": int, "error": str | None
     }
     """
-    user_prompt = p.user_template.format(
+    _sys, _ut = _testi_lente(p, case_block)
+    user_prompt = _adatta_schema(_ut.format(
         case_block=case_block,
         voice_samples_block=voice_samples_block,
-    )
+    ), case_block)
     t0 = time.monotonic()
     err: str | None = None
     text = ""
     try:
         text = backend.complete(
-            system=_direttiva_gjuhe(case_block) + GENIO_JURISDICTION_GUARD + p.system,
+            system=_direttiva_gjuhe(case_block) + _guard(case_block) + _sys,
             messages=[{"role": "user", "content": user_prompt}],
             max_tokens=p.max_tokens,
             callsite=f"genio:{p.key}",
             case_id=case_id,
             attachments=attachments or None,
+            **_web(case_block),
+            **_kw_lente(p.key),
         )
     except Exception as e:
         err = f"{type(e).__name__}: {e}"
@@ -476,7 +600,7 @@ def _a_mani_vuote(res: dict) -> bool:
     if not isinstance(parsed, dict):
         # niente JSON: se il testo e' comunque sostanzioso lo teniamo
         return len((res.get("raw") or "").strip()) < 400
-    for chiave in ("kill_shots", "leverage_points", "leva", "reframings",
+    for chiave in ("kill_shots", "leverage_points", "leva", "reframings", "alternatives",
                    "alternative_theories", "points", "items"):
         v = parsed.get(chiave)
         if isinstance(v, list) and v:
@@ -500,6 +624,31 @@ SPRONE_FABLE = (
 )
 
 
+SPRONE_FABLE_IT = (
+    "\n\n━━━ ATTENZIONE ━━━\n"
+    "Un'altra mente ha già esaminato questo caso con questa domanda e NON ha trovato nulla di utilizzabile. Questo NON vuol dire che "
+    "non ci sia niente: vuol dire che non è stato visto da quell'angolo.\n"
+    "Non ripetere la sua strada. Cerca dove di solito non si guarda: termini processuali dimenticati, nullità formali, discordanze "
+    "fra i documenti, competenza, legittimazione delle parti, prove acquisite in modo inutilizzabile, contraddizioni nella posizione "
+    "della controparte.\n"
+    "Se anche così davvero non c'è niente, dillo chiaramente — una risposta vuota onesta vale più di una inventata."
+)
+
+
+def _testi_lente(p, case_block: str) -> tuple[str, str]:
+    """v9.648 — (system, user_template) della lente nella lingua del fascicolo: in un fascicolo IT il testo italiano, se c'è."""
+    if _e_it(case_block) and getattr(p, "system_it", "") and getattr(p, "user_template_it", ""):
+        return p.system_it, p.user_template_it
+    return p.system, p.user_template
+
+
+def _seconda_mente(key: str) -> dict:
+    """v9.648 — la seconda mente è l'ALTRA: Fable se la lente gira su Opus (come prima), Opus 5 max se gira già su Fable."""
+    if (_kw_lente(key).get("model_override") or "") == FABLE_MODEL:
+        return {"effort_override": "max"}
+    return {"model_override": FABLE_MODEL}
+
+
 def ritenta_con_fable(res: dict, p: Perspective, *, backend,
                       case_block: str, voice_samples_block: str = "",
                       case_id: str | None = None,
@@ -511,20 +660,22 @@ def ritenta_con_fable(res: dict, p: Perspective, *, backend,
     """
     if p.key not in LENTI_DA_RITENTARE or not _a_mani_vuote(res):
         return None
-    prompt = p.user_template.format(
+    _sys, _ut = _testi_lente(p, case_block)
+    prompt = _adatta_schema(_ut.format(
         case_block=case_block,
         voice_samples_block=voice_samples_block,
-    ) + SPRONE_FABLE
+    ), case_block) + (SPRONE_FABLE_IT if _e_it(case_block) else SPRONE_FABLE)
     t0 = time.monotonic()
     try:
         text = backend.complete(
-            system=_direttiva_gjuhe(case_block) + GENIO_JURISDICTION_GUARD + p.system,
+            system=_direttiva_gjuhe(case_block) + _guard(case_block) + _sys,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=p.max_tokens,
             callsite=f"genio:{p.key}:fable",
             case_id=case_id,
             attachments=attachments or None,
-            model_override=FABLE_MODEL,
+            **_seconda_mente(p.key),
+            **_web(case_block),
         )
     except Exception as e:  # noqa: BLE001
         log.warning("genio: secondo cervello fallito su %s: %s", p.key, e)
@@ -629,8 +780,11 @@ def _run_brief(*, backend, case_block: str, voice_samples_block: str,
             _runner_vero(p)
 
     threads: list[threading.Thread] = []
+    # v9.648 — la giurisdizione del fascicolo anche nei thread delle lenti: senza, il backend accodava a ogni lente di un
+    # fascicolo IT «[GJUHA E PËRGJIGJES: VETËM SHQIP…]» (l'ultima riga del messaggio: Opus 5 max ci ha scritto una lente)
+    from .brain import porta_contesto as _ctx
     for p in plist:
-        t = threading.Thread(target=_runner, args=(p,), daemon=True)
+        t = threading.Thread(target=_ctx(_runner), args=(p,), daemon=True)
         t.start()
         threads.append(t)
     for _ in plist:
@@ -741,18 +895,24 @@ def _blocco_precedente(briefs: list[dict] | None) -> list[str]:
     if not isinstance(per_lente, dict) or not per_lente:
         return []
     quando = (ultimo.get("completed_at") or ultimo.get("started_at") or "")[:10]
-    fuori = [
+    from .documents import _lingua_sessione
+    it = _lingua_sessione() == "it"
+    fuori = ([
+        f"\n━━━ GENIO PRECEDENTE ({quando}) ━━━",
+        "Questo caso è già stato analizzato. Sotto ci sono le conclusioni di allora.",
+        "NON RIPETERLE: parti da lì, di' cosa è CAMBIATO con i fatti nuovi, cosa regge, cosa cade e cosa non era stato visto.",
+    ] if it else [
         f"\n━━━ GJENIO I MËPARSHËM ({quando}) ━━━",
         "Ky rast është analizuar tashmë. Më poshtë janë përfundimet e atëhershme.",
         "MOS I PËRSËRIT: nis prej tyre, thuaj çfarë ka NDRYSHUAR me faktet e reja, "
         "çfarë qëndron, çfarë bie, dhe çfarë nuk ishte parë.",
-    ]
+    ])
     for chiave, ris in per_lente.items():
         grezzo = (ris or {}).get("raw") or ""
         if not grezzo.strip():
             continue
         fuori.append(f"\n[{chiave}] {grezzo.strip()[:700]}")
-    fuori.append("\n━━━ FUND I GJENIOS SË MËPARSHME ━━━")
+    fuori.append("\n━━━ FINE DEL GENIO PRECEDENTE ━━━" if it else "\n━━━ FUND I GJENIOS SË MËPARSHME ━━━")
     return fuori
 
 
@@ -760,21 +920,30 @@ def build_case_block(case, *, jurisdiction: str = "AL",
                      extra_description: str = "",
                      recent_messages: list[dict] | None = None,
                      documents: list[dict] | None = None,
-                     previous_briefs: list[dict] | None = None) -> str:
-    """Compose the human-readable case context block for prompts."""
+                     previous_briefs: list[dict] | None = None,
+                     articles_block: str = "") -> str:
+    """Compose the human-readable case context block for prompts.
+
+    v9.648: + `articles_block` — i nene del corpus del caso (il recupero del cervello, `web._genio_prepare`), che prima mancavano
+    del tutto: le sei menti citavano a memoria o dal web. Etichette nella lingua del fascicolo; i messaggi del filo fino a 1.500
+    caratteri (la testa della risposta del cervello è il verdetto: a 400 restava fuori)."""
+    it = (jurisdiction or "AL").upper() == "IT"
     parts: list[str] = []
-    parts.append(f"ÇËSHTJA: {case.title}")
+    parts.append(f"{'CASO' if it else 'ÇËSHTJA'}: {case.title}")
     parts.append(f"Juridiksioni: {jurisdiction}")
-    parts.append(f"Faza: {getattr(case, 'stage', 'intake')}")
+    parts.append(f"{'Fase' if it else 'Faza'}: {getattr(case, 'stage', 'intake')}")
     if extra_description:
-        parts.append("\nPËRSHKRIM (nga avokati):\n" + extra_description.strip())
+        parts.append(("\nDESCRIZIONE (dall'avvocato):\n" if it else "\nPËRSHKRIM (nga avokati):\n") + extra_description.strip())
     if documents:
         parts.extend(_blocco_documenti(documents))
     if recent_messages:
-        parts.append("\nFJALOSJA E FUNDIT (avokati ↔ Super Avvocato):")
+        parts.append("\nULTIMI MESSAGGI (avvocato ↔ Super Avokati):" if it else "\nFJALOSJA E FUNDIT (avokati ↔ Super Avokati):")
         for m in recent_messages[-6:]:
-            role = "Avokati" if m.get("role") == "user" else "AI"
-            content = (m.get("content") or "")[:400]
+            role = ("Avvocato" if it else "Avokati") if m.get("role") == "user" else "Super Avokati"
+            content = (m.get("content") or "")[:1500]
             parts.append(f"\n{role}: {content}")
+    if articles_block:
+        parts.append(("\nARTICOLI DEL CORPUS (testo vigente — cita solo da qui):\n" if it else
+                      "\nNENET E KORPUSIT (teksti zyrtar — cito vetëm prej këtu):\n") + articles_block.strip())
     parts.extend(_blocco_precedente(previous_briefs))
     return "\n".join(parts)

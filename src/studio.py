@@ -1101,16 +1101,19 @@ def mbledh_dosjen(backend, *, domanda, summary, retrieved, lang="sq", modeli="so
     ex = ThreadPoolExecutor(max_workers=3)
     t0 = _t.time()
     _tetto_proc = int(timeout_s) + 15   # v9.521: oltre il tetto il processo viene fermato, non lasciato a se stesso
+    # v9.648 — giurisdizione, utente e profilo della richiesta anche nei thread dei raccoglitori: senza, in sessione IT il
+    # backend accodava la riga «VETËM SHQIP» e la data albanese (i titoli albanesi delle fonti web venivano da qui)
+    from .brain import porta_contesto as _ctx
     if web:
-        lavori["web"] = ex.submit(mbledhesi_web, backend, domanda=domanda, summary=summary,
+        lavori["web"] = ex.submit(_ctx(mbledhesi_web), backend, domanda=domanda, summary=summary,
                                   retrieved=retrieved, lang=lang, modeli=modeli, effort=effort,
                                   budget_usd=budget_usd, case_id=case_id, timeout_s=_tetto_proc)
     if qbz:
-        lavori["qbz"] = ex.submit(mbledhesi_qbz, backend, retrieved=retrieved, lang=lang,
+        lavori["qbz"] = ex.submit(_ctx(mbledhesi_qbz), backend, retrieved=retrieved, lang=lang,
                                   modeli=modeli, effort=effort, budget_usd=budget_usd,
                                   case_id=case_id, timeout_s=_tetto_proc)
     if fletorja:
-        lavori["fletorja"] = ex.submit(mbledhesi_fletorja, backend, retrieved=retrieved,
+        lavori["fletorja"] = ex.submit(_ctx(mbledhesi_fletorja), backend, retrieved=retrieved,
                                        lang=lang, modeli=modeli, effort=effort,
                                        budget_usd=budget_usd, case_id=case_id, timeout_s=_tetto_proc)
     for emri, fut in lavori.items():

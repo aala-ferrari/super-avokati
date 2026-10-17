@@ -90,31 +90,20 @@ PRECEDENT_SYSTEM = (
 PRECEDENT_USER_TEMPLATE = """ÇËSHTJA AKTUALE E AVOKATIT:
 {case_description}
 
-VENDIMET E NGJASHME (renditur sipas relevancës BM25):
+VENDIMET E NGJASHME (renditur sipas përputhjes me çështjen):
 {precedents_block}
 
 DETYRA: Sintetizo nga këto vendime tre kova konkrete për avokatin:
 
-1. **moves_to_imitate** — lëvizjet që fituan çështje të ngjashme. Për "
-"secilën: cita vendimin specifik (nga lista lart), shpjego LËVIZJEN "
-"konkrete (jo abstrakte) dhe pse ka shanse të zbatohet edhe këtu.
+1. **moves_to_imitate** — lëvizjet që fituan çështje të ngjashme. Për secilën: cita vendimin specifik (nga lista lart), shpjego LËVIZJEN konkrete (jo abstrakte) dhe pse ka shanse të zbatohet edhe këtu.
 
-2. **traps_to_avoid** — gabimet që humbën çështje të ngjashme. Për "
-"secilin: cita vendimin specifik, përshkruaj GABIMIN konkret dhe "
-"sinjalin që e bën të rëndësishëm për çështjen aktuale.
+2. **traps_to_avoid** — gabimet që humbën çështje të ngjashme. Për secilin: cita vendimin specifik, përshkruaj GABIMIN konkret dhe sinjalin që e bën të rëndësishëm për çështjen aktuale.
 
-3. **kill_shot** — nëse ekziston një lëvizje të vetme me leve të lartë "
-"që mund të mbyllë çështjen (p.sh. një precedent unifikues, një "
-"kundërshtim procedural fitues, një provë e munguar e kundërshtarit), "
-"identifiko atë. Bosh nëse nuk ka.
+3. **kill_shot** — nëse ekziston një lëvizje të vetme me leve të lartë që mund të mbyllë çështjen (p.sh. një precedent unifikues, një kundërshtim procedural fitues, një provë e munguar e kundërshtarit), identifiko atë. Bosh nëse nuk ka.
 
-4. **per_precedent** — për secilin vendim të dhënë, një frazë (≤ 120 "
-"karaktere) që shpjegon pse është relevant për çështjen aktuale.
+4. **per_precedent** — për secilin vendim të dhënë, një frazë (≤ 120 karaktere) që shpjegon pse është relevant për çështjen aktuale.
 
-5. **divergence_warning** — nëse vendimet e ngjashme japin sinjale të "
-"përziera (gjyqe që fitojnë gjysmën, humbin gjysmën), përshkruaj "
-"variablin që duket të ndajë rezultatet. Bosh nëse pattern-i është "
-"i qartë.
+5. **divergence_warning** — nëse vendimet e ngjashme japin sinjale të përziera (gjyqe që fitojnë gjysmën, humbin gjysmën), përshkruaj variablin që duket të ndajë rezultatet. Bosh nëse pattern-i është i qartë.
 
 Kthe VETËM JSON të pastër me skemën:
 {{

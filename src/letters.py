@@ -19,7 +19,7 @@ Le lettere si dividono in due famiglie che NON vanno mai mescolate:
     a un'autorità e denuncia un illecito.
 
 Minacciare una segnalazione per ottenere un vantaggio è ESTORSIONE (art.
-629 c.p.; art. 109 K.Penal in Albania) e travolge il cliente insieme
+629 c.p.; neni 109/b i K.Penal in Albania) e travolge il cliente insieme
 all'avvocato. Ogni voce del catalogo dichiara la propria famiglia e il
 prompt vieta esplicitamente lo scambio: una diffida non nomina mai la
 denuncia come leva. Annunciare che si adiranno le vie legali, invece, è

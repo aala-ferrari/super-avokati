@@ -1678,7 +1678,9 @@ def main():
         _st35 = _io35.open(_os35.path.join(_rr35, "src", "storage.py"), encoding="utf-8").read()
         _js35 = _io35.open(_os35.path.join(_rr35, "static", "app.js"), encoding="utf-8").read()
         _i_gp = _w35.find("def _genio_prepare(")
-        _blk = _w35[_i_gp:_i_gp + 4200] if _i_gp > 0 else ""
+        # v9.648 — tutta la funzione (fino alla def seguente): con il Genio radicato è cresciuta oltre i 4.200 caratteri fissi
+        _f_gp = _w35.find("\ndef ", _i_gp + 10) if _i_gp > 0 else -1
+        _blk = _w35[_i_gp:(_f_gp if _f_gp > 0 else len(_w35))] if _i_gp > 0 else ""
         check("genio[35]: _genio_prepare accetta resume_brief_id e rifà solo il subset",
               "resume_brief_id=None" in _blk and "perspectives=plist" in _blk
               and "nothing_to_resume" in _blk and "seed_by_key" in _blk)
@@ -2222,7 +2224,8 @@ def main():
         _aj54 = _io54.open(_os54.path.join(_rr54, "static", "app.js"), encoding="utf-8").read()
         check("noteri[54]: verify_subject — status/red-flag/rete-persona + onesto (no QKB live) + endpoint + card",
               hasattr(_nt54, "verify_subject") and hasattr(_nt54, "_VERIFY_SUBJECT_SEED")
-              and ("ligji_shoqerite_tregtare", "147") in _nt54._VERIFY_SUBJECT_SEED
+              and ("ligji_shoqerite_tregtare", "96") in _nt54._VERIFY_SUBJECT_SEED
+              and ("ligji_shoqerite_tregtare", "147") not in _nt54._VERIFY_SUBJECT_SEED
               and "nuk lidhet live me QKB" in _nt54src and "likuidim" in _nt54src.lower()
               and "Verdikti" in _nt54src
               and "/api/notary/verify-subject" in _web54 and "subject_required" in _web54
@@ -12460,7 +12463,7 @@ r.senzaDoc = [clic(), status.textContent];
         _sha423 = {(c, n) for c, n, _p in _br423._ancore_rishikimi(
             "Shoqëria Alfa sh.a., përfaqësuar nga administratori Z. Arben Prova, autorizon Z. Ilir Prova të nënshkruajë kontratën.", "sq")}
         _okE = (("ligji_shoqerite_tregtare", "96") in _shpk423 and ("kodi_civil", "67") in _shpk423
-                and ("ligji_shoqerite_tregtare", "158") in _sha423 and ("ligji_shoqerite_tregtare", "96") not in _sha423
+                and ("ligji_shoqerite_tregtare", "159") in _sha423 and ("ligji_shoqerite_tregtare", "96") not in _sha423
                 and not any(c == "ligji_shoqerite_tregtare" for c, _n in _aal)
                 and all(_cv_esiste(idx, c, n) for c, n in _shpk423 | _sha423))
         check("rishikim[423]: le norme della revisione dal contenuto — «administratori i saj, z. …», la procura del privato per un "
@@ -13804,6 +13807,270 @@ const F = new Function("localStorage", "document", "fetch", "renderMarkdown", "_
               f"al={_okA451} it={_okB451} campi={_okC451} cablaggio={_okD451}")
     except Exception as _e451:  # noqa: BLE001
         check("memo[451]: kontrollet u ekzekutuan", False, f"{type(_e451).__name__}: {_e451}")
+
+    # [452] v9.648 — IL GENIO RADICATO. Dai dati di produzione: 12 brief «running» per sempre (uccisi da un riavvio), su 12 brief
+    # da agosto 2 completi, 41 lenti in errore (38 «Tetramorph i zënë», 3 a 1800 s), 10-17 minuti a lente — le sei menti navigavano
+    # senza tetto («Bëj SA kërkime web të duhen… mos kurse kohën») e il blocco del caso NON aveva un solo nene; in un fascicolo IT il
+    # guard diceva «applichi VETËM il diritto albanese»; nessuna verifica delle citazioni (l'unico cervello fuori dallo scudo).
+    try:
+        import inspect as _in452, json as _j452, tempfile as _tf452
+        from pathlib import Path as _P452
+        from src import genio as _g452, web as _w452, storage as _st452
+        _al452 = ArticleIndex.load()
+        _G452, _GI452 = _g452.GENIO_JURISDICTION_GUARD, _g452.GENIO_JURISDICTION_GUARD_IT
+        _okA452 = ("VEGLA WEB — DETYRUESHME" not in _G452 and "Kodit Rrugor 2024" not in _G452 and "mos kurse kohën" not in _G452
+                   and "NENET E KORPUSIT" in _G452 and "PA WEB" not in _G452 and "PA WEB" in _g452._guard("Juridiksioni: AL")
+                   and _g452._guard("Juridiksioni: IT").startswith(_GI452) and "ARTICOLI DEL CORPUS" in _GI452
+                   and "FORMA E CITIMIT" in _g452._guard("Juridiksioni: AL") and "FORMA DELLA CITAZIONE" in _g452._guard("Juridiksioni: IT")
+                   and "KUFI JURIDIKSIONAL" not in __import__("src.brain", fromlist=["x"]).apply_jurisdiction(_G452 + "Je analist.", "IT")
+                   and _GI452 in __import__("src.brain", fromlist=["x"]).apply_jurisdiction(_G452 + "Je analist.", "IT")
+                   and "SOLO il diritto italiano" in _GI452 and "shqiptar" not in _GI452.lower())
+
+        class _FB452:
+            def __init__(self): self.calls = []
+            def complete(self, system=None, messages=None, **kw):
+                self.calls.append((system or "", (messages or [{}])[-1].get("content", ""), kw))
+                return '{"alternatives": []}'
+        _fb452 = _FB452()
+        _p452 = next(p for p in _g452.PERSPECTIVES if p.key == "riframing")
+        _g452.run_perspective(_p452, backend=_fb452, case_block="ÇËSHTJA: x\nJuridiksioni: AL\n")
+        _g452.run_perspective(_p452, backend=_fb452, case_block="CASO: x\nJuridiksioni: IT\n")
+        (_sa, _ua, _ka), (_si, _ui, _ki) = _fb452.calls[-2], _fb452.calls[-1]
+        _okB452 = (_ka.get("no_web") is True and "no_web" not in _ki and "PA WEB" in _sa and "ARTICOLI DEL CORPUS" in _si
+                   and "KUFI JURIDIKSIONAL" not in _si and '"neni X KC"' in _ua and '"art. X c.c."' in _ui
+                   and '"art. X KC"' not in _ui and "(KC/KPC/Kushtetuta)" not in _ui and "'art. N (verifiko)'" not in _sa)
+        # le sei lenti col testo ITALIANO nel fascicolo IT (Opus 5 max scriveva le lenti in albanese dalle istruzioni albanesi),
+        # con le STESSE chiavi JSON del testo albanese (l'interfaccia legge quelle); l'albanese resta nel fascicolo AL
+        import re as _re452
+        _chiavi452 = lambda t: set(_re452.findall(r'"([a-z_]+)":', t))  # noqa: E731
+        _okB452 = (_okB452 and "Sei un socio senior" in _si and "RIFORMULAZIONI" in _ui and "socio senior" not in _sa
+                   and all(p.system_it and p.user_template_it and _chiavi452(p.user_template) == _chiavi452(p.user_template_it)
+                           and "Je " not in p.system_it[:40] for p in _g452.PERSPECTIVES)
+                   and "Juridiksioni" not in _g452._direttiva_gjuhe("Juridiksioni: IT")
+                   and "GJUHA" not in _g452._direttiva_gjuhe("Juridiksioni: IT"))
+        # la combinazione predefinita misurata senza env (Opus 5.5 high sulle lenti che trovano le norme, Sonnet 5.5 high sulle
+        # stime e sullo stile); «opus» nell'env = Opus 5 max come prima
+        import os as _os452
+        _env452 = {k: v for k, v in _os452.environ.items() if k.startswith("GENIO_MODEL") or k.startswith("GENIO_EFFORT")}
+        try:
+            for _k in _env452:
+                del _os452.environ[_k]
+            _d452 = _g452._kw_lente("kill_shot")
+            _ds452 = _g452._kw_lente("brutal_truth")
+            _os452.environ["GENIO_MODEL"] = "opus"
+            _o452 = _g452._kw_lente("kill_shot")
+            _os452.environ["GENIO_MODEL"] = "fable"
+            _sm452 = _g452._seconda_mente("kill_shot")
+        finally:
+            for _k in [k for k in _os452.environ if k.startswith("GENIO_MODEL") or k.startswith("GENIO_EFFORT")]:
+                del _os452.environ[_k]
+            _os452.environ.update(_env452)
+        _okB452 = (_okB452 and _d452 == {"model_override": "claude-opus-5-5", "effort_override": "high"} and _o452 == {}
+                   and _ds452 == {"medium": True, "effort_override": "high"} and _sm452 == {"effort_override": "max"})
+        _lev452 = next(p for p in _g452.PERSPECTIVES if p.key == "leverage")
+        _okB452 = _okB452 and "estorsione" in _lev452.system_it and "109/b" in _lev452.system
+        _fb452.calls.clear()
+        _g452.ritenta_con_fable({"kind": "error"}, _p452, backend=_fb452, case_block="CASO: x\nJuridiksioni: IT\n")
+        _g452.ritenta_con_fable({"kind": "error"}, _p452, backend=_fb452, case_block="ÇËSHTJA: x\nJuridiksioni: AL\n")
+        _okB452 = (_okB452 and len(_fb452.calls) == 2 and "Un'altra mente" in _fb452.calls[0][1]
+                   and "Sei un socio senior" in _fb452.calls[0][0] and "Një mendje tjetër" in _fb452.calls[1][1])
+
+        class _C452:
+            title, stage = "Caso prova", "intake"
+        _cbi = _g452.build_case_block(_C452(), jurisdiction="IT", recent_messages=[{"role": "assistant", "content": "V" * 1400}],
+                                      articles_block="ART-BLOCCO")
+        _cba = _g452.build_case_block(_C452(), jurisdiction="AL", articles_block="NENE-BLOKU")
+        _okC452 = ("ARTICOLI DEL CORPUS" in _cbi and "ART-BLOCCO" in _cbi and "Juridiksioni: IT" in _cbi and "CASO:" in _cbi
+                   and "V" * 1400 in _cbi and "NENET E KORPUSIT" in _cba and "NENE-BLOKU" in _cba and "Super Avvocato" not in _cba)
+
+        _r452 = {"kind": "json", "raw": "x", "parsed": {"alternatives": [{"legal_basis": ["neni 9999 i Kodit Civil",
+                                                                                         "neni 756 i Kodit Civil"]}]}}
+        _w452._verifica_lente_genio(_r452, _al452, {"kodi_civil"})
+        _lb452 = _r452["parsed"]["alternatives"][0]["legal_basis"]
+        _t452 = "Sipas nenit 9999 të Kodit Civil dhe nenit 756 të Kodit Civil, padia ngrihet brenda afatit."
+        _r452b = {"kind": "text", "parsed": None, "raw": _t452}
+        _w452._verifica_lente_genio(_r452b, _al452, None)
+        _okD452 = (_r452.get("citations", {}).get("fake") == 1 and _r452["citations"].get("verified") == 1
+                   and _lb452[0] != "neni 9999 i Kodit Civil" and _lb452[1] == "neni 756 i Kodit Civil"
+                   and _r452b.get("citations", {}).get("fake") == 1 and _r452b["raw"] != _t452)
+
+        # i lavori orfani di un riavvio si chiudono — su un DB temporaneo: il golden gira anche DENTRO la produzione
+        _db452 = _P452(_tf452.mkdtemp()) / "t.db"
+        _orig452 = _st452._connect
+        _st452._connect = lambda db_path=None: _orig452(_db452)
+        try:
+            _st452.init_db(_db452)
+            _u452 = _st452.create_user("g452@esempio.it", "x")
+            _c452 = _st452.create_case(_u452.id, "prova 452")
+            _b1 = _st452.create_genio_brief(case_id=_c452.id, user_id=_u452.id, description="", case_block="")
+            _b2 = _st452.create_genio_brief(case_id=_c452.id, user_id=_u452.id, description="", case_block="")
+            with _st452.db() as _cn452:
+                _cn452.execute("UPDATE genio_briefs SET by_key_json = ? WHERE id = ?",
+                               (_j452.dumps({"riframing": {"kind": "json"}, "voice": {"kind": "error"}}), _b2))
+            _n0 = _st452.chiudi_lavori_orfani("2000-01-01T00:00:00Z")
+            _n1 = _st452.chiudi_lavori_orfani("2999-01-01T00:00:00Z")
+            _s1, _s2 = _st452.get_genio_brief(_b1)["status"], _st452.get_genio_brief(_b2)["status"]
+            _st452.set_genio_case_block(_b1, "BLOCCO-NUOVO")
+            _cbx = _st452.get_genio_brief(_b1)["case_block"]
+        finally:
+            _st452._connect = _orig452
+        _okE452 = (_n0.get("genio_briefs") == 0 and _n1.get("genio_briefs") == 2 and _s1 == "error" and _s2 == "partial"
+                   and _cbx == "BLOCCO-NUOVO")
+
+        _sp452 = _in452.getsource(_w452._genio_prepare)
+        _sr452 = _in452.getsource(_w452._riprendi_lavori_interrotti)
+        _js452 = open("/app/static/app.js", encoding="utf-8").read()
+        _okF452 = ("_nene_per_genio(_fatti_genio" in _sp452 and "_verifica_lente_genio(r, _idx_genio, codici_genio)" in _sp452
+                   and "storage.set_genio_case_block(brief_id, case_block)" in _sp452 and "nonlocal case_block, codici_genio" in _sp452
+                   and "_nenet_per_djallin" not in _sp452 and "chiudi_lavori_orfani(_AVVIO_PROCESSO)" in _sr452
+                   and _sr452.index("chiudi_lavori_orfani") < _sr452.index("time.sleep(attesa_s)")
+                   and "_genioRigaCitazioni(res.citations)" in _js452 and '_CAL_IT ? "errore" : "gabim"' in _js452
+                   and "_GN_ST[b.status]" in _js452 and "Win prob:" not in _js452 and "EV totale:" not in _js452
+                   and "lista(k.legal_anchor)" in _js452 and "lista(a.legal_basis)" in _js452 and "lista(l.legal_basis)" in _js452
+                   and "REK[p.honest_recommendation]" in _js452)
+        check("genio[452]: il Genio cita dai nene del corpus nel blocco del caso (cercati nel thread del lavoro), niente web in "
+              "Albania, il guard della giurisdizione del fascicolo, ogni lente verificata, i brief orfani di un riavvio chiusi",
+              _okA452 and _okB452 and _okC452 and _okD452 and _okE452 and _okF452,
+              f"guard={_okA452} lenti={_okB452} blocco={_okC452} verifica={_okD452} orfani={_okE452} cablaggio={_okF452}")
+    except Exception as _e452:  # noqa: BLE001
+        check("genio[452]: kontrollet u ekzekutuan", False, f"{type(_e452).__name__}: {_e452}")
+
+    # [453] v9.648 — GLI ARTICOLI SCRITTI NEL CODICE DEVONO DIRE CIÒ CHE IL CODICE CREDE. Il controllo della firma del corporate
+    # citava «9901/2008 Neni 147 (administrator), Neni 167 (prokurist), Neni 120 (fuqia e nënshkrimit)» — 147 è il diritto di voto,
+    # 167 il consiglio di sorveglianza, 120 il trasferimento delle azioni (esistono: il verificatore li dava per buoni); la KYC
+    # «Neni 167» per la procura e «Neni 6» (sviluppi tecnologici) per il bilancio e l'origine dei fondi; la verifica del soggetto del
+    # notaio seminava 147/167; la revisione della SHA il 158 (nomina) invece del 159 (rappresentanza); la KYC in sessione IT era
+    # albanese. Ogni articolo citato qui si controlla sul corpus con la sua RUBRICA.
+    try:
+        import re as _re453
+        from pathlib import Path as _P453
+        from src import corporate as _co453, notary as _nt453, brain as _br453
+        _it453 = ArticleIndex.load(_P453("/app/data/index/bm25_it.pkl"))
+        _rub = lambda ix, c, n: next((a.heading or "") for a in ix.articles if a.code == c and str(a.number) == str(n))
+        _okA453 = ("Neni 147 (administrator)" not in _co453._GATE_SYSTEM and "neni 96" in _co453._GATE_SYSTEM
+                   and "neni 159" in _co453._GATE_SYSTEM and _rub(idx, "ligji_shoqerite_tregtare", "96") == "Përfaqësimi"
+                   and _rub(idx, "ligji_shoqerite_tregtare", "159") == "Përfaqësimi"
+                   and "Kompetencat e organeve" in _rub(idx, "ligji_shoqerite_tregtare", "12"))
+        _basi_al = " ".join(r["basis"] for r in _co453._KYC_REQS)
+        _okB453 = ("9901/2008 Neni 167" not in _basi_al and "Neni 6" not in _basi_al and "neni 4/1" in _basi_al
+                   and _rub(idx, "ligji_pastrimi_parave", "4/1").startswith("Masat e vigjilencës")
+                   and _rub(idx, "ligji_pastrimi_parave", "5").startswith("Dokumentacioni")
+                   and "përfaqësimi me prokurë" in _rub(idx, "kodi_civil", "70").lower())
+        _k = _co453.kyc_checklist([], ["visura", "procura"], lang="it")
+        _lab = " ".join(r["label"] for r in _k["checklist"])
+        _okC453 = ("Visura camerale" in _lab and "titolare effettivo" in _lab and not _re453.search(r"[ëçË]", _lab)
+                   and all("231/2007" in r["basis"] or "c.c." in r["basis"] for r in _k["checklist"])
+                   and _rub(_it453, "antiriciclaggio", "18").startswith("Contenuto degli obblighi")
+                   and "titolarità effettiva" in _rub(_it453, "antiriciclaggio", "20")
+                   and "rafforzata" in _rub(_it453, "antiriciclaggio", "24") and _rub(_it453, "codice_civile", "1392") == "Forma della procura"
+                   and _rub(_it453, "codice_civile", "2206") == "Pubblicità della procura"
+                   and any(r["id"] == "prokura" and r["present"] for r in _k["checklist"]))
+        _okD453 = (("ligji_shoqerite_tregtare", "147") not in _nt453._VERIFY_SUBJECT_SEED
+                   and {("ligji_shoqerite_tregtare", "96"), ("ligji_shoqerite_tregtare", "159")} <= set(_nt453._VERIFY_SUBJECT_SEED)
+                   and all(_cv_esiste(idx, c, n) for c, n in _nt453._VERIFY_SUBJECT_SEED + _nt453._VERIFY_SUBJECT_LIKUIDIM)
+                   and "likuidues" in _rub(idx, "ligji_shoqerite_tregtare", "191").lower())
+        _sha = {(c, n) for c, n, _p in _br453._ancore_rishikimi(
+            "Shoqëria Beta sh.a., përfaqësuar nga administratori Z. Gent Prova, autorizon Z. Luan Prova.", "sq")}
+        _okE453 = ("ligji_shoqerite_tregtare", "159") in _sha and ("ligji_shoqerite_tregtare", "158") not in _sha
+        import inspect as _in453
+        from src import web as _w453
+        _okE453 = _okE453 and all("_resolve_case(case_id)" in _in453.getsource(getattr(_w453, _f)) for _f in (
+            "api_corporate_extract", "api_corporate_gatekeeper", "api_corporate_kyc", "api_corporate_list", "api_bench_memo_run",
+            "api_postmortem_run", "api_lessons_relevant")) and "_annota_json_campi(result" in _in453.getsource(_w453.api_corporate_gatekeeper)
+        check("norme[453]: gli articoli della legge sulle società e dell'antiriciclaggio scritti nel codice sono quelli veri "
+              "(rappresentanza 12/96/159, KYC 9917 artt. 4/1-5-8, KC 70), la KYC italiana dal D.Lgs. 231/2007, la SHA col 159",
+              _okA453 and _okB453 and _okC453 and _okD453 and _okE453,
+              f"firma={_okA453} kyc_al={_okB453} kyc_it={_okC453} soggetto={_okD453} sha={_okE453}")
+    except Exception as _e453:  # noqa: BLE001
+        check("norme[453]: kontrollet u ekzekutuan", False, f"{type(_e453).__name__}: {_e453}")
+
+    # [454] v9.648 — LE DIMISSIONI TELEMATICHE nel corpus italiano: il d.lgs. 151/2015 (art. 26: dimissioni valide solo con la procedura
+    # telematica; c. 7-bis dalla L. 203/2024: l'assenza ingiustificata oltre 15 giorni vale dimissioni, salvo il fatto imputabile al
+    # datore) non c'era — c'era il d.lgs. 151/2001 (maternità), un altro atto. Nel licenziamento orale con la società che dice «si è
+    # dimesso» è la norma decisiva. Nel verificatore per numero/anno e un'ancora dalla domanda (mai la dimissione dall'ospedale).
+    try:
+        from pathlib import Path as _P454
+        from src import citation_verifier as _cv454, brain as _br454
+        _it454 = ArticleIndex.load(_P454("/app/data/index/bm25_it.pkl"))
+        _by454 = {(a.code, str(a.number)): a for a in _it454.articles}
+        _a26 = _by454.get(("semplificazioni_lavoro", "26"))
+        _okA454 = (_a26 is not None and "telematic" in (_a26.body or "") and "7-bis" in (_a26.body or "")
+                   and "assenza ingiustificata" in (_a26.body or "") and "((" not in (_a26.body or ""))
+        _st454 = lambda t: {(i.get("status"), i.get("code")) for i in _cv454.verify_text(t, _it454).get("items", [])}
+        _okB454 = (("verified", "semplificazioni_lavoro") in _st454("Le dimissioni sono inefficaci senza la procedura dell'art. 26 d.lgs. 151/2015.")
+                   and ("verified", "maternita_paternita") in _st454("Si applica l'art. 55 d.lgs. 151/2001."))
+        _dom = lambda q: {(a.code, str(a.number)) for a, _ in _br454._applica_ancore([], _it454, [q], ["Lavoro"], ancore=_br454.ANCORE_IT)}
+        _okC454 = (("semplificazioni_lavoro", "26") in _dom("Licenziato a voce: la società sostiene che il lavoratore si è dimesso.")
+                   and ("semplificazioni_lavoro", "26") not in _dom("Il paziente è stato dimesso dall'ospedale dopo l'intervento sbagliato."))
+        check("dimissioni[454]: il d.lgs. 151/2015 nel corpus (art. 26 col c. 7-bis), nel verificatore distinto dal d.lgs. 151/2001, "
+              "l'ancora dalla domanda e mai per la dimissione dall'ospedale", _okA454 and _okB454 and _okC454,
+              f"corpus={_okA454} verificatore={_okB454} ancora={_okC454}")
+    except Exception as _e454:  # noqa: BLE001
+        check("dimissioni[454]: kontrollet u ekzekutuan", False, f"{type(_e454).__name__}: {_e454}")
+
+    # [455] v9.648 — LINGUA = SESSIONE nei thread PARALLELI e nella risposta breve. Registrando i prompt veri di una domanda in
+    # sessione IT (17 ott): i raccoglitori web/QBZ/Gazzetta ricevevano in coda «[DATA E SOTME…]» e «[GJUHA E PËRGJIGJES: VETËM
+    # SHQIP…]» (il loro thread non ereditava la giurisdizione), e così le sei lenti del Genio (Opus 5 max ha scritto una lente
+    # intera in albanese); la risposta breve aveva il prompt albanese («Cito nenet … "Neni X i Kodit Y"») e l'etichetta delle
+    # ancore italiane era «⚑ RREGULL E PËRGJITHSHME».
+    try:
+        import inspect as _in455, threading as _th455
+        from src import studio as _s455, genio as _g455, claims as _c455, web as _w455, backends as _b455
+        from src import brain as _br455
+        _br455.set_request_jurisdiction("IT")
+
+        class _FB455:
+            def __init__(self): self.giur, self.coda = [], []
+            def complete(self, system=None, messages=None, **kw):
+                self.giur.append(_br455.request_jurisdiction())
+                self.coda.append(_b455._direttiva_gjuhe((messages or [{}])[-1].get("content", "") or "x")[-160:])
+                return '{"akte_nenligjore": [], "burime": [], "alternatives": [], "kill_shots": [], "leverage_points": []}'
+        _fb455 = _FB455()
+        _s455.mbledh_dosjen(_fb455, domanda="Domanda di prova", summary="", retrieved=[], lang="it", web=True, qbz=False,
+                            fletorja=False, timeout_s=20)
+        _okA455 = bool(_fb455.giur) and set(_fb455.giur) == {"IT"} and all("SHQIP" not in c for c in _fb455.coda)
+        _fb455b = _FB455()
+        for _ev in _g455.run_brief(backend=_fb455b, case_block="CASO: prova\nJuridiksioni: IT\n", voice_samples_block="",
+                                   perspectives=list(_g455.PERSPECTIVES)):
+            pass
+        _okB455 = len(_fb455b.giur) >= 6 and set(_fb455b.giur) == {"IT"} and all("SHQIP" not in c for c in _fb455b.coda)
+        _box455 = []
+        _t455 = _th455.Thread(target=_br455.porta_contesto(lambda: _box455.append(_br455.request_jurisdiction())))
+        _t455.start(); _t455.join()
+        _okC455 = (_box455 == ["IT"] and "_ctx(mbledhesi_web)" in _in455.getsource(_s455.mbledh_dosjen)
+                   and "_ctx(mbledhesi_qbz)" in _in455.getsource(_s455.mbledh_dosjen)
+                   and "_ctx(mbledhesi_fletorja)" in _in455.getsource(_s455.mbledh_dosjen)
+                   and "target=_ctx(_runner)" in _in455.getsource(_g455._run_brief)
+                   and "_ctx(self._run)" in _in455.getsource(_c455.Ombra.__init__)
+                   and "porta_contesto(_nje)" in _in455.getsource(_w455)
+                   and "porta_contesto" in _in455.getsource(_br455.porta_contesto) )
+        _si455 = _br455.ANSWER_SIMPLE_SYSTEM_IT
+        _sb455 = _in455.getsource(_br455.SuperAvvocato._compose_simple_answer)
+        _ss455 = _in455.getsource(_br455.SuperAvvocato.answer_stream)
+        _okD455 = ("NON TROVATO NON VUOL DIRE CHE NON ESISTE" in _si455 and "shqip" not in _si455.lower()
+                   and "Neni" not in _si455 and "qbz" not in _si455.lower() and "Neni" not in _br455._SIMPLE_PROMPT_IT
+                   and "ANSWER_SIMPLE_SYSTEM_IT if _it_s else ANSWER_SIMPLE_SYSTEM" in _sb455
+                   and "ANSWER_SIMPLE_SYSTEM_IT if _it_s else ANSWER_SIMPLE_SYSTEM" in _ss455
+                   and "_SIMPLE_PROMPT_IT.format(" in _sb455 and "_SIMPLE_PROMPT_IT.format(" in _ss455)
+        import copy as _cp455
+        _ait455 = next(a for a in ArticleIndex.load(__import__("pathlib").Path("/app/data/index/bm25_it.pkl")).articles
+                       if a.code == "codice_civile" and str(a.number) == "2946")
+        _aal455 = next(a for a in ArticleIndex.load().articles if a.code == "kodi_civil" and str(a.number) == "114")
+        _ait455, _aal455 = _cp455.copy(_ait455), _cp455.copy(_aal455)
+        _ait455._ancora = True
+        _aal455._ancora = True
+        _fit455 = _br455._format_articles_for_prompt([(_ait455, 1.0)])
+        _fal455 = _br455._format_articles_for_prompt([(_aal455, 1.0)])
+        _okE455 = ("⚑ REGOLA GENERALE" in _fit455 and "RREGULL" not in _fit455 and "nuk u gjet" not in _fit455
+                   and "⚑ RREGULL E PËRGJITHSHME" in _fal455)
+        _br455.set_request_jurisdiction("AL")
+        check("lingua[455]: in sessione IT i thread paralleli (raccoglitori, lenti del Genio, celle, ombra) portano la "
+              "giurisdizione — mai più «VETËM SHQIP» in coda —, la risposta breve ha il suo testo italiano, le ancore "
+              "italiane l'etichetta italiana", _okA455 and _okB455 and _okC455 and _okD455 and _okE455,
+              f"raccoglitori={_okA455} genio={_okB455} cablaggio={_okC455} breve={_okD455} ancore={_okE455} "
+              f"giur={sorted(set(_fb455.giur))}/{sorted(set(_fb455b.giur))}")
+    except Exception as _e455:  # noqa: BLE001
+        check("lingua[455]: kontrollet u ekzekutuan", False, f"{type(_e455).__name__}: {_e455}")
 
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
