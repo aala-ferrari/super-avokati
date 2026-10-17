@@ -686,6 +686,11 @@ def api_provision_demo():
         modules = None
     if not email or not code:
         return jsonify({"error": "missing email/code"}), 400
+    # v9.651 — l'approvazione AUTOMATICA dei lead di AALA crea solo account NUOVI: su un'email che esiste già,
+    # provision_account reimposta password e abbonamento (un cliente pagante tornerebbe in prova, e chiunque col modulo
+    # della prova potrebbe far cambiare la password di un altro) → 409 senza toccare niente: decide l'admin a mano
+    if data.get("solo_nuovo") and storage.get_user_by_username(email) is not None:
+        return jsonify({"error": "exists"}), 409
     from .auth import hash_password
     try:
         expires = storage.provision_account(email, hash_password(code),

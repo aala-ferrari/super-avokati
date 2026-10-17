@@ -14116,6 +14116,42 @@ const F = new Function("localStorage", "document", "fetch", "renderMarkdown", "_
     except Exception as _e457:  # noqa: BLE001
         check("genio[457]: kontrollet u ekzekutuan", False, f"{type(_e457).__name__}: {_e457}")
 
+    # [458] v9.651 — L'APPROVAZIONE AUTOMATICA DEI LEAD crea solo account NUOVI: provision_account su un'email esistente
+    # reimposta password e abbonamento; con «solo_nuovo» la rotta risponde 409 e non tocca niente. Eseguito col client di
+    # prova di Flask, utenti e creazione simulati (niente DB).
+    try:
+        import os as _os458
+        from src import web as _w458, storage as _st458
+        _sec458 = "golden-458-segreto"
+        _vecchio458 = _os458.environ.get("DEMO_PROVISION_SECRET")
+        _os458.environ["DEMO_PROVISION_SECRET"] = _sec458
+        _chiamate458 = []
+        _og458, _op458 = _st458.get_user_by_username, _st458.provision_account
+        _st458.get_user_by_username = lambda u: object() if u.strip().lower() == "esiste@esempio.al" else None
+        _st458.provision_account = lambda *a, **k: (_chiamate458.append((a, k)) or "2026-10-24T00:00:00Z")
+        try:
+            _c458 = _w458.app.test_client()
+            _h458 = {"X-Provision-Secret": _sec458}
+            _r1 = _c458.post("/api/provision-demo", json={"email": "Esiste@Esempio.al", "code": "X-1", "solo_nuovo": True}, headers=_h458)
+            _r2 = _c458.post("/api/provision-demo", json={"email": "nuovo@esempio.al", "code": "X-2", "solo_nuovo": True,
+                                                          "modules": ["noter"]}, headers=_h458)
+            _r3 = _c458.post("/api/provision-demo", json={"email": "Esiste@Esempio.al", "code": "X-3"}, headers=_h458)
+            _r4 = _c458.post("/api/provision-demo", json={"email": "nuovo@esempio.al", "code": "X-4", "solo_nuovo": True},
+                             headers={"X-Provision-Secret": "sbagliato"})
+        finally:
+            _st458.get_user_by_username, _st458.provision_account = _og458, _op458
+            if _vecchio458 is None:
+                _os458.environ.pop("DEMO_PROVISION_SECRET", None)
+            else:
+                _os458.environ["DEMO_PROVISION_SECRET"] = _vecchio458
+        check("lead[458]: la creazione dell'account con «solo_nuovo» rifiuta (409) un'email che esiste già e non la tocca; "
+              "senza, come prima; il segreto resta obbligatorio",
+              _r1.status_code == 409 and _r2.status_code == 200 and _r3.status_code == 200 and _r4.status_code == 403
+              and len(_chiamate458) == 2 and _chiamate458[0][1].get("modules") == ["noter"],
+              f"r1={_r1.status_code} r2={_r2.status_code} r3={_r3.status_code} r4={_r4.status_code} chiamate={len(_chiamate458)}")
+    except Exception as _e458:  # noqa: BLE001
+        check("lead[458]: kontrollet u ekzekutuan", False, f"{type(_e458).__name__}: {_e458}")
+
     print("\n== Përfundim: %d kaluan, %d dështuan ==" % (PASSES, len(FAILS)))
     if FAILS:
         print("DËSHTIME:", ", ".join(FAILS))
